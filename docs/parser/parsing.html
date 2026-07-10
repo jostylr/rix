@@ -1,0 +1,2843 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>RiX Language Parser Documentation - RiX Language Parser</title>
+        <style>
+            :root {
+                --primary-color: #2563eb;
+                --secondary-color: #1e40af;
+                --text-color: #1f2937;
+                --bg-color: #ffffff;
+                --code-bg: #f3f4f6;
+                --border-color: #e5e7eb;
+                --header-bg: #f9fafb;
+            }
+
+            * {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
+
+            body {
+                font-family:
+                    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                    "Helvetica Neue", Arial, sans-serif;
+                line-height: 1.6;
+                color: var(--text-color);
+                background-color: var(--bg-color);
+                min-height: 100vh;
+                display: flex;
+                flex-direction: column;
+            }
+
+            header {
+                background-color: var(--header-bg);
+                border-bottom: 1px solid var(--border-color);
+                padding: 1rem 0;
+                position: sticky;
+                top: 0;
+                z-index: 100;
+            }
+
+            .header-content {
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 0 2rem;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+            }
+
+            .logo {
+                display: flex;
+                align-items: center;
+                gap: 1rem;
+                text-decoration: none;
+                color: var(--text-color);
+            }
+
+            .logo img {
+                height: 40px;
+                width: auto;
+            }
+
+            .logo h1 {
+                font-size: 1.5rem;
+                font-weight: 700;
+            }
+
+            nav {
+                display: flex;
+                gap: 2rem;
+            }
+
+            nav a {
+                color: var(--text-color);
+                text-decoration: none;
+                font-weight: 500;
+                transition: color 0.2s;
+            }
+
+            nav a:hover {
+                color: var(--primary-color);
+            }
+
+            main {
+                flex: 1;
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 2rem;
+                width: 100%;
+            }
+
+            .sidebar {
+                position: fixed;
+                left: 0;
+                top: 73px;
+                width: 250px;
+                height: calc(100vh - 73px);
+                overflow-y: auto;
+                padding: 2rem 1rem;
+                background-color: var(--header-bg);
+                border-right: 1px solid var(--border-color);
+            }
+
+            .sidebar h2 {
+                font-size: 0.875rem;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                color: #6b7280;
+                margin-bottom: 1rem;
+            }
+
+            .sidebar ul {
+                list-style: none;
+            }
+
+            .sidebar li {
+                margin-bottom: 0.5rem;
+            }
+
+            .sidebar a {
+                color: var(--text-color);
+                text-decoration: none;
+                font-size: 0.875rem;
+                display: block;
+                padding: 0.25rem 0.5rem;
+                border-radius: 0.25rem;
+                transition: background-color 0.2s;
+            }
+
+            .sidebar a:hover {
+                background-color: var(--border-color);
+            }
+
+            .sidebar a.active {
+                background-color: var(--primary-color);
+                color: white;
+            }
+
+            .content {
+                margin-left: 250px;
+                padding: 2rem;
+                max-width: 900px;
+            }
+
+            .content h1 {
+                font-size: 2.5rem;
+                margin-bottom: 1rem;
+                color: var(--text-color);
+            }
+
+            .content h2 {
+                font-size: 2rem;
+                margin-top: 2rem;
+                margin-bottom: 1rem;
+                color: var(--text-color);
+            }
+
+            .content h3 {
+                font-size: 1.5rem;
+                margin-top: 1.5rem;
+                margin-bottom: 0.75rem;
+                color: var(--text-color);
+            }
+
+            .content p {
+                margin-bottom: 1rem;
+            }
+
+            .content code {
+                background-color: var(--code-bg);
+                padding: 0.125rem 0.25rem;
+                border-radius: 0.25rem;
+                font-family: "Consolas", "Monaco", "Courier New", monospace;
+                font-size: 0.875em;
+            }
+
+            .content pre {
+                background-color: var(--code-bg);
+                padding: 1rem;
+                border-radius: 0.5rem;
+                overflow-x: auto;
+                margin-bottom: 1rem;
+            }
+
+            .content pre code {
+                background-color: transparent;
+                padding: 0;
+            }
+
+            .content ul,
+            .content ol {
+                margin-bottom: 1rem;
+                padding-left: 2rem;
+            }
+
+            .content li {
+                margin-bottom: 0.25rem;
+            }
+
+            .content a {
+                color: var(--primary-color);
+                text-decoration: none;
+            }
+
+            .content a:hover {
+                text-decoration: underline;
+            }
+
+            .content blockquote {
+                border-left: 4px solid var(--primary-color);
+                padding-left: 1rem;
+                margin: 1rem 0;
+                color: #6b7280;
+                font-style: italic;
+            }
+
+            .content table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-bottom: 1rem;
+            }
+
+            .content th,
+            .content td {
+                border: 1px solid var(--border-color);
+                padding: 0.5rem;
+                text-align: left;
+            }
+
+            .content th {
+                background-color: var(--header-bg);
+                font-weight: 600;
+            }
+
+            footer {
+                background-color: var(--header-bg);
+                border-top: 1px solid var(--border-color);
+                padding: 2rem;
+                text-align: center;
+                color: #6b7280;
+                font-size: 0.875rem;
+            }
+
+            @media (max-width: 768px) {
+                .sidebar {
+                    display: none;
+                }
+
+                .content {
+                    margin-left: 0;
+                    padding: 1rem;
+                }
+
+                .header-content {
+                    padding: 0 1rem;
+                }
+
+                nav {
+                    display: none;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <header>
+            <div class="header-content">
+                <a href="../" class="logo">
+                    <img src="../rix-logo.png" alt="RiX Logo" />
+                    <h1>RiX Language Parser</h1>
+                </a>
+                <nav>
+                    <a href="/">Home</a>
+                    <a href="/docs.html">Documentation</a>
+                    <a href="/demo.html">Demo</a>
+                    <a href="https://github.com/rix-lang/parser">GitHub</a>
+                </nav>
+            </div>
+        </header>
+
+        <aside class="sidebar">
+            <h2>Documentation</h2>
+            <ul>
+                <li><a href="docs.html/">Overview</a></li>
+                <li><a href="architecture.html">Architecture</a></li>
+                <li><a href="parsing.html">Parsing</a></li>
+                <li><a href="AST-brief.html">AST Structure</a></li>
+                <li><a href="three-tier-system.html">Three-Tier System</a></li>
+                <li>
+                    <a href="function-definitions-summary.html">Functions</a>
+                </li>
+                <li>
+                    <a href="array-generators-implementation.html"
+                        >Array Generators</a
+                    >
+                </li>
+                <li>
+                    <a href="matrix-tensor-implementation.html"
+                        >Matrix & Tensor</a
+                    >
+                </li>
+                <li>
+                    <a href="brace-containers-README.html">Brace Containers</a>
+                </li>
+                <li><a href="embedded-parsing.html">Embedded Parsing</a></li>
+                <li><a href="ternary-operator.html">Ternary Operator</a></li>
+                <li>
+                    <a href="unit-notation-migration.html">Unit Notation</a>
+                </li>
+            </ul>
+        </aside>
+
+        <main class="content">
+            <!-- Markdown content will be inserted here -->
+            <div id="markdown-content"><h1>RiX Language Parser Documentation</h1>
+<h2>Overview</h2>
+<p>The RiX parser is a Pratt parser implementation that converts tokenized RiX code into Abstract Syntax Trees (ASTs). It handles the full spectrum of RiX language features including mathematical expressions, assignments, function calls, pipe operations, metadata annotations, comments, and more.</p>
+<h2>Architecture</h2>
+<h3>Pratt Parser Design</h3>
+<p>The parser uses the Pratt parsing technique (also known as &quot;Top Down Operator Precedence&quot;) which provides:</p>
+<ul>
+<li><strong>Elegant precedence handling</strong>: Operators are assigned numeric precedence values</li>
+<li><strong>Extensible design</strong>: New operators can be easily added to the symbol table</li>
+<li><strong>Left/right associativity</strong>: Configurable associativity for each operator</li>
+<li><strong>Flexible syntax</strong>: Supports prefix, infix, and postfix operators</li>
+</ul>
+<h3>Core Components</h3>
+<ol>
+<li><strong>Symbol Table</strong>: Defines operators, their precedence, and associativity</li>
+<li><strong>Parser Class</strong>: Main parsing logic with expression and statement parsing</li>
+<li><strong>AST Nodes</strong>: Structured representations of parsed code</li>
+<li><strong>System Lookup</strong>: Integration point for extending language semantics</li>
+</ol>
+<h2>Usage</h2>
+<h3>Basic Usage</h3>
+<pre><code class="language-javascript">import { tokenize } from &#39;./src/tokenizer.js&#39;;
+import { parse } from &#39;./src/parser.js&#39;;
+
+// Define system identifier lookup
+function systemLookup(name) {
+    const systemSymbols = {
+        &#39;SIN&#39;: { type: &#39;function&#39;, arity: 1 },
+        &#39;PI&#39;: { type: &#39;constant&#39;, value: Math.PI },
+        &#39;AND&#39;: { type: &#39;operator&#39;, precedence: 40, associativity: &#39;left&#39;, operatorType: &#39;infix&#39; }
+    };
+    return systemSymbols[name] || { type: &#39;identifier&#39; };
+}
+
+// Parse RiX code
+const code = &quot;x := SIN(PI / 2) + 1;&quot;;
+const tokens = tokenize(code);
+const ast = parse(tokens, systemLookup);
+</code></pre>
+<h3>System Lookup Function</h3>
+<p>The system lookup function is crucial for handling System identifiers (capitalized identifiers). It should return an object describing the identifier&#39;s role:</p>
+<pre><code class="language-javascript">function systemLookup(name) {
+    return {
+        type: &#39;function&#39; | &#39;constant&#39; | &#39;operator&#39; | &#39;control&#39; | &#39;special&#39; | &#39;identifier&#39;,
+
+        // For functions
+        arity: number,          // Number of arguments (-1 for variadic)
+
+        // For constants
+        value: any,             // The constant value
+
+        // For operators
+        precedence: number,     // Operator precedence (0-200)
+        associativity: &#39;left&#39; | &#39;right&#39;,
+        operatorType: &#39;infix&#39; | &#39;prefix&#39; | &#39;postfix&#39;,
+
+        // Additional metadata
+        description: string,
+        // ... other properties
+    };
+}
+</code></pre>
+<h2>Operator Precedence</h2>
+<p>The parser uses the following precedence hierarchy (higher numbers bind tighter):</p>
+<table>
+<thead>
+<tr>
+<th>Precedence</th>
+<th>Operators</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>130</td>
+<td><code>.</code></td>
+<td>Property access</td>
+</tr>
+<tr>
+<td>120</td>
+<td><code>@</code>, <code>?</code>, <code>()</code>, <code>[]</code>, <code>~[</code>, <code>~{</code></td>
+<td>Postfix operators, function calls, array access, unit operators</td>
+</tr>
+<tr>
+<td>110</td>
+<td>unary <code>+</code>, <code>-</code>, <code>NOT</code></td>
+<td>Unary operators</td>
+</tr>
+<tr>
+<td>100</td>
+<td><code>^</code>, <code>**</code></td>
+<td>Exponentiation (right associative)</td>
+</tr>
+<tr>
+<td>90</td>
+<td><code>*</code>, <code>/</code>, <code>//</code>, <code>%</code>, <code>/^</code>, <code>/~</code>, <code>/%</code></td>
+<td>Multiplication, division</td>
+</tr>
+<tr>
+<td>80</td>
+<td><code>+</code>, <code>-</code></td>
+<td>Addition, subtraction</td>
+</tr>
+<tr>
+<td>70</td>
+<td><code>:</code></td>
+<td>Interval operator</td>
+</tr>
+<tr>
+<td>60</td>
+<td><code>&lt;</code>, <code>&gt;</code>, <code>&lt;=</code>, <code>&gt;=</code>, <code>?&lt;</code>, <code>?&gt;</code>, etc.</td>
+<td>Comparison</td>
+</tr>
+<tr>
+<td>50</td>
+<td><code>=</code>, <code>?=</code>, <code>!=</code>, <code>==</code></td>
+<td>Equality</td>
+</tr>
+<tr>
+<td>40</td>
+<td><code>AND</code></td>
+<td>Logical AND</td>
+</tr>
+<tr>
+<td>30</td>
+<td><code>OR</code></td>
+<td>Logical OR</td>
+</tr>
+<tr>
+<td>20</td>
+<td><code>|&gt;</code>, <code>||&gt;</code>, <code>|&gt;&gt;</code>, <code>|&gt;:</code>, <code>|&gt;?</code>, etc.</td>
+<td>Pipe operations</td>
+</tr>
+<tr>
+<td>10</td>
+<td><code>:=</code>, <code>:=:</code>, <code>:&gt;:</code>, <code>:&lt;:</code>, <code>-&gt;</code>, <code>=&gt;</code></td>
+<td>Assignment, equations</td>
+</tr>
+<tr>
+<td>5</td>
+<td><code>,</code></td>
+<td>Comma separator</td>
+</tr>
+<tr>
+<td>0</td>
+<td><code>;</code></td>
+<td>Statement separator</td>
+</tr>
+</tbody></table>
+<h2>AST Node Types</h2>
+<h3>Core Node Structure</h3>
+<p>All AST nodes have these base properties:</p>
+<pre><code class="language-javascript">{
+    type: string,           // Node type identifier
+    pos: [start, delim, end], // Position information [start, delimiter, end]
+    original: string,       // Original source text
+    // ... type-specific properties
+}
+</code></pre>
+<h3>Node Types</h3>
+<h4>Statement</h4>
+<p>Represents a complete statement ending with semicolon:</p>
+<pre><code class="language-javascript">{
+    type: &quot;Statement&quot;,
+    expression: ASTNode,    // The statement&#39;s expression
+    pos: [start, delim, end],
+    original: string
+}
+</code></pre>
+<h4>BinaryOperation</h4>
+<p>Represents operations with two operands:</p>
+<pre><code class="language-javascript">{
+    type: &quot;BinaryOperation&quot;,
+    operator: string,       // The operator symbol
+    left: ASTNode,         // Left operand
+    right: ASTNode,        // Right operand
+    pos: [start, delim, end],
+    original: string
+}
+</code></pre>
+<h4>UnaryOperation</h4>
+<p>Represents operations with one operand:</p>
+<pre><code class="language-javascript">{
+    type: &quot;UnaryOperation&quot;,
+    operator: string,       // The operator symbol
+    operand: ASTNode,      // The operand
+    pos: [start, delim, end],
+    original: string
+}
+</code></pre>
+<h4>FunctionCall</h4>
+<p>Represents function invocations:</p>
+<pre><code class="language-javascript">{
+    type: &quot;FunctionCall&quot;,
+    function: ASTNode,      // Function identifier or expression
+    arguments: [ASTNode],   // Array of argument expressions
+    pos: [start, delim, end],
+    original: string
+}
+</code></pre>
+<h4>UserIdentifier</h4>
+<p>Represents user-defined identifiers (lowercase):</p>
+<pre><code class="language-javascript">{
+    type: &quot;UserIdentifier&quot;,
+    name: string,           // Normalized identifier name
+    pos: [start, delim, end],
+    original: string
+}
+</code></pre>
+<h4>SystemIdentifier</h4>
+<p>Represents system identifiers (uppercase):</p>
+<pre><code class="language-javascript">{
+    type: &quot;SystemIdentifier&quot;,
+    name: string,           // Normalized identifier name
+    systemInfo: object,     // Result from systemLookup function
+    pos: [start, delim, end],
+    original: string
+}
+</code></pre>
+<h4>Number</h4>
+<p>Represents numeric literals (preserved as-is):</p>
+<pre><code class="language-javascript">{
+    type: &quot;Number&quot;,
+    value: string,          // Original number representation
+    pos: [start, delim, end],
+    original: string
+}
+</code></pre>
+<h4>String</h4>
+<p>Represents string literals (preserved as-is):</p>
+<pre><code class="language-javascript">{
+    type: &quot;String&quot;,
+    value: string,          // String content
+    kind: string,           // String type: &#39;quote&#39;, &#39;backtick&#39;, &#39;comment&#39;, etc.
+    pos: [start, delim, end],
+    original: string
+}
+</code></pre>
+<h4>Comment</h4>
+<p>Represents comment nodes in the AST. Comments are treated as standalone statements and are preserved in the parse tree:</p>
+<pre><code class="language-javascript">{
+    type: &quot;Comment&quot;,
+    value: string,          // Comment content (without delimiters)
+    kind: &quot;comment&quot;,        // Always &quot;comment&quot;
+    pos: [start, delim, end],
+    original: string        // Original text including comment delimiters
+}
+</code></pre>
+<p><strong>Comment Types:</strong></p>
+<ul>
+<li><strong>Line comments</strong>: <code># comment text</code> - extends to end of line</li>
+<li><strong>Block comments</strong>: <code>/* comment text */</code> - can span multiple lines</li>
+<li><strong>Nested block comments</strong>: <code>/**outer /* inner */ content**/</code> - supports nesting with matching star counts</li>
+</ul>
+<p><strong>Parsing Behavior:</strong></p>
+<ul>
+<li>Comments are parsed as standalone statements in the AST</li>
+<li>Comments act as expression terminators, separating adjacent expressions</li>
+<li>Comments can appear before, after, or between other code constructs</li>
+<li>Empty comments (<code>#</code> or <code>/* */</code>) are preserved with empty value strings</li>
+<li>Comment content preserves original formatting including whitespace and newlines</li>
+</ul>
+<p><strong>Examples:</strong></p>
+<pre><code class="language-javascript">// Input: &quot;# This is a line comment&quot;
+{
+    type: &quot;Comment&quot;,
+    value: &quot; This is a line comment&quot;,
+    kind: &quot;comment&quot;,
+    original: &quot;# This is a line comment&quot;
+}
+
+// Input: &quot;/* Block comment */&quot;
+{
+    type: &quot;Comment&quot;,
+    value: &quot; Block comment &quot;,
+    kind: &quot;comment&quot;,
+    original: &quot;/* Block comment */&quot;
+}
+
+// Input: &quot;/**nested /* inner */ comment**/&quot;
+{
+    type: &quot;Comment&quot;,
+    value: &quot;nested /* inner */ comment&quot;,
+    kind: &quot;comment&quot;,
+    original: &quot;/**nested /* inner */ comment**/&quot;
+}
+</code></pre>
+<h4>Array</h4>
+<p>Represents array literals:</p>
+<pre><code class="language-javascript">{
+    type: &quot;Array&quot;,
+    elements: [ASTNode],    // Array element expressions
+    pos: [start, delim, end],
+    original: string
+}
+</code></pre>
+<h4>Matrix</h4>
+<p>Represents 2D matrix literals using semicolon separators:</p>
+<pre><code class="language-javascript">{
+    type: &quot;Matrix&quot;,
+    rows: [[ASTNode]],      // Array of rows, each row is array of elements
+    pos: [start, delim, end],
+    original: string
+}
+</code></pre>
+<h4>Tensor</h4>
+<p>Represents multi-dimensional tensor literals using multiple semicolon separators:</p>
+<pre><code class="language-javascript">{
+    type: &quot;Tensor&quot;,
+    structure: [{
+        row: [ASTNode],     // Array of elements in this row
+        separatorLevel: number  // Number of semicolons that follow this row
+    }],
+    maxDimension: number,   // Highest dimension level (separatorLevel + 1)
+    pos: [start, delim, end],
+    original: string
+}
+</code></pre>
+<h4>Set</h4>
+<p>Represents set literals containing only literal values or expressions without special operators:</p>
+<pre><code class="language-javascript">{
+    type: &quot;Set&quot;,
+    elements: [ASTNode],    // Set element expressions
+    pos: [start, delim, end],
+    original: string
+}
+</code></pre>
+<h4>Map</h4>
+<p>Represents map literals containing key-value pairs using the <code>:=</code> operator:</p>
+<pre><code class="language-javascript">{
+    type: &quot;Map&quot;,
+    elements: [ASTNode],    // Array of BinaryOperation nodes with operator &quot;:=&quot;
+    pos: [start, delim, end],
+    original: string
+}
+</code></pre>
+<h4>PatternMatch</h4>
+<p>Represents pattern-matching containers using the <code>:=&gt;</code> operator:</p>
+<pre><code class="language-javascript">{
+    type: &quot;PatternMatch&quot;,
+    elements: [ASTNode],    // Array of BinaryOperation nodes with operator &quot;:=&gt;&quot;
+    pos: [start, delim, end],
+    original: string
+}
+</code></pre>
+<h4>System</h4>
+<p>Represents systems of equations using equation operators (<code>:=:</code>, <code>:&gt;:</code>, etc.) separated by semicolons:</p>
+<pre><code class="language-javascript">{
+    type: &quot;System&quot;,
+    elements: [ASTNode],    // Array of BinaryOperation nodes with equation operators
+    pos: [start, delim, end],
+    original: string
+}
+</code></pre>
+<h4>WithMetadata</h4>
+<p>Represents arrays with metadata annotations using <code>:=</code> syntax:</p>
+<pre><code class="language-javascript">{
+    type: &quot;WithMetadata&quot;,
+    primary: ASTNode,       // Primary element (first non-metadata element)
+    metadata: object,       // Key-value pairs of metadata
+    pos: [start, delim, end],
+    original: string
+}
+</code></pre>
+<p>The <code>WithMetadata</code> node is created when an array contains any <code>:=</code> assignments. The <code>primary</code> field contains the first non-metadata element (or an empty Array node if only metadata is present). The <code>metadata</code> field is an object where keys are metadata property names and values are AST nodes representing the assigned expressions.</p>
+<h4>Grouping</h4>
+<p>Represents parenthesized expressions:</p>
+<pre><code class="language-javascript">{
+    type: &quot;Grouping&quot;,
+    expression: ASTNode,    // The grouped expression
+    pos: [start, delim, end],
+    original: string
+}
+</code></pre>
+<h4>PropertyAccess</h4>
+<p>Represents property/array access:</p>
+<pre><code class="language-javascript">{
+    type: &quot;PropertyAccess&quot;,
+    object: ASTNode,        // Object being accessed
+    property: ASTNode,      // Property/index expression
+    pos: [start, delim, end],
+    original: string
+}
+</code></pre>
+<h4>Tuple</h4>
+<p>Represents tuple literals with zero or more elements:</p>
+<pre><code class="language-javascript">{
+    type: &quot;Tuple&quot;,
+    elements: [ASTNode],    // Array of tuple elements
+    pos: [start, delim, end],
+    original: string
+}
+</code></pre>
+<h4>NULL</h4>
+<p>Represents null/missing values (underscore <code>_</code> symbol):</p>
+<pre><code class="language-javascript">{
+    type: &quot;NULL&quot;,
+    pos: [start, delim, end],
+    original: string
+}
+</code></pre>
+<h2>Postfix Operators</h2>
+<p>RiX supports five postfix operators that provide metadata access, universal function call capabilities, and unit annotations on any expression. These operators have the highest precedence (120) and can be chained together.</p>
+<h3>AT Operator (@)</h3>
+<p>The <code>@</code> operator provides access to precision and metadata properties of mathematical objects.</p>
+<h4>Syntax</h4>
+<pre><code>expression@(argument)
+</code></pre>
+<h4>Requirements</h4>
+<ul>
+<li>Must be immediately followed by parentheses (no whitespace)</li>
+<li>Takes exactly one argument within the parentheses</li>
+</ul>
+<h4>Examples</h4>
+<pre><code class="language-javascript">// Get PI with specific precision
+PI@(1e-6)
+
+// Precision control on expressions  
+(1/3)@(epsilon)
+
+// Chained precision refinement
+PI@(1e-3)@(1e-6)
+</code></pre>
+<h4>AST Structure</h4>
+<pre><code class="language-javascript">{
+    type: &quot;At&quot;,
+    target: expression,    // The expression being queried
+    arg: expression,       // The precision/metadata argument
+    pos: [start, delim, end],
+    original: string
+}
+</code></pre>
+<h3>ASK Operator (?)</h3>
+<p>The <code>?</code> operator provides boolean membership and query capabilities.</p>
+<h4>Syntax</h4>
+<pre><code>expression?(argument)
+</code></pre>
+<h4>Requirements</h4>
+<ul>
+<li>Must be immediately followed by parentheses (no whitespace)</li>
+<li>Distinguishes from infix <code>?</code> (conditional operator) by requiring parentheses</li>
+<li>Takes exactly one argument within the parentheses</li>
+</ul>
+<h4>Examples</h4>
+<pre><code class="language-javascript">// Check if PI is in interval [3,4]
+PI?(3:4)
+
+// Query membership
+interval?(x)
+
+// Range checking on expressions
+(1/3)?(0.333:0.334)
+
+// Chained queries
+PI?(3:4)?(true)
+</code></pre>
+<h4>AST Structure</h4>
+<pre><code class="language-javascript">{
+    type: &quot;Ask&quot;, 
+    target: expression,    // The expression being queried
+    arg: expression,       // The query argument
+    pos: [start, delim, end],
+    original: string
+}
+</code></pre>
+<h3>Enhanced CALL Operator (())</h3>
+<p>The enhanced call operator provides universal function call and multiplication semantics on any expression, not just identifiers.</p>
+<h4>Syntax</h4>
+<pre><code>expression(arguments...)
+</code></pre>
+<h4>Behavior</h4>
+<ul>
+<li><strong>Identifiers</strong>: Traditional function calls (backward compatible)</li>
+<li><strong>Numbers</strong>: Multiplication semantics</li>
+<li><strong>Other expressions</strong>: Universal call semantics</li>
+</ul>
+<h4>Examples</h4>
+<pre><code class="language-javascript">// Traditional function call (backward compatible)
+SIN(PI)
+
+// Number multiplication via call
+3(4)  // equivalent to 3 * 4
+
+// Tuple operations
+(2,3)(4,5)
+
+// Chained function calls
+f(x)(y)
+
+// Operators as functions
++(3, 4, 7, 9)      // addition as variadic function
+*(2, 3, 5)         // multiplication as function
+&lt;(x, y)            // comparison as function
+*(+(2, 3), /(6, 2)) // nested operator functions
+</code></pre>
+<h4>AST Structure</h4>
+<p>For identifiers (backward compatibility):</p>
+<pre><code class="language-javascript">{
+    type: &quot;FunctionCall&quot;,
+    function: identifier,
+    arguments: { positional: [...], keyword: {...} },
+    pos: [start, delim, end],
+    original: string
+}
+</code></pre>
+<p>For other expressions:</p>
+<pre><code class="language-javascript">{
+    type: &quot;Call&quot;,
+    target: expression,
+    arguments: { positional: [...], keyword: {...} },
+    pos: [start, delim, end], 
+    original: string
+}
+</code></pre>
+<h3>Chaining and Precedence</h3>
+<h4>Operator Chaining</h4>
+<p>All three postfix operators can be chained together:</p>
+<pre><code class="language-javascript">// AT followed by ASK
+PI@(1e-3)?(3.141:3.142)
+
+// CALL followed by AT
+f(x)@(epsilon)
+
+// All three operators chained
+g(x)@(tolerance)?(bounds)
+</code></pre>
+<h4>Precedence Rules</h4>
+<ul>
+<li><strong>Highest precedence</strong>: Postfix operators bind tighter than all other operators</li>
+<li><strong>Left associative</strong>: Operators are applied left-to-right</li>
+<li><strong>Property access</strong>: @ and ? bind tighter than property access (<code>.</code>)</li>
+</ul>
+<pre><code class="language-javascript">// Postfix binds tighter than binary operators
+x@(eps) + y        // parsed as (x@(eps)) + y
+
+// Postfix ? vs infix ? precedence
+x?(test) ? y : z   // parsed as (x?(test)) ? y : z
+
+// Property access precedence
+obj.prop@(eps)     // parsed as obj.(prop@(eps))
+</code></pre>
+<h3>Context Sensitivity</h3>
+<h4>Distinguishing Postfix ? from Infix ?</h4>
+<p>The parser distinguishes between postfix <code>?</code> (ASK) and infix <code>?</code> (conditional) based on the immediate following token:</p>
+<pre><code class="language-javascript">// Postfix ASK operator (requires parentheses)
+x?(test)
+
+// Infix conditional operator
+x ? y : z
+</code></pre>
+<h4>Error Handling</h4>
+<pre><code class="language-javascript">// Valid: @ as postfix operator
+x@(eps)
+
+// Valid: @ as infix operator (if defined)
+x @ y
+
+// Error: @ without proper arguments
+x@y    // parsed as infix, may cause evaluation errors
+</code></pre>
+<h3>Default Behaviors</h3>
+<p>All objects have default behaviors for the postfix operators:</p>
+<ul>
+<li><strong>AT (@)</strong>: Precision getter for oracles, intervals, irrationals</li>
+<li><strong>ASK (?)</strong>: Boolean membership or query operations  </li>
+<li><strong>CALL (())</strong>: Function call for identifiers, multiplication for numbers, variadic operations for operators</li>
+</ul>
+<h4>Operator-as-Function Behavior</h4>
+<p>Mathematical operators can be used as variadic functions when followed by parentheses:</p>
+<ul>
+<li><strong>Arithmetic</strong>: <code>+(args...)</code>, <code>-(args...)</code>, <code>*(args...)</code>, <code>/(args...)</code></li>
+<li><strong>Comparison</strong>: <code>&lt;(a,b)</code>, <code>&gt;(a,b)</code>, <code>&lt;=(a,b)</code>, <code>&gt;=(a,b)</code></li>
+<li><strong>Equality</strong>: <code>=(a,b)</code>, <code>!=(a,b)</code></li>
+<li><strong>Logic</strong>: <code>AND(args...)</code>, <code>OR(args...)</code></li>
+</ul>
+<p>This enables functional programming styles and variadic operations.</p>
+<p>These behaviors can be overridden via custom metadata properties.</p>
+<h3>Scientific Unit Operator (~[)</h3>
+<p>The <code>~[</code> operator attaches scientific units to expressions.</p>
+<h4>Syntax</h4>
+<pre><code>expression~[unit]
+</code></pre>
+<h4>Requirements</h4>
+<ul>
+<li>Opening <code>~[</code> must be immediately followed by unit content</li>
+<li>Unit content extends until matching closing <code>]</code></li>
+<li>No nesting of brackets within units</li>
+</ul>
+<h4>Examples</h4>
+<pre><code class="language-javascript">// Basic units
+3~[m]              // 3 meters
+5.2~[kg]           // 5.2 kilograms
+
+// Complex units
+9.8~[m/s^2]        // acceleration
+2~[kg*m^2/s^2]     // energy unit
+
+// Units on expressions
+(a + b)~[m]        // sum with meters
+SIN(x)~[rad]       // sine of x radians
+</code></pre>
+<h4>AST Structure</h4>
+<pre><code class="language-javascript">{
+    type: &quot;ScientificUnit&quot;,
+    target: expression,    // The expression being annotated
+    unit: string,          // The unit content between brackets
+    pos: [start, delim, end],
+    original: string
+}
+</code></pre>
+<h3>Mathematical Unit Operator (~{)</h3>
+<p>The <code>~{</code> operator attaches mathematical units (like imaginary unit, algebraic extensions) to expressions.</p>
+<h4>Syntax</h4>
+<pre><code>expression~{unit}
+</code></pre>
+<h4>Requirements</h4>
+<ul>
+<li>Opening <code>~{</code> must be immediately followed by unit content</li>
+<li>Unit content extends until matching closing <code>}</code></li>
+<li>No nesting of braces within units</li>
+</ul>
+<h4>Examples</h4>
+<pre><code class="language-javascript">// Mathematical units
+2~{i}              // 2 times imaginary unit
+1~{sqrt2}          // 1 times square root of 2
+3~{pi}             // 3 times pi
+
+// Units on expressions
+(x + y)~{i}        // complex number
+</code></pre>
+<h4>AST Structure</h4>
+<pre><code class="language-javascript">{
+    type: &quot;MathematicalUnit&quot;,
+    target: expression,    // The expression being annotated
+    unit: string,          // The unit content between braces
+    pos: [start, delim, end],
+    original: string
+}
+</code></pre>
+<h3>Integration Examples</h3>
+<pre><code class="language-javascript">// Interval arithmetic with precision
+result := (a + b)@(tolerance)
+
+// Function composition with queries
+validated := f(x)@(precision)?(expected_range)
+
+// Matrix operations
+transform := matrix(data)(vector)@(numerical_precision)
+
+// Oracle queries
+oracle_result := oracle@(tolerance)?(bounds)
+
+// Functional arithmetic with precision
+sum_result := +(a, b, c)@(numerical_precision)
+
+// Complex functional expressions
+equation := =(+(x, y), *(z, w))@(tolerance)?(bounds)
+
+// Unit annotations
+velocity := 5~[m/s]
+complex := 3~{i}~[V]              // complex voltage
+energy := (m * c^2)~[J]
+
+// Unit conversion using CONVERT function
+distance := CONVERT(100~[m], &quot;m&quot;, &quot;ft&quot;)
+</code></pre>
+<h2>Tuples</h2>
+<h3>Overview</h3>
+<p>Tuples in RiX are ordered collections of values enclosed in parentheses. They provide a way to group multiple values together while maintaining their order and allowing mixed data types.</p>
+<h3>Syntax Rules</h3>
+<ol>
+<li><strong>Parentheses</strong>: Tuples use parentheses <code>()</code> for delimitation</li>
+<li><strong>Comma Separation</strong>: Elements are separated by commas <code>,</code></li>
+<li><strong>Comma Detection</strong>: Presence of at least one comma indicates a tuple</li>
+<li><strong>Grouping vs Tuples</strong>:<ul>
+<li><code>(expression)</code> → Grouped expression (no comma)</li>
+<li><code>(expression,)</code> → Singleton tuple (with comma)</li>
+</ul>
+</li>
+<li><strong>Underscore as Null</strong>: <code>_</code> symbol always represents <code>null</code></li>
+<li><strong>No Empty Slots</strong>: Consecutive commas are syntax errors</li>
+</ol>
+<h3>Examples</h3>
+<h4>Empty Tuple</h4>
+<pre><code class="language-rix">()
+</code></pre>
+<p><strong>AST:</strong></p>
+<pre><code class="language-javascript">{
+    type: &quot;Tuple&quot;,
+    elements: []
+}
+</code></pre>
+<h4>Grouped Expression (Not a Tuple)</h4>
+<pre><code class="language-rix">(42)
+</code></pre>
+<p><strong>AST:</strong></p>
+<pre><code class="language-javascript">{
+    type: &quot;Grouping&quot;,
+    expression: {
+        type: &quot;Number&quot;,
+        value: &quot;42&quot;
+    }
+}
+</code></pre>
+<h4>Singleton Tuple</h4>
+<pre><code class="language-rix">(42,)
+</code></pre>
+<p><strong>AST:</strong></p>
+<pre><code class="language-javascript">{
+    type: &quot;Tuple&quot;,
+    elements: [
+        { type: &quot;Number&quot;, value: &quot;42&quot; }
+    ]
+}
+</code></pre>
+<h4>Multi-Element Tuple</h4>
+<pre><code class="language-rix">(1, 2, 3)
+</code></pre>
+<p><strong>AST:</strong></p>
+<pre><code class="language-javascript">{
+    type: &quot;Tuple&quot;,
+    elements: [
+        { type: &quot;Number&quot;, value: &quot;1&quot; },
+        { type: &quot;Number&quot;, value: &quot;2&quot; },
+        { type: &quot;Number&quot;, value: &quot;3&quot; }
+    ]
+}
+</code></pre>
+<h4>Tuple with Null Values</h4>
+<pre><code class="language-rix">(x, _, y)
+</code></pre>
+<p><strong>AST:</strong></p>
+<pre><code class="language-javascript">{
+    type: &quot;Tuple&quot;,
+    elements: [
+        { type: &quot;UserIdentifier&quot;, name: &quot;x&quot; },
+        { type: &quot;NULL&quot; },
+        { type: &quot;UserIdentifier&quot;, name: &quot;y&quot; }
+    ]
+}
+</code></pre>
+<h4>Underscore as Null Symbol</h4>
+<pre><code class="language-rix">_ := 42
+</code></pre>
+<p><strong>AST:</strong></p>
+<pre><code class="language-javascript">{
+    type: &quot;BinaryOperation&quot;,
+    operator: &quot;:=&quot;,
+    left: { type: &quot;NULL&quot; },
+    right: { type: &quot;Number&quot;, value: &quot;42&quot; }
+}
+</code></pre>
+<h4>Nested Tuples</h4>
+<pre><code class="language-rix">((1, 2), (3, 4))
+</code></pre>
+<p><strong>AST:</strong></p>
+<pre><code class="language-javascript">{
+    type: &quot;Tuple&quot;,
+    elements: [
+        {
+            type: &quot;Tuple&quot;,
+            elements: [
+                { type: &quot;Number&quot;, value: &quot;1&quot; },
+                { type: &quot;Number&quot;, value: &quot;2&quot; }
+            ]
+        },
+        {
+            type: &quot;Tuple&quot;,
+            elements: [
+                { type: &quot;Number&quot;, value: &quot;3&quot; },
+                { type: &quot;Number&quot;, value: &quot;4&quot; }
+            ]
+        }
+    ]
+}
+</code></pre>
+<h4>Tuple with Expressions</h4>
+<pre><code class="language-rix">(a + b, SIN(x), _)
+</code></pre>
+<p><strong>AST:</strong></p>
+<pre><code class="language-javascript">{
+    type: &quot;Tuple&quot;,
+    elements: [
+        {
+            type: &quot;BinaryOperation&quot;,
+            operator: &quot;+&quot;,
+            left: { type: &quot;UserIdentifier&quot;, name: &quot;a&quot; },
+            right: { type: &quot;UserIdentifier&quot;, name: &quot;b&quot; }
+        },
+        {
+            type: &quot;FunctionCall&quot;,
+            function: { type: &quot;SystemIdentifier&quot;, name: &quot;SIN&quot; },
+            arguments: { positional: [{ type: &quot;UserIdentifier&quot;, name: &quot;x&quot; }], keyword: [] }
+        },
+        { type: &quot;NULL&quot; }
+    ]
+}
+</code></pre>
+<h4>Trailing Commas</h4>
+<pre><code class="language-rix">(1, 2, 3,)
+</code></pre>
+<p>Trailing commas are allowed and create the same AST as without them.</p>
+<h3>Use Cases</h3>
+<h4>Coordinate Representation</h4>
+<pre><code class="language-rix">point := (x, y, z);
+color := (red, green, blue, alpha);
+</code></pre>
+<h4>Multiple Return Values</h4>
+<pre><code class="language-rix">result := (status, data, error);
+</code></pre>
+<h4>Sparse Data with Nulls</h4>
+<pre><code class="language-rix">record := (name, _, email, _, phone);
+value := _;  // Underscore is always null symbol
+</code></pre>
+<h4>Function Arguments Grouping</h4>
+<pre><code class="language-rix">args := (param1, param2, param3);
+result := someFunction(args);
+</code></pre>
+<h3>Error Cases</h3>
+<h4>Consecutive Commas (Syntax Error)</h4>
+<pre><code class="language-rix">(1,, 2)     // Error: Consecutive commas not allowed
+(a, , b)    // Error: Empty element not allowed
+</code></pre>
+<h4>Empty Elements (Syntax Error)</h4>
+<pre><code class="language-rix">(,)         // Error: Cannot start with comma
+(1, 2,, 3)  // Error: Consecutive commas
+</code></pre>
+<h3>Distinction from Other Constructs</h3>
+<table>
+<thead>
+<tr>
+<th>Syntax</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>(expr)</code></td>
+<td>Grouping</td>
+<td>Single expression, no comma</td>
+</tr>
+<tr>
+<td><code>(expr,)</code></td>
+<td>Tuple</td>
+<td>Singleton tuple with comma</td>
+</tr>
+<tr>
+<td><code>(a, b)</code></td>
+<td>Tuple</td>
+<td>Multi-element tuple</td>
+</tr>
+<tr>
+<td><code>[a, b]</code></td>
+<td>Array</td>
+<td>Array literal</td>
+</tr>
+<tr>
+<td><code>{a, b}</code></td>
+<td>Set</td>
+<td>Set literal</td>
+</tr>
+<tr>
+<td><code>(_, val)</code></td>
+<td>Tuple</td>
+<td>Underscore as null symbol</td>
+</tr>
+</tbody></table>
+<h3>Implementation Notes</h3>
+<ul>
+<li><strong>Parser Logic</strong>: Comma detection during parentheses scanning determines tuple vs grouping</li>
+<li><strong>Underscore Handling</strong>: <code>_</code> is always parsed as a null symbol, regardless of context</li>
+<li><strong>Dynamic Access</strong>: <code>_</code> between identifiers enables dynamic access (future feature)</li>
+<li><strong>Error Recovery</strong>: Clear error messages for common mistakes like consecutive commas</li>
+<li><strong>Precedence</strong>: Tuple creation has no precedence conflicts as it&#39;s delimiter-based</li>
+<li><strong>Memory</strong>: Efficient representation with direct element array storage</li>
+</ul>
+<h2>Metadata and Property Annotations</h2>
+<p>The parser supports metadata annotations within array syntax using the <code>:=</code> operator. When an array contains key-value pairs with <code>:=</code>, it creates a <code>WithMetadata</code> node instead of a regular <code>Array</code> node.</p>
+<h3>Syntax</h3>
+<pre><code class="language-javascript">[object, key := value, ...]
+</code></pre>
+<h3>Rules</h3>
+<ol>
+<li><strong>Metadata Detection</strong>: If any <code>:=</code> assignment is found within array brackets, the entire construct becomes a <code>WithMetadata</code> node</li>
+<li><strong>Primary Element</strong>: The first non-metadata element becomes the <code>primary</code> property</li>
+<li><strong>Single Primary</strong>: Only one non-metadata element is allowed when metadata is present</li>
+<li><strong>Metadata Keys</strong>: Can be identifiers (user or system) or string literals</li>
+<li><strong>Metadata Values</strong>: Can be any valid expression</li>
+<li><strong>Array Primary</strong>: To use an array as primary, wrap it: <code>[[1,2,3], key := value]</code></li>
+</ol>
+<h3>Examples</h3>
+<h4>Basic Metadata</h4>
+<pre><code class="language-javascript">// Input: [obj, name := &quot;foo&quot;]
+{
+    type: &quot;WithMetadata&quot;,
+    primary: { type: &quot;UserIdentifier&quot;, name: &quot;obj&quot; },
+    metadata: {
+        name: { type: &quot;String&quot;, value: &quot;foo&quot;, kind: &quot;quote&quot; }
+    }
+}
+</code></pre>
+<h4>Multiple Metadata Properties</h4>
+<pre><code class="language-javascript">// Input: [data, size := 10, active := true, version := 1.2]
+{
+    type: &quot;WithMetadata&quot;,
+    primary: { type: &quot;UserIdentifier&quot;, name: &quot;data&quot; },
+    metadata: {
+        size: { type: &quot;Number&quot;, value: &quot;10&quot; },
+        active: { type: &quot;UserIdentifier&quot;, name: &quot;true&quot; },
+        version: { type: &quot;Number&quot;, value: &quot;1.2&quot; }
+    }
+}
+</code></pre>
+<h4>Array as Primary Element</h4>
+<pre><code class="language-javascript">// Input: [[1, 2, 3], name := &quot;numbers&quot;, count := 3]
+{
+    type: &quot;WithMetadata&quot;,
+    primary: {
+        type: &quot;Array&quot;,
+        elements: [
+            { type: &quot;Number&quot;, value: &quot;1&quot; },
+            { type: &quot;Number&quot;, value: &quot;2&quot; },
+            { type: &quot;Number&quot;, value: &quot;3&quot; }
+        ]
+    },
+    metadata: {
+        name: { type: &quot;String&quot;, value: &quot;numbers&quot;, kind: &quot;quote&quot; },
+        count: { type: &quot;Number&quot;, value: &quot;3&quot; }
+    }
+}
+</code></pre>
+<h4>String Keys</h4>
+<pre><code class="language-javascript">// Input: [obj, &quot;display-name&quot; := &quot;My Object&quot;, &quot;created-at&quot; := timestamp]
+{
+    type: &quot;WithMetadata&quot;,
+    primary: { type: &quot;UserIdentifier&quot;, name: &quot;obj&quot; },
+    metadata: {
+        &quot;display-name&quot;: { type: &quot;String&quot;, value: &quot;My Object&quot;, kind: &quot;quote&quot; },
+        &quot;created-at&quot;: { type: &quot;UserIdentifier&quot;, name: &quot;timestamp&quot; }
+    }
+}
+</code></pre>
+<h4>Metadata Only</h4>
+<pre><code class="language-javascript">// Input: [name := &quot;config&quot;, version := 2]
+{
+    type: &quot;WithMetadata&quot;,
+    primary: { type: &quot;Array&quot;, elements: [] },
+    metadata: {
+        name: { type: &quot;String&quot;, value: &quot;config&quot;, kind: &quot;quote&quot; },
+        version: { type: &quot;Number&quot;, value: &quot;2&quot; }
+    }
+}
+</code></pre>
+<h2>Matrix and Tensor Syntax</h2>
+<p>The parser supports multi-dimensional matrix and tensor literals using semicolon separators with different levels indicating dimensionality.</p>
+<h3>Syntax Rules</h3>
+<ul>
+<li><strong>Commas (<code>,</code>)</strong> separate elements within a row</li>
+<li><strong>Single semicolon (<code>;</code>)</strong> separates rows within a 2D matrix</li>
+<li><strong>Double semicolon (<code>;;</code>)</strong> separates 2D slices within a 3D tensor</li>
+<li><strong>Triple semicolon (<code>;;;</code>)</strong> separates 3D blocks within a 4D tensor</li>
+<li>And so on for higher dimensions...</li>
+</ul>
+<h3>Matrix Examples</h3>
+<h4>2D Matrix</h4>
+<pre><code class="language-javascript">// Input: [1, 2; 3, 4];
+{
+    type: &quot;Matrix&quot;,
+    rows: [
+        [
+            { type: &quot;Number&quot;, value: &quot;1&quot; },
+            { type: &quot;Number&quot;, value: &quot;2&quot; }
+        ],
+        [
+            { type: &quot;Number&quot;, value: &quot;3&quot; },
+            { type: &quot;Number&quot;, value: &quot;4&quot; }
+        ]
+    ]
+}
+</code></pre>
+<h4>Matrix with Variables</h4>
+<pre><code class="language-javascript">// Input: [x, y; z, w];
+{
+    type: &quot;Matrix&quot;,
+    rows: [
+        [
+            { type: &quot;UserIdentifier&quot;, name: &quot;x&quot; },
+            { type: &quot;UserIdentifier&quot;, name: &quot;y&quot; }
+        ],
+        [
+            { type: &quot;UserIdentifier&quot;, name: &quot;z&quot; },
+            { type: &quot;UserIdentifier&quot;, name: &quot;w&quot; }
+        ]
+    ]
+}
+</code></pre>
+<h4>Column Vector</h4>
+<pre><code class="language-javascript">// Input: [1; 2; 3];
+{
+    type: &quot;Matrix&quot;,
+    rows: [
+        [{ type: &quot;Number&quot;, value: &quot;1&quot; }],
+        [{ type: &quot;Number&quot;, value: &quot;2&quot; }],
+        [{ type: &quot;Number&quot;, value: &quot;3&quot; }]
+    ]
+}
+</code></pre>
+<h3>Tensor Examples</h3>
+<h4>3D Tensor</h4>
+<pre><code class="language-javascript">// Input: [1, 2; 3, 4 ;; 5, 6; 7, 8];
+{
+    type: &quot;Tensor&quot;,
+    structure: [
+        {
+            row: [
+                { type: &quot;Number&quot;, value: &quot;1&quot; },
+                { type: &quot;Number&quot;, value: &quot;2&quot; }
+            ],
+            separatorLevel: 1
+        },
+        {
+            row: [
+                { type: &quot;Number&quot;, value: &quot;3&quot; },
+                { type: &quot;Number&quot;, value: &quot;4&quot; }
+            ],
+            separatorLevel: 2
+        },
+        {
+            row: [
+                { type: &quot;Number&quot;, value: &quot;5&quot; },
+                { type: &quot;Number&quot;, value: &quot;6&quot; }
+            ],
+            separatorLevel: 1
+        },
+        {
+            row: [
+                { type: &quot;Number&quot;, value: &quot;7&quot; },
+                { type: &quot;Number&quot;, value: &quot;8&quot; }
+            ],
+            separatorLevel: 0
+        }
+    ],
+    maxDimension: 3
+}
+</code></pre>
+<h4>4D Tensor</h4>
+<pre><code class="language-javascript">// Input: [1; 2 ;; 3; 4 ;;; 5; 6 ;; 7; 8];
+{
+    type: &quot;Tensor&quot;,
+    structure: [
+        // Structure with separatorLevel values ranging from 0 to 3
+    ],
+    maxDimension: 4
+}
+</code></pre>
+<h3>Special Cases</h3>
+<h4>Empty Rows</h4>
+<p>Empty rows are preserved in the structure:</p>
+<pre><code class="language-javascript">// Input: [1, 2; ; 3, 4];
+{
+    type: &quot;Matrix&quot;,
+    rows: [
+        [
+            { type: &quot;Number&quot;, value: &quot;1&quot; },
+            { type: &quot;Number&quot;, value: &quot;2&quot; }
+        ],
+        [],  // Empty row
+        [
+            { type: &quot;Number&quot;, value: &quot;3&quot; },
+            { type: &quot;Number&quot;, value: &quot;4&quot; }
+        ]
+    ]
+}
+</code></pre>
+<h4>Mixed with Expressions</h4>
+<p>Matrix elements can be any valid expressions:</p>
+<pre><code class="language-javascript">// Input: [a + b, sin(x); f(y), z^2];
+{
+    type: &quot;Matrix&quot;,
+    rows: [
+        [
+            { type: &quot;BinaryOperation&quot;, operator: &quot;+&quot;, ... },
+            { type: &quot;FunctionCall&quot;, function: { name: &quot;sin&quot; }, ... }
+        ],
+        [
+            { type: &quot;FunctionCall&quot;, function: { name: &quot;f&quot; }, ... },
+            { type: &quot;BinaryOperation&quot;, operator: &quot;^&quot;, ... }
+        ]
+    ]
+}
+</code></pre>
+<h3>Important Notes</h3>
+<ul>
+<li><strong>Metadata incompatible</strong>: Matrix/tensor syntax cannot be mixed with metadata annotations (<code>:=</code> syntax)</li>
+<li><strong>Spaces matter</strong>: Spaces between semicolons create separate separator tokens</li>
+<li><strong>Post-processing</strong>: Actual dimensional analysis is performed at post-processing level</li>
+<li><strong>Precedence</strong>: Semicolon sequences have separator precedence and break expression parsing</li>
+</ul>
+<h2>Extending the Parser</h2>
+<h3>Adding New Operators</h3>
+<p>To add a new operator, add it to the <code>SYMBOL_TABLE</code> in <code>parser.js</code>:</p>
+<pre><code class="language-javascript">const SYMBOL_TABLE = {
+    // ... existing operators
+    &#39;@@&#39;: {
+        precedence: PRECEDENCE.UNARY,
+        associativity: &#39;right&#39;,
+        type: &#39;prefix&#39;
+    },
+    &#39;&lt;=&gt;&#39;: {
+        precedence: PRECEDENCE.COMPARISON,
+        associativity: &#39;left&#39;,
+        type: &#39;infix&#39;
+    }
+};
+</code></pre>
+<h3>Adding System Identifiers</h3>
+<p>Extend your system lookup function:</p>
+<pre><code class="language-javascript">function systemLookup(name) {
+    const systemSymbols = {
+        // ... existing symbols
+        &#39;MATRIX&#39;: { type: &#39;function&#39;, arity: -1, description: &#39;Matrix constructor&#39; },
+        &#39;TRANSPOSE&#39;: { type: &#39;operator&#39;, precedence: 120, operatorType: &#39;postfix&#39; }
+    };
+    return systemSymbols[name] || { type: &#39;identifier&#39; };
+}
+</code></pre>
+<h3>Custom AST Node Types</h3>
+<p>For specialized constructs, you can create custom node types by modifying the parser&#39;s <code>createNode</code> method and adding appropriate parsing logic.</p>
+<h2>Brace Container Types</h2>
+<p>The parser distinguishes between different types of brace containers based on their syntax and contents:</p>
+<h3>Code Blocks <code>{{ }}</code></h3>
+<p>Code blocks use double braces and contain executable statements or expressions:</p>
+<pre><code class="language-javascript">// Input: &quot;{{x := 1; y := 2}};&quot;
+{
+    type: &quot;CodeBlock&quot;,
+    statements: [
+        {
+            type: &quot;BinaryOperation&quot;,
+            operator: &quot;:=&quot;,
+            left: { type: &quot;UserIdentifier&quot;, name: &quot;x&quot; },
+            right: { type: &quot;Number&quot;, value: &quot;1&quot; }
+        },
+        {
+            type: &quot;BinaryOperation&quot;,
+            operator: &quot;:=&quot;,
+            left: { type: &quot;UserIdentifier&quot;, name: &quot;y&quot; },
+            right: { type: &quot;Number&quot;, value: &quot;2&quot; }
+        }
+    ]
+}
+</code></pre>
+<p><strong>Important</strong>: Spaces between braces matter! <code>{{}}</code> is a code block, while <code>{ {} }</code> is a set containing an empty set.</p>
+<h4>Code Block Rules:</h4>
+<ul>
+<li>Use <code>{{</code> and <code>}}</code> delimiters (double braces)</li>
+<li>Can contain any valid RiX expressions or statements</li>
+<li>Statements can be separated by semicolons</li>
+<li>Always produces a <code>CodeBlock</code> AST node regardless of statement count</li>
+<li>Supports assignments, function calls, expressions, and nested structures</li>
+</ul>
+<h4>Code Block Examples:</h4>
+<pre><code class="language-javascript">// Empty code block
+{{}}
+
+// Single expression
+{{x + y}}
+
+// Single assignment
+{{result := calculation()}}
+
+// Multiple statements
+{{a := 1; b := 2; sum := a + b}}
+
+// Complex computation pipeline
+{{input := 45; radians := input * PI / 180; result := SIN(radians)}}
+
+// Nested code blocks
+{{ a := {{ 3 }} }}
+
+// Multi-level nesting
+{{ x := {{ y := {{ z := 42 }} }} }}
+
+// Complex nested with multiple statements
+{{ outer := 1; inner := {{ nested := 2; nested + 1 }}; result := outer + inner }}
+</code></pre>
+<h3>Brace Containers <code>{ }</code></h3>
+<p>The parser distinguishes between four different types of single brace containers <code>{}</code> based on their contents:</p>
+<h3>Set Containers</h3>
+<p>Contains only literal values or expressions without special assignment operators:</p>
+<pre><code class="language-javascript">// Input: &quot;{3, 5, 6};&quot;
+{
+    type: &quot;Set&quot;,
+    elements: [
+        { type: &quot;Number&quot;, value: &quot;3&quot; },
+        { type: &quot;Number&quot;, value: &quot;5&quot; },
+        { type: &quot;Number&quot;, value: &quot;6&quot; }
+    ]
+}
+</code></pre>
+<h3>Map Containers</h3>
+<p>Contains key-value pairs using the <code>:=</code> operator:</p>
+<pre><code class="language-javascript">// Input: &quot;{a := 4, b := 5};&quot;
+{
+    type: &quot;Map&quot;,
+    elements: [
+        {
+            type: &quot;BinaryOperation&quot;,
+            operator: &quot;:=&quot;,
+            left: { type: &quot;UserIdentifier&quot;, name: &quot;a&quot; },
+            right: { type: &quot;Number&quot;, value: &quot;4&quot; }
+        },
+        {
+            type: &quot;BinaryOperation&quot;,
+            operator: &quot;:=&quot;,
+            left: { type: &quot;UserIdentifier&quot;, name: &quot;b&quot; },
+            right: { type: &quot;Number&quot;, value: &quot;5&quot; }
+        }
+    ]
+}
+</code></pre>
+<h3>Pattern-Match Containers</h3>
+<p>Contains pattern-match pairs using the <code>:=&gt;</code> operator:</p>
+<pre><code class="language-javascript">// Input: &quot;{(x) :=&gt; x + 1};&quot;
+{
+    type: &quot;PatternMatch&quot;,
+    elements: [{
+        type: &quot;BinaryOperation&quot;,
+        operator: &quot;:=&gt;&quot;,
+        left: {
+            type: &quot;Grouping&quot;,
+            expression: { type: &quot;UserIdentifier&quot;, name: &quot;x&quot; }
+        },
+        right: {
+            type: &quot;BinaryOperation&quot;,
+            operator: &quot;+&quot;,
+            left: { type: &quot;UserIdentifier&quot;, name: &quot;x&quot; },
+            right: { type: &quot;Number&quot;, value: &quot;1&quot; }
+        }
+    }]
+}
+</code></pre>
+<h3>System Containers</h3>
+<p>Contains equations using equation operators (<code>:=:</code>, <code>:&gt;:</code>, etc.) separated by semicolons:</p>
+<pre><code class="language-javascript">// Input: &quot;{x :=: 3*x + 2; y :=: x};&quot;
+{
+    type: &quot;System&quot;,
+    elements: [
+        {
+            type: &quot;BinaryOperation&quot;,
+            operator: &quot;:=:&quot;,
+            left: { type: &quot;UserIdentifier&quot;, name: &quot;x&quot; },
+            right: {
+                type: &quot;BinaryOperation&quot;,
+                operator: &quot;+&quot;,
+                left: {
+                    type: &quot;BinaryOperation&quot;,
+                    operator: &quot;*&quot;,
+                    left: { type: &quot;Number&quot;, value: &quot;3&quot; },
+                    right: { type: &quot;UserIdentifier&quot;, name: &quot;x&quot; }
+                },
+                right: { type: &quot;Number&quot;, value: &quot;2&quot; }
+            }
+        },
+        {
+            type: &quot;BinaryOperation&quot;,
+            operator: &quot;:=:&quot;,
+            left: { type: &quot;UserIdentifier&quot;, name: &quot;y&quot; },
+            right: { type: &quot;UserIdentifier&quot;, name: &quot;x&quot; }
+        }
+    ]
+}
+</code></pre>
+<h3>Type Validation Rules</h3>
+<p>The parser enforces type homogeneity within brace containers:</p>
+<ol>
+<li><strong>Set containers</strong>: Can contain any expressions that don&#39;t use special operators</li>
+<li><strong>Map containers</strong>: Must contain only <code>:=</code> assignments</li>
+<li><strong>Pattern-match containers</strong>: Must contain only <code>:=&gt;</code> pattern matches</li>
+<li><strong>System containers</strong>: Must contain only equation operators (<code>:=:</code>, <code>:&gt;:</code>, <code>:&lt;:</code>, <code>:&lt;=:</code>, <code>:&gt;=:</code>) and use semicolons as separators</li>
+</ol>
+<p>Mixing different types within the same container will result in a parse error.</p>
+<h2>Code Block vs Brace Container Distinction</h2>
+<p>It&#39;s crucial to understand the difference between code blocks <code>{{ }}</code> and brace containers <code>{ }</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Construct</th>
+<th>Syntax</th>
+<th>Purpose</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Code Block</td>
+<td><code>{{ }}</code></td>
+<td>Assignable code execution</td>
+<td><code>{{x := 1; y := x + 1}}</code></td>
+</tr>
+<tr>
+<td>Set</td>
+<td><code>{ }</code></td>
+<td>Mathematical set</td>
+<td><code>{1, 2, 3}</code></td>
+</tr>
+<tr>
+<td>Map</td>
+<td><code>{ }</code></td>
+<td>Key-value pairs</td>
+<td><code>{name := &quot;Alice&quot;, age := 30}</code></td>
+</tr>
+<tr>
+<td>Pattern Match</td>
+<td><code>{ }</code></td>
+<td>Pattern matching</td>
+<td><code>{(0) :=&gt; &quot;zero&quot;, (1) :=&gt; &quot;one&quot;}</code></td>
+</tr>
+<tr>
+<td>System</td>
+<td><code>{ }</code></td>
+<td>Equation systems</td>
+<td><code>{x :=: 2*y; y :&gt;: 0}</code></td>
+</tr>
+</tbody></table>
+<h3>Spacing Examples:</h3>
+<pre><code class="language-javascript">{{3}}        // Code block containing number 3
+{ {3} }      // Set containing a set that contains 3
+{{}}         // Empty code block
+{ {} }       // Set containing an empty set
+{{ {a := 1} }} // Code block containing a map
+{ {{a := 1}} } // Set containing a code block (nested)
+
+// Nested code block examples
+{{ a := {{ 3 }} }}                    // Code block with nested code block
+{{ x := {{ y := 2; y * 3 }} }}         // Assignment to nested computation
+{{ compute := {{ base := 10; base^2 }}; result := compute + 5 }} // Multi-level
+</code></pre>
+<h2>Examples</h2>
+<h3>Basic Arithmetic</h3>
+<pre><code class="language-javascript">// Input: &quot;2 + 3 * 4;&quot;
+{
+    type: &quot;Statement&quot;,
+    expression: {
+        type: &quot;BinaryOperation&quot;,
+        operator: &quot;+&quot;,
+        left: { type: &quot;Number&quot;, value: &quot;2&quot; },
+        right: {
+            type: &quot;BinaryOperation&quot;,
+            operator: &quot;*&quot;,
+            left: { type: &quot;Number&quot;, value: &quot;3&quot; },
+            right: { type: &quot;Number&quot;, value: &quot;4&quot; }
+        }
+    }
+}
+</code></pre>
+<h3>Function Call</h3>
+<pre><code class="language-javascript">// Input: &quot;SIN(PI / 2);&quot;
+{
+    type: &quot;Statement&quot;,
+    expression: {
+        type: &quot;FunctionCall&quot;,
+        function: {
+            type: &quot;SystemIdentifier&quot;,
+            name: &quot;SIN&quot;,
+            systemInfo: { type: &quot;function&quot;, arity: 1 }
+        },
+        arguments: [{
+            type: &quot;BinaryOperation&quot;,
+            operator: &quot;/&quot;,
+            left: {
+                type: &quot;SystemIdentifier&quot;,
+                name: &quot;PI&quot;,
+                systemInfo: { type: &quot;constant&quot;, value: 3.14159... }
+            },
+            right: { type: &quot;Number&quot;, value: &quot;2&quot; }
+        }]
+    }
+}
+</code></pre>
+<h3>Assignment with Function Definition</h3>
+<pre><code class="language-javascript">// Input: &quot;f := x -&gt; x^2 + 1;&quot;
+{
+    type: &quot;Statement&quot;,
+    expression: {
+        type: &quot;BinaryOperation&quot;,
+        operator: &quot;:=&quot;,
+        left: { type: &quot;UserIdentifier&quot;, name: &quot;f&quot; },
+        right: {
+            type: &quot;BinaryOperation&quot;,
+            operator: &quot;-&gt;&quot;,
+            left: { type: &quot;UserIdentifier&quot;, name: &quot;x&quot; },
+            right: {
+                type: &quot;BinaryOperation&quot;,
+                operator: &quot;+&quot;,
+                left: {
+                    type: &quot;BinaryOperation&quot;,
+                    operator: &quot;^&quot;,
+                    left: { type: &quot;UserIdentifier&quot;, name: &quot;x&quot; },
+                    right: { type: &quot;Number&quot;, value: &quot;2&quot; }
+                },
+                right: { type: &quot;Number&quot;, value: &quot;1&quot; }
+            }
+        }
+    }
+}
+</code></pre>
+<h3>Metadata Annotation</h3>
+<pre><code class="language-javascript">// Input: &quot;[matrix, rows := 3, cols := 4, name := \&quot;transformation\&quot;];&quot;
+{
+    type: &quot;Statement&quot;,
+    expression: {
+        type: &quot;WithMetadata&quot;,
+        primary: { type: &quot;UserIdentifier&quot;, name: &quot;matrix&quot; },
+        metadata: {
+            rows: { type: &quot;Number&quot;, value: &quot;3&quot; },
+            cols: { type: &quot;Number&quot;, value: &quot;4&quot; },
+            name: { type: &quot;String&quot;, value: &quot;transformation&quot;, kind: &quot;quote&quot; }
+        }
+    }
+}
+</code></pre>
+<h2>Comments</h2>
+<p>The RiX parser includes comprehensive support for comments, treating them as first-class AST nodes rather than discarding them during parsing. This allows tools to preserve documentation, implement preprocessing directives, or perform comment-based analysis.</p>
+<h3>Comment Syntax</h3>
+<p>The parser supports two types of comments:</p>
+<p><strong>Line Comments (<code>#</code>)</strong></p>
+<pre><code class="language-javascript"># This is a line comment
+x = 5  # Inline comment
+</code></pre>
+<p><strong>Block Comments (<code>/* */</code>)</strong></p>
+<pre><code class="language-javascript">/* This is a block comment */
+/* Multi-line
+   block comment
+   spanning several lines */
+</code></pre>
+<p><strong>Nested Block Comments</strong></p>
+<pre><code class="language-javascript">/**outer /* nested inner */ content**/
+/***deeply /* nested /* comment */ structure */ content***/
+</code></pre>
+<h3>Comment Parsing Behavior</h3>
+<ol>
+<li><strong>Standalone Statements</strong>: Comments are parsed as independent <code>Comment</code> nodes in the AST</li>
+<li><strong>Expression Separators</strong>: Comments act as implicit statement terminators, breaking expression parsing</li>
+<li><strong>Content Preservation</strong>: All comment content is preserved exactly as written (including whitespace)</li>
+<li><strong>Position Tracking</strong>: Comments include precise source position information</li>
+</ol>
+<h3>Comment AST Structure</h3>
+<p>Each comment produces a dedicated AST node:</p>
+<pre><code class="language-javascript">{
+    type: &quot;Comment&quot;,
+    value: string,          // Comment content without delimiters
+    kind: &quot;comment&quot;,        // Always &quot;comment&quot;
+    pos: [start, delim, end],
+    original: string        // Original text including delimiters
+}
+</code></pre>
+<h3>Parsing Examples</h3>
+<p><strong>Simple Line Comment</strong></p>
+<pre><code class="language-javascript">// Input: &quot;# Calculate result&quot;
+// AST:
+[{
+    type: &quot;Comment&quot;,
+    value: &quot; Calculate result&quot;,
+    kind: &quot;comment&quot;,
+    original: &quot;# Calculate result&quot;
+}]
+</code></pre>
+<p><strong>Comment Between Expressions</strong></p>
+<pre><code class="language-javascript">// Input: &quot;x = 5\n# Set variable\ny = 10&quot;
+// AST:
+[
+    { type: &quot;BinaryOperation&quot;, operator: &quot;=&quot;, ... },
+    { type: &quot;Comment&quot;, value: &quot; Set variable&quot;, ... },
+    { type: &quot;BinaryOperation&quot;, operator: &quot;=&quot;, ... }
+]
+</code></pre>
+<p><strong>Nested Block Comment</strong></p>
+<pre><code class="language-javascript">// Input: &quot;/**outer /* inner */ content**/&quot;
+// AST:
+[{
+    type: &quot;Comment&quot;,
+    value: &quot;outer /* inner */ content&quot;,
+    kind: &quot;comment&quot;,
+    original: &quot;/**outer /* inner */ content**/&quot;
+}]
+</code></pre>
+<h3>Integration with Code</h3>
+<p>Comments integrate seamlessly with all RiX language constructs:</p>
+<ul>
+<li><strong>Before expressions</strong>: <code># comment\nexpression</code></li>
+<li><strong>After expressions</strong>: <code>expression\n# comment</code></li>
+<li><strong>Between statements</strong>: <code>stmt1; # comment\nstmt2</code></li>
+<li><strong>In function definitions</strong>: Comments preserve documentation</li>
+<li><strong>With metadata</strong>: Comments can document complex annotations</li>
+</ul>
+<p>This comment support enables rich documentation workflows and tooling that can process both code and its associated documentation in a unified manner.</p>
+<h2>Error Handling</h2>
+<p>The parser provides detailed error messages with position information:</p>
+<pre><code class="language-javascript">try {
+    const ast = parse(tokens, systemLookup);
+} catch (error) {
+    console.error(`Parse error at position ${error.position}: ${error.message}`);
+}
+</code></pre>
+<p>Common error scenarios:</p>
+<ul>
+<li><strong>Unmatched delimiters</strong>: Missing closing parentheses, brackets, or braces</li>
+<li><strong>Unexpected tokens</strong>: Invalid syntax or token sequences</li>
+<li><strong>Expression termination</strong>: Incomplete expressions at statement boundaries</li>
+<li><strong>Mixed metadata</strong>: Cannot mix multiple array elements with metadata assignments</li>
+<li><strong>Mixed container types</strong>: Cannot mix different assignment operators within brace containers</li>
+<li><strong>Invalid system syntax</strong>: System containers require semicolon separators</li>
+</ul>
+<h2>Position Tracking</h2>
+<p>Each AST node includes position information in the format <code>[start, delimiter, end]</code>:</p>
+<ul>
+<li><strong>start</strong>: Character position where the construct begins</li>
+<li><strong>delimiter</strong>: Position of the primary delimiter (for strings/operators)</li>
+<li><strong>end</strong>: Character position where the construct ends</li>
+</ul>
+<p>This enables precise error reporting and source mapping for debugging and tooling.</p>
+<h2>Performance Considerations</h2>
+<ul>
+<li><strong>Linear complexity</strong>: The parser processes each token once with O(n) complexity</li>
+<li><strong>Memory efficient</strong>: AST nodes are created incrementally without backtracking</li>
+<li><strong>Extensible</strong>: Adding operators doesn&#39;t affect parsing performance of existing code</li>
+<li><strong>Position preservation</strong>: Full source position tracking with minimal overhead</li>
+</ul>
+<h2>Piping and Sequence Operators</h2>
+<p>The RiX parser supports a comprehensive family of piping and sequence operators for functional data processing and transformation. These operators enable elegant composition of operations and data flow patterns.</p>
+<h3>Overview</h3>
+<p>Piping operators allow data to flow from left to right through a sequence of transformations. All pipe operators are <strong>left-associative</strong>, meaning <code>a |&gt; f |&gt; g</code> is parsed as <code>(a |&gt; f) |&gt; g</code>, allowing natural left-to-right data flow through the pipeline.</p>
+<h3>Operator Types</h3>
+<table>
+<thead>
+<tr>
+<th>Operator</th>
+<th>AST Node</th>
+<th>Precedence</th>
+<th>Associativity</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>|&gt;</code></td>
+<td><code>Pipe</code></td>
+<td>20</td>
+<td>left</td>
+<td>Simple pipe - auto-feeds left as arguments to right function</td>
+</tr>
+<tr>
+<td><code>||&gt;</code></td>
+<td><code>ExplicitPipe</code></td>
+<td>20</td>
+<td>left</td>
+<td>Explicit pipe with placeholders for argument rearrangement</td>
+</tr>
+<tr>
+<td><code>|&gt;&gt;</code></td>
+<td><code>Map</code></td>
+<td>20</td>
+<td>left</td>
+<td>Map function over each element of iterable</td>
+</tr>
+<tr>
+<td><code>|&gt;?</code></td>
+<td><code>Filter</code></td>
+<td>20</td>
+<td>left</td>
+<td>Filter elements where predicate returns true</td>
+</tr>
+<tr>
+<td><code>|&gt;:</code></td>
+<td><code>Reduce</code></td>
+<td>20</td>
+<td>left</td>
+<td>Reduce iterable to single value using binary function</td>
+</tr>
+</tbody></table>
+<h3>Simple Pipe (<code>|&gt;</code>)</h3>
+<p>The simple pipe operator feeds the left operand as arguments to the right function. Tuples are automatically unpacked as multiple arguments.</p>
+<h4>Syntax</h4>
+<pre><code>value |&gt; function
+tuple |&gt; function
+</code></pre>
+<h4>Examples</h4>
+<pre><code class="language-rix">3 |&gt; f                    // f(3)
+(3, 4) |&gt; f              // f(3, 4) - tuple unpacked
+[1, 2, 3] |&gt; sum         // sum([1, 2, 3])
+x |&gt; sqrt |&gt; abs         // abs(sqrt(x)) - left associative
+</code></pre>
+<h4>AST Structure</h4>
+<pre><code class="language-javascript">{
+  type: &quot;Pipe&quot;,
+  left: { /* left operand */ },
+  right: { /* right function */ }
+}
+</code></pre>
+<h3>Explicit Pipe (<code>||&gt;</code>)</h3>
+<p>The explicit pipe operator allows precise control over argument positioning using placeholders (<code>_1</code>, <code>_2</code>, etc.). This enables argument reordering, duplication, and selective usage.</p>
+<h4>Syntax</h4>
+<pre><code>tuple ||&gt; function(_N, _M, ...)
+</code></pre>
+<h4>Placeholder Rules</h4>
+<ul>
+<li><code>_1</code>, <code>_2</code>, <code>_3</code>, ... refer to first, second, third, etc. tuple elements</li>
+<li><code>__1</code>, <code>___1</code> etc. are also valid placeholder formats</li>
+<li>Placeholders can be duplicated: <code>_1, _1, _2</code></li>
+<li>Placeholders can be skipped: <code>_3, _1</code> (skips <code>_2</code>)</li>
+<li>Placeholders can be reordered: <code>_2, _1</code> (swaps arguments)</li>
+</ul>
+<h4>Examples</h4>
+<pre><code class="language-rix">(3, 4) ||&gt; f(_2, _1)           // f(4, 3) - swap arguments
+(1, 2, 3) ||&gt; g(_3, _2, _1)    // g(3, 2, 1) - reverse
+(x, y) ||&gt; func(_1, _1, _2)    // func(x, x, y) - duplicate
+(a, b, c, d) ||&gt; h(_4, _1, _3) // h(d, a, c) - selective
+</code></pre>
+<h4>AST Structure</h4>
+<pre><code class="language-javascript">{
+  type: &quot;ExplicitPipe&quot;,
+  left: { /* tuple operand */ },
+  right: { /* function with placeholders */ },
+  placeholders: [&quot;_2&quot;, &quot;_1&quot;] // extracted placeholder names
+}
+</code></pre>
+<h3>Map Operator (<code>|&gt;&gt;</code>)</h3>
+<p>The map operator applies a function to each element of an iterable, producing a new iterable with transformed elements.</p>
+<h4>Syntax</h4>
+<pre><code>iterable |&gt;&gt; function
+iterable |&gt;&gt; lambda_expression
+</code></pre>
+<h4>Examples</h4>
+<pre><code class="language-rix">[1, 2, 3] |&gt;&gt; f                    // [f(1), f(2), f(3)]
+[1, 2, 3] |&gt;&gt; (x) -&gt; x^2          // [1, 4, 9]
+words |&gt;&gt; (w) -&gt; w.toUpperCase()   // uppercase each word
+matrix |&gt;&gt; (row) -&gt; row |&gt; sum     // sum each row
+</code></pre>
+<h4>AST Structure</h4>
+<pre><code class="language-javascript">{
+  type: &quot;Map&quot;,
+  left: { /* iterable operand */ },
+  right: { /* function or lambda */ }
+}
+</code></pre>
+<h3>Filter Operator (<code>|&gt;?</code>)</h3>
+<p>The filter operator keeps only elements where the predicate function returns true.</p>
+<h4>Syntax</h4>
+<pre><code>iterable |&gt;? predicate_function
+iterable |&gt;? lambda_expression
+</code></pre>
+<h4>Examples</h4>
+<pre><code class="language-rix">[1, 2, 3, 4] |&gt;? (x) -&gt; x &gt; 2     // [3, 4]
+[1, 2, 3, 4] |&gt;? (x) -&gt; x % 2 == 0 // [2, 4] - even numbers
+words |&gt;? (w) -&gt; w.length &gt; 3      // words longer than 3 chars
+data |&gt;? isValid                   // filter using named predicate
+</code></pre>
+<h4>AST Structure</h4>
+<pre><code class="language-javascript">{
+  type: &quot;Filter&quot;,
+  left: { /* iterable operand */ },
+  right: { /* predicate function */ }
+}
+</code></pre>
+<h3>Reduce Operator (<code>|&gt;:</code>)</h3>
+<p>The reduce operator accumulates elements of an iterable into a single value using a binary function.</p>
+<h4>Syntax</h4>
+<pre><code>iterable |&gt;: binary_function
+iterable |&gt;: lambda_expression
+</code></pre>
+<h4>Examples</h4>
+<pre><code class="language-rix">[1, 2, 3, 4] |&gt;: (a, b) -&gt; a + b  // 10 - sum
+[1, 2, 3, 4] |&gt;: (acc, x) -&gt; acc * x // 24 - product
+[5, 2, 8, 1] |&gt;: (max, x) -&gt; x &gt; max ? x : max // 8 - maximum
+words |&gt;: (acc, w) -&gt; acc + &quot; &quot; + w // concatenate with spaces
+</code></pre>
+<h4>AST Structure</h4>
+<pre><code class="language-javascript">{
+  type: &quot;Reduce&quot;,
+  left: { /* iterable operand */ },
+  right: { /* binary function */ }
+}
+</code></pre>
+<h3>Operator Composition</h3>
+<p>Pipe operators can be chained together to create complex data processing pipelines:</p>
+<h4>Examples</h4>
+<pre><code class="language-rix">// Map then filter
+[1, 2, 3, 4, 5] |&gt;&gt; (x) -&gt; x^2 |&gt;? (y) -&gt; y &gt; 10
+// Result: [16, 25]
+
+// Filter then reduce
+numbers |&gt;? (x) -&gt; x &gt; 0 |&gt;: (a, b) -&gt; a + b
+// Sum positive numbers
+
+// Complex pipeline
+data |&gt;&gt; normalize |&gt;? (x) -&gt; x &gt; threshold |&gt;: average
+// Normalize, filter, then compute average
+
+// Explicit pipe in pipeline
+(matrix, vector) ||&gt; multiply(_1, _2) |&gt; validate
+// Matrix-vector multiplication with validation
+</code></pre>
+<h3>Left Associativity</h3>
+<p>All pipe operators are left-associative, which means:</p>
+<pre><code class="language-rix">a |&gt; f |&gt; g |&gt; h
+// Parsed as: (((a |&gt; f) |&gt; g) |&gt; h)
+// Evaluated as: h(g(f(a)))
+
+[1,2,3] |&gt;&gt; double |&gt;? positive |&gt;: sum
+// Parsed as: (([1,2,3] |&gt;&gt; double) |&gt;? positive) |&gt;: sum
+</code></pre>
+<p>This associativity enables natural left-to-right data flow through the pipeline, where each operation processes the result of the previous operation.</p>
+<h3>Precedence Rules</h3>
+<p>Pipe operators have precedence level 20, which means they:</p>
+<ul>
+<li>Bind looser than arithmetic and function calls</li>
+<li>Bind tighter than assignment operators</li>
+<li>Allow natural expression of data flow patterns</li>
+</ul>
+<pre><code class="language-rix">x + y |&gt; f        // (x + y) |&gt; f
+x |&gt; f + 1        // (x |&gt; f) + 1
+result := x |&gt; f  // result := (x |&gt; f)
+</code></pre>
+<h3>Integration Examples</h3>
+<h4>With Function Definitions</h4>
+<pre><code class="language-rix">processData := (input) -&gt; input |&gt;&gt; clean |&gt;? validate |&gt;: combine;
+</code></pre>
+<h4>With Assignment</h4>
+<pre><code class="language-rix">result := rawData |&gt;&gt; normalize |&gt;? (x) -&gt; x &gt; 0.5 |&gt;: average;
+</code></pre>
+<h4>With System Functions</h4>
+<pre><code class="language-rix">numbers |&gt; SUM;
+matrix |&gt;&gt; (row) -&gt; row |&gt; MAX;
+</code></pre>
+<h4>Mathematical Processing</h4>
+<pre><code class="language-rix">measurements |&gt;&gt; (x) -&gt; x - MEAN(measurements) |&gt;&gt; (x) -&gt; x^2 |&gt;: sum;
+// Compute sum of squared deviations
+</code></pre>
+<h3>Error Handling</h3>
+<p>The parser validates:</p>
+<ul>
+<li>Placeholder syntax in explicit pipes (<code>_1</code>, <code>_2</code>, etc.)</li>
+<li>Proper function syntax on the right side of operators</li>
+<li>Correct AST node generation for each operator type</li>
+</ul>
+<p>Invalid examples that will produce parse errors:</p>
+<pre><code class="language-rix">x ||&gt; f(_0, _1)     // Invalid: placeholders start from _1
+x |&gt;                // Invalid: missing right operand
+|&gt; f                // Invalid: missing left operand
+</code></pre>
+<h2>Function Definitions</h2>
+<p>The RiX parser supports comprehensive function definition syntax with multiple paradigms.</p>
+<h3>Standard Function Definitions</h3>
+<p>Standard functions use the <code>:-&gt;</code> operator and support positional and keyword-only parameters:</p>
+<pre><code class="language-javascript">// Basic function
+f(x) :-&gt; x + 1
+
+// Function with default parameters
+f(x, n := 5) :-&gt; x^n
+
+// Function with keyword-only parameters (after semicolon)
+f(x, n := 5; a := 0) :-&gt; (x-a)^n + 1
+
+// Function with conditional parameters
+h(x, y; n := 2 ? x^2 + y^2 = 1) :-&gt; COS(x; n) * SIN(y; n)
+</code></pre>
+<h4>Parameter Types</h4>
+<ol>
+<li><strong>Positional Parameters</strong>: <code>x</code> - required parameters with no default</li>
+<li><strong>Positional with Defaults</strong>: <code>n := 5</code> - optional parameters with default values</li>
+<li><strong>Keyword-Only Parameters</strong>: Parameters after <code>;</code> that must have defaults and be called by name</li>
+<li><strong>Conditional Parameters</strong>: <code>n := 2 ? condition</code> - parameters with conditions that must be satisfied</li>
+</ol>
+<h4>AST Structure</h4>
+<pre><code class="language-javascript">{
+  type: &#39;FunctionDefinition&#39;,
+  name: { type: &#39;UserIdentifier&#39;, name: &#39;f&#39; },
+  parameters: {
+    positional: [
+      { name: &#39;x&#39;, defaultValue: null, condition: null, isKeywordOnly: false },
+      { name: &#39;n&#39;, defaultValue: {...}, condition: null, isKeywordOnly: false }
+    ],
+    keyword: [
+      { name: &#39;a&#39;, defaultValue: {...}, condition: {...}, isKeywordOnly: true }
+    ],
+    metadata: {}
+  },
+  body: {...},
+  type: &#39;standard&#39;
+}
+</code></pre>
+<h3>Pattern Matching Functions</h3>
+<p>Pattern matching functions use <code>:=&gt;</code> and allow multiple function definitions under one name:</p>
+<pre><code class="language-javascript">// Array syntax
+g :=&gt; [ (x ? x &lt; 0) -&gt; -x, (x) -&gt; x ]
+
+// Array with global metadata
+g :=&gt; [ [(x ? x &lt; 0) -&gt; -x+n, (x) -&gt; x-n] , n := 4]
+
+// Separate statements (equivalent to array syntax)
+g :=&gt; (x ? x &lt; 0) -&gt; -x;
+g :=&gt; (x) -&gt; x
+</code></pre>
+<h4>Pattern Matching Rules</h4>
+<ol>
+<li>Patterns are evaluated in order of definition</li>
+<li>First matching pattern with successful execution is used</li>
+<li>Conditions use <code>?</code> operator: <code>(x ? x &lt; 0)</code></li>
+<li>Global metadata applies to all patterns in array form</li>
+<li>Local metadata applies only to specific patterns</li>
+</ol>
+<h4>AST Structure</h4>
+<pre><code class="language-javascript">{
+  type: &#39;PatternMatchingFunction&#39;,
+  name: { type: &#39;UserIdentifier&#39;, name: &#39;g&#39; },
+  parameters: {...},
+  patterns: [
+    {
+      type: &#39;BinaryOperation&#39;,
+      operator: &#39;-&gt;&#39;,
+      left: { /* parameter with condition */ },
+      right: { /* function body */ }
+    }
+  ],
+  metadata: { /* global metadata */ }
+}
+</code></pre>
+<h3>Function Calls with Enhanced Syntax</h3>
+<p>Function calls support semicolon separators for keyword arguments:</p>
+<pre><code class="language-javascript">// Mixed positional and keyword arguments
+f(2, 3; a := 4)
+
+// Shorthand keyword arguments (n := n)
+f(2; n)
+
+// Multiple keyword arguments
+f(1; a := 2, b := 3)
+</code></pre>
+<h4>Function Call AST</h4>
+<pre><code class="language-javascript">{
+  type: &#39;FunctionCall&#39;,
+  function: { type: &#39;UserIdentifier&#39;, name: &#39;f&#39; },
+  arguments: {
+    positional: [
+      { type: &#39;Number&#39;, value: &#39;2&#39; },
+      { type: &#39;Number&#39;, value: &#39;3&#39; }
+    ],
+    keyword: {
+      a: { type: &#39;Number&#39;, value: &#39;4&#39; }
+    }
+  }
+}
+</code></pre>
+<h3>Assignment-Style Function Definitions</h3>
+<p>Alternative syntax using standard assignment operators:</p>
+<pre><code class="language-javascript">// Equivalent to f(x, n := 5; a := 0) :-&gt; (x-a)^n + 1
+f := (x, n := 5; a := 0) -&gt; (x-a)^n + 1
+
+// Pattern matching with assignment
+g := [ (x ? x &lt; 0) -&gt; -x, (x) -&gt; x ]
+</code></pre>
+<h3>Condition Operator</h3>
+<p>The <code>?</code> operator is used for conditional expressions in parameters and patterns:</p>
+<ul>
+<li><strong>Precedence</strong>: Same as comparison operators (<code>&lt;</code>, <code>&gt;</code>, etc.)</li>
+<li><strong>Associativity</strong>: Left associative</li>
+<li><strong>Usage</strong>: <code>parameter ? condition</code> or <code>(args ? condition) -&gt; body</code></li>
+</ul>
+<h3>Metadata Integration</h3>
+<p>Function definitions integrate with the existing metadata system:</p>
+<pre><code class="language-javascript">// Function with parameter metadata
+f(x; a := 0, metadata := &quot;description&quot;) :-&gt; x + a
+
+// Pattern matching with global metadata
+g :=&gt; [ patterns, n := 4, description := &quot;absolute value function&quot; ]
+</code></pre>
+<h3>Comprehensive Examples</h3>
+<h4>Basic Function Definitions</h4>
+<pre><code class="language-javascript">// Simple function
+square(x) :-&gt; x^2
+
+// Multi-parameter function
+add(x, y) :-&gt; x + y
+
+// Function with system calls
+hypotenuse(a, b) :-&gt; SQRT(a^2 + b^2)
+</code></pre>
+<h4>Default Parameters</h4>
+<pre><code class="language-javascript">// Single default parameter
+power(x, n := 2) :-&gt; x^n
+
+// Multiple default parameters
+line(x, m := 1, b := 0) :-&gt; m*x + b
+
+// Mixed parameters
+poly(x, a, b := 1, c := 0) :-&gt; a*x^2 + b*x + c
+</code></pre>
+<h4>Keyword-Only Parameters</h4>
+<pre><code class="language-javascript">// Basic keyword-only parameters
+trig(x; precision := 10, angleUnit := &quot;radians&quot;) :-&gt; SIN(x; precision)
+
+// Complex parameter mix
+func(x, y, scale := 1; offset := 0, normalize := false) :-&gt; (x + y) * scale + offset
+
+// Function with unit annotations
+physics(m~[kg], v~[m/s]) :-&gt; (1/2) * m * v^2
+</code></pre>
+<h4>Conditional Parameters</h4>
+<pre><code class="language-javascript">// Simple condition
+safeDivide(x, y; check := true ? y != 0) :-&gt; x / y
+
+// Complex condition
+constrainedPower(x, n := 2 ? x &gt; 0 AND n &gt;= 0) :-&gt; x^n
+
+// Multiple conditions
+constrainedFunc(x, y; a := 1 ? x^2 + y^2 &lt;= 1, b := 0 ? a &gt; 0) :-&gt; a*x + b*y
+</code></pre>
+<h4>Pattern Matching Functions</h4>
+<pre><code class="language-javascript">// Basic pattern matching
+abs :=&gt; [ (x ? x &gt;= 0) -&gt; x, (x ? x &lt; 0) -&gt; -x ]
+
+// Multiple patterns
+sign :=&gt; [ (x ? x &gt; 0) -&gt; 1, (x ? x &lt; 0) -&gt; -1, (x ? x = 0) -&gt; 0 ]
+
+// Pattern with global metadata
+normalize :=&gt; [ [(x ? x != 0) -&gt; x / scale, (x) -&gt; 0], scale := 100 ]
+
+// Pattern with multiple metadata
+transform :=&gt; [ [(x) -&gt; a*x + b, (x ? x &lt; 0) -&gt; a*(-x) + b], a := 2, b := 5 ]
+</code></pre>
+<h4>Function Calls with Enhanced Syntax</h4>
+<pre><code class="language-javascript">// Basic function call
+result := func(5, 10)
+
+// Function call with keywords
+result := transform(x; scale := 2, offset := 5)
+
+// Mixed argument call
+result := poly(x, 3; b := 2, c := 1)
+
+// Shorthand keywords (n := n)
+result := process(data; verbose, debug)
+</code></pre>
+<h4>Assignment-Style Definitions</h4>
+<pre><code class="language-javascript">// Lambda assignment
+double := (x) -&gt; 2 * x
+
+// Lambda with keywords
+adjust := (x; offset := 0, scale := 1) -&gt; x * scale + offset
+
+// Complex lambda
+polynomial := (x, coeffs; degree := 2) -&gt; coeffs[0] + coeffs[1]*x + coeffs[2]*x^degree
+</code></pre>
+<h4>Real-World Mathematical Examples</h4>
+<pre><code class="language-javascript">// Distance function
+distance(p1, p2; metric := &quot;euclidean&quot;) :-&gt; SQRT((p1[0] - p2[0])^2 + (p1[1] - p2[1])^2)
+
+// Newton method step
+newtonStep(f, df, x; tolerance := 1e-6 ? df(x) != 0) :-&gt; x - f(x) / df(x)
+
+// Piecewise function
+piecewise :=&gt; [
+  (x ? x &lt; -1) -&gt; -x - 1,
+  (x ? x &gt;= -1 AND x &lt;= 1) -&gt; x^2,
+  (x ? x &gt; 1) -&gt; x + 1
+]
+
+// Matrix operation with validation
+matmul(A, B; validate := true ? A.cols = B.rows) :-&gt; A * B
+</code></pre>
+<h2>Symbolic Calculus</h2>
+<h3>Overview</h3>
+<p>RiX provides comprehensive support for symbolic calculus operations including derivatives and indefinite integrals. The notation follows mathematical conventions while supporting advanced features like variable specification, mixed sequences, and operation vs evaluation distinction.</p>
+<h3>Derivative Notation (Postfix Quotes)</h3>
+<h4>Basic Derivatives</h4>
+<ul>
+<li><code>f&#39;</code> - First derivative of function f</li>
+<li><code>f&#39;&#39;</code> - Second derivative of function f</li>
+<li><code>f&#39;&#39;&#39;</code> - Third derivative of function f</li>
+</ul>
+<h4>Variable Specification</h4>
+<ul>
+<li><code>f&#39;[x]</code> - Partial derivative with respect to x</li>
+<li><code>f&#39;[x, y]</code> - Specify variables for partial derivatives</li>
+<li><code>f&#39;&#39;[x, y, z]</code> - Higher-order partial derivatives</li>
+</ul>
+<h4>Evaluation vs Operations</h4>
+<ul>
+<li><code>f&#39;(x)</code> - Derivative evaluated at point x</li>
+<li><code>f&#39;(x&#39;)</code> - Derivative operation (x&#39; means derivative of x)</li>
+<li><code>f&#39;(a, b)</code> - Derivative evaluated at multiple points</li>
+</ul>
+<h3>Integral Notation (Leading Quotes)</h3>
+<h4>Basic Integrals</h4>
+<ul>
+<li><code>&#39;f</code> - Indefinite integral of function f</li>
+<li><code>&#39;&#39;f</code> - Double integral of function f</li>
+<li><code>&#39;&#39;&#39;f</code> - Triple integral of function f</li>
+</ul>
+<h4>Variable Specification</h4>
+<ul>
+<li><code>&#39;f[x]</code> - Integral with respect to x</li>
+<li><code>&#39;&#39;f[x, y]</code> - Double integral over x and y</li>
+<li><code>&#39;&#39;&#39;f[x, y, z]</code> - Triple integral over x, y, and z</li>
+</ul>
+<h4>Evaluation and Integration Constants</h4>
+<ul>
+<li><code>&#39;f(x)</code> - Integral evaluated at point x</li>
+<li>Integration constants are automatically included in metadata as <code>c</code> with default value 0</li>
+</ul>
+<h3>Mixed Calculus Operations</h3>
+<h4>Sequential Operations</h4>
+<ul>
+<li><code>&#39;f&#39;</code> - Integrate f, then differentiate the result</li>
+<li><code>f&#39;&#39;</code> - Second derivative of f</li>
+<li><code>&#39;&#39;f&#39;&#39;</code> - Double integral followed by double derivative</li>
+</ul>
+<h4>Complex Sequences with Variables</h4>
+<ul>
+<li><code>&#39;f&#39;[x, y]</code> - Integrate f, then take partial derivative with variables [x, y]</li>
+<li><code>&#39;&#39;f&#39;&#39;[x, y, z](&#39;x, y&#39;, &#39;z, x&#39;)</code> - Complex sequence with operation specification</li>
+</ul>
+<h3>Function Calculus</h3>
+<h4>System Functions</h4>
+<ul>
+<li><code>SIN(x)&#39;</code> - Derivative of sine function</li>
+<li><code>&#39;EXP(x^2)</code> - Integral of exponential function</li>
+<li><code>LOG(x^2 + 1)&#39;[x]</code> - Derivative with respect to x</li>
+</ul>
+<h4>Composed Functions</h4>
+<ul>
+<li><code>SIN(COS(x))&#39;</code> - Derivative of composed trigonometric functions</li>
+<li><code>&#39;POW(x, n)[x]</code> - Integral of power function with respect to x</li>
+</ul>
+<h3>Path Derivatives</h3>
+<p>For parametric and path derivatives:</p>
+<ul>
+<li><code>f&#39;(r&#39;(t))</code> - Derivative along path r(t)</li>
+<li><code>g&#39;(x&#39;(t), y&#39;(t))</code> - Multiple path derivatives</li>
+</ul>
+<h3>AST Structure</h3>
+<h4>Derivative Node</h4>
+<pre><code>{
+  type: &#39;Derivative&#39;,
+  function: &lt;function_node&gt;,
+  order: &lt;number&gt;,
+  variables: [&lt;variable_list&gt;] | null,
+  evaluation: [&lt;evaluation_points&gt;] | null,
+  operations: [&lt;operation_sequence&gt;] | null
+}
+</code></pre>
+<h4>Integral Node</h4>
+<pre><code>{
+  type: &#39;Integral&#39;,
+  function: &lt;function_node&gt;,
+  order: &lt;number&gt;,
+  variables: [&lt;variable_list&gt;] | null,
+  evaluation: [&lt;evaluation_points&gt;] | null,
+  operations: [&lt;operation_sequence&gt;] | null,
+  metadata: {
+    integrationConstant: &#39;c&#39;,
+    defaultValue: 0
+  }
+}
+</code></pre>
+<h3>Examples</h3>
+<h4>Simple Derivatives</h4>
+<pre><code class="language-rix">f&#39;          // First derivative function
+f&#39;&#39;(x)      // Second derivative evaluated at x
+f&#39;[x, y]    // Partial derivative with variables
+</code></pre>
+<h4>Simple Integrals</h4>
+<pre><code class="language-rix">&#39;f          // Indefinite integral
+&#39;&#39;f[x, y]   // Double integral over x, y
+&#39;f(a)       // Integral evaluated at point a
+</code></pre>
+<h4>Mixed Operations</h4>
+<pre><code class="language-rix">&#39;f&#39;                    // Integrate then differentiate
+&#39;&#39;f&#39;&#39;[x, y]           // Double integral then double derivative
+&#39;f&#39;[x, y](&#39;x, y&#39;)     // Complex sequence with operations
+</code></pre>
+<h4>Function Calculus</h4>
+<pre><code class="language-rix">SIN(x)&#39;               // Derivative of sine
+&#39;EXP(x^2)[x]          // Integral of exponential
+LOG(SIN(x))&#39;          // Derivative of composition
+</code></pre>
+<h3>Parsing Rules</h3>
+<ol>
+<li><p><strong>Precedence</strong>: Calculus operations have high precedence (115), between unary (110) and postfix (120)</p>
+</li>
+<li><p><strong>Associativity</strong>: Derivatives are left-associative postfix operations</p>
+</li>
+<li><p><strong>Variable Specification</strong>: Brackets <code>[x, y]</code> immediately after derivatives/integrals specify variables</p>
+</li>
+<li><p><strong>Evaluation vs Operations</strong>: Parentheses content determines behavior:</p>
+<ul>
+<li>Simple identifiers → evaluation points</li>
+<li>Calculus operations (containing quotes) → operation sequences</li>
+</ul>
+</li>
+<li><p><strong>Integration Constants</strong>: Automatically added to integral metadata</p>
+</li>
+<li><p><strong>Mixed Sequences</strong>: Operations are parsed left-to-right maintaining mathematical order</p>
+</li>
+</ol>
+<h2>Interval Manipulation</h2>
+<h3>Overview</h3>
+<p>RiX provides comprehensive interval manipulation operations that extend the basic interval operator <code>:</code> with powerful stepping, division, mediant, and random sampling capabilities. These operations are designed for mathematical computing, data analysis, and scientific applications.</p>
+<h3>Basic Intervals</h3>
+<p>The fundamental interval operator <code>:</code> creates a range between two values:</p>
+<pre><code class="language-rix">a:b    // Basic interval from a to b
+1:10   // Integer interval
+0.5:3.7 // Decimal interval
+</code></pre>
+<h3>Interval Stepping</h3>
+<p>Stepping operations generate arithmetic sequences within intervals:</p>
+<h4>Increment Stepping (<code>:+</code>)</h4>
+<pre><code class="language-rix">a:b :+ n    // Start at a, add n each time until &gt; b
+1:10 :+ 2   // → 1, 3, 5, 7, 9
+0:PI :+ 0.5 // → 0, 0.5, 1.0, 1.5, ..., 3.0
+</code></pre>
+<h4>Decrement Stepping (<code>:+ -n</code>)</h4>
+<pre><code class="language-rix">a:b :+ -n   // Start at b, subtract n each time until &lt; a
+1:10 :+ -3  // → 10, 7, 4, 1
+1:10 :+ -4 // 10, 6, 2
+0:360 :+ -45 // → 360, 315, 270, ..., 45, 0
+</code></pre>
+<h3>Interval Division</h3>
+<p>Division operations split intervals into points or sub-intervals:</p>
+<h4>Equally Spaced Points (<code>::</code>)</h4>
+<pre><code class="language-rix">a:b::n      // Divide into n equally spaced points (including endpoints)
+1:5::3      // → 1, 3, 5
+0:10::5     // → 0, 2.5, 5, 7.5, 10
+-1:1::9     // → -1, -0.75, -0.5, ..., 1
+</code></pre>
+<h4>Sub-interval Partition (<code>:/:</code>)</h4>
+<pre><code class="language-rix">a:b:/:n     // Partition into n sub-intervals
+1:5:/:2     // → [1:3, 3:5]
+0:12:/:4    // → [0:3, 3:6, 6:9, 9:12]
+a:b:/:1     // → [a:b] (identity)
+</code></pre>
+<h3>Interval Mediants</h3>
+<p>Mediant operations generate fractional approximations using the mediant of fractions:</p>
+<h4>Mediant Tree (<code>:~</code>)</h4>
+<pre><code class="language-rix">a:b:~n      // Generate mediant tree to level n
+1:2:~1      // → [[1/1, 2/1], [3/2]]
+1:2:~2      // → [[1/1, 2/1], [3/2], [4/3, 5/3]]
+0:1:~3      // → Deep mediant approximations
+</code></pre>
+<h4>Mediant Partition (<code>:~/</code>)</h4>
+<pre><code class="language-rix">a:b:~/n     // Partition using mediant endpoints
+1:2:~/2     // → [1/1:4/3, 4/3:3/2, 3/2:5/3, 5/3:2/1]
+0:1:~/1     // → Partition using level 1 mediants
+</code></pre>
+<h3>Random Selection and Partitioning</h3>
+<p>Random operations provide stochastic sampling and partitioning:</p>
+<h4>Random Point Selection (<code>:%</code>)</h4>
+<pre><code class="language-rix">a:b:%(n, m)  // Choose n points, max denominator m
+a:b:%n       // Choose n points (default max denominator)
+1:10:%5      // → 5 random numbers in [1, 10]
+0:1:%(100, 1000) // → 100 rational points with denom ≤ 1000
+</code></pre>
+<h4>Random Partitioning (<code>:/%</code>)</h4>
+<pre><code class="language-rix">a:b:/%n     // Partition into n random sub-intervals
+1:10:/%3    // → 3 randomly-sized sub-intervals
+0:1:/%5     // → 5 random partitions of unit interval
+</code></pre>
+<h3>Infinite Ranges</h3>
+<p>Infinite sequences extend beyond bounded intervals:</p>
+<h4>Infinite Increment (<code>::+</code>)</h4>
+<pre><code class="language-rix">a::+n       // Infinite sequence from a, stepping by +n (or -n for decrement)
+5::+2       // → 5, 7, 9, 11, 13, ...
+0::+PI      // → 0, π, 2π, 3π, 4π, ...
+10::+ -3    // → 10, 7, 4, 1, -2, -5, ...
+</code></pre>
+<h4>Infinite Decrement (<code>::+ -n</code>)</h4>
+<pre><code class="language-rix">a::+ -n     // Infinite sequence from a, stepping by -n
+10::+ -3    // → 10, 7, 4, 1, -2, -5, ...
+PI::+ -0.1  // → π, π-0.1, π-0.2, π-0.3, ...
+</code></pre>
+<h3>Complex Operations</h3>
+<p>Interval operations can be chained and combined:</p>
+<pre><code class="language-rix">(a:b :+ n) :: m          // Step then divide
+min_val:max_val :~depth  // Variable bounds with mediants
+0:360 :+ 30 :/%5         // Angular steps then random partition
+(expr1):(expr2) :+ step  // Expression bounds
+</code></pre>
+<h3>AST Structure</h3>
+<p>Interval operations generate specific AST node types:</p>
+<h4>IntervalStepping</h4>
+<pre><code class="language-JSON">{
+  &quot;type&quot;: &quot;IntervalStepping&quot;,
+  &quot;interval&quot;: { /* BinaryOperation with operator &quot;:&quot; */ },
+  &quot;step&quot;: { /* Number or expression */ },
+  &quot;direction&quot;: &quot;increment&quot; | &quot;decrement&quot;
+}
+</code></pre>
+<h4>IntervalDivision</h4>
+<pre><code class="language-JSON">{
+  &quot;type&quot;: &quot;IntervalDivision&quot;,
+  &quot;interval&quot;: { /* BinaryOperation with operator &quot;:&quot; */ },
+  &quot;count&quot;: { /* Number or expression */ },
+  &quot;type&quot;: &quot;equally_spaced&quot;
+}
+</code></pre>
+<h4>IntervalMediants</h4>
+<pre><code class="language-JSON">{
+  &quot;type&quot;: &quot;IntervalMediants&quot;,
+  &quot;interval&quot;: { /* BinaryOperation with operator &quot;:&quot; */ },
+  &quot;levels&quot;: { /* Number or expression */ }
+}
+</code></pre>
+<h4>InfiniteSequence</h4>
+<pre><code class="language-JSON">{
+  &quot;type&quot;: &quot;InfiniteSequence&quot;,
+  &quot;start&quot;: { /* Number or expression */ },
+  &quot;step&quot;: { /* Number or expression */ },
+  &quot;direction&quot;: &quot;increment&quot; | &quot;decrement&quot;
+}
+</code></pre>
+<h3>Operator Precedence</h3>
+<p>All interval operators share the same precedence level as the basic interval operator (<code>:</code>) with left associativity:</p>
+<ol>
+<li>Expressions are evaluated left-to-right: <code>a:b :+ n :: m</code></li>
+<li>Use parentheses to override: <code>a:(b :+ n) :: m</code></li>
+<li>Function calls and property access have higher precedence</li>
+</ol>
+<h3>Use Cases</h3>
+<h4>Scientific Computing</h4>
+<pre><code class="language-rix">0:1::100                 // Integration points
+-3:3::plot_resolution   // Function plotting
+data_min:data_max:/:bins // Histogram binning
+</code></pre>
+<h4>Monte Carlo Methods</h4>
+<pre><code class="language-rix">-1:1:%(samples, precision)  // Random sampling
+bounds_low:bounds_high:/%trials // Random partitioning
+0::+step_size              // Infinite walk sequence
+</code></pre>
+<h4>Musical Applications</h4>
+<pre><code class="language-rix">fundamental:overtone_limit :+ fundamental // Harmonic series
+tempo_min:tempo_max::variations          // Tempo scaling
+note_start:note_end:~microtonal_depth   // Microtonal divisions
+</code></pre>
+<h3>Implementation Notes</h3>
+<ol>
+<li><strong>Type Safety</strong>: Interval bounds can be any numeric expression</li>
+<li><strong>Lazy Evaluation</strong>: Infinite sequences are represented symbolically</li>
+<li><strong>Rational Arithmetic</strong>: Mediant operations preserve exact fractions</li>
+<li><strong>Random Seeding</strong>: Random operations use system or specified seeds</li>
+<li><strong>Error Handling</strong>: Invalid parameters (e.g., zero step) generate parse errors</li>
+</ol>
+<h3>Mathematical Semantics</h3>
+<ul>
+<li><strong>Mediants</strong>: For fractions a/b and c/d, mediant is (a+c)/(b+d)</li>
+<li><strong>Stepping</strong>: Continues while within interval bounds</li>
+<li><strong>Division</strong>: Includes both endpoints in equally spaced points</li>
+<li><strong>Partitioning</strong>: Creates touching sub-intervals covering full range</li>
+<li><strong>Random</strong>: Uses uniform distribution unless otherwise specified</li>
+<li><strong>Infinite sequences</strong>: Use ::+ with positive or negative step values</li>
+</ul>
+<h2>Integration Notes</h2>
+<p>The parser is designed to integrate seamlessly with:</p>
+<ol>
+<li><strong>Tokenizer</strong>: Consumes token arrays from the RiX tokenizer</li>
+<li><strong>Evaluator</strong>: Produces ASTs suitable for interpretation or compilation</li>
+<li><strong>Type checker</strong>: AST structure supports static analysis</li>
+<li><strong>Code generators</strong>: Can be traversed for transpilation or optimization</li>
+<li><strong>IDE tools</strong>: Position information enables syntax highlighting and error reporting</li>
+</ol>
+<h1>RiX Array Generator Parsing Documentation</h1>
+<h2>Overview</h2>
+<p>RiX supports powerful array generator syntax that allows you to create sequences, apply filters, and set termination conditions using a chainable operator syntax. This document describes how the parser handles these constructs.</p>
+<h2>Generator Operators</h2>
+<h3>Basic Generator Operations</h3>
+<h4><code>|+</code> - Arithmetic Sequence</h4>
+<p>Repeatedly adds a value to generate the next element.</p>
+<pre><code>[1 |+ 2 |^ 5]  // [1, 3, 5, 7, 9]
+</code></pre>
+<h4><code>|*</code> - Geometric Sequence</h4>
+<p>Repeatedly multiplies by a value to generate the next element.</p>
+<pre><code>[2 |* 3 |^ 4]  // [2, 6, 18, 54]
+</code></pre>
+<h4><code>|:</code> - Function Generator</h4>
+<p>Uses a custom function to generate the next element.</p>
+<pre><code>[1, 1 |: (i, a, b) -&gt; a + b |^ 10]  // Fibonacci sequence
+</code></pre>
+<p>Function signature: <code>(index, previous_1, previous_2, ...)</code> where:</p>
+<ul>
+<li><code>index</code>: Current generation index (0-based)</li>
+<li><code>previous_1</code>: Most recent value</li>
+<li><code>previous_2</code>: Second most recent value (if available)</li>
+</ul>
+<h3>Filtering Operations</h3>
+<h4><code>|?</code> - Filter</h4>
+<p>Only includes elements that satisfy a predicate function.</p>
+<pre><code>[1 |+ 1 |? (i, a) -&gt; a % 2 == 0 |^ 5]  // Even numbers only
+</code></pre>
+<h3>Termination Operations</h3>
+<h4><code>|^</code> - Eager Limit</h4>
+<p>Stops generation after N elements or when condition is met.</p>
+<pre><code>[1 |+ 2 |^ 5]                    // Stop after 5 elements
+[1 |+ 2 |^ (i, a) -&gt; a &gt; 10]     // Stop when value &gt; 10
+</code></pre>
+<h4><code>|^:</code> - Lazy Limit</h4>
+<p>Creates a lazy generator that only produces values when requested.</p>
+<pre><code>[1 |+ 2 |^: 1000]                // Up to 1000 elements on demand
+[1 |+ 2 |^: (i, a) -&gt; a &gt; 100]   // Lazy until condition met
+</code></pre>
+<h2>Parsing Behavior</h2>
+<h3>AST Structure</h3>
+<p>Generator chains are parsed into <code>GeneratorChain</code> nodes with the following structure:</p>
+<pre><code class="language-javascript">{
+  type: &quot;GeneratorChain&quot;,
+  start: &lt;initial_value_node&gt; | null,
+  operators: [
+    {
+      type: &quot;GeneratorAdd&quot; | &quot;GeneratorMultiply&quot; | &quot;GeneratorFunction&quot; | &quot;GeneratorFilter&quot; | &quot;GeneratorLimit&quot; | &quot;GeneratorLazyLimit&quot;,
+      operator: &quot;|+&quot; | &quot;|*&quot; | &quot;|:&quot; | &quot;|?&quot; | &quot;|^&quot; | &quot;|^:&quot;,
+      operand: &lt;operand_node&gt;
+    }
+  ]
+}
+</code></pre>
+<h3>Operator Precedence</h3>
+<p>Generator operators have the same precedence as pipe operations (<code>PRECEDENCE.PIPE = 20</code>) and are left-associative.</p>
+<h3>Chaining Rules</h3>
+<ol>
+<li><strong>Start Value</strong>: Can be explicit (<code>[1 |+ 2]</code>) or implicit (<code>[|+ 2]</code>)</li>
+<li><strong>Operator Order</strong>: Generators → Filters → Limits</li>
+<li><strong>Multiple Chains</strong>: Separated by commas in arrays</li>
+<li><strong>Context</strong>: Generator chains are only recognized within array literals</li>
+</ol>
+<h3>Examples</h3>
+<h4>Single Chain</h4>
+<pre><code>[1 |+ 2 |^ 5]
+</code></pre>
+<p>AST: Array with one GeneratorChain element</p>
+<h4>Multiple Chains</h4>
+<pre><code>[1, 1 |: (i, a, b) -&gt; a + b |^ 10, |* 3 |^ 3, 100]
+</code></pre>
+<p>AST: Array with four elements:</p>
+<ol>
+<li>Number(1)</li>
+<li>GeneratorChain (Fibonacci)</li>
+<li>GeneratorChain (multiply by 3)</li>
+<li>Number(100)</li>
+</ol>
+<h4>Chain without Start Value</h4>
+<pre><code>[5, |+ 3 |^ 4, 20]
+</code></pre>
+<p>The second element references the previous element (5) as its starting value.</p>
+<h2>Parser Implementation Details</h2>
+<h3>Detection Logic</h3>
+<p>The parser identifies generator chains by:</p>
+<ol>
+<li>Parsing expressions normally within arrays</li>
+<li>Detecting binary operations with generator operators</li>
+<li>Converting binary operation trees to GeneratorChain nodes</li>
+</ol>
+<h3>Conversion Process</h3>
+<p>When a binary operation tree contains generator operators, the parser:</p>
+<ol>
+<li>Traverses the tree to extract operators in order</li>
+<li>Identifies the start value (leftmost non-generator operand)</li>
+<li>Creates a GeneratorChain node with proper structure</li>
+</ol>
+<h3>Error Handling</h3>
+<p>Common parsing errors:</p>
+<ul>
+<li>Missing operands: <code>[1 |+ |^ 5]</code></li>
+<li>Unmatched brackets: <code>[1 |+ 2 |^ 5</code></li>
+<li>Invalid function syntax in generators</li>
+</ul>
+<h2>Function Expression Parsing</h2>
+<p>Generator functions are parsed as <code>FunctionLambda</code> nodes with the structure:</p>
+<pre><code class="language-javascript">{
+  type: &quot;FunctionLambda&quot;,
+  parameters: {
+    positional: [
+      { name: &quot;i&quot;, defaultValue: null },
+      { name: &quot;a&quot;, defaultValue: null }
+    ],
+    keyword: [],
+    conditionals: [],
+    metadata: {}
+  },
+  body: &lt;expression_node&gt;
+}
+</code></pre>
+<h2>Compatibility</h2>
+<p>Generator syntax is fully compatible with:</p>
+<ul>
+<li>Regular array elements</li>
+<li>Metadata annotations</li>
+<li>Nested arrays</li>
+<li>Matrix/tensor syntax (when not mixed)</li>
+</ul>
+<p>Generator syntax is NOT compatible with:</p>
+<ul>
+<li>Metadata mixed with generators in same array</li>
+<li>Matrix semicolon separators in generator arrays</li>
+</ul>
+<h2>Performance Considerations</h2>
+<ul>
+<li>Generator chains are parsed eagerly during syntax analysis</li>
+<li>Lazy generators (<code>|^:</code>) create deferred evaluation nodes</li>
+<li>Filter operations may require iteration limits to prevent infinite loops</li>
+<li>Complex function generators may impact parsing performance</li>
+</ul>
+<h3>MAX_ITERATIONS Constant</h3>
+<p>To prevent infinite loops in filter operations, implementations should enforce a <code>MAX_ITERATIONS</code> global or per-generator setting. Recommended default: 10,000 iterations.</p>
+<pre><code class="language-javascript">// Example safety implementation
+const MAX_ITERATIONS = 10000;
+if (iterations &gt; MAX_ITERATIONS) {
+  throw new Error(&quot;Generator exceeded maximum iterations - possible infinite loop&quot;);
+}
+</code></pre>
+<h3>Memory Management</h3>
+<ul>
+<li>Eager generators (<code>|^</code>) pre-compute entire sequences</li>
+<li>Lazy generators (<code>|^:</code>) compute values on-demand</li>
+<li>Use lazy evaluation for large datasets (&gt;1000 elements)</li>
+<li>Complex filters may require significant CPU resources</li>
+</ul>
+<h2>Advanced Features</h2>
+<h3>Complex Mathematical Sequences</h3>
+<h4>Recursive Sequences with Multiple Previous Values</h4>
+<pre><code>[1, 1, 2 |: (i, a, b, c) -&gt; a + b + c |^ 10]  // Tribonacci
+</code></pre>
+<h4>Conditional Branching in Generators</h4>
+<pre><code>[1 |: (i, a) -&gt; i % 2 == 0 ? a * 2 : a + 1 |^ 20]
+</code></pre>
+<h4>Multiple Filter Chains</h4>
+<pre><code>[2 |+ 2 |? (i, a) -&gt; a % 3 == 1 |? (i, a) -&gt; a &lt; 100 |^ 50]
+</code></pre>
+<h3>Dynamic Termination Conditions</h3>
+<h4>Value-Based Stopping</h4>
+<pre><code>[1 |+ 2 |^ (i, a) -&gt; a &gt; 1000]
+</code></pre>
+<h4>Index-Based Stopping</h4>
+<pre><code>[1 |* 2 |^ (i, a) -&gt; i &gt;= 20]
+</code></pre>
+<h4>Complex Conditions</h4>
+<pre><code>[1 |+ 1 |^ (i, a) -&gt; a &gt; 100 OR i &gt; 50]
+</code></pre>
+<h3>Real-World Applications</h3>
+<h4>Mathematical Series</h4>
+<pre><code>[1 |: (i, a) -&gt; a + 1/(i+1) |^ 20]  // e approximation
+[4 |: (i, a) -&gt; a + 4*(-1)^(i+1)/(2*i+3) |^ 1000]  // π approximation
+</code></pre>
+<h4>Financial Modeling</h4>
+<pre><code>[1000 |: (i, a) -&gt; a * 1.05 |^ 10]  // Compound interest
+[100 |: (i, a) -&gt; a * (1 + market_volatility()) |^ 252]  // Stock simulation
+</code></pre>
+<h4>Scientific Computing</h4>
+<pre><code>[2 |: (i, x) -&gt; x - (x*x - 2)/(2*x) |^ (i, x) -&gt; abs(x*x - 2) &lt; 0.0001]  // Newton&#39;s method
+[0.5 |: (i, x) -&gt; 3.8 * x * (1 - x) |^ 50]  // Logistic map (chaos theory)
+</code></pre>
+<h2>Error Handling and Edge Cases</h2>
+<h3>Common Parsing Errors</h3>
+<ol>
+<li><p><strong>Missing Operands</strong></p>
+<pre><code>[1 |+ |^ 5]  // Error: Missing operand for |+
+</code></pre>
+</li>
+<li><p><strong>Invalid Function Syntax</strong></p>
+<pre><code>[1 |: -&gt; x + 1 |^ 5]  // Error: Missing parameter list
+</code></pre>
+</li>
+<li><p><strong>Unmatched Brackets</strong></p>
+<pre><code>[1 |+ 2 |^ 5  // Error: Expected closing bracket
+</code></pre>
+</li>
+</ol>
+<h3>Safety Mechanisms</h3>
+<ul>
+<li>Parser validates operator sequences</li>
+<li>Function parameter validation</li>
+<li>Termination condition type checking</li>
+<li>Prevents nested generator chains within single expressions</li>
+</ul>
+<h2>Optimization Guidelines</h2>
+<h3>When to Use Each Operator</h3>
+<ul>
+<li><strong><code>|+</code>, <code>|*</code></strong>: Simple arithmetic/geometric progressions</li>
+<li><strong><code>|:</code></strong>: Complex recurrence relations, mathematical sequences</li>
+<li><strong><code>|?</code></strong>: Data filtering, conditional selection</li>
+<li><strong><code>|^</code></strong>: Known finite sequences, batch processing</li>
+<li><strong><code>|^:</code></strong>: Large datasets, streaming data, unknown sequence length</li>
+</ul>
+<h3>Performance Tips</h3>
+<ol>
+<li>Place filters after generators for efficiency</li>
+<li>Use specific termination conditions to avoid over-computation</li>
+<li>Consider lazy evaluation for sequences &gt; 1000 elements</li>
+<li>Avoid complex nested function calls in hot paths</li>
+<li>Use multiple simple filters rather than one complex filter</li>
+</ol>
+</div>
+        </main>
+
+        <footer>
+            <p>&copy; 2024 RiX Language Team. Licensed under MIT.</p>
+        </footer>
+
+        <script>
+            // This script will be replaced by the actual markdown rendering logic
+            // For now, it just shows a placeholder
+            document.addEventListener("DOMContentLoaded", function () {
+                // Highlight current page in sidebar
+                const currentPath = window.location.pathname;
+                const currentFile = currentPath.substring(
+                    currentPath.lastIndexOf("/") + 1,
+                );
+                const sidebarLinks = document.querySelectorAll(".sidebar a");
+                sidebarLinks.forEach((link) => {
+                    const linkPath = link.getAttribute("href");
+                    if (
+                        linkPath === currentFile ||
+                        (currentFile === "" && linkPath === "./") ||
+                        linkPath === "./" + currentFile
+                    ) {
+                        link.classList.add("active");
+                    }
+                });
+            });
+        </script>
+    </body>
+</html>

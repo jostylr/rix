@@ -1,0 +1,100 @@
+.TraitRegister({=
+  name = :float,
+  implies = [:field, :ordered],
+  description = "JavaScript-backed floating-point number",
+  proto = {=
+    Describe = (self) -> "trait:float"
+  }
+});
+
+.TypeRegister({=
+  name = :Float,
+  aliases = [:float],
+  nativeType = :float,
+  defaultTraits = [:float, :number, :ordered, :field],
+
+  convertFrom = {=
+    integer = (x) -> .JSCall("floats.js", :From, x),
+    rational = (x) -> .JSCall("floats.js", :From, x),
+    float = (x) -> x,
+    string = (x) -> .JSCall("floats.js", :From, x)
+  },
+
+  convert = (x) -> .JSCall("floats.js", :From, x),
+  normalize = (x) -> x,
+  validate = (x) -> .JSCall("floats.js", :Is, x),
+
+  export = (x) -> .JSCall("floats.js", :Export, x),
+  import = (m) -> .JSCall("floats.js", :Import, m),
+
+  proto = {=
+    Value = (self) -> .JSCall("floats.js", :Value, self),
+    ToString = (self) -> .JSCall("floats.js", :Value, self)
+  },
+
+  installs = {=
+    ADD = [
+      {= name = :FloatFloat, prep = (x, y) -> (x ? :float) && (y ? :float), impl = (x, y) -> .JSCall("floats.js", :Add, x, y) },
+      {= name = :PromoteFloat, prep = (x, y) -> (x ? :float) || (y ? :float), impl = (x, y) -> .JSCall("floats.js", :Add, x ~!: :Float, y ~!: :Float) }
+    ],
+    SUB = [
+      {= name = :FloatFloat, prep = (x, y) -> (x ? :float) && (y ? :float), impl = (x, y) -> .JSCall("floats.js", :Sub, x, y) },
+      {= name = :PromoteFloat, prep = (x, y) -> (x ? :float) || (y ? :float), impl = (x, y) -> .JSCall("floats.js", :Sub, x ~!: :Float, y ~!: :Float) }
+    ],
+    MUL = [
+      {= name = :FloatFloat, prep = (x, y) -> (x ? :float) && (y ? :float), impl = (x, y) -> .JSCall("floats.js", :Mul, x, y) },
+      {= name = :PromoteFloat, prep = (x, y) -> (x ? :float) || (y ? :float), impl = (x, y) -> .JSCall("floats.js", :Mul, x ~!: :Float, y ~!: :Float) }
+    ],
+    DIV = [
+      {= name = :FloatFloat, prep = (x, y) -> (x ? :float) && (y ? :float), impl = (x, y) -> .JSCall("floats.js", :Div, x, y) },
+      {= name = :PromoteFloat, prep = (x, y) -> (x ? :float) || (y ? :float), impl = (x, y) -> .JSCall("floats.js", :Div, x ~!: :Float, y ~!: :Float) }
+    ],
+    POW = [
+      {= name = :FloatFloat, prep = (x, y) -> (x ? :float) && (y ? :float), impl = (x, y) -> .JSCall("floats.js", :Pow, x, y) },
+      {= name = :PromoteFloat, prep = (x, y) -> (x ? :float) || (y ? :float), impl = (x, y) -> .JSCall("floats.js", :Pow, x ~!: :Float, y ~!: :Float) }
+    ],
+    POWPROD = [
+      {= name = :FloatFloat, prep = (x, y) -> (x ? :float) && (y ? :float), impl = (x, y) -> .JSCall("floats.js", :Pow, x, y) },
+      {= name = :PromoteFloat, prep = (x, y) -> (x ? :float) || (y ? :float), impl = (x, y) -> .JSCall("floats.js", :Pow, x ~!: :Float, y ~!: :Float) }
+    ],
+    NEG = [{= name = :Float, prep = (x) -> x ? :float, impl = (x) -> .JSCall("floats.js", :Neg, x) }],
+
+    EQ = [
+      {= name = :FloatFloat, prep = (x, y) -> (x ? :float) && (y ? :float), impl = (x, y) -> .JSCall("floats.js", :Eq, x, y) },
+      {= name = :PromoteFloat, prep = (x, y) -> (x ? :float) || (y ? :float), impl = (x, y) -> .JSCall("floats.js", :Eq, x ~!: :Float, y ~!: :Float) }
+    ],
+    LT = [
+      {= name = :FloatFloat, prep = (x, y) -> (x ? :float) && (y ? :float), impl = (x, y) -> .JSCall("floats.js", :Lt, x, y) },
+      {= name = :PromoteFloat, prep = (x, y) -> (x ? :float) || (y ? :float), impl = (x, y) -> .JSCall("floats.js", :Lt, x ~!: :Float, y ~!: :Float) }
+    ],
+    GT = [
+      {= name = :FloatFloat, prep = (x, y) -> (x ? :float) && (y ? :float), impl = (x, y) -> .JSCall("floats.js", :Gt, x, y) },
+      {= name = :PromoteFloat, prep = (x, y) -> (x ? :float) || (y ? :float), impl = (x, y) -> .JSCall("floats.js", :Gt, x ~!: :Float, y ~!: :Float) }
+    ],
+    LTE = [
+      {= name = :FloatFloat, prep = (x, y) -> (x ? :float) && (y ? :float), impl = (x, y) -> .JSCall("floats.js", :Lte, x, y) },
+      {= name = :PromoteFloat, prep = (x, y) -> (x ? :float) || (y ? :float), impl = (x, y) -> .JSCall("floats.js", :Lte, x ~!: :Float, y ~!: :Float) }
+    ],
+    GTE = [
+      {= name = :FloatFloat, prep = (x, y) -> (x ? :float) && (y ? :float), impl = (x, y) -> .JSCall("floats.js", :Gte, x, y) },
+      {= name = :PromoteFloat, prep = (x, y) -> (x ? :float) || (y ? :float), impl = (x, y) -> .JSCall("floats.js", :Gte, x ~!: :Float, y ~!: :Float) }
+    ],
+
+    ABS = [{= name = :Float, prep = (x) -> x ? :float, impl = (x) -> .JSCall("floats.js", :Abs, x) }],
+    SQRT = [{= name = :Float, prep = (x) -> x ? :float, impl = (x) -> .JSCall("floats.js", :Sqrt, x) }],
+    SIN = [{= name = :Float, prep = (x) -> x ? :float, impl = (x) -> .JSCall("floats.js", :Sin, x) }],
+    COS = [{= name = :Float, prep = (x) -> x ? :float, impl = (x) -> .JSCall("floats.js", :Cos, x) }],
+    TAN = [{= name = :Float, prep = (x) -> x ? :float, impl = (x) -> .JSCall("floats.js", :Tan, x) }],
+    ASIN = [{= name = :Float, prep = (x) -> x ? :float, impl = (x) -> .JSCall("floats.js", :Asin, x) }],
+    ACOS = [{= name = :Float, prep = (x) -> x ? :float, impl = (x) -> .JSCall("floats.js", :Acos, x) }],
+    ATAN = [{= name = :Float, prep = (x) -> x ? :float, impl = (x) -> .JSCall("floats.js", :Atan, x) }],
+    ATAN2 = [{= name = :FloatFloat, prep = (y, x) -> (y ? :float) && (x ? :float), impl = (y, x) -> .JSCall("floats.js", :Atan2, y, x) }],
+    LOG = [{= name = :Float, prep = (x) -> x ? :float, impl = (x) -> .JSCall("floats.js", :Log, x) }],
+    LN = [{= name = :Float, prep = (x) -> x ? :float, impl = (x) -> .JSCall("floats.js", :Ln, x) }],
+    LOG10 = [{= name = :Float, prep = (x) -> x ? :float, impl = (x) -> .JSCall("floats.js", :Log10, x) }],
+    EXP = [{= name = :Float, prep = (x) -> x ? :float, impl = (x) -> .JSCall("floats.js", :Exp, x) }]
+  }
+});
+
+.TypeInstall(:Float);
+.CapabilityRegister("Float", (x) -> x ~!: :Float, "Convert a value to the Float semantic type");

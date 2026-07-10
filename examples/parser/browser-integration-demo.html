@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RiX Language - Three-Tier System Demo</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1, h2 {
+            color: #333;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 10px;
+        }
+        .tier-section {
+            border-left: 4px solid #007acc;
+            padding-left: 20px;
+            margin: 20px 0;
+        }
+        .tier-1 { border-left-color: #d32f2f; }
+        .tier-2 { border-left-color: #388e3c; }
+        .tier-3 { border-left-color: #1976d2; }
+        
+        .code-editor {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            margin: 10px 0;
+            min-height: 100px;
+            border: none;
+            width: 100%;
+            box-sizing: border-box;
+            resize: vertical;
+        }
+        
+        .output {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        
+        .button {
+            background: #007acc;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        
+        .button:hover {
+            background: #005a9e;
+        }
+        
+        .button.secondary {
+            background: #6c757d;
+        }
+        
+        .button.secondary:hover {
+            background: #545b62;
+        }
+        
+        .symbol-registry {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin: 15px 0;
+        }
+        
+        .symbol-card {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 10px;
+            font-size: 12px;
+        }
+        
+        .symbol-name {
+            font-weight: bold;
+            color: #007acc;
+        }
+        
+        .symbol-type {
+            color: #6c757d;
+            font-style: italic;
+        }
+        
+        .examples-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .example-card {
+            background: #f8f9fa;
+            border-radius: 4px;
+            padding: 15px;
+            border-left: 4px solid #007acc;
+        }
+        
+        .loading {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+        
+        .error {
+            color: #d32f2f;
+            background: #ffebee;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        
+        .success {
+            color: #388e3c;
+            background: #e8f5e8;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔬 RiX Language Three-Tier System Architecture</h1>
+        <p>This demo showcases the three-tier architecture where <strong>Language Maintainers</strong> provide the core, 
+           <strong>System Tinkerers</strong> extend with JavaScript, and <strong>Users</strong> work in pure RiX.</p>
+    </div>
+
+    <!-- Tier 1: Language Maintainers -->
+    <div class="container tier-section tier-1">
+        <h2>🛠️ Tier 1: Language Maintainers (Core)</h2>
+        <p>Core RiX language symbols and operators - maintained by language developers.</p>
+        <div id="core-symbols" class="symbol-registry"></div>
+    </div>
+
+    <!-- Tier 2: System Tinkerers -->
+    <div class="container tier-section tier-2">
+        <h2>⚙️ Tier 2: System Tinkerers (JavaScript Extensions)</h2>
+        <p>Web page authors can extend RiX with JavaScript. Define custom keywords, operators, and functions.</p>
+        
+        <h3>Define Custom Keywords</h3>
+        <div class="examples-grid">
+            <div>
+                <button class="button" onclick="addLogicalOperators()">Add Logical Operators (AND, OR, NOT)</button>
+                <button class="button" onclick="addControlFlow()">Add Control Flow (IF, WHILE, FOR)</button>
+                <button class="button" onclick="addSetOperations()">Add Set Operations</button>
+            </div>
+            <div>
+                <button class="button secondary" onclick="addCustomMath()">Add Custom Math Functions</button>
+                <button class="button secondary" onclick="addStringOperations()">Add String Operations</button>
+                <button class="button secondary" onclick="addDateTimeFunctions()">Add Date/Time Functions</button>
+                        <button class="button secondary" onclick="enableFunctionalControls()">Enable Functional Controls</button>
+            </div>
+        </div>
+        
+        <h3>Custom JavaScript Extension</h3>
+        <textarea class="code-editor" id="js-extension" placeholder="// Define your custom RiX extensions here
+// Example:
+RiX.registerKeyword('BETWEEN', {
+    type: 'operator',
+    precedence: 60,
+    associativity: 'left',
+    operatorType: 'ternary',
+    category: 'comparison'
+});
+
+RiX.registerSystem('RANDOM', {
+    type: 'function',
+    arity: -1,
+    category: 'utility'
+});"></textarea>
+        <button class="button" onclick="executeExtension()">Execute Extension</button>
+        <div id="extension-output" class="output" style="display: none;"></div>
+        
+        <h3>Current System Extensions</h3>
+        <div id="system-symbols" class="symbol-registry"></div>
+    </div>
+
+    <!-- Tier 3: Users -->
+    <div class="container tier-section tier-3">
+        <h2>👥 Tier 3: Users (Pure RiX)</h2>
+        <p>End users work entirely in RiX language, with access to core language + system extensions.</p>
+        
+        <h3>RiX Expression Playground</h3>
+        <textarea class="code-editor" id="rix-code" placeholder="# Try RiX expressions here!
+# Basic math
+result := 2 + 3 * 4
+
+# Using system extensions (if loaded)
+logical := x AND y OR NOT z
+
+# Control flow (if loaded)
+conditional := IF x > 0 THEN x ELSE -x
+
+# Functional control syntax (if enabled)
+loop_result := WHILE(i < 5, i := i + 1)
+conditional_result := IF(x > 0, x^2, 0)
+
+# Custom functions
+distance := SQRT((x2 - x1)^2 + (y2 - y1)^2)
+
+# Advanced features
+matrix := [[1, 2; 3, 4]]
+sequence := [1 |+ 2 |^ 10]">2 + 3 * 4</textarea>
+        <div>
+            <button class="button" onclick="parseRiX()">Parse RiX Code</button>
+            <button class="button secondary" onclick="analyzeRiX()">Analyze Symbols</button>
+            <button class="button secondary" onclick="clearOutput()">Clear Output</button>
+        </div>
+        <div id="rix-output" class="output"></div>
+        
+        <h3>Quick Examples</h3>
+        <div class="examples-grid">
+            <div class="example-card">
+                <h4>Mathematical</h4>
+                <code>SIN(PI/2) + COS(0)</code><br>
+                <button class="button" onclick="runExample('SIN(PI/2) + COS(0)')">Try It</button>
+            </div>
+            <div class="example-card">
+                <h4>Logical (if loaded)</h4>
+                <code>x AND (y OR NOT z)</code><br>
+                <button class="button" onclick="runExample('x AND (y OR NOT z)')">Try It</button>
+            </div>
+            <div class="example-card">
+                <h4>Arrays & Generators</h4>
+                <code>[1 |+ 2 |^ 5]</code><br>
+                <button class="button" onclick="runExample('[1 |+ 2 |^ 5]')">Try It</button>
+            </div>
+            <div class="example-card">
+                <h4>Function Definition</h4>
+                <code>f(x) := x^2 + 1</code><br>
+                <button class="button" onclick="runExample('f(x) := x^2 + 1')">Try It</button>
+            </div>
+            <div class="example-card">
+                <h4>Functional WHILE</h4>
+                <code>WHILE(i < 3, i := i + 1)</code><br>
+                <button class="button" onclick="runExample('WHILE(i < 3, i := i + 1)')">Try It</button>
+            </div>
+            <div class="example-card">
+                <h4>Functional IF</h4>
+                <code>IF(x > 0, result := x, result := -x)</code><br>
+                <button class="button" onclick="runExample('IF(x > 0, result := x, result := -x)')">Try It</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Configuration & Debug -->
+    <div class="container">
+        <h2>🔧 System Configuration & Debug</h2>
+        <div class="examples-grid">
+            <div>
+                <h3>Actions</h3>
+                <button class="button" onclick="exportConfig()">Export Configuration</button>
+                <button class="button" onclick="showSystemInfo()">Show System Info</button>
+                <button class="button secondary" onclick="resetSystem()">Reset System</button>
+            </div>
+            <div>
+                <h3>Statistics</h3>
+                <div id="system-stats" class="output"></div>
+            </div>
+        </div>
+        <div id="debug-output" class="output" style="display: none;"></div>
+    </div>
+
+    <!-- Hidden script tag for system extensions -->
+    <script type="text/rix-system" id="default-extensions">
+        // This could be loaded from external sources
+        // Default extensions loaded automatically
+        console.log('Loading default RiX extensions...');
+    </script>
+
+    <!-- Main JavaScript -->
+    <script type="module">
+        import { parse, tokenize } from '../../src/parser/parser.js';
+        import { SystemLoader, createWebPageSystemLoader } from '../../src/parser/system-loader.js';
+
+        // Initialize the three-tier system
+        let systemLoader;
+        let currentOutput = '';
+
+        // Initialize system
+        async function initializeSystem() {
+            try {
+                systemLoader = createWebPageSystemLoader({
+                    allowUserOverrides: false,
+                    strictMode: false
+                });
+
+                // Set up hooks for monitoring
+                systemLoader.registerHook('system-registered', (data) => {
+                    log(`System symbol registered: ${data.name}`);
+                    updateSystemDisplay();
+                });
+
+                systemLoader.registerHook('keyword-registered', (data) => {
+                    log(`Keyword registered: ${data.name}`);
+                    updateSystemDisplay();
+                });
+
+                updateSystemDisplay();
+                updateStats();
+                log('RiX Three-Tier System initialized successfully!');
+                
+            } catch (error) {
+                showError('System initialization failed: ' + error.message);
+            }
+        }
+
+        // Update symbol displays
+        function updateSystemDisplay() {
+            updateCoreSymbols();
+            updateSystemSymbols();
+            updateStats();
+        }
+
+        function updateCoreSymbols() {
+            const container = document.getElementById('core-symbols');
+            const symbols = systemLoader.getSymbolsByCategory('mathematical')
+                .concat(systemLoader.getSymbolsByCategory('trigonometric'))
+                .concat(systemLoader.getSymbolsByCategory('arithmetic'));
+            
+            container.innerHTML = symbols.map(sym => `
+                <div class="symbol-card">
+                    <div class="symbol-name">${sym.name}</div>
+                    <div class="symbol-type">${sym.type}</div>
+                    <div>${sym.category || 'core'}</div>
+                </div>
+            `).join('');
+        }
+
+        function updateSystemSymbols() {
+            const container = document.getElementById('system-symbols');
+            const config = systemLoader.exportConfig();
+            const systemSymbols = config.system.concat(config.keywords);
+            
+            container.innerHTML = systemSymbols.map(([name, def]) => `
+                <div class="symbol-card">
+                    <div class="symbol-name">${name}</div>
+                    <div class="symbol-type">${def.type}</div>
+                    <div>${def.category || 'extension'}</div>
+                    ${def.precedence ? `<div>prec: ${def.precedence}</div>` : ''}
+                </div>
+            `).join('');
+        }
+
+        function updateStats() {
+            const config = systemLoader.exportConfig();
+            const stats = document.getElementById('system-stats');
+            stats.innerHTML = `
+Core Symbols: ${config.core.length}
+System Extensions: ${config.system.length}
+Keywords: ${config.keywords.length}
+Custom Operators: ${config.operators.length}
+            `;
+        }
+
+        // Logging
+        function log(message) {
+            console.log(message);
+            currentOutput += message + '\n';
+        }
+
+        function showError(message) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error';
+            errorDiv.textContent = message;
+            document.body.insertBefore(errorDiv, document.body.firstChild);
+            setTimeout(() => errorDiv.remove(), 5000);
+        }
+
+        function showSuccess(message) {
+            const successDiv = document.createElement('div');
+            successDiv.className = 'success';
+            successDiv.textContent = message;
+            document.body.insertBefore(successDiv, document.body.firstChild);
+            setTimeout(() => successDiv.remove(), 3000);
+        }
+
+        // Extension functions
+        window.addLogicalOperators = () => {
+            systemLoader.registerKeyword('AND', {
+                type: 'operator',
+                precedence: 40,
+                associativity: 'left',
+                operatorType: 'infix',
+                category: 'logical'
+            });
+            
+            systemLoader.registerKeyword('OR', {
+                type: 'operator',
+                precedence: 30,
+                associativity: 'left',
+                operatorType: 'infix',
+                category: 'logical'
+            });
+            
+            systemLoader.registerKeyword('NOT', {
+                type: 'operator',
+                precedence: 110,
+                operatorType: 'prefix',
+                category: 'logical'
+            });
+            
+            showSuccess('Logical operators (AND, OR, NOT) added!');
+        };
+
+        window.addControlFlow = () => {
+            ['IF', 'THEN', 'ELSE', 'WHILE', 'FOR', 'DO'].forEach(keyword => {
+                systemLoader.registerKeyword(keyword, {
+                    type: 'control',
+                    structure: keyword.toLowerCase(),
+                    precedence: 5,
+                    category: 'control'
+                });
+            });
+            showSuccess('Control flow keywords added!');
+        };
+
+        window.addSetOperations = () => {
+            systemLoader.registerKeyword('IN', {
+                type: 'operator',
+                precedence: 60,
+                associativity: 'left',
+                operatorType: 'infix',
+                category: 'set'
+            });
+            
+            systemLoader.registerKeyword('UNION', {
+                type: 'operator',
+                precedence: 50,
+                associativity: 'left',
+                operatorType: 'infix',
+                category: 'set'
+            });
+            
+            systemLoader.registerKeyword('INTERSECT', {
+                type: 'operator',
+                precedence: 50,
+                associativity: 'left',
+                operatorType: 'infix',
+                category: 'set'
+            });
+            
+            showSuccess('Set operations added!');
+        };
+
+        window.addCustomMath = () => {
+            ['FACTORIAL', 'GCD', 'LCM', 'RANDOM', 'ROUND'].forEach(func => {
+                systemLoader.registerSystem(func, {
+                    type: 'function',
+                    arity: func === 'RANDOM' ? -1 : (func === 'GCD' || func === 'LCM' ? 2 : 1),
+                    category: 'mathematical'
+                });
+            });
+            showSuccess('Custom math functions added!');
+        };
+
+        window.addStringOperations = () => {
+            ['CONCAT', 'LENGTH', 'SUBSTRING', 'UPPERCASE', 'LOWERCASE'].forEach(func => {
+                systemLoader.registerSystem(func, {
+                    type: 'function',
+                    arity: func === 'CONCAT' ? -1 : (func === 'SUBSTRING' ? 3 : 1),
+                    category: 'string'
+                });
+            });
+            showSuccess('String operations added!');
+        };
+
+        window.addDateTimeFunctions = () => {
+            ['NOW', 'TODAY', 'YEAR', 'MONTH', 'DAY', 'HOUR', 'MINUTE'].forEach(func => {
+                systemLoader.registerSystem(func, {
+                    type: 'function',
+                    arity: func === 'NOW' || func === 'TODAY' ? 0 : 1,
+                    category: 'datetime'
+                });
+            });
+            showSuccess('Date/time functions added!');
+        };
+
+        window.enableFunctionalControls = () => {
+            // Enable control keywords that can be used as functions
+            const controlKeywords = {
+                'WHILE': { structure: 'loop', arity: 2 },
+                'IF': { structure: 'conditional', arity: -1 },
+                'FOR': { structure: 'loop', arity: 4 }
+            };
+            
+            Object.entries(controlKeywords).forEach(([keyword, config]) => {
+                systemLoader.registerKeyword(keyword, {
+                    type: 'control',
+                    structure: config.structure,
+                    precedence: 5,
+                    category: 'control',
+                    functionalForm: true,
+                    arity: config.arity
+                });
+            });
+            
+            showSuccess('Functional control structures enabled! Use WHILE(cond, body), IF(cond, then, else), etc.');
+        };
+
+        window.executeExtension = () => {
+            const code = document.getElementById('js-extension').value;
+            const output = document.getElementById('extension-output');
+            
+            try {
+                // Create a safe execution context
+                const func = new Function('RiX', 'systemLoader', 'log', code);
+                func(window.RiX, systemLoader, log);
+                
+                output.style.display = 'block';
+                output.textContent = 'Extension executed successfully!\n' + currentOutput;
+                currentOutput = '';
+                showSuccess('JavaScript extension executed!');
+                
+            } catch (error) {
+                output.style.display = 'block';
+                output.textContent = 'Error: ' + error.message;
+                showError('Extension execution failed: ' + error.message);
+            }
+        };
+
+        // RiX parsing functions
+        window.parseRiX = () => {
+            const code = document.getElementById('rix-code').value;
+            const output = document.getElementById('rix-output');
+            
+            try {
+                const tokens = tokenize(code);
+                const ast = parse(tokens, systemLoader.createParserLookup());
+                
+                // Check for functional control structures
+                const functionalControls = [];
+                ast.forEach(stmt => {
+                    if (stmt.type === 'FunctionCall' && 
+                        stmt.function?.type === 'SystemIdentifier' &&
+                        ['WHILE', 'IF', 'FOR'].includes(stmt.function.name)) {
+                        const lookup = systemLoader.lookup(stmt.function.name);
+                        if (lookup.functionalForm) {
+                            functionalControls.push({
+                                keyword: stmt.function.name,
+                                args: stmt.arguments.length,
+                                traditional: getTraditionalForm(stmt.function.name, stmt.arguments)
+                            });
+                        }
+                    }
+                });
+                
+                let functionalInfo = '';
+                if (functionalControls.length > 0) {
+                    functionalInfo = `
+
+<strong>Functional Control Structures Detected:</strong>
+${functionalControls.map(fc => 
+    `${fc.keyword}(${fc.args} args) → ${fc.traditional}`
+).join('\n')}`;
+                }
+                
+                output.innerHTML = `
+<strong>Tokens:</strong>
+${tokens.slice(0, -1).map(t => `${t.type}:${t.value}`).join(' ')}
+
+<strong>AST:</strong>
+${JSON.stringify(ast, null, 2)}${functionalInfo}
+                `;
+                
+            } catch (error) {
+                output.innerHTML = `<span style="color: red;">Parse Error: ${error.message}</span>`;
+            }
+        };
+
+        function getTraditionalForm(keyword, args) {
+            switch (keyword) {
+                case 'WHILE':
+                    return `WHILE condition DO body`;
+                case 'IF':
+                    return args.length >= 3 ? 
+                        `IF condition THEN thenBranch ELSE elseBranch` :
+                        `IF condition THEN thenBranch`;
+                case 'FOR':
+                    return `FOR init; condition; increment DO body`;
+                default:
+                    return 'unknown';
+            }
+        }
+
+        window.analyzeRiX = () => {
+            const code = document.getElementById('rix-code').value;
+            const output = document.getElementById('rix-output');
+            
+            try {
+                const tokens = tokenize(code);
+                const identifiers = { user: new Set(), system: new Set() };
+                
+                tokens.forEach(token => {
+                    if (token.type === 'Identifier') {
+                        if (token.kind === 'System') {
+                            identifiers.system.add(token.value);
+                        } else {
+                            identifiers.user.add(token.value);
+                        }
+                    }
+                });
+                
+                output.innerHTML = `
+<strong>Symbol Analysis:</strong>
+User Identifiers: ${Array.from(identifiers.user).join(', ') || 'none'}
+System Identifiers: ${Array.from(identifiers.system).join(', ') || 'none'}
+
+<strong>System Lookup Results:</strong>
+${Array.from(identifiers.system).map(name => {
+    const info = systemLoader.lookup(name);
+    return `${name}: ${info.type} (${info.source})`;
+}).join('\n')}
+                `;
+                
+            } catch (error) {
+                output.innerHTML = `<span style="color: red;">Analysis Error: ${error.message}</span>`;
+            }
+        };
+
+        window.runExample = (code) => {
+            document.getElementById('rix-code').value = code;
+            parseRiX();
+        };
+
+        window.clearOutput = () => {
+            document.getElementById('rix-output').innerHTML = '';
+        };
+
+        window.exportConfig = () => {
+            const config = systemLoader.exportConfig();
+            const output = document.getElementById('debug-output');
+            output.style.display = 'block';
+            output.textContent = JSON.stringify(config, null, 2);
+        };
+
+        window.showSystemInfo = () => {
+            const output = document.getElementById('debug-output');
+            output.style.display = 'block';
+            output.innerHTML = `
+<strong>RiX Three-Tier System Status</strong>
+
+Browser Integration: ${systemLoader.config.browserIntegration}
+Strict Mode: ${systemLoader.config.strictMode}
+Allow User Overrides: ${systemLoader.config.allowUserOverrides}
+
+Hooks Registered: ${systemLoader.hooks.size}
+Contexts: ${systemLoader.contexts.size}
+
+Total Symbols Available: ${
+    systemLoader.coreRegistry.size + 
+    systemLoader.systemRegistry.size + 
+    systemLoader.keywordRegistry.size
+}
+            `;
+        };
+
+        window.resetSystem = () => {
+            if (confirm('Reset all system extensions? This will remove all custom keywords and operators.')) {
+                systemLoader.systemRegistry.clear();
+                systemLoader.keywordRegistry.clear();
+                systemLoader.operatorRegistry.clear();
+                updateSystemDisplay();
+                showSuccess('System reset complete!');
+            }
+        };
+
+        // Initialize when page loads
+        initializeSystem();
+    </script>
+</body>
+</html>

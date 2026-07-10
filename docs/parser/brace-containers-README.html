@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>RiX Brace Container Examples - RiX Language Parser</title>
+        <style>
+            :root {
+                --primary-color: #2563eb;
+                --secondary-color: #1e40af;
+                --text-color: #1f2937;
+                --bg-color: #ffffff;
+                --code-bg: #f3f4f6;
+                --border-color: #e5e7eb;
+                --header-bg: #f9fafb;
+            }
+
+            * {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
+
+            body {
+                font-family:
+                    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                    "Helvetica Neue", Arial, sans-serif;
+                line-height: 1.6;
+                color: var(--text-color);
+                background-color: var(--bg-color);
+                min-height: 100vh;
+                display: flex;
+                flex-direction: column;
+            }
+
+            header {
+                background-color: var(--header-bg);
+                border-bottom: 1px solid var(--border-color);
+                padding: 1rem 0;
+                position: sticky;
+                top: 0;
+                z-index: 100;
+            }
+
+            .header-content {
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 0 2rem;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+            }
+
+            .logo {
+                display: flex;
+                align-items: center;
+                gap: 1rem;
+                text-decoration: none;
+                color: var(--text-color);
+            }
+
+            .logo img {
+                height: 40px;
+                width: auto;
+            }
+
+            .logo h1 {
+                font-size: 1.5rem;
+                font-weight: 700;
+            }
+
+            nav {
+                display: flex;
+                gap: 2rem;
+            }
+
+            nav a {
+                color: var(--text-color);
+                text-decoration: none;
+                font-weight: 500;
+                transition: color 0.2s;
+            }
+
+            nav a:hover {
+                color: var(--primary-color);
+            }
+
+            main {
+                flex: 1;
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 2rem;
+                width: 100%;
+            }
+
+            .sidebar {
+                position: fixed;
+                left: 0;
+                top: 73px;
+                width: 250px;
+                height: calc(100vh - 73px);
+                overflow-y: auto;
+                padding: 2rem 1rem;
+                background-color: var(--header-bg);
+                border-right: 1px solid var(--border-color);
+            }
+
+            .sidebar h2 {
+                font-size: 0.875rem;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                color: #6b7280;
+                margin-bottom: 1rem;
+            }
+
+            .sidebar ul {
+                list-style: none;
+            }
+
+            .sidebar li {
+                margin-bottom: 0.5rem;
+            }
+
+            .sidebar a {
+                color: var(--text-color);
+                text-decoration: none;
+                font-size: 0.875rem;
+                display: block;
+                padding: 0.25rem 0.5rem;
+                border-radius: 0.25rem;
+                transition: background-color 0.2s;
+            }
+
+            .sidebar a:hover {
+                background-color: var(--border-color);
+            }
+
+            .sidebar a.active {
+                background-color: var(--primary-color);
+                color: white;
+            }
+
+            .content {
+                margin-left: 250px;
+                padding: 2rem;
+                max-width: 900px;
+            }
+
+            .content h1 {
+                font-size: 2.5rem;
+                margin-bottom: 1rem;
+                color: var(--text-color);
+            }
+
+            .content h2 {
+                font-size: 2rem;
+                margin-top: 2rem;
+                margin-bottom: 1rem;
+                color: var(--text-color);
+            }
+
+            .content h3 {
+                font-size: 1.5rem;
+                margin-top: 1.5rem;
+                margin-bottom: 0.75rem;
+                color: var(--text-color);
+            }
+
+            .content p {
+                margin-bottom: 1rem;
+            }
+
+            .content code {
+                background-color: var(--code-bg);
+                padding: 0.125rem 0.25rem;
+                border-radius: 0.25rem;
+                font-family: "Consolas", "Monaco", "Courier New", monospace;
+                font-size: 0.875em;
+            }
+
+            .content pre {
+                background-color: var(--code-bg);
+                padding: 1rem;
+                border-radius: 0.5rem;
+                overflow-x: auto;
+                margin-bottom: 1rem;
+            }
+
+            .content pre code {
+                background-color: transparent;
+                padding: 0;
+            }
+
+            .content ul,
+            .content ol {
+                margin-bottom: 1rem;
+                padding-left: 2rem;
+            }
+
+            .content li {
+                margin-bottom: 0.25rem;
+            }
+
+            .content a {
+                color: var(--primary-color);
+                text-decoration: none;
+            }
+
+            .content a:hover {
+                text-decoration: underline;
+            }
+
+            .content blockquote {
+                border-left: 4px solid var(--primary-color);
+                padding-left: 1rem;
+                margin: 1rem 0;
+                color: #6b7280;
+                font-style: italic;
+            }
+
+            .content table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-bottom: 1rem;
+            }
+
+            .content th,
+            .content td {
+                border: 1px solid var(--border-color);
+                padding: 0.5rem;
+                text-align: left;
+            }
+
+            .content th {
+                background-color: var(--header-bg);
+                font-weight: 600;
+            }
+
+            footer {
+                background-color: var(--header-bg);
+                border-top: 1px solid var(--border-color);
+                padding: 2rem;
+                text-align: center;
+                color: #6b7280;
+                font-size: 0.875rem;
+            }
+
+            @media (max-width: 768px) {
+                .sidebar {
+                    display: none;
+                }
+
+                .content {
+                    margin-left: 0;
+                    padding: 1rem;
+                }
+
+                .header-content {
+                    padding: 0 1rem;
+                }
+
+                nav {
+                    display: none;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <header>
+            <div class="header-content">
+                <a href="../" class="logo">
+                    <img src="../rix-logo.png" alt="RiX Logo" />
+                    <h1>RiX Language Parser</h1>
+                </a>
+                <nav>
+                    <a href="/">Home</a>
+                    <a href="/docs.html">Documentation</a>
+                    <a href="/demo.html">Demo</a>
+                    <a href="https://github.com/rix-lang/parser">GitHub</a>
+                </nav>
+            </div>
+        </header>
+
+        <aside class="sidebar">
+            <h2>Documentation</h2>
+            <ul>
+                <li><a href="docs.html/">Overview</a></li>
+                <li><a href="architecture.html">Architecture</a></li>
+                <li><a href="parsing.html">Parsing</a></li>
+                <li><a href="AST-brief.html">AST Structure</a></li>
+                <li><a href="three-tier-system.html">Three-Tier System</a></li>
+                <li>
+                    <a href="function-definitions-summary.html">Functions</a>
+                </li>
+                <li>
+                    <a href="array-generators-implementation.html"
+                        >Array Generators</a
+                    >
+                </li>
+                <li>
+                    <a href="matrix-tensor-implementation.html"
+                        >Matrix & Tensor</a
+                    >
+                </li>
+                <li>
+                    <a href="brace-containers-README.html">Brace Containers</a>
+                </li>
+                <li><a href="embedded-parsing.html">Embedded Parsing</a></li>
+                <li><a href="ternary-operator.html">Ternary Operator</a></li>
+                <li>
+                    <a href="unit-notation-migration.html">Unit Notation</a>
+                </li>
+            </ul>
+        </aside>
+
+        <main class="content">
+            <!-- Markdown content will be inserted here -->
+            <div id="markdown-content"><h1>RiX Brace Container Examples</h1>
+<p>This directory contains examples demonstrating the four different types of brace containers (<code>{}</code>) supported by the RiX parser.</p>
+<h2>Container Types</h2>
+<h3>1. Set Containers</h3>
+<p>Contains only literal values or expressions without special assignment operators.</p>
+<pre><code>{1, 2, 3}           // Set of numbers
+{a, b, c}           // Set of identifiers  
+{x + 1, y * 2}      // Set of expressions
+{}                  // Empty set
+</code></pre>
+<h3>2. Map Containers</h3>
+<p>Contains key-value pairs using the <code>:=</code> operator.</p>
+<pre><code>{name := &quot;John&quot;, age := 30}        // Map with mixed types
+{x := 5, y := x * 2}               // Map with expressions
+{key1 := value1, key2 := value2}   // Map with identifiers
+</code></pre>
+<h3>3. Pattern-Match Containers</h3>
+<p>Contains pattern-match pairs using the <code>:=&gt;</code> operator.</p>
+<pre><code>{(0) :=&gt; &quot;zero&quot;, (1) :=&gt; &quot;one&quot;}    // Pattern match with literals
+{(x) :=&gt; x + 1, (y) :=&gt; y * 2}     // Pattern match with expressions
+{(n) :=&gt; n^2, (m) :=&gt; SIN(m)}      // Pattern match with functions
+</code></pre>
+<h3>4. System Containers</h3>
+<p>Contains equations using equation operators (<code>:=:</code>, <code>:&gt;:</code>, etc.) separated by semicolons.</p>
+<pre><code>{x :=: 3*x + 2; y :=: x}           // System of equations
+{a :&gt;: 0; b :&lt;: 10; c :=: a + b}   // System with inequalities
+</code></pre>
+<h2>Type Detection Rules</h2>
+<p>The parser automatically detects the container type based on its contents:</p>
+<ol>
+<li><strong>Set</strong>: Default type for expressions without special operators</li>
+<li><strong>Map</strong>: Detected when <code>:=</code> assignments are present</li>
+<li><strong>Pattern-Match</strong>: Detected when <code>:=&gt;</code> operators are present</li>
+<li><strong>System</strong>: Detected when equation operators (<code>:=:</code>, <code>:&gt;:</code>, etc.) are present AND semicolons are used as separators</li>
+</ol>
+<h2>Type Validation</h2>
+<p>The parser enforces homogeneity within containers:</p>
+<ul>
+<li>Maps must contain only <code>:=</code> assignments</li>
+<li>Pattern-matches must contain only <code>:=&gt;</code> operators</li>
+<li>Systems must contain only equation operators with semicolon separators</li>
+<li>Mixing different operator types within the same container results in a parse error</li>
+</ul>
+<h2>Examples Files</h2>
+<ul>
+<li><code>brace-containers.js</code> - Comprehensive examples with full AST output</li>
+<li><code>brace-types-demo.js</code> - Concise demo showing type detection</li>
+<li><code>container-integration-test.js</code> - Automated test suite validating all functionality</li>
+</ul>
+<h2>Usage</h2>
+<p>Run any example file:</p>
+<pre><code class="language-bash">node examples/brace-types-demo.js
+node examples/container-integration-test.js
+</code></pre>
+<h2>Error Cases</h2>
+<p>Common errors when mixing container types:</p>
+<pre><code>{a := 1, b, c := 3}          // Error: Mixed map and set elements
+{(x) :=&gt; x + 1, a := 2}      // Error: Mixed pattern and assignment
+{x :=: 3, a := 2}            // Error: Mixed equation and assignment  
+{x :=: 3*x + 2, y :=: x}     // Error: System without semicolons
+</code></pre>
+</div>
+        </main>
+
+        <footer>
+            <p>&copy; 2024 RiX Language Team. Licensed under MIT.</p>
+        </footer>
+
+        <script>
+            // This script will be replaced by the actual markdown rendering logic
+            // For now, it just shows a placeholder
+            document.addEventListener("DOMContentLoaded", function () {
+                // Highlight current page in sidebar
+                const currentPath = window.location.pathname;
+                const currentFile = currentPath.substring(
+                    currentPath.lastIndexOf("/") + 1,
+                );
+                const sidebarLinks = document.querySelectorAll(".sidebar a");
+                sidebarLinks.forEach((link) => {
+                    const linkPath = link.getAttribute("href");
+                    if (
+                        linkPath === currentFile ||
+                        (currentFile === "" && linkPath === "./") ||
+                        linkPath === "./" + currentFile
+                    ) {
+                        link.classList.add("active");
+                    }
+                });
+            });
+        </script>
+    </body>
+</html>

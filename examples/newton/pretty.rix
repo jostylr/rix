@@ -1,0 +1,68 @@
+NthRootPretty(label, n, q, result) -> {;
+    Abs(x) -> x >= 0 ?? x ?: -x;
+
+    Decimal(x) -> x _> ".12";
+
+    WidthPower10(width) -> {;
+        w := width;
+        p := 0;
+        {@
+            tick := 0;
+            @w > 0 && @w < 1;
+            {; @w = @w * 10; @p -= 1 };
+            tick += 1
+        };
+        {@
+            tick := 0;
+            @w >= 10;
+            {; @w = @w / 10; @p += 1 };
+            tick += 1
+        };
+        p
+    };
+
+    StepSummary(index, step) -> {;
+        x := step[2];
+        y := step[3];
+        lo := x <= y ?? x ?: y;
+        hi := x <= y ?? y ?: x;
+        width := hi - lo;
+        center := (lo + hi) / 2;
+        {=
+            step = index,
+            guess = Decimal(step[1]),
+            interval = Decimal(lo) + " .. " + Decimal(hi),
+            center = Decimal(center),
+            width = Decimal(width),
+            widthPower10 = WidthPower10(width)
+        }
+    };
+
+    steps := [];
+    {@
+        i := 1;
+        i <= .LEN(@result[2]);
+        @steps = @steps ++ [StepSummary(i, @result[2][i])];
+        i += 1
+    };
+
+    finalStep := result[2][.LEN(result[2])];
+    lo := finalStep[2] <= finalStep[3] ?? finalStep[2] ?: finalStep[3];
+    hi := finalStep[2] <= finalStep[3] ?? finalStep[3] ?: finalStep[2];
+    width := hi - lo;
+    center := (lo + hi) / 2;
+
+    {=
+        label = label,
+        n = n,
+        q = q,
+        interval = Decimal(lo) + " .. " + Decimal(hi),
+        representative = Decimal(center),
+        width = Decimal(width),
+        widthPower10 = WidthPower10(width),
+        iterations = .LEN(result[2]),
+        steps = steps
+    }
+};
+
+< NthRootPretty=NthRootPretty >

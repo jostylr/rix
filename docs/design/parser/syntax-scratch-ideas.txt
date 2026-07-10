@@ -1,0 +1,72 @@
+Use =, := (redundant), :<, :> for assignments, assertions. Use ==, <, > for boolean checks. Use :=:, :<:, ... for returning a set. 
+
+
+map:  {= a=3, b=6}  ## = here is same as := and both should be allowed
+case: {? x<y ? 3*x; x>5 ? x*4; x+2} 
+piecewise function: (x,y) -> {? x<y ? 3*x; x>5 ? x*4; x+2}  
+set {|  3, 6, "cool"} 
+array/tuple {: 5, 6, 7, 8 } equivalent to [5, 6, 7, 8] which should also be allowed
+multiline {; x = x+3; Do(x); 2*x} This is a block of statements. They execute when encountered unless @ is used in front. So @{; x = x+3; Do(x); 2*x} is a raw block that does not get executed until later. Same for case.  For functions, the RHS is not evaluated anyway until function called so it is cool. 
+{ wahtever } should be interpreted as a multiline object. The @ form without a leading  semicolon is also to be understood this way. 
+
+## RiX Preference: Use camelCase for identifiers (e.g., myVar, someValue). 
+## Underscores (_) are treated as null operators, so snake_case will cause parse warnings.
+
+obj{= +a=3, -.b, +c } would take the map obj, add/change a to 3, remove key b, merge in the properties of c (assuming map, error if does not make sense). This generates a new object. To modify the existing option, open with !  obj{! +a=3, -.b, +c } 
+
+obj.a  returns value of key a. Can also use obj["a"] or obj[b] where b="a". This is JS access notation. It is good. 
+obj..b returns value of key b on the external properties. 
+obj.a = 7 assigns 7 to the property a assuming obj is not frozen
+obj..b = 9 assigns 9 to the external property b. 
+Meta(obj, proto) assigns all the properties of proto to the extenal properties of obj. This is a now-transfer; modifying proto later does not modify the assigned properties. 
+
+
+All syntax should be translatable into system functions. So 
+{= a=3, b=6}  becomes Map("a", 3, "b", 6)
+{? x<y ? 3*x; x>5 ? x*4; x+2} becomes Case(@{x<y}, @{3*x}, @{x>5}, @{x*4}, @{x+2})
+
+
+{@ init; cond; body; update} becomes
+LOOP( @{init}, @{cond}, @{statements}, @{update}) 
+{@ i=0; i<10; {x= x+i}; i+=1} becomes LOOP( @{i = 0}, @{i < 10}, @{ x = x + i}, @{i += 1})
+
+
+Commas are spatial.
+Semicolons are temporal.
+
+System:
+	•	{| ... } set — spatial
+	•	{: ... } tuple — spatial
+	•	{= ... } map — spatial
+	•	{? ... } — conditional time flow
+	•	{; ... } — sequential time flow
+* {@ ... } - loop time flow
+
+Symmetric closing is fine, but not required, e.g.,  {= a=3, b=6} is same as {= a=3, b=6 =}
+
+
+
+All of the values in all of these things can be anything. 
+
+Could have {...}$number, string$ to say number and strings are the only allowed values
+
+Everything could have a type in ..type In a function, it could be F = $(string, any) -> number$  (x, y) -> whatever 
+
+
+
+Typing is optional; Any is the default. 
+
+obj = {= a=3, b= 5, F= (x) -> 3*x, c = a<0}
+obj.a == 3   // returns 1
+obj[d] == 3 // if d == "a". 
+obj..a = 8  // puts a property on obj distinct from it being map that is obj_a != obj.a
+
+Syntax f(x) should be interpreted as f*x and not as function evaluation. Capital letters are the functions. 
+
+obj.. returns a map of all the attached property values. 
+obj|. returns a set of values
+obj.| returns a set of keys
+obj. = map  will merge into the properties
+obj. = set removes the keys that match
+
+Input numbers are in base 10 unless they have a leading 0 followed by a letter. There are some bases that are named by default, such as 0b for binary. Capital letters are available for user defined bases. Defined ones are b for binary, t for ternary, q for quaternary, f for base 5, s for base 7, d for base 10 (not ever needed), x for hexadecimal, c for base 12 (clock), m for base 60 (mesopotamia), y for base 64 (0-9A-Za-z@&), u for 36 (url shorteners), j for 20 (should be A-I). 0z[23]13FASD3 indicates a custom base of 23 which goes from 0 to 9 and then A-M. Base 64 is as high as default goes; above that one must define a custom set of symbols, presumably going into unicode territory.  

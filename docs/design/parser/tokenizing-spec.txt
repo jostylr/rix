@@ -1,0 +1,324 @@
+This is the spec document for tokenizing a given language fragment in JavaScript.
+
+The types to be produced are Identifier, Number, Symbol, String
+
+The tokens should return, in addition to other properties, also the position of the start of the original text, the start of the value, and the end of the match. This should be 0-based and done so that slicing in JavaScript with a start and then end would produce the correct text.
+
+Token Types
+-----------
+
+1. Identifier
+   - First character: Unicode letter (excluding math operators/currency/symbols if desired)
+   - Following characters: Unicode letters or numbers (no underscores, no special chars)
+   - Case rules: Only the first letter is case sensitive; the rest are normalized for comparison.
+   - Examples: x, α, y2, Pi, Trig1
+   - Can use
+        const identifierStart = /[\p{L}]/u;
+        const identifierPart = /[\p{L}\p{N}]/u;  // letter or number
+    - Use identifierStart.toUpperCase() === identifierStart to decide on whether to capitalize or not. Kind value should be "System" if capital, "User" if not capital. The value is the appropriately capitalized or lowercased version, with the rest matching.
+
+2. Number
+   - See language spec: includes integer, decimal, rational, mixed, interval, unit, etc.
+   - If the current parsing part has a a digit or a minus sign immediately followed by a digit, then it is a number.
+
+3. String
+   - Triple: double-quoted, backtick-quoted, or comment
+   - Each string token carries a kind: "quote", "backtick", or "comment"
+   - Contents: Everything inside the delimiters (quotes/backticks/comment markers)
+
+4. Symbol
+   - All multi- and single-character operators, punctuation, brackets, etc.
+
+
+
+Token Value
+-----------
+- The token should be emitted as {type, original, value, kind}
+- Type is one of the four above
+- Original is the entire string from the end of the previous match to the end of this match. It should be the case that concatenating all of the originals should result in the entire input string.
+- Value is the normalized version of the original string, with delimiters removed. For identifiers, the first letter's case should be what the rest of the identifier value is converted to.
+- Kind is only present for String type and is one of "quote", "backtick", or "comment"
+
+
+Notes
+-----
+- Only the first letter of an identifier is case sensitive.
+- No underscores allowed in identifiers.
+- Unicode identifier support, but be mindful of code points that are visually similar to symbols or numbers.
+
+
+Number Format Specification (Tokenizing and Parsing)
+===================================================
+
+1. Integer
+----------
+Format:      [0-9]+
+Examples:    0   12   5678
+
+2. Decimal (Finite)
+-------------------
+Format:      [0-9]+.[0-9]+
+Examples:    2.5   7.89   0.001
+
+3. Repeating Decimal
+--------------------
+Format:      [0-9]+.[0-9]+#[0-9]+      (e.g., 0.12#45)
+             [0-9]+#[0-9]+             (e.g., 7#3)
+Examples:    0.12#45    7#3    2.3#2
+
+4. Rational (Fraction)
+----------------------
+Format:      [0-9]+/[0-9]+         (no spaces allowed)
+Examples:    3/4   15/8   123/456
+
+5. Mixed Number
+---------------
+Format:      [0-9]+..[0-9]+/[0-9]+
+Examples:    1..3/4   2..5/8
+
+6. Interval
+-----------
+Format:      a:b     (a and b can be any valid number literal)
+Examples:    2:5   1.5:2.7   3/4:1.23#56   1..3/4:2..1/8
+
+7. Scientific Notation
+----------------------
+Format:      [number]E[+/-][integer]
+Examples:    5E6   1.23E-2
+
+8. Interval on Decimal (for precision/uncertainty)
+--------------------------------------------------
+Format:      [decimal][[lower:upper]]   (interval around a decimal)
+Examples:    1.23[56:67]   0.#3   1.23[+5,-6]
+
+9. Unit Operators
+-----------------
+Scientific units:  ~[   (followed by unit expression and ])
+Math units:        ~{   (followed by unit expression and })
+Examples:          3.2~[m]   9.8~[m/s^2]   2~{i}   1~{sqrt2}
+These are tokenized as separate operators, not part of numbers.
+
+10. Numbers (without units)
+---------------------------
+Numbers are now tokenized without units attached.
+Old: 3.2~m~ was one token
+New: 3.2 (number), ~[ (operator), m (identifier), ] (symbol)
+
+11. Type-Notated Numbers (Backtick Literals)
+--------------------------------------------
+Format:      `Type:expression`   (use multiple backticks to nest)
+Examples:    `F:6/8`   `P(x):2x^2+3x+1`   ``P(x):x^2+`inner`+1``
+For tokenizing, ignore this and use the backtick description below for tokenizing.
+
+Tokenizing Notes
+----------------
+- Tokenizer must recognize as single tokens: rationals like 3/4, mixed numbers 1..3/4, repeating decimals 0.12#45, intervals 2:5.
+- No-space rule: rationals, mixed numbers, etc. must not have spaces. Spaces cause splitting into tokens.
+- Backtick-typed numbers are single tokens.
+- Tokenizer should prioritize longest possible matches (e.g., 1..3/4 before matching 1 then 3/4).
+- Also allow a decimal point that leads the number or is after the negative sign.
+
+Parsing Notes
+-------------
+- If / with no spaces, treat as rational.
+- If .. is present, treat as mixed number.
+- If # is present, treat as repeating decimal.
+- If : is present, treat as interval (unless it’s an operator or separator).
+- Numbers no longer include units; ~[ and ~{ are separate operators.
+- If backticks, parse as type-literal.
+- E notation: treat as scientific.
+- Check for ambiguities and resolve based on spec: no-space, longest match.
+
+Summary Table
+-------------
+Form             | Example         | Tokenizer Pattern                  | Parser Output
+-----------------|----------------|------------------------------------|-------------------------------
+Integer          | 12             | [0-9]+                             | Integer(12)
+Decimal          | 2.5            | [0-9]+.[0-9]+                      | Decimal(2.5)
+Repeating Dec.   | 0.12#45        | [0-9]+.[0-9]+#[0-9]+               | Rational(…)
+Rational         | 3/4            | [0-9]+/[0-9]+ (no spaces)          | Rational(3,4)
+Mixed number     | 1..3/4         | [0-9]+..[0-9]+/[0-9]+              | Mixed(1, Rational(3,4))
+Interval         | 2:5            | number:number                      | Interval(2,5)
+Scientific       | 1.23E-2        | [number]E[+/-][integer]            | Decimal(…)
+Decimal interval | 1.23[56:67]    | [number][[lower:upper]]            | Interval(…)
+Scientific unit  | 3.2~[m]        | [number] ~[ [unit] ]               | Number + operators
+Math unit        | 2~{i}          | [number] ~{ [unit] }               | Number + operators
+
+Negative Numbers
+----------------
+- Negative numbers are parsed as part of the number token if the minus sign is directly before the number:
+    - -3       (integer)
+    - -2.1     (decimal)
+    - -3/4     (rational)
+    - -1..3/4  (mixed)
+    - -1.2#34  (repeating decimal)
+    - -2:5     (interval)
+    - -3.2 followed by ~[m] (number with scientific unit)
+    - `F:-3/4` (type-literal)
+
+- For intervals, both endpoints can be negative:
+    - -5:-2    (interval from -5 to -2)
+
+- In expressions, unary minus is an operator:
+    - -x       (negated variable)
+    - -(a + b) (negated sum)
+    - -f(2)    (negated function value)
+
+- Parsing rule:
+    - If '-' is directly before a numeric literal, include it in the token.
+    - Otherwise, parse '-' as a unary operator.
+
+- This ensures intervals, units, and all number forms can be negative, and expressions remain flexible.
+
+Strings
+=======
+Quote Processing Rules for Tokenizer
+====================================
+
+1. Double Quotes (String Literals)
+   - Opening: Any number N ≥ 1 consecutive double quotes (`"`).
+   - Tokenizer scans input, collecting all characters until it encounters the same sequence of N double quotes as a closing delimiter.
+   - Inside, any run of M < N double quotes is treated as literal (M) double quote characters.
+   - If there is no matching delimiter, then that is considered an error. So for example if "" was written with the intent of an empty string, this would fail. Instead, "" "" and the parser will remove that space to generate an empty string. ""  "" would be a string with 1 space, and so on. This treatment is the same in the other String processing types.
+
+2. Backticks (Typed/Code Literals)
+   - Opening: Any number N ≥ 1 consecutive backticks (`` ` ``).
+   - Tokenizer collects all characters until it finds the same sequence of N backticks as a closing delimiter.
+   - No interpretation of content is done by tokenizer; type tag (if present) and content are returned as a single token.
+   - Any run of M < N backticks inside is treated as literal.
+   - Example:
+       `` `P(x):x^2+1` ``  →  Type: P(x), Content: x^2+1
+       ````code with ``` inside```` → code with ``` inside
+
+3. Block Comments (JS-style)
+   - Delimiter: N consecutive stars followed by slash to close, i.e., `/*...*/`, `/**...**/`, `/***...***/`, etc.
+   - Open: slash, then N stars.
+   - Close: N stars, then slash.
+   - The block comment ends only at the first exact match of N stars plus a slash.
+   - Everything inside is treated as literal comment content.
+
+4. Single-Line Comments
+   - Start with `#` and extend to end of line. The JS single line comment is not allowed as it would conflict with the `//` as truncation division operator.
+
+5. Kind Tag
+   - Each token records its kind: "quote", "backtick", or "block comment", or "line comment".
+   - Token value is everything between delimiters, with no trimming.
+
+6. No Escape Sequences
+   - The tokenizer does not interpret or process escape sequences in quoted strings or comments.
+   - Anything less than a N-length delimiter is not matched even if it looks like a delimiter sequence.
+
+7. Another string is ~~ (two tildes) followed by no space charcters until a tilde is reached. The kind is "unit change".
+
+Summary:
+--------
+- The tokenizer always “gobbles up” from the opening N-quotes or N-backticks until it sees the matching closing N-quotes or N-backticks.
+- Delimiters of length N allow any shorter sequence inside as literal.
+- No nesting is required; only delimiter length is checked.
+- The result is a single string/backtick/comment token, with the kind and raw content.
+
+Operator and Symbol Token List (Sorted Longest to Shortest)
+===========================================================
+
+Maximal munch is always required.
+
+--- Assignment, Equations, Comparisons ---
+:=:         (equation to solve assignment)
+:>=:        (solve: greater or equal)
+:<=:        (solve: less or equal)
+:>:         (solve: greater than)
+:<:         (solve: less than)
+:=>         (pattern-matching function assignment)
+:=          (assignment)
+?<=         (boolean less or equal)
+?>=         (boolean greater or equal)
+?<          (boolean less than)
+?>          (boolean greater than)
+?=          (boolean test for identity/membership)
+
+--- Pipes, Map/Filter/Reduce, Sequence Ops ---
+||>         (explicit/verbose pipe)
+|>>         (map pipe)
+|>:         (reduce pipe)
+|>?         (filter pipe)
+|+          (sequence add)
+|*          (sequence multiply)
+|:          (sequence generator by index)
+|;          (sequence eager stop/statement sep)
+|^          (sequence lazy/generator ceiling)
+|?          (sequence predicate filter)
+
+--- Division, Modulo, Rounding ---
+/%          (integer, reduced fractional, unreduced numerator, unreduced denominator tuple division)
+//          (integer division, truncation)
+/^          (ceiling division)
+/~          (rounded division)
+%           (modulo/remainder)
+
+--- Interval operators ---
+::          (range with steps)
+:+          (range with increment)
+:-          (range with decrement)
+::+         (start at left and increment up with right)
+::-         (start at left and decrement down with right)
+:/          (partition into equal width intervals)
+:/+         (partition with mediants)
+:%          (picks random elements from an interval or object)
+:/%         (randomly partitions an interval)
+:           (make an interval from two number objects)
+
+--- Code Blocks, Brackets, Etc. ---
+{{          (code block start)
+}}          (code block end)
+
+--- Relational, Equality ---
+<=          (less than or equal)
+>=          (greater than or equal)
+==          (boolean equality)
+!=          (not equal)    [if used]
+
+--- Functions, Lambda, Arrow ---
+:=>         (pattern-matching function assignment)  [already above]
+->          (function definition)
+=>          (arrow, if used)
+'           (single quote, calculus notation)
+
+--- Separators ---
+,           (comma)
+;           (semicolon)
+
+--- Brackets, Braces, Parentheses ---
+(           (left parenthesis)
+)           (right parenthesis)
+[           (left bracket)
+]           (right bracket)
+{           (left brace)
+}           (right brace)
+
+--- Arithmetic Operators ---
++           (addition)
+-           (subtraction/negation)
+*           (multiplication)
+/           (division)
+^           (exponentiation)
+**          (interval multiplication power)
+_           (placeholder/underscore)
+
+--- Dot, Tilde, Colon, At ---
+.           (dot: property/metadata access)
+~           (tilde: units, rounding)
+~~          (double tilde: converts units)
+@           (scope/global)
+
+
+=== Notes
+
+	•	Use a lookahead or peek system for symbol maximal munch.
+	•	When parsing numbers, try each possible pattern (mixed, decimal, rational, etc.) in order of specificity.
+	•	Use Unicode-aware regex for identifiers.
+	•	Emit tokens with {type, original, value, kind} as specified.
+	•	When in doubt, fall back to splitting on spaces, then tokenize each chunk.
+
+=== end
+
+The end token is always emitted with any remaining text (should just be whitespace) in the original. The value should be null. The type is "End".

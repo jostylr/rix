@@ -1,0 +1,130 @@
+Project Context:
+
+I am designing an extensible mathematical expression language called RiX (Rational Interval Expression Language). The language supports arithmetic, polynomials, rational functions, assignments, function definitions, intervals, mixed numbers, units, algebraic and real number extensions, rich operators, and more. The tokenizer is already spec’d and implemented.
+
+This is all in JavaScript to be run in node, bun, and the browser.
+
+Next Step:
+I want to build the parser, specifically using a Pratt parser approach, to generate Abstract Syntax Trees (ASTs) from tokenized RiX input.
+
+Requirements:
+	•	Support for all RiX operators, including custom assignment (:=), equality/boolean (?=, =), equations to solve (:=:, :>:, etc.), arithmetic, exponentiation (^, **), piping, interval, mixed numbers, and more.
+	•	Operator precedence and associativity must be fully specifiable.
+	•	This parsing should focus on producing the trees. Further refining identifiers, numbers, etc should be held off, though System identifiers should be examined for being more than an identifier.
+	•	Extensible design to allow future operators and features.
+	•	Output should be an Abstract Syntax Tree (AST) suitable for later evaluation or further transformation.
+
+⸻
+
+In summary:
+I am looking for a robust Pratt parser for RiX, starting from my tokenizer, to output clear ASTs for all supported syntax.
+
+Here’s a succinct summary of your RiX language’s:
+	•	Operators and symbols (with notes on associativity and intended use)
+	•	Number forms (all syntactic versions)
+	•	System keywords and their possible roles
+
+⸻
+
+RiX Operator/Symbol List
+
+Arithmetic and Assignment:
+	•	+  : Addition (infix, left-associative)
+	•	-  : Subtraction/Negation (infix/prefix, left/right)
+	•	*  : Multiplication (infix, left-associative)
+	•	/  : Division (infix, left-associative)
+	•	// : Integer division/truncation (infix, left-associative)
+	•	%  : Modulo (infix, left-associative)
+	•	/^ : Ceiling division (infix)
+	•	/~ : Rounding division (infix)
+	•	/ % : Fractional split (e.g., 7/%4 → tuple)
+	•	:= : Assignment (infix, right-associative)
+	•	:  : Interval (infix, binds numbers to intervals)
+	•	.. : Mixed number separator (e.g., 1..3/4)
+	•	^  : Exponentiation (infix, right-associative; lowers to `POW`)
+	•	** : Distinct power-product operator (infix; lowers to `POWPROD`)
+
+Comparison and Boolean:
+	•	=   : Identity/assertion (infix)
+	•	?=  : Boolean test for equality (infix)
+	•	<, >, <=, >= : Standard comparisons (infix)
+	•	?<, ?>, ?<=, ?>= : Boolean test versions (infix)
+	•	!=  : Not equal (infix)
+	•	:=: : Equation to solve (infix)
+	•	:<:, :>:, :<=:, :>=: : Inequalities to solve (infix)
+
+Function, Control, and Piping:
+	•	->     : Function definition (infix, right)
+	•	:=>    : Pattern-matching function definition (infix)
+	•	|>     : Piping (auto-feed, in order)
+	•	||>    : Explicit piping (positional/named)
+	•	|>>    : Map operator
+	•	|>?    : Filter operator
+	•	|>:    : Reduce operator
+	•	|^     : Generator ceiling/limit
+	•	|;     : Generator execute immediately
+	•	|+, |*, |: : Generator steps (add, multiply, pipe)
+	•	|?     : Generator/test
+	•	,, ; : Separators (function arguments, matrices, lists, statements)
+	•	(, ) : Parentheses (grouping, function calls)
+	•	[, ] : Array/matrix brackets
+	•	{, } : Set/map/system brackets
+
+Miscellaneous:
+	•	@, @@, etc. : Scope (block/global variable reference)
+	•	_ : Placeholder in destructuring, pattern-matching, or positional arguments
+	•	. : Metadata/property access (e.g., Self.Primary)
+	•	~ : Base symbol for unit operators
+	•	~[ : Scientific unit operator (e.g., 3.2~[m])
+	•	~{ : Mathematical unit operator (e.g., 2~{i})
+	•	# : Repeating decimal marker (1.23#56)
+	•	[ ... ] : Decimal interval/repeat notation (1.23[56:67])
+	•	% : Random point(s) from interval (a:b:%n)
+
+⸻
+
+RiX Number Forms
+	•	Integer: 1234, -42
+	•	Decimal: 3.14, .25, 2., -0.007
+	•	Rational: 5/7 (no spaces)
+	•	Mixed Number: 1..3/4 (no spaces)
+	•	Interval: 2:5, 1.25:2.5 (can be with decimals, rationals, mixed)
+	•	Repeating Decimal: 0.#3, 1.23#56
+	•	Decimal Interval/Uncertainty: 1.23[56:67], 1.23[+0.1,-0.05]
+	•	Number with Scientific Unit: 3.2~[m], 5.6~[kg*m/s^2]
+	•	Number with Mathematical Unit:
+	•	Complex: 3 + 4~{i}, -1~{i}
+	•	Algebraic: 2~{sqrt2}, 3~{pi}
+	•	Primitive: e.g., Primitive("sqrt2",Poly(1,0,-2),1:2)
+	•	Number with Metadata: [ 2.5, error := 0.001 ]
+	•	Random/Partitioned: a:b:%4, a:b:/4 (partitioned intervals)
+
+⸻
+
+System Keywords and Their Roles
+
+System keywords (identifiers starting with uppercase) are registered in the runtime environment and can take various roles:
+	•	Operators (infix, prefix, postfix):
+	•	e.g., IN, NOT, AND, OR, E for *10^, etc.
+	•	Functions:
+	•	e.g., SIN, COS, LOG, EXP, INT, LOAD, HELP
+	•	Constants:
+	•	e.g., PI, INFINITY
+	•	Special Forms/Statements:
+	•	e.g., SELF, PRIMARY
+	•	Unit Conversion:
+	•	e.g., Unit("m"), Unit("kg*m/s^2")
+	•	Pattern-Matching Predicates:
+	•	e.g., IN as a binary infix for set membership: x IN S
+	•	Control Constructs:
+	•	e.g., IF, ELSE, FOR, WHILE (if implemented)
+
+Note:
+	•	The system may assign, overload, or redefine the meaning of any system keyword.
+	•	Keywords can be loaded by modules or the core language, and can take on multiple syntactic roles (e.g., IN as infix operator or as a named function).
+
+The tokenizer produces an array of token objects who have a TYPE (Number, Identifier, Symbol, String, End), value, and for strings and identifiers a Kind attribute. There are is also a position field and an original field which are not relevant to parsing except for debugging purposes.
+
+Numbers are  to be left alone.
+
+For Identifiers, the kind is either System (capitals) or User (lowercase). The User kind of identifiers are just passed along. But the System ones should be looked up as they can of various types. The parser should have a second argument that is a function which takes in System identifiers (just the value) and returns information about what kind of thing it is such as Identifier or a version in line with Symbol transforming.

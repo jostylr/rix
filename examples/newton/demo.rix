@@ -1,0 +1,19 @@
+<"rix/examples/newton/nth-root" ; NthRoot=NthRoot>;
+<"rix/examples/newton/pretty" ; NthRootPretty=NthRootPretty>;
+
+.PRINT([
+    NthRootPretty("sqrt 2", 2, 2, NthRoot(2, 2, 5, 10^-12)),
+    NthRootPretty("sqrt 3", 2, 3, NthRoot(2, 3, 5, 10^-12)),
+    NthRootPretty("sqrt 4567890", 2, 4567890, NthRoot(2, 4567890, 4, 10^-8)),
+    NthRootPretty("sqrt 1/567898765", 2, 1/567898765, NthRoot(2, 1/567898765, 3, 10^-8)),
+
+    NthRootPretty("cuberoot 2", 3, 2, NthRoot(3, 2, 4, 10^-10)),
+    NthRootPretty("cuberoot 3", 3, 3, NthRoot(3, 3, 4, 10^-10)),
+    NthRootPretty("cuberoot 4567890", 3, 4567890, NthRoot(3, 4567890, 4, 10^-8)),
+    NthRootPretty("cuberoot 1/567898765", 3, 1/567898765, NthRoot(3, 1/567898765, 3, 10^-8)),
+
+    NthRootPretty("10throot 2", 10, 2, NthRoot(10, 2, 3, 10^-8)),
+    NthRootPretty("10throot 3", 10, 3, NthRoot(10, 3, 3, 10^-8)),
+    NthRootPretty("10throot 4567890", 10, 4567890, NthRoot(10, 4567890, 2, 10^-6)),
+    NthRootPretty("10throot 1/567898765", 10, 1/567898765, NthRoot(10, 1/567898765, 2, 10^-6))
+])

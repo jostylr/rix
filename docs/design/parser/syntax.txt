@@ -1,0 +1,203 @@
+Operator and Symbol Reference
+============================
+
+Assignment and Comparison
+------------------------
+:=        Assignment (x := 3)
+==        Boolean equality check (returns boolean)
+=         Mathematical identity/assertion (not for assignment)
+:=:       Equation to solve (2x :=: 5x + 1)
+?<, ?>, ?<=, ?>=    Boolean comparisons (x ?< 3), returns boolean
+<, >, <=, >=        Mathematical assertion (for reasoning/constraints)
+: < :, : > :, : <= :, : >= :    Inequality to solve
+?=        Boolean identity (test if mathematically identical)
+
+Arithmetic and Function Operators
+---------------------------------
++         Addition
+-         Subtraction
+*         Multiplication
+/         Division
+^         Exponentiation (elementwise for intervals)
+**        Minkowski (interval) product
+%         Modulo/remainder
+->        Function definition ((x) -> x^2)
+:=>       Pattern-matching function definition
+|         Absolute value (|x|), also sequence separator
+_         Placeholder in piping/parameter rearrangement; metadata access for arrays/maps (x_2)
+@         Variable scoping for globals/outer (@x :@= 4)
+.         Metadata/property access (Self.newton, foo.bar)
+
+Intervals, Mixed Numbers, Rational Notation
+-------------------------------------------
+a:b       Interval from a to b (2:5)
+..        Mixed number notation (1..3/4 means 1 + 3/4)
+#         Repeating decimal (1.23#56)
+[ ]       Interval for decimal precision (1.23[56:67])
+E         Scientific notation exponent (5E6 means 5 x 10^6)
+~[unit]   Scientific unit annotation (3.2~[m], 9.8~[m/s])
+~{unit}   Mathematical unit annotation (2~{i}, 3~{sqrt2})
+
+Piping, Functional, and Sequence Operators
+------------------------------------------
+|>        Pipe operator: feeds result as argument(s) to next func
+||>       Explicit/verbose pipe with argument placement
+|>>       Map: applies function to each element of array/set
+|>?       Filter: keeps elements passing predicate
+|>:       Reduce: folds array with binary function
+|+n       Arithmetic sequence: add n each time
+|*n       Geometric sequence: multiply by n each time
+|:f       Sequence generator by index (f(i))
+|?p       Predicate filter for sequence literals
+|;n       Eager stop after n elements in sequence
+|;f       Eager stop when function returns true
+|^n       Lazy/generator limit to n elements
+|^f       Lazy/generator stop when function returns true
+|;        Eager execution stop in sequence literal
+|^        Lazy/generator ceiling in sequence literal
+|;        Statement separator (end of statement/block)
+
+Collections, Blocks, Special Brackets
+-------------------------------------
+[ ... ]      Array, matrix, or metadata wrapper
+{ ... }      Set, map, system, or equation/inequality system
+{{ ... }}    Assignable or passable code block
+{ { ... } }  Set containing a set (space after { required)
+( ... )      Tuple, function parameter list, or grouping
+
+String, Comment, and Literal Delimiters
+---------------------------------------
+"..." or ""...""...   String literal delimiters (custom rules)
+'...'     (If used) single-quote strings, possibly for interpolation
+/* ... */ Block comment
+// ...    Inline comment
+/*** ... ***/  Extended block comment
+`...`     (Optional) backticks for interpolated/code literals
+
+Set, Map, and Membership
+------------------------
+,         Separator for elements (array, set, function params)
+;         Separator for rows (matrix), or statements (block)
+:=        Key-value pair in map/object, named parameter
+IN        Set membership test (x IN S)
+?=        Set/map membership test as boolean
+
+Other Special/Advanced Syntax
+-----------------------------
+Self      Reference to current function/object for metadata
+Primary   Special metadata property: the "actual object"
+Load(...) Load/import a module
+Help      Command for help system
+.command  REPL command prefix (.help, .save)
+
+Notes
+-----
+- Whitespace is mostly insignificant except for custom string delimiters, code blocks, or { { ... } } (set of set).
+- Operators are extensible: new infix/prefix/postfix can be added.
+- Custom delimiters: double braces, multi-quote strings, and other brackets are unique to this syntax.
+
+Backtick-Typed Literals
+-----------------------
+`F:6/8`                    Fraction literal (not auto-reduced)
+`P(x):2x^2 + 3x + 1`       Polynomial literal
+`P(x; a:=2, b:=5):a x^2 + b x + 1`   Parameterized polynomial
+``P(x):x^2 + `inner` + 1``   Backtick-counted for nesting
+
+Single Quote Calculus
+
+‘f        Indefinite integral (antiderivative)
+f’        Derivative
+‘‘f       Repeated integral
+f’(x’)    Partial derivative
+
+
+Division and Rounding Operators: Summary
+========================================
+
+1. Rational Fraction Recognition (No Spaces)
+--------------------------------------------
+- 3/4    -> Rational literal "three-fourths", NOT floating division.
+- 5.23#0/4  -> Rational (e.g., repeating decimal divided by integer).
+- No spaces allowed between numerator, '/', and denominator for this meaning.
+- If spaces are present, interpret as standard division.
+
+Examples:
+  3/4      => Rational(3,4)
+  3 / 4    => 0.75 (floating division)
+  3 /4     => 0.75
+  3/ 4     => 0.75
+
+2. Integer Division and Truncation
+----------------------------------
+- '//'    -> Integer division (truncate toward zero)
+- For rationals/decimals: discards the fractional part.
+
+Examples:
+  7//4         => 1
+  5.23#0//1    => 5
+  -7//4        => -1 (truncation toward zero)
+
+3. Modulo (Remainder)
+---------------------
+- '%'     -> Remainder after integer division
+
+Examples:
+  7.23#0%1     => 7
+  7%3          => 1
+
+4. Integer + Fractional Tuple Division
+--------------------------------------
+Returns a tuple:
+  (integer_part, reduced_fraction, unreduced_numerator, unreduced_denominator)
+
+- integer_part: result of integer division (a // b)
+- reduced_fraction: proper reduced fraction for the remainder, always canonical
+- unreduced_numerator, unreduced_denominator: as derived from the raw arithmetic (for transparency or reconstructing exact form)
+
+Examples:
+  7/%4         => (1, 3/4, 3, 4)
+  8/%6         => (1, 1/3, 2, 6)
+  7.89#0%1     => (7, 0.89#0, 89, 100)
+  7.89#3/%1    => (7, 201/225, 804, 900)
+
+5. Ceiling Division
+-------------------
+- '/^'    -> Ceiling (smallest integer >= quotient)
+
+Examples:
+  3/^4         => 1
+  7/^3         => 3
+
+6. Rounding Division
+--------------------
+- '/~'    -> Rounds the quotient to the nearest integer.
+- If exactly halfway, round up.
+
+Examples:
+  3/~4         => 1
+  1/~4         => 0
+  1/~2         => 1
+
+7. Interval Division
+--------------------
+- For intervals (e.g., a:b / c:d):
+    - Integer division: produces an interval for the quotient.
+    - Remainder: interval for possible remainders.
+    - '/~', '/^' operators produce integer intervals corresponding to rounding rules applied to bounds.
+
+Summary Table
+-------------
+Syntax     | Meaning                               | Example Input | Example Output
+-----------|---------------------------------------|---------------|---------------
+a/b        | Rational if no spaces, float if spaces| 3/4, 3 / 4    | 3/4, 0.75
+a//b       | Integer division (truncate to zero)   | 7//4          | 1
+a%b        | Remainder/modulo                      | 7%3           | 1
+a/%b       | Tuple: (int part, fractional part, modulo part)    | 7/%3          | (2, 1/3, 1)
+a/^b       | Ceiling division (round up)           | 3/^4          | 1
+a/~b       | Rounded division (nearest integer)    | 3/~4          | 1
+
+Notes
+-----
+- Operators provide precise control over division and rounding.
+- /% is useful for extracting both integer part and exact leftover.
+- "No spaces = rational" is a key parser rule to avoid ambiguity.

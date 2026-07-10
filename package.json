@@ -1,0 +1,34 @@
+{
+  "name": "rix",
+  "version": "0.1.0",
+  "description": "RiX, the Rational Interval Expression Language",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.js",
+    "./parser": "./src/parser/index.js",
+    "./eval": "./src/eval/index.js",
+    "./runtime": "./src/runtime/index.js"
+  },
+  "bin": {
+    "rix": "./bin/rix.js",
+    "rix-to-ir": "./bin/rix-to-ir.js"
+  },
+  "scripts": {
+    "test": "bun test",
+    "test:parser": "bun test tests/parser",
+    "test:eval": "bun test tests/eval",
+    "test:tools": "bun test tests/tools",
+    "build:docs": "node ./docs/parser/build-docs.js"
+  },
+  "dependencies": {
+    "@ratmath/core": "workspace:*"
+  },
+  "devDependencies": {
+    "marked": "^15.0.12"
+  },
+  "engines": {
+    "bun": ">=1.2.0",
+    "node": ">=18.0.0"
+  },
+  "license": "MIT"
+}

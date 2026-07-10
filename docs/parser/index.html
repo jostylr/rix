@@ -1,0 +1,586 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>![RiX Logo](./rix-logo.png) - RiX Language Parser</title>
+        <style>
+            :root {
+                --primary-color: #2563eb;
+                --secondary-color: #1e40af;
+                --text-color: #1f2937;
+                --bg-color: #ffffff;
+                --code-bg: #f3f4f6;
+                --border-color: #e5e7eb;
+                --header-bg: #f9fafb;
+            }
+
+            * {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
+
+            body {
+                font-family:
+                    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                    "Helvetica Neue", Arial, sans-serif;
+                line-height: 1.6;
+                color: var(--text-color);
+                background-color: var(--bg-color);
+                min-height: 100vh;
+                display: flex;
+                flex-direction: column;
+            }
+
+            header {
+                background-color: var(--header-bg);
+                border-bottom: 1px solid var(--border-color);
+                padding: 1rem 0;
+                position: sticky;
+                top: 0;
+                z-index: 100;
+            }
+
+            .header-content {
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 0 2rem;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+            }
+
+            .logo {
+                display: flex;
+                align-items: center;
+                gap: 1rem;
+                text-decoration: none;
+                color: var(--text-color);
+            }
+
+            .logo img {
+                height: 40px;
+                width: auto;
+            }
+
+            .logo h1 {
+                font-size: 1.5rem;
+                font-weight: 700;
+            }
+
+            nav {
+                display: flex;
+                gap: 2rem;
+            }
+
+            nav a {
+                color: var(--text-color);
+                text-decoration: none;
+                font-weight: 500;
+                transition: color 0.2s;
+            }
+
+            nav a:hover {
+                color: var(--primary-color);
+            }
+
+            main {
+                flex: 1;
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 2rem;
+                width: 100%;
+            }
+
+            .sidebar {
+                position: fixed;
+                left: 0;
+                top: 73px;
+                width: 250px;
+                height: calc(100vh - 73px);
+                overflow-y: auto;
+                padding: 2rem 1rem;
+                background-color: var(--header-bg);
+                border-right: 1px solid var(--border-color);
+            }
+
+            .sidebar h2 {
+                font-size: 0.875rem;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                color: #6b7280;
+                margin-bottom: 1rem;
+            }
+
+            .sidebar ul {
+                list-style: none;
+            }
+
+            .sidebar li {
+                margin-bottom: 0.5rem;
+            }
+
+            .sidebar a {
+                color: var(--text-color);
+                text-decoration: none;
+                font-size: 0.875rem;
+                display: block;
+                padding: 0.25rem 0.5rem;
+                border-radius: 0.25rem;
+                transition: background-color 0.2s;
+            }
+
+            .sidebar a:hover {
+                background-color: var(--border-color);
+            }
+
+            .sidebar a.active {
+                background-color: var(--primary-color);
+                color: white;
+            }
+
+            .content {
+                margin-left: 250px;
+                padding: 2rem;
+                max-width: 900px;
+            }
+
+            .content h1 {
+                font-size: 2.5rem;
+                margin-bottom: 1rem;
+                color: var(--text-color);
+            }
+
+            .content h2 {
+                font-size: 2rem;
+                margin-top: 2rem;
+                margin-bottom: 1rem;
+                color: var(--text-color);
+            }
+
+            .content h3 {
+                font-size: 1.5rem;
+                margin-top: 1.5rem;
+                margin-bottom: 0.75rem;
+                color: var(--text-color);
+            }
+
+            .content p {
+                margin-bottom: 1rem;
+            }
+
+            .content code {
+                background-color: var(--code-bg);
+                padding: 0.125rem 0.25rem;
+                border-radius: 0.25rem;
+                font-family: "Consolas", "Monaco", "Courier New", monospace;
+                font-size: 0.875em;
+            }
+
+            .content pre {
+                background-color: var(--code-bg);
+                padding: 1rem;
+                border-radius: 0.5rem;
+                overflow-x: auto;
+                margin-bottom: 1rem;
+            }
+
+            .content pre code {
+                background-color: transparent;
+                padding: 0;
+            }
+
+            .content ul,
+            .content ol {
+                margin-bottom: 1rem;
+                padding-left: 2rem;
+            }
+
+            .content li {
+                margin-bottom: 0.25rem;
+            }
+
+            .content a {
+                color: var(--primary-color);
+                text-decoration: none;
+            }
+
+            .content a:hover {
+                text-decoration: underline;
+            }
+
+            .content blockquote {
+                border-left: 4px solid var(--primary-color);
+                padding-left: 1rem;
+                margin: 1rem 0;
+                color: #6b7280;
+                font-style: italic;
+            }
+
+            .content table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-bottom: 1rem;
+            }
+
+            .content th,
+            .content td {
+                border: 1px solid var(--border-color);
+                padding: 0.5rem;
+                text-align: left;
+            }
+
+            .content th {
+                background-color: var(--header-bg);
+                font-weight: 600;
+            }
+
+            footer {
+                background-color: var(--header-bg);
+                border-top: 1px solid var(--border-color);
+                padding: 2rem;
+                text-align: center;
+                color: #6b7280;
+                font-size: 0.875rem;
+            }
+
+            @media (max-width: 768px) {
+                .sidebar {
+                    display: none;
+                }
+
+                .content {
+                    margin-left: 0;
+                    padding: 1rem;
+                }
+
+                .header-content {
+                    padding: 0 1rem;
+                }
+
+                nav {
+                    display: none;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <header>
+            <div class="header-content">
+                <a href="../" class="logo">
+                    <img src="../rix-logo.png" alt="RiX Logo" />
+                    <h1>RiX Language Parser</h1>
+                </a>
+                <nav>
+                    <a href="/">Home</a>
+                    <a href="/docs.html">Documentation</a>
+                    <a href="/demo.html">Demo</a>
+                    <a href="https://github.com/rix-lang/parser">GitHub</a>
+                </nav>
+            </div>
+        </header>
+
+        <aside class="sidebar">
+            <h2>Documentation</h2>
+            <ul>
+                <li><a href="docs.html/">Overview</a></li>
+                <li><a href="architecture.html">Architecture</a></li>
+                <li><a href="parsing.html">Parsing</a></li>
+                <li><a href="AST-brief.html">AST Structure</a></li>
+                <li><a href="three-tier-system.html">Three-Tier System</a></li>
+                <li>
+                    <a href="function-definitions-summary.html">Functions</a>
+                </li>
+                <li>
+                    <a href="array-generators-implementation.html"
+                        >Array Generators</a
+                    >
+                </li>
+                <li>
+                    <a href="matrix-tensor-implementation.html"
+                        >Matrix & Tensor</a
+                    >
+                </li>
+                <li>
+                    <a href="brace-containers-README.html">Brace Containers</a>
+                </li>
+                <li><a href="embedded-parsing.html">Embedded Parsing</a></li>
+                <li><a href="ternary-operator.html">Ternary Operator</a></li>
+                <li>
+                    <a href="unit-notation-migration.html">Unit Notation</a>
+                </li>
+            </ul>
+        </aside>
+
+        <main class="content">
+            <!-- Markdown content will be inserted here -->
+            <div id="markdown-content"><h1><img src="./rix-logo.png" alt="RiX Logo"></h1>
+<p><strong>RiX Language Parser &amp; Tokenizer</strong></p>
+<p>A comprehensive tokenizer and parser for the RiX (Rational Interval Expression Language) mathematical expression language, built in JavaScript. This library provides robust parsing capabilities for mathematical expressions with support for intervals, mixed numbers, units, algebraic extensions, and advanced mathematical notation.</p>
+<hr>
+<h2>Features</h2>
+<ul>
+<li><p><strong>Complete Tokenization:</strong></p>
+<ul>
+<li>Numbers: integers, decimals, rationals, mixed numbers, intervals, scientific notation</li>
+<li>Strings: flexible quote systems with N-delimiter support for embedding</li>
+<li>Comments: single-line and multi-level block comments</li>
+<li><strong>Operators:</strong> comprehensive mathematical and functional operators with postfix support</li>
+<li>Identifiers: Unicode support with system/user distinction</li>
+</ul>
+</li>
+<li><p><strong>Comprehensive Parsing:</strong></p>
+<ul>
+<li>Pratt parser with full operator precedence</li>
+<li>Function definitions with advanced parameter handling</li>
+<li>Pattern matching functions with conditions</li>
+<li>Array generators and sequence notation</li>
+<li>Matrix and tensor parsing</li>
+<li>Metadata and property annotations</li>
+<li>Symbolic calculus notation (derivatives, integrals)</li>
+<li>Pipe operations and functional constructs</li>
+<li>Postfix operators for precision control and queries</li>
+<li>Operators as functions with universal call syntax</li>
+</ul>
+</li>
+<li><p><strong>Rich Mathematical Notation:</strong></p>
+<ul>
+<li>Interval arithmetic (<code>2:5</code>, <code>1.5:2.7</code>)</li>
+<li>Mixed numbers (<code>1..3/4</code>)</li>
+<li>Rational numbers (<code>3/4</code>)</li>
+<li>Scientific units using postfix operators (<code>3.2~[m]</code>, <code>9.8~[m/s^2]</code>)</li>
+<li>Mathematical units for algebraic extensions (<code>2~{i}</code>, <code>1+3~{sqrt2}</code>)</li>
+<li>Repeating decimals (<code>0.12#45</code>)</li>
+</ul>
+</li>
+<li><p><strong>Advanced Language Features:</strong></p>
+<ul>
+<li>Code blocks and embedded languages</li>
+<li>Multiple assignment operators (<code>:=</code>, <code>:=:</code>, <code>:&gt;:</code>)</li>
+<li>Comprehensive pipe operators (<code>|&gt;</code>, <code>|&gt;&gt;</code>, <code>|&gt;?</code>, <code>|&gt;:</code>)</li>
+<li>Array generators (<code>|+</code>, <code>|*</code>, <code>|:</code>, <code>|^</code>)</li>
+<li>Pattern matching with metadata</li>
+<li>**Postfix operators (<code>@</code>, <code>?</code>, <code>()</code>, <code>~[...]</code>, <code>~{...}</code>) for precision, queries, universal calls, and units</li>
+<li>Operator symbols as functions (<code>+(a,b,c)</code>, <code>*(x,y,z)</code>)</li>
+<li>Ternary operator (<code>?? ?:</code>) for conditional expressions</li>
+</ul>
+</li>
+</ul>
+<hr>
+<h2>Language Overview</h2>
+<h3>Example Syntax</h3>
+<pre><code class="language-plaintext">x := 3                          // Assignment
+f := (x, n:=2) -&gt; x^n + 1       // Function definition with optional parameter
+y := 1..3/4                     // Mixed number: one and three quarters
+z := 2:5                        // Interval from 2 to 5
+2:3 ^ 2                         // Interval elementwise exponentiation: 4:9
+a := 3.2~[m]                    // Number with scientific unit: 3.2 meters
+b := 2~{i}                      // Number with mathematical unit: 2i
+CONVERT(100~[m], &quot;m&quot;, &quot;ft&quot;)     // Unit conversion using CONVERT function
+a:b:%4                          // Pick 4 random points in [a,b]
+[[1,2;3,4], name:=&quot;matrix&quot;]     // Matrix with metadata
+SIN(x; n:=4)                    // System function with named argument
+x ?= 3                          // Boolean test: is x equal to 3?
+x^2 :&lt;: 4                       // Inequality to solve
+PI@(1e-10)                      // Get PI with precision 1e-10
+result?(3.14:3.15)              // Check if result is in interval
+3(4)                            // Universal call: 3 * 4
++(2, 3, 5)                      // Addition operator as function
+x &gt; 0 ?? x ?: -x                // Ternary operator: condition ?? true ?: false
+</code></pre>
+<h3>Tokenization Features</h3>
+<ul>
+<li><strong>Identifiers:</strong> Unicode letters, case-sensitive first letter determines system vs user scope</li>
+<li><strong>Numbers:</strong> Full support for all mathematical number formats including intervals</li>
+<li><strong>Unit Operators:</strong> Postfix operators <code>~[...]</code> for scientific units and <code>~{...}</code> for mathematical units</li>
+<li><strong>Symbols:</strong> Maximal munch tokenization for complex operators</li>
+<li><strong>Strings:</strong> N-delimiter quote system (<code>&quot;&quot;hello&quot;&quot;</code>, <code>code</code>) for easy embedding</li>
+<li><strong>Comments:</strong> Multiple levels (<code>//</code>, <code>/* */</code>, <code>/** **/</code>, <code>/*** ***/</code>)</li>
+</ul>
+<h3>Parsing Features</h3>
+<ul>
+<li><strong>AST Generation:</strong> Complete Abstract Syntax Tree generation for all language constructs</li>
+<li><strong>Operator Precedence:</strong> Full precedence table with proper associativity including postfix operators</li>
+<li><strong>Error Handling:</strong> Comprehensive error reporting with position information</li>
+<li><strong>Extensibility:</strong> Modular design for adding new operators and constructs</li>
+<li><strong>Universal Function Calls:</strong> Any expression can be called as a function</li>
+<li><strong>Operator Functions:</strong> Mathematical operators can be used as variadic functions</li>
+</ul>
+<hr>
+<h2>Installation</h2>
+<pre><code class="language-bash">npm install rix-language-parser
+</code></pre>
+<h2>Usage</h2>
+<h3>Basic Parsing</h3>
+<pre><code class="language-javascript">import { tokenize, parse } from &#39;rix-language-parser&#39;;
+
+// Tokenize input
+const tokens = tokenize(&#39;x := 2 + 3 * y&#39;);
+console.log(tokens);
+
+// Parse tokens into AST
+const ast = parse(tokens);
+console.log(ast);
+
+// Or parse directly from string
+const ast2 = parse(&#39;f(x) := x^2 + 1&#39;);
+console.log(ast2);
+</code></pre>
+<h3>Advanced Features</h3>
+<pre><code class="language-javascript">import { parse } from &#39;rix-language-parser&#39;;
+
+// Function definitions
+const funcDef = parse(&#39;power(x, n := 2) :-&gt; x^n&#39;);
+
+// Pattern matching
+const patternFunc = parse(&#39;abs :=&gt; [(x ? x &gt;= 0) -&gt; x, (x ? x &lt; 0) -&gt; -x]&#39;);
+
+// Array generators
+const generator = parse(&#39;[1 |+ 2 |^ 10]&#39;); // Arithmetic sequence
+
+// Matrix parsing
+const matrix = parse(&#39;[[1, 2; 3, 4]]&#39;);
+
+// Symbolic calculus
+const derivative = parse(&quot;f&#39;(x)&quot;);
+const integral = parse(&quot;&#39;f(x)&quot;);
+
+// Postfix operators
+const precision = parse(&quot;PI@(1e-10)&quot;);
+const query = parse(&quot;result?(bounds)&quot;);
+const universalCall = parse(&quot;3(4)&quot;);
+const operatorFunction = parse(&quot;+(1, 2, 3)&quot;);
+
+// Unit operators
+const scientificUnit = parse(&quot;9.8~[m/s^2]&quot;);
+const mathUnit = parse(&quot;2~{i}&quot;);
+const unitConversion = parse(&#39;CONVERT(100~[m], &quot;m&quot;, &quot;ft&quot;)&#39;);
+</code></pre>
+<h2>API Reference</h2>
+<h3><code>tokenize(input: string): Token[]</code></h3>
+<p>Tokenizes a RiX language string into an array of tokens.</p>
+<p><strong>Parameters:</strong></p>
+<ul>
+<li><code>input</code>: String containing RiX language code</li>
+</ul>
+<p><strong>Returns:</strong> Array of token objects with properties:</p>
+<ul>
+<li><code>type</code>: Token type (&#39;Number&#39;, &#39;Identifier&#39;, &#39;Symbol&#39;, &#39;String&#39;, &#39;End&#39;)</li>
+<li><code>value</code>: Processed token value</li>
+<li><code>original</code>: Original text from input</li>
+<li><code>pos</code>: Position information [start, valueStart, end]</li>
+<li><code>kind</code>: Additional type information (for Identifiers and Strings)</li>
+</ul>
+<h3><code>parse(input: string | Token[], systemLookup?: Function): ASTNode</code></h3>
+<p>Parses RiX language tokens or string into an Abstract Syntax Tree.</p>
+<p><strong>Parameters:</strong></p>
+<ul>
+<li><code>input</code>: String or array of tokens to parse</li>
+<li><code>systemLookup</code>: Optional function to resolve system identifiers</li>
+</ul>
+<p><strong>Returns:</strong> AST node representing the parsed expression</p>
+<h2>AST Node Types</h2>
+<p>The parser generates various AST node types:</p>
+<ul>
+<li><strong>Assignment:</strong> <code>{ type: &#39;Assignment&#39;, operator: &#39;:=&#39;, left: ..., right: ... }</code></li>
+<li><strong>FunctionDefinition:</strong> <code>{ type: &#39;FunctionDefinition&#39;, name: ..., parameters: ..., body: ... }</code></li>
+<li><strong>BinaryOperation:</strong> <code>{ type: &#39;BinaryOperation&#39;, operator: &#39;+&#39;, left: ..., right: ... }</code></li>
+<li><strong>Array:</strong> <code>{ type: &#39;Array&#39;, elements: [...] }</code></li>
+<li><strong>Matrix:</strong> <code>{ type: &#39;Matrix&#39;, rows: [[...], [...]] }</code></li>
+<li><strong>GeneratorChain:</strong> <code>{ type: &#39;GeneratorChain&#39;, start: ..., operators: [...] }</code></li>
+<li><strong>Number:</strong> <code>{ type: &#39;Number&#39;, value: &#39;3.14&#39;, format: &#39;decimal&#39; }</code></li>
+<li><strong>Identifier:</strong> <code>{ type: &#39;UserIdentifier&#39; | &#39;SystemIdentifier&#39;, name: &#39;x&#39; }</code></li>
+<li><strong>TernaryOperation:</strong> <code>{ type: &#39;TernaryOperation&#39;, condition: ..., trueExpression: ..., falseExpression: ... }</code></li>
+<li><strong>At:</strong> <code>{ type: &#39;At&#39;, target: ..., arg: ... }</code></li>
+<li><strong>Ask:</strong> <code>{ type: &#39;Ask&#39;, target: ..., arg: ... }</code></li>
+</ul>
+<h2>Project Structure</h2>
+<pre><code>├── src/
+│   ├── tokenizer.js      — Complete tokenizer implementation
+│   ├── parser.js         — Pratt parser with full language support
+├── tests/
+│   ├── tokenizer.test.js — Comprehensive tokenizer tests (129 tests)
+│   ├── parser.test.js    — Complete parser tests (185 tests)
+│   └── array-generators.test.js — Generator-specific tests
+├── examples/             — 36+ example files demonstrating features
+├── docs/                 — Feature-specific documentation
+├── design/               — Language specification and design docs
+└── index.js             — Main export file
+</code></pre>
+<h2>Language Specification</h2>
+<p>This parser implements the complete RiX language specification including:</p>
+<ul>
+<li><strong>Numbers:</strong> All formats from integers to complex algebraic extensions</li>
+<li><strong>Operators:</strong> 50+ mathematical and functional operators with proper precedence</li>
+<li><strong>Functions:</strong> Multiple definition styles with advanced parameter handling</li>
+<li><strong>Collections:</strong> Arrays, matrices, tensors, sets, maps with metadata support</li>
+<li><strong>Control Flow:</strong> Pattern matching, conditional expressions, pipe operations</li>
+<li><strong>Syntax:</strong> Flexible string systems, code blocks, embedded languages</li>
+<li><strong>Postfix Operations:</strong> Precision control (@), queries (?), and universal calls (())</li>
+<li><strong>Operator Functions:</strong> Mathematical operators usable as variadic functions</li>
+</ul>
+<p>For complete language documentation, see the <code>design/</code> directory.</p>
+<h2>Testing</h2>
+<pre><code class="language-bash">npm test
+</code></pre>
+<p>The test suite includes:</p>
+<ul>
+<li><strong>314 total tests</strong> across tokenizer and parser</li>
+<li><strong>Complete coverage</strong> of language specification</li>
+<li><strong>Edge case handling</strong> and error conditions</li>
+<li><strong>Position tracking</strong> validation</li>
+<li><strong>AST structure</strong> verification</li>
+</ul>
+<h2>Related Projects</h2>
+<p>This parser is part of the RiX language ecosystem:</p>
+<ul>
+<li><strong>rix-language-evaluator</strong> - Expression evaluation and mathematical computation</li>
+<li><strong>rix-language-repl</strong> - Interactive REPL environment</li>
+<li><strong>rix-language-browser</strong> - Web-based interface and visualization</li>
+</ul>
+<h2>Contributing</h2>
+<p>Contributions are welcome! This repository focuses specifically on:</p>
+<ul>
+<li>Tokenization improvements and bug fixes</li>
+<li>Parser enhancements and new language features</li>
+<li>AST structure optimizations</li>
+<li>Test coverage expansion</li>
+<li>Documentation improvements</li>
+</ul>
+<p>Please ensure all tests pass and add appropriate test coverage for new features.</p>
+<h2>License</h2>
+<p>MIT</p>
+<h2>Acknowledgments</h2>
+<p>This project was inspired by mathematical exploration and language experimentation, with special thanks to OpenAI&#39;s ChatGPT and Claude for AI-assisted design and development of the parsing infrastructure.</p>
+</div>
+        </main>
+
+        <footer>
+            <p>&copy; 2024 RiX Language Team. Licensed under MIT.</p>
+        </footer>
+
+        <script>
+            // This script will be replaced by the actual markdown rendering logic
+            // For now, it just shows a placeholder
+            document.addEventListener("DOMContentLoaded", function () {
+                // Highlight current page in sidebar
+                const currentPath = window.location.pathname;
+                const currentFile = currentPath.substring(
+                    currentPath.lastIndexOf("/") + 1,
+                );
+                const sidebarLinks = document.querySelectorAll(".sidebar a");
+                sidebarLinks.forEach((link) => {
+                    const linkPath = link.getAttribute("href");
+                    if (
+                        linkPath === currentFile ||
+                        (currentFile === "" && linkPath === "./") ||
+                        linkPath === "./" + currentFile
+                    ) {
+                        link.classList.add("active");
+                    }
+                });
+            });
+        </script>
+    </body>
+</html>

@@ -1,0 +1,507 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Matrix and Tensor Implementation - RiX Language Parser</title>
+        <style>
+            :root {
+                --primary-color: #2563eb;
+                --secondary-color: #1e40af;
+                --text-color: #1f2937;
+                --bg-color: #ffffff;
+                --code-bg: #f3f4f6;
+                --border-color: #e5e7eb;
+                --header-bg: #f9fafb;
+            }
+
+            * {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
+
+            body {
+                font-family:
+                    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                    "Helvetica Neue", Arial, sans-serif;
+                line-height: 1.6;
+                color: var(--text-color);
+                background-color: var(--bg-color);
+                min-height: 100vh;
+                display: flex;
+                flex-direction: column;
+            }
+
+            header {
+                background-color: var(--header-bg);
+                border-bottom: 1px solid var(--border-color);
+                padding: 1rem 0;
+                position: sticky;
+                top: 0;
+                z-index: 100;
+            }
+
+            .header-content {
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 0 2rem;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+            }
+
+            .logo {
+                display: flex;
+                align-items: center;
+                gap: 1rem;
+                text-decoration: none;
+                color: var(--text-color);
+            }
+
+            .logo img {
+                height: 40px;
+                width: auto;
+            }
+
+            .logo h1 {
+                font-size: 1.5rem;
+                font-weight: 700;
+            }
+
+            nav {
+                display: flex;
+                gap: 2rem;
+            }
+
+            nav a {
+                color: var(--text-color);
+                text-decoration: none;
+                font-weight: 500;
+                transition: color 0.2s;
+            }
+
+            nav a:hover {
+                color: var(--primary-color);
+            }
+
+            main {
+                flex: 1;
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 2rem;
+                width: 100%;
+            }
+
+            .sidebar {
+                position: fixed;
+                left: 0;
+                top: 73px;
+                width: 250px;
+                height: calc(100vh - 73px);
+                overflow-y: auto;
+                padding: 2rem 1rem;
+                background-color: var(--header-bg);
+                border-right: 1px solid var(--border-color);
+            }
+
+            .sidebar h2 {
+                font-size: 0.875rem;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                color: #6b7280;
+                margin-bottom: 1rem;
+            }
+
+            .sidebar ul {
+                list-style: none;
+            }
+
+            .sidebar li {
+                margin-bottom: 0.5rem;
+            }
+
+            .sidebar a {
+                color: var(--text-color);
+                text-decoration: none;
+                font-size: 0.875rem;
+                display: block;
+                padding: 0.25rem 0.5rem;
+                border-radius: 0.25rem;
+                transition: background-color 0.2s;
+            }
+
+            .sidebar a:hover {
+                background-color: var(--border-color);
+            }
+
+            .sidebar a.active {
+                background-color: var(--primary-color);
+                color: white;
+            }
+
+            .content {
+                margin-left: 250px;
+                padding: 2rem;
+                max-width: 900px;
+            }
+
+            .content h1 {
+                font-size: 2.5rem;
+                margin-bottom: 1rem;
+                color: var(--text-color);
+            }
+
+            .content h2 {
+                font-size: 2rem;
+                margin-top: 2rem;
+                margin-bottom: 1rem;
+                color: var(--text-color);
+            }
+
+            .content h3 {
+                font-size: 1.5rem;
+                margin-top: 1.5rem;
+                margin-bottom: 0.75rem;
+                color: var(--text-color);
+            }
+
+            .content p {
+                margin-bottom: 1rem;
+            }
+
+            .content code {
+                background-color: var(--code-bg);
+                padding: 0.125rem 0.25rem;
+                border-radius: 0.25rem;
+                font-family: "Consolas", "Monaco", "Courier New", monospace;
+                font-size: 0.875em;
+            }
+
+            .content pre {
+                background-color: var(--code-bg);
+                padding: 1rem;
+                border-radius: 0.5rem;
+                overflow-x: auto;
+                margin-bottom: 1rem;
+            }
+
+            .content pre code {
+                background-color: transparent;
+                padding: 0;
+            }
+
+            .content ul,
+            .content ol {
+                margin-bottom: 1rem;
+                padding-left: 2rem;
+            }
+
+            .content li {
+                margin-bottom: 0.25rem;
+            }
+
+            .content a {
+                color: var(--primary-color);
+                text-decoration: none;
+            }
+
+            .content a:hover {
+                text-decoration: underline;
+            }
+
+            .content blockquote {
+                border-left: 4px solid var(--primary-color);
+                padding-left: 1rem;
+                margin: 1rem 0;
+                color: #6b7280;
+                font-style: italic;
+            }
+
+            .content table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-bottom: 1rem;
+            }
+
+            .content th,
+            .content td {
+                border: 1px solid var(--border-color);
+                padding: 0.5rem;
+                text-align: left;
+            }
+
+            .content th {
+                background-color: var(--header-bg);
+                font-weight: 600;
+            }
+
+            footer {
+                background-color: var(--header-bg);
+                border-top: 1px solid var(--border-color);
+                padding: 2rem;
+                text-align: center;
+                color: #6b7280;
+                font-size: 0.875rem;
+            }
+
+            @media (max-width: 768px) {
+                .sidebar {
+                    display: none;
+                }
+
+                .content {
+                    margin-left: 0;
+                    padding: 1rem;
+                }
+
+                .header-content {
+                    padding: 0 1rem;
+                }
+
+                nav {
+                    display: none;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <header>
+            <div class="header-content">
+                <a href="../" class="logo">
+                    <img src="../rix-logo.png" alt="RiX Logo" />
+                    <h1>RiX Language Parser</h1>
+                </a>
+                <nav>
+                    <a href="/">Home</a>
+                    <a href="/docs.html">Documentation</a>
+                    <a href="/demo.html">Demo</a>
+                    <a href="https://github.com/rix-lang/parser">GitHub</a>
+                </nav>
+            </div>
+        </header>
+
+        <aside class="sidebar">
+            <h2>Documentation</h2>
+            <ul>
+                <li><a href="docs.html/">Overview</a></li>
+                <li><a href="architecture.html">Architecture</a></li>
+                <li><a href="parsing.html">Parsing</a></li>
+                <li><a href="AST-brief.html">AST Structure</a></li>
+                <li><a href="three-tier-system.html">Three-Tier System</a></li>
+                <li>
+                    <a href="function-definitions-summary.html">Functions</a>
+                </li>
+                <li>
+                    <a href="array-generators-implementation.html"
+                        >Array Generators</a
+                    >
+                </li>
+                <li>
+                    <a href="matrix-tensor-implementation.html"
+                        >Matrix & Tensor</a
+                    >
+                </li>
+                <li>
+                    <a href="brace-containers-README.html">Brace Containers</a>
+                </li>
+                <li><a href="embedded-parsing.html">Embedded Parsing</a></li>
+                <li><a href="ternary-operator.html">Ternary Operator</a></li>
+                <li>
+                    <a href="unit-notation-migration.html">Unit Notation</a>
+                </li>
+            </ul>
+        </aside>
+
+        <main class="content">
+            <!-- Markdown content will be inserted here -->
+            <div id="markdown-content"><h1>Matrix and Tensor Implementation</h1>
+<h2>Overview</h2>
+<p>This document describes the implementation of matrix and tensor parsing in the RiX language parser. The feature extends the existing array syntax with semicolon separators to support multi-dimensional data structures.</p>
+<h2>Syntax</h2>
+<h3>Basic Rules</h3>
+<ul>
+<li><strong>Commas (<code>,</code>)</strong> separate elements within a row</li>
+<li><strong>Single semicolon (<code>;</code>)</strong> separates rows within a 2D matrix  </li>
+<li><strong>Multiple semicolons (<code>;;</code>, <code>;;;</code>, etc.)</strong> indicate higher-dimensional separators</li>
+<li><strong>Spaces between semicolons</strong> create separate separator tokens</li>
+<li><strong>Empty rows/slices</strong> are preserved in the structure</li>
+</ul>
+<h3>Examples</h3>
+<pre><code class="language-javascript">// 2D Matrix
+[1, 2; 3, 4]           // 2x2 matrix
+[1, 2, 3; 4, 5, 6]     // 2x3 matrix
+[1; 2; 3]              // 3x1 column vector
+
+// 3D Tensor  
+[1, 2; 3, 4 ;; 5, 6; 7, 8]    // 2x2x2 tensor
+
+// 4D Tensor
+[1; 2 ;; 3; 4 ;;; 5; 6 ;; 7; 8]   // 4D structure
+
+// Edge Cases
+[; 1, 2]               // Matrix starting with empty row
+[1, 2; ]               // Matrix ending with empty row
+[;;]                   // Empty tensor structure
+</code></pre>
+<h2>Implementation Details</h2>
+<h3>Tokenizer Changes</h3>
+<p>Modified <code>src/tokenizer.js</code> to recognize consecutive semicolons as single tokens:</p>
+<ul>
+<li>Added <code>tryMatchSemicolonSequence()</code> function</li>
+<li>Creates <code>SemicolonSequence</code> tokens with <code>count</code> property only for multiple consecutive semicolons (<code>;;</code>, <code>;;;</code>, etc.)</li>
+<li>Single semicolons (<code>;</code>) remain as regular <code>Symbol</code> tokens</li>
+<li>Preserves backward compatibility with existing semicolon usage</li>
+</ul>
+<h3>Parser Changes</h3>
+<p>Modified <code>src/parser.js</code> with several key changes:</p>
+<ol>
+<li><p><strong>New token handling in <code>getSymbolInfo()</code></strong>:</p>
+<ul>
+<li><code>SemicolonSequence</code> tokens get <code>type: &#39;separator&#39;</code></li>
+<li>Prevents them from being treated as binary operators</li>
+</ul>
+</li>
+<li><p><strong>Enhanced <code>parseExpression()</code></strong>:</p>
+<ul>
+<li>Breaks on both <code>Symbol</code> semicolons and <code>SemicolonSequence</code> tokens</li>
+<li>Treats separators like statement terminators</li>
+</ul>
+</li>
+<li><p><strong>New <code>parseMatrixOrArray()</code> method</strong>:</p>
+<ul>
+<li>Detects semicolon usage to determine if structure is matrix/tensor</li>
+<li>Builds <code>matrixStructure</code> array with separator levels</li>
+<li>Handles empty rows and edge cases</li>
+<li>Supports both single semicolons and semicolon sequences</li>
+</ul>
+</li>
+<li><p><strong>New <code>buildMatrixTensor()</code> method</strong>:</p>
+<ul>
+<li>Determines if result should be Matrix (2D) or Tensor (3D+)</li>
+<li>Creates appropriate AST nodes</li>
+</ul>
+</li>
+<li><p><strong>New <code>consumeSemicolonSequence()</code> method</strong>:</p>
+<ul>
+<li>Handles both <code>Symbol</code> (single <code>;</code>) and <code>SemicolonSequence</code> (multiple <code>;;+</code>) tokens</li>
+<li>Returns the correct count for dimension detection</li>
+</ul>
+</li>
+</ol>
+<h3>AST Node Types</h3>
+<h4>Matrix Node</h4>
+<pre><code class="language-javascript">{
+    type: &quot;Matrix&quot;,
+    rows: [[ASTNode]],      // Array of rows, each row is array of elements
+    pos: [start, delim, end],
+    original: string
+}
+</code></pre>
+<h4>Tensor Node</h4>
+<pre><code class="language-javascript">{
+    type: &quot;Tensor&quot;, 
+    structure: [{
+        row: [ASTNode],         // Array of elements in this row
+        separatorLevel: number  // Number of semicolons that follow this row
+    }],
+    maxDimension: number,       // Highest dimension level (separatorLevel + 1)
+    pos: [start, delim, end],
+    original: string
+}
+</code></pre>
+<h2>Key Features</h2>
+<h3>Dimension Detection</h3>
+<ul>
+<li><strong>Matrix</strong>: When <code>maxSeparatorLevel === 1</code></li>
+<li><strong>Tensor</strong>: When <code>maxSeparatorLevel &gt; 1</code></li>
+<li><strong>Array</strong>: When no semicolons are present</li>
+</ul>
+<h3>Error Handling</h3>
+<ul>
+<li><strong>Metadata conflicts</strong>: Matrix/tensor syntax cannot be mixed with <code>:=</code> metadata annotations</li>
+<li><strong>Proper error messages</strong>: Clear error messages for invalid combinations</li>
+</ul>
+<h3>Edge Case Handling</h3>
+<ul>
+<li><strong>Empty rows</strong>: Preserved as empty arrays in structure</li>
+<li><strong>Leading semicolons</strong>: Create empty rows at the beginning</li>
+<li><strong>Trailing semicolons</strong>: Create empty rows at the end</li>
+<li><strong>Only separators</strong>: Create valid tensor structures with empty rows</li>
+</ul>
+<h2>Testing</h2>
+<p>Comprehensive test suite in <code>tests/parser.test.js</code> covers:</p>
+<ul>
+<li>Basic 2D matrices</li>
+<li>3D tensors with double semicolons</li>
+<li>4D+ tensors with multiple semicolon levels</li>
+<li>Edge cases (empty rows, leading/trailing semicolons)</li>
+<li>Error conditions (metadata mixing)</li>
+<li>Complex expressions within matrices</li>
+<li>Position tracking</li>
+</ul>
+<h2>Examples</h2>
+<p>Three example files demonstrate usage:</p>
+<ol>
+<li><strong><code>examples/simple-matrices.js</code></strong>: Basic usage examples</li>
+<li><strong><code>examples/matrix-tensor-demo.js</code></strong>: Comprehensive demonstration</li>
+<li><strong><code>examples/matrix-error-cases.js</code></strong>: Edge cases and error handling</li>
+</ol>
+<h2>Integration Notes</h2>
+<h3>Backward Compatibility</h3>
+<ul>
+<li>Regular arrays <code>[1, 2, 3]</code> remain unchanged</li>
+<li>Single semicolons in statements (<code>a := 1; b := 2;</code>) work as before</li>
+<li>System expressions with semicolons (<code>{x :=: 1; y :=: 2}</code>) work as before</li>
+<li>Existing functionality is fully preserved</li>
+<li>Only affects bracket expressions containing semicolons</li>
+</ul>
+<h3>Post-Processing</h3>
+<p>The parser creates the structural representation. Actual dimensional analysis and tensor operations are intended for post-processing stages.</p>
+<h3>Performance</h3>
+<ul>
+<li>Minimal impact on existing parsing performance</li>
+<li>Semicolon sequence detection is efficient with regex matching</li>
+<li>Single semicolons processed normally through existing symbol tokenization</li>
+<li>Parser complexity increased only for bracket expressions</li>
+<li>Tokenizer properly distinguishes between consecutive (<code>;;</code>) and separated (<code>; ;</code>) semicolons</li>
+</ul>
+<h2>Future Enhancements</h2>
+<p>Potential areas for extension:</p>
+<ol>
+<li><strong>Tensor algebra operations</strong>: Matrix multiplication, element-wise operations</li>
+<li><strong>Dimension validation</strong>: Ensure consistent shapes within slices</li>
+<li><strong>Sparse matrix support</strong>: Special handling for sparse structures</li>
+<li><strong>Broadcasting rules</strong>: Define behavior for operations between different-sized tensors</li>
+</ol>
+</div>
+        </main>
+
+        <footer>
+            <p>&copy; 2024 RiX Language Team. Licensed under MIT.</p>
+        </footer>
+
+        <script>
+            // This script will be replaced by the actual markdown rendering logic
+            // For now, it just shows a placeholder
+            document.addEventListener("DOMContentLoaded", function () {
+                // Highlight current page in sidebar
+                const currentPath = window.location.pathname;
+                const currentFile = currentPath.substring(
+                    currentPath.lastIndexOf("/") + 1,
+                );
+                const sidebarLinks = document.querySelectorAll(".sidebar a");
+                sidebarLinks.forEach((link) => {
+                    const linkPath = link.getAttribute("href");
+                    if (
+                        linkPath === currentFile ||
+                        (currentFile === "" && linkPath === "./") ||
+                        linkPath === "./" + currentFile
+                    ) {
+                        link.classList.add("active");
+                    }
+                });
+            });
+        </script>
+    </body>
+</html>

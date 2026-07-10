@@ -1,0 +1,872 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>RiX Language AST Reference - RiX Language Parser</title>
+        <style>
+            :root {
+                --primary-color: #2563eb;
+                --secondary-color: #1e40af;
+                --text-color: #1f2937;
+                --bg-color: #ffffff;
+                --code-bg: #f3f4f6;
+                --border-color: #e5e7eb;
+                --header-bg: #f9fafb;
+            }
+
+            * {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
+
+            body {
+                font-family:
+                    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                    "Helvetica Neue", Arial, sans-serif;
+                line-height: 1.6;
+                color: var(--text-color);
+                background-color: var(--bg-color);
+                min-height: 100vh;
+                display: flex;
+                flex-direction: column;
+            }
+
+            header {
+                background-color: var(--header-bg);
+                border-bottom: 1px solid var(--border-color);
+                padding: 1rem 0;
+                position: sticky;
+                top: 0;
+                z-index: 100;
+            }
+
+            .header-content {
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 0 2rem;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+            }
+
+            .logo {
+                display: flex;
+                align-items: center;
+                gap: 1rem;
+                text-decoration: none;
+                color: var(--text-color);
+            }
+
+            .logo img {
+                height: 40px;
+                width: auto;
+            }
+
+            .logo h1 {
+                font-size: 1.5rem;
+                font-weight: 700;
+            }
+
+            nav {
+                display: flex;
+                gap: 2rem;
+            }
+
+            nav a {
+                color: var(--text-color);
+                text-decoration: none;
+                font-weight: 500;
+                transition: color 0.2s;
+            }
+
+            nav a:hover {
+                color: var(--primary-color);
+            }
+
+            main {
+                flex: 1;
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 2rem;
+                width: 100%;
+            }
+
+            .sidebar {
+                position: fixed;
+                left: 0;
+                top: 73px;
+                width: 250px;
+                height: calc(100vh - 73px);
+                overflow-y: auto;
+                padding: 2rem 1rem;
+                background-color: var(--header-bg);
+                border-right: 1px solid var(--border-color);
+            }
+
+            .sidebar h2 {
+                font-size: 0.875rem;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                color: #6b7280;
+                margin-bottom: 1rem;
+            }
+
+            .sidebar ul {
+                list-style: none;
+            }
+
+            .sidebar li {
+                margin-bottom: 0.5rem;
+            }
+
+            .sidebar a {
+                color: var(--text-color);
+                text-decoration: none;
+                font-size: 0.875rem;
+                display: block;
+                padding: 0.25rem 0.5rem;
+                border-radius: 0.25rem;
+                transition: background-color 0.2s;
+            }
+
+            .sidebar a:hover {
+                background-color: var(--border-color);
+            }
+
+            .sidebar a.active {
+                background-color: var(--primary-color);
+                color: white;
+            }
+
+            .content {
+                margin-left: 250px;
+                padding: 2rem;
+                max-width: 900px;
+            }
+
+            .content h1 {
+                font-size: 2.5rem;
+                margin-bottom: 1rem;
+                color: var(--text-color);
+            }
+
+            .content h2 {
+                font-size: 2rem;
+                margin-top: 2rem;
+                margin-bottom: 1rem;
+                color: var(--text-color);
+            }
+
+            .content h3 {
+                font-size: 1.5rem;
+                margin-top: 1.5rem;
+                margin-bottom: 0.75rem;
+                color: var(--text-color);
+            }
+
+            .content p {
+                margin-bottom: 1rem;
+            }
+
+            .content code {
+                background-color: var(--code-bg);
+                padding: 0.125rem 0.25rem;
+                border-radius: 0.25rem;
+                font-family: "Consolas", "Monaco", "Courier New", monospace;
+                font-size: 0.875em;
+            }
+
+            .content pre {
+                background-color: var(--code-bg);
+                padding: 1rem;
+                border-radius: 0.5rem;
+                overflow-x: auto;
+                margin-bottom: 1rem;
+            }
+
+            .content pre code {
+                background-color: transparent;
+                padding: 0;
+            }
+
+            .content ul,
+            .content ol {
+                margin-bottom: 1rem;
+                padding-left: 2rem;
+            }
+
+            .content li {
+                margin-bottom: 0.25rem;
+            }
+
+            .content a {
+                color: var(--primary-color);
+                text-decoration: none;
+            }
+
+            .content a:hover {
+                text-decoration: underline;
+            }
+
+            .content blockquote {
+                border-left: 4px solid var(--primary-color);
+                padding-left: 1rem;
+                margin: 1rem 0;
+                color: #6b7280;
+                font-style: italic;
+            }
+
+            .content table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-bottom: 1rem;
+            }
+
+            .content th,
+            .content td {
+                border: 1px solid var(--border-color);
+                padding: 0.5rem;
+                text-align: left;
+            }
+
+            .content th {
+                background-color: var(--header-bg);
+                font-weight: 600;
+            }
+
+            footer {
+                background-color: var(--header-bg);
+                border-top: 1px solid var(--border-color);
+                padding: 2rem;
+                text-align: center;
+                color: #6b7280;
+                font-size: 0.875rem;
+            }
+
+            @media (max-width: 768px) {
+                .sidebar {
+                    display: none;
+                }
+
+                .content {
+                    margin-left: 0;
+                    padding: 1rem;
+                }
+
+                .header-content {
+                    padding: 0 1rem;
+                }
+
+                nav {
+                    display: none;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <header>
+            <div class="header-content">
+                <a href="../" class="logo">
+                    <img src="../rix-logo.png" alt="RiX Logo" />
+                    <h1>RiX Language Parser</h1>
+                </a>
+                <nav>
+                    <a href="/">Home</a>
+                    <a href="/docs.html">Documentation</a>
+                    <a href="/demo.html">Demo</a>
+                    <a href="https://github.com/rix-lang/parser">GitHub</a>
+                </nav>
+            </div>
+        </header>
+
+        <aside class="sidebar">
+            <h2>Documentation</h2>
+            <ul>
+                <li><a href="docs.html/">Overview</a></li>
+                <li><a href="architecture.html">Architecture</a></li>
+                <li><a href="parsing.html">Parsing</a></li>
+                <li><a href="AST-brief.html">AST Structure</a></li>
+                <li><a href="three-tier-system.html">Three-Tier System</a></li>
+                <li>
+                    <a href="function-definitions-summary.html">Functions</a>
+                </li>
+                <li>
+                    <a href="array-generators-implementation.html"
+                        >Array Generators</a
+                    >
+                </li>
+                <li>
+                    <a href="matrix-tensor-implementation.html"
+                        >Matrix & Tensor</a
+                    >
+                </li>
+                <li>
+                    <a href="brace-containers-README.html">Brace Containers</a>
+                </li>
+                <li><a href="embedded-parsing.html">Embedded Parsing</a></li>
+                <li><a href="ternary-operator.html">Ternary Operator</a></li>
+                <li>
+                    <a href="unit-notation-migration.html">Unit Notation</a>
+                </li>
+            </ul>
+        </aside>
+
+        <main class="content">
+            <!-- Markdown content will be inserted here -->
+            <div id="markdown-content"><h1>RiX Language AST Reference</h1>
+<p>This document provides a comprehensive reference for all token types generated by the tokenizer and AST node types created by the parser.</p>
+<h2>Section 1: Token Types</h2>
+<h3>Number</h3>
+<p><strong>Purpose:</strong> Represents all mathematical number formats supported by RiX<br><strong>Syntax:</strong> </p>
+<ul>
+<li>Integers: <code>42</code>, <code>-17</code></li>
+<li>Decimals: <code>3.14</code>, <code>-.5</code>, <code>2.</code></li>
+<li>Rationals: <code>3/4</code>, <code>-5/8</code></li>
+<li>Mixed numbers: <code>1..3/4</code>, <code>-2..1/3</code></li>
+<li>Intervals: <code>2:5</code>, <code>1.5:3.7</code>, <code>-2:0</code></li>
+<li>Repeating decimals: <code>0.12#34</code>, <code>1.#3</code></li>
+<li>Scientific notation: <code>1.23E-4</code>, <code>5E6</code></li>
+<li>Decimal intervals: <code>1.23[56:67]</code></li>
+</ul>
+<h3>Identifier</h3>
+<p><strong>Purpose:</strong> Represents variable names, function names, and system identifiers<br><strong>Syntax:</strong> </p>
+<ul>
+<li>User identifiers (lowercase first): <code>x</code>, <code>myVar</code>, <code>α</code></li>
+<li>System identifiers (uppercase first): <code>SIN</code>, <code>PI</code>, <code>Matrix</code></li>
+</ul>
+<h3>Symbol</h3>
+<p><strong>Purpose:</strong> Represents operators, punctuation, and delimiters<br><strong>Syntax:</strong> All mathematical and functional operators including:</p>
+<ul>
+<li>Arithmetic: <code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>, <code>^</code>, <code>**</code></li>
+<li>Assignment: <code>:=</code>, <code>:=:</code>, <code>:&lt;:</code>, <code>:&gt;:</code></li>
+<li>Comparison: <code>=</code>, <code>?=</code>, <code>&lt;</code>, <code>&gt;</code>, <code>&lt;=</code>, <code>&gt;=</code></li>
+<li>Pipe operations: <code>|&gt;</code>, <code>|&gt;&gt;</code>, <code>|&gt;?</code>, <code>|&gt;:</code></li>
+<li>Array generators: <code>|+</code>, <code>|*</code>, <code>|:</code>, <code>|^</code></li>
+<li>Brackets: <code>(</code>, <code>)</code>, <code>[</code>, <code>]</code>, <code>{</code>, <code>}</code></li>
+<li>Punctuation: <code>,</code>, <code>;</code>, <code>.</code>, <code>_</code></li>
+<li>Unit operators: <code>~[</code>, <code>~{</code></li>
+<li>Postfix operators: <code>@</code>, <code>?</code> (when followed by parentheses), <code>~[</code>, <code>~{</code></li>
+</ul>
+<h3>String</h3>
+<p><strong>Purpose:</strong> Represents quoted literals, backticks, and comments<br><strong>Syntax:</strong></p>
+<ul>
+<li>Double quotes: <code>&quot;hello&quot;</code>, <code>&quot;&quot;complex&quot;&quot;</code>, <code>&quot;&quot;&quot;multiline&quot;&quot;&quot;</code></li>
+<li>Backticks: <code>`code`</code>, <code>``nested``</code></li>
+<li>Comments: <code># line comment</code>, <code>/* block */</code>, <code>/** doc **/</code></li>
+</ul>
+<h3>Postfix Operators</h3>
+<p><strong>Purpose:</strong> Represents postfix operations for precision, queries, and function calls<br><strong>Syntax:</strong></p>
+<ul>
+<li>AT operator: <code>expr@(arg)</code> - precision/metadata access</li>
+<li>ASK operator: <code>expr?(arg)</code> - membership/query testing  </li>
+<li>Enhanced CALL: <code>expr(args)</code> - universal function call on any expression</li>
+<li>Operator functions: <code>+(a,b,c)</code>, <code>*(x,y)</code> - operators as variadic functions</li>
+<li>Scientific units: <code>expr~[unit]</code> - attach scientific units to expressions</li>
+<li>Mathematical units: <code>expr~{unit}</code> - attach mathematical units to expressions</li>
+</ul>
+<h3>PlaceHolder</h3>
+<p><strong>Purpose:</strong> Represents numbered placeholders for parameter positioning<br><strong>Syntax:</strong> <code>_1</code>, <code>_2</code>, <code>__3</code>, <code>___42</code></p>
+<h3>SemicolonSequence</h3>
+<p><strong>Purpose:</strong> Represents multiple consecutive semicolons for matrix/tensor separators<br><strong>Syntax:</strong> <code>;;</code>, <code>;;;</code>, <code>;;;;</code></p>
+<h3>End</h3>
+<p><strong>Purpose:</strong> Marks the end of input stream<br><strong>Syntax:</strong> Automatically generated at end of input</p>
+<h2>Section 2: AST Node Shapes</h2>
+<h3>Number</h3>
+<pre><code class="language-javascript">{
+  value: string,      // Raw number value as string
+  original: string    // Original text from source
+}
+</code></pre>
+<h3>String</h3>
+<pre><code class="language-javascript">{
+  value: string,      // Content between delimiters
+  kind: string,       // &#39;quote&#39; | &#39;backtick&#39; | &#39;comment&#39; | &#39;unit change&#39;
+  original: string    // Original text including delimiters
+}
+</code></pre>
+<h3>UserIdentifier</h3>
+<pre><code class="language-javascript">{
+  name: string,       // Normalized identifier name
+  original: string    // Original text from source
+}
+</code></pre>
+<h3>SystemIdentifier</h3>
+<pre><code class="language-javascript">{
+  name: string,       // Normalized system identifier name
+  systemInfo: object, // Result from system lookup function
+  original: string    // Original text from source
+}
+</code></pre>
+<h3>PlaceHolder</h3>
+<pre><code class="language-javascript">{
+  place: number,      // Placeholder number (1, 2, 3, etc.)
+  original: string    // Original text from source
+}
+</code></pre>
+<h3>NULL</h3>
+<pre><code class="language-javascript">{
+  original: string    // Original underscore text
+}
+</code></pre>
+<h3>BinaryOperation</h3>
+<pre><code class="language-javascript">{
+  operator: string,   // Operator symbol
+  left: ASTNode,      // Left operand
+  right: ASTNode,     // Right operand
+  original: string    // Combined original text
+}
+</code></pre>
+<h3>UnaryOperation</h3>
+<pre><code class="language-javascript">{
+  operator: string,   // Operator symbol (&#39;+&#39;, &#39;-&#39;, etc.)
+  operand: ASTNode,   // Operand expression
+  original: string    // Original text
+}
+</code></pre>
+<h3>Assignment</h3>
+<pre><code class="language-javascript">{
+  operator: string,   // Assignment operator (&#39;:=&#39;, &#39;:=:&#39;, etc.)
+  left: ASTNode,      // Left-hand side (variable/function)
+  right: ASTNode,     // Right-hand side (value/expression)
+  original: string    // Combined original text
+}
+</code></pre>
+<h3>FunctionCall</h3>
+<pre><code class="language-javascript">{
+  function: ASTNode,  // Function identifier
+  arguments: {
+    positional: [ASTNode],        // Positional arguments
+    keyword: {string: ASTNode}    // Named arguments
+  },
+  original: string    // Combined original text
+}
+</code></pre>
+<h3>PropertyAccess</h3>
+<pre><code class="language-javascript">{
+  object: ASTNode,    // Object being accessed
+  property: ASTNode,  // Property name or expression
+  original: string    // Combined original text
+}
+</code></pre>
+<h3>FunctionDefinition</h3>
+<pre><code class="language-javascript">{
+  name: ASTNode,      // Function name identifier
+  parameters: {
+    positional: [{name: string, defaultValue: ASTNode}],
+    keyword: [{name: string, defaultValue: ASTNode}],
+    conditionals: [ASTNode],
+    metadata: object
+  },
+  body: ASTNode,      // Function body expression
+  definitionType: string, // &#39;standard&#39; | &#39;pattern&#39;
+  original: string    // Combined original text
+}
+</code></pre>
+<h3>PatternMatchingFunction</h3>
+<pre><code class="language-javascript">{
+  name: ASTNode,      // Function name identifier
+  parameters: object, // Same structure as FunctionDefinition
+  patterns: [ASTNode], // Array of pattern expressions
+  metadata: object,   // Global function metadata
+  original: string    // Combined original text
+}
+</code></pre>
+<h3>FunctionLambda</h3>
+<pre><code class="language-javascript">{
+  parameters: object, // Same structure as FunctionDefinition
+  body: ASTNode,      // Lambda body expression
+  original: string    // Combined original text
+}
+</code></pre>
+<h3>ParameterList</h3>
+<pre><code class="language-javascript">{
+  parameters: object, // Parameter structure
+  original: string    // Original text
+}
+</code></pre>
+<h3>Pipe</h3>
+<pre><code class="language-javascript">{
+  left: ASTNode,      // Input expression
+  right: ASTNode,     // Target function/expression
+  original: string    // Combined original text
+}
+</code></pre>
+<h3>ExplicitPipe</h3>
+<pre><code class="language-javascript">{
+  left: ASTNode,      // Input expression
+  right: ASTNode,     // Target with placeholders
+  original: string    // Combined original text
+}
+</code></pre>
+<h3>Map</h3>
+<pre><code class="language-javascript">{
+  left: ASTNode,      // Collection to map over
+  right: ASTNode,     // Mapping function
+  original: string    // Combined original text
+}
+</code></pre>
+<h3>Filter</h3>
+<pre><code class="language-javascript">{
+  left: ASTNode,      // Collection to filter
+  right: ASTNode,     // Filter predicate
+  original: string    // Combined original text
+}
+</code></pre>
+<h3>Reduce</h3>
+<pre><code class="language-javascript">{
+  left: ASTNode,      // Collection to reduce
+  right: ASTNode,     // Reduction function
+  original: string    // Combined original text
+}
+</code></pre>
+<h3>IntervalStepping</h3>
+<pre><code class="language-javascript">{
+  interval: ASTNode,  // Base interval
+  step: ASTNode,      // Step size
+  original: string    // Combined original text
+}
+</code></pre>
+<h3>IntervalDivision</h3>
+<pre><code class="language-javascript">{
+  interval: ASTNode,  // Interval to divide
+  count: ASTNode,     // Number of divisions
+  type: string,       // &#39;equally_spaced&#39;
+  original: string    // Combined original text
+}
+</code></pre>
+<h3>IntervalPartition</h3>
+<pre><code class="language-javascript">{
+  interval: ASTNode,  // Interval to partition
+  count: ASTNode,     // Number of partitions
+  original: string    // Combined original text
+}
+</code></pre>
+<h3>IntervalMediants</h3>
+<pre><code class="language-javascript">{
+  interval: ASTNode,  // Base interval
+  levels: ASTNode,    // Number of mediant levels
+  original: string    // Combined original text
+}
+</code></pre>
+<h3>IntervalMediantPartition</h3>
+<pre><code class="language-javascript">{
+  interval: ASTNode,  // Interval for mediant partition
+  levels: ASTNode,    // Partition levels
+  original: string    // Combined original text
+}
+</code></pre>
+<h3>IntervalRandom</h3>
+<pre><code class="language-javascript">{
+  interval: ASTNode,  // Source interval
+  parameters: ASTNode, // Random selection parameters
+  original: string    // Combined original text
+}
+</code></pre>
+<h3>IntervalRandomPartition</h3>
+<pre><code class="language-javascript">{
+  interval: ASTNode,  // Interval to partition randomly
+  count: ASTNode,     // Number of random partitions
+  original: string    // Combined original text
+}
+</code></pre>
+<h3>InfiniteSequence</h3>
+<pre><code class="language-javascript">{
+  start: ASTNode,     // Starting value
+  step: ASTNode,      // Step increment
+  original: string    // Combined original text
+}
+</code></pre>
+<h3>Tuple</h3>
+<pre><code class="language-javascript">{
+  elements: [ASTNode], // Tuple elements
+  original: string    // Combined original text
+}
+</code></pre>
+<h3>Grouping</h3>
+<pre><code class="language-javascript">{
+  expression: ASTNode, // Grouped expression
+  original: string    // Combined original text
+}
+</code></pre>
+<h3>GeneratorChain</h3>
+<pre><code class="language-javascript">{
+  start: ASTNode,     // Starting value (may be null)
+  operators: [{
+    type: string,     // Generator operation type
+    operator: string, // Operator symbol
+    operand: ASTNode  // Operation parameter
+  }],
+  original: string    // Combined original text
+}
+</code></pre>
+<h3>GeneratorAdd</h3>
+<pre><code class="language-javascript">{
+  operator: string,   // &#39;|+&#39;
+  operand: ASTNode,   // Addition value
+  original: string    // Combined original text
+}
+</code></pre>
+<h3>GeneratorMultiply</h3>
+<pre><code class="language-javascript">{
+  operator: string,   // &#39;|*&#39;
+  operand: ASTNode,   // Multiplication factor
+  original: string    // Combined original text
+}
+</code></pre>
+<h3>GeneratorFunction</h3>
+<pre><code class="language-javascript">{
+  operator: string,   // &#39;|:&#39;
+  operand: ASTNode,   // Generator function
+  original: string    // Combined original text
+}
+</code></pre>
+<h3>GeneratorFilter</h3>
+<pre><code class="language-javascript">{
+  operator: string,   // &#39;|?&#39;
+  operand: ASTNode,   // Filter predicate
+  original: string    // Combined original text
+}
+</code></pre>
+<h3>GeneratorLimit</h3>
+<pre><code class="language-javascript">{
+  operator: string,   // &#39;|^&#39;
+  operand: ASTNode,   // Limit condition/count
+  original: string    // Combined original text
+}
+</code></pre>
+<h3>GeneratorLazyLimit</h3>
+<pre><code class="language-javascript">{
+  operator: string,   // &#39;|^:&#39;
+  operand: ASTNode,   // Lazy limit condition/count
+  original: string    // Combined original text
+}
+</code></pre>
+<h3>WithMetadata</h3>
+<pre><code class="language-javascript">{
+  primary: ASTNode,   // Primary element
+  metadata: object,   // Metadata key-value pairs
+  original: string    // Combined original text
+}
+</code></pre>
+<h3>Array</h3>
+<pre><code class="language-javascript">{
+  elements: [ASTNode], // Array elements
+  original: string    // Combined original text
+}
+</code></pre>
+<h3>Matrix</h3>
+<pre><code class="language-javascript">{
+  rows: [[ASTNode]],  // Matrix rows (2D array)
+  original: string    // Combined original text
+}
+</code></pre>
+<h3>Tensor</h3>
+<pre><code class="language-javascript">{
+  structure: [object], // Multi-dimensional structure
+  maxDimension: number, // Highest dimension level
+  original: string    // Combined original text
+}
+</code></pre>
+<h3>Set</h3>
+<pre><code class="language-javascript">{
+  elements: [ASTNode], // Set elements
+  original: string    // Combined original text
+}
+</code></pre>
+<h3>Map</h3>
+<pre><code class="language-javascript">{
+  elements: [ASTNode], // Map key-value pairs
+  original: string    // Combined original text
+}
+</code></pre>
+<h3>System</h3>
+<pre><code class="language-javascript">{
+  elements: [ASTNode], // System equations/constraints
+  original: string    // Combined original text
+}
+</code></pre>
+<h3>CodeBlock</h3>
+<pre><code class="language-javascript">{
+  statements: [ASTNode], // Block statements
+  original: string    // Combined original text
+}
+</code></pre>
+<h3>Derivative</h3>
+<pre><code class="language-javascript">{
+  function: ASTNode,  // Function to differentiate
+  order: number,      // Derivative order (number of quotes)
+  variable: ASTNode,  // Variable to differentiate with respect to
+  evaluation: ASTNode, // Evaluation point (if specified)
+  original: string    // Combined original text
+}
+</code></pre>
+<h3>Integral</h3>
+<pre><code class="language-javascript">{
+  function: ASTNode,  // Function to integrate
+  order: number,      // Integration order (number of quotes)
+  variable: ASTNode,  // Variable to integrate with respect to
+  evaluation: ASTNode, // Evaluation bounds (if specified)
+  original: string    // Combined original text
+}
+</code></pre>
+<h3>At</h3>
+<pre><code class="language-javascript">{
+  target: ASTNode,    // Expression being queried for precision/metadata
+  arg: ASTNode,       // Precision/metadata parameter
+  original: string    // Combined original text
+}
+</code></pre>
+<h3>Ask</h3>
+<pre><code class="language-javascript">{
+  target: ASTNode,    // Expression being queried for membership/properties
+  arg: ASTNode,       // Query parameter (range, condition, etc.)
+  original: string    // Combined original text
+}
+</code></pre>
+<h3>ScientificUnit</h3>
+<pre><code class="language-javascript">{
+  target: ASTNode,    // Expression being annotated with units
+  unit: string,       // Scientific unit content (e.g., &quot;m&quot;, &quot;kg/s^2&quot;)
+  original: string    // Combined original text
+}
+</code></pre>
+<h3>MathematicalUnit</h3>
+<pre><code class="language-javascript">{
+  target: ASTNode,    // Expression being annotated with units
+  unit: string,       // Mathematical unit content (e.g., &quot;i&quot;, &quot;sqrt2&quot;, &quot;pi&quot;)
+  original: string    // Combined original text
+}
+</code></pre>
+<h3>TernaryOperation</h3>
+<pre><code class="language-javascript">{
+  condition: ASTNode,     // Boolean condition expression
+  trueExpression: ASTNode, // Expression evaluated if condition is true
+  falseExpression: ASTNode, // Expression evaluated if condition is false
+  original: string        // Combined original text
+}
+</code></pre>
+<h3>EmbeddedLanguage</h3>
+<pre><code class="language-javascript">{
+  language: string,   // Language identifier or &#39;RiX-String&#39;
+  context: object,    // Context parameters
+  body: string,       // Embedded code content
+  original: string    // Original backtick literal
+}
+</code></pre>
+<h2>Section 3: Common Token Properties</h2>
+<p>All tokens include these base properties:</p>
+<h3>Token Base Properties</h3>
+<pre><code class="language-javascript">{
+  type: string,       // Token type identifier
+  original: string,   // Original text from source (including whitespace)
+  pos: [number, number, number] // [start, valueStart, end] positions
+}
+</code></pre>
+<h3>AST Node Base Properties</h3>
+<p>All AST nodes include these base properties:</p>
+<pre><code class="language-javascript">{
+  type: string,       // Node type identifier
+  pos?: [number, number], // Optional source position [start, end]
+  original?: string   // Optional original source text
+}
+</code></pre>
+<p><strong>Position Information:</strong></p>
+<ul>
+<li><code>pos[0]</code>: Character index where token/node starts (including leading whitespace)</li>
+<li><code>pos[1]</code>: Character index where token value starts (excluding delimiters for strings)</li>
+<li><code>pos[2]</code>: Character index where token/node ends</li>
+<li>Positions are 0-based and suitable for JavaScript string slicing</li>
+</ul>
+<p><strong>Original Text:</strong></p>
+<ul>
+<li>For tokens: includes any leading whitespace consumed during tokenization</li>
+<li>For AST nodes: contains the combined original text of all constituent tokens</li>
+<li>Preserves exact source representation for error reporting and code transformation</li>
+</ul>
+<h2>Section 4: Postfix Operators</h2>
+<h3>AT Operator (@)</h3>
+<p><strong>Purpose:</strong> Access precision, tolerance, or metadata properties of mathematical objects<br><strong>Syntax:</strong> <code>expression@(parameter)</code><br><strong>Precedence:</strong> 120 (POSTFIX - highest precedence)<br><strong>Examples:</strong></p>
+<ul>
+<li><code>PI@(1e-10)</code> - Get PI with precision 1e-10</li>
+<li><code>result@(tolerance)</code> - Apply tolerance to result</li>
+<li><code>(1/3)@(epsilon)</code> - Get rational with specified precision</li>
+</ul>
+<h3>ASK Operator (?)</h3>
+<p><strong>Purpose:</strong> Query membership, bounds, or boolean properties of mathematical objects<br><strong>Syntax:</strong> <code>expression?(parameter)</code><br><strong>Precedence:</strong> 120 (POSTFIX - highest precedence)<br><strong>Note:</strong> Must be followed by parentheses to distinguish from infix <code>?</code> operator<br><strong>Examples:</strong></p>
+<ul>
+<li><code>PI?(3.14:3.15)</code> - Check if PI is in interval [3.14, 3.15]</li>
+<li><code>result?(bounds)</code> - Test if result satisfies bounds</li>
+<li><code>interval?(x)</code> - Query if x is in interval</li>
+</ul>
+<h3>Enhanced CALL Operator (())</h3>
+<p><strong>Purpose:</strong> Universal function call that works on any expression, not just identifiers<br><strong>Syntax:</strong> <code>expression(arguments)</code><br><strong>Precedence:</strong> 120 (POSTFIX - highest precedence)<br><strong>Examples:</strong></p>
+<ul>
+<li><code>3(4)</code> - Equivalent to <code>3 * 4</code> (scalar multiplication)</li>
+<li><code>(2,3)(4,5)</code> - Tuple/vector operations</li>
+<li><code>matrix(vector)</code> - Matrix-vector multiplication</li>
+<li><code>f(x)(y)</code> - Chained function calls</li>
+</ul>
+<h3>Operators as Functions</h3>
+<p><strong>Purpose:</strong> Mathematical operators can be used as function identifiers<br><strong>Syntax:</strong> <code>operator(arg1, arg2, ...)</code><br><strong>Examples:</strong></p>
+<ul>
+<li><code>+(2, 3, 5)</code> - Addition as variadic function: 2 + 3 + 5</li>
+<li><code>*(a, b, c)</code> - Multiplication as function: a * b * c</li>
+<li><code>&lt;(x, y)</code> - Comparison as function: x &lt; y</li>
+<li><code>=(a, b)</code> - Equality as function: a = b</li>
+</ul>
+<h3>Scientific Unit Operator (~[)</h3>
+<p><strong>Purpose:</strong> Attach scientific units to mathematical expressions<br><strong>Syntax:</strong> <code>expression~[unit]</code><br><strong>Precedence:</strong> 120 (POSTFIX - highest precedence)<br><strong>Examples:</strong></p>
+<ul>
+<li><code>3~[m]</code> - 3 meters</li>
+<li><code>9.8~[m/s^2]</code> - Acceleration in meters per second squared</li>
+<li><code>(F/m)~[kg]</code> - Force per unit mass with kilogram units</li>
+</ul>
+<h3>Mathematical Unit Operator (~{)</h3>
+<p><strong>Purpose:</strong> Attach mathematical units or algebraic extensions to expressions<br><strong>Syntax:</strong> <code>expression~{unit}</code><br><strong>Precedence:</strong> 120 (POSTFIX - highest precedence)<br><strong>Examples:</strong></p>
+<ul>
+<li><code>2~{i}</code> - 2 times the imaginary unit</li>
+<li><code>1~{sqrt2}</code> - 1 times square root of 2</li>
+<li><code>(a+b)~{pi}</code> - Expression times pi</li>
+</ul>
+<h3>Chaining Postfix Operators</h3>
+<p><strong>Purpose:</strong> Multiple postfix operators can be chained for complex operations<br><strong>Precedence:</strong> All postfix operators have same precedence and are left-associative<br><strong>Examples:</strong></p>
+<ul>
+<li><code>PI@(1e-6)?(3.14:3.15)</code> - Get precise PI then check range</li>
+<li><code>f(x)@(eps)?(bounds)</code> - Call function, apply precision, check bounds</li>
+<li><code>result?(test)@(meta)</code> - Query result then access metadata</li>
+<li><code>3~{i}~[V]</code> - Complex number with voltage units</li>
+<li><code>expr~[m/s]@(tolerance)</code> - Expression with units and precision</li>
+</ul>
+</div>
+        </main>
+
+        <footer>
+            <p>&copy; 2024 RiX Language Team. Licensed under MIT.</p>
+        </footer>
+
+        <script>
+            // This script will be replaced by the actual markdown rendering logic
+            // For now, it just shows a placeholder
+            document.addEventListener("DOMContentLoaded", function () {
+                // Highlight current page in sidebar
+                const currentPath = window.location.pathname;
+                const currentFile = currentPath.substring(
+                    currentPath.lastIndexOf("/") + 1,
+                );
+                const sidebarLinks = document.querySelectorAll(".sidebar a");
+                sidebarLinks.forEach((link) => {
+                    const linkPath = link.getAttribute("href");
+                    if (
+                        linkPath === currentFile ||
+                        (currentFile === "" && linkPath === "./") ||
+                        linkPath === "./" + currentFile
+                    ) {
+                        link.classList.add("active");
+                    }
+                });
+            });
+        </script>
+    </body>
+</html>

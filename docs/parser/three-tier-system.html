@@ -1,0 +1,723 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Three-Tier System Architecture for RiX Language - RiX Language Parser</title>
+        <style>
+            :root {
+                --primary-color: #2563eb;
+                --secondary-color: #1e40af;
+                --text-color: #1f2937;
+                --bg-color: #ffffff;
+                --code-bg: #f3f4f6;
+                --border-color: #e5e7eb;
+                --header-bg: #f9fafb;
+            }
+
+            * {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
+
+            body {
+                font-family:
+                    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                    "Helvetica Neue", Arial, sans-serif;
+                line-height: 1.6;
+                color: var(--text-color);
+                background-color: var(--bg-color);
+                min-height: 100vh;
+                display: flex;
+                flex-direction: column;
+            }
+
+            header {
+                background-color: var(--header-bg);
+                border-bottom: 1px solid var(--border-color);
+                padding: 1rem 0;
+                position: sticky;
+                top: 0;
+                z-index: 100;
+            }
+
+            .header-content {
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 0 2rem;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+            }
+
+            .logo {
+                display: flex;
+                align-items: center;
+                gap: 1rem;
+                text-decoration: none;
+                color: var(--text-color);
+            }
+
+            .logo img {
+                height: 40px;
+                width: auto;
+            }
+
+            .logo h1 {
+                font-size: 1.5rem;
+                font-weight: 700;
+            }
+
+            nav {
+                display: flex;
+                gap: 2rem;
+            }
+
+            nav a {
+                color: var(--text-color);
+                text-decoration: none;
+                font-weight: 500;
+                transition: color 0.2s;
+            }
+
+            nav a:hover {
+                color: var(--primary-color);
+            }
+
+            main {
+                flex: 1;
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 2rem;
+                width: 100%;
+            }
+
+            .sidebar {
+                position: fixed;
+                left: 0;
+                top: 73px;
+                width: 250px;
+                height: calc(100vh - 73px);
+                overflow-y: auto;
+                padding: 2rem 1rem;
+                background-color: var(--header-bg);
+                border-right: 1px solid var(--border-color);
+            }
+
+            .sidebar h2 {
+                font-size: 0.875rem;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                color: #6b7280;
+                margin-bottom: 1rem;
+            }
+
+            .sidebar ul {
+                list-style: none;
+            }
+
+            .sidebar li {
+                margin-bottom: 0.5rem;
+            }
+
+            .sidebar a {
+                color: var(--text-color);
+                text-decoration: none;
+                font-size: 0.875rem;
+                display: block;
+                padding: 0.25rem 0.5rem;
+                border-radius: 0.25rem;
+                transition: background-color 0.2s;
+            }
+
+            .sidebar a:hover {
+                background-color: var(--border-color);
+            }
+
+            .sidebar a.active {
+                background-color: var(--primary-color);
+                color: white;
+            }
+
+            .content {
+                margin-left: 250px;
+                padding: 2rem;
+                max-width: 900px;
+            }
+
+            .content h1 {
+                font-size: 2.5rem;
+                margin-bottom: 1rem;
+                color: var(--text-color);
+            }
+
+            .content h2 {
+                font-size: 2rem;
+                margin-top: 2rem;
+                margin-bottom: 1rem;
+                color: var(--text-color);
+            }
+
+            .content h3 {
+                font-size: 1.5rem;
+                margin-top: 1.5rem;
+                margin-bottom: 0.75rem;
+                color: var(--text-color);
+            }
+
+            .content p {
+                margin-bottom: 1rem;
+            }
+
+            .content code {
+                background-color: var(--code-bg);
+                padding: 0.125rem 0.25rem;
+                border-radius: 0.25rem;
+                font-family: "Consolas", "Monaco", "Courier New", monospace;
+                font-size: 0.875em;
+            }
+
+            .content pre {
+                background-color: var(--code-bg);
+                padding: 1rem;
+                border-radius: 0.5rem;
+                overflow-x: auto;
+                margin-bottom: 1rem;
+            }
+
+            .content pre code {
+                background-color: transparent;
+                padding: 0;
+            }
+
+            .content ul,
+            .content ol {
+                margin-bottom: 1rem;
+                padding-left: 2rem;
+            }
+
+            .content li {
+                margin-bottom: 0.25rem;
+            }
+
+            .content a {
+                color: var(--primary-color);
+                text-decoration: none;
+            }
+
+            .content a:hover {
+                text-decoration: underline;
+            }
+
+            .content blockquote {
+                border-left: 4px solid var(--primary-color);
+                padding-left: 1rem;
+                margin: 1rem 0;
+                color: #6b7280;
+                font-style: italic;
+            }
+
+            .content table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-bottom: 1rem;
+            }
+
+            .content th,
+            .content td {
+                border: 1px solid var(--border-color);
+                padding: 0.5rem;
+                text-align: left;
+            }
+
+            .content th {
+                background-color: var(--header-bg);
+                font-weight: 600;
+            }
+
+            footer {
+                background-color: var(--header-bg);
+                border-top: 1px solid var(--border-color);
+                padding: 2rem;
+                text-align: center;
+                color: #6b7280;
+                font-size: 0.875rem;
+            }
+
+            @media (max-width: 768px) {
+                .sidebar {
+                    display: none;
+                }
+
+                .content {
+                    margin-left: 0;
+                    padding: 1rem;
+                }
+
+                .header-content {
+                    padding: 0 1rem;
+                }
+
+                nav {
+                    display: none;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <header>
+            <div class="header-content">
+                <a href="../" class="logo">
+                    <img src="../rix-logo.png" alt="RiX Logo" />
+                    <h1>RiX Language Parser</h1>
+                </a>
+                <nav>
+                    <a href="/">Home</a>
+                    <a href="/docs.html">Documentation</a>
+                    <a href="/demo.html">Demo</a>
+                    <a href="https://github.com/rix-lang/parser">GitHub</a>
+                </nav>
+            </div>
+        </header>
+
+        <aside class="sidebar">
+            <h2>Documentation</h2>
+            <ul>
+                <li><a href="docs.html/">Overview</a></li>
+                <li><a href="architecture.html">Architecture</a></li>
+                <li><a href="parsing.html">Parsing</a></li>
+                <li><a href="AST-brief.html">AST Structure</a></li>
+                <li><a href="three-tier-system.html">Three-Tier System</a></li>
+                <li>
+                    <a href="function-definitions-summary.html">Functions</a>
+                </li>
+                <li>
+                    <a href="array-generators-implementation.html"
+                        >Array Generators</a
+                    >
+                </li>
+                <li>
+                    <a href="matrix-tensor-implementation.html"
+                        >Matrix & Tensor</a
+                    >
+                </li>
+                <li>
+                    <a href="brace-containers-README.html">Brace Containers</a>
+                </li>
+                <li><a href="embedded-parsing.html">Embedded Parsing</a></li>
+                <li><a href="ternary-operator.html">Ternary Operator</a></li>
+                <li>
+                    <a href="unit-notation-migration.html">Unit Notation</a>
+                </li>
+            </ul>
+        </aside>
+
+        <main class="content">
+            <!-- Markdown content will be inserted here -->
+            <div id="markdown-content"><h1>Three-Tier System Architecture for RiX Language</h1>
+<h2>Overview</h2>
+<p>The RiX language implements a <strong>three-tier architecture</strong> that separates concerns and enables controlled extensibility:</p>
+<ol>
+<li><strong>Language Maintainers</strong> - Core RiX language and parser</li>
+<li><strong>System Tinkerers</strong> - JavaScript extensions and custom keywords</li>
+<li><strong>Users</strong> - Pure RiX language usage</li>
+</ol>
+<p>This architecture provides security, maintainability, and flexibility while preventing users from executing arbitrary code.</p>
+<h2>Architecture Diagram</h2>
+<pre><code>┌─────────────────────────────────────────────────────────────┐
+│                    RiX Three-Tier System                   │
+├─────────────────────────────────────────────────────────────┤
+│ Tier 1: Language Maintainers                               │
+│ ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐ │
+│ │   Tokenizer     │ │     Parser      │ │  Core Symbols   │ │
+│ │                 │ │                 │ │  SIN, COS, PI   │ │
+│ └─────────────────┘ └─────────────────┘ └─────────────────┘ │
+├─────────────────────────────────────────────────────────────┤
+│ Tier 2: System Tinkerers (JavaScript)                      │
+│ ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐ │
+│ │ System Loader   │ │   Custom        │ │   Configurable  │ │
+│ │                 │ │  Keywords       │ │   Operators     │ │
+│ │                 │ │  AND, OR, WHILE │ │   &lt;&lt;, &gt;&gt;, ++    │ │
+│ └─────────────────┘ └─────────────────┘ └─────────────────┘ │
+├─────────────────────────────────────────────────────────────┤
+│ Tier 3: Users (Pure RiX)                                   │
+│ ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐ │
+│ │  Mathematical   │ │   Control Flow  │ │   Data Types    │ │
+│ │  Expressions    │ │   IF/WHILE/FOR  │ │  Arrays, Sets   │ │
+│ └─────────────────┘ └─────────────────┘ └─────────────────┘ │
+└─────────────────────────────────────────────────────────────┘
+</code></pre>
+<h2>Tier 1: Language Maintainers</h2>
+<p><strong>Responsibility:</strong> Core language design, parser implementation, and fundamental symbols.</p>
+<h3>Core Components</h3>
+<ul>
+<li><strong>Tokenizer:</strong> Recognizes System vs User identifiers by capitalization</li>
+<li><strong>Parser:</strong> Implements operator precedence and AST generation</li>
+<li><strong>Core Registry:</strong> Built-in mathematical functions and constants</li>
+</ul>
+<h3>Core Symbols</h3>
+<pre><code class="language-javascript">// Mathematical functions
+SIN, COS, TAN, LOG, EXP, SQRT, ABS, MAX, MIN, SUM
+
+// Constants
+PI, EX, INFINITY, IM
+
+// Type constructors
+LIST, SET, MAP, TUPLE
+
+// Meta functions
+TYPE, HELP, INFO
+</code></pre>
+<h3>Key Features</h3>
+<ul>
+<li><strong>System/User Distinction:</strong> Capital first letter = System, lowercase = User</li>
+<li><strong>Immutable Core:</strong> Cannot be overridden by System Tinkerers</li>
+<li><strong>Universal Parser:</strong> Handles all RiX language constructs</li>
+</ul>
+<h2>Tier 2: System Tinkerers (JavaScript Extensions)</h2>
+<p><strong>Responsibility:</strong> Extend RiX with domain-specific functionality while maintaining user safety.</p>
+<h3>System Loader API</h3>
+<pre><code class="language-javascript">import { SystemLoader } from &#39;rix-language-parser/system-loader&#39;;
+
+const systemLoader = new SystemLoader({
+    strictMode: false,           // Allow core symbol extension
+    allowUserOverrides: false,   // Prevent user modifications
+    browserIntegration: true     // Enable web integration
+});
+</code></pre>
+<h3>Registering Keywords</h3>
+<pre><code class="language-javascript">// Logical operators
+systemLoader.registerKeyword(&#39;AND&#39;, {
+    type: &#39;operator&#39;,
+    precedence: 40,
+    associativity: &#39;left&#39;,
+    operatorType: &#39;infix&#39;,
+    category: &#39;logical&#39;
+});
+
+// Control flow
+systemLoader.registerKeyword(&#39;WHILE&#39;, {
+    type: &#39;control&#39;,
+    structure: &#39;loop&#39;,
+    precedence: 5,
+    category: &#39;control&#39;
+});
+</code></pre>
+<h3>Registering System Functions</h3>
+<pre><code class="language-javascript">// Custom mathematical functions
+systemLoader.registerSystem(&#39;FACTORIAL&#39;, {
+    type: &#39;function&#39;,
+    arity: 1,
+    category: &#39;mathematical&#39;
+});
+
+// Utility functions
+systemLoader.registerSystem(&#39;RANDOM&#39;, {
+    type: &#39;function&#39;,
+    arity: -1,  // Variable arguments
+    category: &#39;utility&#39;
+});
+</code></pre>
+<h3>Custom Operators</h3>
+<pre><code class="language-javascript">// Add new symbolic operators
+systemLoader.registerOperator(&#39;&lt;&lt;&#39;, {
+    type: &#39;operator&#39;,
+    precedence: 70,
+    associativity: &#39;left&#39;,
+    operatorType: &#39;infix&#39;
+});
+</code></pre>
+<h3>Browser Integration</h3>
+<pre><code class="language-html">&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+    &lt;script type=&quot;module&quot;&gt;
+        import { createWebPageSystemLoader } from &#39;rix-language-parser/system-loader&#39;;
+
+        // Easy setup for web pages
+        const loader = createWebPageSystemLoader();
+
+        // Define logical operators for this page
+        window.RiX.defineLogicalOperators(&#39;AND&#39;, &#39;OR&#39;, &#39;NOT&#39;);
+
+        // Define control flow
+        window.RiX.defineControlFlow();
+    &lt;/script&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;!-- RiX system extensions can be defined in script tags --&gt;
+    &lt;script type=&quot;text/rix-system&quot;&gt;
+        registerKeyword(&#39;BETWEEN&#39;, {
+            type: &#39;operator&#39;,
+            precedence: 60,
+            operatorType: &#39;ternary&#39;
+        });
+    &lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre>
+<h3>Extension Hooks</h3>
+<pre><code class="language-javascript">// Monitor system changes
+systemLoader.registerHook(&#39;system-registered&#39;, (data) =&gt; {
+    console.log(`New system symbol: ${data.name}`);
+});
+
+systemLoader.registerHook(&#39;keyword-registered&#39;, (data) =&gt; {
+    console.log(`New keyword: ${data.name}`);
+});
+</code></pre>
+<h2>Tier 3: Users (Pure RiX)</h2>
+<p><strong>Responsibility:</strong> Write mathematical expressions and algorithms using available language features.</p>
+<h3>Basic Usage</h3>
+<pre><code class="language-rix"># Mathematical expressions
+result := SIN(PI/2) + COS(0)
+
+# Variable assignment
+x := 42
+y := x^2 + 1
+
+# Function definitions
+f(x) := x^2 + 2*x + 1
+</code></pre>
+<h3>Using System Extensions</h3>
+<pre><code class="language-rix"># If logical operators are loaded
+condition := x &gt; 0 AND y &lt; 10
+
+# If control flow is loaded
+result := IF x &gt; 0 THEN x ELSE -x
+
+# While loops (if implemented)
+i := 1
+WHILE i &lt; 10 DO
+    sum := sum + i
+    i := i + 1
+END
+</code></pre>
+<h3>Advanced Features</h3>
+<pre><code class="language-rix"># Arrays and generators
+sequence := [1 |+ 2 |^ 10]     # Arithmetic sequence
+matrix := [[1, 2; 3, 4]]       # 2x2 matrix
+
+# Pattern matching functions
+abs :=&gt; [
+    (x ? x &gt;= 0) -&gt; x,
+    (x ? x &lt; 0) -&gt; -x
+]
+
+# Pipe operations
+data |&gt; filter |&gt; transform |&gt; reduce
+</code></pre>
+<h2>Security Model</h2>
+<h3>User Limitations</h3>
+<ul>
+<li><strong>No JavaScript Access:</strong> Users cannot execute arbitrary JavaScript</li>
+<li><strong>Symbol Scoping:</strong> Only System symbols (capitalized) can access extensions</li>
+<li><strong>Read-Only Extensions:</strong> Users cannot modify system configuration</li>
+<li><strong>Sandboxed Execution:</strong> All RiX code runs in controlled environment</li>
+</ul>
+<h3>System Tinkerer Controls</h3>
+<ul>
+<li><strong>Controlled Extension:</strong> Can only add new symbols, not modify core language</li>
+<li><strong>Validation:</strong> All definitions must pass type and structure validation</li>
+<li><strong>Hook System:</strong> Can monitor but not prevent core language operations</li>
+<li><strong>Context Isolation:</strong> Extensions are scoped to specific contexts/pages</li>
+</ul>
+<h3>Language Maintainer Guarantees</h3>
+<ul>
+<li><strong>Core Immutability:</strong> Core language features cannot be broken by extensions</li>
+<li><strong>Backwards Compatibility:</strong> User code remains valid across system updates</li>
+<li><strong>Parser Integrity:</strong> System extensions cannot corrupt parsing logic</li>
+</ul>
+<h2>Implementation Examples</h2>
+<h3>Example 1: Adding WHILE Loops</h3>
+<p><strong>System Tinkerer Code:</strong></p>
+<pre><code class="language-javascript">// Define WHILE keyword
+systemLoader.registerKeyword(&#39;WHILE&#39;, {
+    type: &#39;control&#39;,
+    structure: &#39;loop&#39;,
+    precedence: 5
+});
+
+// Define DO keyword
+systemLoader.registerKeyword(&#39;DO&#39;, {
+    type: &#39;control&#39;,
+    structure: &#39;loop_body&#39;,
+    precedence: 4
+});
+
+// Custom AST visitor for execution
+class WhileLoopExecutor {
+    executeWhile(condition, body) {
+        while (this.evaluate(condition)) {
+            this.execute(body);
+        }
+    }
+}
+</code></pre>
+<p><strong>User Code:</strong></p>
+<pre><code class="language-rix">i := 1
+sum := 0
+WHILE i &lt;= 10 DO
+    sum := sum + i
+    i := i + 1
+</code></pre>
+<h3>Example 2: Custom Mathematical Domain</h3>
+<p><strong>System Tinkerer Code:</strong></p>
+<pre><code class="language-javascript">// Statistics functions
+[&#39;MEAN&#39;, &#39;MEDIAN&#39;, &#39;MODE&#39;, &#39;STDDEV&#39;].forEach(func =&gt; {
+    systemLoader.registerSystem(func, {
+        type: &#39;function&#39;,
+        arity: -1,  // Variable arguments
+        category: &#39;statistics&#39;
+    });
+});
+
+// Statistical operators
+systemLoader.registerOperator(&#39;~&#39;, {
+    type: &#39;operator&#39;,
+    precedence: 75,
+    operatorType: &#39;infix&#39;,
+    meaning: &#39;distributed_as&#39;
+});
+</code></pre>
+<p><strong>User Code:</strong></p>
+<pre><code class="language-rix"># Statistical analysis
+data := [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+average := MEAN(data)
+spread := STDDEV(data)
+
+# Distribution notation
+X ~ NORMAL(mean := 0, std := 1)
+</code></pre>
+<h3>Example 3: Domain-Specific Language</h3>
+<p><strong>System Tinkerer Code:</strong></p>
+<pre><code class="language-javascript">// Chemistry notation
+systemLoader.registerOperator(&#39;-&gt;&#39;, {
+    precedence: 25,
+    operatorType: &#39;infix&#39;,
+    meaning: &#39;chemical_reaction&#39;
+});
+
+systemLoader.registerSystem(&#39;BALANCE&#39;, {
+    type: &#39;function&#39;,
+    arity: 1,
+    category: &#39;chemistry&#39;
+});
+</code></pre>
+<p><strong>User Code:</strong></p>
+<pre><code class="language-rix"># Chemical equations
+reaction := H2 + O2 -&gt; H2O
+balanced := BALANCE(reaction)
+</code></pre>
+<h2>Configuration and Deployment</h2>
+<h3>Node.js Environment</h3>
+<pre><code class="language-javascript">import { createNodeSystemLoader } from &#39;rix-language-parser/system-loader&#39;;
+
+const loader = createNodeSystemLoader({
+    strictMode: true,
+    allowUserOverrides: false
+});
+
+// Add domain-specific extensions
+loader.registerSystem(&#39;DATABASE_QUERY&#39;, {
+    type: &#39;function&#39;,
+    arity: -1,
+    category: &#39;database&#39;
+});
+</code></pre>
+<h3>Browser Environment</h3>
+<pre><code class="language-javascript">import { createWebPageSystemLoader } from &#39;rix-language-parser/system-loader&#39;;
+
+// Automatic setup with reasonable defaults
+const loader = createWebPageSystemLoader();
+
+// Page-specific customizations
+document.addEventListener(&#39;DOMContentLoaded&#39;, () =&gt; {
+    // Load extensions from script tags
+    // Register event handlers
+    // Set up user interface
+});
+</code></pre>
+<h3>Configuration Export/Import</h3>
+<pre><code class="language-javascript">// Export current configuration
+const config = systemLoader.exportConfig();
+localStorage.setItem(&#39;rix-config&#39;, JSON.stringify(config));
+
+// Import saved configuration
+const savedConfig = JSON.parse(localStorage.getItem(&#39;rix-config&#39;));
+systemLoader.importConfig(savedConfig);
+</code></pre>
+<h2>Best Practices</h2>
+<h3>For System Tinkerers</h3>
+<ol>
+<li><strong>Namespace Management:</strong> Use descriptive, non-conflicting symbol names</li>
+<li><strong>Precedence Care:</strong> Set operator precedence thoughtfully to avoid parsing issues</li>
+<li><strong>Category Organization:</strong> Group related symbols with consistent categories</li>
+<li><strong>Documentation:</strong> Provide clear documentation for custom extensions</li>
+<li><strong>Testing:</strong> Thoroughly test extensions with various RiX expressions</li>
+</ol>
+<h3>For Language Maintainers</h3>
+<ol>
+<li><strong>Core Stability:</strong> Never break existing parser or tokenizer behavior</li>
+<li><strong>Extension Points:</strong> Provide clear, documented extension mechanisms</li>
+<li><strong>Validation:</strong> Implement robust validation for system extensions</li>
+<li><strong>Performance:</strong> Ensure system lookup doesn&#39;t degrade parsing performance</li>
+<li><strong>Security:</strong> Maintain isolation between tiers</li>
+</ol>
+<h3>For Users</h3>
+<ol>
+<li><strong>Symbol Awareness:</strong> Understand which symbols are available in your environment</li>
+<li><strong>Case Sensitivity:</strong> Remember System symbols are capitalized</li>
+<li><strong>Extension Discovery:</strong> Use help functions to discover available extensions</li>
+<li><strong>Error Handling:</strong> Write defensive code that handles missing extensions gracefully</li>
+</ol>
+<h2>Future Extensions</h2>
+<h3>Planned Features</h3>
+<ul>
+<li><strong>Module System:</strong> Load extensions from external modules</li>
+<li><strong>Scoped Contexts:</strong> Different symbol sets for different contexts</li>
+<li><strong>Runtime Introspection:</strong> Query available symbols and their capabilities</li>
+<li><strong>Symbol Versioning:</strong> Handle different versions of system extensions</li>
+<li><strong>Performance Optimizations:</strong> Cache system lookups for better performance</li>
+</ul>
+<h3>Possible Extensions</h3>
+<ul>
+<li><strong>Plugin Architecture:</strong> More sophisticated extension loading</li>
+<li><strong>Visual Symbol Builder:</strong> GUI for creating system extensions</li>
+<li><strong>Symbol Dependencies:</strong> Extensions that depend on other extensions</li>
+<li><strong>Execution Tracing:</strong> Debug and profile RiX code execution</li>
+<li><strong>Interactive Documentation:</strong> In-context help and examples</li>
+</ul>
+<p>This three-tier architecture provides a robust foundation for extending RiX while maintaining security, performance, and ease of use across all user levels.</p>
+</div>
+        </main>
+
+        <footer>
+            <p>&copy; 2024 RiX Language Team. Licensed under MIT.</p>
+        </footer>
+
+        <script>
+            // This script will be replaced by the actual markdown rendering logic
+            // For now, it just shows a placeholder
+            document.addEventListener("DOMContentLoaded", function () {
+                // Highlight current page in sidebar
+                const currentPath = window.location.pathname;
+                const currentFile = currentPath.substring(
+                    currentPath.lastIndexOf("/") + 1,
+                );
+                const sidebarLinks = document.querySelectorAll(".sidebar a");
+                sidebarLinks.forEach((link) => {
+                    const linkPath = link.getAttribute("href");
+                    if (
+                        linkPath === currentFile ||
+                        (currentFile === "" && linkPath === "./") ||
+                        linkPath === "./" + currentFile
+                    ) {
+                        link.classList.add("active");
+                    }
+                });
+            });
+        </script>
+    </body>
+</html>

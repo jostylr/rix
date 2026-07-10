@@ -1,0 +1,90 @@
+## Newton nth-root helper.
+##
+## RiX call syntax requires uppercase callable names, so this script exports
+## the public callable as NthRoot.
+
+FloorDiv(d, n) -> d >= 0 ?? d // n ?: -((-d + n - 1) // n);
+
+NthLoopIterate(n, q, x) -> {;
+    y := q / (x ^ (n - 1));
+    z := ((n - 1) * x + y) / n;
+    {: z, x, y }
+};
+
+GuessRootPartial(n, t) -> {;
+    found := _;
+    {@ < found=, t, n >
+        i := 1;
+        i <= 10 && found == _;
+        found ~= (t <= (i ^ n) ?? i ?: found);
+        i += 1
+    };
+
+    lo := (found - 1) ^ n;
+    hi := found ^ n;
+
+    (found - 1) + (t - lo) / (hi - lo)
+};
+
+Scientific(q) -> {;
+    m := q;
+    d := 0;
+
+    {@  < m=, d= >
+        tick := 0;
+        m >= 10;
+        {; m ~= m / 10; d += 1 };
+        tick += 1
+    };
+
+    {@ < m=, d= >
+        tick := 0;
+        m < 1;
+        {; m ~= m * 10; d -= 1 };
+        tick += 1
+    };
+
+    {: m, d }
+};
+
+GuessRoot(n, q) -> {;
+    q :>: 0;
+    n :>=: 2;
+
+    sci := Scientific(q);
+    m := sci[1];
+    d := sci[2];
+    a := FloorDiv(d, n);
+    r := d - a * n;
+    t := m * (10 ^ r);
+    g := GuessRootPartial(n, t);
+
+    g * (10 ^ a)
+};
+
+NthRoot(n, q, maxIter ?= 10, eps ?= 10^-20) -> {;
+    q :>: 0;
+    n :>=: 2;
+    maxIter :>: 0;
+    eps :>: 0;
+
+
+    outputs = {@  < n, maxIter, q, eps >
+        tick := 0, steps :=0, done := _, outputs:=[], x := GuessRoot(n, q);
+        steps < maxIter && done == _;
+        {
+            out := NthLoopIterate(n, q, x);
+            outputs = outputs ++ [out];
+            x = out[1];
+            steps += 1;
+            width := out[3] >= out[2] ?? out[3] - out[2] ?: out[2] - out[3];
+            done = width < eps
+        };
+        tick += 1;
+        outputs
+    };
+    final := outputs[.LEN(outputs)];
+    {: final[2]:final[3], outputs }
+};
+
+< NthRoot=NthRoot >

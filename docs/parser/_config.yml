@@ -1,0 +1,35 @@
+theme: minima
+title: RiX Language Parser
+description: A comprehensive tokenizer and parser for the RiX mathematical expression language
+baseurl: "/rix-lang-parser"
+url: "https://rix-lang.github.io"
+
+# Build settings
+markdown: kramdown
+highlighter: rouge
+
+# Exclude files from Jekyll processing
+exclude:
+  - src/
+  - node_modules/
+  - package.json
+  - package-lock.json
+  - README.md
+  - .gitignore
+
+# Include specific files
+include:
+  - demo.html
+  - demo.js
+  - demo.css
+  - index.html
+  - template.html
+
+# Plugins
+plugins:
+  - jekyll-relative-links
+
+# Configure relative links
+relative_links:
+  enabled: true
+  collections: true

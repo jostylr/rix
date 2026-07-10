@@ -1,0 +1,72 @@
+.Test("Eval Capability Basic Evaluation", {; }, [
+    @@@{; 1 + 2 } == 3,
+    .Eval(@{; 1 + 2 }) == 3,
+    {; a := @{; 1 + 2 }; @@a == 3 }
+]);
+
+.Test("Eval Capability Scoping inherit vs fresh", {; }, [
+    {; x := 10; f := @{; x + 5 }; @@f == 15 },
+    {; x := 10; f := @{; x }; .Eval(f, _, :inherit) == 10 }
+]);
+
+.TestError("Eval Capability Scoping fresh throws on missing vars", {; }, [
+    {; x := 10; f := @{; x }; .Eval(f, _, :fresh) }
+]);
+
+.Test("Eval Capability Custom Bindings", {; }, [
+    {; x := 10; f := @{; x + y }; .Eval(f, {= y = 5 }) == 15 },
+    {; x := 10; f := @{; x + y }; .Eval(f, {= x = 20, y = 5 }, :fresh) == 25 }
+]);
+
+.TestError("Eval errors on non-deferred AST", {; }, [
+    .Eval(5)
+]);
+
+.TestError("Eval errors on invalid mode", {; }, [
+    .Eval(@{; 5 }, _, "invalid")
+]);
+
+.TestError("Eval errors on invalid mode type", {; }, [
+    .Eval(@{; 5 }, _, 5)
+]);
+
+.TestError("Eval errors on invalid bindings", {; }, [
+    .Eval(@{; 5 }, 5)
+]);
+
+.Test("Eval Capability String Evaluation", {; }, [
+    .Eval("1 + 2") == 3,
+    .Eval("x := 10; x * 2") == 20
+]);
+
+.Test("Eval Capability String Inherit", {;
+    y := 100
+}, [
+    .Eval("y + 5") == 105
+]);
+
+.Test("Eval Capability String Bindings", {;
+    y := 100
+}, [
+    .Eval("y + z", {= z=50 }) == 150
+]);
+
+.Test("Eval Capability Caller Scope Mutation (String)", {;
+    x := 0
+}, [
+    .Eval("x = 99; y := 50"),
+    x == 99,
+    y == 50
+]);
+
+.Test("Eval Capability Caller Scope Mutation (AST)", {;
+    x := 0
+}, [
+    @@@{; x = 77; z := 10 },
+    x == 77,
+    z == 10
+]);
+
+.TestError("Eval Capability String Fresh throws on missing var", {;
+    y := 100
+}, .Eval("y", _, :fresh));

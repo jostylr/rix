@@ -1,0 +1,41 @@
+<"rix/examples/newton/nth-root" ; NthRoot=NthRoot>;
+
+CrossesPower(n, q, step) -> {;
+    left := step[2] ^ n;
+    right := step[3] ^ n;
+    (left <= q && q <= right) || (right <= q && q <= left)
+};
+
+FinalStep(result) -> result[2][.LEN(result[2])];
+
+.Test("newton nth-root examples", {; }, {=
+    sqrt2_interval_contains_root = {;
+        result := NthRoot(2, 2, 8, 10^-12);
+        step := FinalStep(result);
+        CrossesPower(2, 2, step)
+    },
+
+    sqrt2_stops_by_epsilon = {;
+        result := NthRoot(2, 2, 20, 10^-8);
+        step := FinalStep(result);
+        width := step[3] >= step[2] ?? step[3] - step[2] ?: step[2] - step[3];
+        width < 10^-8
+    },
+
+    cube4567890_interval_contains_root = {;
+        result := NthRoot(3, 4567890, 8, 10^-8);
+        step := FinalStep(result);
+        CrossesPower(3, 4567890, step)
+    },
+
+    tenth_small_fraction_runs = {;
+        q := 1/567898765;
+        result := NthRoot(10, q, 3, 10^-8);
+        .LEN(result[2]) == 3
+    },
+
+    output_history_is_capped = {;
+        result := NthRoot(2, 3, 3, 10^-100);
+        .LEN(result[2]) == 3
+    }
+})

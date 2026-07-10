@@ -1,0 +1,628 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>RiX Language Three-Tier System with Functional Control Forms - RiX Language Parser</title>
+        <style>
+            :root {
+                --primary-color: #2563eb;
+                --secondary-color: #1e40af;
+                --text-color: #1f2937;
+                --bg-color: #ffffff;
+                --code-bg: #f3f4f6;
+                --border-color: #e5e7eb;
+                --header-bg: #f9fafb;
+            }
+
+            * {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
+
+            body {
+                font-family:
+                    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                    "Helvetica Neue", Arial, sans-serif;
+                line-height: 1.6;
+                color: var(--text-color);
+                background-color: var(--bg-color);
+                min-height: 100vh;
+                display: flex;
+                flex-direction: column;
+            }
+
+            header {
+                background-color: var(--header-bg);
+                border-bottom: 1px solid var(--border-color);
+                padding: 1rem 0;
+                position: sticky;
+                top: 0;
+                z-index: 100;
+            }
+
+            .header-content {
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 0 2rem;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+            }
+
+            .logo {
+                display: flex;
+                align-items: center;
+                gap: 1rem;
+                text-decoration: none;
+                color: var(--text-color);
+            }
+
+            .logo img {
+                height: 40px;
+                width: auto;
+            }
+
+            .logo h1 {
+                font-size: 1.5rem;
+                font-weight: 700;
+            }
+
+            nav {
+                display: flex;
+                gap: 2rem;
+            }
+
+            nav a {
+                color: var(--text-color);
+                text-decoration: none;
+                font-weight: 500;
+                transition: color 0.2s;
+            }
+
+            nav a:hover {
+                color: var(--primary-color);
+            }
+
+            main {
+                flex: 1;
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 2rem;
+                width: 100%;
+            }
+
+            .sidebar {
+                position: fixed;
+                left: 0;
+                top: 73px;
+                width: 250px;
+                height: calc(100vh - 73px);
+                overflow-y: auto;
+                padding: 2rem 1rem;
+                background-color: var(--header-bg);
+                border-right: 1px solid var(--border-color);
+            }
+
+            .sidebar h2 {
+                font-size: 0.875rem;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                color: #6b7280;
+                margin-bottom: 1rem;
+            }
+
+            .sidebar ul {
+                list-style: none;
+            }
+
+            .sidebar li {
+                margin-bottom: 0.5rem;
+            }
+
+            .sidebar a {
+                color: var(--text-color);
+                text-decoration: none;
+                font-size: 0.875rem;
+                display: block;
+                padding: 0.25rem 0.5rem;
+                border-radius: 0.25rem;
+                transition: background-color 0.2s;
+            }
+
+            .sidebar a:hover {
+                background-color: var(--border-color);
+            }
+
+            .sidebar a.active {
+                background-color: var(--primary-color);
+                color: white;
+            }
+
+            .content {
+                margin-left: 250px;
+                padding: 2rem;
+                max-width: 900px;
+            }
+
+            .content h1 {
+                font-size: 2.5rem;
+                margin-bottom: 1rem;
+                color: var(--text-color);
+            }
+
+            .content h2 {
+                font-size: 2rem;
+                margin-top: 2rem;
+                margin-bottom: 1rem;
+                color: var(--text-color);
+            }
+
+            .content h3 {
+                font-size: 1.5rem;
+                margin-top: 1.5rem;
+                margin-bottom: 0.75rem;
+                color: var(--text-color);
+            }
+
+            .content p {
+                margin-bottom: 1rem;
+            }
+
+            .content code {
+                background-color: var(--code-bg);
+                padding: 0.125rem 0.25rem;
+                border-radius: 0.25rem;
+                font-family: "Consolas", "Monaco", "Courier New", monospace;
+                font-size: 0.875em;
+            }
+
+            .content pre {
+                background-color: var(--code-bg);
+                padding: 1rem;
+                border-radius: 0.5rem;
+                overflow-x: auto;
+                margin-bottom: 1rem;
+            }
+
+            .content pre code {
+                background-color: transparent;
+                padding: 0;
+            }
+
+            .content ul,
+            .content ol {
+                margin-bottom: 1rem;
+                padding-left: 2rem;
+            }
+
+            .content li {
+                margin-bottom: 0.25rem;
+            }
+
+            .content a {
+                color: var(--primary-color);
+                text-decoration: none;
+            }
+
+            .content a:hover {
+                text-decoration: underline;
+            }
+
+            .content blockquote {
+                border-left: 4px solid var(--primary-color);
+                padding-left: 1rem;
+                margin: 1rem 0;
+                color: #6b7280;
+                font-style: italic;
+            }
+
+            .content table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-bottom: 1rem;
+            }
+
+            .content th,
+            .content td {
+                border: 1px solid var(--border-color);
+                padding: 0.5rem;
+                text-align: left;
+            }
+
+            .content th {
+                background-color: var(--header-bg);
+                font-weight: 600;
+            }
+
+            footer {
+                background-color: var(--header-bg);
+                border-top: 1px solid var(--border-color);
+                padding: 2rem;
+                text-align: center;
+                color: #6b7280;
+                font-size: 0.875rem;
+            }
+
+            @media (max-width: 768px) {
+                .sidebar {
+                    display: none;
+                }
+
+                .content {
+                    margin-left: 0;
+                    padding: 1rem;
+                }
+
+                .header-content {
+                    padding: 0 1rem;
+                }
+
+                nav {
+                    display: none;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <header>
+            <div class="header-content">
+                <a href="../" class="logo">
+                    <img src="../rix-logo.png" alt="RiX Logo" />
+                    <h1>RiX Language Parser</h1>
+                </a>
+                <nav>
+                    <a href="/">Home</a>
+                    <a href="/docs.html">Documentation</a>
+                    <a href="/demo.html">Demo</a>
+                    <a href="https://github.com/rix-lang/parser">GitHub</a>
+                </nav>
+            </div>
+        </header>
+
+        <aside class="sidebar">
+            <h2>Documentation</h2>
+            <ul>
+                <li><a href="docs.html/">Overview</a></li>
+                <li><a href="architecture.html">Architecture</a></li>
+                <li><a href="parsing.html">Parsing</a></li>
+                <li><a href="AST-brief.html">AST Structure</a></li>
+                <li><a href="three-tier-system.html">Three-Tier System</a></li>
+                <li>
+                    <a href="function-definitions-summary.html">Functions</a>
+                </li>
+                <li>
+                    <a href="array-generators-implementation.html"
+                        >Array Generators</a
+                    >
+                </li>
+                <li>
+                    <a href="matrix-tensor-implementation.html"
+                        >Matrix & Tensor</a
+                    >
+                </li>
+                <li>
+                    <a href="brace-containers-README.html">Brace Containers</a>
+                </li>
+                <li><a href="embedded-parsing.html">Embedded Parsing</a></li>
+                <li><a href="ternary-operator.html">Ternary Operator</a></li>
+                <li>
+                    <a href="unit-notation-migration.html">Unit Notation</a>
+                </li>
+            </ul>
+        </aside>
+
+        <main class="content">
+            <!-- Markdown content will be inserted here -->
+            <div id="markdown-content"><h1>RiX Language Three-Tier System with Functional Control Forms</h1>
+<h2>Overview</h2>
+<p>The RiX language implements a revolutionary <strong>three-tier architecture</strong> that enables controlled extensibility while maintaining security and simplicity. This system has been enhanced with <strong>functional control forms</strong>, allowing keywords like <code>WHILE</code> to be used as functions: <code>WHILE(condition, body)</code> ≡ <code>WHILE condition DO body</code>.</p>
+<h2>Architecture Summary</h2>
+<h3>Tier 1: Language Maintainers 🛠️</h3>
+<p><strong>Core RiX language foundation</strong></p>
+<ul>
+<li>Tokenizer with System/User identifier distinction (capitalization-based)</li>
+<li>Pratt parser with operator precedence handling</li>
+<li>Core mathematical functions: <code>SIN</code>, <code>COS</code>, <code>PI</code>, <code>EXP</code>, <code>SQRT</code>, etc.</li>
+<li>Universal parsing for all RiX constructs</li>
+</ul>
+<h3>Tier 2: System Tinkerers ⚙️</h3>
+<p><strong>JavaScript-powered extensions</strong></p>
+<ul>
+<li>SystemLoader for registering custom keywords and operators</li>
+<li>Configurable control structures: <code>AND</code>, <code>OR</code>, <code>WHILE</code>, <code>IF</code>, <code>FOR</code></li>
+<li>Browser integration with automatic loading</li>
+<li>Hook system for monitoring extensions</li>
+<li>Module loading capabilities</li>
+</ul>
+<h3>Tier 3: Users 👥</h3>
+<p><strong>Pure RiX language usage</strong></p>
+<ul>
+<li>Mathematical expressions and algorithms</li>
+<li>Access to all registered System extensions</li>
+<li>No JavaScript execution capabilities</li>
+<li>Sandboxed environment with controlled functionality</li>
+</ul>
+<h2>Functional Control Forms Feature</h2>
+<h3>Core Concept</h3>
+<p>Traditional control structures can now be used as functions:</p>
+<pre><code class="language-rix"># Traditional syntax
+WHILE i &lt; 10 DO i := i + 1
+
+# Functional syntax (equivalent)
+WHILE(i &lt; 10, i := i + 1)
+</code></pre>
+<h3>Supported Control Keywords</h3>
+<table>
+<thead>
+<tr>
+<th>Keyword</th>
+<th>Traditional</th>
+<th>Functional</th>
+<th>Arguments</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>WHILE</code></td>
+<td><code>WHILE cond DO body</code></td>
+<td><code>WHILE(cond, body)</code></td>
+<td>2</td>
+</tr>
+<tr>
+<td><code>IF</code></td>
+<td><code>IF cond THEN a ELSE b</code></td>
+<td><code>IF(cond, a, b)</code></td>
+<td>2-3</td>
+</tr>
+<tr>
+<td><code>FOR</code></td>
+<td><code>FOR init; cond; incr DO body</code></td>
+<td><code>FOR(init, cond, incr, body)</code></td>
+<td>4</td>
+</tr>
+</tbody></table>
+<h3>Implementation Details</h3>
+<h4>SystemLoader Enhancement</h4>
+<pre><code class="language-javascript">// Control keywords automatically support functional form
+systemLoader.registerKeyword(&#39;WHILE&#39;, {
+    type: &#39;control&#39;,
+    structure: &#39;loop&#39;,
+    precedence: 5,
+    category: &#39;control&#39;
+});
+
+// Lookup returns function-compatible info
+const whileInfo = systemLoader.lookup(&#39;WHILE&#39;);
+// Returns: { type: &#39;function&#39;, functionalForm: true, arity: 2 }
+</code></pre>
+<h4>Parser Integration</h4>
+<ul>
+<li>System identifiers in function call position are detected</li>
+<li>Arguments parsed as positional array: <code>arguments.positional</code></li>
+<li>Maintains compatibility with traditional syntax</li>
+<li>Full nesting support for complex expressions</li>
+</ul>
+<h4>Browser Integration</h4>
+<pre><code class="language-html">&lt;script type=&quot;module&quot;&gt;
+    import { createWebPageSystemLoader } from &#39;rix-language-parser/system-loader&#39;;
+
+    const loader = createWebPageSystemLoader();
+
+    // Enable functional controls
+    window.RiX.enableFunctionalControls();
+
+    // Now supports: WHILE(cond, body), IF(cond, then, else)
+&lt;/script&gt;
+</code></pre>
+<h2>Real-World Examples</h2>
+<h3>Basic Usage</h3>
+<pre><code class="language-rix"># Counter loop
+result := WHILE(i &lt; 5, i := i + 1)
+
+# Conditional assignment
+value := IF(x &gt;= 0, SQRT(x), 0)
+
+# Factorial computation
+factorial := FOR(i := 1, i &lt;= n, i := i + 1, result := result * i)
+</code></pre>
+<h3>Advanced Patterns</h3>
+<pre><code class="language-rix"># Nested functional controls
+process := IF(ready, WHILE(hasData, processNext()), waitForData())
+
+# Functional composition with pipes
+pipeline := data |&gt; filter |&gt; IF(valid, transform, identity) |&gt; collect
+
+# Complex conditional logic
+matrix[i][j] := IF(i == j, 1, IF(ABS(i - j) == 1, -1, 0))
+</code></pre>
+<h3>Mathematical Applications</h3>
+<pre><code class="language-rix"># Newton&#39;s method
+root := WHILE(ABS(f(x)) &gt; epsilon, x := x - f(x) / fprime(x))
+
+# Fibonacci sequence
+fib := WHILE(a + b &lt; limit, (temp := a + b; a := b; b := temp))
+
+# Matrix operations
+result := FOR(i := 1, i &lt;= n, i := i + 1,
+              FOR(j := 1, j &lt;= m, j := j + 1,
+                  C[i][j] := SUM(k, A[i][k] * B[k][j])))
+</code></pre>
+<h2>Security Model</h2>
+<h3>Tier Isolation</h3>
+<ul>
+<li><strong>Users</strong>: Cannot access JavaScript or modify system configuration</li>
+<li><strong>System Tinkerers</strong>: Can extend but not corrupt core language</li>
+<li><strong>Language Maintainers</strong>: Control fundamental parsing and tokenization</li>
+</ul>
+<h3>Functional Form Safety</h3>
+<ul>
+<li>Functional controls parse identically to traditional forms</li>
+<li>No additional security surface area</li>
+<li>System lookup validates all extensions</li>
+<li>Argument count and type validation</li>
+</ul>
+<h2>Performance Characteristics</h2>
+<h3>Parsing Performance</h3>
+<ul>
+<li>Functional forms: ~0.02ms average parse time</li>
+<li>Traditional forms: ~0.015ms average parse time</li>
+<li>Negligible overhead for functional syntax</li>
+<li>Equivalent AST complexity</li>
+</ul>
+<h3>Memory Usage</h3>
+<ul>
+<li>Functional forms create standard <code>FunctionCall</code> nodes</li>
+<li>Arguments stored in structured format: <code>{ positional: [], keyword: {} }</code></li>
+<li>No additional memory overhead compared to traditional syntax</li>
+</ul>
+<h2>Browser Integration Features</h2>
+<h3>Automatic Loading</h3>
+<pre><code class="language-html">&lt;!-- System extensions in script tags --&gt;
+&lt;script type=&quot;text/rix-system&quot; id=&quot;math-extensions&quot;&gt;
+    registerKeyword(&#39;BETWEEN&#39;, {
+        type: &#39;operator&#39;,
+        precedence: 60,
+        operatorType: &#39;ternary&#39;
+    });
+&lt;/script&gt;
+</code></pre>
+<h3>Event System</h3>
+<pre><code class="language-javascript">// Listen for extension registration
+document.addEventListener(&#39;rix-system-define&#39;, (event) =&gt; {
+    console.log(`New system symbol: ${event.detail.name}`);
+});
+
+// Programmatic extension
+window.RiX.registerSystem(&#39;CUSTOM_FUNC&#39;, {
+    type: &#39;function&#39;,
+    arity: 2,
+    category: &#39;utility&#39;
+});
+</code></pre>
+<h3>Interactive Development</h3>
+<pre><code class="language-javascript">// Parse and analyze functional forms
+const analysis = window.RiX.parseAndTransform(&#39;WHILE(i &lt; 5, i := i + 1)&#39;);
+// Returns: { functionalCalls: 1, traditional: &#39;WHILE i &lt; 5 DO i := i + 1&#39; }
+
+// Real-time conversion
+const traditional = window.RiX.convertToTraditional(&#39;IF(x &gt; 0, x, -x)&#39;);
+// Returns: &#39;IF x &gt; 0 THEN x ELSE -x&#39;
+</code></pre>
+<h2>Testing and Validation</h2>
+<h3>Comprehensive Test Suite</h3>
+<ul>
+<li><strong>21 SystemLoader tests</strong>: Core functionality and integration</li>
+<li><strong>16 Functional controls tests</strong>: Parsing and transformation</li>
+<li><strong>Performance benchmarks</strong>: Parse time and memory usage</li>
+<li><strong>Browser compatibility tests</strong>: Cross-platform validation</li>
+</ul>
+<h3>Example Test Results</h3>
+<pre><code>✓ SystemLoader enables functional form for control keywords
+✓ Parser recognizes WHILE as function call
+✓ Nested functional controls parse correctly
+✓ Complex expressions as control arguments parse correctly
+✓ Functional controls integrate with assignment
+✓ Multiple control structures in sequence
+</code></pre>
+<h2>Configuration and Deployment</h2>
+<h3>Node.js Environment</h3>
+<pre><code class="language-javascript">import { createNodeSystemLoader } from &#39;rix-language-parser/system-loader&#39;;
+
+const loader = createNodeSystemLoader({ strictMode: true });
+
+// Add domain-specific functional controls
+loader.registerKeyword(&#39;ITERATE&#39;, {
+    type: &#39;control&#39;,
+    structure: &#39;loop&#39;,
+    functionalForm: true
+});
+</code></pre>
+<h3>Web Page Setup</h3>
+<pre><code class="language-javascript">import { createWebPageSystemLoader } from &#39;rix-language-parser/system-loader&#39;;
+
+// Zero-config setup with functional forms
+const loader = createWebPageSystemLoader();
+window.RiX.enableFunctionalControls();
+
+// Custom functional keywords
+window.RiX.defineLogicalOperators(&#39;AND&#39;, &#39;OR&#39;, &#39;NOT&#39;);
+window.RiX.defineControlFlow(); // IF, WHILE, FOR, etc.
+</code></pre>
+<h2>Migration and Compatibility</h2>
+<h3>Backward Compatibility</h3>
+<ul>
+<li>All existing RiX code continues to work unchanged</li>
+<li>Traditional syntax remains fully supported</li>
+<li>No breaking changes to core language</li>
+<li>Functional forms are purely additive</li>
+</ul>
+<h3>Migration Strategy</h3>
+<pre><code class="language-rix"># Gradual adoption - mix syntaxes
+traditional := WHILE i &lt; 10 DO process(i)
+functional := WHILE(j &lt; 20, process(j))
+
+# Functional forms in expressions
+result := compute() + IF(valid, value, default)
+
+# Full functional style
+pipeline := FOR(i := 1, i &lt;= n, i := i + 1,
+                IF(prime(i), collect(i), skip()))
+</code></pre>
+<h2>Future Enhancements</h2>
+<h3>Planned Features</h3>
+<ul>
+<li><strong>Curried functional forms</strong>: <code>WHILE(condition)</code> returns partial function</li>
+<li><strong>Functional operators</strong>: <code>MAP(list, WHILE(...))</code></li>
+<li><strong>Control flow combinators</strong>: <code>SEQUENCE</code>, <code>PARALLEL</code>, <code>ALTERNATIVE</code></li>
+<li><strong>Lazy evaluation</strong>: Delayed execution of functional control bodies</li>
+<li><strong>Pattern matching</strong>: <code>MATCH(value, [(pattern, WHILE(...))])</code></li>
+</ul>
+<h3>Extension Possibilities</h3>
+<ul>
+<li><strong>Custom control structures</strong>: Domain-specific loops and conditionals</li>
+<li><strong>Debugging integration</strong>: Step-through functional control execution</li>
+<li><strong>Visual programming</strong>: Drag-and-drop functional control composition</li>
+<li><strong>Code generation</strong>: Functional forms to traditional conversion tools</li>
+</ul>
+<h2>Conclusion</h2>
+<p>The RiX three-tier system with functional control forms provides:</p>
+<ol>
+<li><strong>Security</strong>: Controlled extensibility without compromising core language</li>
+<li><strong>Flexibility</strong>: Both traditional and functional syntax options</li>
+<li><strong>Composability</strong>: Functional forms integrate naturally with expressions</li>
+<li><strong>Maintainability</strong>: Clear separation of concerns across tiers</li>
+<li><strong>Performance</strong>: Minimal overhead for maximum expressiveness</li>
+</ol>
+<p>This architecture enables RiX to serve diverse use cases from simple mathematical expressions to complex algorithmic computations, while maintaining the safety and simplicity that makes it accessible to end users.</p>
+</div>
+        </main>
+
+        <footer>
+            <p>&copy; 2024 RiX Language Team. Licensed under MIT.</p>
+        </footer>
+
+        <script>
+            // This script will be replaced by the actual markdown rendering logic
+            // For now, it just shows a placeholder
+            document.addEventListener("DOMContentLoaded", function () {
+                // Highlight current page in sidebar
+                const currentPath = window.location.pathname;
+                const currentFile = currentPath.substring(
+                    currentPath.lastIndexOf("/") + 1,
+                );
+                const sidebarLinks = document.querySelectorAll(".sidebar a");
+                sidebarLinks.forEach((link) => {
+                    const linkPath = link.getAttribute("href");
+                    if (
+                        linkPath === currentFile ||
+                        (currentFile === "" && linkPath === "./") ||
+                        linkPath === "./" + currentFile
+                    ) {
+                        link.classList.add("active");
+                    }
+                });
+            });
+        </script>
+    </body>
+</html>

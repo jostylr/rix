@@ -1,0 +1,492 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>RiX Language Parser - GitHub Pages Documentation - RiX Language Parser</title>
+        <style>
+            :root {
+                --primary-color: #2563eb;
+                --secondary-color: #1e40af;
+                --text-color: #1f2937;
+                --bg-color: #ffffff;
+                --code-bg: #f3f4f6;
+                --border-color: #e5e7eb;
+                --header-bg: #f9fafb;
+            }
+
+            * {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
+
+            body {
+                font-family:
+                    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                    "Helvetica Neue", Arial, sans-serif;
+                line-height: 1.6;
+                color: var(--text-color);
+                background-color: var(--bg-color);
+                min-height: 100vh;
+                display: flex;
+                flex-direction: column;
+            }
+
+            header {
+                background-color: var(--header-bg);
+                border-bottom: 1px solid var(--border-color);
+                padding: 1rem 0;
+                position: sticky;
+                top: 0;
+                z-index: 100;
+            }
+
+            .header-content {
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 0 2rem;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+            }
+
+            .logo {
+                display: flex;
+                align-items: center;
+                gap: 1rem;
+                text-decoration: none;
+                color: var(--text-color);
+            }
+
+            .logo img {
+                height: 40px;
+                width: auto;
+            }
+
+            .logo h1 {
+                font-size: 1.5rem;
+                font-weight: 700;
+            }
+
+            nav {
+                display: flex;
+                gap: 2rem;
+            }
+
+            nav a {
+                color: var(--text-color);
+                text-decoration: none;
+                font-weight: 500;
+                transition: color 0.2s;
+            }
+
+            nav a:hover {
+                color: var(--primary-color);
+            }
+
+            main {
+                flex: 1;
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 2rem;
+                width: 100%;
+            }
+
+            .sidebar {
+                position: fixed;
+                left: 0;
+                top: 73px;
+                width: 250px;
+                height: calc(100vh - 73px);
+                overflow-y: auto;
+                padding: 2rem 1rem;
+                background-color: var(--header-bg);
+                border-right: 1px solid var(--border-color);
+            }
+
+            .sidebar h2 {
+                font-size: 0.875rem;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                color: #6b7280;
+                margin-bottom: 1rem;
+            }
+
+            .sidebar ul {
+                list-style: none;
+            }
+
+            .sidebar li {
+                margin-bottom: 0.5rem;
+            }
+
+            .sidebar a {
+                color: var(--text-color);
+                text-decoration: none;
+                font-size: 0.875rem;
+                display: block;
+                padding: 0.25rem 0.5rem;
+                border-radius: 0.25rem;
+                transition: background-color 0.2s;
+            }
+
+            .sidebar a:hover {
+                background-color: var(--border-color);
+            }
+
+            .sidebar a.active {
+                background-color: var(--primary-color);
+                color: white;
+            }
+
+            .content {
+                margin-left: 250px;
+                padding: 2rem;
+                max-width: 900px;
+            }
+
+            .content h1 {
+                font-size: 2.5rem;
+                margin-bottom: 1rem;
+                color: var(--text-color);
+            }
+
+            .content h2 {
+                font-size: 2rem;
+                margin-top: 2rem;
+                margin-bottom: 1rem;
+                color: var(--text-color);
+            }
+
+            .content h3 {
+                font-size: 1.5rem;
+                margin-top: 1.5rem;
+                margin-bottom: 0.75rem;
+                color: var(--text-color);
+            }
+
+            .content p {
+                margin-bottom: 1rem;
+            }
+
+            .content code {
+                background-color: var(--code-bg);
+                padding: 0.125rem 0.25rem;
+                border-radius: 0.25rem;
+                font-family: "Consolas", "Monaco", "Courier New", monospace;
+                font-size: 0.875em;
+            }
+
+            .content pre {
+                background-color: var(--code-bg);
+                padding: 1rem;
+                border-radius: 0.5rem;
+                overflow-x: auto;
+                margin-bottom: 1rem;
+            }
+
+            .content pre code {
+                background-color: transparent;
+                padding: 0;
+            }
+
+            .content ul,
+            .content ol {
+                margin-bottom: 1rem;
+                padding-left: 2rem;
+            }
+
+            .content li {
+                margin-bottom: 0.25rem;
+            }
+
+            .content a {
+                color: var(--primary-color);
+                text-decoration: none;
+            }
+
+            .content a:hover {
+                text-decoration: underline;
+            }
+
+            .content blockquote {
+                border-left: 4px solid var(--primary-color);
+                padding-left: 1rem;
+                margin: 1rem 0;
+                color: #6b7280;
+                font-style: italic;
+            }
+
+            .content table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-bottom: 1rem;
+            }
+
+            .content th,
+            .content td {
+                border: 1px solid var(--border-color);
+                padding: 0.5rem;
+                text-align: left;
+            }
+
+            .content th {
+                background-color: var(--header-bg);
+                font-weight: 600;
+            }
+
+            footer {
+                background-color: var(--header-bg);
+                border-top: 1px solid var(--border-color);
+                padding: 2rem;
+                text-align: center;
+                color: #6b7280;
+                font-size: 0.875rem;
+            }
+
+            @media (max-width: 768px) {
+                .sidebar {
+                    display: none;
+                }
+
+                .content {
+                    margin-left: 0;
+                    padding: 1rem;
+                }
+
+                .header-content {
+                    padding: 0 1rem;
+                }
+
+                nav {
+                    display: none;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <header>
+            <div class="header-content">
+                <a href="../" class="logo">
+                    <img src="../rix-logo.png" alt="RiX Logo" />
+                    <h1>RiX Language Parser</h1>
+                </a>
+                <nav>
+                    <a href="/">Home</a>
+                    <a href="/docs.html">Documentation</a>
+                    <a href="/demo.html">Demo</a>
+                    <a href="https://github.com/rix-lang/parser">GitHub</a>
+                </nav>
+            </div>
+        </header>
+
+        <aside class="sidebar">
+            <h2>Documentation</h2>
+            <ul>
+                <li><a href="docs.html/">Overview</a></li>
+                <li><a href="architecture.html">Architecture</a></li>
+                <li><a href="parsing.html">Parsing</a></li>
+                <li><a href="AST-brief.html">AST Structure</a></li>
+                <li><a href="three-tier-system.html">Three-Tier System</a></li>
+                <li>
+                    <a href="function-definitions-summary.html">Functions</a>
+                </li>
+                <li>
+                    <a href="array-generators-implementation.html"
+                        >Array Generators</a
+                    >
+                </li>
+                <li>
+                    <a href="matrix-tensor-implementation.html"
+                        >Matrix & Tensor</a
+                    >
+                </li>
+                <li>
+                    <a href="brace-containers-README.html">Brace Containers</a>
+                </li>
+                <li><a href="embedded-parsing.html">Embedded Parsing</a></li>
+                <li><a href="ternary-operator.html">Ternary Operator</a></li>
+                <li>
+                    <a href="unit-notation-migration.html">Unit Notation</a>
+                </li>
+            </ul>
+        </aside>
+
+        <main class="content">
+            <!-- Markdown content will be inserted here -->
+            <div id="markdown-content"><h1>RiX Language Parser - GitHub Pages Documentation</h1>
+<p>This folder contains the documentation website for the RiX Language Parser, designed to be served via GitHub Pages.</p>
+<h2>Overview</h2>
+<p>The documentation site includes:</p>
+<ul>
+<li><strong>Static HTML pages</strong> generated from Markdown documentation</li>
+<li><strong>Interactive demo</strong> for testing the parser in real-time</li>
+<li><strong>Responsive design</strong> that works on desktop and mobile devices</li>
+<li><strong>Relative paths</strong> throughout to ensure it works both locally and on GitHub Pages</li>
+</ul>
+<h2>Structure</h2>
+<pre><code>docs/
+├── src/                    # Source files for JavaScript
+│   └── demo.js            # Demo page source (to be compiled)
+├── *.md                   # Markdown documentation files
+├── *.html                 # Generated HTML files
+├── index.html             # Home page
+├── demo.html              # Interactive parser demo
+├── demo.js                # Compiled demo JavaScript
+├── demo.css               # Demo page styles
+├── template.html          # HTML template for markdown pages
+├── build-docs.js          # Build script for documentation
+├── _config.yml            # Jekyll configuration (if using Jekyll)
+└── .nojekyll              # Disable Jekyll processing
+</code></pre>
+<h2>Building the Documentation</h2>
+<h3>Prerequisites</h3>
+<ul>
+<li>Node.js or Bun runtime</li>
+<li>Dependencies installed (<code>bun install</code> or <code>npm install</code>)</li>
+</ul>
+<h3>Build Commands</h3>
+<pre><code class="language-bash"># Build the demo JavaScript
+bun run build:demo
+
+# Build HTML from Markdown files
+bun run build:docs
+
+# Build everything
+bun run build:all
+
+# Watch mode for demo development
+bun run dev:demo
+</code></pre>
+<h2>Setting up GitHub Pages</h2>
+<ol>
+<li><p><strong>Enable GitHub Pages</strong> in your repository settings:</p>
+<ul>
+<li>Go to Settings → Pages</li>
+<li>Source: Deploy from a branch</li>
+<li>Branch: Select your main/master branch</li>
+<li>Folder: Select <code>/docs</code></li>
+<li>Click Save</li>
+</ul>
+</li>
+<li><p><strong>Access your site</strong> at:</p>
+<pre><code>https://[your-username].github.io/[repository-name]/
+</code></pre>
+</li>
+</ol>
+<h2>Local Development</h2>
+<p>To test the site locally:</p>
+<ol>
+<li><p><strong>Using Python (simple HTTP server)</strong>:</p>
+<pre><code class="language-bash">cd docs
+python -m http.server 8000
+</code></pre>
+<p>Then visit <code>http://localhost:8000</code></p>
+</li>
+<li><p><strong>Using Node.js</strong>:</p>
+<pre><code class="language-bash">npx http-server docs -p 8000
+</code></pre>
+</li>
+<li><p><strong>Using Bun</strong>:</p>
+<pre><code class="language-bash">cd docs
+bun --bun run -e &quot;Bun.serve({ fetch(req) { return new Response(Bun.file(new URL(req.url).pathname.slice(1) || &#39;index.html&#39;)); }, port: 8000 })&quot;
+</code></pre>
+</li>
+</ol>
+<h2>Adding New Documentation</h2>
+<ol>
+<li><strong>Create a new Markdown file</strong> in the <code>docs/</code> folder</li>
+<li><strong>Run the build script</strong>:<pre><code class="language-bash">bun run build:docs
+</code></pre>
+</li>
+<li><strong>Update the navigation</strong> in <code>template.html</code> if needed</li>
+<li><strong>Commit and push</strong> to see changes on GitHub Pages</li>
+</ol>
+<h2>Customization</h2>
+<h3>Styling</h3>
+<ul>
+<li>Main styles are in <code>template.html</code> for documentation pages</li>
+<li>Demo-specific styles are in <code>demo.css</code></li>
+<li>Modify CSS variables in <code>:root</code> for theme customization</li>
+</ul>
+<h3>Demo Features</h3>
+<p>The demo page includes:</p>
+<ul>
+<li><strong>Real-time parsing</strong> of RiX expressions</li>
+<li><strong>AST visualization</strong> with expandable tree view</li>
+<li><strong>Token display</strong> showing lexical analysis</li>
+<li><strong>Error reporting</strong> with helpful diagnostics</li>
+<li><strong>Modal view</strong> for detailed node inspection</li>
+</ul>
+<h3>Navigation</h3>
+<p>Update the sidebar links in <code>template.html</code> to add or modify documentation sections.</p>
+<h2>Troubleshooting</h2>
+<h3>Pages not updating</h3>
+<ul>
+<li>GitHub Pages can take a few minutes to update</li>
+<li>Check Actions tab for deployment status</li>
+<li>Ensure <code>.nojekyll</code> file exists to prevent Jekyll processing</li>
+</ul>
+<h3>JavaScript not loading</h3>
+<ul>
+<li>Make sure to run <code>bun run build:demo</code> after changes</li>
+<li>Check browser console for errors</li>
+<li>Verify paths are relative to the repository name</li>
+</ul>
+<h3>Broken links</h3>
+<ul>
+<li>All internal links use relative paths (like <code>./</code> and <code>../</code>)</li>
+<li>Avoid absolute paths starting with <code>/</code> which would break local testing</li>
+<li>Test the site both locally and on GitHub Pages to ensure links work in both environments</li>
+</ul>
+<h2>Contributing</h2>
+<p>When adding new features or documentation:</p>
+<ol>
+<li>Follow the existing file naming conventions</li>
+<li>Update navigation in relevant HTML files</li>
+<li>Test locally before pushing</li>
+<li>Ensure responsive design is maintained</li>
+<li>Run all build scripts before committing</li>
+<li>Always use relative paths for links and assets</li>
+</ol>
+<h3>Path Guidelines</h3>
+<ul>
+<li>For links within the same directory: <code>./filename.html</code> or just <code>filename.html</code></li>
+<li>For links to parent directory: <code>../</code></li>
+<li>For assets like images from docs subdirectory: <code>../asset-name.png</code></li>
+<li>For assets from the demo page: <code>./asset-name.png</code></li>
+</ul>
+<h2>License</h2>
+<p>This documentation is part of the RiX Language Parser project and is licensed under the MIT License.</p>
+</div>
+        </main>
+
+        <footer>
+            <p>&copy; 2024 RiX Language Team. Licensed under MIT.</p>
+        </footer>
+
+        <script>
+            // This script will be replaced by the actual markdown rendering logic
+            // For now, it just shows a placeholder
+            document.addEventListener("DOMContentLoaded", function () {
+                // Highlight current page in sidebar
+                const currentPath = window.location.pathname;
+                const currentFile = currentPath.substring(
+                    currentPath.lastIndexOf("/") + 1,
+                );
+                const sidebarLinks = document.querySelectorAll(".sidebar a");
+                sidebarLinks.forEach((link) => {
+                    const linkPath = link.getAttribute("href");
+                    if (
+                        linkPath === currentFile ||
+                        (currentFile === "" && linkPath === "./") ||
+                        linkPath === "./" + currentFile
+                    ) {
+                        link.classList.add("active");
+                    }
+                });
+            });
+        </script>
+    </body>
+</html>

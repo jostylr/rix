@@ -1,0 +1,540 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Ternary Operator in RiX Language - RiX Language Parser</title>
+        <style>
+            :root {
+                --primary-color: #2563eb;
+                --secondary-color: #1e40af;
+                --text-color: #1f2937;
+                --bg-color: #ffffff;
+                --code-bg: #f3f4f6;
+                --border-color: #e5e7eb;
+                --header-bg: #f9fafb;
+            }
+
+            * {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
+
+            body {
+                font-family:
+                    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                    "Helvetica Neue", Arial, sans-serif;
+                line-height: 1.6;
+                color: var(--text-color);
+                background-color: var(--bg-color);
+                min-height: 100vh;
+                display: flex;
+                flex-direction: column;
+            }
+
+            header {
+                background-color: var(--header-bg);
+                border-bottom: 1px solid var(--border-color);
+                padding: 1rem 0;
+                position: sticky;
+                top: 0;
+                z-index: 100;
+            }
+
+            .header-content {
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 0 2rem;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+            }
+
+            .logo {
+                display: flex;
+                align-items: center;
+                gap: 1rem;
+                text-decoration: none;
+                color: var(--text-color);
+            }
+
+            .logo img {
+                height: 40px;
+                width: auto;
+            }
+
+            .logo h1 {
+                font-size: 1.5rem;
+                font-weight: 700;
+            }
+
+            nav {
+                display: flex;
+                gap: 2rem;
+            }
+
+            nav a {
+                color: var(--text-color);
+                text-decoration: none;
+                font-weight: 500;
+                transition: color 0.2s;
+            }
+
+            nav a:hover {
+                color: var(--primary-color);
+            }
+
+            main {
+                flex: 1;
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 2rem;
+                width: 100%;
+            }
+
+            .sidebar {
+                position: fixed;
+                left: 0;
+                top: 73px;
+                width: 250px;
+                height: calc(100vh - 73px);
+                overflow-y: auto;
+                padding: 2rem 1rem;
+                background-color: var(--header-bg);
+                border-right: 1px solid var(--border-color);
+            }
+
+            .sidebar h2 {
+                font-size: 0.875rem;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                color: #6b7280;
+                margin-bottom: 1rem;
+            }
+
+            .sidebar ul {
+                list-style: none;
+            }
+
+            .sidebar li {
+                margin-bottom: 0.5rem;
+            }
+
+            .sidebar a {
+                color: var(--text-color);
+                text-decoration: none;
+                font-size: 0.875rem;
+                display: block;
+                padding: 0.25rem 0.5rem;
+                border-radius: 0.25rem;
+                transition: background-color 0.2s;
+            }
+
+            .sidebar a:hover {
+                background-color: var(--border-color);
+            }
+
+            .sidebar a.active {
+                background-color: var(--primary-color);
+                color: white;
+            }
+
+            .content {
+                margin-left: 250px;
+                padding: 2rem;
+                max-width: 900px;
+            }
+
+            .content h1 {
+                font-size: 2.5rem;
+                margin-bottom: 1rem;
+                color: var(--text-color);
+            }
+
+            .content h2 {
+                font-size: 2rem;
+                margin-top: 2rem;
+                margin-bottom: 1rem;
+                color: var(--text-color);
+            }
+
+            .content h3 {
+                font-size: 1.5rem;
+                margin-top: 1.5rem;
+                margin-bottom: 0.75rem;
+                color: var(--text-color);
+            }
+
+            .content p {
+                margin-bottom: 1rem;
+            }
+
+            .content code {
+                background-color: var(--code-bg);
+                padding: 0.125rem 0.25rem;
+                border-radius: 0.25rem;
+                font-family: "Consolas", "Monaco", "Courier New", monospace;
+                font-size: 0.875em;
+            }
+
+            .content pre {
+                background-color: var(--code-bg);
+                padding: 1rem;
+                border-radius: 0.5rem;
+                overflow-x: auto;
+                margin-bottom: 1rem;
+            }
+
+            .content pre code {
+                background-color: transparent;
+                padding: 0;
+            }
+
+            .content ul,
+            .content ol {
+                margin-bottom: 1rem;
+                padding-left: 2rem;
+            }
+
+            .content li {
+                margin-bottom: 0.25rem;
+            }
+
+            .content a {
+                color: var(--primary-color);
+                text-decoration: none;
+            }
+
+            .content a:hover {
+                text-decoration: underline;
+            }
+
+            .content blockquote {
+                border-left: 4px solid var(--primary-color);
+                padding-left: 1rem;
+                margin: 1rem 0;
+                color: #6b7280;
+                font-style: italic;
+            }
+
+            .content table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-bottom: 1rem;
+            }
+
+            .content th,
+            .content td {
+                border: 1px solid var(--border-color);
+                padding: 0.5rem;
+                text-align: left;
+            }
+
+            .content th {
+                background-color: var(--header-bg);
+                font-weight: 600;
+            }
+
+            footer {
+                background-color: var(--header-bg);
+                border-top: 1px solid var(--border-color);
+                padding: 2rem;
+                text-align: center;
+                color: #6b7280;
+                font-size: 0.875rem;
+            }
+
+            @media (max-width: 768px) {
+                .sidebar {
+                    display: none;
+                }
+
+                .content {
+                    margin-left: 0;
+                    padding: 1rem;
+                }
+
+                .header-content {
+                    padding: 0 1rem;
+                }
+
+                nav {
+                    display: none;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <header>
+            <div class="header-content">
+                <a href="../" class="logo">
+                    <img src="../rix-logo.png" alt="RiX Logo" />
+                    <h1>RiX Language Parser</h1>
+                </a>
+                <nav>
+                    <a href="/">Home</a>
+                    <a href="/docs.html">Documentation</a>
+                    <a href="/demo.html">Demo</a>
+                    <a href="https://github.com/rix-lang/parser">GitHub</a>
+                </nav>
+            </div>
+        </header>
+
+        <aside class="sidebar">
+            <h2>Documentation</h2>
+            <ul>
+                <li><a href="docs.html/">Overview</a></li>
+                <li><a href="architecture.html">Architecture</a></li>
+                <li><a href="parsing.html">Parsing</a></li>
+                <li><a href="AST-brief.html">AST Structure</a></li>
+                <li><a href="three-tier-system.html">Three-Tier System</a></li>
+                <li>
+                    <a href="function-definitions-summary.html">Functions</a>
+                </li>
+                <li>
+                    <a href="array-generators-implementation.html"
+                        >Array Generators</a
+                    >
+                </li>
+                <li>
+                    <a href="matrix-tensor-implementation.html"
+                        >Matrix & Tensor</a
+                    >
+                </li>
+                <li>
+                    <a href="brace-containers-README.html">Brace Containers</a>
+                </li>
+                <li><a href="embedded-parsing.html">Embedded Parsing</a></li>
+                <li><a href="ternary-operator.html">Ternary Operator</a></li>
+                <li>
+                    <a href="unit-notation-migration.html">Unit Notation</a>
+                </li>
+            </ul>
+        </aside>
+
+        <main class="content">
+            <!-- Markdown content will be inserted here -->
+            <div id="markdown-content"><h1>Ternary Operator in RiX Language</h1>
+<p>The RiX language parser now supports a ternary operator using the syntax <code>condition ?? trueExpression ?: falseExpression</code>. This provides a clean, conflict-free way to express conditional logic in mathematical expressions.</p>
+<h2>Syntax</h2>
+<pre><code>condition ?? trueExpression ?: falseExpression
+</code></pre>
+<p>Where:</p>
+<ul>
+<li><code>condition</code> is any boolean expression</li>
+<li><code>trueExpression</code> is evaluated and returned if condition is true</li>
+<li><code>falseExpression</code> is evaluated and returned if condition is false</li>
+</ul>
+<h2>Design Rationale</h2>
+<h3>Why <code>??</code> and <code>?:</code>?</h3>
+<p>The traditional ternary operator <code>condition ? trueExpr : falseExpr</code> would conflict with existing RiX operators:</p>
+<ul>
+<li><code>?</code> is already used for postfix query operations: <code>result?(3.14:3.15)</code></li>
+<li><code>:</code> is already used for interval notation: <code>1:5</code> or <code>a:b</code></li>
+</ul>
+<p>Using <code>??</code> and <code>?:</code> as distinct tokens eliminates these conflicts while maintaining intuitive conditional syntax.</p>
+<h3>Precedence</h3>
+<p>The ternary operator has <code>CONDITION</code> precedence (45), making it:</p>
+<ul>
+<li>Lower precedence than comparison operators (<code>&lt;</code>, <code>&gt;</code>, <code>&gt;=</code>, etc.)</li>
+<li>Lower precedence than arithmetic operators (<code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>)</li>
+<li>Higher precedence than assignment operators (<code>:=</code>, <code>:=:</code>, etc.)</li>
+<li>Right-associative for natural nesting</li>
+</ul>
+<h2>Examples</h2>
+<h3>Basic Usage</h3>
+<pre><code class="language-javascript">// Absolute value function
+x &gt; 0 ?? x ?: -x
+
+// Safe division
+denominator != 0 ?? numerator / denominator ?: 0
+
+// Temperature classification
+temp &lt; 0 ?? &quot;frozen&quot; ?: &quot;normal&quot;
+</code></pre>
+<h3>Code Block Integration</h3>
+<p>The ternary operator fully supports RiX&#39;s <code>{{ }}</code> code block syntax, enabling complex multi-statement conditional logic:</p>
+<pre><code class="language-javascript">// Basic code block in true branch
+result := x &gt; 0 ?? {{ a := SIN(5); a + b }} ?: 7
+
+// Code blocks in both branches
+value := flag ?? {{ 
+    x := 10; 
+    y := 20; 
+    x * y 
+}} ?: {{ 
+    z := -5; 
+    z^2 
+}}
+
+// Mathematical computation with intermediate variables
+physics := energy &gt; threshold ?? {{ 
+    v := SQRT(2 * energy / mass); 
+    momentum := mass * v; 
+    momentum 
+}} ?: 0
+
+// Nested ternary inside code block
+complex := x &gt; 0 ?? {{ 
+    temp := SIN(x); 
+    temp &gt; 0.5 ?? temp^2 ?: temp/2 
+}} ?: 0
+</code></pre>
+<h3>Complex Expressions</h3>
+<pre><code class="language-javascript">// With arithmetic operations
+a + b &gt; threshold ?? c * d ?: e / f
+
+// With function calls
+angle &gt; PI/2 ?? SIN(angle) ?: COS(angle)
+
+// With intervals (no conflict)
+safe ?? 1:10 ?: -10:-1
+</code></pre>
+<h3>Nested Ternary Operations</h3>
+<pre><code class="language-javascript">// Explicit grouping with parentheses
+temp &lt; 0 ?? &quot;frozen&quot; ?: (temp &gt; 100 ?? &quot;boiling&quot; ?: &quot;normal&quot;)
+
+// Grade classification
+grade &gt;= 90 ?? &quot;A&quot; ?: (grade &gt;= 80 ?? &quot;B&quot; ?: (grade &gt;= 70 ?? &quot;C&quot; ?: &quot;F&quot;))
+</code></pre>
+<h3>Integration with RiX Features</h3>
+<pre><code class="language-javascript">// With assignment
+result := x &gt; 0 ?? x ?: -x
+
+// With pipe operations
+data |&gt; (valid ?? NORMALIZE ?: SANITIZE) |&gt; ANALYZE
+
+// With matrix operations
+det &gt; 0 ?? [[1,0],[0,1]] ?: [[0,1],[1,0]]
+
+// With system functions
+x &gt; 0 ?? LOG(x) ?: LOG(-x)
+
+// Code blocks with array operations
+arrayResult := flag ?? {{ 
+    a := [1,2,3]; 
+    b := [4,5,6]; 
+    a + b 
+}} ?: [0,0,0]
+
+// Code blocks with pipe operations
+processed := valid ?? {{ 
+    raw := getData(); 
+    clean := raw |&gt; sanitize |&gt; normalize; 
+    clean 
+}} ?: empty_data
+</code></pre>
+<h2>AST Structure</h2>
+<p>The ternary operator generates a <code>TernaryOperation</code> AST node:</p>
+<pre><code class="language-javascript">{
+  type: &#39;TernaryOperation&#39;,
+  condition: { /* AST node for condition */ },
+  trueExpression: { /* AST node for true branch */ },
+  falseExpression: { /* AST node for false branch */ },
+  pos: [start, valueStart, end],
+  original: &#39;original text&#39;
+}
+</code></pre>
+<h2>Compatibility</h2>
+<h3>No Conflicts</h3>
+<p>The ternary operator is designed to coexist with existing RiX operators:</p>
+<ul>
+<li><strong>Query operator</strong>: <code>x?(y)</code> still works for postfix queries</li>
+<li><strong>Interval operator</strong>: <code>1:5</code> still works for intervals</li>
+<li><strong>Conditional operator</strong>: Existing <code>?</code> usage in pattern matching is preserved</li>
+</ul>
+<h3>Precedence Integration</h3>
+<p>The ternary operator integrates naturally with RiX&#39;s precedence hierarchy:</p>
+<pre><code class="language-javascript">// Arithmetic operators bind tighter
+x + y &gt; z ?? a * b ?: c / d
+// Parsed as: (x + y) &gt; z ?? (a * b) ?: (c / d)
+
+// Assignment operators bind looser
+result := x &gt; 0 ?? x ?: -x
+// Parsed as: result := (x &gt; 0 ?? x ?: -x)
+</code></pre>
+<h2>Current Limitations</h2>
+<ol>
+<li><strong>Right-associative nesting</strong>: Automatic parsing of <code>a ?? b ?? c ?: d ?: e</code> requires explicit parentheses for complex cases</li>
+<li><strong>Error recovery</strong>: Parse errors in ternary expressions may not provide optimal recovery suggestions</li>
+</ol>
+<h2>Code Block Support</h2>
+<p>The ternary operator seamlessly integrates with RiX&#39;s code block syntax:</p>
+<ul>
+<li><strong>Multi-statement blocks</strong>: Both true and false branches can contain <code>{{ }}</code> code blocks with multiple semicolon-separated statements</li>
+<li><strong>Complex computations</strong>: Code blocks enable intermediate variable assignments and complex mathematical calculations</li>
+<li><strong>Nested ternary</strong>: Ternary operations can be nested within code blocks for sophisticated conditional logic</li>
+<li><strong>Full RiX support</strong>: Code blocks support all RiX language features including functions, arrays, pipes, and system calls</li>
+<li><strong>Natural evaluation</strong>: The final expression in a code block becomes the result of that branch</li>
+</ul>
+<h2>Implementation Details</h2>
+<h3>Tokenizer Changes</h3>
+<ul>
+<li>Added <code>??</code> and <code>?:</code> to the symbols list with proper maximal munch ordering</li>
+<li>Both tokens are recognized as single <code>Symbol</code> tokens</li>
+</ul>
+<h3>Parser Changes</h3>
+<ul>
+<li>Added <code>??</code> and <code>?:</code> to <code>SYMBOL_TABLE</code> with <code>CONDITION</code> precedence and right associativity</li>
+<li>Special handling in <code>parseInfix()</code> for <code>??</code> operator</li>
+<li>Precedence adjustment to prevent <code>?:</code> consumption during true expression parsing</li>
+</ul>
+<h3>Test Coverage</h3>
+<p>Comprehensive test suite covers:</p>
+<ul>
+<li>Basic ternary operations</li>
+<li>Complex expressions in all branches</li>
+<li>Nested operations with parentheses</li>
+<li>Integration with existing RiX features</li>
+<li>Error cases and edge conditions</li>
+<li>Precedence verification</li>
+</ul>
+<h2>Future Enhancements</h2>
+<p>Potential improvements for future versions:</p>
+<ol>
+<li><strong>Enhanced right-associativity</strong>: Better automatic parsing of nested ternary chains</li>
+<li><strong>Short-circuit evaluation</strong>: Documentation of evaluation semantics</li>
+<li><strong>Pattern matching integration</strong>: Combining ternary with pattern matching functions</li>
+<li><strong>N-ary conditional expressions</strong>: Extended conditional syntax for multiple conditions</li>
+</ol>
+<h2>Usage Recommendations</h2>
+<ol>
+<li><strong>Use parentheses for clarity</strong> in nested ternary expressions</li>
+<li><strong>Prefer ternary for simple conditions</strong> over complex pattern matching when appropriate</li>
+<li><strong>Combine with existing RiX features</strong> like pipes and function calls for expressive code</li>
+<li><strong>Maintain readability</strong> by avoiding overly complex nested conditions</li>
+<li><strong>Leverage code blocks</strong> for multi-step conditional computations that require intermediate variables</li>
+<li><strong>Use code blocks for side effects</strong> when conditional logic needs to perform multiple operations before returning a result</li>
+</ol>
+</div>
+        </main>
+
+        <footer>
+            <p>&copy; 2024 RiX Language Team. Licensed under MIT.</p>
+        </footer>
+
+        <script>
+            // This script will be replaced by the actual markdown rendering logic
+            // For now, it just shows a placeholder
+            document.addEventListener("DOMContentLoaded", function () {
+                // Highlight current page in sidebar
+                const currentPath = window.location.pathname;
+                const currentFile = currentPath.substring(
+                    currentPath.lastIndexOf("/") + 1,
+                );
+                const sidebarLinks = document.querySelectorAll(".sidebar a");
+                sidebarLinks.forEach((link) => {
+                    const linkPath = link.getAttribute("href");
+                    if (
+                        linkPath === currentFile ||
+                        (currentFile === "" && linkPath === "./") ||
+                        linkPath === "./" + currentFile
+                    ) {
+                        link.classList.add("active");
+                    }
+                });
+            });
+        </script>
+    </body>
+</html>

@@ -1,0 +1,565 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>RiX Parser - Embedded Language Processing - RiX Language Parser</title>
+        <style>
+            :root {
+                --primary-color: #2563eb;
+                --secondary-color: #1e40af;
+                --text-color: #1f2937;
+                --bg-color: #ffffff;
+                --code-bg: #f3f4f6;
+                --border-color: #e5e7eb;
+                --header-bg: #f9fafb;
+            }
+
+            * {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
+
+            body {
+                font-family:
+                    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                    "Helvetica Neue", Arial, sans-serif;
+                line-height: 1.6;
+                color: var(--text-color);
+                background-color: var(--bg-color);
+                min-height: 100vh;
+                display: flex;
+                flex-direction: column;
+            }
+
+            header {
+                background-color: var(--header-bg);
+                border-bottom: 1px solid var(--border-color);
+                padding: 1rem 0;
+                position: sticky;
+                top: 0;
+                z-index: 100;
+            }
+
+            .header-content {
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 0 2rem;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+            }
+
+            .logo {
+                display: flex;
+                align-items: center;
+                gap: 1rem;
+                text-decoration: none;
+                color: var(--text-color);
+            }
+
+            .logo img {
+                height: 40px;
+                width: auto;
+            }
+
+            .logo h1 {
+                font-size: 1.5rem;
+                font-weight: 700;
+            }
+
+            nav {
+                display: flex;
+                gap: 2rem;
+            }
+
+            nav a {
+                color: var(--text-color);
+                text-decoration: none;
+                font-weight: 500;
+                transition: color 0.2s;
+            }
+
+            nav a:hover {
+                color: var(--primary-color);
+            }
+
+            main {
+                flex: 1;
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 2rem;
+                width: 100%;
+            }
+
+            .sidebar {
+                position: fixed;
+                left: 0;
+                top: 73px;
+                width: 250px;
+                height: calc(100vh - 73px);
+                overflow-y: auto;
+                padding: 2rem 1rem;
+                background-color: var(--header-bg);
+                border-right: 1px solid var(--border-color);
+            }
+
+            .sidebar h2 {
+                font-size: 0.875rem;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                color: #6b7280;
+                margin-bottom: 1rem;
+            }
+
+            .sidebar ul {
+                list-style: none;
+            }
+
+            .sidebar li {
+                margin-bottom: 0.5rem;
+            }
+
+            .sidebar a {
+                color: var(--text-color);
+                text-decoration: none;
+                font-size: 0.875rem;
+                display: block;
+                padding: 0.25rem 0.5rem;
+                border-radius: 0.25rem;
+                transition: background-color 0.2s;
+            }
+
+            .sidebar a:hover {
+                background-color: var(--border-color);
+            }
+
+            .sidebar a.active {
+                background-color: var(--primary-color);
+                color: white;
+            }
+
+            .content {
+                margin-left: 250px;
+                padding: 2rem;
+                max-width: 900px;
+            }
+
+            .content h1 {
+                font-size: 2.5rem;
+                margin-bottom: 1rem;
+                color: var(--text-color);
+            }
+
+            .content h2 {
+                font-size: 2rem;
+                margin-top: 2rem;
+                margin-bottom: 1rem;
+                color: var(--text-color);
+            }
+
+            .content h3 {
+                font-size: 1.5rem;
+                margin-top: 1.5rem;
+                margin-bottom: 0.75rem;
+                color: var(--text-color);
+            }
+
+            .content p {
+                margin-bottom: 1rem;
+            }
+
+            .content code {
+                background-color: var(--code-bg);
+                padding: 0.125rem 0.25rem;
+                border-radius: 0.25rem;
+                font-family: "Consolas", "Monaco", "Courier New", monospace;
+                font-size: 0.875em;
+            }
+
+            .content pre {
+                background-color: var(--code-bg);
+                padding: 1rem;
+                border-radius: 0.5rem;
+                overflow-x: auto;
+                margin-bottom: 1rem;
+            }
+
+            .content pre code {
+                background-color: transparent;
+                padding: 0;
+            }
+
+            .content ul,
+            .content ol {
+                margin-bottom: 1rem;
+                padding-left: 2rem;
+            }
+
+            .content li {
+                margin-bottom: 0.25rem;
+            }
+
+            .content a {
+                color: var(--primary-color);
+                text-decoration: none;
+            }
+
+            .content a:hover {
+                text-decoration: underline;
+            }
+
+            .content blockquote {
+                border-left: 4px solid var(--primary-color);
+                padding-left: 1rem;
+                margin: 1rem 0;
+                color: #6b7280;
+                font-style: italic;
+            }
+
+            .content table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-bottom: 1rem;
+            }
+
+            .content th,
+            .content td {
+                border: 1px solid var(--border-color);
+                padding: 0.5rem;
+                text-align: left;
+            }
+
+            .content th {
+                background-color: var(--header-bg);
+                font-weight: 600;
+            }
+
+            footer {
+                background-color: var(--header-bg);
+                border-top: 1px solid var(--border-color);
+                padding: 2rem;
+                text-align: center;
+                color: #6b7280;
+                font-size: 0.875rem;
+            }
+
+            @media (max-width: 768px) {
+                .sidebar {
+                    display: none;
+                }
+
+                .content {
+                    margin-left: 0;
+                    padding: 1rem;
+                }
+
+                .header-content {
+                    padding: 0 1rem;
+                }
+
+                nav {
+                    display: none;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <header>
+            <div class="header-content">
+                <a href="../" class="logo">
+                    <img src="../rix-logo.png" alt="RiX Logo" />
+                    <h1>RiX Language Parser</h1>
+                </a>
+                <nav>
+                    <a href="/">Home</a>
+                    <a href="/docs.html">Documentation</a>
+                    <a href="/demo.html">Demo</a>
+                    <a href="https://github.com/rix-lang/parser">GitHub</a>
+                </nav>
+            </div>
+        </header>
+
+        <aside class="sidebar">
+            <h2>Documentation</h2>
+            <ul>
+                <li><a href="docs.html/">Overview</a></li>
+                <li><a href="architecture.html">Architecture</a></li>
+                <li><a href="parsing.html">Parsing</a></li>
+                <li><a href="AST-brief.html">AST Structure</a></li>
+                <li><a href="three-tier-system.html">Three-Tier System</a></li>
+                <li>
+                    <a href="function-definitions-summary.html">Functions</a>
+                </li>
+                <li>
+                    <a href="array-generators-implementation.html"
+                        >Array Generators</a
+                    >
+                </li>
+                <li>
+                    <a href="matrix-tensor-implementation.html"
+                        >Matrix & Tensor</a
+                    >
+                </li>
+                <li>
+                    <a href="brace-containers-README.html">Brace Containers</a>
+                </li>
+                <li><a href="embedded-parsing.html">Embedded Parsing</a></li>
+                <li><a href="ternary-operator.html">Ternary Operator</a></li>
+                <li>
+                    <a href="unit-notation-migration.html">Unit Notation</a>
+                </li>
+            </ul>
+        </aside>
+
+        <main class="content">
+            <!-- Markdown content will be inserted here -->
+            <div id="markdown-content"><h1>RiX Parser - Embedded Language Processing</h1>
+<h2>Overview</h2>
+<p>The RiX parser supports embedding other languages and formats within RiX expressions using backtick notation. This feature allows seamless integration of domain-specific languages, code snippets, and specialized data formats directly into RiX code.</p>
+<h2>Syntax</h2>
+<p>Embedded languages use backtick delimiters with the following structure:</p>
+<pre><code>`[LANGUAGE[(CONTEXT)]]:BODY`
+</code></pre>
+<h3>Components</h3>
+<ul>
+<li><strong>Backticks</strong>: Single, double, triple, or more backticks as delimiters</li>
+<li><strong>LANGUAGE</strong>: Optional identifier specifying the embedded language</li>
+<li><strong>CONTEXT</strong>: Optional parenthetical containing parameters or configuration</li>
+<li><strong>Colon</strong>: Separates the header (language + context) from the body</li>
+<li><strong>BODY</strong>: The actual content in the specified language</li>
+</ul>
+<h2>Basic Examples</h2>
+<h3>Simple Language Specification</h3>
+<pre><code class="language-rix">`F:6/8`                    // Fraction without reduction
+`P(x):x^2 + 3x + 5`        // Polynomial with variable x
+`JS(a, b): a[b]`           // JavaScript with parameters
+</code></pre>
+<h3>No Language Specification</h3>
+<pre><code class="language-rix">`Raw content without language`  // language: &quot;RiX-String&quot;, body: &quot;Raw content without language&quot;
+`:configuration setting`        // language: &quot;RiX-String&quot;, body: &quot;configuration setting&quot;
+</code></pre>
+<h2>Nested Backticks</h2>
+<p>Multiple backticks handle nesting and avoid escaping issues:</p>
+<pre><code class="language-rix">``RiX: `F:5/3` + `P(x):x^2` ``           // Double backticks contain single backticks
+```Code: `hello` and ``world`` ```       // Triple backticks contain double backticks
+</code></pre>
+<h2>AST Structure</h2>
+<p>Embedded languages are parsed into <code>EmbeddedLanguage</code> nodes:</p>
+<pre><code class="language-javascript">{
+  type: &quot;EmbeddedLanguage&quot;,
+  language: &quot;P&quot;,           // Language identifier (&quot;RiX-String&quot; for raw content)
+  context: &quot;x&quot;,            // Context parameters (null if not provided)
+  body: &quot;x^2 + 3x + 5&quot;     // Body content as string
+}
+</code></pre>
+<h2>Use Cases</h2>
+<h3>Mathematical Expressions</h3>
+<ul>
+<li><strong>Polynomials</strong>: <code>P(x):x^3 - 2x + 1</code></li>
+<li><strong>Fractions</strong>: <code>F:22/7</code> (exact representation)</li>
+<li><strong>Complex Numbers</strong>: <code>C:3+4i</code></li>
+<li><strong>Matrices</strong>: <code>Matrix(rows, cols):[[1,2,3],[4,5,6],[7,8,9]]</code></li>
+<li><strong>Raw Math</strong>: <code>x^2 + 2x + 1</code> (becomes RiX-String for processing)</li>
+</ul>
+<h3>Programming Languages</h3>
+<ul>
+<li><strong>JavaScript</strong>: <code>JS(data: array, fn: function): data.map(fn)</code></li>
+<li><strong>Python</strong>: <code>Python(items: list, condition: callable): [x for x in items if condition(x)]</code></li>
+<li><strong>SQL</strong>: <code>SQL(table: string, where: clause): SELECT * FROM table WHERE where</code></li>
+<li><strong>Assembly</strong>: <code>ASM(arch: x86): mov eax, 42; ret</code></li>
+<li><strong>TypeScript</strong>: <code>TS(param: T, generic: U): param as U</code></li>
+</ul>
+<h3>Markup and Data Formats</h3>
+<ul>
+<li><strong>LaTeX</strong>: <code>LaTeX: \\frac{a}{b} + \\sqrt{c}</code></li>
+<li><strong>JSON</strong>: <code>JSON: {&quot;name&quot;: &quot;value&quot;, &quot;array&quot;: [1,2,3]}</code></li>
+<li><strong>XML</strong>: <code>XML: &lt;element attr=&quot;value&quot;&gt;content&lt;/element&gt;</code></li>
+<li><strong>CSV</strong>: <code>CSV: name,age,city\nJohn,25,NYC</code></li>
+<li><strong>Raw Text</strong>: <code>Plain text content</code> (automatically becomes RiX-String)</li>
+<li><strong>Configuration</strong>: <code>:key = value, other = setting</code> (RiX-String for config syntax)</li>
+</ul>
+<h3>Regular Expressions</h3>
+<ul>
+<li><strong>Patterns</strong>: <code>Regex(ig): [a-z]+\\d+</code></li>
+<li><strong>Email Validation</strong>: <code>Regex(): [a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}</code></li>
+</ul>
+<h2>Implementation Details</h2>
+<h3>Parser Behavior</h3>
+<ol>
+<li><strong>Tokenization</strong>: Backtick strings are tokenized as <code>String</code> tokens with <code>kind: &#39;backtick&#39;</code></li>
+<li><strong>Parsing</strong>: The parser detects backtick strings and calls <code>parseEmbeddedLanguage()</code></li>
+<li><strong>Header Parsing</strong>: The first colon separates header from body</li>
+<li><strong>Context Extraction</strong>: Parentheses in the header are parsed for context parameters</li>
+</ol>
+<h3>Parsing Algorithm</h3>
+<p>The <code>parseEmbeddedLanguage()</code> method follows this algorithm:</p>
+<ol>
+<li>Extract content from the backtick token</li>
+<li>Find the first colon to separate header from body</li>
+<li>If no colon found, treat entire content as body with <code>language: null</code></li>
+<li>Parse header using regex pattern: <code>/^([^(]+)\(([^)]*)\)$/</code></li>
+<li>If parentheses found, extract language and context separately</li>
+<li>If no parentheses, entire header becomes the language identifier</li>
+<li>Create <code>EmbeddedLanguage</code> AST node with parsed components</li>
+</ol>
+<h3>Edge Cases</h3>
+<ul>
+<li><strong>No Colon</strong>: Entire content becomes the body with <code>language: &quot;RiX-String&quot;</code></li>
+<li><strong>Starts with Colon</strong>: Content after first colon becomes body with <code>language: &quot;RiX-String&quot;</code></li>
+<li><strong>Empty Context</strong>: <code>SQL():query</code> results in <code>context: &quot;&quot;</code></li>
+<li><strong>Colons in Context</strong>: <code>JS(a: string, b: number): code</code> preserves colons in context</li>
+<li><strong>Nested Parentheses</strong>: <code>Matrix(size(3, 4)): data</code> correctly extracts nested structure</li>
+<li><strong>Multiple Colons</strong>: First colon after balanced parentheses separates header from body</li>
+<li><strong>Whitespace</strong>: Preserved in context and body, trimmed from language identifier</li>
+</ul>
+<h3>Strict Validation Rules</h3>
+<ul>
+<li><strong>Single Parenthetical Group</strong>: Only one outer <code>(...)</code> allowed in header</li>
+<li><strong>Balanced Parentheses</strong>: Unmatched <code>(</code> or <code>)</code> throws parsing error</li>
+<li><strong>Clean Header Format</strong>: <code>LANGUAGE(CONTEXT):BODY</code> - no extra content after <code>)</code></li>
+<li><strong>Error Messages</strong>: Clear feedback for malformed headers</li>
+</ul>
+<h2>Integration with RiX</h2>
+<p>Embedded languages can be used anywhere expressions are valid:</p>
+<pre><code class="language-rix">// Variable assignment
+polynomial := `P(x):x^2 + 2x + 1`;
+
+// Function arguments
+result := evaluate(`F:3/4`, precision := 10);
+
+// Array elements
+languages := [`JS: console.log(&#39;hello&#39;)`, `Python: print(&#39;world&#39;)`];
+
+// Pattern matching
+process :=&gt; [
+  (code ? code.language = &quot;JS&quot;) -&gt; executeJS(code.body),
+  (code ? code.language = &quot;Python&quot;) -&gt; executePython(code.body)
+];
+</code></pre>
+<h2>Error Handling</h2>
+<p>The parser handles malformed embedded languages gracefully:</p>
+<ul>
+<li><strong>Unmatched Backticks</strong>: Tokenizer throws delimiter mismatch error</li>
+<li><strong>Invalid Context</strong>: Malformed parentheses are treated as part of language name</li>
+<li><strong>Empty Content</strong>: Valid, results in empty body string</li>
+</ul>
+<h3>Common Error Scenarios</h3>
+<pre><code class="language-rix">// Error: Unmatched backticks
+invalid := `P(x):x^2 + 1;  // Missing closing backtick
+
+// Error: Wrong backtick count
+mixed := ``Code: `inner` `; // Mismatched backtick levels
+
+// Error: Multiple parenthetical groups
+multi := `Function(a, b)(extra): body`;  // Only one outer parenthetical allowed
+
+// Error: Unmatched opening parenthesis
+broken := `Malformed(: syntax`;  // Missing closing parenthesis
+
+// Error: Unmatched closing parenthesis
+missing := `Invalid): body`;  // Missing opening parenthesis
+
+// Error: Content after closing parenthesis
+extra := `Lang(context) extra: body`;  // No content allowed after )
+
+// Valid: RiX-String for raw content
+raw := `Configuration data`;  // language: &quot;RiX-String&quot;, body: &quot;Configuration data&quot;
+
+// Valid: RiX-String for colon-prefixed content
+config := `:server = localhost`;  // language: &quot;RiX-String&quot;, body: &quot;server = localhost&quot;
+</code></pre>
+<h3>Debugging Tips</h3>
+<ol>
+<li><strong>Check Backtick Balance</strong>: Ensure opening and closing backtick counts match</li>
+<li><strong>Escape Nested Backticks</strong>: Use higher-level backticks to contain lower-level ones</li>
+<li><strong>Validate Header Format</strong>: Follow strict <code>LANGUAGE(CONTEXT):BODY</code> pattern</li>
+<li><strong>Single Parenthetical</strong>: Only one outer <code>(...)</code> group allowed in header</li>
+<li><strong>Balance Parentheses</strong>: Every <code>(</code> must have matching <code>)</code></li>
+<li><strong>Clean Headers</strong>: No extra content after closing <code>)</code> in header</li>
+<li><strong>Test Edge Cases</strong>: Verify behavior with empty content, no colons, etc.</li>
+</ol>
+<h2>Advanced Usage Patterns</h2>
+<h3>Conditional Processing</h3>
+<pre><code class="language-rix">processor :=&gt; [
+  (code ? code.language = &quot;JS&quot;) -&gt; executeJS(code.body, code.context),
+  (code ? code.language = &quot;Python&quot;) -&gt; executePython(code.body, code.context),
+  (code ? code.language = &quot;SQL&quot;) -&gt; executeQuery(code.body, code.context),
+  (code ? code.language = &quot;RiX-String&quot;) -&gt; processRawContent(code.body),
+  (code) -&gt; handleUnknown(code.body)
+];
+</code></pre>
+<h3>Template Systems</h3>
+<pre><code class="language-rix">// Web component template with type annotations
+component := (name, props) -&gt; `HTML(tag: string, attrs: object): &lt;div class=&quot;${name}&quot;&gt;${props}&lt;/div&gt;`;
+
+// Code generation with parameter types  
+apiEndpoint := (method, path) -&gt; `JS(method: string, path: string): 
+  app.${method}(&#39;${path}&#39;, (req, res) =&gt; { /* handler */ });
+`;
+
+// Configuration templates
+dbConfig := (host, port) -&gt; `Config(host: string, port: number): 
+  host=${host}&amp;port=${port}&amp;ssl=true
+`;
+
+// Note: Each header must follow LANGUAGE(CONTEXT):BODY format exactly
+// Multiple parenthetical groups like LANG(a)(b):body will throw errors
+</code></pre>
+<h3>Data Transformation Pipelines</h3>
+<pre><code class="language-rix">// Transform data through multiple languages
+result := data 
+  |&gt; `SQL: SELECT * FROM data WHERE active = 1`
+  |&gt; `Python(df): df.groupby(&#39;category&#39;).sum()`
+  |&gt; `R(data): ggplot(data, aes(x=category, y=value)) + geom_bar()`;
+</code></pre>
+<h2>Performance Considerations</h2>
+<ul>
+<li><strong>Parsing Overhead</strong>: Embedded languages are parsed as strings, not compiled</li>
+<li><strong>Memory Usage</strong>: Full content is stored in AST nodes</li>
+<li><strong>Nested Complexity</strong>: Multiple backtick levels increase parsing time</li>
+<li><strong>Recommended Limits</strong>: Avoid deeply nested (&gt;3 levels) embedded languages</li>
+</ul>
+<h2>Future Extensions</h2>
+<p>The embedded language system is designed for extensibility:</p>
+<ul>
+<li><strong>Type Validation</strong>: Language-specific syntax validation</li>
+<li><strong>Compilation</strong>: Direct compilation of embedded code</li>
+<li><strong>Interpolation</strong>: Variable substitution within embedded content</li>
+<li><strong>Caching</strong>: Parsed representation caching for performance</li>
+<li><strong>Language Plugins</strong>: Extensible language handler system</li>
+<li><strong>IDE Integration</strong>: Syntax highlighting and completion for embedded languages</li>
+<li><strong>Hot Reloading</strong>: Dynamic recompilation of embedded code during development</li>
+</ul>
+</div>
+        </main>
+
+        <footer>
+            <p>&copy; 2024 RiX Language Team. Licensed under MIT.</p>
+        </footer>
+
+        <script>
+            // This script will be replaced by the actual markdown rendering logic
+            // For now, it just shows a placeholder
+            document.addEventListener("DOMContentLoaded", function () {
+                // Highlight current page in sidebar
+                const currentPath = window.location.pathname;
+                const currentFile = currentPath.substring(
+                    currentPath.lastIndexOf("/") + 1,
+                );
+                const sidebarLinks = document.querySelectorAll(".sidebar a");
+                sidebarLinks.forEach((link) => {
+                    const linkPath = link.getAttribute("href");
+                    if (
+                        linkPath === currentFile ||
+                        (currentFile === "" && linkPath === "./") ||
+                        linkPath === "./" + currentFile
+                    ) {
+                        link.classList.add("active");
+                    }
+                });
+            });
+        </script>
+    </body>
+</html>

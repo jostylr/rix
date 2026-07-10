@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>RiX Parser Demo - Interactive AST Visualization</title>
+        <link rel="stylesheet" href="demo.css" />
+    </head>
+    <body>
+        <header>
+            <div class="header-content">
+                <a href="./" class="logo">
+                    <img src="./rix-logo.png" alt="RiX Logo" />
+                    <h1>RiX Parser Demo</h1>
+                </a>
+                <nav>
+                    <a href="/">Home</a>
+                    <a href="/docs.html">Documentation</a>
+                    <a href="/demo.html" class="active">Demo</a>
+                    <a href="https://github.com/rix-lang/parser">GitHub</a>
+                </nav>
+            </div>
+        </header>
+
+        <main>
+            <div class="demo-container">
+                <div class="input-section">
+                    <div class="section-header">
+                        <h2>Input Expression</h2>
+                        <div class="input-controls">
+                            <select id="examples-dropdown" class="examples-dropdown">
+                                <option value="">Examples...</option>
+                                <option value="2 + 3 * (4 - 1)">Basic Arithmetic</option>
+                                <option value="x := 42">Assignment</option>
+                                <option value="f(x, n := 2) -> x^n + 1">Function Definition</option>
+                                <option value="2:5">Interval</option>
+                                <option value="9.8~[m/s^2]">Scientific Units</option>
+                                <option value="3 + 4~{i}">Mathematical Units</option>
+                                <option value="[1 |+ 2 |^ 10]">Array Generator</option>
+                                <option value="[1, 2; 3, 4]">Matrix</option>
+                                <option value="x > 0 ?? x ?: -x">Ternary Operator</option>
+                                <option value="SIN(PI / 2)">System Function</option>
+                                <option value="[1, 2, 3] |> MAP(x -> x^2)">Pipe Operation</option>
+                                <option value="1..3/4">Mixed Number</option>
+                                <option value="0.12#34">Repeating Decimal</option>
+                                <option value="3/4">Rational Number</option>
+                                <option value="{x := 1; y := 2}">Map Container</option>
+                                <option value="{1, 2, 3}">Set Container</option>
+                                <option value="f'(x)">Derivative</option>
+                                <option value="'SIN(x)">Integral</option>
+                                <option value="PI@(1e-10)">Precision Query</option>
+                                <option value="result?(3.14:3.15)">Membership Test</option>
+                            </select>
+                            <button id="copy-button" class="copy-button" title="Copy to clipboard">
+                                📋
+                            </button>
+                            <button id="clear-button" class="clear-button" title="Clear input">
+                                🗑️
+                            </button>
+                        </div>
+                    </div>
+                    <textarea
+                        id="input-expression"
+                        placeholder="Enter a RiX expression here..."
+                        rows="5"
+                    >
+2 + 3 * (4 - 1)</textarea
+                    >
+                    <button id="parse-button" class="primary-button">
+                        Parse Expression (Shift+Enter)
+                    </button>
+                </div>
+
+                <div class="output-section">
+                    <div class="tabs">
+                        <button class="tab-button active" data-tab="ast">
+                            AST View
+                        </button>
+                        <button class="tab-button" data-tab="tokens">
+                            Tokens
+                        </button>
+                        <button class="tab-button" data-tab="raw">
+                            Raw Output
+                        </button>
+                    </div>
+
+                    <div class="tab-content">
+                        <div id="ast-tab" class="tab-panel active">
+                            <div id="ast-tree" class="tree-view">
+                                <p class="placeholder">
+                                    Parse an expression to see the AST
+                                </p>
+                            </div>
+                        </div>
+
+                        <div id="tokens-tab" class="tab-panel">
+                            <div id="tokens-list" class="tokens-view">
+                                <p class="placeholder">
+                                    Parse an expression to see tokens
+                                </p>
+                            </div>
+                        </div>
+
+                        <div id="raw-tab" class="tab-panel">
+                            <pre id="raw-output" class="raw-view">
+Parse an expression to see raw output</pre
+                            >
+                        </div>
+                    </div>
+
+                    <div id="errors-warnings" class="diagnostics">
+                        <h3>Diagnostics</h3>
+                        <div id="diagnostics-content">
+                            <p class="placeholder">No errors or warnings</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Modal for detailed node view -->
+        <div id="node-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 id="modal-title">Node Details</h2>
+                    <button class="close-button">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <pre id="modal-content"></pre>
+                </div>
+                <div class="modal-footer">
+                    <button id="modal-close" class="primary-button">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>&copy; 2024 RiX Language Team. Licensed under MIT.</p>
+        </footer>
+
+        <script src="demo.js"></script>
+    </body>
+</html>

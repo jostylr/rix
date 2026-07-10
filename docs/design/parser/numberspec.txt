@@ -1,0 +1,120 @@
+Number Format Specification (Tokenizing and Parsing)
+===================================================
+
+1. Integer
+----------
+Format:      [0-9]+
+Examples:    0   12   5678
+
+2. Decimal (Finite)
+-------------------
+Format:      [0-9]+.[0-9]+
+Examples:    2.5   7.89   0.001
+
+3. Repeating Decimal
+--------------------
+Format:      [0-9]+.[0-9]+#[0-9]+      (e.g., 0.12#45)
+             [0-9]+#[0-9]+             (e.g., 7#3)
+Examples:    0.12#45    7#3    2.3#2
+
+4. Rational (Fraction)
+----------------------
+Format:      [0-9]+/[0-9]+         (no spaces allowed)
+Examples:    3/4   15/8   123/456
+
+5. Mixed Number
+---------------
+Format:      [0-9]+..[0-9]+/[0-9]+
+Examples:    1..3/4   2..5/8
+
+6. Interval
+-----------
+Format:      a:b     (a and b can be any valid number literal)
+Examples:    2:5   1.5:2.7   3/4:1.23#56   1..3/4:2..1/8
+
+7. Scientific Notation
+----------------------
+Format:      [number]E[+/-][integer]
+Examples:    5E6   1.23E-2
+
+8. Interval on Decimal (for precision/uncertainty)
+--------------------------------------------------
+Format:      [decimal][[lower:upper]]   (interval around a decimal)
+Examples:    1.23[56:67]   0.#3   1.23[+5,-6]
+
+9. Unit Operators (no longer part of numbers)
+----------------------------------------------
+Scientific units:  ~[   (followed by unit expression and ])
+Math units:        ~{   (followed by unit expression and })
+Examples:          3.2~[m]   9.8~[m/s^2]   2~{i}   1~{sqrt2}
+These are tokenized as separate operators, not part of numbers.
+
+10. Numbers (without units)
+---------------------------
+Numbers are now tokenized without units attached.
+Old: 3.2~m~ was one Number token
+New: 3.2 (Number), ~[ (Symbol), m (Identifier), ] (Symbol)
+
+11. Type-Notated Numbers (Backtick Literals)
+--------------------------------------------
+Format:      `Type:expression`   (use multiple backticks to nest)
+Examples:    `F:6/8`   `P(x):2x^2+3x+1`   ``P(x):x^2+`inner`+1``
+
+Tokenizing Notes
+----------------
+- Tokenizer must recognize as single tokens: rationals like 3/4, mixed numbers 1..3/4, repeating decimals 0.12#45, intervals 2:5.
+- No-space rule: rationals, mixed numbers, etc. must not have spaces. Spaces cause splitting into tokens.
+- Backtick-typed numbers are single tokens.
+- Tokenizer should prioritize longest possible matches (e.g., 1..3/4 before matching 1 then 3/4).
+
+Parsing Notes
+-------------
+- If / with no spaces, treat as rational.
+- If .. is present, treat as mixed number.
+- If # is present, treat as repeating decimal.
+- If : is present, treat as interval (unless it’s an operator or separator).
+- Numbers no longer include units; ~[ and ~{ are separate operators.
+- If backticks, parse as type-literal.
+- E notation: treat as scientific.
+- Check for ambiguities and resolve based on spec: no-space, longest match.
+
+Summary Table
+-------------
+Form             | Example         | Tokenizer Pattern                  | Parser Output
+-----------------|----------------|------------------------------------|-------------------------------
+Integer          | 12             | [0-9]+                             | Integer(12)
+Decimal          | 2.5            | [0-9]+.[0-9]+                      | Decimal(2.5)
+Repeating Dec.   | 0.12#45        | [0-9]+.[0-9]+#[0-9]+               | Rational(…)
+Rational         | 3/4            | [0-9]+/[0-9]+ (no spaces)          | Rational(3,4)
+Mixed number     | 1..3/4         | [0-9]+..[0-9]+/[0-9]+              | Mixed(1, Rational(3,4))
+Interval         | 2:5            | number:number                      | Interval(2,5)
+Scientific       | 1.23E-2        | [number]E[+/-][integer]            | Decimal(…)
+Decimal interval | 1.23[56:67]    | [number][[lower:upper]]            | Interval(…)
+Scientific unit  | 3.2~[m]        | [number] ~[ [unit] ]               | Number + operators
+Math unit        | 2~{i}          | [number] ~{ [unit] }               | Number + operators
+
+Negative Numbers
+----------------
+- Negative numbers are parsed as part of the number token if the minus sign is directly before the number:
+    - -3       (integer)
+    - -2.1     (decimal)
+    - -3/4     (rational)
+    - -1..3/4  (mixed)
+    - -1.2#34  (repeating decimal)
+    - -2:5     (interval)
+    - -3.2 followed by ~[m] (number with scientific unit)
+    - `F:-3/4` (type-literal)
+
+- For intervals, both endpoints can be negative:
+    - -5:-2    (interval from -5 to -2)
+
+- In expressions, unary minus is an operator:
+    - -x       (negated variable)
+    - -(a + b) (negated sum)
+    - -f(2)    (negated function value)
+
+- Parsing rule:
+    - If '-' is directly before a numeric literal, include it in the token.
+    - Otherwise, parse '-' as a unary operator.
+
+- This ensures intervals, units, and all number forms can be negative, and expressions remain flexible.

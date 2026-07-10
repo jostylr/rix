@@ -1,0 +1,715 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>RiX Parser & Tokenizer Architecture - RiX Language Parser</title>
+        <style>
+            :root {
+                --primary-color: #2563eb;
+                --secondary-color: #1e40af;
+                --text-color: #1f2937;
+                --bg-color: #ffffff;
+                --code-bg: #f3f4f6;
+                --border-color: #e5e7eb;
+                --header-bg: #f9fafb;
+            }
+
+            * {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
+
+            body {
+                font-family:
+                    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                    "Helvetica Neue", Arial, sans-serif;
+                line-height: 1.6;
+                color: var(--text-color);
+                background-color: var(--bg-color);
+                min-height: 100vh;
+                display: flex;
+                flex-direction: column;
+            }
+
+            header {
+                background-color: var(--header-bg);
+                border-bottom: 1px solid var(--border-color);
+                padding: 1rem 0;
+                position: sticky;
+                top: 0;
+                z-index: 100;
+            }
+
+            .header-content {
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 0 2rem;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+            }
+
+            .logo {
+                display: flex;
+                align-items: center;
+                gap: 1rem;
+                text-decoration: none;
+                color: var(--text-color);
+            }
+
+            .logo img {
+                height: 40px;
+                width: auto;
+            }
+
+            .logo h1 {
+                font-size: 1.5rem;
+                font-weight: 700;
+            }
+
+            nav {
+                display: flex;
+                gap: 2rem;
+            }
+
+            nav a {
+                color: var(--text-color);
+                text-decoration: none;
+                font-weight: 500;
+                transition: color 0.2s;
+            }
+
+            nav a:hover {
+                color: var(--primary-color);
+            }
+
+            main {
+                flex: 1;
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 2rem;
+                width: 100%;
+            }
+
+            .sidebar {
+                position: fixed;
+                left: 0;
+                top: 73px;
+                width: 250px;
+                height: calc(100vh - 73px);
+                overflow-y: auto;
+                padding: 2rem 1rem;
+                background-color: var(--header-bg);
+                border-right: 1px solid var(--border-color);
+            }
+
+            .sidebar h2 {
+                font-size: 0.875rem;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                color: #6b7280;
+                margin-bottom: 1rem;
+            }
+
+            .sidebar ul {
+                list-style: none;
+            }
+
+            .sidebar li {
+                margin-bottom: 0.5rem;
+            }
+
+            .sidebar a {
+                color: var(--text-color);
+                text-decoration: none;
+                font-size: 0.875rem;
+                display: block;
+                padding: 0.25rem 0.5rem;
+                border-radius: 0.25rem;
+                transition: background-color 0.2s;
+            }
+
+            .sidebar a:hover {
+                background-color: var(--border-color);
+            }
+
+            .sidebar a.active {
+                background-color: var(--primary-color);
+                color: white;
+            }
+
+            .content {
+                margin-left: 250px;
+                padding: 2rem;
+                max-width: 900px;
+            }
+
+            .content h1 {
+                font-size: 2.5rem;
+                margin-bottom: 1rem;
+                color: var(--text-color);
+            }
+
+            .content h2 {
+                font-size: 2rem;
+                margin-top: 2rem;
+                margin-bottom: 1rem;
+                color: var(--text-color);
+            }
+
+            .content h3 {
+                font-size: 1.5rem;
+                margin-top: 1.5rem;
+                margin-bottom: 0.75rem;
+                color: var(--text-color);
+            }
+
+            .content p {
+                margin-bottom: 1rem;
+            }
+
+            .content code {
+                background-color: var(--code-bg);
+                padding: 0.125rem 0.25rem;
+                border-radius: 0.25rem;
+                font-family: "Consolas", "Monaco", "Courier New", monospace;
+                font-size: 0.875em;
+            }
+
+            .content pre {
+                background-color: var(--code-bg);
+                padding: 1rem;
+                border-radius: 0.5rem;
+                overflow-x: auto;
+                margin-bottom: 1rem;
+            }
+
+            .content pre code {
+                background-color: transparent;
+                padding: 0;
+            }
+
+            .content ul,
+            .content ol {
+                margin-bottom: 1rem;
+                padding-left: 2rem;
+            }
+
+            .content li {
+                margin-bottom: 0.25rem;
+            }
+
+            .content a {
+                color: var(--primary-color);
+                text-decoration: none;
+            }
+
+            .content a:hover {
+                text-decoration: underline;
+            }
+
+            .content blockquote {
+                border-left: 4px solid var(--primary-color);
+                padding-left: 1rem;
+                margin: 1rem 0;
+                color: #6b7280;
+                font-style: italic;
+            }
+
+            .content table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-bottom: 1rem;
+            }
+
+            .content th,
+            .content td {
+                border: 1px solid var(--border-color);
+                padding: 0.5rem;
+                text-align: left;
+            }
+
+            .content th {
+                background-color: var(--header-bg);
+                font-weight: 600;
+            }
+
+            footer {
+                background-color: var(--header-bg);
+                border-top: 1px solid var(--border-color);
+                padding: 2rem;
+                text-align: center;
+                color: #6b7280;
+                font-size: 0.875rem;
+            }
+
+            @media (max-width: 768px) {
+                .sidebar {
+                    display: none;
+                }
+
+                .content {
+                    margin-left: 0;
+                    padding: 1rem;
+                }
+
+                .header-content {
+                    padding: 0 1rem;
+                }
+
+                nav {
+                    display: none;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <header>
+            <div class="header-content">
+                <a href="../" class="logo">
+                    <img src="../rix-logo.png" alt="RiX Logo" />
+                    <h1>RiX Language Parser</h1>
+                </a>
+                <nav>
+                    <a href="/">Home</a>
+                    <a href="/docs.html">Documentation</a>
+                    <a href="/demo.html">Demo</a>
+                    <a href="https://github.com/rix-lang/parser">GitHub</a>
+                </nav>
+            </div>
+        </header>
+
+        <aside class="sidebar">
+            <h2>Documentation</h2>
+            <ul>
+                <li><a href="docs.html/">Overview</a></li>
+                <li><a href="architecture.html">Architecture</a></li>
+                <li><a href="parsing.html">Parsing</a></li>
+                <li><a href="AST-brief.html">AST Structure</a></li>
+                <li><a href="three-tier-system.html">Three-Tier System</a></li>
+                <li>
+                    <a href="function-definitions-summary.html">Functions</a>
+                </li>
+                <li>
+                    <a href="array-generators-implementation.html"
+                        >Array Generators</a
+                    >
+                </li>
+                <li>
+                    <a href="matrix-tensor-implementation.html"
+                        >Matrix & Tensor</a
+                    >
+                </li>
+                <li>
+                    <a href="brace-containers-README.html">Brace Containers</a>
+                </li>
+                <li><a href="embedded-parsing.html">Embedded Parsing</a></li>
+                <li><a href="ternary-operator.html">Ternary Operator</a></li>
+                <li>
+                    <a href="unit-notation-migration.html">Unit Notation</a>
+                </li>
+            </ul>
+        </aside>
+
+        <main class="content">
+            <!-- Markdown content will be inserted here -->
+            <div id="markdown-content"><h1>RiX Parser &amp; Tokenizer Architecture</h1>
+<h2>Overview</h2>
+<p>The RiX Language Parser &amp; Tokenizer is a comprehensive parsing library that transforms RiX mathematical expressions into Abstract Syntax Trees (ASTs). The architecture follows a clean separation between lexical analysis (tokenization) and syntactic analysis (parsing).</p>
+<h2>System Architecture</h2>
+<pre><code>Input String
+     │
+     ▼
+┌─────────────┐
+│  Tokenizer  │ ──► Token Stream
+└─────────────┘
+     │
+     ▼
+┌─────────────┐
+│   Parser    │ ──► Abstract Syntax Tree (AST)
+└─────────────┘
+     │
+     ▼
+External Systems
+(Evaluator, REPL, etc.)
+</code></pre>
+<h2>Components</h2>
+<h3>1. Tokenizer (<code>src/tokenizer.js</code>)</h3>
+<p><strong>Purpose:</strong> Lexical analysis - converts raw input text into structured tokens</p>
+<p><strong>Key Features:</strong></p>
+<ul>
+<li><strong>Maximal Munch:</strong> Always matches the longest possible token</li>
+<li><strong>Unicode Support:</strong> Full Unicode identifier support with normalization</li>
+<li><strong>Complex Number Formats:</strong> Handles 11+ different number formats</li>
+<li><strong>Flexible Strings:</strong> N-delimiter quote system for embedding</li>
+<li><strong>Position Tracking:</strong> Maintains exact source positions for error reporting</li>
+</ul>
+<p><strong>Token Types:</strong></p>
+<ul>
+<li><code>Number</code>: All mathematical number formats</li>
+<li><code>Identifier</code>: Variables and function names (System vs User)</li>
+<li><code>Symbol</code>: Operators and punctuation (50+ symbols)</li>
+<li><code>String</code>: Quoted literals, backticks, comments</li>
+<li><code>End</code>: Marks end of input</li>
+</ul>
+<p><strong>Architecture Pattern:</strong> State machine with regex-based pattern matching</p>
+<h3>2. Parser (<code>src/parser.js</code>)</h3>
+<p><strong>Purpose:</strong> Syntactic analysis - converts token stream into structured AST</p>
+<p><strong>Key Features:</strong></p>
+<ul>
+<li><strong>Pratt Parser:</strong> Operator precedence parsing with precedence climbing</li>
+<li><strong>Left/Right Associativity:</strong> Proper handling of operator associativity</li>
+<li><strong>Extensible:</strong> Modular design for adding new language constructs</li>
+<li><strong>Error Recovery:</strong> Comprehensive error reporting with position information</li>
+</ul>
+<p><strong>Parser Architecture:</strong></p>
+<pre><code>Parser Class
+├── Token Management
+│   ├── advance()
+│   ├── peek()
+│   └── error()
+├── Expression Parsing
+│   ├── parseExpression(precedence)
+│   ├── parsePrefix()
+│   └── parseInfix()
+├── Specialized Parsers
+│   ├── parseArray()
+│   ├── parseMatrix()
+│   ├── parseFunctionDefinition()
+│   ├── parseGeneratorChain()
+│   └── parseCodeBlock()
+└── AST Construction
+    └── createNode()
+</code></pre>
+<h2>Data Flow</h2>
+<h3>1. Tokenization Process</h3>
+<pre><code>Input: &quot;f(x) := x^2 + 1&quot;
+   │
+   ▼ tryMatchIdentifier()
+   ├─► Token{type: &#39;Identifier&#39;, value: &#39;f&#39;, kind: &#39;User&#39;}
+   │
+   ▼ tryMatchSymbol()
+   ├─► Token{type: &#39;Symbol&#39;, value: &#39;(&#39;}
+   │
+   ▼ tryMatchIdentifier()
+   ├─► Token{type: &#39;Identifier&#39;, value: &#39;x&#39;, kind: &#39;User&#39;}
+   │
+   ▼ tryMatchSymbol()
+   ├─► Token{type: &#39;Symbol&#39;, value: &#39;)&#39;}
+   │
+   ▼ tryMatchSymbol() [maximal munch: := not : and =]
+   ├─► Token{type: &#39;Symbol&#39;, value: &#39;:=&#39;}
+   │
+   ... continues for remaining tokens
+</code></pre>
+<h3>2. Parsing Process</h3>
+<pre><code>Tokens → Parser.parseExpression()
+          │
+          ▼ Check precedence and associativity
+          ├─► parsePrefix() for initial token
+          │   └─► Creates base AST node
+          │
+          ▼ parseInfix() for operators
+          ├─► Handles operator precedence
+          ├─► Recursive descent for operands
+          └─► Builds binary operation trees
+          │
+          ▼ Specialized parsing for constructs
+          ├─► Function definitions
+          ├─► Array generators
+          ├─► Matrix notation
+          └─► Metadata annotations
+</code></pre>
+<h2>AST Node Structure</h2>
+<h3>Base Node Structure</h3>
+<pre><code class="language-javascript">{
+  type: string,           // Node type identifier
+  pos?: [number, number], // Source position [start, end]
+  // ... type-specific properties
+}
+</code></pre>
+<h3>Core Node Types</h3>
+<p><strong>Assignment:</strong></p>
+<pre><code class="language-javascript">{
+  type: &#39;Assignment&#39;,
+  operator: &#39;:=&#39; | &#39;:=:&#39; | &#39;:&lt;:&#39; | &#39;:&gt;:&#39; | ...,
+  left: ASTNode,
+  right: ASTNode
+}
+</code></pre>
+<p><strong>Function Definition:</strong></p>
+<pre><code class="language-javascript">{
+  type: &#39;FunctionDefinition&#39;,
+  name: IdentifierNode,
+  parameters: ParameterList,
+  body: ASTNode,
+  definitionType: &#39;standard&#39; | &#39;pattern&#39;
+}
+</code></pre>
+<p><strong>Binary Operation:</strong></p>
+<pre><code class="language-javascript">{
+  type: &#39;BinaryOperation&#39;,
+  operator: string,
+  left: ASTNode,
+  right: ASTNode,
+  precedence: number
+}
+</code></pre>
+<h2>Precedence System</h2>
+<p>The parser uses a comprehensive precedence table:</p>
+<table>
+<thead>
+<tr>
+<th>Level</th>
+<th>Precedence</th>
+<th>Operators</th>
+<th>Associativity</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>0</td>
+<td>STATEMENT</td>
+<td><code>;</code></td>
+<td>Left</td>
+</tr>
+<tr>
+<td>10</td>
+<td>ASSIGNMENT</td>
+<td><code>:=</code>, <code>:=:</code>, <code>:&gt;:</code></td>
+<td>Right</td>
+</tr>
+<tr>
+<td>20</td>
+<td>PIPE</td>
+<td><code>|&gt;</code>, <code>|&gt;&gt;</code>, <code>|&gt;?</code></td>
+<td>Left</td>
+</tr>
+<tr>
+<td>25</td>
+<td>ARROW</td>
+<td><code>-&gt;</code>, <code>=&gt;</code></td>
+<td>Right</td>
+</tr>
+<tr>
+<td>50</td>
+<td>EQUALITY</td>
+<td><code>=</code>, <code>?=</code>, <code>!=</code></td>
+<td>Left</td>
+</tr>
+<tr>
+<td>60</td>
+<td>COMPARISON</td>
+<td><code>&lt;</code>, <code>&gt;</code>, <code>&lt;=</code>, <code>&gt;=</code></td>
+<td>Left</td>
+</tr>
+<tr>
+<td>70</td>
+<td>INTERVAL</td>
+<td><code>:</code></td>
+<td>Left</td>
+</tr>
+<tr>
+<td>80</td>
+<td>ADDITION</td>
+<td><code>+</code>, <code>-</code></td>
+<td>Left</td>
+</tr>
+<tr>
+<td>90</td>
+<td>MULTIPLICATION</td>
+<td><code>*</code>, <code>/</code>, <code>%</code></td>
+<td>Left</td>
+</tr>
+<tr>
+<td>100</td>
+<td>EXPONENTIATION</td>
+<td><code>^</code>, <code>**</code></td>
+<td>Right</td>
+</tr>
+<tr>
+<td>110</td>
+<td>UNARY</td>
+<td><code>-</code>, <code>+</code></td>
+<td>Right</td>
+</tr>
+<tr>
+<td>120</td>
+<td>POSTFIX</td>
+<td><code>()</code>, <code>[]</code></td>
+<td>Left</td>
+</tr>
+<tr>
+<td>130</td>
+<td>PROPERTY</td>
+<td><code>.</code></td>
+<td>Left</td>
+</tr>
+</tbody></table>
+<h2>Extension Points</h2>
+<h3>Adding New Operators</h3>
+<ol>
+<li><p><strong>Update Tokenizer:</strong></p>
+<pre><code class="language-javascript">// Add to symbols array in tokenizer.js
+const symbols = [
+  &#39;new_operator&#39;,  // Add in correct position for maximal munch
+  // ... existing symbols
+];
+</code></pre>
+</li>
+<li><p><strong>Update Parser:</strong></p>
+<pre><code class="language-javascript">// Add to SYMBOL_TABLE in parser.js
+const SYMBOL_TABLE = {
+  &#39;new_operator&#39;: { 
+    precedence: PRECEDENCE.LEVEL, 
+    associativity: &#39;left&#39;,
+    type: &#39;infix&#39; 
+  }
+};
+</code></pre>
+</li>
+<li><p><strong>Add Parsing Logic:</strong></p>
+<pre><code class="language-javascript">// Handle in parseInfix() method
+case &#39;new_operator&#39;:
+  return this.createNode(&#39;NewOperatorNode&#39;, {
+    operator: token.value,
+    left: left,
+    right: this.parseExpression(precedence + 1)
+  });
+</code></pre>
+</li>
+</ol>
+<h3>Adding New Node Types</h3>
+<ol>
+<li><strong>Define AST Structure:</strong> Document the new node type structure</li>
+<li><strong>Add Parser Method:</strong> Create specialized parsing method if needed</li>
+<li><strong>Update Factory:</strong> Add to <code>createNode()</code> method</li>
+<li><strong>Add Tests:</strong> Comprehensive test coverage for new functionality</li>
+</ol>
+<h2>Error Handling</h2>
+<h3>Position Tracking</h3>
+<p>Every token and AST node maintains position information:</p>
+<pre><code class="language-javascript">pos: [startIndex, endIndex]  // Character indices in source
+</code></pre>
+<h3>Error Types</h3>
+<ul>
+<li><strong>Tokenization Errors:</strong> Invalid character sequences, unmatched delimiters</li>
+<li><strong>Parsing Errors:</strong> Unexpected tokens, malformed expressions</li>
+<li><strong>Semantic Errors:</strong> Invalid operator usage, type mismatches</li>
+</ul>
+<h3>Error Recovery</h3>
+<p>The parser provides detailed error messages with:</p>
+<ul>
+<li>Exact source position</li>
+<li>Expected vs actual tokens</li>
+<li>Context information</li>
+<li>Suggested fixes where possible</li>
+</ul>
+<h2>Performance Characteristics</h2>
+<h3>Tokenizer</h3>
+<ul>
+<li><strong>Time Complexity:</strong> O(n) where n is input length</li>
+<li><strong>Space Complexity:</strong> O(n) for token storage</li>
+<li><strong>Optimizations:</strong> Regex compilation, maximal munch caching</li>
+</ul>
+<h3>Parser</h3>
+<ul>
+<li><strong>Time Complexity:</strong> O(n) for typical expressions, O(n²) worst case for deeply nested structures</li>
+<li><strong>Space Complexity:</strong> O(d) where d is maximum nesting depth</li>
+<li><strong>Optimizations:</strong> Precedence climbing, specialized parsers for common patterns</li>
+</ul>
+<h2>Thread Safety</h2>
+<p>The parser is <strong>stateless</strong> and <strong>thread-safe</strong>:</p>
+<ul>
+<li>No global state modification</li>
+<li>Immutable token structures</li>
+<li>Pure function design for core parsing logic</li>
+</ul>
+<h2>Memory Management</h2>
+<ul>
+<li><strong>Token Reuse:</strong> Tokens are lightweight objects</li>
+<li><strong>AST Sharing:</strong> Nodes can be safely shared between trees</li>
+<li><strong>Garbage Collection:</strong> No circular references in generated ASTs</li>
+</ul>
+<h2>Testing Strategy</h2>
+<h3>Unit Tests</h3>
+<ul>
+<li><strong>Tokenizer:</strong> 129 tests covering all token types and edge cases</li>
+<li><strong>Parser:</strong> 185 tests covering all language constructs</li>
+<li><strong>Integration:</strong> Cross-component testing with real expressions</li>
+</ul>
+<h3>Test Categories</h3>
+<ul>
+<li><strong>Specification Compliance:</strong> Ensures adherence to language spec</li>
+<li><strong>Error Conditions:</strong> Validates error handling and reporting</li>
+<li><strong>Performance:</strong> Benchmarks for large expressions</li>
+<li><strong>Edge Cases:</strong> Boundary conditions and malformed input</li>
+</ul>
+<h2>Integration Patterns</h2>
+<h3>External System Integration</h3>
+<pre><code class="language-javascript">// Basic usage pattern
+import { tokenize, parse } from &#39;rix-language-parser&#39;;
+
+const tokens = tokenize(sourceCode);
+const ast = parse(tokens, systemLookupFunction);
+
+// Pass AST to evaluator, compiler, etc.
+</code></pre>
+<h3>System Identifier Resolution</h3>
+<pre><code class="language-javascript">// Custom system identifier lookup
+function systemLookup(identifier) {
+  return {
+    type: &#39;function&#39; | &#39;constant&#39; | &#39;operator&#39;,
+    precedence?: number,
+    associativity?: &#39;left&#39; | &#39;right&#39;,
+    // ... additional metadata
+  };
+}
+</code></pre>
+<h2>Future Architecture Considerations</h2>
+<h3>Planned Enhancements</h3>
+<ul>
+<li><strong>Incremental Parsing:</strong> For IDE integration and large files</li>
+<li><strong>Parallel Parsing:</strong> Multi-threaded parsing for complex expressions</li>
+<li><strong>AST Transformation:</strong> Built-in optimization passes</li>
+<li><strong>Source Maps:</strong> Enhanced debugging support</li>
+</ul>
+<h3>Extension Architecture</h3>
+<ul>
+<li><strong>Plugin System:</strong> For domain-specific language extensions</li>
+<li><strong>Custom Operators:</strong> Runtime operator definition</li>
+<li><strong>Syntax Macros:</strong> Compile-time code generation</li>
+</ul>
+<p>This architecture provides a solid foundation for mathematical expression parsing while maintaining flexibility for future enhancements and integration with the broader RiX language ecosystem.</p>
+</div>
+        </main>
+
+        <footer>
+            <p>&copy; 2024 RiX Language Team. Licensed under MIT.</p>
+        </footer>
+
+        <script>
+            // This script will be replaced by the actual markdown rendering logic
+            // For now, it just shows a placeholder
+            document.addEventListener("DOMContentLoaded", function () {
+                // Highlight current page in sidebar
+                const currentPath = window.location.pathname;
+                const currentFile = currentPath.substring(
+                    currentPath.lastIndexOf("/") + 1,
+                );
+                const sidebarLinks = document.querySelectorAll(".sidebar a");
+                sidebarLinks.forEach((link) => {
+                    const linkPath = link.getAttribute("href");
+                    if (
+                        linkPath === currentFile ||
+                        (currentFile === "" && linkPath === "./") ||
+                        linkPath === "./" + currentFile
+                    ) {
+                        link.classList.add("active");
+                    }
+                });
+            });
+        </script>
+    </body>
+</html>
