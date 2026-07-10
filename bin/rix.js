@@ -3,9 +3,9 @@
  * RiX Runner & REPL
  * 
  * Usage:
- *   bun rix/tools/rix.js <input.rix>      # Run a script
- *   bun rix/tools/rix.js --with-floats    # Start REPL with Float example loaded
- *   bun rix/tools/rix.js                  # Start REPL
+ *   bun bin/rix.js <input.rix>      # Run a script
+ *   bun bin/rix.js --with-floats    # Start REPL with Float example loaded
+ *   bun bin/rix.js                  # Start REPL
  */
 
 import { existsSync, readFileSync } from "fs";

@@ -1,6 +1,6 @@
 # RiX Float Example
 
-This folder is intentionally outside `rix/eval`. It is an example extension that can be split into its own package or git submodule.
+This folder is an example extension. It lives with the core RiX examples and can later be split into its own package or repository.
 
 - `floats.js.rix` defines the RiX-facing type, trait, conversion hooks, proto, export/import, and operator installs.
 - `floats.js` implements the JavaScript-backed arithmetic and JavaScript `Math` calls.

@@ -7,7 +7,8 @@ import {
   existsSync,
   mkdirSync,
 } from "fs";
-import { join, basename, extname } from "path";
+import { join, basename, dirname } from "path";
+import { fileURLToPath } from "url";
 import { marked } from "marked";
 
 // Configure marked options
@@ -20,7 +21,8 @@ marked.setOptions({
 });
 
 // Read the template
-const templatePath = join(process.cwd(), "docs", "template.html");
+const docsDir = dirname(fileURLToPath(import.meta.url));
+const templatePath = join(docsDir, "template.html");
 let template = readFileSync(templatePath, "utf-8");
 
 // Make sure template uses relative paths
@@ -29,7 +31,6 @@ template = template
   .replace(/src="\/rix-lang-parser\//g, 'src="../');
 
 // Get all markdown files in the docs directory
-const docsDir = join(process.cwd(), "docs");
 const markdownFiles = readdirSync(docsDir).filter(
   (file) => file.endsWith(".md") && file !== "README.md",
 );

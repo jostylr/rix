@@ -443,13 +443,29 @@
   original: string    // Combined original text
 }
 </code></pre>
-<h3>PropertyAccess</h3>
+<h3>DotAccess</h3>
 <pre><code class="language-javascript">{
   object: ASTNode,    // Object being accessed
-  property: ASTNode,  // Property name or expression
+  property: string,   // Meta property name (plain string, not a node)
   original: string    // Combined original text
 }
 </code></pre>
+<p><strong>Purpose:</strong> Meta property access (<code>obj.name</code>). Lowers to <code>META_GET</code>. For assignment (<code>obj.name = val</code>) lowers to <code>META_SET</code>. For method calls (<code>obj.Method(args)</code>) desugars to <code>CALL_EXPR(META_GET(obj,&quot;Method&quot;), obj, args...)</code>.</p>
+<h3>KeyLiteral</h3>
+<pre><code class="language-javascript">{
+  name: string,       // The key name (string)
+  original: string    // Original text (&quot;:name&quot;)
+}
+</code></pre>
+<p><strong>Purpose:</strong> String key literal inside brackets — <code>obj[:name]</code>. Used as the <code>property</code> field of a <code>PropertyAccess</code> node to indicate a direct string key (not a runtime expression). Lowers to <code>INDEX_GET(obj, &quot;name&quot;)</code>.</p>
+<h3>PropertyAccess</h3>
+<pre><code class="language-javascript">{
+  object: ASTNode,             // Object being accessed
+  property: ASTNode|KeyLiteral, // Index expression or KeyLiteral for [:name] syntax
+  original: string             // Combined original text
+}
+</code></pre>
+<p><strong>Purpose:</strong> Collection index/key access (<code>obj[expr]</code>). Lowers to <code>INDEX_GET</code>. For <code>obj[:name]</code>, <code>property</code> is a <code>KeyLiteral</code>. For assignment (<code>obj[i] = val</code>) lowers to <code>INDEX_SET</code> (requires <code>mutable=true</code> meta flag).</p>
 <h3>FunctionDefinition</h3>
 <pre><code class="language-javascript">{
   name: ASTNode,      // Function name identifier
@@ -687,7 +703,7 @@
   original: string    // Combined original text
 }
 </code></pre>
-<h3>CodeBlock</h3>
+<h3>BlockContainer</h3>
 <pre><code class="language-javascript">{
   statements: [ASTNode], // Block statements
   original: string    // Combined original text
@@ -755,6 +771,71 @@
   original: string    // Original backtick literal
 }
 </code></pre>
+<h3>DotAccess</h3>
+<pre><code class="language-javascript">{
+  object: ASTNode,    // Object being accessed
+  property: string,   // Meta property name (plain string, not a node)
+  original: string    // Combined original text
+}
+</code></pre>
+<p><strong>Purpose:</strong> Meta property access (<code>obj.name</code>). Lowers to <code>META_GET</code>. For assignment (<code>obj.name = val</code>) lowers to <code>META_SET</code>. When used as a call target (<code>obj.Method(args)</code>) desugars to <code>CALL_EXPR(META_GET(obj,&quot;Method&quot;), obj, args...)</code>.</p>
+<h3>ExternalAccess</h3>
+<pre><code class="language-javascript">{
+  object: ASTNode,    // Object being accessed
+  property: null,     // Always null (obj..name is a parse error)
+  original: string    // Combined original text
+}
+</code></pre>
+<p><strong>Purpose:</strong> Returns all meta properties as a read-only map (<code>obj..</code>). Lowers to <code>META_ALL</code>. Note: <code>obj..name</code> is a <strong>parse error</strong>; use <code>obj.name</code> instead.</p>
+<h3>KeyLiteral</h3>
+<pre><code class="language-javascript">{
+  name: string,       // The key name (string)
+  original: string    // Original text (&quot;:name&quot;)
+}
+</code></pre>
+<p><strong>Purpose:</strong> String key literal inside brackets — <code>obj[:name]</code>. Used as the <code>property</code> field of a <code>PropertyAccess</code> node to pass a string key without a runtime expression. Lowers to <code>INDEX_GET(obj, &quot;name&quot;)</code>.</p>
+<h3>KeySet</h3>
+<pre><code class="language-javascript">{
+  object: ASTNode,    // Map being accessed
+  original: string    // Combined original text
+}
+</code></pre>
+<p><strong>Purpose:</strong> Get the set of keys of a map (<code>obj.|</code>). Lowers to <code>KEYS</code>.</p>
+<h3>ValueSet</h3>
+<pre><code class="language-javascript">{
+  object: ASTNode,    // Map being accessed
+  original: string    // Combined original text
+}
+</code></pre>
+<p><strong>Purpose:</strong> Get the set of values of a map (<code>obj|.</code>). Lowers to <code>VALUES</code>.</p>
+<h3>DeferredBlock</h3>
+<pre><code class="language-javascript">{
+  body: ASTNode,      // The inner container node (BlockContainer, CaseContainer, etc.)
+  original: string    // Combined original text
+}
+</code></pre>
+<p><strong>Purpose:</strong> A computation stored for later execution — not evaluated immediately (<code>@{; x + 1}</code>). Lowers to <code>DEFER(body)</code>.</p>
+<h3>Mutation</h3>
+<pre><code class="language-javascript">{
+  target: ASTNode,    // Object being mutated
+  mutate: boolean,    // true = in-place ({!), false = copy ({=)
+  operations: [{
+    action: &quot;add&quot; | &quot;remove&quot;,  // Operation type
+    key: string,               // Key to add or remove
+    value: ASTNode | null      // Value for &quot;add&quot;; null for &quot;remove&quot;
+  }],
+  original: string    // Combined original text
+}
+</code></pre>
+<p><strong>Purpose:</strong> Map mutation syntax. <code>obj{= ops}</code> (copy mutation) lowers to <code>MUTCOPY</code>. <code>obj{! ops}</code> (in-place mutation) lowers to <code>MUTINPLACE</code>.</p>
+<h3>ImplicitApplication</h3>
+<pre><code class="language-javascript">{
+  callable: ASTNode,  // The callable expression (e.g., SystemIdentifier)
+  argument: ASTNode,  // The maximal multiplicative chunk consumed as argument
+  original: string
+}
+</code></pre>
+<p><strong>Purpose:</strong> Implicit callable application by adjacency. When an uppercase-leading callable identifier is followed by an adjacent expression with no operator, the callable consumes the maximal multiplicative chunk as its argument. <code>F 3x</code> → <code>CALL(F, MUL(3, x))</code>. Nested: <code>F G 7</code> → <code>CALL(F, CALL(G, 7))</code>.</p>
 <h2>Section 3: Common Token Properties</h2>
 <p>All tokens include these base properties:</p>
 <h3>Token Base Properties</h3>

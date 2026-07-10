@@ -1,4 +1,4 @@
-import { parse, tokenize } from '../../index.js';
+import { parse, tokenize } from '../../../src/parser/index.js';
 
 // DOM Elements
 const inputExpression = document.getElementById('input-expression');

@@ -1444,11 +1444,11 @@ result := someFunction(args);
 <p>For specialized constructs, you can create custom node types by modifying the parser&#39;s <code>createNode</code> method and adding appropriate parsing logic.</p>
 <h2>Brace Container Types</h2>
 <p>The parser distinguishes between different types of brace containers based on their syntax and contents:</p>
-<h3>Code Blocks <code>{{ }}</code></h3>
+<h3>Code Blocks <code>{; }</code></h3>
 <p>Code blocks use double braces and contain executable statements or expressions:</p>
-<pre><code class="language-javascript">// Input: &quot;{{x := 1; y := 2}};&quot;
+<pre><code class="language-javascript">// Input: &quot;{;x := 1; y := 2};&quot;
 {
-    type: &quot;CodeBlock&quot;,
+    type: &quot;BlockContainer&quot;,
     statements: [
         {
             type: &quot;BinaryOperation&quot;,
@@ -1465,39 +1465,39 @@ result := someFunction(args);
     ]
 }
 </code></pre>
-<p><strong>Important</strong>: Spaces between braces matter! <code>{{}}</code> is a code block, while <code>{ {} }</code> is a set containing an empty set.</p>
+<p><strong>Important</strong>: Spaces between braces matter! <code>{;}</code> is a code block, while <code>{ {} }</code> is a set containing an empty set.</p>
 <h4>Code Block Rules:</h4>
 <ul>
-<li>Use <code>{{</code> and <code>}}</code> delimiters (double braces)</li>
+<li>Use <code>{;</code> and <code>}</code> delimiters (double braces)</li>
 <li>Can contain any valid RiX expressions or statements</li>
 <li>Statements can be separated by semicolons</li>
-<li>Always produces a <code>CodeBlock</code> AST node regardless of statement count</li>
+<li>Always produces a <code>BlockContainer</code> AST node regardless of statement count</li>
 <li>Supports assignments, function calls, expressions, and nested structures</li>
 </ul>
 <h4>Code Block Examples:</h4>
 <pre><code class="language-javascript">// Empty code block
-{{}}
+{;}
 
 // Single expression
-{{x + y}}
+{;x + y}
 
 // Single assignment
-{{result := calculation()}}
+{;result := calculation()}
 
 // Multiple statements
-{{a := 1; b := 2; sum := a + b}}
+{;a := 1; b := 2; sum := a + b}
 
 // Complex computation pipeline
-{{input := 45; radians := input * PI / 180; result := SIN(radians)}}
+{;input := 45; radians := input * PI / 180; result := SIN(radians)}
 
 // Nested code blocks
-{{ a := {{ 3 }} }}
+{; a := {; 3 } }
 
 // Multi-level nesting
-{{ x := {{ y := {{ z := 42 }} }} }}
+{; x := {; y := {; z := 42 } } }
 
 // Complex nested with multiple statements
-{{ outer := 1; inner := {{ nested := 2; nested + 1 }}; result := outer + inner }}
+{; outer := 1; inner := {; nested := 2; nested + 1 }; result := outer + inner }
 </code></pre>
 <h3>Brace Containers <code>{ }</code></h3>
 <p>The parser distinguishes between four different types of single brace containers <code>{}</code> based on their contents:</p>
@@ -1596,7 +1596,7 @@ result := someFunction(args);
 </ol>
 <p>Mixing different types within the same container will result in a parse error.</p>
 <h2>Code Block vs Brace Container Distinction</h2>
-<p>It&#39;s crucial to understand the difference between code blocks <code>{{ }}</code> and brace containers <code>{ }</code>:</p>
+<p>It&#39;s crucial to understand the difference between code blocks <code>{; }</code> and brace containers <code>{ }</code>:</p>
 <table>
 <thead>
 <tr>
@@ -1608,9 +1608,15 @@ result := someFunction(args);
 </thead>
 <tbody><tr>
 <td>Code Block</td>
-<td><code>{{ }}</code></td>
+<td><code>{; }</code></td>
 <td>Assignable code execution</td>
-<td><code>{{x := 1; y := x + 1}}</code></td>
+<td><code>{;x := 1; y := x + 1}</code></td>
+</tr>
+<tr>
+<td><strong>Tuple</strong></td>
+<td><strong><code>{: }</code></strong></td>
+<td><strong>Explicit tuple literal</strong></td>
+<td><strong><code>{: 1, 2, 3}</code></strong></td>
 </tr>
 <tr>
 <td>Set</td>
@@ -1620,9 +1626,9 @@ result := someFunction(args);
 </tr>
 <tr>
 <td>Map</td>
-<td><code>{ }</code></td>
+<td><code>{= }</code></td>
 <td>Key-value pairs</td>
-<td><code>{name := &quot;Alice&quot;, age := 30}</code></td>
+<td><code>{= name := &quot;Alice&quot;, age := 30}</code></td>
 </tr>
 <tr>
 <td>Pattern Match</td>
@@ -1637,18 +1643,38 @@ result := someFunction(args);
 <td><code>{x :=: 2*y; y :&gt;: 0}</code></td>
 </tr>
 </tbody></table>
+<h3><code>{: }</code> Tuple Container vs <code>( )</code> Grouping</h3>
+<p><code>{: 1, 2, 3}</code> and <code>(1, 2, 3)</code> both produce a 3-element tuple and are equivalent. However, there is an important difference when the content is itself a tuple expression:</p>
+<pre><code class="language-rix">{: 1, 2, 3}      // TupleContainer with 3 comma-separated elements → tuple (1,2,3)
+(1, 2, 3)        // Tuple literal → tuple (1,2,3)
+// These two are equivalent ✓
+
+{: (1, 2, 3)}    // TupleContainer with ONE element: the inner tuple (1,2,3)
+                 // → a 1-element tuple containing (1,2,3), i.e. ((1,2,3),)
+((1, 2, 3))      // Outer parens are just grouping — same as (1,2,3)
+// These two are NOT equivalent!
+</code></pre>
+<p>The reason: <code>{: }</code> uses commas as <strong>element separators at the block level</strong>. When you write <code>{: (1,2,3)}</code>, the inner commas belong to the inner tuple expression — the <code>{:</code> container sees only one element (the tuple <code>(1,2,3)</code>), which it wraps in an outer tuple. By contrast, <code>((1,2,3))</code> is just parenthetical grouping around an already-complete tuple expression.</p>
+<p>This distinction matters for piping:</p>
+<pre><code class="language-rix">{: (1, 2, 3)} |&gt; F    // callArgs = [(1,2,3)] — F receives the inner tuple as one arg
+                       // because the outer 1-element tuple unpacks to a single element
+(1, 2, 3) |&gt; F        // callArgs = [1, 2, 3] — F receives three separate args
+
+// If you want to pipe a tuple as a single argument, use _0:
+(1, 2, 3) ||&gt; F(_0)   // F receives (1,2,3) as one arg — cleaner than {: (1,2,3)}
+</code></pre>
 <h3>Spacing Examples:</h3>
-<pre><code class="language-javascript">{{3}}        // Code block containing number 3
+<pre><code class="language-javascript">{;3}        // Code block containing number 3
 { {3} }      // Set containing a set that contains 3
-{{}}         // Empty code block
+{;}         // Empty code block
 { {} }       // Set containing an empty set
-{{ {a := 1} }} // Code block containing a map
-{ {{a := 1}} } // Set containing a code block (nested)
+{; {a := 1} } // Code block containing a map
+{ {;a := 1} } // Set containing a code block (nested)
 
 // Nested code block examples
-{{ a := {{ 3 }} }}                    // Code block with nested code block
-{{ x := {{ y := 2; y * 3 }} }}         // Assignment to nested computation
-{{ compute := {{ base := 10; base^2 }}; result := compute + 5 }} // Multi-level
+{; a := {; 3 } }                    // Code block with nested code block
+{; x := {; y := 2; y * 3 } }         // Assignment to nested computation
+{; compute := {; base := 10; base^2 }; result := compute + 5 } // Multi-level
 </code></pre>
 <h2>Examples</h2>
 <h3>Basic Arithmetic</h3>
@@ -1893,16 +1919,38 @@ x = 5  # Inline comment
 </tr>
 </tbody></table>
 <h3>Simple Pipe (<code>|&gt;</code>)</h3>
-<p>The simple pipe operator feeds the left operand as arguments to the right function. Tuples are automatically unpacked as multiple arguments.</p>
+<p>The simple pipe operator feeds the left operand as arguments to the right function. <strong>Tuples are automatically unpacked as positional arguments; arrays and all other values are passed as a single argument.</strong></p>
 <h4>Syntax</h4>
 <pre><code>value |&gt; function
 tuple |&gt; function
 </code></pre>
+<h4>Tuple unpacking vs. single-value passing</h4>
+<table>
+<thead>
+<tr>
+<th>Left operand</th>
+<th>How it arrives at the function</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Tuple <code>(a, b, c)</code></td>
+<td>Unpacked — <code>f(a, b, c)</code></td>
+</tr>
+<tr>
+<td>Array <code>[a, b, c]</code></td>
+<td>Single arg — <code>f([a, b, c])</code></td>
+</tr>
+<tr>
+<td>Scalar <code>x</code></td>
+<td>Single arg — <code>f(x)</code></td>
+</tr>
+</tbody></table>
 <h4>Examples</h4>
-<pre><code class="language-rix">3 |&gt; f                    // f(3)
-(3, 4) |&gt; f              // f(3, 4) - tuple unpacked
-[1, 2, 3] |&gt; sum         // sum([1, 2, 3])
-x |&gt; sqrt |&gt; abs         // abs(sqrt(x)) - left associative
+<pre><code class="language-rix">3 |&gt; F                    // F(3)
+(3, 4) |&gt; F              // F(3, 4) — tuple unpacked into two positional args
+(1, 2) |&gt; SUB            // SUB(1, 2) — where SUB(x,y) :-&gt; x - y gives -1
+[1, 2, 3] |&gt; Sum         // Sum([1, 2, 3]) — array passed as one arg
+x |&gt; Sqrt |&gt; Abs         // Abs(Sqrt(x)) — left associative
 </code></pre>
 <h4>AST Structure</h4>
 <pre><code class="language-javascript">{
@@ -1912,30 +1960,44 @@ x |&gt; sqrt |&gt; abs         // abs(sqrt(x)) - left associative
 }
 </code></pre>
 <h3>Explicit Pipe (<code>||&gt;</code>)</h3>
-<p>The explicit pipe operator allows precise control over argument positioning using placeholders (<code>_1</code>, <code>_2</code>, etc.). This enables argument reordering, duplication, and selective usage.</p>
+<p>The explicit pipe operator is a <strong>general IR-template substitution operator</strong>. It evaluates the left side into a tuple, then replaces every placeholder (<code>_1</code>, <code>_2</code>, …) anywhere in the right-side expression with the corresponding tuple element, and evaluates the result. The right side does <strong>not</strong> have to be a function call — it can be any expression.</p>
 <h4>Syntax</h4>
-<pre><code>tuple ||&gt; function(_N, _M, ...)
+<pre><code>tuple ||&gt; AnyExpression
 </code></pre>
+<h4>How it works</h4>
+<p><code>PIPE_EXPLICIT</code> recursively walks the entire IR of the right-hand expression before evaluation, substituting <code>PLACEHOLDER</code> nodes with already-evaluated tuple values. Because substitution happens at the IR level, the right side can be a function call, a tuple, an array literal, a map/record literal, or any compound expression — whatever you write, the placeholders are filled in first, then it evaluates normally.</p>
 <h4>Placeholder Rules</h4>
 <ul>
-<li><code>_1</code>, <code>_2</code>, <code>_3</code>, ... refer to first, second, third, etc. tuple elements</li>
-<li><code>__1</code>, <code>___1</code> etc. are also valid placeholder formats</li>
-<li>Placeholders can be duplicated: <code>_1, _1, _2</code></li>
-<li>Placeholders can be skipped: <code>_3, _1</code> (skips <code>_2</code>)</li>
-<li>Placeholders can be reordered: <code>_2, _1</code> (swaps arguments)</li>
+<li><strong><code>_0</code></strong> — the entire left-hand value, passed as a single argument (the whole tuple, not unpacked)</li>
+<li><strong><code>_1</code>, <code>_2</code>, <code>_3</code>, …</strong> — individual tuple elements, 1-based</li>
+<li>Placeholders can be reordered: <code>_2, _1</code> swaps arguments</li>
+<li>Placeholders can be duplicated: <code>_1, _1</code> repeats the first element</li>
+<li>Placeholders can be skipped: <code>_3, _1</code> uses only the first and third elements</li>
+<li>A scalar left side is treated as a one-element tuple (<code>_1</code> and <code>_0</code> both refer to it)</li>
+<li>Out-of-range placeholders (e.g. <code>_5</code> on a 2-element tuple) raise a runtime error</li>
 </ul>
-<h4>Examples</h4>
-<pre><code class="language-rix">(3, 4) ||&gt; f(_2, _1)           // f(4, 3) - swap arguments
-(1, 2, 3) ||&gt; g(_3, _2, _1)    // g(3, 2, 1) - reverse
-(x, y) ||&gt; func(_1, _1, _2)    // func(x, x, y) - duplicate
-(a, b, c, d) ||&gt; h(_4, _1, _3) // h(d, a, c) - selective
+<h4>Examples — piping into a function</h4>
+<pre><code class="language-rix">(1, 2) ||&gt; SUB(_2, _1)         // SUB(2, 1) = 1  (compare: (1,2) |&gt; SUB = -1)
+(3, 4) ||&gt; SUB(_1, _2)         // SUB(3, 4) = -1 (same order as |&gt;)
+(5, 2) ||&gt; SUB(_1, _1)         // SUB(5, 5) = 0  (duplicate first)
+(1, 2, 3) ||&gt; G(_3, _2, _1)    // G(3, 2, 1) — reversed
+(a, b, c, d) ||&gt; H(_4, _1, _3) // H(d, a, c) — selective
+(1, 2, 3) ||&gt; F(_0)            // F receives the whole tuple (1,2,3) as one arg
 </code></pre>
+<h4>Examples — restructuring without a function</h4>
+<p>Because <code>||&gt;</code> substitutes placeholders in <em>any</em> right-side expression, it doubles as a compact restructuring / projection operator:</p>
+<pre><code class="language-rix">(1, 2, 3) ||&gt; (_2, _1, _3)           // (2, 1, 3)  — reorder into a new tuple
+(1, 2, 3) ||&gt; [_2, _1, _3]           // [2, 1, 3]  — reorder into an array
+(1, 2, 3) ||&gt; {= a=_2, b=_1, c=_3}  // {= a=2, b=1, c=3 } — project into a record
+(x, y)    ||&gt; (_1 + _2, _1 - _2)     // (x+y, x-y) — compute multiple results
+(1, 2, 3) ||&gt; [_0]                   // [(1,2,3)] — wrap whole tuple as one array element
+</code></pre>
+<p>No helper function needed — <code>||&gt;</code> with a literal on the right is equivalent to an anonymous structural mapping.</p>
 <h4>AST Structure</h4>
 <pre><code class="language-javascript">{
   type: &quot;ExplicitPipe&quot;,
   left: { /* tuple operand */ },
-  right: { /* function with placeholders */ },
-  placeholders: [&quot;_2&quot;, &quot;_1&quot;] // extracted placeholder names
+  right: { /* any expression containing PlaceHolder nodes */ }
 }
 </code></pre>
 <h3>Map Operator (<code>|&gt;&gt;</code>)</h3>

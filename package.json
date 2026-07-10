@@ -18,7 +18,9 @@
     "test:parser": "bun test tests/parser",
     "test:eval": "bun test tests/eval",
     "test:tools": "bun test tests/tools",
-    "build:docs": "node ./docs/parser/build-docs.js"
+    "build:demo": "bun build ./docs/parser/src/demo.js --outfile ./docs/parser/demo.js --target browser",
+    "build:docs": "node ./docs/parser/build-docs.js",
+    "build:all": "bun run build:demo && bun run build:docs"
   },
   "dependencies": {
     "@ratmath/core": "workspace:*"

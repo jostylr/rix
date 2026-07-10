@@ -324,14 +324,14 @@
 <p><strong>Features</strong>:</p>
 <ul>
 <li>Positional parameters: <code>f(x, y)</code></li>
-<li>Default parameters: <code>f(x, n := 5)</code></li>
-<li>Keyword-only parameters: <code>f(x; a := 0)</code> (after semicolon)</li>
-<li>Conditional parameters: <code>f(x; n := 2 ? condition)</code></li>
+<li>Hole-default parameters: <code>f(x, n ?| 5)</code> (default used when hole or omitted)</li>
+<li>Keyword-only parameters: <code>f(x; a ?| 0)</code> (after semicolon)</li>
+<li>Conditional parameters: <code>f(x; n ? condition)</code></li>
 </ul>
 <p><strong>Examples</strong>:</p>
 <pre><code class="language-javascript">f(x) :-&gt; x + 1
-power(x, n := 2) :-&gt; x^n
-constrainedFunc(x, y; offset := 0 ? x &gt; 0) :-&gt; x + y + offset
+power(x, n ?| 2) :-&gt; x^n
+constrainedFunc(x, y; offset ? x &gt; 0) :-&gt; x + y + offset
 </code></pre>
 <h3>2. Pattern Matching Functions (<code>:=&gt;</code> operator)</h3>
 <p><strong>Syntax</strong>: <code>functionName :=&gt; patterns</code></p>
@@ -358,10 +358,24 @@ transform(x; scale := 2, offset := 5)
 <p><strong>Lambda Syntax</strong>: <code>f := (parameters) -&gt; body</code><br><strong>With Parameter Lists</strong>: Supports same parameter features as standard functions</p>
 <p><strong>Examples</strong>:</p>
 <pre><code class="language-javascript">double := (x) -&gt; 2 * x
-adjust := (x; offset := 0, scale := 1) -&gt; x * scale + offset
+adjust := (x; offset ?| 0, scale ?| 1) -&gt; x * scale + offset
 </code></pre>
 <h3>5. Condition Operator (<code>?</code>)</h3>
 <p><strong>Precedence</strong>: Between logical operators and equality (45)<br><strong>Usage</strong>: <code>parameter ? condition</code> or <code>value ? condition</code><br><strong>Context</strong>: Parameters, patterns, and conditional expressions</p>
+<h3>6. Self Reference and Tail Self Calls</h3>
+<p>Inside a function body, bare <code>$</code> refers to the current callable object.</p>
+<p><strong>Examples</strong>:</p>
+<pre><code class="language-javascript">CountDown(n) :-&gt; n &gt; 0 ?? $(n - 1) ?: 0
+Fact(n, acc ?| 1) :-&gt; n &gt; 1 ?? $(n - 1, acc * n) ?: acc
+Named(x) :-&gt; $.label
+</code></pre>
+<p><strong>Rules</strong>:</p>
+<ul>
+<li><code>$(...)</code> calls the current callable regardless of the outer binding name.</li>
+<li><code>$.prop</code> and <code>$..</code> use ordinary meta access on that callable.</li>
+<li><code>$</code> is read-only and invalid outside a function body.</li>
+<li>Only direct tail <code>$(...)</code> calls are optimized; general or mutual tail calls are not.</li>
+</ul>
 <h2>Technical Implementation</h2>
 <h3>Tokenizer Changes</h3>
 <ul>
@@ -404,6 +418,12 @@ adjust := (x; offset := 0, scale := 1) -&gt; x * scale + offset
 }
 </code></pre>
 </li>
+<li><p><strong>SelfRef</strong>:</p>
+<pre><code class="language-javascript">{
+  type: &#39;SelfRef&#39;
+}
+</code></pre>
+</li>
 <li><p><strong>ParameterList</strong>:</p>
 <pre><code class="language-javascript">{
   type: &#39;ParameterList&#39;,
@@ -430,6 +450,7 @@ adjust := (x; offset := 0, scale := 1) -&gt; x * scale + offset
 <li><code>parseFunctionCallArgs()</code>: Handles new function call argument structure</li>
 <li><code>parseParameterFromArg()</code>: Converts function call syntax to parameter definitions</li>
 <li><code>convertArgsToParams()</code>: Helper for parameter extraction</li>
+<li>Self-reference parsing for bare <code>$</code>, <code>$(...)</code>, <code>$.prop</code>, and <code>$..</code></li>
 <li>Enhanced <code>parseGrouping()</code>: Detects and handles parameter list syntax</li>
 <li>Enhanced <code>parseInfix()</code>: Handles new function definition operators</li>
 </ul>
@@ -496,6 +517,7 @@ adjust := (x; offset := 0, scale := 1) -&gt; x * scale + offset
 <p>The function definition system integrates with:</p>
 <ul>
 <li><strong>Metadata system</strong>: Parameters and functions support metadata annotations</li>
+<li><strong>Self-reference</strong>: Function bodies can access the current callable and its metadata through <code>$</code></li>
 <li><strong>System identifiers</strong>: Function calls work with system function lookup</li>
 <li><strong>Expression evaluation</strong>: All expressions valid in function bodies and conditions</li>
 <li><strong>Error handling</strong>: Comprehensive error messages for invalid syntax</li>

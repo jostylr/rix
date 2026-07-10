@@ -354,32 +354,32 @@ denominator != 0 ?? numerator / denominator ?: 0
 temp &lt; 0 ?? &quot;frozen&quot; ?: &quot;normal&quot;
 </code></pre>
 <h3>Code Block Integration</h3>
-<p>The ternary operator fully supports RiX&#39;s <code>{{ }}</code> code block syntax, enabling complex multi-statement conditional logic:</p>
+<p>The ternary operator fully supports RiX&#39;s <code>{; }</code> code block syntax, enabling complex multi-statement conditional logic:</p>
 <pre><code class="language-javascript">// Basic code block in true branch
-result := x &gt; 0 ?? {{ a := SIN(5); a + b }} ?: 7
+result := x &gt; 0 ?? {; a := SIN(5); a + b } ?: 7
 
 // Code blocks in both branches
-value := flag ?? {{ 
+value := flag ?? {; 
     x := 10; 
     y := 20; 
     x * y 
-}} ?: {{ 
+} ?: {; 
     z := -5; 
     z^2 
-}}
+}
 
 // Mathematical computation with intermediate variables
-physics := energy &gt; threshold ?? {{ 
+physics := energy &gt; threshold ?? {; 
     v := SQRT(2 * energy / mass); 
     momentum := mass * v; 
     momentum 
-}} ?: 0
+} ?: 0
 
 // Nested ternary inside code block
-complex := x &gt; 0 ?? {{ 
+complex := x &gt; 0 ?? {; 
     temp := SIN(x); 
     temp &gt; 0.5 ?? temp^2 ?: temp/2 
-}} ?: 0
+} ?: 0
 </code></pre>
 <h3>Complex Expressions</h3>
 <pre><code class="language-javascript">// With arithmetic operations
@@ -412,18 +412,18 @@ det &gt; 0 ?? [[1,0],[0,1]] ?: [[0,1],[1,0]]
 x &gt; 0 ?? LOG(x) ?: LOG(-x)
 
 // Code blocks with array operations
-arrayResult := flag ?? {{ 
+arrayResult := flag ?? {; 
     a := [1,2,3]; 
     b := [4,5,6]; 
     a + b 
-}} ?: [0,0,0]
+} ?: [0,0,0]
 
 // Code blocks with pipe operations
-processed := valid ?? {{ 
+processed := valid ?? {; 
     raw := getData(); 
     clean := raw |&gt; sanitize |&gt; normalize; 
     clean 
-}} ?: empty_data
+} ?: empty_data
 </code></pre>
 <h2>AST Structure</h2>
 <p>The ternary operator generates a <code>TernaryOperation</code> AST node:</p>
@@ -462,7 +462,7 @@ result := x &gt; 0 ?? x ?: -x
 <h2>Code Block Support</h2>
 <p>The ternary operator seamlessly integrates with RiX&#39;s code block syntax:</p>
 <ul>
-<li><strong>Multi-statement blocks</strong>: Both true and false branches can contain <code>{{ }}</code> code blocks with multiple semicolon-separated statements</li>
+<li><strong>Multi-statement blocks</strong>: Both true and false branches can contain <code>{; }</code> code blocks with multiple semicolon-separated statements</li>
 <li><strong>Complex computations</strong>: Code blocks enable intermediate variable assignments and complex mathematical calculations</li>
 <li><strong>Nested ternary</strong>: Ternary operations can be nested within code blocks for sophisticated conditional logic</li>
 <li><strong>Full RiX support</strong>: Code blocks support all RiX language features including functions, arrays, pipes, and system calls</li>
