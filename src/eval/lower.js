@@ -925,11 +925,11 @@ const LOWERERS = {
   // === Units ===
 
   ScientificUnit(node) {
-    return ir("UNIT", lowerNode(node.expression), node.unit);
+    return ir("UNIT", lowerNode(node.target), node.unit);
   },
 
   MathematicalUnit(node) {
-    return ir("MATHUNIT", lowerNode(node.expression), node.unit);
+    return ir("MATHUNIT", lowerNode(node.target), node.unit);
   },
 
   // === Generators ===

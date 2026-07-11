@@ -5,6 +5,7 @@ export const runtimeDefaults = Object.freeze({
     conversion: false,
     multifunctionConversion: false,
     multifunctionNoPrep: false,
+    implicitUnitConversion: false,
   }),
   scriptPermissionNames: Object.freeze(["IMPORTS", "NET", "FILES"]),
   defaultScriptCapabilityPolicy: Object.freeze({
@@ -22,5 +23,7 @@ export const runtimeDefaults = Object.freeze({
     Imports: Object.freeze(["IMPORTS"]),
     Net: Object.freeze(["NET"]),
     Files: Object.freeze(["FILES"]),
+    Units: Object.freeze(["UNITS", "Units", "CONVERTUNIT", "ConvertUnit", "DEFINEUNIT", "DefineUnit"]),
+    Exact: Object.freeze(["EXACT", "Exact", "DEFINEEXACTGENERATOR", "DefineExactGenerator"]),
   }),
 });

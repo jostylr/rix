@@ -60,7 +60,7 @@ z := 2:5                        // Interval from 2 to 5
 2:3 ^ 2                         // Interval elementwise exponentiation: 4:9
 a := 3.2~[m]                    // Number with scientific unit: 3.2 meters
 b := 2~{i}                      // Number with mathematical unit: 2i
-CONVERT(100~[m], "m", "ft")     // Unit conversion using CONVERT function
+.ConvertUnit(100~[m], .Units[:ft]) // Unit conversion; source unit is carried
 a:b:%4                          // Pick 4 random points in [a,b]
 [[1,2;3,4], name:="matrix"]     // Matrix with metadata
 SIN(x; n:=4)                    // System function with named argument
@@ -177,7 +177,7 @@ const operatorFunction = parse("+(1, 2, 3)");
 // Unit operators
 const scientificUnit = parse("9.8~[m/s^2]");
 const mathUnit = parse("2~{i}");
-const unitConversion = parse('CONVERT(100~[m], "m", "ft")');
+const unitConversion = parse('.ConvertUnit(100~[m], .Units[:ft])');
 ```
 
 ## API Reference

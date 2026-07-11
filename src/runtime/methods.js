@@ -18,6 +18,8 @@ import {
     tensorSize,
 } from "./tensor.js";
 import { checkTraits, refreshRuntimeMetadata } from "./semantic.js";
+import { isExactValue } from "./exact-values.js";
+import { isUnitValue } from "./quantities.js";
 
 function int(value) {
     return new Integer(BigInt(value));
@@ -1287,7 +1289,9 @@ export function isCallableValue(value) {
                 value.type === "sysref" ||
                 value.type === "partial" ||
                 value.type === "arityCap" ||
-                value.type === "method_builtin"))
+                value.type === "method_builtin")) ||
+        isUnitValue(value) ||
+        isExactValue(value)
     );
 }
 

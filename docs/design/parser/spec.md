@@ -76,16 +76,20 @@ This section specifies support for units in the Mathematical Expression Language
 
 ### Unit Syntax
 
-* **Attach units to numbers with brackets:**
+* **Retrieve units as values or use bracket sugar:**
 
   * `3.2~[m]` → 3.2 meters (scientific unit)
   * `9.8~[m/s^2]` → 9.8 meters per second squared
   * `2~[kg*m^2/s^2]` → 2 joules (if so defined)
+  * `.Units[:m]` → the canonical meter `Unit` value
+  * `3 * .Units[:m]` → the same quantity as `3~[m]`
 * **Complex units:** Any valid unit string between brackets (including `/`, `^`, `*`).
 
 #### Arithmetic with Units
 
-* **Addition/Subtraction:** Only allowed with *identical* units. Attempting to add/subtract numbers with incompatible units throws an error.
+* **Addition/Subtraction:** Allowed for compatible dimensions. The right operand
+  is converted to the left operand's display unit. Incompatible dimensions are
+  errors.
 * **Multiplication/Division:** Units combine naturally:
 
   * `3~[m] * 2~[s] = 6~[m*s]`
@@ -98,18 +102,18 @@ This section specifies support for units in the Mathematical Expression Language
 
 #### Unit Conversion
 
-* **Syntax:** `CONVERT(value, "old_unit", "new_unit")`
+* **Syntax:** `.ConvertUnit(value, target_unit)`
 
-  * E.g., `CONVERT(3.2~[m], "m", "mi")` converts meters to miles
-  * Use the CONVERT system function for unit conversions
+  * E.g., `.ConvertUnit(3.2~[m], .Units[:mi])` converts meters to miles
+  * The source unit is already carried by the quantity and is not repeated
   * The system automatically applies known conversion factors
 
 #### Defining Units
 
-* **Built-in command:** `Unit(name, definition)`
+* **Built-in command:** `.DefineUnit(name, definition)`
 
-  * Example: `Unit("ly", 9.4607e15~[m])`  ly for lightyear
-  * Adds a user-defined unit or alias to the system's conversion table
+  * Example: `.DefineUnit(:fortnight, 14 * .Units[:day])`
+  * The returned Unit value can be stored in a lexical `Units` map overlay
 
 ### Sample Usage
 
@@ -125,7 +129,7 @@ d := 20~[m/s]
 d * c         // 80~[m]
 
 speed := 100~[km/h]
-CONVERT(speed, "km/h", "m/s")   // Convert to m/s
+.ConvertUnit(speed, "m/s")   // Convert to m/s
 
 e := 5~[kg]
 f := 20~[m/s^2]

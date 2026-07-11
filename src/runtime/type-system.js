@@ -270,7 +270,7 @@ function compareNumeric(a, b) {
 
 export const TYPE_INSTALL_FUNCTIONS = [
     "ADD", "SUB", "MUL", "DIV", "INTDIV", "MOD", "POW", "POWPROD", "NEG",
-    "EQ", "LT", "GT", "LTE", "GTE",
+    "EQ", "NEQ", "LT", "GT", "LTE", "GTE",
     "ABS", "SQRT", "SIN", "COS", "TAN", "ASIN", "ACOS", "ATAN", "ATAN2",
     "LOG", "LN", "LOG10", "EXP",
 ];

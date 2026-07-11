@@ -17,6 +17,8 @@ This is the active RiX runtime, not a stub. It currently supports:
 - Diagnostics, testing helpers, tracing, and debug events
 - Runtime error messages with line/column source locations when source text is
   available through `parseAndEvaluate()` or script imports
+- First-class unit, quantity, and exact-generator values loaded through the
+  `.Units` and `.Exact` RiX map collections
 
 The main entry points are:
 
@@ -35,8 +37,9 @@ The following evaluator capabilities are intentionally still stubs or partial:
   lazy generators and function-driven generator forms are not complete.
 - `{$ ... }` system blocks currently evaluate with block-like semantics; the
   broader constraint/solver model is still design work.
-- Unit annotations parse and carry metadata, but full unit arithmetic/conversion
-  is not implemented here.
+- General algebraic field composition and user-declared cross-generator
+  relations remain future work; built-in exact generators reduce their known
+  single-generator relations.
 
 Run the evaluator tests from this directory with:
 

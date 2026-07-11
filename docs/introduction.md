@@ -1628,18 +1628,37 @@ it(1) ## Random access: returns "12" again
 
 ---
 
-## 10. Units (Scientific and Algebraic)
+## 10. Units and Exact Generators
 
-> [!WARNING]
-> Units syntax is reserved in the tokenizer but the underlying evaluation and conversion systems have **yet to be fully implemented**.
+Physical units and exact symbolic generators are ordinary RiX values stored in
+the `.Units` and `.Exact` map collections:
 
-RiX is designed to treat both scientific and mathematical units as first-class citizens, preventing physical dimensional errors and keeping algebraic markers exact.
+```rix
+m := .Units[:m]
+s := .Units[:s]
+pi := .Exact[:pi]
 
-Units are attached to numbers using a tilde `~` separator:
-- **Scientific Units** use brackets `~[...]`. Example: `9.8~[m/s^2]` or `3.2~[kg]`.
-- **Algebraic / Math Units** use braces `~{...}`. Example: `2~{i}` (imaginary unit) or `1~{sqrt2}`.
+distance := 3 * m
+speed := distance / (2 * s)
+angle := pi/2 * .Units[:rad]
+```
 
-Double tildes `~~` are reserved as a conversion operator, for example, to convert a value to a different unit type.
+Scientific-unit syntax is lookup-and-multiply sugar:
+
+- `9.8~[m/s^2]` means `9.8 * (.Units[:m] / .Units[:s]^2)`.
+- `3~{pi}` means `3 * .Exact[:pi]`.
+- `2~{i}` uses the algebraic generator whose relation is `i^2 + 1 = 0`.
+
+Compatible quantities convert automatically for addition and preserve the
+left operand's display unit. Incompatible dimensions are errors. Explicit
+conversion uses `.ConvertUnit(value, targetUnit)`; the source unit is already
+carried by the value.
+
+Unit values are callable constructors, which is especially useful for affine
+coordinates: `.Units[:degC](20)`. See
+[`units-and-exact-values.md`](tutorial/units-and-exact-values.md) for the
+tutorial and [`units-and-exact-generators.md`](design/eval/units-and-exact-generators.md)
+for the runtime design.
 
 ---
 

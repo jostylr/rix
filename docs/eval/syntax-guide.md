@@ -1489,8 +1489,11 @@ Scope note:
 | `TENSOR(data...)` | Legacy tensor constructor |
 | `TENSOR_LITERAL(shape, elems...)` | Explicit-shape tensor literal |
 | `TENSOR_TRANSPOSE(t)` | Rank-2 tensor transpose view |
-| `UNIT(val, unit)` | Scientific unit annotation |
-| `MATHUNIT(val, unit)` | Mathematical unit annotation |
+| `UNIT(val, unit)` | Resolve `unit` through active `Units` map and multiply |
+| `MATHUNIT(val, exact)` | Resolve `exact` through active `Exact` map and multiply |
+| `.ConvertUnit(val, target)` | Select a compatible display unit |
+| `.DefineUnit(name, definition)` | Construct a Unit value for a map overlay |
+| `.DefineExactGenerator(name, polynomial)` | Construct an algebraic generator |
 
 *Note: Combo assignments (`+=`, `-=`, `*=`, `/=`, `//=`, `%=`, `^=`, `++=`, `\/=`, `/\=`, `\=`, `**=`, `/^=`, `/~=`) automatically desugar into `ASSIGN_UPDATE(x, OP(RETRIEVE(x), y))` or `OUTER_UPDATE(x, OP(OUTER_RETRIEVE(x), y))`, preserving the original cell.*
 

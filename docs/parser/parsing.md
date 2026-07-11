@@ -717,8 +717,8 @@ velocity := 5~[m/s]
 complex := 3~{i}~[V]              // complex voltage
 energy := (m * c^2)~[J]
 
-// Unit conversion using CONVERT function
-distance := CONVERT(100~[m], "m", "ft")
+// Unit conversion through the system capability
+distance := .ConvertUnit(100~[m], .Units[:ft])
 ```
 
 ## Tuples

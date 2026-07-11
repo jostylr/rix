@@ -6,6 +6,8 @@ import { Integer, Rational } from "@ratmath/core";
 import { keyOf } from "./keyof.js";
 import { HOLE, isHole } from "../../runtime/hole.js";
 import { createTensor, forEachTensorCell, isTensor, tensorIndexTuple } from "../../runtime/tensor.js";
+import { isExactValue, multiplyScalars } from "../../runtime/exact-values.js";
+import { constructQuantity, isUnitValue } from "../../runtime/quantities.js";
 import {
     appendMultifunctionVariant,
     emitNoPrepWarning,
@@ -332,6 +334,16 @@ export function callWithConcreteArgs(fn, callArgs, context, evaluate) {
         return invokeUserCallable(fn, callArgs, context, evaluate, { callName: fn.name });
     }
 
+    if (isUnitValue(fn)) {
+        if (callArgs.length !== 1) throw new Error("A unit constructor expects exactly one scalar argument");
+        return constructQuantity(callArgs[0], fn);
+    }
+
+    if (isExactValue(fn)) {
+        if (callArgs.length !== 1) throw new Error("An exact generator expects exactly one scalar argument");
+        return multiplyScalars(callArgs[0], fn);
+    }
+
     if (isMultifunctionValue(fn)) {
         return invokeMultifunction(fn, callArgs, context, evaluate, { callName: fn.__name });
     }
@@ -502,6 +514,10 @@ export const functionFunctions = {
 
             if (typeof funcVal === "function") {
                 return funcVal(...callArgs);
+            }
+
+            if (isUnitValue(funcVal) || isExactValue(funcVal)) {
+                return callWithConcreteArgs(funcVal, callArgs, context, evaluate);
             }
 
             throw new Error("Expression is not callable");

@@ -30,6 +30,9 @@ import { diagnosticFunctions } from "./functions/diagnostics.js";
 import { installSymbolicBindings, symbolicFunctions } from "./functions/symbolic.js";
 import { MATH_FUNCTION_NAMES, mathFunctions } from "./functions/math.js";
 import { installRegisteredTypes, registerBuiltinSemanticTypes } from "../runtime/type-system.js";
+import { createDefaultExactCollection } from "../runtime/exact-values.js";
+import { createDefaultUnitCollection } from "../runtime/quantities.js";
+import { installUnitExactVariants, unitExactFunctions } from "./functions/units.js";
 import { parse } from "../parser/parser.js";
 import { posToLineCol } from "../parser/tokenizer.js";
 import { lower } from "./lower.js";
@@ -51,9 +54,11 @@ export function createDefaultRegistry(options = {}) {
     registry.registerAll(methodFunctions);
     registry.registerAll(propertyFunctions);
     registry.registerAll(advancedFunctions);
+    registry.registerAll(unitExactFunctions);
     registry.registerAll(symbolicFunctions);
     registry.registerAll(mathFunctions);
     installRegisteredTypes(registry);
+    installUnitExactVariants(registry);
     for (const loadStartup of options.startupLoaders || []) {
         loadStartup(registry);
     }
@@ -79,6 +84,12 @@ const CURRENT_FILE_ENV_KEY = "__current_file__";
 export function createDefaultSystemContext(options = {}) {
     const frozen = options.frozen !== false; // default true
     const ctx = new SystemContext(new Map(), false); // always build unfrozen
+    const units = options.units || createDefaultUnitCollection();
+    const exact = options.exact || createDefaultExactCollection();
+    ctx.registerValue("UNITS", units, { doc: "Canonical RiX unit collection" });
+    ctx.registerValue("Units", units, { doc: "Canonical RiX unit collection" });
+    ctx.registerValue("EXACT", exact, { doc: "Canonical RiX exact-generator collection" });
+    ctx.registerValue("Exact", exact, { doc: "Canonical RiX exact-generator collection" });
     ctx.registerAll(stdlibFunctions);
     ctx.register("EVAL", coreFunctions.EVAL);
     ctx.register("TypeExport", coreFunctions.TYPE_EXPORT);
@@ -118,6 +129,12 @@ export function createDefaultSystemContext(options = {}) {
     }
     // Diagnostic system capabilities (.Warn, .Info, .Error, .Stop, .Test, .Debug, .Trace)
     ctx.registerAll(diagnosticFunctions);
+    ctx.register("CONVERTUNIT", unitExactFunctions.CONVERTUNIT);
+    ctx.register("ConvertUnit", unitExactFunctions.CONVERTUNIT);
+    ctx.register("DEFINEUNIT", unitExactFunctions.DEFINEUNIT);
+    ctx.register("DefineUnit", unitExactFunctions.DEFINEUNIT);
+    ctx.register("DEFINEEXACTGENERATOR", unitExactFunctions.DEFINEEXACTGENERATOR);
+    ctx.register("DefineExactGenerator", unitExactFunctions.DEFINEEXACTGENERATOR);
     if (frozen) ctx.freeze();
     return ctx;
 }
@@ -376,7 +393,9 @@ function restrictSystemContext(systemContext, allowedNames) {
     const child = new SystemContext(new Map(), false);
     for (const name of systemContext.getAllNames()) {
         if (allowedNames.has(name)) {
-            child.register(name, systemContext.get(name));
+            const entry = systemContext.get(name);
+            if (entry.kind === "value") child.registerValue(name, entry.value, entry);
+            else child.register(name, entry);
         }
     }
     child.freeze();
@@ -663,6 +682,8 @@ export function evaluate(irNode, context, registry, systemContext) {
             if (!systemContext.has(name)) {
                 throw new Error(`Unknown system capability: ${name}`);
             }
+            const entry = systemContext.get(name);
+            if (entry.kind === "value") return entry.value;
             return { type: "sysref", name };
         }
 
@@ -675,6 +696,9 @@ export function evaluate(irNode, context, registry, systemContext) {
             const cap = systemContext.get(name);
             if (!cap) {
                 throw new Error(`Unknown system capability: ${name}. Use .${name}() only if the capability exists.`);
+            }
+            if (cap.kind === "value") {
+                throw new Error(`System value .${name} is not directly callable; index it or assign one of its entries`);
             }
             // Partial application: if any arg is a placeholder, build a partial
             const isPlaceholder = (n) => n && typeof n === "object" && n.fn === "PLACEHOLDER";
@@ -718,7 +742,7 @@ export function evaluate(irNode, context, registry, systemContext) {
 
         // If the function is lazy, pass raw args (IR nodes)
         if (funcDef.lazy) {
-            return funcDef.impl(args, context, evalFn);
+            return funcDef.impl(args, context, evalFn, systemContext);
         }
 
         // Otherwise, evaluate all args first
@@ -750,7 +774,7 @@ export function evaluate(irNode, context, registry, systemContext) {
             }
         }
 
-        return funcDef.impl(evaluatedArgs, context, evalFn);
+        return funcDef.impl(evaluatedArgs, context, evalFn, systemContext);
     } catch (error) {
         throw annotateEvaluationError(error, irNode, context);
     }
@@ -774,6 +798,7 @@ export function parseAndEvaluate(code, options = {}) {
     }
     const registry = options.registry || createDefaultRegistry();
     const systemContext = options.systemContext || createDefaultSystemContext();
+    context.setEnv("__system_context__", systemContext);
     const systemLookup = options.systemLookup || defaultSystemLookup;
     getScriptRuntime(context, { systemLookup });
     context.setEnv("__registry__", registry);

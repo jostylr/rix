@@ -1,0 +1,27 @@
+## Unit values and concise unit sugar use the same runtime model.
+m := .Units[:m];
+s := .Units[:s];
+pi := .Exact[:pi];
+
+distance := 120 * m;
+elapsed := 30~[s] + 2~[min];
+speed := distance / elapsed;
+speedMps := .ConvertUnit(speed, "m/s");
+
+## Units are callable, including affine temperature coordinates.
+roomC := .Units[:degC](20);
+roomF := .ConvertUnit(roomC, .Units[:degF]);
+
+## Exact generators compose with physical quantities.
+halfTurn := 1/2~{pi}~[rad];
+iSquared := .Exact[:i]^2;
+rootSquared := .Exact[:sqrt2]^2;
+
+{=
+  elapsed = elapsed,
+  speed = speedMps,
+  roomF = roomF,
+  halfTurn = halfTurn,
+  iSquared = iSquared,
+  rootSquared = rootSquared
+}

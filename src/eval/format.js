@@ -4,6 +4,8 @@ import { isTensor, tensorOffsetForTuple, tensorSize } from "../runtime/tensor.js
 import { irToText } from "./ir-to-text.js";
 import { resolveMethod } from "../runtime/methods.js";
 import { callWithConcreteArgs } from "./functions/functions.js";
+import { formatExact } from "../runtime/exact-values.js";
+import { formatQuantity, formatUnit, isQuantity, isUnitValue } from "../runtime/quantities.js";
 
 function tensorValueAtTuple(tensor, tuple) {
     const value = tensor.data[tensorOffsetForTuple(tensor, tuple)];
@@ -251,6 +253,11 @@ export function formatValue(val, options = {}) {
 
     if (typeof val === "object" && val !== null) {
         if (val.type === "string") return val.value;
+        if (isQuantity(val)) return formatQuantity(val, formatChild);
+        if (isUnitValue(val)) return `~[${formatUnit(val)}]`;
+        if (val.type === "exact_generator" || val.type === "exact_expression") {
+            return formatExact(val, formatChild);
+        }
         if (isTensor(val)) return formatTensor(val, formatChild);
         if (val.type === "sequence" && val._ext instanceof Map && val._ext.get("_type")?.value === "multifunction") {
             return formatMultifunctionPreview(val);

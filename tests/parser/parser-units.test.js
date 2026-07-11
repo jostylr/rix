@@ -8,7 +8,6 @@ function testSystemLookup(name) {
     E: { type: "constant", value: Math.E },
     SIN: { type: "function", arity: 1 },
     COS: { type: "function", arity: 1 },
-    CONVERT: { type: "function", arity: 3 },
   };
   return systemSymbols[name] || { type: "identifier" };
 }
@@ -252,19 +251,15 @@ describe("RiX Parser - Unit Operators", () => {
     });
   });
 
-  describe("CONVERT function usage", () => {
-    test("basic unit conversion", () => {
-      const ast = parseCode('CONVERT(5~[m], "m", "ft");');
+  describe(".ConvertUnit system capability usage", () => {
+    test("the source unit is carried and the target is a unit value", () => {
+      const ast = parseCode('.ConvertUnit(5~[m], .Units[:ft]);');
       expect(stripMetadata(ast)).toEqual([
         {
           type: "Statement",
           expression: {
-            type: "FunctionCall",
-            function: {
-              type: "SystemIdentifier",
-              name: "CONVERT",
-              systemInfo: { type: "function", arity: 3 },
-            },
+            type: "SystemCall",
+            name: "CONVERTUNIT",
             arguments: {
               positional: [
                 {
@@ -272,48 +267,15 @@ describe("RiX Parser - Unit Operators", () => {
                   target: { type: "Number", value: "5" },
                   unit: "m",
                 },
-                { type: "String", value: "m", kind: "quote" },
-                { type: "String", value: "ft", kind: "quote" },
-              ],
-              keyword: {},
-            },
-          },
-        },
-      ]);
-    });
-
-    test("convert expression with units", () => {
-      const ast = parseCode('CONVERT((a + b)~[kg], "kg", "lb");');
-      expect(stripMetadata(ast)).toEqual([
-        {
-          type: "Statement",
-          expression: {
-            type: "FunctionCall",
-            function: {
-              type: "SystemIdentifier",
-              name: "CONVERT",
-              systemInfo: { type: "function", arity: 3 },
-            },
-            arguments: {
-              positional: [
                 {
-                  type: "ScientificUnit",
-                  target: {
-                    type: "Grouping",
-                    expression: {
-                      type: "BinaryOperation",
-                      operator: "+",
-                      left: { type: "UserIdentifier", name: "a" },
-                      right: { type: "UserIdentifier", name: "b" },
-                    },
-                  },
-                  unit: "kg",
+                  type: "PropertyAccess",
+                  object: { type: "SystemAccess", property: "UNITS" },
+                  property: { type: "KeyLiteral", name: "ft" },
                 },
-                { type: "String", value: "kg", kind: "quote" },
-                { type: "String", value: "lb", kind: "quote" },
               ],
               keyword: {},
             },
+            viaSystemContext: true,
           },
         },
       ]);

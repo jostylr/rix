@@ -196,19 +196,4 @@ export const advancedFunctions = {
         doc: "Transpose a rank-2 tensor view",
     },
 
-    UNIT: {
-        impl(args) {
-            return { type: "unit", value: args[0], unit: args[1] };
-        },
-        pure: true,
-        doc: "Scientific unit annotation (future)",
-    },
-
-    MATHUNIT: {
-        impl(args) {
-            return { type: "mathunit", value: args[0], unit: args[1] };
-        },
-        pure: true,
-        doc: "Mathematical unit annotation (future)",
-    },
 };

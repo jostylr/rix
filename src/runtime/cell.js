@@ -141,6 +141,18 @@ export function shallowCopyValue(value) {
         };
     }
 
+    if (value.type === "quantity") {
+        return { ...value, _ext: value._ext ? new Map(value._ext) : undefined };
+    }
+
+    if (value.type === "unit_expr") {
+        return { ...value, factors: new Map(value.factors), _ext: value._ext ? new Map(value._ext) : undefined };
+    }
+
+    if (value.type === "exact_expression") {
+        return { ...value, terms: new Map(value.terms), _ext: value._ext ? new Map(value._ext) : undefined };
+    }
+
     // Function / lambda / other object — return same reference (immutable def)
     return value;
 }
@@ -219,6 +231,34 @@ export function deepCopyValue(value) {
             offset: value.offset,
             _ext: value._ext ? deepCopyMeta(value._ext) : undefined,
         };
+    }
+
+    if (value.type === "quantity") {
+        return {
+            ...value,
+            baseMagnitude: deepCopyValue(value.baseMagnitude),
+            displayUnit: deepCopyValue(value.displayUnit),
+            _ext: value._ext ? deepCopyMeta(value._ext) : undefined,
+        };
+    }
+
+    if (value.type === "unit_expr") {
+        return {
+            ...value,
+            factors: new Map(value.factors),
+            _ext: value._ext ? deepCopyMeta(value._ext) : undefined,
+        };
+    }
+
+    if (value.type === "exact_expression") {
+        const terms = new Map();
+        for (const [key, term] of value.terms) {
+            terms.set(key, {
+                powers: new Map(term.powers),
+                coefficient: deepCopyValue(term.coefficient),
+            });
+        }
+        return { ...value, terms, _ext: value._ext ? deepCopyMeta(value._ext) : undefined };
     }
 
     return value;

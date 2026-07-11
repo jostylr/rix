@@ -39,6 +39,16 @@ export class SystemContext {
         });
     }
 
+    /** Register a non-callable RiX value on the system object. */
+    registerValue(name, value, options = {}) {
+        this._checkMutable();
+        this._capabilities.set(name, {
+            kind: "value",
+            value,
+            doc: options.doc || "",
+        });
+    }
+
     /**
      * Register multiple capabilities from an object map.
      */
@@ -94,6 +104,7 @@ export class SystemContext {
     call(name, args, context, evaluate) {
         const cap = this._capabilities.get(name);
         if (!cap) throw new Error(`Unknown system capability: ${name}. Use .${name}() or check available capabilities.`);
+        if (cap.kind === "value") throw new Error(`System value .${name} is not a capability function`);
         return cap.impl(args, context, evaluate);
     }
 
@@ -103,6 +114,7 @@ export class SystemContext {
     callLazy(name, args, context, evaluate) {
         const cap = this._capabilities.get(name);
         if (!cap) throw new Error(`Unknown system capability: ${name}.`);
+        if (cap.kind === "value") throw new Error(`System value .${name} is not a capability function`);
         return cap.impl(args, context, evaluate);
     }
 
@@ -142,12 +154,14 @@ export class SystemContext {
      */
     with(name, def) {
         const caps = new Map(this._capabilities);
-        caps.set(name, {
-            impl: typeof def === "function" ? def : def.impl,
-            lazy: def.lazy || false,
-            pure: def.pure || false,
-            doc: def.doc || "",
-        });
+        caps.set(name, def?.kind === "value" || Object.prototype.hasOwnProperty.call(def || {}, "value")
+            ? { kind: "value", value: def.value, doc: def.doc || "" }
+            : {
+                impl: typeof def === "function" ? def : def.impl,
+                lazy: def.lazy || false,
+                pure: def.pure || false,
+                doc: def.doc || "",
+            });
         return new SystemContext(caps, true);
     }
 

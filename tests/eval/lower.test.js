@@ -80,6 +80,22 @@ describe("Lowering Pass", () => {
     });
   });
 
+  describe("Unit and exact-generator sugar", () => {
+    test("scientific unit keeps its target expression", () => {
+      expect(L("3~[m/s^2];")).toEqual({
+        fn: "UNIT",
+        args: [{ fn: "LITERAL", args: ["3"] }, "m/s^2"],
+      });
+    });
+
+    test("exact generator keeps its target expression", () => {
+      expect(L("3/2~{pi};")).toEqual({
+        fn: "MATHUNIT",
+        args: [{ fn: "LITERAL", args: ["3/2"] }, "pi"],
+      });
+    });
+  });
+
   describe("Variables", () => {
     test("lowercase identifier → RETRIEVE", () => {
       const ir = L("x;");

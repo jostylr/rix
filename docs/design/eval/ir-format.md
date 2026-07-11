@@ -164,6 +164,11 @@ Operations array: `[{action: "add"|"remove", key: string, value: ir|null}]`
 
 ### Units
 
+These IR operations are syntax sugar. `UNIT` resolves its string through the
+active `Units` RiX map and multiplies the expression by the resulting unit
+value. `MATHUNIT` does the same through the active `Exact` map. The resulting
+runtime values are ordinary `Quantity` or `ExactExpression` values.
+
 | IR fn | Source | Args |
 |-------|--------|------|
 | `UNIT` | `3.2~[m]` | `[expr, unit_string]` |

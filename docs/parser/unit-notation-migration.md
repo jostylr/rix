@@ -76,7 +76,8 @@ This change allows for more flexible parsing and better error messages.
 
 ## Unit Conversions
 
-Unit conversion syntax has changed from the double-tilde operator to using the `CONVERT` function:
+Unit conversion now uses `.ConvertUnit(value, target)`. The source unit is
+carried by the quantity and must not be repeated:
 
 ```
 // Old
@@ -85,14 +86,14 @@ distance_in_feet := distance~~ft/m~;
 
 // New
 distance := 100~[m];
-distance_in_feet := CONVERT(distance, "m", "ft");
+distance_in_feet := .ConvertUnit(distance, .Units[:ft]);
 ```
 
 ## Migration Steps
 
 1. **Update Scientific Units**: Replace `~unit~` with `~[unit]` for all physical units
 2. **Update Mathematical Units**: Replace `~unit~` with `~{unit}` for complex numbers and algebraic extensions
-3. **Update Unit Conversions**: Replace `~~unit1/unit2~` with `CONVERT(value, "unit2", "unit1")`
+3. **Update Unit Conversions**: Replace `~~unit1/unit2~` with `.ConvertUnit(value, target)`
 4. **Test Your Code**: Run your tests to ensure the migration is complete
 
 ## Examples
@@ -128,7 +129,7 @@ product := z1 * z2;  // 11 - 2~{i}
 
 // Unit conversion
 height_m := 1.8~[m];
-height_ft := CONVERT(height_m, "m", "ft");
+height_ft := .ConvertUnit(height_m, .Units[:ft]);
 ```
 
 ## Benefits of the New Syntax

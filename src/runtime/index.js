@@ -4,3 +4,18 @@ export { Cell } from "./cell.js";
 export { HOLE, isHole } from "./hole.js";
 export { DiagnosticsRegistry, getDiagnostics, RixAbort, isRixAbort, createEvent } from "./diagnostics.js";
 export { runtimeDefaults } from "./runtime-config.js";
+export {
+    createDefaultUnitCollection,
+    createUnit,
+    constructQuantity,
+    convertQuantity,
+    parseUnitExpression,
+    isUnitValue,
+    isQuantity,
+} from "./quantities.js";
+export {
+    createDefaultExactCollection,
+    createExactGenerator,
+    exactGeneratorFromPolynomial,
+    isExactValue,
+} from "./exact-values.js";
