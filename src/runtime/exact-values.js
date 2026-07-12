@@ -530,14 +530,30 @@ function composeCayleyDirections(left, right) {
     return divideScalars(addScalars(left, right), denominator);
 }
 
+function isUnsupportedExactDivision(error) {
+    return error instanceof Error
+        && /Division by a multi-term exact expression is not implemented/.test(error.message);
+}
+
+function cayleyProductViaCartesian(left, right) {
+    const iGenerator = left.iGenerator || right.iGenerator;
+    const product = multiplyScalars(cayleyCartesian(left), cayleyCartesian(right));
+    return cayleyFromCartesian(product, iGenerator);
+}
+
 export function multiplyCayley(left, right) {
     const a = asCayley(left, right);
     const b = asCayley(right, a);
-    return createCayley(
-        multiplyScalars(a.magnitude, b.magnitude),
-        composeCayleyDirections(a.direction, b.direction),
-        a.iGenerator || b.iGenerator,
-    );
+    try {
+        return createCayley(
+            multiplyScalars(a.magnitude, b.magnitude),
+            composeCayleyDirections(a.direction, b.direction),
+            a.iGenerator || b.iGenerator,
+        );
+    } catch (error) {
+        if (!isUnsupportedExactDivision(error)) throw error;
+        return cayleyProductViaCartesian(a, b);
+    }
 }
 
 export function conjugateCayley(value) {
