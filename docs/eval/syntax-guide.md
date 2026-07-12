@@ -1494,6 +1494,10 @@ Scope note:
 | `.ConvertUnit(val, target)` | Select a compatible display unit |
 | `.DefineUnit(name, definition)` | Construct a Unit value for a map overlay |
 | `.DefineExactGenerator(name, polynomial)` | Construct an algebraic generator |
+| `.Complex.Conjugate(value)` | Conjugate an exact complex expression |
+| `.Complex.Re(value)`, `.Complex.Im(value)` | Extract exact complex components |
+| `.Complex.FromParts(real, imaginary)` | Construct `real + imaginary*i` |
+| `.Complex.NormSquared(value)` | Return exact `Re(value)^2 + Im(value)^2` |
 
 *Note: Combo assignments (`+=`, `-=`, `*=`, `/=`, `//=`, `%=`, `^=`, `++=`, `\/=`, `/\=`, `\=`, `**=`, `/^=`, `/~=`) automatically desugar into `ASSIGN_UPDATE(x, OP(RETRIEVE(x), y))` or `OUTER_UPDATE(x, OP(OUTER_RETRIEVE(x), y))`, preserving the original cell.*
 

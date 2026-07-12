@@ -1660,6 +1660,11 @@ coordinates: `.Units[:degC](20)`. See
 tutorial and [`units-and-exact-generators.md`](design/eval/units-and-exact-generators.md)
 for the runtime design.
 
+Exact complex values use `.Exact[:i]` and the `.Complex` operation map. Division
+within a single algebraic extension is exact, so `1/.Exact[:i]` reduces to
+`-i`. `.Complex.Conjugate(z)`, `.Complex.Re(z)`, `.Complex.Im(z)`, and
+`.Complex.NormSquared(z)` work without selecting a floating approximation.
+
 ---
 
 ---

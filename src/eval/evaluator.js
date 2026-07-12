@@ -30,7 +30,7 @@ import { diagnosticFunctions } from "./functions/diagnostics.js";
 import { installSymbolicBindings, symbolicFunctions } from "./functions/symbolic.js";
 import { MATH_FUNCTION_NAMES, mathFunctions } from "./functions/math.js";
 import { installRegisteredTypes, registerBuiltinSemanticTypes } from "../runtime/type-system.js";
-import { createDefaultExactCollection } from "../runtime/exact-values.js";
+import { createDefaultComplexCollection, createDefaultExactCollection } from "../runtime/exact-values.js";
 import { createDefaultUnitCollection } from "../runtime/quantities.js";
 import { installUnitExactVariants, unitExactFunctions } from "./functions/units.js";
 import { parse } from "../parser/parser.js";
@@ -86,10 +86,13 @@ export function createDefaultSystemContext(options = {}) {
     const ctx = new SystemContext(new Map(), false); // always build unfrozen
     const units = options.units || createDefaultUnitCollection();
     const exact = options.exact || createDefaultExactCollection();
+    const complex = options.complex || createDefaultComplexCollection(exact);
     ctx.registerValue("UNITS", units, { doc: "Canonical RiX unit collection" });
     ctx.registerValue("Units", units, { doc: "Canonical RiX unit collection" });
     ctx.registerValue("EXACT", exact, { doc: "Canonical RiX exact-generator collection" });
     ctx.registerValue("Exact", exact, { doc: "Canonical RiX exact-generator collection" });
+    ctx.registerValue("COMPLEX", complex, { doc: "Exact complex-number operations" });
+    ctx.registerValue("Complex", complex, { doc: "Exact complex-number operations" });
     ctx.registerAll(stdlibFunctions);
     ctx.register("EVAL", coreFunctions.EVAL);
     ctx.register("TypeExport", coreFunctions.TYPE_EXPORT);

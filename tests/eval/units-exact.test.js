@@ -163,4 +163,43 @@ describe("exact generators", () => {
         `);
         expect(rationalParts(value)).toEqual([3n, 1n]);
     });
+
+    test("division in a single algebraic extension reduces exactly", () => {
+        expect(formatValue(evalRiX("1 / .Exact[:i]"))).toBe("-1~{i}");
+        expect(formatValue(evalRiX("(1 + .Exact[:i]) / (1 - .Exact[:i])"))).toBe("1~{i}");
+        expect(formatValue(evalRiX("1 / (1 + .Exact[:sqrt2])"))).toBe("-1 + 1~{sqrt2}");
+    });
+
+    test("division by unsupported transcendental sums remains explicit", () => {
+        expect(() => evalRiX("1 / (1 + .Exact[:pi])")).toThrow(/multi-term exact expression/i);
+    });
+});
+
+describe("complex exact operations", () => {
+    test(".Complex is a RiX collection containing i and callable operations", () => {
+        const complex = evalRiX(".Complex");
+        expect(complex.type).toBe("map");
+        expect(complex.entries.get("i")).toBe(complex.entries.get("I"));
+        expect(typeof complex.entries.get("conjugate")).toBe("function");
+    });
+
+    test("conjugation is available through the namespace and exact-value method", () => {
+        expect(formatValue(evalRiX(".Complex.Conjugate(3 + 4~{i})"))).toBe("3 - 4~{i}");
+        expect(formatValue(evalRiX("(3 + 4~{i}).Conjugate()"))).toBe("3 - 4~{i}");
+        expect(formatValue(evalRiX(".Complex.Conjugate(.Complex.Conjugate(3 + 4~{i}))"))).toBe("3 + 4~{i}");
+    });
+
+    test("real and imaginary parts retain exact coefficients", () => {
+        expect(formatValue(evalRiX(".Complex.Re(3 + 4~{i})"))).toBe("3");
+        expect(formatValue(evalRiX(".Complex.Im(3 + 4~{i})"))).toBe("4");
+        expect(formatValue(evalRiX("(3 + 4~{i}).Re()"))).toBe("3");
+        expect(formatValue(evalRiX(".Complex.Re(.Exact[:pi] + .Exact[:i] * .Exact[:sqrt2])"))).toBe("1~{pi}");
+        expect(formatValue(evalRiX(".Complex.Im(.Exact[:pi] + .Exact[:i] * .Exact[:sqrt2])"))).toBe("1~{sqrt2}");
+    });
+
+    test("FromParts and NormSquared avoid premature real approximation", () => {
+        expect(formatValue(evalRiX(".Complex.FromParts(3, 4)"))).toBe("3 + 4~{i}");
+        expect(formatValue(evalRiX(".Complex.NormSquared(3 + 4~{i})"))).toBe("25");
+        expect(formatValue(evalRiX("(3 + 4~{i}).NormSquared()"))).toBe("25");
+    });
 });

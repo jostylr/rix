@@ -143,6 +143,105 @@ function expressionFromTerms(terms) {
     return { type: "exact_expression", terms: reduced };
 }
 
+function trimPolynomial(polynomial) {
+    const result = [...polynomial];
+    while (result.length > 0 && isZero(result[result.length - 1])) result.pop();
+    return result;
+}
+
+function polynomialAdd(left, right) {
+    const length = Math.max(left.length, right.length);
+    const result = Array.from({ length }, (_, index) =>
+        (left[index] || int(0)).add(right[index] || int(0)));
+    return trimPolynomial(result);
+}
+
+function polynomialNegate(polynomial) {
+    return polynomial.map(negateRational);
+}
+
+function polynomialSubtract(left, right) {
+    return polynomialAdd(left, polynomialNegate(right));
+}
+
+function polynomialMultiply(left, right) {
+    if (left.length === 0 || right.length === 0) return [];
+    const result = Array.from({ length: left.length + right.length - 1 }, () => int(0));
+    for (let i = 0; i < left.length; i++) {
+        for (let j = 0; j < right.length; j++) {
+            result[i + j] = result[i + j].add(left[i].multiply(right[j]));
+        }
+    }
+    return trimPolynomial(result);
+}
+
+function polynomialDivmod(dividend, divisor) {
+    const denominator = trimPolynomial(divisor);
+    if (denominator.length === 0) throw new Error("Polynomial division by zero");
+    let remainder = trimPolynomial(dividend);
+    const quotient = Array.from({ length: Math.max(0, remainder.length - denominator.length + 1) }, () => int(0));
+    while (remainder.length >= denominator.length && remainder.length > 0) {
+        const degree = remainder.length - denominator.length;
+        const factor = remainder[remainder.length - 1].divide(denominator[denominator.length - 1]);
+        quotient[degree] = quotient[degree].add(factor);
+        const shifted = Array.from({ length: degree }, () => int(0)).concat(denominator.map((value) => value.multiply(factor)));
+        remainder = polynomialSubtract(remainder, shifted);
+    }
+    return [trimPolynomial(quotient), remainder];
+}
+
+function polynomialExtendedGcd(left, right) {
+    if (trimPolynomial(right).length === 0) return [trimPolynomial(left), [int(1)], []];
+    const [quotient, remainder] = polynomialDivmod(left, right);
+    const [gcd, x1, y1] = polynomialExtendedGcd(right, remainder);
+    return [gcd, y1, polynomialSubtract(x1, polynomialMultiply(quotient, y1))];
+}
+
+function algebraicPolynomial(value) {
+    const terms = toTerms(value);
+    let generator = null;
+    let maxExponent = 0;
+    for (const term of terms.values()) {
+        for (const [candidate, exponent] of term.powers) {
+            if (exponent < 0 || !candidate.minimalPolynomial) return null;
+            if (generator && generator !== candidate) return null;
+            generator = candidate;
+            maxExponent = Math.max(maxExponent, exponent);
+        }
+    }
+    if (!generator) return null;
+    const polynomial = Array.from({ length: maxExponent + 1 }, () => int(0));
+    for (const term of terms.values()) {
+        const exponent = term.powers.get(generator) || 0;
+        if (term.powers.size > (exponent === 0 ? 0 : 1)) return null;
+        polynomial[exponent] = polynomial[exponent].add(term.coefficient);
+    }
+    return { generator, polynomial: trimPolynomial(polynomial) };
+}
+
+function expressionFromPolynomial(generator, polynomial) {
+    const terms = new Map();
+    for (let exponent = 0; exponent < polynomial.length; exponent++) {
+        if (isZero(polynomial[exponent])) continue;
+        addRawTerm(
+            terms,
+            exponent === 0 ? new Map() : new Map([[generator, exponent]]),
+            polynomial[exponent],
+        );
+    }
+    return expressionFromTerms(terms);
+}
+
+function invertSingleAlgebraicExpression(value) {
+    const parsed = algebraicPolynomial(value);
+    if (!parsed || parsed.polynomial.length === 0) return null;
+    const [gcd, coefficient] = polynomialExtendedGcd(parsed.polynomial, parsed.generator.minimalPolynomial);
+    if (gcd.length !== 1 || isZero(gcd[0])) return null;
+    const normalized = coefficient.map((entry) => entry.divide(gcd[0]));
+    const [, reduced] = polynomialDivmod(normalized, parsed.generator.minimalPolynomial);
+    return expressionFromPolynomial(parsed.generator, reduced);
+}
+
 function toTerms(value) {
     if (value?.type === "exact_expression") return value.terms;
     const terms = new Map();
@@ -198,6 +297,8 @@ export function multiplyScalars(left, right) {
 
 export function divideScalars(left, right) {
     if (!isExactValue(left) && !isExactValue(right)) return rationalFrom(left).divide(rationalFrom(right));
+    const algebraicInverse = invertSingleAlgebraicExpression(right);
+    if (algebraicInverse !== null) return multiplyScalars(left, algebraicInverse);
     const denominatorTerms = [...toTerms(right).values()];
     if (denominatorTerms.length !== 1) {
         throw new Error("Division by a multi-term exact expression is not implemented");
@@ -212,6 +313,102 @@ export function divideScalars(left, right) {
         );
     }
     return expressionFromTerms(terms);
+}
+
+function imaginaryGeneratorFrom(value, preferred = null) {
+    if (preferred) return preferred;
+    for (const term of toTerms(value).values()) {
+        for (const generator of term.powers.keys()) {
+            if (generator.name === "i") return generator;
+        }
+    }
+    return null;
+}
+
+export function complexParts(value, preferredI = null) {
+    const imaginary = imaginaryGeneratorFrom(value, preferredI);
+    if (!imaginary) return { real: value, imaginary: int(0) };
+    const realTerms = new Map();
+    const imaginaryTerms = new Map();
+    for (const term of toTerms(value).values()) {
+        const exponent = term.powers.get(imaginary) || 0;
+        if (exponent !== 0 && exponent !== 1) {
+            throw new Error("Complex decomposition expected powers of i to be reduced to zero or one");
+        }
+        const powers = clonePowers(term.powers);
+        powers.delete(imaginary);
+        addRawTerm(exponent === 0 ? realTerms : imaginaryTerms, powers, term.coefficient);
+    }
+    return {
+        real: expressionFromTerms(realTerms),
+        imaginary: expressionFromTerms(imaginaryTerms),
+    };
+}
+
+export function complexConjugate(value, preferredI = null) {
+    const imaginary = imaginaryGeneratorFrom(value, preferredI);
+    if (!imaginary) return value;
+    const terms = new Map();
+    for (const term of toTerms(value).values()) {
+        const exponent = term.powers.get(imaginary) || 0;
+        addRawTerm(terms, term.powers, exponent % 2 === 0 ? term.coefficient : negateRational(term.coefficient));
+    }
+    return expressionFromTerms(terms);
+}
+
+export function complexFromParts(real, imaginary, iGenerator) {
+    if (!iGenerator?.minimalPolynomial) throw new Error("Complex.FromParts requires the configured algebraic generator i");
+    return addScalars(real, multiplyScalars(imaginary, iGenerator));
+}
+
+export function complexNormSquared(value, preferredI = null) {
+    const parts = complexParts(value, preferredI);
+    return addScalars(multiplyScalars(parts.real, parts.real), multiplyScalars(parts.imaginary, parts.imaginary));
+}
+
+function complexMethod(name, operation) {
+    return {
+        type: "method_builtin",
+        name,
+        impl(args) {
+            return operation(...args.slice(1));
+        },
+    };
+}
+
+export function createDefaultComplexCollection(exactCollection) {
+    const iGenerator = exactCollection?.entries?.get("i");
+    const requireI = () => {
+        if (!iGenerator) throw new Error("The active Exact collection does not define i");
+        return iGenerator;
+    };
+    const operations = {
+        conjugate: (value) => complexConjugate(value, requireI()),
+        re: (value) => complexParts(value, requireI()).real,
+        im: (value) => complexParts(value, requireI()).imaginary,
+        fromParts: (real, imaginary) => complexFromParts(real, imaginary, requireI()),
+        normSquared: (value) => complexNormSquared(value, requireI()),
+    };
+    const entries = new Map([
+        ["i", iGenerator], ["I", iGenerator],
+        ["conjugate", operations.conjugate], ["Conjugate", operations.conjugate],
+        ["re", operations.re], ["Re", operations.re],
+        ["im", operations.im], ["Im", operations.im],
+        ["fromparts", operations.fromParts], ["FromParts", operations.fromParts],
+        ["normsquared", operations.normSquared], ["NormSquared", operations.normSquared],
+    ]);
+    return {
+        type: "map",
+        entries,
+        _ext: new Map([
+            ["CONJUGATE", complexMethod("Conjugate", operations.conjugate)],
+            ["RE", complexMethod("Re", operations.re)],
+            ["IM", complexMethod("Im", operations.im)],
+            ["FROMPARTS", complexMethod("FromParts", operations.fromParts)],
+            ["NORMSQUARED", complexMethod("NormSquared", operations.normSquared)],
+            ["immutable", int(1)],
+        ]),
+    };
 }
 
 function integerExponent(value) {

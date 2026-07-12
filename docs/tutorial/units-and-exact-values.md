@@ -112,6 +112,29 @@ angle := 1/2~{pi}~[rad]
 arc := angle * 2~[m]
 ```
 
+## Exact complex arithmetic
+
+Complex values use the algebraic generator `i`, so division and reduction stay
+exact:
+
+```rix
+z := 3 + 4~{i};
+inverseI := 1 / .Exact[:i];
+quotient := (1 + .Exact[:i]) / (1 - .Exact[:i]);
+{: z, inverseI, quotient }
+```
+
+The `.Complex` map provides component operations without requiring real-number
+approximation:
+
+```rix
+z := 3 + 4~{i};
+{: .Complex.Conjugate(z), .Complex.Re(z), .Complex.Im(z), z.NormSquared() }
+```
+
+`NormSquared` is available now; magnitude and argument wait for explicit
+real-number and trigonometric precision policies.
+
 ## Local registry overlays
 
 The default registries are ordinary RiX maps. A program can construct an

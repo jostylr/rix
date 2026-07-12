@@ -24,6 +24,6 @@ export const runtimeDefaults = Object.freeze({
     Net: Object.freeze(["NET"]),
     Files: Object.freeze(["FILES"]),
     Units: Object.freeze(["UNITS", "Units", "CONVERTUNIT", "ConvertUnit", "DEFINEUNIT", "DefineUnit"]),
-    Exact: Object.freeze(["EXACT", "Exact", "DEFINEEXACTGENERATOR", "DefineExactGenerator"]),
+    Exact: Object.freeze(["EXACT", "Exact", "COMPLEX", "Complex", "DEFINEEXACTGENERATOR", "DefineExactGenerator"]),
   }),
 });

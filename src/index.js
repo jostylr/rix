@@ -6,4 +6,6 @@ export {
     createDefaultUnitCollection, createUnit, constructQuantity, convertQuantity,
     parseUnitExpression, isUnitValue, isQuantity, createDefaultExactCollection,
     createExactGenerator, exactGeneratorFromPolynomial, isExactValue,
+    createDefaultComplexCollection, complexConjugate, complexParts,
+    complexFromParts, complexNormSquared,
 } from "./runtime/index.js";

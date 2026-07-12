@@ -18,7 +18,7 @@ import {
     tensorSize,
 } from "./tensor.js";
 import { checkTraits, refreshRuntimeMetadata } from "./semantic.js";
-import { isExactValue } from "./exact-values.js";
+import { complexConjugate, complexNormSquared, complexParts, isExactValue } from "./exact-values.js";
 import { isUnitValue } from "./quantities.js";
 
 function int(value) {
@@ -1278,6 +1278,20 @@ const PROTOS = new Map([
     ["tuple", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(tupleMethods)])],
     ["tensor", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(tensorMethods)])],
     ["deferred", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(deferredMethods)])],
+    ["exact_generator", createBuiltinProto([
+        ...Object.entries(commonMethods),
+        ["CONJUGATE", method("Conjugate", ([target]) => complexConjugate(target))],
+        ["RE", method("Re", ([target]) => complexParts(target).real)],
+        ["IM", method("Im", ([target]) => complexParts(target).imaginary)],
+        ["NORMSQUARED", method("NormSquared", ([target]) => complexNormSquared(target))],
+    ])],
+    ["exact_expression", createBuiltinProto([
+        ...Object.entries(commonMethods),
+        ["CONJUGATE", method("Conjugate", ([target]) => complexConjugate(target))],
+        ["RE", method("Re", ([target]) => complexParts(target).real)],
+        ["IM", method("Im", ([target]) => complexParts(target).imaginary)],
+        ["NORMSQUARED", method("NormSquared", ([target]) => complexNormSquared(target))],
+    ])],
 ]);
 
 export function isCallableValue(value) {

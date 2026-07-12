@@ -15,7 +15,12 @@ export {
 } from "./quantities.js";
 export {
     createDefaultExactCollection,
+    createDefaultComplexCollection,
     createExactGenerator,
     exactGeneratorFromPolynomial,
     isExactValue,
+    complexConjugate,
+    complexParts,
+    complexFromParts,
+    complexNormSquared,
 } from "./exact-values.js";

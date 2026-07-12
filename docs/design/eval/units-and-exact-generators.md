@@ -165,6 +165,52 @@ i^2                    ## -1
 1~{pi}~[rad]           ## exact quantity: pi radians
 ```
 
+### Algebraic division
+
+An exact expression involving one registered algebraic generator is an element
+of a polynomial quotient field. RiX uses the extended Euclidean algorithm
+against that generator's minimal polynomial to compute inverses:
+
+```rix
+1 / .Exact[:i]                              ## -1~{i}
+(1 + .Exact[:i]) / (1 - .Exact[:i])        ## 1~{i}
+1 / (1 + .Exact[:sqrt2])                    ## -1 + 1~{sqrt2}
+```
+
+This applies to user-defined algebraic generators as well. Division by a
+multi-term transcendental expression or an expression mixing independent
+generators remains unsupported; RiX reports that boundary instead of silently
+approximating it.
+
+## Exact complex operations
+
+`.Complex` is another ordinary RiX map system value built over the canonical
+`i` entry in `.Exact`. It exposes operations both as attached methods and as
+map entries:
+
+```rix
+z := 3 + 4~{i};
+.Complex.Conjugate(z)       ## 3 - 4~{i}
+.Complex.Re(z)              ## 3
+.Complex.Im(z)              ## 4
+.Complex.NormSquared(z)     ## 25
+.Complex.FromParts(3, 4)    ## 3 + 4~{i}
+```
+
+Exact expressions also expose receiver methods:
+
+```rix
+z.Conjugate()
+z.Re()
+z.Im()
+z.NormSquared()
+```
+
+`Re` and `Im` treat registered generators other than `i` as real coefficients.
+`NormSquared` is exact and avoids choosing a square-root representation.
+`Magnitude` and `Arg` are deferred until RiX has settled real-number precision,
+square-root, and trigonometric policies.
+
 ## Dispatch and sandboxing
 
 `Unit`, `UnitExpr`, `Quantity`, `ExactGenerator`, and `ExactExpression` install
@@ -172,5 +218,5 @@ variants into RiX's existing arithmetic multifunctions. Generic arithmetic
 does not contain ad-hoc unit branches.
 
 Reading `.Units` and `.Exact` is part of the `Units` and `Exact` capability
-groups. Mutation of the system collections is restricted to host construction
+groups; `.Complex` belongs to the `Exact` group. Mutation of the system collections is restricted to host construction
 or trusted startup. Ordinary scripts can freely build local map overlays.
