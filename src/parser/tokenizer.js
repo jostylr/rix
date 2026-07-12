@@ -14,7 +14,6 @@ const symbols = [
   ":<=:",
   ":>:",
   ":<:",
-  ":=>",
   ":->",
   "\\/=",
   "/\\=",
@@ -904,7 +903,7 @@ function tryMatchBrace(input, position) {
   }
 
   // 2. Sigil container detection
-  const sigilChars = new Set(["@", ";", "|", ":", "=", "?", "$", "#", "^"]);
+  const sigilChars = new Set(["@", ";", "|", ":", "=", "?", "$", "#", "^", ">"]);
   if (sigilChars.has(ch)) {
     const sigil = ch;
     const after = input[position + 2];
@@ -997,7 +996,7 @@ function tryMatchBrace(input, position) {
   // 5. All other cases: error (missing space after {)
   const { line, col } = posToLineCol(input, position);
   throw new Error(
-    `'{' must be followed by a space, a sigil (@;|:=?$#^), or an operator (+, *, &&, ||, \\/, /\\, ++, <<, >>) at line ${line}:${col}`
+    `'{' must be followed by a space, a sigil (@;|:=?$#^>), or an operator (+, *, &&, ||, \\/, /\\, ++, <<, >>) at line ${line}:${col}`
   );
 }
 

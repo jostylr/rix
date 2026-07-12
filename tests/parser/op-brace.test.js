@@ -38,6 +38,15 @@ function stripMetadata(obj) {
 }
 
 describe("N-ary operator braces and logically aliases", () => {
+  test("{> ... } parses as a multifunction container", () => {
+    const result = stripMetadata(parseCode("{> (x) -> x, F, G[:Named] };"));
+    expect(result[0].expression.type).toBe("MultifunctionContainer");
+    expect(result[0].expression.elements).toHaveLength(3);
+    expect(result[0].expression.elements[0].type).toBe("FunctionLambda");
+    expect(result[0].expression.elements[1].name).toBe("F");
+    expect(result[0].expression.elements[2].type).toBe("PropertyAccess");
+  });
+
   test("{+ 1, 2, 3}", () => {
     const result = stripMetadata(parseCode("{+ 1, 2, 3};"));
     expect(result[0].expression.type).toBe("FunctionCall");

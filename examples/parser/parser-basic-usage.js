@@ -92,14 +92,13 @@ console.log(`AST Type: ${ast7.type}`);
 console.log(`Pipe Chain:`, ast7.operator);
 console.log();
 
-// Example 8: Pattern matching function
-console.log("8. Pattern Matching:");
-const expr8 = "abs :=> [(x ? x >= 0) -> x, (x ? x < 0) -> -x]";
+// Example 8: Explicit multifunction literal
+console.log("8. Multifunction Literal:");
+const expr8 = "{> (x) ?- [x >= 0] -> x, (x) -> -x }";
 const ast8 = parse(expr8);
 console.log(`Input: ${expr8}`);
-console.log(`AST Type: ${ast8.type}`);
-console.log(`Function Name: ${ast8.left.name}`);
-console.log(`Pattern Count: ${ast8.right.elements.length}`);
+console.log(`AST Type: ${ast8[0].expression.type}`);
+console.log(`Variant Count: ${ast8[0].expression.elements.length}`);
 console.log();
 
 // Example 9: Symbolic calculus
@@ -158,7 +157,6 @@ export const examples = {
   matrix: () => parse("[[1, 2; 3, 4]]"),
   generator: () => parse("[1 |+ 2 |^ 5]"),
   pipe: () => parse("x |> f"),
-  pattern: () => parse("abs :=> [(x ? x >= 0) -> x]"),
   calculus: () => parse("f'(x)"),
   complex: () => parse("result := [1 |+ 2 |^ 10] |> SUM"),
 };

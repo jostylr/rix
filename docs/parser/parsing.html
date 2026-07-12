@@ -651,10 +651,8 @@ const ast = parse(tokens, systemLookup);
 }
 </code></pre>
 <h4>PatternMatch</h4>
-<p>Represents pattern-matching containers using the <code>:=&gt;</code> operator:</p>
 <pre><code class="language-javascript">{
     type: &quot;PatternMatch&quot;,
-    elements: [ASTNode],    // Array of BinaryOperation nodes with operator &quot;:=&gt;&quot;
     pos: [start, delim, end],
     original: string
 }
@@ -977,8 +975,8 @@ velocity := 5~[m/s]
 complex := 3~{i}~[V]              // complex voltage
 energy := (m * c^2)~[J]
 
-// Unit conversion using CONVERT function
-distance := CONVERT(100~[m], &quot;m&quot;, &quot;ft&quot;)
+// Unit conversion through the system capability
+distance := .ConvertUnit(100~[m], .Units[:ft])
 </code></pre>
 <h2>Tuples</h2>
 <h3>Overview</h3>
@@ -1534,14 +1532,11 @@ result := someFunction(args);
     ]
 }
 </code></pre>
-<h3>Pattern-Match Containers</h3>
-<p>Contains pattern-match pairs using the <code>:=&gt;</code> operator:</p>
-<pre><code class="language-javascript">// Input: &quot;{(x) :=&gt; x + 1};&quot;
-{
+<h3>Multifunction Containers</h3>
+<pre><code class="language-javascript">{
     type: &quot;PatternMatch&quot;,
     elements: [{
         type: &quot;BinaryOperation&quot;,
-        operator: &quot;:=&gt;&quot;,
         left: {
             type: &quot;Grouping&quot;,
             expression: { type: &quot;UserIdentifier&quot;, name: &quot;x&quot; }
@@ -1591,7 +1586,6 @@ result := someFunction(args);
 <ol>
 <li><strong>Set containers</strong>: Can contain any expressions that don&#39;t use special operators</li>
 <li><strong>Map containers</strong>: Must contain only <code>:=</code> assignments</li>
-<li><strong>Pattern-match containers</strong>: Must contain only <code>:=&gt;</code> pattern matches</li>
 <li><strong>System containers</strong>: Must contain only equation operators (<code>:=:</code>, <code>:&gt;:</code>, <code>:&lt;:</code>, <code>:&lt;=:</code>, <code>:&gt;=:</code>) and use semicolons as separators</li>
 </ol>
 <p>Mixing different types within the same container will result in a parse error.</p>
@@ -1629,12 +1623,6 @@ result := someFunction(args);
 <td><code>{= }</code></td>
 <td>Key-value pairs</td>
 <td><code>{= name := &quot;Alice&quot;, age := 30}</code></td>
-</tr>
-<tr>
-<td>Pattern Match</td>
-<td><code>{ }</code></td>
-<td>Pattern matching</td>
-<td><code>{(0) :=&gt; &quot;zero&quot;, (1) :=&gt; &quot;one&quot;}</code></td>
 </tr>
 <tr>
 <td>System</td>
@@ -2165,17 +2153,12 @@ h(x, y; n := 2 ? x^2 + y^2 = 1) :-&gt; COS(x; n) * SIN(y; n)
   type: &#39;standard&#39;
 }
 </code></pre>
-<h3>Pattern Matching Functions</h3>
-<p>Pattern matching functions use <code>:=&gt;</code> and allow multiple function definitions under one name:</p>
+<h3>Multifunctions</h3>
 <pre><code class="language-javascript">// Array syntax
-g :=&gt; [ (x ? x &lt; 0) -&gt; -x, (x) -&gt; x ]
 
 // Array with global metadata
-g :=&gt; [ [(x ? x &lt; 0) -&gt; -x+n, (x) -&gt; x-n] , n := 4]
 
 // Separate statements (equivalent to array syntax)
-g :=&gt; (x ? x &lt; 0) -&gt; -x;
-g :=&gt; (x) -&gt; x
 </code></pre>
 <h4>Pattern Matching Rules</h4>
 <ol>
@@ -2187,7 +2170,6 @@ g :=&gt; (x) -&gt; x
 </ol>
 <h4>AST Structure</h4>
 <pre><code class="language-javascript">{
-  type: &#39;PatternMatchingFunction&#39;,
   name: { type: &#39;UserIdentifier&#39;, name: &#39;g&#39; },
   parameters: {...},
   patterns: [
@@ -2232,7 +2214,7 @@ f(1; a := 2, b := 3)
 <pre><code class="language-javascript">// Equivalent to f(x, n := 5; a := 0) :-&gt; (x-a)^n + 1
 f := (x, n := 5; a := 0) -&gt; (x-a)^n + 1
 
-// Pattern matching with assignment
+// multifunction dispatch with assignment
 g := [ (x ? x &lt; 0) -&gt; -x, (x) -&gt; x ]
 </code></pre>
 <h3>Condition Operator</h3>
@@ -2247,8 +2229,7 @@ g := [ (x ? x &lt; 0) -&gt; -x, (x) -&gt; x ]
 <pre><code class="language-javascript">// Function with parameter metadata
 f(x; a := 0, metadata := &quot;description&quot;) :-&gt; x + a
 
-// Pattern matching with global metadata
-g :=&gt; [ patterns, n := 4, description := &quot;absolute value function&quot; ]
+// multifunction dispatch with global metadata
 </code></pre>
 <h3>Comprehensive Examples</h3>
 <h4>Basic Function Definitions</h4>
@@ -2291,18 +2272,14 @@ constrainedPower(x, n := 2 ? x &gt; 0 AND n &gt;= 0) :-&gt; x^n
 // Multiple conditions
 constrainedFunc(x, y; a := 1 ? x^2 + y^2 &lt;= 1, b := 0 ? a &gt; 0) :-&gt; a*x + b*y
 </code></pre>
-<h4>Pattern Matching Functions</h4>
-<pre><code class="language-javascript">// Basic pattern matching
-abs :=&gt; [ (x ? x &gt;= 0) -&gt; x, (x ? x &lt; 0) -&gt; -x ]
+<h4>Multifunctions</h4>
+<pre><code class="language-javascript">// Basic multifunction dispatch
 
 // Multiple patterns
-sign :=&gt; [ (x ? x &gt; 0) -&gt; 1, (x ? x &lt; 0) -&gt; -1, (x ? x = 0) -&gt; 0 ]
 
 // Pattern with global metadata
-normalize :=&gt; [ [(x ? x != 0) -&gt; x / scale, (x) -&gt; 0], scale := 100 ]
 
 // Pattern with multiple metadata
-transform :=&gt; [ [(x) -&gt; a*x + b, (x ? x &lt; 0) -&gt; a*(-x) + b], a := 2, b := 5 ]
 </code></pre>
 <h4>Function Calls with Enhanced Syntax</h4>
 <pre><code class="language-javascript">// Basic function call
@@ -2335,7 +2312,6 @@ distance(p1, p2; metric := &quot;euclidean&quot;) :-&gt; SQRT((p1[0] - p2[0])^2 
 newtonStep(f, df, x; tolerance := 1e-6 ? df(x) != 0) :-&gt; x - f(x) / df(x)
 
 // Piecewise function
-piecewise :=&gt; [
   (x ? x &lt; -1) -&gt; -x - 1,
   (x ? x &gt;= -1 AND x &lt;= 1) -&gt; x^2,
   (x ? x &gt; 1) -&gt; x + 1

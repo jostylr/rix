@@ -334,7 +334,7 @@
 <ul>
 <li>Pratt parser with full operator precedence</li>
 <li>Function definitions with advanced parameter handling</li>
-<li>Pattern matching functions with conditions</li>
+<li>Multifunctions with conditions</li>
 <li>Array generators and sequence notation</li>
 <li>Matrix and tensor parsing</li>
 <li>Metadata and property annotations</li>
@@ -360,7 +360,7 @@
 <li>Multiple assignment operators (<code>:=</code>, <code>:=:</code>, <code>:&gt;:</code>)</li>
 <li>Comprehensive pipe operators (<code>|&gt;</code>, <code>|&gt;&gt;</code>, <code>|&gt;?</code>, <code>|&gt;:</code>)</li>
 <li>Array generators (<code>|+</code>, <code>|*</code>, <code>|:</code>, <code>|^</code>)</li>
-<li>Pattern matching with metadata</li>
+<li>multifunction dispatch with metadata</li>
 <li>Function self-reference with <code>$</code>, <code>$(...)</code>, <code>$.prop</code>, and <code>$..</code></li>
 <li>Tail-self-call optimization for direct tail <code>$(...)</code></li>
 <li>**Postfix operators (<code>@</code>, <code>?</code>, <code>()</code>, <code>~[...]</code>, <code>~{...}</code>) for precision, queries, universal calls, and units</li>
@@ -379,7 +379,7 @@ z := 2:5                        // Interval from 2 to 5
 2:3 ^ 2                         // Interval elementwise exponentiation: 4:9
 a := 3.2~[m]                    // Number with scientific unit: 3.2 meters
 b := 2~{i}                      // Number with mathematical unit: 2i
-CONVERT(100~[m], &quot;m&quot;, &quot;ft&quot;)     // Unit conversion using CONVERT function
+.ConvertUnit(100~[m], .Units[:ft]) // Unit conversion; source unit is carried
 a:b:%4                          // Pick 4 random points in [a,b]
 [[1,2;3,4], name:=&quot;matrix&quot;]     // Matrix with metadata
 SIN(x; n:=4)                    // System function with named argument
@@ -459,8 +459,7 @@ console.log(ast2);
 // Function definitions
 const funcDef = parse(&#39;power(x, n := 2) :-&gt; x^n&#39;);
 
-// Pattern matching
-const patternFunc = parse(&#39;abs :=&gt; [(x ? x &gt;= 0) -&gt; x, (x ? x &lt; 0) -&gt; -x]&#39;);
+// multifunction dispatch
 
 // Array generators
 const generator = parse(&#39;[1 |+ 2 |^ 10]&#39;); // Arithmetic sequence
@@ -481,7 +480,7 @@ const operatorFunction = parse(&quot;+(1, 2, 3)&quot;);
 // Unit operators
 const scientificUnit = parse(&quot;9.8~[m/s^2]&quot;);
 const mathUnit = parse(&quot;2~{i}&quot;);
-const unitConversion = parse(&#39;CONVERT(100~[m], &quot;m&quot;, &quot;ft&quot;)&#39;);
+const unitConversion = parse(&#39;.ConvertUnit(100~[m], .Units[:ft])&#39;);
 </code></pre>
 <h2>API Reference</h2>
 <h3><code>tokenize(input: string): Token[]</code></h3>
@@ -541,7 +540,7 @@ const unitConversion = parse(&#39;CONVERT(100~[m], &quot;m&quot;, &quot;ft&quot;
 <li><strong>Operators:</strong> 50+ mathematical and functional operators with proper precedence</li>
 <li><strong>Functions:</strong> Multiple definition styles with advanced parameter handling</li>
 <li><strong>Collections:</strong> Arrays, matrices, tensors, sets, maps with metadata support</li>
-<li><strong>Control Flow:</strong> Pattern matching, conditional expressions, pipe operations</li>
+<li><strong>Control Flow:</strong> multifunction dispatch, conditional expressions, pipe operations</li>
 <li><strong>Syntax:</strong> Flexible string systems, code blocks, embedded languages</li>
 <li><strong>Postfix Operations:</strong> Precision control (@), queries (?), and universal calls (())</li>
 <li><strong>Operator Functions:</strong> Mathematical operators usable as variadic functions</li>

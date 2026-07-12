@@ -74,7 +74,8 @@ Args can contain other IR nodes (nested calls), literal strings, numbers, or str
 | `CALL_EXPR` | `expr(x)` | `[expr_ir, arg1, ...]` |
 | `FUNCDEF` | `f(x) :-> body` | `[name, params, body]` |
 | `LAMBDA` | `(x) -> x^2` | `[params, body]` |
-| `PATTERNDEF` | `g :=> [...]` | `[name, patterns]` |
+| `MULTIFUNCTION` | `{> f, G, H[:Named] }` | `[callable1, callable2, ...]` | Creates an ordered multifunction and flattens nested multifunctions |
+| `MULTIFUNCDEF` | `F(x) => body`, `F(x) ^=> body` | `[name, mode, params, body]` | Append or prepend a named variant |
 | `KWARG` | `; a := 4` | `[key, value]` |
 | `SYSREF` | `@_ASSIGN` | `[name]` |
 

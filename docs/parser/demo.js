@@ -7,7 +7,6 @@ var symbols = [
   ":<=:",
   ":>:",
   ":<:",
-  ":=>",
   ":->",
   "\\/=",
   "/\\=",
@@ -711,7 +710,7 @@ function tryMatchBrace(input, position) {
       };
     }
   }
-  const sigilChars = new Set(["@", ";", "|", ":", "=", "?", "$", "#", "^"]);
+  const sigilChars = new Set(["@", ";", "|", ":", "=", "?", "$", "#", "^", ">"]);
   if (sigilChars.has(ch)) {
     const sigil = ch;
     const after = input[position + 2];
@@ -776,7 +775,7 @@ function tryMatchBrace(input, position) {
     return null;
   }
   const { line, col } = posToLineCol(input, position);
-  throw new Error(`'{' must be followed by a space, a sigil (@;|:=?$#^), or an operator (+, *, &&, ||, \\/, /\\, ++, <<, >>) at line ${line}:${col}`);
+  throw new Error(`'{' must be followed by a space, a sigil (@;|:=?$#^>), or an operator (+, *, &&, ||, \\/, /\\, ++, <<, >>) at line ${line}:${col}`);
 }
 function tryMatchSystemSpecHeader(input, position) {
   const start = position + 2;
@@ -1138,11 +1137,6 @@ var SYMBOL_TABLE = {
     associativity: "right",
     type: "infix"
   },
-  ":=>": {
-    precedence: PRECEDENCE.ASSIGNMENT,
-    associativity: "right",
-    type: "infix"
-  },
   "|>": { precedence: PRECEDENCE.PIPE, associativity: "left", type: "infix" },
   "||>": { precedence: PRECEDENCE.PIPE, associativity: "left", type: "infix" },
   "|>>": { precedence: PRECEDENCE.PIPE, associativity: "left", type: "infix" },
@@ -1483,6 +1477,7 @@ var SYMBOL_TABLE = {
   "{#": { precedence: 0, type: "brace_sigil" },
   "{$": { precedence: 0, type: "brace_sigil" },
   "{^": { precedence: 0, type: "brace_sigil" },
+  "{>": { precedence: 0, type: "brace_sigil" },
   "{!": { precedence: 0, type: "brace_sigil" },
   "..": { precedence: PRECEDENCE.PROPERTY, associativity: "left", type: "infix" },
   ".|": { precedence: PRECEDENCE.PROPERTY, associativity: "left", type: "postfix" },
@@ -1740,7 +1735,7 @@ class Parser {
           return this.parseAngleForm();
         } else if (token.value === "{") {
           return this.parseBraceContainer();
-        } else if (token.value === "{=" || token.value === "{?" || token.value === "{;" || token.value === "{|" || token.value === "{:" || token.value === "{@" || token.value === "{#" || token.value === "{.." || token.value === "{^" || token.value === "{$") {
+        } else if (token.value === "{=" || token.value === "{?" || token.value === "{;" || token.value === "{|" || token.value === "{:" || token.value === "{@" || token.value === "{#" || token.value === "{.." || token.value === "{>" || token.value === "{^" || token.value === "{$") {
           if (token.value === "{#") {
             return this.parseSystemSpecLiteral();
           }
@@ -1986,78 +1981,6 @@ class Parser {
       if (operator.value === "=>" || operator.value === "^=>") {
         this.error("Append/prepend syntax requires a named function signature like F(x) => body");
       }
-    } else if (operator.value === ":=>") {
-      right = this.parseExpression(rightPrec);
-      let funcName = left;
-      let parameters = {
-        positional: [],
-        keyword: [],
-        conditionals: [],
-        metadata: {}
-      };
-      let patterns = [];
-      let globalMetadata = {};
-      if (left.type === "FunctionCall") {
-        funcName = left.function;
-        parameters = this.convertArgsToParams(left.arguments);
-      }
-      let rawPatterns = [];
-      if (right.type === "Array") {
-        rawPatterns = right.elements;
-      } else if (right.type === "WithMetadata" && right.primary && right.primary.type === "Array") {
-        if (Array.isArray(right.primary.elements) && right.primary.elements.length > 0 && right.primary.elements[0].type === "Array") {
-          rawPatterns = right.primary.elements[0].elements;
-        } else {
-          rawPatterns = right.primary.elements;
-        }
-        globalMetadata = right.metadata;
-      } else {
-        rawPatterns = [right];
-      }
-      for (const pattern of rawPatterns) {
-        if (pattern.type === "FunctionLambda") {
-          const patternFunc = {
-            parameters: pattern.parameters,
-            body: pattern.body
-          };
-          patterns.push(patternFunc);
-        } else if (pattern.type === "BinaryOperation" && pattern.operator === "->") {
-          const patternFunc = {
-            parameters: {
-              positional: [],
-              keyword: [],
-              conditionals: [],
-              metadata: {}
-            },
-            body: pattern.right
-          };
-          if (pattern.left.type === "Grouping") {
-            const paramExpr = pattern.left.expression;
-            if (paramExpr.type === "BinaryOperation" && paramExpr.operator === "?") {
-              const paramName = paramExpr.left.name || paramExpr.left.value;
-              patternFunc.parameters.positional.push({
-                name: paramName,
-                defaultValue: null
-              });
-              patternFunc.parameters.conditionals.push(paramExpr.right);
-            } else if (paramExpr.type === "UserIdentifier") {
-              patternFunc.parameters.positional.push({
-                name: paramExpr.name || paramExpr.value,
-                defaultValue: null
-              });
-            }
-          }
-          patterns.push(patternFunc);
-        }
-      }
-      return this.createNode("PatternMatchingFunction", {
-        name: funcName,
-        parameters,
-        patterns,
-        metadata: globalMetadata,
-        pos: left.pos,
-        original: left.original + operator.original
-      });
     } else if (operator.value === "->") {
       right = this.parseExpression(rightPrec);
       if (left.type === "Grouping" && left.expression && left.expression.type === "ParameterList") {
@@ -3346,7 +3269,8 @@ class Parser {
       "{:": "TupleContainer",
       "{@": "LoopContainer",
       "{$": "BlockContainer",
-      "{^": "ValueOutfit"
+      "{^": "ValueOutfit",
+      "{>": "MultifunctionContainer"
     };
     const nodeType = sigilTypeMap[effectiveSigil];
     const temporalSigils = new Set(["{?", "{;", "{@", "{$"]);

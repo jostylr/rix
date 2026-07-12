@@ -228,7 +228,6 @@ Maximal munch is always required.
 :<=:        (solve: less or equal)
 :>:         (solve: greater than)
 :<:         (solve: less than)
-:=>         (pattern-matching function assignment)
 :=          (assignment)
 ?<=         (boolean less or equal)
 ?>=         (boolean greater or equal)
@@ -278,7 +277,6 @@ Maximal munch is always required.
 !=          (not equal)    [if used]
 
 --- Functions, Lambda, Arrow ---
-:=>         (pattern-matching function assignment)  [already above]
 ->          (function definition)
 =>          (arrow, if used)
 '           (single quote, calculus notation)

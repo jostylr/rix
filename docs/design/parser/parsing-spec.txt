@@ -55,7 +55,7 @@ Comparison and Boolean:
 
 Function, Control, and Piping:
 	•	->     : Function definition (infix, right)
-	•	:=>    : Pattern-matching function definition (infix)
+	•	{>     : Explicit multifunction literal (brace sigil)
 	•	|>     : Piping (auto-feed, in order)
 	•	||>    : Explicit piping (positional/named)
 	•	|>>    : Map operator

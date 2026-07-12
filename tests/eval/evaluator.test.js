@@ -1824,6 +1824,48 @@ describe("RiX Evaluator", () => {
             expect(result.value).toBe(5n);
         });
 
+        test("multifunction brace supports direct calls and inline pipes", () => {
+            const result = evalRix(`
+                values = [-2, 0, 3];
+                mapped = values |>> {>
+                  (x) ?- [x < 0] /Negative/ -> -x,
+                  (x) ?- [x > 0] /Positive/ -> x^2,
+                  (x) /Zero/ -> 0
+                };
+                {: mapped, -4 |> {> (x) ?- [x < 0] -> -x, (x) -> x } };
+            `);
+            expect(result.values[0].values.map((value) => value.value)).toEqual([2n, 0n, 9n]);
+            expect(result.values[1].value).toBe(4n);
+        });
+
+        test("multifunction brace accepts functions and flattens nested multifunctions in order", () => {
+            const result = evalRix(`
+                A = {> (x) /A1/ -> x + 1, (x) /A2/ -> x + 2 };
+                TimesTen = (x) /TimesTen/ -> x * 10;
+                B = {> (x) /B1/ -> x - 1, (x) /B2/ -> x - 2 };
+                Combined = {> A, TimesTen, B };
+                {: Combined[1](5), Combined[2](5), Combined[3](5), Combined[4](5), Combined[5](5) };
+            `);
+            expect(result.values.map((value) => value.value)).toEqual([6n, 7n, 50n, 4n, 3n]);
+        });
+
+        test("named multifunction variants are reusable in new multifunction literals", () => {
+            const result = evalRix(`
+                F = {>
+                  (x) /Positive/ -> x + 1,
+                  (x) /Other/ -> x + 2
+                };
+                G = {> F[:Positive], (x) /Fallback/ -> x };
+                {: G[1](3), G[:Positive](4), G[:Fallback](5) };
+            `);
+            expect(result.values.map((value) => value.value)).toEqual([4n, 5n, 5n]);
+        });
+
+        test("multifunction brace rejects non-callable entries", () => {
+            expect(() => evalRix("{> (x) -> x, 42 };"))
+                .toThrow(/entries must be functions or multifunctions/);
+        });
+
         test("duplicate names error when multifunction is called", () => {
             expect(() => evalRix(`
                 F = [

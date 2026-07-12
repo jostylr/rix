@@ -273,7 +273,7 @@ warnings: {
 
 ### Multifunctions
 
-RiX also supports ordered multi-variant dispatch by treating an array of functions as a callable multifunction:
+RiX supports ordered multi-variant dispatch. Prep success selects the first matching variant; there is no separate hidden pattern-matching engine.
 
 ```rix
 F = [
@@ -286,9 +286,28 @@ F(-5)         ## 5
 F[:Positive](5)
 ```
 
+Use the explicit `{> ... }` literal when the multifunction is anonymous, inline, or assembled from existing callables:
+
+```rix
+[-2, 0, 3] |>> {>
+  (x) ?- [x < 0] /Negative/ -> -x,
+  (x) ?- [x > 0] /Positive/ -> x^2,
+  (x) /Zero/ -> 0
+}
+## [2, 0, 9]
+
+A = {> (x) /Small/ -> x + 1 }
+B = {> (x) /Large/ -> x * 10 }
+Combined = {> A, B }              ## flattened in source order
+OnlySmall = {> A[:Small] }        ## selected variants are ordinary functions
+```
+
 Key rules:
 
 - If an uppercase name is assigned an array, RiX marks that array as a multifunction automatically.
+- `{> ... }` always creates a multifunction value, without requiring assignment.
+- Entries may be functions or multifunctions. Nested multifunctions are flattened recursively in source order.
+- `F[:Name]` returns that named variant as an ordinary function, so it can be called, piped, or inserted into another `{> ... }` literal.
 - Variants are tried in array order.
 - Prep success selects the variant permanently for that call.
 - Prep failure means "try the next variant".
@@ -1004,6 +1023,7 @@ For other types of containers or specialized execution, a "sigil" is used immedi
 | `{= ... }` | **Map** | Dictionary / key-value mappings. Example: `{= name="RiX", version=1 }` |
 | `{\| ... }` | **Set** | A collection of unique elements. Example: `{\| 1, 2, 3 }` |
 | `{: ... }` | **Tuple** | Fixed-length collection. Example: `{: x, y, z }` |
+| `{> ... }` | **Multifunction** | Ordered callable variants; nested multifunctions flatten in source order. |
 
 There are also N-ary operation braces for applying operations across arbitrary elements:
 - `{+ 1, 2, 3}` -> N-ary Addition (or string concatenation).

@@ -506,15 +506,6 @@ const LOWERERS = {
     return ir("MULTIFUNCDEF", name, node.mode, params, body);
   },
 
-  PatternMatchingFunction(node) {
-    const name = node.name.name || node.name.value;
-    const patterns = node.patterns.map((p) => ({
-      params: lowerParams(p.parameters),
-      body: lowerFunctionBody(p.body),
-    }));
-    return ir("PATTERNDEF", name, patterns);
-  },
-
   // === Grouping ===
 
   Grouping(node) {
@@ -665,6 +656,10 @@ const LOWERERS = {
   ArrayContainer(node) {
     const meta = node.header ? { header: lowerNode(node.header) } : null;
     return meta ? ir("ARRAY_CAPTURE", meta, ...node.elements.map(lowerNode)) : ir("ARRAY_CAPTURE", ...node.elements.map(lowerNode));
+  },
+
+  MultifunctionContainer(node) {
+    return ir("MULTIFUNCTION", ...node.elements.map(lowerNode));
   },
 
   LoopContainer(node) {

@@ -31,6 +31,8 @@ The array representation matters too. Keeping multifunctions as ordinary arrays 
 - direct dispatch uses ordinary key-style indexing (`F[:Name](...)`)
 - `$` and `$$` expose the current variant and parent multifunction explicitly
 
+The `{> ... }` sigil is the explicit multifunction literal. It closes the anonymous/inline gap left by uppercase-assignment auto-marking. Its entries may be ordinary functions, selected named variants, or whole multifunctions; nested multifunctions flatten recursively in source order. This keeps inline pipe dispatch on the same runtime representation and invocation path as named multifunctions.
+
 The no-prep warning follows from the same philosophy. A prep-less variant in the middle of the list is not forbidden, but it is almost certainly a mistake because later variants become unreachable if execution reaches it. Warning instead of rejection keeps the model flexible while still surfacing a strong signal.
 
 ## Function Prep Phase (`?-` / `?!-`) (2026-04-01)

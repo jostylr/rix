@@ -432,8 +432,7 @@ result := evaluate(`F:3/4`, precision := 10);
 // Array elements
 languages := [`JS: console.log(&#39;hello&#39;)`, `Python: print(&#39;world&#39;)`];
 
-// Pattern matching
-process :=&gt; [
+// multifunction dispatch
   (code ? code.language = &quot;JS&quot;) -&gt; executeJS(code.body),
   (code ? code.language = &quot;Python&quot;) -&gt; executePython(code.body)
 ];
@@ -482,8 +481,7 @@ config := `:server = localhost`;  // language: &quot;RiX-String&quot;, body: &qu
 </ol>
 <h2>Advanced Usage Patterns</h2>
 <h3>Conditional Processing</h3>
-<pre><code class="language-rix">processor :=&gt; [
-  (code ? code.language = &quot;JS&quot;) -&gt; executeJS(code.body, code.context),
+<pre><code class="language-rix">  (code ? code.language = &quot;JS&quot;) -&gt; executeJS(code.body, code.context),
   (code ? code.language = &quot;Python&quot;) -&gt; executePython(code.body, code.context),
   (code ? code.language = &quot;SQL&quot;) -&gt; executeQuery(code.body, code.context),
   (code ? code.language = &quot;RiX-String&quot;) -&gt; processRawContent(code.body),

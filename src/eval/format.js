@@ -296,9 +296,6 @@ export function formatValue(val, options = {}) {
         if (val.type === "function" || val.type === "lambda") {
             return formatCallablePreview(val, val.type === "lambda" ? "Lambda" : "Function");
         }
-        if (val.type === "pattern_function") {
-            return `[PatternFunction: ${val.name || "Anonymous"}]`;
-        }
         if (val.type === "system_context") {
             const names = val.context.getAllNames();
             const frozenMark = val.context.frozen ? " frozen" : " mutable";

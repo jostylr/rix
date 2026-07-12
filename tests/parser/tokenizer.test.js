@@ -1392,7 +1392,7 @@ describe("Math Oracle Tokenizer", () => {
   describe("Symbol tokens", () => {
     describe("assignment and equations", () => {
       test("assignment operators", () => {
-        const tokens = tokenize(":=: :>=: :<=: :>: :<: :=> :=");
+        const tokens = tokenize(":=: :>=: :<=: :>: :<: :=");
         expect(tokens).toEqual(
           withEnd([
             { type: "Symbol", original: ":=:", value: ":=:", pos: [0, 0, 3] },
@@ -1420,13 +1420,7 @@ describe("Math Oracle Tokenizer", () => {
               value: ":<:",
               pos: [17, 18, 21],
             },
-            {
-              type: "Symbol",
-              original: " :=>",
-              value: ":=>",
-              pos: [21, 22, 25],
-            },
-            { type: "Symbol", original: " :=", value: ":=", pos: [25, 26, 28] },
+            { type: "Symbol", original: " :=", value: ":=", pos: [21, 22, 24] },
           ]),
         );
       });
@@ -2412,6 +2406,13 @@ describe("Math Oracle Tokenizer", () => {
       const tokens = tokenize("{|| 1, 2}");
       const brace = tokens.find((t) => t.value === "{||");
       expect(brace).toBeDefined();
+    });
+
+    test("{> with space produces a multifunction sigil distinct from {>>", () => {
+      const tokens = tokenize("{> F, G } {>> 1, 2 }");
+      expect(tokens[0].value).toBe("{>");
+      expect(tokens[0].containerName).toBeNull();
+      expect(tokens[5].value).toBe("{>>");
     });
 
     test("{| with space produces {| sigil token (not operator)", () => {

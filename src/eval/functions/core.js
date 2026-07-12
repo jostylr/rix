@@ -1990,7 +1990,7 @@ export const coreFunctions = {
             return { type: "placeholder", index: args[0] };
         },
         pure: true,
-        doc: "Placeholder for pattern matching",
+        doc: "Numbered placeholder for partial application and explicit pipes",
     },
 
     ASSIGN_EXPR: {

@@ -1,5 +1,5 @@
 /**
- * Function-related system functions: CALL, LAMBDA, FUNCDEF, PATTERNDEF, PIPE
+ * Function-related system functions: CALL, LAMBDA, FUNCDEF, MULTIFUNCTION, PIPE
  */
 
 import { Integer, Rational } from "@ratmath/core";
@@ -10,6 +10,7 @@ import { isExactValue, multiplyScalars } from "../../runtime/exact-values.js";
 import { constructQuantity, isUnitValue } from "../../runtime/quantities.js";
 import {
     appendMultifunctionVariant,
+    createMultifunctionValue,
     emitNoPrepWarning,
     isMultifunctionValue,
     rebuildMultifunctionState,
@@ -609,22 +610,26 @@ export const functionFunctions = {
         doc: "Append or prepend a multifunction variant",
     },
 
-    PATTERNDEF: {
+    MULTIFUNCTION: {
         lazy: true,
         impl(args, context, evaluate) {
-            const name = args[0];
-            const patterns = evaluate(args[1]);
-
-            const funcDef = {
-                type: "pattern_function",
-                name,
-                patterns,
+            const variants = [];
+            const append = (value) => {
+                if (isMultifunctionValue(value)) {
+                    for (const nested of value.values) append(nested);
+                    return;
+                }
+                if (!value || (value.type !== "function" && value.type !== "lambda")) {
+                    throw new Error("Multifunction literal entries must be functions or multifunctions");
+                }
+                variants.push(value);
             };
-
-            context.defineFunction(name, funcDef);
-            return funcDef;
+            for (const arg of args) append(evaluate(arg));
+            const value = createMultifunctionValue(variants);
+            rebuildMultifunctionState(value);
+            return value;
         },
-        doc: "Define a pattern-matching function",
+        doc: "Create an ordered multifunction literal, flattening nested multifunctions",
     },
 
     PIPE: {

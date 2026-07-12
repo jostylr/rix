@@ -521,6 +521,15 @@ describe("Lowering Pass", () => {
       expect(ir.args[3].fn).toBe("ADD");
     });
 
+    test("multifunction brace lowers to explicit constructor IR", () => {
+      const ir = L("{> (x) /Positive/ -> x, F, G[:Named] };");
+      expect(ir.fn).toBe("MULTIFUNCTION");
+      expect(ir.args).toHaveLength(3);
+      expect(ir.args[0].fn).toBe("LAMBDA");
+      expect(ir.args[1]).toEqual({ fn: "RETRIEVE", args: ["F"] });
+      expect(ir.args[2].fn).toBe("INDEX_GET");
+    });
+
     test("function with hole-default params", () => {
       const ir = L("f(x, n ?= 5) :-> x^n;");
       expect(ir.fn).toBe("FUNCDEF");

@@ -268,7 +268,7 @@ pipeline := FOR(i := 1, i <= n, i := i + 1,
 - **Functional operators**: `MAP(list, WHILE(...))`
 - **Control flow combinators**: `SEQUENCE`, `PARALLEL`, `ALTERNATIVE`
 - **Lazy evaluation**: Delayed execution of functional control bodies
-- **Pattern matching**: `MATCH(value, [(pattern, WHILE(...))])`
+- **multifunction dispatch**: `MATCH(value, [(pattern, WHILE(...))])`
 
 ### Extension Possibilities
 - **Custom control structures**: Domain-specific loops and conditionals

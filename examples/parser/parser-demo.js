@@ -152,11 +152,11 @@ const testCases = [
     description: "Function definition using arrow operator",
   },
 
-  // Pattern matching function
+  // Multifunction literal
   {
-    name: "Pattern Matching",
-    code: "factorial := n :=> n == 0 -> 1; n -> n * factorial(n-1);",
-    description: "Pattern matching function definition",
+    name: "Multifunction",
+    code: "{> (x) ?- [x < 0] -> -x, (x) -> x };",
+    description: "Ordered multifunction variants with prep dispatch",
   },
 
   // Complex expressions with grouping

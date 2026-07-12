@@ -201,7 +201,6 @@ This document provides a comprehensive reference for all token types generated b
 }
 ```
 
-### PatternMatchingFunction
 ```javascript
 {
   name: ASTNode,      // Function name identifier

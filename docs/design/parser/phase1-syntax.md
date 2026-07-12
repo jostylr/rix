@@ -57,7 +57,6 @@ x               # UserIdentifier
 
 ### Function definitions still work with lowercase
 
-When `f(x)` appears on the left of `:->` or `:=>`, the parser recognizes it as a function definition regardless of case:
 
 ```
 f(x) :-> x + 1          # FunctionDefinition, name=f, params=[x]

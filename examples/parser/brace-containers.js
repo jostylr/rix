@@ -39,9 +39,6 @@ parseAndPrint('{x := 5, y := x * 2, z := SIN(PI/4)};', 'Map with expression valu
 parseAndPrint('{key1 := value1, key2 := value2};', 'Map with identifier values');
 
 // Pattern-Match examples (these should error - use array syntax instead)
-parseAndPrint('{(0) :=> "zero", (1) :=> "one"};', 'Pattern match with literals (should error)');
-parseAndPrint('{(x) :=> x + 1, (y) :=> y * 2};', 'Pattern match with expressions (should error)');
-parseAndPrint('{(n) :=> n^2, (m) :=> SIN(m)};', 'Pattern match with mathematical functions (should error)');
 
 // System examples
 parseAndPrint('{x :=: 3*x + 2; y :=: x};', 'System of equations');
@@ -51,6 +48,5 @@ parseAndPrint('{x :>: 0; y :<: 10; z :=: x + y};', 'System with inequalities and
 // Error examples
 console.log('\n=== Error Examples ===');
 parseAndPrint('{a := 1, b, c := 3};', 'Mixed map and set (should error)');
-parseAndPrint('{(x) :=> x + 1, a := 2};', 'Brace pattern match syntax (should error)');
 parseAndPrint('{x :=: 3, a := 2};', 'Mixed equation and assignment (should error)');
 parseAndPrint('{x :=: 3*x + 2, y :=: x};', 'System without semicolons (should error)');

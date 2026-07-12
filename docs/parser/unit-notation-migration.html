@@ -387,20 +387,20 @@ y := 5~{pi};
 </ul>
 <p>This change allows for more flexible parsing and better error messages.</p>
 <h2>Unit Conversions</h2>
-<p>Unit conversion syntax has changed from the double-tilde operator to using the <code>CONVERT</code> function:</p>
+<p>Unit conversion now uses <code>.ConvertUnit(value, target)</code>. The source unit is<br>carried by the quantity and must not be repeated:</p>
 <pre><code>// Old
 distance := 100~m~;
 distance_in_feet := distance~~ft/m~;
 
 // New
 distance := 100~[m];
-distance_in_feet := CONVERT(distance, &quot;m&quot;, &quot;ft&quot;);
+distance_in_feet := .ConvertUnit(distance, .Units[:ft]);
 </code></pre>
 <h2>Migration Steps</h2>
 <ol>
 <li><strong>Update Scientific Units</strong>: Replace <code>~unit~</code> with <code>~[unit]</code> for all physical units</li>
 <li><strong>Update Mathematical Units</strong>: Replace <code>~unit~</code> with <code>~{unit}</code> for complex numbers and algebraic extensions</li>
-<li><strong>Update Unit Conversions</strong>: Replace <code>~~unit1/unit2~</code> with <code>CONVERT(value, &quot;unit2&quot;, &quot;unit1&quot;)</code></li>
+<li><strong>Update Unit Conversions</strong>: Replace <code>~~unit1/unit2~</code> with <code>.ConvertUnit(value, target)</code></li>
 <li><strong>Test Your Code</strong>: Run your tests to ensure the migration is complete</li>
 </ol>
 <h2>Examples</h2>
@@ -432,7 +432,7 @@ product := z1 * z2;  // 11 - 2~{i}
 
 // Unit conversion
 height_m := 1.8~[m];
-height_ft := CONVERT(height_m, &quot;m&quot;, &quot;ft&quot;);
+height_ft := .ConvertUnit(height_m, .Units[:ft]);
 </code></pre>
 <h2>Benefits of the New Syntax</h2>
 <ol>

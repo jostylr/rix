@@ -352,9 +352,6 @@ R_q := [
 // sqrt(2) oracle
 Primitive("sqrt2", Poly(1,0,-2), 1:2)
 sqrt2_oracle := [
-  (a:b, delta ? a > 0) :=> (2 IN a^2:b^2 ? (1, a:b) : (b^2 < 2 ? (0, b:2) : (0, 0:a))),
-  (a:b, delta ? b < 0) :=> (0, 0:2),
-  (a:b, delta) :=> (2 IN (0:b^2) ? (1, 0:b) : (0, b:2)),
   yes := 0:2,
   type := "oracle",
   Primary := (a:b, delta) -> { ... }
@@ -525,8 +522,6 @@ RiX provides three postfix operators with the highest precedence for precision c
 
   ```
   g := [
-    (x ? x < 0) :=> -x,
-    (x) :=> x
   ]
   g(-5)    // 5
   g(2)     // 2
@@ -535,8 +530,6 @@ RiX provides three postfix operators with the highest precedence for precision c
 
   ```
   powcases := [
-    (x) :=> x^n,
-    (x; n := 5) :=> x^(2n),
     n := 7
   ]
   powcases(2)            // 2^7
@@ -666,8 +659,6 @@ f(2, n := 3)   // 9
 
 ```plaintext
 g := [
-  (x ? x < 0) :=> -x,
-  (x) :=> x
 ]
 g(-5)          // 5
 g(2)           // 2

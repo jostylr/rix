@@ -155,7 +155,7 @@ The ternary operator is designed to coexist with existing RiX operators:
 
 - **Query operator**: `x?(y)` still works for postfix queries
 - **Interval operator**: `1:5` still works for intervals
-- **Conditional operator**: Existing `?` usage in pattern matching is preserved
+- **Conditional operator**: Existing `?` usage in multifunction dispatch is preserved
 
 ### Precedence Integration
 
@@ -215,13 +215,13 @@ Potential improvements for future versions:
 
 1. **Enhanced right-associativity**: Better automatic parsing of nested ternary chains
 2. **Short-circuit evaluation**: Documentation of evaluation semantics
-3. **Pattern matching integration**: Combining ternary with pattern matching functions
+3. **multifunction dispatch integration**: Combining ternary with multifunctions
 4. **N-ary conditional expressions**: Extended conditional syntax for multiple conditions
 
 ## Usage Recommendations
 
 1. **Use parentheses for clarity** in nested ternary expressions
-2. **Prefer ternary for simple conditions** over complex pattern matching when appropriate
+2. **Prefer ternary for simple conditions** over complex multifunction dispatch when appropriate
 3. **Combine with existing RiX features** like pipes and function calls for expressive code
 4. **Maintain readability** by avoiding overly complex nested conditions
 5. **Leverage code blocks** for multi-step conditional computations that require intermediate variables

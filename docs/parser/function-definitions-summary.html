@@ -3,7 +3,7 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Function Definitions Implementation Summary - RiX Language Parser</title>
+        <title>Function and Multifunction Definitions - RiX Language Parser</title>
         <style>
             :root {
                 --primary-color: #2563eb;
@@ -315,215 +315,31 @@
 
         <main class="content">
             <!-- Markdown content will be inserted here -->
-            <div id="markdown-content"><h1>Function Definitions Implementation Summary</h1>
-<h2>Overview</h2>
-<p>This document summarizes the implementation of comprehensive function definition features for the RiX mathematical expression language parser. The implementation adds support for modern function definition syntax with advanced parameter handling, pattern matching, and conditional logic.</p>
-<h2>Implemented Features</h2>
-<h3>1. Standard Function Definitions (<code>:-&gt;</code> operator)</h3>
-<p><strong>Syntax</strong>: <code>functionName(parameters) :-&gt; body</code></p>
-<p><strong>Features</strong>:</p>
-<ul>
-<li>Positional parameters: <code>f(x, y)</code></li>
-<li>Hole-default parameters: <code>f(x, n ?| 5)</code> (default used when hole or omitted)</li>
-<li>Keyword-only parameters: <code>f(x; a ?| 0)</code> (after semicolon)</li>
-<li>Conditional parameters: <code>f(x; n ? condition)</code></li>
-</ul>
-<p><strong>Examples</strong>:</p>
-<pre><code class="language-javascript">f(x) :-&gt; x + 1
-power(x, n ?| 2) :-&gt; x^n
-constrainedFunc(x, y; offset ? x &gt; 0) :-&gt; x + y + offset
+            <div id="markdown-content"><h1>Function and Multifunction Definitions</h1>
+<p>RiX uses ordinary functions plus ordered multifunction variants. Soft prep (<code>?-</code>) performs validation, conversion, setup, and dispatch selection; strict prep (<code>?!-</code>) propagates failures.</p>
+<pre><code class="language-rix">Square = (x) -&gt; x^2
+Power = (x, n ?= 2) -&gt; x^n
+
+Abs = [
+  (x) ?- [x &gt;= 0] /Positive/ -&gt; x,
+  (x) /Negative/ -&gt; -x
+]
 </code></pre>
-<h3>2. Pattern Matching Functions (<code>:=&gt;</code> operator)</h3>
-<p><strong>Syntax</strong>: <code>functionName :=&gt; patterns</code></p>
-<p><strong>Array Syntax</strong>: <code>g :=&gt; [ pattern1, pattern2, ... ]</code><br><strong>Separate Syntax</strong>: Multiple <code>g :=&gt; pattern</code> statements<br><strong>With Metadata</strong>: <code>g :=&gt; [ [patterns], metadata... ]</code></p>
-<p><strong>Features</strong>:</p>
-<ul>
-<li>Condition-based pattern matching using <code>?</code> operator</li>
-<li>Multiple patterns evaluated in order</li>
-<li>Global metadata for entire function</li>
-<li>Local metadata for individual patterns</li>
-</ul>
-<p><strong>Examples</strong>:</p>
-<pre><code class="language-javascript">abs :=&gt; [ (x ? x &gt;= 0) -&gt; x, (x ? x &lt; 0) -&gt; -x ]
-normalize :=&gt; [ [(x ? x != 0) -&gt; x / scale, (x) -&gt; 0], scale := 100 ]
-</code></pre>
-<h3>3. Enhanced Function Call Syntax</h3>
-<p><strong>Semicolon Separator</strong>: <code>f(positionalArgs; keywordArgs)</code><br><strong>Shorthand Keywords</strong>: <code>f(x; n)</code> equivalent to <code>f(x; n := n)</code></p>
-<p><strong>Examples</strong>:</p>
-<pre><code class="language-javascript">f(2, 3; a := 4)
-process(data; verbose, debug)
-transform(x; scale := 2, offset := 5)
-</code></pre>
-<h3>4. Assignment-Style Function Definitions</h3>
-<p><strong>Lambda Syntax</strong>: <code>f := (parameters) -&gt; body</code><br><strong>With Parameter Lists</strong>: Supports same parameter features as standard functions</p>
-<p><strong>Examples</strong>:</p>
-<pre><code class="language-javascript">double := (x) -&gt; 2 * x
-adjust := (x; offset ?| 0, scale ?| 1) -&gt; x * scale + offset
-</code></pre>
-<h3>5. Condition Operator (<code>?</code>)</h3>
-<p><strong>Precedence</strong>: Between logical operators and equality (45)<br><strong>Usage</strong>: <code>parameter ? condition</code> or <code>value ? condition</code><br><strong>Context</strong>: Parameters, patterns, and conditional expressions</p>
-<h3>6. Self Reference and Tail Self Calls</h3>
-<p>Inside a function body, bare <code>$</code> refers to the current callable object.</p>
-<p><strong>Examples</strong>:</p>
-<pre><code class="language-javascript">CountDown(n) :-&gt; n &gt; 0 ?? $(n - 1) ?: 0
-Fact(n, acc ?| 1) :-&gt; n &gt; 1 ?? $(n - 1, acc * n) ?: acc
-Named(x) :-&gt; $.label
-</code></pre>
-<p><strong>Rules</strong>:</p>
-<ul>
-<li><code>$(...)</code> calls the current callable regardless of the outer binding name.</li>
-<li><code>$.prop</code> and <code>$..</code> use ordinary meta access on that callable.</li>
-<li><code>$</code> is read-only and invalid outside a function body.</li>
-<li>Only direct tail <code>$(...)</code> calls are optimized; general or mutual tail calls are not.</li>
-</ul>
-<h2>Technical Implementation</h2>
-<h3>Tokenizer Changes</h3>
-<ul>
-<li>Added <code>:-&gt;</code> token for standard function definitions</li>
-<li>Added <code>?</code> token for condition operator</li>
-<li>Updated symbol precedence table</li>
-</ul>
-<h3>Parser Enhancements</h3>
-<h4>New AST Node Types</h4>
-<ol>
-<li><p><strong>FunctionDefinition</strong>:</p>
-<pre><code class="language-javascript">{
-  type: &#39;FunctionDefinition&#39;,
-  name: { type: &#39;UserIdentifier&#39;, name: &#39;functionName&#39; },
-  parameters: {
-    positional: [{ name, defaultValue, condition, isKeywordOnly }],
-    keyword: [{ name, defaultValue, condition, isKeywordOnly }],
-    metadata: {}
-  },
-  body: { /* expression */ },
-  type: &#39;standard&#39;
+<p>The explicit <code>{&gt; ... }</code> literal creates the same callable value and works inline:</p>
+<pre><code class="language-rix">[-2, 0, 3] |&gt;&gt; {&gt;
+  (x) ?- [x &lt; 0] -&gt; -x,
+  (x) ?- [x &gt; 0] -&gt; x^2,
+  (x) -&gt; 0
 }
 </code></pre>
-</li>
-<li><p><strong>PatternMatchingFunction</strong>:</p>
-<pre><code class="language-javascript">{
-  type: &#39;PatternMatchingFunction&#39;,
-  name: { /* identifier */ },
-  parameters: { /* same as FunctionDefinition */ },
-  patterns: [{ /* binary operations with -&gt; */ }],
-  metadata: { /* global metadata */ }
-}
+<p>Entries may be functions, selected named variants, or whole multifunctions. Nested multifunctions flatten recursively in source order:</p>
+<pre><code class="language-rix">Combined = {&gt; Abs[:Positive], OtherFunction, MoreRules }
 </code></pre>
-</li>
-<li><p><strong>FunctionLambda</strong>:</p>
-<pre><code class="language-javascript">{
-  type: &#39;FunctionLambda&#39;,
-  parameters: { /* parameter structure */ },
-  body: { /* expression */ }
-}
+<p>Variants may also be added incrementally:</p>
+<pre><code class="language-rix">Classify(x) ?- [x &lt; 0] /Negative/ =&gt; :negative
+Classify(x) /Other/ =&gt; :other
 </code></pre>
-</li>
-<li><p><strong>SelfRef</strong>:</p>
-<pre><code class="language-javascript">{
-  type: &#39;SelfRef&#39;
-}
-</code></pre>
-</li>
-<li><p><strong>ParameterList</strong>:</p>
-<pre><code class="language-javascript">{
-  type: &#39;ParameterList&#39;,
-  parameters: { /* parameter structure */ }
-}
-</code></pre>
-</li>
-</ol>
-<h4>Enhanced Function Call Arguments</h4>
-<p>Function calls now use structured arguments:</p>
-<pre><code class="language-javascript">{
-  type: &#39;FunctionCall&#39;,
-  function: { /* identifier */ },
-  arguments: {
-    positional: [/* expressions */],
-    keyword: { key: /* expression */ }
-  }
-}
-</code></pre>
-<h3>Parser Method Additions</h3>
-<ul>
-<li><code>parseFunctionParameters()</code>: Handles semicolon-separated parameter lists</li>
-<li><code>parseFunctionParameter()</code>: Parses individual parameters with defaults and conditions</li>
-<li><code>parseFunctionCallArgs()</code>: Handles new function call argument structure</li>
-<li><code>parseParameterFromArg()</code>: Converts function call syntax to parameter definitions</li>
-<li><code>convertArgsToParams()</code>: Helper for parameter extraction</li>
-<li>Self-reference parsing for bare <code>$</code>, <code>$(...)</code>, <code>$.prop</code>, and <code>$..</code></li>
-<li>Enhanced <code>parseGrouping()</code>: Detects and handles parameter list syntax</li>
-<li>Enhanced <code>parseInfix()</code>: Handles new function definition operators</li>
-</ul>
-<h3>Precedence and Associativity</h3>
-<ul>
-<li><code>:-&gt;</code>: Assignment precedence (10), right associative</li>
-<li><code>:=&gt;</code>: Assignment precedence (10), right associative  </li>
-<li><code>?</code>: Condition precedence (45), left associative</li>
-</ul>
-<h2>Testing</h2>
-<h3>Test Coverage</h3>
-<ul>
-<li><strong>9 comprehensive test cases</strong> covering all function definition types</li>
-<li><strong>Integration with existing test suite</strong> (168 total tests passing)</li>
-<li><strong>Edge case handling</strong> for parameter validation and error conditions</li>
-</ul>
-<h3>Test Categories</h3>
-<ol>
-<li>Standard function definitions with various parameter types</li>
-<li>Pattern matching functions with arrays and metadata</li>
-<li>Function calls with new argument syntax</li>
-<li>Assignment-style function definitions</li>
-<li>Conditional parameters and pattern matching</li>
-<li>Error handling for invalid syntax</li>
-</ol>
-<h2>Examples and Documentation</h2>
-<h3>Example Files</h3>
-<ul>
-<li><code>examples/function-definitions.js</code>: Basic feature demonstrations</li>
-<li><code>examples/function-showcase.js</code>: Comprehensive real-world examples</li>
-<li>Updated <code>docs/parsing.md</code>: Complete documentation with examples</li>
-</ul>
-<h3>Real-World Use Cases</h3>
-<ul>
-<li>Mathematical function definitions with constraints</li>
-<li>Piecewise functions using pattern matching</li>
-<li>Scientific computing with parameter validation</li>
-<li>Domain-specific languages with typed parameters</li>
-</ul>
-<h2>Backward Compatibility</h2>
-<ul>
-<li><strong>Fully backward compatible</strong> with existing parser functionality</li>
-<li><strong>Existing function calls</strong> continue to work with legacy array syntax</li>
-<li><strong>Graceful degradation</strong> for unsupported features</li>
-<li><strong>No breaking changes</strong> to existing AST node structures</li>
-</ul>
-<h2>Performance Considerations</h2>
-<ul>
-<li><strong>Minimal overhead</strong> for standard parsing operations</li>
-<li><strong>Efficient parameter list parsing</strong> with single-pass algorithm</li>
-<li><strong>Optimized precedence handling</strong> for new operators</li>
-<li><strong>Memory-efficient AST structures</strong> with minimal nesting</li>
-</ul>
-<h2>Future Extensions</h2>
-<p>The implementation provides foundation for:</p>
-<ul>
-<li>Type annotations on parameters</li>
-<li>Async/await function definitions</li>
-<li>Generic function parameters</li>
-<li>Advanced pattern matching with destructuring</li>
-<li>Function composition operators</li>
-</ul>
-<h2>Integration Points</h2>
-<p>The function definition system integrates with:</p>
-<ul>
-<li><strong>Metadata system</strong>: Parameters and functions support metadata annotations</li>
-<li><strong>Self-reference</strong>: Function bodies can access the current callable and its metadata through <code>$</code></li>
-<li><strong>System identifiers</strong>: Function calls work with system function lookup</li>
-<li><strong>Expression evaluation</strong>: All expressions valid in function bodies and conditions</li>
-<li><strong>Error handling</strong>: Comprehensive error messages for invalid syntax</li>
-<li><strong>Position tracking</strong>: Full source position information maintained</li>
-</ul>
-<p>This implementation establishes RiX as a sophisticated mathematical programming language with modern function definition capabilities while maintaining its focus on mathematical expression parsing and evaluation.</p>
+<p>Dispatch tries variants in order. Prep failure advances to the next variant; after prep succeeds, the body result is final.</p>
 </div>
         </main>
 

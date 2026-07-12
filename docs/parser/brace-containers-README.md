@@ -21,12 +21,8 @@ Contains key-value pairs using the `:=` operator.
 {key1 := value1, key2 := value2}   // Map with identifiers
 ```
 
-### 3. Pattern-Match Containers
-Contains pattern-match pairs using the `:=>` operator.
+### 3. Multifunction Containers
 ```
-{(0) :=> "zero", (1) :=> "one"}    // Pattern match with literals
-{(x) :=> x + 1, (y) :=> y * 2}     // Pattern match with expressions
-{(n) :=> n^2, (m) :=> SIN(m)}      // Pattern match with functions
 ```
 
 ### 4. System Containers
@@ -42,14 +38,12 @@ The parser automatically detects the container type based on its contents:
 
 1. **Set**: Default type for expressions without special operators
 2. **Map**: Detected when `:=` assignments are present
-3. **Pattern-Match**: Detected when `:=>` operators are present
 4. **System**: Detected when equation operators (`:=:`, `:>:`, etc.) are present AND semicolons are used as separators
 
 ## Type Validation
 
 The parser enforces homogeneity within containers:
 - Maps must contain only `:=` assignments
-- Pattern-matches must contain only `:=>` operators
 - Systems must contain only equation operators with semicolon separators
 - Mixing different operator types within the same container results in a parse error
 
@@ -72,7 +66,6 @@ node examples/container-integration-test.js
 Common errors when mixing container types:
 ```
 {a := 1, b, c := 3}          // Error: Mixed map and set elements
-{(x) :=> x + 1, a := 2}      // Error: Mixed pattern and assignment
 {x :=: 3, a := 2}            // Error: Mixed equation and assignment  
 {x :=: 3*x + 2, y :=: x}     // Error: System without semicolons
 ```

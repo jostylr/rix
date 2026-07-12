@@ -20,7 +20,7 @@ This document outlines the development roadmap for the RiX Language Parser & Tok
 #### Parser (✅ Core Complete)
 - ✅ Pratt parser with full operator precedence
 - ✅ Function definitions (multiple styles)
-- ✅ Pattern matching functions
+- ✅ Multifunction literals and prep-based ordered dispatch
 - ✅ Array generators and sequence notation
 - ✅ Matrix and tensor parsing
 - ✅ Code blocks and metadata annotations

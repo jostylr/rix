@@ -44,7 +44,7 @@ External Systems
 - `String`: Quoted literals, backticks, comments
 - `End`: Marks end of input
 
-**Architecture Pattern:** State machine with regex-based pattern matching
+**Architecture Pattern:** State machine with regex-based multifunction dispatch
 
 ### 2. Parser (`src/parser.js`)
 

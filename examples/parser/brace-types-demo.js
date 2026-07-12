@@ -35,9 +35,6 @@ demo('{x + 1, y * 2};', 'Set with expressions');
 demo('{name := "John", age := 30};', 'Map with assignments');
 demo('{x := 5, y := x * 2};', 'Map with expressions');
 
-// PatternMatch: patterns with :=> (these should error - use array syntax instead)
-demo('{(0) :=> "zero", (1) :=> "one"};', 'Pattern match (should error)');
-demo('{(x) :=> x + 1, (y) :=> y * 2};', 'Pattern match with expressions (should error)');
 
 // System: equations with :=:, :>:, etc. and semicolons
 demo('{x :=: 3*x + 2; y :=: x};', 'System of equations');
@@ -45,6 +42,5 @@ demo('{a :>: 0; b :<: 10; c :=: a + b};', 'System with inequalities');
 
 console.log('\nError Cases:');
 demo('{a := 1, b, c := 3};', 'Mixed map and set (invalid)');
-demo('{(x) :=> x + 1, a := 2};', 'Brace pattern syntax (invalid)');
 demo('{x :=: 3, a := 2};', 'Mixed equation and assignment (invalid)');
 demo('{x :=: 3*x + 2, y :=: x};', 'System without semicolons (invalid)');

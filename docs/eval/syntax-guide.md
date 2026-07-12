@@ -120,6 +120,7 @@ Variables name **cells** — mutable containers holding a value and meta propert
 | `(x) ?!- [prep] -> body` | `LAMBDA` | Strict prep phase before body |
 | `F(x) => body` | `MULTIFUNCDEF` | Append variant to multifunction |
 | `F(x) ^=> body` | `MULTIFUNCDEF` | Prepend variant to multifunction |
+| `{> f, G, H[:Named] }` | `MULTIFUNCTION` | Explicit multifunction literal; nested multifunctions flatten in order |
 | `(x) /Name/ -> body` | `LAMBDA` | Name a variant with `variant.__name` |
 
 **Key distinctions:**
@@ -152,7 +153,16 @@ Prep is meant for validation, conversion, destructuring, and local setup. RiX do
 
 #### Multifunctions
 
-Multifunctions are callable arrays marked with `._type = :multifunction`. RiX automatically applies that mark when an uppercase identifier is assigned an array.
+Multifunctions are callable arrays marked with `._type = :multifunction`. RiX automatically applies that mark when an uppercase identifier is assigned an array. The explicit `{> ... }` literal creates the same runtime value directly, which is especially useful inline with pipes.
+
+```rix
+value |> {>
+  (x) ?- [x < 0] /Negative/ -> -x,
+  (x) /Other/ -> x
+}
+```
+
+Literal entries may be functions or multifunctions. Nested multifunctions are recursively flattened in source order. Named selection returns the underlying function, so `{> F[:Positive], G, H }` composes selected variants, ordinary functions, and whole multifunctions using the same dispatch machinery.
 
 ```rix
 F = [
@@ -451,6 +461,7 @@ u \= {| 2 |}
 | `{.. a, b, c }` | `ARRAY_CAPTURE` | Brace-form array literal with constructor capture controls |
 | `{\| a, b, c }` | `SET` | Set literal |
 | `{: a, b, c }` | `TUPLE` | Tuple literal |
+| `{> f, G, H[:Named] }` | `MULTIFUNCTION` | Ordered callable variants; nested multifunctions flatten in source order |
 | `{+ a, b, c }` | `ADD` | N-ary addition or concatenation |
 | `{* a, b, c }` | `MUL` | N-ary multiplication |
 | `{&& a, b, c }` | `AND` | N-ary logical AND (short-circuits on falsy) |

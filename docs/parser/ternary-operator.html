@@ -442,7 +442,7 @@ processed := valid ?? {;
 <ul>
 <li><strong>Query operator</strong>: <code>x?(y)</code> still works for postfix queries</li>
 <li><strong>Interval operator</strong>: <code>1:5</code> still works for intervals</li>
-<li><strong>Conditional operator</strong>: Existing <code>?</code> usage in pattern matching is preserved</li>
+<li><strong>Conditional operator</strong>: Existing <code>?</code> usage in multifunction dispatch is preserved</li>
 </ul>
 <h3>Precedence Integration</h3>
 <p>The ternary operator integrates naturally with RiX&#39;s precedence hierarchy:</p>
@@ -495,13 +495,13 @@ result := x &gt; 0 ?? x ?: -x
 <ol>
 <li><strong>Enhanced right-associativity</strong>: Better automatic parsing of nested ternary chains</li>
 <li><strong>Short-circuit evaluation</strong>: Documentation of evaluation semantics</li>
-<li><strong>Pattern matching integration</strong>: Combining ternary with pattern matching functions</li>
+<li><strong>multifunction dispatch integration</strong>: Combining ternary with multifunctions</li>
 <li><strong>N-ary conditional expressions</strong>: Extended conditional syntax for multiple conditions</li>
 </ol>
 <h2>Usage Recommendations</h2>
 <ol>
 <li><strong>Use parentheses for clarity</strong> in nested ternary expressions</li>
-<li><strong>Prefer ternary for simple conditions</strong> over complex pattern matching when appropriate</li>
+<li><strong>Prefer ternary for simple conditions</strong> over complex multifunction dispatch when appropriate</li>
 <li><strong>Combine with existing RiX features</strong> like pipes and function calls for expressive code</li>
 <li><strong>Maintain readability</strong> by avoiding overly complex nested conditions</li>
 <li><strong>Leverage code blocks</strong> for multi-step conditional computations that require intermediate variables</li>

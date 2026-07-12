@@ -220,8 +220,7 @@ END
 sequence := [1 |+ 2 |^ 10]     # Arithmetic sequence
 matrix := [[1, 2; 3, 4]]       # 2x2 matrix
 
-# Pattern matching functions
-abs :=> [
+# Multifunctions
     (x ? x >= 0) -> x,
     (x ? x < 0) -> -x
 ]

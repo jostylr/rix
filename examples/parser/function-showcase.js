@@ -38,12 +38,6 @@ function showExample(title, code) {
             const hasConditions = expr.parameters.positional.some(p => p.condition) || 
                                 expr.parameters.keyword.some(p => p.condition);
             if (hasConditions) console.log('  Has conditional parameters');
-        } else if (expr.type === 'PatternMatchingFunction') {
-            console.log(`  Pattern function: ${expr.name.name || expr.name.type}`);
-            console.log(`  Patterns: ${expr.patterns.length}`);
-            if (Object.keys(expr.metadata).length > 0) {
-                console.log(`  Global metadata: ${Object.keys(expr.metadata).join(', ')}`);
-            }
         } else if (expr.type === 'FunctionCall') {
             console.log(`  Function call: ${expr.function.name}`);
             console.log(`  Positional args: ${expr.arguments.positional.length}`);
@@ -82,17 +76,10 @@ showExample('Complex Condition', 'constrainedPower(x, n := 2 ? x > 0 AND n >= 0)
 showExample('Multiple Conditions', 'constrainedFunc(x, y; a := 1 ? x^2 + y^2 <= 1, b := 0 ? a > 0) :-> a*x + b*y;');
 
 // 5. Pattern Matching Functions
-showExample('Basic Pattern Matching', 'abs :=> [ (x ? x >= 0) -> x, (x ? x < 0) -> -x ];');
-showExample('Multiple Pattern Function', 'sign :=> [ (x ? x > 0) -> 1, (x ? x < 0) -> -1, (x ? x = 0) -> 0 ];');
-showExample('Pattern with Complex Logic', 'classify :=> [ (x ? x^2 < 1) -> "small", (x ? x^2 >= 1 AND x^2 < 4) -> "medium", (x) -> "large" ];');
 
 // 6. Pattern Matching with Metadata
-showExample('Pattern with Global Metadata', 'normalize :=> [ [(x ? x != 0) -> x / scale, (x) -> 0], scale := 100 ];');
-showExample('Pattern with Multiple Metadata', 'transform :=> [ [(x) -> a*x + b, (x ? x < 0) -> a*(-x) + b], a := 2, b := 5 ];');
 
 // 7. Advanced Pattern Matching
-showExample('Nested Pattern Conditions', 'fibonacci :=> [ (n ? n <= 1) -> n, (n) -> fibonacci(n-1) + fibonacci(n-2) ];');
-showExample('Mathematical Pattern', 'factorial :=> [ (n ? n <= 0) -> 1, (n) -> n * factorial(n-1) ];');
 
 // 8. Function Calls with New Syntax
 showExample('Basic Function Call', 'result := func(5, 10);');
@@ -112,9 +99,6 @@ showExample('Statistical Function', 'mean(data; weights := []; normalized := tru
 showExample('Trigonometric Helper', 'sincos(angle; precision := 6, units := "radians" ? units = "radians" OR units = "degrees") :-> [SIN(angle; precision), COS(angle; precision)];');
 
 // 11. Pattern Matching for Mathematical Functions
-showExample('Piecewise Linear', 'piecewise :=> [ (x ? x < -1) -> -x - 1, (x ? x >= -1 AND x <= 1) -> x^2, (x ? x > 1) -> x + 1 ];');
-showExample('Step Function', 'step :=> [ (x ? x < 0) -> 0, (x ? x >= 0) -> 1 ];');
-showExample('Absolute Value Variants', 'absVariant :=> [ (x ? x >= 0) -> x, (x) -> -x ];');
 
 // 12. Advanced Mathematical Functions
 showExample('Newton Method Step', 'newtonStep(f, df, x; tolerance := 1e-6 ? df(x) != 0) :-> x - f(x) / df(x);');

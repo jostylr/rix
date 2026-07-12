@@ -17,7 +17,7 @@ A comprehensive tokenizer and parser for the RiX (Rational Interval Expression L
 - **Comprehensive Parsing:**
   - Pratt parser with full operator precedence
   - Function definitions with advanced parameter handling
-  - Pattern matching functions with conditions
+  - Multifunctions with conditions
   - Array generators and sequence notation
   - Matrix and tensor parsing
   - Metadata and property annotations
@@ -39,7 +39,7 @@ A comprehensive tokenizer and parser for the RiX (Rational Interval Expression L
   - Multiple assignment operators (`:=`, `:=:`, `:>:`)
   - Comprehensive pipe operators (`|>`, `|>>`, `|>?`, `|>:`)
   - Array generators (`|+`, `|*`, `|:`, `|^`)
-  - Pattern matching with metadata
+  - multifunction dispatch with metadata
   - Function self-reference with `$`, `$(...)`, `$.prop`, and `$..`
   - Tail-self-call optimization for direct tail `$(...)`
   - **Postfix operators (`@`, `?`, `()`, `~[...]`, `~{...}`) for precision, queries, universal calls, and units
@@ -155,8 +155,7 @@ import { parse } from 'rix-language-parser';
 // Function definitions
 const funcDef = parse('power(x, n := 2) :-> x^n');
 
-// Pattern matching
-const patternFunc = parse('abs :=> [(x ? x >= 0) -> x, (x ? x < 0) -> -x]');
+// multifunction dispatch
 
 // Array generators
 const generator = parse('[1 |+ 2 |^ 10]'); // Arithmetic sequence
@@ -246,7 +245,7 @@ This parser implements the complete RiX language specification including:
 - **Operators:** 50+ mathematical and functional operators with proper precedence
 - **Functions:** Multiple definition styles with advanced parameter handling
 - **Collections:** Arrays, matrices, tensors, sets, maps with metadata support
-- **Control Flow:** Pattern matching, conditional expressions, pipe operations
+- **Control Flow:** multifunction dispatch, conditional expressions, pipe operations
 - **Syntax:** Flexible string systems, code blocks, embedded languages
 - **Postfix Operations:** Precision control (@), queries (?), and universal calls (())
 - **Operator Functions:** Mathematical operators usable as variadic functions

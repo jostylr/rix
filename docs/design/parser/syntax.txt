@@ -22,7 +22,7 @@ Arithmetic and Function Operators
 **        Minkowski (interval) product
 %         Modulo/remainder
 ->        Function definition ((x) -> x^2)
-:=>       Pattern-matching function definition
+{> ... }  Explicit multifunction literal
 |         Absolute value (|x|), also sequence separator
 _         Placeholder in piping/parameter rearrangement; metadata access for arrays/maps (x_2)
 @         Variable scoping for globals/outer (@x :@= 4)

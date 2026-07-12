@@ -317,11 +317,9 @@ Represents map literals containing key-value pairs using the `:=` operator:
 ```
 
 #### PatternMatch
-Represents pattern-matching containers using the `:=>` operator:
 ```javascript
 {
     type: "PatternMatch",
-    elements: [ASTNode],    // Array of BinaryOperation nodes with operator ":=>"
     pos: [start, delim, end],
     original: string
 }
@@ -1346,15 +1344,12 @@ Contains key-value pairs using the `:=` operator:
 }
 ```
 
-### Pattern-Match Containers
-Contains pattern-match pairs using the `:=>` operator:
+### Multifunction Containers
 ```javascript
-// Input: "{(x) :=> x + 1};"
 {
     type: "PatternMatch",
     elements: [{
         type: "BinaryOperation",
-        operator: ":=>",
         left: {
             type: "Grouping",
             expression: { type: "UserIdentifier", name: "x" }
@@ -1408,7 +1403,6 @@ The parser enforces type homogeneity within brace containers:
 
 1. **Set containers**: Can contain any expressions that don't use special operators
 2. **Map containers**: Must contain only `:=` assignments
-3. **Pattern-match containers**: Must contain only `:=>` pattern matches
 4. **System containers**: Must contain only equation operators (`:=:`, `:>:`, `:<:`, `:<=:`, `:>=:`) and use semicolons as separators
 
 Mixing different types within the same container will result in a parse error.
@@ -1423,7 +1417,6 @@ It's crucial to understand the difference between code blocks `{; }` and brace c
 | **Tuple** | **`{: }`** | **Explicit tuple literal** | **`{: 1, 2, 3}`** |
 | Set | `{ }` | Mathematical set | `{1, 2, 3}` |
 | Map | `{= }` | Key-value pairs | `{= name := "Alice", age := 30}` |
-| Pattern Match | `{ }` | Pattern matching | `{(0) :=> "zero", (1) :=> "one"}` |
 | System | `{ }` | Equation systems | `{x :=: 2*y; y :>: 0}` |
 
 ### `{: }` Tuple Container vs `( )` Grouping
@@ -2025,20 +2018,15 @@ h(x, y; n := 2 ? x^2 + y^2 = 1) :-> COS(x; n) * SIN(y; n)
 }
 ```
 
-### Pattern Matching Functions
+### Multifunctions
 
-Pattern matching functions use `:=>` and allow multiple function definitions under one name:
 
 ```javascript
 // Array syntax
-g :=> [ (x ? x < 0) -> -x, (x) -> x ]
 
 // Array with global metadata
-g :=> [ [(x ? x < 0) -> -x+n, (x) -> x-n] , n := 4]
 
 // Separate statements (equivalent to array syntax)
-g :=> (x ? x < 0) -> -x;
-g :=> (x) -> x
 ```
 
 #### Pattern Matching Rules
@@ -2053,7 +2041,6 @@ g :=> (x) -> x
 
 ```javascript
 {
-  type: 'PatternMatchingFunction',
   name: { type: 'UserIdentifier', name: 'g' },
   parameters: {...},
   patterns: [
@@ -2109,7 +2096,7 @@ Alternative syntax using standard assignment operators:
 // Equivalent to f(x, n := 5; a := 0) :-> (x-a)^n + 1
 f := (x, n := 5; a := 0) -> (x-a)^n + 1
 
-// Pattern matching with assignment
+// multifunction dispatch with assignment
 g := [ (x ? x < 0) -> -x, (x) -> x ]
 ```
 
@@ -2129,8 +2116,7 @@ Function definitions integrate with the existing metadata system:
 // Function with parameter metadata
 f(x; a := 0, metadata := "description") :-> x + a
 
-// Pattern matching with global metadata
-g :=> [ patterns, n := 4, description := "absolute value function" ]
+// multifunction dispatch with global metadata
 ```
 
 ### Comprehensive Examples
@@ -2187,20 +2173,16 @@ constrainedPower(x, n := 2 ? x > 0 AND n >= 0) :-> x^n
 constrainedFunc(x, y; a := 1 ? x^2 + y^2 <= 1, b := 0 ? a > 0) :-> a*x + b*y
 ```
 
-#### Pattern Matching Functions
+#### Multifunctions
 
 ```javascript
-// Basic pattern matching
-abs :=> [ (x ? x >= 0) -> x, (x ? x < 0) -> -x ]
+// Basic multifunction dispatch
 
 // Multiple patterns
-sign :=> [ (x ? x > 0) -> 1, (x ? x < 0) -> -1, (x ? x = 0) -> 0 ]
 
 // Pattern with global metadata
-normalize :=> [ [(x ? x != 0) -> x / scale, (x) -> 0], scale := 100 ]
 
 // Pattern with multiple metadata
-transform :=> [ [(x) -> a*x + b, (x ? x < 0) -> a*(-x) + b], a := 2, b := 5 ]
 ```
 
 #### Function Calls with Enhanced Syntax
@@ -2242,7 +2224,6 @@ distance(p1, p2; metric := "euclidean") :-> SQRT((p1[0] - p2[0])^2 + (p1[1] - p2
 newtonStep(f, df, x; tolerance := 1e-6 ? df(x) != 0) :-> x - f(x) / df(x)
 
 // Piecewise function
-piecewise :=> [
   (x ? x < -1) -> -x - 1,
   (x ? x >= -1 AND x <= 1) -> x^2,
   (x ? x > 1) -> x + 1

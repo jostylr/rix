@@ -63,11 +63,6 @@ const SYMBOL_TABLE = {
     associativity: "right",
     type: "infix",
   },
-  ":=>": {
-    precedence: PRECEDENCE.ASSIGNMENT,
-    associativity: "right",
-    type: "infix",
-  },
 
   // Pipe operators (left associative)
   "|>": { precedence: PRECEDENCE.PIPE, associativity: "left", type: "infix" },
@@ -456,6 +451,7 @@ const SYMBOL_TABLE = {
   "{#": { precedence: 0, type: "brace_sigil" },
   "{$": { precedence: 0, type: "brace_sigil" },
   "{^": { precedence: 0, type: "brace_sigil" },
+  "{>": { precedence: 0, type: "brace_sigil" },
 
   // Mutation brace
   "{!": { precedence: 0, type: "brace_sigil" },
@@ -746,7 +742,7 @@ class Parser {
           return this.parseAngleForm();
         } else if (token.value === "{") {
           return this.parseBraceContainer();
-        } else if (token.value === "{=" || token.value === "{?" || token.value === "{;" || token.value === "{|" || token.value === "{:" || token.value === "{@" || token.value === "{#" || token.value === "{.."
+        } else if (token.value === "{=" || token.value === "{?" || token.value === "{;" || token.value === "{|" || token.value === "{:" || token.value === "{@" || token.value === "{#" || token.value === "{.." || token.value === "{>"
           || token.value === "{^"
           || token.value === "{$") {
           if (token.value === "{#") {
@@ -787,7 +783,7 @@ class Parser {
           // @ followed by { or brace sigil = deferred block: @{; ...}, @{? ...}, @{...}
           this.advance(); // consume '@'
           const nextVal = this.current.value;
-          if (nextVal === "{" || nextVal === "{;" || nextVal === "{?" || nextVal === "{=" || nextVal === "{|" || nextVal === "{:" || nextVal === "{@" || nextVal === "{#" || nextVal === "{$" || nextVal === "{.." || nextVal === "{^") {
+          if (nextVal === "{" || nextVal === "{;" || nextVal === "{?" || nextVal === "{=" || nextVal === "{|" || nextVal === "{:" || nextVal === "{@" || nextVal === "{#" || nextVal === "{$" || nextVal === "{.." || nextVal === "{^" || nextVal === "{>") {
             let inner;
             if (nextVal === "{") {
               inner = this.parseBraceContainer();
@@ -1034,111 +1030,6 @@ class Parser {
       if (operator.value === "=>" || operator.value === "^=>") {
         this.error("Append/prepend syntax requires a named function signature like F(x) => body");
       }
-    } else if (operator.value === ":=>") {
-      // Pattern matching function definition
-      right = this.parseExpression(rightPrec);
-
-      let funcName = left;
-      let parameters = {
-        positional: [],
-        keyword: [],
-        conditionals: [],
-        metadata: {},
-      };
-      let patterns = [];
-      let globalMetadata = {};
-
-      if (left.type === "FunctionCall") {
-        funcName = left.function;
-        parameters = this.convertArgsToParams(left.arguments);
-      }
-
-      // Handle different pattern syntax and parse each pattern as a function
-      let rawPatterns = [];
-      if (right.type === "Array") {
-        // Array syntax: g :=> [ (x ? x < 0) -> -x, (x) -> x ]
-        rawPatterns = right.elements;
-      } else if (
-        right.type === "WithMetadata" &&
-        right.primary &&
-        right.primary.type === "Array"
-      ) {
-        // Array with metadata: g :=> [ [(x ? x < 0) -> -x+n, (x) -> x-n] , n := 4]
-        if (
-          Array.isArray(right.primary.elements) &&
-          right.primary.elements.length > 0 &&
-          right.primary.elements[0].type === "Array"
-        ) {
-          rawPatterns = right.primary.elements[0].elements;
-        } else {
-          rawPatterns = right.primary.elements;
-        }
-        globalMetadata = right.metadata;
-      } else {
-        // Single pattern: g :=> (x ? x < 0) -> -x
-        rawPatterns = [right];
-      }
-
-      // Parse each pattern as a function definition
-      for (const pattern of rawPatterns) {
-        if (pattern.type === "FunctionLambda") {
-          // Handle FunctionLambda nodes (new parsing with higher -> precedence)
-          const patternFunc = {
-            parameters: pattern.parameters,
-            body: pattern.body,
-          };
-          patterns.push(patternFunc);
-        } else if (
-          pattern.type === "BinaryOperation" &&
-          pattern.operator === "->"
-        ) {
-          // Handle legacy BinaryOperation nodes (fallback)
-          const patternFunc = {
-            parameters: {
-              positional: [],
-              keyword: [],
-              conditionals: [],
-              metadata: {},
-            },
-            body: pattern.right,
-          };
-
-          // Parse the left side (parameters with potential conditions)
-          if (pattern.left.type === "Grouping") {
-            const paramExpr = pattern.left.expression;
-            if (
-              paramExpr.type === "BinaryOperation" &&
-              paramExpr.operator === "?"
-            ) {
-              // (x ? condition) format
-              const paramName = paramExpr.left.name || paramExpr.left.value;
-              patternFunc.parameters.positional.push({
-                name: paramName,
-                defaultValue: null,
-              });
-              patternFunc.parameters.conditionals.push(paramExpr.right);
-            } else if (paramExpr.type === "UserIdentifier") {
-              // Simple (x) format
-              patternFunc.parameters.positional.push({
-                name: paramExpr.name || paramExpr.value,
-                defaultValue: null,
-              });
-            }
-            // TODO: Handle more complex parameter expressions
-          }
-
-          patterns.push(patternFunc);
-        }
-      }
-
-      return this.createNode("PatternMatchingFunction", {
-        name: funcName,
-        parameters: parameters,
-        patterns: patterns,
-        metadata: globalMetadata,
-        pos: left.pos,
-        original: left.original + operator.original,
-      });
     } else if (operator.value === "->") {
       // Function arrow - handle ParameterList nodes specially
       right = this.parseExpression(rightPrec);
@@ -2786,6 +2677,7 @@ class Parser {
       "{@": "LoopContainer",
       "{$": "BlockContainer",
       "{^": "ValueOutfit",
+      "{>": "MultifunctionContainer",
     };
 
     const nodeType = sigilTypeMap[effectiveSigil];

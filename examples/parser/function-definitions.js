@@ -70,30 +70,6 @@ try {
 }
 console.log('');
 
-// Example 5: Pattern matching function with array syntax
-console.log('5. Pattern matching function (array syntax):');
-console.log('   g :=> [ (x ? x < 0) -> -x, (x) -> x ]');
-try {
-    const ast5 = parseCode('g :=> [ (x ? x < 0) -> -x, (x) -> x ];');
-    console.log('   ✓ Parsed successfully');
-    console.log('   Number of patterns:', ast5[0].expression.patterns.length);
-} catch (e) {
-    console.log('   ✗ Parse error:', e.message);
-}
-console.log('');
-
-// Example 6: Pattern matching function with metadata
-console.log('6. Pattern matching function with metadata:');
-console.log('   g :=> [ [(x ? x < 0) -> -x+n, (x) -> x-n] , n := 4]');
-try {
-    const ast6 = parseCode('g :=> [ [(x ? x < 0) -> -x+n, (x) -> x-n] , n := 4];');
-    console.log('   ✓ Parsed successfully');
-    console.log('   Has metadata:', Object.keys(ast6[0].expression.metadata).length > 0);
-} catch (e) {
-    console.log('   ✗ Parse error:', e.message);
-}
-console.log('');
-
 // Example 7: Function call with semicolon separator
 console.log('7. Function call with keyword arguments:');
 console.log('   f(2, 3; a := 4)');
@@ -132,19 +108,5 @@ try {
     console.log('   ✗ Parse error:', e.message);
 }
 console.log('');
-
-// Example 10: Multiple pattern matching definitions
-console.log('10. Multiple pattern matching definitions:');
-console.log('    g :=> (x ? x < 0) -> -x;');
-console.log('    g :=> (x) -> x');
-try {
-    const ast10a = parseCode('g :=> (x ? x < 0) -> -x;');
-    const ast10b = parseCode('g :=> (x) -> x;');
-    console.log('    ✓ Both parsed successfully');
-    console.log('    Pattern 1 type:', ast10a[0].expression.type);
-    console.log('    Pattern 2 type:', ast10b[0].expression.type);
-} catch (e) {
-    console.log('    ✗ Parse error:', e.message);
-}
 
 console.log('\n=== Function Definition Examples Complete ===');
