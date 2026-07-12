@@ -1291,6 +1291,62 @@ function destructureInto(pattern, sourceRef, outerMode, context, evaluate) {
     throw new Error("Invalid destructuring target");
 }
 
+export const PREP_TRIAL_NO_MATCH = Symbol("preparedTrialNoMatch");
+
+function preparedTrialFailure(preserveFailure) {
+    return preserveFailure ? PREP_TRIAL_NO_MATCH : null;
+}
+
+function preparedTrialFailureError(gateIndex, entryIndex = null) {
+    const location = entryIndex === null
+        ? `gate ${gateIndex + 1}`
+        : `gate ${gateIndex + 1}, prep entry ${entryIndex + 1}`;
+    return new Error(`Prepared trial failed at ${location}`);
+}
+
+function evaluatePreparedTrial(args, context, evaluate, preserveFailure) {
+    const candidateNode = args[0];
+    const gates = args.slice(1);
+    if (gates.length === 0) {
+        throw new Error("Prepared trial requires at least one gate");
+    }
+
+    let candidate;
+    try {
+        candidate = evaluate(candidateNode);
+    } catch (error) {
+        if (gates[0]?.strict === true) throw error;
+        return preparedTrialFailure(preserveFailure);
+    }
+
+    context.push();
+    try {
+        for (let gateIndex = 0; gateIndex < gates.length; gateIndex++) {
+            const gate = gates[gateIndex] || {};
+            const strict = gate.strict === true;
+            try {
+                destructureInto(gate.pattern, makeSourceRef(candidate), "alias", context, evaluate);
+                const prep = Array.isArray(gate.prep) ? gate.prep : [];
+                for (let entryIndex = 0; entryIndex < prep.length; entryIndex++) {
+                    const value = evaluate(prep[entryIndex]);
+                    if (value === null) {
+                        if (strict) {
+                            throw preparedTrialFailureError(gateIndex, entryIndex);
+                        }
+                        return preparedTrialFailure(preserveFailure);
+                    }
+                }
+            } catch (error) {
+                if (strict) throw error;
+                return preparedTrialFailure(preserveFailure);
+            }
+        }
+        return candidate;
+    } finally {
+        context.pop();
+    }
+}
+
 /**
  * Recursively set or remove `._mutable` (value-level mutability meta) on all
  * composite values within a value graph.
@@ -1938,6 +1994,22 @@ export const coreFunctions = {
             return rhsValue;
         },
         doc: "General lhs destructuring assignment",
+    },
+
+    PREP_TRIAL: {
+        lazy: true,
+        impl(args, context, evaluate) {
+            return evaluatePreparedTrial(args, context, evaluate, false);
+        },
+        doc: "Evaluate a candidate through ordered soft/strict prep gates, returning null on soft failure",
+    },
+
+    PREP_TRIAL_CASE: {
+        lazy: true,
+        impl(args, context, evaluate) {
+            return evaluatePreparedTrial(args, context, evaluate, true);
+        },
+        doc: "Evaluate a prepared-trial case arm while preserving its no-match status",
     },
 
     OUTER_ASSIGN: {

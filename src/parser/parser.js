@@ -940,9 +940,43 @@ class Parser {
 
     if (operator.value === "?-" || operator.value === "?!-") {
       this.advance(); // consume ?- / ?!-
-      const prep = this.current.value === "["
+      const strict = operator.value === "?!-";
+      const first = this.current.value === "["
         ? this.parseArray()
-        : this.parseExpression(PRECEDENCE.ARROW + 1);
+        : this.parseExpression(PRECEDENCE.INTERVAL + 1);
+
+      // Expression-level prepared trial:
+      //   candidate ?- pattern: [checks]
+      //   candidate ?!- pattern: [checks]
+      // An initial array is ambiguous with function prep until the following
+      // ':' (trial binding) or arrow/name header (function prep) is seen.
+      if (this.current.value === ":") {
+        this.advance(); // consume ':' after the binding pattern
+        if (this.current.value !== "[") {
+          this.error("Prepared trial checks must be written as an array literal: ?- pattern: [ ... ]");
+        }
+        const prep = this.parseArray();
+        const pattern = this.convertExpressionToDestructureTarget(first);
+        const gate = { pattern, prep, strict };
+
+        if (left.type === "PreparedTrial") {
+          return this.createNode("PreparedTrial", {
+            candidate: left.candidate,
+            gates: [...left.gates, gate],
+            pos: left.pos,
+            original: left.original + operator.original + (first.original || "") + (prep.original || ""),
+          });
+        }
+
+        return this.createNode("PreparedTrial", {
+          candidate: left,
+          gates: [gate],
+          pos: left.pos,
+          original: left.original + operator.original + (first.original || "") + (prep.original || ""),
+        });
+      }
+
+      const prep = first;
       if (!prep || prep.type !== "Array") {
         this.error("Function prep phase must be written as an array literal: ?- [ ... ]");
       }
@@ -956,7 +990,7 @@ class Parser {
       const arrow = this.current.value;
       this.advance(); // consume arrow
       const body = this.parseExpression(PRECEDENCE.ARROW);
-      const prepStrict = operator.value === "?!-";
+      const prepStrict = strict;
       const fnNode = this.buildFunctionArrowNode(left, arrow, body, {
         prep,
         prepStrict,

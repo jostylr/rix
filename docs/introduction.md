@@ -231,8 +231,9 @@ x ~!: :rational
 
 The core registry includes exact built-in numeric types such as `:Integer`, `:Rational`, and `:RationalInterval`. Real-number implementations, including oracle-style reals and JavaScript-backed floats, are intended to be RiX startup extensions rather than core JavaScript types, so several implementations can coexist in user land.
 
-`x ? :name` checks semantic membership using exactly these sources:
+`x ? :name` checks semantic membership using these sources:
 
+- the registered runtime type of a plain value
 - `x.__type`
 - `x._type`
 - membership of `:name` inside `x.__traits`
@@ -269,6 +270,67 @@ Soft-conversion warnings can be enabled with:
 warnings: {
   conversion: true
 }
+```
+
+### Prepared Trial Expressions
+
+The function prep model is also available directly on expressions:
+
+```rix
+F(3) ?- x: [x ? :Integer, x > 0]
+F(3) ?!- x: [x ? :Integer]
+```
+
+The candidate expression is evaluated once, then bound or destructured in a
+temporary scope. Prep entries run left-to-right. On success, the expression
+returns the original candidate value; the binding and any prep locals do not
+escape. Discarding that scope does not roll back mutations or IO performed by
+prep code.
+
+- `?-` returns `_` when candidate evaluation, destructuring, or prep fails.
+- `?!-` throws on the same failures.
+- The first gate controls errors raised while evaluating the candidate.
+- Chained gates run in source order and each gate supplies its own failure
+  policy.
+
+```rix
+F(3)
+  ?-  value: [value ? :Integer]
+  ?!- value: [value > 0]
+```
+
+Here an evaluation error or non-integer result is a soft failure, while an
+integer that is not positive is a strict failure. Successful prep bindings are
+visible to later gates, and the candidate is never evaluated again.
+
+Prepared trials compose with ordinary assignment:
+
+```rix
+a := F(3) ?- x: [x > 0]             ## assigns the value or _
+b := F(3) ?!- x: [x ? :Integer]     ## assigns or throws before := commits
+```
+
+Inside a case block, a soft prepared-trial failure advances to the next arm:
+
+```rix
+result := {?
+  F(-3) ?- x: [x > 0];
+  F(4) ?- x: [x > 0];
+  5
+}
+```
+
+The first successful arm returns its original candidate. A strict failure
+throws, an ordinary expression remains the unconditional fallback, and no
+successful arm with no fallback returns `_`. A successfully accepted `_` is
+still a result and does not fall through.
+
+Prepared-trial patterns reuse ordinary destructuring, including structural
+failure:
+
+```rix
+value ?- [head, ...tail]: [head > 0]
+value ?- {: x, y }: [x + y == 1]
 ```
 
 ### Multifunctions

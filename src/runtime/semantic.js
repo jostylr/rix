@@ -165,6 +165,12 @@ function applyType(header, value, context, evaluate = null) {
 }
 
 export function valueHasSemanticMembership(value, name) {
+    const requestedType = typeRegistry.get(name);
+    const runtimeType = typeRegistry.get(runtimeTypeName(value));
+    if (requestedType && runtimeType && requestedType.name === runtimeType.name) {
+        return true;
+    }
+
     const ext = value?._ext;
     if (!(ext instanceof Map) || !name) {
         return false;

@@ -506,6 +506,21 @@ describe("Lowering Pass", () => {
       ]);
     });
 
+    test("prepared trials lower candidates, destructuring patterns, and ordered gates", () => {
+      const ir = L("F(3) ?- x: [x ? :Integer] ?!- {: a, b }: [a + b == 1];");
+
+      expect(ir.fn).toBe("PREP_TRIAL");
+      expect(ir.args[0].fn).toBe("CALL");
+      expect(ir.args[1]).toEqual({
+        pattern: { type: "DestructureVariableTarget", name: "x" },
+        prep: [{ fn: "SEMANTIC_HAS", args: [{ fn: "RETRIEVE", args: ["x"] }, "Integer"] }],
+        strict: false,
+      });
+      expect(ir.args[2].pattern.type).toBe("DestructureTuplePattern");
+      expect(ir.args[2].prep[0].fn).toBe("EQ");
+      expect(ir.args[2].strict).toBe(true);
+    });
+
     test("lambda variant name lowers into params metadata", () => {
       const ir = L("(x) /Rational/ -> x;");
       expect(ir.fn).toBe("LAMBDA");

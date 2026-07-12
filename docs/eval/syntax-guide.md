@@ -118,6 +118,8 @@ Variables name **cells** — mutable containers holding a value and meta propert
 | `(x) -> body` | `LAMBDA` | `(x) -> x + 1` |
 | `F(x) ?- [prep] -> body` | `FUNCDEF` | Soft prep phase before body |
 | `(x) ?!- [prep] -> body` | `LAMBDA` | Strict prep phase before body |
+| `expr ?- pattern: [prep]` | `PREP_TRIAL` | Return the candidate or `_` on evaluation, binding, or prep failure |
+| `expr ?!- pattern: [prep]` | `PREP_TRIAL` | Return the candidate or throw on evaluation, binding, or prep failure |
 | `F(x) => body` | `MULTIFUNCDEF` | Append variant to multifunction |
 | `F(x) ^=> body` | `MULTIFUNCDEF` | Prepend variant to multifunction |
 | `{> f, G, H[:Named] }` | `MULTIFUNCTION` | Explicit multifunction literal; nested multifunctions flatten in order |
@@ -151,6 +153,39 @@ Rules:
 
 Prep is meant for validation, conversion, destructuring, and local setup. RiX does not currently restrict mutation or IO in prep.
 
+#### Prepared Trial Expressions
+
+Expression-level prep evaluates a candidate once and gives it an arm-local
+binding or destructuring pattern:
+
+```rix
+F(3) ?- x: [x ? :Integer, x > 0]
+F(3) ?!- {: x, y }: [x + y == 1]
+```
+
+On success the original candidate is returned. Soft `?-` failure returns `_`;
+strict `?!-` failure throws. Binding and prep locals do not escape. Gates may be
+chained, and the first gate determines whether candidate-evaluation errors are
+soft or strict:
+
+```rix
+F(3) ?- x: [x ? :Integer] ?!- x: [x > 0]
+```
+
+Temporary bindings are discarded after the trial; mutations and IO performed
+by prep code are not rolled back.
+
+Inside `{? ... }`, soft trial failure advances to the next arm, while strict
+failure throws. Ordinary case expressions remain unconditional fallbacks:
+
+```rix
+{?
+  F(-3) ?- x: [x > 0];
+  F(4) ?- x: [x > 0];
+  5
+}
+```
+
 #### Multifunctions
 
 Multifunctions are callable arrays marked with `._type = :multifunction`. RiX automatically applies that mark when an uppercase identifier is assigned an array. The explicit `{> ... }` literal creates the same runtime value directly, which is especially useful inline with pipes.
@@ -180,7 +215,7 @@ Dispatch model:
 - body return values are final, including `_`
 - if nothing matches, the result is `_`
 
-`?!-` keeps its strict meaning inside multifunctions: a thrown prep error propagates, while a prep result of `_` still counts as "try the next variant".
+`?!-` keeps its strict meaning inside multifunctions: a thrown prep error or a prep result of `_` propagates as a failure instead of trying the next variant.
 
 Append and prepend forms mutate the multifunction definition:
 

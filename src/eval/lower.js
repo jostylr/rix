@@ -484,6 +484,15 @@ const LOWERERS = {
     return ir("CALL_METHOD", lowerNode(node.object), node.method, ...args);
   },
 
+  PreparedTrial(node) {
+    const gates = (node.gates || []).map((gate) => ({
+      pattern: lowerDestructureTarget(gate.pattern),
+      prep: gate.prep?.type === "Array" ? gate.prep.elements.map(lowerNode) : [],
+      strict: gate.strict === true,
+    }));
+    return ir("PREP_TRIAL", lowerNode(node.candidate), ...gates);
+  },
+
   // === Function Definitions ===
 
   FunctionDefinition(node) {

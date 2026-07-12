@@ -438,6 +438,32 @@ describe("RiX Parser", () => {
       ]);
     });
 
+    test("expression-level prepared trials parse binding patterns and ordered policies", () => {
+      const ast = stripMetadata(parseCode("F(3) ?- x: [x ? :Integer] ?!- {: a, b }: [a + b == 1];"));
+      const expression = ast[0].expression;
+
+      expect(expression.type).toBe("PreparedTrial");
+      expect(expression.candidate.type).toBe("FunctionCall");
+      expect(expression.gates).toHaveLength(2);
+      expect(expression.gates[0].strict).toBe(false);
+      expect(expression.gates[0].pattern).toEqual({
+        type: "DestructureVariableTarget",
+        name: "x",
+      });
+      expect(expression.gates[1].strict).toBe(true);
+      expect(expression.gates[1].pattern.type).toBe("DestructureTuplePattern");
+      expect(expression.gates[1].pattern.entries.map((entry) => entry.name)).toEqual(["a", "b"]);
+    });
+
+    test("array binding patterns are distinguished from function prep arrays", () => {
+      const ast = stripMetadata(parseCode("F(3) ?- [a, b]: [a < b];"));
+      const expression = ast[0].expression;
+
+      expect(expression.type).toBe("PreparedTrial");
+      expect(expression.gates[0].pattern.type).toBe("DestructureArrayPattern");
+      expect(expression.gates[0].prep.type).toBe("Array");
+    });
+
     test("append variant parses as multifunction definition", () => {
       const ast = parseCode("F(x) ?- [x > 0] /Positive/ => x;");
       expect(stripMetadata(ast)).toEqual([

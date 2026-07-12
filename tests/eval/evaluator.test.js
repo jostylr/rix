@@ -1028,6 +1028,100 @@ describe("RiX Evaluator", () => {
         });
     });
 
+    describe("Prepared trials", () => {
+        test("bare soft trials return the candidate on success and null on failure", () => {
+            expect(evalRix("F = x -> x; F(3) ?- x: [x > 0];").value).toBe(3n);
+            expect(evalRix("F = x -> x; F(-3) ?- x: [x > 0];")).toBeNull();
+        });
+
+        test("trial bindings and prep locals stay local", () => {
+            const ctx = new Context();
+            expect(evalRix("F = x -> x; F(3) ?- x: [twice = 2 * x, twice > 0];", ctx).value).toBe(3n);
+            expect(() => evalRix("x;", ctx)).toThrow(/Undefined variable: x/);
+            expect(() => evalRix("twice;", ctx)).toThrow(/Undefined variable: twice/);
+        });
+
+        test("strict trial checks throw", () => {
+            expect(() => evalRix("F = x -> x; F(-3) ?!- x: [x > 0];"))
+                .toThrow(/Prepared trial failed at gate 1, prep entry 1/);
+        });
+
+        test("ordinary assignment composes with soft and strict trials", () => {
+            const soft = evalRixWithContext("F = x -> x; a := F(-3) ?- x: [x > 0]; a;");
+            expect(soft.result).toBeNull();
+            expect(soft.context.has("a")).toBe(true);
+
+            const strictContext = new Context();
+            evalRix("F = x -> x; a := 9;", strictContext);
+            expect(() => evalRix("a := F(-3) ?!- x: [x > 0];", strictContext)).toThrow(/Prepared trial failed/);
+            expect(evalRix("a;", strictContext).value).toBe(9n);
+        });
+
+        test("the first gate controls candidate evaluation errors", () => {
+            const soft = evalRix("Bad = x -> 1 / x; {? Bad(0) ?- value: [value > 0]; 5 };");
+            expect(soft.value).toBe(5n);
+
+            expect(() => evalRix("Bad = x -> 1 / x; {? Bad(0) ?!- value: [value > 0]; 5 };"))
+                .toThrow(/zero/);
+        });
+
+        test("ordered gates apply their own soft and strict failure policies", () => {
+            expect(() => evalRix(`
+                F = x -> x;
+                F(-3) ?- value: [value ? :Integer] ?!- value: [value > 0];
+            `)).toThrow(/Prepared trial failed at gate 2, prep entry 1/);
+
+            const result = evalRix(`
+                F = x -> x;
+                {? F(-3) ?!- value: [value ? :Integer] ?- value: [value > 0]; 7 };
+            `);
+            expect(result.value).toBe(7n);
+        });
+
+        test("chained gates evaluate their candidate exactly once", () => {
+            const { result, context } = evalRixWithContext(`
+                calls := 0;
+                Once = x -> {; @calls += 1; x };
+                Once(3) ?- value: [value ? :Integer] ?!- value: [value > 0];
+            `);
+            expect(result.value).toBe(3n);
+            expect(context.get("calls").value).toBe(1n);
+        });
+
+        test("successful prep locals remain visible to later gates", () => {
+            const result = evalRix(`
+                F = x -> x;
+                F({: 2, 3 })
+                    ?- {: a, b }: [sum = a + b]
+                    ?!- pair: [sum == 5];
+            `);
+            expect(result.type).toBe("tuple");
+            expect(result.values.map((value) => value.value)).toEqual([2n, 3n]);
+        });
+
+        test("case blocks advance only on soft trial failure", () => {
+            const result = evalRix(`
+                F = x -> x;
+                {? F(-3) ?- value: [value > 0]; F(4) ?- value: [value > 0]; 5 };
+            `);
+            expect(result.value).toBe(4n);
+            expect(evalRix("F = x -> x; {? F(-3) ?- value: [value > 0] };")).toBeNull();
+        });
+
+        test("a successful null candidate does not fall through a case", () => {
+            const result = evalRix("{? _ ?- value: [1]; 5 };");
+            expect(result).toBeNull();
+        });
+
+        test("destructuring mismatch follows the gate policy", () => {
+            const soft = evalRix("{? [1] ?- {: a, b }: [1]; {: 4, 5 } ?- {: a, b }: [a < b]; 0 };");
+            expect(soft.values.map((value) => value.value)).toEqual([4n, 5n]);
+
+            expect(() => evalRix("[1] ?!- {: a, b }: [1];"))
+                .toThrow(/Wrong rhs kind for tuple destructuring pattern/);
+        });
+    });
+
     describe("Collections", () => {
         test("array literal", () => {
             const result = evalRix("[1, 2, 3];");

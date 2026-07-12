@@ -63,6 +63,37 @@ The strict form `?!-` keeps the same prep structure but throws instead of collap
 
 Prep is intentionally permissive for now. RiX does not yet try to prove purity, block mutation, or separate benign internal state changes from externally visible mutation. The design intent is still "setup before body", but enforcement is deferred until the runtime has a sharper mutation model.
 
+## Prepared Trial Expressions and Case Arms (2026-07-12)
+
+Prep is useful outside a callable when a computed value must be validated or
+destructured before it is accepted. RiX therefore supports prepared trials:
+
+```rix
+candidate ?- pattern: [prep]
+candidate ?!- pattern: [prep]
+```
+
+The candidate is evaluated once. Its pattern and prep run in a temporary scope,
+and success returns the original candidate. Soft failure returns `_`; strict
+failure throws. Chained gates retain their order, with the first gate governing
+candidate-evaluation errors and each later gate governing its own destructuring
+and prep failures.
+
+The same expression becomes an ordered trial arm inside `{? ... }`. A soft
+failure advances, a strict failure throws, and success selects the candidate.
+This is explicit prep-driven selection rather than a hidden pattern matcher:
+structural behavior comes from the existing destructuring system and all other
+selection logic remains ordinary RiX code.
+
+Case evaluation preserves an internal no-match status distinct from `_`. That
+distinction matters because a candidate may successfully be `_`; an accepted
+null is final, while a failed soft gate advances. Outside `{?}`, the internal
+failure status is exposed as the ordinary `_` result.
+
+Prepared trials are expression-level rather than assignment-specific. Ordinary
+assignment therefore composes without a mirrored left-hand syntax: soft failure
+assigns `_`, while strict failure throws before the assignment commits.
+
 ## Semantic Inquiry and Explicit Conversion Operators (2026-03-30)
 
 RiX needs a lightweight semantic inquiry form and both soft and strict explicit conversion forms.

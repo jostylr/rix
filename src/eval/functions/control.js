@@ -8,6 +8,7 @@
  */
 
 import { runtimeDefaults } from "../../runtime/runtime-config.js";
+import { PREP_TRIAL_NO_MATCH } from "./core.js";
 
 function isTruthy(val) {
     return val !== null && val !== undefined;
@@ -165,6 +166,7 @@ export const controlFunctions = {
             // CASE receives DEFER-wrapped elements from {? ... }
             // Each element is either:
             //   DEFER(CONDITION(test, action))  —  a condition ? action branch
+            //   DEFER(PREP_TRIAL(...))          —  an ordered prepared-trial arm
             //   DEFER(expr)                      —  a default (fallback) branch
             try {
                 for (let i = 0; i < bodyArgs.length; i++) {
@@ -180,6 +182,14 @@ export const controlFunctions = {
                         continue;
                     }
 
+                    if (inner && inner.fn === "PREP_TRIAL") {
+                        const result = evaluate({ ...inner, fn: "PREP_TRIAL_CASE" });
+                        if (result === PREP_TRIAL_NO_MATCH) {
+                            continue;
+                        }
+                        return result;
+                    }
+
                     // Not a CONDITION node — it's a default/fallback
                     return evaluate(inner);
                 }
@@ -191,7 +201,7 @@ export const controlFunctions = {
             }
             return null;
         },
-        doc: "Conditional case expression: {? cond ? action; ... ; default }",
+        doc: "Ordered case expression with condition arms, prepared-trial arms, and an optional fallback",
     },
 
     LOOP: {

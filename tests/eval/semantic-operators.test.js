@@ -28,6 +28,12 @@ function evalRiXWithContext(code, ctx = new Context()) {
 }
 
 describe("semantic inquiry and conversion operators", () => {
+    test("inquiry recognizes the registered runtime type of a plain value", () => {
+        const result = evalRiX("7 ? :Integer");
+        expect(result).toBeInstanceOf(Integer);
+        expect(result.value).toBe(1n);
+    });
+
     test("inquiry succeeds against __type", () => {
         const result = evalRiX("x = {^ /::rational/ 7}; x ? :rational");
         expect(result).toBeInstanceOf(Integer);
