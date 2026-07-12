@@ -153,6 +153,10 @@ export function shallowCopyValue(value) {
         return { ...value, terms: new Map(value.terms), _ext: value._ext ? new Map(value._ext) : undefined };
     }
 
+    if (value.type === "cayley") {
+        return { ...value, _ext: value._ext ? new Map(value._ext) : undefined };
+    }
+
     // Function / lambda / other object — return same reference (immutable def)
     return value;
 }
@@ -259,6 +263,15 @@ export function deepCopyValue(value) {
             });
         }
         return { ...value, terms, _ext: value._ext ? deepCopyMeta(value._ext) : undefined };
+    }
+
+    if (value.type === "cayley") {
+        return {
+            ...value,
+            magnitude: deepCopyValue(value.magnitude),
+            direction: deepCopyValue(value.direction),
+            _ext: value._ext ? deepCopyMeta(value._ext) : undefined,
+        };
     }
 
     return value;

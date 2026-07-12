@@ -203,3 +203,70 @@ describe("complex exact operations", () => {
         expect(formatValue(evalRiX("(3 + 4~{i}).NormSquared()"))).toBe("25");
     });
 });
+
+describe("Cayley polar complex values", () => {
+    test("the Complex collection exposes Cayley construction and conversion", () => {
+        const complex = evalRiX(".Complex");
+        expect(typeof complex.entries.get("cayley")).toBe("function");
+        expect(typeof complex.entries.get("cartesian")).toBe("function");
+        expect(complex.entries.get("infinity")?.type).toBe("cayley_infinity");
+
+        const value = evalRiX(".Complex.Cayley(1 + .Complex[:i])");
+        expect(value.type).toBe("cayley");
+        expect(formatValue(value)).toBe("Cayley(1~{sqrt2}, -1 + 1~{sqrt2})");
+        expect(formatValue(evalRiX(".Complex.Cayley(1 + .Complex[:i]).Cartesian()"))).toBe("1 + 1~{i}");
+        expect(formatValue(evalRiX("(1 + .Complex[:i]).Cayley()"))).toBe("Cayley(1~{sqrt2}, -1 + 1~{sqrt2})");
+        expect(formatValue(evalRiX(".Complex.Cartesian(.Complex.Cayley(5, 1/2))"))).toBe("3 + 4~{i}");
+    });
+
+    test("rational Pythagorean points simplify and round-trip exactly", () => {
+        expect(formatValue(evalRiX(".Complex.Cayley(3 + 4~{i})"))).toBe("Cayley(5, 1/2)");
+        expect(formatValue(evalRiX(".Complex.Cayley(5, 1/2).Cartesian()"))).toBe("3 + 4~{i}");
+        expect(evalRiX(".Complex.Cayley(3 + 4~{i}).Cartesian() == (3 + 4~{i})")).toBeInstanceOf(Integer);
+    });
+
+    test("zero and both real-axis directions have canonical forms", () => {
+        expect(formatValue(evalRiX(".Complex.Cayley(0)"))).toBe("Cayley(0, 0)");
+        expect(formatValue(evalRiX(".Complex.Cayley(2)"))).toBe("Cayley(2, 0)");
+        expect(formatValue(evalRiX(".Complex.Cayley(-2)"))).toBe("Cayley(2, Infinity)");
+        expect(formatValue(evalRiX(".Complex.Cayley(-2).Cartesian()"))).toBe("-2");
+    });
+
+    test("multiplication, division, and integer powers stay in Cayley form", () => {
+        expect(formatValue(evalRiX("(.Complex.Cayley(3 + 4~{i}) * .Complex.Cayley(1 + 1~{i})).Cartesian()"))).toBe("-1 + 7~{i}");
+        expect(formatValue(evalRiX("(.Complex.Cayley(3 + 4~{i}) / .Complex.Cayley(1 + 1~{i})).Cartesian()"))).toBe("3..1/2 + 1/2~{i}");
+        expect(formatValue(evalRiX("(.Complex.Cayley(1 + 1~{i})^3).Cartesian()"))).toBe("-2 + 2~{i}");
+        expect(evalRiX(".Complex.Cayley(1 + 1~{i})^2").type).toBe("cayley");
+    });
+
+    test("addition and subtraction round-trip through exact Cartesian form", () => {
+        const sum = evalRiX(".Complex.Cayley(3 + 4~{i}) + .Complex.Cayley(1 + 2~{i})");
+        const difference = evalRiX(".Complex.Cayley(3 + 4~{i}) - .Complex.Cayley(1 + 2~{i})");
+        expect(sum.type).toBe("cayley");
+        expect(difference.type).toBe("cayley");
+        expect(formatValue(evalRiX("(.Complex.Cayley(3 + 4~{i}) + .Complex.Cayley(1 + 2~{i})).Cartesian()"))).toBe("4 + 6~{i}");
+        expect(formatValue(evalRiX("(.Complex.Cayley(3 + 4~{i}) - .Complex.Cayley(1 + 2~{i})).Cartesian()"))).toBe("2 + 2~{i}");
+    });
+
+    test("Cayley methods preserve the representation where appropriate", () => {
+        expect(formatValue(evalRiX(".Complex.Cayley(3 + 4~{i}).Conjugate()"))).toBe("Cayley(5, -1/2)");
+        expect(formatValue(evalRiX(".Complex.Cayley(3 + 4~{i}).Re()"))).toBe("3");
+        expect(formatValue(evalRiX(".Complex.Cayley(3 + 4~{i}).Im()"))).toBe("4");
+        expect(formatValue(evalRiX(".Complex.Cayley(3 + 4~{i}).Magnitude()"))).toBe("5");
+        expect(formatValue(evalRiX(".Complex.Cayley(3 + 4~{i}).Direction()"))).toBe("1/2");
+        expect(formatValue(evalRiX(".Complex.Cayley(3 + 4~{i}).NormSquared()"))).toBe("25");
+        expect(formatValue(evalRiX(".Complex.Cayley(3 + 4~{i}).Inverse().Cartesian()"))).toBe("3/25 - 4/25~{i}");
+    });
+
+    test("the projective infinity direction composes without numeric infinity arithmetic", () => {
+        expect(formatValue(evalRiX(".Complex.Cayley(-1) * .Complex.Cayley(-1)"))).toBe("Cayley(1, 0)");
+        expect(formatValue(evalRiX(".Complex.Cayley(-1) * .Complex.Cayley(1 + 1~{i})"))).toBe("Cayley(1~{sqrt2}, -1 - 1~{sqrt2})");
+        expect(formatValue(evalRiX("(.Complex.Cayley(-1) * .Complex.Cayley(2)).Direction()"))).toBe("Infinity");
+    });
+
+    test("mixed Cartesian arithmetic converts through the Cayley operand", () => {
+        expect(evalRiX(".Complex.Cayley(1 + 1~{i}) * (1 - 1~{i})").type).toBe("cayley");
+        expect(formatValue(evalRiX("(.Complex.Cayley(1 + 1~{i}) * (1 - 1~{i})).Cartesian()"))).toBe("2");
+        expect(evalRiX(".Complex.Cayley(3 + 4~{i}) == 3 + 4~{i}")).toBeInstanceOf(Integer);
+    });
+});

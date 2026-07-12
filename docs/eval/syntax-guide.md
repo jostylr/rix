@@ -1498,6 +1498,11 @@ Scope note:
 | `.Complex.Re(value)`, `.Complex.Im(value)` | Extract exact complex components |
 | `.Complex.FromParts(real, imaginary)` | Construct `real + imaginary*i` |
 | `.Complex.NormSquared(value)` | Return exact `Re(value)^2 + Im(value)^2` |
+| `.Complex.Cayley(value)` | Convert exact Cartesian complex form to Cayley polar form |
+| `.Complex.Cayley(r, t)` | Construct exact Cayley magnitude/direction coordinates |
+| `.Complex.Cartesian(value)` | Convert Cayley form to exact Cartesian form |
+| `.Complex.Magnitude(value)`, `.Complex.Direction(value)` | Inspect Cayley coordinates |
+| `.Complex.Inverse(value)` | Return the exact reciprocal, preserving Cayley form |
 
 *Note: Combo assignments (`+=`, `-=`, `*=`, `/=`, `//=`, `%=`, `^=`, `++=`, `\/=`, `/\=`, `\=`, `**=`, `/^=`, `/~=`) automatically desugar into `ASSIGN_UPDATE(x, OP(RETRIEVE(x), y))` or `OUTER_UPDATE(x, OP(OUTER_RETRIEVE(x), y))`, preserving the original cell.*
 

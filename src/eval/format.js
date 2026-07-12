@@ -4,7 +4,7 @@ import { isTensor, tensorOffsetForTuple, tensorSize } from "../runtime/tensor.js
 import { irToText } from "./ir-to-text.js";
 import { resolveMethod } from "../runtime/methods.js";
 import { callWithConcreteArgs } from "./functions/functions.js";
-import { formatExact } from "../runtime/exact-values.js";
+import { formatExact, isCayleyInfinity, isCayleyValue } from "../runtime/exact-values.js";
 import { formatQuantity, formatUnit, isQuantity, isUnitValue } from "../runtime/quantities.js";
 
 function tensorValueAtTuple(tensor, tuple) {
@@ -253,6 +253,10 @@ export function formatValue(val, options = {}) {
 
     if (typeof val === "object" && val !== null) {
         if (val.type === "string") return val.value;
+        if (isCayleyInfinity(val)) return "Infinity";
+        if (isCayleyValue(val)) {
+            return `Cayley(${formatChild(val.magnitude)}, ${formatChild(val.direction)})`;
+        }
         if (isQuantity(val)) return formatQuantity(val, formatChild);
         if (isUnitValue(val)) return `~[${formatUnit(val)}]`;
         if (val.type === "exact_generator" || val.type === "exact_expression") {

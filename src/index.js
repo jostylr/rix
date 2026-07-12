@@ -8,4 +8,8 @@ export {
     createExactGenerator, exactGeneratorFromPolynomial, isExactValue,
     createDefaultComplexCollection, complexConjugate, complexParts,
     complexFromParts, complexNormSquared,
+    CAYLEY_INFINITY, isCayleyValue, isCayleyInfinity, exactSquareRoot,
+    createCayley, cayleyFromCartesian, cayleyCartesian, addCayley,
+    subtractCayley, multiplyCayley, divideCayley, powCayley,
+    negateCayley, conjugateCayley, inverseCayley, equalCayley,
 } from "./runtime/index.js";

@@ -1,0 +1,22 @@
+## Exact Cayley polar arithmetic: magnitude plus tangent-half-angle direction.
+
+z := 1 + 1~{i};
+c := .Complex.Cayley(z);
+roundTrip := c.Cartesian();
+
+a := .Complex.Cayley(3 + 4~{i});
+b := .Complex.Cayley(1 + 1~{i});
+
+product := a * b;
+quotient := a / b;
+sum := a + b;
+
+{:
+    c,
+    roundTrip,
+    product.Cartesian(),
+    quotient.Cartesian(),
+    sum.Cartesian(),
+    c.Conjugate(),
+    .Complex.Cayley(-1)
+}

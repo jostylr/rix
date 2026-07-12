@@ -208,8 +208,11 @@ z.NormSquared()
 
 `Re` and `Im` treat registered generators other than `i` as real coefficients.
 `NormSquared` is exact and avoids choosing a square-root representation.
-`Magnitude` and `Arg` are deferred until RiX has settled real-number precision,
-square-root, and trigonometric policies.
+RiX also provides an exact [Cayley polar representation](cayley-polar.md) for
+Gaussian rational inputs. It adjoins the positive algebraic magnitude root and
+stores direction as the tangent-half-angle coordinate instead of a
+transcendental angle. `Arg` remains deferred until RiX has settled its
+real-number and trigonometric policies.
 
 ## Dispatch and sandboxing
 

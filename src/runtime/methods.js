@@ -18,7 +18,19 @@ import {
     tensorSize,
 } from "./tensor.js";
 import { checkTraits, refreshRuntimeMetadata } from "./semantic.js";
-import { complexConjugate, complexNormSquared, complexParts, isExactValue } from "./exact-values.js";
+import {
+    cayleyCartesian,
+    cayleyFromCartesian,
+    cayleyImaginary,
+    cayleyReal,
+    complexConjugate,
+    complexNormSquared,
+    complexParts,
+    conjugateCayley,
+    inverseCayley,
+    isExactValue,
+    multiplyScalars,
+} from "./exact-values.js";
 import { isUnitValue } from "./quantities.js";
 
 function int(value) {
@@ -1284,6 +1296,7 @@ const PROTOS = new Map([
         ["RE", method("Re", ([target]) => complexParts(target).real)],
         ["IM", method("Im", ([target]) => complexParts(target).imaginary)],
         ["NORMSQUARED", method("NormSquared", ([target]) => complexNormSquared(target))],
+        ["CAYLEY", method("Cayley", ([target]) => cayleyFromCartesian(target))],
     ])],
     ["exact_expression", createBuiltinProto([
         ...Object.entries(commonMethods),
@@ -1291,6 +1304,19 @@ const PROTOS = new Map([
         ["RE", method("Re", ([target]) => complexParts(target).real)],
         ["IM", method("Im", ([target]) => complexParts(target).imaginary)],
         ["NORMSQUARED", method("NormSquared", ([target]) => complexNormSquared(target))],
+        ["CAYLEY", method("Cayley", ([target]) => cayleyFromCartesian(target))],
+    ])],
+    ["cayley", createBuiltinProto([
+        ...Object.entries(commonMethods),
+        ["CARTESIAN", method("Cartesian", ([target]) => cayleyCartesian(target))],
+        ["CAYLEY", method("Cayley", ([target]) => target)],
+        ["CONJUGATE", method("Conjugate", ([target]) => conjugateCayley(target))],
+        ["RE", method("Re", ([target]) => cayleyReal(target))],
+        ["IM", method("Im", ([target]) => cayleyImaginary(target))],
+        ["NORMSQUARED", method("NormSquared", ([target]) => multiplyScalars(target.magnitude, target.magnitude))],
+        ["MAGNITUDE", method("Magnitude", ([target]) => target.magnitude)],
+        ["DIRECTION", method("Direction", ([target]) => target.direction)],
+        ["INVERSE", method("Inverse", ([target]) => inverseCayley(target))],
     ])],
 ]);
 

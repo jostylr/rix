@@ -132,8 +132,17 @@ z := 3 + 4~{i};
 {: .Complex.Conjugate(z), .Complex.Re(z), .Complex.Im(z), z.NormSquared() }
 ```
 
-`NormSquared` is available now; magnitude and argument wait for explicit
-real-number and trigonometric precision policies.
+An exact magnitude is available through Cayley polar form without defining a
+transcendental argument:
+
+```rix
+c := .Complex.Cayley(1 + 1~{i});
+{: c, c.Magnitude(), c.Direction(), c.Cartesian() }
+```
+
+The direction is the algebraic half-angle coordinate `tan(Arg/2)`. `Arg`
+itself still waits for explicit real-number and trigonometric precision
+policies. See [the detailed Cayley writeup](../design/eval/cayley-polar.md).
 
 ## Local registry overlays
 

@@ -2,15 +2,23 @@ import { Integer, Rational } from "@ratmath/core";
 import { createEvent, getCurrentFilePath, getDiagnostics } from "../../runtime/diagnostics.js";
 import { runtimeDefaults } from "../../runtime/runtime-config.js";
 import {
+    addCayley,
     addScalars,
+    divideCayley,
     divideScalars,
+    equalCayley,
     equalScalars,
     exactGeneratorFromPolynomial,
     isExactValue,
+    isCayleyValue,
+    multiplyCayley,
     multiplyScalars,
     negateScalar,
+    negateCayley,
+    powCayley,
     powScalar,
     subtractScalars,
+    subtractCayley,
 } from "../../runtime/exact-values.js";
 import {
     addQuantities,
@@ -237,6 +245,33 @@ function unitArgs(args) {
 }
 
 export function installUnitExactVariants(registry) {
+    const cayleyArgs = (args) => args.length === 2
+        && args.some(isCayleyValue)
+        && args.every((value) => isCayleyValue(value) || isScalar(value));
+    const cayleyVariants = {
+        ADD: ([a, b]) => addCayley(a, b),
+        SUB: ([a, b]) => subtractCayley(a, b),
+        MUL: ([a, b]) => multiplyCayley(a, b),
+        DIV: ([a, b]) => divideCayley(a, b),
+        POW: ([a, b]) => powCayley(a, b),
+        EQ: ([a, b]) => boolResult(equalCayley(a, b)),
+        NEQ: ([a, b]) => boolResult(!equalCayley(a, b)),
+    };
+    for (const [name, impl] of Object.entries(cayleyVariants)) {
+        registry.installVariant(name, {
+            name: `Cayley_${name}`,
+            prep: (args) => name === "POW"
+                ? args.length === 2 && isCayleyValue(args[0])
+                : cayleyArgs(args),
+            impl,
+        });
+    }
+    registry.installVariant("NEG", {
+        name: "Cayley_NEG",
+        prep: (args) => args.length === 1 && isCayleyValue(args[0]),
+        impl: ([value]) => negateCayley(value),
+    });
+
     const exactVariants = {
         ADD: ([a, b]) => addScalars(a, b),
         SUB: ([a, b]) => subtractScalars(a, b),

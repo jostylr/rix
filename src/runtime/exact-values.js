@@ -1,6 +1,7 @@
 import { Integer, Rational } from "@ratmath/core";
 
 let nextGeneratorId = 1;
+const squareRootGenerators = new Map();
 
 function int(value) {
     return new Integer(BigInt(value));
@@ -64,6 +65,8 @@ export function createExactGenerator(name, options = {}) {
         name,
         category: options.category || (options.minimalPolynomial ? "algebraic" : "transcendental"),
         minimalPolynomial: normalizePolynomial(options.minimalPolynomial || null),
+        real: options.real ?? false,
+        positiveRoot: options.positiveRoot ?? false,
         _ext: new Map([["key", { type: "string", value: name }], ["immutable", int(1)]]),
     };
     return Object.freeze(generator);
@@ -72,6 +75,19 @@ export function createExactGenerator(name, options = {}) {
 export function isExactValue(value) {
     return value?.type === "exact_generator" || value?.type === "exact_expression";
 }
+
+export function isCayleyValue(value) {
+    return value?.type === "cayley";
+}
+
+export function isCayleyInfinity(value) {
+    return value?.type === "cayley_infinity";
+}
+
+export const CAYLEY_INFINITY = Object.freeze({
+    type: "cayley_infinity",
+    _ext: new Map([["immutable", int(1)]]),
+});
 
 function clonePowers(powers) {
     return new Map(powers || []);
@@ -366,6 +382,228 @@ export function complexNormSquared(value, preferredI = null) {
     return addScalars(multiplyScalars(parts.real, parts.real), multiplyScalars(parts.imaginary, parts.imaginary));
 }
 
+function bigintSqrt(value) {
+    if (value < 0n) throw new Error("Square root requires a nonnegative value");
+    if (value < 2n) return value;
+    let x = 1n << (BigInt(value.toString(2).length) + 1n) / 2n;
+    let next = (x + value / x) >> 1n;
+    while (next < x) {
+        x = next;
+        next = (x + value / x) >> 1n;
+    }
+    return x;
+}
+
+function rationalSquareRoot(value) {
+    const [numerator, denominator] = rationalParts(rationalFrom(value));
+    if (numerator < 0n) throw new Error("Cayley magnitude requires a nonnegative norm squared");
+    const numeratorRoot = bigintSqrt(numerator);
+    const denominatorRoot = bigintSqrt(denominator);
+    if (numeratorRoot * numeratorRoot !== numerator || denominatorRoot * denominatorRoot !== denominator) return null;
+    return new Rational(numeratorRoot, denominatorRoot);
+}
+
+/** Return the canonical positive exact square root of a nonnegative rational. */
+export function exactSquareRoot(value) {
+    if (!isRationalScalar(value)) {
+        throw new Error("Cayley conversion currently requires a rational norm squared");
+    }
+    const perfect = rationalSquareRoot(value);
+    if (perfect) return perfect.denominator === 1n ? new Integer(perfect.numerator) : perfect;
+    const [numerator, denominator] = rationalParts(rationalFrom(value));
+    const key = `${numerator}/${denominator}`;
+    if (squareRootGenerators.has(key)) return squareRootGenerators.get(key);
+    const name = denominator === 1n ? `sqrt${numerator}` : `sqrt(${numerator}/${denominator})`;
+    const generator = createExactGenerator(name, {
+        id: denominator === 1n ? `exact:${name}` : `exact:sqrt:${key}`,
+        category: "algebraic",
+        minimalPolynomial: [new Rational(-numerator, denominator), int(0), int(1)],
+        real: true,
+        positiveRoot: true,
+    });
+    squareRootGenerators.set(key, generator);
+    return generator;
+}
+
+function scalarSign(value) {
+    const parts = rationalParts(value);
+    if (parts) return parts[0] === 0n ? 0 : parts[0] < 0n ? -1 : 1;
+    if (value?.type === "exact_generator" && value.positiveRoot) return 1;
+    if (value?.type === "exact_expression" && value.terms.size === 1) {
+        const term = [...value.terms.values()][0];
+        if ([...term.powers.keys()].every((generator) => generator.positiveRoot)) {
+            return isNegative(term.coefficient) ? -1 : 1;
+        }
+    }
+    return null;
+}
+
+function scalarZero(value) {
+    return equalScalars(value, int(0));
+}
+
+function requireScalar(value, label) {
+    if (!isRationalScalar(value) && !isExactValue(value)) {
+        throw new Error(`${label} must be an exact scalar`);
+    }
+    return value;
+}
+
+function requireRealScalar(value, label, iGenerator = null) {
+    requireScalar(value, label);
+    if (!scalarZero(complexParts(value, iGenerator).imaginary)) {
+        throw new Error(`${label} must be real`);
+    }
+    return value;
+}
+
+function negateCayleyDirection(direction) {
+    return isCayleyInfinity(direction) ? CAYLEY_INFINITY : negateScalar(direction);
+}
+
+function oppositeCayleyDirection(direction) {
+    if (isCayleyInfinity(direction)) return int(0);
+    if (scalarZero(direction)) return CAYLEY_INFINITY;
+    return negateScalar(divideScalars(int(1), direction));
+}
+
+export function createCayley(magnitude, direction, iGenerator = null) {
+    let r = requireRealScalar(magnitude, "Cayley magnitude", iGenerator);
+    let t = isCayleyInfinity(direction)
+        ? CAYLEY_INFINITY
+        : requireRealScalar(direction, "Cayley direction", iGenerator);
+    const sign = scalarSign(r);
+    if (sign === null) throw new Error("Cayley magnitude must have a known nonnegative sign");
+    if (sign < 0) {
+        r = negateScalar(r);
+        t = oppositeCayleyDirection(t);
+    }
+    if (scalarZero(r)) t = int(0);
+    return { type: "cayley", magnitude: r, direction: t, iGenerator };
+}
+
+export function cayleyFromCartesian(value, preferredI = null) {
+    if (isCayleyValue(value)) return value;
+    requireScalar(value, "Complex.Cayley value");
+    const iGenerator = imaginaryGeneratorFrom(value, preferredI) || preferredI;
+    const { real: x, imaginary: y } = complexParts(value, iGenerator);
+    const q = addScalars(multiplyScalars(x, x), multiplyScalars(y, y));
+    if (scalarZero(q)) return createCayley(int(0), int(0), iGenerator);
+    const r = exactSquareRoot(q);
+    if (!scalarZero(y)) {
+        return createCayley(r, divideScalars(subtractScalars(r, x), y), iGenerator);
+    }
+    const sign = scalarSign(x);
+    if (sign === null) throw new Error("Cayley conversion cannot determine the real-axis direction exactly");
+    return createCayley(r, sign < 0 ? CAYLEY_INFINITY : int(0), iGenerator);
+}
+
+export function cayleyCartesian(value, preferredI = null) {
+    if (!isCayleyValue(value)) return value;
+    const r = value.magnitude;
+    const t = value.direction;
+    if (isCayleyInfinity(t)) return negateScalar(r);
+    const tSquared = multiplyScalars(t, t);
+    const denominator = addScalars(int(1), tSquared);
+    const x = multiplyScalars(r, divideScalars(subtractScalars(int(1), tSquared), denominator));
+    const y = multiplyScalars(r, divideScalars(multiplyScalars(int(2), t), denominator));
+    if (scalarZero(y)) return x;
+    const iGenerator = value.iGenerator || preferredI;
+    if (!iGenerator) throw new Error("Cayley.Cartesian requires the configured algebraic generator i");
+    return complexFromParts(x, y, iGenerator);
+}
+
+function asCayley(value, reference) {
+    return isCayleyValue(value) ? value : cayleyFromCartesian(value, reference?.iGenerator);
+}
+
+function composeCayleyDirections(left, right) {
+    const leftInfinity = isCayleyInfinity(left);
+    const rightInfinity = isCayleyInfinity(right);
+    if (leftInfinity && rightInfinity) return int(0);
+    if (leftInfinity || rightInfinity) {
+        const finite = leftInfinity ? right : left;
+        return scalarZero(finite) ? CAYLEY_INFINITY : negateScalar(divideScalars(int(1), finite));
+    }
+    const denominator = subtractScalars(int(1), multiplyScalars(left, right));
+    if (scalarZero(denominator)) return CAYLEY_INFINITY;
+    return divideScalars(addScalars(left, right), denominator);
+}
+
+export function multiplyCayley(left, right) {
+    const a = asCayley(left, right);
+    const b = asCayley(right, a);
+    return createCayley(
+        multiplyScalars(a.magnitude, b.magnitude),
+        composeCayleyDirections(a.direction, b.direction),
+        a.iGenerator || b.iGenerator,
+    );
+}
+
+export function conjugateCayley(value) {
+    return createCayley(value.magnitude, negateCayleyDirection(value.direction), value.iGenerator);
+}
+
+export function inverseCayley(value) {
+    if (scalarZero(value.magnitude)) throw new Error("Cannot invert zero in Cayley form");
+    return createCayley(
+        divideScalars(int(1), value.magnitude),
+        negateCayleyDirection(value.direction),
+        value.iGenerator,
+    );
+}
+
+export function divideCayley(left, right) {
+    const a = asCayley(left, right);
+    const b = asCayley(right, a);
+    return multiplyCayley(a, inverseCayley(b));
+}
+
+export function negateCayley(value) {
+    return createCayley(value.magnitude, oppositeCayleyDirection(value.direction), value.iGenerator);
+}
+
+export function addCayley(left, right) {
+    const a = asCayley(left, right);
+    const b = asCayley(right, a);
+    return cayleyFromCartesian(addScalars(cayleyCartesian(a), cayleyCartesian(b)), a.iGenerator || b.iGenerator);
+}
+
+export function subtractCayley(left, right) {
+    const a = asCayley(left, right);
+    const b = asCayley(right, a);
+    return cayleyFromCartesian(subtractScalars(cayleyCartesian(a), cayleyCartesian(b)), a.iGenerator || b.iGenerator);
+}
+
+export function powCayley(value, exponentValue) {
+    const exponent = integerExponent(exponentValue);
+    if (exponent === 0) return createCayley(int(1), int(0), value.iGenerator);
+    if (exponent < 0) return powCayley(inverseCayley(value), int(-exponent));
+    let result = createCayley(int(1), int(0), value.iGenerator);
+    let factor = value;
+    let n = exponent;
+    while (n > 0) {
+        if (n % 2 === 1) result = multiplyCayley(result, factor);
+        n = Math.floor(n / 2);
+        if (n) factor = multiplyCayley(factor, factor);
+    }
+    return result;
+}
+
+export function equalCayley(left, right) {
+    const a = asCayley(left, right);
+    const b = asCayley(right, a);
+    return equalScalars(cayleyCartesian(a), cayleyCartesian(b));
+}
+
+export function cayleyReal(value) {
+    return complexParts(cayleyCartesian(value), value.iGenerator).real;
+}
+
+export function cayleyImaginary(value) {
+    return complexParts(cayleyCartesian(value), value.iGenerator).imaginary;
+}
+
 function complexMethod(name, operation) {
     return {
         type: "method_builtin",
@@ -382,12 +620,30 @@ export function createDefaultComplexCollection(exactCollection) {
         if (!iGenerator) throw new Error("The active Exact collection does not define i");
         return iGenerator;
     };
+    const constructCayley = (...args) => {
+        if (args.length === 1) return cayleyFromCartesian(args[0], requireI());
+        if (args.length === 2) return createCayley(args[0], args[1], requireI());
+        throw new Error("Complex.Cayley expects a Cartesian value or magnitude and direction");
+    };
     const operations = {
-        conjugate: (value) => complexConjugate(value, requireI()),
-        re: (value) => complexParts(value, requireI()).real,
-        im: (value) => complexParts(value, requireI()).imaginary,
+        conjugate: (value) => isCayleyValue(value) ? conjugateCayley(value) : complexConjugate(value, requireI()),
+        re: (value) => isCayleyValue(value) ? cayleyReal(value) : complexParts(value, requireI()).real,
+        im: (value) => isCayleyValue(value) ? cayleyImaginary(value) : complexParts(value, requireI()).imaginary,
         fromParts: (real, imaginary) => complexFromParts(real, imaginary, requireI()),
-        normSquared: (value) => complexNormSquared(value, requireI()),
+        normSquared: (value) => isCayleyValue(value)
+            ? multiplyScalars(value.magnitude, value.magnitude)
+            : complexNormSquared(value, requireI()),
+        cayley: constructCayley,
+        cartesian: (value) => cayleyCartesian(value, requireI()),
+        magnitude: (value) => isCayleyValue(value)
+            ? value.magnitude
+            : cayleyFromCartesian(value, requireI()).magnitude,
+        direction: (value) => isCayleyValue(value)
+            ? value.direction
+            : cayleyFromCartesian(value, requireI()).direction,
+        inverse: (value) => isCayleyValue(value)
+            ? inverseCayley(value)
+            : divideScalars(int(1), value),
     };
     const entries = new Map([
         ["i", iGenerator], ["I", iGenerator],
@@ -396,6 +652,12 @@ export function createDefaultComplexCollection(exactCollection) {
         ["im", operations.im], ["Im", operations.im],
         ["fromparts", operations.fromParts], ["FromParts", operations.fromParts],
         ["normsquared", operations.normSquared], ["NormSquared", operations.normSquared],
+        ["cayley", operations.cayley], ["Cayley", operations.cayley],
+        ["cartesian", operations.cartesian], ["Cartesian", operations.cartesian],
+        ["magnitude", operations.magnitude], ["Magnitude", operations.magnitude],
+        ["direction", operations.direction], ["Direction", operations.direction],
+        ["inverse", operations.inverse], ["Inverse", operations.inverse],
+        ["infinity", CAYLEY_INFINITY], ["Infinity", CAYLEY_INFINITY],
     ]);
     return {
         type: "map",
@@ -406,6 +668,11 @@ export function createDefaultComplexCollection(exactCollection) {
             ["IM", complexMethod("Im", operations.im)],
             ["FROMPARTS", complexMethod("FromParts", operations.fromParts)],
             ["NORMSQUARED", complexMethod("NormSquared", operations.normSquared)],
+            ["CAYLEY", complexMethod("Cayley", operations.cayley)],
+            ["CARTESIAN", complexMethod("Cartesian", operations.cartesian)],
+            ["MAGNITUDE", complexMethod("Magnitude", operations.magnitude)],
+            ["DIRECTION", complexMethod("Direction", operations.direction)],
+            ["INVERSE", complexMethod("Inverse", operations.inverse)],
             ["immutable", int(1)],
         ]),
     };
@@ -439,7 +706,10 @@ function termsEqual(left, right) {
     if (a.size !== b.size) return false;
     for (const [key, term] of a) {
         const other = b.get(key);
-        if (!other || !term.coefficient.equals(other.coefficient)) return false;
+        if (!other) return false;
+        const [leftNumerator, leftDenominator] = rationalParts(term.coefficient);
+        const [rightNumerator, rightDenominator] = rationalParts(other.coefficient);
+        if (leftNumerator * rightDenominator !== rightNumerator * leftDenominator) return false;
     }
     return true;
 }
@@ -494,11 +764,7 @@ export function createDefaultExactCollection() {
         category: "algebraic",
         minimalPolynomial: [int(1), int(0), int(1)],
     });
-    const sqrt2 = createExactGenerator("sqrt2", {
-        id: "exact:sqrt2",
-        category: "algebraic",
-        minimalPolynomial: [int(-2), int(0), int(1)],
-    });
+    const sqrt2 = exactSquareRoot(int(2));
     return {
         type: "map",
         entries: new Map([["pi", pi], ["e", e], ["i", i], ["sqrt2", sqrt2]]),

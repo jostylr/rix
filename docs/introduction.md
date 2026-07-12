@@ -1665,6 +1665,13 @@ within a single algebraic extension is exact, so `1/.Exact[:i]` reduces to
 `-i`. `.Complex.Conjugate(z)`, `.Complex.Re(z)`, `.Complex.Im(z)`, and
 `.Complex.NormSquared(z)` work without selecting a floating approximation.
 
+For multiplication-oriented work, `.Complex.Cayley(z)` converts to exact
+Cayley polar form `Cayley(r, t)`, with `t = tan(Arg(z)/2)`. The direction is an
+algebraic stereographic coordinate rather than a stored angle. Multiplication,
+division, powers, reciprocal, and conjugation stay in that form; addition and
+subtraction take an exact Cartesian bridge. Convert back with `c.Cartesian()`.
+See [the Cayley polar design](design/eval/cayley-polar.md).
+
 ---
 
 ---
