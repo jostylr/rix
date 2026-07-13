@@ -1,0 +1,93 @@
+---
+title: "RiX"
+page-layout: full
+toc: false
+description: "Exact mathematical programming with rational values, intervals, semantic types, and a language designed to expose its own meaning."
+---
+
+
+<span class="status-chip">Research language · active alpha</span>
+
+# Making Approximation Precise 
+
+RiX is the **Rational Interval Expression Language**: a compact language for calculations where exactness, uncertainty, units, structure, and evaluation policy are part of the expression—not afterthoughts bolted onto a floating-point result.
+
+Write the mathematics you recognize. Keep rational values exact. Carry intervals and units through a computation. Build lazy sequences, tensors, symbolic specifications, and functions that can explain how they accept their inputs.
+
+
+[Start using RiX](getting-started.qmd){.btn .btn-primary}
+[See the language](language-at-a-glance.qmd){.btn .btn-outline-primary}
+[Read the complete introduction](introduction.md){.btn .btn-outline-primary}
+[RatCalc](https://rix.ratmath.com){.btn .btn-outline-primary}
+[Live Tutorials](https://rix.ratmath.com/learn/getting-started.html){.btn .btn-outline-primary}
+
+```rix
+third := 1/3
+window := 2:5
+
+distance := 120~[m]
+elapsed := 30~[s] + 2~[min]
+speed := .ConvertUnit(distance / elapsed, "m/s")
+
+primes := [1, |+ 1, |; 50] |>? IsPrime
+```
+
+RiX begins from a simple observation: most general-purpose languages erase mathematical intent too early. `1/3` becomes an approximation. A measurement loses its unit. A range becomes an eager pile of values. A value's interpretation lives in a comment or a variable name. RiX keeps those ideas available to the runtime.
+
+::: {.feature-grid}
+::: {.feature-card}
+### Exact by default
+
+Integers, rationals, repeating decimals, mixed numbers, continued fractions, rational intervals, and algebraic generators have exact representations.
+:::
+
+::: {.feature-card}
+### Meaning travels with values
+
+Units, semantic types, traits, metadata, and explicit cell semantics let a value retain more than its raw magnitude.
+:::
+
+::: {.feature-card}
+### Mathematical data flow
+
+Pipes, prepared functions, multifunctions, generators, iterators, tensors, and symbolic specs make transformations visible in the source.
+:::
+
+::: {.feature-card}
+### Inspectable all the way down
+
+RiX tokenizes to an AST, lowers to a small call-shaped IR, and dispatches through configurable registries and a capability-scoped system context.
+:::
+:::
+
+## A language with layers
+
+You do not need to learn all of RiX at once.
+
+1. **Use it as an exact calculator.** Start with arithmetic, functions, collections, and the REPL.
+2. **Express mathematical structure.** Add intervals, units, generators, tensors, pipes, and symbolic specifications.
+3. **Control meaning and evaluation.** Use cells, metadata, types, traits, prepared expressions, and multifunction dispatch.
+4. **Extend the system.** Embed the parser, register capabilities, install semantic types, or work directly with AST and IR.
+
+The [language at a glance](language-at-a-glance.qmd) gives the short tour. The [complete introduction](introduction.md) teaches the language in depth. The reference and developer sections document the runtime surface and implementation.
+
+## What RiX is for
+
+RiX is especially interesting when a calculation is more than “feed numbers to a library”:
+
+- exact and interval-aware experimentation;
+- reproducible mathematical notebooks and small scripts;
+- unit-bearing physical calculations;
+- symbolic or semantically tagged values;
+- compact collection and tensor transformations;
+- research into language semantics for mathematical work;
+- embedding a configurable mathematical parser and evaluator in another tool.
+
+It is an active alpha, not yet a finished general-purpose ecosystem. The parser, lowering pipeline, and broad evaluator are working and heavily tested; some ambitious surfaces—most notably full equation solving and direct symbolic calculus syntax—remain design territory. See [implementation status](status.qmd) for the honest boundary.
+
+## The design bet
+
+RiX does not try to make every concept look like an ordinary function call. Its brace sigils, pipe operators, cell assignments, and exact-number notation form a visual vocabulary. That vocabulary is dense, but deliberate: source code should reveal whether something is a block, map, set, tuple, loop, case, mutation, symbolic system, or multifunction.
+
+The result is a language that aims to read like mathematical working—not JavaScript wearing mathematical function names.
+

@@ -1,0 +1,2818 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.38">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="description" content="Source-derived system capabilities, internal IR functions, methods, semantic types, traits, and sandbox groups.">
+
+<title>Generated runtime catalog – RiX</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<link href="../developer-guide.html" rel="next">
+<link href="../eval/types-and-traits-guide.html" rel="prev">
+<link href="../rix-logo.png" rel="icon" type="image/png">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-4a0610749eeff5ab924a4729b5181608.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-dark-de927ec96a2411cf822331f71755f83e.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-4a0610749eeff5ab924a4729b5181608.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-f3edcacc9eded719789e0469c6b6eab5.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-dark-c53da4be0d013bdcf7fcfccaa2827e71.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../site_libs/bootstrap/bootstrap-f3edcacc9eded719789e0469c6b6eab5.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+
+
+</head>
+
+<body class="nav-sidebar docked nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const darkModeDefault = authorPrefersDark;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a href="../index.html" class="navbar-brand navbar-brand-logo">
+    <img src="../rix-logo.png" alt="" class="navbar-logo light-content">
+    <img src="../rix-logo.png" alt="" class="navbar-logo dark-content">
+    </a>
+    <a class="navbar-brand" href="../index.html">
+    <span class="navbar-title">RiX</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link active" href="../getting-started.html" aria-current="page"> 
+<span class="menu-text">Start</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../language-at-a-glance.html"> 
+<span class="menu-text">Learn</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../eval/syntax-guide.html"> 
+<span class="menu-text">Reference</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../developer-guide.html"> 
+<span class="menu-text">Internals</span></a>
+  </li>  
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/jostylr/rix"> <i class="bi bi-github" role="img" aria-label="RiX on GitHub">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../eval/syntax-guide.html">Language reference</a></li><li class="breadcrumb-item"><a href="../reference/system-reference.html">Generated runtime catalog</a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation docked overflow-auto">
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Overview</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="false">
+ <span class="menu-text">Start here</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../getting-started.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Getting started</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../language-at-a-glance.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">RiX at a glance</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../highlights.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">RiX Highlights</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../status.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Implementation status</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="false">
+ <span class="menu-text">Learn RiX</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../introduction.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Complete introduction</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../tutorial/units-and-exact-values.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Units and exact values</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
+ <span class="menu-text">Language reference</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../eval/syntax-guide.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Syntax and functions</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../eval/methods-guide.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Methods</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../eval/types-and-traits-guide.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Types and traits</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/system-reference.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text">Generated runtime catalog</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="false">
+ <span class="menu-text">Developer guide</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../developer-guide.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Developer guide</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../eval/README.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Evaluator overview</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../parser/architecture.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Parser architecture</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../parser/parsing.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Parsing and precedence</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../parser/AST-brief.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">AST reference</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../design/eval/ir-format.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">IR design snapshot</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../parser/array-generators-implementation.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Array generators</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../parser/embedded-parsing.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Embedded parsing</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../parser/matrix-tensor-implementation.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Matrices and tensors</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="false">
+ <span class="menu-text">Runtime design</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../design/eval/cells-assignments.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Cells and assignment</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../design/eval/units-and-exact-generators.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Units and exact generators</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../design/eval/cayley-polar.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Cayley polar complex values</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="false">
+ <span class="menu-text">Design and history</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../rix-rationales.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Design rationales</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../design/parser/spec.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Early language specification</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../design/parser/questions.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Open design areas</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../report-2026-04-02.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">April 2026 review (historical)</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul class="collapse">
+  <li><a href="#public-system-context" id="toc-public-system-context" class="nav-link active" data-scroll-target="#public-system-context">Public system context</a></li>
+  <li><a href="#built-in-receiver-methods" id="toc-built-in-receiver-methods" class="nav-link" data-scroll-target="#built-in-receiver-methods">Built-in receiver methods</a></li>
+  <li><a href="#semantic-types" id="toc-semantic-types" class="nav-link" data-scroll-target="#semantic-types">Semantic types</a></li>
+  <li><a href="#semantic-traits" id="toc-semantic-traits" class="nav-link" data-scroll-target="#semantic-traits">Semantic traits</a></li>
+  <li><a href="#script-capability-groups" id="toc-script-capability-groups" class="nav-link" data-scroll-target="#script-capability-groups">Script capability groups</a></li>
+  <li><a href="#internal-ir-registry" id="toc-internal-ir-registry" class="nav-link" data-scroll-target="#internal-ir-registry">Internal IR registry</a></li>
+  </ul>
+<div class="toc-actions"><ul class="collapse"><li><a href="https://github.com/jostylr/rix/edit/main/documentation/reference/system-reference.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../eval/syntax-guide.html">Language reference</a></li><li class="breadcrumb-item"><a href="../reference/system-reference.html">Generated runtime catalog</a></li></ol></nav>
+<div class="quarto-title">
+<h1 class="title">Generated runtime catalog</h1>
+</div>
+
+<div>
+  <div class="description">
+    Source-derived system capabilities, internal IR functions, methods, semantic types, traits, and sandbox groups.
+  </div>
+</div>
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>This page is generated from the current RiX implementation by <code>documentation/scripts/generate-reference.js</code>. Do not edit it by hand. Descriptions come from registry documentation strings; the narrative <a href="../eval/syntax-guide.html">syntax guide</a> and <a href="../eval/methods-guide.html">methods guide</a> provide signatures and examples.</p>
+</div>
+</div>
+<p>At this revision RiX exposes <strong>88 named entries</strong> on the default system context and registers <strong>164 internal IR operations</strong>. Aliases with different spelling are listed separately because they are separately addressable names.</p>
+<section id="public-system-context" class="level2">
+<h2 class="anchored" data-anchor-id="public-system-context">Public system context</h2>
+<p>These names are available through the leading-dot system object, such as <code>.Len(value)</code>. Uppercase names are also used by explicit system/operator forms where applicable.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Kind</th>
+<th>Capability groups</th>
+<th>Implementation description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>.ACOS</code></td>
+<td>function</td>
+<td>—</td>
+<td>Dispatch ACOS through the active system multifunction registry</td>
+</tr>
+<tr class="even">
+<td><code>.ADD</code></td>
+<td>function</td>
+<td>Arith</td>
+<td>Addition or string concatenation</td>
+</tr>
+<tr class="odd">
+<td><code>.AND</code></td>
+<td>lazy function</td>
+<td>Logic</td>
+<td>Logical AND (short-circuits on first falsy, returns deciding value)</td>
+</tr>
+<tr class="even">
+<td><code>.ASIN</code></td>
+<td>function</td>
+<td>—</td>
+<td>Dispatch ASIN through the active system multifunction registry</td>
+</tr>
+<tr class="odd">
+<td><code>.ATAN</code></td>
+<td>function</td>
+<td>—</td>
+<td>Dispatch ATAN through the active system multifunction registry</td>
+</tr>
+<tr class="even">
+<td><code>.ATAN2</code></td>
+<td>function</td>
+<td>—</td>
+<td>Dispatch ATAN2 through the active system multifunction registry</td>
+</tr>
+<tr class="odd">
+<td><code>.CAPABILITYREGISTER</code></td>
+<td>function</td>
+<td>—</td>
+<td>Register a package system capability during trusted package startup</td>
+</tr>
+<tr class="even">
+<td><code>.COMPLEX</code></td>
+<td>value</td>
+<td>Exact</td>
+<td>Exact complex-number operations</td>
+</tr>
+<tr class="odd">
+<td><code>.CONVERTUNIT</code></td>
+<td>function</td>
+<td>Units</td>
+<td>Convert a quantity to a compatible display unit</td>
+</tr>
+<tr class="even">
+<td><code>.COS</code></td>
+<td>function</td>
+<td>—</td>
+<td>Dispatch COS through the active system multifunction registry</td>
+</tr>
+<tr class="odd">
+<td><code>.CapabilityRegister</code></td>
+<td>function</td>
+<td>—</td>
+<td>Register a package system capability during trusted package startup</td>
+</tr>
+<tr class="even">
+<td><code>.Complex</code></td>
+<td>value</td>
+<td>Exact</td>
+<td>Exact complex-number operations</td>
+</tr>
+<tr class="odd">
+<td><code>.ConvertUnit</code></td>
+<td>function</td>
+<td>Units</td>
+<td>Convert a quantity to a compatible display unit</td>
+</tr>
+<tr class="even">
+<td><code>.DEBUG</code></td>
+<td>lazy function</td>
+<td>—</td>
+<td>Debug expression: .Debug(label, expr) — returns expr value, records AST/source</td>
+</tr>
+<tr class="odd">
+<td><code>.DEEPMUTABLE</code></td>
+<td>function</td>
+<td>—</td>
+<td>Recursively set (flag≠_) or remove (flag=_) ._mutable on all nested arrays/maps/tensors. Called via .DeepMutable(value, flag).</td>
+</tr>
+<tr class="even">
+<td><code>.DEFINEEXACTGENERATOR</code></td>
+<td>function</td>
+<td>Exact</td>
+<td>Create an algebraic exact generator from low-to-high polynomial coefficients</td>
+</tr>
+<tr class="odd">
+<td><code>.DEFINEUNIT</code></td>
+<td>function</td>
+<td>Units</td>
+<td>Create a linear Unit value from a name and Unit/Quantity definition</td>
+</tr>
+<tr class="even">
+<td><code>.DIV</code></td>
+<td>function</td>
+<td>Arith</td>
+<td>Division</td>
+</tr>
+<tr class="odd">
+<td><code>.DefineExactGenerator</code></td>
+<td>function</td>
+<td>Exact</td>
+<td>Create an algebraic exact generator from low-to-high polynomial coefficients</td>
+</tr>
+<tr class="even">
+<td><code>.DefineUnit</code></td>
+<td>function</td>
+<td>Units</td>
+<td>Create a linear Unit value from a name and Unit/Quantity definition</td>
+</tr>
+<tr class="odd">
+<td><code>.EQ</code></td>
+<td>function</td>
+<td>Logic</td>
+<td>Equality check — returns 1 or null</td>
+</tr>
+<tr class="even">
+<td><code>.ERROR</code></td>
+<td>function</td>
+<td>—</td>
+<td>Emit an error event and abort: .Error(label, dataMap ?= {=})</td>
+</tr>
+<tr class="odd">
+<td><code>.EVAL</code></td>
+<td>lazy function</td>
+<td>—</td>
+<td>Evaluate a deferred AST node or expression: .Eval(ast, bindings ?= _, mode ?= :inherit)</td>
+</tr>
+<tr class="even">
+<td><code>.EXACT</code></td>
+<td>value</td>
+<td>Exact</td>
+<td>Canonical RiX exact-generator collection</td>
+</tr>
+<tr class="odd">
+<td><code>.EXP</code></td>
+<td>function</td>
+<td>—</td>
+<td>Dispatch EXP through the active system multifunction registry</td>
+</tr>
+<tr class="even">
+<td><code>.Exact</code></td>
+<td>value</td>
+<td>Exact</td>
+<td>Canonical RiX exact-generator collection</td>
+</tr>
+<tr class="odd">
+<td><code>.FILTER</code></td>
+<td>lazy function</td>
+<td>Collections, Arrays</td>
+<td>Filter a collection</td>
+</tr>
+<tr class="even">
+<td><code>.FIRST</code></td>
+<td>function</td>
+<td>Core, Collections, Arrays</td>
+<td>First element of a collection</td>
+</tr>
+<tr class="odd">
+<td><code>.GETEL</code></td>
+<td>function</td>
+<td>Core, Collections, Arrays</td>
+<td>Get element at index (1-based)</td>
+</tr>
+<tr class="even">
+<td><code>.GT</code></td>
+<td>function</td>
+<td>Logic</td>
+<td>Greater than — returns 1 or null</td>
+</tr>
+<tr class="odd">
+<td><code>.GTE</code></td>
+<td>function</td>
+<td>Logic</td>
+<td>Greater than or equal — returns 1 or null</td>
+</tr>
+<tr class="even">
+<td><code>.IF</code></td>
+<td>lazy function</td>
+<td>Core</td>
+<td>Conditional function IF(cond, t, f)</td>
+</tr>
+<tr class="odd">
+<td><code>.IMPORTJS</code></td>
+<td>function</td>
+<td>—</td>
+<td>Import a local JavaScript module for use from a .js.rix startup file</td>
+</tr>
+<tr class="even">
+<td><code>.INFO</code></td>
+<td>function</td>
+<td>—</td>
+<td>Emit an info event: .Info(label, level ?= 1, dataMap ?= {=})</td>
+</tr>
+<tr class="odd">
+<td><code>.INTDIV</code></td>
+<td>function</td>
+<td>Arith</td>
+<td>Integer division (floor)</td>
+</tr>
+<tr class="even">
+<td><code>.IRANGE</code></td>
+<td>function</td>
+<td>Core, Collections, Arrays</td>
+<td>Create an integer range [start, end]</td>
+</tr>
+<tr class="odd">
+<td><code>.ImportJS</code></td>
+<td>function</td>
+<td>—</td>
+<td>Import a local JavaScript module for use from a .js.rix startup file</td>
+</tr>
+<tr class="even">
+<td><code>.JSCALL</code></td>
+<td>function</td>
+<td>—</td>
+<td>Call a named export from a local JavaScript module</td>
+</tr>
+<tr class="odd">
+<td><code>.JSCall</code></td>
+<td>function</td>
+<td>—</td>
+<td>Call a named export from a local JavaScript module</td>
+</tr>
+<tr class="even">
+<td><code>.KEYOF</code></td>
+<td>function</td>
+<td>Core, Maps</td>
+<td>Resolve canonical map key string for a value</td>
+</tr>
+<tr class="odd">
+<td><code>.KEYS</code></td>
+<td>function</td>
+<td>Core, Maps</td>
+<td>Get the keys of a map as a set (obj.|)</td>
+</tr>
+<tr class="even">
+<td><code>.LAST</code></td>
+<td>function</td>
+<td>Core, Collections, Arrays</td>
+<td>Last element of a collection</td>
+</tr>
+<tr class="odd">
+<td><code>.LEN</code></td>
+<td>function</td>
+<td>Core, Collections, Arrays</td>
+<td>Length of a collection or string</td>
+</tr>
+<tr class="even">
+<td><code>.LN</code></td>
+<td>function</td>
+<td>—</td>
+<td>Dispatch LN through the active system multifunction registry</td>
+</tr>
+<tr class="odd">
+<td><code>.LOG</code></td>
+<td>function</td>
+<td>—</td>
+<td>Dispatch LOG through the active system multifunction registry</td>
+</tr>
+<tr class="even">
+<td><code>.LOG10</code></td>
+<td>function</td>
+<td>—</td>
+<td>Dispatch LOG10 through the active system multifunction registry</td>
+</tr>
+<tr class="odd">
+<td><code>.LOOP</code></td>
+<td>lazy function</td>
+<td>Core</td>
+<td>Loop construct with init, condition, body[, update[, after]]</td>
+</tr>
+<tr class="even">
+<td><code>.LT</code></td>
+<td>function</td>
+<td>Logic</td>
+<td>Less than — returns 1 or null</td>
+</tr>
+<tr class="odd">
+<td><code>.LTE</code></td>
+<td>function</td>
+<td>Logic</td>
+<td>Less than or equal — returns 1 or null</td>
+</tr>
+<tr class="even">
+<td><code>.MAP</code></td>
+<td>lazy function</td>
+<td>Collections, Maps, Arrays</td>
+<td>Map a function over a collection</td>
+</tr>
+<tr class="odd">
+<td><code>.MOD</code></td>
+<td>function</td>
+<td>Arith</td>
+<td>Modulo</td>
+</tr>
+<tr class="even">
+<td><code>.MUL</code></td>
+<td>function</td>
+<td>Arith</td>
+<td>Multiplication (Product of values)</td>
+</tr>
+<tr class="odd">
+<td><code>.MULTI</code></td>
+<td>lazy function</td>
+<td>Core</td>
+<td>Evaluate multiple expressions, return last</td>
+</tr>
+<tr class="even">
+<td><code>.NEQ</code></td>
+<td>function</td>
+<td>Logic</td>
+<td>Inequality check — returns 1 or null</td>
+</tr>
+<tr class="odd">
+<td><code>.NOT</code></td>
+<td>function</td>
+<td>Logic</td>
+<td>Logical NOT — returns Integer(1) for null input, null otherwise</td>
+</tr>
+<tr class="even">
+<td><code>.OR</code></td>
+<td>lazy function</td>
+<td>Logic</td>
+<td>Logical OR (short-circuits on first truthy, returns deciding value)</td>
+</tr>
+<tr class="odd">
+<td><code>.POW</code></td>
+<td>function</td>
+<td>Arith</td>
+<td>Exponentiation</td>
+</tr>
+<tr class="even">
+<td><code>.POWPROD</code></td>
+<td>function</td>
+<td>—</td>
+<td>Exponentiation/product power (currently same implementation as POW)</td>
+</tr>
+<tr class="odd">
+<td><code>.PRINT</code></td>
+<td>function</td>
+<td>Core, Strings</td>
+<td>Print each argument through the replaceable __io__ hook</td>
+</tr>
+<tr class="even">
+<td><code>.RANDOMSEED</code></td>
+<td>function</td>
+<td>Random</td>
+<td>Seed the current runtime random-number stream</td>
+</tr>
+<tr class="odd">
+<td><code>.RAND_NAME</code></td>
+<td>function</td>
+<td>Core, Random</td>
+<td>Generate a random name string RAND_NAME(len=10, alphabet=a-zA-Z)</td>
+</tr>
+<tr class="even">
+<td><code>.REDUCE</code></td>
+<td>lazy function</td>
+<td>Collections, Arrays</td>
+<td>Reduce a collection</td>
+</tr>
+<tr class="odd">
+<td><code>.SAME_CELL</code></td>
+<td>lazy function</td>
+<td>—</td>
+<td>Identity comparison (===) — returns 1 if both sides refer to the same cell, null otherwise</td>
+</tr>
+<tr class="even">
+<td><code>.SIN</code></td>
+<td>function</td>
+<td>—</td>
+<td>Dispatch SIN through the active system multifunction registry</td>
+</tr>
+<tr class="odd">
+<td><code>.STOP</code></td>
+<td>lazy function</td>
+<td>—</td>
+<td>Conditional abort: .Stop(label, condition, dataMap ?= {=})</td>
+</tr>
+<tr class="even">
+<td><code>.SUB</code></td>
+<td>function</td>
+<td>Arith</td>
+<td>Subtraction</td>
+</tr>
+<tr class="odd">
+<td><code>.SUBSTR</code></td>
+<td>function</td>
+<td>Strings</td>
+<td>Get substring</td>
+</tr>
+<tr class="even">
+<td><code>.TAN</code></td>
+<td>function</td>
+<td>—</td>
+<td>Dispatch TAN through the active system multifunction registry</td>
+</tr>
+<tr class="odd">
+<td><code>.TEST</code></td>
+<td>lazy function</td>
+<td>—</td>
+<td>Run tests: .Test(label, setup, [tests] | {= tests })</td>
+</tr>
+<tr class="even">
+<td><code>.TESTERROR</code></td>
+<td>lazy function</td>
+<td>—</td>
+<td>Abort test: .TestError(label, setup, expr) — passes if expr aborts with .Error() or a runtime error</td>
+</tr>
+<tr class="odd">
+<td><code>.TESTSTOP</code></td>
+<td>lazy function</td>
+<td>—</td>
+<td>Abort test: .TestStop(label, setup, expr) — passes if expr aborts via .Stop()</td>
+</tr>
+<tr class="even">
+<td><code>.TGEN</code></td>
+<td>lazy function</td>
+<td>Core, Collections, Arrays</td>
+<td>Generate a tensor from a shape and index callback</td>
+</tr>
+<tr class="odd">
+<td><code>.TRACE</code></td>
+<td>lazy function</td>
+<td>—</td>
+<td>Trace execution: .Trace(label, depth, trackedVars?, thunkOrCallable)</td>
+</tr>
+<tr class="even">
+<td><code>.TRAITREGISTER</code></td>
+<td>function</td>
+<td>—</td>
+<td>Register an immutable semantic trait from a RiX map spec</td>
+</tr>
+<tr class="odd">
+<td><code>.TYPEEXPORT</code></td>
+<td>lazy function</td>
+<td>—</td>
+<td>Export a semantically typed value through its registered type exporter</td>
+</tr>
+<tr class="even">
+<td><code>.TYPEIMPORT</code></td>
+<td>lazy function</td>
+<td>—</td>
+<td>Import a value from a tagged type export map</td>
+</tr>
+<tr class="odd">
+<td><code>.TYPEINSTALL</code></td>
+<td>function</td>
+<td>—</td>
+<td>Install a registered semantic type into system multifunctions</td>
+</tr>
+<tr class="even">
+<td><code>.TYPEREGISTER</code></td>
+<td>function</td>
+<td>—</td>
+<td>Register an immutable semantic type from a RiX map spec</td>
+</tr>
+<tr class="odd">
+<td><code>.TraitRegister</code></td>
+<td>function</td>
+<td>—</td>
+<td>Register an immutable semantic trait from a RiX map spec</td>
+</tr>
+<tr class="even">
+<td><code>.TypeExport</code></td>
+<td>lazy function</td>
+<td>—</td>
+<td>Export a semantically typed value through its registered type exporter</td>
+</tr>
+<tr class="odd">
+<td><code>.TypeImport</code></td>
+<td>lazy function</td>
+<td>—</td>
+<td>Import a value from a tagged type export map</td>
+</tr>
+<tr class="even">
+<td><code>.TypeInstall</code></td>
+<td>function</td>
+<td>—</td>
+<td>Install a registered semantic type into system multifunctions</td>
+</tr>
+<tr class="odd">
+<td><code>.TypeRegister</code></td>
+<td>function</td>
+<td>—</td>
+<td>Register an immutable semantic type from a RiX map spec</td>
+</tr>
+<tr class="even">
+<td><code>.UNITS</code></td>
+<td>value</td>
+<td>Units</td>
+<td>Canonical RiX unit collection</td>
+</tr>
+<tr class="odd">
+<td><code>.UPPER</code></td>
+<td>function</td>
+<td>Strings</td>
+<td>Convert string to uppercase</td>
+</tr>
+<tr class="even">
+<td><code>.Units</code></td>
+<td>value</td>
+<td>Units</td>
+<td>Canonical RiX unit collection</td>
+</tr>
+<tr class="odd">
+<td><code>.VALUES</code></td>
+<td>function</td>
+<td>Core, Maps</td>
+<td>Get the values of a map as a set (obj|.)</td>
+</tr>
+<tr class="even">
+<td><code>.WARN</code></td>
+<td>function</td>
+<td>—</td>
+<td>Emit a warning event: .Warn(label, dataMap ?= {=})</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="built-in-receiver-methods" class="level2">
+<h2 class="anchored" data-anchor-id="built-in-receiver-methods">Built-in receiver methods</h2>
+<p>Method lookup is case-flexible at the language boundary. The table uses the registry keys and includes shared iterable methods. Read the <a href="../eval/methods-guide.html">methods guide</a> for mutability rules, callback shapes, signatures, and examples.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Receiver</th>
+<th>Registered methods</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Array</td>
+<td><code>ALL</code>, <code>ANY</code>, <code>CONCAT</code>, <code>CONCAT!</code>, <code>COUNT</code>, <code>DISTINCT</code>, <code>DISTINCT!</code>, <code>DROPFIRST</code>, <code>DROPLAST</code>, <code>FILTER</code>, <code>FIND</code>, <code>FINDINDEX</code>, <code>FIRST</code>, <code>FLATTEN</code>, <code>FLATTEN!</code>, <code>GET</code>, <code>HASAT</code>, <code>INCLUDES</code>, <code>INDEXOF</code>, <code>INSERT</code>, <code>INSERT!</code>, <code>ISEMPTY</code>, <code>ITERATOR</code>, <code>JOIN</code>, <code>LAST</code>, <code>LASTINDEXOF</code>, <code>LEN</code>, <code>MAP</code>, <code>MOVE</code>, <code>MOVE!</code>, <code>POP!</code>, <code>PUSH</code>, <code>PUSH!</code>, <code>REDUCE</code>, <code>REMOVEAT</code>, <code>REMOVEAT!</code>, <code>REVERSE</code>, <code>REVERSE!</code>, <code>SET</code>, <code>SET!</code>, <code>SHIFT!</code>, <code>SLICE</code>, <code>SORT</code>, <code>SORT!</code>, <code>SWAP</code>, <code>SWAP!</code>, <code>UNSHIFT</code>, <code>UNSHIFT!</code></td>
+</tr>
+<tr class="even">
+<td>Lazy sequence</td>
+<td><code>FIRST</code>, <code>GET</code>, <code>ISEMPTY</code>, <code>ITERATOR</code>, <code>LAST</code>, <code>LEN</code>, <code>MATERIALIZE</code></td>
+</tr>
+<tr class="odd">
+<td>Iterator</td>
+<td><code>DONE</code>, <code>INDEX</code>, <code>NEXT</code>, <code>PEEK</code>, <code>RESET</code></td>
+</tr>
+<tr class="even">
+<td>Map</td>
+<td><code>ALL</code>, <code>ANY</code>, <code>COUNT</code>, <code>DEFAULT</code>, <code>DEFAULT!</code>, <code>ENTRIES</code>, <code>FILTER</code>, <code>GET</code>, <code>HAS</code>, <code>ISEMPTY</code>, <code>ITERATOR</code>, <code>KEEP</code>, <code>KEEP!</code>, <code>KEYS</code>, <code>LEN</code>, <code>MAPVALUES</code>, <code>MERGE</code>, <code>MERGE!</code>, <code>OMIT</code>, <code>OMIT!</code>, <code>REDUCE</code>, <code>REDUCEKEYS</code>, <code>REMOVE</code>, <code>REMOVE!</code>, <code>SET</code>, <code>SET!</code>, <code>UPDATE</code>, <code>UPDATE!</code>, <code>VALUES</code></td>
+</tr>
+<tr class="odd">
+<td>Set</td>
+<td><code>ADD</code>, <code>ADD!</code>, <code>ALL</code>, <code>ANY</code>, <code>COUNT</code>, <code>DIFF</code>, <code>DIFF!</code>, <code>DISJOINT</code>, <code>FILTER</code>, <code>HAS</code>, <code>INTERSECT</code>, <code>INTERSECT!</code>, <code>ISEMPTY</code>, <code>ITERATOR</code>, <code>LEN</code>, <code>REDUCE</code>, <code>REMOVE</code>, <code>REMOVE!</code>, <code>SUBSETOF</code>, <code>SUPERSETOF</code>, <code>SYMDIFF</code>, <code>SYMDIFF!</code>, <code>UNION</code>, <code>UNION!</code>, <code>VALUES</code></td>
+</tr>
+<tr class="even">
+<td>String</td>
+<td><code>CONCAT</code>, <code>ENDSWITH</code>, <code>FIRST</code>, <code>GET</code>, <code>INCLUDES</code>, <code>INDEXOF</code>, <code>ISEMPTY</code>, <code>ITERATOR</code>, <code>LAST</code>, <code>LASTINDEXOF</code>, <code>LEN</code>, <code>LOWER</code>, <code>PADLEFT</code>, <code>PADRIGHT</code>, <code>REDUCE</code>, <code>REPEAT</code>, <code>REPLACE</code>, <code>REPLACEALL</code>, <code>SLICE</code>, <code>SPLIT</code>, <code>STARTSWITH</code>, <code>TRIM</code>, <code>TRIMEND</code>, <code>TRIMSTART</code>, <code>UPPER</code></td>
+</tr>
+<tr class="odd">
+<td>Tuple</td>
+<td><code>FIRST</code>, <code>GET</code>, <code>ITERATOR</code>, <code>LAST</code>, <code>LEN</code>, <code>REDUCE</code>, <code>SET</code>, <code>SLICE</code>, <code>TOARRAY</code></td>
+</tr>
+<tr class="even">
+<td>Tensor</td>
+<td><code>DOT</code>, <code>FILL!</code>, <code>FLATTEN</code>, <code>GET</code>, <code>ITERATOR</code>, <code>MAP</code>, <code>MATMUL</code>, <code>MEAN</code>, <code>PERMUTE</code>, <code>RANK</code>, <code>REDUCE</code>, <code>RESHAPE</code>, <code>SET</code>, <code>SET!</code>, <code>SHAPE</code>, <code>SIZE</code>, <code>SUM</code>, <code>TRANSPOSE</code></td>
+</tr>
+<tr class="odd">
+<td>Deferred expression</td>
+<td><code>DESUGAR</code>, <code>EVAL</code>, <code>INSPECT</code></td>
+</tr>
+<tr class="even">
+<td>Exact generator</td>
+<td><code>CAYLEY</code>, <code>CONJUGATE</code>, <code>IM</code>, <code>NORMSQUARED</code>, <code>RE</code></td>
+</tr>
+<tr class="odd">
+<td>Exact expression</td>
+<td><code>CAYLEY</code>, <code>CONJUGATE</code>, <code>IM</code>, <code>NORMSQUARED</code>, <code>RE</code></td>
+</tr>
+<tr class="even">
+<td>Cayley value</td>
+<td><code>CARTESIAN</code>, <code>CAYLEY</code>, <code>CONJUGATE</code>, <code>DIRECTION</code>, <code>IM</code>, <code>INVERSE</code>, <code>MAGNITUDE</code>, <code>NORMSQUARED</code>, <code>RE</code></td>
+</tr>
+</tbody>
+</table>
+<p>Every built-in receiver also supports <code>CheckTraits</code> / <code>CHECKTRAITS</code>.</p>
+</section>
+<section id="semantic-types" class="level2">
+<h2 class="anchored" data-anchor-id="semantic-types">Semantic types</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Type</th>
+<th>Native type</th>
+<th>Aliases</th>
+<th>Default traits</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>String</code></td>
+<td>string</td>
+<td><code>string</code></td>
+<td>—</td>
+</tr>
+<tr class="even">
+<td><code>Array</code></td>
+<td>array</td>
+<td><code>array</code></td>
+<td><code>sequence</code></td>
+</tr>
+<tr class="odd">
+<td><code>Tuple</code></td>
+<td>tuple</td>
+<td><code>tuple</code></td>
+<td><code>sequence</code></td>
+</tr>
+<tr class="even">
+<td><code>Map</code></td>
+<td>map</td>
+<td><code>map</code></td>
+<td><code>maplike</code></td>
+</tr>
+<tr class="odd">
+<td><code>Set</code></td>
+<td>set</td>
+<td><code>set</code></td>
+<td><code>collection</code></td>
+</tr>
+<tr class="even">
+<td><code>Iterator</code></td>
+<td>iterator</td>
+<td><code>iterator</code></td>
+<td>—</td>
+</tr>
+<tr class="odd">
+<td><code>Function</code></td>
+<td>function</td>
+<td><code>function</code></td>
+<td>—</td>
+</tr>
+<tr class="even">
+<td><code>Multifunction</code></td>
+<td>multifunction</td>
+<td><code>multifunction</code></td>
+<td>—</td>
+</tr>
+<tr class="odd">
+<td><code>Null</code></td>
+<td>null</td>
+<td><code>null</code></td>
+<td>—</td>
+</tr>
+<tr class="even">
+<td><code>Hole</code></td>
+<td>hole</td>
+<td><code>hole</code></td>
+<td>—</td>
+</tr>
+<tr class="odd">
+<td><code>Rational</code></td>
+<td>rational</td>
+<td><code>rational</code></td>
+<td><code>rational</code>, <code>number</code>, <code>ordered</code>, <code>field</code></td>
+</tr>
+<tr class="even">
+<td><code>Integer</code></td>
+<td>integer</td>
+<td><code>integer</code></td>
+<td><code>integer</code>, <code>rational</code>, <code>number</code>, <code>ordered</code></td>
+</tr>
+<tr class="odd">
+<td><code>RationalInterval</code></td>
+<td>interval</td>
+<td><code>Interval</code>, <code>interval</code></td>
+<td><code>ordered</code></td>
+</tr>
+<tr class="even">
+<td><code>Tensor</code></td>
+<td>tensor</td>
+<td><code>tensor</code></td>
+<td><code>tensor</code>, <code>indexable</code>, <code>shapeAware</code>, <code>collection</code></td>
+</tr>
+<tr class="odd">
+<td><code>Length</code></td>
+<td>Length</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr class="even">
+<td><code>Point</code></td>
+<td>Point</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr class="odd">
+<td><code>Matrix</code></td>
+<td>Matrix</td>
+<td>—</td>
+<td><code>tensor</code></td>
+</tr>
+<tr class="even">
+<td><code>Vector</code></td>
+<td>Vector</td>
+<td>—</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="semantic-traits" class="level2">
+<h2 class="anchored" data-anchor-id="semantic-traits">Semantic traits</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Trait</th>
+<th>Implies</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>number</code></td>
+<td>—</td>
+<td>number semantic trait</td>
+</tr>
+<tr class="even">
+<td><code>ring</code></td>
+<td><code>number</code></td>
+<td>ring semantic trait</td>
+</tr>
+<tr class="odd">
+<td><code>field</code></td>
+<td><code>ring</code>, <code>number</code></td>
+<td>field semantic trait</td>
+</tr>
+<tr class="even">
+<td><code>ordered</code></td>
+<td><code>number</code></td>
+<td>ordered semantic trait</td>
+</tr>
+<tr class="odd">
+<td><code>rational</code></td>
+<td><code>field</code>, <code>ordered</code></td>
+<td>rational semantic trait</td>
+</tr>
+<tr class="even">
+<td><code>integer</code></td>
+<td><code>rational</code></td>
+<td>integer semantic trait</td>
+</tr>
+<tr class="odd">
+<td><code>indexable</code></td>
+<td>—</td>
+<td>indexable semantic trait</td>
+</tr>
+<tr class="even">
+<td><code>shapeAware</code></td>
+<td>—</td>
+<td>shapeAware semantic trait</td>
+</tr>
+<tr class="odd">
+<td><code>collection</code></td>
+<td>—</td>
+<td>collection semantic trait</td>
+</tr>
+<tr class="even">
+<td><code>sequence</code></td>
+<td><code>collection</code>, <code>indexable</code></td>
+<td>sequence semantic trait</td>
+</tr>
+<tr class="odd">
+<td><code>maplike</code></td>
+<td><code>collection</code>, <code>indexable</code></td>
+<td>maplike semantic trait</td>
+</tr>
+<tr class="even">
+<td><code>tensor</code></td>
+<td><code>indexable</code>, <code>shapeAware</code>, <code>collection</code></td>
+<td>tensor semantic trait</td>
+</tr>
+<tr class="odd">
+<td><code>meters</code></td>
+<td>—</td>
+<td>meters semantic trait</td>
+</tr>
+<tr class="even">
+<td><code>cartesian</code></td>
+<td>—</td>
+<td>cartesian semantic trait</td>
+</tr>
+<tr class="odd">
+<td><code>square</code></td>
+<td>—</td>
+<td>square semantic trait</td>
+</tr>
+<tr class="even">
+<td><code>positive</code></td>
+<td>—</td>
+<td>positive semantic trait</td>
+</tr>
+<tr class="odd">
+<td><code>verify</code></td>
+<td>—</td>
+<td>verify semantic trait</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="script-capability-groups" class="level2">
+<h2 class="anchored" data-anchor-id="script-capability-groups">Script capability groups</h2>
+<p>Imported scripts can add or withhold named groups. Permission-like names are interpreted separately from callable names by the host policy.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Group</th>
+<th>Members</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>Core</code></td>
+<td><code>LEN</code>, <code>FIRST</code>, <code>LAST</code>, <code>GETEL</code>, <code>IRANGE</code>, <code>IF</code>, <code>LOOP</code>, <code>MULTI</code>, <code>RAND_NAME</code>, <code>PRINT</code>, <code>TGEN</code>, <code>KEYOF</code>, <code>KEYS</code>, <code>VALUES</code></td>
+</tr>
+<tr class="even">
+<td><code>Arith</code></td>
+<td><code>ADD</code>, <code>SUB</code>, <code>MUL</code>, <code>DIV</code>, <code>INTDIV</code>, <code>MOD</code>, <code>POW</code></td>
+</tr>
+<tr class="odd">
+<td><code>Logic</code></td>
+<td><code>EQ</code>, <code>NEQ</code>, <code>LT</code>, <code>GT</code>, <code>LTE</code>, <code>GTE</code>, <code>AND</code>, <code>OR</code>, <code>NOT</code></td>
+</tr>
+<tr class="even">
+<td><code>Collections</code></td>
+<td><code>LEN</code>, <code>FIRST</code>, <code>LAST</code>, <code>GETEL</code>, <code>IRANGE</code>, <code>MAP</code>, <code>FILTER</code>, <code>REDUCE</code>, <code>TGEN</code></td>
+</tr>
+<tr class="odd">
+<td><code>Maps</code></td>
+<td><code>MAP</code>, <code>KEYOF</code>, <code>KEYS</code>, <code>VALUES</code></td>
+</tr>
+<tr class="even">
+<td><code>Arrays</code></td>
+<td><code>LEN</code>, <code>FIRST</code>, <code>LAST</code>, <code>GETEL</code>, <code>IRANGE</code>, <code>MAP</code>, <code>FILTER</code>, <code>REDUCE</code>, <code>TGEN</code></td>
+</tr>
+<tr class="odd">
+<td><code>Strings</code></td>
+<td><code>UPPER</code>, <code>SUBSTR</code>, <code>PRINT</code></td>
+</tr>
+<tr class="even">
+<td><code>Imports</code></td>
+<td><code>IMPORTS</code></td>
+</tr>
+<tr class="odd">
+<td><code>Net</code></td>
+<td><code>NET</code></td>
+</tr>
+<tr class="even">
+<td><code>Files</code></td>
+<td><code>FILES</code></td>
+</tr>
+<tr class="odd">
+<td><code>Units</code></td>
+<td><code>UNITS</code>, <code>Units</code>, <code>CONVERTUNIT</code>, <code>ConvertUnit</code>, <code>DEFINEUNIT</code>, <code>DefineUnit</code></td>
+</tr>
+<tr class="even">
+<td><code>Exact</code></td>
+<td><code>EXACT</code>, <code>Exact</code>, <code>COMPLEX</code>, <code>Complex</code>, <code>DEFINEEXACTGENERATOR</code>, <code>DefineExactGenerator</code></td>
+</tr>
+<tr class="odd">
+<td><code>Random</code></td>
+<td><code>RANDOMSEED</code>, <code>RandomSeed</code>, <code>RAND_NAME</code></td>
+</tr>
+</tbody>
+</table>
+<p>Default script policy includes all functions and the <code>IMPORTS</code> permission. Recognized permission names are <code>IMPORTS</code>, <code>NET</code>, <code>FILES</code>. The default loop limit is 10,000 iterations and the default constructor capture mode is <code>deep_copy</code>.</p>
+</section>
+<section id="internal-ir-registry" class="level2">
+<h2 class="anchored" data-anchor-id="internal-ir-registry">Internal IR registry</h2>
+<p>This is the evaluator dispatch surface, not a promise that every name should be called directly from RiX source. Syntax normally lowers to these functions.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>IR function</th>
+<th>Dispatch</th>
+<th>Implementation description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>ABS</code></td>
+<td>eager, pure, multifunction</td>
+<td>Absolute value</td>
+</tr>
+<tr class="even">
+<td><code>ACOS</code></td>
+<td>eager, pure, multifunction</td>
+<td>Arccosine</td>
+</tr>
+<tr class="odd">
+<td><code>ADD</code></td>
+<td>eager, pure, multifunction</td>
+<td>Addition or string concatenation</td>
+</tr>
+<tr class="even">
+<td><code>AND</code></td>
+<td>lazy, pure</td>
+<td>Logical AND (short-circuits on first falsy, returns deciding value)</td>
+</tr>
+<tr class="odd">
+<td><code>ARRAY</code></td>
+<td>lazy, pure</td>
+<td>Create an array/sequence (supports sequence generators)</td>
+</tr>
+<tr class="even">
+<td><code>ARRAY_CAPTURE</code></td>
+<td>lazy, pure</td>
+<td>Create an array/sequence with constructor capture controls</td>
+</tr>
+<tr class="odd">
+<td><code>ASIN</code></td>
+<td>eager, pure, multifunction</td>
+<td>Arcsine</td>
+</tr>
+<tr class="even">
+<td><code>ASSERT_GT</code></td>
+<td>eager, pure</td>
+<td>Assert a &gt; b (:&gt;:)</td>
+</tr>
+<tr class="odd">
+<td><code>ASSERT_GTE</code></td>
+<td>eager, pure</td>
+<td>Assert a &gt;= b (:&gt;=:)</td>
+</tr>
+<tr class="even">
+<td><code>ASSERT_LT</code></td>
+<td>eager, pure</td>
+<td>Assert a &lt; b (:&lt;:)</td>
+</tr>
+<tr class="odd">
+<td><code>ASSERT_LTE</code></td>
+<td>eager, pure</td>
+<td>Assert a &lt;= b (:&lt;=:)</td>
+</tr>
+<tr class="even">
+<td><code>ASSIGN</code></td>
+<td>lazy, effectful/unspecified</td>
+<td>Alias/rebind — lhs shares the same Cell as rhs variable, or gets a fresh Cell for expressions</td>
+</tr>
+<tr class="odd">
+<td><code>ASSIGN_COPY</code></td>
+<td>lazy, effectful/unspecified</td>
+<td>Fresh copied-cell assignment (:=) — shallow-copy value + all meta into new binding</td>
+</tr>
+<tr class="even">
+<td><code>ASSIGN_DEEP_COPY</code></td>
+<td>lazy, effectful/unspecified</td>
+<td>Fresh deep-copied-cell assignment (::=) — deep-copy value + all meta into new binding</td>
+</tr>
+<tr class="odd">
+<td><code>ASSIGN_DEEP_UPDATE</code></td>
+<td>lazy, effectful/unspecified</td>
+<td>In-place deep value replacement (<sub></sub>=) — like ~= but deep-copies rhs value</td>
+</tr>
+<tr class="even">
+<td><code>ASSIGN_EXPR</code></td>
+<td>lazy, effectful/unspecified</td>
+<td>Assignment expression (lvalue = expr)</td>
+</tr>
+<tr class="odd">
+<td><code>ASSIGN_UPDATE</code></td>
+<td>lazy, effectful/unspecified</td>
+<td>In-place value replacement (~=) — preserves cell identity, ordinary meta; replaces ephemeral; preserves sticky unless rhs overrides</td>
+</tr>
+<tr class="even">
+<td><code>ATAN</code></td>
+<td>eager, pure, multifunction</td>
+<td>Arctangent</td>
+</tr>
+<tr class="odd">
+<td><code>ATAN2</code></td>
+<td>eager, pure, multifunction</td>
+<td>Two-argument arctangent</td>
+</tr>
+<tr class="even">
+<td><code>BINOP</code></td>
+<td>eager, pure</td>
+<td>Fallback for unrecognized binary operators</td>
+</tr>
+<tr class="odd">
+<td><code>BLOCK</code></td>
+<td>lazy, effectful/unspecified</td>
+<td>Sequential block execution, returns last value</td>
+</tr>
+<tr class="even">
+<td><code>BRACKET_GET</code></td>
+<td>lazy, effectful/unspecified</td>
+<td>Tensor-aware bracket indexing and slicing</td>
+</tr>
+<tr class="odd">
+<td><code>BRACKET_SET</code></td>
+<td>lazy, effectful/unspecified</td>
+<td>Tensor-aware bracket assignment</td>
+</tr>
+<tr class="even">
+<td><code>BREAK</code></td>
+<td>lazy, effectful/unspecified</td>
+<td>Structured break block that exits the nearest matching breakable construct</td>
+</tr>
+<tr class="odd">
+<td><code>CALL</code></td>
+<td>lazy, effectful/unspecified</td>
+<td>Call a user-defined or built-in function</td>
+</tr>
+<tr class="even">
+<td><code>CALL_EXPR</code></td>
+<td>lazy, effectful/unspecified</td>
+<td>Call an expression that evaluates to a function</td>
+</tr>
+<tr class="odd">
+<td><code>CALL_METHOD</code></td>
+<td>lazy, effectful/unspecified</td>
+<td>Resolve and invoke a receiver-first method call</td>
+</tr>
+<tr class="even">
+<td><code>CAPABILITY_REGISTER</code></td>
+<td>eager, effectful/unspecified</td>
+<td>Register a package system capability during trusted package startup</td>
+</tr>
+<tr class="odd">
+<td><code>CASE</code></td>
+<td>lazy, effectful/unspecified</td>
+<td>Ordered case expression with condition arms, prepared-trial arms, and an optional fallback</td>
+</tr>
+<tr class="even">
+<td><code>CONCAT</code></td>
+<td>eager, pure</td>
+<td>—</td>
+</tr>
+<tr class="odd">
+<td><code>CONVERTUNIT</code></td>
+<td>eager, pure</td>
+<td>Convert a quantity to a compatible display unit</td>
+</tr>
+<tr class="even">
+<td><code>COS</code></td>
+<td>eager, pure, multifunction</td>
+<td>Cosine</td>
+</tr>
+<tr class="odd">
+<td><code>DEFINEBASE</code></td>
+<td>lazy, effectful/unspecified</td>
+<td>Define a custom uppercase base prefix (0A = …), one-time global definition</td>
+</tr>
+<tr class="even">
+<td><code>DEFINEEXACTGENERATOR</code></td>
+<td>eager, pure</td>
+<td>Create an algebraic exact generator from low-to-high polynomial coefficients</td>
+</tr>
+<tr class="odd">
+<td><code>DEFINEUNIT</code></td>
+<td>eager, pure</td>
+<td>Create a linear Unit value from a name and Unit/Quantity definition</td>
+</tr>
+<tr class="even">
+<td><code>DERIVATIVE</code></td>
+<td>eager, pure</td>
+<td>Symbolic derivative (future)</td>
+</tr>
+<tr class="odd">
+<td><code>DESTRUCTURE_ASSIGN</code></td>
+<td>lazy, effectful/unspecified</td>
+<td>General lhs destructuring assignment</td>
+</tr>
+<tr class="even">
+<td><code>DIV</code></td>
+<td>eager, pure, multifunction</td>
+<td>Division</td>
+</tr>
+<tr class="odd">
+<td><code>DIVIDE</code></td>
+<td>eager, pure</td>
+<td>Return n lazy equally spaced points including interval endpoints</td>
+</tr>
+<tr class="even">
+<td><code>DIVROUND</code></td>
+<td>eager, pure</td>
+<td>Rounded division</td>
+</tr>
+<tr class="odd">
+<td><code>DIVUP</code></td>
+<td>eager, pure</td>
+<td>Ceiling division</td>
+</tr>
+<tr class="even">
+<td><code>EQ</code></td>
+<td>eager, pure, multifunction</td>
+<td>Equality check — returns 1 or null</td>
+</tr>
+<tr class="odd">
+<td><code>EVAL</code></td>
+<td>lazy, effectful/unspecified</td>
+<td>Evaluate a deferred AST node or expression: .Eval(ast, bindings ?= _, mode ?= :inherit)</td>
+</tr>
+<tr class="even">
+<td><code>EXP</code></td>
+<td>eager, pure, multifunction</td>
+<td>Exponential</td>
+</tr>
+<tr class="odd">
+<td><code>FROMBASE</code></td>
+<td>lazy, effectful/unspecified</td>
+<td>Parse base string to number: str &lt;_ baseSpec</td>
+</tr>
+<tr class="even">
+<td><code>FUNCDEF</code></td>
+<td>lazy, effectful/unspecified</td>
+<td>Define a named function</td>
+</tr>
+<tr class="odd">
+<td><code>GENERATOR</code></td>
+<td>eager, effectful/unspecified</td>
+<td>Internal array-generator marker</td>
+</tr>
+<tr class="even">
+<td><code>GLOBAL</code></td>
+<td>lazy, effectful/unspecified</td>
+<td>Assign a value to a variable in the global scope</td>
+</tr>
+<tr class="odd">
+<td><code>GT</code></td>
+<td>eager, pure, multifunction</td>
+<td>Greater than — returns 1 or null</td>
+</tr>
+<tr class="even">
+<td><code>GTE</code></td>
+<td>eager, pure, multifunction</td>
+<td>Greater than or equal — returns 1 or null</td>
+</tr>
+<tr class="odd">
+<td><code>HOLE</code></td>
+<td>eager, pure</td>
+<td>Internal hole/undefined sentinel — represents an explicitly omitted value</td>
+</tr>
+<tr class="even">
+<td><code>HOLE_COALESCE</code></td>
+<td>lazy, effectful/unspecified</td>
+<td>Hole-coalescing: x ?| y returns x if x is not a hole, else y</td>
+</tr>
+<tr class="odd">
+<td><code>IMPORT_JS</code></td>
+<td>eager, effectful/unspecified</td>
+<td>Import a local JavaScript module for use from a .js.rix startup file</td>
+</tr>
+<tr class="even">
+<td><code>INDEX_GET</code></td>
+<td>eager, effectful/unspecified</td>
+<td>Index into collection (1-based for sequences; string or value keys for maps) — obj[i]</td>
+</tr>
+<tr class="odd">
+<td><code>INDEX_SET</code></td>
+<td>lazy, effectful/unspecified</td>
+<td>Set index in collection (requires ._mutable meta flag) — obj[i] = val</td>
+</tr>
+<tr class="even">
+<td><code>INFSEQ</code></td>
+<td>eager, pure</td>
+<td>Lazy unbounded exact arithmetic sequence</td>
+</tr>
+<tr class="odd">
+<td><code>INTDIV</code></td>
+<td>eager, pure, multifunction</td>
+<td>Integer division (floor)</td>
+</tr>
+<tr class="even">
+<td><code>INTEGRAL</code></td>
+<td>eager, pure</td>
+<td>Symbolic integral (future)</td>
+</tr>
+<tr class="odd">
+<td><code>INTERSECT</code></td>
+<td>eager, pure</td>
+<td>Intersection of two collections (set intersection or interval overlap)</td>
+</tr>
+<tr class="even">
+<td><code>INTERSECTS</code></td>
+<td>eager, pure</td>
+<td>Check if two collections intersect (1 if true, null otherwise)</td>
+</tr>
+<tr class="odd">
+<td><code>INTERVAL</code></td>
+<td>eager, pure</td>
+<td>Create an interval [lo, hi] or test betweenness like a:b:c</td>
+</tr>
+<tr class="even">
+<td><code>JS_CALL</code></td>
+<td>eager, effectful/unspecified</td>
+<td>Call a named export from a local JavaScript module</td>
+</tr>
+<tr class="odd">
+<td><code>KEYOF</code></td>
+<td>eager, pure</td>
+<td>Resolve canonical map key string for a value</td>
+</tr>
+<tr class="even">
+<td><code>KEYS</code></td>
+<td>eager, pure</td>
+<td>Get the keys of a map as a set (obj.|)</td>
+</tr>
+<tr class="odd">
+<td><code>KWARG</code></td>
+<td>eager, pure</td>
+<td>Keyword argument wrapper</td>
+</tr>
+<tr class="even">
+<td><code>LAMBDA</code></td>
+<td>lazy, effectful/unspecified</td>
+<td>Create a lambda/anonymous function</td>
+</tr>
+<tr class="odd">
+<td><code>LITERAL</code></td>
+<td>eager, pure</td>
+<td>Parse a number literal string into a ratmath type</td>
+</tr>
+<tr class="even">
+<td><code>LN</code></td>
+<td>eager, pure, multifunction</td>
+<td>Natural logarithm</td>
+</tr>
+<tr class="odd">
+<td><code>LOG</code></td>
+<td>eager, pure, multifunction</td>
+<td>Natural logarithm</td>
+</tr>
+<tr class="even">
+<td><code>LOG10</code></td>
+<td>eager, pure, multifunction</td>
+<td>Base-10 logarithm</td>
+</tr>
+<tr class="odd">
+<td><code>LOOP</code></td>
+<td>lazy, effectful/unspecified</td>
+<td>Loop construct with init, condition, body[, update[, after]]</td>
+</tr>
+<tr class="even">
+<td><code>LT</code></td>
+<td>eager, pure, multifunction</td>
+<td>Less than — returns 1 or null</td>
+</tr>
+<tr class="odd">
+<td><code>LTE</code></td>
+<td>eager, pure, multifunction</td>
+<td>Less than or equal — returns 1 or null</td>
+</tr>
+<tr class="even">
+<td><code>MAP_OBJ</code></td>
+<td>lazy, pure</td>
+<td>Create a map/object</td>
+</tr>
+<tr class="odd">
+<td><code>MATHUNIT</code></td>
+<td>eager, pure</td>
+<td>Resolve exact-generator sugar through the active Exact RiX collection</td>
+</tr>
+<tr class="even">
+<td><code>MATRIX</code></td>
+<td>eager, pure</td>
+<td>Matrix literal</td>
+</tr>
+<tr class="odd">
+<td><code>MAX</code></td>
+<td>eager, pure</td>
+<td>Maximum over n arguments (ignores nulls)</td>
+</tr>
+<tr class="even">
+<td><code>MEDIANTS</code></td>
+<td>eager, pure</td>
+<td>Return nested levels of exact mediants</td>
+</tr>
+<tr class="odd">
+<td><code>MEDIANT_PARTITION</code></td>
+<td>eager, pure</td>
+<td>Partition an interval using exact mediant boundaries</td>
+</tr>
+<tr class="even">
+<td><code>MEMBER</code></td>
+<td>eager, pure</td>
+<td>Check membership (1 if present, null otherwise)</td>
+</tr>
+<tr class="odd">
+<td><code>META_ALL</code></td>
+<td>eager, effectful/unspecified</td>
+<td>Get all meta properties as a map (read-only copy) — obj..</td>
+</tr>
+<tr class="even">
+<td><code>META_GET</code></td>
+<td>eager, effectful/unspecified</td>
+<td>Get meta property (returns null if absent) — obj.name</td>
+</tr>
+<tr class="odd">
+<td><code>META_MERGE</code></td>
+<td>lazy, effectful/unspecified</td>
+<td>Bulk merge map into object meta properties (null values = delete) — obj .= map</td>
+</tr>
+<tr class="even">
+<td><code>META_SET</code></td>
+<td>lazy, effectful/unspecified</td>
+<td>Set meta property (null deletes; respects immutable/frozen) — obj.name = val</td>
+</tr>
+<tr class="odd">
+<td><code>MIN</code></td>
+<td>eager, pure</td>
+<td>Minimum over n arguments (ignores nulls)</td>
+</tr>
+<tr class="even">
+<td><code>MOD</code></td>
+<td>eager, pure, multifunction</td>
+<td>Modulo</td>
+</tr>
+<tr class="odd">
+<td><code>MUL</code></td>
+<td>eager, pure, multifunction</td>
+<td>Multiplication (Product of values)</td>
+</tr>
+<tr class="even">
+<td><code>MULTIFUNCDEF</code></td>
+<td>lazy, effectful/unspecified</td>
+<td>Append or prepend a multifunction variant</td>
+</tr>
+<tr class="odd">
+<td><code>MULTIFUNCTION</code></td>
+<td>lazy, effectful/unspecified</td>
+<td>Create an ordered multifunction literal, flattening nested multifunctions</td>
+</tr>
+<tr class="even">
+<td><code>MUTCOPY</code></td>
+<td>eager, effectful/unspecified</td>
+<td>Clone a map and apply mutations (obj{= +a=3, -.b })</td>
+</tr>
+<tr class="odd">
+<td><code>MUTINPLACE</code></td>
+<td>eager, effectful/unspecified</td>
+<td>Mutate a map in-place (obj{! +a=3, -.b })</td>
+</tr>
+<tr class="even">
+<td><code>NARY_CONCAT</code></td>
+<td>eager, pure</td>
+<td>N-ary concatenation fold</td>
+</tr>
+<tr class="odd">
+<td><code>NARY_INTERSECT</code></td>
+<td>eager, pure</td>
+<td>N-ary intersection/overlap fold for sets or intervals</td>
+</tr>
+<tr class="even">
+<td><code>NARY_UNION</code></td>
+<td>eager, pure</td>
+<td>N-ary union/hull fold for sets or intervals</td>
+</tr>
+<tr class="odd">
+<td><code>NEG</code></td>
+<td>eager, pure, multifunction</td>
+<td>Negation</td>
+</tr>
+<tr class="even">
+<td><code>NEQ</code></td>
+<td>eager, pure, multifunction</td>
+<td>Inequality check — returns 1 or null</td>
+</tr>
+<tr class="odd">
+<td><code>NOP</code></td>
+<td>eager, pure</td>
+<td>No operation</td>
+</tr>
+<tr class="even">
+<td><code>NOT</code></td>
+<td>eager, pure</td>
+<td>Logical NOT — returns Integer(1) for null input, null otherwise</td>
+</tr>
+<tr class="odd">
+<td><code>NOT_MEMBER</code></td>
+<td>eager, pure</td>
+<td>Check non-membership (1 if not present, null otherwise)</td>
+</tr>
+<tr class="even">
+<td><code>NULL</code></td>
+<td>eager, pure</td>
+<td>Null value</td>
+</tr>
+<tr class="odd">
+<td><code>OR</code></td>
+<td>lazy, pure</td>
+<td>Logical OR (short-circuits on first truthy, returns deciding value)</td>
+</tr>
+<tr class="even">
+<td><code>OUTER_ASSIGN</code></td>
+<td>lazy, effectful/unspecified</td>
+<td>Assign a value to an existing outer scope variable</td>
+</tr>
+<tr class="odd">
+<td><code>OUTER_RETRIEVE</code></td>
+<td>eager, effectful/unspecified</td>
+<td>Look up a variable strictly in the outer scope chains</td>
+</tr>
+<tr class="even">
+<td><code>OUTER_UPDATE</code></td>
+<td>lazy, effectful/unspecified</td>
+<td>In-place value replacement on an outer scope variable (~= / <sub></sub>= with @)</td>
+</tr>
+<tr class="odd">
+<td><code>PALL</code></td>
+<td>lazy, effectful/unspecified</td>
+<td>Every: returns last element if predicate is truthy for ALL elements, null on first failure — callback receives (val, locator, src)</td>
+</tr>
+<tr class="even">
+<td><code>PANY</code></td>
+<td>lazy, effectful/unspecified</td>
+<td>Any: returns first item that passed predicate, null if none pass — callback receives (val, locator, src)</td>
+</tr>
+<tr class="odd">
+<td><code>PARENT_SELF</code></td>
+<td>eager, effectful/unspecified</td>
+<td>Resolve the parent multifunction inside a variant body</td>
+</tr>
+<tr class="even">
+<td><code>PARTITION</code></td>
+<td>eager, pure</td>
+<td>Partition an interval into n equal touching subintervals</td>
+</tr>
+<tr class="odd">
+<td><code>PCHUNK</code></td>
+<td>lazy, effectful/unspecified</td>
+<td>Chunk a collection into subarrays by size or boundary predicate</td>
+</tr>
+<tr class="even">
+<td><code>PFILTER</code></td>
+<td>lazy, effectful/unspecified</td>
+<td>Filter a collection with a predicate — callback receives (val, locator, src)</td>
+</tr>
+<tr class="odd">
+<td><code>PIPE</code></td>
+<td>lazy, effectful/unspecified</td>
+<td>Pipe a value into a function</td>
+</tr>
+<tr class="even">
+<td><code>PIPE_EXPLICIT</code></td>
+<td>lazy, effectful/unspecified</td>
+<td>Explicit pipe operator — placeholders _1, _2, … map tuple elements to specific argument positions</td>
+</tr>
+<tr class="odd">
+<td><code>PLACEHOLDER</code></td>
+<td>eager, pure</td>
+<td>Numbered placeholder for partial application and explicit pipes</td>
+</tr>
+<tr class="even">
+<td><code>PMAP</code></td>
+<td>lazy, effectful/unspecified</td>
+<td>Map a function over a collection — callback receives (val, locator, src)</td>
+</tr>
+<tr class="odd">
+<td><code>POW</code></td>
+<td>eager, pure, multifunction</td>
+<td>Exponentiation</td>
+</tr>
+<tr class="even">
+<td><code>POWPROD</code></td>
+<td>eager, pure, multifunction</td>
+<td>Exponentiation/product power (currently same implementation as POW)</td>
+</tr>
+<tr class="odd">
+<td><code>PREDUCE</code></td>
+<td>lazy, effectful/unspecified</td>
+<td>Reduce a collection with an accumulator function — callback receives (acc, val, locator, src)</td>
+</tr>
+<tr class="even">
+<td><code>PREP_TRIAL</code></td>
+<td>lazy, effectful/unspecified</td>
+<td>Evaluate a candidate through ordered soft/strict prep gates, returning null on soft failure</td>
+</tr>
+<tr class="odd">
+<td><code>PREP_TRIAL_CASE</code></td>
+<td>lazy, effectful/unspecified</td>
+<td>Evaluate a prepared-trial case arm while preserving its no-match status</td>
+</tr>
+<tr class="even">
+<td><code>PREVERSE</code></td>
+<td>eager, pure</td>
+<td>Reverse a collection (returns new copy)</td>
+</tr>
+<tr class="odd">
+<td><code>PSLICE_CLAMP</code></td>
+<td>lazy, effectful/unspecified</td>
+<td>Clamped slice operator |&gt;//</td>
+</tr>
+<tr class="even">
+<td><code>PSLICE_STRICT</code></td>
+<td>lazy, effectful/unspecified</td>
+<td>Strict slice operator |&gt;/</td>
+</tr>
+<tr class="odd">
+<td><code>PSORT</code></td>
+<td>lazy, effectful/unspecified</td>
+<td>Sort a collection with comparator function (returns new copy)</td>
+</tr>
+<tr class="even">
+<td><code>PSPLIT</code></td>
+<td>lazy, effectful/unspecified</td>
+<td>Split a collection by a delimiter or predicate</td>
+</tr>
+<tr class="odd">
+<td><code>RANDOM</code></td>
+<td>eager, effectful/unspecified</td>
+<td>Sample exact rational points from an interval</td>
+</tr>
+<tr class="even">
+<td><code>RANDOM_PARTITION</code></td>
+<td>eager, effectful/unspecified</td>
+<td>Partition an interval at distinct random rational points</td>
+</tr>
+<tr class="odd">
+<td><code>REGEX</code></td>
+<td>eager, effectful/unspecified</td>
+<td>Create a regex matching function</td>
+</tr>
+<tr class="even">
+<td><code>RETRIEVE</code></td>
+<td>eager, effectful/unspecified</td>
+<td>Look up a variable in the current scope chain</td>
+</tr>
+<tr class="odd">
+<td><code>SAME_CELL</code></td>
+<td>lazy, effectful/unspecified</td>
+<td>Identity comparison (===) — returns 1 if both sides refer to the same cell, null otherwise</td>
+</tr>
+<tr class="even">
+<td><code>SELF</code></td>
+<td>eager, effectful/unspecified</td>
+<td>Resolve the current callable object inside a function body</td>
+</tr>
+<tr class="odd">
+<td><code>SEMANTIC_CONVERT_SOFT</code></td>
+<td>lazy, effectful/unspecified</td>
+<td>Convert a value to a semantic type, returning null on failure</td>
+</tr>
+<tr class="even">
+<td><code>SEMANTIC_CONVERT_STRICT</code></td>
+<td>lazy, effectful/unspecified</td>
+<td>Convert a value to a semantic type, throwing on failure</td>
+</tr>
+<tr class="odd">
+<td><code>SEMANTIC_HAS</code></td>
+<td>lazy, effectful/unspecified</td>
+<td>Check semantic type/trait membership against __type, _type, and __traits</td>
+</tr>
+<tr class="even">
+<td><code>SEQ</code></td>
+<td>lazy, effectful/unspecified</td>
+<td>Expression sequence: evaluate arguments left-to-right in the current scope and return the last value</td>
+</tr>
+<tr class="odd">
+<td><code>SET</code></td>
+<td>lazy, pure</td>
+<td>Create a set (unique values)</td>
+</tr>
+<tr class="even">
+<td><code>SET_DIFF</code></td>
+<td>eager, pure</td>
+<td>—</td>
+</tr>
+<tr class="odd">
+<td><code>SET_PROD</code></td>
+<td>eager, pure</td>
+<td>—</td>
+</tr>
+<tr class="even">
+<td><code>SET_SYMDIFF</code></td>
+<td>eager, pure</td>
+<td>—</td>
+</tr>
+<tr class="odd">
+<td><code>SIN</code></td>
+<td>eager, pure, multifunction</td>
+<td>Sine</td>
+</tr>
+<tr class="even">
+<td><code>SOLVE</code></td>
+<td>lazy, effectful/unspecified</td>
+<td>Solve/constrain: x :=: expr</td>
+</tr>
+<tr class="odd">
+<td><code>SQRT</code></td>
+<td>eager, pure, multifunction</td>
+<td>Square root (approximate rational)</td>
+</tr>
+<tr class="even">
+<td><code>STEP</code></td>
+<td>eager, pure</td>
+<td>Lazy exact stepped range over a rational interval</td>
+</tr>
+<tr class="odd">
+<td><code>STRING</code></td>
+<td>eager, pure</td>
+<td>Create a string value</td>
+</tr>
+<tr class="even">
+<td><code>SUB</code></td>
+<td>eager, pure, multifunction</td>
+<td>Subtraction</td>
+</tr>
+<tr class="odd">
+<td><code>SYSREF</code></td>
+<td>eager, pure</td>
+<td>Reference to a system function</td>
+</tr>
+<tr class="even">
+<td><code>SYSTEM</code></td>
+<td>lazy, effectful/unspecified</td>
+<td>Mathematical system container, currently evaluates as a block</td>
+</tr>
+<tr class="odd">
+<td><code>SYSTEM_SPEC</code></td>
+<td>lazy, pure</td>
+<td>Create a symbolic system specification value</td>
+</tr>
+<tr class="even">
+<td><code>TAIL_SELF</code></td>
+<td>lazy, effectful/unspecified</td>
+<td>Tail-position self call that reuses the current function frame</td>
+</tr>
+<tr class="odd">
+<td><code>TAN</code></td>
+<td>eager, pure, multifunction</td>
+<td>Tangent</td>
+</tr>
+<tr class="even">
+<td><code>TENSOR</code></td>
+<td>lazy, pure</td>
+<td>Tensor literal</td>
+</tr>
+<tr class="odd">
+<td><code>TENSOR_LITERAL</code></td>
+<td>lazy, pure</td>
+<td>Tensor literal with explicit shape</td>
+</tr>
+<tr class="even">
+<td><code>TENSOR_TRANSPOSE</code></td>
+<td>eager, pure</td>
+<td>Transpose a rank-2 tensor view</td>
+</tr>
+<tr class="odd">
+<td><code>TERNARY</code></td>
+<td>lazy, effectful/unspecified</td>
+<td>Ternary conditional: condition ?? trueExpr ?: falseExpr</td>
+</tr>
+<tr class="even">
+<td><code>TOBASE</code></td>
+<td>lazy, effectful/unspecified</td>
+<td>Format number to base string: expr _&gt; baseSpec</td>
+</tr>
+<tr class="odd">
+<td><code>TRAIT_REGISTER</code></td>
+<td>eager, effectful/unspecified</td>
+<td>Register an immutable semantic trait from a RiX map spec</td>
+</tr>
+<tr class="even">
+<td><code>TUPLE</code></td>
+<td>lazy, pure</td>
+<td>Create a tuple</td>
+</tr>
+<tr class="odd">
+<td><code>TYPE_EXPORT</code></td>
+<td>lazy, effectful/unspecified</td>
+<td>Export a semantically typed value through its registered type exporter</td>
+</tr>
+<tr class="even">
+<td><code>TYPE_IMPORT</code></td>
+<td>lazy, effectful/unspecified</td>
+<td>Import a value from a tagged type export map</td>
+</tr>
+<tr class="odd">
+<td><code>TYPE_INSTALL</code></td>
+<td>eager, effectful/unspecified</td>
+<td>Install a registered semantic type into system multifunctions</td>
+</tr>
+<tr class="even">
+<td><code>TYPE_REGISTER</code></td>
+<td>eager, effectful/unspecified</td>
+<td>Register an immutable semantic type from a RiX map spec</td>
+</tr>
+<tr class="odd">
+<td><code>UNION</code></td>
+<td>eager, pure</td>
+<td>Join/Union of two collections (set union or interval hull)</td>
+</tr>
+<tr class="even">
+<td><code>UNIT</code></td>
+<td>eager, pure</td>
+<td>Resolve scientific unit sugar through the active Units RiX collection</td>
+</tr>
+<tr class="odd">
+<td><code>VALUES</code></td>
+<td>eager, pure</td>
+<td>Get the values of a map as a set (obj|.)</td>
+</tr>
+<tr class="even">
+<td><code>VALUE_OUTFIT</code></td>
+<td>lazy, effectful/unspecified</td>
+<td>Apply semantic/value outfitting metadata to a value</td>
+</tr>
+</tbody>
+</table>
+
+
+</section>
+
+<a onclick="window.scrollTo(0, 0); return false;" role="button" id="quarto-back-to-top"><i class="bi bi-arrow-up"></i> Back to top</a></main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/jostylr\.github\.io\/rix\/");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+            // target, if specified
+            link.setAttribute("target", "_blank");
+            if (link.getAttribute("rel") === null) {
+              link.setAttribute("rel", "noopener");
+            }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="../eval/types-and-traits-guide.html" class="pagination-link" aria-label="Types and traits">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">Types and traits</span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="../developer-guide.html" class="pagination-link" aria-label="Developer guide">
+        <span class="nav-page-text">Developer guide</span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>RiX — Rational Interval Expression Language</p>
+</div>   
+    <div class="nav-footer-center">
+      &nbsp;
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/reference/system-reference.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="nav-footer-right">
+<p>Documentation built with <a href="https://quarto.org/">Quarto</a></p>
+</div>
+  </div>
+</footer>
+
+
+
+
+<script src="../site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>

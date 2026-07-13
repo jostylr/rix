@@ -1,0 +1,1466 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.38">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>methods-guide – RiX</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<link href="../eval/types-and-traits-guide.html" rel="next">
+<link href="../eval/syntax-guide.html" rel="prev">
+<link href="../rix-logo.png" rel="icon" type="image/png">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-4a0610749eeff5ab924a4729b5181608.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-dark-de927ec96a2411cf822331f71755f83e.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-4a0610749eeff5ab924a4729b5181608.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-f3edcacc9eded719789e0469c6b6eab5.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-dark-c53da4be0d013bdcf7fcfccaa2827e71.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../site_libs/bootstrap/bootstrap-f3edcacc9eded719789e0469c6b6eab5.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+
+
+</head>
+
+<body class="nav-sidebar docked nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const darkModeDefault = authorPrefersDark;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a href="../index.html" class="navbar-brand navbar-brand-logo">
+    <img src="../rix-logo.png" alt="" class="navbar-logo light-content">
+    <img src="../rix-logo.png" alt="" class="navbar-logo dark-content">
+    </a>
+    <a class="navbar-brand" href="../index.html">
+    <span class="navbar-title">RiX</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link active" href="../getting-started.html" aria-current="page"> 
+<span class="menu-text">Start</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../language-at-a-glance.html"> 
+<span class="menu-text">Learn</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../eval/syntax-guide.html"> 
+<span class="menu-text">Reference</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../developer-guide.html"> 
+<span class="menu-text">Internals</span></a>
+  </li>  
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/jostylr/rix"> <i class="bi bi-github" role="img" aria-label="RiX on GitHub">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../eval/syntax-guide.html">Language reference</a></li><li class="breadcrumb-item"><a href="../eval/methods-guide.html">Methods</a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation docked overflow-auto">
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Overview</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="false">
+ <span class="menu-text">Start here</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../getting-started.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Getting started</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../language-at-a-glance.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">RiX at a glance</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../highlights.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">RiX Highlights</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../status.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Implementation status</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="false">
+ <span class="menu-text">Learn RiX</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../introduction.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Complete introduction</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../tutorial/units-and-exact-values.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Units and exact values</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
+ <span class="menu-text">Language reference</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../eval/syntax-guide.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Syntax and functions</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../eval/methods-guide.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text">Methods</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../eval/types-and-traits-guide.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Types and traits</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/system-reference.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Generated runtime catalog</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="false">
+ <span class="menu-text">Developer guide</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../developer-guide.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Developer guide</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../eval/README.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Evaluator overview</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../parser/architecture.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Parser architecture</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../parser/parsing.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Parsing and precedence</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../parser/AST-brief.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">AST reference</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../design/eval/ir-format.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">IR design snapshot</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../parser/array-generators-implementation.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Array generators</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../parser/embedded-parsing.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Embedded parsing</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../parser/matrix-tensor-implementation.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Matrices and tensors</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="false">
+ <span class="menu-text">Runtime design</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../design/eval/cells-assignments.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Cells and assignment</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../design/eval/units-and-exact-generators.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Units and exact generators</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../design/eval/cayley-polar.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Cayley polar complex values</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="false">
+ <span class="menu-text">Design and history</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../rix-rationales.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Design rationales</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../design/parser/spec.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Early language specification</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../design/parser/questions.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Open design areas</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../report-2026-04-02.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">April 2026 review (historical)</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#rix-methods-guide" id="toc-rix-methods-guide" class="nav-link active" data-scroll-target="#rix-methods-guide">RiX Methods Guide</a>
+  <ul class="collapse">
+  <li><a href="#general-rules" id="toc-general-rules" class="nav-link" data-scroll-target="#general-rules">General rules</a></li>
+  <li><a href="#generic-reduce" id="toc-generic-reduce" class="nav-link" data-scroll-target="#generic-reduce">Generic Reduce</a></li>
+  <li><a href="#arrays" id="toc-arrays" class="nav-link" data-scroll-target="#arrays">Arrays</a></li>
+  <li><a href="#lazy-sequences" id="toc-lazy-sequences" class="nav-link" data-scroll-target="#lazy-sequences">Lazy sequences</a></li>
+  <li><a href="#iterators" id="toc-iterators" class="nav-link" data-scroll-target="#iterators">Iterators</a></li>
+  <li><a href="#maps" id="toc-maps" class="nav-link" data-scroll-target="#maps">Maps</a></li>
+  <li><a href="#sets" id="toc-sets" class="nav-link" data-scroll-target="#sets">Sets</a></li>
+  <li><a href="#strings" id="toc-strings" class="nav-link" data-scroll-target="#strings">Strings</a></li>
+  <li><a href="#tuples" id="toc-tuples" class="nav-link" data-scroll-target="#tuples">Tuples</a></li>
+  <li><a href="#tensors" id="toc-tensors" class="nav-link" data-scroll-target="#tensors">Tensors</a></li>
+  <li><a href="#full-documentation-of-methods" id="toc-full-documentation-of-methods" class="nav-link" data-scroll-target="#full-documentation-of-methods">Full Documentation of methods</a>
+  <ul class="collapse">
+  <li><a href="#arrays-1" id="toc-arrays-1" class="nav-link" data-scroll-target="#arrays-1">Arrays</a></li>
+  <li><a href="#lazy-sequences-1" id="toc-lazy-sequences-1" class="nav-link" data-scroll-target="#lazy-sequences-1">Lazy sequences</a></li>
+  <li><a href="#iterators-1" id="toc-iterators-1" class="nav-link" data-scroll-target="#iterators-1">Iterators</a></li>
+  <li><a href="#maps-1" id="toc-maps-1" class="nav-link" data-scroll-target="#maps-1">Maps</a></li>
+  <li><a href="#sets-1" id="toc-sets-1" class="nav-link" data-scroll-target="#sets-1">Sets</a></li>
+  <li><a href="#strings-1" id="toc-strings-1" class="nav-link" data-scroll-target="#strings-1">Strings</a></li>
+  <li><a href="#tuples-1" id="toc-tuples-1" class="nav-link" data-scroll-target="#tuples-1">Tuples</a></li>
+  <li><a href="#tensors-1" id="toc-tensors-1" class="nav-link" data-scroll-target="#tensors-1">Tensors</a></li>
+  </ul></li>
+  </ul></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/methods-guide.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../eval/syntax-guide.html">Language reference</a></li><li class="breadcrumb-item"><a href="../eval/methods-guide.html">Methods</a></li></ol></nav></header>
+
+
+
+
+
+<section id="rix-methods-guide" class="level1">
+<h1>RiX Methods Guide</h1>
+<p>RiX methods are receiver-first sugar over callable values:</p>
+<pre class="rix"><code>obj.Method(a, b)
+obj.Method!(a, b)</code></pre>
+<ul>
+<li><code>Method</code> is the non-mutating form. It returns a new value.</li>
+<li><code>Method!</code> is the mutating form. It modifies the receiver in place and requires a mutable receiver.</li>
+<li>Method lookup rules and <code>_proto</code> semantics are defined in <a href="../eval/syntax-guide.html">syntax-guide.md</a>.</li>
+</ul>
+<section id="general-rules" class="level2">
+<h2 class="anchored" data-anchor-id="general-rules">General rules</h2>
+<ul>
+<li>Methods are not a class system. They are sugar over callables that receive the receiver as argument 1.</li>
+<li>Read-only methods only exist without <code>!</code>.</li>
+<li>Some methods are mutation-only extractors, such as <code>Pop!()</code> and <code>Shift!()</code>.</li>
+<li>Some methods come in pairs, such as <code>Push</code> / <code>Push!</code>.</li>
+<li>Iterator cursor methods are explicitly stateful without <code>!</code>; the iterator is a traversal handle, not the source collection.</li>
+<li>Built-in prototypes are frozen. There is no prototype chaining in v1.</li>
+</ul>
+</section>
+<section id="generic-reduce" class="level2">
+<h2 class="anchored" data-anchor-id="generic-reduce">Generic Reduce</h2>
+<p>Collections with a <code>Reduce</code> method use this callback shape:</p>
+<pre class="rix"><code>obj.Reduce((acc, value, keyOrIndex, obj) -&gt; nextAcc, initial?)</code></pre>
+<ul>
+<li>The receiver is always the last callback argument.</li>
+<li>Extra callback arguments can be ignored with arity caps such as <code>@+[2]</code>.</li>
+<li>If <code>initial</code> is omitted, RiX creates an empty mutable accumulator suited to the receiver type.</li>
+</ul>
+<p>Default <code>Reduce</code> accumulators:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Receiver</th>
+<th>Default accumulator</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Array</td>
+<td><code>[]</code></td>
+</tr>
+<tr class="even">
+<td>Map</td>
+<td><code>{= }</code></td>
+</tr>
+<tr class="odd">
+<td>Set</td>
+<td><code>{| |}</code></td>
+</tr>
+<tr class="even">
+<td>String</td>
+<td><code>""</code></td>
+</tr>
+<tr class="odd">
+<td>Tuple</td>
+<td>Empty mutable tuple with the same arity, filled with holes</td>
+</tr>
+<tr class="even">
+<td>Tensor</td>
+<td>Empty mutable tensor with the same shape, filled with holes</td>
+</tr>
+</tbody>
+</table>
+<p>Examples:</p>
+<pre class="rix"><code>[1, 2, 3].Reduce((acc, v) -&gt; acc.Push!(v * 2))
+"ab".Reduce((acc, ch) -&gt; acc.Concat(ch.Upper()))
+{: 1, 3 }.Reduce((acc, v, k) -&gt; acc.Set(k, v * 10))
+{:2x2: 1, 2; 3, 4 }.Reduce((acc, v, idx) -&gt; acc.Set!(idx, v))</code></pre>
+</section>
+<section id="arrays" class="level2">
+<h2 class="anchored" data-anchor-id="arrays">Arrays</h2>
+<p>Read-only: <code>Len</code>, <code>IsEmpty</code>, <code>Get</code>, <code>First</code>, <code>Last</code>, <code>Includes</code>, <code>IndexOf</code>, <code>LastIndexOf</code>, <code>HasAt</code>, <code>Slice</code>, <code>Join</code>, <code>DropFirst</code>, <code>DropLast</code>, <code>Map</code>, <code>Filter</code>, <code>Any</code>, <code>All</code>, <code>Count</code>, <code>Find</code>, <code>FindIndex</code>, <code>Reduce</code>, <code>Iterator</code></p>
+<p>Paired: <code>Push</code> / <code>Push!</code>, <code>Unshift</code> / <code>Unshift!</code>, <code>Set</code> / <code>Set!</code>, <code>Insert</code> / <code>Insert!</code>, <code>RemoveAt</code> / <code>RemoveAt!</code>, <code>Concat</code> / <code>Concat!</code>, <code>Reverse</code> / <code>Reverse!</code>, <code>Sort</code> / <code>Sort!</code>, <code>Distinct</code> / <code>Distinct!</code>, <code>Flatten</code> / <code>Flatten!</code></p>
+<p>Mutation-only: <code>Pop!</code>, <code>Shift!</code></p>
+<p>Notes:</p>
+<ul>
+<li><code>Pop!()</code> removes and returns the last element. Empty arrays return RiX’s undefined hole value.</li>
+<li><code>Shift!()</code> removes and returns the first element. Empty arrays return the hole value.</li>
+<li><code>RemoveAt(index)</code> returns a shortened array.</li>
+<li><code>RemoveAt!(index)</code> leaves a hole in place instead of shortening the receiver.</li>
+<li>Array callbacks receive <code>(value, index, array)</code>.</li>
+</ul>
+</section>
+<section id="lazy-sequences" class="level2">
+<h2 class="anchored" data-anchor-id="lazy-sequences">Lazy sequences</h2>
+<p>Read-only: <code>Len</code>, <code>IsEmpty</code>, <code>Get</code>, <code>First</code>, <code>Last</code>, <code>Materialize</code>, <code>Iterator</code></p>
+<p>Notes:</p>
+<ul>
+<li>Positive <code>Get</code> and bracket indexing generate only as far as the requested one-based index and cache every emitted value.</li>
+<li>A positive bounded bracket slice generates through its far endpoint and returns an eager array.</li>
+<li><code>Len</code> works when a numeric lazy limit makes the length known, or after the sequence has finished.</li>
+<li><code>Last</code>, negative indexing, and <code>Materialize</code> require a known finite sequence. Predicate-bounded sequences become known only after reaching their terminating value.</li>
+<li>Lazy map and filter pipes preserve laziness; they are operators rather than methods.</li>
+<li>Lazy sequences are not cursor-stateful. Call <code>Iterator()</code> to create an independent traversal position.</li>
+</ul>
+</section>
+<section id="iterators" class="level2">
+<h2 class="anchored" data-anchor-id="iterators">Iterators</h2>
+<p>Stateful: <code>Next</code>, <code>Peek</code>, <code>Done</code>, <code>Index</code>, <code>Reset</code></p>
+<p>Notes:</p>
+<ul>
+<li>Arrays, lazy sequences, tuples, strings, tensors, maps, and sets provide <code>Iterator()</code>.</li>
+<li>A new iterator has cursor index <code>0</code>, meaning traversal has not begun.</li>
+<li><code>Next(step?)</code> moves first and then returns the destination value. Its default step is <code>1</code>; steps may be positive, zero, or negative.</li>
+<li><code>Peek(offset?)</code> reads relative to the cursor without moving it. Its default offset is <code>0</code>.</li>
+<li>After <code>Next</code> crosses either end, the iterator enters its done state. <code>Done()</code> returns <code>1</code> in that state and <code>null</code> otherwise.</li>
+<li><code>Reset()</code> restores cursor <code>0</code>. On indexable collections, <code>Reset(index)</code> positions the cursor at that index; on maps and sets, reset simply restarts traversal.</li>
+<li>A shallow copy receives an independent cursor at the same position over the same source collection.</li>
+</ul>
+</section>
+<section id="maps" class="level2">
+<h2 class="anchored" data-anchor-id="maps">Maps</h2>
+<p>Read-only: <code>Len</code>, <code>IsEmpty</code>, <code>Has</code>, <code>Get</code>, <code>Keys</code>, <code>Values</code>, <code>Entries</code>, <code>MapValues</code>, <code>ReduceKeys</code>, <code>Filter</code>, <code>Any</code>, <code>All</code>, <code>Count</code>, <code>Reduce</code>, <code>Iterator</code></p>
+<p>Paired: <code>Set</code> / <code>Set!</code>, <code>Remove</code> / <code>Remove!</code>, <code>Merge</code> / <code>Merge!</code>, <code>Update</code> / <code>Update!</code>, <code>Default</code> / <code>Default!</code>, <code>Keep</code> / <code>Keep!</code>, <code>Omit</code> / <code>Omit!</code></p>
+<p>Notes:</p>
+<ul>
+<li><code>MapValues</code> callback receives <code>(value, key, map)</code>.</li>
+<li><code>ReduceKeys</code> callback receives <code>(acc, key, value, map)</code>.</li>
+<li><code>Filter</code>, <code>Any</code>, <code>All</code>, <code>Count</code>, and <code>Reduce</code> use <code>(value, key, map)</code>.</li>
+</ul>
+</section>
+<section id="sets" class="level2">
+<h2 class="anchored" data-anchor-id="sets">Sets</h2>
+<p>Read-only: <code>Len</code>, <code>IsEmpty</code>, <code>Has</code>, <code>Values</code>, <code>SubsetOf</code>, <code>SupersetOf</code>, <code>Disjoint</code>, <code>Filter</code>, <code>Any</code>, <code>All</code>, <code>Count</code>, <code>Reduce</code>, <code>Iterator</code></p>
+<p>Paired: <code>Add</code> / <code>Add!</code>, <code>Remove</code> / <code>Remove!</code>, <code>Union</code> / <code>Union!</code>, <code>Intersect</code> / <code>Intersect!</code>, <code>Diff</code> / <code>Diff!</code>, <code>SymDiff</code> / <code>SymDiff!</code></p>
+<p>Notes:</p>
+<ul>
+<li>Set callbacks receive <code>(value, value, set)</code>.</li>
+<li>The second callback argument repeats the set value so generic reducers can treat it as a key/index slot.</li>
+</ul>
+</section>
+<section id="strings" class="level2">
+<h2 class="anchored" data-anchor-id="strings">Strings</h2>
+<p>Read-only: <code>Len</code>, <code>IsEmpty</code>, <code>Get</code>, <code>First</code>, <code>Last</code>, <code>Includes</code>, <code>StartsWith</code>, <code>EndsWith</code>, <code>IndexOf</code>, <code>LastIndexOf</code>, <code>Slice</code>, <code>Concat</code>, <code>Split</code>, <code>Trim</code>, <code>TrimStart</code>, <code>TrimEnd</code>, <code>Upper</code>, <code>Lower</code>, <code>Replace</code>, <code>ReplaceAll</code>, <code>PadLeft</code>, <code>PadRight</code>, <code>Repeat</code>, <code>Reduce</code>, <code>Iterator</code></p>
+<p>Notes:</p>
+<ul>
+<li>Strings only have non-mutating methods.</li>
+<li>String callbacks receive <code>(char, index, string)</code>.</li>
+<li><code>Reduce</code> defaults to an empty string accumulator for concatenation-style folds.</li>
+</ul>
+</section>
+<section id="tuples" class="level2">
+<h2 class="anchored" data-anchor-id="tuples">Tuples</h2>
+<p>Read-only: <code>Len</code>, <code>Get</code>, <code>First</code>, <code>Last</code>, <code>Slice</code>, <code>Set</code>, <code>ToArray</code>, <code>Reduce</code>, <code>Iterator</code></p>
+<p>Notes:</p>
+<ul>
+<li>Tuples currently only have non-mutating methods.</li>
+<li>Tuple callbacks receive <code>(value, index, tuple)</code>.</li>
+<li><code>Set</code> returns a new tuple.</li>
+</ul>
+</section>
+<section id="tensors" class="level2">
+<h2 class="anchored" data-anchor-id="tensors">Tensors</h2>
+<p>Read-only: <code>Shape</code>, <code>Rank</code>, <code>Size</code>, <code>Get</code>, <code>Set</code>, <code>Reshape</code>, <code>Flatten</code>, <code>Transpose</code>, <code>Permute</code>, <code>Map</code>, <code>Sum</code>, <code>Mean</code>, <code>Dot</code>, <code>MatMul</code>, <code>Reduce</code>, <code>Iterator</code></p>
+<p>Paired: <code>Set</code> / <code>Set!</code></p>
+<p>Mutation-only: <code>Fill!</code></p>
+<p>Notes:</p>
+<ul>
+<li>Tensor callbacks receive <code>(value, indexTuple, tensor)</code>.</li>
+<li><code>Set!</code> accepts either separate selectors or a single tuple index.</li>
+<li><code>Transpose</code> is currently rank-2 only.</li>
+<li><code>Permute</code> expects a tuple of axes.</li>
+<li><code>Dot</code> expects equal-length rank-1 tensors.</li>
+<li><code>MatMul</code> expects compatible rank-2 tensors.</li>
+</ul>
+</section>
+<section id="full-documentation-of-methods" class="level2">
+<h2 class="anchored" data-anchor-id="full-documentation-of-methods">Full Documentation of methods</h2>
+<p>This section is the reference version of the built-in method surface. Signatures are written in receiver-first form.</p>
+<section id="arrays-1" class="level3">
+<h3 class="anchored" data-anchor-id="arrays-1">Arrays</h3>
+<p><code>Len()</code> - Signature: <code>array.Len() -&gt; Integer</code> - Purpose: Return the number of slots in the array. - Example:</p>
+<pre class="rix"><code>[1, 2, 3].Len()   ## 3</code></pre>
+<p><code>IsEmpty()</code> - Signature: <code>array.IsEmpty() -&gt; 1 | null</code> - Purpose: Return truthy when the array has no elements. - Example:</p>
+<pre class="rix"><code>[ ].IsEmpty()</code></pre>
+<p><code>Get(index)</code> - Signature: <code>array.Get(index) -&gt; value | null</code> - Purpose: Return the element at a 1-based index. Negative indices count from the end. - Example:</p>
+<pre class="rix"><code>[10, 20, 30].Get(2)    ## 20
+[10, 20, 30].Get(-1)   ## 30</code></pre>
+<p><code>First()</code>, <code>Last()</code> - Signature: <code>array.First() -&gt; value | null</code>, <code>array.Last() -&gt; value | null</code> - Purpose: Return the first or last element. - Example:</p>
+<pre class="rix"><code>[10, 20, 30].First()   ## 10
+[10, 20, 30].Last()    ## 30</code></pre>
+<p><code>Includes(value)</code> - Signature: <code>array.Includes(value) -&gt; 1 | null</code> - Purpose: Test whether the array contains a value. - Example:</p>
+<pre class="rix"><code>[1, 2, 3].Includes(2)</code></pre>
+<p><code>IndexOf(value)</code>, <code>LastIndexOf(value)</code> - Signature: <code>array.IndexOf(value) -&gt; Integer | null</code>, <code>array.LastIndexOf(value) -&gt; Integer | null</code> - Purpose: Return the first or last 1-based position where the value occurs. - Example:</p>
+<pre class="rix"><code>[1, 2, 2].IndexOf(2)       ## 2
+[1, 2, 2].LastIndexOf(2)   ## 3</code></pre>
+<p><code>HasAt(index)</code> - Signature: <code>array.HasAt(index) -&gt; 1 | null</code> - Purpose: Test whether the array has a non-hole value at the given index. - Example:</p>
+<pre class="rix"><code>[1,,3].HasAt(2)   ## null</code></pre>
+<p><code>Slice(start?, end?)</code> - Signature: <code>array.Slice(start?, end?) -&gt; Array</code> - Purpose: Return a non-mutating slice. Start is inclusive, end is exclusive, using RiX’s 1-based indexing. - Note: Bracket slicing uses different semantics: <code>array[i:j]</code> is inclusive on both ends and may run backward. - Example:</p>
+<pre class="rix"><code>[1, 2, 3, 4].Slice(2, 4)   ## [2, 3]
+[1, 2, 3, 4][2:4]          ## [2, 3, 4]
+[1, 2, 3, 4][4:2]          ## [4, 3, 2]</code></pre>
+<p><code>Join(separator?)</code> - Signature: <code>array.Join(separator?) -&gt; String</code> - Purpose: Convert array elements to strings and join them. - Example:</p>
+<pre class="rix"><code>[1, 2, 3].Join("-")   ## "1-2-3"</code></pre>
+<p><code>Push(values...)</code>, <code>Push!(values...)</code> - Signature: <code>array.Push(values...) -&gt; Array</code>, <code>array.Push!(values...) -&gt; Array</code> - Purpose: Append values to the end. <code>Push</code> returns a new array. <code>Push!</code> mutates and returns the receiver. - Example:</p>
+<pre class="rix"><code>a := [1, 2]
+b := a.Push(3)
+a.Push!(3, 4)</code></pre>
+<p><code>Unshift(values...)</code>, <code>Unshift!(values...)</code> - Signature: <code>array.Unshift(values...) -&gt; Array</code>, <code>array.Unshift!(values...) -&gt; Array</code> - Purpose: Add values to the front. - Example:</p>
+<pre class="rix"><code>[2, 3].Unshift(1)     ## [1, 2, 3]</code></pre>
+<p><code>Set(index, value)</code>, <code>Set!(index, value)</code> - Signature: <code>array.Set(index, value) -&gt; Array</code>, <code>array.Set!(index, value) -&gt; Array</code> - Purpose: Write a value at the given index. Out-of-range writes clamp and can extend the array. - Example:</p>
+<pre class="rix"><code>[1, 2].Set(2, 9)   ## [1, 9]</code></pre>
+<p><code>Insert(index, value)</code>, <code>Insert!(index, value)</code> - Signature: <code>array.Insert(index, value) -&gt; Array</code>, <code>array.Insert!(index, value) -&gt; Array</code> - Purpose: Insert a value before the given index. - Example:</p>
+<pre class="rix"><code>[1, 3].Insert(2, 2)   ## [1, 2, 3]</code></pre>
+<p><code>RemoveAt(index)</code>, <code>RemoveAt!(index)</code> - Signature: <code>array.RemoveAt(index) -&gt; Array</code>, <code>array.RemoveAt!(index) -&gt; Array</code> - Purpose: Remove a slot at an index. <code>RemoveAt</code> shortens the returned array. <code>RemoveAt!</code> leaves a hole in the receiver. - Example:</p>
+<pre class="rix"><code>[1, 2, 3].RemoveAt(2)   ## [1, 3]
+a := [1, 2, 3]
+a.RemoveAt!(2)          ## a is [1,,3]</code></pre>
+<p><code>Swap(i, j)</code>, <code>Swap!(i, j)</code> - Signature: <code>array.Swap(i, j) -&gt; Array</code>, <code>array.Swap!(i, j) -&gt; Array</code> - Purpose: Exchange two existing slots. Negative indices count from the end. - Example:</p>
+<pre class="rix"><code>[10, 20, 30].Swap(1, 3)   ## [30, 20, 10]</code></pre>
+<p><code>Move(indexOrInterval, targetIndex)</code>, <code>Move!(indexOrInterval, targetIndex)</code> - Signature: <code>array.Move(indexOrInterval, targetIndex) -&gt; Array</code>, <code>array.Move!(indexOrInterval, targetIndex) -&gt; Array</code> - Purpose: Remove one element or an inclusive interval, then reinsert it elsewhere. - Semantics: Positive <code>targetIndex</code> inserts before that 1-based position in the post-removal array. Negative <code>targetIndex</code> inserts after that position counting from the end of the post-removal array. - Example:</p>
+<pre class="rix"><code>[1, 2, 3, 4, 5, 6, 7].Move(4:6, 2)   ## [1, 4, 5, 6, 2, 3, 7]
+[1, 2, 3, 4].Move(1, -1)             ## [2, 3, 4, 1]
+[1, 2, 3, 4].Move(2, -2)             ## [1, 3, 2, 4]</code></pre>
+<p><code>Concat(valuesOrCollections...)</code>, <code>Concat!(valuesOrCollections...)</code> - Signature: <code>array.Concat(items...) -&gt; Array</code>, <code>array.Concat!(items...) -&gt; Array</code> - Purpose: Concatenate arrays or append plain values. - Example:</p>
+<pre class="rix"><code>[1, 2].Concat([3, 4])   ## [1, 2, 3, 4]</code></pre>
+<p><code>Reverse()</code>, <code>Reverse!()</code> - Signature: <code>array.Reverse() -&gt; Array</code>, <code>array.Reverse!() -&gt; Array</code> - Purpose: Reverse element order. - Example:</p>
+<pre class="rix"><code>[1, 2, 3].Reverse()   ## [3, 2, 1]</code></pre>
+<p><code>Sort()</code>, <code>Sort!()</code> - Signature: <code>array.Sort() -&gt; Array</code>, <code>array.Sort!() -&gt; Array</code> - Purpose: Sort values using RiX’s built-in value ordering. - Example:</p>
+<pre class="rix"><code>[3, 1, 2].Sort()   ## [1, 2, 3]</code></pre>
+<p><code>Distinct()</code>, <code>Distinct!()</code> - Signature: <code>array.Distinct() -&gt; Array</code>, <code>array.Distinct!() -&gt; Array</code> - Purpose: Remove duplicate values while keeping first occurrence order. - Example:</p>
+<pre class="rix"><code>[1, 2, 2, 3].Distinct()   ## [1, 2, 3]</code></pre>
+<p><code>Flatten(depth?)</code>, <code>Flatten!(depth?)</code> - Signature: <code>array.Flatten(depth?) -&gt; Array</code>, <code>array.Flatten!(depth?) -&gt; Array</code> - Purpose: Flatten nested arrays, tuples, and sets by one level by default, or by the given depth. - Example:</p>
+<pre class="rix"><code>[1, [2, 3]].Flatten()   ## [1, 2, 3]</code></pre>
+<p><code>DropFirst(count?)</code>, <code>DropLast(count?)</code> - Signature: <code>array.DropFirst(count?) -&gt; Array</code>, <code>array.DropLast(count?) -&gt; Array</code> - Purpose: Return an array with values removed from the front or back. Default count is <code>1</code>. - Example:</p>
+<pre class="rix"><code>[1, 2, 3].DropFirst()   ## [2, 3]
+[1, 2, 3].DropLast()    ## [1, 2]</code></pre>
+<p><code>Pop!()</code>, <code>Shift!()</code> - Signature: <code>array.Pop!() -&gt; value | HOLE</code>, <code>array.Shift!() -&gt; value | HOLE</code> - Purpose: Remove and return the last or first element. On an empty array they return RiX’s hole value. - Example:</p>
+<pre class="rix"><code>a := [1, 2, 3]
+a.Pop!()    ## 3
+a.Shift!()  ## 1</code></pre>
+<p><code>Map(iterator)</code> - Signature: <code>array.Map((value, index, array) -&gt; newValue) -&gt; Array</code> - Purpose: Transform each element into a new array. - Iterator arguments: <code>(value, index, array)</code> - Example:</p>
+<pre class="rix"><code>[10, 20].Map((v, k) -&gt; v + k)   ## [11, 22]</code></pre>
+<p><code>Filter(iterator)</code> - Signature: <code>array.Filter((value, index, array) -&gt; truthy) -&gt; Array</code> - Purpose: Keep only elements whose callback returns truthy. - Iterator arguments: <code>(value, index, array)</code> - Example:</p>
+<pre class="rix"><code>[1, 2, 3, 4].Filter((v) -&gt; v &gt; 2)   ## [3, 4]</code></pre>
+<p><code>Any(iterator)</code>, <code>All(iterator)</code> - Signature: <code>array.Any((value, index, array) -&gt; truthy) -&gt; 1 | null</code>, <code>array.All((value, index, array) -&gt; truthy) -&gt; 1 | null</code> - Purpose: Test whether any or all elements satisfy a predicate. - Iterator arguments: <code>(value, index, array)</code> - Example:</p>
+<pre class="rix"><code>[1, 2, 3].Any((v) -&gt; v == 2)
+[1, 2, 3].All((v) -&gt; v &gt; 0)</code></pre>
+<p><code>Count(iterator?)</code> - Signature: <code>array.Count(iterator?) -&gt; Integer</code> - Purpose: Count matching elements, or all elements if no iterator is supplied. - Iterator arguments: <code>(value, index, array)</code> - Example:</p>
+<pre class="rix"><code>[1, 2, 3, 4].Count((v) -&gt; v &gt; 2)   ## 2</code></pre>
+<p><code>Find(iterator)</code>, <code>FindIndex(iterator)</code> - Signature: <code>array.Find((value, index, array) -&gt; truthy) -&gt; value | null</code>, <code>array.FindIndex((value, index, array) -&gt; truthy) -&gt; Integer | null</code> - Purpose: Return the first matching value or its index. - Iterator arguments: <code>(value, index, array)</code> - Example:</p>
+<pre class="rix"><code>[1, 2, 3].Find((v) -&gt; v == 2)        ## 2
+[1, 2, 3].FindIndex((v) -&gt; v == 2)   ## 2</code></pre>
+<p><code>Reduce(iterator, initial?)</code> - Signature: <code>array.Reduce((acc, value, index, array) -&gt; nextAcc, initial?) -&gt; any</code> - Purpose: Fold the array into a single result. Without <code>initial</code>, the default accumulator is <code>[]</code>. - Iterator arguments: <code>(acc, value, index, array)</code> - Example:</p>
+<pre class="rix"><code>[1, 2, 3].Reduce((acc, v) -&gt; acc.Push!(v * 10))   ## [10, 20, 30]</code></pre>
+<p><code>Iterator()</code> - Signature: <code>array.Iterator() -&gt; Iterator</code> - Purpose: Create an independent stateful cursor over the array. The cursor starts at index <code>0</code>, before the first item. - Example:</p>
+<pre class="rix"><code>it := [10, 20, 30].Iterator()
+it.Next()   ## 10
+it.Next()   ## 20</code></pre>
+</section>
+<section id="lazy-sequences-1" class="level3">
+<h3 class="anchored" data-anchor-id="lazy-sequences-1">Lazy sequences</h3>
+<p><code>Len()</code> - Signature: <code>lazySequence.Len() -&gt; Integer</code> - Purpose: Return the known eventual length without forcing every value. It is an error while the length is unknown. - Example:</p>
+<pre class="rix"><code>[1 |+ 1 |^ 20].Len()   ## 20</code></pre>
+<p><code>IsEmpty()</code> - Signature: <code>lazySequence.IsEmpty() -&gt; 1 | null</code> - Purpose: Generate at most the first output to determine whether the sequence is empty.</p>
+<p><code>Get(index)</code>, <code>First()</code> - Signature: <code>lazySequence.Get(index) -&gt; value | null</code>, <code>lazySequence.First() -&gt; value | null</code> - Purpose: Generate and cache values through the requested one-based positive index. A negative index requires finite materialization. - Example:</p>
+<pre class="rix"><code>values := [1 |+ 1]
+values.Get(100)   ## 100
+values.First()    ## cached 1</code></pre>
+<p><code>Last()</code> - Signature: <code>lazySequence.Last() -&gt; value | null</code> - Purpose: Materialize a known finite lazy sequence and return its last item. It is unavailable for an unfinished sequence whose length is unknown.</p>
+<p><code>Materialize()</code> - Signature: <code>lazySequence.Materialize() -&gt; Array</code> - Purpose: Evaluate a known finite lazy sequence to completion and return a mutable eager array. - Example:</p>
+<pre class="rix"><code>[3 |+ 3 |^ 5].Materialize()   ## [3, 6, 9, 12, 15]</code></pre>
+<p><code>Iterator()</code> - Signature: <code>lazySequence.Iterator() -&gt; Iterator</code> - Purpose: Create an independent cursor. Iterator reads use the lazy sequence’s shared cache and generate only as far as requested.</p>
+</section>
+<section id="iterators-1" class="level3">
+<h3 class="anchored" data-anchor-id="iterators-1">Iterators</h3>
+<p><code>Next(step?)</code> - Signature: <code>iterator.Next(step=1) -&gt; value | null</code> - Purpose: Move the cursor by <code>step</code>, then return the item at the destination. <code>Next(2)</code> from a new cursor skips item 1 and returns item 2. <code>Next(0)</code> reads the current item without moving. Crossing an end enters the done state. - Example:</p>
+<pre class="rix"><code>it := [10, 20, 30, 40].Iterator()
+it.Next(2)    ## 20; cursor is 2
+it.Next(-1)   ## 10; cursor is 1
+it.Next(0)    ## 10; cursor remains 1</code></pre>
+<p><code>Peek(offset?)</code> - Signature: <code>iterator.Peek(offset=0) -&gt; value | null</code> - Purpose: Return the item at <code>cursor + offset</code> without moving the cursor or changing its done state. - Example:</p>
+<pre class="rix"><code>it := [1 |+ 1].Iterator()
+it.Next(5)   ## 5
+it.Peek(3)   ## 8; cursor remains 5</code></pre>
+<p><code>Done()</code> - Signature: <code>iterator.Done() -&gt; 1 | null</code> - Purpose: Return <code>1</code> after an advancing read crosses an end; otherwise return RiX false, <code>null</code>. Being positioned at the final valid item is not yet the done state.</p>
+<p><code>Index()</code> - Signature: <code>iterator.Index() -&gt; Integer | null</code> - Purpose: Return <code>0</code> before traversal begins, the current source index during traversal, or <code>null</code> in the done state.</p>
+<p><code>Reset(index?)</code> - Signature: <code>iterator.Reset(index?) -&gt; Iterator</code> - Purpose: With no argument, restore the initial cursor <code>0</code>. For an indexable source, position directly at <code>index</code>; <code>Peek()</code> then reads that item and <code>Next()</code> moves onward. Negative indices count from the end of finite sources. Maps and sets restart at cursor <code>0</code> regardless of an index argument. - Example:</p>
+<pre class="rix"><code>it := [10, 20, 30].Iterator()
+it.Reset(2)
+it.Peek()   ## 20
+it.Next()   ## 30
+it.Reset()
+it.Next()   ## 10</code></pre>
+</section>
+<section id="maps-1" class="level3">
+<h3 class="anchored" data-anchor-id="maps-1">Maps</h3>
+<p><code>Len()</code>, <code>IsEmpty()</code> - Signature: <code>map.Len() -&gt; Integer</code>, <code>map.IsEmpty() -&gt; 1 | null</code> - Purpose: Return the number of entries, or whether the map is empty. - Example:</p>
+<pre class="rix"><code>{= a=1, b=2 }.Len()   ## 2</code></pre>
+<p><code>Has(key)</code>, <code>Get(key)</code> - Signature: <code>map.Has(key) -&gt; 1 | null</code>, <code>map.Get(key) -&gt; value | null</code> - Purpose: Test for a key or retrieve its value. - Example:</p>
+<pre class="rix"><code>m := {= a=1, b=2 }
+m.Has("a")
+m.Get("b")</code></pre>
+<p><code>Keys()</code>, <code>Values()</code>, <code>Entries()</code> - Signature: <code>map.Keys() -&gt; Set</code>, <code>map.Values() -&gt; Set</code>, <code>map.Entries() -&gt; Array</code> - Purpose: Return map keys, values, or key-value entry tuples. - Example:</p>
+<pre class="rix"><code>{= a=1, b=2 }.Entries()   ## [{: "a", 1 }, {: "b", 2 }]</code></pre>
+<p><code>Set(key, value)</code>, <code>Set!(key, value)</code> - Signature: <code>map.Set(key, value) -&gt; Map</code>, <code>map.Set!(key, value) -&gt; Map</code> - Purpose: Add or replace an entry. - Example:</p>
+<pre class="rix"><code>{= a=1 }.Set("b", 2)</code></pre>
+<p><code>Remove(key)</code>, <code>Remove!(key)</code> - Signature: <code>map.Remove(key) -&gt; Map</code>, <code>map.Remove!(key) -&gt; Map</code> - Purpose: Remove an entry by key. - Example:</p>
+<pre class="rix"><code>{= a=1, b=2 }.Remove("a")   ## {= b=2 }</code></pre>
+<p><code>Merge(other)</code>, <code>Merge!(other)</code> - Signature: <code>map.Merge(otherMap) -&gt; Map</code>, <code>map.Merge!(otherMap) -&gt; Map</code> - Purpose: Merge another map, letting later entries win. - Example:</p>
+<pre class="rix"><code>{= a=1 }.Merge({= b=2, a=9 })   ## {= a=9, b=2 }</code></pre>
+<p><code>Update(key, updater)</code>, <code>Update!(key, updater)</code> - Signature: <code>map.Update(key, (value, key, map) -&gt; newValue) -&gt; Map</code>, <code>map.Update!(key, (value, key, map) -&gt; newValue) -&gt; Map</code> - Purpose: Compute a new value from the current entry. Missing keys pass <code>null</code> as the current value. - Iterator arguments: <code>(value, key, map)</code> - Example:</p>
+<pre class="rix"><code>{= a=1 }.Update("a", (v) -&gt; v + 1)   ## {= a=2 }</code></pre>
+<p><code>Default(key, value)</code>, <code>Default!(key, value)</code> - Signature: <code>map.Default(key, value) -&gt; Map</code>, <code>map.Default!(key, value) -&gt; Map</code> - Purpose: Insert a value only if the key is missing. - Example:</p>
+<pre class="rix"><code>{= a=1 }.Default("b", 2)   ## {= a=1, b=2 }</code></pre>
+<p><code>Keep(keys)</code>, <code>Keep!(keys)</code> - Signature: <code>map.Keep(keys) -&gt; Map</code>, <code>map.Keep!(keys) -&gt; Map</code> - Purpose: Keep only the specified keys. The argument can be a set, array, tuple, or single key-like value. - Example:</p>
+<pre class="rix"><code>{= a=1, b=2, c=3 }.Keep({| "a", "c" |})   ## {= a=1, c=3 }</code></pre>
+<p><code>Omit(keys)</code>, <code>Omit!(keys)</code> - Signature: <code>map.Omit(keys) -&gt; Map</code>, <code>map.Omit!(keys) -&gt; Map</code> - Purpose: Remove the specified keys. - Example:</p>
+<pre class="rix"><code>{= a=1, b=2, c=3 }.Omit({| "b" |})   ## {= a=1, c=3 }</code></pre>
+<p><code>MapValues(iterator)</code> - Signature: <code>map.MapValues((value, key, map) -&gt; newValue) -&gt; Map</code> - Purpose: Transform values while preserving keys. - Iterator arguments: <code>(value, key, map)</code> - Example:</p>
+<pre class="rix"><code>{= a=1, b=2 }.MapValues((v) -&gt; v * 10)   ## {= a=10, b=20 }</code></pre>
+<p><code>ReduceKeys(iterator, initial?)</code> - Signature: <code>map.ReduceKeys((acc, key, value, map) -&gt; nextAcc, initial?) -&gt; any</code> - Purpose: Reduce over keys first, then values. Without <code>initial</code>, the default accumulator is <code>{= }</code>. - Iterator arguments: <code>(acc, key, value, map)</code> - Example:</p>
+<pre class="rix"><code>{= a=1, b=2 }.ReduceKeys((acc, k, v) -&gt; acc.Push!({: k, v }), [])</code></pre>
+<p><code>Filter(iterator)</code>, <code>Any(iterator)</code>, <code>All(iterator)</code>, <code>Count(iterator?)</code> - Signature: <code>map.Filter((value, key, map) -&gt; truthy) -&gt; Map</code>, <code>map.Any((value, key, map) -&gt; truthy) -&gt; 1 | null</code>, <code>map.All((value, key, map) -&gt; truthy) -&gt; 1 | null</code>, <code>map.Count(iterator?) -&gt; Integer</code> - Purpose: Filter or test map entries. - Iterator arguments: <code>(value, key, map)</code> - Example:</p>
+<pre class="rix"><code>{= a=1, b=2 }.Filter((v, k) -&gt; k == "b")   ## {= b=2 }</code></pre>
+<p><code>Reduce(iterator, initial?)</code> - Signature: <code>map.Reduce((acc, value, key, map) -&gt; nextAcc, initial?) -&gt; any</code> - Purpose: Reduce over values and keys. Without <code>initial</code>, the default accumulator is <code>{= }</code>. - Iterator arguments: <code>(acc, value, key, map)</code> - Example:</p>
+<pre class="rix"><code>{= a=1, b=2 }.Reduce((acc, v, k) -&gt; acc.Set!(k, v + 1))   ## {= a=2, b=3 }</code></pre>
+</section>
+<section id="sets-1" class="level3">
+<h3 class="anchored" data-anchor-id="sets-1">Sets</h3>
+<p><code>Len()</code>, <code>IsEmpty()</code>, <code>Has(value)</code>, <code>Values()</code> - Signature: <code>set.Len() -&gt; Integer</code>, <code>set.IsEmpty() -&gt; 1 | null</code>, <code>set.Has(value) -&gt; 1 | null</code>, <code>set.Values() -&gt; Array</code> - Purpose: Query set size, emptiness, membership, or enumerate its values. - Example:</p>
+<pre class="rix"><code>{| 1, 2 |}.Has(2)</code></pre>
+<p><code>Add(value)</code>, <code>Add!(value)</code> - Signature: <code>set.Add(value) -&gt; Set</code>, <code>set.Add!(value) -&gt; Set</code> - Purpose: Insert a value if it is not already present. - Example:</p>
+<pre class="rix"><code>{| 1, 2 |}.Add(3)   ## {| 1, 2, 3 |}</code></pre>
+<p><code>Remove(value)</code>, <code>Remove!(value)</code> - Signature: <code>set.Remove(value) -&gt; Set</code>, <code>set.Remove!(value) -&gt; Set</code> - Purpose: Remove a value from the set. - Example:</p>
+<pre class="rix"><code>{| 1, 2, 3 |}.Remove(2)   ## {| 1, 3 |}</code></pre>
+<p><code>Union(other)</code>, <code>Union!(other)</code> - Signature: <code>set.Union(otherSet) -&gt; Set</code>, <code>set.Union!(otherSet) -&gt; Set</code> - Purpose: Compute or apply the union of two sets. - Example:</p>
+<pre class="rix"><code>{| 1, 2 |}.Union({| 2, 3 |})   ## {| 1, 2, 3 |}</code></pre>
+<p><code>Intersect(other)</code>, <code>Intersect!(other)</code> - Signature: <code>set.Intersect(otherSet) -&gt; Set</code>, <code>set.Intersect!(otherSet) -&gt; Set</code> - Purpose: Compute or apply the intersection. - Example:</p>
+<pre class="rix"><code>{| 1, 2 |}.Intersect({| 2, 3 |})   ## {| 2 |}</code></pre>
+<p><code>Diff(other)</code>, <code>Diff!(other)</code> - Signature: <code>set.Diff(otherSet) -&gt; Set</code>, <code>set.Diff!(otherSet) -&gt; Set</code> - Purpose: Compute or apply set difference. - Example:</p>
+<pre class="rix"><code>{| 1, 2, 3 |}.Diff({| 2 |})   ## {| 1, 3 |}</code></pre>
+<p><code>SymDiff(other)</code>, <code>SymDiff!(other)</code> - Signature: <code>set.SymDiff(otherSet) -&gt; Set</code>, <code>set.SymDiff!(otherSet) -&gt; Set</code> - Purpose: Compute or apply symmetric difference. - Example:</p>
+<pre class="rix"><code>{| 1, 2 |}.SymDiff({| 2, 4 |})   ## {| 1, 4 |}</code></pre>
+<p><code>SubsetOf(other)</code>, <code>SupersetOf(other)</code>, <code>Disjoint(other)</code> - Signature: <code>set.SubsetOf(otherSet) -&gt; 1 | null</code>, <code>set.SupersetOf(otherSet) -&gt; 1 | null</code>, <code>set.Disjoint(otherSet) -&gt; 1 | null</code> - Purpose: Test set relationships. - Example:</p>
+<pre class="rix"><code>{| 1, 2 |}.SubsetOf({| 1, 2, 3 |})</code></pre>
+<p><code>Filter(iterator)</code>, <code>Any(iterator)</code>, <code>All(iterator)</code>, <code>Count(iterator?)</code> - Signature: <code>set.Filter((value, valueAgain, set) -&gt; truthy) -&gt; Set</code>, <code>set.Any((value, valueAgain, set) -&gt; truthy) -&gt; 1 | null</code>, <code>set.All((value, valueAgain, set) -&gt; truthy) -&gt; 1 | null</code>, <code>set.Count(iterator?) -&gt; Integer</code> - Purpose: Filter or test set contents. - Iterator arguments: <code>(value, value, set)</code>. The second slot repeats the value so generic reducers can still treat it like a locator slot. - Example:</p>
+<pre class="rix"><code>{| 1, 2, 3 |}.Filter((v) -&gt; v &gt; 1)   ## {| 2, 3 |}</code></pre>
+<p><code>Reduce(iterator, initial?)</code> - Signature: <code>set.Reduce((acc, value, valueAgain, set) -&gt; nextAcc, initial?) -&gt; any</code> - Purpose: Reduce a set. Without <code>initial</code>, the default accumulator is <code>{| |}</code>. - Iterator arguments: <code>(acc, value, value, set)</code> - Example:</p>
+<pre class="rix"><code>{| 1, 2, 3 |}.Reduce((acc, v) -&gt; acc.Add!(v * 10))</code></pre>
+</section>
+<section id="strings-1" class="level3">
+<h3 class="anchored" data-anchor-id="strings-1">Strings</h3>
+<p><code>Len()</code>, <code>IsEmpty()</code> - Signature: <code>string.Len() -&gt; Integer</code>, <code>string.IsEmpty() -&gt; 1 | null</code> - Purpose: Query string length in code points, or whether the string is empty. - Example:</p>
+<pre class="rix"><code>"abc".Len()   ## 3</code></pre>
+<p><code>Get(index)</code>, <code>First()</code>, <code>Last()</code> - Signature: <code>string.Get(index) -&gt; String | null</code>, <code>string.First() -&gt; String | null</code>, <code>string.Last() -&gt; String | null</code> - Purpose: Read characters by 1-based position. - Example:</p>
+<pre class="rix"><code>"abc".Get(2)   ## "b"</code></pre>
+<p><code>Includes(text)</code>, <code>StartsWith(prefix)</code>, <code>EndsWith(suffix)</code> - Signature: <code>string.Includes(text) -&gt; 1 | null</code>, <code>string.StartsWith(prefix) -&gt; 1 | null</code>, <code>string.EndsWith(suffix) -&gt; 1 | null</code> - Purpose: Standard substring tests. - Example:</p>
+<pre class="rix"><code>"abc".StartsWith("a")</code></pre>
+<p><code>IndexOf(text)</code>, <code>LastIndexOf(text)</code> - Signature: <code>string.IndexOf(text) -&gt; Integer | null</code>, <code>string.LastIndexOf(text) -&gt; Integer | null</code> - Purpose: Return the first or last 1-based match position. - Example:</p>
+<pre class="rix"><code>"abca".LastIndexOf("a")   ## 4</code></pre>
+<p><code>Slice(start?, end?)</code> - Signature: <code>string.Slice(start?, end?) -&gt; String</code> - Purpose: Return a substring using code-point indexing. - Example:</p>
+<pre class="rix"><code>"abcd".Slice(2, 4)   ## "bc"</code></pre>
+<p><code>Concat(parts...)</code> - Signature: <code>string.Concat(parts...) -&gt; String</code> - Purpose: Concatenate strings or string-like values. - Example:</p>
+<pre class="rix"><code>"ab".Concat("cd")   ## "abcd"</code></pre>
+<p><code>Split(separator?)</code> - Signature: <code>string.Split(separator?) -&gt; Array</code> - Purpose: Split on a separator. If omitted, split into characters. - Example:</p>
+<pre class="rix"><code>sep := ","
+"a,b,c".Split(sep)   ## ["a", "b", "c"]
+"abc".Split()        ## ["a", "b", "c"]</code></pre>
+<p><code>Trim()</code>, <code>TrimStart()</code>, <code>TrimEnd()</code> - Signature: <code>string.Trim() -&gt; String</code>, <code>string.TrimStart() -&gt; String</code>, <code>string.TrimEnd() -&gt; String</code> - Purpose: Remove surrounding whitespace. - Example:</p>
+<pre class="rix"><code>"  hi  ".Trim()   ## "hi"</code></pre>
+<p><code>Upper()</code>, <code>Lower()</code> - Signature: <code>string.Upper() -&gt; String</code>, <code>string.Lower() -&gt; String</code> - Purpose: Change case. - Example:</p>
+<pre class="rix"><code>"abc".Upper()   ## "ABC"</code></pre>
+<p><code>Replace(search, replacement)</code>, <code>ReplaceAll(search, replacement)</code> - Signature: <code>string.Replace(search, replacement) -&gt; String</code>, <code>string.ReplaceAll(search, replacement) -&gt; String</code> - Purpose: Replace the first or all string matches. - Example:</p>
+<pre class="rix"><code>"banana".Replace("na", "x")      ## "baxna"
+"banana".ReplaceAll("na", "x")   ## "baxx"</code></pre>
+<p><code>PadLeft(length, pad?)</code>, <code>PadRight(length, pad?)</code> - Signature: <code>string.PadLeft(length, pad?) -&gt; String</code>, <code>string.PadRight(length, pad?) -&gt; String</code> - Purpose: Extend a string to a target width. - Example:</p>
+<pre class="rix"><code>"7".PadLeft(3, "0")    ## "007"
+"7".PadRight(3, "0")   ## "700"</code></pre>
+<p><code>Repeat(count)</code> - Signature: <code>string.Repeat(count) -&gt; String</code> - Purpose: Repeat a string. - Example:</p>
+<pre class="rix"><code>"ha".Repeat(3)   ## "hahaha"</code></pre>
+<p><code>Reduce(iterator, initial?)</code> - Signature: <code>string.Reduce((acc, char, index, string) -&gt; nextAcc, initial?) -&gt; any</code> - Purpose: Reduce a string. Without <code>initial</code>, the default accumulator is <code>""</code>. - Iterator arguments: <code>(acc, char, index, string)</code> - Example:</p>
+<pre class="rix"><code>"ab".Reduce((acc, ch) -&gt; acc.Concat(ch.Upper()))   ## "AB"</code></pre>
+</section>
+<section id="tuples-1" class="level3">
+<h3 class="anchored" data-anchor-id="tuples-1">Tuples</h3>
+<p><code>Len()</code> - Signature: <code>tuple.Len() -&gt; Integer</code> - Purpose: Return tuple arity. - Example:</p>
+<pre class="rix"><code>{: 4, 5, 6 }.Len()   ## 3</code></pre>
+<p><code>Get(index)</code>, <code>First()</code>, <code>Last()</code> - Signature: <code>tuple.Get(index) -&gt; value | null</code>, <code>tuple.First() -&gt; value | null</code>, <code>tuple.Last() -&gt; value | null</code> - Purpose: Read tuple values by 1-based position. - Example:</p>
+<pre class="rix"><code>{: 4, 5, 6 }.Get(2)   ## 5</code></pre>
+<p><code>Slice(start?, end?)</code> - Signature: <code>tuple.Slice(start?, end?) -&gt; Tuple</code> - Purpose: Return a sliced tuple. - Example:</p>
+<pre class="rix"><code>{: 4, 5, 6 }.Slice(2)   ## {: 5, 6 }</code></pre>
+<p><code>Set(index, value)</code> - Signature: <code>tuple.Set(index, value) -&gt; Tuple</code> - Purpose: Return a new tuple with the chosen slot replaced. - Example:</p>
+<pre class="rix"><code>{: 4, 5, 6 }.Set(2, 9)   ## {: 4, 9, 6 }</code></pre>
+<p><code>ToArray()</code> - Signature: <code>tuple.ToArray() -&gt; Array</code> - Purpose: Convert a tuple into a mutable array. - Example:</p>
+<pre class="rix"><code>{: 4, 5, 6 }.ToArray()   ## [4, 5, 6]</code></pre>
+<p><code>Reduce(iterator, initial?)</code> - Signature: <code>tuple.Reduce((acc, value, index, tuple) -&gt; nextAcc, initial?) -&gt; any</code> - Purpose: Reduce a tuple. Without <code>initial</code>, the default accumulator is an empty mutable tuple of the same arity. - Iterator arguments: <code>(acc, value, index, tuple)</code> - Example:</p>
+<pre class="rix"><code>{: 4, 5, 6 }.Reduce((acc, v, k) -&gt; acc.Set(k, v * 2))</code></pre>
+</section>
+<section id="tensors-1" class="level3">
+<h3 class="anchored" data-anchor-id="tensors-1">Tensors</h3>
+<p><code>Shape()</code>, <code>Rank()</code>, <code>Size()</code> - Signature: <code>tensor.Shape() -&gt; Tuple</code>, <code>tensor.Rank() -&gt; Integer</code>, <code>tensor.Size() -&gt; Integer</code> - Purpose: Inspect tensor dimensions, rank, and total cell count. - Example:</p>
+<pre class="rix"><code>t := {:2x3: 1, 2, 3; 4, 5, 6 }
+t.Shape()   ## {: 2, 3 }</code></pre>
+<p><code>Get(selectors...)</code> - Signature: <code>tensor.Get(i1, i2, ...) -&gt; value | TensorView</code> - Purpose: Read a tensor cell or selection using tensor selector rules. - Example:</p>
+<pre class="rix"><code>{:2x2: 1, 2; 3, 4 }.Get(2, 1)   ## 3</code></pre>
+<p><code>Set(selectors..., value)</code>, <code>Set!(selectors..., value)</code> - Signature: <code>tensor.Set(i1, i2, ..., value) -&gt; Tensor</code>, <code>tensor.Set!(i1, i2, ..., value) -&gt; Tensor</code> - Purpose: Write to a tensor cell or selection. <code>Set</code> returns a copy. <code>Set!</code> mutates. - Notes: Selectors may also be passed as a single tuple. - Example:</p>
+<pre class="rix"><code>t := {:2x2: 1, 2; 3, 4 }
+t.Set(1, 2, 9)
+t.Set!({: 1, 2 }, 9)</code></pre>
+<p><code>Reshape(shapeTuple)</code> - Signature: <code>tensor.Reshape(shapeTuple) -&gt; Tensor</code> - Purpose: Return a reshaped tensor with the same cell data and total size. - Example:</p>
+<pre class="rix"><code>{:2x2: 1, 2; 3, 4 }.Reshape({: 4 })</code></pre>
+<p><code>Flatten()</code> - Signature: <code>tensor.Flatten() -&gt; Tensor</code> - Purpose: Return a rank-1 tensor containing all cells in row-major order. - Example:</p>
+<pre class="rix"><code>{:2x2: 1, 2; 3, 4 }.Flatten()   ## {:4: 1, 2, 3, 4 }</code></pre>
+<p><code>Transpose()</code> - Signature: <code>tensor.Transpose() -&gt; TensorView</code> - Purpose: Return a transposed rank-2 view. - Example:</p>
+<pre class="rix"><code>{:2x3: 1, 2, 3; 4, 5, 6 }.Transpose()</code></pre>
+<p><code>Permute(orderTuple)</code> - Signature: <code>tensor.Permute(orderTuple) -&gt; TensorView</code> - Purpose: Return a view with axes reordered. - Example:</p>
+<pre class="rix"><code>t.Permute({: 2, 1 })</code></pre>
+<p><code>Map(iterator)</code> - Signature: <code>tensor.Map((value, indexTuple, tensor) -&gt; newValue) -&gt; Tensor</code> - Purpose: Map each tensor cell to a new tensor of the same shape. - Iterator arguments: <code>(value, indexTuple, tensor)</code> - Example:</p>
+<pre class="rix"><code>{:2x2: 1, 2; 3, 4 }.Map((v, idx) -&gt; v * idx[1])</code></pre>
+<p><code>Fill!(value)</code> - Signature: <code>tensor.Fill!(value) -&gt; Tensor</code> - Purpose: Mutate every tensor cell to the given value. - Example:</p>
+<pre class="rix"><code>t := {:2x2: 1, 2; 3, 4 }
+t.Fill!(0)</code></pre>
+<p><code>Sum()</code>, <code>Mean()</code> - Signature: <code>tensor.Sum() -&gt; NumberLike</code>, <code>tensor.Mean() -&gt; NumberLike | null</code> - Purpose: Sum all non-hole tensor cells, or compute their arithmetic mean. Empty tensors return <code>null</code> from <code>Mean()</code>. - Example:</p>
+<pre class="rix"><code>{:2x2: 1, 2; 3, 4 }.Sum()    ## 10
+{:2x2: 1, 2; 3, 4 }.Mean()   ## 5/2</code></pre>
+<p><code>Dot(other)</code> - Signature: <code>tensor.Dot(otherTensor) -&gt; NumberLike</code> - Purpose: Compute the dot product of two equal-length rank-1 tensors. - Example:</p>
+<pre class="rix"><code>{:3: 1, 2, 3 }.Dot({:3: 4, 5, 6 })   ## 32</code></pre>
+<p><code>MatMul(other)</code> - Signature: <code>tensor.MatMul(otherTensor) -&gt; Tensor</code> - Purpose: Perform rank-2 matrix multiplication. - Example:</p>
+<pre class="rix"><code>{:2x3: 1, 2, 3; 4, 5, 6 }.MatMul({:3x2: 7, 8; 9, 10; 11, 12 })</code></pre>
+<p><code>Reduce(iterator, initial?)</code> - Signature: <code>tensor.Reduce((acc, value, indexTuple, tensor) -&gt; nextAcc, initial?) -&gt; any</code> - Purpose: Reduce a tensor. Without <code>initial</code>, the default accumulator is an empty mutable tensor with the same shape. - Iterator arguments: <code>(acc, value, indexTuple, tensor)</code> - Example:</p>
+<pre class="rix"><code>{:2x2: 1, 2; 3, 4 }.Reduce((acc, v, idx) -&gt; acc.Set!(idx, v * 10))</code></pre>
+
+
+</section>
+</section>
+</section>
+
+<a onclick="window.scrollTo(0, 0); return false;" role="button" id="quarto-back-to-top"><i class="bi bi-arrow-up"></i> Back to top</a></main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/jostylr\.github\.io\/rix\/");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+            // target, if specified
+            link.setAttribute("target", "_blank");
+            if (link.getAttribute("rel") === null) {
+              link.setAttribute("rel", "noopener");
+            }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="../eval/syntax-guide.html" class="pagination-link" aria-label="Syntax and functions">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">Syntax and functions</span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="../eval/types-and-traits-guide.html" class="pagination-link" aria-label="Types and traits">
+        <span class="nav-page-text">Types and traits</span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>RiX — Rational Interval Expression Language</p>
+</div>   
+    <div class="nav-footer-center">
+      &nbsp;
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/methods-guide.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="nav-footer-right">
+<p>Documentation built with <a href="https://quarto.org/">Quarto</a></p>
+</div>
+  </div>
+</footer>
+
+
+
+
+<script src="../site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>

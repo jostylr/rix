@@ -1,0 +1,1367 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.38">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>cells-assignments – RiX</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<link href="../../design/eval/units-and-exact-generators.html" rel="next">
+<link href="../../parser/matrix-tensor-implementation.html" rel="prev">
+<link href="../../rix-logo.png" rel="icon" type="image/png">
+<script src="../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-4a0610749eeff5ab924a4729b5181608.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-dark-de927ec96a2411cf822331f71755f83e.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-4a0610749eeff5ab924a4729b5181608.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap-f3edcacc9eded719789e0469c6b6eab5.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../../site_libs/bootstrap/bootstrap-dark-c53da4be0d013bdcf7fcfccaa2827e71.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../../site_libs/bootstrap/bootstrap-f3edcacc9eded719789e0469c6b6eab5.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+
+
+</head>
+
+<body class="nav-sidebar docked nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const darkModeDefault = authorPrefersDark;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a href="../../index.html" class="navbar-brand navbar-brand-logo">
+    <img src="../../rix-logo.png" alt="" class="navbar-logo light-content">
+    <img src="../../rix-logo.png" alt="" class="navbar-logo dark-content">
+    </a>
+    <a class="navbar-brand" href="../../index.html">
+    <span class="navbar-title">RiX</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link active" href="../../getting-started.html" aria-current="page"> 
+<span class="menu-text">Start</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../language-at-a-glance.html"> 
+<span class="menu-text">Learn</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../eval/syntax-guide.html"> 
+<span class="menu-text">Reference</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../developer-guide.html"> 
+<span class="menu-text">Internals</span></a>
+  </li>  
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/jostylr/rix"> <i class="bi bi-github" role="img" aria-label="RiX on GitHub">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../../design/eval/cells-assignments.html">Runtime design</a></li><li class="breadcrumb-item"><a href="../../design/eval/cells-assignments.html">Cells and assignment</a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation docked overflow-auto">
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Overview</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="false">
+ <span class="menu-text">Start here</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../getting-started.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Getting started</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../language-at-a-glance.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">RiX at a glance</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../highlights.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">RiX Highlights</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../status.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Implementation status</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="false">
+ <span class="menu-text">Learn RiX</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../introduction.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Complete introduction</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../tutorial/units-and-exact-values.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Units and exact values</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="false">
+ <span class="menu-text">Language reference</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../eval/syntax-guide.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Syntax and functions</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../eval/methods-guide.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Methods</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../eval/types-and-traits-guide.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Types and traits</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../reference/system-reference.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Generated runtime catalog</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="false">
+ <span class="menu-text">Developer guide</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../developer-guide.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Developer guide</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../eval/README.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Evaluator overview</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../parser/architecture.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Parser architecture</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../parser/parsing.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Parsing and precedence</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../parser/AST-brief.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">AST reference</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../design/eval/ir-format.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">IR design snapshot</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../parser/array-generators-implementation.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Array generators</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../parser/embedded-parsing.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Embedded parsing</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../parser/matrix-tensor-implementation.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Matrices and tensors</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true">
+ <span class="menu-text">Runtime design</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../design/eval/cells-assignments.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text">Cells and assignment</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../design/eval/units-and-exact-generators.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Units and exact generators</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../design/eval/cayley-polar.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Cayley polar complex values</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="false">
+ <span class="menu-text">Design and history</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../rix-rationales.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Design rationales</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../design/parser/spec.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Early language specification</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../design/parser/questions.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Open design areas</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../report-2026-04-02.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">April 2026 review (historical)</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#rix-assignment-and-cell-semantics" id="toc-rix-assignment-and-cell-semantics" class="nav-link active" data-scroll-target="#rix-assignment-and-cell-semantics">RiX Assignment and Cell Semantics</a>
+  <ul class="collapse">
+  <li><a href="#overview" id="toc-overview" class="nav-link" data-scroll-target="#overview">Overview</a></li>
+  </ul></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/design/eval/cells-assignments.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../../design/eval/cells-assignments.html">Runtime design</a></li><li class="breadcrumb-item"><a href="../../design/eval/cells-assignments.html">Cells and assignment</a></li></ol></nav></header>
+
+
+
+
+
+<section id="rix-assignment-and-cell-semantics" class="level1">
+<h1>RiX Assignment and Cell Semantics</h1>
+<p>This mini-spec is a design reference for the assignment system. The current <a href="../../eval/syntax-guide.html#assignment--definition">syntax guide</a> is the canonical user-facing operator reference.</p>
+<p>⸻</p>
+<section id="overview" class="level2">
+<h2 class="anchored" data-anchor-id="overview">Overview</h2>
+<p>In RiX, variables refer to cells, not directly to values.</p>
+<p>A cell is the fundamental storage unit:</p>
+<p>Cell = { value, meta }</p>
+<pre><code>•   value is the current stored data.
+•   meta is a map of metadata describing the cell and/or its value.</code></pre>
+<p>Assignment operators control: 1. Whether the lhs name is rebound to a different cell. 2. Whether the existing lhs cell is preserved and its value replaced. 3. Whether the rhs value/meta are copied shallowly or deeply.</p>
+<p>⸻</p>
+<ol type="1">
+<li>Meta Property Classes</li>
+</ol>
+<p>Meta keys fall into three semantic classes.</p>
+<p>1.1 Cell Identity / Policy Meta</p>
+<p>Keys not beginning with _</p>
+<p>Examples:</p>
+<p>.key .mutable .frozen .immutable .origin</p>
+<p>Properties: • Describe the identity or policy of the cell • Survive in-place updates (~= / <sub></sub>=)</p>
+<p>Example:</p>
+<p>x.key = “temperature” x ~= 21</p>
+<p>x.key remains “temperature”.</p>
+<p>⸻</p>
+<p>1.2 Ephemeral Value Meta</p>
+<p>Keys beginning with exactly one underscore</p>
+<p>._spec ._deriv ._source</p>
+<p>Properties: • Describe the current value occupant • Replaced wholesale during ~= / <sub></sub>= updates.</p>
+<p>Example:</p>
+<p>f._spec = “sensor formula” f ~= 21</p>
+<p>f._spec disappears unless the rhs supplies one.</p>
+<p>⸻</p>
+<p>1.3 Sticky Value-Interpretation Meta</p>
+<p>Keys beginning with two underscores</p>
+<p>.__units .__dimension .__frame</p>
+<p>Properties: • Describe interpretation of the value stream • Preserved across updates unless rhs explicitly supplies them.</p>
+<p>Example:</p>
+<p>t.__units = “C” t ~= 21</p>
+<p>.__units remains “C”.</p>
+<p>Example with overwrite:</p>
+<p>a.__units = “C” b.__units = “F” a ~= b</p>
+<p>Result:</p>
+<p>a.__units == “F”</p>
+<p>⸻</p>
+<ol start="2" type="1">
+<li>Primitive Runtime Model</li>
+</ol>
+<p>Environment:</p>
+<p>Env : Name -&gt; Cell</p>
+<p>Evaluation:</p>
+<p>eval(expr, Env) -&gt; Cell</p>
+<p>Some expressions return existing cells (e.g.&nbsp;variable references). Others produce fresh temporary cells (e.g.&nbsp;literals, arithmetic).</p>
+<p>⸻</p>
+<ol start="3" type="1">
+<li>Assignment Operators</li>
+</ol>
+<p>3.1 Alias / Rebinding</p>
+<p>x = expr</p>
+<p>Semantics:</p>
+<p>R = eval(expr) bind(x, R)</p>
+<p>Effects: • x now refers to the same cell as expr. • No copying occurs.</p>
+<p>Example:</p>
+<p>x := 5 y = x x += 1</p>
+<p>Result:</p>
+<p>x == 6 y == 6</p>
+<p>Both names share the same cell.</p>
+<p>⸻</p>
+<p>3.2 Fresh Shallow Copy Assignment</p>
+<p>x := expr</p>
+<p>Semantics:</p>
+<p>R = eval(expr)</p>
+<p>newCell = { value = shallowCopy(R.value) meta = shallowCopy(R.meta) }</p>
+<p>bind(x, newCell)</p>
+<p>Effects: • Creates a new independent cell • Copies value and all meta</p>
+<p>Example:</p>
+<p>x := 5 y := x x += 1</p>
+<p>Result:</p>
+<p>x == 6 y == 5</p>
+<p>⸻</p>
+<p>3.3 In-Place Shallow Update</p>
+<p>x ~= expr</p>
+<p>Semantics (existing x):</p>
+<p>lhs = Env[x] rhs = eval(expr)</p>
+<p>lhs.value = shallowCopy(rhs.value)</p>
+<p>lhs.meta = ordinary(lhs.meta) ∪ ephemeral(rhs.meta) ∪ stickyMerge(lhs.meta, rhs.meta)</p>
+<p>Meta rules:</p>
+<p>meta type behavior ordinary preserved ._* replaced from rhs .__* preserved unless rhs supplies value</p>
+<p>Example:</p>
+<p>t.key = “temperature” t.__units = “C” t._spec = “sensor”</p>
+<p>t ~= 21</p>
+<p>Result:</p>
+<p>t.key == “temperature” t.__units == “C” t._spec absent</p>
+<p>⸻</p>
+<p>3.4 Fresh Deep Copy Assignment</p>
+<p>x ::= expr</p>
+<p>Semantics:</p>
+<p>R = eval(expr)</p>
+<p>newCell = { value = deepCopy(R.value) meta = deepCopy(R.meta) }</p>
+<p>bind(x, newCell)</p>
+<p>Creates a fresh cell with deep-copied value and meta.</p>
+<p>⸻</p>
+<p>3.5 In-Place Deep Update</p>
+<p>x <sub></sub>= expr</p>
+<p>Semantics:</p>
+<p>lhs = Env[x] rhs = eval(expr)</p>
+<p>lhs.value = deepCopy(rhs.value)</p>
+<p>lhs.meta = ordinary(lhs.meta) ∪ deepCopy(ephemeral(rhs.meta)) ∪ stickyMerge(lhs.meta, deepCopy(sticky(rhs.meta)))</p>
+<p>Identical to ~= except value and incoming meta are deep-copied.</p>
+<p>⸻</p>
+<ol start="4" type="1">
+<li>Undefined LHS with ~= or <sub></sub>=</li>
+</ol>
+<p>If the lhs variable does not yet exist:</p>
+<p>x ~= expr</p>
+<p>creates a new cell:</p>
+<p>value = shallowCopy(rhs.value) meta = ephemeral(rhs.meta) ∪ sticky(rhs.meta)</p>
+<p>Ordinary meta from rhs is not inherited.</p>
+<p>This keeps ~= conceptually an update operator, not a cloning operator.</p>
+<p>⸻</p>
+<ol start="5" type="1">
+<li>Combo Assignment Operators</li>
+</ol>
+<p>Compound assignments rewrite to ~= updates.</p>
+<p>x += y</p>
+<p>rewrites to:</p>
+<p>x ~= x + y</p>
+<p>General rule:</p>
+<p>x op= y → x ~= x op y</p>
+<p>Examples:</p>
+<p>x += y → x ~= x + y x -= y → x ~= x - y x <em>= y → x ~= x </em> y x /= y → x ~= x / y x ^= y → x ~= x ^ y</p>
+<p>Effects: • Cell identity preserved • Aliases observe updates</p>
+<p>Example:</p>
+<p>a := 5 b = a a += 1</p>
+<p>Result:</p>
+<p>a == 6 b == 6</p>
+<p>⸻</p>
+<ol start="6" type="1">
+<li>Copy Depth</li>
+</ol>
+<p>operator copy depth := shallow ::= deep ~= shallow <sub></sub>= deep</p>
+<p>⸻</p>
+<ol start="7" type="1">
+<li>Summary Table</li>
+</ol>
+<p>operator cell identity value copy meta behavior = rebind to rhs none rhs meta := new cell shallow copy all ::= new cell deep deep copy ~= preserve lhs cell shallow preserve ordinary, replace ._, merge .__ <sub></sub>= preserve lhs cell deep same meta rules</p>
+<p>⸻</p>
+<ol start="8" type="1">
+<li>Design Rationale</li>
+</ol>
+<p>The assignment system separates three concepts: 1. Cell identity 2. Value replacement 3. Metadata propagation</p>
+<p>This allows: • explicit aliasing (=) • explicit copying (:=, ::=) • explicit in-place updates (~=, <sub></sub>=) • controlled metadata behavior for symbolic or annotated values.</p>
+<p>The system supports: • alias-visible mutation • stable cell identity (.key) • ephemeral value metadata • persistent interpretation metadata (.__units, etc.).</p>
+<p>⸻</p>
+<p>Excellent. These kinds of edge-case tables are where language semantics either prove themselves or reveal hidden gremlins. The goal here is to stress the system in ways real programs will.</p>
+<p>Below are 12 canonical tests that probe aliasing, copy depth, metadata propagation, and assignment edge cases.</p>
+<p>⸻</p>
+<p>RiX Assignment Semantics — Edge Case Examples</p>
+<p>Each example shows: • code • expected result • what semantic rule it validates</p>
+<p>⸻</p>
+<ol type="1">
+<li>Alias propagation through mutation</li>
+</ol>
+<p>x := 5 y = x x += 1</p>
+<p>Expected:</p>
+<p>x == 6 y == 6</p>
+<p>Reason:</p>
+<p>= aliases the same cell.</p>
+<p>+= rewrites to:</p>
+<p>x ~= x + 1</p>
+<p>so the same cell is updated, affecting all aliases.</p>
+<p>⸻</p>
+<ol start="2" type="1">
+<li>Copy isolation with :=</li>
+</ol>
+<p>x := 5 y := x x += 1</p>
+<p>Expected:</p>
+<p>x == 6 y == 5</p>
+<p>Reason:</p>
+<p>:= creates a new cell with copied value/meta.</p>
+<p>⸻</p>
+<ol start="3" type="1">
+<li>Shallow structure sharing</li>
+</ol>
+<p>a := [1,2] b := a a ~= a a[1] = 9</p>
+<p>Expected:</p>
+<p>b[1] == 2</p>
+<p>Reason:</p>
+<p>:= copied the array reference shallowly into a new cell, but the array itself was not deep-copied.</p>
+<p>If the array itself was copied internally depends on your array semantics; this test clarifies that.</p>
+<p>⸻</p>
+<ol start="4" type="1">
+<li>Deep copy isolation</li>
+</ol>
+<p>a := [1,2] b ::= a a[1] = 9</p>
+<p>Expected:</p>
+<p>b[1] == 1</p>
+<p>Reason:</p>
+<p>::= deep-copies the structure.</p>
+<p>⸻</p>
+<ol start="5" type="1">
+<li>Ordinary meta survives ~=</li>
+</ol>
+<p>t.key = “temperature” t.mutable = 1</p>
+<p>t ~= 25</p>
+<p>Expected:</p>
+<p>t.key == “temperature” t.mutable == 1</p>
+<p>Reason:</p>
+<p>ordinary meta is cell identity metadata.</p>
+<p>⸻</p>
+<ol start="6" type="1">
+<li>Ephemeral meta wiped by update</li>
+</ol>
+<p>f._spec = “original spec”</p>
+<p>f ~= 7</p>
+<p>Expected:</p>
+<p>f._spec absent</p>
+<p>Reason:</p>
+<p>._* metadata is replaced wholesale from rhs.</p>
+<p>Since rhs has none, it disappears.</p>
+<p>⸻</p>
+<ol start="7" type="1">
+<li>Ephemeral meta replaced by rhs</li>
+</ol>
+<p>f._spec = “old”</p>
+<p>g._spec = “new”</p>
+<p>f ~= g</p>
+<p>Expected:</p>
+<p>f._spec == “new”</p>
+<p>Reason:</p>
+<p>ephemeral meta replaced from rhs.</p>
+<p>⸻</p>
+<ol start="8" type="1">
+<li>Sticky meta preserved</li>
+</ol>
+<p>t.__units = “C”</p>
+<p>t ~= 21</p>
+<p>Expected:</p>
+<p>t.__units == “C”</p>
+<p>Reason:</p>
+<p>.__* metadata persists unless overwritten.</p>
+<p>⸻</p>
+<ol start="9" type="1">
+<li>Sticky meta overwritten</li>
+</ol>
+<p>a.__units = “C”</p>
+<p>b.__units = “F”</p>
+<p>a ~= b</p>
+<p>Expected:</p>
+<p>a.__units == “F”</p>
+<p>Reason:</p>
+<p>rhs sticky metadata overrides lhs.</p>
+<p>⸻</p>
+<ol start="10" type="1">
+<li>:= copies all meta classes</li>
+</ol>
+<p>x.key = “velocity” x._spec = “formula” x.__units = “m/s”</p>
+<p>y := x</p>
+<p>Expected:</p>
+<p>y.key == “velocity” y._spec == “formula” y.__units == “m/s”</p>
+<p>Reason:</p>
+<p>:= clones all meta.</p>
+<p>⸻</p>
+<ol start="11" type="1">
+<li>~= with undefined lhs</li>
+</ol>
+<p>x ~= 5</p>
+<p>Expected:</p>
+<p>x.value == 5 x.meta contains only value meta copied from rhs</p>
+<p>Meaning: • no ordinary meta • ephemeral copied if rhs had it • sticky copied if rhs had it</p>
+<p>This confirms that ~= creates a fresh cell when needed.</p>
+<p>⸻</p>
+<ol start="12" type="1">
+<li>Alias chain update</li>
+</ol>
+<p>a := 1 b = a c = b</p>
+<p>a += 4</p>
+<p>Expected:</p>
+<p>a == 5 b == 5 c == 5</p>
+<p>Reason:</p>
+<p>all three names reference the same cell.</p>
+<p>⸻</p>
+<ol start="13" type="1">
+<li>Alias broken by rebinding</li>
+</ol>
+<p>a := 5 b = a</p>
+<p>a := 7</p>
+<p>Expected:</p>
+<p>a == 7 b == 5</p>
+<p>Reason:</p>
+<p>:= rebinds a to a new cell, leaving b unchanged.</p>
+<p>⸻</p>
+<ol start="14" type="1">
+<li>In-place update preserves alias</li>
+</ol>
+<p>a := 5 b = a</p>
+<p>a ~= 9</p>
+<p>Expected:</p>
+<p>a == 9 b == 9</p>
+<p>Reason:</p>
+<p>~= mutates the existing cell.</p>
+<p>⸻</p>
+<ol start="15" type="1">
+<li>Deep update preserves alias</li>
+</ol>
+<p>a := [1,2] b = a</p>
+<p>a <sub></sub>= [3,4]</p>
+<p>Expected:</p>
+<p>b == [3,4]</p>
+<p>Reason:</p>
+<p><sub></sub>= preserves cell identity but deep copies rhs value.</p>
+<p>⸻</p>
+<ol start="16" type="1">
+<li>Sticky meta persistence across multiple updates</li>
+</ol>
+<p>t.__units = “C”</p>
+<p>t ~= 10 t ~= 11 t ~= 12</p>
+<p>Expected:</p>
+<p>t.__units == “C”</p>
+<p>Sticky metadata remains stable.</p>
+<p>⸻</p>
+<ol start="17" type="1">
+<li>Sticky overwritten once</li>
+</ol>
+<p>t.__units = “C”</p>
+<p>u.__units = “K”</p>
+<p>t ~= u t ~= 300</p>
+<p>Expected:</p>
+<p>t.__units == “K”</p>
+<p>The overwrite sticks.</p>
+<p>⸻</p>
+<ol start="18" type="1">
+<li>Ephemeral cleared then reintroduced</li>
+</ol>
+<p>f._spec = “old”</p>
+<p>f ~= 5</p>
+<p>g._spec = “new”</p>
+<p>f ~= g</p>
+<p>Expected:</p>
+<p>f._spec == “new”</p>
+<p>Demonstrates ephemeral lifecycle.</p>
+<p>⸻</p>
+<p>Why these tests matter</p>
+<p>These tests collectively verify:</p>
+<p>property tested by alias vs copy 1,2,12,13 cell mutation vs rebinding 13,14 deep vs shallow copy 3,4 meta propagation rules 5–10 sticky meta behavior 8–9,16–17 ephemeral lifecycle 6–7,18 undefined lhs semantics 11</p>
+
+
+</section>
+</section>
+
+<a onclick="window.scrollTo(0, 0); return false;" role="button" id="quarto-back-to-top"><i class="bi bi-arrow-up"></i> Back to top</a></main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/jostylr\.github\.io\/rix\/");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+            // target, if specified
+            link.setAttribute("target", "_blank");
+            if (link.getAttribute("rel") === null) {
+              link.setAttribute("rel", "noopener");
+            }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="../../parser/matrix-tensor-implementation.html" class="pagination-link" aria-label="Matrices and tensors">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">Matrices and tensors</span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="../../design/eval/units-and-exact-generators.html" class="pagination-link" aria-label="Units and exact generators">
+        <span class="nav-page-text">Units and exact generators</span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>RiX — Rational Interval Expression Language</p>
+</div>   
+    <div class="nav-footer-center">
+      &nbsp;
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/design/eval/cells-assignments.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="nav-footer-right">
+<p>Documentation built with <a href="https://quarto.org/">Quarto</a></p>
+</div>
+  </div>
+</footer>
+
+
+
+
+<script src="../../site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>

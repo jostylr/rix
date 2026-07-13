@@ -1,0 +1,2440 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.38">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>spec – RiX</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<link href="../../design/parser/questions.html" rel="next">
+<link href="../../rix-rationales.html" rel="prev">
+<link href="../../rix-logo.png" rel="icon" type="image/png">
+<script src="../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-4a0610749eeff5ab924a4729b5181608.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-dark-de927ec96a2411cf822331f71755f83e.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-4a0610749eeff5ab924a4729b5181608.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap-f3edcacc9eded719789e0469c6b6eab5.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../../site_libs/bootstrap/bootstrap-dark-c53da4be0d013bdcf7fcfccaa2827e71.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../../site_libs/bootstrap/bootstrap-f3edcacc9eded719789e0469c6b6eab5.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+
+
+</head>
+
+<body class="nav-sidebar docked nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const darkModeDefault = authorPrefersDark;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a href="../../index.html" class="navbar-brand navbar-brand-logo">
+    <img src="../../rix-logo.png" alt="" class="navbar-logo light-content">
+    <img src="../../rix-logo.png" alt="" class="navbar-logo dark-content">
+    </a>
+    <a class="navbar-brand" href="../../index.html">
+    <span class="navbar-title">RiX</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link active" href="../../getting-started.html" aria-current="page"> 
+<span class="menu-text">Start</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../language-at-a-glance.html"> 
+<span class="menu-text">Learn</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../eval/syntax-guide.html"> 
+<span class="menu-text">Reference</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../developer-guide.html"> 
+<span class="menu-text">Internals</span></a>
+  </li>  
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/jostylr/rix"> <i class="bi bi-github" role="img" aria-label="RiX on GitHub">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../../rix-rationales.html">Design and history</a></li><li class="breadcrumb-item"><a href="../../design/parser/spec.html">Early language specification</a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation docked overflow-auto">
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Overview</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="false">
+ <span class="menu-text">Start here</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../getting-started.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Getting started</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../language-at-a-glance.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">RiX at a glance</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../highlights.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">RiX Highlights</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../status.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Implementation status</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="false">
+ <span class="menu-text">Learn RiX</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../introduction.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Complete introduction</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../tutorial/units-and-exact-values.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Units and exact values</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="false">
+ <span class="menu-text">Language reference</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../eval/syntax-guide.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Syntax and functions</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../eval/methods-guide.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Methods</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../eval/types-and-traits-guide.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Types and traits</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../reference/system-reference.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Generated runtime catalog</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="false">
+ <span class="menu-text">Developer guide</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../developer-guide.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Developer guide</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../eval/README.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Evaluator overview</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../parser/architecture.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Parser architecture</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../parser/parsing.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Parsing and precedence</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../parser/AST-brief.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">AST reference</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../design/eval/ir-format.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">IR design snapshot</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../parser/array-generators-implementation.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Array generators</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../parser/embedded-parsing.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Embedded parsing</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../parser/matrix-tensor-implementation.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Matrices and tensors</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="false">
+ <span class="menu-text">Runtime design</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../design/eval/cells-assignments.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Cells and assignment</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../design/eval/units-and-exact-generators.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Units and exact generators</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../design/eval/cayley-polar.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Cayley polar complex values</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true">
+ <span class="menu-text">Design and history</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../rix-rationales.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Design rationales</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../design/parser/spec.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text">Early language specification</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../design/parser/questions.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Open design areas</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../report-2026-04-02.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">April 2026 review (historical)</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#rix-mathematical-expression-language-specification" id="toc-rix-mathematical-expression-language-specification" class="nav-link active" data-scroll-target="#rix-mathematical-expression-language-specification">RiX Mathematical Expression Language Specification</a>
+  <ul class="collapse">
+  <li><a href="#overview" id="toc-overview" class="nav-link" data-scroll-target="#overview">Overview</a></li>
+  </ul></li>
+  <li><a href="#table-of-contents" id="toc-table-of-contents" class="nav-link" data-scroll-target="#table-of-contents">Table of Contents</a>
+  <ul class="collapse">
+  <li><a href="#basic-assignment-identity-and-assertion" id="toc-basic-assignment-identity-and-assertion" class="nav-link" data-scroll-target="#basic-assignment-identity-and-assertion">1. Basic Assignment, Identity, and Assertion</a></li>
+  <li><a href="#numbers-intervals-and-mixed-numbers" id="toc-numbers-intervals-and-mixed-numbers" class="nav-link" data-scroll-target="#numbers-intervals-and-mixed-numbers">2. Numbers, Intervals, and Mixed Numbers</a>
+  <ul class="collapse">
+  <li><a href="#a.-units-and-quantities-extension" id="toc-a.-units-and-quantities-extension" class="nav-link" data-scroll-target="#a.-units-and-quantities-extension">2.a. Units and Quantities Extension</a></li>
+  <li><a href="#unit-syntax" id="toc-unit-syntax" class="nav-link" data-scroll-target="#unit-syntax">Unit Syntax</a></li>
+  <li><a href="#sample-usage" id="toc-sample-usage" class="nav-link" data-scroll-target="#sample-usage">Sample Usage</a></li>
+  <li><a href="#b.-number-system-extensions-as-units" id="toc-b.-number-system-extensions-as-units" class="nav-link" data-scroll-target="#b.-number-system-extensions-as-units">2.b. Number System Extensions as Units</a></li>
+  </ul></li>
+  <li><a href="#why-this-approach-is-powerful" id="toc-why-this-approach-is-powerful" class="nav-link" data-scroll-target="#why-this-approach-is-powerful">Why This Approach Is Powerful</a>
+  <ul class="collapse">
+  <li><a href="#c-real-numbers-as-oracles-metadata-and-access-convention" id="toc-c-real-numbers-as-oracles-metadata-and-access-convention" class="nav-link" data-scroll-target="#c-real-numbers-as-oracles-metadata-and-access-convention">2.c Real Numbers as Oracles, Metadata, and Access Convention</a></li>
+  </ul></li>
+  <li><a href="#containers-arrays-sets-maps-tuples-matrices" id="toc-containers-arrays-sets-maps-tuples-matrices" class="nav-link" data-scroll-target="#containers-arrays-sets-maps-tuples-matrices">3. Containers: Arrays, Sets, Maps, Tuples, Matrices</a></li>
+  <li><a href="#metadata-and-properties" id="toc-metadata-and-properties" class="nav-link" data-scroll-target="#metadata-and-properties">4. Metadata and Properties</a>
+  <ul class="collapse">
+  <li><a href="#metadata-and-dotunderscore-rule" id="toc-metadata-and-dotunderscore-rule" class="nav-link" data-scroll-target="#metadata-and-dotunderscore-rule">Metadata and Dot/Underscore Rule</a></li>
+  </ul></li>
+  <li><a href="#function-definition-and-calls" id="toc-function-definition-and-calls" class="nav-link" data-scroll-target="#function-definition-and-calls">5. Function Definition and Calls</a>
+  <ul class="collapse">
+  <li><a href="#postfix-operators-and-enhanced-function-calls" id="toc-postfix-operators-and-enhanced-function-calls" class="nav-link" data-scroll-target="#postfix-operators-and-enhanced-function-calls">Postfix Operators and Enhanced Function Calls</a></li>
+  </ul></li>
+  <li><a href="#pattern-matching-and-case-functions" id="toc-pattern-matching-and-case-functions" class="nav-link" data-scroll-target="#pattern-matching-and-case-functions">6. Pattern Matching and Case Functions</a></li>
+  <li><a href="#piping-and-data-flow" id="toc-piping-and-data-flow" class="nav-link" data-scroll-target="#piping-and-data-flow">7. Piping and Data Flow</a></li>
+  <li><a href="#loops-and-comprehensions" id="toc-loops-and-comprehensions" class="nav-link" data-scroll-target="#loops-and-comprehensions">8. Loops and Comprehensions</a></li>
+  <li><a href="#symbolic-calculus-notation" id="toc-symbolic-calculus-notation" class="nav-link" data-scroll-target="#symbolic-calculus-notation">9. Symbolic Calculus Notation</a></li>
+  <li><a href="#systems-of-equations-inequalities" id="toc-systems-of-equations-inequalities" class="nav-link" data-scroll-target="#systems-of-equations-inequalities">10. Systems of Equations &amp; Inequalities</a></li>
+  <li><a href="#comments-and-strings" id="toc-comments-and-strings" class="nav-link" data-scroll-target="#comments-and-strings">11. Comments and Strings</a></li>
+  <li><a href="#scope-mutability-and-variable-rules" id="toc-scope-mutability-and-variable-rules" class="nav-link" data-scroll-target="#scope-mutability-and-variable-rules">12. Scope, Mutability, and Variable Rules</a></li>
+  <li><a href="#modules-loading-and-help" id="toc-modules-loading-and-help" class="nav-link" data-scroll-target="#modules-loading-and-help">13. Modules, Loading, and Help</a></li>
+  </ul></li>
+  <li><a href="#examples-and-tutorials" id="toc-examples-and-tutorials" class="nav-link" data-scroll-target="#examples-and-tutorials">14. Examples and Tutorials</a>
+  <ul class="collapse">
+  <li><a href="#variables-and-numbers" id="toc-variables-and-numbers" class="nav-link" data-scroll-target="#variables-and-numbers">Variables and Numbers</a></li>
+  <li><a href="#functions" id="toc-functions" class="nav-link" data-scroll-target="#functions">Functions</a></li>
+  <li><a href="#pattern-matching-functions" id="toc-pattern-matching-functions" class="nav-link" data-scroll-target="#pattern-matching-functions">Pattern-Matching Functions</a></li>
+  <li><a href="#metadata" id="toc-metadata" class="nav-link" data-scroll-target="#metadata">Metadata</a></li>
+  <li><a href="#sets-arrays-matrices" id="toc-sets-arrays-matrices" class="nav-link" data-scroll-target="#sets-arrays-matrices">Sets, Arrays, Matrices</a></li>
+  <li><a href="#piping" id="toc-piping" class="nav-link" data-scroll-target="#piping">Piping</a></li>
+  <li><a href="#loops-and-comprehensions-1" id="toc-loops-and-comprehensions-1" class="nav-link" data-scroll-target="#loops-and-comprehensions-1">Loops and Comprehensions</a></li>
+  <li><a href="#systems" id="toc-systems" class="nav-link" data-scroll-target="#systems">Systems</a></li>
+  <li><a href="#symbolic-calculus" id="toc-symbolic-calculus" class="nav-link" data-scroll-target="#symbolic-calculus">Symbolic Calculus</a></li>
+  <li><a href="#notes-4" id="toc-notes-4" class="nav-link" data-scroll-target="#notes-4">Notes</a></li>
+  <li><a href="#sequence-and-set-literals-advanced-piping-operators" id="toc-sequence-and-set-literals-advanced-piping-operators" class="nav-link" data-scroll-target="#sequence-and-set-literals-advanced-piping-operators">Sequence and Set Literals, Advanced Piping Operators</a>
+  <ul class="collapse">
+  <li><a href="#example-usages" id="toc-example-usages" class="nav-link" data-scroll-target="#example-usages">Example Usages</a></li>
+  </ul></li>
+  </ul></li>
+  <li><a href="#sequence-stopping-and-generation-semantics" id="toc-sequence-stopping-and-generation-semantics" class="nav-link" data-scroll-target="#sequence-stopping-and-generation-semantics">Sequence Stopping and Generation Semantics</a>
+  <ul class="collapse">
+  <li><a href="#stopping-and-generation-operators" id="toc-stopping-and-generation-operators" class="nav-link" data-scroll-target="#stopping-and-generation-operators">Stopping and Generation Operators</a>
+  <ul class="collapse">
+  <li><a href="#operators-with-list-style-description" id="toc-operators-with-list-style-description" class="nav-link" data-scroll-target="#operators-with-list-style-description">Operators (with list-style description)</a></li>
+  <li><a href="#how-to-use" id="toc-how-to-use" class="nav-link" data-scroll-target="#how-to-use">How To Use</a></li>
+  </ul></li>
+  <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
+  <li><a href="#design-rationale" id="toc-design-rationale" class="nav-link" data-scroll-target="#design-rationale">Design Rationale</a></li>
+  <li><a href="#summary" id="toc-summary" class="nav-link" data-scroll-target="#summary">Summary</a></li>
+  </ul></li>
+  <li><a href="#double-quote-string-literal-specification" id="toc-double-quote-string-literal-specification" class="nav-link" data-scroll-target="#double-quote-string-literal-specification">Double Quote String Literal Specification</a>
+  <ul class="collapse">
+  <li><a href="#rule-overview" id="toc-rule-overview" class="nav-link" data-scroll-target="#rule-overview">Rule Overview</a></li>
+  <li><a href="#examples-1" id="toc-examples-1" class="nav-link" data-scroll-target="#examples-1">Examples</a></li>
+  <li><a href="#parsing-algorithm" id="toc-parsing-algorithm" class="nav-link" data-scroll-target="#parsing-algorithm">Parsing Algorithm</a></li>
+  <li><a href="#advantages" id="toc-advantages" class="nav-link" data-scroll-target="#advantages">Advantages</a></li>
+  </ul></li>
+  <li><a href="#braces-and-code-block-disambiguation" id="toc-braces-and-code-block-disambiguation" class="nav-link" data-scroll-target="#braces-and-code-block-disambiguation">Braces and Code Block Disambiguation</a>
+  <ul class="collapse">
+  <li><a href="#rule-summary" id="toc-rule-summary" class="nav-link" data-scroll-target="#rule-summary">Rule Summary</a></li>
+  <li><a href="#clarification-table" id="toc-clarification-table" class="nav-link" data-scroll-target="#clarification-table">Clarification Table</a></li>
+  <li><a href="#parsing-and-style-guidance" id="toc-parsing-and-style-guidance" class="nav-link" data-scroll-target="#parsing-and-style-guidance">Parsing and Style Guidance</a></li>
+  <li><a href="#examples-2" id="toc-examples-2" class="nav-link" data-scroll-target="#examples-2">Examples</a></li>
+  <li><a href="#interval-range-and-partition-syntax" id="toc-interval-range-and-partition-syntax" class="nav-link" data-scroll-target="#interval-range-and-partition-syntax">Interval, Range, and Partition Syntax</a></li>
+  <li><a href="#chunking-and-random-selection-syntax" id="toc-chunking-and-random-selection-syntax" class="nav-link" data-scroll-target="#chunking-and-random-selection-syntax">Chunking and Random Selection Syntax</a></li>
+  <li><a href="#random-selection-and-partitioning-in-intervalsranges" id="toc-random-selection-and-partitioning-in-intervalsranges" class="nav-link" data-scroll-target="#random-selection-and-partitioning-in-intervalsranges">Random Selection and Partitioning in Intervals/Ranges</a></li>
+  </ul></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/design/parser/spec.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../../rix-rationales.html">Design and history</a></li><li class="breadcrumb-item"><a href="../../design/parser/spec.html">Early language specification</a></li></ol></nav></header>
+
+
+
+
+
+<section id="rix-mathematical-expression-language-specification" class="level1">
+<h1>RiX Mathematical Expression Language Specification</h1>
+<div class="callout callout-style-default callout-warning callout-titled" title="Early design specification">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Warning</span>Early design specification
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>This document preserves a broad, early language design and contains both implemented syntax and aspirational forms. It predates the integrated RiX evaluator and the current assignment, comparison, function, and capability models; examples here are not all executable today. Use the current <a href="../../eval/syntax-guide.html">syntax guide</a> and <a href="../../status.html">implementation status</a> as the language contract. This page remains published because it records the larger design space and original intent.</p>
+</div>
+</div>
+<section id="overview" class="level2">
+<h2 class="anchored" data-anchor-id="overview">Overview</h2>
+<p>This document defines the syntax, semantics, and practical usage of the RiX (Rational Interval Expression Language) mathematical expression language designed for symbolic computation, mathematical exploration, and interactive scripting.</p>
+<p>The language features rich support for intervals, rationals, mixed numbers, pattern-matching functions, metadata-annotated objects, robust piping and mapping, and a regular system for containers, sets, maps, and matrices.</p>
+<p><strong>Historical scope:</strong> At the time of writing, this specification treated the parser and evaluator as separate projects. They are now integrated in this repository, and the evaluator implements a substantial—but not complete—subset of the design recorded below.</p>
+<hr>
+</section>
+</section>
+<section id="table-of-contents" class="level1">
+<h1>Table of Contents</h1>
+<ol type="1">
+<li><a href="#assignment">Basic Assignment, Identity, and Assertion</a></li>
+<li><a href="#numbers">Numbers, Intervals, and Mixed Numbers</a></li>
+<li><a href="#containers">Containers: Arrays, Sets, Maps, Tuples, Matrices</a></li>
+<li><a href="#metadata">Metadata and Properties</a></li>
+<li><a href="#functions">Function Definition and Calls</a></li>
+<li><a href="#pattern-matching">Pattern Matching and Case Functions</a></li>
+<li><a href="#pipes">Piping and Data Flow</a></li>
+<li><a href="#loops">Loops and Comprehensions</a></li>
+<li><a href="#calculus">Symbolic Calculus Notation</a></li>
+<li><a href="#systems">Systems of Equations &amp; Inequalities</a></li>
+<li><a href="#comments">Comments and Strings</a></li>
+<li><a href="#scope">Scope, Mutability, and Variable Rules</a></li>
+<li><a href="#modules">Modules, Loading, and Help</a></li>
+<li><a href="#examples">Examples and Tutorials</a></li>
+</ol>
+<hr>
+<section id="basic-assignment-identity-and-assertion" class="level2">
+<h2 class="anchored" data-anchor-id="basic-assignment-identity-and-assertion">1. Basic Assignment, Identity, and Assertion</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 20%">
+<col style="width: 37%">
+<col style="width: 41%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Operation</th>
+<th>Syntax</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Assignment</td>
+<td><code>x := 3</code></td>
+<td>Assign value 3 to <code>x</code></td>
+</tr>
+<tr class="even">
+<td>Function Def</td>
+<td><code>f := (x, n := 5) -&gt; x^n</code></td>
+<td>Define function with default</td>
+</tr>
+<tr class="odd">
+<td>Boolean Test</td>
+<td><code>x ?= 3</code></td>
+<td>Is x equal to 3? (boolean)</td>
+</tr>
+<tr class="even">
+<td>Math Assertion</td>
+<td><code>x = 3</code></td>
+<td>Assertion/identity</td>
+</tr>
+<tr class="odd">
+<td>Solve Equation</td>
+<td><code>x :=: 3x+2</code></td>
+<td>Solve for x</td>
+</tr>
+<tr class="even">
+<td>Inequality</td>
+<td><code>x &lt; 5</code>, <code>x ?&lt; 5</code></td>
+<td>Assertion; boolean test</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><code>?=</code>, <code>?&lt;</code>, <code>?&gt;</code>, <code>?&lt;=</code>, <code>?&gt;=</code> are all boolean comparisons.</li>
+<li><code>=</code>, <code>&lt;</code>, <code>&gt;</code>, <code>&lt;=</code>, <code>&gt;=</code> are mathematical assertions (identities, inequalities).</li>
+<li><code>:=:</code> denotes an equation to solve.</li>
+</ul>
+<hr>
+</section>
+<section id="numbers-intervals-and-mixed-numbers" class="level2">
+<h2 class="anchored" data-anchor-id="numbers-intervals-and-mixed-numbers">2. Numbers, Intervals, and Mixed Numbers</h2>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Type</th>
+<th>Syntax</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Integer</td>
+<td><code>42</code></td>
+<td>Integer</td>
+</tr>
+<tr class="even">
+<td>Fraction</td>
+<td><code>2/3</code></td>
+<td>Rational p</td>
+</tr>
+<tr class="odd">
+<td>Decimal</td>
+<td><code>1.23</code></td>
+<td>Interval [1.225, 1.235]</td>
+</tr>
+<tr class="even">
+<td>Repeating Dec</td>
+<td><code>0.#3</code></td>
+<td>1/3</td>
+</tr>
+<tr class="odd">
+<td>Interval</td>
+<td><code>2:5</code></td>
+<td>[2,5] (closed)</td>
+</tr>
+<tr class="even">
+<td>Mixed Number</td>
+<td><code>1..3/4</code></td>
+<td>1 + 3/4 = 1.75</td>
+</tr>
+<tr class="odd">
+<td>Interval Exp</td>
+<td><code>2:3 ^ 2</code></td>
+<td>[4, 9] (lowers to <code>POW</code>)</td>
+</tr>
+<tr class="even">
+<td>Power Product</td>
+<td><code>2:3 ** 2</code></td>
+<td>[4, 9] (lowers to <code>POWPROD</code>)</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><code>a:b</code> denotes a closed interval from a to b.</li>
+<li><code>^</code> and <code>**</code> are distinct syntax operators and lower to different runtime names: <code>POW</code> and <code>POWPROD</code>.</li>
+<li><code>POWPROD</code> currently shares the same evaluator implementation as <code>POW</code>, but is split out so dispatch can diverge later.</li>
+<li>Decimal notation without <code>#</code> is interpreted as an exact number in intervals: <code>1.23:1.34</code> = <code>1.23#0:1.34#0</code>.</li>
+<li>Repeating decimals: <code>0.#3</code> is 1/3, <code>1.23#56</code> is 1.235656…</li>
+</ul>
+<hr>
+<section id="a.-units-and-quantities-extension" class="level3">
+<h3 class="anchored" data-anchor-id="a.-units-and-quantities-extension">2.a. Units and Quantities Extension</h3>
+<p>This section specifies support for units in the Mathematical Expression Language, including notation, arithmetic, conversion, user-defined units, and error handling.</p>
+</section>
+<section id="unit-syntax" class="level3">
+<h3 class="anchored" data-anchor-id="unit-syntax">Unit Syntax</h3>
+<ul>
+<li><p><strong>Retrieve units as values or use bracket sugar:</strong></p>
+<ul>
+<li><code>3.2~[m]</code> → 3.2 meters (scientific unit)</li>
+<li><code>9.8~[m/s^2]</code> → 9.8 meters per second squared</li>
+<li><code>2~[kg*m^2/s^2]</code> → 2 joules (if so defined)</li>
+<li><code>.Units[:m]</code> → the canonical meter <code>Unit</code> value</li>
+<li><code>3 * .Units[:m]</code> → the same quantity as <code>3~[m]</code></li>
+</ul></li>
+<li><p><strong>Complex units:</strong> Any valid unit string between brackets (including <code>/</code>, <code>^</code>, <code>*</code>).</p></li>
+</ul>
+<section id="arithmetic-with-units" class="level4">
+<h4 class="anchored" data-anchor-id="arithmetic-with-units">Arithmetic with Units</h4>
+<ul>
+<li><p><strong>Addition/Subtraction:</strong> Allowed for compatible dimensions. The right operand is converted to the left operand’s display unit. Incompatible dimensions are errors.</p></li>
+<li><p><strong>Multiplication/Division:</strong> Units combine naturally:</p>
+<ul>
+<li><code>3~[m] * 2~[s] = 6~[m*s]</code></li>
+</ul></li>
+<li><p><strong>Exponentiation:</strong> Units exponentiate:</p>
+<ul>
+<li><code>2~[m] ^ 3 = 8~[m^3]</code></li>
+</ul></li>
+<li><p><strong>Simplification:</strong> Automatic if units cancel:</p>
+<ul>
+<li><code>5~[m] / 2~[m] = 2.5</code> (unitless)</li>
+</ul></li>
+</ul>
+</section>
+<section id="unit-conversion" class="level4">
+<h4 class="anchored" data-anchor-id="unit-conversion">Unit Conversion</h4>
+<ul>
+<li><p><strong>Syntax:</strong> <code>.ConvertUnit(value, target_unit)</code></p>
+<ul>
+<li>E.g., <code>.ConvertUnit(3.2~[m], .Units[:mi])</code> converts meters to miles</li>
+<li>The source unit is already carried by the quantity and is not repeated</li>
+<li>The system automatically applies known conversion factors</li>
+</ul></li>
+</ul>
+</section>
+<section id="defining-units" class="level4">
+<h4 class="anchored" data-anchor-id="defining-units">Defining Units</h4>
+<ul>
+<li><p><strong>Built-in command:</strong> <code>.DefineUnit(name, definition)</code></p>
+<ul>
+<li>Example: <code>.DefineUnit(:fortnight, 14 * .Units[:day])</code></li>
+<li>The returned Unit value can be stored in a lexical <code>Units</code> map overlay</li>
+</ul></li>
+</ul>
+</section>
+</section>
+<section id="sample-usage" class="level3">
+<h3 class="anchored" data-anchor-id="sample-usage">Sample Usage</h3>
+<pre class="plaintext"><code>a := 10~[m]
+b := 3~[m]
+a + b         // 13~[m]
+
+c := 4~[s]
+a / c         // 2.5~[m/s]
+
+d := 20~[m/s]
+d * c         // 80~[m]
+
+speed := 100~[km/h]
+.ConvertUnit(speed, "m/s")   // Convert to m/s
+
+e := 5~[kg]
+f := 20~[m/s^2]
+force := e * f     // 100~[kg*m/s^2]
+
+// Error: incompatible units
+a + c         // Error: cannot add meters and seconds</code></pre>
+<section id="notes" class="level4">
+<h4 class="anchored" data-anchor-id="notes">Notes</h4>
+<ul>
+<li><strong>Unit Parsing:</strong> Supports algebraic units, e.g., <code>~[kg*m^2/s^2]</code> or <code>~[N]</code></li>
+<li><strong>Conversion:</strong> System simplifies/cancels units, recognizes canonical forms, and allows user extension</li>
+<li><strong>Units are first-class and checked at evaluation time</strong></li>
+<li><strong>User-defined units and conversion rules are supported</strong></li>
+</ul>
+<hr>
+</section>
+</section>
+<section id="b.-number-system-extensions-as-units" class="level3">
+<h3 class="anchored" data-anchor-id="b.-number-system-extensions-as-units">2.b. Number System Extensions as Units</h3>
+<section id="overview-1" class="level4">
+<h4 class="anchored" data-anchor-id="overview-1">Overview</h4>
+<p>Number system extensions—including complex numbers, algebraic roots, and general primitive elements—are modeled as symbolic “units” with explicit rules for arithmetic and simplification. This section explains their syntax, definition, arithmetic behavior, and conversion to real numbers.</p>
+</section>
+<section id="complex-numbers-as-units" class="level4">
+<h4 class="anchored" data-anchor-id="complex-numbers-as-units">Complex Numbers as Units</h4>
+<ul>
+<li><p><strong>Syntax:</strong></p>
+<ul>
+<li><code>3 + 4~{i}</code> (represents 3 + 4i)</li>
+</ul></li>
+<li><p><strong>Arithmetic:</strong></p>
+<ul>
+<li><p>Addition/subtraction: combine like terms</p>
+<ul>
+<li><code>(3 + 4~{i}) + (1 + 2~{i}) = 4 + 6~{i}</code></li>
+</ul></li>
+<li><p>Multiplication: FOIL and apply <code>~{i}*~{i} = -1</code></p>
+<ul>
+<li><code>(3 + 4~{i}) * (1 + 2~{i}) = 3*1 + 3*2~{i} + 4~{i}*1 + 4~{i}*2~{i} = 3 + 6~{i} + 4~{i} + 8*(-1) = 3 + 10~{i} - 8 = -5 + 10~{i}</code></li>
+</ul></li>
+<li><p>Exponentiation: Use binomial theorem and powers of <code>i</code></p></li>
+</ul></li>
+<li><p><strong>Arithmetic rules for <code>i</code>:</strong></p>
+<ul>
+<li><code>~i*i~ = -1</code></li>
+<li>All standard complex rules apply</li>
+</ul></li>
+</ul>
+</section>
+<section id="algebraic-extensions-as-units" class="level4">
+<h4 class="anchored" data-anchor-id="algebraic-extensions-as-units">Algebraic Extensions as Units</h4>
+<ul>
+<li><p><strong>Defining an algebraic primitive:</strong></p>
+<ul>
+<li><p><code>Primitive("sqrt2", Poly(1, 0, -2), 1:2)</code></p>
+<ul>
+<li><strong>Name:</strong> <code>"sqrt2"</code></li>
+<li><strong>Minimal polynomial:</strong> <code>Poly(1, 0, -2)</code> (i.e., x² - 2)</li>
+<li><strong>Interval:</strong> <code>1:2</code> (specifies which root to use)</li>
+</ul></li>
+</ul></li>
+<li><p><strong>Usage:</strong></p>
+<ul>
+<li><p><code>2 + 3~{sqrt2}</code></p></li>
+<li><p>Arithmetic uses the minimal polynomial for simplification:</p>
+<ul>
+<li><code>~{sqrt2} * ~{sqrt2} = 2</code></li>
+<li><code>(2 + 3~{sqrt2}) + (1 - ~{sqrt2}) = 3 + 2~{sqrt2}</code></li>
+<li><code>(2 + 3~{sqrt2}) * (1 - ~{sqrt2})</code> expands and simplifies accordingly</li>
+</ul></li>
+</ul></li>
+<li><p><strong>General extensions:</strong></p>
+<ul>
+<li><code>Primitive("xi", Poly(1, 0, 0, -1), 0:2)</code> for a root of x³ - 1</li>
+</ul></li>
+</ul>
+</section>
+<section id="approximate-conversion-to-real-numbers" class="level4">
+<h4 class="anchored" data-anchor-id="approximate-conversion-to-real-numbers">Approximate Conversion to Real Numbers</h4>
+<ul>
+<li><p><strong>Syntax:</strong></p>
+<ul>
+<li><p><code>Real(2 + 3~{sqrt2}, E-6)</code></p>
+<ul>
+<li>Converts the expression to a real number (float/interval) within 10^-6 accuracy.</li>
+</ul></li>
+</ul></li>
+<li><p><strong>Behavior:</strong></p>
+<ul>
+<li>Evaluates the extension numerically to the specified precision.</li>
+<li>Useful for plotting, numerical computation, etc.</li>
+</ul></li>
+</ul>
+</section>
+<section id="sample-usage-1" class="level4">
+<h4 class="anchored" data-anchor-id="sample-usage-1">Sample Usage</h4>
+<pre class="plaintext"><code>// Complex arithmetic
+z := 3 + 4~{i}
+w := 1 + 2~{i}
+z + w       // 4 + 6~{i}
+z * w       // -5 + 10~{i}
+
+// Algebraic extension
+Primitive("sqrt2", Poly(1,0,-2), 1:2)
+x := 2 + 3~{sqrt2}
+y := 1 - ~{sqrt2}
+x + y       // 3 + 2~{sqrt2}
+x * y       // -1 + ~{sqrt2}
+
+// Real approximation
+Real(x, E-6)  // Returns decimal value with 10^-6 accuracy</code></pre>
+</section>
+<section id="defining-general-extensions" class="level4">
+<h4 class="anchored" data-anchor-id="defining-general-extensions">Defining General Extensions</h4>
+<ul>
+<li><p><strong>Syntax:</strong></p>
+<ul>
+<li><p><code>Primitive("name", Poly(...), interval)</code></p>
+<ul>
+<li><code>Primitive("sqrt3", Poly(1, 0, -3), 1:2)</code> defines sqrt 3.</li>
+<li><code>Primitive("xi", Poly(1, 0, 0, -1), 0:2)</code> defines a cube root of 1.</li>
+</ul></li>
+</ul></li>
+<li><p><strong>Usage:</strong></p>
+<ul>
+<li><code>a := 2 + ~{xi}</code></li>
+<li>Arithmetic follows the defining polynomial for reduction.</li>
+</ul></li>
+</ul>
+</section>
+<section id="notes-1" class="level4">
+<h4 class="anchored" data-anchor-id="notes-1">Notes</h4>
+<ul>
+<li><strong>Extensions are first-class and behave as units in arithmetic.</strong></li>
+<li><strong>Simplification rules</strong> (e.g., <code>~{i}*~{i} = -1</code>, <code>~{sqrt2} * ~{sqrt2} = 2</code>) are built-in for each primitive.</li>
+<li><strong>Approximate real evaluation</strong> can be requested explicitly via <code>Real(...)</code>.</li>
+<li><strong>Works for both complex and algebraic extensions, even simultaneously (e.g., a + b~{i} + c~{sqrt2}).</strong></li>
+</ul>
+<hr>
+</section>
+</section>
+</section>
+<section id="why-this-approach-is-powerful" class="level2">
+<h2 class="anchored" data-anchor-id="why-this-approach-is-powerful">Why This Approach Is Powerful</h2>
+<ul>
+<li><strong>Unified notation:</strong> All extensions (imaginary, roots, etc.) are syntactically “units” with symbolic rules.</li>
+<li><strong>Extensible:</strong> Users can define new number extensions at will.</li>
+<li><strong>Symbolic/numeric bridge:</strong> Exact forms preserved until explicit real conversion.</li>
+</ul>
+<section id="c-real-numbers-as-oracles-metadata-and-access-convention" class="level3">
+<h3 class="anchored" data-anchor-id="c-real-numbers-as-oracles-metadata-and-access-convention">2.c Real Numbers as Oracles, Metadata, and Access Convention</h3>
+<p>This specification extends the mathematical language with a precise notion of real numbers as <em>oracles</em>—function objects with rich metadata and a formal rule for how properties and content are accessed using dot (<code>.</code>) and underscore (<code>_</code>). The <code>Primary</code> property, accessible via metadata, always points to the main value or function.</p>
+<section id="oracle-structure-and-behavior" class="level4">
+<h4 class="anchored" data-anchor-id="oracle-structure-and-behavior">Oracle Structure and Behavior</h4>
+<section id="definition" class="level5">
+<h5 class="anchored" data-anchor-id="definition">Definition</h5>
+<ul>
+<li><p><strong>Oracle:</strong> A function <code>(a:b, delta) -&gt; (k, c:d)</code> representing a real number, where:</p>
+<ul>
+<li><p><code>a:b</code>: rational interval</p></li>
+<li><p><code>delta</code>: positive rational tolerance</p></li>
+<li><p>Returns:</p>
+<ul>
+<li><code>(1, c:d)</code> if the real is in <code>(a:b)[delta]</code>, with <code>c:d \subset (a:b)[delta]</code></li>
+<li><code>(0, c:d)</code> if not, and <code>c:d</code> is disjoint from <code>a:b</code></li>
+</ul></li>
+<li><p><code>c:d</code> always contains the real number.</p></li>
+</ul></li>
+</ul>
+</section>
+<section id="properties-axioms" class="level5">
+<h5 class="anchored" data-anchor-id="properties-axioms">Properties (Axioms)</h5>
+<ul>
+<li><strong>Range:</strong> Output always <code>(k, c:d)</code></li>
+<li><strong>Separation, Disjointness, Consistency, Closedness:</strong> As in full mathematical definition</li>
+</ul>
+</section>
+</section>
+<section id="example-newtons-method-oracle-with-self-and-dot-access" class="level4">
+<h4 class="anchored" data-anchor-id="example-newtons-method-oracle-with-self-and-dot-access">Example: Newton’s Method Oracle (with <code>Self</code> and Dot Access)</h4>
+<pre class="plaintext"><code>newton_oracle := [
+  (a:b, delta) -&gt; {
+    x := (a + b) / 2;
+    Self.newton := Self.newton ++ [x];
+    for i := 1 to 10 {
+      x := x - (f(x) / f'(x));
+      Self.newton := Self.newton ++ [x];
+      if abs(f(x)) &lt; delta { break; }
+    }
+    c := x - delta;
+    d := x + delta;
+    Self.history := Self.history ++ [c:d];
+    return (1, c:d);
+  },
+  yes := init_interval,
+  type := "oracle",
+  newton := [],
+  history := [],
+  Primary := (a:b, delta) -&gt; { ... }
+]</code></pre>
+<ul>
+<li><code>Self.newton</code>: Newton iterate sequence</li>
+<li><code>Self.history</code>: prophecy intervals (intervals returned)</li>
+<li><code>Self.Primary</code>: always the function itself</li>
+</ul>
+</section>
+<section id="general-usage-and-examples" class="level4">
+<h4 class="anchored" data-anchor-id="general-usage-and-examples">General Usage and Examples</h4>
+<pre class="plaintext"><code>// Metadata
+oracle.newton        // Newton iterates
+oracle.type          // "oracle"
+oracle.history       // All prophecy intervals
+oracle.Primary       // The function itself
+
+// Content
+arr_3                // 3rd element in array
+map_key              // value at key in map
+
+// Dynamic access
+arr[i]               // i-th element
+oracle["history"]    // metadata if dynamic access is enabled</code></pre>
+</section>
+<section id="example-rational-and-algebraic-oracles" class="level4">
+<h4 class="anchored" data-anchor-id="example-rational-and-algebraic-oracles">Example: Rational and Algebraic Oracles</h4>
+<pre class="plaintext"><code>// Rational oracle
+q := 1/3
+R_q := [
+  (a:b, delta) -&gt; (q IN a:b, q:q),
+  yes := q:q,
+  type := "oracle",
+  Primary := (a:b, delta) -&gt; (q IN a:b, q:q)
+]
+
+// sqrt(2) oracle
+Primitive("sqrt2", Poly(1,0,-2), 1:2)
+sqrt2_oracle := [
+  yes := 0:2,
+  type := "oracle",
+  Primary := (a:b, delta) -&gt; { ... }
+]</code></pre>
+</section>
+<section id="arithmetic-and-decimal-output" class="level4">
+<h4 class="anchored" data-anchor-id="arithmetic-and-decimal-output">Arithmetic and Decimal Output</h4>
+<ul>
+<li><p>Arithmetic operators (<code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>) extended to oracles:</p>
+<ul>
+<li>Result is an oracle if any operand is an oracle</li>
+<li>Prophecy intervals computed algorithmically</li>
+</ul></li>
+<li><p>Decimal/interval approximation:</p>
+<ul>
+<li><code>oracle.decimal(tol := 1E-6)</code> returns an interval with width &lt; tolerance</li>
+</ul></li>
+</ul>
+</section>
+<section id="summary-table" class="level4">
+<h4 class="anchored" data-anchor-id="summary-table">Summary Table</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 11%">
+<col style="width: 56%">
+<col style="width: 31%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Feature</th>
+<th>Syntax/Example</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Metadata</td>
+<td><code>yes</code>, <code>type</code>, <code>history</code>, <code>newton</code>, <code>Primary</code></td>
+<td>For bookkeeping and state</td>
+</tr>
+<tr class="even">
+<td><code>Self</code></td>
+<td><code>Self.history := ...</code></td>
+<td>Metadata management</td>
+</tr>
+<tr class="odd">
+<td><code>Primary</code></td>
+<td><code>oracle.Primary</code></td>
+<td>Main function/object</td>
+</tr>
+<tr class="even">
+<td>Content</td>
+<td><code>arr_3</code>, <code>map_key</code></td>
+<td>Array/map access</td>
+</tr>
+<tr class="odd">
+<td>Dynamic</td>
+<td><code>arr[i]</code>, <code>oracle["history"]</code></td>
+<td>Optional</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="notes-2" class="level4">
+<h4 class="anchored" data-anchor-id="notes-2">Notes</h4>
+<ul>
+<li>All arithmetic, printing, and interaction with real numbers goes through oracles—no floating point unless explicitly requested</li>
+</ul>
+</section>
+</section>
+</section>
+<section id="containers-arrays-sets-maps-tuples-matrices" class="level2">
+<h2 class="anchored" data-anchor-id="containers-arrays-sets-maps-tuples-matrices">3. Containers: Arrays, Sets, Maps, Tuples, Matrices</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 13%">
+<col style="width: 38%">
+<col style="width: 47%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Type</th>
+<th>Syntax</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Array</td>
+<td><code>[1, 2, 3]</code></td>
+<td>Standard JS-style array</td>
+</tr>
+<tr class="even">
+<td>Set</td>
+<td><code>{3, 4, 5}</code></td>
+<td>Set (unique elements)</td>
+</tr>
+<tr class="odd">
+<td>Map/Object</td>
+<td><code>{a := 4, b := 5}</code></td>
+<td>Map with named keys</td>
+</tr>
+<tr class="even">
+<td>Tuple</td>
+<td><code>(3, 5, 6)</code></td>
+<td>Tuple (function argument grouping)</td>
+</tr>
+<tr class="odd">
+<td>Matrix</td>
+<td><code>[1, 2; 3, 4]</code></td>
+<td>2x2 matrix</td>
+</tr>
+<tr class="even">
+<td>3D Matrix</td>
+<td><code>[1, 2; 3, 4 ;; 5, 6; 7, 8]</code></td>
+<td>2x2x2 tensor</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><code>{}</code> must be type-homogeneous (set, map, pattern-matching array, or system).</li>
+<li>Mixes like <code>{3, a := 5}</code> are not allowed (throws error).</li>
+<li>Use <code>[ ... , property := value ]</code> to add metadata/properties to any container.</li>
+</ul>
+<hr>
+</section>
+<section id="metadata-and-properties" class="level2">
+<h2 class="anchored" data-anchor-id="metadata-and-properties">4. Metadata and Properties</h2>
+<ul>
+<li><p>Any container, number, function, or object can be wrapped in <code>[]</code> with extra properties:</p>
+<ul>
+<li><code>[obj, name := "foo"]</code> — attaches metadata property <code>name</code> to <code>obj</code>.</li>
+</ul></li>
+<li><p><strong>Property Access:</strong></p>
+<ul>
+<li><code>obj_name</code> — access content property/key <code>name</code> on object</li>
+<li><code>obj__meta</code> — access metadata property <code>meta</code></li>
+<li><code>obj[x]</code> — content property at dynamic key <code>x</code></li>
+<li><code>obj[;x]</code> — metadata property at dynamic key <code>x</code></li>
+</ul></li>
+<li><p><strong>Equality</strong> ignores metadata: <code>[3, meta:=4] == 3</code> is <code>true</code>.</p></li>
+</ul>
+<section id="metadata-and-dotunderscore-rule" class="level3">
+<h3 class="anchored" data-anchor-id="metadata-and-dotunderscore-rule">Metadata and Dot/Underscore Rule</h3>
+<section id="formal-rule" class="level4">
+<h4 class="anchored" data-anchor-id="formal-rule">Formal Rule</h4>
+<ul>
+<li><p><strong>Dot (<code>.</code>):</strong> Access <strong>metadata or properties</strong></p>
+<ul>
+<li><code>Self.newton</code> (Newton sequence)</li>
+<li><code>oracle.type</code> (object type)</li>
+<li><code>oracle.history</code> (interval/prophesy log)</li>
+<li><code>oracle.Primary</code> (the main value or function)</li>
+</ul></li>
+<li><p><strong>Underscore (<code>_</code>):</strong> Access <strong>content of arrays/maps</strong></p>
+<ul>
+<li><code>arr_3</code> (third element of an array)</li>
+<li><code>map_key</code> (value in map for key “key”)</li>
+</ul></li>
+<li><p><strong>Dynamic Access:</strong></p>
+<ul>
+<li><code>arr[i]</code> for array content</li>
+<li><code>oracle["history"]</code> for dynamic metadata (optional, if implemented)</li>
+</ul></li>
+<li><p><strong><code>Primary</code> property:</strong></p>
+<ul>
+<li>Every object/function with metadata has <code>Primary</code> referencing its main value/function</li>
+<li>For a function with metadata, <code>Self.Primary</code> is the function itself</li>
+<li>For an object, it’s the main value, with other fields in metadata</li>
+</ul></li>
+</ul>
+</section>
+<section id="self-keyword" class="level4">
+<h4 class="anchored" data-anchor-id="self-keyword"><code>Self</code> Keyword</h4>
+<ul>
+<li>Inside any function/object, <code>Self</code> refers to that object’s metadata (including <code>.Primary</code>)</li>
+<li>Allows oracles and advanced functions to manage their state and properties</li>
+</ul>
+</section>
+<section id="notes-3" class="level4">
+<h4 class="anchored" data-anchor-id="notes-3">Notes</h4>
+<ul>
+<li><code>Self</code> and dot/underscore conventions allow elegant, extensible object state and introspection</li>
+<li>The <code>Primary</code> property is always present in objects/functions with metadata for clear reference to the underlying value</li>
+</ul>
+<hr>
+</section>
+</section>
+</section>
+<section id="function-definition-and-calls" class="level2">
+<h2 class="anchored" data-anchor-id="function-definition-and-calls">5. Function Definition and Calls</h2>
+<ul>
+<li><p><strong>Function Definition:</strong></p>
+<ul>
+<li><code>f := (x, n := 5) -&gt; x^n + 1</code></li>
+<li>First arguments are positional, named/optional follow (with defaults).</li>
+<li>Arrow <code>-&gt;</code> for body.</li>
+</ul></li>
+<li><p><strong>Calling:</strong></p>
+<ul>
+<li><code>f(2)</code> // 2^5 + 1 = 33</li>
+<li><code>f(2, n := 3)</code> // 2^3 + 1 = 9</li>
+</ul></li>
+<li><p><strong>Function Templates:</strong></p>
+<ul>
+<li><code>[f, n := 7]</code> — returns a version of <code>f</code> where n defaults to 7.</li>
+<li><code>g := [f, n := 5]</code>; <code>g(2)</code> → 33</li>
+</ul></li>
+<li><p><strong>Metadata Templating:</strong></p>
+<ul>
+<li>Pattern-matching and function arrays can carry metadata shared by all cases, unless locally overridden.</li>
+</ul></li>
+</ul>
+<section id="postfix-operators-and-enhanced-function-calls" class="level3">
+<h3 class="anchored" data-anchor-id="postfix-operators-and-enhanced-function-calls">Postfix Operators and Enhanced Function Calls</h3>
+<p>RiX provides three postfix operators with the highest precedence for precision control, queries, and universal function calls:</p>
+<ul>
+<li><p><strong>AT operator (<code>@</code>):</strong> Access precision, tolerance, or metadata properties</p>
+<ul>
+<li><code>PI@(1e-10)</code> — Get PI with precision 1e-10</li>
+<li><code>result@(tolerance)</code> — Apply tolerance to result</li>
+<li><code>(1/3)@(epsilon)</code> — Get rational with specified precision</li>
+</ul></li>
+<li><p><strong>ASK operator (<code>?</code>):</strong> Query membership, bounds, or boolean properties</p>
+<ul>
+<li><code>PI?(3.14:3.15)</code> — Check if PI is in interval [3.14, 3.15]</li>
+<li><code>result?(bounds)</code> — Test if result satisfies bounds</li>
+<li><code>interval?(x)</code> — Query if x is in interval</li>
+<li><strong>Note:</strong> Must be followed by parentheses to distinguish from infix <code>?</code></li>
+</ul></li>
+<li><p><strong>Enhanced CALL operator (<code>()</code>):</strong> Universal function call on any expression</p>
+<ul>
+<li><code>3(4)</code> — Equivalent to <code>3 * 4</code> (scalar multiplication)</li>
+<li><code>(2,3)(4,5)</code> — Tuple/vector operations</li>
+<li><code>matrix(vector)</code> — Matrix-vector multiplication</li>
+<li><code>f(x)(y)</code> — Chained function calls</li>
+</ul></li>
+<li><p><strong>Operators as Functions:</strong> Mathematical operators can be used as function identifiers</p>
+<ul>
+<li><code>+(2, 3, 5)</code> — Addition as variadic function: 2 + 3 + 5</li>
+<li><code>*(a, b, c)</code> — Multiplication as function: a * b * c</li>
+<li><code>&lt;(x, y)</code> — Comparison as function: x &lt; y</li>
+<li><code>=(a, b)</code> — Equality as function: a = b</li>
+</ul></li>
+<li><p><strong>Chaining:</strong> Multiple postfix operators can be combined</p>
+<ul>
+<li><code>PI@(1e-6)?(3.14:3.15)</code> — Get precise PI then check range</li>
+<li><code>f(x)@(eps)?(bounds)</code> — Call function, apply precision, check bounds</li>
+</ul></li>
+<li><p><strong>Precedence:</strong> All postfix operators have the highest precedence (120) and are left-associative</p></li>
+</ul>
+<hr>
+</section>
+</section>
+<section id="pattern-matching-and-case-functions" class="level2">
+<h2 class="anchored" data-anchor-id="pattern-matching-and-case-functions">6. Pattern Matching and Case Functions</h2>
+<ul>
+<li><p>Pattern-matching array syntax:</p>
+<pre><code>g := [
+]
+g(-5)    // 5
+g(2)     // 2</code></pre></li>
+<li><p>Multiple-case/templated pattern-matching:</p>
+<pre><code>powcases := [
+  n := 7
+]
+powcases(2)            // 2^7
+powcases(2, n := 5)    // 2^10</code></pre></li>
+<li><p>Precedence for named parameters: call arg &gt; pattern-local &gt; metadata default.</p></li>
+</ul>
+<hr>
+</section>
+<section id="piping-and-data-flow" class="level2">
+<h2 class="anchored" data-anchor-id="piping-and-data-flow">7. Piping and Data Flow</h2>
+<ul>
+<li><p><strong>Simple pipe (<code>|&gt;</code>):</strong> Elixir-style; tuples are unpacked as positional args, all other values pass as-is:</p>
+<ul>
+<li><code>(3, 4) |&gt; F</code> is <code>F(3, 4)</code> — tuple unpacked</li>
+<li><code>5 |&gt; F</code> is <code>F(5)</code> — scalar passed directly</li>
+<li><code>[1, 2] |&gt; F</code> is <code>F([1, 2])</code> — array is a single arg</li>
+</ul></li>
+<li><p><strong>Explicit pipe (<code>||&gt;</code>):</strong> General IR-template substitution — substitutes placeholders in <em>any</em> right-side expression, then evaluates. The right side need not be a function call. Placeholder <code>_0</code> refers to the whole left-hand value; <code>_1</code>, <code>_2</code>, … refer to individual tuple elements (1-based):</p>
+<ul>
+<li><code>(1, 2) ||&gt; F(_2, _1)</code> is <code>F(2, 1)</code> — swapped args (contrast: <code>(1,2) |&gt; F</code> is <code>F(1,2)</code>)</li>
+<li><code>(5, 2) ||&gt; F(_1, _1)</code> is <code>F(5, 5)</code> — duplicated first element</li>
+<li><code>(1, 2, 3) ||&gt; F(_3, _2, _1)</code> is <code>F(3, 2, 1)</code> — reversed</li>
+<li><code>(1, 2, 3) ||&gt; F(_0)</code> is <code>F((1,2,3))</code> — whole tuple as one arg</li>
+<li><code>(1, 2, 3) ||&gt; (_2, _1, _3)</code> is <code>(2, 1, 3)</code> — reorder into a new tuple</li>
+<li><code>(1, 2, 3) ||&gt; [_2, _1, _3]</code> is <code>[2, 1, 3]</code> — reorder into an array</li>
+<li><code>(1, 2, 3) ||&gt; {= a=_2, b=_1, c=_3}</code> is <code>{= a=2, b=1, c=3}</code> — project into a record</li>
+</ul></li>
+<li><p><strong>Arrays vs Tuples:</strong></p>
+<ul>
+<li><code>(a, b, c)</code> unpacks as multiple args under <code>|&gt;</code> or provides indexed elements <code>_1</code>, <code>_2</code>, <code>_3</code> under <code>||&gt;</code></li>
+<li><code>[a, b, c]</code> passes as a single arg in both <code>|&gt;</code> and <code>||&gt;</code></li>
+</ul></li>
+<li><p><strong><code>{: }</code> Tuple Container vs <code>( )</code> grouping:</strong> <code>{: 1, 2, 3}</code> ≡ <code>(1, 2, 3)</code> (3-element tuple), but <code>{: (1, 2, 3)}</code> is a <em>1-element</em> tuple containing the inner tuple — the <code>{:</code> container sees one comma-separated element. Use <code>(1, 2, 3) ||&gt; F(_0)</code> when you want to pass a tuple as a single argument without wrapping it in another tuple.</p></li>
+</ul>
+<hr>
+</section>
+<section id="loops-and-comprehensions" class="level2">
+<h2 class="anchored" data-anchor-id="loops-and-comprehensions">8. Loops and Comprehensions</h2>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Syntax</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>for i := 1 to 10 { ... }</code></td>
+<td>Loop from 1 to 10</td>
+</tr>
+<tr class="even">
+<td><code>for x in arr { ... }</code></td>
+<td>For-each over array</td>
+</tr>
+<tr class="odd">
+<td><code>while cond { ... }</code></td>
+<td>While loop</td>
+</tr>
+<tr class="even">
+<td><code>repeat { ... } until cond</code></td>
+<td>Post-condition loop</td>
+</tr>
+<tr class="odd">
+<td><code>[f(x) for x in 1:10]</code></td>
+<td>Comprehension (array, set, etc.)</td>
+</tr>
+</tbody>
+</table>
+<hr>
+</section>
+<section id="symbolic-calculus-notation" class="level2">
+<h2 class="anchored" data-anchor-id="symbolic-calculus-notation">9. Symbolic Calculus Notation</h2>
+<ul>
+<li><p><strong>Notation:</strong></p>
+<ul>
+<li><p><code>(''...)f[vars](ops)</code></p></li>
+<li><p>Examples:</p>
+<ul>
+<li><code>f'(x')</code>→df/dx</li>
+<li><code>''f[x, y]('y, x')</code>→ integrate by y, then differentiate by x</li>
+<li><code>f'(r')</code>→derivative along path r</li>
+</ul></li>
+<li><p>Order of operations is left-to-right.</p></li>
+<li><p>Integration: leading <code>'</code> before function</p></li>
+<li><p>Differentiation: variable with trailing <code>'</code></p></li>
+</ul></li>
+</ul>
+<hr>
+</section>
+<section id="systems-of-equations-inequalities" class="level2">
+<h2 class="anchored" data-anchor-id="systems-of-equations-inequalities">10. Systems of Equations &amp; Inequalities</h2>
+<ul>
+<li><p>Use <code>{ ... ; ... }</code> for system (semicolon separated)</p></li>
+<li><p>Example: <code>{ x^2 + y^2 :=: 1; x :=: y }</code></p>
+<ul>
+<li>Solution is tuple/array of tuples if finite, function if parametric.</li>
+<li><code>Solve(sys)</code></li>
+</ul></li>
+<li><p>Can wrap system in <code>[]</code> to attach metadata/context.</p></li>
+</ul>
+<hr>
+</section>
+<section id="comments-and-strings" class="level2">
+<h2 class="anchored" data-anchor-id="comments-and-strings">11. Comments and Strings</h2>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Syntax</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>// ...</code></td>
+<td>Inline comment</td>
+</tr>
+<tr class="even">
+<td><code>/* ... */</code></td>
+<td>Block comment</td>
+</tr>
+<tr class="odd">
+<td><code>/*** ... ***/</code></td>
+<td>Nestable block comment</td>
+</tr>
+<tr class="even">
+<td><code>"string"</code></td>
+<td>Literal string</td>
+</tr>
+<tr class="odd">
+<td><code>`Hello ${x}`</code></td>
+<td>Interpolated string</td>
+</tr>
+</tbody>
+</table>
+<hr>
+</section>
+<section id="scope-mutability-and-variable-rules" class="level2">
+<h2 class="anchored" data-anchor-id="scope-mutability-and-variable-rules">12. Scope, Mutability, and Variable Rules</h2>
+<ul>
+<li><p><strong>Variables are mutable. Function bodies, explicit blocks (<code>{; ... }</code>), loops (<code>{@ ... }</code>), and system blocks (<code>{$ ... }</code>) are block-scoped.</strong></p></li>
+<li><p>If the immediate body of a function or lambda is itself a block/loop/system container, that outermost container shares the function scope rather than creating an extra nested scope.</p></li>
+<li><p>Special scope access:</p>
+<ul>
+<li><code>@var</code> references variable outside the current isolated block scope</li>
+<li><code>@var :@= ...</code> assigns at that scope</li>
+<li>More <code>@</code> to climb higher scope levels</li>
+</ul></li>
+<li><p>Arrays, maps, sets, etc. are mutable by default.</p></li>
+</ul>
+<hr>
+</section>
+<section id="modules-loading-and-help" class="level2">
+<h2 class="anchored" data-anchor-id="modules-loading-and-help">13. Modules, Loading, and Help</h2>
+<ul>
+<li><code>Load("trig")</code> loads trig module with <code>SIN</code>, <code>COS</code>, etc.</li>
+<li><code>Load("trig", "Tr")</code> loads with prefix: <code>TrSIN</code>, <code>TrCOS</code>, etc.</li>
+<li><code>Execute(path)</code> runs file/script in context</li>
+<li><code>Help</code> or <code>Help f</code> displays documentation</li>
+</ul>
+<hr>
+</section>
+</section>
+<section id="examples-and-tutorials" class="level1">
+<h1>14. Examples and Tutorials</h1>
+<section id="variables-and-numbers" class="level2">
+<h2 class="anchored" data-anchor-id="variables-and-numbers">Variables and Numbers</h2>
+<pre class="plaintext"><code>x := 3
+z := 1..2/3
+I := 2:3
+I ^ 2        // 4:9</code></pre>
+</section>
+<section id="functions" class="level2">
+<h2 class="anchored" data-anchor-id="functions">Functions</h2>
+<pre class="plaintext"><code>f := (x, n := 5) -&gt; x^n + 1
+f(2)           // 33
+f(2, n := 3)   // 9</code></pre>
+</section>
+<section id="pattern-matching-functions" class="level2">
+<h2 class="anchored" data-anchor-id="pattern-matching-functions">Pattern-Matching Functions</h2>
+<pre class="plaintext"><code>g := [
+]
+g(-5)          // 5
+g(2)           // 2</code></pre>
+</section>
+<section id="metadata" class="level2">
+<h2 class="anchored" data-anchor-id="metadata">Metadata</h2>
+<pre class="plaintext"><code>arr := [1, 2, 3, name := "my array"]
+arr__name      // "my array"</code></pre>
+</section>
+<section id="sets-arrays-matrices" class="level2">
+<h2 class="anchored" data-anchor-id="sets-arrays-matrices">Sets, Arrays, Matrices</h2>
+<pre class="plaintext"><code>s := {1, 2, 3, 2, 3}
+a := [1, 2, 3]
+mat := [1, 2; 3, 4]</code></pre>
+</section>
+<section id="piping" class="level2">
+<h2 class="anchored" data-anchor-id="piping">Piping</h2>
+<pre class="plaintext"><code>(3, 4) |&gt; f        // f(3, 4)
+(3, 4) ||&gt; g(_2, _1) // g(4, 3)</code></pre>
+</section>
+<section id="loops-and-comprehensions-1" class="level2">
+<h2 class="anchored" data-anchor-id="loops-and-comprehensions-1">Loops and Comprehensions</h2>
+<pre class="plaintext"><code>sum := 0
+for i := 1 to 10 {
+  sum := sum + i
+}
+squares := [i^2 for i in 1:10]</code></pre>
+</section>
+<section id="systems" class="level2">
+<h2 class="anchored" data-anchor-id="systems">Systems</h2>
+<pre class="plaintext"><code>sys := {x^2 + y^2 :=: 1; y :=: x}
+Solve(sys)</code></pre>
+</section>
+<section id="symbolic-calculus" class="level2">
+<h2 class="anchored" data-anchor-id="symbolic-calculus">Symbolic Calculus</h2>
+<pre class="plaintext"><code>f'(x')                // Partial derivative w.r.t. x
+''f[x, y]('y, x')     // Integrate by y, then differentiate by x</code></pre>
+<hr>
+</section>
+<section id="notes-4" class="level2">
+<h2 class="anchored" data-anchor-id="notes-4">Notes</h2>
+<ul>
+<li>This language is designed for interactive, symbolic, and mathematical computing.</li>
+<li>All syntax is case-insensitive except for variable/function names.</li>
+<li>Metadata is ignored in equality by default.</li>
+<li>All math is rational/interval-based for precision.</li>
+<li>Comments, whitespace, and newlines are freely allowed except where ambiguity would arise.</li>
+</ul>
+<hr>
+</section>
+<section id="sequence-and-set-literals-advanced-piping-operators" class="level2">
+<h2 class="anchored" data-anchor-id="sequence-and-set-literals-advanced-piping-operators">Sequence and Set Literals, Advanced Piping Operators</h2>
+<section id="sequenceset-literal-syntax" class="level4">
+<h4 class="anchored" data-anchor-id="sequenceset-literal-syntax">Sequence/Set Literal Syntax</h4>
+<p>A highly expressive system for defining sequences (arrays, sets) that can be finite, infinite, recursive, filtered, generated, or stopped by custom conditions.</p>
+</section>
+<section id="operator-legend" class="level4">
+<h4 class="anchored" data-anchor-id="operator-legend">Operator Legend</h4>
+<ul>
+<li><p><strong><code>|+n</code></strong> <em>Add n to previous element (arithmetic sequence).</em> Example: <code>[2, |+2, |; 10]</code> → <code>[2, 4, 6, 8, 10]</code></p></li>
+<li><p><strong><code>|*n</code></strong> <em>Multiply previous element by n (geometric sequence).</em> Example: <code>[1, |*3, |; 6]</code> → <code>[1, 3, 9, 27, 81, 243]</code></p></li>
+<li><p><strong><code>|:f</code></strong> <em>Generator function by one-based index; <code>f</code> receives <code>(index, self)</code>.</em> Example: <code>[|: (i) -&gt; i^2, |; 5]</code> → <code>[1, 4, 9, 16, 25]</code></p></li>
+<li><p><strong><code>|&gt;f</code></strong> <em>Newest-first history source when no source precedes it; otherwise transform each candidate.</em> Example: <code>[1, 1, |&gt;F(_2, _1), |; 7]</code> → <code>[1, 1, 2, 3, 5, 8, 13]</code> (Fibonacci)</p></li>
+<li><p><strong><code>|?p</code></strong> <em>Predicate filter; keeps elements where predicate is true.</em> Example: <code>[1,2,3,4, |? (x) -&gt; x % 2 ?= 0]</code> → <code>[2, 4]</code></p></li>
+<li><p><strong><code>|;n</code></strong> <em>Stop after n elements (finite sequence).</em> Example: <code>[2, |+2, |; 5]</code> → <code>[2, 4, 6, 8, 10]</code></p></li>
+<li><p><strong><code>|;f</code></strong> <em>Stop when function returns true (repeat-until style).</em> Function can take value and/or index. Example: <code>[2, |+2, |; (x) -&gt; x &gt; 10]</code> → <code>[2, 4, 6, 8, 10, 12]</code> (stops when x &gt; 10)</p></li>
+</ul>
+</section>
+<section id="evaluation-rules" class="level4">
+<h4 class="anchored" data-anchor-id="evaluation-rules">Evaluation Rules</h4>
+<ol type="1">
+<li>Start with explicit elements (if any).</li>
+<li>Apply recursion/generation (<code>|+</code>, <code>|*</code>, <code>|:</code>, <code>|&gt;</code>).</li>
+<li>Filter with <code>|?</code>.</li>
+<li>Stop with <code>|;</code> (number: after n elements, function: stop when true).</li>
+<li>Operators and explicit elements separated by commas; order matters (left-to-right).</li>
+</ol>
+<hr>
+</section>
+<section id="example-usages" class="level3">
+<h3 class="anchored" data-anchor-id="example-usages">Example Usages</h3>
+<pre class="plaintext"><code>[2, |+2, |; 15]                  // [2, 4, 6, ..., 14]
+[1, |*3, |; 10]                  // [1, 3, 9, 27, ...]
+[1, 1, |&gt;(a,b)-&gt;a+b, |; 7]       // [1, 1, 2, 3, 5, 8, 13]
+[|: (i)-&gt;2*i, |; (x)-&gt;x&gt;20]      // [0, 2, 4, ..., 20]
+[2, 3, 4, 5, |+1, |? (x)-&gt;x%2==0, |; 10]
+[2, |+2, |; (x,i)-&gt;i&gt;=5]         // [2, 4, 6, 8, 10]</code></pre>
+<hr>
+<section id="piping-operators-for-arrays-and-sequences" class="level4">
+<h4 class="anchored" data-anchor-id="piping-operators-for-arrays-and-sequences">Piping Operators for Arrays and Sequences</h4>
+<p>Piping can be used to apply functional transformations to arrays, sets, sequences, and other constructs. Each piping operator is specialized:</p>
+<ul>
+<li><p><strong><code>|&gt;</code></strong> <em>Feeds the array as arguments to a function.</em> Example: <code>[1, 2, 3] |&gt; f</code> (calls <code>f(1, 2, 3)</code>)</p></li>
+<li><p><strong><code>|&gt;&gt;</code></strong> <em>Maps function over array (like <code>map</code>).</em> Example: <code>[1, 2, 3] |&gt;&gt; f</code> → <code>[f(1), f(2), f(3)]</code></p></li>
+<li><p><strong><code>|&gt;?</code></strong> <em>Filters array with predicate (like <code>filter</code>).</em> Example: <code>[1, 2, 3] |&gt;? (x) -&gt; x &gt; 1</code> → <code>[2, 3]</code></p></li>
+<li><p><strong><code>|&gt;:</code></strong> <em>Reduces array with function (like <code>reduce</code>).</em> Example: <code>[1, 2, 3] |&gt;: (a, b) -&gt; a + b</code> → <code>6</code></p></li>
+<li><p><strong>All can be chained:</strong> Example: <code>[1, 2, 3, 4, 5] |&gt;&gt; (x) -&gt; x * 2 |&gt;? (x) -&gt; x &lt; 7 |&gt;: (a, b) -&gt; a + b</code> (<code>[2, 4, 6]</code> summed to <code>12</code>)</p></li>
+</ul>
+</section>
+<section id="rules-notes" class="level4">
+<h4 class="anchored" data-anchor-id="rules-notes">Rules &amp; Notes</h4>
+<ul>
+<li><p><strong><code>|&gt;</code></strong> feeds the entire array/sequence as function arguments (destructures if function expects multiple args).</p></li>
+<li><p><strong><code>|&gt;&gt;</code></strong> maps the function over the array (like Python’s <code>map</code>).</p></li>
+<li><p><strong><code>|&gt;?</code></strong> filters the array (like Python’s <code>filter</code>).</p></li>
+<li><p><strong><code>|&gt;:</code></strong> reduces/folds the array (like Python’s <code>reduce</code>).</p></li>
+<li><p>All piping operators can be chained for expressive data pipelines:</p>
+<pre class="plaintext"><code>[1,2,3,4,5] |&gt;&gt; (x)-&gt;x*2 |&gt;? (x)-&gt;x&lt;7 |&gt;: (a,b)-&gt;a+b   // (([2,4,6,8,10] filtered to [2,4,6]) reduced to 12)</code></pre></li>
+<li><p><strong>Generalization:</strong> These piping operators can apply to sets, sequences, streams, etc.</p></li>
+<li><p><strong>Metadata:</strong> If the array/set has metadata (e.g., from sequence literal syntax), it’s preserved through the pipeline unless explicitly overridden.</p></li>
+</ul>
+</section>
+<section id="general-notes" class="level4">
+<h4 class="anchored" data-anchor-id="general-notes">General Notes</h4>
+<ul>
+<li>Literal notation works for arrays, sets, streams, and can be used for infinite/lazy constructs (with <code>|;</code> or a predicate to make finite when desired).</li>
+<li>Operators separated by commas for clarity and order.</li>
+<li>Piping is orthogonal: any array/sequence/set can be piped to a function, mapped, filtered, or reduced.</li>
+<li>Filter, map, and reduce apply to other compatible constructs.</li>
+<li>Evaluation is lazy if generator, recursion, or stopping condition is present; otherwise, eager.</li>
+</ul>
+<hr>
+</section>
+<section id="example-combinations" class="level4">
+<h4 class="anchored" data-anchor-id="example-combinations">Example Combinations</h4>
+<pre class="plaintext"><code>// Map and sum all even numbers up to 20
+[2, |+2, |; (x)-&gt;x&gt;20] |&gt;&gt; (x)-&gt;x*2 |&gt;: (a,b)-&gt;a+b
+
+// First 10 squares, then filter those greater than 25
+[|:(i)-&gt;i^2, |;10] |&gt;? (x)-&gt;x&gt;25
+
+// Fibonacci sequence, take first value exceeding 10
+[1,1,|&gt;(a,b)-&gt;a+b,|; (x)-&gt;x&gt;10]</code></pre>
+</section>
+</section>
+</section>
+</section>
+<section id="sequence-stopping-and-generation-semantics" class="level1">
+<h1>Sequence Stopping and Generation Semantics</h1>
+<section id="stopping-and-generation-operators" class="level2">
+<h2 class="anchored" data-anchor-id="stopping-and-generation-operators">Stopping and Generation Operators</h2>
+<p>A dual system for sequence/array/set literal evaluation:</p>
+<ul>
+<li><strong>Eager/Immediate</strong> execution with <code>|;</code></li>
+<li><strong>Lazy/Generator</strong> mode with <code>|^</code></li>
+</ul>
+<section id="operators-with-list-style-description" class="level3">
+<h3 class="anchored" data-anchor-id="operators-with-list-style-description">Operators (with list-style description)</h3>
+<ul>
+<li><p><strong><code>|; n</code></strong></p>
+<ul>
+<li><em>Eager stopping after n elements.</em></li>
+<li>Example: <code>[2, |+2, |; 5]</code> → <code>[2, 4, 6, 8, 10]</code></li>
+</ul></li>
+<li><p><strong><code>|; f</code></strong></p>
+<ul>
+<li><em>Eager stopping when function returns true.</em> Function receives <code>(x, i)</code>.</li>
+<li>Example: <code>[2, |+2, |; (x) -&gt; x &gt; 10]</code> → <code>[2, 4, 6, 8, 10, 12]</code></li>
+</ul></li>
+<li><p><strong><code>|^ n</code></strong></p>
+<ul>
+<li><em>Lazy/generator mode, limit to n elements if requested.</em></li>
+<li>Example: <code>[2, |+2, |^ 1000]</code> (generator, up to 1000 elements)</li>
+</ul></li>
+<li><p><strong><code>|^ f</code></strong></p>
+<ul>
+<li><em>Lazy/generator mode, stops generation if function returns true.</em> Function receives <code>(x, i)</code>.</li>
+<li>Example: <code>[2, |+2, |^ (x, i) -&gt; x &gt; 100]</code> (generator, stops at x &gt; 100 if accessed)</li>
+</ul></li>
+<li><p><strong><code>self</code> and <code>_n</code> history placeholders</strong></p>
+<ul>
+<li><em>Callbacks receive the current emitted sequence as <code>self</code>. History-source placeholders are newest-first: <code>_1</code>, <code>_2</code>, and so on.</em></li>
+</ul></li>
+</ul>
+</section>
+<section id="how-to-use" class="level3">
+<h3 class="anchored" data-anchor-id="how-to-use">How To Use</h3>
+<ul>
+<li>Use <code>|;</code> for full, immediate array generation up to the stop.</li>
+<li>Use <code>|^</code> for generator/stream semantics—sequence only produces values when accessed, up to the ceiling/limit.</li>
+<li>Both accept either a number or a function as argument.</li>
+<li><code>self[i]</code> accesses emitted values; <code>_n</code> addresses source history without constructing a history array.</li>
+</ul>
+<hr>
+</section>
+</section>
+<section id="examples" class="level2">
+<h2 class="anchored" data-anchor-id="examples">Examples</h2>
+<p><strong>Eager sequences:</strong></p>
+<pre class="plaintext"><code>[1, |+2, |; 5]                       // [1, 3, 5, 7, 9]
+[2, |*3, |; (x) -&gt; x &gt; 100]          // [2, 6, 18, 54, 162]</code></pre>
+<p><strong>Lazy/generator sequences:</strong></p>
+<pre class="plaintext"><code>[1, |+1, |^ 1000]                    // Up to 1000 elements on demand
+[1, |+1, |^ (x, i) -&gt; x &gt; 100]       // Generates as needed, capped if x &gt; 100</code></pre>
+<p><strong>Self access inside functions:</strong></p>
+<pre class="plaintext"><code>[1, 1, |&gt;(a, b) -&gt; a + b, |; (x, i) -&gt; i &gt; 10] // Fibonacci, eager, 11 terms
+[2, |+2, |^ (x, i) -&gt; i &gt; 100 &amp;&amp; Self[i-1] % 5 == 0] // Lazy, stops if last is multiple of 5 after 100 elements</code></pre>
+<hr>
+</section>
+<section id="design-rationale" class="level2">
+<h2 class="anchored" data-anchor-id="design-rationale">Design Rationale</h2>
+<ul>
+<li><code>|;</code> is for eager (immediate) evaluation—builds the entire sequence now.</li>
+<li><code>|^</code> is for generator/lazy evaluation—produces values on demand, never exceeds the limit/condition.</li>
+<li>Both types are essential for different programming and mathematical needs.</li>
+<li>All other sequence operators (<code>|+</code>, <code>|*</code>, <code>|:</code>, <code>|&gt;</code>, <code>|?</code>, etc) are compatible and compose with these.</li>
+</ul>
+<hr>
+</section>
+<section id="summary" class="level2">
+<h2 class="anchored" data-anchor-id="summary">Summary</h2>
+<ul>
+<li>Use <code>|;</code> to force immediate, finite arrays.</li>
+<li>Use <code>|^</code> to create safe, lazy generators for infinite or large sequences.</li>
+<li>Both support custom logic via <code>(x, i)</code> functions.</li>
+<li><code>Self[i]</code> and <code>Self_3</code> are available for advanced recursion or context-sensitive generation.</li>
+</ul>
+</section>
+</section>
+<section id="double-quote-string-literal-specification" class="level1">
+<h1>Double Quote String Literal Specification</h1>
+<section id="rule-overview" class="level2">
+<h2 class="anchored" data-anchor-id="rule-overview">Rule Overview</h2>
+<ul>
+<li><p><strong>Delimiter:</strong></p>
+<ul>
+<li>String literals are enclosed by N consecutive double quotes (<code>"</code>, <code>""</code>, <code>"""</code>, etc.), for any N &gt;= 1.</li>
+<li>The string starts after the opening N quotes and ends at the next N consecutive double quotes.</li>
+</ul></li>
+<li><p><strong>Literal Content:</strong></p>
+<ul>
+<li>Any sequence of M consecutive double quotes where M &lt; N is preserved literally within the string.</li>
+<li>No run of double quotes is collapsed or reduced inside the string—<strong>all are kept as written</strong>.</li>
+</ul></li>
+<li><p><strong>Trimming (Optional):</strong></p>
+<ul>
+<li>If there are spaces between the opening delimiter and the first non-space character, or between the last non-space character and the closing delimiter,one space is trimmed from the resulting string if the character is a double-quote.</li>
+</ul></li>
+</ul>
+<hr>
+</section>
+<section id="examples-1" class="level2">
+<h2 class="anchored" data-anchor-id="examples-1">Examples</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 27%">
+<col style="width: 21%">
+<col style="width: 51%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Input</th>
+<th>Result</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>""Hi "Jake"!""</code></td>
+<td><code>Hi "Jake"!</code></td>
+<td>2-quote delimiter, single quote is literal</td>
+</tr>
+<tr class="even">
+<td><code>"""She said: ""Hello""."""</code></td>
+<td><code>She said: ""Hello"".</code></td>
+<td>3-quote delimiter, 2-quotes preserved</td>
+</tr>
+<tr class="odd">
+<td><code>""""Wow,"" he said.""""</code></td>
+<td><code>Wow,"" he said.</code></td>
+<td>4-quote delimiter, 2-quotes preserved</td>
+</tr>
+<tr class="even">
+<td><code>""  "Hi"  ""</code></td>
+<td><code>"Hi"</code></td>
+<td>Spaces trimmed at both ends</td>
+</tr>
+<tr class="odd">
+<td><code>"""  ""Hello""  """</code></td>
+<td><code>""Hello""</code></td>
+<td>3-quote delimiter, 2-quotes preserved, spaces trimmed</td>
+</tr>
+</tbody>
+</table>
+<hr>
+</section>
+<section id="parsing-algorithm" class="level2">
+<h2 class="anchored" data-anchor-id="parsing-algorithm">Parsing Algorithm</h2>
+<ol type="1">
+<li>Count N consecutive quotes at the start.</li>
+<li>Read all subsequent characters as the content of the string.</li>
+<li>The first occurrence of N consecutive quotes marks the end of the string.</li>
+<li>If there are spaces directly inside the delimiter at either end with a quote at the other side, one space is trimmed from the result.</li>
+<li>All internal quote runs of fewer than N quotes are kept as written.</li>
+</ol>
+<hr>
+</section>
+<section id="advantages" class="level2">
+<h2 class="anchored" data-anchor-id="advantages">Advantages</h2>
+<ul>
+<li><strong>No escapes needed for quotes:</strong> Use a delimiter longer than any run inside.</li>
+<li><strong>Literal clarity:</strong> No collapsing or ambiguity; what you see is what you get.</li>
+<li><strong>Flexible for any content:</strong> Write as many quotes as you like inside the string by picking a longer delimiter.</li>
+<li><strong>Spaces at the ends:</strong> Optionally remove unwanted spaces with intuitive syntax.</li>
+</ul>
+</section>
+</section>
+<section id="braces-and-code-block-disambiguation" class="level1">
+<h1>Braces and Code Block Disambiguation</h1>
+<section id="rule-summary" class="level2">
+<h2 class="anchored" data-anchor-id="rule-summary">Rule Summary</h2>
+<ul>
+<li><p><strong><code>{ ... }</code></strong></p>
+<ul>
+<li>Used for sets, maps, or system constructs.</li>
+<li>Example: <code>{3}</code> is a set containing 3.</li>
+<li>Example: <code>{a := 4, b := 5}</code> is a map.</li>
+</ul></li>
+<li><p><strong><code>{; ... }</code></strong></p>
+<ul>
+<li>Used for code blocks that can be assigned, passed as values, or returned from functions.</li>
+<li>No space is allowed between the two opening braces.</li>
+<li>Example: <code>{; 3 }</code> is a code block whose value is 3.</li>
+</ul></li>
+<li><p><strong><code>{ { ... } }</code></strong></p>
+<ul>
+<li>A set containing a set (or other set construct).</li>
+<li>There must be a space after the opening brace to distinguish from a code block.</li>
+<li>Example: <code>{ {3} }</code> is a set whose single element is the set <code>{3}</code>.</li>
+</ul></li>
+</ul>
+<hr>
+</section>
+<section id="clarification-table" class="level2">
+<h2 class="anchored" data-anchor-id="clarification-table">Clarification Table</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 16%">
+<col style="width: 35%">
+<col style="width: 47%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Syntax</th>
+<th>Meaning</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>{3}</code></td>
+<td>Set containing 3</td>
+<td></td>
+</tr>
+<tr class="even">
+<td><code>{;3}</code></td>
+<td>Code block, result is 3</td>
+<td>No space between braces</td>
+</tr>
+<tr class="odd">
+<td><code>{ {3} }</code></td>
+<td>Set containing <code>{3}</code></td>
+<td>Space after first brace required</td>
+</tr>
+<tr class="even">
+<td><code>{;3; 4}</code></td>
+<td>Code block, result is 4</td>
+<td>Multiple statements, result is last</td>
+</tr>
+<tr class="odd">
+<td><code>{ {3}, 4 }</code></td>
+<td>Set containing <code>{3}</code> and 4</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<hr>
+</section>
+<section id="parsing-and-style-guidance" class="level2">
+<h2 class="anchored" data-anchor-id="parsing-and-style-guidance">Parsing and Style Guidance</h2>
+<ul>
+<li><strong>Double braces (<code>{; ... }</code>) without a space always indicate a code block.</strong></li>
+<li><strong>Single braces are never a code block.</strong></li>
+<li><strong>A space between <code>{</code> and <code>{</code> (e.g., <code>{ { ... } }</code>) always means a set containing a set (or similar construct).</strong></li>
+<li>Code blocks should return the value of their last statement.</li>
+<li>Code blocks can be passed to functions (e.g., for flow control or as arguments).</li>
+<li>Parsers may issue a warning if ambiguous or unintended spacing is detected after an opening brace.</li>
+</ul>
+<hr>
+</section>
+<section id="examples-2" class="level2">
+<h2 class="anchored" data-anchor-id="examples-2">Examples</h2>
+<pre class="plaintext"><code>foo := {; x := 2; y := 3; x + y; }        // code block assigned to foo, returns 5
+bar := {3, 4, 5}                           // set containing 3, 4, and 5
+nested := { {3} }                          // set containing the set {3}
+If(a ?= 2, {; y := 7; x + y; }, {; x := 9; y := 1; x * y; })  // code blocks as branches</code></pre>
+</section>
+<section id="interval-range-and-partition-syntax" class="level2">
+<h2 class="anchored" data-anchor-id="interval-range-and-partition-syntax">Interval, Range, and Partition Syntax</h2>
+<ol type="1">
+<li><p>Interval a:b - Closed interval from a to b (e.g., 2:5)</p></li>
+<li><p>Stepped Range a:b:+n - Arithmetic range: start at a, step by +n, up to b. E.g., 1:7:+2 yields 1, 3, 5, 7 (inclusive). a:b:-n - Arithmetic range: start at b, step by -n, down to a. E.g., 1:7:-2 yields 7, 5, 3, 1.</p></li>
+<li><p>Even Division (by points) a:b::n - Produce exactly n equally spaced points, including endpoints.</p></li>
+<li><p>Partition by Intervals a:b:/:n - Partition [a, b] into n intervals of equal width. E.g., 0:2:/:2 yields intervals [0,1], [1,2].</p></li>
+<li><p>Partition by Mediants a:b:~/n - Partition [a, b] using n levels of mediant insertions. Each level doubles the number of partitions.</p>
+<p>Examples: a:b:~/1 =&gt; (a:c, c:b), where c is mediant(a,b) a:b:~/2 =&gt; (a:d, d:c, c:e, e:b) where c=med(a,b), d=med(a,c), e=med(c,b)</p></li>
+</ol>
+<p>Laziness: - Ranges (a:b:+n, a:b:-n, a:b::n) are lazy—values generated as needed. - Partitions (<code>:/:</code>, <code>:~/</code>) are eager finite sequences.</p>
+</section>
+<section id="chunking-and-random-selection-syntax" class="level2">
+<h2 class="anchored" data-anchor-id="chunking-and-random-selection-syntax">Chunking and Random Selection Syntax</h2>
+<ol type="1">
+<li><p>Directional Chunks (Infinite Sequences) a::+n - Start at a, add n repeatedly: a, a+n, a+2n, a+3n, … b::–n - Start at b, subtract n repeatedly: b, b–n, b–2n, …</p></li>
+<li><p>Interval-based Range a:b:+n - Start at a, step +n, up to and including b (finite). a:b:-n - Start at b, step –n, down to and including a (finite).</p></li>
+<li><p>Even Division a:b::n - Produce exactly n equally spaced endpoint-inclusive points.</p></li>
+<li><p>Partition by Intervals a:b:/:n - Partition [a, b] into n equal-width intervals.</p></li>
+<li><p>Partition by Mediants a:b:~/n - Partition [a, b] using n levels of mediant partitioning.</p></li>
+</ol>
+<p>Laziness/Eagerness: - Infinite sequences (a::+n, b::-n) are lazy. - Random partitions and finite partitions are eager.</p>
+<p>Notes: - No mainstream programming language uses a symbolic operator for randomness in range/interval notation—this is novel!</p>
+</section>
+<section id="random-selection-and-partitioning-in-intervalsranges" class="level2">
+<h2 class="anchored" data-anchor-id="random-selection-and-partitioning-in-intervalsranges">Random Selection and Partitioning in Intervals/Ranges</h2>
+<ol type="1">
+<li><p>Pick a single random point in an interval (endpoints inclusive) a:b:%1 - Picks one random point from [a, b].</p></li>
+<li><p>Pick n random points from an interval a:b:%n - Picks n random (unordered) points from [a, b].</p></li>
+<li><p>Random partition of interval into n subintervals a:b:/%n - Randomly partitions [a, b] into n intervals (i.e., select n–1 random interior points, sort, partition).</p></li>
+</ol>
+<p>Examples: 0:1:%1 → 0.472 (one random point in [0,1]) 1:10:%3 → [2.33, 7.91, 9.07] (three random points in [1,10]) 5:15:/%3 → [5, 8.9], [8.9, 12.4], [12.4, 15] (partition at 8.9, 12.4)</p>
+<p>Notes: - With a denominator parameter, numerators are selected uniformly from the denominator grid inside the interval. Without one, a uniform real sample is replaced by the simplest rational within the configured tolerance. - For partitioning, endpoints are included, interior points are distinct and sorted.</p>
+<p>Laziness/Eagerness: - Random points: eager (all are generated at once). - Random partitions: eager (output is a tuple/list of intervals).</p>
+<p>Usage: - <code>%</code> used only in range/interval context for randomness, not as modulo here. - This is <strong>unique</strong> to your language—no mainstream language uses <code>%</code> this way for random interval selection.</p>
+
+
+</section>
+</section>
+
+<a onclick="window.scrollTo(0, 0); return false;" role="button" id="quarto-back-to-top"><i class="bi bi-arrow-up"></i> Back to top</a></main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/jostylr\.github\.io\/rix\/");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+            // target, if specified
+            link.setAttribute("target", "_blank");
+            if (link.getAttribute("rel") === null) {
+              link.setAttribute("rel", "noopener");
+            }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="../../rix-rationales.html" class="pagination-link" aria-label="Design rationales">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">Design rationales</span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="../../design/parser/questions.html" class="pagination-link" aria-label="Open design areas">
+        <span class="nav-page-text">Open design areas</span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>RiX — Rational Interval Expression Language</p>
+</div>   
+    <div class="nav-footer-center">
+      &nbsp;
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/design/parser/spec.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="nav-footer-right">
+<p>Documentation built with <a href="https://quarto.org/">Quarto</a></p>
+</div>
+  </div>
+</footer>
+
+
+
+
+<script src="../../site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>

@@ -1,0 +1,45 @@
+---
+title: "Implementation status"
+description: "The current supported surface and the boundary between working RiX features and active design."
+---
+
+RiX is an active alpha. Its parser, AST-to-IR lowering, and broad evaluator are working; the language remains free to change before a stable release. This page is the current status boundary. Older reports and design notes are valuable history but are not authoritative status pages.
+
+The repository test suite currently covers 1,700+ cases across parser, evaluator, runtime, CLI, and examples. Run `bun test` in `rix/` for the exact count at your revision.
+
+## Working and tested
+
+| Area | Current surface |
+|---|---|
+| Exact arithmetic | integers, rationals, mixed/repeating/continued-fraction forms, rational intervals |
+| Language pipeline | tokenizer, Pratt parser, AST, lowering, call-shaped IR, evaluator dispatch |
+| Functions | lambdas, named functions, rest/spread, partials, arity caps, prepared functions, multifunctions, tail-self call path |
+| Collections | arrays, lazy sequences, iterators, maps, sets, tuples, tensors, indexing/slicing, traversal pipes, methods |
+| Control and scope | blocks, cases, ternaries, loops, break blocks, cells, five assignment modes, destructuring, imports |
+| Semantics | metadata classes, semantic inquiry/conversion, type and trait registries, constructor capture |
+| Exact extensions | units/quantities, algebraic exact generators, exact complex operations, Cayley polar representation |
+| Tooling | REPL/runner, IR converter, native `.test.rix` runner, structured diagnostics, source locations, trace/debug |
+| Embedding | parser exports, evaluator/runtime exports, configurable system loader and system context |
+
+## Partial or intentionally bounded
+
+| Area | Boundary |
+|---|---|
+| Symbolic work | `{# ... }` symbolic specifications, polynomial conversion, and derivatives of supported specs work; the full calculus notation and general symbolic engine are not complete. |
+| Mathematical systems | `{$ ... }` evaluates with block-like semantics. It is not yet a general equation/constraint solver. |
+| Real approximation | the default runtime is exact-first. The repository includes a float package example, but a unified real/oracle layer is not part of the default surface. |
+| Browser use | the parser demo runs in the browser. Full evaluator imports currently include Node file APIs, so evaluator embedding needs a host adapter for browser-only use. |
+| Packaging | the package uses `@ratmath/core` through the parent Bun workspace and has not yet declared a stable standalone release workflow. |
+
+## Documentation authority
+
+When pages disagree, use this order:
+
+1. tests and current implementation;
+2. the generated [runtime catalog](reference/system-reference.md);
+3. current user guides under `eval/`, `tutorial/`, and the complete introduction;
+4. parser and runtime design records;
+5. historical reports, early phase documents, scratch notes, and generated legacy HTML.
+
+The build regenerates the runtime catalog from the implementation, which makes missing or renamed system capabilities visible in every documentation change.
+

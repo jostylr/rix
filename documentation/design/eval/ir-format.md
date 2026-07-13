@@ -1,5 +1,13 @@
 # RiX IR Format Reference
 
+::: {.callout-warning title="IR design snapshot"}
+This hand-written catalog captures the core IR model and useful source-to-IR
+mappings, but it is not exhaustive and some assignment/function rows reflect
+earlier language phases. For the complete current registry, including lazy,
+pure, and multifunction dispatch flags, use the generated
+[internal IR registry](../../reference/system-reference.md#internal-ir-registry).
+:::
+
 The Intermediate Representation (IR) is the output of the lowering pass. Every IR node is a system function call:
 
 ```javascript

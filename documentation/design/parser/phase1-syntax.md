@@ -1,5 +1,11 @@
 # RiX Phase 1 Syntax Reference
 
+> **Historical document.** This page records an early merger phase and is not
+> the current language contract. In particular, `=` now aliases/rebinds while
+> `:=` creates a fresh shallow copy; lowercase callable behavior and several
+> AST names have also evolved. Use the current
+> [syntax guide](../../eval/syntax-guide.md) for implemented behavior.
+
 This document describes the syntax changes implemented in Phase 1 of the RiX/Calc merger.
 
 ---

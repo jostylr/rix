@@ -1,10 +1,12 @@
-Below is a one-page mini-spec for the RiX assignment system based on our discussion. It is written so it can serve as both a design reference and an implementation guide.
+# RiX Assignment and Cell Semantics
+
+This mini-spec is a design reference for the assignment system. The current
+[syntax guide](../../eval/syntax-guide.md#assignment--definition) is the
+canonical user-facing operator reference.
 
 ⸻
 
-RiX Assignment and Cell Semantics (Mini-Spec)
-
-Overview
+## Overview
 
 In RiX, variables refer to cells, not directly to values.
 
@@ -717,5 +719,4 @@ meta propagation rules	5–10
 sticky meta behavior	8–9,16–17
 ephemeral lifecycle	6–7,18
 undefined lhs semantics	11
-
 

@@ -9,7 +9,9 @@ RiX is the Rational Interval Expression Language: a mathematical language with e
 - `src/runtime/`: contexts, values, types, tensors, diagnostics, and runtime configuration.
 - `bin/`: the `rix` REPL/runner and `rix-to-ir` utility.
 - `tests/`: parser, evaluator, and command-line tests.
-- `docs/` and `examples/`: language documentation, design records, and runnable examples.
+- `documentation/`: authored Quarto documentation, language guides, references, and design records.
+- `docs/`: generated GitHub Pages site; do not edit it by hand.
+- `examples/`: runnable RiX and JavaScript examples.
 
 ## Local development
 
@@ -29,3 +31,13 @@ import { parse, tokenize, lower, evaluate, parseAndEvaluate } from "rix";
 ```
 
 Use `rix/parser`, `rix/eval`, and `rix/runtime` for narrower entry points. The command-line tools are available as `rix` and `rix-to-ir` after installation.
+
+## Documentation
+
+With Quarto installed, build the documentation site into `docs/`:
+
+```sh
+bun run build:docs
+```
+
+Use `bun run preview:docs` for a local authoring server. The source-derived runtime catalog is regenerated as part of both commands.

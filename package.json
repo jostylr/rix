@@ -18,9 +18,12 @@
     "test:parser": "bun test tests/parser",
     "test:eval": "bun test tests/eval",
     "test:tools": "bun test tests/tools",
-    "build:demo": "bun build ./docs/parser/src/demo.js --outfile ./docs/parser/demo.js --target browser",
-    "build:docs": "node ./docs/parser/build-docs.js",
-    "build:all": "bun run build:demo && bun run build:docs"
+    "build:demo": "bun build ./documentation/parser/src/demo.js --outfile ./documentation/parser/demo.js --target browser",
+    "docs:reference": "bun ./documentation/scripts/generate-reference.js",
+    "docs:check": "bun run docs:reference && bun ./documentation/scripts/run-quarto.js render",
+    "build:docs": "bun run build:demo && bun run docs:reference && bun ./documentation/scripts/run-quarto.js render",
+    "preview:docs": "bun run build:demo && bun run docs:reference && bun ./documentation/scripts/run-quarto.js preview",
+    "build:all": "bun run build:docs"
   },
   "dependencies": {
     "@ratmath/core": "workspace:*"

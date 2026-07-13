@@ -1,6 +1,14 @@
 # Open Language Design Areas and Checklist
 
-This checklist identifies further topics for your mathematical language specification. Use it as a reference for discussion, decision-making, or as a living document to guide future development.
+::: {.callout-note title="Design backlog, not a feature checklist"}
+This early checklist preserves open questions that shaped RiX. Many individual
+items now have implemented answers in the evaluator and current guides; an
+unchecked box does not mean the feature is absent. Use it to identify areas
+that may deserve a fresh design record, and use the
+[implementation status](../../status.qmd) for current capability claims.
+:::
+
+This checklist identifies further topics for the mathematical language specification.
 
 ---
 

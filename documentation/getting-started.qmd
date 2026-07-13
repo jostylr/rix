@@ -1,0 +1,119 @@
+---
+title: "Getting started"
+description: "Install RiX in the RatMath workspace, run the REPL, execute scripts, and embed the evaluator."
+---
+
+RiX currently lives in the RatMath workspace and uses Bun. The package is an active alpha and is not yet presented as a stable registry release; the workspace is the supported way to run it today.
+
+## Requirements
+
+- [Bun](https://bun.sh/) 1.2 or newer
+- Git
+- Quarto 1.6 or newer only if you want to build this documentation site
+
+## Clone and test
+
+```sh
+git clone https://github.com/jostylr/ratmath.git
+cd ratmath
+bun install
+bun --cwd rix test
+```
+
+The RiX test suite exercises tokenizer, parser, lowering, evaluator, runtime, CLI, examples, exact values, types, methods, tensors, generators, and diagnostics.
+
+## Open the REPL
+
+From the RatMath repository root:
+
+```sh
+bun run rix
+```
+
+```text
+rix> 1/3 + 1/6
+1/2
+rix> Sq(x) -> x^2
+<function Sq(x) ...>
+rix> Sq(12)
+144
+```
+
+Useful REPL commands include `.help`, `.vars`, `.fns`, `.ast[expr]`, `.tokens[expr]`, `.load[pkg]`, `.reset`, and `.exit`. End a line with `\` for multiline input.
+
+## Run a file
+
+```sh
+bun run rix ./rix/examples/eval/units-and-exact.rix
+```
+
+Or, from inside `rix/`:
+
+```sh
+bun bin/rix.js examples/eval/cayley-polar.rix
+```
+
+Native RiX test files use the `.test.rix` suffix:
+
+```sh
+bun bin/rix.js test
+bun bin/rix.js test diagnostics
+```
+
+## Inspect the intermediate representation
+
+```sh
+bun run rix-to-ir --pretty ./rix/examples/eval/factorial.rix
+```
+
+The `rix-to-ir` command exposes the call-shaped IR used by the evaluator. Add `--lang` to prefix generated system calls with `@_`.
+
+## Embed RiX in JavaScript
+
+```js
+import {
+  Context,
+  createDefaultRegistry,
+  createDefaultSystemContext,
+  parseAndEvaluate,
+} from "rix";
+
+const context = new Context();
+const registry = createDefaultRegistry();
+const systemContext = createDefaultSystemContext();
+
+const result = parseAndEvaluate("x := 7; x^2 + 1", {
+  context,
+  registry,
+  systemContext,
+});
+```
+
+The public package also exports narrower entry points from `rix/parser`, `rix/eval`, and `rix/runtime`. See the [developer guide](developer-guide.qmd) for the pipeline and extension boundaries.
+
+## Build this documentation
+
+Install [Quarto](https://quarto.org/docs/get-started/) and run:
+
+```sh
+cd rix
+bun run build:docs
+```
+
+The build refreshes source-derived runtime reference tables, bundles the browser parser demo, validates the documentation inputs, and renders the site into `rix/docs/`. That output directory is suitable for GitHub Pages with **Deploy from a branch**, using the `main` branch and `/docs` folder.
+
+For local authoring:
+
+```sh
+bun run preview:docs
+```
+
+Do not hand-edit `rix/docs/`; edit files in `rix/documentation/` and rebuild.
+
+## Where next?
+
+- [Language at a glance](language-at-a-glance.qmd) for the ten-minute tour
+- [Complete introduction](introduction.md) for a progressive, in-depth guide
+- [Syntax and system function reference](eval/syntax-guide.md) for exact forms
+- [Implementation status](status.qmd) before relying on an advanced feature
+

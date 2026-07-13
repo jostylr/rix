@@ -1,0 +1,1483 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.38">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>rix-rationales – RiX</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/quarto-nav/headroom.min.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<link href="./design/parser/spec.html" rel="next">
+<link href="./design/eval/cayley-polar.html" rel="prev">
+<link href="./rix-logo.png" rel="icon" type="image/png">
+<script src="site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-4a0610749eeff5ab924a4729b5181608.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-dark-de927ec96a2411cf822331f71755f83e.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-4a0610749eeff5ab924a4729b5181608.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap-f3edcacc9eded719789e0469c6b6eab5.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-dark-c53da4be0d013bdcf7fcfccaa2827e71.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="site_libs/bootstrap/bootstrap-f3edcacc9eded719789e0469c6b6eab5.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+
+
+</head>
+
+<body class="nav-sidebar docked nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const darkModeDefault = authorPrefersDark;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a href="./index.html" class="navbar-brand navbar-brand-logo">
+    <img src="./rix-logo.png" alt="" class="navbar-logo light-content">
+    <img src="./rix-logo.png" alt="" class="navbar-logo dark-content">
+    </a>
+    <a class="navbar-brand" href="./index.html">
+    <span class="navbar-title">RiX</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link active" href="./getting-started.html" aria-current="page"> 
+<span class="menu-text">Start</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./language-at-a-glance.html"> 
+<span class="menu-text">Learn</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./eval/syntax-guide.html"> 
+<span class="menu-text">Reference</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./developer-guide.html"> 
+<span class="menu-text">Internals</span></a>
+  </li>  
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/jostylr/rix"> <i class="bi bi-github" role="img" aria-label="RiX on GitHub">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./rix-rationales.html">Design and history</a></li><li class="breadcrumb-item"><a href="./rix-rationales.html">Design rationales</a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation docked overflow-auto">
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Overview</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="false">
+ <span class="menu-text">Start here</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./getting-started.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Getting started</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./language-at-a-glance.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">RiX at a glance</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./highlights.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">RiX Highlights</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./status.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Implementation status</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="false">
+ <span class="menu-text">Learn RiX</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./introduction.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Complete introduction</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./tutorial/units-and-exact-values.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Units and exact values</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="false">
+ <span class="menu-text">Language reference</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./eval/syntax-guide.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Syntax and functions</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./eval/methods-guide.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Methods</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./eval/types-and-traits-guide.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Types and traits</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/system-reference.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Generated runtime catalog</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="false">
+ <span class="menu-text">Developer guide</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./developer-guide.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Developer guide</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./eval/README.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Evaluator overview</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./parser/architecture.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Parser architecture</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./parser/parsing.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Parsing and precedence</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./parser/AST-brief.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">AST reference</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./design/eval/ir-format.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">IR design snapshot</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./parser/array-generators-implementation.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Array generators</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./parser/embedded-parsing.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Embedded parsing</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./parser/matrix-tensor-implementation.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Matrices and tensors</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="false">
+ <span class="menu-text">Runtime design</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./design/eval/cells-assignments.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Cells and assignment</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./design/eval/units-and-exact-generators.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Units and exact generators</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./design/eval/cayley-polar.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Cayley polar complex values</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true">
+ <span class="menu-text">Design and history</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./rix-rationales.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text">Design rationales</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./design/parser/spec.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Early language specification</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./design/parser/questions.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Open design areas</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./report-2026-04-02.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">April 2026 review (historical)</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#rix-rationales" id="toc-rix-rationales" class="nav-link active" data-scroll-target="#rix-rationales">RiX Rationales</a>
+  <ul class="collapse">
+  <li><a href="#multifunctions-2026-04-01" id="toc-multifunctions-2026-04-01" class="nav-link" data-scroll-target="#multifunctions-2026-04-01">Multifunctions (2026-04-01)</a></li>
+  <li><a href="#function-prep-phase-----2026-04-01" id="toc-function-prep-phase-----2026-04-01" class="nav-link" data-scroll-target="#function-prep-phase-----2026-04-01">Function Prep Phase (<code>?-</code> / <code>?!-</code>) (2026-04-01)</a></li>
+  <li><a href="#prepared-trial-expressions-and-case-arms-2026-07-12" id="toc-prepared-trial-expressions-and-case-arms-2026-07-12" class="nav-link" data-scroll-target="#prepared-trial-expressions-and-case-arms-2026-07-12">Prepared Trial Expressions and Case Arms (2026-07-12)</a></li>
+  <li><a href="#semantic-inquiry-and-explicit-conversion-operators-2026-03-30" id="toc-semantic-inquiry-and-explicit-conversion-operators-2026-03-30" class="nav-link" data-scroll-target="#semantic-inquiry-and-explicit-conversion-operators-2026-03-30">Semantic Inquiry and Explicit Conversion Operators (2026-03-30)</a></li>
+  <li><a href="#sticky-semantic-metadata-vs-ephemeral-runtime-facts-2026-03-29" id="toc-sticky-semantic-metadata-vs-ephemeral-runtime-facts-2026-03-29" class="nav-link" data-scroll-target="#sticky-semantic-metadata-vs-ephemeral-runtime-facts-2026-03-29">Sticky Semantic Metadata vs Ephemeral Runtime Facts (2026-03-29)</a></li>
+  <li><a href="#destructuring-reuses-ordinary-assignment-semantics-2026-03-30" id="toc-destructuring-reuses-ordinary-assignment-semantics-2026-03-30" class="nav-link" data-scroll-target="#destructuring-reuses-ordinary-assignment-semantics-2026-03-30">Destructuring Reuses Ordinary Assignment Semantics (2026-03-30)</a></li>
+  <li><a href="#indexed-destructuring-reuses-ordinary-indexing-2026-03-30" id="toc-indexed-destructuring-reuses-ordinary-indexing-2026-03-30" class="nav-link" data-scroll-target="#indexed-destructuring-reuses-ordinary-indexing-2026-03-30">Indexed Destructuring Reuses Ordinary Indexing (2026-03-30)</a></li>
+  <li><a href="#constructor-capture-uses-assignment-semantics-2026-03-29" id="toc-constructor-capture-uses-assignment-semantics-2026-03-29" class="nav-link" data-scroll-target="#constructor-capture-uses-assignment-semantics-2026-03-29">Constructor Capture Uses Assignment Semantics (2026-03-29)</a></li>
+  <li><a href="#combo-assignment-expansion" id="toc-combo-assignment-expansion" class="nav-link" data-scroll-target="#combo-assignment-expansion">Combo Assignment Expansion</a>
+  <ul class="collapse">
+  <li><a href="#why-these-operators" id="toc-why-these-operators" class="nav-link" data-scroll-target="#why-these-operators">Why these operators</a></li>
+  <li><a href="#cell-semantics" id="toc-cell-semantics" class="nav-link" data-scroll-target="#cell-semantics">Cell semantics</a></li>
+  <li><a href="#documentation-consistency" id="toc-documentation-consistency" class="nav-link" data-scroll-target="#documentation-consistency">Documentation consistency</a></li>
+  </ul></li>
+  <li><a href="#comparison-operators-and-identity-2026-03-28" id="toc-comparison-operators-and-identity-2026-03-28" class="nav-link" data-scroll-target="#comparison-operators-and-identity-2026-03-28">Comparison Operators and Identity (2026-03-28)</a>
+  <ul class="collapse">
+  <li><a href="#removing-comparison-aliases" id="toc-removing-comparison-aliases" class="nav-link" data-scroll-target="#removing-comparison-aliases">Removing <code>?=</code>, <code>?&lt;</code>, <code>?&gt;</code>, <code>?&lt;=</code>, <code>?&gt;=</code> comparison aliases</a></li>
+  <li><a href="#adding-for-cell-identity" id="toc-adding-for-cell-identity" class="nav-link" data-scroll-target="#adding-for-cell-identity">Adding <code>===</code> for cell identity</a></li>
+  </ul></li>
+  <li><a href="#hole-defaults-in-parameter-position-2026-03-28" id="toc-hole-defaults-in-parameter-position-2026-03-28" class="nav-link" data-scroll-target="#hole-defaults-in-parameter-position-2026-03-28">Hole Defaults: <code>?=</code> in Parameter Position (2026-03-28)</a>
+  <ul class="collapse">
+  <li><a href="#why-instead-of" id="toc-why-instead-of" class="nav-link" data-scroll-target="#why-instead-of">Why <code>?=</code> instead of <code>?|</code></a></li>
+  <li><a href="#trigger-semantics" id="toc-trigger-semantics" class="nav-link" data-scroll-target="#trigger-semantics">Trigger semantics</a></li>
+  <li><a href="#remains-fresh-copy-assignment" id="toc-remains-fresh-copy-assignment" class="nav-link" data-scroll-target="#remains-fresh-copy-assignment"><code>:=</code> Remains Fresh-Copy Assignment</a></li>
+  </ul></li>
+  <li><a href="#receiver-first-methods" id="toc-receiver-first-methods" class="nav-link" data-scroll-target="#receiver-first-methods">Receiver-First Methods</a>
+  <ul class="collapse">
+  <li><a href="#why-method-syntax-exists-at-all" id="toc-why-method-syntax-exists-at-all" class="nav-link" data-scroll-target="#why-method-syntax-exists-at-all">Why method syntax exists at all</a></li>
+  <li><a href="#why-marks-mutation" id="toc-why-marks-mutation" class="nav-link" data-scroll-target="#why-marks-mutation">Why <code>!</code> marks mutation</a></li>
+  <li><a href="#why-method-lookup-is-constrained" id="toc-why-method-lookup-is-constrained" class="nav-link" data-scroll-target="#why-method-lookup-is-constrained">Why method lookup is constrained</a></li>
+  </ul></li>
+  <li><a href="#diagnostics-as-structured-maps-2026-03-28" id="toc-diagnostics-as-structured-maps-2026-03-28" class="nav-link" data-scroll-target="#diagnostics-as-structured-maps-2026-03-28">Diagnostics as Structured Maps (2026-03-28)</a>
+  <ul class="collapse">
+  <li><a href="#why-diagnostics-are-structured-maps-rather-than-plain-strings" id="toc-why-diagnostics-are-structured-maps-rather-than-plain-strings" class="nav-link" data-scroll-target="#why-diagnostics-are-structured-maps-rather-than-plain-strings">Why diagnostics are structured maps rather than plain strings</a></li>
+  <li><a href="#why-null-is-the-passfail-discriminator-for-tests" id="toc-why-null-is-the-passfail-discriminator-for-tests" class="nav-link" data-scroll-target="#why-null-is-the-passfail-discriminator-for-tests">Why null is the pass/fail discriminator for tests</a></li>
+  <li><a href="#why-array-.test-mode-shares-state-while-map-.test-mode-reruns-setup" id="toc-why-array-.test-mode-shares-state-while-map-.test-mode-reruns-setup" class="nav-link" data-scroll-target="#why-array-.test-mode-shares-state-while-map-.test-mode-reruns-setup">Why array <code>.Test</code> mode shares state while map <code>.Test</code> mode reruns setup</a></li>
+  <li><a href="#why-.debug-is-ast-aware-rather-than-just-value-logging" id="toc-why-.debug-is-ast-aware-rather-than-just-value-logging" class="nav-link" data-scroll-target="#why-.debug-is-ast-aware-rather-than-just-value-logging">Why <code>.Debug</code> is AST-aware rather than just value logging</a></li>
+  <li><a href="#why-.trace-is-thunkcallable-based" id="toc-why-.trace-is-thunkcallable-based" class="nav-link" data-scroll-target="#why-.trace-is-thunkcallable-based">Why <code>.Trace</code> is thunk/callable-based</a></li>
+  </ul></li>
+  <li><a href="#code-blocks-share-scope-in-construct-positions-2026-03-28" id="toc-code-blocks-share-scope-in-construct-positions-2026-03-28" class="nav-link" data-scroll-target="#code-blocks-share-scope-in-construct-positions-2026-03-28">Code Blocks Share Scope in Construct Positions (2026-03-28)</a>
+  <ul class="collapse">
+  <li><a href="#the-problem-double-scoping" id="toc-the-problem-double-scoping" class="nav-link" data-scroll-target="#the-problem-double-scoping">The problem: double scoping</a></li>
+  <li><a href="#the-principle-blocks-in-lazy-construct-positions-are-grouping-not-isolation" id="toc-the-principle-blocks-in-lazy-construct-positions-are-grouping-not-isolation" class="nav-link" data-scroll-target="#the-principle-blocks-in-lazy-construct-positions-are-grouping-not-isolation">The principle: blocks in lazy construct positions are grouping, not isolation</a></li>
+  <li><a href="#nested-isolation-via-double-braces" id="toc-nested-isolation-via-double-braces" class="nav-link" data-scroll-target="#nested-isolation-via-double-braces">Nested isolation via double braces</a></li>
+  <li><a href="#implementation" id="toc-implementation" class="nav-link" data-scroll-target="#implementation">Implementation</a></li>
+  </ul></li>
+  <li><a href="#why-.testerror-and-.teststop-are-separate-from-.test-2026-03-28" id="toc-why-.testerror-and-.teststop-are-separate-from-.test-2026-03-28" class="nav-link" data-scroll-target="#why-.testerror-and-.teststop-are-separate-from-.test-2026-03-28">Why .TestError and .TestStop Are Separate from .Test (2026-03-28)</a>
+  <ul class="collapse">
+  <li><a href="#why-not-add-abort-testing-as-an-option-on-.test" id="toc-why-not-add-abort-testing-as-an-option-on-.test" class="nav-link" data-scroll-target="#why-not-add-abort-testing-as-an-option-on-.test">Why not add abort-testing as an option on .Test(…)</a></li>
+  <li><a href="#why-setup-aborting-always-fails-the-test" id="toc-why-setup-aborting-always-fails-the-test" class="nav-link" data-scroll-target="#why-setup-aborting-always-fails-the-test">Why setup aborting always fails the test</a></li>
+  <li><a href="#why-.testerror-includes-both-explicit-.error-and-runtime-errors" id="toc-why-.testerror-includes-both-explicit-.error-and-runtime-errors" class="nav-link" data-scroll-target="#why-.testerror-includes-both-explicit-.error-and-runtime-errors">Why .TestError includes both explicit .Error(…) and runtime errors</a></li>
+  <li><a href="#why-.teststop-is-kept-separate-from-.testerror" id="toc-why-.teststop-is-kept-separate-from-.testerror" class="nav-link" data-scroll-target="#why-.teststop-is-kept-separate-from-.testerror">Why .TestStop is kept separate from .TestError</a></li>
+  </ul></li>
+  <li><a href="#dynamic-evaluation-and-scope-sharing-2026-03-29" id="toc-dynamic-evaluation-and-scope-sharing-2026-03-29" class="nav-link" data-scroll-target="#dynamic-evaluation-and-scope-sharing-2026-03-29">Dynamic Evaluation and Scope Sharing (2026-03-29)</a>
+  <ul class="collapse">
+  <li><a href="#the-logic-behind-caller-scope-execution" id="toc-the-logic-behind-caller-scope-execution" class="nav-link" data-scroll-target="#the-logic-behind-caller-scope-execution">The logic behind <code>@@</code> caller-scope execution</a></li>
+  <li><a href="#using-withsharedbody-as-the-unwrap-mechanism" id="toc-using-withsharedbody-as-the-unwrap-mechanism" class="nav-link" data-scroll-target="#using-withsharedbody-as-the-unwrap-mechanism">Using <code>withSharedBody</code> as the unwrap mechanism</a></li>
+  </ul></li>
+  <li><a href="#types-and-traits-as-protocol-bundles-2026-04-25" id="toc-types-and-traits-as-protocol-bundles-2026-04-25" class="nav-link" data-scroll-target="#types-and-traits-as-protocol-bundles-2026-04-25">Types and Traits as Protocol Bundles (2026-04-25)</a></li>
+  </ul></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/rix-rationales.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./rix-rationales.html">Design and history</a></li><li class="breadcrumb-item"><a href="./rix-rationales.html">Design rationales</a></li></ol></nav></header>
+
+
+
+
+
+<section id="rix-rationales" class="level1">
+<h1>RiX Rationales</h1>
+<p>This document is a growing design-rationale log for RiX. It records why particular language choices were made so future extensions can follow the same model instead of re-deciding the same questions ad hoc.</p>
+<section id="multifunctions-2026-04-01" class="level2">
+<h2 class="anchored" data-anchor-id="multifunctions-2026-04-01">Multifunctions (2026-04-01)</h2>
+<p>RiX multifunctions are ordered arrays of callable variants with dispatch driven by prep success.</p>
+<pre class="rix"><code>F = [
+  (x) ?- [x &gt; 0] /Positive/ -&gt; x,
+  (x) /Fallback/ -&gt; -x
+]</code></pre>
+<p>This design deliberately avoids a hidden pattern-matching engine. Multifunctions provide a lightweight, ordered dispatch mechanism based on prep success. Unlike traditional pattern matching systems, RiX uses explicit prep logic and deterministic ordering rather than implicit matching rules. This keeps dispatch simple, predictable, and fully programmable, while still enabling expressive multi-variant behavior.</p>
+<p>The key semantic choice is that prep decides selection, not body output:</p>
+<ol type="1">
+<li>bind parameters</li>
+<li>run prep</li>
+<li>on prep success, commit to that variant</li>
+<li>run the body and return its value as final</li>
+</ol>
+<p>That means <code>_</code> from the body does not fall through. Fallthrough is only a prep-level concept.</p>
+<p>The array representation matters too. Keeping multifunctions as ordinary arrays preserves explicit ordering and lets users reorder variants with normal array operations. RiX adds just enough structure on top of that array:</p>
+<ul>
+<li><code>._type = :multifunction</code> marks the array callable</li>
+<li><code>variant.__name</code> stores optional names</li>
+<li>direct dispatch uses ordinary key-style indexing (<code>F[:Name](...)</code>)</li>
+<li><code>$</code> and <code>$$</code> expose the current variant and parent multifunction explicitly</li>
+</ul>
+<p>The <code>{&gt; ... }</code> sigil is the explicit multifunction literal. It closes the anonymous/inline gap left by uppercase-assignment auto-marking. Its entries may be ordinary functions, selected named variants, or whole multifunctions; nested multifunctions flatten recursively in source order. This keeps inline pipe dispatch on the same runtime representation and invocation path as named multifunctions.</p>
+<p>The no-prep warning follows from the same philosophy. A prep-less variant in the middle of the list is not forbidden, but it is almost certainly a mistake because later variants become unreachable if execution reaches it. Warning instead of rejection keeps the model flexible while still surfacing a strong signal.</p>
+</section>
+<section id="function-prep-phase-----2026-04-01" class="level2">
+<h2 class="anchored" data-anchor-id="function-prep-phase-----2026-04-01">Function Prep Phase (<code>?-</code> / <code>?!-</code>) (2026-04-01)</h2>
+<p>RiX functions now support an explicit prep stage:</p>
+<pre class="rix"><code>(x, y) ?- [ ... ] -&gt; body
+F(x, y) ?!- [ ... ] -&gt; body</code></pre>
+<p>This makes a function call a three-stage process:</p>
+<ol type="1">
+<li>parameter binding</li>
+<li>prep execution</li>
+<li>body execution</li>
+</ol>
+<p>The prep phase exists to centralize work that logically belongs between binding and the real body:</p>
+<ul>
+<li>validation</li>
+<li>conversion</li>
+<li>destructuring</li>
+<li>local setup bindings</li>
+</ul>
+<p>The soft form <code>?-</code> matches RiX’s null-propagation style: if a prep entry returns <code>_</code> or throws, the function call returns <code>_</code>.</p>
+<p>The strict form <code>?!-</code> keeps the same prep structure but throws instead of collapsing failure to <code>_</code>.</p>
+<p>Prep is intentionally permissive for now. RiX does not yet try to prove purity, block mutation, or separate benign internal state changes from externally visible mutation. The design intent is still “setup before body”, but enforcement is deferred until the runtime has a sharper mutation model.</p>
+</section>
+<section id="prepared-trial-expressions-and-case-arms-2026-07-12" class="level2">
+<h2 class="anchored" data-anchor-id="prepared-trial-expressions-and-case-arms-2026-07-12">Prepared Trial Expressions and Case Arms (2026-07-12)</h2>
+<p>Prep is useful outside a callable when a computed value must be validated or destructured before it is accepted. RiX therefore supports prepared trials:</p>
+<pre class="rix"><code>candidate ?- pattern: [prep]
+candidate ?!- pattern: [prep]</code></pre>
+<p>The candidate is evaluated once. Its pattern and prep run in a temporary scope, and success returns the original candidate. Soft failure returns <code>_</code>; strict failure throws. Chained gates retain their order, with the first gate governing candidate-evaluation errors and each later gate governing its own destructuring and prep failures.</p>
+<p>The same expression becomes an ordered trial arm inside <code>{? ... }</code>. A soft failure advances, a strict failure throws, and success selects the candidate. This is explicit prep-driven selection rather than a hidden pattern matcher: structural behavior comes from the existing destructuring system and all other selection logic remains ordinary RiX code.</p>
+<p>Case evaluation preserves an internal no-match status distinct from <code>_</code>. That distinction matters because a candidate may successfully be <code>_</code>; an accepted null is final, while a failed soft gate advances. Outside <code>{?}</code>, the internal failure status is exposed as the ordinary <code>_</code> result.</p>
+<p>Prepared trials are expression-level rather than assignment-specific. Ordinary assignment therefore composes without a mirrored left-hand syntax: soft failure assigns <code>_</code>, while strict failure throws before the assignment commits.</p>
+</section>
+<section id="semantic-inquiry-and-explicit-conversion-operators-2026-03-30" class="level2">
+<h2 class="anchored" data-anchor-id="semantic-inquiry-and-explicit-conversion-operators-2026-03-30">Semantic Inquiry and Explicit Conversion Operators (2026-03-30)</h2>
+<p>RiX needs a lightweight semantic inquiry form and both soft and strict explicit conversion forms.</p>
+<p>Semantic membership should consult both runtime and semantic layers:</p>
+<ul>
+<li>ephemeral <code>._type</code></li>
+<li>sticky <code>.__type</code></li>
+<li>sticky <code>.__traits</code></li>
+</ul>
+<p>That makes semantic inquiry reflect the actual metadata model already present in RiX instead of inventing a separate hidden classification system. There is intentionally no trait inheritance or group expansion in this first version. If a value should count as belonging to a semantic category such as <code>:rational</code>, that fact should already be recorded by construction or conversion.</p>
+<p>Soft conversion fits RiX’s null-propagation style:</p>
+<pre class="rix"><code>x ~: :rational</code></pre>
+<p>It returns the converted value on success and <code>_</code> on failure, with optional warnings controlled by runtime configuration.</p>
+<p>Strict conversion remains available for contexts that should abort immediately:</p>
+<pre class="rix"><code>x ~!: :rational</code></pre>
+<p>It uses the same conversion machinery but throws instead of returning <code>_</code>.</p>
+<p>Both conversion operators deliberately reuse the same type-conversion/canonicalization path as header-based semantic outfitting:</p>
+<pre class="rix"><code>{^ /::rational/ x}</code></pre>
+<p>That keeps copy behavior, metadata propagation, and semantic canonicalization on one system rather than creating separate expression-level and header-level conversion models.</p>
+</section>
+<section id="sticky-semantic-metadata-vs-ephemeral-runtime-facts-2026-03-29" class="level2">
+<h2 class="anchored" data-anchor-id="sticky-semantic-metadata-vs-ephemeral-runtime-facts-2026-03-29">Sticky Semantic Metadata vs Ephemeral Runtime Facts (2026-03-29)</h2>
+<p>RiX distinguishes between runtime facts and semantic interpretation. Runtime/fundamental type and builtin proto are ephemeral and track the current concrete value. Decorated semantic type, traits, name, and semantic proto are sticky and survive updates unless explicitly replaced.</p>
+<p>That split is now represented directly in metadata:</p>
+<ul>
+<li>ephemeral runtime facts: <code>._type</code>, <code>._proto</code></li>
+<li>sticky semantic interpretation: <code>.__name</code>, <code>.__type</code>, <code>.__traits</code>, <code>.__proto</code></li>
+</ul>
+<p>On value replacement, sticky semantic type is reapplied to the new raw value so the cell remains in the same semantic regime. Traits primarily augment and optionally verify; they do not transform values in this version.</p>
+<p>Semantic proto is layered into type and traits so semantic behavior can override builtin behavior while remaining inspectable and partially rebuildable:</p>
+<ol type="1">
+<li>trait layer</li>
+<li>type layer</li>
+<li>builtin/runtime <code>_proto</code></li>
+</ol>
+<p>This gives RiX a coherent model for “what this value currently is” versus “what this cell means”, while keeping update semantics predictable for aliasing, replacement, and inspection.</p>
+</section>
+<section id="destructuring-reuses-ordinary-assignment-semantics-2026-03-30" class="level2">
+<h2 class="anchored" data-anchor-id="destructuring-reuses-ordinary-assignment-semantics-2026-03-30">Destructuring Reuses Ordinary Assignment Semantics (2026-03-30)</h2>
+<p>Destructuring in RiX should not be a separate assignment world. It reads the actual stored entry reality from a structured value and then binds outward using ordinary assignment semantics.</p>
+<p>That choice keeps destructuring aligned with RiX’s cell/value/meta model:</p>
+<ul>
+<li><code>=</code> still means alias/rebind semantics</li>
+<li><code>:=</code> still means fresh shallow copy</li>
+<li><code>~=</code> and <code>~~=</code> still mean update semantics, including sticky semantic reapplication</li>
+<li>per-entry overrides are just local uses of the same assignment modes</li>
+</ul>
+<p>This matters because RiX already has meaningful distinctions between aliasing, copying, updates, and sticky semantics. A destructuring feature that invented a parallel model would immediately become a source of contradictions.</p>
+<p>Map renaming is therefore explicit:</p>
+<pre class="rix"><code>{= b[:a] } = m</code></pre>
+<p>The source-key role and target-variable role are different jobs. <code>b[:a]</code> makes that visible, while also scaling cleanly to:</p>
+<ul>
+<li><code>a = pattern</code></li>
+<li><code>[:a] = pattern</code></li>
+<li><code>b[:a] = pattern</code></li>
+</ul>
+<p>That explicitness avoids ambiguous readings and leaves room for later variant-prep reuse without changing the mental model.</p>
+</section>
+<section id="indexed-destructuring-reuses-ordinary-indexing-2026-03-30" class="level2">
+<h2 class="anchored" data-anchor-id="indexed-destructuring-reuses-ordinary-indexing-2026-03-30">Indexed Destructuring Reuses Ordinary Indexing (2026-03-30)</h2>
+<p>RiX destructuring is evolving into a selector language as well as a structural pattern language.</p>
+<p>Indexed destructuring lets one source object provide multiple independently selected subobjects:</p>
+<pre class="rix"><code>{.. a[1:3], b[2:4], c[3] } = arr</code></pre>
+<p>The important design choice is that this does not invent a new extraction mechanism. It reuses ordinary indexing and slicing semantics:</p>
+<ul>
+<li>array selectors use ordinary array/sequence indexing rules</li>
+<li>tuple selectors use tuple indexing and tuple-preserving slices</li>
+<li>map selectors use ordinary key lookup syntax</li>
+<li>tensor selectors use ordinary tensor selector rules</li>
+</ul>
+<p>Each indexed entry extracts from the same original source object. There is no hidden source consumption or partitioning step. That means overlapping slices are allowed and unsurprising:</p>
+<pre class="rix"><code>{.. a[1:3], b[2:4], c[3], d[3] } = arr</code></pre>
+<p>This keeps destructuring aligned with the rest of the language and avoids a second, destructuring-only notion of “selection”.</p>
+</section>
+<section id="constructor-capture-uses-assignment-semantics-2026-03-29" class="level2">
+<h2 class="anchored" data-anchor-id="constructor-capture-uses-assignment-semantics-2026-03-29">Constructor Capture Uses Assignment Semantics (2026-03-29)</h2>
+<p>RiX is a cell-based language. Container construction therefore should not invent a separate “live value but not cell” capture model.</p>
+<p>The rule is now: inserting into a constructor uses the same conceptual modes as assignment:</p>
+<ul>
+<li><code>==</code> — alias capture</li>
+<li><code>:=</code> — fresh shallow copy</li>
+<li><code>~=</code> — fresh refreshing shallow copy</li>
+<li><code>::=</code> — fresh deep copy</li>
+<li><code>~~=</code> — fresh refreshing deep copy</li>
+</ul>
+<p>This applies uniformly to maps, arrays, tuples, sets, and tensors. Constructors may set a default capture mode in their header, and maps may override capture mode per entry.</p>
+<p>The important semantic choice is that constructor <code>~=</code> / <code>~~=</code> behave like assigning to an undefined target cell with <code>~=</code> / <code>~~=</code>. That means:</p>
+<ul>
+<li>the result is fresh storage, not a true alias</li>
+<li>ordinary identity-style meta is not copied like aliasing</li>
+<li>ephemeral (<code>_...</code>) and sticky (<code>__...</code>) meta follow the existing update-transfer rules</li>
+</ul>
+<p>The runtime default constructor mode is deep copy. That is the safest default because it avoids accidental sharing in newly-built collections while still letting users opt into aliasing or shallower capture explicitly.</p>
+<p>This design keeps identity, copying, mutation, and meta propagation on one model. A user who understands assignment semantics can reason about constructors without learning a second set of “container-only” exceptions.</p>
+</section>
+<section id="combo-assignment-expansion" class="level2">
+<h2 class="anchored" data-anchor-id="combo-assignment-expansion">Combo Assignment Expansion</h2>
+<section id="why-these-operators" class="level3">
+<h3 class="anchored" data-anchor-id="why-these-operators">Why these operators</h3>
+<p>Combo assignment works best for binary operators that users naturally think of as “update the current value by applying this operation”. That already fits arithmetic operators such as <code>+=</code> and <code>*=</code>, and it extends cleanly to ordered-collection concatenation (<code>++=</code>) and set-style algebra (<code>\/=</code>, <code>/\=</code>, <code>\=</code>).</p>
+<p>These are especially natural because their non-assignment forms are already read as transformations of an existing collection:</p>
+<ul>
+<li><code>xs ++ ys</code> means append or concatenate into a new ordered collection.</li>
+<li><code>a \/ b</code> means grow by union or hull.</li>
+<li><code>a /\ b</code> means narrow by intersection.</li>
+<li><code>a \ b</code> means remove by difference.</li>
+</ul>
+<p>Using the same operators in combo form makes scripts read like in-place refinement of an existing cell rather than rebinding to a different one.</p>
+<p><code>**=</code>, <code>/^=</code>, and <code>/~=</code> were included because the language already had meaningful binary forms for <code>**</code>, <code>/^</code>, and <code>/~</code>, so the combo-assignment pipeline could reuse them without creating a second semantic path.</p>
+</section>
+<section id="cell-semantics" class="level3">
+<h3 class="anchored" data-anchor-id="cell-semantics">Cell semantics</h3>
+<p>RiX variables name cells, not just values. Combo assignment therefore follows the established update rule:</p>
+<pre class="rix"><code>x op= y   =&gt;   x ~= x op y
+@x op= y  =&gt;   @x ~= @x op y</code></pre>
+<p>That choice keeps combo updates aligned with existing <code>~=</code> behavior:</p>
+<ul>
+<li>cell identity is preserved</li>
+<li>aliases keep tracking the same binding</li>
+<li>ordinary meta survives</li>
+<li>ephemeral meta is replaced from the computed rhs</li>
+<li><code>.lock</code>, <code>.frozen</code>, and <code>.immutable</code> protections behave exactly as they already do for <code>~=</code></li>
+</ul>
+<p>This is preferable to rebinding because collection-oriented combo operators are usually chosen precisely when the user wants to mutate the tracked value rather than swap in a different cell.</p>
+</section>
+<section id="documentation-consistency" class="level3">
+<h3 class="anchored" data-anchor-id="documentation-consistency">Documentation consistency</h3>
+<p>The documentation previously contained an inconsistency: most of the assignment model described combo operators as cell-preserving updates, but one note described them as if they lowered through plain <code>ASSIGN</code>.</p>
+<p>The intended model is the cell-preserving one. Combo assignments lower through <code>ASSIGN_UPDATE</code> or <code>OUTER_UPDATE</code>, not plain <code>ASSIGN</code>. This rationale entry records that correction so future docs and implementation changes stay aligned.</p>
+</section>
+</section>
+<section id="comparison-operators-and-identity-2026-03-28" class="level2">
+<h2 class="anchored" data-anchor-id="comparison-operators-and-identity-2026-03-28">Comparison Operators and Identity (2026-03-28)</h2>
+<section id="removing-comparison-aliases" class="level3">
+<h3 class="anchored" data-anchor-id="removing-comparison-aliases">Removing <code>?=</code>, <code>?&lt;</code>, <code>?&gt;</code>, <code>?&lt;=</code>, <code>?&gt;=</code> comparison aliases</h3>
+<p>RiX previously allowed <code>?=</code> as an alias for <code>==</code>, and <code>?&lt;</code>/<code>?&gt;</code>/<code>?&lt;=</code>/<code>?&gt;=</code> as aliases for the standard comparison operators. These have been removed:</p>
+<ol type="1">
+<li><strong>Redundancy.</strong> The standard operators <code>==</code>, <code>&lt;</code>, <code>&gt;</code>, <code>&lt;=</code>, <code>&gt;=</code> are well-understood and sufficient.</li>
+<li><strong>Freeing <code>?=</code> for parameter defaults.</strong> With <code>?=</code> no longer a comparison operator, it can serve a clearer role as the parameter-default syntax.</li>
+<li><strong>Cleaner operator surface.</strong> Fewer operators means less to learn and fewer ambiguities for readers.</li>
+</ol>
+</section>
+<section id="adding-for-cell-identity" class="level3">
+<h3 class="anchored" data-anchor-id="adding-for-cell-identity">Adding <code>===</code> for cell identity</h3>
+<p>RiX has a strong cell/value distinction: - <code>=</code> creates an alias (shared cell) - <code>:=</code> creates a fresh copy (independent cell) - <code>~=</code> mutates a cell in place</p>
+<p>Users need a way to test whether two names refer to the <strong>same cell</strong> vs.&nbsp;merely holding equal values. <code>===</code> fills this role:</p>
+<ul>
+<li><code>x == y</code> — value equality: do the cells hold equal values?</li>
+<li><code>x === y</code> — identity: are <code>x</code> and <code>y</code> the same cell?</li>
+</ul>
+<p>This maps naturally to common programming intuition where <code>===</code> means “strict/identity” equality. In RiX, identity means same-cell, which is the most meaningful strict comparison in a cell-based language.</p>
+<pre class="rix"><code>x := 5
+y = x       ## alias — same cell
+z := x      ## copy — different cell
+
+x === y     ## 1 (same cell)
+x === z     ## null (different cells)
+x == z      ## 1 (same value)</code></pre>
+</section>
+</section>
+<section id="hole-defaults-in-parameter-position-2026-03-28" class="level2">
+<h2 class="anchored" data-anchor-id="hole-defaults-in-parameter-position-2026-03-28">Hole Defaults: <code>?=</code> in Parameter Position (2026-03-28)</h2>
+<section id="why-instead-of" class="level3">
+<h3 class="anchored" data-anchor-id="why-instead-of">Why <code>?=</code> instead of <code>?|</code></h3>
+<p>Previously, parameter defaults used <code>?|</code> syntax: <code>(x ?| 2) -&gt; ...</code>. This has been changed to <code>?=</code>:</p>
+<ol type="1">
+<li><p><strong><code>?=</code> reads as “default assignment”</strong> — it visually suggests “assign this default when no argument is supplied.” The <code>=</code> component signals binding/assignment, and the <code>?</code> signals conditionality.</p></li>
+<li><p><strong><code>?|</code> remains expression-level only.</strong> <code>?|</code> is the hole-coalescing operator in expressions: <code>a ?| b</code> returns <code>a</code> if non-hole, else evaluates <code>b</code>. Keeping it purely as an expression operator avoids overloading its meaning.</p></li>
+<li><p><strong>Context-sensitive syntax.</strong> <code>?=</code> is only valid in parameter/binding positions. Using it as a general expression (e.g., <code>5 ?= 3</code>) throws an error.</p></li>
+</ol>
+</section>
+<section id="trigger-semantics" class="level3">
+<h3 class="anchored" data-anchor-id="trigger-semantics">Trigger semantics</h3>
+<p><code>?=</code> defaults trigger on: - <strong>Omitted argument</strong> — caller passes fewer args than parameters - <strong>Explicit hole</strong> — caller passes <code>,</code> (hole) in that position</p>
+<p><code>?=</code> defaults do <strong>not</strong> trigger on <code>null</code> (<code>_</code>), <code>0</code>, empty string, empty collections, or any other non-hole value.</p>
+</section>
+<section id="remains-fresh-copy-assignment" class="level3">
+<h3 class="anchored" data-anchor-id="remains-fresh-copy-assignment"><code>:=</code> Remains Fresh-Copy Assignment</h3>
+<p><code>:=</code> always creates a new cell with a shallow copy of the right-hand value. It is not used for defaults, conditions, or any other purpose:</p>
+<ul>
+<li><code>=</code> — alias/rebind</li>
+<li><code>:=</code> — fresh copy</li>
+<li><code>~=</code> — in-place update</li>
+<li><code>?=</code> — parameter default (binding context only)</li>
+<li><code>?|</code> — hole coalescing (expression context only)</li>
+</ul>
+</section>
+</section>
+<section id="receiver-first-methods" class="level2">
+<h2 class="anchored" data-anchor-id="receiver-first-methods">Receiver-First Methods</h2>
+<section id="why-method-syntax-exists-at-all" class="level3">
+<h3 class="anchored" data-anchor-id="why-method-syntax-exists-at-all">Why method syntax exists at all</h3>
+<p>RiX methods are not a class system. They are syntax sugar over callable values that already fit the language’s function-first runtime:</p>
+<pre class="rix"><code>obj.Method(a, b)
+obj.Method!(a, b)</code></pre>
+<p>The runtime resolves a callable, then invokes it as:</p>
+<pre class="rix"><code>fn(obj, a, b)</code></pre>
+<p>That keeps the dispatch model consistent with the rest of RiX while giving scripts a more readable receiver-first surface when operating on collections and structured values.</p>
+</section>
+<section id="why-marks-mutation" class="level3">
+<h3 class="anchored" data-anchor-id="why-marks-mutation">Why <code>!</code> marks mutation</h3>
+<p>Mutation should be visible at the call site. A trailing <code>!</code> makes that explicit without adding a separate method system or hidden mutability rules:</p>
+<ul>
+<li><code>Method</code> means “produce a new value”</li>
+<li><code>Method!</code> means “mutate the receiver”</li>
+</ul>
+<p>This avoids implicit side effects and lets readers distinguish copy-producing and in-place operations immediately.</p>
+</section>
+<section id="why-method-lookup-is-constrained" class="level3">
+<h3 class="anchored" data-anchor-id="why-method-lookup-is-constrained">Why method lookup is constrained</h3>
+<p>Method lookup only checks direct meta and a single <code>_proto</code> map. There is no prototype chaining in v1.</p>
+<p>That restriction is deliberate:</p>
+<ul>
+<li>lookup order stays predictable</li>
+<li>direct non-callable values block fallback cleanly</li>
+<li>property access and method calls remain distinct operations</li>
+</ul>
+<p>In particular, <code>obj.Method</code> is just meta-property access, while only <code>obj.Method(...)</code> triggers method resolution. That separation prevents a hidden second meaning for ordinary property reads.</p>
+</section>
+</section>
+<section id="diagnostics-as-structured-maps-2026-03-28" class="level2">
+<h2 class="anchored" data-anchor-id="diagnostics-as-structured-maps-2026-03-28">Diagnostics as Structured Maps (2026-03-28)</h2>
+<section id="why-diagnostics-are-structured-maps-rather-than-plain-strings" class="level3">
+<h3 class="anchored" data-anchor-id="why-diagnostics-are-structured-maps-rather-than-plain-strings">Why diagnostics are structured maps rather than plain strings</h3>
+<p>Every diagnostic event (<code>.Warn</code>, <code>.Info</code>, <code>.Error</code>, <code>.Stop</code>, <code>.Test</code>, <code>.Debug</code>, <code>.Trace</code>) produces a RiX map value with a uniform shape (<code>kind</code>, <code>label</code>, <code>file</code>, <code>time</code>, <code>data</code>). This choice serves several purposes:</p>
+<ol type="1">
+<li><strong>Machine-consumable.</strong> CLI tools, REPL extensions, and future editor integrations can query event fields structurally instead of parsing formatted output strings.</li>
+<li><strong>Composable.</strong> Because events are first-class RiX values, scripts can inspect, filter, and aggregate diagnostic results using the same pipe and collection operations used for any other data.</li>
+<li><strong>Extensible.</strong> Adding new fields (e.g., stack traces, severity levels) does not break existing consumers — they simply ignore unknown keys.</li>
+<li><strong>Consistent.</strong> A single event shape for all diagnostic kinds means one rendering pipeline handles everything.</li>
+</ol>
+</section>
+<section id="why-null-is-the-passfail-discriminator-for-tests" class="level3">
+<h3 class="anchored" data-anchor-id="why-null-is-the-passfail-discriminator-for-tests">Why null is the pass/fail discriminator for tests</h3>
+<p>RiX has exactly one falsy value: null (<code>_</code>). Every non-null value is truthy. Using null-as-failure for <code>.Test</code> aligns with this existing truthiness model:</p>
+<ul>
+<li>Any expression that evaluates to a non-null value passes.</li>
+<li>Null signals absence, failure, or “nothing here” — exactly the right semantics for a failed test.</li>
+<li>No need for a separate assertion library: <code>x == expected</code> returns non-null on match, null on mismatch.</li>
+</ul>
+</section>
+<section id="why-array-.test-mode-shares-state-while-map-.test-mode-reruns-setup" class="level3">
+<h3 class="anchored" data-anchor-id="why-array-.test-mode-shares-state-while-map-.test-mode-reruns-setup">Why array <code>.Test</code> mode shares state while map <code>.Test</code> mode reruns setup</h3>
+<p>The two modes serve fundamentally different testing patterns:</p>
+<p><strong>Sequential (array) mode</strong> models a scenario: “set up initial conditions, then walk through a series of dependent steps.” Each test may mutate shared state, and later tests verify the cumulative effect. Stopping on first failure is natural because subsequent steps depend on earlier ones.</p>
+<p><strong>Isolated (map) mode</strong> models independent properties: “given the same starting conditions, verify N separate facts.” Each test gets a fresh setup so one failure cannot contaminate others. All tests run because they are logically independent.</p>
+<p>This maps to common testing practice: integration/scenario tests are naturally sequential, while unit/property tests are naturally isolated.</p>
+</section>
+<section id="why-.debug-is-ast-aware-rather-than-just-value-logging" class="level3">
+<h3 class="anchored" data-anchor-id="why-.debug-is-ast-aware-rather-than-just-value-logging">Why <code>.Debug</code> is AST-aware rather than just value logging</h3>
+<p>A plain <code>print(expr)</code> loses the expression structure — you see the result but not what produced it. <code>.Debug</code> preserves access to the IR/AST tree before evaluation, so the debug output can show both the source-level expression and its evaluated result. This is especially valuable for:</p>
+<ul>
+<li>Debugging complex composed expressions where the final value is surprising</li>
+<li>Educational/REPL contexts where seeing the evaluation structure aids understanding</li>
+<li>Future step-through debugging where subexpression evaluation order matters</li>
+</ul>
+<p>Making <code>.Debug</code> lazy (receiving unevaluated IR nodes) is the cleanest way to achieve this within the existing interpreter architecture.</p>
+</section>
+<section id="why-.trace-is-thunkcallable-based" class="level3">
+<h3 class="anchored" data-anchor-id="why-.trace-is-thunkcallable-based">Why <code>.Trace</code> is thunk/callable-based</h3>
+<p><code>.Trace</code> wraps execution of a callable rather than instrumenting an entire scope or file. This design:</p>
+<ol type="1">
+<li><strong>Establishes trace context before execution.</strong> The trace environment is set up before the callable runs, so all function entry/exit events within the traced scope are captured from the start.</li>
+<li><strong>Scopes the blast radius.</strong> Only the wrapped callable (and its callees up to the specified depth) is traced, not all evaluation globally.</li>
+<li><strong>Composes naturally.</strong> <code>.Trace("label", depth, vars, () -&gt; expr)</code> works as an expression that returns <code>expr</code>’s value, so tracing can be added and removed without restructuring code.</li>
+<li><strong>Avoids hidden global state.</strong> The trace context lives in the runtime environment and is restored after the callable returns, rather than being a process-wide flag.</li>
+</ol>
+</section>
+</section>
+<section id="code-blocks-share-scope-in-construct-positions-2026-03-28" class="level2">
+<h2 class="anchored" data-anchor-id="code-blocks-share-scope-in-construct-positions-2026-03-28">Code Blocks Share Scope in Construct Positions (2026-03-28)</h2>
+<section id="the-problem-double-scoping" class="level3">
+<h3 class="anchored" data-anchor-id="the-problem-double-scoping">The problem: double scoping</h3>
+<p>Scope-creating constructs like loops create a single isolated scope for all their sub-parts. When a loop has five parts — <code>{@ init; cond; body; update; after }</code> — all five share one scope, so a variable created in init is visible in the other four.</p>
+<p>But if a user wraps one of those parts in a code block for multi-statement grouping — <code>{@ {; x = 1; y = 10 }; x &lt; 4; x + y; x += 1; x }</code> — the code block would normally create its own isolated scope. The variable <code>x</code> would be trapped inside the init block and invisible to the condition, body, update, and after slots. This double-scoping defeats the purpose of using a block for grouping.</p>
+</section>
+<section id="the-principle-blocks-in-lazy-construct-positions-are-grouping-not-isolation" class="level3">
+<h3 class="anchored" data-anchor-id="the-principle-blocks-in-lazy-construct-positions-are-grouping-not-isolation">The principle: blocks in lazy construct positions are grouping, not isolation</h3>
+<p>When a code block appears as a sub-part of a scope-creating construct, it shares the construct’s scope rather than creating an additional isolation boundary. The block acts as multi-statement grouping, not as a scope fence.</p>
+<p>This applies generally to any lazy construct that manages its own scope and evaluates sub-parts within it:</p>
+<ul>
+<li><strong>Loop sub-parts</strong>: init, condition, body, update, and after blocks all share the loop scope.</li>
+<li><strong><code>.Test</code> expressions</strong>: setup blocks and test blocks share the test scope (this was the original use case that motivated <code>withSharedBody</code>).</li>
+</ul>
+</section>
+<section id="nested-isolation-via-double-braces" class="level3">
+<h3 class="anchored" data-anchor-id="nested-isolation-via-double-braces">Nested isolation via double braces</h3>
+<p>If a user genuinely wants an isolated block inside a construct position, they nest braces: <code>{ { x = 1 } }</code>. The outer block shares the construct’s scope (it’s in a construct position), but the inner block creates its own isolated scope as usual. Note that an extra space may be needed to avoid parser ambiguity with other brace forms.</p>
+</section>
+<section id="implementation" class="level3">
+<h3 class="anchored" data-anchor-id="implementation">Implementation</h3>
+<p>The mechanism uses <code>context.withSharedBody(node, callback)</code>, which signals to the next BLOCK/LOOP/SYSTEM evaluation that it should reuse the current scope instead of pushing a new one. This is a one-shot override — only the immediately evaluated scope-creating node is affected; any nested blocks within it still create their own scopes.</p>
+<p>The <code>evaluateShared(node, context, evaluate)</code> helper in <code>control.js</code> wraps this pattern for easy reuse by any construct that needs it.</p>
+</section>
+</section>
+<section id="why-.testerror-and-.teststop-are-separate-from-.test-2026-03-28" class="level2">
+<h2 class="anchored" data-anchor-id="why-.testerror-and-.teststop-are-separate-from-.test-2026-03-28">Why .TestError and .TestStop Are Separate from .Test (2026-03-28)</h2>
+<section id="why-not-add-abort-testing-as-an-option-on-.test" class="level3">
+<h3 class="anchored" data-anchor-id="why-not-add-abort-testing-as-an-option-on-.test">Why not add abort-testing as an option on .Test(…)</h3>
+<p><code>.Test(...)</code> is built around the idea of normal completion: a test passes when evaluation returns a non-null value. Adding an “expected error” flag would require <code>.Test(...)</code> to handle two fundamentally different success criteria — normal returns and specific abnormal completions — in the same dispatch path. That conflation would make the pass/fail logic harder to read and reason about.</p>
+<p><code>.TestError(...)</code> and <code>.TestStop(...)</code> invert the success criterion entirely: they pass on abnormal completion of a specific kind, and fail on normal completion. This is a semantic reversal, not just a parameter variation. Keeping them separate preserves the invariant that each test form has exactly one, unambiguous definition of “pass.”</p>
+</section>
+<section id="why-setup-aborting-always-fails-the-test" class="level3">
+<h3 class="anchored" data-anchor-id="why-setup-aborting-always-fails-the-test">Why setup aborting always fails the test</h3>
+<p>The setup block is not part of what is being tested — it exists to establish preconditions. If setup itself aborts, the provenance of the abort is ambiguous: the test cannot distinguish “the code under test misbehaved” from “the preconditions were never established.” Rather than silently misattribute an abort, both <code>.TestError(...)</code> and <code>.TestStop(...)</code> treat any setup abort as an unconditional failure, with the setup outcome recorded separately in the result object.</p>
+</section>
+<section id="why-.testerror-includes-both-explicit-.error-and-runtime-errors" class="level3">
+<h3 class="anchored" data-anchor-id="why-.testerror-includes-both-explicit-.error-and-runtime-errors">Why .TestError includes both explicit .Error(…) and runtime errors</h3>
+<p>Both kinds of failure signal “this code path should not complete normally”:</p>
+<ul>
+<li>An explicit <code>.Error("msg")</code> is a deliberate structured abort emitted by code that detects an illegal condition.</li>
+<li>A runtime error (division by zero, undefined variable, type mismatch) is an unintended failure detected by the interpreter.</li>
+</ul>
+<p>From a testing perspective, both are valid “should fail here” cases. Distinguishing them at the test-expectation level would require callers to predict exactly how a failure manifests, which is often brittle. <code>.TestError(...)</code> accepts either, and the result’s <code>expr.outcome</code> field records which kind actually occurred, so callers can inspect the distinction if needed.</p>
+</section>
+<section id="why-.teststop-is-kept-separate-from-.testerror" class="level3">
+<h3 class="anchored" data-anchor-id="why-.teststop-is-kept-separate-from-.testerror">Why .TestStop is kept separate from .TestError</h3>
+<p><code>.Stop(...)</code> signals a different semantic category than an error. It represents a deliberate, conditional halt — “preconditions not met, stop here” — rather than a defect. Code that guards against invalid input may be entirely correct behavior, not a failure to be caught. A test that expects a stop is asserting “this guard fires under these conditions,” which is meaningfully different from “this code path crashes.”</p>
+<p>Combining stop and error expectations into a single <code>.TestAbort(...)</code> would lose the signal about which kind of abnormal completion is intended. <code>.TestStop(...)</code> makes the assertion explicit: this code is expected to stop, not error.</p>
+</section>
+</section>
+<section id="dynamic-evaluation-and-scope-sharing-2026-03-29" class="level2">
+<h2 class="anchored" data-anchor-id="dynamic-evaluation-and-scope-sharing-2026-03-29">Dynamic Evaluation and Scope Sharing (2026-03-29)</h2>
+<section id="the-logic-behind-caller-scope-execution" class="level3">
+<h3 class="anchored" data-anchor-id="the-logic-behind-caller-scope-execution">The logic behind <code>@@</code> caller-scope execution</h3>
+<p>When evaluating a deferred AST block (<code>@@@{; x = 9 }</code>) or a parsed string of code (<code>@@"x = 9"</code>), RiX executes the statements in the <strong>current lexical scope</strong> instead of pushing a new, isolated block boundary.</p>
+<p>This directly aligns dynamic evaluation (<code>@@</code> or <code>.Eval(_)</code> without bindings) with the expectations of inline code. To a developer reading a script, evaluating <code>"x = 9"</code> should logically behave exactly as if the script contained the characters <code>x = 9</code> in that position.</p>
+<p>If <code>@@</code> unconditionally pushed an isolated execution subscope, any mutations or variable declarations would be immediately trapped and discarded once the evaluation finished, rendering dynamic computation largely useless for extending the surrounding environment.</p>
+</section>
+<section id="using-withsharedbody-as-the-unwrap-mechanism" class="level3">
+<h3 class="anchored" data-anchor-id="using-withsharedbody-as-the-unwrap-mechanism">Using <code>withSharedBody</code> as the unwrap mechanism</h3>
+<p>To achieve this, the underlying implementation of <code>.Eval</code> utilizes the <code>withSharedBody</code> mechanism. If <code>.Eval</code> is called in inherit mode with no local bindings: 1. It avoids pushing a new <code>context</code>. 2. It passes the AST statements (the inner body of the <code>DEFER</code> node or the fully parsed string nodes) directly to <code>evaluate()</code>. 3. If the evaluated node structure wraps the statements in a <code>BLOCK</code> (which is true for <code>@{; ... }</code>), it invokes <code>withSharedBody</code>—instructing that specific <code>BLOCK</code> to bypass its normal tendency to isolate, and instead natively share the caller’s environment.</p>
+<p>When developers <em>want</em> transient evaluation scopes (e.g., executing a sandbox with temporary variables), they explicitly provide a bindings map to <code>.Eval(...)</code>. In that scenario, <code>.Eval</code> acts as a true scope-creating construct—it pushes a new temporary context frame, and the inner evaluated block then safely shares <em>that</em> temporary construct scope, rather than polluting the caller.</p>
+</section>
+</section>
+<section id="types-and-traits-as-protocol-bundles-2026-04-25" class="level2">
+<h2 class="anchored" data-anchor-id="types-and-traits-as-protocol-bundles-2026-04-25">Types and Traits as Protocol Bundles (2026-04-25)</h2>
+<p>RiX treats types and traits as semantic protocol bundles, not just labels. Runtime <code>._type</code> and <code>._proto</code> describe the current concrete value. Sticky <code>.__type</code>, <code>.__traits</code>, and <code>.__proto</code> describe semantic interpretation and survive updates.</p>
+<p>Traits are materialized into <code>.__traits</code> so inquiry remains simple: <code>x ? :trait</code> checks actual attached traits rather than dynamically walking implication graphs. Type application resolves implied traits up front and layers trait proto methods in application order.</p>
+<p>Types drive construction, conversion, export/import, normalization, proto construction, and operator participation. System operators can be represented as multifunction-style dispatch tables with native fallback variants, so new semantic types can participate incrementally without breaking existing behavior.</p>
+<p>The built-in numeric semantic types stay exact and foundational: Integer, Rational, and RationalInterval. Real-number strategies such as oracle reals belong in user-land RiX startup code, because RiX should allow multiple competing real implementations to coexist, be loaded explicitly, and be compared experimentally without making one representation part of the core language.</p>
+<p>User-land types can still delegate heavy computation to JavaScript when that is the point of the type. The Float example keeps the registration and semantic interface in RiX (<code>floats.js.rix</code>) while calling a JavaScript support file for IEEE-style arithmetic and JavaScript <code>Math</code> functions through a generic JS bridge. The core exposes common math multifunction names such as <code>SIN</code>, <code>LOG</code>, and <code>EXP</code>, but Float-specific helpers remain ordinary module exports, not system capabilities.</p>
+<p>This preserves the cell/meta model while giving rich types a single central conversion and protocol path.</p>
+
+
+</section>
+</section>
+
+<a onclick="window.scrollTo(0, 0); return false;" role="button" id="quarto-back-to-top"><i class="bi bi-arrow-up"></i> Back to top</a></main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/jostylr\.github\.io\/rix\/");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+            // target, if specified
+            link.setAttribute("target", "_blank");
+            if (link.getAttribute("rel") === null) {
+              link.setAttribute("rel", "noopener");
+            }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="./design/eval/cayley-polar.html" class="pagination-link" aria-label="Cayley polar complex values">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">Cayley polar complex values</span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="./design/parser/spec.html" class="pagination-link" aria-label="Early language specification">
+        <span class="nav-page-text">Early language specification</span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>RiX — Rational Interval Expression Language</p>
+</div>   
+    <div class="nav-footer-center">
+      &nbsp;
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/rix-rationales.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="nav-footer-right">
+<p>Documentation built with <a href="https://quarto.org/">Quarto</a></p>
+</div>
+  </div>
+</footer>
+
+
+
+
+<script src="site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>

@@ -1,0 +1,152 @@
+project:
+  type: website
+  output-dir: _site
+  resources:
+    - .nojekyll
+    - rix-logo.png
+    - parser/demo.html
+    - parser/demo.css
+    - parser/demo.js
+    - parser/rix-logo.png
+    - design/parser/spec.pdf
+    - design/parser/*.txt
+  render:
+    - index.qmd
+    - getting-started.qmd
+    - language-at-a-glance.qmd
+    - highlights.md
+    - introduction.md
+    - status.qmd
+    - tutorial/units-and-exact-values.md
+    - eval/syntax-guide.md
+    - eval/methods-guide.md
+    - eval/types-and-traits-guide.md
+    - reference/system-reference.md
+    - developer-guide.qmd
+    - eval/README.md
+    - parser/architecture.md
+    - parser/parsing.md
+    - parser/AST-brief.md
+    - parser/array-generators-implementation.md
+    - parser/embedded-parsing.md
+    - parser/matrix-tensor-implementation.md
+    - design/eval/ir-format.md
+    - design/eval/cells-assignments.md
+    - design/eval/units-and-exact-generators.md
+    - design/eval/cayley-polar.md
+    - rix-rationales.md
+    - design/parser/spec.md
+    - design/parser/questions.md
+    - report-2026-04-02.md
+
+website:
+  title: "RiX"
+  site-url: https://jostylr.github.io/rix/
+  repo-url: https://github.com/jostylr/rix
+  repo-subdir: documentation
+  repo-actions: [edit, issue]
+  favicon: rix-logo.png
+  search:
+    location: navbar
+    type: overlay
+  navbar:
+    logo: rix-logo.png
+    left:
+      - text: Start
+        href: getting-started.qmd
+      - text: Learn
+        href: language-at-a-glance.qmd
+      - text: Reference
+        href: eval/syntax-guide.md
+      - text: Internals
+        href: developer-guide.qmd
+    right:
+      - icon: github
+        href: https://github.com/jostylr/rix
+        aria-label: RiX on GitHub
+  sidebar:
+    style: docked
+    collapse-level: 1
+    contents:
+      - text: Overview
+        href: index.qmd
+      - section: Start here
+        contents:
+          - getting-started.qmd
+          - language-at-a-glance.qmd
+          - highlights.md
+          - status.qmd
+      - section: Learn RiX
+        contents:
+          - text: Complete introduction
+            href: introduction.md
+          - text: Units and exact values
+            href: tutorial/units-and-exact-values.md
+      - section: Language reference
+        contents:
+          - text: Syntax and functions
+            href: eval/syntax-guide.md
+          - text: Methods
+            href: eval/methods-guide.md
+          - text: Types and traits
+            href: eval/types-and-traits-guide.md
+          - text: Generated runtime catalog
+            href: reference/system-reference.md
+      - section: Developer guide
+        contents:
+          - developer-guide.qmd
+          - text: Evaluator overview
+            href: eval/README.md
+          - text: Parser architecture
+            href: parser/architecture.md
+          - text: Parsing and precedence
+            href: parser/parsing.md
+          - text: AST reference
+            href: parser/AST-brief.md
+          - text: IR design snapshot
+            href: design/eval/ir-format.md
+          - text: Array generators
+            href: parser/array-generators-implementation.md
+          - text: Embedded parsing
+            href: parser/embedded-parsing.md
+          - text: Matrices and tensors
+            href: parser/matrix-tensor-implementation.md
+      - section: Runtime design
+        contents:
+          - text: Cells and assignment
+            href: design/eval/cells-assignments.md
+          - text: Units and exact generators
+            href: design/eval/units-and-exact-generators.md
+          - text: Cayley polar complex values
+            href: design/eval/cayley-polar.md
+      - section: Design and history
+        contents:
+          - text: Design rationales
+            href: rix-rationales.md
+          - text: Early language specification
+            href: design/parser/spec.md
+          - text: Open design areas
+            href: design/parser/questions.md
+          - text: April 2026 review (historical)
+            href: report-2026-04-02.md
+  page-navigation: true
+  back-to-top-navigation: true
+  page-footer:
+    left: "RiX — Rational Interval Expression Language"
+    right: "Documentation built with [Quarto](https://quarto.org/)"
+
+format:
+  html:
+    theme:
+      light: [cosmo, styles.scss]
+      dark: [darkly, styles.scss]
+    toc: true
+    toc-depth: 3
+    code-copy: true
+    code-overflow: wrap
+    anchor-sections: true
+    smooth-scroll: true
+    link-external-newwindow: true
+
+execute:
+  freeze: auto

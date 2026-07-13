@@ -1,0 +1,221 @@
+# RiX Parser & Tokenizer Development TODO
+
+This document outlines the development roadmap for the RiX Language Parser & Tokenizer library. As a focused parsing library, this repository handles tokenization and AST generation, with evaluation and REPL functionality provided by separate repositories.
+
+---
+
+## Current Status: Core Implementation Complete ✅
+
+### Completed Features
+
+#### Tokenizer (✅ Complete)
+- ✅ All number formats per specification
+- ✅ Unicode identifier support with system/user distinction
+- ✅ Comprehensive operator tokenization (50+ symbols)
+- ✅ Flexible string systems (N-delimiter quotes, backticks, comments)
+- ✅ Maximal munch symbol matching
+- ✅ Position tracking for error reporting
+- ✅ Comprehensive test coverage (129 tests)
+
+#### Parser (✅ Core Complete)
+- ✅ Pratt parser with full operator precedence
+- ✅ Function definitions (multiple styles)
+- ✅ Multifunction literals and prep-based ordered dispatch
+- ✅ Array generators and sequence notation
+- ✅ Matrix and tensor parsing
+- ✅ Code blocks and metadata annotations
+- ✅ Pipe operations and functional constructs
+- ✅ Symbolic calculus notation
+- ✅ Comprehensive test coverage (185 tests)
+
+---
+
+## Immediate Priorities (v0.2.0)
+
+### 1. Documentation & Examples 📚
+- [ ] Complete API documentation with JSDoc
+- [ ] Expand example collection
+- [ ] Performance benchmarking documentation
+- [ ] Integration guide for external evaluators
+- [ ] Browser usage examples
+
+### 2. Parser Enhancements 🔧
+- [ ] Improve error recovery and suggestions
+- [ ] Add source map generation for debugging
+- [ ] Optimize parsing performance for large expressions
+- [ ] Enhanced position tracking for complex constructs
+
+### 3. Tokenizer Refinements 🎯
+- [ ] Edge case handling for complex number formats
+- [ ] Performance optimization for large inputs
+- [ ] Better error messages for malformed tokens
+- [ ] Unicode normalization improvements
+
+---
+
+## Medium Term Goals (v0.3.0)
+
+### 1. Advanced Language Features 🚀
+- [ ] Incremental parsing for IDE integration
+- [ ] Syntax highlighting token classification
+- [ ] AST transformation utilities
+- [ ] Custom operator definition support
+
+### 2. Developer Experience 💻
+- [ ] TypeScript type definitions
+- [ ] VS Code language server integration
+- [ ] Debugging utilities and AST visualization
+- [ ] Parser plugin architecture
+
+### 3. Performance & Reliability 📊
+- [ ] Memory usage optimization
+- [ ] Parallel parsing for large expressions
+- [ ] Fuzzing test suite
+- [ ] Performance regression tests
+
+---
+
+## Long Term Vision (v1.0.0)
+
+### 1. Ecosystem Integration 🌐
+- [ ] Standard AST format for RiX ecosystem
+- [ ] Plugin system for domain-specific extensions
+- [ ] Integration with mathematical computing libraries
+- [ ] Browser WebAssembly compilation
+
+### 2. Advanced Features 🔬
+- [ ] Syntax macros and compile-time expansion
+- [ ] Custom precedence definition
+- [ ] Domain-specific language embedding
+- [ ] Advanced error recovery strategies
+
+### 3. Tooling & Infrastructure 🛠️
+- [ ] AST diff and merge utilities
+- [ ] Code formatting and style checking
+- [ ] Automatic documentation generation
+- [ ] Performance profiling tools
+
+---
+
+## Out of Scope (Separate Repositories)
+
+The following features are intentionally excluded from this parser library:
+
+### Evaluation Engine ❌
+- Mathematical expression evaluation
+- Real number oracles implementation
+- Unit arithmetic and conversion
+- Rational number computation
+- Complex number operations
+
+### Interactive Systems ❌
+- REPL implementation
+- Command-line interface
+- Interactive debugging
+- Live expression evaluation
+
+### Visualization ❌
+- AST visualization tools
+- Mathematical rendering
+- Graph plotting
+- Expression trees display
+
+---
+
+## Contributing Guidelines
+
+### Parser Enhancements
+- Focus on AST generation and structure
+- Maintain backward compatibility
+- Add comprehensive test coverage
+- Update documentation
+
+### New Language Features
+- Follow existing precedence patterns
+- Ensure tokenizer/parser consistency
+- Provide clear AST node definitions
+- Include parsing examples
+
+### Performance Improvements
+- Benchmark before and after changes
+- Consider memory usage impact
+- Maintain parsing correctness
+- Document performance characteristics
+
+---
+
+## Testing Strategy
+
+### Current Coverage
+- ✅ 314+ tests across tokenizer and parser
+- ✅ Specification compliance verification
+- ✅ Edge case and error condition testing
+- ✅ Position tracking validation
+
+### Expansion Areas
+- [ ] Performance benchmarks
+- [ ] Memory usage tests
+- [ ] Browser compatibility testing
+- [ ] Large input stress testing
+- [ ] Fuzzing and property-based testing
+
+---
+
+## Release Planning
+
+### v0.1.x (Current - Maintenance)
+- Bug fixes and documentation improvements
+- Minor performance optimizations
+- Test coverage expansion
+
+### v0.2.x (Next - Enhancement)
+- Advanced error handling
+- Developer tooling improvements
+- Performance optimizations
+
+### v0.3.x (Future - Advanced Features)
+- Incremental parsing
+- Plugin architecture
+- TypeScript integration
+
+### v1.0.x (Stable - Production Ready)
+- Complete feature set
+- Stable API
+- Comprehensive documentation
+- Production performance
+
+---
+
+## Architecture Principles
+
+### Design Goals
+1. **Focused Scope**: Parsing only, no evaluation
+2. **High Performance**: Efficient for large expressions
+3. **Extensibility**: Easy to add new language features
+4. **Reliability**: Robust error handling and recovery
+5. **Integration**: Clean API for external systems
+
+### Code Quality Standards
+- Comprehensive test coverage (>95%)
+- Clear documentation for all public APIs
+- Performance benchmarks for core operations
+- Consistent error handling patterns
+- Memory-efficient implementations
+
+---
+
+## Community & Ecosystem
+
+### Related Projects
+- **rix-language-evaluator**: Mathematical computation engine
+- **rix-language-repl**: Interactive environment
+- **rix-language-browser**: Web-based interface
+- **rix-language-vscode**: Editor integration
+
+### Integration Points
+- Standard AST format for interoperability
+- Plugin architecture for extensions
+- Performance monitoring and optimization
+- Cross-project testing and validation
+
+This roadmap ensures the RiX Parser & Tokenizer remains focused on its core competency while providing a solid foundation for the broader RiX language ecosystem.

@@ -1,12 +1,26 @@
 # RiX Mathematical Expression Language Specification
 
+::: {.callout-warning title="Early design specification"}
+This document preserves a broad, early language design and contains both
+implemented syntax and aspirational forms. It predates the integrated RiX
+evaluator and the current assignment, comparison, function, and capability
+models; examples here are not all executable today. Use the current
+[syntax guide](../../eval/syntax-guide.md) and
+[implementation status](../../status.qmd) as the language contract. This page
+remains published because it records the larger design space and original
+intent.
+:::
+
 ## Overview
 
 This document defines the syntax, semantics, and practical usage of the RiX (Rational Interval Expression Language) mathematical expression language designed for symbolic computation, mathematical exploration, and interactive scripting.
 
 The language features rich support for intervals, rationals, mixed numbers, pattern-matching functions, metadata-annotated objects, robust piping and mapping, and a regular system for containers, sets, maps, and matrices.
 
-**Note:** This specification covers the complete RiX language. The current repository implements the tokenizer and parser components that generate Abstract Syntax Trees (ASTs) from RiX source code. Expression evaluation, real number oracles, and interactive REPL functionality are provided by separate repositories in the RiX ecosystem.
+**Historical scope:** At the time of writing, this specification treated the
+parser and evaluator as separate projects. They are now integrated in this
+repository, and the evaluator implements a substantial—but not complete—subset
+of the design recorded below.
 
 ---
 

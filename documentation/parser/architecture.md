@@ -1,5 +1,12 @@
 # RiX Parser & Tokenizer Architecture
 
+::: {.callout-note}
+This is an implementation-oriented parser overview. The parser recognizes some
+forms whose complete runtime semantics remain active design; see
+[implementation status](../status.qmd) before assuming parser support implies
+evaluator support.
+:::
+
 ## Overview
 
 The RiX Language Parser & Tokenizer is a comprehensive parsing library that transforms RiX mathematical expressions into Abstract Syntax Trees (ASTs). The architecture follows a clean separation between lexical analysis (tokenization) and syntactic analysis (parsing).
@@ -280,14 +287,14 @@ The parser is **stateless** and **thread-safe**:
 ## Testing Strategy
 
 ### Unit Tests
-- **Tokenizer:** 129 tests covering all token types and edge cases
-- **Parser:** 185 tests covering all language constructs
-- **Integration:** Cross-component testing with real expressions
+- **Tokenizer:** token forms, positions, comments, literals, sigils, and errors
+- **Parser:** precedence, containers, functions, generators, and system loading
+- **Integration:** cross-component tests with real expressions and lowering
 
 ### Test Categories
 - **Specification Compliance:** Ensures adherence to language spec
 - **Error Conditions:** Validates error handling and reporting
-- **Performance:** Benchmarks for large expressions
+- **Regression:** focused cases for previously fixed parser behavior
 - **Edge Cases:** Boundary conditions and malformed input
 
 ## Integration Patterns
@@ -296,7 +303,7 @@ The parser is **stateless** and **thread-safe**:
 
 ```javascript
 // Basic usage pattern
-import { tokenize, parse } from 'rix-language-parser';
+import { tokenize, parse } from 'rix/parser';
 
 const tokens = tokenize(sourceCode);
 const ast = parse(tokens, systemLookupFunction);
