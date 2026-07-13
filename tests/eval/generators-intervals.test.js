@@ -59,6 +59,91 @@ describe("runtime sequence generators", () => {
     });
 });
 
+describe("collection iterators", () => {
+    test("Next moves before returning and accepts signed steps", () => {
+        const value = parseAndEvaluate(`
+            it := [10,20,30,40].Iterator();
+            [it.Index(), it.Next(2), it.Peek(), it.Peek(1), it.Next(-1), it.Next(0), it.Index()]
+        `);
+        expect(strings(value)).toEqual(["0", "20", "20", "30", "10", "10", "1"]);
+    });
+
+    test("lazy iterator access advances the source without moving on Peek", () => {
+        const context = new Context();
+        const value = parseAndEvaluate(`
+            source := [1 |+1];
+            it := source.Iterator();
+            first := it.Next(5);
+            ahead := it.Peek(3);
+            [first, ahead, it.Index(), source[8]]
+        `, { context });
+        expect(strings(value)).toEqual(["5", "8", "5", "8"]);
+        expect(context.get("source")._lazy.cache).toHaveLength(8);
+    });
+
+    test("Done becomes true only after Next crosses an end", () => {
+        const value = parseAndEvaluate(`
+            it := [7].Iterator();
+            before := it.Done();
+            value := it.Next();
+            atEnd := it.Done();
+            missing := it.Next();
+            [before, value, atEnd, missing, it.Done(), it.Index()]
+        `);
+        expect(value.values[0]).toBeNull();
+        expect(value.values[1].toString()).toBe("7");
+        expect(value.values[2]).toBeNull();
+        expect(value.values[3]).toBeNull();
+        expect(value.values[4].toString()).toBe("1");
+        expect(value.values[5]).toBeNull();
+    });
+
+    test("Reset positions indexable sources and restarts non-indexed sources", () => {
+        const indexed = parseAndEvaluate(`
+            it := [10,20,30].Iterator();
+            it.Reset(2);
+            current := it.Peek();
+            next := it.Next();
+            it.Reset();
+            [current, next, it.Next()]
+        `);
+        expect(strings(indexed)).toEqual(["20", "30", "10"]);
+
+        const map = parseAndEvaluate(`
+            it := {= a=10, b=20 }.Iterator();
+            it.Next();
+            it.Reset(2);
+            it.Next()
+        `);
+        expect(map.toString()).toBe("10");
+    });
+
+    test("iterators are available across collection types", () => {
+        const value = parseAndEvaluate(`
+            tupleIt := {: 1,2 }.Iterator();
+            stringIt := "ab".Iterator();
+            setIt := {| 3,4 |}.Iterator();
+            tensorIt := {:2: 5,6 }.Iterator();
+            [tupleIt.Next(), stringIt.Next(), setIt.Next(), tensorIt.Next()]
+        `);
+        expect(value.values[0].toString()).toBe("1");
+        expect(value.values[1].value).toBe("a");
+        expect(value.values[2].toString()).toBe("3");
+        expect(value.values[3].toString()).toBe("5");
+    });
+
+    test("shallow iterator copies have independent cursors over one source", () => {
+        const value = parseAndEvaluate(`
+            source := [1 |+1];
+            it := source.Iterator();
+            it.Next(3);
+            copy := it;
+            [it.Next(), copy.Next(2), it.Index(), copy.Index()]
+        `);
+        expect(strings(value)).toEqual(["4", "5", "4", "5"]);
+    });
+});
+
 describe("interval-generated sequences", () => {
     test("stepping and infinite arithmetic sequences are lazy", () => {
         expect(parseAndEvaluate("s := 1:10 :+2; s[5]").toString()).toBe("9");

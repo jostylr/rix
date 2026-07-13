@@ -17,6 +17,7 @@ obj.Method!(a, b)
 - Read-only methods only exist without `!`.
 - Some methods are mutation-only extractors, such as `Pop!()` and `Shift!()`.
 - Some methods come in pairs, such as `Push` / `Push!`.
+- Iterator cursor methods are explicitly stateful without `!`; the iterator is a traversal handle, not the source collection.
 - Built-in prototypes are frozen. There is no prototype chaining in v1.
 
 ## Generic Reduce
@@ -54,7 +55,7 @@ Examples:
 ## Arrays
 
 Read-only:
-`Len`, `IsEmpty`, `Get`, `First`, `Last`, `Includes`, `IndexOf`, `LastIndexOf`, `HasAt`, `Slice`, `Join`, `DropFirst`, `DropLast`, `Map`, `Filter`, `Any`, `All`, `Count`, `Find`, `FindIndex`, `Reduce`
+`Len`, `IsEmpty`, `Get`, `First`, `Last`, `Includes`, `IndexOf`, `LastIndexOf`, `HasAt`, `Slice`, `Join`, `DropFirst`, `DropLast`, `Map`, `Filter`, `Any`, `All`, `Count`, `Find`, `FindIndex`, `Reduce`, `Iterator`
 
 Paired:
 `Push` / `Push!`, `Unshift` / `Unshift!`, `Set` / `Set!`, `Insert` / `Insert!`, `RemoveAt` / `RemoveAt!`, `Concat` / `Concat!`, `Reverse` / `Reverse!`, `Sort` / `Sort!`, `Distinct` / `Distinct!`, `Flatten` / `Flatten!`
@@ -70,10 +71,39 @@ Notes:
 - `RemoveAt!(index)` leaves a hole in place instead of shortening the receiver.
 - Array callbacks receive `(value, index, array)`.
 
+## Lazy sequences
+
+Read-only:
+`Len`, `IsEmpty`, `Get`, `First`, `Last`, `Materialize`, `Iterator`
+
+Notes:
+
+- Positive `Get` and bracket indexing generate only as far as the requested one-based index and cache every emitted value.
+- A positive bounded bracket slice generates through its far endpoint and returns an eager array.
+- `Len` works when a numeric lazy limit makes the length known, or after the sequence has finished.
+- `Last`, negative indexing, and `Materialize` require a known finite sequence. Predicate-bounded sequences become known only after reaching their terminating value.
+- Lazy map and filter pipes preserve laziness; they are operators rather than methods.
+- Lazy sequences are not cursor-stateful. Call `Iterator()` to create an independent traversal position.
+
+## Iterators
+
+Stateful:
+`Next`, `Peek`, `Done`, `Index`, `Reset`
+
+Notes:
+
+- Arrays, lazy sequences, tuples, strings, tensors, maps, and sets provide `Iterator()`.
+- A new iterator has cursor index `0`, meaning traversal has not begun.
+- `Next(step?)` moves first and then returns the destination value. Its default step is `1`; steps may be positive, zero, or negative.
+- `Peek(offset?)` reads relative to the cursor without moving it. Its default offset is `0`.
+- After `Next` crosses either end, the iterator enters its done state. `Done()` returns `1` in that state and `null` otherwise.
+- `Reset()` restores cursor `0`. On indexable collections, `Reset(index)` positions the cursor at that index; on maps and sets, reset simply restarts traversal.
+- A shallow copy receives an independent cursor at the same position over the same source collection.
+
 ## Maps
 
 Read-only:
-`Len`, `IsEmpty`, `Has`, `Get`, `Keys`, `Values`, `Entries`, `MapValues`, `ReduceKeys`, `Filter`, `Any`, `All`, `Count`, `Reduce`
+`Len`, `IsEmpty`, `Has`, `Get`, `Keys`, `Values`, `Entries`, `MapValues`, `ReduceKeys`, `Filter`, `Any`, `All`, `Count`, `Reduce`, `Iterator`
 
 Paired:
 `Set` / `Set!`, `Remove` / `Remove!`, `Merge` / `Merge!`, `Update` / `Update!`, `Default` / `Default!`, `Keep` / `Keep!`, `Omit` / `Omit!`
@@ -87,7 +117,7 @@ Notes:
 ## Sets
 
 Read-only:
-`Len`, `IsEmpty`, `Has`, `Values`, `SubsetOf`, `SupersetOf`, `Disjoint`, `Filter`, `Any`, `All`, `Count`, `Reduce`
+`Len`, `IsEmpty`, `Has`, `Values`, `SubsetOf`, `SupersetOf`, `Disjoint`, `Filter`, `Any`, `All`, `Count`, `Reduce`, `Iterator`
 
 Paired:
 `Add` / `Add!`, `Remove` / `Remove!`, `Union` / `Union!`, `Intersect` / `Intersect!`, `Diff` / `Diff!`, `SymDiff` / `SymDiff!`
@@ -100,7 +130,7 @@ Notes:
 ## Strings
 
 Read-only:
-`Len`, `IsEmpty`, `Get`, `First`, `Last`, `Includes`, `StartsWith`, `EndsWith`, `IndexOf`, `LastIndexOf`, `Slice`, `Concat`, `Split`, `Trim`, `TrimStart`, `TrimEnd`, `Upper`, `Lower`, `Replace`, `ReplaceAll`, `PadLeft`, `PadRight`, `Repeat`, `Reduce`
+`Len`, `IsEmpty`, `Get`, `First`, `Last`, `Includes`, `StartsWith`, `EndsWith`, `IndexOf`, `LastIndexOf`, `Slice`, `Concat`, `Split`, `Trim`, `TrimStart`, `TrimEnd`, `Upper`, `Lower`, `Replace`, `ReplaceAll`, `PadLeft`, `PadRight`, `Repeat`, `Reduce`, `Iterator`
 
 Notes:
 
@@ -111,7 +141,7 @@ Notes:
 ## Tuples
 
 Read-only:
-`Len`, `Get`, `First`, `Last`, `Slice`, `Set`, `ToArray`, `Reduce`
+`Len`, `Get`, `First`, `Last`, `Slice`, `Set`, `ToArray`, `Reduce`, `Iterator`
 
 Notes:
 
@@ -122,7 +152,7 @@ Notes:
 ## Tensors
 
 Read-only:
-`Shape`, `Rank`, `Size`, `Get`, `Set`, `Reshape`, `Flatten`, `Transpose`, `Permute`, `Map`, `Sum`, `Mean`, `Dot`, `MatMul`, `Reduce`
+`Shape`, `Rank`, `Size`, `Get`, `Set`, `Reshape`, `Flatten`, `Transpose`, `Permute`, `Map`, `Sum`, `Mean`, `Dot`, `MatMul`, `Reduce`, `Iterator`
 
 Paired:
 `Set` / `Set!`
@@ -401,6 +431,100 @@ a.Shift!()  ## 1
 - Example:
 ```rix
 [1, 2, 3].Reduce((acc, v) -> acc.Push!(v * 10))   ## [10, 20, 30]
+```
+
+`Iterator()`
+- Signature: `array.Iterator() -> Iterator`
+- Purpose: Create an independent stateful cursor over the array. The cursor starts at index `0`, before the first item.
+- Example:
+```rix
+it := [10, 20, 30].Iterator()
+it.Next()   ## 10
+it.Next()   ## 20
+```
+
+### Lazy sequences
+
+`Len()`
+- Signature: `lazySequence.Len() -> Integer`
+- Purpose: Return the known eventual length without forcing every value. It is an error while the length is unknown.
+- Example:
+```rix
+[1 |+ 1 |^ 20].Len()   ## 20
+```
+
+`IsEmpty()`
+- Signature: `lazySequence.IsEmpty() -> 1 | null`
+- Purpose: Generate at most the first output to determine whether the sequence is empty.
+
+`Get(index)`, `First()`
+- Signature: `lazySequence.Get(index) -> value | null`, `lazySequence.First() -> value | null`
+- Purpose: Generate and cache values through the requested one-based positive index. A negative index requires finite materialization.
+- Example:
+```rix
+values := [1 |+ 1]
+values.Get(100)   ## 100
+values.First()    ## cached 1
+```
+
+`Last()`
+- Signature: `lazySequence.Last() -> value | null`
+- Purpose: Materialize a known finite lazy sequence and return its last item. It is unavailable for an unfinished sequence whose length is unknown.
+
+`Materialize()`
+- Signature: `lazySequence.Materialize() -> Array`
+- Purpose: Evaluate a known finite lazy sequence to completion and return a mutable eager array.
+- Example:
+```rix
+[3 |+ 3 |^ 5].Materialize()   ## [3, 6, 9, 12, 15]
+```
+
+`Iterator()`
+- Signature: `lazySequence.Iterator() -> Iterator`
+- Purpose: Create an independent cursor. Iterator reads use the lazy sequence's shared cache and generate only as far as requested.
+
+### Iterators
+
+`Next(step?)`
+- Signature: `iterator.Next(step=1) -> value | null`
+- Purpose: Move the cursor by `step`, then return the item at the destination. `Next(2)` from a new cursor skips item 1 and returns item 2. `Next(0)` reads the current item without moving. Crossing an end enters the done state.
+- Example:
+```rix
+it := [10, 20, 30, 40].Iterator()
+it.Next(2)    ## 20; cursor is 2
+it.Next(-1)   ## 10; cursor is 1
+it.Next(0)    ## 10; cursor remains 1
+```
+
+`Peek(offset?)`
+- Signature: `iterator.Peek(offset=0) -> value | null`
+- Purpose: Return the item at `cursor + offset` without moving the cursor or changing its done state.
+- Example:
+```rix
+it := [1 |+ 1].Iterator()
+it.Next(5)   ## 5
+it.Peek(3)   ## 8; cursor remains 5
+```
+
+`Done()`
+- Signature: `iterator.Done() -> 1 | null`
+- Purpose: Return `1` after an advancing read crosses an end; otherwise return RiX false, `null`. Being positioned at the final valid item is not yet the done state.
+
+`Index()`
+- Signature: `iterator.Index() -> Integer | null`
+- Purpose: Return `0` before traversal begins, the current source index during traversal, or `null` in the done state.
+
+`Reset(index?)`
+- Signature: `iterator.Reset(index?) -> Iterator`
+- Purpose: With no argument, restore the initial cursor `0`. For an indexable source, position directly at `index`; `Peek()` then reads that item and `Next()` moves onward. Negative indices count from the end of finite sources. Maps and sets restart at cursor `0` regardless of an index argument.
+- Example:
+```rix
+it := [10, 20, 30].Iterator()
+it.Reset(2)
+it.Peek()   ## 20
+it.Next()   ## 30
+it.Reset()
+it.Next()   ## 10
 ```
 
 ### Maps

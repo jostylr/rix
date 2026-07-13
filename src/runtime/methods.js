@@ -291,6 +291,48 @@ function tensorEntries(target) {
     return entries;
 }
 
+function isIndexedIteratorSource(target) {
+    return target?.type === "sequence" ||
+        target?.type === "lazy_sequence" ||
+        target?.type === "tuple" ||
+        target?.type === "string" ||
+        isTensor(target);
+}
+
+function iteratorStep(value, label) {
+    const step = numericIndex(value, label);
+    if (!Number.isSafeInteger(step)) throw new Error(`${label} must be an integer`);
+    return step;
+}
+
+function iteratorLookup(source, index) {
+    if (!Number.isSafeInteger(index) || index < 1) return { found: false, value: null };
+    if (source?.type === "lazy_sequence") {
+        ensureLazyIndex(source, index);
+        if (index <= source._lazy.cache.length) {
+            return { found: true, value: source._lazy.cache[index - 1] };
+        }
+        return { found: false, value: null };
+    }
+    const entries = iterateEntries(source);
+    if (index > entries.length) return { found: false, value: null };
+    return { found: true, value: entries[index - 1].value };
+}
+
+function iteratorLength(source) {
+    if (source?.type === "lazy_sequence") return lazyKnownLength(source);
+    return iterateEntries(source).length;
+}
+
+function createCollectionIterator(source) {
+    return attachBuiltinProto({
+        type: "iterator",
+        source,
+        cursor: 0,
+        _ext: new Map(),
+    });
+}
+
 function iterateEntries(target) {
     if (target?.type === "sequence") return arrayEntries(target);
     if (target?.type === "tuple") return tupleEntries(target);
@@ -756,6 +798,52 @@ const lazySequenceMethods = {
         return sequence.values.at(-1) ?? null;
     }),
     MATERIALIZE: method("MATERIALIZE", ([target]) => materializeLazySequence(target)),
+};
+
+const iterableMethods = {
+    ITERATOR: method("ITERATOR", ([target]) => createCollectionIterator(target)),
+};
+
+const iteratorMethods = {
+    NEXT: method("NEXT", ([target, step]) => {
+        if (target.cursor === null) return null;
+        const amount = step === undefined ? 1 : iteratorStep(step, "Iterator step");
+        const destination = target.cursor + amount;
+        if (amount === 0 && target.cursor === 0) return null;
+        const result = iteratorLookup(target.source, destination);
+        if (!result.found) {
+            target.cursor = null;
+            return null;
+        }
+        target.cursor = destination;
+        return result.value;
+    }),
+    PEEK: method("PEEK", ([target, offset]) => {
+        if (target.cursor === null) return null;
+        const amount = offset === undefined ? 0 : iteratorStep(offset, "Iterator peek offset");
+        return iteratorLookup(target.source, target.cursor + amount).value;
+    }),
+    DONE: method("DONE", ([target]) => bool(target.cursor === null)),
+    INDEX: method("INDEX", ([target]) => target.cursor === null ? null : int(target.cursor)),
+    RESET: method("RESET", ([target, index]) => {
+        if (index === undefined || !isIndexedIteratorSource(target.source)) {
+            target.cursor = 0;
+            return target;
+        }
+        let destination = iteratorStep(index, "Iterator reset index");
+        if (destination < 0) {
+            const length = iteratorLength(target.source);
+            if (length === null) throw new Error("Cannot reset an unbounded lazy iterator from the end");
+            destination = length + 1 + destination;
+        }
+        if (destination === 0) {
+            target.cursor = 0;
+            return target;
+        }
+        const result = iteratorLookup(target.source, destination);
+        target.cursor = result.found ? destination : null;
+        return target;
+    }),
 };
 
 const mapMethods = {
@@ -1308,13 +1396,14 @@ const commonMethods = {
 };
 
 const PROTOS = new Map([
-    ["sequence", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(arrayMethods)])],
-    ["lazy_sequence", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(lazySequenceMethods)])],
-    ["map", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(mapMethods)])],
-    ["set", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(setMethods)])],
-    ["string", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(stringMethods)])],
-    ["tuple", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(tupleMethods)])],
-    ["tensor", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(tensorMethods)])],
+    ["sequence", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(iterableMethods), ...Object.entries(arrayMethods)])],
+    ["lazy_sequence", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(iterableMethods), ...Object.entries(lazySequenceMethods)])],
+    ["map", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(iterableMethods), ...Object.entries(mapMethods)])],
+    ["set", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(iterableMethods), ...Object.entries(setMethods)])],
+    ["string", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(iterableMethods), ...Object.entries(stringMethods)])],
+    ["tuple", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(iterableMethods), ...Object.entries(tupleMethods)])],
+    ["tensor", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(iterableMethods), ...Object.entries(tensorMethods)])],
+    ["iterator", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(iteratorMethods)])],
     ["deferred", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(deferredMethods)])],
     ["exact_generator", createBuiltinProto([
         ...Object.entries(commonMethods),

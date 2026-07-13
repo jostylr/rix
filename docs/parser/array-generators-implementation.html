@@ -338,6 +338,7 @@
 </code></pre>
 <p>Without <code>|;</code> or <code>|^</code>, a chain with a source is lazy and unbounded. A chain<br>containing only seeds/transforms/filters is finite. Lazy sequences cache<br>emitted values, support positive indexing and bounded slicing, and preserve<br>laziness through map/filter pipes.</p>
 <p>Generator iteration limits are runtime safety limits, not semantic output<br>limits. Exhaustion throws a diagnostic; it never returns silently truncated<br>output.</p>
+<p>Lazy sequences can be traversed with <code>Iterator()</code>. The iterator owns the<br>cursor while the sequence continues to own generation state and its shared<br>cache. A new cursor begins at index zero; <code>Next(step)</code> moves before returning,<br>and <code>Peek(offset)</code> reads without moving. See<br><a href="../eval/methods-guide.md#iterators"><code>methods-guide.md</code></a> for the complete API.</p>
 </div>
         </main>
 

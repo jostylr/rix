@@ -42,3 +42,9 @@ laziness through map/filter pipes.
 Generator iteration limits are runtime safety limits, not semantic output
 limits. Exhaustion throws a diagnostic; it never returns silently truncated
 output.
+
+Lazy sequences can be traversed with `Iterator()`. The iterator owns the
+cursor while the sequence continues to own generation state and its shared
+cache. A new cursor begins at index zero; `Next(step)` moves before returning,
+and `Peek(offset)` reads without moving. See
+[`methods-guide.md`](../eval/methods-guide.md#iterators) for the complete API.

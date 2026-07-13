@@ -260,6 +260,9 @@ export function formatValue(val, options = {}) {
             const suffix = length === null ? "" : `; length ${length}`;
             return `[LazySequence${suffix}: ${cached}${more}]`;
         }
+        if (val.type === "iterator") {
+            return val.cursor === null ? "[Iterator: done]" : `[Iterator: index ${val.cursor}]`;
+        }
         if (val.type === "string") return val.value;
         if (isCayleyInfinity(val)) return "Infinity";
         if (isCayleyValue(val)) {

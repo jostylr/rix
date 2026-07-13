@@ -86,6 +86,14 @@ export function shallowCopyValue(value) {
     // String object — always creates a new plain object
     if (value.type === "string") return { type: "string", value: value.value };
     if (isLazySequence(value)) return cloneLazySequence(value);
+    if (value.type === "iterator") {
+        return {
+            type: "iterator",
+            source: value.source,
+            cursor: value.cursor,
+            _ext: value._ext ? new Map(value._ext) : undefined,
+        };
+    }
 
     // Sequence
     if (value.type === "sequence") {
@@ -181,6 +189,14 @@ export function deepCopyValue(value) {
     if (value.type === "string") return { type: "string", value: value.value };
     if (isLazySequence(value)) {
         return cloneLazySequence(value, { restart: true, cloneValue: deepCopyValue });
+    }
+    if (value.type === "iterator") {
+        return {
+            type: "iterator",
+            source: deepCopyValue(value.source),
+            cursor: value.cursor,
+            _ext: value._ext ? deepCopyMeta(value._ext) : undefined,
+        };
     }
 
     if (value.type === "sequence") {
