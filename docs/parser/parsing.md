@@ -2456,10 +2456,11 @@ Random operations provide stochastic sampling and partitioning:
 
 #### Random Point Selection (`:%`)
 ```rix
-a:b:%(n, m)  // Choose n points, max denominator m
-a:b:%n       // Choose n points (default max denominator)
+a:b:%n             // Uniform real sample, simplified within default tolerance
+a:b:%(n, d)        // Choose n points uniformly from denominator-d grid
+a:b:%(n, _, tol)   // Override simplest-fraction tolerance
 1:10:%5      // → 5 random numbers in [1, 10]
-0:1:%(100, 1000) // → 100 rational points with denom ≤ 1000
+0:1:%(100, 1000) // → 100 rational points k/1000 (returned reduced)
 ```
 
 #### Random Partitioning (`:/%`)
@@ -2468,6 +2469,10 @@ a:b:/%n     // Partition into n random sub-intervals
 1:10:/%3    // → 3 randomly-sized sub-intervals
 0:1:/%5     // → 5 random partitions of unit interval
 ```
+
+Use `.RandomSeed(seed)` for a repeatable context-local stream, or inject an RNG
+through the host evaluator options. Fixed-denominator partition points are
+chosen without replacement.
 
 ### Infinite Ranges
 
@@ -2488,16 +2493,17 @@ a::+ -n     // Infinite sequence from a, stepping by -n
 PI::+ -0.1  // → π, π-0.1, π-0.2, π-0.3, ...
 ```
 
-### Complex Operations
+### Interval Expressions
 
-Interval operations can be chained and combined:
+Interval bounds and operator arguments may be arbitrary numeric expressions:
 
 ```rix
-(a:b :+ n) :: m          // Step then divide
 min_val:max_val :~depth  // Variable bounds with mediants
-0:360 :+ 30 :/%5         // Angular steps then random partition
 (expr1):(expr2) :+ step  // Expression bounds
 ```
+
+Interval operators require an interval operand. A stepped point sequence is
+not itself an interval and cannot be fed to partition operators.
 
 ### AST Structure
 
@@ -2561,7 +2567,8 @@ data_min:data_max:/:bins // Histogram binning
 
 #### Monte Carlo Methods
 ```rix
--1:1:%(samples, precision)  // Random sampling
+-1:1:%samples                 // Default-tolerance rational sampling
+-1:1:%(samples, denominator)  // Fixed rational grid
 bounds_low:bounds_high:/%trials // Random partitioning
 0::+step_size              // Infinite walk sequence
 ```
@@ -2623,38 +2630,44 @@ Repeatedly multiplies by a value to generate the next element.
 ```
 
 #### `|:` - Function Generator
-Uses a custom function to generate the next element.
+Uses a one-based index function to generate elements.
 ```
-[1, 1 |: (i, a, b) -> a + b |^ 10]  // Fibonacci sequence
+[|: (i) -> i^2 |; 5]  // [1, 4, 9, 16, 25]
 ```
 
-Function signature: `(index, previous_1, previous_2, ...)` where:
-- `index`: Current generation index (0-based)
-- `previous_1`: Most recent value
-- `previous_2`: Second most recent value (if available)
+Function signature: `(index, self)`, where `index` is one-based.
+
+#### `|>` - History Source or Candidate Transform
+With no earlier source, generates from newest-first history placeholders.
+After another source, pipes each candidate through the callable.
+```
+[1, 1, |> F(_2, _1), |; 7]  // Fibonacci
+[2 |+ 3 |> (x) -> x^2 |; 5]  // transform arithmetic candidates
+```
 
 ### Filtering Operations
 
 #### `|?` - Filter
 Only includes elements that satisfy a predicate function.
 ```
-[1 |+ 1 |? (i, a) -> a % 2 == 0 |^ 5]  // Even numbers only
+[1 |+ 1 |? (a, i) -> a % 2 == 0 |; 5]  // Five even outputs
 ```
 
 ### Termination Operations
 
-#### `|^` - Eager Limit
-Stops generation after N elements or when condition is met.
+#### `|;` - Eager Limit
+Materializes N accepted elements or stops after including the value that makes
+a predicate true.
 ```
-[1 |+ 2 |^ 5]                    // Stop after 5 elements
-[1 |+ 2 |^ (i, a) -> a > 10]     // Stop when value > 10
+[1 |+ 2 |; 5]
+[1 |+ 2 |; (a, i) -> a > 10]
 ```
 
-#### `|^:` - Lazy Limit
-Creates a lazy generator that only produces values when requested.
+#### `|^` - Lazy Limit
+Creates a count- or predicate-bounded lazy sequence.
 ```
-[1 |+ 2 |^: 1000]                // Up to 1000 elements on demand
-[1 |+ 2 |^: (i, a) -> a > 100]   // Lazy until condition met
+[1 |+ 2 |^ 1000]
+[1 |+ 2 |^ (a, i) -> a > 100]
 ```
 
 ## Parsing Behavior
@@ -2669,8 +2682,8 @@ Generator chains are parsed into `GeneratorChain` nodes with the following struc
   start: <initial_value_node> | null,
   operators: [
     {
-      type: "GeneratorAdd" | "GeneratorMultiply" | "GeneratorFunction" | "GeneratorFilter" | "GeneratorLimit" | "GeneratorLazyLimit",
-      operator: "|+" | "|*" | "|:" | "|?" | "|^" | "|^:",
+      type: "GeneratorAdd" | "GeneratorMultiply" | "GeneratorFunction" | "GeneratorPipe" | "GeneratorFilter" | "GeneratorLimit" | "GeneratorEagerLimit",
+      operator: "|+" | "|*" | "|:" | "|>" | "|?" | "|^" | "|;",
       operand: <operand_node>
     }
   ]
@@ -2754,7 +2767,7 @@ Generator functions are parsed as `FunctionLambda` nodes with the structure:
 ## Compatibility
 
 Generator syntax is fully compatible with:
-- Regular array elements
+- Explicit seed elements before the generator operators
 - Metadata annotations
 - Nested arrays
 - Matrix/tensor syntax (when not mixed)
@@ -2766,7 +2779,7 @@ Generator syntax is NOT compatible with:
 ## Performance Considerations
 
 - Generator chains are parsed eagerly during syntax analysis
-- Lazy generators (`|^:`) create deferred evaluation nodes
+- Lazy generators (`|^`) create cached runtime sequence values
 - Filter operations may require iteration limits to prevent infinite loops
 - Complex function generators may impact parsing performance
 
@@ -2784,8 +2797,8 @@ if (iterations > MAX_ITERATIONS) {
 
 ### Memory Management
 
-- Eager generators (`|^`) pre-compute entire sequences
-- Lazy generators (`|^:`) compute values on-demand
+- Eager generators (`|;`) materialize accepted values immediately
+- Lazy generators (`|^`) compute and cache values on demand
 - Use lazy evaluation for large datasets (>1000 elements)
 - Complex filters may require significant CPU resources
 
@@ -2876,10 +2889,11 @@ if (iterations > MAX_ITERATIONS) {
 ### When to Use Each Operator
 
 - **`|+`, `|*`**: Simple arithmetic/geometric progressions
-- **`|:`**: Complex recurrence relations, mathematical sequences
+- **`|:`**: One-based index-driven sequences
+- **`|>`**: History recurrence sources and candidate transformations
 - **`|?`**: Data filtering, conditional selection
-- **`|^`**: Known finite sequences, batch processing
-- **`|^:`**: Large datasets, streaming data, unknown sequence length
+- **`|;`**: Immediate finite arrays
+- **`|^`**: Large, streaming, or predicate-bounded lazy sequences
 
 ### Performance Tips
 

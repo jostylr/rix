@@ -14,6 +14,7 @@ import { isTensor, tensorAssignBySelectors, tensorGetBySelectors } from "../../r
 import { getBuiltinProto } from "../../runtime/methods.js";
 import { createTraitSet, rebuildSemanticMetadata } from "../../runtime/semantic.js";
 import { getNamedMultifunctionVariant, isMultifunctionValue } from "../../runtime/multifunction.js";
+import { ensureLazyIndex, isLazySequence, lazyKnownLength, materializeLazySequence } from "../../runtime/lazy-sequence.js";
 
 /**
  * Convert a key value to a numeric index.
@@ -124,6 +125,27 @@ function clampSequenceIndex(raw, length) {
 }
 
 function sliceSequenceLike(obj, spec) {
+    if (isLazySequence(obj)) {
+        const startRaw = spec.kind === "full" ? 1 : toInteger(spec.start);
+        let endRaw;
+        if (spec.kind === "full") {
+            const known = lazyKnownLength(obj);
+            if (known === null) throw new Error("A full slice of an unbounded lazy sequence is not available");
+            endRaw = known;
+        } else {
+            endRaw = toInteger(spec.end);
+        }
+        if (startRaw < 0 || endRaw < 0) return sliceSequenceLike(materializeLazySequence(obj), spec);
+        if (startRaw < 1 || endRaw < 1) throw new Error("Lazy sequence slices require non-zero indices");
+        ensureLazyIndex(obj, Math.max(startRaw, endRaw));
+        const out = [];
+        const step = startRaw <= endRaw ? 1 : -1;
+        for (let i = startRaw; step > 0 ? i <= endRaw : i >= endRaw; i += step) {
+            if (i <= obj._lazy.cache.length) out.push(obj._lazy.cache[i - 1]);
+        }
+        return { type: "sequence", values: out, _ext: new Map([["_mutable", new Integer(1n)]]) };
+    }
+
     if (obj && (obj.type === "sequence" || obj.type === "tuple")) {
         const values = obj.values || [];
         if (values.length === 0) {
@@ -182,6 +204,18 @@ export function indexGetResolved(obj, key) {
             }
             return named;
         }
+    }
+
+    if (isLazySequence(obj)) {
+        if (key && (key.type === "interval" || key instanceof RationalInterval)) {
+            const sVal = key instanceof RationalInterval ? key.start : key.lo;
+            const eVal = key instanceof RationalInterval ? key.end : key.hi;
+            return bracketGetResolved(obj, [{ kind: "slice", start: sVal, end: eVal }]);
+        }
+        const idx = toInteger(key);
+        if (idx < 0) return indexGetResolved(materializeLazySequence(obj), key);
+        if (idx === 0) throw new Error("Sequence indexes are 1-based; zero is invalid");
+        return ensureLazyIndex(obj, idx);
     }
 
     // Sequences / tuples (1-based, negative allowed)

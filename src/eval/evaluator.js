@@ -36,6 +36,7 @@ import { installUnitExactVariants, unitExactFunctions } from "./functions/units.
 import { parse } from "../parser/parser.js";
 import { posToLineCol } from "../parser/tokenizer.js";
 import { lower } from "./lower.js";
+import { isLazySequence, materializeLazySequence } from "../runtime/lazy-sequence.js";
 
 /**
  * Create the internal operator/language registry (no user-accessible stdlib).
@@ -756,7 +757,8 @@ export function evaluate(irNode, context, registry, systemContext) {
             } else if (typeof arg !== "object" || Array.isArray(arg) || !arg.fn) {
                 evaluatedArgs.push(arg);
             } else if (arg.fn === "SPREAD") {
-                const spreadVal = evalFn(arg.args[0]);
+                let spreadVal = evalFn(arg.args[0]);
+                if (isLazySequence(spreadVal)) spreadVal = materializeLazySequence(spreadVal);
                 if (spreadVal && (spreadVal.type === "tuple" || spreadVal.type === "sequence" || spreadVal.type === "array" || spreadVal.type === "set")) {
                     const items = spreadVal.values || spreadVal.elements || [];
                     evaluatedArgs.push(...items);
@@ -805,6 +807,7 @@ export function parseAndEvaluate(code, options = {}) {
     const systemLookup = options.systemLookup || defaultSystemLookup;
     getScriptRuntime(context, { systemLookup });
     context.setEnv("__registry__", registry);
+    if (typeof options.rng === "function") context.setEnv("randomFunction", options.rng);
     context.setEnv(SOURCE_ENV_KEY, code);
     context.setEnv(CURRENT_FILE_ENV_KEY, options.file || "<repl>");
 

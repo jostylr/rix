@@ -907,7 +907,7 @@ const LOWERERS = {
   },
 
   IntervalRandom(node) {
-    return ir("RANDOM", lowerNode(node.interval), lowerNode(node.count));
+    return ir("RANDOM", lowerNode(node.interval), lowerNode(node.parameters));
   },
 
   IntervalRandomPartition(node) {
@@ -949,7 +949,6 @@ const LOWERERS = {
   GeneratorFunction(node) { return ir("GEN_FUNC", lowerNode(node.operand)); },
   GeneratorFilter(node) { return ir("GEN_FILTER", lowerNode(node.operand)); },
   GeneratorLimit(node) { return ir("GEN_LIMIT", lowerNode(node.operand)); },
-  GeneratorLazyLimit(node) { return ir("GEN_LAZY_LIMIT", lowerNode(node.operand)); },
   GeneratorEagerLimit(node) { return ir("GEN_EAGER_LIMIT", lowerNode(node.operand)); },
   GeneratorPipe(node) { return ir("GEN_PIPE", lowerNode(node.operand)); },
 

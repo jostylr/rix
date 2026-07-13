@@ -1156,7 +1156,6 @@ var SYMBOL_TABLE = {
   "|:": { precedence: PRECEDENCE.PIPE, associativity: "left", type: "infix" },
   "|;": { precedence: PRECEDENCE.PIPE, associativity: "left", type: "infix" },
   "|^": { precedence: PRECEDENCE.PIPE, associativity: "left", type: "infix" },
-  "|^:": { precedence: PRECEDENCE.PIPE, associativity: "left", type: "infix" },
   "|?": { precedence: PRECEDENCE.PIPE, associativity: "left", type: "infix" },
   "+=": { precedence: PRECEDENCE.ASSIGNMENT, associativity: "right", type: "infix" },
   "-=": { precedence: PRECEDENCE.ASSIGNMENT, associativity: "right", type: "infix" },
@@ -1551,6 +1550,9 @@ class Parser {
   }
   getSymbolInfo(token) {
     if (token.type === "Symbol") {
+      if (token.value === "|^:") {
+        this.error("The legacy '|^:' generator operator was removed; use '|^' for lazy generation");
+      }
       return SYMBOL_TABLE[token.value] || { precedence: 0, type: "unknown" };
     } else if (token.type === "SemicolonSequence") {
       return { precedence: 0, type: "separator" };
@@ -1763,7 +1765,7 @@ class Parser {
         } else if (token.value === "@") {
           this.advance();
           const nextVal = this.current.value;
-          if (nextVal === "{" || nextVal === "{;" || nextVal === "{?" || nextVal === "{=" || nextVal === "{|" || nextVal === "{:" || nextVal === "{@" || nextVal === "{#" || nextVal === "{$" || nextVal === "{.." || nextVal === "{^") {
+          if (nextVal === "{" || nextVal === "{;" || nextVal === "{?" || nextVal === "{=" || nextVal === "{|" || nextVal === "{:" || nextVal === "{@" || nextVal === "{#" || nextVal === "{$" || nextVal === "{.." || nextVal === "{^" || nextVal === "{>") {
             let inner;
             if (nextVal === "{") {
               inner = this.parseBraceContainer();
@@ -1903,7 +1905,32 @@ class Parser {
     }
     if (operator.value === "?-" || operator.value === "?!-") {
       this.advance();
-      const prep = this.current.value === "[" ? this.parseArray() : this.parseExpression(PRECEDENCE.ARROW + 1);
+      const strict = operator.value === "?!-";
+      const first = this.current.value === "[" ? this.parseArray() : this.parseExpression(PRECEDENCE.INTERVAL + 1);
+      if (this.current.value === ":") {
+        this.advance();
+        if (this.current.value !== "[") {
+          this.error("Prepared trial checks must be written as an array literal: ?- pattern: [ ... ]");
+        }
+        const prep2 = this.parseArray();
+        const pattern = this.convertExpressionToDestructureTarget(first);
+        const gate = { pattern, prep: prep2, strict };
+        if (left.type === "PreparedTrial") {
+          return this.createNode("PreparedTrial", {
+            candidate: left.candidate,
+            gates: [...left.gates, gate],
+            pos: left.pos,
+            original: left.original + operator.original + (first.original || "") + (prep2.original || "")
+          });
+        }
+        return this.createNode("PreparedTrial", {
+          candidate: left,
+          gates: [gate],
+          pos: left.pos,
+          original: left.original + operator.original + (first.original || "") + (prep2.original || "")
+        });
+      }
+      const prep = first;
       if (!prep || prep.type !== "Array") {
         this.error("Function prep phase must be written as an array literal: ?- [ ... ]");
       }
@@ -1917,7 +1944,7 @@ class Parser {
       const arrow = this.current.value;
       this.advance();
       const body = this.parseExpression(PRECEDENCE.ARROW);
-      const prepStrict = operator.value === "?!-";
+      const prepStrict = strict;
       const fnNode = this.buildFunctionArrowNode(left, arrow, body, {
         prep,
         prepStrict,
@@ -2142,7 +2169,7 @@ class Parser {
       return this.createNode("IntervalDivision", {
         interval: left,
         count: right,
-        type: "equally_spaced",
+        divisionKind: "equally_spaced",
         pos: left.pos,
         original: left.original + operator.original
       });
@@ -2541,7 +2568,7 @@ class Parser {
     return left;
   }
   isGeneratorOperator(value) {
-    return ["|+", "|*", "|:", "|?", "|^", "|^:", "|;", "|>"].includes(value);
+    return ["|+", "|*", "|:", "|?", "|^", "|;", "|>"].includes(value);
   }
   createGeneratorOperatorNode(operator, operand, token) {
     const typeMap = {
@@ -2550,7 +2577,6 @@ class Parser {
       "|:": "GeneratorFunction",
       "|?": "GeneratorFilter",
       "|^": "GeneratorLimit",
-      "|^:": "GeneratorLazyLimit",
       "|;": "GeneratorEagerLimit",
       "|>": "GeneratorPipe"
     };
@@ -2574,6 +2600,10 @@ class Parser {
       const nestedChain = this.convertBinaryChainToGeneratorChain(current);
       start = nestedChain.start;
       operators.unshift(...nestedChain.operators);
+    } else if (current && current.type === "Pipe") {
+      const prefix = this.convertGeneratorPipePrefix(current);
+      start = prefix.start;
+      operators.unshift(...prefix.operators);
     } else {
       start = current;
     }
@@ -2583,6 +2613,19 @@ class Parser {
       pos: binaryOp.pos,
       original: binaryOp.original
     });
+  }
+  convertGeneratorPipePrefix(node) {
+    if (node.type === "Pipe") {
+      const prefix = this.convertGeneratorPipePrefix(node.left);
+      prefix.operators.push(this.createGeneratorOperatorNode("|>", node.right, node));
+      return prefix;
+    }
+    if (node.type === "BinaryOperation" && this.isGeneratorOperator(node.operator)) {
+      const prefix = this.convertGeneratorPipePrefix(node.left);
+      prefix.operators.push(this.createGeneratorOperatorNode(node.operator, node.right, node));
+      return prefix;
+    }
+    return { start: node, operators: [] };
   }
   parseMatrixOrArray(startToken) {
     const elements = [];

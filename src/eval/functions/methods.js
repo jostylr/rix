@@ -1,11 +1,13 @@
 import { ensureMutableReceiver, resolveMethod } from "../../runtime/methods.js";
 import { callWithConcreteArgs } from "./functions.js";
+import { isLazySequence, materializeLazySequence } from "../../runtime/lazy-sequence.js";
 
 function evaluateArgs(argNodes, evaluate) {
     const evaluatedArgs = [];
     for (const arg of argNodes) {
         if (arg && arg.fn === "SPREAD") {
-            const spreadVal = evaluate(arg.args[0]);
+            let spreadVal = evaluate(arg.args[0]);
+            if (isLazySequence(spreadVal)) spreadVal = materializeLazySequence(spreadVal);
             if (spreadVal && (spreadVal.type === "tuple" || spreadVal.type === "sequence" || spreadVal.type === "array" || spreadVal.type === "set")) {
                 const items = spreadVal.values || spreadVal.elements || [];
                 evaluatedArgs.push(...items);

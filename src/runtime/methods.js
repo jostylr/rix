@@ -32,6 +32,7 @@ import {
     multiplyScalars,
 } from "./exact-values.js";
 import { isUnitValue } from "./quantities.js";
+import { ensureLazyIndex, lazyKnownLength, materializeLazySequence } from "./lazy-sequence.js";
 
 function int(value) {
     return new Integer(BigInt(value));
@@ -733,6 +734,30 @@ const arrayMethods = {
     }),
 };
 
+const lazySequenceMethods = {
+    LEN: method("LEN", ([target]) => {
+        const length = lazyKnownLength(target);
+        if (length === null) throw new Error("Length is unknown for this lazy sequence");
+        return int(length);
+    }),
+    ISEMPTY: method("ISEMPTY", ([target]) => {
+        ensureLazyIndex(target, 1);
+        return bool(target._lazy.done && target._lazy.cache.length === 0);
+    }),
+    GET: method("GET", ([target, index]) => {
+        const raw = numericIndex(index);
+        if (raw < 0) return sequenceAt(materializeLazySequence(target), index);
+        if (raw === 0) throw new Error("Sequence indexes are 1-based; zero is invalid");
+        return ensureLazyIndex(target, raw);
+    }),
+    FIRST: method("FIRST", ([target]) => ensureLazyIndex(target, 1)),
+    LAST: method("LAST", ([target]) => {
+        const sequence = materializeLazySequence(target);
+        return sequence.values.at(-1) ?? null;
+    }),
+    MATERIALIZE: method("MATERIALIZE", ([target]) => materializeLazySequence(target)),
+};
+
 const mapMethods = {
     LEN: method("LEN", ([target]) => {
         ensureMap(target, "Len");
@@ -1284,6 +1309,7 @@ const commonMethods = {
 
 const PROTOS = new Map([
     ["sequence", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(arrayMethods)])],
+    ["lazy_sequence", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(lazySequenceMethods)])],
     ["map", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(mapMethods)])],
     ["set", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(setMethods)])],
     ["string", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(stringMethods)])],

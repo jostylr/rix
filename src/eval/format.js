@@ -6,6 +6,7 @@ import { resolveMethod } from "../runtime/methods.js";
 import { callWithConcreteArgs } from "./functions/functions.js";
 import { formatExact, isCayleyInfinity, isCayleyValue } from "../runtime/exact-values.js";
 import { formatQuantity, formatUnit, isQuantity, isUnitValue } from "../runtime/quantities.js";
+import { isLazySequence, lazyKnownLength } from "../runtime/lazy-sequence.js";
 
 function tensorValueAtTuple(tensor, tuple) {
     const value = tensor.data[tensorOffsetForTuple(tensor, tuple)];
@@ -252,6 +253,13 @@ export function formatValue(val, options = {}) {
     if (val === undefined) return "undefined";
 
     if (typeof val === "object" && val !== null) {
+        if (isLazySequence(val)) {
+            const cached = val._lazy.cache.slice(0, 8).map(formatChild).join(", ");
+            const more = val._lazy.cache.length > 8 || !val._lazy.done ? (cached ? ", …" : "…") : "";
+            const length = lazyKnownLength(val);
+            const suffix = length === null ? "" : `; length ${length}`;
+            return `[LazySequence${suffix}: ${cached}${more}]`;
+        }
         if (val.type === "string") return val.value;
         if (isCayleyInfinity(val)) return "Infinity";
         if (isCayleyValue(val)) {

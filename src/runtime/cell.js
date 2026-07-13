@@ -45,6 +45,7 @@ export class Cell {
 
 import { Integer, Rational, RationalInterval } from "@ratmath/core";
 import { isTensor, computeDefaultStrides } from "./tensor.js";
+import { cloneLazySequence, isLazySequence } from "./lazy-sequence.js";
 
 // ─── Meta key classification ─────────────────────────────────────────
 
@@ -84,6 +85,7 @@ export function shallowCopyValue(value) {
 
     // String object — always creates a new plain object
     if (value.type === "string") return { type: "string", value: value.value };
+    if (isLazySequence(value)) return cloneLazySequence(value);
 
     // Sequence
     if (value.type === "sequence") {
@@ -177,6 +179,9 @@ export function deepCopyValue(value) {
     }
 
     if (value.type === "string") return { type: "string", value: value.value };
+    if (isLazySequence(value)) {
+        return cloneLazySequence(value, { restart: true, cloneValue: deepCopyValue });
+    }
 
     if (value.type === "sequence") {
         return {

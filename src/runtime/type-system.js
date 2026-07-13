@@ -313,7 +313,8 @@ export function registerBuiltinSemanticTypes() {
 
     const nativeOnly = [
         ["String", "string", [], (value) => isStringObject(value) ? value : null],
-        ["Array", "array", ["sequence"], (value) => value?.type === "sequence" ? value : null],
+        ["Array", "array", ["sequence"], (value) =>
+            value?.type === "sequence" || value?.type === "lazy_sequence" ? value : null],
         ["Tuple", "tuple", ["sequence"], (value) => value?.type === "tuple" ? value : null],
         ["Map", "map", ["maplike"], (value) => value?.type === "map" ? value : null],
         ["Set", "set", ["collection"], (value) => value?.type === "set" ? value : null],

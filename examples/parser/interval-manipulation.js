@@ -261,7 +261,7 @@ console.log(
   "• All interval operators have the same precedence as basic interval (:)",
 );
 console.log("• Operations are left-associative");
-console.log("• Use parentheses to override precedence: (a:b :+ n) :: m");
+console.log("• Interval operators require interval operands; generated point sequences are not intervals");
 console.log("• Variable expressions in bounds: (expr1):(expr2) :+ step");
 
 console.log("\n\nSemantic Interpretations");

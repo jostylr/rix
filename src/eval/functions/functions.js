@@ -16,6 +16,13 @@ import {
     rebuildMultifunctionState,
     shouldWarnNoPrep,
 } from "../../runtime/multifunction.js";
+import {
+    ensureLazyIndex,
+    filterLazySequence,
+    isLazySequence,
+    mapLazySequence,
+    materializeLazySequence,
+} from "../../runtime/lazy-sequence.js";
 
 const isTruthy = (val) => val !== null && val !== undefined;
 
@@ -25,7 +32,8 @@ function evaluateArgs(argNodes, evaluate) {
     const evaluatedArgs = [];
     for (const arg of argNodes) {
         if (arg && arg.fn === "SPREAD") {
-            const spreadVal = evaluate(arg.args[0]);
+            let spreadVal = evaluate(arg.args[0]);
+            if (isLazySequence(spreadVal)) spreadVal = materializeLazySequence(spreadVal);
             if (spreadVal && (spreadVal.type === "tuple" || spreadVal.type === "sequence" || spreadVal.type === "array" || spreadVal.type === "set")) {
                 const items = spreadVal.values || spreadVal.elements || [];
                 evaluatedArgs.push(...items);
@@ -701,8 +709,9 @@ export const functionFunctions = {
             const collNode = args[0];
             const intervalNode = args[1];
 
-            const coll = evaluate(collNode);
+            let coll = evaluate(collNode);
             if (coll === null || coll === undefined) return null;
+            if (isLazySequence(coll)) coll = materializeLazySequence(coll);
 
             const interval = evaluate(intervalNode);
             let i_val, j_val;
@@ -786,7 +795,8 @@ export const functionFunctions = {
             const collNode = args[0];
             const intervalNode = args[1];
 
-            const coll = evaluate(collNode);
+            let coll = evaluate(collNode);
+            if (isLazySequence(coll)) coll = materializeLazySequence(coll);
             const isStringObj = coll && coll.type === "string";
             const isString = typeof coll === "string" || isStringObj;
             let n = 0;
@@ -924,7 +934,8 @@ export const functionFunctions = {
     PSPLIT: {
         lazy: true,
         impl(args, context, evaluate) {
-            const collection = evaluate(args[0]);
+            let collection = evaluate(args[0]);
+            if (isLazySequence(collection)) collection = materializeLazySequence(collection);
             const sepNode = args[1];
 
             if (collection === null || collection === undefined) {
@@ -1091,7 +1102,8 @@ export const functionFunctions = {
     PCHUNK: {
         lazy: true,
         impl(args, context, evaluate) {
-            const collection = evaluate(args[0]);
+            let collection = evaluate(args[0]);
+            if (isLazySequence(collection)) collection = materializeLazySequence(collection);
             const boundNode = args[1];
 
             if (collection === null || collection === undefined) {
@@ -1187,6 +1199,11 @@ export const functionFunctions = {
 
             const func = evaluate(funcNode);
 
+            if (isLazySequence(collection)) {
+                return mapLazySequence(collection, (item, index, source) =>
+                    invokeTraversalCallback(func, [item, new Integer(BigInt(index)), source], context, evaluate));
+            }
+
             if (isTensor(collection)) {
                 const results = [];
                 forEachTensorCell(collection, (item, tuple) => {
@@ -1268,6 +1285,11 @@ export const functionFunctions = {
 
             const func = evaluate(funcNode);
 
+            if (isLazySequence(collection)) {
+                return filterLazySequence(collection, (item, index, source) =>
+                    isTruthy(invokeTraversalCallback(func, [item, new Integer(BigInt(index)), source], context, evaluate)));
+            }
+
             if (isTensor(collection)) {
                 const results = [];
                 forEachTensorCell(collection, (item, tuple) => {
@@ -1336,12 +1358,14 @@ export const functionFunctions = {
     PREDUCE: {
         lazy: true,
         impl(args, context, evaluate) {
-            const collection = evaluate(args[0]);
+            let collection = evaluate(args[0]);
             const funcNode = args[1];
             const initProvided = args.length > 2;
             const explicitInit = initProvided ? evaluate(args[2]) : null;
 
             if (collection === null || collection === undefined) return null;
+
+            if (isLazySequence(collection)) collection = materializeLazySequence(collection);
 
             const func = evaluate(funcNode);
 
@@ -1420,7 +1444,7 @@ export const functionFunctions = {
 
     PREVERSE: {
         impl(args) {
-            const collection = args[0];
+            const collection = isLazySequence(args[0]) ? materializeLazySequence(args[0]) : args[0];
             if (collection === null || collection === undefined) return null;
 
             const isStringObj = (collection && collection.type === "string");
@@ -1444,7 +1468,8 @@ export const functionFunctions = {
     PSORT: {
         lazy: true,
         impl(args, context, evaluate) {
-            const collection = evaluate(args[0]);
+            let collection = evaluate(args[0]);
+            if (isLazySequence(collection)) collection = materializeLazySequence(collection);
             const funcNode = args[1];
 
             if (collection === null || collection === undefined) return null;
@@ -1534,6 +1559,18 @@ export const functionFunctions = {
 
             const func = evaluate(funcNode);
 
+            if (isLazySequence(collection)) {
+                let index = 1;
+                let last = null;
+                while (true) {
+                    const item = ensureLazyIndex(collection, index);
+                    if (collection._lazy.done && collection._lazy.cache.length < index) return index === 1 ? null : last;
+                    if (!isTruthy(invokeTraversalCallback(func, [item, new Integer(BigInt(index)), collection], context, evaluate))) return null;
+                    last = item;
+                    index++;
+                }
+            }
+
             if (isTensor(collection)) {
                 let sawAny = false;
                 let lastItem = null;
@@ -1620,6 +1657,16 @@ export const functionFunctions = {
             if (collection === null || collection === undefined) return null;
 
             const func = evaluate(funcNode);
+
+            if (isLazySequence(collection)) {
+                let index = 1;
+                while (true) {
+                    const item = ensureLazyIndex(collection, index);
+                    if (collection._lazy.done && collection._lazy.cache.length < index) return null;
+                    if (isTruthy(invokeTraversalCallback(func, [item, new Integer(BigInt(index)), collection], context, evaluate))) return item;
+                    index++;
+                }
+            }
 
             if (isTensor(collection)) {
                 let found = null;

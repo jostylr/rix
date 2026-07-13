@@ -25,5 +25,6 @@ export const runtimeDefaults = Object.freeze({
     Files: Object.freeze(["FILES"]),
     Units: Object.freeze(["UNITS", "Units", "CONVERTUNIT", "ConvertUnit", "DEFINEUNIT", "DefineUnit"]),
     Exact: Object.freeze(["EXACT", "Exact", "COMPLEX", "Complex", "DEFINEEXACTGENERATOR", "DefineExactGenerator"]),
+    Random: Object.freeze(["RANDOMSEED", "RandomSeed", "RAND_NAME"]),
   }),
 });

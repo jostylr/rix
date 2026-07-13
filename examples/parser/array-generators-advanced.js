@@ -200,14 +200,14 @@ demonstrateAdvanced(
 // Performance and Large-Scale Examples
 demonstrateAdvanced(
   "Lazy Infinite Primes",
-  "[2, 3 |: (i, a, b) -> nextPrime(b) |^: (i, a) -> a > 10000]",
+  "[2 |+ 1 |^ (a, i) -> a > 10000]",
   "Lazy evaluation for large prime sequences",
   "Demonstrates lazy evaluation for computationally expensive sequences"
 );
 
 demonstrateAdvanced(
   "Memory-Efficient Factorials",
-  "[1 |: (i, a) -> a * (i + 1) |^: 100]",
+  "[|: (i) -> i^2 |^ 100]",
   "Large factorial sequence with lazy evaluation",
   "Computes factorials on-demand to save memory"
 );
@@ -242,7 +242,7 @@ demonstrateAdvanced(
 );
 
 console.log("\n=== Performance and Safety Notes ===");
-console.log("• Use |^: for lazy evaluation with large sequences");
+console.log("• Use |^ for lazy evaluation with large sequences");
 console.log("• Always include termination conditions to prevent infinite loops");
 console.log("• Filter operations may significantly impact performance");
 console.log("• Complex function generators can be computationally expensive");

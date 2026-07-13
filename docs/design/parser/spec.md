@@ -742,14 +742,14 @@ A highly expressive system for defining sequences (arrays, sets) that can be fin
   `[1, |*3, |; 6]` → `[1, 3, 9, 27, 81, 243]`
 
 * **`|:f`**
-  *Generator function by index (f receives the index).*
+  *Generator function by one-based index; `f` receives `(index, self)`.*
   Example:
-  `[|: (i) -> i^2, |; 5]` → `[0, 1, 4, 9, 16]`
+  `[|: (i) -> i^2, |; 5]` → `[1, 4, 9, 16, 25]`
 
 * **`|>f`**
-  *Pipe previous value(s) into function f (for recursion).*
+  *Newest-first history source when no source precedes it; otherwise transform each candidate.*
   Example:
-  `[1, 1, |>(a, b) -> a + b, |; 7]` → `[1, 1, 2, 3, 5, 8, 13]` (Fibonacci)
+  `[1, 1, |>F(_2, _1), |; 7]` → `[1, 1, 2, 3, 5, 8, 13]` (Fibonacci)
 
 * **`|?p`**
   *Predicate filter; keeps elements where predicate is true.*
@@ -785,7 +785,7 @@ A highly expressive system for defining sequences (arrays, sets) that can be fin
 [1, |*3, |; 10]                  // [1, 3, 9, 27, ...]
 [1, 1, |>(a,b)->a+b, |; 7]       // [1, 1, 2, 3, 5, 8, 13]
 [|: (i)->2*i, |; (x)->x>20]      // [0, 2, 4, ..., 20]
-[2, 3, 4, 5, |+1, |; 10, |? (x)->x%2==0]
+[2, 3, 4, 5, |+1, |? (x)->x%2==0, |; 10]
 [2, |+2, |; (x,i)->i>=5]         // [2, 4, 6, 8, 10]
 ```
 
@@ -889,16 +889,17 @@ A dual system for sequence/array/set literal evaluation:
   * *Lazy/generator mode, stops generation if function returns true.* Function receives `(x, i)`.
   * Example: `[2, |+2, |^ (x, i) -> x > 100]` (generator, stops at x > 100 if accessed)
 
-* **`Self[i]`, `Self_3`**
+* **`self` and `_n` history placeholders**
 
-  * *Access current sequence/array within generator or stopping function for recursion/lookback.*
+  * *Callbacks receive the current emitted sequence as `self`. History-source
+    placeholders are newest-first: `_1`, `_2`, and so on.*
 
 ### How To Use
 
 * Use `|;` for full, immediate array generation up to the stop.
 * Use `|^` for generator/stream semantics—sequence only produces values when accessed, up to the ceiling/limit.
 * Both accept either a number or a function as argument.
-* `Self[i]` and `Self_3` provide access to the current state of the sequence so far from within the function body.
+* `self[i]` accesses emitted values; `_n` addresses source history without constructing a history array.
 
 ---
 
@@ -1063,27 +1064,23 @@ Interval, Range, and Partition Syntax
                  E.g., 1:7:-2 yields 7, 5, 3, 1.
 
 3. Even Division (by points)
-   a:b::n      - Divide [a, b] into n equal steps (yields n+1 points).
-                 E.g., 0:1::5 yields 0, 0.2, 0.4, 0.6, 0.8, 1.
-
-   a:b::+n     - Chunk [a, b] into n intervals, left to right.
-   a:b::-n     - Chunk [a, b] into n intervals, right to left.
+   a:b::n      - Produce exactly n equally spaced points, including endpoints.
 
 4. Partition by Intervals
-   a:b:/n      - Partition [a, b] into n intervals of equal width.
-                 E.g., 0:2:/2 yields intervals [0,1], [1,2].
+   a:b:/:n     - Partition [a, b] into n intervals of equal width.
+                 E.g., 0:2:/:2 yields intervals [0,1], [1,2].
 
 5. Partition by Mediants
-   a:b:/+n      - Partition [a, b] using n levels of mediant insertions.
+   a:b:~/n      - Partition [a, b] using n levels of mediant insertions.
                  Each level doubles the number of partitions.
 
    Examples:
-      a:b:/+1  => (a:c, c:b), where c is mediant(a,b)
-      a:b:/+2  => (a:d, d:c, c:e, e:b) where c=med(a,b), d=med(a,c), e=med(c,b)
+      a:b:~/1  => (a:c, c:b), where c is mediant(a,b)
+      a:b:~/2  => (a:d, d:c, c:e, e:b) where c=med(a,b), d=med(a,c), e=med(c,b)
 
 Laziness:
 - Ranges (a:b:+n, a:b:-n, a:b::n) are lazy—values generated as needed.
-- Partitions (a:b:/n, a:b/+n) are eager—computed in full as tuples/lists.
+- Partitions (`:/:`, `:~/`) are eager finite sequences.
 
 Chunking and Random Selection Syntax
 ------------------------------------
@@ -1097,13 +1094,13 @@ Chunking and Random Selection Syntax
    a:b:-n     - Start at b, step –n, down to and including a (finite).
 
 3. Even Division
-   a:b::n     - Divide [a, b] into n equal steps (n+1 points).
+   a:b::n     - Produce exactly n equally spaced endpoint-inclusive points.
 
 4. Partition by Intervals
-   a:b:/n     - Partition [a, b] into n equal-width intervals.
+   a:b:/:n    - Partition [a, b] into n equal-width intervals.
 
 5. Partition by Mediants
-   a:b:/+n    - Partition [a, b] using n levels of mediant partitioning.
+   a:b:~/n    - Partition [a, b] using n levels of mediant partitioning.
 
 
 Laziness/Eagerness:
@@ -1133,8 +1130,10 @@ Examples:
    5:15:/%3     → [5, 8.9], [8.9, 12.4], [12.4, 15] (partition at 8.9, 12.4)
 
 Notes:
-- All random points are sampled independently and uniformly from the interval.
-- For partitioning, endpoints a and b are always included, the rest are random and sorted.
+- With a denominator parameter, numerators are selected uniformly from the
+  denominator grid inside the interval. Without one, a uniform real sample is
+  replaced by the simplest rational within the configured tolerance.
+- For partitioning, endpoints are included, interior points are distinct and sorted.
 
 Laziness/Eagerness:
 - Random points: eager (all are generated at once).

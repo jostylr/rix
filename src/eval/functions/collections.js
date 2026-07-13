@@ -8,6 +8,12 @@ import { HOLE } from "../../runtime/hole.js";
 import { attachBuiltinProto } from "../../runtime/methods.js";
 import { captureIrValue, captureResolvedValue, constructorDefaultCaptureMode } from "../../runtime/constructor-capture.js";
 import { applySemanticHeader } from "../../runtime/semantic.js";
+import {
+    createLazySequence,
+    materializeLazySequence,
+} from "../../runtime/lazy-sequence.js";
+import { callWithConcreteArgs } from "./functions.js";
+import { shallowCopyValue } from "../../runtime/cell.js";
 
 function isTruthy(val) {
     return val !== null && val !== undefined;
@@ -93,55 +99,189 @@ const classifyUnionIntersectDomain = (val) => {
     return null;
 };
 
+const generatorCount = (value) => {
+    if (value instanceof Integer) return Number(value.value);
+    if (value instanceof Rational && value.denominator === 1n) return Number(value.numerator);
+    if (typeof value === "number" && Number.isInteger(value)) return value;
+    if (typeof value === "bigint") return Number(value);
+    return null;
+};
+
+const generatorCallable = (value) => Boolean(value && (
+    value.type === "function" || value.type === "lambda" || value.type === "partial" ||
+    value.type === "arityCap" || value.type === "sysref" || value.type === "multifunction"
+)) || typeof value === "function";
+
+const partialHistoryWidth = (callable) => {
+    if (!callable || callable.type !== "partial") return null;
+    return (callable.template || []).reduce(
+        (max, item) => item?.type === "placeholder" ? Math.max(max, item.index) : max,
+        0,
+    );
+};
+
+function createGeneratorValue(args, ctx, evaluate, defaultMode) {
+    const firstGenerator = args.findIndex((arg) => arg?.fn === "GENERATOR");
+    if (firstGenerator < 0) return null;
+    if (args.slice(firstGenerator).some((arg) => arg?.fn !== "GENERATOR")) {
+        throw new Error("Ordinary array elements cannot follow a generator chain");
+    }
+
+    const seedValues = args.slice(0, firstGenerator).map((arg) =>
+        captureIrValue(arg, defaultMode, ctx, evaluate));
+    const operators = [];
+    for (const generator of args.slice(firstGenerator)) {
+        if (generator.args[0]) {
+            if (operators.length > 0) throw new Error("A generator chain may only declare one inline seed segment");
+            seedValues.push(captureIrValue(generator.args[0], defaultMode, ctx, evaluate));
+        }
+        operators.push(...generator.args.slice(1));
+    }
+
+    const sourceKinds = new Set(["GEN_ADD", "GEN_MUL", "GEN_FUNC"]);
+    let sourceIndex = operators.findIndex((op) => sourceKinds.has(op?.fn));
+    if (sourceIndex < 0) sourceIndex = operators.findIndex((op) => op?.fn === "GEN_PIPE");
+    const source = sourceIndex < 0 ? null : operators[sourceIndex];
+    if (sourceIndex > 0 && operators.slice(0, sourceIndex).some((op) => op?.fn === "GEN_PIPE" || op?.fn === "GEN_FILTER")) {
+        throw new Error("The primary generation source must precede transforms and filters");
+    }
+    for (let i = 0; i < operators.length; i++) {
+        if (i === sourceIndex) continue;
+        if (sourceKinds.has(operators[i]?.fn)) {
+            throw new Error("A generator chain may contain only one primary generation source");
+        }
+    }
+
+    const evaluatedOps = operators.map((op, index) => ({
+        fn: op.fn,
+        value: op.args?.[0] ? evaluate(op.args[0]) : null,
+        source: index === sourceIndex,
+    }));
+    const sourceOp = evaluatedOps.find((op) => op.source) || null;
+    const terminalOps = evaluatedOps.filter((op) => op.fn === "GEN_EAGER_LIMIT" || op.fn === "GEN_LIMIT");
+    if (terminalOps.length > 1) throw new Error("A generator chain may contain only one termination operator");
+    if (terminalOps.length === 1 && evaluatedOps.at(-1) !== terminalOps[0]) {
+        throw new Error("The generator termination operator must be last in its chain");
+    }
+    const stages = evaluatedOps.filter((op) => !op.source && !["GEN_EAGER_LIMIT", "GEN_LIMIT"].includes(op.fn));
+    const terminal = terminalOps[0] || null;
+    const eager = terminal?.fn === "GEN_EAGER_LIMIT" || (!source && terminal?.fn !== "GEN_LIMIT");
+    const numericLimit = terminal ? generatorCount(terminal.value) : null;
+    if (numericLimit !== null && numericLimit < 0) throw new Error("Generator limit must be non-negative");
+    if (terminal && numericLimit === null && !generatorCallable(terminal.value)) {
+        throw new Error("Generator limit must be an integer or callable predicate");
+    }
+
+    const maxIterations = ctx.getEnv?.("generatorMaxIterations", ctx.getEnv?.("defaultLoopMax", 10000)) ?? 10000;
+    let sequence;
+    const invoke = (callable, concreteArgs) => callWithConcreteArgs(callable, concreteArgs, ctx, evaluate);
+    const copySeed = (value, cloneValue) => cloneValue ? cloneValue(value) : value;
+    const makeState = (cloneOptions = {}) => ({
+        seeds: seedValues.map((value) => copySeed(value, cloneOptions.cloneValue)),
+        seedIndex: 0,
+        sourceHistory: [],
+        sourcePosition: 0,
+        emitted: 0,
+        stop: false,
+    });
+
+    sequence = createLazySequence({
+        createState: makeState,
+        cloneState: (state, { cloneValue } = {}) => ({
+            seeds: state.seeds.map((value) => copySeed(value, cloneValue)),
+            seedIndex: state.seedIndex,
+            sourceHistory: state.sourceHistory.map((value) => copySeed(value, cloneValue)),
+            sourcePosition: state.sourcePosition,
+            emitted: state.emitted,
+            stop: state.stop,
+        }),
+        knownLength: numericLimit,
+        maxIterations,
+        label: "sequence generator",
+        pull(state, self, budget) {
+            if (state.stop || (numericLimit !== null && state.emitted >= numericLimit)) return { done: true };
+            let attempts = 0;
+            while (attempts < budget) {
+                let candidate;
+                if (state.seedIndex < state.seeds.length) {
+                    candidate = state.seeds[state.seedIndex++];
+                    state.sourceHistory.push(candidate);
+                } else if (!sourceOp) {
+                    return { done: true, attempts };
+                } else {
+                    if ((sourceOp.fn === "GEN_ADD" || sourceOp.fn === "GEN_MUL") && state.sourceHistory.length === 0) {
+                        throw new Error("Arithmetic generator requires at least one seed value");
+                    }
+                    if (sourceOp.fn === "GEN_ADD") {
+                        candidate = evaluate({ fn: "ADD", args: [state.sourceHistory.at(-1), sourceOp.value] });
+                    } else if (sourceOp.fn === "GEN_MUL") {
+                        candidate = evaluate({ fn: "MUL", args: [state.sourceHistory.at(-1), sourceOp.value] });
+                    } else if (sourceOp.fn === "GEN_FUNC") {
+                        const index = new Integer(BigInt(state.sourceHistory.length + 1));
+                        candidate = invoke(sourceOp.value, [index, self]);
+                    } else if (sourceOp.fn === "GEN_PIPE") {
+                        if (state.sourceHistory.length === 0) throw new Error("History generator requires seed values");
+                        const placeholderWidth = partialHistoryWidth(sourceOp.value);
+                        const parameterWidth = sourceOp.value?.params?.positional?.length;
+                        const width = placeholderWidth ?? parameterWidth;
+                        if (width === undefined) {
+                            throw new Error("History system/variadic callables require explicit _n placeholders");
+                        }
+                        if (state.sourceHistory.length < width) {
+                            throw new Error(`History generator requires ${width} seed values but only ${state.sourceHistory.length} are available`);
+                        }
+                        const args = width === 0 ? [] : state.sourceHistory.slice(-width).reverse().map(shallowCopyValue);
+                        candidate = invoke(sourceOp.value, args);
+                    }
+                    state.sourceHistory.push(candidate);
+                }
+
+                attempts++;
+                state.sourcePosition++;
+                let value = candidate;
+                let accepted = true;
+                for (const stage of stages) {
+                    if (stage.fn === "GEN_PIPE") {
+                        value = invoke(stage.value, [value]);
+                    } else if (stage.fn === "GEN_FILTER") {
+                        accepted = isTruthy(invoke(stage.value, [value, new Integer(BigInt(state.sourcePosition)), self]));
+                        if (!accepted) break;
+                    }
+                }
+                if (!accepted) continue;
+
+                state.emitted++;
+                if (terminal && numericLimit === null) {
+                    state.stop = isTruthy(invoke(terminal.value, [value, new Integer(BigInt(state.sourcePosition)), self]));
+                }
+                return { done: false, value: captureResolvedValue(value, defaultMode), attempts };
+            }
+            return { attempts: budget + 1 };
+        },
+    });
+
+    if (!eager) return sequence;
+    const materialized = materializeLazySequence(sequence, { allowUnknown: true, maxIterations });
+    materialized._ext = new Map([["_mutable", new Integer(1n)]]);
+    return attachBuiltinProto(materialized);
+}
+
 export const collectionFunctions = {
     ARRAY: {
         lazy: true,
         impl(args, ctx, evaluate) {
             const defaultMode = constructorDefaultCaptureMode(ctx);
+            const generated = createGeneratorValue(args, ctx, evaluate, defaultMode);
+            if (generated) return attachBuiltinProto(generated);
             const values = [];
             let i = 0;
             while (i < args.length) {
                 const arg = args[i];
-                if (arg && arg.fn === "GENERATOR") {
-                    let current = arg.args[0] ? evaluate(arg.args[0]) : values[values.length - 1];
-                    if (current === undefined) throw new Error("Sequence generator missing start value");
-                    if (arg.args[0]) values.push(captureResolvedValue(current, defaultMode));
-
-                    const ops = [...arg.args.slice(1)];
-                    // Consume subsequent GENERATOR nodes
-                    while (i + 1 < args.length && args[i + 1] && args[i + 1].fn === "GENERATOR") {
-                        i++;
-                        ops.push(...args[i].args.slice(1));
-                    }
-
-                    let generate = true;
-                    let maxEager = 10000;
-
-                    while (generate && maxEager-- > 0) {
-                        let next = current;
-                        let stop = false;
-                        for (const op of ops) {
-                            if (!op || typeof op !== 'object') continue;
-                            const opArg = op.args?.[0] ? evaluate(op.args[0]) : null;
-                            if (op.fn === "GEN_ADD") {
-                                next = evaluate({ fn: "ADD", args: [next, opArg] });
-                            } else if (op.fn === "GEN_MUL") {
-                                next = evaluate({ fn: "MUL", args: [next, opArg] });
-                            } else if (op.fn === "GEN_EAGER_LIMIT") {
-                                if (values.length >= opArg) stop = true;
-                            } else if (op.fn === "GEN_LIMIT") {
-                                const gtResult = evaluate({ fn: "GT", args: [next, opArg] });
-                                if (gtResult !== null && gtResult !== undefined) stop = true;
-                            }
-                        }
-                        if (stop) break;
-                        values.push(captureResolvedValue(next, defaultMode));
-                        current = next;
-                    }
-                } else if (arg && arg.fn === "HOLE") {
+                if (arg && arg.fn === "HOLE") {
                     values.push(HOLE); // explicit omission syntax → store hole
                 } else if (arg && arg.fn === "SPREAD") {
-                    const spreadVal = evaluate(arg.args[0]);
+                    let spreadVal = evaluate(arg.args[0]);
+                    if (spreadVal?.type === "lazy_sequence") spreadVal = materializeLazySequence(spreadVal);
                     if (spreadVal && (spreadVal.type === "tuple" || spreadVal.type === "sequence" || spreadVal.type === "array" || spreadVal.type === "set")) {
                         const items = spreadVal.values || spreadVal.elements || [];
                         values.push(...items.map((item) => captureResolvedValue(item, defaultMode)));

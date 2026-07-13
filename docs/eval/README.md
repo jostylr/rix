@@ -32,9 +32,9 @@ The main entry points are:
 The following evaluator capabilities are intentionally still stubs or partial:
 
 - `DERIVATIVE` and `INTEGRAL` return stub objects.
-- `GENERATOR` and `STEP` return stub objects.
-- Array generator syntax has partial eager support in array construction, but
-  lazy generators and function-driven generator forms are not complete.
+- Symbolic `DERIVATIVE` and `INTEGRAL` remain stubs. Array generators,
+  lazy sequences, interval stepping/division/partitions, mediants, random
+  sampling, and infinite arithmetic sequences are implemented.
 - `{$ ... }` system blocks currently evaluate with block-like semantics; the
   broader constraint/solver model is still design work.
 - General algebraic field composition and user-declared cross-generator

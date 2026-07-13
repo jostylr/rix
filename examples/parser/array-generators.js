@@ -87,12 +87,12 @@ demonstrateExample(
 // Lazy generators
 demonstrateExample(
   "Lazy Arithmetic Sequence", 
-  "[1 |+ 2 |^: 1000]"
+  "[1 |+ 2 |^ 1000]"
 );
 
 demonstrateExample(
   "Lazy with Function Limit", 
-  "[1 |+ 2 |^: (i, a) -> a > 100]"
+  "[1 |+ 2 |^ (a, i) -> a > 100]"
 );
 
 // Complex chaining
@@ -139,6 +139,6 @@ console.log("• |* n    : Geometric sequences (multiply by n each step)");
 console.log("• |: fn   : Custom function generators");
 console.log("• |? fn   : Filtering with predicates");
 console.log("• |^ n/fn : Eager stopping conditions");
-console.log("• |^: n/fn: Lazy stopping conditions");
+console.log("• |^ n/fn: Lazy stopping conditions");
 console.log("• Chaining: Multiple operations can be chained together");
 console.log("• Arrays can contain multiple generator chains separated by commas");

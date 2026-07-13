@@ -5,6 +5,15 @@ export { HOLE, isHole } from "./hole.js";
 export { DiagnosticsRegistry, getDiagnostics, RixAbort, isRixAbort, createEvent } from "./diagnostics.js";
 export { runtimeDefaults } from "./runtime-config.js";
 export {
+    createLazySequence,
+    cloneLazySequence,
+    ensureLazyIndex,
+    isLazySequence,
+    lazyKnownLength,
+    materializeLazySequence,
+} from "./lazy-sequence.js";
+export { runtimeRandom, seedRuntimeRandom } from "./random.js";
+export {
     createDefaultUnitCollection,
     createUnit,
     constructQuantity,

@@ -158,13 +158,13 @@ showExample(
 // Lazy evaluation examples
 showExample(
   "Large Lazy Sequence",
-  "[1 |+ 1 |^: 10000]",
+  "[1 |+ 1 |^ 10000]",
   "Lazy sequence that could generate up to 10,000 elements"
 );
 
 showExample(
   "Conditional Lazy Stop",
-  "[2 |* 2 |^: (i, a) -> a > 1000000]",
+  "[2 |* 2 |^ (a, i) -> a > 1000000]",
   "Lazy powers of 2 until exceeding one million"
 );
 

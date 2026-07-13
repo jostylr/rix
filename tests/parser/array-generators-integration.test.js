@@ -147,19 +147,19 @@ describe("RiX Array Generators Integration Tests", () => {
 
   describe("Lazy Evaluation", () => {
     test("lazy arithmetic sequence", () => {
-      const ast = parseCode("[1 |+ 1 |^: 10000];");
+      const ast = parseCode("[1 |+ 1 |^ 10000];");
       const chain = stripMetadata(ast)[0].expression.elements[0];
       
-      expect(chain.operators[1].type).toBe("GeneratorLazyLimit");
-      expect(chain.operators[1].operator).toBe("|^:");
+      expect(chain.operators[1].type).toBe("GeneratorLimit");
+      expect(chain.operators[1].operator).toBe("|^");
       expect(chain.operators[1].operand.value).toBe("10000");
     });
 
     test("lazy with function condition", () => {
-      const ast = parseCode("[2 |* 2 |^: (i, a) -> a > 1000000];");
+      const ast = parseCode("[2 |* 2 |^ (a, i) -> a > 1000000];");
       const chain = stripMetadata(ast)[0].expression.elements[0];
       
-      expect(chain.operators[1].type).toBe("GeneratorLazyLimit");
+      expect(chain.operators[1].type).toBe("GeneratorLimit");
       expect(chain.operators[1].operand.type).toBe("FunctionLambda");
     });
   });

@@ -637,6 +637,13 @@
   original: string    // Combined original text
 }
 </code></pre>
+<h3>GeneratorPipe</h3>
+<pre><code class="language-javascript">{
+  operator: string,   // &#39;|&gt;&#39;
+  operand: ASTNode,   // History source or candidate transform
+  original: string
+}
+</code></pre>
 <h3>GeneratorFilter</h3>
 <pre><code class="language-javascript">{
   operator: string,   // &#39;|?&#39;
@@ -651,10 +658,10 @@
   original: string    // Combined original text
 }
 </code></pre>
-<h3>GeneratorLazyLimit</h3>
+<h3>GeneratorEagerLimit</h3>
 <pre><code class="language-javascript">{
-  operator: string,   // &#39;|^:&#39;
-  operand: ASTNode,   // Lazy limit condition/count
+  operator: string,   // &#39;|;&#39;
+  operand: ASTNode,   // Eager limit condition/count
   original: string    // Combined original text
 }
 </code></pre>

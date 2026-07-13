@@ -3698,7 +3698,7 @@ describe("RiX Parser", () => {
                 value: '1:5'
               },
               count: { type: 'Number', value: '3' },
-              type: 'equally_spaced'
+              divisionKind: 'equally_spaced'
             }
           }]);
         });
@@ -3901,7 +3901,7 @@ describe("RiX Parser", () => {
                 }
               },
               count: { type: 'UserIdentifier', name: 'count' },
-              type: 'equally_spaced'
+              divisionKind: 'equally_spaced'
             }
           }]);
         });
@@ -3928,7 +3928,7 @@ describe("RiX Parser", () => {
               type: 'IntervalDivision',
               interval: { type: 'UserIdentifier', name: 'myinterval' },
               count: { type: 'Number', value: '5' },
-              type: 'equally_spaced'
+              divisionKind: 'equally_spaced'
             }
           }]);
         });

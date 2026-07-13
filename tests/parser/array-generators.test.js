@@ -246,39 +246,8 @@ describe("RiX Array Generators", () => {
       });
     });
 
-    test("|^: lazy limit with number", () => {
-      const ast = parseCode("[1 |+ 2 |^: 5];");
-      expect(stripMetadata(ast)[0].expression.elements[0].operators[1]).toEqual({
-        type: "GeneratorLazyLimit",
-        operator: "|^:",
-        operand: { type: "Number", value: "5" }
-      });
-    });
-
-    test("|^: lazy limit with function", () => {
-      const ast = parseCode("[1 |+ 2 |^: (i, a) -> a > 10];");
-      expect(stripMetadata(ast)[0].expression.elements[0].operators[1]).toEqual({
-        type: "GeneratorLazyLimit",
-        operator: "|^:",
-        operand: {
-          type: "FunctionLambda",
-          parameters: {
-            conditionals: [],
-            keyword: [],
-            metadata: {},
-            positional: [
-              { name: "i", defaultValue: null },
-              { name: "a", defaultValue: null }
-            ]
-          },
-          body: {
-            type: "BinaryOperation",
-            operator: ">",
-            left: { type: "UserIdentifier", name: "a" },
-            right: { type: "Number", value: "10" }
-          }
-        }
-      });
+    test("removed |^: syntax is rejected", () => {
+      expect(() => parseCode("[1 |+ 2 |^: 5];")).toThrow();
     });
   });
 

@@ -8,6 +8,8 @@ import { coerceShapeValue, createTensor, forEachTensorCell, tensorIndexTuple, te
 import { callWithConcreteArgs } from "./functions.js";
 import { formatValue } from "../format.js";
 import { deepSetMutable } from "./core.js";
+import { runtimeRandom, seedRuntimeRandom } from "../../runtime/random.js";
+import { ensureLazyIndex, isLazySequence, lazyKnownLength, materializeLazySequence } from "../../runtime/lazy-sequence.js";
 
 export const RIX_IO_ENV = "__io__";
 
@@ -59,6 +61,11 @@ export const stdlibFunctions = {
     LEN: {
         impl(args) {
             const coll = args[0];
+            if (isLazySequence(coll)) {
+                const length = lazyKnownLength(coll);
+                if (length === null) throw new Error("Length is unknown for this lazy sequence");
+                return new Integer(BigInt(length));
+            }
             if (coll && (coll.type === "sequence" || coll.type === "tuple" || coll.type === "set")) {
                 return new Integer(coll.values.length);
             }
@@ -83,6 +90,7 @@ export const stdlibFunctions = {
     FIRST: {
         impl(args) {
             const coll = args[0];
+            if (isLazySequence(coll)) return ensureLazyIndex(coll, 1);
             if (coll && (coll.type === "sequence" || coll.type === "tuple" || coll.type === "set")) {
                 return coll.values[0];
             }
@@ -106,6 +114,10 @@ export const stdlibFunctions = {
     LAST: {
         impl(args) {
             const coll = args[0];
+            if (isLazySequence(coll)) {
+                const materialized = materializeLazySequence(coll);
+                return materialized.values.at(-1) ?? null;
+            }
             if (coll && (coll.type === "sequence" || coll.type === "tuple" || coll.type === "set")) {
                 return coll.values[coll.values.length - 1];
             }
@@ -132,6 +144,13 @@ export const stdlibFunctions = {
             if (idx instanceof Integer) index = Number(idx.value);
             else if (typeof idx === "number" || typeof idx === "bigint") index = Number(idx);
 
+            if (isLazySequence(coll)) {
+                if (index < 0) {
+                    const materialized = materializeLazySequence(coll);
+                    return materialized.values[materialized.values.length + index];
+                }
+                return ensureLazyIndex(coll, index);
+            }
             if (coll && (coll.type === "sequence" || coll.type === "tuple" || coll.type === "set")) {
                 return coll.values[index - 1]; // 1-based index
             }
@@ -267,7 +286,7 @@ export const stdlibFunctions = {
     },
 
     RAND_NAME: {
-        impl(args) {
+        impl(args, context) {
             const lenArg = args[0];
             const alphabetArg = args[1];
 
@@ -293,12 +312,20 @@ export const stdlibFunctions = {
 
             let out = "";
             for (let i = 0; i < len; i++) {
-                const idx = Math.floor(Math.random() * alphabet.length);
+                const idx = Math.floor(runtimeRandom(context) * alphabet.length);
                 out += alphabet[idx];
             }
             return { type: "string", value: out };
         },
         doc: "Generate a random name string RAND_NAME(len=10, alphabet=a-zA-Z)",
+    },
+
+    RANDOMSEED: {
+        impl(args, context) {
+            if (args.length !== 1) throw new Error("RANDOMSEED expects exactly one integer seed");
+            return seedRuntimeRandom(context, args[0]);
+        },
+        doc: "Seed the current runtime random-number stream",
     },
 
     // --- I/O ---

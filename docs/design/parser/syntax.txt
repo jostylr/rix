@@ -47,7 +47,8 @@ Piping, Functional, and Sequence Operators
 |>:       Reduce: folds array with binary function
 |+n       Arithmetic sequence: add n each time
 |*n       Geometric sequence: multiply by n each time
-|:f       Sequence generator by index (f(i))
+|:f       Sequence generator by one-based index (f(i, self))
+|>f       Newest-first history source or candidate transform
 |?p       Predicate filter for sequence literals
 |;n       Eager stop after n elements in sequence
 |;f       Eager stop when function returns true

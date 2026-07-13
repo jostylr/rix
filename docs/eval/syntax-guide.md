@@ -1022,19 +1022,19 @@ Arity cap is simpler when you just want to drop trailing context args. Placehold
 
 | Syntax | Current evaluator status | Example |
 |--------|--------------------------|---------|
-| `\|+n` | Partial eager support: add `n` to previous value | `[2, \|+2, \|; 5]` → `[2,4,6,8,10]` |
-| `\|*n` | Partial eager support: multiply previous value by `n` | `[1, \|*3, \|; 4]` → `[1,3,9,27]` |
-| `\|;n` | Partial eager support: stop after `n` elements | `[2, \|+2, \|; 5]` |
-| `\|;limit` | Partial eager support: stop when generated values exceed a simple limit | `[2, \|+2, \|; 10]` |
-| `\|:f` | Parser/design syntax; evaluator support incomplete | `[\|: (i) -> i^2, \|; 5]` |
-| `\|>f` | Parser/design syntax; evaluator support incomplete | `[1,1, \|>(a,b)->a+b, \|; 7]` |
-| `\|?p` | Parser/design syntax; evaluator support incomplete | `[1,2,3,4, \|? (x)->x%2==0]` |
-| `\|^n`, `\|^f` | Lazy generator syntax is not implemented yet | `[1, \|+1, \|^ 1000]` |
+| `\|+n` | Arithmetic source; add `n` to the previous source value | `[2, \|+2, \|; 5]` → `[2,4,6,8,10]` |
+| `\|*n` | Geometric source; multiply the previous source value by `n` | `[1, \|*3, \|; 4]` → `[1,3,9,27]` |
+| `\|:f` | One-based index source; calls `f(index, self)` | `[\|: (i) -> i^2, \|; 5]` |
+| `\|>f` | History source when no source precedes it; otherwise transforms each candidate | `[1,1, \|>F(_2,_1), \|; 7]` |
+| `\|?p` | Keep candidates for which `p(value,index,self)` succeeds | `[1 \|+1 \|? (x)->x%2==0 \|;5]` |
+| `\|;n`, `\|;p` | Eagerly materialize `n` accepted values, or through the triggering predicate value | `[2, \|+2, \|; 5]` |
+| `\|^n`, `\|^p` | Lazy count- or predicate-bounded sequence | `[1, \|+1, \|^ 1000]` |
 
-Generator note: `GENERATOR` and `STEP` are still registered as future/stub
-functions. The array constructor contains partial eager generator support for
-simple arithmetic/geometric sequences, but lazy generators and function-driven
-forms should be treated as design syntax until the runtime is completed.
+Without `|;` or `|^`, a chain with a generation source is lazy and unbounded.
+Lazy sequences cache emitted values, support positive indexing and bounded
+slicing, and keep map/filter pipes lazy. Operations requiring the end of a
+sequence reject unbounded inputs. Generator safety exhaustion throws instead
+of silently truncating output.
 
 ### Collection Syntax
 
@@ -1523,14 +1523,21 @@ Scope note:
 - Script module scopes are boundaries for that outward callable lookup.
 - Combo operators (`+=`, `-=`, `*=`, `/=`, `//=`, `%=`, `^=`, `++=`, `\/=`, `/\=`, `\=`, `**=`, `/^=`, `/~=`) desugar to `ASSIGN_UPDATE` / `OUTER_UPDATE`, preserving cell identity so aliases track changes.
 
-### Advanced Constructors and Future Extensions
+### Advanced Constructors and Extensions
 
 | Function | Description |
 |----------|-------------|
 | `DERIVATIVE(expr, var)` | Stub: returns a placeholder object |
 | `INTEGRAL(expr, var)` | Stub: returns a placeholder object |
-| `GENERATOR(args...)` | Stub: returns a placeholder object |
-| `STEP(start, end, step)` | Stub: returns a placeholder object |
+| `GENERATOR(args...)` | Internal array-generator marker consumed by `ARRAY` |
+| `STEP(interval, step)` | Lazy exact stepped interval sequence (`a:b :+ step`) |
+| `DIVIDE(interval, n)` | Exactly `n` lazy endpoint-inclusive points (`a:b :: n`) |
+| `PARTITION(interval, n)` | `n` eager equal touching intervals (`a:b :/: n`) |
+| `MEDIANTS(interval, levels)` | Nested exact mediant levels (`a:b :~ levels`) |
+| `MEDIANT_PARTITION(interval, levels)` | Eager mediant partitions (`a:b :~/ levels`) |
+| `RANDOM(interval, params)` | Rational samples; params are count, optional denominator, optional tolerance |
+| `RANDOM_PARTITION(interval, params)` | Distinct rational interior partition points |
+| `INFSEQ(start, step)` | Lazy unbounded arithmetic sequence (`start::+step`) |
 | `MATRIX(rows...)` | Matrix literal |
 | `TENSOR(data...)` | Legacy tensor constructor |
 | `TENSOR_LITERAL(shape, elems...)` | Explicit-shape tensor literal |

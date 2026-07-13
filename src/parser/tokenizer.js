@@ -95,7 +95,7 @@ const symbols = [
   "?|",
   // System function prefix (must come before single @)
   "@_",
-  "|^:",
+  "|^:", // reserved so the removed legacy syntax fails as one token
   "|+",
   "|*",
   "|:",

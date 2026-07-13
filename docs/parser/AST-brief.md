@@ -402,6 +402,15 @@ This document provides a comprehensive reference for all token types generated b
 }
 ```
 
+### GeneratorPipe
+```javascript
+{
+  operator: string,   // '|>'
+  operand: ASTNode,   // History source or candidate transform
+  original: string
+}
+```
+
 ### GeneratorFilter
 ```javascript
 {
@@ -420,11 +429,11 @@ This document provides a comprehensive reference for all token types generated b
 }
 ```
 
-### GeneratorLazyLimit
+### GeneratorEagerLimit
 ```javascript
 {
-  operator: string,   // '|^:'
-  operand: ASTNode,   // Lazy limit condition/count
+  operator: string,   // '|;'
+  operand: ASTNode,   // Eager limit condition/count
   original: string    // Combined original text
 }
 ```
