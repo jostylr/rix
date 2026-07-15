@@ -27,7 +27,7 @@ import { propertyFunctions } from "./functions/properties.js";
 import { advancedFunctions } from "./functions/advanced.js";
 import { stdlibFunctions } from "./functions/stdlib.js";
 import { diagnosticFunctions } from "./functions/diagnostics.js";
-import { installSymbolicBindings, symbolicFunctions } from "./functions/symbolic.js";
+import { symbolicCapabilities, symbolicFunctions } from "./functions/symbolic.js";
 import { MATH_FUNCTION_NAMES, mathFunctions } from "./functions/math.js";
 import { installRegisteredTypes, registerBuiltinSemanticTypes } from "../runtime/type-system.js";
 import { createDefaultComplexCollection, createDefaultExactCollection } from "../runtime/exact-values.js";
@@ -95,6 +95,7 @@ export function createDefaultSystemContext(options = {}) {
     ctx.registerValue("COMPLEX", complex, { doc: "Exact complex-number operations" });
     ctx.registerValue("Complex", complex, { doc: "Exact complex-number operations" });
     ctx.registerAll(stdlibFunctions);
+    ctx.registerAll(symbolicCapabilities);
     ctx.register("EVAL", coreFunctions.EVAL);
     ctx.register("TypeExport", coreFunctions.TYPE_EXPORT);
     ctx.register("TypeImport", coreFunctions.TYPE_IMPORT);
@@ -585,7 +586,6 @@ function evaluateScriptImport(spec, context, registry, systemContext) {
 
     const scriptContext = new Context();
     scriptContext.env = context.env;
-    installSymbolicBindings(scriptContext);
     scriptContext.push(undefined, { isolated: true, callableBoundary: true });
 
     runtime.activeImports.push(resolvedPath);
@@ -798,9 +798,6 @@ export function evaluate(irNode, context, registry, systemContext) {
  */
 export function parseAndEvaluate(code, options = {}) {
     const context = options.context || new Context();
-    if (!options.context) {
-        installSymbolicBindings(context);
-    }
     const registry = options.registry || createDefaultRegistry();
     const systemContext = options.systemContext || createDefaultSystemContext();
     context.setEnv("__system_context__", systemContext);

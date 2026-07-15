@@ -1654,14 +1654,14 @@ Rules for the body in the current implementation:
 
 Expression trees are stored structurally, not as precomputed values and not as reparsed source strings. Outer references such as `@name` are preserved symbolically for later consumers to interpret.
 
-Current host-side helpers used in tests:
+Current symbolic capabilities:
 
 ```rix
-P = {#x,y,z:p# p = x^2 * y + z } |> Poly
-Dx = Deriv({#x,y,z:p# p = x^2 * y + z }, "x")
+P = .Poly({#x,y,z:p# p = x^2 * y + z })
+Dx = .Deriv({#x,y,z:p# p = x^2 * y + z }, "x")
 ```
 
-`Poly` and `Deriv` currently support a restricted polynomial subset:
+`.Poly` and `.Deriv` currently support a restricted polynomial subset:
 
 - constants
 - identifiers

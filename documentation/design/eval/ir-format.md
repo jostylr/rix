@@ -159,7 +159,7 @@ Operations array: `[{action: "add"|"remove", key: string, value: ir|null}]`
 
 | IR fn | Source | Args |
 |-------|--------|------|
-| `DERIVATIVE` | `f'`, `f''` | `[fn, order]` |
+| `DERIVATIVE` | `F'`, `F''` | `[fn, order]` |
 | `INTEGRAL` | `'expr` | `[expression]` |
 
 ### Interval Operations

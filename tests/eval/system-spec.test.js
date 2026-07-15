@@ -3,7 +3,6 @@ import { tokenize } from "../../src/parser/tokenizer.js";
 import { parse } from "../../src/parser/parser.js";
 import { lower } from "../../src/eval/lower.js";
 import { evaluate, createDefaultRegistry, createDefaultSystemContext } from "../../src/eval/evaluator.js";
-import { installSymbolicBindings } from "../../src/eval/functions/symbolic.js";
 import { Context } from "../../src/runtime/context.js";
 
 function systemLookup(name) {
@@ -12,7 +11,6 @@ function systemLookup(name) {
 
 function evalRix(code, context = null) {
     const ctx = context || new Context();
-    installSymbolicBindings(ctx);
     const registry = createDefaultRegistry();
     const systemContext = createDefaultSystemContext();
     const tokens = tokenize(code);
@@ -61,7 +59,6 @@ describe("System Spec Evaluation", () => {
 
     test("system specs do not perform runtime assignment while being created", () => {
         const ctx = new Context();
-        installSymbolicBindings(ctx);
         evalRix("x = 5; {#p# p = x + 1 };", ctx);
         expect(ctx.get("p")).toBeUndefined();
         expect(ctx.get("x").value).toBe(5n);
@@ -77,16 +74,16 @@ describe("System Spec Evaluation", () => {
     });
 
     test("Poly can consume a single-output polynomial spec", () => {
-        const { result } = evalRix("P = {#x,y,z:p# p = x^2 * y + z } |> Poly; P(2,3,4);");
+        const { result } = evalRix("P = .Poly({#x,y,z:p# p = x^2 * y + z }); P(2,3,4);");
         expect(result.value).toBe(16n);
     });
 
     test("Deriv returns another spec consumable by Poly", () => {
         const { result } = evalRix(`
             S = {#x,y,z:p# p = x^2 * y + z };
-            D = Deriv(S, "x");
-            P = Poly(S);
-            Px = Poly(D);
+            D = .Deriv(S, "x");
+            P = .Poly(S);
+            Px = .Poly(D);
             {: P(2,3,4), Px(2,3,4) };
         `);
         expect(result.type).toBe("tuple");
@@ -94,7 +91,22 @@ describe("System Spec Evaluation", () => {
         expect(result.values[1].value).toBe(12n);
     });
 
+    test("Poly and Deriv are available as system capabilities", () => {
+        const { result } = evalRix(`
+            S = {#x:p# p = x^3 };
+            D = .Deriv(S, "x");
+            P = .Poly(D);
+            P(4);
+        `);
+        expect(result.value).toBe(48n);
+    });
+
+    test("Poly and Deriv are not injected as bare globals", () => {
+        expect(() => evalRix("Poly")).toThrow(/Undefined variable: POLY/);
+        expect(() => evalRix("Deriv")).toThrow(/Undefined variable: DERIV/);
+    });
+
     test("Poly errors clearly on unsupported symbolic nodes", () => {
-        expect(() => evalRix("P = {#x:p# p = .ADD(x, 1) } |> Poly; P(2);")).toThrow(/Poly does not support symbolic node kind 'call'/);
+        expect(() => evalRix("P = .Poly({#x:p# p = .ADD(x, 1) }); P(2);")).toThrow(/Poly does not support symbolic node kind 'call'/);
     });
 });

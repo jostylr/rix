@@ -7,7 +7,6 @@ import { parse } from "../../src/parser/parser.js";
 import { lower } from "../../src/eval/lower.js";
 import { Context } from "../../src/runtime/context.js";
 import { createDefaultRegistry, createDefaultSystemContext, evaluate } from "../../src/eval/evaluator.js";
-import { installSymbolicBindings } from "../../src/eval/functions/symbolic.js";
 import { runtimeDefaults } from "../../src/runtime/runtime-config.js";
 
 const TMP_ROOT = path.resolve(process.cwd(), ".test-tmp", `script-import-tests-${Date.now()}`);
@@ -25,7 +24,6 @@ function writeScripts(files) {
 
 function evalRix(code, options = {}) {
     const context = options.context || new Context();
-    installSymbolicBindings(context);
     if (options.scriptBaseDir) {
         context.setEnv("scriptBaseDir", options.scriptBaseDir);
     }
@@ -228,6 +226,16 @@ describe("script import execution", () => {
             systemContext,
             capabilityGroups,
         }).result.value).toBe(11n);
+    });
+
+    test("Symbolic capability group grants exact spec transformations", () => {
+        const dir = writeScripts({
+            symbolic: 'S = {#x:p# p = x^3 }; D = .Deriv(S, "x"); P = .Poly(D); P(4)',
+        });
+
+        expect(evalRix('<"symbolic" /-All,+Symbolic/>', { scriptBaseDir: dir }).result.value).toBe(48n);
+        expect(() => evalRix('<"symbolic" /-All,+Core/>', { scriptBaseDir: dir }))
+            .toThrow("Unknown system capability: DERIV");
     });
 
     test("nested scripts cannot gain capabilities that their parent lacks", () => {

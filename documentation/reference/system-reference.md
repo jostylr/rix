@@ -8,7 +8,7 @@ toc-depth: 2
 This page is generated from the current RiX implementation by `documentation/scripts/generate-reference.js`. Do not edit it by hand. Descriptions come from registry documentation strings; the narrative [syntax guide](../eval/syntax-guide.md) and [methods guide](../eval/methods-guide.md) provide signatures and examples.
 :::
 
-At this revision RiX exposes **88 named entries** on the default system context and registers **164 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
+At this revision RiX exposes **90 named entries** on the default system context and registers **164 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
 
 ## Public system context
 
@@ -33,6 +33,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.DEEPMUTABLE` | function | — | Recursively set (flag≠\_) or remove (flag=\_) .\_mutable on all nested arrays/maps/tensors. Called via .DeepMutable(value, flag). |
 | `.DEFINEEXACTGENERATOR` | function | Exact | Create an algebraic exact generator from low-to-high polynomial coefficients |
 | `.DEFINEUNIT` | function | Units | Create a linear Unit value from a name and Unit/Quantity definition |
+| `.DERIV` | function | Symbolic | Differentiate a supported symbolic system specification exactly |
 | `.DIV` | function | Arith | Division |
 | `.DefineExactGenerator` | function | Exact | Create an algebraic exact generator from low-to-high polynomial coefficients |
 | `.DefineUnit` | function | Units | Create a linear Unit value from a name and Unit/Quantity definition |
@@ -72,6 +73,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.NEQ` | function | Logic | Inequality check — returns 1 or null |
 | `.NOT` | function | Logic | Logical NOT — returns Integer(1) for null input, null otherwise |
 | `.OR` | lazy function | Logic | Logical OR (short-circuits on first truthy, returns deciding value) |
+| `.POLY` | function | Symbolic | Create an exact callable from a supported symbolic system specification |
 | `.POW` | function | Arith | Exponentiation |
 | `.POWPROD` | function | — | Exponentiation/product power (currently same implementation as POW) |
 | `.PRINT` | function | Core, Strings | Print each argument through the replaceable \_\_io\_\_ hook |
@@ -189,6 +191,7 @@ Imported scripts can add or withhold named groups. Permission-like names are int
 | `Files` | `FILES` |
 | `Units` | `UNITS`, `Units`, `CONVERTUNIT`, `ConvertUnit`, `DEFINEUNIT`, `DefineUnit` |
 | `Exact` | `EXACT`, `Exact`, `COMPLEX`, `Complex`, `DEFINEEXACTGENERATOR`, `DefineExactGenerator` |
+| `Symbolic` | `POLY`, `DERIV` |
 | `Random` | `RANDOMSEED`, `RandomSeed`, `RAND_NAME` |
 
 Default script policy includes all functions and the `IMPORTS` permission. Recognized permission names are `IMPORTS`, `NET`, `FILES`. The default loop limit is 10,000 iterations and the default constructor capture mode is `deep_copy`.

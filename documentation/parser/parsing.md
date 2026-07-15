@@ -2242,46 +2242,46 @@ RiX provides comprehensive support for symbolic calculus operations including de
 ### Derivative Notation (Postfix Quotes)
 
 #### Basic Derivatives
-- `f'` - First derivative of function f
-- `f''` - Second derivative of function f
-- `f'''` - Third derivative of function f
+- `F'` - First derivative of function F
+- `F''` - Second derivative of function F
+- `F'''` - Third derivative of function F
 
 #### Variable Specification
-- `f'[x]` - Partial derivative with respect to x
-- `f'[x, y]` - Specify variables for partial derivatives
-- `f''[x, y, z]` - Higher-order partial derivatives
+- `F'[x]` - Partial derivative with respect to x
+- `F'[x, y]` - Specify variables for partial derivatives
+- `F''[x, y, z]` - Higher-order partial derivatives
 
 #### Evaluation vs Operations
-- `f'(x)` - Derivative evaluated at point x
-- `f'(x')` - Derivative operation (x' means derivative of x)
-- `f'(a, b)` - Derivative evaluated at multiple points
+- `F'(x)` - Derivative evaluated at point x
+- `F'(x')` - Derivative operation (x' means derivative of x)
+- `F'(a, b)` - Derivative evaluated at multiple points
 
 ### Integral Notation (Leading Quotes)
 
 #### Basic Integrals
-- `'f` - Indefinite integral of function f
-- `''f` - Double integral of function f
-- `'''f` - Triple integral of function f
+- `'F` - Indefinite integral of function F
+- `''F` - Double integral of function F
+- `'''F` - Triple integral of function F
 
 #### Variable Specification
-- `'f[x]` - Integral with respect to x
-- `''f[x, y]` - Double integral over x and y
-- `'''f[x, y, z]` - Triple integral over x, y, and z
+- `'F[x]` - Integral with respect to x
+- `''F[x, y]` - Double integral over x and y
+- `'''F[x, y, z]` - Triple integral over x, y, and z
 
 #### Evaluation and Integration Constants
-- `'f(x)` - Integral evaluated at point x
+- `'F(x)` - Integral evaluated at point x
 - Integration constants are automatically included in metadata as `c` with default value 0
 
 ### Mixed Calculus Operations
 
 #### Sequential Operations
-- `'f'` - Integrate f, then differentiate the result
-- `f''` - Second derivative of f
-- `''f''` - Double integral followed by double derivative
+- `'F'` - Integrate F, then differentiate the result
+- `F''` - Second derivative of F
+- `''F''` - Double integral followed by double derivative
 
 #### Complex Sequences with Variables
-- `'f'[x, y]` - Integrate f, then take partial derivative with variables [x, y]
-- `''f''[x, y, z]('x, y', 'z, x')` - Complex sequence with operation specification
+- `'F'[x, y]` - Integrate F, then take partial derivative with variables [x, y]
+- `''F''[x, y, z]('x, y', 'z, x')` - Complex sequence with operation specification
 
 ### Function Calculus
 
@@ -2297,8 +2297,8 @@ RiX provides comprehensive support for symbolic calculus operations including de
 ### Path Derivatives
 
 For parametric and path derivatives:
-- `f'(r'(t))` - Derivative along path r(t)
-- `g'(x'(t), y'(t))` - Multiple path derivatives
+- `F'(R'(t))` - Derivative along path R(t)
+- `G'(X'(t), Y'(t))` - Multiple path derivatives
 
 ### AST Structure
 
@@ -2334,23 +2334,23 @@ For parametric and path derivatives:
 
 #### Simple Derivatives
 ```rix
-f'          // First derivative function
-f''(x)      // Second derivative evaluated at x
-f'[x, y]    // Partial derivative with variables
+F'          // First derivative function
+F''(x)      // Second derivative evaluated at x
+F'[x, y]    // Partial derivative with variables
 ```
 
 #### Simple Integrals
 ```rix
-'f          // Indefinite integral
-''f[x, y]   // Double integral over x, y
-'f(a)       // Integral evaluated at point a
+'F          // Indefinite integral
+''F[x, y]   // Double integral over x, y
+'F(a)       // Integral evaluated at point a
 ```
 
 #### Mixed Operations
 ```rix
-'f'                    // Integrate then differentiate
-''f''[x, y]           // Double integral then double derivative
-'f'[x, y]('x, y')     // Complex sequence with operations
+'F'                    // Integrate then differentiate
+''F''[x, y]           // Double integral then double derivative
+'F'[x, y]('x, y')     // Complex sequence with operations
 ```
 
 #### Function Calculus

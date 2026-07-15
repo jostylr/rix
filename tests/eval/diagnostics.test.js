@@ -5,14 +5,12 @@ import { lower } from "../../src/eval/lower.js";
 import { evaluate, createDefaultRegistry, createDefaultSystemContext } from "../../src/eval/evaluator.js";
 import { Context } from "../../src/runtime/context.js";
 import { getDiagnostics, isRixAbort, RixAbort } from "../../src/runtime/diagnostics.js";
-import { installSymbolicBindings } from "../../src/eval/functions/symbolic.js";
 import { Integer } from "@ratmath/core";
 
 const defaultSystemContext = createDefaultSystemContext();
 
 function evalRix(code, context) {
     const ctx = context || new Context();
-    installSymbolicBindings(ctx);
     const registry = createDefaultRegistry();
     const tokens = tokenize(code);
     const ast = parse(tokens);
@@ -27,7 +25,6 @@ function evalRix(code, context) {
 
 function evalRixWithDiag(code) {
     const ctx = new Context();
-    installSymbolicBindings(ctx);
     ctx.setEnv("__current_file__", "<test>");
     const registry = createDefaultRegistry();
     const tokens = tokenize(code);

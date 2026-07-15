@@ -194,10 +194,10 @@ Number system extensions—including complex numbers, algebraic roots, and gener
 
 * **Defining an algebraic primitive:**
 
-  * `Primitive("sqrt2", Poly(1, 0, -2), 1:2)`
+  * `.Primitive("sqrt2", .Poly(1, 0, -2), 1:2)`
 
     * **Name:** `"sqrt2"`
-    * **Minimal polynomial:** `Poly(1, 0, -2)` (i.e., x² - 2)
+    * **Minimal polynomial:** `.Poly(1, 0, -2)` (i.e., x² - 2)
     * **Interval:** `1:2` (specifies which root to use)
 * **Usage:**
 
@@ -209,7 +209,7 @@ Number system extensions—including complex numbers, algebraic roots, and gener
     * `(2 + 3~{sqrt2}) * (1 - ~{sqrt2})` expands and simplifies accordingly
 * **General extensions:**
 
-  * `Primitive("xi", Poly(1, 0, 0, -1), 0:2)` for a root of x³ - 1
+  * `.Primitive("xi", .Poly(1, 0, 0, -1), 0:2)` for a root of x³ - 1
 
 
 #### Approximate Conversion to Real Numbers
@@ -235,7 +235,7 @@ z + w       // 4 + 6~{i}
 z * w       // -5 + 10~{i}
 
 // Algebraic extension
-Primitive("sqrt2", Poly(1,0,-2), 1:2)
+.Primitive("sqrt2", .Poly(1,0,-2), 1:2)
 x := 2 + 3~{sqrt2}
 y := 1 - ~{sqrt2}
 x + y       // 3 + 2~{sqrt2}
@@ -250,10 +250,10 @@ Real(x, E-6)  // Returns decimal value with 10^-6 accuracy
 
 * **Syntax:**
 
-  * `Primitive("name", Poly(...), interval)`
+  * `.Primitive("name", .Poly(...), interval)`
 
-    * `Primitive("sqrt3", Poly(1, 0, -3), 1:2)` defines sqrt 3.
-    * `Primitive("xi", Poly(1, 0, 0, -1), 0:2)` defines a cube root of 1.
+    * `.Primitive("sqrt3", .Poly(1, 0, -3), 1:2)` defines sqrt 3.
+    * `.Primitive("xi", .Poly(1, 0, 0, -1), 0:2)` defines a cube root of 1.
 * **Usage:**
 
   * `a := 2 + ~{xi}`
@@ -364,7 +364,7 @@ R_q := [
 ]
 
 // sqrt(2) oracle
-Primitive("sqrt2", Poly(1,0,-2), 1:2)
+.Primitive("sqrt2", .Poly(1,0,-2), 1:2)
 sqrt2_oracle := [
   yes := 0:2,
   type := "oracle",
@@ -593,12 +593,12 @@ RiX provides three postfix operators with the highest precedence for precision c
 
 * **Notation:**
 
-  * `(''...)f[vars](ops)`
+  * `(''...)F[vars](ops)`
   * Examples:
 
-    * `f'(x')`→df/dx
-    * `''f[x, y]('y, x')`→ integrate by y, then differentiate by x
-    * `f'(r')`→derivative along path r
+    * `F'(x')`→dF/dx
+    * `''F[x, y]('y, x')`→ integrate by y, then differentiate by x
+    * `F'(R')`→derivative along path R
   * Order of operations is left-to-right.
   * Integration: leading `'` before function
   * Differentiation: variable with trailing `'`
@@ -720,8 +720,8 @@ Solve(sys)
 ## Symbolic Calculus
 
 ```plaintext
-f'(x')                // Partial derivative w.r.t. x
-''f[x, y]('y, x')     // Integrate by y, then differentiate by x
+F'(x')                // Partial derivative w.r.t. x
+''F[x, y]('y, x')     // Integrate by y, then differentiate by x
 ```
 
 ---

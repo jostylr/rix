@@ -452,12 +452,22 @@ function derivSpec(spec, variableNameRaw) {
     return cloneSpecWithStatements(spec, statements);
 }
 
-export function installSymbolicBindings(context) {
-    context.setGlobal("POLY", polyFromSpec);
-    context.setGlobal("DERIV", derivSpec);
-    context.setGlobal("Poly", polyFromSpec);
-    context.setGlobal("Deriv", derivSpec);
-}
+export const symbolicCapabilities = {
+    POLY: {
+        impl(args) {
+            return polyFromSpec(args[0]);
+        },
+        pure: true,
+        doc: "Create an exact callable from a supported symbolic system specification",
+    },
+    DERIV: {
+        impl(args) {
+            return derivSpec(args[0], args[1]);
+        },
+        pure: true,
+        doc: "Differentiate a supported symbolic system specification exactly",
+    },
+};
 
 export const symbolicFunctions = {
     SYSTEM_SPEC: {

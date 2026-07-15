@@ -164,8 +164,8 @@ const generator = parse('[1 |+ 2 |^ 10]'); // Arithmetic sequence
 const matrix = parse('[[1, 2; 3, 4]]');
 
 // Symbolic calculus
-const derivative = parse("f'(x)");
-const integral = parse("'f(x)");
+const derivative = parse("F'(x)");
+const integral = parse("'F(x)");
 
 // Postfix operators
 const precision = parse("PI@(1e-10)");

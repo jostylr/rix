@@ -26,7 +26,6 @@ import {
     isRixAbort,
 } from "../src/index.js";
 import { formatValue as formatResult } from "../src/eval/format.js";
-import { installSymbolicBindings } from "../src/eval/functions/symbolic.js";
 
 // Known REPL meta-commands (lowercase, intercepted before the evaluator)
 const REPL_COMMANDS = new Set(["help", "exit", "load", "vars", "fns", "reset", "ast", "tokens"]);
@@ -225,7 +224,6 @@ function discoverTestFiles(baseDir, filters) {
 
 function runTestFile(filePath) {
     const context = new Context();
-    installSymbolicBindings(context);
     const registry = createDefaultRegistry();
     const systemContext = createDefaultSystemContext();
 

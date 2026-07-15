@@ -721,7 +721,7 @@ Assignment behavior:
 - Alias imports write through to the referenced outer binding.
 - `@name` still explicitly reads or writes the outer scope chain and is not changed by imports.
 
-For `{# ... }`, imports affect symbolic name interpretation only. The spec literal stays symbolic: it does not copy concrete values during creation, and consumers such as `Poly` decide how to interpret those references later.
+For `{# ... }`, imports affect symbolic name interpretation only. The spec literal stays symbolic: it does not copy concrete values during creation, and consumers such as `.Poly` decide how to interpret those references later.
 
 Errors:
 - Empty headers are invalid: `<>`
@@ -1335,10 +1335,10 @@ The `expr` field stores a structural symbolic tree. It is not evaluated eagerly 
 
 Current minimal consumers:
 
-- `Poly(spec)` returns a callable for a restricted polynomial subset
-- `Deriv(spec, "x")` returns another compatible spec for that same subset
+- `.Poly(spec)` returns a callable for a restricted polynomial subset
+- `.Deriv(spec, "x")` returns another compatible spec for that same subset
 
-Current supported subset for `Poly` and `Deriv`:
+Current supported subset for `.Poly` and `.Deriv`:
 
 - constants
 - identifiers
