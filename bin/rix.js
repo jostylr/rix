@@ -146,7 +146,7 @@ function handleCommand(fullCmd, context, registry, systemContext) {
     if (cmd === "help") {
         console.log(`Available commands:
   .help           Show this help message
-  .exit           Exit the REPL
+  .exit           Exit the REPL (Ctl+C)
   .load[pkg]      Load a package (e.g. .load[floats])
   .vars           Show defined variables
   .fns            Show available system functions
@@ -154,11 +154,12 @@ function handleCommand(fullCmd, context, registry, systemContext) {
   .ast[expr]      Show AST of RiX expression
   .tokens[expr]   Show tokens of RiX expression
   
-  Multiline input: Shift+Up or Shift+Right expands the current draft into multiline capture.
-                   Shift+Down or Shift+Left runs it.
-                   End a line with '\\' to continue portably in any terminal.
-                   Cmd/Ctrl+Enter is not distinguishable from Enter in most terminals.
-  Ctrl+C: Clear current input buffer or exit if empty.
+  Multiline input: Shift+Up or Shift+Right expands the current draft into multiline capture
+                   Shift+Down or Shift+Left runs it
+                   Use semicolons to end statements, newlines do not do that in multiline
+                   Cmd/Ctrl+Enter is not distinguishable from Enter in most terminals
+                   Alt: In single line, end a line with '\\' to make multiline, repeat to stay in multline
+  Esc: One clears current line, Double esc clears multiline box
 `);
     } else if (cmd === "exit") {
         console.log("Bye!");
