@@ -1611,66 +1611,108 @@ RiX provides a concise symbolic algebra for sets, intervals, and collections:
 - `A ** B`: Cartesian product of sets.
 - `A ++ B`: Concatenation of ordered collections (arrays, tuples, strings, maps).
 
-## Symbolic System Specs
+## Symbolic Specs and Exact Calculus
 
-RiX now uses `{# ... }` for symbolic system specs.
-
-```rix
-S = {#x,y,z:p#
-  p = x^2 * y + z
-}
-```
-
-This form does not execute its body as a runtime block. Instead it returns a first-class symbolic spec object with:
-
-- `kind = "systemSpec"`
-- `inputs`
-- `outputs`
-- `statements`
-
-Header forms:
+`{# ... }` creates a first-class symbolic function without executing its body.
+The three common forms are:
 
 ```rix
-{# ... }
-{#x,y,z# ... }
-{#:p,q# ... }
-{#x,y,z:p,q# ... }
+{#x}                       # identity symbol
+{#t# t^2 - 4 }             # anonymous single output
+{#x:p# p = 2*x }           # explicitly solved output
 ```
 
-Rules for the header:
+The identity form is useful as a variable value. The anonymous form implies
+that its expression is the result. The named form retains its output name
+through symbolic transformations. Multi-output named specs can be represented
+and inspected, but current arithmetic and calculus require one solved output.
 
-- Names before `:` are declared inputs.
-- Names after `:` are declared outputs.
-- Header names must be bare identifiers.
-- Duplicate input names, duplicate output names, and input/output overlap are rejected.
+Specs display in source-like form. Use `.InspectSpec(S)` for the structural map
+of inputs, outputs, statements, and expression IR.
 
-Rules for the body in the current implementation:
+### Substitution, arithmetic, and execution
 
-- Only symbolic assignment statements are supported: `name = expr`
-- The left-hand side must be a bare identifier.
-- `=` inside `{# ... }` means symbolic definition inside the spec, not runtime assignment and not solver equality.
-- If outputs are declared, each declared output must be assigned exactly once.
-- If outputs are omitted, outputs are inferred from top-level assignment targets in encounter order.
-
-Expression trees are stored structurally, not as precomputed values and not as reparsed source strings. Outer references such as `@name` are preserved symbolically for later consumers to interpret.
-
-Current symbolic capabilities:
+Calling a spec substitutes its input slots positionally and returns a spec:
 
 ```rix
-P = .Poly({#x,y,z:p# p = x^2 * y + z })
-Dx = .Deriv({#x,y,z:p# p = x^2 * y + z }, "x")
+G := {#t# t^2 - 4 }
+G({#x})          # rename t to x
+G({#x# x + 1 })  # compose
+G(3)             # zero-input constant spec
 ```
 
-`.Poly` and `.Deriv` currently support a restricted polynomial subset:
+Symbolic arithmetic preserves input names. Different names produce a
+multi-input spec; identical names denote the same input:
 
-- constants
-- identifiers
-- `+`
-- `-`
-- `*`
-- `^` with a nonnegative integer literal exponent
+```rix
+{#x# 2*x } * {#t# t^2 - 4 } # inputs x and t
+{#x# 2*x } * {#x# x + 1 }   # one shared input x
+```
 
-Relation and constraint forms such as `:=:`, `:<:`, and `:>:` remain separate and are reserved for later relational/solver work.
+Arithmetic does not simplify automatically. `.Poly` compiles a single-output
+spec into an exact callable and retains the spec for display and later
+transforms:
+
+```rix
+P := .Poly({#x:p# p = x^2 + 1 })
+P(3) # 10
+```
+
+### Calculus and speccable functions
+
+`.Deriv` and `.Integrate` accept specs or functions with attached specs. Use an
+identity spec as the canonical variable selector:
+
+```rix
+S := {#x:p# p = x^3 }
+D := .Deriv(S, {#x})
+A := .Integrate(D, {#x})
+```
+
+Differentiation implements exact sum, difference, product, quotient, and
+integer-power rules. Integration covers structural polynomial sums,
+nonnegative monomials, constant factors, and variable-independent divisors. It
+returns the antiderivative with integration constant zero. Unsupported forms
+fail; RiX never switches to numerical calculus implicitly.
+
+Safe pure exact-arithmetic functions are specced automatically. Captured names
+remain linked to their original cells:
+
+```rix
+a := 2
+F := x -> a*x^2
+D := .Deriv(F, {#x})
+a ~= 3
+D(2) # 12
+```
+
+`.Speccability(F)` reports whether analysis succeeds, and `.Spec(F)` returns or
+explicitly attaches the spec. Function names are capitalized; all
+language-provided symbolic capabilities remain behind the dot system object.
+
+Postfix derivative and prefix integral syntax use the same exact engine:
+
+```rix
+F := x -> x^3
+G := x -> 2*x
+F'(4) # 48
+'G(3) # 9
+```
+
+### Intentional simplification
+
+`.Simplify` returns a new symbolic value. Exact constant folding, identities,
+and power cleanup are the defaults; `"expand"` additionally distributes
+multiplication:
+
+```rix
+.Simplify({#x# x*1 + 0 })
+.Simplify({#x# x*(x + 1) }, "expand")
+```
+
+Relation and constraint forms such as `:=:`, `:<:`, and `:>:` remain separate
+from symbolic-spec semantics. See [Symbolic specs and exact calculus](design/eval/symbolic-calculus.md)
+for the full runtime model and supported boundary.
 
 
 ---

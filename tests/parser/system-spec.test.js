@@ -32,6 +32,7 @@ describe("System Spec Parser", () => {
       inputs: [],
       outputs: ["p"],
       outputsDeclared: false,
+      outputMode: "named",
       statements: [
         {
           type: "SpecAssign",
@@ -80,8 +81,25 @@ describe("System Spec Parser", () => {
     expect(() => parseCode("{#x:x# x = 1 };")).toThrow(/cannot be both an input and an output/);
   });
 
-  test("rejects unsupported body statements", () => {
-    expect(() => parseCode("{# x + 1 };")).toThrow(/only support symbolic assignments/);
+  test("parses an anonymous-output expression spec", () => {
+    const expr = stripMetadata(parseCode("{#t# t^2 - 4 };"))[0].expression;
+    expect(expr.outputMode).toBe("expression");
+    expect(expr.inputs).toEqual(["t"]);
+    expect(expr.outputs).toEqual([]);
+    expect(expr.statements).toEqual([]);
+    expect(expr.expression.type).toBe("BinaryOperation");
+    expect(expr.expression.operator).toBe("-");
+  });
+
+  test("parses {#x} as the identity-symbol spec", () => {
+    const expr = stripMetadata(parseCode("{#x};"))[0].expression;
+    expect(expr.outputMode).toBe("identity");
+    expect(expr.inputs).toEqual(["x"]);
+    expect(expr.expression).toEqual({ type: "UserIdentifier", name: "x" });
+  });
+
+  test("rejects mixing anonymous expressions and assignments", () => {
+    expect(() => parseCode("{#x# x + 1; p = x };")).toThrow(/cannot be mixed with assignments/);
   });
 
   test("rejects non-identifier assignment targets", () => {

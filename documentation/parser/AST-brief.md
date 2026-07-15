@@ -504,6 +504,23 @@ This document provides a comprehensive reference for all token types generated b
 }
 ```
 
+### SystemSpecLiteral
+```javascript
+{
+  inputs: [string],
+  outputs: [string],
+  outputsDeclared: boolean,
+  outputMode: "identity" | "expression" | "named",
+  expression: ASTNode | undefined, // identity/anonymous single output
+  statements: [SpecAssign],        // named solved outputs
+  imports: [ImportSpec] | undefined,
+  original: string
+}
+```
+
+`{#x}` is an identity literal. `{#x# expr }` uses an anonymous output.
+`{#x:p# p = expr }` uses a named solved output.
+
 ### BlockContainer
 ```javascript
 {
@@ -517,8 +534,9 @@ This document provides a comprehensive reference for all token types generated b
 {
   function: ASTNode,  // Function to differentiate
   order: number,      // Derivative order (number of quotes)
-  variable: ASTNode,  // Variable to differentiate with respect to
-  evaluation: ASTNode, // Evaluation point (if specified)
+  variables: [{name: string}] | null,
+  evaluation: [ASTNode] | null,
+  operations: [ASTNode] | null,
   original: string    // Combined original text
 }
 ```
@@ -528,8 +546,9 @@ This document provides a comprehensive reference for all token types generated b
 {
   function: ASTNode,  // Function to integrate
   order: number,      // Integration order (number of quotes)
-  variable: ASTNode,  // Variable to integrate with respect to
-  evaluation: ASTNode, // Evaluation bounds (if specified)
+  variables: [{name: string}] | null,
+  evaluation: [ASTNode] | null,
+  operations: [ASTNode] | null,
   original: string    // Combined original text
 }
 ```

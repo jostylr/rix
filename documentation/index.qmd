@@ -83,11 +83,10 @@ RiX is especially interesting when a calculation is more than “feed numbers to
 - research into language semantics for mathematical work;
 - embedding a configurable mathematical parser and evaluator in another tool.
 
-It is an active alpha, not yet a finished general-purpose ecosystem. The parser, lowering pipeline, and broad evaluator are working and heavily tested; some ambitious surfaces—most notably full equation solving and direct symbolic calculus syntax—remain design territory. See [implementation status](status.qmd) for the honest boundary.
+It is an active alpha, not yet a finished general-purpose ecosystem. The parser, lowering pipeline, and broad evaluator are working and heavily tested; full equation solving and symbolic rules beyond the exact arithmetic subset remain design territory. See [implementation status](status.qmd) for the honest boundary.
 
 ## The design bet
 
 RiX does not try to make every concept look like an ordinary function call. Its brace sigils, pipe operators, cell assignments, and exact-number notation form a visual vocabulary. That vocabulary is dense, but deliberate: source code should reveal whether something is a block, map, set, tuple, loop, case, mutation, symbolic system, or multifunction.
 
 The result is a language that aims to read like mathematical working—not JavaScript wearing mathematical function names.
-

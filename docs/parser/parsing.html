@@ -537,6 +537,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="menu-text">Cayley polar complex values</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../design/eval/symbolic-calculus.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Symbolic specs and calculus</span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item sidebar-item-section">
@@ -3055,32 +3061,32 @@ x |&gt;                // Invalid: missing right operand
 <h2 class="anchored" data-anchor-id="symbolic-calculus">Symbolic Calculus</h2>
 <section id="overview-3" class="level3">
 <h3 class="anchored" data-anchor-id="overview-3">Overview</h3>
-<p>RiX provides comprehensive support for symbolic calculus operations including derivatives and indefinite integrals. The notation follows mathematical conventions while supporting advanced features like variable specification, mixed sequences, and operation vs evaluation distinction.</p>
+<p>RiX parses a broad symbolic-calculus notation. The evaluator implements the exact single-variable arithmetic subset described in <a href="../design/eval/symbolic-calculus.html">Symbolic specs and exact calculus</a>: postfix derivatives, prefix zero-constant antiderivatives, repeated quotes, one bracket-selected variable, and immediate evaluation. General operation sequences, several-variable quote operations, bounds, and transcendental rules below remain syntax/design examples rather than executable promises.</p>
 </section>
 <section id="derivative-notation-postfix-quotes" class="level3">
 <h3 class="anchored" data-anchor-id="derivative-notation-postfix-quotes">Derivative Notation (Postfix Quotes)</h3>
 <section id="basic-derivatives" class="level4">
 <h4 class="anchored" data-anchor-id="basic-derivatives">Basic Derivatives</h4>
 <ul>
-<li><code>f'</code> - First derivative of function f</li>
-<li><code>f''</code> - Second derivative of function f</li>
-<li><code>f'''</code> - Third derivative of function f</li>
+<li><code>F'</code> - First derivative of function F</li>
+<li><code>F''</code> - Second derivative of function F</li>
+<li><code>F'''</code> - Third derivative of function F</li>
 </ul>
 </section>
 <section id="variable-specification" class="level4">
 <h4 class="anchored" data-anchor-id="variable-specification">Variable Specification</h4>
 <ul>
-<li><code>f'[x]</code> - Partial derivative with respect to x</li>
-<li><code>f'[x, y]</code> - Specify variables for partial derivatives</li>
-<li><code>f''[x, y, z]</code> - Higher-order partial derivatives</li>
+<li><code>F'[x]</code> - Partial derivative with respect to x</li>
+<li><code>F'[x, y]</code> - Specify variables for partial derivatives</li>
+<li><code>F''[x, y, z]</code> - Higher-order partial derivatives</li>
 </ul>
 </section>
 <section id="evaluation-vs-operations" class="level4">
 <h4 class="anchored" data-anchor-id="evaluation-vs-operations">Evaluation vs Operations</h4>
 <ul>
-<li><code>f'(x)</code> - Derivative evaluated at point x</li>
-<li><code>f'(x')</code> - Derivative operation (x’ means derivative of x)</li>
-<li><code>f'(a, b)</code> - Derivative evaluated at multiple points</li>
+<li><code>F'(x)</code> - Derivative evaluated at point x</li>
+<li><code>F'(x')</code> - Derivative operation (x’ means derivative of x)</li>
+<li><code>F'(a, b)</code> - Derivative evaluated at multiple points</li>
 </ul>
 </section>
 </section>
@@ -3089,23 +3095,23 @@ x |&gt;                // Invalid: missing right operand
 <section id="basic-integrals" class="level4">
 <h4 class="anchored" data-anchor-id="basic-integrals">Basic Integrals</h4>
 <ul>
-<li><code>'f</code> - Indefinite integral of function f</li>
-<li><code>''f</code> - Double integral of function f</li>
-<li><code>'''f</code> - Triple integral of function f</li>
+<li><code>'F</code> - Indefinite integral of function F</li>
+<li><code>''F</code> - Double integral of function F</li>
+<li><code>'''F</code> - Triple integral of function F</li>
 </ul>
 </section>
 <section id="variable-specification-1" class="level4">
 <h4 class="anchored" data-anchor-id="variable-specification-1">Variable Specification</h4>
 <ul>
-<li><code>'f[x]</code> - Integral with respect to x</li>
-<li><code>''f[x, y]</code> - Double integral over x and y</li>
-<li><code>'''f[x, y, z]</code> - Triple integral over x, y, and z</li>
+<li><code>'F[x]</code> - Integral with respect to x</li>
+<li><code>''F[x, y]</code> - Double integral over x and y</li>
+<li><code>'''F[x, y, z]</code> - Triple integral over x, y, and z</li>
 </ul>
 </section>
 <section id="evaluation-and-integration-constants" class="level4">
 <h4 class="anchored" data-anchor-id="evaluation-and-integration-constants">Evaluation and Integration Constants</h4>
 <ul>
-<li><code>'f(x)</code> - Integral evaluated at point x</li>
+<li><code>'F(x)</code> - Integral evaluated at point x</li>
 <li>Integration constants are automatically included in metadata as <code>c</code> with default value 0</li>
 </ul>
 </section>
@@ -3115,16 +3121,16 @@ x |&gt;                // Invalid: missing right operand
 <section id="sequential-operations" class="level4">
 <h4 class="anchored" data-anchor-id="sequential-operations">Sequential Operations</h4>
 <ul>
-<li><code>'f'</code> - Integrate f, then differentiate the result</li>
-<li><code>f''</code> - Second derivative of f</li>
-<li><code>''f''</code> - Double integral followed by double derivative</li>
+<li><code>'F'</code> - Integrate F, then differentiate the result</li>
+<li><code>F''</code> - Second derivative of F</li>
+<li><code>''F''</code> - Double integral followed by double derivative</li>
 </ul>
 </section>
 <section id="complex-sequences-with-variables" class="level4">
 <h4 class="anchored" data-anchor-id="complex-sequences-with-variables">Complex Sequences with Variables</h4>
 <ul>
-<li><code>'f'[x, y]</code> - Integrate f, then take partial derivative with variables [x, y]</li>
-<li><code>''f''[x, y, z]('x, y', 'z, x')</code> - Complex sequence with operation specification</li>
+<li><code>'F'[x, y]</code> - Integrate F, then take partial derivative with variables [x, y]</li>
+<li><code>''F''[x, y, z]('x, y', 'z, x')</code> - Complex sequence with operation specification</li>
 </ul>
 </section>
 </section>
@@ -3148,7 +3154,7 @@ x |&gt;                // Invalid: missing right operand
 </section>
 <section id="path-derivatives" class="level3">
 <h3 class="anchored" data-anchor-id="path-derivatives">Path Derivatives</h3>
-<p>For parametric and path derivatives: - <code>f'(r'(t))</code> - Derivative along path r(t) - <code>g'(x'(t), y'(t))</code> - Multiple path derivatives</p>
+<p>For parametric and path derivatives: - <code>F'(R'(t))</code> - Derivative along path R(t) - <code>G'(X'(t), Y'(t))</code> - Multiple path derivatives</p>
 </section>
 <section id="ast-structure-12" class="level3">
 <h3 class="anchored" data-anchor-id="ast-structure-12">AST Structure</h3>
@@ -3183,21 +3189,21 @@ x |&gt;                // Invalid: missing right operand
 <h3 class="anchored" data-anchor-id="examples-13">Examples</h3>
 <section id="simple-derivatives" class="level4">
 <h4 class="anchored" data-anchor-id="simple-derivatives">Simple Derivatives</h4>
-<pre class="rix"><code>f'          // First derivative function
-f''(x)      // Second derivative evaluated at x
-f'[x, y]    // Partial derivative with variables</code></pre>
+<pre class="rix"><code>F'          // First derivative function
+F''(x)      // Second derivative evaluated at x
+F'[x, y]    // Partial derivative with variables</code></pre>
 </section>
 <section id="simple-integrals" class="level4">
 <h4 class="anchored" data-anchor-id="simple-integrals">Simple Integrals</h4>
-<pre class="rix"><code>'f          // Indefinite integral
-''f[x, y]   // Double integral over x, y
-'f(a)       // Integral evaluated at point a</code></pre>
+<pre class="rix"><code>'F          // Indefinite integral
+''F[x, y]   // Double integral over x, y
+'F(a)       // Integral evaluated at point a</code></pre>
 </section>
 <section id="mixed-operations" class="level4">
 <h4 class="anchored" data-anchor-id="mixed-operations">Mixed Operations</h4>
-<pre class="rix"><code>'f'                    // Integrate then differentiate
-''f''[x, y]           // Double integral then double derivative
-'f'[x, y]('x, y')     // Complex sequence with operations</code></pre>
+<pre class="rix"><code>'F'                    // Integrate then differentiate
+''F''[x, y]           // Double integral then double derivative
+'F'[x, y]('x, y')     // Complex sequence with operations</code></pre>
 </section>
 <section id="function-calculus-1" class="level4">
 <h4 class="anchored" data-anchor-id="function-calculus-1">Function Calculus</h4>

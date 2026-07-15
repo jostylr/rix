@@ -537,6 +537,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="menu-text">Cayley polar complex values</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../design/eval/symbolic-calculus.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Symbolic specs and calculus</span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item sidebar-item-section">
@@ -1421,9 +1427,9 @@ u \= {| 2 |}
 <td>Break the nearest matching block/case/loop and use <code>expr</code> as that target’s final value</td>
 </tr>
 <tr class="even">
-<td><code>{#x,y:z# p = x + y }</code></td>
+<td><code>{#x}</code>, <code>{#x,y# x + y }</code>, <code>{#x,y:p# p = x + y }</code></td>
 <td><code>SYSTEM_SPEC</code></td>
-<td>Symbolic system spec literal. Optional top-of-block import header: <code>{#x,y:z# &lt;...&gt; ... }</code></td>
+<td>Identity, anonymous-output, and named-output symbolic spec literals. Optional import header on full forms.</td>
 </tr>
 <tr class="odd">
 <td><code>{= k1=v1, (expr)=v2 }</code></td>
@@ -1823,7 +1829,7 @@ importSpec :=
 <p>Semantics: - <code>name</code> means <code>name~name</code>: create a new local <code>name</code> with a copy of outer <code>name</code> - <code>name~</code> also means <code>name~name</code> - <code>local~outer</code> creates a new local <code>local</code> initialized from the current outer value of <code>outer</code> - <code>name=</code> means <code>name=name</code>: local <code>name</code> aliases the outer binding <code>name</code> - <code>local=outer</code> creates a local alias <code>local</code> to the same outer binding as <code>outer</code></p>
 <p>Resolution rules: - The left side is always the local name introduced in the block. - The right side is always resolved against the enclosing scope chain. - Sources do not resolve progressively within the same header. - Example: <code>&lt; a~x, b~a &gt;</code> makes <code>b</code> read the enclosing <code>a</code>, not the newly introduced local <code>a</code>.</p>
 <p>Assignment behavior: - Copy imports remain ordinary locals after initialization. - Alias imports write through to the referenced outer binding. - <code>@name</code> still explicitly reads or writes the outer scope chain and is not changed by imports.</p>
-<p>For <code>{# ... }</code>, imports affect symbolic name interpretation only. The spec literal stays symbolic: it does not copy concrete values during creation, and consumers such as <code>Poly</code> decide how to interpret those references later.</p>
+<p>For <code>{# ... }</code>, imports affect symbolic name interpretation only. The spec literal stays symbolic: it does not copy concrete values during creation, and consumers such as <code>.Poly</code> decide how to interpret those references later.</p>
 <p>Errors: - Empty headers are invalid: <code>&lt;&gt;</code> - Duplicate local targets in one header are invalid: <code>&lt; x, x= &gt;</code> - Missing outer sources are errors - Malformed specs such as <code>&lt; a~~x &gt;</code>, <code>&lt; a==x &gt;</code>, or <code>&lt; a~x, &gt;</code> are errors - A header only has meaning in the top-of-block position for supported scoped blocks</p>
 </section>
 <section id="script-import-expressions" class="level3">
@@ -2986,57 +2992,35 @@ G(10, 20, 99, 99)              ## 30  (only 10 and 20 forwarded)</code></pre>
 </section>
 <section id="symbolic-specs" class="level3">
 <h3 class="anchored" data-anchor-id="symbolic-specs">Symbolic Specs</h3>
-<p><code>{# ... }</code> builds a symbolic specification object instead of executing a runtime block.</p>
-<p>Supported header forms:</p>
-<pre class="rix"><code>{# ... }
-{#x,y,z# ... }
-{#:p,q# ... }
-{#x,y,z:p,q# ... }</code></pre>
-<p>Meaning:</p>
-<ul>
-<li>names before <code>:</code> are declared inputs</li>
-<li>names after <code>:</code> are declared outputs</li>
-<li>both sides may be omitted</li>
-<li>header names must be bare identifiers</li>
-</ul>
-<p>Current body rules:</p>
-<ul>
-<li>only <code>name = expr</code> symbolic assignments are supported</li>
-<li>the left-hand side must be a bare identifier</li>
-<li><code>=</code> inside <code>{# ... }</code> is symbolic assignment, not ordinary <code>ASSIGN</code></li>
-<li>if outputs are declared, every assignment target must be one of them and each must appear exactly once</li>
-<li>if outputs are omitted, outputs are inferred from top-level assignment targets in encounter order</li>
-</ul>
-<p>Result shape:</p>
-<pre class="rix"><code>{=
-  kind = "systemSpec",
-  syntax = "#",
-  inputs = {: "x", "y" },
-  outputs = {: "p" },
-  statements = {:
-    {=
-      kind = "assign",
-      target = "p",
-      expr = ...
-    }
-  }
-}</code></pre>
-<p>The <code>expr</code> field stores a structural symbolic tree. It is not evaluated eagerly and it is not stored as a raw source string.</p>
-<p>Current minimal consumers:</p>
-<ul>
-<li><code>Poly(spec)</code> returns a callable for a restricted polynomial subset</li>
-<li><code>Deriv(spec, "x")</code> returns another compatible spec for that same subset</li>
-</ul>
-<p>Current supported subset for <code>Poly</code> and <code>Deriv</code>:</p>
-<ul>
-<li>constants</li>
-<li>identifiers</li>
-<li><code>+</code></li>
-<li><code>-</code></li>
-<li><code>*</code></li>
-<li><code>^</code> with a nonnegative integer literal exponent</li>
-</ul>
+<p><code>{# ... }</code> builds a first-class symbolic function instead of executing a runtime block.</p>
+<p>Common forms:</p>
+<pre class="rix"><code>{#x}                       # identity symbol
+{#x,y# x^2 + y }           # anonymous single output
+{#x,y:p# p = x^2 + y }     # named solved output</code></pre>
+<p>In a named header, names before <code>:</code> are inputs and names after <code>:</code> are outputs. Duplicate names and input/output overlap are rejected. When no output is named, one expression is the implied output. <code>{#x}</code> is shorthand for <code>{#x# x }</code>.</p>
+<p>Named bodies use <code>name = expr</code> symbolic definitions. They do not perform ordinary assignment. Multi-output specs are representable and inspectable, but the current operators require a single explicitly solved expression.</p>
+<p>Ordinary display preserves a source-like spec. <code>.InspectSpec(S)</code> returns the detailed structural map when a tool needs <code>inputs</code>, <code>outputs</code>, <code>statements</code>, and expression IR.</p>
+<section id="application-and-arithmetic" class="level4">
+<h4 class="anchored" data-anchor-id="application-and-arithmetic">Application and arithmetic</h4>
+<p>Calling a spec performs positional substitution and returns a spec:</p>
+<pre class="rix"><code>G := {#t# t^2 - 4 }
+G({#x})
+G({#x# x + 1 })
+G(3)</code></pre>
+<p><code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>, <code>^</code>, and unary <code>-</code> propagate symbolic specs. Inputs are united by name in first-seen order; they are not positionally renamed. Construction preserves the written expression and does not simplify it.</p>
+<p><code>.Poly(S)</code> compiles a single-output spec into an executable exact callable. Two spec-backed callables can be combined by arithmetic to create a multi-input spec-backed callable. Exact scalar arithmetic is available directly on specs; use <code>.Poly(.Spec(F) * 2)</code> for function-scalar arithmetic because lowercase <code>f(x)</code> is RiX implicit multiplication.</p>
+</section>
+<section id="calculus-simplification-and-function-specs" class="level4">
+<h4 class="anchored" data-anchor-id="calculus-simplification-and-function-specs">Calculus, simplification, and function specs</h4>
+<pre class="rix"><code>D := .Deriv({#x# x^3 }, {#x})
+A := .Integrate({#x# 2*x }, {#x})
+.Simplify({#x# x*(x + 1) }, "expand")</code></pre>
+<p><code>.Deriv</code> supports exact arithmetic differentiation including product, quotient, and integer-power rules. <code>.Integrate</code> supports structural polynomial antiderivatives and returns the zero-constant form. <code>.Simplify</code> is explicit and returns a new value; defaults perform exact constant, identity, and power cleanup, while <code>"expand"</code> also distributes multiplication.</p>
+<p>Pure positional functions whose bodies contain exact literals, identifiers, negation, and <code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>, <code>^</code> receive specs automatically. Captured coefficients retain live closure cells. <code>.Speccability(F)</code> reports analysis and <code>.Spec(F)</code> returns or explicitly attaches the result.</p>
+<p>Postfix derivative <code>F'</code>, evaluated derivative <code>F'(3)</code>, and prefix integral <code>'F(3)</code> use the same engine. Repeated quotes repeat the transform. The current quote implementation accepts one calculus variable per operation and does not implement operation-sequence parentheses.</p>
+<p>Symbolic capabilities belong to the <code>Symbolic</code> sandbox group and are available only through dot syntax: <code>.Poly</code>, <code>.Deriv</code>, <code>.Integrate</code>, <code>.Simplify</code>, <code>.Spec</code>, <code>.Speccability</code>, and <code>.InspectSpec</code>.</p>
 <p>Constraint forms such as <code>:=:</code>, <code>:&lt;:</code>, and <code>:&gt;:</code> remain separate and are not part of <code>{# ... }</code> semantics yet.</p>
+</section>
 </section>
 <section id="control-flow" class="level3">
 <h3 class="anchored" data-anchor-id="control-flow">Control Flow</h3>
@@ -3534,10 +3518,10 @@ x[1] = 9          ## OK: ._mutable controls index assignment, not .lock</code></
 </tbody>
 </table>
 <p>Default <code>PRINT</code> formatting renders maps, arrays, sets, tuples, and export bundles over multiple lines. Hosts can replace either formatting or output by setting:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb48"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript"><span id="cb48-1"><a href="#cb48-1" aria-hidden="true" tabindex="-1"></a>context<span class="op">.</span><span class="fu">setEnv</span>(<span class="st">"__io__"</span><span class="op">,</span> {</span>
-<span id="cb48-2"><a href="#cb48-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">format</span>(value<span class="op">,</span> helpers) { <span class="cf">return</span> helpers<span class="op">.</span><span class="fu">prettyFormat</span>(value)<span class="op">;</span> }<span class="op">,</span></span>
-<span id="cb48-3"><a href="#cb48-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span>(text<span class="op">,</span> value<span class="op">,</span> helpers) { <span class="bu">console</span><span class="op">.</span><span class="fu">log</span>(text)<span class="op">;</span> }</span>
-<span id="cb48-4"><a href="#cb48-4" aria-hidden="true" tabindex="-1"></a>})<span class="op">;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb49"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript"><span id="cb49-1"><a href="#cb49-1" aria-hidden="true" tabindex="-1"></a>context<span class="op">.</span><span class="fu">setEnv</span>(<span class="st">"__io__"</span><span class="op">,</span> {</span>
+<span id="cb49-2"><a href="#cb49-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">format</span>(value<span class="op">,</span> helpers) { <span class="cf">return</span> helpers<span class="op">.</span><span class="fu">prettyFormat</span>(value)<span class="op">;</span> }<span class="op">,</span></span>
+<span id="cb49-3"><a href="#cb49-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span>(text<span class="op">,</span> value<span class="op">,</span> helpers) { <span class="bu">console</span><span class="op">.</span><span class="fu">log</span>(text)<span class="op">;</span> }</span>
+<span id="cb49-4"><a href="#cb49-4" aria-hidden="true" tabindex="-1"></a>})<span class="op">;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="variables" class="level3">
 <h3 class="anchored" data-anchor-id="variables">Variables</h3>

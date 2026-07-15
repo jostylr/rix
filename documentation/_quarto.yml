@@ -2,6 +2,7 @@ project:
   type: website
   output-dir: _site
   resources:
+    - CNAME
     - .nojekyll
     - rix-logo.png
     - parser/demo.html
@@ -34,6 +35,7 @@ project:
     - design/eval/cells-assignments.md
     - design/eval/units-and-exact-generators.md
     - design/eval/cayley-polar.md
+    - design/eval/symbolic-calculus.md
     - rix-rationales.md
     - design/parser/spec.md
     - design/parser/questions.md
@@ -119,6 +121,8 @@ website:
             href: design/eval/units-and-exact-generators.md
           - text: Cayley polar complex values
             href: design/eval/cayley-polar.md
+          - text: Symbolic specs and calculus
+            href: design/eval/symbolic-calculus.md
       - section: Design and history
         contents:
           - text: Design rationales

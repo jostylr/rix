@@ -27,7 +27,7 @@ import { propertyFunctions } from "./functions/properties.js";
 import { advancedFunctions } from "./functions/advanced.js";
 import { stdlibFunctions } from "./functions/stdlib.js";
 import { diagnosticFunctions } from "./functions/diagnostics.js";
-import { symbolicCapabilities, symbolicFunctions } from "./functions/symbolic.js";
+import { installSymbolicVariants, symbolicCapabilities, symbolicFunctions } from "./functions/symbolic.js";
 import { MATH_FUNCTION_NAMES, mathFunctions } from "./functions/math.js";
 import { installRegisteredTypes, registerBuiltinSemanticTypes } from "../runtime/type-system.js";
 import { createDefaultComplexCollection, createDefaultExactCollection } from "../runtime/exact-values.js";
@@ -60,6 +60,7 @@ export function createDefaultRegistry(options = {}) {
     registry.registerAll(mathFunctions);
     installRegisteredTypes(registry);
     installUnitExactVariants(registry);
+    installSymbolicVariants(registry);
     for (const loadStartup of options.startupLoaders || []) {
         loadStartup(registry);
     }

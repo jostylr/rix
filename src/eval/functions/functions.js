@@ -23,6 +23,7 @@ import {
     mapLazySequence,
     materializeLazySequence,
 } from "../../runtime/lazy-sequence.js";
+import { applySymbolicSpec, attachAutoSpec, isSymbolicSpec } from "./symbolic.js";
 
 const isTruthy = (val) => val !== null && val !== undefined;
 
@@ -339,6 +340,10 @@ export function callWithConcreteArgs(fn, callArgs, context, evaluate) {
         return callWithConcreteArgs(innerFn, args, context, evaluate);
     }
 
+    if (isSymbolicSpec(fn)) {
+        return applySymbolicSpec(fn, callArgs);
+    }
+
     if (fn.type === "function" || fn.type === "lambda") {
         return invokeUserCallable(fn, callArgs, context, evaluate, { callName: fn.name });
     }
@@ -446,6 +451,10 @@ export const functionFunctions = {
                 throw new Error(`Undefined identifier: ${name}. System capabilities must be called via dot syntax: .${name}(args)`);
             }
 
+            if (isSymbolicSpec(funcDef)) {
+                return applySymbolicSpec(funcDef, evaluateArgs(argNodes, evaluate));
+            }
+
             // If it's a partial or arityCap, apply it with the concrete call args.
             if (funcDef.type === "partial" || funcDef.type === "arityCap") {
                 const callArgs = evaluateArgs(argNodes, evaluate);
@@ -499,6 +508,10 @@ export const functionFunctions = {
 
             const funcVal = evaluate(funcNode);
             const callArgs = evaluateArgs(argNodes, evaluate);
+
+            if (isSymbolicSpec(funcVal)) {
+                return applySymbolicSpec(funcVal, callArgs);
+            }
 
             // If it's a partial or arityCap, apply it.
             if (funcVal && (funcVal.type === "partial" || funcVal.type === "arityCap")) {
@@ -560,13 +573,13 @@ export const functionFunctions = {
             // args[1] = body IR node (kept as IR for deferred evaluation)
             // Evaluate params (to get the structure) but NOT the body
             const params = evaluate(args[0]);
-            return {
+            return attachAutoSpec({
                 type: "lambda",
                 params,
                 body: args[1],  // Keep as raw IR — will be evaluated when called
                 __closureScopes: context.captureClosureScopes(),
                 ...(params?.metadata?.variantName ? { __name: params.metadata.variantName } : {}),
-            };
+            }, context);
         },
         doc: "Create a lambda/anonymous function",
     },
@@ -590,6 +603,7 @@ export const functionFunctions = {
                 ...(params?.metadata?.variantName ? { __name: params.metadata.variantName } : {}),
             };
 
+            attachAutoSpec(funcDef, context);
             context.defineFunction(name, funcDef);
             return funcDef;
         },

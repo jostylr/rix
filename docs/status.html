@@ -503,6 +503,12 @@ ul.task-list li input[type="checkbox"] {
  <span class="menu-text">Cayley polar complex values</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./design/eval/symbolic-calculus.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Symbolic specs and calculus</span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item sidebar-item-section">
@@ -636,6 +642,10 @@ ul.task-list li input[type="checkbox"] {
 <td>Embedding</td>
 <td>parser exports, evaluator/runtime exports, configurable system loader and system context</td>
 </tr>
+<tr class="even">
+<td>Exact symbolic core</td>
+<td>identity/expression/named specs, substitution and composition, name-preserving arithmetic, attached pure-function specs, polynomial compilation, exact derivatives/integrals, explicit simplification, quote calculus syntax</td>
+</tr>
 </tbody>
 </table>
 </section>
@@ -655,7 +665,7 @@ ul.task-list li input[type="checkbox"] {
 <tbody>
 <tr class="odd">
 <td>Symbolic work</td>
-<td><code>{# ... }</code> symbolic specifications, polynomial conversion, and derivatives of supported specs work; the full calculus notation and general symbolic engine are not complete.</td>
+<td>The implemented single-output exact-arithmetic subset is complete and tested. Multi-output manipulation, transcendental rules, general algebraic solving, and numerical calculus are intentionally outside it.</td>
 </tr>
 <tr class="even">
 <td>Mathematical systems</td>

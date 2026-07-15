@@ -537,6 +537,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="menu-text">Cayley polar complex values</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../design/eval/symbolic-calculus.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Symbolic specs and calculus</span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item sidebar-item-section">
@@ -888,6 +894,24 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td><code>[body_ir]</code></td>
 <td>Deferred (lazy) computation</td>
 </tr>
+<tr class="even">
+<td><code>SYSTEM_SPEC</code></td>
+<td><code>{#x# x^2 }</code></td>
+<td><code>[spec_meta]</code></td>
+<td>Create a first-class symbolic spec; metadata carries headers, output mode, expression/statements, and imports</td>
+</tr>
+<tr class="odd">
+<td><code>DERIVATIVE</code></td>
+<td><code>F'</code>, <code>F'(3)</code></td>
+<td><code>[callable, order, variable]</code></td>
+<td>Exact symbolic derivative; evaluated syntax wraps the result in <code>CALL_EXPR</code></td>
+</tr>
+<tr class="even">
+<td><code>INTEGRAL</code></td>
+<td><code>'F</code>, <code>'F(3)</code></td>
+<td><code>[callable, order, variable]</code></td>
+<td>Exact supported antiderivative; evaluated syntax wraps the result in <code>CALL_EXPR</code></td>
+</tr>
 </tbody>
 </table>
 </section>
@@ -1187,7 +1211,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <tbody>
 <tr class="odd">
 <td><code>DERIVATIVE</code></td>
-<td><code>f'</code>, <code>f''</code></td>
+<td><code>F'</code>, <code>F''</code></td>
 <td><code>[fn, order]</code></td>
 </tr>
 <tr class="even">

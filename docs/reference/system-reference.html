@@ -503,6 +503,12 @@ ul.task-list li input[type="checkbox"] {
  <span class="menu-text">Cayley polar complex values</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../design/eval/symbolic-calculus.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Symbolic specs and calculus</span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item sidebar-item-section">
@@ -600,7 +606,7 @@ Note
 <p>This page is generated from the current RiX implementation by <code>documentation/scripts/generate-reference.js</code>. Do not edit it by hand. Descriptions come from registry documentation strings; the narrative <a href="../eval/syntax-guide.html">syntax guide</a> and <a href="../eval/methods-guide.html">methods guide</a> provide signatures and examples.</p>
 </div>
 </div>
-<p>At this revision RiX exposes <strong>88 named entries</strong> on the default system context and registers <strong>164 internal IR operations</strong>. Aliases with different spelling are listed separately because they are separately addressable names.</p>
+<p>At this revision RiX exposes <strong>95 named entries</strong> on the default system context and registers <strong>164 internal IR operations</strong>. Aliases with different spelling are listed separately because they are separately addressable names.</p>
 <section id="public-system-context" class="level2">
 <h2 class="anchored" data-anchor-id="public-system-context">Public system context</h2>
 <p>These names are available through the leading-dot system object, such as <code>.Len(value)</code>. Uppercase names are also used by explicit system/operator forms where applicable.</p>
@@ -723,106 +729,118 @@ Note
 <td>Create a linear Unit value from a name and Unit/Quantity definition</td>
 </tr>
 <tr class="even">
+<td><code>.DERIV</code></td>
+<td>function</td>
+<td>Symbolic</td>
+<td>Differentiate a symbolic spec or spec-backed function exactly</td>
+</tr>
+<tr class="odd">
 <td><code>.DIV</code></td>
 <td>function</td>
 <td>Arith</td>
 <td>Division</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.DefineExactGenerator</code></td>
 <td>function</td>
 <td>Exact</td>
 <td>Create an algebraic exact generator from low-to-high polynomial coefficients</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.DefineUnit</code></td>
 <td>function</td>
 <td>Units</td>
 <td>Create a linear Unit value from a name and Unit/Quantity definition</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.EQ</code></td>
 <td>function</td>
 <td>Logic</td>
 <td>Equality check — returns 1 or null</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.ERROR</code></td>
 <td>function</td>
 <td>—</td>
 <td>Emit an error event and abort: .Error(label, dataMap ?= {=})</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.EVAL</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Evaluate a deferred AST node or expression: .Eval(ast, bindings ?= _, mode ?= :inherit)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.EXACT</code></td>
 <td>value</td>
 <td>Exact</td>
 <td>Canonical RiX exact-generator collection</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.EXP</code></td>
 <td>function</td>
 <td>—</td>
 <td>Dispatch EXP through the active system multifunction registry</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.Exact</code></td>
 <td>value</td>
 <td>Exact</td>
 <td>Canonical RiX exact-generator collection</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.FILTER</code></td>
 <td>lazy function</td>
 <td>Collections, Arrays</td>
 <td>Filter a collection</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.FIRST</code></td>
 <td>function</td>
 <td>Core, Collections, Arrays</td>
 <td>First element of a collection</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.GETEL</code></td>
 <td>function</td>
 <td>Core, Collections, Arrays</td>
 <td>Get element at index (1-based)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.GT</code></td>
 <td>function</td>
 <td>Logic</td>
 <td>Greater than — returns 1 or null</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.GTE</code></td>
 <td>function</td>
 <td>Logic</td>
 <td>Greater than or equal — returns 1 or null</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.IF</code></td>
 <td>lazy function</td>
 <td>Core</td>
 <td>Conditional function IF(cond, t, f)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.IMPORTJS</code></td>
 <td>function</td>
 <td>—</td>
 <td>Import a local JavaScript module for use from a .js.rix startup file</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.INFO</code></td>
 <td>function</td>
 <td>—</td>
 <td>Emit an info event: .Info(label, level ?= 1, dataMap ?= {=})</td>
+</tr>
+<tr class="even">
+<td><code>.INSPECTSPEC</code></td>
+<td>function</td>
+<td>Symbolic</td>
+<td>Return the structural inspection map for a symbolic spec</td>
 </tr>
 <tr class="odd">
 <td><code>.INTDIV</code></td>
@@ -831,130 +849,142 @@ Note
 <td>Integer division (floor)</td>
 </tr>
 <tr class="even">
+<td><code>.INTEGRATE</code></td>
+<td>function</td>
+<td>Symbolic</td>
+<td>Integrate a supported symbolic spec or spec-backed function exactly</td>
+</tr>
+<tr class="odd">
 <td><code>.IRANGE</code></td>
 <td>function</td>
 <td>Core, Collections, Arrays</td>
 <td>Create an integer range [start, end]</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.ImportJS</code></td>
 <td>function</td>
 <td>—</td>
 <td>Import a local JavaScript module for use from a .js.rix startup file</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.JSCALL</code></td>
 <td>function</td>
 <td>—</td>
 <td>Call a named export from a local JavaScript module</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.JSCall</code></td>
 <td>function</td>
 <td>—</td>
 <td>Call a named export from a local JavaScript module</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.KEYOF</code></td>
 <td>function</td>
 <td>Core, Maps</td>
 <td>Resolve canonical map key string for a value</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.KEYS</code></td>
 <td>function</td>
 <td>Core, Maps</td>
 <td>Get the keys of a map as a set (obj.|)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.LAST</code></td>
 <td>function</td>
 <td>Core, Collections, Arrays</td>
 <td>Last element of a collection</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.LEN</code></td>
 <td>function</td>
 <td>Core, Collections, Arrays</td>
 <td>Length of a collection or string</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.LN</code></td>
 <td>function</td>
 <td>—</td>
 <td>Dispatch LN through the active system multifunction registry</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.LOG</code></td>
 <td>function</td>
 <td>—</td>
 <td>Dispatch LOG through the active system multifunction registry</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.LOG10</code></td>
 <td>function</td>
 <td>—</td>
 <td>Dispatch LOG10 through the active system multifunction registry</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.LOOP</code></td>
 <td>lazy function</td>
 <td>Core</td>
 <td>Loop construct with init, condition, body[, update[, after]]</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.LT</code></td>
 <td>function</td>
 <td>Logic</td>
 <td>Less than — returns 1 or null</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.LTE</code></td>
 <td>function</td>
 <td>Logic</td>
 <td>Less than or equal — returns 1 or null</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.MAP</code></td>
 <td>lazy function</td>
 <td>Collections, Maps, Arrays</td>
 <td>Map a function over a collection</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.MOD</code></td>
 <td>function</td>
 <td>Arith</td>
 <td>Modulo</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.MUL</code></td>
 <td>function</td>
 <td>Arith</td>
 <td>Multiplication (Product of values)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.MULTI</code></td>
 <td>lazy function</td>
 <td>Core</td>
 <td>Evaluate multiple expressions, return last</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.NEQ</code></td>
 <td>function</td>
 <td>Logic</td>
 <td>Inequality check — returns 1 or null</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.NOT</code></td>
 <td>function</td>
 <td>Logic</td>
 <td>Logical NOT — returns Integer(1) for null input, null otherwise</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.OR</code></td>
 <td>lazy function</td>
 <td>Logic</td>
 <td>Logical OR (short-circuits on first truthy, returns deciding value)</td>
+</tr>
+<tr class="even">
+<td><code>.POLY</code></td>
+<td>function</td>
+<td>Symbolic</td>
+<td>Compile a single-output symbolic spec into an exact callable</td>
 </tr>
 <tr class="odd">
 <td><code>.POW</code></td>
@@ -999,150 +1029,168 @@ Note
 <td>Identity comparison (===) — returns 1 if both sides refer to the same cell, null otherwise</td>
 </tr>
 <tr class="even">
+<td><code>.SIMPLIFY</code></td>
+<td>function</td>
+<td>Symbolic</td>
+<td>Return an explicitly simplified symbolic value</td>
+</tr>
+<tr class="odd">
 <td><code>.SIN</code></td>
 <td>function</td>
 <td>—</td>
 <td>Dispatch SIN through the active system multifunction registry</td>
 </tr>
+<tr class="even">
+<td><code>.SPEC</code></td>
+<td>function</td>
+<td>Symbolic</td>
+<td>Analyze a pure function and attach/return its symbolic spec</td>
+</tr>
 <tr class="odd">
+<td><code>.SPECCABILITY</code></td>
+<td>function</td>
+<td>Symbolic</td>
+<td>Report whether a pure function can be represented by the exact symbolic subset</td>
+</tr>
+<tr class="even">
 <td><code>.STOP</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Conditional abort: .Stop(label, condition, dataMap ?= {=})</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.SUB</code></td>
 <td>function</td>
 <td>Arith</td>
 <td>Subtraction</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.SUBSTR</code></td>
 <td>function</td>
 <td>Strings</td>
 <td>Get substring</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.TAN</code></td>
 <td>function</td>
 <td>—</td>
 <td>Dispatch TAN through the active system multifunction registry</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.TEST</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Run tests: .Test(label, setup, [tests] | {= tests })</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.TESTERROR</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Abort test: .TestError(label, setup, expr) — passes if expr aborts with .Error() or a runtime error</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.TESTSTOP</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Abort test: .TestStop(label, setup, expr) — passes if expr aborts via .Stop()</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.TGEN</code></td>
 <td>lazy function</td>
 <td>Core, Collections, Arrays</td>
 <td>Generate a tensor from a shape and index callback</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.TRACE</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Trace execution: .Trace(label, depth, trackedVars?, thunkOrCallable)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.TRAITREGISTER</code></td>
 <td>function</td>
 <td>—</td>
 <td>Register an immutable semantic trait from a RiX map spec</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.TYPEEXPORT</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Export a semantically typed value through its registered type exporter</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.TYPEIMPORT</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Import a value from a tagged type export map</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.TYPEINSTALL</code></td>
 <td>function</td>
 <td>—</td>
 <td>Install a registered semantic type into system multifunctions</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.TYPEREGISTER</code></td>
 <td>function</td>
 <td>—</td>
 <td>Register an immutable semantic type from a RiX map spec</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.TraitRegister</code></td>
 <td>function</td>
 <td>—</td>
 <td>Register an immutable semantic trait from a RiX map spec</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.TypeExport</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Export a semantically typed value through its registered type exporter</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.TypeImport</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Import a value from a tagged type export map</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.TypeInstall</code></td>
 <td>function</td>
 <td>—</td>
 <td>Install a registered semantic type into system multifunctions</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.TypeRegister</code></td>
 <td>function</td>
 <td>—</td>
 <td>Register an immutable semantic type from a RiX map spec</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.UNITS</code></td>
 <td>value</td>
 <td>Units</td>
 <td>Canonical RiX unit collection</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.UPPER</code></td>
 <td>function</td>
 <td>Strings</td>
 <td>Convert string to uppercase</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.Units</code></td>
 <td>value</td>
 <td>Units</td>
 <td>Canonical RiX unit collection</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.VALUES</code></td>
 <td>function</td>
 <td>Core, Maps</td>
 <td>Get the values of a map as a set (obj|.)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.WARN</code></td>
 <td>function</td>
 <td>—</td>
@@ -1515,6 +1563,10 @@ Note
 <td><code>EXACT</code>, <code>Exact</code>, <code>COMPLEX</code>, <code>Complex</code>, <code>DEFINEEXACTGENERATOR</code>, <code>DefineExactGenerator</code></td>
 </tr>
 <tr class="odd">
+<td><code>Symbolic</code></td>
+<td><code>POLY</code>, <code>DERIV</code>, <code>INTEGRATE</code>, <code>SIMPLIFY</code>, <code>SPEC</code>, <code>SPECCABILITY</code>, <code>INSPECTSPEC</code></td>
+</tr>
+<tr class="even">
 <td><code>Random</code></td>
 <td><code>RANDOMSEED</code>, <code>RandomSeed</code>, <code>RAND_NAME</code></td>
 </tr>
@@ -1717,7 +1769,7 @@ Note
 <tr class="even">
 <td><code>DERIVATIVE</code></td>
 <td>eager, pure</td>
-<td>Symbolic derivative (future)</td>
+<td>Postfix exact symbolic derivative</td>
 </tr>
 <tr class="odd">
 <td><code>DESTRUCTURE_ASSIGN</code></td>
@@ -1827,7 +1879,7 @@ Note
 <tr class="even">
 <td><code>INTEGRAL</code></td>
 <td>eager, pure</td>
-<td>Symbolic integral (future)</td>
+<td>Prefix exact symbolic integral</td>
 </tr>
 <tr class="odd">
 <td><code>INTERSECT</code></td>
@@ -2272,7 +2324,7 @@ Note
 <tr class="odd">
 <td><code>SYSTEM_SPEC</code></td>
 <td>lazy, pure</td>
-<td>Create a symbolic system specification value</td>
+<td>Create a first-class symbolic system specification</td>
 </tr>
 <tr class="even">
 <td><code>TAIL_SELF</code></td>

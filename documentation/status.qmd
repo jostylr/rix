@@ -20,12 +20,13 @@ The repository test suite currently covers 1,700+ cases across parser, evaluator
 | Exact extensions | units/quantities, algebraic exact generators, exact complex operations, Cayley polar representation |
 | Tooling | REPL/runner, IR converter, native `.test.rix` runner, structured diagnostics, source locations, trace/debug |
 | Embedding | parser exports, evaluator/runtime exports, configurable system loader and system context |
+| Exact symbolic core | identity/expression/named specs, substitution and composition, name-preserving arithmetic, attached pure-function specs, polynomial compilation, exact derivatives/integrals, explicit simplification, quote calculus syntax |
 
 ## Partial or intentionally bounded
 
 | Area | Boundary |
 |---|---|
-| Symbolic work | `{# ... }` symbolic specifications, polynomial conversion, and derivatives of supported specs work; the full calculus notation and general symbolic engine are not complete. |
+| Symbolic work | The implemented single-output exact-arithmetic subset is complete and tested. Multi-output manipulation, transcendental rules, general algebraic solving, and numerical calculus are intentionally outside it. |
 | Mathematical systems | `{$ ... }` evaluates with block-like semantics. It is not yet a general equation/constraint solver. |
 | Real approximation | the default runtime is exact-first. The repository includes a float package example, but a unified real/oracle layer is not part of the default surface. |
 | Browser use | the parser demo runs in the browser. Full evaluator imports currently include Node file APIs, so evaluator embedding needs a host adapter for browser-only use. |
@@ -42,4 +43,3 @@ When pages disagree, use this order:
 5. historical reports, early phase documents, scratch notes, and generated legacy HTML.
 
 The build regenerates the runtime catalog from the implementation, which makes missing or renamed system capabilities visible in every documentation change.
-

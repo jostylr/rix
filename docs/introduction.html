@@ -566,6 +566,12 @@ window.Quarto = {
  <span class="menu-text">Cayley polar complex values</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./design/eval/symbolic-calculus.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Symbolic specs and calculus</span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item sidebar-item-section">
@@ -684,7 +690,12 @@ window.Quarto = {
   <li><a href="#bases" id="toc-bases" class="nav-link" data-scroll-target="#bases">Bases</a></li>
   </ul></li>
   <li><a href="#set-and-collection-algebra" id="toc-set-and-collection-algebra" class="nav-link" data-scroll-target="#set-and-collection-algebra">Set and Collection Algebra</a></li>
-  <li><a href="#symbolic-system-specs" id="toc-symbolic-system-specs" class="nav-link" data-scroll-target="#symbolic-system-specs">Symbolic System Specs</a></li>
+  <li><a href="#symbolic-specs-and-exact-calculus" id="toc-symbolic-specs-and-exact-calculus" class="nav-link" data-scroll-target="#symbolic-specs-and-exact-calculus">Symbolic Specs and Exact Calculus</a>
+  <ul class="collapse">
+  <li><a href="#substitution-arithmetic-and-execution" id="toc-substitution-arithmetic-and-execution" class="nav-link" data-scroll-target="#substitution-arithmetic-and-execution">Substitution, arithmetic, and execution</a></li>
+  <li><a href="#calculus-and-speccable-functions" id="toc-calculus-and-speccable-functions" class="nav-link" data-scroll-target="#calculus-and-speccable-functions">Calculus and speccable functions</a></li>
+  <li><a href="#intentional-simplification" id="toc-intentional-simplification" class="nav-link" data-scroll-target="#intentional-simplification">Intentional simplification</a></li>
+  </ul></li>
   <li><a href="#regex-literals" id="toc-regex-literals" class="nav-link" data-scroll-target="#regex-literals">Regex Literals</a>
   <ul class="collapse">
   <li><a href="#syntax-and-modes" id="toc-syntax-and-modes" class="nav-link" data-scroll-target="#syntax-and-modes">Syntax and Modes</a></li>
@@ -2005,54 +2016,56 @@ m |&gt;&gt; (v, k) -&gt; k ++ "=" ++ v   ## {= a="a=2", b="b=3" }
 <li><code>A ++ B</code>: Concatenation of ordered collections (arrays, tuples, strings, maps).</li>
 </ul>
 </section>
-<section id="symbolic-system-specs" class="level2">
-<h2 class="anchored" data-anchor-id="symbolic-system-specs">Symbolic System Specs</h2>
-<p>RiX now uses <code>{# ... }</code> for symbolic system specs.</p>
-<pre class="rix"><code>S = {#x,y,z:p#
-  p = x^2 * y + z
-}</code></pre>
-<p>This form does not execute its body as a runtime block. Instead it returns a first-class symbolic spec object with:</p>
-<ul>
-<li><code>kind = "systemSpec"</code></li>
-<li><code>inputs</code></li>
-<li><code>outputs</code></li>
-<li><code>statements</code></li>
-</ul>
-<p>Header forms:</p>
-<pre class="rix"><code>{# ... }
-{#x,y,z# ... }
-{#:p,q# ... }
-{#x,y,z:p,q# ... }</code></pre>
-<p>Rules for the header:</p>
-<ul>
-<li>Names before <code>:</code> are declared inputs.</li>
-<li>Names after <code>:</code> are declared outputs.</li>
-<li>Header names must be bare identifiers.</li>
-<li>Duplicate input names, duplicate output names, and input/output overlap are rejected.</li>
-</ul>
-<p>Rules for the body in the current implementation:</p>
-<ul>
-<li>Only symbolic assignment statements are supported: <code>name = expr</code></li>
-<li>The left-hand side must be a bare identifier.</li>
-<li><code>=</code> inside <code>{# ... }</code> means symbolic definition inside the spec, not runtime assignment and not solver equality.</li>
-<li>If outputs are declared, each declared output must be assigned exactly once.</li>
-<li>If outputs are omitted, outputs are inferred from top-level assignment targets in encounter order.</li>
-</ul>
-<p>Expression trees are stored structurally, not as precomputed values and not as reparsed source strings. Outer references such as <code>@name</code> are preserved symbolically for later consumers to interpret.</p>
-<p>Current host-side helpers used in tests:</p>
-<pre class="rix"><code>P = {#x,y,z:p# p = x^2 * y + z } |&gt; Poly
-Dx = Deriv({#x,y,z:p# p = x^2 * y + z }, "x")</code></pre>
-<p><code>Poly</code> and <code>Deriv</code> currently support a restricted polynomial subset:</p>
-<ul>
-<li>constants</li>
-<li>identifiers</li>
-<li><code>+</code></li>
-<li><code>-</code></li>
-<li><code>*</code></li>
-<li><code>^</code> with a nonnegative integer literal exponent</li>
-</ul>
-<p>Relation and constraint forms such as <code>:=:</code>, <code>:&lt;:</code>, and <code>:&gt;:</code> remain separate and are reserved for later relational/solver work.</p>
+<section id="symbolic-specs-and-exact-calculus" class="level2">
+<h2 class="anchored" data-anchor-id="symbolic-specs-and-exact-calculus">Symbolic Specs and Exact Calculus</h2>
+<p><code>{# ... }</code> creates a first-class symbolic function without executing its body. The three common forms are:</p>
+<pre class="rix"><code>{#x}                       # identity symbol
+{#t# t^2 - 4 }             # anonymous single output
+{#x:p# p = 2*x }           # explicitly solved output</code></pre>
+<p>The identity form is useful as a variable value. The anonymous form implies that its expression is the result. The named form retains its output name through symbolic transformations. Multi-output named specs can be represented and inspected, but current arithmetic and calculus require one solved output.</p>
+<p>Specs display in source-like form. Use <code>.InspectSpec(S)</code> for the structural map of inputs, outputs, statements, and expression IR.</p>
+<section id="substitution-arithmetic-and-execution" class="level3">
+<h3 class="anchored" data-anchor-id="substitution-arithmetic-and-execution">Substitution, arithmetic, and execution</h3>
+<p>Calling a spec substitutes its input slots positionally and returns a spec:</p>
+<pre class="rix"><code>G := {#t# t^2 - 4 }
+G({#x})          # rename t to x
+G({#x# x + 1 })  # compose
+G(3)             # zero-input constant spec</code></pre>
+<p>Symbolic arithmetic preserves input names. Different names produce a multi-input spec; identical names denote the same input:</p>
+<pre class="rix"><code>{#x# 2*x } * {#t# t^2 - 4 } # inputs x and t
+{#x# 2*x } * {#x# x + 1 }   # one shared input x</code></pre>
+<p>Arithmetic does not simplify automatically. <code>.Poly</code> compiles a single-output spec into an exact callable and retains the spec for display and later transforms:</p>
+<pre class="rix"><code>P := .Poly({#x:p# p = x^2 + 1 })
+P(3) # 10</code></pre>
+</section>
+<section id="calculus-and-speccable-functions" class="level3">
+<h3 class="anchored" data-anchor-id="calculus-and-speccable-functions">Calculus and speccable functions</h3>
+<p><code>.Deriv</code> and <code>.Integrate</code> accept specs or functions with attached specs. Use an identity spec as the canonical variable selector:</p>
+<pre class="rix"><code>S := {#x:p# p = x^3 }
+D := .Deriv(S, {#x})
+A := .Integrate(D, {#x})</code></pre>
+<p>Differentiation implements exact sum, difference, product, quotient, and integer-power rules. Integration covers structural polynomial sums, nonnegative monomials, constant factors, and variable-independent divisors. It returns the antiderivative with integration constant zero. Unsupported forms fail; RiX never switches to numerical calculus implicitly.</p>
+<p>Safe pure exact-arithmetic functions are specced automatically. Captured names remain linked to their original cells:</p>
+<pre class="rix"><code>a := 2
+F := x -&gt; a*x^2
+D := .Deriv(F, {#x})
+a ~= 3
+D(2) # 12</code></pre>
+<p><code>.Speccability(F)</code> reports whether analysis succeeds, and <code>.Spec(F)</code> returns or explicitly attaches the spec. Function names are capitalized; all language-provided symbolic capabilities remain behind the dot system object.</p>
+<p>Postfix derivative and prefix integral syntax use the same exact engine:</p>
+<pre class="rix"><code>F := x -&gt; x^3
+G := x -&gt; 2*x
+F'(4) # 48
+'G(3) # 9</code></pre>
+</section>
+<section id="intentional-simplification" class="level3">
+<h3 class="anchored" data-anchor-id="intentional-simplification">Intentional simplification</h3>
+<p><code>.Simplify</code> returns a new symbolic value. Exact constant folding, identities, and power cleanup are the defaults; <code>"expand"</code> additionally distributes multiplication:</p>
+<pre class="rix"><code>.Simplify({#x# x*1 + 0 })
+.Simplify({#x# x*(x + 1) }, "expand")</code></pre>
+<p>Relation and constraint forms such as <code>:=:</code>, <code>:&lt;:</code>, and <code>:&gt;:</code> remain separate from symbolic-spec semantics. See <a href="./design/eval/symbolic-calculus.html">Symbolic specs and exact calculus</a> for the full runtime model and supported boundary.</p>
 <hr>
+</section>
 </section>
 <section id="regex-literals" class="level2">
 <h2 class="anchored" data-anchor-id="regex-literals">Regex Literals</h2>
@@ -2261,9 +2274,9 @@ angle := pi/2 * .Units[:rad]</code></pre>
 <section id="cli-test-runner" class="level3">
 <h3 class="anchored" data-anchor-id="cli-test-runner">CLI Test Runner</h3>
 <p>Run test files from the command line:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb119"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb119-1"><a href="#cb119-1" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> bin/rix.js test              <span class="co"># discover all *.test.rix files</span></span>
-<span id="cb119-2"><a href="#cb119-2" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> bin/rix.js test parser       <span class="co"># filter by substring match</span></span>
-<span id="cb119-3"><a href="#cb119-3" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> bin/rix.js test math core    <span class="co"># multiple filters (OR)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb124"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb124-1"><a href="#cb124-1" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> bin/rix.js test              <span class="co"># discover all *.test.rix files</span></span>
+<span id="cb124-2"><a href="#cb124-2" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> bin/rix.js test parser       <span class="co"># filter by substring match</span></span>
+<span id="cb124-3"><a href="#cb124-3" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> bin/rix.js test math core    <span class="co"># multiple filters (OR)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>The runner discovers <code>*.test.rix</code> files recursively, runs each in a fresh context, and prints per-file and per-test-group summaries. Exit code is 0 if all pass, nonzero otherwise.</p>
 
 

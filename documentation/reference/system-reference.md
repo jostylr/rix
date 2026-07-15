@@ -8,7 +8,7 @@ toc-depth: 2
 This page is generated from the current RiX implementation by `documentation/scripts/generate-reference.js`. Do not edit it by hand. Descriptions come from registry documentation strings; the narrative [syntax guide](../eval/syntax-guide.md) and [methods guide](../eval/methods-guide.md) provide signatures and examples.
 :::
 
-At this revision RiX exposes **90 named entries** on the default system context and registers **164 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
+At this revision RiX exposes **95 named entries** on the default system context and registers **164 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
 
 ## Public system context
 
@@ -33,7 +33,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.DEEPMUTABLE` | function | — | Recursively set (flag≠\_) or remove (flag=\_) .\_mutable on all nested arrays/maps/tensors. Called via .DeepMutable(value, flag). |
 | `.DEFINEEXACTGENERATOR` | function | Exact | Create an algebraic exact generator from low-to-high polynomial coefficients |
 | `.DEFINEUNIT` | function | Units | Create a linear Unit value from a name and Unit/Quantity definition |
-| `.DERIV` | function | Symbolic | Differentiate a supported symbolic system specification exactly |
+| `.DERIV` | function | Symbolic | Differentiate a symbolic spec or spec-backed function exactly |
 | `.DIV` | function | Arith | Division |
 | `.DefineExactGenerator` | function | Exact | Create an algebraic exact generator from low-to-high polynomial coefficients |
 | `.DefineUnit` | function | Units | Create a linear Unit value from a name and Unit/Quantity definition |
@@ -51,7 +51,9 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.IF` | lazy function | Core | Conditional function IF(cond, t, f) |
 | `.IMPORTJS` | function | — | Import a local JavaScript module for use from a .js.rix startup file |
 | `.INFO` | function | — | Emit an info event: .Info(label, level ?= 1, dataMap ?= {=}) |
+| `.INSPECTSPEC` | function | Symbolic | Return the structural inspection map for a symbolic spec |
 | `.INTDIV` | function | Arith | Integer division (floor) |
+| `.INTEGRATE` | function | Symbolic | Integrate a supported symbolic spec or spec-backed function exactly |
 | `.IRANGE` | function | Core, Collections, Arrays | Create an integer range [start, end] |
 | `.ImportJS` | function | — | Import a local JavaScript module for use from a .js.rix startup file |
 | `.JSCALL` | function | — | Call a named export from a local JavaScript module |
@@ -73,7 +75,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.NEQ` | function | Logic | Inequality check — returns 1 or null |
 | `.NOT` | function | Logic | Logical NOT — returns Integer(1) for null input, null otherwise |
 | `.OR` | lazy function | Logic | Logical OR (short-circuits on first truthy, returns deciding value) |
-| `.POLY` | function | Symbolic | Create an exact callable from a supported symbolic system specification |
+| `.POLY` | function | Symbolic | Compile a single-output symbolic spec into an exact callable |
 | `.POW` | function | Arith | Exponentiation |
 | `.POWPROD` | function | — | Exponentiation/product power (currently same implementation as POW) |
 | `.PRINT` | function | Core, Strings | Print each argument through the replaceable \_\_io\_\_ hook |
@@ -81,7 +83,10 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.RAND_NAME` | function | Core, Random | Generate a random name string RAND\_NAME(len=10, alphabet=a-zA-Z) |
 | `.REDUCE` | lazy function | Collections, Arrays | Reduce a collection |
 | `.SAME_CELL` | lazy function | — | Identity comparison (===) — returns 1 if both sides refer to the same cell, null otherwise |
+| `.SIMPLIFY` | function | Symbolic | Return an explicitly simplified symbolic value |
 | `.SIN` | function | — | Dispatch SIN through the active system multifunction registry |
+| `.SPEC` | function | Symbolic | Analyze a pure function and attach/return its symbolic spec |
+| `.SPECCABILITY` | function | Symbolic | Report whether a pure function can be represented by the exact symbolic subset |
 | `.STOP` | lazy function | — | Conditional abort: .Stop(label, condition, dataMap ?= {=}) |
 | `.SUB` | function | Arith | Subtraction |
 | `.SUBSTR` | function | Strings | Get substring |
@@ -191,7 +196,7 @@ Imported scripts can add or withhold named groups. Permission-like names are int
 | `Files` | `FILES` |
 | `Units` | `UNITS`, `Units`, `CONVERTUNIT`, `ConvertUnit`, `DEFINEUNIT`, `DefineUnit` |
 | `Exact` | `EXACT`, `Exact`, `COMPLEX`, `Complex`, `DEFINEEXACTGENERATOR`, `DefineExactGenerator` |
-| `Symbolic` | `POLY`, `DERIV` |
+| `Symbolic` | `POLY`, `DERIV`, `INTEGRATE`, `SIMPLIFY`, `SPEC`, `SPECCABILITY`, `INSPECTSPEC` |
 | `Random` | `RANDOMSEED`, `RandomSeed`, `RAND_NAME` |
 
 Default script policy includes all functions and the `IMPORTS` permission. Recognized permission names are `IMPORTS`, `NET`, `FILES`. The default loop limit is 10,000 iterations and the default constructor capture mode is `deep_copy`.
@@ -237,7 +242,7 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `DEFINEBASE` | lazy, effectful/unspecified | Define a custom uppercase base prefix (0A = ...), one-time global definition |
 | `DEFINEEXACTGENERATOR` | eager, pure | Create an algebraic exact generator from low-to-high polynomial coefficients |
 | `DEFINEUNIT` | eager, pure | Create a linear Unit value from a name and Unit/Quantity definition |
-| `DERIVATIVE` | eager, pure | Symbolic derivative (future) |
+| `DERIVATIVE` | eager, pure | Postfix exact symbolic derivative |
 | `DESTRUCTURE_ASSIGN` | lazy, effectful/unspecified | General lhs destructuring assignment |
 | `DIV` | eager, pure, multifunction | Division |
 | `DIVIDE` | eager, pure | Return n lazy equally spaced points including interval endpoints |
@@ -259,7 +264,7 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `INDEX_SET` | lazy, effectful/unspecified | Set index in collection (requires .\_mutable meta flag) — obj[i] = val |
 | `INFSEQ` | eager, pure | Lazy unbounded exact arithmetic sequence |
 | `INTDIV` | eager, pure, multifunction | Integer division (floor) |
-| `INTEGRAL` | eager, pure | Symbolic integral (future) |
+| `INTEGRAL` | eager, pure | Prefix exact symbolic integral |
 | `INTERSECT` | eager, pure | Intersection of two collections (set intersection or interval overlap) |
 | `INTERSECTS` | eager, pure | Check if two collections intersect (1 if true, null otherwise) |
 | `INTERVAL` | eager, pure | Create an interval [lo, hi] or test betweenness like a:b:c |
@@ -348,7 +353,7 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `SUB` | eager, pure, multifunction | Subtraction |
 | `SYSREF` | eager, pure | Reference to a system function |
 | `SYSTEM` | lazy, effectful/unspecified | Mathematical system container, currently evaluates as a block |
-| `SYSTEM_SPEC` | lazy, pure | Create a symbolic system specification value |
+| `SYSTEM_SPEC` | lazy, pure | Create a first-class symbolic system specification |
 | `TAIL_SELF` | lazy, effectful/unspecified | Tail-position self call that reuses the current function frame |
 | `TAN` | eager, pure, multifunction | Tangent |
 | `TENSOR` | lazy, pure | Tensor literal |

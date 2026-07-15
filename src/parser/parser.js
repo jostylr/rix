@@ -2886,8 +2886,32 @@ class Parser {
     this.validateSystemSpecHeader(header);
     this.advance(); // consume "{#"
 
+    if (startToken.specIdentity === true) {
+      if (this.current.value !== "}") {
+        this.error("Expected closing } for symbolic identity");
+      }
+      this.advance();
+      const name = header.inputs[0];
+      return this.createNode("SystemSpecLiteral", {
+        sigil: "{#",
+        inputs: [name],
+        outputs: [],
+        outputsDeclared: false,
+        outputMode: "identity",
+        expression: this.createNode("UserIdentifier", {
+          name,
+          pos: startToken.pos,
+          original: name,
+        }),
+        statements: [],
+        pos: startToken.pos,
+        original: startToken.original + "}",
+      });
+    }
+
     const imports = this.startsImportHeader() ? this.parseImportHeader() : [];
     const statements = [];
+    let expressionBody = null;
 
     if (this.current.value !== "}") {
       do {
@@ -2897,7 +2921,17 @@ class Parser {
         }
 
         const expression = this.parseExpression(0);
-        statements.push(this.parseSystemSpecStatement(expression));
+        if (expression?.type === "BinaryOperation" && expression.operator === "=") {
+          if (expressionBody) {
+            this.error("A symbolic expression body cannot be mixed with assignments");
+          }
+          statements.push(this.parseSystemSpecStatement(expression));
+        } else {
+          if (statements.length > 0 || expressionBody) {
+            this.error("A symbolic expression spec must contain exactly one expression");
+          }
+          expressionBody = expression;
+        }
 
         if (this.current.value === ";") {
           this.advance();
@@ -2920,13 +2954,20 @@ class Parser {
     }
     this.advance();
 
-    const finalized = this.finalizeSystemSpecStatements(header, statements);
+    if (expressionBody && header.outputsDeclared) {
+      this.error("An anonymous symbolic expression cannot declare named outputs");
+    }
+    const finalized = expressionBody
+      ? { outputs: [], statements: [] }
+      : this.finalizeSystemSpecStatements(header, statements);
     return this.createNode("SystemSpecLiteral", {
       sigil: "{#",
       ...(imports.length > 0 ? { imports } : {}),
       inputs: header.inputs,
       outputs: finalized.outputs,
       outputsDeclared: header.outputsDeclared,
+      outputMode: expressionBody ? "expression" : "named",
+      ...(expressionBody ? { expression: expressionBody } : {}),
       statements: finalized.statements,
       pos: startToken.pos,
       original: startToken.original,

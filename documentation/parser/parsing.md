@@ -2237,7 +2237,13 @@ matmul(A, B; validate := true ? A.cols = B.rows) :-> A * B
 
 ### Overview
 
-RiX provides comprehensive support for symbolic calculus operations including derivatives and indefinite integrals. The notation follows mathematical conventions while supporting advanced features like variable specification, mixed sequences, and operation vs evaluation distinction.
+RiX parses a broad symbolic-calculus notation. The evaluator implements the
+exact single-variable arithmetic subset described in
+[Symbolic specs and exact calculus](../design/eval/symbolic-calculus.md):
+postfix derivatives, prefix zero-constant antiderivatives, repeated quotes,
+one bracket-selected variable, and immediate evaluation. General operation
+sequences, several-variable quote operations, bounds, and transcendental rules
+below remain syntax/design examples rather than executable promises.
 
 ### Derivative Notation (Postfix Quotes)
 

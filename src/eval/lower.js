@@ -704,6 +704,8 @@ const LOWERERS = {
       inputs: [...(node.inputs || [])],
       outputs: [...(node.outputs || [])],
       outputsDeclared: node.outputsDeclared === true,
+      outputMode: node.outputMode || "named",
+      ...(node.expression ? { expression: lowerNode(node.expression) } : {}),
       statements: (node.statements || []).map((statement) => ({
         kind: "assign",
         target: statement.target,
@@ -873,11 +875,29 @@ const LOWERERS = {
   // === Calculus ===
 
   Derivative(node) {
-    return ir("DERIVATIVE", lowerNode(node.function), node.order);
+    if (node.operations?.length) {
+      throw new Error("Calculus operation sequences are not yet part of the exact symbolic subset");
+    }
+    if (node.variables?.length > 1) {
+      throw new Error("Exact symbolic calculus currently accepts one variable per quote operation");
+    }
+    const variable = node.variables?.length ? ir("STRING", node.variables[0].name) : ir("NULL");
+    let result = ir("DERIVATIVE", lowerNode(node.function), node.order, variable);
+    if (node.evaluation?.length) result = ir("CALL_EXPR", result, ...node.evaluation.map(lowerNode));
+    return result;
   },
 
   Integral(node) {
-    return ir("INTEGRAL", lowerNode(node.expression));
+    if (node.operations?.length) {
+      throw new Error("Calculus operation sequences are not yet part of the exact symbolic subset");
+    }
+    if (node.variables?.length > 1) {
+      throw new Error("Exact symbolic calculus currently accepts one variable per quote operation");
+    }
+    const variable = node.variables?.length ? ir("STRING", node.variables[0].name) : ir("NULL");
+    let result = ir("INTEGRAL", lowerNode(node.function), node.order, variable);
+    if (node.evaluation?.length) result = ir("CALL_EXPR", result, ...node.evaluation.map(lowerNode));
+    return result;
   },
 
   // === Interval Operations ===

@@ -7,6 +7,7 @@ import { callWithConcreteArgs } from "./functions/functions.js";
 import { formatExact, isCayleyInfinity, isCayleyValue } from "../runtime/exact-values.js";
 import { formatQuantity, formatUnit, isQuantity, isUnitValue } from "../runtime/quantities.js";
 import { isLazySequence, lazyKnownLength } from "../runtime/lazy-sequence.js";
+import { formatSymbolicSpec, getAttachedSpec, isSymbolicSpec, renderSymbolicIr } from "./functions/symbolic.js";
 
 function tensorValueAtTuple(tensor, tuple) {
     const value = tensor.data[tensorOffsetForTuple(tensor, tuple)];
@@ -181,6 +182,12 @@ function previewIr(node, options = {}) {
 }
 
 function formatCallablePreview(fn, label) {
+    const attachedSpec = getAttachedSpec(fn);
+    const symbolicKind = fn._ext?.get?.("_symbolicKind")?.value || null;
+    if (attachedSpec && symbolicKind === "Poly") {
+        const params = fn.params?.positional?.map((param) => param.name).join(", ") || "";
+        return `[Poly ${params} -> ${renderSymbolicIr(fn.body)}; Spec ${formatSymbolicSpec(attachedSpec)}]`;
+    }
     const params = fn.params?.positional?.map((param) => param.isRest ? `...${param.name}` : param.name).join(", ") || "";
     const prepEntries = [
         ...(Array.isArray(fn.params?.conditionals) ? fn.params.conditionals : []),
@@ -192,7 +199,8 @@ function formatCallablePreview(fn, label) {
     const bodyText = previewIr(fn.body, { maxLen: 48 });
     const displayName = fn.__name || fn.name || null;
     const nameText = displayName ? ` ${displayName}:` : ":";
-    return `[${label}${nameText} (${params})${prepText} -> ${bodyText}]`;
+    const specText = attachedSpec ? `; Spec ${formatSymbolicSpec(attachedSpec)}` : "";
+    return `[${label}${nameText} (${params})${prepText} -> ${bodyText}${specText}]`;
 }
 
 function formatMultifunctionPreview(multifn) {
@@ -253,6 +261,7 @@ export function formatValue(val, options = {}) {
     if (val === undefined) return "undefined";
 
     if (typeof val === "object" && val !== null) {
+        if (isSymbolicSpec(val)) return formatSymbolicSpec(val);
         if (isLazySequence(val)) {
             const cached = val._lazy.cache.slice(0, 8).map(formatChild).join(", ");
             const more = val._lazy.cache.length > 8 || !val._lazy.done ? (cached ? ", …" : "…") : "";

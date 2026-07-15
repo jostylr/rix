@@ -502,6 +502,12 @@ ul.task-list li input[type="checkbox"] {
  <span class="menu-text">Cayley polar complex values</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../design/eval/symbolic-calculus.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Symbolic specs and calculus</span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item sidebar-item-section">
@@ -924,10 +930,10 @@ a + c         // Error: cannot add meters and seconds</code></pre>
 <ul>
 <li><p><strong>Defining an algebraic primitive:</strong></p>
 <ul>
-<li><p><code>Primitive("sqrt2", Poly(1, 0, -2), 1:2)</code></p>
+<li><p><code>.Primitive("sqrt2", .Poly(1, 0, -2), 1:2)</code></p>
 <ul>
 <li><strong>Name:</strong> <code>"sqrt2"</code></li>
-<li><strong>Minimal polynomial:</strong> <code>Poly(1, 0, -2)</code> (i.e., x² - 2)</li>
+<li><strong>Minimal polynomial:</strong> <code>.Poly(1, 0, -2)</code> (i.e., x² - 2)</li>
 <li><strong>Interval:</strong> <code>1:2</code> (specifies which root to use)</li>
 </ul></li>
 </ul></li>
@@ -943,7 +949,7 @@ a + c         // Error: cannot add meters and seconds</code></pre>
 </ul></li>
 <li><p><strong>General extensions:</strong></p>
 <ul>
-<li><code>Primitive("xi", Poly(1, 0, 0, -1), 0:2)</code> for a root of x³ - 1</li>
+<li><code>.Primitive("xi", .Poly(1, 0, 0, -1), 0:2)</code> for a root of x³ - 1</li>
 </ul></li>
 </ul>
 </section>
@@ -973,7 +979,7 @@ z + w       // 4 + 6~{i}
 z * w       // -5 + 10~{i}
 
 // Algebraic extension
-Primitive("sqrt2", Poly(1,0,-2), 1:2)
+.Primitive("sqrt2", .Poly(1,0,-2), 1:2)
 x := 2 + 3~{sqrt2}
 y := 1 - ~{sqrt2}
 x + y       // 3 + 2~{sqrt2}
@@ -987,10 +993,10 @@ Real(x, E-6)  // Returns decimal value with 10^-6 accuracy</code></pre>
 <ul>
 <li><p><strong>Syntax:</strong></p>
 <ul>
-<li><p><code>Primitive("name", Poly(...), interval)</code></p>
+<li><p><code>.Primitive("name", .Poly(...), interval)</code></p>
 <ul>
-<li><code>Primitive("sqrt3", Poly(1, 0, -3), 1:2)</code> defines sqrt 3.</li>
-<li><code>Primitive("xi", Poly(1, 0, 0, -1), 0:2)</code> defines a cube root of 1.</li>
+<li><code>.Primitive("sqrt3", .Poly(1, 0, -3), 1:2)</code> defines sqrt 3.</li>
+<li><code>.Primitive("xi", .Poly(1, 0, 0, -1), 0:2)</code> defines a cube root of 1.</li>
 </ul></li>
 </ul></li>
 <li><p><strong>Usage:</strong></p>
@@ -1104,7 +1110,7 @@ R_q := [
 ]
 
 // sqrt(2) oracle
-Primitive("sqrt2", Poly(1,0,-2), 1:2)
+.Primitive("sqrt2", .Poly(1,0,-2), 1:2)
 sqrt2_oracle := [
   yes := 0:2,
   type := "oracle",
@@ -1445,12 +1451,12 @@ powcases(2, n := 5)    // 2^10</code></pre></li>
 <ul>
 <li><p><strong>Notation:</strong></p>
 <ul>
-<li><p><code>(''...)f[vars](ops)</code></p></li>
+<li><p><code>(''...)F[vars](ops)</code></p></li>
 <li><p>Examples:</p>
 <ul>
-<li><code>f'(x')</code>→df/dx</li>
-<li><code>''f[x, y]('y, x')</code>→ integrate by y, then differentiate by x</li>
-<li><code>f'(r')</code>→derivative along path r</li>
+<li><code>F'(x')</code>→dF/dx</li>
+<li><code>''F[x, y]('y, x')</code>→ integrate by y, then differentiate by x</li>
+<li><code>F'(R')</code>→derivative along path R</li>
 </ul></li>
 <li><p>Order of operations is left-to-right.</p></li>
 <li><p>Integration: leading <code>'</code> before function</p></li>
@@ -1585,8 +1591,8 @@ Solve(sys)</code></pre>
 </section>
 <section id="symbolic-calculus" class="level2">
 <h2 class="anchored" data-anchor-id="symbolic-calculus">Symbolic Calculus</h2>
-<pre class="plaintext"><code>f'(x')                // Partial derivative w.r.t. x
-''f[x, y]('y, x')     // Integrate by y, then differentiate by x</code></pre>
+<pre class="plaintext"><code>F'(x')                // Partial derivative w.r.t. x
+''F[x, y]('y, x')     // Integrate by y, then differentiate by x</code></pre>
 <hr>
 </section>
 <section id="notes-4" class="level2">

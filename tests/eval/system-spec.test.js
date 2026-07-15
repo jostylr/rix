@@ -3,6 +3,7 @@ import { tokenize } from "../../src/parser/tokenizer.js";
 import { parse } from "../../src/parser/parser.js";
 import { lower } from "../../src/eval/lower.js";
 import { evaluate, createDefaultRegistry, createDefaultSystemContext } from "../../src/eval/evaluator.js";
+import { formatValue } from "../../src/eval/format.js";
 import { Context } from "../../src/runtime/context.js";
 
 function systemLookup(name) {
@@ -13,100 +14,170 @@ function evalRix(code, context = null) {
     const ctx = context || new Context();
     const registry = createDefaultRegistry();
     const systemContext = createDefaultSystemContext();
-    const tokens = tokenize(code);
-    const ast = parse(tokens, systemLookup);
-    const irNodes = lower(ast);
-
     let result = null;
-    for (const irNode of irNodes) {
-        result = evaluate(irNode, ctx, registry, systemContext);
+    for (const node of lower(parse(tokenize(code), systemLookup))) {
+        result = evaluate(node, ctx, registry, systemContext);
     }
     return { result, context: ctx };
 }
 
-function mapEntry(mapValue, key) {
-    expect(mapValue?.type).toBe("map");
-    return mapValue.entries.get(key);
-}
-
-function tupleValues(value) {
-    expect(value?.type).toBe("tuple");
-    return value.values;
-}
-
-function stringValue(value) {
-    if (typeof value === "string") return value;
-    expect(value?.type).toBe("string");
-    return value.value;
-}
-
-describe("System Spec Evaluation", () => {
-    test("evaluating {# ... } returns a symbolic spec object", () => {
-        const { result } = evalRix("{#x,y,z:p# p = x^2 * y + z };");
-        expect(stringValue(mapEntry(result, "kind"))).toBe("systemSpec");
-        expect(tupleValues(mapEntry(result, "inputs")).map(stringValue)).toEqual(["x", "y", "z"]);
-        expect(tupleValues(mapEntry(result, "outputs")).map(stringValue)).toEqual(["p"]);
-
-        const statements = tupleValues(mapEntry(result, "statements"));
-        expect(statements).toHaveLength(1);
-        expect(stringValue(mapEntry(statements[0], "kind"))).toBe("assign");
-        expect(stringValue(mapEntry(statements[0], "target"))).toBe("p");
-
-        const expr = mapEntry(statements[0], "expr");
-        expect(stringValue(mapEntry(expr, "kind"))).toBe("binary");
-        expect(stringValue(mapEntry(expr, "op"))).toBe("+");
+describe("first-class symbolic specs", () => {
+    test("identity, expression, and named-output specs preserve source-like display", () => {
+        expect(formatValue(evalRix("{#x}").result)).toBe("{#x}");
+        expect(formatValue(evalRix("{#t# t^2 - 4 }").result)).toBe("{#t# t ^ 2 - 4 }");
+        expect(formatValue(evalRix("{#x:p# p = 2*x }").result)).toBe("{#x:p# p = 2 * x }");
+        expect(formatValue(evalRix("{# p = x + 1 }").result)).toBe("{# p = x + 1 }");
+        expect(formatValue(evalRix("{#x# p = x + 1 }").result)).toBe("{#x# p = x + 1 }");
     });
 
-    test("system specs do not perform runtime assignment while being created", () => {
-        const ctx = new Context();
-        evalRix("x = 5; {#p# p = x + 1 };", ctx);
-        expect(ctx.get("p")).toBeUndefined();
-        expect(ctx.get("x").value).toBe(5n);
+    test("InspectSpec provides the structural form without making it the default display", () => {
+        const { result } = evalRix('.InspectSpec({#x# x^2})');
+        expect(result.type).toBe("map");
+        expect(result.entries.get("kind").value).toBe("systemSpec");
+        expect(result.entries.get("source").value).toBe("{#x# x ^ 2 }");
+        expect(result.entries.get("expression").entries.get("kind").value).toBe("binary");
     });
 
-    test("outer references are preserved symbolically", () => {
-        const { result } = evalRix("{#x:p# p = @scale * x };");
-        const expr = mapEntry(tupleValues(mapEntry(result, "statements"))[0], "expr");
-        expect(stringValue(mapEntry(expr, "kind"))).toBe("binary");
-        const left = mapEntry(expr, "left");
-        expect(stringValue(mapEntry(left, "kind"))).toBe("outer");
-        expect(stringValue(mapEntry(left, "name"))).toBe("scale");
+    test("multi-output named specs remain available for display and inspection", () => {
+        const { result } = evalRix("{: {#x:p,q# p=x; q=x^2 }, .InspectSpec({#x:p,q# p=x; q=x^2 }) };");
+        expect(formatValue(result.values[0])).toBe("{#x:p,q# p = x; q = x ^ 2 }");
+        expect(result.values[1].entries.get("outputs").values.map((value) => value.value)).toEqual(["p", "q"]);
+        expect(result.values[1].entries.get("expression")).toBeNull();
     });
 
-    test("Poly can consume a single-output polynomial spec", () => {
-        const { result } = evalRix("P = .Poly({#x,y,z:p# p = x^2 * y + z }); P(2,3,4);");
-        expect(result.value).toBe(16n);
+    test("Poly compiles expression and named specs and displays its attached spec", () => {
+        const { result } = evalRix("P=.Poly({#x:p# p=x^2 + 1}); {: P(3), P }");
+        expect(result.values[0].value).toBe(10n);
+        expect(formatValue(result.values[1])).toBe("[Poly x -> x ^ 2 + 1; Spec {#x:p# p = x ^ 2 + 1 }]");
     });
 
-    test("Deriv returns another spec consumable by Poly", () => {
+    test("spec calls perform positional symbolic substitution and composition", () => {
         const { result } = evalRix(`
-            S = {#x,y,z:p# p = x^2 * y + z };
-            D = .Deriv(S, "x");
-            P = .Poly(S);
-            Px = .Poly(D);
-            {: P(2,3,4), Px(2,3,4) };
+            G={#t# t^2 - 4};
+            A=G({#x});
+            B=G({#x# x + 1});
+            C=G(3);
+            {: A, B, C, .Poly(C)() };
         `);
-        expect(result.type).toBe("tuple");
-        expect(result.values[0].value).toBe(16n);
+        expect(formatValue(result.values[0])).toBe("{#x# x ^ 2 - 4 }");
+        expect(formatValue(result.values[1])).toBe("{#x# (x + 1) ^ 2 - 4 }");
+        expect(formatValue(result.values[2])).toBe("{# 3 ^ 2 - 4 }");
+        expect(result.values[3].value).toBe(5n);
+    });
+
+    test("arithmetic unions inputs by name and does not simplify implicitly", () => {
+        const { result } = evalRix(`
+            A={#x# 2*x};
+            B={#t# t^2 - 4};
+            C={#x# x + 1};
+            {: A*B, A*C, A*1 };
+        `);
+        expect(formatValue(result.values[0])).toBe("{#x,t# 2 * x * (t ^ 2 - 4) }");
+        expect(formatValue(result.values[1])).toBe("{#x# 2 * x * (x + 1) }");
+        expect(formatValue(result.values[2])).toBe("{#x# 2 * x * 1 }");
+    });
+
+    test("arithmetic on spec-backed functions produces a multi-input spec-backed callable", () => {
+        const { result } = evalRix("F=x->2*x; G=t->t^2 - 4; H=F*G; {: H(2,3), .Spec(H) };");
+        expect(result.values[0].value).toBe(20n);
+        expect(formatValue(result.values[1])).toBe("{#x,t# 2 * x * (t ^ 2 - 4) }");
+    });
+});
+
+describe("exact symbolic calculus", () => {
+    test("Deriv accepts specs, preserves named output form, and creates executable functions", () => {
+        const { result } = evalRix(`
+            S={#x:p# p=x^3};
+            D=.Deriv(S,{#x});
+            P=.Poly(D);
+            {: D, P(4) };
+        `);
+        expect(formatValue(result.values[0])).toBe("{#x:p# p = 3 * x ^ 2 }");
+        expect(result.values[1].value).toBe(48n);
+    });
+
+    test("Deriv and Integrate preserve attached specs on Poly callables", () => {
+        const { result } = evalRix(`
+            P=.Poly({#x:p# p=x^2});
+            D=.Deriv(P,"x");
+            A=.Integrate(D,{#x});
+            {: D(4), A(4), .Spec(D), .Spec(A) };
+        `);
+        expect(result.values[0].value).toBe(8n);
+        expect(result.values[1].value).toBe(16n);
+        expect(formatValue(result.values[2])).toBe("{#x:p# p = 2 * x }");
+        expect(formatValue(result.values[3])).toBe("{#x:p# p = x ^ 2 }");
+    });
+
+    test("Integrate exactly reverses supported polynomial derivatives", () => {
+        const { result } = evalRix(`
+            A=.Integrate({#x# 2*x},{#x});
+            B=.Integrate({#x# 3*x^2 + 4},{#x});
+            {: A, B, .Poly(B)(2) };
+        `);
+        expect(formatValue(result.values[0])).toBe("{#x# x ^ 2 }");
+        expect(formatValue(result.values[1])).toBe("{#x# x ^ 3 + 4 * x }");
+        expect(result.values[2].value).toBe(16n);
+    });
+
+    test("Integrate recognizes products of monomial forms without requiring simplification", () => {
+        const { result } = evalRix(".Integrate({#x# (2*x)*(x^2)},{#x})");
+        expect(formatValue(result)).toBe("{#x# 1 / 2 * x ^ 4 }");
+    });
+
+    test("pure lambdas are auto-specced and captured coefficients stay live", () => {
+        const { result } = evalRix("a=2; F=x->a*x^2; D=.Deriv(F,{#x}); a~=3; {: F(2), D(2), .Spec(F) };");
+        expect(result.values[0].value).toBe(12n);
         expect(result.values[1].value).toBe(12n);
+        expect(formatValue(result.values[2])).toBe("{#x# a * x ^ 2 }");
     });
 
-    test("Poly and Deriv are available as system capabilities", () => {
+    test("Speccability reports safe pure functions and rejects effectful bodies", () => {
+        const { result } = evalRix("F=x->x^2; G=x->{ x~=2; x }; {: .Speccability(F), .Speccability(G) };");
+        expect(result.values[0].entries.get("speccable").value).toBe(1n);
+        expect(result.values[1].entries.get("speccable")).toBeNull();
+        expect(result.values[1].entries.get("reason").value).toMatch(/unsupported or effectful/);
+    });
+
+    test("automatic function analysis is configurable and Spec can attach explicitly", () => {
+        const context = new Context();
+        context.setEnv("symbolicAutoSpec", "off");
+        const { result } = evalRix("F=x->x^2; S=.Spec(F); D=.Deriv(F,{#x}); {: S, D(3) };", context);
+        expect(formatValue(result.values[0])).toBe("{#x# x ^ 2 }");
+        expect(result.values[1].value).toBe(6n);
+    });
+
+    test("Simplify is explicit and supports directed expansion", () => {
         const { result } = evalRix(`
-            S = {#x:p# p = x^3 };
-            D = .Deriv(S, "x");
-            P = .Poly(D);
-            P(4);
+            A={#x# (x*1) + 0};
+            B={#x# x*(x + 1)};
+            {: A, .Simplify(A), .Simplify(B,"expand") };
         `);
-        expect(result.value).toBe(48n);
+        expect(formatValue(result.values[0])).toBe("{#x# x * 1 + 0 }");
+        expect(formatValue(result.values[1])).toBe("{#x# x }");
+        expect(formatValue(result.values[2])).toBe("{#x# x * x + x }");
     });
 
-    test("Poly and Deriv are not injected as bare globals", () => {
-        expect(() => evalRix("Poly")).toThrow(/Undefined variable: POLY/);
-        expect(() => evalRix("Deriv")).toThrow(/Undefined variable: DERIV/);
+    test("postfix derivative and prefix integral syntax execute", () => {
+        const { result } = evalRix("F=x->x^3; G=x->2*x; {: F'(4), F'[x](4), 'G(3) };");
+        expect(result.values[0].value).toBe(48n);
+        expect(result.values[1].value).toBe(48n);
+        expect(result.values[2].value).toBe(9n);
     });
 
-    test("Poly errors clearly on unsupported symbolic nodes", () => {
-        expect(() => evalRix("P = .Poly({#x:p# p = .ADD(x, 1) }); P(2);")).toThrow(/Poly does not support symbolic node kind 'call'/);
+    test("combining closures rejects ambiguous captured cells with the same name", () => {
+        expect(() => evalRix("Make=a->x->a*x; F=Make(2); G=Make(3); F+G")).toThrow(/different captured cells named 'a'/);
+    });
+
+    test("symbolic capabilities are available only behind dot syntax", () => {
+        for (const name of ["Poly", "Deriv", "Integrate", "Simplify", "Spec", "Speccability", "InspectSpec"]) {
+            expect(() => evalRix(name)).toThrow(new RegExp(`Undefined variable: ${name.toUpperCase()}`));
+        }
+    });
+
+    test("unsupported exact transforms fail clearly", () => {
+        expect(() => evalRix(".Poly({#x# .ADD(x,1)})")).toThrow(/Poly cannot compile unsupported or effectful symbolic IR 'SYS_CALL'/);
+        expect(() => evalRix(".Deriv({#x# .ADD(x,1)},{#x})")).toThrow(/Deriv does not support symbolic IR 'SYS_CALL'/);
+        expect(() => evalRix(".Integrate({#x# 1/x},{#x})")).toThrow(/cannot integrate/);
     });
 });

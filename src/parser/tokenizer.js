@@ -1017,6 +1017,24 @@ function tryMatchSystemSpecHeader(input, position) {
     };
   }
 
+  // Identity-symbol shorthand: {#x} is the unary identity spec {#x# x }.
+  // The closing brace distinguishes it from the ordinary {#x# ... } header.
+  const identityMatch = input.slice(start).match(/^([\p{L}_][\p{L}\p{N}_]*)\}/u);
+  if (identityMatch) {
+    const name = normalizeIdentifierValue(identityMatch[1]);
+    return {
+      type: "Symbol",
+      original: input.slice(position, start + identityMatch[1].length),
+      value: "{#",
+      specHeaderPresent: true,
+      specIdentity: true,
+      specInputs: [name],
+      specOutputs: [],
+      specOutputsDeclared: false,
+      pos: [position, position, start + identityMatch[1].length],
+    };
+  }
+
   const closing = input.indexOf("#", start);
   if (closing === -1) {
     const { line, col } = posToLineCol(input, position);

@@ -537,6 +537,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="menu-text">Cayley polar complex values</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../design/eval/symbolic-calculus.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Symbolic specs and calculus</span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item sidebar-item-section">
@@ -645,6 +651,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#set" id="toc-set" class="nav-link" data-scroll-target="#set">Set</a></li>
   <li><a href="#map-1" id="toc-map-1" class="nav-link" data-scroll-target="#map-1">Map</a></li>
   <li><a href="#system" id="toc-system" class="nav-link" data-scroll-target="#system">System</a></li>
+  <li><a href="#systemspecliteral" id="toc-systemspecliteral" class="nav-link" data-scroll-target="#systemspecliteral">SystemSpecLiteral</a></li>
   <li><a href="#blockcontainer" id="toc-blockcontainer" class="nav-link" data-scroll-target="#blockcontainer">BlockContainer</a></li>
   <li><a href="#derivative" id="toc-derivative" class="nav-link" data-scroll-target="#derivative">Derivative</a></li>
   <li><a href="#integral" id="toc-integral" class="nav-link" data-scroll-target="#integral">Integral</a></li>
@@ -1131,154 +1138,170 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb47-3"><a href="#cb47-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">original</span><span class="op">:</span> string    <span class="co">// Combined original text</span></span>
 <span id="cb47-4"><a href="#cb47-4" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
+<section id="systemspecliteral" class="level3">
+<h3 class="anchored" data-anchor-id="systemspecliteral">SystemSpecLiteral</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb48"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb48-1"><a href="#cb48-1" aria-hidden="true" tabindex="-1"></a>{</span>
+<span id="cb48-2"><a href="#cb48-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">inputs</span><span class="op">:</span> [string]<span class="op">,</span></span>
+<span id="cb48-3"><a href="#cb48-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">outputs</span><span class="op">:</span> [string]<span class="op">,</span></span>
+<span id="cb48-4"><a href="#cb48-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">outputsDeclared</span><span class="op">:</span> boolean<span class="op">,</span></span>
+<span id="cb48-5"><a href="#cb48-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">outputMode</span><span class="op">:</span> <span class="st">"identity"</span> <span class="op">|</span> <span class="st">"expression"</span> <span class="op">|</span> <span class="st">"named"</span><span class="op">,</span></span>
+<span id="cb48-6"><a href="#cb48-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">expression</span><span class="op">:</span> ASTNode <span class="op">|</span> <span class="kw">undefined</span><span class="op">,</span> <span class="co">// identity/anonymous single output</span></span>
+<span id="cb48-7"><a href="#cb48-7" aria-hidden="true" tabindex="-1"></a>  <span class="dt">statements</span><span class="op">:</span> [SpecAssign]<span class="op">,</span>        <span class="co">// named solved outputs</span></span>
+<span id="cb48-8"><a href="#cb48-8" aria-hidden="true" tabindex="-1"></a>  <span class="dt">imports</span><span class="op">:</span> [ImportSpec] <span class="op">|</span> <span class="kw">undefined</span><span class="op">,</span></span>
+<span id="cb48-9"><a href="#cb48-9" aria-hidden="true" tabindex="-1"></a>  <span class="dt">original</span><span class="op">:</span> string</span>
+<span id="cb48-10"><a href="#cb48-10" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>{#x}</code> is an identity literal. <code>{#x# expr }</code> uses an anonymous output. <code>{#x:p# p = expr }</code> uses a named solved output.</p>
+</section>
 <section id="blockcontainer" class="level3">
 <h3 class="anchored" data-anchor-id="blockcontainer">BlockContainer</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb48"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb48-1"><a href="#cb48-1" aria-hidden="true" tabindex="-1"></a>{</span>
-<span id="cb48-2"><a href="#cb48-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">statements</span><span class="op">:</span> [ASTNode]<span class="op">,</span> <span class="co">// Block statements</span></span>
-<span id="cb48-3"><a href="#cb48-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">original</span><span class="op">:</span> string    <span class="co">// Combined original text</span></span>
-<span id="cb48-4"><a href="#cb48-4" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb49"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb49-1"><a href="#cb49-1" aria-hidden="true" tabindex="-1"></a>{</span>
+<span id="cb49-2"><a href="#cb49-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">statements</span><span class="op">:</span> [ASTNode]<span class="op">,</span> <span class="co">// Block statements</span></span>
+<span id="cb49-3"><a href="#cb49-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">original</span><span class="op">:</span> string    <span class="co">// Combined original text</span></span>
+<span id="cb49-4"><a href="#cb49-4" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="derivative" class="level3">
 <h3 class="anchored" data-anchor-id="derivative">Derivative</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb49"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb49-1"><a href="#cb49-1" aria-hidden="true" tabindex="-1"></a>{</span>
-<span id="cb49-2"><a href="#cb49-2" aria-hidden="true" tabindex="-1"></a>  <span class="kw">function</span><span class="op">:</span> ASTNode<span class="op">,</span>  <span class="co">// Function to differentiate</span></span>
-<span id="cb49-3"><a href="#cb49-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">order</span><span class="op">:</span> number<span class="op">,</span>      <span class="co">// Derivative order (number of quotes)</span></span>
-<span id="cb49-4"><a href="#cb49-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">variable</span><span class="op">:</span> ASTNode<span class="op">,</span>  <span class="co">// Variable to differentiate with respect to</span></span>
-<span id="cb49-5"><a href="#cb49-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">evaluation</span><span class="op">:</span> ASTNode<span class="op">,</span> <span class="co">// Evaluation point (if specified)</span></span>
-<span id="cb49-6"><a href="#cb49-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">original</span><span class="op">:</span> string    <span class="co">// Combined original text</span></span>
-<span id="cb49-7"><a href="#cb49-7" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb50"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb50-1"><a href="#cb50-1" aria-hidden="true" tabindex="-1"></a>{</span>
+<span id="cb50-2"><a href="#cb50-2" aria-hidden="true" tabindex="-1"></a>  <span class="kw">function</span><span class="op">:</span> ASTNode<span class="op">,</span>  <span class="co">// Function to differentiate</span></span>
+<span id="cb50-3"><a href="#cb50-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">order</span><span class="op">:</span> number<span class="op">,</span>      <span class="co">// Derivative order (number of quotes)</span></span>
+<span id="cb50-4"><a href="#cb50-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">variables</span><span class="op">:</span> [{<span class="dt">name</span><span class="op">:</span> string}] <span class="op">|</span> <span class="kw">null</span><span class="op">,</span></span>
+<span id="cb50-5"><a href="#cb50-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">evaluation</span><span class="op">:</span> [ASTNode] <span class="op">|</span> <span class="kw">null</span><span class="op">,</span></span>
+<span id="cb50-6"><a href="#cb50-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">operations</span><span class="op">:</span> [ASTNode] <span class="op">|</span> <span class="kw">null</span><span class="op">,</span></span>
+<span id="cb50-7"><a href="#cb50-7" aria-hidden="true" tabindex="-1"></a>  <span class="dt">original</span><span class="op">:</span> string    <span class="co">// Combined original text</span></span>
+<span id="cb50-8"><a href="#cb50-8" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="integral" class="level3">
 <h3 class="anchored" data-anchor-id="integral">Integral</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb50"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb50-1"><a href="#cb50-1" aria-hidden="true" tabindex="-1"></a>{</span>
-<span id="cb50-2"><a href="#cb50-2" aria-hidden="true" tabindex="-1"></a>  <span class="kw">function</span><span class="op">:</span> ASTNode<span class="op">,</span>  <span class="co">// Function to integrate</span></span>
-<span id="cb50-3"><a href="#cb50-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">order</span><span class="op">:</span> number<span class="op">,</span>      <span class="co">// Integration order (number of quotes)</span></span>
-<span id="cb50-4"><a href="#cb50-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">variable</span><span class="op">:</span> ASTNode<span class="op">,</span>  <span class="co">// Variable to integrate with respect to</span></span>
-<span id="cb50-5"><a href="#cb50-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">evaluation</span><span class="op">:</span> ASTNode<span class="op">,</span> <span class="co">// Evaluation bounds (if specified)</span></span>
-<span id="cb50-6"><a href="#cb50-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">original</span><span class="op">:</span> string    <span class="co">// Combined original text</span></span>
-<span id="cb50-7"><a href="#cb50-7" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb51"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb51-1"><a href="#cb51-1" aria-hidden="true" tabindex="-1"></a>{</span>
+<span id="cb51-2"><a href="#cb51-2" aria-hidden="true" tabindex="-1"></a>  <span class="kw">function</span><span class="op">:</span> ASTNode<span class="op">,</span>  <span class="co">// Function to integrate</span></span>
+<span id="cb51-3"><a href="#cb51-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">order</span><span class="op">:</span> number<span class="op">,</span>      <span class="co">// Integration order (number of quotes)</span></span>
+<span id="cb51-4"><a href="#cb51-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">variables</span><span class="op">:</span> [{<span class="dt">name</span><span class="op">:</span> string}] <span class="op">|</span> <span class="kw">null</span><span class="op">,</span></span>
+<span id="cb51-5"><a href="#cb51-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">evaluation</span><span class="op">:</span> [ASTNode] <span class="op">|</span> <span class="kw">null</span><span class="op">,</span></span>
+<span id="cb51-6"><a href="#cb51-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">operations</span><span class="op">:</span> [ASTNode] <span class="op">|</span> <span class="kw">null</span><span class="op">,</span></span>
+<span id="cb51-7"><a href="#cb51-7" aria-hidden="true" tabindex="-1"></a>  <span class="dt">original</span><span class="op">:</span> string    <span class="co">// Combined original text</span></span>
+<span id="cb51-8"><a href="#cb51-8" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="at" class="level3">
 <h3 class="anchored" data-anchor-id="at">At</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb51"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb51-1"><a href="#cb51-1" aria-hidden="true" tabindex="-1"></a>{</span>
-<span id="cb51-2"><a href="#cb51-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">target</span><span class="op">:</span> ASTNode<span class="op">,</span>    <span class="co">// Expression being queried for precision/metadata</span></span>
-<span id="cb51-3"><a href="#cb51-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">arg</span><span class="op">:</span> ASTNode<span class="op">,</span>       <span class="co">// Precision/metadata parameter</span></span>
-<span id="cb51-4"><a href="#cb51-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">original</span><span class="op">:</span> string    <span class="co">// Combined original text</span></span>
-<span id="cb51-5"><a href="#cb51-5" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</section>
-<section id="ask" class="level3">
-<h3 class="anchored" data-anchor-id="ask">Ask</h3>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb52"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb52-1"><a href="#cb52-1" aria-hidden="true" tabindex="-1"></a>{</span>
-<span id="cb52-2"><a href="#cb52-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">target</span><span class="op">:</span> ASTNode<span class="op">,</span>    <span class="co">// Expression being queried for membership/properties</span></span>
-<span id="cb52-3"><a href="#cb52-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">arg</span><span class="op">:</span> ASTNode<span class="op">,</span>       <span class="co">// Query parameter (range, condition, etc.)</span></span>
+<span id="cb52-2"><a href="#cb52-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">target</span><span class="op">:</span> ASTNode<span class="op">,</span>    <span class="co">// Expression being queried for precision/metadata</span></span>
+<span id="cb52-3"><a href="#cb52-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">arg</span><span class="op">:</span> ASTNode<span class="op">,</span>       <span class="co">// Precision/metadata parameter</span></span>
 <span id="cb52-4"><a href="#cb52-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">original</span><span class="op">:</span> string    <span class="co">// Combined original text</span></span>
 <span id="cb52-5"><a href="#cb52-5" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
-<section id="scientificunit" class="level3">
-<h3 class="anchored" data-anchor-id="scientificunit">ScientificUnit</h3>
+<section id="ask" class="level3">
+<h3 class="anchored" data-anchor-id="ask">Ask</h3>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb53"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb53-1"><a href="#cb53-1" aria-hidden="true" tabindex="-1"></a>{</span>
-<span id="cb53-2"><a href="#cb53-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">target</span><span class="op">:</span> ASTNode<span class="op">,</span>    <span class="co">// Expression being annotated with units</span></span>
-<span id="cb53-3"><a href="#cb53-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">unit</span><span class="op">:</span> string<span class="op">,</span>       <span class="co">// Scientific unit content (e.g., "m", "kg/s^2")</span></span>
+<span id="cb53-2"><a href="#cb53-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">target</span><span class="op">:</span> ASTNode<span class="op">,</span>    <span class="co">// Expression being queried for membership/properties</span></span>
+<span id="cb53-3"><a href="#cb53-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">arg</span><span class="op">:</span> ASTNode<span class="op">,</span>       <span class="co">// Query parameter (range, condition, etc.)</span></span>
 <span id="cb53-4"><a href="#cb53-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">original</span><span class="op">:</span> string    <span class="co">// Combined original text</span></span>
 <span id="cb53-5"><a href="#cb53-5" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
-<section id="mathematicalunit" class="level3">
-<h3 class="anchored" data-anchor-id="mathematicalunit">MathematicalUnit</h3>
+<section id="scientificunit" class="level3">
+<h3 class="anchored" data-anchor-id="scientificunit">ScientificUnit</h3>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb54"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb54-1"><a href="#cb54-1" aria-hidden="true" tabindex="-1"></a>{</span>
 <span id="cb54-2"><a href="#cb54-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">target</span><span class="op">:</span> ASTNode<span class="op">,</span>    <span class="co">// Expression being annotated with units</span></span>
-<span id="cb54-3"><a href="#cb54-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">unit</span><span class="op">:</span> string<span class="op">,</span>       <span class="co">// Mathematical unit content (e.g., "i", "sqrt2", "pi")</span></span>
+<span id="cb54-3"><a href="#cb54-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">unit</span><span class="op">:</span> string<span class="op">,</span>       <span class="co">// Scientific unit content (e.g., "m", "kg/s^2")</span></span>
 <span id="cb54-4"><a href="#cb54-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">original</span><span class="op">:</span> string    <span class="co">// Combined original text</span></span>
 <span id="cb54-5"><a href="#cb54-5" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
+<section id="mathematicalunit" class="level3">
+<h3 class="anchored" data-anchor-id="mathematicalunit">MathematicalUnit</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb55"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb55-1"><a href="#cb55-1" aria-hidden="true" tabindex="-1"></a>{</span>
+<span id="cb55-2"><a href="#cb55-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">target</span><span class="op">:</span> ASTNode<span class="op">,</span>    <span class="co">// Expression being annotated with units</span></span>
+<span id="cb55-3"><a href="#cb55-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">unit</span><span class="op">:</span> string<span class="op">,</span>       <span class="co">// Mathematical unit content (e.g., "i", "sqrt2", "pi")</span></span>
+<span id="cb55-4"><a href="#cb55-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">original</span><span class="op">:</span> string    <span class="co">// Combined original text</span></span>
+<span id="cb55-5"><a href="#cb55-5" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
 <section id="ternaryoperation" class="level3">
 <h3 class="anchored" data-anchor-id="ternaryoperation">TernaryOperation</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb55"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb55-1"><a href="#cb55-1" aria-hidden="true" tabindex="-1"></a>{</span>
-<span id="cb55-2"><a href="#cb55-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">condition</span><span class="op">:</span> ASTNode<span class="op">,</span>     <span class="co">// Boolean condition expression</span></span>
-<span id="cb55-3"><a href="#cb55-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">trueExpression</span><span class="op">:</span> ASTNode<span class="op">,</span> <span class="co">// Expression evaluated if condition is true</span></span>
-<span id="cb55-4"><a href="#cb55-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">falseExpression</span><span class="op">:</span> ASTNode<span class="op">,</span> <span class="co">// Expression evaluated if condition is false</span></span>
-<span id="cb55-5"><a href="#cb55-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">original</span><span class="op">:</span> string        <span class="co">// Combined original text</span></span>
-<span id="cb55-6"><a href="#cb55-6" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb56"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb56-1"><a href="#cb56-1" aria-hidden="true" tabindex="-1"></a>{</span>
+<span id="cb56-2"><a href="#cb56-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">condition</span><span class="op">:</span> ASTNode<span class="op">,</span>     <span class="co">// Boolean condition expression</span></span>
+<span id="cb56-3"><a href="#cb56-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">trueExpression</span><span class="op">:</span> ASTNode<span class="op">,</span> <span class="co">// Expression evaluated if condition is true</span></span>
+<span id="cb56-4"><a href="#cb56-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">falseExpression</span><span class="op">:</span> ASTNode<span class="op">,</span> <span class="co">// Expression evaluated if condition is false</span></span>
+<span id="cb56-5"><a href="#cb56-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">original</span><span class="op">:</span> string        <span class="co">// Combined original text</span></span>
+<span id="cb56-6"><a href="#cb56-6" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="embeddedlanguage" class="level3">
 <h3 class="anchored" data-anchor-id="embeddedlanguage">EmbeddedLanguage</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb56"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb56-1"><a href="#cb56-1" aria-hidden="true" tabindex="-1"></a>{</span>
-<span id="cb56-2"><a href="#cb56-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">language</span><span class="op">:</span> string<span class="op">,</span>   <span class="co">// Language identifier or 'RiX-String'</span></span>
-<span id="cb56-3"><a href="#cb56-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">context</span><span class="op">:</span> object<span class="op">,</span>    <span class="co">// Context parameters</span></span>
-<span id="cb56-4"><a href="#cb56-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">body</span><span class="op">:</span> string<span class="op">,</span>       <span class="co">// Embedded code content</span></span>
-<span id="cb56-5"><a href="#cb56-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">original</span><span class="op">:</span> string    <span class="co">// Original backtick literal</span></span>
-<span id="cb56-6"><a href="#cb56-6" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb57"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb57-1"><a href="#cb57-1" aria-hidden="true" tabindex="-1"></a>{</span>
+<span id="cb57-2"><a href="#cb57-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">language</span><span class="op">:</span> string<span class="op">,</span>   <span class="co">// Language identifier or 'RiX-String'</span></span>
+<span id="cb57-3"><a href="#cb57-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">context</span><span class="op">:</span> object<span class="op">,</span>    <span class="co">// Context parameters</span></span>
+<span id="cb57-4"><a href="#cb57-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">body</span><span class="op">:</span> string<span class="op">,</span>       <span class="co">// Embedded code content</span></span>
+<span id="cb57-5"><a href="#cb57-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">original</span><span class="op">:</span> string    <span class="co">// Original backtick literal</span></span>
+<span id="cb57-6"><a href="#cb57-6" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="dotaccess-1" class="level3">
 <h3 class="anchored" data-anchor-id="dotaccess-1">DotAccess</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb57"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb57-1"><a href="#cb57-1" aria-hidden="true" tabindex="-1"></a>{</span>
-<span id="cb57-2"><a href="#cb57-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">object</span><span class="op">:</span> ASTNode<span class="op">,</span>    <span class="co">// Object being accessed</span></span>
-<span id="cb57-3"><a href="#cb57-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">property</span><span class="op">:</span> string<span class="op">,</span>   <span class="co">// Meta property name (plain string, not a node)</span></span>
-<span id="cb57-4"><a href="#cb57-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">original</span><span class="op">:</span> string    <span class="co">// Combined original text</span></span>
-<span id="cb57-5"><a href="#cb57-5" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb58"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb58-1"><a href="#cb58-1" aria-hidden="true" tabindex="-1"></a>{</span>
+<span id="cb58-2"><a href="#cb58-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">object</span><span class="op">:</span> ASTNode<span class="op">,</span>    <span class="co">// Object being accessed</span></span>
+<span id="cb58-3"><a href="#cb58-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">property</span><span class="op">:</span> string<span class="op">,</span>   <span class="co">// Meta property name (plain string, not a node)</span></span>
+<span id="cb58-4"><a href="#cb58-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">original</span><span class="op">:</span> string    <span class="co">// Combined original text</span></span>
+<span id="cb58-5"><a href="#cb58-5" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p><strong>Purpose:</strong> Meta property access (<code>obj.name</code>). Lowers to <code>META_GET</code>. For assignment (<code>obj.name = val</code>) lowers to <code>META_SET</code>. When used as a call target (<code>obj.Method(args)</code>) desugars to <code>CALL_EXPR(META_GET(obj,"Method"), obj, args...)</code>.</p>
 </section>
 <section id="externalaccess" class="level3">
 <h3 class="anchored" data-anchor-id="externalaccess">ExternalAccess</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb58"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb58-1"><a href="#cb58-1" aria-hidden="true" tabindex="-1"></a>{</span>
-<span id="cb58-2"><a href="#cb58-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">object</span><span class="op">:</span> ASTNode<span class="op">,</span>    <span class="co">// Object being accessed</span></span>
-<span id="cb58-3"><a href="#cb58-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">property</span><span class="op">:</span> <span class="kw">null</span><span class="op">,</span>     <span class="co">// Always null (obj..name is a parse error)</span></span>
-<span id="cb58-4"><a href="#cb58-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">original</span><span class="op">:</span> string    <span class="co">// Combined original text</span></span>
-<span id="cb58-5"><a href="#cb58-5" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb59"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb59-1"><a href="#cb59-1" aria-hidden="true" tabindex="-1"></a>{</span>
+<span id="cb59-2"><a href="#cb59-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">object</span><span class="op">:</span> ASTNode<span class="op">,</span>    <span class="co">// Object being accessed</span></span>
+<span id="cb59-3"><a href="#cb59-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">property</span><span class="op">:</span> <span class="kw">null</span><span class="op">,</span>     <span class="co">// Always null (obj..name is a parse error)</span></span>
+<span id="cb59-4"><a href="#cb59-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">original</span><span class="op">:</span> string    <span class="co">// Combined original text</span></span>
+<span id="cb59-5"><a href="#cb59-5" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p><strong>Purpose:</strong> Returns all meta properties as a read-only map (<code>obj..</code>). Lowers to <code>META_ALL</code>. Note: <code>obj..name</code> is a <strong>parse error</strong>; use <code>obj.name</code> instead.</p>
 </section>
 <section id="keyliteral-1" class="level3">
 <h3 class="anchored" data-anchor-id="keyliteral-1">KeyLiteral</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb59"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb59-1"><a href="#cb59-1" aria-hidden="true" tabindex="-1"></a>{</span>
-<span id="cb59-2"><a href="#cb59-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">name</span><span class="op">:</span> string<span class="op">,</span>       <span class="co">// The key name (string)</span></span>
-<span id="cb59-3"><a href="#cb59-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">original</span><span class="op">:</span> string    <span class="co">// Original text (":name")</span></span>
-<span id="cb59-4"><a href="#cb59-4" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb60"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb60-1"><a href="#cb60-1" aria-hidden="true" tabindex="-1"></a>{</span>
+<span id="cb60-2"><a href="#cb60-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">name</span><span class="op">:</span> string<span class="op">,</span>       <span class="co">// The key name (string)</span></span>
+<span id="cb60-3"><a href="#cb60-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">original</span><span class="op">:</span> string    <span class="co">// Original text (":name")</span></span>
+<span id="cb60-4"><a href="#cb60-4" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p><strong>Purpose:</strong> String key literal inside brackets — <code>obj[:name]</code>. Used as the <code>property</code> field of a <code>PropertyAccess</code> node to pass a string key without a runtime expression. Lowers to <code>INDEX_GET(obj, "name")</code>.</p>
 </section>
 <section id="keyset" class="level3">
 <h3 class="anchored" data-anchor-id="keyset">KeySet</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb60"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb60-1"><a href="#cb60-1" aria-hidden="true" tabindex="-1"></a>{</span>
-<span id="cb60-2"><a href="#cb60-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">object</span><span class="op">:</span> ASTNode<span class="op">,</span>    <span class="co">// Map being accessed</span></span>
-<span id="cb60-3"><a href="#cb60-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">original</span><span class="op">:</span> string    <span class="co">// Combined original text</span></span>
-<span id="cb60-4"><a href="#cb60-4" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p><strong>Purpose:</strong> Get the set of keys of a map (<code>obj.|</code>). Lowers to <code>KEYS</code>.</p>
-</section>
-<section id="valueset" class="level3">
-<h3 class="anchored" data-anchor-id="valueset">ValueSet</h3>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb61"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb61-1"><a href="#cb61-1" aria-hidden="true" tabindex="-1"></a>{</span>
 <span id="cb61-2"><a href="#cb61-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">object</span><span class="op">:</span> ASTNode<span class="op">,</span>    <span class="co">// Map being accessed</span></span>
 <span id="cb61-3"><a href="#cb61-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">original</span><span class="op">:</span> string    <span class="co">// Combined original text</span></span>
 <span id="cb61-4"><a href="#cb61-4" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><strong>Purpose:</strong> Get the set of keys of a map (<code>obj.|</code>). Lowers to <code>KEYS</code>.</p>
+</section>
+<section id="valueset" class="level3">
+<h3 class="anchored" data-anchor-id="valueset">ValueSet</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb62"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb62-1"><a href="#cb62-1" aria-hidden="true" tabindex="-1"></a>{</span>
+<span id="cb62-2"><a href="#cb62-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">object</span><span class="op">:</span> ASTNode<span class="op">,</span>    <span class="co">// Map being accessed</span></span>
+<span id="cb62-3"><a href="#cb62-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">original</span><span class="op">:</span> string    <span class="co">// Combined original text</span></span>
+<span id="cb62-4"><a href="#cb62-4" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p><strong>Purpose:</strong> Get the set of values of a map (<code>obj|.</code>). Lowers to <code>VALUES</code>.</p>
 </section>
 <section id="deferredblock" class="level3">
 <h3 class="anchored" data-anchor-id="deferredblock">DeferredBlock</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb62"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb62-1"><a href="#cb62-1" aria-hidden="true" tabindex="-1"></a>{</span>
-<span id="cb62-2"><a href="#cb62-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">body</span><span class="op">:</span> ASTNode<span class="op">,</span>      <span class="co">// The inner container node (BlockContainer, CaseContainer, etc.)</span></span>
-<span id="cb62-3"><a href="#cb62-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">original</span><span class="op">:</span> string    <span class="co">// Combined original text</span></span>
-<span id="cb62-4"><a href="#cb62-4" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb63"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb63-1"><a href="#cb63-1" aria-hidden="true" tabindex="-1"></a>{</span>
+<span id="cb63-2"><a href="#cb63-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">body</span><span class="op">:</span> ASTNode<span class="op">,</span>      <span class="co">// The inner container node (BlockContainer, CaseContainer, etc.)</span></span>
+<span id="cb63-3"><a href="#cb63-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">original</span><span class="op">:</span> string    <span class="co">// Combined original text</span></span>
+<span id="cb63-4"><a href="#cb63-4" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p><strong>Purpose:</strong> A computation stored for later execution — not evaluated immediately (<code>@{; x + 1}</code>). Lowers to <code>DEFER(body)</code>.</p>
 </section>
 <section id="mutation" class="level3">
 <h3 class="anchored" data-anchor-id="mutation">Mutation</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb63"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb63-1"><a href="#cb63-1" aria-hidden="true" tabindex="-1"></a>{</span>
-<span id="cb63-2"><a href="#cb63-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">target</span><span class="op">:</span> ASTNode<span class="op">,</span>    <span class="co">// Object being mutated</span></span>
-<span id="cb63-3"><a href="#cb63-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">mutate</span><span class="op">:</span> boolean<span class="op">,</span>    <span class="co">// true = in-place ({!), false = copy ({=)</span></span>
-<span id="cb63-4"><a href="#cb63-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">operations</span><span class="op">:</span> [{</span>
-<span id="cb63-5"><a href="#cb63-5" aria-hidden="true" tabindex="-1"></a>    <span class="dt">action</span><span class="op">:</span> <span class="st">"add"</span> <span class="op">|</span> <span class="st">"remove"</span><span class="op">,</span>  <span class="co">// Operation type</span></span>
-<span id="cb63-6"><a href="#cb63-6" aria-hidden="true" tabindex="-1"></a>    <span class="dt">key</span><span class="op">:</span> string<span class="op">,</span>               <span class="co">// Key to add or remove</span></span>
-<span id="cb63-7"><a href="#cb63-7" aria-hidden="true" tabindex="-1"></a>    <span class="dt">value</span><span class="op">:</span> ASTNode <span class="op">|</span> <span class="kw">null</span>      <span class="co">// Value for "add"; null for "remove"</span></span>
-<span id="cb63-8"><a href="#cb63-8" aria-hidden="true" tabindex="-1"></a>  }]<span class="op">,</span></span>
-<span id="cb63-9"><a href="#cb63-9" aria-hidden="true" tabindex="-1"></a>  <span class="dt">original</span><span class="op">:</span> string    <span class="co">// Combined original text</span></span>
-<span id="cb63-10"><a href="#cb63-10" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb64"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb64-1"><a href="#cb64-1" aria-hidden="true" tabindex="-1"></a>{</span>
+<span id="cb64-2"><a href="#cb64-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">target</span><span class="op">:</span> ASTNode<span class="op">,</span>    <span class="co">// Object being mutated</span></span>
+<span id="cb64-3"><a href="#cb64-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">mutate</span><span class="op">:</span> boolean<span class="op">,</span>    <span class="co">// true = in-place ({!), false = copy ({=)</span></span>
+<span id="cb64-4"><a href="#cb64-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">operations</span><span class="op">:</span> [{</span>
+<span id="cb64-5"><a href="#cb64-5" aria-hidden="true" tabindex="-1"></a>    <span class="dt">action</span><span class="op">:</span> <span class="st">"add"</span> <span class="op">|</span> <span class="st">"remove"</span><span class="op">,</span>  <span class="co">// Operation type</span></span>
+<span id="cb64-6"><a href="#cb64-6" aria-hidden="true" tabindex="-1"></a>    <span class="dt">key</span><span class="op">:</span> string<span class="op">,</span>               <span class="co">// Key to add or remove</span></span>
+<span id="cb64-7"><a href="#cb64-7" aria-hidden="true" tabindex="-1"></a>    <span class="dt">value</span><span class="op">:</span> ASTNode <span class="op">|</span> <span class="kw">null</span>      <span class="co">// Value for "add"; null for "remove"</span></span>
+<span id="cb64-8"><a href="#cb64-8" aria-hidden="true" tabindex="-1"></a>  }]<span class="op">,</span></span>
+<span id="cb64-9"><a href="#cb64-9" aria-hidden="true" tabindex="-1"></a>  <span class="dt">original</span><span class="op">:</span> string    <span class="co">// Combined original text</span></span>
+<span id="cb64-10"><a href="#cb64-10" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p><strong>Purpose:</strong> Map mutation syntax. <code>obj{= ops}</code> (copy mutation) lowers to <code>MUTCOPY</code>. <code>obj{! ops}</code> (in-place mutation) lowers to <code>MUTINPLACE</code>.</p>
 </section>
 <section id="implicitapplication" class="level3">
 <h3 class="anchored" data-anchor-id="implicitapplication">ImplicitApplication</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb64"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb64-1"><a href="#cb64-1" aria-hidden="true" tabindex="-1"></a>{</span>
-<span id="cb64-2"><a href="#cb64-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">callable</span><span class="op">:</span> ASTNode<span class="op">,</span>  <span class="co">// The callable expression (e.g., SystemIdentifier)</span></span>
-<span id="cb64-3"><a href="#cb64-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">argument</span><span class="op">:</span> ASTNode<span class="op">,</span>  <span class="co">// The maximal multiplicative chunk consumed as argument</span></span>
-<span id="cb64-4"><a href="#cb64-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">original</span><span class="op">:</span> string</span>
-<span id="cb64-5"><a href="#cb64-5" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb65"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb65-1"><a href="#cb65-1" aria-hidden="true" tabindex="-1"></a>{</span>
+<span id="cb65-2"><a href="#cb65-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">callable</span><span class="op">:</span> ASTNode<span class="op">,</span>  <span class="co">// The callable expression (e.g., SystemIdentifier)</span></span>
+<span id="cb65-3"><a href="#cb65-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">argument</span><span class="op">:</span> ASTNode<span class="op">,</span>  <span class="co">// The maximal multiplicative chunk consumed as argument</span></span>
+<span id="cb65-4"><a href="#cb65-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">original</span><span class="op">:</span> string</span>
+<span id="cb65-5"><a href="#cb65-5" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p><strong>Purpose:</strong> Implicit callable application by adjacency. When an uppercase-leading callable identifier is followed by an adjacent expression with no operator, the callable consumes the maximal multiplicative chunk as its argument. <code>F 3x</code> → <code>CALL(F, MUL(3, x))</code>. Nested: <code>F G 7</code> → <code>CALL(F, CALL(G, 7))</code>.</p>
 </section>
 </section>
@@ -1287,20 +1310,20 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>All tokens include these base properties:</p>
 <section id="token-base-properties" class="level3">
 <h3 class="anchored" data-anchor-id="token-base-properties">Token Base Properties</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb65"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb65-1"><a href="#cb65-1" aria-hidden="true" tabindex="-1"></a>{</span>
-<span id="cb65-2"><a href="#cb65-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">type</span><span class="op">:</span> string<span class="op">,</span>       <span class="co">// Token type identifier</span></span>
-<span id="cb65-3"><a href="#cb65-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">original</span><span class="op">:</span> string<span class="op">,</span>   <span class="co">// Original text from source (including whitespace)</span></span>
-<span id="cb65-4"><a href="#cb65-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">pos</span><span class="op">:</span> [number<span class="op">,</span> number<span class="op">,</span> number] <span class="co">// [start, valueStart, end] positions</span></span>
-<span id="cb65-5"><a href="#cb65-5" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb66"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb66-1"><a href="#cb66-1" aria-hidden="true" tabindex="-1"></a>{</span>
+<span id="cb66-2"><a href="#cb66-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">type</span><span class="op">:</span> string<span class="op">,</span>       <span class="co">// Token type identifier</span></span>
+<span id="cb66-3"><a href="#cb66-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">original</span><span class="op">:</span> string<span class="op">,</span>   <span class="co">// Original text from source (including whitespace)</span></span>
+<span id="cb66-4"><a href="#cb66-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">pos</span><span class="op">:</span> [number<span class="op">,</span> number<span class="op">,</span> number] <span class="co">// [start, valueStart, end] positions</span></span>
+<span id="cb66-5"><a href="#cb66-5" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="ast-node-base-properties" class="level3">
 <h3 class="anchored" data-anchor-id="ast-node-base-properties">AST Node Base Properties</h3>
 <p>All AST nodes include these base properties:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb66"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb66-1"><a href="#cb66-1" aria-hidden="true" tabindex="-1"></a>{</span>
-<span id="cb66-2"><a href="#cb66-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">type</span><span class="op">:</span> string<span class="op">,</span>       <span class="co">// Node type identifier</span></span>
-<span id="cb66-3"><a href="#cb66-3" aria-hidden="true" tabindex="-1"></a>  pos<span class="op">?:</span> [number<span class="op">,</span> number]<span class="op">,</span> <span class="co">// Optional source position [start, end]</span></span>
-<span id="cb66-4"><a href="#cb66-4" aria-hidden="true" tabindex="-1"></a>  original<span class="op">?:</span> string   <span class="co">// Optional original source text</span></span>
-<span id="cb66-5"><a href="#cb66-5" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb67"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb67-1"><a href="#cb67-1" aria-hidden="true" tabindex="-1"></a>{</span>
+<span id="cb67-2"><a href="#cb67-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">type</span><span class="op">:</span> string<span class="op">,</span>       <span class="co">// Node type identifier</span></span>
+<span id="cb67-3"><a href="#cb67-3" aria-hidden="true" tabindex="-1"></a>  pos<span class="op">?:</span> [number<span class="op">,</span> number]<span class="op">,</span> <span class="co">// Optional source position [start, end]</span></span>
+<span id="cb67-4"><a href="#cb67-4" aria-hidden="true" tabindex="-1"></a>  original<span class="op">?:</span> string   <span class="co">// Optional original source text</span></span>
+<span id="cb67-5"><a href="#cb67-5" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p><strong>Position Information:</strong> - <code>pos[0]</code>: Character index where token/node starts (including leading whitespace) - <code>pos[1]</code>: Character index where token value starts (excluding delimiters for strings) - <code>pos[2]</code>: Character index where token/node ends - Positions are 0-based and suitable for JavaScript string slicing</p>
 <p><strong>Original Text:</strong> - For tokens: includes any leading whitespace consumed during tokenization - For AST nodes: contains the combined original text of all constituent tokens - Preserves exact source representation for error reporting and code transformation</p>
 </section>

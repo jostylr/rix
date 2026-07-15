@@ -491,7 +491,7 @@ u \= {| 2 |}
 | `{? c1 ? v1; c2 ? v2; default }` | `CASE` | Conditional branching (if/elseif/else) |
 | `{@ init; cond; body; update }` | `LOOP` | Loop with init, condition, body, update. A fifth `after` slot may be added: `{@ init; cond; body; update; after }`; it runs on normal completion and supplies the loop result. Loop headers also support `{@name@ ... }`, `{@:100@ ... }`, `{@name:100@ ... }`, `{@::@ ... }`, and `{@name::@ ... }`. Optional top-of-block import header: `{@ <...> ... }` |
 | `{! expr }` | `BREAK` | Break the nearest matching block/case/loop and use `expr` as that target's final value |
-| `{#x,y:z# p = x + y }` | `SYSTEM_SPEC` | Symbolic system spec literal. Optional top-of-block import header: `{#x,y:z# <...> ... }` |
+| `{#x}`, `{#x,y# x + y }`, `{#x,y:p# p = x + y }` | `SYSTEM_SPEC` | Identity, anonymous-output, and named-output symbolic spec literals. Optional import header on full forms. |
 | `{= k1=v1, (expr)=v2 }` | `MAP` | Map/object literal (`k1` identifier sugar or parenthesized key expression) |
 | `{.. a, b, c }` | `ARRAY_CAPTURE` | Brace-form array literal with constructor capture controls |
 | `{\| a, b, c }` | `SET` | Set literal |
@@ -1287,65 +1287,76 @@ Map literals reject duplicate keys after canonicalization:
 
 ### Symbolic Specs
 
-`{# ... }` builds a symbolic specification object instead of executing a runtime block.
+`{# ... }` builds a first-class symbolic function instead of executing a runtime block.
 
-Supported header forms:
-
-```rix
-{# ... }
-{#x,y,z# ... }
-{#:p,q# ... }
-{#x,y,z:p,q# ... }
-```
-
-Meaning:
-
-- names before `:` are declared inputs
-- names after `:` are declared outputs
-- both sides may be omitted
-- header names must be bare identifiers
-
-Current body rules:
-
-- only `name = expr` symbolic assignments are supported
-- the left-hand side must be a bare identifier
-- `=` inside `{# ... }` is symbolic assignment, not ordinary `ASSIGN`
-- if outputs are declared, every assignment target must be one of them and each must appear exactly once
-- if outputs are omitted, outputs are inferred from top-level assignment targets in encounter order
-
-Result shape:
+Common forms:
 
 ```rix
-{=
-  kind = "systemSpec",
-  syntax = "#",
-  inputs = {: "x", "y" },
-  outputs = {: "p" },
-  statements = {:
-    {=
-      kind = "assign",
-      target = "p",
-      expr = ...
-    }
-  }
-}
+{#x}                       # identity symbol
+{#x,y# x^2 + y }           # anonymous single output
+{#x,y:p# p = x^2 + y }     # named solved output
 ```
 
-The `expr` field stores a structural symbolic tree. It is not evaluated eagerly and it is not stored as a raw source string.
+In a named header, names before `:` are inputs and names after `:` are outputs.
+Duplicate names and input/output overlap are rejected. When no output is named,
+one expression is the implied output. `{#x}` is shorthand for `{#x# x }`.
 
-Current minimal consumers:
+Named bodies use `name = expr` symbolic definitions. They do not perform
+ordinary assignment. Multi-output specs are representable and inspectable, but
+the current operators require a single explicitly solved expression.
 
-- `.Poly(spec)` returns a callable for a restricted polynomial subset
-- `.Deriv(spec, "x")` returns another compatible spec for that same subset
+Ordinary display preserves a source-like spec. `.InspectSpec(S)` returns the
+detailed structural map when a tool needs `inputs`, `outputs`, `statements`, and
+expression IR.
 
-Current supported subset for `.Poly` and `.Deriv`:
+#### Application and arithmetic
 
-- constants
-- identifiers
-- `+`
-- `-`
-- `*`
-- `^` with a nonnegative integer literal exponent
+Calling a spec performs positional substitution and returns a spec:
+
+```rix
+G := {#t# t^2 - 4 }
+G({#x})
+G({#x# x + 1 })
+G(3)
+```
+
+`+`, `-`, `*`, `/`, `^`, and unary `-` propagate symbolic specs. Inputs are
+united by name in first-seen order; they are not positionally renamed.
+Construction preserves the written expression and does not simplify it.
+
+`.Poly(S)` compiles a single-output spec into an executable exact callable. Two
+spec-backed callables can be combined by arithmetic to create a multi-input
+spec-backed callable. Exact scalar arithmetic is available directly on specs;
+use `.Poly(.Spec(F) * 2)` for function-scalar arithmetic because lowercase
+`f(x)` is RiX implicit multiplication.
+
+#### Calculus, simplification, and function specs
+
+```rix
+D := .Deriv({#x# x^3 }, {#x})
+A := .Integrate({#x# 2*x }, {#x})
+.Simplify({#x# x*(x + 1) }, "expand")
+```
+
+`.Deriv` supports exact arithmetic differentiation including product, quotient,
+and integer-power rules. `.Integrate` supports structural polynomial
+antiderivatives and returns the zero-constant form. `.Simplify` is explicit and
+returns a new value; defaults perform exact constant, identity, and power
+cleanup, while `"expand"` also distributes multiplication.
+
+Pure positional functions whose bodies contain exact literals, identifiers,
+negation, and `+`, `-`, `*`, `/`, `^` receive specs automatically. Captured
+coefficients retain live closure cells. `.Speccability(F)` reports analysis and
+`.Spec(F)` returns or explicitly attaches the result.
+
+Postfix derivative `F'`, evaluated derivative `F'(3)`, and prefix integral
+`'F(3)` use the same engine. Repeated quotes repeat the transform. The current
+quote implementation accepts one calculus variable per operation and does not
+implement operation-sequence parentheses.
+
+Symbolic capabilities belong to the `Symbolic` sandbox group and are available
+only through dot syntax: `.Poly`, `.Deriv`, `.Integrate`, `.Simplify`, `.Spec`,
+`.Speccability`, and `.InspectSpec`.
 
 Constraint forms such as `:=:`, `:<:`, and `:>:` remain separate and are not part of `{# ... }` semantics yet.
 

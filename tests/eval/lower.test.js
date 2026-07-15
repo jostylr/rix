@@ -339,6 +339,7 @@ describe("Lowering Pass", () => {
         inputs: ["x", "y"],
         outputs: ["p"],
         outputsDeclared: true,
+        outputMode: "named",
         statements: [
           {
             kind: "assign",

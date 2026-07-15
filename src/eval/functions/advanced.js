@@ -1,5 +1,5 @@
 /**
- * Advanced system functions: SOLVE, assertions, and stubs for future features.
+ * Advanced system functions: SOLVE, assertions, generators, and random helpers.
  *
  * These provide the constraint/assertion system and placeholder
  * implementations for extended features (calculus, generators, etc.)
@@ -219,34 +219,6 @@ export const advancedFunctions = {
         },
         pure: true,
         doc: "Assert a >= b (:>=:)",
-    },
-
-    // --- Stubs for future features ---
-
-    DERIVATIVE: {
-        impl(args) {
-            return {
-                type: "stub",
-                name: "DERIVATIVE",
-                args,
-                message: "Symbolic derivatives are not yet implemented",
-            };
-        },
-        pure: true,
-        doc: "Symbolic derivative (future)",
-    },
-
-    INTEGRAL: {
-        impl(args) {
-            return {
-                type: "stub",
-                name: "INTEGRAL",
-                args,
-                message: "Symbolic integration is not yet implemented",
-            };
-        },
-        pure: true,
-        doc: "Symbolic integral (future)",
     },
 
     GENERATOR: {
