@@ -25,6 +25,15 @@ describe("REPL completion", () => {
         const result = completions("values.", context);
         expect(result.candidates.map((entry) => entry.insertText)).toContain("label");
         expect(result.candidates.some((entry) => entry.kind === "method")).toBe(true);
+        expect(result.candidates.find((entry) => entry.insertText === "LEN").detail).toContain(".Len()");
+    });
+
+    test("completes colon-string keys for a map bracket lookup", () => {
+        const context = new Context();
+        context.set("settings", { type: "map", entries: new Map([["beta", 2], ["build-mode", 3]]) });
+        const result = completions("settings[:b", context);
+        expect(result.from).toBe("settings[".length);
+        expect(result.candidates.map((entry) => entry.insertText)).toEqual([":beta", '"build-mode"']);
     });
 
     test("offers bindings after an expression operator", () => {

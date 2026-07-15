@@ -643,6 +643,10 @@ async function main() {
                     queueMicrotask(acceptCompletion);
                     return;
                 }
+                if (key.name === "tab") {
+                    queueMicrotask(acceptCompletion);
+                    return;
+                }
                 if (key.name === "left" || key.name === "escape") {
                     const { draft, cursor } = completionState;
                     clearCompletion();

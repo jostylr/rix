@@ -2,6 +2,47 @@ import { getBuiltinProto } from "../runtime/methods.js";
 
 const REPL_COMMANDS = ["help", "exit", "load", "vars", "fns", "reset", "ast", "tokens"];
 
+const METHOD_HELP = {
+    LEN: [".Len() → integer", "number of items"],
+    ISEMPTY: [".IsEmpty() → truthy/null", "whether the collection has no items"],
+    GET: [".Get(indexOrKey) → value", "read an item or map value"],
+    FIRST: [".First() → value", "first item"],
+    LAST: [".Last() → value", "last item"],
+    HAS: [".Has(key) → truthy/null", "whether a map has a key"],
+    HASAT: [".HasAt(index) → truthy/null", "whether an index exists"],
+    KEYS: [".Keys() → sequence", "map keys"],
+    VALUES: [".Values() → sequence", "collection values"],
+    ENTRIES: [".Entries() → sequence", "map key/value entries"],
+    SET: [".Set(key, value) → collection", "copy with one value replaced"],
+    "SET!": [".Set!(key, value) → value", "replace a value in place"],
+    PUSH: [".Push(...values) → sequence", "copy with values appended"],
+    "PUSH!": [".Push!(...values) → sequence", "append values in place"],
+    POP: [".Pop() → value", "remove and return the final item"],
+    "POP!": [".Pop!() → value", "remove and return the final item in place"],
+    SLICE: [".Slice(start, end) → collection", "selected range"],
+    MAP: [".Map(fn) → collection", "transform each value"],
+    FILTER: [".Filter(fn) → collection", "keep values matching a predicate"],
+    REDUCE: [".Reduce(fn, initial?) → value", "combine values into one result"],
+    FIND: [".Find(fn) → value", "first value matching a predicate"],
+    FINDINDEX: [".FindIndex(fn) → integer", "index of the first matching value"],
+    COUNT: [".Count(fn) → integer", "number of matching values"],
+    ANY: [".Any(fn) → value/null", "first truthy predicate result"],
+    ALL: [".All(fn) → value/null", "last result when every value matches"],
+    MERGE: [".Merge(other) → map", "copy with another map combined"],
+    "MERGE!": [".Merge!(other) → map", "combine another map in place"],
+    REMOVE: [".Remove(key) → collection", "copy without a key or value"],
+    "REMOVE!": [".Remove!(key) → collection", "remove a key or value in place"],
+    UPDATE: [".Update(key, fn) → map", "copy with a key transformed"],
+    "UPDATE!": [".Update!(key, fn) → map", "transform a key in place"],
+    SORT: [".Sort() → collection", "sorted copy"],
+    "SORT!": [".Sort!() → collection", "sort in place"],
+    REVERSE: [".Reverse() → collection", "reversed copy"],
+    "REVERSE!": [".Reverse!() → collection", "reverse in place"],
+    DISTINCT: [".Distinct() → collection", "copy with duplicates removed"],
+    CONCAT: [".Concat(...others) → collection", "append collections"],
+    JOIN: [".Join(separator) → string", "combine string items"],
+};
+
 function preview(value, formatValue) {
     if (value === undefined) return "";
     try {
@@ -40,7 +81,10 @@ function propertyCandidates(receiver, query, formatValue) {
     const proto = getBuiltinProto(receiver);
     if (proto?.entries instanceof Map) {
         for (const [name, value] of proto.entries) {
-            if (!entries.has(name)) entries.set(name, { kind: "method", value, detail: "built-in method" });
+            if (!entries.has(name)) {
+                const [signature, meaning] = METHOD_HELP[name] ?? [`.${name}(...)`, `built-in ${receiver.type ?? "value"} operation`];
+                entries.set(name, { kind: "method", value, detail: `${signature} — ${meaning}` });
+            }
         }
     }
     if (!entries.has("_proto")) entries.set("_proto", { kind: "property", value: proto, detail: "method prototype" });
@@ -52,10 +96,24 @@ function propertyCandidates(receiver, query, formatValue) {
     }));
 }
 
+function mapKeyCandidates(receiver, query, formatValue) {
+    if (receiver?.type !== "map" || !(receiver.entries instanceof Map)) return [];
+    return [...receiver.entries].map(([key, value]) => {
+        const simple = /^[A-Za-z_][A-Za-z0-9_]*$/.test(key);
+        return {
+            insertText: simple ? `:${key}` : JSON.stringify(key),
+            matchText: key,
+            kind: "map key",
+            detail: "map entry",
+            preview: preview(value, formatValue),
+        };
+    });
+}
+
 function filterAndSort(candidates, query) {
     const folded = query.toLowerCase();
     return candidates
-        .filter((candidate) => candidate.insertText.replace(/^@_/, "").replace(/^\./, "").toLowerCase().startsWith(folded))
+        .filter((candidate) => (candidate.matchText ?? candidate.insertText.replace(/^@_/, "").replace(/^\./, "")).toLowerCase().startsWith(folded))
         .sort((a, b) => {
             return a.insertText.localeCompare(b.insertText);
         });
@@ -68,6 +126,17 @@ function filterAndSort(candidates, query) {
  */
 export function complete(source, cursor, { context, systemContext, formatValue } = {}) {
     const before = String(source).slice(0, cursor);
+    const mapKeyMatch = before.match(/([A-Za-z_][A-Za-z0-9_]*)\[\s*:(?<key>[A-Za-z0-9_]*)$/);
+    if (mapKeyMatch) {
+        const query = mapKeyMatch.groups.key;
+        const from = cursor - query.length - 1;
+        return {
+            from,
+            to: cursor,
+            query,
+            candidates: filterAndSort(mapKeyCandidates(context.get(mapKeyMatch[1]), query, formatValue), query),
+        };
+    }
     let token = before.match(/[@.]?[A-Za-z_][A-Za-z0-9_]*$|[@.]?$/)?.[0] ?? "";
     // A trailing dot belongs to its receiver ("value."), not to the token.
     // A lone dot remains the system-capability prefix.
