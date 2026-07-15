@@ -24,6 +24,7 @@ import {
     parseAndEvaluate,
     getDiagnostics,
     isRixAbort,
+    complete,
 } from "../src/index.js";
 import { formatValue as formatResult } from "../src/eval/format.js";
 
@@ -529,7 +530,52 @@ async function main() {
         let multilineMode = false;
         let lastEscapeAt = 0;
         let pendingModifiedArrow = null;
+        let completionState = null;
         let rl;
+
+        function clearCompletion() {
+            completionState = null;
+        }
+
+        function completionForCurrentLine() {
+            if (!rl) return null;
+            const result = complete(rl.line, rl.cursor, {
+                context,
+                systemContext,
+                formatValue: (value) => formatResult(value, { context, evaluate: null }),
+            });
+            if (!result.candidates.length) return null;
+            return { draft: rl.line, cursor: rl.cursor, result, index: 0 };
+        }
+
+        function renderCompletion() {
+            if (!completionState || !rl) return;
+            const candidate = completionState.result.candidates[completionState.index];
+            const typed = completionState.draft.slice(completionState.result.from, completionState.result.to);
+            const suffix = candidate.insertText.toLowerCase().startsWith(typed.toLowerCase())
+                ? candidate.insertText.slice(typed.length)
+                : "";
+            rl.line = completionState.draft;
+            rl.cursor = completionState.cursor;
+            rl._refreshLine?.();
+            const after = completionState.draft.slice(completionState.cursor);
+            const hint = candidate.detail ? `  ${candidate.detail}` : "";
+            const visible = `${suffix}${after}${hint}`;
+            if (visible) {
+                rl.output.write(`\x1b[2m${suffix}\x1b[22m${after}\x1b[2m${hint}\x1b[22m\x1b[${visible.length}D`);
+            }
+        }
+
+        function acceptCompletion() {
+            if (!completionState || !rl) return false;
+            const { draft, result, index } = completionState;
+            const candidate = result.candidates[index];
+            rl.line = `${draft.slice(0, result.from)}${candidate.insertText}${draft.slice(result.to)}`;
+            rl.cursor = result.from + candidate.insertText.length;
+            clearCompletion();
+            rl._refreshLine?.();
+            return true;
+        }
 
         function handleModifiedArrow(name) {
             if (!rl || pendingModifiedArrow) return;
@@ -586,6 +632,34 @@ async function main() {
         });
         process.stdin.on("keypress", (_character, key) => {
             if (!rl || !key) return;
+            if (completionState) {
+                if (key.name === "up" || key.name === "down") {
+                    const delta = key.name === "up" ? -1 : 1;
+                    completionState.index = (completionState.index + delta + completionState.result.candidates.length) % completionState.result.candidates.length;
+                    queueMicrotask(renderCompletion);
+                    return;
+                }
+                if (key.name === "right") {
+                    queueMicrotask(acceptCompletion);
+                    return;
+                }
+                if (key.name === "left" || key.name === "escape") {
+                    const { draft, cursor } = completionState;
+                    clearCompletion();
+                    queueMicrotask(() => {
+                        rl.line = draft;
+                        rl.cursor = cursor;
+                        rl._refreshLine?.();
+                    });
+                    return;
+                }
+                clearCompletion();
+            }
+            if (key.name === "tab") {
+                completionState = completionForCurrentLine();
+                if (completionState) queueMicrotask(renderCompletion);
+                return;
+            }
             if (key.name === "escape") {
                 // Terminals delay a bare Escape briefly while they determine
                 // whether it begins an escape sequence, so allow a full second

@@ -1,4 +1,5 @@
 export { parse, tokenize, posToLineCol, SystemLoader, createNodeSystemLoader, createWebPageSystemLoader } from "./parser/index.js";
+export { complete, REPL_COMMANDS } from "./repl/completion.js";
 export { lower, lowerNode, ir, IR, Registry, evaluate, createDefaultRegistry, createDefaultSystemContext, parseAndEvaluate, irToText, irListToText, formatValue } from "./eval/index.js";
 export {
     Context, SystemContext, Cell, HOLE, isHole, DiagnosticsRegistry,
