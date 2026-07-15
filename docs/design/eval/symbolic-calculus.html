@@ -666,11 +666,12 @@ F'(4) # 48
 <p><code>:center</code> performs exact polynomial expansion and collection. With no center it uses powers of the single input; an exact third argument writes the same polynomial in powers of <code>(input - center)</code>. It is a complete exact polynomial rewrite:</p>
 <pre class="rix"><code>.Transform({#x# (x - 1) * (x + 2) }, :center)
 .Transform({#x# (x - 1) * (x + 2) }, :center, 3)</code></pre>
-<p><code>:factor</code> performs ordered polynomial quotient/remainder decomposition using caller-supplied roots and polynomial factors. A scalar <code>a</code> means <code>(x - a)</code>:</p>
+<p><code>:decompose</code> performs ordered polynomial quotient/remainder decomposition using caller-supplied roots and polynomial factors. A scalar <code>a</code> means <code>(x - a)</code>:</p>
 <pre class="rix"><code>P := {#x# x^4 }
 Q := {#x# x^2 + 1 }
-.Transform(P, :factor, 4, Q)</code></pre>
-<p>Transformation tuples run left to right. Parameterized entries use an array, such as <code>.Transform(P, {: :expand, [:center, 3] })</code> or <code>.Transform(P, {: :identities, [:factor, 4, Q] })</code>.</p>
+.Transform(P, :decompose, 4, Q)</code></pre>
+<p>Transformation tuples run left to right. Parameterized entries use an array, such as <code>.Transform(P, {: :expand, [:center, 3] })</code> or <code>.Transform(P, {: :identities, [:decompose, 4, Q] })</code>.</p>
+<p><code>:gadic</code> repeatedly divides by one positive-degree polynomial <code>Q</code> and returns the flattened exact sum <code>r0 + r1*Q + r2*Q^2 + ...</code>, with every <code>ri</code> lower degree than <code>Q</code>. <code>:distribute</code> selectively distributes only a supplied scalar root or polynomial factor, optionally limited to a number of outermost matches. This provides partial flattening without the global recursion of <code>:expand</code>.</p>
 <p>Direction names accept equivalent colon-string and quoted-string forms and are case-insensitive, so <code>:expand</code>, <code>"expand"</code>, <code>:Expand</code>, and <code>"EXPAND"</code> mean the same thing. See the <a href="../../design/eval/transformation-reference.html">complete symbolic transformation reference</a> for every rewrite, operation-plan syntax, polynomial limits, and deliberate non-transformations. <code>.Simplify</code> remains as a compatibility alias for <code>.Transform</code>.</p>
 </section>
 <section id="public-symbolic-capabilities" class="level2">

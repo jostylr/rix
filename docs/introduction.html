@@ -2070,7 +2070,7 @@ F'(4) # 48
 <pre class="rix"><code>.Transform({#x# x*1 + 0 })
 .Transform({#x# x*(x + 1) }, :expand)
 .Transform({#x# (x - 1)*(x + 2) }, :center, 3)</code></pre>
-<p><code>:factor</code> records ordered quotient/remainder divisions by provided roots or polynomial factors. Parameterized operations inside a transformation tuple use arrays, for example <code>.Transform(P, {: :expand, [:center, 3] })</code>. See the <a href="./design/eval/transformation-reference.html">symbolic transformation reference</a> for the exhaustive behavior. <code>.Simplify</code> remains a compatibility alias.</p>
+<p><code>:decompose</code> records ordered quotient/remainder divisions by provided roots or polynomial factors. <code>:gadic</code> expands in flattened powers of one provided polynomial, while <code>:distribute</code> selectively distributes only a named root or factor. Parameterized operations inside a transformation tuple use arrays, for example <code>.Transform(P, {: :expand, [:center, 3] })</code>. See the <a href="./design/eval/transformation-reference.html">symbolic transformation reference</a> for the exhaustive behavior. <code>.Simplify</code> remains a compatibility alias.</p>
 <p>Relation and constraint forms such as <code>:=:</code>, <code>:&lt;:</code>, and <code>:&gt;:</code> remain separate from symbolic-spec semantics. See <a href="./design/eval/symbolic-calculus.html">Symbolic specs and exact calculus</a> for the full runtime model and supported boundary.</p>
 <hr>
 </section>

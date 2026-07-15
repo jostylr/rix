@@ -1344,8 +1344,9 @@ and integer-power rules. `.Integrate` supports structural polynomial
 antiderivatives and returns the zero-constant form. `.Transform` is explicit
 and returns a new value; defaults perform exact constant, identity, and power
 cleanup, `:expand` distributes multiplication, `:center` collects shifted
-polynomial powers, and `:factor` performs ordered quotient/remainder
-decomposition by supplied factors.
+polynomial powers, `:decompose` records ordered quotient/remainder steps,
+`:gadic` produces flattened powers of one polynomial, and `:distribute`
+selectively expands a supplied factor.
 
 Pure positional functions whose bodies contain exact literals, identifiers,
 negation, and `+`, `-`, `*`, `/`, `^` receive specs automatically. Captured

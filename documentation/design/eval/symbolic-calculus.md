@@ -148,18 +148,25 @@ rewrite:
 .Transform({#x# (x - 1) * (x + 2) }, :center, 3)
 ```
 
-`:factor` performs ordered polynomial quotient/remainder decomposition using
+`:decompose` performs ordered polynomial quotient/remainder decomposition using
 caller-supplied roots and polynomial factors. A scalar `a` means `(x - a)`:
 
 ```rix
 P := {#x# x^4 }
 Q := {#x# x^2 + 1 }
-.Transform(P, :factor, 4, Q)
+.Transform(P, :decompose, 4, Q)
 ```
 
 Transformation tuples run left to right. Parameterized entries use an array,
 such as `.Transform(P, {: :expand, [:center, 3] })` or
-`.Transform(P, {: :identities, [:factor, 4, Q] })`.
+`.Transform(P, {: :identities, [:decompose, 4, Q] })`.
+
+`:gadic` repeatedly divides by one positive-degree polynomial `Q` and returns
+the flattened exact sum `r0 + r1*Q + r2*Q^2 + ...`, with every `ri` lower
+degree than `Q`. `:distribute` selectively distributes only a supplied scalar
+root or polynomial factor, optionally limited to a number of outermost
+matches. This provides partial flattening without the global recursion of
+`:expand`.
 
 Direction names accept equivalent colon-string and quoted-string forms and are
 case-insensitive, so `:expand`, `"expand"`, `:Expand`, and `"EXPAND"` mean the

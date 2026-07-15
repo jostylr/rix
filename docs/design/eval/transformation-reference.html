@@ -6,7 +6,7 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
-<meta name="description" content="Complete reference for .Transform cleanup, expansion, polynomial centering, and ordered factor decomposition.">
+<meta name="description" content="Complete reference for .Transform cleanup, centering, decomposition, g-adic form, and targeted distribution.">
 
 <title>Symbolic transformation reference – RiX</title>
 <style>
@@ -576,10 +576,12 @@ ul.task-list li input[type="checkbox"] {
   <ul class="collapse">
   <li><a href="#accepted-polynomial-structure" id="toc-accepted-polynomial-structure" class="nav-link" data-scroll-target="#accepted-polynomial-structure">Accepted polynomial structure</a></li>
   </ul></li>
-  <li><a href="#factor-ordered-quotientremainder-decomposition" id="toc-factor-ordered-quotientremainder-decomposition" class="nav-link" data-scroll-target="#factor-ordered-quotientremainder-decomposition"><code>:factor</code>: ordered quotient/remainder decomposition</a>
+  <li><a href="#decompose-ordered-quotientremainder-form" id="toc-decompose-ordered-quotientremainder-form" class="nav-link" data-scroll-target="#decompose-ordered-quotientremainder-form"><code>:decompose</code>: ordered quotient/remainder form</a>
   <ul class="collapse">
   <li><a href="#repeated-roots-and-centered-horner-form" id="toc-repeated-roots-and-centered-horner-form" class="nav-link" data-scroll-target="#repeated-roots-and-centered-horner-form">Repeated roots and centered Horner form</a></li>
   </ul></li>
+  <li><a href="#gadic-flattened-powers-of-one-polynomial" id="toc-gadic-flattened-powers-of-one-polynomial" class="nav-link" data-scroll-target="#gadic-flattened-powers-of-one-polynomial"><code>:gadic</code>: flattened powers of one polynomial</a></li>
+  <li><a href="#distribute-targeted-partial-expansion" id="toc-distribute-targeted-partial-expansion" class="nav-link" data-scroll-target="#distribute-targeted-partial-expansion"><code>:distribute</code>: targeted partial expansion</a></li>
   <li><a href="#combining-transformations" id="toc-combining-transformations" class="nav-link" data-scroll-target="#combining-transformations">Combining transformations</a></li>
   <li><a href="#what-.transform-does-not-do" id="toc-what-.transform-does-not-do" class="nav-link" data-scroll-target="#what-.transform-does-not-do">What <code>.Transform</code> does not do</a></li>
   <li><a href="#choosing-a-direction" id="toc-choosing-a-direction" class="nav-link" data-scroll-target="#choosing-a-direction">Choosing a direction</a></li>
@@ -597,7 +599,7 @@ ul.task-list li input[type="checkbox"] {
 
 <div>
   <div class="description">
-    Complete reference for .Transform cleanup, expansion, polynomial centering, and ordered factor decomposition.
+    Complete reference for .Transform cleanup, centering, decomposition, g-adic form, and targeted distribution.
   </div>
 </div>
 
@@ -632,10 +634,10 @@ ul.task-list li input[type="checkbox"] {
 <p><code>Value</code> may be a single-output symbolic spec or a spec-backed callable. A spec produces a new spec. A callable produces a new callable with the transformed spec attached.</p>
 <p>A single operation receives its arguments as the remaining function arguments:</p>
 <pre class="rix"><code>.Transform(P, :center, 3)
-.Transform(P, :factor, 4, Q)</code></pre>
+.Transform(P, :decompose, 4, Q)</code></pre>
 <p>A tuple is an ordered transformation plan. A direction that needs no arguments may appear bare. A parameterized direction is an array whose first entry is the direction and whose remaining entries are its arguments:</p>
 <pre class="rix"><code>.Transform(P, {: :expand, [:center, 3] })
-.Transform(P, {: :identities, [:factor, 4, Q] })</code></pre>
+.Transform(P, {: :identities, [:decompose, 4, Q] })</code></pre>
 <p>Operations run from left to right. A parameterized operation array is also accepted directly, such as <code>.Transform(P, [:center, 3])</code>.</p>
 </section>
 <section id="direction-names" class="level2">
@@ -761,7 +763,7 @@ ul.task-list li input[type="checkbox"] {
 <p>This is a complete exact polynomial rewrite. It neither approximates nor truncates. It is useful for evaluation near a point, exposing multiplicity at a point, or comparing coefficients in a shifted polynomial basis.</p>
 <section id="accepted-polynomial-structure" class="level3">
 <h3 class="anchored" data-anchor-id="accepted-polynomial-structure">Accepted polynomial structure</h3>
-<p>The exact polynomial reader used by <code>:center</code> and <code>:factor</code> accepts:</p>
+<p>The exact polynomial reader used by <code>:center</code>, <code>:decompose</code>, and <code>:gadic</code> accepts:</p>
 <ul>
 <li>the one declared input variable;</li>
 <li>expressions independent of that input as coefficients;</li>
@@ -773,9 +775,9 @@ ul.task-list li input[type="checkbox"] {
 <p>These transformations require exactly one symbolic input. Negative powers, division by an expression containing the input, and other non-polynomial terms fail clearly.</p>
 </section>
 </section>
-<section id="factor-ordered-quotientremainder-decomposition" class="level2">
-<h2 class="anchored" data-anchor-id="factor-ordered-quotientremainder-decomposition"><code>:factor</code>: ordered quotient/remainder decomposition</h2>
-<p><code>:factor</code> does not search for roots or irreducible factors. It rewrites a polynomial in terms of the factors supplied by the caller, in their given order, using exact polynomial division.</p>
+<section id="decompose-ordered-quotientremainder-form" class="level2">
+<h2 class="anchored" data-anchor-id="decompose-ordered-quotientremainder-form"><code>:decompose</code>: ordered quotient/remainder form</h2>
+<p><code>:decompose</code> does not search for roots or irreducible factors. It rewrites a polynomial in terms of the factors supplied by the caller, in their given order, using exact polynomial division.</p>
 <p>For factors <code>F1</code> and <code>F2</code>, it computes:</p>
 <pre class="text"><code>P  = F1 * C1 + R1
 C1 = F2 * C2 + R2</code></pre>
@@ -784,7 +786,7 @@ C1 = F2 * C2 + R2</code></pre>
 <p>An exact scalar <code>A</code> denotes the linear factor <code>(x - A)</code>. A symbolic spec or spec-backed function denotes its polynomial after its sole input is positionally renamed to the input of <code>P</code>. The rename is rejected if that factor already uses the target input name as a coefficient, because silently capturing that coefficient would change its meaning.</p>
 <pre class="rix"><code>P := {#x# x ^ 4 }
 Q := {#t# t ^ 2 + 1 }
-.Transform(P, :factor, 4, Q)
+.Transform(P, :decompose, 4, Q)
 # {#x# (x - 4) * ((x ^ 2 + 1) * (x + 4) + 15 * x + 60) + 256 }</code></pre>
 <p>The visible terms record both divisions:</p>
 <ul>
@@ -794,19 +796,46 @@ Q := {#t# t ^ 2 + 1 }
 <section id="repeated-roots-and-centered-horner-form" class="level3">
 <h3 class="anchored" data-anchor-id="repeated-roots-and-centered-horner-form">Repeated roots and centered Horner form</h3>
 <p>Repeating a scalar repeatedly divides by the same linear factor. Supplying a root at least as many times as the degree expresses the polynomial as a nested Horner-style form in <code>(x - root)</code>:</p>
-<pre class="rix"><code>.Transform({#x# x ^ 4 }, :factor, 5, 5, 5, 5)
+<pre class="rix"><code>.Transform({#x# x ^ 4 }, :decompose, 5, 5, 5, 5)
 # {#x# (x - 5) * ((x - 5) * ((x - 5) * (x - 5 + 20) + 150) + 500) + 625 }</code></pre>
 <p>This is equivalent to centering at <code>5</code>, but preserves the successive division structure. By contrast, <code>:center</code> returns a collected sum of powers of <code>(x - 5)</code>.</p>
 <p>If a supplied factor has degree greater than the current quotient, polynomial division returns quotient zero and the current polynomial as its remainder. The reconstructed expression therefore reduces to that remainder: the step is effectively a no-op, as are any later steps operating on the zero quotient.</p>
-<p>Factor specs may contribute captured coefficients. Their closure cells are attached to the result and remain live, subject to the same conflicting-cell checks as other symbolic combinations.</p>
+<p>Decomposition operand specs may contribute captured coefficients. Their closure cells are attached to the result and remain live, subject to the same conflicting-cell checks as other symbolic combinations.</p>
 </section>
+</section>
+<section id="gadic-flattened-powers-of-one-polynomial" class="level2">
+<h2 class="anchored" data-anchor-id="gadic-flattened-powers-of-one-polynomial"><code>:gadic</code>: flattened powers of one polynomial</h2>
+<p><code>:gadic</code> repeatedly divides by one positive-degree polynomial <code>Q</code>. If the source is <code>P</code>, the result has the exact form</p>
+<pre class="text"><code>P = r0 + r1*Q + r2*Q^2 + ... + rn*Q^n</code></pre>
+<p>where every coefficient polynomial <code>ri</code> has degree strictly less than <code>degree(Q)</code>. Unlike <code>:decompose</code>, which retains a nested Horner-like record of successive divisions, <code>:gadic</code> returns the flattened sum of powers directly.</p>
+<pre class="rix"><code>P := {#x# x ^ 4 }
+Q := {#t# t ^ 2 + 1 }
+.Transform(P, :gadic, Q)
+# {#x# 1 - 2 * (x ^ 2 + 1) + (x ^ 2 + 1) ^ 2 }</code></pre>
+<p>The base may be a symbolic spec, spec-backed function, or scalar root (which denotes <code>x - root</code>), but it must have positive degree. Its one input is renamed positionally under the same capture-safety rules as <code>:decompose</code>.</p>
+</section>
+<section id="distribute-targeted-partial-expansion" class="level2">
+<h2 class="anchored" data-anchor-id="distribute-targeted-partial-expansion"><code>:distribute</code>: targeted partial expansion</h2>
+<p><code>:expand</code> recursively distributes every multiplication it can see. <code>:distribute</code> is narrower: it distributes only multiplication by a caller- selected factor. A scalar <code>A</code> selects <code>(x - A)</code>; a spec or spec-backed function selects its polynomial after positional input renaming.</p>
+<p>By default, every structurally matching occurrence is distributed. The factor itself remains atomic, so selecting <code>(x - 5)</code> does not expand it into <code>x - 5</code> inside each product.</p>
+<pre class="rix"><code>H := .Transform({#x# x^4 }, :decompose, 5, 5, 5, 5)
+.Transform(H, :distribute, 5)
+# sum of products of (x - 5), no remaining Horner nesting</code></pre>
+<p>For the heterogeneous decomposition example, selecting <code>4</code> distributes only the <code>(x - 4)</code> layer and leaves the unrelated <code>Q * (x + 4)</code> product intact:</p>
+<pre class="rix"><code>M := .Transform(P, :decompose, 4, Q)
+.Transform(M, :distribute, 4)
+# (x - 4)*Q*(x + 4) + (x - 4)*15*x + (x - 4)*60 + 256</code></pre>
+<p>An optional nonnegative integer limits the number of matching distributions, visited outermost first:</p>
+<pre class="rix"><code>.Transform(H, :distribute, 5, 1)</code></pre>
+<p>Matching is structural rather than algebraic. If the selected factor is not present in that form, the expression is returned unchanged. To turn a repeated linear Horner form directly into collected powers, use <code>.Transform(H, :center, 5)</code>; <code>:center</code> already performs that canonical polynomial conversion.</p>
 </section>
 <section id="combining-transformations" class="level2">
 <h2 class="anchored" data-anchor-id="combining-transformations">Combining transformations</h2>
 <p>Plans run in tuple order. Each bare direction or operation array receives the output of the preceding step:</p>
 <pre class="rix"><code>.Transform(P, {: :expand, [:center, 3] })
-.Transform(P, {: [:factor, 4, Q], :identities })</code></pre>
-<p><code>:center</code> already performs polynomial expansion and collection, so an earlier <code>:expand</code> normally does not change its final result. A <code>:factor</code> followed by <code>:expand</code> deliberately expands the quotient/remainder structure again.</p>
+.Transform(P, {: [:decompose, 4, Q], [:distribute, 4] })
+.Transform(P, {: [:gadic, Q], :identities })</code></pre>
+<p><code>:center</code> already performs polynomial expansion and collection, so an earlier <code>:expand</code> normally does not change its final result. <code>:distribute</code> can flatten only selected layers of a <code>:decompose</code> result, while <code>:gadic</code> produces its flattened polynomial-base expansion directly.</p>
 </section>
 <section id="what-.transform-does-not-do" class="level2">
 <h2 class="anchored" data-anchor-id="what-.transform-does-not-do">What <code>.Transform</code> does not do</h2>
@@ -855,8 +884,16 @@ Q := {#t# t ^ 2 + 1 }
 <td><code>.Transform(P, :center, A)</code></td>
 </tr>
 <tr class="odd">
-<td>Record divisions by caller-supplied factors</td>
-<td><code>.Transform(P, :factor, Factors...)</code></td>
+<td>Record ordered divisions by caller-supplied factors</td>
+<td><code>.Transform(P, :decompose, Factors...)</code></td>
+</tr>
+<tr class="even">
+<td>Expand in flattened powers of one polynomial <code>Q</code></td>
+<td><code>.Transform(P, :gadic, Q)</code></td>
+</tr>
+<tr class="odd">
+<td>Distribute only a selected factor</td>
+<td><code>.Transform(P, :distribute, Factor, Count?)</code></td>
 </tr>
 <tr class="even">
 <td>Apply several transformations in order</td>

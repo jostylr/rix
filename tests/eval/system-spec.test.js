@@ -227,7 +227,7 @@ describe("exact symbolic calculus", () => {
     test("Center transformation rejects ambiguous and non-polynomial requests", () => {
         expect(() => evalRix(".Transform({#x,t# x+t},:center)")).toThrow(/exactly one symbolic input/);
         expect(() => evalRix(".Transform({#x# 1\/x},:center)")).toThrow(/requires a polynomial/);
-        expect(() => evalRix(".Transform({#x# x+1},:taylor)")).toThrow(/Unknown Transform direction/);
+        expect(() => evalRix(".Transform({#x# x+1},:factor)")).toThrow(/Unknown Transform direction/);
         expect(() => evalRix(".Transform({#x# x+1},:expand,3)")).toThrow(/does not accept arguments/);
     });
 
@@ -241,12 +241,12 @@ describe("exact symbolic calculus", () => {
         expect(formatValue(result.values[1])).toBe("{#x# (x - 3) ^ 2 + 7 * (x - 3) + 12 }");
     });
 
-    test("Factor performs ordered polynomial quotient/remainder decomposition", () => {
+    test("Decompose performs ordered polynomial quotient/remainder decomposition", () => {
         const { result } = evalRix(`
             P={#x# x^4};
             Q={#t# t^2 + 1};
-            F=.Transform(P,:Factor,4,Q);
-            G=.Transform(P,{: :identities, [:factor,4,Q] });
+            F=.Transform(P,:Decompose,4,Q);
+            G=.Transform(P,{: :identities, [:decompose,4,Q] });
             {: F, G, .Poly(F)(2) };
         `);
         expect(formatValue(result.values[0])).toBe("{#x# (x - 4) * ((x ^ 2 + 1) * (x + 4) + 15 * x + 60) + 256 }");
@@ -254,10 +254,10 @@ describe("exact symbolic calculus", () => {
         expect(result.values[2].value).toBe(16n);
     });
 
-    test("Factor supports repeated roots and treats a higher-degree divisor as a no-op", () => {
+    test("Decompose supports repeated roots and treats a higher-degree divisor as a no-op", () => {
         const { result } = evalRix(`
-            A=.Transform({#x# x^4},:factor,5,5,5,5);
-            B=.Transform({#x# x^2 + 1},:factor,{#x# x^3 + 1});
+            A=.Transform({#x# x^4},:decompose,5,5,5,5);
+            B=.Transform({#x# x^2 + 1},:decompose,{#x# x^3 + 1});
             {: A, .Poly(A)(2), B };
         `);
         expect(formatValue(result.values[0])).toBe("{#x# (x - 5) * ((x - 5) * ((x - 5) * (x - 5 + 20) + 150) + 500) + 625 }");
@@ -265,11 +265,11 @@ describe("exact symbolic calculus", () => {
         expect(formatValue(result.values[2])).toBe("{#x# x ^ 2 + 1 }");
     });
 
-    test("Factor preserves live closure cells contributed by factor specs", () => {
+    test("Decompose preserves live closure cells contributed by operand specs", () => {
         const { result } = evalRix(`
             a=1;
             Q=x->x + a;
-            F=.Transform({#x# x^2},:factor,Q);
+            F=.Transform({#x# x^2},:decompose,Q);
             a~=2;
             {: .Poly(F)(3), .Spec(Q), F };
         `);
@@ -278,8 +278,54 @@ describe("exact symbolic calculus", () => {
         expect(formatValue(result.values[2])).toContain("x + a");
     });
 
-    test("Factor rejects a positional rename that would capture a coefficient", () => {
-        expect(() => evalRix("x=2; Q=t->x*t; .Transform({#x# x^2},:factor,Q)")).toThrow(/already uses 'x' as a coefficient/);
+    test("Decompose rejects a positional rename that would capture a coefficient", () => {
+        expect(() => evalRix("x=2; Q=t->x*t; .Transform({#x# x^2},:decompose,Q)")).toThrow(/already uses 'x' as a coefficient/);
+    });
+
+    test("G-adic decomposition returns a flattened sum of bounded-degree remainders", () => {
+        const { result } = evalRix(`
+            P={#x# x^4};
+            Q={#t# t^2 + 1};
+            G=.Transform(P,:Gadic,Q);
+            {: G, .Poly(G)(2) };
+        `);
+        expect(formatValue(result.values[0])).toBe("{#x# 1 - 2 * (x ^ 2 + 1) + (x ^ 2 + 1) ^ 2 }");
+        expect(result.values[1].value).toBe(16n);
+    });
+
+    test("G-adic decomposition supports nonconstant remainders and rejects constant bases", () => {
+        const { result } = evalRix(`
+            P={#x# x^5 + x + 1};
+            Q={#x# x^2 + 1};
+            G=.Transform(P,:gadic,Q);
+            {: G, .Poly(G)(3) };
+        `);
+        expect(formatValue(result.values[0])).toBe("{#x# 2 * x + 1 - 2 * x * (x ^ 2 + 1) + x * (x ^ 2 + 1) ^ 2 }");
+        expect(result.values[1].value).toBe(247n);
+        expect(() => evalRix(".Transform({#x# x^2},:gadic,{#x# 2})")).toThrow(/positive degree/);
+    });
+
+    test("Distribute selectively flattens only the requested decomposition factor", () => {
+        const { result } = evalRix(`
+            H=.Transform({#x# x^4},:decompose,5,5,5,5);
+            D=.Transform(H,:distribute,5);
+            M=.Transform({#x# x^4},:decompose,4,{#x# x^2 + 1});
+            O=.Transform(M,:distribute,4);
+            {: D, O, .Poly(D)(2), .Poly(O)(2) };
+        `);
+        expect(formatValue(result.values[0])).toBe("{#x# (x - 5) * (x - 5) * (x - 5) * (x - 5) + (x - 5) * (x - 5) * (x - 5) * 20 + (x - 5) * (x - 5) * 150 + (x - 5) * 500 + 625 }");
+        expect(formatValue(result.values[1])).toBe("{#x# (x - 4) * (x ^ 2 + 1) * (x + 4) + (x - 4) * 15 * x + (x - 4) * 60 + 256 }");
+        expect(result.values[2].value).toBe(16n);
+        expect(result.values[3].value).toBe(16n);
+    });
+
+    test("Distribute accepts an occurrence limit while Center directly collects a repeated linear basis", () => {
+        const { result } = evalRix(`
+            H=.Transform({#x# x^4},:decompose,5,5,5,5);
+            {: .Transform(H,:distribute,5,1), .Transform(H,:center,5) };
+        `);
+        expect(formatValue(result.values[0])).toBe("{#x# (x - 5) * (x - 5) * ((x - 5) * (x - 5 + 20) + 150) + (x - 5) * 500 + 625 }");
+        expect(formatValue(result.values[1])).toBe("{#x# (x - 5) ^ 4 + 20 * (x - 5) ^ 3 + 150 * (x - 5) ^ 2 + 500 * (x - 5) + 625 }");
     });
 
     test("Simplify remains a compatibility alias for Transform", () => {

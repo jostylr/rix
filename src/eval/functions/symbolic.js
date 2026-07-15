@@ -530,7 +530,9 @@ const DIRECTION_ALIASES = new Map([
     ["power", "powers"], ["powers", "powers"],
     ["expand", "expand"],
     ["center", "center"],
-    ["factor", "factor"],
+    ["decompose", "decompose"],
+    ["gadic", "gadic"],
+    ["distribute", "distribute"],
 ]);
 
 function normalizeDirection(value) {
@@ -635,8 +637,13 @@ function polynomialFromIr(node, variable, variablePolynomial) {
 
 function signedTerm(coefficient, basis, power) {
     const exact = rationalFromIr(coefficient);
-    const negative = Boolean(exact && exact.numerator < 0n);
-    const magnitude = negative ? rationalToIr(new Rational(-exact.numerator, exact.denominator)) : coefficient;
+    const structuralNegative = coefficient?.fn === "NEG";
+    const negative = structuralNegative || Boolean(exact && exact.numerator < 0n);
+    const magnitude = exact && exact.numerator < 0n
+        ? rationalToIr(new Rational(-exact.numerator, exact.denominator))
+        : structuralNegative
+            ? cloneIr(coefficient.args[0])
+            : coefficient;
     if (power === 0n) return { negative, expression: magnitude };
     const powered = power === 1n ? cloneIr(basis) : ir("POW", cloneIr(basis), literal(power));
     return { negative, expression: isOne(magnitude) ? powered : ir("MUL", magnitude, powered) };
@@ -685,7 +692,7 @@ function polynomialDegree(polynomial) {
 
 function polynomialDivide(dividend, divisor) {
     const divisorDegree = polynomialDegree(divisor);
-    if (divisorDegree === null) throw new Error("Factor transformation cannot divide by the zero polynomial");
+    if (divisorDegree === null) throw new Error("Polynomial decomposition cannot divide by the zero polynomial");
     const divisorLead = divisor.get(divisorDegree);
     const remainder = new Map(Array.from(dividend, ([power, coefficient]) => [power, cloneIr(coefficient)]));
     const quotient = new Map();
@@ -710,7 +717,7 @@ function polynomialDivide(dividend, divisor) {
     return { quotient, remainder };
 }
 
-function factorOperand(value, variable) {
+function decompositionOperand(value, variable) {
     if (isExactScalar(value)) {
         const expression = centerBasis(variable, exactCenter(value));
         return {
@@ -720,11 +727,11 @@ function factorOperand(value, variable) {
         };
     }
     const spec = getAttachedSpec(value);
-    if (!spec) throw new Error("Factor transformation operands must be exact roots, symbolic specs, or spec-backed functions");
-    if (spec.inputs.length !== 1) throw new Error("Factor transformation specs must have exactly one symbolic input");
+    if (!spec) throw new Error("Polynomial decomposition operands must be exact roots, symbolic specs, or spec-backed functions");
+    if (spec.inputs.length !== 1) throw new Error("Polynomial decomposition specs must have exactly one symbolic input");
     const sourceExpression = expressionOf(spec);
     if (spec.inputs[0] !== variable && retrieveNames(sourceExpression).has(variable)) {
-        throw new Error(`Factor transformation cannot rename '${spec.inputs[0]}' to '${variable}' because the factor already uses '${variable}' as a coefficient`);
+        throw new Error(`Polynomial decomposition cannot rename '${spec.inputs[0]}' to '${variable}' because the operand already uses '${variable}' as a coefficient`);
     }
     const expression = substituteIr(sourceExpression, new Map([[spec.inputs[0], retrieve(variable)]]));
     return {
@@ -734,13 +741,13 @@ function factorOperand(value, variable) {
     };
 }
 
-function factorIr(node, variable, factors) {
-    if (!factors.length) throw new Error("Factor transformation requires at least one root or polynomial factor");
+function decomposeIr(node, variable, factors) {
+    if (!factors.length) throw new Error("Decompose transformation requires at least one root or polynomial factor");
     let quotient = polynomialFromIr(node, variable, new Map([[1n, literal(1)]]));
     const steps = [];
     const closureScopes = [];
     for (const value of factors) {
-        const factor = factorOperand(value, variable);
+        const factor = decompositionOperand(value, variable);
         const division = polynomialDivide(quotient, factor.polynomial);
         steps.push({ expression: factor.expression, remainder: division.remainder });
         closureScopes.push(factor.closureScopes);
@@ -755,6 +762,101 @@ function factorIr(node, variable, factors) {
         );
     }
     return { expression, closureScopes };
+}
+
+function gadicIr(node, variable, args) {
+    if (args.length !== 1) throw new Error("G-adic transformation requires exactly one polynomial base");
+    const base = decompositionOperand(args[0], variable);
+    const baseDegree = polynomialDegree(base.polynomial);
+    if (baseDegree === null || baseDegree === 0n) throw new Error("G-adic transformation base must have positive degree");
+    let quotient = polynomialFromIr(node, variable, new Map([[1n, literal(1)]]));
+    const remainders = [];
+    while (polynomialDegree(quotient) !== null) {
+        const division = polynomialDivide(quotient, base.polynomial);
+        remainders.push(division.remainder);
+        quotient = division.quotient;
+    }
+    let expression = null;
+    for (let index = 0; index < remainders.length; index++) {
+        const remainder = polynomialToIr(remainders[index], retrieve(variable));
+        if (isZero(remainder)) continue;
+        const term = signedTerm(remainder, base.expression, BigInt(index));
+        if (expression === null) expression = term.negative ? neg(term.expression) : term.expression;
+        else expression = ir(term.negative ? "SUB" : "ADD", expression, term.expression);
+    }
+    return { expression: expression || literal(0), closureScopes: [base.closureScopes] };
+}
+
+function sameIr(left, right) {
+    if (left === right) return true;
+    if (!left || !right || left.fn !== right.fn) return false;
+    const leftArgs = left.args || [], rightArgs = right.args || [];
+    if (leftArgs.length !== rightArgs.length) return false;
+    return leftArgs.every((arg, index) => {
+        const other = rightArgs[index];
+        return arg?.fn || other?.fn ? sameIr(arg, other) : arg === other;
+    });
+}
+
+function distributeProduct(factor, sum, factorOnLeft) {
+    if (sameIr(sum, factor)) {
+        return factorOnLeft ? ir("MUL", cloneIr(factor), cloneIr(sum)) : ir("MUL", cloneIr(sum), cloneIr(factor));
+    }
+    if (sum.fn === "ADD" || sum.fn === "SUB") {
+        return ir(
+            sum.fn,
+            distributeProduct(factor, sum.args[0], factorOnLeft),
+            distributeProduct(factor, sum.args[1], factorOnLeft),
+        );
+    }
+    return factorOnLeft ? ir("MUL", cloneIr(factor), cloneIr(sum)) : ir("MUL", cloneIr(sum), cloneIr(factor));
+}
+
+function exactCount(value) {
+    if (value === null || value === undefined) return null;
+    const rational = isExactScalar(value) ? rationalFromIr(exactToIr(value)) : null;
+    if (!rational || rational.denominator !== 1n || rational.numerator < 0n) {
+        throw new Error("Distribute transformation count must be a nonnegative exact integer");
+    }
+    return rational.numerator;
+}
+
+function distributeTargetIr(node, target, maxCount = null) {
+    let remaining = maxCount;
+    let applied = 0n;
+    const distributeMatch = (current) => {
+        if (current.fn !== "MUL" || (remaining !== null && remaining === 0n)) return null;
+        const [left, right] = current.args;
+        if (sameIr(left, target) && !sameIr(right, target) && (right.fn === "ADD" || right.fn === "SUB")) {
+            if (remaining !== null) remaining--;
+            applied++;
+            return distributeProduct(left, right, true);
+        }
+        if (sameIr(right, target) && !sameIr(left, target) && (left.fn === "ADD" || left.fn === "SUB")) {
+            if (remaining !== null) remaining--;
+            applied++;
+            return distributeProduct(right, left, false);
+        }
+        return null;
+    };
+    const visit = (current) => {
+        if (!current?.fn) return cloneIr(current);
+        const before = distributeMatch(current);
+        if (before) return visit(before);
+        const rebuilt = { ...current, args: (current.args || []).map((arg) => arg?.fn ? visit(arg) : cloneIr(arg)) };
+        const after = distributeMatch(rebuilt);
+        return after ? visit(after) : rebuilt;
+    };
+    return { expression: visit(node), applied };
+}
+
+function distributeIr(node, variable, args) {
+    if (args.length < 1 || args.length > 2) {
+        throw new Error("Distribute transformation requires a target root or polynomial and an optional count");
+    }
+    const target = decompositionOperand(args[0], variable);
+    const distributed = distributeTargetIr(node, target.expression, exactCount(args[1]));
+    return { ...distributed, closureScopes: [target.closureScopes] };
 }
 
 function transformValue(args) {
@@ -772,15 +874,22 @@ function transformValue(args) {
             expression = simplifyIr(expression, directions);
             continue;
         }
-        if (source.inputs.length !== 1) throw new Error(`${operation.direction === "center" ? "Center" : "Factor"} transformation currently requires exactly one symbolic input`);
+        const operationName = {
+            center: "Center", decompose: "Decompose", gadic: "G-adic", distribute: "Distribute",
+        }[operation.direction];
+        if (source.inputs.length !== 1) throw new Error(`${operationName} transformation currently requires exactly one symbolic input`);
         if (operation.direction === "center") {
             if (operation.args.length > 1) throw new Error("Center transformation accepts at most one center");
             expression = centerIr(expression, source.inputs[0], operation.args[0]);
             continue;
         }
-        const factored = factorIr(expression, source.inputs[0], operation.args);
-        expression = factored.expression;
-        addedScopeGroups.push(...factored.closureScopes);
+        const transformed = operation.direction === "decompose"
+            ? decomposeIr(expression, source.inputs[0], operation.args)
+            : operation.direction === "gadic"
+                ? gadicIr(expression, source.inputs[0], operation.args)
+                : distributeIr(expression, source.inputs[0], operation.args);
+        expression = transformed.expression;
+        addedScopeGroups.push(...transformed.closureScopes);
     }
     const referencedNames = retrieveNames(expression);
     for (const input of source.inputs) referencedNames.delete(input);

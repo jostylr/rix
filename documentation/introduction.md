@@ -1712,11 +1712,13 @@ provided shifted center:
 .Transform({#x# (x - 1)*(x + 2) }, :center, 3)
 ```
 
-`:factor` records ordered quotient/remainder divisions by provided roots or
-polynomial factors. Parameterized operations inside a transformation tuple use
-arrays, for example `.Transform(P, {: :expand, [:center, 3] })`. See the
-[symbolic transformation reference](design/eval/transformation-reference.md)
-for the exhaustive behavior. `.Simplify` remains a compatibility alias.
+`:decompose` records ordered quotient/remainder divisions by provided roots or
+polynomial factors. `:gadic` expands in flattened powers of one provided
+polynomial, while `:distribute` selectively distributes only a named root or
+factor. Parameterized operations inside a transformation tuple use arrays, for
+example `.Transform(P, {: :expand, [:center, 3] })`. See the [symbolic
+transformation reference](design/eval/transformation-reference.md) for the
+exhaustive behavior. `.Simplify` remains a compatibility alias.
 
 Relation and constraint forms such as `:=:`, `:<:`, and `:>:` remain separate
 from symbolic-spec semantics. See [Symbolic specs and exact calculus](design/eval/symbolic-calculus.md)

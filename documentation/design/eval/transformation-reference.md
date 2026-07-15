@@ -1,6 +1,6 @@
 ---
 title: "Symbolic transformation reference"
-description: "Complete reference for .Transform cleanup, expansion, polynomial centering, and ordered factor decomposition."
+description: "Complete reference for .Transform cleanup, centering, decomposition, g-adic form, and targeted distribution."
 ---
 
 ## Scope
@@ -42,7 +42,7 @@ arguments:
 
 ```rix
 .Transform(P, :center, 3)
-.Transform(P, :factor, 4, Q)
+.Transform(P, :decompose, 4, Q)
 ```
 
 A tuple is an ordered transformation plan. A direction that needs no arguments
@@ -51,7 +51,7 @@ direction and whose remaining entries are its arguments:
 
 ```rix
 .Transform(P, {: :expand, [:center, 3] })
-.Transform(P, {: :identities, [:factor, 4, Q] })
+.Transform(P, {: :identities, [:decompose, 4, Q] })
 ```
 
 Operations run from left to right. A parameterized operation array is also
@@ -183,7 +183,8 @@ a point, or comparing coefficients in a shifted polynomial basis.
 
 ### Accepted polynomial structure
 
-The exact polynomial reader used by `:center` and `:factor` accepts:
+The exact polynomial reader used by `:center`, `:decompose`, and `:gadic`
+accepts:
 
 - the one declared input variable;
 - expressions independent of that input as coefficients;
@@ -199,9 +200,9 @@ These transformations require exactly one symbolic input. Negative powers,
 division by an expression containing the input, and other non-polynomial terms
 fail clearly.
 
-## `:factor`: ordered quotient/remainder decomposition
+## `:decompose`: ordered quotient/remainder form
 
-`:factor` does not search for roots or irreducible factors. It rewrites a
+`:decompose` does not search for roots or irreducible factors. It rewrites a
 polynomial in terms of the factors supplied by the caller, in their given
 order, using exact polynomial division.
 
@@ -227,7 +228,7 @@ that coefficient would change its meaning.
 ```rix
 P := {#x# x ^ 4 }
 Q := {#t# t ^ 2 + 1 }
-.Transform(P, :factor, 4, Q)
+.Transform(P, :decompose, 4, Q)
 # {#x# (x - 4) * ((x ^ 2 + 1) * (x + 4) + 15 * x + 60) + 256 }
 ```
 
@@ -243,7 +244,7 @@ root at least as many times as the degree expresses the polynomial as a nested
 Horner-style form in `(x - root)`:
 
 ```rix
-.Transform({#x# x ^ 4 }, :factor, 5, 5, 5, 5)
+.Transform({#x# x ^ 4 }, :decompose, 5, 5, 5, 5)
 # {#x# (x - 5) * ((x - 5) * ((x - 5) * (x - 5 + 20) + 150) + 500) + 625 }
 ```
 
@@ -256,9 +257,72 @@ division returns quotient zero and the current polynomial as its remainder.
 The reconstructed expression therefore reduces to that remainder: the step is
 effectively a no-op, as are any later steps operating on the zero quotient.
 
-Factor specs may contribute captured coefficients. Their closure cells are
-attached to the result and remain live, subject to the same conflicting-cell
-checks as other symbolic combinations.
+Decomposition operand specs may contribute captured coefficients. Their closure
+cells are attached to the result and remain live, subject to the same
+conflicting-cell checks as other symbolic combinations.
+
+## `:gadic`: flattened powers of one polynomial
+
+`:gadic` repeatedly divides by one positive-degree polynomial `Q`. If the
+source is `P`, the result has the exact form
+
+```text
+P = r0 + r1*Q + r2*Q^2 + ... + rn*Q^n
+```
+
+where every coefficient polynomial `ri` has degree strictly less than
+`degree(Q)`. Unlike `:decompose`, which retains a nested Horner-like record of
+successive divisions, `:gadic` returns the flattened sum of powers directly.
+
+```rix
+P := {#x# x ^ 4 }
+Q := {#t# t ^ 2 + 1 }
+.Transform(P, :gadic, Q)
+# {#x# 1 - 2 * (x ^ 2 + 1) + (x ^ 2 + 1) ^ 2 }
+```
+
+The base may be a symbolic spec, spec-backed function, or scalar root (which
+denotes `x - root`), but it must have positive degree. Its one input is renamed
+positionally under the same capture-safety rules as `:decompose`.
+
+## `:distribute`: targeted partial expansion
+
+`:expand` recursively distributes every multiplication it can see.
+`:distribute` is narrower: it distributes only multiplication by a caller-
+selected factor. A scalar `A` selects `(x - A)`; a spec or spec-backed function
+selects its polynomial after positional input renaming.
+
+By default, every structurally matching occurrence is distributed. The factor
+itself remains atomic, so selecting `(x - 5)` does not expand it into `x - 5`
+inside each product.
+
+```rix
+H := .Transform({#x# x^4 }, :decompose, 5, 5, 5, 5)
+.Transform(H, :distribute, 5)
+# sum of products of (x - 5), no remaining Horner nesting
+```
+
+For the heterogeneous decomposition example, selecting `4` distributes only
+the `(x - 4)` layer and leaves the unrelated `Q * (x + 4)` product intact:
+
+```rix
+M := .Transform(P, :decompose, 4, Q)
+.Transform(M, :distribute, 4)
+# (x - 4)*Q*(x + 4) + (x - 4)*15*x + (x - 4)*60 + 256
+```
+
+An optional nonnegative integer limits the number of matching distributions,
+visited outermost first:
+
+```rix
+.Transform(H, :distribute, 5, 1)
+```
+
+Matching is structural rather than algebraic. If the selected factor is not
+present in that form, the expression is returned unchanged. To turn a repeated
+linear Horner form directly into collected powers, use
+`.Transform(H, :center, 5)`; `:center` already performs that canonical
+polynomial conversion.
 
 ## Combining transformations
 
@@ -267,12 +331,14 @@ output of the preceding step:
 
 ```rix
 .Transform(P, {: :expand, [:center, 3] })
-.Transform(P, {: [:factor, 4, Q], :identities })
+.Transform(P, {: [:decompose, 4, Q], [:distribute, 4] })
+.Transform(P, {: [:gadic, Q], :identities })
 ```
 
 `:center` already performs polynomial expansion and collection, so an earlier
-`:expand` normally does not change its final result. A `:factor` followed by
-`:expand` deliberately expands the quotient/remainder structure again.
+`:expand` normally does not change its final result. `:distribute` can flatten
+only selected layers of a `:decompose` result, while `:gadic` produces its
+flattened polynomial-base expansion directly.
 
 ## What `.Transform` does not do
 
@@ -300,6 +366,8 @@ requested.
 | Expose sums hidden inside products | `.Transform(P, :expand)` |
 | Expand and collect a polynomial in powers of `x` | `.Transform(P, :center)` |
 | Express a polynomial in powers of `(x - A)` | `.Transform(P, :center, A)` |
-| Record divisions by caller-supplied factors | `.Transform(P, :factor, Factors...)` |
+| Record ordered divisions by caller-supplied factors | `.Transform(P, :decompose, Factors...)` |
+| Expand in flattened powers of one polynomial `Q` | `.Transform(P, :gadic, Q)` |
+| Distribute only a selected factor | `.Transform(P, :distribute, Factor, Count?)` |
 | Apply several transformations in order | `.Transform(P, {: Direction, [Direction, Args...] })` |
 | Preserve the constructed expression exactly | Do not call `.Transform` |
