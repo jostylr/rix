@@ -139,6 +139,22 @@ power identities. `"expand"` additionally distributes multiplication over
 addition and subtraction. A tuple of direction names is accepted for future
 extension; supplied directions currently add to the safe defaults.
 
+`:taylor` performs exact polynomial expansion and collection. With no center it
+uses powers of the single input; an exact third argument writes the same
+polynomial in powers of `(input - center)`. It is a complete exact polynomial
+rewrite, not a truncated approximation:
+
+```rix
+.Simplify({#x# (x - 1) * (x + 2) }, :taylor)
+.Simplify({#x# (x - 1) * (x + 2) }, :taylor, 3)
+```
+
+Direction names accept equivalent colon-string and quoted-string forms and are
+case-insensitive, so `:expand`, `"expand"`, `:Expand`, and `"EXPAND"` mean the
+same thing. See the [complete symbolic simplification
+reference](simplification-reference.md) for every rewrite, effective-use
+examples, polynomial limits, and deliberate non-transformations.
+
 ## Public Symbolic capabilities
 
 | Capability | Result |
@@ -146,7 +162,7 @@ extension; supplied directions currently add to the safe defaults.
 | `.Poly(S)` | executable exact callable with `S` attached |
 | `.Deriv(S, {#x})` | exact symbolic derivative |
 | `.Integrate(S, {#x})` | supported zero-constant antiderivative |
-| `.Simplify(S, directions)` | new deliberately simplified value |
+| `.Simplify(S, directions, center)` | new deliberately simplified value; `center` is for `:taylor` |
 | `.Spec(F)` | attached or newly analyzed function spec |
 | `.Speccability(F)` | analysis report map |
 | `.InspectSpec(S)` | structural inspection map |

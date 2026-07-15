@@ -34,7 +34,7 @@ ul.task-list li input[type="checkbox"] {
 <script src="../../site_libs/quarto-search/fuse.min.js"></script>
 <script src="../../site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="../../">
-<link href="../../rix-rationales.html" rel="next">
+<link href="../../design/eval/simplification-reference.html" rel="next">
 <link href="../../design/eval/cayley-polar.html" rel="prev">
 <link href="../../rix-logo.png" rel="icon" type="image/png">
 <script src="../../site_libs/quarto-html/quarto.js" type="module"></script>
@@ -509,6 +509,12 @@ ul.task-list li input[type="checkbox"] {
  <span class="menu-text">Symbolic specs and calculus</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../design/eval/simplification-reference.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Symbolic simplification</span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item sidebar-item-section">
@@ -657,10 +663,18 @@ F'(4) # 48
 <pre class="rix"><code>.Simplify({#x# x*1 + 0 })
 .Simplify({#x# x*(x + 1) }, "expand")</code></pre>
 <p>Default directions are exact constant folding, arithmetic identities, and power identities. <code>"expand"</code> additionally distributes multiplication over addition and subtraction. A tuple of direction names is accepted for future extension; supplied directions currently add to the safe defaults.</p>
+<p><code>:taylor</code> performs exact polynomial expansion and collection. With no center it uses powers of the single input; an exact third argument writes the same polynomial in powers of <code>(input - center)</code>. It is a complete exact polynomial rewrite, not a truncated approximation:</p>
+<pre class="rix"><code>.Simplify({#x# (x - 1) * (x + 2) }, :taylor)
+.Simplify({#x# (x - 1) * (x + 2) }, :taylor, 3)</code></pre>
+<p>Direction names accept equivalent colon-string and quoted-string forms and are case-insensitive, so <code>:expand</code>, <code>"expand"</code>, <code>:Expand</code>, and <code>"EXPAND"</code> mean the same thing. See the <a href="../../design/eval/simplification-reference.html">complete symbolic simplification reference</a> for every rewrite, effective-use examples, polynomial limits, and deliberate non-transformations.</p>
 </section>
 <section id="public-symbolic-capabilities" class="level2">
 <h2 class="anchored" data-anchor-id="public-symbolic-capabilities">Public Symbolic capabilities</h2>
 <table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
 <thead>
 <tr class="header">
 <th>Capability</th>
@@ -681,8 +695,8 @@ F'(4) # 48
 <td>supported zero-constant antiderivative</td>
 </tr>
 <tr class="even">
-<td><code>.Simplify(S, directions)</code></td>
-<td>new deliberately simplified value</td>
+<td><code>.Simplify(S, directions, center)</code></td>
+<td>new deliberately simplified value; <code>center</code> is for <code>:taylor</code></td>
 </tr>
 <tr class="odd">
 <td><code>.Spec(F)</code></td>
@@ -1129,8 +1143,8 @@ F'(4) # 48
       </a>          
   </div>
   <div class="nav-page nav-page-next">
-      <a href="../../rix-rationales.html" class="pagination-link" aria-label="Design rationales">
-        <span class="nav-page-text">Design rationales</span> <i class="bi bi-arrow-right-short"></i>
+      <a href="../../design/eval/simplification-reference.html" class="pagination-link" aria-label="Symbolic simplification">
+        <span class="nav-page-text">Symbolic simplification</span> <i class="bi bi-arrow-right-short"></i>
       </a>
   </div>
 </nav>

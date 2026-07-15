@@ -524,19 +524,165 @@ function simplifyIr(node, directions) {
     return directions.has("identities") || directions.has("constants") || directions.has("powers") ? binary(node.fn, left, right) : ir(node.fn, left, right);
 }
 
+const DIRECTION_ALIASES = new Map([
+    ["identity", "identities"], ["identities", "identities"],
+    ["constant", "constants"], ["constants", "constants"],
+    ["power", "powers"], ["powers", "powers"],
+    ["expand", "expand"],
+    ["taylor", "taylor"],
+]);
+
+function normalizeDirection(value) {
+    const raw = value?.value ?? value;
+    if (typeof raw !== "string") throw new Error("Simplify directions must be colon-strings or strings");
+    const normalized = raw.trim().toLowerCase().replaceAll(/[-_\s]/g, "");
+    const direction = DIRECTION_ALIASES.get(normalized);
+    if (!direction) throw new Error(`Unknown Simplify direction '${raw}'`);
+    return direction;
+}
+
 function directionSet(value) {
     if (value === null || value === undefined) return new Set(["identities", "constants", "powers"]);
     const values = value?.values || [value];
     return new Set([
         "identities", "constants", "powers",
-        ...values.map((item) => (item?.value ?? item).toString().toLowerCase().replaceAll("-", "")),
+        ...values.map(normalizeDirection),
     ]);
 }
 
-function simplifyValue(value, directionsValue) {
+function polynomialAdd(left, right, subtract = false) {
+    const result = new Map(Array.from(left, ([power, coefficient]) => [power, cloneIr(coefficient)]));
+    for (const [power, coefficient] of right) {
+        const incoming = subtract ? neg(cloneIr(coefficient)) : cloneIr(coefficient);
+        result.set(power, result.has(power) ? binary("ADD", result.get(power), incoming) : incoming);
+        if (isZero(result.get(power))) result.delete(power);
+    }
+    return result;
+}
+
+function polynomialMultiply(left, right) {
+    const result = new Map();
+    for (const [leftPower, leftCoefficient] of left) {
+        for (const [rightPower, rightCoefficient] of right) {
+            const power = leftPower + rightPower;
+            const coefficient = binary("MUL", cloneIr(leftCoefficient), cloneIr(rightCoefficient));
+            result.set(power, result.has(power) ? binary("ADD", result.get(power), coefficient) : coefficient);
+            if (isZero(result.get(power))) result.delete(power);
+        }
+    }
+    return result;
+}
+
+function polynomialPower(base, exponent) {
+    let result = new Map([[0n, literal(1)]]);
+    let factor = base;
+    let remaining = exponent;
+    while (remaining > 0n) {
+        if (remaining % 2n === 1n) result = polynomialMultiply(result, factor);
+        remaining /= 2n;
+        if (remaining > 0n) factor = polynomialMultiply(factor, factor);
+    }
+    return result;
+}
+
+function polynomialFromIr(node, variable, variablePolynomial) {
+    if (node.fn === "RETRIEVE" && node.args[0] === variable) {
+        return new Map(Array.from(variablePolynomial, ([power, coefficient]) => [power, cloneIr(coefficient)]));
+    }
+    if (independentOf(node, variable)) return new Map([[0n, cloneIr(node)]]);
+    if (node.fn === "NEG") {
+        return new Map(Array.from(polynomialFromIr(node.args[0], variable, variablePolynomial), ([power, coefficient]) => [power, neg(coefficient)]));
+    }
+    if (node.fn === "ADD" || node.fn === "SUB") {
+        return polynomialAdd(
+            polynomialFromIr(node.args[0], variable, variablePolynomial),
+            polynomialFromIr(node.args[1], variable, variablePolynomial),
+            node.fn === "SUB",
+        );
+    }
+    if (node.fn === "MUL") {
+        return polynomialMultiply(
+            polynomialFromIr(node.args[0], variable, variablePolynomial),
+            polynomialFromIr(node.args[1], variable, variablePolynomial),
+        );
+    }
+    if (node.fn === "DIV" && independentOf(node.args[1], variable)) {
+        return new Map(Array.from(
+            polynomialFromIr(node.args[0], variable, variablePolynomial),
+            ([power, coefficient]) => [power, binary("DIV", coefficient, cloneIr(node.args[1]))],
+        ));
+    }
+    if (node.fn === "POW") {
+        const exponent = rationalFromIr(node.args[1]);
+        if (exponent?.denominator === 1n && exponent.numerator >= 0n) {
+            return polynomialPower(polynomialFromIr(node.args[0], variable, variablePolynomial), exponent.numerator);
+        }
+    }
+    throw new Error(`Taylor simplification requires a polynomial in '${variable}'; unsupported term '${renderSymbolicIr(node)}'`);
+}
+
+function signedTerm(coefficient, basis, power) {
+    const exact = rationalFromIr(coefficient);
+    const negative = Boolean(exact && exact.numerator < 0n);
+    const magnitude = negative ? rationalToIr(new Rational(-exact.numerator, exact.denominator)) : coefficient;
+    if (power === 0n) return { negative, expression: magnitude };
+    const powered = power === 1n ? cloneIr(basis) : ir("POW", cloneIr(basis), literal(power));
+    return { negative, expression: isOne(magnitude) ? powered : ir("MUL", magnitude, powered) };
+}
+
+function polynomialToIr(polynomial, basis) {
+    const powers = Array.from(polynomial.keys()).sort((a, b) => a > b ? -1 : a < b ? 1 : 0);
+    if (!powers.length) return literal(0);
+    let result = null;
+    for (const power of powers) {
+        const term = signedTerm(polynomial.get(power), basis, power);
+        if (result === null) result = term.negative ? neg(term.expression) : term.expression;
+        else result = ir(term.negative ? "SUB" : "ADD", result, term.expression);
+    }
+    return result;
+}
+
+function exactCenter(value) {
+    if (value === null || value === undefined) return new Rational(0n, 1n);
+    if (!isExactScalar(value)) throw new Error("Taylor simplification center must be an exact integer or rational");
+    return rationalFromIr(exactToIr(value));
+}
+
+function taylorIr(node, variable, centerValue) {
+    const center = exactCenter(centerValue);
+    const centered = center.numerator !== 0n;
+    const variablePolynomial = new Map([[1n, literal(1)]]);
+    if (centered) variablePolynomial.set(0n, rationalToIr(center));
+    const polynomial = polynomialFromIr(node, variable, variablePolynomial);
+    const basis = !centered
+        ? retrieve(variable)
+        : center.numerator < 0n
+            ? ir("ADD", retrieve(variable), rationalToIr(new Rational(-center.numerator, center.denominator)))
+            : ir("SUB", retrieve(variable), rationalToIr(center));
+    return polynomialToIr(polynomial, basis);
+}
+
+function simplifyValue(value, directionsValue, optionValue) {
     const source = getAttachedSpec(value);
     if (!source) throw new Error("Simplify expects a symbolic spec or function with an attached spec");
-    const spec = specWithExpression(source, simplifyIr(expressionOf(source), directionSet(directionsValue)), { transform: { operation: "Simplify" } });
+    const directions = directionSet(directionsValue);
+    if (optionValue !== null && optionValue !== undefined && !directions.has("taylor")) {
+        throw new Error("Simplify's third argument is currently only the center for the Taylor direction");
+    }
+    let expression;
+    if (directions.has("taylor")) {
+        if (source.inputs.length !== 1) throw new Error("Taylor simplification currently requires exactly one symbolic input");
+        expression = taylorIr(expressionOf(source), source.inputs[0], optionValue);
+    } else {
+        expression = simplifyIr(expressionOf(source), directions);
+    }
+    const spec = specWithExpression(source, expression, {
+        transform: {
+            operation: "Simplify",
+            directions: Array.from(directions),
+            ...(directions.has("taylor") ? { center: optionValue ?? null } : {}),
+        },
+    });
     return isSymbolicSpec(value) ? spec : polyFromSpec(spec);
 }
 
@@ -582,7 +728,7 @@ export const symbolicCapabilities = {
     POLY: { impl: ([value]) => polyFromSpec(getAttachedSpec(value) || value), pure: true, doc: "Compile a single-output symbolic spec into an exact callable" },
     DERIV: { impl: ([value, variable]) => calculus(value, variable, "Deriv"), pure: true, doc: "Differentiate a symbolic spec or spec-backed function exactly" },
     INTEGRATE: { impl: ([value, variable]) => calculus(value, variable, "Integrate"), pure: true, doc: "Integrate a supported symbolic spec or spec-backed function exactly" },
-    SIMPLIFY: { impl: ([value, directions]) => simplifyValue(value, directions), pure: true, doc: "Return an explicitly simplified symbolic value" },
+    SIMPLIFY: { impl: ([value, directions, option]) => simplifyValue(value, directions, option), pure: true, doc: "Return an explicitly simplified or polynomial-recentered symbolic value" },
     SPEC: { impl: ([value]) => explicitSpec(value), doc: "Analyze a pure function and attach/return its symbolic spec" },
     SPECCABILITY: { impl: ([value]) => speccabilityValue(value), pure: true, doc: "Report whether a pure function can be represented by the exact symbolic subset" },
     INSPECTSPEC: { impl: ([value]) => inspectSymbolicSpec(getAttachedSpec(value) || value), pure: true, doc: "Return the structural inspection map for a symbolic spec" },

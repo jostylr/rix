@@ -83,7 +83,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.RAND_NAME` | function | Core, Random | Generate a random name string RAND\_NAME(len=10, alphabet=a-zA-Z) |
 | `.REDUCE` | lazy function | Collections, Arrays | Reduce a collection |
 | `.SAME_CELL` | lazy function | — | Identity comparison (===) — returns 1 if both sides refer to the same cell, null otherwise |
-| `.SIMPLIFY` | function | Symbolic | Return an explicitly simplified symbolic value |
+| `.SIMPLIFY` | function | Symbolic | Return an explicitly simplified or polynomial-recentered symbolic value |
 | `.SIN` | function | — | Dispatch SIN through the active system multifunction registry |
 | `.SPEC` | function | Symbolic | Analyze a pure function and attach/return its symbolic spec |
 | `.SPECCABILITY` | function | Symbolic | Report whether a pure function can be represented by the exact symbolic subset |

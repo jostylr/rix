@@ -158,6 +158,79 @@ describe("exact symbolic calculus", () => {
         expect(formatValue(result.values[2])).toBe("{#x# x * x + x }");
     });
 
+    test("Simplify's default profile covers every documented local rewrite", () => {
+        const inputs = [
+            "0 + x", "x + 0", "x - 0", "0 - x",
+            "0 * x", "x * 0", "1 * x", "x * 1",
+            "0 / x", "x / 1", "x ^ 0", "x ^ 1",
+            "2 + 3", "7 - 2", "2 * 3", "6 / 8", "-(2 + 3)",
+        ];
+        const expected = [
+            "x", "x", "x", "-x",
+            "0", "0", "x", "x",
+            "0", "x", "1", "x",
+            "5", "5", "6", "3 / 4", "-5",
+        ];
+        const forms = inputs.map((expression) => formatValue(evalRix(`.Simplify({#x# ${expression} })`).result));
+        expect(forms).toEqual(expected.map((expression) => `{#x# ${expression} }`));
+    });
+
+    test("Simplify direction names accept colon-strings, strings, and arbitrary capitalization", () => {
+        const { result } = evalRix(`
+            P={#x# x*(x + 1)};
+            {: .Simplify(P,:expand), .Simplify(P,"expand"),
+               .Simplify(P,:Expand), .Simplify(P,"EXPAND") };
+        `);
+        const forms = result.values.map(formatValue);
+        expect(forms).toEqual(Array(4).fill("{#x# x * x + x }"));
+    });
+
+    test("Taylor simplification expands and combines a polynomial in powers of its input", () => {
+        const { result } = evalRix(`
+            P=.Poly({#x# (x - 1)*(x + 2)});
+            S=.Simplify(P,:Taylor);
+            {: .Spec(P), .Spec(S), S(4) };
+        `);
+        expect(formatValue(result.values[0])).toBe("{#x# (x - 1) * (x + 2) }");
+        expect(formatValue(result.values[1])).toBe("{#x# x ^ 2 + x - 2 }");
+        expect(result.values[2].value).toBe(18n);
+    });
+
+    test("Taylor simplification exactly recenters a polynomial", () => {
+        const { result } = evalRix(`
+            P={#x# (x - 1)*(x + 2)};
+            A=.Simplify(P,:taylor,3);
+            B=.Simplify(P,"TAYLOR",-2);
+            R=.Simplify({#x# x^2},:taylor,1 / 2);
+            {: A, B, .Poly(A)(4), .Poly(B)(4), .Poly(R)(3 / 2) };
+        `);
+        expect(formatValue(result.values[0])).toBe("{#x# (x - 3) ^ 2 + 7 * (x - 3) + 10 }");
+        expect(formatValue(result.values[1])).toBe("{#x# (x + 2) ^ 2 - 3 * (x + 2) }");
+        expect(result.values[2].value).toBe(18n);
+        expect(result.values[3].value).toBe(18n);
+        expect(formatValue(result.values[4])).toBe("2..1/4");
+    });
+
+    test("Taylor simplification preserves live captured coefficients", () => {
+        const { result } = evalRix(`
+            a=2;
+            F=x->(x + a)*(x + 1);
+            T=.Simplify(F,:taylor);
+            a~=3;
+            {: F(2), T(2), .Spec(T) };
+        `);
+        expect(result.values[0].value).toBe(15n);
+        expect(result.values[1].value).toBe(15n);
+        expect(formatValue(result.values[2])).toBe("{#x# x ^ 2 + (1 + a) * x + a }");
+    });
+
+    test("Taylor simplification rejects ambiguous and non-polynomial requests", () => {
+        expect(() => evalRix(".Simplify({#x,t# x+t},:taylor)")).toThrow(/exactly one symbolic input/);
+        expect(() => evalRix(".Simplify({#x# 1\/x},:taylor)")).toThrow(/requires a polynomial/);
+        expect(() => evalRix(".Simplify({#x# x+1},:mystery)")).toThrow(/Unknown Simplify direction/);
+        expect(() => evalRix(".Simplify({#x# x+1},:expand,3)")).toThrow(/third argument/);
+    });
+
     test("postfix derivative and prefix integral syntax execute", () => {
         const { result } = evalRix("F=x->x^3; G=x->2*x; {: F'(4), F'[x](4), 'G(3) };");
         expect(result.values[0].value).toBe(48n);

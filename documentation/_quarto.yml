@@ -36,6 +36,7 @@ project:
     - design/eval/units-and-exact-generators.md
     - design/eval/cayley-polar.md
     - design/eval/symbolic-calculus.md
+    - design/eval/simplification-reference.md
     - rix-rationales.md
     - design/parser/spec.md
     - design/parser/questions.md
@@ -123,6 +124,8 @@ website:
             href: design/eval/cayley-polar.md
           - text: Symbolic specs and calculus
             href: design/eval/symbolic-calculus.md
+          - text: Symbolic simplification
+            href: design/eval/simplification-reference.md
       - section: Design and history
         contents:
           - text: Design rationales
