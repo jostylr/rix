@@ -11,7 +11,7 @@
 import { existsSync, readFileSync } from "fs";
 import { readdirSync, statSync } from "fs";
 import path from "path";
-import { createInterface } from "readline";
+import { createInterface, emitKeypressEvents } from "readline";
 import { fileURLToPath } from "url";
 import {
     tokenize,
@@ -154,7 +154,10 @@ function handleCommand(fullCmd, context, registry, systemContext) {
   .ast[expr]      Show AST of RiX expression
   .tokens[expr]   Show tokens of RiX expression
   
-  Multiline input: end a line with '\\' to continue to the next line.
+  Multiline input: Shift+Up or Shift+Right expands the current draft into multiline capture.
+                   Shift+Down or Shift+Left runs it.
+                   End a line with '\\' to continue portably in any terminal.
+                   Cmd/Ctrl+Enter is not distinguishable from Enter in most terminals.
   Ctrl+C: Clear current input buffer or exit if empty.
 `);
     } else if (cmd === "exit") {
@@ -523,17 +526,103 @@ async function main() {
     } else {
         // REPL
         console.log("RiX REPL (Type .help for commands)");
-        const rl = createInterface({
+        let buffer = "";
+        let multilineMode = false;
+        let lastEscapeAt = 0;
+        let pendingModifiedArrow = null;
+        let rl;
+
+        function handleModifiedArrow(name) {
+            if (!rl || pendingModifiedArrow) return;
+            const action = { name, draft: rl.line, cursor: rl.cursor };
+            pendingModifiedArrow = action;
+            if (name === "open") multilineMode = true;
+
+            queueMicrotask(() => {
+                if (pendingModifiedArrow !== action) return;
+                pendingModifiedArrow = null;
+
+                if (name === "open") {
+                    rl.line = action.draft;
+                    rl.cursor = action.cursor;
+                    rl.setPrompt("... ");
+                    rl.prompt(true);
+                    rl._refreshLine?.();
+                    return;
+                }
+
+                // The closing shortcut completes the buffer immediately. Retain any
+                // unfinished draft as the final line, then reuse normal line
+                // evaluation so diagnostics and prompt handling stay uniform.
+                multilineMode = false;
+                rl.line = "";
+                rl.cursor = 0;
+                if (action.draft) {
+                    rl.history.unshift(action.draft);
+                    if (rl.history.length > rl.historySize) rl.history.pop();
+                }
+                // readline normally prints this newline before its "line"
+                // event. We emit the event ourselves for the shortcut, so
+                // reproduce it before evaluation writes its result.
+                rl.output.write("\n");
+                rl.emit("line", action.draft);
+            });
+        }
+
+        // Install this listener before readline's own history listener. After
+        // readline handles the key, the queued update restores the draft so
+        // the multiline shortcut never substitutes a history entry for what
+        // the user typed.
+        emitKeypressEvents(process.stdin);
+        process.stdin.on("data", (chunk) => {
+            // macOS Terminal may send raw xterm sequences without setting
+            // key.shift in readline's keypress event.
+            const text = String(chunk);
+            if (text.includes("\x1b[1;2A") || text.includes("\x1b[1;2C")) {
+                handleModifiedArrow("open");
+            }
+            if (text.includes("\x1b[1;2B") || text.includes("\x1b[1;2D")) {
+                handleModifiedArrow("close");
+            }
+        });
+        process.stdin.on("keypress", (_character, key) => {
+            if (!rl || !key) return;
+            if (key.name === "escape") {
+                // Terminals delay a bare Escape briefly while they determine
+                // whether it begins an escape sequence, so allow a full second
+                // for the second press to arrive.
+                const doubleEscape = Date.now() - lastEscapeAt < 1000;
+                lastEscapeAt = Date.now();
+                queueMicrotask(() => {
+                    if (doubleEscape) {
+                        buffer = "";
+                        multilineMode = false;
+                        rl.setPrompt("rix> ");
+                    }
+                    rl.line = "";
+                    rl.cursor = 0;
+                    rl.prompt(true);
+                    rl._refreshLine?.();
+                });
+                return;
+            }
+
+            lastEscapeAt = 0;
+            if (!key.shift) return;
+            if (key.name === "up" || key.name === "right") handleModifiedArrow("open");
+            if (key.name === "down" || key.name === "left") handleModifiedArrow("close");
+        });
+
+        rl = createInterface({
             input: process.stdin,
             output: process.stdout,
             prompt: "rix> "
         });
 
-        let buffer = "";
-
         rl.on("SIGINT", () => {
             if (buffer.length > 0) {
                 buffer = "";
+                multilineMode = false;
                 console.log("\n(cleared)");
                 rl.setPrompt("rix> ");
                 rl.prompt();
@@ -546,7 +635,7 @@ async function main() {
         rl.prompt();
 
         rl.on("line", (line) => {
-            if (buffer === "" && line.trim().startsWith(".")) {
+            if (buffer === "" && !multilineMode && line.trim().startsWith(".")) {
                 const m = line.trim().slice(1).match(/^([a-z]+)/);
                 if (m && REPL_COMMANDS.has(m[1])) {
                     handleCommand(line.trim(), context, registry, systemContext);
@@ -558,6 +647,13 @@ async function main() {
 
             if (line.endsWith("\\")) {
                 buffer += line.slice(0, -1) + "\n";
+                rl.setPrompt("... ");
+                rl.prompt();
+                return;
+            }
+
+            if (multilineMode) {
+                buffer += line + "\n";
                 rl.setPrompt("... ");
                 rl.prompt();
                 return;
