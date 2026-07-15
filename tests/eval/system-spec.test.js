@@ -147,18 +147,18 @@ describe("exact symbolic calculus", () => {
         expect(result.values[1].value).toBe(6n);
     });
 
-    test("Simplify is explicit and supports directed expansion", () => {
+    test("Transform is explicit and supports directed expansion", () => {
         const { result } = evalRix(`
             A={#x# (x*1) + 0};
             B={#x# x*(x + 1)};
-            {: A, .Simplify(A), .Simplify(B,"expand") };
+            {: A, .Transform(A), .Transform(B,"expand") };
         `);
         expect(formatValue(result.values[0])).toBe("{#x# x * 1 + 0 }");
         expect(formatValue(result.values[1])).toBe("{#x# x }");
         expect(formatValue(result.values[2])).toBe("{#x# x * x + x }");
     });
 
-    test("Simplify's default profile covers every documented local rewrite", () => {
+    test("Transform's default profile covers every documented local rewrite", () => {
         const inputs = [
             "0 + x", "x + 0", "x - 0", "0 - x",
             "0 * x", "x * 0", "1 * x", "x * 1",
@@ -171,24 +171,24 @@ describe("exact symbolic calculus", () => {
             "0", "x", "1", "x",
             "5", "5", "6", "3 / 4", "-5",
         ];
-        const forms = inputs.map((expression) => formatValue(evalRix(`.Simplify({#x# ${expression} })`).result));
+        const forms = inputs.map((expression) => formatValue(evalRix(`.Transform({#x# ${expression} })`).result));
         expect(forms).toEqual(expected.map((expression) => `{#x# ${expression} }`));
     });
 
-    test("Simplify direction names accept colon-strings, strings, and arbitrary capitalization", () => {
+    test("Transform direction names accept colon-strings, strings, and arbitrary capitalization", () => {
         const { result } = evalRix(`
             P={#x# x*(x + 1)};
-            {: .Simplify(P,:expand), .Simplify(P,"expand"),
-               .Simplify(P,:Expand), .Simplify(P,"EXPAND") };
+            {: .Transform(P,:expand), .Transform(P,"expand"),
+               .Transform(P,:Expand), .Transform(P,"EXPAND") };
         `);
         const forms = result.values.map(formatValue);
         expect(forms).toEqual(Array(4).fill("{#x# x * x + x }"));
     });
 
-    test("Taylor simplification expands and combines a polynomial in powers of its input", () => {
+    test("Center transformation without a point canonicalizes powers of the input", () => {
         const { result } = evalRix(`
             P=.Poly({#x# (x - 1)*(x + 2)});
-            S=.Simplify(P,:Taylor);
+            S=.Transform(P,:Center);
             {: .Spec(P), .Spec(S), S(4) };
         `);
         expect(formatValue(result.values[0])).toBe("{#x# (x - 1) * (x + 2) }");
@@ -196,12 +196,12 @@ describe("exact symbolic calculus", () => {
         expect(result.values[2].value).toBe(18n);
     });
 
-    test("Taylor simplification exactly recenters a polynomial", () => {
+    test("Center transformation exactly recenters a polynomial", () => {
         const { result } = evalRix(`
             P={#x# (x - 1)*(x + 2)};
-            A=.Simplify(P,:taylor,3);
-            B=.Simplify(P,"TAYLOR",-2);
-            R=.Simplify({#x# x^2},:taylor,1 / 2);
+            A=.Transform(P,:center,3);
+            B=.Transform(P,"CENTER",-2);
+            R=.Transform({#x# x^2},:center,1 / 2);
             {: A, B, .Poly(A)(4), .Poly(B)(4), .Poly(R)(3 / 2) };
         `);
         expect(formatValue(result.values[0])).toBe("{#x# (x - 3) ^ 2 + 7 * (x - 3) + 10 }");
@@ -211,11 +211,11 @@ describe("exact symbolic calculus", () => {
         expect(formatValue(result.values[4])).toBe("2..1/4");
     });
 
-    test("Taylor simplification preserves live captured coefficients", () => {
+    test("Center transformation preserves live captured coefficients", () => {
         const { result } = evalRix(`
             a=2;
             F=x->(x + a)*(x + 1);
-            T=.Simplify(F,:taylor);
+            T=.Transform(F,:center);
             a~=3;
             {: F(2), T(2), .Spec(T) };
         `);
@@ -224,11 +224,67 @@ describe("exact symbolic calculus", () => {
         expect(formatValue(result.values[2])).toBe("{#x# x ^ 2 + (1 + a) * x + a }");
     });
 
-    test("Taylor simplification rejects ambiguous and non-polynomial requests", () => {
-        expect(() => evalRix(".Simplify({#x,t# x+t},:taylor)")).toThrow(/exactly one symbolic input/);
-        expect(() => evalRix(".Simplify({#x# 1\/x},:taylor)")).toThrow(/requires a polynomial/);
-        expect(() => evalRix(".Simplify({#x# x+1},:mystery)")).toThrow(/Unknown Simplify direction/);
-        expect(() => evalRix(".Simplify({#x# x+1},:expand,3)")).toThrow(/third argument/);
+    test("Center transformation rejects ambiguous and non-polynomial requests", () => {
+        expect(() => evalRix(".Transform({#x,t# x+t},:center)")).toThrow(/exactly one symbolic input/);
+        expect(() => evalRix(".Transform({#x# 1\/x},:center)")).toThrow(/requires a polynomial/);
+        expect(() => evalRix(".Transform({#x# x+1},:taylor)")).toThrow(/Unknown Transform direction/);
+        expect(() => evalRix(".Transform({#x# x+1},:expand,3)")).toThrow(/does not accept arguments/);
+    });
+
+    test("Transform tuples accept bare directions and parameterized operation arrays in order", () => {
+        const { result } = evalRix(`
+            P={#x# x*(x + 1)};
+            {: .Transform(P,{: :expand, [:center,3] }),
+               .Transform(P,[:center,3]) };
+        `);
+        expect(formatValue(result.values[0])).toBe("{#x# (x - 3) ^ 2 + 7 * (x - 3) + 12 }");
+        expect(formatValue(result.values[1])).toBe("{#x# (x - 3) ^ 2 + 7 * (x - 3) + 12 }");
+    });
+
+    test("Factor performs ordered polynomial quotient/remainder decomposition", () => {
+        const { result } = evalRix(`
+            P={#x# x^4};
+            Q={#t# t^2 + 1};
+            F=.Transform(P,:Factor,4,Q);
+            G=.Transform(P,{: :identities, [:factor,4,Q] });
+            {: F, G, .Poly(F)(2) };
+        `);
+        expect(formatValue(result.values[0])).toBe("{#x# (x - 4) * ((x ^ 2 + 1) * (x + 4) + 15 * x + 60) + 256 }");
+        expect(formatValue(result.values[1])).toBe(formatValue(result.values[0]));
+        expect(result.values[2].value).toBe(16n);
+    });
+
+    test("Factor supports repeated roots and treats a higher-degree divisor as a no-op", () => {
+        const { result } = evalRix(`
+            A=.Transform({#x# x^4},:factor,5,5,5,5);
+            B=.Transform({#x# x^2 + 1},:factor,{#x# x^3 + 1});
+            {: A, .Poly(A)(2), B };
+        `);
+        expect(formatValue(result.values[0])).toBe("{#x# (x - 5) * ((x - 5) * ((x - 5) * (x - 5 + 20) + 150) + 500) + 625 }");
+        expect(result.values[1].value).toBe(16n);
+        expect(formatValue(result.values[2])).toBe("{#x# x ^ 2 + 1 }");
+    });
+
+    test("Factor preserves live closure cells contributed by factor specs", () => {
+        const { result } = evalRix(`
+            a=1;
+            Q=x->x + a;
+            F=.Transform({#x# x^2},:factor,Q);
+            a~=2;
+            {: .Poly(F)(3), .Spec(Q), F };
+        `);
+        expect(result.values[0].value).toBe(9n);
+        expect(formatValue(result.values[1])).toBe("{#x# x + a }");
+        expect(formatValue(result.values[2])).toContain("x + a");
+    });
+
+    test("Factor rejects a positional rename that would capture a coefficient", () => {
+        expect(() => evalRix("x=2; Q=t->x*t; .Transform({#x# x^2},:factor,Q)")).toThrow(/already uses 'x' as a coefficient/);
+    });
+
+    test("Simplify remains a compatibility alias for Transform", () => {
+        const { result } = evalRix("{: .Transform({#x# x*1}), .Simplify({#x# x*1}) };");
+        expect(result.values.map(formatValue)).toEqual(["{#x# x }", "{#x# x }"]);
     });
 
     test("postfix derivative and prefix integral syntax execute", () => {
@@ -243,7 +299,7 @@ describe("exact symbolic calculus", () => {
     });
 
     test("symbolic capabilities are available only behind dot syntax", () => {
-        for (const name of ["Poly", "Deriv", "Integrate", "Simplify", "Spec", "Speccability", "InspectSpec"]) {
+        for (const name of ["Poly", "Deriv", "Integrate", "Transform", "Simplify", "Spec", "Speccability", "InspectSpec"]) {
             expect(() => evalRix(name)).toThrow(new RegExp(`Undefined variable: ${name.toUpperCase()}`));
         }
     });

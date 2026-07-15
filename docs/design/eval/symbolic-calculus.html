@@ -34,7 +34,7 @@ ul.task-list li input[type="checkbox"] {
 <script src="../../site_libs/quarto-search/fuse.min.js"></script>
 <script src="../../site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="../../">
-<link href="../../design/eval/simplification-reference.html" rel="next">
+<link href="../../design/eval/transformation-reference.html" rel="next">
 <link href="../../design/eval/cayley-polar.html" rel="prev">
 <link href="../../rix-logo.png" rel="icon" type="image/png">
 <script src="../../site_libs/quarto-html/quarto.js" type="module"></script>
@@ -511,8 +511,8 @@ ul.task-list li input[type="checkbox"] {
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../design/eval/simplification-reference.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Symbolic simplification</span></a>
+  <a href="../../design/eval/transformation-reference.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Symbolic transformations</span></a>
   </div>
 </li>
       </ul>
@@ -568,7 +568,7 @@ ul.task-list li input[type="checkbox"] {
   <li><a href="#arithmetic-propagation" id="toc-arithmetic-propagation" class="nav-link" data-scroll-target="#arithmetic-propagation">Arithmetic propagation</a></li>
   <li><a href="#function-speccability-and-closure-cells" id="toc-function-speccability-and-closure-cells" class="nav-link" data-scroll-target="#function-speccability-and-closure-cells">Function speccability and closure cells</a></li>
   <li><a href="#calculus" id="toc-calculus" class="nav-link" data-scroll-target="#calculus">Calculus</a></li>
-  <li><a href="#intentional-simplification" id="toc-intentional-simplification" class="nav-link" data-scroll-target="#intentional-simplification">Intentional simplification</a></li>
+  <li><a href="#intentional-transformations" id="toc-intentional-transformations" class="nav-link" data-scroll-target="#intentional-transformations">Intentional transformations</a></li>
   <li><a href="#public-symbolic-capabilities" id="toc-public-symbolic-capabilities" class="nav-link" data-scroll-target="#public-symbolic-capabilities">Public Symbolic capabilities</a></li>
   </ul>
 <div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/design/eval/symbolic-calculus.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
@@ -657,16 +657,21 @@ F'(4) # 48
 'G(3) # 9</code></pre>
 <p>Repeated quotes apply repeated transforms. Bracket variable selection supports the exact single-variable subset. Calculus operation sequences and general transcendental rules remain outside this implementation.</p>
 </section>
-<section id="intentional-simplification" class="level2">
-<h2 class="anchored" data-anchor-id="intentional-simplification">Intentional simplification</h2>
-<p>Symbolic arithmetic preserves construction form. Calculus performs only local cleanup needed to avoid artifacts such as <code>0*x</code>, <code>x^1</code>, or constant-only arithmetic. <code>.Simplify</code> is the explicit general cleanup boundary and returns a new spec or callable without changing its source.</p>
-<pre class="rix"><code>.Simplify({#x# x*1 + 0 })
-.Simplify({#x# x*(x + 1) }, "expand")</code></pre>
-<p>Default directions are exact constant folding, arithmetic identities, and power identities. <code>"expand"</code> additionally distributes multiplication over addition and subtraction. A tuple of direction names is accepted for future extension; supplied directions currently add to the safe defaults.</p>
-<p><code>:taylor</code> performs exact polynomial expansion and collection. With no center it uses powers of the single input; an exact third argument writes the same polynomial in powers of <code>(input - center)</code>. It is a complete exact polynomial rewrite, not a truncated approximation:</p>
-<pre class="rix"><code>.Simplify({#x# (x - 1) * (x + 2) }, :taylor)
-.Simplify({#x# (x - 1) * (x + 2) }, :taylor, 3)</code></pre>
-<p>Direction names accept equivalent colon-string and quoted-string forms and are case-insensitive, so <code>:expand</code>, <code>"expand"</code>, <code>:Expand</code>, and <code>"EXPAND"</code> mean the same thing. See the <a href="../../design/eval/simplification-reference.html">complete symbolic simplification reference</a> for every rewrite, effective-use examples, polynomial limits, and deliberate non-transformations.</p>
+<section id="intentional-transformations" class="level2">
+<h2 class="anchored" data-anchor-id="intentional-transformations">Intentional transformations</h2>
+<p>Symbolic arithmetic preserves construction form. Calculus performs only local cleanup needed to avoid artifacts such as <code>0*x</code>, <code>x^1</code>, or constant-only arithmetic. <code>.Transform</code> is the explicit rewrite boundary and returns a new spec or callable without changing its source.</p>
+<pre class="rix"><code>.Transform({#x# x*1 + 0 })
+.Transform({#x# x*(x + 1) }, :expand)</code></pre>
+<p>Default directions are exact constant folding, arithmetic identities, and power identities. <code>:expand</code> additionally distributes multiplication over addition and subtraction.</p>
+<p><code>:center</code> performs exact polynomial expansion and collection. With no center it uses powers of the single input; an exact third argument writes the same polynomial in powers of <code>(input - center)</code>. It is a complete exact polynomial rewrite:</p>
+<pre class="rix"><code>.Transform({#x# (x - 1) * (x + 2) }, :center)
+.Transform({#x# (x - 1) * (x + 2) }, :center, 3)</code></pre>
+<p><code>:factor</code> performs ordered polynomial quotient/remainder decomposition using caller-supplied roots and polynomial factors. A scalar <code>a</code> means <code>(x - a)</code>:</p>
+<pre class="rix"><code>P := {#x# x^4 }
+Q := {#x# x^2 + 1 }
+.Transform(P, :factor, 4, Q)</code></pre>
+<p>Transformation tuples run left to right. Parameterized entries use an array, such as <code>.Transform(P, {: :expand, [:center, 3] })</code> or <code>.Transform(P, {: :identities, [:factor, 4, Q] })</code>.</p>
+<p>Direction names accept equivalent colon-string and quoted-string forms and are case-insensitive, so <code>:expand</code>, <code>"expand"</code>, <code>:Expand</code>, and <code>"EXPAND"</code> mean the same thing. See the <a href="../../design/eval/transformation-reference.html">complete symbolic transformation reference</a> for every rewrite, operation-plan syntax, polynomial limits, and deliberate non-transformations. <code>.Simplify</code> remains as a compatibility alias for <code>.Transform</code>.</p>
 </section>
 <section id="public-symbolic-capabilities" class="level2">
 <h2 class="anchored" data-anchor-id="public-symbolic-capabilities">Public Symbolic capabilities</h2>
@@ -695,18 +700,22 @@ F'(4) # 48
 <td>supported zero-constant antiderivative</td>
 </tr>
 <tr class="even">
-<td><code>.Simplify(S, directions, center)</code></td>
-<td>new deliberately simplified value; <code>center</code> is for <code>:taylor</code></td>
+<td><code>.Transform(S, direction, arguments...)</code></td>
+<td>new deliberately transformed value</td>
 </tr>
 <tr class="odd">
+<td><code>.Simplify(...)</code></td>
+<td>compatibility alias for <code>.Transform(...)</code></td>
+</tr>
+<tr class="even">
 <td><code>.Spec(F)</code></td>
 <td>attached or newly analyzed function spec</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.Speccability(F)</code></td>
 <td>analysis report map</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.InspectSpec(S)</code></td>
 <td>structural inspection map</td>
 </tr>
@@ -1143,8 +1152,8 @@ F'(4) # 48
       </a>          
   </div>
   <div class="nav-page nav-page-next">
-      <a href="../../design/eval/simplification-reference.html" class="pagination-link" aria-label="Symbolic simplification">
-        <span class="nav-page-text">Symbolic simplification</span> <i class="bi bi-arrow-right-short"></i>
+      <a href="../../design/eval/transformation-reference.html" class="pagination-link" aria-label="Symbolic transformations">
+        <span class="nav-page-text">Symbolic transformations</span> <i class="bi bi-arrow-right-short"></i>
       </a>
   </div>
 </nav>

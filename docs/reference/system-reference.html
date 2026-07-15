@@ -511,8 +511,8 @@ ul.task-list li input[type="checkbox"] {
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../design/eval/simplification-reference.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Symbolic simplification</span></a>
+  <a href="../design/eval/transformation-reference.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Symbolic transformations</span></a>
   </div>
 </li>
       </ul>
@@ -612,7 +612,7 @@ Note
 <p>This page is generated from the current RiX implementation by <code>documentation/scripts/generate-reference.js</code>. Do not edit it by hand. Descriptions come from registry documentation strings; the narrative <a href="../eval/syntax-guide.html">syntax guide</a> and <a href="../eval/methods-guide.html">methods guide</a> provide signatures and examples.</p>
 </div>
 </div>
-<p>At this revision RiX exposes <strong>95 named entries</strong> on the default system context and registers <strong>164 internal IR operations</strong>. Aliases with different spelling are listed separately because they are separately addressable names.</p>
+<p>At this revision RiX exposes <strong>96 named entries</strong> on the default system context and registers <strong>164 internal IR operations</strong>. Aliases with different spelling are listed separately because they are separately addressable names.</p>
 <section id="public-system-context" class="level2">
 <h2 class="anchored" data-anchor-id="public-system-context">Public system context</h2>
 <p>These names are available through the leading-dot system object, such as <code>.Len(value)</code>. Uppercase names are also used by explicit system/operator forms where applicable.</p>
@@ -1038,7 +1038,7 @@ Note
 <td><code>.SIMPLIFY</code></td>
 <td>function</td>
 <td>Symbolic</td>
-<td>Return an explicitly simplified or polynomial-recentered symbolic value</td>
+<td>Compatibility alias for Transform</td>
 </tr>
 <tr class="odd">
 <td><code>.SIN</code></td>
@@ -1119,84 +1119,90 @@ Note
 <td>Register an immutable semantic trait from a RiX map spec</td>
 </tr>
 <tr class="even">
+<td><code>.TRANSFORM</code></td>
+<td>function</td>
+<td>Symbolic</td>
+<td>Apply ordered exact symbolic transformations</td>
+</tr>
+<tr class="odd">
 <td><code>.TYPEEXPORT</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Export a semantically typed value through its registered type exporter</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.TYPEIMPORT</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Import a value from a tagged type export map</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.TYPEINSTALL</code></td>
 <td>function</td>
 <td>—</td>
 <td>Install a registered semantic type into system multifunctions</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.TYPEREGISTER</code></td>
 <td>function</td>
 <td>—</td>
 <td>Register an immutable semantic type from a RiX map spec</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.TraitRegister</code></td>
 <td>function</td>
 <td>—</td>
 <td>Register an immutable semantic trait from a RiX map spec</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.TypeExport</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Export a semantically typed value through its registered type exporter</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.TypeImport</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Import a value from a tagged type export map</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.TypeInstall</code></td>
 <td>function</td>
 <td>—</td>
 <td>Install a registered semantic type into system multifunctions</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.TypeRegister</code></td>
 <td>function</td>
 <td>—</td>
 <td>Register an immutable semantic type from a RiX map spec</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.UNITS</code></td>
 <td>value</td>
 <td>Units</td>
 <td>Canonical RiX unit collection</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.UPPER</code></td>
 <td>function</td>
 <td>Strings</td>
 <td>Convert string to uppercase</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.Units</code></td>
 <td>value</td>
 <td>Units</td>
 <td>Canonical RiX unit collection</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.VALUES</code></td>
 <td>function</td>
 <td>Core, Maps</td>
 <td>Get the values of a map as a set (obj|.)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.WARN</code></td>
 <td>function</td>
 <td>—</td>
@@ -1570,7 +1576,7 @@ Note
 </tr>
 <tr class="odd">
 <td><code>Symbolic</code></td>
-<td><code>POLY</code>, <code>DERIV</code>, <code>INTEGRATE</code>, <code>SIMPLIFY</code>, <code>SPEC</code>, <code>SPECCABILITY</code>, <code>INSPECTSPEC</code></td>
+<td><code>POLY</code>, <code>DERIV</code>, <code>INTEGRATE</code>, <code>TRANSFORM</code>, <code>SIMPLIFY</code>, <code>SPEC</code>, <code>SPECCABILITY</code>, <code>INSPECTSPEC</code></td>
 </tr>
 <tr class="even">
 <td><code>Random</code></td>

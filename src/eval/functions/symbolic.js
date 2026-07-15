@@ -529,25 +529,37 @@ const DIRECTION_ALIASES = new Map([
     ["constant", "constants"], ["constants", "constants"],
     ["power", "powers"], ["powers", "powers"],
     ["expand", "expand"],
-    ["taylor", "taylor"],
+    ["center", "center"],
+    ["factor", "factor"],
 ]);
 
 function normalizeDirection(value) {
     const raw = value?.value ?? value;
-    if (typeof raw !== "string") throw new Error("Simplify directions must be colon-strings or strings");
+    if (typeof raw !== "string") throw new Error("Transform directions must be colon-strings or strings");
     const normalized = raw.trim().toLowerCase().replaceAll(/[-_\s]/g, "");
     const direction = DIRECTION_ALIASES.get(normalized);
-    if (!direction) throw new Error(`Unknown Simplify direction '${raw}'`);
+    if (!direction) throw new Error(`Unknown Transform direction '${raw}'`);
     return direction;
 }
 
-function directionSet(value) {
-    if (value === null || value === undefined) return new Set(["identities", "constants", "powers"]);
-    const values = value?.values || [value];
-    return new Set([
-        "identities", "constants", "powers",
-        ...values.map(normalizeDirection),
-    ]);
+function operationDescriptor(value, inlineArgs = []) {
+    if (value?.type === "sequence" || value?.type === "array") {
+        if (!value.values.length) throw new Error("Transform operation arrays cannot be empty");
+        return { direction: normalizeDirection(value.values[0]), args: value.values.slice(1) };
+    }
+    return { direction: normalizeDirection(value), args: inlineArgs };
+}
+
+function transformPlan(directionValue, inlineArgs) {
+    if (directionValue === null || directionValue === undefined) {
+        if (inlineArgs.length) throw new Error("Transform arguments require a direction");
+        return [{ direction: "identities", args: [] }];
+    }
+    if (directionValue?.type === "tuple") {
+        if (inlineArgs.length) throw new Error("A Transform tuple carries each operation's arguments inside its operation array");
+        return directionValue.values.map((value) => operationDescriptor(value));
+    }
+    return [operationDescriptor(directionValue, inlineArgs)];
 }
 
 function polynomialAdd(left, right, subtract = false) {
@@ -618,7 +630,7 @@ function polynomialFromIr(node, variable, variablePolynomial) {
             return polynomialPower(polynomialFromIr(node.args[0], variable, variablePolynomial), exponent.numerator);
         }
     }
-    throw new Error(`Taylor simplification requires a polynomial in '${variable}'; unsupported term '${renderSymbolicIr(node)}'`);
+    throw new Error(`Polynomial transformation requires a polynomial in '${variable}'; unsupported term '${renderSymbolicIr(node)}'`);
 }
 
 function signedTerm(coefficient, basis, power) {
@@ -644,44 +656,137 @@ function polynomialToIr(polynomial, basis) {
 
 function exactCenter(value) {
     if (value === null || value === undefined) return new Rational(0n, 1n);
-    if (!isExactScalar(value)) throw new Error("Taylor simplification center must be an exact integer or rational");
+    if (!isExactScalar(value)) throw new Error("Center transformation requires an exact integer or rational center");
     return rationalFromIr(exactToIr(value));
 }
 
-function taylorIr(node, variable, centerValue) {
-    const center = exactCenter(centerValue);
-    const centered = center.numerator !== 0n;
-    const variablePolynomial = new Map([[1n, literal(1)]]);
-    if (centered) variablePolynomial.set(0n, rationalToIr(center));
-    const polynomial = polynomialFromIr(node, variable, variablePolynomial);
-    const basis = !centered
+function centerBasis(variable, center) {
+    return center.numerator === 0n
         ? retrieve(variable)
         : center.numerator < 0n
             ? ir("ADD", retrieve(variable), rationalToIr(new Rational(-center.numerator, center.denominator)))
             : ir("SUB", retrieve(variable), rationalToIr(center));
+}
+
+function centerIr(node, variable, centerValue) {
+    const center = exactCenter(centerValue);
+    const variablePolynomial = new Map([[1n, literal(1)]]);
+    if (center.numerator !== 0n) variablePolynomial.set(0n, rationalToIr(center));
+    const polynomial = polynomialFromIr(node, variable, variablePolynomial);
+    const basis = centerBasis(variable, center);
     return polynomialToIr(polynomial, basis);
 }
 
-function simplifyValue(value, directionsValue, optionValue) {
+function polynomialDegree(polynomial) {
+    let degree = null;
+    for (const power of polynomial.keys()) if (degree === null || power > degree) degree = power;
+    return degree;
+}
+
+function polynomialDivide(dividend, divisor) {
+    const divisorDegree = polynomialDegree(divisor);
+    if (divisorDegree === null) throw new Error("Factor transformation cannot divide by the zero polynomial");
+    const divisorLead = divisor.get(divisorDegree);
+    const remainder = new Map(Array.from(dividend, ([power, coefficient]) => [power, cloneIr(coefficient)]));
+    const quotient = new Map();
+    while (true) {
+        const remainderDegree = polynomialDegree(remainder);
+        if (remainderDegree === null || remainderDegree < divisorDegree) break;
+        const power = remainderDegree - divisorDegree;
+        const coefficient = binary("DIV", cloneIr(remainder.get(remainderDegree)), cloneIr(divisorLead));
+        quotient.set(power, quotient.has(power) ? binary("ADD", quotient.get(power), coefficient) : coefficient);
+        for (const [divisorPower, divisorCoefficient] of divisor) {
+            const targetPower = divisorPower + power;
+            if (targetPower === remainderDegree) {
+                remainder.delete(targetPower);
+                continue;
+            }
+            const existing = remainder.get(targetPower) || literal(0);
+            const next = binary("SUB", existing, binary("MUL", cloneIr(coefficient), cloneIr(divisorCoefficient)));
+            if (isZero(next)) remainder.delete(targetPower);
+            else remainder.set(targetPower, next);
+        }
+    }
+    return { quotient, remainder };
+}
+
+function factorOperand(value, variable) {
+    if (isExactScalar(value)) {
+        const expression = centerBasis(variable, exactCenter(value));
+        return {
+            expression,
+            polynomial: polynomialFromIr(expression, variable, new Map([[1n, literal(1)]])),
+            closureScopes: [],
+        };
+    }
+    const spec = getAttachedSpec(value);
+    if (!spec) throw new Error("Factor transformation operands must be exact roots, symbolic specs, or spec-backed functions");
+    if (spec.inputs.length !== 1) throw new Error("Factor transformation specs must have exactly one symbolic input");
+    const sourceExpression = expressionOf(spec);
+    if (spec.inputs[0] !== variable && retrieveNames(sourceExpression).has(variable)) {
+        throw new Error(`Factor transformation cannot rename '${spec.inputs[0]}' to '${variable}' because the factor already uses '${variable}' as a coefficient`);
+    }
+    const expression = substituteIr(sourceExpression, new Map([[spec.inputs[0], retrieve(variable)]]));
+    return {
+        expression,
+        polynomial: polynomialFromIr(expression, variable, new Map([[1n, literal(1)]])),
+        closureScopes: spec.__closureScopes || [],
+    };
+}
+
+function factorIr(node, variable, factors) {
+    if (!factors.length) throw new Error("Factor transformation requires at least one root or polynomial factor");
+    let quotient = polynomialFromIr(node, variable, new Map([[1n, literal(1)]]));
+    const steps = [];
+    const closureScopes = [];
+    for (const value of factors) {
+        const factor = factorOperand(value, variable);
+        const division = polynomialDivide(quotient, factor.polynomial);
+        steps.push({ expression: factor.expression, remainder: division.remainder });
+        closureScopes.push(factor.closureScopes);
+        quotient = division.quotient;
+    }
+    let expression = polynomialToIr(quotient, retrieve(variable));
+    for (let index = steps.length - 1; index >= 0; index--) {
+        expression = binary(
+            "ADD",
+            binary("MUL", cloneIr(steps[index].expression), expression),
+            polynomialToIr(steps[index].remainder, retrieve(variable)),
+        );
+    }
+    return { expression, closureScopes };
+}
+
+function transformValue(args) {
+    const [value, directionValue, ...inlineArgs] = args;
     const source = getAttachedSpec(value);
-    if (!source) throw new Error("Simplify expects a symbolic spec or function with an attached spec");
-    const directions = directionSet(directionsValue);
-    if (optionValue !== null && optionValue !== undefined && !directions.has("taylor")) {
-        throw new Error("Simplify's third argument is currently only the center for the Taylor direction");
+    if (!source) throw new Error("Transform expects a symbolic spec or function with an attached spec");
+    const plan = transformPlan(directionValue, inlineArgs);
+    let expression = expressionOf(source);
+    const addedScopeGroups = [];
+    for (const operation of plan) {
+        if (["identities", "constants", "powers", "expand"].includes(operation.direction)) {
+            if (operation.args.length) throw new Error(`Transform direction '${operation.direction}' does not accept arguments`);
+            const directions = new Set(["identities", "constants", "powers"]);
+            if (operation.direction === "expand") directions.add("expand");
+            expression = simplifyIr(expression, directions);
+            continue;
+        }
+        if (source.inputs.length !== 1) throw new Error(`${operation.direction === "center" ? "Center" : "Factor"} transformation currently requires exactly one symbolic input`);
+        if (operation.direction === "center") {
+            if (operation.args.length > 1) throw new Error("Center transformation accepts at most one center");
+            expression = centerIr(expression, source.inputs[0], operation.args[0]);
+            continue;
+        }
+        const factored = factorIr(expression, source.inputs[0], operation.args);
+        expression = factored.expression;
+        addedScopeGroups.push(...factored.closureScopes);
     }
-    let expression;
-    if (directions.has("taylor")) {
-        if (source.inputs.length !== 1) throw new Error("Taylor simplification currently requires exactly one symbolic input");
-        expression = taylorIr(expressionOf(source), source.inputs[0], optionValue);
-    } else {
-        expression = simplifyIr(expressionOf(source), directions);
-    }
+    const referencedNames = retrieveNames(expression);
+    for (const input of source.inputs) referencedNames.delete(input);
     const spec = specWithExpression(source, expression, {
-        transform: {
-            operation: "Simplify",
-            directions: Array.from(directions),
-            ...(directions.has("taylor") ? { center: optionValue ?? null } : {}),
-        },
+        __closureScopes: unionScopes([source.__closureScopes, ...addedScopeGroups], referencedNames),
+        transform: { operation: "Transform", plan: plan.map(({ direction }) => direction) },
     });
     return isSymbolicSpec(value) ? spec : polyFromSpec(spec);
 }
@@ -728,7 +833,8 @@ export const symbolicCapabilities = {
     POLY: { impl: ([value]) => polyFromSpec(getAttachedSpec(value) || value), pure: true, doc: "Compile a single-output symbolic spec into an exact callable" },
     DERIV: { impl: ([value, variable]) => calculus(value, variable, "Deriv"), pure: true, doc: "Differentiate a symbolic spec or spec-backed function exactly" },
     INTEGRATE: { impl: ([value, variable]) => calculus(value, variable, "Integrate"), pure: true, doc: "Integrate a supported symbolic spec or spec-backed function exactly" },
-    SIMPLIFY: { impl: ([value, directions, option]) => simplifyValue(value, directions, option), pure: true, doc: "Return an explicitly simplified or polynomial-recentered symbolic value" },
+    TRANSFORM: { impl: (args) => transformValue(args), pure: true, doc: "Apply ordered exact symbolic transformations" },
+    SIMPLIFY: { impl: (args) => transformValue(args), pure: true, doc: "Compatibility alias for Transform" },
     SPEC: { impl: ([value]) => explicitSpec(value), doc: "Analyze a pure function and attach/return its symbolic spec" },
     SPECCABILITY: { impl: ([value]) => speccabilityValue(value), pure: true, doc: "Report whether a pure function can be represented by the exact symbolic subset" },
     INSPECTSPEC: { impl: ([value]) => inspectSymbolicSpec(getAttachedSpec(value) || value), pure: true, doc: "Return the structural inspection map for a symbolic spec" },

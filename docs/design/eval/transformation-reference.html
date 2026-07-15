@@ -6,9 +6,9 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
-<meta name="description" content="Complete reference for .Simplify directions, exact rewrites, polynomial expansion, and centered Taylor form.">
+<meta name="description" content="Complete reference for .Transform cleanup, expansion, polynomial centering, and ordered factor decomposition.">
 
-<title>Symbolic simplification reference – RiX</title>
+<title>Symbolic transformation reference – RiX</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -300,7 +300,7 @@ ul.task-list li input[type="checkbox"] {
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../../design/eval/cells-assignments.html">Runtime design</a></li><li class="breadcrumb-item"><a href="../../design/eval/simplification-reference.html">Symbolic simplification</a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../../design/eval/cells-assignments.html">Runtime design</a></li><li class="breadcrumb-item"><a href="../../design/eval/transformation-reference.html">Symbolic transformations</a></li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
     </div>
@@ -511,8 +511,8 @@ ul.task-list li input[type="checkbox"] {
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../design/eval/simplification-reference.html" class="sidebar-item-text sidebar-link active">
- <span class="menu-text">Symbolic simplification</span></a>
+  <a href="../../design/eval/transformation-reference.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text">Symbolic transformations</span></a>
   </div>
 </li>
       </ul>
@@ -563,37 +563,41 @@ ul.task-list li input[type="checkbox"] {
    
   <ul>
   <li><a href="#scope" id="toc-scope" class="nav-link active" data-scroll-target="#scope">Scope</a></li>
-  <li><a href="#call-forms" id="toc-call-forms" class="nav-link" data-scroll-target="#call-forms">Call forms</a></li>
-  <li><a href="#default-simplification" id="toc-default-simplification" class="nav-link" data-scroll-target="#default-simplification">Default simplification</a>
+  <li><a href="#call-forms-and-ordered-plans" id="toc-call-forms-and-ordered-plans" class="nav-link" data-scroll-target="#call-forms-and-ordered-plans">Call forms and ordered plans</a></li>
+  <li><a href="#direction-names" id="toc-direction-names" class="nav-link" data-scroll-target="#direction-names">Direction names</a></li>
+  <li><a href="#default-exact-cleanup" id="toc-default-exact-cleanup" class="nav-link" data-scroll-target="#default-exact-cleanup">Default exact cleanup</a>
   <ul class="collapse">
   <li><a href="#arithmetic-identities" id="toc-arithmetic-identities" class="nav-link" data-scroll-target="#arithmetic-identities">Arithmetic identities</a></li>
   <li><a href="#exact-constants" id="toc-exact-constants" class="nav-link" data-scroll-target="#exact-constants">Exact constants</a></li>
   <li><a href="#power-identities" id="toc-power-identities" class="nav-link" data-scroll-target="#power-identities">Power identities</a></li>
   </ul></li>
   <li><a href="#expand-distributive-expansion" id="toc-expand-distributive-expansion" class="nav-link" data-scroll-target="#expand-distributive-expansion"><code>:expand</code>: distributive expansion</a></li>
-  <li><a href="#taylor-exact-polynomial-form" id="toc-taylor-exact-polynomial-form" class="nav-link" data-scroll-target="#taylor-exact-polynomial-form"><code>:taylor</code>: exact polynomial form</a>
+  <li><a href="#center-exact-polynomial-powers" id="toc-center-exact-polynomial-powers" class="nav-link" data-scroll-target="#center-exact-polynomial-powers"><code>:center</code>: exact polynomial powers</a>
   <ul class="collapse">
-  <li><a href="#centered-form" id="toc-centered-form" class="nav-link" data-scroll-target="#centered-form">Centered form</a></li>
   <li><a href="#accepted-polynomial-structure" id="toc-accepted-polynomial-structure" class="nav-link" data-scroll-target="#accepted-polynomial-structure">Accepted polynomial structure</a></li>
   </ul></li>
-  <li><a href="#direction-combinations" id="toc-direction-combinations" class="nav-link" data-scroll-target="#direction-combinations">Direction combinations</a></li>
-  <li><a href="#what-.simplify-does-not-do" id="toc-what-.simplify-does-not-do" class="nav-link" data-scroll-target="#what-.simplify-does-not-do">What <code>.Simplify</code> does not do</a></li>
+  <li><a href="#factor-ordered-quotientremainder-decomposition" id="toc-factor-ordered-quotientremainder-decomposition" class="nav-link" data-scroll-target="#factor-ordered-quotientremainder-decomposition"><code>:factor</code>: ordered quotient/remainder decomposition</a>
+  <ul class="collapse">
+  <li><a href="#repeated-roots-and-centered-horner-form" id="toc-repeated-roots-and-centered-horner-form" class="nav-link" data-scroll-target="#repeated-roots-and-centered-horner-form">Repeated roots and centered Horner form</a></li>
+  </ul></li>
+  <li><a href="#combining-transformations" id="toc-combining-transformations" class="nav-link" data-scroll-target="#combining-transformations">Combining transformations</a></li>
+  <li><a href="#what-.transform-does-not-do" id="toc-what-.transform-does-not-do" class="nav-link" data-scroll-target="#what-.transform-does-not-do">What <code>.Transform</code> does not do</a></li>
   <li><a href="#choosing-a-direction" id="toc-choosing-a-direction" class="nav-link" data-scroll-target="#choosing-a-direction">Choosing a direction</a></li>
   </ul>
-<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/design/eval/simplification-reference.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/design/eval/transformation-reference.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
     </div>
 <!-- main -->
 <main class="content" id="quarto-document-content">
 
 
-<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../../design/eval/cells-assignments.html">Runtime design</a></li><li class="breadcrumb-item"><a href="../../design/eval/simplification-reference.html">Symbolic simplification</a></li></ol></nav>
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../../design/eval/cells-assignments.html">Runtime design</a></li><li class="breadcrumb-item"><a href="../../design/eval/transformation-reference.html">Symbolic transformations</a></li></ol></nav>
 <div class="quarto-title">
-<h1 class="title">Symbolic simplification reference</h1>
+<h1 class="title">Symbolic transformation reference</h1>
 </div>
 
 <div>
   <div class="description">
-    Complete reference for .Simplify directions, exact rewrites, polynomial expansion, and centered Taylor form.
+    Complete reference for .Transform cleanup, expansion, polynomial centering, and ordered factor decomposition.
   </div>
 </div>
 
@@ -612,30 +616,41 @@ ul.task-list li input[type="checkbox"] {
 
 <section id="scope" class="level2">
 <h2 class="anchored" data-anchor-id="scope">Scope</h2>
-<p><code>.Simplify</code> performs explicit, exact rewrites of a symbolic spec or a function with an attached spec. It returns a new value and never changes the source. Symbolic arithmetic itself continues to preserve the form that was constructed.</p>
+<p><code>.Transform</code> performs explicit, exact rewrites of a symbolic spec or a function with an attached spec. It returns a new value and never changes the source. Symbolic arithmetic itself continues to preserve the form that was constructed.</p>
 <pre class="rix"><code>P := {#x# x * 1 + 0 }
-{: P, .Simplify(P) }
+{: P, .Transform(P) }
 # P is still {#x# x * 1 + 0 }</code></pre>
+<p>The name is intentionally <code>Transform</code>, rather than <code>Simplify</code>: whether one form is simpler is subjective, while each operation here has a definite structural meaning. <code>.Simplify</code> remains a compatibility alias for existing programs, but new code should use <code>.Transform</code>.</p>
 <p>This is a deliberately bounded rewrite engine, not a general computer algebra system. Each implemented transformation and each important non-transformation is listed below.</p>
 </section>
-<section id="call-forms" class="level2">
-<h2 class="anchored" data-anchor-id="call-forms">Call forms</h2>
-<pre class="rix"><code>.Simplify(Value)
-.Simplify(Value, Direction)
-.Simplify(Value, {: Direction1, Direction2 })
-.Simplify(Value, :taylor, Center)</code></pre>
+<section id="call-forms-and-ordered-plans" class="level2">
+<h2 class="anchored" data-anchor-id="call-forms-and-ordered-plans">Call forms and ordered plans</h2>
+<pre class="rix"><code>.Transform(Value)
+.Transform(Value, Direction, Arguments...)
+.Transform(Value, {: Direction1, Direction2 })
+.Transform(Value, {: Direction1, [Direction2, Arguments...] })</code></pre>
 <p><code>Value</code> may be a single-output symbolic spec or a spec-backed callable. A spec produces a new spec. A callable produces a new callable with the transformed spec attached.</p>
+<p>A single operation receives its arguments as the remaining function arguments:</p>
+<pre class="rix"><code>.Transform(P, :center, 3)
+.Transform(P, :factor, 4, Q)</code></pre>
+<p>A tuple is an ordered transformation plan. A direction that needs no arguments may appear bare. A parameterized direction is an array whose first entry is the direction and whose remaining entries are its arguments:</p>
+<pre class="rix"><code>.Transform(P, {: :expand, [:center, 3] })
+.Transform(P, {: :identities, [:factor, 4, Q] })</code></pre>
+<p>Operations run from left to right. A parameterized operation array is also accepted directly, such as <code>.Transform(P, [:center, 3])</code>.</p>
+</section>
+<section id="direction-names" class="level2">
+<h2 class="anchored" data-anchor-id="direction-names">Direction names</h2>
 <p>Directions may be colon-strings or quoted strings. These are equivalent:</p>
 <pre class="rix"><code>:expand
 "expand"
 :Expand
 "EXPAND"</code></pre>
 <p>Direction matching is case-insensitive. Leading and trailing whitespace, plus hyphens, underscores, and embedded whitespace, are ignored. Singular <code>:identity</code>, <code>:constant</code>, and <code>:power</code> are aliases of their plural names. An unknown direction is an error rather than a silently ignored request.</p>
-<p>The safe default set—<code>:identities</code>, <code>:constants</code>, and <code>:powers</code>—always runs. An explicit direction currently adds behavior to that set; it does not turn the defaults off.</p>
+<p>The exact-cleanup default—<code>:identities</code>, <code>:constants</code>, and <code>:powers</code>—runs for the no-direction call and accompanies <code>:expand</code>. The three names currently select that same safe cleanup profile when used explicitly.</p>
 </section>
-<section id="default-simplification" class="level2">
-<h2 class="anchored" data-anchor-id="default-simplification">Default simplification</h2>
-<p>Calling <code>.Simplify(Value)</code> applies all rules in this section recursively.</p>
+<section id="default-exact-cleanup" class="level2">
+<h2 class="anchored" data-anchor-id="default-exact-cleanup">Default exact cleanup</h2>
+<p>Calling <code>.Transform(Value)</code> applies all rules in this section recursively.</p>
 <section id="arithmetic-identities" class="level3">
 <h3 class="anchored" data-anchor-id="arithmetic-identities">Arithmetic identities</h3>
 <table class="caption-top table">
@@ -681,14 +696,14 @@ ul.task-list li input[type="checkbox"] {
 </tbody>
 </table>
 <p>Effective use: remove scaffolding created by programmatic construction or by a calculus rule.</p>
-<pre class="rix"><code>.Simplify({#x# (x * 1 + 0) / 1 })
+<pre class="rix"><code>.Transform({#x# (x * 1 + 0) / 1 })
 # {#x# x }</code></pre>
 <p>These are formal expression identities. In particular, reducing <code>0 / A</code> does not preserve information about a possible zero denominator.</p>
 </section>
 <section id="exact-constants" class="level3">
 <h3 class="anchored" data-anchor-id="exact-constants">Exact constants</h3>
 <p>Exact integer and rational operands are folded for <code>+</code>, <code>-</code>, <code>*</code>, and <code>/</code>. Negation of an exact constant is also folded. Results remain exact.</p>
-<pre class="rix"><code>.Simplify({#x# (2 + 3) * x + 6 / 8 })
+<pre class="rix"><code>.Transform({#x# (2 + 3) * x + 6 / 8 })
 # {#x# 5 * x + 3 / 4 }</code></pre>
 <p>Constant exponentiation is not currently evaluated by this pass. For example, <code>2 ^ 3</code> remains <code>2 ^ 3</code>.</p>
 </section>
@@ -712,8 +727,7 @@ ul.task-list li input[type="checkbox"] {
 </tr>
 </tbody>
 </table>
-<p>Effective use: clean the boundary powers produced by differentiation, integration, or generated polynomial code.</p>
-<pre class="rix"><code>.Simplify({#x# x ^ 1 + x ^ 0 })
+<pre class="rix"><code>.Transform({#x# x ^ 1 + x ^ 0 })
 # {#x# x + 1 }</code></pre>
 <p>As with other formal identities, <code>A ^ 0</code> becomes <code>1</code> without a special case for <code>0 ^ 0</code>.</p>
 </section>
@@ -721,37 +735,33 @@ ul.task-list li input[type="checkbox"] {
 <section id="expand-distributive-expansion" class="level2">
 <h2 class="anchored" data-anchor-id="expand-distributive-expansion"><code>:expand</code>: distributive expansion</h2>
 <p><code>:expand</code> recursively distributes multiplication over addition and subtraction on either side:</p>
-<pre class="rix"><code>.Simplify({#x# x * (x + 1) }, :expand)
+<pre class="rix"><code>.Transform({#x# x * (x + 1) }, :expand)
 # {#x# x * x + x }
 
-.Simplify({#x# (x + 1) * (x + 2) }, :expand)
+.Transform({#x# (x + 1) * (x + 2) }, :expand)
 # {#x# x * x + x * 2 + x + 2 }</code></pre>
-<p>Use <code>:expand</code> when a downstream structural operation needs sums exposed. It does not collect like terms, reorder factors, convert <code>x * x</code> to <code>x ^ 2</code>, or produce a canonical polynomial. Use <code>:taylor</code> for that stronger polynomial normalization.</p>
+<p>Use <code>:expand</code> when a downstream structural operation needs sums exposed. It does not collect like terms, reorder factors, convert <code>x * x</code> to <code>x ^ 2</code>, or produce a canonical polynomial. Use <code>:center</code> for canonical polynomial powers.</p>
 </section>
-<section id="taylor-exact-polynomial-form" class="level2">
-<h2 class="anchored" data-anchor-id="taylor-exact-polynomial-form"><code>:taylor</code>: exact polynomial form</h2>
-<p><code>:taylor</code> expands a single-input polynomial, collects equal powers, combines exact coefficients, and writes terms in descending powers of the input.</p>
+<section id="center-exact-polynomial-powers" class="level2">
+<h2 class="anchored" data-anchor-id="center-exact-polynomial-powers"><code>:center</code>: exact polynomial powers</h2>
+<p><code>:center</code> expands a single-input polynomial, collects equal powers, combines exact coefficients, and writes terms in descending powers of a chosen basis.</p>
+<p>With no center argument, the basis is the input itself:</p>
 <pre class="rix"><code>P := {#x# (x - 1) * (x + 2) }
-.Simplify(P, :taylor)
+.Transform(P, :center)
 # {#x# x ^ 2 + x - 2 }
 
-.Simplify({#x# 2 * x + 3 * x }, :Taylor)
+.Transform({#x# 2 * x + 3 * x }, :Center)
 # {#x# 5 * x }</code></pre>
-<p>Despite the name, this operation does not approximate or truncate. For a polynomial it produces the complete, exactly equal polynomial. Without a third argument, the basis is ordinary powers of <code>x</code>, equivalent to a Taylor form centered at zero.</p>
-<section id="centered-form" class="level3">
-<h3 class="anchored" data-anchor-id="centered-form">Centered form</h3>
-<p>The optional third argument is an exact integer or rational center. The result is written in powers of <code>x - Center</code>:</p>
-<pre class="rix"><code>P := {#x# (x - 1) * (x + 2) }
-.Simplify(P, :taylor, 3)
+<p>The optional argument is an exact integer or rational center. The result is written in powers of <code>x - Center</code>:</p>
+<pre class="rix"><code>.Transform(P, :center, 3)
 # {#x# (x - 3) ^ 2 + 7 * (x - 3) + 10 }
 
-.Simplify(P, "TAYLOR", -2)
+.Transform(P, "CENTER", -2)
 # {#x# (x + 2) ^ 2 - 3 * (x + 2) }</code></pre>
-<p>This is useful when evaluating near a point, exposing multiplicity at a point, or comparing coefficients in a local polynomial basis. The center is not an expansion order; no terms are discarded.</p>
-</section>
+<p>This is a complete exact polynomial rewrite. It neither approximates nor truncates. It is useful for evaluation near a point, exposing multiplicity at a point, or comparing coefficients in a shifted polynomial basis.</p>
 <section id="accepted-polynomial-structure" class="level3">
 <h3 class="anchored" data-anchor-id="accepted-polynomial-structure">Accepted polynomial structure</h3>
-<p>The current exact polynomial reader accepts:</p>
+<p>The exact polynomial reader used by <code>:center</code> and <code>:factor</code> accepts:</p>
 <ul>
 <li>the one declared input variable;</li>
 <li>expressions independent of that input as coefficients;</li>
@@ -760,21 +770,49 @@ ul.task-list li input[type="checkbox"] {
 <li>nonnegative exact integer powers of polynomial expressions.</li>
 </ul>
 <p>Captured values remain symbolic coefficients linked through the source spec’s closure. Equal powers are collected even when a coefficient cannot itself be reduced further.</p>
-<p>The direction requires exactly one symbolic input. Negative powers, division by an expression containing the input, and other non-polynomial terms fail clearly. A center passed to any direction other than <code>:taylor</code> is also an error.</p>
+<p>These transformations require exactly one symbolic input. Negative powers, division by an expression containing the input, and other non-polynomial terms fail clearly.</p>
 </section>
 </section>
-<section id="direction-combinations" class="level2">
-<h2 class="anchored" data-anchor-id="direction-combinations">Direction combinations</h2>
-<p>A tuple requests several named directions:</p>
-<pre class="rix"><code>.Simplify(P, {: :expand, :powers })</code></pre>
-<p>Today, <code>:identities</code>, <code>:constants</code>, and <code>:powers</code> name the three parts of the always-on default profile. <code>:expand</code> adds distributive expansion. <code>:taylor</code> performs the stronger canonical polynomial pass, so adding <code>:expand</code> to it does not provide a different polynomial result.</p>
-<p>The tuple form is retained so future transformations can compose without expanding the positional argument list.</p>
+<section id="factor-ordered-quotientremainder-decomposition" class="level2">
+<h2 class="anchored" data-anchor-id="factor-ordered-quotientremainder-decomposition"><code>:factor</code>: ordered quotient/remainder decomposition</h2>
+<p><code>:factor</code> does not search for roots or irreducible factors. It rewrites a polynomial in terms of the factors supplied by the caller, in their given order, using exact polynomial division.</p>
+<p>For factors <code>F1</code> and <code>F2</code>, it computes:</p>
+<pre class="text"><code>P  = F1 * C1 + R1
+C1 = F2 * C2 + R2</code></pre>
+<p>and returns the nested identity:</p>
+<pre class="text"><code>P = F1 * (F2 * C2 + R2) + R1</code></pre>
+<p>An exact scalar <code>A</code> denotes the linear factor <code>(x - A)</code>. A symbolic spec or spec-backed function denotes its polynomial after its sole input is positionally renamed to the input of <code>P</code>. The rename is rejected if that factor already uses the target input name as a coefficient, because silently capturing that coefficient would change its meaning.</p>
+<pre class="rix"><code>P := {#x# x ^ 4 }
+Q := {#t# t ^ 2 + 1 }
+.Transform(P, :factor, 4, Q)
+# {#x# (x - 4) * ((x ^ 2 + 1) * (x + 4) + 15 * x + 60) + 256 }</code></pre>
+<p>The visible terms record both divisions:</p>
+<ul>
+<li><code>x^4 = (x - 4) * (x^3 + 4*x^2 + 16*x + 64) + 256</code>;</li>
+<li>that first quotient is <code>(x^2 + 1) * (x + 4) + 15*x + 60</code>.</li>
+</ul>
+<section id="repeated-roots-and-centered-horner-form" class="level3">
+<h3 class="anchored" data-anchor-id="repeated-roots-and-centered-horner-form">Repeated roots and centered Horner form</h3>
+<p>Repeating a scalar repeatedly divides by the same linear factor. Supplying a root at least as many times as the degree expresses the polynomial as a nested Horner-style form in <code>(x - root)</code>:</p>
+<pre class="rix"><code>.Transform({#x# x ^ 4 }, :factor, 5, 5, 5, 5)
+# {#x# (x - 5) * ((x - 5) * ((x - 5) * (x - 5 + 20) + 150) + 500) + 625 }</code></pre>
+<p>This is equivalent to centering at <code>5</code>, but preserves the successive division structure. By contrast, <code>:center</code> returns a collected sum of powers of <code>(x - 5)</code>.</p>
+<p>If a supplied factor has degree greater than the current quotient, polynomial division returns quotient zero and the current polynomial as its remainder. The reconstructed expression therefore reduces to that remainder: the step is effectively a no-op, as are any later steps operating on the zero quotient.</p>
+<p>Factor specs may contribute captured coefficients. Their closure cells are attached to the result and remain live, subject to the same conflicting-cell checks as other symbolic combinations.</p>
 </section>
-<section id="what-.simplify-does-not-do" class="level2">
-<h2 class="anchored" data-anchor-id="what-.simplify-does-not-do">What <code>.Simplify</code> does not do</h2>
+</section>
+<section id="combining-transformations" class="level2">
+<h2 class="anchored" data-anchor-id="combining-transformations">Combining transformations</h2>
+<p>Plans run in tuple order. Each bare direction or operation array receives the output of the preceding step:</p>
+<pre class="rix"><code>.Transform(P, {: :expand, [:center, 3] })
+.Transform(P, {: [:factor, 4, Q], :identities })</code></pre>
+<p><code>:center</code> already performs polynomial expansion and collection, so an earlier <code>:expand</code> normally does not change its final result. A <code>:factor</code> followed by <code>:expand</code> deliberately expands the quotient/remainder structure again.</p>
+</section>
+<section id="what-.transform-does-not-do" class="level2">
+<h2 class="anchored" data-anchor-id="what-.transform-does-not-do">What <code>.Transform</code> does not do</h2>
 <p>No current direction performs any of the following:</p>
 <ul>
-<li>factorization;</li>
+<li>automatic root finding or automatic factor selection;</li>
 <li>cancellation such as <code>x / x -&gt; 1</code>;</li>
 <li>rational-expression common denominators;</li>
 <li>assumption-driven rewrites involving signs, nonzero values, or domains;</li>
@@ -784,7 +822,7 @@ ul.task-list li input[type="checkbox"] {
 <li>mutation of the original spec;</li>
 <li>storage of alternate equivalent forms on one spec.</li>
 </ul>
-<p>For ordinary symbolic construction, this restraint is intentional: operations retain the expression the user supplied until a named rewrite is requested.</p>
+<p>For ordinary symbolic construction, this restraint is intentional: operations retain the expression the user supplied until a named transformation is requested.</p>
 </section>
 <section id="choosing-a-direction" class="level2">
 <h2 class="anchored" data-anchor-id="choosing-a-direction">Choosing a direction</h2>
@@ -802,23 +840,31 @@ ul.task-list li input[type="checkbox"] {
 <tbody>
 <tr class="odd">
 <td>Remove exact arithmetic scaffolding</td>
-<td><code>.Simplify(P)</code></td>
+<td><code>.Transform(P)</code></td>
 </tr>
 <tr class="even">
 <td>Expose sums hidden inside products</td>
-<td><code>.Simplify(P, :expand)</code></td>
+<td><code>.Transform(P, :expand)</code></td>
 </tr>
 <tr class="odd">
 <td>Expand and collect a polynomial in powers of <code>x</code></td>
-<td><code>.Simplify(P, :taylor)</code></td>
+<td><code>.Transform(P, :center)</code></td>
 </tr>
 <tr class="even">
-<td>Express a polynomial around <code>x = A</code></td>
-<td><code>.Simplify(P, :taylor, A)</code></td>
+<td>Express a polynomial in powers of <code>(x - A)</code></td>
+<td><code>.Transform(P, :center, A)</code></td>
+</tr>
+<tr class="odd">
+<td>Record divisions by caller-supplied factors</td>
+<td><code>.Transform(P, :factor, Factors...)</code></td>
+</tr>
+<tr class="even">
+<td>Apply several transformations in order</td>
+<td><code>.Transform(P, {: Direction, [Direction, Args...] })</code></td>
 </tr>
 <tr class="odd">
 <td>Preserve the constructed expression exactly</td>
-<td>Do not call <code>.Simplify</code></td>
+<td>Do not call <code>.Transform</code></td>
 </tr>
 </tbody>
 </table>
@@ -1265,7 +1311,7 @@ ul.task-list li input[type="checkbox"] {
 </div>   
     <div class="nav-footer-center">
       &nbsp;
-    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/design/eval/simplification-reference.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/design/eval/transformation-reference.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
     <div class="nav-footer-right">
 <p>Documentation built with <a href="https://quarto.org/">Quarto</a></p>
 </div>

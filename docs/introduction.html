@@ -574,8 +574,8 @@ window.Quarto = {
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./design/eval/simplification-reference.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Symbolic simplification</span></a>
+  <a href="./design/eval/transformation-reference.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Symbolic transformations</span></a>
   </div>
 </li>
       </ul>
@@ -700,7 +700,7 @@ window.Quarto = {
   <ul class="collapse">
   <li><a href="#substitution-arithmetic-and-execution" id="toc-substitution-arithmetic-and-execution" class="nav-link" data-scroll-target="#substitution-arithmetic-and-execution">Substitution, arithmetic, and execution</a></li>
   <li><a href="#calculus-and-speccable-functions" id="toc-calculus-and-speccable-functions" class="nav-link" data-scroll-target="#calculus-and-speccable-functions">Calculus and speccable functions</a></li>
-  <li><a href="#intentional-simplification" id="toc-intentional-simplification" class="nav-link" data-scroll-target="#intentional-simplification">Intentional simplification</a></li>
+  <li><a href="#intentional-transformations" id="toc-intentional-transformations" class="nav-link" data-scroll-target="#intentional-transformations">Intentional transformations</a></li>
   </ul></li>
   <li><a href="#regex-literals" id="toc-regex-literals" class="nav-link" data-scroll-target="#regex-literals">Regex Literals</a>
   <ul class="collapse">
@@ -2064,11 +2064,13 @@ G := x -&gt; 2*x
 F'(4) # 48
 'G(3) # 9</code></pre>
 </section>
-<section id="intentional-simplification" class="level3">
-<h3 class="anchored" data-anchor-id="intentional-simplification">Intentional simplification</h3>
-<p><code>.Simplify</code> returns a new symbolic value. Exact constant folding, identities, and power cleanup are the defaults; <code>"expand"</code> additionally distributes multiplication:</p>
-<pre class="rix"><code>.Simplify({#x# x*1 + 0 })
-.Simplify({#x# x*(x + 1) }, "expand")</code></pre>
+<section id="intentional-transformations" class="level3">
+<h3 class="anchored" data-anchor-id="intentional-transformations">Intentional transformations</h3>
+<p><code>.Transform</code> returns a new symbolic value. Exact constant folding, identities, and power cleanup are the defaults; <code>:expand</code> additionally distributes multiplication. <code>:center</code> collects a polynomial in powers of the input or of a provided shifted center:</p>
+<pre class="rix"><code>.Transform({#x# x*1 + 0 })
+.Transform({#x# x*(x + 1) }, :expand)
+.Transform({#x# (x - 1)*(x + 2) }, :center, 3)</code></pre>
+<p><code>:factor</code> records ordered quotient/remainder divisions by provided roots or polynomial factors. Parameterized operations inside a transformation tuple use arrays, for example <code>.Transform(P, {: :expand, [:center, 3] })</code>. See the <a href="./design/eval/transformation-reference.html">symbolic transformation reference</a> for the exhaustive behavior. <code>.Simplify</code> remains a compatibility alias.</p>
 <p>Relation and constraint forms such as <code>:=:</code>, <code>:&lt;:</code>, and <code>:&gt;:</code> remain separate from symbolic-spec semantics. See <a href="./design/eval/symbolic-calculus.html">Symbolic specs and exact calculus</a> for the full runtime model and supported boundary.</p>
 <hr>
 </section>

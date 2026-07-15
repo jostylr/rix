@@ -1330,19 +1330,22 @@ spec-backed callable. Exact scalar arithmetic is available directly on specs;
 use `.Poly(.Spec(F) * 2)` for function-scalar arithmetic because lowercase
 `f(x)` is RiX implicit multiplication.
 
-#### Calculus, simplification, and function specs
+#### Calculus, transformations, and function specs
 
 ```rix
 D := .Deriv({#x# x^3 }, {#x})
 A := .Integrate({#x# 2*x }, {#x})
-.Simplify({#x# x*(x + 1) }, "expand")
+.Transform({#x# x*(x + 1) }, :expand)
+.Transform({#x# (x - 1)*(x + 2) }, :center, 3)
 ```
 
 `.Deriv` supports exact arithmetic differentiation including product, quotient,
 and integer-power rules. `.Integrate` supports structural polynomial
-antiderivatives and returns the zero-constant form. `.Simplify` is explicit and
-returns a new value; defaults perform exact constant, identity, and power
-cleanup, while `"expand"` also distributes multiplication.
+antiderivatives and returns the zero-constant form. `.Transform` is explicit
+and returns a new value; defaults perform exact constant, identity, and power
+cleanup, `:expand` distributes multiplication, `:center` collects shifted
+polynomial powers, and `:factor` performs ordered quotient/remainder
+decomposition by supplied factors.
 
 Pure positional functions whose bodies contain exact literals, identifiers,
 negation, and `+`, `-`, `*`, `/`, `^` receive specs automatically. Captured
@@ -1355,8 +1358,9 @@ quote implementation accepts one calculus variable per operation and does not
 implement operation-sequence parentheses.
 
 Symbolic capabilities belong to the `Symbolic` sandbox group and are available
-only through dot syntax: `.Poly`, `.Deriv`, `.Integrate`, `.Simplify`, `.Spec`,
-`.Speccability`, and `.InspectSpec`.
+only through dot syntax: `.Poly`, `.Deriv`, `.Integrate`, `.Transform`, `.Spec`,
+`.Speccability`, and `.InspectSpec`. `.Simplify` is a compatibility alias for
+`.Transform`.
 
 Constraint forms such as `:=:`, `:<:`, and `:>:` remain separate and are not part of `{# ... }` semantics yet.
 

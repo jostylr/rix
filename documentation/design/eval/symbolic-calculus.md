@@ -122,38 +122,51 @@ Repeated quotes apply repeated transforms. Bracket variable selection supports
 the exact single-variable subset. Calculus operation sequences and general
 transcendental rules remain outside this implementation.
 
-## Intentional simplification
+## Intentional transformations
 
 Symbolic arithmetic preserves construction form. Calculus performs only local
 cleanup needed to avoid artifacts such as `0*x`, `x^1`, or constant-only
-arithmetic. `.Simplify` is the explicit general cleanup boundary and returns a
-new spec or callable without changing its source.
+arithmetic. `.Transform` is the explicit rewrite boundary and returns a new
+spec or callable without changing its source.
 
 ```rix
-.Simplify({#x# x*1 + 0 })
-.Simplify({#x# x*(x + 1) }, "expand")
+.Transform({#x# x*1 + 0 })
+.Transform({#x# x*(x + 1) }, :expand)
 ```
 
 Default directions are exact constant folding, arithmetic identities, and
-power identities. `"expand"` additionally distributes multiplication over
-addition and subtraction. A tuple of direction names is accepted for future
-extension; supplied directions currently add to the safe defaults.
+power identities. `:expand` additionally distributes multiplication over
+addition and subtraction.
 
-`:taylor` performs exact polynomial expansion and collection. With no center it
+`:center` performs exact polynomial expansion and collection. With no center it
 uses powers of the single input; an exact third argument writes the same
 polynomial in powers of `(input - center)`. It is a complete exact polynomial
-rewrite, not a truncated approximation:
+rewrite:
 
 ```rix
-.Simplify({#x# (x - 1) * (x + 2) }, :taylor)
-.Simplify({#x# (x - 1) * (x + 2) }, :taylor, 3)
+.Transform({#x# (x - 1) * (x + 2) }, :center)
+.Transform({#x# (x - 1) * (x + 2) }, :center, 3)
 ```
+
+`:factor` performs ordered polynomial quotient/remainder decomposition using
+caller-supplied roots and polynomial factors. A scalar `a` means `(x - a)`:
+
+```rix
+P := {#x# x^4 }
+Q := {#x# x^2 + 1 }
+.Transform(P, :factor, 4, Q)
+```
+
+Transformation tuples run left to right. Parameterized entries use an array,
+such as `.Transform(P, {: :expand, [:center, 3] })` or
+`.Transform(P, {: :identities, [:factor, 4, Q] })`.
 
 Direction names accept equivalent colon-string and quoted-string forms and are
 case-insensitive, so `:expand`, `"expand"`, `:Expand`, and `"EXPAND"` mean the
-same thing. See the [complete symbolic simplification
-reference](simplification-reference.md) for every rewrite, effective-use
-examples, polynomial limits, and deliberate non-transformations.
+same thing. See the [complete symbolic transformation
+reference](transformation-reference.md) for every rewrite, operation-plan
+syntax, polynomial limits, and deliberate non-transformations. `.Simplify`
+remains as a compatibility alias for `.Transform`.
 
 ## Public Symbolic capabilities
 
@@ -162,7 +175,8 @@ examples, polynomial limits, and deliberate non-transformations.
 | `.Poly(S)` | executable exact callable with `S` attached |
 | `.Deriv(S, {#x})` | exact symbolic derivative |
 | `.Integrate(S, {#x})` | supported zero-constant antiderivative |
-| `.Simplify(S, directions, center)` | new deliberately simplified value; `center` is for `:taylor` |
+| `.Transform(S, direction, arguments...)` | new deliberately transformed value |
+| `.Simplify(...)` | compatibility alias for `.Transform(...)` |
 | `.Spec(F)` | attached or newly analyzed function spec |
 | `.Speccability(F)` | analysis report map |
 | `.InspectSpec(S)` | structural inspection map |

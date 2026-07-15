@@ -545,8 +545,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../design/eval/simplification-reference.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Symbolic simplification</span></a>
+  <a href="../design/eval/transformation-reference.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Symbolic transformations</span></a>
   </div>
 </li>
       </ul>
@@ -3016,15 +3016,16 @@ G(3)</code></pre>
 <p><code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>, <code>^</code>, and unary <code>-</code> propagate symbolic specs. Inputs are united by name in first-seen order; they are not positionally renamed. Construction preserves the written expression and does not simplify it.</p>
 <p><code>.Poly(S)</code> compiles a single-output spec into an executable exact callable. Two spec-backed callables can be combined by arithmetic to create a multi-input spec-backed callable. Exact scalar arithmetic is available directly on specs; use <code>.Poly(.Spec(F) * 2)</code> for function-scalar arithmetic because lowercase <code>f(x)</code> is RiX implicit multiplication.</p>
 </section>
-<section id="calculus-simplification-and-function-specs" class="level4">
-<h4 class="anchored" data-anchor-id="calculus-simplification-and-function-specs">Calculus, simplification, and function specs</h4>
+<section id="calculus-transformations-and-function-specs" class="level4">
+<h4 class="anchored" data-anchor-id="calculus-transformations-and-function-specs">Calculus, transformations, and function specs</h4>
 <pre class="rix"><code>D := .Deriv({#x# x^3 }, {#x})
 A := .Integrate({#x# 2*x }, {#x})
-.Simplify({#x# x*(x + 1) }, "expand")</code></pre>
-<p><code>.Deriv</code> supports exact arithmetic differentiation including product, quotient, and integer-power rules. <code>.Integrate</code> supports structural polynomial antiderivatives and returns the zero-constant form. <code>.Simplify</code> is explicit and returns a new value; defaults perform exact constant, identity, and power cleanup, while <code>"expand"</code> also distributes multiplication.</p>
+.Transform({#x# x*(x + 1) }, :expand)
+.Transform({#x# (x - 1)*(x + 2) }, :center, 3)</code></pre>
+<p><code>.Deriv</code> supports exact arithmetic differentiation including product, quotient, and integer-power rules. <code>.Integrate</code> supports structural polynomial antiderivatives and returns the zero-constant form. <code>.Transform</code> is explicit and returns a new value; defaults perform exact constant, identity, and power cleanup, <code>:expand</code> distributes multiplication, <code>:center</code> collects shifted polynomial powers, and <code>:factor</code> performs ordered quotient/remainder decomposition by supplied factors.</p>
 <p>Pure positional functions whose bodies contain exact literals, identifiers, negation, and <code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>, <code>^</code> receive specs automatically. Captured coefficients retain live closure cells. <code>.Speccability(F)</code> reports analysis and <code>.Spec(F)</code> returns or explicitly attaches the result.</p>
 <p>Postfix derivative <code>F'</code>, evaluated derivative <code>F'(3)</code>, and prefix integral <code>'F(3)</code> use the same engine. Repeated quotes repeat the transform. The current quote implementation accepts one calculus variable per operation and does not implement operation-sequence parentheses.</p>
-<p>Symbolic capabilities belong to the <code>Symbolic</code> sandbox group and are available only through dot syntax: <code>.Poly</code>, <code>.Deriv</code>, <code>.Integrate</code>, <code>.Simplify</code>, <code>.Spec</code>, <code>.Speccability</code>, and <code>.InspectSpec</code>.</p>
+<p>Symbolic capabilities belong to the <code>Symbolic</code> sandbox group and are available only through dot syntax: <code>.Poly</code>, <code>.Deriv</code>, <code>.Integrate</code>, <code>.Transform</code>, <code>.Spec</code>, <code>.Speccability</code>, and <code>.InspectSpec</code>. <code>.Simplify</code> is a compatibility alias for <code>.Transform</code>.</p>
 <p>Constraint forms such as <code>:=:</code>, <code>:&lt;:</code>, and <code>:&gt;:</code> remain separate and are not part of <code>{# ... }</code> semantics yet.</p>
 </section>
 </section>

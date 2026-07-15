@@ -8,7 +8,7 @@ toc-depth: 2
 This page is generated from the current RiX implementation by `documentation/scripts/generate-reference.js`. Do not edit it by hand. Descriptions come from registry documentation strings; the narrative [syntax guide](../eval/syntax-guide.md) and [methods guide](../eval/methods-guide.md) provide signatures and examples.
 :::
 
-At this revision RiX exposes **95 named entries** on the default system context and registers **164 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
+At this revision RiX exposes **96 named entries** on the default system context and registers **164 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
 
 ## Public system context
 
@@ -83,7 +83,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.RAND_NAME` | function | Core, Random | Generate a random name string RAND\_NAME(len=10, alphabet=a-zA-Z) |
 | `.REDUCE` | lazy function | Collections, Arrays | Reduce a collection |
 | `.SAME_CELL` | lazy function | — | Identity comparison (===) — returns 1 if both sides refer to the same cell, null otherwise |
-| `.SIMPLIFY` | function | Symbolic | Return an explicitly simplified or polynomial-recentered symbolic value |
+| `.SIMPLIFY` | function | Symbolic | Compatibility alias for Transform |
 | `.SIN` | function | — | Dispatch SIN through the active system multifunction registry |
 | `.SPEC` | function | Symbolic | Analyze a pure function and attach/return its symbolic spec |
 | `.SPECCABILITY` | function | Symbolic | Report whether a pure function can be represented by the exact symbolic subset |
@@ -97,6 +97,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.TGEN` | lazy function | Core, Collections, Arrays | Generate a tensor from a shape and index callback |
 | `.TRACE` | lazy function | — | Trace execution: .Trace(label, depth, trackedVars?, thunkOrCallable) |
 | `.TRAITREGISTER` | function | — | Register an immutable semantic trait from a RiX map spec |
+| `.TRANSFORM` | function | Symbolic | Apply ordered exact symbolic transformations |
 | `.TYPEEXPORT` | lazy function | — | Export a semantically typed value through its registered type exporter |
 | `.TYPEIMPORT` | lazy function | — | Import a value from a tagged type export map |
 | `.TYPEINSTALL` | function | — | Install a registered semantic type into system multifunctions |
@@ -196,7 +197,7 @@ Imported scripts can add or withhold named groups. Permission-like names are int
 | `Files` | `FILES` |
 | `Units` | `UNITS`, `Units`, `CONVERTUNIT`, `ConvertUnit`, `DEFINEUNIT`, `DefineUnit` |
 | `Exact` | `EXACT`, `Exact`, `COMPLEX`, `Complex`, `DEFINEEXACTGENERATOR`, `DefineExactGenerator` |
-| `Symbolic` | `POLY`, `DERIV`, `INTEGRATE`, `SIMPLIFY`, `SPEC`, `SPECCABILITY`, `INSPECTSPEC` |
+| `Symbolic` | `POLY`, `DERIV`, `INTEGRATE`, `TRANSFORM`, `SIMPLIFY`, `SPEC`, `SPECCABILITY`, `INSPECTSPEC` |
 | `Random` | `RANDOMSEED`, `RandomSeed`, `RAND_NAME` |
 
 Default script policy includes all functions and the `IMPORTS` permission. Recognized permission names are `IMPORTS`, `NET`, `FILES`. The default loop limit is 10,000 iterations and the default constructor capture mode is `deep_copy`.
