@@ -37,6 +37,7 @@ project:
     - design/eval/cayley-polar.md
     - design/eval/symbolic-calculus.md
     - design/eval/transformation-reference.md
+    - design/eval/output-model.md
     - rix-rationales.md
     - design/parser/spec.md
     - design/parser/questions.md
@@ -126,6 +127,8 @@ website:
             href: design/eval/symbolic-calculus.md
           - text: Symbolic transformations
             href: design/eval/transformation-reference.md
+          - text: Structured output, documents, and graphics
+            href: design/eval/output-model.md
       - section: Design and history
         contents:
           - text: Design rationales
