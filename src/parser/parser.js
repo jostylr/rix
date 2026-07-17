@@ -782,8 +782,23 @@ class Parser {
             original: token.original + (expr.original || ""),
           });
         } else if (token.value === "@") {
-          // @ followed by { or brace sigil = deferred block: @{; ...}, @{? ...}, @{...}
+          // @ followed by a quoted string is a template.  One quote produces
+          // interpolated text; repeated double quotes (normally @\"\"\"...\"\"\")
+          // produce a structured document template.  @{...} remains the
+          // established deferred-code syntax, so the two forms are unambiguous.
           this.advance(); // consume '@'
+          if (this.current.type === "String" && this.current.kind === "quote") {
+            const template = this.current;
+            this.advance();
+            const delimiter = (template.original.match(/^"+/) || [""])[0].length;
+            return this.createNode(delimiter >= 3 ? "DocumentTemplate" : "InterpolatedString", {
+              body: template.value,
+              delimiter,
+              original: token.original + template.original,
+            });
+          }
+
+          // @ followed by { or brace sigil = deferred block: @{; ...}, @{? ...}, @{...}
           const nextVal = this.current.value;
           if (nextVal === "{" || nextVal === "{;" || nextVal === "{?" || nextVal === "{=" || nextVal === "{|" || nextVal === "{:" || nextVal === "{@" || nextVal === "{#" || nextVal === "{$" || nextVal === "{.." || nextVal === "{^" || nextVal === "{>") {
             let inner;

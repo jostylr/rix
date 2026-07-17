@@ -8,8 +8,11 @@ export {
     isOutputValue,
     formatOutputText,
     renderOutputHtml,
+    renderGraphicSvg,
     createAlgebraOutputCollection,
     createSyntheticDivision,
+    createPlotOutputCollection,
+    createPolynomialPlot,
 } from "./output.js";
 export {
     createLazySequence,

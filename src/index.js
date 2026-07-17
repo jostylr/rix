@@ -13,6 +13,7 @@ export {
     createCayley, cayleyFromCartesian, cayleyCartesian, addCayley,
     subtractCayley, multiplyCayley, divideCayley, powCayley,
     negateCayley, conjugateCayley, inverseCayley, equalCayley,
-    isOutputValue, formatOutputText, renderOutputHtml, createAlgebraOutputCollection,
-    createSyntheticDivision,
+    isOutputValue, formatOutputText, renderOutputHtml, renderGraphicSvg,
+    createAlgebraOutputCollection, createSyntheticDivision, createPlotOutputCollection,
+    createPolynomialPlot,
 } from "./runtime/index.js";

@@ -1,17 +1,20 @@
 # Structured output, documents, and graphics
 
-::: {.callout-note title="Implementation status — initial vertical slice"}
+::: {.callout-note title="Implementation status — current portable slice"}
 The initial portable-output slice is implemented: `.Text`, `.Paragraph`,
 `.Heading`, `.Fragment`, `.Table`, `.Grid`, `.Path`, `.Graphic`, `.Figure`,
 `.Slide`, and `.Slides` construct typed immutable output records. The CLI has a
 text fallback, and the RiX notebook and RiX Web calculator render tables and
-grids as HTML. `.Algebra.SyntheticDivision(root, coefficients)` is the first
-algebra-layout helper and returns a ruled `Grid` using exact arithmetic.
+grids as HTML and `Graphic`/`Path` scenes as inline SVG. `.Algebra.SyntheticDivision(root,
+coefficients)` returns a ruled exact `Grid`; `.Plot.Polynomial(coefficients,
+domain, options?)` constructs a portable sampled `Graphic`.
 
-Document-template syntax, output methods, renderer negotiation, SVG graphics,
-plots, geometry, 3D scenes, plugin manifests, and non-HTML export targets
-remain design work. Examples involving those features are deliberately marked
-as intended contracts rather than current executable code.
+`@"..."` text templates and `@"""..."""` document templates are executable.
+The latter supports blank-line blocks, `h1:` through `h6:`, plus `fig:` and
+`table:` wrappers around standalone `@{...}` structured insertions. Output
+methods, renderer negotiation, geometry, 3D scenes, plugin manifests, and
+non-HTML export targets remain design work. Examples involving those features
+are deliberately marked as intended contracts rather than current executable code.
 :::
 
 ## Goal
@@ -760,11 +763,13 @@ output-schema package rather than copy the type definitions.
    multifunctions for `Text`, `Heading`, `Fragment`, `Table`, `Grid`,
    `Graphic`, and `Figure`.
 3. Implement serialization and a basic terminal renderer, including grid rules.
-4. Add the SVG/HTML renderer plugins and snapshot/renderer negotiation.
-5. Build one constructor plugin at a time: algebra layout first, then plotting,
+4. Add SVG/HTML renderers and snapshot/renderer negotiation. (The initial HTML
+   and SVG renderers are now included in the RiX hosts.)
+5. Build one constructor plugin at a time: algebra layout and a small polynomial
+   plotter are now present; next come plotting,
    geometry, heat maps, and 3D scenes.
-6. Add the `@"...@{...}..."` interpolated-text syntax after the output types
-   and text-format protocol are established.
+6. Extend the implemented `@"...@{...}..."` and document-template syntax only
+   through explicit directives and structured insertions.
 
 The synthetic-division plugin is a useful early acceptance test: it exercises
 exact values, grid layout, rules, math formatting, embedding in documents, and

@@ -19,7 +19,7 @@ The repository test suite currently covers 1,700+ cases across parser, evaluator
 | Semantics | metadata classes, semantic inquiry/conversion, type and trait registries, constructor capture |
 | Exact extensions | units/quantities, algebraic exact generators, exact complex operations, Cayley polar representation |
 | Tooling | REPL/runner, IR converter, native `.test.rix` runner, structured diagnostics, source locations, trace/debug |
-| Structured output | typed `Text`, `Paragraph`, `Heading`, `Fragment`, `Table`, `Grid`, `Path`, `Graphic`, `Figure`, `Slide`, and `Slides` values; CLI text fallback; HTML tables/grids in the RiX notebook and web calculator; exact synthetic-division layout through `.Algebra.SyntheticDivision` |
+| Structured output | typed `Text`, `Paragraph`, `Heading`, `Fragment`, `Table`, `Grid`, `Path`, `Graphic`, `Figure`, `Slide`, and `Slides` values; CLI text fallback; HTML tables/grids and inline SVG graphics in the RiX notebook and web calculator; `@"..."`/`@"""..."""` templates; exact synthetic division and polynomial plotting through `.Algebra.SyntheticDivision` and `.Plot.Polynomial` |
 | Embedding | parser exports, evaluator/runtime exports, configurable system loader and system context |
 | Exact symbolic core | identity/expression/named specs, substitution and composition, name-preserving arithmetic, attached pure-function specs, polynomial compilation, exact derivatives/integrals, explicit simplification, quote calculus syntax |
 

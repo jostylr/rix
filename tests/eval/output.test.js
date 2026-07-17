@@ -29,4 +29,34 @@ describe("portable structured output", () => {
         expect(deck.slides[0].content.kind).toBe("fragment");
         expect(formatValue(deck)).toContain("Slide 1");
     });
+
+    test("@ quoted strings interpolate RiX expressions", () => {
+        const result = parseAndEvaluate('@"The value is @{2 + 3}."');
+        expect(formatValue(result)).toBe("The value is 5.");
+    });
+
+    test("@ triple-quoted strings create document Fragments", () => {
+        const document = parseAndEvaluate(`
+            values := .Table(["x", "x²"], [[1, 1], [2, 4]]);
+            @"""
+            h1: Square values
+
+            table: A small table #tbl:squares
+                @{values}
+            """
+        `);
+        expect(document.kind).toBe("fragment");
+        expect(document.children.map((child) => child.kind)).toEqual(["heading", "figure"]);
+        expect(document.children[1].content.kind).toBe("table");
+        expect(renderOutputHtml(document, formatValue)).toContain("tbl:squares");
+    });
+
+    test("Plot.Polynomial produces a portable SVG Graphic", () => {
+        const graphic = parseAndEvaluate(".Plot.Polynomial([1, 0, -1], [-2, 2])");
+        expect(graphic.kind).toBe("graphic");
+        const html = renderOutputHtml(graphic, formatValue);
+        expect(html).toContain("<svg");
+        expect(html).toContain("<path");
+        expect(html).toContain('viewBox="0 0 640 360"');
+    });
 });

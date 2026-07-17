@@ -32,7 +32,7 @@ import { outputFunctions } from "./functions/output.js";
 import { MATH_FUNCTION_NAMES, mathFunctions } from "./functions/math.js";
 import { installRegisteredTypes, registerBuiltinSemanticTypes } from "../runtime/type-system.js";
 import { createDefaultComplexCollection, createDefaultExactCollection } from "../runtime/exact-values.js";
-import { createAlgebraOutputCollection } from "../runtime/output.js";
+import { createAlgebraOutputCollection, createPlotOutputCollection } from "../runtime/output.js";
 import { createDefaultUnitCollection } from "../runtime/quantities.js";
 import { installUnitExactVariants, unitExactFunctions } from "./functions/units.js";
 import { parse } from "../parser/parser.js";
@@ -60,6 +60,7 @@ export function createDefaultRegistry(options = {}) {
     registry.registerAll(unitExactFunctions);
     registry.registerAll(symbolicFunctions);
     registry.registerAll(mathFunctions);
+    registry.registerAll(outputFunctions);
     installRegisteredTypes(registry);
     installUnitExactVariants(registry);
     installSymbolicVariants(registry);
@@ -100,6 +101,9 @@ export function createDefaultSystemContext(options = {}) {
     const algebra = createAlgebraOutputCollection();
     ctx.registerValue("ALGEBRA", algebra, { doc: "Algebra presentation helpers" });
     ctx.registerValue("Algebra", algebra, { doc: "Algebra presentation helpers" });
+    const plot = createPlotOutputCollection();
+    ctx.registerValue("PLOT", plot, { doc: "Portable plotting helpers" });
+    ctx.registerValue("Plot", plot, { doc: "Portable plotting helpers" });
     ctx.registerAll(stdlibFunctions);
     ctx.registerAll(symbolicCapabilities);
     ctx.registerAll(outputFunctions);

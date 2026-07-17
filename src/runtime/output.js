@@ -18,7 +18,9 @@ function map(value, label) {
 }
 
 function get(entries, name, fallback = null) {
-    return entries.has(name) ? entries.get(name) : fallback;
+    if (entries.has(name)) return entries.get(name);
+    const canonical = String(name).toLowerCase();
+    return entries.has(canonical) ? entries.get(canonical) : fallback;
 }
 
 function optionalMap(value, label) {
@@ -54,6 +56,13 @@ function exactInteger(value, label) {
 function exactNumber(value, label) {
     if (value instanceof Integer || value instanceof Rational) return value;
     throw new Error(`${label} must be an exact integer or rational`);
+}
+
+function numericValue(value, label) {
+    if (value instanceof Integer) return Number(value.value);
+    if (value instanceof Rational) return Number(value.numerator) / Number(value.denominator);
+    if (typeof value === "number" && Number.isFinite(value)) return value;
+    throw new Error(`${label} must be a finite number`);
 }
 
 function normalizeColumns(value) {
@@ -180,6 +189,74 @@ export function createSyntheticDivision(root, coefficients) {
     });
 }
 
+/**
+ * A deliberately small, portable plotting helper.  It produces an ordinary
+ * Graphic made of Paths, so every host can render or serialize the result
+ * without depending on a browser plotting library.
+ */
+export function createPolynomialPlot(coefficients, domain, options = null) {
+    const values = sequence(coefficients, "Polynomial coefficients").map((value, index) => exactNumber(value, `Polynomial coefficient ${index + 1}`));
+    if (values.length < 2) throw new Error("Plot.Polynomial requires at least two coefficients");
+    const bounds = sequence(domain, "Polynomial plot domain");
+    if (bounds.length !== 2) throw new Error("Polynomial plot domain must have a lower and upper bound");
+    const xMin = numericValue(bounds[0], "Polynomial plot lower bound");
+    const xMax = numericValue(bounds[1], "Polynomial plot upper bound");
+    if (!(xMin < xMax)) throw new Error("Polynomial plot domain must increase");
+
+    const optionEntries = options === null || options === undefined ? new Map() : map(options, "Polynomial plot options");
+    const requestedSize = get(optionEntries, "size", null);
+    const size = requestedSize === null ? [640, 360] : sequence(requestedSize, "Polynomial plot size").map((value, index) => numericValue(value, `Polynomial plot size ${index + 1}`));
+    if (size.length !== 2 || size.some((value) => value <= 0)) throw new Error("Polynomial plot size must contain positive width and height");
+    const samplesValue = get(optionEntries, "samples", null);
+    const samples = samplesValue === null ? 161 : exactInteger(samplesValue, "Polynomial plot samples");
+    if (samples < 2 || samples > 10000) throw new Error("Polynomial plot samples must be between 2 and 10000");
+    const marginValue = get(optionEntries, "margin", null);
+    const margin = marginValue === null ? 36 : numericValue(marginValue, "Polynomial plot margin");
+    if (margin < 0 || margin * 2 >= Math.min(...size)) throw new Error("Polynomial plot margin is too large for its size");
+
+    const coefficientNumbers = values.map((value) => numericValue(value, "Polynomial coefficient"));
+    const evaluatePolynomial = (x) => coefficientNumbers.reduce((total, coefficient) => total * x + coefficient, 0);
+    const samplesData = Array.from({ length: samples }, (_, index) => {
+        const x = xMin + (xMax - xMin) * index / (samples - 1);
+        return [x, evaluatePolynomial(x)];
+    });
+    let yMin = Math.min(0, ...samplesData.map(([, y]) => y));
+    let yMax = Math.max(0, ...samplesData.map(([, y]) => y));
+    if (yMin === yMax) {
+        yMin -= 1;
+        yMax += 1;
+    }
+    const yPadding = (yMax - yMin) * 0.08;
+    yMin -= yPadding;
+    yMax += yPadding;
+
+    const [width, height] = size;
+    const toPoint = ([x, y]) => [
+        margin + (x - xMin) / (xMax - xMin) * (width - margin * 2),
+        height - margin - (y - yMin) / (yMax - yMin) * (height - margin * 2),
+    ];
+    const curveStyle = new Map([
+        ["stroke", get(optionEntries, "stroke", { type: "string", value: "#2563eb" })],
+        ["width", get(optionEntries, "width", int(2))],
+        ["fill", { type: "string", value: "none" }],
+    ]);
+    const axisStyle = new Map([
+        ["stroke", { type: "string", value: "#64748b" }],
+        ["width", int(1)],
+        ["dash", { type: "string", value: "3 3" }],
+        ["fill", { type: "string", value: "none" }],
+    ]);
+    const children = [];
+    if (yMin <= 0 && yMax >= 0) children.push(output("path", { points: [toPoint([xMin, 0]), toPoint([xMax, 0])], style: axisStyle }));
+    if (xMin <= 0 && xMax >= 0) children.push(output("path", { points: [toPoint([0, yMin]), toPoint([0, yMax])], style: axisStyle }));
+    children.push(output("path", { points: samplesData.map(toPoint), style: curveStyle }));
+    return output("graphic", {
+        size: [int(Math.round(width)), int(Math.round(height))],
+        children,
+        metadata: new Map([["kind", { type: "string", value: "polynomial_plot" }]]),
+    });
+}
+
 function escapeHtml(value) {
     return String(value).replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
 }
@@ -188,8 +265,64 @@ function cellText(value, format) {
     return value === null || value === undefined ? "" : format(value);
 }
 
+function ruleField(rule, name) {
+    if (rule?.type === "map" && rule.entries instanceof Map) return get(rule.entries, name);
+    return rule?.[name] ?? null;
+}
+
 function hasRule(grid, kind, value) {
-    return grid.rules.some((rule) => rule?.kind === kind && (kind === "vertical" ? rule.afterColumn === value : rule.aboveRow === value));
+    const field = kind === "vertical" ? "afterColumn" : "aboveRow";
+    return grid.rules.some((rule) => {
+        const ruleKind = asString(ruleField(rule, "kind")) ?? ruleField(rule, "kind");
+        const ruleValue = ruleField(rule, field);
+        return ruleKind === kind && (ruleValue === value || numericValue(ruleValue, `Grid ${field}`) === value);
+    });
+}
+
+function styleEntry(style, name) {
+    return style instanceof Map && style.has(name) ? style.get(name) : null;
+}
+
+function svgNumber(value, label) {
+    const number = numericValue(value, label);
+    if (!Number.isFinite(number)) throw new Error(`${label} must be finite`);
+    return Number(number.toFixed(6)).toString();
+}
+
+function svgPoint(value, index) {
+    const point = sequence(value, `Path point ${index + 1}`);
+    if (point.length !== 2) throw new Error(`Path point ${index + 1} must contain x and y coordinates`);
+    return [svgNumber(point[0], `Path point ${index + 1} x`), svgNumber(point[1], `Path point ${index + 1} y`)];
+}
+
+function svgStyle(path) {
+    const style = path.style;
+    const attrs = [];
+    const stroke = asString(styleEntry(style, "stroke"));
+    const fill = asString(styleEntry(style, "fill"));
+    const dash = asString(styleEntry(style, "dash"));
+    const opacity = styleEntry(style, "opacity");
+    const width = styleEntry(style, "width") ?? styleEntry(style, "strokeWidth");
+    attrs.push(`fill="${escapeHtml(fill || "none")}"`);
+    if (stroke) attrs.push(`stroke="${escapeHtml(stroke)}"`);
+    if (width !== null && width !== undefined) attrs.push(`stroke-width="${svgNumber(width, "Path stroke width")}"`);
+    if (dash) attrs.push(`stroke-dasharray="${escapeHtml(dash)}"`);
+    if (opacity !== null && opacity !== undefined) attrs.push(`opacity="${svgNumber(opacity, "Path opacity")}"`);
+    return attrs.join(" ");
+}
+
+export function renderGraphicSvg(graphic) {
+    if (!isOutputValue(graphic) || graphic.kind !== "graphic") throw new Error("Expected a Graphic output value");
+    const size = graphic.size.map((value, index) => svgNumber(value, `Graphic size ${index + 1}`));
+    const children = graphic.children.map((child) => {
+        if (!isOutputValue(child) || child.kind !== "path") return "";
+        if (child.points.length === 0) return "";
+        const points = child.points.map(svgPoint);
+        const closed = styleEntry(child.style, "closed")?.value === 1n || styleEntry(child.style, "closed") === true;
+        const d = points.map(([x, y], index) => `${index === 0 ? "M" : "L"}${x} ${y}`).join(" ") + (closed ? " Z" : "");
+        return `<path d="${d}" ${svgStyle(child)}/>`;
+    }).join("");
+    return `<svg class="rix-output-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size[0]} ${size[1]}" width="${size[0]}" height="${size[1]}" role="img">${children}</svg>`;
 }
 
 export function formatOutputText(value, format) {
@@ -232,8 +365,8 @@ export function renderOutputHtml(value, format = (item) => String(item ?? "")) {
     if (value.kind === "fragment") return `<section class="rix-output-fragment">${value.children.map((child) => renderOutputHtml(child, format)).join("")}</section>`;
     if (value.kind === "table") return `<table class="rix-output-table">${value.caption ? `<caption>${escapeHtml(value.caption)}</caption>` : ""}<thead><tr>${value.columns.map((column) => `<th>${escapeHtml(column.label)}</th>`).join("")}</tr></thead><tbody>${value.rows.map((row) => `<tr>${row.map((cell) => `<td>${text(cell)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
     if (value.kind === "grid") return `<table class="rix-output-grid"><tbody>${value.rows.map((row, rowIndex) => `<tr${hasRule(value, "horizontal", rowIndex + 1) ? " class=\"rix-grid-rule-top\"" : ""}>${row.map((cell, column) => `<td${hasRule(value, "vertical", column + 1) ? " class=\"rix-grid-rule-left\"" : ""}>${text(cell)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
-    if (value.kind === "figure") return `<figure class="rix-output-figure">${renderOutputHtml(value.content, format)}${value.caption ? `<figcaption>${escapeHtml(value.caption)}</figcaption>` : ""}</figure>`;
-    if (value.kind === "graphic") return `<div class="rix-output-graphic">${escapeHtml(formatOutputText(value, format))}</div>`;
+    if (value.kind === "figure") return `<figure class="rix-output-figure"${value.label ? ` id="${escapeHtml(value.label)}"` : ""}>${renderOutputHtml(value.content, format)}${value.caption ? `<figcaption>${escapeHtml(value.caption)}</figcaption>` : ""}</figure>`;
+    if (value.kind === "graphic") return `<div class="rix-output-graphic">${renderGraphicSvg(value)}</div>`;
     if (value.kind === "slide") return `<section class="rix-output-slide">${value.title ? `<h2>${escapeHtml(value.title)}</h2>` : ""}${renderOutputHtml(value.content, format)}</section>`;
     if (value.kind === "slides") return `<section class="rix-output-slides">${value.slides.map((slide) => renderOutputHtml(slide, format)).join("")}</section>`;
     return `<pre>${escapeHtml(formatOutputText(value, format))}</pre>`;
@@ -249,6 +382,22 @@ export function createAlgebraOutputCollection() {
                 type: "method_builtin",
                 name: "SyntheticDivision",
                 impl: (args) => syntheticDivision(...args.slice(1)),
+            }],
+            ["immutable", int(1)],
+        ]),
+    };
+}
+
+export function createPlotOutputCollection() {
+    const polynomial = (coefficients, domain, options = null) => createPolynomialPlot(coefficients, domain, options);
+    return {
+        type: "map",
+        entries: new Map([["Polynomial", polynomial], ["POLYNOMIAL", polynomial]]),
+        _ext: new Map([
+            ["POLYNOMIAL", {
+                type: "method_builtin",
+                name: "Polynomial",
+                impl: (args) => polynomial(...args.slice(1)),
             }],
             ["immutable", int(1)],
         ]),

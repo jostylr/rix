@@ -151,6 +151,14 @@ const LOWERERS = {
     return ir("STRING", node.value);
   },
 
+  InterpolatedString(node) {
+    return ir("TEMPLATE_TEXT", node.body);
+  },
+
+  DocumentTemplate(node) {
+    return ir("DOCUMENT_TEMPLATE", node.body);
+  },
+
   ScriptImportExpression(node) {
     return ir("SCRIPT_IMPORT", {
       path: node.path.value,
