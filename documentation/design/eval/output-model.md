@@ -1,10 +1,17 @@
 # Structured output, documents, and graphics
 
-::: {.callout-warning title="Design proposal — not implemented"}
-This is a proposed portable-output model for RiX. None of the constructors,
-methods, interpolation syntax, plugin manifests, or renderers described here
-are currently part of the runtime. The examples establish intended source
-syntax and contracts; they are not executable yet.
+::: {.callout-note title="Implementation status — initial vertical slice"}
+The initial portable-output slice is implemented: `.Text`, `.Paragraph`,
+`.Heading`, `.Fragment`, `.Table`, `.Grid`, `.Path`, `.Graphic`, `.Figure`,
+`.Slide`, and `.Slides` construct typed immutable output records. The CLI has a
+text fallback, and the RiX notebook and RiX Web calculator render tables and
+grids as HTML. `.Algebra.SyntheticDivision(root, coefficients)` is the first
+algebra-layout helper and returns a ruled `Grid` using exact arithmetic.
+
+Document-template syntax, output methods, renderer negotiation, SVG graphics,
+plots, geometry, 3D scenes, plugin manifests, and non-HTML export targets
+remain design work. Examples involving those features are deliberately marked
+as intended contracts rather than current executable code.
 :::
 
 ## Goal

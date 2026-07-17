@@ -8,6 +8,7 @@ import { formatExact, isCayleyInfinity, isCayleyValue } from "../runtime/exact-v
 import { formatQuantity, formatUnit, isQuantity, isUnitValue } from "../runtime/quantities.js";
 import { isLazySequence, lazyKnownLength } from "../runtime/lazy-sequence.js";
 import { formatSymbolicSpec, getAttachedSpec, isSymbolicSpec, renderSymbolicIr } from "./functions/symbolic.js";
+import { formatOutputText, isOutputValue } from "../runtime/output.js";
 
 function tensorValueAtTuple(tensor, tuple) {
     const value = tensor.data[tensorOffsetForTuple(tensor, tuple)];
@@ -261,6 +262,7 @@ export function formatValue(val, options = {}) {
     if (val === undefined) return "undefined";
 
     if (typeof val === "object" && val !== null) {
+        if (isOutputValue(val)) return formatOutputText(val, formatChild);
         if (isSymbolicSpec(val)) return formatSymbolicSpec(val);
         if (isLazySequence(val)) {
             const cached = val._lazy.cache.slice(0, 8).map(formatChild).join(", ");

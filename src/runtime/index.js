@@ -5,6 +5,13 @@ export { HOLE, isHole } from "./hole.js";
 export { DiagnosticsRegistry, getDiagnostics, RixAbort, isRixAbort, createEvent } from "./diagnostics.js";
 export { runtimeDefaults } from "./runtime-config.js";
 export {
+    isOutputValue,
+    formatOutputText,
+    renderOutputHtml,
+    createAlgebraOutputCollection,
+    createSyntheticDivision,
+} from "./output.js";
+export {
     createLazySequence,
     cloneLazySequence,
     ensureLazyIndex,
