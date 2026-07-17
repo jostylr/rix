@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/index.js",
     "./parser": "./src/parser/index.js",
+    "./codemirror": "./src/tools/codemirror/index.js",
     "./eval": "./src/eval/index.js",
     "./runtime": "./src/runtime/index.js"
   },
@@ -18,6 +19,8 @@
     "test:parser": "bun test tests/parser",
     "test:eval": "bun test tests/eval",
     "test:tools": "bun test tests/tools",
+    "build:lezer": "lezer-generator src/tools/lezer/rix.grammar -o src/tools/lezer/parser.js",
+    "test:codemirror": "bun test tests/tools/codemirror.test.js",
     "build:demo": "bun build ./documentation/parser/src/demo.js --outfile ./documentation/parser/demo.js --target browser",
     "docs:reference": "bun ./documentation/scripts/generate-reference.js",
     "docs:check": "bun run docs:reference && bun ./documentation/scripts/run-quarto.js render",
@@ -26,9 +29,14 @@
     "build:all": "bun run build:docs"
   },
   "dependencies": {
+    "@codemirror/language": "^6.12.4",
+    "@lezer/common": "^1.5.2",
+    "@lezer/highlight": "^1.2.3",
+    "@lezer/lr": "^1.4.10",
     "@ratmath/core": "workspace:*"
   },
   "devDependencies": {
+    "@lezer/generator": "^1.8.0",
     "marked": "^15.0.12"
   },
   "engines": {

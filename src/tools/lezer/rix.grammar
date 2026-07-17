@@ -1,0 +1,73 @@
+// This editor grammar describes source structure, not evaluator semantics.
+// The Pratt parser remains RiX's source of truth for AST construction.
+
+@top Program { (Statement Separator)* Statement? }
+
+@skip { space | Comment }
+
+@detectDelim
+
+Statement { Expression }
+
+Separator { ";" | "," }
+
+// Keep partial expressions useful while typing. This deliberately models a
+// broad operand/operator shape until the next slice adds RiX's full precedence
+// table. Primary forms retain the structure needed for editor features.
+Expression { Operand (Operator Operand)* }
+
+Operand { Operator? Primary Postfix* }
+
+Postfix { Group | Array | Container }
+
+Primary {
+  Number |
+  String |
+  BacktickString |
+  Regex |
+  Identifier |
+  SystemIdentifier |
+  SystemFunction |
+  OuterIdentifier |
+  Placeholder |
+  SelfReference |
+  Group |
+  Array |
+  Container
+}
+
+SelfReference { "$" | "$$" }
+
+Group { "(" ExpressionList? ")" }
+
+ExpressionList { Expression ("," Expression)* }
+
+Array { "[" ExpressionList? "]" }
+
+Container { BraceOpen (Expression (Separator Expression)*)? BraceClose }
+
+BraceOpen {
+  "{=" | "{?" | "{;" | "{|" | "{:" | "{@" | "{#" | "{.." |
+  "{>" | "{^" | "{$" | "{!" | "{+" | "{*" | "{&&" | "{||" |
+  "{\\/" | "{/\\" | "{++" | "{<<" | "{>>" | "{"
+}
+
+BraceClose { "|}" | "}" }
+
+@external tokens rixTokens from "./tokens.js" {
+  Number,
+  String,
+  BacktickString,
+  Regex,
+  Comment,
+  SystemFunction,
+  OuterIdentifier,
+  SystemIdentifier,
+  Identifier,
+  Placeholder,
+  Operator
+}
+
+@tokens {
+  space { @whitespace+ }
+}
