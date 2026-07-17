@@ -19,7 +19,7 @@ Write the mathematics you recognize. Keep rational values exact. Carry intervals
 [See the language](language-at-a-glance.qmd){.btn .btn-outline-primary}
 [Read the complete introduction](introduction.md){.btn .btn-outline-primary}
 [RatCalc](https://rix.ratmath.com){.btn .btn-outline-primary}
-[Live Tutorials](https://rix.ratmath.com/learn/getting-started.html){.btn .btn-outline-primary}
+[Live Tutorials](https://rix.ratmath.com/tutorial/){.btn .btn-outline-primary}
 
 ```rix
 third := 1/3
