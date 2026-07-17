@@ -11,9 +11,10 @@ Statement { Expression }
 
 Separator { ";" | "," }
 
-// Keep partial expressions useful while typing. This deliberately models a
-// broad operand/operator shape until the next slice adds RiX's full precedence
-// table. Primary forms retain the structure needed for editor features.
+// Keep partial expressions useful while typing. The Pratt parser remains the
+// semantic authority, but the editor grammar names every container form so
+// folding, selection, and future context-aware completion can distinguish
+// their intended structure.
 Expression { Operand (Operator Operand)* }
 
 Operand { Operator? Primary Postfix* }
@@ -44,13 +45,38 @@ ExpressionList { Expression ("," Expression)* }
 
 Array { "[" ExpressionList? "]" }
 
-Container { BraceOpen (Expression (Separator Expression)*)? BraceClose }
-
-BraceOpen {
-  "{=" | "{?" | "{;" | "{|" | "{:" | "{@" | "{#" | "{.." |
-  "{>" | "{^" | "{$" | "{!" | "{+" | "{*" | "{&&" | "{||" |
-  "{\\/" | "{/\\" | "{++" | "{<<" | "{>>" | "{"
+Container {
+  MapContainer | CaseContainer | BlockContainer | SetContainer | TupleContainer |
+  LoopContainer | MatchContainer | RangeContainer | GreaterContainer | PowerContainer |
+  DollarContainer | MutationContainer | PlusContainer | StarContainer | AndContainer |
+  OrContainer | BackslashContainer | SlashContainer | IncrementContainer |
+  ShiftLeftContainer | ShiftRightContainer | PlainContainer
 }
+
+ContainerContents { Expression (Separator Expression)* }
+
+MapContainer { "{=" ContainerContents? BraceClose }
+CaseContainer { "{?" ContainerContents? BraceClose }
+BlockContainer { "{;" ContainerContents? BraceClose }
+SetContainer { "{|" ContainerContents? BraceClose }
+TupleContainer { "{:" ContainerContents? BraceClose }
+LoopContainer { "{@" ContainerContents? BraceClose }
+MatchContainer { "{#" ContainerContents? BraceClose }
+RangeContainer { "{.." ContainerContents? BraceClose }
+GreaterContainer { "{>" ContainerContents? BraceClose }
+PowerContainer { "{^" ContainerContents? BraceClose }
+DollarContainer { "{$" ContainerContents? BraceClose }
+MutationContainer { "{!" ContainerContents? BraceClose }
+PlusContainer { "{+" ContainerContents? BraceClose }
+StarContainer { "{*" ContainerContents? BraceClose }
+AndContainer { "{&&" ContainerContents? BraceClose }
+OrContainer { "{||" ContainerContents? BraceClose }
+BackslashContainer { "{\\/" ContainerContents? BraceClose }
+SlashContainer { "{/\\" ContainerContents? BraceClose }
+IncrementContainer { "{++" ContainerContents? BraceClose }
+ShiftLeftContainer { "{<<" ContainerContents? BraceClose }
+ShiftRightContainer { "{>>" ContainerContents? BraceClose }
+PlainContainer { "{" ContainerContents? BraceClose }
 
 BraceClose { "|}" | "}" }
 

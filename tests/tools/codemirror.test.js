@@ -18,7 +18,7 @@ describe("RiX Lezer grammar", () => {
     const result = tree('## note\nvalue := {= label="circle", bounds=1:5 };');
     expect(result).toContain("Comment");
     expect(result).toContain("String");
-    expect(result).toContain("Container");
+    expect(result).toContain("MapContainer");
   });
 
   test("recognizes RiX-specific identifier forms", () => {
@@ -31,7 +31,9 @@ describe("RiX Lezer grammar", () => {
   });
 
   test("supports sigil containers with alternate closers", () => {
-    expect(tree("values := {| 1, 2 |}")).not.toContain("⚠");
+    const result = tree("values := {| 1, 2 |}");
+    expect(result).toContain("SetContainer");
+    expect(result).not.toContain("⚠");
   });
 
   test("exposes a CodeMirror language parser", () => {
