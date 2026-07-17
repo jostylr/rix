@@ -62,11 +62,14 @@ calls are capitalized:
 ```rix
 .Table(...)
 .Fragment(...)
+.Paragraph(...)
 .Graphic(...)
 .Figure(...)
 .Grid(...)
 .Heading(...)
 .Text(...)
+.Slide(...)
+.Slides(...)
 ```
 
 The parser normalizes system capability names internally, but source examples
@@ -83,12 +86,15 @@ protocols.
 | Value / operation | Role |
 |---|---|
 | `.Text` | Explicit text node, particularly useful in a document fragment. |
+| `.Paragraph` | A block of document text; distinct from inline text. |
 | `.Heading` | Structured document heading. |
 | `.Fragment` | Ordered document/output children. |
 | `.Table` | Semantic, tabular presentation of columns and rows. |
 | `.Grid` | General positioned layout cells with spans and rules; suitable for mathematical layouts. |
 | `.Graphic` | Portable retained-mode 2D scene. |
 | `.Figure` | A graphic, table, or grid with caption, label, and accessibility metadata. |
+| `.Slide` | One titled, metadata-bearing presentation frame. |
+| `.Slides` | An ordered deck of `Slide` values, specialized for sequential presentation and export. |
 | `.Render` / `value.Render(...)` | Resolve a renderer for a target or host context. |
 | `.Snapshot` / `value.Snapshot(...)` | Produce a static representation where possible. |
 | `.Serialize` / `value.Serialize()` | Preserve the portable value for notebooks, reports, and transfer. |
@@ -166,12 +172,15 @@ The proposed initial shapes are:
 
 ```rix
 .Text({= value = text, style = {= } })
+.Paragraph({= children = values, style = {= } })
 .Heading({= level = integer, content = value, id = _, style = {= } })
 .Fragment({= children = values, metadata = {= } })
 .Table({= columns = columns, rows = rows, caption = _, options = {= } })
 .Grid({= columns = columns, rows = rows, rules = [], style = {= } })
 .Graphic({= size = [width, height], children = nodes, viewBox = _, metadata = {= } })
 .Figure({= content = value, caption = _, label = _, alt = _ })
+.Slide({= content = value, title = _, id = _, notes = _, metadata = {= } })
+.Slides({= slides = values, title = _, theme = _, metadata = {= } })
 ```
 
 Plain values in a `Fragment` or `Grid` cell are retained as values. A renderer
@@ -192,6 +201,7 @@ extend.
 | `Grid` | `.Cell(row, column)`, `.With(spec)`, `.WithRule(rule)` | Query or vary non-tabular layout. |
 | `Graphic` | `.Bounds()`, `.Transform(transform)`, `.With(spec)` | Inspect and vary a scene without rasterizing it. |
 | `Figure` | `.Content()`, `.Caption()`, `.With(spec)` | Access or vary document metadata. |
+| `Slide` / `Slides` | `.Content()`, `.Notes()`, `.Append(slide)`, `.At(index)`, `.With(spec)` | Compose a deck without committing to an export format. |
 
 `Table.With`, `Graphic.With`, and similar methods are immutable transformations:
 they create a new output value. A plugin adds renderer or adapter registrations
@@ -264,6 +274,200 @@ report := .Fragment({=
 A future document-template literal may preserve a table or graphic inserted at
 a document-level hole. It should be a distinct `Fragment`-producing construct,
 not an accidental behavior of text interpolation.
+
+## Document templates
+
+`Fragment` is the semantic document structure, but it should not be the only
+way to author a report, explanation, or handout. A light document template
+should compile to a `Fragment` and use ordinary RiX only for computation.
+
+### Proposed syntax
+
+Use `@"""..."""` for a document template. The leading `@` identifies a
+template and the triple-double-quote delimiter signals block-oriented document
+content:
+
+```rix
+report := @"""
+h1: Quadratic analysis
+
+The selected values are shown below.
+
+table: Values of F #tbl:values
+    @{values}
+
+fig: Graph of F #fig:curve
+    @{curve}
+"""
+```
+
+The template evaluates to a `Fragment` conceptually equivalent to:
+
+```rix
+.Fragment({=
+    children = [
+        .Heading(1, "Quadratic analysis"),
+        .Paragraph("The selected values are shown below."),
+        .Figure({= content = values, caption = "Values of F", label = "tbl:values" }),
+        .Figure({= content = curve, caption = "Graph of F", label = "fig:curve" })
+    ]
+})
+```
+
+The triple delimiter is important. `@"..."` remains the compact interpolated
+**text** form; `@"""..."""` is the block/document form. The parser may allow
+four or more matching double quotes when literal triple quotes are needed in a
+template, following RiX's general variable-length double-quote delimiter rule.
+
+`@'''...'''` is not recommended. RiX already uses the single quote for
+integrals and postfix derivatives, so adding a single-quoted template family
+would create a much less clear lexical boundary. The double-quote form keeps
+both template forms under the existing `@` family without taking calculus
+syntax.
+
+### Small block grammar
+
+The document language should start with a small, deliberately non-programming
+grammar:
+
+```text
+Document   := Block (blank-line Block)*
+Block      := plain paragraph | known-directive ":" inline-content [indented body]
+```
+
+- A blank line ends a paragraph and starts the next document object.
+- Adjacent nonblank, non-directive lines form one paragraph; ordinary line
+  wrapping is not a sequence of separate `Text` objects.
+- Only a fixed set of known directive names is special. A prose line such as
+  `Note: this is useful` remains a paragraph unless `note` is deliberately
+  added as a directive.
+- An indented body belongs to the preceding directive. It is where a figure,
+  table, code block, or slide places its structured content.
+- `@{expression}` is a RiX expression hole. A hole on an otherwise blank
+  document line splices its output value as a child; a hole inside paragraph
+  text uses that value's text-format protocol.
+- Directive headers may end with `#label`. Labels are metadata, not text.
+
+The initial directive vocabulary should be intentionally small:
+
+| Directive | Produces | Example |
+|---|---|---|
+| `h1:` … `h6:` | `Heading` | `h2: Exact roots` |
+| `p:` or plain paragraph | `Paragraph` | `p: The interval is certified.` |
+| `fig:` | `Figure` | `fig: Graph of F #fig:curve` |
+| `table:` | `Figure` containing a table | `table: Sample values #tbl:values` |
+| `quote:` | quotation/aside block | `quote: Exact before approximate.` |
+| `code:` | code block | `code: rix` followed by indented RiX source |
+| `math:` | display math block | `math: @{formula}` |
+| `ul:` / `ol:` | list | an indented list body |
+| `slide:` | `Slide` | a presentation frame, described below |
+
+The directive name must be at the start of a physical line. Extensions should
+add names through a template-directive registry rather than making all
+`letters:` lines magical.
+
+### Structured holes and ordinary RiX
+
+RiX remains the only computation language. A document template does not grow
+its own loop, conditional, or function syntax:
+
+```rix
+rows := xs |>> (x) -> [x, F(x)]
+values := .Table(["x", "F(x)"], rows)
+
+report := @"""
+h1: Results
+
+@{values}
+
+p: The final value is @{F(4)}.
+"""
+```
+
+The standalone `@{values}` hole inserts the actual `Table` into the fragment.
+The inline `@{F(4)}` hole becomes text in the paragraph. This is the key
+distinction that avoids requiring authors to choose between template convenience
+and portable structured output.
+
+### Why not make the template a full Markdown clone?
+
+The template can grow compatibility adapters later, but it should begin as a
+small RiX-specific authoring surface. It has only enough syntax to create
+document nodes, labels, and structured holes. This keeps the mapping to
+`Fragment` predictable and allows normal RiX values—exact intervals, graphics,
+tables, and grids—to appear without HTML escaping or string reconstruction.
+
+Markdown, Quarto, or Pandoc import/export can be implemented as renderer or
+adapter plugins once the document value model is stable.
+
+## Slides and sequential output
+
+`Slides` should be a standard sequential presentation value: an ordered deck
+of `Slide` objects. It is not a PowerPoint file and it is not an animation
+format. Those are render targets selected later.
+
+```mermaid
+flowchart LR
+  S["Slides"] --> H["HTML presenter"]
+  S --> P["PowerPoint exporter"]
+  S --> G["GIF / video renderer"]
+  S --> Q["PDF / printable handout"]
+  S --> T["terminal step-through"]
+```
+
+A slide contains normal output objects plus presentation metadata such as a
+title, stable id, speaker notes, timing hints, and transition hints. Its content
+is normally a `Fragment`; it may contain a `Graphic`, `Table`, `Grid`,
+`Figure`, or another document node.
+
+```rix
+deck := .Slides({=
+    title = "A quadratic in three views",
+    slides = [
+        .Slide({=
+            title = "The polynomial",
+            content = .Fragment([
+                .Heading(1, "F(x) = x^2 - 2*x + 1"),
+                .Text("Exact values, a graph, and synthetic division.")
+            ])
+        }),
+        .Slide({=
+            title = "Values",
+            content = .Figure({= content = values, caption = "Selected values" })
+        }),
+        .Slide({=
+            title = "Division",
+            content = .Figure({= content = division, caption = "Synthetic division by x - 1" }),
+            notes = "Point out that the remainder is -3."
+        })
+    ]
+})
+```
+
+Document templates can provide a concise deck authoring form by compiling
+top-level `slide:` directives into `Slide` values. Wrapping that fragment in
+`.Slides(...)` validates that every top-level child is a slide:
+
+```rix
+deck := .Slides(@"""
+slide: The polynomial #intro
+    h1: F(x) = x^2 - 2*x + 1
+    p: We will examine values, a graph, and a division layout.
+
+slide: The graph #curve
+    fig: Graph of F
+        @{curve}
+
+slide: Synthetic division #division
+    fig: Division by x - 1
+        @{division}
+""")
+```
+
+The `Slides` value allows a host to render sequentially, to export a slide deck,
+or to make a timed GIF/video only when that target supports the requested
+features. A renderer must report unsupported animation or transition features
+rather than silently discarding them.
 
 ## Realistic uses
 
