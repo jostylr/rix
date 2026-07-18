@@ -2,8 +2,7 @@
 
 ::: {.callout-note title="Implementation status — current portable slice"}
 The initial portable-output slice is implemented: `.Text`, `.Paragraph`,
-`.Heading`, `.Fragment`, `.Table`, `.Grid`, `.Path`, `.Group`, `.Transform2D`,
-`.TextMark`, `.Rectangle`, `.Circle`, `.Clip`, `.Graphic`, `.Figure`, `.Slide`,
+`.Heading`, `.Fragment`, `.Table`, `.Grid`, `.Graphic`, `.Figure`, `.Slide`,
 and `.Slides` construct typed immutable output records. The CLI has a text
 fallback, and the RiX notebook and RiX Web calculator render tables and grids
 as HTML and retained 2D scenes as inline SVG. `.Algebra.SyntheticDivision(root,
@@ -75,13 +74,13 @@ calls are capitalized:
 .Fragment(...)
 .Paragraph(...)
 .Graphic(...)
-.Group(...)
-.Transform2D(...)
-.Path(...)
-.Rectangle(...)
-.Circle(...)
-.TextMark(...)
-.Clip(...)
+.Draw.Group(...)
+.Draw.Transform(...)
+.Draw.Path(...)
+.Draw.Rectangle(...)
+.Draw.Circle(...)
+.Draw.Text(...)
+.Draw.Clip(...)
 .Figure(...)
 .Grid(...)
 .Heading(...)
@@ -110,12 +109,12 @@ protocols.
 | `.Table` | Semantic, tabular presentation of columns and rows. |
 | `.Grid` | General positioned layout cells with spans and rules; suitable for mathematical layouts. |
 | `.Graphic` | Portable retained-mode 2D scene. |
-| `.Group` | Ordered scene subtree, optionally carrying shared presentation style. |
-| `.Transform2D` | Apply translate, rotate, and scale to a scene subtree without rewriting coordinates. |
-| `.Path` | Polyline or closed polygon scene node. |
-| `.Rectangle` / `.Circle` | Basic geometric shape scene nodes. |
-| `.TextMark` | Text positioned in a graphic coordinate system. |
-| `.Clip` | Restrict a scene subtree to rectangular bounds. |
+| `.Draw.Group` | Ordered scene subtree, optionally carrying shared presentation style. |
+| `.Draw.Transform` | Apply translate, rotate, and scale to a scene subtree without rewriting coordinates. |
+| `.Draw.Path` | Polyline or closed polygon scene node. |
+| `.Draw.Rectangle` / `.Draw.Circle` | Basic geometric shape scene nodes. |
+| `.Draw.Text` | Text positioned in a graphic coordinate system. |
+| `.Draw.Clip` | Restrict a scene subtree to rectangular bounds. |
 | `.Figure` | A graphic, table, or grid with caption, label, and accessibility metadata. |
 | `.Slide` | One titled, metadata-bearing presentation frame. |
 | `.Slides` | An ordered deck of `Slide` values, specialized for sequential presentation and export. |
@@ -178,9 +177,9 @@ that normalize to the same canonical record.
 
 .Graphic({=
     size = [600, 400],
-    children = [.Path({= points = points, style = {= stroke = "blue" } })]
+    children = [.Draw.Path({= points = points, style = {= stroke = "blue" } })]
 })
-.Graphic([600, 400], [.Path(points, {= stroke = "blue" })])
+.Graphic([600, 400], [.Draw.Path(points, {= stroke = "blue" })])
 
 .Table({= columns = columns, rows = rows })
 .Table(columns, rows)
@@ -201,13 +200,13 @@ The proposed initial shapes are:
 .Fragment({= children = values, metadata = {= } })
 .Table({= columns = columns, rows = rows, caption = _, options = {= } })
 .Grid({= columns = columns, rows = rows, rules = [], style = {= } })
-.Path({= points = points, style = {= } })
-.Group({= children = nodes, style = {= }, metadata = {= } })
-.Transform2D({= children = nodes, translate = _, scale = _, rotate = _, origin = _, style = {= } })
-.TextMark({= position = [x, y], text = value, style = {= } })
-.Rectangle({= origin = [x, y], size = [width, height], style = {= } })
-.Circle({= center = [x, y], radius = radius, style = {= } })
-.Clip({= children = nodes, bounds = [x, y, width, height], style = {= } })
+.Draw.Path({= points = points, style = {= } })
+.Draw.Group({= children = nodes, style = {= }, metadata = {= } })
+.Draw.Transform({= children = nodes, translate = _, scale = _, rotate = _, origin = _, style = {= } })
+.Draw.Text({= position = [x, y], text = value, style = {= } })
+.Draw.Rectangle({= origin = [x, y], size = [width, height], style = {= } })
+.Draw.Circle({= center = [x, y], radius = radius, style = {= } })
+.Draw.Clip({= children = nodes, bounds = [x, y, width, height], style = {= } })
 .Graphic({= size = [width, height], children = nodes, viewBox = _, metadata = {= } })
 .Figure({= content = value, caption = _, label = _, alt = _ })
 .Slide({= content = value, title = _, id = _, notes = _, metadata = {= } })
@@ -221,19 +220,19 @@ polynomial, or string without converting it at construction time.
 ### Current 2D scene primitives
 
 `Graphic` is the portable scene root. Its child nodes may be nested through
-`Group`, `Transform2D`, and `Clip`; leaf nodes are `Path`, `Rectangle`, `Circle`,
-and `TextMark`. The current SVG renderer maps the following small style
+`.Draw.Group`, `.Draw.Transform`, and `.Draw.Clip`; leaf nodes are `.Draw.Path`,
+`.Draw.Rectangle`, `.Draw.Circle`, and `.Draw.Text`. The current SVG renderer maps the following small style
 vocabulary without exposing raw SVG or DOM access:
 
 | Node | Coordinates | Current style fields |
 |---|---|---|
-| `Path` | `points = [[x, y], ...]` | `stroke`, `fill`, `width`, `dash`, `opacity`, `closed` |
-| `Rectangle` | `origin = [x, y]`, `size = [width, height]` | `stroke`, `fill`, `width`, `dash`, `opacity` |
-| `Circle` | `center = [x, y]`, `radius` | `stroke`, `fill`, `width`, `dash`, `opacity` |
-| `TextMark` | `position = [x, y]` | `fill`, `opacity`, `anchor`, `size`, `font`, `weight` |
-| `Group` / `Transform2D` / `Clip` | nested `children` | inherited `stroke`, `fill`, `width`, `dash`, `opacity` |
+| `.Draw.Path` | `points = [[x, y], ...]` | `stroke`, `fill`, `width`, `dash`, `opacity`, `closed` |
+| `.Draw.Rectangle` | `origin = [x, y]`, `size = [width, height]` | `stroke`, `fill`, `width`, `dash`, `opacity` |
+| `.Draw.Circle` | `center = [x, y]`, `radius` | `stroke`, `fill`, `width`, `dash`, `opacity` |
+| `.Draw.Text` | `position = [x, y]` | `fill`, `opacity`, `anchor`, `size`, `font`, `weight` |
+| `.Draw.Group` / `.Draw.Transform` / `.Draw.Clip` | nested `children` | inherited `stroke`, `fill`, `width`, `dash`, `opacity` |
 
-`Transform2D` accepts `translate = [x, y]`, uniform `scale = n` or
+`.Draw.Transform` accepts `translate = [x, y]`, uniform `scale = n` or
 two-axis `scale = [x, y]`, `rotate = degrees`, and optional
 `origin = [x, y]`. `Clip` uses `bounds = [x, y, width, height]`.
 Coordinates deliberately remain ordinary exact RiX values until a renderer
@@ -241,11 +240,11 @@ converts them to SVG coordinates.
 
 ```rix
 badge := .Graphic([240, 120], [
-    .Rectangle([0, 0], [240, 120], {= fill="#f8fafc" }),
-    .Transform2D([
-        .Group([
-            .Circle([60, 60], 34, {= fill="#bfdbfe", stroke="#2563eb", width=2 }),
-            .TextMark([60, 66], "RiX", {= anchor=:middle, size=18, weight="bold" })
+    .Draw.Rectangle([0, 0], [240, 120], {= fill="#f8fafc" }),
+    .Draw.Transform([
+        .Draw.Group([
+            .Draw.Circle([60, 60], 34, {= fill="#bfdbfe", stroke="#2563eb", width=2 }),
+            .Draw.Text([60, 66], "RiX", {= anchor=:middle, size=18, weight="bold" })
         ], {= opacity=1 })
     ], {= translate=[60, 0], rotate=8, origin=[60, 60] })
 ])

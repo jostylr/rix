@@ -511,6 +511,35 @@ export function createAlgebraOutputCollection() {
     };
 }
 
+/**
+ * The 2D leaf vocabulary intentionally lives below Draw rather than claiming
+ * broad global names such as Group, Path, or Circle.  That leaves those names
+ * available to future algebraic and geometric capability groups.
+ */
+export function createDrawOutputCollection() {
+    const methods = new Map([
+        ["Path", createPath],
+        ["Group", createGroup],
+        ["Transform", createTransform],
+        ["Text", createTextMark],
+        ["Rectangle", createRectangle],
+        ["Circle", createCircle],
+        ["Clip", createClip],
+    ]);
+    const entries = new Map();
+    const extension = new Map([["immutable", int(1)]]);
+    for (const [name, constructor] of methods) {
+        entries.set(name, constructor);
+        entries.set(name.toUpperCase(), constructor);
+        extension.set(name.toUpperCase(), {
+            type: "method_builtin",
+            name,
+            impl: (args) => constructor(args.slice(1)),
+        });
+    }
+    return { type: "map", entries, _ext: extension };
+}
+
 export function createPlotOutputCollection() {
     const polynomial = (coefficients, domain, options = null) => createPolynomialPlot(coefficients, domain, options);
     return {

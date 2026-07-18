@@ -64,13 +64,13 @@ describe("portable structured output", () => {
     test("basic scene primitives compose into safe SVG", () => {
         const graphic = parseAndEvaluate(`
             .Graphic([360, 220], [
-                .Rectangle([0, 0], [360, 220], {= fill="#f8fafc", stroke="#cbd5e1" }),
-                .Clip([
-                    .Transform2D([
-                        .Group([
-                            .Circle([80, 80], 45, {= fill="#bfdbfe", stroke="#2563eb", width=2 }),
-                            .Rectangle([60, 60], [80, 40], {= fill="#fde68a", stroke="#d97706", width=2 }),
-                            .TextMark([100, 85], "RiX", {= anchor=:middle, size=18, weight="bold" })
+                .Draw.Rectangle([0, 0], [360, 220], {= fill="#f8fafc", stroke="#cbd5e1" }),
+                .Draw.Clip([
+                    .Draw.Transform([
+                        .Draw.Group([
+                            .Draw.Circle([80, 80], 45, {= fill="#bfdbfe", stroke="#2563eb", width=2 }),
+                            .Draw.Rectangle([60, 60], [80, 40], {= fill="#fde68a", stroke="#d97706", width=2 }),
+                            .Draw.Text([100, 85], "RiX", {= anchor=:middle, size=18, weight="bold" })
                         ], {= opacity=1 })
                     ], {= translate=[80, 15], rotate=18, origin=[100, 85] })
                 ], [20, 20, 320, 160])
@@ -86,11 +86,11 @@ describe("portable structured output", () => {
         expect(html).toContain("RiX</text>");
     });
 
-    test("Transform2D accepts an explicit map specification", () => {
+    test("Draw.Transform accepts an explicit map specification", () => {
         const graphic = parseAndEvaluate(`
             .Graphic([100, 100], [
-                .Transform2D({=
-                    children = [.Circle([10, 10], 5, {= stroke="#000", width=1 })],
+                .Draw.Transform({=
+                    children = [.Draw.Circle([10, 10], 5, {= stroke="#000", width=1 })],
                     translate = [20, 30],
                     scale = 2
                 })
@@ -98,5 +98,10 @@ describe("portable structured output", () => {
         `);
         expect(graphic.children[0].kind).toBe("transform");
         expect(renderOutputHtml(graphic, formatValue)).toContain('transform="translate(20 30) scale(2 2)"');
+    });
+
+    test("2D leaf constructors do not reserve global capability names", () => {
+        expect(() => parseAndEvaluate(".Group([])")).toThrow("Unknown system capability: GROUP");
+        expect(parseAndEvaluate(".Draw.Group([])").kind).toBe("group");
     });
 });

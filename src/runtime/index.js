@@ -10,6 +10,7 @@ export {
     renderOutputHtml,
     renderGraphicSvg,
     createAlgebraOutputCollection,
+    createDrawOutputCollection,
     createSyntheticDivision,
     createPlotOutputCollection,
     createPolynomialPlot,

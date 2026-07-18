@@ -2,7 +2,7 @@ import { parse } from "../../parser/parser.js";
 import { lower } from "../lower.js";
 import { formatValue } from "../format.js";
 import { Integer } from "@ratmath/core";
-import { createCircle, createClip, createFigure, createFragment, createGraphic, createGrid, createGroup, createHeading, createParagraph, createPath, createRectangle, createSlide, createSlides, createTable, createText, createTextMark, createTransform } from "../../runtime/output.js";
+import { createFigure, createFragment, createGraphic, createGrid, createHeading, createParagraph, createSlide, createSlides, createTable, createText } from "../../runtime/output.js";
 
 const capability = (impl, doc) => ({ impl: (args) => impl(args), pure: true, doc });
 
@@ -113,13 +113,6 @@ export const outputFunctions = {
     FRAGMENT: capability(createFragment, "Compose portable output values"),
     TABLE: capability(createTable, "Create a structured output table"),
     GRID: capability(createGrid, "Create a mathematical layout grid"),
-    PATH: capability(createPath, "Create a portable 2D path scene node"),
-    GROUP: capability(createGroup, "Group scene nodes for shared style or structure"),
-    TRANSFORM2D: capability(createTransform, "Apply translation, rotation, or scale to scene nodes"),
-    TEXTMARK: capability(createTextMark, "Place text in a portable 2D scene"),
-    RECTANGLE: capability(createRectangle, "Draw a portable rectangle scene node"),
-    CIRCLE: capability(createCircle, "Draw a portable circle scene node"),
-    CLIP: capability(createClip, "Clip scene nodes to rectangular bounds"),
     GRAPHIC: capability(createGraphic, "Create a portable 2D scene"),
     FIGURE: capability(createFigure, "Wrap output with figure metadata"),
     SLIDE: capability(createSlide, "Create a presentation slide"),

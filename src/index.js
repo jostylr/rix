@@ -14,7 +14,7 @@ export {
     subtractCayley, multiplyCayley, divideCayley, powCayley,
     negateCayley, conjugateCayley, inverseCayley, equalCayley,
     isOutputValue, formatOutputText, renderOutputHtml, renderGraphicSvg,
-    createAlgebraOutputCollection, createSyntheticDivision, createPlotOutputCollection,
+    createAlgebraOutputCollection, createDrawOutputCollection, createSyntheticDivision, createPlotOutputCollection,
     createPolynomialPlot, createGroup, createTransform, createTextMark,
     createRectangle, createCircle, createClip,
 } from "./runtime/index.js";
