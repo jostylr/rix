@@ -28,6 +28,7 @@ describe("portable structured output", () => {
         expect(deck.kind).toBe("slides");
         expect(deck.slides[0].content.kind).toBe("fragment");
         expect(formatValue(deck)).toContain("Slide 1");
+        expect(renderOutputHtml(deck, formatValue)).toContain("rix-output-slides");
     });
 
     test("@ quoted strings interpolate RiX expressions", () => {
