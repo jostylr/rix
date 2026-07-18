@@ -181,6 +181,24 @@ export class SystemContext {
         return this._register(name, def, { ...options, namespace: "host" }, true);
     }
 
+    /** Register a callable capability which also exposes a system-object value. */
+    registerCallableValue(name, value, def, options = {}) {
+        return this._registerCallableValue(name, value, def, options, false);
+    }
+
+    /** Register a host callable object after explicit host-side permission checks. */
+    registerHostCallableValue(name, value, def, options = {}) {
+        return this._registerCallableValue(name, value, def, { ...options, namespace: "host" }, true);
+    }
+
+    _registerCallableValue(name, value, def, options, bypassFrozen) {
+        this._register(name, def, options, bypassFrozen);
+        // A callable object intentionally has kind "function" for parser and
+        // call dispatch, but retains a value for member access through SYS_GET.
+        this._capabilities.get(normalizeCapabilityName(name)).value = value;
+        return this;
+    }
+
     _register(name, def, options, bypassFrozen) {
         if (!bypassFrozen) this._checkMutable();
         const normalised = normalizeCapabilityName(name);
@@ -208,7 +226,16 @@ export class SystemContext {
 
     /** Register a non-callable RiX value or namespace. */
     registerValue(name, value, options = {}) {
-        this._checkMutable();
+        return this._registerValue(name, value, options, false);
+    }
+
+    /** Register a host/plugin value after explicit host-side permission checks. */
+    registerHostValue(name, value, options = {}) {
+        return this._registerValue(name, value, { ...options, namespace: "host" }, true);
+    }
+
+    _registerValue(name, value, options, bypassFrozen) {
+        if (!bypassFrozen) this._checkMutable();
         const normalised = normalizeCapabilityName(name);
         const namespace = options.namespace || capabilityNamespace(name);
         if (namespace !== capabilityNamespace(name)) {
@@ -417,7 +444,9 @@ export class SystemContext {
      */
     with(name, def) {
         const result = this.copy();
-        if (def?.kind === "value" || Object.prototype.hasOwnProperty.call(def || {}, "value")) {
+        if (def?.kind === "function" && Object.prototype.hasOwnProperty.call(def || {}, "value")) {
+            result.registerCallableValue(name, def.value, def, def);
+        } else if (def?.kind === "value" || Object.prototype.hasOwnProperty.call(def || {}, "value")) {
             result.registerValue(name, def.value, def);
         } else {
             result.register(name, def, def);

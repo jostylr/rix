@@ -7,8 +7,8 @@ describe('SystemLoader', () => {
         const systemLoader = new SystemLoader();
         const config = systemLoader.exportConfig();
         expect(config.core.length).toBeGreaterThan(0);
-        expect(config.core.some(([name]) => name === 'SIN')).toBe(true);
-        expect(config.core.some(([name]) => name === 'PI')).toBe(true);
+        expect(config.core.some(([name]) => name === 'TYPE')).toBe(true);
+        expect(config.core.some(([name]) => name === 'HELP')).toBe(true);
     });
 
     test('initializes with default keywords', () => {
@@ -21,9 +21,9 @@ describe('SystemLoader', () => {
 
     test('lookup returns core symbols', () => {
         const systemLoader = new SystemLoader();
-        const result = systemLoader.lookup('SIN');
+        const result = systemLoader.lookup('TYPE');
         expect(result.type).toBe('function');
-        expect(result.category).toBe('trigonometric');
+        expect(result.category).toBe('meta');
     });
 
     test('lookup returns unknown for unregistered symbols', () => {
@@ -94,11 +94,11 @@ describe('SystemLoader', () => {
         const strictLoader = new SystemLoader({ strictMode: true });
         
         expect(() => {
-            strictLoader.registerSystem('SIN', {
+            strictLoader.registerSystem('TYPE', {
                 type: 'function',
                 arity: 1
             });
-        }).toThrow('Cannot override core system symbol: SIN');
+        }).toThrow('Cannot override core system symbol: TYPE');
     });
 
     test('registerHook and triggerHook work correctly', () => {
@@ -205,14 +205,14 @@ describe('SystemLoader', () => {
 
     test('getSymbolsByCategory filters correctly', () => {
         const systemLoader = new SystemLoader();
-        systemLoader.registerSystem('MATH_FUNC', {
+        systemLoader.registerSystem('META_FUNC', {
             type: 'function',
-            category: 'mathematical'
+            category: 'meta'
         });
 
-        const mathSymbols = systemLoader.getSymbolsByCategory('mathematical');
-        expect(mathSymbols.some(sym => sym.name === 'PI')).toBe(true);
-        expect(mathSymbols.some(sym => sym.name === 'MATH_FUNC')).toBe(true);
+        const metaSymbols = systemLoader.getSymbolsByCategory('meta');
+        expect(metaSymbols.some(sym => sym.name === 'TYPE')).toBe(true);
+        expect(metaSymbols.some(sym => sym.name === 'META_FUNC')).toBe(true);
     });
 });
 

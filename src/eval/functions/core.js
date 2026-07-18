@@ -1524,7 +1524,10 @@ export const coreFunctions = {
             const registry = context.getEnv("__registry__", null);
             if (!registry) throw new Error("TypeInstall requires an active registry");
             const name = args[0]?.type === "string" ? args[0].value : String(args[0]);
-            installRegisteredTypes(registry, [name]);
+            // Optional plugins may own some targets (for example approximate
+            // transcendental math). A type can still install its available
+            // arithmetic variants before that plugin is selected.
+            installRegisteredTypes(registry, [name], { skipMissing: true });
             return args[0];
         },
         doc: "Install a registered semantic type into system multifunctions",

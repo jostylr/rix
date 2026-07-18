@@ -30,10 +30,10 @@ import { stdlibFunctions } from "./functions/stdlib.js";
 import { diagnosticFunctions } from "./functions/diagnostics.js";
 import { installSymbolicVariants, symbolicCapabilities, symbolicFunctions } from "./functions/symbolic.js";
 import { outputFunctions } from "./functions/output.js";
-import { MATH_FUNCTION_NAMES, mathFunctions } from "./functions/math.js";
 import { installRegisteredTypes, registerBuiltinSemanticTypes } from "../runtime/type-system.js";
 import { createDefaultComplexCollection, createDefaultExactCollection } from "../runtime/exact-values.js";
-import { createAlgebraOutputCollection, createDrawOutputCollection, createPlotOutputCollection } from "../runtime/output.js";
+import { createAlgebraOutputCollection, createGraphicsOutputCollection, createPlotOutputCollection } from "../runtime/output.js";
+import { installDrawPlugin } from "../plugins/draw.js";
 import { createDefaultUnitCollection } from "../runtime/quantities.js";
 import { installUnitExactVariants, unitExactFunctions } from "./functions/units.js";
 import { parse } from "../parser/parser.js";
@@ -60,7 +60,6 @@ export function createDefaultRegistry(options = {}) {
     registry.registerAll(advancedFunctions);
     registry.registerAll(unitExactFunctions);
     registry.registerAll(symbolicFunctions);
-    registry.registerAll(mathFunctions);
     registry.registerAll(outputFunctions);
     installRegisteredTypes(registry);
     installUnitExactVariants(registry);
@@ -72,16 +71,89 @@ export function createDefaultRegistry(options = {}) {
     return registry;
 }
 
-// Operator alias names exposed in the system context (accessible as .ADD, .SUB, @+, @*, etc.)
-const OPERATOR_ALIAS_NAMES = ["ADD", "SUB", "MUL", "DIV", "INTDIV", "MOD", "POW", "POWPROD",
-    "EQ", "NEQ", "LT", "GT", "LTE", "GTE", "SAME_CELL", "AND", "OR", "NOT"];
+// Public, syntax-equivalent core names. Each delegates to its one evaluator
+// Registry operation, so `a + b` and `.Add(a, b)` cannot drift apart.
+// Structural forms use explicit public data forms (`.Pair`, `.Params`, and
+// colon-string names) rather than exposing misleading raw IR details.
+const CORE_SYNTAX_CAPABILITIES = {
+    Add: "ADD", Sub: "SUB", Mul: "MUL", Div: "DIV", IntDiv: "INTDIV",
+    DivUp: "DIVUP", DivRound: "DIVROUND", Mod: "MOD", Pow: "POW",
+    PowProd: "POWPROD", Neg: "NEG", Abs: "ABS", Sqrt: "SQRT",
+    Equal: "EQ", NotEqual: "NEQ", Less: "LT", Greater: "GT",
+    LessEqual: "LTE", GreaterEqual: "GTE", SameCell: "SAME_CELL",
+    Min: "MIN", Max: "MAX", And: "AND", Or: "OR", Not: "NOT",
+    Array: "ARRAY", Tuple: "TUPLE", Set: "SET", Interval: "INTERVAL",
+    Union: "UNION", Intersect: "INTERSECT", Difference: "SET_DIFF",
+    SymmetricDifference: "SET_SYMDIFF", Product: "SET_PROD", Concat: "CONCAT",
+    Block: "BLOCK", Case: "CASE", Loop: "LOOP", If: "TERNARY",
+    Pipe: "PIPE", PipeExplicit: "PIPE_EXPLICIT", Slice: "PSLICE_STRICT",
+    SliceClamp: "PSLICE_CLAMP", Split: "PSPLIT", Chunk: "PCHUNK",
+    PMap: "PMAP", Filter: "PFILTER", Reduce: "PREDUCE", Reverse: "PREVERSE",
+    Sort: "PSORT", All: "PALL", Any: "PANY",
+    Assign: "ASSIGN", AssignCopy: "ASSIGN_COPY", AssignUpdate: "ASSIGN_UPDATE",
+    AssignDeepCopy: "ASSIGN_DEEP_COPY", AssignDeepUpdate: "ASSIGN_DEEP_UPDATE",
+    Lambda: "LAMBDA",
+};
+
+// `@>` and friends are first-class operator references and historically carry
+// these compact internal names. Keep them as compatibility entry points; the
+// normal public spellings above remain `.Greater`, `.Equal`, and so on.
+const LEGACY_OPERATOR_CAPABILITIES = ["EQ", "NEQ", "LT", "GT", "LTE", "GTE", "SAME_CELL"];
+
+function coreOperationCapability(operation, definition) {
+    return {
+        lazy: definition.lazy === true,
+        pure: definition.pure === true,
+        doc: definition.doc || `Core operation ${operation}`,
+        impl(args, _context, evaluate) {
+            // `args` are evaluated for eager capabilities and raw IR for lazy
+            // ones, exactly matching the target Registry operation contract.
+            return evaluate({ fn: operation, args });
+        },
+    };
+}
+
+function coreString(value, label) {
+    if (value?.type === "string") return value.value;
+    if (typeof value === "string") return value;
+    throw new Error(`${label} must be a string or colon-string`);
+}
+
+function parameterListCapability(args) {
+    return {
+        positional: args.map((value) => ({ name: coreString(value, ".Params entry"), holeDefault: null })),
+        keyword: [],
+        conditionals: [],
+        prep: [],
+        prepStrict: false,
+        metadata: {},
+    };
+}
+
+function mapPairCapability(args) {
+    if (args.length !== 2) throw new Error(".Pair expects exactly a key and a value");
+    return { type: "map_pair", key: args[0], value: args[1] };
+}
+
+function coreMapCapability(args, _context, evaluate) {
+    // MAP_OBJ is lazy because literal entries preserve capture metadata. Public
+    // Pair values are already concrete, which MAP_OBJ also accepts.
+    return evaluate({ fn: "MAP_OBJ", args });
+}
+
+function defineCapability(args, _context, evaluate) {
+    const name = coreString(evaluate(args[0]), ".Define name");
+    const params = evaluate(args[1]);
+    return evaluate({ fn: "FUNCDEF", args: [name, params, args[2]] });
+}
 const SCRIPT_RUNTIME_ENV_KEY = "__script_runtime__";
 const SOURCE_ENV_KEY = "__source__";
 const CURRENT_FILE_ENV_KEY = "__current_file__";
 
 /**
  * Create a default SystemContext with all stdlib capabilities, frozen by default.
- * Operator implementations (ADD, SUB, etc.) are also exposed so @+ / .ADD work.
+ * Syntax-equivalent core operations are also exposed in PascalCase, so
+ * `.Add(a, b)` and `a + b` share one implementation.
  * Pass { frozen: false } to get a mutable context for host-side customisation.
  *
  * @param {Object} [options]
@@ -98,8 +170,9 @@ export function createDefaultSystemContext(options = {}) {
     ctx.registerValue("Complex", complex, { doc: "Exact complex-number operations" });
     const algebra = createAlgebraOutputCollection();
     ctx.registerValue("Algebra", algebra, { doc: "Algebra presentation helpers" });
-    const draw = createDrawOutputCollection();
-    ctx.registerValue("Draw", draw, { doc: "Portable 2D scene constructors" });
+    const graphics = createGraphicsOutputCollection();
+    ctx.registerValue("Graphics", graphics, { doc: "Intrinsic portable 2D scene language" });
+    installDrawPlugin(ctx);
     const plot = createPlotOutputCollection();
     ctx.registerValue("Plot", plot, { doc: "Portable plotting helpers" });
     ctx.registerAll(stdlibFunctions);
@@ -115,24 +188,40 @@ export function createDefaultSystemContext(options = {}) {
     ctx.register("ImportJS", coreFunctions.IMPORT_JS);
     ctx.register("JSCall", coreFunctions.JS_CALL);
     ctx.register("LOOP", controlFunctions.LOOP);
-    for (const name of MATH_FUNCTION_NAMES) {
-        ctx.register(name, {
-            impl(args, _context, evaluate) {
-                return evaluate({ fn: name, args });
-            },
-            doc: `Dispatch ${name} through the active system multifunction registry`,
-        });
-    }
     // User-callable property functions (KEYOF, KEYS, VALUES)
     const userPropertyNames = ["KEYOF", "KEYS", "VALUES"];
     for (const name of userPropertyNames) {
         if (propertyFunctions[name]) ctx.register(name, propertyFunctions[name]);
     }
-    // Expose operator implementations so @+ / .ADD work as first-class references
-    const opSources = { ...arithmeticFunctions, ...comparisonFunctions, ...logicFunctions };
-    for (const name of OPERATOR_ALIAS_NAMES) {
-        if (opSources[name]) ctx.register(name, opSources[name]);
+    const syntaxSources = {
+        ...coreFunctions,
+        ...arithmeticFunctions,
+        ...comparisonFunctions,
+        ...logicFunctions,
+        ...controlFunctions,
+        ...collectionFunctions,
+        ...functionFunctions,
+    };
+    for (const [displayName, operation] of Object.entries(CORE_SYNTAX_CAPABILITIES)) {
+        const definition = syntaxSources[operation];
+        if (definition) {
+            ctx.register(displayName, coreOperationCapability(operation, definition));
+        }
     }
+    for (const operation of LEGACY_OPERATOR_CAPABILITIES) {
+        const definition = syntaxSources[operation];
+        if (definition) ctx.register(operation, coreOperationCapability(operation, definition));
+    }
+    // Public structural constructors use concrete values at the boundary while
+    // continuing to hand their canonical representation to the same IR ops.
+    ctx.register("Params", { impl: parameterListCapability, doc: "Create a positional parameter descriptor from names" });
+    ctx.register("Pair", { impl: mapPairCapability, doc: "Create a key/value entry for .Map" });
+    ctx.register("Map", { impl: coreMapCapability, doc: "Create a map from .Pair(key, value) entries" });
+    ctx.register("Define", {
+        lazy: true,
+        impl: defineCapability,
+        doc: "Define a named function from a name, .Params descriptor, and body",
+    });
     // Diagnostic system capabilities (.Warn, .Info, .Error, .Stop, .Test, .Debug, .Trace)
     ctx.registerAll(diagnosticFunctions);
     ctx.register("ConvertUnit", unitExactFunctions.CONVERTUNIT);
@@ -403,7 +492,9 @@ function restrictSystemContext(systemContext, allowedNames) {
         if (allowedNames.has(name)) {
             const entry = systemContext.get(name);
             if (entry.kind !== "function") child.registerValue(entry.displayName, entry.value, entry);
-            else child.register(entry.displayName, entry, entry);
+            else if (Object.prototype.hasOwnProperty.call(entry, "value")) {
+                child.registerCallableValue(entry.displayName, entry.value, entry, entry);
+            } else child.register(entry.displayName, entry, entry);
         }
     }
     for (const [group, members] of Object.entries(systemContext.getCapabilityGroups())) {
@@ -694,6 +785,7 @@ export function evaluate(irNode, context, registry, systemContext) {
                 throw new Error(`Unknown system capability: ${name}`);
             }
             const entry = systemContext.get(name);
+            if (Object.prototype.hasOwnProperty.call(entry, "value")) return entry.value;
             if (entry.kind !== "function") return entry.value;
             return { type: "sysref", name };
         }
@@ -832,17 +924,9 @@ export function parseAndEvaluate(code, options = {}) {
  */
 function defaultSystemLookup(name) {
     const builtins = {
-        SIN: { type: "function", arity: 1 },
-        COS: { type: "function", arity: 1 },
-        TAN: { type: "function", arity: 1 },
-        LOG: { type: "function", arity: 1 },
-        EXP: { type: "function", arity: 1 },
-        SQRT: { type: "function", arity: 1 },
         ABS: { type: "function", arity: 1 },
         MAX: { type: "function", arity: -1 },
         MIN: { type: "function", arity: -1 },
-        PI: { type: "constant" },
-        E: { type: "constant" },
         AND: { type: "function", lazy: true },
         OR: { type: "function", lazy: true },
         NOT: { type: "function" },

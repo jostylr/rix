@@ -63,14 +63,14 @@ describe("portable structured output", () => {
 
     test("basic scene primitives compose into safe SVG", () => {
         const graphic = parseAndEvaluate(`
-            .Graphic([360, 220], [
-                .Draw.Rectangle([0, 0], [360, 220], {= fill="#f8fafc", stroke="#cbd5e1" }),
-                .Draw.Clip([
-                    .Draw.Transform([
-                        .Draw.Group([
-                            .Draw.Circle([80, 80], 45, {= fill="#bfdbfe", stroke="#2563eb", width=2 }),
-                            .Draw.Rectangle([60, 60], [80, 40], {= fill="#fde68a", stroke="#d97706", width=2 }),
-                            .Draw.Text([100, 85], "RiX", {= anchor=:middle, size=18, weight="bold" })
+            .Graphics.Graphic([360, 220], [
+                .Graphics.Rectangle([0, 0], [360, 220], {= fill="#f8fafc", stroke="#cbd5e1" }),
+                .Graphics.Clip([
+                    .Graphics.Transform([
+                        .Graphics.Group([
+                            .Graphics.Circle([80, 80], 45, {= fill="#bfdbfe", stroke="#2563eb", width=2 }),
+                            .Graphics.Rectangle([60, 60], [80, 40], {= fill="#fde68a", stroke="#d97706", width=2 }),
+                            .Graphics.Text([100, 85], "RiX", {= anchor=:middle, size=18, weight="bold" })
                         ], {= opacity=1 })
                     ], {= translate=[80, 15], rotate=18, origin=[100, 85] })
                 ], [20, 20, 320, 160])
@@ -86,11 +86,11 @@ describe("portable structured output", () => {
         expect(html).toContain("RiX</text>");
     });
 
-    test("Draw.Transform accepts an explicit map specification", () => {
+    test("Graphics.Transform accepts an explicit map specification", () => {
         const graphic = parseAndEvaluate(`
-            .Graphic([100, 100], [
-                .Draw.Transform({=
-                    children = [.Draw.Circle([10, 10], 5, {= stroke="#000", width=1 })],
+            .Graphics.Graphic([100, 100], [
+                .Graphics.Transform({=
+                    children = [.Graphics.Circle([10, 10], 5, {= stroke="#000", width=1 })],
                     translate = [20, 30],
                     scale = 2
                 })
@@ -100,8 +100,31 @@ describe("portable structured output", () => {
         expect(renderOutputHtml(graphic, formatValue)).toContain('transform="translate(20 30) scale(2 2)"');
     });
 
-    test("2D leaf constructors do not reserve global capability names", () => {
+    test("Graphics owns 2D leaf constructors while Draw supplies conveniences", () => {
         expect(() => parseAndEvaluate(".Group([])")).toThrow("Unknown system capability: GROUP");
-        expect(parseAndEvaluate(".Draw.Group([])").kind).toBe("group");
+        expect(() => parseAndEvaluate(".Graphic([1, 1], [])")).toThrow("Unknown system capability: GRAPHIC");
+        expect(parseAndEvaluate(".Graphics.Group([])").kind).toBe("group");
+        const line = parseAndEvaluate(".Draw.Line([0, 0], [10, 10])");
+        expect(line.kind).toBe("path");
+        expect(parseAndEvaluate(".Draw.Circle([5, 5], 3)").kind).toBe("circle");
+    });
+
+    test("Graphics.Path preserves renderer-independent curve and arc commands", () => {
+        const graphic = parseAndEvaluate(`
+            .Graphics.Graphic([100, 100], [
+                .Graphics.Path({=
+                    commands = [
+                        {= op=:move, to=[0, 0] },
+                        {= op=:cubic, control1=[10, 0], control2=[20, 20], to=[30, 10] },
+                        {= op=:arc, radius=[8, 6], rotation=0, large=_, sweep=1, to=[40, 20] },
+                        {= op=:close }
+                    ],
+                    style = {= stroke="#000" }
+                })
+            ])
+        `);
+        const html = renderOutputHtml(graphic, formatValue);
+        expect(html).toContain('d="M0 0 C10 0 20 20 30 10 A8 6 0 0 1 40 20 Z"');
+        expect(formatValue(graphic.children[0])).toBe("[Path: 4 commands]");
     });
 });

@@ -27,6 +27,7 @@ import {
     complete,
 } from "../src/index.js";
 import { formatValue as formatResult } from "../src/eval/format.js";
+import { loadApproxMathPlugin } from "../examples/approx-math/approx-math-plugin.js";
 
 // Known REPL meta-commands (lowercase, intercepted before the evaluator)
 const REPL_COMMANDS = new Set(["help", "exit", "load", "vars", "fns", "reset", "ast", "tokens"]);
@@ -480,7 +481,7 @@ async function main() {
     const systemContext = createDefaultSystemContext();
 
     if (withFloats) {
-        loadRixPackage("floats", context, registry, systemContext);
+        loadApproxMathPlugin(systemContext, registry);
     }
 
     if (args.length > 0 && args[0] === "test") {

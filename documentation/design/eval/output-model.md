@@ -2,7 +2,7 @@
 
 ::: {.callout-note title="Implementation status — current portable slice"}
 The initial portable-output slice is implemented: `.Text`, `.Paragraph`,
-`.Heading`, `.Fragment`, `.Table`, `.Grid`, `.Graphic`, `.Figure`, `.Slide`,
+`.Heading`, `.Fragment`, `.Table`, `.Grid`, `.Graphics`, `.Figure`, `.Slide`,
 and `.Slides` construct typed immutable output records. The CLI has a text
 fallback, and the RiX notebook and RiX Web calculator render tables and grids
 as HTML and retained 2D scenes as inline SVG. `.Algebra.SyntheticDivision(root,
@@ -36,7 +36,7 @@ host chooses a renderer appropriate to its capabilities.
 
 ```mermaid
 flowchart LR
-  R["RiX values"] --> C[".Table / .Fragment / .Graphic"]
+  R["RiX values"] --> C[".Table / .Fragment / .Graphics"]
   C --> O["Typed portable output value"]
   P["Plot / geometry / algebra plugins"] --> O
   O --> N["Renderer negotiation"]
@@ -73,14 +73,14 @@ calls are capitalized:
 .Table(...)
 .Fragment(...)
 .Paragraph(...)
-.Graphic(...)
-.Draw.Group(...)
-.Draw.Transform(...)
-.Draw.Path(...)
-.Draw.Rectangle(...)
-.Draw.Circle(...)
-.Draw.Text(...)
-.Draw.Clip(...)
+.Graphics.Graphic(...)
+.Graphics.Group(...)
+.Graphics.Transform(...)
+.Graphics.Path(...)
+.Graphics.Rectangle(...)
+.Graphics.Circle(...)
+.Graphics.Text(...)
+.Graphics.Clip(...)
 .Figure(...)
 .Grid(...)
 .Heading(...)
@@ -108,13 +108,13 @@ protocols.
 | `.Fragment` | Ordered document/output children. |
 | `.Table` | Semantic, tabular presentation of columns and rows. |
 | `.Grid` | General positioned layout cells with spans and rules; suitable for mathematical layouts. |
-| `.Graphic` | Portable retained-mode 2D scene. |
-| `.Draw.Group` | Ordered scene subtree, optionally carrying shared presentation style. |
-| `.Draw.Transform` | Apply translate, rotate, and scale to a scene subtree without rewriting coordinates. |
-| `.Draw.Path` | Polyline or closed polygon scene node. |
-| `.Draw.Rectangle` / `.Draw.Circle` | Basic geometric shape scene nodes. |
-| `.Draw.Text` | Text positioned in a graphic coordinate system. |
-| `.Draw.Clip` | Restrict a scene subtree to rectangular bounds. |
+| `.Graphics.Graphic` | Portable retained-mode 2D scene. |
+| `.Graphics.Group` | Ordered scene subtree, optionally carrying shared presentation style. |
+| `.Graphics.Transform` | Apply translate, rotate, and scale to a scene subtree without rewriting coordinates. |
+| `.Graphics.Path` | Polyline, polygon, or command path scene node. |
+| `.Graphics.Rectangle` / `.Graphics.Circle` | Basic geometric shape scene nodes. |
+| `.Graphics.Text` | Text positioned in a graphic coordinate system. |
+| `.Graphics.Clip` | Restrict a scene subtree to rectangular bounds. |
 | `.Figure` | A graphic, table, or grid with caption, label, and accessibility metadata. |
 | `.Slide` | One titled, metadata-bearing presentation frame. |
 | `.Slides` | An ordered deck of `Slide` values, specialized for sequential presentation and export. |
@@ -175,11 +175,11 @@ that normalize to the same canonical record.
 .Heading({= level = 1, content = "Function values" })
 .Heading(1, "Function values")
 
-.Graphic({=
+.Graphics.Graphic({=
     size = [600, 400],
-    children = [.Draw.Path({= points = points, style = {= stroke = "blue" } })]
+    children = [.Graphics.Path({= points = points, style = {= stroke = "blue" } })]
 })
-.Graphic([600, 400], [.Draw.Path(points, {= stroke = "blue" })])
+.Graphics.Graphic([600, 400], [.Graphics.Path(points, {= stroke = "blue" })])
 
 .Table({= columns = columns, rows = rows })
 .Table(columns, rows)
@@ -200,14 +200,14 @@ The proposed initial shapes are:
 .Fragment({= children = values, metadata = {= } })
 .Table({= columns = columns, rows = rows, caption = _, options = {= } })
 .Grid({= columns = columns, rows = rows, rules = [], style = {= } })
-.Draw.Path({= points = points, style = {= } })
-.Draw.Group({= children = nodes, style = {= }, metadata = {= } })
-.Draw.Transform({= children = nodes, translate = _, scale = _, rotate = _, origin = _, style = {= } })
-.Draw.Text({= position = [x, y], text = value, style = {= } })
-.Draw.Rectangle({= origin = [x, y], size = [width, height], style = {= } })
-.Draw.Circle({= center = [x, y], radius = radius, style = {= } })
-.Draw.Clip({= children = nodes, bounds = [x, y, width, height], style = {= } })
-.Graphic({= size = [width, height], children = nodes, viewBox = _, metadata = {= } })
+.Graphics.Path({= points = points, style = {= } })
+.Graphics.Group({= children = nodes, style = {= }, metadata = {= } })
+.Graphics.Transform({= children = nodes, translate = _, scale = _, rotate = _, origin = _, style = {= } })
+.Graphics.Text({= position = [x, y], text = value, style = {= } })
+.Graphics.Rectangle({= origin = [x, y], size = [width, height], style = {= } })
+.Graphics.Circle({= center = [x, y], radius = radius, style = {= } })
+.Graphics.Clip({= children = nodes, bounds = [x, y, width, height], style = {= } })
+.Graphics.Graphic({= size = [width, height], children = nodes, viewBox = _, metadata = {= } })
 .Figure({= content = value, caption = _, label = _, alt = _ })
 .Slide({= content = value, title = _, id = _, notes = _, metadata = {= } })
 .Slides({= slides = values, title = _, theme = _, metadata = {= } })
@@ -220,31 +220,31 @@ polynomial, or string without converting it at construction time.
 ### Current 2D scene primitives
 
 `Graphic` is the portable scene root. Its child nodes may be nested through
-`.Draw.Group`, `.Draw.Transform`, and `.Draw.Clip`; leaf nodes are `.Draw.Path`,
-`.Draw.Rectangle`, `.Draw.Circle`, and `.Draw.Text`. The current SVG renderer maps the following small style
+`.Graphics.Group`, `.Graphics.Transform`, and `.Graphics.Clip`; leaf nodes are `.Graphics.Path`,
+`.Graphics.Rectangle`, `.Graphics.Circle`, and `.Graphics.Text`. The current SVG renderer maps the following small style
 vocabulary without exposing raw SVG or DOM access:
 
 | Node | Coordinates | Current style fields |
 |---|---|---|
-| `.Draw.Path` | `points = [[x, y], ...]` | `stroke`, `fill`, `width`, `dash`, `opacity`, `closed` |
-| `.Draw.Rectangle` | `origin = [x, y]`, `size = [width, height]` | `stroke`, `fill`, `width`, `dash`, `opacity` |
-| `.Draw.Circle` | `center = [x, y]`, `radius` | `stroke`, `fill`, `width`, `dash`, `opacity` |
-| `.Draw.Text` | `position = [x, y]` | `fill`, `opacity`, `anchor`, `size`, `font`, `weight` |
-| `.Draw.Group` / `.Draw.Transform` / `.Draw.Clip` | nested `children` | inherited `stroke`, `fill`, `width`, `dash`, `opacity` |
+| `.Graphics.Path` | `points = [[x, y], ...]` or `commands = [...]` | `stroke`, `fill`, `width`, `dash`, `opacity`, `closed` |
+| `.Graphics.Rectangle` | `origin = [x, y]`, `size = [width, height]` | `stroke`, `fill`, `width`, `dash`, `opacity` |
+| `.Graphics.Circle` | `center = [x, y]`, `radius` | `stroke`, `fill`, `width`, `dash`, `opacity` |
+| `.Graphics.Text` | `position = [x, y]` | `fill`, `opacity`, `anchor`, `size`, `font`, `weight` |
+| `.Graphics.Group` / `.Graphics.Transform` / `.Graphics.Clip` | nested `children` | inherited `stroke`, `fill`, `width`, `dash`, `opacity` |
 
-`.Draw.Transform` accepts `translate = [x, y]`, uniform `scale = n` or
+`.Graphics.Transform` accepts `translate = [x, y]`, uniform `scale = n` or
 two-axis `scale = [x, y]`, `rotate = degrees`, and optional
 `origin = [x, y]`. `Clip` uses `bounds = [x, y, width, height]`.
 Coordinates deliberately remain ordinary exact RiX values until a renderer
 converts them to SVG coordinates.
 
 ```rix
-badge := .Graphic([240, 120], [
-    .Draw.Rectangle([0, 0], [240, 120], {= fill="#f8fafc" }),
-    .Draw.Transform([
-        .Draw.Group([
-            .Draw.Circle([60, 60], 34, {= fill="#bfdbfe", stroke="#2563eb", width=2 }),
-            .Draw.Text([60, 66], "RiX", {= anchor=:middle, size=18, weight="bold" })
+badge := .Graphics.Graphic([240, 120], [
+    .Graphics.Rectangle([0, 0], [240, 120], {= fill="#f8fafc" }),
+    .Graphics.Transform([
+        .Graphics.Group([
+            .Graphics.Circle([60, 60], 34, {= fill="#bfdbfe", stroke="#2563eb", width=2 }),
+            .Graphics.Text([60, 66], "RiX", {= anchor=:middle, size=18, weight="bold" })
         ], {= opacity=1 })
     ], {= translate=[60, 0], rotate=8, origin=[60, 60] })
 ])
@@ -253,6 +253,37 @@ badge := .Graphic([240, 120], [
 The RiX Web structured-output tutorial runs a larger example using every
 primitive, including clipping. Geometry and plotting plugins should prefer
 returning this vocabulary over backend-specific SVG strings.
+
+`Graphics.Path` has a concise point form for polylines and polygons, plus a
+command form for renderer-independent curves and arcs:
+
+```rix
+curve := .Graphics.Path({=
+    commands = [
+        {= op=:move, to=[20, 100] },
+        {= op=:cubic, control1=[70, 10], control2=[150, 190], to=[220, 80] },
+        {= op=:arc, radius=[30, 20], rotation=0, large=_, sweep=1, to=[260, 110] }
+    ],
+    style = {= stroke="#2563eb", width=2 }
+})
+```
+
+### Bundled Draw authoring plugin
+
+`.Draw` is intentionally not part of the intrinsic graphics vocabulary. It is
+the first bundled authoring plugin, with ergonomic helpers that return ordinary
+`Graphics` nodes:
+
+```rix
+.Draw.Line([0, 0], [80, 40])             # → Graphics.Path
+.Draw.Polygon([[0, 0], [80, 0], [40, 60]]) # → closed Graphics.Path
+.Draw.Label([40, 20], "A")               # → Graphics.Text
+.Draw.Box([0, 0], [80, 40])               # → Graphics.Rectangle
+.Draw.Circle([40, 20], 12)                # → Graphics.Circle
+```
+
+This boundary lets a host omit or replace drawing conveniences while retaining
+the same renderer-facing `Graphics` schema.
 
 ## Output methods and protocols
 
@@ -679,6 +710,56 @@ scene := .Scene3D({=
 
 staticFigure := scene.Snapshot(:svg, {= size = [720, 480] })
 ```
+
+### Exact and adaptive renderables
+
+An implicit curve or an exact intersection should not be prematurely flattened
+to a fixed list of decimal points. The core `Graphics` scene language remains
+the static, renderer-facing result; a geometry or plotting plugin may carry a
+separate *adaptive renderable* value that can refine itself into a `Graphic`
+for a requested viewport and tolerance.
+
+For example, a future geometry plugin could retain the ellipse as an exact
+symbolic relation rather than as a sampled path:
+
+```rix
+ellipse := .Geometry.Implicit({=
+    equation = {#x, y# 4*(x - 5)^2 + 3*(y - 6)^2 - 7 },
+    variables = [:x, :y],
+    domain = {= x = [2, 8], y = [3, 9] }
+})
+
+view := ellipse.Refine({=
+    viewport = {= x = [2, 8], y = [3, 9], size = [720, 480] },
+    tolerance = 1 / 1000,
+    maxCells = 20000,
+    boundary = :report_uncertain
+})
+```
+
+`Refine` should return a structured result, not merely pixels:
+
+```text
+AdaptiveRenderResult
+  graphic          # portable Graphics.Graphic snapshot
+  resolved         # whether every requested feature met the tolerance
+  uncertainty      # remaining cells/boxes and their exact interval evidence
+  work             # bounded refinement statistics
+```
+
+For an intersection point, the same protocol can request an isolating box
+small enough for the renderer's display resolution. If the point remains on a
+pixel or clipping boundary after the configured work limit, the result reports
+that uncertainty rather than silently choosing a side. A renderer supplies the
+viewport, tolerance, and work budget; the plugin supplies certified interval or
+exact arithmetic appropriate to its object.
+
+This protocol must be explicit and serializable. A `Graphic` cannot contain an
+arbitrary host closure and still be portable. Instead, the adaptive value keeps
+a symbolic/equation specification plus a plugin identity and version; exports
+include a static `Graphics.Graphic` snapshot and, when supported, the
+reconstructable adaptive specification. This is a design contract, not yet an
+implemented `.Geometry` or `.Plot.Implicit` API.
 
 ### Synthetic division: use a grid, not a data table
 

@@ -15,7 +15,8 @@ export {
     subtractCayley, multiplyCayley, divideCayley, powCayley,
     negateCayley, conjugateCayley, inverseCayley, equalCayley,
     isOutputValue, formatOutputText, renderOutputHtml, renderGraphicSvg,
-    createAlgebraOutputCollection, createDrawOutputCollection, createSyntheticDivision, createPlotOutputCollection,
+    createAlgebraOutputCollection, createGraphicsOutputCollection, createSyntheticDivision, createPlotOutputCollection,
     createPolynomialPlot, createGroup, createTransform, createTextMark,
     createRectangle, createCircle, createClip,
 } from "./runtime/index.js";
+export { createDrawPluginCollection, installDrawPlugin } from "./plugins/draw.js";

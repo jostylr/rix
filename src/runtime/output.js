@@ -138,7 +138,20 @@ export function createGrid(args) {
 
 export function createPath(args) {
     const entry = spec(args, ["points", "style"], "Path");
-    return output("path", { points: sequence(get(entry, "points"), "Path points"), style: optionalMap(get(entry, "style"), "Path style") });
+    const commands = get(entry, "commands");
+    const points = get(entry, "points");
+    if (commands !== null && commands !== undefined) {
+        return output("path", {
+            commands: sequence(commands, "Path commands"),
+            points: null,
+            style: optionalMap(get(entry, "style"), "Path style"),
+        });
+    }
+    return output("path", {
+        commands: null,
+        points: sequence(points, "Path points"),
+        style: optionalMap(get(entry, "style"), "Path style"),
+    });
 }
 
 export function createGroup(args) {
@@ -358,6 +371,59 @@ function svgPair(value, label) {
     return [svgNumber(pair[0], `${label} x`), svgNumber(pair[1], `${label} y`)];
 }
 
+function sceneField(value, name) {
+    if (value?.type === "map" && value.entries instanceof Map) return get(value.entries, name);
+    return value?.[name] ?? null;
+}
+
+function svgFlag(value, label) {
+    if (value === true) return "1";
+    if (value === false || value === null || value === undefined) return "0";
+    return numericValue(value, label) === 0 ? "0" : "1";
+}
+
+function svgPathData(path) {
+    if (!path.commands) {
+        if (path.points.length === 0) return "";
+        const points = path.points.map(svgPoint);
+        const closed = styleEntry(path.style, "closed")?.value === 1n || styleEntry(path.style, "closed") === true;
+        return points.map(([x, y], index) => `${index === 0 ? "M" : "L"}${x} ${y}`).join(" ") + (closed ? " Z" : "");
+    }
+    return path.commands.map((command, index) => {
+        const op = (asString(sceneField(command, "op")) ?? sceneField(command, "op") ?? "").toLowerCase();
+        const destination = () => svgPair(sceneField(command, "to"), `Path command ${index + 1} destination`);
+        if (op === "move" || op === "m") {
+            const [x, y] = destination();
+            return `M${x} ${y}`;
+        }
+        if (op === "line" || op === "l") {
+            const [x, y] = destination();
+            return `L${x} ${y}`;
+        }
+        if (op === "quadratic" || op === "quad" || op === "q") {
+            const [cx, cy] = svgPair(sceneField(command, "control"), `Path command ${index + 1} control`);
+            const [x, y] = destination();
+            return `Q${cx} ${cy} ${x} ${y}`;
+        }
+        if (op === "cubic" || op === "curve" || op === "c") {
+            const [c1x, c1y] = svgPair(sceneField(command, "control1"), `Path command ${index + 1} control1`);
+            const [c2x, c2y] = svgPair(sceneField(command, "control2"), `Path command ${index + 1} control2`);
+            const [x, y] = destination();
+            return `C${c1x} ${c1y} ${c2x} ${c2y} ${x} ${y}`;
+        }
+        if (op === "arc" || op === "a") {
+            const [rx, ry] = svgPair(sceneField(command, "radius"), `Path command ${index + 1} radius`);
+            const rotation = svgNumber(sceneField(command, "rotation") ?? int(0), `Path command ${index + 1} rotation`);
+            const large = svgFlag(sceneField(command, "large"), `Path command ${index + 1} large flag`);
+            const sweep = svgFlag(sceneField(command, "sweep"), `Path command ${index + 1} sweep flag`);
+            const [x, y] = destination();
+            return `A${rx} ${ry} ${rotation} ${large} ${sweep} ${x} ${y}`;
+        }
+        if (op === "close" || op === "z") return "Z";
+        throw new Error(`Unsupported Path command '${op || "(missing op)"}'`);
+    }).join(" ");
+}
+
 function svgStyle(style, defaultFill = null) {
     const attrs = [];
     const stroke = asString(styleEntry(style, "stroke"));
@@ -410,10 +476,8 @@ function renderSvgText(node, format) {
 function renderSvgNode(node, format, defs) {
     if (!isOutputValue(node)) return "";
     if (node.kind === "path") {
-        if (node.points.length === 0) return "";
-        const points = node.points.map(svgPoint);
-        const closed = styleEntry(node.style, "closed")?.value === 1n || styleEntry(node.style, "closed") === true;
-        const d = points.map(([x, y], index) => `${index === 0 ? "M" : "L"}${x} ${y}`).join(" ") + (closed ? " Z" : "");
+        const d = svgPathData(node);
+        if (!d) return "";
         return `<path d="${d}" ${svgStyle(node.style, "none")}/>`;
     }
     if (node.kind === "rectangle") {
@@ -473,7 +537,7 @@ export function formatOutputText(value, format) {
     }
     if (value.kind === "figure") return [formatOutputText(value.content, format), value.caption].filter(Boolean).join("\n");
     if (value.kind === "graphic") return `[Graphic: ${cellText(value.size[0], format)} × ${cellText(value.size[1], format)}, ${value.children.length} scene nodes]`;
-    if (value.kind === "path") return `[Path: ${value.points.length} points]`;
+    if (value.kind === "path") return value.commands ? `[Path: ${value.commands.length} commands]` : `[Path: ${value.points.length} points]`;
     if (value.kind === "slide") return [value.title, formatOutputText(value.content, format)].filter(Boolean).join("\n");
     if (value.kind === "slides") return value.slides.map((slide, index) => `Slide ${index + 1}:\n${formatOutputText(slide, format)}`).join("\n\n");
     return `[Output: ${value.kind}]`;
@@ -512,12 +576,13 @@ export function createAlgebraOutputCollection() {
 }
 
 /**
- * The 2D leaf vocabulary intentionally lives below Draw rather than claiming
- * broad global names such as Group, Path, or Circle.  That leaves those names
- * available to future algebraic and geometric capability groups.
+ * Graphics is the intrinsic, renderer-facing scene language.  Plugins such as
+ * Draw, Plot, and Geometry construct these values; renderers only need this
+ * stable collection and the Graphic output schema.
  */
-export function createDrawOutputCollection() {
+export function createGraphicsOutputCollection() {
     const methods = new Map([
+        ["Graphic", createGraphic],
         ["Path", createPath],
         ["Group", createGroup],
         ["Transform", createTransform],

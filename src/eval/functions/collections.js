@@ -393,6 +393,13 @@ export const collectionFunctions = {
                     }
                     seenKeys.add(name);
                     entries.set(name, val);
+                } else if (arg?.type === "map_pair") {
+                    const keyStr = keyOf(arg.key);
+                    if (seenKeys.has(keyStr)) {
+                        throw new Error(`Duplicate key in map literal: "${keyStr}"`);
+                    }
+                    seenKeys.add(keyStr);
+                    entries.set(keyStr, arg.value);
                 } else {
                     // Single-value entry: evaluate and use index/value as key
                     const val = captureIrValue(arg, defaultMode, context, evaluate);

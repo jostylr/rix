@@ -6,39 +6,6 @@
 
 // Default System Registry - Core language maintainer level
 const DEFAULT_SYSTEM_REGISTRY = {
-  // Mathematical functions
-  SIN: {
-    type: "function",
-    arity: 1,
-    precedence: 120,
-    category: "trigonometric",
-  },
-  COS: {
-    type: "function",
-    arity: 1,
-    precedence: 120,
-    category: "trigonometric",
-  },
-  TAN: {
-    type: "function",
-    arity: 1,
-    precedence: 120,
-    category: "trigonometric",
-  },
-  LOG: { type: "function", arity: 1, precedence: 120, category: "logarithmic" },
-  EXP: { type: "function", arity: 1, precedence: 120, category: "exponential" },
-  SQRT: { type: "function", arity: 1, precedence: 120, category: "arithmetic" },
-  ABS: { type: "function", arity: 1, precedence: 120, category: "arithmetic" },
-  MAX: { type: "function", arity: -1, precedence: 120, category: "aggregate" },
-  MIN: { type: "function", arity: -1, precedence: 120, category: "aggregate" },
-  SUM: { type: "function", arity: -1, precedence: 120, category: "aggregate" },
-
-  // Constants
-  PI: { type: "constant", value: Math.PI, category: "mathematical" },
-  EX: { type: "constant", value: Math.E, category: "mathematical" },
-  INFINITY: { type: "constant", value: Infinity, category: "mathematical" },
-  I: { type: "constant", category: "complex" },
-
   // Type constructors
   LIST: { type: "constructor", category: "collection" },
   SET: { type: "constructor", category: "collection" },
@@ -363,7 +330,6 @@ export class SystemLoader {
       ...definition,
       name,
       resolvedAt: Date.now(),
-      context: this.getCurrentContext(),
     };
   }
 
@@ -515,13 +481,6 @@ export class SystemLoader {
 
     this.contexts.set(name, context);
     return context;
-  }
-
-  /**
-   * Get current context (stub - would be implemented with actual context tracking)
-   */
-  getCurrentContext() {
-    return "global"; // Simplified for now
   }
 
   /**

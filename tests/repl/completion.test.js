@@ -15,8 +15,8 @@ describe("REPL completion", () => {
     });
 
     test("completes system functions through dot and @_ syntax", () => {
-        expect(completions(".SI").candidates.map((entry) => entry.insertText)).toContain(".SIN");
-        expect(completions("@_SI").candidates.map((entry) => entry.insertText)).toContain("@_SIN");
+        expect(completions(".SI").candidates.map((entry) => entry.insertText)).toContain(".SIMPLIFY");
+        expect(completions("@_SI").candidates.map((entry) => entry.insertText)).toContain("@_SIMPLIFY");
     });
 
     test("inspects metadata and built-in methods without evaluating source", () => {

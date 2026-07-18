@@ -17,6 +17,7 @@ import {
 } from "../../src/runtime/type-system.js";
 import { loadOracleExampleStartup } from "../../src/eval/startup/oracle-example.js";
 import { loadFloatExampleStartup } from "../../examples/floats/floats-loader.js";
+import { loadApproxMathPlugin } from "../../examples/approx-math/approx-math-plugin.js";
 
 const defaultSystemContext = createDefaultSystemContext();
 
@@ -154,20 +155,16 @@ describe("RiX type and trait registry", () => {
         expect(defaultSystemContext.has("FLOATLTE")).toBe(false);
         expect(defaultSystemContext.has("FloatLte")).toBe(false);
         expect(defaultSystemContext.has("IMPORTJS")).toBe(true);
-        expect(defaultSystemContext.has("SIN")).toBe(true);
+        expect(defaultSystemContext.has("SIN")).toBe(false);
 
         const { result, registry } = evalRiX(
-            "{; a = 1 ~: :Float; b = 2 ~: :Float; c = a + b * b; s = .SIN(a); e = .EXP(a); ex = .TypeExport(c); c2 = .TypeImport(ex); {: c2.Value(), s.Value(), e.Value() } }",
+            "{; a = 1 ~: :Float; b = 2 ~: :Float; c = a + b * b; ex = .TypeExport(c); c2 = .TypeImport(ex); c2.Value() }",
             new Context(),
             { startupLoaders: [loadFloatExampleStartup] },
         );
 
-        expect(result.values[0].value).toBe("5");
-        expect(Number(result.values[1].value)).toBeCloseTo(Math.sin(1));
-        expect(Number(result.values[2].value)).toBeCloseTo(Math.exp(1));
+        expect(result.value).toBe("5");
         expect(registry.get("ADD").variants.some((variant) => variant.name === "FloatFloat" && variant.installedByType === "Float")).toBe(true);
-        expect(registry.get("SIN").variants.some((variant) => variant.name === "Float" && variant.installedByType === "Float")).toBe(true);
-        expect(registry.get("SIN").variants.at(-1).name).toBe("NativeFallback");
     });
 
     test("semantic display methods are used by formatter when host context is supplied", () => {
@@ -183,12 +180,12 @@ describe("RiX type and trait registry", () => {
         })).toBe("3");
     });
 
-    test("Float package installs conversion capability and mixed numeric promotion", () => {
+    test("Float plugin installs conversion and mixed numeric promotion", () => {
         const context = new Context();
         const registry = createDefaultRegistry();
         const systemContext = createDefaultSystemContext();
-        loadFloatExampleStartup(registry, systemContext);
-        const ir = lower(parse(tokenize("{; a = .Float(0.5); {: 7 + .SIN(a), .SIN(a) + 7, 1/2 + a, a < 1, 1 > a } }"), () => ({ type: "identifier" })));
+        loadApproxMathPlugin(systemContext, registry);
+        const ir = lower(parse(tokenize("{; a = .float.Float(0.5); {: 7 + .float.Sin(a), .float.Sin(a) + 7, 1/2 + a, a < 1, 1 > a } }"), () => ({ type: "identifier" })));
         let result = null;
         for (const node of ir) {
             result = evaluate(node, context, registry, systemContext);

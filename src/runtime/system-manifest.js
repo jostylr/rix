@@ -36,7 +36,9 @@ function valueMembers(value) {
 }
 
 function rootDescriptor(entry) {
-    const value = entry.kind === "function" ? null : entry.value;
+    // Callable objects (such as a host package root) retain kind "function"
+    // while supplying a value whose public methods can be statically known.
+    const value = entry.value;
     return {
         kind: entry.kind,
         displayName: entry.displayName,

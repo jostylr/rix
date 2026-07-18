@@ -10,21 +10,16 @@ const STARTUP_PATH = path.join(EXAMPLE_DIR, "floats.js.rix");
 
 export function loadFloatExampleStartup(registry, systemContext = createDefaultSystemContext()) {
     if (typeRegistry.has("Float")) {
-        if (registry) installRegisteredTypes(registry, ["Float"]);
-        if (systemContext && !systemContext.has("FLOAT")) {
-            systemContext.registerTrusted("Float", {
-                impl(args, context, evaluate) {
-                    return evaluate({ fn: "SEMANTIC_CONVERT_STRICT", args: [args[0], "Float"] });
-                },
-            }, { doc: "Convert a value to the Float semantic type" });
-        }
+        if (registry) installRegisteredTypes(registry, ["Float"], {
+            skipMissing: true,
+            skipExisting: true,
+        });
         return registry;
     }
 
     const context = new Context();
     context.setEnv("__registry__", registry);
     context.setEnv("__system_context__", systemContext);
-    context.setEnv("allowCapabilityRegister", true);
     context.setEnv("jsImportBaseDir", EXAMPLE_DIR);
     parseAndEvaluate(fs.readFileSync(STARTUP_PATH, "utf8"), {
         context,

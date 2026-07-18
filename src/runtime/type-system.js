@@ -612,13 +612,23 @@ export function importByRegisteredTypeRuntime(value, context = null, evaluate = 
     return finalizeImportedRegisteredValue(invokeMaybeCallable(entry.import, [value], context, evaluate), typeName, entry);
 }
 
-export function installRegisteredTypes(registry, typeNames = ["Integer", "Rational", "RationalInterval", "Tensor"]) {
+export function installRegisteredTypes(registry, typeNames = ["Integer", "Rational", "RationalInterval", "Tensor"], options = {}) {
     let order = 0;
     for (const typeName of typeNames) {
         const entry = typeRegistry.get(typeName);
         if (!entry) throw new Error(`Unknown semantic type: ${typeName}`);
         for (const [targetFunction, variants] of entry.installs || []) {
+            if (options.onlyFunctions && !options.onlyFunctions.has(targetFunction)) continue;
+            if (options.skipMissing && !registry.get(targetFunction)) continue;
             for (const variant of variants || []) {
+                if (
+                    options.skipExisting &&
+                    registry.get(targetFunction)?.variants?.some((existing) =>
+                        existing.name === variant.name && existing.installedByType === entry.name,
+                    )
+                ) {
+                    continue;
+                }
                 registry.installVariant(targetFunction, {
                     ...variant,
                     impl(args, context, evaluate) {
