@@ -13,8 +13,8 @@ import { describe, test, expect } from "bun:test";
 import { tokenize } from "../../src/parser/tokenizer.js";
 import { parse } from "../../src/parser/parser.js";
 import { lower } from "../../src/eval/lower.js";
-import { evaluate, createDefaultRegistry, createDefaultSystemContext } from "../../src/eval/evaluator.js";
-import { SystemContext } from "../../src/runtime/system-context.js";
+import { evaluate, createDefaultRegistry, createDefaultSystemContext, parseAndEvaluate } from "../../src/eval/evaluator.js";
+import { SystemContext, normalizeCapabilityName } from "../../src/runtime/system-context.js";
 import { Context } from "../../src/runtime/context.js";
 import { Integer } from "@ratmath/core";
 
@@ -262,6 +262,17 @@ describe("SystemContext class API", () => {
         expect(sys.has("CUSTOM")).toBe(false);
     });
 
+    test("copied management namespaces operate on the derived context", () => {
+        const sys = createDefaultSystemContext();
+        const copy = sys.copy();
+        const context = new Context();
+        context.setEnv("allowCoreRegister", true);
+
+        parseAndEvaluate('.Core.Register("CopyOnly", (x) -> x);', { context, systemContext: copy });
+        expect(copy.has("CopyOnly")).toBe(true);
+        expect(sys.has("CopyOnly")).toBe(false);
+    });
+
     test("withhold() returns frozen copy minus named capabilities", () => {
         const sys = createDefaultSystemContext();
         const restricted = sys.withhold("RAND_NAME", "PRINT");
@@ -303,6 +314,64 @@ describe("SystemContext class API", () => {
         for (let i = 1; i < names.length; i++) {
             expect(names[i] >= names[i - 1]).toBe(true);
         }
+    });
+});
+
+// ---------------------------------------------------------------------------
+// Capability ownership, display names, and management namespaces
+// ---------------------------------------------------------------------------
+
+describe("Capability namespaces", () => {
+    test("normalises by first letter while preserving registry display spelling", () => {
+        const sys = new SystemContext();
+        sys.register("RenderScene", () => null, { groups: ["Graphics"] });
+        sys.register("plot", () => null, { groups: ["Graphics"] });
+
+        expect(normalizeCapabilityName("RenderScene")).toBe("RENDERSCENE");
+        expect(normalizeCapabilityName("plotThing")).toBe("plotthing");
+        expect(sys.get("RENDERSCENE").displayName).toBe("RenderScene");
+        expect(sys.get("plot").displayName).toBe("plot");
+        expect(sys.getCapabilityGroups().Graphics.sort()).toEqual(["RENDERSCENE", "plot"]);
+    });
+
+    test("core and host registration reject the wrong first-letter namespace", () => {
+        const sys = new SystemContext();
+        expect(() => sys.register("plot", () => null, { namespace: "core" })).toThrow("PascalCase");
+        expect(() => sys.register("Plot", () => null, { namespace: "host" })).toThrow("camelCase");
+    });
+
+    test("default context exposes Core and Host management namespaces", () => {
+        const sys = createDefaultSystemContext();
+        expect(sys.get("Core").kind).toBe("namespace");
+        expect(sys.get("Host").kind).toBe("namespace");
+        expect(sys.get("Units").displayName).toBe("Units");
+        expect(sys.getAllNames()).not.toContain("Units");
+    });
+
+    test("Core.Register is reserved for trusted startup and Host.Register creates a plugin capability", () => {
+        const context = new Context();
+        const sys = createDefaultSystemContext();
+
+        expect(() => parseAndEvaluate('.Core.Register("Triple", (x) -> x * 3);', { context, systemContext: sys }))
+            .toThrow("not permitted");
+
+        context.setEnv("allowCoreRegister", true);
+        expect(parseAndEvaluate('.Core.Register("Triple", (x) -> x * 3); .Triple(4);', { context, systemContext: sys }).value).toBe(12n);
+        expect(sys.get("Triple").namespace).toBe("core");
+        expect(sys.get("Triple").displayName).toBe("Triple");
+
+        const hostResult = parseAndEvaluate('.Host.Register("plot", (x) -> x + 1, "plot plugin", ["Graphics"]); .plot(4);', {
+            context,
+            systemContext: sys,
+        });
+        expect(hostResult.value).toBe(5n);
+        expect(sys.get("plot").namespace).toBe("host");
+        expect(sys.getCapabilityGroups().Graphics).toContain("plot");
+    });
+
+    test("dotted implicit application remains a system-context call", () => {
+        const result = parseAndEvaluate('.Len ([1, 2, 3]);');
+        expect(result.value).toBe(3n);
     });
 });
 

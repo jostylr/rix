@@ -425,6 +425,11 @@ const LOWERERS = {
     if (callable.type === "SystemIdentifier" || callable.type === "UserIdentifier") {
       return ir("CALL", callable.name, arg);
     }
+    // A dotted root capability keeps its SystemContext dispatch path when
+    // called by adjacency: `.Len value` is equivalent to `.Len(value)`.
+    if (callable.type === "SystemAccess") {
+      return ir("SYS_CALL", callable.property, arg);
+    }
     // For expression-based callables (e.g. result of another ImplicitApplication)
     return ir("CALL_EXPR", lowerNode(callable), arg);
   },

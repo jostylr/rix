@@ -1496,15 +1496,14 @@ export const coreFunctions = {
                 throw new Error("CapabilityRegister requires an active system context");
             }
             const rawName = args[0]?.type === "string" ? args[0].value : String(args[0] ?? "");
-            const name = rawName.toUpperCase();
-            if (!name) throw new Error("CapabilityRegister requires a capability name");
+            if (!rawName) throw new Error("CapabilityRegister requires a capability name");
             const fn = capturePackageCallable(args[1], context);
-            systemContext._capabilities.set(name, {
+            systemContext.registerTrusted(rawName, {
                 impl(callArgs, callContext, callEvaluate) {
                     return callWithConcreteArgs(fn, callArgs, callContext, callEvaluate);
                 },
-                lazy: false,
-                pure: false,
+            }, {
+                namespace: "core",
                 doc: args[2]?.type === "string" ? args[2].value : "Package capability",
             });
             return args[0];

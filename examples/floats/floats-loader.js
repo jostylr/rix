@@ -12,14 +12,11 @@ export function loadFloatExampleStartup(registry, systemContext = createDefaultS
     if (typeRegistry.has("Float")) {
         if (registry) installRegisteredTypes(registry, ["Float"]);
         if (systemContext && !systemContext.has("FLOAT")) {
-            systemContext._capabilities.set("FLOAT", {
+            systemContext.registerTrusted("Float", {
                 impl(args, context, evaluate) {
                     return evaluate({ fn: "SEMANTIC_CONVERT_STRICT", args: [args[0], "Float"] });
                 },
-                lazy: false,
-                pure: false,
-                doc: "Convert a value to the Float semantic type",
-            });
+            }, { doc: "Convert a value to the Float semantic type" });
         }
         return registry;
     }

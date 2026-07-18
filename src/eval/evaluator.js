@@ -92,20 +92,14 @@ export function createDefaultSystemContext(options = {}) {
     const units = options.units || createDefaultUnitCollection();
     const exact = options.exact || createDefaultExactCollection();
     const complex = options.complex || createDefaultComplexCollection(exact);
-    ctx.registerValue("UNITS", units, { doc: "Canonical RiX unit collection" });
     ctx.registerValue("Units", units, { doc: "Canonical RiX unit collection" });
-    ctx.registerValue("EXACT", exact, { doc: "Canonical RiX exact-generator collection" });
     ctx.registerValue("Exact", exact, { doc: "Canonical RiX exact-generator collection" });
-    ctx.registerValue("COMPLEX", complex, { doc: "Exact complex-number operations" });
     ctx.registerValue("Complex", complex, { doc: "Exact complex-number operations" });
     const algebra = createAlgebraOutputCollection();
-    ctx.registerValue("ALGEBRA", algebra, { doc: "Algebra presentation helpers" });
     ctx.registerValue("Algebra", algebra, { doc: "Algebra presentation helpers" });
     const draw = createDrawOutputCollection();
-    ctx.registerValue("DRAW", draw, { doc: "Portable 2D scene constructors" });
     ctx.registerValue("Draw", draw, { doc: "Portable 2D scene constructors" });
     const plot = createPlotOutputCollection();
-    ctx.registerValue("PLOT", plot, { doc: "Portable plotting helpers" });
     ctx.registerValue("Plot", plot, { doc: "Portable plotting helpers" });
     ctx.registerAll(stdlibFunctions);
     ctx.registerAll(symbolicCapabilities);
@@ -113,20 +107,12 @@ export function createDefaultSystemContext(options = {}) {
     ctx.register("EVAL", coreFunctions.EVAL);
     ctx.register("TypeExport", coreFunctions.TYPE_EXPORT);
     ctx.register("TypeImport", coreFunctions.TYPE_IMPORT);
-    ctx.register("TYPEEXPORT", coreFunctions.TYPE_EXPORT);
-    ctx.register("TYPEIMPORT", coreFunctions.TYPE_IMPORT);
     ctx.register("TraitRegister", coreFunctions.TRAIT_REGISTER);
     ctx.register("TypeRegister", coreFunctions.TYPE_REGISTER);
     ctx.register("TypeInstall", coreFunctions.TYPE_INSTALL);
     ctx.register("CapabilityRegister", coreFunctions.CAPABILITY_REGISTER);
     ctx.register("ImportJS", coreFunctions.IMPORT_JS);
     ctx.register("JSCall", coreFunctions.JS_CALL);
-    ctx.register("TRAITREGISTER", coreFunctions.TRAIT_REGISTER);
-    ctx.register("TYPEREGISTER", coreFunctions.TYPE_REGISTER);
-    ctx.register("TYPEINSTALL", coreFunctions.TYPE_INSTALL);
-    ctx.register("CAPABILITYREGISTER", coreFunctions.CAPABILITY_REGISTER);
-    ctx.register("IMPORTJS", coreFunctions.IMPORT_JS);
-    ctx.register("JSCALL", coreFunctions.JS_CALL);
     ctx.register("LOOP", controlFunctions.LOOP);
     for (const name of MATH_FUNCTION_NAMES) {
         ctx.register(name, {
@@ -148,12 +134,13 @@ export function createDefaultSystemContext(options = {}) {
     }
     // Diagnostic system capabilities (.Warn, .Info, .Error, .Stop, .Test, .Debug, .Trace)
     ctx.registerAll(diagnosticFunctions);
-    ctx.register("CONVERTUNIT", unitExactFunctions.CONVERTUNIT);
     ctx.register("ConvertUnit", unitExactFunctions.CONVERTUNIT);
-    ctx.register("DEFINEUNIT", unitExactFunctions.DEFINEUNIT);
     ctx.register("DefineUnit", unitExactFunctions.DEFINEUNIT);
-    ctx.register("DEFINEEXACTGENERATOR", unitExactFunctions.DEFINEEXACTGENERATOR);
     ctx.register("DefineExactGenerator", unitExactFunctions.DEFINEEXACTGENERATOR);
+    ctx.installManagementNamespaces();
+    for (const [group, members] of Object.entries(runtimeDefaults.capabilityGroups)) {
+        ctx.registerGroup(group, members);
+    }
     if (frozen) ctx.freeze();
     return ctx;
 }
@@ -177,7 +164,7 @@ function getScriptRuntime(context, options = {}) {
     return runtime;
 }
 
-function getScriptCapabilityConfig(context) {
+function getScriptCapabilityConfig(context, systemContext = null) {
     const groupOverride = context.getEnv("capabilityGroups", null);
     const policyOverride = context.getEnv("defaultScriptCapabilityPolicy", null);
     const permissionOverride = context.getEnv("scriptPermissionNames", null);
@@ -185,6 +172,7 @@ function getScriptCapabilityConfig(context) {
     return {
         capabilityGroups: {
             ...runtimeDefaults.capabilityGroups,
+            ...(systemContext?.getCapabilityGroups?.() || {}),
             ...(groupOverride || {}),
         },
         defaultPolicy: {
@@ -409,14 +397,18 @@ function annotateEvaluationError(error, irNode, context) {
 }
 
 function restrictSystemContext(systemContext, allowedNames) {
-    const child = new SystemContext(new Map(), false);
+    const child = new SystemContext(new Map(), false, { hostContext: systemContext._hostContext });
     for (const name of systemContext.getAllNames()) {
         if (allowedNames.has(name)) {
             const entry = systemContext.get(name);
-            if (entry.kind === "value") child.registerValue(name, entry.value, entry);
-            else child.register(name, entry);
+            if (entry.kind !== "function") child.registerValue(entry.displayName, entry.value, entry);
+            else child.register(entry.displayName, entry, entry);
         }
     }
+    for (const [group, members] of Object.entries(systemContext.getCapabilityGroups())) {
+        child.registerGroup(group, members.filter((name) => allowedNames.has(name)));
+    }
+    child._rebindManagementNamespaces();
     child.freeze();
     return child;
 }
@@ -454,7 +446,7 @@ function expandCapabilityTarget(modifier, availableFunctions, availablePermissio
 }
 
 function deriveScriptCapabilityFrame(systemContext, parentPermissions, modifiers, context) {
-    const { capabilityGroups, defaultPolicy, permissionNames } = getScriptCapabilityConfig(context);
+    const { capabilityGroups, defaultPolicy, permissionNames } = getScriptCapabilityConfig(context, systemContext);
     const availableFunctions = new Set(systemContext.getAllNames());
     const availablePermissions = new Set(parentPermissions);
 
@@ -701,7 +693,7 @@ export function evaluate(irNode, context, registry, systemContext) {
                 throw new Error(`Unknown system capability: ${name}`);
             }
             const entry = systemContext.get(name);
-            if (entry.kind === "value") return entry.value;
+            if (entry.kind !== "function") return entry.value;
             return { type: "sysref", name };
         }
 
@@ -715,8 +707,8 @@ export function evaluate(irNode, context, registry, systemContext) {
             if (!cap) {
                 throw new Error(`Unknown system capability: ${name}. Use .${name}() only if the capability exists.`);
             }
-            if (cap.kind === "value") {
-                throw new Error(`System value .${name} is not directly callable; index it or assign one of its entries`);
+            if (cap.kind !== "function") {
+                throw new Error(`System ${cap.kind} .${cap.displayName} is not directly callable; index it or assign one of its entries`);
             }
             // Partial application: if any arg is a placeholder, build a partial
             const isPlaceholder = (n) => n && typeof n === "object" && n.fn === "PLACEHOLDER";

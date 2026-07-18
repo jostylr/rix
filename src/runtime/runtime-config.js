@@ -8,7 +8,7 @@ export const runtimeDefaults = Object.freeze({
     multifunctionNoPrep: false,
     implicitUnitConversion: false,
   }),
-  scriptPermissionNames: Object.freeze(["IMPORTS", "NET", "FILES"]),
+  scriptPermissionNames: Object.freeze(["IMPORTS", "NET", "FILES", "PLUGINS"]),
   defaultScriptCapabilityPolicy: Object.freeze({
     includeAllFunctions: true,
     permissions: Object.freeze(["IMPORTS"]),
@@ -23,6 +23,7 @@ export const runtimeDefaults = Object.freeze({
     Arrays: Object.freeze(["LEN", "FIRST", "LAST", "GETEL", "IRANGE", "MAP", "FILTER", "REDUCE", "TGEN"]),
     Strings: Object.freeze(["UPPER", "SUBSTR", "PRINT"]),
     Imports: Object.freeze(["IMPORTS"]),
+    Plugins: Object.freeze(["PLUGINS"]),
     Net: Object.freeze(["NET"]),
     Files: Object.freeze(["FILES"]),
     Units: Object.freeze(["UNITS", "Units", "CONVERTUNIT", "ConvertUnit", "DEFINEUNIT", "DefineUnit"]),

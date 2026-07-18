@@ -2,6 +2,15 @@ import { getBuiltinProto } from "../runtime/methods.js";
 
 const REPL_COMMANDS = ["help", "exit", "load", "vars", "fns", "reset", "ast", "tokens"];
 
+function systemCandidates(systemContext, prefix = "") {
+    return systemContext.getAllEntries().map((entry) => ({
+        insertText: `${prefix}${entry.displayName}`,
+        kind: `system ${entry.kind}`,
+        detail: entry.doc || `${entry.namespace} capability`,
+        preview: "",
+    }));
+}
+
 const METHOD_HELP = {
     LEN: [".Len() → integer", "number of items"],
     ISEMPTY: [".IsEmpty() → truthy/null", "whether the collection has no items"],
@@ -148,31 +157,16 @@ export function complete(source, cursor, { context, systemContext, formatValue }
 
     if (token.startsWith("@_") || prior.endsWith("@_")) {
         const prefix = token.startsWith("@_") ? "@_" : "@_";
-        candidates = systemContext.getAllNames().map((name) => ({
-            insertText: `${prefix}${name}`,
-            kind: "system function",
-            detail: systemContext.get(name)?.doc || "system capability",
-            preview: "",
-        }));
+        candidates = systemCandidates(systemContext, prefix);
     } else if (prior.endsWith(".")) {
         const receiverMatch = prior.slice(0, -1).match(/([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)$/);
         if (receiverMatch) {
             candidates = propertyCandidates(resolveReceiver(receiverMatch[1], context), query, formatValue);
         } else {
-            candidates = systemContext.getAllNames().map((name) => ({
-                insertText: name,
-                kind: "system function",
-                detail: systemContext.get(name)?.doc || "system capability",
-                preview: "",
-            }));
+            candidates = systemCandidates(systemContext);
         }
     } else if (token.startsWith(".")) {
-        candidates = systemContext.getAllNames().map((name) => ({
-            insertText: `.${name}`,
-            kind: "system function",
-            detail: systemContext.get(name)?.doc || "system capability",
-            preview: "",
-        }));
+        candidates = systemCandidates(systemContext, ".");
     } else if (prior.length === 0 || /[\s(\[{,;=:+\-*/?]/.test(prior.at(-1))) {
         candidates = [
             ...context.getAllNames().map((name) => ({

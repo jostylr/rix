@@ -259,6 +259,30 @@ describe("script import execution", () => {
         })).toThrow("Unknown system capability: NETPING");
     });
 
+    test("plugin registration from imports requires Plugins and attaches to the host", () => {
+        const dir = writeScripts({
+            plugin: '.Host.Register("plug", (x) -> x + 1); .plug(4)',
+        });
+        const systemContext = createDefaultSystemContext();
+
+        expect(() => evalRix('<"plugin">', { scriptBaseDir: dir, systemContext }))
+            .toThrow(".Host.Register is not permitted");
+        expect(evalRix('<"plugin" /+Plugins/>', { scriptBaseDir: dir, systemContext }).result.value).toBe(5n);
+        expect(systemContext.get("plug").namespace).toBe("host");
+        expect(evalRix('.plug(9)', { systemContext }).result.value).toBe(10n);
+    });
+
+    test("imported scripts cannot register core capabilities", () => {
+        const dir = writeScripts({
+            core: '.Core.Register("Leaked", (x) -> x)',
+        });
+        const context = new Context();
+        context.setEnv("allowCoreRegister", true);
+
+        expect(() => evalRix('<"core">', { scriptBaseDir: dir, context }))
+            .toThrow(".Core.Register is not permitted");
+    });
+
     test("cyclic imports error while active recursion is in flight", () => {
         const dir = writeScripts({
             a: '<"b">',
