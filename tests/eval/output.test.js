@@ -60,4 +60,43 @@ describe("portable structured output", () => {
         expect(html).toContain("<path");
         expect(html).toContain('viewBox="0 0 640 360"');
     });
+
+    test("basic scene primitives compose into safe SVG", () => {
+        const graphic = parseAndEvaluate(`
+            .Graphic([360, 220], [
+                .Rectangle([0, 0], [360, 220], {= fill="#f8fafc", stroke="#cbd5e1" }),
+                .Clip([
+                    .Transform2D([
+                        .Group([
+                            .Circle([80, 80], 45, {= fill="#bfdbfe", stroke="#2563eb", width=2 }),
+                            .Rectangle([60, 60], [80, 40], {= fill="#fde68a", stroke="#d97706", width=2 }),
+                            .TextMark([100, 85], "RiX", {= anchor=:middle, size=18, weight="bold" })
+                        ], {= opacity=1 })
+                    ], {= translate=[80, 15], rotate=18, origin=[100, 85] })
+                ], [20, 20, 320, 160])
+            ])
+        `);
+        expect(graphic.children.map((node) => node.kind)).toEqual(["rectangle", "clip"]);
+        const html = renderOutputHtml(graphic, formatValue);
+        expect(html).toContain("<defs><clipPath");
+        expect(html).toContain("<circle");
+        expect(html).toContain("<rect");
+        expect(html).toContain("<text");
+        expect(html).toContain('transform="translate(80 15) rotate(18 100 85)"');
+        expect(html).toContain("RiX</text>");
+    });
+
+    test("Transform2D accepts an explicit map specification", () => {
+        const graphic = parseAndEvaluate(`
+            .Graphic([100, 100], [
+                .Transform2D({=
+                    children = [.Circle([10, 10], 5, {= stroke="#000", width=1 })],
+                    translate = [20, 30],
+                    scale = 2
+                })
+            ])
+        `);
+        expect(graphic.children[0].kind).toBe("transform");
+        expect(renderOutputHtml(graphic, formatValue)).toContain('transform="translate(20 30) scale(2 2)"');
+    });
 });

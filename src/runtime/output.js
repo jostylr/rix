@@ -141,6 +141,61 @@ export function createPath(args) {
     return output("path", { points: sequence(get(entry, "points"), "Path points"), style: optionalMap(get(entry, "style"), "Path style") });
 }
 
+export function createGroup(args) {
+    const entry = spec(args, ["children", "style", "metadata"], "Group");
+    return output("group", {
+        children: sequence(get(entry, "children"), "Group children"),
+        style: optionalMap(get(entry, "style"), "Group style"),
+        metadata: optionalMap(get(entry, "metadata"), "Group metadata"),
+    });
+}
+
+export function createTransform(args) {
+    const entry = spec(args, ["children", "transform", "style"], "Transform");
+    const transform = optionalMap(get(entry, "transform"), "Transform specification") || entry;
+    return output("transform", {
+        children: sequence(get(entry, "children"), "Transform children"),
+        translate: get(transform, "translate"),
+        scale: get(transform, "scale"),
+        rotate: get(transform, "rotate"),
+        origin: get(transform, "origin"),
+        style: optionalMap(get(entry, "style"), "Transform style"),
+    });
+}
+
+export function createTextMark(args) {
+    const entry = spec(args, ["position", "text", "style"], "TextMark");
+    const position = sequence(get(entry, "position"), "TextMark position");
+    if (position.length !== 2) throw new Error("TextMark position must contain x and y coordinates");
+    const text = get(entry, "text");
+    if (text === null || text === undefined) throw new Error("TextMark requires text");
+    return output("text_mark", { position, text, style: optionalMap(get(entry, "style"), "TextMark style") });
+}
+
+export function createRectangle(args) {
+    const entry = spec(args, ["origin", "size", "style"], "Rectangle");
+    const origin = sequence(get(entry, "origin"), "Rectangle origin");
+    const size = sequence(get(entry, "size"), "Rectangle size");
+    if (origin.length !== 2 || size.length !== 2) throw new Error("Rectangle origin and size must each contain x and y coordinates");
+    return output("rectangle", { origin, size, style: optionalMap(get(entry, "style"), "Rectangle style") });
+}
+
+export function createCircle(args) {
+    const entry = spec(args, ["center", "radius", "style"], "Circle");
+    const center = sequence(get(entry, "center"), "Circle center");
+    if (center.length !== 2) throw new Error("Circle center must contain x and y coordinates");
+    const radius = get(entry, "radius");
+    if (radius === null || radius === undefined) throw new Error("Circle requires a radius");
+    return output("circle", { center, radius, style: optionalMap(get(entry, "style"), "Circle style") });
+}
+
+export function createClip(args) {
+    const entry = spec(args, ["children", "bounds", "style"], "Clip");
+    const bounds = sequence(get(entry, "bounds"), "Clip bounds");
+    if (bounds.length !== 4) throw new Error("Clip bounds must contain x, y, width, and height");
+    return output("clip", { children: sequence(get(entry, "children"), "Clip children"), bounds, style: optionalMap(get(entry, "style"), "Clip style") });
+}
+
 export function createGraphic(args) {
     const entry = spec(args, ["size", "children", "metadata"], "Graphic");
     const size = sequence(get(entry, "size"), "Graphic size");
@@ -280,7 +335,9 @@ function hasRule(grid, kind, value) {
 }
 
 function styleEntry(style, name) {
-    return style instanceof Map && style.has(name) ? style.get(name) : null;
+    if (!(style instanceof Map)) return null;
+    if (style.has(name)) return style.get(name);
+    return style.get(String(name).toLowerCase()) ?? null;
 }
 
 function svgNumber(value, label) {
@@ -295,15 +352,20 @@ function svgPoint(value, index) {
     return [svgNumber(point[0], `Path point ${index + 1} x`), svgNumber(point[1], `Path point ${index + 1} y`)];
 }
 
-function svgStyle(path) {
-    const style = path.style;
+function svgPair(value, label) {
+    const pair = sequence(value, label);
+    if (pair.length !== 2) throw new Error(`${label} must contain two coordinates`);
+    return [svgNumber(pair[0], `${label} x`), svgNumber(pair[1], `${label} y`)];
+}
+
+function svgStyle(style, defaultFill = null) {
     const attrs = [];
     const stroke = asString(styleEntry(style, "stroke"));
     const fill = asString(styleEntry(style, "fill"));
     const dash = asString(styleEntry(style, "dash"));
     const opacity = styleEntry(style, "opacity");
     const width = styleEntry(style, "width") ?? styleEntry(style, "strokeWidth");
-    attrs.push(`fill="${escapeHtml(fill || "none")}"`);
+    if (fill || defaultFill !== null) attrs.push(`fill="${escapeHtml(fill || defaultFill)}"`);
     if (stroke) attrs.push(`stroke="${escapeHtml(stroke)}"`);
     if (width !== null && width !== undefined) attrs.push(`stroke-width="${svgNumber(width, "Path stroke width")}"`);
     if (dash) attrs.push(`stroke-dasharray="${escapeHtml(dash)}"`);
@@ -311,18 +373,79 @@ function svgStyle(path) {
     return attrs.join(" ");
 }
 
-export function renderGraphicSvg(graphic) {
+function svgTransform(node) {
+    const transforms = [];
+    if (node.translate !== null && node.translate !== undefined) {
+        const [x, y] = svgPair(node.translate, "Transform translate");
+        transforms.push(`translate(${x} ${y})`);
+    }
+    if (node.rotate !== null && node.rotate !== undefined) {
+        const angle = svgNumber(node.rotate, "Transform rotate");
+        const origin = node.origin === null || node.origin === undefined ? null : svgPair(node.origin, "Transform origin");
+        transforms.push(origin ? `rotate(${angle} ${origin[0]} ${origin[1]})` : `rotate(${angle})`);
+    }
+    if (node.scale !== null && node.scale !== undefined) {
+        const scale = isSequence(node.scale) || Array.isArray(node.scale)
+            ? svgPair(node.scale, "Transform scale")
+            : [svgNumber(node.scale, "Transform scale"), svgNumber(node.scale, "Transform scale")];
+        transforms.push(`scale(${scale[0]} ${scale[1]})`);
+    }
+    return transforms.join(" ");
+}
+
+function renderSvgText(node, format) {
+    const [x, y] = svgPair(node.position, "TextMark position");
+    const anchor = asString(styleEntry(node.style, "anchor"));
+    const size = styleEntry(node.style, "size") ?? styleEntry(node.style, "fontSize");
+    const font = asString(styleEntry(node.style, "font"));
+    const weight = asString(styleEntry(node.style, "weight"));
+    const attrs = [svgStyle(node.style, "currentColor")];
+    if (anchor) attrs.push(`text-anchor="${escapeHtml(anchor)}"`);
+    if (size !== null && size !== undefined) attrs.push(`font-size="${svgNumber(size, "TextMark size")}"`);
+    if (font) attrs.push(`font-family="${escapeHtml(font)}"`);
+    if (weight) attrs.push(`font-weight="${escapeHtml(weight)}"`);
+    return `<text x="${x}" y="${y}" ${attrs.filter(Boolean).join(" ")}>${escapeHtml(cellText(node.text, format))}</text>`;
+}
+
+function renderSvgNode(node, format, defs) {
+    if (!isOutputValue(node)) return "";
+    if (node.kind === "path") {
+        if (node.points.length === 0) return "";
+        const points = node.points.map(svgPoint);
+        const closed = styleEntry(node.style, "closed")?.value === 1n || styleEntry(node.style, "closed") === true;
+        const d = points.map(([x, y], index) => `${index === 0 ? "M" : "L"}${x} ${y}`).join(" ") + (closed ? " Z" : "");
+        return `<path d="${d}" ${svgStyle(node.style, "none")}/>`;
+    }
+    if (node.kind === "rectangle") {
+        const [x, y] = svgPair(node.origin, "Rectangle origin");
+        const [width, height] = svgPair(node.size, "Rectangle size");
+        return `<rect x="${x}" y="${y}" width="${width}" height="${height}" ${svgStyle(node.style, "none")}/>`;
+    }
+    if (node.kind === "circle") {
+        const [cx, cy] = svgPair(node.center, "Circle center");
+        return `<circle cx="${cx}" cy="${cy}" r="${svgNumber(node.radius, "Circle radius")}" ${svgStyle(node.style, "none")}/>`;
+    }
+    if (node.kind === "text_mark") return renderSvgText(node, format);
+    if (node.kind === "group") return `<g ${svgStyle(node.style)}>${node.children.map((child) => renderSvgNode(child, format, defs)).join("")}</g>`;
+    if (node.kind === "transform") {
+        const transform = svgTransform(node);
+        return `<g${transform ? ` transform="${transform}"` : ""}${svgStyle(node.style) ? ` ${svgStyle(node.style)}` : ""}>${node.children.map((child) => renderSvgNode(child, format, defs)).join("")}</g>`;
+    }
+    if (node.kind === "clip") {
+        const [x, y, width, height] = node.bounds.map((value, index) => svgNumber(value, `Clip bounds ${index + 1}`));
+        const id = `rix-clip-${defs.length + 1}`;
+        defs.push(`<clipPath id="${id}"><rect x="${x}" y="${y}" width="${width}" height="${height}"/></clipPath>`);
+        return `<g clip-path="url(#${id})"${svgStyle(node.style) ? ` ${svgStyle(node.style)}` : ""}>${node.children.map((child) => renderSvgNode(child, format, defs)).join("")}</g>`;
+    }
+    return "";
+}
+
+export function renderGraphicSvg(graphic, format = (item) => String(item ?? "")) {
     if (!isOutputValue(graphic) || graphic.kind !== "graphic") throw new Error("Expected a Graphic output value");
     const size = graphic.size.map((value, index) => svgNumber(value, `Graphic size ${index + 1}`));
-    const children = graphic.children.map((child) => {
-        if (!isOutputValue(child) || child.kind !== "path") return "";
-        if (child.points.length === 0) return "";
-        const points = child.points.map(svgPoint);
-        const closed = styleEntry(child.style, "closed")?.value === 1n || styleEntry(child.style, "closed") === true;
-        const d = points.map(([x, y], index) => `${index === 0 ? "M" : "L"}${x} ${y}`).join(" ") + (closed ? " Z" : "");
-        return `<path d="${d}" ${svgStyle(child)}/>`;
-    }).join("");
-    return `<svg class="rix-output-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size[0]} ${size[1]}" width="${size[0]}" height="${size[1]}" role="img">${children}</svg>`;
+    const defs = [];
+    const children = graphic.children.map((child) => renderSvgNode(child, format, defs)).join("");
+    return `<svg class="rix-output-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size[0]} ${size[1]}" width="${size[0]}" height="${size[1]}" role="img">${defs.length ? `<defs>${defs.join("")}</defs>` : ""}${children}</svg>`;
 }
 
 export function formatOutputText(value, format) {
@@ -366,7 +489,7 @@ export function renderOutputHtml(value, format = (item) => String(item ?? "")) {
     if (value.kind === "table") return `<table class="rix-output-table">${value.caption ? `<caption>${escapeHtml(value.caption)}</caption>` : ""}<thead><tr>${value.columns.map((column) => `<th>${escapeHtml(column.label)}</th>`).join("")}</tr></thead><tbody>${value.rows.map((row) => `<tr>${row.map((cell) => `<td>${text(cell)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
     if (value.kind === "grid") return `<table class="rix-output-grid"><tbody>${value.rows.map((row, rowIndex) => `<tr${hasRule(value, "horizontal", rowIndex + 1) ? " class=\"rix-grid-rule-top\"" : ""}>${row.map((cell, column) => `<td${hasRule(value, "vertical", column + 1) ? " class=\"rix-grid-rule-left\"" : ""}>${text(cell)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
     if (value.kind === "figure") return `<figure class="rix-output-figure"${value.label ? ` id="${escapeHtml(value.label)}"` : ""}>${renderOutputHtml(value.content, format)}${value.caption ? `<figcaption>${escapeHtml(value.caption)}</figcaption>` : ""}</figure>`;
-    if (value.kind === "graphic") return `<div class="rix-output-graphic">${renderGraphicSvg(value)}</div>`;
+    if (value.kind === "graphic") return `<div class="rix-output-graphic">${renderGraphicSvg(value, format)}</div>`;
     if (value.kind === "slide") return `<section class="rix-output-slide">${value.title ? `<h2>${escapeHtml(value.title)}</h2>` : ""}${renderOutputHtml(value.content, format)}</section>`;
     if (value.kind === "slides") return `<section class="rix-output-slides">${value.slides.map((slide) => renderOutputHtml(slide, format)).join("")}</section>`;
     return `<pre>${escapeHtml(formatOutputText(value, format))}</pre>`;

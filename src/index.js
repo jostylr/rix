@@ -15,5 +15,6 @@ export {
     negateCayley, conjugateCayley, inverseCayley, equalCayley,
     isOutputValue, formatOutputText, renderOutputHtml, renderGraphicSvg,
     createAlgebraOutputCollection, createSyntheticDivision, createPlotOutputCollection,
-    createPolynomialPlot,
+    createPolynomialPlot, createGroup, createTransform, createTextMark,
+    createRectangle, createCircle, createClip,
 } from "./runtime/index.js";

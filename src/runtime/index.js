@@ -13,6 +13,12 @@ export {
     createSyntheticDivision,
     createPlotOutputCollection,
     createPolynomialPlot,
+    createGroup,
+    createTransform,
+    createTextMark,
+    createRectangle,
+    createCircle,
+    createClip,
 } from "./output.js";
 export {
     createLazySequence,
