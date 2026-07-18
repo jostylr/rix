@@ -430,6 +430,11 @@ const LOWERERS = {
     if (callable.type === "SystemAccess") {
       return ir("SYS_CALL", callable.property, arg);
     }
+    // A declared dotted member follows the same convention: a PascalCase
+    // member is callable by adjacency, while a lowercase member is a value.
+    if (callable.type === "DotAccess" && callable.systemPathInfo?.kind === "function") {
+      return ir("CALL_METHOD", lowerNode(callable.object), callable.property, arg);
+    }
     // For expression-based callables (e.g. result of another ImplicitApplication)
     return ir("CALL_EXPR", lowerNode(callable), arg);
   },

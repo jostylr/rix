@@ -11,6 +11,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { Registry } from "./registry.js";
 import { SystemContext } from "../runtime/system-context.js";
+import { createSystemLookup } from "../runtime/system-manifest.js";
 import { Context } from "../runtime/context.js";
 import { Cell, copyAllMeta, deepCopyValue, shallowCopyValue } from "../runtime/cell.js";
 import { isHole } from "../runtime/hole.js";
@@ -807,7 +808,7 @@ export function parseAndEvaluate(code, options = {}) {
     const registry = options.registry || createDefaultRegistry();
     const systemContext = options.systemContext || createDefaultSystemContext();
     context.setEnv("__system_context__", systemContext);
-    const systemLookup = options.systemLookup || defaultSystemLookup;
+    const systemLookup = createSystemLookup(systemContext, options.systemLookup || defaultSystemLookup);
     getScriptRuntime(context, { systemLookup });
     context.setEnv("__registry__", registry);
     if (typeof options.rng === "function") context.setEnv("randomFunction", options.rng);

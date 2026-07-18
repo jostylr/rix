@@ -573,7 +573,12 @@ class Parser {
     if (node.type === "FunctionLambda") return true;
     if (node.type === "ImplicitApplication") return true;
     if (node.type === "FunctionCall") return true;
-    if (node.type === "SystemAccess") return true;
+    if (node.type === "SystemAccess") {
+      return !node.systemPathInfo || node.systemPathInfo.kind === "function";
+    }
+    if (node.type === "DotAccess") {
+      return node.systemPathInfo?.kind === "function";
+    }
     if (node.type === "SystemCall") return true;
     if (node.type === "Call") return true;
     if (node.type === "MethodCall") return true;
@@ -597,6 +602,20 @@ class Parser {
     }
 
     return { name: baseName, original: baseOriginal };
+  }
+
+  resolveSystemRoot(name) {
+    return this.systemLookup?.resolveSystemRoot?.(name) || null;
+  }
+
+  resolveSystemMember(parent, name) {
+    return this.systemLookup?.resolveSystemMember?.(parent, name) || null;
+  }
+
+  validateKnownSystemCallable(target) {
+    if (target?.systemPathInfo && target.systemPathInfo.kind !== "function") {
+      this.error(`System ${target.systemPathInfo.kind} '${target.systemPathInfo.displayName}' is not callable`);
+    }
   }
 
   // Check if the current token can start a new implicit operand (factor).
@@ -857,8 +876,10 @@ class Parser {
           this.advance(); // consume '.'
           if (this.current.type === "Identifier") {
             const property = this.parseMethodName();
+            const systemPathInfo = this.resolveSystemRoot(property.name);
             return this.createNode("SystemAccess", {
               property: property.name,
+              ...(systemPathInfo ? { systemPathInfo } : {}),
               original: token.original + property.original,
             });
           }
@@ -1363,9 +1384,24 @@ class Parser {
       // Right side must be an identifier (property name)
       const property = this.parseMethodName();
 
+      let systemPathInfo = null;
+      if (left.systemPathInfo) {
+        const resolution = this.resolveSystemMember(left.systemPathInfo, property.name);
+        if (resolution?.state === "not-object") {
+          this.error(`System ${left.systemPathInfo.kind} '${left.systemPathInfo.displayName}' has no members`);
+        }
+        if (resolution?.state === "unknown-member") {
+          this.error(`Unknown system member '${left.systemPathInfo.displayName}.${property.name}'`);
+        }
+        if (resolution?.state === "resolved") {
+          systemPathInfo = resolution.member;
+        }
+      }
+
       return this.createNode("DotAccess", {
         object: left,
         property: property.name,
+        ...(systemPathInfo ? { systemPathInfo } : {}),
         pos: left.pos,
         original: left.original + operator.original + property.original,
       });
@@ -1662,6 +1698,7 @@ class Parser {
 
       // Special case for function calls and implicit multiplication with parens
       if (this.current.value === "(") {
+        this.validateKnownSystemCallable(left);
         // Non-callable expressions followed by '(' are implicit multiplication: 3(x+1), a(x+1), (x+1)(x+2)
         if (!this.isCallableNode(left)) {
           if (JUXTAPOSITION_PRECEDENCE < minPrec) {

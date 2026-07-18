@@ -1,4 +1,5 @@
 export { parse, tokenize, posToLineCol, SystemLoader, createNodeSystemLoader, createWebPageSystemLoader } from "./parser/index.js";
+export { createSystemManifest, createSystemLookup } from "./runtime/system-manifest.js";
 export { complete, REPL_COMMANDS } from "./repl/completion.js";
 export { lower, lowerNode, ir, IR, Registry, evaluate, createDefaultRegistry, createDefaultSystemContext, parseAndEvaluate, irToText, irListToText, formatValue } from "./eval/index.js";
 export {
