@@ -275,9 +275,6 @@ export function formatValue(val, options = {}) {
             return val.cursor === null ? "[Iterator: done]" : `[Iterator: index ${val.cursor}]`;
         }
         if (val.type === "string") return val.value;
-        // Browser float plugins use a lightweight runtime value. A semantic
-        // Float may supply its own display method, which remains authoritative.
-        if (val.type === "float" && !(val._ext instanceof Map && val._ext.has("__type"))) return String(val.value);
         if (isCayleyInfinity(val)) return "Infinity";
         if (isCayleyValue(val)) {
             return `Cayley(${formatChild(val.magnitude)}, ${formatChild(val.direction)})`;
