@@ -38,6 +38,7 @@ function boolResult(val) {
 function classifyMinMaxType(val) {
     if (val === null || val === undefined) return null;
     if (val instanceof Integer || val instanceof Rational) return "number";
+    if (val?.type === "float") return "number";
     if (typeof val === "number" || typeof val === "bigint") return "number";
     if (typeof val === "string") return "string";
     if (val && typeof val === "object" && val.type === "string") return "string";

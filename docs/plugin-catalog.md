@@ -25,6 +25,27 @@ The catalog scans only configured `plugins/` roots. It reads headers and
 declares disabled host mounts so static path checking can recognize a known
 surface, but a disabled mount errors when called.
 
+## Placement by host
+
+- **RiX CLI:** scans the current working directory's `plugins/`, a script
+  sibling's `plugins/`, and the example plugin roots configured by the CLI.
+- **RiX web:** place browser-approved entries in `rix-web/plugins/` before
+  building. `bun run build:app` scans that directory and writes the static
+  adapter at `rix-web/src/generated/bundled-plugin-catalog.js`. Only those
+  entries become part of the published browser bundle; a browser never scans a
+  visitor's filesystem.
+- **RiX Notebook:** add trusted bundled JavaScript installers to
+  `rix-nb/src/bundled-plugin-catalog.js`, and put project-local entries under
+  `<project>/plugins/`. The desktop app scans project plugins when a note is
+  opened. `project.toml` or `notebook.toml` can enable entries with
+  `plugins = ["plugin-id"]`.
+
+In the two browser-backed hosts, a `.plugin.rix.js` must be imported by the
+application's bundle/catalog source to be executable. A discovered project JS
+plugin is displayed but intentionally has no installer approval. A project
+`.plugin.rix` is retained as source and can be loaded through the regular RiX
+plugin boundary.
+
 ```rix
 .Plugin.List()
 .Plugin.Info("exact-statistics")
