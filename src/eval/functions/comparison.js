@@ -59,34 +59,50 @@ function resolveCell(irNode, context) {
     return null;
 }
 
-function minMaxImpl(args, mode) {
+function comparisonInteger(value) {
+    if (value instanceof Integer && [-1n, 0n, 1n].includes(value.value)) return Number(value.value);
+    throw new Error("COMPARE variants must return -1, 0, or 1 as a RiX integer");
+}
+
+function minMaxImpl(args, mode, context, evaluate) {
     const filtered = args.filter((v) => v !== null && v !== undefined);
     if (filtered.length === 0) {
         throw new Error(`${mode} requires at least one non-null comparable argument`);
     }
-
-    const valueType = classifyMinMaxType(filtered[0]);
-    if (valueType === "invalid") {
-        throw new Error(`${mode} only supports numbers or strings`);
-    }
-    for (let i = 1; i < filtered.length; i++) {
-        const t = classifyMinMaxType(filtered[i]);
-        if (t === "invalid" || t !== valueType) {
-            throw new Error(`${mode} arguments must all be numbers or all be strings`);
-        }
-    }
-
     let best = filtered[0];
     for (let i = 1; i < filtered.length; i++) {
-        const c = compare(filtered[i], best);
+        const registry = context?.getEnv?.("__registry__", null);
+        if (!registry?.invokeWithVariant) {
+            throw new Error(`${mode} requires an active evaluator registry`);
+        }
+        const invocation = registry.invokeWithVariant("COMPARE", [filtered[i], best], context, evaluate);
+        const c = comparisonInteger(invocation.value);
+        // A type's compare variant may promote both values. Carry that result
+        // forward so Min/Max returns a value in the chosen common domain.
+        const [candidate, normalizedBest] = invocation.args;
         if ((mode === "MIN" && c < 0) || (mode === "MAX" && c > 0)) {
-            best = filtered[i];
+            best = candidate;
+        } else {
+            best = normalizedBest;
         }
     }
     return best;
 }
 
 export const comparisonFunctions = {
+    COMPARE: {
+        impl(args) {
+            const leftType = classifyMinMaxType(args[0]);
+            const rightType = classifyMinMaxType(args[1]);
+            if (!leftType || leftType === "invalid" || leftType !== rightType) {
+                throw new Error("COMPARE requires two values from the same built-in ordered domain");
+            }
+            const result = compare(args[0], args[1]);
+            return new Integer(BigInt(result < 0 ? -1 : result > 0 ? 1 : 0));
+        },
+        pure: true,
+        doc: "Compare two values; returns -1, 0, or 1",
+    },
     EQ: {
         impl(args) {
             const [a, b] = args;
@@ -158,16 +174,16 @@ export const comparisonFunctions = {
     },
 
     MIN: {
-        impl(args) {
-            return minMaxImpl(args, "MIN");
+        impl(args, context, evaluate) {
+            return minMaxImpl(args, "MIN", context, evaluate);
         },
         pure: true,
         doc: "Minimum over n arguments (ignores nulls)",
     },
 
     MAX: {
-        impl(args) {
-            return minMaxImpl(args, "MAX");
+        impl(args, context, evaluate) {
+            return minMaxImpl(args, "MAX", context, evaluate);
         },
         pure: true,
         doc: "Maximum over n arguments (ignores nulls)",

@@ -105,6 +105,15 @@ function compareVariant(name, relation) {
     };
 }
 
+function prepareFloatComparison(args, _context, evaluate) {
+    if (args.length !== 2 || !args.some(isFloat)) return false;
+    try {
+        return { args: args.map((value) => requireFloat(value, evaluate)) };
+    } catch {
+        return false;
+    }
+}
+
 function registerFloatType() {
     if (typeRegistry.has(TYPE_NAME)) return;
     const installs = new Map([
@@ -115,6 +124,14 @@ function registerFloatType() {
         ["POW", [numericVariant("FloatIEEE754Pow", (left, right) => left ** right)]],
         ["POWPROD", [numericVariant("FloatIEEE754PowProd", (left, right) => left ** right)]],
         ["NEG", [numericVariant("FloatIEEE754Neg", (value) => -value, 1)]],
+        ["COMPARE", [{
+            name: "FloatIEEE754Compare",
+            prepare: prepareFloatComparison,
+            impl(args) {
+                const [left, right] = args.map(numberFrom);
+                return new Integer(left < right ? -1n : left > right ? 1n : 0n);
+            },
+        }]],
         ["EQ", [compareVariant("FloatIEEE754Eq", (left, right) => left === right)]],
         ["NEQ", [compareVariant("FloatIEEE754Neq", (left, right) => left !== right)]],
         ["LT", [compareVariant("FloatIEEE754Lt", (left, right) => left < right)]],

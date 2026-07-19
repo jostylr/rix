@@ -38,4 +38,15 @@ describe("approximate math plugin", () => {
         expect(parseAndEvaluate(".float.Floor(.float(1.25), 1)", { systemContext, registry }).toString()).toBe("6/5");
         expect(parseAndEvaluate(".float.Ceiling(.float(1.25), 1)", { systemContext, registry }).toString()).toBe("13/10");
     });
+
+    test("generic Min and Max promote mixed exact and Float values through the plugin comparison variant", () => {
+        const systemContext = createDefaultSystemContext();
+        const registry = createDefaultRegistry();
+        loadApproxMathPlugin(systemContext, registry);
+
+        expect(parseAndEvaluate(".Min(2/3, .float(3/4)).Value()", { systemContext, registry }))
+            .toEqual({ type: "string", value: String(2 / 3) });
+        expect(parseAndEvaluate(".Max(2/3, .float(3/4)).Value()", { systemContext, registry }))
+            .toEqual({ type: "string", value: String(3 / 4) });
+    });
 });

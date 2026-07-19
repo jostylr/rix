@@ -8,7 +8,7 @@
 import { MATH_FUNCTION_NAMES, mathFunctions } from "../../src/eval/functions/math.js";
 import { installRegisteredTypes, typeRegistry } from "../../src/runtime/type-system.js";
 import { loadFloatExampleStartup } from "../floats/floats-loader.js";
-import { Rational, RationalInterval } from "@ratmath/core";
+import { Integer, Rational, RationalInterval } from "@ratmath/core";
 
 const FLOAT_METHOD_NAMES = ["ABS", "SQRT", ...MATH_FUNCTION_NAMES];
 
@@ -20,6 +20,27 @@ function requireFloat(value, evaluate) {
     return evaluate({
         fn: "SEMANTIC_CONVERT_STRICT",
         args: [value, "Float"],
+    });
+}
+
+function installFloatCompareVariant(registry) {
+    registry.installVariant("COMPARE", {
+        name: "ApproxMathFloatCompare",
+        // The generic Min/Max reducer retains these prepared arguments, so
+        // mixed exact/Float inputs return their common Float representation.
+        priority: 100,
+        prepare(args, _context, evaluate) {
+            if (args.length !== 2 || !args.some((value) => value?.type === "float")) return false;
+            try {
+                return { args: args.map((value) => requireFloat(value, evaluate)) };
+            } catch {
+                return false;
+            }
+        },
+        impl(args) {
+            const [left, right] = args.map((value) => value.value);
+            return new Integer(left < right ? -1n : left > right ? 1n : 0n);
+        },
     });
 }
 
@@ -167,6 +188,7 @@ export function loadApproxMathPlugin(systemContext, registry) {
     }
     registry.registerAll(mathFunctions);
     loadFloatExampleStartup(registry, systemContext);
+    installFloatCompareVariant(registry);
     installRegisteredTypes(registry, typeRegistry.list(), {
         onlyFunctions: new Set(MATH_FUNCTION_NAMES),
         skipMissing: true,

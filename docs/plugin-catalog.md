@@ -66,6 +66,25 @@ just because a file was discovered. This makes the boundary explicit: RiX
 plugins run at a host-controlled RiX load boundary, while JavaScript plugins
 are trusted host extensions.
 
+## Typed operator variants
+
+An approved host plugin can register a semantic type and install variants for
+the generic evaluator operators. Arithmetic, comparisons, `Abs`, approximate
+functions, and `Min`/`Max` therefore do not need plugin-specific evaluator
+branches. A comparison variant may normalize its operands (for example, exact
+numbers promoted to a plugin's floating representation); generic `Min` and
+`Max` carry those normalized values forward and return the promoted winner.
+Variants may declare a numeric `priority`; the highest explicit priority wins,
+and equal highest priorities are an activation error rather than an accidental
+plugin-load-order decision. Existing variants without a priority retain their
+installed order for compatibility.
+
+Plugins should give coexisting implementations distinct semantic type names
+such as `FloatIEEE754` and `FloatMPFR`, while exposing a friendly mounted
+namespace such as `.float` to ordinary RiX code. `Min`/`Max` reduce through
+the generic `COMPARE` operator, so a plugin normally installs ordering once
+rather than separate min/max implementations.
+
 The metadata `groups` are attached to the mounted capability after activation.
 `permissions` is descriptive catalog metadata today; a host decides the actual
 permission frame given to a plugin. Plugin metadata never grants core

@@ -56,37 +56,105 @@ export class Registry {
         };
     }
 
-    _callSystemMultifunction(name, args, context, evaluate) {
+    _prepareVariant(variant, args, context, evaluate) {
+        if (typeof variant.prepare === "function") {
+            const prepared = variant.prepare(args, context, evaluate);
+            if (!prepared) return null;
+            if (prepared === true) return { args };
+            if (Array.isArray(prepared)) return { args: prepared };
+            if (!Array.isArray(prepared.args)) {
+                throw new Error(`System variant '${variant.name}' prepare() must return false, an argument array, or { args }`);
+            }
+            return prepared;
+        }
+        if (variant.prep) {
+            let ok = false;
+            try {
+                ok = Boolean(variant.prep(args, context, evaluate));
+            } catch {
+                ok = false;
+            }
+            if (!ok) return null;
+        }
+        return { args };
+    }
+
+    _invokeSystemMultifunction(name, args, context, evaluate) {
         const func = this.functions.get(name);
         if (!func?.systemMultifunction) {
             throw new Error(`${name} is not a system multifunction`);
         }
+        const candidates = [];
         for (const variant of func.variants) {
-            if (variant.prep) {
-                let ok = false;
-                try {
-                    ok = Boolean(variant.prep(args, context, evaluate));
-                } catch {
-                    ok = false;
-                }
-                if (!ok) continue;
+            let prepared;
+            try {
+                prepared = this._prepareVariant(variant, args, context, evaluate);
+            } catch (error) {
+                // Preparation is a dispatch probe. A non-applicable coercion
+                // should allow a later variant or the native fallback to run.
+                if (!variant.prep && !variant.prepare) throw error;
+                continue;
             }
+            if (!prepared) continue;
 
-            const tc = context?.getEnv?.("__trace_context__");
-            if (tc?.active && context?.getEnv?.("traceSystemVariants", false)) {
-                tc.log.push({
-                    event: "system_variant_selected",
-                    fn: name,
-                    variantName: variant.name,
-                    installedByType: variant.installedByType ?? null,
-                    depth: tc.currentDepth ?? 0,
-                });
-            }
-            return variant.impl(args, context, evaluate);
+            candidates.push({ variant, prepared });
         }
-        return null;
+
+        // Existing variants retain their installation order. New plugin
+        // variants may declare a priority to make cross-plugin precedence
+        // explicit instead of depending on load order.
+        const prioritized = candidates.filter(({ variant }) => Number.isFinite(variant.priority));
+        let selected = candidates[0] || null;
+        if (prioritized.length > 0) {
+            const priority = Math.max(...prioritized.map(({ variant }) => variant.priority));
+            const winners = prioritized.filter(({ variant }) => variant.priority === priority);
+            if (winners.length > 1) {
+                throw new Error(`Ambiguous ${name} variants at priority ${priority}: ${winners.map(({ variant }) => variant.name).join(", ")}`);
+            }
+            selected = winners[0];
+        }
+        if (!selected) return { value: null, args, variant: null };
+
+        const { variant, prepared } = selected;
+        const tc = context?.getEnv?.("__trace_context__");
+        if (tc?.active && context?.getEnv?.("traceSystemVariants", false)) {
+            tc.log.push({
+                event: "system_variant_selected",
+                fn: name,
+                variantName: variant.name,
+                installedByType: variant.installedByType ?? null,
+                depth: tc.currentDepth ?? 0,
+            });
+        }
+        return {
+            value: variant.impl(prepared.args, context, evaluate),
+            args: prepared.args,
+            variant,
+        };
     }
 
+    _callSystemMultifunction(name, args, context, evaluate) {
+        return this._invokeSystemMultifunction(name, args, context, evaluate).value;
+    }
+
+    /**
+     * Invoke a system multifunction and retain its normalized operands.
+     * Generic reducers (Min/Max) use this to return the promoted winner while
+     * ordinary evaluator calls continue to receive only the value.
+     */
+    invokeWithVariant(name, args, context, evaluate) {
+        return this._invokeSystemMultifunction(name, args, context, evaluate);
+    }
+
+    /**
+     * Add an overload to a typed system operation.
+     *
+     * `prep(args)` is the legacy boolean applicability probe. `prepare(args,
+     * context, evaluate)` may instead return normalized arguments as either an
+     * array or `{ args }`; this lets a plugin promote operands before its
+     * variant runs. A numeric `priority` opts into deterministic precedence:
+     * the highest explicit priority wins and an equal top priority is an error.
+     */
     installVariant(name, variant) {
         let func = this.functions.get(name);
         if (!func) {
