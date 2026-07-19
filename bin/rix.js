@@ -19,7 +19,6 @@ import {
     lower,
     evaluate,
     Context,
-    PluginCatalog,
     createDefaultRegistry,
     createDefaultSystemContext,
     parseAndEvaluate,
@@ -27,6 +26,7 @@ import {
     isRixAbort,
     complete,
 } from "../src/index.js";
+import { NodePluginCatalog } from "../src/runtime/plugin-catalog-node.js";
 import { formatValue as formatResult } from "../src/eval/format.js";
 import { install as installApproxMathPlugin } from "../examples/approx-math/approx-math.plugin.rix.js";
 
@@ -478,7 +478,7 @@ async function main() {
     const withFloats = rawArgs.includes("--with-floats");
     const args = rawArgs.filter(arg => arg !== "--with-floats");
     const inputPath = args.length > 0 && args[0] !== "test" ? path.resolve(args[0]) : null;
-    const pluginCatalog = new PluginCatalog({ roots: [
+    const pluginCatalog = new NodePluginCatalog({ roots: [
         path.resolve(process.cwd(), "plugins"),
         inputPath ? path.join(path.dirname(inputPath), "plugins") : null,
         path.join(EXAMPLES_DIR, "plugins"),

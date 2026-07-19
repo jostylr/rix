@@ -8,18 +8,6 @@
  * asynchronous and, more importantly, is a host trust decision.
  */
 
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import path from "node:path";
-
-const RIX_PLUGIN_SUFFIX = ".plugin.rix";
-const JS_PLUGIN_SUFFIX = ".plugin.rix.js";
-
-function pluginKind(filename) {
-    if (filename.endsWith(JS_PLUGIN_SUFFIX)) return "host";
-    if (filename.endsWith(RIX_PLUGIN_SUFFIX)) return "rix";
-    return null;
-}
-
 function parseScalar(source) {
     const value = source.trim();
     if (!value) return "";
@@ -149,16 +137,10 @@ function optionMap(value) {
 
 /** A host-owned catalog. Scanning never executes a plugin. */
 export class PluginCatalog {
-    constructor({ roots = [], installers = {} } = {}) {
-        this.roots = [...roots];
+    constructor({ installers = {} } = {}) {
         this.entries = new Map();
         this.installers = new Map(Object.entries(installers));
         this.loaded = new Map();
-    }
-
-    addRoot(root) {
-        this.roots.push(root);
-        return this;
     }
 
     registerInstaller(id, installer) {
@@ -167,33 +149,19 @@ export class PluginCatalog {
         return this;
     }
 
-    scan() {
-        for (const root of this.roots) this.scanRoot(root);
-        return this;
-    }
-
-    scanRoot(root) {
-        if (!existsSync(root)) return this;
-        const visit = (directory) => {
-            for (const entry of readdirSync(directory, { withFileTypes: true })) {
-                if (entry.name === ".git" || entry.name === "node_modules") continue;
-                const fullPath = path.join(directory, entry.name);
-                if (entry.isDirectory()) visit(fullPath);
-                else if (entry.isFile() && pluginKind(entry.name)) this.addFile(fullPath);
-            }
-        };
-        if (statSync(root).isDirectory()) visit(root);
-        else if (statSync(root).isFile() && pluginKind(root)) this.addFile(root);
-        return this;
-    }
-
-    addFile(sourcePath) {
-        const kind = pluginKind(sourcePath);
-        if (!kind) throw new Error(`${sourcePath}: not a RiX plugin filename`);
-        const metadata = validateMetadata(readPluginHeader(readFileSync(sourcePath, "utf8"), sourcePath), sourcePath, kind);
-        if (this.entries.has(metadata.id)) throw new Error(`Duplicate plugin id '${metadata.id}'`);
-        this.entries.set(metadata.id, metadata);
-        return metadata;
+    addMetadata(metadata, { sourcePath = `<plugin:${metadata?.id || "unknown"}>`, source = null, kind = metadata?.kind } = {}) {
+        const validatedKind = kind || metadata?.kind;
+        if (validatedKind !== "rix" && validatedKind !== "host") {
+            throw new Error(`${sourcePath}: plugin kind must be 'rix' or 'host'`);
+        }
+        const entry = validateMetadata(metadata, sourcePath, validatedKind);
+        if (entry.kind === "rix" && typeof source !== "string") {
+            throw new Error(`${sourcePath}: RiX plugin metadata requires source supplied by its host scanner`);
+        }
+        const complete = { ...entry, source };
+        if (this.entries.has(complete.id)) throw new Error(`Duplicate plugin id '${complete.id}'`);
+        this.entries.set(complete.id, complete);
+        return complete;
     }
 
     list() {
@@ -266,7 +234,7 @@ export class PluginCatalog {
         };
         if (metadata.kind === "rix") {
             if (typeof runtime.loadRix !== "function") throw new Error(`No RiX plugin loader is available for '${metadata.id}'`);
-            runtime.loadRix({ ...api, source: readFileSync(metadata.sourcePath, "utf8") });
+            runtime.loadRix({ ...api, source: metadata.source });
         } else {
             const installer = this.installers.get(metadata.id);
             if (!installer) {

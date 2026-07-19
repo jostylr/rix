@@ -3,11 +3,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
     Context,
-    PluginCatalog,
     createDefaultRegistry,
     createDefaultSystemContext,
     parseAndEvaluate,
 } from "../../src/index.js";
+import { NodePluginCatalog } from "../../src/runtime/plugin-catalog-node.js";
 
 const fixtureRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "../fixtures/plugins");
 
@@ -26,7 +26,7 @@ function evaluate(code, options) {
 
 describe("plugin catalog", () => {
     test("scans only correctly named files and reads their leading YAML comments without execution", () => {
-        const catalog = new PluginCatalog({ roots: [fixtureRoot] }).scan();
+        const catalog = new NodePluginCatalog({ roots: [fixtureRoot] }).scan();
 
         expect(catalog.list().map(({ id }) => id)).toEqual(["echo", "host-sample"]);
         expect(catalog.info("echo")).toMatchObject({ mount: "echo", kind: "rix", groups: ["Examples"] });
@@ -35,7 +35,7 @@ describe("plugin catalog", () => {
     });
 
     test("declares a disabled mount for static checking, then loads a RiX plugin only on demand", () => {
-        const options = runtime(new PluginCatalog({ roots: [fixtureRoot] }).scan());
+        const options = runtime(new NodePluginCatalog({ roots: [fixtureRoot] }).scan());
 
         expect(options.systemContext.has("echo")).toBe(true);
         expect(() => evaluate(".echo(7)", options)).toThrow("available but not loaded");
@@ -46,7 +46,7 @@ describe("plugin catalog", () => {
     });
 
     test("host plugins are listed but require an explicitly host-approved installer", () => {
-        const catalog = new PluginCatalog({ roots: [fixtureRoot] }).scan();
+        const catalog = new NodePluginCatalog({ roots: [fixtureRoot] }).scan();
         const options = runtime(catalog);
 
         expect(() => evaluate('.Plugin.Load("host-sample")', options)).toThrow("installer has not been approved");
@@ -58,7 +58,7 @@ describe("plugin catalog", () => {
     });
 
     test("an activation can remount a host plugin under a distinct camelCase name", () => {
-        const options = runtime(new PluginCatalog({ roots: [fixtureRoot] }).scan());
+        const options = runtime(new NodePluginCatalog({ roots: [fixtureRoot] }).scan());
 
         expect(evaluate('.Plugin.Load("echo", {= as = "echoAlt" }); .echoAlt(8)', options).value).toBe(8n);
         expect(options.systemContext.has("echo")).toBe(false);
@@ -67,7 +67,7 @@ describe("plugin catalog", () => {
     });
 
     test("an imported script needs the Plugins permission before it can activate a catalog entry", () => {
-        const options = runtime(new PluginCatalog({ roots: [fixtureRoot] }).scan());
+        const options = runtime(new NodePluginCatalog({ roots: [fixtureRoot] }).scan());
         options.context.setEnv("scriptBaseDir", fixtureRoot);
 
         expect(() => evaluate('<"load-echo">', options)).toThrow(".Plugin.Load is not permitted");
