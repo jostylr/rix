@@ -19,6 +19,7 @@ import {
     lower,
     evaluate,
     Context,
+    PluginCatalog,
     createDefaultRegistry,
     createDefaultSystemContext,
     parseAndEvaluate,
@@ -27,7 +28,7 @@ import {
     complete,
 } from "../src/index.js";
 import { formatValue as formatResult } from "../src/eval/format.js";
-import { loadApproxMathPlugin } from "../examples/approx-math/approx-math-plugin.js";
+import { install as installApproxMathPlugin } from "../examples/approx-math/approx-math.plugin.rix.js";
 
 // Known REPL meta-commands (lowercase, intercepted before the evaluator)
 const REPL_COMMANDS = new Set(["help", "exit", "load", "vars", "fns", "reset", "ast", "tokens"]);
@@ -476,12 +477,20 @@ async function main() {
     const rawArgs = process.argv.slice(2);
     const withFloats = rawArgs.includes("--with-floats");
     const args = rawArgs.filter(arg => arg !== "--with-floats");
+    const inputPath = args.length > 0 && args[0] !== "test" ? path.resolve(args[0]) : null;
+    const pluginCatalog = new PluginCatalog({ roots: [
+        path.resolve(process.cwd(), "plugins"),
+        inputPath ? path.join(path.dirname(inputPath), "plugins") : null,
+        path.join(EXAMPLES_DIR, "plugins"),
+        path.join(EXAMPLES_DIR, "approx-math"),
+    ].filter(Boolean) }).scan();
+    pluginCatalog.registerInstaller("approx-math-js", installApproxMathPlugin);
     const context = new Context();
     const registry = createDefaultRegistry();
-    const systemContext = createDefaultSystemContext();
+    const systemContext = createDefaultSystemContext({ pluginCatalog });
 
     if (withFloats) {
-        loadApproxMathPlugin(systemContext, registry);
+        pluginCatalog.load("approx-math-js", { context, registry, systemContext });
     }
 
     if (args.length > 0 && args[0] === "test") {

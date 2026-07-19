@@ -11,6 +11,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { Registry } from "./registry.js";
 import { SystemContext } from "../runtime/system-context.js";
+import { PluginCatalog } from "../runtime/plugin-catalog.js";
 import { createSystemLookup } from "../runtime/system-manifest.js";
 import { Context } from "../runtime/context.js";
 import { Cell, copyAllMeta, deepCopyValue, shallowCopyValue } from "../runtime/cell.js";
@@ -228,6 +229,7 @@ export function createDefaultSystemContext(options = {}) {
     ctx.register("DefineUnit", unitExactFunctions.DEFINEUNIT);
     ctx.register("DefineExactGenerator", unitExactFunctions.DEFINEEXACTGENERATOR);
     ctx.installManagementNamespaces();
+    ctx.attachPluginCatalog(options.pluginCatalog || new PluginCatalog());
     for (const [group, members] of Object.entries(runtimeDefaults.capabilityGroups)) {
         ctx.registerGroup(group, members);
     }
@@ -487,7 +489,10 @@ function annotateEvaluationError(error, irNode, context) {
 }
 
 function restrictSystemContext(systemContext, allowedNames) {
-    const child = new SystemContext(new Map(), false, { hostContext: systemContext._hostContext });
+    const child = new SystemContext(new Map(), false, {
+        hostContext: systemContext._hostContext,
+        pluginCatalog: systemContext._pluginCatalog,
+    });
     for (const name of systemContext.getAllNames()) {
         if (allowedNames.has(name)) {
             const entry = systemContext.get(name);
@@ -903,6 +908,21 @@ export function parseAndEvaluate(code, options = {}) {
     const systemLookup = createSystemLookup(systemContext, options.systemLookup || defaultSystemLookup);
     getScriptRuntime(context, { systemLookup });
     context.setEnv("__registry__", registry);
+    context.setEnv("__plugin_load_rix__", ({ source, sourcePath, context: pluginContext = context, registry: pluginRegistry = registry, systemContext: pluginSystemContext = systemContext }) => {
+        const previousSource = pluginContext.getEnv(SOURCE_ENV_KEY, undefined);
+        const previousFile = pluginContext.getEnv(CURRENT_FILE_ENV_KEY, undefined);
+        try {
+            return parseAndEvaluate(source, {
+                context: pluginContext,
+                registry: pluginRegistry,
+                systemContext: pluginSystemContext,
+                file: sourcePath,
+            });
+        } finally {
+            pluginContext.setEnv(SOURCE_ENV_KEY, previousSource);
+            pluginContext.setEnv(CURRENT_FILE_ENV_KEY, previousFile);
+        }
+    });
     if (typeof options.rng === "function") context.setEnv("randomFunction", options.rng);
     context.setEnv(SOURCE_ENV_KEY, code);
     context.setEnv(CURRENT_FILE_ENV_KEY, options.file || "<repl>");

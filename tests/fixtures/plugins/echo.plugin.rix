@@ -1,0 +1,12 @@
+/**
+id: echo
+description: A tiny RiX-backed example plugin used by the catalog tests.
+kind: rix
+mount: echo
+exports: [Echo]
+groups: [Examples]
+permissions: []
+defaultEnabled: false
+**/
+
+.Host.Register("echo", (x) -> x, "Echo plugin", ["Examples"])

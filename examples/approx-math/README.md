@@ -1,5 +1,10 @@
 # Approximate Math Plugin
 
+The bundled optional plugin is discoverable as `approx-math-js` from
+`approx-math.plugin.rix.js`. Hosts may expose it through `.Plugin.Load("approx-math-js")`
+after approving its JavaScript installer; the CLI also retains `--with-floats`
+as a convenience startup flag.
+
 This optional host plugin installs the JavaScript-backed `Float` semantic type
 and its approximate methods below `.float`: `.float.Float(x)`,
 `.float.Sin(x)`, `.float.Log(x)`, `.float.Exp(x)`, and related functions. It

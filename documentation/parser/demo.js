@@ -1600,8 +1600,12 @@ class Parser {
       return true;
     if (node.type === "FunctionCall")
       return true;
-    if (node.type === "SystemAccess")
-      return true;
+    if (node.type === "SystemAccess") {
+      return !node.systemPathInfo || node.systemPathInfo.kind === "function";
+    }
+    if (node.type === "DotAccess") {
+      return node.systemPathInfo?.kind === "function";
+    }
     if (node.type === "SystemCall")
       return true;
     if (node.type === "Call")
@@ -1625,6 +1629,17 @@ class Parser {
       return { name: baseName + "!", original: baseOriginal + bangOriginal };
     }
     return { name: baseName, original: baseOriginal };
+  }
+  resolveSystemRoot(name) {
+    return this.systemLookup?.resolveSystemRoot?.(name) || null;
+  }
+  resolveSystemMember(parent, name) {
+    return this.systemLookup?.resolveSystemMember?.(parent, name) || null;
+  }
+  validateKnownSystemCallable(target) {
+    if (target?.systemPathInfo && target.systemPathInfo.kind !== "function") {
+      this.error(`System ${target.systemPathInfo.kind} '${target.systemPathInfo.displayName}' is not callable`);
+    }
   }
   canStartImplicitOperand() {
     const t = this.current;
@@ -1746,6 +1761,8 @@ class Parser {
           });
         } else if (token.value === "(") {
           return this.parseGrouping();
+        } else if (token.value === "|") {
+          return this.parseAbsoluteValue();
         } else if (token.value === "[") {
           return this.parseArray();
         } else if (token.value === "<") {
@@ -1779,6 +1796,16 @@ class Parser {
           });
         } else if (token.value === "@") {
           this.advance();
+          if (this.current.type === "String" && this.current.kind === "quote") {
+            const template = this.current;
+            this.advance();
+            const delimiter = (template.original.match(/^"+/) || [""])[0].length;
+            return this.createNode(delimiter >= 3 ? "DocumentTemplate" : "InterpolatedString", {
+              body: template.value,
+              delimiter,
+              original: token.original + template.original
+            });
+          }
           const nextVal = this.current.value;
           if (nextVal === "{" || nextVal === "{;" || nextVal === "{?" || nextVal === "{=" || nextVal === "{|" || nextVal === "{:" || nextVal === "{@" || nextVal === "{#" || nextVal === "{$" || nextVal === "{.." || nextVal === "{^" || nextVal === "{>") {
             let inner;
@@ -1841,8 +1868,10 @@ class Parser {
           this.advance();
           if (this.current.type === "Identifier") {
             const property = this.parseMethodName();
+            const systemPathInfo = this.resolveSystemRoot(property.name);
             return this.createNode("SystemAccess", {
               property: property.name,
+              ...systemPathInfo ? { systemPathInfo } : {},
               original: token.original + property.original
             });
           }
@@ -2258,9 +2287,23 @@ class Parser {
       });
     } else if (operator.value === ".") {
       const property = this.parseMethodName();
+      let systemPathInfo = null;
+      if (left.systemPathInfo) {
+        const resolution = this.resolveSystemMember(left.systemPathInfo, property.name);
+        if (resolution?.state === "not-object") {
+          this.error(`System ${left.systemPathInfo.kind} '${left.systemPathInfo.displayName}' has no members`);
+        }
+        if (resolution?.state === "unknown-member") {
+          this.error(`Unknown system member '${left.systemPathInfo.displayName}.${property.name}'`);
+        }
+        if (resolution?.state === "resolved") {
+          systemPathInfo = resolution.member;
+        }
+      }
       return this.createNode("DotAccess", {
         object: left,
         property: property.name,
+        ...systemPathInfo ? { systemPathInfo } : {},
         pos: left.pos,
         original: left.original + operator.original + property.original
       });
@@ -2490,6 +2533,7 @@ class Parser {
         break;
       }
       if (this.current.value === "(") {
+        this.validateKnownSystemCallable(left);
         if (!this.isCallableNode(left)) {
           if (JUXTAPOSITION_PRECEDENCE < minPrec) {
             break;
@@ -3133,6 +3177,30 @@ class Parser {
       fromBrace: true,
       pos: startToken.pos,
       original: sigil
+    });
+  }
+  parseAbsoluteValue() {
+    const startToken = this.current;
+    this.advance();
+    const expression = this.parseExpression(0);
+    if (this.current.value !== "|") {
+      this.error("Expected '|' to close absolute-value expression");
+    }
+    const endToken = this.current;
+    this.advance();
+    return this.createNode("FunctionCall", {
+      function: this.createNode("SystemIdentifier", {
+        name: "ABS",
+        systemInfo: this.systemLookup("ABS"),
+        original: "|"
+      }),
+      arguments: {
+        positional: [expression],
+        keyword: {}
+      },
+      fromBrace: true,
+      pos: [startToken.pos[0], startToken.pos[1], endToken.pos[2]],
+      original: `|${expression.original || ""}|`
     });
   }
   isConstructorCaptureOperator(value) {
@@ -4968,35 +5036,6 @@ function parse(input, systemLookup) {
 }
 // src/parser/system-loader.js
 var DEFAULT_SYSTEM_REGISTRY = {
-  SIN: {
-    type: "function",
-    arity: 1,
-    precedence: 120,
-    category: "trigonometric"
-  },
-  COS: {
-    type: "function",
-    arity: 1,
-    precedence: 120,
-    category: "trigonometric"
-  },
-  TAN: {
-    type: "function",
-    arity: 1,
-    precedence: 120,
-    category: "trigonometric"
-  },
-  LOG: { type: "function", arity: 1, precedence: 120, category: "logarithmic" },
-  EXP: { type: "function", arity: 1, precedence: 120, category: "exponential" },
-  SQRT: { type: "function", arity: 1, precedence: 120, category: "arithmetic" },
-  ABS: { type: "function", arity: 1, precedence: 120, category: "arithmetic" },
-  MAX: { type: "function", arity: -1, precedence: 120, category: "aggregate" },
-  MIN: { type: "function", arity: -1, precedence: 120, category: "aggregate" },
-  SUM: { type: "function", arity: -1, precedence: 120, category: "aggregate" },
-  PI: { type: "constant", value: Math.PI, category: "mathematical" },
-  EX: { type: "constant", value: Math.E, category: "mathematical" },
-  INFINITY: { type: "constant", value: Infinity, category: "mathematical" },
-  I: { type: "constant", category: "complex" },
   LIST: { type: "constructor", category: "collection" },
   SET: { type: "constructor", category: "collection" },
   MAP: { type: "constructor", category: "collection" },
@@ -5216,8 +5255,7 @@ class SystemLoader {
     return {
       ...definition,
       name,
-      resolvedAt: Date.now(),
-      context: this.getCurrentContext()
+      resolvedAt: Date.now()
     };
   }
   registerHook(eventName, callback) {
@@ -5311,9 +5349,6 @@ class SystemLoader {
     };
     this.contexts.set(name, context);
     return context;
-  }
-  getCurrentContext() {
-    return "global";
   }
   getControlArity(name, definition) {
     switch (definition.structure) {

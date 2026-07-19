@@ -129,11 +129,50 @@ function namespaceEntry(context, namespace) {
     return value;
 }
 
+function pluginNamespaceEntry(context, catalog) {
+    const hostContext = context._hostContext;
+    const load = (args, evaluationContext) => {
+        const runtime = evaluationContext?.getEnv?.("__script_runtime__", null);
+        const frame = runtime?.frameStack?.[runtime.frameStack.length - 1];
+        if (frame && !frame.permissions?.has("PLUGINS")) {
+            throw new Error(".Plugin.Load is not permitted in this execution context");
+        }
+        const id = rixString(args[1], ".Plugin.Load name");
+        const loader = evaluationContext?.getEnv?.("__plugin_load_rix__", null);
+        const registry = evaluationContext?.getEnv?.("__registry__", null);
+        return catalog.load(id, {
+            options: args[2],
+            context: evaluationContext,
+            registry,
+            systemContext: hostContext,
+            visibleSystemContext: context,
+            loadRix: loader,
+        });
+    };
+    const value = { type: "system_namespace", namespace: "plugin", _ext: new Map() };
+    value._ext.set("LOAD", {
+        type: "method_builtin",
+        name: "Load",
+        impl(args, evaluationContext) { return load(args, evaluationContext); },
+    });
+    value._ext.set("LIST", {
+        type: "method_builtin",
+        name: "List",
+        impl() { return { type: "sequence", values: catalog.list().map((metadata) => stringValue(metadata.id)) }; },
+    });
+    value._ext.set("INFO", {
+        type: "method_builtin",
+        name: "Info",
+        impl(args) { return catalog.infoValue(catalog.info(rixString(args[1], ".Plugin.Info name"))); },
+    });
+    return { value, load };
+}
+
 export class SystemContext {
     /**
      * @param {Map<string, object>} capabilities
      * @param {boolean} frozen
-     * @param {{groups?: Map<string, Iterable<string>>|object, hostContext?: SystemContext}} options
+     * @param {{groups?: Map<string, Iterable<string>>|object, hostContext?: SystemContext, pluginCatalog?: object}} options
      */
     constructor(capabilities = new Map(), frozen = false, options = {}) {
         this._capabilities = new Map();
@@ -142,6 +181,7 @@ export class SystemContext {
         // Derived import contexts retain their host registry so permitted
         // plugins attach at host scope; ordinary copies get their own host.
         this._hostContext = options.hostContext || this;
+        this._pluginCatalog = options.pluginCatalog || null;
 
         for (const [name, entry] of capabilities) {
             const normalised = normalizeCapabilityName(name);
@@ -215,6 +255,9 @@ export class SystemContext {
             namespace,
             displayName: options.displayName || name,
             groups: [...new Set(options.groups || def?.groups || [])],
+            pluginId: options.pluginId || def?.pluginId || null,
+            pluginDisabled: options.pluginDisabled === true || def?.pluginDisabled === true,
+            pluginManager: options.pluginManager === true || def?.pluginManager === true,
         };
         if (typeof entry.impl !== "function") {
             throw new Error(`Capability '${name}' requires an implementation function`);
@@ -291,6 +334,48 @@ export class SystemContext {
         const normalised = normalizeCapabilityName(name);
         this._capabilities.delete(normalised);
         for (const members of this._groups.values()) members.delete(normalised);
+    }
+
+    /** Host-side activation may rename a plugin's mounted host root. */
+    renameHostCapability(from, to) {
+        const fromKey = normalizeCapabilityName(from);
+        const toKey = normalizeCapabilityName(to);
+        const entry = this._capabilities.get(fromKey);
+        if (!entry || entry.namespace !== "host") throw new Error(`Unknown host capability '${from}'`);
+        if (capabilityNamespace(to) !== "host") throw new Error(`Plugin mount '${to}' must use camelCase host spelling`);
+        if (fromKey !== toKey && this._capabilities.has(toKey)) throw new Error(`Host capability '${to}' is already registered`);
+        const renamed = { ...entry, displayName: to };
+        this._capabilities.delete(fromKey);
+        this._capabilities.set(toKey, renamed);
+        for (const members of this._groups.values()) {
+            if (members.delete(fromKey)) members.add(toKey);
+        }
+        return this;
+    }
+
+    /** Attach additional catalog-declared groups after a plugin has mounted. */
+    addCapabilityGroups(name, groups = []) {
+        const key = normalizeCapabilityName(name);
+        const entry = this._capabilities.get(key);
+        if (!entry) throw new Error(`Unknown capability '${name}'`);
+        for (const group of groups) {
+            if (!entry.groups.includes(group)) entry.groups.push(group);
+            if (!this._groups.has(group)) this._groups.set(group, new Set());
+            this._groups.get(group).add(key);
+        }
+        return this;
+    }
+
+    /** Reflect a host-mounted plugin into an already-derived capability frame. */
+    adoptHostCapability(source, name) {
+        const entry = source?.get?.(name);
+        if (!entry || entry.namespace !== "host") throw new Error(`Unknown host capability '${name}'`);
+        if (Object.prototype.hasOwnProperty.call(entry, "value")) {
+            this.registerHostCallableValue(entry.displayName, entry.value, entry, entry);
+        } else {
+            this.registerHost(entry.displayName, entry, entry);
+        }
+        return this;
     }
 
     /**
@@ -385,6 +470,24 @@ export class SystemContext {
         return this;
     }
 
+    /** Attach a host-owned discoverable plugin catalog and its .Plugin API. */
+    attachPluginCatalog(catalog) {
+        this._checkMutable();
+        if (!catalog?.declareInto || !catalog?.list || !catalog?.load) {
+            throw new Error("Plugin catalog must provide declareInto(), list(), and load()");
+        }
+        this._pluginCatalog = catalog;
+        catalog.declareInto(this);
+        const plugin = pluginNamespaceEntry(this, catalog);
+        this.registerCallableValue("Plugin", plugin.value, {
+            impl(args, evaluationContext) { return plugin.load([null, ...args], evaluationContext); },
+        }, {
+            doc: "Discover and load host-approved RiX plugins",
+            pluginManager: true,
+        });
+        return this;
+    }
+
     /**
      * Management namespace values close over their owning context. Rebuild
      * them for a derived context so .Core/.Host discovery and registration
@@ -401,6 +504,15 @@ export class SystemContext {
                 this._capabilities.set(normalised, { ...entry, value: namespaceEntry(this, namespace) });
             }
         }
+        const pluginEntry = this._capabilities.get(normalizeCapabilityName("Plugin"));
+        if (pluginEntry?.pluginManager && this._pluginCatalog) {
+            const plugin = pluginNamespaceEntry(this, this._pluginCatalog);
+            this._capabilities.set(normalizeCapabilityName("Plugin"), {
+                ...pluginEntry,
+                value: plugin.value,
+                impl(args, evaluationContext) { return plugin.load([null, ...args], evaluationContext); },
+            });
+        }
         return this;
     }
 
@@ -413,7 +525,7 @@ export class SystemContext {
             ]),
         );
         const hostContext = this._hostContext === this ? undefined : this._hostContext;
-        return new SystemContext(capabilities, frozen, { groups, hostContext })._rebindManagementNamespaces();
+        return new SystemContext(capabilities, frozen, { groups, hostContext, pluginCatalog: this._pluginCatalog })._rebindManagementNamespaces();
     }
 
     // --- Capability object operations (return new instances) ---

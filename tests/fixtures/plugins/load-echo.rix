@@ -1,0 +1,1 @@
+.Plugin.Load("echo"); .echo(3)
