@@ -6,8 +6,9 @@ The initial portable-output slice is implemented: `.Text`, `.Paragraph`,
 and `.Slides` construct typed immutable output records. The CLI has a text
 fallback, and the RiX notebook and RiX Web calculator render tables and grids
 as HTML and retained 2D scenes as inline SVG. `.Algebra.SyntheticDivision(root,
-coefficients)` returns a ruled exact `Grid`; `.Plot.Polynomial(coefficients,
-domain, options?)` constructs a portable sampled `Graphic`.
+coefficients)` returns a ruled exact `Grid`; after `.Plugin.Load("plot")`,
+`.plot.Polynomial(coefficients, domain, options?)` constructs a portable
+sampled `Graphic`.
 
 `@"..."` text templates and `@"""..."""` document templates are executable.
 The latter supports blank-line blocks, `h1:` through `h6:`, plus `fig:` and
@@ -268,18 +269,19 @@ curve := .Graphics.Path({=
 })
 ```
 
-### Bundled Draw authoring plugin
+### Bundled draw authoring plugin
 
-`.Draw` is intentionally not part of the intrinsic graphics vocabulary. It is
-the first bundled authoring plugin, with ergonomic helpers that return ordinary
+`.draw` is intentionally not part of the intrinsic graphics vocabulary. Load
+it through `.Plugin.Load("draw")` to use ergonomic helpers that return ordinary
 `Graphics` nodes:
 
 ```rix
-.Draw.Line([0, 0], [80, 40])             # → Graphics.Path
-.Draw.Polygon([[0, 0], [80, 0], [40, 60]]) # → closed Graphics.Path
-.Draw.Label([40, 20], "A")               # → Graphics.Text
-.Draw.Box([0, 0], [80, 40])               # → Graphics.Rectangle
-.Draw.Circle([40, 20], 12)                # → Graphics.Circle
+.Plugin.Load("draw")
+.draw.Line([0, 0], [80, 40])             # → Graphics.Path
+.draw.Polygon([[0, 0], [80, 0], [40, 60]]) # → closed Graphics.Path
+.draw.Label([40, 20], "A")               # → Graphics.Text
+.draw.Box([0, 0], [80, 40])               # → Graphics.Rectangle
+.draw.Circle([40, 20], 12)                # → Graphics.Circle
 ```
 
 This boundary lets a host omit or replace drawing conveniences while retaining
@@ -598,7 +600,8 @@ Document structure is ordinary output composition. It does not introduce a
 second control-flow or loop language.
 
 ```rix
-curve := .Plot.Function({=
+.Plugin.Load("plot")
+curve := .plot.Function({=
     fn = F,
     domain = [-2, 4],
     axes = {= x = true, y = true },
@@ -624,7 +627,7 @@ report := .Fragment({=
 })
 ```
 
-`.Plot.Function` belongs to a plotting plugin. Its result is a standard
+`.plot.Function` belongs to a plotting plugin. Its result is a standard
 `Graphic`, so the report itself remains portable.
 
 ### Function plot and heat map
@@ -636,7 +639,8 @@ object or chart-library object.
 ```rix
 F := (x) -> x^3 - 3*x
 
-curve := .Plot.Function({=
+.Plugin.Load("plot")
+curve := .plot.Function({=
     fn = F,
     domain = [-3, 3],
     size = [720, 420],
@@ -646,12 +650,12 @@ curve := .Plot.Function({=
 
 H := (x, y) -> .Exp(-(x^2 + y^2))
 
-heat := .Plot.HeatMap({=
+heat := .plot.HeatMap({=
     fn = H,
     x = [-3, 3],
     y = [-3, 3],
     resolution = [160, 160],
-    colors = .ColorScale("viridis"),
+    colors = .plot.ColorScale("viridis"),
     legend = true
 })
 ```
@@ -667,18 +671,19 @@ is an explicit conversion to a graphic, so a proof/construction remains
 separate from its visual presentation.
 
 ```rix
-A := .Geometry.Point([0, 0])
-B := .Geometry.Point([6, 0])
-C := .Geometry.Point([2, 4])
+.Plugin.Load("geometry")
+A := .geometry.Point([0, 0])
+B := .geometry.Point([6, 0])
+C := .geometry.Point([2, 4])
 
-ab := .Geometry.Line(A, B)
-ac := .Geometry.Line(A, C)
-bc := .Geometry.Line(B, C)
+ab := .geometry.Line(A, B)
+ac := .geometry.Line(A, C)
+bc := .geometry.Line(B, C)
 
-bisector := .Geometry.AngleBisector(A, B, C)
-D := .Geometry.Intersection(bisector, ac)
+bisector := .geometry.AngleBisector(A, B, C)
+D := .geometry.Intersection(bisector, ac)
 
-diagram := .Geometry.Draw({=
+diagram := .geometry.Draw({=
     objects = [ab, ac, bc, bisector, A, B, C, D],
     labels = {= A = "A", B = "B", C = "C", D = "D" },
     size = [640, 420]
@@ -713,6 +718,9 @@ staticFigure := scene.Snapshot(:svg, {= size = [720, 480] })
 
 ### Exact and adaptive renderables
 
+The broader candidate-plugin roadmap and the full geometry-to-graphics
+refinement contract are in [Plugin Roadmap and Rendering Contracts](../plugins.md).
+
 An implicit curve or an exact intersection should not be prematurely flattened
 to a fixed list of decimal points. The core `Graphics` scene language remains
 the static, renderer-facing result; a geometry or plotting plugin may carry a
@@ -723,7 +731,8 @@ For example, a future geometry plugin could retain the ellipse as an exact
 symbolic relation rather than as a sampled path:
 
 ```rix
-ellipse := .Geometry.Implicit({=
+.Plugin.Load("geometry")
+ellipse := .geometry.Implicit({=
     equation = {#x, y# 4*(x - 5)^2 + 3*(y - 6)^2 - 7 },
     variables = [:x, :y],
     domain = {= x = [2, 8], y = [3, 9] }
@@ -759,7 +768,7 @@ arbitrary host closure and still be portable. Instead, the adaptive value keeps
 a symbolic/equation specification plus a plugin identity and version; exports
 include a static `Graphics.Graphic` snapshot and, when supported, the
 reconstructable adaptive specification. This is a design contract, not yet an
-implemented `.Geometry` or `.Plot.Implicit` API.
+implemented `.geometry` or `.plot.Implicit` API.
 
 ### Synthetic division: use a grid, not a data table
 
@@ -813,7 +822,7 @@ Plugins participate in one or more narrowly defined roles:
 
 | Role | Example | Returns / contributes |
 |---|---|---|
-| Constructor plugin | `Plot`, `Geometry`, `Algebra` | Standard `Graphic`, `Grid`, `Table`, `Scene`, or `Fragment` values. |
+| Constructor plugin | `.plot`, `.geometry`, `.algebra` | Standard `Graphic`, `Grid`, `Table`, `Scene`, or `Fragment` values. |
 | Renderer plugin | `Svg`, `Html`, `Terminal`, `Pdf` | Render handlers for standard values and target MIME types. |
 | Host adapter | notebook webview, CLI, PDF exporter | Renderer negotiation, asset storage, display, and export. |
 | Widget plugin | interactive 3D viewport | A `Widget` plus an explicit static snapshot implementation. |
@@ -831,19 +840,17 @@ serialization/extension schema and snapshot support
 
 For example:
 
-```toml
-id = "rix-plot"
-version = "0.1.0"
-requires_rix = ">=0.1"
-requires_output_schema = "1"
-
-[provides]
-capability_group = "Plot"
-constructors = ["Plot.Function", "Plot.HeatMap", "ColorScale"]
-output_types = ["Graphic"]
-
-[permissions]
-default = []
+```rix
+/**
+id: plot
+description: Portable plot constructors that lower to core Graphics scenes.
+kind: host
+mount: plot
+exports: [Function, HeatMap, ColorScale]
+groups: [Plot]
+permissions: []
+defaultEnabled: false
+**/
 ```
 
 Renderer selection is a protocol dispatch, conceptually:

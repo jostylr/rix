@@ -44,7 +44,7 @@ The loader convention is intentionally simple. A package can be loaded by file p
 .load["/path/to/my-package/startup.rix"]
 ```
 
-or, for local example packages, by name. The REPL looks for `startup.rix`, `<name>.rix`, or `<name>.js.rix` in the package folder, sets that folder as `scriptBaseDir` and `jsImportBaseDir` while evaluating the startup file, and then the package registers its own traits, types, and installs. `.load[floats]` therefore installs the semantic type alone; `--with-floats` additionally loads the host plugin and provides `.float`.
+or, for local example packages, by name. The REPL looks for `startup.rix`, `<name>.rix`, or `<name>.js.rix` in the package folder, sets that folder as `scriptBaseDir` and `jsImportBaseDir` while evaluating the startup file, and then the package registers its own traits, types, and installs. `.load[floats]` therefore installs the semantic type alone; `--with-floats` additionally loads the `float` host plugin and provides `.float`.
 
 The Float type package itself only installs the semantic type and its variants.
 The host plugin owns the user-facing constructor, so when it is loaded:

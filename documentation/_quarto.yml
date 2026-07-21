@@ -23,6 +23,7 @@ project:
     - eval/methods-guide.md
     - eval/types-and-traits-guide.md
     - reference/system-reference.md
+    - plugin-catalog.md
     - developer-guide.qmd
     - eval/README.md
     - parser/architecture.md
@@ -38,6 +39,7 @@ project:
     - design/eval/symbolic-calculus.md
     - design/eval/transformation-reference.md
     - design/eval/output-model.md
+    - design/plugins.md
     - rix-rationales.md
     - design/parser/spec.md
     - design/parser/questions.md
@@ -99,6 +101,8 @@ website:
       - section: Developer guide
         contents:
           - developer-guide.qmd
+          - text: Plugin catalog and loading
+            href: plugin-catalog.md
           - text: Evaluator overview
             href: eval/README.md
           - text: Parser architecture
@@ -129,6 +133,8 @@ website:
             href: design/eval/transformation-reference.md
           - text: Structured output, documents, and graphics
             href: design/eval/output-model.md
+          - text: Plugin roadmap and rendering contracts
+            href: design/plugins.md
       - section: Design and history
         contents:
           - text: Design rationales

@@ -6,9 +6,8 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
-<meta name="description" content="Runtime model, composition rules, attached function specs, and the intentionally bounded exact calculus engine.">
 
-<title>Symbolic specs and exact calculus – RiX</title>
+<title>plugins – RiX</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -27,30 +26,30 @@ ul.task-list li input[type="checkbox"] {
 </style>
 
 
-<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
-<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
-<script src="../../site_libs/clipboard/clipboard.min.js"></script>
-<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
-<script src="../../site_libs/quarto-search/fuse.min.js"></script>
-<script src="../../site_libs/quarto-search/quarto-search.js"></script>
-<meta name="quarto:offset" content="../../">
-<link href="../../design/eval/transformation-reference.html" rel="next">
-<link href="../../design/eval/cayley-polar.html" rel="prev">
-<link href="../../rix-logo.png" rel="icon" type="image/png">
-<script src="../../site_libs/quarto-html/quarto.js" type="module"></script>
-<script src="../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
-<script src="../../site_libs/quarto-html/popper.min.js"></script>
-<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
-<script src="../../site_libs/quarto-html/anchor.min.js"></script>
-<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-4a0610749eeff5ab924a4729b5181608.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
-<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-dark-de927ec96a2411cf822331f71755f83e.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
-<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-4a0610749eeff5ab924a4729b5181608.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
-<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
-<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../../site_libs/bootstrap/bootstrap-f3edcacc9eded719789e0469c6b6eab5.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
-<link href="../../site_libs/bootstrap/bootstrap-dark-c53da4be0d013bdcf7fcfccaa2827e71.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
-<link href="../../site_libs/bootstrap/bootstrap-f3edcacc9eded719789e0469c6b6eab5.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<link href="../rix-rationales.html" rel="next">
+<link href="../design/eval/output-model.html" rel="prev">
+<link href="../rix-logo.png" rel="icon" type="image/png">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-4a0610749eeff5ab924a4729b5181608.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-dark-de927ec96a2411cf822331f71755f83e.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-4a0610749eeff5ab924a4729b5181608.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-f3edcacc9eded719789e0469c6b6eab5.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-dark-c53da4be0d013bdcf7fcfccaa2827e71.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../site_libs/bootstrap/bootstrap-f3edcacc9eded719789e0469c6b6eab5.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -251,11 +250,11 @@ ul.task-list li input[type="checkbox"] {
     <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
       <div class="navbar-container container-fluid">
       <div class="navbar-brand-container mx-auto">
-    <a href="../../index.html" class="navbar-brand navbar-brand-logo">
-    <img src="../../rix-logo.png" alt="" class="navbar-logo light-content">
-    <img src="../../rix-logo.png" alt="" class="navbar-logo dark-content">
+    <a href="../index.html" class="navbar-brand navbar-brand-logo">
+    <img src="../rix-logo.png" alt="" class="navbar-logo light-content">
+    <img src="../rix-logo.png" alt="" class="navbar-logo dark-content">
     </a>
-    <a class="navbar-brand" href="../../index.html">
+    <a class="navbar-brand" href="../index.html">
     <span class="navbar-title">RiX</span>
     </a>
   </div>
@@ -266,19 +265,19 @@ ul.task-list li input[type="checkbox"] {
           <div class="collapse navbar-collapse" id="navbarCollapse">
             <ul class="navbar-nav navbar-nav-scroll me-auto">
   <li class="nav-item">
-    <a class="nav-link active" href="../../getting-started.html" aria-current="page"> 
+    <a class="nav-link active" href="../getting-started.html" aria-current="page"> 
 <span class="menu-text">Start</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="../../language-at-a-glance.html"> 
+    <a class="nav-link" href="../language-at-a-glance.html"> 
 <span class="menu-text">Learn</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="../../eval/syntax-guide.html"> 
+    <a class="nav-link" href="../eval/syntax-guide.html"> 
 <span class="menu-text">Reference</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="../../developer-guide.html"> 
+    <a class="nav-link" href="../developer-guide.html"> 
 <span class="menu-text">Internals</span></a>
   </li>  
 </ul>
@@ -300,7 +299,7 @@ ul.task-list li input[type="checkbox"] {
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../../design/eval/cells-assignments.html">Runtime design</a></li><li class="breadcrumb-item"><a href="../../design/eval/symbolic-calculus.html">Symbolic specs and calculus</a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../design/eval/cells-assignments.html">Runtime design</a></li><li class="breadcrumb-item"><a href="../design/plugins.html">Plugin roadmap and rendering contracts</a></li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
     </div>
@@ -314,7 +313,7 @@ ul.task-list li input[type="checkbox"] {
     <ul class="list-unstyled mt-1">
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../index.html" class="sidebar-item-text sidebar-link">
+  <a href="../index.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Overview</span></a>
   </div>
 </li>
@@ -329,25 +328,25 @@ ul.task-list li input[type="checkbox"] {
       <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../getting-started.html" class="sidebar-item-text sidebar-link">
+  <a href="../getting-started.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Getting started</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../language-at-a-glance.html" class="sidebar-item-text sidebar-link">
+  <a href="../language-at-a-glance.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">RiX at a glance</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../highlights.html" class="sidebar-item-text sidebar-link">
+  <a href="../highlights.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">RiX Highlights</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../status.html" class="sidebar-item-text sidebar-link">
+  <a href="../status.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Implementation status</span></a>
   </div>
 </li>
@@ -364,13 +363,13 @@ ul.task-list li input[type="checkbox"] {
       <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../introduction.html" class="sidebar-item-text sidebar-link">
+  <a href="../introduction.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Complete introduction</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../tutorial/units-and-exact-values.html" class="sidebar-item-text sidebar-link">
+  <a href="../tutorial/units-and-exact-values.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Units and exact values</span></a>
   </div>
 </li>
@@ -387,25 +386,25 @@ ul.task-list li input[type="checkbox"] {
       <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../eval/syntax-guide.html" class="sidebar-item-text sidebar-link">
+  <a href="../eval/syntax-guide.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Syntax and functions</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../eval/methods-guide.html" class="sidebar-item-text sidebar-link">
+  <a href="../eval/methods-guide.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Methods</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../eval/types-and-traits-guide.html" class="sidebar-item-text sidebar-link">
+  <a href="../eval/types-and-traits-guide.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Types and traits</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../reference/system-reference.html" class="sidebar-item-text sidebar-link">
+  <a href="../reference/system-reference.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Generated runtime catalog</span></a>
   </div>
 </li>
@@ -422,61 +421,61 @@ ul.task-list li input[type="checkbox"] {
       <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../developer-guide.html" class="sidebar-item-text sidebar-link">
+  <a href="../developer-guide.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Developer guide</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../plugin-catalog.html" class="sidebar-item-text sidebar-link">
+  <a href="../plugin-catalog.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Plugin catalog and loading</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../eval/README.html" class="sidebar-item-text sidebar-link">
+  <a href="../eval/README.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Evaluator overview</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../parser/architecture.html" class="sidebar-item-text sidebar-link">
+  <a href="../parser/architecture.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Parser architecture</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../parser/parsing.html" class="sidebar-item-text sidebar-link">
+  <a href="../parser/parsing.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Parsing and precedence</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../parser/AST-brief.html" class="sidebar-item-text sidebar-link">
+  <a href="../parser/AST-brief.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">AST reference</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../design/eval/ir-format.html" class="sidebar-item-text sidebar-link">
+  <a href="../design/eval/ir-format.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">IR design snapshot</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../parser/array-generators-implementation.html" class="sidebar-item-text sidebar-link">
+  <a href="../parser/array-generators-implementation.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Array generators</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../parser/embedded-parsing.html" class="sidebar-item-text sidebar-link">
+  <a href="../parser/embedded-parsing.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Embedded parsing</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../parser/matrix-tensor-implementation.html" class="sidebar-item-text sidebar-link">
+  <a href="../parser/matrix-tensor-implementation.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Matrices and tensors</span></a>
   </div>
 </li>
@@ -493,43 +492,43 @@ ul.task-list li input[type="checkbox"] {
       <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../design/eval/cells-assignments.html" class="sidebar-item-text sidebar-link">
+  <a href="../design/eval/cells-assignments.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Cells and assignment</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../design/eval/units-and-exact-generators.html" class="sidebar-item-text sidebar-link">
+  <a href="../design/eval/units-and-exact-generators.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Units and exact generators</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../design/eval/cayley-polar.html" class="sidebar-item-text sidebar-link">
+  <a href="../design/eval/cayley-polar.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Cayley polar complex values</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../design/eval/symbolic-calculus.html" class="sidebar-item-text sidebar-link active">
+  <a href="../design/eval/symbolic-calculus.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Symbolic specs and calculus</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../design/eval/transformation-reference.html" class="sidebar-item-text sidebar-link">
+  <a href="../design/eval/transformation-reference.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Symbolic transformations</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../design/eval/output-model.html" class="sidebar-item-text sidebar-link">
+  <a href="../design/eval/output-model.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Structured output, documents, and graphics</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../design/plugins.html" class="sidebar-item-text sidebar-link">
+  <a href="../design/plugins.html" class="sidebar-item-text sidebar-link active">
  <span class="menu-text">Plugin roadmap and rendering contracts</span></a>
   </div>
 </li>
@@ -546,25 +545,25 @@ ul.task-list li input[type="checkbox"] {
       <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth1 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../rix-rationales.html" class="sidebar-item-text sidebar-link">
+  <a href="../rix-rationales.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Design rationales</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../design/parser/spec.html" class="sidebar-item-text sidebar-link">
+  <a href="../design/parser/spec.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Early language specification</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../design/parser/questions.html" class="sidebar-item-text sidebar-link">
+  <a href="../design/parser/questions.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Open design areas</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../report-2026-04-02.html" class="sidebar-item-text sidebar-link">
+  <a href="../report-2026-04-02.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">April 2026 review (historical)</span></a>
   </div>
 </li>
@@ -580,120 +579,278 @@ ul.task-list li input[type="checkbox"] {
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#purpose-and-boundary" id="toc-purpose-and-boundary" class="nav-link active" data-scroll-target="#purpose-and-boundary">Purpose and boundary</a></li>
-  <li><a href="#runtime-values" id="toc-runtime-values" class="nav-link" data-scroll-target="#runtime-values">Runtime values</a></li>
-  <li><a href="#application-is-substitution" id="toc-application-is-substitution" class="nav-link" data-scroll-target="#application-is-substitution">Application is substitution</a></li>
-  <li><a href="#arithmetic-propagation" id="toc-arithmetic-propagation" class="nav-link" data-scroll-target="#arithmetic-propagation">Arithmetic propagation</a></li>
-  <li><a href="#function-speccability-and-closure-cells" id="toc-function-speccability-and-closure-cells" class="nav-link" data-scroll-target="#function-speccability-and-closure-cells">Function speccability and closure cells</a></li>
-  <li><a href="#calculus" id="toc-calculus" class="nav-link" data-scroll-target="#calculus">Calculus</a></li>
-  <li><a href="#intentional-transformations" id="toc-intentional-transformations" class="nav-link" data-scroll-target="#intentional-transformations">Intentional transformations</a></li>
-  <li><a href="#public-symbolic-capabilities" id="toc-public-symbolic-capabilities" class="nav-link" data-scroll-target="#public-symbolic-capabilities">Public Symbolic capabilities</a></li>
+  <li><a href="#plugin-roadmap-and-rendering-contracts" id="toc-plugin-roadmap-and-rendering-contracts" class="nav-link active" data-scroll-target="#plugin-roadmap-and-rendering-contracts">Plugin Roadmap and Rendering Contracts</a>
+  <ul class="collapse">
+  <li><a href="#the-boundary" id="toc-the-boundary" class="nav-link" data-scroll-target="#the-boundary">The boundary</a></li>
+  <li><a href="#current-starting-point" id="toc-current-starting-point" class="nav-link" data-scroll-target="#current-starting-point">Current starting point</a></li>
+  <li><a href="#candidate-plugin-roadmap" id="toc-candidate-plugin-roadmap" class="nav-link" data-scroll-target="#candidate-plugin-roadmap">Candidate plugin roadmap</a></li>
+  <li><a href="#geometry-implicit-equations-to-graphics" id="toc-geometry-implicit-equations-to-graphics" class="nav-link" data-scroll-target="#geometry-implicit-equations-to-graphics">Geometry implicit equations to graphics</a>
+  <ul class="collapse">
+  <li><a href="#what-crosses-the-boundary" id="toc-what-crosses-the-boundary" class="nav-link" data-scroll-target="#what-crosses-the-boundary">What crosses the boundary</a></li>
+  </ul></li>
+  <li><a href="#certified-numerics-contract" id="toc-certified-numerics-contract" class="nav-link" data-scroll-target="#certified-numerics-contract">Certified numerics contract</a></li>
+  <li><a href="#plugin-contract-to-mature" id="toc-plugin-contract-to-mature" class="nav-link" data-scroll-target="#plugin-contract-to-mature">Plugin contract to mature</a></li>
+  <li><a href="#near-term-decisions" id="toc-near-term-decisions" class="nav-link" data-scroll-target="#near-term-decisions">Near-term decisions</a></li>
+  </ul></li>
   </ul>
-<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/design/eval/symbolic-calculus.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/design/plugins.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
     </div>
 <!-- main -->
-<main class="content" id="quarto-document-content">
+<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../design/eval/cells-assignments.html">Runtime design</a></li><li class="breadcrumb-item"><a href="../design/plugins.html">Plugin roadmap and rendering contracts</a></li></ol></nav></header>
 
 
-<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../../design/eval/cells-assignments.html">Runtime design</a></li><li class="breadcrumb-item"><a href="../../design/eval/symbolic-calculus.html">Symbolic specs and calculus</a></li></ol></nav>
-<div class="quarto-title">
-<h1 class="title">Symbolic specs and exact calculus</h1>
+
+
+
+<section id="plugin-roadmap-and-rendering-contracts" class="level1">
+<h1>Plugin Roadmap and Rendering Contracts</h1>
+<div class="callout callout-style-default callout-note callout-titled" title="Design roadmap, not implemented surface">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
 </div>
-
-<div>
-  <div class="description">
-    Runtime model, composition rules, attached function specs, and the intentionally bounded exact calculus engine.
-  </div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Design roadmap, not implemented surface
 </div>
-
-
-<div class="quarto-title-meta">
-
-    
-  
-    
-  </div>
-  
-
-
-</header>
-
-
-<section id="purpose-and-boundary" class="level2">
-<h2 class="anchored" data-anchor-id="purpose-and-boundary">Purpose and boundary</h2>
-<p>The Symbolic capability group performs definite structural transformations. It does not depend on a representation of real numbers and never silently falls back to numerical differentiation or quadrature. Unsupported transformations fail with an error.</p>
-<p>The current implementation is a single-output exact-arithmetic core. Named multi-output specs can be represented and inspected, but arithmetic, <code>.Poly</code>, calculus, and substitution currently require one solved expression.</p>
+</div>
+<div class="callout-body-container callout-body">
+<p>This document distinguishes capabilities already bundled with RiX from useful future plugins. A listed API is a design target unless the current <a href="../status.html">implementation status</a> says otherwise.</p>
+</div>
+</div>
+<p>RiX should keep a compact language and common portable output model while letting domain packages add mathematical operations and authoring tools. A plugin may construct ordinary values, extend a method/protocol, or contribute a host renderer. It should not make its own private rendering format the normal exchange format.</p>
+<section id="the-boundary" class="level2">
+<h2 class="anchored" data-anchor-id="the-boundary">The boundary</h2>
+<p>The output path has three deliberately separate responsibilities:</p>
+<pre class="mermaid"><code>flowchart LR
+    M["Domain plugin\nexact geometry, plot, algebra, ..."]
+    R["Refinement / lowering\nview request and bounded work"]
+    G["Core .Graphics\nportable scene nodes"]
+    H["Host renderer\nSVG, HTML, Canvas, PDF, terminal"]
+    M --&gt; R --&gt; G --&gt; H</code></pre>
+<ul>
+<li>A domain plugin retains the semantics: equations, constraints, datasets, transformations, provenance, and any exact arithmetic.</li>
+<li>Its refinement/lowering operation chooses enough finite detail for one requested view.</li>
+<li>Core <code>.Graphics</code> holds the static scene that every renderer can understand: <code>Graphic</code>, <code>Path</code>, <code>Group</code>, <code>Transform</code>, <code>Text</code>, <code>Rectangle</code>, <code>Circle</code>, and <code>Clip</code>.</li>
+<li>A host renderer converts only the core scene into SVG, Canvas, PDF, or a text fallback. It does <strong>not</strong> need to know how to solve an ellipse.</li>
+</ul>
+<p>This is why <code>.draw</code> is a plugin-style authoring layer rather than a renderer contract: <code>.draw.Line(...)</code> and <code>.draw.Circle(...)</code> simply return core <code>.Graphics</code> nodes.</p>
 </section>
-<section id="runtime-values" class="level2">
-<h2 class="anchored" data-anchor-id="runtime-values">Runtime values</h2>
-<p><code>{# ... }</code> evaluates to a dedicated <code>symbolic_spec</code> value. Its ordinary display is source-like, while <code>.InspectSpec</code> exposes the structural map used for tools.</p>
-<pre class="rix"><code>{#x}                         # identity-symbol form
-{#t# t^2 - 4 }               # anonymous single output
-{#x:p# p = 2*x }             # explicitly solved output
-.InspectSpec({#x# x^2 + 1 }) # structural view</code></pre>
-<p>The implementation stores lowered expression IR, input and output headers, closure scopes, origin information, and transform provenance. A spec body is not executed when the spec is created.</p>
+<section id="current-starting-point" class="level2">
+<h2 class="anchored" data-anchor-id="current-starting-point">Current starting point</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Capability</th>
+<th>Current state</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Core <code>.Graphics</code></td>
+<td>Implemented</td>
+<td>Portable 2D retained scene schema and SVG lowering.</td>
+</tr>
+<tr class="even">
+<td><code>.draw</code></td>
+<td>Implemented, bundled first-party plugin</td>
+<td>Load with <code>.Plugin.Load("draw")</code>; its authoring helpers return <code>.Graphics</code> values.</td>
+</tr>
+<tr class="odd">
+<td><code>.Algebra.SyntheticDivision</code></td>
+<td>Implemented, bundled</td>
+<td>Exact arithmetic laid out as a portable <code>Grid</code>.</td>
+</tr>
+<tr class="even">
+<td><code>.plot.Polynomial</code></td>
+<td>Implemented, bundled</td>
+<td>Load with <code>.Plugin.Load("plot")</code>; produces a portable static <code>Graphic</code>.</td>
+</tr>
+<tr class="odd">
+<td>Plugin discovery/installation</td>
+<td>Implemented catalog</td>
+<td>The CLI and hosts discover YAML-headed <code>.plugin.rix</code>/<code>.plugin.rix.js</code> entries, expose <code>.Plugin.List</code>/<code>.Info</code>/<code>.Load</code>, and require host approval for JavaScript installers.</td>
+</tr>
+</tbody>
+</table>
+<p>First-party plugins may live in the main RiX repository and be installed selectively by the CLI, notebook, or web host. Independently developed plugins can already use the catalog format; the remaining work is to mature its compatibility, serialization, and permission policies. The operational details are in <a href="../plugin-catalog.html">Plugin catalog</a>.</p>
 </section>
-<section id="application-is-substitution" class="level2">
-<h2 class="anchored" data-anchor-id="application-is-substitution">Application is substitution</h2>
-<p>A symbolic spec is callable. Arguments replace input slots positionally, but the result is always another spec:</p>
-<pre class="rix"><code>G := {#t# t^2 - 4 }
-G({#x})          # {#x# x^2 - 4 }
-G({#x# x + 1 })  # composition
-G(3)             # zero-input constant spec</code></pre>
-<p>Unfilled source inputs remain inputs. Inputs contributed by argument specs are collected in argument order and deduplicated by name. <code>.Poly</code> is the explicit boundary from a single-output spec to an executable exact callable.</p>
+<section id="candidate-plugin-roadmap" class="level2">
+<h2 class="anchored" data-anchor-id="candidate-plugin-roadmap">Candidate plugin roadmap</h2>
+<p>The groups below are candidates, not a promise that all should be implemented. The first two build directly on the current graphics work.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Priority</th>
+<th>Plugin</th>
+<th>Main values and operations</th>
+<th>Portable output / notes</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Next</td>
+<td><code>.geometry</code></td>
+<td>Points, lines, circles, conics, transformations, constructions, intersections, <code>Implicit</code>, and certified <code>Refine</code>.</td>
+<td>Lowers diagrams and implicit loci into <code>.Graphics</code>; retains exact specifications and isolating regions outside the graphic.</td>
+</tr>
+<tr class="even">
+<td>Next</td>
+<td><code>.plot</code> expansion</td>
+<td>Function, parametric, implicit, scatter, bar, axes, scales, legends, viewport fitting, discontinuity handling.</td>
+<td>Produces <code>.Graphics</code>; interactive controls belong in a separate widget layer and always need a static snapshot.</td>
+</tr>
+<tr class="odd">
+<td>Next</td>
+<td><code>.draw</code> expansion</td>
+<td>Arrowheads, dimensions, callouts, paths/builders, alignment/layout helpers.</td>
+<td>Pure authoring sugar over <code>.Graphics</code>, not a second scene format.</td>
+</tr>
+<tr class="even">
+<td>Later</td>
+<td><code>.scene3d</code></td>
+<td>Meshes, curves, surfaces, camera, light, material, projection, snapshot.</td>
+<td>Own retained <code>Scene3D</code> schema; snapshots lower to <code>Graphic</code>/SVG or raster assets. It should not overload the 2D scene node vocabulary.</td>
+</tr>
+<tr class="odd">
+<td>Later</td>
+<td><code>.data</code> / tables</td>
+<td>Relations, schemas, sorting, filtering, joins, calculated columns, table views and formatters.</td>
+<td>A <code>TableView</code> lowers to core <code>Table</code>; CSV is an exporter of data, not a replacement for a presentation table.</td>
+</tr>
+<tr class="even">
+<td>Later</td>
+<td><code>.stats</code></td>
+<td>Distributions, summaries, regression, histograms, confidence intervals.</td>
+<td>Returns data/analysis values; chart constructors compose with <code>.plot</code>.</td>
+</tr>
+<tr class="odd">
+<td>Later</td>
+<td><code>.graph</code></td>
+<td>Nodes, edges, layouts, paths, graph algorithms.</td>
+<td>Layout output becomes <code>.Graphics</code>; graph semantics stay available for computation.</td>
+</tr>
+<tr class="even">
+<td>Later</td>
+<td><code>.numerics</code></td>
+<td>Root isolation, integration, ODEs, optimization, certified-real adapters.</td>
+<td>Supplies certified or explicitly approximate values to <code>.geometry</code> and <code>.plot</code>; it should surface error bounds.</td>
+</tr>
+<tr class="odd">
+<td>Later</td>
+<td><code>.solve</code></td>
+<td>Polynomial systems, constraints, symbolic/numeric solving.</td>
+<td>Returns solution objects and isolating boxes; <code>.geometry</code> can visualize them.</td>
+</tr>
+<tr class="even">
+<td>Later</td>
+<td><code>.document</code> extras</td>
+<td>Citation, bibliography, cross-references, themes, code/output inclusion.</td>
+<td>Produces core <code>Fragment</code>, <code>Figure</code>, <code>Table</code>, and <code>Slides</code> values; renderers own HTML/Quarto/PDF specifics.</td>
+</tr>
+<tr class="odd">
+<td>Host-dependent</td>
+<td><code>.widgets</code></td>
+<td>Sliders, selection, animation, browser events.</td>
+<td>Requires runtime-specific JavaScript; must declare capability needs and provide a portable static snapshot.</td>
+</tr>
+<tr class="even">
+<td>Host-dependent</td>
+<td>Exporters</td>
+<td>SVG, HTML, Quarto, PDF, PNG, terminal.</td>
+<td>These are renderer plugins/adapters, selected by MIME/target negotiation rather than mathematical libraries.</td>
+</tr>
+</tbody>
+</table>
+<p>Potential high-level packages should depend downward: <code>.geometry</code> and <code>.plot</code> depend on exact/numerical services and emit core graphics; renderers depend on core graphics but not on <code>.geometry</code> or <code>.plot</code>.</p>
 </section>
-<section id="arithmetic-propagation" class="level2">
-<h2 class="anchored" data-anchor-id="arithmetic-propagation">Arithmetic propagation</h2>
-<p><code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>, <code>^</code>, and unary <code>-</code> propagate specs. Input names are united by name, preserving first encounter order. Names are not positionally renamed:</p>
-<pre class="rix"><code>{#x# 2*x } * {#t# t^2 - 4 }
-# {#x,t# 2*x*(t^2 - 4) }</code></pre>
-<p>Using <code>x</code> in both operands denotes one shared input. Use substitution such as <code>G({#x})</code> when a rename or composition is intended.</p>
-<p>Arithmetic construction does not simplify. Exact scalars can be lifted when a spec is present. Two spec-backed callables can also be combined, producing a new callable with the combined spec. Callable-scalar arithmetic is deliberately not intercepted because lowercase <code>f(x)</code> is RiX implicit multiplication; use <code>.Spec(F) * scalar</code> followed by <code>.Poly</code> when that distinction matters.</p>
+<section id="geometry-implicit-equations-to-graphics" class="level2">
+<h2 class="anchored" data-anchor-id="geometry-implicit-equations-to-graphics">Geometry implicit equations to graphics</h2>
+<p>An implicit equation must remain a geometry value while it is being reasoned about. The expression <code>4(x - 5)^2 + 3(y - 6)^2 = 7</code> is not itself a path, and passing its parser expression to an SVG renderer would make rendering backend-specific and lose uncertainty information.</p>
+<p>A proposed geometry API is:</p>
+<pre class="rix"><code># Proposed, not implemented
+ellipse := .geometry.Implicit({=
+    equation = {#x, y# 4*(x - 5)^2 + 3*(y - 6)^2 - 7 },
+    variables = [:x, :y],
+    domain = {= x=[2, 8], y=[3, 9] }
+})
+
+request := {=
+    viewport = {= x=[2, 8], y=[3, 9] },
+    size = [720, 480],
+    tolerance = 1 / 1000,
+    maxWork = 20000,
+    boundary = :report_uncertain
+}
+
+result := ellipse.Refine(request)
+graphic := result.graphic</code></pre>
+<p>The refinement has this contract:</p>
+<ol type="1">
+<li><code>.geometry.Implicit</code> stores a serializable symbolic equation, variable bindings, declared domain, exact parameters, and plugin/schema identity. It does not sample the equation at construction time.</li>
+<li><code>Refine</code> receives the renderer-independent view request: mathematical viewport, output pixel size, tolerance, a finite work budget, and a policy for unresolved boundaries.</li>
+<li>Geometry evaluates the equation over boxes using its exact or interval machinery. A box whose range cannot contain zero is discarded. Boxes that can contain the zero locus are subdivided and traced—for example via interval-certified adaptive marching squares or a conic-specific exact routine.</li>
+<li>Once detail is sufficient, the plugin creates ordinary <code>.Graphics.Path</code>, <code>.Graphics.Group</code>, <code>.Graphics.Text</code>, and related nodes. The result is a fixed portable scene for that request.</li>
+<li>The renderer receives <code>result.graphic</code>, not the equation. It applies only graphic coordinate conversion and target styling.</li>
+</ol>
+<p>The returned object should preserve both display and mathematical evidence:</p>
+<pre class="text"><code>AdaptiveRenderResult
+  graphic       # core .Graphics.Graphic for this request
+  resolved      # whether every requested feature reached tolerance
+  uncertainty   # remaining boxes, interval evidence, and boundary status
+  work          # subdivisions/evaluations and exhausted budget status
+  source        # serializable geometry value + plugin/schema version</code></pre>
+<p>For an intersection of two exact objects, <code>.geometry.Intersect</code> should return a constraint/intersection value first. <code>Refine</code> then isolates one or more boxes whose dimensions are below the requested display tolerance. A renderer can draw a marker at a resolved representative; if a point cannot be distinguished from a viewport, clip, or pixel boundary within <code>maxWork</code>, <code>resolved</code> is false and <code>uncertainty</code> explains why. It must not silently decide which side of the boundary contains the point.</p>
+<section id="what-crosses-the-boundary" class="level3">
+<h3 class="anchored" data-anchor-id="what-crosses-the-boundary">What crosses the boundary</h3>
+<pre class="text"><code>`.geometry.Implicit` / `.geometry.Intersection`
+    exact symbolic specification, interval evaluator, construction provenance
+                         |
+                         | Refine(viewport, tolerance, maxWork)
+                         v
+AdaptiveRenderResult.graphic
+    finite .Graphics scene: paths, labels, markers, styles
+                         |
+                         | render(target)
+                         v
+SVG / Canvas / PDF / terminal representation</code></pre>
+<p>The core scene may preserve exact coordinates where it can, but it should not contain arbitrary JavaScript closures or an opaque geometry evaluator. A saved document can therefore carry two things independently:</p>
+<ul>
+<li>a static <code>.Graphics</code> snapshot that any compatible viewer can display; and</li>
+<li>the serializable geometry specification, which can be re-refined only when its identified geometry plugin is available.</li>
+</ul>
 </section>
-<section id="function-speccability-and-closure-cells" class="level2">
-<h2 class="anchored" data-anchor-id="function-speccability-and-closure-cells">Function speccability and closure cells</h2>
-<p>New lambdas and functions are checked against the safe exact-arithmetic profile by default. A function is auto-speccable when it has ordinary positional parameters, no prep/effects, and a body composed of exact literals, identifiers, negation, <code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>, and <code>^</code>.</p>
-<p>Free identifiers are coefficients, not snapshots. The attached spec and every derived <code>.Poly</code> callable retain the source closure scopes, so captured cells remain live:</p>
-<pre class="rix"><code>a := 2
-F := x -&gt; a*x^2
-D := .Deriv(F, {#x})
-a ~= 3
-D(2) # 12</code></pre>
-<p><code>.Speccability(F)</code> returns a report. <code>.Spec(F)</code> returns an existing spec or performs the explicit analysis and attachment. Hosts can disable automatic analysis by setting the context environment value <code>symbolicAutoSpec</code> to <code>"off"</code>, <code>"none"</code>, or <code>false</code>.</p>
 </section>
-<section id="calculus" class="level2">
-<h2 class="anchored" data-anchor-id="calculus">Calculus</h2>
-<p><code>.Deriv(value, variable)</code> accepts a spec or spec-backed callable. It implements linearity, product and quotient rules, and exact integer powers. <code>.Integrate</code> implements structural polynomial antiderivatives: sums, differences, nonnegative monomials, constant factors, and division by expressions independent of the integration variable. It returns the zero-constant antiderivative; RiX does not invent or attach an integration constant.</p>
-<p>Use <code>{#x}</code> as the canonical variable selector. A string such as <code>"x"</code> remains accepted for compatibility. With a single input, the selector may be omitted.</p>
-<pre class="rix"><code>S := {#x:p# p = x^3 }
-.Deriv(S, {#x})          # {#x:p# p = 3*x^2 }
-.Integrate({#x# 2*x})    # {#x# x^2 }</code></pre>
-<p>For specs, calculus returns a spec and preserves a named-output header. For functions, it returns an executable spec-backed function. Postfix derivative and prefix integral notation use the same engine:</p>
-<pre class="rix"><code>F := x -&gt; x^3
-G := x -&gt; 2*x
-F'(4) # 48
-'G(3) # 9</code></pre>
-<p>Repeated quotes apply repeated transforms. Bracket variable selection supports the exact single-variable subset. Calculus operation sequences and general transcendental rules remain outside this implementation.</p>
-</section>
-<section id="intentional-transformations" class="level2">
-<h2 class="anchored" data-anchor-id="intentional-transformations">Intentional transformations</h2>
-<p>Symbolic arithmetic preserves construction form. Calculus performs only local cleanup needed to avoid artifacts such as <code>0*x</code>, <code>x^1</code>, or constant-only arithmetic. <code>.Transform</code> is the explicit rewrite boundary and returns a new spec or callable without changing its source.</p>
-<pre class="rix"><code>.Transform({#x# x*1 + 0 })
-.Transform({#x# x*(x + 1) }, :expand)</code></pre>
-<p>Default directions are exact constant folding, arithmetic identities, and power identities. <code>:expand</code> additionally distributes multiplication over addition and subtraction.</p>
-<p><code>:center</code> performs exact polynomial expansion and collection. With no center it uses powers of the single input; an exact third argument writes the same polynomial in powers of <code>(input - center)</code>. It is a complete exact polynomial rewrite:</p>
-<pre class="rix"><code>.Transform({#x# (x - 1) * (x + 2) }, :center)
-.Transform({#x# (x - 1) * (x + 2) }, :center, 3)</code></pre>
-<p><code>:decompose</code> performs ordered polynomial quotient/remainder decomposition using caller-supplied roots and polynomial factors. A scalar <code>a</code> means <code>(x - a)</code>:</p>
-<pre class="rix"><code>P := {#x# x^4 }
-Q := {#x# x^2 + 1 }
-.Transform(P, :decompose, 4, Q)</code></pre>
-<p>Transformation tuples run left to right. Parameterized entries use an array, such as <code>.Transform(P, {: :expand, [:center, 3] })</code> or <code>.Transform(P, {: :identities, [:decompose, 4, Q] })</code>.</p>
-<p><code>:gadic</code> repeatedly divides by one positive-degree polynomial <code>Q</code> and returns the flattened exact sum <code>r0 + r1*Q + r2*Q^2 + ...</code>, with every <code>ri</code> lower degree than <code>Q</code>. <code>:distribute</code> selectively distributes only a supplied scalar root or polynomial factor, optionally limited to a number of outermost matches. This provides partial flattening without the global recursion of <code>:expand</code>.</p>
-<p>Direction names accept equivalent colon-string and quoted-string forms and are case-insensitive, so <code>:expand</code>, <code>"expand"</code>, <code>:Expand</code>, and <code>"EXPAND"</code> mean the same thing. See the <a href="../../design/eval/transformation-reference.html">complete symbolic transformation reference</a> for every rewrite, operation-plan syntax, polynomial limits, and deliberate non-transformations. <code>.Simplify</code> remains as a compatibility alias for <code>.Transform</code>.</p>
-</section>
-<section id="public-symbolic-capabilities" class="level2">
-<h2 class="anchored" data-anchor-id="public-symbolic-capabilities">Public Symbolic capabilities</h2>
+<section id="certified-numerics-contract" class="level2">
+<h2 class="anchored" data-anchor-id="certified-numerics-contract">Certified numerics contract</h2>
+<p>Different real-number representations should interoperate through certified evidence, not by converting every value to an IEEE-754 number. An oracle, a Cauchy sequence, a continued fraction, an algebraic isolating interval, and an arbitrary-precision float may all represent a real number differently. A numerical algorithm should only require that the representation can either produce a proven rational enclosure at a requested tolerance or report that it cannot meet the request within a bounded amount of work.</p>
+<p>The proposed common operation is <code>.numerics.Enclose</code> (with a value-level <code>value.Enclose</code> convenience where a type supports it):</p>
+<pre class="rix"><code># Proposed, not implemented
+e := .numerics.Enclose(realValue, {=
+    absoluteWidth = 1 / 1000000,
+    relativeWidth = _,
+    maxWork = 50000
+})</code></pre>
+<p>It returns an <code>Enclosure</code> record:</p>
+<pre class="text"><code>Enclosure
+  interval       # exact RationalInterval [lower, upper]
+  certified      # the represented real is proven to be in interval
+  goalMet        # requested width was reached
+  work           # representation-specific bounded-work report
+  source         # representation type and its approximation/proof policy</code></pre>
+<p><code>lower</code> and <code>upper</code> must be exact rationals. This lets generic root isolation, sign tests, plotting, comparison, and display algorithms consume values from unrelated plugins without sharing their internal representation. Algorithms refine only while needed: if one enclosure lies wholly below another, ordering is decided; if they overlap, they ask for narrower enclosures. Equality is never inferred from overlap—only an exact witness or a representation-specific proof may establish it.</p>
+<p>Representation plugins meet the contract differently:</p>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 50%">
@@ -701,48 +858,69 @@ Q := {#x# x^2 + 1 }
 </colgroup>
 <thead>
 <tr class="header">
-<th>Capability</th>
-<th>Result</th>
+<th>Representation</th>
+<th>How it obtains a certified enclosure</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td><code>.Poly(S)</code></td>
-<td>executable exact callable with <code>S</code> attached</td>
+<td>Oracle real</td>
+<td>Ask the oracle for a rational interval of the requested width.</td>
 </tr>
 <tr class="even">
-<td><code>.Deriv(S, {#x})</code></td>
-<td>exact symbolic derivative</td>
+<td>Cauchy sequence</td>
+<td>Use a supplied convergence modulus to select a rational term and a proven tail-error bound. A bare sequence without a modulus is not certifying.</td>
 </tr>
 <tr class="odd">
-<td><code>.Integrate(S, {#x})</code></td>
-<td>supported zero-constant antiderivative</td>
+<td>Continued fraction</td>
+<td>Use convergents plus a certified bound on the remaining tail. A finite prefix alone is insufficient unless the value is rational or has a declared tail theorem.</td>
 </tr>
 <tr class="even">
-<td><code>.Transform(S, direction, arguments...)</code></td>
-<td>new deliberately transformed value</td>
+<td>Algebraic/constraint real</td>
+<td>Refine its existing rational isolating interval with exact sign or root-counting evidence.</td>
 </tr>
 <tr class="odd">
-<td><code>.Simplify(...)</code></td>
-<td>compatibility alias for <code>.Transform(...)</code></td>
+<td>Arbitrary-precision interval/ball</td>
+<td>Increase precision and outward-round to rational endpoints.</td>
 </tr>
 <tr class="even">
-<td><code>.Spec(F)</code></td>
-<td>attached or newly analyzed function spec</td>
-</tr>
-<tr class="odd">
-<td><code>.Speccability(F)</code></td>
-<td>analysis report map</td>
-</tr>
-<tr class="even">
-<td><code>.InspectSpec(S)</code></td>
-<td>structural inspection map</td>
+<td>IEEE-754 float</td>
+<td>It can enclose its <em>stored binary value</em> exactly as a dyadic point. Transcendental results need directed-rounding/error analysis to claim enclosure of a mathematical real; otherwise they must mark the result heuristic rather than certified.</td>
 </tr>
 </tbody>
 </table>
-<p>All language-provided names remain behind the dot system object. There are no bare <code>Poly</code>, <code>Deriv</code>, or other symbolic globals.</p>
+<p>The corresponding generic operations should be deliberately small:</p>
+<pre class="text"><code>.numerics.Enclose(value, request)      -&gt; Enclosure
+.numerics.Refine(value, request)       -&gt; value or Enclosure with tighter evidence
+.numerics.Compare(left, right, request)-&gt; :less | :equal | :greater | :undecided
+.numerics.Sign(value, request)         -&gt; :negative | :zero | :positive | :undecided</code></pre>
+<p><code>request</code> always carries an explicit work cap. An algorithm may return <code>:undecided</code> together with its latest enclosures rather than run forever on equal, extremely close, or poorly specified values. Operations such as <code>Sin</code>, root finding, and integration can install representation-specific evaluator variants, but their public certified path must eventually be expressible as an <code>Enclosure</code>. That gives <code>.geometry.Refine</code> and <code>.plot</code> one uniform way to ask for display precision while retaining each numerical plugin’s strengths.</p>
+</section>
+<section id="plugin-contract-to-mature" class="level2">
+<h2 class="anchored" data-anchor-id="plugin-contract-to-mature">Plugin contract to mature</h2>
+<p>The current catalog already identifies a plugin, mount, exports, groups, and declared permissions. As independently distributed plugins become common, its manifest/protocol should additionally standardize:</p>
+<ul>
+<li>plugin name, version, compatible RiX/runtime versions, and namespaces;</li>
+<li>values, methods, and capability groups it contributes;</li>
+<li>serializable value schema and migration policy;</li>
+<li>pure computation versus requested filesystem, network, native, DOM, or JavaScript capabilities;</li>
+<li>output types it produces and static snapshot support;</li>
+<li>renderer targets/MIME types it consumes or provides; and</li>
+<li>deterministic refinement controls: tolerance, work limits, seeds, and diagnostics.</li>
+</ul>
+<p>That preserves a useful distinction: third-party mathematical plugins can remain portable and sandboxable, while host integrations such as browser widgets declare their broader capability requirements explicitly.</p>
+</section>
+<section id="near-term-decisions" class="level2">
+<h2 class="anchored" data-anchor-id="near-term-decisions">Near-term decisions</h2>
+<ol type="1">
+<li>Define the <code>.geometry</code> value schema and exact/interval evaluation interface.</li>
+<li>Agree on the <code>Refine</code> request/result maps and their serialization form.</li>
+<li>Add a conic/implicit-curve proof-of-concept with visible unresolved-cell reporting and snapshot tests.</li>
+<li>Extend the existing manifest and host installation API once independently developed plugin schemas need version migration.</li>
+</ol>
 
 
+</section>
 </section>
 
 <a onclick="window.scrollTo(0, 0); return false;" role="button" id="quarto-back-to-top"><i class="bi bi-arrow-up"></i> Back to top</a></main> <!-- /main -->
@@ -1166,13 +1344,13 @@ Q := {#x# x^2 + 1 }
   </script>
 <nav class="page-navigation">
   <div class="nav-page nav-page-previous">
-      <a href="../../design/eval/cayley-polar.html" class="pagination-link" aria-label="Cayley polar complex values">
-        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">Cayley polar complex values</span>
+      <a href="../design/eval/output-model.html" class="pagination-link" aria-label="Structured output, documents, and graphics">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">Structured output, documents, and graphics</span>
       </a>          
   </div>
   <div class="nav-page nav-page-next">
-      <a href="../../design/eval/transformation-reference.html" class="pagination-link" aria-label="Symbolic transformations">
-        <span class="nav-page-text">Symbolic transformations</span> <i class="bi bi-arrow-right-short"></i>
+      <a href="../rix-rationales.html" class="pagination-link" aria-label="Design rationales">
+        <span class="nav-page-text">Design rationales</span> <i class="bi bi-arrow-right-short"></i>
       </a>
   </div>
 </nav>
@@ -1184,7 +1362,7 @@ Q := {#x# x^2 + 1 }
 </div>   
     <div class="nav-footer-center">
       &nbsp;
-    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/design/eval/symbolic-calculus.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/design/plugins.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
     <div class="nav-footer-right">
 <p>Documentation built with <a href="https://quarto.org/">Quarto</a></p>
 </div>
@@ -1194,5 +1372,5 @@ Q := {#x# x^2 + 1 }
 
 
 
-<script src="../../site_libs/quarto-html/zenscroll-min.js"></script>
+<script src="../site_libs/quarto-html/zenscroll-min.js"></script>
 </body></html>

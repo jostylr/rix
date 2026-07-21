@@ -1,5 +1,5 @@
 /**
-id: approx-math-js
+id: float
 description: JavaScript IEEE-754 Float conversion and optional approximate math.
 kind: host
 mount: float

@@ -11,9 +11,9 @@ function parseWithSystem(source, systemContext) {
 }
 
 describe("parser system manifest", () => {
-    test("known PascalCase members are callable by adjacency", () => {
+    test("known plugin PascalCase members are callable by adjacency", () => {
         const systemContext = createDefaultSystemContext();
-        const ast = parseWithSystem(".Draw.Circle 1", systemContext);
+        const ast = parseWithSystem(".draw.Circle 1", systemContext);
 
         expect(ast[0].type).toBe("ImplicitApplication");
         expect(ast[0].callable.type).toBe("DotAccess");
@@ -23,14 +23,14 @@ describe("parser system manifest", () => {
 
     test("known lowercase member spelling is rejected before evaluation", () => {
         const systemContext = createDefaultSystemContext();
-        expect(() => parseWithSystem(".Draw.circle 1", systemContext))
-            .toThrow("Unknown system member 'Draw.circle'");
+        expect(() => parseWithSystem(".draw.circle 1", systemContext))
+            .toThrow("Unknown system member 'draw.circle'");
     });
 
-    test("known system values cannot be explicitly called", () => {
+    test("a catalog-declared plugin root exposes its members before activation", () => {
         const systemContext = createDefaultSystemContext();
-        expect(() => parseWithSystem(".Plot()", systemContext))
-            .toThrow("System value 'Plot' is not callable");
+        const ast = parseWithSystem(".plot.Polynomial([1, 0], [-1, 1])", systemContext);
+        expect(ast[0].type).toBe("MethodCall");
     });
 
     test("host plugin objects receive the same typed chained-path checks", () => {

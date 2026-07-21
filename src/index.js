@@ -20,3 +20,5 @@ export {
     createRectangle, createCircle, createClip,
 } from "./runtime/index.js";
 export { createDrawPluginCollection, installDrawPlugin } from "./plugins/draw.js";
+export { installPlotPlugin } from "./plugins/plot.js";
+export { installBundledPlugins } from "./plugins/bundled.js";

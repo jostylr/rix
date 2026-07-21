@@ -1,7 +1,7 @@
 /**
- * Bundled first-party Draw plugin.
+ * Bundled first-party draw plugin.
  *
- * Draw is deliberately only an ergonomic authoring layer. Every helper below
+ * `.draw` is deliberately only an ergonomic authoring layer. Every helper below
  * returns an intrinsic Graphics node, so SVG, terminal, PDF, and future
  * renderers never need to understand this plugin's own value types.
  */
@@ -25,27 +25,27 @@ function mergedStyle(style, additions) {
 }
 
 function line(args) {
-    const entries = entriesFor(args, ["from", "to", "style"], "Draw.Line");
+    const entries = entriesFor(args, ["from", "to", "style"], "draw.Line");
     return createPath([[get(entries, "from"), get(entries, "to")], get(entries, "style")]);
 }
 
 function polygon(args) {
-    const entries = entriesFor(args, ["points", "style"], "Draw.Polygon");
+    const entries = entriesFor(args, ["points", "style"], "draw.Polygon");
     return createPath([get(entries, "points"), mergedStyle(get(entries, "style"), [["closed", true]])]);
 }
 
 function label(args) {
-    const entries = entriesFor(args, ["position", "text", "style"], "Draw.Label");
+    const entries = entriesFor(args, ["position", "text", "style"], "draw.Label");
     return createTextMark([get(entries, "position"), get(entries, "text"), get(entries, "style")]);
 }
 
 function box(args) {
-    const entries = entriesFor(args, ["origin", "size", "style"], "Draw.Box");
+    const entries = entriesFor(args, ["origin", "size", "style"], "draw.Box");
     return createRectangle([get(entries, "origin"), get(entries, "size"), get(entries, "style")]);
 }
 
 function circle(args) {
-    const entries = entriesFor(args, ["center", "radius", "style"], "Draw.Circle");
+    const entries = entriesFor(args, ["center", "radius", "style"], "draw.Circle");
     return createCircle([get(entries, "center"), get(entries, "radius"), get(entries, "style")]);
 }
 
@@ -67,6 +67,6 @@ export function createDrawPluginCollection() {
 
 export function installDrawPlugin(systemContext) {
     const draw = createDrawPluginCollection();
-    systemContext.registerValue("Draw", draw, { doc: "Convenient authoring helpers that produce intrinsic Graphics nodes" });
+    systemContext.registerHostValue("draw", draw, { doc: "Convenient authoring helpers that produce intrinsic Graphics nodes" });
     return draw;
 }

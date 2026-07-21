@@ -1,12 +1,28 @@
 import { describe, expect, test } from "bun:test";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { Rational, RationalInterval } from "@ratmath/core";
 import { createDefaultRegistry, createDefaultSystemContext, parseAndEvaluate } from "../../src/eval/evaluator.js";
 import { loadApproxMathPlugin } from "../../examples/approx-math/approx-math-plugin.js";
+import { NodePluginCatalog } from "../../src/runtime/plugin-catalog-node.js";
+
+const approximatePluginRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "../../examples/approx-math");
 
 describe("approximate math plugin", () => {
     test("transcendental functions are absent from the default system", () => {
         expect(() => parseAndEvaluate(".Sin(1)"))
             .toThrow("Unknown system capability: SIN");
+    });
+
+    test("the Float plugin is cataloged and loaded under the float ID", () => {
+        const catalog = new NodePluginCatalog({ roots: [approximatePluginRoot] }).scan();
+        catalog.registerInstaller("float", ({ systemContext, registry }) => loadApproxMathPlugin(systemContext, registry));
+        const systemContext = createDefaultSystemContext({ pluginCatalog: catalog });
+        const registry = createDefaultRegistry();
+
+        expect(catalog.info("float")).toMatchObject({ id: "float", mount: "float", kind: "host" });
+        expect(parseAndEvaluate('.Plugin.Load("float"); .float(1/3).Value()', { systemContext, registry }))
+            .toEqual({ type: "string", value: String(1 / 3) });
     });
 
     test("plugin installs Float conversion and PascalCase methods below .float", () => {

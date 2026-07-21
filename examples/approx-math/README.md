@@ -1,7 +1,7 @@
 # Approximate Math Plugin
 
-The bundled optional plugin is discoverable as `approx-math-js` from
-`approx-math.plugin.rix.js`. Hosts may expose it through `.Plugin.Load("approx-math-js")`
+The bundled optional plugin is discoverable as `float` from
+`approx-math.plugin.rix.js`. Hosts may expose it through `.Plugin.Load("float")`
 after approving its JavaScript installer; the CLI also retains `--with-floats`
 as a convenience startup flag.
 

@@ -52,8 +52,8 @@ describe("portable structured output", () => {
         expect(renderOutputHtml(document, formatValue)).toContain("tbl:squares");
     });
 
-    test("Plot.Polynomial produces a portable SVG Graphic", () => {
-        const graphic = parseAndEvaluate(".Plot.Polynomial([1, 0, -1], [-2, 2])");
+    test("the plot plugin produces a portable SVG Graphic", () => {
+        const graphic = parseAndEvaluate('.Plugin.Load("plot"); .plot.Polynomial([1, 0, -1], [-2, 2])');
         expect(graphic.kind).toBe("graphic");
         const html = renderOutputHtml(graphic, formatValue);
         expect(html).toContain("<svg");
@@ -100,13 +100,14 @@ describe("portable structured output", () => {
         expect(renderOutputHtml(graphic, formatValue)).toContain('transform="translate(20 30) scale(2 2)"');
     });
 
-    test("Graphics owns 2D leaf constructors while Draw supplies conveniences", () => {
+    test("Graphics owns 2D leaf constructors while the draw plugin supplies conveniences", () => {
         expect(() => parseAndEvaluate(".Group([])")).toThrow("Unknown system capability: GROUP");
         expect(() => parseAndEvaluate(".Graphic([1, 1], [])")).toThrow("Unknown system capability: GRAPHIC");
         expect(parseAndEvaluate(".Graphics.Group([])").kind).toBe("group");
-        const line = parseAndEvaluate(".Draw.Line([0, 0], [10, 10])");
+        expect(() => parseAndEvaluate(".draw.Line([0, 0], [10, 10])")).toThrow("available but not loaded");
+        const line = parseAndEvaluate('.Plugin.Load("draw"); .draw.Line([0, 0], [10, 10])');
         expect(line.kind).toBe("path");
-        expect(parseAndEvaluate(".Draw.Circle([5, 5], 3)").kind).toBe("circle");
+        expect(parseAndEvaluate('.Plugin.Load("draw"); .draw.Circle([5, 5], 3)').kind).toBe("circle");
     });
 
     test("Graphics.Path preserves renderer-independent curve and arc commands", () => {

@@ -25,6 +25,9 @@ The catalog scans only configured `plugins/` roots. It reads headers and
 declares disabled host mounts so static path checking can recognize a known
 surface, but a disabled mount errors when called.
 
+For future candidate packages and the contract used by output-producing
+plugins, see [Plugin Roadmap and Rendering Contracts](design/plugins.md).
+
 ## Placement by host
 
 - **RiX CLI:** scans the current working directory's `plugins/`, a script
@@ -81,9 +84,9 @@ installed order for compatibility.
 
 Plugins should give coexisting implementations distinct semantic type names
 such as `FloatIEEE754` and `FloatMPFR`, while exposing a friendly mounted
-namespace such as `.float` to ordinary RiX code. `Min`/`Max` reduce through
-the generic `COMPARE` operator, so a plugin normally installs ordering once
-rather than separate min/max implementations.
+namespace such as `.float` to ordinary RiX code. `Min`/`Max` reduce through the
+generic `COMPARE` operator, so a plugin normally installs ordering once rather
+than separate min/max implementations.
 
 The metadata `groups` are attached to the mounted capability after activation.
 `permissions` is descriptive catalog metadata today; a host decides the actual

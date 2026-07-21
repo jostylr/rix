@@ -428,6 +428,12 @@ ul.task-list li input[type="checkbox"] {
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
+  <a href="./plugin-catalog.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Plugin catalog and loading</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
   <a href="./eval/README.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Evaluator overview</span></a>
   </div>
@@ -513,6 +519,18 @@ ul.task-list li input[type="checkbox"] {
   <div class="sidebar-item-container"> 
   <a href="./design/eval/transformation-reference.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Symbolic transformations</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./design/eval/output-model.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Structured output, documents, and graphics</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./design/plugins.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Plugin roadmap and rendering contracts</span></a>
   </div>
 </li>
       </ul>
@@ -645,10 +663,14 @@ ul.task-list li input[type="checkbox"] {
 <td>REPL/runner, IR converter, native <code>.test.rix</code> runner, structured diagnostics, source locations, trace/debug</td>
 </tr>
 <tr class="odd">
+<td>Structured output</td>
+<td>typed <code>Text</code>, <code>Paragraph</code>, <code>Heading</code>, <code>Fragment</code>, <code>Table</code>, <code>Grid</code>, <code>Graphic</code>, <code>Figure</code>, <code>Slide</code>, and <code>Slides</code> values, with intrinsic 2D scene primitives under <code>.Graphics</code> (<code>Path</code>, <code>Group</code>, <code>Transform</code>, <code>Text</code>, <code>Rectangle</code>, <code>Circle</code>, <code>Clip</code>); optional bundled <code>.draw</code> and <code>.plot</code> plugins load through <code>.Plugin.Load(...)</code> and produce those core scenes; CLI text fallback; HTML tables/grids and inline SVG graphics in the RiX notebook and web calculator; <code>@"..."</code>/<code>@"""..."""</code> templates; exact synthetic division through <code>.Algebra.SyntheticDivision</code></td>
+</tr>
+<tr class="even">
 <td>Embedding</td>
 <td>parser exports, evaluator/runtime exports, configurable system loader and system context</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>Exact symbolic core</td>
 <td>identity/expression/named specs, substitution and composition, name-preserving arithmetic, attached pure-function specs, polynomial compilation, exact derivatives/integrals, explicit simplification, quote calculus syntax</td>
 </tr>

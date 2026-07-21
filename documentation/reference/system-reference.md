@@ -8,7 +8,7 @@ toc-depth: 2
 This page is generated from the current RiX implementation by `documentation/scripts/generate-reference.js`. Do not edit it by hand. Descriptions come from registry documentation strings; the narrative [syntax guide](../eval/syntax-guide.md) and [methods guide](../eval/methods-guide.md) provide signatures and examples.
 :::
 
-At this revision RiX exposes **96 named entries** on the default system context and registers **164 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
+At this revision RiX exposes **135 named entries** on the default system context and registers **165 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
 
 ## Public system context
 
@@ -16,102 +16,141 @@ These names are available through the leading-dot system object, such as `.Len(v
 
 | Name | Kind | Capability groups | Implementation description |
 | --- | --- | --- | --- |
-| `.ACOS` | function | — | Dispatch ACOS through the active system multifunction registry |
+| `.ABS` | function | — | Absolute value |
 | `.ADD` | function | Arith | Addition or string concatenation |
+| `.ALGEBRA` | value | — | Algebra presentation helpers |
+| `.ALL` | lazy function | — | Every: returns last element if predicate is truthy for ALL elements, null on first failure — callback receives (val, locator, src) |
 | `.AND` | lazy function | Logic | Logical AND (short-circuits on first falsy, returns deciding value) |
-| `.ASIN` | function | — | Dispatch ASIN through the active system multifunction registry |
-| `.ATAN` | function | — | Dispatch ATAN through the active system multifunction registry |
-| `.ATAN2` | function | — | Dispatch ATAN2 through the active system multifunction registry |
+| `.ANY` | lazy function | — | Any: returns first item that passed predicate, null if none pass — callback receives (val, locator, src) |
+| `.ARRAY` | lazy function | — | Create an array/sequence (supports sequence generators) |
+| `.ASSIGN` | lazy function | — | Alias/rebind — lhs shares the same Cell as rhs variable, or gets a fresh Cell for expressions |
+| `.ASSIGNCOPY` | lazy function | — | Fresh copied-cell assignment (:=) — shallow-copy value + all meta into new binding |
+| `.ASSIGNDEEPCOPY` | lazy function | — | Fresh deep-copied-cell assignment (::=) — deep-copy value + all meta into new binding |
+| `.ASSIGNDEEPUPDATE` | lazy function | — | In-place deep value replacement (~~=) — like ~= but deep-copies rhs value |
+| `.ASSIGNUPDATE` | lazy function | — | In-place value replacement (~=) — preserves cell identity, ordinary meta; replaces ephemeral; preserves sticky unless rhs overrides |
+| `.BLOCK` | lazy function | — | Sequential block execution, returns last value |
 | `.CAPABILITYREGISTER` | function | — | Register a package system capability during trusted package startup |
+| `.CASE` | lazy function | — | Ordered case expression with condition arms, prepared-trial arms, and an optional fallback |
+| `.CHUNK` | lazy function | — | Chunk a collection into subarrays by size or boundary predicate |
 | `.COMPLEX` | value | Exact | Exact complex-number operations |
+| `.CONCAT` | function | — | Core operation CONCAT |
 | `.CONVERTUNIT` | function | Units | Convert a quantity to a compatible display unit |
-| `.COS` | function | — | Dispatch COS through the active system multifunction registry |
-| `.CapabilityRegister` | function | — | Register a package system capability during trusted package startup |
-| `.Complex` | value | Exact | Exact complex-number operations |
-| `.ConvertUnit` | function | Units | Convert a quantity to a compatible display unit |
+| `.CORE` | function | — | Core capability registration and discovery |
 | `.DEBUG` | lazy function | — | Debug expression: .Debug(label, expr) — returns expr value, records AST/source |
 | `.DEEPMUTABLE` | function | — | Recursively set (flag≠\_) or remove (flag=\_) .\_mutable on all nested arrays/maps/tensors. Called via .DeepMutable(value, flag). |
+| `.DEFINE` | lazy function | — | Define a named function from a name, .Params descriptor, and body |
 | `.DEFINEEXACTGENERATOR` | function | Exact | Create an algebraic exact generator from low-to-high polynomial coefficients |
 | `.DEFINEUNIT` | function | Units | Create a linear Unit value from a name and Unit/Quantity definition |
 | `.DERIV` | function | Symbolic | Differentiate a symbolic spec or spec-backed function exactly |
+| `.DIFFERENCE` | function | — | Core operation SET\_DIFF |
 | `.DIV` | function | Arith | Division |
-| `.DefineExactGenerator` | function | Exact | Create an algebraic exact generator from low-to-high polynomial coefficients |
-| `.DefineUnit` | function | Units | Create a linear Unit value from a name and Unit/Quantity definition |
+| `.DIVROUND` | function | — | Rounded division |
+| `.DIVUP` | function | — | Ceiling division |
+| `.DOCUMENT_TEMPLATE` | lazy function | — | Create a Fragment from an @""" document template |
 | `.EQ` | function | Logic | Equality check — returns 1 or null |
+| `.EQUAL` | function | — | Equality check — returns 1 or null |
 | `.ERROR` | function | — | Emit an error event and abort: .Error(label, dataMap ?= {=}) |
 | `.EVAL` | lazy function | — | Evaluate a deferred AST node or expression: .Eval(ast, bindings ?= \_, mode ?= :inherit) |
 | `.EXACT` | value | Exact | Canonical RiX exact-generator collection |
-| `.EXP` | function | — | Dispatch EXP through the active system multifunction registry |
-| `.Exact` | value | Exact | Canonical RiX exact-generator collection |
-| `.FILTER` | lazy function | Collections, Arrays | Filter a collection |
+| `.FIGURE` | function | Output | Wrap output with figure metadata |
+| `.FILTER` | lazy function | Collections, Arrays | Filter a collection with a predicate — callback receives (val, locator, src) |
 | `.FIRST` | function | Core, Collections, Arrays | First element of a collection |
+| `.FRAGMENT` | function | Output | Compose portable output values |
 | `.GETEL` | function | Core, Collections, Arrays | Get element at index (1-based) |
+| `.GRAPHICS` | value | — | Intrinsic portable 2D scene language |
+| `.GREATER` | function | — | Greater than — returns 1 or null |
+| `.GREATEREQUAL` | function | — | Greater than or equal — returns 1 or null |
+| `.GRID` | function | Output | Create a mathematical layout grid |
 | `.GT` | function | Logic | Greater than — returns 1 or null |
 | `.GTE` | function | Logic | Greater than or equal — returns 1 or null |
-| `.IF` | lazy function | Core | Conditional function IF(cond, t, f) |
+| `.HEADING` | function | Output | Create a portable document heading |
+| `.HOST` | function | — | Host/plugin capability registration and discovery |
+| `.IF` | lazy function | Core | Ternary conditional: condition ?? trueExpr ?: falseExpr |
 | `.IMPORTJS` | function | — | Import a local JavaScript module for use from a .js.rix startup file |
 | `.INFO` | function | — | Emit an info event: .Info(label, level ?= 1, dataMap ?= {=}) |
 | `.INSPECTSPEC` | function | Symbolic | Return the structural inspection map for a symbolic spec |
 | `.INTDIV` | function | Arith | Integer division (floor) |
 | `.INTEGRATE` | function | Symbolic | Integrate a supported symbolic spec or spec-backed function exactly |
+| `.INTERSECT` | function | — | Intersection of two collections (set intersection or interval overlap) |
+| `.INTERVAL` | function | — | Create an interval [lo, hi] or test betweenness like a:b:c |
 | `.IRANGE` | function | Core, Collections, Arrays | Create an integer range [start, end] |
-| `.ImportJS` | function | — | Import a local JavaScript module for use from a .js.rix startup file |
 | `.JSCALL` | function | — | Call a named export from a local JavaScript module |
-| `.JSCall` | function | — | Call a named export from a local JavaScript module |
 | `.KEYOF` | function | Core, Maps | Resolve canonical map key string for a value |
 | `.KEYS` | function | Core, Maps | Get the keys of a map as a set (obj.\|) |
+| `.LAMBDA` | lazy function | — | Create a lambda/anonymous function |
 | `.LAST` | function | Core, Collections, Arrays | Last element of a collection |
 | `.LEN` | function | Core, Collections, Arrays | Length of a collection or string |
-| `.LN` | function | — | Dispatch LN through the active system multifunction registry |
-| `.LOG` | function | — | Dispatch LOG through the active system multifunction registry |
-| `.LOG10` | function | — | Dispatch LOG10 through the active system multifunction registry |
+| `.LESS` | function | — | Less than — returns 1 or null |
+| `.LESSEQUAL` | function | — | Less than or equal — returns 1 or null |
 | `.LOOP` | lazy function | Core | Loop construct with init, condition, body[, update[, after]] |
 | `.LT` | function | Logic | Less than — returns 1 or null |
 | `.LTE` | function | Logic | Less than or equal — returns 1 or null |
-| `.MAP` | lazy function | Collections, Maps, Arrays | Map a function over a collection |
+| `.MAP` | function | Collections, Maps, Arrays | Create a map from .Pair(key, value) entries |
+| `.MAX` | function | — | Maximum over n arguments (ignores nulls) |
+| `.MIN` | function | — | Minimum over n arguments (ignores nulls) |
 | `.MOD` | function | Arith | Modulo |
 | `.MUL` | function | Arith | Multiplication (Product of values) |
 | `.MULTI` | lazy function | Core | Evaluate multiple expressions, return last |
+| `.NEG` | function | — | Negation |
 | `.NEQ` | function | Logic | Inequality check — returns 1 or null |
 | `.NOT` | function | Logic | Logical NOT — returns Integer(1) for null input, null otherwise |
+| `.NOTEQUAL` | function | — | Inequality check — returns 1 or null |
 | `.OR` | lazy function | Logic | Logical OR (short-circuits on first truthy, returns deciding value) |
+| `.PAIR` | function | — | Create a key/value entry for .Map |
+| `.PARAGRAPH` | function | Output | Create a portable paragraph output node |
+| `.PARAMS` | function | — | Create a positional parameter descriptor from names |
+| `.PIPE` | lazy function | — | Pipe a value into a function |
+| `.PIPEEXPLICIT` | lazy function | — | Explicit pipe operator — placeholders \_1, \_2, … map tuple elements to specific argument positions |
+| `.PLUGIN` | function | — | Discover and load host-approved RiX plugins |
+| `.PMAP` | lazy function | — | Map a function over a collection — callback receives (val, locator, src) |
 | `.POLY` | function | Symbolic | Compile a single-output symbolic spec into an exact callable |
 | `.POW` | function | Arith | Exponentiation |
 | `.POWPROD` | function | — | Exponentiation/product power (currently same implementation as POW) |
 | `.PRINT` | function | Core, Strings | Print each argument through the replaceable \_\_io\_\_ hook |
+| `.PRODUCT` | function | — | Core operation SET\_PROD |
 | `.RANDOMSEED` | function | Random | Seed the current runtime random-number stream |
 | `.RAND_NAME` | function | Core, Random | Generate a random name string RAND\_NAME(len=10, alphabet=a-zA-Z) |
-| `.REDUCE` | lazy function | Collections, Arrays | Reduce a collection |
+| `.REDUCE` | lazy function | Collections, Arrays | Reduce a collection with an accumulator function — callback receives (acc, val, locator, src) |
+| `.REVERSE` | function | — | Reverse a collection (returns new copy) |
+| `.SAMECELL` | lazy function | — | Identity comparison (===) — returns 1 if both sides refer to the same cell, null otherwise |
 | `.SAME_CELL` | lazy function | — | Identity comparison (===) — returns 1 if both sides refer to the same cell, null otherwise |
+| `.SET` | lazy function | — | Create a set (unique values) |
 | `.SIMPLIFY` | function | Symbolic | Compatibility alias for Transform |
-| `.SIN` | function | — | Dispatch SIN through the active system multifunction registry |
+| `.SLICE` | lazy function | — | Strict slice operator \|>/ |
+| `.SLICECLAMP` | lazy function | — | Clamped slice operator \|>// |
+| `.SLIDE` | function | Output | Create a presentation slide |
+| `.SLIDES` | function | Output | Create a sequential presentation deck |
+| `.SORT` | lazy function | — | Sort a collection with comparator function (returns new copy) |
 | `.SPEC` | function | Symbolic | Analyze a pure function and attach/return its symbolic spec |
 | `.SPECCABILITY` | function | Symbolic | Report whether a pure function can be represented by the exact symbolic subset |
+| `.SPLIT` | lazy function | — | Split a collection by a delimiter or predicate |
+| `.SQRT` | function | — | Square root (approximate rational) |
 | `.STOP` | lazy function | — | Conditional abort: .Stop(label, condition, dataMap ?= {=}) |
 | `.SUB` | function | Arith | Subtraction |
 | `.SUBSTR` | function | Strings | Get substring |
-| `.TAN` | function | — | Dispatch TAN through the active system multifunction registry |
+| `.SYMMETRICDIFFERENCE` | function | — | Core operation SET\_SYMDIFF |
+| `.TABLE` | function | Output | Create a structured output table |
+| `.TEMPLATE_TEXT` | lazy function | — | Create interpolated text with @{expression} insertions |
 | `.TEST` | lazy function | — | Run tests: .Test(label, setup, [tests] \| {= tests }) |
 | `.TESTERROR` | lazy function | — | Abort test: .TestError(label, setup, expr) — passes if expr aborts with .Error() or a runtime error |
 | `.TESTSTOP` | lazy function | — | Abort test: .TestStop(label, setup, expr) — passes if expr aborts via .Stop() |
+| `.TEXT` | function | Output | Create a portable text output node |
 | `.TGEN` | lazy function | Core, Collections, Arrays | Generate a tensor from a shape and index callback |
 | `.TRACE` | lazy function | — | Trace execution: .Trace(label, depth, trackedVars?, thunkOrCallable) |
 | `.TRAITREGISTER` | function | — | Register an immutable semantic trait from a RiX map spec |
 | `.TRANSFORM` | function | Symbolic | Apply ordered exact symbolic transformations |
+| `.TUPLE` | lazy function | — | Create a tuple |
 | `.TYPEEXPORT` | lazy function | — | Export a semantically typed value through its registered type exporter |
 | `.TYPEIMPORT` | lazy function | — | Import a value from a tagged type export map |
 | `.TYPEINSTALL` | function | — | Install a registered semantic type into system multifunctions |
 | `.TYPEREGISTER` | function | — | Register an immutable semantic type from a RiX map spec |
-| `.TraitRegister` | function | — | Register an immutable semantic trait from a RiX map spec |
-| `.TypeExport` | lazy function | — | Export a semantically typed value through its registered type exporter |
-| `.TypeImport` | lazy function | — | Import a value from a tagged type export map |
-| `.TypeInstall` | function | — | Install a registered semantic type into system multifunctions |
-| `.TypeRegister` | function | — | Register an immutable semantic type from a RiX map spec |
+| `.UNION` | function | — | Join/Union of two collections (set union or interval hull) |
 | `.UNITS` | value | Units | Canonical RiX unit collection |
 | `.UPPER` | function | Strings | Convert string to uppercase |
-| `.Units` | value | Units | Canonical RiX unit collection |
 | `.VALUES` | function | Core, Maps | Get the values of a map as a set (obj\|.) |
 | `.WARN` | function | — | Emit a warning event: .Warn(label, dataMap ?= {=}) |
+| `.draw` | function | Draw | Convenient 2D drawing helpers that produce core Graphics nodes. |
+| `.plot` | function | Plot | Portable plotting helpers that produce core Graphics scenes. |
 
 ## Built-in receiver methods
 
@@ -185,6 +224,10 @@ Imported scripts can add or withhold named groups. Permission-like names are int
 
 | Group | Members |
 | --- | --- |
+| `Output` | `TEXT`, `PARAGRAPH`, `HEADING`, `FRAGMENT`, `TABLE`, `GRID`, `FIGURE`, `SLIDE`, `SLIDES`, `Algebra` |
+| `Graphics` | `Graphics` |
+| `Draw` | `draw` |
+| `Plot` | `plot` |
 | `Core` | `LEN`, `FIRST`, `LAST`, `GETEL`, `IRANGE`, `IF`, `LOOP`, `MULTI`, `RAND_NAME`, `PRINT`, `TGEN`, `KEYOF`, `KEYS`, `VALUES` |
 | `Arith` | `ADD`, `SUB`, `MUL`, `DIV`, `INTDIV`, `MOD`, `POW` |
 | `Logic` | `EQ`, `NEQ`, `LT`, `GT`, `LTE`, `GTE`, `AND`, `OR`, `NOT` |
@@ -193,6 +236,7 @@ Imported scripts can add or withhold named groups. Permission-like names are int
 | `Arrays` | `LEN`, `FIRST`, `LAST`, `GETEL`, `IRANGE`, `MAP`, `FILTER`, `REDUCE`, `TGEN` |
 | `Strings` | `UPPER`, `SUBSTR`, `PRINT` |
 | `Imports` | `IMPORTS` |
+| `Plugins` | `PLUGINS` |
 | `Net` | `NET` |
 | `Files` | `FILES` |
 | `Units` | `UNITS`, `Units`, `CONVERTUNIT`, `ConvertUnit`, `DEFINEUNIT`, `DefineUnit` |
@@ -200,7 +244,7 @@ Imported scripts can add or withhold named groups. Permission-like names are int
 | `Symbolic` | `POLY`, `DERIV`, `INTEGRATE`, `TRANSFORM`, `SIMPLIFY`, `SPEC`, `SPECCABILITY`, `INSPECTSPEC` |
 | `Random` | `RANDOMSEED`, `RandomSeed`, `RAND_NAME` |
 
-Default script policy includes all functions and the `IMPORTS` permission. Recognized permission names are `IMPORTS`, `NET`, `FILES`. The default loop limit is 10,000 iterations and the default constructor capture mode is `deep_copy`.
+Default script policy includes all functions and the `IMPORTS` permission. Recognized permission names are `IMPORTS`, `NET`, `FILES`, `PLUGINS`. The default loop limit is 10,000 iterations and the default constructor capture mode is `deep_copy`.
 
 ## Internal IR registry
 
@@ -209,12 +253,10 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | IR function | Dispatch | Implementation description |
 | --- | --- | --- |
 | `ABS` | eager, pure, multifunction | Absolute value |
-| `ACOS` | eager, pure, multifunction | Arccosine |
 | `ADD` | eager, pure, multifunction | Addition or string concatenation |
 | `AND` | lazy, pure | Logical AND (short-circuits on first falsy, returns deciding value) |
 | `ARRAY` | lazy, pure | Create an array/sequence (supports sequence generators) |
 | `ARRAY_CAPTURE` | lazy, pure | Create an array/sequence with constructor capture controls |
-| `ASIN` | eager, pure, multifunction | Arcsine |
 | `ASSERT_GT` | eager, pure | Assert a > b (:>:) |
 | `ASSERT_GTE` | eager, pure | Assert a >= b (:>=:) |
 | `ASSERT_LT` | eager, pure | Assert a < b (:<:) |
@@ -225,8 +267,6 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `ASSIGN_DEEP_UPDATE` | lazy, effectful/unspecified | In-place deep value replacement (~~=) — like ~= but deep-copies rhs value |
 | `ASSIGN_EXPR` | lazy, effectful/unspecified | Assignment expression (lvalue = expr) |
 | `ASSIGN_UPDATE` | lazy, effectful/unspecified | In-place value replacement (~=) — preserves cell identity, ordinary meta; replaces ephemeral; preserves sticky unless rhs overrides |
-| `ATAN` | eager, pure, multifunction | Arctangent |
-| `ATAN2` | eager, pure, multifunction | Two-argument arctangent |
 | `BINOP` | eager, pure | Fallback for unrecognized binary operators |
 | `BLOCK` | lazy, effectful/unspecified | Sequential block execution, returns last value |
 | `BRACKET_GET` | lazy, effectful/unspecified | Tensor-aware bracket indexing and slicing |
@@ -237,9 +277,9 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `CALL_METHOD` | lazy, effectful/unspecified | Resolve and invoke a receiver-first method call |
 | `CAPABILITY_REGISTER` | eager, effectful/unspecified | Register a package system capability during trusted package startup |
 | `CASE` | lazy, effectful/unspecified | Ordered case expression with condition arms, prepared-trial arms, and an optional fallback |
+| `COMPARE` | eager, pure, multifunction | Compare two values; returns -1, 0, or 1 |
 | `CONCAT` | eager, pure | — |
 | `CONVERTUNIT` | eager, pure | Convert a quantity to a compatible display unit |
-| `COS` | eager, pure, multifunction | Cosine |
 | `DEFINEBASE` | lazy, effectful/unspecified | Define a custom uppercase base prefix (0A = ...), one-time global definition |
 | `DEFINEEXACTGENERATOR` | eager, pure | Create an algebraic exact generator from low-to-high polynomial coefficients |
 | `DEFINEUNIT` | eager, pure | Create a linear Unit value from a name and Unit/Quantity definition |
@@ -249,15 +289,19 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `DIVIDE` | eager, pure | Return n lazy equally spaced points including interval endpoints |
 | `DIVROUND` | eager, pure | Rounded division |
 | `DIVUP` | eager, pure | Ceiling division |
+| `DOCUMENT_TEMPLATE` | lazy, effectful/unspecified | Create a Fragment from an @""" document template |
 | `EQ` | eager, pure, multifunction | Equality check — returns 1 or null |
 | `EVAL` | lazy, effectful/unspecified | Evaluate a deferred AST node or expression: .Eval(ast, bindings ?= \_, mode ?= :inherit) |
-| `EXP` | eager, pure, multifunction | Exponential |
+| `FIGURE` | eager, pure | Wrap output with figure metadata |
+| `FRAGMENT` | eager, pure | Compose portable output values |
 | `FROMBASE` | lazy, effectful/unspecified | Parse base string to number: str <\_ baseSpec |
 | `FUNCDEF` | lazy, effectful/unspecified | Define a named function |
 | `GENERATOR` | eager, effectful/unspecified | Internal array-generator marker |
 | `GLOBAL` | lazy, effectful/unspecified | Assign a value to a variable in the global scope |
+| `GRID` | eager, pure | Create a mathematical layout grid |
 | `GT` | eager, pure, multifunction | Greater than — returns 1 or null |
 | `GTE` | eager, pure, multifunction | Greater than or equal — returns 1 or null |
+| `HEADING` | eager, pure | Create a portable document heading |
 | `HOLE` | eager, pure | Internal hole/undefined sentinel — represents an explicitly omitted value |
 | `HOLE_COALESCE` | lazy, effectful/unspecified | Hole-coalescing: x ?\| y returns x if x is not a hole, else y |
 | `IMPORT_JS` | eager, effectful/unspecified | Import a local JavaScript module for use from a .js.rix startup file |
@@ -275,16 +319,13 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `KWARG` | eager, pure | Keyword argument wrapper |
 | `LAMBDA` | lazy, effectful/unspecified | Create a lambda/anonymous function |
 | `LITERAL` | eager, pure | Parse a number literal string into a ratmath type |
-| `LN` | eager, pure, multifunction | Natural logarithm |
-| `LOG` | eager, pure, multifunction | Natural logarithm |
-| `LOG10` | eager, pure, multifunction | Base-10 logarithm |
 | `LOOP` | lazy, effectful/unspecified | Loop construct with init, condition, body[, update[, after]] |
 | `LT` | eager, pure, multifunction | Less than — returns 1 or null |
 | `LTE` | eager, pure, multifunction | Less than or equal — returns 1 or null |
 | `MAP_OBJ` | lazy, pure | Create a map/object |
 | `MATHUNIT` | eager, pure | Resolve exact-generator sugar through the active Exact RiX collection |
 | `MATRIX` | eager, pure | Matrix literal |
-| `MAX` | eager, pure | Maximum over n arguments (ignores nulls) |
+| `MAX` | eager, pure, multifunction | Maximum over n arguments (ignores nulls) |
 | `MEDIANTS` | eager, pure | Return nested levels of exact mediants |
 | `MEDIANT_PARTITION` | eager, pure | Partition an interval using exact mediant boundaries |
 | `MEMBER` | eager, pure | Check membership (1 if present, null otherwise) |
@@ -292,7 +333,7 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `META_GET` | eager, effectful/unspecified | Get meta property (returns null if absent) — obj.name |
 | `META_MERGE` | lazy, effectful/unspecified | Bulk merge map into object meta properties (null values = delete) — obj .= map |
 | `META_SET` | lazy, effectful/unspecified | Set meta property (null deletes; respects immutable/frozen) — obj.name = val |
-| `MIN` | eager, pure | Minimum over n arguments (ignores nulls) |
+| `MIN` | eager, pure, multifunction | Minimum over n arguments (ignores nulls) |
 | `MOD` | eager, pure, multifunction | Modulo |
 | `MUL` | eager, pure, multifunction | Multiplication (Product of values) |
 | `MULTIFUNCDEF` | lazy, effectful/unspecified | Append or prepend a multifunction variant |
@@ -314,6 +355,7 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `OUTER_UPDATE` | lazy, effectful/unspecified | In-place value replacement on an outer scope variable (~= / ~~= with @) |
 | `PALL` | lazy, effectful/unspecified | Every: returns last element if predicate is truthy for ALL elements, null on first failure — callback receives (val, locator, src) |
 | `PANY` | lazy, effectful/unspecified | Any: returns first item that passed predicate, null if none pass — callback receives (val, locator, src) |
+| `PARAGRAPH` | eager, pure | Create a portable paragraph output node |
 | `PARENT_SELF` | eager, effectful/unspecified | Resolve the parent multifunction inside a variant body |
 | `PARTITION` | eager, pure | Partition an interval into n equal touching subintervals |
 | `PCHUNK` | lazy, effectful/unspecified | Chunk a collection into subarrays by size or boundary predicate |
@@ -346,7 +388,8 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `SET_DIFF` | eager, pure | — |
 | `SET_PROD` | eager, pure | — |
 | `SET_SYMDIFF` | eager, pure | — |
-| `SIN` | eager, pure, multifunction | Sine |
+| `SLIDE` | eager, pure | Create a presentation slide |
+| `SLIDES` | eager, pure | Create a sequential presentation deck |
 | `SOLVE` | lazy, effectful/unspecified | Solve/constrain: x :=: expr |
 | `SQRT` | eager, pure, multifunction | Square root (approximate rational) |
 | `STEP` | eager, pure | Lazy exact stepped range over a rational interval |
@@ -355,12 +398,14 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `SYSREF` | eager, pure | Reference to a system function |
 | `SYSTEM` | lazy, effectful/unspecified | Mathematical system container, currently evaluates as a block |
 | `SYSTEM_SPEC` | lazy, pure | Create a first-class symbolic system specification |
+| `TABLE` | eager, pure | Create a structured output table |
 | `TAIL_SELF` | lazy, effectful/unspecified | Tail-position self call that reuses the current function frame |
-| `TAN` | eager, pure, multifunction | Tangent |
+| `TEMPLATE_TEXT` | lazy, effectful/unspecified | Create interpolated text with @{expression} insertions |
 | `TENSOR` | lazy, pure | Tensor literal |
 | `TENSOR_LITERAL` | lazy, pure | Tensor literal with explicit shape |
 | `TENSOR_TRANSPOSE` | eager, pure | Transpose a rank-2 tensor view |
 | `TERNARY` | lazy, effectful/unspecified | Ternary conditional: condition ?? trueExpr ?: falseExpr |
+| `TEXT` | eager, pure | Create a portable text output node |
 | `TOBASE` | lazy, effectful/unspecified | Format number to base string: expr \_> baseSpec |
 | `TRAIT_REGISTER` | eager, effectful/unspecified | Register an immutable semantic trait from a RiX map spec |
 | `TUPLE` | lazy, pure | Create a tuple |

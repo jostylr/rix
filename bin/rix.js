@@ -484,13 +484,13 @@ async function main() {
         path.join(EXAMPLES_DIR, "plugins"),
         path.join(EXAMPLES_DIR, "approx-math"),
     ].filter(Boolean) }).scan();
-    pluginCatalog.registerInstaller("approx-math-js", installApproxMathPlugin);
+    pluginCatalog.registerInstaller("float", installApproxMathPlugin);
     const context = new Context();
     const registry = createDefaultRegistry();
     const systemContext = createDefaultSystemContext({ pluginCatalog });
 
     if (withFloats) {
-        pluginCatalog.load("approx-math-js", { context, registry, systemContext });
+        pluginCatalog.load("float", { context, registry, systemContext });
     }
 
     if (args.length > 0 && args[0] === "test") {

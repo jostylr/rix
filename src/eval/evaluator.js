@@ -33,8 +33,8 @@ import { installSymbolicVariants, symbolicCapabilities, symbolicFunctions } from
 import { outputFunctions } from "./functions/output.js";
 import { installRegisteredTypes, registerBuiltinSemanticTypes } from "../runtime/type-system.js";
 import { createDefaultComplexCollection, createDefaultExactCollection } from "../runtime/exact-values.js";
-import { createAlgebraOutputCollection, createGraphicsOutputCollection, createPlotOutputCollection } from "../runtime/output.js";
-import { installDrawPlugin } from "../plugins/draw.js";
+import { createAlgebraOutputCollection, createGraphicsOutputCollection } from "../runtime/output.js";
+import { installBundledPlugins } from "../plugins/bundled.js";
 import { createDefaultUnitCollection } from "../runtime/quantities.js";
 import { installUnitExactVariants, unitExactFunctions } from "./functions/units.js";
 import { parse } from "../parser/parser.js";
@@ -173,9 +173,6 @@ export function createDefaultSystemContext(options = {}) {
     ctx.registerValue("Algebra", algebra, { doc: "Algebra presentation helpers" });
     const graphics = createGraphicsOutputCollection();
     ctx.registerValue("Graphics", graphics, { doc: "Intrinsic portable 2D scene language" });
-    installDrawPlugin(ctx);
-    const plot = createPlotOutputCollection();
-    ctx.registerValue("Plot", plot, { doc: "Portable plotting helpers" });
     ctx.registerAll(stdlibFunctions);
     ctx.registerAll(symbolicCapabilities);
     ctx.registerAll(outputFunctions);
@@ -229,7 +226,8 @@ export function createDefaultSystemContext(options = {}) {
     ctx.register("DefineUnit", unitExactFunctions.DEFINEUNIT);
     ctx.register("DefineExactGenerator", unitExactFunctions.DEFINEEXACTGENERATOR);
     ctx.installManagementNamespaces();
-    ctx.attachPluginCatalog(options.pluginCatalog || new PluginCatalog());
+    const pluginCatalog = installBundledPlugins(options.pluginCatalog || new PluginCatalog());
+    ctx.attachPluginCatalog(pluginCatalog);
     for (const [group, members] of Object.entries(runtimeDefaults.capabilityGroups)) {
         ctx.registerGroup(group, members);
     }
