@@ -1,7 +1,7 @@
 /** Register the bundled, opt-in output authoring plugins with a host catalog. */
 
-import { installDrawPlugin } from "./draw.js";
-import { installPlotPlugin } from "./plot.js";
+import { install as installDrawPlugin } from "./draw/draw.plugin.rix.js";
+import { install as installPlotPlugin } from "./plot/plot.plugin.rix.js";
 
 const BUNDLED_PLUGINS = [
     {
@@ -15,7 +15,7 @@ const BUNDLED_PLUGINS = [
             permissions: [],
             defaultEnabled: false,
         },
-        install: ({ systemContext }) => installDrawPlugin(systemContext),
+        install: ({ systemContext }) => installDrawPlugin({ systemContext }),
     },
     {
         metadata: {
@@ -28,7 +28,7 @@ const BUNDLED_PLUGINS = [
             permissions: [],
             defaultEnabled: false,
         },
-        install: ({ systemContext }) => installPlotPlugin(systemContext),
+        install: ({ systemContext }) => installPlotPlugin({ systemContext }),
     },
 ];
 

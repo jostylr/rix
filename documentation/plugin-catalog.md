@@ -32,11 +32,12 @@ plugins, see [Plugin Roadmap and Rendering Contracts](design/plugins.md).
 
 - **RiX CLI:** scans the current working directory's `plugins/`, a script
   sibling's `plugins/`, and the example plugin roots configured by the CLI.
-- **RiX web:** place browser-approved entries in `rix-web/plugins/` before
-  building. `bun run build:app` scans that directory and writes the static
-  adapter at `rix-web/src/generated/bundled-plugin-catalog.js`. Only those
-  entries become part of the published browser bundle; a browser never scans a
-  visitor's filesystem.
+- **RiX web:** first-party packages live in `rix/plugins/<id>/`. The web
+  generator has an explicit reviewed-package list and writes its static adapter
+  at `rix-web/src/generated/bundled-plugin-catalog.js`. Only selected packages
+  become part of the published browser bundle; a browser never scans a
+  visitor's filesystem. Add a package to that list only after approving its
+  browser-safe JavaScript installer (if it has one).
 - **RiX Notebook:** add trusted bundled JavaScript installers to
   `rix-nb/src/bundled-plugin-catalog.js`, and put project-local entries under
   `<project>/plugins/`. The desktop app scans project plugins when a note is

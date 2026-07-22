@@ -3,10 +3,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Rational, RationalInterval } from "@ratmath/core";
 import { createDefaultRegistry, createDefaultSystemContext, parseAndEvaluate } from "../../src/eval/evaluator.js";
-import { loadApproxMathPlugin } from "../../examples/approx-math/approx-math-plugin.js";
+import { loadFloatPlugin } from "../../plugins/float/node-installer.js";
 import { NodePluginCatalog } from "../../src/runtime/plugin-catalog-node.js";
 
-const approximatePluginRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "../../examples/approx-math");
+const approximatePluginRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "../../plugins/float");
 
 describe("approximate math plugin", () => {
     test("transcendental functions are absent from the default system", () => {
@@ -16,7 +16,7 @@ describe("approximate math plugin", () => {
 
     test("the Float plugin is cataloged and loaded under the float ID", () => {
         const catalog = new NodePluginCatalog({ roots: [approximatePluginRoot] }).scan();
-        catalog.registerInstaller("float", ({ systemContext, registry }) => loadApproxMathPlugin(systemContext, registry));
+    catalog.registerInstaller("float", ({ systemContext, registry }) => loadFloatPlugin(systemContext, registry));
         const systemContext = createDefaultSystemContext({ pluginCatalog: catalog });
         const registry = createDefaultRegistry();
 
@@ -28,7 +28,7 @@ describe("approximate math plugin", () => {
     test("plugin installs Float conversion and PascalCase methods below .float", () => {
         const systemContext = createDefaultSystemContext();
         const registry = createDefaultRegistry();
-        loadApproxMathPlugin(systemContext, registry);
+        loadFloatPlugin(systemContext, registry);
 
         expect(parseAndEvaluate(".float.Sin(1).Value()", { systemContext, registry }))
             .toEqual({ type: "string", value: String(Math.sin(1)) });
@@ -43,7 +43,7 @@ describe("approximate math plugin", () => {
     test("Float interval and decimal rounding methods return exact numeric values", () => {
         const systemContext = createDefaultSystemContext();
         const registry = createDefaultRegistry();
-        loadApproxMathPlugin(systemContext, registry);
+        loadFloatPlugin(systemContext, registry);
 
         const enclosure = parseAndEvaluate(".float.Interval(.float(1/3))", { systemContext, registry });
         expect(enclosure).toBeInstanceOf(RationalInterval);
@@ -58,7 +58,7 @@ describe("approximate math plugin", () => {
     test("generic Min and Max promote mixed exact and Float values through the plugin comparison variant", () => {
         const systemContext = createDefaultSystemContext();
         const registry = createDefaultRegistry();
-        loadApproxMathPlugin(systemContext, registry);
+        loadFloatPlugin(systemContext, registry);
 
         expect(parseAndEvaluate(".Min(2/3, .float(3/4)).Value()", { systemContext, registry }))
             .toEqual({ type: "string", value: String(2 / 3) });

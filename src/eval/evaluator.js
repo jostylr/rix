@@ -34,7 +34,7 @@ import { outputFunctions } from "./functions/output.js";
 import { installRegisteredTypes, registerBuiltinSemanticTypes } from "../runtime/type-system.js";
 import { createDefaultComplexCollection, createDefaultExactCollection } from "../runtime/exact-values.js";
 import { createAlgebraOutputCollection, createGraphicsOutputCollection } from "../runtime/output.js";
-import { installBundledPlugins } from "../plugins/bundled.js";
+import { installBundledPlugins } from "../../plugins/bundled.js";
 import { createDefaultUnitCollection } from "../runtime/quantities.js";
 import { installUnitExactVariants, unitExactFunctions } from "./functions/units.js";
 import { parse } from "../parser/parser.js";

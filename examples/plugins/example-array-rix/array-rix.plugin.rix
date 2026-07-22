@@ -1,0 +1,14 @@
+/**
+id: example-array-rix
+description: Teaching RiX plugin demonstrating array sum, summary text, and reversal.
+kind: rix
+mount: arrayRix
+exports: [arrayRixSum, arrayRixDescribe, arrayRixReverse]
+groups: [Examples]
+permissions: []
+defaultEnabled: false
+**/
+
+.Host.Register("arrayRixSum", (values) -> values.Reduce((total, value) -> total + value, 0), "Sum an array of Integers", ["Examples"]);
+.Host.Register("arrayRixDescribe", (values) -> @"count @{values.Len()}; sum @{values.Reduce((total, value) -> total + value, 0)}", "Summarize an array of Integers", ["Examples"]);
+.Host.Register("arrayRixReverse", (values) -> values.Reverse(), "Reverse an array", ["Examples"]);

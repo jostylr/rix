@@ -198,7 +198,7 @@ o2 = .TypeImport(e)
 o2.Mid()
 ```
 
-The Float example demonstrates a different extension pattern. It lives outside the evaluator core in `rix/examples/floats/`, so it can become a standalone package or submodule. Its interface is a RiX startup file named `floats.js.rix`, while the heavy arithmetic and JavaScript `Math` calls live in the neighboring `floats.js`.
+The Float plugin demonstrates a different extension pattern. It lives outside the evaluator core in `rix/plugins/float/`, as a standalone first-party package. Its interface is a RiX startup file named `floats.js.rix`, while the heavy arithmetic and JavaScript `Math` calls live in the neighboring `floats.js`.
 
 The generic bridge is:
 

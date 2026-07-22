@@ -8,8 +8,10 @@ import {
     parseAndEvaluate,
 } from "../../src/index.js";
 import { NodePluginCatalog } from "../../src/runtime/plugin-catalog-node.js";
+import { install as installArrayJsExample } from "../../examples/plugins/example-array-js/array-js.plugin.rix.js";
 
 const fixtureRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "../fixtures/plugins");
+const examplePluginRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "../../examples/plugins");
 
 function runtime(catalog) {
     return {
@@ -72,5 +74,22 @@ describe("plugin catalog", () => {
 
         expect(() => evaluate('<"load-echo">', options)).toThrow(".Plugin.Load is not permitted");
         expect(evaluate('<"load-echo" /+Plugins/>', options).value).toBe(3n);
+    });
+
+    test("matched JavaScript and RiX example packages load through their respective plugin paths", () => {
+        const catalog = new NodePluginCatalog({ roots: [
+            path.join(examplePluginRoot, "example-array-js"),
+            path.join(examplePluginRoot, "example-array-rix"),
+        ] }).scan();
+        catalog.registerInstaller("example-array-js", installArrayJsExample);
+        const options = runtime(catalog);
+
+        expect(evaluate('.Plugin.Load("example-array-js"); .arrayJs.Sum([2, 3, 5])', options).value).toBe(10n);
+        expect(evaluate('.arrayJs.Describe([2, 3, 5])', options)).toEqual({ type: "string", value: "count 3; sum 10" });
+        expect(evaluate('.arrayJs.Reverse([2, 3, 5])', options).values.map((value) => value.value)).toEqual([5n, 3n, 2n]);
+
+        expect(evaluate('.Plugin.Load("example-array-rix"); .arrayRixSum([2, 3, 5])', options).value).toBe(10n);
+        expect(evaluate('.arrayRixDescribe([2, 3, 5])', options)).toEqual({ type: "string", value: "count 3; sum 10" });
+        expect(evaluate('.arrayRixReverse([2, 3, 5])', options).values.map((value) => value.value)).toEqual([5n, 3n, 2n]);
     });
 });

@@ -7,7 +7,7 @@
 
 import { MATH_FUNCTION_NAMES, mathFunctions } from "../../src/eval/functions/math.js";
 import { installRegisteredTypes, typeRegistry } from "../../src/runtime/type-system.js";
-import { loadFloatExampleStartup } from "../floats/floats-loader.js";
+import { loadFloatPluginStartup } from "./float-loader.js";
 import { Integer, Rational, RationalInterval } from "@ratmath/core";
 
 const FLOAT_METHOD_NAMES = ["ABS", "SQRT", ...MATH_FUNCTION_NAMES];
@@ -179,7 +179,7 @@ function floatValue(registry) {
  * namespace, so `.float.Float(1/3)` and `.float.Sin(x)` always refer to the
  * same numeric implementation.
  */
-export function loadApproxMathPlugin(systemContext, registry) {
+export function loadFloatPlugin(systemContext, registry) {
     if (!systemContext?.registerHostValue) {
         throw new Error("Approximate math plugin requires a SystemContext");
     }
@@ -187,7 +187,7 @@ export function loadApproxMathPlugin(systemContext, registry) {
         throw new Error("Approximate math plugin requires an evaluator Registry");
     }
     registry.registerAll(mathFunctions);
-    loadFloatExampleStartup(registry, systemContext);
+    loadFloatPluginStartup(registry, systemContext);
     installFloatCompareVariant(registry);
     installRegisteredTypes(registry, typeRegistry.list(), {
         onlyFunctions: new Set(MATH_FUNCTION_NAMES),
@@ -206,4 +206,5 @@ export function loadApproxMathPlugin(systemContext, registry) {
     return systemContext;
 }
 
-export const loadFloatPlugin = loadApproxMathPlugin;
+/** @deprecated Use loadFloatPlugin. */
+export const loadApproxMathPlugin = loadFloatPlugin;

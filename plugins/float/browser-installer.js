@@ -1,5 +1,5 @@
 /**
- * Browser-safe IEEE-754 approximate-math plugin implementation.
+ * Browser-safe IEEE-754 Float plugin implementation.
  *
  * The public spelling is `.float`, while the semantic type name is unique so
  * several approximate-number implementations can coexist in one RiX process.
@@ -212,3 +212,6 @@ export function installBrowserApproxMathPlugin({ systemContext, registry }) {
     });
     return systemContext;
 }
+
+/** Browser host entry used by the RiX Web generated plugin catalog. */
+export const install = installBrowserApproxMathPlugin;

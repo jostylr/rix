@@ -8,7 +8,7 @@ import { installRegisteredTypes, typeRegistry } from "../../src/runtime/type-sys
 const EXAMPLE_DIR = path.dirname(fileURLToPath(import.meta.url));
 const STARTUP_PATH = path.join(EXAMPLE_DIR, "floats.js.rix");
 
-export function loadFloatExampleStartup(registry, systemContext = createDefaultSystemContext()) {
+export function loadFloatPluginStartup(registry, systemContext = createDefaultSystemContext()) {
     if (typeRegistry.has("Float")) {
         if (registry) installRegisteredTypes(registry, ["Float"], {
             skipMissing: true,
@@ -28,3 +28,6 @@ export function loadFloatExampleStartup(registry, systemContext = createDefaultS
     });
     return registry;
 }
+
+/** @deprecated Use loadFloatPluginStartup. */
+export const loadFloatExampleStartup = loadFloatPluginStartup;

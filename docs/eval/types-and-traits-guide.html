@@ -796,7 +796,7 @@ r == r2</code></pre>
 e = .TypeExport(o)
 o2 = .TypeImport(e)
 o2.Mid()</code></pre>
-<p>The Float example demonstrates a different extension pattern. It lives outside the evaluator core in <code>rix/examples/floats/</code>, so it can become a standalone package or submodule. Its interface is a RiX startup file named <code>floats.js.rix</code>, while the heavy arithmetic and JavaScript <code>Math</code> calls live in the neighboring <code>floats.js</code>.</p>
+<p>The Float plugin demonstrates a different extension pattern. It lives outside the evaluator core in <code>rix/plugins/float/</code>, as a standalone first-party package. Its interface is a RiX startup file named <code>floats.js.rix</code>, while the heavy arithmetic and JavaScript <code>Math</code> calls live in the neighboring <code>floats.js</code>.</p>
 <p>The generic bridge is:</p>
 <pre class="rix"><code>.ImportJS("floats.js")
 .JSCall("floats.js", :Sin, x)</code></pre>

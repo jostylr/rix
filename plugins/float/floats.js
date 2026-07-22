@@ -1,3 +1,4 @@
+// Float plugin arithmetic bridge used by the accompanying RiX startup source.
 import { Integer, Rational } from "@ratmath/core";
 
 function int(value) {

@@ -1,4 +1,15 @@
 /**
+id: draw
+description: Convenient 2D drawing helpers that produce core Graphics nodes.
+kind: host
+mount: draw
+exports: [Line, Polygon, Label, Box, Circle]
+groups: [Draw]
+permissions: []
+defaultEnabled: false
+**/
+
+/**
  * Bundled first-party draw plugin.
  *
  * `.draw` is deliberately only an ergonomic authoring layer. Every helper below
@@ -6,7 +17,7 @@
  * renderers never need to understand this plugin's own value types.
  */
 
-import { createCircle, createPath, createRectangle, createTextMark } from "../runtime/output.js";
+import { createCircle, createPath, createRectangle, createTextMark } from "../../src/runtime/output.js";
 import { Integer } from "@ratmath/core";
 
 function entriesFor(args, positional, name) {
@@ -65,8 +76,10 @@ export function createDrawPluginCollection() {
     return { type: "map", entries, _ext: extension };
 }
 
-export function installDrawPlugin(systemContext) {
+export function install({ systemContext }) {
     const draw = createDrawPluginCollection();
     systemContext.registerHostValue("draw", draw, { doc: "Convenient authoring helpers that produce intrinsic Graphics nodes" });
     return draw;
 }
+
+export const installDrawPlugin = (systemContext) => install({ systemContext });

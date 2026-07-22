@@ -9,9 +9,9 @@ permissions: []
 defaultEnabled: false
 **/
 
-import { loadApproxMathPlugin } from "./approx-math-plugin.js";
+import { loadFloatPlugin } from "./node-installer.js";
 
 /** Host-approved installer used by the CLI or another embedding host. */
 export function install({ systemContext, registry }) {
-    return loadApproxMathPlugin(systemContext, registry);
+    return loadFloatPlugin(systemContext, registry);
 }

@@ -19,6 +19,6 @@ export {
     createPolynomialPlot, createGroup, createTransform, createTextMark,
     createRectangle, createCircle, createClip,
 } from "./runtime/index.js";
-export { createDrawPluginCollection, installDrawPlugin } from "./plugins/draw.js";
-export { installPlotPlugin } from "./plugins/plot.js";
-export { installBundledPlugins } from "./plugins/bundled.js";
+export { createDrawPluginCollection, installDrawPlugin } from "../plugins/draw/draw.plugin.rix.js";
+export { installPlotPlugin } from "../plugins/plot/plot.plugin.rix.js";
+export { installBundledPlugins } from "../plugins/bundled.js";

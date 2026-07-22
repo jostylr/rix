@@ -28,13 +28,16 @@ import {
 } from "../src/index.js";
 import { NodePluginCatalog } from "../src/runtime/plugin-catalog-node.js";
 import { formatValue as formatResult } from "../src/eval/format.js";
-import { install as installApproxMathPlugin } from "../examples/approx-math/approx-math.plugin.rix.js";
+import { install as installFloatPlugin } from "../plugins/float/float.plugin.rix.js";
+import { install as installArrayJsExample } from "../examples/plugins/example-array-js/array-js.plugin.rix.js";
 
 // Known REPL meta-commands (lowercase, intercepted before the evaluator)
 const REPL_COMMANDS = new Set(["help", "exit", "load", "vars", "fns", "reset", "ast", "tokens"]);
 
 const TOOL_DIR = path.dirname(fileURLToPath(import.meta.url));
 const EXAMPLES_DIR = path.resolve(TOOL_DIR, "../examples");
+const FIRST_PARTY_PLUGINS_DIR = path.resolve(TOOL_DIR, "../plugins");
+const EXAMPLE_PLUGINS_DIR = path.resolve(EXAMPLES_DIR, "plugins");
 
 function resolvePackageStartup(nameOrPath) {
     const spec = String(nameOrPath ?? "").trim();
@@ -478,13 +481,15 @@ async function main() {
     const withFloats = rawArgs.includes("--with-floats");
     const args = rawArgs.filter(arg => arg !== "--with-floats");
     const inputPath = args.length > 0 && args[0] !== "test" ? path.resolve(args[0]) : null;
-    const pluginCatalog = new NodePluginCatalog({ roots: [
+    const pluginRoots = [
         path.resolve(process.cwd(), "plugins"),
         inputPath ? path.join(path.dirname(inputPath), "plugins") : null,
-        path.join(EXAMPLES_DIR, "plugins"),
-        path.join(EXAMPLES_DIR, "approx-math"),
-    ].filter(Boolean) }).scan();
-    pluginCatalog.registerInstaller("float", installApproxMathPlugin);
+        FIRST_PARTY_PLUGINS_DIR,
+        EXAMPLE_PLUGINS_DIR,
+    ].filter(Boolean);
+    const pluginCatalog = new NodePluginCatalog({ roots: [...new Set(pluginRoots)] }).scan();
+    pluginCatalog.registerInstaller("float", installFloatPlugin);
+    pluginCatalog.registerInstaller("example-array-js", installArrayJsExample);
     const context = new Context();
     const registry = createDefaultRegistry();
     const systemContext = createDefaultSystemContext({ pluginCatalog });

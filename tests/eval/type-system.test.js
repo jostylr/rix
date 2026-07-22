@@ -16,8 +16,8 @@ import {
     stringObj,
 } from "../../src/runtime/type-system.js";
 import { loadOracleExampleStartup } from "../../src/eval/startup/oracle-example.js";
-import { loadFloatExampleStartup } from "../../examples/floats/floats-loader.js";
-import { loadApproxMathPlugin } from "../../examples/approx-math/approx-math-plugin.js";
+import { loadFloatPluginStartup } from "../../plugins/float/float-loader.js";
+import { loadFloatPlugin } from "../../plugins/float/node-installer.js";
 
 const defaultSystemContext = createDefaultSystemContext();
 
@@ -160,7 +160,7 @@ describe("RiX type and trait registry", () => {
         const { result, registry } = evalRiX(
             "{; a = 1 ~: :Float; b = 2 ~: :Float; c = a + b * b; ex = .TypeExport(c); c2 = .TypeImport(ex); c2.Value() }",
             new Context(),
-            { startupLoaders: [loadFloatExampleStartup] },
+            { startupLoaders: [loadFloatPluginStartup] },
         );
 
         expect(result.value).toBe("5");
@@ -171,7 +171,7 @@ describe("RiX type and trait registry", () => {
         const { result, context, registry } = evalRiX(
             "a = 1 ~: :Float; b = 2 ~: :Float; a + b;",
             new Context(),
-            { startupLoaders: [loadFloatExampleStartup] },
+            { startupLoaders: [loadFloatPluginStartup] },
         );
         expect(formatValue(result)).toBe("[object Object]");
         expect(formatValue(result, {
@@ -184,7 +184,7 @@ describe("RiX type and trait registry", () => {
         const context = new Context();
         const registry = createDefaultRegistry();
         const systemContext = createDefaultSystemContext();
-        loadApproxMathPlugin(systemContext, registry);
+        loadFloatPlugin(systemContext, registry);
         const ir = lower(parse(tokenize("{; a = .float.Float(0.5); {: 7 + .float.Sin(a), .float.Sin(a) + 7, 1/2 + a, a < 1, 1 > a } }"), () => ({ type: "identifier" })));
         let result = null;
         for (const node of ir) {
