@@ -4,6 +4,10 @@ This directory contains first-party RiX plugin packages. A package owns its
 machine-readable entry point, implementation files, reference README, and a
 small tutorial suitable for the RiX Web tutorial series.
 
+The proposed package architecture, mathematical service relationships, scene
+layers, and renderer contracts are specified in
+[Plugin System Design Specification](design-spec.md).
+
 | Package | Kind | Public load ID | Purpose |
 | --- | --- | --- | --- |
 | `draw/` | host | `draw` | Convenient 2D scene authoring helpers. |
