@@ -47,7 +47,7 @@ numeric type or one universal rendering engine.
 | Data | `.data` | Relations, schemas, joins, transformations, and presentation-neutral tabular data. |
 | Statistics | `.stats` | Exact/approximate summaries, distributions, models, regression, and plot-ready result values. |
 | Document features | `.document` | Citations, references, numbering, themes, assets, and report/deck assembly beyond core fragments. |
-| Rendering | `.quarto`, `.latex`, `.tikz`, `.svg`, `.png`, `.pdf`, `.terminalAscii`, `.gif` | Target encoders registered through one renderer protocol. |
+| Rendering and export | `.quarto`, `.latex`, `.tikz`, `.svg`, `.canvas`, `.png`, `.pdf`, `.terminalAscii`, `.gif`, `.csv` | Target encoders and data exporters registered through shared output protocols. |
 
 Plugin IDs and mount names remain lowercase or lower camel case. Core portable
 constructors retain their existing PascalCase system names.
@@ -67,7 +67,7 @@ flowchart TD
     S3["scene3d"]
     G2["core Graphics and document values"]
     X["renderer registry"]
-    O["Quarto / LaTeX / TikZ / SVG / PNG / PDF / terminal / GIF"]
+    O["Quarto / LaTeX / TikZ / SVG / Canvas / PNG / PDF / terminal / GIF / CSV"]
 
     C --> A
     C --> R
@@ -580,6 +580,7 @@ not silently discarded.
 | Plugin | Primary inputs | Output and responsibilities |
 | --- | --- | --- |
 | `.svg` | `Graphic`, standalone `Figure`; projected `Scene3D` | SVG text/bytes, clipping, paths, exact-to-decimal coordinate policy, metadata, accessibility. |
+| `.canvas` | `Graphic`; projected `Scene3D`; rapidly changing plot frames | Browser `CanvasRenderingContext2D` drawing plan and host-owned surface. Optimized for repainting, large sample counts, hit-test metadata, and interactive views; provides PNG snapshots because a canvas is not itself a portable serialized result. |
 | `.png` | `Graphic`, rendered document region, `Scene3D`, slide frame | Raster image; delegates scene construction to SVG/Scene3D and owns resolution, antialiasing, color profile, and transparency. |
 | `.terminalAscii` | Scalars, tables, grids, fragments, graphics, slides | Strict ASCII output with widths, pagination, line styles, plot approximation, and no Unicode dependency. A future terminal-Unicode renderer may offer richer glyphs. |
 | `.tikz` | `Graphic`, geometry diagrams, plot snapshots | TikZ/PGF source, coordinates, paths, labels, styles, and optional PGFPlots lowering. Reports unsupported raster/3D effects. |
@@ -587,6 +588,7 @@ not silently discarded.
 | `.quarto` | `Fragment`, `Document`, `Slides` | `.qmd` plus assets/front matter; emits Markdown where portable and raw target blocks only when necessary. Preserves labels, citations, and executable-source policy. |
 | `.pdf` | Documents, figures, slides | Final PDF bytes/assets. May use LaTeX/Quarto for documents, SVG/TikZ for vector figures, PNG for raster content, and Scene3D snapshots. Records its toolchain. |
 | `.gif` | `Slides`, animation/timeline, rotating `Scene3D` | Animated GIF; expands a deterministic timeline, renders frames through PNG/raster services, controls duration/dithering/looping, and reports unsupported interactivity. |
+| `.csv` | `Table`, relation/data values | RFC-style delimited text plus dialect metadata: delimiter, quoting, newline, encoding, headers, and scalar formatting. CSV is a data exporter, not a renderer for arbitrary graphics or documents. TSV is the same service with a different dialect. |
 
 The plugins may also expose convenience namespaces such as
 `.svg.Render(value, options)`, but renderer negotiation should use the shared
@@ -601,11 +603,33 @@ Document -> LaTeX -> TEX + TikZ/PDF/PNG assets -> PDF
 Geometry -> AdaptiveRenderResult.Graphic -> SVG / TikZ / terminal ASCII
 Scene3D -> camera snapshot -> Graphic or raster -> SVG / PNG / PDF
 Slides -> timeline -> frame renderer -> PNG frames -> GIF
+Table / Relation -> scalar formatting policy -> CSV / TSV
 ```
 
 The PDF plugin is an orchestrator, not a second implementation of every table,
 math, and graphics layout. The GIF plugin similarly owns sequencing and frame
 encoding, while slide layout and scene rendering remain separate services.
+
+Canvas is intentionally a host renderer rather than a new semantic scene
+model. It traverses the same core `Graphic` tree as SVG, so `.draw`, `.plot`,
+and `.geometry` do not choose between SVG and Canvas. SVG remains the portable
+vector representation; Canvas is the fast browser execution target.
+
+Not every useful output format is a renderer in the narrow sense. The registry
+should distinguish target families while retaining one negotiation surface:
+
+| Target family | Useful formats |
+| --- | --- |
+| Semantic/data | RiX JSON, JSON/JSON Lines, CSV/TSV; later Arrow or Parquet when columnar interchange is justified. |
+| Web/document | HTML, Markdown, Quarto, LaTeX, MathML, PDF, and presentation formats such as PPTX. |
+| 2D image | SVG, Canvas display, PNG, WebP, and PDF figure pages. |
+| Animation | GIF for broad compatibility; APNG and WebM/MP4 for better color, size, or timing. |
+| 3D interchange | glTF/GLB first, with STL/OBJ/PLY adapters where manufacturing or mesh tools require them. |
+
+Formats should be added only when their source semantic type is clear. For
+example, CSV exports a table but cannot faithfully encode nested fragments,
+cell-spanning grids, graphics, or formulas without an explicit flattening
+policy and diagnostics.
 
 ## 11. Documents, figures, and slides
 
@@ -667,7 +691,7 @@ rix/plugins/
   algebra/                 # proposed
   numerics/                # proposed orchestration
   real-ball/               # proposed real backend
-  real-oracle/             # proposed real backend
+  oracle/                  # specification; proposed real backend
   real-cauchy/             # proposed real backend
   real-continued-fraction/ # proposed real backend
   real-algebraic/          # proposed real backend
@@ -676,6 +700,7 @@ rix/plugins/
   nd/                      # proposed
   complex-visualization/   # proposed
   render-svg/              # proposed extraction from hosts
+  render-canvas/
   render-png/
   render-terminal-ascii/
   render-tikz/
@@ -683,6 +708,7 @@ rix/plugins/
   render-quarto/
   render-pdf/
   render-gif/
+  export-csv/
 ```
 
 Separate repositories become appropriate when a plugin has an independent
@@ -698,20 +724,23 @@ Teaching-only plugins belong under `rix/examples/plugins/`, not this directory.
    renderer request/result records, including serialization tests.
 2. Expand `.numerics` with bounded `Enclose`, `Refine`, `Compare`, `Sign`, and
    adaptive sampling over the existing `.float` backend.
-3. Add one certified backend—preferably ball arithmetic or algebraic reals—to
-   prove that Numerics is not coupled to IEEE floats.
+3. Implement the `.oracle` rational/bisection/Newton-funnel milestone from its
+   [paper-based specification](oracle/specification.md), and use its exact
+   enclosures to prove that Numerics is not coupled to IEEE floats. Ball or
+   algebraic-real arithmetic can be the next independent backend.
 4. Implement `.geometry` points, lines, circles, conics, intersections, and an
    implicit-curve refiner with visible unresolved-cell reporting.
 5. Expand `.plot` with `Function`, `FitView`, discontinuity handling, contours,
    and heat maps using Numerics.
-6. Extract the existing SVG/terminal behavior into renderer registrations, then
-   add PNG and TikZ.
+6. Extract the existing SVG/terminal behavior into renderer registrations, add
+   Canvas over the same `Graphic` traversal contract, then add PNG and TikZ.
 7. Implement the retained `.scene3d` schema and deterministic static snapshot.
 8. Add `.nd` projection/slicing and validate it with a 4D-to-3D section example.
 9. Add `.complexViz.DomainColoring` and `.complexViz.CayleySurface`, including
    poles, projective infinity, and uncertainty visualization.
-10. Add Quarto/LaTeX/PDF document pipelines and GIF slide sequencing after
-    renderer asset negotiation is stable.
+10. Add CSV/TSV early as a small `Table`/relation exporter. Add
+    Quarto/LaTeX/PDF document pipelines and GIF slide sequencing after renderer
+    asset negotiation is stable.
 
 ## 15. Design invariants
 

@@ -1,8 +1,10 @@
 # RiX plugins
 
-This directory contains first-party RiX plugin packages. A package owns its
-machine-readable entry point, implementation files, reference README, and a
-small tutorial suitable for the RiX Web tutorial series.
+This directory contains first-party RiX plugin packages and specifications.
+An implemented package owns its machine-readable entry point, implementation
+files, reference README, and a small tutorial suitable for the RiX Web tutorial
+series. A specification-only directory has no discoverable manifest until it
+can actually be loaded.
 
 The proposed package architecture, mathematical service relationships, scene
 layers, and renderer contracts are specified in
@@ -13,6 +15,7 @@ layers, and renderer contracts are specified in
 | `draw/` | host | `draw` | Convenient 2D scene authoring helpers. |
 | `plot/` | host | `plot` | Portable plot constructors that lower to core graphics. |
 | `float/` | host | `float` | IEEE-754 Float conversion and approximate math. |
+| `oracle/` | specification | `oracle` (proposed) | Rational-betweenness oracle real numbers based on the project paper. |
 
 Plugin discovery reads only a leading `/** ... **/` metadata header from
 `*.plugin.rix` and `*.plugin.rix.js`. A host must explicitly approve a
