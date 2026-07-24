@@ -73,6 +73,9 @@ export function readPluginHeader(source, filename = "plugin") {
 }
 
 function validateMetadata(metadata, sourcePath, kind) {
+    if (metadata.ignore !== undefined && typeof metadata.ignore !== "boolean") {
+        throw new Error(`${sourcePath}: ignore must be true or false`);
+    }
     if (typeof metadata.id !== "string" || !metadata.id.trim()) {
         throw new Error(`${sourcePath}: plugin header requires a non-empty id`);
     }
@@ -100,6 +103,7 @@ function validateMetadata(metadata, sourcePath, kind) {
         groups: metadata.groups || [],
         permissions: metadata.permissions || [],
         defaultEnabled: metadata.defaultEnabled === true,
+        ignore: metadata.ignore === true,
         sourcePath,
     };
 }
@@ -150,6 +154,9 @@ export class PluginCatalog {
     }
 
     addMetadata(metadata, { sourcePath = `<plugin:${metadata?.id || "unknown"}>`, source = null, kind = metadata?.kind } = {}) {
+        // Ignore is intentionally handled before normal manifest validation so
+        // a work-in-progress file can opt out while its metadata is incomplete.
+        if (metadata?.ignore === true) return null;
         const validatedKind = kind || metadata?.kind;
         if (validatedKind !== "rix" && validatedKind !== "host") {
             throw new Error(`${sourcePath}: plugin kind must be 'rix' or 'host'`);

@@ -36,6 +36,15 @@ describe("plugin catalog", () => {
         expect(catalog.loaded.size).toBe(0);
     });
 
+    test("does not expose a plugin whose manifest opts out of discovery", () => {
+        const catalog = new NodePluginCatalog();
+        expect(catalog.addMetadata({
+            ignore: true,
+        }, { sourcePath: "work-in-progress.plugin.rix", kind: "rix" })).toBeNull();
+        expect(catalog.list()).toEqual([]);
+        expect(catalog.info("work-in-progress")).toBeNull();
+    });
+
     test("declares a disabled mount for static checking, then loads a RiX plugin only on demand", () => {
         const options = runtime(new NodePluginCatalog({ roots: [fixtureRoot] }).scan());
 
