@@ -1,6 +1,8 @@
 ---
 title: Drawing portable graphics
 description: Use the optional draw package to create core graphics scene nodes.
+theme: Graphics and geometry
+status: implemented
 ---
 
 # Drawing portable graphics

@@ -9,6 +9,8 @@ can actually be loaded.
 The proposed package architecture, mathematical service relationships, scene
 layers, and renderer contracts are specified in
 [Plugin System Design Specification](design-spec.md).
+The implementation order and per-plugin phased work are tracked in
+[Plugin Implementation TODO](TODO.md).
 
 | Package | Kind | Public load ID | Purpose |
 | --- | --- | --- | --- |

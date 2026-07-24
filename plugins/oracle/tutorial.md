@@ -1,6 +1,7 @@
 ---
 title: Rational betweenness oracles
 description: Query and refine a real number through exact rational intervals.
+theme: Numbers and numerics
 status: proposed
 ---
 

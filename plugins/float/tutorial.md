@@ -1,6 +1,8 @@
 ---
 title: Optional Float math
 description: Load IEEE-754 approximate math without making it a core RiX numeric type.
+theme: Numbers and numerics
+status: implemented
 ---
 
 # Optional Float math

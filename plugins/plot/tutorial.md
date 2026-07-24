@@ -1,6 +1,8 @@
 ---
 title: Plotting a polynomial
 description: Build a portable graphics scene with the plot plugin.
+theme: Graphics and geometry
+status: implemented
 ---
 
 # Plotting a polynomial
