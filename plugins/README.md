@@ -24,6 +24,11 @@ Plugin discovery reads only a leading `/** ... **/` metadata header from
 JavaScript plugin installer. RiX plugins are evaluated only when a user calls
 `.Plugin.Load(id)`.
 
+RiX code in every plugin `tutorial.md` must use script syntax: each statement,
+including the last expression in a code fence, ends with `;`. The RiX Web test
+suite parses these tutorial cells and verifies that no host-specific newline
+normalization is needed.
+
 Core output values—such as `.Graphics`, `.Table`, and `.Fragment`—do not live
 here. Plugins construct or extend those portable core values. Complete teaching
 packages live separately in [`rix/examples/plugins/`](../examples/plugins/README.md).

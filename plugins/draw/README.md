@@ -7,13 +7,13 @@ scene node that any renderer may understand.
 ## Load and use
 
 ```rix
-.Plugin.Load("draw")
+.Plugin.Load("draw");
 
 scene := .Graphics.Graphic([600, 320], [
-  .draw.Line([0, 0], [10, 5], {= stroke = "steelblue", width = 2 }),
-  .draw.Circle([5, 2], 0.5, {= fill = "gold" }),
-  .draw.Label([5, 3], "P", {= size = 16 })
-])
+  .draw.Line([0, 0], [100, 50], {= stroke = "steelblue", width = 2 }),
+  .draw.Circle([10, 2], 0.5, {= fill = "gold" }),
+  .draw.Label([20, 3], "P", {= size = 16 })
+]);
 ```
 
 `scene` is a `.Graphics` value; the CLI can provide text fallback while a web

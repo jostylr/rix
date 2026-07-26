@@ -110,6 +110,53 @@ describe("portable structured output", () => {
         expect(parseAndEvaluate('.Plugin.Load("draw"); .draw.Circle([5, 5], 3)').kind).toBe("circle");
     });
 
+    test("the draw plugin accepts map shorthand and rejects malformed styles", () => {
+        const line = parseAndEvaluate(`
+            .Plugin.Load("draw");
+            .draw.Line({=
+                from = [1, 2],
+                to = [3, 4],
+                style = {= stroke = "blue", width = 2 }
+            });
+        `);
+        expect(line.kind).toBe("path");
+        expect(line.points).toHaveLength(2);
+        expect(line.style.get("stroke")).toEqual({ type: "string", value: "blue" });
+        expect(() => parseAndEvaluate('.Plugin.Load("draw"); .draw.Circle([0, 0], 1, "red");'))
+            .toThrow("Circle style must be a map");
+        expect(() => parseAndEvaluate('.Plugin.Load("draw"); .draw.Line([0, 0], [1, 1], {= }, 4);'))
+            .toThrow("draw.Line received too many arguments");
+    });
+
+    test("the plot plugin fits polynomial values, handles constants, and validates ranges", () => {
+        const fitted = parseAndEvaluate(`
+            .Plugin.Load("plot");
+            .plot.Polynomial([1, 0, 0], [-2, 2], {= size = [400, 240], margin = 20, samples = 9 });
+        `);
+        const fittedCurve = fitted.children.at(-1);
+        const fittedY = fittedCurve.points.map(([, y]) => y);
+        expect(fitted.size.map((value) => value.value)).toEqual([400n, 240n]);
+        expect(fittedCurve.points).toHaveLength(9);
+        expect(Math.min(...fittedY)).toBeGreaterThanOrEqual(20);
+        expect(Math.max(...fittedY)).toBeLessThanOrEqual(220);
+        expect(Math.max(...fittedY) - Math.min(...fittedY)).toBeGreaterThan(100);
+
+        const constant = parseAndEvaluate(`
+            .Plugin.Load("plot");
+            .plot.Polynomial([0, 5], [-1, 1], {= samples = 3 });
+        `);
+        const constantY = constant.children.at(-1).points.map(([, y]) => y);
+        expect(constantY.every(Number.isFinite)).toBe(true);
+        expect(new Set(constantY).size).toBe(1);
+
+        expect(() => parseAndEvaluate('.Plugin.Load("plot"); .plot.Polynomial([1, 0], [2, 2]);'))
+            .toThrow("Polynomial plot domain must increase");
+        expect(() => parseAndEvaluate('.Plugin.Load("plot"); .plot.Polynomial([1, 0], [3, -3]);'))
+            .toThrow("Polynomial plot domain must increase");
+        expect(() => parseAndEvaluate('.Plugin.Load("plot"); .plot.Polynomial([1, 0], [-1, 1, 2]);'))
+            .toThrow("Polynomial plot domain must have a lower and upper bound");
+    });
+
     test("Graphics.Path preserves renderer-independent curve and arc commands", () => {
         const graphic = parseAndEvaluate(`
             .Graphics.Graphic([100, 100], [

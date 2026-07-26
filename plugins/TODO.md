@@ -79,6 +79,12 @@ Supported initial themes are:
 `status: proposed` publishes a design/acceptance tutorial but disables its Run
 buttons. Change it to `implemented` only when its Phase 1 code and tests work.
 
+Every statement in a tutorial's RiX code fences must end with a semicolon,
+including assignments, calls, final expressions, and multiline constructor
+calls. Tutorials are shared by the CLI, RiX Web, and RiX Notebook, so they must
+use valid script syntax rather than relying on a particular host's interactive
+newline normalization.
+
 ---
 
 ## Authoring and mathematical plugins
@@ -92,7 +98,7 @@ buttons. Change it to `implemented` only when its Phase 1 code and tests work.
    - [x] Document that Draw is an authoring convenience rather than a second
      scene model.
    - [x] Provide a portable drawing tutorial.
-   - [ ] Add focused plugin-loading and malformed-style tests.
+   - [x] Add focused plugin-loading and malformed-style tests.
 2. **Phase 2 — Common drafting conveniences**
    - [ ] Add polylines, arrows, arcs, ellipses, dimension marks, grids, and
      reusable style maps.
@@ -116,9 +122,9 @@ buttons. Change it to `implemented` only when its Phase 1 code and tests work.
    - [x] Plot exact polynomial coefficients over an explicit horizontal range.
    - [x] Compute a useful fitted vertical range and return core `Graphics`.
    - [x] Provide README documentation and a polynomial tutorial.
-   - [ ] Add direct plugin tests for fitting, constant polynomials, and invalid
+   - [x] Add direct plugin tests for fitting, constant polynomials, and invalid
      ranges.
-   - [ ] Make the tutorial pass in both RiX Web and RiX Notebook.
+   - [x] Make the tutorial pass in both RiX Web and RiX Notebook.
 2. **Phase 2 — General 2D functions and data**
    - [ ] Add `.plot.Function`, `.plot.Parametric`, scatter, line, bar, and
      step plots.
@@ -144,7 +150,7 @@ buttons. Change it to `implemented` only when its Phase 1 code and tests work.
      exact stored-value interval, rounding, and elementary functions.
    - [x] Provide Node and browser installers.
    - [x] Provide reference documentation and tutorial.
-   - [ ] Consolidate plugin-specific tests across Node, RiX Web, and RiX
+   - [x] Consolidate plugin-specific tests across Node, RiX Web, and RiX
      Notebook catalogs.
    - [ ] Mark certification metadata as approximate rather than enclosed.
 2. **Phase 2 — Numerical protocol provider**
@@ -648,4 +654,3 @@ buttons. Change it to `implemented` only when its Phase 1 code and tests work.
 4. **Phase 4 gate**
    - [ ] External/native services have explicit permissions, versioned
      protocols, reproducible fixtures, and graceful absence behavior.
-

@@ -10,15 +10,15 @@ status: implemented
 Start by loading the optional plot package:
 
 ```rix
-.Plugin.Load("plot")
-graph := .plot.Polynomial([1, 0, -4, 1], [-3, 3], {= size = [640, 360] })
+.Plugin.Load("plot");
+graph := .plot.Polynomial([1, 0, -4, 1], [-3, 3], {= size = [560, 760] });
 ```
 
 `graph` is still core `.Graphics`, so it can be placed in a document without
 locking the document to a browser chart library:
 
 ```rix
-.Figure(graph, "A cubic polynomial", "fig:cubic")
+.Figure(graph, "A cubic polynomial", "fig:cubic");
 ```
 
 The package chooses sensible sampling and axes for this early convenience API.
