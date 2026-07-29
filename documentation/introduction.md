@@ -1555,6 +1555,20 @@ RiX treats intervals as first-class objects using the colon `:` operator. An int
 - `1:5` creates a **RationalInterval** from 1 to 5.
 - `5:2` creates an interval from 5 down to 2. RiX preserves the input order for display, but mathematically they cover the same range.
 
+Decimal brackets provide compact exact interval notation:
+
+- `1.23[56:67]` appends the unsigned suffixes, producing
+  `1.2356:1.2367`.
+- `1.23[+5:-6]` treats signed values as offsets in units of the base's last
+  visible digit. Since `1.23` ends in hundredths, the result is
+  `1.23 - 6 × 0.01 : 1.23 + 5 × 0.01`, normalized to `1.17:1.28`.
+- `1.2[+-1]` means `1.2 ± 1 × 0.1`, or `1.1:1.3`.
+- `1.2[+-0.1]` means `1.2 ± 0.1 × 0.1`, or `1.19:1.21`.
+
+When a bracket contains two values, colon is the required separator.
+Unsigned suffixes append digits, while a leading `+`, `-`, `+-`, or `-+`
+selects last-place offset semantics.
+
 #### Betweenness
 When three or more values are chained with colons, RiX automatically switches from interval creation to a **betweenness check**. It evaluates whether the values are in monotonic (ascending or descending) order.
 - `2:3:5` returns `1` (true) because 3 is between 2 and 5.
@@ -1640,6 +1654,12 @@ G := `y + @(a^2 + 1)`     # parameter (y); expression is captured
 Constant := `6/4 + 2/4`   # no parameters
 Constant()                # Fraction(8,4)
 ```
+
+Use `.SArith.Fun(y,x,unused):...` when explicit parameter order or unused
+parameters matter. Mixed numbers, continued fractions, base-prefixed numbers,
+and intervals retain their RiX notation inside structural forms. Methods such
+as `Inspect()`, `Render()`, `Collapse()`, and `Simplify(:nonzeroName)` expose
+and transform the resulting structure.
 
 Because `@(expression)` is ordinary evaluation, calls and effects inside it
 happen when the form is created.

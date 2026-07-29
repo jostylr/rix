@@ -29,7 +29,7 @@ rule used by all other entries in the `.` registry.
 
 ```text
 backtickBody :=
-    "." parserName ("." modifier)* ":" body
+    "." parserName ("." modifier ("(" names ")")?)* ":" body
   | ":" rawStringBody
   | defaultSArithBody
 ```
@@ -45,8 +45,9 @@ Examples:
 The leading dot is required for new named-parser syntax. Consequently, colons
 in an unnamed secondary language are not automatically parser headers.
 
-The old uppercase-leading `LANG(context):body` AST syntax is still recognized
-transitionally by the main parser. New code should use `.Name:body`.
+The removed uppercase-leading `LANG(context):body` syntax has no special
+meaning. It is ordinary default `.SArith` text. Named parsers always use the
+leading dot.
 
 ## Parser object protocol
 
@@ -63,8 +64,9 @@ parser.Parse(bodyString, modifierSequence, parseInfo)
 - `name`: the inferred uppercase function name, when present;
 - `explicit`: truthy when the source used a leading-dot parser header.
 
-Modifiers are parser-owned. `.SArith` currently accepts `Fun`; `.Poly` accepts
-`Fun` as a compatible explicit-function marker.
+Modifiers are parser-owned. `.SArith` accepts `Fun` and
+`Fun(name,...)`; `.Poly` accepts `Fun` as a compatible explicit-function
+marker.
 
 The lookup uses the current visible system context. Script capability
 restrictions therefore apply to backtick parsers just as they do to ordinary
@@ -84,11 +86,11 @@ This avoids escape syntax when a secondary language itself uses backticks.
 
 ## `.SArith`
 
-`.SArith` recognizes exact numbers, identifiers, `@name` and `@(expression)`
-splices, parentheses, implicit multiplication, and:
+`.SArith` recognizes exact numbers, comments, identifiers, `@name` and
+`@(expression)` splices, parentheses, implicit multiplication, and:
 
 ```text
-+  -  *  /  ^  !
++  -  *  /  ^  !  :
 ```
 
 Touching operators construct raw forms. Operators separated from both operands
@@ -141,6 +143,37 @@ instead of reducing:
 ```rix
 `6/4 + 2/4`     # 8/4, not 2
 ```
+
+Unequal denominators use their least common denominator while still returning
+an unreduced `Fraction` presentation:
+
+```rix
+`1/2 + 1/3`     # 5/6 as Fraction, not Rational
+```
+
+### Exact literals and intervals
+
+The number scanner is shared with ordinary RiX. Spellings that carry visible
+presentation are retained as structural literals:
+
+```rix
+`1..3/4`        # MixedNumber presentation
+`1.~2~3`        # continued fraction
+`~1.~2~3`       # explicit-start continued fraction
+`0xFF`          # built-in base prefix
+`0z[7]123`      # explicit radix
+`1.25[1]`       # uncertainty interval literal
+```
+
+Colon follows the same attachment rule as other binary operators:
+
+```rix
+`1:3`           # Interval(1, 3), preserved form
+`1 : 3`         # applied RationalInterval 1:3
+```
+
+Line comments begin with `##`; block comments use `/* ... */`. A comment
+separates tokens, so it participates in the same attachment checks as spaces.
 
 Tight fraction coefficients bind before implicit multiplication:
 
@@ -195,6 +228,16 @@ F(2, 5)         # 3
 Free-symbol parameters are ordered alphabetically, independent of their first
 appearance. Repeated symbols produce one parameter.
 
+An argument list on `Fun` overrides inference, preserves the stated order, and
+may include unused parameters:
+
+```rix
+F := `.SArith.Fun(y,x,unused):y - x`
+F(5, 2, 99)     # 3
+```
+
+Every free symbol must still appear in the explicit list.
+
 A structural backtick directly assigned to an uppercase identifier receives
 the same function conversion automatically:
 
@@ -216,6 +259,53 @@ Constant := `6/4 + 2/4`
 Constant()      # 8/4
 ```
 
+## Structural value methods
+
+Forms, symbols, structural literals, and `Fraction` values expose:
+
+```rix
+(`x+1`).Head()             # Sum
+(`x+1`).Arguments()        # [x, 1]
+(`x+1`).Inspect()          # kind/head/mode/arguments/span map
+(`x+1`).Render()           # "Sum(x, 1)"
+(`6/4`).Collapse()         # reduced Rational 3/2
+(`x*2/x`).Simplify(:x)     # 2, assuming x is nonzero
+(`x+1`).SourceSpan()       # one-based [start, end]
+```
+
+`MapArguments(callable)` supplies a small, explicit transformation primitive.
+Cancellation is conservative: symbolic factors cancel only when named as
+nonzero assumptions; concrete nonzero factors need no assumption. Nested sums
+and products with the same construction mode are flattened canonically.
+
+## Configurable notation and RiX parser helpers
+
+`.SArith.Configure` builds another parser from operator declaration maps:
+
+```rix
+tensorNotation := .SArith.Configure(
+  {= symbol="⊗", head=:Tensor, fixity=:infix,
+     precedence=90, associativity=:left }
+)
+
+tensorNotation.Parse("a⊗b", [], {= })  # Tensor(a, b)
+```
+
+Declarations support `infix`, `prefix`, and `postfix`; a callable `apply`
+entry can define spaced operational behavior. Tight use always constructs the
+declared head.
+
+`.NotationParser(callable)` wraps a RiX function in the registered-parser
+protocol. The callable receives `(body, modifiers, parseInfo)`. A trusted
+package can register the returned object through the ordinary capability
+registration API, so a parser plugin need not contain host JavaScript.
+
+The CodeMirror support reads the leading-dot header and mounts the configured
+secondary parser over the body. `.SArith` and `.Poly` are included by default;
+editors can supply parsers for plugin names. Every constructed secondary node
+retains a zero-based source span relative to the backtick body; `SourceSpan()`
+exposes it to RiX as a one-based pair.
+
 ## `.Poly.Parse`
 
 `.Poly` is both the existing polynomial compiler capability and a registered
@@ -231,5 +321,5 @@ P(2)            # 21
 Unsupported symbolic forms fail rather than silently switching to approximate
 arithmetic.
 
-The deliberately phased grammar and algebra work is tracked in the
-[structural arithmetic follow-up list](../design/eval/structural-arithmetic-todo.md).
+The completed implementation checklist is retained in the
+[structural arithmetic implementation record](../design/eval/structural-arithmetic-todo.md).

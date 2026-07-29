@@ -1,4 +1,4 @@
-import { Integer, RationalInterval, Rational } from "@ratmath/core";
+import { Fraction, Integer, RationalInterval, Rational } from "@ratmath/core";
 import { HOLE, isHole } from "./hole.js";
 import { keyOf } from "../eval/functions/keyof.js";
 import { deferredMethods } from "../eval/functions/deferred.js";
@@ -33,6 +33,14 @@ import {
 } from "./exact-values.js";
 import { isUnitValue } from "./quantities.js";
 import { ensureLazyIndex, lazyKnownLength, materializeLazySequence } from "./lazy-sequence.js";
+import {
+    collapseStructuralValue,
+    formatStructuralValue,
+    inspectStructuralValue,
+    simplifyStructuralValue,
+    structuralForm,
+    structuralSourceSpan,
+} from "./structural-arithmetic.js";
 
 function int(value) {
     return new Integer(BigInt(value));
@@ -1395,7 +1403,54 @@ const commonMethods = {
     CheckTraits: method("CheckTraits", ([target], context) => checkTraits(target, context, { warnOnly: true })),
 };
 
+function assumptionName(value) {
+    if (value?.type === "string") return value.value;
+    if (value?.type === "structural_symbol") return value.name;
+    throw new Error("Structural nonzero assumptions must be names or structural symbols");
+}
+
+const structuralMethods = {
+    INSPECT: method("Inspect", ([target]) => inspectStructuralValue(target)),
+    RENDER: method("Render", ([target]) => stringObj(formatStructuralValue(target, valueKey))),
+    COLLAPSE: method("Collapse", ([target], context) => collapseStructuralValue(target, context)),
+    SIMPLIFY: method("Simplify", ([target, ...nonzero]) =>
+        simplifyStructuralValue(target, { nonzero: nonzero.map(assumptionName) })),
+    HEAD: method("Head", ([target]) => stringObj(
+        target.type === "structural_form" ? target.head
+            : target.type === "structural_literal" ? target.kind
+                : target.type === "structural_symbol" ? "Symbol"
+                    : "Value",
+    )),
+    ARGUMENTS: method("Arguments", ([target]) => ({
+        type: "sequence",
+        values: target.type === "structural_form" ? [...target.args] : [],
+        _ext: mutableExt(),
+    })),
+    SOURCESPAN: method("SourceSpan", ([target]) => {
+        const span = structuralSourceSpan(target);
+        if (!span) return null;
+        return {
+            type: "tuple",
+            values: [int(span.start + 1), int(span.end + 1)],
+            _ext: mutableExt(),
+        };
+    }),
+    MAPARGUMENTS: method("MapArguments", ([target, mapper], context, evaluate, invoke) => {
+        if (target.type !== "structural_form") return target;
+        return structuralForm(
+            target.head,
+            target.args.map((argument) => invoke(mapper, [argument], context, evaluate)),
+            target.mode,
+            structuralSourceSpan(target),
+        );
+    }),
+};
+
 const PROTOS = new Map([
+    ["structural_symbol", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(structuralMethods)])],
+    ["structural_literal", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(structuralMethods)])],
+    ["structural_form", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(structuralMethods)])],
+    ["structural_value", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(structuralMethods)])],
     ["sequence", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(iterableMethods), ...Object.entries(arrayMethods)])],
     ["lazy_sequence", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(iterableMethods), ...Object.entries(lazySequenceMethods)])],
     ["map", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(iterableMethods), ...Object.entries(mapMethods)])],
@@ -1463,6 +1518,7 @@ function checkTraitsMethod(name) {
 }
 
 function builtinProtoFor(target) {
+    if (target instanceof Fraction) return PROTOS.get("structural_value");
     if (isTensor(target)) return PROTOS.get("tensor");
     if (target && typeof target === "object" && target.fn === "DEFER") return PROTOS.get("deferred");
     return PROTOS.get(target?.type) ?? null;

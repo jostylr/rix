@@ -40,7 +40,10 @@ Examples:    5E6   1.23E-2
 8. Interval on Decimal (for precision/uncertainty)
 --------------------------------------------------
 Format:      [decimal][[lower:upper]]   (interval around a decimal)
-Examples:    1.23[56:67]   0.#3   1.23[+5,-6]
+Examples:    1.23[56:67]   0.#3   1.23[+5:-6]   1.2[+-0.1]
+Signed offsets use the last visible digit of the base as their unit.
+Thus 1.23[+5:-6] = 1.17:1.28 and 1.2[+-0.1] = 1.19:1.21.
+When a bracket contains two values, colon is the required separator.
 
 9. Unit Operators (no longer part of numbers)
 ----------------------------------------------

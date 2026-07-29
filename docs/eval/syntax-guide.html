@@ -639,6 +639,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#colon-strings" id="toc-colon-strings" class="nav-link" data-scroll-target="#colon-strings">Colon-Strings</a></li>
   <li><a href="#backtick-parsers" id="toc-backtick-parsers" class="nav-link" data-scroll-target="#backtick-parsers">Backtick Parsers</a></li>
   <li><a href="#special-number-literals" id="toc-special-number-literals" class="nav-link" data-scroll-target="#special-number-literals">Special Number Literals</a></li>
+  <li><a href="#decimal-interval-and-uncertainty-literals" id="toc-decimal-interval-and-uncertainty-literals" class="nav-link" data-scroll-target="#decimal-interval-and-uncertainty-literals">Decimal Interval and Uncertainty Literals</a></li>
   <li><a href="#number-base-literals" id="toc-number-base-literals" class="nav-link" data-scroll-target="#number-base-literals">Number Base Literals</a></li>
   <li><a href="#property-meta-access" id="toc-property-meta-access" class="nav-link" data-scroll-target="#property-meta-access">Property &amp; Meta Access</a></li>
   <li><a href="#assertions" id="toc-assertions" class="nav-link" data-scroll-target="#assertions">Assertions</a></li>
@@ -2382,6 +2383,7 @@ G(10, 20, 99, 99)              ## 30  (only 10 and 20 forwarded)</code></pre>
 `6/4 + 2/4`                  # Fraction(8,4), without reduction
 `.Poly:x^2 + 3/4 x^5 - 7`   # exact polynomial callable
 `.SArith.Fun:y - x`          # structural function
+`.SArith.Fun(y,x,z):y - x`   # explicit order and unused z
 `:raw backtick text`         # ordinary RiX string</code></pre>
 <p>Inside <code>.SArith</code>, an operator touching both operands constructs the written form. An operator separated from both operands applies structural algebra; one-sided spacing is rejected. Applied operations remain structural whenever they cannot combine concrete operands.</p>
 <p>Identifiers are free structural symbols. <code>@name</code> instead snapshots and lifts one surrounding RiX value; <code>@(expression)</code> evaluates arbitrary ordinary RiX source in the surrounding scope and lifts its result. Nested parentheses and RiX literal delimiters are balanced by the ordinary RiX tokenizer. <code>.Fun</code> infers parameters from free symbols in alphabetical order. Assignment directly to an uppercase identifier also requests function conversion; a form with no free symbols becomes a zero-argument constant function:</p>
@@ -2391,6 +2393,7 @@ G := `y + @(x^2 + 1)` # G has only parameter y
 Constant := `6/4 + 2/4`
 Constant()            # Fraction(8,4)</code></pre>
 <p><code>@(expression)</code> performs normal RiX evaluation when the form is created, so calls and effects inside it are not delayed.</p>
+<p>The shared exact-literal grammar includes mixed numbers (<code>1..3/4</code>), continued fractions (<code>1.~2~3</code>), base-prefixed numbers (<code>0xFF</code>, <code>0z[7]123</code>), uncertainty intervals, and colon intervals. Tight <code>1:3</code> preserves an <code>Interval</code> form; spaced <code>1 : 3</code> constructs a <code>RationalInterval</code>. Structural values provide <code>Inspect</code>, <code>Render</code>, <code>Collapse</code>, <code>Simplify</code>, <code>Head</code>, <code>Arguments</code>, <code>SourceSpan</code>, and <code>MapArguments</code> methods.</p>
 <p>Parser roots use the ordinary dot-registry ownership rule: PascalCase for core capabilities and camelCase for host/plugin capabilities. The selected object must expose a callable <code>.Parse</code> method. See <a href="../parser/embedded-parsing.html">Backtick parsers and structural arithmetic</a> for the protocol and current grammar.</p>
 </section>
 <section id="special-number-literals" class="level3">
@@ -2534,6 +2537,41 @@ Constant()            # Fraction(8,4)</code></pre>
 </table>
 <p>Because minus is an operator, <code>-1.~2</code> negates the implicit-start continued fraction and therefore has the same value as <code>-~1.~2</code>. Use <code>~-1.~2</code> when the first continued-fraction coefficient itself is negative.</p>
 </section>
+</section>
+<section id="decimal-interval-and-uncertainty-literals" class="level3">
+<h3 class="anchored" data-anchor-id="decimal-interval-and-uncertainty-literals">Decimal Interval and Uncertainty Literals</h3>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Syntax</th>
+<th>Value</th>
+<th>Rule</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>1.23[56:67]</code></td>
+<td><code>1.2356:1.2367</code></td>
+<td>unsigned suffixes append digits</td>
+</tr>
+<tr class="even">
+<td><code>1.23[+5:-6]</code></td>
+<td><code>1.17:1.28</code></td>
+<td>signed offsets use hundredths</td>
+</tr>
+<tr class="odd">
+<td><code>1.2[+-1]</code></td>
+<td><code>1.1:1.3</code></td>
+<td>symmetric offset uses tenths</td>
+</tr>
+<tr class="even">
+<td><code>1.2[+-0.1]</code></td>
+<td><code>1.19:1.21</code></td>
+<td>fractional offset also uses tenths</td>
+</tr>
+</tbody>
+</table>
+<p>If the base has <code>d</code> visible fractional digits, a signed bracket value <code>x</code> contributes <code>x × 10^-d</code>. For bases without fractional digits, the unit is <code>1</code>. When a bracket contains two values, colon is the required separator.</p>
 </section>
 <section id="number-base-literals" class="level3">
 <h3 class="anchored" data-anchor-id="number-base-literals">Number Base Literals</h3>

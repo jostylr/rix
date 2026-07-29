@@ -791,7 +791,7 @@ describe("Math Oracle Tokenizer", () => {
 
     describe("decimal intervals", () => {
       test("decimal with interval notation", () => {
-        const tokens = tokenize("1.23[56:67] 0.5[+1,-2]");
+        const tokens = tokenize("1.23[56:67] 0.5[+1:-2]");
         expect(tokens).toEqual(
           withEnd([
             {
@@ -802,8 +802,8 @@ describe("Math Oracle Tokenizer", () => {
             },
             {
               type: "Number",
-              original: " 0.5[+1,-2]",
-              value: "0.5[+1,-2]",
+              original: " 0.5[+1:-2]",
+              value: "0.5[+1:-2]",
               pos: [11, 12, 22],
             },
           ]),

@@ -16,6 +16,7 @@ var symbols = [
   "?-",
   "^=>",
   "?&",
+  "!!",
   "!?",
   "++=",
   "++",
@@ -129,6 +130,7 @@ var symbols = [
   "'",
   ":",
   "?",
+  "!",
   "\\"
 ];
 function posToLineCol(input, pos) {
@@ -369,14 +371,8 @@ function tryMatchExplicitCF(input, position) {
 function tryMatchNumber(input, position) {
   const remaining = input.slice(position);
   let match;
-  if (!/^(-?\d|-?\.\d)/.test(remaining)) {
+  if (!/^(\d|\.\d)/.test(remaining)) {
     return null;
-  }
-  if (/^-\d+\.~\d/.test(remaining)) {
-    const { line, col } = posToLineCol(input, position);
-    const cfStr = remaining.match(/^-\d+\.~[\d~]*/)[0];
-    const posStr = cfStr.slice(1);
-    throw new Error(`Ambiguous continued fraction at ${line}:${col}: write ~${cfStr} for a negative first coefficient, or -~${posStr} to negate the continued fraction value.`);
   }
   match = remaining.match(/^-?(?:0z\[\d+\]|0[a-zA-Z])[0-9a-zA-Z]+\.~[0-9a-zA-Z]+(?:~[0-9a-zA-Z]+)*/);
   if (match) {
@@ -405,25 +401,7 @@ function tryMatchNumber(input, position) {
       pos: [position, position, position + match[0].length]
     };
   }
-  match = remaining.match(/^-?(?:(?:0z\[\d+\]|0[a-zA-Z])[0-9a-zA-Z]*(?:\.[0-9a-zA-Z]*)?|(?:\d+\.\.\d+\/\d+|\d+\.\d+#\d+|\.\d+#\d+|\d+#\d+|\d+\/\d+|\d+\.\d+|\.\d+|\d+)):-?(?:(?:0z\[\d+\]|0[a-zA-Z])[0-9a-zA-Z]*(?:\.[0-9a-zA-Z]*)?|(?:\d+\.\.\d+\/\d+|\d+\.\d+#\d+|\.\d+#\d+|\d+#\d+|\d+\/\d+|\d+\.\d+|\.\d+|\d+))/);
-  if (match) {
-    return {
-      type: "Number",
-      original: match[0],
-      value: match[0],
-      pos: [position, position, position + match[0].length]
-    };
-  }
   match = remaining.match(/^-?(?:0z\[\d+\]|0[a-zA-Z])[0-9a-zA-Z]*\.\.(?:0z\[\d+\]|0[a-zA-Z])?[0-9a-zA-Z]*\/(?:0z\[\d+\]|0[a-zA-Z])?[0-9a-zA-Z]*/);
-  if (match) {
-    return {
-      type: "Number",
-      original: match[0],
-      value: match[0],
-      pos: [position, position, position + match[0].length]
-    };
-  }
-  match = remaining.match(/^-?(?:0z\[\d+\]|0[a-zA-Z])[0-9a-zA-Z]*\/(?:0z\[\d+\]|0[a-zA-Z])?[0-9a-zA-Z]*/);
   if (match) {
     return {
       type: "Number",
@@ -450,15 +428,6 @@ function tryMatchNumber(input, position) {
       pos: [position, position, position + match[0].length]
     };
   }
-  match = remaining.match(/^-?(?:\d+\.\.\d+\/\d+|\d+\.\d*#\d+|\.\d*#\d+|\d+#\d+|\d+\/\d+|\d+\.\d+|\.\d+|\d+):-?(?:\d+\.\.\d+\/\d+|\d+\.\d*#\d+|\.\d*#\d+|\d+#\d+|\d+\/\d+|\d+\.\d+|\.\d+|\d+)/);
-  if (match) {
-    return {
-      type: "Number",
-      original: match[0],
-      value: match[0],
-      pos: [position, position, position + match[0].length]
-    };
-  }
   match = remaining.match(/^\d+\.~\d+(?:~\d+)*/);
   if (match) {
     return {
@@ -468,7 +437,7 @@ function tryMatchNumber(input, position) {
       pos: [position, position, position + match[0].length]
     };
   }
-  match = remaining.match(/^-?(?:\d(?:_?\d)*\.\d(?:_?\d)*#\d(?:_?\d)*|\.\d(?:_?\d)*#\d(?:_?\d)*|\d(?:_?\d)*\.\.\d(?:_?\d)*\/\d(?:_?\d)*|\d(?:_?\d)*\/\d(?:_?\d)*|\d(?:_?\d)*\.\d(?:_?\d)*|\.\d(?:_?\d)*|\d(?:_?\d)*)_\^[+-]?\d(?:_?\d)*/);
+  match = remaining.match(/^-?(?:\d(?:_?\d)*\.\d(?:_?\d)*#\d(?:_?\d)*|\.\d(?:_?\d)*#\d(?:_?\d)*|\d(?:_?\d)*\.\.\d(?:_?\d)*\/\d(?:_?\d)*|\d(?:_?\d)*\.\d(?:_?\d)*|\.\d(?:_?\d)*|\d(?:_?\d)*)_\^[+-]?\d(?:_?\d)*/);
   if (match) {
     return {
       type: "Number",
@@ -504,25 +473,7 @@ function tryMatchNumber(input, position) {
       pos: [position, position, position + match[0].length]
     };
   }
-  match = remaining.match(/^-?\d+\.\d+\[[^\]]+\]/);
-  if (match) {
-    return {
-      type: "Number",
-      original: match[0],
-      value: match[0],
-      pos: [position, position, position + match[0].length]
-    };
-  }
-  match = remaining.match(/^-?(?:\d+(?:\.\d+)?|\.\d+):-?(?:\d+(?:\.\d+)?|\.\d+)/);
-  if (match) {
-    return {
-      type: "Number",
-      original: match[0],
-      value: match[0],
-      pos: [position, position, position + match[0].length]
-    };
-  }
-  match = remaining.match(/^-?\d+\/\d+/);
+  match = remaining.match(/^-?(?:\d(?:_?\d)*(?:\.(?:\d(?:_?\d)*)?)?|\.\d(?:_?\d)*)\[[^\]]+\]/);
   if (match) {
     return {
       type: "Number",
@@ -1114,7 +1065,7 @@ var PRECEDENCE = {
   ADDITION: 80,
   MULTIPLICATION: 90,
   EXPONENTIATION: 100,
-  UNARY: 110,
+  UNARY: 99,
   CALCULUS: 115,
   POSTFIX: 120,
   PROPERTY: 130
@@ -1405,6 +1356,16 @@ var SYMBOL_TABLE = {
     precedence: PRECEDENCE.MULTIPLICATION,
     associativity: "left",
     type: "infix"
+  },
+  "!": {
+    precedence: PRECEDENCE.POSTFIX,
+    associativity: "left",
+    type: "postfix"
+  },
+  "!!": {
+    precedence: PRECEDENCE.POSTFIX,
+    associativity: "left",
+    type: "postfix"
   },
   "^": {
     precedence: PRECEDENCE.EXPONENTIATION,
@@ -1860,6 +1821,21 @@ class Parser {
             name: "@",
             original: token.original
           });
+        } else if (token.value === "!!") {
+          this.advance();
+          const operand = this.parseExpression(PRECEDENCE.UNARY);
+          const inner = this.createNode("UnaryOperation", {
+            operator: "!",
+            operand,
+            pos: token.pos,
+            original: "!" + (operand.original || "")
+          });
+          return this.createNode("UnaryOperation", {
+            operator: "!",
+            operand: inner,
+            pos: token.pos,
+            original: token.original + (operand.original || "")
+          });
         } else if (token.value === "+" || token.value === "-" || token.value === "!") {
           return this.parseUnaryOperator();
         } else if (token.value === "'") {
@@ -1916,6 +1892,14 @@ class Parser {
   }
   parseInfix(left, symbolInfo) {
     const operator = this.current;
+    if (symbolInfo.type === "postfix" && (operator.value === "!" || operator.value === "!!")) {
+      this.advance();
+      return this.createNode(operator.value === "!" ? "Factorial" : "DoubleFactorial", {
+        expression: left,
+        pos: left.pos,
+        original: (left.original || "") + operator.original
+      });
+    }
     if (operator.value === "(" && (left.type === "UserIdentifier" || left.type === "SystemIdentifier" || left.type === "SystemFunctionRef")) {
       if (left.type === "UserIdentifier" && /^[\p{L}]/u.test(left.name)) {
         const grouping = this.parseGrouping();
@@ -4708,12 +4692,46 @@ class Parser {
   }
   parseEmbeddedLanguage(token) {
     const content = token.value;
-    if (content.startsWith(":") || content.indexOf(":") === -1) {
-      const body2 = content.startsWith(":") ? content.slice(1) : content;
+    if (content.startsWith(".")) {
+      const colonIndex2 = content.indexOf(":");
+      if (colonIndex2 === -1) {
+        this.error("Named backtick parser header requires ':' after .Name[.modifier...]");
+      }
+      const header2 = content.slice(1, colonIndex2).trim();
+      const parts = header2.split(".").map((part) => part.trim());
+      if (parts.length === 0 || parts.some((part) => !/^[\p{L}_][\p{L}\p{N}_]*$/u.test(part))) {
+        this.error("Invalid backtick parser header. Expected .Name[.modifier...]:body");
+      }
+      return this.createNode("EmbeddedLanguage", {
+        language: parts[0],
+        context: null,
+        modifiers: parts.slice(1),
+        body: content.slice(colonIndex2 + 1),
+        explicitParser: true,
+        original: token.original
+      });
+    }
+    if (content.startsWith(":")) {
       return this.createNode("EmbeddedLanguage", {
         language: "RiX-String",
         context: null,
-        body: body2,
+        body: content.slice(1),
+        original: token.original
+      });
+    }
+    if (content.indexOf(":") === -1) {
+      return this.createNode("EmbeddedLanguage", {
+        language: "SArith",
+        context: null,
+        body: content,
+        original: token.original
+      });
+    }
+    if (!/^[A-Z]/.test(content)) {
+      return this.createNode("EmbeddedLanguage", {
+        language: "SArith",
+        context: null,
+        body: content,
         original: token.original
       });
     }

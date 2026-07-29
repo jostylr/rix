@@ -12,9 +12,18 @@ RiX uses familiar expression syntax, then adds notation for ideas that mathemati
 1..3/4          ## mixed number: 7/4
 0.#3            ## repeating decimal: 1/3
 2:5             ## rational interval
+1.23[56:67]     ## appended bounds: 1.2356:1.2367
+1.23[+5:-6]     ## last-place offsets: 1.17:1.28
+1.2[+-0.1]      ## symmetric offset: 1.19:1.21
 ```
 
 RiX delegates its foundational exact arithmetic to RatMath core types. Approximation is an explicit extension boundary rather than the default numeric model.
+
+Unsigned bracket values append digits to a decimal. Signed values are offsets
+measured in units of the base's last visible digit: `1.23` uses hundredths,
+while `1.2` uses tenths. Thus `1.23[+5:-6]` adds `5 × 0.01` and subtracts
+`6 × 0.01`; `1.2[+-0.1]` applies `0.1 × 0.1 = 0.01` in both directions.
+When a bracket contains two values, colon is the required separator.
 
 ## Names reveal intent
 
@@ -119,4 +128,3 @@ The leading dot is the system capability object. Hosts can construct and freeze 
 - Follow the [complete introduction](introduction.md) when you want concepts and examples in teaching order.
 - Use the [syntax guide](eval/syntax-guide.md) and [methods guide](eval/methods-guide.md) while writing code.
 - Read the [developer guide](developer-guide.qmd) when embedding or extending the parser/evaluator.
-

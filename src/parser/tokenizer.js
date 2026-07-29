@@ -641,6 +641,17 @@ function tryMatchNumber(input, position) {
   return null;
 }
 
+/**
+ * Scan one canonical RiX number literal at `position`.
+ *
+ * Secondary-language parsers use this entry point so exact-number spellings
+ * stay synchronized with the main RiX tokenizer. The returned token does not
+ * include leading whitespace.
+ */
+export function scanNumberLiteral(input, position = 0) {
+  return tryMatchNumber(input, position) || tryMatchExplicitCF(input, position);
+}
+
 function tryMatchSystemFunctionRef(input, position) {
   const remaining = input.slice(position);
 

@@ -1074,6 +1074,7 @@ registered parser and may carry ordered modifiers:
 `6/4 + 2/4`                  # Fraction(8,4), without reduction
 `.Poly:x^2 + 3/4 x^5 - 7`   # exact polynomial callable
 `.SArith.Fun:y - x`          # structural function
+`.SArith.Fun(y,x,z):y - x`   # explicit order and unused z
 `:raw backtick text`         # ordinary RiX string
 ```
 
@@ -1100,6 +1101,13 @@ Constant()            # Fraction(8,4)
 
 `@(expression)` performs normal RiX evaluation when the form is created, so
 calls and effects inside it are not delayed.
+
+The shared exact-literal grammar includes mixed numbers (`1..3/4`), continued
+fractions (`1.~2~3`), base-prefixed numbers (`0xFF`, `0z[7]123`), uncertainty
+intervals, and colon intervals. Tight `1:3` preserves an `Interval` form;
+spaced `1 : 3` constructs a `RationalInterval`. Structural values provide
+`Inspect`, `Render`, `Collapse`, `Simplify`, `Head`, `Arguments`,
+`SourceSpan`, and `MapArguments` methods.
 
 Parser roots use the ordinary dot-registry ownership rule: PascalCase for core
 capabilities and camelCase for host/plugin capabilities. The selected object
@@ -1163,6 +1171,19 @@ A continued fraction `[a₀; a₁, a₂, …]` is written as `a₀.~a₁~a₂~�
 Because minus is an operator, `-1.~2` negates the implicit-start continued
 fraction and therefore has the same value as `-~1.~2`. Use `~-1.~2` when the
 first continued-fraction coefficient itself is negative.
+
+### Decimal Interval and Uncertainty Literals
+
+| Syntax | Value | Rule |
+|--------|-------|------|
+| `1.23[56:67]` | `1.2356:1.2367` | unsigned suffixes append digits |
+| `1.23[+5:-6]` | `1.17:1.28` | signed offsets use hundredths |
+| `1.2[+-1]` | `1.1:1.3` | symmetric offset uses tenths |
+| `1.2[+-0.1]` | `1.19:1.21` | fractional offset also uses tenths |
+
+If the base has `d` visible fractional digits, a signed bracket value `x`
+contributes `x × 10^-d`. For bases without fractional digits, the unit is `1`.
+When a bracket contains two values, colon is the required separator.
 
 ### Number Base Literals
 

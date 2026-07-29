@@ -22,19 +22,25 @@ describe("numeric syntax regressions", () => {
     });
 
     test("Core uncertainty interval forms evaluate in RiX", () => {
-        const compactComma = parseAndEvaluate("1.23[56,67]");
-        const compactColon = parseAndEvaluate("1.23[56:67]");
-        expect(compactComma).toBeInstanceOf(RationalInterval);
-        expect(compactColon.equals(compactComma)).toBe(true);
-        expect(compactComma.low.toString()).toBe("3089/2500");
-        expect(compactComma.high.toString()).toBe("12367/10000");
+        const compact = parseAndEvaluate("1.23[56:67]");
+        expect(compact).toBeInstanceOf(RationalInterval);
+        expect(compact.low.toString()).toBe("3089/2500");
+        expect(compact.high.toString()).toBe("12367/10000");
 
         expect(parseAndEvaluate("1234[+34]").toString()).toBe("1234:1268");
         expect(parseAndEvaluate("1234[-34]").toString()).toBe("1200:1234");
         expect(parseAndEvaluate("1234[+-34]").toString()).toBe("1200:1268");
         expect(parseAndEvaluate("1.3[+-1]").toString()).toBe(
-            "129/100:131/100",
+            "6/5:7/5",
         );
+        expect(parseAndEvaluate("1.23[+5:-6]").toString()).toBe("117/100:32/25");
+        expect(parseAndEvaluate("1.2[+-0.1]").toString()).toBe("119/100:121/100");
+    });
+
+    test("uncertainty interval forms reject comma separators", () => {
+        expect(() => parseAndEvaluate("1.23[56,67]")).toThrow("requires ':'");
+        expect(() => parseAndEvaluate("1.23[+5,-6]")).toThrow("requires ':'");
+        expect(() => parseAndEvaluate("0.[#3,#6]")).toThrow("requires ':'");
     });
 
     test("integer division floors negative quotients", () => {

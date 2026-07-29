@@ -4,6 +4,7 @@ import { resolveMethod } from "../../runtime/methods.js";
 import { lower } from "../lower.js";
 import {
     createStructuralFunction,
+    createStructuralOperatorTable,
     parseStructuralArithmetic,
     resolveStructuralValue,
     sortedStructuralFreeSymbols,
@@ -28,6 +29,19 @@ function modifierNames(value) {
     return value.values.map((item) => stringFromValue(item, "Embedded parser modifier"));
 }
 
+function parseFunctionModifier(modifiers) {
+    const matches = modifiers.filter((modifier) => /^FUN(?:\((.*)\))?$/iu.test(modifier));
+    if (matches.length === 0) return null;
+    if (matches.length > 1) throw new Error(".SArith accepts only one Fun modifier");
+    const match = matches[0].match(/^FUN(?:\((.*)\))?$/iu);
+    if (match[1] === undefined) return { names: null };
+    const names = match[1].split(",").map((name) => name.trim()).filter(Boolean);
+    if (new Set(names).size !== names.length) {
+        throw new Error(".SArith.Fun parameter names must be unique");
+    }
+    return { names };
+}
+
 function parseInfoValue(meta = {}) {
     const entries = new Map();
     entries.set("function", meta.expectedFunction ? new Integer(1n) : null);
@@ -38,7 +52,7 @@ function parseInfoValue(meta = {}) {
 
 function infoEntry(info, name) {
     if (info?.type !== "map" || !(info.entries instanceof Map)) return null;
-    return info.entries.get(name);
+    return info.entries.get(name) ?? null;
 }
 
 function evaluateRiXExpression(source, context, evaluate) {
@@ -58,33 +72,92 @@ function sarithParse(args, context, evaluate) {
     const body = stringFromValue(args[1], ".SArith.Parse body");
     const modifiers = modifierNames(args[2]);
     const info = args[3];
-    const unsupported = modifiers.filter((modifier) => modifier.toUpperCase() !== "FUN");
+    const unsupported = modifiers.filter((modifier) => !/^FUN(?:\(.*\))?$/iu.test(modifier));
     if (unsupported.length > 0) {
         throw new Error(`Unknown .SArith modifier${unsupported.length === 1 ? "" : "s"}: ${unsupported.join(", ")}`);
     }
 
     const value = parseStructuralArithmetic(body, context, {
         evaluateRiX: (source) => evaluateRiXExpression(source, context, evaluate),
+        operators: args[0]?.operators,
     });
-    const explicitFunction = modifiers.some((modifier) => modifier.toUpperCase() === "FUN");
+    const explicitParameters = parseFunctionModifier(modifiers);
+    const explicitFunction = explicitParameters !== null;
     const inferredFunction = infoEntry(info, "function") !== null;
     if (!explicitFunction && !inferredFunction) return value;
 
     const inferredNameValue = infoEntry(info, "name");
     const inferredName = inferredNameValue?.type === "string" ? inferredNameValue.value : null;
-    return createStructuralFunction(value, context, inferredName);
+    if (explicitParameters && explicitParameters.names !== null) {
+        const free = sortedStructuralFreeSymbols(value);
+        const missing = free.filter((name) => !explicitParameters.names.includes(name));
+        if (missing.length > 0) {
+            throw new Error(`.SArith.Fun parameter list is missing free symbol${missing.length === 1 ? "" : "s"}: ${missing.join(", ")}`);
+        }
+    }
+    return createStructuralFunction(
+        value,
+        context,
+        inferredName,
+        explicitParameters?.names ?? null,
+    );
 }
 
-export function createSArithSystemValue() {
+function mapField(map, name) {
+    if (map?.type !== "map" || !(map.entries instanceof Map)) {
+        throw new Error(".SArith.Configure declarations must be maps");
+    }
+    return map.entries.get(name);
+}
+
+function operatorDeclaration(value, context, evaluate, invoke) {
+    const text = (name, fallback = null) => {
+        const field = mapField(value, name);
+        return field === undefined ? fallback : stringFromValue(field, `.SArith.Configure ${name}`);
+    };
+    const precedence = mapField(value, "precedence");
+    const apply = mapField(value, "apply");
+    return {
+        symbol: text("symbol"),
+        head: text("head"),
+        fixity: text("fixity", "infix"),
+        associativity: text("associativity", "left"),
+        precedence: precedence instanceof Integer ? Number(precedence.value) : undefined,
+        apply: apply
+            ? (...args) => invoke(apply, args, context, evaluate)
+            : null,
+    };
+}
+
+function configureSArith(args, context, evaluate, invoke) {
+    const values = args.slice(1).flatMap((value) =>
+        value?.type === "sequence" ? value.values : [value]);
+    const operators = createStructuralOperatorTable(
+        values.map((value) => operatorDeclaration(value, context, evaluate, invoke)),
+    );
+    return createSArithSystemValue(operators);
+}
+
+export function createSArithSystemValue(operators = null) {
+    const parseMethod = {
+        type: "method_builtin",
+        name: "Parse",
+        impl: sarithParse,
+    };
+    const configureMethod = {
+        type: "method_builtin",
+        name: "Configure",
+        impl: configureSArith,
+    };
     return {
         type: "structural_parser",
         name: "SArith",
+        ...(operators ? { operators } : {}),
         _ext: new Map([
-            ["Parse", {
-                type: "method_builtin",
-                name: "Parse",
-                impl: sarithParse,
-            }],
+            ["Parse", parseMethod],
+            ["PARSE", parseMethod],
+            ["Configure", configureMethod],
+            ["CONFIGURE", configureMethod],
         ]),
     };
 }
@@ -109,15 +182,17 @@ function polyParse(args, context, evaluate) {
 }
 
 export function createPolySystemValue() {
+    const parseMethod = {
+        type: "method_builtin",
+        name: "Parse",
+        impl: polyParse,
+    };
     return {
         type: "symbolic_parser",
         name: "Poly",
         _ext: new Map([
-            ["Parse", {
-                type: "method_builtin",
-                name: "Parse",
-                impl: polyParse,
-            }],
+            ["Parse", parseMethod],
+            ["PARSE", parseMethod],
         ]),
     };
 }
@@ -142,7 +217,14 @@ function callRegisteredParser(parserName, body, modifiers, meta, context, evalua
 
     const callArgs = [
         stringValue(body),
-        { type: "sequence", values: modifiers.map(stringValue) },
+        {
+            type: "sequence",
+            values: modifiers.map((modifier) => stringValue(
+                typeof modifier === "string"
+                    ? modifier
+                    : `${modifier.name}(${(modifier.args || []).join(",")})`,
+            )),
+        },
         parseInfoValue(meta),
     ];
     if (parseMethod?.type === "method_builtin") {
@@ -155,6 +237,30 @@ function callRegisteredParser(parserName, body, modifiers, meta, context, evalua
     }
     return callWithConcreteArgs(parseMethod, [parserObject, ...callArgs], context, evaluate);
 }
+
+function notationParserCapability(args) {
+    const parseFunction = args[0];
+    if (!parseFunction) throw new Error(".NotationParser requires a parse function");
+    const parseMethod = {
+        type: "method_builtin",
+        name: "Parse",
+        impl(methodArgs, context, evaluate) {
+            return callWithConcreteArgs(parseFunction, methodArgs.slice(1), context, evaluate);
+        },
+    };
+    return {
+        type: "notation_parser",
+        _ext: new Map([
+            ["Parse", parseMethod],
+            ["PARSE", parseMethod],
+        ]),
+    };
+}
+
+export const notationParserFunction = {
+    impl: notationParserCapability,
+    doc: "Wrap a RiX callable as a registered backtick parser object",
+};
 
 export const embeddedFunctions = {
     EMBEDDED: {

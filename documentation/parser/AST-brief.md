@@ -603,7 +603,7 @@ This document provides a comprehensive reference for all token types generated b
 ```javascript
 {
   language: string,      // Registered parser root, 'SArith', or 'RiX-String'
-  context: object,       // Transitional LANG(context):body parameters
+  context: null,         // Reserved; legacy LANG(context):body was removed
   modifiers: string[],   // Ordered .Name.modifier header components
   body: string,          // Verbatim secondary-language source
   explicitParser: bool,  // True for a leading-dot parser header

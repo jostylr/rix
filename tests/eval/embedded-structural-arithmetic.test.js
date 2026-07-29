@@ -1,13 +1,17 @@
 import { describe, expect, test } from "bun:test";
-import { Fraction, Integer, Rational } from "@ratmath/core";
+import { Fraction, Integer, Rational, RationalInterval } from "@ratmath/core";
 import {
     createDefaultSystemContext,
     formatValue,
     parseAndEvaluate,
 } from "../../src/eval/index.js";
 import {
+    createStructuralOperatorTable,
     isStructuralForm,
+    isStructuralLiteral,
     isStructuralSymbol,
+    parseStructuralArithmetic,
+    structuralSourceSpan,
 } from "../../src/runtime/structural-arithmetic.js";
 
 describe("backtick parser dispatch and structural arithmetic", () => {
@@ -26,6 +30,44 @@ describe("backtick parser dispatch and structural arithmetic", () => {
         expect(value.numerator).toBe(8n);
         expect(value.denominator).toBe(4n);
         expect(formatValue(value)).toBe("8/4");
+    });
+
+    test("unequal denominators use the least common denominator without reducing the Fraction type", () => {
+        const value = parseAndEvaluate("`1/2 + 1/3`");
+        expect(value).toBeInstanceOf(Fraction);
+        expect(value.numerator).toBe(5n);
+        expect(value.denominator).toBe(6n);
+    });
+
+    test("mixed numbers, continued fractions, bases, and intervals use RiX notation", () => {
+        for (const [source, kind] of [
+            ["`1..3/4`", "MixedNumber"],
+            ["`1.~2~3`", "ContinuedFraction"],
+            ["`~1.~2~3`", "ContinuedFraction"],
+            ["`0xFF`", "BasedNumber"],
+            ["`0z[7]123`", "BasedNumber"],
+        ]) {
+            const value = parseAndEvaluate(source);
+            expect(isStructuralLiteral(value)).toBe(true);
+            expect(value.kind).toBe(kind);
+        }
+
+        const structural = parseAndEvaluate("`1:3`");
+        expect(isStructuralForm(structural)).toBe(true);
+        expect(structural.head).toBe("Interval");
+
+        const applied = parseAndEvaluate("`1 : 3`");
+        expect(applied).toBeInstanceOf(RationalInterval);
+        expect(formatValue(applied)).toBe("1:3");
+    });
+
+    test("comments are trivia and preserve attachment rules", () => {
+        expect(formatValue(parseAndEvaluate("`x+1 ## note`"))).toBe("Sum(x, 1)");
+        expect(formatValue(parseAndEvaluate("`x + /* note */ 0`"))).toBe("x");
+        expect(() => parseAndEvaluate("`x/* note */+1`"))
+            .toThrow(/must either touch both operands or be separated from both/);
+        expect(() => parseAndEvaluate("`x + /* unclosed`"))
+            .toThrow(/unclosed block comment/);
     });
 
     test("spaced operations remain symbolic when no concrete combination applies", () => {
@@ -111,6 +153,19 @@ describe("backtick parser dispatch and structural arithmetic", () => {
         expect(result.value).toBe(3n);
     });
 
+    test("explicit Fun parameters preserve the requested order and allow unused names", () => {
+        const fn = parseAndEvaluate("`.SArith.Fun(y,x,unused):y - x`");
+        expect(fn.params.positional.map((parameter) => parameter.name))
+            .toEqual(["y", "x", "unused"]);
+        expect(formatValue(parseAndEvaluate(
+            "F := `.SArith.Fun(y,x,unused):y - x`; F(5, 2, 99)",
+        ))).toBe("3");
+        expect(() => parseAndEvaluate("`.SArith.Fun(y):y-x`"))
+            .toThrow(/missing free symbol: x/);
+        expect(() => parseAndEvaluate("`.SArith.Fun():x`"))
+            .toThrow(/missing free symbol: x/);
+    });
+
     test("uppercase assignment infers a structural function", () => {
         const fn = parseAndEvaluate("F := `y - x`; F");
         expect(fn.type).toBe("lambda");
@@ -186,5 +241,43 @@ describe("backtick parser dispatch and structural arithmetic", () => {
             type: "string",
             value: "not structural",
         });
+    });
+
+    test("secondary-language nodes retain source spans", () => {
+        const value = parseAndEvaluate("`alpha+(beta*2)`");
+        expect(structuralSourceSpan(value)).toEqual({ start: 0, end: 14 });
+        expect(structuralSourceSpan(value.args[0])).toEqual({ start: 0, end: 5 });
+        expect(structuralSourceSpan(value.args[1])).toEqual({ start: 6, end: 14 });
+    });
+
+    test("structural values expose inspection, rendering, collapse, and assumed simplification", () => {
+        expect(formatValue(parseAndEvaluate("(`x+1`).Head()"))).toBe("Sum");
+        expect(formatValue(parseAndEvaluate("(`x+1`).Render()"))).toBe("Sum(x, 1)");
+        expect(formatValue(parseAndEvaluate("(`6/4`).Collapse()"))).toBe("1..1/2");
+        expect(formatValue(parseAndEvaluate("(`x*2/x`).Simplify(:x)"))).toBe("2");
+        expect(formatValue(parseAndEvaluate("(`x*2/x`).Simplify()")))
+            .toBe("Fraction(Product(x, 2), x)");
+    });
+
+    test("custom operator tables support glyph, fixity, precedence, and associativity", () => {
+        const operators = createStructuralOperatorTable([
+            { symbol: "⊗", fixity: "infix", head: "Tensor", precedence: 90, associativity: "left" },
+            { symbol: "¬", fixity: "prefix", head: "Not", precedence: 110 },
+            { symbol: "°", fixity: "postfix", head: "Degrees", precedence: 120 },
+        ]);
+        expect(formatValue(parseStructuralArithmetic("¬x⊗y°", null, { operators })))
+            .toBe("Tensor(Not(x), Degrees(y))");
+        expect(formatValue(parseStructuralArithmetic("a⊗b⊗c", null, { operators })))
+            .toBe("Tensor(Tensor(a, b), c)");
+
+        expect(formatValue(parseAndEvaluate(
+            '.SArith.Configure({= symbol="⊗", head=:Tensor, fixity=:infix, precedence=90 }).Parse("a⊗b", [], {= })',
+        ))).toBe("Tensor(a, b)");
+    });
+
+    test("NotationParser constructs a parser protocol object in RiX", () => {
+        const value = parseAndEvaluate(".NotationParser((body, modifiers, info) -> body)");
+        expect(value.type).toBe("notation_parser");
+        expect(value._ext.get("Parse").type).toBe("method_builtin");
     });
 });

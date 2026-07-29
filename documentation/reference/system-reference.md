@@ -8,7 +8,7 @@ toc-depth: 2
 This page is generated from the current RiX implementation by `documentation/scripts/generate-reference.js`. Do not edit it by hand. Descriptions come from registry documentation strings; the narrative [syntax guide](../eval/syntax-guide.md) and [methods guide](../eval/methods-guide.md) provide signatures and examples.
 :::
 
-At this revision RiX exposes **140 named entries** on the default system context and registers **170 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
+At this revision RiX exposes **141 named entries** on the default system context and registers **170 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
 
 ## Public system context
 
@@ -97,6 +97,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.NEG` | function | — | Negation |
 | `.NEQ` | function | Logic | Inequality check — returns 1 or null |
 | `.NOT` | function | Logic | Logical NOT — returns Integer(1) for null input, null otherwise |
+| `.NOTATIONPARSER` | function | — | Wrap a RiX callable as a registered backtick parser object |
 | `.NOTEQUAL` | function | — | Inequality check — returns 1 or null |
 | `.OR` | lazy function | Logic | Logical OR (short-circuits on first truthy, returns deciding value) |
 | `.PAIR` | function | — | Create a key/value entry for .Map |
@@ -247,7 +248,7 @@ Imported scripts can add or withhold named groups. Permission-like names are int
 | `Units` | `UNITS`, `Units`, `CONVERTUNIT`, `ConvertUnit`, `DEFINEUNIT`, `DefineUnit` |
 | `Exact` | `EXACT`, `Exact`, `COMPLEX`, `Complex`, `DEFINEEXACTGENERATOR`, `DefineExactGenerator`, `exactalgebras` |
 | `Symbolic` | `POLY`, `DERIV`, `INTEGRATE`, `TRANSFORM`, `SIMPLIFY`, `SPEC`, `SPECCABILITY`, `INSPECTSPEC`, `SArith` |
-| `Notation` | `SArith`, `Poly` |
+| `Notation` | `SArith`, `Poly`, `NotationParser` |
 | `Random` | `RANDOMSEED`, `RandomSeed`, `RAND_NAME` |
 
 Default script policy includes all functions and the `IMPORTS` permission. Recognized permission names are `IMPORTS`, `NET`, `FILES`, `PLUGINS`. The default loop limit is 10,000 iterations and the default constructor capture mode is `deep_copy`.

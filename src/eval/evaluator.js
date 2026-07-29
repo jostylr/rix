@@ -34,6 +34,7 @@ import { outputFunctions } from "./functions/output.js";
 import {
     createPolySystemValue,
     embeddedFunctions,
+    notationParserFunction,
     sArithCapability,
 } from "./functions/embedded.js";
 import { installRegisteredTypes, registerBuiltinSemanticTypes } from "../runtime/type-system.js";
@@ -191,6 +192,10 @@ export function createDefaultSystemContext(options = {}) {
     ctx.registerCallableValue("SArith", sArith.value, sArith.definition, {
         doc: sArith.definition.doc,
         groups: ["Notation", "Symbolic"],
+    });
+    ctx.register("NotationParser", {
+        ...notationParserFunction,
+        groups: ["Notation"],
     });
     ctx.register("EVAL", coreFunctions.EVAL);
     ctx.register("TypeExport", coreFunctions.TYPE_EXPORT);

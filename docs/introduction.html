@@ -2005,6 +2005,14 @@ m |&gt;&gt; (v, k) -&gt; k ++ "=" ++ v   ## {= a="a=2", b="b=3" }
 <section id="intervals-and-betweenness" class="level3">
 <h3 class="anchored" data-anchor-id="intervals-and-betweenness">Intervals and Betweenness</h3>
 <p>RiX treats intervals as first-class objects using the colon <code>:</code> operator. An interval represents the range of values between two endpoints. - <code>1:5</code> creates a <strong>RationalInterval</strong> from 1 to 5. - <code>5:2</code> creates an interval from 5 down to 2. RiX preserves the input order for display, but mathematically they cover the same range.</p>
+<p>Decimal brackets provide compact exact interval notation:</p>
+<ul>
+<li><code>1.23[56:67]</code> appends the unsigned suffixes, producing <code>1.2356:1.2367</code>.</li>
+<li><code>1.23[+5:-6]</code> treats signed values as offsets in units of the base’s last visible digit. Since <code>1.23</code> ends in hundredths, the result is <code>1.23 - 6 × 0.01 : 1.23 + 5 × 0.01</code>, normalized to <code>1.17:1.28</code>.</li>
+<li><code>1.2[+-1]</code> means <code>1.2 ± 1 × 0.1</code>, or <code>1.1:1.3</code>.</li>
+<li><code>1.2[+-0.1]</code> means <code>1.2 ± 0.1 × 0.1</code>, or <code>1.19:1.21</code>.</li>
+</ul>
+<p>When a bracket contains two values, colon is the required separator. Unsigned suffixes append digits, while a leading <code>+</code>, <code>-</code>, <code>+-</code>, or <code>-+</code> selects last-place offset semantics.</p>
 <section id="betweenness" class="level4">
 <h4 class="anchored" data-anchor-id="betweenness">Betweenness</h4>
 <p>When three or more values are chained with colons, RiX automatically switches from interval creation to a <strong>betweenness check</strong>. It evaluates whether the values are in monotonic (ascending or descending) order. - <code>2:3:5</code> returns <code>1</code> (true) because 3 is between 2 and 5. - <code>2:6:5</code> returns <code>null</code> because 6 is not between 2 and 5.</p>
@@ -2050,6 +2058,7 @@ F := `y + @a*x`           # parameters (x, y)
 G := `y + @(a^2 + 1)`     # parameter (y); expression is captured
 Constant := `6/4 + 2/4`   # no parameters
 Constant()                # Fraction(8,4)</code></pre>
+<p>Use <code>.SArith.Fun(y,x,unused):...</code> when explicit parameter order or unused parameters matter. Mixed numbers, continued fractions, base-prefixed numbers, and intervals retain their RiX notation inside structural forms. Methods such as <code>Inspect()</code>, <code>Render()</code>, <code>Collapse()</code>, and <code>Simplify(:nonzeroName)</code> expose and transform the resulting structure.</p>
 <p>Because <code>@(expression)</code> is ordinary evaluation, calls and effects inside it happen when the form is created.</p>
 <p>A leading-dot header selects any registered parser object exposing <code>.Parse</code>:</p>
 <pre class="rix"><code>P := `.Poly:x^2 + 3/4 x^5 - 7`</code></pre>
