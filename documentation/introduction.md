@@ -1626,17 +1626,23 @@ written form, while operators spaced on both sides apply structural algebra.
 `3/4 + x`       # Sum(Fraction(3,4), x)
 ```
 
-An identifier is a free symbol, while `@name` captures the surrounding RiX
-value. `.SArith.Fun` converts free symbols to alphabetically ordered
+An identifier is a free symbol, while `@name` captures one surrounding RiX
+value. `@(expression)` evaluates ordinary RiX source in the surrounding scope
+and lifts its result; nested parentheses and RiX literals are balanced
+normally. `.SArith.Fun` converts free symbols to alphabetically ordered
 parameters. Assignment to an uppercase identifier infers the same conversion,
 including zero-argument constant functions:
 
 ```rix
 a := 2
 F := `y + @a*x`           # parameters (x, y)
+G := `y + @(a^2 + 1)`     # parameter (y); expression is captured
 Constant := `6/4 + 2/4`   # no parameters
 Constant()                # Fraction(8,4)
 ```
+
+Because `@(expression)` is ordinary evaluation, calls and effects inside it
+happen when the form is created.
 
 A leading-dot header selects any registered parser object exposing `.Parse`:
 

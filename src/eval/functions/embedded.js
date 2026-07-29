@@ -1,5 +1,7 @@
 import { Integer } from "@ratmath/core";
+import { parse } from "../../parser/parser.js";
 import { resolveMethod } from "../../runtime/methods.js";
+import { lower } from "../lower.js";
 import {
     createStructuralFunction,
     parseStructuralArithmetic,
@@ -39,7 +41,20 @@ function infoEntry(info, name) {
     return info.entries.get(name);
 }
 
-function sarithParse(args, context) {
+function evaluateRiXExpression(source, context, evaluate) {
+    const runtime = context.getEnv("__script_runtime__", null);
+    const ast = parse(source, runtime?.systemLookup);
+    const irNodes = lower(ast);
+    if (irNodes.length === 0) {
+        throw new Error("'@(expression)' must contain a RiX expression");
+    }
+
+    let value = null;
+    for (const node of irNodes) value = evaluate(node);
+    return value;
+}
+
+function sarithParse(args, context, evaluate) {
     const body = stringFromValue(args[1], ".SArith.Parse body");
     const modifiers = modifierNames(args[2]);
     const info = args[3];
@@ -48,7 +63,9 @@ function sarithParse(args, context) {
         throw new Error(`Unknown .SArith modifier${unsupported.length === 1 ? "" : "s"}: ${unsupported.join(", ")}`);
     }
 
-    const value = parseStructuralArithmetic(body, context);
+    const value = parseStructuralArithmetic(body, context, {
+        evaluateRiX: (source) => evaluateRiXExpression(source, context, evaluate),
+    });
     const explicitFunction = modifiers.some((modifier) => modifier.toUpperCase() === "FUN");
     const inferredFunction = infoEntry(info, "function") !== null;
     if (!explicitFunction && !inferredFunction) return value;
@@ -72,14 +89,16 @@ export function createSArithSystemValue() {
     };
 }
 
-function polyParse(args, context) {
+function polyParse(args, context, evaluate) {
     const body = stringFromValue(args[1], ".Poly.Parse body");
     const modifiers = modifierNames(args[2]);
     const unsupported = modifiers.filter((modifier) => modifier.toUpperCase() !== "FUN");
     if (unsupported.length > 0) {
         throw new Error(`Unknown .Poly modifier${unsupported.length === 1 ? "" : "s"}: ${unsupported.join(", ")}`);
     }
-    const structural = parseStructuralArithmetic(body, context);
+    const structural = parseStructuralArithmetic(body, context, {
+        evaluateRiX: (source) => evaluateRiXExpression(source, context, evaluate),
+    });
     const spec = createSymbolicSpec({
         inputs: sortedStructuralFreeSymbols(structural),
         outputMode: "expression",
@@ -173,11 +192,11 @@ export const sArithCapability = {
         return {
             value,
             definition: {
-                impl(args, context) {
+                impl(args, context, evaluate) {
                     const body = args[0];
                     const modifiers = args[1] || { type: "sequence", values: [] };
                     const info = args[2] || { type: "map", entries: new Map() };
-                    return sarithParse([value, body, modifiers, info], context);
+                    return sarithParse([value, body, modifiers, info], context, evaluate);
                 },
                 doc: "Parse structural arithmetic; backticks use this parser by default",
             },

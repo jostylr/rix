@@ -72,6 +72,35 @@ describe("backtick parser dispatch and structural arithmetic", () => {
         expect(value.denominator).toBe(2n);
     });
 
+    test("@(RiX expression) evaluates in the surrounding scope and lifts the result", () => {
+        const value = parseAndEvaluate("x := 3; `@(x^2 + 1)/4`");
+        expect(value).toBeInstanceOf(Fraction);
+        expect(value.numerator).toBe(10n);
+        expect(value.denominator).toBe(4n);
+    });
+
+    test("@(RiX expression) handles nested parentheses and system calls", () => {
+        const value = parseAndEvaluate("x := 2; `@(.Add((x + 1), 4)) + y`");
+        expect(isStructuralForm(value)).toBe(true);
+        expect(value.head).toBe("Sum");
+        expect(value.args[0]).toBeInstanceOf(Integer);
+        expect(value.args[0].value).toBe(7n);
+        expect(value.args[1].name).toBe("y");
+    });
+
+    test("@(RiX expression) captures do not become inferred function parameters", () => {
+        const fn = parseAndEvaluate("a := 5; F := `y + @(a^2)`; F");
+        expect(fn.params.positional.map((parameter) => parameter.name)).toEqual(["y"]);
+        const value = parseAndEvaluate("a := 5; F := `y + @(a^2)`; F(3)");
+        expect(value).toBeInstanceOf(Integer);
+        expect(value.value).toBe(28n);
+    });
+
+    test("@(RiX expression) reports an unclosed splice", () => {
+        expect(() => parseAndEvaluate("`@(1 + 2`"))
+            .toThrow(/unclosed '@\('/);
+    });
+
     test("explicit Fun orders free symbols alphabetically", () => {
         const fn = parseAndEvaluate("`.SArith.Fun:y - x`");
         expect(fn.type).toBe("lambda");

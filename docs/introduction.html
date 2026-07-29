@@ -2044,11 +2044,13 @@ m |&gt;&gt; (v, k) -&gt; k ++ "=" ++ v   ## {= a="a=2", b="b=3" }
 <pre class="rix"><code>`6/4+2/4`       # Sum(Fraction(6,4), Fraction(2,4))
 `6/4 + 2/4`     # Fraction(8,4), preserving denominator 4
 `3/4 + x`       # Sum(Fraction(3,4), x)</code></pre>
-<p>An identifier is a free symbol, while <code>@name</code> captures the surrounding RiX value. <code>.SArith.Fun</code> converts free symbols to alphabetically ordered parameters. Assignment to an uppercase identifier infers the same conversion, including zero-argument constant functions:</p>
+<p>An identifier is a free symbol, while <code>@name</code> captures one surrounding RiX value. <code>@(expression)</code> evaluates ordinary RiX source in the surrounding scope and lifts its result; nested parentheses and RiX literals are balanced normally. <code>.SArith.Fun</code> converts free symbols to alphabetically ordered parameters. Assignment to an uppercase identifier infers the same conversion, including zero-argument constant functions:</p>
 <pre class="rix"><code>a := 2
 F := `y + @a*x`           # parameters (x, y)
+G := `y + @(a^2 + 1)`     # parameter (y); expression is captured
 Constant := `6/4 + 2/4`   # no parameters
 Constant()                # Fraction(8,4)</code></pre>
+<p>Because <code>@(expression)</code> is ordinary evaluation, calls and effects inside it happen when the form is created.</p>
 <p>A leading-dot header selects any registered parser object exposing <code>.Parse</code>:</p>
 <pre class="rix"><code>P := `.Poly:x^2 + 3/4 x^5 - 7`</code></pre>
 <p>See the parser documentation for custom parser objects, modifiers, raw-string backticks, and multiple-backtick nesting.</p>

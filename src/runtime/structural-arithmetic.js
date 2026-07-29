@@ -1,4 +1,5 @@
 import { Fraction, Integer, Rational, parseNumber } from "@ratmath/core";
+import { tokenize } from "../parser/tokenizer.js";
 
 const BINARY = {
     "+": { precedence: 80, associativity: "left", head: "Sum" },
@@ -30,6 +31,30 @@ function token(type, value, start, end, gapBefore) {
     return { type, value, start, end, gapBefore };
 }
 
+function scanRiXExpression(source, atPosition) {
+    const segment = source.slice(atPosition + 1);
+    const rixTokens = tokenize(segment);
+    let depth = 0;
+
+    for (const current of rixTokens) {
+        if (current.type !== "Symbol") continue;
+        if (current.value === "(") {
+            depth++;
+            continue;
+        }
+        if (current.value !== ")") continue;
+        depth--;
+        if (depth === 0) {
+            return {
+                body: segment.slice(1, current.pos[1]),
+                end: atPosition + 1 + current.pos[2],
+            };
+        }
+    }
+
+    throw parseError(source, atPosition, "unclosed '@(' RiX expression splice");
+}
+
 export function tokenizeStructuralArithmetic(source) {
     const tokens = [];
     let position = 0;
@@ -42,6 +67,14 @@ export function tokenizeStructuralArithmetic(source) {
         const start = position;
         const gapBefore = start > previousEnd;
         const rest = source.slice(position);
+
+        if (rest.startsWith("@(")) {
+            const splice = scanRiXExpression(source, position);
+            position = splice.end;
+            tokens.push(token("rix_expression", splice.body, start, position, gapBefore));
+            previousEnd = position;
+            continue;
+        }
 
         const numberMatch = rest.match(/^(?:\d(?:_?\d)*(?:\.\d(?:_?\d)*)?(?:#\d(?:_?\d)*)?|\.\d(?:_?\d)*(?:#\d(?:_?\d)*)?)/u);
         if (numberMatch) {
@@ -275,14 +308,16 @@ export function applyStructuralPostfix(operator, operand) {
 function startsOperand(current) {
     return current.type === "number" ||
         current.type === "identifier" ||
+        current.type === "rix_expression" ||
         current.type === "at" ||
         current.type === "lparen";
 }
 
 class StructuralParser {
-    constructor(source, context) {
+    constructor(source, context, options = {}) {
         this.source = source;
         this.context = context;
+        this.evaluateRiX = options.evaluateRiX || null;
         this.tokens = tokenizeStructuralArithmetic(source);
         this.index = 0;
         this.groupedValues = new WeakSet();
@@ -406,6 +441,13 @@ class StructuralParser {
             this.advance();
             return structuralSymbol(current.value);
         }
+        if (current.type === "rix_expression") {
+            this.advance();
+            if (!this.evaluateRiX) {
+                this.error(current, "'@(expression)' requires an active RiX evaluator");
+            }
+            return liftStructuralValue(this.evaluateRiX(current.value));
+        }
         if (current.type === "at") {
             this.advance();
             if (this.current.type !== "identifier") {
@@ -459,8 +501,8 @@ class StructuralParser {
     }
 }
 
-export function parseStructuralArithmetic(source, context) {
-    return new StructuralParser(String(source), context).parse();
+export function parseStructuralArithmetic(source, context, options = {}) {
+    return new StructuralParser(String(source), context, options).parse();
 }
 
 export function structuralFreeSymbols(value, names = new Set()) {

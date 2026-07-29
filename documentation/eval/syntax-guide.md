@@ -1083,17 +1083,23 @@ one-sided spacing is rejected. Applied operations remain structural whenever
 they cannot combine concrete operands.
 
 Identifiers are free structural symbols. `@name` instead snapshots and lifts
-the surrounding RiX value. `.Fun` infers parameters from free symbols in
-alphabetical order. Assignment directly to an uppercase identifier also
-requests function conversion; a form with no free symbols becomes a
-zero-argument constant function:
+one surrounding RiX value; `@(expression)` evaluates arbitrary ordinary RiX
+source in the surrounding scope and lifts its result. Nested parentheses and
+RiX literal delimiters are balanced by the ordinary RiX tokenizer. `.Fun`
+infers parameters from free symbols in alphabetical order. Assignment directly
+to an uppercase identifier also requests function conversion; a form with no
+free symbols becomes a zero-argument constant function:
 
 ```rix
 x := 3
 F := `y + @x*x`       # F has parameters (x, y); @x is captured
+G := `y + @(x^2 + 1)` # G has only parameter y
 Constant := `6/4 + 2/4`
 Constant()            # Fraction(8,4)
 ```
+
+`@(expression)` performs normal RiX evaluation when the form is created, so
+calls and effects inside it are not delayed.
 
 Parser roots use the ordinary dot-registry ownership rule: PascalCase for core
 capabilities and camelCase for host/plugin capabilities. The selected object

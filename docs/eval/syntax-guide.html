@@ -2384,11 +2384,13 @@ G(10, 20, 99, 99)              ## 30  (only 10 and 20 forwarded)</code></pre>
 `.SArith.Fun:y - x`          # structural function
 `:raw backtick text`         # ordinary RiX string</code></pre>
 <p>Inside <code>.SArith</code>, an operator touching both operands constructs the written form. An operator separated from both operands applies structural algebra; one-sided spacing is rejected. Applied operations remain structural whenever they cannot combine concrete operands.</p>
-<p>Identifiers are free structural symbols. <code>@name</code> instead snapshots and lifts the surrounding RiX value. <code>.Fun</code> infers parameters from free symbols in alphabetical order. Assignment directly to an uppercase identifier also requests function conversion; a form with no free symbols becomes a zero-argument constant function:</p>
+<p>Identifiers are free structural symbols. <code>@name</code> instead snapshots and lifts one surrounding RiX value; <code>@(expression)</code> evaluates arbitrary ordinary RiX source in the surrounding scope and lifts its result. Nested parentheses and RiX literal delimiters are balanced by the ordinary RiX tokenizer. <code>.Fun</code> infers parameters from free symbols in alphabetical order. Assignment directly to an uppercase identifier also requests function conversion; a form with no free symbols becomes a zero-argument constant function:</p>
 <pre class="rix"><code>x := 3
 F := `y + @x*x`       # F has parameters (x, y); @x is captured
+G := `y + @(x^2 + 1)` # G has only parameter y
 Constant := `6/4 + 2/4`
 Constant()            # Fraction(8,4)</code></pre>
+<p><code>@(expression)</code> performs normal RiX evaluation when the form is created, so calls and effects inside it are not delayed.</p>
 <p>Parser roots use the ordinary dot-registry ownership rule: PascalCase for core capabilities and camelCase for host/plugin capabilities. The selected object must expose a callable <code>.Parse</code> method. See <a href="../parser/embedded-parsing.html">Backtick parsers and structural arithmetic</a> for the protocol and current grammar.</p>
 </section>
 <section id="special-number-literals" class="level3">

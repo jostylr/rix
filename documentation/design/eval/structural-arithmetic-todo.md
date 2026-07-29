@@ -14,8 +14,6 @@ the notation surface.
 - Add explicit function parameter declarations, such as
   `.SArith.Fun(y,x):body`, when parameter order or unused parameters must be
   supplied rather than inferred.
-- Decide whether `@(RiX expression)` should complement the initial `@name`
-  snapshot splice.
 
 ## Structural algebra
 

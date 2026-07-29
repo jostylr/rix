@@ -649,7 +649,7 @@ ul.task-list li input[type="checkbox"] {
 </section>
 <section id="sarith" class="level2">
 <h2 class="anchored" data-anchor-id="sarith"><code>.SArith</code></h2>
-<p><code>.SArith</code> recognizes exact numbers, identifiers, <code>@name</code> splices, parentheses, implicit multiplication, and:</p>
+<p><code>.SArith</code> recognizes exact numbers, identifiers, <code>@name</code> and <code>@(expression)</code> splices, parentheses, implicit multiplication, and:</p>
 <pre class="text"><code>+  -  *  /  ^  !</code></pre>
 <p>Touching operators construct raw forms. Operators separated from both operands apply structural algebra:</p>
 <pre class="rix"><code>`a+b`           # Sum(a, b), construction mode
@@ -689,6 +689,11 @@ ul.task-list li input[type="checkbox"] {
 `x + 1`         # Sum(Symbol("x"), 1)
 `@x + 1`        # 5/2</code></pre>
 <p>Captured names do not become function parameters.</p>
+<p><code>@(expression)</code> parses and evaluates ordinary RiX source in the surrounding scope, then lifts its result. Its balancing scan uses the RiX tokenizer, so nested parentheses, strings, backticks, regular expressions, and system calls inside the splice do not prematurely close it:</p>
+<pre class="rix"><code>offset := 3
+`@(offset^2 + 1)/4`          # Fraction(10,4)
+`@(.Add((offset + 1), 2))+x` # Sum(6,x)</code></pre>
+<p>The expression is evaluated when the structural form is created. Reads, assignments, calls, diagnostics, and other effects therefore retain their ordinary RiX behavior. Names mentioned only inside the splice are captured values rather than free structural symbols.</p>
 </section>
 <section id="structural-functions" class="level2">
 <h2 class="anchored" data-anchor-id="structural-functions">Structural functions</h2>

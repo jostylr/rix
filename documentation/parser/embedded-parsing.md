@@ -84,8 +84,8 @@ This avoids escape syntax when a secondary language itself uses backticks.
 
 ## `.SArith`
 
-`.SArith` recognizes exact numbers, identifiers, `@name` splices,
-parentheses, implicit multiplication, and:
+`.SArith` recognizes exact numbers, identifiers, `@name` and `@(expression)`
+splices, parentheses, implicit multiplication, and:
 
 ```text
 +  -  *  /  ^  !
@@ -166,6 +166,22 @@ x := 6 / 4
 ```
 
 Captured names do not become function parameters.
+
+`@(expression)` parses and evaluates ordinary RiX source in the surrounding
+scope, then lifts its result. Its balancing scan uses the RiX tokenizer, so
+nested parentheses, strings, backticks, regular expressions, and system calls
+inside the splice do not prematurely close it:
+
+```rix
+offset := 3
+`@(offset^2 + 1)/4`          # Fraction(10,4)
+`@(.Add((offset + 1), 2))+x` # Sum(6,x)
+```
+
+The expression is evaluated when the structural form is created. Reads,
+assignments, calls, diagnostics, and other effects therefore retain their
+ordinary RiX behavior. Names mentioned only inside the splice are captured
+values rather than free structural symbols.
 
 ## Structural functions
 
