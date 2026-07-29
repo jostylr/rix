@@ -2,10 +2,12 @@
 
 ::: {.callout-note title="Implementation status — current portable slice"}
 The initial portable-output slice is implemented: `.Text`, `.Paragraph`,
-`.Heading`, `.Fragment`, `.Table`, `.Grid`, `.Graphics`, `.Figure`, `.Slide`,
-and `.Slides` construct typed immutable output records. The CLI has a text
-fallback, and the RiX notebook and RiX Web calculator render tables and grids
-as HTML and retained 2D scenes as inline SVG. `.Algebra.SyntheticDivision(root,
+`.Heading`, `.Fragment`, `.Table`, `.Grid`, `.Sheet`, `.Graphics`, `.Figure`,
+`.Slide`, and `.Slides` construct typed immutable output records. The CLI has a
+text fallback, and the RiX notebook and RiX Web calculator render tables and
+grids as HTML and retained 2D scenes as inline SVG. `Sheet` has host-neutral
+text and HTML renderers; dedicated notebook selection/editing integration is
+still planned. `.Algebra.SyntheticDivision(root,
 coefficients)` returns a ruled exact `Grid`; after `.Plugin.Load("plot")`,
 `.plot.Polynomial(coefficients, domain, options?)` constructs a portable
 sampled `Graphic`.
@@ -37,7 +39,7 @@ host chooses a renderer appropriate to its capabilities.
 
 ```mermaid
 flowchart LR
-  R["RiX values"] --> C[".Table / .Fragment / .Graphics"]
+  R["RiX values"] --> C[".Table / .Sheet / .Fragment / .Graphics"]
   C --> O["Typed portable output value"]
   P["Plot / geometry / algebra plugins"] --> O
   O --> N["Renderer negotiation"]
@@ -73,6 +75,7 @@ calls are capitalized:
 ```rix
 .Table(...)
 .Fragment(...)
+.Sheet(...)
 .Paragraph(...)
 .Graphics.Graphic(...)
 .Graphics.Group(...)
@@ -109,6 +112,7 @@ protocols.
 | `.Fragment` | Ordered document/output children. |
 | `.Table` | Semantic, tabular presentation of columns and rows. |
 | `.Grid` | General positioned layout cells with spans and rules; suitable for mathematical layouts. |
+| `.Sheet` | Address-aware 2D snapshot of rank-N tensor, matrix, or sequence data. |
 | `.Graphics.Graphic` | Portable retained-mode 2D scene. |
 | `.Graphics.Group` | Ordered scene subtree, optionally carrying shared presentation style. |
 | `.Graphics.Transform` | Apply translate, rotate, and scale to a scene subtree without rewriting coordinates. |
@@ -116,7 +120,7 @@ protocols.
 | `.Graphics.Rectangle` / `.Graphics.Circle` | Basic geometric shape scene nodes. |
 | `.Graphics.Text` | Text positioned in a graphic coordinate system. |
 | `.Graphics.Clip` | Restrict a scene subtree to rectangular bounds. |
-| `.Figure` | A graphic, table, or grid with caption, label, and accessibility metadata. |
+| `.Figure` | A graphic, table, grid, or sheet with caption, label, and accessibility metadata. |
 | `.Slide` | One titled, metadata-bearing presentation frame. |
 | `.Slides` | An ordered deck of `Slide` values, specialized for sequential presentation and export. |
 | `.Render` / `value.Render(...)` | Resolve a renderer for a target or host context. |
@@ -185,6 +189,10 @@ that normalize to the same canonical record.
 .Table({= columns = columns, rows = rows })
 .Table(columns, rows)
 .Table(columns, rows, {= caption = "Values of F" })
+
+.Sheet({= data = tensor, viewAxes = [1, 2], slice = [_, _, 2] })
+.Sheet(tensor)
+.Sheet(tensor, {= title = "Depth 2", slice = [_, _, 2] })
 ```
 
 These variants should be system multifunctions (or capability shims that
@@ -201,6 +209,8 @@ The proposed initial shapes are:
 .Fragment({= children = values, metadata = {= } })
 .Table({= columns = columns, rows = rows, caption = _, options = {= } })
 .Grid({= columns = columns, rows = rows, rules = [], style = {= } })
+.Sheet({= data = value, axes = _, viewAxes = _, slice = _, address = "grid",
+    title = _, columnLabels = :dual, options = {= } })
 .Graphics.Path({= points = points, style = {= } })
 .Graphics.Group({= children = nodes, style = {= }, metadata = {= } })
 .Graphics.Transform({= children = nodes, translate = _, scale = _, rotate = _, origin = _, style = {= } })
@@ -217,6 +227,13 @@ The proposed initial shapes are:
 Plain values in a `Fragment` or `Grid` cell are retained as values. A renderer
 uses its formatting protocol to display an exact rational, interval,
 polynomial, or string without converting it at construction time.
+
+`Sheet` similarly retains exact visible values, but also records each visible
+cell's complete 1-based tensor index and a canonical address such as
+`grid[2,3,1]`. For rank greater than two, `viewAxes` chooses the displayed axes
+and `slice` fixes every hidden axis. The current value is a static snapshot;
+live editing belongs to the planned `Binding`/`Widget` layer described in the
+[RiXCel architecture](rixcel-architecture.md).
 
 ### Current 2D scene primitives
 
@@ -299,6 +316,7 @@ extend.
 | `Fragment` | `.Append(value)`, `.Prepend(value)`, `.Flatten()` | Compose output without string concatenation. |
 | `Table` | `.Columns()`, `.Rows()`, `.Cell(row, column)`, `.With(spec)`, `.Format(column, spec)` | Query presentation structure and create a changed view. |
 | `Grid` | `.Cell(row, column)`, `.With(spec)`, `.WithRule(rule)` | Query or vary non-tabular layout. |
+| `Sheet` | `.Cell(row, column)`, `.At(index)`, `.WithPlane(slice)`, `.With(spec)` | Planned query and immutable view operations; the initial constructor and renderers are implemented. |
 | `Graphic` | `.Bounds()`, `.Transform(transform)`, `.With(spec)` | Inspect and vary a scene without rasterizing it. |
 | `Figure` | `.Content()`, `.Caption()`, `.With(spec)` | Access or vary document metadata. |
 | `Slide` / `Slides` | `.Content()`, `.Notes()`, `.Append(slide)`, `.At(index)`, `.With(spec)` | Compose a deck without committing to an export format. |
@@ -310,7 +328,7 @@ rather than mutating an already-created value.
 ### Serialization and static/live distinction
 
 Every portable output value must be serializable and reconstructable without a
-renderer. `Table`, `Grid`, `Fragment`, `Graphic`, and `Figure` therefore carry
+renderer. `Table`, `Grid`, `Sheet`, `Fragment`, `Graphic`, and `Figure` therefore carry
 only semantic values, standard style metadata, and plugin-versioned extension
 data.
 

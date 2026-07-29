@@ -10,6 +10,7 @@ export {
     formatOutputText,
     renderOutputHtml,
     renderGraphicSvg,
+    createSheet,
     createAlgebraOutputCollection,
     createGraphicsOutputCollection,
     createSyntheticDivision,

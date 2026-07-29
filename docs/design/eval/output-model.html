@@ -33,7 +33,7 @@ ul.task-list li input[type="checkbox"] {
 <script src="../../site_libs/quarto-search/fuse.min.js"></script>
 <script src="../../site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="../../">
-<link href="../../design/plugins.html" rel="next">
+<link href="../../design/eval/rixcel-architecture.html" rel="next">
 <link href="../../design/eval/transformation-reference.html" rel="prev">
 <link href="../../rix-logo.png" rel="icon" type="image/png">
 <script src="../../site_libs/quarto-html/quarto.js" type="module"></script>
@@ -373,6 +373,12 @@ ul.task-list li input[type="checkbox"] {
  <span class="menu-text">Units and exact values</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../eval/sheet-guide.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Sheet views</span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item sidebar-item-section">
@@ -528,6 +534,18 @@ ul.task-list li input[type="checkbox"] {
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
+  <a href="../../design/eval/rixcel-architecture.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">RiXCel architecture</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../design/eval/rixcel-todo.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">RiXCel implementation checklist</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
   <a href="../../design/plugins.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Plugin roadmap and rendering contracts</span></a>
   </div>
@@ -639,7 +657,7 @@ ul.task-list li input[type="checkbox"] {
 </div>
 </div>
 <div class="callout-body-container callout-body">
-<p>The initial portable-output slice is implemented: <code>.Text</code>, <code>.Paragraph</code>, <code>.Heading</code>, <code>.Fragment</code>, <code>.Table</code>, <code>.Grid</code>, <code>.Graphics</code>, <code>.Figure</code>, <code>.Slide</code>, and <code>.Slides</code> construct typed immutable output records. The CLI has a text fallback, and the RiX notebook and RiX Web calculator render tables and grids as HTML and retained 2D scenes as inline SVG. <code>.Algebra.SyntheticDivision(root, coefficients)</code> returns a ruled exact <code>Grid</code>; after <code>.Plugin.Load("plot")</code>, <code>.plot.Polynomial(coefficients, domain, options?)</code> constructs a portable sampled <code>Graphic</code>.</p>
+<p>The initial portable-output slice is implemented: <code>.Text</code>, <code>.Paragraph</code>, <code>.Heading</code>, <code>.Fragment</code>, <code>.Table</code>, <code>.Grid</code>, <code>.Sheet</code>, <code>.Graphics</code>, <code>.Figure</code>, <code>.Slide</code>, and <code>.Slides</code> construct typed immutable output records. The CLI has a text fallback, and the RiX notebook and RiX Web calculator render tables and grids as HTML and retained 2D scenes as inline SVG. <code>Sheet</code> has host-neutral text and HTML renderers; dedicated notebook selection/editing integration is still planned. <code>.Algebra.SyntheticDivision(root, coefficients)</code> returns a ruled exact <code>Grid</code>; after <code>.Plugin.Load("plot")</code>, <code>.plot.Polynomial(coefficients, domain, options?)</code> constructs a portable sampled <code>Graphic</code>.</p>
 <p><code>@"..."</code> text templates and <code>@"""..."""</code> document templates are executable. The latter supports blank-line blocks, <code>h1:</code> through <code>h6:</code>, plus <code>fig:</code> and <code>table:</code> wrappers around standalone <code>@{...}</code> structured insertions. Output methods, renderer negotiation, geometry, 3D scenes, plugin manifests, and non-HTML export targets remain design work. Examples involving those features are deliberately marked as intended contracts rather than current executable code.</p>
 </div>
 </div>
@@ -650,7 +668,7 @@ ul.task-list li input[type="checkbox"] {
 <pre class="text"><code>RiX computation → portable output value → renderer negotiation → host display/export</code></pre>
 <p>A table remains a table whether it is displayed in a REPL, a notebook, HTML, SVG, Quarto/PDF, or a saved report. A plot plugin constructs a portable graphic value; it does not directly draw into a browser DOM. A browser, CLI, or export host chooses a renderer appropriate to its capabilities.</p>
 <pre class="mermaid"><code>flowchart LR
-  R["RiX values"] --&gt; C[".Table / .Fragment / .Graphics"]
+  R["RiX values"] --&gt; C[".Table / .Sheet / .Fragment / .Graphics"]
   C --&gt; O["Typed portable output value"]
   P["Plot / geometry / algebra plugins"] --&gt; O
   O --&gt; N["Renderer negotiation"]
@@ -677,6 +695,7 @@ ul.task-list li input[type="checkbox"] {
 <p>The system context should expose a standard <code>Output</code> capability group. Its members are available through the normal system-object syntax, so all source calls are capitalized:</p>
 <pre class="rix"><code>.Table(...)
 .Fragment(...)
+.Sheet(...)
 .Paragraph(...)
 .Graphics.Graphic(...)
 .Graphics.Group(...)
@@ -732,54 +751,58 @@ ul.task-list li input[type="checkbox"] {
 <td>General positioned layout cells with spans and rules; suitable for mathematical layouts.</td>
 </tr>
 <tr class="odd">
+<td><code>.Sheet</code></td>
+<td>Address-aware 2D snapshot of rank-N tensor, matrix, or sequence data.</td>
+</tr>
+<tr class="even">
 <td><code>.Graphics.Graphic</code></td>
 <td>Portable retained-mode 2D scene.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.Graphics.Group</code></td>
 <td>Ordered scene subtree, optionally carrying shared presentation style.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.Graphics.Transform</code></td>
 <td>Apply translate, rotate, and scale to a scene subtree without rewriting coordinates.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.Graphics.Path</code></td>
 <td>Polyline, polygon, or command path scene node.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.Graphics.Rectangle</code> / <code>.Graphics.Circle</code></td>
 <td>Basic geometric shape scene nodes.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.Graphics.Text</code></td>
 <td>Text positioned in a graphic coordinate system.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.Graphics.Clip</code></td>
 <td>Restrict a scene subtree to rectangular bounds.</td>
 </tr>
-<tr class="even">
-<td><code>.Figure</code></td>
-<td>A graphic, table, or grid with caption, label, and accessibility metadata.</td>
-</tr>
 <tr class="odd">
+<td><code>.Figure</code></td>
+<td>A graphic, table, grid, or sheet with caption, label, and accessibility metadata.</td>
+</tr>
+<tr class="even">
 <td><code>.Slide</code></td>
 <td>One titled, metadata-bearing presentation frame.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.Slides</code></td>
 <td>An ordered deck of <code>Slide</code> values, specialized for sequential presentation and export.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.Render</code> / <code>value.Render(...)</code></td>
 <td>Resolve a renderer for a target or host context.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.Snapshot</code> / <code>value.Snapshot(...)</code></td>
 <td>Produce a static representation where possible.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.Serialize</code> / <code>value.Serialize()</code></td>
 <td>Preserve the portable value for notebooks, reports, and transfer.</td>
 </tr>
@@ -818,7 +841,11 @@ ul.task-list li input[type="checkbox"] {
 
 .Table({= columns = columns, rows = rows })
 .Table(columns, rows)
-.Table(columns, rows, {= caption = "Values of F" })</code></pre>
+.Table(columns, rows, {= caption = "Values of F" })
+
+.Sheet({= data = tensor, viewAxes = [1, 2], slice = [_, _, 2] })
+.Sheet(tensor)
+.Sheet(tensor, {= title = "Depth 2", slice = [_, _, 2] })</code></pre>
 <p>These variants should be system multifunctions (or capability shims that delegate to system multifunctions). Their job is dispatch and normalization; they all produce the same standard type. The explicit map variant is the general fallback and makes later additions backward-compatible.</p>
 <p>The proposed initial shapes are:</p>
 <pre class="rix"><code>.Text({= value = text, style = {= } })
@@ -827,6 +854,8 @@ ul.task-list li input[type="checkbox"] {
 .Fragment({= children = values, metadata = {= } })
 .Table({= columns = columns, rows = rows, caption = _, options = {= } })
 .Grid({= columns = columns, rows = rows, rules = [], style = {= } })
+.Sheet({= data = value, axes = _, viewAxes = _, slice = _, address = "grid",
+    title = _, columnLabels = :dual, options = {= } })
 .Graphics.Path({= points = points, style = {= } })
 .Graphics.Group({= children = nodes, style = {= }, metadata = {= } })
 .Graphics.Transform({= children = nodes, translate = _, scale = _, rotate = _, origin = _, style = {= } })
@@ -839,6 +868,7 @@ ul.task-list li input[type="checkbox"] {
 .Slide({= content = value, title = _, id = _, notes = _, metadata = {= } })
 .Slides({= slides = values, title = _, theme = _, metadata = {= } })</code></pre>
 <p>Plain values in a <code>Fragment</code> or <code>Grid</code> cell are retained as values. A renderer uses its formatting protocol to display an exact rational, interval, polynomial, or string without converting it at construction time.</p>
+<p><code>Sheet</code> similarly retains exact visible values, but also records each visible cell’s complete 1-based tensor index and a canonical address such as <code>grid[2,3,1]</code>. For rank greater than two, <code>viewAxes</code> chooses the displayed axes and <code>slice</code> fixes every hidden axis. The current value is a static snapshot; live editing belongs to the planned <code>Binding</code>/<code>Widget</code> layer described in the <a href="../../design/eval/rixcel-architecture.html">RiXCel architecture</a>.</p>
 <section id="current-2d-scene-primitives" class="level3">
 <h3 class="anchored" data-anchor-id="current-2d-scene-primitives">Current 2D scene primitives</h3>
 <p><code>Graphic</code> is the portable scene root. Its child nodes may be nested through <code>.Graphics.Group</code>, <code>.Graphics.Transform</code>, and <code>.Graphics.Clip</code>; leaf nodes are <code>.Graphics.Path</code>, <code>.Graphics.Rectangle</code>, <code>.Graphics.Circle</code>, and <code>.Graphics.Text</code>. The current SVG renderer maps the following small style vocabulary without exposing raw SVG or DOM access:</p>
@@ -954,16 +984,21 @@ ul.task-list li input[type="checkbox"] {
 <td>Query or vary non-tabular layout.</td>
 </tr>
 <tr class="odd">
+<td><code>Sheet</code></td>
+<td><code>.Cell(row, column)</code>, <code>.At(index)</code>, <code>.WithPlane(slice)</code>, <code>.With(spec)</code></td>
+<td>Planned query and immutable view operations; the initial constructor and renderers are implemented.</td>
+</tr>
+<tr class="even">
 <td><code>Graphic</code></td>
 <td><code>.Bounds()</code>, <code>.Transform(transform)</code>, <code>.With(spec)</code></td>
 <td>Inspect and vary a scene without rasterizing it.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>Figure</code></td>
 <td><code>.Content()</code>, <code>.Caption()</code>, <code>.With(spec)</code></td>
 <td>Access or vary document metadata.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>Slide</code> / <code>Slides</code></td>
 <td><code>.Content()</code>, <code>.Notes()</code>, <code>.Append(slide)</code>, <code>.At(index)</code>, <code>.With(spec)</code></td>
 <td>Compose a deck without committing to an export format.</td>
@@ -973,7 +1008,7 @@ ul.task-list li input[type="checkbox"] {
 <p><code>Table.With</code>, <code>Graphic.With</code>, and similar methods are immutable transformations: they create a new output value. A plugin adds renderer or adapter registrations rather than mutating an already-created value.</p>
 <section id="serialization-and-staticlive-distinction" class="level3">
 <h3 class="anchored" data-anchor-id="serialization-and-staticlive-distinction">Serialization and static/live distinction</h3>
-<p>Every portable output value must be serializable and reconstructable without a renderer. <code>Table</code>, <code>Grid</code>, <code>Fragment</code>, <code>Graphic</code>, and <code>Figure</code> therefore carry only semantic values, standard style metadata, and plugin-versioned extension data.</p>
+<p>Every portable output value must be serializable and reconstructable without a renderer. <code>Table</code>, <code>Grid</code>, <code>Sheet</code>, <code>Fragment</code>, <code>Graphic</code>, and <code>Figure</code> therefore carry only semantic values, standard style metadata, and plugin-versioned extension data.</p>
 <pre class="text"><code>portable value     → can inspect, serialize, or render statically
 Widget             → may require JavaScript and a plugin at viewing time
 Scene              → may be live, but must offer a static Graphic snapshot when exported</code></pre>
@@ -1868,8 +1903,8 @@ defaultEnabled: false
       </a>          
   </div>
   <div class="nav-page nav-page-next">
-      <a href="../../design/plugins.html" class="pagination-link" aria-label="Plugin roadmap and rendering contracts">
-        <span class="nav-page-text">Plugin roadmap and rendering contracts</span> <i class="bi bi-arrow-right-short"></i>
+      <a href="../../design/eval/rixcel-architecture.html" class="pagination-link" aria-label="RiXCel architecture">
+        <span class="nav-page-text">RiXCel architecture</span> <i class="bi bi-arrow-right-short"></i>
       </a>
   </div>
 </nav>

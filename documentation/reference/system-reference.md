@@ -8,7 +8,7 @@ toc-depth: 2
 This page is generated from the current RiX implementation by `documentation/scripts/generate-reference.js`. Do not edit it by hand. Descriptions come from registry documentation strings; the narrative [syntax guide](../eval/syntax-guide.md) and [methods guide](../eval/methods-guide.md) provide signatures and examples.
 :::
 
-At this revision RiX exposes **141 named entries** on the default system context and registers **170 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
+At this revision RiX exposes **142 named entries** on the default system context and registers **171 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
 
 ## Public system context
 
@@ -120,6 +120,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.SAME_CELL` | lazy function | — | Identity comparison (===) — returns 1 if both sides refer to the same cell, null otherwise |
 | `.SARITH` | function | — | Parse structural arithmetic; backticks use this parser by default, with optional Complex/Quaternion/Octonion/Algebra scopes |
 | `.SET` | lazy function | — | Create a set (unique values) |
+| `.SHEET` | function | Output | Create a portable sheet view of indexable data |
 | `.SIMPLIFY` | function | Symbolic | Compatibility alias for Transform |
 | `.SLICE` | lazy function | — | Strict slice operator \|>/ |
 | `.SLICECLAMP` | lazy function | — | Clamped slice operator \|>// |
@@ -230,7 +231,7 @@ Imported scripts can add or withhold named groups. Permission-like names are int
 
 | Group | Members |
 | --- | --- |
-| `Output` | `TEXT`, `PARAGRAPH`, `HEADING`, `FRAGMENT`, `TABLE`, `GRID`, `FIGURE`, `SLIDE`, `SLIDES`, `Algebra` |
+| `Output` | `TEXT`, `PARAGRAPH`, `HEADING`, `FRAGMENT`, `TABLE`, `GRID`, `SHEET`, `FIGURE`, `SLIDE`, `SLIDES`, `Algebra` |
 | `Graphics` | `Graphics` |
 | `Draw` | `draw` |
 | `Plot` | `plot` |
@@ -400,6 +401,7 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `SET_DIFF` | eager, pure | — |
 | `SET_PROD` | eager, pure | — |
 | `SET_SYMDIFF` | eager, pure | — |
+| `SHEET` | eager, pure | Create a portable sheet view of indexable data |
 | `SLIDE` | eager, pure | Create a presentation slide |
 | `SLIDES` | eager, pure | Create a sequential presentation deck |
 | `SOLVE` | lazy, effectful/unspecified | Solve/constrain: x :=: expr |

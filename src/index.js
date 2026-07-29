@@ -14,7 +14,7 @@ export {
     createCayley, cayleyFromCartesian, cayleyCartesian, addCayley,
     subtractCayley, multiplyCayley, divideCayley, powCayley,
     negateCayley, conjugateCayley, inverseCayley, equalCayley,
-    isOutputValue, formatOutputText, renderOutputHtml, renderGraphicSvg,
+    isOutputValue, formatOutputText, renderOutputHtml, renderGraphicSvg, createSheet,
     createAlgebraOutputCollection, createGraphicsOutputCollection, createSyntheticDivision, createPlotOutputCollection,
     createPolynomialPlot, createGroup, createTransform, createTextMark,
     createRectangle, createCircle, createClip,

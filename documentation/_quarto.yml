@@ -19,6 +19,7 @@ project:
     - introduction.md
     - status.qmd
     - tutorial/units-and-exact-values.md
+    - eval/sheet-guide.md
     - eval/syntax-guide.md
     - eval/methods-guide.md
     - eval/types-and-traits-guide.md
@@ -40,6 +41,8 @@ project:
     - design/eval/structural-arithmetic-todo.md
     - design/eval/transformation-reference.md
     - design/eval/output-model.md
+    - design/eval/rixcel-architecture.md
+    - design/eval/rixcel-todo.md
     - design/plugins.md
     - rix-rationales.md
     - design/parser/spec.md
@@ -89,6 +92,8 @@ website:
             href: introduction.md
           - text: Units and exact values
             href: tutorial/units-and-exact-values.md
+          - text: Sheet views
+            href: eval/sheet-guide.md
       - section: Language reference
         contents:
           - text: Syntax and functions
@@ -134,6 +139,10 @@ website:
             href: design/eval/transformation-reference.md
           - text: Structured output, documents, and graphics
             href: design/eval/output-model.md
+          - text: RiXCel architecture
+            href: design/eval/rixcel-architecture.md
+          - text: RiXCel implementation checklist
+            href: design/eval/rixcel-todo.md
           - text: Plugin roadmap and rendering contracts
             href: design/plugins.md
       - section: Design and history

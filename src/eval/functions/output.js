@@ -2,7 +2,7 @@ import { parse } from "../../parser/parser.js";
 import { lower } from "../lower.js";
 import { formatValue } from "../format.js";
 import { Integer } from "@ratmath/core";
-import { createFigure, createFragment, createGrid, createHeading, createParagraph, createSlide, createSlides, createTable, createText } from "../../runtime/output.js";
+import { createFigure, createFragment, createGrid, createHeading, createParagraph, createSheet, createSlide, createSlides, createTable, createText } from "../../runtime/output.js";
 
 const capability = (impl, doc) => ({ impl: (args) => impl(args), pure: true, doc });
 
@@ -113,6 +113,7 @@ export const outputFunctions = {
     FRAGMENT: capability(createFragment, "Compose portable output values"),
     TABLE: capability(createTable, "Create a structured output table"),
     GRID: capability(createGrid, "Create a mathematical layout grid"),
+    SHEET: capability(createSheet, "Create a portable sheet view of indexable data"),
     FIGURE: capability(createFigure, "Wrap output with figure metadata"),
     SLIDE: capability(createSlide, "Create a presentation slide"),
     SLIDES: capability(createSlides, "Create a sequential presentation deck"),

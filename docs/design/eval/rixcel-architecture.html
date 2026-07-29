@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>units-and-exact-generators – RiX</title>
+<title>rixcel-architecture – RiX</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -23,6 +23,41 @@ ul.task-list li input[type="checkbox"] {
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
 }
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
 </style>
 
 
@@ -33,8 +68,8 @@ ul.task-list li input[type="checkbox"] {
 <script src="../../site_libs/quarto-search/fuse.min.js"></script>
 <script src="../../site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="../../">
-<link href="../../design/eval/cayley-polar.html" rel="next">
-<link href="../../design/eval/cells-assignments.html" rel="prev">
+<link href="../../design/eval/rixcel-todo.html" rel="next">
+<link href="../../design/eval/output-model.html" rel="prev">
 <link href="../../rix-logo.png" rel="icon" type="image/png">
 <script src="../../site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
@@ -299,7 +334,7 @@ ul.task-list li input[type="checkbox"] {
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../../design/eval/cells-assignments.html">Runtime design</a></li><li class="breadcrumb-item"><a href="../../design/eval/units-and-exact-generators.html">Units and exact generators</a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../../design/eval/cells-assignments.html">Runtime design</a></li><li class="breadcrumb-item"><a href="../../design/eval/rixcel-architecture.html">RiXCel architecture</a></li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
     </div>
@@ -504,7 +539,7 @@ ul.task-list li input[type="checkbox"] {
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../design/eval/units-and-exact-generators.html" class="sidebar-item-text sidebar-link active">
+  <a href="../../design/eval/units-and-exact-generators.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Units and exact generators</span></a>
   </div>
 </li>
@@ -534,7 +569,7 @@ ul.task-list li input[type="checkbox"] {
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../design/eval/rixcel-architecture.html" class="sidebar-item-text sidebar-link">
+  <a href="../../design/eval/rixcel-architecture.html" class="sidebar-item-text sidebar-link active">
  <span class="menu-text">RiXCel architecture</span></a>
   </div>
 </li>
@@ -597,157 +632,162 @@ ul.task-list li input[type="checkbox"] {
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#units-and-exact-generators" id="toc-units-and-exact-generators" class="nav-link active" data-scroll-target="#units-and-exact-generators">Units and Exact Generators</a>
+  <li><a href="#rixcel-architecture" id="toc-rixcel-architecture" class="nav-link active" data-scroll-target="#rixcel-architecture">RiXCel architecture</a>
   <ul class="collapse">
-  <li><a href="#status-and-goal" id="toc-status-and-goal" class="nav-link" data-scroll-target="#status-and-goal">Status and goal</a></li>
-  <li><a href="#rix-collection-registries" id="toc-rix-collection-registries" class="nav-link" data-scroll-target="#rix-collection-registries">RiX collection registries</a></li>
-  <li><a href="#runtime-value-families" id="toc-runtime-value-families" class="nav-link" data-scroll-target="#runtime-value-families">Runtime value families</a></li>
-  <li><a href="#physical-representation" id="toc-physical-representation" class="nav-link" data-scroll-target="#physical-representation">Physical representation</a>
-  <ul class="collapse">
-  <li><a href="#arithmetic" id="toc-arithmetic" class="nav-link" data-scroll-target="#arithmetic">Arithmetic</a></li>
-  <li><a href="#conversion" id="toc-conversion" class="nav-link" data-scroll-target="#conversion">Conversion</a></li>
-  <li><a href="#callable-units-and-affine-coordinates" id="toc-callable-units-and-affine-coordinates" class="nav-link" data-scroll-target="#callable-units-and-affine-coordinates">Callable units and affine coordinates</a></li>
-  </ul></li>
-  <li><a href="#exact-generators-and-relations" id="toc-exact-generators-and-relations" class="nav-link" data-scroll-target="#exact-generators-and-relations">Exact generators and relations</a>
-  <ul class="collapse">
-  <li><a href="#algebraic-division" id="toc-algebraic-division" class="nav-link" data-scroll-target="#algebraic-division">Algebraic division</a></li>
-  </ul></li>
-  <li><a href="#exact-complex-operations" id="toc-exact-complex-operations" class="nav-link" data-scroll-target="#exact-complex-operations">Exact complex operations</a></li>
-  <li><a href="#dispatch-and-sandboxing" id="toc-dispatch-and-sandboxing" class="nav-link" data-scroll-target="#dispatch-and-sandboxing">Dispatch and sandboxing</a></li>
+  <li><a href="#status" id="toc-status" class="nav-link" data-scroll-target="#status">Status</a></li>
+  <li><a href="#vocabulary" id="toc-vocabulary" class="nav-link" data-scroll-target="#vocabulary">Vocabulary</a></li>
+  <li><a href="#separation-of-model-output-and-interaction" id="toc-separation-of-model-output-and-interaction" class="nav-link" data-scroll-target="#separation-of-model-output-and-interaction">Separation of model, output, and interaction</a></li>
+  <li><a href="#portable-sheet-schema" id="toc-portable-sheet-schema" class="nav-link" data-scroll-target="#portable-sheet-schema">Portable Sheet schema</a></li>
+  <li><a href="#address-and-label-convention" id="toc-address-and-label-convention" class="nav-link" data-scroll-target="#address-and-label-convention">Address and label convention</a></li>
+  <li><a href="#data-adapters" id="toc-data-adapters" class="nav-link" data-scroll-target="#data-adapters">Data adapters</a></li>
+  <li><a href="#reactive-document-model" id="toc-reactive-document-model" class="nav-link" data-scroll-target="#reactive-document-model">Reactive document model</a></li>
+  <li><a href="#dependencies-and-cycles" id="toc-dependencies-and-cycles" class="nav-link" data-scroll-target="#dependencies-and-cycles">Dependencies and cycles</a></li>
+  <li><a href="#rank-n-editing" id="toc-rank-n-editing" class="nav-link" data-scroll-target="#rank-n-editing">Rank-N editing</a></li>
+  <li><a href="#security-and-imports" id="toc-security-and-imports" class="nav-link" data-scroll-target="#security-and-imports">Security and imports</a></li>
   </ul></li>
   </ul>
-<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/design/eval/units-and-exact-generators.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/design/eval/rixcel-architecture.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
     </div>
 <!-- main -->
-<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../../design/eval/cells-assignments.html">Runtime design</a></li><li class="breadcrumb-item"><a href="../../design/eval/units-and-exact-generators.html">Units and exact generators</a></li></ol></nav></header>
+<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../../design/eval/cells-assignments.html">Runtime design</a></li><li class="breadcrumb-item"><a href="../../design/eval/rixcel-architecture.html">RiXCel architecture</a></li></ol></nav></header>
 
 
 
 
 
-<section id="units-and-exact-generators" class="level1">
-<h1>Units and Exact Generators</h1>
-<section id="status-and-goal" class="level2">
-<h2 class="anchored" data-anchor-id="status-and-goal">Status and goal</h2>
-<p>This document is the target design for physical quantities and exact symbolic numbers in RiX. It replaces the older idea that scientific, algebraic, and transcendental “units” should all be fields on one wrapper object.</p>
-<p>RiX uses ordinary values and ordinary arithmetic as the primary interface:</p>
-<pre class="rix"><code>m := .Units[:m];
-s := .Units[:s];
-pi := .Exact[:pi];
-
-distance := 3 * m;
-speed := distance / (2 * s);
-circumference := 2 * pi * distance</code></pre>
-<p>The postfix forms are concise sugar over the same values:</p>
-<pre class="rix"><code>3~[m]             ## 3 * .Units[:m]
-9.8~[m/s^2]       ## 9.8 * (.Units[:m] / .Units[:s]^2)
-3~{pi}            ## 3 * .Exact[:pi]</code></pre>
-<p>There is only one runtime model. The sugar does not create string annotations.</p>
+<section id="rixcel-architecture" class="level1">
+<h1>RiXCel architecture</h1>
+<section id="status" class="level2">
+<h2 class="anchored" data-anchor-id="status">Status</h2>
+<p>The first implemented slice is the portable <code>.Sheet(...)</code> output value. It adapts existing tensors, matrices, and sequences into a two-dimensional snapshot with exact values, rank-N plane selection, canonical RiX addresses, and host-neutral text/HTML rendering.</p>
+<p>The reactive RiXCel document, live bindings, and standalone editor remain design and implementation work. See <a href="../../design/eval/rixcel-todo.html">the checklist</a>.</p>
 </section>
-<section id="rix-collection-registries" class="level2">
-<h2 class="anchored" data-anchor-id="rix-collection-registries">RiX collection registries</h2>
-<p><code>.Units</code> and <code>.Exact</code> are system values whose storage is the ordinary RiX map collection type. Keys are canonical strings, normally accessed with colon strings:</p>
-<pre class="rix"><code>.Units[:m]
-.Units[:minute]
-.Exact[:pi]
-.Exact[:sqrt2]</code></pre>
-<p>The default system context loads canonical maps. A host or trusted startup package may augment or replace either map before freezing the system context. A script may also create a lexical overlay:</p>
-<pre class="rix"><code>Units := .Units.Merge({= fortnight = customFortnight })
-Exact := .Exact.Merge({= tau = 2 * .Exact[:pi] })</code></pre>
-<p>Unit and exact sugar first consults a lexical <code>Units</code> or <code>Exact</code> map, when present, and otherwise consults the system map. Explicit lookup always uses the map named by the program.</p>
-<p>Registry entries are values, not special parser symbols. They may be assigned, passed to functions, stored in other collections, and used as map keys through their stable <code>.key</code> identity.</p>
-</section>
-<section id="runtime-value-families" class="level2">
-<h2 class="anchored" data-anchor-id="runtime-value-families">Runtime value families</h2>
-<p>The physical side has three related values:</p>
+<section id="vocabulary" class="level2">
+<h2 class="anchored" data-anchor-id="vocabulary">Vocabulary</h2>
+<p>RiX already uses <strong>Cell</strong> for the mutable box behind a scope binding. RiXCel therefore uses distinct internal terms:</p>
 <ul>
-<li><code>Unit</code>: a named linear or affine unit definition.</li>
-<li><code>UnitExpr</code>: a product, quotient, or power of linear units.</li>
-<li><code>Quantity</code>: a scalar magnitude with physical dimensions and a display unit.</li>
+<li><strong>slot</strong>: a sheet coordinate containing RiX source and presentation metadata;</li>
+<li><strong>RiX Cell</strong>: a runtime binding box with alias/copy/update semantics;</li>
+<li><strong>block</strong>: a rectangular or tensor-shaped selection of slots;</li>
+<li><strong>sheet</strong>: a sparse rank-N collection of slots;</li>
+<li><strong>sheet view</strong>: a portable 2D presentation of an indexable value or sheet;</li>
+<li><strong>widget session</strong>: a host-owned interactive rendering connected to state.</li>
 </ul>
-<p>The exact side has two:</p>
+<p>User-facing UI may still say “cell,” because that is familiar spreadsheet language. Runtime and storage code should use <code>slot</code> where ambiguity matters.</p>
+</section>
+<section id="separation-of-model-output-and-interaction" class="level2">
+<h2 class="anchored" data-anchor-id="separation-of-model-output-and-interaction">Separation of model, output, and interaction</h2>
+<pre class="text"><code>RiX value or RiXCel document
+             |
+             v
+      portable Sheet value
+             |
+             v
+         host renderer
+             |
+             v
+     semantic edit event
+             |
+             v
+   Binding or update function
+             |
+             +----&gt; refreshed model and Sheet</code></pre>
+<p><code>Sheet</code> follows the existing structured-output rule: it is immutable, serializable in principle, and renderer-independent. A renderer must not write through it.</p>
+<p>A future <code>Widget</code> owns a live session. Its events should be semantic records, not DOM events:</p>
+<pre class="rix"><code>{= kind=:select, index=[2,3] }
+{= kind=:edit, index=[2,3], source="price * quantity" }
+{= kind=:paste, range=[[2,3], [8,5]], values=data }</code></pre>
+<p>The same protocol can support interactive graphics:</p>
+<pre class="rix"><code>{= kind=:drag, target=:pointA, position=[4,7] }</code></pre>
+</section>
+<section id="portable-sheet-schema" class="level2">
+<h2 class="anchored" data-anchor-id="portable-sheet-schema">Portable Sheet schema</h2>
+<p>The implemented <code>Sheet</code> value contains:</p>
 <ul>
-<li><code>ExactGenerator</code>: an interned algebraic or transcendental generator.</li>
-<li><code>ExactExpression</code>: a sparse sum of coefficients times canonical monomials.</li>
+<li>source kind (<code>tensor</code>, <code>matrix</code>, or <code>sequence</code>);</li>
+<li>full rank and shape;</li>
+<li>names for every axis;</li>
+<li>the one or two visible axes;</li>
+<li>fixed indices for hidden axes;</li>
+<li>display row and column headers;</li>
+<li>a rectangular array of visible cell records;</li>
+<li>an address base such as <code>grid</code>;</li>
+<li>optional title and presentation options.</li>
 </ul>
-<p>A <code>Quantity</code> magnitude may itself be an <code>ExactExpression</code>. Thus π radians is a composition of the two systems rather than a special transcendental unit.</p>
+<p>Each visible cell record contains:</p>
+<pre class="text"><code>value    exact RiX value
+index    full 1-based rank-N index
+address  canonical source-like address, for example grid[2,3,1]</code></pre>
+<p>The record intentionally has room to grow. A RiXCel-backed adapter will later add source, assignment mode, diagnostics, and stable slot identity without requiring renderers to infer those from the displayed value.</p>
 </section>
-<section id="physical-representation" class="level2">
-<h2 class="anchored" data-anchor-id="physical-representation">Physical representation</h2>
-<p>Every unit resolves to a coherent base representation:</p>
-<pre class="text"><code>unit = dimensions + scale + offset + display name
-base magnitude = displayed magnitude * scale + offset</code></pre>
-<p>Dimensions use stable semantic names such as <code>Length</code>, <code>Time</code>, <code>Mass</code>, and <code>Angle</code>; they do not use display unit names. Conversion factors are exact RiX numeric values, normally <code>Integer</code> or <code>Rational</code>, never JavaScript floats.</p>
-<p>Quantities retain a display unit but store a coherent base magnitude. This makes compatibility and arithmetic independent of presentation.</p>
-<section id="arithmetic" class="level3">
-<h3 class="anchored" data-anchor-id="arithmetic">Arithmetic</h3>
-<pre class="rix"><code>60~[s] + 2~[min]      ## 180~[s]
-2~[min] + 60~[s]      ## 3~[min]
-2~[m] + 3~[s]         ## error: incompatible dimensions
-3~[m] * 2~[s]         ## 6~[m*s]
-5~[m] / 2~[m]         ## 5/2 (dimensionless)
-3 / .Units[:m]        ## 3~[m^-1]</code></pre>
-<p>Addition, subtraction, comparison, and explicit conversion require equal dimension vectors. Compatible addition converts the right operand to the left operand’s display unit and preserves that display. The coherent internal unit remains unchanged. This is silent by default; setting <code>warnings.implicitUnitConversion</code> enables a diagnostic whenever the displayed units differ.</p>
-<p>Multiplication, division, and integer powers combine dimension vectors. Unknown unit names are errors at construction time.</p>
+<section id="address-and-label-convention" class="level2">
+<h2 class="anchored" data-anchor-id="address-and-label-convention">Address and label convention</h2>
+<p>Canonical references use tensor-style RiX syntax:</p>
+<pre class="rix"><code>grid[2,3]
+grid[1:10, 2:5]
+grid[::, 2]</code></pre>
+<p>Spreadsheet labels such as <code>C2</code> are presentation and navigation aliases. A host should display both when useful:</p>
+<pre class="text"><code>C2 · grid[2,3]</code></pre>
+<p>Formula editing should insert canonical addresses when the user points at a slot. This avoids introducing <code>A1:B4</code> into the RiX grammar, where uppercase identifiers and colon intervals already have meanings.</p>
+<p>Planned contextual names are:</p>
+<pre class="rix"><code>row
+col
+index
+near[0,-1]
+book[:sales][2,3]
+names[:tax_rate]
+imports[:rates][:usd][1,1]</code></pre>
+<p>These names belong to the future RiXCel evaluation environment, not the portable <code>Sheet</code> constructor.</p>
 </section>
-<section id="conversion" class="level3">
-<h3 class="anchored" data-anchor-id="conversion">Conversion</h3>
-<p>The source unit is already part of a quantity and must not be repeated:</p>
-<pre class="rix"><code>.ConvertUnit(90~[s], .Units[:min])    ## 3/2~[min]
-.ConvertUnit(1~[mi], "km")           ## target strings are also accepted</code></pre>
+<section id="data-adapters" class="level2">
+<h2 class="anchored" data-anchor-id="data-adapters">Data adapters</h2>
+<p>Four conversions are deliberately different:</p>
+<ol type="1">
+<li><code>.Sheet(value)</code> creates a read-only snapshot.</li>
+<li>A future <code>.Sheet(.Bind(value))</code> creates a live value editor.</li>
+<li><code>RiXCel.From(value)</code> will materialize literal RiX source into independent formula slots.</li>
+<li>A linked import will create slot formulas that depend on the original value.</li>
+</ol>
+<p>The UI must ask which behavior is intended rather than guessing.</p>
 </section>
-<section id="callable-units-and-affine-coordinates" class="level3">
-<h3 class="anchored" data-anchor-id="callable-units-and-affine-coordinates">Callable units and affine coordinates</h3>
-<p>Every unit value constructs a quantity from one scalar argument:</p>
-<pre class="rix"><code>.Units[:m](3)
-.Units[:degC](20)</code></pre>
-<p>For a lowercase local binding, RiX’s existing adjacency rule makes <code>m(3)</code> the same construction as <code>m * 3</code>.</p>
-<p>Affine coordinates such as Celsius and Fahrenheit are callable, but cannot be multiplied into compound unit expressions. Temperature differences use linear units such as <code>deltaDegC</code>.</p>
+<section id="reactive-document-model" class="level2">
+<h2 class="anchored" data-anchor-id="reactive-document-model">Reactive document model</h2>
+<p>A RiXCel document should be a sparse rank-N collection. A slot will eventually store at least:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode json code-with-copy"><code class="sourceCode json"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"id"</span><span class="fu">:</span> <span class="st">"stable-slot-id"</span><span class="fu">,</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"op"</span><span class="fu">:</span> <span class="st">":="</span><span class="fu">,</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"code"</span><span class="fu">:</span> <span class="st">"price * quantity"</span><span class="fu">,</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"style"</span><span class="fu">:</span> <span class="fu">{},</span></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"cache"</span><span class="fu">:</span> <span class="fu">{</span></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"value"</span><span class="fu">:</span> <span class="kw">null</span><span class="fu">,</span></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"inputHash"</span><span class="fu">:</span> <span class="kw">null</span></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">}</span></span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Source is authoritative. Cached values are optional and valid only when their input and runtime hashes match.</p>
+<p>The default implied assignment is <code>:=</code>. An explicit leading <code>=</code>, <code>~=</code>, <code>::=</code>, or <code>~~=</code> retains its RiX binding meaning; it is not decorative spreadsheet syntax.</p>
 </section>
+<section id="dependencies-and-cycles" class="level2">
+<h2 class="anchored" data-anchor-id="dependencies-and-cycles">Dependencies and cycles</h2>
+<p>Dependencies should be recorded through runtime reads of sheet proxies. This supports computed references and conditionally changing dependencies.</p>
+<p>Evaluation uses a visiting/evaluated state:</p>
+<ol type="1">
+<li>mark the requested slot as visiting;</li>
+<li>evaluate its source;</li>
+<li>when another slot is read, evaluate or reuse it and record the edge;</li>
+<li>reading a visiting slot reports the complete cycle path;</li>
+<li>on success, cache the result and mark the slot evaluated.</li>
+</ol>
+<p>Normal formula evaluation may read slots but must not write other slots. Cross-slot writes require a future explicit action/widget mechanism.</p>
 </section>
-<section id="exact-generators-and-relations" class="level2">
-<h2 class="anchored" data-anchor-id="exact-generators-and-relations">Exact generators and relations</h2>
-<p>“Exact generator” is the umbrella term. Algebraic generators and named transcendental constants have different reduction behavior:</p>
-<pre class="rix"><code>i := .Exact[:i];            ## algebraic: i^2 + 1 = 0
-sqrt2 := .Exact[:sqrt2];    ## algebraic: sqrt2^2 - 2 = 0
-pi := .Exact[:pi]           ## named transcendental constant</code></pre>
-<p>Exact expressions are sparse tables keyed internally by canonical monomials. Generator objects have stable identities and can also be RiX map keys.</p>
-<p>Algebraic generators record a monic minimal polynomial and powers are reduced by it. Aliases share identity. Distinct transcendental generators are assumed algebraically independent unless the registry explicitly supplies a relation; RiX cannot infer independence that is unknown mathematically.</p>
-<p>Examples:</p>
-<pre class="rix"><code>i^2                    ## -1
-.Exact[:sqrt2]^2       ## 2
-1 + 3~{sqrt2}          ## exact expression
-(3/2)~{pi}             ## exact rational multiple of pi
-1~{pi}~[rad]           ## exact quantity: pi radians</code></pre>
-<section id="algebraic-division" class="level3">
-<h3 class="anchored" data-anchor-id="algebraic-division">Algebraic division</h3>
-<p>An exact expression involving one registered algebraic generator is an element of a polynomial quotient field. RiX uses the extended Euclidean algorithm against that generator’s minimal polynomial to compute inverses:</p>
-<pre class="rix"><code>1 / .Exact[:i]                              ## -1~{i}
-(1 + .Exact[:i]) / (1 - .Exact[:i])        ## 1~{i}
-1 / (1 + .Exact[:sqrt2])                    ## -1 + 1~{sqrt2}</code></pre>
-<p>This applies to user-defined algebraic generators as well. Division by a multi-term transcendental expression or an expression mixing independent generators remains unsupported; RiX reports that boundary instead of silently approximating it.</p>
+<section id="rank-n-editing" class="level2">
+<h2 class="anchored" data-anchor-id="rank-n-editing">Rank-N editing</h2>
+<p>Storage is rank-N from the beginning. The first standalone editor can remain two-dimensional: two axes are shown as the grid, and every additional axis is represented by a selector, tab, or slider.</p>
+<p>A tensor-valued slot does not automatically occupy neighboring slots. It renders as an embedded value until explicit spill/materialization semantics are designed.</p>
 </section>
-</section>
-<section id="exact-complex-operations" class="level2">
-<h2 class="anchored" data-anchor-id="exact-complex-operations">Exact complex operations</h2>
-<p><code>.Complex</code> is another ordinary RiX map system value built over the canonical <code>i</code> entry in <code>.Exact</code>. It exposes operations both as attached methods and as map entries:</p>
-<pre class="rix"><code>z := 3 + 4~{i};
-.Complex.Conjugate(z)       ## 3 - 4~{i}
-.Complex.Re(z)              ## 3
-.Complex.Im(z)              ## 4
-.Complex.NormSquared(z)     ## 25
-.Complex.FromParts(3, 4)    ## 3 + 4~{i}</code></pre>
-<p>Exact expressions also expose receiver methods:</p>
-<pre class="rix"><code>z.Conjugate()
-z.Re()
-z.Im()
-z.NormSquared()</code></pre>
-<p><code>Re</code> and <code>Im</code> treat registered generators other than <code>i</code> as real coefficients. <code>NormSquared</code> is exact and avoids choosing a square-root representation. RiX also provides an exact <a href="../../design/eval/cayley-polar.html">Cayley polar representation</a> for Gaussian rational inputs. It adjoins the positive algebraic magnitude root and stores direction as the tangent-half-angle coordinate instead of a transcendental angle. <code>Arg</code> remains deferred until RiX has settled its real-number and trigonometric policies.</p>
-</section>
-<section id="dispatch-and-sandboxing" class="level2">
-<h2 class="anchored" data-anchor-id="dispatch-and-sandboxing">Dispatch and sandboxing</h2>
-<p><code>Unit</code>, <code>UnitExpr</code>, <code>Quantity</code>, <code>ExactGenerator</code>, and <code>ExactExpression</code> install variants into RiX’s existing arithmetic multifunctions. Generic arithmetic does not contain ad-hoc unit branches.</p>
-<p>Reading <code>.Units</code> and <code>.Exact</code> is part of the <code>Units</code> and <code>Exact</code> capability groups; <code>.Complex</code> belongs to the <code>Exact</code> group. Mutation of the system collections is restricted to host construction or trusted startup. Ordinary scripts can freely build local map overlays.</p>
+<section id="security-and-imports" class="level2">
+<h2 class="anchored" data-anchor-id="security-and-imports">Security and imports</h2>
+<p>RiXCel imports should reuse RiX script capability groups and explicit import/export contracts. A browser host resolves document-relative resources through a virtual document resolver rather than granting formulas arbitrary filesystem or network access.</p>
+<p>Imported spreadsheet formulas are data until explicitly translated to RiX. Unsupported foreign formulas must be preserved as metadata and must not be executed.</p>
 
 
 </section>
@@ -1174,13 +1214,13 @@ z.NormSquared()</code></pre>
   </script>
 <nav class="page-navigation">
   <div class="nav-page nav-page-previous">
-      <a href="../../design/eval/cells-assignments.html" class="pagination-link" aria-label="Cells and assignment">
-        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">Cells and assignment</span>
+      <a href="../../design/eval/output-model.html" class="pagination-link" aria-label="Structured output, documents, and graphics">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">Structured output, documents, and graphics</span>
       </a>          
   </div>
   <div class="nav-page nav-page-next">
-      <a href="../../design/eval/cayley-polar.html" class="pagination-link" aria-label="Cayley polar complex values">
-        <span class="nav-page-text">Cayley polar complex values</span> <i class="bi bi-arrow-right-short"></i>
+      <a href="../../design/eval/rixcel-todo.html" class="pagination-link" aria-label="RiXCel implementation checklist">
+        <span class="nav-page-text">RiXCel implementation checklist</span> <i class="bi bi-arrow-right-short"></i>
       </a>
   </div>
 </nav>
@@ -1192,7 +1232,7 @@ z.NormSquared()</code></pre>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
-    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/design/eval/units-and-exact-generators.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/design/eval/rixcel-architecture.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
     <div class="nav-footer-right">
 <p>Documentation built with <a href="https://quarto.org/">Quarto</a></p>
 </div>

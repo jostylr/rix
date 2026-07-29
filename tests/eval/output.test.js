@@ -11,6 +11,86 @@ describe("portable structured output", () => {
         expect(renderOutputHtml(table, formatValue)).toContain("rix-output-table");
     });
 
+    test("Sheet creates a portable tensor view with canonical RiX addresses", () => {
+        const sheet = parseAndEvaluate(`
+            m := {:2x3: 1, 2, 3; 4, 5, 6};
+            .Sheet(m, {= title="Matrix view" })
+        `);
+        expect(sheet.type).toBe("output");
+        expect(sheet.kind).toBe("sheet");
+        expect(sheet.sourceKind).toBe("tensor");
+        expect(sheet.shape).toEqual([2, 3]);
+        expect(sheet.viewAxes).toEqual([1, 2]);
+        expect(sheet.columnHeaders).toEqual(["A · 1", "B · 2", "C · 3"]);
+        expect(sheet.cells[1][2].address).toBe("grid[2,3]");
+        expect(formatValue(sheet.cells[1][2].value)).toBe("6");
+
+        const text = formatValue(sheet);
+        expect(text).toContain("Sheet: Matrix view · grid · shape 2×3");
+        expect(text).toContain("C · 3");
+
+        const html = renderOutputHtml(sheet, formatValue);
+        expect(html).toContain('class="rix-output-sheet"');
+        expect(html).toContain('data-rix-address="grid[2,3]"');
+        expect(html).toContain(">C · 3</th>");
+    });
+
+    test("Sheet selects planes and alternate visible axes from rank-N tensors", () => {
+        const depthPlane = parseAndEvaluate(`
+            t := {:2x3x2: 1, 2, 3; 4, 5, 6 ;; 7, 8, 9; 10, 11, 12};
+            .Sheet(t, {=
+                axes=["row", "column", "depth"],
+                slice=[_, _, 2],
+                address="cube"
+            })
+        `);
+        expect(depthPlane.axes).toEqual(["row", "column", "depth"]);
+        expect(depthPlane.slice).toEqual([null, null, 2]);
+        expect(depthPlane.cells.map((row) => row.map((cell) => formatValue(cell.value)))).toEqual([
+            ["7", "8", "9"],
+            ["10", "11", "12"],
+        ]);
+        expect(depthPlane.cells[0][2]).toMatchObject({
+            index: [1, 3, 2],
+            address: "cube[1,3,2]",
+        });
+
+        const rowDepth = parseAndEvaluate(`
+            t := {:2x3x2: 1, 2, 3; 4, 5, 6 ;; 7, 8, 9; 10, 11, 12};
+            .Sheet(t, {= viewAxes=[1, 3], slice=[_, 2, _], columnLabels=:numbers })
+        `);
+        expect(rowDepth.viewAxes).toEqual([1, 3]);
+        expect(rowDepth.columnHeaders).toEqual(["1", "2"]);
+        expect(rowDepth.cells.map((row) => row.map((cell) => formatValue(cell.value)))).toEqual([
+            ["2", "8"],
+            ["5", "11"],
+        ]);
+        expect(rowDepth.cells[1][1].address).toBe("grid[2,2,2]");
+    });
+
+    test("Sheet adapts matrices and rank-1 sequences", () => {
+        const matrix = parseAndEvaluate(".Sheet([1, 2; 3, 4])");
+        expect(matrix.sourceKind).toBe("matrix");
+        expect(matrix.shape).toEqual([2, 2]);
+        expect(formatValue(matrix.cells[1][0].value)).toBe("3");
+
+        const vector = parseAndEvaluate('.Sheet([10, 20], {= address="vector", columnLabels=:letters })');
+        expect(vector.shape).toEqual([2]);
+        expect(vector.viewAxes).toEqual([1]);
+        expect(vector.columnHeaders).toEqual(["A"]);
+        expect(vector.cells[1][0].address).toBe("vector[2]");
+        expect(formatValue(vector.cells[1][0].value)).toBe("20");
+    });
+
+    test("Sheet validates view axes, slices, and ragged rows", () => {
+        expect(() => parseAndEvaluate(".Sheet({:2x2x2:}, {= viewAxes=[1, 1] })"))
+            .toThrow("viewAxes must be distinct");
+        expect(() => parseAndEvaluate(".Sheet({:2x2x2:}, {= slice=[_, _, 3] })"))
+            .toThrow("out of range");
+        expect(() => parseAndEvaluate(".Sheet([[1], [2, 3]])"))
+            .toThrow("rows must have equal lengths");
+    });
+
     test("Algebra.SyntheticDivision returns a ruled Grid with exact arithmetic", () => {
         const division = parseAndEvaluate(".Algebra.SyntheticDivision(1, [2, -6, 2, -1])");
         expect(division.type).toBe("output");

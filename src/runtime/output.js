@@ -1,6 +1,7 @@
 /** Portable structured-output values and host-neutral render helpers. */
 
 import { Integer, Rational } from "@ratmath/core";
+import { isTensor, tensorGetBySelectors } from "./tensor.js";
 
 const int = (value) => new Integer(BigInt(value));
 const isSequence = (value) => value && ["sequence", "tuple", "set", "array"].includes(value.type);
@@ -133,6 +134,188 @@ export function createGrid(args) {
         rows,
         rules: sequence(get(entry, "rules", { type: "sequence", values: [] }), "Grid rules"),
         style: optionalMap(get(entry, "style"), "Grid style"),
+    });
+}
+
+function sheetData(value) {
+    if (isTensor(value)) {
+        if (value.shape.length === 0) throw new Error("Sheet data must have rank 1 or greater");
+        return {
+            kind: "tensor",
+            shape: [...value.shape],
+            at: (index) => tensorGetBySelectors(
+                value,
+                index.map((item) => ({ kind: "index", value: item })),
+            ),
+        };
+    }
+
+    if (value?.type === "matrix" && Array.isArray(value.rows)) {
+        const rows = value.rows.map((row, index) => sequence(row, `Sheet matrix row ${index + 1}`));
+        const columns = rows[0]?.length ?? 0;
+        if (!rows.every((row) => row.length === columns)) throw new Error("Sheet matrix rows must have equal lengths");
+        return {
+            kind: "matrix",
+            shape: [rows.length, columns],
+            at: ([row, column]) => rows[row - 1][column - 1],
+        };
+    }
+
+    if (Array.isArray(value) || isSequence(value)) {
+        const values = sequence(value, "Sheet data");
+        const nested = values.length > 0 && values.every((item) => Array.isArray(item) || isSequence(item));
+        if (nested) {
+            const rows = values.map((row, index) => sequence(row, `Sheet row ${index + 1}`));
+            const columns = rows[0]?.length ?? 0;
+            if (!rows.every((row) => row.length === columns)) throw new Error("Sheet rows must have equal lengths");
+            return {
+                kind: "sequence",
+                shape: [rows.length, columns],
+                at: ([row, column]) => rows[row - 1][column - 1],
+            };
+        }
+        return {
+            kind: "sequence",
+            shape: [values.length],
+            at: ([row]) => values[row - 1],
+        };
+    }
+
+    throw new Error("Sheet data must be a tensor, matrix, array, tuple, or sequence");
+}
+
+function normalizedSheetIndex(value, length, label) {
+    const index = exactInteger(value, label);
+    const normalized = index < 0 ? length + index + 1 : index;
+    if (normalized < 1 || normalized > length) {
+        throw new Error(`${label} ${index} is out of range for length ${length}`);
+    }
+    return normalized;
+}
+
+function spreadsheetColumnLabel(index) {
+    let label = "";
+    let current = index;
+    while (current > 0) {
+        current -= 1;
+        label = String.fromCharCode(65 + (current % 26)) + label;
+        current = Math.floor(current / 26);
+    }
+    return label;
+}
+
+function sheetColumnLabel(index, mode) {
+    if (mode === "letters") return spreadsheetColumnLabel(index);
+    if (mode === "numbers") return String(index);
+    return `${spreadsheetColumnLabel(index)} · ${index}`;
+}
+
+function sheetField(entry, options, name, fallback = null) {
+    const optionValue = options ? get(options, name) : null;
+    return optionValue ?? get(entry, name, fallback);
+}
+
+/**
+ * Create a portable, immutable sheet snapshot from rank-1+ indexable data.
+ *
+ * A Sheet is deliberately not a live binding. Each visible cell retains its
+ * source index and canonical RiX address so a future Widget host can attach
+ * selection and edit events without changing the portable output schema.
+ */
+export function createSheet(args) {
+    const entry = spec(args, ["data", "options"], "Sheet");
+    const data = sheetData(get(entry, "data"));
+    const optionsValue = get(entry, "options");
+    const options = optionsValue === null || optionsValue === undefined
+        ? null
+        : map(optionsValue, "Sheet options");
+    const rank = data.shape.length;
+
+    const viewAxesValue = sheetField(entry, options, "viewAxes");
+    const defaultViewAxes = rank === 1 ? [1] : [1, 2];
+    const viewAxes = viewAxesValue === null
+        ? defaultViewAxes
+        : sequence(viewAxesValue, "Sheet viewAxes").map((axis, index) =>
+            normalizedSheetIndex(axis, rank, `Sheet view axis ${index + 1}`));
+    const expectedViewAxisCount = rank === 1 ? 1 : 2;
+    if (viewAxes.length !== expectedViewAxisCount) {
+        throw new Error(`Sheet viewAxes must contain ${expectedViewAxisCount} ${expectedViewAxisCount === 1 ? "axis" : "axes"}`);
+    }
+    if (new Set(viewAxes).size !== viewAxes.length) throw new Error("Sheet viewAxes must be distinct");
+
+    const visibleAxes = new Set(viewAxes);
+    const sliceValue = sheetField(entry, options, "slice");
+    const requestedSlice = sliceValue === null ? null : sequence(sliceValue, "Sheet slice");
+    if (requestedSlice !== null && requestedSlice.length !== rank) {
+        throw new Error(`Sheet slice must contain ${rank} entries`);
+    }
+    const slice = requestedSlice === null
+        ? data.shape.map((_length, index) => visibleAxes.has(index + 1) ? null : 1)
+        : requestedSlice.map((item, index) => {
+            const axis = index + 1;
+            if (visibleAxes.has(axis)) {
+                if (item !== null) throw new Error(`Sheet slice axis ${axis} must be _ because it is visible`);
+                return null;
+            }
+            if (data.shape[index] === 0) throw new Error(`Sheet cannot select empty hidden axis ${axis}`);
+            return normalizedSheetIndex(item, data.shape[index], `Sheet slice axis ${axis}`);
+        });
+
+    const axesValue = sheetField(entry, options, "axes");
+    const axes = axesValue === null
+        ? data.shape.map((_length, index) => `axis${index + 1}`)
+        : sequence(axesValue, "Sheet axes").map((axis, index) => {
+            const name = asString(axis);
+            if (name === null || name.length === 0) throw new Error(`Sheet axis ${index + 1} must have a nonempty string name`);
+            return name;
+        });
+    if (axes.length !== rank) throw new Error(`Sheet axes must contain ${rank} names`);
+
+    const addressBase = asString(sheetField(entry, options, "address", { type: "string", value: "grid" }));
+    if (addressBase === null || addressBase.length === 0) throw new Error("Sheet address must be a nonempty string");
+    const columnLabelMode = asString(sheetField(entry, options, "columnLabels", { type: "string", value: "dual" }));
+    if (!["dual", "letters", "numbers"].includes(columnLabelMode)) {
+        throw new Error("Sheet columnLabels must be :dual, :letters, or :numbers");
+    }
+    const titleValue = sheetField(entry, options, "title");
+    const title = titleValue === null ? null : asString(titleValue);
+    if (titleValue !== null && title === null) throw new Error("Sheet title must be a string");
+
+    const rowAxis = viewAxes[0];
+    const columnAxis = viewAxes[1] ?? null;
+    const rowCount = data.shape[rowAxis - 1];
+    const columnCount = columnAxis === null ? 1 : data.shape[columnAxis - 1];
+    const rowHeaders = Array.from({ length: rowCount }, (_item, index) => String(index + 1));
+    const columnHeaders = Array.from(
+        { length: columnCount },
+        (_item, index) => sheetColumnLabel(index + 1, columnLabelMode),
+    );
+    const cells = Array.from({ length: rowCount }, (_row, rowIndex) =>
+        Array.from({ length: columnCount }, (_column, columnIndex) => {
+            const index = slice.map((item) => item);
+            index[rowAxis - 1] = rowIndex + 1;
+            if (columnAxis !== null) index[columnAxis - 1] = columnIndex + 1;
+            return Object.freeze({
+                value: data.at(index),
+                index: Object.freeze(index),
+                address: `${addressBase}[${index.join(",")}]`,
+            });
+        }));
+
+    return output("sheet", {
+        sourceKind: data.kind,
+        rank,
+        shape: Object.freeze([...data.shape]),
+        axes: Object.freeze(axes),
+        viewAxes: Object.freeze(viewAxes),
+        slice: Object.freeze(slice),
+        addressBase,
+        title,
+        columnLabelMode,
+        rowHeaders: Object.freeze(rowHeaders),
+        columnHeaders: Object.freeze(columnHeaders),
+        cells: Object.freeze(cells.map((row) => Object.freeze(row))),
+        options,
     });
 }
 
@@ -512,6 +695,27 @@ export function renderGraphicSvg(graphic, format = (item) => String(item ?? ""))
     return `<svg class="rix-output-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size[0]} ${size[1]}" width="${size[0]}" height="${size[1]}" role="img">${defs.length ? `<defs>${defs.join("")}</defs>` : ""}${children}</svg>`;
 }
 
+function formatSheetText(sheet, format) {
+    const strings = sheet.cells.map((row) => row.map((cell) => cellText(cell.value, format)));
+    const rowHeaderWidth = Math.max(1, ...sheet.rowHeaders.map((header) => header.length));
+    const columnWidths = sheet.columnHeaders.map((header, column) =>
+        Math.max(header.length, 1, ...strings.map((row) => row[column]?.length ?? 0)));
+    const heading = [
+        sheet.title ? `Sheet: ${sheet.title}` : "Sheet",
+        sheet.addressBase,
+        `shape ${sheet.shape.join("×")}`,
+        `view axes ${sheet.viewAxes.join(",")}`,
+    ].join(" · ");
+    const header = `${"".padStart(rowHeaderWidth)}  ${sheet.columnHeaders
+        .map((label, column) => label.padStart(columnWidths[column]))
+        .join("  ")}`;
+    const rows = strings.map((row, rowIndex) =>
+        `${sheet.rowHeaders[rowIndex].padStart(rowHeaderWidth)}  ${row
+            .map((cell, column) => cell.padStart(columnWidths[column]))
+            .join("  ")}`);
+    return [heading, header, ...rows].join("\n");
+}
+
 export function formatOutputText(value, format) {
     if (!isOutputValue(value)) return format(value);
     if (value.kind === "text") return cellText(value.value, format);
@@ -535,6 +739,7 @@ export function formatOutputText(value, format) {
         }
         return lines.join("\n");
     }
+    if (value.kind === "sheet") return formatSheetText(value, format);
     if (value.kind === "figure") return [formatOutputText(value.content, format), value.caption].filter(Boolean).join("\n");
     if (value.kind === "graphic") return `[Graphic: ${cellText(value.size[0], format)} × ${cellText(value.size[1], format)}, ${value.children.length} scene nodes]`;
     if (value.kind === "path") return value.commands ? `[Path: ${value.commands.length} commands]` : `[Path: ${value.points.length} points]`;
@@ -552,6 +757,10 @@ export function renderOutputHtml(value, format = (item) => String(item ?? "")) {
     if (value.kind === "fragment") return `<section class="rix-output-fragment">${value.children.map((child) => renderOutputHtml(child, format)).join("")}</section>`;
     if (value.kind === "table") return `<table class="rix-output-table">${value.caption ? `<caption>${escapeHtml(value.caption)}</caption>` : ""}<thead><tr>${value.columns.map((column) => `<th>${escapeHtml(column.label)}</th>`).join("")}</tr></thead><tbody>${value.rows.map((row) => `<tr>${row.map((cell) => `<td>${text(cell)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
     if (value.kind === "grid") return `<table class="rix-output-grid"><tbody>${value.rows.map((row, rowIndex) => `<tr${hasRule(value, "horizontal", rowIndex + 1) ? " class=\"rix-grid-rule-top\"" : ""}>${row.map((cell, column) => `<td${hasRule(value, "vertical", column + 1) ? " class=\"rix-grid-rule-left\"" : ""}>${text(cell)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+    if (value.kind === "sheet") {
+        const summary = `${value.addressBase} · shape ${value.shape.join("×")}`;
+        return `<section class="rix-output-sheet" data-rix-rank="${value.rank}">${value.title ? `<h3 class="rix-output-sheet-title">${escapeHtml(value.title)}</h3>` : ""}<div class="rix-output-sheet-location">${escapeHtml(summary)}</div><table><thead><tr><th class="rix-output-sheet-corner" scope="col">${escapeHtml(value.addressBase)}</th>${value.columnHeaders.map((header, column) => `<th scope="col" data-rix-column="${column + 1}">${escapeHtml(header)}</th>`).join("")}</tr></thead><tbody>${value.cells.map((row, rowIndex) => `<tr><th scope="row" data-rix-row="${rowIndex + 1}">${escapeHtml(value.rowHeaders[rowIndex])}</th>${row.map((cell) => `<td data-rix-address="${escapeHtml(cell.address)}" title="${escapeHtml(cell.address)}">${text(cell.value)}</td>`).join("")}</tr>`).join("")}</tbody></table></section>`;
+    }
     if (value.kind === "figure") return `<figure class="rix-output-figure"${value.label ? ` id="${escapeHtml(value.label)}"` : ""}>${renderOutputHtml(value.content, format)}${value.caption ? `<figcaption>${escapeHtml(value.caption)}</figcaption>` : ""}</figure>`;
     if (value.kind === "graphic") return `<div class="rix-output-graphic">${renderGraphicSvg(value, format)}</div>`;
     if (value.kind === "slide") return `<section class="rix-output-slide">${value.title ? `<h2>${escapeHtml(value.title)}</h2>` : ""}${renderOutputHtml(value.content, format)}</section>`;

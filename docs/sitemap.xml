@@ -13,6 +13,10 @@
     <lastmod>2026-07-20T13:55:40.119Z</lastmod>
   </url>
   <url>
+    <loc>https://jostylr.github.io/rix/design/eval/rixcel-architecture.html</loc>
+    <lastmod>2026-07-29T21:42:59.133Z</lastmod>
+  </url>
+  <url>
     <loc>https://jostylr.github.io/rix/design/eval/transformation-reference.html</loc>
     <lastmod>2026-07-15T17:27:28.689Z</lastmod>
   </url>
@@ -46,39 +50,43 @@
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/reference/system-reference.html</loc>
-    <lastmod>2026-07-29T20:28:47.216Z</lastmod>
+    <lastmod>2026-07-29T21:44:24.352Z</lastmod>
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/eval/methods-guide.html</loc>
     <lastmod>2026-07-13T17:41:11.072Z</lastmod>
   </url>
   <url>
-    <loc>https://jostylr.github.io/rix/tutorial/units-and-exact-values.html</loc>
-    <lastmod>2026-07-28T14:44:59.964Z</lastmod>
+    <loc>https://jostylr.github.io/rix/eval/sheet-guide.html</loc>
+    <lastmod>2026-07-29T21:42:59.020Z</lastmod>
   </url>
   <url>
-    <loc>https://jostylr.github.io/rix/introduction.html</loc>
-    <lastmod>2026-07-29T20:28:21.732Z</lastmod>
-  </url>
-  <url>
-    <loc>https://jostylr.github.io/rix/language-at-a-glance.html</loc>
-    <lastmod>2026-07-29T15:38:49.881Z</lastmod>
-  </url>
-  <url>
-    <loc>https://jostylr.github.io/rix/index.html</loc>
-    <lastmod>2026-07-17T16:23:43.488Z</lastmod>
-  </url>
-  <url>
-    <loc>https://jostylr.github.io/rix/getting-started.html</loc>
-    <lastmod>2026-07-13T19:54:43.524Z</lastmod>
+    <loc>https://jostylr.github.io/rix/status.html</loc>
+    <lastmod>2026-07-20T13:51:46.845Z</lastmod>
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/highlights.html</loc>
     <lastmod>2026-07-12T18:20:36.996Z</lastmod>
   </url>
   <url>
-    <loc>https://jostylr.github.io/rix/status.html</loc>
-    <lastmod>2026-07-20T13:51:46.845Z</lastmod>
+    <loc>https://jostylr.github.io/rix/getting-started.html</loc>
+    <lastmod>2026-07-13T19:54:43.524Z</lastmod>
+  </url>
+  <url>
+    <loc>https://jostylr.github.io/rix/index.html</loc>
+    <lastmod>2026-07-17T16:23:43.488Z</lastmod>
+  </url>
+  <url>
+    <loc>https://jostylr.github.io/rix/language-at-a-glance.html</loc>
+    <lastmod>2026-07-29T15:38:49.881Z</lastmod>
+  </url>
+  <url>
+    <loc>https://jostylr.github.io/rix/introduction.html</loc>
+    <lastmod>2026-07-29T20:28:21.732Z</lastmod>
+  </url>
+  <url>
+    <loc>https://jostylr.github.io/rix/tutorial/units-and-exact-values.html</loc>
+    <lastmod>2026-07-28T14:44:59.964Z</lastmod>
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/eval/syntax-guide.html</loc>
@@ -122,7 +130,11 @@
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/design/eval/output-model.html</loc>
-    <lastmod>2026-07-20T13:58:29.857Z</lastmod>
+    <lastmod>2026-07-29T21:43:46.084Z</lastmod>
+  </url>
+  <url>
+    <loc>https://jostylr.github.io/rix/design/eval/rixcel-todo.html</loc>
+    <lastmod>2026-07-29T21:42:59.245Z</lastmod>
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/rix-rationales.html</loc>
