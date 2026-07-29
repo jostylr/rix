@@ -161,7 +161,7 @@ Examples:
 i^2                    ## -1
 .Exact[:sqrt2]^2       ## 2
 1 + 3~{sqrt2}          ## exact expression
-3/2~{pi}               ## exact rational multiple of pi
+(3/2)~{pi}             ## exact rational multiple of pi
 1~{pi}~[rad]           ## exact quantity: pi radians
 ```
 

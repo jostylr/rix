@@ -50,8 +50,8 @@ describe("Phase 1B Tokenizer", () => {
 
     test("negative 0z custom base", () => {
       const tokens = tokenize("-0z[16]FF");
-      expect(tokens[0].type).toBe("Number");
-      expect(tokens[0].value).toBe("-0z[16]FF");
+      expect(tokens[0]).toMatchObject({ type: "Symbol", value: "-" });
+      expect(tokens[1]).toMatchObject({ type: "Number", value: "0z[16]FF" });
     });
   });
 

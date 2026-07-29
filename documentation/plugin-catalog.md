@@ -71,6 +71,29 @@ renamed after activation. A rename is principally intended for a REPL or a
 plugin-selection prelude because a complete script is statically checked before
 its first expression executes.
 
+## Bundled exact algebras
+
+The opt-in `exact-algebras` host plugin is the initial exact quaternion and
+octonion extension. Its coefficients remain core `Integer` or `Rational`
+values, and loading it installs exact variants for ordinary arithmetic and
+equality operators.
+
+```rix
+.Plugin.Load("exact-algebras");
+i := .exactAlgebras.Quaternion(0, 1, 0, 0);
+j := .exactAlgebras.Quaternion(0, 0, 1, 0);
+k := i * j;
+
+o := .exactAlgebras.Octonion(1, 2, 3, 4, 5, 6, 7, 8);
+one := o * .exactAlgebras.Inverse(o);
+```
+
+The initial namespace also provides `Components`, `Conjugate`, and
+`NormSquared`. Quaternion and octonion dimensions are not mixed implicitly,
+and division is exact right division (`a / b` is `a * Inverse(b)`). The plugin
+is intentionally a foundation for later semantic types, named basis values,
+and matrix or polynomial integrations.
+
 RiX-backed plugin entries are evaluated only when loaded. JavaScript-backed
 entries are discoverable from the same header but require a host-approved
 installer. Discovery alone never imports arbitrary JavaScript: a web host must

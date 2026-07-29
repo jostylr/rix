@@ -78,8 +78,9 @@ export function createDefaultRegistry(options = {}) {
 // colon-string names) rather than exposing misleading raw IR details.
 const CORE_SYNTAX_CAPABILITIES = {
     Add: "ADD", Sub: "SUB", Mul: "MUL", Div: "DIV", IntDiv: "INTDIV",
-    DivUp: "DIVUP", DivRound: "DIVROUND", Mod: "MOD", Pow: "POW",
+    DivUp: "DIVUP", DivRound: "DIVROUND", DivMod: "DIVMOD", Mod: "MOD", Pow: "POW",
     PowProd: "POWPROD", Neg: "NEG", Abs: "ABS", Sqrt: "SQRT",
+    Factorial: "FACTORIAL", DoubleFactorial: "DOUBLE_FACTORIAL",
     Equal: "EQ", NotEqual: "NEQ", Less: "LT", Greater: "GT",
     LessEqual: "LTE", GreaterEqual: "GTE", SameCell: "SAME_CELL",
     Min: "MIN", Max: "MAX", And: "AND", Or: "OR", Not: "NOT",

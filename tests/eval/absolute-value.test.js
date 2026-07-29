@@ -8,7 +8,8 @@ describe("absolute-value syntax", () => {
     test("|x| lowers to the internal ABS operation", () => {
         const [node] = lower(parse(tokenize("|-7|")));
         expect(node.fn).toBe("ABS");
-        expect(node.args[0].fn).toBe("LITERAL");
+        expect(node.args[0].fn).toBe("NEG");
+        expect(node.args[0].args[0].fn).toBe("LITERAL");
     });
 
     test("absolute-value syntax and .Abs share the core ABS operation", () => {

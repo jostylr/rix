@@ -23,6 +23,7 @@ const symbols = [
   "?-",
   "^=>",
   "?&",
+  "!!",
   "!?",
   "++=",
   "++",
@@ -141,6 +142,7 @@ const symbols = [
   "'",
   ":",
   "?",
+  "!",
   "\\",
 ];
 
@@ -464,21 +466,11 @@ function tryMatchNumber(input, position) {
   let match;
   // console.log("tryMatchNumber", remaining);
 
-  // Check if it starts with a digit, minus followed by digit, or decimal point followed by digit
-  // OR if it starts with a prefix pattern (0 followed by letter)
-  if (!/^(-?\d|-?\.\d)/.test(remaining)) {
+  // Signs are operators, not part of number tokens. This is what lets unary
+  // minus participate in precedence (`-2^2` is `-(2^2)`) and lets `/` remain
+  // ordinary division in forms such as `1/-2`.
+  if (!/^(\d|\.\d)/.test(remaining)) {
     return null;
-  }
-
-  // Error: -INT.~ is an ambiguous continued fraction literal.
-  // Use ~-INT.~ for a negative first coefficient, or -~INT.~ to negate the value.
-  if (/^-\d+\.~\d/.test(remaining)) {
-    const { line, col } = posToLineCol(input, position);
-    const cfStr = remaining.match(/^-\d+\.~[\d~]*/)[0];
-    const posStr = cfStr.slice(1); // strip leading -
-    throw new Error(
-      `Ambiguous continued fraction at ${line}:${col}: write ~${cfStr} for a negative first coefficient, or -~${posStr} to negate the continued fraction value.`
-    );
   }
 
   // Try all number patterns (longest first for maximal munch)
@@ -520,32 +512,8 @@ function tryMatchNumber(input, position) {
     };
   }
 
-  // Prefix Interval: 0x1:0xA or 0x1:10
-  match = remaining.match(
-    /^-?(?:(?:0z\[\d+\]|0[a-zA-Z])[0-9a-zA-Z]*(?:\.[0-9a-zA-Z]*)?|(?:\d+\.\.\d+\/\d+|\d+\.\d+#\d+|\.\d+#\d+|\d+#\d+|\d+\/\d+|\d+\.\d+|\.\d+|\d+)):-?(?:(?:0z\[\d+\]|0[a-zA-Z])[0-9a-zA-Z]*(?:\.[0-9a-zA-Z]*)?|(?:\d+\.\.\d+\/\d+|\d+\.\d+#\d+|\.\d+#\d+|\d+#\d+|\d+\/\d+|\d+\.\d+|\.\d+|\d+))/,
-  );
-  if (match) {
-    return {
-      type: "Number",
-      original: match[0],
-      value: match[0],
-      pos: [position, position, position + match[0].length],
-    };
-  }
-
   // Prefix Mixed Number: 0xA..B/C or 0xA..0xB/0xC
   match = remaining.match(/^-?(?:0z\[\d+\]|0[a-zA-Z])[0-9a-zA-Z]*\.\.(?:0z\[\d+\]|0[a-zA-Z])?[0-9a-zA-Z]*\/(?:0z\[\d+\]|0[a-zA-Z])?[0-9a-zA-Z]*/);
-  if (match) {
-    return {
-      type: "Number",
-      original: match[0],
-      value: match[0],
-      pos: [position, position, position + match[0].length],
-    };
-  }
-
-  // Prefix Rational: 0xA/0xB or 0xA/B or A/0xB
-  match = remaining.match(/^-?(?:0z\[\d+\]|0[a-zA-Z])[0-9a-zA-Z]*\/(?:0z\[\d+\]|0[a-zA-Z])?[0-9a-zA-Z]*/);
   if (match) {
     return {
       type: "Number",
@@ -577,19 +545,6 @@ function tryMatchNumber(input, position) {
     };
   }
 
-  // Complex intervals with all number types (including leading decimal)
-  match = remaining.match(
-    /^-?(?:\d+\.\.\d+\/\d+|\d+\.\d*#\d+|\.\d*#\d+|\d+#\d+|\d+\/\d+|\d+\.\d+|\.\d+|\d+):-?(?:\d+\.\.\d+\/\d+|\d+\.\d*#\d+|\.\d*#\d+|\d+#\d+|\d+\/\d+|\d+\.\d+|\.\d+|\d+)/,
-  );
-  if (match) {
-    return {
-      type: "Number",
-      original: match[0],
-      value: match[0],
-      pos: [position, position, position + match[0].length],
-    };
-  }
-
   // Implicit-start continued fractions: INT.~term~term~... (no sign, no ~ prefix)
   match = remaining.match(/^\d+\.~\d+(?:~\d+)*/);
   if (match) {
@@ -604,7 +559,7 @@ function tryMatchNumber(input, position) {
   // Radix shift notation: number_^exponent (e.g. 1_^2 = 100)
   // Note: E notation is NOT supported here
   match = remaining.match(
-    /^-?(?:\d(?:_?\d)*\.\d(?:_?\d)*#\d(?:_?\d)*|\.\d(?:_?\d)*#\d(?:_?\d)*|\d(?:_?\d)*\.\.\d(?:_?\d)*\/\d(?:_?\d)*|\d(?:_?\d)*\/\d(?:_?\d)*|\d(?:_?\d)*\.\d(?:_?\d)*|\.\d(?:_?\d)*|\d(?:_?\d)*)_\^[+-]?\d(?:_?\d)*/,
+    /^-?(?:\d(?:_?\d)*\.\d(?:_?\d)*#\d(?:_?\d)*|\.\d(?:_?\d)*#\d(?:_?\d)*|\d(?:_?\d)*\.\.\d(?:_?\d)*\/\d(?:_?\d)*|\d(?:_?\d)*\.\d(?:_?\d)*|\.\d(?:_?\d)*|\d(?:_?\d)*)_\^[+-]?\d(?:_?\d)*/,
   );
   if (match) {
     return {
@@ -648,32 +603,10 @@ function tryMatchNumber(input, position) {
     };
   }
 
-  // Decimals with interval notation
-  match = remaining.match(/^-?\d+\.\d+\[[^\]]+\]/);
-  if (match) {
-    return {
-      type: "Number",
-      original: match[0],
-      value: match[0],
-      pos: [position, position, position + match[0].length],
-    };
-  }
-
-  // Simple intervals (including leading decimal)
+  // Decimal/integer uncertainty interval notation
   match = remaining.match(
-    /^-?(?:\d+(?:\.\d+)?|\.\d+):-?(?:\d+(?:\.\d+)?|\.\d+)/,
+    /^-?(?:\d(?:_?\d)*(?:\.(?:\d(?:_?\d)*)?)?|\.\d(?:_?\d)*)\[[^\]]+\]/,
   );
-  if (match) {
-    return {
-      type: "Number",
-      original: match[0],
-      value: match[0],
-      pos: [position, position, position + match[0].length],
-    };
-  }
-
-  // Rationals (no spaces allowed)
-  match = remaining.match(/^-?\d+\/\d+/);
   if (match) {
     return {
       type: "Number",

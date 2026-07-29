@@ -148,11 +148,10 @@ describe("Colon-string syntax", () => {
     });
 
     describe("interval syntax preserved", () => {
-        test("5:3 is tokenized as interval number", () => {
+        test("5:3 is parsed through the interval operator", () => {
             const ast = parseRix("5:3");
-            // 5:3 is a single number token (interval literal)
-            expect(ast[0].type).toBe("Number");
-            expect(ast[0].value).toBe("5:3");
+            expect(ast[0].type).toBe("BinaryOperation");
+            expect(ast[0].operator).toBe(":");
         });
 
         test("a:b is still an interval (BinaryOperation)", () => {

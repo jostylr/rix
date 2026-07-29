@@ -31,19 +31,19 @@ test("Symbolic Algebra: Set Operations", () => {
 
 test("Symbolic Algebra: Interval Operations", () => {
     // Hull
-    const h = evalRiX("1:5 \\/ 3:10");
+    const h = evalRiX("(1:5) \\/ (3:10)");
     expect(h instanceof RationalInterval).toBe(true);
     expect(h.start.toString()).toBe("1");
     expect(h.end.toString()).toBe("10");
 
     // Intersect
-    const i = evalRiX("1:5 /\\ 3:10");
+    const i = evalRiX("(1:5) /\\ (3:10)");
     expect(i instanceof RationalInterval).toBe(true);
     expect(i.start.toString()).toBe("3");
     expect(i.end.toString()).toBe("5");
 
     // Non-intersect
-    const ni = evalRiX("1:5 /\\ 6:10");
+    const ni = evalRiX("(1:5) /\\ (6:10)");
     expect(ni).toBe(null);
 });
 

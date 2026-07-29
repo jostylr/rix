@@ -8,7 +8,7 @@ toc-depth: 2
 This page is generated from the current RiX implementation by `documentation/scripts/generate-reference.js`. Do not edit it by hand. Descriptions come from registry documentation strings; the narrative [syntax guide](../eval/syntax-guide.md) and [methods guide](../eval/methods-guide.md) provide signatures and examples.
 :::
 
-At this revision RiX exposes **135 named entries** on the default system context and registers **165 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
+At this revision RiX exposes **139 named entries** on the default system context and registers **168 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
 
 ## Public system context
 
@@ -44,14 +44,17 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.DERIV` | function | Symbolic | Differentiate a symbolic spec or spec-backed function exactly |
 | `.DIFFERENCE` | function | — | Core operation SET\_DIFF |
 | `.DIV` | function | Arith | Division |
+| `.DIVMOD` | function | Arith | Floor quotient and exact remainder for a positive divisor |
 | `.DIVROUND` | function | — | Rounded division |
 | `.DIVUP` | function | — | Ceiling division |
 | `.DOCUMENT_TEMPLATE` | lazy function | — | Create a Fragment from an @""" document template |
+| `.DOUBLEFACTORIAL` | function | Arith | Double factorial of a non-negative integer |
 | `.EQ` | function | Logic | Equality check — returns 1 or null |
 | `.EQUAL` | function | — | Equality check — returns 1 or null |
 | `.ERROR` | function | — | Emit an error event and abort: .Error(label, dataMap ?= {=}) |
 | `.EVAL` | lazy function | — | Evaluate a deferred AST node or expression: .Eval(ast, bindings ?= \_, mode ?= :inherit) |
 | `.EXACT` | value | Exact | Canonical RiX exact-generator collection |
+| `.FACTORIAL` | function | Arith | Factorial of a non-negative integer |
 | `.FIGURE` | function | Output | Wrap output with figure metadata |
 | `.FILTER` | lazy function | Collections, Arrays | Filter a collection with a predicate — callback receives (val, locator, src) |
 | `.FIRST` | function | Core, Collections, Arrays | First element of a collection |
@@ -88,7 +91,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.MAP` | function | Collections, Maps, Arrays | Create a map from .Pair(key, value) entries |
 | `.MAX` | function | — | Maximum over n arguments (ignores nulls) |
 | `.MIN` | function | — | Minimum over n arguments (ignores nulls) |
-| `.MOD` | function | Arith | Modulo |
+| `.MOD` | function | Arith | Floor modulo with a positive divisor |
 | `.MUL` | function | Arith | Multiplication (Product of values) |
 | `.MULTI` | lazy function | Core | Evaluate multiple expressions, return last |
 | `.NEG` | function | — | Negation |
@@ -150,6 +153,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.VALUES` | function | Core, Maps | Get the values of a map as a set (obj\|.) |
 | `.WARN` | function | — | Emit a warning event: .Warn(label, dataMap ?= {=}) |
 | `.draw` | function | Draw | Convenient 2D drawing helpers that produce core Graphics nodes. |
+| `.exactalgebras` | function | Exact | Exact rational quaternion and octonion values. |
 | `.plot` | function | Plot | Portable plotting helpers that produce core Graphics scenes. |
 
 ## Built-in receiver methods
@@ -229,7 +233,7 @@ Imported scripts can add or withhold named groups. Permission-like names are int
 | `Draw` | `draw` |
 | `Plot` | `plot` |
 | `Core` | `LEN`, `FIRST`, `LAST`, `GETEL`, `IRANGE`, `IF`, `LOOP`, `MULTI`, `RAND_NAME`, `PRINT`, `TGEN`, `KEYOF`, `KEYS`, `VALUES` |
-| `Arith` | `ADD`, `SUB`, `MUL`, `DIV`, `INTDIV`, `MOD`, `POW` |
+| `Arith` | `ADD`, `SUB`, `MUL`, `DIV`, `INTDIV`, `DIVMOD`, `MOD`, `POW`, `FACTORIAL`, `DOUBLEFACTORIAL` |
 | `Logic` | `EQ`, `NEQ`, `LT`, `GT`, `LTE`, `GTE`, `AND`, `OR`, `NOT` |
 | `Collections` | `LEN`, `FIRST`, `LAST`, `GETEL`, `IRANGE`, `MAP`, `FILTER`, `REDUCE`, `TGEN` |
 | `Maps` | `MAP`, `KEYOF`, `KEYS`, `VALUES` |
@@ -240,7 +244,7 @@ Imported scripts can add or withhold named groups. Permission-like names are int
 | `Net` | `NET` |
 | `Files` | `FILES` |
 | `Units` | `UNITS`, `Units`, `CONVERTUNIT`, `ConvertUnit`, `DEFINEUNIT`, `DefineUnit` |
-| `Exact` | `EXACT`, `Exact`, `COMPLEX`, `Complex`, `DEFINEEXACTGENERATOR`, `DefineExactGenerator` |
+| `Exact` | `EXACT`, `Exact`, `COMPLEX`, `Complex`, `DEFINEEXACTGENERATOR`, `DefineExactGenerator`, `exactalgebras` |
 | `Symbolic` | `POLY`, `DERIV`, `INTEGRATE`, `TRANSFORM`, `SIMPLIFY`, `SPEC`, `SPECCABILITY`, `INSPECTSPEC` |
 | `Random` | `RANDOMSEED`, `RandomSeed`, `RAND_NAME` |
 
@@ -287,11 +291,14 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `DESTRUCTURE_ASSIGN` | lazy, effectful/unspecified | General lhs destructuring assignment |
 | `DIV` | eager, pure, multifunction | Division |
 | `DIVIDE` | eager, pure | Return n lazy equally spaced points including interval endpoints |
+| `DIVMOD` | eager, pure | Floor quotient and exact remainder for a positive divisor |
 | `DIVROUND` | eager, pure | Rounded division |
 | `DIVUP` | eager, pure | Ceiling division |
 | `DOCUMENT_TEMPLATE` | lazy, effectful/unspecified | Create a Fragment from an @""" document template |
+| `DOUBLE_FACTORIAL` | eager, pure | Double factorial of a non-negative integer |
 | `EQ` | eager, pure, multifunction | Equality check — returns 1 or null |
 | `EVAL` | lazy, effectful/unspecified | Evaluate a deferred AST node or expression: .Eval(ast, bindings ?= \_, mode ?= :inherit) |
+| `FACTORIAL` | eager, pure | Factorial of a non-negative integer |
 | `FIGURE` | eager, pure | Wrap output with figure metadata |
 | `FRAGMENT` | eager, pure | Compose portable output values |
 | `FROMBASE` | lazy, effectful/unspecified | Parse base string to number: str <\_ baseSpec |
@@ -334,7 +341,7 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `META_MERGE` | lazy, effectful/unspecified | Bulk merge map into object meta properties (null values = delete) — obj .= map |
 | `META_SET` | lazy, effectful/unspecified | Set meta property (null deletes; respects immutable/frozen) — obj.name = val |
 | `MIN` | eager, pure, multifunction | Minimum over n arguments (ignores nulls) |
-| `MOD` | eager, pure, multifunction | Modulo |
+| `MOD` | eager, pure, multifunction | Floor modulo with a positive divisor |
 | `MUL` | eager, pure, multifunction | Multiplication (Product of values) |
 | `MULTIFUNCDEF` | lazy, effectful/unspecified | Append or prepend a multifunction variant |
 | `MULTIFUNCTION` | lazy, effectful/unspecified | Create an ordered multifunction literal, flattening nested multifunctions |

@@ -21,7 +21,7 @@ const PRECEDENCE = {
   ADDITION: 80, // +, -
   MULTIPLICATION: 90, // *, /, //, %, /^, /~, /%
   EXPONENTIATION: 100, // ^, **
-  UNARY: 110, // unary -, +, NOT
+  UNARY: 99, // unary -, +, NOT (below powers, above multiplication)
   CALCULUS: 115, // derivatives ('), integrals (')
   POSTFIX: 120, // function calls, array access
   PROPERTY: 130, // .
@@ -342,6 +342,18 @@ const SYMBOL_TABLE = {
     precedence: PRECEDENCE.MULTIPLICATION,
     associativity: "left",
     type: "infix",
+  },
+
+  // Factorials bind tighter than powers and unary signs.
+  "!": {
+    precedence: PRECEDENCE.POSTFIX,
+    associativity: "left",
+    type: "postfix",
+  },
+  "!!": {
+    precedence: PRECEDENCE.POSTFIX,
+    associativity: "left",
+    type: "postfix",
   },
 
   // Exponentiation (right associative)
@@ -866,6 +878,21 @@ class Parser {
             name: "@",
             original: token.original,
           });
+        } else if (token.value === "!!") {
+          this.advance();
+          const operand = this.parseExpression(PRECEDENCE.UNARY);
+          const inner = this.createNode("UnaryOperation", {
+            operator: "!",
+            operand,
+            pos: token.pos,
+            original: "!" + (operand.original || ""),
+          });
+          return this.createNode("UnaryOperation", {
+            operator: "!",
+            operand: inner,
+            pos: token.pos,
+            original: token.original + (operand.original || ""),
+          });
         } else if (token.value === "+" || token.value === "-" || token.value === "!") {
           return this.parseUnaryOperator();
         } else if (token.value === "'") {
@@ -933,6 +960,21 @@ class Parser {
   // Parse infix expressions (binary operators, function calls, etc.)
   parseInfix(left, symbolInfo) {
     const operator = this.current;
+
+    if (
+      symbolInfo.type === "postfix" &&
+      (operator.value === "!" || operator.value === "!!")
+    ) {
+      this.advance();
+      return this.createNode(
+        operator.value === "!" ? "Factorial" : "DoubleFactorial",
+        {
+          expression: left,
+          pos: left.pos,
+          original: (left.original || "") + operator.original,
+        },
+      );
+    }
 
     // Special case for function calls - check if we have an identifier followed by '('
     if (

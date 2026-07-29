@@ -24,6 +24,8 @@
 | `||` | `OR` | `x == 0 || y == 0` |
 | `?|` | `HOLE_COALESCE` | `a[2] ?| 9` — returns left if not a hole, else right |
 | `!` | `NOT` | `!(x == 0)` |
+| `n!` | `FACTORIAL` | `5!` → `120` |
+| `n!!` | `DOUBLE_FACTORIAL` | `6!!` → `48` |
 | `x ? :name` | `SEMANTIC_HAS` | Checks `.__type`, `._type`, and `.__traits` |
 | `x ~: :type` | `SEMANTIC_CONVERT_SOFT` | Convert or return `_` |
 | `x ~!: :type` | `SEMANTIC_CONVERT_STRICT` | Convert or throw |
@@ -1063,7 +1065,9 @@ Colon-strings work anywhere a value is expected: in arrays (`[:a, :b]`), as func
 
 ### Special Number Literals
 
-These formats all produce exact rational values parsed by `LITERAL`.
+These formats all produce exact rational values parsed by `LITERAL`. An
+ordinary fraction such as `3/4` is not one lexical token: `/` is always the
+division operator, and exact operands make its result an exact rational.
 
 #### Repeating Decimals (`#`)
 
@@ -1085,7 +1089,7 @@ The `#` separates the non-repeating fractional part from the (infinitely) repeat
 | `1_^2` | 100 | 1 × 10² |
 | `3.14_^2` | 314 | 3.14 × 10² |
 | `1_^-2` | 1/100 | 1 × 10⁻² |
-| `1/3_^2` | 100/3 | 1/3 × 10² |
+| `1_^2/3` | 100/3 | shift the numerator, then divide |
 
 #### Continued Fractions (`.~`)
 
@@ -1112,10 +1116,9 @@ A continued fraction `[a₀; a₁, a₂, …]` is written as `a₀.~a₁~a₂~�
 |--------|-------|-------|
 | `-~1.~2` | −3/2 | negate the value of `~1.~2` (= 3/2) |
 
-**Forbidden — syntax error:**
-```
--1.~2      ## ❌  ambiguous: write ~-1.~2 (neg. coefficient) or -~1.~2 (negate value)
-```
+Because minus is an operator, `-1.~2` negates the implicit-start continued
+fraction and therefore has the same value as `-~1.~2`. Use `~-1.~2` when the
+first continued-fraction coefficient itself is negative.
 
 ### Number Base Literals
 
@@ -1214,7 +1217,7 @@ Map literals reject duplicate keys after canonicalization:
 |--------|----------------|-------------|
 | `/^` | `DIVUP` | Ceiling division |
 | `/~` | `DIVROUND` | Rounded division |
-| `/%` | `DIVMOD` | Division with remainder |
+| `/%` | `DIVMOD` | Tuple containing floor quotient and exact remainder |
 
 ### Ternary Operator
 
@@ -1247,7 +1250,10 @@ Map literals reject duplicate keys after canonicalization:
 | `MUL(a, b)` | Multiplication | `a * b` |
 | `DIV(a, b)` | Rational division | `a / b` |
 | `INTDIV(a, b)` | Integer (floor) division | `a // b` |
-| `MOD(a, b)` | Modulo | `a % b` |
+| `MOD(a, b)` | Exact floor modulo; requires `b > 0` and returns `0 <= r < b` | `a % b` |
+| `DIVMOD(a, b)` | Floor quotient and exact remainder tuple; requires `b > 0` | `a /% b` |
+| `FACTORIAL(n)` | Factorial of a non-negative integer | `n!` |
+| `DOUBLE_FACTORIAL(n)` | Double factorial of a non-negative integer | `n!!` |
 | `POW(a, b)` | Exponentiation | `a ^ b`, `a ** b` |
 | `NEG(a)` | Negation | `-a` |
 | `ABS(a)` | Absolute value | — |

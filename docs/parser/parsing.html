@@ -918,18 +918,18 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tr>
 <tr class="even">
 <td>120</td>
-<td><code>@</code>, <code>?</code>, <code>()</code>, <code>[]</code>, <code>~[</code>, <code>~{</code></td>
-<td>Postfix operators, function calls, array access, unit operators</td>
+<td><code>!</code>, <code>!!</code>, <code>@</code>, <code>?</code>, <code>()</code>, <code>[]</code>, <code>~[</code>, <code>~{</code></td>
+<td>Factorials, postfix operators, function calls, array access, unit operators</td>
 </tr>
 <tr class="odd">
-<td>110</td>
-<td>unary <code>+</code>, <code>-</code>, <code>NOT</code></td>
-<td>Unary operators</td>
-</tr>
-<tr class="even">
 <td>100</td>
 <td><code>^</code>, <code>**</code></td>
 <td>Exponentiation (right associative)</td>
+</tr>
+<tr class="even">
+<td>99</td>
+<td>unary <code>+</code>, <code>-</code>, <code>NOT</code></td>
+<td>Unary operators</td>
 </tr>
 <tr class="odd">
 <td>90</td>
@@ -3239,7 +3239,7 @@ LOG(SIN(x))'          // Derivative of composition</code></pre>
 <section id="parsing-rules" class="level3">
 <h3 class="anchored" data-anchor-id="parsing-rules">Parsing Rules</h3>
 <ol type="1">
-<li><p><strong>Precedence</strong>: Calculus operations have high precedence (115), between unary (110) and postfix (120)</p></li>
+<li><p><strong>Precedence</strong>: Calculus operations have high precedence (115), above powers and unary signs but below postfix operations (120)</p></li>
 <li><p><strong>Associativity</strong>: Derivatives are left-associative postfix operations</p></li>
 <li><p><strong>Variable Specification</strong>: Brackets <code>[x, y]</code> immediately after derivatives/integrals specify variables</p></li>
 <li><p><strong>Evaluation vs Operations</strong>: Parentheses content determines behavior:</p>

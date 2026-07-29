@@ -140,7 +140,11 @@ const LOWERERS = {
   // === Literals & Identifiers ===
 
   Number(node) {
-    if (node.value && node.value.includes(":")) {
+    if (
+      node.value &&
+      node.value.includes(":") &&
+      !node.value.includes("[")
+    ) {
       const parts = node.value.split(":");
       return ir("INTERVAL", ...parts.map(p => ir("LITERAL", p)));
     }
@@ -412,6 +416,14 @@ const LOWERERS = {
       return ir("NOT", lowerNode(node.operand));
     }
     return ir("UNARY", node.operator, lowerNode(node.operand));
+  },
+
+  Factorial(node) {
+    return ir("FACTORIAL", lowerNode(node.expression));
+  },
+
+  DoubleFactorial(node) {
+    return ir("DOUBLE_FACTORIAL", lowerNode(node.expression));
   },
 
   ImplicitMultiplication(node) {

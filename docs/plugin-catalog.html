@@ -582,6 +582,7 @@ ul.task-list li input[type="checkbox"] {
   <li><a href="#plugin-catalog" id="toc-plugin-catalog" class="nav-link active" data-scroll-target="#plugin-catalog">Plugin catalog</a>
   <ul class="collapse">
   <li><a href="#placement-by-host" id="toc-placement-by-host" class="nav-link" data-scroll-target="#placement-by-host">Placement by host</a></li>
+  <li><a href="#bundled-exact-algebras" id="toc-bundled-exact-algebras" class="nav-link" data-scroll-target="#bundled-exact-algebras">Bundled exact algebras</a></li>
   <li><a href="#typed-operator-variants" id="toc-typed-operator-variants" class="nav-link" data-scroll-target="#typed-operator-variants">Typed operator variants</a></li>
   </ul></li>
   </ul>
@@ -610,21 +611,34 @@ defaultEnabled: false
 
 .Host.Register("stats", (values) -&gt; values, "Statistics plugin", ["Statistics"])</code></pre>
 <p>The catalog scans only configured <code>plugins/</code> roots. It reads headers and declares disabled host mounts so static path checking can recognize a known surface, but a disabled mount errors when called.</p>
+<p>Set <code>ignore: true</code> in an otherwise valid header to keep an unfinished or alternate source file out of discovery. An ignored entry is absent from <code>.Plugin.List()</code> and does not reserve its ID.</p>
 <p>For future candidate packages and the contract used by output-producing plugins, see <a href="./design/plugins.html">Plugin Roadmap and Rendering Contracts</a>.</p>
 <section id="placement-by-host" class="level2">
 <h2 class="anchored" data-anchor-id="placement-by-host">Placement by host</h2>
 <ul>
 <li><strong>RiX CLI:</strong> scans the current working directory’s <code>plugins/</code>, a script sibling’s <code>plugins/</code>, and the example plugin roots configured by the CLI.</li>
 <li><strong>RiX web:</strong> first-party packages live in <code>rix/plugins/&lt;id&gt;/</code>. The web generator has an explicit reviewed-package list and writes its static adapter at <code>rix-web/src/generated/bundled-plugin-catalog.js</code>. Only selected packages become part of the published browser bundle; a browser never scans a visitor’s filesystem. Add a package to that list only after approving its browser-safe JavaScript installer (if it has one).</li>
-<li><strong>RiX Notebook:</strong> add trusted bundled JavaScript installers to <code>rix-nb/src/bundled-plugin-catalog.js</code>, and put project-local entries under <code>&lt;project&gt;/plugins/</code>. The desktop app scans project plugins when a note is opened. <code>project.toml</code> or <code>notebook.toml</code> can enable entries with <code>plugins = ["plugin-id"]</code>.</li>
+<li><strong>RiX Notebook:</strong> put project-local entries under <code>&lt;project&gt;/plugins/</code>, add app-wide roots in <strong>Settings</strong>, or configure portable in-project roots with <code>plugin_dirs = ["shared-plugins"]</code> in <code>project.toml</code> or <code>notebook.toml</code>. Either manifest can enable known entries with <code>plugins = ["plugin-id"]</code>. The notebook settings can additionally name app-wide automatically loaded plugin IDs. Bundled JavaScript installers remain trusted by virtue of the signed app; a discovered JavaScript plugin needs an explicit notebook-user approval unless the user has enabled the global JavaScript-plugin setting.</li>
 </ul>
-<p>In the two browser-backed hosts, a <code>.plugin.rix.js</code> must be imported by the application’s bundle/catalog source to be executable. A discovered project JS plugin is displayed but intentionally has no installer approval. A project <code>.plugin.rix</code> is retained as source and can be loaded through the regular RiX plugin boundary.</p>
+<p>In the web host, a <code>.plugin.rix.js</code> must be imported by the application’s bundle/catalog source to be executable. RiX Notebook may import a discovered desktop JavaScript plugin only after its approval flow has run. A project <code>.plugin.rix</code> is retained as source and can be loaded through the regular RiX plugin boundary.</p>
 <pre class="rix"><code>.Plugin.List()
 .Plugin.Info("exact-statistics")
 .Plugin.Load("exact-statistics")
 .stats.Mean([1, 2, 3])</code></pre>
 <p><code>.Plugin("id")</code> is shorthand for <code>.Plugin.Load("id")</code>. A load can choose a different camelCase mount with <code>{= as = "otherStats" }</code>; the capability is renamed after activation. A rename is principally intended for a REPL or a plugin-selection prelude because a complete script is statically checked before its first expression executes.</p>
-<p>RiX-backed plugin entries are evaluated only when loaded. JavaScript-backed entries are discoverable from the same header but require a host-approved, already-imported installer. The catalog never dynamically imports arbitrary JS just because a file was discovered. This makes the boundary explicit: RiX plugins run at a host-controlled RiX load boundary, while JavaScript plugins are trusted host extensions.</p>
+</section>
+<section id="bundled-exact-algebras" class="level2">
+<h2 class="anchored" data-anchor-id="bundled-exact-algebras">Bundled exact algebras</h2>
+<p>The opt-in <code>exact-algebras</code> host plugin is the initial exact quaternion and octonion extension. Its coefficients remain core <code>Integer</code> or <code>Rational</code> values, and loading it installs exact variants for ordinary arithmetic and equality operators.</p>
+<pre class="rix"><code>.Plugin.Load("exact-algebras");
+i := .exactAlgebras.Quaternion(0, 1, 0, 0);
+j := .exactAlgebras.Quaternion(0, 0, 1, 0);
+k := i * j;
+
+o := .exactAlgebras.Octonion(1, 2, 3, 4, 5, 6, 7, 8);
+one := o * .exactAlgebras.Inverse(o);</code></pre>
+<p>The initial namespace also provides <code>Components</code>, <code>Conjugate</code>, and <code>NormSquared</code>. Quaternion and octonion dimensions are not mixed implicitly, and division is exact right division (<code>a / b</code> is <code>a * Inverse(b)</code>). The plugin is intentionally a foundation for later semantic types, named basis values, and matrix or polynomial integrations.</p>
+<p>RiX-backed plugin entries are evaluated only when loaded. JavaScript-backed entries are discoverable from the same header but require a host-approved installer. Discovery alone never imports arbitrary JavaScript: a web host must bundle it, while RiX Notebook requires the user’s explicit approval or global preference before importing it. This keeps the boundary explicit: RiX plugins run at a host-controlled RiX load boundary, while JavaScript plugins are trusted host extensions.</p>
 </section>
 <section id="typed-operator-variants" class="level2">
 <h2 class="anchored" data-anchor-id="typed-operator-variants">Typed operator variants</h2>

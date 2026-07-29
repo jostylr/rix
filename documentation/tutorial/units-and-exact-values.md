@@ -108,7 +108,7 @@ The sugar form multiplies by an entry from `.Exact`:
 Exact values and physical units compose normally:
 
 ```rix
-angle := 1/2~{pi}~[rad]
+angle := (1/2)~{pi}~[rad]
 arc := angle * 2~[m]
 ```
 

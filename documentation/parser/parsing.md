@@ -80,9 +80,9 @@ The parser uses the following precedence hierarchy (higher numbers bind tighter)
 | Precedence | Operators | Description |
 |------------|-----------|-------------|
 | 130 | `.` | Property access |
-| 120 | `@`, `?`, `()`, `[]`, `~[`, `~{` | Postfix operators, function calls, array access, unit operators |
-| 110 | unary `+`, `-`, `NOT` | Unary operators |
+| 120 | `!`, `!!`, `@`, `?`, `()`, `[]`, `~[`, `~{` | Factorials, postfix operators, function calls, array access, unit operators |
 | 100 | `^`, `**` | Exponentiation (right associative) |
+| 99 | unary `+`, `-`, `NOT` | Unary operators |
 | 90 | `*`, `/`, `//`, `%`, `/^`, `/~`, `/%` | Multiplication, division |
 | 80 | `+`, `-` | Addition, subtraction |
 | 70 | `:` | Interval operator |
@@ -2368,7 +2368,7 @@ LOG(SIN(x))'          // Derivative of composition
 
 ### Parsing Rules
 
-1. **Precedence**: Calculus operations have high precedence (115), between unary (110) and postfix (120)
+1. **Precedence**: Calculus operations have high precedence (115), above powers and unary signs but below postfix operations (120)
 
 2. **Associativity**: Derivatives are left-associative postfix operations
 

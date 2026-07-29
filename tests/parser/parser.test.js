@@ -63,6 +63,21 @@ function stripMetadata(obj) {
   return obj;
 }
 
+const numberNode = (value) => ({ type: "Number", value: String(value) });
+const binaryNode = (operator, left, right) => ({
+  type: "BinaryOperation",
+  operator,
+  left,
+  right,
+});
+const intervalNode = (left, right) =>
+  binaryNode(":", numberNode(left), numberNode(right));
+const negativeNode = (value) => ({
+  type: "UnaryOperation",
+  operator: "-",
+  operand: numberNode(value),
+});
+
 describe("RiX Parser", () => {
   describe("Function definitions", () => {
     test("standard function definition with :->", () => {
@@ -1199,7 +1214,11 @@ describe("RiX Parser", () => {
             type: "BracketIndex",
             object: { type: "UserIdentifier", name: "m" },
             specs: [
-              { type: "Number", value: "-1:1" },
+              {
+                type: "SliceSpec",
+                start: negativeNode(1),
+                end: numberNode(1),
+              },
               { type: "Number", value: "2" },
             ],
           },
@@ -1243,10 +1262,7 @@ describe("RiX Parser", () => {
                 },
               ],
               [
-                {
-                  type: "Number",
-                  value: "1/2",
-                },
+                binaryNode("/", numberNode(1), numberNode(2)),
                 {
                   type: "BinaryOperation",
                   operator: "^",
@@ -1703,10 +1719,7 @@ describe("RiX Parser", () => {
             type: 'At',
             target: {
               type: 'Grouping',
-              expression: {
-                type: 'Number',
-                value: '1/3'
-              }
+              expression: binaryNode("/", numberNode(1), numberNode(3))
             },
             arg: {
               type: 'Number',
@@ -1761,10 +1774,7 @@ describe("RiX Parser", () => {
                 value: 3.141592653589793
               }
             },
-            arg: {
-              type: 'Number',
-              value: '3:4'
-            }
+            arg: intervalNode(3, 4)
           }
         }]);
       });
@@ -1795,15 +1805,9 @@ describe("RiX Parser", () => {
             type: 'Ask',
             target: {
               type: 'Grouping',
-              expression: {
-                type: 'Number',
-                value: '1/3'
-              }
+              expression: binaryNode("/", numberNode(1), numberNode(3))
             },
-            arg: {
-              type: 'Number',
-              value: '0.333:0.334'
-            }
+            arg: intervalNode("0.333", "0.334")
           }
         }]);
       });
@@ -1824,10 +1828,7 @@ describe("RiX Parser", () => {
                   value: 3.141592653589793
                 }
               },
-              arg: {
-                type: 'Number',
-                value: '3:4'
-              }
+              arg: intervalNode(3, 4)
             },
             arg: {
               type: 'UserIdentifier',
@@ -1963,10 +1964,7 @@ describe("RiX Parser", () => {
                   value: '1_^-3'
                 }
               },
-              arg: {
-                type: 'Number',
-                value: '3.141:3.142'
-              }
+              arg: intervalNode("3.141", "3.142")
             }
           }]);
         });
@@ -3635,10 +3633,7 @@ describe("RiX Parser", () => {
           const ast = parseCode('1:10;');
           expect(stripMetadata(ast)).toEqual([{
             type: 'Statement',
-            expression: {
-              type: 'Number',
-              value: '1:10'
-            }
+            expression: intervalNode(1, 10)
           }]);
         });
 
@@ -3646,10 +3641,7 @@ describe("RiX Parser", () => {
           const ast = parseCode('1.5:10.7;');
           expect(stripMetadata(ast)).toEqual([{
             type: 'Statement',
-            expression: {
-              type: 'Number',
-              value: '1.5:10.7'
-            }
+            expression: intervalNode("1.5", "10.7")
           }]);
         });
       });
@@ -3661,10 +3653,7 @@ describe("RiX Parser", () => {
             type: 'Statement',
             expression: {
               type: 'IntervalStepping',
-              interval: {
-                type: 'Number',
-                value: '1:10'
-              },
+              interval: intervalNode(1, 10),
               step: { type: 'Number', value: '2' }
             }
           }]);
@@ -3676,11 +3665,8 @@ describe("RiX Parser", () => {
             type: 'Statement',
             expression: {
               type: 'IntervalStepping',
-              interval: {
-                type: 'Number',
-                value: '10:1'
-              },
-              step: { type: 'Number', value: '-3' }
+              interval: intervalNode(10, 1),
+              step: negativeNode(3)
             }
           }]);
         });
@@ -3693,10 +3679,7 @@ describe("RiX Parser", () => {
             type: 'Statement',
             expression: {
               type: 'IntervalDivision',
-              interval: {
-                type: 'Number',
-                value: '1:5'
-              },
+              interval: intervalNode(1, 5),
               count: { type: 'Number', value: '3' },
               divisionKind: 'equally_spaced'
             }
@@ -3709,10 +3692,7 @@ describe("RiX Parser", () => {
             type: 'Statement',
             expression: {
               type: 'IntervalPartition',
-              interval: {
-                type: 'Number',
-                value: '1:5'
-              },
+              interval: intervalNode(1, 5),
               count: { type: 'Number', value: '2' }
             }
           }]);
@@ -3726,10 +3706,7 @@ describe("RiX Parser", () => {
             type: 'Statement',
             expression: {
               type: 'IntervalMediants',
-              interval: {
-                type: 'Number',
-                value: '1:2'
-              },
+              interval: intervalNode(1, 2),
               levels: { type: 'Number', value: '2' }
             }
           }]);
@@ -3741,10 +3718,7 @@ describe("RiX Parser", () => {
             type: 'Statement',
             expression: {
               type: 'IntervalMediantPartition',
-              interval: {
-                type: 'Number',
-                value: '1:2'
-              },
+              interval: intervalNode(1, 2),
               levels: { type: 'Number', value: '2' }
             }
           }]);
@@ -3763,10 +3737,7 @@ describe("RiX Parser", () => {
             type: 'Statement',
             expression: {
               type: 'IntervalRandom',
-              interval: {
-                type: 'Number',
-                value: '1:10'
-              },
+              interval: intervalNode(1, 10),
               parameters: { type: 'Number', value: '3' }
             }
           }]);
@@ -3778,10 +3749,7 @@ describe("RiX Parser", () => {
             type: 'Statement',
             expression: {
               type: 'IntervalRandom',
-              interval: {
-                type: 'Number',
-                value: '1:10'
-              },
+              interval: intervalNode(1, 10),
               parameters: {
                 type: 'Tuple',
                 elements: [
@@ -3799,10 +3767,7 @@ describe("RiX Parser", () => {
             type: 'Statement',
             expression: {
               type: 'IntervalRandomPartition',
-              interval: {
-                type: 'Number',
-                value: '1:10'
-              },
+              interval: intervalNode(1, 10),
               count: { type: 'Number', value: '3' }
             }
           }]);
@@ -3829,7 +3794,7 @@ describe("RiX Parser", () => {
             expression: {
               type: 'InfiniteSequence',
               start: { type: 'Number', value: '10' },
-              step: { type: 'Number', value: '-3' }
+              step: negativeNode(3)
             }
           }]);
         });
@@ -3844,10 +3809,7 @@ describe("RiX Parser", () => {
               type: 'IntervalRandomPartition',
               interval: {
                 type: 'IntervalStepping',
-                interval: {
-                  type: 'Number',
-                  value: '1:10'
-                },
+                interval: intervalNode(1, 10),
                 step: { type: 'Number', value: '2' }
               },
               count: { type: 'Number', value: '3' }
@@ -4275,7 +4237,11 @@ describe("RiX Parser", () => {
             wholeTarget: { type: "DestructureVariableTarget", name: "row2" },
             specs: [
               { type: "Number", value: "2" },
-              { type: "Number", value: "1:3" },
+              {
+                type: "SliceSpec",
+                start: numberNode(1),
+                end: numberNode(3),
+              },
             ],
             nestedTarget: null,
           },

@@ -666,7 +666,7 @@ b := .Complex.Cayley(1 + 1~{i});
 a.Conjugate()             ## Cayley(5, -1/2)</code></pre>
 <p>When <code>t1</code> and <code>t2</code> belong to independent quadratic extensions, the displayed Möbius quotient can temporarily require inversion in their compositum. If the general exact-expression inverter cannot yet perform that inversion, RiX takes an exact Cartesian multiplication bridge and converts the product back to a canonical Cayley pair. No approximation is introduced. For example:</p>
 <pre class="rix"><code>a := (5 + 3~{i}).Cayley();
-b := 1/2 - 1/2~{i};
+b := 1/2 - (1/2)~{i};
 a * b                    ## Cayley(sqrt17, 4 - sqrt17)</code></pre>
 <p>The exact Cartesian product is <code>4 - i</code>. This fallback also canonicalizes the otherwise separate magnitude factors <code>sqrt34 * sqrt(1/2)</code> as <code>sqrt17</code>.</p>
 <p>Negation keeps the magnitude and adds the negative-real direction. For finite nonzero <code>t</code>, this changes <code>t</code> to <code>-1/t</code>; zero and infinity exchange places.</p>

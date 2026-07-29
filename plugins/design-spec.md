@@ -29,6 +29,7 @@ numeric type or one universal rendering engine.
 | `.draw` | Implemented plugin | Convenient 2D authoring helpers that return core `.Graphics` nodes. |
 | `.plot` | Implemented initial plugin | Polynomial plotting with automatic vertical fitting; returns core `.Graphics`. |
 | `.float` | Implemented plugin | IEEE-754 Float conversion, arithmetic integration, rounding, intervals of stored values, and approximate elementary functions. |
+| `.exactAlgebras` | Implemented plugin | Exact rational quaternion and octonion values with Cayley-Dickson arithmetic. |
 | Plugin catalog | Implemented runtime service | Discovery, metadata, explicit loading, host approval for JavaScript, capability groups, and remounting. |
 | HTML/SVG/terminal display | Implemented in current hosts | Initial rendering behavior; intended to migrate toward the renderer contracts below. |
 

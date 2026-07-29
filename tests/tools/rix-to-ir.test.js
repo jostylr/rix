@@ -8,9 +8,9 @@ describe("RiX-to-IR Script", () => {
             expect(output).toBe('LITERAL("42")');
         });
 
-        test("rational literal", () => {
+        test("rational division", () => {
             const output = rixToIR("3/4;");
-            expect(output).toBe('LITERAL("3/4")');
+            expect(output).toBe('DIV(LITERAL("3"), LITERAL("4"))');
         });
 
         test("string literal", () => {

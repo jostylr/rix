@@ -428,14 +428,10 @@ describe("Math Oracle Tokenizer", () => {
       });
 
       test("negative integers", () => {
-        const tokens = tokenize("-3 -42 -0");
-        expect(tokens).toEqual(
-          withEnd([
-            { type: "Number", original: "-3", value: "-3", pos: [0, 0, 2] },
-            { type: "Number", original: " -42", value: "-42", pos: [2, 3, 6] },
-            { type: "Number", original: " -0", value: "-0", pos: [6, 7, 9] },
-          ]),
-        );
+        for (const source of ["-3", "-42", "-0"]) {
+          expect(tokenize(source).slice(0, 2).map(({ type, value }) => [type, value]))
+            .toEqual([["Symbol", "-"], ["Number", source.slice(1)]]);
+        }
       });
     });
 
@@ -473,18 +469,10 @@ describe("Math Oracle Tokenizer", () => {
       });
 
       test("negative decimals", () => {
-        const tokens = tokenize("-3.14 -.5");
-        expect(tokens).toEqual(
-          withEnd([
-            {
-              type: "Number",
-              original: "-3.14",
-              value: "-3.14",
-              pos: [0, 0, 5],
-            },
-            { type: "Number", original: " -.5", value: "-.5", pos: [5, 6, 9] },
-          ]),
-        );
+        for (const source of ["-3.14", "-.5"]) {
+          expect(tokenize(source).slice(0, 2).map(({ type, value }) => [type, value]))
+            .toEqual([["Symbol", "-"], ["Number", source.slice(1)]]);
+        }
       });
     });
 
@@ -525,56 +513,26 @@ describe("Math Oracle Tokenizer", () => {
       });
 
       test("negative repeating decimals", () => {
-        const tokens = tokenize("-0.12#45 -7#3");
-        expect(tokens).toEqual(
-          withEnd([
-            {
-              type: "Number",
-              original: "-0.12#45",
-              value: "-0.12#45",
-              pos: [0, 0, 8],
-            },
-            {
-              type: "Number",
-              original: " -7#3",
-              value: "-7#3",
-              pos: [8, 9, 13],
-            },
-          ]),
-        );
+        for (const source of ["-0.12#45", "-7#3"]) {
+          expect(tokenize(source).slice(0, 2).map(({ type, value }) => [type, value]))
+            .toEqual([["Symbol", "-"], ["Number", source.slice(1)]]);
+        }
       });
     });
 
     describe("rationals", () => {
-      test("positive rationals", () => {
-        const tokens = tokenize("3/4 22/7 1/2");
-        expect(tokens).toEqual(
-          withEnd([
-            { type: "Number", original: "3/4", value: "3/4", pos: [0, 0, 3] },
-            {
-              type: "Number",
-              original: " 22/7",
-              value: "22/7",
-              pos: [3, 4, 8],
-            },
-            { type: "Number", original: " 1/2", value: "1/2", pos: [8, 9, 12] },
-          ]),
-        );
+      test("slash is always an operator", () => {
+        expect(
+          tokenize("3/4").slice(0, 3).map(({ type, value }) => [type, value]),
+        ).toEqual([["Number", "3"], ["Symbol", "/"], ["Number", "4"]]);
       });
 
       test("negative rationals", () => {
-        const tokens = tokenize("-3/4 -1/2");
-        expect(tokens).toEqual(
-          withEnd([
-            { type: "Number", original: "-3/4", value: "-3/4", pos: [0, 0, 4] },
-            {
-              type: "Number",
-              original: " -1/2",
-              value: "-1/2",
-              pos: [4, 5, 9],
-            },
-          ]),
-        );
+        expect(
+          tokenize("-3/4").slice(0, 4).map(({ type, value }) => [type, value]),
+        ).toEqual([
+          ["Symbol", "-"], ["Number", "3"], ["Symbol", "/"], ["Number", "4"],
+        ]);
       });
 
       test("rational with spaces becomes separate tokens", () => {
@@ -611,80 +569,36 @@ describe("Math Oracle Tokenizer", () => {
       });
 
       test("negative mixed numbers", () => {
-        const tokens = tokenize("-1..3/4 -2..1/8");
-        expect(tokens).toEqual(
-          withEnd([
-            {
-              type: "Number",
-              original: "-1..3/4",
-              value: "-1..3/4",
-              pos: [0, 0, 7],
-            },
-            {
-              type: "Number",
-              original: " -2..1/8",
-              value: "-2..1/8",
-              pos: [7, 8, 15],
-            },
-          ]),
-        );
+        for (const source of ["-1..3/4", "-2..1/8"]) {
+          expect(tokenize(source).slice(0, 2).map(({ type, value }) => [type, value]))
+            .toEqual([["Symbol", "-"], ["Number", source.slice(1)]]);
+        }
       });
     });
 
     describe("intervals", () => {
       test("simple intervals", () => {
-        const tokens = tokenize("2:5 1.5:2.7");
-        expect(tokens).toEqual(
-          withEnd([
-            { type: "Number", original: "2:5", value: "2:5", pos: [0, 0, 3] },
-            {
-              type: "Number",
-              original: " 1.5:2.7",
-              value: "1.5:2.7",
-              pos: [3, 4, 11],
-            },
-          ]),
-        );
+        expect(
+          tokenize("2:5").slice(0, 3).map(({ type, value }) => [type, value]),
+        ).toEqual([["Number", "2"], ["Symbol", ":"], ["Number", "5"]]);
       });
 
       test("complex intervals", () => {
-        const tokens = tokenize("3/4:1.23#56 1..3/4:2..1/8");
-        expect(tokens).toEqual(
-          withEnd([
-            {
-              type: "Number",
-              original: "3/4:1.23#56",
-              value: "3/4:1.23#56",
-              pos: [0, 0, 11],
-            },
-            {
-              type: "Number",
-              original: " 1..3/4:2..1/8",
-              value: "1..3/4:2..1/8",
-              pos: [11, 12, 25],
-            },
-          ]),
-        );
+        expect(
+          tokenize("3/4:1.23#56").slice(0, 5).map(({ type, value }) => [type, value]),
+        ).toEqual([
+          ["Number", "3"], ["Symbol", "/"], ["Number", "4"],
+          ["Symbol", ":"], ["Number", "1.23#56"],
+        ]);
       });
 
       test("negative intervals", () => {
-        const tokens = tokenize("-5:-2 -1.5:3.7");
-        expect(tokens).toEqual(
-          withEnd([
-            {
-              type: "Number",
-              original: "-5:-2",
-              value: "-5:-2",
-              pos: [0, 0, 5],
-            },
-            {
-              type: "Number",
-              original: " -1.5:3.7",
-              value: "-1.5:3.7",
-              pos: [5, 6, 14],
-            },
-          ]),
-        );
+        expect(
+          tokenize("-5:-2").slice(0, 5).map(({ type, value }) => [type, value]),
+        ).toEqual([
+          ["Symbol", "-"], ["Number", "5"], ["Symbol", ":"],
+          ["Symbol", "-"], ["Number", "2"],
+        ]);
       });
     });
 
@@ -705,18 +619,10 @@ describe("Math Oracle Tokenizer", () => {
       });
 
       test("negative radix shift", () => {
-        const tokens = tokenize("-1_^5 -3.14_^-2");
-        expect(tokens).toEqual(
-          withEnd([
-            { type: "Number", original: "-1_^5", value: "-1_^5", pos: [0, 0, 5] },
-            {
-              type: "Number",
-              original: " -3.14_^-2",
-              value: "-3.14_^-2",
-              pos: [5, 6, 15],
-            },
-          ]),
-        );
+        for (const source of ["-1_^5", "-3.14_^-2"]) {
+          expect(tokenize(source).slice(0, 2).map(({ type, value }) => [type, value]))
+            .toEqual([["Symbol", "-"], ["Number", source.slice(1)]]);
+        }
       });
 
       test("radix shift with grouped separators", () => {
@@ -785,9 +691,10 @@ describe("Math Oracle Tokenizer", () => {
         );
       });
 
-      test("ambiguous CF -INT.~ throws syntax error", () => {
-        expect(() => tokenize("-1.~2")).toThrow(/[Aa]mbiguous/);
-        expect(() => tokenize("-2.~1~2~2")).toThrow(/[Aa]mbiguous/);
+      test("minus negates an implicit-start continued fraction", () => {
+        expect(
+          tokenize("-1.~2").slice(0, 2).map(({ type, value }) => [type, value]),
+        ).toEqual([["Symbol", "-"], ["Number", "1.~2"]]);
       });
     });
 
@@ -833,51 +740,17 @@ describe("Math Oracle Tokenizer", () => {
 
     describe("numbers with algebraic extensions", () => {
       test("imaginary numbers", () => {
-        const tokens = tokenize("2~{i} -5~{j} 3.14~{i}");
-        expect(tokens).toEqual(
-          withEnd([
-            { type: "Number", original: "2", value: "2", pos: [0, 0, 1] },
-            { type: "Symbol", original: "~{", value: "~{", pos: [1, 1, 3] },
-            {
-              type: "Identifier",
-              original: "i",
-              value: "i",
-              kind: "User",
-              pos: [3, 3, 4],
-            },
-            { type: "Symbol", original: "}", value: "}", pos: [4, 4, 5] },
-            {
-              type: "Number",
-              original: " -5",
-              value: "-5",
-              pos: [5, 6, 8],
-            },
-            { type: "Symbol", original: "~{", value: "~{", pos: [8, 8, 10] },
-            {
-              type: "Identifier",
-              original: "j",
-              value: "j",
-              kind: "User",
-              pos: [10, 10, 11],
-            },
-            { type: "Symbol", original: "}", value: "}", pos: [11, 11, 12] },
-            {
-              type: "Number",
-              original: " 3.14",
-              value: "3.14",
-              pos: [12, 13, 17],
-            },
-            { type: "Symbol", original: "~{", value: "~{", pos: [17, 17, 19] },
-            {
-              type: "Identifier",
-              original: "i",
-              value: "i",
-              kind: "User",
-              pos: [19, 19, 20],
-            },
-            { type: "Symbol", original: "}", value: "}", pos: [20, 20, 21] },
-          ]),
-        );
+        expect(
+          ["2~{i}", "-5~{j}", "3.14~{i}"].map((source) =>
+            tokenize(source)
+              .filter((token) => token.type !== "End")
+              .map((token) => [token.type, token.value]),
+          ),
+        ).toEqual([
+          [["Number", "2"], ["Symbol", "~{"], ["Identifier", "i"], ["Symbol", "}"]],
+          [["Symbol", "-"], ["Number", "5"], ["Symbol", "~{"], ["Identifier", "j"], ["Symbol", "}"]],
+          [["Number", "3.14"], ["Symbol", "~{"], ["Identifier", "i"], ["Symbol", "}"]],
+        ]);
       });
 
       test("algebraic extensions", () => {
@@ -899,12 +772,9 @@ describe("Math Oracle Tokenizer", () => {
               pos: [3, 3, 8],
             },
             { type: "Symbol", original: "}", value: "}", pos: [8, 8, 9] },
-            {
-              type: "Number",
-              original: " 3/4",
-              value: "3/4",
-              pos: [9, 10, 13],
-            },
+            { type: "Number", original: " 3", value: "3", pos: [9, 10, 11] },
+            { type: "Symbol", original: "/", value: "/", pos: [11, 11, 12] },
+            { type: "Number", original: "4", value: "4", pos: [12, 12, 13] },
             { type: "Symbol", original: "~{", value: "~{", pos: [13, 13, 15] },
             {
               type: "Identifier",
@@ -1674,7 +1544,9 @@ describe("Math Oracle Tokenizer", () => {
             pos: [8, 8, 9],
           },
           { type: "Symbol", original: " -", value: "-", pos: [9, 10, 11] },
-          { type: "Number", original: " 1/2", value: "1/2", pos: [11, 12, 15] },
+          { type: "Number", original: " 1", value: "1", pos: [11, 12, 13] },
+          { type: "Symbol", original: "/", value: "/", pos: [13, 13, 14] },
+          { type: "Number", original: "2", value: "2", pos: [14, 14, 15] },
         ]),
       );
     });
@@ -1773,10 +1645,12 @@ describe("Math Oracle Tokenizer", () => {
         withEnd([
           {
             type: "Number",
-            original: "1..3/4:2.5#6",
-            value: "1..3/4:2.5#6",
-            pos: [0, 0, 12],
+            original: "1..3/4",
+            value: "1..3/4",
+            pos: [0, 0, 6],
           },
+          { type: "Symbol", original: ":", value: ":", pos: [6, 6, 7] },
+          { type: "Number", original: "2.5#6", value: "2.5#6", pos: [7, 7, 12] },
         ]),
       );
     });

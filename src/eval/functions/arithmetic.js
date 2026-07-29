@@ -57,12 +57,51 @@ function ceilDiv(numerator, denominator) {
     return numerator >= 0n ? q + 1n : q;
 }
 
+function floorDiv(numerator, denominator) {
+    const q = numerator / denominator;
+    const r = numerator % denominator;
+    if (r === 0n) return q;
+    return numerator < 0n ? q - 1n : q;
+}
+
 function roundDiv(numerator, denominator) {
     const absNum = numerator < 0n ? -numerator : numerator;
     const floor = absNum / denominator;
     const remainder = absNum % denominator;
     const rounded = remainder * 2n >= denominator ? floor + 1n : floor;
     return numerator < 0n ? -rounded : rounded;
+}
+
+function requirePositiveDivisor(value, operation) {
+    const { numerator } = toQuotientParts(value);
+    if (numerator <= 0n) {
+        throw new Error(`${operation} divisor must be positive`);
+    }
+}
+
+function rationalModulo(dividend, divisor) {
+    requirePositiveDivisor(divisor, "Modulo");
+    const quotient = dividend.divide(divisor);
+    const { numerator, denominator } = toQuotientParts(quotient);
+    const floor = new Integer(floorDiv(numerator, denominator));
+    const remainder = dividend.subtract(divisor.multiply(floor));
+    if (remainder instanceof Rational && remainder.denominator === 1n) {
+        return new Integer(remainder.numerator);
+    }
+    return remainder;
+}
+
+function requireNonNegativeInteger(value, operation) {
+    const numeric = ensureNumeric(value);
+    if (numeric instanceof Integer) {
+        if (numeric.value < 0n) throw new Error(`${operation} is not defined for negative integers`);
+        return numeric;
+    }
+    if (numeric instanceof Rational && numeric.denominator === 1n) {
+        if (numeric.numerator < 0n) throw new Error(`${operation} is not defined for negative integers`);
+        return new Integer(numeric.numerator);
+    }
+    throw new Error(`${operation} requires an integer`);
 }
 
 export const arithmeticFunctions = {
@@ -128,16 +167,9 @@ export const arithmeticFunctions = {
         impl(args) {
             const a = ensureNumeric(args[0]);
             const b = ensureNumeric(args[1]);
-            if (a instanceof Integer && b instanceof Integer) {
-                const result = a.value / b.value;
-                return new Integer(result);
-            }
-            // For rationals, floor division
-            const rat = a.divide(b);
-            if (rat instanceof Rational) {
-                return new Integer(rat.numerator / rat.denominator);
-            }
-            return new Integer(rat.value);
+            const quotient = a.divide(b);
+            const { numerator, denominator } = toQuotientParts(quotient);
+            return new Integer(floorDiv(numerator, denominator));
         },
         pure: true,
         doc: "Integer division (floor)",
@@ -171,16 +203,27 @@ export const arithmeticFunctions = {
         impl(args) {
             const a = ensureNumeric(args[0]);
             const b = ensureNumeric(args[1]);
-            if (a instanceof Integer && b instanceof Integer) {
-                return a.modulo(b);
-            }
-            // Fallback for mixed types
-            const aVal = a instanceof Integer ? a.value : a.numerator;
-            const bVal = b instanceof Integer ? b.value : b.numerator;
-            return new Integer(aVal % bVal);
+            return rationalModulo(a, b);
         },
         pure: true,
-        doc: "Modulo",
+        doc: "Floor modulo with a positive divisor",
+    },
+
+    DIVMOD: {
+        impl(args) {
+            const a = ensureNumeric(args[0]);
+            const b = ensureNumeric(args[1]);
+            requirePositiveDivisor(b, "Division with remainder");
+            const quotient = a.divide(b);
+            const parts = toQuotientParts(quotient);
+            const floor = new Integer(floorDiv(parts.numerator, parts.denominator));
+            return {
+                type: "tuple",
+                values: [floor, rationalModulo(a, b)],
+            };
+        },
+        pure: true,
+        doc: "Floor quotient and exact remainder for a positive divisor",
     },
 
     POW: {
@@ -212,6 +255,22 @@ export const arithmeticFunctions = {
         },
         pure: true,
         doc: "Negation",
+    },
+
+    FACTORIAL: {
+        impl(args) {
+            return requireNonNegativeInteger(args[0], "Factorial").factorial();
+        },
+        pure: true,
+        doc: "Factorial of a non-negative integer",
+    },
+
+    DOUBLE_FACTORIAL: {
+        impl(args) {
+            return requireNonNegativeInteger(args[0], "Double factorial").doubleFactorial();
+        },
+        pure: true,
+        doc: "Double factorial of a non-negative integer",
     },
 
     ABS: {

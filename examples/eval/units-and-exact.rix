@@ -13,7 +13,7 @@ roomC := .Units[:degC](20);
 roomF := .ConvertUnit(roomC, .Units[:degF]);
 
 ## Exact generators compose with physical quantities.
-halfTurn := 1/2~{pi}~[rad];
+halfTurn := (1/2)~{pi}~[rad];
 iSquared := .Exact[:i]^2;
 rootSquared := .Exact[:sqrt2]^2;
 

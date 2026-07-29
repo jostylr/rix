@@ -1,9 +1,23 @@
-/** Register the bundled, opt-in output authoring plugins with a host catalog. */
+/** Register bundled opt-in plugins with a host catalog. */
 
 import { install as installDrawPlugin } from "./draw/draw.plugin.rix.js";
+import { install as installExactAlgebrasPlugin } from "./exact-algebras/exact-algebras.plugin.rix.js";
 import { install as installPlotPlugin } from "./plot/plot.plugin.rix.js";
 
 const BUNDLED_PLUGINS = [
+    {
+        metadata: {
+            id: "exact-algebras",
+            description: "Exact rational quaternion and octonion values.",
+            kind: "host",
+            mount: "exactAlgebras",
+            exports: ["Quaternion", "Octonion", "Components", "Conjugate", "NormSquared", "Inverse"],
+            groups: ["Exact"],
+            permissions: [],
+            defaultEnabled: false,
+        },
+        install: ({ systemContext, registry }) => installExactAlgebrasPlugin({ systemContext, registry }),
+    },
     {
         metadata: {
             id: "draw",

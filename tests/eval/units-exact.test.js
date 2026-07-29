@@ -150,7 +150,7 @@ describe("exact generators", () => {
     });
 
     test("exact expressions can be physical quantity magnitudes", () => {
-        const value = evalRiX("1/2~{pi}~[rad]");
+        const value = evalRiX("(1/2)~{pi}~[rad]");
         expect(value.type).toBe("quantity");
         expect(formatValue(value)).toBe("1/2~{pi}~[rad]");
     });
@@ -273,18 +273,18 @@ describe("Cayley polar complex values", () => {
     test("multiplication falls back exactly across independent quadratic directions", () => {
         const source = `
             a := 5 + 3~{i};
-            b := 1/2 - 3/6~{i};
+            b := 1/2 - (3/6)~{i};
             c := a.Cayley();
             c * b
         `;
         expect(formatValue(evalRiX(source))).toBe("Cayley(1~{sqrt17}, 4 - 1~{sqrt17})");
         expect(formatValue(evalRiX(`
             a := 5 + 3~{i};
-            b := 1/2 - 3/6~{i};
+            b := 1/2 - (3/6)~{i};
             c := a.Cayley();
             (c * b).Cartesian()
         `))).toBe("4 - 1~{i}");
-        expect(formatValue(evalRiX("(5 + 3~{i}).Cayley() * (1/2 - 1/2~{i}).Cayley()")))
+        expect(formatValue(evalRiX("(5 + 3~{i}).Cayley() * (1/2 - (1/2)~{i}).Cayley()")))
             .toBe("Cayley(1~{sqrt17}, 4 - 1~{sqrt17})");
     });
 });

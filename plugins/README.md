@@ -15,6 +15,7 @@ The implementation order and per-plugin phased work are tracked in
 | Package | Kind | Public load ID | Purpose |
 | --- | --- | --- | --- |
 | `draw/` | host | `draw` | Convenient 2D scene authoring helpers. |
+| `exact-algebras/` | host | `exact-algebras` | Exact rational quaternion and octonion values. |
 | `plot/` | host | `plot` | Portable plot constructors that lower to core graphics. |
 | `float/` | host | `float` | IEEE-754 Float conversion and approximate math. |
 | `oracle/` | specification | `oracle` (proposed) | Rational-betweenness oracle real numbers based on the project paper. |

@@ -157,7 +157,7 @@ canonical Cayley pair. No approximation is introduced. For example:
 
 ```rix
 a := (5 + 3~{i}).Cayley();
-b := 1/2 - 1/2~{i};
+b := 1/2 - (1/2)~{i};
 a * b                    ## Cayley(sqrt17, 4 - sqrt17)
 ```
 

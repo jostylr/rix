@@ -59,9 +59,15 @@ describe("Lowering Pass", () => {
       expect(ir).toEqual({ fn: "LITERAL", args: ["42"] });
     });
 
-    test("rational", () => {
+    test("rational division", () => {
       const ir = L("3/4;");
-      expect(ir).toEqual({ fn: "LITERAL", args: ["3/4"] });
+      expect(ir).toEqual({
+        fn: "DIV",
+        args: [
+          { fn: "LITERAL", args: ["3"] },
+          { fn: "LITERAL", args: ["4"] },
+        ],
+      });
     });
 
     test("string", () => {
@@ -89,9 +95,15 @@ describe("Lowering Pass", () => {
     });
 
     test("exact generator keeps its target expression", () => {
-      expect(L("3/2~{pi};")).toEqual({
+      expect(L("(3/2)~{pi};")).toEqual({
         fn: "MATHUNIT",
-        args: [{ fn: "LITERAL", args: ["3/2"] }, "pi"],
+        args: [{
+          fn: "DIV",
+          args: [
+            { fn: "LITERAL", args: ["3"] },
+            { fn: "LITERAL", args: ["2"] },
+          ],
+        }, "pi"],
       });
     });
   });

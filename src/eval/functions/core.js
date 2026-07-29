@@ -4,7 +4,13 @@
 
 import path from "node:path";
 import { createRequire } from "node:module";
-import { Integer, Rational, RationalInterval, BaseSystem } from "@ratmath/core";
+import {
+    Integer,
+    Rational,
+    RationalInterval,
+    BaseSystem,
+    parseNumber as parseCoreNumber,
+} from "@ratmath/core";
 import { HOLE, isHole } from "../../runtime/hole.js";
 import {
     shallowCopyValue, deepCopyValue,
@@ -560,6 +566,14 @@ function resolveBaseSpecFromValue(value) {
  */
 function parseLiteral(str) {
     if (typeof str !== "string") return str;
+
+    // Decimal/integer uncertainty intervals are part of RatMath Core's shared
+    // number grammar. Keep RiX-specific bases and radix shifts below.
+    const isCoreUncertainty =
+        /^[+-]?(?:\d(?:_?\d)*(?:\.(?:\d(?:_?\d)*)?)?|\.\d(?:_?\d)*)\[[^\]]+\]$/.test(str);
+    if (isCoreUncertainty) {
+        return parseCoreNumber(str);
+    }
 
     // Bare base-prefix tokens are valid BASESPEC values in conversion contexts.
     // Return as raw token so TOBASE/FROMBASE can resolve them.

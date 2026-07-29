@@ -1536,10 +1536,13 @@ A continued fraction $[a_0; a_1, a_2, \ldots]$ is written as `a0.~a1~a2~...`. Th
 - `~-1.~2` has first coefficient −1: evaluates to `−1 + 1/2 = −1/2`.
 - `~-2.~1~2~2` evaluates to `−9/7`.
 
-To **negate** a continued fraction value, apply unary minus to an explicit-start CF:
+To **negate** a continued fraction value, apply unary minus:
 - `-~1.~2` = `−(1 + 1/2) = −3/2`.
+- `-1.~2` has the same value because minus is an operator, not part of the
+  implicit-start literal.
 
-> **Note:** Writing `-1.~2` (minus directly attached to an implicit-start CF) is a **syntax error** because it is ambiguous — it could mean a negative first coefficient or a negated value. Use `~-1.~2` or `-~1.~2` as appropriate.
+Use `~-1.~2` for a negative first coefficient; it is `−1 + 1/2 = −1/2`,
+which is different from negating `[1; 2]`.
 
 ### Mixed Numbers
 Mixed numbers are supported using a double period `..` to attach an integer to a fraction seamlessly (with no internal spaces):
@@ -1819,9 +1822,16 @@ See [the Cayley polar design](design/eval/cayley-polar.md).
 Because RiX operates internally on rich math types, division is highly granular:
 - `/` performs rational (fractional) division.
 - `//` performs integer (floor) division.
-- `/%` performs division returning the remainder.
+- `%` is exact floor modulo for a positive divisor, including rational
+  operands; its result satisfies `0 <= remainder < divisor`.
+- `/%` returns a tuple containing that floor quotient and exact remainder.
 - `/~` performs rounded division.
 - `/^` performs ceiling division.
+
+Postfix `!` computes factorial and `!!` computes double factorial. They bind
+tighter than exponentiation and unary minus, so `-3!` is `-(3!)`, `1/3!` is
+`1/(3!)`, and `(-3)!` is rejected. Their operand must be a non-negative
+integer.
 
 ### Ternary Operators
 RiX replaces the traditional `C` style ternary (`cond ? true : false`) with its own null-coalscing style syntax using `??` and `?:`.
