@@ -602,12 +602,17 @@ This document provides a comprehensive reference for all token types generated b
 ### EmbeddedLanguage
 ```javascript
 {
-  language: string,   // Language identifier or 'RiX-String'
-  context: object,    // Context parameters
-  body: string,       // Embedded code content
-  original: string    // Original backtick literal
+  language: string,      // Registered parser root, 'SArith', or 'RiX-String'
+  context: object,       // Transitional LANG(context):body parameters
+  modifiers: string[],   // Ordered .Name.modifier header components
+  body: string,          // Verbatim secondary-language source
+  explicitParser: bool,  // True for a leading-dot parser header
+  original: string       // Original backtick literal
 }
 ```
+**Purpose:** Dispatches a fenced body to the selected registry object's
+`.Parse` method. An unnamed body selects `.SArith`; a leading colon selects a
+raw RiX string.
 
 ### DotAccess
 ```javascript

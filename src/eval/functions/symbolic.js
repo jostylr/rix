@@ -50,7 +50,7 @@ function outputModeOf(spec) {
     return spec.outputMode || (spec.expression ? "expression" : "named");
 }
 
-function createSpec(meta, context = null) {
+export function createSymbolicSpec(meta, context = null) {
     const outputMode = meta.outputMode || (meta.expression ? "expression" : "named");
     const inputs = [...(meta.inputs || [])];
     let outputs = [...(meta.outputs || [])];
@@ -95,7 +95,7 @@ function specWithExpression(source, expression, options = {}) {
     };
     if (outputMode === "named") {
         const target = source.outputs[0];
-        return createSpec({
+        return createSymbolicSpec({
             ...common,
             outputMode: "named",
             outputs: [target],
@@ -103,7 +103,7 @@ function specWithExpression(source, expression, options = {}) {
             statements: [{ target, expr: expression }],
         });
     }
-    return createSpec({ ...common, outputMode: "expression", expression });
+    return createSymbolicSpec({ ...common, outputMode: "expression", expression });
 }
 
 function precedence(node) {
@@ -228,7 +228,7 @@ export function analyzeCallable(value) {
     return {
         speccable: true,
         profile: "exact-arithmetic",
-        spec: createSpec({
+        spec: createSymbolicSpec({
             inputs: positional.map((param) => param.name),
             outputMode: "expression",
             expression: value.body,
@@ -247,7 +247,7 @@ export function attachAutoSpec(value, context) {
     return value;
 }
 
-function polyFromSpec(spec) {
+export function polyFromSpec(spec) {
     const expression = expressionOf(spec);
     if (!supportedExpression(expression)) {
         throw new Error(`Poly cannot compile unsupported or effectful symbolic IR '${expression?.fn || "value"}'`);
@@ -952,7 +952,7 @@ export const symbolicCapabilities = {
 export const symbolicFunctions = {
     SYSTEM_SPEC: {
         lazy: true,
-        impl(args, context) { return createSpec(args[0] || {}, context); },
+        impl(args, context) { return createSymbolicSpec(args[0] || {}, context); },
         pure: true,
         doc: "Create a first-class symbolic system specification",
     },

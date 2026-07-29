@@ -32,6 +32,24 @@ export {
 } from "./lazy-sequence.js";
 export { runtimeRandom, seedRuntimeRandom } from "./random.js";
 export {
+    applyStructuralBinary,
+    applyStructuralPostfix,
+    applyStructuralPrefix,
+    createStructuralFunction,
+    formatStructuralValue,
+    isStructuralForm,
+    isStructuralSymbol,
+    liftStructuralValue,
+    parseStructuralArithmetic,
+    resolveStructuralValue,
+    sortedStructuralFreeSymbols,
+    structuralForm,
+    structuralFreeSymbols,
+    structuralSymbol,
+    structuralValueToIr,
+    tokenizeStructuralArithmetic,
+} from "./structural-arithmetic.js";
+export {
     createDefaultUnitCollection,
     createUnit,
     constructQuantity,

@@ -1016,7 +1016,19 @@ const LOWERERS = {
   // === Embedded Language ===
 
   EmbeddedLanguage(node) {
-    return ir("EMBEDDED", node.language, node.code);
+    return ir(
+      "EMBEDDED",
+      node.language || "SArith",
+      node.modifiers || [],
+      node.body || "",
+      {
+        context: node.context ?? null,
+        explicitParser: node.explicitParser === true,
+        expectedFunction: node.expectedFunction === true,
+        inferredName: node.inferredName ?? null,
+        legacyHeader: node.legacyHeader === true,
+      },
+    );
   },
 };
 
@@ -1079,7 +1091,15 @@ function lowerAssignment(node, irFn) {
 
   // Simple variable assignment: x = 5
   if (left.type === "UserIdentifier" || left.type === "SystemIdentifier") {
-    return ir(irFn, left.name, lowerNode(node.right));
+    const right =
+      left.type === "SystemIdentifier" && node.right?.type === "EmbeddedLanguage"
+        ? {
+            ...node.right,
+            expectedFunction: true,
+            inferredName: left.name,
+          }
+        : node.right;
+    return ir(irFn, left.name, lowerNode(right));
   }
 
   if (left.type === "SelfRef") {

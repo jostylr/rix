@@ -1616,6 +1616,37 @@ RiX provides a concise symbolic algebra for sets, intervals, and collections:
 
 ## Symbolic Specs and Exact Calculus
 
+Backticks provide a lighter notation-preserving layer before a full symbolic
+spec is needed. By default they use `.SArith`: tight operators preserve the
+written form, while operators spaced on both sides apply structural algebra.
+
+```rix
+`6/4+2/4`       # Sum(Fraction(6,4), Fraction(2,4))
+`6/4 + 2/4`     # Fraction(8,4), preserving denominator 4
+`3/4 + x`       # Sum(Fraction(3,4), x)
+```
+
+An identifier is a free symbol, while `@name` captures the surrounding RiX
+value. `.SArith.Fun` converts free symbols to alphabetically ordered
+parameters. Assignment to an uppercase identifier infers the same conversion,
+including zero-argument constant functions:
+
+```rix
+a := 2
+F := `y + @a*x`           # parameters (x, y)
+Constant := `6/4 + 2/4`   # no parameters
+Constant()                # Fraction(8,4)
+```
+
+A leading-dot header selects any registered parser object exposing `.Parse`:
+
+```rix
+P := `.Poly:x^2 + 3/4 x^5 - 7`
+```
+
+See the parser documentation for custom parser objects, modifiers, raw-string
+backticks, and multiple-backtick nesting.
+
 `{# ... }` creates a first-class symbolic function without executing its body.
 The three common forms are:
 

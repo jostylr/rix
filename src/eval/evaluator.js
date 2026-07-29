@@ -31,6 +31,11 @@ import { stdlibFunctions } from "./functions/stdlib.js";
 import { diagnosticFunctions } from "./functions/diagnostics.js";
 import { installSymbolicVariants, symbolicCapabilities, symbolicFunctions } from "./functions/symbolic.js";
 import { outputFunctions } from "./functions/output.js";
+import {
+    createPolySystemValue,
+    embeddedFunctions,
+    sArithCapability,
+} from "./functions/embedded.js";
 import { installRegisteredTypes, registerBuiltinSemanticTypes } from "../runtime/type-system.js";
 import { createDefaultComplexCollection, createDefaultExactCollection } from "../runtime/exact-values.js";
 import { createAlgebraOutputCollection, createGraphicsOutputCollection } from "../runtime/output.js";
@@ -62,6 +67,7 @@ export function createDefaultRegistry(options = {}) {
     registry.registerAll(unitExactFunctions);
     registry.registerAll(symbolicFunctions);
     registry.registerAll(outputFunctions);
+    registry.registerAll(embeddedFunctions);
     installRegisteredTypes(registry);
     installUnitExactVariants(registry);
     installSymbolicVariants(registry);
@@ -176,7 +182,16 @@ export function createDefaultSystemContext(options = {}) {
     ctx.registerValue("Graphics", graphics, { doc: "Intrinsic portable 2D scene language" });
     ctx.registerAll(stdlibFunctions);
     ctx.registerAll(symbolicCapabilities);
+    ctx.registerCallableValue("Poly", createPolySystemValue(), symbolicCapabilities.POLY, {
+        doc: `${symbolicCapabilities.POLY.doc}; exposes .Parse for backtick polynomial forms`,
+        groups: ["Notation", "Symbolic"],
+    });
     ctx.registerAll(outputFunctions);
+    const sArith = sArithCapability.create();
+    ctx.registerCallableValue("SArith", sArith.value, sArith.definition, {
+        doc: sArith.definition.doc,
+        groups: ["Notation", "Symbolic"],
+    });
     ctx.register("EVAL", coreFunctions.EVAL);
     ctx.register("TypeExport", coreFunctions.TYPE_EXPORT);
     ctx.register("TypeImport", coreFunctions.TYPE_IMPORT);

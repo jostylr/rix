@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>embedded-parsing – RiX</title>
+<title>structural-arithmetic-todo – RiX</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -26,30 +26,28 @@ ul.task-list li input[type="checkbox"] {
 </style>
 
 
-<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
-<script src="../site_libs/quarto-nav/headroom.min.js"></script>
-<script src="../site_libs/clipboard/clipboard.min.js"></script>
-<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
-<script src="../site_libs/quarto-search/fuse.min.js"></script>
-<script src="../site_libs/quarto-search/quarto-search.js"></script>
-<meta name="quarto:offset" content="../">
-<link href="../parser/matrix-tensor-implementation.html" rel="next">
-<link href="../parser/array-generators-implementation.html" rel="prev">
-<link href="../rix-logo.png" rel="icon" type="image/png">
-<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
-<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
-<script src="../site_libs/quarto-html/popper.min.js"></script>
-<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
-<script src="../site_libs/quarto-html/anchor.min.js"></script>
-<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-4a0610749eeff5ab924a4729b5181608.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-dark-de927ec96a2411cf822331f71755f83e.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-4a0610749eeff5ab924a4729b5181608.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
-<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
-<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-f3edcacc9eded719789e0469c6b6eab5.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
-<link href="../site_libs/bootstrap/bootstrap-dark-c53da4be0d013bdcf7fcfccaa2827e71.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
-<link href="../site_libs/bootstrap/bootstrap-f3edcacc9eded719789e0469c6b6eab5.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<link href="../../rix-logo.png" rel="icon" type="image/png">
+<script src="../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-4a0610749eeff5ab924a4729b5181608.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-dark-de927ec96a2411cf822331f71755f83e.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-4a0610749eeff5ab924a4729b5181608.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap-f3edcacc9eded719789e0469c6b6eab5.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../../site_libs/bootstrap/bootstrap-dark-c53da4be0d013bdcf7fcfccaa2827e71.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../../site_libs/bootstrap/bootstrap-f3edcacc9eded719789e0469c6b6eab5.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -250,11 +248,11 @@ ul.task-list li input[type="checkbox"] {
     <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
       <div class="navbar-container container-fluid">
       <div class="navbar-brand-container mx-auto">
-    <a href="../index.html" class="navbar-brand navbar-brand-logo">
-    <img src="../rix-logo.png" alt="" class="navbar-logo light-content">
-    <img src="../rix-logo.png" alt="" class="navbar-logo dark-content">
+    <a href="../../index.html" class="navbar-brand navbar-brand-logo">
+    <img src="../../rix-logo.png" alt="" class="navbar-logo light-content">
+    <img src="../../rix-logo.png" alt="" class="navbar-logo dark-content">
     </a>
-    <a class="navbar-brand" href="../index.html">
+    <a class="navbar-brand" href="../../index.html">
     <span class="navbar-title">RiX</span>
     </a>
   </div>
@@ -265,19 +263,19 @@ ul.task-list li input[type="checkbox"] {
           <div class="collapse navbar-collapse" id="navbarCollapse">
             <ul class="navbar-nav navbar-nav-scroll me-auto">
   <li class="nav-item">
-    <a class="nav-link active" href="../getting-started.html" aria-current="page"> 
+    <a class="nav-link active" href="../../getting-started.html" aria-current="page"> 
 <span class="menu-text">Start</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="../language-at-a-glance.html"> 
+    <a class="nav-link" href="../../language-at-a-glance.html"> 
 <span class="menu-text">Learn</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="../eval/syntax-guide.html"> 
+    <a class="nav-link" href="../../eval/syntax-guide.html"> 
 <span class="menu-text">Reference</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="../developer-guide.html"> 
+    <a class="nav-link" href="../../developer-guide.html"> 
 <span class="menu-text">Internals</span></a>
   </li>  
 </ul>
@@ -299,7 +297,7 @@ ul.task-list li input[type="checkbox"] {
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../developer-guide.html">Developer guide</a></li><li class="breadcrumb-item"><a href="../parser/embedded-parsing.html">Embedded parsing</a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
     </div>
@@ -313,7 +311,7 @@ ul.task-list li input[type="checkbox"] {
     <ul class="list-unstyled mt-1">
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../index.html" class="sidebar-item-text sidebar-link">
+  <a href="../../index.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Overview</span></a>
   </div>
 </li>
@@ -328,25 +326,25 @@ ul.task-list li input[type="checkbox"] {
       <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../getting-started.html" class="sidebar-item-text sidebar-link">
+  <a href="../../getting-started.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Getting started</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../language-at-a-glance.html" class="sidebar-item-text sidebar-link">
+  <a href="../../language-at-a-glance.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">RiX at a glance</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../highlights.html" class="sidebar-item-text sidebar-link">
+  <a href="../../highlights.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">RiX Highlights</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../status.html" class="sidebar-item-text sidebar-link">
+  <a href="../../status.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Implementation status</span></a>
   </div>
 </li>
@@ -363,13 +361,13 @@ ul.task-list li input[type="checkbox"] {
       <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../introduction.html" class="sidebar-item-text sidebar-link">
+  <a href="../../introduction.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Complete introduction</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../tutorial/units-and-exact-values.html" class="sidebar-item-text sidebar-link">
+  <a href="../../tutorial/units-and-exact-values.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Units and exact values</span></a>
   </div>
 </li>
@@ -386,25 +384,25 @@ ul.task-list li input[type="checkbox"] {
       <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../eval/syntax-guide.html" class="sidebar-item-text sidebar-link">
+  <a href="../../eval/syntax-guide.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Syntax and functions</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../eval/methods-guide.html" class="sidebar-item-text sidebar-link">
+  <a href="../../eval/methods-guide.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Methods</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../eval/types-and-traits-guide.html" class="sidebar-item-text sidebar-link">
+  <a href="../../eval/types-and-traits-guide.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Types and traits</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../reference/system-reference.html" class="sidebar-item-text sidebar-link">
+  <a href="../../reference/system-reference.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Generated runtime catalog</span></a>
   </div>
 </li>
@@ -412,70 +410,70 @@ ul.task-list li input[type="checkbox"] {
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="false">
  <span class="menu-text">Developer guide</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="false" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../developer-guide.html" class="sidebar-item-text sidebar-link">
+  <a href="../../developer-guide.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Developer guide</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../plugin-catalog.html" class="sidebar-item-text sidebar-link">
+  <a href="../../plugin-catalog.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Plugin catalog and loading</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../eval/README.html" class="sidebar-item-text sidebar-link">
+  <a href="../../eval/README.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Evaluator overview</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../parser/architecture.html" class="sidebar-item-text sidebar-link">
+  <a href="../../parser/architecture.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Parser architecture</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../parser/parsing.html" class="sidebar-item-text sidebar-link">
+  <a href="../../parser/parsing.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Parsing and precedence</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../parser/AST-brief.html" class="sidebar-item-text sidebar-link">
+  <a href="../../parser/AST-brief.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">AST reference</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../design/eval/ir-format.html" class="sidebar-item-text sidebar-link">
+  <a href="../../design/eval/ir-format.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">IR design snapshot</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../parser/array-generators-implementation.html" class="sidebar-item-text sidebar-link">
+  <a href="../../parser/array-generators-implementation.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Array generators</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../parser/embedded-parsing.html" class="sidebar-item-text sidebar-link active">
+  <a href="../../parser/embedded-parsing.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Embedded parsing</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../parser/matrix-tensor-implementation.html" class="sidebar-item-text sidebar-link">
+  <a href="../../parser/matrix-tensor-implementation.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Matrices and tensors</span></a>
   </div>
 </li>
@@ -492,43 +490,43 @@ ul.task-list li input[type="checkbox"] {
       <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../design/eval/cells-assignments.html" class="sidebar-item-text sidebar-link">
+  <a href="../../design/eval/cells-assignments.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Cells and assignment</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../design/eval/units-and-exact-generators.html" class="sidebar-item-text sidebar-link">
+  <a href="../../design/eval/units-and-exact-generators.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Units and exact generators</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../design/eval/cayley-polar.html" class="sidebar-item-text sidebar-link">
+  <a href="../../design/eval/cayley-polar.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Cayley polar complex values</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../design/eval/symbolic-calculus.html" class="sidebar-item-text sidebar-link">
+  <a href="../../design/eval/symbolic-calculus.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Symbolic specs and calculus</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../design/eval/transformation-reference.html" class="sidebar-item-text sidebar-link">
+  <a href="../../design/eval/transformation-reference.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Symbolic transformations</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../design/eval/output-model.html" class="sidebar-item-text sidebar-link">
+  <a href="../../design/eval/output-model.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Structured output, documents, and graphics</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../design/plugins.html" class="sidebar-item-text sidebar-link">
+  <a href="../../design/plugins.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Plugin roadmap and rendering contracts</span></a>
   </div>
 </li>
@@ -545,25 +543,25 @@ ul.task-list li input[type="checkbox"] {
       <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth1 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../rix-rationales.html" class="sidebar-item-text sidebar-link">
+  <a href="../../rix-rationales.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Design rationales</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../design/parser/spec.html" class="sidebar-item-text sidebar-link">
+  <a href="../../design/parser/spec.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Early language specification</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../design/parser/questions.html" class="sidebar-item-text sidebar-link">
+  <a href="../../design/parser/questions.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Open design areas</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../report-2026-04-02.html" class="sidebar-item-text sidebar-link">
+  <a href="../../report-2026-04-02.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">April 2026 review (historical)</span></a>
   </div>
 </li>
@@ -579,138 +577,53 @@ ul.task-list li input[type="checkbox"] {
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#backtick-parsers-and-structural-arithmetic" id="toc-backtick-parsers-and-structural-arithmetic" class="nav-link active" data-scroll-target="#backtick-parsers-and-structural-arithmetic">Backtick parsers and structural arithmetic</a>
+  <li><a href="#structural-arithmetic-follow-up-work" id="toc-structural-arithmetic-follow-up-work" class="nav-link active" data-scroll-target="#structural-arithmetic-follow-up-work">Structural arithmetic follow-up work</a>
   <ul class="collapse">
-  <li><a href="#overview" id="toc-overview" class="nav-link" data-scroll-target="#overview">Overview</a></li>
-  <li><a href="#header-grammar" id="toc-header-grammar" class="nav-link" data-scroll-target="#header-grammar">Header grammar</a></li>
-  <li><a href="#parser-object-protocol" id="toc-parser-object-protocol" class="nav-link" data-scroll-target="#parser-object-protocol">Parser object protocol</a></li>
-  <li><a href="#multiple-backtick-delimiters" id="toc-multiple-backtick-delimiters" class="nav-link" data-scroll-target="#multiple-backtick-delimiters">Multiple backtick delimiters</a></li>
-  <li><a href="#sarith" id="toc-sarith" class="nav-link" data-scroll-target="#sarith"><code>.SArith</code></a></li>
-  <li><a href="#symbols-and-outer-splicing" id="toc-symbols-and-outer-splicing" class="nav-link" data-scroll-target="#symbols-and-outer-splicing">Symbols and outer splicing</a></li>
-  <li><a href="#structural-functions" id="toc-structural-functions" class="nav-link" data-scroll-target="#structural-functions">Structural functions</a></li>
-  <li><a href="#poly.parse" id="toc-poly.parse" class="nav-link" data-scroll-target="#poly.parse"><code>.Poly.Parse</code></a></li>
+  <li><a href="#parser-surface" id="toc-parser-surface" class="nav-link" data-scroll-target="#parser-surface">Parser surface</a></li>
+  <li><a href="#structural-algebra" id="toc-structural-algebra" class="nav-link" data-scroll-target="#structural-algebra">Structural algebra</a></li>
+  <li><a href="#parser-plugins-and-tooling" id="toc-parser-plugins-and-tooling" class="nav-link" data-scroll-target="#parser-plugins-and-tooling">Parser plugins and tooling</a></li>
   </ul></li>
   </ul>
-<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/parser/embedded-parsing.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/design/eval/structural-arithmetic-todo.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
     </div>
 <!-- main -->
-<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../developer-guide.html">Developer guide</a></li><li class="breadcrumb-item"><a href="../parser/embedded-parsing.html">Embedded parsing</a></li></ol></nav></header>
+<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"></header>
 
 
 
 
 
-<section id="backtick-parsers-and-structural-arithmetic" class="level1">
-<h1>Backtick parsers and structural arithmetic</h1>
-<section id="overview" class="level2">
-<h2 class="anchored" data-anchor-id="overview">Overview</h2>
-<p>Backticks fence source text for a secondary parser. The body is preserved verbatim, including internal whitespace. An unnamed body uses the built-in <code>.SArith</code> structural-arithmetic parser:</p>
-<pre class="rix"><code>`6/4+2/4`       # Sum(6/4, 2/4)
-`6/4 + 2/4`     # 8/4</code></pre>
-<p>A leading-dot header selects another parser object from the visible <code>.</code> system context:</p>
-<pre class="rix"><code>`.SArith:x^2 + 1`
-`.SArith.Fun:x^2 + 1`
-`.Poly:x^2 + 3/4 x^5 - 7`
-`.myParser.Option:source text`</code></pre>
-<p>PascalCase roots such as <code>.Poly</code> are core RiX capabilities. CamelCase roots such as <code>.myParser</code> are host/plugin capabilities. This is the same ownership rule used by all other entries in the <code>.</code> registry.</p>
-</section>
-<section id="header-grammar" class="level2">
-<h2 class="anchored" data-anchor-id="header-grammar">Header grammar</h2>
-<pre class="text"><code>backtickBody :=
-    "." parserName ("." modifier)* ":" body
-  | ":" rawStringBody
-  | defaultSArithBody</code></pre>
-<p>Examples:</p>
-<pre class="rix"><code>`x + 1`                    # .SArith.Parse("x + 1")
-`.Poly.Fun:x^2 + 1`        # .Poly.Parse(body, modifiers=[:Fun])
-`:ordinary raw text`       # RiX string value</code></pre>
-<p>The leading dot is required for new named-parser syntax. Consequently, colons in an unnamed secondary language are not automatically parser headers.</p>
-<p>The old uppercase-leading <code>LANG(context):body</code> AST syntax is still recognized transitionally by the main parser. New code should use <code>.Name:body</code>.</p>
-</section>
-<section id="parser-object-protocol" class="level2">
-<h2 class="anchored" data-anchor-id="parser-object-protocol">Parser object protocol</h2>
-<p>The selected registry entry must be an object exposing a callable <code>Parse</code> method. Conceptually, RiX invokes:</p>
-<pre class="text"><code>parser.Parse(bodyString, modifierSequence, parseInfo)</code></pre>
-<p><code>parseInfo</code> is a map containing:</p>
+<section id="structural-arithmetic-follow-up-work" class="level1">
+<h1>Structural arithmetic follow-up work</h1>
+<p>The first backtick-parser implementation deliberately establishes the dispatch, structural-value, splice, and function protocols before expanding the notation surface.</p>
+<section id="parser-surface" class="level2">
+<h2 class="anchored" data-anchor-id="parser-surface">Parser surface</h2>
 <ul>
-<li><code>function</code>: truthy when an uppercase assignment requests a function;</li>
-<li><code>name</code>: the inferred uppercase function name, when present;</li>
-<li><code>explicit</code>: truthy when the source used a leading-dot parser header.</li>
+<li>Add comments inside <code>.SArith</code> bodies.</li>
+<li>Add the remaining RiX exact literal spellings, including mixed numbers, continued fractions, explicit bases, and intervals.</li>
+<li>Extend the initial ambiguity diagnostics (<code>-x^2</code>, <code>-x!</code>, <code>1/2!</code>, and <code>1/2^3</code>) as new prefix and postfix forms are added.</li>
+<li>Add explicit function parameter declarations, such as <code>.SArith.Fun(y,x):body</code>, when parameter order or unused parameters must be supplied rather than inferred.</li>
+<li>Decide whether <code>@(RiX expression)</code> should complement the initial <code>@name</code> snapshot splice.</li>
 </ul>
-<p>Modifiers are parser-owned. <code>.SArith</code> currently accepts <code>Fun</code>; <code>.Poly</code> accepts <code>Fun</code> as a compatible explicit-function marker.</p>
-<p>The lookup uses the current visible system context. Script capability restrictions therefore apply to backtick parsers just as they do to ordinary dot capabilities.</p>
 </section>
-<section id="multiple-backtick-delimiters" class="level2">
-<h2 class="anchored" data-anchor-id="multiple-backtick-delimiters">Multiple backtick delimiters</h2>
-<p>Any positive number of backticks may delimit a body. The closing delimiter must contain the same number:</p>
-<pre class="rix"><code>``.myParser:a `nested` body``
-```Code: `one` and ``two`` ```</code></pre>
-<p>This avoids escape syntax when a secondary language itself uses backticks.</p>
+<section id="structural-algebra" class="level2">
+<h2 class="anchored" data-anchor-id="structural-algebra">Structural algebra</h2>
+<ul>
+<li>Add configurable constructor/operation tables for custom operator glyphs, fixity, precedence, and associativity.</li>
+<li>Add deliberate rules for unequal-denominator fraction addition. The initial implementation combines equal denominators and otherwise retains a <code>Sum</code>.</li>
+<li>Add canonical flattening policies for nested <code>Sum</code> and <code>Product</code> forms.</li>
+<li>Add public inspection, rendering, collapse, and transformation methods on structural values.</li>
+<li>Add domain-aware cancellation with explicit nonzero assumptions.</li>
+</ul>
 </section>
-<section id="sarith" class="level2">
-<h2 class="anchored" data-anchor-id="sarith"><code>.SArith</code></h2>
-<p><code>.SArith</code> recognizes exact numbers, identifiers, <code>@name</code> splices, parentheses, implicit multiplication, and:</p>
-<pre class="text"><code>+  -  *  /  ^  !</code></pre>
-<p>Touching operators construct raw forms. Operators separated from both operands apply structural algebra:</p>
-<pre class="rix"><code>`a+b`           # Sum(a, b), construction mode
-`a + b`         # structurally add a and b
-
-`6/4+2/4`       # Sum(Fraction(6,4), Fraction(2,4))
-`6/4 + 2/4`     # Fraction(8,4)
-
-`x+0`           # Sum(x, 0)
-`x + 0`         # x</code></pre>
-<p>One-sided binary spacing is an error:</p>
-<pre class="rix"><code>`a+ b`          # error
-`a +b`          # error</code></pre>
-<p>Tight prefix/postfix notation colliding with a higher-precedence tight form is also rejected instead of guessing:</p>
-<pre class="rix"><code>`-x^2`          # error
-`1/2!`          # error
-`1/2^3`         # error
-
-`- x^2`         # Negative(Power(x,2))
-`-x ^ 2`        # Power(Negative(x),2), applied power
-`(-x)^2`        # Power(Negative(x),2), constructed power
-`(1/2)!`        # Factorial(Fraction(1,2))
-`1/(2!)`        # Fraction(1, Factorial(2))</code></pre>
-<p>Structural operations remain in the structural domain. If a specialized combination is unavailable, the result is an applied form rather than an ordinary RiX evaluation:</p>
-<pre class="rix"><code>`3/4 + x`       # Sum(Fraction(3,4), x)</code></pre>
-<p>Equal-denominator <code>Fraction</code> addition and subtraction preserve the denominator instead of reducing:</p>
-<pre class="rix"><code>`6/4 + 2/4`     # 8/4, not 2</code></pre>
-<p>Tight fraction coefficients bind before implicit multiplication:</p>
-<pre class="rix"><code>`3/4 x^5`       # Product(Fraction(3,4), Power(x,5))</code></pre>
-</section>
-<section id="symbols-and-outer-splicing" class="level2">
-<h2 class="anchored" data-anchor-id="symbols-and-outer-splicing">Symbols and outer splicing</h2>
-<p>An ordinary identifier becomes a free structural symbol:</p>
-<pre class="rix"><code>`x + 1`</code></pre>
-<p><code>@name</code> reads the current surrounding RiX value and lifts a snapshot into the structural domain:</p>
-<pre class="rix"><code>x := 6 / 4
-`x + 1`         # Sum(Symbol("x"), 1)
-`@x + 1`        # 5/2</code></pre>
-<p>Captured names do not become function parameters.</p>
-</section>
-<section id="structural-functions" class="level2">
-<h2 class="anchored" data-anchor-id="structural-functions">Structural functions</h2>
-<p><code>Fun</code> converts the parsed result to a RiX lambda:</p>
-<pre class="rix"><code>F := `.SArith.Fun:y - x`
-F(2, 5)         # 3</code></pre>
-<p>Free-symbol parameters are ordered alphabetically, independent of their first appearance. Repeated symbols produce one parameter.</p>
-<p>A structural backtick directly assigned to an uppercase identifier receives the same function conversion automatically:</p>
-<pre class="rix"><code>F := `y - x`    # parameters: (x, y)</code></pre>
-<p>Lowercase assignment retains the form:</p>
-<pre class="rix"><code>f := `y - x`    # structural Difference/Sum value</code></pre>
-<p>If no free symbols exist, explicit or inferred function conversion creates a zero-argument constant function:</p>
-<pre class="rix"><code>Constant := `6/4 + 2/4`
-Constant()      # 8/4</code></pre>
-</section>
-<section id="poly.parse" class="level2">
-<h2 class="anchored" data-anchor-id="poly.parse"><code>.Poly.Parse</code></h2>
-<p><code>.Poly</code> is both the existing polynomial compiler capability and a registered backtick parser object. Its parser uses <code>.SArith</code> notation, converts the result to the exact symbolic IR subset, alphabetizes its free inputs, and returns an executable polynomial:</p>
-<pre class="rix"><code>P := `.Poly:x^2 + 3/4 x^5 - 7`
-P(2)            # 21</code></pre>
-<p>Unsupported symbolic forms fail rather than silently switching to approximate arithmetic.</p>
-<p>The deliberately phased grammar and algebra work is tracked in the <a href="../design/eval/structural-arithmetic-todo.html">structural arithmetic follow-up list</a>.</p>
+<section id="parser-plugins-and-tooling" class="level2">
+<h2 class="anchored" data-anchor-id="parser-plugins-and-tooling">Parser plugins and tooling</h2>
+<ul>
+<li>Add a RiX-level helper for constructing registered parser objects without host JavaScript.</li>
+<li>Add CodeMirror mixed-language highlighting selected by the leading-dot parser header.</li>
+<li>Add structured source spans to every secondary-language node rather than retaining only errors relative to the backtick body.</li>
+<li>Remove the transitional uppercase <code>LANG(context):body</code> parser syntax after downstream uses have migrated to <code>.Name:body</code>.</li>
+</ul>
 
 
 </section>
@@ -1135,18 +1048,6 @@ P(2)            # 21</code></pre>
     }
   });
   </script>
-<nav class="page-navigation">
-  <div class="nav-page nav-page-previous">
-      <a href="../parser/array-generators-implementation.html" class="pagination-link" aria-label="Array generators">
-        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">Array generators</span>
-      </a>          
-  </div>
-  <div class="nav-page nav-page-next">
-      <a href="../parser/matrix-tensor-implementation.html" class="pagination-link" aria-label="Matrices and tensors">
-        <span class="nav-page-text">Matrices and tensors</span> <i class="bi bi-arrow-right-short"></i>
-      </a>
-  </div>
-</nav>
 </div> <!-- /content -->
 <footer class="footer">
   <div class="nav-footer">
@@ -1155,7 +1056,7 @@ P(2)            # 21</code></pre>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
-    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/parser/embedded-parsing.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/design/eval/structural-arithmetic-todo.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
     <div class="nav-footer-right">
 <p>Documentation built with <a href="https://quarto.org/">Quarto</a></p>
 </div>
@@ -1165,5 +1066,5 @@ P(2)            # 21</code></pre>
 
 
 
-<script src="../site_libs/quarto-html/zenscroll-min.js"></script>
+<script src="../../site_libs/quarto-html/zenscroll-min.js"></script>
 </body></html>

@@ -1249,11 +1249,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="embeddedlanguage" class="level3">
 <h3 class="anchored" data-anchor-id="embeddedlanguage">EmbeddedLanguage</h3>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb57"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb57-1"><a href="#cb57-1" aria-hidden="true" tabindex="-1"></a>{</span>
-<span id="cb57-2"><a href="#cb57-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">language</span><span class="op">:</span> string<span class="op">,</span>   <span class="co">// Language identifier or 'RiX-String'</span></span>
-<span id="cb57-3"><a href="#cb57-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">context</span><span class="op">:</span> object<span class="op">,</span>    <span class="co">// Context parameters</span></span>
-<span id="cb57-4"><a href="#cb57-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">body</span><span class="op">:</span> string<span class="op">,</span>       <span class="co">// Embedded code content</span></span>
-<span id="cb57-5"><a href="#cb57-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">original</span><span class="op">:</span> string    <span class="co">// Original backtick literal</span></span>
-<span id="cb57-6"><a href="#cb57-6" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb57-2"><a href="#cb57-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">language</span><span class="op">:</span> string<span class="op">,</span>      <span class="co">// Registered parser root, 'SArith', or 'RiX-String'</span></span>
+<span id="cb57-3"><a href="#cb57-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">context</span><span class="op">:</span> object<span class="op">,</span>       <span class="co">// Transitional LANG(context):body parameters</span></span>
+<span id="cb57-4"><a href="#cb57-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">modifiers</span><span class="op">:</span> string[]<span class="op">,</span>   <span class="co">// Ordered .Name.modifier header components</span></span>
+<span id="cb57-5"><a href="#cb57-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">body</span><span class="op">:</span> string<span class="op">,</span>          <span class="co">// Verbatim secondary-language source</span></span>
+<span id="cb57-6"><a href="#cb57-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">explicitParser</span><span class="op">:</span> bool<span class="op">,</span>  <span class="co">// True for a leading-dot parser header</span></span>
+<span id="cb57-7"><a href="#cb57-7" aria-hidden="true" tabindex="-1"></a>  <span class="dt">original</span><span class="op">:</span> string       <span class="co">// Original backtick literal</span></span>
+<span id="cb57-8"><a href="#cb57-8" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><strong>Purpose:</strong> Dispatches a fenced body to the selected registry object’s <code>.Parse</code> method. An unnamed body selects <code>.SArith</code>; a leading colon selects a raw RiX string.</p>
 </section>
 <section id="dotaccess-1" class="level3">
 <h3 class="anchored" data-anchor-id="dotaccess-1">DotAccess</h3>

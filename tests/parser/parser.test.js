@@ -3268,19 +3268,56 @@ describe("RiX Parser", () => {
         ]);
       });
 
-      test("no colon - RiX-String", () => {
+      test("no parser header uses SArith", () => {
         const ast = parseCode("`NoColon`;");
         expect(stripMetadata(ast)).toEqual([
           {
             type: "Statement",
             expression: {
               type: "EmbeddedLanguage",
-              language: "RiX-String",
+              language: "SArith",
               context: null,
               body: "NoColon"
             }
           }
         ]);
+      });
+
+      test("leading-dot parser header carries ordered modifiers", () => {
+        const ast = parseCode("`.Poly.Fun.Expanded:x^2 + 1`;");
+        expect(stripMetadata(ast)).toEqual([
+          {
+            type: "Statement",
+            expression: {
+              type: "EmbeddedLanguage",
+              language: "Poly",
+              context: null,
+              modifiers: ["Fun", "Expanded"],
+              body: "x^2 + 1",
+              explicitParser: true,
+            }
+          }
+        ]);
+      });
+
+      test("lowercase text containing a colon remains default SArith", () => {
+        const ast = parseCode("`x:5`;");
+        expect(stripMetadata(ast)).toEqual([
+          {
+            type: "Statement",
+            expression: {
+              type: "EmbeddedLanguage",
+              language: "SArith",
+              context: null,
+              body: "x:5",
+            }
+          }
+        ]);
+      });
+
+      test("leading-dot parser header requires a colon", () => {
+        expect(() => parseCode("`.Poly x^2`;"))
+          .toThrow("Named backtick parser header requires ':'");
       });
 
       test("empty context parentheses", () => {

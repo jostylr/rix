@@ -9,6 +9,11 @@ import { formatQuantity, formatUnit, isQuantity, isUnitValue } from "../runtime/
 import { isLazySequence, lazyKnownLength } from "../runtime/lazy-sequence.js";
 import { formatSymbolicSpec, getAttachedSpec, isSymbolicSpec, renderSymbolicIr } from "./functions/symbolic.js";
 import { formatOutputText, isOutputValue } from "../runtime/output.js";
+import {
+    formatStructuralValue,
+    isStructuralForm,
+    isStructuralSymbol,
+} from "../runtime/structural-arithmetic.js";
 
 function tensorValueAtTuple(tensor, tuple) {
     const value = tensor.data[tensorOffsetForTuple(tensor, tuple)];
@@ -264,6 +269,9 @@ export function formatValue(val, options = {}) {
     if (typeof val === "object" && val !== null) {
         if (isOutputValue(val)) return formatOutputText(val, formatChild);
         if (isSymbolicSpec(val)) return formatSymbolicSpec(val);
+        if (isStructuralForm(val) || isStructuralSymbol(val) || val.type === "structural_value") {
+            return formatStructuralValue(val, formatChild);
+        }
         if (isLazySequence(val)) {
             const cached = val._lazy.cache.slice(0, 8).map(formatChild).join(", ");
             const more = val._lazy.cache.length > 8 || !val._lazy.done ? (cached ? ", …" : "…") : "";

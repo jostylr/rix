@@ -8,7 +8,7 @@ toc-depth: 2
 This page is generated from the current RiX implementation by `documentation/scripts/generate-reference.js`. Do not edit it by hand. Descriptions come from registry documentation strings; the narrative [syntax guide](../eval/syntax-guide.md) and [methods guide](../eval/methods-guide.md) provide signatures and examples.
 :::
 
-At this revision RiX exposes **139 named entries** on the default system context and registers **168 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
+At this revision RiX exposes **140 named entries** on the default system context and registers **170 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
 
 ## Public system context
 
@@ -106,7 +106,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.PIPEEXPLICIT` | lazy function | — | Explicit pipe operator — placeholders \_1, \_2, … map tuple elements to specific argument positions |
 | `.PLUGIN` | function | — | Discover and load host-approved RiX plugins |
 | `.PMAP` | lazy function | — | Map a function over a collection — callback receives (val, locator, src) |
-| `.POLY` | function | Symbolic | Compile a single-output symbolic spec into an exact callable |
+| `.POLY` | function | Symbolic | Compile a single-output symbolic spec into an exact callable; exposes .Parse for backtick polynomial forms |
 | `.POW` | function | Arith | Exponentiation |
 | `.POWPROD` | function | — | Exponentiation/product power (currently same implementation as POW) |
 | `.PRINT` | function | Core, Strings | Print each argument through the replaceable \_\_io\_\_ hook |
@@ -117,6 +117,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.REVERSE` | function | — | Reverse a collection (returns new copy) |
 | `.SAMECELL` | lazy function | — | Identity comparison (===) — returns 1 if both sides refer to the same cell, null otherwise |
 | `.SAME_CELL` | lazy function | — | Identity comparison (===) — returns 1 if both sides refer to the same cell, null otherwise |
+| `.SARITH` | function | — | Parse structural arithmetic; backticks use this parser by default |
 | `.SET` | lazy function | — | Create a set (unique values) |
 | `.SIMPLIFY` | function | Symbolic | Compatibility alias for Transform |
 | `.SLICE` | lazy function | — | Strict slice operator \|>/ |
@@ -245,7 +246,8 @@ Imported scripts can add or withhold named groups. Permission-like names are int
 | `Files` | `FILES` |
 | `Units` | `UNITS`, `Units`, `CONVERTUNIT`, `ConvertUnit`, `DEFINEUNIT`, `DefineUnit` |
 | `Exact` | `EXACT`, `Exact`, `COMPLEX`, `Complex`, `DEFINEEXACTGENERATOR`, `DefineExactGenerator`, `exactalgebras` |
-| `Symbolic` | `POLY`, `DERIV`, `INTEGRATE`, `TRANSFORM`, `SIMPLIFY`, `SPEC`, `SPECCABILITY`, `INSPECTSPEC` |
+| `Symbolic` | `POLY`, `DERIV`, `INTEGRATE`, `TRANSFORM`, `SIMPLIFY`, `SPEC`, `SPECCABILITY`, `INSPECTSPEC`, `SArith` |
+| `Notation` | `SArith`, `Poly` |
 | `Random` | `RANDOMSEED`, `RandomSeed`, `RAND_NAME` |
 
 Default script policy includes all functions and the `IMPORTS` permission. Recognized permission names are `IMPORTS`, `NET`, `FILES`, `PLUGINS`. The default loop limit is 10,000 iterations and the default constructor capture mode is `deep_copy`.
@@ -296,6 +298,7 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `DIVUP` | eager, pure | Ceiling division |
 | `DOCUMENT_TEMPLATE` | lazy, effectful/unspecified | Create a Fragment from an @""" document template |
 | `DOUBLE_FACTORIAL` | eager, pure | Double factorial of a non-negative integer |
+| `EMBEDDED` | eager, effectful/unspecified | Dispatch a backtick body to a registered .Name.Parse parser |
 | `EQ` | eager, pure, multifunction | Equality check — returns 1 or null |
 | `EVAL` | lazy, effectful/unspecified | Evaluate a deferred AST node or expression: .Eval(ast, bindings ?= \_, mode ?= :inherit) |
 | `FACTORIAL` | eager, pure | Factorial of a non-negative integer |
@@ -386,6 +389,7 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `REGEX` | eager, effectful/unspecified | Create a regex matching function |
 | `RETRIEVE` | eager, effectful/unspecified | Look up a variable in the current scope chain |
 | `SAME_CELL` | lazy, effectful/unspecified | Identity comparison (===) — returns 1 if both sides refer to the same cell, null otherwise |
+| `SARITH_FUNCTION_BODY` | eager, effectful/unspecified | Resolve a structural-arithmetic function template against its arguments |
 | `SELF` | eager, effectful/unspecified | Resolve the current callable object inside a function body |
 | `SEMANTIC_CONVERT_SOFT` | lazy, effectful/unspecified | Convert a value to a semantic type, returning null on failure |
 | `SEMANTIC_CONVERT_STRICT` | lazy, effectful/unspecified | Convert a value to a semantic type, throwing on failure |

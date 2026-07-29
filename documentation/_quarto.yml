@@ -37,6 +37,7 @@ project:
     - design/eval/units-and-exact-generators.md
     - design/eval/cayley-polar.md
     - design/eval/symbolic-calculus.md
+    - design/eval/structural-arithmetic-todo.md
     - design/eval/transformation-reference.md
     - design/eval/output-model.md
     - design/plugins.md

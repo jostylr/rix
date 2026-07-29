@@ -1,252 +1,219 @@
-# RiX Parser - Embedded Language Processing
+# Backtick parsers and structural arithmetic
 
 ## Overview
 
-The RiX parser supports embedding other languages and formats within RiX expressions using backtick notation. This feature allows seamless integration of domain-specific languages, code snippets, and specialized data formats directly into RiX code.
-
-## Syntax
-
-Embedded languages use backtick delimiters with the following structure:
-
-```
-`[LANGUAGE[(CONTEXT)]]:BODY`
-```
-
-### Components
-
-- **Backticks**: Single, double, triple, or more backticks as delimiters
-- **LANGUAGE**: Optional identifier specifying the embedded language
-- **CONTEXT**: Optional parenthetical containing parameters or configuration
-- **Colon**: Separates the header (language + context) from the body
-- **BODY**: The actual content in the specified language
-
-## Basic Examples
-
-### Simple Language Specification
-```rix
-`F:6/8`                    // Fraction without reduction
-`P(x):x^2 + 3x + 5`        // Polynomial with variable x
-`JS(a, b): a[b]`           // JavaScript with parameters
-```
-
-### No Language Specification
-```rix
-`Raw content without language`  // language: "RiX-String", body: "Raw content without language"
-`:configuration setting`        // language: "RiX-String", body: "configuration setting"
-```
-
-## Nested Backticks
-
-Multiple backticks handle nesting and avoid escaping issues:
+Backticks fence source text for a secondary parser. The body is preserved
+verbatim, including internal whitespace. An unnamed body uses the built-in
+`.SArith` structural-arithmetic parser:
 
 ```rix
-``RiX: `F:5/3` + `P(x):x^2` ``           // Double backticks contain single backticks
-```Code: `hello` and ``world`` ```       // Triple backticks contain double backticks
+`6/4+2/4`       # Sum(6/4, 2/4)
+`6/4 + 2/4`     # 8/4
 ```
 
-## AST Structure
-
-Embedded languages are parsed into `EmbeddedLanguage` nodes:
-
-```javascript
-{
-  type: "EmbeddedLanguage",
-  language: "P",           // Language identifier ("RiX-String" for raw content)
-  context: "x",            // Context parameters (null if not provided)
-  body: "x^2 + 3x + 5"     // Body content as string
-}
-```
-
-## Use Cases
-
-### Mathematical Expressions
-- **Polynomials**: `P(x):x^3 - 2x + 1`
-- **Fractions**: `F:22/7` (exact representation)
-- **Complex Numbers**: `C:3+4i`
-- **Matrices**: `Matrix(rows, cols):[[1,2,3],[4,5,6],[7,8,9]]`
-- **Raw Math**: `x^2 + 2x + 1` (becomes RiX-String for processing)
-
-### Programming Languages
-- **JavaScript**: `JS(data: array, fn: function): data.map(fn)`
-- **Python**: `Python(items: list, condition: callable): [x for x in items if condition(x)]`
-- **SQL**: `SQL(table: string, where: clause): SELECT * FROM table WHERE where`
-- **Assembly**: `ASM(arch: x86): mov eax, 42; ret`
-- **TypeScript**: `TS(param: T, generic: U): param as U`
-
-### Markup and Data Formats
-- **LaTeX**: `LaTeX: \\frac{a}{b} + \\sqrt{c}`
-- **JSON**: `JSON: {"name": "value", "array": [1,2,3]}`
-- **XML**: `XML: <element attr="value">content</element>`
-- **CSV**: `CSV: name,age,city\nJohn,25,NYC`
-- **Raw Text**: `Plain text content` (automatically becomes RiX-String)
-- **Configuration**: `:key = value, other = setting` (RiX-String for config syntax)
-
-### Regular Expressions
-- **Patterns**: `Regex(ig): [a-z]+\\d+`
-- **Email Validation**: `Regex(): [a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}`
-
-## Implementation Details
-
-### Parser Behavior
-
-1. **Tokenization**: Backtick strings are tokenized as `String` tokens with `kind: 'backtick'`
-2. **Parsing**: The parser detects backtick strings and calls `parseEmbeddedLanguage()`
-3. **Header Parsing**: The first colon separates header from body
-4. **Context Extraction**: Parentheses in the header are parsed for context parameters
-
-### Parsing Algorithm
-
-The `parseEmbeddedLanguage()` method follows this algorithm:
-
-1. Extract content from the backtick token
-2. Find the first colon to separate header from body
-3. If no colon found, treat entire content as body with `language: null`
-4. Parse header using regex pattern: `/^([^(]+)\(([^)]*)\)$/`
-5. If parentheses found, extract language and context separately
-6. If no parentheses, entire header becomes the language identifier
-7. Create `EmbeddedLanguage` AST node with parsed components
-
-### Edge Cases
-
-- **No Colon**: Entire content becomes the body with `language: "RiX-String"`
-- **Starts with Colon**: Content after first colon becomes body with `language: "RiX-String"`
-- **Empty Context**: `SQL():query` results in `context: ""`
-- **Colons in Context**: `JS(a: string, b: number): code` preserves colons in context
-- **Nested Parentheses**: `Matrix(size(3, 4)): data` correctly extracts nested structure
-- **Multiple Colons**: First colon after balanced parentheses separates header from body
-- **Whitespace**: Preserved in context and body, trimmed from language identifier
-
-### Strict Validation Rules
-
-- **Single Parenthetical Group**: Only one outer `(...)` allowed in header
-- **Balanced Parentheses**: Unmatched `(` or `)` throws parsing error
-- **Clean Header Format**: `LANGUAGE(CONTEXT):BODY` - no extra content after `)`
-- **Error Messages**: Clear feedback for malformed headers
-
-## Integration with RiX
-
-Embedded languages can be used anywhere expressions are valid:
+A leading-dot header selects another parser object from the visible `.` system
+context:
 
 ```rix
-// Variable assignment
-polynomial := `P(x):x^2 + 2x + 1`;
-
-// Function arguments
-result := evaluate(`F:3/4`, precision := 10);
-
-// Array elements
-languages := [`JS: console.log('hello')`, `Python: print('world')`];
-
-// multifunction dispatch
-  (code ? code.language = "JS") -> executeJS(code.body),
-  (code ? code.language = "Python") -> executePython(code.body)
-];
+`.SArith:x^2 + 1`
+`.SArith.Fun:x^2 + 1`
+`.Poly:x^2 + 3/4 x^5 - 7`
+`.myParser.Option:source text`
 ```
 
-## Error Handling
+PascalCase roots such as `.Poly` are core RiX capabilities. CamelCase roots
+such as `.myParser` are host/plugin capabilities. This is the same ownership
+rule used by all other entries in the `.` registry.
 
-The parser handles malformed embedded languages gracefully:
+## Header grammar
 
-- **Unmatched Backticks**: Tokenizer throws delimiter mismatch error
-- **Invalid Context**: Malformed parentheses are treated as part of language name
-- **Empty Content**: Valid, results in empty body string
+```text
+backtickBody :=
+    "." parserName ("." modifier)* ":" body
+  | ":" rawStringBody
+  | defaultSArithBody
+```
 
-### Common Error Scenarios
+Examples:
 
 ```rix
-// Error: Unmatched backticks
-invalid := `P(x):x^2 + 1;  // Missing closing backtick
-
-// Error: Wrong backtick count
-mixed := ``Code: `inner` `; // Mismatched backtick levels
-
-// Error: Multiple parenthetical groups
-multi := `Function(a, b)(extra): body`;  // Only one outer parenthetical allowed
-
-// Error: Unmatched opening parenthesis
-broken := `Malformed(: syntax`;  // Missing closing parenthesis
-
-// Error: Unmatched closing parenthesis
-missing := `Invalid): body`;  // Missing opening parenthesis
-
-// Error: Content after closing parenthesis
-extra := `Lang(context) extra: body`;  // No content allowed after )
-
-// Valid: RiX-String for raw content
-raw := `Configuration data`;  // language: "RiX-String", body: "Configuration data"
-
-// Valid: RiX-String for colon-prefixed content
-config := `:server = localhost`;  // language: "RiX-String", body: "server = localhost"
+`x + 1`                    # .SArith.Parse("x + 1")
+`.Poly.Fun:x^2 + 1`        # .Poly.Parse(body, modifiers=[:Fun])
+`:ordinary raw text`       # RiX string value
 ```
 
-### Debugging Tips
+The leading dot is required for new named-parser syntax. Consequently, colons
+in an unnamed secondary language are not automatically parser headers.
 
-1. **Check Backtick Balance**: Ensure opening and closing backtick counts match
-2. **Escape Nested Backticks**: Use higher-level backticks to contain lower-level ones
-3. **Validate Header Format**: Follow strict `LANGUAGE(CONTEXT):BODY` pattern
-4. **Single Parenthetical**: Only one outer `(...)` group allowed in header
-5. **Balance Parentheses**: Every `(` must have matching `)`
-6. **Clean Headers**: No extra content after closing `)` in header
-7. **Test Edge Cases**: Verify behavior with empty content, no colons, etc.
+The old uppercase-leading `LANG(context):body` AST syntax is still recognized
+transitionally by the main parser. New code should use `.Name:body`.
 
-## Advanced Usage Patterns
+## Parser object protocol
 
-### Conditional Processing
+The selected registry entry must be an object exposing a callable `Parse`
+method. Conceptually, RiX invokes:
+
+```text
+parser.Parse(bodyString, modifierSequence, parseInfo)
+```
+
+`parseInfo` is a map containing:
+
+- `function`: truthy when an uppercase assignment requests a function;
+- `name`: the inferred uppercase function name, when present;
+- `explicit`: truthy when the source used a leading-dot parser header.
+
+Modifiers are parser-owned. `.SArith` currently accepts `Fun`; `.Poly` accepts
+`Fun` as a compatible explicit-function marker.
+
+The lookup uses the current visible system context. Script capability
+restrictions therefore apply to backtick parsers just as they do to ordinary
+dot capabilities.
+
+## Multiple backtick delimiters
+
+Any positive number of backticks may delimit a body. The closing delimiter
+must contain the same number:
 
 ```rix
-  (code ? code.language = "JS") -> executeJS(code.body, code.context),
-  (code ? code.language = "Python") -> executePython(code.body, code.context),
-  (code ? code.language = "SQL") -> executeQuery(code.body, code.context),
-  (code ? code.language = "RiX-String") -> processRawContent(code.body),
-  (code) -> handleUnknown(code.body)
-];
+``.myParser:a `nested` body``
+```Code: `one` and ``two`` ```
 ```
 
-### Template Systems
+This avoids escape syntax when a secondary language itself uses backticks.
+
+## `.SArith`
+
+`.SArith` recognizes exact numbers, identifiers, `@name` splices,
+parentheses, implicit multiplication, and:
+
+```text
++  -  *  /  ^  !
+```
+
+Touching operators construct raw forms. Operators separated from both operands
+apply structural algebra:
 
 ```rix
-// Web component template with type annotations
-component := (name, props) -> `HTML(tag: string, attrs: object): <div class="${name}">${props}</div>`;
+`a+b`           # Sum(a, b), construction mode
+`a + b`         # structurally add a and b
 
-// Code generation with parameter types  
-apiEndpoint := (method, path) -> `JS(method: string, path: string): 
-  app.${method}('${path}', (req, res) => { /* handler */ });
-`;
+`6/4+2/4`       # Sum(Fraction(6,4), Fraction(2,4))
+`6/4 + 2/4`     # Fraction(8,4)
 
-// Configuration templates
-dbConfig := (host, port) -> `Config(host: string, port: number): 
-  host=${host}&port=${port}&ssl=true
-`;
-
-// Note: Each header must follow LANGUAGE(CONTEXT):BODY format exactly
-// Multiple parenthetical groups like LANG(a)(b):body will throw errors
+`x+0`           # Sum(x, 0)
+`x + 0`         # x
 ```
 
-### Data Transformation Pipelines
+One-sided binary spacing is an error:
 
 ```rix
-// Transform data through multiple languages
-result := data 
-  |> `SQL: SELECT * FROM data WHERE active = 1`
-  |> `Python(df): df.groupby('category').sum()`
-  |> `R(data): ggplot(data, aes(x=category, y=value)) + geom_bar()`;
+`a+ b`          # error
+`a +b`          # error
 ```
 
-## Performance Considerations
+Tight prefix/postfix notation colliding with a higher-precedence tight form is
+also rejected instead of guessing:
 
-- **Parsing Overhead**: Embedded languages are parsed as strings, not compiled
-- **Memory Usage**: Full content is stored in AST nodes
-- **Nested Complexity**: Multiple backtick levels increase parsing time
-- **Recommended Limits**: Avoid deeply nested (>3 levels) embedded languages
+```rix
+`-x^2`          # error
+`1/2!`          # error
+`1/2^3`         # error
 
-## Future Extensions
+`- x^2`         # Negative(Power(x,2))
+`-x ^ 2`        # Power(Negative(x),2), applied power
+`(-x)^2`        # Power(Negative(x),2), constructed power
+`(1/2)!`        # Factorial(Fraction(1,2))
+`1/(2!)`        # Fraction(1, Factorial(2))
+```
 
-The embedded language system is designed for extensibility:
+Structural operations remain in the structural domain. If a specialized
+combination is unavailable, the result is an applied form rather than an
+ordinary RiX evaluation:
 
-- **Type Validation**: Language-specific syntax validation
-- **Compilation**: Direct compilation of embedded code
-- **Interpolation**: Variable substitution within embedded content
-- **Caching**: Parsed representation caching for performance
-- **Language Plugins**: Extensible language handler system
-- **IDE Integration**: Syntax highlighting and completion for embedded languages
-- **Hot Reloading**: Dynamic recompilation of embedded code during development
+```rix
+`3/4 + x`       # Sum(Fraction(3,4), x)
+```
+
+Equal-denominator `Fraction` addition and subtraction preserve the denominator
+instead of reducing:
+
+```rix
+`6/4 + 2/4`     # 8/4, not 2
+```
+
+Tight fraction coefficients bind before implicit multiplication:
+
+```rix
+`3/4 x^5`       # Product(Fraction(3,4), Power(x,5))
+```
+
+## Symbols and outer splicing
+
+An ordinary identifier becomes a free structural symbol:
+
+```rix
+`x + 1`
+```
+
+`@name` reads the current surrounding RiX value and lifts a snapshot into the
+structural domain:
+
+```rix
+x := 6 / 4
+`x + 1`         # Sum(Symbol("x"), 1)
+`@x + 1`        # 5/2
+```
+
+Captured names do not become function parameters.
+
+## Structural functions
+
+`Fun` converts the parsed result to a RiX lambda:
+
+```rix
+F := `.SArith.Fun:y - x`
+F(2, 5)         # 3
+```
+
+Free-symbol parameters are ordered alphabetically, independent of their first
+appearance. Repeated symbols produce one parameter.
+
+A structural backtick directly assigned to an uppercase identifier receives
+the same function conversion automatically:
+
+```rix
+F := `y - x`    # parameters: (x, y)
+```
+
+Lowercase assignment retains the form:
+
+```rix
+f := `y - x`    # structural Difference/Sum value
+```
+
+If no free symbols exist, explicit or inferred function conversion creates a
+zero-argument constant function:
+
+```rix
+Constant := `6/4 + 2/4`
+Constant()      # 8/4
+```
+
+## `.Poly.Parse`
+
+`.Poly` is both the existing polynomial compiler capability and a registered
+backtick parser object. Its parser uses `.SArith` notation, converts the result
+to the exact symbolic IR subset, alphabetizes its free inputs, and returns an
+executable polynomial:
+
+```rix
+P := `.Poly:x^2 + 3/4 x^5 - 7`
+P(2)            # 21
+```
+
+Unsupported symbolic forms fail rather than silently switching to approximate
+arithmetic.
+
+The deliberately phased grammar and algebra work is tracked in the
+[structural arithmetic follow-up list](../design/eval/structural-arithmetic-todo.md).

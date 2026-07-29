@@ -1063,6 +1063,44 @@ A colon in prefix position (where a value is expected) followed by an identifier
 
 Colon-strings work anywhere a value is expected: in arrays (`[:a, :b]`), as function arguments, after `=` or `:=`, after commas, etc. They are syntactic sugar for quoted strings and evaluate identically.
 
+### Backtick Parsers
+
+Backticks fence text for a secondary parser. An unnamed body uses the
+`.SArith` structural-arithmetic parser; a leading-dot header selects another
+registered parser and may carry ordered modifiers:
+
+```rix
+`6/4+2/4`                    # Sum(Fraction(6,4), Fraction(2,4))
+`6/4 + 2/4`                  # Fraction(8,4), without reduction
+`.Poly:x^2 + 3/4 x^5 - 7`   # exact polynomial callable
+`.SArith.Fun:y - x`          # structural function
+`:raw backtick text`         # ordinary RiX string
+```
+
+Inside `.SArith`, an operator touching both operands constructs the written
+form. An operator separated from both operands applies structural algebra;
+one-sided spacing is rejected. Applied operations remain structural whenever
+they cannot combine concrete operands.
+
+Identifiers are free structural symbols. `@name` instead snapshots and lifts
+the surrounding RiX value. `.Fun` infers parameters from free symbols in
+alphabetical order. Assignment directly to an uppercase identifier also
+requests function conversion; a form with no free symbols becomes a
+zero-argument constant function:
+
+```rix
+x := 3
+F := `y + @x*x`       # F has parameters (x, y); @x is captured
+Constant := `6/4 + 2/4`
+Constant()            # Fraction(8,4)
+```
+
+Parser roots use the ordinary dot-registry ownership rule: PascalCase for core
+capabilities and camelCase for host/plugin capabilities. The selected object
+must expose a callable `.Parse` method. See
+[Backtick parsers and structural arithmetic](../parser/embedded-parsing.md)
+for the protocol and current grammar.
+
 ### Special Number Literals
 
 These formats all produce exact rational values parsed by `LITERAL`. An

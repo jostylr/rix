@@ -4463,13 +4463,60 @@ class Parser {
   parseEmbeddedLanguage(token) {
     const content = token.value;
 
-    // If starts with colon or no colon found, treat as RiX-String
-    if (content.startsWith(":") || content.indexOf(":") === -1) {
-      const body = content.startsWith(":") ? content.slice(1) : content;
+    // A leading dot selects a registered parser object:
+    // `.Poly.Fun:body` resolves .Poly and passes ["Fun"] as modifiers to
+    // its .Parse method. Requiring the dot keeps colons in default SArith
+    // expressions from being mistaken for language headers.
+    if (content.startsWith(".")) {
+      const colonIndex = content.indexOf(":");
+      if (colonIndex === -1) {
+        this.error("Named backtick parser header requires ':' after .Name[.modifier...]");
+      }
+      const header = content.slice(1, colonIndex).trim();
+      const parts = header.split(".").map((part) => part.trim());
+      if (
+        parts.length === 0 ||
+        parts.some((part) => !/^[\p{L}_][\p{L}\p{N}_]*$/u.test(part))
+      ) {
+        this.error("Invalid backtick parser header. Expected .Name[.modifier...]:body");
+      }
+      return this.createNode("EmbeddedLanguage", {
+        language: parts[0],
+        context: null,
+        modifiers: parts.slice(1),
+        body: content.slice(colonIndex + 1),
+        explicitParser: true,
+        original: token.original,
+      });
+    }
+
+    // A leading colon retains the old raw-string escape. An unlabelled
+    // backtick body now uses the default structural-arithmetic parser.
+    if (content.startsWith(":")) {
       return this.createNode("EmbeddedLanguage", {
         language: "RiX-String",
         context: null,
-        body: body,
+        body: content.slice(1),
+        original: token.original,
+      });
+    }
+    if (content.indexOf(":") === -1) {
+      return this.createNode("EmbeddedLanguage", {
+        language: "SArith",
+        context: null,
+        body: content,
+        original: token.original,
+      });
+    }
+
+    // Transitional compatibility for the old `LANG(context):body` form.
+    // New code should use `.LANG:body`; lowercase-leading text containing a
+    // colon belongs to the default SArith grammar.
+    if (!/^[A-Z]/.test(content)) {
+      return this.createNode("EmbeddedLanguage", {
+        language: "SArith",
+        context: null,
+        body: content,
         original: token.original,
       });
     }
