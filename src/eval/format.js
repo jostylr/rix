@@ -11,6 +11,7 @@ import { formatSymbolicSpec, getAttachedSpec, isSymbolicSpec, renderSymbolicIr }
 import { formatOutputText, isOutputValue } from "../runtime/output.js";
 import {
     formatStructuralValue,
+    isStructuralAlgebra,
     isStructuralForm,
     isStructuralLiteral,
     isStructuralSymbol,
@@ -270,7 +271,7 @@ export function formatValue(val, options = {}) {
     if (typeof val === "object" && val !== null) {
         if (isOutputValue(val)) return formatOutputText(val, formatChild);
         if (isSymbolicSpec(val)) return formatSymbolicSpec(val);
-        if (isStructuralForm(val) || isStructuralLiteral(val) || isStructuralSymbol(val) || val.type === "structural_value") {
+        if (isStructuralAlgebra(val) || isStructuralForm(val) || isStructuralLiteral(val) || isStructuralSymbol(val) || val.type === "structural_value") {
             return formatStructuralValue(val, formatChild);
         }
         if (isLazySequence(val)) {

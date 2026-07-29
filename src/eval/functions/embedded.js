@@ -4,11 +4,13 @@ import { resolveMethod } from "../../runtime/methods.js";
 import { lower } from "../lower.js";
 import {
     createStructuralFunction,
+    createStructuralAlgebraProfile,
     createStructuralOperatorTable,
     parseStructuralArithmetic,
     resolveStructuralValue,
     sortedStructuralFreeSymbols,
     structuralValueToIr,
+    STRUCTURAL_ALGEBRA_PROFILES,
 } from "../../runtime/structural-arithmetic.js";
 import { callWithConcreteArgs } from "./functions.js";
 import { createSymbolicSpec, polyFromSpec } from "./symbolic.js";
@@ -42,6 +44,34 @@ function parseFunctionModifier(modifiers) {
     return { names };
 }
 
+function algebraProfileFromName(name, basis = []) {
+    const normalized = String(name).toUpperCase();
+    if (normalized === "COMPLEX") return STRUCTURAL_ALGEBRA_PROFILES.Complex;
+    if (normalized === "QUATERNION" || normalized === "QUATERNIONS") {
+        return STRUCTURAL_ALGEBRA_PROFILES.Quaternion;
+    }
+    if (normalized === "OCTONION" || normalized === "OCTONIONS") {
+        return STRUCTURAL_ALGEBRA_PROFILES.Octonion;
+    }
+    if (normalized === "ALGEBRA") {
+        if (basis.length === 0) throw new Error(".SArith.Algebra requires at least one basis name");
+        return createStructuralAlgebraProfile("Algebra", basis);
+    }
+    throw new Error(`Unknown .SArith algebra profile: ${name}`);
+}
+
+function parseAlgebraModifier(modifiers) {
+    const matches = modifiers.filter((modifier) =>
+        /^(?:COMPLEX|QUATERNIONS?|OCTONIONS?|ALGEBRA(?:\(.*\))?)$/iu.test(modifier));
+    if (matches.length === 0) return null;
+    if (matches.length > 1) throw new Error(".SArith accepts only one algebra profile modifier");
+    const match = matches[0].match(/^([^(]+)(?:\((.*)\))?$/u);
+    const basis = match[2] === undefined
+        ? []
+        : match[2].split(",").map((name) => name.trim()).filter(Boolean);
+    return algebraProfileFromName(match[1], basis);
+}
+
 function parseInfoValue(meta = {}) {
     const entries = new Map();
     entries.set("function", meta.expectedFunction ? new Integer(1n) : null);
@@ -72,14 +102,18 @@ function sarithParse(args, context, evaluate) {
     const body = stringFromValue(args[1], ".SArith.Parse body");
     const modifiers = modifierNames(args[2]);
     const info = args[3];
-    const unsupported = modifiers.filter((modifier) => !/^FUN(?:\(.*\))?$/iu.test(modifier));
+    const unsupported = modifiers.filter((modifier) =>
+        !/^FUN(?:\(.*\))?$/iu.test(modifier) &&
+        !/^(?:DIFFERENCE|COMPLEX|QUATERNIONS?|OCTONIONS?|ALGEBRA(?:\(.*\))?)$/iu.test(modifier));
     if (unsupported.length > 0) {
         throw new Error(`Unknown .SArith modifier${unsupported.length === 1 ? "" : "s"}: ${unsupported.join(", ")}`);
     }
 
+    const algebraProfile = parseAlgebraModifier(modifiers) || args[0]?.algebraProfile || null;
     const value = parseStructuralArithmetic(body, context, {
         evaluateRiX: (source) => evaluateRiXExpression(source, context, evaluate),
         operators: args[0]?.operators,
+        algebraProfile,
     });
     const explicitParameters = parseFunctionModifier(modifiers);
     const explicitFunction = explicitParameters !== null;
@@ -135,10 +169,19 @@ function configureSArith(args, context, evaluate, invoke) {
     const operators = createStructuralOperatorTable(
         values.map((value) => operatorDeclaration(value, context, evaluate, invoke)),
     );
-    return createSArithSystemValue(operators);
+    return createSArithSystemValue(operators, args[0]?.algebraProfile || null);
 }
 
-export function createSArithSystemValue(operators = null) {
+function scopeSArith(args) {
+    const profileName = stringFromValue(args[1], ".SArith.Scope profile");
+    const basis = args.slice(2).map((value) => stringFromValue(value, ".SArith.Scope basis"));
+    return createSArithSystemValue(
+        args[0]?.operators || null,
+        algebraProfileFromName(profileName, basis),
+    );
+}
+
+export function createSArithSystemValue(operators = null, algebraProfile = null) {
     const parseMethod = {
         type: "method_builtin",
         name: "Parse",
@@ -149,15 +192,23 @@ export function createSArithSystemValue(operators = null) {
         name: "Configure",
         impl: configureSArith,
     };
+    const scopeMethod = {
+        type: "method_builtin",
+        name: "Scope",
+        impl: scopeSArith,
+    };
     return {
         type: "structural_parser",
         name: "SArith",
         ...(operators ? { operators } : {}),
+        ...(algebraProfile ? { algebraProfile } : {}),
         _ext: new Map([
             ["Parse", parseMethod],
             ["PARSE", parseMethod],
             ["Configure", configureMethod],
             ["CONFIGURE", configureMethod],
+            ["Scope", scopeMethod],
+            ["SCOPE", scopeMethod],
         ]),
     };
 }
@@ -304,7 +355,7 @@ export const sArithCapability = {
                     const info = args[2] || { type: "map", entries: new Map() };
                     return sarithParse([value, body, modifiers, info], context, evaluate);
                 },
-                doc: "Parse structural arithmetic; backticks use this parser by default",
+                doc: "Parse structural arithmetic; backticks use this parser by default, with optional Complex/Quaternion/Octonion/Algebra scopes",
             },
         };
     },

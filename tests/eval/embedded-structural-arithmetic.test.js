@@ -7,6 +7,7 @@ import {
 } from "../../src/eval/index.js";
 import {
     createStructuralOperatorTable,
+    isStructuralAlgebra,
     isStructuralForm,
     isStructuralLiteral,
     isStructuralSymbol,
@@ -78,6 +79,79 @@ describe("backtick parser dispatch and structural arithmetic", () => {
         expect(value.args[0]).toBeInstanceOf(Fraction);
         expect(isStructuralSymbol(value.args[1])).toBe(true);
         expect(formatValue(value)).toBe("Sum(3/4, x)");
+    });
+
+    test("Difference is the default tight subtraction presentation", () => {
+        const value = parseAndEvaluate("`1-x`");
+        expect(isStructuralForm(value)).toBe(true);
+        expect(value.head).toBe("Difference");
+        expect(value.mode).toBe("construct");
+        expect(formatValue(value)).toBe("Difference(1, x)");
+        expect(formatValue(parseAndEvaluate("`.SArith.Difference:1-x`")))
+            .toBe("Difference(1, x)");
+    });
+
+    test("Complex scope recognizes Cartesian presentations without claiming i globally", () => {
+        expect(formatValue(parseAndEvaluate("`.SArith:3+4i`")))
+            .toBe("Sum(3, Product(4, i))");
+
+        const positive = parseAndEvaluate("`.SArith.Complex:3+4i`");
+        expect(isStructuralAlgebra(positive)).toBe(true);
+        expect(positive.profile).toBe("Complex");
+        expect(formatValue(positive)).toBe("Complex(3, 4)");
+        expect(formatValue(parseAndEvaluate("`.SArith.Complex:3-4i`")))
+            .toBe("Complex(3, -4)");
+
+        expect(formatValue(parseAndEvaluate("`.SArith.Complex:i*i`")))
+            .toBe("Product(i, i)");
+        expect(formatValue(parseAndEvaluate("`.SArith.Complex:i * i`"))).toBe("-1");
+        expect(formatValue(parseAndEvaluate("(`.SArith.Complex:3-4i`).ToExact()")))
+            .toBe("3 - 4~{i}");
+    });
+
+    test("algebra basis names are units rather than inferred function parameters", () => {
+        const value = parseAndEvaluate(`
+            F := \`.SArith.Complex.Fun:x+2i\`;
+            F(5);
+        `);
+        expect(formatValue(value)).toBe("Complex(5, 2)");
+    });
+
+    test("Quaternion and octonion profiles are explicit and respect their multiplication laws", () => {
+        expect(formatValue(parseAndEvaluate("`.SArith.Quaternion:1+2i+3j+4k`")))
+            .toBe("Quaternion(1, 2, 3, 4)");
+        expect(formatValue(parseAndEvaluate("`.SArith.Quaternion:i * j`")))
+            .toBe("Quaternion(0, 0, 0, 1)");
+        expect(formatValue(parseAndEvaluate("`.SArith.Quaternion:j * i`")))
+            .toBe("Quaternion(0, 0, 0, -1)");
+
+        expect(formatValue(parseAndEvaluate("`.SArith.Octonion:(e1 * e2) * e4`")))
+            .toBe("Octonion(0, 0, 0, 0, 0, 0, 0, 1)");
+        expect(formatValue(parseAndEvaluate("`.SArith.Octonion:e1 * (e2 * e4)`")))
+            .toBe("Octonion(0, 0, 0, 0, 0, 0, 0, -1)");
+    });
+
+    test("reusable and arbitrary-basis algebra scopes are available", () => {
+        expect(formatValue(parseAndEvaluate(
+            '.SArith.Scope(:Quaternion).Parse("i * j", [], {= })',
+        ))).toBe("Quaternion(0, 0, 0, 1)");
+
+        expect(formatValue(parseAndEvaluate("`.SArith.Algebra(u,v):3+4u+x v`")))
+            .toBe("Algebra[u,v](3, 4, x)");
+        expect(formatValue(parseAndEvaluate(
+            "u := .Exact[:i]; (`.SArith.Algebra(u):3+4u`).ToExact()",
+        ))).toBe("3 + 4~{i}");
+    });
+
+    test("exact quaternion conversion remains gated by the opt-in plugin", () => {
+        expect(() => parseAndEvaluate("(`.SArith.Quaternion:1+2i`).ToExact()"))
+            .toThrow(/available but not loaded|must be loaded/);
+        const value = parseAndEvaluate(`
+            .Plugin.Load("exact-algebras");
+            (\`.SArith.Quaternion:1+2i+3j+4k\`).ToExact();
+        `);
+        expect(value.type).toBe("exact_quaternion");
+        expect(value.components.map(String)).toEqual(["1", "2", "3", "4"]);
     });
 
     test("one-sided operator spacing is rejected", () => {

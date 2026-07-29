@@ -27,6 +27,7 @@ const PREFIX_PRECEDENCE = 99;
 const POSTFIX_PRECEDENCE = 120;
 const IMPLICIT_MULTIPLICATION_PRECEDENCE = 95;
 const STRUCTURAL_SPANS = new WeakMap();
+const STRUCTURAL_GROUPED = new WeakSet();
 
 export function createStructuralOperatorTable(declarations = []) {
     const table = {
@@ -225,6 +226,10 @@ export function isStructuralLiteral(value) {
     return value?.type === "structural_literal";
 }
 
+export function isStructuralAlgebra(value) {
+    return value?.type === "structural_algebra";
+}
+
 function rememberSpan(value, span) {
     if (value && typeof value === "object" && span) STRUCTURAL_SPANS.set(value, Object.freeze({ ...span }));
     return value;
@@ -259,13 +264,32 @@ export function structuralLiteral(kind, notation, value, span = null) {
     }), span);
 }
 
+export function structuralAlgebra(profile, components, mode = "construct", span = null) {
+    const value = Object.freeze({
+        type: "structural_algebra",
+        profile: profile.name,
+        basis: Object.freeze([...profile.basis]),
+        components: Object.freeze([...components]),
+        mode,
+        ...(span ? { span: Object.freeze({ ...span }) } : {}),
+    });
+    return rememberSpan(value, span);
+}
+
 export function structuralForm(head, args, mode = "construct", span = null) {
     let normalized = [...args];
     if ((head === "Sum" || head === "Product") && normalized.some(
-        (argument) => isStructuralForm(argument) && argument.head === head && argument.mode === mode,
+        (argument) =>
+            isStructuralForm(argument) &&
+            argument.head === head &&
+            argument.mode === mode &&
+            !STRUCTURAL_GROUPED.has(argument),
     )) {
         normalized = normalized.flatMap((argument) =>
-            isStructuralForm(argument) && argument.head === head && argument.mode === mode
+            isStructuralForm(argument) &&
+            argument.head === head &&
+            argument.mode === mode &&
+            !STRUCTURAL_GROUPED.has(argument)
                 ? argument.args
                 : [argument]);
     }
@@ -295,6 +319,7 @@ function asFraction(value) {
 function isZero(value) {
     value = semanticLiteralValue(value);
     if (value instanceof Integer) return value.value === 0n;
+    if (value instanceof Rational) return value.numerator === 0n;
     if (value instanceof Fraction) return value.numerator === 0n;
     return false;
 }
@@ -302,6 +327,7 @@ function isZero(value) {
 function isOne(value) {
     value = semanticLiteralValue(value);
     if (value instanceof Integer) return value.value === 1n;
+    if (value instanceof Rational) return value.numerator === value.denominator;
     if (value instanceof Fraction) return value.numerator === value.denominator;
     return false;
 }
@@ -313,6 +339,7 @@ export function liftStructuralValue(value) {
         value instanceof RationalInterval ||
         isStructuralSymbol(value) ||
         isStructuralLiteral(value) ||
+        isStructuralAlgebra(value) ||
         isStructuralForm(value)
     ) {
         return value;
@@ -725,6 +752,7 @@ class StructuralParser {
             const close = this.advance();
             if (value !== null && typeof value === "object") {
                 this.groupedValues.add(value);
+                STRUCTURAL_GROUPED.add(value);
                 rememberSpan(value, { start: open.start, end: close.end });
             }
             return value;
@@ -765,8 +793,319 @@ class StructuralParser {
     }
 }
 
+function integerComponent(value) {
+    const integer = integerValue(value);
+    return integer === null ? null : integer;
+}
+
+function componentAdd(left, right, mode) {
+    if (isZero(left)) return right;
+    if (isZero(right)) return left;
+    return mode === "apply"
+        ? applyStructuralBinary("+", left, right)
+        : structuralForm("Sum", [left, right], "construct", combinedSpan(left, right));
+}
+
+function componentSubtract(left, right, mode) {
+    if (isZero(right)) return left;
+    if (isZero(left)) return componentNegate(right, mode);
+    return mode === "apply"
+        ? applyStructuralBinary("-", left, right)
+        : structuralForm("Difference", [left, right], "construct", combinedSpan(left, right));
+}
+
+function componentMultiply(left, right, mode) {
+    if (isZero(left) || isZero(right)) return new Integer(0n);
+    if (isOne(left)) return right;
+    if (isOne(right)) return left;
+    return mode === "apply"
+        ? applyStructuralBinary("*", left, right)
+        : structuralForm("Product", [left, right], "construct", combinedSpan(left, right));
+}
+
+function componentNegate(value, mode) {
+    if (isZero(value)) return value;
+    if (value instanceof Integer) return value.negate();
+    if (value instanceof Fraction) return new Fraction(-value.numerator, value.denominator);
+    if (value instanceof Rational) return value.negate();
+    return mode === "apply"
+        ? applyStructuralPrefix("-", value)
+        : structuralForm("Negative", [value], "construct", structuralSourceSpan(value));
+}
+
+function zeroComponents(length) {
+    return Array.from({ length }, () => new Integer(0n));
+}
+
+function conjugateIntegerComponents(components) {
+    if (components.length === 1) return [...components];
+    const half = components.length / 2;
+    return [
+        ...conjugateIntegerComponents(components.slice(0, half)),
+        ...components.slice(half).map((value) => -value),
+    ];
+}
+
+function addIntegerComponents(left, right) {
+    return left.map((value, index) => value + right[index]);
+}
+
+function subtractIntegerComponents(left, right) {
+    return left.map((value, index) => value - right[index]);
+}
+
+function multiplyIntegerComponents(left, right) {
+    if (left.length === 1) return [left[0] * right[0]];
+    const half = left.length / 2;
+    const a = left.slice(0, half);
+    const b = left.slice(half);
+    const c = right.slice(0, half);
+    const d = right.slice(half);
+    return [
+        ...subtractIntegerComponents(
+            multiplyIntegerComponents(a, c),
+            multiplyIntegerComponents(conjugateIntegerComponents(d), b),
+        ),
+        ...addIntegerComponents(
+            multiplyIntegerComponents(d, a),
+            multiplyIntegerComponents(b, conjugateIntegerComponents(c)),
+        ),
+    ];
+}
+
+function cayleyMultiplicationTable(dimension) {
+    return Array.from({ length: dimension }, (_, leftIndex) =>
+        Array.from({ length: dimension }, (_, rightIndex) => {
+            const left = Array.from({ length: dimension }, (_value, index) => index === leftIndex ? 1 : 0);
+            const right = Array.from({ length: dimension }, (_value, index) => index === rightIndex ? 1 : 0);
+            const result = multiplyIntegerComponents(left, right);
+            const resultIndex = result.findIndex((value) => value !== 0);
+            return resultIndex === -1
+                ? { index: 0, sign: 0 }
+                : { index: resultIndex, sign: result[resultIndex] };
+        }));
+}
+
+export function createStructuralAlgebraProfile(name, basis, options = {}) {
+    if (!name) throw new Error("Structural algebra profile requires a name");
+    if (!Array.isArray(basis) || new Set(basis).size !== basis.length) {
+        throw new Error("Structural algebra profile basis names must be a unique array");
+    }
+    const dimension = basis.length + 1;
+    const multiplication = options.cayleyDickson
+        ? cayleyMultiplicationTable(dimension)
+        : options.multiplication || null;
+    return Object.freeze({
+        name,
+        basis: Object.freeze([...basis]),
+        multiplication,
+    });
+}
+
+export const STRUCTURAL_ALGEBRA_PROFILES = Object.freeze({
+    Complex: createStructuralAlgebraProfile("Complex", ["i"], { cayleyDickson: true }),
+    Quaternion: createStructuralAlgebraProfile("Quaternion", ["i", "j", "k"], { cayleyDickson: true }),
+    Octonion: createStructuralAlgebraProfile(
+        "Octonion",
+        ["e1", "e2", "e3", "e4", "e5", "e6", "e7"],
+        { cayleyDickson: true },
+    ),
+});
+
+function algebraScalar(value, profile) {
+    return {
+        components: [value, ...zeroComponents(profile.basis.length)],
+        usesBasis: false,
+        mode: "construct",
+        unsupported: false,
+    };
+}
+
+function algebraUnit(index, profile, span) {
+    const components = zeroComponents(profile.basis.length + 1);
+    components[index + 1] = rememberSpan(new Integer(1n), span);
+    return { components, usesBasis: true, mode: "construct", unsupported: false };
+}
+
+function addAlgebraStates(left, right, mode, subtract = false) {
+    return {
+        components: left.components.map((value, index) =>
+            subtract
+                ? componentSubtract(value, right.components[index], mode)
+                : componentAdd(value, right.components[index], mode)),
+        usesBasis: left.usesBasis || right.usesBasis,
+        mode,
+        unsupported: false,
+    };
+}
+
+function scaleAlgebraState(state, scalar, mode) {
+    return {
+        components: state.components.map((component) => componentMultiply(component, scalar, mode)),
+        usesBasis: state.usesBasis,
+        mode,
+        unsupported: false,
+    };
+}
+
+function multiplyAlgebraStates(left, right, profile, mode) {
+    if (!profile.multiplication) return null;
+    const result = zeroComponents(profile.basis.length + 1);
+    for (let leftIndex = 0; leftIndex < left.components.length; leftIndex++) {
+        for (let rightIndex = 0; rightIndex < right.components.length; rightIndex++) {
+            const rule = profile.multiplication[leftIndex]?.[rightIndex];
+            if (!rule || rule.sign === 0) continue;
+            let term = componentMultiply(left.components[leftIndex], right.components[rightIndex], mode);
+            if (rule.sign < 0) term = componentNegate(term, mode);
+            result[rule.index] = componentAdd(result[rule.index], term, mode);
+        }
+    }
+    return {
+        components: result,
+        usesBasis: left.usesBasis || right.usesBasis,
+        mode,
+        unsupported: false,
+    };
+}
+
+function rebuildForm(value, arguments_) {
+    return structuralForm(value.head, arguments_, value.mode, structuralSourceSpan(value));
+}
+
+function algebraState(value, profile) {
+    if (isStructuralAlgebra(value)) {
+        if (
+            value.profile !== profile.name ||
+            value.basis.length !== profile.basis.length ||
+            value.basis.some((name, index) => name !== profile.basis[index])
+        ) {
+            return algebraScalar(value, profile);
+        }
+        return {
+            components: [...value.components],
+            usesBasis: true,
+            mode: value.mode,
+            unsupported: false,
+        };
+    }
+    if (isStructuralSymbol(value)) {
+        const basisIndex = profile.basis.indexOf(value.name);
+        return basisIndex === -1
+            ? algebraScalar(value, profile)
+            : algebraUnit(basisIndex, profile, structuralSourceSpan(value));
+    }
+    if (!isStructuralForm(value)) return algebraScalar(value, profile);
+
+    const states = value.args.map((argument) => algebraState(argument, profile));
+    if (states.some((state) => state.unsupported)) {
+        return {
+            ...algebraScalar(value, profile),
+            unsupported: true,
+        };
+    }
+    const anyBasis = states.some((state) => state.usesBasis);
+    if (!anyBasis) {
+        return algebraScalar(rebuildForm(value, states.map((state) => state.components[0])), profile);
+    }
+
+    if (value.head === "Sum") {
+        return states.slice(1).reduce(
+            (left, right) => addAlgebraStates(left, right, value.mode),
+            states[0],
+        );
+    }
+    if (value.head === "Difference" && states.length === 2) {
+        return addAlgebraStates(states[0], states[1], value.mode, true);
+    }
+    if ((value.head === "Negative" || value.head === "Positive") && states.length === 1) {
+        return value.head === "Positive"
+            ? states[0]
+            : {
+                components: states[0].components.map((component) => componentNegate(component, value.mode)),
+                usesBasis: true,
+                mode: value.mode,
+                unsupported: false,
+            };
+    }
+    if (value.head === "Product") {
+        if (value.mode === "construct") {
+            const basisStates = states.filter((state) => state.usesBasis);
+            if (basisStates.length === 1) {
+                const scalars = states.filter((state) => !state.usesBasis).map((state) => state.components[0]);
+                const scalar = scalars.reduce(
+                    (left, right) => componentMultiply(left, right, "construct"),
+                    new Integer(1n),
+                );
+                return scaleAlgebraState(basisStates[0], scalar, "construct");
+            }
+        } else if (profile.multiplication) {
+            return states.slice(1).reduce(
+                (left, right) => multiplyAlgebraStates(left, right, profile, "apply"),
+                states[0],
+            );
+        }
+    }
+    if (
+        value.head === "Fraction" &&
+        value.mode === "apply" &&
+        states.length === 2 &&
+        !states[1].usesBasis
+    ) {
+        const denominator = states[1].components[0];
+        return {
+            components: states[0].components.map((component) =>
+                applyStructuralBinary("/", component, denominator)),
+            usesBasis: states[0].usesBasis,
+            mode: "apply",
+            unsupported: false,
+        };
+    }
+    if (
+        value.head === "Power" &&
+        value.mode === "apply" &&
+        states.length === 2 &&
+        states[0].usesBasis &&
+        !states[1].usesBasis &&
+        profile.multiplication
+    ) {
+        const exponent = integerComponent(states[1].components[0]);
+        if (exponent !== null && exponent >= 0n) {
+            let result = algebraScalar(new Integer(1n), profile);
+            let factor = states[0];
+            let remaining = exponent;
+            while (remaining > 0n) {
+                if (remaining % 2n === 1n) {
+                    result = multiplyAlgebraStates(result, factor, profile, "apply");
+                }
+                remaining /= 2n;
+                if (remaining > 0n) factor = multiplyAlgebraStates(factor, factor, profile, "apply");
+            }
+            result.usesBasis = exponent > 0n;
+            result.mode = "apply";
+            return result;
+        }
+    }
+
+    return {
+        ...algebraScalar(rebuildForm(value, value.args), profile),
+        unsupported: true,
+    };
+}
+
+export function interpretStructuralAlgebra(value, profile) {
+    const state = algebraState(value, profile);
+    if (state.unsupported) return state.components[0];
+    if (!state.usesBasis) return state.components[0];
+    const onlyReal = state.components.slice(1).every(isZero);
+    if (state.mode === "apply" && onlyReal) return state.components[0];
+    return structuralAlgebra(profile, state.components, state.mode, structuralSourceSpan(value));
+}
+
 export function parseStructuralArithmetic(source, context, options = {}) {
-    return new StructuralParser(String(source), context, options).parse();
+    const value = new StructuralParser(String(source), context, options).parse();
+    return options.algebraProfile
+        ? interpretStructuralAlgebra(value, options.algebraProfile)
+        : value;
 }
 
 export function structuralFreeSymbols(value, names = new Set()) {
@@ -776,6 +1115,9 @@ export function structuralFreeSymbols(value, names = new Set()) {
     }
     if (isStructuralForm(value)) {
         for (const argument of value.args) structuralFreeSymbols(argument, names);
+    }
+    if (isStructuralAlgebra(value)) {
+        for (const component of value.components) structuralFreeSymbols(component, names);
     }
     return names;
 }
@@ -793,6 +1135,17 @@ export function resolveStructuralValue(value, context) {
         return liftStructuralValue(resolved);
     }
     if (isStructuralLiteral(value)) return value;
+    if (isStructuralAlgebra(value)) {
+        const profile = createStructuralAlgebraProfile(value.profile, value.basis, {
+            cayleyDickson: ["Complex", "Quaternion", "Octonion"].includes(value.profile),
+        });
+        return structuralAlgebra(
+            profile,
+            value.components.map((component) => resolveStructuralValue(component, context)),
+            value.mode,
+            structuralSourceSpan(value),
+        );
+    }
     if (!isStructuralForm(value)) return value;
 
     const args = value.args.map((argument) => resolveStructuralValue(argument, context));
@@ -843,6 +1196,10 @@ export function createStructuralFunction(value, context, name = null, explicitSy
 
 export function structuralValueToIr(value) {
     if (isStructuralLiteral(value)) return structuralValueToIr(value.value);
+    if (isStructuralAlgebra(value)) {
+        if (value.components.slice(1).every(isZero)) return structuralValueToIr(value.components[0]);
+        throw new Error(`Structural ${value.profile} form cannot be represented by scalar symbolic IR`);
+    }
     if (isStructuralSymbol(value)) return { fn: "RETRIEVE", args: [value.name] };
     if (value instanceof Integer) return { fn: "LITERAL", args: [value.value.toString()] };
     if (value instanceof Fraction) {
@@ -905,6 +1262,13 @@ export function structuralValueToIr(value) {
 export function formatStructuralValue(value, formatChild = String) {
     if (isStructuralSymbol(value)) return value.name;
     if (isStructuralLiteral(value)) return value.notation;
+    if (isStructuralAlgebra(value)) {
+        const label = value.profile === "Algebra"
+            ? `Algebra[${value.basis.join(",")}]`
+            : value.profile;
+        return `${label}(${value.components.map((component) =>
+            formatStructuralValue(component, formatChild)).join(", ")})`;
+    }
     if (value?.type === "structural_value") return `Value(${formatChild(value.value)})`;
     if (!isStructuralForm(value)) return formatChild(value);
     return `${value.head}(${value.args.map((argument) => formatStructuralValue(argument, formatChild)).join(", ")})`;
@@ -941,6 +1305,15 @@ export function collapseStructuralValue(value, context = null) {
         const resolved = context?.get?.(value.name);
         return resolved === undefined ? value : collapseStructuralValue(liftStructuralValue(resolved), context);
     }
+    if (isStructuralAlgebra(value)) {
+        const components = value.components.map((component) =>
+            collapseStructuralValue(component, context));
+        if (components.slice(1).every(isZero)) return components[0];
+        const profile = createStructuralAlgebraProfile(value.profile, value.basis, {
+            cayleyDickson: ["Complex", "Quaternion", "Octonion"].includes(value.profile),
+        });
+        return structuralAlgebra(profile, components, "apply", structuralSourceSpan(value));
+    }
     if (!isStructuralForm(value)) {
         return value instanceof Fraction
             ? new Rational(value.numerator, value.denominator)
@@ -975,6 +1348,16 @@ export function inspectStructuralValue(value) {
             ["head", { type: "string", value: value.kind }],
             ["notation", { type: "string", value: value.notation }],
             ["value", value.value],
+            ["span", spanValue(structuralSourceSpan(value))],
+        ]) };
+    }
+    if (isStructuralAlgebra(value)) {
+        return { type: "map", entries: new Map([
+            ["kind", { type: "string", value: "algebra" }],
+            ["head", { type: "string", value: value.profile }],
+            ["basis", { type: "sequence", values: value.basis.map((name) => ({ type: "string", value: name })) }],
+            ["components", { type: "sequence", values: [...value.components] }],
+            ["mode", { type: "string", value: value.mode }],
             ["span", spanValue(structuralSourceSpan(value))],
         ]) };
     }
@@ -1026,6 +1409,17 @@ function provablyNonzero(value, assumptions) {
 
 export function simplifyStructuralValue(value, options = {}) {
     const assumptions = new Set(options.nonzero || []);
+    if (isStructuralAlgebra(value)) {
+        const profile = createStructuralAlgebraProfile(value.profile, value.basis, {
+            cayleyDickson: ["Complex", "Quaternion", "Octonion"].includes(value.profile),
+        });
+        return structuralAlgebra(
+            profile,
+            value.components.map((component) => simplifyStructuralValue(component, options)),
+            value.mode,
+            structuralSourceSpan(value),
+        );
+    }
     if (!isStructuralForm(value)) return value;
     const args = value.args.map((argument) => simplifyStructuralValue(argument, options));
     if (value.head === "Fraction" && args.length === 2) {

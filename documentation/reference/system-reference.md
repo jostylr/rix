@@ -118,7 +118,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.REVERSE` | function | — | Reverse a collection (returns new copy) |
 | `.SAMECELL` | lazy function | — | Identity comparison (===) — returns 1 if both sides refer to the same cell, null otherwise |
 | `.SAME_CELL` | lazy function | — | Identity comparison (===) — returns 1 if both sides refer to the same cell, null otherwise |
-| `.SARITH` | function | — | Parse structural arithmetic; backticks use this parser by default |
+| `.SARITH` | function | — | Parse structural arithmetic; backticks use this parser by default, with optional Complex/Quaternion/Octonion/Algebra scopes |
 | `.SET` | lazy function | — | Create a set (unique values) |
 | `.SIMPLIFY` | function | Symbolic | Compatibility alias for Transform |
 | `.SLICE` | lazy function | — | Strict slice operator \|>/ |

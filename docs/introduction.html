@@ -2059,6 +2059,12 @@ G := `y + @(a^2 + 1)`     # parameter (y); expression is captured
 Constant := `6/4 + 2/4`   # no parameters
 Constant()                # Fraction(8,4)</code></pre>
 <p>Use <code>.SArith.Fun(y,x,unused):...</code> when explicit parameter order or unused parameters matter. Mixed numbers, continued fractions, base-prefixed numbers, and intervals retain their RiX notation inside structural forms. Methods such as <code>Inspect()</code>, <code>Render()</code>, <code>Collapse()</code>, and <code>Simplify(:nonzeroName)</code> expose and transform the resulting structure.</p>
+<p>Algebra modifiers give selected basis names a local meaning without reserving them throughout RiX:</p>
+<pre class="rix"><code>`.SArith.Complex:3+4i`
+`.SArith.Quaternion:i * j`
+`.SArith.Octonion:e1 * (e2 * e4)`
+`.SArith.Algebra(u,v):3+4u+x v`</code></pre>
+<p>Tight products preserve the written product; spaced products apply the selected algebra law. <code>.SArith.Scope(:Quaternion)</code> creates a reusable parser with that profile. <code>ToExact()</code> converts presentations into ordinary exact values when the corresponding capability is present; quaternion and octonion exact values use the opt-in <code>exact-algebras</code> plugin.</p>
 <p>Because <code>@(expression)</code> is ordinary evaluation, calls and effects inside it happen when the form is created.</p>
 <p>A leading-dot header selects any registered parser object exposing <code>.Parse</code>:</p>
 <pre class="rix"><code>P := `.Poly:x^2 + 3/4 x^5 - 7`</code></pre>
@@ -2322,9 +2328,9 @@ angle := pi/2 * .Units[:rad]</code></pre>
 <section id="cli-test-runner" class="level3">
 <h3 class="anchored" data-anchor-id="cli-test-runner">CLI Test Runner</h3>
 <p>Run test files from the command line:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb127"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb127-1"><a href="#cb127-1" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> bin/rix.js test              <span class="co"># discover all *.test.rix files</span></span>
-<span id="cb127-2"><a href="#cb127-2" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> bin/rix.js test parser       <span class="co"># filter by substring match</span></span>
-<span id="cb127-3"><a href="#cb127-3" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> bin/rix.js test math core    <span class="co"># multiple filters (OR)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb128"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb128-1"><a href="#cb128-1" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> bin/rix.js test              <span class="co"># discover all *.test.rix files</span></span>
+<span id="cb128-2"><a href="#cb128-2" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> bin/rix.js test parser       <span class="co"># filter by substring match</span></span>
+<span id="cb128-3"><a href="#cb128-3" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> bin/rix.js test math core    <span class="co"># multiple filters (OR)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>The runner discovers <code>*.test.rix</code> files recursively, runs each in a fresh context, and prints per-file and per-test-group summaries. Exit code is 0 if all pass, nonzero otherwise.</p>
 
 

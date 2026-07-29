@@ -1109,6 +1109,24 @@ spaced `1 : 3` constructs a `RationalInterval`. Structural values provide
 `Inspect`, `Render`, `Collapse`, `Simplify`, `Head`, `Arguments`,
 `SourceSpan`, and `MapArguments` methods.
 
+Named algebra profiles reserve basis identifiers only inside that parser
+scope. Tight multiplication preserves their presentation; spaced
+multiplication applies the profile's multiplication table:
+
+```rix
+`.SArith.Complex:3+4i`                  # Complex(3, 4)
+`.SArith.Complex:i * i`                 # -1
+`.SArith.Quaternion:i * j`              # Quaternion(0, 0, 0, 1)
+`.SArith.Octonion:e1 * (e2 * e4)`       # negative e7
+`.SArith.Algebra(u,v):3+4u+x v`         # general linear basis
+```
+
+`.SArith.Scope(:Quaternion)` returns a reusable parser carrying the selected
+profile. `ToExact()` converts a Complex presentation to the core exact complex
+type; quaternion and octonion conversion is gated by the opt-in
+`exact-algebras` plugin. General `Algebra` conversion resolves its named basis
+values from the surrounding RiX scope.
+
 Parser roots use the ordinary dot-registry ownership rule: PascalCase for core
 capabilities and camelCase for host/plugin capabilities. The selected object
 must expose a callable `.Parse` method. See

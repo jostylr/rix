@@ -64,9 +64,9 @@ parser.Parse(bodyString, modifierSequence, parseInfo)
 - `name`: the inferred uppercase function name, when present;
 - `explicit`: truthy when the source used a leading-dot parser header.
 
-Modifiers are parser-owned. `.SArith` accepts `Fun` and
-`Fun(name,...)`; `.Poly` accepts `Fun` as a compatible explicit-function
-marker.
+Modifiers are parser-owned. `.SArith` accepts `Fun`, `Fun(name,...)`,
+`Difference`, `Complex`, `Quaternion`, `Octonion`, and `Algebra(name,...)`;
+`.Poly` accepts `Fun` as a compatible explicit-function marker.
 
 The lookup uses the current visible system context. Script capability
 restrictions therefore apply to backtick parsers just as they do to ordinary
@@ -179,6 +179,95 @@ Tight fraction coefficients bind before implicit multiplication:
 
 ```rix
 `3/4 x^5`       # Product(Fraction(3,4), Power(x,5))
+```
+
+### Difference and algebra scopes
+
+`Difference` is the default interpretation of tight subtraction, so these
+forms are equivalent:
+
+```rix
+`1-x`                       # Difference(1, x)
+`.SArith.Difference:1-x`    # Difference(1, x)
+```
+
+Algebra modifiers turn selected identifiers into basis units and collect the
+result into Cartesian components:
+
+```rix
+`.SArith.Complex:3+4i`                  # Complex(3, 4)
+`.SArith.Quaternion:1+2i+3j+4k`         # Quaternion(1, 2, 3, 4)
+`.SArith.Octonion:1+2e1+3e7`            # Octonion(1, 2, 0, 0, 0, 0, 0, 3)
+`.SArith.Algebra(u,v):3+4u+x v`         # Algebra[u,v](3, 4, x)
+```
+
+The profiles are opt-in. In ordinary `.SArith`, `i`, `j`, `k`, and `e1` are
+normal free symbols. In an algebra profile its declared basis names are units;
+all other identifiers remain symbolic coefficients. Consequently:
+
+```rix
+F := `.SArith.Complex.Fun:x+2i`
+F(5)                                    # Complex(5, 2)
+```
+
+`F` has only the parameter `x`; `i` belongs to the Complex basis.
+
+As elsewhere in structural arithmetic, tight multiplication preserves a
+product while spaced multiplication applies the active algebra law:
+
+```rix
+`.SArith.Complex:i*i`                   # Product(i, i)
+`.SArith.Complex:i * i`                 # -1
+`.SArith.Quaternion:i * j`              # Quaternion(0, 0, 0, 1)
+`.SArith.Quaternion:j * i`              # Quaternion(0, 0, 0, -1)
+```
+
+The quaternion and octonion tables use the Cayley-Dickson convention. Explicit
+parentheses are retained during component interpretation, which matters
+because octonion multiplication is not associative:
+
+```rix
+`.SArith.Octonion:(e1 * e2) * e4`       # e7 component is 1
+`.SArith.Octonion:e1 * (e2 * e4)`       # e7 component is -1
+```
+
+`Algebra(name,...)` is the general linear-basis profile. It collects scalar
+coefficients but deliberately supplies no multiplication table; products of
+multiple basis terms therefore remain structural rather than inventing an
+algebra law.
+
+For repeated use, `Scope` returns another parser object with the profile
+attached:
+
+```rix
+quaternions := .SArith.Scope(:Quaternion)
+quaternions.Parse("i * j", [], {= })     # Quaternion(0, 0, 0, 1)
+
+units := .SArith.Scope(:Algebra, :u, :v)
+units.Parse("3+4u+x v", [], {= })        # Algebra[u,v](3, 4, x)
+```
+
+This is a parser-local scope: it does not change the meaning of identifiers
+elsewhere in the surrounding RiX block.
+
+`ToExact()` crosses from the presentation object into an ordinary RiX
+algebraic value. Complex conversion uses the core `.Complex` capability.
+Quaternion and octonion conversion requires the opt-in `exact-algebras`
+plugin:
+
+```rix
+(`.SArith.Complex:3-4i`).ToExact()
+
+.Plugin.Load("exact-algebras")
+(`.SArith.Quaternion:1+2i+3j+4k`).ToExact()
+```
+
+For a general `Algebra` profile, each basis name is resolved in the surrounding
+scope when `ToExact()` is called:
+
+```rix
+u := .Exact[:i]
+(`.SArith.Algebra(u):3+4u`).ToExact()    # 3 + 4~{i}
 ```
 
 ## Symbols and outer splicing

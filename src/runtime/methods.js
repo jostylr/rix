@@ -23,6 +23,7 @@ import {
     cayleyFromCartesian,
     cayleyImaginary,
     cayleyReal,
+    addScalars,
     complexConjugate,
     complexNormSquared,
     complexParts,
@@ -38,6 +39,8 @@ import {
     formatStructuralValue,
     inspectStructuralValue,
     simplifyStructuralValue,
+    structuralAlgebra,
+    createStructuralAlgebraProfile,
     structuralForm,
     structuralSourceSpan,
 } from "./structural-arithmetic.js";
@@ -1413,17 +1416,55 @@ const structuralMethods = {
     INSPECT: method("Inspect", ([target]) => inspectStructuralValue(target)),
     RENDER: method("Render", ([target]) => stringObj(formatStructuralValue(target, valueKey))),
     COLLAPSE: method("Collapse", ([target], context) => collapseStructuralValue(target, context)),
+    TOEXACT: method("ToExact", ([target], context, evaluate, invoke) => {
+        if (target.type !== "structural_algebra") return collapseStructuralValue(target, context);
+        const components = target.components.map((component) =>
+            collapseStructuralValue(component, context));
+        if (target.profile === "Algebra") {
+            let result = components[0];
+            for (let index = 0; index < target.basis.length; index++) {
+                const unit = context.get(target.basis[index]);
+                if (unit === undefined) {
+                    throw new Error(`Undefined algebraic basis value: ${target.basis[index]}`);
+                }
+                result = addScalars(result, multiplyScalars(components[index + 1], unit));
+            }
+            return result;
+        }
+
+        const systemContext = context.getEnv("__system_context__", null);
+        const capabilityName = target.profile === "Complex" ? "Complex" : "exactAlgebras";
+        const entry = systemContext?.get?.(capabilityName);
+        if (!entry || !Object.prototype.hasOwnProperty.call(entry, "value")) {
+            if (target.profile === "Complex") {
+                throw new Error("The .Complex capability is unavailable");
+            }
+            throw new Error(
+                `The exact-algebras plugin must be loaded before converting a structural ${target.profile}`,
+            );
+        }
+        const receiver = entry.value;
+        const methodName = target.profile === "Complex" ? "FROMPARTS" : target.profile.toUpperCase();
+        const constructor = resolveMethod(receiver, methodName);
+        if (constructor.type === "method_builtin") {
+            return constructor.impl([receiver, ...components], context, evaluate, invoke);
+        }
+        return invoke(constructor, [receiver, ...components], context, evaluate);
+    }),
     SIMPLIFY: method("Simplify", ([target, ...nonzero]) =>
         simplifyStructuralValue(target, { nonzero: nonzero.map(assumptionName) })),
     HEAD: method("Head", ([target]) => stringObj(
         target.type === "structural_form" ? target.head
+            : target.type === "structural_algebra" ? target.profile
             : target.type === "structural_literal" ? target.kind
                 : target.type === "structural_symbol" ? "Symbol"
                     : "Value",
     )),
     ARGUMENTS: method("Arguments", ([target]) => ({
         type: "sequence",
-        values: target.type === "structural_form" ? [...target.args] : [],
+        values: target.type === "structural_form" ? [...target.args]
+            : target.type === "structural_algebra" ? [...target.components]
+                : [],
         _ext: mutableExt(),
     })),
     SOURCESPAN: method("SourceSpan", ([target]) => {
@@ -1436,6 +1477,17 @@ const structuralMethods = {
         };
     }),
     MAPARGUMENTS: method("MapArguments", ([target, mapper], context, evaluate, invoke) => {
+        if (target.type === "structural_algebra") {
+            const profile = createStructuralAlgebraProfile(target.profile, target.basis, {
+                cayleyDickson: ["Complex", "Quaternion", "Octonion"].includes(target.profile),
+            });
+            return structuralAlgebra(
+                profile,
+                target.components.map((component) => invoke(mapper, [component], context, evaluate)),
+                target.mode,
+                structuralSourceSpan(target),
+            );
+        }
         if (target.type !== "structural_form") return target;
         return structuralForm(
             target.head,
@@ -1447,6 +1499,7 @@ const structuralMethods = {
 };
 
 const PROTOS = new Map([
+    ["structural_algebra", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(structuralMethods)])],
     ["structural_symbol", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(structuralMethods)])],
     ["structural_literal", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(structuralMethods)])],
     ["structural_form", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(structuralMethods)])],

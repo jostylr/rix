@@ -1661,6 +1661,22 @@ and intervals retain their RiX notation inside structural forms. Methods such
 as `Inspect()`, `Render()`, `Collapse()`, and `Simplify(:nonzeroName)` expose
 and transform the resulting structure.
 
+Algebra modifiers give selected basis names a local meaning without reserving
+them throughout RiX:
+
+```rix
+`.SArith.Complex:3+4i`
+`.SArith.Quaternion:i * j`
+`.SArith.Octonion:e1 * (e2 * e4)`
+`.SArith.Algebra(u,v):3+4u+x v`
+```
+
+Tight products preserve the written product; spaced products apply the
+selected algebra law. `.SArith.Scope(:Quaternion)` creates a reusable parser
+with that profile. `ToExact()` converts presentations into ordinary exact
+values when the corresponding capability is present; quaternion and octonion
+exact values use the opt-in `exact-algebras` plugin.
+
 Because `@(expression)` is ordinary evaluation, calls and effects inside it
 happen when the form is created.
 
