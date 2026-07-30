@@ -640,6 +640,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#portable-sheet-schema" id="toc-portable-sheet-schema" class="nav-link" data-scroll-target="#portable-sheet-schema">Portable Sheet schema</a></li>
   <li><a href="#address-and-label-convention" id="toc-address-and-label-convention" class="nav-link" data-scroll-target="#address-and-label-convention">Address and label convention</a></li>
   <li><a href="#data-adapters" id="toc-data-adapters" class="nav-link" data-scroll-target="#data-adapters">Data adapters</a></li>
+  <li><a href="#two-execution-models" id="toc-two-execution-models" class="nav-link" data-scroll-target="#two-execution-models">Two execution models</a>
+  <ul class="collapse">
+  <li><a href="#immediate-binding-view" id="toc-immediate-binding-view" class="nav-link" data-scroll-target="#immediate-binding-view">Immediate Binding view</a></li>
+  <li><a href="#formula-backed-rixcel-sheet" id="toc-formula-backed-rixcel-sheet" class="nav-link" data-scroll-target="#formula-backed-rixcel-sheet">Formula-backed RiXCel sheet</a></li>
+  </ul></li>
   <li><a href="#reactive-document-model" id="toc-reactive-document-model" class="nav-link" data-scroll-target="#reactive-document-model">Reactive document model</a></li>
   <li><a href="#dependencies-and-cycles" id="toc-dependencies-and-cycles" class="nav-link" data-scroll-target="#dependencies-and-cycles">Dependencies and cycles</a></li>
   <li><a href="#rank-n-editing" id="toc-rank-n-editing" class="nav-link" data-scroll-target="#rank-n-editing">Rank-N editing</a></li>
@@ -757,19 +762,49 @@ imports[:rates][:usd][1,1]</code></pre>
 </ol>
 <p>The UI must ask which behavior is intended rather than guessing. A live handle is never persisted. <code>WidgetSession.snapshot()</code> creates a detached Sheet with the current exact plane records, <code>binding=null</code>, and <code>editable=false</code>.</p>
 </section>
+<section id="two-execution-models" class="level2">
+<h2 class="anchored" data-anchor-id="two-execution-models">Two execution models</h2>
+<p>RiXCel must keep immediate Binding views and formula-backed sheets as different entities.</p>
+<section id="immediate-binding-view" class="level3">
+<h3 class="anchored" data-anchor-id="immediate-binding-view">Immediate Binding view</h3>
+<p><code>.Sheet(.Bind(value))</code> evaluates editor input immediately in the host RiX context, then writes the resulting value through the Binding. A reference to the edited tensor reads the last committed value:</p>
+<pre class="text"><code>evaluate source -&gt; exact value -&gt; binding.set(index, value) -&gt; refreshed view</code></pre>
+<p>This is deliberately not dependency evaluation. Referring to the current tensor while calculating a replacement is valid because the write has not happened yet.</p>
+</section>
+<section id="formula-backed-rixcel-sheet" class="level3">
+<h3 class="anchored" data-anchor-id="formula-backed-rixcel-sheet">Formula-backed RiXCel sheet</h3>
+<p>A RiXCel sheet owns stable formula slots and an isolated execution context. Each slot needs at least:</p>
+<pre class="text"><code>id              stable identity
+source          authoritative editable RiX source
+deferred        parsed/lowered deferred RiX, rebuilt from source
+assignmentMode  implied := or an explicit RiX assignment mode
+value           result for the current committed evaluation epoch
+lastGoodValue   optional prior successful result for UI diagnostics
+state           clean, dirty, evaluating, or error
+dependencies    slot identities read during the last successful evaluation
+diagnostics     parse, cycle, or runtime diagnostics
+view            presentation metadata</code></pre>
+<p>Deferred syntax such as <code>@{ ... }</code> is a natural programmatic representation, but the stored source remains authoritative. A deferred value captured from an arbitrary caller scope is not the formula context; the sheet evaluates its lowered formula inside a document-owned context containing <code>grid</code>, <code>row</code>, <code>col</code>, <code>index</code>, <code>names</code>, and explicit imports.</p>
+<p>Formula editing uses a different semantic event from Binding value editing:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>{ <span class="dt">type</span><span class="op">:</span> <span class="st">"sheet:formula"</span><span class="op">,</span> <span class="dt">index</span><span class="op">:</span> [<span class="dv">2</span><span class="op">,</span> <span class="dv">3</span>]<span class="op">,</span> <span class="dt">source</span><span class="op">:</span> <span class="st">"price * quantity"</span><span class="op">,</span> <span class="dt">mode</span><span class="op">:</span> <span class="st">":="</span> }</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The document parses and stores the formula, begins a new evaluation epoch, invalidates the edited slot and its transitive dependents, and recomputes them in dependency order. A simple first implementation may conservatively reevaluate every formula after the edited slot; dependency-traced incremental evaluation can then replace that schedule without changing the slot model.</p>
+<p>During an epoch, <code>grid[index]</code> always requests the current epoch’s value. If it reads a slot already marked <code>evaluating</code>, evaluation reports the complete cycle path. It must not silently fall back to <code>lastGoodValue</code>. If recurrence is wanted later, prior-epoch access should be explicit through a separate name such as <code>previous[index]</code>.</p>
+<p>The formula document commits a successful epoch atomically. On failure it keeps the formula and diagnostics; <code>lastGoodValue</code> may be displayed as stale, but is never presented as the current formula result.</p>
+</section>
+</section>
 <section id="reactive-document-model" class="level2">
 <h2 class="anchored" data-anchor-id="reactive-document-model">Reactive document model</h2>
 <p>A RiXCel document should be a sparse rank-N collection. A slot will eventually store at least:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode json code-with-copy"><code class="sourceCode json"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"id"</span><span class="fu">:</span> <span class="st">"stable-slot-id"</span><span class="fu">,</span></span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"op"</span><span class="fu">:</span> <span class="st">":="</span><span class="fu">,</span></span>
-<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"code"</span><span class="fu">:</span> <span class="st">"price * quantity"</span><span class="fu">,</span></span>
-<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"style"</span><span class="fu">:</span> <span class="fu">{},</span></span>
-<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"cache"</span><span class="fu">:</span> <span class="fu">{</span></span>
-<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"value"</span><span class="fu">:</span> <span class="kw">null</span><span class="fu">,</span></span>
-<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"inputHash"</span><span class="fu">:</span> <span class="kw">null</span></span>
-<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">}</span></span>
-<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode json code-with-copy"><code class="sourceCode json"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"id"</span><span class="fu">:</span> <span class="st">"stable-slot-id"</span><span class="fu">,</span></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"op"</span><span class="fu">:</span> <span class="st">":="</span><span class="fu">,</span></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"code"</span><span class="fu">:</span> <span class="st">"price * quantity"</span><span class="fu">,</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"style"</span><span class="fu">:</span> <span class="fu">{},</span></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"cache"</span><span class="fu">:</span> <span class="fu">{</span></span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"value"</span><span class="fu">:</span> <span class="kw">null</span><span class="fu">,</span></span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"inputHash"</span><span class="fu">:</span> <span class="kw">null</span></span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">}</span></span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Source is authoritative. Cached values are optional and valid only when their input and runtime hashes match.</p>
 <p>The default implied assignment is <code>:=</code>. An explicit leading <code>=</code>, <code>~=</code>, <code>::=</code>, or <code>~~=</code> retains its RiX binding meaning; it is not decorative spreadsheet syntax.</p>
 </section>

@@ -174,6 +174,71 @@ The UI must ask which behavior is intended rather than guessing. A live handle
 is never persisted. `WidgetSession.snapshot()` creates a detached Sheet with
 the current exact plane records, `binding=null`, and `editable=false`.
 
+## Two execution models
+
+RiXCel must keep immediate Binding views and formula-backed sheets as different
+entities.
+
+### Immediate Binding view
+
+`.Sheet(.Bind(value))` evaluates editor input immediately in the host RiX
+context, then writes the resulting value through the Binding. A reference to
+the edited tensor reads the last committed value:
+
+```text
+evaluate source -> exact value -> binding.set(index, value) -> refreshed view
+```
+
+This is deliberately not dependency evaluation. Referring to the current
+tensor while calculating a replacement is valid because the write has not
+happened yet.
+
+### Formula-backed RiXCel sheet
+
+A RiXCel sheet owns stable formula slots and an isolated execution context.
+Each slot needs at least:
+
+```text
+id              stable identity
+source          authoritative editable RiX source
+deferred        parsed/lowered deferred RiX, rebuilt from source
+assignmentMode  implied := or an explicit RiX assignment mode
+value           result for the current committed evaluation epoch
+lastGoodValue   optional prior successful result for UI diagnostics
+state           clean, dirty, evaluating, or error
+dependencies    slot identities read during the last successful evaluation
+diagnostics     parse, cycle, or runtime diagnostics
+view            presentation metadata
+```
+
+Deferred syntax such as `@{ ... }` is a natural programmatic representation,
+but the stored source remains authoritative. A deferred value captured from an
+arbitrary caller scope is not the formula context; the sheet evaluates its
+lowered formula inside a document-owned context containing `grid`, `row`,
+`col`, `index`, `names`, and explicit imports.
+
+Formula editing uses a different semantic event from Binding value editing:
+
+```js
+{ type: "sheet:formula", index: [2, 3], source: "price * quantity", mode: ":=" }
+```
+
+The document parses and stores the formula, begins a new evaluation epoch,
+invalidates the edited slot and its transitive dependents, and recomputes them
+in dependency order. A simple first implementation may conservatively
+reevaluate every formula after the edited slot; dependency-traced incremental
+evaluation can then replace that schedule without changing the slot model.
+
+During an epoch, `grid[index]` always requests the current epoch's value. If it
+reads a slot already marked `evaluating`, evaluation reports the complete cycle
+path. It must not silently fall back to `lastGoodValue`. If recurrence is
+wanted later, prior-epoch access should be explicit through a separate name
+such as `previous[index]`.
+
+The formula document commits a successful epoch atomically. On failure it keeps
+the formula and diagnostics; `lastGoodValue` may be displayed as stale, but is
+never presented as the current formula result.
+
 ## Reactive document model
 
 A RiXCel document should be a sparse rank-N collection. A slot will eventually

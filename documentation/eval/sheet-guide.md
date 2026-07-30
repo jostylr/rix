@@ -40,11 +40,11 @@ m := {:2x3: 1, 2, 3; 4, 5, 6}
 .Sheet(m, {= address="m" })
 ```
 
-Use the arrow keys, Home, and End to move around a focused sheet. Enter or a
-double-click activates the selected address. In RiX Web this inserts the
-canonical address into the formula input; in the notebook it inserts the
-address at the current editor selection. Selection never mutates the source
-tensor.
+Use the arrow keys, Home, and End to move around a focused sheet. In a read-only
+Sheet, Enter or a double-click activates the selected address. In RiX Web this
+inserts the canonical address into the formula input; in the notebook it
+inserts the address at the current editor selection. Selection never mutates
+the source tensor.
 
 By default, column headers use a dual display such as `C · 3`. The letter is a
 familiar spreadsheet label; the number is the RiX tensor coordinate.
@@ -167,7 +167,9 @@ its revision, and creates a refreshed Sheet. The browser DOM is never stored in
 the Binding or Sheet.
 
 The editor accepts RiX expressions, not untyped display text. Use quotes for
-strings. Double-click or press F2 on a live cell to focus its editor.
+strings. On a live cell, Enter, F2, or double-click begins editing. Enter
+commits the edit and returns focus to the same highlighted cell; Escape returns
+without committing. Arrow navigation can then continue from that cell.
 
 Live Binding handles are runtime-only. `WidgetSession.snapshot()` detaches the
 current Sheet with `binding=null` and `editable=false`; persisted and static

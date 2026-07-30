@@ -119,6 +119,14 @@ function enhanceSheet(sheet, options) {
         dispatchSheetEvent(sheet, "rix-sheet-activate", detail);
     }
 
+    function beginEdit(cell) {
+        if (!editInput || typeof options.onEdit !== "function") return false;
+        select(cell, { focus: false });
+        editInput.focus();
+        editInput.select();
+        return true;
+    }
+
     function changePlane() {
         const selections = planeSelectors.map((selector) => ({
             axis: Number(selector.dataset.rixSheetAxis),
@@ -156,26 +164,19 @@ function enhanceSheet(sheet, options) {
         cell.addEventListener("dblclick", (event) => {
             event.preventDefault();
             event.stopPropagation();
-            if (editInput && typeof options.onEdit === "function") {
-                select(cell, { focus: false });
-                editInput.focus();
-                editInput.select();
-                return;
-            }
+            if (beginEdit(cell)) return;
             activate(cell);
         });
         cell.addEventListener("keydown", (event) => {
-            if (event.key === "F2" && editInput && typeof options.onEdit === "function") {
+            if (event.key === "F2") {
                 event.preventDefault();
                 event.stopPropagation();
-                select(cell, { focus: false });
-                editInput.focus();
-                editInput.select();
-                return;
+                if (beginEdit(cell)) return;
             }
             if (event.key === "Enter") {
                 event.preventDefault();
                 event.stopPropagation();
+                if (beginEdit(cell)) return;
                 activate(cell);
                 return;
             }
@@ -201,6 +202,17 @@ function enhanceSheet(sheet, options) {
     for (const selector of planeSelectors) selector.addEventListener("change", changePlane);
     if (editForm) {
         editForm.addEventListener("click", (event) => event.stopPropagation());
+        editInput?.addEventListener("keydown", (event) => {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                event.stopPropagation();
+                editForm.requestSubmit();
+            } else if (event.key === "Escape" && selectedCell) {
+                event.preventDefault();
+                event.stopPropagation();
+                selectedCell.focus();
+            }
+        });
         editForm.addEventListener("submit", (event) => {
             event.preventDefault();
             event.stopPropagation();
@@ -226,6 +238,7 @@ function enhanceSheet(sheet, options) {
                     ...detail,
                     revision: result?.revision ?? null,
                 });
+                selectedCell.focus();
             } catch (error) {
                 if (editStatus) editStatus.textContent = error.message || String(error);
             }
