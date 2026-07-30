@@ -627,6 +627,9 @@ ul.task-list li input[type="checkbox"] {
 <pre class="text"><code>grid[1,1]  grid[1,2]  grid[1,3]
 grid[2,1]  grid[2,2]  grid[2,3]</code></pre>
 <p>HTML renderers expose the address as <code>data-rix-address</code> and as the cell title. RiX Web and the RiX notebook enhance this markup with pointer and keyboard selection. Selecting an entry shows <code>C2 · grid[2,3]</code> without parsing a display label back into RiX source.</p>
+<p><code>grid</code> is the default address-base string stored by the Sheet; <code>.Sheet</code> does not create a <code>grid</code> binding and <code>grid</code> is not a property of the Sheet. If an activated address should evaluate immediately, either name the source value <code>grid</code> or set <code>address</code> to its actual binding name:</p>
+<pre class="rix"><code>m := {:2x3: 1, 2, 3; 4, 5, 6}
+.Sheet(m, {= address="m" })</code></pre>
 <p>Use the arrow keys, Home, and End to move around a focused sheet. Enter or a double-click activates the selected address. In RiX Web this inserts the canonical address into the formula input; in the notebook it inserts the address at the current editor selection. Selection never mutates the source tensor.</p>
 <p>By default, column headers use a dual display such as <code>C · 3</code>. The letter is a familiar spreadsheet label; the number is the RiX tensor coordinate.</p>
 </section>
@@ -702,6 +705,7 @@ depth2 := .Sheet(t, {=
     address = "cube"
 })</code></pre>
 <p>The top-right visible entry has value <code>9</code>, tensor index <code>[1,3,2]</code>, and address <code>cube[1,3,2]</code>.</p>
+<p>RiX Web and the notebook render a selector for every hidden axis. Changing a selector swaps the visible plane in the immutable snapshot; it does not mutate the tensor. The portable Sheet value retains one plane record for every hidden axis combination so this interaction also works in static and live notebook output without re-evaluation.</p>
 <p>Any two axes may be visible:</p>
 <pre class="rix"><code>rowByDepth := .Sheet(t, {=
     viewAxes = [1, 3],

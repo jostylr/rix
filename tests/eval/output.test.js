@@ -25,6 +25,8 @@ describe("portable structured output", () => {
         expect(sheet.cells[1][2].address).toBe("grid[2,3]");
         expect(sheet.cells[1][2].displayAddress).toBe("C2");
         expect(formatValue(sheet.cells[1][2].value)).toBe("6");
+        expect(sheet.hiddenAxes).toEqual([]);
+        expect(sheet.planes).toHaveLength(1);
 
         const text = formatValue(sheet);
         expect(text).toContain("Sheet: Matrix view · grid · shape 2×3");
@@ -52,6 +54,12 @@ describe("portable structured output", () => {
         `);
         expect(depthPlane.axes).toEqual(["row", "column", "depth"]);
         expect(depthPlane.slice).toEqual([null, null, 2]);
+        expect(depthPlane.hiddenAxes).toEqual([
+            { axis: 3, name: "depth", length: 2, selected: 2 },
+        ]);
+        expect(depthPlane.selectedPlaneKey).toBe("3:2");
+        expect(depthPlane.planes.map(({ key }) => key)).toEqual(["3:1", "3:2"]);
+        expect(formatValue(depthPlane.planes[0].cells[0][2].value)).toBe("3");
         expect(depthPlane.cells.map((row) => row.map((cell) => formatValue(cell.value)))).toEqual([
             ["7", "8", "9"],
             ["10", "11", "12"],
@@ -60,6 +68,11 @@ describe("portable structured output", () => {
             index: [1, 3, 2],
             address: "cube[1,3,2]",
         });
+        const depthHtml = renderOutputHtml(depthPlane, formatValue);
+        expect(depthHtml).toContain('data-rix-sheet-axis="3"');
+        expect(depthHtml).toContain('data-rix-plane-key="3:1"');
+        expect(depthHtml).toContain('data-rix-plane-key="3:2" data-rix-slice=",,2"');
+        expect(depthHtml).toContain('<option value="2" selected>2</option>');
 
         const rowDepth = parseAndEvaluate(`
             t := {:2x3x2: 1, 2, 3; 4, 5, 6 ;; 7, 8, 9; 10, 11, 12};

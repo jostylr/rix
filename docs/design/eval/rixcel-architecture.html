@@ -731,7 +731,9 @@ grid[::, 2]</code></pre>
 <p>Spreadsheet labels such as <code>C2</code> are presentation and navigation aliases. A host should display both when useful:</p>
 <pre class="text"><code>C2 · grid[2,3]</code></pre>
 <p>Formula editing should insert canonical addresses when the user points at a slot. This avoids introducing <code>A1:B4</code> into the RiX grammar, where uppercase identifiers and colon intervals already have meanings.</p>
+<p>For a portable Sheet snapshot, <code>grid</code> is only the default <code>addressBase</code>. It is not a hidden variable or a property of the Sheet object. A host can evaluate an inserted address only when the caller has chosen an address base that resolves in that RiX context, such as <code>.Sheet(m, {= address="m" })</code>. The future RiXCel document runtime will supply its contextual <code>grid</code> binding while evaluating a slot.</p>
 <p>The shared enhancer emits bubbling <code>rix-sheet-select</code> and <code>rix-sheet-activate</code> events. Event details include <code>address</code>, <code>displayAddress</code>, the full tensor <code>index</code>, and visible <code>row</code>/<code>column</code>. Renderers can therefore add host behavior without teaching the portable output object about CodeMirror, textareas, or the DOM.</p>
+<p>Rank-N snapshots also retain <code>hiddenAxes</code>, <code>selectedPlaneKey</code>, and a frozen <code>planes</code> collection. Rendered axis selectors switch among those plane records and emit <code>rix-sheet-plane-change</code> with the selected slice. This remains a read-only view operation.</p>
 <p>Planned contextual names are:</p>
 <pre class="rix"><code>row
 col

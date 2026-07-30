@@ -29,6 +29,16 @@ RiX Web and the RiX notebook enhance this markup with pointer and keyboard
 selection. Selecting an entry shows `C2 · grid[2,3]` without parsing a display
 label back into RiX source.
 
+`grid` is the default address-base string stored by the Sheet; `.Sheet` does
+not create a `grid` binding and `grid` is not a property of the Sheet. If an
+activated address should evaluate immediately, either name the source value
+`grid` or set `address` to its actual binding name:
+
+```rix
+m := {:2x3: 1, 2, 3; 4, 5, 6}
+.Sheet(m, {= address="m" })
+```
+
 Use the arrow keys, Home, and End to move around a focused sheet. Enter or a
 double-click activates the selected address. In RiX Web this inserts the
 canonical address into the formula input; in the notebook it inserts the
@@ -82,6 +92,12 @@ depth2 := .Sheet(t, {=
 
 The top-right visible entry has value `9`, tensor index `[1,3,2]`, and address
 `cube[1,3,2]`.
+
+RiX Web and the notebook render a selector for every hidden axis. Changing a
+selector swaps the visible plane in the immutable snapshot; it does not mutate
+the tensor. The portable Sheet value retains one plane record for every hidden
+axis combination so this interaction also works in static and live notebook
+output without re-evaluation.
 
 Any two axes may be visible:
 

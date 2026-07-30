@@ -22,7 +22,7 @@ Checked items are implemented in the current RiX repository.
 - [x] Render a selected-address indicator such as `C2 · grid[2,3]`.
 - [x] Add pointer and keyboard selection without enabling value edits.
 - [x] Let formula/source editors insert canonical addresses by activation.
-- [ ] Add axis selectors for rank greater than two.
+- [x] Add axis selectors for rank greater than two.
 - [x] Add static Sheet rendering to the RiX notebook.
 - [x] Add accessibility tests for row/column headers and keyboard navigation.
 

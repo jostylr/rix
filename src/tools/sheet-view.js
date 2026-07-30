@@ -1,9 +1,9 @@
 /**
  * Host-side interaction for portable Sheet output.
  *
- * This module adds selection only. It never mutates the Sheet value or its
- * backing RiX data. Hosts may handle activation by inserting the canonical
- * address into an editor or by dispatching a future widget action.
+ * This module adds cell and tensor-plane selection only. It never mutates the
+ * Sheet value or its backing RiX data. Hosts may handle activation by inserting
+ * the canonical address into an editor or by dispatching a future widget action.
  */
 
 export function sheetDisplayAddress(columnHeader, rowHeader, columnIndex, rowIndex) {
@@ -31,6 +31,13 @@ export function moveSheetSelection(position, key, rowCount, columnCount) {
     };
 }
 
+export function sheetPlaneKey(selections) {
+    return [...selections]
+        .sort((left, right) => Number(left.axis) - Number(right.axis))
+        .map(({ axis, value }) => `${Number(axis)}:${Number(value)}`)
+        .join(",");
+}
+
 function sheetRoots(root) {
     if (!root) return [];
     const roots = [];
@@ -44,10 +51,14 @@ function eventDetail(cell) {
         .split(",")
         .filter(Boolean)
         .map(Number);
+    const slice = String(cell.closest("tbody")?.dataset.rixSlice || "")
+        .split(",")
+        .map((item) => item === "" ? null : Number(item));
     return {
         address: cell.dataset.rixAddress,
         displayAddress: cell.dataset.rixDisplayAddress,
         index,
+        slice,
         row: Number(cell.dataset.rixRow),
         column: Number(cell.dataset.rixColumn),
     };
@@ -66,16 +77,13 @@ function enhanceSheet(sheet, options) {
     const table = sheet.querySelector("table");
     const location = sheet.querySelector(".rix-output-sheet-location");
     const cells = [...sheet.querySelectorAll("td[data-rix-address]")];
+    const planeBodies = [...sheet.querySelectorAll("tbody[data-rix-plane-key]")];
+    const planeSelectors = [...sheet.querySelectorAll("select[data-rix-sheet-axis]")];
     if (!table || !cells.length) return;
 
     table.setAttribute("role", "grid");
     table.setAttribute("aria-label", sheet.querySelector(".rix-output-sheet-title")?.textContent || "RiX sheet");
-    const rowCount = Math.max(...cells.map((cell) => Number(cell.dataset.rixRow)));
-    const columnCount = Math.max(...cells.map((cell) => Number(cell.dataset.rixColumn)));
-    const byPosition = new Map(cells.map((cell) => [
-        `${cell.dataset.rixRow},${cell.dataset.rixColumn}`,
-        cell,
-    ]));
+    const activeCells = () => cells.filter((cell) => !cell.closest("tbody")?.hidden);
 
     function select(cell, { focus = false, notify = true } = {}) {
         for (const candidate of cells) {
@@ -101,8 +109,32 @@ function enhanceSheet(sheet, options) {
         dispatchSheetEvent(sheet, "rix-sheet-activate", detail);
     }
 
-    for (const [index, cell] of cells.entries()) {
-        cell.tabIndex = index === 0 ? 0 : -1;
+    function changePlane() {
+        const selections = planeSelectors.map((selector) => ({
+            axis: Number(selector.dataset.rixSheetAxis),
+            value: Number(selector.value),
+        }));
+        const key = sheetPlaneKey(selections);
+        for (const body of planeBodies) body.hidden = body.dataset.rixPlaneKey !== key;
+        sheet.dataset.rixSelectedPlane = key;
+        const body = planeBodies.find((candidate) => !candidate.hidden);
+        if (!body) return;
+        const detail = {
+            key,
+            slice: String(body.dataset.rixSlice || "").split(",").map((item) => item === "" ? null : Number(item)),
+            selections,
+        };
+        const first = body.querySelector("td[data-rix-address]");
+        if (first) select(first, { focus: true });
+        options.onPlaneChange?.(detail, sheet);
+        dispatchSheetEvent(sheet, "rix-sheet-plane-change", detail);
+    }
+
+    const initiallyActive = new Set(activeCells());
+    let firstActive = true;
+    for (const cell of cells) {
+        cell.tabIndex = initiallyActive.has(cell) && firstActive ? 0 : -1;
+        if (initiallyActive.has(cell)) firstActive = false;
         cell.setAttribute("aria-selected", "false");
         cell.addEventListener("focus", () => {
             if (sheet.dataset.rixSelectedAddress !== cell.dataset.rixAddress) select(cell);
@@ -129,14 +161,20 @@ function enhanceSheet(sheet, options) {
                 select(cell, { focus: true });
                 return;
             }
+            const bodyCells = [...cell.closest("tbody").querySelectorAll("td[data-rix-address]")];
+            const rowCount = Math.max(...bodyCells.map((candidate) => Number(candidate.dataset.rixRow)));
+            const columnCount = Math.max(...bodyCells.map((candidate) => Number(candidate.dataset.rixColumn)));
             const next = moveSheetSelection(eventDetail(cell), event.key, rowCount, columnCount);
             if (!next) return;
             event.preventDefault();
             event.stopPropagation();
-            const target = byPosition.get(`${next.row},${next.column}`);
+            const target = bodyCells.find((candidate) =>
+                Number(candidate.dataset.rixRow) === next.row
+                && Number(candidate.dataset.rixColumn) === next.column);
             if (target) select(target, { focus: true });
         });
     }
+    for (const selector of planeSelectors) selector.addEventListener("change", changePlane);
 }
 
 export function enhanceSheetViews(root, options = {}) {

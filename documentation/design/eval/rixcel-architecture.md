@@ -117,11 +117,23 @@ Formula editing should insert canonical addresses when the user points at a
 slot. This avoids introducing `A1:B4` into the RiX grammar, where uppercase
 identifiers and colon intervals already have meanings.
 
+For a portable Sheet snapshot, `grid` is only the default `addressBase`. It is
+not a hidden variable or a property of the Sheet object. A host can evaluate an
+inserted address only when the caller has chosen an address base that resolves
+in that RiX context, such as `.Sheet(m, {= address="m" })`. The future RiXCel
+document runtime will supply its contextual `grid` binding while evaluating a
+slot.
+
 The shared enhancer emits bubbling `rix-sheet-select` and
 `rix-sheet-activate` events. Event details include `address`,
 `displayAddress`, the full tensor `index`, and visible `row`/`column`.
 Renderers can therefore add host behavior without teaching the portable output
 object about CodeMirror, textareas, or the DOM.
+
+Rank-N snapshots also retain `hiddenAxes`, `selectedPlaneKey`, and a frozen
+`planes` collection. Rendered axis selectors switch among those plane records
+and emit `rix-sheet-plane-change` with the selected slice. This remains a
+read-only view operation.
 
 Planned contextual names are:
 

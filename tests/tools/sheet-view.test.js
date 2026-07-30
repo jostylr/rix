@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { moveSheetSelection, sheetDisplayAddress } from "../../src/tools/sheet-view.js";
+import { moveSheetSelection, sheetDisplayAddress, sheetPlaneKey } from "../../src/tools/sheet-view.js";
 
 describe("portable Sheet host interaction helpers", () => {
     test("dual and letter headers produce familiar display addresses", () => {
@@ -9,6 +9,14 @@ describe("portable Sheet host interaction helpers", () => {
 
     test("numeric headers use unambiguous R1C1-style display addresses", () => {
         expect(sheetDisplayAddress("3", "2", 3, 2)).toBe("R2C3");
+    });
+
+    test("plane keys are stable in tensor-axis order", () => {
+        expect(sheetPlaneKey([
+            { axis: 4, value: 2 },
+            { axis: 3, value: 5 },
+        ])).toBe("3:5,4:2");
+        expect(sheetPlaneKey([])).toBe("");
     });
 
     test("arrow movement stays inside the visible sheet", () => {
