@@ -31,7 +31,9 @@ export function deferredSource(formula) {
 }
 
 function formulaSheetCapability(args, context, evaluate) {
-    if (args.length !== 1) throw new Error(".FormulaSheet expects one rectangular array of deferred formulas");
+    if (args.length !== 1) {
+        throw new Error(".FormulaSheet expects one tensor or rectangular array of deferred formulas");
+    }
     return createFormulaSheet(args[0], {
         formulaSource: deferredSource,
         runFormula(formula, bindings, runOptions = {}) {
@@ -62,6 +64,6 @@ export const formulaSheetFunctions = {
     FORMULASHEET: {
         pure: false,
         impl: formulaSheetCapability,
-        doc: "Create a formula-backed sheet from a rectangular array of deferred RiX formulas",
+        doc: "Create a formula-backed sheet from a tensor or rectangular array of deferred RiX formulas",
     },
 };

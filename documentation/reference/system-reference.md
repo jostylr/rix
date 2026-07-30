@@ -8,7 +8,7 @@ toc-depth: 2
 This page is generated from the current RiX implementation by `documentation/scripts/generate-reference.js`. Do not edit it by hand. Descriptions come from registry documentation strings; the narrative [syntax guide](../eval/syntax-guide.md) and [methods guide](../eval/methods-guide.md) provide signatures and examples.
 :::
 
-At this revision RiX exposes **146 named entries** on the default system context and registers **180 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
+At this revision RiX exposes **146 named entries** on the default system context and registers **183 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
 
 ## Public system context
 
@@ -59,7 +59,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.FIGURE` | function | Output | Wrap output with figure metadata |
 | `.FILTER` | lazy function | Collections, Arrays | Filter a collection with a predicate — callback receives (val, locator, src) |
 | `.FIRST` | function | Core, Collections, Arrays | First element of a collection |
-| `.FORMULASHEET` | function | RiXCel | Create a formula-backed sheet from a rectangular array of deferred RiX formulas |
+| `.FORMULASHEET` | function | RiXCel | Create a formula-backed sheet from a tensor or rectangular array of deferred RiX formulas |
 | `.FRAGMENT` | function | Output | Compose portable output values |
 | `.GETEL` | function | Core, Collections, Arrays | Get element at index (1-based) |
 | `.GRAPHICS` | value | — | Intrinsic portable 2D scene language |
@@ -311,7 +311,7 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `EVAL` | lazy, effectful/unspecified | Evaluate a deferred AST node or expression: .Eval(ast, bindings ?= \_, mode ?= :inherit) |
 | `FACTORIAL` | eager, pure | Factorial of a non-negative integer |
 | `FIGURE` | eager, pure | Wrap output with figure metadata |
-| `FORMULASHEET` | eager, effectful/unspecified | Create a formula-backed sheet from a rectangular array of deferred RiX formulas |
+| `FORMULASHEET` | eager, effectful/unspecified | Create a formula-backed sheet from a tensor or rectangular array of deferred RiX formulas |
 | `FRAGMENT` | eager, pure | Compose portable output values |
 | `FROMBASE` | lazy, effectful/unspecified | Parse base string to number: str <\_ baseSpec |
 | `FUNCDEF` | lazy, effectful/unspecified | Define a named function |
@@ -398,6 +398,9 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `RANDOM_PARTITION` | eager, effectful/unspecified | Partition an interval at distinct random rational points |
 | `REACTIVEGRAPH` | eager, effectful/unspecified | Create a transactional graph of reactive source and computed nodes |
 | `REACTIVE_DECLARE` | lazy, effectful/unspecified | Declare a new reactive cell from a deferred definition |
+| `REACTIVE_INDEX_NODE` | lazy, effectful/unspecified | Retrieve a FormulaSheet cell identity without dereferencing it |
+| `REACTIVE_INDEX_READ` | lazy, effectful/unspecified | Read a FormulaSheet cell and record a dependency |
+| `REACTIVE_INDEX_UPDATE` | lazy, effectful/unspecified | Replace a FormulaSheet cell's deferred formula |
 | `REACTIVE_NODE` | eager, effectful/unspecified | Retrieve a reactive cell identity without dereferencing it |
 | `REACTIVE_READ` | eager, effectful/unspecified | Read a reactive cell value and record a dependency |
 | `REACTIVE_TRANSACTION` | lazy, effectful/unspecified | Stage reactive declarations and updates and commit one atomic graph epoch |

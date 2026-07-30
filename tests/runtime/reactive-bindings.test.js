@@ -96,6 +96,37 @@ describe("reactive dollar bindings", () => {
         expect(formatValue(parseAndEvaluate("result", options))).toBe("40");
     });
 
+    test("$$Fun declares a reactive function with tracked and untracked calls", () => {
+        const options = runtime();
+        parseAndEvaluate(`
+            $$source := 2;
+            $$Fun := x -> x * $source;
+            $$result := $Fun(3)
+        `, options);
+
+        expect(formatValue(parseAndEvaluate("$$Fun", options))).toBe("[Reactive function FUN]");
+        expect(formatValue(parseAndEvaluate("[Fun(4), result]", options))).toBe("[8, 6]");
+        parseAndEvaluate("$source := 5", options);
+        expect(formatValue(parseAndEvaluate("[Fun(4), result]", options))).toBe("[20, 15]");
+
+        parseAndEvaluate("$Fun := x -> x + $source", options);
+        expect(formatValue(parseAndEvaluate("[Fun(4), result]", options))).toBe("[9, 8]");
+        parseAndEvaluate("$source := 7", options);
+        expect(formatValue(parseAndEvaluate("[Fun(4), result]", options))).toBe("[11, 10]");
+    });
+
+    test("uppercase and lowercase reactive names keep distinct identities", () => {
+        const options = runtime();
+        parseAndEvaluate(`
+            $$source := 2;
+            $$fun := 3;
+            $$Fun := x -> x * $source
+        `, options);
+
+        expect(options.context.get("fun")).not.toBe(options.context.get("FUN"));
+        expect(formatValue(parseAndEvaluate("[fun, Fun(4)]", options))).toBe("[3, 8]");
+    });
+
     test("transaction declarations support forward references and commit once", () => {
         const options = runtime();
         parseAndEvaluate(`
@@ -180,6 +211,62 @@ describe("reactive dollar bindings", () => {
         expect(formatValue(parseAndEvaluate("[average, functionvalue]", options))).toBe("[16, 36]");
         sheet.setFormula([1, 1], parseAndEvaluate("@{28}"), { source: "28" });
         expect(formatValue(parseAndEvaluate("[average, functionvalue]", options))).toBe("[24, 84]");
+    });
+
+    test("$sheet[index] tracks FormulaSheet cells and updates their deferred formulas", () => {
+        const options = runtime();
+        const sheet = parseAndEvaluate(`
+            values := .FormulaSheet({:2x2:
+                @{10}, @{ grid[1,1] + 1 };
+                @{3}, @{4}
+            });
+            $$total := $values[1,1] + $values[2,2];
+            values
+        `, options);
+
+        expect(options.context.get("total").graph).toBe(sheet.graph);
+        expect(options.context.get("total").live().dependencies)
+            .toEqual(["slot_1_1", "slot_2_2"]);
+        expect(formatValue(parseAndEvaluate("[values[1,2], total]", options))).toBe("[11, 14]");
+
+        parseAndEvaluate("$values[1,1] := @{20}", options);
+        expect(formatValue(parseAndEvaluate("[values[1,2], total]", options))).toBe("[21, 24]");
+        expect(parseAndEvaluate("$$values[1,2]", options)).toBe(sheet.reactiveNode([1, 2]));
+    });
+
+    test("updated FormulaSheet formulas can read named nodes in the same graph", () => {
+        const options = runtime();
+        parseAndEvaluate(`
+            values := .FormulaSheet({:1x2: @{2}, @{0}});
+            $$x := $values[1,1];
+            $$y := $values[1,1] * 3;
+            $values[1,2] := @{ x + $y }
+        `, options);
+
+        expect(formatValue(parseAndEvaluate("values[1,2]", options))).toBe("8");
+        parseAndEvaluate("$values[1,1] := @{4}", options);
+        expect(formatValue(parseAndEvaluate("values[1,2]", options))).toBe("16");
+    });
+
+    test("reactive FormulaSheet updates batch with ordinary graph changes", () => {
+        const options = runtime();
+        const sheet = parseAndEvaluate(`
+            values := .FormulaSheet({:1x2: @{2}, @{3}});
+            $$product := $values[1,1] * $values[1,2];
+            values
+        `, options);
+        const events = [];
+        sheet.graph.subscribe((event) => events.push(event));
+
+        parseAndEvaluate(`
+            \${ 
+                $values[1,1] := @{5};
+                $values[1,2] := @{7}
+            }
+        `, options);
+
+        expect(events).toHaveLength(1);
+        expect(formatValue(parseAndEvaluate("product", options))).toBe("35");
     });
 
     test("a raw $$ cell can drive a LiveView over its dependent values", () => {

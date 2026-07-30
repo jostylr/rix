@@ -3881,6 +3881,30 @@ describe("RiX Parser", () => {
       ]);
     });
 
+    test('$ and $$ also bind the uppercase callable namespace', () => {
+      const ast = parseCode('$Fun; $$Fun;');
+      expect(stripMetadata(ast)).toEqual([
+        {
+          type: 'Statement',
+          expression: { type: 'ReactiveRef', name: 'FUN' }
+        },
+        {
+          type: 'Statement',
+          expression: { type: 'ReactiveCellRef', name: 'FUN' }
+        }
+      ]);
+    });
+
+    test('$sheet[index] keeps the FormulaSheet locator under the reactive reference', () => {
+      const expression = stripMetadata(parseCode('$values[1,2];'))[0].expression;
+      expect(expression.type).toBe('BracketIndex');
+      expect(expression.object).toEqual({ type: 'ReactiveRef', name: 'values' });
+      expect(expression.specs).toEqual([
+        { type: 'Number', value: '1' },
+        { type: 'Number', value: '2' }
+      ]);
+    });
+
     test('${ ... } parses as an immediate reactive transaction', () => {
       const ast = parseCode('${ $$source := 2; $source := 3 };');
       expect(stripMetadata(ast)[0].expression).toEqual({

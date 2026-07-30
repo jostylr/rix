@@ -3,6 +3,7 @@ import {
     isReactiveNode,
     REACTIVE_READ_ENV,
 } from "../../runtime/reactive-graph.js";
+import { isFormulaSheet } from "../../runtime/formula-sheet.js";
 import { createEvent, getCurrentFilePath, getDiagnostics } from "../../runtime/diagnostics.js";
 import { runtimeDefaults } from "../../runtime/runtime-config.js";
 
@@ -23,6 +24,33 @@ function rawReactiveNode(name, context, label) {
         throw new Error(`${label} requires '${name}' to name a reactive cell`);
     }
     return value;
+}
+
+function rawFormulaSheet(name, context, label) {
+    const value = context.get(name);
+    if (!isFormulaSheet(value)) {
+        throw new Error(`${label} requires '${name}' to name a FormulaSheet`);
+    }
+    return value;
+}
+
+function reactiveIndex(args, context, evaluate, label) {
+    const [name, specCount, ...rest] = args;
+    const specNodes = rest.slice(0, specCount);
+    if (specNodes.some((spec) => spec?.fn === "FULL_SLICE" || spec?.fn === "SLICE_SPEC")) {
+        throw new Error(`${label} requires one exact index on every FormulaSheet axis`);
+    }
+    const values = specNodes.map((spec) => evaluate(spec));
+    const index = values.length === 1 ? values[0] : values;
+    const sheet = rawFormulaSheet(name, context, label);
+    return { name, sheet, node: sheet.reactiveNode(index), index, rest: rest.slice(specCount) };
+}
+
+function requireSameActiveGraph(node, context, label) {
+    const activeGraph = context.getEnv(REACTIVE_ACTIVE_GRAPH_ENV, null);
+    if (activeGraph && node.graph !== activeGraph) {
+        throw new Error(`${label} crosses ReactiveGraphs`);
+    }
 }
 
 function restoreEnv(context, key, snapshot) {
@@ -77,6 +105,7 @@ function getBindingGraph(context) {
     let graph = context.getEnv(REACTIVE_BINDING_GRAPH_ENV, null);
     if (graph) return graph;
     graph = createReactiveGraph({
+        preserveIdentifierCase: true,
         evaluateFormula() {
             throw new Error("Reactive binding definitions require their captured evaluator");
         },
@@ -139,6 +168,9 @@ function collectPlainReads(node, names = new Set()) {
         names.add(node.args[0]);
         return names;
     }
+    if (node.fn === "CALL" && typeof node.args?.[0] === "string") {
+        names.add(node.args[0]);
+    }
     if (node.fn === "REACTIVE_READ" || node.fn === "REACTIVE_NODE") return names;
     for (const arg of node.args || []) collectPlainReads(arg, names);
     return names;
@@ -151,7 +183,12 @@ function collectReactiveNames(node, names = new Set()) {
         return names;
     }
     if (
-        (node.fn === "REACTIVE_READ" || node.fn === "REACTIVE_NODE")
+        (
+            node.fn === "REACTIVE_READ"
+            || node.fn === "REACTIVE_NODE"
+            || node.fn === "REACTIVE_INDEX_READ"
+            || node.fn === "REACTIVE_INDEX_NODE"
+        )
         && typeof node.args?.[0] === "string"
     ) {
         names.add(node.args[0]);
@@ -166,6 +203,7 @@ function graphForFormula(formula, context, fallback = null) {
     for (const name of collectReactiveNames(formula?.args?.[0])) {
         const value = context.get(name);
         if (isReactiveNode(value)) graphs.add(value.graph);
+        else if (isFormulaSheet(value)) graphs.add(value.graph);
     }
     if (graphs.size > 1) {
         throw new Error("One reactive definition cannot currently track cells from different ReactiveGraphs");
@@ -178,7 +216,13 @@ function warnUntrackedReads(formula, context, graph, pendingNames = new Set()) {
     if (warnings?.reactiveUntrackedRead !== true) return;
     const graphNames = new Set(graph.bindings().keys());
     for (const name of collectPlainReads(formula?.args?.[0])) {
-        if (!graphNames.has(name) && !pendingNames.has(name) && !isReactiveNode(context.get(name))) continue;
+        const value = context.get(name);
+        if (
+            !graphNames.has(name)
+            && !pendingNames.has(name)
+            && !isReactiveNode(value)
+            && !isFormulaSheet(value)
+        ) continue;
         getDiagnostics(context).addEvent(createEvent({
             kind: "warning",
             label: `Untracked reactive read '${name}' in reactive definition`,
@@ -220,7 +264,7 @@ function declareReactive(args, context, evaluate) {
             collector.changes.push({ kind: "alias", name, target });
             collector.bindings.push({ name, target });
             collector.pendingNames.add(name);
-            collector.lastReactiveName = name;
+            collector.lastNodeName = target;
             return null;
         }
         const node = rawReactiveNode(target, context, "Reactive alias declaration");
@@ -236,7 +280,7 @@ function declareReactive(args, context, evaluate) {
         collector.changes.push(definition);
         collector.bindings.push({ name });
         collector.pendingNames.add(name);
-        collector.lastReactiveName = name;
+        collector.lastNodeName = name;
         return null;
     }
 
@@ -256,7 +300,7 @@ function updateReactive(args, context, evaluate) {
     if (collector) {
         useCollectorGraph(collector, node.graph);
         collector.changes.push(update);
-        collector.lastReactiveName = name;
+        collector.lastNodeName = node.name;
         return node.peek();
     }
 
@@ -281,6 +325,37 @@ function retrieveReactiveNode(args, context) {
     return rawReactiveNode(args[0], context, "Reactive cell reference");
 }
 
+function readReactiveIndex(args, context, evaluate) {
+    const { node } = reactiveIndex(args, context, evaluate, "Tracked FormulaSheet read");
+    requireSameActiveGraph(node, context, "Tracked FormulaSheet read");
+    return node.get();
+}
+
+function retrieveReactiveIndexNode(args, context, evaluate) {
+    return reactiveIndex(args, context, evaluate, "FormulaSheet cell reference").node;
+}
+
+function updateReactiveIndex(args, context, evaluate) {
+    const reference = reactiveIndex(args, context, evaluate, "Reactive FormulaSheet update");
+    const formula = requireDeferred(
+        evaluate(reference.rest[0]),
+        `Reactive FormulaSheet update ${reference.node.name}`,
+    );
+    const collector = currentCollector(context);
+    if (collector) {
+        useCollectorGraph(collector, reference.node.graph);
+        collector.changes.push({
+            kind: "update",
+            name: reference.node.name,
+            formula,
+        });
+        collector.lastNodeName = reference.node.name;
+        return reference.node.peek();
+    }
+    reference.sheet.setFormula(reference.index, formula);
+    return reference.node.peek();
+}
+
 function reactiveTransaction(args, context, evaluate) {
     const parent = currentCollector(context);
     if (parent) {
@@ -294,7 +369,7 @@ function reactiveTransaction(args, context, evaluate) {
         changes: [],
         bindings: [],
         pendingNames: new Set(),
-        lastReactiveName: null,
+        lastNodeName: null,
     };
     const previous = {
         has: context.env?.has(REACTIVE_TRANSACTION_ENV) === true,
@@ -320,8 +395,8 @@ function reactiveTransaction(args, context, evaluate) {
         names: Object.freeze(collector.changes.map(({ name }) => name)),
     });
     bindCommittedNames(collector, context);
-    return collector.lastReactiveName
-        ? rawReactiveNode(collector.lastReactiveName, context, "Reactive transaction result").peek()
+    return collector.lastNodeName
+        ? collector.graph.node(collector.lastNodeName).peek()
         : result;
 }
 
@@ -334,6 +409,16 @@ export const reactiveBindingFunctions = {
         impl: retrieveReactiveNode,
         doc: "Retrieve a reactive cell identity without dereferencing it",
     },
+    REACTIVE_INDEX_READ: {
+        lazy: true,
+        impl: readReactiveIndex,
+        doc: "Read a FormulaSheet cell and record a dependency",
+    },
+    REACTIVE_INDEX_NODE: {
+        lazy: true,
+        impl: retrieveReactiveIndexNode,
+        doc: "Retrieve a FormulaSheet cell identity without dereferencing it",
+    },
     REACTIVE_DECLARE: {
         lazy: true,
         impl: declareReactive,
@@ -343,6 +428,11 @@ export const reactiveBindingFunctions = {
         lazy: true,
         impl: updateReactive,
         doc: "Replace a reactive cell definition while preserving its identity",
+    },
+    REACTIVE_INDEX_UPDATE: {
+        lazy: true,
+        impl: updateReactiveIndex,
+        doc: "Replace a FormulaSheet cell's deferred formula",
     },
     REACTIVE_TRANSACTION: {
         lazy: true,

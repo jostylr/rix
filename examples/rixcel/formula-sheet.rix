@@ -1,10 +1,10 @@
 ## A formula-backed sheet owns deferred formulas rather than immediate values.
 ## grid, row, col, and index belong to the sheet's isolated formula context.
 
-model := .FormulaSheet([
-    [@{1}, @{ grid[1,1] + 1 }],
-    [@{ grid[1,2] * 2 }, @{ grid[2,1] + 1 }]
-]);
+model := .FormulaSheet({:2x2:
+    @{1}, @{ grid[1,1] + 1 };
+    @{ grid[1,2] * 2 }, @{ grid[2,1] + 1 }
+});
 
 .Sheet(model, {= title="Formula results" });
 

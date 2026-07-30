@@ -798,6 +798,14 @@ const LOWERERS = {
   },
 
   BracketIndex(node) {
+    if (node.object?.type === "ReactiveRef" || node.object?.type === "ReactiveCellRef") {
+      return ir(
+        node.object.type === "ReactiveRef" ? "REACTIVE_INDEX_READ" : "REACTIVE_INDEX_NODE",
+        node.object.name,
+        node.specs.length,
+        ...node.specs.map(lowerBracketSpec),
+      );
+    }
     return ir(
       "BRACKET_GET",
       lowerNode(node.object),
@@ -1130,6 +1138,19 @@ function lowerAssignment(node, irFn) {
       throw new Error("Reactive declarations use '$$name := expression'");
     }
     return ir("REACTIVE_DECLARE", left.name, ir("DEFER", lowerNode(node.right)));
+  }
+
+  if (left.type === "BracketIndex" && left.object?.type === "ReactiveRef") {
+    if (irFn !== "ASSIGN_COPY") {
+      throw new Error("Reactive FormulaSheet updates use '$sheet[index] := @{ ... }'");
+    }
+    return ir(
+      "REACTIVE_INDEX_UPDATE",
+      left.object.name,
+      left.specs.length,
+      ...left.specs.map(lowerBracketSpec),
+      lowerNode(node.right),
+    );
   }
 
   // System context meta assignment: .freeze = true, .immutable = false

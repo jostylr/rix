@@ -8,6 +8,7 @@
 
 import { Integer, Rational } from "@ratmath/core";
 import { createReactiveGraph } from "./reactive-graph.js";
+import { forEachTensorCell, isTensor } from "./tensor.js";
 
 function exactIndex(value, label = "Formula sheet index") {
     if (value instanceof Integer) return Number(value.value);
@@ -25,7 +26,31 @@ function valuesOf(value, label) {
     throw new Error(`${label} must be an array, tuple, or sequence`);
 }
 
-function normalizeFormulaMatrix(value) {
+function requireFormula(formula, index) {
+    if (!formula || formula.fn !== "DEFER") {
+        throw new Error(
+            `FormulaSheet formula [${index.join(",")}] must use deferred syntax @{ ... }`,
+        );
+    }
+    return formula;
+}
+
+function normalizeFormulaGrid(value) {
+    if (isTensor(value)) {
+        const shape = [...value.shape];
+        if (shape.length === 0 || shape.some((length) => length === 0)) {
+            throw new Error("FormulaSheet requires a non-empty tensor of rank 1 or greater");
+        }
+        const entries = [];
+        forEachTensorCell(value, (formula, index) => {
+            entries.push({
+                index: Object.freeze([...index]),
+                formula: requireFormula(formula, index),
+            });
+        });
+        return { shape, entries };
+    }
+
     const rows = valuesOf(value, "FormulaSheet formulas");
     if (rows.length === 0) throw new Error("FormulaSheet requires at least one row");
     const matrix = rows.map((row, index) => valuesOf(row, `FormulaSheet row ${index + 1}`));
@@ -34,16 +59,14 @@ function normalizeFormulaMatrix(value) {
     if (!matrix.every((row) => row.length === columns)) {
         throw new Error("FormulaSheet rows must have equal lengths");
     }
+    const entries = [];
     for (const [rowIndex, row] of matrix.entries()) {
         for (const [columnIndex, formula] of row.entries()) {
-            if (!formula || formula.fn !== "DEFER") {
-                throw new Error(
-                    `FormulaSheet formula [${rowIndex + 1},${columnIndex + 1}] must use deferred syntax @{ ... }`,
-                );
-            }
+            const index = Object.freeze([rowIndex + 1, columnIndex + 1]);
+            entries.push({ index, formula: requireFormula(formula, index) });
         }
     }
-    return matrix;
+    return { shape: [matrix.length, columns], entries };
 }
 
 function nodeNameFor(index) {
@@ -115,20 +138,21 @@ export function isFormulaSheet(value) {
 }
 
 /**
- * Create a rank-2 formula sheet.
+ * Create a formula sheet from a tensor or a rank-2 nested array.
  *
  * options.runFormula(formula, bindings) evaluates one deferred formula inside
  * the caller-provided isolated RiX context.
  */
 export function createFormulaSheet(formulasValue, options = {}) {
-    const formulas = normalizeFormulaMatrix(formulasValue);
+    const formulas = normalizeFormulaGrid(formulasValue);
     if (typeof options.runFormula !== "function") {
         throw new Error("FormulaSheet requires a deferred formula evaluator");
     }
-    const shape = Object.freeze([formulas.length, formulas[0].length]);
+    const shape = Object.freeze([...formulas.shape]);
     const channel = new Set();
     const graph = createReactiveGraph({
         id: options.id ? `${options.id}:graph` : undefined,
+        preserveIdentifierCase: true,
         formulaSource: options.formulaSource,
         evaluateFormula(formula) {
             return options.runFormula(
@@ -162,6 +186,9 @@ export function createFormulaSheet(formulasValue, options = {}) {
         },
         getFormula(index) {
             return graph.node(nodeNameFor(normalizeIndex(index, shape))).formula;
+        },
+        reactiveNode(index) {
+            return graph.node(nodeNameFor(normalizeIndex(index, shape)));
         },
         setFormula(index, formula, metadata = null) {
             if (!formula || formula.fn !== "DEFER") {
@@ -197,33 +224,34 @@ export function createFormulaSheet(formulasValue, options = {}) {
         },
     };
 
-    for (let row = 1; row <= shape[0]; row += 1) {
-        for (let column = 1; column <= shape[1]; column += 1) {
-            const index = Object.freeze([row, column]);
-            const formula = formulas[row - 1][column - 1];
-            graph.addComputed(nodeNameFor(index), formula, {
+    for (const { index, formula } of formulas.entries) {
+        graph.addComputed(nodeNameFor(index), formula, {
                 source: options.formulaSource?.(formula) ?? null,
                 initialize: false,
                 evaluator(slotFormula) {
+                    const contextualBindings = [
+                        ...graph.bindings(),
+                        ["grid", sheet],
+                        ["index", {
+                            type: "tuple",
+                            values: index.map((item) => new Integer(BigInt(item))),
+                        }],
+                    ];
+                    if (index[0] !== undefined) {
+                        contextualBindings.push(["row", new Integer(BigInt(index[0]))]);
+                    }
+                    if (index[1] !== undefined) {
+                        contextualBindings.push(["col", new Integer(BigInt(index[1]))]);
+                    }
                     return options.runFormula(
                         slotFormula,
-                        Object.fromEntries([
-                            ...graph.bindings(),
-                            ["grid", sheet],
-                            ["row", new Integer(BigInt(row))],
-                            ["col", new Integer(BigInt(column))],
-                            ["index", {
-                                type: "tuple",
-                                values: [new Integer(BigInt(row)), new Integer(BigInt(column))],
-                            }],
-                        ]),
+                        Object.fromEntries(contextualBindings),
                         {
                             reactiveGraph: graph,
                         },
                     );
                 },
             });
-        }
     }
 
     graph.subscribe((event) => {

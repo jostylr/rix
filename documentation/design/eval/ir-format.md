@@ -79,6 +79,9 @@ Args can contain other IR nodes (nested calls), literal strings, numbers, or str
 | `REACTIVE_NODE` | `$$name` | `[name]` | Retrieve reactive cell identity |
 | `REACTIVE_DECLARE` | `$$name := expr` | `[name, DEFER(expr)]` | Declare a new reactive cell |
 | `REACTIVE_UPDATE` | `$name := expr` | `[name, DEFER(expr)]` | Replace a cell definition without replacing identity |
+| `REACTIVE_INDEX_READ` | `$sheet[i,...]` | `[name, rank, ...indices]` | Read and track an exact FormulaSheet cell |
+| `REACTIVE_INDEX_NODE` | `$$sheet[i,...]` | `[name, rank, ...indices]` | Retrieve an exact FormulaSheet cell identity |
+| `REACTIVE_INDEX_UPDATE` | `$sheet[i,...] := @{...}` | `[name, rank, ...indices, DEFER(...)]` | Replace a FormulaSheet cell formula |
 | `REACTIVE_TRANSACTION` | `${ ... }` | `[stmt1, stmt2, ...]` | Stage and atomically commit reactive changes |
 | `SYSTEM_SPEC` | `{#x# x^2 }` | `[spec_meta]` | Create a first-class symbolic spec; metadata carries headers, output mode, expression/statements, and imports |
 | `DERIVATIVE` | `F'`, `F'(3)` | `[callable, order, variable]` | Exact symbolic derivative; evaluated syntax wraps the result in `CALL_EXPR` |

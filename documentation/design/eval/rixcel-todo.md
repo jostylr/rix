@@ -68,6 +68,9 @@ Checked items are implemented in the current RiX repository.
 - [x] Add same-cell aliases through `$$alias := $$name`.
 - [x] Add atomic `${ ... }` reactive transactions with forward references and rollback.
 - [x] Warn when a reactive definition uses a plain untracked read of a reactive name.
+- [x] Support uppercase reactive callable bindings such as `$$Scale`.
+- [x] Add `$sheet[index]` tracked reads and deferred formula updates.
+- [x] Accept dense tensor-shaped FormulaSheet definitions at rank N.
 - [ ] Coordinate tracked dependencies that span multiple independent ReactiveGraphs.
 - [ ] Subscribe one LiveView to multiple independent observable roots.
 - [ ] Define volatile/external-source recomputation policy.

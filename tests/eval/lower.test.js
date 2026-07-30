@@ -799,6 +799,8 @@ describe("Lowering Pass", () => {
     test("$name and $$name lower to value and identity reads", () => {
       expect(L("$source;")).toEqual({ fn: "REACTIVE_READ", args: ["source"] });
       expect(L("$$source;")).toEqual({ fn: "REACTIVE_NODE", args: ["source"] });
+      expect(L("$Fun;")).toEqual({ fn: "REACTIVE_READ", args: ["FUN"] });
+      expect(L("$$Fun;")).toEqual({ fn: "REACTIVE_NODE", args: ["FUN"] });
     });
 
     test("reactive declarations and updates defer their definitions", () => {
@@ -828,6 +830,35 @@ describe("Lowering Pass", () => {
       const ir = L("${ $$source := 2; $source := 3 };");
       expect(ir.fn).toBe("REACTIVE_TRANSACTION");
       expect(ir.args.map(({ fn }) => fn)).toEqual(["REACTIVE_DECLARE", "REACTIVE_UPDATE"]);
+    });
+
+    test("$sheet[index] lowers to reactive FormulaSheet reads, identities, and updates", () => {
+      expect(L("$values[1,2];")).toEqual({
+        fn: "REACTIVE_INDEX_READ",
+        args: [
+          "values",
+          2,
+          { fn: "LITERAL", args: ["1"] },
+          { fn: "LITERAL", args: ["2"] },
+        ],
+      });
+      expect(L("$$values[1,2];").fn).toBe("REACTIVE_INDEX_NODE");
+      expect(L("$values[1,2] := @{10};")).toEqual({
+        fn: "REACTIVE_INDEX_UPDATE",
+        args: [
+          "values",
+          2,
+          { fn: "LITERAL", args: ["1"] },
+          { fn: "LITERAL", args: ["2"] },
+          {
+            fn: "DEFER",
+            args: [{
+              fn: "BLOCK",
+              args: [{ fn: "LITERAL", args: ["10"] }],
+            }],
+          },
+        ],
+      });
     });
   });
 

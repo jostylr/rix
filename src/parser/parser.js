@@ -925,7 +925,6 @@ class Parser {
           this.advance();
           if (
             this.current.type === "Identifier"
-            && this.current.kind === "User"
             && token.pos?.[2] === this.current.pos?.[1]
           ) {
             const identifier = this.current;
@@ -952,7 +951,6 @@ class Parser {
           }
           if (
             this.current.type === "Identifier"
-            && this.current.kind === "User"
             && token.pos?.[2] === this.current.pos?.[1]
           ) {
             const identifier = this.current;

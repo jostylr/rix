@@ -145,6 +145,15 @@ function previewIr(node, options = {}) {
         return `$${node.args[0]}`;
     case "REACTIVE_NODE":
         return `$$${node.args[0]}`;
+    case "REACTIVE_INDEX_READ":
+    case "REACTIVE_INDEX_NODE": {
+        const sigil = node.fn === "REACTIVE_INDEX_READ" ? "$" : "$$";
+        const count = node.args[1];
+        const indices = node.args
+            .slice(2, 2 + count)
+            .map((arg) => previewIr(arg, { maxLen: 12, depth: depth + 1 }));
+        return `${sigil}${node.args[0]}[${indices.join(", ")}]`;
+    }
     case "NEG":
         return truncate(`-${previewIr(node.args[0], { maxLen: maxLen - 1, depth: depth + 1 })}`, maxLen);
     case "CALL":

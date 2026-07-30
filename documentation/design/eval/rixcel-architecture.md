@@ -291,8 +291,10 @@ scaled := graph.Derive("scaled", @{ average * grid[1,3] });
 `.ReactiveGraph()` creates the same runtime without a sheet. `Source(name,
 value)` adds an originating value, `Derive(name, deferred)` adds a computed
 node, and reads of either kind inside a deferred formula record graph edges.
-Names use canonical lowercase RiX user-identifier form. FormulaSheet graphs
-reserve `grid`, `row`, `col`, and `index` for their contextual bindings.
+The verbose string API uses canonical lowercase RiX user-identifier names.
+Syntax-created dollar bindings preserve the language's uppercase/lowercase
+namespace distinction. FormulaSheet graphs reserve `grid`, `row`, `col`, and
+`index` for their contextual bindings.
 A source update finds the old transitive dependent closure, evaluates each
 dirty computation at most once, replaces successful dynamic edges, and emits
 one commit after every staged value succeeds. Direct writes to computed nodes
@@ -320,7 +322,25 @@ batch so forward references are available during evaluation; updates and the
 transitive dependent closure run in one epoch. Failed batches remove new nodes,
 restore previous formulas and edges, and publish no commit. Bare `$` and `$$`
 remain callable-self references when they are not immediately adjacent to a
-lowercase identifier or `{`.
+RiX identifier or `{`. Uppercase identifiers therefore support reactive
+functions such as `$$Scale := x -> x * $factor`. `Scale(args)` calls the
+current definition without tracking the function identity, `$Scale(args)`
+tracks it, and `$Scale := x -> ...` replaces the definition while preserving
+identity.
+
+A FormulaSheet coordinate lowers through the same graph:
+
+```rix
+values := .FormulaSheet({:1x2: @{2}, @{3}});
+$$total := $values[1,1] + $values[1,2];
+$values[1,1] := @{5}
+```
+
+`$values[1,1]` resolves the coordinate node and records an edge without
+exposing its internal `slot_...` name. An indexed assignment replaces that
+node's deferred formula. Tensor-shaped FormulaSheet construction supports
+dense rank-N formula grids; rectangular nested arrays remain a rank-2
+convenience.
 
 FormulaSheet and Binding expose the same JavaScript subscription boundary.
 `.LiveView(source, @{ ... })` rederives a Sheet, Table, Fragment, Graphic, or

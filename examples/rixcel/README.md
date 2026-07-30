@@ -26,8 +26,11 @@ can call `renderOutputHtml` to render the same value as an address-aware grid.
   (`formula-sheet.rix`).
 - `$name` tracked reads and updates, `$$name` reactive-cell declarations and
   aliases, and atomic `${ ... }` transactions (`reactive-bindings.rix`).
-- a FormulaSheet graph propagating three editable inputs through an average, a
-  locally defined function, a live Table, and a Graphic (`reactive-view.rix`).
+- `$sheet[index]` FormulaSheet dependencies and formula updates without
+  exposing internal graph-node names.
+- a FormulaSheet graph propagating three editable inputs through an average,
+  a locally defined function, a live Table, and a Graphic
+  (`reactive-view.rix`).
 
 The formula example is the first in-memory FormulaSheet prototype. Persistent
 source-backed RiXCel documents are listed in the

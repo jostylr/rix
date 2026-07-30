@@ -39,6 +39,27 @@ describe("formula-backed sheets", () => {
         expect(formatValue(model.get([2, 2]))).toBe("4");
     });
 
+    test("accepts tensor notation for rank-2 and higher formula grids", () => {
+        const matrix = parseAndEvaluate(`
+            .FormulaSheet({:2x2:
+                @{1}, @{2};
+                @{3}, @{4}
+            })
+        `);
+        expect(matrix.shape).toEqual([2, 2]);
+        expect(formatValue(matrix.get([2, 1]))).toBe("3");
+
+        const tensor = parseAndEvaluate(`
+            .FormulaSheet({:2x1x2:
+                @{1}; @{2}
+                ;;
+                @{3}; @{4}
+            })
+        `);
+        expect(tensor.shape).toEqual([2, 1, 2]);
+        expect(formatValue(tensor.get([2, 1, 2]))).toBe("4");
+    });
+
     test("SetFormula starts a new epoch and recomputes dependents", () => {
         const value = parseAndEvaluate(`
             ${chainSource}

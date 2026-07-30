@@ -159,15 +159,34 @@ export function complete(source, cursor, { context, systemContext, formatValue }
     if (reactivePrefix) {
         candidates = context.getAllNames()
             .map((name) => [name, context.get(name)])
-            .filter(([, value]) => value?.type === "reactive_node")
-            .map(([name, value]) => ({
-                insertText: name,
-                kind: reactivePrefix === "$$" ? "reactive cell" : "reactive value",
-                detail: reactivePrefix === "$$"
-                    ? "reactive cell identity"
-                    : "tracked reactive read",
-                preview: preview(value.peek(), formatValue),
-            }));
+            .filter(([, value]) =>
+                value?.type === "reactive_node"
+                || (reactivePrefix === "$" && value?.type === "formula_sheet"))
+            .map(([name, value]) => {
+                const current = value.type === "reactive_node" ? value.peek() : null;
+                const callable = current
+                    && ["function", "lambda", "multifunction"].includes(current.type);
+                return {
+                    insertText: name,
+                    kind: value.type === "formula_sheet"
+                        ? "reactive sheet"
+                        : callable
+                            ? "reactive function"
+                            : reactivePrefix === "$$" ? "reactive cell" : "reactive value",
+                    detail: value.type === "formula_sheet"
+                        ? "append [index] for a tracked cell read"
+                        : callable
+                            ? reactivePrefix === "$$"
+                                ? "reactive function identity"
+                                : "tracked reactive function read or call"
+                            : reactivePrefix === "$$"
+                                ? "reactive cell identity"
+                                : "tracked reactive read",
+                    preview: value.type === "formula_sheet"
+                        ? preview(value, formatValue)
+                        : preview(current, formatValue),
+                };
+            });
     } else if (token.startsWith("@_") || prior.endsWith("@_")) {
         const prefix = token.startsWith("@_") ? "@_" : "@_";
         candidates = systemCandidates(systemContext, prefix);

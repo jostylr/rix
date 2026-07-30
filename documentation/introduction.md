@@ -396,20 +396,26 @@ Inside a variant:
 - bare `$` is the current variant
 - bare `$$` is the parent multifunction
 
-Dollar signs immediately adjacent to a lowercase identifier are reactive
-binding syntax instead:
+Dollar signs immediately adjacent to an identifier are reactive binding
+syntax instead. This includes uppercase callable names:
 
 ```rix
 $$input := 5
 $$output := $input * 4
+$$Scale := x -> x * $input
 $input := 7
 output                    ## 28
+Scale(3)                  ## 21
 ```
 
 `name` peeks without tracking, `$name` reads with dependency tracking (or
 updates an existing reactive cell on the left of `:=`), and `$$name` retrieves
 cell identity (or declares a new cell on the left). `${ ... }` stages all
 reactive changes in its body and commits one atomic recalculation.
+
+When the declared value is callable, `$$Fun` is a reactive function:
+`Fun(args)` is an untracked call, `$Fun(args)` tracks the function identity,
+and `$Fun := x -> ...` replaces its definition without replacing that identity.
 
 A no-prep variant that appears before later variants always matches if reached, so RiX can emit a configurable warning for that situation.
 

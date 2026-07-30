@@ -24,8 +24,13 @@ import {
     materializeLazySequence,
 } from "../../runtime/lazy-sequence.js";
 import { applySymbolicSpec, attachAutoSpec, isSymbolicSpec } from "./symbolic.js";
+import { isReactiveNode } from "../../runtime/reactive-graph.js";
 
 const isTruthy = (val) => val !== null && val !== undefined;
+
+function callableValue(value) {
+    return isReactiveNode(value) ? value.peek() : value;
+}
 
 // --- Partial Application Helpers ---
 
@@ -439,13 +444,13 @@ export const functionFunctions = {
             // If any arg is a placeholder, build a partial application instead.
             if (argNodes.some(isPlaceholderNode)) {
                 const template = evaluateArgs(argNodes, evaluate);
-                const funcDef = context.getCallable(name);
+                const funcDef = callableValue(context.getCallable(name));
                 const fn = funcDef || { type: "sysref", name };
                 return { type: "partial", fn, template };
             }
 
             // Look up the function
-            const funcDef = context.getCallable(name);
+            const funcDef = callableValue(context.getCallable(name));
 
             if (!funcDef) {
                 throw new Error(`Undefined identifier: ${name}. System capabilities must be called via dot syntax: .${name}(args)`);

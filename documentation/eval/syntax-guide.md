@@ -241,19 +241,36 @@ Inside a variant body:
 - bare `$` resolves the current variant
 - bare `$$` resolves the parent multifunction
 
-Adjacent lowercase identifiers select reactive binding syntax:
+Adjacent identifiers select reactive binding syntax, including uppercase
+callable names:
 
 ```rix
 $$input := 5
 $$output := $input * 4
+$$Scale := x -> x * $input
 $input := 7
 output                    ## 28
+Scale(3)                  ## 21
 ```
 
 `name` is an untracked value read, `$name` is a tracked value read or
 identity-preserving update target, and `$$name` is a raw cell-identity read or
 new declaration target. `${ ... }` batches its reactive changes into one
 atomic graph epoch.
+
+A FormulaSheet coordinate can be tracked or updated without exposing its
+internal graph-node name:
+
+```rix
+values := .FormulaSheet({:1x2: @{2}, @{3}})
+$$total := $values[1,1] + $values[1,2]
+$values[1,1] := @{5}
+```
+
+`$$Fun := x -> ...` declares a reactive function. `Fun(args)` calls its current
+definition without tracking the function identity, `$Fun(args)` makes the call
+a dependency, and `$Fun := x -> ...` replaces the function definition while
+preserving its reactive identity.
 
 If execution reaches a variant with no prep and later variants still exist, RiX can emit a configurable warning because the later variants are unreachable from that point.
 

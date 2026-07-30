@@ -1038,12 +1038,15 @@ F(x) ?- [x &gt; 0] /Pos/ =&gt; x</code></pre>
 <li>bare <code>$</code> is the current variant</li>
 <li>bare <code>$$</code> is the parent multifunction</li>
 </ul>
-<p>Dollar signs immediately adjacent to a lowercase identifier are reactive binding syntax instead:</p>
+<p>Dollar signs immediately adjacent to an identifier are reactive binding syntax instead. This includes uppercase callable names:</p>
 <pre class="rix"><code>$$input := 5
 $$output := $input * 4
+$$Scale := x -&gt; x * $input
 $input := 7
-output                    ## 28</code></pre>
+output                    ## 28
+Scale(3)                  ## 21</code></pre>
 <p><code>name</code> peeks without tracking, <code>$name</code> reads with dependency tracking (or updates an existing reactive cell on the left of <code>:=</code>), and <code>$$name</code> retrieves cell identity (or declares a new cell on the left). <code>${ ... }</code> stages all reactive changes in its body and commits one atomic recalculation.</p>
+<p>When the declared value is callable, <code>$$Fun</code> is a reactive function: <code>Fun(args)</code> is an untracked call, <code>$Fun(args)</code> tracks the function identity, and <code>$Fun := x -&gt; ...</code> replaces its definition without replacing that identity.</p>
 <p>A no-prep variant that appears before later variants always matches if reached, so RiX can emit a configurable warning for that situation.</p>
 <section id="cell-protections-and-value-mutability" class="level4">
 <h4 class="anchored" data-anchor-id="cell-protections-and-value-mutability">Cell Protections and Value Mutability</h4>

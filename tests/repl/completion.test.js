@@ -50,7 +50,12 @@ describe("REPL completion", () => {
 
     test("completes tracked values and raw reactive cell identities", () => {
         const context = new Context();
-        parseAndEvaluate("$$source1 := 2; ordinary := 3", {
+        parseAndEvaluate(`
+            $$source1 := 2;
+            $$Fun := x -> x * $source1;
+            values := .FormulaSheet({:1x1: @{3}});
+            ordinary := 3
+        `, {
             context,
             registry: createDefaultRegistry(),
             systemContext: createDefaultSystemContext(),
@@ -61,5 +66,10 @@ describe("REPL completion", () => {
         expect(identity.from).toBe(2);
         expect(tracked.candidates.map((entry) => entry.insertText)).toEqual(["source1"]);
         expect(identity.candidates[0].kind).toBe("reactive cell");
+        expect(completions("$Fu", context).candidates.map((entry) => entry.insertText)).toEqual(["FUN"]);
+        expect(completions("$Fu", context).candidates[0].kind).toBe("reactive function");
+        expect(completions("$$Fu", context).candidates[0].kind).toBe("reactive function");
+        expect(completions("$val", context).candidates[0].kind).toBe("reactive sheet");
+        expect(completions("$$val", context).candidates).toHaveLength(0);
     });
 });

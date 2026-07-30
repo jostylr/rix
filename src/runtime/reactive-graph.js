@@ -19,21 +19,24 @@ function text(value) {
     return value?.type === "string" ? value.value : typeof value === "string" ? value : null;
 }
 
-function nodeName(value, label = "Reactive node name") {
+function nodeName(value, label = "Reactive node name", preserveCase = false) {
     const requested = text(value);
-    const name = requested?.toLowerCase();
-    if (!name || !/^[a-z_][a-z0-9_]*$/u.test(name)) {
-        throw new Error(`${label} must be a RiX user-identifier string`);
+    const name = preserveCase ? requested : requested?.toLowerCase();
+    const identifierPattern = preserveCase
+        ? /^[A-Za-z_][A-Za-z0-9_]*$/u
+        : /^[a-z_][a-z0-9_]*$/u;
+    if (!name || !identifierPattern.test(name)) {
+        throw new Error(`${label} must be a RiX identifier string`);
     }
     return name;
 }
 
 function graphMethods() {
     return new Map([
-        ["SOURCE", method("Source", ([target, name, value]) => target.addSource(nodeName(name), value))],
-        ["DERIVE", method("Derive", ([target, name, formula]) => target.addComputed(nodeName(name), formula))],
-        ["GET", method("Get", ([target, name]) => target.get(nodeName(name)))],
-        ["NODE", method("Node", ([target, name]) => target.node(nodeName(name)))],
+        ["SOURCE", method("Source", ([target, name, value]) => target.addSource(name, value))],
+        ["DERIVE", method("Derive", ([target, name, formula]) => target.addComputed(name, formula))],
+        ["GET", method("Get", ([target, name]) => target.get(name))],
+        ["NODE", method("Node", ([target, name]) => target.node(name))],
         ["RECALCULATE", method("Recalculate", ([target]) => target.recalculate())],
         ["_mutable", new Integer(1n)],
     ]);
@@ -79,7 +82,9 @@ export function createReactiveGraph(options = {}) {
     const nodes = new Map();
     const aliases = new Map();
     const channel = new Set();
-    const reservedNames = new Set((options.reservedNames || []).map((name) => nodeName(name)));
+    const normalizeName = (value, label) =>
+        nodeName(value, label, options.preserveIdentifierCase === true);
+    const reservedNames = new Set((options.reservedNames || []).map((name) => normalizeName(name)));
     let activeEpoch = null;
     let graph = null;
 
@@ -91,7 +96,7 @@ export function createReactiveGraph(options = {}) {
     }
 
     function canonicalName(name) {
-        name = nodeName(name);
+        name = normalizeName(name);
         return aliases.get(name) ?? name;
     }
 
@@ -169,6 +174,12 @@ export function createReactiveGraph(options = {}) {
             },
             _ext: nodeMethods(),
             toString() {
+                if (
+                    node.value
+                    && ["function", "lambda", "multifunction"].includes(node.value.type)
+                ) {
+                    return `[Reactive function ${name}]`;
+                }
                 return `[Reactive ${kind} ${name}]`;
             },
         };
@@ -298,14 +309,14 @@ export function createReactiveGraph(options = {}) {
         epoch: 0,
         _ext: graphMethods(),
         addSource(name, value) {
-            name = nodeName(name);
+            name = normalizeName(name);
             requireAvailableName(name);
             const node = makeNode(name, "source", { value });
             nodes.set(name, node);
             return node;
         },
         addComputed(name, formula, metadata = null) {
-            name = nodeName(name);
+            name = normalizeName(name);
             requireAvailableName(name);
             if (!formula || formula.fn !== "DEFER") {
                 throw new Error("ReactiveGraph.Derive requires deferred syntax @{ ... }");
@@ -327,7 +338,7 @@ export function createReactiveGraph(options = {}) {
             return node;
         },
         get(name) {
-            name = nodeName(name);
+            name = normalizeName(name);
             if (activeEpoch) return activeEpoch.read(name);
             const node = requireNode(name);
             if (node.state === "error") {
@@ -336,12 +347,12 @@ export function createReactiveGraph(options = {}) {
             return node.value;
         },
         peek(name) {
-            name = nodeName(name);
+            name = normalizeName(name);
             if (activeEpoch) return activeEpoch.peek(name);
             return requireNode(name).value;
         },
         node(name) {
-            return requireNode(nodeName(name));
+            return requireNode(normalizeName(name));
         },
         bindings() {
             return new Map([
@@ -350,7 +361,7 @@ export function createReactiveGraph(options = {}) {
             ]);
         },
         addAlias(name, target) {
-            name = nodeName(name);
+            name = normalizeName(name);
             requireAvailableName(name);
             const node = isReactiveNode(target) ? target : requireNode(target);
             if (node.graph !== graph) {
@@ -363,7 +374,7 @@ export function createReactiveGraph(options = {}) {
             if (!Array.isArray(definitions) || definitions.length === 0) return graph;
             const pendingNames = new Set();
             for (const definition of definitions) {
-                const name = nodeName(definition?.name);
+                const name = normalizeName(definition?.name);
                 requireAvailableName(name);
                 if (pendingNames.has(name)) throw new Error(`Reactive node already exists in definition batch: ${name}`);
                 if (definition.kind !== "source" && definition.kind !== "computed") {
@@ -378,7 +389,7 @@ export function createReactiveGraph(options = {}) {
             const added = [];
             try {
                 for (const definition of definitions) {
-                    const name = nodeName(definition.name);
+                    const name = normalizeName(definition.name);
                     const node = makeNode(name, definition.kind, definition.kind === "source"
                         ? { value: definition.value }
                         : {
@@ -412,7 +423,7 @@ export function createReactiveGraph(options = {}) {
             const pendingNames = new Set();
 
             for (const change of changes) {
-                const name = nodeName(change?.name);
+                const name = normalizeName(change?.name);
                 if (change.kind === "computed") {
                     requireAvailableName(name);
                     if (pendingNames.has(name)) {
@@ -431,7 +442,7 @@ export function createReactiveGraph(options = {}) {
                         throw new Error(`Reactive node already exists in transaction: ${name}`);
                     }
                     pendingNames.add(name);
-                    aliasChanges.push({ name, target: nodeName(change.target) });
+                    aliasChanges.push({ name, target: normalizeName(change.target) });
                     continue;
                 }
                 if (change.kind === "update") {

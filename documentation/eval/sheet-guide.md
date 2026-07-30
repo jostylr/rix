@@ -183,24 +183,26 @@ Use `.FormulaSheet` when each coordinate owns a formula and the whole grid must
 be recalculated as one dependency graph:
 
 ```rix
-model := .FormulaSheet([
-    [@{1}, @{ grid[1,1] + 1 }],
-    [@{ grid[1,2] * 2 }, @{ grid[2,1] + 1 }]
-]);
+model := .FormulaSheet({:2x2:
+    @{1}, @{ grid[1,1] + 1 };
+    @{ grid[1,2] * 2 }, @{ grid[2,1] + 1 }
+});
 
 model[2,2]  # 5
 .Sheet(model, {= title="Formula results" })
 ```
 
-Every entry must currently be a deferred RiX body. Formula evaluation has an
-isolated context containing:
+Tensor notation is preferred because its shape is explicit and extends to
+rank-N FormulaSheets. A rectangular nested array remains accepted for rank 2.
+Every entry must be a deferred RiX body. Formula evaluation has an isolated
+context containing:
 
 | Name | Meaning |
 |---|---|
 | `grid` | The current formula sheet; `grid[2,3]` records a dependency |
 | `row` | Current 1-based row |
 | `col` | Current 1-based column |
-| `index` | Current `[row, col]` tuple |
+| `index` | Current rank-length coordinate tuple |
 
 The model evaluates all slots in a new atomic epoch. A read of a slot already
 being evaluated reports the complete path, such as
@@ -216,6 +218,19 @@ model.Recalculate()
 model.Slot(2, 2)
 ```
 
+Dollar indexing is the concise reactive API. It avoids exposing graph node
+names:
+
+```rix
+$$total := $model[1,1] + $model[2,2];
+$model[1,1] := @{10}
+```
+
+`$model[1,1]` reads that exact cell and records a dependency.
+`$model[1,1] := @{...}` replaces its deferred formula. `$$model[1,1]` is the
+raw cell identity when an observable handle is needed. Multiple indexed
+updates may be placed in `${ ... }` to commit in one graph epoch.
+
 `SetFormula` keeps the new deferred formula and begins a complete
 recalculation. Successful results commit together. If evaluation fails, the
 last committed values remain available and involved slots retain diagnostics.
@@ -225,7 +240,7 @@ value immediately, whereas a FormulaSheet owns formulas and reexecutes their
 dependency graph. In RiX Web and the notebook, Enter on a FormulaSheet cell
 edits its stored formula body; committing publishes a `sheet:formula` event and
 refreshes all dependent cells. The first persistent `.rixcel` format,
-assignment modes, explicit imports, and rank-N formula storage are tracked in
+assignment modes, explicit imports, and sparse rank-N storage are tracked in
 the implementation checklist.
 
 ## Reactive dependent views
@@ -277,8 +292,16 @@ and emits a warning by default.
 evaluates the affected closure once, then commits all results together. A
 cycle or evaluation failure rolls back the whole reactive batch. Outside a
 transaction, each `$name := ...` or `$$name := ...` is its own atomic epoch.
-Bare `$` and `$$` retain their callable-self meanings; adjacency to a lowercase
-identifier selects the reactive forms.
+Bare `$` and `$$` retain their callable-self meanings; adjacency to an
+identifier selects the reactive forms. An uppercase declaration whose value is
+callable is a reactive function:
+
+```rix
+$$Scale := x -> x * $source;
+Scale(4);                       # untracked function call
+$Scale(4);                      # tracked function call
+$Scale := x -> x + $source      # identity-preserving replacement
+```
 
 A raw cell identity is itself an observable source, so it can drive a
 dependent output directly:
@@ -290,22 +313,17 @@ view := .LiveView($$source, @{ .Text(target) });
 $source := 3             # view now displays 12
 ```
 
-FormulaSheet is a coordinate adapter over the same runtime. `.Graph()` exposes
-its graph and `.Node(...)` exposes coordinate cell identities. Explicitly
-tracking those cells places new dollar definitions into the same graph:
+FormulaSheet is a coordinate adapter over the same runtime. Dollar indexing
+selects coordinate cell identities and places new definitions into the same
+graph:
 
 ```rix
-values := .FormulaSheet([[@{120}, @{40}, @{8}]]);
-graph := values.Graph();
+values := .FormulaSheet({:1x3: @{120}, @{40}, @{8}});
 
-first = graph.Node("slot_1_1");
-second = graph.Node("slot_1_2");
-third = graph.Node("slot_1_3");
-
-$$average := ($first + $second) / 2;
+$$average := ($values[1,1] + $values[1,2]) / 2;
 $$functionvalue := {;
-    Scale(x) -> x * $third;
-    Scale($first)
+    Scale(x) -> x * $values[1,3];
+    Scale($values[1,1])
 };
 
 .LiveView(values, @{
@@ -333,9 +351,10 @@ $$functionvalue := {;
 })
 ```
 
-Graph names are strings in RiX user-identifier form and are canonicalized to
-lowercase, matching ordinary user bindings. A FormulaSheet graph reserves
-`grid`, `row`, `col`, and `index` for its coordinate evaluation context.
+The verbose `.ReactiveGraph` string API canonicalizes names to lowercase.
+Dollar bindings preserve RiX identifier case, so `$$Scale` and `$$scale` are
+distinct. A FormulaSheet graph reserves `grid`, `row`, `col`, and `index` for
+its coordinate evaluation context.
 
 `average` dynamically depends on the first two slots. `functionvalue` depends
 on the first and third, even though the third read occurs inside a locally
