@@ -1,4 +1,8 @@
 import { createFormulaSheet } from "../../runtime/formula-sheet.js";
+import {
+    importRixCelDocument,
+    stringifyRixCelDocument,
+} from "../../runtime/rixcel-document.js";
 import { tokenize } from "../../parser/tokenizer.js";
 import { parse } from "../../parser/parser.js";
 import { lower } from "../lower.js";
@@ -33,28 +37,8 @@ export function deferredSource(formula) {
     return null;
 }
 
-function formulaSheetCapability(args, context, evaluate, systemContext) {
-    if (args.length < 1 || args.length > 2) {
-        throw new Error(".FormulaSheet expects deferred formulas and an optional options map");
-    }
-    const optionEntries = args[1]?.type === "map" && args[1].entries instanceof Map
-        ? args[1].entries
-        : args[1] === undefined
-            ? new Map()
-            : null;
-    if (!optionEntries) throw new Error(".FormulaSheet options must be a map");
-    const option = (name, fallback = null) =>
-        optionEntries.get(name) ?? optionEntries.get(name.toLowerCase()) ?? fallback;
-    const stringOption = (name, fallback = null) => {
-        const value = option(name);
-        if (value === null) return fallback;
-        const text = value?.type === "string" ? value.value : typeof value === "string" ? value : null;
-        if (text === null) throw new Error(`FormulaSheet ${name} must be a string`);
-        return text;
-    };
-    return createFormulaSheet(args[0], {
-        id: stringOption("id"),
-        assignmentMode: stringOption("assignmentMode", ":="),
+export function createFormulaSheetRuntimeOptions(context, evaluate, systemContext) {
+    return {
         formulaSource: deferredSource,
         compileFormula(source) {
             const wrapped = `@{ ${source}\n}`;
@@ -102,7 +86,49 @@ function formulaSheetCapability(args, context, evaluate, systemContext) {
                 context.pop();
             }
         },
+    };
+}
+
+function formulaSheetCapability(args, context, evaluate, systemContext) {
+    if (args.length < 1 || args.length > 2) {
+        throw new Error(".FormulaSheet expects deferred formulas and an optional options map");
+    }
+    const optionEntries = args[1]?.type === "map" && args[1].entries instanceof Map
+        ? args[1].entries
+        : args[1] === undefined
+            ? new Map()
+            : null;
+    if (!optionEntries) throw new Error(".FormulaSheet options must be a map");
+    const option = (name, fallback = null) =>
+        optionEntries.get(name) ?? optionEntries.get(name.toLowerCase()) ?? fallback;
+    const stringOption = (name, fallback = null) => {
+        const value = option(name);
+        if (value === null) return fallback;
+        const text = value?.type === "string" ? value.value : typeof value === "string" ? value : null;
+        if (text === null) throw new Error(`FormulaSheet ${name} must be a string`);
+        return text;
+    };
+    return createFormulaSheet(args[0], {
+        ...createFormulaSheetRuntimeOptions(context, evaluate, systemContext),
+        id: stringOption("id"),
+        assignmentMode: stringOption("assignmentMode", ":="),
     });
+}
+
+function rixCelExportCapability(args) {
+    if (args.length !== 1) throw new Error(".RiXCelExport expects one FormulaSheet");
+    return {
+        type: "string",
+        value: stringifyRixCelDocument(args[0]),
+    };
+}
+
+function rixCelImportCapability(args, context, evaluate, systemContext) {
+    if (args.length !== 1) throw new Error(".RiXCelImport expects one JSON string");
+    return importRixCelDocument(
+        args[0],
+        createFormulaSheetRuntimeOptions(context, evaluate, systemContext),
+    );
 }
 
 export const formulaSheetFunctions = {
@@ -110,5 +136,15 @@ export const formulaSheetFunctions = {
         pure: false,
         impl: formulaSheetCapability,
         doc: "Create a formula-backed sheet from a tensor or rectangular array of deferred RiX formulas",
+    },
+    RIXCELEXPORT: {
+        pure: false,
+        impl: rixCelExportCapability,
+        doc: "Serialize a FormulaSheet to canonical versioned RiXCel JSON",
+    },
+    RIXCELIMPORT: {
+        pure: false,
+        impl: rixCelImportCapability,
+        doc: "Rebuild a FormulaSheet by compiling authoritative source from RiXCel JSON",
     },
 };

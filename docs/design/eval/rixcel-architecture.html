@@ -68,7 +68,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="../../site_libs/quarto-search/fuse.min.js"></script>
 <script src="../../site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="../../">
-<link href="../../design/eval/rixcel-todo.html" rel="next">
+<link href="../../design/eval/rixcel-format.html" rel="next">
 <link href="../../design/eval/output-model.html" rel="prev">
 <link href="../../rix-logo.png" rel="icon" type="image/png">
 <script src="../../site_libs/quarto-html/quarto.js" type="module"></script>
@@ -575,6 +575,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
+  <a href="../../design/eval/rixcel-format.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">RiXCel document format</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
   <a href="../../design/eval/rixcel-todo.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">RiXCel implementation checklist</span></a>
   </div>
@@ -667,7 +673,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>The first implemented slice is the portable <code>.Sheet(...)</code> output value. It adapts existing tensors, matrices, and sequences into a two-dimensional snapshot with exact values, rank-N plane selection, canonical RiX addresses, and host-neutral text/HTML rendering.</p>
 <p>RiX Web, the RiX notebook, and live notebook exports now share a host-side selection enhancer. It provides a dual address indicator, pointer selection, roving keyboard focus, and semantic select/activate events. Activation inserts the canonical address in the editable RiX hosts.</p>
 <p>The Binding/Widget slice is also implemented: <code>.Bind(variable)</code> captures RiX Cell identity, <code>.Sheet(.Bind(variable))</code> creates a live Sheet, and a host-owned <code>WidgetSession</code> routes validated semantic edits.</p>
-<p>The first formula-backed prototype is implemented separately as <code>.FormulaSheet(...)</code>. It owns deferred formulas, evaluates them in an isolated sheet context, records <code>grid[...]</code> dependencies, detects complete cycle paths, incrementally recomputes transitive dependents, and atomically commits successful epochs. It is a coordinate adapter over the general <code>.ReactiveGraph(...)</code> runtime, exposed as <code>formulaSheet.Graph()</code>. Named scalar computations can therefore join the same graph as formula slots. <code>.Sheet(formulaSheet)</code> stages current results and editable formula source for display. Persistent <code>.rixcel</code> documents, rank-N storage, and the standalone editor remain implementation work. See <a href="../../design/eval/rixcel-todo.html">the checklist</a>.</p>
+<p>The first formula-backed prototype is implemented separately as <code>.FormulaSheet(...)</code>. It owns deferred formulas, evaluates them in an isolated sheet context, records <code>grid[...]</code> dependencies, detects complete cycle paths, incrementally recomputes transitive dependents, and atomically commits successful epochs. It is a coordinate adapter over the general <code>.ReactiveGraph(...)</code> runtime, exposed as <code>formulaSheet.Graph()</code>. Named scalar computations can therefore join the same graph as formula slots. <code>.Sheet(formulaSheet)</code> stages current results and editable formula source for display. Dense rank-N <code>.rixcel</code> documents now round-trip authoritative source through a versioned JSON format. Sparse storage and the standalone editor remain implementation work. See <a href="../../design/eval/rixcel-format.html">the format</a> and <a href="../../design/eval/rixcel-todo.html">the checklist</a>.</p>
 </section>
 <section id="vocabulary" class="level2">
 <h2 class="anchored" data-anchor-id="vocabulary">Vocabulary</h2>
@@ -676,7 +682,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><strong>slot</strong>: a sheet coordinate containing RiX source and presentation metadata;</li>
 <li><strong>RiX Cell</strong>: a runtime binding box with alias/copy/update semantics;</li>
 <li><strong>block</strong>: a rectangular or tensor-shaped selection of slots;</li>
-<li><strong>sheet</strong>: a sparse rank-N collection of slots;</li>
+<li><strong>sheet</strong>: a logical rank-N collection of slots;</li>
 <li><strong>sheet view</strong>: a portable 2D presentation of an indexable value or sheet;</li>
 <li><strong>widget session</strong>: a host-owned interactive rendering connected to state.</li>
 </ul>
@@ -728,7 +734,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 index    full 1-based rank-N index
 address  canonical source-like address, for example grid[2,3,1]
 displayAddress  visible alias, for example C2 or R2C3</code></pre>
-<p>The record intentionally has room to grow. The FormulaSheet prototype owns formula, value, dependency, state, and diagnostic records separately from its portable result view. A persistent RiXCel adapter will later expose editable source, assignment mode, diagnostics, and stable document slot identity without requiring renderers to infer those from the displayed value.</p>
+<p>The record intentionally has room to grow. FormulaSheet owns formula, value, dependency, state, and diagnostic records separately from its portable result view. Its persistent adapter stores editable source, assignment mode, view metadata, and stable document slot identity without requiring renderers to infer those from the displayed value.</p>
 </section>
 <section id="address-and-label-convention" class="level2">
 <h2 class="anchored" data-anchor-id="address-and-label-convention">Address and label convention</h2>
@@ -775,7 +781,7 @@ imports[:rates][:usd][1,1]</code></pre>
 </section>
 <section id="formula-backed-rixcel-sheet" class="level3">
 <h3 class="anchored" data-anchor-id="formula-backed-rixcel-sheet">Formula-backed RiXCel sheet</h3>
-<p>A RiXCel sheet owns formula slots and an isolated execution context. The implemented rank-2 prototype is constructed from deferred formulas:</p>
+<p>A RiXCel sheet owns formula slots and an isolated execution context. The implemented dense rank-N model is constructed from deferred formulas:</p>
 <pre class="rix"><code>model := .FormulaSheet([
     [@{1},                 @{ grid[1,1] + 1 }],
     [@{ grid[1,2] * 2 },   @{ grid[2,1] + 1 }]
@@ -797,6 +803,7 @@ state           clean, dirty, evaluating, or error
 dependencies    slot identities read during the last successful evaluation
 diagnostics     parse, cycle, or runtime diagnostics
 view            presentation metadata</code></pre>
+<p>The implemented version-1 <code>.rixcel</code> JSON format persists the document ID, shape, canonical slot IDs, formula source, assignment mode, and JSON-safe view metadata. It does not persist compiled IR, values, dependencies, graph state, or diagnostics. <code>.RiXCelImport</code> validates and recompiles all source before a fresh initial epoch reconstructs those runtime records. See <a href="../../design/eval/rixcel-format.html">RiXCel document format</a>.</p>
 <p>Deferred syntax such as <code>@{ ... }</code> is the programmatic formula representation. Stored source is now authoritative for source edits and deferred IR is rebuilt from it. A deferred value captured from an arbitrary caller scope is not the formula context; the sheet evaluates its lowered formula inside a document-owned context containing <code>grid</code>, <code>row</code>, <code>col</code>, <code>index</code>, and eventually <code>names</code> and explicit imports.</p>
 <p>Formula editing uses a different semantic event from Binding value editing. This event and its WidgetSession route are implemented:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>{ <span class="dt">type</span><span class="op">:</span> <span class="st">"sheet:formula"</span><span class="op">,</span> <span class="dt">index</span><span class="op">:</span> [<span class="dv">2</span><span class="op">,</span> <span class="dv">3</span>]<span class="op">,</span> <span class="dt">source</span><span class="op">:</span> <span class="st">"price * quantity"</span><span class="op">,</span> <span class="dt">assignmentMode</span><span class="op">:</span> <span class="st">":="</span> }</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -1314,8 +1321,8 @@ $frag</code></pre>
       </a>          
   </div>
   <div class="nav-page nav-page-next">
-      <a href="../../design/eval/rixcel-todo.html" class="pagination-link" aria-label="RiXCel implementation checklist">
-        <span class="nav-page-text">RiXCel implementation checklist</span> <i class="bi bi-arrow-right-short"></i>
+      <a href="../../design/eval/rixcel-format.html" class="pagination-link" aria-label="RiXCel document format">
+        <span class="nav-page-text">RiXCel document format</span> <i class="bi bi-arrow-right-short"></i>
       </a>
   </div>
 </nav>

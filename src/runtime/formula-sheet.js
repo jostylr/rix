@@ -11,7 +11,8 @@ import { createReactiveGraph } from "./reactive-graph.js";
 import { forEachTensorCell, isTensor } from "./tensor.js";
 
 let nextFormulaSheetId = 1;
-const ASSIGNMENT_MODES = new Set(["=", ":=", "~=", "::=", "~~="]);
+export const FORMULA_SHEET_ASSIGNMENT_MODES = Object.freeze(["=", ":=", "~=", "::=", "~~="]);
+const ASSIGNMENT_MODES = new Set(FORMULA_SHEET_ASSIGNMENT_MODES);
 
 function text(value, label) {
     const result = value?.type === "string" ? value.value : typeof value === "string" ? value : null;
@@ -175,7 +176,7 @@ function publicSlot(slot, index, metadata) {
         state: slot.state,
         dependencies: Object.freeze([...slot.dependencies].map(keyFromNodeName)),
         diagnostics: Object.freeze([...slot.diagnostics]),
-        view: Object.freeze({}),
+        view: metadata.view,
     });
 }
 
@@ -199,12 +200,21 @@ export function createFormulaSheet(formulasValue, options = {}) {
         ? `formula-sheet-${nextFormulaSheetId++}`
         : formulaSheetId(options.id);
     const defaultAssignmentMode = assignmentMode(options.assignmentMode ?? ":=");
+    const providedSlotMetadata = options.slotMetadata instanceof Map
+        ? options.slotMetadata
+        : new Map();
     const slotMetadata = new Map(formulas.entries.map(({ index, formula }) => {
-        const source = options.formulaSource?.(formula) ?? null;
+        const provided = providedSlotMetadata.get(slotKey(index)) ?? {};
+        const source = provided.source ?? options.formulaSource?.(formula) ?? null;
+        const idForSlot = provided.id ?? slotIdFor(id, index);
+        if (idForSlot !== slotIdFor(id, index)) {
+            throw new Error(`FormulaSheet slot id must be ${slotIdFor(id, index)}`);
+        }
         return [slotKey(index), {
-            id: slotIdFor(id, index),
+            id: idForSlot,
             source,
-            assignmentMode: defaultAssignmentMode,
+            assignmentMode: assignmentMode(provided.assignmentMode ?? defaultAssignmentMode),
+            view: Object.freeze({ ...(provided.view ?? {}) }),
         }];
     }));
     const channel = new Set();
@@ -233,6 +243,7 @@ export function createFormulaSheet(formulasValue, options = {}) {
         id,
         shape,
         rank: shape.length,
+        documentView: Object.freeze({ ...(options.documentView ?? {}) }),
         graph,
         get epoch() {
             return graph.epoch;
@@ -328,8 +339,9 @@ export function createFormulaSheet(formulasValue, options = {}) {
     };
 
     for (const { index, formula } of formulas.entries) {
+        const metadata = slotMetadata.get(slotKey(index));
         graph.addComputed(nodeNameFor(index), formula, {
-                source: options.formulaSource?.(formula) ?? null,
+                source: metadata.source,
                 initialize: false,
                 evaluator(slotFormula) {
                     const contextualBindings = [

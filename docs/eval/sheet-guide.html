@@ -540,6 +540,12 @@ ul.task-list li input[type="checkbox"] {
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
+  <a href="../design/eval/rixcel-format.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">RiXCel document format</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
   <a href="../design/eval/rixcel-todo.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">RiXCel implementation checklist</span></a>
   </div>
@@ -620,7 +626,7 @@ ul.task-list li input[type="checkbox"] {
 <section id="sheet-views" class="level1">
 <h1>Sheet views</h1>
 <p><code>.Sheet</code> creates a portable two-dimensional view of a RiX tensor, matrix, array, tuple, or sequence. It is part of the structured-output model: the result retains exact RiX values and can be rendered as text or HTML without depending on a browser DOM.</p>
-<p><code>.Sheet(value)</code> is an immutable snapshot. <code>.Sheet(.Bind(variable))</code> opts into a live view whose semantic edits are handled by a host-owned widget session. <code>.Sheet(.FormulaSheet(...))</code> displays the current results of a separate formula-backed model. Persistent formula source and the full RiXCel document remain in the <a href="../design/eval/rixcel-todo.html">RiXCel checklist</a>.</p>
+<p><code>.Sheet(value)</code> is an immutable snapshot. <code>.Sheet(.Bind(variable))</code> opts into a live view whose semantic edits are handled by a host-owned widget session. <code>.Sheet(.FormulaSheet(...))</code> displays the current results of a separate formula-backed model. Formula source can be persisted in the versioned <a href="../design/eval/rixcel-format.html">RiXCel document format</a>.</p>
 <section id="basic-tensor-view" class="level2">
 <h2 class="anchored" data-anchor-id="basic-tensor-view">Basic tensor view</h2>
 <pre class="rix"><code>m := {:2x3: 1, 2, 3; 4, 5, 6}
@@ -797,7 +803,11 @@ model.Slot(2, 2)</code></pre>
 $model[1,1] := @{10}</code></pre>
 <p><code>$model[1,1]</code> reads that exact cell and records a dependency. <code>$model[1,1] := @{...}</code> replaces its deferred formula. <code>$$model[1,1]</code> is the raw cell identity when an observable handle is needed. Multiple indexed updates may be placed in <code>${ ... }</code> to commit in one graph epoch.</p>
 <p><code>SetFormula</code> keeps the new deferred formula and begins a complete recalculation. Successful results commit together. If evaluation fails, the last committed values remain available and involved slots retain diagnostics.</p>
-<p>This is deliberately distinct from <code>.Bind</code>: a Binding editor computes one new value immediately, whereas a FormulaSheet owns source, compiled formulas, and the dependency graph. In RiX Web and the notebook, Enter on a FormulaSheet cell edits its stored formula body; the WidgetSession passes source and mode to the FormulaSheet compiler, publishes a <code>sheet:formula</code> event, and refreshes all dependent cells. The first persistent <code>.rixcel</code> format, assignment-mode semantics, explicit imports, and sparse rank-N storage remain on the implementation checklist.</p>
+<p>This is deliberately distinct from <code>.Bind</code>: a Binding editor computes one new value immediately, whereas a FormulaSheet owns source, compiled formulas, and the dependency graph. In RiX Web and the notebook, Enter on a FormulaSheet cell edits its stored formula body; the WidgetSession passes source and mode to the FormulaSheet compiler, publishes a <code>sheet:formula</code> event, and refreshes all dependent cells.</p>
+<p>The versioned persistent <code>.rixcel</code> format is available:</p>
+<pre class="rix"><code>saved := .RiXCelExport(model);
+restored := .RiXCelImport(saved)</code></pre>
+<p>Version 1 stores stable IDs, dense rank-N shape, authoritative source, assignment mode, and JSON-safe view metadata. Import validates and recompiles source in a fresh FormulaSheet context, then rebuilds values and dependencies through an initial epoch. Compiled IR and runtime caches are deliberately not trusted or persisted. See the <a href="../design/eval/rixcel-format.html">RiXCel format specification</a>. Browser file-open/save, assignment-mode semantics, explicit imports, and sparse rank-N storage remain on the implementation checklist.</p>
 </section>
 <section id="reactive-dependent-views" class="level2">
 <h2 class="anchored" data-anchor-id="reactive-dependent-views">Reactive dependent views</h2>

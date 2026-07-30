@@ -1,0 +1,39 @@
+{
+  "format": "rixcel",
+  "version": 1,
+  "id": "budget",
+  "shape": [2, 2],
+  "view": {
+    "title": "Budget example"
+  },
+  "slots": [
+    {
+      "id": "budget:slot:1:1",
+      "index": [1, 1],
+      "source": "10",
+      "assignmentMode": ":=",
+      "view": {}
+    },
+    {
+      "id": "budget:slot:1:2",
+      "index": [1, 2],
+      "source": "grid[1,1] * 2",
+      "assignmentMode": ":=",
+      "view": {}
+    },
+    {
+      "id": "budget:slot:2:1",
+      "index": [2, 1],
+      "source": "3",
+      "assignmentMode": ":=",
+      "view": {}
+    },
+    {
+      "id": "budget:slot:2:2",
+      "index": [2, 2],
+      "source": "grid[1,2] + grid[2,1]",
+      "assignmentMode": ":=",
+      "view": {}
+    }
+  ]
+}

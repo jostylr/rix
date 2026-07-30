@@ -24,8 +24,10 @@ successful epochs. It is a coordinate adapter over the general
 `.ReactiveGraph(...)` runtime, exposed as `formulaSheet.Graph()`. Named scalar
 computations can therefore join the same graph as formula slots.
 `.Sheet(formulaSheet)` stages current results and editable formula source for
-display. Persistent `.rixcel` documents, rank-N storage, and the standalone
-editor remain implementation work. See [the checklist](rixcel-todo.md).
+display. Dense rank-N `.rixcel` documents now round-trip authoritative source
+through a versioned JSON format. Sparse storage and the standalone editor
+remain implementation work. See [the format](rixcel-format.md) and
+[the checklist](rixcel-todo.md).
 
 ## Vocabulary
 
@@ -35,7 +37,7 @@ therefore uses distinct internal terms:
 - **slot**: a sheet coordinate containing RiX source and presentation metadata;
 - **RiX Cell**: a runtime binding box with alias/copy/update semantics;
 - **block**: a rectangular or tensor-shaped selection of slots;
-- **sheet**: a sparse rank-N collection of slots;
+- **sheet**: a logical rank-N collection of slots;
 - **sheet view**: a portable 2D presentation of an indexable value or sheet;
 - **widget session**: a host-owned interactive rendering connected to state.
 
@@ -114,11 +116,11 @@ address  canonical source-like address, for example grid[2,3,1]
 displayAddress  visible alias, for example C2 or R2C3
 ```
 
-The record intentionally has room to grow. The FormulaSheet prototype owns
+The record intentionally has room to grow. FormulaSheet owns
 formula, value, dependency, state, and diagnostic records separately from its
-portable result view. A persistent RiXCel adapter will later expose editable
-source, assignment mode, diagnostics, and stable document slot identity without
-requiring renderers to infer those from the displayed value.
+portable result view. Its persistent adapter stores editable source, assignment
+mode, view metadata, and stable document slot identity without requiring
+renderers to infer those from the displayed value.
 
 ## Address and label convention
 
@@ -211,7 +213,7 @@ happened yet.
 ### Formula-backed RiXCel sheet
 
 A RiXCel sheet owns formula slots and an isolated execution context. The
-implemented rank-2 prototype is constructed from deferred formulas:
+implemented dense rank-N model is constructed from deferred formulas:
 
 ```rix
 model := .FormulaSheet([
@@ -249,6 +251,13 @@ dependencies    slot identities read during the last successful evaluation
 diagnostics     parse, cycle, or runtime diagnostics
 view            presentation metadata
 ```
+
+The implemented version-1 `.rixcel` JSON format persists the document ID,
+shape, canonical slot IDs, formula source, assignment mode, and JSON-safe view
+metadata. It does not persist compiled IR, values, dependencies, graph state,
+or diagnostics. `.RiXCelImport` validates and recompiles all source before a
+fresh initial epoch reconstructs those runtime records. See
+[RiXCel document format](rixcel-format.md).
 
 Deferred syntax such as `@{ ... }` is the programmatic formula representation.
 Stored source is now authoritative for source edits and deferred IR is rebuilt

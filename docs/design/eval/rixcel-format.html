@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>units-and-exact-values – RiX</title>
+<title>rixcel-format – RiX</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -23,33 +23,68 @@ ul.task-list li input[type="checkbox"] {
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
 }
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
 </style>
 
 
-<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
-<script src="../site_libs/quarto-nav/headroom.min.js"></script>
-<script src="../site_libs/clipboard/clipboard.min.js"></script>
-<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
-<script src="../site_libs/quarto-search/fuse.min.js"></script>
-<script src="../site_libs/quarto-search/quarto-search.js"></script>
-<meta name="quarto:offset" content="../">
-<link href="../eval/sheet-guide.html" rel="next">
-<link href="../introduction.html" rel="prev">
-<link href="../rix-logo.png" rel="icon" type="image/png">
-<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
-<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
-<script src="../site_libs/quarto-html/popper.min.js"></script>
-<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
-<script src="../site_libs/quarto-html/anchor.min.js"></script>
-<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-4a0610749eeff5ab924a4729b5181608.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-dark-de927ec96a2411cf822331f71755f83e.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-4a0610749eeff5ab924a4729b5181608.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
-<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
-<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-f3edcacc9eded719789e0469c6b6eab5.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
-<link href="../site_libs/bootstrap/bootstrap-dark-c53da4be0d013bdcf7fcfccaa2827e71.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
-<link href="../site_libs/bootstrap/bootstrap-f3edcacc9eded719789e0469c6b6eab5.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<link href="../../design/eval/rixcel-todo.html" rel="next">
+<link href="../../design/eval/rixcel-architecture.html" rel="prev">
+<link href="../../rix-logo.png" rel="icon" type="image/png">
+<script src="../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-4a0610749eeff5ab924a4729b5181608.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-dark-de927ec96a2411cf822331f71755f83e.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-4a0610749eeff5ab924a4729b5181608.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap-f3edcacc9eded719789e0469c6b6eab5.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../../site_libs/bootstrap/bootstrap-dark-c53da4be0d013bdcf7fcfccaa2827e71.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../../site_libs/bootstrap/bootstrap-f3edcacc9eded719789e0469c6b6eab5.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -250,11 +285,11 @@ ul.task-list li input[type="checkbox"] {
     <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
       <div class="navbar-container container-fluid">
       <div class="navbar-brand-container mx-auto">
-    <a href="../index.html" class="navbar-brand navbar-brand-logo">
-    <img src="../rix-logo.png" alt="" class="navbar-logo light-content">
-    <img src="../rix-logo.png" alt="" class="navbar-logo dark-content">
+    <a href="../../index.html" class="navbar-brand navbar-brand-logo">
+    <img src="../../rix-logo.png" alt="" class="navbar-logo light-content">
+    <img src="../../rix-logo.png" alt="" class="navbar-logo dark-content">
     </a>
-    <a class="navbar-brand" href="../index.html">
+    <a class="navbar-brand" href="../../index.html">
     <span class="navbar-title">RiX</span>
     </a>
   </div>
@@ -265,19 +300,19 @@ ul.task-list li input[type="checkbox"] {
           <div class="collapse navbar-collapse" id="navbarCollapse">
             <ul class="navbar-nav navbar-nav-scroll me-auto">
   <li class="nav-item">
-    <a class="nav-link active" href="../getting-started.html" aria-current="page"> 
+    <a class="nav-link active" href="../../getting-started.html" aria-current="page"> 
 <span class="menu-text">Start</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="../language-at-a-glance.html"> 
+    <a class="nav-link" href="../../language-at-a-glance.html"> 
 <span class="menu-text">Learn</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="../eval/syntax-guide.html"> 
+    <a class="nav-link" href="../../eval/syntax-guide.html"> 
 <span class="menu-text">Reference</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="../developer-guide.html"> 
+    <a class="nav-link" href="../../developer-guide.html"> 
 <span class="menu-text">Internals</span></a>
   </li>  
 </ul>
@@ -299,7 +334,7 @@ ul.task-list li input[type="checkbox"] {
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../introduction.html">Learn RiX</a></li><li class="breadcrumb-item"><a href="../tutorial/units-and-exact-values.html">Units and exact values</a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../../design/eval/cells-assignments.html">Runtime design</a></li><li class="breadcrumb-item"><a href="../../design/eval/rixcel-format.html">RiXCel document format</a></li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
     </div>
@@ -313,7 +348,7 @@ ul.task-list li input[type="checkbox"] {
     <ul class="list-unstyled mt-1">
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../index.html" class="sidebar-item-text sidebar-link">
+  <a href="../../index.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Overview</span></a>
   </div>
 </li>
@@ -328,25 +363,25 @@ ul.task-list li input[type="checkbox"] {
       <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../getting-started.html" class="sidebar-item-text sidebar-link">
+  <a href="../../getting-started.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Getting started</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../language-at-a-glance.html" class="sidebar-item-text sidebar-link">
+  <a href="../../language-at-a-glance.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">RiX at a glance</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../highlights.html" class="sidebar-item-text sidebar-link">
+  <a href="../../highlights.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">RiX Highlights</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../status.html" class="sidebar-item-text sidebar-link">
+  <a href="../../status.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Implementation status</span></a>
   </div>
 </li>
@@ -354,28 +389,28 @@ ul.task-list li input[type="checkbox"] {
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="false">
  <span class="menu-text">Learn RiX</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="Toggle section">
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="false" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../introduction.html" class="sidebar-item-text sidebar-link">
+  <a href="../../introduction.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Complete introduction</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../tutorial/units-and-exact-values.html" class="sidebar-item-text sidebar-link active">
+  <a href="../../tutorial/units-and-exact-values.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Units and exact values</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../eval/sheet-guide.html" class="sidebar-item-text sidebar-link">
+  <a href="../../eval/sheet-guide.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Sheet views</span></a>
   </div>
 </li>
@@ -392,25 +427,25 @@ ul.task-list li input[type="checkbox"] {
       <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../eval/syntax-guide.html" class="sidebar-item-text sidebar-link">
+  <a href="../../eval/syntax-guide.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Syntax and functions</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../eval/methods-guide.html" class="sidebar-item-text sidebar-link">
+  <a href="../../eval/methods-guide.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Methods</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../eval/types-and-traits-guide.html" class="sidebar-item-text sidebar-link">
+  <a href="../../eval/types-and-traits-guide.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Types and traits</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../reference/system-reference.html" class="sidebar-item-text sidebar-link">
+  <a href="../../reference/system-reference.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Generated runtime catalog</span></a>
   </div>
 </li>
@@ -427,61 +462,61 @@ ul.task-list li input[type="checkbox"] {
       <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../developer-guide.html" class="sidebar-item-text sidebar-link">
+  <a href="../../developer-guide.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Developer guide</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../plugin-catalog.html" class="sidebar-item-text sidebar-link">
+  <a href="../../plugin-catalog.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Plugin catalog and loading</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../eval/README.html" class="sidebar-item-text sidebar-link">
+  <a href="../../eval/README.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Evaluator overview</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../parser/architecture.html" class="sidebar-item-text sidebar-link">
+  <a href="../../parser/architecture.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Parser architecture</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../parser/parsing.html" class="sidebar-item-text sidebar-link">
+  <a href="../../parser/parsing.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Parsing and precedence</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../parser/AST-brief.html" class="sidebar-item-text sidebar-link">
+  <a href="../../parser/AST-brief.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">AST reference</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../design/eval/ir-format.html" class="sidebar-item-text sidebar-link">
+  <a href="../../design/eval/ir-format.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">IR design snapshot</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../parser/array-generators-implementation.html" class="sidebar-item-text sidebar-link">
+  <a href="../../parser/array-generators-implementation.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Array generators</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../parser/embedded-parsing.html" class="sidebar-item-text sidebar-link">
+  <a href="../../parser/embedded-parsing.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Embedded parsing</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../parser/matrix-tensor-implementation.html" class="sidebar-item-text sidebar-link">
+  <a href="../../parser/matrix-tensor-implementation.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Matrices and tensors</span></a>
   </div>
 </li>
@@ -489,70 +524,70 @@ ul.task-list li input[type="checkbox"] {
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="false">
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true">
  <span class="menu-text">Runtime design</span></a>
-          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="false" aria-label="Toggle section">
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 ">  
+      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../design/eval/cells-assignments.html" class="sidebar-item-text sidebar-link">
+  <a href="../../design/eval/cells-assignments.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Cells and assignment</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../design/eval/units-and-exact-generators.html" class="sidebar-item-text sidebar-link">
+  <a href="../../design/eval/units-and-exact-generators.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Units and exact generators</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../design/eval/cayley-polar.html" class="sidebar-item-text sidebar-link">
+  <a href="../../design/eval/cayley-polar.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Cayley polar complex values</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../design/eval/symbolic-calculus.html" class="sidebar-item-text sidebar-link">
+  <a href="../../design/eval/symbolic-calculus.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Symbolic specs and calculus</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../design/eval/transformation-reference.html" class="sidebar-item-text sidebar-link">
+  <a href="../../design/eval/transformation-reference.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Symbolic transformations</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../design/eval/output-model.html" class="sidebar-item-text sidebar-link">
+  <a href="../../design/eval/output-model.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Structured output, documents, and graphics</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../design/eval/rixcel-architecture.html" class="sidebar-item-text sidebar-link">
+  <a href="../../design/eval/rixcel-architecture.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">RiXCel architecture</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../design/eval/rixcel-format.html" class="sidebar-item-text sidebar-link">
+  <a href="../../design/eval/rixcel-format.html" class="sidebar-item-text sidebar-link active">
  <span class="menu-text">RiXCel document format</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../design/eval/rixcel-todo.html" class="sidebar-item-text sidebar-link">
+  <a href="../../design/eval/rixcel-todo.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">RiXCel implementation checklist</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../design/plugins.html" class="sidebar-item-text sidebar-link">
+  <a href="../../design/plugins.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Plugin roadmap and rendering contracts</span></a>
   </div>
 </li>
@@ -569,25 +604,25 @@ ul.task-list li input[type="checkbox"] {
       <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth1 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../rix-rationales.html" class="sidebar-item-text sidebar-link">
+  <a href="../../rix-rationales.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Design rationales</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../design/parser/spec.html" class="sidebar-item-text sidebar-link">
+  <a href="../../design/parser/spec.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Early language specification</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../design/parser/questions.html" class="sidebar-item-text sidebar-link">
+  <a href="../../design/parser/questions.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Open design areas</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../report-2026-04-02.html" class="sidebar-item-text sidebar-link">
+  <a href="../../report-2026-04-02.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">April 2026 review (historical)</span></a>
   </div>
 </li>
@@ -603,113 +638,122 @@ ul.task-list li input[type="checkbox"] {
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#tutorial-quantities-and-exact-values" id="toc-tutorial-quantities-and-exact-values" class="nav-link active" data-scroll-target="#tutorial-quantities-and-exact-values">Tutorial: Quantities and Exact Values</a>
+  <li><a href="#rixcel-document-format" id="toc-rixcel-document-format" class="nav-link active" data-scroll-target="#rixcel-document-format">RiXCel document format</a>
   <ul class="collapse">
-  <li><a href="#first-calculations" id="toc-first-calculations" class="nav-link" data-scroll-target="#first-calculations">First calculations</a></li>
-  <li><a href="#compatible-addition-and-conversion" id="toc-compatible-addition-and-conversion" class="nav-link" data-scroll-target="#compatible-addition-and-conversion">Compatible addition and conversion</a></li>
-  <li><a href="#compound-and-inverse-units" id="toc-compound-and-inverse-units" class="nav-link" data-scroll-target="#compound-and-inverse-units">Compound and inverse units</a></li>
-  <li><a href="#temperatures" id="toc-temperatures" class="nav-link" data-scroll-target="#temperatures">Temperatures</a></li>
-  <li><a href="#exact-generators" id="toc-exact-generators" class="nav-link" data-scroll-target="#exact-generators">Exact generators</a></li>
-  <li><a href="#exact-complex-arithmetic" id="toc-exact-complex-arithmetic" class="nav-link" data-scroll-target="#exact-complex-arithmetic">Exact complex arithmetic</a></li>
-  <li><a href="#local-registry-overlays" id="toc-local-registry-overlays" class="nav-link" data-scroll-target="#local-registry-overlays">Local registry overlays</a></li>
+  <li><a href="#version-1" id="toc-version-1" class="nav-link" data-scroll-target="#version-1">Version 1</a></li>
+  <li><a href="#runtime-reconstruction" id="toc-runtime-reconstruction" class="nav-link" data-scroll-target="#runtime-reconstruction">Runtime reconstruction</a></li>
+  <li><a href="#apis" id="toc-apis" class="nav-link" data-scroll-target="#apis">APIs</a></li>
+  <li><a href="#draft-migration" id="toc-draft-migration" class="nav-link" data-scroll-target="#draft-migration">Draft migration</a></li>
   </ul></li>
   </ul>
-<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/tutorial/units-and-exact-values.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/design/eval/rixcel-format.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
     </div>
 <!-- main -->
-<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../introduction.html">Learn RiX</a></li><li class="breadcrumb-item"><a href="../tutorial/units-and-exact-values.html">Units and exact values</a></li></ol></nav></header>
+<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../../design/eval/cells-assignments.html">Runtime design</a></li><li class="breadcrumb-item"><a href="../../design/eval/rixcel-format.html">RiXCel document format</a></li></ol></nav></header>
 
 
 
 
 
-<section id="tutorial-quantities-and-exact-values" class="level1">
-<h1>Tutorial: Quantities and Exact Values</h1>
-<p>RiX treats units and named exact values as ordinary values. You can use the short notation for calculations or retrieve the values from their registries.</p>
-<section id="first-calculations" class="level2">
-<h2 class="anchored" data-anchor-id="first-calculations">First calculations</h2>
-<pre class="rix"><code>distance := 120~[m];
-time := 10~[s];
-speed := distance / time
-## speed is 12~[m/s]</code></pre>
-<p>The explicit spelling is equivalent:</p>
-<pre class="rix"><code>m := .Units[:m];
-s := .Units[:s];
-speed := (120 * m) / (10 * s)</code></pre>
-<p>Units can therefore be arguments, return values, and collection members:</p>
-<pre class="rix"><code>chosenUnit := .Units[:ft];
-height := chosenUnit(6)</code></pre>
+<section id="rixcel-document-format" class="level1">
+<h1>RiXCel document format</h1>
+<p>RiXCel files use UTF-8 JSON and the <code>.rixcel</code> extension. The root <code>format</code> and integer <code>version</code> fields identify the schema. Version 1 is a dense, rank-N, source-authoritative FormulaSheet document.</p>
+<section id="version-1" class="level2">
+<h2 class="anchored" data-anchor-id="version-1">Version 1</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode json code-with-copy"><code class="sourceCode json"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"format"</span><span class="fu">:</span> <span class="st">"rixcel"</span><span class="fu">,</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"version"</span><span class="fu">:</span> <span class="dv">1</span><span class="fu">,</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"id"</span><span class="fu">:</span> <span class="st">"budget"</span><span class="fu">,</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"shape"</span><span class="fu">:</span> <span class="ot">[</span><span class="dv">2</span><span class="ot">,</span> <span class="dv">2</span><span class="ot">]</span><span class="fu">,</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"view"</span><span class="fu">:</span> <span class="fu">{</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"title"</span><span class="fu">:</span> <span class="st">"Budget"</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">},</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"slots"</span><span class="fu">:</span> <span class="ot">[</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>    <span class="fu">{</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>      <span class="dt">"id"</span><span class="fu">:</span> <span class="st">"budget:slot:1:1"</span><span class="fu">,</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>      <span class="dt">"index"</span><span class="fu">:</span> <span class="ot">[</span><span class="dv">1</span><span class="ot">,</span> <span class="dv">1</span><span class="ot">]</span><span class="fu">,</span></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>      <span class="dt">"source"</span><span class="fu">:</span> <span class="st">"10"</span><span class="fu">,</span></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>      <span class="dt">"assignmentMode"</span><span class="fu">:</span> <span class="st">":="</span><span class="fu">,</span></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>      <span class="dt">"view"</span><span class="fu">:</span> <span class="fu">{}</span></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>    <span class="fu">}</span></span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>  <span class="ot">]</span></span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The fields are:</p>
+<ul>
+<li><code>format</code>: exactly <code>"rixcel"</code>.</li>
+<li><code>version</code>: currently <code>1</code>.</li>
+<li><code>id</code>: a non-empty, document-owned FormulaSheet identity.</li>
+<li><code>shape</code>: one or more positive safe integers.</li>
+<li><code>view</code>: JSON-safe document presentation metadata.</li>
+<li><code>slots</code>: one record for every coordinate, in canonical row-major order.</li>
+</ul>
+<p>Each slot contains:</p>
+<ul>
+<li><code>id</code>: <code>${documentId}:slot:${index.join(":")}</code>.</li>
+<li><code>index</code>: the full 1-based rank-N coordinate.</li>
+<li><code>source</code>: authoritative RiX formula body, without the surrounding <code>@{...}</code>.</li>
+<li><code>assignmentMode</code>: one of <code>=</code>, <code>:=</code>, <code>~=</code>, <code>::=</code>, or <code>~~=</code>.</li>
+<li><code>view</code>: JSON-safe slot presentation metadata.</li>
+</ul>
+<p>Version 1 is intentionally dense. It requires every coordinate exactly once; duplicate, missing, out-of-range, or non-canonical slot identities are errors. A later format version can add sparse storage without making version 1 readers guess whether an omitted coordinate is empty, missing, or corrupt.</p>
 </section>
-<section id="compatible-addition-and-conversion" class="level2">
-<h2 class="anchored" data-anchor-id="compatible-addition-and-conversion">Compatible addition and conversion</h2>
-<pre class="rix"><code>elapsed := 30~[s] + 2~[min];      ## 150~[s]
-elapsedMinutes := .ConvertUnit(elapsed, .Units[:min])
-## elapsedMinutes is 5/2~[min]</code></pre>
-<p>The left operand selects the result’s display unit:</p>
-<pre class="rix"><code>2~[min] + 30~[s]                  ## 5/2~[min]
-30~[s] + 2~[min]                  ## 150~[s]</code></pre>
-<p>Incompatible dimensions are errors:</p>
-<pre class="rix"><code>1~[m] + 1~[s]                     ## error</code></pre>
+<section id="runtime-reconstruction" class="level2">
+<h2 class="anchored" data-anchor-id="runtime-reconstruction">Runtime reconstruction</h2>
+<p>Persisted source is authoritative. An importer:</p>
+<ol type="1">
+<li>parses JSON;</li>
+<li>migrates supported older drafts;</li>
+<li>validates shape, coordinates, identities, modes, and JSON metadata;</li>
+<li>recompiles every <code>source</code> as a deferred RiX formula;</li>
+<li>creates a fresh FormulaSheet graph and isolated execution context; and</li>
+<li>evaluates the initial atomic epoch, rebuilding dependencies from actual slot reads.</li>
+</ol>
+<p>Compiled IR, current values, prior values, dependency edges, graph state, diagnostics, and caches are not stored in version 1. This avoids trusting stale or host-specific runtime state. A future optional cache must be explicitly non-authoritative and independently verifiable.</p>
 </section>
-<section id="compound-and-inverse-units" class="level2">
-<h2 class="anchored" data-anchor-id="compound-and-inverse-units">Compound and inverse units</h2>
-<pre class="rix"><code>acceleration := 10~[m/s^2];
-mass := 3~[kg];
-force := mass * acceleration
-
-inverseLength := 3 / .Units[:m]
-areaUnit := .Units[:m]^2</code></pre>
-<p>Derived names and expanded expressions remain compatible:</p>
-<pre class="rix"><code>1~[N] + 1~[kg*m/s^2]              ## 2~[N]</code></pre>
+<section id="apis" class="level2">
+<h2 class="anchored" data-anchor-id="apis">APIs</h2>
+<p>RiX code can serialize and rebuild a sheet:</p>
+<pre class="rix"><code>saved := .RiXCelExport(model);
+restored := .RiXCelImport(saved)</code></pre>
+<p>JavaScript hosts can use:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> {</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>  exportRixCelDocument<span class="op">,</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>  stringifyRixCelDocument<span class="op">,</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>  parseRixCelDocument<span class="op">,</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>  importRixCelDocument<span class="op">,</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>} <span class="im">from</span> <span class="st">"rix"</span><span class="op">;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>importRixCelDocument</code> is host-neutral and therefore requires the host’s <code>compileFormula</code> and <code>runFormula</code> callbacks. <code>.RiXCelImport</code> supplies the standard RiX evaluator callbacks automatically.</p>
 </section>
-<section id="temperatures" class="level2">
-<h2 class="anchored" data-anchor-id="temperatures">Temperatures</h2>
-<p>Temperature coordinates have an origin, so call their unit value:</p>
-<pre class="rix"><code>room := .Units[:degC](20)
-freezingF := .ConvertUnit(.Units[:degC](0), .Units[:degF])</code></pre>
-<p>Temperature differences are linear:</p>
-<pre class="rix"><code>change := 10 * .Units[:deltaDegC]</code></pre>
-<p>Compound expressions containing an affine coordinate unit are rejected.</p>
-</section>
-<section id="exact-generators" class="level2">
-<h2 class="anchored" data-anchor-id="exact-generators">Exact generators</h2>
-<p>The <code>.Exact</code> map contains algebraic generators and named transcendental constants:</p>
-<pre class="rix"><code>i := .Exact[:i];
-pi := .Exact[:pi];
-sqrt2 := .Exact[:sqrt2];
-
-i^2                         ## -1
-sqrt2^2                     ## 2
-z := 3 + 4*i
-halfTurn := pi~[rad]</code></pre>
-<p>The sugar form multiplies by an entry from <code>.Exact</code>:</p>
-<pre class="rix"><code>3~{pi}                      ## 3 * .Exact[:pi]
-2~{i}                       ## 2 * .Exact[:i]</code></pre>
-<p>Exact values and physical units compose normally:</p>
-<pre class="rix"><code>angle := (1/2)~{pi}~[rad]
-arc := angle * 2~[m]</code></pre>
-</section>
-<section id="exact-complex-arithmetic" class="level2">
-<h2 class="anchored" data-anchor-id="exact-complex-arithmetic">Exact complex arithmetic</h2>
-<p>Complex values use the algebraic generator <code>i</code>, so division and reduction stay exact:</p>
-<pre class="rix"><code>z := 3 + 4~{i};
-inverseI := 1 / .Exact[:i];
-quotient := (1 + .Exact[:i]) / (1 - .Exact[:i]);
-{: z, inverseI, quotient }</code></pre>
-<p>The <code>.Complex</code> map provides component operations without requiring real-number approximation:</p>
-<pre class="rix"><code>z := 3 + 4~{i};
-{: .Complex.Conjugate(z), .Complex.Re(z), .Complex.Im(z), z.NormSquared() }</code></pre>
-<p>An exact magnitude is available through Cayley polar form without defining a transcendental argument:</p>
-<pre class="rix"><code>c := .Complex.Cayley(1 + 1~{i});
-{: c, c.Magnitude(), c.Direction(), c.Cartesian() }</code></pre>
-<p>The direction is the algebraic half-angle coordinate <code>tan(Arg/2)</code>. <code>Arg</code> itself still waits for explicit real-number and trigonometric precision policies. See <a href="../design/eval/cayley-polar.html">the detailed Cayley writeup</a>.</p>
-</section>
-<section id="local-registry-overlays" class="level2">
-<h2 class="anchored" data-anchor-id="local-registry-overlays">Local registry overlays</h2>
-<p>The default registries are ordinary RiX maps. A program can construct an extended map without mutating the frozen system context:</p>
-<pre class="rix"><code>Exact := .Exact.Merge({= tau = 2 * .Exact[:pi] });
-oneTurn := 1~{tau}~[rad]</code></pre>
-<p>The postfix sugar consults a lexical <code>Exact</code> or <code>Units</code> map before the system default, so overlays work without changing parser configuration.</p>
+<section id="draft-migration" class="level2">
+<h2 class="anchored" data-anchor-id="draft-migration">Draft migration</h2>
+<p>The importer recognizes the pre-version-1 design draft when <code>version</code> is <code>0</code> or absent. It maps:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Draft</th>
+<th>Version 1</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>kind</code></td>
+<td><code>format</code></td>
+</tr>
+<tr class="even">
+<td><code>code</code></td>
+<td><code>source</code></td>
+</tr>
+<tr class="odd">
+<td><code>op</code></td>
+<td><code>assignmentMode</code></td>
+</tr>
+<tr class="even">
+<td><code>style</code></td>
+<td><code>view</code></td>
+</tr>
+</tbody>
+</table>
+<p>Missing draft slot IDs are generated from the document ID and full index. Documents declaring a version newer than the runtime are rejected rather than silently interpreted.</p>
 
 
 </section>
@@ -1136,13 +1180,13 @@ oneTurn := 1~{tau}~[rad]</code></pre>
   </script>
 <nav class="page-navigation">
   <div class="nav-page nav-page-previous">
-      <a href="../introduction.html" class="pagination-link" aria-label="Complete introduction">
-        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">Complete introduction</span>
+      <a href="../../design/eval/rixcel-architecture.html" class="pagination-link" aria-label="RiXCel architecture">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">RiXCel architecture</span>
       </a>          
   </div>
   <div class="nav-page nav-page-next">
-      <a href="../eval/sheet-guide.html" class="pagination-link" aria-label="Sheet views">
-        <span class="nav-page-text">Sheet views</span> <i class="bi bi-arrow-right-short"></i>
+      <a href="../../design/eval/rixcel-todo.html" class="pagination-link" aria-label="RiXCel implementation checklist">
+        <span class="nav-page-text">RiXCel implementation checklist</span> <i class="bi bi-arrow-right-short"></i>
       </a>
   </div>
 </nav>
@@ -1154,7 +1198,7 @@ oneTurn := 1~{tau}~[rad]</code></pre>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
-    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/tutorial/units-and-exact-values.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/design/eval/rixcel-format.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
     <div class="nav-footer-right">
 <p>Documentation built with <a href="https://quarto.org/">Quarto</a></p>
 </div>
@@ -1164,5 +1208,5 @@ oneTurn := 1~{tau}~[rad]</code></pre>
 
 
 
-<script src="../site_libs/quarto-html/zenscroll-min.js"></script>
+<script src="../../site_libs/quarto-html/zenscroll-min.js"></script>
 </body></html>

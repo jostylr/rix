@@ -8,8 +8,8 @@ on a browser DOM.
 `.Sheet(value)` is an immutable snapshot. `.Sheet(.Bind(variable))` opts into a
 live view whose semantic edits are handled by a host-owned widget session.
 `.Sheet(.FormulaSheet(...))` displays the current results of a separate
-formula-backed model. Persistent formula source and the full RiXCel document
-remain in the [RiXCel checklist](../design/eval/rixcel-todo.md).
+formula-backed model. Formula source can be persisted in the versioned
+[RiXCel document format](../design/eval/rixcel-format.md).
 
 ## Basic tensor view
 
@@ -259,9 +259,23 @@ value immediately, whereas a FormulaSheet owns source, compiled formulas, and
 the dependency graph. In RiX Web and the notebook, Enter on a FormulaSheet
 cell edits its stored formula body; the WidgetSession passes source and mode to
 the FormulaSheet compiler, publishes a `sheet:formula` event, and refreshes all
-dependent cells. The first persistent `.rixcel` format, assignment-mode
-semantics, explicit imports, and sparse rank-N storage remain on the
-implementation checklist.
+dependent cells.
+
+The versioned persistent `.rixcel` format is available:
+
+```rix
+saved := .RiXCelExport(model);
+restored := .RiXCelImport(saved)
+```
+
+Version 1 stores stable IDs, dense rank-N shape, authoritative source,
+assignment mode, and JSON-safe view metadata. Import validates and recompiles
+source in a fresh FormulaSheet context, then rebuilds values and dependencies
+through an initial epoch. Compiled IR and runtime caches are deliberately not
+trusted or persisted. See the
+[RiXCel format specification](../design/eval/rixcel-format.md). Browser
+file-open/save, assignment-mode semantics, explicit imports, and sparse rank-N
+storage remain on the implementation checklist.
 
 ## Reactive dependent views
 

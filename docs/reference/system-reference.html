@@ -541,6 +541,12 @@ ul.task-list li input[type="checkbox"] {
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
+  <a href="../design/eval/rixcel-format.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">RiXCel document format</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
   <a href="../design/eval/rixcel-todo.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">RiXCel implementation checklist</span></a>
   </div>
@@ -648,7 +654,7 @@ Note
 <p>This page is generated from the current RiX implementation by <code>documentation/scripts/generate-reference.js</code>. Do not edit it by hand. Descriptions come from registry documentation strings; the narrative <a href="../eval/syntax-guide.html">syntax guide</a> and <a href="../eval/methods-guide.html">methods guide</a> provide signatures and examples.</p>
 </div>
 </div>
-<p>At this revision RiX exposes <strong>146 named entries</strong> on the default system context and registers <strong>183 internal IR operations</strong>. Aliases with different spelling are listed separately because they are separately addressable names.</p>
+<p>At this revision RiX exposes <strong>148 named entries</strong> on the default system context and registers <strong>185 internal IR operations</strong>. Aliases with different spelling are listed separately because they are separately addressable names.</p>
 <section id="public-system-context" class="level2">
 <h2 class="anchored" data-anchor-id="public-system-context">Public system context</h2>
 <p>These names are available through the leading-dot system object, such as <code>.Len(value)</code>. Uppercase names are also used by explicit system/operator forms where applicable.</p>
@@ -1291,6 +1297,18 @@ Note
 <td>function</td>
 <td>—</td>
 <td>Reverse a collection (returns new copy)</td>
+</tr>
+<tr class="odd">
+<td><code>.RIXCELEXPORT</code></td>
+<td>function</td>
+<td>RiXCel</td>
+<td>Serialize a FormulaSheet to canonical versioned RiXCel JSON</td>
+</tr>
+<tr class="even">
+<td><code>.RIXCELIMPORT</code></td>
+<td>function</td>
+<td>RiXCel</td>
+<td>Rebuild a FormulaSheet by compiling authoritative source from RiXCel JSON</td>
 </tr>
 <tr class="odd">
 <td><code>.SAMECELL</code></td>
@@ -1944,7 +1962,7 @@ Note
 </tr>
 <tr class="odd">
 <td><code>RiXCel</code></td>
-<td><code>FORMULASHEET</code>, <code>REACTIVEGRAPH</code></td>
+<td><code>FORMULASHEET</code>, <code>REACTIVEGRAPH</code>, <code>RIXCELEXPORT</code>, <code>RIXCELIMPORT</code></td>
 </tr>
 </tbody>
 </table>
@@ -2676,6 +2694,16 @@ Note
 <td><code>RETRIEVE</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Look up a variable in the current scope chain</td>
+</tr>
+<tr class="odd">
+<td><code>RIXCELEXPORT</code></td>
+<td>eager, effectful/unspecified</td>
+<td>Serialize a FormulaSheet to canonical versioned RiXCel JSON</td>
+</tr>
+<tr class="even">
+<td><code>RIXCELIMPORT</code></td>
+<td>eager, effectful/unspecified</td>
+<td>Rebuild a FormulaSheet by compiling authoritative source from RiXCel JSON</td>
 </tr>
 <tr class="odd">
 <td><code>SAME_CELL</code></td>

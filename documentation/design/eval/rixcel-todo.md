@@ -39,7 +39,7 @@ Checked items are implemented in the current RiX repository.
 
 ## 3. RiXCel document runtime
 
-- [ ] Specify the versioned `.rixcel` JSON format.
+- [x] Specify the versioned `.rixcel` JSON format.
 - [x] Define a formula-slot entity separate from immediate `Binding` lenses.
 - [x] Store authoritative formula source and rebuild deferred IR from it.
 - [x] Give each formula sheet a document-owned isolated execution context.
@@ -76,7 +76,7 @@ Checked items are implemented in the current RiX repository.
 - [ ] Coordinate tracked dependencies that span multiple independent ReactiveGraphs.
 - [ ] Subscribe one LiveView to multiple independent observable roots.
 - [ ] Define volatile/external-source recomputation policy.
-- [ ] Add round-trip and migration tests for `.rixcel` documents.
+- [x] Add round-trip and migration tests for `.rixcel` documents.
 
 ## 4. Standalone RiXCel editor
 

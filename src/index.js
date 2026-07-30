@@ -5,6 +5,9 @@ export { lower, lowerNode, ir, IR, Registry, evaluate, createDefaultRegistry, cr
 export {
     Context, SystemContext, PluginCatalog, parsePluginYaml, readPluginHeader, Cell, HOLE, isHole, DiagnosticsRegistry,
     createFormulaSheet, isFormulaSheet, createLiveView, isLiveView, isReactiveSource,
+    RIXCEL_FORMAT, RIXCEL_VERSION, RIXCEL_ASSIGNMENT_MODES,
+    parseRixCelDocument, exportRixCelDocument, stringifyRixCelDocument,
+    importRixCelDocument,
     createReactiveGraph, isReactiveGraph, isReactiveNode, REACTIVE_READ_ENV,
     getDiagnostics, RixAbort, isRixAbort, createEvent, runtimeDefaults,
     createDefaultUnitCollection, createUnit, constructQuantity, convertQuantity,

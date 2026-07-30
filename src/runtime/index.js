@@ -4,6 +4,15 @@ export { PluginCatalog, parsePluginYaml, readPluginHeader } from "./plugin-catal
 export { Cell } from "./cell.js";
 export { createBinding, isBinding } from "./binding.js";
 export { createFormulaSheet, isFormulaSheet } from "./formula-sheet.js";
+export {
+    RIXCEL_FORMAT,
+    RIXCEL_VERSION,
+    RIXCEL_ASSIGNMENT_MODES,
+    parseRixCelDocument,
+    exportRixCelDocument,
+    stringifyRixCelDocument,
+    importRixCelDocument,
+} from "./rixcel-document.js";
 export { createLiveView, isLiveView, isReactiveSource } from "./reactive-view.js";
 export {
     createReactiveGraph,

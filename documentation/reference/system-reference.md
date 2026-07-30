@@ -8,7 +8,7 @@ toc-depth: 2
 This page is generated from the current RiX implementation by `documentation/scripts/generate-reference.js`. Do not edit it by hand. Descriptions come from registry documentation strings; the narrative [syntax guide](../eval/syntax-guide.md) and [methods guide](../eval/methods-guide.md) provide signatures and examples.
 :::
 
-At this revision RiX exposes **146 named entries** on the default system context and registers **183 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
+At this revision RiX exposes **148 named entries** on the default system context and registers **185 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
 
 ## Public system context
 
@@ -120,6 +120,8 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.REACTIVEGRAPH` | function | RiXCel | Create a transactional graph of reactive source and computed nodes |
 | `.REDUCE` | lazy function | Collections, Arrays | Reduce a collection with an accumulator function — callback receives (acc, val, locator, src) |
 | `.REVERSE` | function | — | Reverse a collection (returns new copy) |
+| `.RIXCELEXPORT` | function | RiXCel | Serialize a FormulaSheet to canonical versioned RiXCel JSON |
+| `.RIXCELIMPORT` | function | RiXCel | Rebuild a FormulaSheet by compiling authoritative source from RiXCel JSON |
 | `.SAMECELL` | lazy function | — | Identity comparison (===) — returns 1 if both sides refer to the same cell, null otherwise |
 | `.SAME_CELL` | lazy function | — | Identity comparison (===) — returns 1 if both sides refer to the same cell, null otherwise |
 | `.SARITH` | function | — | Parse structural arithmetic; backticks use this parser by default, with optional Complex/Quaternion/Octonion/Algebra scopes |
@@ -255,7 +257,7 @@ Imported scripts can add or withhold named groups. Permission-like names are int
 | `Symbolic` | `POLY`, `DERIV`, `INTEGRATE`, `TRANSFORM`, `SIMPLIFY`, `SPEC`, `SPECCABILITY`, `INSPECTSPEC`, `SArith` |
 | `Notation` | `SArith`, `Poly`, `NotationParser` |
 | `Random` | `RANDOMSEED`, `RandomSeed`, `RAND_NAME` |
-| `RiXCel` | `FORMULASHEET`, `REACTIVEGRAPH` |
+| `RiXCel` | `FORMULASHEET`, `REACTIVEGRAPH`, `RIXCELEXPORT`, `RIXCELIMPORT` |
 
 Default script policy includes all functions and the `IMPORTS` permission. Recognized permission names are `IMPORTS`, `NET`, `FILES`, `PLUGINS`. The default loop limit is 10,000 iterations and the default constructor capture mode is `deep_copy`.
 
@@ -407,6 +409,8 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `REACTIVE_UPDATE` | lazy, effectful/unspecified | Replace a reactive cell definition while preserving its identity |
 | `REGEX` | eager, effectful/unspecified | Create a regex matching function |
 | `RETRIEVE` | eager, effectful/unspecified | Look up a variable in the current scope chain |
+| `RIXCELEXPORT` | eager, effectful/unspecified | Serialize a FormulaSheet to canonical versioned RiXCel JSON |
+| `RIXCELIMPORT` | eager, effectful/unspecified | Rebuild a FormulaSheet by compiling authoritative source from RiXCel JSON |
 | `SAME_CELL` | lazy, effectful/unspecified | Identity comparison (===) — returns 1 if both sides refer to the same cell, null otherwise |
 | `SARITH_FUNCTION_BODY` | eager, effectful/unspecified | Resolve a structural-arithmetic function template against its arguments |
 | `SELF` | eager, effectful/unspecified | Resolve the current callable object inside a function body |

@@ -42,6 +42,7 @@ project:
     - design/eval/transformation-reference.md
     - design/eval/output-model.md
     - design/eval/rixcel-architecture.md
+    - design/eval/rixcel-format.md
     - design/eval/rixcel-todo.md
     - design/plugins.md
     - rix-rationales.md
@@ -141,6 +142,8 @@ website:
             href: design/eval/output-model.md
           - text: RiXCel architecture
             href: design/eval/rixcel-architecture.md
+          - text: RiXCel document format
+            href: design/eval/rixcel-format.md
           - text: RiXCel implementation checklist
             href: design/eval/rixcel-todo.md
           - text: Plugin roadmap and rendering contracts
