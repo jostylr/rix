@@ -212,13 +212,13 @@ implemented rank-2 prototype is constructed from deferred formulas:
 
 ```rix
 model := .FormulaSheet([
-    [@{; 1 },                 @{; grid[1,1] + 1 }],
-    [@{; grid[1,2] * 2 },     @{; grid[2,1] + 1 }]
+    [@{1},                 @{ grid[1,1] + 1 }],
+    [@{ grid[1,2] * 2 },   @{ grid[2,1] + 1 }]
 ]);
 
 model[2,2]             # 5
 model.GetFormula(1,2)  # deferred formula value
-model.SetFormula(1,1, @{; 10 })
+model.SetFormula(1,1, @{10})
 .Sheet(model)
 ```
 
@@ -250,13 +250,15 @@ captured from an arbitrary caller scope is not the formula context; the sheet
 evaluates its lowered formula inside a document-owned context containing
 `grid`, `row`, `col`, `index`, and eventually `names` and explicit imports.
 
-Formula editing uses a different semantic event from Binding value editing:
+Formula editing uses a different semantic event from Binding value editing.
+This event and its WidgetSession route are implemented:
 
 ```js
 { type: "sheet:formula", index: [2, 3], source: "price * quantity", mode: ":=" }
 ```
 
-The document parses and stores the formula, begins a new evaluation epoch,
+The host parses the edited body into a deferred formula, and the model stores
+both forms, begins a new evaluation epoch,
 invalidates the edited slot and its transitive dependents, and recomputes them
 in dependency order. A simple first implementation may conservatively
 reevaluate every formula after the edited slot; dependency-traced incremental
@@ -271,6 +273,29 @@ such as `previous[index]`.
 The formula document commits a successful epoch atomically. On failure it keeps
 the formula and diagnostics; `lastGoodValue` may be displayed as stale, but is
 never presented as the current formula result.
+
+FormulaSheet and Binding expose the same JavaScript subscription boundary.
+`.LiveView(source, @{ ... })` is the first general dependent-object adapter: it
+rederives a Sheet, Table, Fragment, Graphic, or other output after its explicit
+source commits. This keeps the dependency direction outside the renderer:
+
+```text
+sheet:formula or future graphic:drag
+                |
+                v
+       observable model commit
+                |
+                v
+          LiveView derivation
+                |
+                v
+       refreshed portable output
+```
+
+A draggable Graphic point can therefore update a Binding and let the same
+subscription path refresh its dependent lines and functions. Direct Graphic
+manipulation and automatic multi-source dependency tracking remain future
+protocol extensions.
 
 ## Reactive document model
 

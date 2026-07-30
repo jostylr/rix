@@ -14,7 +14,7 @@ export const runtimeDefaults = Object.freeze({
     permissions: Object.freeze(["IMPORTS"]),
   }),
   capabilityGroups: Object.freeze({
-    Output: Object.freeze(["BIND", "TEXT", "PARAGRAPH", "HEADING", "FRAGMENT", "TABLE", "GRID", "SHEET", "FIGURE", "SLIDE", "SLIDES", "Algebra"]),
+    Output: Object.freeze(["BIND", "LIVEVIEW", "TEXT", "PARAGRAPH", "HEADING", "FRAGMENT", "TABLE", "GRID", "SHEET", "FIGURE", "SLIDE", "SLIDES", "Algebra"]),
     Graphics: Object.freeze(["Graphics"]),
     Draw: Object.freeze(["draw"]),
     Plot: Object.freeze(["plot"]),

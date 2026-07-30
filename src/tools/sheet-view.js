@@ -102,7 +102,7 @@ function enhanceSheet(sheet, options) {
         selectedCell = cell;
         sheet.dataset.rixSelectedAddress = detail.address;
         if (location) location.textContent = `${detail.displayAddress} · ${detail.address}`;
-        if (editInput) editInput.value = cell.textContent.trim();
+        if (editInput) editInput.value = cell.dataset.rixFormulaSource ?? cell.textContent.trim();
         if (editLabel) editLabel.textContent = `${detail.displayAddress} · ${detail.address}`;
         if (editStatus) editStatus.textContent = "";
         if (focus) cell.focus();
@@ -231,7 +231,18 @@ function enhanceSheet(sheet, options) {
                 if (result && typeof result.then === "function") {
                     throw new Error("Asynchronous Sheet edits are not supported by this host");
                 }
-                selectedCell.textContent = result?.text ?? detail.source;
+                if (Array.isArray(result?.updates)) {
+                    for (const update of result.updates) {
+                        const candidate = cells.find((cell) => cell.dataset.rixAddress === update.address);
+                        if (!candidate) continue;
+                        candidate.textContent = update.text;
+                        if (typeof update.formulaSource === "string") {
+                            candidate.dataset.rixFormulaSource = update.formulaSource;
+                        }
+                    }
+                } else {
+                    selectedCell.textContent = result?.text ?? detail.source;
+                }
                 if (editStatus) editStatus.textContent = "Saved";
                 options.onEditCommitted?.(detail, result, selectedCell, sheet);
                 dispatchSheetEvent(sheet, "rix-sheet-edit", {

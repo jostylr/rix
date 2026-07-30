@@ -184,8 +184,8 @@ be recalculated as one dependency graph:
 
 ```rix
 model := .FormulaSheet([
-    [@{; 1 }, @{; grid[1,1] + 1 }],
-    [@{; grid[1,2] * 2 }, @{; grid[2,1] + 1 }]
+    [@{1}, @{ grid[1,1] + 1 }],
+    [@{ grid[1,2] * 2 }, @{ grid[2,1] + 1 }]
 ]);
 
 model[2,2]  # 5
@@ -211,7 +211,7 @@ The formula and slot APIs are:
 
 ```rix
 model.GetFormula(1, 2)
-model.SetFormula(1, 1, @{; 10 })
+model.SetFormula(1, 1, @{10})
 model.Recalculate()
 model.Slot(2, 2)
 ```
@@ -222,7 +222,43 @@ last committed values remain available and involved slots retain diagnostics.
 
 This is deliberately distinct from `.Bind`: a Binding editor computes one new
 value immediately, whereas a FormulaSheet owns formulas and reexecutes their
-dependency graph. The current browser Sheet view displays FormulaSheet results
-but does not yet edit their formula source. The first persistent `.rixcel`
-format, formula-edit event/session, assignment modes, explicit imports, and
-rank-N formula storage are tracked in the implementation checklist.
+dependency graph. In RiX Web and the notebook, Enter on a FormulaSheet cell
+edits its stored formula body; committing publishes a `sheet:formula` event and
+refreshes all dependent cells. The first persistent `.rixcel` format,
+assignment modes, explicit imports, and rank-N formula storage are tracked in
+the implementation checklist.
+
+## Reactive dependent views
+
+FormulaSheet and Binding implement the same host-neutral
+`subscribe(listener)` contract. `.LiveView` derives any output from one
+explicit observable source:
+
+```rix
+pointSheet := .FormulaSheet([[@{120}, @{40}]]);
+
+.LiveView(pointSheet, @{
+    .Graphics.Graphic([260, 140], [
+        .Graphics.Path(
+            [[20, 120], [source[1,1], source[1,2]]],
+            {= stroke="#4f46e5", width=3 }
+        ),
+        .Graphics.Circle(
+            [source[1,1], source[1,2]],
+            8,
+            {= fill="#f97316" }
+        )
+    ])
+})
+```
+
+The deferred body runs in an isolated context where `source` is the subscribed
+object. A FormulaSheet commit or Binding update rederives the complete output
+and publishes a `live:commit` event. The initial implementation tracks one
+explicit source; automatic multi-source dependency collection remains future
+work.
+
+This contract is intentionally independent of the interaction that caused the
+update. A formula editor uses `sheet:formula`; a future draggable Graphic point
+can write a coordinate through a Binding. Both cause the same LiveView
+rederivation without making Graphics depend on spreadsheet code.

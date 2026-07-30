@@ -22,6 +22,8 @@ describe("formula-backed sheets", () => {
         expect(formatValue(model.get([2, 2]))).toBe("5");
         expect(model.slot([1, 2]).dependencies).toEqual(["1,1"]);
         expect(model.slot([2, 1]).dependencies).toEqual(["1,2"]);
+        expect(model.slot([1, 1]).source).toBe("1");
+        expect(model.slot([1, 2]).source).toBe("grid[1,1] + 1");
     });
 
     test("exposes the current row, column, and tuple index", () => {
@@ -44,6 +46,22 @@ describe("formula-backed sheets", () => {
             model[2,2]
         `);
         expect(formatValue(value)).toBe("23");
+    });
+
+    test("publishes successful commits to reactive dependents", () => {
+        const model = parseAndEvaluate(`${chainSource} model`);
+        const events = [];
+        const unsubscribe = model.subscribe((event) => events.push(event));
+        const replacement = parseAndEvaluate("@{10}");
+        model.setFormula([1, 1], replacement, { source: "10" });
+
+        expect(events).toHaveLength(1);
+        expect(events[0].type).toBe("formula:commit");
+        expect(events[0].previousEpoch).toBe(1);
+        expect(events[0].epoch).toBe(2);
+        expect(events[0].cause.source).toBe("10");
+        expect(formatValue(model.get([2, 2]))).toBe("23");
+        unsubscribe();
     });
 
     test("self and indirect references report complete cycle paths", () => {
@@ -98,9 +116,14 @@ describe("formula-backed sheets", () => {
         `);
         expect(view.sourceKind).toBe("formula_sheet");
         expect(view.formulaBacked).toBe(true);
+        expect(view.editable).toBe(true);
+        expect(view.editMode).toBe("formula");
+        expect(view.cells[0][1].formulaSource).toBe("grid[1,1] + 1");
         expect(formatValue(view.cells[1][1].value)).toBe("5");
         expect(renderOutputHtml(view, formatValue)).toContain('data-rix-formula-sheet="true"');
         expect(renderOutputHtml(view, formatValue)).toContain('data-rix-formula-epoch="1"');
+        expect(renderOutputHtml(view, formatValue)).toContain('data-rix-edit-mode="formula"');
+        expect(renderOutputHtml(view, formatValue)).toContain('data-rix-formula-source="grid[1,1] + 1"');
 
         const snapshot = createSheetSnapshot(view);
         expect(snapshot.formulaBacked).toBe(false);

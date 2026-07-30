@@ -150,6 +150,7 @@ function sheetData(value) {
             formulaSheet: value,
             shape: [...value.shape],
             at: (index) => value.get(index),
+            formulaSourceAt: (index) => value.slot(index).source,
         };
     }
 
@@ -346,6 +347,7 @@ export function createSheet(args) {
             if (columnAxis !== null) index[columnAxis - 1] = columnIndex + 1;
             return Object.freeze({
                 value: data.at(index),
+                formulaSource: data.formulaSourceAt?.(index) ?? null,
                 index: Object.freeze(index),
                 address: `${addressBase}[${index.join(",")}]`,
                 displayAddress: sheetDisplayAddress(rowIndex + 1, columnIndex + 1, columnLabelMode),
@@ -365,7 +367,8 @@ export function createSheet(args) {
         formulaBacked: Boolean(data.formulaSheet),
         binding: data.binding,
         bindingId: data.binding?.id ?? null,
-        editable: Boolean(data.binding),
+        editable: Boolean(data.binding || data.formulaSheet),
+        editMode: data.formulaSheet ? "formula" : data.binding ? "value" : null,
         rank,
         shape: Object.freeze([...data.shape]),
         axes: Object.freeze(axes),
@@ -398,6 +401,7 @@ export function createSheetSnapshot(sheet) {
         binding: null,
         bindingId: null,
         editable: false,
+        editMode: null,
         formulaSheet: null,
         formulaBacked: false,
     });
@@ -802,6 +806,7 @@ function formatSheetText(sheet, format) {
 
 export function formatOutputText(value, format) {
     if (!isOutputValue(value)) return format(value);
+    if (value.kind === "live_view") return formatOutputText(value.current, format);
     if (value.kind === "text") return cellText(value.value, format);
     if (value.kind === "paragraph") return value.children.map((child) => cellText(child, format)).join("");
     if (value.kind === "heading") return `${"#".repeat(value.level)} ${cellText(value.content, format)}`;
@@ -835,6 +840,9 @@ export function formatOutputText(value, format) {
 export function renderOutputHtml(value, format = (item) => String(item ?? "")) {
     const text = (item) => escapeHtml(isOutputValue(item) ? formatOutputText(item, format) : cellText(item, format));
     if (!isOutputValue(value)) return `<pre>${text(value)}</pre>`;
+    if (value.kind === "live_view") {
+        return `<section class="rix-output-live-view" data-rix-live-view="${escapeHtml(value.id)}" data-rix-live-revision="${value.revision}">${renderOutputHtml(value.current, format)}</section>`;
+    }
     if (value.kind === "text") return `<span class="rix-output-text">${text(value.value)}</span>`;
     if (value.kind === "paragraph") return `<p class="rix-output-paragraph">${value.children.map(text).join("")}</p>`;
     if (value.kind === "heading") return `<h${value.level} class="rix-output-heading">${text(value.content)}</h${value.level}>`;
@@ -844,12 +852,12 @@ export function renderOutputHtml(value, format = (item) => String(item ?? "")) {
     if (value.kind === "sheet") {
         const summary = `${value.addressBase} · shape ${value.shape.join("×")}`;
         const controls = value.hiddenAxes.length === 0 ? "" : `<div class="rix-output-sheet-plane-controls" aria-label="Tensor plane">${value.hiddenAxes.map(({ axis, name, length, selected }) => `<label><span>${escapeHtml(name)} · axis ${axis}</span><select data-rix-sheet-axis="${axis}" aria-label="${escapeHtml(name)} axis ${axis}">${Array.from({ length }, (_item, index) => `<option value="${index + 1}"${selected === index + 1 ? " selected" : ""}>${index + 1}</option>`).join("")}</select></label>`).join("")}</div>`;
-        const bodies = value.planes.map((plane) => `<tbody data-rix-plane-key="${escapeHtml(plane.key)}" data-rix-slice="${plane.slice.map((item) => item ?? "").join(",")}"${plane.key === value.selectedPlaneKey ? "" : " hidden"}>${plane.cells.map((row, rowIndex) => `<tr><th scope="row" data-rix-row="${rowIndex + 1}">${escapeHtml(value.rowHeaders[rowIndex])}</th>${row.map((cell, columnIndex) => `<td data-rix-row="${rowIndex + 1}" data-rix-column="${columnIndex + 1}" data-rix-index="${cell.index.join(",")}" data-rix-address="${escapeHtml(cell.address)}" data-rix-display-address="${escapeHtml(cell.displayAddress)}" title="${escapeHtml(cell.displayAddress)} · ${escapeHtml(cell.address)}">${text(cell.value)}</td>`).join("")}</tr>`).join("")}</tbody>`).join("");
+        const bodies = value.planes.map((plane) => `<tbody data-rix-plane-key="${escapeHtml(plane.key)}" data-rix-slice="${plane.slice.map((item) => item ?? "").join(",")}"${plane.key === value.selectedPlaneKey ? "" : " hidden"}>${plane.cells.map((row, rowIndex) => `<tr><th scope="row" data-rix-row="${rowIndex + 1}">${escapeHtml(value.rowHeaders[rowIndex])}</th>${row.map((cell, columnIndex) => `<td data-rix-row="${rowIndex + 1}" data-rix-column="${columnIndex + 1}" data-rix-index="${cell.index.join(",")}" data-rix-address="${escapeHtml(cell.address)}" data-rix-display-address="${escapeHtml(cell.displayAddress)}"${cell.formulaSource === null ? "" : ` data-rix-formula-source="${escapeHtml(cell.formulaSource)}"`} title="${escapeHtml(cell.displayAddress)} · ${escapeHtml(cell.address)}">${text(cell.value)}</td>`).join("")}</tr>`).join("")}</tbody>`).join("");
         const liveAttributes = value.editable
-            ? ` data-rix-editable="true" data-rix-binding-id="${escapeHtml(value.bindingId)}"`
+            ? ` data-rix-editable="true" data-rix-edit-mode="${value.editMode}"${value.bindingId ? ` data-rix-binding-id="${escapeHtml(value.bindingId)}"` : ""}`
             : "";
         const editor = value.editable
-            ? `<form class="rix-output-sheet-editor" hidden><label><span data-rix-edit-label>Choose a cell to edit</span><input data-rix-edit-source aria-label="RiX value" autocomplete="off" spellcheck="false"></label><button type="submit">Set</button><output data-rix-edit-status aria-live="polite"></output></form>`
+            ? `<form class="rix-output-sheet-editor" hidden><label><span data-rix-edit-label>Choose a cell to edit</span><input data-rix-edit-source aria-label="${value.editMode === "formula" ? "RiX formula" : "RiX value"}" autocomplete="off" spellcheck="false"></label><button type="submit">${value.editMode === "formula" ? "Set formula" : "Set"}</button><output data-rix-edit-status aria-live="polite"></output></form>`
             : "";
         const formulaAttributes = value.formulaBacked ? ` data-rix-formula-sheet="true" data-rix-formula-epoch="${value.formulaSheet.epoch}"` : "";
         return `<section class="rix-output-sheet" data-rix-rank="${value.rank}" data-rix-selected-plane="${escapeHtml(value.selectedPlaneKey)}"${liveAttributes}${formulaAttributes}>${value.title ? `<h3 class="rix-output-sheet-title">${escapeHtml(value.title)}</h3>` : ""}<div class="rix-output-sheet-location" aria-live="polite" data-rix-summary="${escapeHtml(summary)}">${escapeHtml(summary)}</div>${controls}${editor}<table><thead><tr><th class="rix-output-sheet-corner" scope="col">${escapeHtml(value.addressBase)}</th>${value.columnHeaders.map((header, column) => `<th scope="col" data-rix-column="${column + 1}">${escapeHtml(header)}</th>`).join("")}</tr></thead>${bodies}</table></section>`;

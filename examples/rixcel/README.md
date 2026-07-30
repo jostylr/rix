@@ -7,6 +7,7 @@ the examples from the `rix/` directory:
 bun bin/rix.js examples/rixcel/sheet-views.rix
 bun bin/rix.js examples/rixcel/live-sheet.rix
 bun bin/rix.js examples/rixcel/formula-sheet.rix
+bun bin/rix.js examples/rixcel/reactive-view.rix
 ```
 
 The CLI prints a deterministic text representation. RiX Web and notebook hosts
@@ -22,6 +23,8 @@ can call `renderOutputHtml` to render the same value as an address-aware grid.
   (`live-sheet.rix`).
 - a formula-backed sheet with dependency evaluation and an update epoch
   (`formula-sheet.rix`).
+- a FormulaSheet driving a live Graphic through the shared observable protocol
+  (`reactive-view.rix`).
 
 The formula example is the first in-memory FormulaSheet prototype. Persistent
 source-backed RiXCel documents are listed in the

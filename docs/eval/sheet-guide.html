@@ -605,6 +605,7 @@ ul.task-list li input[type="checkbox"] {
   <li><a href="#vectors-matrices-and-sequences" id="toc-vectors-matrices-and-sequences" class="nav-link" data-scroll-target="#vectors-matrices-and-sequences">Vectors, matrices, and sequences</a></li>
   <li><a href="#snapshot-and-live-view-boundary" id="toc-snapshot-and-live-view-boundary" class="nav-link" data-scroll-target="#snapshot-and-live-view-boundary">Snapshot and live-view boundary</a></li>
   <li><a href="#formula-backed-prototype" id="toc-formula-backed-prototype" class="nav-link" data-scroll-target="#formula-backed-prototype">Formula-backed prototype</a></li>
+  <li><a href="#reactive-dependent-views" id="toc-reactive-dependent-views" class="nav-link" data-scroll-target="#reactive-dependent-views">Reactive dependent views</a></li>
   </ul></li>
   </ul>
 <div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/sheet-guide.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
@@ -743,8 +744,8 @@ lens.At(2, 3).Set(5 / 7)</code></pre>
 <h2 class="anchored" data-anchor-id="formula-backed-prototype">Formula-backed prototype</h2>
 <p>Use <code>.FormulaSheet</code> when each coordinate owns a formula and the whole grid must be recalculated as one dependency graph:</p>
 <pre class="rix"><code>model := .FormulaSheet([
-    [@{; 1 }, @{; grid[1,1] + 1 }],
-    [@{; grid[1,2] * 2 }, @{; grid[2,1] + 1 }]
+    [@{1}, @{ grid[1,1] + 1 }],
+    [@{ grid[1,2] * 2 }, @{ grid[2,1] + 1 }]
 ]);
 
 model[2,2]  # 5
@@ -779,11 +780,32 @@ model[2,2]  # 5
 <p>The model evaluates all slots in a new atomic epoch. A read of a slot already being evaluated reports the complete path, such as <code>grid[1,1] -&gt; grid[1,2] -&gt; grid[1,1]</code>. The cycle never reads a stale prior value. Caller variables are unavailable; future imports will be explicit.</p>
 <p>The formula and slot APIs are:</p>
 <pre class="rix"><code>model.GetFormula(1, 2)
-model.SetFormula(1, 1, @{; 10 })
+model.SetFormula(1, 1, @{10})
 model.Recalculate()
 model.Slot(2, 2)</code></pre>
 <p><code>SetFormula</code> keeps the new deferred formula and begins a complete recalculation. Successful results commit together. If evaluation fails, the last committed values remain available and involved slots retain diagnostics.</p>
-<p>This is deliberately distinct from <code>.Bind</code>: a Binding editor computes one new value immediately, whereas a FormulaSheet owns formulas and reexecutes their dependency graph. The current browser Sheet view displays FormulaSheet results but does not yet edit their formula source. The first persistent <code>.rixcel</code> format, formula-edit event/session, assignment modes, explicit imports, and rank-N formula storage are tracked in the implementation checklist.</p>
+<p>This is deliberately distinct from <code>.Bind</code>: a Binding editor computes one new value immediately, whereas a FormulaSheet owns formulas and reexecutes their dependency graph. In RiX Web and the notebook, Enter on a FormulaSheet cell edits its stored formula body; committing publishes a <code>sheet:formula</code> event and refreshes all dependent cells. The first persistent <code>.rixcel</code> format, assignment modes, explicit imports, and rank-N formula storage are tracked in the implementation checklist.</p>
+</section>
+<section id="reactive-dependent-views" class="level2">
+<h2 class="anchored" data-anchor-id="reactive-dependent-views">Reactive dependent views</h2>
+<p>FormulaSheet and Binding implement the same host-neutral <code>subscribe(listener)</code> contract. <code>.LiveView</code> derives any output from one explicit observable source:</p>
+<pre class="rix"><code>pointSheet := .FormulaSheet([[@{120}, @{40}]]);
+
+.LiveView(pointSheet, @{
+    .Graphics.Graphic([260, 140], [
+        .Graphics.Path(
+            [[20, 120], [source[1,1], source[1,2]]],
+            {= stroke="#4f46e5", width=3 }
+        ),
+        .Graphics.Circle(
+            [source[1,1], source[1,2]],
+            8,
+            {= fill="#f97316" }
+        )
+    ])
+})</code></pre>
+<p>The deferred body runs in an isolated context where <code>source</code> is the subscribed object. A FormulaSheet commit or Binding update rederives the complete output and publishes a <code>live:commit</code> event. The initial implementation tracks one explicit source; automatic multi-source dependency collection remains future work.</p>
+<p>This contract is intentionally independent of the interaction that caused the update. A formula editor uses <code>sheet:formula</code>; a future draggable Graphic point can write a coordinate through a Binding. Both cause the same LiveView rederivation without making Graphics depend on spreadsheet code.</p>
 
 
 </section>

@@ -4,7 +4,7 @@ export { complete, REPL_COMMANDS } from "./repl/completion.js";
 export { lower, lowerNode, ir, IR, Registry, evaluate, createDefaultRegistry, createDefaultSystemContext, parseAndEvaluate, irToText, irListToText, formatValue } from "./eval/index.js";
 export {
     Context, SystemContext, PluginCatalog, parsePluginYaml, readPluginHeader, Cell, HOLE, isHole, DiagnosticsRegistry,
-    createFormulaSheet, isFormulaSheet,
+    createFormulaSheet, isFormulaSheet, createLiveView, isLiveView, isReactiveSource,
     getDiagnostics, RixAbort, isRixAbort, createEvent, runtimeDefaults,
     createDefaultUnitCollection, createUnit, constructQuantity, convertQuantity,
     parseUnitExpression, isUnitValue, isQuantity, createDefaultExactCollection,
@@ -25,3 +25,4 @@ export { installPlotPlugin } from "../plugins/plot/plot.plugin.rix.js";
 export { installBundledPlugins } from "../plugins/bundled.js";
 export { enhanceSheetViews, moveSheetSelection, sheetDisplayAddress, sheetPlaneKey } from "./tools/sheet-view.js";
 export { WidgetSession, createWidgetSession } from "./tools/widget-session.js";
+export { mountOutputWidgets } from "./tools/output-widgets.js";

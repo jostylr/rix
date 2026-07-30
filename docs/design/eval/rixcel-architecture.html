@@ -777,13 +777,13 @@ imports[:rates][:usd][1,1]</code></pre>
 <h3 class="anchored" data-anchor-id="formula-backed-rixcel-sheet">Formula-backed RiXCel sheet</h3>
 <p>A RiXCel sheet owns formula slots and an isolated execution context. The implemented rank-2 prototype is constructed from deferred formulas:</p>
 <pre class="rix"><code>model := .FormulaSheet([
-    [@{; 1 },                 @{; grid[1,1] + 1 }],
-    [@{; grid[1,2] * 2 },     @{; grid[2,1] + 1 }]
+    [@{1},                 @{ grid[1,1] + 1 }],
+    [@{ grid[1,2] * 2 },   @{ grid[2,1] + 1 }]
 ]);
 
 model[2,2]             # 5
 model.GetFormula(1,2)  # deferred formula value
-model.SetFormula(1,1, @{; 10 })
+model.SetFormula(1,1, @{10})
 .Sheet(model)</code></pre>
 <p>The prototype exposes <code>GetFormula</code>, <code>SetFormula</code>, <code>Recalculate</code>, and <code>Slot</code>. Every formula runs with <code>grid</code>, <code>row</code>, <code>col</code>, and <code>index</code> in an isolated context; caller locals and explicit outer lookup are unavailable. Every recalculation currently evaluates the whole sheet. A failed epoch keeps the last committed values while attaching diagnostics to involved slots.</p>
 <p>The persistent document slot needs at least:</p>
@@ -798,26 +798,38 @@ dependencies    slot identities read during the last successful evaluation
 diagnostics     parse, cycle, or runtime diagnostics
 view            presentation metadata</code></pre>
 <p>Deferred syntax such as <code>@{ ... }</code> is the prototype’s programmatic formula representation. In the persistent format, stored source will remain authoritative and deferred IR will be rebuilt from it. A deferred value captured from an arbitrary caller scope is not the formula context; the sheet evaluates its lowered formula inside a document-owned context containing <code>grid</code>, <code>row</code>, <code>col</code>, <code>index</code>, and eventually <code>names</code> and explicit imports.</p>
-<p>Formula editing uses a different semantic event from Binding value editing:</p>
+<p>Formula editing uses a different semantic event from Binding value editing. This event and its WidgetSession route are implemented:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>{ <span class="dt">type</span><span class="op">:</span> <span class="st">"sheet:formula"</span><span class="op">,</span> <span class="dt">index</span><span class="op">:</span> [<span class="dv">2</span><span class="op">,</span> <span class="dv">3</span>]<span class="op">,</span> <span class="dt">source</span><span class="op">:</span> <span class="st">"price * quantity"</span><span class="op">,</span> <span class="dt">mode</span><span class="op">:</span> <span class="st">":="</span> }</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>The document parses and stores the formula, begins a new evaluation epoch, invalidates the edited slot and its transitive dependents, and recomputes them in dependency order. A simple first implementation may conservatively reevaluate every formula after the edited slot; dependency-traced incremental evaluation can then replace that schedule without changing the slot model.</p>
+<p>The host parses the edited body into a deferred formula, and the model stores both forms, begins a new evaluation epoch, invalidates the edited slot and its transitive dependents, and recomputes them in dependency order. A simple first implementation may conservatively reevaluate every formula after the edited slot; dependency-traced incremental evaluation can then replace that schedule without changing the slot model.</p>
 <p>During an epoch, <code>grid[index]</code> always requests the current epoch’s value. If it reads a slot already marked <code>evaluating</code>, evaluation reports the complete cycle path. It must not silently fall back to <code>lastGoodValue</code>. If recurrence is wanted later, prior-epoch access should be explicit through a separate name such as <code>previous[index]</code>.</p>
 <p>The formula document commits a successful epoch atomically. On failure it keeps the formula and diagnostics; <code>lastGoodValue</code> may be displayed as stale, but is never presented as the current formula result.</p>
+<p>FormulaSheet and Binding expose the same JavaScript subscription boundary. <code>.LiveView(source, @{ ... })</code> is the first general dependent-object adapter: it rederives a Sheet, Table, Fragment, Graphic, or other output after its explicit source commits. This keeps the dependency direction outside the renderer:</p>
+<pre class="text"><code>sheet:formula or future graphic:drag
+                |
+                v
+       observable model commit
+                |
+                v
+          LiveView derivation
+                |
+                v
+       refreshed portable output</code></pre>
+<p>A draggable Graphic point can therefore update a Binding and let the same subscription path refresh its dependent lines and functions. Direct Graphic manipulation and automatic multi-source dependency tracking remain future protocol extensions.</p>
 </section>
 </section>
 <section id="reactive-document-model" class="level2">
 <h2 class="anchored" data-anchor-id="reactive-document-model">Reactive document model</h2>
 <p>A RiXCel document should be a sparse rank-N collection. A slot will eventually store at least:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode json code-with-copy"><code class="sourceCode json"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
-<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"id"</span><span class="fu">:</span> <span class="st">"stable-slot-id"</span><span class="fu">,</span></span>
-<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"op"</span><span class="fu">:</span> <span class="st">":="</span><span class="fu">,</span></span>
-<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"code"</span><span class="fu">:</span> <span class="st">"price * quantity"</span><span class="fu">,</span></span>
-<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"style"</span><span class="fu">:</span> <span class="fu">{},</span></span>
-<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"cache"</span><span class="fu">:</span> <span class="fu">{</span></span>
-<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"value"</span><span class="fu">:</span> <span class="kw">null</span><span class="fu">,</span></span>
-<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"inputHash"</span><span class="fu">:</span> <span class="kw">null</span></span>
-<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">}</span></span>
-<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14"><pre class="sourceCode json code-with-copy"><code class="sourceCode json"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"id"</span><span class="fu">:</span> <span class="st">"stable-slot-id"</span><span class="fu">,</span></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"op"</span><span class="fu">:</span> <span class="st">":="</span><span class="fu">,</span></span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"code"</span><span class="fu">:</span> <span class="st">"price * quantity"</span><span class="fu">,</span></span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"style"</span><span class="fu">:</span> <span class="fu">{},</span></span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"cache"</span><span class="fu">:</span> <span class="fu">{</span></span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"value"</span><span class="fu">:</span> <span class="kw">null</span><span class="fu">,</span></span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"inputHash"</span><span class="fu">:</span> <span class="kw">null</span></span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">}</span></span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Source is authoritative. Cached values are optional and valid only when their input and runtime hashes match.</p>
 <p>The default implied assignment is <code>:=</code>. An explicit leading <code>=</code>, <code>~=</code>, <code>::=</code>, or <code>~~=</code> retains its RiX binding meaning; it is not decorative spreadsheet syntax.</p>
 </section>

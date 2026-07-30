@@ -110,6 +110,33 @@ describe("WidgetSession", () => {
         widget.dispose();
     });
 
+    test("routes formula edits and refreshes all dependent values", () => {
+        const sheet = parseAndEvaluate(`
+            model := .FormulaSheet([[
+                @{1},
+                @{ grid[1,1] + 1 },
+                @{ grid[1,2] + 1 }
+            ]]);
+            .Sheet(model, {= title="Formula model" })
+        `);
+        const changes = [];
+        const widget = createWidgetSession(sheet, { onChange: (change) => changes.push(change) });
+        const updated = widget.dispatch({
+            type: "sheet:formula",
+            index: [1, 1],
+            formula: parseAndEvaluate("@{10}"),
+            source: "10",
+        });
+
+        expect(widget.editMode).toBe("formula");
+        expect(widget.revision).toBe(1);
+        expect(updated.cells[0].map((cell) => formatValue(cell.value))).toEqual(["10", "11", "12"]);
+        expect(updated.cells[0][0].formulaSource).toBe("10");
+        expect(widget.cellUpdates(formatValue).map(({ text }) => text)).toEqual(["10", "11", "12"]);
+        expect(changes[0].formulaEvent.type).toBe("formula:commit");
+        widget.dispose();
+    });
+
     test("rejects malformed and out-of-range events", () => {
         const sheet = parseAndEvaluate(`
             m := {:1x2: 1, 2};

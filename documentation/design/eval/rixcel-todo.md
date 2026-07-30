@@ -43,7 +43,7 @@ Checked items are implemented in the current RiX repository.
 - [x] Define a formula-slot entity separate from immediate `Binding` lenses.
 - [ ] Store authoritative formula source and rebuild deferred IR from it.
 - [x] Give each formula sheet a document-owned isolated execution context.
-- [ ] Define `sheet:formula` separately from immediate `sheet:set` events.
+- [x] Define `sheet:formula` separately from immediate `sheet:set` events.
 - [x] Add atomic evaluation epochs with explicit dirty/evaluating/error states.
 - [ ] Implement sparse rank-N sheets with stable sheet and slot IDs.
 - [ ] Store source separately from assignment mode.
@@ -56,6 +56,9 @@ Checked items are implemented in the current RiX repository.
 - [x] Detect cycles and report complete address paths.
 - [x] Reserve explicit prior-epoch access instead of falling back to stale values during cycles.
 - [x] Forbid formula writes to other slots.
+- [x] Publish FormulaSheet commits through the shared observable protocol.
+- [x] Add `.LiveView(source, deferred)` for reactive dependent outputs.
+- [ ] Track multiple observable dependencies automatically within a LiveView.
 - [ ] Define volatile/external-source recomputation policy.
 - [ ] Add round-trip and migration tests for `.rixcel` documents.
 
@@ -63,7 +66,8 @@ Checked items are implemented in the current RiX repository.
 
 - [ ] Replace the placeholder `apps/cel` package with a RiXCel web app.
 - [ ] Implement virtualized 2D grid rendering.
-- [ ] Add formula bar, assignment-mode control, and exact-value display.
+- [x] Edit formula bodies from FormulaSheet grid cells.
+- [ ] Add a dedicated formula bar, assignment-mode control, and exact-value display.
 - [ ] Add copy, paste, fill, undo, and redo.
 - [ ] Add row/column insertion with parsed reference updates.
 - [ ] Add local persistence and `.rixcel` open/save.

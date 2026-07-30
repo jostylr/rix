@@ -4,6 +4,7 @@ import { formatValue } from "../format.js";
 import { Integer } from "@ratmath/core";
 import { createFigure, createFragment, createGrid, createHeading, createParagraph, createSheet, createSlide, createSlides, createTable, createText } from "../../runtime/output.js";
 import { createBinding } from "../../runtime/binding.js";
+import { createLiveView } from "../../runtime/reactive-view.js";
 
 const capability = (impl, doc) => ({ impl: (args) => impl(args), pure: true, doc });
 
@@ -124,8 +125,33 @@ const bindFunction = {
     },
 };
 
+const liveViewFunction = {
+    pure: false,
+    doc: "Create a reactive output derived from a FormulaSheet, Binding, or other observable source",
+    impl(args, context, evaluate) {
+        if (args.length !== 2) throw new Error(".LiveView expects an observable source and one deferred body");
+        const [source, deferred] = args;
+        if (!deferred || deferred.fn !== "DEFER") {
+            throw new Error(".LiveView derivation must use deferred syntax @{ ... }");
+        }
+        const derive = () => {
+            context.push(new Map([["source", source]]), {
+                isolated: true,
+                callableBoundary: true,
+            });
+            try {
+                return context.withSharedBody(deferred.args[0], () => evaluate(deferred.args[0]));
+            } finally {
+                context.pop();
+            }
+        };
+        return createLiveView(source, derive);
+    },
+};
+
 export const outputFunctions = {
     BIND: bindFunction,
+    LIVEVIEW: liveViewFunction,
     TEXT: capability(createText, "Create a portable text output node"),
     PARAGRAPH: capability(createParagraph, "Create a portable paragraph output node"),
     HEADING: capability(createHeading, "Create a portable document heading"),

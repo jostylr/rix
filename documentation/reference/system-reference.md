@@ -8,7 +8,7 @@ toc-depth: 2
 This page is generated from the current RiX implementation by `documentation/scripts/generate-reference.js`. Do not edit it by hand. Descriptions come from registry documentation strings; the narrative [syntax guide](../eval/syntax-guide.md) and [methods guide](../eval/methods-guide.md) provide signatures and examples.
 :::
 
-At this revision RiX exposes **144 named entries** on the default system context and registers **173 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
+At this revision RiX exposes **145 named entries** on the default system context and registers **174 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
 
 ## Public system context
 
@@ -87,6 +87,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.LEN` | function | Core, Collections, Arrays | Length of a collection or string |
 | `.LESS` | function | — | Less than — returns 1 or null |
 | `.LESSEQUAL` | function | — | Less than or equal — returns 1 or null |
+| `.LIVEVIEW` | function | Output | Create a reactive output derived from a FormulaSheet, Binding, or other observable source |
 | `.LOOP` | lazy function | Core | Loop construct with init, condition, body[, update[, after]] |
 | `.LT` | function | Logic | Less than — returns 1 or null |
 | `.LTE` | function | Logic | Less than or equal — returns 1 or null |
@@ -233,7 +234,7 @@ Imported scripts can add or withhold named groups. Permission-like names are int
 
 | Group | Members |
 | --- | --- |
-| `Output` | `BIND`, `TEXT`, `PARAGRAPH`, `HEADING`, `FRAGMENT`, `TABLE`, `GRID`, `SHEET`, `FIGURE`, `SLIDE`, `SLIDES`, `Algebra` |
+| `Output` | `BIND`, `LIVEVIEW`, `TEXT`, `PARAGRAPH`, `HEADING`, `FRAGMENT`, `TABLE`, `GRID`, `SHEET`, `FIGURE`, `SLIDE`, `SLIDES`, `Algebra` |
 | `Graphics` | `Graphics` |
 | `Draw` | `draw` |
 | `Plot` | `plot` |
@@ -336,6 +337,7 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `KWARG` | eager, pure | Keyword argument wrapper |
 | `LAMBDA` | lazy, effectful/unspecified | Create a lambda/anonymous function |
 | `LITERAL` | eager, pure | Parse a number literal string into a ratmath type |
+| `LIVEVIEW` | eager, effectful/unspecified | Create a reactive output derived from a FormulaSheet, Binding, or other observable source |
 | `LOOP` | lazy, effectful/unspecified | Loop construct with init, condition, body[, update[, after]] |
 | `LT` | eager, pure, multifunction | Less than — returns 1 or null |
 | `LTE` | eager, pure, multifunction | Less than or equal — returns 1 or null |
