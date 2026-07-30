@@ -618,7 +618,7 @@ ul.task-list li input[type="checkbox"] {
 <section id="sheet-views" class="level1">
 <h1>Sheet views</h1>
 <p><code>.Sheet</code> creates a portable two-dimensional view of a RiX tensor, matrix, array, tuple, or sequence. It is part of the structured-output model: the result retains exact RiX values and can be rendered as text or HTML without depending on a browser DOM.</p>
-<p>The current <code>Sheet</code> value is an immutable snapshot. It does not yet edit its source value. Live bindings, formula slots, dependency tracking, and the RiXCel document model are tracked in the <a href="../design/eval/rixcel-todo.html">RiXCel checklist</a>.</p>
+<p><code>.Sheet(value)</code> is an immutable snapshot. <code>.Sheet(.Bind(variable))</code> opts into a live view whose semantic edits are handled by a host-owned widget session. Formula slots, dependency tracking, and the RiXCel document model remain in the <a href="../design/eval/rixcel-todo.html">RiXCel checklist</a>.</p>
 <section id="basic-tensor-view" class="level2">
 <h2 class="anchored" data-anchor-id="basic-tensor-view">Basic tensor view</h2>
 <pre class="rix"><code>m := {:2x3: 1, 2, 3; 4, 5, 6}
@@ -727,9 +727,16 @@ depth2 := .Sheet(t, {=
 <p>This is a snapshot:</p>
 <pre class="rix"><code>view := .Sheet(m)</code></pre>
 <p>Changing <code>m</code> later does not mutate <code>view</code>. This matches <code>Table</code>, <code>Grid</code>, <code>Fragment</code>, and <code>Graphic</code>, which are portable output descriptions rather than live UI sessions.</p>
-<p>The planned live form is conceptually:</p>
+<p>The live form is:</p>
 <pre class="rix"><code>.Sheet(.Bind(m))</code></pre>
-<p><code>Binding</code> and <code>Widget</code> are not implemented yet. They will route semantic edit events back to a RiX binding and create a refreshed <code>Sheet</code> value. The same event/update model is intended for interactive graphics and other notebook controls.</p>
+<p><code>.Bind</code> requires a variable name so it can capture lvalue identity. The resulting lens supports <code>Get</code>, <code>Set</code>, <code>At</code>, and <code>Slice</code>:</p>
+<pre class="rix"><code>lens := .Bind(m)
+lens.At(2, 3).Get()
+lens.At(2, 3).Set(5 / 7)</code></pre>
+<p>A Binding captures the RiX <code>Cell</code> behind the name. If <code>m</code> is later rebound with <code>:=</code>, an existing Binding continues to refer to the original Cell instead of silently switching targets.</p>
+<p>RiX Web and the editable notebook result pane translate edits into semantic <code>sheet:set</code> events containing a full 1-based tensor index and a RiX value. A host-owned <code>WidgetSession</code> validates the index, updates the Binding, increments its revision, and creates a refreshed Sheet. The browser DOM is never stored in the Binding or Sheet.</p>
+<p>The editor accepts RiX expressions, not untyped display text. Use quotes for strings. Double-click or press F2 on a live cell to focus its editor.</p>
+<p>Live Binding handles are runtime-only. <code>WidgetSession.snapshot()</code> detaches the current Sheet with <code>binding=null</code> and <code>editable=false</code>; persisted and static exports therefore retain the current exact values but cannot write back into a dead evaluation context.</p>
 
 
 </section>

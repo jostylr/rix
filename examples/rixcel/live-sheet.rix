@@ -1,0 +1,9 @@
+prices := {:2x3:
+    3 / 2, 2, 9 / 4;
+    5 / 4, 7 / 3, 11 / 5
+};
+
+.Sheet(.Bind(prices), {=
+    title = "Editable exact prices",
+    axes = ["row", "column"]
+})

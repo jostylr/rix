@@ -12,8 +12,11 @@ selection enhancer. It provides a dual address indicator, pointer selection,
 roving keyboard focus, and semantic select/activate events. Activation inserts
 the canonical address in the editable RiX hosts.
 
-The reactive RiXCel document, live value bindings, and standalone editor remain
-design and implementation work. See [the checklist](rixcel-todo.md).
+The Binding/Widget slice is also implemented: `.Bind(variable)` captures RiX
+Cell identity, `.Sheet(.Bind(variable))` creates a live Sheet, and a host-owned
+`WidgetSession` routes validated semantic edits. The reactive RiXCel document
+and standalone editor remain design and implementation work. See
+[the checklist](rixcel-todo.md).
 
 ## Vocabulary
 
@@ -50,17 +53,24 @@ RiX value or RiXCel document
              +----> refreshed model and Sheet
 ```
 
-`Sheet` follows the existing structured-output rule: it is immutable,
-serializable in principle, and renderer-independent. A renderer must not write
-through it.
+An ordinary `Sheet` follows the existing structured-output rule: it is
+immutable and renderer-independent. A live Sheet additionally retains a
+runtime-only Binding handle. A renderer still does not write through the Sheet;
+it dispatches to a host-owned WidgetSession.
 
-A future `Widget` owns a live session. Its events should be semantic records,
-not DOM events:
+`WidgetSession` owns a live session. Its input is a semantic record, not a DOM
+event. The implemented Sheet edit shape is:
 
-```rix
-{= kind=:select, index=[2,3] }
-{= kind=:edit, index=[2,3], source="price * quantity" }
-{= kind=:paste, range=[[2,3], [8,5]], values=data }
+```js
+{ type: "sheet:set", index: [2, 3], value: exactRixValue }
+```
+
+Selection, source-edit, paste, and graphics records remain protocol extensions:
+
+```text
+{ kind: select, index: [2,3] }
+{ kind: edit, index: [2,3], source: "price * quantity" }
+{ kind: paste, range: [[2,3], [8,5]], values: data }
 ```
 
 The same protocol can support interactive graphics:
@@ -124,8 +134,8 @@ in that RiX context, such as `.Sheet(m, {= address="m" })`. The future RiXCel
 document runtime will supply its contextual `grid` binding while evaluating a
 slot.
 
-The shared enhancer emits bubbling `rix-sheet-select` and
-`rix-sheet-activate` events. Event details include `address`,
+The shared enhancer emits bubbling `rix-sheet-select`,
+`rix-sheet-activate`, and `rix-sheet-edit` events. Event details include `address`,
 `displayAddress`, the full tensor `index`, and visible `row`/`column`.
 Renderers can therefore add host behavior without teaching the portable output
 object about CodeMirror, textareas, or the DOM.
@@ -155,12 +165,14 @@ portable `Sheet` constructor.
 Four conversions are deliberately different:
 
 1. `.Sheet(value)` creates a read-only snapshot.
-2. A future `.Sheet(.Bind(value))` creates a live value editor.
+2. `.Sheet(.Bind(variable))` creates a live value editor.
 3. `RiXCel.From(value)` will materialize literal RiX source into independent
    formula slots.
 4. A linked import will create slot formulas that depend on the original value.
 
-The UI must ask which behavior is intended rather than guessing.
+The UI must ask which behavior is intended rather than guessing. A live handle
+is never persisted. `WidgetSession.snapshot()` creates a detached Sheet with
+the current exact plane records, `binding=null`, and `editable=false`.
 
 ## Reactive document model
 

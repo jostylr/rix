@@ -43,6 +43,26 @@ describe("portable structured output", () => {
         expect(html).toContain(">C · 3</th>");
     });
 
+    test("Sheet distinguishes portable snapshots from live Binding views", () => {
+        const snapshot = parseAndEvaluate(`
+            m := {:1x2: 1, 2};
+            .Sheet(m)
+        `);
+        expect(snapshot.editable).toBe(false);
+        expect(snapshot.binding).toBeNull();
+
+        const live = parseAndEvaluate(`
+            m := {:1x2: 1, 2};
+            .Sheet(.Bind(m))
+        `);
+        expect(live.editable).toBe(true);
+        expect(live.addressBase).toBe("m");
+        expect(live.bindingId).toMatch(/^binding-/);
+        const html = renderOutputHtml(live, formatValue);
+        expect(html).toContain('data-rix-editable="true"');
+        expect(html).toContain(`data-rix-binding-id="${live.bindingId}"`);
+    });
+
     test("Sheet selects planes and alternate visible axes from rank-N tensors", () => {
         const depthPlane = parseAndEvaluate(`
             t := {:2x3x2: 1, 2, 3; 4, 5, 6 ;; 7, 8, 9; 10, 11, 12};

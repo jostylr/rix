@@ -8,7 +8,7 @@ toc-depth: 2
 This page is generated from the current RiX implementation by `documentation/scripts/generate-reference.js`. Do not edit it by hand. Descriptions come from registry documentation strings; the narrative [syntax guide](../eval/syntax-guide.md) and [methods guide](../eval/methods-guide.md) provide signatures and examples.
 :::
 
-At this revision RiX exposes **142 named entries** on the default system context and registers **171 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
+At this revision RiX exposes **143 named entries** on the default system context and registers **172 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
 
 ## Public system context
 
@@ -28,6 +28,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.ASSIGNDEEPCOPY` | lazy function | — | Fresh deep-copied-cell assignment (::=) — deep-copy value + all meta into new binding |
 | `.ASSIGNDEEPUPDATE` | lazy function | — | In-place deep value replacement (~~=) — like ~= but deep-copies rhs value |
 | `.ASSIGNUPDATE` | lazy function | — | In-place value replacement (~=) — preserves cell identity, ordinary meta; replaces ephemeral; preserves sticky unless rhs overrides |
+| `.BIND` | lazy function | Output | Capture a live Binding to a RiX variable |
 | `.BLOCK` | lazy function | — | Sequential block execution, returns last value |
 | `.CAPABILITYREGISTER` | function | — | Register a package system capability during trusted package startup |
 | `.CASE` | lazy function | — | Ordered case expression with condition arms, prepared-trial arms, and an optional fallback |
@@ -231,7 +232,7 @@ Imported scripts can add or withhold named groups. Permission-like names are int
 
 | Group | Members |
 | --- | --- |
-| `Output` | `TEXT`, `PARAGRAPH`, `HEADING`, `FRAGMENT`, `TABLE`, `GRID`, `SHEET`, `FIGURE`, `SLIDE`, `SLIDES`, `Algebra` |
+| `Output` | `BIND`, `TEXT`, `PARAGRAPH`, `HEADING`, `FRAGMENT`, `TABLE`, `GRID`, `SHEET`, `FIGURE`, `SLIDE`, `SLIDES`, `Algebra` |
 | `Graphics` | `Graphics` |
 | `Draw` | `draw` |
 | `Plot` | `plot` |
@@ -275,6 +276,7 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `ASSIGN_DEEP_UPDATE` | lazy, effectful/unspecified | In-place deep value replacement (~~=) — like ~= but deep-copies rhs value |
 | `ASSIGN_EXPR` | lazy, effectful/unspecified | Assignment expression (lvalue = expr) |
 | `ASSIGN_UPDATE` | lazy, effectful/unspecified | In-place value replacement (~=) — preserves cell identity, ordinary meta; replaces ephemeral; preserves sticky unless rhs overrides |
+| `BIND` | lazy, effectful/unspecified | Capture a live Binding to a RiX variable |
 | `BINOP` | eager, pure | Fallback for unrecognized binary operators |
 | `BLOCK` | lazy, effectful/unspecified | Sequential block execution, returns last value |
 | `BRACKET_GET` | lazy, effectful/unspecified | Tensor-aware bracket indexing and slicing |

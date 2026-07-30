@@ -28,14 +28,14 @@ Checked items are implemented in the current RiX repository.
 
 ## 2. Binding and widget protocol
 
-- [ ] Specify a first-class `Binding`/lens value.
-- [ ] Capture lvalue identity without exposing renderer-specific references.
-- [ ] Define `Get`, `Set`, `At`, `Slice`, and subscription behavior.
-- [ ] Define portable semantic widget events.
-- [ ] Add a host-owned `Widget` session protocol.
-- [ ] Make `.Sheet(.Bind(tensor))` an editable tensor view.
+- [x] Specify a first-class `Binding`/lens value.
+- [x] Capture lvalue identity without exposing renderer-specific references.
+- [x] Define `Get`, `Set`, `At`, `Slice`, and subscription behavior.
+- [x] Define portable semantic widget events.
+- [x] Add a host-owned `Widget` session protocol.
+- [x] Make `.Sheet(.Bind(tensor))` an editable tensor view.
 - [ ] Apply the same interaction protocol to at least one Graphic example.
-- [ ] Define snapshot and serialization behavior for live widgets.
+- [x] Define snapshot and serialization behavior for live widgets.
 
 ## 3. RiXCel document runtime
 

@@ -661,7 +661,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h2 class="anchored" data-anchor-id="status">Status</h2>
 <p>The first implemented slice is the portable <code>.Sheet(...)</code> output value. It adapts existing tensors, matrices, and sequences into a two-dimensional snapshot with exact values, rank-N plane selection, canonical RiX addresses, and host-neutral text/HTML rendering.</p>
 <p>RiX Web, the RiX notebook, and live notebook exports now share a host-side selection enhancer. It provides a dual address indicator, pointer selection, roving keyboard focus, and semantic select/activate events. Activation inserts the canonical address in the editable RiX hosts.</p>
-<p>The reactive RiXCel document, live value bindings, and standalone editor remain design and implementation work. See <a href="../../design/eval/rixcel-todo.html">the checklist</a>.</p>
+<p>The Binding/Widget slice is also implemented: <code>.Bind(variable)</code> captures RiX Cell identity, <code>.Sheet(.Bind(variable))</code> creates a live Sheet, and a host-owned <code>WidgetSession</code> routes validated semantic edits. The reactive RiXCel document and standalone editor remain design and implementation work. See <a href="../../design/eval/rixcel-todo.html">the checklist</a>.</p>
 </section>
 <section id="vocabulary" class="level2">
 <h2 class="anchored" data-anchor-id="vocabulary">Vocabulary</h2>
@@ -693,11 +693,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
    Binding or update function
              |
              +----&gt; refreshed model and Sheet</code></pre>
-<p><code>Sheet</code> follows the existing structured-output rule: it is immutable, serializable in principle, and renderer-independent. A renderer must not write through it.</p>
-<p>A future <code>Widget</code> owns a live session. Its events should be semantic records, not DOM events:</p>
-<pre class="rix"><code>{= kind=:select, index=[2,3] }
-{= kind=:edit, index=[2,3], source="price * quantity" }
-{= kind=:paste, range=[[2,3], [8,5]], values=data }</code></pre>
+<p>An ordinary <code>Sheet</code> follows the existing structured-output rule: it is immutable and renderer-independent. A live Sheet additionally retains a runtime-only Binding handle. A renderer still does not write through the Sheet; it dispatches to a host-owned WidgetSession.</p>
+<p><code>WidgetSession</code> owns a live session. Its input is a semantic record, not a DOM event. The implemented Sheet edit shape is:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>{ <span class="dt">type</span><span class="op">:</span> <span class="st">"sheet:set"</span><span class="op">,</span> <span class="dt">index</span><span class="op">:</span> [<span class="dv">2</span><span class="op">,</span> <span class="dv">3</span>]<span class="op">,</span> <span class="dt">value</span><span class="op">:</span> exactRixValue }</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Selection, source-edit, paste, and graphics records remain protocol extensions:</p>
+<pre class="text"><code>{ kind: select, index: [2,3] }
+{ kind: edit, index: [2,3], source: "price * quantity" }
+{ kind: paste, range: [[2,3], [8,5]], values: data }</code></pre>
 <p>The same protocol can support interactive graphics:</p>
 <pre class="rix"><code>{= kind=:drag, target=:pointA, position=[4,7] }</code></pre>
 </section>
@@ -732,7 +734,7 @@ grid[::, 2]</code></pre>
 <pre class="text"><code>C2 · grid[2,3]</code></pre>
 <p>Formula editing should insert canonical addresses when the user points at a slot. This avoids introducing <code>A1:B4</code> into the RiX grammar, where uppercase identifiers and colon intervals already have meanings.</p>
 <p>For a portable Sheet snapshot, <code>grid</code> is only the default <code>addressBase</code>. It is not a hidden variable or a property of the Sheet object. A host can evaluate an inserted address only when the caller has chosen an address base that resolves in that RiX context, such as <code>.Sheet(m, {= address="m" })</code>. The future RiXCel document runtime will supply its contextual <code>grid</code> binding while evaluating a slot.</p>
-<p>The shared enhancer emits bubbling <code>rix-sheet-select</code> and <code>rix-sheet-activate</code> events. Event details include <code>address</code>, <code>displayAddress</code>, the full tensor <code>index</code>, and visible <code>row</code>/<code>column</code>. Renderers can therefore add host behavior without teaching the portable output object about CodeMirror, textareas, or the DOM.</p>
+<p>The shared enhancer emits bubbling <code>rix-sheet-select</code>, <code>rix-sheet-activate</code>, and <code>rix-sheet-edit</code> events. Event details include <code>address</code>, <code>displayAddress</code>, the full tensor <code>index</code>, and visible <code>row</code>/<code>column</code>. Renderers can therefore add host behavior without teaching the portable output object about CodeMirror, textareas, or the DOM.</p>
 <p>Rank-N snapshots also retain <code>hiddenAxes</code>, <code>selectedPlaneKey</code>, and a frozen <code>planes</code> collection. Rendered axis selectors switch among those plane records and emit <code>rix-sheet-plane-change</code> with the selected slice. This remains a read-only view operation.</p>
 <p>Planned contextual names are:</p>
 <pre class="rix"><code>row
@@ -749,25 +751,25 @@ imports[:rates][:usd][1,1]</code></pre>
 <p>Four conversions are deliberately different:</p>
 <ol type="1">
 <li><code>.Sheet(value)</code> creates a read-only snapshot.</li>
-<li>A future <code>.Sheet(.Bind(value))</code> creates a live value editor.</li>
+<li><code>.Sheet(.Bind(variable))</code> creates a live value editor.</li>
 <li><code>RiXCel.From(value)</code> will materialize literal RiX source into independent formula slots.</li>
 <li>A linked import will create slot formulas that depend on the original value.</li>
 </ol>
-<p>The UI must ask which behavior is intended rather than guessing.</p>
+<p>The UI must ask which behavior is intended rather than guessing. A live handle is never persisted. <code>WidgetSession.snapshot()</code> creates a detached Sheet with the current exact plane records, <code>binding=null</code>, and <code>editable=false</code>.</p>
 </section>
 <section id="reactive-document-model" class="level2">
 <h2 class="anchored" data-anchor-id="reactive-document-model">Reactive document model</h2>
 <p>A RiXCel document should be a sparse rank-N collection. A slot will eventually store at least:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode json code-with-copy"><code class="sourceCode json"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"id"</span><span class="fu">:</span> <span class="st">"stable-slot-id"</span><span class="fu">,</span></span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"op"</span><span class="fu">:</span> <span class="st">":="</span><span class="fu">,</span></span>
-<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"code"</span><span class="fu">:</span> <span class="st">"price * quantity"</span><span class="fu">,</span></span>
-<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"style"</span><span class="fu">:</span> <span class="fu">{},</span></span>
-<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"cache"</span><span class="fu">:</span> <span class="fu">{</span></span>
-<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"value"</span><span class="fu">:</span> <span class="kw">null</span><span class="fu">,</span></span>
-<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"inputHash"</span><span class="fu">:</span> <span class="kw">null</span></span>
-<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">}</span></span>
-<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode json code-with-copy"><code class="sourceCode json"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"id"</span><span class="fu">:</span> <span class="st">"stable-slot-id"</span><span class="fu">,</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"op"</span><span class="fu">:</span> <span class="st">":="</span><span class="fu">,</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"code"</span><span class="fu">:</span> <span class="st">"price * quantity"</span><span class="fu">,</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"style"</span><span class="fu">:</span> <span class="fu">{},</span></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"cache"</span><span class="fu">:</span> <span class="fu">{</span></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"value"</span><span class="fu">:</span> <span class="kw">null</span><span class="fu">,</span></span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"inputHash"</span><span class="fu">:</span> <span class="kw">null</span></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">}</span></span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Source is authoritative. Cached values are optional and valid only when their input and runtime hashes match.</p>
 <p>The default implied assignment is <code>:=</code>. An explicit leading <code>=</code>, <code>~=</code>, <code>::=</code>, or <code>~~=</code> retains its RiX binding meaning; it is not decorative spreadsheet syntax.</p>
 </section>

@@ -5,9 +5,10 @@ tuple, or sequence. It is part of the structured-output model: the result
 retains exact RiX values and can be rendered as text or HTML without depending
 on a browser DOM.
 
-The current `Sheet` value is an immutable snapshot. It does not yet edit its
-source value. Live bindings, formula slots, dependency tracking, and the RiXCel
-document model are tracked in the [RiXCel checklist](../design/eval/rixcel-todo.md).
+`.Sheet(value)` is an immutable snapshot. `.Sheet(.Bind(variable))` opts into a
+live view whose semantic edits are handled by a host-owned widget session.
+Formula slots, dependency tracking, and the RiXCel document model remain in the
+[RiXCel checklist](../design/eval/rixcel-todo.md).
 
 ## Basic tensor view
 
@@ -140,13 +141,35 @@ Changing `m` later does not mutate `view`. This matches `Table`, `Grid`,
 `Fragment`, and `Graphic`, which are portable output descriptions rather than
 live UI sessions.
 
-The planned live form is conceptually:
+The live form is:
 
 ```rix
 .Sheet(.Bind(m))
 ```
 
-`Binding` and `Widget` are not implemented yet. They will route semantic edit
-events back to a RiX binding and create a refreshed `Sheet` value. The same
-event/update model is intended for interactive graphics and other notebook
-controls.
+`.Bind` requires a variable name so it can capture lvalue identity. The
+resulting lens supports `Get`, `Set`, `At`, and `Slice`:
+
+```rix
+lens := .Bind(m)
+lens.At(2, 3).Get()
+lens.At(2, 3).Set(5 / 7)
+```
+
+A Binding captures the RiX `Cell` behind the name. If `m` is later rebound with
+`:=`, an existing Binding continues to refer to the original Cell instead of
+silently switching targets.
+
+RiX Web and the editable notebook result pane translate edits into semantic
+`sheet:set` events containing a full 1-based tensor index and a RiX value. A
+host-owned `WidgetSession` validates the index, updates the Binding, increments
+its revision, and creates a refreshed Sheet. The browser DOM is never stored in
+the Binding or Sheet.
+
+The editor accepts RiX expressions, not untyped display text. Use quotes for
+strings. Double-click or press F2 on a live cell to focus its editor.
+
+Live Binding handles are runtime-only. `WidgetSession.snapshot()` detaches the
+current Sheet with `binding=null` and `editable=false`; persisted and static
+exports therefore retain the current exact values but cannot write back into a
+dead evaluation context.

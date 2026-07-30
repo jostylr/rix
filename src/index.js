@@ -14,7 +14,7 @@ export {
     createCayley, cayleyFromCartesian, cayleyCartesian, addCayley,
     subtractCayley, multiplyCayley, divideCayley, powCayley,
     negateCayley, conjugateCayley, inverseCayley, equalCayley,
-    isOutputValue, formatOutputText, renderOutputHtml, renderGraphicSvg, createSheet,
+    isOutputValue, formatOutputText, renderOutputHtml, renderGraphicSvg, createSheet, createSheetSnapshot,
     createAlgebraOutputCollection, createGraphicsOutputCollection, createSyntheticDivision, createPlotOutputCollection,
     createPolynomialPlot, createGroup, createTransform, createTextMark,
     createRectangle, createCircle, createClip,
@@ -23,3 +23,4 @@ export { createDrawPluginCollection, installDrawPlugin } from "../plugins/draw/d
 export { installPlotPlugin } from "../plugins/plot/plot.plugin.rix.js";
 export { installBundledPlugins } from "../plugins/bundled.js";
 export { enhanceSheetViews, moveSheetSelection, sheetDisplayAddress, sheetPlaneKey } from "./tools/sheet-view.js";
+export { WidgetSession, createWidgetSession } from "./tools/widget-session.js";

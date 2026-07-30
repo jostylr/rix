@@ -1,9 +1,9 @@
 /**
  * Host-side interaction for portable Sheet output.
  *
- * This module adds cell and tensor-plane selection only. It never mutates the
- * Sheet value or its backing RiX data. Hosts may handle activation by inserting
- * the canonical address into an editor or by dispatching a future widget action.
+ * This module owns DOM interaction only. Selection and plane changes work for
+ * every Sheet. A live Sheet delegates edits to the host's onEdit callback,
+ * which can route a semantic event through WidgetSession.
  */
 
 export function sheetDisplayAddress(columnHeader, rowHeader, columnIndex, rowIndex) {
@@ -79,6 +79,12 @@ function enhanceSheet(sheet, options) {
     const cells = [...sheet.querySelectorAll("td[data-rix-address]")];
     const planeBodies = [...sheet.querySelectorAll("tbody[data-rix-plane-key]")];
     const planeSelectors = [...sheet.querySelectorAll("select[data-rix-sheet-axis]")];
+    const editForm = sheet.querySelector(".rix-output-sheet-editor");
+    const editInput = editForm?.querySelector("[data-rix-edit-source]");
+    const editLabel = editForm?.querySelector("[data-rix-edit-label]");
+    const editStatus = editForm?.querySelector("[data-rix-edit-status]");
+    let selectedCell = null;
+    if (editForm && typeof options.onEdit === "function") editForm.hidden = false;
     if (!table || !cells.length) return;
 
     table.setAttribute("role", "grid");
@@ -93,8 +99,12 @@ function enhanceSheet(sheet, options) {
             candidate.tabIndex = selected ? 0 : -1;
         }
         const detail = eventDetail(cell);
+        selectedCell = cell;
         sheet.dataset.rixSelectedAddress = detail.address;
         if (location) location.textContent = `${detail.displayAddress} · ${detail.address}`;
+        if (editInput) editInput.value = cell.textContent.trim();
+        if (editLabel) editLabel.textContent = `${detail.displayAddress} · ${detail.address}`;
+        if (editStatus) editStatus.textContent = "";
         if (focus) cell.focus();
         if (notify) {
             options.onSelection?.(detail, cell, sheet);
@@ -146,9 +156,23 @@ function enhanceSheet(sheet, options) {
         cell.addEventListener("dblclick", (event) => {
             event.preventDefault();
             event.stopPropagation();
+            if (editInput && typeof options.onEdit === "function") {
+                select(cell, { focus: false });
+                editInput.focus();
+                editInput.select();
+                return;
+            }
             activate(cell);
         });
         cell.addEventListener("keydown", (event) => {
+            if (event.key === "F2" && editInput && typeof options.onEdit === "function") {
+                event.preventDefault();
+                event.stopPropagation();
+                select(cell, { focus: false });
+                editInput.focus();
+                editInput.select();
+                return;
+            }
             if (event.key === "Enter") {
                 event.preventDefault();
                 event.stopPropagation();
@@ -175,6 +199,38 @@ function enhanceSheet(sheet, options) {
         });
     }
     for (const selector of planeSelectors) selector.addEventListener("change", changePlane);
+    if (editForm) {
+        editForm.addEventListener("click", (event) => event.stopPropagation());
+        editForm.addEventListener("submit", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            if (!selectedCell) {
+                if (editStatus) editStatus.textContent = "Choose a cell first";
+                return;
+            }
+            if (typeof options.onEdit !== "function") {
+                if (editStatus) editStatus.textContent = "This host opened the live view read-only";
+                return;
+            }
+            const detail = { ...eventDetail(selectedCell), source: editInput?.value ?? "" };
+            try {
+                const result = options.onEdit(detail, selectedCell, sheet);
+                if (result?.type === "error") throw new Error(result.text);
+                if (result && typeof result.then === "function") {
+                    throw new Error("Asynchronous Sheet edits are not supported by this host");
+                }
+                selectedCell.textContent = result?.text ?? detail.source;
+                if (editStatus) editStatus.textContent = "Saved";
+                options.onEditCommitted?.(detail, result, selectedCell, sheet);
+                dispatchSheetEvent(sheet, "rix-sheet-edit", {
+                    ...detail,
+                    revision: result?.revision ?? null,
+                });
+            } catch (error) {
+                if (editStatus) editStatus.textContent = error.message || String(error);
+            }
+        });
+    }
 }
 
 export function enhanceSheetViews(root, options = {}) {

@@ -2,6 +2,7 @@
 
 import { Integer, Rational } from "@ratmath/core";
 import { isTensor, tensorGetBySelectors } from "./tensor.js";
+import { isBinding } from "./binding.js";
 
 const int = (value) => new Integer(BigInt(value));
 const isSequence = (value) => value && ["sequence", "tuple", "set", "array"].includes(value.type);
@@ -138,10 +139,14 @@ export function createGrid(args) {
 }
 
 function sheetData(value) {
+    const binding = isBinding(value) ? value : null;
+    if (binding) value = binding.get();
+
     if (isTensor(value)) {
         if (value.shape.length === 0) throw new Error("Sheet data must have rank 1 or greater");
         return {
             kind: "tensor",
+            binding,
             shape: [...value.shape],
             at: (index) => tensorGetBySelectors(
                 value,
@@ -156,6 +161,7 @@ function sheetData(value) {
         if (!rows.every((row) => row.length === columns)) throw new Error("Sheet matrix rows must have equal lengths");
         return {
             kind: "matrix",
+            binding,
             shape: [rows.length, columns],
             at: ([row, column]) => rows[row - 1][column - 1],
         };
@@ -170,12 +176,14 @@ function sheetData(value) {
             if (!rows.every((row) => row.length === columns)) throw new Error("Sheet rows must have equal lengths");
             return {
                 kind: "sequence",
+                binding,
                 shape: [rows.length, columns],
                 at: ([row, column]) => rows[row - 1][column - 1],
             };
         }
         return {
             kind: "sequence",
+            binding,
             shape: [values.length],
             at: ([row]) => values[row - 1],
         };
@@ -236,11 +244,11 @@ function sheetField(entry, options, name, fallback = null) {
 }
 
 /**
- * Create a portable, immutable sheet snapshot from rank-1+ indexable data.
+ * Create a portable sheet snapshot from rank-1+ indexable data.
  *
- * A Sheet is deliberately not a live binding. Each visible cell retains its
- * source index and canonical RiX address so a future Widget host can attach
- * selection and edit events without changing the portable output schema.
+ * Passing an ordinary value produces an immutable snapshot. Passing a Binding
+ * also retains the live binding so a host-owned WidgetSession can route
+ * semantic edits back to the source Cell.
  */
 export function createSheet(args) {
     const entry = spec(args, ["data", "options"], "Sheet");
@@ -249,6 +257,9 @@ export function createSheet(args) {
     const options = optionsValue === null || optionsValue === undefined
         ? null
         : map(optionsValue, "Sheet options");
+    const refreshOptions = options
+        ? new Map(options)
+        : new Map([...entry].filter(([name]) => !["data", "options"].includes(String(name).toLowerCase())));
     const rank = data.shape.length;
 
     const viewAxesValue = sheetField(entry, options, "viewAxes");
@@ -291,7 +302,8 @@ export function createSheet(args) {
         });
     if (axes.length !== rank) throw new Error(`Sheet axes must contain ${rank} names`);
 
-    const addressBase = asString(sheetField(entry, options, "address", { type: "string", value: "grid" }));
+    const defaultAddress = data.binding?.name || "grid";
+    const addressBase = asString(sheetField(entry, options, "address", { type: "string", value: defaultAddress }));
     if (addressBase === null || addressBase.length === 0) throw new Error("Sheet address must be a nonempty string");
     const columnLabelMode = asString(sheetField(entry, options, "columnLabels", { type: "string", value: "dual" }));
     if (!["dual", "letters", "numbers"].includes(columnLabelMode)) {
@@ -338,6 +350,9 @@ export function createSheet(args) {
 
     return output("sheet", {
         sourceKind: data.kind,
+        binding: data.binding,
+        bindingId: data.binding?.id ?? null,
+        editable: Boolean(data.binding),
         rank,
         shape: Object.freeze([...data.shape]),
         axes: Object.freeze(axes),
@@ -352,7 +367,24 @@ export function createSheet(args) {
         selectedPlaneKey,
         planes: Object.freeze(planes),
         cells,
-        options,
+        options: refreshOptions.size > 0 ? refreshOptions : null,
+    });
+}
+
+/**
+ * Detach a live Sheet from its Binding for persistence or static export.
+ *
+ * Cell values and plane records are already immutable snapshots, so detaching
+ * only removes the runtime handle and live-edit marker.
+ */
+export function createSheetSnapshot(sheet) {
+    if (!isOutputValue(sheet) || sheet.kind !== "sheet") throw new Error("Expected a Sheet output value");
+    if (!sheet.editable) return sheet;
+    return output("sheet", {
+        ...sheet,
+        binding: null,
+        bindingId: null,
+        editable: false,
     });
 }
 
@@ -798,7 +830,13 @@ export function renderOutputHtml(value, format = (item) => String(item ?? "")) {
         const summary = `${value.addressBase} · shape ${value.shape.join("×")}`;
         const controls = value.hiddenAxes.length === 0 ? "" : `<div class="rix-output-sheet-plane-controls" aria-label="Tensor plane">${value.hiddenAxes.map(({ axis, name, length, selected }) => `<label><span>${escapeHtml(name)} · axis ${axis}</span><select data-rix-sheet-axis="${axis}" aria-label="${escapeHtml(name)} axis ${axis}">${Array.from({ length }, (_item, index) => `<option value="${index + 1}"${selected === index + 1 ? " selected" : ""}>${index + 1}</option>`).join("")}</select></label>`).join("")}</div>`;
         const bodies = value.planes.map((plane) => `<tbody data-rix-plane-key="${escapeHtml(plane.key)}" data-rix-slice="${plane.slice.map((item) => item ?? "").join(",")}"${plane.key === value.selectedPlaneKey ? "" : " hidden"}>${plane.cells.map((row, rowIndex) => `<tr><th scope="row" data-rix-row="${rowIndex + 1}">${escapeHtml(value.rowHeaders[rowIndex])}</th>${row.map((cell, columnIndex) => `<td data-rix-row="${rowIndex + 1}" data-rix-column="${columnIndex + 1}" data-rix-index="${cell.index.join(",")}" data-rix-address="${escapeHtml(cell.address)}" data-rix-display-address="${escapeHtml(cell.displayAddress)}" title="${escapeHtml(cell.displayAddress)} · ${escapeHtml(cell.address)}">${text(cell.value)}</td>`).join("")}</tr>`).join("")}</tbody>`).join("");
-        return `<section class="rix-output-sheet" data-rix-rank="${value.rank}" data-rix-selected-plane="${escapeHtml(value.selectedPlaneKey)}">${value.title ? `<h3 class="rix-output-sheet-title">${escapeHtml(value.title)}</h3>` : ""}<div class="rix-output-sheet-location" aria-live="polite" data-rix-summary="${escapeHtml(summary)}">${escapeHtml(summary)}</div>${controls}<table><thead><tr><th class="rix-output-sheet-corner" scope="col">${escapeHtml(value.addressBase)}</th>${value.columnHeaders.map((header, column) => `<th scope="col" data-rix-column="${column + 1}">${escapeHtml(header)}</th>`).join("")}</tr></thead>${bodies}</table></section>`;
+        const liveAttributes = value.editable
+            ? ` data-rix-editable="true" data-rix-binding-id="${escapeHtml(value.bindingId)}"`
+            : "";
+        const editor = value.editable
+            ? `<form class="rix-output-sheet-editor" hidden><label><span data-rix-edit-label>Choose a cell to edit</span><input data-rix-edit-source aria-label="RiX value" autocomplete="off" spellcheck="false"></label><button type="submit">Set</button><output data-rix-edit-status aria-live="polite"></output></form>`
+            : "";
+        return `<section class="rix-output-sheet" data-rix-rank="${value.rank}" data-rix-selected-plane="${escapeHtml(value.selectedPlaneKey)}"${liveAttributes}>${value.title ? `<h3 class="rix-output-sheet-title">${escapeHtml(value.title)}</h3>` : ""}<div class="rix-output-sheet-location" aria-live="polite" data-rix-summary="${escapeHtml(summary)}">${escapeHtml(summary)}</div>${controls}${editor}<table><thead><tr><th class="rix-output-sheet-corner" scope="col">${escapeHtml(value.addressBase)}</th>${value.columnHeaders.map((header, column) => `<th scope="col" data-rix-column="${column + 1}">${escapeHtml(header)}</th>`).join("")}</tr></thead>${bodies}</table></section>`;
     }
     if (value.kind === "figure") return `<figure class="rix-output-figure"${value.label ? ` id="${escapeHtml(value.label)}"` : ""}>${renderOutputHtml(value.content, format)}${value.caption ? `<figcaption>${escapeHtml(value.caption)}</figcaption>` : ""}</figure>`;
     if (value.kind === "graphic") return `<div class="rix-output-graphic">${renderGraphicSvg(value, format)}</div>`;

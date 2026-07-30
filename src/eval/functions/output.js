@@ -3,6 +3,7 @@ import { lower } from "../lower.js";
 import { formatValue } from "../format.js";
 import { Integer } from "@ratmath/core";
 import { createFigure, createFragment, createGrid, createHeading, createParagraph, createSheet, createSlide, createSlides, createTable, createText } from "../../runtime/output.js";
+import { createBinding } from "../../runtime/binding.js";
 
 const capability = (impl, doc) => ({ impl: (args) => impl(args), pure: true, doc });
 
@@ -106,7 +107,25 @@ const documentTemplateFunction = {
     impl: (args, context, evaluate) => documentTemplate(args[0], context, evaluate),
 };
 
+const bindFunction = {
+    lazy: true,
+    pure: false,
+    doc: "Capture a live Binding to a RiX variable",
+    impl(args, context) {
+        if (args.length !== 1) throw new Error(".Bind expects exactly one variable");
+        const target = args[0];
+        if (!target || target.fn !== "RETRIEVE") {
+            throw new Error(".Bind currently requires a variable name; use .Bind(value).At(...) for indexed lenses");
+        }
+        const name = target.args[0];
+        const cell = context.getCell(name);
+        if (!cell) throw new Error(`Cannot bind undefined variable: ${name}`);
+        return createBinding(cell, { name });
+    },
+};
+
 export const outputFunctions = {
+    BIND: bindFunction,
     TEXT: capability(createText, "Create a portable text output node"),
     PARAGRAPH: capability(createParagraph, "Create a portable paragraph output node"),
     HEADING: capability(createHeading, "Create a portable document heading"),
