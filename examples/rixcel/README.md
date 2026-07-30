@@ -29,7 +29,7 @@ can call `renderOutputHtml` to render the same value as an address-aware grid.
 - `$sheet[index]` FormulaSheet dependencies and formula updates without
   exposing internal graph-node names.
 - a FormulaSheet graph propagating three editable inputs through an average,
-  a locally defined function, a live Table, and a Graphic
+  a locally defined function, an observed `$$frag`, a live Table, and a Graphic
   (`reactive-view.rix`).
 
 The formula example is the first in-memory FormulaSheet prototype. Persistent

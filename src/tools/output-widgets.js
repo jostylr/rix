@@ -53,6 +53,7 @@ export function mountOutputWidgets(root, value, options = {}) {
     let sheetDisposers = [];
     let pendingFocusRequest = null;
     let disposed = false;
+    let currentValue = value;
 
     function disposeSheets() {
         for (const dispose of sheetDisposers.splice(0)) dispose();
@@ -140,6 +141,20 @@ export function mountOutputWidgets(root, value, options = {}) {
         }
     } else {
         mountSheets(root, value);
+    }
+
+    if (typeof options.observe === "function") {
+        const unsubscribe = options.observe((nextValue, event = null) => {
+            if (disposed) return;
+            const focusRequest = pendingFocusRequest;
+            pendingFocusRequest = null;
+            currentValue = nextValue;
+            root.innerHTML = render(currentValue);
+            mountSheets(root, currentValue);
+            restoreSheetFocus(root, focusRequest);
+            options.onLiveChange?.(event, root);
+        });
+        disposers.push(unsubscribe);
     }
 
     return () => {

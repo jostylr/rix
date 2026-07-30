@@ -234,6 +234,35 @@ describe("reactive dollar bindings", () => {
         expect(parseAndEvaluate("$$values[1,2]", options)).toBe(sheet.reactiveNode([1, 2]));
     });
 
+    test("$sheet tracks every FormulaSheet slot for a whole-sheet dependent", () => {
+        const options = runtime();
+        const fragment = parseAndEvaluate(`
+            values := .FormulaSheet({:1x2: @{2}, @{3}});
+            $$fragment := .Fragment([
+                .Sheet($values),
+                .Text($values[1,1] + $values[1,2])
+            ]);
+            fragment
+        `, options);
+        const node = options.context.get("fragment");
+
+        expect(node.live().dependencies).toEqual(["slot_1_1", "slot_1_2"]);
+        expect(formatValue(fragment)).toContain("5");
+        parseAndEvaluate("$values[1,2] := @{8}", options);
+        expect(formatValue(node.peek())).toContain("10");
+        expect(parseAndEvaluate("$$values", options)).toBe(options.context.get("values"));
+    });
+
+    test("the final expression reports only its direct reactive output read", () => {
+        const options = runtime();
+        parseAndEvaluate("$$first := 2; $$second := 3", options);
+        const reads = new Set();
+        const result = parseAndEvaluate("$first; $second", { ...options, reactiveReads: reads });
+
+        expect(formatValue(result)).toBe("3");
+        expect([...reads]).toEqual([options.context.get("second")]);
+    });
+
     test("updated FormulaSheet formulas can read named nodes in the same graph", () => {
         const options = runtime();
         parseAndEvaluate(`

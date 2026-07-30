@@ -10,6 +10,7 @@ import { runtimeDefaults } from "../../runtime/runtime-config.js";
 export const REACTIVE_BINDING_GRAPH_ENV = "__reactive_binding_graph__";
 export const REACTIVE_ACTIVE_GRAPH_ENV = "__reactive_active_graph__";
 export const REACTIVE_TRANSACTION_ENV = "__reactive_transaction__";
+export const REACTIVE_OUTPUT_READ_ENV = "__reactive_output_read__";
 
 function requireDeferred(value, label) {
     if (!value || value.fn !== "DEFER") {
@@ -51,6 +52,12 @@ function requireSameActiveGraph(node, context, label) {
     if (activeGraph && node.graph !== activeGraph) {
         throw new Error(`${label} crosses ReactiveGraphs`);
     }
+}
+
+function observeOutputRead(source, value, context) {
+    if (context.getEnv(REACTIVE_ACTIVE_GRAPH_ENV, null)) return;
+    const observer = context.getEnv(REACTIVE_OUTPUT_READ_ENV, null);
+    if (typeof observer === "function") observer(source, value);
 }
 
 function restoreEnv(context, key, snapshot) {
@@ -311,6 +318,18 @@ function updateReactive(args, context, evaluate) {
 
 function readReactive(args, context) {
     const name = args[0];
+    const value = context.get(name);
+    if (isFormulaSheet(value)) {
+        const activeGraph = context.getEnv(REACTIVE_ACTIVE_GRAPH_ENV, null);
+        if (activeGraph && value.graph !== activeGraph) {
+            throw new Error(
+                `Tracked reactive read '$${name}' crosses ReactiveGraphs; alias or import it into one graph first`,
+            );
+        }
+        value.track();
+        observeOutputRead(value, value, context);
+        return value;
+    }
     const node = rawReactiveNode(name, context, "Tracked reactive read");
     const activeGraph = context.getEnv(REACTIVE_ACTIVE_GRAPH_ENV, null);
     if (activeGraph && node.graph !== activeGraph) {
@@ -318,17 +337,23 @@ function readReactive(args, context) {
             `Tracked reactive read '$${name}' crosses ReactiveGraphs; alias or import it into one graph first`,
         );
     }
-    return node.get();
+    const result = node.get();
+    observeOutputRead(node, result, context);
+    return result;
 }
 
 function retrieveReactiveNode(args, context) {
+    const value = context.get(args[0]);
+    if (isFormulaSheet(value)) return value;
     return rawReactiveNode(args[0], context, "Reactive cell reference");
 }
 
 function readReactiveIndex(args, context, evaluate) {
     const { node } = reactiveIndex(args, context, evaluate, "Tracked FormulaSheet read");
     requireSameActiveGraph(node, context, "Tracked FormulaSheet read");
-    return node.get();
+    const result = node.get();
+    observeOutputRead(node, result, context);
+    return result;
 }
 
 function retrieveReactiveIndexNode(args, context, evaluate) {

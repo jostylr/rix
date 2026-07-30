@@ -303,14 +303,15 @@ $Scale(4);                      # tracked function call
 $Scale := x -> x + $source      # identity-preserving replacement
 ```
 
-A raw cell identity is itself an observable source, so it can drive a
-dependent output directly:
+A reactive output is an ordinary named reactive value. Reading it as the final
+result lets an interactive host observe the same node it renders:
 
 ```rix
 $$source := 2;
 $$target := $source * 4;
-view := .LiveView($$source, @{ .Text(target) });
-$source := 3             # view now displays 12
+$$frag := .Text($target);
+$frag;
+$source := 3             # an observer of $frag redraws it as 12
 ```
 
 FormulaSheet is a coordinate adapter over the same runtime. Dollar indexing
@@ -326,29 +327,29 @@ $$functionvalue := {;
     Scale($values[1,1])
 };
 
-.LiveView(values, @{
-    .Fragment([
-        .Sheet(source, {= title="Editable inputs" }),
-        .Table(
-            ["quantity", "value"],
-            [
-                ["Average of first and second", average],
-                ["Scale(first), where Scale(x) = x * third", functionvalue]
-            ]
+$$frag := .Fragment([
+    .Sheet($values, {= title="Editable inputs" }),
+    .Table(
+        ["quantity", "value"],
+        [
+            ["Average of first and second", $average],
+            ["Scale(first), where Scale(x) = x * third", $functionvalue]
+        ]
+    ),
+    .Graphics.Graphic([260, 140], [
+        .Graphics.Path(
+            [[20, 120], [$values[1,1], $values[1,2]]],
+            {= stroke="#4f46e5", width=3 }
         ),
-        .Graphics.Graphic([260, 140], [
-            .Graphics.Path(
-                [[20, 120], [source[1,1], source[1,2]]],
-                {= stroke="#4f46e5", width=3 }
-            ),
-            .Graphics.Circle(
-                [source[1,1], source[1,2]],
-                source[1,3],
-                {= fill="#f97316" }
-            )
-        ])
+        .Graphics.Circle(
+            [$values[1,1], $values[1,2]],
+            $values[1,3],
+            {= fill="#f97316" }
+        )
     ])
-})
+]);
+
+$frag
 ```
 
 The verbose `.ReactiveGraph` string API canonicalizes names to lowercase.
@@ -363,12 +364,21 @@ recomputes those nodes in dependency order, and emits one commit. Cycles report
 their complete graph path and preserve the last successfully committed values.
 
 FormulaSheet and Binding implement the host-neutral `subscribe(listener)`
-contract. The `.LiveView` body runs in an isolated context where `source` is
-the subscribed object and named nodes from a FormulaSheet graph are available
-by name. A successful FormulaSheet commit or Binding update rederives the
-complete output and publishes a `live:commit` event.
+contract. A FormulaSheet is already reactive: `$values` returns that same
+FormulaSheet while recording every slot as a dependency, whereas
+`$values[1,2]` records only one coordinate. Plain `.Sheet(values)` constructs
+from the current sheet without adding a whole-sheet dependency;
+`.Sheet($values)` makes an enclosing reactive output rebuild after any slot
+changes.
+
+When RiX Web receives a direct final read such as `$frag`, it renders the
+current Fragment and subscribes to that node. Each successful graph commit
+replaces the portable output and remounts its interactive children. Removing
+or rerunning the output disposes the old subscription. `.LiveView` remains
+available as a verbose, explicit-source compatibility layer, but is not needed
+for the normal named reactive-output pattern.
 
 This contract is intentionally independent of the interaction that caused the
 update. A formula editor uses `sheet:formula`; a future draggable Graphic point
-can write a coordinate through a Binding. Both cause the same LiveView
-rederivation without making Graphics depend on spreadsheet code.
+can write a coordinate through a Binding. Both cause the same graph propagation
+and observed-output redraw without making Graphics depend on spreadsheet code.

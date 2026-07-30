@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { restoreSheetFocus } from "../../src/tools/output-widgets.js";
+import { mountOutputWidgets, restoreSheetFocus } from "../../src/tools/output-widgets.js";
 
 function fakeSheet(addresses) {
     const cells = addresses.map((address) => ({
@@ -47,4 +47,34 @@ test("LiveView remount focus safely ignores a removed sheet or coordinate", () =
 
     expect(restoreSheetFocus(root, { sheetIndex: 0, address: "grid[1,1]" })).toBe(false);
     expect(restoreSheetFocus(root, null)).toBe(false);
+});
+
+test("a host-observed reactive output remounts and disposes its subscription", () => {
+    let notify = null;
+    let unsubscribed = false;
+    const root = {
+        innerHTML: "<span>first</span>",
+        matches() {
+            return false;
+        },
+        querySelectorAll() {
+            return [];
+        },
+    };
+    const dispose = mountOutputWidgets(root, "first", {
+        render: (value) => `<span>${value}</span>`,
+        observe(listener) {
+            notify = listener;
+            return () => {
+                unsubscribed = true;
+            };
+        },
+    });
+
+    notify("second");
+    expect(root.innerHTML).toBe("<span>second</span>");
+    dispose();
+    expect(unsubscribed).toBe(true);
+    notify("third");
+    expect(root.innerHTML).toBe("<span>second</span>");
 });

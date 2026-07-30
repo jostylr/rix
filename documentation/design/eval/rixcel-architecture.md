@@ -342,12 +342,27 @@ node's deferred formula. Tensor-shaped FormulaSheet construction supports
 dense rank-N formula grids; rectangular nested arrays remain a rank-2
 convenience.
 
-FormulaSheet and Binding expose the same JavaScript subscription boundary.
-`.LiveView(source, @{ ... })` rederives a Sheet, Table, Fragment, Graphic, or
-other output after its explicit source commits. When its source is a
-FormulaSheet or ReactiveGraph, graph node names are available in the isolated
-deferred body and automatically unwrap to their current values. This keeps the
-dependency direction outside the renderer:
+`$values` without an index is a whole-sheet tracked read. It returns the
+FormulaSheet itself while recording an edge to every formula slot, so this
+defines a document that changes after any coordinate changes:
+
+```rix
+$$frag := .Fragment([
+    .Sheet($values),
+    .Text($total)
+]);
+$frag
+```
+
+Plain `.Sheet(values)` deliberately adds no whole-sheet dependency. `$$values`
+returns the FormulaSheet identity, and `$values[index]` remains the narrow form
+for computations that depend on one coordinate.
+
+FormulaSheet, Binding, and ReactiveNode expose the same JavaScript subscription
+boundary. When an interactive host evaluates a direct final reactive read such
+as `$frag`, evaluation supplies the node identity as host metadata while the
+RiX result remains the current portable Fragment value. The host renders that
+value, subscribes to the node, and replaces the rendered output after commits:
 
 ```text
 sheet:formula or future graphic:drag
@@ -356,16 +371,18 @@ sheet:formula or future graphic:drag
        observable model commit
                 |
                 v
-          LiveView derivation
+        reactive Fragment node
                 |
                 v
-       refreshed portable output
+       host redraw and remount
 ```
 
 A draggable Graphic point can therefore update a Binding or graph source and
 let the same propagation path refresh its dependent lines and functions.
-Direct Graphic manipulation and collection of multiple independent observable
-roots by one LiveView remain future protocol extensions.
+`.LiveView(source, deferred)` remains a lower-level compatibility constructor
+for code that wants an explicit wrapper and isolated derivation. Direct Graphic
+manipulation and dependencies spanning multiple independent ReactiveGraphs
+remain future protocol extensions.
 
 ## Reactive document model
 

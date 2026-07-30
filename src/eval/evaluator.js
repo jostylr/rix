@@ -33,7 +33,10 @@ import { installSymbolicVariants, symbolicCapabilities, symbolicFunctions } from
 import { outputFunctions } from "./functions/output.js";
 import { formulaSheetFunctions } from "./functions/formula-sheet.js";
 import { reactiveGraphFunctions } from "./functions/reactive-graph.js";
-import { reactiveBindingFunctions } from "./functions/reactive-bindings.js";
+import {
+    reactiveBindingFunctions,
+    REACTIVE_OUTPUT_READ_ENV,
+} from "./functions/reactive-bindings.js";
 import {
     createPolySystemValue,
     embeddedFunctions,
@@ -925,6 +928,7 @@ export function evaluate(irNode, context, registry, systemContext) {
  * @param {Registry} [options.registry] - Internal registry (creates default if not provided)
  * @param {SystemContext} [options.systemContext] - System capability object (creates default if not provided)
  * @param {Function} [options.systemLookup] - System symbol lookup for parser
+ * @param {Set} [options.reactiveReads] - Receives reactive sources read by the final expression
  * @returns {*} The result of the last expression
  */
 export function parseAndEvaluate(code, options = {}) {
@@ -960,7 +964,24 @@ export function parseAndEvaluate(code, options = {}) {
 
     let result = null;
     for (const irNode of irNodes) {
-        result = evaluate(irNode, context, registry, systemContext);
+        if (!(options.reactiveReads instanceof Set)) {
+            result = evaluate(irNode, context, registry, systemContext);
+            continue;
+        }
+        const reads = new Set();
+        const previousObserver = {
+            has: context.env?.has(REACTIVE_OUTPUT_READ_ENV) === true,
+            value: context.getEnv(REACTIVE_OUTPUT_READ_ENV, undefined),
+        };
+        context.setEnv(REACTIVE_OUTPUT_READ_ENV, (source) => reads.add(source));
+        try {
+            result = evaluate(irNode, context, registry, systemContext);
+        } finally {
+            if (previousObserver.has) context.setEnv(REACTIVE_OUTPUT_READ_ENV, previousObserver.value);
+            else context.env?.delete(REACTIVE_OUTPUT_READ_ENV);
+        }
+        options.reactiveReads.clear();
+        for (const source of reads) options.reactiveReads.add(source);
     }
     return result;
 }

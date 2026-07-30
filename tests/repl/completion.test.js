@@ -70,6 +70,7 @@ describe("REPL completion", () => {
         expect(completions("$Fu", context).candidates[0].kind).toBe("reactive function");
         expect(completions("$$Fu", context).candidates[0].kind).toBe("reactive function");
         expect(completions("$val", context).candidates[0].kind).toBe("reactive sheet");
-        expect(completions("$$val", context).candidates).toHaveLength(0);
+        expect(completions("$val", context).candidates[0].detail).toContain("whole-sheet");
+        expect(completions("$$val", context).candidates[0].kind).toBe("reactive sheet");
     });
 });

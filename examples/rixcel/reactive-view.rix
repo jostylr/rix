@@ -9,30 +9,30 @@ $$functionvalue := {;
     Scale($values[1,1])
 };
 
-.LiveView(values, @{
-    .Fragment([
-        .Heading(2, "Reactive point report"),
-        .Sheet(source, {=
-            title="Editable inputs",
-            axes=["point", "value"]
-        }),
-        .Table(
-            ["quantity", "value"],
-            [
-                ["Average of first and second", average],
-                ["Scale(first), where Scale(x) = x * third", functionvalue]
-            ]
+$$frag := .Fragment([
+    .Heading(2, "Reactive point report"),
+    .Sheet($values, {=
+        title="Editable inputs",
+        axes=["point", "value"]
+    }),
+    .Table(
+        ["quantity", "value"],
+        [
+            ["Average of first and second", $average],
+            ["Scale(first), where Scale(x) = x * third", $functionvalue]
+        ]
+    ),
+    .Graphics.Graphic([260, 140], [
+        .Graphics.Path(
+            [[20, 120], [$values[1,1], $values[1,2]]],
+            {= stroke="#4f46e5", width=3 }
         ),
-        .Graphics.Graphic([260, 140], [
-            .Graphics.Path(
-                [[20, 120], [source[1,1], source[1,2]]],
-                {= stroke="#4f46e5", width=3 }
-            ),
-            .Graphics.Circle(
-                [source[1,1], source[1,2]],
-                source[1,3],
-                {= fill="#f97316" }
-            )
-        ])
+        .Graphics.Circle(
+            [$values[1,1], $values[1,2]],
+            $values[1,3],
+            {= fill="#f97316" }
+        )
     ])
-})
+]);
+
+$frag

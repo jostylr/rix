@@ -161,7 +161,7 @@ export function complete(source, cursor, { context, systemContext, formatValue }
             .map((name) => [name, context.get(name)])
             .filter(([, value]) =>
                 value?.type === "reactive_node"
-                || (reactivePrefix === "$" && value?.type === "formula_sheet"))
+                || value?.type === "formula_sheet")
             .map(([name, value]) => {
                 const current = value.type === "reactive_node" ? value.peek() : null;
                 const callable = current
@@ -174,7 +174,9 @@ export function complete(source, cursor, { context, systemContext, formatValue }
                             ? "reactive function"
                             : reactivePrefix === "$$" ? "reactive cell" : "reactive value",
                     detail: value.type === "formula_sheet"
-                        ? "append [index] for a tracked cell read"
+                        ? reactivePrefix === "$$"
+                            ? "FormulaSheet identity"
+                            : "tracked whole-sheet read; append [index] to track one cell"
                         : callable
                             ? reactivePrefix === "$$"
                                 ? "reactive function identity"

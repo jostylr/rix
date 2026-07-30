@@ -184,6 +184,12 @@ export function createFormulaSheet(formulasValue, options = {}) {
             const normalized = normalizeIndex(index, shape);
             return graph.get(nodeNameFor(normalized));
         },
+        track() {
+            for (const { index } of formulas.entries) {
+                graph.get(nodeNameFor(index));
+            }
+            return sheet;
+        },
         getFormula(index) {
             return graph.node(nodeNameFor(normalizeIndex(index, shape))).formula;
         },
