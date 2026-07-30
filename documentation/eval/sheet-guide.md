@@ -245,6 +245,46 @@ target2 := graph.Derive("target2", @{ target1 * 4 });
 source1.Set(10);  # target1 is 13 and target2 is 52
 ```
 
+The equivalent `.RG` notation removes the repeated string names:
+
+```rix
+graph := `.RG.Init.Set:
+    $source1 := 2
+    source source2 := 3
+    target1 := source1 + source2
+    target2 := target1 * 4
+`;
+
+`.RG:
+    target3 := target2 + source1
+`
+```
+
+`$name` and `source name` both declare externally settable source nodes.
+Unmarked assignments declare computed nodes. `Init` creates a graph, and `Set`
+makes it the default for subsequent `.RG:` blocks in the current RiX execution
+context. `.RG.Use(graph): ...` applies one block without changing the default;
+`.RG.Set(graph): ...` applies it and changes the default.
+
+The notation first produces a graph plan, so normal RiX can inspect or apply the
+same declarations:
+
+```rix
+plan := .RG.Analyze(@{
+    source1 := .RG.Source(2);
+    source2 := .RG.Source(3);
+    target1 := source1 + source2
+});
+
+graph := .RG.Init("totals", plan);
+.RG.Apply(graph, .RG.Analyze("target2 := target1 * 4"))
+```
+
+Static plan analysis identifies declarations and source markers. Runtime reads
+remain authoritative for dependency edges, including conditional reads and
+reads made inside functions. `$` is a source marker only inside `.RG` source;
+ordinary RiX continues to use `$` for the current callable.
+
 FormulaSheet is a coordinate adapter over the same runtime. `.Graph()` exposes
 its graph so named computations and `grid[...]` formulas participate in one
 dependency network:
@@ -253,14 +293,13 @@ dependency network:
 values := .FormulaSheet([[@{120}, @{40}, @{8}]]);
 graph := values.Graph();
 
-average := graph.Derive("average", @{
-    (grid[1,1] + grid[1,2]) / 2
-});
-
-functionvalue := graph.Derive("functionvalue", @{
-    Scale(x) -> x * grid[1,3];
-    Scale(grid[1,1])
-});
+`.RG.Use(graph):
+    average := (grid[1,1] + grid[1,2]) / 2
+    functionvalue := {;
+        Scale(x) -> x * grid[1,3];
+        Scale(grid[1,1])
+    }
+`;
 
 .LiveView(values, @{
     .Fragment([

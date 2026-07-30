@@ -68,6 +68,7 @@ export function createRixLanguage(options = {}) {
   const embeddedParsers = new Map([
     ["SArith", parserWithMetadata],
     ["Poly", parserWithMetadata],
+    ["RG", parserWithMetadata],
     ...Object.entries(options.embeddedParsers || {}),
   ]);
   const mixedParser = parserWithMetadata.configure({

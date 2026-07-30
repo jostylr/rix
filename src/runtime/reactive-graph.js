@@ -318,6 +318,50 @@ export function createReactiveGraph(options = {}) {
         bindings() {
             return new Map(nodes);
         },
+        define(definitions, cause = null) {
+            if (!Array.isArray(definitions) || definitions.length === 0) return graph;
+            const pendingNames = new Set();
+            for (const definition of definitions) {
+                const name = nodeName(definition?.name);
+                requireAvailableName(name);
+                if (pendingNames.has(name)) throw new Error(`Reactive node already exists in definition batch: ${name}`);
+                if (definition.kind !== "source" && definition.kind !== "computed") {
+                    throw new Error(`Reactive definition ${name} must be a source or computed node`);
+                }
+                if (definition.kind === "computed" && (!definition.formula || definition.formula.fn !== "DEFER")) {
+                    throw new Error(`Reactive computed definition ${name} requires deferred syntax @{ ... }`);
+                }
+                pendingNames.add(name);
+            }
+
+            const added = [];
+            try {
+                for (const definition of definitions) {
+                    const name = nodeName(definition.name);
+                    const node = makeNode(name, definition.kind, definition.kind === "source"
+                        ? { value: definition.value }
+                        : {
+                            formula: definition.formula,
+                            source: definition.source ?? options.formulaSource?.(definition.formula) ?? null,
+                            evaluator: definition.evaluator ?? null,
+                        });
+                    nodes.set(name, node);
+                    added.push(name);
+                }
+                const computed = new Set(added.filter((name) => nodes.get(name).kind === "computed"));
+                if (computed.size > 0) {
+                    runEpoch({
+                        dirty: computed,
+                        cause: cause || { type: "reactive:define", names: Object.freeze([...added]) },
+                    });
+                }
+                return graph;
+            } catch (error) {
+                for (const name of added) nodes.delete(name);
+                rebuildDependents();
+                throw error;
+            }
+        },
         setSource(name, value, metadata = null) {
             name = nodeName(name);
             const node = requireNode(name);

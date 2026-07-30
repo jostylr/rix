@@ -64,6 +64,8 @@ Checked items are implemented in the current RiX repository.
 - [x] Incrementally propagate changes through transitive dependents.
 - [x] Batch graph propagation into atomic evaluation epochs.
 - [x] Make FormulaSheet graph nodes available by name inside `.LiveView`.
+- [x] Add `.RG` plans and backtick notation with `$name` source declarations.
+- [x] Add context-local default, `Use`, and `Set` graph selection.
 - [ ] Subscribe one LiveView to multiple independent observable roots.
 - [ ] Define volatile/external-source recomputation policy.
 - [ ] Add round-trip and migration tests for `.rixcel` documents.

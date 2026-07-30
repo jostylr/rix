@@ -298,6 +298,27 @@ dirty computation at most once, replaces successful dynamic edges, and emits
 one commit after every staged value succeeds. Direct writes to computed nodes
 and nested epochs are rejected.
 
+The `.RG` registered backtick parser is the concise declaration layer over this
+runtime:
+
+```rix
+graph := `.RG.Init.Set:
+    $source1 := 2
+    source source2 := 3
+    target1 := source1 + source2
+    target2 := target1 * 4
+`
+```
+
+Within RG source, `$name` and `source name` normalize to source declarations;
+unmarked assignments normalize to computed definitions. `Init` creates a
+graph, `Set` stores a context-local default, and `Use(graph)` applies a block
+without changing that default. The parser creates an inspectable graph plan
+and installs its definitions as one batch, permitting forward references and
+rolling back newly added nodes when initialization fails. Programmatic callers
+can produce the same plan with `.RG.Analyze(@{ ... })`, marking sources with
+`.RG.Source(expression)`.
+
 FormulaSheet and Binding expose the same JavaScript subscription boundary.
 `.LiveView(source, @{ ... })` rederives a Sheet, Table, Fragment, Graphic, or
 other output after its explicit source commits. When its source is a

@@ -648,7 +648,7 @@ Note
 <p>This page is generated from the current RiX implementation by <code>documentation/scripts/generate-reference.js</code>. Do not edit it by hand. Descriptions come from registry documentation strings; the narrative <a href="../eval/syntax-guide.html">syntax guide</a> and <a href="../eval/methods-guide.html">methods guide</a> provide signatures and examples.</p>
 </div>
 </div>
-<p>At this revision RiX exposes <strong>146 named entries</strong> on the default system context and registers <strong>175 internal IR operations</strong>. Aliases with different spelling are listed separately because they are separately addressable names.</p>
+<p>At this revision RiX exposes <strong>147 named entries</strong> on the default system context and registers <strong>175 internal IR operations</strong>. Aliases with different spelling are listed separately because they are separately addressable names.</p>
 <section id="public-system-context" class="level2">
 <h2 class="anchored" data-anchor-id="public-system-context">Public system context</h2>
 <p>These names are available through the leading-dot system object, such as <code>.Len(value)</code>. Uppercase names are also used by explicit system/operator forms where applicable.</p>
@@ -1293,252 +1293,258 @@ Note
 <td>Reverse a collection (returns new copy)</td>
 </tr>
 <tr class="odd">
+<td><code>.RG</code></td>
+<td>value</td>
+<td>Notation, RiXCel</td>
+<td>Define and apply ReactiveGraph plans through concise .RG backtick notation</td>
+</tr>
+<tr class="even">
 <td><code>.SAMECELL</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Identity comparison (===) — returns 1 if both sides refer to the same cell, null otherwise</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.SAME_CELL</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Identity comparison (===) — returns 1 if both sides refer to the same cell, null otherwise</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.SARITH</code></td>
 <td>function</td>
 <td>—</td>
 <td>Parse structural arithmetic; backticks use this parser by default, with optional Complex/Quaternion/Octonion/Algebra scopes</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.SET</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Create a set (unique values)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.SHEET</code></td>
 <td>function</td>
 <td>Output</td>
 <td>Create a portable sheet view of indexable data</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.SIMPLIFY</code></td>
 <td>function</td>
 <td>Symbolic</td>
 <td>Compatibility alias for Transform</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.SLICE</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Strict slice operator |&gt;/</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.SLICECLAMP</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Clamped slice operator |&gt;//</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.SLIDE</code></td>
 <td>function</td>
 <td>Output</td>
 <td>Create a presentation slide</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.SLIDES</code></td>
 <td>function</td>
 <td>Output</td>
 <td>Create a sequential presentation deck</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.SORT</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Sort a collection with comparator function (returns new copy)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.SPEC</code></td>
 <td>function</td>
 <td>Symbolic</td>
 <td>Analyze a pure function and attach/return its symbolic spec</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.SPECCABILITY</code></td>
 <td>function</td>
 <td>Symbolic</td>
 <td>Report whether a pure function can be represented by the exact symbolic subset</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.SPLIT</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Split a collection by a delimiter or predicate</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.SQRT</code></td>
 <td>function</td>
 <td>—</td>
 <td>Square root (approximate rational)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.STOP</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Conditional abort: .Stop(label, condition, dataMap ?= {=})</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.SUB</code></td>
 <td>function</td>
 <td>Arith</td>
 <td>Subtraction</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.SUBSTR</code></td>
 <td>function</td>
 <td>Strings</td>
 <td>Get substring</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.SYMMETRICDIFFERENCE</code></td>
 <td>function</td>
 <td>—</td>
 <td>Core operation SET_SYMDIFF</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.TABLE</code></td>
 <td>function</td>
 <td>Output</td>
 <td>Create a structured output table</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.TEMPLATE_TEXT</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Create interpolated text with <span class="citation" data-cites="expression">@expression</span> insertions</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.TEST</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Run tests: .Test(label, setup, [tests] | {= tests })</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.TESTERROR</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Abort test: .TestError(label, setup, expr) — passes if expr aborts with .Error() or a runtime error</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.TESTSTOP</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Abort test: .TestStop(label, setup, expr) — passes if expr aborts via .Stop()</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.TEXT</code></td>
 <td>function</td>
 <td>Output</td>
 <td>Create a portable text output node</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.TGEN</code></td>
 <td>lazy function</td>
 <td>Core, Collections, Arrays</td>
 <td>Generate a tensor from a shape and index callback</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.TRACE</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Trace execution: .Trace(label, depth, trackedVars?, thunkOrCallable)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.TRAITREGISTER</code></td>
 <td>function</td>
 <td>—</td>
 <td>Register an immutable semantic trait from a RiX map spec</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.TRANSFORM</code></td>
 <td>function</td>
 <td>Symbolic</td>
 <td>Apply ordered exact symbolic transformations</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.TUPLE</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Create a tuple</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.TYPEEXPORT</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Export a semantically typed value through its registered type exporter</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.TYPEIMPORT</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Import a value from a tagged type export map</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.TYPEINSTALL</code></td>
 <td>function</td>
 <td>—</td>
 <td>Install a registered semantic type into system multifunctions</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.TYPEREGISTER</code></td>
 <td>function</td>
 <td>—</td>
 <td>Register an immutable semantic type from a RiX map spec</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.UNION</code></td>
 <td>function</td>
 <td>—</td>
 <td>Join/Union of two collections (set union or interval hull)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.UNITS</code></td>
 <td>value</td>
 <td>Units</td>
 <td>Canonical RiX unit collection</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.UPPER</code></td>
 <td>function</td>
 <td>Strings</td>
 <td>Convert string to uppercase</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.VALUES</code></td>
 <td>function</td>
 <td>Core, Maps</td>
 <td>Get the values of a map as a set (obj|.)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.WARN</code></td>
 <td>function</td>
 <td>—</td>
 <td>Emit a warning event: .Warn(label, dataMap ?= {=})</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.draw</code></td>
 <td>function</td>
 <td>Draw</td>
 <td>Convenient 2D drawing helpers that produce core Graphics nodes.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.exactalgebras</code></td>
 <td>function</td>
 <td>Exact</td>
 <td>Exact rational quaternion and octonion values.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.plot</code></td>
 <td>function</td>
 <td>Plot</td>
@@ -1936,7 +1942,7 @@ Note
 </tr>
 <tr class="odd">
 <td><code>Notation</code></td>
-<td><code>SArith</code>, <code>Poly</code>, <code>NotationParser</code></td>
+<td><code>SArith</code>, <code>Poly</code>, <code>NotationParser</code>, <code>RG</code></td>
 </tr>
 <tr class="even">
 <td><code>Random</code></td>
@@ -1944,7 +1950,7 @@ Note
 </tr>
 <tr class="odd">
 <td><code>RiXCel</code></td>
-<td><code>FORMULASHEET</code>, <code>REACTIVEGRAPH</code></td>
+<td><code>FORMULASHEET</code>, <code>REACTIVEGRAPH</code>, <code>RG</code></td>
 </tr>
 </tbody>
 </table>

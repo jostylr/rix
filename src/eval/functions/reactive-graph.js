@@ -5,13 +5,7 @@ import {
 } from "../../runtime/reactive-graph.js";
 import { containsOuterRead, deferredSource } from "./formula-sheet.js";
 
-function reactiveGraphCapability(args, context, evaluate) {
-    if (args.length > 1) throw new Error(".ReactiveGraph accepts at most one identifier string");
-    const requestedId = args[0]?.type === "string" ? args[0].value : args[0] ?? null;
-    if (requestedId !== null && typeof requestedId !== "string") {
-        throw new Error(".ReactiveGraph identifier must be a string");
-    }
-
+export function createEvaluatedReactiveGraph(context, evaluate, requestedId = null) {
     let graph = null;
     graph = createReactiveGraph({
         id: requestedId || undefined,
@@ -39,6 +33,15 @@ function reactiveGraphCapability(args, context, evaluate) {
         },
     });
     return graph;
+}
+
+function reactiveGraphCapability(args, context, evaluate) {
+    if (args.length > 1) throw new Error(".ReactiveGraph accepts at most one identifier string");
+    const requestedId = args[0]?.type === "string" ? args[0].value : args[0] ?? null;
+    if (requestedId !== null && typeof requestedId !== "string") {
+        throw new Error(".ReactiveGraph identifier must be a string");
+    }
+    return createEvaluatedReactiveGraph(context, evaluate, requestedId);
 }
 
 export const reactiveGraphFunctions = {

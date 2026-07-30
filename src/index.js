@@ -27,3 +27,12 @@ export { installBundledPlugins } from "../plugins/bundled.js";
 export { enhanceSheetViews, moveSheetSelection, sheetDisplayAddress, sheetPlaneKey } from "./tools/sheet-view.js";
 export { WidgetSession, createWidgetSession } from "./tools/widget-session.js";
 export { mountOutputWidgets } from "./tools/output-widgets.js";
+export {
+    createReactiveGraphNotationValue,
+    createReactiveGraphPlan,
+    isReactiveGraphPlan,
+    parseReactiveGraphSource,
+    analyzeReactiveGraphDeferred,
+    applyReactiveGraphPlan,
+    RG_DEFAULT_GRAPH_ENV,
+} from "./eval/functions/reactive-graph-notation.js";

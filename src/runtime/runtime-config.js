@@ -32,8 +32,8 @@ export const runtimeDefaults = Object.freeze({
     Units: Object.freeze(["UNITS", "Units", "CONVERTUNIT", "ConvertUnit", "DEFINEUNIT", "DefineUnit"]),
     Exact: Object.freeze(["EXACT", "Exact", "COMPLEX", "Complex", "DEFINEEXACTGENERATOR", "DefineExactGenerator", "exactalgebras"]),
     Symbolic: Object.freeze(["POLY", "DERIV", "INTEGRATE", "TRANSFORM", "SIMPLIFY", "SPEC", "SPECCABILITY", "INSPECTSPEC", "SArith"]),
-    Notation: Object.freeze(["SArith", "Poly", "NotationParser"]),
+    Notation: Object.freeze(["SArith", "Poly", "NotationParser", "RG"]),
     Random: Object.freeze(["RANDOMSEED", "RandomSeed", "RAND_NAME"]),
-    RiXCel: Object.freeze(["FORMULASHEET", "REACTIVEGRAPH"]),
+    RiXCel: Object.freeze(["FORMULASHEET", "REACTIVEGRAPH", "RG"]),
   }),
 });

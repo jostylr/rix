@@ -287,6 +287,7 @@ export function formatValue(val, options = {}) {
         if (val.type === "binding") return val.toString();
         if (val.type === "formula_sheet") return val.toString();
         if (val.type === "reactive_graph" || val.type === "reactive_node") return val.toString();
+        if (val.type === "reactive_graph_plan" || val.type === "reactive_graph_notation") return val.toString();
         if (val.type === "string") return val.value;
         if (isCayleyInfinity(val)) return "Infinity";
         if (isCayleyValue(val)) {

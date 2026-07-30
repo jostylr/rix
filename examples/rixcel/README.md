@@ -7,6 +7,7 @@ the examples from the `rix/` directory:
 bun bin/rix.js examples/rixcel/sheet-views.rix
 bun bin/rix.js examples/rixcel/live-sheet.rix
 bun bin/rix.js examples/rixcel/formula-sheet.rix
+bun bin/rix.js examples/rixcel/reactive-graph-notation.rix
 bun bin/rix.js examples/rixcel/reactive-view.rix
 ```
 
@@ -23,6 +24,8 @@ can call `renderOutputHtml` to render the same value as an address-aware grid.
   (`live-sheet.rix`).
 - a formula-backed sheet with dependency evaluation and an update epoch
   (`formula-sheet.rix`).
+- concise `$source` declarations, derived nodes, and default-graph extension
+  through the `.RG:` secondary language (`reactive-graph-notation.rix`).
 - a FormulaSheet graph propagating three editable inputs through an average, a
   locally defined function, a live Table, and a Graphic (`reactive-view.rix`).
 
