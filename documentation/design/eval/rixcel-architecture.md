@@ -14,9 +14,15 @@ the canonical address in the editable RiX hosts.
 
 The Binding/Widget slice is also implemented: `.Bind(variable)` captures RiX
 Cell identity, `.Sheet(.Bind(variable))` creates a live Sheet, and a host-owned
-`WidgetSession` routes validated semantic edits. The reactive RiXCel document
-and standalone editor remain design and implementation work. See
-[the checklist](rixcel-todo.md).
+`WidgetSession` routes validated semantic edits.
+
+The first formula-backed prototype is implemented separately as
+`.FormulaSheet(...)`. It owns deferred formulas, evaluates them in an isolated
+sheet context, records `grid[...]` dependencies, detects complete cycle paths,
+and atomically commits successful epochs. `.Sheet(formulaSheet)` stages its
+current results for display. Editable formula source, persistent `.rixcel`
+documents, rank-N storage, and the standalone editor remain implementation
+work. See [the checklist](rixcel-todo.md).
 
 ## Vocabulary
 
@@ -48,15 +54,18 @@ RiX value or RiXCel document
      semantic edit event
              |
              v
-   Binding or update function
+   Binding or formula model
              |
              +----> refreshed model and Sheet
 ```
 
 An ordinary `Sheet` follows the existing structured-output rule: it is
 immutable and renderer-independent. A live Sheet additionally retains a
-runtime-only Binding handle. A renderer still does not write through the Sheet;
-it dispatches to a host-owned WidgetSession.
+runtime-only Binding handle. A formula-backed Sheet retains a runtime-only
+FormulaSheet handle but is currently a read-only result view. A renderer does
+not write through the Sheet; live value edits dispatch to a host-owned
+WidgetSession, and future formula edits will dispatch to a formula-document
+session.
 
 `WidgetSession` owns a live session. Its input is a semantic record, not a DOM
 event. The implemented Sheet edit shape is:
@@ -102,8 +111,10 @@ address  canonical source-like address, for example grid[2,3,1]
 displayAddress  visible alias, for example C2 or R2C3
 ```
 
-The record intentionally has room to grow. A RiXCel-backed adapter will later
-add source, assignment mode, diagnostics, and stable slot identity without
+The record intentionally has room to grow. The FormulaSheet prototype owns
+formula, value, dependency, state, and diagnostic records separately from its
+portable result view. A persistent RiXCel adapter will later expose editable
+source, assignment mode, diagnostics, and stable document slot identity without
 requiring renderers to infer those from the displayed value.
 
 ## Address and label convention
@@ -123,16 +134,15 @@ host should display both when useful:
 C2 · grid[2,3]
 ```
 
-Formula editing should insert canonical addresses when the user points at a
+Formula editing inserts canonical addresses when the user points at a
 slot. This avoids introducing `A1:B4` into the RiX grammar, where uppercase
 identifiers and colon intervals already have meanings.
 
 For a portable Sheet snapshot, `grid` is only the default `addressBase`. It is
 not a hidden variable or a property of the Sheet object. A host can evaluate an
 inserted address only when the caller has chosen an address base that resolves
-in that RiX context, such as `.Sheet(m, {= address="m" })`. The future RiXCel
-document runtime will supply its contextual `grid` binding while evaluating a
-slot.
+in that RiX context, such as `.Sheet(m, {= address="m" })`. FormulaSheet
+evaluation supplies its own contextual `grid` binding while evaluating a slot.
 
 The shared enhancer emits bubbling `rix-sheet-select`,
 `rix-sheet-activate`, and `rix-sheet-edit` events. Event details include `address`,
@@ -145,7 +155,8 @@ Rank-N snapshots also retain `hiddenAxes`, `selectedPlaneKey`, and a frozen
 and emit `rix-sheet-plane-change` with the selected slice. This remains a
 read-only view operation.
 
-Planned contextual names are:
+The prototype supplies `grid`, `row`, `col`, and `index`. Planned contextual
+names include:
 
 ```rix
 row
@@ -157,8 +168,8 @@ names[:tax_rate]
 imports[:rates][:usd][1,1]
 ```
 
-These names belong to the future RiXCel evaluation environment, not the
-portable `Sheet` constructor.
+These names belong to FormulaSheet/RiXCel evaluation, not the portable `Sheet`
+constructor.
 
 ## Data adapters
 
@@ -166,9 +177,10 @@ Four conversions are deliberately different:
 
 1. `.Sheet(value)` creates a read-only snapshot.
 2. `.Sheet(.Bind(variable))` creates a live value editor.
-3. `RiXCel.From(value)` will materialize literal RiX source into independent
+3. `.FormulaSheet(formulas)` creates formula slots from deferred RiX bodies.
+4. `RiXCel.From(value)` will materialize literal RiX source into independent
    formula slots.
-4. A linked import will create slot formulas that depend on the original value.
+5. A linked import will create slot formulas that depend on the original value.
 
 The UI must ask which behavior is intended rather than guessing. A live handle
 is never persisted. `WidgetSession.snapshot()` creates a detached Sheet with
@@ -195,8 +207,28 @@ happened yet.
 
 ### Formula-backed RiXCel sheet
 
-A RiXCel sheet owns stable formula slots and an isolated execution context.
-Each slot needs at least:
+A RiXCel sheet owns formula slots and an isolated execution context. The
+implemented rank-2 prototype is constructed from deferred formulas:
+
+```rix
+model := .FormulaSheet([
+    [@{; 1 },                 @{; grid[1,1] + 1 }],
+    [@{; grid[1,2] * 2 },     @{; grid[2,1] + 1 }]
+]);
+
+model[2,2]             # 5
+model.GetFormula(1,2)  # deferred formula value
+model.SetFormula(1,1, @{; 10 })
+.Sheet(model)
+```
+
+The prototype exposes `GetFormula`, `SetFormula`, `Recalculate`, and `Slot`.
+Every formula runs with `grid`, `row`, `col`, and `index` in an isolated
+context; caller locals and explicit outer lookup are unavailable. Every
+recalculation currently evaluates the whole sheet. A failed epoch keeps the
+last committed values while attaching diagnostics to involved slots.
+
+The persistent document slot needs at least:
 
 ```text
 id              stable identity
@@ -211,11 +243,12 @@ diagnostics     parse, cycle, or runtime diagnostics
 view            presentation metadata
 ```
 
-Deferred syntax such as `@{ ... }` is a natural programmatic representation,
-but the stored source remains authoritative. A deferred value captured from an
-arbitrary caller scope is not the formula context; the sheet evaluates its
-lowered formula inside a document-owned context containing `grid`, `row`,
-`col`, `index`, `names`, and explicit imports.
+Deferred syntax such as `@{ ... }` is the prototype's programmatic formula
+representation. In the persistent format, stored source will remain
+authoritative and deferred IR will be rebuilt from it. A deferred value
+captured from an arbitrary caller scope is not the formula context; the sheet
+evaluates its lowered formula inside a document-owned context containing
+`grid`, `row`, `col`, `index`, and eventually `names` and explicit imports.
 
 Formula editing uses a different semantic event from Binding value editing:
 

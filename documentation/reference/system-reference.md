@@ -8,7 +8,7 @@ toc-depth: 2
 This page is generated from the current RiX implementation by `documentation/scripts/generate-reference.js`. Do not edit it by hand. Descriptions come from registry documentation strings; the narrative [syntax guide](../eval/syntax-guide.md) and [methods guide](../eval/methods-guide.md) provide signatures and examples.
 :::
 
-At this revision RiX exposes **143 named entries** on the default system context and registers **172 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
+At this revision RiX exposes **144 named entries** on the default system context and registers **173 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
 
 ## Public system context
 
@@ -59,6 +59,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.FIGURE` | function | Output | Wrap output with figure metadata |
 | `.FILTER` | lazy function | Collections, Arrays | Filter a collection with a predicate — callback receives (val, locator, src) |
 | `.FIRST` | function | Core, Collections, Arrays | First element of a collection |
+| `.FORMULASHEET` | function | RiXCel | Create a formula-backed sheet from a rectangular array of deferred RiX formulas |
 | `.FRAGMENT` | function | Output | Compose portable output values |
 | `.GETEL` | function | Core, Collections, Arrays | Get element at index (1-based) |
 | `.GRAPHICS` | value | — | Intrinsic portable 2D scene language |
@@ -252,6 +253,7 @@ Imported scripts can add or withhold named groups. Permission-like names are int
 | `Symbolic` | `POLY`, `DERIV`, `INTEGRATE`, `TRANSFORM`, `SIMPLIFY`, `SPEC`, `SPECCABILITY`, `INSPECTSPEC`, `SArith` |
 | `Notation` | `SArith`, `Poly`, `NotationParser` |
 | `Random` | `RANDOMSEED`, `RandomSeed`, `RAND_NAME` |
+| `RiXCel` | `FORMULASHEET` |
 
 Default script policy includes all functions and the `IMPORTS` permission. Recognized permission names are `IMPORTS`, `NET`, `FILES`, `PLUGINS`. The default loop limit is 10,000 iterations and the default constructor capture mode is `deep_copy`.
 
@@ -307,6 +309,7 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `EVAL` | lazy, effectful/unspecified | Evaluate a deferred AST node or expression: .Eval(ast, bindings ?= \_, mode ?= :inherit) |
 | `FACTORIAL` | eager, pure | Factorial of a non-negative integer |
 | `FIGURE` | eager, pure | Wrap output with figure metadata |
+| `FORMULASHEET` | eager, effectful/unspecified | Create a formula-backed sheet from a rectangular array of deferred RiX formulas |
 | `FRAGMENT` | eager, pure | Compose portable output values |
 | `FROMBASE` | lazy, effectful/unspecified | Parse base string to number: str <\_ baseSpec |
 | `FUNCDEF` | lazy, effectful/unspecified | Define a named function |

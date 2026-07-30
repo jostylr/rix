@@ -604,6 +604,7 @@ ul.task-list li input[type="checkbox"] {
   <li><a href="#rank-n-tensor-planes" id="toc-rank-n-tensor-planes" class="nav-link" data-scroll-target="#rank-n-tensor-planes">Rank-N tensor planes</a></li>
   <li><a href="#vectors-matrices-and-sequences" id="toc-vectors-matrices-and-sequences" class="nav-link" data-scroll-target="#vectors-matrices-and-sequences">Vectors, matrices, and sequences</a></li>
   <li><a href="#snapshot-and-live-view-boundary" id="toc-snapshot-and-live-view-boundary" class="nav-link" data-scroll-target="#snapshot-and-live-view-boundary">Snapshot and live-view boundary</a></li>
+  <li><a href="#formula-backed-prototype" id="toc-formula-backed-prototype" class="nav-link" data-scroll-target="#formula-backed-prototype">Formula-backed prototype</a></li>
   </ul></li>
   </ul>
 <div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/sheet-guide.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
@@ -618,7 +619,7 @@ ul.task-list li input[type="checkbox"] {
 <section id="sheet-views" class="level1">
 <h1>Sheet views</h1>
 <p><code>.Sheet</code> creates a portable two-dimensional view of a RiX tensor, matrix, array, tuple, or sequence. It is part of the structured-output model: the result retains exact RiX values and can be rendered as text or HTML without depending on a browser DOM.</p>
-<p><code>.Sheet(value)</code> is an immutable snapshot. <code>.Sheet(.Bind(variable))</code> opts into a live view whose semantic edits are handled by a host-owned widget session. Formula slots, dependency tracking, and the RiXCel document model remain in the <a href="../design/eval/rixcel-todo.html">RiXCel checklist</a>.</p>
+<p><code>.Sheet(value)</code> is an immutable snapshot. <code>.Sheet(.Bind(variable))</code> opts into a live view whose semantic edits are handled by a host-owned widget session. <code>.Sheet(.FormulaSheet(...))</code> displays the current results of a separate formula-backed model. Persistent formula source and the full RiXCel document remain in the <a href="../design/eval/rixcel-todo.html">RiXCel checklist</a>.</p>
 <section id="basic-tensor-view" class="level2">
 <h2 class="anchored" data-anchor-id="basic-tensor-view">Basic tensor view</h2>
 <pre class="rix"><code>m := {:2x3: 1, 2, 3; 4, 5, 6}
@@ -737,6 +738,52 @@ lens.At(2, 3).Set(5 / 7)</code></pre>
 <p>RiX Web and the editable notebook result pane translate edits into semantic <code>sheet:set</code> events containing a full 1-based tensor index and a RiX value. A host-owned <code>WidgetSession</code> validates the index, updates the Binding, increments its revision, and creates a refreshed Sheet. The browser DOM is never stored in the Binding or Sheet.</p>
 <p>The editor accepts RiX expressions, not untyped display text. Use quotes for strings. On a live cell, Enter, F2, or double-click begins editing. Enter commits the edit and returns focus to the same highlighted cell; Escape returns without committing. Arrow navigation can then continue from that cell.</p>
 <p>Live Binding handles are runtime-only. <code>WidgetSession.snapshot()</code> detaches the current Sheet with <code>binding=null</code> and <code>editable=false</code>; persisted and static exports therefore retain the current exact values but cannot write back into a dead evaluation context.</p>
+</section>
+<section id="formula-backed-prototype" class="level2">
+<h2 class="anchored" data-anchor-id="formula-backed-prototype">Formula-backed prototype</h2>
+<p>Use <code>.FormulaSheet</code> when each coordinate owns a formula and the whole grid must be recalculated as one dependency graph:</p>
+<pre class="rix"><code>model := .FormulaSheet([
+    [@{; 1 }, @{; grid[1,1] + 1 }],
+    [@{; grid[1,2] * 2 }, @{; grid[2,1] + 1 }]
+]);
+
+model[2,2]  # 5
+.Sheet(model, {= title="Formula results" })</code></pre>
+<p>Every entry must currently be a deferred RiX body. Formula evaluation has an isolated context containing:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>grid</code></td>
+<td>The current formula sheet; <code>grid[2,3]</code> records a dependency</td>
+</tr>
+<tr class="even">
+<td><code>row</code></td>
+<td>Current 1-based row</td>
+</tr>
+<tr class="odd">
+<td><code>col</code></td>
+<td>Current 1-based column</td>
+</tr>
+<tr class="even">
+<td><code>index</code></td>
+<td>Current <code>[row, col]</code> tuple</td>
+</tr>
+</tbody>
+</table>
+<p>The model evaluates all slots in a new atomic epoch. A read of a slot already being evaluated reports the complete path, such as <code>grid[1,1] -&gt; grid[1,2] -&gt; grid[1,1]</code>. The cycle never reads a stale prior value. Caller variables are unavailable; future imports will be explicit.</p>
+<p>The formula and slot APIs are:</p>
+<pre class="rix"><code>model.GetFormula(1, 2)
+model.SetFormula(1, 1, @{; 10 })
+model.Recalculate()
+model.Slot(2, 2)</code></pre>
+<p><code>SetFormula</code> keeps the new deferred formula and begins a complete recalculation. Successful results commit together. If evaluation fails, the last committed values remain available and involved slots retain diagnostics.</p>
+<p>This is deliberately distinct from <code>.Bind</code>: a Binding editor computes one new value immediately, whereas a FormulaSheet owns formulas and reexecutes their dependency graph. The current browser Sheet view displays FormulaSheet results but does not yet edit their formula source. The first persistent <code>.rixcel</code> format, formula-edit event/session, assignment modes, explicit imports, and rank-N formula storage are tracked in the implementation checklist.</p>
 
 
 </section>

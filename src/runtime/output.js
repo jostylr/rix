@@ -3,6 +3,7 @@
 import { Integer, Rational } from "@ratmath/core";
 import { isTensor, tensorGetBySelectors } from "./tensor.js";
 import { isBinding } from "./binding.js";
+import { isFormulaSheet } from "./formula-sheet.js";
 
 const int = (value) => new Integer(BigInt(value));
 const isSequence = (value) => value && ["sequence", "tuple", "set", "array"].includes(value.type);
@@ -141,6 +142,16 @@ export function createGrid(args) {
 function sheetData(value) {
     const binding = isBinding(value) ? value : null;
     if (binding) value = binding.get();
+
+    if (isFormulaSheet(value)) {
+        return {
+            kind: "formula_sheet",
+            binding: null,
+            formulaSheet: value,
+            shape: [...value.shape],
+            at: (index) => value.get(index),
+        };
+    }
 
     if (isTensor(value)) {
         if (value.shape.length === 0) throw new Error("Sheet data must have rank 1 or greater");
@@ -350,6 +361,8 @@ export function createSheet(args) {
 
     return output("sheet", {
         sourceKind: data.kind,
+        formulaSheet: data.formulaSheet ?? null,
+        formulaBacked: Boolean(data.formulaSheet),
         binding: data.binding,
         bindingId: data.binding?.id ?? null,
         editable: Boolean(data.binding),
@@ -379,12 +392,14 @@ export function createSheet(args) {
  */
 export function createSheetSnapshot(sheet) {
     if (!isOutputValue(sheet) || sheet.kind !== "sheet") throw new Error("Expected a Sheet output value");
-    if (!sheet.editable) return sheet;
+    if (!sheet.editable && !sheet.formulaBacked) return sheet;
     return output("sheet", {
         ...sheet,
         binding: null,
         bindingId: null,
         editable: false,
+        formulaSheet: null,
+        formulaBacked: false,
     });
 }
 
@@ -836,7 +851,8 @@ export function renderOutputHtml(value, format = (item) => String(item ?? "")) {
         const editor = value.editable
             ? `<form class="rix-output-sheet-editor" hidden><label><span data-rix-edit-label>Choose a cell to edit</span><input data-rix-edit-source aria-label="RiX value" autocomplete="off" spellcheck="false"></label><button type="submit">Set</button><output data-rix-edit-status aria-live="polite"></output></form>`
             : "";
-        return `<section class="rix-output-sheet" data-rix-rank="${value.rank}" data-rix-selected-plane="${escapeHtml(value.selectedPlaneKey)}"${liveAttributes}>${value.title ? `<h3 class="rix-output-sheet-title">${escapeHtml(value.title)}</h3>` : ""}<div class="rix-output-sheet-location" aria-live="polite" data-rix-summary="${escapeHtml(summary)}">${escapeHtml(summary)}</div>${controls}${editor}<table><thead><tr><th class="rix-output-sheet-corner" scope="col">${escapeHtml(value.addressBase)}</th>${value.columnHeaders.map((header, column) => `<th scope="col" data-rix-column="${column + 1}">${escapeHtml(header)}</th>`).join("")}</tr></thead>${bodies}</table></section>`;
+        const formulaAttributes = value.formulaBacked ? ` data-rix-formula-sheet="true" data-rix-formula-epoch="${value.formulaSheet.epoch}"` : "";
+        return `<section class="rix-output-sheet" data-rix-rank="${value.rank}" data-rix-selected-plane="${escapeHtml(value.selectedPlaneKey)}"${liveAttributes}${formulaAttributes}>${value.title ? `<h3 class="rix-output-sheet-title">${escapeHtml(value.title)}</h3>` : ""}<div class="rix-output-sheet-location" aria-live="polite" data-rix-summary="${escapeHtml(summary)}">${escapeHtml(summary)}</div>${controls}${editor}<table><thead><tr><th class="rix-output-sheet-corner" scope="col">${escapeHtml(value.addressBase)}</th>${value.columnHeaders.map((header, column) => `<th scope="col" data-rix-column="${column + 1}">${escapeHtml(header)}</th>`).join("")}</tr></thead>${bodies}</table></section>`;
     }
     if (value.kind === "figure") return `<figure class="rix-output-figure"${value.label ? ` id="${escapeHtml(value.label)}"` : ""}>${renderOutputHtml(value.content, format)}${value.caption ? `<figcaption>${escapeHtml(value.caption)}</figcaption>` : ""}</figure>`;
     if (value.kind === "graphic") return `<div class="rix-output-graphic">${renderGraphicSvg(value, format)}</div>`;

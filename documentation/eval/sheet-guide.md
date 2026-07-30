@@ -7,8 +7,9 @@ on a browser DOM.
 
 `.Sheet(value)` is an immutable snapshot. `.Sheet(.Bind(variable))` opts into a
 live view whose semantic edits are handled by a host-owned widget session.
-Formula slots, dependency tracking, and the RiXCel document model remain in the
-[RiXCel checklist](../design/eval/rixcel-todo.md).
+`.Sheet(.FormulaSheet(...))` displays the current results of a separate
+formula-backed model. Persistent formula source and the full RiXCel document
+remain in the [RiXCel checklist](../design/eval/rixcel-todo.md).
 
 ## Basic tensor view
 
@@ -175,3 +176,53 @@ Live Binding handles are runtime-only. `WidgetSession.snapshot()` detaches the
 current Sheet with `binding=null` and `editable=false`; persisted and static
 exports therefore retain the current exact values but cannot write back into a
 dead evaluation context.
+
+## Formula-backed prototype
+
+Use `.FormulaSheet` when each coordinate owns a formula and the whole grid must
+be recalculated as one dependency graph:
+
+```rix
+model := .FormulaSheet([
+    [@{; 1 }, @{; grid[1,1] + 1 }],
+    [@{; grid[1,2] * 2 }, @{; grid[2,1] + 1 }]
+]);
+
+model[2,2]  # 5
+.Sheet(model, {= title="Formula results" })
+```
+
+Every entry must currently be a deferred RiX body. Formula evaluation has an
+isolated context containing:
+
+| Name | Meaning |
+|---|---|
+| `grid` | The current formula sheet; `grid[2,3]` records a dependency |
+| `row` | Current 1-based row |
+| `col` | Current 1-based column |
+| `index` | Current `[row, col]` tuple |
+
+The model evaluates all slots in a new atomic epoch. A read of a slot already
+being evaluated reports the complete path, such as
+`grid[1,1] -> grid[1,2] -> grid[1,1]`. The cycle never reads a stale prior
+value. Caller variables are unavailable; future imports will be explicit.
+
+The formula and slot APIs are:
+
+```rix
+model.GetFormula(1, 2)
+model.SetFormula(1, 1, @{; 10 })
+model.Recalculate()
+model.Slot(2, 2)
+```
+
+`SetFormula` keeps the new deferred formula and begins a complete
+recalculation. Successful results commit together. If evaluation fails, the
+last committed values remain available and involved slots retain diagnostics.
+
+This is deliberately distinct from `.Bind`: a Binding editor computes one new
+value immediately, whereas a FormulaSheet owns formulas and reexecutes their
+dependency graph. The current browser Sheet view displays FormulaSheet results
+but does not yet edit their formula source. The first persistent `.rixcel`
+format, formula-edit event/session, assignment modes, explicit imports, and
+rank-N formula storage are tracked in the implementation checklist.

@@ -666,7 +666,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h2 class="anchored" data-anchor-id="status">Status</h2>
 <p>The first implemented slice is the portable <code>.Sheet(...)</code> output value. It adapts existing tensors, matrices, and sequences into a two-dimensional snapshot with exact values, rank-N plane selection, canonical RiX addresses, and host-neutral text/HTML rendering.</p>
 <p>RiX Web, the RiX notebook, and live notebook exports now share a host-side selection enhancer. It provides a dual address indicator, pointer selection, roving keyboard focus, and semantic select/activate events. Activation inserts the canonical address in the editable RiX hosts.</p>
-<p>The Binding/Widget slice is also implemented: <code>.Bind(variable)</code> captures RiX Cell identity, <code>.Sheet(.Bind(variable))</code> creates a live Sheet, and a host-owned <code>WidgetSession</code> routes validated semantic edits. The reactive RiXCel document and standalone editor remain design and implementation work. See <a href="../../design/eval/rixcel-todo.html">the checklist</a>.</p>
+<p>The Binding/Widget slice is also implemented: <code>.Bind(variable)</code> captures RiX Cell identity, <code>.Sheet(.Bind(variable))</code> creates a live Sheet, and a host-owned <code>WidgetSession</code> routes validated semantic edits.</p>
+<p>The first formula-backed prototype is implemented separately as <code>.FormulaSheet(...)</code>. It owns deferred formulas, evaluates them in an isolated sheet context, records <code>grid[...]</code> dependencies, detects complete cycle paths, and atomically commits successful epochs. <code>.Sheet(formulaSheet)</code> stages its current results for display. Editable formula source, persistent <code>.rixcel</code> documents, rank-N storage, and the standalone editor remain implementation work. See <a href="../../design/eval/rixcel-todo.html">the checklist</a>.</p>
 </section>
 <section id="vocabulary" class="level2">
 <h2 class="anchored" data-anchor-id="vocabulary">Vocabulary</h2>
@@ -695,10 +696,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
      semantic edit event
              |
              v
-   Binding or update function
+   Binding or formula model
              |
              +----&gt; refreshed model and Sheet</code></pre>
-<p>An ordinary <code>Sheet</code> follows the existing structured-output rule: it is immutable and renderer-independent. A live Sheet additionally retains a runtime-only Binding handle. A renderer still does not write through the Sheet; it dispatches to a host-owned WidgetSession.</p>
+<p>An ordinary <code>Sheet</code> follows the existing structured-output rule: it is immutable and renderer-independent. A live Sheet additionally retains a runtime-only Binding handle. A formula-backed Sheet retains a runtime-only FormulaSheet handle but is currently a read-only result view. A renderer does not write through the Sheet; live value edits dispatch to a host-owned WidgetSession, and future formula edits will dispatch to a formula-document session.</p>
 <p><code>WidgetSession</code> owns a live session. Its input is a semantic record, not a DOM event. The implemented Sheet edit shape is:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>{ <span class="dt">type</span><span class="op">:</span> <span class="st">"sheet:set"</span><span class="op">,</span> <span class="dt">index</span><span class="op">:</span> [<span class="dv">2</span><span class="op">,</span> <span class="dv">3</span>]<span class="op">,</span> <span class="dt">value</span><span class="op">:</span> exactRixValue }</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Selection, source-edit, paste, and graphics records remain protocol extensions:</p>
@@ -727,7 +728,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 index    full 1-based rank-N index
 address  canonical source-like address, for example grid[2,3,1]
 displayAddress  visible alias, for example C2 or R2C3</code></pre>
-<p>The record intentionally has room to grow. A RiXCel-backed adapter will later add source, assignment mode, diagnostics, and stable slot identity without requiring renderers to infer those from the displayed value.</p>
+<p>The record intentionally has room to grow. The FormulaSheet prototype owns formula, value, dependency, state, and diagnostic records separately from its portable result view. A persistent RiXCel adapter will later expose editable source, assignment mode, diagnostics, and stable document slot identity without requiring renderers to infer those from the displayed value.</p>
 </section>
 <section id="address-and-label-convention" class="level2">
 <h2 class="anchored" data-anchor-id="address-and-label-convention">Address and label convention</h2>
@@ -737,11 +738,11 @@ grid[1:10, 2:5]
 grid[::, 2]</code></pre>
 <p>Spreadsheet labels such as <code>C2</code> are presentation and navigation aliases. A host should display both when useful:</p>
 <pre class="text"><code>C2 · grid[2,3]</code></pre>
-<p>Formula editing should insert canonical addresses when the user points at a slot. This avoids introducing <code>A1:B4</code> into the RiX grammar, where uppercase identifiers and colon intervals already have meanings.</p>
-<p>For a portable Sheet snapshot, <code>grid</code> is only the default <code>addressBase</code>. It is not a hidden variable or a property of the Sheet object. A host can evaluate an inserted address only when the caller has chosen an address base that resolves in that RiX context, such as <code>.Sheet(m, {= address="m" })</code>. The future RiXCel document runtime will supply its contextual <code>grid</code> binding while evaluating a slot.</p>
+<p>Formula editing inserts canonical addresses when the user points at a slot. This avoids introducing <code>A1:B4</code> into the RiX grammar, where uppercase identifiers and colon intervals already have meanings.</p>
+<p>For a portable Sheet snapshot, <code>grid</code> is only the default <code>addressBase</code>. It is not a hidden variable or a property of the Sheet object. A host can evaluate an inserted address only when the caller has chosen an address base that resolves in that RiX context, such as <code>.Sheet(m, {= address="m" })</code>. FormulaSheet evaluation supplies its own contextual <code>grid</code> binding while evaluating a slot.</p>
 <p>The shared enhancer emits bubbling <code>rix-sheet-select</code>, <code>rix-sheet-activate</code>, and <code>rix-sheet-edit</code> events. Event details include <code>address</code>, <code>displayAddress</code>, the full tensor <code>index</code>, and visible <code>row</code>/<code>column</code>. Renderers can therefore add host behavior without teaching the portable output object about CodeMirror, textareas, or the DOM.</p>
 <p>Rank-N snapshots also retain <code>hiddenAxes</code>, <code>selectedPlaneKey</code>, and a frozen <code>planes</code> collection. Rendered axis selectors switch among those plane records and emit <code>rix-sheet-plane-change</code> with the selected slice. This remains a read-only view operation.</p>
-<p>Planned contextual names are:</p>
+<p>The prototype supplies <code>grid</code>, <code>row</code>, <code>col</code>, and <code>index</code>. Planned contextual names include:</p>
 <pre class="rix"><code>row
 col
 index
@@ -749,7 +750,7 @@ near[0,-1]
 book[:sales][2,3]
 names[:tax_rate]
 imports[:rates][:usd][1,1]</code></pre>
-<p>These names belong to the future RiXCel evaluation environment, not the portable <code>Sheet</code> constructor.</p>
+<p>These names belong to FormulaSheet/RiXCel evaluation, not the portable <code>Sheet</code> constructor.</p>
 </section>
 <section id="data-adapters" class="level2">
 <h2 class="anchored" data-anchor-id="data-adapters">Data adapters</h2>
@@ -757,6 +758,7 @@ imports[:rates][:usd][1,1]</code></pre>
 <ol type="1">
 <li><code>.Sheet(value)</code> creates a read-only snapshot.</li>
 <li><code>.Sheet(.Bind(variable))</code> creates a live value editor.</li>
+<li><code>.FormulaSheet(formulas)</code> creates formula slots from deferred RiX bodies.</li>
 <li><code>RiXCel.From(value)</code> will materialize literal RiX source into independent formula slots.</li>
 <li>A linked import will create slot formulas that depend on the original value.</li>
 </ol>
@@ -773,7 +775,18 @@ imports[:rates][:usd][1,1]</code></pre>
 </section>
 <section id="formula-backed-rixcel-sheet" class="level3">
 <h3 class="anchored" data-anchor-id="formula-backed-rixcel-sheet">Formula-backed RiXCel sheet</h3>
-<p>A RiXCel sheet owns stable formula slots and an isolated execution context. Each slot needs at least:</p>
+<p>A RiXCel sheet owns formula slots and an isolated execution context. The implemented rank-2 prototype is constructed from deferred formulas:</p>
+<pre class="rix"><code>model := .FormulaSheet([
+    [@{; 1 },                 @{; grid[1,1] + 1 }],
+    [@{; grid[1,2] * 2 },     @{; grid[2,1] + 1 }]
+]);
+
+model[2,2]             # 5
+model.GetFormula(1,2)  # deferred formula value
+model.SetFormula(1,1, @{; 10 })
+.Sheet(model)</code></pre>
+<p>The prototype exposes <code>GetFormula</code>, <code>SetFormula</code>, <code>Recalculate</code>, and <code>Slot</code>. Every formula runs with <code>grid</code>, <code>row</code>, <code>col</code>, and <code>index</code> in an isolated context; caller locals and explicit outer lookup are unavailable. Every recalculation currently evaluates the whole sheet. A failed epoch keeps the last committed values while attaching diagnostics to involved slots.</p>
+<p>The persistent document slot needs at least:</p>
 <pre class="text"><code>id              stable identity
 source          authoritative editable RiX source
 deferred        parsed/lowered deferred RiX, rebuilt from source
@@ -784,9 +797,9 @@ state           clean, dirty, evaluating, or error
 dependencies    slot identities read during the last successful evaluation
 diagnostics     parse, cycle, or runtime diagnostics
 view            presentation metadata</code></pre>
-<p>Deferred syntax such as <code>@{ ... }</code> is a natural programmatic representation, but the stored source remains authoritative. A deferred value captured from an arbitrary caller scope is not the formula context; the sheet evaluates its lowered formula inside a document-owned context containing <code>grid</code>, <code>row</code>, <code>col</code>, <code>index</code>, <code>names</code>, and explicit imports.</p>
+<p>Deferred syntax such as <code>@{ ... }</code> is the prototype’s programmatic formula representation. In the persistent format, stored source will remain authoritative and deferred IR will be rebuilt from it. A deferred value captured from an arbitrary caller scope is not the formula context; the sheet evaluates its lowered formula inside a document-owned context containing <code>grid</code>, <code>row</code>, <code>col</code>, <code>index</code>, and eventually <code>names</code> and explicit imports.</p>
 <p>Formula editing uses a different semantic event from Binding value editing:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>{ <span class="dt">type</span><span class="op">:</span> <span class="st">"sheet:formula"</span><span class="op">,</span> <span class="dt">index</span><span class="op">:</span> [<span class="dv">2</span><span class="op">,</span> <span class="dv">3</span>]<span class="op">,</span> <span class="dt">source</span><span class="op">:</span> <span class="st">"price * quantity"</span><span class="op">,</span> <span class="dt">mode</span><span class="op">:</span> <span class="st">":="</span> }</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>{ <span class="dt">type</span><span class="op">:</span> <span class="st">"sheet:formula"</span><span class="op">,</span> <span class="dt">index</span><span class="op">:</span> [<span class="dv">2</span><span class="op">,</span> <span class="dv">3</span>]<span class="op">,</span> <span class="dt">source</span><span class="op">:</span> <span class="st">"price * quantity"</span><span class="op">,</span> <span class="dt">mode</span><span class="op">:</span> <span class="st">":="</span> }</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>The document parses and stores the formula, begins a new evaluation epoch, invalidates the edited slot and its transitive dependents, and recomputes them in dependency order. A simple first implementation may conservatively reevaluate every formula after the edited slot; dependency-traced incremental evaluation can then replace that schedule without changing the slot model.</p>
 <p>During an epoch, <code>grid[index]</code> always requests the current epoch’s value. If it reads a slot already marked <code>evaluating</code>, evaluation reports the complete cycle path. It must not silently fall back to <code>lastGoodValue</code>. If recurrence is wanted later, prior-epoch access should be explicit through a separate name such as <code>previous[index]</code>.</p>
 <p>The formula document commits a successful epoch atomically. On failure it keeps the formula and diagnostics; <code>lastGoodValue</code> may be displayed as stale, but is never presented as the current formula result.</p>
@@ -795,16 +808,16 @@ view            presentation metadata</code></pre>
 <section id="reactive-document-model" class="level2">
 <h2 class="anchored" data-anchor-id="reactive-document-model">Reactive document model</h2>
 <p>A RiXCel document should be a sparse rank-N collection. A slot will eventually store at least:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode json code-with-copy"><code class="sourceCode json"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
-<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"id"</span><span class="fu">:</span> <span class="st">"stable-slot-id"</span><span class="fu">,</span></span>
-<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"op"</span><span class="fu">:</span> <span class="st">":="</span><span class="fu">,</span></span>
-<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"code"</span><span class="fu">:</span> <span class="st">"price * quantity"</span><span class="fu">,</span></span>
-<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"style"</span><span class="fu">:</span> <span class="fu">{},</span></span>
-<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"cache"</span><span class="fu">:</span> <span class="fu">{</span></span>
-<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"value"</span><span class="fu">:</span> <span class="kw">null</span><span class="fu">,</span></span>
-<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"inputHash"</span><span class="fu">:</span> <span class="kw">null</span></span>
-<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">}</span></span>
-<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode json code-with-copy"><code class="sourceCode json"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"id"</span><span class="fu">:</span> <span class="st">"stable-slot-id"</span><span class="fu">,</span></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"op"</span><span class="fu">:</span> <span class="st">":="</span><span class="fu">,</span></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"code"</span><span class="fu">:</span> <span class="st">"price * quantity"</span><span class="fu">,</span></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"style"</span><span class="fu">:</span> <span class="fu">{},</span></span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"cache"</span><span class="fu">:</span> <span class="fu">{</span></span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"value"</span><span class="fu">:</span> <span class="kw">null</span><span class="fu">,</span></span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"inputHash"</span><span class="fu">:</span> <span class="kw">null</span></span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">}</span></span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Source is authoritative. Cached values are optional and valid only when their input and runtime hashes match.</p>
 <p>The default implied assignment is <code>:=</code>. An explicit leading <code>=</code>, <code>~=</code>, <code>::=</code>, or <code>~~=</code> retains its RiX binding meaning; it is not decorative spreadsheet syntax.</p>
 </section>

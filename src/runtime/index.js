@@ -3,6 +3,7 @@ export { SystemContext } from "./system-context.js";
 export { PluginCatalog, parsePluginYaml, readPluginHeader } from "./plugin-catalog.js";
 export { Cell } from "./cell.js";
 export { createBinding, isBinding } from "./binding.js";
+export { createFormulaSheet, isFormulaSheet } from "./formula-sheet.js";
 export { HOLE, isHole } from "./hole.js";
 export { DiagnosticsRegistry, getDiagnostics, RixAbort, isRixAbort, createEvent } from "./diagnostics.js";
 export { runtimeDefaults } from "./runtime-config.js";

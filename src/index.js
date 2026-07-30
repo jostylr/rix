@@ -4,6 +4,7 @@ export { complete, REPL_COMMANDS } from "./repl/completion.js";
 export { lower, lowerNode, ir, IR, Registry, evaluate, createDefaultRegistry, createDefaultSystemContext, parseAndEvaluate, irToText, irListToText, formatValue } from "./eval/index.js";
 export {
     Context, SystemContext, PluginCatalog, parsePluginYaml, readPluginHeader, Cell, HOLE, isHole, DiagnosticsRegistry,
+    createFormulaSheet, isFormulaSheet,
     getDiagnostics, RixAbort, isRixAbort, createEvent, runtimeDefaults,
     createDefaultUnitCollection, createUnit, constructQuantity, convertQuantity,
     parseUnitExpression, isUnitValue, isQuantity, createDefaultExactCollection,

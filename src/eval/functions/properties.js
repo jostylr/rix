@@ -11,6 +11,7 @@ import { Integer, RationalInterval, Rational } from "@ratmath/core";
 import { keyOf, canonicalizeMetaKey } from "./keyof.js";
 import { Cell } from "../../runtime/cell.js";
 import { isTensor, tensorAssignBySelectors, tensorGetBySelectors } from "../../runtime/tensor.js";
+import { isFormulaSheet } from "../../runtime/formula-sheet.js";
 import { getBuiltinProto } from "../../runtime/methods.js";
 import { createTraitSet, rebuildSemanticMetadata } from "../../runtime/semantic.js";
 import { getNamedMultifunctionVariant, isMultifunctionValue } from "../../runtime/multifunction.js";
@@ -188,6 +189,9 @@ function sliceSequenceLike(obj, spec) {
 }
 
 export function indexGetResolved(obj, key) {
+    if (isFormulaSheet(obj)) {
+        return obj.get(key);
+    }
     if (isTensor(obj)) {
         return tensorGetBySelectors(obj, [{ kind: "index", value: key }]);
     }
@@ -278,6 +282,13 @@ export function indexGetResolved(obj, key) {
 }
 
 export function bracketGetResolved(obj, specs) {
+    if (isFormulaSheet(obj)) {
+        if (!specs.every((spec) => spec.kind === "index")) {
+            throw new Error("FormulaSheet slicing is not implemented yet");
+        }
+        const index = specs.length === 1 ? specs[0].value : specs.map((spec) => spec.value);
+        return obj.get(index);
+    }
     if (isTensor(obj)) {
         return tensorGetBySelectors(obj, specs);
     }

@@ -40,21 +40,22 @@ Checked items are implemented in the current RiX repository.
 ## 3. RiXCel document runtime
 
 - [ ] Specify the versioned `.rixcel` JSON format.
-- [ ] Define a formula-slot entity separate from immediate `Binding` lenses.
+- [x] Define a formula-slot entity separate from immediate `Binding` lenses.
 - [ ] Store authoritative formula source and rebuild deferred IR from it.
-- [ ] Give each formula sheet a document-owned isolated execution context.
+- [x] Give each formula sheet a document-owned isolated execution context.
 - [ ] Define `sheet:formula` separately from immediate `sheet:set` events.
-- [ ] Add atomic evaluation epochs with explicit dirty/evaluating/error states.
+- [x] Add atomic evaluation epochs with explicit dirty/evaluating/error states.
 - [ ] Implement sparse rank-N sheets with stable sheet and slot IDs.
 - [ ] Store source separately from assignment mode.
 - [ ] Implement implied `:=` and explicit RiX assignment modes.
-- [ ] Add `grid`, `row`, `col`, `index`, and `near` evaluation bindings.
+- [x] Add `grid`, `row`, `col`, and `index` evaluation bindings.
+- [ ] Add the `near` evaluation binding.
 - [ ] Add `book`, `names`, and `imports` namespaces.
-- [ ] Record runtime slot-read dependencies.
+- [x] Record runtime slot-read dependencies.
 - [ ] Incrementally recompute dirty dependents.
-- [ ] Detect cycles and report complete address paths.
-- [ ] Reserve explicit prior-epoch access instead of falling back to stale values during cycles.
-- [ ] Forbid formula writes to other slots.
+- [x] Detect cycles and report complete address paths.
+- [x] Reserve explicit prior-epoch access instead of falling back to stale values during cycles.
+- [x] Forbid formula writes to other slots.
 - [ ] Define volatile/external-source recomputation policy.
 - [ ] Add round-trip and migration tests for `.rixcel` documents.
 

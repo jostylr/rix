@@ -1,0 +1,13 @@
+## A formula-backed sheet owns deferred formulas rather than immediate values.
+## grid, row, col, and index belong to the sheet's isolated formula context.
+
+model := .FormulaSheet([
+    [@{; 1 }, @{; grid[1,1] + 1 }],
+    [@{; grid[1,2] * 2 }, @{; grid[2,1] + 1 }]
+]);
+
+.Sheet(model, {= title="Formula results" });
+
+## Updating one formula starts a new atomic evaluation epoch.
+model.SetFormula(1, 1, @{; 10 });
+.Sheet(model, {= title="Recalculated results" })

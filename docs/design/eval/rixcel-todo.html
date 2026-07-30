@@ -664,21 +664,22 @@ ul.task-list li input[type="checkbox"] {
 <h2 class="anchored" data-anchor-id="rixcel-document-runtime">3. RiXCel document runtime</h2>
 <ul class="task-list">
 <li><label><input type="checkbox">Specify the versioned <code>.rixcel</code> JSON format.</label></li>
-<li><label><input type="checkbox">Define a formula-slot entity separate from immediate <code>Binding</code> lenses.</label></li>
+<li><label><input type="checkbox" checked="">Define a formula-slot entity separate from immediate <code>Binding</code> lenses.</label></li>
 <li><label><input type="checkbox">Store authoritative formula source and rebuild deferred IR from it.</label></li>
-<li><label><input type="checkbox">Give each formula sheet a document-owned isolated execution context.</label></li>
+<li><label><input type="checkbox" checked="">Give each formula sheet a document-owned isolated execution context.</label></li>
 <li><label><input type="checkbox">Define <code>sheet:formula</code> separately from immediate <code>sheet:set</code> events.</label></li>
-<li><label><input type="checkbox">Add atomic evaluation epochs with explicit dirty/evaluating/error states.</label></li>
+<li><label><input type="checkbox" checked="">Add atomic evaluation epochs with explicit dirty/evaluating/error states.</label></li>
 <li><label><input type="checkbox">Implement sparse rank-N sheets with stable sheet and slot IDs.</label></li>
 <li><label><input type="checkbox">Store source separately from assignment mode.</label></li>
 <li><label><input type="checkbox">Implement implied <code>:=</code> and explicit RiX assignment modes.</label></li>
-<li><label><input type="checkbox">Add <code>grid</code>, <code>row</code>, <code>col</code>, <code>index</code>, and <code>near</code> evaluation bindings.</label></li>
+<li><label><input type="checkbox" checked="">Add <code>grid</code>, <code>row</code>, <code>col</code>, and <code>index</code> evaluation bindings.</label></li>
+<li><label><input type="checkbox">Add the <code>near</code> evaluation binding.</label></li>
 <li><label><input type="checkbox">Add <code>book</code>, <code>names</code>, and <code>imports</code> namespaces.</label></li>
-<li><label><input type="checkbox">Record runtime slot-read dependencies.</label></li>
+<li><label><input type="checkbox" checked="">Record runtime slot-read dependencies.</label></li>
 <li><label><input type="checkbox">Incrementally recompute dirty dependents.</label></li>
-<li><label><input type="checkbox">Detect cycles and report complete address paths.</label></li>
-<li><label><input type="checkbox">Reserve explicit prior-epoch access instead of falling back to stale values during cycles.</label></li>
-<li><label><input type="checkbox">Forbid formula writes to other slots.</label></li>
+<li><label><input type="checkbox" checked="">Detect cycles and report complete address paths.</label></li>
+<li><label><input type="checkbox" checked="">Reserve explicit prior-epoch access instead of falling back to stale values during cycles.</label></li>
+<li><label><input type="checkbox" checked="">Forbid formula writes to other slots.</label></li>
 <li><label><input type="checkbox">Define volatile/external-source recomputation policy.</label></li>
 <li><label><input type="checkbox">Add round-trip and migration tests for <code>.rixcel</code> documents.</label></li>
 </ul>
