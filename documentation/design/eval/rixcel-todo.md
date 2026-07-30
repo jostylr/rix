@@ -41,12 +41,12 @@ Checked items are implemented in the current RiX repository.
 
 - [ ] Specify the versioned `.rixcel` JSON format.
 - [x] Define a formula-slot entity separate from immediate `Binding` lenses.
-- [ ] Store authoritative formula source and rebuild deferred IR from it.
+- [x] Store authoritative formula source and rebuild deferred IR from it.
 - [x] Give each formula sheet a document-owned isolated execution context.
 - [x] Define `sheet:formula` separately from immediate `sheet:set` events.
 - [x] Add atomic evaluation epochs with explicit dirty/evaluating/error states.
 - [ ] Implement sparse rank-N sheets with stable sheet and slot IDs.
-- [ ] Store source separately from assignment mode.
+- [x] Store source separately from assignment mode.
 - [ ] Implement implied `:=` and explicit RiX assignment modes.
 - [x] Add `grid`, `row`, `col`, and `index` evaluation bindings.
 - [ ] Add the `near` evaluation binding.

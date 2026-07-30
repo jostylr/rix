@@ -781,14 +781,23 @@ model[2,2]  # 5
 <p>The formula and slot APIs are:</p>
 <pre class="rix"><code>model.GetFormula(1, 2)
 model.SetFormula(1, 1, @{10})
+model.GetSource(1, 2)
+model.SetSource(1, 1, "10", ":=")
+model.GetAssignmentMode(1, 1)
 model.Recalculate()
 model.Slot(2, 2)</code></pre>
+<p><code>.FormulaSheet(formulas, options)</code> accepts an optional stable <code>id</code> and default <code>assignmentMode</code>:</p>
+<pre class="rix"><code>model := .FormulaSheet(
+    {:1x2: @{2}, @{ grid[1,1] + 1 }},
+    {= id="budget", assignmentMode=":=" }
+)</code></pre>
+<p>Each slot then has a stable document ID such as <code>budget:slot:1:2</code>. <code>source</code> is the authoritative editable RiX body, while <code>assignmentMode</code> is a separate field. <code>SetSource</code> stores those fields, recompiles the body into deferred IR inside the FormulaSheet, and starts the usual atomic graph epoch. <code>SetFormula</code> remains the lower-level API for callers that already have a deferred value.</p>
 <p>Dollar indexing is the concise reactive API. It avoids exposing graph node names:</p>
 <pre class="rix"><code>$$total := $model[1,1] + $model[2,2];
 $model[1,1] := @{10}</code></pre>
 <p><code>$model[1,1]</code> reads that exact cell and records a dependency. <code>$model[1,1] := @{...}</code> replaces its deferred formula. <code>$$model[1,1]</code> is the raw cell identity when an observable handle is needed. Multiple indexed updates may be placed in <code>${ ... }</code> to commit in one graph epoch.</p>
 <p><code>SetFormula</code> keeps the new deferred formula and begins a complete recalculation. Successful results commit together. If evaluation fails, the last committed values remain available and involved slots retain diagnostics.</p>
-<p>This is deliberately distinct from <code>.Bind</code>: a Binding editor computes one new value immediately, whereas a FormulaSheet owns formulas and reexecutes their dependency graph. In RiX Web and the notebook, Enter on a FormulaSheet cell edits its stored formula body; committing publishes a <code>sheet:formula</code> event and refreshes all dependent cells. The first persistent <code>.rixcel</code> format, assignment modes, explicit imports, and sparse rank-N storage are tracked in the implementation checklist.</p>
+<p>This is deliberately distinct from <code>.Bind</code>: a Binding editor computes one new value immediately, whereas a FormulaSheet owns source, compiled formulas, and the dependency graph. In RiX Web and the notebook, Enter on a FormulaSheet cell edits its stored formula body; the WidgetSession passes source and mode to the FormulaSheet compiler, publishes a <code>sheet:formula</code> event, and refreshes all dependent cells. The first persistent <code>.rixcel</code> format, assignment-mode semantics, explicit imports, and sparse rank-N storage remain on the implementation checklist.</p>
 </section>
 <section id="reactive-dependent-views" class="level2">
 <h2 class="anchored" data-anchor-id="reactive-dependent-views">Reactive dependent views</h2>

@@ -57,6 +57,8 @@ function eventDetail(cell) {
     return {
         address: cell.dataset.rixAddress,
         displayAddress: cell.dataset.rixDisplayAddress,
+        slotId: cell.dataset.rixSlotId ?? null,
+        assignmentMode: cell.dataset.rixAssignmentMode ?? null,
         index,
         slice,
         row: Number(cell.dataset.rixRow),

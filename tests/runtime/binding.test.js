@@ -124,14 +124,16 @@ describe("WidgetSession", () => {
         const updated = widget.dispatch({
             type: "sheet:formula",
             index: [1, 1],
-            formula: parseAndEvaluate("@{10}"),
             source: "10",
+            assignmentMode: "~=",
         });
 
         expect(widget.editMode).toBe("formula");
         expect(widget.revision).toBe(1);
         expect(updated.cells[0].map((cell) => formatValue(cell.value))).toEqual(["10", "11", "12"]);
         expect(updated.cells[0][0].formulaSource).toBe("10");
+        expect(updated.cells[0][0].assignmentMode).toBe("~=");
+        expect(updated.cells[0][0].slotId).toBe(sheet.cells[0][0].slotId);
         expect(widget.cellUpdates(formatValue).map(({ text }) => text)).toEqual(["10", "11", "12"]);
         expect(changes[0].formulaEvent.type).toBe("formula:commit");
         widget.dispose();

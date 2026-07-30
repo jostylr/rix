@@ -10,6 +10,29 @@ import { Integer, Rational } from "@ratmath/core";
 import { createReactiveGraph } from "./reactive-graph.js";
 import { forEachTensorCell, isTensor } from "./tensor.js";
 
+let nextFormulaSheetId = 1;
+const ASSIGNMENT_MODES = new Set(["=", ":=", "~=", "::=", "~~="]);
+
+function text(value, label) {
+    const result = value?.type === "string" ? value.value : typeof value === "string" ? value : null;
+    if (result === null) throw new Error(`${label} must be a string`);
+    return result;
+}
+
+function assignmentMode(value = ":=") {
+    const mode = text(value, "FormulaSheet assignment mode");
+    if (!ASSIGNMENT_MODES.has(mode)) {
+        throw new Error(`Unsupported FormulaSheet assignment mode: ${mode}`);
+    }
+    return mode;
+}
+
+function formulaSheetId(value) {
+    const id = text(value, "FormulaSheet id");
+    if (id.trim().length === 0) throw new Error("FormulaSheet id must not be empty");
+    return id;
+}
+
 function exactIndex(value, label = "Formula sheet index") {
     if (value instanceof Integer) return Number(value.value);
     if (value instanceof Rational && value.denominator === 1n) return Number(value.numerator);
@@ -81,6 +104,14 @@ function addressFor(index) {
     return `grid[${index.join(",")}]`;
 }
 
+function slotKey(index) {
+    return index.join(",");
+}
+
+function slotIdFor(sheetId, index) {
+    return `${sheetId}:slot:${index.join(":")}`;
+}
+
 function normalizeIndex(index, shape) {
     const values = Array.isArray(index)
         ? index
@@ -111,6 +142,19 @@ function formulaSheetMethods() {
             const formula = args.at(-1);
             return target.setFormula(args.slice(0, -1), formula);
         })],
+        ["GETSOURCE", method("GetSource", ([target, ...index]) => target.getFormulaSource(index))],
+        ["SETSOURCE", method("SetSource", ([target, ...args]) => {
+            const rank = target.rank;
+            if (args.length !== rank + 1 && args.length !== rank + 2) {
+                throw new Error(`FormulaSheet.SetSource expects ${rank} indices, source, and optional assignment mode`);
+            }
+            const index = args.slice(0, rank);
+            const source = args[rank];
+            const mode = args[rank + 1] ?? ":=";
+            return target.setFormulaSource(index, source, mode);
+        })],
+        ["GETASSIGNMENTMODE", method("GetAssignmentMode", ([target, ...index]) =>
+            target.slot(index).assignmentMode)],
         ["RECALCULATE", method("Recalculate", ([target]) => target.recalculate())],
         ["SLOT", method("Slot", ([target, ...index]) => target.slot(index))],
         ["GRAPH", method("Graph", ([target]) => target.graph)],
@@ -118,11 +162,13 @@ function formulaSheetMethods() {
     ]);
 }
 
-function publicSlot(slot, index) {
+function publicSlot(slot, index, metadata) {
     return Object.freeze({
-        id: slot.id,
+        id: metadata.id,
+        reactiveId: slot.id,
         index: Object.freeze([...index]),
-        source: slot.source,
+        source: metadata.source,
+        assignmentMode: metadata.assignmentMode,
         formula: slot.formula,
         value: slot.value,
         lastGoodValue: slot.lastGoodValue,
@@ -149,9 +195,21 @@ export function createFormulaSheet(formulasValue, options = {}) {
         throw new Error("FormulaSheet requires a deferred formula evaluator");
     }
     const shape = Object.freeze([...formulas.shape]);
+    const id = options.id === null || options.id === undefined
+        ? `formula-sheet-${nextFormulaSheetId++}`
+        : formulaSheetId(options.id);
+    const defaultAssignmentMode = assignmentMode(options.assignmentMode ?? ":=");
+    const slotMetadata = new Map(formulas.entries.map(({ index, formula }) => {
+        const source = options.formulaSource?.(formula) ?? null;
+        return [slotKey(index), {
+            id: slotIdFor(id, index),
+            source,
+            assignmentMode: defaultAssignmentMode,
+        }];
+    }));
     const channel = new Set();
     const graph = createReactiveGraph({
-        id: options.id ? `${options.id}:graph` : undefined,
+        id: `${id}:graph`,
         preserveIdentifierCase: true,
         formulaSource: options.formulaSource,
         evaluateFormula(formula) {
@@ -172,7 +230,7 @@ export function createFormulaSheet(formulasValue, options = {}) {
     });
     const sheet = {
         type: "formula_sheet",
-        id: options.id || "formula-sheet",
+        id,
         shape,
         rank: shape.length,
         graph,
@@ -193,6 +251,10 @@ export function createFormulaSheet(formulasValue, options = {}) {
         getFormula(index) {
             return graph.node(nodeNameFor(normalizeIndex(index, shape))).formula;
         },
+        getFormulaSource(index) {
+            const normalized = normalizeIndex(index, shape);
+            return slotMetadata.get(slotKey(normalized)).source;
+        },
         reactiveNode(index) {
             return graph.node(nodeNameFor(normalizeIndex(index, shape)));
         },
@@ -201,20 +263,55 @@ export function createFormulaSheet(formulasValue, options = {}) {
                 throw new Error("FormulaSheet.SetFormula requires deferred syntax @{ ... }");
             }
             const normalized = normalizeIndex(index, shape);
-            graph.setFormula(nodeNameFor(normalized), formula, {
-                ...metadata,
-                source: metadata?.source ?? options.formulaSource?.(formula) ?? null,
-                sheetCause: {
-                    type: "formula:set",
-                    index: Object.freeze(normalized),
-                    formula,
-                },
-            });
+            const record = slotMetadata.get(slotKey(normalized));
+            const previousSource = record.source;
+            const previousMode = record.assignmentMode;
+            const nextSource = metadata?.source ?? options.formulaSource?.(formula) ?? null;
+            const nextMode = assignmentMode(metadata?.assignmentMode ?? record.assignmentMode);
+            record.source = nextSource;
+            record.assignmentMode = nextMode;
+            try {
+                graph.setFormula(nodeNameFor(normalized), formula, {
+                    ...metadata,
+                    source: nextSource,
+                    assignmentMode: nextMode,
+                    sheetCause: {
+                        type: "formula:set",
+                        index: Object.freeze(normalized),
+                        formula,
+                        assignmentMode: nextMode,
+                    },
+                });
+            } catch (error) {
+                if (graph.node(nodeNameFor(normalized)).formula !== formula) {
+                    record.source = previousSource;
+                    record.assignmentMode = previousMode;
+                }
+                throw error;
+            }
             return sheet;
+        },
+        setFormulaSource(index, source, mode = ":=") {
+            if (typeof options.compileFormula !== "function") {
+                throw new Error("FormulaSheet source editing requires a formula compiler");
+            }
+            const normalized = normalizeIndex(index, shape);
+            const authoritativeSource = text(source, "FormulaSheet formula source");
+            const normalizedMode = assignmentMode(mode);
+            const formula = options.compileFormula(authoritativeSource);
+            return sheet.setFormula(normalized, formula, {
+                source: authoritativeSource,
+                assignmentMode: normalizedMode,
+                sourceKind: "formula-source",
+            });
         },
         slot(index) {
             const normalized = normalizeIndex(index, shape);
-            return publicSlot(graph.node(nodeNameFor(normalized)), normalized);
+            return publicSlot(
+                graph.node(nodeNameFor(normalized)),
+                normalized,
+                slotMetadata.get(slotKey(normalized)),
+            );
         },
         recalculate(cause = null) {
             graph.recalculate(cause || { type: "formula:recalculate" });

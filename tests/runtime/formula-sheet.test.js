@@ -69,6 +69,43 @@ describe("formula-backed sheets", () => {
         expect(formatValue(value)).toBe("23");
     });
 
+    test("stable slot IDs keep authoritative source separate from assignment mode", () => {
+        const model = parseAndEvaluate(`
+            model := .FormulaSheet(
+                {:1x2: @{2}, @{ grid[1,1] + 1 }},
+                {= id="budget", assignmentMode="~=" }
+            );
+            model.SetSource(1, 1, "10", ":=");
+            model
+        `);
+
+        expect(model.id).toBe("budget");
+        expect(model.slot([1, 1]).id).toBe("budget:slot:1:1");
+        expect(model.slot([1, 1]).reactiveId).toBe("budget:graph:slot_1_1");
+        expect(model.slot([1, 1]).source).toBe("10");
+        expect(model.slot([1, 1]).assignmentMode).toBe(":=");
+        expect(model.slot([1, 2]).assignmentMode).toBe("~=");
+        expect(formatValue(model.get([1, 2]))).toBe("11");
+        expect(model.getFormulaSource([1, 1])).toBe("10");
+
+        const other = parseAndEvaluate(".FormulaSheet({:1x1: @{1}})");
+        expect(other.id).not.toBe(model.id);
+        expect(other.slot([1, 1]).id).toStartWith(`${other.id}:slot:`);
+        expect(() => parseAndEvaluate(
+            '.FormulaSheet({:1x1: @{1}}, {= assignmentMode="+=" })',
+        )).toThrow("Unsupported FormulaSheet assignment mode");
+        expect(() => parseAndEvaluate(
+            '.FormulaSheet({:1x1: @{1}}, {= id=" " })',
+        )).toThrow("id must not be empty");
+
+        const systemFormula = parseAndEvaluate(`
+            model := .FormulaSheet({:1x1: @{0}});
+            model.SetSource(1, 1, ".Abs(-3)");
+            model[1,1]
+        `);
+        expect(formatValue(systemFormula)).toBe("3");
+    });
+
     test("publishes successful commits to reactive dependents", () => {
         const model = parseAndEvaluate(`${chainSource} model`);
         const events = [];
@@ -140,11 +177,15 @@ describe("formula-backed sheets", () => {
         expect(view.editable).toBe(true);
         expect(view.editMode).toBe("formula");
         expect(view.cells[0][1].formulaSource).toBe("grid[1,1] + 1");
+        expect(view.cells[0][1].slotId).toBe(`${view.formulaSheet.id}:slot:1:2`);
+        expect(view.cells[0][1].assignmentMode).toBe(":=");
         expect(formatValue(view.cells[1][1].value)).toBe("5");
         expect(renderOutputHtml(view, formatValue)).toContain('data-rix-formula-sheet="true"');
         expect(renderOutputHtml(view, formatValue)).toContain('data-rix-formula-epoch="1"');
         expect(renderOutputHtml(view, formatValue)).toContain('data-rix-edit-mode="formula"');
         expect(renderOutputHtml(view, formatValue)).toContain('data-rix-formula-source="grid[1,1] + 1"');
+        expect(renderOutputHtml(view, formatValue)).toContain('data-rix-slot-id="');
+        expect(renderOutputHtml(view, formatValue)).toContain('data-rix-assignment-mode=":="');
 
         const snapshot = createSheetSnapshot(view);
         expect(snapshot.formulaBacked).toBe(false);

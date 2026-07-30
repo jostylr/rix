@@ -151,6 +151,10 @@ function sheetData(value) {
             shape: [...value.shape],
             at: (index) => value.get(index),
             formulaSourceAt: (index) => value.slot(index).source,
+            formulaMetadataAt: (index) => {
+                const slot = value.slot(index);
+                return { slotId: slot.id, assignmentMode: slot.assignmentMode };
+            },
         };
     }
 
@@ -345,9 +349,12 @@ export function createSheet(args) {
             const index = planeSlice.map((item) => item);
             index[rowAxis - 1] = rowIndex + 1;
             if (columnAxis !== null) index[columnAxis - 1] = columnIndex + 1;
+            const formulaMetadata = data.formulaMetadataAt?.(index) ?? null;
             return Object.freeze({
                 value: data.at(index),
                 formulaSource: data.formulaSourceAt?.(index) ?? null,
+                slotId: formulaMetadata?.slotId ?? null,
+                assignmentMode: formulaMetadata?.assignmentMode ?? null,
                 index: Object.freeze(index),
                 address: `${addressBase}[${index.join(",")}]`,
                 displayAddress: sheetDisplayAddress(rowIndex + 1, columnIndex + 1, columnLabelMode),
@@ -852,7 +859,7 @@ export function renderOutputHtml(value, format = (item) => String(item ?? "")) {
     if (value.kind === "sheet") {
         const summary = `${value.addressBase} · shape ${value.shape.join("×")}`;
         const controls = value.hiddenAxes.length === 0 ? "" : `<div class="rix-output-sheet-plane-controls" aria-label="Tensor plane">${value.hiddenAxes.map(({ axis, name, length, selected }) => `<label><span>${escapeHtml(name)} · axis ${axis}</span><select data-rix-sheet-axis="${axis}" aria-label="${escapeHtml(name)} axis ${axis}">${Array.from({ length }, (_item, index) => `<option value="${index + 1}"${selected === index + 1 ? " selected" : ""}>${index + 1}</option>`).join("")}</select></label>`).join("")}</div>`;
-        const bodies = value.planes.map((plane) => `<tbody data-rix-plane-key="${escapeHtml(plane.key)}" data-rix-slice="${plane.slice.map((item) => item ?? "").join(",")}"${plane.key === value.selectedPlaneKey ? "" : " hidden"}>${plane.cells.map((row, rowIndex) => `<tr><th scope="row" data-rix-row="${rowIndex + 1}">${escapeHtml(value.rowHeaders[rowIndex])}</th>${row.map((cell, columnIndex) => `<td data-rix-row="${rowIndex + 1}" data-rix-column="${columnIndex + 1}" data-rix-index="${cell.index.join(",")}" data-rix-address="${escapeHtml(cell.address)}" data-rix-display-address="${escapeHtml(cell.displayAddress)}"${cell.formulaSource === null ? "" : ` data-rix-formula-source="${escapeHtml(cell.formulaSource)}"`} title="${escapeHtml(cell.displayAddress)} · ${escapeHtml(cell.address)}">${text(cell.value)}</td>`).join("")}</tr>`).join("")}</tbody>`).join("");
+        const bodies = value.planes.map((plane) => `<tbody data-rix-plane-key="${escapeHtml(plane.key)}" data-rix-slice="${plane.slice.map((item) => item ?? "").join(",")}"${plane.key === value.selectedPlaneKey ? "" : " hidden"}>${plane.cells.map((row, rowIndex) => `<tr><th scope="row" data-rix-row="${rowIndex + 1}">${escapeHtml(value.rowHeaders[rowIndex])}</th>${row.map((cell, columnIndex) => `<td data-rix-row="${rowIndex + 1}" data-rix-column="${columnIndex + 1}" data-rix-index="${cell.index.join(",")}" data-rix-address="${escapeHtml(cell.address)}" data-rix-display-address="${escapeHtml(cell.displayAddress)}"${cell.formulaSource === null ? "" : ` data-rix-formula-source="${escapeHtml(cell.formulaSource)}"`}${cell.slotId === null ? "" : ` data-rix-slot-id="${escapeHtml(cell.slotId)}"`}${cell.assignmentMode === null ? "" : ` data-rix-assignment-mode="${escapeHtml(cell.assignmentMode)}"`} title="${escapeHtml(cell.displayAddress)} · ${escapeHtml(cell.address)}">${text(cell.value)}</td>`).join("")}</tr>`).join("")}</tbody>`).join("");
         const liveAttributes = value.editable
             ? ` data-rix-editable="true" data-rix-edit-mode="${value.editMode}"${value.bindingId ? ` data-rix-binding-id="${escapeHtml(value.bindingId)}"` : ""}`
             : "";

@@ -72,34 +72,43 @@ export function mountOutputWidgets(root, value, options = {}) {
                 onActivate: options.onActivate,
                 onSelection: options.onSelection,
                 onPlaneChange: options.onPlaneChange,
-                onEdit: widgetSession && typeof options.evaluateEdit === "function"
+                onEdit: widgetSession && (
+                    widgetSession.editMode === "formula"
+                    || typeof options.evaluateEdit === "function"
+                )
                     ? (detail) => {
                         try {
-                            const evaluated = options.evaluateEdit(detail.source, {
-                                mode: widgetSession.editMode,
-                                index: detail.index,
-                                sheet: widgetSession.current(),
-                            });
-                            if (evaluated?.type === "error") return evaluated;
-                            const valueResult = evaluated?.type === "result" ? evaluated.value : evaluated;
+                            let valueResult = null;
+                            if (widgetSession.editMode !== "formula") {
+                                const evaluated = options.evaluateEdit(detail.source, {
+                                    mode: widgetSession.editMode,
+                                    index: detail.index,
+                                    sheet: widgetSession.current(),
+                                });
+                                if (evaluated?.type === "error") return evaluated;
+                                valueResult = evaluated?.type === "result" ? evaluated.value : evaluated;
+                            }
                             const focusRequest = {
                                 sheetIndex: index,
                                 address: editedAddress(widgetSession.current(), detail.index),
                             };
                             pendingFocusRequest = focusRequest;
                             try {
-                                widgetSession.dispatch(widgetSession.editMode === "formula"
-                                    ? {
+                                if (widgetSession.editMode === "formula") {
+                                    widgetSession.dispatch({
                                         type: "sheet:formula",
                                         index: detail.index,
-                                        formula: valueResult,
                                         source: detail.source,
-                                    }
-                                    : {
+                                        assignmentMode: detail.assignmentMode,
+                                    });
+                                    valueResult = widgetSession.formulaSheet.getFormula(detail.index);
+                                } else {
+                                    widgetSession.dispatch({
                                         type: "sheet:set",
                                         index: detail.index,
                                         value: valueResult,
                                     });
+                                }
                             } finally {
                                 if (pendingFocusRequest === focusRequest) pendingFocusRequest = null;
                             }

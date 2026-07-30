@@ -4,10 +4,11 @@
 model := .FormulaSheet({:2x2:
     @{1}, @{ grid[1,1] + 1 };
     @{ grid[1,2] * 2 }, @{ grid[2,1] + 1 }
-});
+}, {= id="formula-example" });
 
 .Sheet(model, {= title="Formula results" });
 
-## Updating one formula starts a new atomic evaluation epoch.
-model.SetFormula(1, 1, @{10});
+## Source is authoritative and compiles inside the FormulaSheet.
+## The assignment mode is stored separately for future document semantics.
+model.SetSource(1, 1, "10", ":=");
 .Sheet(model, {= title="Recalculated results" })

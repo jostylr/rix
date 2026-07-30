@@ -214,9 +214,28 @@ The formula and slot APIs are:
 ```rix
 model.GetFormula(1, 2)
 model.SetFormula(1, 1, @{10})
+model.GetSource(1, 2)
+model.SetSource(1, 1, "10", ":=")
+model.GetAssignmentMode(1, 1)
 model.Recalculate()
 model.Slot(2, 2)
 ```
+
+`.FormulaSheet(formulas, options)` accepts an optional stable `id` and default
+`assignmentMode`:
+
+```rix
+model := .FormulaSheet(
+    {:1x2: @{2}, @{ grid[1,1] + 1 }},
+    {= id="budget", assignmentMode=":=" }
+)
+```
+
+Each slot then has a stable document ID such as `budget:slot:1:2`. `source` is
+the authoritative editable RiX body, while `assignmentMode` is a separate
+field. `SetSource` stores those fields, recompiles the body into deferred IR
+inside the FormulaSheet, and starts the usual atomic graph epoch. `SetFormula`
+remains the lower-level API for callers that already have a deferred value.
 
 Dollar indexing is the concise reactive API. It avoids exposing graph node
 names:
@@ -236,12 +255,13 @@ recalculation. Successful results commit together. If evaluation fails, the
 last committed values remain available and involved slots retain diagnostics.
 
 This is deliberately distinct from `.Bind`: a Binding editor computes one new
-value immediately, whereas a FormulaSheet owns formulas and reexecutes their
-dependency graph. In RiX Web and the notebook, Enter on a FormulaSheet cell
-edits its stored formula body; committing publishes a `sheet:formula` event and
-refreshes all dependent cells. The first persistent `.rixcel` format,
-assignment modes, explicit imports, and sparse rank-N storage are tracked in
-the implementation checklist.
+value immediately, whereas a FormulaSheet owns source, compiled formulas, and
+the dependency graph. In RiX Web and the notebook, Enter on a FormulaSheet
+cell edits its stored formula body; the WidgetSession passes source and mode to
+the FormulaSheet compiler, publishes a `sheet:formula` event, and refreshes all
+dependent cells. The first persistent `.rixcel` format, assignment-mode
+semantics, explicit imports, and sparse rank-N storage remain on the
+implementation checklist.
 
 ## Reactive dependent views
 

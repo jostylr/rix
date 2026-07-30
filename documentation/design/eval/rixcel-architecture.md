@@ -217,18 +217,21 @@ implemented rank-2 prototype is constructed from deferred formulas:
 model := .FormulaSheet([
     [@{1},                 @{ grid[1,1] + 1 }],
     [@{ grid[1,2] * 2 },   @{ grid[2,1] + 1 }]
-]);
+], {= id="model" });
 
 model[2,2]             # 5
 model.GetFormula(1,2)  # deferred formula value
-model.SetFormula(1,1, @{10})
+model.SetSource(1,1, "10", ":=")
 .Sheet(model)
 ```
 
-The prototype exposes `GetFormula`, `SetFormula`, `Recalculate`, `Slot`, and
-`Graph`. Every formula runs with `grid`, `row`, `col`, and `index` in an
-isolated context; caller locals and explicit outer lookup are unavailable.
-`SetFormula` invalidates that slot and its transitive dependents, while
+The prototype exposes `GetFormula`, `SetFormula`, `GetSource`, `SetSource`,
+`GetAssignmentMode`, `Recalculate`, `Slot`, and `Graph`. Every formula runs
+with `grid`, `row`, `col`, and `index` in an isolated context; caller locals
+and explicit outer lookup are unavailable. `SetSource` stores authoritative
+source and assignment mode separately, rebuilds deferred IR through the
+FormulaSheet-owned compiler, then invalidates that slot and its transitive
+dependents. `SetFormula` remains a lower-level deferred-value entry point.
 `Recalculate` explicitly evaluates the full graph. A failed epoch keeps the
 last committed values while attaching diagnostics to involved slots.
 
@@ -247,9 +250,9 @@ diagnostics     parse, cycle, or runtime diagnostics
 view            presentation metadata
 ```
 
-Deferred syntax such as `@{ ... }` is the prototype's programmatic formula
-representation. In the persistent format, stored source will remain
-authoritative and deferred IR will be rebuilt from it. A deferred value
+Deferred syntax such as `@{ ... }` is the programmatic formula representation.
+Stored source is now authoritative for source edits and deferred IR is rebuilt
+from it. A deferred value
 captured from an arbitrary caller scope is not the formula context; the sheet
 evaluates its lowered formula inside a document-owned context containing
 `grid`, `row`, `col`, `index`, and eventually `names` and explicit imports.
@@ -258,11 +261,11 @@ Formula editing uses a different semantic event from Binding value editing.
 This event and its WidgetSession route are implemented:
 
 ```js
-{ type: "sheet:formula", index: [2, 3], source: "price * quantity", mode: ":=" }
+{ type: "sheet:formula", index: [2, 3], source: "price * quantity", assignmentMode: ":=" }
 ```
 
-The host parses the edited body into a deferred formula, and the model stores
-both forms, begins a new evaluation epoch,
+The WidgetSession passes the edited body and mode to the FormulaSheet. The
+model stores both fields, compiles the body, begins a new evaluation epoch,
 invalidates the edited slot and its transitive dependents, and recomputes them
 in dependency order. Runtime reads replace each computed node's dependency
 edges after a successful evaluation, so conditional formulas can change their

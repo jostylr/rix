@@ -82,12 +82,21 @@ export class WidgetSession {
                 index,
             });
         } else if (this.editMode === "formula" && event.type === "sheet:formula") {
-            this.formulaSheet.setFormula(index, event.formula, {
-                source: event.source ?? null,
-                sourceKind: "widget",
-                widgetKind: "sheet",
-                index,
-            });
+            if (typeof event.source === "string") {
+                this.formulaSheet.setFormulaSource(
+                    index,
+                    event.source,
+                    event.assignmentMode ?? this.formulaSheet.slot(index).assignmentMode,
+                );
+            } else {
+                this.formulaSheet.setFormula(index, event.formula, {
+                    source: null,
+                    assignmentMode: event.assignmentMode,
+                    sourceKind: "widget",
+                    widgetKind: "sheet",
+                    index,
+                });
+            }
         } else {
             throw new Error(`Unsupported widget event for ${this.editMode} editor: ${event.type || "missing type"}`);
         }
@@ -104,6 +113,8 @@ export class WidgetSession {
                 address: cell.address,
                 text: format(cell.value),
                 formulaSource: cell.formulaSource,
+                slotId: cell.slotId,
+                assignmentMode: cell.assignmentMode,
             }))));
     }
 
