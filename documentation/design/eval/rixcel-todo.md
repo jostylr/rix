@@ -64,8 +64,11 @@ Checked items are implemented in the current RiX repository.
 - [x] Incrementally propagate changes through transitive dependents.
 - [x] Batch graph propagation into atomic evaluation epochs.
 - [x] Make FormulaSheet graph nodes available by name inside `.LiveView`.
-- [x] Add `.RG` plans and backtick notation with `$name` source declarations.
-- [x] Add context-local default, `Use`, and `Set` graph selection.
+- [x] Add `$name` tracked reads/updates and `$$name` reactive-cell declarations/identity reads.
+- [x] Add same-cell aliases through `$$alias := $$name`.
+- [x] Add atomic `${ ... }` reactive transactions with forward references and rollback.
+- [x] Warn when a reactive definition uses a plain untracked read of a reactive name.
+- [ ] Coordinate tracked dependencies that span multiple independent ReactiveGraphs.
 - [ ] Subscribe one LiveView to multiple independent observable roots.
 - [ ] Define volatile/external-source recomputation policy.
 - [ ] Add round-trip and migration tests for `.rixcel` documents.

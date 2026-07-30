@@ -33,7 +33,7 @@ import { installSymbolicVariants, symbolicCapabilities, symbolicFunctions } from
 import { outputFunctions } from "./functions/output.js";
 import { formulaSheetFunctions } from "./functions/formula-sheet.js";
 import { reactiveGraphFunctions } from "./functions/reactive-graph.js";
-import { createReactiveGraphNotationValue } from "./functions/reactive-graph-notation.js";
+import { reactiveBindingFunctions } from "./functions/reactive-bindings.js";
 import {
     createPolySystemValue,
     embeddedFunctions,
@@ -73,6 +73,7 @@ export function createDefaultRegistry(options = {}) {
     registry.registerAll(outputFunctions);
     registry.registerAll(formulaSheetFunctions);
     registry.registerAll(reactiveGraphFunctions);
+    registry.registerAll(reactiveBindingFunctions);
     registry.registerAll(embeddedFunctions);
     installRegisteredTypes(registry);
     installUnitExactVariants(registry);
@@ -195,10 +196,6 @@ export function createDefaultSystemContext(options = {}) {
     ctx.registerAll(outputFunctions);
     ctx.registerAll(formulaSheetFunctions);
     ctx.registerAll(reactiveGraphFunctions);
-    ctx.registerValue("RG", createReactiveGraphNotationValue(), {
-        doc: "Define and apply ReactiveGraph plans through concise .RG backtick notation",
-        groups: ["Notation", "RiXCel"],
-    });
     const sArith = sArithCapability.create();
     ctx.registerCallableValue("SArith", sArith.value, sArith.definition, {
         doc: sArith.definition.doc,

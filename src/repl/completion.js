@@ -146,16 +146,29 @@ export function complete(source, cursor, { context, systemContext, formatValue }
             candidates: filterAndSort(mapKeyCandidates(context.get(mapKeyMatch[1]), query, formatValue), query),
         };
     }
-    let token = before.match(/[@.]?[A-Za-z_][A-Za-z0-9_]*$|[@.]?$/)?.[0] ?? "";
+    let token = before.match(/\$\$?[A-Za-z_][A-Za-z0-9_]*$|\$\$?$|[@.]?[A-Za-z_][A-Za-z0-9_]*$|[@.]?$/)?.[0] ?? "";
     // A trailing dot belongs to its receiver ("value."), not to the token.
     // A lone dot remains the system-capability prefix.
     if (token === "." && before.length > 1) token = "";
-    const from = cursor - token.length;
-    const query = token.replace(/^@_?/, "").replace(/^\./, "");
-    const prior = before.slice(0, from);
+    const reactivePrefix = token.match(/^\$\$?/)?.[0] ?? "";
+    const from = cursor - token.length + reactivePrefix.length;
+    const query = token.replace(/^\$\$?/, "").replace(/^@_?/, "").replace(/^\./, "");
+    const prior = before.slice(0, cursor - token.length);
     let candidates = [];
 
-    if (token.startsWith("@_") || prior.endsWith("@_")) {
+    if (reactivePrefix) {
+        candidates = context.getAllNames()
+            .map((name) => [name, context.get(name)])
+            .filter(([, value]) => value?.type === "reactive_node")
+            .map(([name, value]) => ({
+                insertText: name,
+                kind: reactivePrefix === "$$" ? "reactive cell" : "reactive value",
+                detail: reactivePrefix === "$$"
+                    ? "reactive cell identity"
+                    : "tracked reactive read",
+                preview: preview(value.peek(), formatValue),
+            }));
+    } else if (token.startsWith("@_") || prior.endsWith("@_")) {
         const prefix = token.startsWith("@_") ? "@_" : "@_";
         candidates = systemCandidates(systemContext, prefix);
     } else if (prior.endsWith(".")) {

@@ -810,14 +810,15 @@ average := graph.Derive("average", @{
 });
 scaled := graph.Derive("scaled", @{ average * grid[1,3] });</code></pre>
 <p><code>.ReactiveGraph()</code> creates the same runtime without a sheet. <code>Source(name, value)</code> adds an originating value, <code>Derive(name, deferred)</code> adds a computed node, and reads of either kind inside a deferred formula record graph edges. Names use canonical lowercase RiX user-identifier form. FormulaSheet graphs reserve <code>grid</code>, <code>row</code>, <code>col</code>, and <code>index</code> for their contextual bindings. A source update finds the old transitive dependent closure, evaluates each dirty computation at most once, replaces successful dynamic edges, and emits one commit after every staged value succeeds. Direct writes to computed nodes and nested epochs are rejected.</p>
-<p>The <code>.RG</code> registered backtick parser is the concise declaration layer over this runtime:</p>
-<pre class="rix"><code>graph := `.RG.Init.Set:
-    $source1 := 2
-    source source2 := 3
-    target1 := source1 + source2
-    target2 := target1 * 4
-`</code></pre>
-<p>Within RG source, <code>$name</code> and <code>source name</code> normalize to source declarations; unmarked assignments normalize to computed definitions. <code>Init</code> creates a graph, <code>Set</code> stores a context-local default, and <code>Use(graph)</code> applies a block without changing that default. The parser creates an inspectable graph plan and installs its definitions as one batch, permitting forward references and rolling back newly added nodes when initialization fails. Programmatic callers can produce the same plan with <code>.RG.Analyze(@{ ... })</code>, marking sources with <code>.RG.Source(expression)</code>.</p>
+<p>Dollar bindings lower ordinary RiX syntax into this runtime:</p>
+<pre class="rix"><code>${
+    $$source1 := 2;
+    $$source2 := 3;
+    $$target1 := $source1 + $source2;
+    $$target2 := $target1 * 4
+}</code></pre>
+<p><code>$$name := expression</code> lowers to a deferred ReactiveGraph cell declaration. <code>$name</code> lowers to a tracked graph read and <code>$name := expression</code> replaces the existing cell definition without replacing its identity. Plain <code>name</code> lowers through ordinary retrieval and peeks at a reactive cell without recording an edge. <code>$$alias := $$name</code> installs another binding for the same node.</p>
+<p><code>${ ... }</code> lowers to a reactive transaction. Declarations are installed as one batch so forward references are available during evaluation; updates and the transitive dependent closure run in one epoch. Failed batches remove new nodes, restore previous formulas and edges, and publish no commit. Bare <code>$</code> and <code>$$</code> remain callable-self references when they are not immediately adjacent to a lowercase identifier or <code>{</code>.</p>
 <p>FormulaSheet and Binding expose the same JavaScript subscription boundary. <code>.LiveView(source, @{ ... })</code> rederives a Sheet, Table, Fragment, Graphic, or other output after its explicit source commits. When its source is a FormulaSheet or ReactiveGraph, graph node names are available in the isolated deferred body and automatically unwrap to their current values. This keeps the dependency direction outside the renderer:</p>
 <pre class="text"><code>sheet:formula or future graphic:drag
                 |

@@ -99,6 +99,19 @@ This document provides a comprehensive reference for all token types generated b
 }
 ```
 
+### ReactiveRef / ReactiveCellRef
+```javascript
+{
+  type: "ReactiveRef" | "ReactiveCellRef",
+  name: string,       // $name tracks; $$name preserves cell identity
+  original: string
+}
+```
+
+On the left of `:=`, `ReactiveRef` updates an existing reactive definition and
+`ReactiveCellRef` declares a new cell. `${ ... }` produces a
+`ReactiveTransaction` containing a normal `BlockContainer` body.
+
 ### SystemIdentifier
 ```javascript
 {

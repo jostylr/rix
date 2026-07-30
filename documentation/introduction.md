@@ -393,8 +393,23 @@ F[:Exact](7)
 
 Inside a variant:
 
-- `$` is the current variant
-- `$$` is the parent multifunction
+- bare `$` is the current variant
+- bare `$$` is the parent multifunction
+
+Dollar signs immediately adjacent to a lowercase identifier are reactive
+binding syntax instead:
+
+```rix
+$$input := 5
+$$output := $input * 4
+$input := 7
+output                    ## 28
+```
+
+`name` peeks without tracking, `$name` reads with dependency tracking (or
+updates an existing reactive cell on the left of `:=`), and `$$name` retrieves
+cell identity (or declares a new cell on the left). `${ ... }` stages all
+reactive changes in its body and commits one atomic recalculation.
 
 A no-prep variant that appears before later variants always matches if reached, so RiX can emit a configurable warning for that situation.
 

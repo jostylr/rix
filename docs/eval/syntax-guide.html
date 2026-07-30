@@ -1232,9 +1232,15 @@ F(x) /Exact/ =&gt; x</code></pre>
 $$[:Exact](7)</code></pre>
 <p>Inside a variant body:</p>
 <ul>
-<li><code>$</code> resolves the current variant</li>
-<li><code>$$</code> resolves the parent multifunction</li>
+<li>bare <code>$</code> resolves the current variant</li>
+<li>bare <code>$$</code> resolves the parent multifunction</li>
 </ul>
+<p>Adjacent lowercase identifiers select reactive binding syntax:</p>
+<pre class="rix"><code>$$input := 5
+$$output := $input * 4
+$input := 7
+output                    ## 28</code></pre>
+<p><code>name</code> is an untracked value read, <code>$name</code> is a tracked value read or identity-preserving update target, and <code>$$name</code> is a raw cell-identity read or new declaration target. <code>${ ... }</code> batches its reactive changes into one atomic graph epoch.</p>
 <p>If execution reaches a variant with no prep and later variants still exist, RiX can emit a configurable warning because the later variants are unreachable from that point.</p>
 </section>
 </section>
@@ -1334,9 +1340,9 @@ x ~!: :rational</code></pre>
 <li>these operators return new outfitted values; they do not mutate the original binding unless assigned back</li>
 </ul>
 <p>Soft conversion warnings are controlled by runtime config:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb18"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>warnings<span class="op">:</span> {</span>
-<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">conversion</span><span class="op">:</span> <span class="kw">true</span></span>
-<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb19"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>warnings<span class="op">:</span> {</span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">conversion</span><span class="op">:</span> <span class="kw">true</span></span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>When <code>warnings.conversion === true</code>, failed <code>~:</code> emits a structured warning before returning <code>_</code>.</p>
 <p>RiX now backs these forms with immutable type and trait registries. Types are protocol bundles: they can define conversion, normalization, validation, default traits, proto methods, export/import hooks, and operator variants. Traits can imply other traits and contribute proto methods. Implied traits are materialized into <code>.__traits</code>, so <code>x ? :trait</code> remains a direct membership check.</p>
 <p>See <code>types-and-traits-guide.md</code> for the full registry, conversion, export/import, and system multifunction installation model.</p>
@@ -3659,10 +3665,10 @@ x[1] = 9          ## OK: ._mutable controls index assignment, not .lock</code></
 </tbody>
 </table>
 <p>Default <code>PRINT</code> formatting renders maps, arrays, sets, tuples, and export bundles over multiple lines. Hosts can replace either formatting or output by setting:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb51"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript"><span id="cb51-1"><a href="#cb51-1" aria-hidden="true" tabindex="-1"></a>context<span class="op">.</span><span class="fu">setEnv</span>(<span class="st">"__io__"</span><span class="op">,</span> {</span>
-<span id="cb51-2"><a href="#cb51-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">format</span>(value<span class="op">,</span> helpers) { <span class="cf">return</span> helpers<span class="op">.</span><span class="fu">prettyFormat</span>(value)<span class="op">;</span> }<span class="op">,</span></span>
-<span id="cb51-3"><a href="#cb51-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span>(text<span class="op">,</span> value<span class="op">,</span> helpers) { <span class="bu">console</span><span class="op">.</span><span class="fu">log</span>(text)<span class="op">;</span> }</span>
-<span id="cb51-4"><a href="#cb51-4" aria-hidden="true" tabindex="-1"></a>})<span class="op">;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb52"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript"><span id="cb52-1"><a href="#cb52-1" aria-hidden="true" tabindex="-1"></a>context<span class="op">.</span><span class="fu">setEnv</span>(<span class="st">"__io__"</span><span class="op">,</span> {</span>
+<span id="cb52-2"><a href="#cb52-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">format</span>(value<span class="op">,</span> helpers) { <span class="cf">return</span> helpers<span class="op">.</span><span class="fu">prettyFormat</span>(value)<span class="op">;</span> }<span class="op">,</span></span>
+<span id="cb52-3"><a href="#cb52-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span>(text<span class="op">,</span> value<span class="op">,</span> helpers) { <span class="bu">console</span><span class="op">.</span><span class="fu">log</span>(text)<span class="op">;</span> }</span>
+<span id="cb52-4"><a href="#cb52-4" aria-hidden="true" tabindex="-1"></a>})<span class="op">;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="variables" class="level3">
 <h3 class="anchored" data-anchor-id="variables">Variables</h3>

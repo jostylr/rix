@@ -612,7 +612,6 @@ ul.task-list li input[type="checkbox"] {
   <li><a href="#structural-functions" id="toc-structural-functions" class="nav-link" data-scroll-target="#structural-functions">Structural functions</a></li>
   <li><a href="#structural-value-methods" id="toc-structural-value-methods" class="nav-link" data-scroll-target="#structural-value-methods">Structural value methods</a></li>
   <li><a href="#configurable-notation-and-rix-parser-helpers" id="toc-configurable-notation-and-rix-parser-helpers" class="nav-link" data-scroll-target="#configurable-notation-and-rix-parser-helpers">Configurable notation and RiX parser helpers</a></li>
-  <li><a href="#rg.parse" id="toc-rg.parse" class="nav-link" data-scroll-target="#rg.parse"><code>.RG.Parse</code></a></li>
   <li><a href="#poly.parse" id="toc-poly.parse" class="nav-link" data-scroll-target="#poly.parse"><code>.Poly.Parse</code></a></li>
   </ul></li>
   </ul>
@@ -817,25 +816,6 @@ tensorNotation.Parse("a⊗b", [], {= })  # Tensor(a, b)</code></pre>
 <p>Declarations support <code>infix</code>, <code>prefix</code>, and <code>postfix</code>; a callable <code>apply</code> entry can define spaced operational behavior. Tight use always constructs the declared head.</p>
 <p><code>.NotationParser(callable)</code> wraps a RiX function in the registered-parser protocol. The callable receives <code>(body, modifiers, parseInfo)</code>. A trusted package can register the returned object through the ordinary capability registration API, so a parser plugin need not contain host JavaScript.</p>
 <p>The CodeMirror support reads the leading-dot header and mounts the configured secondary parser over the body. <code>.SArith</code> and <code>.Poly</code> are included by default; editors can supply parsers for plugin names. Every constructed secondary node retains a zero-based source span relative to the backtick body; <code>SourceSpan()</code> exposes it to RiX as a one-based pair.</p>
-</section>
-<section id="rg.parse" class="level2">
-<h2 class="anchored" data-anchor-id="rg.parse"><code>.RG.Parse</code></h2>
-<p><code>.RG</code> is the registered declaration language for ReactiveGraph plans:</p>
-<pre class="rix"><code>graph := `.RG.Init.Set:
-    $source1 := 2
-    source source2 := 3
-    target1 := source1 + source2
-    target2 := target1 * 4
-`</code></pre>
-<p><code>$name</code> is local to the RG grammar and declares a source node; <code>source name</code> is its word-form alias. An ordinary assignment declares a computed node whose deferred RiX expression is evaluated by the graph. Top-level newlines and semicolons both separate declarations.</p>
-<p><code>Init</code> creates a graph. <code>Set</code> makes it the current evaluation context’s default for later <code>.RG:</code> blocks. <code>.RG.Use(graph): ...</code> selects a graph for one block, while <code>.RG.Set(graph): ...</code> also changes the default. Modifier arguments name ordinary RiX graph bindings.</p>
-<p>The programmatic protocol uses <code>.RG.Analyze</code>, <code>.RG.Init</code>, <code>.RG.Apply</code>, <code>.RG.Set</code>, and <code>.RG.Use</code>. A deferred program marks sources explicitly:</p>
-<pre class="rix"><code>plan := .RG.Analyze(@{
-    source1 := .RG.Source(2);
-    target1 := source1 + 1
-});
-graph := .RG.Init(plan)</code></pre>
-<p>The outer RiX parser still assigns <code>$</code> its existing callable-self meaning. Only the RG parser interprets <code>$name</code> as a source declaration.</p>
 </section>
 <section id="poly.parse" class="level2">
 <h2 class="anchored" data-anchor-id="poly.parse"><code>.Poly.Parse</code></h2>

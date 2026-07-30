@@ -795,6 +795,42 @@ describe("Lowering Pass", () => {
     });
   });
 
+  describe("Reactive dollar bindings", () => {
+    test("$name and $$name lower to value and identity reads", () => {
+      expect(L("$source;")).toEqual({ fn: "REACTIVE_READ", args: ["source"] });
+      expect(L("$$source;")).toEqual({ fn: "REACTIVE_NODE", args: ["source"] });
+    });
+
+    test("reactive declarations and updates defer their definitions", () => {
+      expect(L("$$target := $source * 4;")).toEqual({
+        fn: "REACTIVE_DECLARE",
+        args: [
+          "target",
+          {
+            fn: "DEFER",
+            args: [{
+              fn: "MUL",
+              args: [
+                { fn: "REACTIVE_READ", args: ["source"] },
+                { fn: "LITERAL", args: ["4"] },
+              ],
+            }],
+          },
+        ],
+      });
+      expect(L("$source := 7;")).toEqual({
+        fn: "REACTIVE_UPDATE",
+        args: ["source", { fn: "DEFER", args: [{ fn: "LITERAL", args: ["7"] }] }],
+      });
+    });
+
+    test("${ ... } lowers to one immediate transaction", () => {
+      const ir = L("${ $$source := 2; $source := 3 };");
+      expect(ir.fn).toBe("REACTIVE_TRANSACTION");
+      expect(ir.args.map(({ fn }) => fn)).toEqual(["REACTIVE_DECLARE", "REACTIVE_UPDATE"]);
+    });
+  });
+
   describe("Property Access", () => {
     test("obj.a → META_GET", () => {
       const ir = L("obj.a;");

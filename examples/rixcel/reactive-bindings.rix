@@ -1,0 +1,21 @@
+## Reactive cells use ordinary RiX names with explicit dollar access.
+## name peeks, $name tracks or updates, and $$name exposes cell identity.
+
+${
+    $$source1 := 2;
+    $$source2 := 3;
+    $$target1 := $source1 + $source2;
+    $$target2 := $target1 * 4
+};
+
+initial := [source1, source2, target1, target2];
+
+${
+    $source1 := 10;
+    $source2 := 4
+};
+
+$$sourceAlias := $$source1;
+updated := [sourceAlias, target1, target2];
+
+[initial, updated]

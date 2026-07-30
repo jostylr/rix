@@ -3867,6 +3867,44 @@ describe("RiX Parser", () => {
   });
 
   describe('Self reference', () => {
+    test('$name and $$name parse as reactive value and cell references', () => {
+      const ast = parseCode('$source; $$source;');
+      expect(stripMetadata(ast)).toEqual([
+        {
+          type: 'Statement',
+          expression: { type: 'ReactiveRef', name: 'source' }
+        },
+        {
+          type: 'Statement',
+          expression: { type: 'ReactiveCellRef', name: 'source' }
+        }
+      ]);
+    });
+
+    test('${ ... } parses as an immediate reactive transaction', () => {
+      const ast = parseCode('${ $$source := 2; $source := 3 };');
+      expect(stripMetadata(ast)[0].expression).toEqual({
+        type: 'ReactiveTransaction',
+        body: {
+          type: 'BlockContainer',
+          elements: [
+            {
+              type: 'BinaryOperation',
+              operator: ':=',
+              left: { type: 'ReactiveCellRef', name: 'source' },
+              right: { type: 'Number', value: '2' }
+            },
+            {
+              type: 'BinaryOperation',
+              operator: ':=',
+              left: { type: 'ReactiveRef', name: 'source' },
+              right: { type: 'Number', value: '3' }
+            }
+          ]
+        }
+      });
+    });
+
     test('bare $ parses as SelfRef', () => {
       const ast = parseCode('$;');
       expect(stripMetadata(ast)).toEqual([

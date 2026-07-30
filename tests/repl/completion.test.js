@@ -1,5 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { Context, createDefaultSystemContext, complete } from "../../src/index.js";
+import {
+    Context,
+    complete,
+    createDefaultRegistry,
+    createDefaultSystemContext,
+    parseAndEvaluate,
+} from "../../src/index.js";
 
 function completions(source, context = new Context()) {
     return complete(source, source.length, { context, systemContext: createDefaultSystemContext() });
@@ -40,5 +46,20 @@ describe("REPL completion", () => {
         const context = new Context();
         context.set("alpha", 42);
         expect(completions("1 + al", context).candidates.map((entry) => entry.insertText)).toContain("alpha");
+    });
+
+    test("completes tracked values and raw reactive cell identities", () => {
+        const context = new Context();
+        parseAndEvaluate("$$source1 := 2; ordinary := 3", {
+            context,
+            registry: createDefaultRegistry(),
+            systemContext: createDefaultSystemContext(),
+        });
+        const tracked = completions("$so", context);
+        const identity = completions("$$so", context);
+        expect(tracked.from).toBe(1);
+        expect(identity.from).toBe(2);
+        expect(tracked.candidates.map((entry) => entry.insertText)).toEqual(["source1"]);
+        expect(identity.candidates[0].kind).toBe("reactive cell");
     });
 });

@@ -238,8 +238,22 @@ $$[:Exact](7)
 
 Inside a variant body:
 
-- `$` resolves the current variant
-- `$$` resolves the parent multifunction
+- bare `$` resolves the current variant
+- bare `$$` resolves the parent multifunction
+
+Adjacent lowercase identifiers select reactive binding syntax:
+
+```rix
+$$input := 5
+$$output := $input * 4
+$input := 7
+output                    ## 28
+```
+
+`name` is an untracked value read, `$name` is a tracked value read or
+identity-preserving update target, and `$$name` is a raw cell-identity read or
+new declaration target. `${ ... }` batches its reactive changes into one
+atomic graph epoch.
 
 If execution reaches a variant with no prep and later variants still exist, RiX can emit a configurable warning because the later variants are unreachable from that point.
 

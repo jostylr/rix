@@ -8,7 +8,7 @@ toc-depth: 2
 This page is generated from the current RiX implementation by `documentation/scripts/generate-reference.js`. Do not edit it by hand. Descriptions come from registry documentation strings; the narrative [syntax guide](../eval/syntax-guide.md) and [methods guide](../eval/methods-guide.md) provide signatures and examples.
 :::
 
-At this revision RiX exposes **147 named entries** on the default system context and registers **175 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
+At this revision RiX exposes **146 named entries** on the default system context and registers **180 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
 
 ## Public system context
 
@@ -120,7 +120,6 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.REACTIVEGRAPH` | function | RiXCel | Create a transactional graph of reactive source and computed nodes |
 | `.REDUCE` | lazy function | Collections, Arrays | Reduce a collection with an accumulator function — callback receives (acc, val, locator, src) |
 | `.REVERSE` | function | — | Reverse a collection (returns new copy) |
-| `.RG` | value | Notation, RiXCel | Define and apply ReactiveGraph plans through concise .RG backtick notation |
 | `.SAMECELL` | lazy function | — | Identity comparison (===) — returns 1 if both sides refer to the same cell, null otherwise |
 | `.SAME_CELL` | lazy function | — | Identity comparison (===) — returns 1 if both sides refer to the same cell, null otherwise |
 | `.SARITH` | function | — | Parse structural arithmetic; backticks use this parser by default, with optional Complex/Quaternion/Octonion/Algebra scopes |
@@ -254,9 +253,9 @@ Imported scripts can add or withhold named groups. Permission-like names are int
 | `Units` | `UNITS`, `Units`, `CONVERTUNIT`, `ConvertUnit`, `DEFINEUNIT`, `DefineUnit` |
 | `Exact` | `EXACT`, `Exact`, `COMPLEX`, `Complex`, `DEFINEEXACTGENERATOR`, `DefineExactGenerator`, `exactalgebras` |
 | `Symbolic` | `POLY`, `DERIV`, `INTEGRATE`, `TRANSFORM`, `SIMPLIFY`, `SPEC`, `SPECCABILITY`, `INSPECTSPEC`, `SArith` |
-| `Notation` | `SArith`, `Poly`, `NotationParser`, `RG` |
+| `Notation` | `SArith`, `Poly`, `NotationParser` |
 | `Random` | `RANDOMSEED`, `RandomSeed`, `RAND_NAME` |
-| `RiXCel` | `FORMULASHEET`, `REACTIVEGRAPH`, `RG` |
+| `RiXCel` | `FORMULASHEET`, `REACTIVEGRAPH` |
 
 Default script policy includes all functions and the `IMPORTS` permission. Recognized permission names are `IMPORTS`, `NET`, `FILES`, `PLUGINS`. The default loop limit is 10,000 iterations and the default constructor capture mode is `deep_copy`.
 
@@ -398,6 +397,11 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `RANDOM` | eager, effectful/unspecified | Sample exact rational points from an interval |
 | `RANDOM_PARTITION` | eager, effectful/unspecified | Partition an interval at distinct random rational points |
 | `REACTIVEGRAPH` | eager, effectful/unspecified | Create a transactional graph of reactive source and computed nodes |
+| `REACTIVE_DECLARE` | lazy, effectful/unspecified | Declare a new reactive cell from a deferred definition |
+| `REACTIVE_NODE` | eager, effectful/unspecified | Retrieve a reactive cell identity without dereferencing it |
+| `REACTIVE_READ` | eager, effectful/unspecified | Read a reactive cell value and record a dependency |
+| `REACTIVE_TRANSACTION` | lazy, effectful/unspecified | Stage reactive declarations and updates and commit one atomic graph epoch |
+| `REACTIVE_UPDATE` | lazy, effectful/unspecified | Replace a reactive cell definition while preserving its identity |
 | `REGEX` | eager, effectful/unspecified | Create a regex matching function |
 | `RETRIEVE` | eager, effectful/unspecified | Look up a variable in the current scope chain |
 | `SAME_CELL` | lazy, effectful/unspecified | Identity comparison (===) — returns 1 if both sides refer to the same cell, null otherwise |

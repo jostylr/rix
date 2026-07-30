@@ -219,6 +219,18 @@ const LOWERERS = {
     return ir("PARENT_SELF");
   },
 
+  ReactiveRef(node) {
+    return ir("REACTIVE_READ", node.name);
+  },
+
+  ReactiveCellRef(node) {
+    return ir("REACTIVE_NODE", node.name);
+  },
+
+  ReactiveTransaction(node) {
+    return ir("REACTIVE_TRANSACTION", ...node.body.elements.map(lowerNode));
+  },
+
   UserIdentifier(node) {
     return ir("RETRIEVE", node.name);
   },
@@ -1104,6 +1116,20 @@ function lowerAssignment(node, irFn) {
 
   if (left.type === "SelfRef") {
     throw new Error("Cannot assign to '$'; it is read-only and only valid within a function body");
+  }
+
+  if (left.type === "ReactiveRef") {
+    if (irFn !== "ASSIGN_COPY") {
+      throw new Error("Reactive updates use '$name := expression'");
+    }
+    return ir("REACTIVE_UPDATE", left.name, ir("DEFER", lowerNode(node.right)));
+  }
+
+  if (left.type === "ReactiveCellRef") {
+    if (irFn !== "ASSIGN_COPY") {
+      throw new Error("Reactive declarations use '$$name := expression'");
+    }
+    return ir("REACTIVE_DECLARE", left.name, ir("DEFER", lowerNode(node.right)));
   }
 
   // System context meta assignment: .freeze = true, .immutable = false

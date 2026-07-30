@@ -416,6 +416,9 @@ export class Context {
         this.functions.clear();
         this.callStack = [];
         this.currentCallables = [];
+        this.env.delete("__reactive_binding_graph__");
+        this.env.delete("__reactive_active_graph__");
+        this.env.delete("__reactive_transaction__");
     }
 
     /**

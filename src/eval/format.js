@@ -141,6 +141,10 @@ function previewIr(node, options = {}) {
         return "$";
     case "PARENT_SELF":
         return "$$";
+    case "REACTIVE_READ":
+        return `$${node.args[0]}`;
+    case "REACTIVE_NODE":
+        return `$$${node.args[0]}`;
     case "NEG":
         return truncate(`-${previewIr(node.args[0], { maxLen: maxLen - 1, depth: depth + 1 })}`, maxLen);
     case "CALL":
@@ -287,7 +291,6 @@ export function formatValue(val, options = {}) {
         if (val.type === "binding") return val.toString();
         if (val.type === "formula_sheet") return val.toString();
         if (val.type === "reactive_graph" || val.type === "reactive_node") return val.toString();
-        if (val.type === "reactive_graph_plan" || val.type === "reactive_graph_notation") return val.toString();
         if (val.type === "string") return val.value;
         if (isCayleyInfinity(val)) return "Infinity";
         if (isCayleyValue(val)) {

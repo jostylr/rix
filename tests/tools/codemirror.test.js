@@ -55,11 +55,6 @@ describe("RiX Lezer grammar", () => {
       from: 8,
       to: 21,
     });
-    expect(backtickParserRegion("`.RG.Init.Set:$source := 2`")).toEqual({
-      name: "RG",
-      from: 14,
-      to: 26,
-    });
     expect(backtickParserRegion("`:raw text`")).toBeNull();
   });
 

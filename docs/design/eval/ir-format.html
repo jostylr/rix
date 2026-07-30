@@ -937,18 +937,48 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td>Deferred (lazy) computation</td>
 </tr>
 <tr class="even">
+<td><code>REACTIVE_READ</code></td>
+<td><code>$name</code></td>
+<td><code>[name]</code></td>
+<td>Read a reactive cell and record an edge</td>
+</tr>
+<tr class="odd">
+<td><code>REACTIVE_NODE</code></td>
+<td><code>$$name</code></td>
+<td><code>[name]</code></td>
+<td>Retrieve reactive cell identity</td>
+</tr>
+<tr class="even">
+<td><code>REACTIVE_DECLARE</code></td>
+<td><code>$$name := expr</code></td>
+<td><code>[name, DEFER(expr)]</code></td>
+<td>Declare a new reactive cell</td>
+</tr>
+<tr class="odd">
+<td><code>REACTIVE_UPDATE</code></td>
+<td><code>$name := expr</code></td>
+<td><code>[name, DEFER(expr)]</code></td>
+<td>Replace a cell definition without replacing identity</td>
+</tr>
+<tr class="even">
+<td><code>REACTIVE_TRANSACTION</code></td>
+<td><code>${ ... }</code></td>
+<td><code>[stmt1, stmt2, ...]</code></td>
+<td>Stage and atomically commit reactive changes</td>
+</tr>
+<tr class="odd">
 <td><code>SYSTEM_SPEC</code></td>
 <td><code>{#x# x^2 }</code></td>
 <td><code>[spec_meta]</code></td>
 <td>Create a first-class symbolic spec; metadata carries headers, output mode, expression/statements, and imports</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>DERIVATIVE</code></td>
 <td><code>F'</code>, <code>F'(3)</code></td>
 <td><code>[callable, order, variable]</code></td>
 <td>Exact symbolic derivative; evaluated syntax wraps the result in <code>CALL_EXPR</code></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>INTEGRAL</code></td>
 <td><code>'F</code>, <code>'F(3)</code></td>
 <td><code>[callable, order, variable]</code></td>

@@ -27,7 +27,7 @@ import { tokenize } from "../../parser/tokenizer.js";
 import { lower } from "../lower.js";
 import { runtimeDefaults } from "../../runtime/runtime-config.js";
 import { maybeAutoMarkMultifunction } from "../../runtime/multifunction.js";
-import { REACTIVE_READ_ENV } from "../../runtime/reactive-graph.js";
+import { isReactiveNode, REACTIVE_READ_ENV } from "../../runtime/reactive-graph.js";
 import {
     exportByRegisteredTypeRuntime,
     importByRegisteredTypeRuntime,
@@ -1872,7 +1872,8 @@ export const coreFunctions = {
                 throw new Error(`Undefined variable: ${name}`);
             }
             const reactiveRead = context.getEnv(REACTIVE_READ_ENV, null);
-            return typeof reactiveRead === "function" ? reactiveRead(value, name) : value;
+            if (typeof reactiveRead === "function") return reactiveRead(value, name);
+            return isReactiveNode(value) ? value.peek() : value;
         },
         doc: "Look up a variable in the current scope chain",
     },

@@ -298,26 +298,29 @@ dirty computation at most once, replaces successful dynamic edges, and emits
 one commit after every staged value succeeds. Direct writes to computed nodes
 and nested epochs are rejected.
 
-The `.RG` registered backtick parser is the concise declaration layer over this
-runtime:
+Dollar bindings lower ordinary RiX syntax into this runtime:
 
 ```rix
-graph := `.RG.Init.Set:
-    $source1 := 2
-    source source2 := 3
-    target1 := source1 + source2
-    target2 := target1 * 4
-`
+${
+    $$source1 := 2;
+    $$source2 := 3;
+    $$target1 := $source1 + $source2;
+    $$target2 := $target1 * 4
+}
 ```
 
-Within RG source, `$name` and `source name` normalize to source declarations;
-unmarked assignments normalize to computed definitions. `Init` creates a
-graph, `Set` stores a context-local default, and `Use(graph)` applies a block
-without changing that default. The parser creates an inspectable graph plan
-and installs its definitions as one batch, permitting forward references and
-rolling back newly added nodes when initialization fails. Programmatic callers
-can produce the same plan with `.RG.Analyze(@{ ... })`, marking sources with
-`.RG.Source(expression)`.
+`$$name := expression` lowers to a deferred ReactiveGraph cell declaration.
+`$name` lowers to a tracked graph read and `$name := expression` replaces the
+existing cell definition without replacing its identity. Plain `name` lowers
+through ordinary retrieval and peeks at a reactive cell without recording an
+edge. `$$alias := $$name` installs another binding for the same node.
+
+`${ ... }` lowers to a reactive transaction. Declarations are installed as one
+batch so forward references are available during evaluation; updates and the
+transitive dependent closure run in one epoch. Failed batches remove new nodes,
+restore previous formulas and edges, and publish no commit. Bare `$` and `$$`
+remain callable-self references when they are not immediately adjacent to a
+lowercase identifier or `{`.
 
 FormulaSheet and Binding expose the same JavaScript subscription boundary.
 `.LiveView(source, @{ ... })` rederives a Sheet, Table, Fragment, Graphic, or

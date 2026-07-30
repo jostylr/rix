@@ -14,7 +14,7 @@
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/design/eval/rixcel-architecture.html</loc>
-    <lastmod>2026-07-30T16:53:24.147Z</lastmod>
+    <lastmod>2026-07-30T18:50:11.869Z</lastmod>
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/design/eval/transformation-reference.html</loc>
@@ -30,15 +30,15 @@
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/design/eval/ir-format.html</loc>
-    <lastmod>2026-07-15T13:14:11.246Z</lastmod>
+    <lastmod>2026-07-30T18:50:40.855Z</lastmod>
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/parser/embedded-parsing.html</loc>
-    <lastmod>2026-07-30T16:53:24.386Z</lastmod>
+    <lastmod>2026-07-30T18:50:12.107Z</lastmod>
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/parser/AST-brief.html</loc>
-    <lastmod>2026-07-29T18:00:26.885Z</lastmod>
+    <lastmod>2026-07-30T18:50:49.970Z</lastmod>
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/parser/architecture.html</loc>
@@ -50,7 +50,7 @@
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/reference/system-reference.html</loc>
-    <lastmod>2026-07-30T16:54:31.419Z</lastmod>
+    <lastmod>2026-07-30T18:53:00.992Z</lastmod>
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/eval/methods-guide.html</loc>
@@ -58,7 +58,7 @@
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/eval/sheet-guide.html</loc>
-    <lastmod>2026-07-30T16:53:24.029Z</lastmod>
+    <lastmod>2026-07-30T18:52:32.633Z</lastmod>
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/status.html</loc>
@@ -82,7 +82,7 @@
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/introduction.html</loc>
-    <lastmod>2026-07-29T20:28:21.732Z</lastmod>
+    <lastmod>2026-07-30T18:50:40.604Z</lastmod>
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/tutorial/units-and-exact-values.html</loc>
@@ -90,7 +90,7 @@
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/eval/syntax-guide.html</loc>
-    <lastmod>2026-07-29T20:27:29.831Z</lastmod>
+    <lastmod>2026-07-30T18:50:40.726Z</lastmod>
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/eval/types-and-traits-guide.html</loc>
@@ -134,7 +134,7 @@
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/design/eval/rixcel-todo.html</loc>
-    <lastmod>2026-07-30T16:53:24.264Z</lastmod>
+    <lastmod>2026-07-30T18:50:11.987Z</lastmod>
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/rix-rationales.html</loc>

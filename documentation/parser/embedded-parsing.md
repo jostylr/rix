@@ -395,43 +395,6 @@ editors can supply parsers for plugin names. Every constructed secondary node
 retains a zero-based source span relative to the backtick body; `SourceSpan()`
 exposes it to RiX as a one-based pair.
 
-## `.RG.Parse`
-
-`.RG` is the registered declaration language for ReactiveGraph plans:
-
-```rix
-graph := `.RG.Init.Set:
-    $source1 := 2
-    source source2 := 3
-    target1 := source1 + source2
-    target2 := target1 * 4
-`
-```
-
-`$name` is local to the RG grammar and declares a source node; `source name` is
-its word-form alias. An ordinary assignment declares a computed node whose
-deferred RiX expression is evaluated by the graph. Top-level newlines and
-semicolons both separate declarations.
-
-`Init` creates a graph. `Set` makes it the current evaluation context's default
-for later `.RG:` blocks. `.RG.Use(graph): ...` selects a graph for one block,
-while `.RG.Set(graph): ...` also changes the default. Modifier arguments name
-ordinary RiX graph bindings.
-
-The programmatic protocol uses `.RG.Analyze`, `.RG.Init`, `.RG.Apply`,
-`.RG.Set`, and `.RG.Use`. A deferred program marks sources explicitly:
-
-```rix
-plan := .RG.Analyze(@{
-    source1 := .RG.Source(2);
-    target1 := source1 + 1
-});
-graph := .RG.Init(plan)
-```
-
-The outer RiX parser still assigns `$` its existing callable-self meaning.
-Only the RG parser interprets `$name` as a source declaration.
-
 ## `.Poly.Parse`
 
 `.Poly` is both the existing polynomial compiler capability and a registered

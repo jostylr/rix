@@ -42,6 +42,7 @@ function graphMethods() {
 function nodeMethods() {
     return new Map([
         ["GET", method("Get", ([target]) => target.get())],
+        ["PEEK", method("Peek", ([target]) => target.peek())],
         ["SET", method("Set", ([target, value]) => target.set(value))],
         ["GETFORMULA", method("GetFormula", ([target]) => target.formula)],
         ["SETFORMULA", method("SetFormula", ([target, formula]) => target.setFormula(formula))],
@@ -76,6 +77,7 @@ export function createReactiveGraph(options = {}) {
 
     const id = options.id || `reactive-graph-${nextGraphId++}`;
     const nodes = new Map();
+    const aliases = new Map();
     const channel = new Set();
     const reservedNames = new Set((options.reservedNames || []).map((name) => nodeName(name)));
     let activeEpoch = null;
@@ -85,11 +87,16 @@ export function createReactiveGraph(options = {}) {
         if (reservedNames.has(name)) {
             throw new Error(`${options.reservedNameLabel || "Reactive node name is reserved"}: ${name}`);
         }
-        if (nodes.has(name)) throw new Error(`Reactive node already exists: ${name}`);
+        if (nodes.has(name) || aliases.has(name)) throw new Error(`Reactive node already exists: ${name}`);
+    }
+
+    function canonicalName(name) {
+        name = nodeName(name);
+        return aliases.get(name) ?? name;
     }
 
     function requireNode(name) {
-        const node = nodes.get(name);
+        const node = nodes.get(canonicalName(name));
         if (!node) throw new Error(`Unknown reactive node: ${name}`);
         return node;
     }
@@ -138,6 +145,9 @@ export function createReactiveGraph(options = {}) {
             get() {
                 return graph.get(name);
             },
+            peek() {
+                return graph.peek(name);
+            },
             set(value, metadata = null) {
                 if (kind !== "source") throw new Error(`Reactive computed node ${name} cannot be set directly`);
                 return graph.setSource(name, value, metadata);
@@ -171,7 +181,9 @@ export function createReactiveGraph(options = {}) {
         }
         const requested = evaluateAll
             ? new Set(nodes.keys())
-            : dirtyClosure(new Set([...(dirty || []), ...sourceOverrides.keys()]));
+            : dirtyClosure(new Set(
+                [...(dirty || []), ...sourceOverrides.keys()].map(canonicalName),
+            ));
         const previousEpoch = graph.epoch;
         const stagedValues = new Map([...nodes].map(([name, node]) => [name, node.value]));
         for (const [name, value] of sourceOverrides) stagedValues.set(name, value);
@@ -190,6 +202,7 @@ export function createReactiveGraph(options = {}) {
 
         const epoch = {
             read(name) {
+                name = canonicalName(name);
                 const node = requireNode(name);
                 if (currentName && currentName !== name) dependencies.get(currentName).add(name);
                 if (node.kind === "source") return stagedValues.get(name);
@@ -215,6 +228,16 @@ export function createReactiveGraph(options = {}) {
                 } finally {
                     currentName = previousName;
                     stack.pop();
+                }
+            },
+            peek(name) {
+                name = canonicalName(name);
+                const previousName = currentName;
+                currentName = null;
+                try {
+                    return this.read(name);
+                } finally {
+                    currentName = previousName;
                 }
             },
         };
@@ -312,11 +335,29 @@ export function createReactiveGraph(options = {}) {
             }
             return node.value;
         },
+        peek(name) {
+            name = nodeName(name);
+            if (activeEpoch) return activeEpoch.peek(name);
+            return requireNode(name).value;
+        },
         node(name) {
             return requireNode(nodeName(name));
         },
         bindings() {
-            return new Map(nodes);
+            return new Map([
+                ...nodes,
+                ...[...aliases].map(([alias, canonical]) => [alias, nodes.get(canonical)]),
+            ]);
+        },
+        addAlias(name, target) {
+            name = nodeName(name);
+            requireAvailableName(name);
+            const node = isReactiveNode(target) ? target : requireNode(target);
+            if (node.graph !== graph) {
+                throw new Error("Reactive aliases must refer to a node in the same ReactiveGraph");
+            }
+            aliases.set(name, node.name);
+            return node;
         },
         define(definitions, cause = null) {
             if (!Array.isArray(definitions) || definitions.length === 0) return graph;
@@ -362,8 +403,122 @@ export function createReactiveGraph(options = {}) {
                 throw error;
             }
         },
+        applyBatch(changes, cause = null) {
+            if (!Array.isArray(changes) || changes.length === 0) return graph;
+
+            const declarations = [];
+            const aliasChanges = [];
+            const updates = new Map();
+            const pendingNames = new Set();
+
+            for (const change of changes) {
+                const name = nodeName(change?.name);
+                if (change.kind === "computed") {
+                    requireAvailableName(name);
+                    if (pendingNames.has(name)) {
+                        throw new Error(`Reactive node already exists in transaction: ${name}`);
+                    }
+                    if (!change.formula || change.formula.fn !== "DEFER") {
+                        throw new Error(`Reactive declaration ${name} requires a deferred definition`);
+                    }
+                    pendingNames.add(name);
+                    declarations.push({ ...change, name });
+                    continue;
+                }
+                if (change.kind === "alias") {
+                    requireAvailableName(name);
+                    if (pendingNames.has(name)) {
+                        throw new Error(`Reactive node already exists in transaction: ${name}`);
+                    }
+                    pendingNames.add(name);
+                    aliasChanges.push({ name, target: nodeName(change.target) });
+                    continue;
+                }
+                if (change.kind === "update") {
+                    const target = requireNode(name);
+                    if (target.kind !== "computed") {
+                        throw new Error(`Reactive node ${name} does not have a replaceable definition`);
+                    }
+                    if (!change.formula || change.formula.fn !== "DEFER") {
+                        throw new Error(`Reactive update ${name} requires a deferred definition`);
+                    }
+                    updates.set(target.name, { ...change, name: target.name });
+                    continue;
+                }
+                throw new Error(`Unknown reactive transaction change: ${change?.kind}`);
+            }
+
+            const futureNames = new Set([...nodes.keys(), ...declarations.map(({ name }) => name)]);
+            const futureAliases = new Map(aliases);
+            for (const { name, target } of aliasChanges) {
+                const canonical = futureAliases.get(target) ?? target;
+                if (!futureNames.has(canonical)) {
+                    throw new Error(`Unknown reactive alias target: ${target}`);
+                }
+                futureAliases.set(name, canonical);
+            }
+
+            const addedNodes = [];
+            const addedAliases = [];
+            const previous = new Map();
+            try {
+                for (const definition of declarations) {
+                    const node = makeNode(definition.name, "computed", {
+                        formula: definition.formula,
+                        source: definition.source ?? options.formulaSource?.(definition.formula) ?? null,
+                        evaluator: definition.evaluator ?? null,
+                    });
+                    nodes.set(definition.name, node);
+                    addedNodes.push(definition.name);
+                }
+                for (const { name } of aliasChanges) {
+                    aliases.set(name, futureAliases.get(name));
+                    addedAliases.push(name);
+                }
+                for (const [name, update] of updates) {
+                    const node = nodes.get(name);
+                    previous.set(name, {
+                        formula: node.formula,
+                        source: node.source,
+                        evaluator: node.evaluator,
+                        state: node.state,
+                        diagnostics: [...node.diagnostics],
+                        dependencies: new Set(node.dependencies),
+                    });
+                    node.formula = update.formula;
+                    node.source = update.source ?? options.formulaSource?.(update.formula) ?? null;
+                    node.evaluator = update.evaluator ?? node.evaluator;
+                }
+
+                const dirty = new Set([...addedNodes, ...updates.keys()]);
+                if (dirty.size > 0) {
+                    runEpoch({
+                        dirty,
+                        cause: cause || {
+                            type: "reactive:batch",
+                            names: Object.freeze([...pendingNames, ...updates.keys()]),
+                        },
+                    });
+                }
+                return graph;
+            } catch (error) {
+                for (const name of addedAliases) aliases.delete(name);
+                for (const name of addedNodes) nodes.delete(name);
+                for (const [name, snapshot] of previous) {
+                    const node = nodes.get(name);
+                    node.formula = snapshot.formula;
+                    node.source = snapshot.source;
+                    node.evaluator = snapshot.evaluator;
+                    node.state = snapshot.state;
+                    node.diagnostics = snapshot.diagnostics;
+                    node.dependencies = snapshot.dependencies;
+                }
+                rebuildDependents();
+                throw error;
+            }
+        },
         setSource(name, value, metadata = null) {
-            name = nodeName(name);
+            name = canonicalName(name);
             const node = requireNode(name);
             if (node.kind !== "source") throw new Error(`Reactive node ${name} is not a source`);
             runEpoch({
@@ -374,7 +529,7 @@ export function createReactiveGraph(options = {}) {
             return value;
         },
         setFormula(name, formula, metadata = null) {
-            name = nodeName(name);
+            name = canonicalName(name);
             const node = requireNode(name);
             if (node.kind !== "computed") throw new Error(`Reactive node ${name} is not computed`);
             if (activeEpoch) {
@@ -387,6 +542,7 @@ export function createReactiveGraph(options = {}) {
             const previousSource = node.source;
             node.formula = formula;
             node.source = metadata?.source ?? options.formulaSource?.(formula) ?? null;
+            if (metadata?.evaluator) node.evaluator = metadata.evaluator;
             try {
                 runEpoch({
                     dirty: new Set([name]),

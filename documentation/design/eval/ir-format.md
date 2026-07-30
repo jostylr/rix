@@ -75,6 +75,11 @@ Args can contain other IR nodes (nested calls), literal strings, numbers, or str
 | `LOOP` | `{@ init; cond; body; upd }`, `{@ init; cond; body }`, `{@ init; cond; body; upd; after }` | `[DEFER(init), DEFER(cond), ...]` | Loop with deferred args; the three-argument form has no separate update step; the five-argument form runs `after` on normal completion and returns its value |
 | `TERNARY` | `c ?? t ?: f` | `[condition, DEFER(true), DEFER(false)]` | Ternary conditional |
 | `DEFER` | `@{...}` | `[body_ir]` | Deferred (lazy) computation |
+| `REACTIVE_READ` | `$name` | `[name]` | Read a reactive cell and record an edge |
+| `REACTIVE_NODE` | `$$name` | `[name]` | Retrieve reactive cell identity |
+| `REACTIVE_DECLARE` | `$$name := expr` | `[name, DEFER(expr)]` | Declare a new reactive cell |
+| `REACTIVE_UPDATE` | `$name := expr` | `[name, DEFER(expr)]` | Replace a cell definition without replacing identity |
+| `REACTIVE_TRANSACTION` | `${ ... }` | `[stmt1, stmt2, ...]` | Stage and atomically commit reactive changes |
 | `SYSTEM_SPEC` | `{#x# x^2 }` | `[spec_meta]` | Create a first-class symbolic spec; metadata carries headers, output mode, expression/statements, and imports |
 | `DERIVATIVE` | `F'`, `F'(3)` | `[callable, order, variable]` | Exact symbolic derivative; evaluated syntax wraps the result in `CALL_EXPR` |
 | `INTEGRAL` | `'F`, `'F(3)` | `[callable, order, variable]` | Exact supported antiderivative; evaluated syntax wraps the result in `CALL_EXPR` |

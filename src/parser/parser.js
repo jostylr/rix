@@ -923,11 +923,45 @@ class Parser {
           });
         } else if (token.value === "$$") {
           this.advance();
+          if (
+            this.current.type === "Identifier"
+            && this.current.kind === "User"
+            && token.pos?.[2] === this.current.pos?.[1]
+          ) {
+            const identifier = this.current;
+            this.advance();
+            return this.createNode("ReactiveCellRef", {
+              name: identifier.value,
+              original: token.original + identifier.original,
+            });
+          }
           return this.createNode("ParentSelfRef", {
             original: token.original,
           });
         } else if (token.value === "$") {
           this.advance();
+          if (
+            this.current.value === "{"
+            && token.pos?.[2] === this.current.pos?.[1]
+          ) {
+            const body = this.parseBraceContainer();
+            return this.createNode("ReactiveTransaction", {
+              body,
+              original: token.original + (body.original || ""),
+            });
+          }
+          if (
+            this.current.type === "Identifier"
+            && this.current.kind === "User"
+            && token.pos?.[2] === this.current.pos?.[1]
+          ) {
+            const identifier = this.current;
+            this.advance();
+            return this.createNode("ReactiveRef", {
+              name: identifier.value,
+              original: token.original + identifier.original,
+            });
+          }
           return this.createNode("SelfRef", {
             original: token.original,
           });
@@ -1520,6 +1554,8 @@ class Parser {
           "PropertyAccess",
           "BracketIndex",
           "SelfRef",
+          "ReactiveRef",
+          "ReactiveCellRef",
           "Number",
         ]);
         if (!simpleLValueTypes.has(left?.type)) {

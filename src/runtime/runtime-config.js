@@ -7,6 +7,7 @@ export const runtimeDefaults = Object.freeze({
     multifunctionConversion: false,
     multifunctionNoPrep: false,
     implicitUnitConversion: false,
+    reactiveUntrackedRead: true,
   }),
   scriptPermissionNames: Object.freeze(["IMPORTS", "NET", "FILES", "PLUGINS"]),
   defaultScriptCapabilityPolicy: Object.freeze({
@@ -32,8 +33,8 @@ export const runtimeDefaults = Object.freeze({
     Units: Object.freeze(["UNITS", "Units", "CONVERTUNIT", "ConvertUnit", "DEFINEUNIT", "DefineUnit"]),
     Exact: Object.freeze(["EXACT", "Exact", "COMPLEX", "Complex", "DEFINEEXACTGENERATOR", "DefineExactGenerator", "exactalgebras"]),
     Symbolic: Object.freeze(["POLY", "DERIV", "INTEGRATE", "TRANSFORM", "SIMPLIFY", "SPEC", "SPECCABILITY", "INSPECTSPEC", "SArith"]),
-    Notation: Object.freeze(["SArith", "Poly", "NotationParser", "RG"]),
+    Notation: Object.freeze(["SArith", "Poly", "NotationParser"]),
     Random: Object.freeze(["RANDOMSEED", "RandomSeed", "RAND_NAME"]),
-    RiXCel: Object.freeze(["FORMULASHEET", "REACTIVEGRAPH", "RG"]),
+    RiXCel: Object.freeze(["FORMULASHEET", "REACTIVEGRAPH"]),
   }),
 });
