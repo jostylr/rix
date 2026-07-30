@@ -18,13 +18,13 @@ Checked items are implemented in the current RiX repository.
 
 ## 1. Renderer and notebook integration
 
-- [ ] Add dedicated Sheet styling to RiX Web.
-- [ ] Render a selected-address indicator such as `C2 · grid[2,3]`.
-- [ ] Add pointer and keyboard selection without enabling edits.
-- [ ] Let formula/source editors insert canonical addresses by pointing.
+- [x] Add dedicated Sheet styling to RiX Web.
+- [x] Render a selected-address indicator such as `C2 · grid[2,3]`.
+- [x] Add pointer and keyboard selection without enabling value edits.
+- [x] Let formula/source editors insert canonical addresses by activation.
 - [ ] Add axis selectors for rank greater than two.
-- [ ] Add static Sheet rendering to the RiX notebook.
-- [ ] Add accessibility tests for row/column headers and keyboard navigation.
+- [x] Add static Sheet rendering to the RiX notebook.
+- [x] Add accessibility tests for row/column headers and keyboard navigation.
 
 ## 2. Binding and widget protocol
 
@@ -84,4 +84,3 @@ Checked items are implemented in the current RiX repository.
 - [ ] Design tensor spill ownership and collision rules.
 - [ ] Add block formatting and named rank-N regions.
 - [ ] Test sparse sheets at large logical shapes.
-

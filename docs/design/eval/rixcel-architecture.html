@@ -660,7 +660,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="status" class="level2">
 <h2 class="anchored" data-anchor-id="status">Status</h2>
 <p>The first implemented slice is the portable <code>.Sheet(...)</code> output value. It adapts existing tensors, matrices, and sequences into a two-dimensional snapshot with exact values, rank-N plane selection, canonical RiX addresses, and host-neutral text/HTML rendering.</p>
-<p>The reactive RiXCel document, live bindings, and standalone editor remain design and implementation work. See <a href="../../design/eval/rixcel-todo.html">the checklist</a>.</p>
+<p>RiX Web, the RiX notebook, and live notebook exports now share a host-side selection enhancer. It provides a dual address indicator, pointer selection, roving keyboard focus, and semantic select/activate events. Activation inserts the canonical address in the editable RiX hosts.</p>
+<p>The reactive RiXCel document, live value bindings, and standalone editor remain design and implementation work. See <a href="../../design/eval/rixcel-todo.html">the checklist</a>.</p>
 </section>
 <section id="vocabulary" class="level2">
 <h2 class="anchored" data-anchor-id="vocabulary">Vocabulary</h2>
@@ -717,7 +718,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Each visible cell record contains:</p>
 <pre class="text"><code>value    exact RiX value
 index    full 1-based rank-N index
-address  canonical source-like address, for example grid[2,3,1]</code></pre>
+address  canonical source-like address, for example grid[2,3,1]
+displayAddress  visible alias, for example C2 or R2C3</code></pre>
 <p>The record intentionally has room to grow. A RiXCel-backed adapter will later add source, assignment mode, diagnostics, and stable slot identity without requiring renderers to infer those from the displayed value.</p>
 </section>
 <section id="address-and-label-convention" class="level2">
@@ -729,6 +731,7 @@ grid[::, 2]</code></pre>
 <p>Spreadsheet labels such as <code>C2</code> are presentation and navigation aliases. A host should display both when useful:</p>
 <pre class="text"><code>C2 · grid[2,3]</code></pre>
 <p>Formula editing should insert canonical addresses when the user points at a slot. This avoids introducing <code>A1:B4</code> into the RiX grammar, where uppercase identifiers and colon intervals already have meanings.</p>
+<p>The shared enhancer emits bubbling <code>rix-sheet-select</code> and <code>rix-sheet-activate</code> events. Event details include <code>address</code>, <code>displayAddress</code>, the full tensor <code>index</code>, and visible <code>row</code>/<code>column</code>. Renderers can therefore add host behavior without teaching the portable output object about CodeMirror, textareas, or the DOM.</p>
 <p>Planned contextual names are:</p>
 <pre class="rix"><code>row
 col

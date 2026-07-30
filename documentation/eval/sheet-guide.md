@@ -25,8 +25,15 @@ grid[2,1]  grid[2,2]  grid[2,3]
 ```
 
 HTML renderers expose the address as `data-rix-address` and as the cell title.
-A future interactive host can therefore show `C2 · grid[2,3]` when that entry
-is selected without parsing a display label back into RiX source.
+RiX Web and the RiX notebook enhance this markup with pointer and keyboard
+selection. Selecting an entry shows `C2 · grid[2,3]` without parsing a display
+label back into RiX source.
+
+Use the arrow keys, Home, and End to move around a focused sheet. Enter or a
+double-click activates the selected address. In RiX Web this inserts the
+canonical address into the formula input; in the notebook it inserts the
+address at the current editor selection. Selection never mutates the source
+tensor.
 
 By default, column headers use a dual display such as `C · 3`. The letter is a
 familiar spreadsheet label; the number is the RiX tensor coordinate.
@@ -127,4 +134,3 @@ The planned live form is conceptually:
 events back to a RiX binding and create a refreshed `Sheet` value. The same
 event/update model is intended for interactive graphics and other notebook
 controls.
-

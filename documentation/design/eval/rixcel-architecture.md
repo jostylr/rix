@@ -7,7 +7,12 @@ adapts existing tensors, matrices, and sequences into a two-dimensional
 snapshot with exact values, rank-N plane selection, canonical RiX addresses,
 and host-neutral text/HTML rendering.
 
-The reactive RiXCel document, live bindings, and standalone editor remain
+RiX Web, the RiX notebook, and live notebook exports now share a host-side
+selection enhancer. It provides a dual address indicator, pointer selection,
+roving keyboard focus, and semantic select/activate events. Activation inserts
+the canonical address in the editable RiX hosts.
+
+The reactive RiXCel document, live value bindings, and standalone editor remain
 design and implementation work. See [the checklist](rixcel-todo.md).
 
 ## Vocabulary
@@ -84,6 +89,7 @@ Each visible cell record contains:
 value    exact RiX value
 index    full 1-based rank-N index
 address  canonical source-like address, for example grid[2,3,1]
+displayAddress  visible alias, for example C2 or R2C3
 ```
 
 The record intentionally has room to grow. A RiXCel-backed adapter will later
@@ -110,6 +116,12 @@ C2 · grid[2,3]
 Formula editing should insert canonical addresses when the user points at a
 slot. This avoids introducing `A1:B4` into the RiX grammar, where uppercase
 identifiers and colon intervals already have meanings.
+
+The shared enhancer emits bubbling `rix-sheet-select` and
+`rix-sheet-activate` events. Event details include `address`,
+`displayAddress`, the full tensor `index`, and visible `row`/`column`.
+Renderers can therefore add host behavior without teaching the portable output
+object about CodeMirror, textareas, or the DOM.
 
 Planned contextual names are:
 
@@ -199,4 +211,3 @@ filesystem or network access.
 Imported spreadsheet formulas are data until explicitly translated to RiX.
 Unsupported foreign formulas must be preserved as metadata and must not be
 executed.
-

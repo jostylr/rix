@@ -210,6 +210,10 @@ function sheetColumnLabel(index, mode) {
     return `${spreadsheetColumnLabel(index)} · ${index}`;
 }
 
+function sheetDisplayAddress(row, column, mode) {
+    return mode === "numbers" ? `R${row}C${column}` : `${spreadsheetColumnLabel(column)}${row}`;
+}
+
 function sheetField(entry, options, name, fallback = null) {
     const optionValue = options ? get(options, name) : null;
     return optionValue ?? get(entry, name, fallback);
@@ -299,6 +303,7 @@ export function createSheet(args) {
                 value: data.at(index),
                 index: Object.freeze(index),
                 address: `${addressBase}[${index.join(",")}]`,
+                displayAddress: sheetDisplayAddress(rowIndex + 1, columnIndex + 1, columnLabelMode),
             });
         }));
 
@@ -759,7 +764,7 @@ export function renderOutputHtml(value, format = (item) => String(item ?? "")) {
     if (value.kind === "grid") return `<table class="rix-output-grid"><tbody>${value.rows.map((row, rowIndex) => `<tr${hasRule(value, "horizontal", rowIndex + 1) ? " class=\"rix-grid-rule-top\"" : ""}>${row.map((cell, column) => `<td${hasRule(value, "vertical", column + 1) ? " class=\"rix-grid-rule-left\"" : ""}>${text(cell)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
     if (value.kind === "sheet") {
         const summary = `${value.addressBase} · shape ${value.shape.join("×")}`;
-        return `<section class="rix-output-sheet" data-rix-rank="${value.rank}">${value.title ? `<h3 class="rix-output-sheet-title">${escapeHtml(value.title)}</h3>` : ""}<div class="rix-output-sheet-location">${escapeHtml(summary)}</div><table><thead><tr><th class="rix-output-sheet-corner" scope="col">${escapeHtml(value.addressBase)}</th>${value.columnHeaders.map((header, column) => `<th scope="col" data-rix-column="${column + 1}">${escapeHtml(header)}</th>`).join("")}</tr></thead><tbody>${value.cells.map((row, rowIndex) => `<tr><th scope="row" data-rix-row="${rowIndex + 1}">${escapeHtml(value.rowHeaders[rowIndex])}</th>${row.map((cell) => `<td data-rix-address="${escapeHtml(cell.address)}" title="${escapeHtml(cell.address)}">${text(cell.value)}</td>`).join("")}</tr>`).join("")}</tbody></table></section>`;
+        return `<section class="rix-output-sheet" data-rix-rank="${value.rank}">${value.title ? `<h3 class="rix-output-sheet-title">${escapeHtml(value.title)}</h3>` : ""}<div class="rix-output-sheet-location" aria-live="polite">${escapeHtml(summary)}</div><table><thead><tr><th class="rix-output-sheet-corner" scope="col">${escapeHtml(value.addressBase)}</th>${value.columnHeaders.map((header, column) => `<th scope="col" data-rix-column="${column + 1}">${escapeHtml(header)}</th>`).join("")}</tr></thead><tbody>${value.cells.map((row, rowIndex) => `<tr><th scope="row" data-rix-row="${rowIndex + 1}">${escapeHtml(value.rowHeaders[rowIndex])}</th>${row.map((cell, columnIndex) => `<td data-rix-row="${rowIndex + 1}" data-rix-column="${columnIndex + 1}" data-rix-index="${cell.index.join(",")}" data-rix-address="${escapeHtml(cell.address)}" data-rix-display-address="${escapeHtml(cell.displayAddress)}" title="${escapeHtml(cell.displayAddress)} · ${escapeHtml(cell.address)}">${text(cell.value)}</td>`).join("")}</tr>`).join("")}</tbody></table></section>`;
     }
     if (value.kind === "figure") return `<figure class="rix-output-figure"${value.label ? ` id="${escapeHtml(value.label)}"` : ""}>${renderOutputHtml(value.content, format)}${value.caption ? `<figcaption>${escapeHtml(value.caption)}</figcaption>` : ""}</figure>`;
     if (value.kind === "graphic") return `<div class="rix-output-graphic">${renderGraphicSvg(value, format)}</div>`;

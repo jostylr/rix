@@ -626,7 +626,8 @@ ul.task-list li input[type="checkbox"] {
 <p>The visible rows and columns correspond to tensor axes 1 and 2. Each rendered entry retains a canonical RiX address:</p>
 <pre class="text"><code>grid[1,1]  grid[1,2]  grid[1,3]
 grid[2,1]  grid[2,2]  grid[2,3]</code></pre>
-<p>HTML renderers expose the address as <code>data-rix-address</code> and as the cell title. A future interactive host can therefore show <code>C2 · grid[2,3]</code> when that entry is selected without parsing a display label back into RiX source.</p>
+<p>HTML renderers expose the address as <code>data-rix-address</code> and as the cell title. RiX Web and the RiX notebook enhance this markup with pointer and keyboard selection. Selecting an entry shows <code>C2 · grid[2,3]</code> without parsing a display label back into RiX source.</p>
+<p>Use the arrow keys, Home, and End to move around a focused sheet. Enter or a double-click activates the selected address. In RiX Web this inserts the canonical address into the formula input; in the notebook it inserts the address at the current editor selection. Selection never mutates the source tensor.</p>
 <p>By default, column headers use a dual display such as <code>C · 3</code>. The letter is a familiar spreadsheet label; the number is the RiX tensor coordinate.</p>
 </section>
 <section id="options" class="level2">

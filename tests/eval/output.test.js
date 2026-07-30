@@ -23,6 +23,7 @@ describe("portable structured output", () => {
         expect(sheet.viewAxes).toEqual([1, 2]);
         expect(sheet.columnHeaders).toEqual(["A · 1", "B · 2", "C · 3"]);
         expect(sheet.cells[1][2].address).toBe("grid[2,3]");
+        expect(sheet.cells[1][2].displayAddress).toBe("C2");
         expect(formatValue(sheet.cells[1][2].value)).toBe("6");
 
         const text = formatValue(sheet);
@@ -32,6 +33,11 @@ describe("portable structured output", () => {
         const html = renderOutputHtml(sheet, formatValue);
         expect(html).toContain('class="rix-output-sheet"');
         expect(html).toContain('data-rix-address="grid[2,3]"');
+        expect(html).toContain('data-rix-display-address="C2"');
+        expect(html).toContain('data-rix-index="2,3"');
+        expect(html).toContain('class="rix-output-sheet-location" aria-live="polite"');
+        expect(html).toContain('<th scope="row" data-rix-row="2">2</th>');
+        expect(html).toContain('<th scope="col" data-rix-column="3">C · 3</th>');
         expect(html).toContain(">C · 3</th>");
     });
 
@@ -61,6 +67,7 @@ describe("portable structured output", () => {
         `);
         expect(rowDepth.viewAxes).toEqual([1, 3]);
         expect(rowDepth.columnHeaders).toEqual(["1", "2"]);
+        expect(rowDepth.cells[1][1].displayAddress).toBe("R2C2");
         expect(rowDepth.cells.map((row) => row.map((cell) => formatValue(cell.value)))).toEqual([
             ["2", "8"],
             ["5", "11"],
