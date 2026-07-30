@@ -8,7 +8,7 @@ toc-depth: 2
 This page is generated from the current RiX implementation by `documentation/scripts/generate-reference.js`. Do not edit it by hand. Descriptions come from registry documentation strings; the narrative [syntax guide](../eval/syntax-guide.md) and [methods guide](../eval/methods-guide.md) provide signatures and examples.
 :::
 
-At this revision RiX exposes **145 named entries** on the default system context and registers **174 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
+At this revision RiX exposes **146 named entries** on the default system context and registers **175 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
 
 ## Public system context
 
@@ -117,6 +117,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.PRODUCT` | function | — | Core operation SET\_PROD |
 | `.RANDOMSEED` | function | Random | Seed the current runtime random-number stream |
 | `.RAND_NAME` | function | Core, Random | Generate a random name string RAND\_NAME(len=10, alphabet=a-zA-Z) |
+| `.REACTIVEGRAPH` | function | RiXCel | Create a transactional graph of reactive source and computed nodes |
 | `.REDUCE` | lazy function | Collections, Arrays | Reduce a collection with an accumulator function — callback receives (acc, val, locator, src) |
 | `.REVERSE` | function | — | Reverse a collection (returns new copy) |
 | `.SAMECELL` | lazy function | — | Identity comparison (===) — returns 1 if both sides refer to the same cell, null otherwise |
@@ -254,7 +255,7 @@ Imported scripts can add or withhold named groups. Permission-like names are int
 | `Symbolic` | `POLY`, `DERIV`, `INTEGRATE`, `TRANSFORM`, `SIMPLIFY`, `SPEC`, `SPECCABILITY`, `INSPECTSPEC`, `SArith` |
 | `Notation` | `SArith`, `Poly`, `NotationParser` |
 | `Random` | `RANDOMSEED`, `RandomSeed`, `RAND_NAME` |
-| `RiXCel` | `FORMULASHEET` |
+| `RiXCel` | `FORMULASHEET`, `REACTIVEGRAPH` |
 
 Default script policy includes all functions and the `IMPORTS` permission. Recognized permission names are `IMPORTS`, `NET`, `FILES`, `PLUGINS`. The default loop limit is 10,000 iterations and the default constructor capture mode is `deep_copy`.
 
@@ -395,6 +396,7 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `PSPLIT` | lazy, effectful/unspecified | Split a collection by a delimiter or predicate |
 | `RANDOM` | eager, effectful/unspecified | Sample exact rational points from an interval |
 | `RANDOM_PARTITION` | eager, effectful/unspecified | Partition an interval at distinct random rational points |
+| `REACTIVEGRAPH` | eager, effectful/unspecified | Create a transactional graph of reactive source and computed nodes |
 | `REGEX` | eager, effectful/unspecified | Create a regex matching function |
 | `RETRIEVE` | eager, effectful/unspecified | Look up a variable in the current scope chain |
 | `SAME_CELL` | lazy, effectful/unspecified | Identity comparison (===) — returns 1 if both sides refer to the same cell, null otherwise |

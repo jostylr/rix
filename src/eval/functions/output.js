@@ -5,6 +5,7 @@ import { Integer } from "@ratmath/core";
 import { createFigure, createFragment, createGrid, createHeading, createParagraph, createSheet, createSlide, createSlides, createTable, createText } from "../../runtime/output.js";
 import { createBinding } from "../../runtime/binding.js";
 import { createLiveView } from "../../runtime/reactive-view.js";
+import { isReactiveNode, REACTIVE_READ_ENV } from "../../runtime/reactive-graph.js";
 
 const capability = (impl, doc) => ({ impl: (args) => impl(args), pure: true, doc });
 
@@ -135,13 +136,26 @@ const liveViewFunction = {
             throw new Error(".LiveView derivation must use deferred syntax @{ ... }");
         }
         const derive = () => {
-            context.push(new Map([["source", source]]), {
+            const sourceGraph = isReactiveNode(source)
+                ? source.graph
+                : source?.graph?.type === "reactive_graph"
+                    ? source.graph
+                    : source;
+            const bindings = typeof sourceGraph.bindings === "function" ? sourceGraph.bindings() : new Map();
+            bindings.set("source", source);
+            const previousRead = context.getEnv(REACTIVE_READ_ENV, undefined);
+            context.push(bindings, {
                 isolated: true,
                 callableBoundary: true,
+            });
+            context.setEnv(REACTIVE_READ_ENV, (value) => {
+                if (isReactiveNode(value) && value.graph === sourceGraph) return value.get();
+                return typeof previousRead === "function" ? previousRead(value) : value;
             });
             try {
                 return context.withSharedBody(deferred.args[0], () => evaluate(deferred.args[0]));
             } finally {
+                context.setEnv(REACTIVE_READ_ENV, previousRead);
                 context.pop();
             }
         };

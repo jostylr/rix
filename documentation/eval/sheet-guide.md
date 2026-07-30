@@ -230,33 +230,78 @@ the implementation checklist.
 
 ## Reactive dependent views
 
-FormulaSheet and Binding implement the same host-neutral
-`subscribe(listener)` contract. `.LiveView` derives any output from one
-explicit observable source:
+`.ReactiveGraph()` is the scalar dependency runtime. It owns named source and
+computed nodes, records dependencies from reads made during deferred
+evaluation, and propagates changes through the transitive graph in a single
+atomic epoch:
 
 ```rix
-pointSheet := .FormulaSheet([[@{120}, @{40}]]);
+graph := .ReactiveGraph("totals");
+source1 := graph.Source("source1", 2);
+source2 := graph.Source("source2", 3);
+target1 := graph.Derive("target1", @{ source1 + source2 });
+target2 := graph.Derive("target2", @{ target1 * 4 });
 
-.LiveView(pointSheet, @{
-    .Graphics.Graphic([260, 140], [
-        .Graphics.Path(
-            [[20, 120], [source[1,1], source[1,2]]],
-            {= stroke="#4f46e5", width=3 }
+source1.Set(10);  # target1 is 13 and target2 is 52
+```
+
+FormulaSheet is a coordinate adapter over the same runtime. `.Graph()` exposes
+its graph so named computations and `grid[...]` formulas participate in one
+dependency network:
+
+```rix
+values := .FormulaSheet([[@{120}, @{40}, @{8}]]);
+graph := values.Graph();
+
+average := graph.Derive("average", @{
+    (grid[1,1] + grid[1,2]) / 2
+});
+
+functionvalue := graph.Derive("functionvalue", @{
+    Scale(x) -> x * grid[1,3];
+    Scale(grid[1,1])
+});
+
+.LiveView(values, @{
+    .Fragment([
+        .Sheet(source, {= title="Editable inputs" }),
+        .Table(
+            ["quantity", "value"],
+            [
+                ["Average of first and second", average],
+                ["Scale(first), where Scale(x) = x * third", functionvalue]
+            ]
         ),
-        .Graphics.Circle(
-            [source[1,1], source[1,2]],
-            8,
-            {= fill="#f97316" }
-        )
+        .Graphics.Graphic([260, 140], [
+            .Graphics.Path(
+                [[20, 120], [source[1,1], source[1,2]]],
+                {= stroke="#4f46e5", width=3 }
+            ),
+            .Graphics.Circle(
+                [source[1,1], source[1,2]],
+                source[1,3],
+                {= fill="#f97316" }
+            )
+        ])
     ])
 })
 ```
 
-The deferred body runs in an isolated context where `source` is the subscribed
-object. A FormulaSheet commit or Binding update rederives the complete output
-and publishes a `live:commit` event. The initial implementation tracks one
-explicit source; automatic multi-source dependency collection remains future
-work.
+Graph names are strings in RiX user-identifier form and are canonicalized to
+lowercase, matching ordinary user bindings. A FormulaSheet graph reserves
+`grid`, `row`, `col`, and `index` for its coordinate evaluation context.
+
+`average` dynamically depends on the first two slots. `functionvalue` depends
+on the first and third, even though the third read occurs inside a locally
+defined function. Changing a formula marks its downstream nodes dirty,
+recomputes those nodes in dependency order, and emits one commit. Cycles report
+their complete graph path and preserve the last successfully committed values.
+
+FormulaSheet and Binding implement the host-neutral `subscribe(listener)`
+contract. The `.LiveView` body runs in an isolated context where `source` is
+the subscribed object and named nodes from a FormulaSheet graph are available
+by name. A successful FormulaSheet commit or Binding update rederives the
+complete output and publishes a `live:commit` event.
 
 This contract is intentionally independent of the interaction that caused the
 update. A formula editor uses `sheet:formula`; a future draggable Graphic point

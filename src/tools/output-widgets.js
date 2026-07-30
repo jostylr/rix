@@ -35,11 +35,23 @@ function editedAddress(widget, index) {
     return `${widget.addressBase}[${index.join(",")}]`;
 }
 
+export function restoreSheetFocus(root, request) {
+    if (!request) return false;
+    const sheetRoot = renderedSheetRoots(root)[request.sheetIndex];
+    if (!sheetRoot) return false;
+    const cell = [...sheetRoot.querySelectorAll("td[data-rix-address]")]
+        .find((candidate) => candidate.dataset.rixAddress === request.address);
+    if (!cell) return false;
+    cell.focus();
+    return true;
+}
+
 export function mountOutputWidgets(root, value, options = {}) {
     const format = options.format || ((item) => String(item ?? ""));
     const render = options.render || ((item) => renderOutputHtml(item, format));
     const disposers = [];
     let sheetDisposers = [];
+    let pendingFocusRequest = null;
     let disposed = false;
 
     function disposeSheets() {
@@ -69,18 +81,27 @@ export function mountOutputWidgets(root, value, options = {}) {
                             });
                             if (evaluated?.type === "error") return evaluated;
                             const valueResult = evaluated?.type === "result" ? evaluated.value : evaluated;
-                            widgetSession.dispatch(widgetSession.editMode === "formula"
-                                ? {
-                                    type: "sheet:formula",
-                                    index: detail.index,
-                                    formula: valueResult,
-                                    source: detail.source,
-                                }
-                                : {
-                                    type: "sheet:set",
-                                    index: detail.index,
-                                    value: valueResult,
-                                });
+                            const focusRequest = {
+                                sheetIndex: index,
+                                address: editedAddress(widgetSession.current(), detail.index),
+                            };
+                            pendingFocusRequest = focusRequest;
+                            try {
+                                widgetSession.dispatch(widgetSession.editMode === "formula"
+                                    ? {
+                                        type: "sheet:formula",
+                                        index: detail.index,
+                                        formula: valueResult,
+                                        source: detail.source,
+                                    }
+                                    : {
+                                        type: "sheet:set",
+                                        index: detail.index,
+                                        value: valueResult,
+                                    });
+                            } finally {
+                                if (pendingFocusRequest === focusRequest) pendingFocusRequest = null;
+                            }
                             const updates = widgetSession.cellUpdates(format);
                             const edited = updates.find((update) =>
                                 update.address === editedAddress(widgetSession.current(), detail.index));
@@ -107,9 +128,12 @@ export function mountOutputWidgets(root, value, options = {}) {
             mountSheets(liveRoot, value.current);
             const unsubscribe = value.subscribe((event) => {
                 if (disposed || event.type !== "live:commit") return;
+                const focusRequest = pendingFocusRequest;
+                pendingFocusRequest = null;
                 liveRoot.innerHTML = render(value.current);
                 liveRoot.dataset.rixLiveRevision = String(value.revision);
                 mountSheets(liveRoot, value.current);
+                restoreSheetFocus(liveRoot, focusRequest);
                 options.onLiveChange?.(event, liveRoot);
             });
             disposers.push(unsubscribe);

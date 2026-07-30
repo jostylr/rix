@@ -7,6 +7,7 @@
  */
 
 import { Integer, Rational } from "@ratmath/core";
+import { createReactiveGraph } from "./reactive-graph.js";
 
 function exactIndex(value, label = "Formula sheet index") {
     if (value instanceof Integer) return Number(value.value);
@@ -45,8 +46,12 @@ function normalizeFormulaMatrix(value) {
     return matrix;
 }
 
-function keyFor(index) {
-    return index.join(",");
+function nodeNameFor(index) {
+    return `slot_${index.join("_")}`;
+}
+
+function keyFromNodeName(name) {
+    return String(name).replace(/^slot_/, "").replaceAll("_", ",");
 }
 
 function addressFor(index) {
@@ -85,22 +90,23 @@ function formulaSheetMethods() {
         })],
         ["RECALCULATE", method("Recalculate", ([target]) => target.recalculate())],
         ["SLOT", method("Slot", ([target, ...index]) => target.slot(index))],
+        ["GRAPH", method("Graph", ([target]) => target.graph)],
         ["_mutable", new Integer(1n)],
     ]);
 }
 
-function publicSlot(slot) {
+function publicSlot(slot, index) {
     return Object.freeze({
         id: slot.id,
-        index: Object.freeze([...slot.index]),
+        index: Object.freeze([...index]),
         source: slot.source,
         formula: slot.formula,
         value: slot.value,
         lastGoodValue: slot.lastGoodValue,
         state: slot.state,
-        dependencies: Object.freeze([...slot.dependencies]),
+        dependencies: Object.freeze([...slot.dependencies].map(keyFromNodeName)),
         diagnostics: Object.freeze([...slot.diagnostics]),
-        view: slot.view,
+        view: Object.freeze({}),
     });
 }
 
@@ -120,170 +126,65 @@ export function createFormulaSheet(formulasValue, options = {}) {
         throw new Error("FormulaSheet requires a deferred formula evaluator");
     }
     const shape = Object.freeze([formulas.length, formulas[0].length]);
-    const slots = new Map();
     const channel = new Set();
-    for (let row = 1; row <= shape[0]; row += 1) {
-        for (let column = 1; column <= shape[1]; column += 1) {
-            const index = Object.freeze([row, column]);
-            const key = keyFor(index);
-            slots.set(key, {
-                id: options.id ? `${options.id}:${key}` : `formula-slot:${key}`,
-                index,
-                source: options.formulaSource?.(formulas[row - 1][column - 1]) ?? null,
-                formula: formulas[row - 1][column - 1],
-                value: null,
-                lastGoodValue: null,
-                state: "dirty",
-                dependencies: new Set(),
-                diagnostics: [],
-                view: Object.freeze({}),
-            });
-        }
-    }
-
-    let activeEpoch = null;
+    const graph = createReactiveGraph({
+        id: options.id ? `${options.id}:graph` : undefined,
+        formulaSource: options.formulaSource,
+        evaluateFormula(formula) {
+            return options.runFormula(
+                formula,
+                Object.fromEntries([...graph.bindings(), ["grid", sheet]]),
+                { reactiveGraph: graph },
+            );
+        },
+        cycleLabel: "Formula cycle",
+        reservedNames: ["grid", "row", "col", "index"],
+        reservedNameLabel: "FormulaSheet graph node name is reserved",
+        labelForNode(name) {
+            return addressFor(keyFromNodeName(name).split(","));
+        },
+        formulaMutationError: "FormulaSheet formulas cannot change formulas during evaluation",
+        nestedEpochError: "FormulaSheet formulas cannot start a nested recalculation",
+    });
     const sheet = {
         type: "formula_sheet",
         id: options.id || "formula-sheet",
         shape,
         rank: shape.length,
-        epoch: 0,
+        graph,
+        get epoch() {
+            return graph.epoch;
+        },
         _ext: formulaSheetMethods(),
         get(index) {
             const normalized = normalizeIndex(index, shape);
-            const key = keyFor(normalized);
-            if (activeEpoch) return activeEpoch.evaluate(key);
-            const slot = slots.get(key);
-            if (slot.state === "error") {
-                throw new Error(slot.diagnostics[0] || `Formula ${addressFor(normalized)} has an error`);
-            }
-            return slot.value;
+            return graph.get(nodeNameFor(normalized));
         },
         getFormula(index) {
-            return slots.get(keyFor(normalizeIndex(index, shape))).formula;
+            return graph.node(nodeNameFor(normalizeIndex(index, shape))).formula;
         },
         setFormula(index, formula, metadata = null) {
-            if (activeEpoch) {
-                throw new Error("FormulaSheet formulas cannot change formulas during evaluation");
-            }
             if (!formula || formula.fn !== "DEFER") {
                 throw new Error("FormulaSheet.SetFormula requires deferred syntax @{ ... }");
             }
             const normalized = normalizeIndex(index, shape);
-            const slot = slots.get(keyFor(normalized));
-            const previousFormula = slot.formula;
-            const previousSource = slot.source;
-            slot.formula = formula;
-            slot.source = metadata?.source ?? options.formulaSource?.(formula) ?? null;
-            slot.state = "dirty";
-            slot.diagnostics = [];
-            sheet.recalculate({
-                type: "formula:set",
-                index: Object.freeze(normalized),
-                previousFormula,
-                previousSource,
-                formula,
-                source: slot.source,
-                metadata,
+            graph.setFormula(nodeNameFor(normalized), formula, {
+                ...metadata,
+                source: metadata?.source ?? options.formulaSource?.(formula) ?? null,
+                sheetCause: {
+                    type: "formula:set",
+                    index: Object.freeze(normalized),
+                    formula,
+                },
             });
             return sheet;
         },
         slot(index) {
-            return publicSlot(slots.get(keyFor(normalizeIndex(index, shape))));
+            const normalized = normalizeIndex(index, shape);
+            return publicSlot(graph.node(nodeNameFor(normalized)), normalized);
         },
         recalculate(cause = null) {
-            if (activeEpoch) {
-                throw new Error("FormulaSheet formulas cannot start a nested recalculation");
-            }
-            const previousEpoch = sheet.epoch;
-            const previousValues = new Map([...slots].map(([key, slot]) => [key, slot.value]));
-            const states = new Map([...slots].map(([key]) => [key, "dirty"]));
-            const values = new Map();
-            const dependencies = new Map([...slots].map(([key]) => [key, new Set()]));
-            const stack = [];
-            let currentKey = null;
-
-            const epoch = {
-                evaluate(key) {
-                    if (!slots.has(key)) throw new Error(`Unknown formula slot: ${key}`);
-                    if (currentKey && currentKey !== key) dependencies.get(currentKey).add(key);
-                    if (states.get(key) === "clean") return values.get(key);
-                    if (states.get(key) === "evaluating") {
-                        const cycleStart = stack.indexOf(key);
-                        const cycle = [...stack.slice(cycleStart), key]
-                            .map((cycleKey) => addressFor(slots.get(cycleKey).index));
-                        throw new Error(`Formula cycle: ${cycle.join(" -> ")}`);
-                    }
-
-                    states.set(key, "evaluating");
-                    stack.push(key);
-                    const previousKey = currentKey;
-                    currentKey = key;
-                    const slot = slots.get(key);
-                    try {
-                        const [row, column] = slot.index;
-                        const value = options.runFormula(slot.formula, {
-                            grid: sheet,
-                            row: new Integer(BigInt(row)),
-                            col: new Integer(BigInt(column)),
-                            index: {
-                                type: "tuple",
-                                values: [new Integer(BigInt(row)), new Integer(BigInt(column))],
-                            },
-                        });
-                        values.set(key, value);
-                        states.set(key, "clean");
-                        return value;
-                    } finally {
-                        currentKey = previousKey;
-                        stack.pop();
-                    }
-                },
-            };
-
-            activeEpoch = epoch;
-            try {
-                for (const key of slots.keys()) epoch.evaluate(key);
-            } catch (error) {
-                const message = error instanceof Error ? error.message : String(error);
-                for (const [key, state] of states) {
-                    const slot = slots.get(key);
-                    slot.state = state === "evaluating" ? "error" : "dirty";
-                    slot.diagnostics = state === "evaluating" ? [message] : [];
-                }
-                const event = Object.freeze({
-                    type: "formula:error",
-                    sheet,
-                    epoch: sheet.epoch,
-                    cause,
-                    error,
-                });
-                for (const listener of [...channel]) listener(event);
-                throw error;
-            } finally {
-                activeEpoch = null;
-            }
-
-            sheet.epoch += 1;
-            for (const [key, slot] of slots) {
-                slot.value = values.get(key);
-                slot.lastGoodValue = values.get(key);
-                slot.state = "clean";
-                slot.dependencies = dependencies.get(key);
-                slot.diagnostics = [];
-            }
-            const changed = Object.freeze([...slots]
-                .filter(([key, slot]) => previousValues.get(key) !== slot.value)
-                .map(([, slot]) => Object.freeze([...slot.index])));
-            const event = Object.freeze({
-                type: "formula:commit",
-                sheet,
-                previousEpoch,
-                epoch: sheet.epoch,
-                changed,
-                cause,
-            });
-            for (const listener of [...channel]) listener(event);
+            graph.recalculate(cause || { type: "formula:recalculate" });
             return sheet;
         },
         subscribe(listener) {
@@ -295,5 +196,67 @@ export function createFormulaSheet(formulasValue, options = {}) {
             return `[FormulaSheet ${shape.join("×")} · epoch ${sheet.epoch}]`;
         },
     };
-    return sheet.recalculate();
+
+    for (let row = 1; row <= shape[0]; row += 1) {
+        for (let column = 1; column <= shape[1]; column += 1) {
+            const index = Object.freeze([row, column]);
+            const formula = formulas[row - 1][column - 1];
+            graph.addComputed(nodeNameFor(index), formula, {
+                source: options.formulaSource?.(formula) ?? null,
+                initialize: false,
+                evaluator(slotFormula) {
+                    return options.runFormula(
+                        slotFormula,
+                        Object.fromEntries([
+                            ...graph.bindings(),
+                            ["grid", sheet],
+                            ["row", new Integer(BigInt(row))],
+                            ["col", new Integer(BigInt(column))],
+                            ["index", {
+                                type: "tuple",
+                                values: [new Integer(BigInt(row)), new Integer(BigInt(column))],
+                            }],
+                        ]),
+                        {
+                            reactiveGraph: graph,
+                        },
+                    );
+                },
+            });
+        }
+    }
+
+    graph.subscribe((event) => {
+        const metadata = event.cause?.metadata;
+        const sheetCause = metadata?.sheetCause
+            ? Object.freeze({ ...metadata.sheetCause, source: metadata.source, metadata })
+            : event.cause;
+        if (event.type === "reactive:error") {
+            const formulaEvent = Object.freeze({
+                type: "formula:error",
+                sheet,
+                epoch: sheet.epoch,
+                cause: sheetCause,
+                error: event.error,
+            });
+            for (const listener of [...channel]) listener(formulaEvent);
+            return;
+        }
+        const changed = Object.freeze(event.changed
+            .filter((name) => name.startsWith("slot_"))
+            .map((name) => Object.freeze(keyFromNodeName(name).split(",").map(Number))));
+        const formulaEvent = Object.freeze({
+            type: "formula:commit",
+            sheet,
+            previousEpoch: event.previousEpoch,
+            epoch: event.epoch,
+            changed,
+            reactiveChanged: event.changed,
+            cause: sheetCause,
+        });
+        for (const listener of [...channel]) listener(formulaEvent);
+    });
+
+    graph.recalculate({ type: "formula:initial" });
+    return sheet;
 }

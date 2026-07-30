@@ -788,23 +788,53 @@ model.Slot(2, 2)</code></pre>
 </section>
 <section id="reactive-dependent-views" class="level2">
 <h2 class="anchored" data-anchor-id="reactive-dependent-views">Reactive dependent views</h2>
-<p>FormulaSheet and Binding implement the same host-neutral <code>subscribe(listener)</code> contract. <code>.LiveView</code> derives any output from one explicit observable source:</p>
-<pre class="rix"><code>pointSheet := .FormulaSheet([[@{120}, @{40}]]);
+<p><code>.ReactiveGraph()</code> is the scalar dependency runtime. It owns named source and computed nodes, records dependencies from reads made during deferred evaluation, and propagates changes through the transitive graph in a single atomic epoch:</p>
+<pre class="rix"><code>graph := .ReactiveGraph("totals");
+source1 := graph.Source("source1", 2);
+source2 := graph.Source("source2", 3);
+target1 := graph.Derive("target1", @{ source1 + source2 });
+target2 := graph.Derive("target2", @{ target1 * 4 });
 
-.LiveView(pointSheet, @{
-    .Graphics.Graphic([260, 140], [
-        .Graphics.Path(
-            [[20, 120], [source[1,1], source[1,2]]],
-            {= stroke="#4f46e5", width=3 }
+source1.Set(10);  # target1 is 13 and target2 is 52</code></pre>
+<p>FormulaSheet is a coordinate adapter over the same runtime. <code>.Graph()</code> exposes its graph so named computations and <code>grid[...]</code> formulas participate in one dependency network:</p>
+<pre class="rix"><code>values := .FormulaSheet([[@{120}, @{40}, @{8}]]);
+graph := values.Graph();
+
+average := graph.Derive("average", @{
+    (grid[1,1] + grid[1,2]) / 2
+});
+
+functionvalue := graph.Derive("functionvalue", @{
+    Scale(x) -&gt; x * grid[1,3];
+    Scale(grid[1,1])
+});
+
+.LiveView(values, @{
+    .Fragment([
+        .Sheet(source, {= title="Editable inputs" }),
+        .Table(
+            ["quantity", "value"],
+            [
+                ["Average of first and second", average],
+                ["Scale(first), where Scale(x) = x * third", functionvalue]
+            ]
         ),
-        .Graphics.Circle(
-            [source[1,1], source[1,2]],
-            8,
-            {= fill="#f97316" }
-        )
+        .Graphics.Graphic([260, 140], [
+            .Graphics.Path(
+                [[20, 120], [source[1,1], source[1,2]]],
+                {= stroke="#4f46e5", width=3 }
+            ),
+            .Graphics.Circle(
+                [source[1,1], source[1,2]],
+                source[1,3],
+                {= fill="#f97316" }
+            )
+        ])
     ])
 })</code></pre>
-<p>The deferred body runs in an isolated context where <code>source</code> is the subscribed object. A FormulaSheet commit or Binding update rederives the complete output and publishes a <code>live:commit</code> event. The initial implementation tracks one explicit source; automatic multi-source dependency collection remains future work.</p>
+<p>Graph names are strings in RiX user-identifier form and are canonicalized to lowercase, matching ordinary user bindings. A FormulaSheet graph reserves <code>grid</code>, <code>row</code>, <code>col</code>, and <code>index</code> for its coordinate evaluation context.</p>
+<p><code>average</code> dynamically depends on the first two slots. <code>functionvalue</code> depends on the first and third, even though the third read occurs inside a locally defined function. Changing a formula marks its downstream nodes dirty, recomputes those nodes in dependency order, and emits one commit. Cycles report their complete graph path and preserve the last successfully committed values.</p>
+<p>FormulaSheet and Binding implement the host-neutral <code>subscribe(listener)</code> contract. The <code>.LiveView</code> body runs in an isolated context where <code>source</code> is the subscribed object and named nodes from a FormulaSheet graph are available by name. A successful FormulaSheet commit or Binding update rederives the complete output and publishes a <code>live:commit</code> event.</p>
 <p>This contract is intentionally independent of the interaction that caused the update. A formula editor uses <code>sheet:formula</code>; a future draggable Graphic point can write a coordinate through a Binding. Both cause the same LiveView rederivation without making Graphics depend on spreadsheet code.</p>
 
 

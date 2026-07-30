@@ -1,14 +1,32 @@
-## One observable FormulaSheet can drive any structured output.
-## Edit the embedded grid in RiX Web or the notebook to move the point.
+## One FormulaSheet graph can drive a complete reactive document.
+## Edit any input in RiX Web or the notebook to refresh its dependents.
 
-pointSheet := .FormulaSheet([[@{120}, @{40}]]);
+values := .FormulaSheet([[@{120}, @{40}, @{8}]]);
+graph := values.Graph();
 
-.LiveView(pointSheet, @{
+average := graph.Derive("average", @{
+    (grid[1,1] + grid[1,2]) / 2
+});
+
+functionvalue := graph.Derive("functionvalue", @{
+    Scale(x) -> x * grid[1,3];
+    Scale(grid[1,1])
+});
+
+.LiveView(values, @{
     .Fragment([
+        .Heading(2, "Reactive point report"),
         .Sheet(source, {=
-            title="Point formulas",
-            axes=["point", "coordinate"]
+            title="Editable inputs",
+            axes=["point", "value"]
         }),
+        .Table(
+            ["quantity", "value"],
+            [
+                ["Average of first and second", average],
+                ["Scale(first), where Scale(x) = x * third", functionvalue]
+            ]
+        ),
         .Graphics.Graphic([260, 140], [
             .Graphics.Path(
                 [[20, 120], [source[1,1], source[1,2]]],
@@ -16,7 +34,7 @@ pointSheet := .FormulaSheet([[@{120}, @{40}]]);
             ),
             .Graphics.Circle(
                 [source[1,1], source[1,2]],
-                8,
+                source[1,3],
                 {= fill="#f97316" }
             )
         ])

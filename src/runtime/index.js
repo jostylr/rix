@@ -5,6 +5,12 @@ export { Cell } from "./cell.js";
 export { createBinding, isBinding } from "./binding.js";
 export { createFormulaSheet, isFormulaSheet } from "./formula-sheet.js";
 export { createLiveView, isLiveView, isReactiveSource } from "./reactive-view.js";
+export {
+    createReactiveGraph,
+    isReactiveGraph,
+    isReactiveNode,
+    REACTIVE_READ_ENV,
+} from "./reactive-graph.js";
 export { HOLE, isHole } from "./hole.js";
 export { DiagnosticsRegistry, getDiagnostics, RixAbort, isRixAbort, createEvent } from "./diagnostics.js";
 export { runtimeDefaults } from "./runtime-config.js";

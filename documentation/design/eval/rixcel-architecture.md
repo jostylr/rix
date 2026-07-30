@@ -19,10 +19,13 @@ Cell identity, `.Sheet(.Bind(variable))` creates a live Sheet, and a host-owned
 The first formula-backed prototype is implemented separately as
 `.FormulaSheet(...)`. It owns deferred formulas, evaluates them in an isolated
 sheet context, records `grid[...]` dependencies, detects complete cycle paths,
-and atomically commits successful epochs. `.Sheet(formulaSheet)` stages its
-current results for display. Editable formula source, persistent `.rixcel`
-documents, rank-N storage, and the standalone editor remain implementation
-work. See [the checklist](rixcel-todo.md).
+incrementally recomputes transitive dependents, and atomically commits
+successful epochs. It is a coordinate adapter over the general
+`.ReactiveGraph(...)` runtime, exposed as `formulaSheet.Graph()`. Named scalar
+computations can therefore join the same graph as formula slots.
+`.Sheet(formulaSheet)` stages current results and editable formula source for
+display. Persistent `.rixcel` documents, rank-N storage, and the standalone
+editor remain implementation work. See [the checklist](rixcel-todo.md).
 
 ## Vocabulary
 
@@ -222,10 +225,11 @@ model.SetFormula(1,1, @{10})
 .Sheet(model)
 ```
 
-The prototype exposes `GetFormula`, `SetFormula`, `Recalculate`, and `Slot`.
-Every formula runs with `grid`, `row`, `col`, and `index` in an isolated
-context; caller locals and explicit outer lookup are unavailable. Every
-recalculation currently evaluates the whole sheet. A failed epoch keeps the
+The prototype exposes `GetFormula`, `SetFormula`, `Recalculate`, `Slot`, and
+`Graph`. Every formula runs with `grid`, `row`, `col`, and `index` in an
+isolated context; caller locals and explicit outer lookup are unavailable.
+`SetFormula` invalidates that slot and its transitive dependents, while
+`Recalculate` explicitly evaluates the full graph. A failed epoch keeps the
 last committed values while attaching diagnostics to involved slots.
 
 The persistent document slot needs at least:
@@ -260,9 +264,9 @@ This event and its WidgetSession route are implemented:
 The host parses the edited body into a deferred formula, and the model stores
 both forms, begins a new evaluation epoch,
 invalidates the edited slot and its transitive dependents, and recomputes them
-in dependency order. A simple first implementation may conservatively
-reevaluate every formula after the edited slot; dependency-traced incremental
-evaluation can then replace that schedule without changing the slot model.
+in dependency order. Runtime reads replace each computed node's dependency
+edges after a successful evaluation, so conditional formulas can change their
+active dependency set.
 
 During an epoch, `grid[index]` always requests the current epoch's value. If it
 reads a slot already marked `evaluating`, evaluation reports the complete cycle
@@ -274,10 +278,32 @@ The formula document commits a successful epoch atomically. On failure it keeps
 the formula and diagnostics; `lastGoodValue` may be displayed as stale, but is
 never presented as the current formula result.
 
+The same graph also supports named reactive scalars:
+
+```rix
+graph := model.Graph();
+average := graph.Derive("average", @{
+    (grid[1,1] + grid[1,2]) / 2
+});
+scaled := graph.Derive("scaled", @{ average * grid[1,3] });
+```
+
+`.ReactiveGraph()` creates the same runtime without a sheet. `Source(name,
+value)` adds an originating value, `Derive(name, deferred)` adds a computed
+node, and reads of either kind inside a deferred formula record graph edges.
+Names use canonical lowercase RiX user-identifier form. FormulaSheet graphs
+reserve `grid`, `row`, `col`, and `index` for their contextual bindings.
+A source update finds the old transitive dependent closure, evaluates each
+dirty computation at most once, replaces successful dynamic edges, and emits
+one commit after every staged value succeeds. Direct writes to computed nodes
+and nested epochs are rejected.
+
 FormulaSheet and Binding expose the same JavaScript subscription boundary.
-`.LiveView(source, @{ ... })` is the first general dependent-object adapter: it
-rederives a Sheet, Table, Fragment, Graphic, or other output after its explicit
-source commits. This keeps the dependency direction outside the renderer:
+`.LiveView(source, @{ ... })` rederives a Sheet, Table, Fragment, Graphic, or
+other output after its explicit source commits. When its source is a
+FormulaSheet or ReactiveGraph, graph node names are available in the isolated
+deferred body and automatically unwrap to their current values. This keeps the
+dependency direction outside the renderer:
 
 ```text
 sheet:formula or future graphic:drag
@@ -292,10 +318,10 @@ sheet:formula or future graphic:drag
        refreshed portable output
 ```
 
-A draggable Graphic point can therefore update a Binding and let the same
-subscription path refresh its dependent lines and functions. Direct Graphic
-manipulation and automatic multi-source dependency tracking remain future
-protocol extensions.
+A draggable Graphic point can therefore update a Binding or graph source and
+let the same propagation path refresh its dependent lines and functions.
+Direct Graphic manipulation and collection of multiple independent observable
+roots by one LiveView remain future protocol extensions.
 
 ## Reactive document model
 

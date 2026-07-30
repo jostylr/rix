@@ -23,8 +23,8 @@ can call `renderOutputHtml` to render the same value as an address-aware grid.
   (`live-sheet.rix`).
 - a formula-backed sheet with dependency evaluation and an update epoch
   (`formula-sheet.rix`).
-- a FormulaSheet driving a live Graphic through the shared observable protocol
-  (`reactive-view.rix`).
+- a FormulaSheet graph propagating three editable inputs through an average, a
+  locally defined function, a live Table, and a Graphic (`reactive-view.rix`).
 
 The formula example is the first in-memory FormulaSheet prototype. Persistent
 source-backed RiXCel documents are listed in the

@@ -1,14 +1,15 @@
 import { createFormulaSheet } from "../../runtime/formula-sheet.js";
 import { tokenize } from "../../parser/tokenizer.js";
+import { isReactiveNode, REACTIVE_READ_ENV } from "../../runtime/reactive-graph.js";
 
-function containsOuterRead(node) {
+export function containsOuterRead(node) {
     if (!node || typeof node !== "object") return false;
     if (node.fn === "OUTER_RETRIEVE") return true;
     if (Array.isArray(node)) return node.some(containsOuterRead);
     return Array.isArray(node.args) && node.args.some(containsOuterRead);
 }
 
-function deferredSource(formula) {
+export function deferredSource(formula) {
     const source = formula?.__source;
     const start = formula?.pos?.[1] ?? formula?.pos?.[0];
     if (typeof source !== "string" || !Number.isInteger(start)) return null;
@@ -33,17 +34,24 @@ function formulaSheetCapability(args, context, evaluate) {
     if (args.length !== 1) throw new Error(".FormulaSheet expects one rectangular array of deferred formulas");
     return createFormulaSheet(args[0], {
         formulaSource: deferredSource,
-        runFormula(formula, bindings) {
+        runFormula(formula, bindings, runOptions = {}) {
             if (containsOuterRead(formula.args[0])) {
                 throw new Error("FormulaSheet formulas cannot access caller bindings with @; use explicit sheet imports");
             }
+            const reactiveGraph = runOptions.reactiveGraph || null;
+            const previousRead = context.getEnv(REACTIVE_READ_ENV, undefined);
             context.push(new Map(Object.entries(bindings)), {
                 isolated: true,
                 callableBoundary: true,
             });
+            context.setEnv(REACTIVE_READ_ENV, (value) => {
+                if (reactiveGraph && isReactiveNode(value) && value.graph === reactiveGraph) return value.get();
+                return typeof previousRead === "function" ? previousRead(value) : value;
+            });
             try {
                 return context.withSharedBody(formula.args[0], () => evaluate(formula.args[0]));
             } finally {
+                context.setEnv(REACTIVE_READ_ENV, previousRead);
                 context.pop();
             }
         },

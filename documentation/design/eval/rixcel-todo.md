@@ -52,13 +52,19 @@ Checked items are implemented in the current RiX repository.
 - [ ] Add the `near` evaluation binding.
 - [ ] Add `book`, `names`, and `imports` namespaces.
 - [x] Record runtime slot-read dependencies.
-- [ ] Incrementally recompute dirty dependents.
+- [x] Incrementally recompute dirty dependents.
 - [x] Detect cycles and report complete address paths.
 - [x] Reserve explicit prior-epoch access instead of falling back to stale values during cycles.
 - [x] Forbid formula writes to other slots.
 - [x] Publish FormulaSheet commits through the shared observable protocol.
 - [x] Add `.LiveView(source, deferred)` for reactive dependent outputs.
-- [ ] Track multiple observable dependencies automatically within a LiveView.
+- [x] Add a general `.ReactiveGraph` with named source and computed nodes.
+- [x] Make FormulaSheet a coordinate adapter over the general graph.
+- [x] Track computed dependencies dynamically from runtime reads.
+- [x] Incrementally propagate changes through transitive dependents.
+- [x] Batch graph propagation into atomic evaluation epochs.
+- [x] Make FormulaSheet graph nodes available by name inside `.LiveView`.
+- [ ] Subscribe one LiveView to multiple independent observable roots.
 - [ ] Define volatile/external-source recomputation policy.
 - [ ] Add round-trip and migration tests for `.rixcel` documents.
 

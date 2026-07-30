@@ -32,6 +32,7 @@ import { diagnosticFunctions } from "./functions/diagnostics.js";
 import { installSymbolicVariants, symbolicCapabilities, symbolicFunctions } from "./functions/symbolic.js";
 import { outputFunctions } from "./functions/output.js";
 import { formulaSheetFunctions } from "./functions/formula-sheet.js";
+import { reactiveGraphFunctions } from "./functions/reactive-graph.js";
 import {
     createPolySystemValue,
     embeddedFunctions,
@@ -70,6 +71,7 @@ export function createDefaultRegistry(options = {}) {
     registry.registerAll(symbolicFunctions);
     registry.registerAll(outputFunctions);
     registry.registerAll(formulaSheetFunctions);
+    registry.registerAll(reactiveGraphFunctions);
     registry.registerAll(embeddedFunctions);
     installRegisteredTypes(registry);
     installUnitExactVariants(registry);
@@ -191,6 +193,7 @@ export function createDefaultSystemContext(options = {}) {
     });
     ctx.registerAll(outputFunctions);
     ctx.registerAll(formulaSheetFunctions);
+    ctx.registerAll(reactiveGraphFunctions);
     const sArith = sArithCapability.create();
     ctx.registerCallableValue("SArith", sArith.value, sArith.definition, {
         doc: sArith.definition.doc,

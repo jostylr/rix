@@ -27,6 +27,7 @@ import { tokenize } from "../../parser/tokenizer.js";
 import { lower } from "../lower.js";
 import { runtimeDefaults } from "../../runtime/runtime-config.js";
 import { maybeAutoMarkMultifunction } from "../../runtime/multifunction.js";
+import { REACTIVE_READ_ENV } from "../../runtime/reactive-graph.js";
 import {
     exportByRegisteredTypeRuntime,
     importByRegisteredTypeRuntime,
@@ -1870,7 +1871,8 @@ export const coreFunctions = {
             if (value === undefined) {
                 throw new Error(`Undefined variable: ${name}`);
             }
-            return value;
+            const reactiveRead = context.getEnv(REACTIVE_READ_ENV, null);
+            return typeof reactiveRead === "function" ? reactiveRead(value, name) : value;
         },
         doc: "Look up a variable in the current scope chain",
     },
@@ -1904,7 +1906,8 @@ export const coreFunctions = {
             if (value === undefined) {
                 throw new Error(`Undefined outer variable: @${name}`);
             }
-            return value;
+            const reactiveRead = context.getEnv(REACTIVE_READ_ENV, null);
+            return typeof reactiveRead === "function" ? reactiveRead(value, name) : value;
         },
         doc: "Look up a variable strictly in the outer scope chains",
     },
