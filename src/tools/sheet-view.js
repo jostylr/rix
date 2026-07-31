@@ -49,6 +49,49 @@ export function parseSheetFormulaClipboard(text, fallbackAssignmentMode = ":=") 
     });
 }
 
+export function sheetCellDiagnostics(dataset = {}) {
+    let diagnostics = [];
+    if (dataset.rixDiagnostics) {
+        try {
+            const parsed = JSON.parse(dataset.rixDiagnostics);
+            if (Array.isArray(parsed)) diagnostics = parsed.map(String);
+        } catch {
+            diagnostics = [String(dataset.rixDiagnostics)];
+        }
+    }
+    return Object.freeze({
+        state: dataset.rixState ?? null,
+        diagnostics: Object.freeze(diagnostics),
+        kind: dataset.rixDiagnosticKind ?? null,
+        source: dataset.rixDiagnosticSource ?? null,
+    });
+}
+
+export function sheetCellDependencies(dataset = {}) {
+    if (!dataset.rixDependencies) return Object.freeze([]);
+    try {
+        const parsed = JSON.parse(dataset.rixDependencies);
+        return Object.freeze(Array.isArray(parsed) ? parsed.map(String) : []);
+    } catch {
+        return Object.freeze([]);
+    }
+}
+
+function diagnosticStatus(diagnostic) {
+    if (!diagnostic.diagnostics.length) return "";
+    const kind = diagnostic.kind
+        ? `${diagnostic.kind[0].toUpperCase()}${diagnostic.kind.slice(1)} error: `
+        : "Error: ";
+    return `${kind}${diagnostic.diagnostics.join("; ")}`;
+}
+
+function dependencyStatus(dependencies, address = "grid") {
+    if (!dependencies.length) return "";
+    const addressBase = String(address).replace(/\[[^\]]*\]$/u, "") || "grid";
+    return `Depends on: ${dependencies.map((dependency) =>
+        `${addressBase}[${dependency}]`).join(", ")}`;
+}
+
 function sheetRoots(root) {
     if (!root) return [];
     const roots = [];
@@ -65,6 +108,8 @@ function eventDetail(cell) {
     const slice = String(cell.closest("tbody")?.dataset.rixSlice || "")
         .split(",")
         .map((item) => item === "" ? null : Number(item));
+    const diagnostic = sheetCellDiagnostics(cell.dataset);
+    const dependencies = sheetCellDependencies(cell.dataset);
     return {
         address: cell.dataset.rixAddress,
         displayAddress: cell.dataset.rixDisplayAddress,
@@ -78,6 +123,11 @@ function eventDetail(cell) {
         slice,
         row: Number(cell.dataset.rixRow),
         column: Number(cell.dataset.rixColumn),
+        state: diagnostic.state,
+        diagnostics: diagnostic.diagnostics,
+        diagnosticKind: diagnostic.kind,
+        diagnosticSource: diagnostic.source,
+        dependencies,
     };
 }
 
@@ -113,6 +163,59 @@ function enhanceSheet(sheet, options) {
     table.setAttribute("aria-label", sheet.querySelector(".rix-output-sheet-title")?.textContent || "RiX sheet");
     const activeCells = () => cells.filter((cell) => !cell.closest("tbody")?.hidden);
 
+    function updateCellTitle(cell) {
+        const detail = eventDetail(cell);
+        const base = [detail.coordinateLabel, detail.displayAddress, detail.address]
+            .filter(Boolean)
+            .join(" · ");
+        const dependencies = dependencyStatus(detail.dependencies, detail.address);
+        const status = diagnosticStatus(sheetCellDiagnostics(cell.dataset));
+        cell.title = [base, dependencies, status].filter(Boolean).join(" · ");
+    }
+
+    function applyCellUpdates(updates) {
+        for (const update of updates) {
+            const candidate = cells.find((cell) => cell.dataset.rixAddress === update.address);
+            if (!candidate) continue;
+            candidate.textContent = update.text;
+            if (update.blank) candidate.dataset.rixBlank = "true";
+            else delete candidate.dataset.rixBlank;
+            if (typeof update.formulaSource === "string") {
+                candidate.dataset.rixFormulaSource = update.formulaSource;
+            }
+            if (typeof update.assignmentMode === "string") {
+                candidate.dataset.rixAssignmentMode = update.assignmentMode;
+            }
+            if (update.dependencies?.length) {
+                candidate.dataset.rixDependencies = JSON.stringify(update.dependencies);
+            } else {
+                delete candidate.dataset.rixDependencies;
+            }
+            if (update.state === "error" || update.diagnostics?.length) {
+                candidate.dataset.rixState = "error";
+                candidate.dataset.rixDiagnostics = JSON.stringify(update.diagnostics || []);
+                if (update.diagnosticKind) {
+                    candidate.dataset.rixDiagnosticKind = update.diagnosticKind;
+                } else {
+                    delete candidate.dataset.rixDiagnosticKind;
+                }
+                if (typeof update.diagnosticSource === "string") {
+                    candidate.dataset.rixDiagnosticSource = update.diagnosticSource;
+                } else {
+                    delete candidate.dataset.rixDiagnosticSource;
+                }
+                candidate.setAttribute("aria-invalid", "true");
+            } else {
+                delete candidate.dataset.rixState;
+                delete candidate.dataset.rixDiagnostics;
+                delete candidate.dataset.rixDiagnosticKind;
+                delete candidate.dataset.rixDiagnosticSource;
+                candidate.removeAttribute("aria-invalid");
+            }
+            updateCellTitle(candidate);
+        }
+    }
+
     function select(cell, { focus = false, notify = true } = {}) {
         for (const candidate of cells) {
             const selected = candidate === cell;
@@ -130,7 +233,12 @@ function enhanceSheet(sheet, options) {
                 detail.address,
             ].filter(Boolean).join(" · ");
         }
-        if (editInput) editInput.value = cell.dataset.rixFormulaSource ?? cell.textContent.trim();
+        const diagnostic = sheetCellDiagnostics(cell.dataset);
+        if (editInput) {
+            editInput.value = diagnostic.source
+                ?? cell.dataset.rixFormulaSource
+                ?? cell.textContent.trim();
+        }
         if (editAssignmentMode) {
             editAssignmentMode.value = cell.dataset.rixAssignmentMode || ":=";
         }
@@ -141,8 +249,15 @@ function enhanceSheet(sheet, options) {
                 detail.address,
             ].filter(Boolean).join(" · ");
         }
-        if (editValue) editValue.textContent = `Exact value: ${cell.textContent.trim()}`;
-        if (editStatus) editStatus.textContent = "";
+        if (editValue) {
+            editValue.textContent = diagnostic.state === "error"
+                ? `Last good value: ${cell.textContent.trim()}`
+                : `Exact value: ${cell.textContent.trim()}`;
+        }
+        if (editStatus) {
+            editStatus.textContent = diagnosticStatus(diagnostic)
+                || dependencyStatus(detail.dependencies, detail.address);
+        }
         if (focus) cell.focus();
         if (notify) {
             options.onSelection?.(detail, cell, sheet);
@@ -390,27 +505,15 @@ function enhanceSheet(sheet, options) {
             };
             try {
                 const result = options.onEdit(detail, selectedCell, sheet);
-                if (result?.type === "error") throw new Error(result.text);
                 if (result && typeof result.then === "function") {
                     throw new Error("Asynchronous Sheet edits are not supported by this host");
                 }
                 if (Array.isArray(result?.updates)) {
-                    for (const update of result.updates) {
-                        const candidate = cells.find((cell) => cell.dataset.rixAddress === update.address);
-                        if (!candidate) continue;
-                        candidate.textContent = update.text;
-                        if (update.blank) candidate.dataset.rixBlank = "true";
-                        else delete candidate.dataset.rixBlank;
-                        if (typeof update.formulaSource === "string") {
-                            candidate.dataset.rixFormulaSource = update.formulaSource;
-                        }
-                        if (typeof update.assignmentMode === "string") {
-                            candidate.dataset.rixAssignmentMode = update.assignmentMode;
-                        }
-                    }
+                    applyCellUpdates(result.updates);
                 } else {
                     selectedCell.textContent = result?.text ?? detail.source;
                 }
+                if (result?.type === "error") throw new Error(result.text);
                 const exact = selectedCell.textContent.trim();
                 if (editValue) editValue.textContent = `Exact value: ${exact}`;
                 if (editStatus) editStatus.textContent = "Saved";
@@ -421,7 +524,15 @@ function enhanceSheet(sheet, options) {
                 });
                 selectedCell.focus();
             } catch (error) {
-                if (editStatus) editStatus.textContent = error.message || String(error);
+                const diagnostic = sheetCellDiagnostics(selectedCell.dataset);
+                if (editValue && diagnostic.state === "error") {
+                    editValue.textContent = `Last good value: ${selectedCell.textContent.trim()}`;
+                }
+                if (editStatus) {
+                    editStatus.textContent = diagnosticStatus(diagnostic)
+                        || error.message
+                        || String(error);
+                }
             }
         });
     }

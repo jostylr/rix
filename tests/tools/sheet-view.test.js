@@ -2,6 +2,8 @@ import { describe, expect, test } from "bun:test";
 import {
     moveSheetSelection,
     parseSheetFormulaClipboard,
+    sheetCellDiagnostics,
+    sheetCellDependencies,
     sheetDisplayAddress,
     sheetPlaneKey,
 } from "../../src/tools/sheet-view.js";
@@ -42,5 +44,27 @@ describe("portable Sheet host interaction helpers", () => {
             source: "near[0,-1] * 2",
             assignmentMode: ":=",
         });
+    });
+
+    test("cell diagnostics decode structured and fallback host metadata", () => {
+        expect(sheetCellDiagnostics({
+            rixState: "error",
+            rixDiagnostics: '["bad formula"]',
+            rixDiagnosticKind: "parse",
+            rixDiagnosticSource: "1 +",
+        })).toEqual({
+            state: "error",
+            diagnostics: ["bad formula"],
+            kind: "parse",
+            source: "1 +",
+        });
+        expect(sheetCellDiagnostics({ rixDiagnostics: "unencoded error" }).diagnostics)
+            .toEqual(["unencoded error"]);
+    });
+
+    test("cell dependencies decode tracked coordinate metadata", () => {
+        expect(sheetCellDependencies({ rixDependencies: '["1,1","2,3"]' }))
+            .toEqual(["1,1", "2,3"]);
+        expect(sheetCellDependencies({ rixDependencies: "not json" })).toEqual([]);
     });
 });

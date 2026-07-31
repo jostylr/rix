@@ -136,7 +136,14 @@ export function mountOutputWidgets(root, value, options = {}) {
                                 revision: widgetSession.revision,
                             };
                         } catch (error) {
-                            return { type: "error", text: error instanceof Error ? error.message : String(error) };
+                            return {
+                                type: "error",
+                                text: error instanceof Error ? error.message : String(error),
+                                updates: widgetSession.editMode === "formula"
+                                    ? widgetSession.cellUpdates(format)
+                                    : undefined,
+                                revision: widgetSession.revision,
+                            };
                         }
                     }
                     : null,

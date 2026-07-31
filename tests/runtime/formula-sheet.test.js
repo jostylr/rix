@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+    createSheet,
     createSheetSnapshot,
     formatValue,
     parseAndEvaluate,
@@ -264,6 +265,63 @@ describe("formula-backed sheets", () => {
         expect(slot.diagnostics[0]).toContain("grid[1,1] -> grid[1,1]");
     });
 
+    test("surfaces recoverable parse, cycle, and runtime diagnostics in Sheet views", () => {
+        const model = parseAndEvaluate(`${chainSource} model`);
+        const previous = model.slot([1, 1]).value;
+        const events = [];
+        const unsubscribe = model.subscribe((event) => events.push(event));
+
+        expect(() => model.setFormulaSource([1, 1], "1 +"))
+            .toThrow();
+        let slot = model.slot([1, 1]);
+        expect(slot.value).toBe(previous);
+        expect(slot.source).toBe("1");
+        expect(slot.state).toBe("error");
+        expect(slot.diagnosticKind).toBe("parse");
+        expect(slot.diagnosticSource).toBe("1 +");
+        expect(events.at(-1)).toMatchObject({
+            type: "formula:error",
+            cause: { type: "formula:parse", index: [1, 1], source: "1 +" },
+        });
+
+        let view = createSheet([model]);
+        expect(view.cells[0][0]).toMatchObject({
+            value: previous,
+            state: "error",
+            diagnosticKind: "parse",
+            diagnosticSource: "1 +",
+        });
+        let html = renderOutputHtml(view, formatValue);
+        expect(html).toContain('data-rix-state="error"');
+        expect(html).toContain('data-rix-diagnostic-kind="parse"');
+        expect(html).toContain('data-rix-diagnostic-source="1 +"');
+        expect(html).toContain('aria-invalid="true"');
+
+        expect(() => model.setFormulaSource([1, 1], "grid[1,1] + 1"))
+            .toThrow("Formula cycle");
+        slot = model.slot([1, 1]);
+        expect(slot.value).toBe(previous);
+        expect(slot.source).toBe("grid[1,1] + 1");
+        expect(slot.diagnosticKind).toBe("cycle");
+        expect(slot.diagnosticSource).toBeNull();
+
+        expect(() => model.setFormulaSource([1, 1], "missing + 1"))
+            .toThrow("Undefined variable: missing");
+        slot = model.slot([1, 1]);
+        expect(slot.value).toBe(previous);
+        expect(slot.source).toBe("missing + 1");
+        expect(slot.diagnosticKind).toBe("runtime");
+
+        model.setFormulaSource([1, 1], "10");
+        view = createSheet([model]);
+        expect(view.cells[0][0].state).toBe("clean");
+        expect(view.cells[0][0].diagnostics).toEqual([]);
+        html = renderOutputHtml(view, formatValue);
+        expect(html).not.toContain('data-rix-state="error"');
+        expect(formatValue(model.get([2, 2]))).toBe("23");
+        unsubscribe();
+    });
+
     test("Sheet adapts formula values and can detach a portable snapshot", () => {
         const view = parseAndEvaluate(`
             ${chainSource}
@@ -274,6 +332,7 @@ describe("formula-backed sheets", () => {
         expect(view.editable).toBe(true);
         expect(view.editMode).toBe("formula");
         expect(view.cells[0][1].formulaSource).toBe("grid[1,1] + 1");
+        expect(view.cells[0][1].dependencies).toEqual(["1,1"]);
         expect(view.cells[0][1].slotId).toBe(`${view.formulaSheet.id}:slot:1:2`);
         expect(view.cells[0][1].assignmentMode).toBe(":=");
         expect(formatValue(view.cells[1][1].value)).toBe("5");
@@ -282,6 +341,8 @@ describe("formula-backed sheets", () => {
         expect(html).toContain('data-rix-formula-epoch="1"');
         expect(html).toContain('data-rix-edit-mode="formula"');
         expect(html).toContain('data-rix-formula-source="grid[1,1] + 1"');
+        expect(html).toContain('data-rix-dependencies="[&quot;1,1&quot;]"');
+        expect(html).toContain("depends on grid[1,1]");
         expect(html).toContain('data-rix-slot-id="');
         expect(html).toContain('data-rix-assignment-mode=":="');
         expect(html).toContain('data-rix-edit-assignment-mode');

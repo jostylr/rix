@@ -862,6 +862,8 @@ model.SetSource(1, 1, "::= 10")  # source "10", mode ::=</code></pre>
 })</code></pre>
 <p>Offsets are relative to the current <code>index</code>. Out-of-range reads report the origin and axis; <code>near[0,0]</code> is a normal self-cycle and is rejected. The public <code>model.Near(origin, offsets)</code> form applies the same coordinate rule outside a formula and can be used with a different FormulaSheet object. It does not implicitly import that object into another sheet’s isolated formula context; cross-document formulas will use the future explicit import namespace.</p>
 <p>Formula copy/paste keeps source semantics explicit. <code>grid[1,1]</code> is copied as an absolute coordinate and <code>near[0,-1]</code> remains relative to whichever cell receives the formula. RiXCel does not infer or rewrite references from display labels. The clipboard also retains the separate assignment mode when the source and destination both support the RiXCel formula format.</p>
+<p>Selecting a formula cell also shows its currently tracked dependency addresses, for example <code>Depends on: grid[1,1]</code>. These are the edges observed during the latest evaluation epoch, not references inferred from source text.</p>
+<p>Failed edits remain editable instead of replacing the grid with an exception. Parse, cycle, and runtime failures mark the involved cells, preserve their last committed values, and expose the diagnostic in the formula bar and cell title. For a parse failure the bar retains the attempted source so it can be corrected; for an evaluation failure the newly installed formula remains authoritative. Submitting a valid formula clears the error state and recomputes its dependents.</p>
 <p>Dollar indexing is the concise reactive API. It avoids exposing graph node names:</p>
 <pre class="rix"><code>$$total := $model[1,1] + $model[2,2];
 $model[1,1] := @{10}</code></pre>
@@ -871,7 +873,7 @@ $model[1,1] := @{10}</code></pre>
 <p>The versioned persistent <code>.rixcel</code> format is available:</p>
 <pre class="rix"><code>saved := .RiXCelExport(model);
 restored := .RiXCelImport(saved)</code></pre>
-<p>Version 1 stores stable IDs, dense rank-N shape, authoritative source, assignment mode, and JSON-safe view metadata. Import validates and recompiles source in a fresh FormulaSheet context, then rebuilds values and dependencies through an initial epoch. Compiled IR and runtime caches are deliberately not trusted or persisted. See the <a href="../design/eval/rixcel-format.html">RiXCel format specification</a>. Browser file-open/save, explicit imports, and sparse rank-N storage remain on the implementation checklist.</p>
+<p>Version 1 stores stable IDs, dense rank-N shape, authoritative source, assignment mode, and JSON-safe view metadata. Import validates and recompiles source in a fresh FormulaSheet context, then rebuilds values and dependencies through an initial epoch. Compiled IR and runtime caches are deliberately not trusted or persisted. See the <a href="../design/eval/rixcel-format.html">RiXCel format specification</a>. The standalone RiXCel editor provides browser file-open/save; explicit imports and sparse rank-N storage remain on the implementation checklist.</p>
 </section>
 <section id="csv-and-tsv-interchange" class="level2">
 <h2 class="anchored" data-anchor-id="csv-and-tsv-interchange">CSV and TSV interchange</h2>

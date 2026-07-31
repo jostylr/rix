@@ -348,6 +348,17 @@ receives the formula. RiXCel does not infer or rewrite references from display
 labels. The clipboard also retains the separate assignment mode when the
 source and destination both support the RiXCel formula format.
 
+Selecting a formula cell also shows its currently tracked dependency addresses,
+for example `Depends on: grid[1,1]`. These are the edges observed during the
+latest evaluation epoch, not references inferred from source text.
+
+Failed edits remain editable instead of replacing the grid with an exception.
+Parse, cycle, and runtime failures mark the involved cells, preserve their last
+committed values, and expose the diagnostic in the formula bar and cell title.
+For a parse failure the bar retains the attempted source so it can be corrected;
+for an evaluation failure the newly installed formula remains authoritative.
+Submitting a valid formula clears the error state and recomputes its dependents.
+
 Dollar indexing is the concise reactive API. It avoids exposing graph node
 names:
 
@@ -384,9 +395,9 @@ assignment mode, and JSON-safe view metadata. Import validates and recompiles
 source in a fresh FormulaSheet context, then rebuilds values and dependencies
 through an initial epoch. Compiled IR and runtime caches are deliberately not
 trusted or persisted. See the
-[RiXCel format specification](../design/eval/rixcel-format.md). Browser
-file-open/save, explicit imports, and sparse rank-N storage remain on the
-implementation checklist.
+[RiXCel format specification](../design/eval/rixcel-format.md). The standalone
+RiXCel editor provides browser file-open/save; explicit imports and sparse
+rank-N storage remain on the implementation checklist.
 
 ## CSV and TSV interchange
 

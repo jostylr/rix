@@ -92,7 +92,7 @@ Checked items are implemented in the current RiX repository.
 - [ ] Add row/column insertion with parsed reference updates.
 - [x] Add local persistence and `.rixcel` open/save.
 - [ ] Run evaluation in a worker with capability restrictions.
-- [ ] Show dependency, cycle, parse, and runtime diagnostics in the grid.
+- [x] Show dependency, cycle, parse, and runtime diagnostics in the grid.
 - [ ] Add browser-level tests for editing and persistence.
 
 ## 5. Interchange and embedding

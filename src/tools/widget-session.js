@@ -45,17 +45,6 @@ export class WidgetSession {
         this.disposed = false;
         this._unsubscribe = this.source.subscribe((sourceEvent) => {
             if (this.disposed) return;
-            if (sourceEvent?.type === "formula:error") {
-                this.onChange?.({
-                    session: this,
-                    widget: this.widget,
-                    revision: this.revision,
-                    sourceEvent,
-                    bindingEvent: null,
-                    formulaEvent: sourceEvent,
-                });
-                return;
-            }
             this.revision += 1;
             this.widget = createSheet(this.options
                 ? [this.source, { type: "map", entries: this.options }]
@@ -120,6 +109,11 @@ export class WidgetSession {
                 formulaSource: cell.formulaSource,
                 slotId: cell.slotId,
                 assignmentMode: cell.assignmentMode,
+                state: cell.state,
+                dependencies: cell.dependencies,
+                diagnostics: cell.diagnostics,
+                diagnosticKind: cell.diagnosticKind,
+                diagnosticSource: cell.diagnosticSource,
             }))));
     }
 

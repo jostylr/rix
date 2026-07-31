@@ -135,6 +135,7 @@ describe("WidgetSession", () => {
         expect(updated.cells[0][0].assignmentMode).toBe("~=");
         expect(updated.cells[0][0].slotId).toBe(sheet.cells[0][0].slotId);
         expect(widget.cellUpdates(formatValue).map(({ text }) => text)).toEqual(["10", "11", "12"]);
+        expect(widget.cellUpdates(formatValue)[1].dependencies).toEqual(["1,1"]);
         expect(changes[0].formulaEvent.type).toBe("formula:commit");
 
         const explicit = widget.dispatch({
@@ -154,6 +155,54 @@ describe("WidgetSession", () => {
         expect(labeled.columnHeaders).toEqual(["A · 1", "Middle · 2", "C · 3"]);
         expect(labeled.axisLabels[1]).toEqual([null, "Middle", null]);
         expect(widget.revision).toBe(3);
+        widget.dispose();
+    });
+
+    test("refreshes failed formula edits with last-good values and diagnostics", () => {
+        const sheet = parseAndEvaluate(`
+            model := .FormulaSheet([[@{2}, @{ grid[1,1] * 3 }]]);
+            .Sheet(model)
+        `);
+        const changes = [];
+        const widget = createWidgetSession(sheet, { onChange: (change) => changes.push(change) });
+
+        expect(() => widget.dispatch({
+            type: "sheet:formula",
+            index: [1, 1],
+            source: "1 +",
+        })).toThrow();
+        expect(widget.revision).toBe(1);
+        expect(formatValue(widget.current().cells[0][0].value)).toBe("2");
+        expect(widget.current().cells[0][0]).toMatchObject({
+            state: "error",
+            diagnosticKind: "parse",
+            diagnosticSource: "1 +",
+        });
+        expect(widget.cellUpdates(formatValue)[0]).toMatchObject({
+            text: "2",
+            state: "error",
+            diagnosticKind: "parse",
+            diagnosticSource: "1 +",
+        });
+        expect(changes.at(-1).formulaEvent.type).toBe("formula:error");
+
+        expect(() => widget.dispatch({
+            type: "sheet:formula",
+            index: [1, 1],
+            source: "grid[1,1] + 1",
+        })).toThrow("Formula cycle");
+        expect(widget.revision).toBe(2);
+        expect(widget.current().cells[0][0].diagnosticKind).toBe("cycle");
+
+        const recovered = widget.dispatch({
+            type: "sheet:formula",
+            index: [1, 1],
+            source: "4",
+        });
+        expect(widget.revision).toBe(3);
+        expect(recovered.cells[0][0].state).toBe("clean");
+        expect(recovered.cells[0][0].diagnostics).toEqual([]);
+        expect(recovered.cells[0].map((cell) => formatValue(cell.value))).toEqual(["4", "12"]);
         widget.dispose();
     });
 

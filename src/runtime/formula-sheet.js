@@ -188,6 +188,17 @@ function formulaSheetMethods() {
 }
 
 function publicSlot(slot, index, metadata) {
+    const editDiagnostics = metadata.editDiagnostics ?? [];
+    const diagnostics = editDiagnostics.length > 0
+        ? editDiagnostics
+        : slot.diagnostics;
+    const diagnosticKind = editDiagnostics.length > 0
+        ? metadata.diagnosticKind ?? "parse"
+        : diagnostics.length > 0
+            ? diagnostics.some((message) => message.startsWith("Formula cycle:"))
+                ? "cycle"
+                : "runtime"
+            : null;
     return Object.freeze({
         id: metadata.id,
         reactiveId: slot.id,
@@ -197,9 +208,11 @@ function publicSlot(slot, index, metadata) {
         formula: slot.formula,
         value: slot.value,
         lastGoodValue: slot.lastGoodValue,
-        state: slot.state,
+        state: diagnostics.length > 0 ? "error" : slot.state,
         dependencies: Object.freeze([...slot.dependencies].map(keyFromNodeName)),
-        diagnostics: Object.freeze([...slot.diagnostics]),
+        diagnostics: Object.freeze([...diagnostics]),
+        diagnosticKind,
+        diagnosticSource: metadata.diagnosticSource ?? null,
         view: metadata.view,
     });
 }
@@ -239,6 +252,9 @@ export function createFormulaSheet(formulasValue, options = {}) {
             source,
             assignmentMode: assignmentMode(provided.assignmentMode ?? defaultAssignmentMode),
             view: Object.freeze({ ...(provided.view ?? {}) }),
+            editDiagnostics: Object.freeze([]),
+            diagnosticKind: null,
+            diagnosticSource: null,
         }];
     }));
     const channel = new Set();
@@ -349,6 +365,9 @@ export function createFormulaSheet(formulasValue, options = {}) {
             const nextSource = metadata?.source ?? options.formulaSource?.(formula) ?? null;
             const nextMode = assignmentMode(metadata?.assignmentMode ?? record.assignmentMode);
             const previousView = record.view;
+            const previousEditDiagnostics = record.editDiagnostics;
+            const previousDiagnosticKind = record.diagnosticKind;
+            const previousDiagnosticSource = record.diagnosticSource;
             const nextView = record.view?.blank === true
                 ? Object.freeze(Object.fromEntries(
                     Object.entries(record.view).filter(([key]) => key !== "blank"),
@@ -357,6 +376,9 @@ export function createFormulaSheet(formulasValue, options = {}) {
             record.source = nextSource;
             record.assignmentMode = nextMode;
             record.view = nextView;
+            record.editDiagnostics = Object.freeze([]);
+            record.diagnosticKind = null;
+            record.diagnosticSource = null;
             try {
                 graph.setFormula(nodeNameFor(normalized), formula, {
                     ...metadata,
@@ -374,6 +396,9 @@ export function createFormulaSheet(formulasValue, options = {}) {
                     record.source = previousSource;
                     record.assignmentMode = previousMode;
                     record.view = previousView;
+                    record.editDiagnostics = previousEditDiagnostics;
+                    record.diagnosticKind = previousDiagnosticKind;
+                    record.diagnosticSource = previousDiagnosticSource;
                 }
                 throw error;
             }
@@ -384,8 +409,34 @@ export function createFormulaSheet(formulasValue, options = {}) {
                 throw new Error("FormulaSheet source editing requires a formula compiler");
             }
             const normalized = normalizeIndex(index, shape);
-            const parts = formulaSourceParts(source, mode);
-            const formula = options.compileFormula(parts.source);
+            let parts = null;
+            let formula;
+            try {
+                parts = formulaSourceParts(source, mode);
+                formula = options.compileFormula(parts.source);
+            } catch (error) {
+                const record = slotMetadata.get(slotKey(normalized));
+                const message = error instanceof Error ? error.message : String(error);
+                const attemptedSource = parts?.source
+                    ?? (source?.type === "string" ? source.value : String(source ?? ""));
+                record.editDiagnostics = Object.freeze([message]);
+                record.diagnosticKind = "parse";
+                record.diagnosticSource = attemptedSource;
+                const formulaEvent = Object.freeze({
+                    type: "formula:error",
+                    sheet,
+                    epoch: sheet.epoch,
+                    cause: Object.freeze({
+                        type: "formula:parse",
+                        index: Object.freeze(normalized),
+                        source: attemptedSource,
+                        assignmentMode: parts?.assignmentMode ?? null,
+                    }),
+                    error,
+                });
+                for (const listener of [...channel]) listener(formulaEvent);
+                throw error;
+            }
             return sheet.setFormula(normalized, formula, {
                 source: parts.source,
                 assignmentMode: parts.assignmentMode,

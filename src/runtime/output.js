@@ -181,7 +181,9 @@ function sheetData(value) {
             binding: null,
             formulaSheet: value,
             shape: [...value.shape],
-            at: (index) => value.get(index),
+            // Failed formulas keep their last committed value available for
+            // diagnostic rendering even though direct `get` correctly throws.
+            at: (index) => value.slot(index).value,
             formulaSourceAt: (index) => value.slot(index).source,
             formulaMetadataAt: (index) => {
                 const slot = value.slot(index);
@@ -189,6 +191,11 @@ function sheetData(value) {
                     slotId: slot.id,
                     assignmentMode: slot.assignmentMode,
                     blank: slot.view?.blank === true,
+                    state: slot.state,
+                    dependencies: slot.dependencies,
+                    diagnostics: slot.diagnostics,
+                    diagnosticKind: slot.diagnosticKind,
+                    diagnosticSource: slot.diagnosticSource,
                 };
             },
         };
@@ -457,6 +464,11 @@ export function createSheet(args) {
                 slotId: formulaMetadata?.slotId ?? null,
                 assignmentMode: formulaMetadata?.assignmentMode ?? null,
                 blank: formulaMetadata?.blank === true,
+                state: formulaMetadata?.state ?? "clean",
+                dependencies: Object.freeze([...(formulaMetadata?.dependencies ?? [])]),
+                diagnostics: Object.freeze([...(formulaMetadata?.diagnostics ?? [])]),
+                diagnosticKind: formulaMetadata?.diagnosticKind ?? null,
+                diagnosticSource: formulaMetadata?.diagnosticSource ?? null,
                 index: Object.freeze(index),
                 coordinateLabels: Object.freeze(coordinateLabels),
                 coordinateLabel: coordinateLabels.filter((label) => label !== null).join(" / ") || null,
@@ -983,7 +995,22 @@ export function renderOutputHtml(value, format = (item) => String(item ?? "")) {
         const headerAttributes = (axis, coordinate, fallback) => value.formulaBacked
             ? ` class="rix-sheet-header-editable" tabindex="0" data-rix-header-axis="${axis}" data-rix-header-coordinate="${coordinate}" data-rix-header-label="${escapeHtml(value.axisLabels[axis - 1]?.[coordinate - 1] ?? "")}" data-rix-header-fallback="${escapeHtml(fallback)}"`
             : "";
-        const bodies = value.planes.map((plane) => `<tbody data-rix-plane-key="${escapeHtml(plane.key)}" data-rix-slice="${plane.slice.map((item) => item ?? "").join(",")}"${plane.key === value.selectedPlaneKey ? "" : " hidden"}>${plane.cells.map((row, rowIndex) => `<tr><th scope="row" data-rix-row="${rowIndex + 1}"${headerAttributes(value.rowAxis.axis, rowIndex + 1, String(rowIndex + 1))}${value.axisLabels[value.rowAxis.axis - 1] ? ` title="${escapeHtml(value.rowAxis.name)} ${rowIndex + 1}"` : ""}>${escapeHtml(value.rowHeaders[rowIndex])}</th>${row.map((cell, columnIndex) => `<td data-rix-row="${rowIndex + 1}" data-rix-column="${columnIndex + 1}" data-rix-index="${cell.index.join(",")}" data-rix-address="${escapeHtml(cell.address)}" data-rix-display-address="${escapeHtml(cell.displayAddress)}"${cell.blank ? ' data-rix-blank="true"' : ""}${cell.coordinateLabel === null ? "" : ` data-rix-coordinate-labels="${escapeHtml(JSON.stringify(cell.coordinateLabels))}" data-rix-coordinate-label="${escapeHtml(cell.coordinateLabel)}"`}${cell.formulaSource === null ? "" : ` data-rix-formula-source="${escapeHtml(cell.formulaSource)}"`}${cell.slotId === null ? "" : ` data-rix-slot-id="${escapeHtml(cell.slotId)}"`}${cell.assignmentMode === null ? "" : ` data-rix-assignment-mode="${escapeHtml(cell.assignmentMode)}"`} title="${cell.coordinateLabel === null ? "" : `${escapeHtml(cell.coordinateLabel)} · `}${escapeHtml(cell.displayAddress)} · ${escapeHtml(cell.address)}">${cell.blank ? "" : cell.value === null ? "_" : text(cell.value)}</td>`).join("")}</tr>`).join("")}</tbody>`).join("");
+        const renderSheetCell = (cell, rowIndex, columnIndex) => {
+            const diagnostic = cell.diagnostics[0] ?? null;
+            const cellValue = cell.blank ? "" : cell.value === null ? "_" : text(cell.value);
+            const title = [
+                cell.coordinateLabel,
+                cell.displayAddress,
+                cell.address,
+                cell.dependencies.length > 0 ? `depends on ${cell.dependencies.map((dependency) => `${value.addressBase}[${dependency}]`).join(", ")}` : null,
+                diagnostic ? `${cell.diagnosticKind ?? "runtime"} error: ${diagnostic}` : null,
+            ].filter(Boolean).join(" · ");
+            const diagnosticAttributes = diagnostic === null
+                ? ""
+                : ` data-rix-state="error" data-rix-diagnostic-kind="${escapeHtml(cell.diagnosticKind ?? "runtime")}" data-rix-diagnostics="${escapeHtml(JSON.stringify(cell.diagnostics))}"${cell.diagnosticSource === null ? "" : ` data-rix-diagnostic-source="${escapeHtml(cell.diagnosticSource)}"`} aria-invalid="true"`;
+            return `<td data-rix-row="${rowIndex + 1}" data-rix-column="${columnIndex + 1}" data-rix-index="${cell.index.join(",")}" data-rix-address="${escapeHtml(cell.address)}" data-rix-display-address="${escapeHtml(cell.displayAddress)}"${cell.blank ? ' data-rix-blank="true"' : ""}${cell.coordinateLabel === null ? "" : ` data-rix-coordinate-labels="${escapeHtml(JSON.stringify(cell.coordinateLabels))}" data-rix-coordinate-label="${escapeHtml(cell.coordinateLabel)}"`}${cell.formulaSource === null ? "" : ` data-rix-formula-source="${escapeHtml(cell.formulaSource)}"`}${cell.slotId === null ? "" : ` data-rix-slot-id="${escapeHtml(cell.slotId)}"`}${cell.assignmentMode === null ? "" : ` data-rix-assignment-mode="${escapeHtml(cell.assignmentMode)}"`}${cell.dependencies.length === 0 ? "" : ` data-rix-dependencies="${escapeHtml(JSON.stringify(cell.dependencies))}"`}${diagnosticAttributes} title="${escapeHtml(title)}">${cellValue}</td>`;
+        };
+        const bodies = value.planes.map((plane) => `<tbody data-rix-plane-key="${escapeHtml(plane.key)}" data-rix-slice="${plane.slice.map((item) => item ?? "").join(",")}"${plane.key === value.selectedPlaneKey ? "" : " hidden"}>${plane.cells.map((row, rowIndex) => `<tr><th scope="row" data-rix-row="${rowIndex + 1}"${headerAttributes(value.rowAxis.axis, rowIndex + 1, String(rowIndex + 1))}${value.axisLabels[value.rowAxis.axis - 1] ? ` title="${escapeHtml(value.rowAxis.name)} ${rowIndex + 1}"` : ""}>${escapeHtml(value.rowHeaders[rowIndex])}</th>${row.map((cell, columnIndex) => renderSheetCell(cell, rowIndex, columnIndex)).join("")}</tr>`).join("")}</tbody>`).join("");
         const liveAttributes = value.editable
             ? ` data-rix-editable="true" data-rix-edit-mode="${value.editMode}"${value.bindingId ? ` data-rix-binding-id="${escapeHtml(value.bindingId)}"` : ""}`
             : "";
