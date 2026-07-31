@@ -6,18 +6,20 @@ The initial portable-output slice is implemented: `.Text`, `.Paragraph`,
 `.Slide`, and `.Slides` construct typed immutable output records. The CLI has a
 text fallback, and the RiX notebook and RiX Web calculator render tables and
 grids as HTML and retained 2D scenes as inline SVG. `Sheet` has host-neutral
-text and HTML renderers; dedicated notebook selection/editing integration is
-still planned. `.Algebra.SyntheticDivision(root,
+text and HTML renderers plus shared notebook and web interaction.
+`.Algebra.SyntheticDivision(root,
 coefficients)` returns a ruled exact `Grid`; after `.Plugin.Load("plot")`,
 `.plot.Polynomial(coefficients, domain, options?)` constructs a portable
-sampled `Graphic`.
+sampled `Graphic`. Sheets and `.Graphics.DragPoint` now share host-owned widget
+sessions for semantic edits without storing DOM state in output values.
 
 `@"..."` text templates and `@"""..."""` document templates are executable.
 The latter supports blank-line blocks, `h1:` through `h6:`, plus `fig:` and
 `table:` wrappers around standalone `@{...}` structured insertions. Output
-methods, renderer negotiation, geometry, 3D scenes, plugin manifests, and
-non-HTML export targets remain design work. Examples involving those features
-are deliberately marked as intended contracts rather than current executable code.
+methods, renderer negotiation, geometry, 3D scenes, plugin manifests,
+and non-HTML export targets remain design work. Examples involving those
+features are deliberately marked as intended contracts rather than current
+executable code.
 :::
 
 ## Goal
@@ -83,6 +85,7 @@ calls are capitalized:
 .Graphics.Path(...)
 .Graphics.Rectangle(...)
 .Graphics.Circle(...)
+.Graphics.DragPoint(...)
 .Graphics.Text(...)
 .Graphics.Clip(...)
 .Figure(...)
@@ -118,6 +121,7 @@ protocols.
 | `.Graphics.Transform` | Apply translate, rotate, and scale to a scene subtree without rewriting coordinates. |
 | `.Graphics.Path` | Polyline, polygon, or command path scene node. |
 | `.Graphics.Rectangle` / `.Graphics.Circle` | Basic geometric shape scene nodes. |
+| `.Graphics.DragPoint` | Renderer-neutral drag handle backed by a ReactiveGraph node. |
 | `.Graphics.Text` | Text positioned in a graphic coordinate system. |
 | `.Graphics.Clip` | Restrict a scene subtree to rectangular bounds. |
 | `.Figure` | A graphic, table, grid, or sheet with caption, label, and accessibility metadata. |
@@ -217,6 +221,7 @@ The proposed initial shapes are:
 .Graphics.Text({= position = [x, y], text = value, style = {= } })
 .Graphics.Rectangle({= origin = [x, y], size = [width, height], style = {= } })
 .Graphics.Circle({= center = [x, y], radius = radius, style = {= } })
+.Graphics.DragPoint({= target = $$point, radius = 7, style = {= }, label = _ })
 .Graphics.Clip({= children = nodes, bounds = [x, y, width, height], style = {= } })
 .Graphics.Graphic({= size = [width, height], children = nodes, viewBox = _, metadata = {= } })
 .Figure({= content = value, caption = _, label = _, alt = _ })
@@ -239,7 +244,8 @@ live editing belongs to the planned `Binding`/`Widget` layer described in the
 
 `Graphic` is the portable scene root. Its child nodes may be nested through
 `.Graphics.Group`, `.Graphics.Transform`, and `.Graphics.Clip`; leaf nodes are `.Graphics.Path`,
-`.Graphics.Rectangle`, `.Graphics.Circle`, and `.Graphics.Text`. The current SVG renderer maps the following small style
+`.Graphics.Rectangle`, `.Graphics.Circle`, `.Graphics.Text`, and the interactive
+`.Graphics.DragPoint`. The current SVG renderer maps the following small style
 vocabulary without exposing raw SVG or DOM access:
 
 | Node | Coordinates | Current style fields |
@@ -247,6 +253,7 @@ vocabulary without exposing raw SVG or DOM access:
 | `.Graphics.Path` | `points = [[x, y], ...]` or `commands = [...]` | `stroke`, `fill`, `width`, `dash`, `opacity`, `closed` |
 | `.Graphics.Rectangle` | `origin = [x, y]`, `size = [width, height]` | `stroke`, `fill`, `width`, `dash`, `opacity` |
 | `.Graphics.Circle` | `center = [x, y]`, `radius` | `stroke`, `fill`, `width`, `dash`, `opacity` |
+| `.Graphics.DragPoint` | position read from a ReactiveGraph node | `stroke`, `fill`, `width`, `dash`, `opacity` |
 | `.Graphics.Text` | `position = [x, y]` | `fill`, `opacity`, `anchor`, `size`, `font`, `weight` |
 | `.Graphics.Group` / `.Graphics.Transform` / `.Graphics.Clip` | nested `children` | inherited `stroke`, `fill`, `width`, `dash`, `opacity` |
 
@@ -255,6 +262,31 @@ two-axis `scale = [x, y]`, `rotate = degrees`, and optional
 `origin = [x, y]`. `Clip` uses `bounds = [x, y, width, height]`.
 Coordinates deliberately remain ordinary exact RiX values until a renderer
 converts them to SVG coordinates.
+
+### Semantic Graphic interaction
+
+`.Graphics.DragPoint($$point, radius?, style?, label?)` is the first portable
+Graphic interaction node. `point` must be a `.ReactiveGraph` node whose value
+contains x and y coordinates. The concise form can declare it
+directly with `$$point := {: 90, 70}`. The output record retains the node
+identity and a snapshot of its position; it never retains a DOM
+node or browser pointer event.
+
+An interactive host previews movement in the rendered scene and commits one
+semantic event on release:
+
+```js
+{ type: "graphic:position", targetId: "drag-demo:point", position: [120, 75] }
+```
+
+A host-owned `GraphicWidgetSession` validates the target, converts the
+coordinates to exact RiX values, and replaces the target's definition with a
+literal value, equivalent to `$point := {: newX, newY}`. Its graph then
+recomputes dependent values, including a named reactive Fragment returned as a
+final `$view`. Static hosts ignore the runtime handle and render the same scene
+as ordinary SVG. The node identity and downstream dependencies remain intact.
+If the target previously had incoming dependencies, the replacement removes
+them and the interactive renderer warns about that consequence before editing.
 
 ```rix
 badge := .Graphics.Graphic([240, 120], [

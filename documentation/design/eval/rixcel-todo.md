@@ -34,7 +34,7 @@ Checked items are implemented in the current RiX repository.
 - [x] Define portable semantic widget events.
 - [x] Add a host-owned `Widget` session protocol.
 - [x] Make `.Sheet(.Bind(tensor))` an editable tensor view.
-- [ ] Apply the same interaction protocol to at least one Graphic example.
+- [x] Apply the same interaction protocol to at least one Graphic example.
 - [x] Define snapshot and serialization behavior for live widgets.
 
 ## 3. RiXCel document runtime

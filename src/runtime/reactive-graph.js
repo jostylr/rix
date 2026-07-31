@@ -47,6 +47,7 @@ function nodeMethods() {
         ["GET", method("Get", ([target]) => target.get())],
         ["PEEK", method("Peek", ([target]) => target.peek())],
         ["SET", method("Set", ([target, value]) => target.set(value))],
+        ["REPLACEVALUE", method("ReplaceValue", ([target, value]) => target.replaceValue(value))],
         ["GETFORMULA", method("GetFormula", ([target]) => target.formula)],
         ["SETFORMULA", method("SetFormula", ([target, formula]) => target.setFormula(formula))],
         ["LIVE", method("Live", ([target]) => target.live())],
@@ -156,6 +157,9 @@ export function createReactiveGraph(options = {}) {
             set(value, metadata = null) {
                 if (kind !== "source") throw new Error(`Reactive computed node ${name} cannot be set directly`);
                 return graph.setSource(name, value, metadata);
+            },
+            replaceValue(value, metadata = null) {
+                return graph.replaceValue(name, value, metadata);
             },
             setFormula(formula, metadata = null) {
                 if (kind !== "computed") throw new Error(`Reactive source node ${name} has no formula`);
@@ -536,6 +540,23 @@ export function createReactiveGraph(options = {}) {
                 dirty: new Set([name]),
                 sourceOverrides: new Map([[name, value]]),
                 cause: { type: "reactive:set", name, metadata },
+            });
+            return value;
+        },
+        replaceValue(name, value, metadata = null) {
+            name = canonicalName(name);
+            const node = requireNode(name);
+            if (node.kind === "source") return graph.setSource(name, value, metadata);
+            if (activeEpoch) {
+                throw new Error(options.formulaMutationError || "Reactive computations cannot change formulas during an epoch");
+            }
+            const formula = Object.freeze({
+                fn: "DEFER",
+                args: Object.freeze([value]),
+            });
+            graph.setFormula(name, formula, {
+                ...metadata,
+                source: metadata?.source ?? null,
             });
             return value;
         },

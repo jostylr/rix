@@ -47,6 +47,28 @@ describe("ReactiveGraph", () => {
         expect(graph.node("left").live().dependents).toEqual([]);
     });
 
+    test("replaces a computed definition with a literal while preserving identity", () => {
+        const point = parseAndEvaluate(`
+            $$origin := 4;
+            $$point := $origin * 2;
+            $$downstream := $point + 1;
+            $$point
+        `);
+        const graph = point.graph;
+
+        expect(formatValue(point.get())).toBe("8");
+        expect(point.live().dependencies).toEqual(["origin"]);
+        point.replaceValue(parseAndEvaluate("12"), { source: "test" });
+
+        expect(graph.node("point")).toBe(point);
+        expect(formatValue(point.get())).toBe("12");
+        expect(formatValue(graph.get("downstream"))).toBe("13");
+        expect(point.live().dependencies).toEqual([]);
+        graph.node("origin").replaceValue(parseAndEvaluate("9"));
+        expect(formatValue(point.get())).toBe("12");
+        expect(formatValue(graph.get("downstream"))).toBe("13");
+    });
+
     test("detects cycles and retains the last committed epoch", () => {
         const graph = parseAndEvaluate(`
             graph := .ReactiveGraph();

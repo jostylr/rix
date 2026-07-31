@@ -206,6 +206,51 @@ describe("WidgetSession", () => {
         widget.dispose();
     });
 
+    test("routes semantic graphic:position events into reactive definitions", () => {
+        const state = session();
+        const graphic = parseAndEvaluate(`
+            $$origin := {: 20,30};
+            $$point := $origin;
+            $$total := {; p := $point; p[1] + p[2] };
+            .Graphics.Graphic([200,120], [
+                .Graphics.DragPoint($$point, 8, {= fill="#7c3aed" }, "Move test point")
+            ])
+        `, state);
+        const changes = [];
+        const widget = createWidgetSession(graphic, { onChange: (change) => changes.push(change) });
+        const targetId = graphic.children[0].targetId;
+        const result = widget.dispatch({
+            type: "graphic:position",
+            targetId,
+            position: [40.5, 50],
+            source: "pointer",
+        });
+
+        expect(widget.editMode).toBe("position");
+        expect(widget.revision).toBe(1);
+        expect(formatValue(result)).toBe("( 40..1/2, 50 )");
+        expect(formatValue(state.context.get("point").peek())).toBe("( 40..1/2, 50 )");
+        expect(formatValue(state.context.get("total").peek())).toBe("90..1/2");
+        expect(state.context.get("point").live().dependencies).toEqual([]);
+        expect(state.context.get("origin").live().dependents).toEqual([]);
+        state.context.get("origin").replaceValue(parseAndEvaluate("{: 1,2}"));
+        expect(formatValue(state.context.get("point").peek())).toBe("( 40..1/2, 50 )");
+        expect(changes).toHaveLength(1);
+        expect(changes[0].sourceEvent.cause.metadata).toMatchObject({
+            widgetKind: "graphic",
+            eventType: "graphic:position",
+            targetId,
+            inputSource: "pointer",
+            replacedDependencies: ["origin"],
+        });
+        expect(() => widget.dispatch({
+            type: "graphic:position",
+            targetId: "missing",
+            position: [1, 2],
+        })).toThrow("Unknown Graphic drag target");
+        widget.dispose();
+    });
+
     test("rejects malformed and out-of-range events", () => {
         const sheet = parseAndEvaluate(`
             m := {:1x2: 1, 2};

@@ -22,7 +22,7 @@ export {
     isOutputValue, formatOutputText, renderOutputHtml, renderGraphicSvg, createSheet, createSheetSnapshot,
     createAlgebraOutputCollection, createGraphicsOutputCollection, createSyntheticDivision, createPlotOutputCollection,
     createPolynomialPlot, createGroup, createTransform, createTextMark,
-    createRectangle, createCircle, createClip,
+    createRectangle, createCircle, createDragPoint, createClip,
 } from "./runtime/index.js";
 export { createDrawPluginCollection, installDrawPlugin } from "../plugins/draw/draw.plugin.rix.js";
 export { installPlotPlugin } from "../plugins/plot/plot.plugin.rix.js";
@@ -35,5 +35,6 @@ export {
     sheetDisplayAddress,
     sheetPlaneKey,
 } from "./tools/sheet-view.js";
-export { WidgetSession, createWidgetSession } from "./tools/widget-session.js";
+export { WidgetSession, GraphicWidgetSession, createWidgetSession } from "./tools/widget-session.js";
+export { enhanceGraphicViews, graphicPointFromClient } from "./tools/graphic-view.js";
 export { mountOutputWidgets } from "./tools/output-widgets.js";

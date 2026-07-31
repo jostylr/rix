@@ -283,6 +283,33 @@ describe("portable structured output", () => {
         expect(html).toContain("RiX</text>");
     });
 
+    test("DragPoint retains a reactive identity and renders portable interaction metadata", () => {
+        const graphic = parseAndEvaluate(`
+            $$origin := {: 45,55};
+            $$point := $origin;
+            .Graphics.Graphic([160,100], [
+                .Graphics.DragPoint($$point, 9, {= fill="#7c3aed" }, "Move the point")
+            ])
+        `);
+        const handle = graphic.children[0];
+        expect(handle.kind).toBe("drag_point");
+        expect(handle.target.kind).toBe("computed");
+        expect(handle.replacesDependencies).toEqual(["origin"]);
+        expect(handle.targetId).toEndWith(":point");
+        expect(handle.center.map(formatValue)).toEqual(["45", "55"]);
+        const html = renderOutputHtml(graphic, formatValue);
+        expect(html).toContain('data-rix-interactive="true"');
+        expect(html).toContain('class="rix-output-drag-point"');
+        expect(html).toContain(`data-rix-drag-target="${handle.targetId}"`);
+        expect(html).toContain('data-rix-position="45,55"');
+        expect(html).toContain('aria-label="Move the point"');
+        expect(html).toContain('data-rix-replaces-dependencies="origin"');
+        expect(html).toContain("Dragging will replace this point’s current reactive dependencies.");
+        expect(() => parseAndEvaluate(`
+            .Graphics.DragPoint({: 1,2})
+        `)).toThrow("must be a ReactiveGraph node");
+    });
+
     test("Graphics.Transform accepts an explicit map specification", () => {
         const graphic = parseAndEvaluate(`
             .Graphics.Graphic([100, 100], [

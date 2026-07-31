@@ -40,6 +40,7 @@ export {
     createTextMark,
     createRectangle,
     createCircle,
+    createDragPoint,
     createClip,
 } from "./output.js";
 export {

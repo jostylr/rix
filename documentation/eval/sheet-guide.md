@@ -562,6 +562,7 @@ FormulaSheet, Binding, and ReactiveNode merely expose the low-level reactive
 subscription boundary that hosts use.
 
 This contract is intentionally independent of the interaction that caused the
-update. A formula editor uses `sheet:formula`; a future draggable Graphic point
-can write a coordinate through a Binding. Both cause the same graph propagation
-and observed-output redraw without making Graphics depend on spreadsheet code.
+update. A formula editor uses `sheet:formula`; `.Graphics.DragPoint` uses
+`graphic:position` to replace a ReactiveGraph node's value definition. Both cause the same graph
+propagation and observed-output redraw without making Graphics depend on
+spreadsheet code.

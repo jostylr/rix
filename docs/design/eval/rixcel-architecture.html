@@ -674,6 +674,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>The first implemented slice is the portable <code>.Sheet(...)</code> output value. It adapts existing tensors, matrices, and sequences into a two-dimensional snapshot with exact values, rank-N plane selection, canonical RiX addresses, and host-neutral text/HTML rendering.</p>
 <p>RiX Web, the RiX notebook, and live notebook exports now share a host-side selection enhancer. It provides a dual address indicator, pointer selection, roving keyboard focus, and semantic select/activate events. Activation inserts the canonical address in the editable RiX hosts.</p>
 <p>The Binding/Widget slice is also implemented: <code>.Bind(variable)</code> captures RiX Cell identity, <code>.Sheet(.Bind(variable))</code> creates a live Sheet, and a host-owned <code>WidgetSession</code> routes validated semantic edits.</p>
+<p>The same host-owned protocol now supports interactive Graphics. <code>.Graphics.DragPoint($$point)</code> retains a reactive node identity and dispatches validated <code>graphic:position</code> records without putting DOM state in the scene.</p>
 <p>The first formula-backed prototype is implemented separately as <code>.FormulaSheet(...)</code>. It owns deferred formulas, evaluates them in an isolated sheet context, records <code>grid[...]</code> dependencies, detects complete cycle paths, incrementally recomputes transitive dependents, and atomically commits successful epochs. It is a coordinate adapter over the general <code>.ReactiveGraph(...)</code> runtime, exposed as <code>formulaSheet.Graph()</code>. Named scalar computations can therefore join the same graph as formula slots. <code>.Sheet(formulaSheet)</code> stages current results and editable formula source for display. Dense rank-N <code>.rixcel</code> documents now round-trip authoritative source through a versioned JSON format. Sparse storage and the standalone editor remain implementation work. See <a href="../../design/eval/rixcel-format.html">the format</a> and <a href="../../design/eval/rixcel-todo.html">the checklist</a>.</p>
 </section>
 <section id="vocabulary" class="level2">
@@ -709,12 +710,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>An ordinary <code>Sheet</code> follows the existing structured-output rule: it is immutable and renderer-independent. A live Sheet additionally retains a runtime-only Binding handle. A formula-backed Sheet retains a runtime-only FormulaSheet handle but is currently a read-only result view. A renderer does not write through the Sheet; live value edits dispatch to a host-owned WidgetSession, and future formula edits will dispatch to a formula-document session.</p>
 <p><code>WidgetSession</code> owns a live session. Its input is a semantic record, not a DOM event. The implemented Sheet edit shape is:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>{ <span class="dt">type</span><span class="op">:</span> <span class="st">"sheet:set"</span><span class="op">,</span> <span class="dt">index</span><span class="op">:</span> [<span class="dv">2</span><span class="op">,</span> <span class="dv">3</span>]<span class="op">,</span> <span class="dt">value</span><span class="op">:</span> exactRixValue }</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Selection, source-edit, paste, and graphics records remain protocol extensions:</p>
+<p>Selection, source-edit, and paste records remain protocol extensions:</p>
 <pre class="text"><code>{ kind: select, index: [2,3] }
 { kind: edit, index: [2,3], source: "price * quantity" }
 { kind: paste, range: [[2,3], [8,5]], values: data }</code></pre>
-<p>The same protocol can support interactive graphics:</p>
-<pre class="rix"><code>{= kind=:drag, target=:pointA, position=[4,7] }</code></pre>
+<p>The implemented Graphic position record is:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>{ <span class="dt">type</span><span class="op">:</span> <span class="st">"graphic:position"</span><span class="op">,</span> <span class="dt">targetId</span><span class="op">:</span> <span class="st">"graph:pointA"</span><span class="op">,</span> <span class="dt">position</span><span class="op">:</span> [<span class="dv">4</span><span class="op">,</span> <span class="dv">7</span>] }</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="portable-sheet-schema" class="level2">
 <h2 class="anchored" data-anchor-id="portable-sheet-schema">Portable Sheet schema</h2>
@@ -820,7 +821,7 @@ average := graph.Derive("average", @{
     (grid[1,1] + grid[1,2]) / 2
 });
 scaled := graph.Derive("scaled", @{ average * grid[1,3] });</code></pre>
-<p><code>.ReactiveGraph()</code> creates the same runtime without a sheet. <code>Source(name, value)</code> adds an originating value, <code>Derive(name, deferred)</code> adds a computed node, and reads of either kind inside a deferred formula record graph edges. The verbose string API uses canonical lowercase RiX user-identifier names. Syntax-created dollar bindings preserve the language’s uppercase/lowercase namespace distinction. FormulaSheet graphs reserve <code>grid</code>, <code>row</code>, <code>col</code>, <code>index</code>, and <code>near</code> for their contextual bindings. <code>near[offset,...]</code> resolves relative to the current slot, then performs the same tracked numeric read as <code>grid[index,...]</code>. A source update finds the old transitive dependent closure, evaluates each dirty computation at most once, replaces successful dynamic edges, and emits one commit after every staged value succeeds. Direct writes to computed nodes and nested epochs are rejected.</p>
+<p><code>.ReactiveGraph()</code> creates the same runtime without a sheet. <code>Source(name, value)</code> adds an originating value, <code>Derive(name, deferred)</code> adds a computed node, and reads of either kind inside a deferred formula record graph edges. The verbose string API uses canonical lowercase RiX user-identifier names. Syntax-created dollar bindings preserve the language’s uppercase/lowercase namespace distinction. FormulaSheet graphs reserve <code>grid</code>, <code>row</code>, <code>col</code>, <code>index</code>, and <code>near</code> for their contextual bindings. <code>near[offset,...]</code> resolves relative to the current slot, then performs the same tracked numeric read as <code>grid[index,...]</code>. A source or definition update finds the old transitive dependent closure, evaluates each dirty computation at most once, replaces successful dynamic edges, and emits one commit after every staged value succeeds. Direct <code>.Set</code> writes to computed nodes and nested epochs are rejected; <code>$name := expression</code> and host <code>ReplaceValue</code> operations replace a computed definition while keeping its node identity.</p>
 <p>Dollar bindings lower ordinary RiX syntax into this runtime:</p>
 <pre class="rix"><code>${
     $$source1 := 2;
@@ -843,7 +844,7 @@ $values[1,1] := @{5}</code></pre>
 $frag</code></pre>
 <p>Plain <code>.Sheet(values)</code> deliberately adds no whole-sheet dependency. <code>$$values</code> returns the FormulaSheet identity, and <code>$values[index]</code> remains the narrow form for computations that depend on one coordinate.</p>
 <p>FormulaSheet, Binding, and ReactiveNode expose the same JavaScript subscription boundary. When an interactive host evaluates a direct final reactive read such as <code>$frag</code>, evaluation supplies the node identity as host metadata while the RiX result remains the current portable Fragment value. The host renders that value, subscribes to the node, and replaces the rendered output after commits:</p>
-<pre class="text"><code>sheet:formula or future graphic:drag
+<pre class="text"><code>sheet:formula or graphic:position
                 |
                 v
         reactive model commit
@@ -853,7 +854,7 @@ $frag</code></pre>
                 |
                 v
        host redraw and remount</code></pre>
-<p>A draggable Graphic point can therefore update a Binding or graph source and let the same propagation path refresh its dependent lines and functions. <code>.LiveView(source, deferred)</code> remains a deprecated lower-level compatibility constructor for old code that wants an explicit wrapper and isolated derivation. New code names a reactive output and returns <code>$name</code>. Direct Graphic manipulation and dependencies spanning multiple independent ReactiveGraphs remain future protocol extensions.</p>
+<p>A draggable Graphic point now replaces its reactive definition through this path and refreshes its dependent lines, tables, functions, and scene nodes. <code>.LiveView(source, deferred)</code> remains a deprecated lower-level compatibility constructor for old code that wants an explicit wrapper and isolated derivation. New code names a reactive output and returns <code>$name</code>. Dependencies spanning multiple independent ReactiveGraphs remain a future protocol extension.</p>
 </section>
 </section>
 <section id="reactive-document-model" class="level2">

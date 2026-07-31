@@ -5,6 +5,7 @@ import { isTensor, tensorGetBySelectors } from "./tensor.js";
 import { isBinding } from "./binding.js";
 import { FORMULA_SHEET_ASSIGNMENT_MODES, isFormulaSheet } from "./formula-sheet.js";
 import { coordinateTuple, resolveLabeledCoordinate } from "./sheet-labels.js";
+import { isReactiveNode } from "./reactive-graph.js";
 
 const int = (value) => new Integer(BigInt(value));
 const isSequence = (value) => value && ["sequence", "tuple", "set", "array"].includes(value.type);
@@ -602,6 +603,27 @@ export function createCircle(args) {
     return output("circle", { center, radius, style: optionalMap(get(entry, "style"), "Circle style") });
 }
 
+export function createDragPoint(args) {
+    const entry = spec(args, ["target", "radius", "style", "label"], "DragPoint");
+    const target = get(entry, "target");
+    if (!isReactiveNode(target)) {
+        throw new Error("DragPoint target must be a ReactiveGraph node");
+    }
+    const center = sequence(target.get(), "DragPoint target value");
+    if (center.length !== 2) {
+        throw new Error("DragPoint target value must contain x and y coordinates");
+    }
+    return output("drag_point", {
+        center: Object.freeze([...center]),
+        radius: get(entry, "radius", int(7)),
+        style: optionalMap(get(entry, "style"), "DragPoint style"),
+        label: asString(get(entry, "label")) || "Draggable point",
+        target,
+        targetId: target.id,
+        replacesDependencies: Object.freeze([...target.dependencies]),
+    });
+}
+
 export function createClip(args) {
     const entry = spec(args, ["children", "bounds", "style"], "Clip");
     const bounds = sequence(get(entry, "bounds"), "Clip bounds");
@@ -889,6 +911,13 @@ function renderSvgNode(node, format, defs) {
         const [cx, cy] = svgPair(node.center, "Circle center");
         return `<circle cx="${cx}" cy="${cy}" r="${svgNumber(node.radius, "Circle radius")}" ${svgStyle(node.style, "none")}/>`;
     }
+    if (node.kind === "drag_point") {
+        const [cx, cy] = svgPair(node.center, "DragPoint center");
+        const replaced = node.replacesDependencies?.length
+            ? ` data-rix-replaces-dependencies="${escapeHtml(node.replacesDependencies.join(","))}"`
+            : "";
+        return `<circle class="rix-output-drag-point" cx="${cx}" cy="${cy}" r="${svgNumber(node.radius, "DragPoint radius")}" ${svgStyle(node.style, "#7c3aed")} tabindex="0" role="button" aria-label="${escapeHtml(node.label)}" data-rix-drag-target="${escapeHtml(node.targetId)}" data-rix-position="${cx},${cy}"${replaced}/>`;
+    }
     if (node.kind === "text_mark") return renderSvgText(node, format);
     if (node.kind === "group") return `<g ${svgStyle(node.style)}>${node.children.map((child) => renderSvgNode(child, format, defs)).join("")}</g>`;
     if (node.kind === "transform") {
@@ -910,6 +939,15 @@ export function renderGraphicSvg(graphic, format = (item) => String(item ?? ""))
     const defs = [];
     const children = graphic.children.map((child) => renderSvgNode(child, format, defs)).join("");
     return `<svg class="rix-output-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size[0]} ${size[1]}" width="${size[0]}" height="${size[1]}" role="img">${defs.length ? `<defs>${defs.join("")}</defs>` : ""}${children}</svg>`;
+}
+
+function graphicIsInteractive(graphic) {
+    const visit = (node) => {
+        if (!isOutputValue(node)) return false;
+        if (node.kind === "drag_point") return true;
+        return Array.isArray(node.children) && node.children.some(visit);
+    };
+    return graphic.children.some(visit);
 }
 
 function formatSheetText(sheet, format) {
@@ -1024,7 +1062,19 @@ export function renderOutputHtml(value, format = (item) => String(item ?? "")) {
         return `<section class="rix-output-sheet" data-rix-rank="${value.rank}" data-rix-selected-plane="${escapeHtml(value.selectedPlaneKey)}"${liveAttributes}${formulaAttributes}>${value.title ? `<h3 class="rix-output-sheet-title">${escapeHtml(value.title)}</h3>` : ""}<div class="rix-output-sheet-location" aria-live="polite" data-rix-summary="${escapeHtml(summary)}">${escapeHtml(summary)}</div>${value.showAxisSummary ? `<div class="rix-output-sheet-axis-summary">${escapeHtml(axisSummary)}</div>` : ""}${controls}${editor}<table><thead><tr><th class="rix-output-sheet-corner" scope="col">${escapeHtml(value.addressBase)}</th>${value.columnHeaders.map((header, column) => `<th scope="col" data-rix-column="${column + 1}"${value.columnAxis ? headerAttributes(value.columnAxis.axis, column + 1, sheetColumnLabel(column + 1, value.columnLabelMode)) : ""}${value.columnAxis && value.axisLabels[value.columnAxis.axis - 1] ? ` title="${escapeHtml(value.columnAxis.name)} ${column + 1}"` : ""}>${escapeHtml(header)}</th>`).join("")}</tr></thead>${bodies}</table></section>`;
     }
     if (value.kind === "figure") return `<figure class="rix-output-figure"${value.label ? ` id="${escapeHtml(value.label)}"` : ""}>${renderOutputHtml(value.content, format)}${value.caption ? `<figcaption>${escapeHtml(value.caption)}</figcaption>` : ""}</figure>`;
-    if (value.kind === "graphic") return `<div class="rix-output-graphic">${renderGraphicSvg(value, format)}</div>`;
+    if (value.kind === "graphic") {
+        const interactive = graphicIsInteractive(value);
+        const replacesDependencies = interactive && value.children.some(function hasReplacement(node) {
+            return isOutputValue(node) && (
+                (node.kind === "drag_point" && node.replacesDependencies?.length > 0)
+                || (node.children || []).some(hasReplacement)
+            );
+        });
+        const interactionStatus = replacesDependencies
+            ? "Dragging will replace this point’s current reactive dependencies."
+            : "Drag the highlighted point or use its arrow keys.";
+        return `<div class="rix-output-graphic"${interactive ? ' data-rix-interactive="true"' : ""}>${renderGraphicSvg(value, format)}${interactive ? `<output class="rix-output-graphic-status" aria-live="polite">${interactionStatus}</output>` : ""}</div>`;
+    }
     if (value.kind === "slide") return `<section class="rix-output-slide">${value.title ? `<h2>${escapeHtml(value.title)}</h2>` : ""}${renderOutputHtml(value.content, format)}</section>`;
     if (value.kind === "slides") return `<section class="rix-output-slides">${value.slides.map((slide) => renderOutputHtml(slide, format)).join("")}</section>`;
     return `<pre>${escapeHtml(formatOutputText(value, format))}</pre>`;
@@ -1060,6 +1110,7 @@ export function createGraphicsOutputCollection() {
         ["Text", createTextMark],
         ["Rectangle", createRectangle],
         ["Circle", createCircle],
+        ["DragPoint", createDragPoint],
         ["Clip", createClip],
     ]);
     const entries = new Map();

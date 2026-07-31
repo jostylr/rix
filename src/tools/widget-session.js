@@ -8,6 +8,8 @@
 import { createSheet, createSheetSnapshot, isOutputValue } from "../runtime/output.js";
 import { isBinding } from "../runtime/binding.js";
 import { isFormulaSheet } from "../runtime/formula-sheet.js";
+import { isReactiveNode } from "../runtime/reactive-graph.js";
+import { Integer, Rational } from "@ratmath/core";
 
 function sheetSource(widget) {
     if (!isOutputValue(widget) || widget.kind !== "sheet") {
@@ -128,6 +130,97 @@ export class WidgetSession {
     }
 }
 
+function graphicTargets(node, targets = new Map()) {
+    if (!isOutputValue(node)) return targets;
+    if (node.kind === "drag_point" && isReactiveNode(node.target)) {
+        targets.set(node.targetId, node.target);
+    }
+    for (const child of node.children || []) graphicTargets(child, targets);
+    return targets;
+}
+
+function exactGraphicCoordinate(value) {
+    const number = Number(value);
+    if (!Number.isFinite(number)) throw new Error("Graphic position coordinates must be finite numbers");
+    const scale = 1000n;
+    const numerator = BigInt(Math.round(number * Number(scale)));
+    return numerator % scale === 0n
+        ? new Integer(numerator / scale)
+        : new Rational(numerator, scale);
+}
+
+function graphicPoint(position) {
+    if (!Array.isArray(position) || position.length !== 2) {
+        throw new Error("Graphic position must contain x and y coordinates");
+    }
+    return Object.freeze({
+        type: "tuple",
+        values: Object.freeze(position.map(exactGraphicCoordinate)),
+    });
+}
+
+export class GraphicWidgetSession {
+    constructor(widget, options = {}) {
+        if (!isOutputValue(widget) || widget.kind !== "graphic") {
+            throw new Error("GraphicWidgetSession requires a Graphic output value");
+        }
+        this.widget = widget;
+        this.editMode = "position";
+        this.targets = graphicTargets(widget);
+        if (this.targets.size === 0) {
+            throw new Error("A Graphic WidgetSession requires at least one DragPoint");
+        }
+        this.revision = 0;
+        this.onChange = typeof options.onChange === "function" ? options.onChange : null;
+        this.disposed = false;
+        this._unsubscribes = [...new Set(this.targets.values())].map((target) =>
+            target.subscribe((sourceEvent) => {
+                if (this.disposed) return;
+                this.revision += 1;
+                this.onChange?.({
+                    session: this,
+                    widget: this.widget,
+                    revision: this.revision,
+                    sourceEvent,
+                    graphicEvent: sourceEvent,
+                });
+            }));
+    }
+
+    dispatch(event) {
+        if (this.disposed) throw new Error("Cannot dispatch to a disposed GraphicWidgetSession");
+        if (event?.type !== "graphic:position") {
+            throw new Error(`Unsupported Graphic widget event: ${event?.type || "missing type"}`);
+        }
+        const target = this.targets.get(String(event.targetId || ""));
+        if (!target) throw new Error(`Unknown Graphic drag target: ${event.targetId || "missing target"}`);
+        const value = graphicPoint(event.position);
+        const replacedDependencies = Object.freeze([...target.dependencies]);
+        target.replaceValue(value, {
+            source: "widget",
+            widgetKind: "graphic",
+            eventType: "graphic:position",
+            targetId: event.targetId,
+            inputSource: event.source ?? null,
+            replacedDependencies,
+        });
+        return value;
+    }
+
+    current() {
+        return this.widget;
+    }
+
+    dispose() {
+        if (this.disposed) return;
+        this.disposed = true;
+        for (const unsubscribe of this._unsubscribes.splice(0)) unsubscribe?.();
+    }
+}
+
 export function createWidgetSession(widget, options = {}) {
+    if (isOutputValue(widget) && widget.kind === "graphic") {
+        return new GraphicWidgetSession(widget, options);
+    }
     return new WidgetSession(widget, options);
 }

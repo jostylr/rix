@@ -16,6 +16,10 @@ The Binding/Widget slice is also implemented: `.Bind(variable)` captures RiX
 Cell identity, `.Sheet(.Bind(variable))` creates a live Sheet, and a host-owned
 `WidgetSession` routes validated semantic edits.
 
+The same host-owned protocol now supports interactive Graphics.
+`.Graphics.DragPoint($$point)` retains a reactive node identity and dispatches
+validated `graphic:position` records without putting DOM state in the scene.
+
 The first formula-backed prototype is implemented separately as
 `.FormulaSheet(...)`. It owns deferred formulas, evaluates them in an isolated
 sheet context, records `grid[...]` dependencies, detects complete cycle paths,
@@ -79,7 +83,7 @@ event. The implemented Sheet edit shape is:
 { type: "sheet:set", index: [2, 3], value: exactRixValue }
 ```
 
-Selection, source-edit, paste, and graphics records remain protocol extensions:
+Selection, source-edit, and paste records remain protocol extensions:
 
 ```text
 { kind: select, index: [2,3] }
@@ -87,10 +91,10 @@ Selection, source-edit, paste, and graphics records remain protocol extensions:
 { kind: paste, range: [[2,3], [8,5]], values: data }
 ```
 
-The same protocol can support interactive graphics:
+The implemented Graphic position record is:
 
-```rix
-{= kind=:drag, target=:pointA, position=[4,7] }
+```js
+{ type: "graphic:position", targetId: "graph:pointA", position: [4, 7] }
 ```
 
 ## Portable Sheet schema
@@ -312,10 +316,12 @@ namespace distinction. FormulaSheet graphs reserve `grid`, `row`, `col`,
 `index`, and `near` for their contextual bindings. `near[offset,...]` resolves
 relative to the current slot, then performs the same tracked numeric read as
 `grid[index,...]`.
-A source update finds the old transitive dependent closure, evaluates each
-dirty computation at most once, replaces successful dynamic edges, and emits
-one commit after every staged value succeeds. Direct writes to computed nodes
-and nested epochs are rejected.
+A source or definition update finds the old transitive dependent closure,
+evaluates each dirty computation at most once, replaces successful dynamic
+edges, and emits one commit after every staged value succeeds. Direct `.Set`
+writes to computed nodes and nested epochs are rejected; `$name := expression`
+and host `ReplaceValue` operations replace a computed definition while keeping
+its node identity.
 
 Dollar bindings lower ordinary RiX syntax into this runtime:
 
@@ -382,7 +388,7 @@ RiX result remains the current portable Fragment value. The host renders that
 value, subscribes to the node, and replaces the rendered output after commits:
 
 ```text
-sheet:formula or future graphic:drag
+sheet:formula or graphic:position
                 |
                 v
         reactive model commit
@@ -394,13 +400,12 @@ sheet:formula or future graphic:drag
        host redraw and remount
 ```
 
-A draggable Graphic point can therefore update a Binding or graph source and
-let the same propagation path refresh its dependent lines and functions.
+A draggable Graphic point now replaces its reactive definition through this path and
+refreshes its dependent lines, tables, functions, and scene nodes.
 `.LiveView(source, deferred)` remains a deprecated lower-level compatibility
 constructor for old code that wants an explicit wrapper and isolated
-derivation. New code names a reactive output and returns `$name`. Direct Graphic
-manipulation and dependencies spanning multiple independent ReactiveGraphs
-remain future protocol extensions.
+derivation. New code names a reactive output and returns `$name`. Dependencies
+spanning multiple independent ReactiveGraphs remain a future protocol extension.
 
 ## Reactive document model
 
