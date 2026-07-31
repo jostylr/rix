@@ -45,7 +45,7 @@ import {
 } from "./functions/embedded.js";
 import { installRegisteredTypes, registerBuiltinSemanticTypes } from "../runtime/type-system.js";
 import { createDefaultComplexCollection, createDefaultExactCollection } from "../runtime/exact-values.js";
-import { createAlgebraOutputCollection, createGraphicsOutputCollection } from "../runtime/output.js";
+import { createAlgebraOutputCollection, createControlsOutputCollection, createGraphicsOutputCollection } from "../runtime/output.js";
 import { installBundledPlugins } from "../../plugins/bundled.js";
 import { createDefaultUnitCollection } from "../runtime/quantities.js";
 import { installUnitExactVariants, unitExactFunctions } from "./functions/units.js";
@@ -190,6 +190,8 @@ export function createDefaultSystemContext(options = {}) {
     ctx.registerValue("Algebra", algebra, { doc: "Algebra presentation helpers" });
     const graphics = createGraphicsOutputCollection();
     ctx.registerValue("Graphics", graphics, { doc: "Intrinsic portable 2D scene language" });
+    const controls = createControlsOutputCollection();
+    ctx.registerValue("Controls", controls, { doc: "Reactive control constructors" });
     ctx.registerAll(stdlibFunctions);
     ctx.registerAll(symbolicCapabilities);
     ctx.registerCallableValue("Poly", createPolySystemValue(), symbolicCapabilities.POLY, {

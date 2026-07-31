@@ -218,9 +218,92 @@ export class GraphicWidgetSession {
     }
 }
 
+function panelControls(panel) {
+    if (!isOutputValue(panel) || panel.kind !== "control_panel") {
+        throw new Error("ControlPanelWidgetSession requires a ControlPanel output value");
+    }
+    const controls = new Map();
+    for (const control of panel.controls) {
+        if (control.kind === "control_slider" && isReactiveNode(control.target)) {
+            controls.set(control.targetId, control);
+        }
+    }
+    if (controls.size === 0) {
+        throw new Error("A ControlPanel WidgetSession requires at least one reactive control");
+    }
+    return controls;
+}
+
+function sliderValue(control, index) {
+    const normalized = Number(index);
+    if (!Number.isInteger(normalized) || normalized < 0 || normalized > control.steps) {
+        throw new Error(`Control slider index must be between 0 and ${control.steps}`);
+    }
+    return control.low.add(control.step.multiply(new Integer(BigInt(normalized))));
+}
+
+export class ControlPanelWidgetSession {
+    constructor(widget, options = {}) {
+        this.widget = widget;
+        this.editMode = "control";
+        this.controls = panelControls(widget);
+        this.revision = 0;
+        this.onChange = typeof options.onChange === "function" ? options.onChange : null;
+        this.disposed = false;
+        this._unsubscribes = [...new Set([...this.controls.values()].map(({ target }) => target))]
+            .map((target) => target.subscribe((sourceEvent) => {
+                if (this.disposed) return;
+                this.revision += 1;
+                this.onChange?.({
+                    session: this,
+                    widget: this.widget,
+                    revision: this.revision,
+                    sourceEvent,
+                    controlEvent: sourceEvent,
+                });
+            }));
+    }
+
+    dispatch(event) {
+        if (this.disposed) throw new Error("Cannot dispatch to a disposed ControlPanelWidgetSession");
+        if (event?.type !== "control:set") {
+            throw new Error(`Unsupported ControlPanel widget event: ${event?.type || "missing type"}`);
+        }
+        const control = this.controls.get(String(event.targetId || ""));
+        if (!control) throw new Error(`Unknown ControlPanel target: ${event.targetId || "missing target"}`);
+        const value = control.kind === "control_slider"
+            ? sliderValue(control, event.index)
+            : event.value;
+        const replacedDependencies = Object.freeze([...control.target.dependencies]);
+        control.target.replaceValue(value, {
+            source: "widget",
+            widgetKind: "control_panel",
+            controlKind: control.kind,
+            eventType: "control:set",
+            targetId: control.targetId,
+            inputSource: event.source ?? null,
+            replacedDependencies,
+        });
+        return value;
+    }
+
+    current() {
+        return this.widget;
+    }
+
+    dispose() {
+        if (this.disposed) return;
+        this.disposed = true;
+        for (const unsubscribe of this._unsubscribes.splice(0)) unsubscribe?.();
+    }
+}
+
 export function createWidgetSession(widget, options = {}) {
     if (isOutputValue(widget) && widget.kind === "graphic") {
         return new GraphicWidgetSession(widget, options);
+    }
+    if (isOutputValue(widget) && widget.kind === "control_panel") {
+        return new ControlPanelWidgetSession(widget, options);
     }
     return new WidgetSession(widget, options);
 }

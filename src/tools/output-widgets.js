@@ -8,6 +8,7 @@
 import { isOutputValue, renderOutputHtml } from "../runtime/output.js";
 import { enhanceSheetViews } from "./sheet-view.js";
 import { enhanceGraphicViews } from "./graphic-view.js";
+import { enhanceControlPanelViews } from "./control-panel-view.js";
 import { createWidgetSession } from "./widget-session.js";
 
 function childOutputs(value) {
@@ -32,6 +33,13 @@ function collectGraphics(value, graphics = []) {
     return graphics;
 }
 
+function collectControlPanels(value, panels = []) {
+    if (!isOutputValue(value)) return panels;
+    if (value.kind === "control_panel") panels.push(value);
+    else for (const child of childOutputs(value)) collectControlPanels(child, panels);
+    return panels;
+}
+
 function renderedSheetRoots(root) {
     const roots = [];
     if (root?.matches?.(".rix-output-sheet")) roots.push(root);
@@ -43,6 +51,13 @@ function renderedGraphicRoots(root) {
     const roots = [];
     if (root?.matches?.(".rix-output-graphic")) roots.push(root);
     if (root?.querySelectorAll) roots.push(...root.querySelectorAll(".rix-output-graphic"));
+    return roots;
+}
+
+function renderedControlPanelRoots(root) {
+    const roots = [];
+    if (root?.matches?.(".rix-output-control-panel")) roots.push(root);
+    if (root?.querySelectorAll) roots.push(...root.querySelectorAll(".rix-output-control-panel"));
     return roots;
 }
 
@@ -72,8 +87,21 @@ export function restoreGraphicFocus(root, request) {
     return true;
 }
 
+export function restoreControlPanelFocus(root, request) {
+    if (!request) return false;
+    const panelRoot = renderedControlPanelRoots(root)[request.panelIndex];
+    if (!panelRoot) return false;
+    const control = [...panelRoot.querySelectorAll("[data-rix-control-target]")]
+        .find((candidate) => candidate.dataset.rixControlTarget === request.targetId);
+    const input = control?.querySelector?.("[data-rix-control-input]");
+    if (!input) return false;
+    input.focus();
+    return true;
+}
+
 function restoreOutputFocus(root, request) {
     if (request?.kind === "graphic") return restoreGraphicFocus(root, request);
+    if (request?.kind === "control_panel") return restoreControlPanelFocus(root, request);
     return restoreSheetFocus(root, request);
 }
 
@@ -219,6 +247,47 @@ export function mountOutputWidgets(root, value, options = {}) {
                     }
                 },
                 onPositionCommitted: options.onGraphicPosition,
+            });
+        }
+        const panelValues = collectControlPanels(outputValue);
+        const panelRoots = renderedControlPanelRoots(container);
+        for (const [index, panel] of panelValues.entries()) {
+            const panelRoot = panelRoots[index];
+            if (!panelRoot) continue;
+            let widgetSession;
+            try {
+                widgetSession = createWidgetSession(panel);
+            } catch {
+                continue;
+            }
+            widgetDisposers.push(() => widgetSession.dispose());
+            enhanceControlPanelViews(panelRoot, {
+                onSet(detail) {
+                    const focusRequest = {
+                        kind: "control_panel",
+                        panelIndex: index,
+                        targetId: detail.targetId,
+                    };
+                    pendingFocusRequest = focusRequest;
+                    try {
+                        const valueResult = widgetSession.dispatch(detail);
+                        return {
+                            type: "result",
+                            value: valueResult,
+                            text: format(valueResult),
+                            revision: widgetSession.revision,
+                        };
+                    } catch (error) {
+                        return {
+                            type: "error",
+                            text: error instanceof Error ? error.message : String(error),
+                            revision: widgetSession.revision,
+                        };
+                    } finally {
+                        if (pendingFocusRequest === focusRequest) pendingFocusRequest = null;
+                    }
+                },
+                onSetCommitted: options.onControlSet,
             });
         }
     }

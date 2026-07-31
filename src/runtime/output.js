@@ -1,6 +1,6 @@
 /** Portable structured-output values and host-neutral render helpers. */
 
-import { Integer, Rational } from "@ratmath/core";
+import { Integer, Rational, RationalInterval } from "@ratmath/core";
 import { isTensor, tensorGetBySelectors } from "./tensor.js";
 import { isBinding } from "./binding.js";
 import { FORMULA_SHEET_ASSIGNMENT_MODES, isFormulaSheet } from "./formula-sheet.js";
@@ -94,6 +94,23 @@ function exactNumber(value, label) {
     throw new Error(`${label} must be an exact integer or rational`);
 }
 
+function exactRational(value, label) {
+    if (value instanceof Rational) return value;
+    if (value instanceof Integer) return new Rational(value);
+    throw new Error(`${label} must be an exact integer or rational`);
+}
+
+function positiveCount(value, label) {
+    if (!(value instanceof Integer) || value.value <= 0n) {
+        throw new Error(`${label} must be a positive integer`);
+    }
+    const count = Number(value.value);
+    if (!Number.isSafeInteger(count) || count > 10000) {
+        throw new Error(`${label} must be at most 10000`);
+    }
+    return count;
+}
+
 function numericValue(value, label) {
     if (value instanceof Integer) return Number(value.value);
     if (value instanceof Rational) return Number(value.numerator) / Number(value.denominator);
@@ -169,6 +186,84 @@ export function createGrid(args) {
         rows,
         rules: sequence(get(entry, "rules", { type: "sequence", values: [] }), "Grid rules"),
         style: optionalMap(get(entry, "style"), "Grid style"),
+    });
+}
+
+export function createSliderControl(args) {
+    const entry = spec(args, ["target", "interval", "step", "label"], "Controls.Slider");
+    const target = get(entry, "target");
+    if (!isReactiveNode(target)) {
+        throw new Error("Controls.Slider target must be a reactive $$name identity");
+    }
+    const interval = get(entry, "interval");
+    if (!(interval instanceof RationalInterval)) {
+        throw new Error("Controls.Slider interval must be a RiX interval such as 0:10");
+    }
+    const low = interval.low;
+    const high = interval.high;
+    const span = high.subtract(low);
+    if (span.numerator === 0n) throw new Error("Controls.Slider interval endpoints must differ");
+
+    const stepValue = get(entry, "step");
+    const stepsValue = get(entry, "steps");
+    if (stepValue !== null && stepsValue !== null) {
+        throw new Error("Controls.Slider accepts either step or steps, not both");
+    }
+    let steps;
+    let step;
+    if (stepsValue !== null) {
+        steps = positiveCount(stepsValue, "Controls.Slider steps");
+        step = span.divide(new Integer(BigInt(steps)));
+    } else {
+        step = stepValue === null
+            ? span.divide(new Integer(20n))
+            : exactRational(stepValue, "Controls.Slider step");
+        if (step.numerator <= 0n) throw new Error("Controls.Slider step must be positive");
+        const ratio = span.divide(step);
+        const count = ratio.numerator / ratio.denominator;
+        if (count < 1n || count > 10000n) {
+            throw new Error("Controls.Slider step must produce between 1 and 10000 positions");
+        }
+        steps = Number(count);
+    }
+
+    const value = exactRational(target.get(), "Controls.Slider target value");
+    const indexValue = value.subtract(low).divide(step);
+    if (indexValue.denominator !== 1n) {
+        throw new Error("Controls.Slider target value must lie on an exact slider step");
+    }
+    const index = Number(indexValue.numerator);
+    if (!Number.isSafeInteger(index) || index < 0 || index > steps) {
+        throw new Error("Controls.Slider target value must lie within its interval");
+    }
+
+    return output("control_slider", {
+        id: asString(get(entry, "id")) || target.id,
+        label: asString(get(entry, "label")) || target.name,
+        help: asString(get(entry, "help")),
+        target,
+        targetId: target.id,
+        value,
+        low,
+        high,
+        step,
+        steps,
+        index,
+        replacesDependencies: Object.freeze([...target.dependencies]),
+    });
+}
+
+export function createControlPanel(args) {
+    const entry = spec(args, ["controls", "title", "description"], "ControlPanel");
+    const controls = sequence(get(entry, "controls"), "ControlPanel controls");
+    if (!controls.every((control) => isOutputValue(control) && control.kind.startsWith("control_"))) {
+        throw new Error("ControlPanel entries must be values created by .Controls");
+    }
+    return output("control_panel", {
+        controls: Object.freeze([...controls]),
+        title: asString(get(entry, "title")),
+        description: asString(get(entry, "description")),
+        metadata: optionalMap(get(entry, "metadata"), "ControlPanel metadata"),
     });
 }
 
@@ -986,6 +1081,14 @@ export function formatOutputText(value, format) {
     if (value.kind === "paragraph") return value.children.map((child) => cellText(child, format)).join("");
     if (value.kind === "heading") return `${"#".repeat(value.level)} ${cellText(value.content, format)}`;
     if (value.kind === "fragment") return value.children.map((child) => formatOutputText(child, format)).join("\n\n");
+    if (value.kind === "control_slider") {
+        return `${value.label}: ${cellText(value.value, format)} (${cellText(value.low, format)} … ${cellText(value.high, format)})`;
+    }
+    if (value.kind === "control_panel") {
+        return [value.title, value.description, ...value.controls.map((control) => formatOutputText(control, format))]
+            .filter(Boolean)
+            .join("\n");
+    }
     if (value.kind === "table") {
         const strings = value.rows.map((row) => row.map((cell) => cellText(cell, format)));
         const widths = value.columns.map((column, index) => Math.max(column.label.length, ...strings.map((row) => row[index].length)));
@@ -1022,6 +1125,15 @@ export function renderOutputHtml(value, format = (item) => String(item ?? "")) {
     if (value.kind === "paragraph") return `<p class="rix-output-paragraph">${value.children.map(text).join("")}</p>`;
     if (value.kind === "heading") return `<h${value.level} class="rix-output-heading">${text(value.content)}</h${value.level}>`;
     if (value.kind === "fragment") return `<section class="rix-output-fragment">${value.children.map((child) => renderOutputHtml(child, format)).join("")}</section>`;
+    if (value.kind === "control_slider") {
+        const dependencies = value.replacesDependencies.length > 0
+            ? ` data-rix-replaces-dependencies="${escapeHtml(value.replacesDependencies.join(","))}"`
+            : "";
+        return `<label class="rix-output-control rix-output-control-slider" data-rix-control-target="${escapeHtml(value.targetId)}"${dependencies}><span class="rix-output-control-label">${escapeHtml(value.label)}</span><input type="range" min="0" max="${value.steps}" step="1" value="${value.index}" data-rix-control-input aria-label="${escapeHtml(value.label)}"><output data-rix-control-value>${text(value.value)}</output>${value.help ? `<small>${escapeHtml(value.help)}</small>` : ""}</label>`;
+    }
+    if (value.kind === "control_panel") {
+        return `<section class="rix-output-control-panel" data-rix-interactive="true">${value.title ? `<h3>${escapeHtml(value.title)}</h3>` : ""}${value.description ? `<p>${escapeHtml(value.description)}</p>` : ""}<div class="rix-output-control-list">${value.controls.map((control) => renderOutputHtml(control, format)).join("")}</div><output class="rix-output-control-status" aria-live="polite"></output></section>`;
+    }
     if (value.kind === "table") return `<table class="rix-output-table">${value.caption ? `<caption>${escapeHtml(value.caption)}</caption>` : ""}<thead><tr>${value.columns.map((column) => `<th>${escapeHtml(column.label)}</th>`).join("")}</tr></thead><tbody>${value.rows.map((row) => `<tr>${row.map((cell) => `<td>${text(cell)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
     if (value.kind === "grid") return `<table class="rix-output-grid"><tbody>${value.rows.map((row, rowIndex) => `<tr${hasRule(value, "horizontal", rowIndex + 1) ? " class=\"rix-grid-rule-top\"" : ""}>${row.map((cell, column) => `<td${hasRule(value, "vertical", column + 1) ? " class=\"rix-grid-rule-left\"" : ""}>${text(cell)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
     if (value.kind === "sheet") {
@@ -1112,6 +1224,24 @@ export function createGraphicsOutputCollection() {
         ["Circle", createCircle],
         ["DragPoint", createDragPoint],
         ["Clip", createClip],
+    ]);
+    const entries = new Map();
+    const extension = new Map([["immutable", int(1)]]);
+    for (const [name, constructor] of methods) {
+        entries.set(name, constructor);
+        entries.set(name.toUpperCase(), constructor);
+        extension.set(name.toUpperCase(), {
+            type: "method_builtin",
+            name,
+            impl: (args) => constructor(args.slice(1)),
+        });
+    }
+    return { type: "map", entries, _ext: extension };
+}
+
+export function createControlsOutputCollection() {
+    const methods = new Map([
+        ["Slider", createSliderControl],
     ]);
     const entries = new Map();
     const extension = new Map([["immutable", int(1)]]);

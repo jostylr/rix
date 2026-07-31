@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import {
     mountOutputWidgets,
+    restoreControlPanelFocus,
     restoreGraphicFocus,
     restoreSheetFocus,
 } from "../../src/tools/output-widgets.js";
@@ -85,6 +86,41 @@ test("reactive Graphic remount focus follows the drag target identity", () => {
         graphicIndex: 0,
         targetId: "graph:missing",
     })).toBe(false);
+});
+
+test("reactive ControlPanel remount focus follows the target identity", () => {
+    const inputs = ["graph:x", "graph:y"].map(() => ({
+        focused: false,
+        focus() {
+            this.focused = true;
+        },
+    }));
+    const controls = ["graph:x", "graph:y"].map((targetId, index) => ({
+        dataset: { rixControlTarget: targetId },
+        querySelector(selector) {
+            return selector === "[data-rix-control-input]" ? inputs[index] : null;
+        },
+    }));
+    const panel = {
+        querySelectorAll(selector) {
+            return selector === "[data-rix-control-target]" ? controls : [];
+        },
+    };
+    const root = {
+        matches() {
+            return false;
+        },
+        querySelectorAll(selector) {
+            return selector === ".rix-output-control-panel" ? [panel] : [];
+        },
+    };
+
+    expect(restoreControlPanelFocus(root, {
+        panelIndex: 0,
+        targetId: "graph:y",
+    })).toBe(true);
+    expect(inputs[0].focused).toBe(false);
+    expect(inputs[1].focused).toBe(true);
 });
 
 test("a host-observed reactive output remounts and disposes its subscription", () => {

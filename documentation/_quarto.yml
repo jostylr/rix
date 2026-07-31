@@ -41,6 +41,7 @@ project:
     - design/eval/structural-arithmetic-todo.md
     - design/eval/transformation-reference.md
     - design/eval/output-model.md
+    - design/eval/control-panel-todo.md
     - design/eval/rixcel-architecture.md
     - design/eval/rixcel-format.md
     - design/eval/rixcel-todo.md

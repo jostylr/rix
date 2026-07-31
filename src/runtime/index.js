@@ -32,6 +32,7 @@ export {
     createSheetSnapshot,
     createAlgebraOutputCollection,
     createGraphicsOutputCollection,
+    createControlsOutputCollection,
     createSyntheticDivision,
     createPlotOutputCollection,
     createPolynomialPlot,
@@ -41,6 +42,8 @@ export {
     createRectangle,
     createCircle,
     createDragPoint,
+    createSliderControl,
+    createControlPanel,
     createClip,
 } from "./output.js";
 export {

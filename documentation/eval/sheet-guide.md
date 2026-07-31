@@ -494,6 +494,28 @@ $frag;
 $source := 3             # an observer of $frag redraws it as 12
 ```
 
+A control panel uses those same declarations and updates. Pass `$$x` to the
+control because the control needs the identity to update; use `$x` wherever a
+dependent value should be tracked:
+
+```rix
+$$x := 2;
+$$view := .Fragment([
+    .ControlPanel([
+        .Controls.Slider($$x, 0:5, 1/2, "x")
+    ], "Parameters"),
+    .Text(@"x² = @{$x^2}")
+]);
+$view
+```
+
+The slider emits an integer position, and its widget session converts that
+position to an exact RiX number before replacing the `x` definition. This is
+the same identity-preserving operation as `$x := exactValue`; authors do not
+construct a `.ReactiveGraph` source. If `x` previously depended on other
+reactive definitions, moving the control deliberately replaces that formula
+and removes those incoming dependencies.
+
 FormulaSheet is a coordinate adapter over the same runtime. Dollar indexing
 selects coordinate cell identities and places new definitions into the same
 graph:
@@ -562,7 +584,7 @@ FormulaSheet, Binding, and ReactiveNode merely expose the low-level reactive
 subscription boundary that hosts use.
 
 This contract is intentionally independent of the interaction that caused the
-update. A formula editor uses `sheet:formula`; `.Graphics.DragPoint` uses
-`graphic:position` to replace a ReactiveGraph node's value definition. Both cause the same graph
-propagation and observed-output redraw without making Graphics depend on
-spreadsheet code.
+update. A formula editor uses `sheet:formula`, `.Graphics.DragPoint` uses
+`graphic:position`, and `.ControlPanel` uses `control:set`. All three cause the
+same graph propagation and observed-output redraw without making their output
+constructors depend on one another.

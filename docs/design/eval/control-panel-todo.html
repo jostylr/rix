@@ -6,9 +6,8 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
-<meta name="description" content="The current supported surface and the boundary between working RiX features and active design.">
 
-<title>Implementation status – RiX</title>
+<title>control-panel-todo – RiX</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -24,33 +23,66 @@ ul.task-list li input[type="checkbox"] {
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
 }
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
 </style>
 
 
-<script src="site_libs/quarto-nav/quarto-nav.js"></script>
-<script src="site_libs/quarto-nav/headroom.min.js"></script>
-<script src="site_libs/clipboard/clipboard.min.js"></script>
-<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
-<script src="site_libs/quarto-search/fuse.min.js"></script>
-<script src="site_libs/quarto-search/quarto-search.js"></script>
-<meta name="quarto:offset" content="./">
-<link href="./introduction.html" rel="next">
-<link href="./highlights.html" rel="prev">
-<link href="./rix-logo.png" rel="icon" type="image/png">
-<script src="site_libs/quarto-html/quarto.js" type="module"></script>
-<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
-<script src="site_libs/quarto-html/popper.min.js"></script>
-<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
-<script src="site_libs/quarto-html/anchor.min.js"></script>
-<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="site_libs/quarto-html/quarto-syntax-highlighting-4a0610749eeff5ab924a4729b5181608.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
-<link href="site_libs/quarto-html/quarto-syntax-highlighting-dark-de927ec96a2411cf822331f71755f83e.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
-<link href="site_libs/quarto-html/quarto-syntax-highlighting-4a0610749eeff5ab924a4729b5181608.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
-<script src="site_libs/bootstrap/bootstrap.min.js"></script>
-<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="site_libs/bootstrap/bootstrap-f3edcacc9eded719789e0469c6b6eab5.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
-<link href="site_libs/bootstrap/bootstrap-dark-c53da4be0d013bdcf7fcfccaa2827e71.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
-<link href="site_libs/bootstrap/bootstrap-f3edcacc9eded719789e0469c6b6eab5.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<link href="../../rix-logo.png" rel="icon" type="image/png">
+<script src="../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-4a0610749eeff5ab924a4729b5181608.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-dark-de927ec96a2411cf822331f71755f83e.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-4a0610749eeff5ab924a4729b5181608.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap-f3edcacc9eded719789e0469c6b6eab5.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../../site_libs/bootstrap/bootstrap-dark-c53da4be0d013bdcf7fcfccaa2827e71.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../../site_libs/bootstrap/bootstrap-f3edcacc9eded719789e0469c6b6eab5.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -251,11 +283,11 @@ ul.task-list li input[type="checkbox"] {
     <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
       <div class="navbar-container container-fluid">
       <div class="navbar-brand-container mx-auto">
-    <a href="./index.html" class="navbar-brand navbar-brand-logo">
-    <img src="./rix-logo.png" alt="" class="navbar-logo light-content">
-    <img src="./rix-logo.png" alt="" class="navbar-logo dark-content">
+    <a href="../../index.html" class="navbar-brand navbar-brand-logo">
+    <img src="../../rix-logo.png" alt="" class="navbar-logo light-content">
+    <img src="../../rix-logo.png" alt="" class="navbar-logo dark-content">
     </a>
-    <a class="navbar-brand" href="./index.html">
+    <a class="navbar-brand" href="../../index.html">
     <span class="navbar-title">RiX</span>
     </a>
   </div>
@@ -266,19 +298,19 @@ ul.task-list li input[type="checkbox"] {
           <div class="collapse navbar-collapse" id="navbarCollapse">
             <ul class="navbar-nav navbar-nav-scroll me-auto">
   <li class="nav-item">
-    <a class="nav-link active" href="./getting-started.html" aria-current="page"> 
+    <a class="nav-link active" href="../../getting-started.html" aria-current="page"> 
 <span class="menu-text">Start</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="./language-at-a-glance.html"> 
+    <a class="nav-link" href="../../language-at-a-glance.html"> 
 <span class="menu-text">Learn</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="./eval/syntax-guide.html"> 
+    <a class="nav-link" href="../../eval/syntax-guide.html"> 
 <span class="menu-text">Reference</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="./developer-guide.html"> 
+    <a class="nav-link" href="../../developer-guide.html"> 
 <span class="menu-text">Internals</span></a>
   </li>  
 </ul>
@@ -300,7 +332,7 @@ ul.task-list li input[type="checkbox"] {
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./getting-started.html">Start here</a></li><li class="breadcrumb-item"><a href="./status.html">Implementation status</a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
     </div>
@@ -314,40 +346,40 @@ ul.task-list li input[type="checkbox"] {
     <ul class="list-unstyled mt-1">
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./index.html" class="sidebar-item-text sidebar-link">
+  <a href="../../index.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Overview</span></a>
   </div>
 </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="false">
  <span class="menu-text">Start here</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="false" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./getting-started.html" class="sidebar-item-text sidebar-link">
+  <a href="../../getting-started.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Getting started</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./language-at-a-glance.html" class="sidebar-item-text sidebar-link">
+  <a href="../../language-at-a-glance.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">RiX at a glance</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./highlights.html" class="sidebar-item-text sidebar-link">
+  <a href="../../highlights.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">RiX Highlights</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./status.html" class="sidebar-item-text sidebar-link active">
+  <a href="../../status.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Implementation status</span></a>
   </div>
 </li>
@@ -364,19 +396,19 @@ ul.task-list li input[type="checkbox"] {
       <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./introduction.html" class="sidebar-item-text sidebar-link">
+  <a href="../../introduction.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Complete introduction</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./tutorial/units-and-exact-values.html" class="sidebar-item-text sidebar-link">
+  <a href="../../tutorial/units-and-exact-values.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Units and exact values</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./eval/sheet-guide.html" class="sidebar-item-text sidebar-link">
+  <a href="../../eval/sheet-guide.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Sheet views</span></a>
   </div>
 </li>
@@ -393,25 +425,25 @@ ul.task-list li input[type="checkbox"] {
       <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./eval/syntax-guide.html" class="sidebar-item-text sidebar-link">
+  <a href="../../eval/syntax-guide.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Syntax and functions</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./eval/methods-guide.html" class="sidebar-item-text sidebar-link">
+  <a href="../../eval/methods-guide.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Methods</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./eval/types-and-traits-guide.html" class="sidebar-item-text sidebar-link">
+  <a href="../../eval/types-and-traits-guide.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Types and traits</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./reference/system-reference.html" class="sidebar-item-text sidebar-link">
+  <a href="../../reference/system-reference.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Generated runtime catalog</span></a>
   </div>
 </li>
@@ -428,61 +460,61 @@ ul.task-list li input[type="checkbox"] {
       <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./developer-guide.html" class="sidebar-item-text sidebar-link">
+  <a href="../../developer-guide.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Developer guide</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./plugin-catalog.html" class="sidebar-item-text sidebar-link">
+  <a href="../../plugin-catalog.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Plugin catalog and loading</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./eval/README.html" class="sidebar-item-text sidebar-link">
+  <a href="../../eval/README.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Evaluator overview</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./parser/architecture.html" class="sidebar-item-text sidebar-link">
+  <a href="../../parser/architecture.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Parser architecture</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./parser/parsing.html" class="sidebar-item-text sidebar-link">
+  <a href="../../parser/parsing.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Parsing and precedence</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./parser/AST-brief.html" class="sidebar-item-text sidebar-link">
+  <a href="../../parser/AST-brief.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">AST reference</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./design/eval/ir-format.html" class="sidebar-item-text sidebar-link">
+  <a href="../../design/eval/ir-format.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">IR design snapshot</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./parser/array-generators-implementation.html" class="sidebar-item-text sidebar-link">
+  <a href="../../parser/array-generators-implementation.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Array generators</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./parser/embedded-parsing.html" class="sidebar-item-text sidebar-link">
+  <a href="../../parser/embedded-parsing.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Embedded parsing</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./parser/matrix-tensor-implementation.html" class="sidebar-item-text sidebar-link">
+  <a href="../../parser/matrix-tensor-implementation.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Matrices and tensors</span></a>
   </div>
 </li>
@@ -499,61 +531,61 @@ ul.task-list li input[type="checkbox"] {
       <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./design/eval/cells-assignments.html" class="sidebar-item-text sidebar-link">
+  <a href="../../design/eval/cells-assignments.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Cells and assignment</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./design/eval/units-and-exact-generators.html" class="sidebar-item-text sidebar-link">
+  <a href="../../design/eval/units-and-exact-generators.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Units and exact generators</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./design/eval/cayley-polar.html" class="sidebar-item-text sidebar-link">
+  <a href="../../design/eval/cayley-polar.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Cayley polar complex values</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./design/eval/symbolic-calculus.html" class="sidebar-item-text sidebar-link">
+  <a href="../../design/eval/symbolic-calculus.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Symbolic specs and calculus</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./design/eval/transformation-reference.html" class="sidebar-item-text sidebar-link">
+  <a href="../../design/eval/transformation-reference.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Symbolic transformations</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./design/eval/output-model.html" class="sidebar-item-text sidebar-link">
+  <a href="../../design/eval/output-model.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Structured output, documents, and graphics</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./design/eval/rixcel-architecture.html" class="sidebar-item-text sidebar-link">
+  <a href="../../design/eval/rixcel-architecture.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">RiXCel architecture</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./design/eval/rixcel-format.html" class="sidebar-item-text sidebar-link">
+  <a href="../../design/eval/rixcel-format.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">RiXCel document format</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./design/eval/rixcel-todo.html" class="sidebar-item-text sidebar-link">
+  <a href="../../design/eval/rixcel-todo.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">RiXCel implementation checklist</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./design/plugins.html" class="sidebar-item-text sidebar-link">
+  <a href="../../design/plugins.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Plugin roadmap and rendering contracts</span></a>
   </div>
 </li>
@@ -570,25 +602,25 @@ ul.task-list li input[type="checkbox"] {
       <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth1 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./rix-rationales.html" class="sidebar-item-text sidebar-link">
+  <a href="../../rix-rationales.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Design rationales</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./design/parser/spec.html" class="sidebar-item-text sidebar-link">
+  <a href="../../design/parser/spec.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Early language specification</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./design/parser/questions.html" class="sidebar-item-text sidebar-link">
+  <a href="../../design/parser/questions.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Open design areas</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./report-2026-04-02.html" class="sidebar-item-text sidebar-link">
+  <a href="../../report-2026-04-02.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">April 2026 review (historical)</span></a>
   </div>
 </li>
@@ -604,153 +636,96 @@ ul.task-list li input[type="checkbox"] {
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#working-and-tested" id="toc-working-and-tested" class="nav-link active" data-scroll-target="#working-and-tested">Working and tested</a></li>
-  <li><a href="#partial-or-intentionally-bounded" id="toc-partial-or-intentionally-bounded" class="nav-link" data-scroll-target="#partial-or-intentionally-bounded">Partial or intentionally bounded</a></li>
-  <li><a href="#documentation-authority" id="toc-documentation-authority" class="nav-link" data-scroll-target="#documentation-authority">Documentation authority</a></li>
+  <li><a href="#reactive-control-panels" id="toc-reactive-control-panels" class="nav-link active" data-scroll-target="#reactive-control-panels">Reactive control panels</a>
+  <ul class="collapse">
+  <li><a href="#contract" id="toc-contract" class="nav-link" data-scroll-target="#contract">Contract</a></li>
+  <li><a href="#checklist" id="toc-checklist" class="nav-link" data-scroll-target="#checklist">Checklist</a>
+  <ul class="collapse">
+  <li><a href="#first-usable-slice" id="toc-first-usable-slice" class="nav-link" data-scroll-target="#first-usable-slice">First usable slice</a></li>
+  <li><a href="#next-controls" id="toc-next-controls" class="nav-link" data-scroll-target="#next-controls">Next controls</a></li>
+  <li><a href="#panel-behavior" id="toc-panel-behavior" class="nav-link" data-scroll-target="#panel-behavior">Panel behavior</a></li>
+  <li><a href="#accessibility-and-hosts" id="toc-accessibility-and-hosts" class="nav-link" data-scroll-target="#accessibility-and-hosts">Accessibility and hosts</a></li>
+  </ul></li>
+  </ul></li>
   </ul>
-<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/status.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/design/eval/control-panel-todo.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
     </div>
 <!-- main -->
-<main class="content" id="quarto-document-content">
+<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"></header>
 
 
-<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./getting-started.html">Start here</a></li><li class="breadcrumb-item"><a href="./status.html">Implementation status</a></li></ol></nav>
-<div class="quarto-title">
-<h1 class="title">Implementation status</h1>
-</div>
-
-<div>
-  <div class="description">
-    The current supported surface and the boundary between working RiX features and active design.
-  </div>
-</div>
 
 
-<div class="quarto-title-meta">
 
-    
-  
-    
-  </div>
-  
-
-
-</header>
-
-
-<p>RiX is an active alpha. Its parser, AST-to-IR lowering, and broad evaluator are working; the language remains free to change before a stable release. This page is the current status boundary. Older reports and design notes are valuable history but are not authoritative status pages.</p>
-<p>The repository test suite currently covers 1,700+ cases across parser, evaluator, runtime, CLI, and examples. Run <code>bun test</code> in <code>rix/</code> for the exact count at your revision.</p>
-<section id="working-and-tested" class="level2">
-<h2 class="anchored" data-anchor-id="working-and-tested">Working and tested</h2>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 50%">
-<col style="width: 50%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>Area</th>
-<th>Current surface</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>Exact arithmetic</td>
-<td>integers, rationals, mixed/repeating/continued-fraction forms, rational intervals</td>
-</tr>
-<tr class="even">
-<td>Language pipeline</td>
-<td>tokenizer, Pratt parser, AST, lowering, call-shaped IR, evaluator dispatch</td>
-</tr>
-<tr class="odd">
-<td>Functions</td>
-<td>lambdas, named functions, rest/spread, partials, arity caps, prepared functions, multifunctions, tail-self call path</td>
-</tr>
-<tr class="even">
-<td>Collections</td>
-<td>arrays, lazy sequences, iterators, maps, sets, tuples, tensors, indexing/slicing, traversal pipes, methods</td>
-</tr>
-<tr class="odd">
-<td>Control and scope</td>
-<td>blocks, cases, ternaries, loops, break blocks, cells, five assignment modes, destructuring, imports</td>
-</tr>
-<tr class="even">
-<td>Semantics</td>
-<td>metadata classes, semantic inquiry/conversion, type and trait registries, constructor capture</td>
-</tr>
-<tr class="odd">
-<td>Exact extensions</td>
-<td>units/quantities, algebraic exact generators, exact complex operations, Cayley polar representation</td>
-</tr>
-<tr class="even">
-<td>Tooling</td>
-<td>REPL/runner, IR converter, native <code>.test.rix</code> runner, structured diagnostics, source locations, trace/debug</td>
-</tr>
-<tr class="odd">
-<td>Structured output</td>
-<td>typed <code>Text</code>, <code>Paragraph</code>, <code>Heading</code>, <code>Fragment</code>, <code>Table</code>, <code>Grid</code>, <code>Graphic</code>, <code>Figure</code>, <code>Slide</code>, <code>Slides</code>, and reactive <code>ControlPanel</code> values; intrinsic 2D scene primitives under <code>.Graphics</code> include <code>DragPoint</code>, while <code>.Controls.Slider($$name, ...)</code> performs exact identity-preserving updates; optional bundled <code>.draw</code> and <code>.plot</code> plugins load through <code>.Plugin.Load(...)</code>; CLI text fallback; HTML tables/grids, controls, and inline SVG graphics; <code>@"..."</code>/<code>@"""..."""</code> templates; exact synthetic division through <code>.Algebra.SyntheticDivision</code></td>
-</tr>
-<tr class="even">
-<td>Embedding</td>
-<td>parser exports, evaluator/runtime exports, configurable system loader and system context</td>
-</tr>
-<tr class="odd">
-<td>Exact symbolic core</td>
-<td>identity/expression/named specs, substitution and composition, name-preserving arithmetic, attached pure-function specs, polynomial compilation, exact derivatives/integrals, explicit simplification, quote calculus syntax</td>
-</tr>
-</tbody>
-</table>
+<section id="reactive-control-panels" class="level1">
+<h1>Reactive control panels</h1>
+<section id="contract" class="level2">
+<h2 class="anchored" data-anchor-id="contract">Contract</h2>
+<p>Control panels are host-rendered interactive output values. They do not create an alternate state system. A RiX author declares state with the ordinary reactive dollar syntax, passes the resulting identity to a control, and reads the state with the same syntax used everywhere else:</p>
+<pre class="rix"><code>$$x := 3;
+$$view := .Fragment([
+    .ControlPanel([
+        .Controls.Slider($$x, 0:10, 1, "x")
+    ], "Parameters"),
+    .Text(@"x² = @{$x^2}")
+]);
+$view</code></pre>
+<p>The user-facing API must not require <code>.ReactiveGraph()</code>, <code>.Source(...)</code>, or a second declaration mechanism. <code>$$x := value</code> declares the identity, <code>$x</code> tracks a read, and a control edit replaces the same definition as if the program had evaluated <code>$x := value</code>.</p>
+<p>Controls emit semantic records rather than DOM events:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>{ <span class="dt">type</span><span class="op">:</span> <span class="st">"control:set"</span><span class="op">,</span> <span class="dt">targetId</span><span class="op">:</span> <span class="st">"reactive:x"</span><span class="op">,</span> <span class="dt">index</span><span class="op">:</span> <span class="dv">4</span><span class="op">,</span> <span class="dt">source</span><span class="op">:</span> <span class="st">"range"</span> }</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The host-owned widget session validates and converts that record to an exact RiX value, updates the reactive definition, and lets the ordinary dependency graph refresh a named reactive <code>Fragment</code>, <code>Graphic</code>, <code>Table</code>, or other output.</p>
 </section>
-<section id="partial-or-intentionally-bounded" class="level2">
-<h2 class="anchored" data-anchor-id="partial-or-intentionally-bounded">Partial or intentionally bounded</h2>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 50%">
-<col style="width: 50%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>Area</th>
-<th>Boundary</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>Symbolic work</td>
-<td>The implemented single-output exact-arithmetic subset is complete and tested. Multi-output manipulation, transcendental rules, general algebraic solving, and numerical calculus are intentionally outside it.</td>
-</tr>
-<tr class="even">
-<td>Mathematical systems</td>
-<td><code>{$ ... }</code> evaluates with block-like semantics. It is not yet a general equation/constraint solver.</td>
-</tr>
-<tr class="odd">
-<td>Real approximation</td>
-<td>the default runtime is exact-first. The repository includes a float package example, but a unified real/oracle layer is not part of the default surface.</td>
-</tr>
-<tr class="even">
-<td>Browser use</td>
-<td>the parser demo runs in the browser. Full evaluator imports currently include Node file APIs, so evaluator embedding needs a host adapter for browser-only use.</td>
-</tr>
-<tr class="odd">
-<td>Packaging</td>
-<td>the package uses <code>@ratmath/core</code> through the parent Bun workspace and has not yet declared a stable standalone release workflow.</td>
-</tr>
-</tbody>
-</table>
+<section id="checklist" class="level2">
+<h2 class="anchored" data-anchor-id="checklist">Checklist</h2>
+<section id="first-usable-slice" class="level3">
+<h3 class="anchored" data-anchor-id="first-usable-slice">First usable slice</h3>
+<ul class="task-list">
+<li><label><input type="checkbox" checked="">Confirm that controls use <code>$$name</code> identities declared with dollar syntax.</label></li>
+<li><label><input type="checkbox" checked="">Define <code>.ControlPanel(controls, title?)</code> as an output container.</label></li>
+<li><label><input type="checkbox" checked="">Define <code>.Controls.Slider($$target, interval, step, label?)</code> with a complete map form.</label></li>
+<li><label><input type="checkbox" checked="">Preserve exact integer/rational values by rendering slider positions as integer indices.</label></li>
+<li><label><input type="checkbox" checked="">Route <code>control:set</code> through a host-owned <code>ControlPanelWidgetSession</code>.</label></li>
+<li><label><input type="checkbox" checked="">Make control edits replace the target definition like <code>$name := value</code> and report removed dependencies.</label></li>
+<li><label><input type="checkbox" checked="">Provide HTML and text fallbacks.</label></li>
+<li><label><input type="checkbox" checked="">Mount panels nested in <code>Fragment</code>, <code>Figure</code>, <code>Slide</code>, and <code>Slides</code> output trees.</label></li>
+<li><label><input type="checkbox" checked="">Restore control focus after a reactive output rerender.</label></li>
+<li><label><input type="checkbox" checked="">Add constructor, session, rendering, and host-enhancer tests.</label></li>
+<li><label><input type="checkbox" checked="">Assign the new capabilities to the <code>Controls</code> sandbox group.</label></li>
+</ul>
 </section>
-<section id="documentation-authority" class="level2">
-<h2 class="anchored" data-anchor-id="documentation-authority">Documentation authority</h2>
-<p>When pages disagree, use this order:</p>
-<ol type="1">
-<li>tests and current implementation;</li>
-<li>the generated <a href="./reference/system-reference.html">runtime catalog</a>;</li>
-<li>current user guides under <code>eval/</code>, <code>tutorial/</code>, and the complete introduction;</li>
-<li>parser and runtime design records;</li>
-<li>historical reports, early phase documents, scratch notes, and generated legacy HTML.</li>
-</ol>
-<p>The build regenerates the runtime catalog from the implementation, which makes missing or renamed system capabilities visible in every documentation change.</p>
+<section id="next-controls" class="level3">
+<h3 class="anchored" data-anchor-id="next-controls">Next controls</h3>
+<ul class="task-list">
+<li><label><input type="checkbox">Add an exact number/expression input with host-supplied RiX source evaluation.</label></li>
+<li><label><input type="checkbox">Add a choice/select control whose options retain RiX values.</label></li>
+<li><label><input type="checkbox">Add a toggle control with explicit on/off RiX values rather than JavaScript booleans.</label></li>
+<li><label><input type="checkbox">Add a range control backed by two reactive identities or one exact interval value.</label></li>
+<li><label><input type="checkbox">Add a reset action with an explicit initial-value snapshot.</label></li>
+</ul>
+</section>
+<section id="panel-behavior" class="level3">
+<h3 class="anchored" data-anchor-id="panel-behavior">Panel behavior</h3>
+<ul class="task-list">
+<li><label><input type="checkbox">Decide whether controls targeting definitions with dependencies require confirmation, opt-in replacement, or only the current warning metadata.</label></li>
+<li><label><input type="checkbox">Add panel descriptions, per-control help, disabled/read-only state, and validation messages.</label></li>
+<li><label><input type="checkbox">Define atomic multi-control commits through <code>${ ... }</code> transaction semantics.</label></li>
+<li><label><input type="checkbox">Add an optional staged/submit mode only if a transactional form workflow is needed.</label></li>
+<li><label><input type="checkbox">Define portable serialization that omits runtime handles but retains target IDs and current-value snapshots.</label></li>
+<li><label><input type="checkbox">Define static Markdown, Quarto, PDF, and no-JavaScript snapshots.</label></li>
+</ul>
+</section>
+<section id="accessibility-and-hosts" class="level3">
+<h3 class="anchored" data-anchor-id="accessibility-and-hosts">Accessibility and hosts</h3>
+<ul class="task-list">
+<li><label><input type="checkbox">Verify range keyboard behavior, focus restoration, labels, and live value announcements in RiX Web and RiX Notebook.</label></li>
+<li><label><input type="checkbox">Add shared control-panel styling to RiX Web, RiX Notebook, and standalone RiXCel hosts.</label></li>
+<li><label><input type="checkbox">Exercise panels in live HTML and Quarto export.</label></li>
+<li><label><input type="checkbox">Add an end-to-end example combining controls, a reactive table, and a draggable graphic.</label></li>
+</ul>
 
 
+</section>
+</section>
 </section>
 
 <a onclick="window.scrollTo(0, 0); return false;" role="button" id="quarto-back-to-top"><i class="bi bi-arrow-up"></i> Back to top</a></main> <!-- /main -->
@@ -1172,18 +1147,6 @@ ul.task-list li input[type="checkbox"] {
     }
   });
   </script>
-<nav class="page-navigation">
-  <div class="nav-page nav-page-previous">
-      <a href="./highlights.html" class="pagination-link" aria-label="RiX Highlights">
-        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">RiX Highlights</span>
-      </a>          
-  </div>
-  <div class="nav-page nav-page-next">
-      <a href="./introduction.html" class="pagination-link" aria-label="Complete introduction">
-        <span class="nav-page-text">Complete introduction</span> <i class="bi bi-arrow-right-short"></i>
-      </a>
-  </div>
-</nav>
 </div> <!-- /content -->
 <footer class="footer">
   <div class="nav-footer">
@@ -1192,7 +1155,7 @@ ul.task-list li input[type="checkbox"] {
 </div>   
     <div class="nav-footer-center">
       &nbsp;
-    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/status.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/design/eval/control-panel-todo.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
     <div class="nav-footer-right">
 <p>Documentation built with <a href="https://quarto.org/">Quarto</a></p>
 </div>
@@ -1202,5 +1165,5 @@ ul.task-list li input[type="checkbox"] {
 
 
 
-<script src="site_libs/quarto-html/zenscroll-min.js"></script>
+<script src="../../site_libs/quarto-html/zenscroll-min.js"></script>
 </body></html>

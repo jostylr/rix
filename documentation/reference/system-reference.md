@@ -8,7 +8,7 @@ toc-depth: 2
 This page is generated from the current RiX implementation by `documentation/scripts/generate-reference.js`. Do not edit it by hand. Descriptions come from registry documentation strings; the narrative [syntax guide](../eval/syntax-guide.md) and [methods guide](../eval/methods-guide.md) provide signatures and examples.
 :::
 
-At this revision RiX exposes **152 named entries** on the default system context and registers **189 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
+At this revision RiX exposes **154 named entries** on the default system context and registers **190 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
 
 ## Public system context
 
@@ -35,6 +35,8 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.CHUNK` | lazy function | — | Chunk a collection into subarrays by size or boundary predicate |
 | `.COMPLEX` | value | Exact | Exact complex-number operations |
 | `.CONCAT` | function | — | Core operation CONCAT |
+| `.CONTROLPANEL` | function | Output, Controls | Group reactive controls in a portable output panel |
+| `.CONTROLS` | value | — | Reactive control constructors |
 | `.CONVERTUNIT` | function | Units | Convert a quantity to a compatible display unit |
 | `.CORE` | function | — | Core capability registration and discovery |
 | `.DEBUG` | lazy function | — | Debug expression: .Debug(label, expr) — returns expr value, records AST/source |
@@ -241,7 +243,8 @@ Imported scripts can add or withhold named groups. Permission-like names are int
 
 | Group | Members |
 | --- | --- |
-| `Output` | `BIND`, `LIVEVIEW`, `TEXT`, `PARAGRAPH`, `HEADING`, `FRAGMENT`, `TABLE`, `GRID`, `SHEET`, `FIGURE`, `SLIDE`, `SLIDES`, `Algebra` |
+| `Output` | `BIND`, `LIVEVIEW`, `TEXT`, `PARAGRAPH`, `HEADING`, `FRAGMENT`, `TABLE`, `GRID`, `SHEET`, `CONTROLPANEL`, `FIGURE`, `SLIDE`, `SLIDES`, `Algebra` |
+| `Controls` | `CONTROLPANEL`, `Controls` |
 | `Graphics` | `Graphics` |
 | `Draw` | `draw` |
 | `Plot` | `plot` |
@@ -299,6 +302,7 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `CASE` | lazy, effectful/unspecified | Ordered case expression with condition arms, prepared-trial arms, and an optional fallback |
 | `COMPARE` | eager, pure, multifunction | Compare two values; returns -1, 0, or 1 |
 | `CONCAT` | eager, pure | — |
+| `CONTROLPANEL` | eager, pure | Group reactive controls in a portable output panel |
 | `CONVERTUNIT` | eager, pure | Convert a quantity to a compatible display unit |
 | `DEFINEBASE` | lazy, effectful/unspecified | Define a custom uppercase base prefix (0A = ...), one-time global definition |
 | `DEFINEEXACTGENERATOR` | eager, pure | Create an algebraic exact generator from low-to-high polynomial coefficients |

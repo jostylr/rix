@@ -2,6 +2,43 @@ import { describe, expect, test } from "bun:test";
 import { formatValue, parseAndEvaluate, renderOutputHtml } from "../../src/index.js";
 
 describe("portable structured output", () => {
+    test("ControlPanel sliders bind directly to $$ identities and retain exact steps", () => {
+        const panel = parseAndEvaluate(`
+            $$x := 3/2;
+            .ControlPanel({=
+                title="Parameters",
+                description="Exact controls",
+                controls=[.Controls.Slider({=
+                    target=$$x,
+                    interval=0:3,
+                    step=1/2,
+                    label="x",
+                    help="Choose an exact half"
+                })]
+            })
+        `);
+        expect(panel.kind).toBe("control_panel");
+        expect(panel.controls).toHaveLength(1);
+        expect(panel.controls[0]).toMatchObject({
+            kind: "control_slider",
+            label: "x",
+            steps: 6,
+            index: 3,
+        });
+        expect(formatValue(panel.controls[0].step)).toBe("1/2");
+        expect(formatValue(panel)).toContain("x: 1..1/2 (0 … 3)");
+        const html = renderOutputHtml(panel, formatValue);
+        expect(html).toContain('class="rix-output-control-panel"');
+        expect(html).toContain('type="range" min="0" max="6" step="1" value="3"');
+        expect(html).toContain('data-rix-control-target=');
+        expect(html).toContain("Choose an exact half");
+
+        expect(() => parseAndEvaluate(".Controls.Slider(2, 0:10, 1)"))
+            .toThrow("reactive $$name identity");
+        expect(() => parseAndEvaluate("$$x := 1/3; .Controls.Slider($$x, 0:2, 1/2)"))
+            .toThrow("exact slider step");
+    });
+
     test("Table accepts positional shorthand and keeps its semantic structure", () => {
         const table = parseAndEvaluate('.Table(["x", "F(x)"], [[1, 1], [2, 4]])');
         expect(table.type).toBe("output");

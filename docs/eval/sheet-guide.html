@@ -922,6 +922,16 @@ $$target := $source * 4;
 $$frag := .Text($target);
 $frag;
 $source := 3             # an observer of $frag redraws it as 12</code></pre>
+<p>A control panel uses those same declarations and updates. Pass <code>$$x</code> to the control because the control needs the identity to update; use <code>$x</code> wherever a dependent value should be tracked:</p>
+<pre class="rix"><code>$$x := 2;
+$$view := .Fragment([
+    .ControlPanel([
+        .Controls.Slider($$x, 0:5, 1/2, "x")
+    ], "Parameters"),
+    .Text(@"x² = @{$x^2}")
+]);
+$view</code></pre>
+<p>The slider emits an integer position, and its widget session converts that position to an exact RiX number before replacing the <code>x</code> definition. This is the same identity-preserving operation as <code>$x := exactValue</code>; authors do not construct a <code>.ReactiveGraph</code> source. If <code>x</code> previously depended on other reactive definitions, moving the control deliberately replaces that formula and removes those incoming dependencies.</p>
 <p>FormulaSheet is a coordinate adapter over the same runtime. Dollar indexing selects coordinate cell identities and places new definitions into the same graph:</p>
 <pre class="rix"><code>values := .FormulaSheet({:1x3: @{120}, @{40}, @{8}});
 
@@ -958,7 +968,7 @@ $frag</code></pre>
 <p><code>average</code> dynamically depends on the first two slots. <code>functionvalue</code> depends on the first and third, even though the third read occurs inside a locally defined function. Changing a formula marks its downstream nodes dirty, recomputes those nodes in dependency order, and emits one commit. Cycles report their complete graph path and preserve the last successfully committed values.</p>
 <p>FormulaSheet and Binding implement the host-neutral <code>subscribe(listener)</code> contract. A FormulaSheet is already reactive: <code>$values</code> returns that same FormulaSheet while recording every slot as a dependency, whereas <code>$values[1,2]</code> records only one coordinate. Plain <code>.Sheet(values)</code> constructs from the current sheet without adding a whole-sheet dependency; <code>.Sheet($values)</code> makes an enclosing reactive output rebuild after any slot changes.</p>
 <p>When RiX Web receives a direct final read such as <code>$frag</code>, it renders the current Fragment and subscribes to that node. Each successful graph commit replaces the portable output and remounts its interactive children. Removing or rerunning the output disposes the old subscription. <code>.LiveView</code> is retained as a deprecated, verbose compatibility wrapper. It is not part of the normal language model for new code; named reactive values and direct <code>$frag</code> output replace it. “Observable root” is likewise not a separate user-facing entity: FormulaSheet, Binding, and ReactiveNode merely expose the low-level reactive subscription boundary that hosts use.</p>
-<p>This contract is intentionally independent of the interaction that caused the update. A formula editor uses <code>sheet:formula</code>; <code>.Graphics.DragPoint</code> uses <code>graphic:position</code> to replace a ReactiveGraph node’s value definition. Both cause the same graph propagation and observed-output redraw without making Graphics depend on spreadsheet code.</p>
+<p>This contract is intentionally independent of the interaction that caused the update. A formula editor uses <code>sheet:formula</code>, <code>.Graphics.DragPoint</code> uses <code>graphic:position</code>, and <code>.ControlPanel</code> uses <code>control:set</code>. All three cause the same graph propagation and observed-output redraw without making their output constructors depend on one another.</p>
 
 
 </section>

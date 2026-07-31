@@ -20,9 +20,9 @@ export {
     subtractCayley, multiplyCayley, divideCayley, powCayley,
     negateCayley, conjugateCayley, inverseCayley, equalCayley,
     isOutputValue, formatOutputText, renderOutputHtml, renderGraphicSvg, createSheet, createSheetSnapshot,
-    createAlgebraOutputCollection, createGraphicsOutputCollection, createSyntheticDivision, createPlotOutputCollection,
+    createAlgebraOutputCollection, createGraphicsOutputCollection, createControlsOutputCollection, createSyntheticDivision, createPlotOutputCollection,
     createPolynomialPlot, createGroup, createTransform, createTextMark,
-    createRectangle, createCircle, createDragPoint, createClip,
+    createRectangle, createCircle, createDragPoint, createClip, createSliderControl, createControlPanel,
 } from "./runtime/index.js";
 export { createDrawPluginCollection, installDrawPlugin } from "../plugins/draw/draw.plugin.rix.js";
 export { installPlotPlugin } from "../plugins/plot/plot.plugin.rix.js";
@@ -35,6 +35,7 @@ export {
     sheetDisplayAddress,
     sheetPlaneKey,
 } from "./tools/sheet-view.js";
-export { WidgetSession, GraphicWidgetSession, createWidgetSession } from "./tools/widget-session.js";
+export { WidgetSession, GraphicWidgetSession, ControlPanelWidgetSession, createWidgetSession } from "./tools/widget-session.js";
 export { enhanceGraphicViews, graphicPointFromClient } from "./tools/graphic-view.js";
-export { mountOutputWidgets, restoreGraphicFocus } from "./tools/output-widgets.js";
+export { enhanceControlPanelViews } from "./tools/control-panel-view.js";
+export { mountOutputWidgets, restoreGraphicFocus, restoreControlPanelFocus } from "./tools/output-widgets.js";

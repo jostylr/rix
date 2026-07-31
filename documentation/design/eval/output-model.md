@@ -3,15 +3,16 @@
 ::: {.callout-note title="Implementation status — current portable slice"}
 The initial portable-output slice is implemented: `.Text`, `.Paragraph`,
 `.Heading`, `.Fragment`, `.Table`, `.Grid`, `.Sheet`, `.Graphics`, `.Figure`,
-`.Slide`, and `.Slides` construct typed immutable output records. The CLI has a
+`.Slide`, `.Slides`, and `.ControlPanel` construct typed immutable output records. The CLI has a
 text fallback, and the RiX notebook and RiX Web calculator render tables and
 grids as HTML and retained 2D scenes as inline SVG. `Sheet` has host-neutral
 text and HTML renderers plus shared notebook and web interaction.
 `.Algebra.SyntheticDivision(root,
 coefficients)` returns a ruled exact `Grid`; after `.Plugin.Load("plot")`,
 `.plot.Polynomial(coefficients, domain, options?)` constructs a portable
-sampled `Graphic`. Sheets and `.Graphics.DragPoint` now share host-owned widget
-sessions for semantic edits without storing DOM state in output values.
+sampled `Graphic`. Sheets, `.Graphics.DragPoint`, and exact
+`.Controls.Slider` panels now share host-owned widget sessions for semantic
+edits without storing DOM state in output values.
 
 `@"..."` text templates and `@"""..."""` document templates are executable.
 The latter supports blank-line blocks, `h1:` through `h6:`, plus `fig:` and
@@ -94,6 +95,8 @@ calls are capitalized:
 .Text(...)
 .Slide(...)
 .Slides(...)
+.ControlPanel(...)
+.Controls.Slider(...)
 ```
 
 The parser normalizes system capability names internally, but source examples
@@ -127,6 +130,8 @@ protocols.
 | `.Figure` | A graphic, table, grid, or sheet with caption, label, and accessibility metadata. |
 | `.Slide` | One titled, metadata-bearing presentation frame. |
 | `.Slides` | An ordered deck of `Slide` values, specialized for sequential presentation and export. |
+| `.ControlPanel` | A titled group of host-rendered controls backed by ordinary reactive identities. |
+| `.Controls.Slider` | An exact range control whose target is declared with `$$name := value`. |
 | `.Render` / `value.Render(...)` | Resolve a renderer for a target or host context. |
 | `.Snapshot` / `value.Snapshot(...)` | Produce a static representation where possible. |
 | `.Serialize` / `value.Serialize()` | Preserve the portable value for notebooks, reports, and transfer. |
@@ -227,6 +232,8 @@ The proposed initial shapes are:
 .Figure({= content = value, caption = _, label = _, alt = _ })
 .Slide({= content = value, title = _, id = _, notes = _, metadata = {= } })
 .Slides({= slides = values, title = _, theme = _, metadata = {= } })
+.ControlPanel({= controls = values, title = _, description = _, metadata = {= } })
+.Controls.Slider({= target = $$name, interval = 0:10, step = 1, label = _, help = _, id = _ })
 ```
 
 Plain values in a `Fragment` or `Grid` cell are retained as values. A renderer
@@ -287,6 +294,30 @@ final `$view`. Static hosts ignore the runtime handle and render the same scene
 as ordinary SVG. The node identity and downstream dependencies remain intact.
 If the target previously had incoming dependencies, the replacement removes
 them and the interactive renderer warns about that consequence before editing.
+
+### Reactive control panels
+
+Control panels use the same identity-preserving update path as `DragPoint`.
+They do not expose `.ReactiveGraph.Source(...)` or another state declaration
+API. Authors declare a normal reactive definition, pass its `$$` identity to a
+control, and track the value with `$` in dependent output:
+
+```rix
+$$x := 3;
+$$view := .Fragment([
+    .ControlPanel([
+        .Controls.Slider($$x, 0:10, 1, "x")
+    ], "Parameters"),
+    .Text(@"x² = @{$x^2}")
+]);
+$view
+```
+
+The HTML range uses integer positions, but the widget session converts each
+position to `low + step*index` using exact RiX arithmetic. A semantic
+`control:set` event replaces the target definition, equivalent to
+`$x := exactValue`, and the ordinary graph refreshes `$view`. The detailed
+follow-up checklist is in [Reactive control panels](control-panel-todo.md).
 
 ```rix
 badge := .Graphics.Graphic([240, 120], [

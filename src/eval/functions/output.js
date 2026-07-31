@@ -2,7 +2,7 @@ import { parse } from "../../parser/parser.js";
 import { lower } from "../lower.js";
 import { formatValue } from "../format.js";
 import { Integer } from "@ratmath/core";
-import { createFigure, createFragment, createGrid, createHeading, createParagraph, createSheet, createSlide, createSlides, createTable, createText } from "../../runtime/output.js";
+import { createControlPanel, createFigure, createFragment, createGrid, createHeading, createParagraph, createSheet, createSlide, createSlides, createTable, createText } from "../../runtime/output.js";
 import { createBinding } from "../../runtime/binding.js";
 import { createLiveView } from "../../runtime/reactive-view.js";
 import { isReactiveNode, REACTIVE_READ_ENV } from "../../runtime/reactive-graph.js";
@@ -172,6 +172,7 @@ export const outputFunctions = {
     FRAGMENT: capability(createFragment, "Compose portable output values"),
     TABLE: capability(createTable, "Create a structured output table"),
     GRID: capability(createGrid, "Create a mathematical layout grid"),
+    CONTROLPANEL: capability(createControlPanel, "Group reactive controls in a portable output panel"),
     SHEET: capability(createSheet, "Create a portable sheet view of indexable data"),
     FIGURE: capability(createFigure, "Wrap output with figure metadata"),
     SLIDE: capability(createSlide, "Create a presentation slide"),

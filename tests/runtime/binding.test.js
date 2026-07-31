@@ -251,6 +251,85 @@ describe("WidgetSession", () => {
         widget.dispose();
     });
 
+    test("routes semantic control:set events like $name := an exact value", () => {
+        const state = session();
+        const panel = parseAndEvaluate(`
+            $$origin := 1;
+            $$x := $origin * 2;
+            $$double := $x * 2;
+            .ControlPanel([
+                .Controls.Slider($$x, 0:5, 1/2, "x")
+            ], "Parameters")
+        `, state);
+        const changes = [];
+        const widget = createWidgetSession(panel, { onChange: (change) => changes.push(change) });
+        const targetId = panel.controls[0].targetId;
+        const result = widget.dispatch({
+            type: "control:set",
+            targetId,
+            index: 7,
+            source: "range",
+        });
+
+        expect(widget.editMode).toBe("control");
+        expect(widget.revision).toBe(1);
+        expect(formatValue(result)).toBe("3..1/2");
+        expect(formatValue(state.context.get("x").peek())).toBe("3..1/2");
+        expect(formatValue(state.context.get("double").peek())).toBe("7");
+        expect(state.context.get("x").live().dependencies).toEqual([]);
+        expect(state.context.get("origin").live().dependents).toEqual([]);
+        expect(changes[0].sourceEvent.cause.metadata).toMatchObject({
+            widgetKind: "control_panel",
+            controlKind: "control_slider",
+            eventType: "control:set",
+            targetId,
+            inputSource: "range",
+            replacedDependencies: ["origin"],
+        });
+        expect(() => widget.dispatch({
+            type: "control:set",
+            targetId,
+            index: 20,
+        })).toThrow("between 0 and 10");
+        expect(() => widget.dispatch({
+            type: "control:set",
+            targetId: "missing",
+            index: 1,
+        })).toThrow("Unknown ControlPanel target");
+        widget.dispose();
+    });
+
+    test("a ControlPanel refreshes a named reactive $view through ordinary dollar dependencies", () => {
+        const state = session();
+        const reactiveReads = new Set();
+        const view = parseAndEvaluate(`
+            $$x := 2;
+            $$square := $x^2;
+            $$view := .Fragment([
+                .ControlPanel([.Controls.Slider($$x, 0:5, 1, "x")], "Parameters"),
+                .Text($square)
+            ]);
+            $view
+        `, { ...state, reactiveReads });
+        const observed = [...reactiveReads];
+        expect(observed).toEqual([state.context.get("view")]);
+        expect(formatValue(view.children[1])).toBe("4");
+
+        const panel = view.children[0];
+        const widget = createWidgetSession(panel);
+        widget.dispatch({
+            type: "control:set",
+            targetId: panel.controls[0].targetId,
+            index: 3,
+            source: "range",
+        });
+
+        const refreshed = observed[0].peek();
+        expect(formatValue(refreshed.children[0].controls[0].value)).toBe("3");
+        expect(formatValue(refreshed.children[1])).toBe("9");
+        widget.dispose();
+    });
+
     test("rejects malformed and out-of-range events", () => {
         const sheet = parseAndEvaluate(`
             m := {:1x2: 1, 2};
