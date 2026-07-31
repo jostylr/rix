@@ -278,7 +278,9 @@ function importDelimitedCapability(args, context, evaluate, systemContext, delim
             slotMetadata.set(`${rowIndex + 1},${columnIndex + 1}`, {
                 source,
                 assignmentMode: ":=",
-                view: field.startsWith("=")
+                view: field === ""
+                    ? { blank: true }
+                    : field.startsWith("=")
                     ? { foreignFormula: field, executable: false, format: delimiter === "," ? "csv" : "tsv" }
                     : {},
             });
@@ -290,7 +292,9 @@ function importDelimitedCapability(args, context, evaluate, systemContext, delim
         slotMetadata,
         documentView: {
             axes: ["row", "column"],
-            ...(headers ? { axisLabels: [null, headers] } : {}),
+            ...(headers ? {
+                axisLabels: [null, headers.map((header) => header === "" ? null : header)],
+            } : {}),
         },
     });
 }

@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { moveSheetSelection, sheetDisplayAddress, sheetPlaneKey } from "../../src/tools/sheet-view.js";
+import {
+    moveSheetSelection,
+    parseSheetFormulaClipboard,
+    sheetDisplayAddress,
+    sheetPlaneKey,
+} from "../../src/tools/sheet-view.js";
 
 describe("portable Sheet host interaction helpers", () => {
     test("dual and letter headers produce familiar display addresses", () => {
@@ -26,5 +31,16 @@ describe("portable Sheet host interaction helpers", () => {
         expect(moveSheetSelection({ row: 2, column: 3 }, "Home", 3, 4)).toEqual({ row: 2, column: 1 });
         expect(moveSheetSelection({ row: 2, column: 3 }, "End", 3, 4)).toEqual({ row: 2, column: 4 });
         expect(moveSheetSelection({ row: 2, column: 3 }, "Enter", 3, 4)).toBeNull();
+    });
+
+    test("formula clipboard text preserves explicit assignment and reference semantics", () => {
+        expect(parseSheetFormulaClipboard("~= near[0,-1] + grid[1,1]")).toEqual({
+            source: "near[0,-1] + grid[1,1]",
+            assignmentMode: "~=",
+        });
+        expect(parseSheetFormulaClipboard("near[0,-1] * 2")).toEqual({
+            source: "near[0,-1] * 2",
+            assignmentMode: ":=",
+        });
     });
 });

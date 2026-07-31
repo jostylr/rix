@@ -125,14 +125,14 @@ describe("portable structured output", () => {
 
         expect(sheet.rowAxis).toEqual({ axis: 1, name: "region" });
         expect(sheet.columnAxis).toEqual({ axis: 2, name: "measure" });
-        expect(sheet.rowHeaders).toEqual(["North", "South"]);
-        expect(sheet.columnHeaders).toEqual(["Revenue", "Cost"]);
+        expect(sheet.rowHeaders).toEqual(["North · 1", "South · 2"]);
+        expect(sheet.columnHeaders).toEqual(["Revenue · 1", "Cost · 2"]);
         expect(sheet.hiddenAxes).toEqual([{
             axis: 3,
             name: "scenario",
             length: 2,
             selected: 2,
-            labels: ["Actual", "Forecast"],
+            labels: ["Actual · 1", "Forecast · 2"],
             selectedLabel: "Forecast",
         }]);
         expect(sheet.cells[1][1]).toMatchObject({
@@ -150,7 +150,7 @@ describe("portable structured output", () => {
 
         const html = renderOutputHtml(sheet, formatValue);
         expect(html).toContain("Rows: region · Columns: measure");
-        expect(html).toContain('<option value="2" selected>Forecast</option>');
+        expect(html).toContain('<option value="2" selected>Forecast · 2</option>');
         expect(html).toContain('data-rix-coordinate-label="South / Cost / Forecast"');
         expect(html).toContain('data-rix-address="grid[2,2,2]"');
         expect(html).toContain('data-rix-display-address="B2"');

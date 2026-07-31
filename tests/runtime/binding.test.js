@@ -144,6 +144,16 @@ describe("WidgetSession", () => {
         });
         expect(explicit.cells[0][0].formulaSource).toBe("20");
         expect(explicit.cells[0][0].assignmentMode).toBe("::=");
+
+        const labeled = widget.dispatch({
+            type: "sheet:header",
+            axis: 2,
+            coordinate: 2,
+            label: "Middle",
+        });
+        expect(labeled.columnHeaders).toEqual(["A · 1", "Middle · 2", "C · 3"]);
+        expect(labeled.axisLabels[1]).toEqual([null, "Middle", null]);
+        expect(widget.revision).toBe(3);
         widget.dispose();
     });
 

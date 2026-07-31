@@ -177,8 +177,12 @@ function normalizeDocumentView(value, path, shape) {
                 );
             }
             labels.forEach((label, index) => {
+                if (label === null) return;
                 if (typeof label !== "string" || label.length === 0) {
-                    fail(`${path}.axisLabels[${axis}][${index}]`, "must be a non-empty string");
+                    fail(
+                        `${path}.axisLabels[${axis}][${index}]`,
+                        "must be null or a non-empty string",
+                    );
                 }
             });
         });

@@ -1,9 +1,10 @@
 /**
- * Runtime-only derived view of an observable RiX value.
+ * Deprecated runtime-only derived view of a subscribable RiX value.
  *
  * FormulaSheet and Binding both expose subscribe(listener). A LiveView uses
  * that small contract so renderers can refresh any derived output without
- * knowing which interactive object produced the change.
+ * knowing which interactive object produced the change. New RiX code should
+ * name an ordinary reactive output and return a tracked `$name` read instead.
  */
 
 import { Integer } from "@ratmath/core";

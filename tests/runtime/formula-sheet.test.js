@@ -99,6 +99,32 @@ describe("formula-backed sheets", () => {
         expect(() => parseAndEvaluate(`
             .FormulaSheet({:1x1: @{ near[0,0] }})
         `)).toThrow("Formula cycle: grid[1,1] -> grid[1,1]");
+
+        expect(formatValue(model.near([2, 2], [0, -1]))).toBe("20");
+        expect(formatValue(parseAndEvaluate(`
+            model := .FormulaSheet({:1x2: @{4}, @{9}});
+            model.Near({: 1,2}, {: 0,-1})
+        `))).toBe("4");
+    });
+
+    test("edits cosmetic axis labels without changing coordinates", () => {
+        const model = parseAndEvaluate(`
+            .FormulaSheet({:1x2: @{4}, @{9}})
+        `);
+        const events = [];
+        const unsubscribe = model.subscribe((event) => events.push(event));
+        model.setAxisLabel(2, 1, "Input");
+        unsubscribe();
+
+        expect(model.documentView.axisLabels).toEqual([
+            null,
+            ["Input", null],
+        ]);
+        expect(formatValue(model.get([1, 1]))).toBe("4");
+        expect(events.at(-1)).toMatchObject({
+            type: "formula:view",
+            cause: { type: "view:axis-label", axis: 2, coordinate: 1, label: "Input" },
+        });
     });
 
     test("accepts tensor notation for rank-2 and higher formula grids", () => {
@@ -251,14 +277,17 @@ describe("formula-backed sheets", () => {
         expect(view.cells[0][1].slotId).toBe(`${view.formulaSheet.id}:slot:1:2`);
         expect(view.cells[0][1].assignmentMode).toBe(":=");
         expect(formatValue(view.cells[1][1].value)).toBe("5");
-        expect(renderOutputHtml(view, formatValue)).toContain('data-rix-formula-sheet="true"');
-        expect(renderOutputHtml(view, formatValue)).toContain('data-rix-formula-epoch="1"');
-        expect(renderOutputHtml(view, formatValue)).toContain('data-rix-edit-mode="formula"');
-        expect(renderOutputHtml(view, formatValue)).toContain('data-rix-formula-source="grid[1,1] + 1"');
-        expect(renderOutputHtml(view, formatValue)).toContain('data-rix-slot-id="');
-        expect(renderOutputHtml(view, formatValue)).toContain('data-rix-assignment-mode=":="');
-        expect(renderOutputHtml(view, formatValue)).toContain('data-rix-edit-assignment-mode');
-        expect(renderOutputHtml(view, formatValue)).toContain('data-rix-edit-value');
+        const html = renderOutputHtml(view, formatValue);
+        expect(html).toContain('data-rix-formula-sheet="true"');
+        expect(html).toContain('data-rix-formula-epoch="1"');
+        expect(html).toContain('data-rix-edit-mode="formula"');
+        expect(html).toContain('data-rix-formula-source="grid[1,1] + 1"');
+        expect(html).toContain('data-rix-slot-id="');
+        expect(html).toContain('data-rix-assignment-mode=":="');
+        expect(html).toContain('data-rix-edit-assignment-mode');
+        expect(html).toContain('data-rix-edit-value');
+        expect(html).toContain('data-rix-header-axis="1"');
+        expect(html).toContain('data-rix-header-coordinate="1"');
 
         const snapshot = createSheetSnapshot(view);
         expect(snapshot.formulaBacked).toBe(false);

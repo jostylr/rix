@@ -80,8 +80,8 @@ describe("RiXCel documents", () => {
         expect(restored.slot([1, 1, 1]).assignmentMode).toBe(":=");
         const restoredSheet = createSheet([restored]);
         expect(restoredSheet.title).toBe("Named cube");
-        expect(restoredSheet.rowHeaders).toEqual(["North", "South"]);
-        expect(restoredSheet.columnHeaders).toEqual(["Value"]);
+        expect(restoredSheet.rowHeaders).toEqual(["North · 1", "South · 2"]);
+        expect(restoredSheet.columnHeaders).toEqual(["Value · 1"]);
         expect(restoredSheet.hiddenAxes[0].selectedLabel).toBe("Forecast");
     });
 

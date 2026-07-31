@@ -9,7 +9,7 @@
 import { Integer, Rational } from "@ratmath/core";
 import { createReactiveGraph } from "./reactive-graph.js";
 import { forEachTensorCell, isTensor } from "./tensor.js";
-import { coordinateTuple, resolveLabeledCoordinate } from "./sheet-labels.js";
+import { coordinateTuple, labelSchema, resolveLabeledCoordinate } from "./sheet-labels.js";
 
 let nextFormulaSheetId = 1;
 export const FORMULA_SHEET_ASSIGNMENT_MODES = Object.freeze(["=", ":=", "~=", "::=", "~~="]);
@@ -177,6 +177,9 @@ function formulaSheetMethods() {
         ["INDEX", method("Index", ([target, selector]) => target.index(selector))],
         ["AT", method("At", ([target, selector]) => target.at(selector))],
         ["SLOTAT", method("SlotAt", ([target, selector]) => target.slotAt(selector))],
+        ["NEAR", method("Near", ([target, origin, offsets]) => target.near(origin, offsets))],
+        ["SETAXISLABEL", method("SetAxisLabel", ([target, axis, coordinate, label]) =>
+            target.setAxisLabel(axis, coordinate, label))],
         ["RECALCULATE", method("Recalculate", ([target]) => target.recalculate())],
         ["SLOT", method("Slot", ([target, ...index]) => target.slot(index))],
         ["GRAPH", method("Graph", ([target]) => target.graph)],
@@ -239,6 +242,7 @@ export function createFormulaSheet(formulasValue, options = {}) {
         }];
     }));
     const channel = new Set();
+    let currentDocumentView = Object.freeze({ ...(options.documentView ?? {}) });
     const graph = createReactiveGraph({
         id: `${id}:graph`,
         preserveIdentifierCase: true,
@@ -264,7 +268,9 @@ export function createFormulaSheet(formulasValue, options = {}) {
         id,
         shape,
         rank: shape.length,
-        documentView: Object.freeze({ ...(options.documentView ?? {}) }),
+        get documentView() {
+            return currentDocumentView;
+        },
         graph,
         get epoch() {
             return graph.epoch;
@@ -289,6 +295,24 @@ export function createFormulaSheet(formulasValue, options = {}) {
                 selector,
                 "FormulaSheet.At",
             ));
+        },
+        near(origin, offsetsValue) {
+            const normalizedOrigin = normalizeIndex(origin, shape);
+            const offsets = valuesOf(offsetsValue, "FormulaSheet.Near offsets");
+            if (offsets.length !== shape.length) {
+                throw new Error(`near expects ${shape.length} offsets, got ${offsets.length}`);
+            }
+            const target = offsets.map((offset, axis) => {
+                const delta = exactIndex(offset, `near axis ${axis + 1} offset`);
+                const coordinate = normalizedOrigin[axis] + delta;
+                if (coordinate < 1 || coordinate > shape[axis]) {
+                    throw new Error(
+                        `near[${offsets.join(",")}] from ${addressFor(normalizedOrigin)} is out of range on axis ${axis + 1}`,
+                    );
+                }
+                return coordinate;
+            });
+            return sheet.get(target);
         },
         slotAt(selector) {
             return sheet.slot(resolveLabeledCoordinate(
@@ -324,8 +348,15 @@ export function createFormulaSheet(formulasValue, options = {}) {
             const previousMode = record.assignmentMode;
             const nextSource = metadata?.source ?? options.formulaSource?.(formula) ?? null;
             const nextMode = assignmentMode(metadata?.assignmentMode ?? record.assignmentMode);
+            const previousView = record.view;
+            const nextView = record.view?.blank === true
+                ? Object.freeze(Object.fromEntries(
+                    Object.entries(record.view).filter(([key]) => key !== "blank"),
+                ))
+                : record.view;
             record.source = nextSource;
             record.assignmentMode = nextMode;
+            record.view = nextView;
             try {
                 graph.setFormula(nodeNameFor(normalized), formula, {
                     ...metadata,
@@ -342,6 +373,7 @@ export function createFormulaSheet(formulasValue, options = {}) {
                 if (graph.node(nodeNameFor(normalized)).formula !== formula) {
                     record.source = previousSource;
                     record.assignmentMode = previousMode;
+                    record.view = previousView;
                 }
                 throw error;
             }
@@ -359,6 +391,53 @@ export function createFormulaSheet(formulasValue, options = {}) {
                 assignmentMode: parts.assignmentMode,
                 sourceKind: "formula-source",
             });
+        },
+        setAxisLabel(axisValue, coordinateValue, labelValue) {
+            const axis = exactIndex(axisValue, "FormulaSheet axis label axis");
+            if (axis < 1 || axis > shape.length) {
+                throw new Error(`FormulaSheet axis ${axis} is out of range`);
+            }
+            const coordinate = exactIndex(
+                coordinateValue,
+                `FormulaSheet axis ${axis} label coordinate`,
+            );
+            if (coordinate < 1 || coordinate > shape[axis - 1]) {
+                throw new Error(
+                    `FormulaSheet axis ${axis} label coordinate ${coordinate} is out of range`,
+                );
+            }
+            const label = labelValue === null || labelValue === undefined
+                ? null
+                : text(labelValue, "FormulaSheet axis label").trim() || null;
+            const schema = labelSchema(shape, currentDocumentView);
+            const axisLabels = schema.axisLabels.map((labels, index) => (
+                labels === null
+                    ? Array(shape[index]).fill(null)
+                    : [...labels]
+            ));
+            axisLabels[axis - 1] = axisLabels[axis - 1].map((entry, index) =>
+                index === coordinate - 1 ? label : entry);
+            const normalizedLabels = axisLabels.map((labels) =>
+                labels.every((entry) => entry === null) ? null : Object.freeze(labels));
+            const nextView = Object.fromEntries(Object.entries(currentDocumentView)
+                .filter(([key]) => key.toLocaleLowerCase() !== "axislabels"));
+            currentDocumentView = Object.freeze({
+                ...nextView,
+                axisLabels: Object.freeze(normalizedLabels),
+            });
+            const event = Object.freeze({
+                type: "formula:view",
+                sheet,
+                epoch: sheet.epoch,
+                cause: Object.freeze({
+                    type: "view:axis-label",
+                    axis,
+                    coordinate,
+                    label,
+                }),
+            });
+            for (const listener of [...channel]) listener(event);
+            return sheet;
         },
         slot(index) {
             const normalized = normalizeIndex(index, shape);
@@ -393,22 +472,7 @@ export function createFormulaSheet(formulasValue, options = {}) {
                         rank: shape.length,
                         index,
                         get(offsets) {
-                            if (offsets.length !== shape.length) {
-                                throw new Error(
-                                    `near expects ${shape.length} offsets, got ${offsets.length}`,
-                                );
-                            }
-                            const target = offsets.map((offset, axis) => {
-                                const delta = exactIndex(offset, `near axis ${axis + 1} offset`);
-                                const coordinate = index[axis] + delta;
-                                if (coordinate < 1 || coordinate > shape[axis]) {
-                                    throw new Error(
-                                        `near[${offsets.join(",")}] from ${addressFor(index)} is out of range on axis ${axis + 1}`,
-                                    );
-                                }
-                                return coordinate;
-                            });
-                            return sheet.get(target);
+                            return sheet.near(index, offsets);
                         },
                     });
                     const contextualBindings = [

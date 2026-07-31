@@ -55,7 +55,7 @@ function coordinateForValue(value, axis, shape, axes, axisLabels, label) {
     const labels = axisLabels[axis];
     if (!labels) throw new Error(`${label} axis ${axes[axis]} has no coordinate labels`);
     const exact = labels
-        .map((name, index) => name === requested ? index + 1 : -1)
+        .map((name, index) => name !== null && name === requested ? index + 1 : -1)
         .filter((index) => index >= 1);
     if (exact.length === 1) return exact[0];
     if (exact.length > 1) {
@@ -63,7 +63,8 @@ function coordinateForValue(value, axis, shape, axes, axisLabels, label) {
     }
     const folded = requested.toLocaleLowerCase();
     const insensitive = labels
-        .map((name, index) => name.toLocaleLowerCase() === folded ? index + 1 : -1)
+        .map((name, index) =>
+            typeof name === "string" && name.toLocaleLowerCase() === folded ? index + 1 : -1)
         .filter((index) => index >= 1);
     if (insensitive.length === 1) return insensitive[0];
     if (insensitive.length > 1) {

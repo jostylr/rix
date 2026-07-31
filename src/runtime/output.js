@@ -185,7 +185,11 @@ function sheetData(value) {
             formulaSourceAt: (index) => value.slot(index).source,
             formulaMetadataAt: (index) => {
                 const slot = value.slot(index);
-                return { slotId: slot.id, assignmentMode: slot.assignmentMode };
+                return {
+                    slotId: slot.id,
+                    assignmentMode: slot.assignmentMode,
+                    blank: slot.view?.blank === true,
+                };
             },
         };
     }
@@ -376,6 +380,7 @@ export function createSheet(args) {
                 );
             }
             return Object.freeze(values.map((label, labelIndex) => {
+                if (label === null) return null;
                 const name = asString(label);
                 if (name === null || name.length === 0) {
                     throw new Error(
@@ -416,15 +421,15 @@ export function createSheet(args) {
     const columnAxis = viewAxes[1] ?? null;
     const rowCount = data.shape[rowAxis - 1];
     const columnCount = columnAxis === null ? 1 : data.shape[columnAxis - 1];
-    const rowHeaders = axisLabels[rowAxis - 1]
-        ? [...axisLabels[rowAxis - 1]]
-        : Array.from({ length: rowCount }, (_item, index) => String(index + 1));
-    const columnHeaders = columnAxis !== null && axisLabels[columnAxis - 1]
-        ? [...axisLabels[columnAxis - 1]]
-        : Array.from(
-            { length: columnCount },
-            (_item, index) => sheetColumnLabel(index + 1, columnLabelMode),
-        );
+    const rowHeaders = Array.from({ length: rowCount }, (_item, index) => {
+        const label = axisLabels[rowAxis - 1]?.[index] ?? null;
+        return label === null ? String(index + 1) : `${label} · ${index + 1}`;
+    });
+    const columnHeaders = Array.from({ length: columnCount }, (_item, index) => {
+        const label = columnAxis === null ? null : axisLabels[columnAxis - 1]?.[index] ?? null;
+        const fallback = sheetColumnLabel(index + 1, columnLabelMode);
+        return label === null ? fallback : `${label} · ${index + 1}`;
+    });
     const hiddenAxes = data.shape.map((length, index) => ({
         axis: index + 1,
         name: axes[index],
@@ -432,7 +437,8 @@ export function createSheet(args) {
         selected: slice[index],
         ...(axisLabels[index]
             ? {
-                labels: axisLabels[index],
+                labels: axisLabels[index].map((label, coordinate) =>
+                    label === null ? String(coordinate + 1) : `${label} · ${coordinate + 1}`),
                 selectedLabel: axisLabels[index][slice[index] - 1],
             }
             : {}),
@@ -450,6 +456,7 @@ export function createSheet(args) {
                 formulaSource: data.formulaSourceAt?.(index) ?? null,
                 slotId: formulaMetadata?.slotId ?? null,
                 assignmentMode: formulaMetadata?.assignmentMode ?? null,
+                blank: formulaMetadata?.blank === true,
                 index: Object.freeze(index),
                 coordinateLabels: Object.freeze(coordinateLabels),
                 coordinateLabel: coordinateLabels.filter((label) => label !== null).join(" / ") || null,
@@ -894,7 +901,8 @@ export function renderGraphicSvg(graphic, format = (item) => String(item ?? ""))
 }
 
 function formatSheetText(sheet, format) {
-    const strings = sheet.cells.map((row) => row.map((cell) => cellText(cell.value, format)));
+    const strings = sheet.cells.map((row) => row.map((cell) =>
+        cell.blank ? "" : cell.value === null ? "_" : cellText(cell.value, format)));
     const rowHeaderWidth = Math.max(1, ...sheet.rowHeaders.map((header) => header.length));
     const columnWidths = sheet.columnHeaders.map((header, column) =>
         Math.max(header.length, 1, ...strings.map((row) => row[column]?.length ?? 0)));
@@ -972,7 +980,10 @@ export function renderOutputHtml(value, format = (item) => String(item ?? "")) {
             ? `Rows: ${value.rowAxis.name} · Columns: ${value.columnAxis.name}`
             : `Rows: ${value.rowAxis.name}`;
         const controls = value.hiddenAxes.length === 0 ? "" : `<div class="rix-output-sheet-plane-controls" aria-label="Tensor plane">${value.hiddenAxes.map(({ axis, name, length, selected, labels }) => `<label><span>${escapeHtml(name)} · axis ${axis}</span><select data-rix-sheet-axis="${axis}" aria-label="${escapeHtml(name)} axis ${axis}">${Array.from({ length }, (_item, index) => `<option value="${index + 1}"${selected === index + 1 ? " selected" : ""}>${escapeHtml(labels?.[index] ?? String(index + 1))}</option>`).join("")}</select></label>`).join("")}</div>`;
-        const bodies = value.planes.map((plane) => `<tbody data-rix-plane-key="${escapeHtml(plane.key)}" data-rix-slice="${plane.slice.map((item) => item ?? "").join(",")}"${plane.key === value.selectedPlaneKey ? "" : " hidden"}>${plane.cells.map((row, rowIndex) => `<tr><th scope="row" data-rix-row="${rowIndex + 1}"${value.axisLabels[value.rowAxis.axis - 1] ? ` title="${escapeHtml(value.rowAxis.name)} ${rowIndex + 1}"` : ""}>${escapeHtml(value.rowHeaders[rowIndex])}</th>${row.map((cell, columnIndex) => `<td data-rix-row="${rowIndex + 1}" data-rix-column="${columnIndex + 1}" data-rix-index="${cell.index.join(",")}" data-rix-address="${escapeHtml(cell.address)}" data-rix-display-address="${escapeHtml(cell.displayAddress)}"${cell.coordinateLabel === null ? "" : ` data-rix-coordinate-labels="${escapeHtml(JSON.stringify(cell.coordinateLabels))}" data-rix-coordinate-label="${escapeHtml(cell.coordinateLabel)}"`}${cell.formulaSource === null ? "" : ` data-rix-formula-source="${escapeHtml(cell.formulaSource)}"`}${cell.slotId === null ? "" : ` data-rix-slot-id="${escapeHtml(cell.slotId)}"`}${cell.assignmentMode === null ? "" : ` data-rix-assignment-mode="${escapeHtml(cell.assignmentMode)}"`} title="${cell.coordinateLabel === null ? "" : `${escapeHtml(cell.coordinateLabel)} · `}${escapeHtml(cell.displayAddress)} · ${escapeHtml(cell.address)}">${text(cell.value)}</td>`).join("")}</tr>`).join("")}</tbody>`).join("");
+        const headerAttributes = (axis, coordinate, fallback) => value.formulaBacked
+            ? ` class="rix-sheet-header-editable" tabindex="0" data-rix-header-axis="${axis}" data-rix-header-coordinate="${coordinate}" data-rix-header-label="${escapeHtml(value.axisLabels[axis - 1]?.[coordinate - 1] ?? "")}" data-rix-header-fallback="${escapeHtml(fallback)}"`
+            : "";
+        const bodies = value.planes.map((plane) => `<tbody data-rix-plane-key="${escapeHtml(plane.key)}" data-rix-slice="${plane.slice.map((item) => item ?? "").join(",")}"${plane.key === value.selectedPlaneKey ? "" : " hidden"}>${plane.cells.map((row, rowIndex) => `<tr><th scope="row" data-rix-row="${rowIndex + 1}"${headerAttributes(value.rowAxis.axis, rowIndex + 1, String(rowIndex + 1))}${value.axisLabels[value.rowAxis.axis - 1] ? ` title="${escapeHtml(value.rowAxis.name)} ${rowIndex + 1}"` : ""}>${escapeHtml(value.rowHeaders[rowIndex])}</th>${row.map((cell, columnIndex) => `<td data-rix-row="${rowIndex + 1}" data-rix-column="${columnIndex + 1}" data-rix-index="${cell.index.join(",")}" data-rix-address="${escapeHtml(cell.address)}" data-rix-display-address="${escapeHtml(cell.displayAddress)}"${cell.blank ? ' data-rix-blank="true"' : ""}${cell.coordinateLabel === null ? "" : ` data-rix-coordinate-labels="${escapeHtml(JSON.stringify(cell.coordinateLabels))}" data-rix-coordinate-label="${escapeHtml(cell.coordinateLabel)}"`}${cell.formulaSource === null ? "" : ` data-rix-formula-source="${escapeHtml(cell.formulaSource)}"`}${cell.slotId === null ? "" : ` data-rix-slot-id="${escapeHtml(cell.slotId)}"`}${cell.assignmentMode === null ? "" : ` data-rix-assignment-mode="${escapeHtml(cell.assignmentMode)}"`} title="${cell.coordinateLabel === null ? "" : `${escapeHtml(cell.coordinateLabel)} · `}${escapeHtml(cell.displayAddress)} · ${escapeHtml(cell.address)}">${cell.blank ? "" : cell.value === null ? "_" : text(cell.value)}</td>`).join("")}</tr>`).join("")}</tbody>`).join("");
         const liveAttributes = value.editable
             ? ` data-rix-editable="true" data-rix-edit-mode="${value.editMode}"${value.bindingId ? ` data-rix-binding-id="${escapeHtml(value.bindingId)}"` : ""}`
             : "";
@@ -983,7 +994,7 @@ export function renderOutputHtml(value, format = (item) => String(item ?? "")) {
             ? `<form class="rix-output-sheet-editor" hidden><label class="rix-output-sheet-formula"><span data-rix-edit-label>Choose a cell to edit</span><input data-rix-edit-source aria-label="${value.editMode === "formula" ? "RiX formula" : "RiX value"}" autocomplete="off" spellcheck="false"></label>${assignmentControl}<button type="submit">${value.editMode === "formula" ? "Set formula" : "Set"}</button><output data-rix-edit-value aria-live="polite"></output><output data-rix-edit-status aria-live="polite"></output></form>`
             : "";
         const formulaAttributes = value.formulaBacked ? ` data-rix-formula-sheet="true" data-rix-formula-epoch="${value.formulaSheet.epoch}"` : "";
-        return `<section class="rix-output-sheet" data-rix-rank="${value.rank}" data-rix-selected-plane="${escapeHtml(value.selectedPlaneKey)}"${liveAttributes}${formulaAttributes}>${value.title ? `<h3 class="rix-output-sheet-title">${escapeHtml(value.title)}</h3>` : ""}<div class="rix-output-sheet-location" aria-live="polite" data-rix-summary="${escapeHtml(summary)}">${escapeHtml(summary)}</div>${value.showAxisSummary ? `<div class="rix-output-sheet-axis-summary">${escapeHtml(axisSummary)}</div>` : ""}${controls}${editor}<table><thead><tr><th class="rix-output-sheet-corner" scope="col">${escapeHtml(value.addressBase)}</th>${value.columnHeaders.map((header, column) => `<th scope="col" data-rix-column="${column + 1}"${value.columnAxis && value.axisLabels[value.columnAxis.axis - 1] ? ` title="${escapeHtml(value.columnAxis.name)} ${column + 1}"` : ""}>${escapeHtml(header)}</th>`).join("")}</tr></thead>${bodies}</table></section>`;
+        return `<section class="rix-output-sheet" data-rix-rank="${value.rank}" data-rix-selected-plane="${escapeHtml(value.selectedPlaneKey)}"${liveAttributes}${formulaAttributes}>${value.title ? `<h3 class="rix-output-sheet-title">${escapeHtml(value.title)}</h3>` : ""}<div class="rix-output-sheet-location" aria-live="polite" data-rix-summary="${escapeHtml(summary)}">${escapeHtml(summary)}</div>${value.showAxisSummary ? `<div class="rix-output-sheet-axis-summary">${escapeHtml(axisSummary)}</div>` : ""}${controls}${editor}<table><thead><tr><th class="rix-output-sheet-corner" scope="col">${escapeHtml(value.addressBase)}</th>${value.columnHeaders.map((header, column) => `<th scope="col" data-rix-column="${column + 1}"${value.columnAxis ? headerAttributes(value.columnAxis.axis, column + 1, sheetColumnLabel(column + 1, value.columnLabelMode)) : ""}${value.columnAxis && value.axisLabels[value.columnAxis.axis - 1] ? ` title="${escapeHtml(value.columnAxis.name)} ${column + 1}"` : ""}>${escapeHtml(header)}</th>`).join("")}</tr></thead>${bodies}</table></section>`;
     }
     if (value.kind === "figure") return `<figure class="rix-output-figure"${value.label ? ` id="${escapeHtml(value.label)}"` : ""}>${renderOutputHtml(value.content, format)}${value.caption ? `<figcaption>${escapeHtml(value.caption)}</figcaption>` : ""}</figure>`;
     if (value.kind === "graphic") return `<div class="rix-output-graphic">${renderGraphicSvg(value, format)}</div>`;

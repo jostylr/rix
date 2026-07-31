@@ -715,7 +715,7 @@ grid[2,1]  grid[2,2]  grid[2,3]</code></pre>
     ],
     slice = [_, _, 2]
 })</code></pre>
-<p>The visible headers are <code>North</code>/<code>South</code> and <code>Revenue</code>/<code>Cost</code>/<code>Margin</code>. The hidden scenario selector shows <code>Actual</code> and <code>Forecast</code>. The same entry still has numeric index <code>[2,3,2]</code> and canonical address <code>grid[2,3,2]</code>; labels never change formula syntax or slot identity. Each Sheet cell also carries <code>coordinateLabels</code> and a joined <code>coordinateLabel</code> for accessible renderers and semantic selection events.</p>
+<p>The visible headers are <code>North · 1</code>/<code>South · 2</code> and <code>Revenue · 1</code>/<code>Cost · 2</code>/<code>Margin · 3</code>. The hidden scenario selector shows <code>Actual · 1</code> and <code>Forecast · 2</code>. The numeric suffix deliberately remains visible after a cosmetic label. The same entry still has numeric index <code>[2,3,2]</code> and canonical address <code>grid[2,3,2]</code>; labels never change formula syntax or slot identity. Each Sheet cell also carries <code>coordinateLabels</code> and a joined <code>coordinateLabel</code> for accessible renderers and semantic selection events.</p>
 <p>Complete labeled coordinates can be resolved without changing the underlying numeric identity:</p>
 <pre class="rix"><code>named.At({=
     region="South",
@@ -823,6 +823,8 @@ model.GetAssignmentMode(1, 1)
 model.At({= region="South", measure="Cost" })
 model.Index({= region="South", measure="Cost" })
 model.SlotAt({= region="South", measure="Cost" })
+model.Near({: 2,2}, {: 0,-1})
+model.SetAxisLabel(2, 1, "Revenue")
 model.Recalculate()
 model.Slot(2, 2)</code></pre>
 <p><code>.FormulaSheet(formulas, options)</code> accepts an optional stable <code>id</code> and default <code>assignmentMode</code>:</p>
@@ -858,7 +860,8 @@ model.SetSource(1, 1, "::= 10")  # source "10", mode ::=</code></pre>
     @{10}, @{ near[0,-1] + 1 };
     @{ near[-1,0] * 2 }, @{ near[0,-1] + near[-1,0] }
 })</code></pre>
-<p>Offsets are relative to the current <code>index</code>. Out-of-range reads report the origin and axis; <code>near[0,0]</code> is a normal self-cycle and is rejected.</p>
+<p>Offsets are relative to the current <code>index</code>. Out-of-range reads report the origin and axis; <code>near[0,0]</code> is a normal self-cycle and is rejected. The public <code>model.Near(origin, offsets)</code> form applies the same coordinate rule outside a formula and can be used with a different FormulaSheet object. It does not implicitly import that object into another sheet’s isolated formula context; cross-document formulas will use the future explicit import namespace.</p>
+<p>Formula copy/paste keeps source semantics explicit. <code>grid[1,1]</code> is copied as an absolute coordinate and <code>near[0,-1]</code> remains relative to whichever cell receives the formula. RiXCel does not infer or rewrite references from display labels. The clipboard also retains the separate assignment mode when the source and destination both support the RiXCel formula format.</p>
 <p>Dollar indexing is the concise reactive API. It avoids exposing graph node names:</p>
 <pre class="rix"><code>$$total := $model[1,1] + $model[2,2];
 $model[1,1] := @{10}</code></pre>
@@ -877,7 +880,7 @@ restored := .RiXCelImport(saved)</code></pre>
 alpha,3
 beta,4.5""", {= header=1, id="csv-table" });
 .Sheet(table)</code></pre>
-<p>With <code>header=1</code>, the first record becomes cosmetic column labels. Empty fields become <code>_</code>; integer and decimal fields become exact RiX numbers; other fields become quoted RiX strings. A field beginning with <code>=</code> remains a string and is also retained in slot view metadata as a non-executable <code>foreignFormula</code>.</p>
+<p>With <code>header=1</code>, the first record becomes cosmetic column labels. Empty fields evaluate to <code>_</code> but carry blank presentation metadata, so they render empty. A formula that intentionally returns <code>_</code> still displays <code>_</code>. Editing an imported blank clears that metadata. Integer and decimal fields become exact RiX numbers; other fields become quoted RiX strings. A field beginning with <code>=</code> remains a string and is also retained in slot view metadata as a non-executable <code>foreignFormula</code>.</p>
 <p><code>.RiXCelImportTsv</code> behaves the same way with tab separators. Computed rank-2 values can be emitted with <code>.RiXCelExportCsv(sheet)</code> or <code>.RiXCelExportTsv(sheet)</code>. Delimited export is value-oriented; authoritative RiX formulas and dependency structure remain available through <code>.RiXCelExport</code>.</p>
 </section>
 <section id="reactive-dependent-views" class="level2">
@@ -952,7 +955,7 @@ $frag</code></pre>
 <p>The verbose <code>.ReactiveGraph</code> string API canonicalizes names to lowercase. Dollar bindings preserve RiX identifier case, so <code>$$Scale</code> and <code>$$scale</code> are distinct. A FormulaSheet graph reserves <code>grid</code>, <code>row</code>, <code>col</code>, and <code>index</code> for its coordinate evaluation context.</p>
 <p><code>average</code> dynamically depends on the first two slots. <code>functionvalue</code> depends on the first and third, even though the third read occurs inside a locally defined function. Changing a formula marks its downstream nodes dirty, recomputes those nodes in dependency order, and emits one commit. Cycles report their complete graph path and preserve the last successfully committed values.</p>
 <p>FormulaSheet and Binding implement the host-neutral <code>subscribe(listener)</code> contract. A FormulaSheet is already reactive: <code>$values</code> returns that same FormulaSheet while recording every slot as a dependency, whereas <code>$values[1,2]</code> records only one coordinate. Plain <code>.Sheet(values)</code> constructs from the current sheet without adding a whole-sheet dependency; <code>.Sheet($values)</code> makes an enclosing reactive output rebuild after any slot changes.</p>
-<p>When RiX Web receives a direct final read such as <code>$frag</code>, it renders the current Fragment and subscribes to that node. Each successful graph commit replaces the portable output and remounts its interactive children. Removing or rerunning the output disposes the old subscription. <code>.LiveView</code> remains available as a verbose, explicit-source compatibility layer, but is not needed for the normal named reactive-output pattern.</p>
+<p>When RiX Web receives a direct final read such as <code>$frag</code>, it renders the current Fragment and subscribes to that node. Each successful graph commit replaces the portable output and remounts its interactive children. Removing or rerunning the output disposes the old subscription. <code>.LiveView</code> is retained as a deprecated, verbose compatibility wrapper. It is not part of the normal language model for new code; named reactive values and direct <code>$frag</code> output replace it. “Observable root” is likewise not a separate user-facing entity: FormulaSheet, Binding, and ReactiveNode merely expose the low-level reactive subscription boundary that hosts use.</p>
 <p>This contract is intentionally independent of the interaction that caused the update. A formula editor uses <code>sheet:formula</code>; a future draggable Graphic point can write a coordinate through a Binding. Both cause the same graph propagation and observed-output redraw without making Graphics depend on spreadsheet code.</p>
 
 

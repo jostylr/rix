@@ -128,7 +128,7 @@ const bindFunction = {
 
 const liveViewFunction = {
     pure: false,
-    doc: "Create a reactive output derived from a FormulaSheet, Binding, or other observable source",
+    doc: "Deprecated compatibility wrapper for a reactive output derived from a subscribable source; prefer a named $$ output and final $ read",
     impl(args, context, evaluate) {
         if (args.length !== 2) throw new Error(".LiveView expects an observable source and one deferred body");
         const [source, deferred] = args;

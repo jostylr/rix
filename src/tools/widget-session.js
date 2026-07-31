@@ -74,6 +74,10 @@ export class WidgetSession {
     dispatch(event) {
         if (this.disposed) throw new Error("Cannot dispatch to a disposed WidgetSession");
         if (!event) throw new Error("Unsupported widget event: missing type");
+        if (this.editMode === "formula" && event.type === "sheet:header") {
+            this.formulaSheet.setAxisLabel(event.axis, event.coordinate, event.label ?? null);
+            return this.widget;
+        }
         const index = normalizedIndex(event.index, this.widget.shape);
         if (this.editMode === "value" && event.type === "sheet:set") {
             this.binding.at(...index).set(event.value, {
@@ -111,7 +115,8 @@ export class WidgetSession {
         return this.widget.planes.flatMap((plane) => plane.cells.flatMap((row) =>
             row.map((cell) => ({
                 address: cell.address,
-                text: format(cell.value),
+                text: cell.blank === true ? "" : format(cell.value),
+                blank: cell.blank === true,
                 formulaSource: cell.formulaSource,
                 slotId: cell.slotId,
                 assignmentMode: cell.assignmentMode,

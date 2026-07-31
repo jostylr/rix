@@ -385,7 +385,7 @@ value, subscribes to the node, and replaces the rendered output after commits:
 sheet:formula or future graphic:drag
                 |
                 v
-       observable model commit
+        reactive model commit
                 |
                 v
         reactive Fragment node
@@ -396,8 +396,9 @@ sheet:formula or future graphic:drag
 
 A draggable Graphic point can therefore update a Binding or graph source and
 let the same propagation path refresh its dependent lines and functions.
-`.LiveView(source, deferred)` remains a lower-level compatibility constructor
-for code that wants an explicit wrapper and isolated derivation. Direct Graphic
+`.LiveView(source, deferred)` remains a deprecated lower-level compatibility
+constructor for old code that wants an explicit wrapper and isolated
+derivation. New code names a reactive output and returns `$name`. Direct Graphic
 manipulation and dependencies spanning multiple independent ReactiveGraphs
 remain future protocol extensions.
 

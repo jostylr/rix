@@ -72,6 +72,19 @@ export function mountOutputWidgets(root, value, options = {}) {
                 onActivate: options.onActivate,
                 onSelection: options.onSelection,
                 onPlaneChange: options.onPlaneChange,
+                onHeaderEdit: widgetSession?.editMode === "formula"
+                    ? (detail) => {
+                        try {
+                            widgetSession.dispatch({ type: "sheet:header", ...detail });
+                            return { type: "result", revision: widgetSession.revision };
+                        } catch (error) {
+                            return {
+                                type: "error",
+                                text: error instanceof Error ? error.message : String(error),
+                            };
+                        }
+                    }
+                    : null,
                 onEdit: widgetSession && (
                     widgetSession.editMode === "formula"
                     || typeof options.evaluateEdit === "function"

@@ -680,20 +680,20 @@ ul.task-list li input[type="checkbox"] {
 <li><label><input type="checkbox" checked="">Implement implied <code>:=</code> and explicit RiX assignment modes.</label></li>
 <li><label><input type="checkbox" checked="">Add <code>grid</code>, <code>row</code>, <code>col</code>, and <code>index</code> evaluation bindings.</label></li>
 <li><label><input type="checkbox" checked="">Add the <code>near</code> evaluation binding.</label></li>
+<li><label><input type="checkbox" checked="">Add public <code>FormulaSheet.Near(origin, offsets)</code> for explicit relative reads.</label></li>
 <li><label><input type="checkbox">Add <code>book</code>, <code>names</code>, and <code>imports</code> namespaces.</label></li>
 <li><label><input type="checkbox" checked="">Record runtime slot-read dependencies.</label></li>
 <li><label><input type="checkbox" checked="">Incrementally recompute dirty dependents.</label></li>
 <li><label><input type="checkbox" checked="">Detect cycles and report complete address paths.</label></li>
 <li><label><input type="checkbox" checked="">Reserve explicit prior-epoch access instead of falling back to stale values during cycles.</label></li>
 <li><label><input type="checkbox" checked="">Forbid formula writes to other slots.</label></li>
-<li><label><input type="checkbox" checked="">Publish FormulaSheet commits through the shared observable protocol.</label></li>
-<li><label><input type="checkbox" checked="">Add <code>.LiveView(source, deferred)</code> for reactive dependent outputs.</label></li>
+<li><label><input type="checkbox" checked="">Publish FormulaSheet commits through the shared reactive subscription protocol.</label></li>
+<li><label><input type="checkbox" checked="">Retain <code>.LiveView(source, deferred)</code> as a deprecated compatibility wrapper.</label></li>
 <li><label><input type="checkbox" checked="">Add a general <code>.ReactiveGraph</code> with named source and computed nodes.</label></li>
 <li><label><input type="checkbox" checked="">Make FormulaSheet a coordinate adapter over the general graph.</label></li>
 <li><label><input type="checkbox" checked="">Track computed dependencies dynamically from runtime reads.</label></li>
 <li><label><input type="checkbox" checked="">Incrementally propagate changes through transitive dependents.</label></li>
 <li><label><input type="checkbox" checked="">Batch graph propagation into atomic evaluation epochs.</label></li>
-<li><label><input type="checkbox" checked="">Make FormulaSheet graph nodes available by name inside <code>.LiveView</code>.</label></li>
 <li><label><input type="checkbox" checked="">Add <code>$name</code> tracked reads/updates and <code>$$name</code> reactive-cell declarations/identity reads.</label></li>
 <li><label><input type="checkbox" checked="">Add same-cell aliases through <code>$$alias := $$name</code>.</label></li>
 <li><label><input type="checkbox" checked="">Add atomic <code>${ ... }</code> reactive transactions with forward references and rollback.</label></li>
@@ -703,9 +703,10 @@ ul.task-list li input[type="checkbox"] {
 <li><label><input type="checkbox" checked="">Add <code>$sheet</code> whole-sheet tracked reads and <code>$$sheet</code> identity reads.</label></li>
 <li><label><input type="checkbox" checked="">Accept dense tensor-shaped FormulaSheet definitions at rank N.</label></li>
 <li><label><input type="checkbox" checked="">Add cosmetic rank-N axis names, coordinate headers, and named slice choices.</label></li>
+<li><label><input type="checkbox" checked="">Edit FormulaSheet row/column coordinate labels while retaining numeric headers.</label></li>
+<li><label><input type="checkbox" checked="">Render imported blank fields as blank without hiding intentional <code>_</code> results.</label></li>
 <li><label><input type="checkbox" checked="">Let interactive hosts observe and dispose a direct final reactive output such as <code>$frag</code>.</label></li>
 <li><label><input type="checkbox">Coordinate tracked dependencies that span multiple independent ReactiveGraphs.</label></li>
-<li><label><input type="checkbox">Subscribe one LiveView to multiple independent observable roots.</label></li>
 <li><label><input type="checkbox">Define volatile/external-source recomputation policy.</label></li>
 <li><label><input type="checkbox" checked="">Add round-trip and migration tests for <code>.rixcel</code> documents.</label></li>
 </ul>
@@ -718,7 +719,8 @@ ul.task-list li input[type="checkbox"] {
 <li><label><input type="checkbox" checked="">Edit formula bodies from FormulaSheet grid cells.</label></li>
 <li><label><input type="checkbox" checked="">Add a dedicated formula bar, assignment-mode control, and exact-value display.</label></li>
 <li><label><input type="checkbox" checked="">Add document-level undo and redo.</label></li>
-<li><label><input type="checkbox">Add copy, paste, and fill.</label></li>
+<li><label><input type="checkbox" checked="">Add single-cell formula copy/paste with explicit absolute <code>grid</code> and relative <code>near</code> semantics.</label></li>
+<li><label><input type="checkbox">Add multi-cell copy/paste and fill.</label></li>
 <li><label><input type="checkbox">Add row/column insertion with parsed reference updates.</label></li>
 <li><label><input type="checkbox" checked="">Add local persistence and <code>.rixcel</code> open/save.</label></li>
 <li><label><input type="checkbox">Run evaluation in a worker with capability restrictions.</label></li>

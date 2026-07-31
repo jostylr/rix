@@ -87,7 +87,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.LEN` | function | Core, Collections, Arrays | Length of a collection or string |
 | `.LESS` | function | — | Less than — returns 1 or null |
 | `.LESSEQUAL` | function | — | Less than or equal — returns 1 or null |
-| `.LIVEVIEW` | function | Output | Create a reactive output derived from a FormulaSheet, Binding, or other observable source |
+| `.LIVEVIEW` | function | Output | Deprecated compatibility wrapper for a reactive output derived from a subscribable source; prefer a named $$ output and final $ read |
 | `.LOOP` | lazy function | Core | Loop construct with init, condition, body[, update[, after]] |
 | `.LT` | function | Logic | Less than — returns 1 or null |
 | `.LTE` | function | Logic | Less than or equal — returns 1 or null |
@@ -344,7 +344,7 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `KWARG` | eager, pure | Keyword argument wrapper |
 | `LAMBDA` | lazy, effectful/unspecified | Create a lambda/anonymous function |
 | `LITERAL` | eager, pure | Parse a number literal string into a ratmath type |
-| `LIVEVIEW` | eager, effectful/unspecified | Create a reactive output derived from a FormulaSheet, Binding, or other observable source |
+| `LIVEVIEW` | eager, effectful/unspecified | Deprecated compatibility wrapper for a reactive output derived from a subscribable source; prefer a named $$ output and final $ read |
 | `LOOP` | lazy, effectful/unspecified | Loop construct with init, condition, body[, update[, after]] |
 | `LT` | eager, pure, multifunction | Less than — returns 1 or null |
 | `LTE` | eager, pure, multifunction | Less than or equal — returns 1 or null |

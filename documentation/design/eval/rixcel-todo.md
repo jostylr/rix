@@ -50,20 +50,20 @@ Checked items are implemented in the current RiX repository.
 - [x] Implement implied `:=` and explicit RiX assignment modes.
 - [x] Add `grid`, `row`, `col`, and `index` evaluation bindings.
 - [x] Add the `near` evaluation binding.
+- [x] Add public `FormulaSheet.Near(origin, offsets)` for explicit relative reads.
 - [ ] Add `book`, `names`, and `imports` namespaces.
 - [x] Record runtime slot-read dependencies.
 - [x] Incrementally recompute dirty dependents.
 - [x] Detect cycles and report complete address paths.
 - [x] Reserve explicit prior-epoch access instead of falling back to stale values during cycles.
 - [x] Forbid formula writes to other slots.
-- [x] Publish FormulaSheet commits through the shared observable protocol.
-- [x] Add `.LiveView(source, deferred)` for reactive dependent outputs.
+- [x] Publish FormulaSheet commits through the shared reactive subscription protocol.
+- [x] Retain `.LiveView(source, deferred)` as a deprecated compatibility wrapper.
 - [x] Add a general `.ReactiveGraph` with named source and computed nodes.
 - [x] Make FormulaSheet a coordinate adapter over the general graph.
 - [x] Track computed dependencies dynamically from runtime reads.
 - [x] Incrementally propagate changes through transitive dependents.
 - [x] Batch graph propagation into atomic evaluation epochs.
-- [x] Make FormulaSheet graph nodes available by name inside `.LiveView`.
 - [x] Add `$name` tracked reads/updates and `$$name` reactive-cell declarations/identity reads.
 - [x] Add same-cell aliases through `$$alias := $$name`.
 - [x] Add atomic `${ ... }` reactive transactions with forward references and rollback.
@@ -73,9 +73,10 @@ Checked items are implemented in the current RiX repository.
 - [x] Add `$sheet` whole-sheet tracked reads and `$$sheet` identity reads.
 - [x] Accept dense tensor-shaped FormulaSheet definitions at rank N.
 - [x] Add cosmetic rank-N axis names, coordinate headers, and named slice choices.
+- [x] Edit FormulaSheet row/column coordinate labels while retaining numeric headers.
+- [x] Render imported blank fields as blank without hiding intentional `_` results.
 - [x] Let interactive hosts observe and dispose a direct final reactive output such as `$frag`.
 - [ ] Coordinate tracked dependencies that span multiple independent ReactiveGraphs.
-- [ ] Subscribe one LiveView to multiple independent observable roots.
 - [ ] Define volatile/external-source recomputation policy.
 - [x] Add round-trip and migration tests for `.rixcel` documents.
 
@@ -86,7 +87,8 @@ Checked items are implemented in the current RiX repository.
 - [x] Edit formula bodies from FormulaSheet grid cells.
 - [x] Add a dedicated formula bar, assignment-mode control, and exact-value display.
 - [x] Add document-level undo and redo.
-- [ ] Add copy, paste, and fill.
+- [x] Add single-cell formula copy/paste with explicit absolute `grid` and relative `near` semantics.
+- [ ] Add multi-cell copy/paste and fill.
 - [ ] Add row/column insertion with parsed reference updates.
 - [x] Add local persistence and `.rixcel` open/save.
 - [ ] Run evaluation in a worker with capability restrictions.

@@ -846,14 +846,14 @@ $frag</code></pre>
 <pre class="text"><code>sheet:formula or future graphic:drag
                 |
                 v
-       observable model commit
+        reactive model commit
                 |
                 v
         reactive Fragment node
                 |
                 v
        host redraw and remount</code></pre>
-<p>A draggable Graphic point can therefore update a Binding or graph source and let the same propagation path refresh its dependent lines and functions. <code>.LiveView(source, deferred)</code> remains a lower-level compatibility constructor for code that wants an explicit wrapper and isolated derivation. Direct Graphic manipulation and dependencies spanning multiple independent ReactiveGraphs remain future protocol extensions.</p>
+<p>A draggable Graphic point can therefore update a Binding or graph source and let the same propagation path refresh its dependent lines and functions. <code>.LiveView(source, deferred)</code> remains a deprecated lower-level compatibility constructor for old code that wants an explicit wrapper and isolated derivation. New code names a reactive output and returns <code>$name</code>. Direct Graphic manipulation and dependencies spanning multiple independent ReactiveGraphs remain future protocol extensions.</p>
 </section>
 </section>
 <section id="reactive-document-model" class="level2">

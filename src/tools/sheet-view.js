@@ -38,6 +38,17 @@ export function sheetPlaneKey(selections) {
         .join(",");
 }
 
+export const RIXCEL_FORMULA_CLIPBOARD_TYPE = "application/x-rixcel-formula";
+
+export function parseSheetFormulaClipboard(text, fallbackAssignmentMode = ":=") {
+    const source = String(text ?? "");
+    const match = source.match(/^\s*(::=|~~=|:=|~=|=)\s*([\s\S]+)$/u);
+    return Object.freeze({
+        source: match ? match[2] : source,
+        assignmentMode: match?.[1] ?? fallbackAssignmentMode,
+    });
+}
+
 function sheetRoots(root) {
     if (!root) return [];
     const roots = [];
@@ -91,6 +102,9 @@ function enhanceSheet(sheet, options) {
     const editLabel = editForm?.querySelector("[data-rix-edit-label]");
     const editValue = editForm?.querySelector("[data-rix-edit-value]");
     const editStatus = editForm?.querySelector("[data-rix-edit-status]");
+    const editableHeaders = [...sheet.querySelectorAll(
+        "th[data-rix-header-axis][data-rix-header-coordinate]",
+    )];
     let selectedCell = null;
     if (editForm && typeof options.onEdit === "function") editForm.hidden = false;
     if (!table || !cells.length) return;
@@ -151,6 +165,34 @@ function enhanceSheet(sheet, options) {
         return true;
     }
 
+    function pasteInto(cell, clipboardData) {
+        if (!editInput || typeof options.onEdit !== "function") return false;
+        let formula = null;
+        const encoded = clipboardData?.getData?.(RIXCEL_FORMULA_CLIPBOARD_TYPE);
+        if (encoded) {
+            try {
+                const value = JSON.parse(encoded);
+                if (typeof value.source === "string") {
+                    formula = {
+                        source: value.source,
+                        assignmentMode: value.assignmentMode || ":=",
+                    };
+                }
+            } catch {
+                formula = null;
+            }
+        }
+        formula ??= parseSheetFormulaClipboard(
+            clipboardData?.getData?.("text/plain") ?? "",
+            ":=",
+        );
+        select(cell, { focus: false });
+        editInput.value = formula.source;
+        if (editAssignmentMode) editAssignmentMode.value = formula.assignmentMode;
+        editForm.requestSubmit();
+        return true;
+    }
+
     function changePlane() {
         const selections = planeSelectors.map((selector) => ({
             axis: Number(selector.dataset.rixSheetAxis),
@@ -192,6 +234,26 @@ function enhanceSheet(sheet, options) {
             if (beginEdit(cell)) return;
             activate(cell);
         });
+        cell.addEventListener("copy", (event) => {
+            const source = cell.dataset.rixFormulaSource;
+            if (!event.clipboardData || source === undefined) return;
+            event.clipboardData.setData(
+                "text/plain",
+                `${cell.dataset.rixAssignmentMode || ":="} ${source}`,
+            );
+            event.clipboardData.setData(RIXCEL_FORMULA_CLIPBOARD_TYPE, JSON.stringify({
+                source,
+                assignmentMode: cell.dataset.rixAssignmentMode || ":=",
+            }));
+            event.preventDefault();
+            dispatchSheetEvent(sheet, "rix-sheet-copy", eventDetail(cell));
+        });
+        cell.addEventListener("paste", (event) => {
+            if (!pasteInto(cell, event.clipboardData)) return;
+            event.preventDefault();
+            event.stopPropagation();
+            dispatchSheetEvent(sheet, "rix-sheet-paste", eventDetail(cell));
+        });
         cell.addEventListener("keydown", (event) => {
             if (event.key === "F2") {
                 event.preventDefault();
@@ -223,6 +285,78 @@ function enhanceSheet(sheet, options) {
                 && Number(candidate.dataset.rixColumn) === next.column);
             if (target) select(target, { focus: true });
         });
+    }
+    if (typeof options.onHeaderEdit === "function") {
+        for (const header of editableHeaders) {
+            let editing = false;
+            const display = (label) => label
+                ? `${label} · ${header.dataset.rixHeaderCoordinate}`
+                : header.dataset.rixHeaderFallback;
+            const beginHeaderEdit = () => {
+                if (editing) return;
+                editing = true;
+                header.dataset.rixHeaderPrevious = header.dataset.rixHeaderLabel || "";
+                header.textContent = header.dataset.rixHeaderLabel || "";
+                header.contentEditable = "true";
+                header.focus();
+                const selection = header.ownerDocument?.defaultView?.getSelection?.();
+                const range = header.ownerDocument?.createRange?.();
+                if (selection && range) {
+                    range.selectNodeContents(header);
+                    selection.removeAllRanges();
+                    selection.addRange(range);
+                }
+            };
+            const finishHeaderEdit = (commit) => {
+                if (!editing) return;
+                editing = false;
+                header.contentEditable = "false";
+                const previous = header.dataset.rixHeaderPrevious || "";
+                const label = commit ? header.textContent.trim() : previous;
+                if (commit) {
+                    const detail = {
+                        axis: Number(header.dataset.rixHeaderAxis),
+                        coordinate: Number(header.dataset.rixHeaderCoordinate),
+                        label,
+                    };
+                    try {
+                        const result = options.onHeaderEdit(detail, header, sheet);
+                        if (result?.type === "error") throw new Error(result.text);
+                        for (const candidate of editableHeaders.filter((item) =>
+                            item.dataset.rixHeaderAxis === header.dataset.rixHeaderAxis
+                            && item.dataset.rixHeaderCoordinate === header.dataset.rixHeaderCoordinate)) {
+                            candidate.dataset.rixHeaderLabel = label;
+                            candidate.textContent = label
+                                ? `${label} · ${candidate.dataset.rixHeaderCoordinate}`
+                                : candidate.dataset.rixHeaderFallback;
+                        }
+                        dispatchSheetEvent(sheet, "rix-sheet-header-edit", detail);
+                    } catch {
+                        header.dataset.rixHeaderLabel = previous;
+                    }
+                }
+                header.textContent = display(header.dataset.rixHeaderLabel || "");
+                delete header.dataset.rixHeaderPrevious;
+            };
+            header.addEventListener("dblclick", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                beginHeaderEdit();
+            });
+            header.addEventListener("keydown", (event) => {
+                if (event.key === "Enter") {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    if (editing) finishHeaderEdit(true);
+                    else beginHeaderEdit();
+                } else if (event.key === "Escape" && editing) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    finishHeaderEdit(false);
+                }
+            });
+            header.addEventListener("blur", () => finishHeaderEdit(true));
+        }
     }
     for (const selector of planeSelectors) selector.addEventListener("change", changePlane);
     if (editForm) {
@@ -265,6 +399,8 @@ function enhanceSheet(sheet, options) {
                         const candidate = cells.find((cell) => cell.dataset.rixAddress === update.address);
                         if (!candidate) continue;
                         candidate.textContent = update.text;
+                        if (update.blank) candidate.dataset.rixBlank = "true";
+                        else delete candidate.dataset.rixBlank;
                         if (typeof update.formulaSource === "string") {
                             candidate.dataset.rixFormulaSource = update.formulaSource;
                         }
