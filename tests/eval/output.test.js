@@ -1,5 +1,13 @@
 import { describe, expect, test } from "bun:test";
-import { formatValue, parseAndEvaluate, renderOutputHtml } from "../../src/index.js";
+import {
+    createControlPanelSnapshot,
+    formatValue,
+    parseAndEvaluate,
+    renderControlPanelMarkdown,
+    renderControlPanelStaticHtml,
+    renderOutputHtml,
+    serializeControlPanel,
+} from "../../src/index.js";
 
 describe("portable structured output", () => {
     test("ControlPanel sliders bind directly to $$ identities and retain exact steps", () => {
@@ -77,6 +85,82 @@ describe("portable structured output", () => {
         expect(html).toContain('data-rix-control-kind="reset"');
         expect(html).toContain('<option value="1" selected>one</option>');
         expect(html).toContain('data-rix-control-endpoint="low"');
+    });
+
+    test("ControlPanel staged mode renders explicit atomic apply and discard actions", () => {
+        const panel = parseAndEvaluate(`
+            $$x := 1;
+            .ControlPanel({=
+                controls=[.Controls.Slider($$x, 0:5, 1, "x")],
+                mode=:staged,
+                submitLabel="Update view",
+                discardLabel="Undo edits"
+            })
+        `);
+        expect(panel).toMatchObject({
+            kind: "control_panel",
+            mode: "staged",
+            submitLabel: "Update view",
+            discardLabel: "Undo edits",
+            interactive: true,
+        });
+        const html = renderOutputHtml(panel, formatValue);
+        expect(html).toContain('data-rix-control-mode="staged"');
+        expect(html).toContain('data-rix-control-submit disabled>Update view</button>');
+        expect(html).toContain('data-rix-control-discard disabled>Undo edits</button>');
+        expect(html).toContain('aria-live="polite"');
+        expect(() => parseAndEvaluate(`
+            $$x := 1;
+            .ControlPanel({= controls=[.Controls.Slider($$x, 0:5, 1)], mode=:later })
+        `)).toThrow("mode must be :immediate or :staged");
+    });
+
+    test("ControlPanel snapshots retain exact values and target IDs without runtime handles", () => {
+        const panel = parseAndEvaluate(`
+            $$x := 3/2;
+            .ControlPanel({=
+                title="Parameters",
+                description="A portable snapshot",
+                mode=:staged,
+                controls=[.Controls.Slider($$x, 0:3, 1/2, "x")]
+            })
+        `);
+        const snapshot = createControlPanelSnapshot(panel);
+        expect(snapshot).toMatchObject({
+            kind: "control_panel",
+            interactive: false,
+            mode: "immediate",
+        });
+        expect(snapshot.controls[0].target).toBeNull();
+        expect(snapshot.controls[0].targetId).toBe(panel.controls[0].targetId);
+        expect(formatValue(snapshot.controls[0].value)).toBe("1..1/2");
+        expect(snapshot.controls[0].disabled).toBe(true);
+
+        const portable = JSON.parse(serializeControlPanel(panel));
+        expect(portable).toMatchObject({
+            schema: "rix.control-panel",
+            version: 1,
+            panel: {
+                kind: "control_panel",
+                interactive: false,
+                controls: [{
+                    targetId: panel.controls[0].targetId,
+                    value: { type: "rational", numerator: "3", denominator: "2" },
+                }],
+            },
+        });
+        expect(JSON.stringify(portable)).not.toContain("validateCandidate");
+        expect(JSON.stringify(portable)).not.toContain("ReactiveGraph");
+
+        const html = renderControlPanelStaticHtml(panel, formatValue);
+        expect(html).toContain('data-rix-interactive="false"');
+        expect(html).toContain('type="range" min="0" max="6" step="1" value="3"');
+        expect(html).toContain('aria-label="x" disabled');
+        expect(html).not.toContain("data-rix-control-submit");
+        const markdown = renderControlPanelMarkdown(panel, formatValue);
+        expect(markdown).toContain("### Parameters");
+        expect(markdown).toContain("A portable snapshot");
+        expect(markdown).toContain("- x: 1..1/2 (0 … 3; step 1/2)");
     });
 
     test("ControlPanel format maps name displayed fields without changing exact values", () => {

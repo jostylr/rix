@@ -20,6 +20,7 @@ export {
     subtractCayley, multiplyCayley, divideCayley, powCayley,
     negateCayley, conjugateCayley, inverseCayley, equalCayley,
     isOutputValue, formatOutputText, renderOutputHtml, renderGraphicSvg, createSheet, createSheetSnapshot,
+    createControlPanelSnapshot, serializeControlPanel, renderControlPanelStaticHtml, renderControlPanelMarkdown,
     createAlgebraOutputCollection, createGraphicsOutputCollection, createControlsOutputCollection, createSyntheticDivision, createPlotOutputCollection,
     createPolynomialPlot, createGroup, createTransform, createTextMark,
     createRectangle, createCircle, createDragPoint, createClip, createSliderControl, createInputControl,

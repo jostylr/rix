@@ -464,12 +464,123 @@ export function createControlPanel(args) {
     if (!controls.every((control) => isOutputValue(control) && control.kind.startsWith("control_"))) {
         throw new Error("ControlPanel entries must be values created by .Controls");
     }
+    const mode = (asString(get(entry, "mode")) || "immediate").toLowerCase();
+    if (!["immediate", "staged"].includes(mode)) {
+        throw new Error("ControlPanel mode must be :immediate or :staged");
+    }
+    if (mode === "staged") {
+        const graphs = new Set(controls.map(({ target }) => target?.graph).filter(Boolean));
+        if (graphs.size > 1) throw new Error("A staged ControlPanel cannot span ReactiveGraphs");
+    }
     return output("control_panel", {
         controls: Object.freeze([...controls]),
         title: asString(get(entry, "title")),
         description: asString(get(entry, "description")),
+        mode,
+        submitLabel: asString(get(entry, "submitLabel")) || "Apply changes",
+        discardLabel: asString(get(entry, "discardLabel")) || "Discard",
+        interactive: true,
         metadata: optionalMap(get(entry, "metadata"), "ControlPanel metadata"),
+    }, [["SNAPSHOT", method("Snapshot", ([target]) => createControlPanelSnapshot(target))]]);
+}
+
+function controlSnapshot(control) {
+    const {
+        target: _target,
+        validateCandidate: _validateCandidate,
+        _ext: _extensions,
+        ...fields
+    } = control;
+    return output(control.kind, {
+        ...fields,
+        target: null,
+        disabled: true,
+        readOnly: true,
     });
+}
+
+/** Detach a ControlPanel from reactive identities for persistence or static export. */
+export function createControlPanelSnapshot(panel) {
+    if (!isOutputValue(panel) || panel.kind !== "control_panel") {
+        throw new Error("Expected a ControlPanel output value");
+    }
+    return output("control_panel", {
+        controls: Object.freeze(panel.controls.map(controlSnapshot)),
+        title: panel.title,
+        description: panel.description,
+        mode: "immediate",
+        submitLabel: panel.submitLabel,
+        discardLabel: panel.discardLabel,
+        interactive: false,
+        metadata: panel.metadata,
+    });
+}
+
+function portableSnapshotValue(value) {
+    if (value === null || typeof value === "string" || typeof value === "boolean") return value;
+    if (typeof value === "number") {
+        if (!Number.isFinite(value)) throw new Error("ControlPanel snapshots cannot serialize non-finite numbers");
+        return value;
+    }
+    if (typeof value === "bigint") return { type: "bigint", value: String(value) };
+    if (value instanceof Integer) return { type: "integer", value: String(value.value) };
+    if (value instanceof Rational) {
+        return {
+            type: "rational",
+            numerator: String(value.numerator),
+            denominator: String(value.denominator),
+        };
+    }
+    if (value instanceof RationalInterval) {
+        return {
+            type: "rational_interval",
+            start: portableSnapshotValue(value.start),
+            end: portableSnapshotValue(value.end),
+        };
+    }
+    if (Array.isArray(value)) return value.map(portableSnapshotValue);
+    if (value instanceof Map) {
+        return {
+            type: "map",
+            entries: [...value.entries()].map(([key, item]) => [String(key), portableSnapshotValue(item)]),
+        };
+    }
+    if (typeof value === "object") {
+        const result = {};
+        for (const [key, item] of Object.entries(value)) {
+            if (key === "_ext" || key === "target" || key === "validateCandidate") continue;
+            if (typeof item === "function" || item === undefined) continue;
+            result[key] = portableSnapshotValue(item);
+        }
+        return result;
+    }
+    throw new Error(`ControlPanel snapshots cannot serialize ${typeof value} values`);
+}
+
+/** Serialize a detached panel using an explicit, BigInt-safe JSON schema. */
+export function serializeControlPanel(panel) {
+    const snapshot = createControlPanelSnapshot(panel);
+    return JSON.stringify({
+        schema: "rix.control-panel",
+        version: 1,
+        panel: portableSnapshotValue(snapshot),
+    });
+}
+
+/** A no-JavaScript HTML rendering with inert native controls and value snapshots. */
+export function renderControlPanelStaticHtml(panel, format = (item) => String(item ?? "")) {
+    return renderOutputHtml(createControlPanelSnapshot(panel), format);
+}
+
+/** Markdown source suitable for Markdown, Quarto HTML, and Quarto PDF output. */
+export function renderControlPanelMarkdown(panel, format = (item) => String(item ?? "")) {
+    const snapshot = createControlPanelSnapshot(panel);
+    const heading = snapshot.title ? `### ${snapshot.title}\n\n` : "";
+    const description = snapshot.description ? `${snapshot.description}\n\n` : "";
+    const controls = snapshot.controls
+        .map((control) => `- ${formatOutputText(control, format)}`)
+        .join("\n");
+    return `${heading}${description}${controls}`;
 }
 
 function sheetData(value) {
@@ -1407,7 +1518,10 @@ export function renderOutputHtml(value, format = (item) => String(item ?? "")) {
         return `<div class="rix-output-control rix-output-control-reset" data-rix-control-kind="reset" data-rix-control-id="${escapeHtml(value.id)}" data-rix-control-target="${escapeHtml(value.targetId)}"${controlStateAttributes(value)}${dependencies}><span class="rix-output-control-label">${escapeHtml(value.label)}</span><button type="button" data-rix-control-input aria-label="${escapeHtml(value.label)}"${controlInputAttributes(value)}>Reset to ${text(controlField(value, "initial"))}</button><output data-rix-control-value>${text(controlField(value, "value"))}</output>${controlMessages(value)}</div>`;
     }
     if (value.kind === "control_panel") {
-        return `<section class="rix-output-control-panel" data-rix-interactive="true">${value.title ? `<h3>${escapeHtml(value.title)}</h3>` : ""}${value.description ? `<p>${escapeHtml(value.description)}</p>` : ""}<div class="rix-output-control-list">${value.controls.map((control) => renderOutputHtml(control, format)).join("")}</div><output class="rix-output-control-status" aria-live="polite"></output></section>`;
+        const actions = value.mode === "staged"
+            ? `<div class="rix-output-control-actions"><button type="button" data-rix-control-submit disabled>${escapeHtml(value.submitLabel)}</button><button type="button" data-rix-control-discard disabled>${escapeHtml(value.discardLabel)}</button></div>`
+            : "";
+        return `<section class="rix-output-control-panel" data-rix-interactive="${value.interactive === false ? "false" : "true"}" data-rix-control-mode="${escapeHtml(value.mode || "immediate")}">${value.title ? `<h3>${escapeHtml(value.title)}</h3>` : ""}${value.description ? `<p>${escapeHtml(value.description)}</p>` : ""}<div class="rix-output-control-list">${value.controls.map((control) => renderOutputHtml(control, format)).join("")}</div>${actions}<output class="rix-output-control-status" aria-live="polite"></output></section>`;
     }
     if (value.kind === "table") return `<table class="rix-output-table">${value.caption ? `<caption>${escapeHtml(value.caption)}</caption>` : ""}<thead><tr>${value.columns.map((column) => `<th>${escapeHtml(column.label)}</th>`).join("")}</tr></thead><tbody>${value.rows.map((row) => `<tr>${row.map((cell) => `<td>${text(cell)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
     if (value.kind === "grid") return `<table class="rix-output-grid"><tbody>${value.rows.map((row, rowIndex) => `<tr${hasRule(value, "horizontal", rowIndex + 1) ? " class=\"rix-grid-rule-top\"" : ""}>${row.map((cell, column) => `<td${hasRule(value, "vertical", column + 1) ? " class=\"rix-grid-rule-left\"" : ""}>${text(cell)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;

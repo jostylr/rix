@@ -68,10 +68,10 @@ graph refresh a named reactive `Fragment`, `Graphic`, `Table`, or other output.
 
 - [x] Keep dependency replacement explicit in warning metadata; disabled/read-only controls provide the non-replacing alternatives without a host-specific confirmation dialog.
 - [x] Add panel descriptions, per-control help, disabled/read-only state, and validation messages.
-- [ ] Define atomic multi-control commits through `${ ... }` transaction semantics.
-- [ ] Add an optional staged/submit mode only if a transactional form workflow is needed.
-- [ ] Define portable serialization that omits runtime handles but retains target IDs and current-value snapshots.
-- [ ] Define static Markdown, Quarto, PDF, and no-JavaScript snapshots.
+- [x] Define atomic multi-control commits through `${ ... }` transaction semantics.
+- [x] Add an optional staged/submit mode only if a transactional form workflow is needed.
+- [x] Define portable serialization that omits runtime handles but retains target IDs and current-value snapshots.
+- [x] Define static Markdown, Quarto, PDF, and no-JavaScript snapshots.
 
 ### Display formatting
 
@@ -85,7 +85,49 @@ graph refresh a named reactive `Fragment`, `Graphic`, `Table`, or other output.
 
 ### Accessibility and hosts
 
-- [ ] Verify range keyboard behavior, focus restoration, labels, and live value announcements in RiX Web and RiX Notebook.
-- [ ] Add shared control-panel styling to RiX Web, RiX Notebook, and standalone RiXCel hosts.
-- [ ] Exercise panels in live HTML and Quarto export.
-- [ ] Add an end-to-end example combining controls, a reactive table, and a draggable graphic.
+- [x] Verify range keyboard behavior, focus restoration, labels, and live value announcements in RiX Web and RiX Notebook.
+- [x] Add shared control-panel styling to RiX Web, RiX Notebook, and standalone RiXCel hosts.
+- [x] Exercise panels in live HTML and Quarto export.
+- [x] Add an end-to-end example combining controls, a reactive table, and a draggable graphic.
+
+## Atomic and staged commits
+
+`ControlPanelWidgetSession` accepts a `control:batch` record whose `changes`
+are ordinary semantic control edits. The session resolves and validates every
+candidate first, rejects duplicate targets and cross-graph batches, then sends
+literal deferred updates to the target graph's `applyBatch`. The dependency
+closure is therefore recomputed once, and a failure leaves every prior formula
+and value in place. This is the host-side equivalent of one `${ ... }`
+transaction; it is not an alternate graph API exposed to RiX authors.
+
+A panel with `mode=:staged` keeps validated candidate edits in its widget
+session. Apply commits the most recent candidate for each target through the
+same batch path. Discard clears the candidates and restores the native-control
+previews. Immediate mode remains the default.
+
+## Snapshot and export contract
+
+`panel.Snapshot()` and the host helper `createControlPanelSnapshot(panel)`
+produce an inert output value. Each control retains its semantic kind, target
+ID, exact current value, exact bounds/options, formatted display snapshots,
+labels, help, and validation message snapshot. Reactive-node and validator
+function handles are removed, and the native controls render disabled with
+`data-rix-interactive="false"`.
+
+`serializeControlPanel(panel)` wraps that detached value in versioned
+`rix.control-panel` JSON. Exact integers, rationals, intervals, maps, and
+sequences use explicit JSON records, so no `BigInt` or floating-point coercion
+is required. `renderControlPanelStaticHtml` supplies the no-JavaScript HTML
+form, while `renderControlPanelMarkdown` supplies document source usable
+unchanged by Markdown and Quarto HTML/PDF pipelines.
+
+Native range inputs retain the browser's keyboard behavior and accessible
+labels. Dual-handle ranges restore focus to the edited endpoint after a
+reactive rerender; staged Apply restores action focus. The remounted panel's
+polite live region receives the committed value or atomic-apply announcement.
+RiX Web and RiX Notebook style the same semantic class names, and standalone
+RiXCel includes the RiX Web output stylesheet during its build.
+
+The runnable **Reactive control panels** tutorial exercises immediate and
+staged panels in live HTML, inert export snapshots, and a final reactive
+Fragment containing a control panel, table, and draggable Graphic.

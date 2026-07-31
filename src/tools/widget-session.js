@@ -278,12 +278,63 @@ function controlValue(control, event) {
     throw new Error(`Unsupported ControlPanel control: ${control.kind}`);
 }
 
+function resolveControlEdit(controls, event) {
+    const control = controls.get(String(event?.controlId || event?.targetId || ""));
+    if (!control) throw new Error(`Unknown ControlPanel target: ${event?.targetId || "missing target"}`);
+    if (event.controlId && event.targetId && String(event.targetId) !== control.targetId) {
+        throw new Error("ControlPanel control and target IDs do not match");
+    }
+    if (control.disabled) throw new Error(`${control.label} is disabled`);
+    if (control.readOnly) throw new Error(`${control.label} is read-only`);
+    const value = controlValue(control, event);
+    const validation = control.validateCandidate?.(value) ?? null;
+    if (validation) throw new Error(validation);
+    return Object.freeze({
+        control,
+        event,
+        value,
+        replacedDependencies: Object.freeze([...control.target.dependencies]),
+    });
+}
+
+function literalFormula(value) {
+    return Object.freeze({ fn: "DEFER", args: Object.freeze([value]) });
+}
+
+function commitControlEdits(edits) {
+    if (edits.length === 0) return Object.freeze([]);
+    const graph = edits[0].control.target.graph;
+    if (!edits.every(({ control }) => control.target.graph === graph)) {
+        throw new Error("An atomic ControlPanel commit cannot span ReactiveGraphs");
+    }
+    const targets = new Set();
+    for (const { control } of edits) {
+        if (targets.has(control.targetId)) {
+            throw new Error(`An atomic ControlPanel commit contains target ${control.targetId} more than once`);
+        }
+        targets.add(control.targetId);
+    }
+    graph.applyBatch(edits.map(({ control, value }) => ({
+        kind: "update",
+        name: control.target.name,
+        formula: literalFormula(value),
+    })), {
+        type: "control:batch",
+        widgetKind: "control_panel",
+        targets: Object.freeze(edits.map(({ control }) => control.targetId)),
+        controls: Object.freeze(edits.map(({ control }) => control.id)),
+        replacedDependencies: Object.freeze(edits.map(({ replacedDependencies }) => replacedDependencies)),
+    });
+    return Object.freeze(edits.map(({ value }) => value));
+}
+
 export class ControlPanelWidgetSession {
     constructor(widget, options = {}) {
         this.widget = widget;
         this.editMode = "control";
         this.controls = panelControls(widget);
         this.revision = 0;
+        this.staged = new Map();
         this.onChange = typeof options.onChange === "function" ? options.onChange : null;
         this.disposed = false;
         this._unsubscribes = [...new Set([...this.controls.values()].map(({ target }) => target))]
@@ -302,20 +353,19 @@ export class ControlPanelWidgetSession {
 
     dispatch(event) {
         if (this.disposed) throw new Error("Cannot dispatch to a disposed ControlPanelWidgetSession");
+        if (event?.type === "control:batch") {
+            if (!Array.isArray(event.changes)) throw new Error("ControlPanel batch requires a changes array");
+            const edits = event.changes.map((change) => resolveControlEdit(this.controls, {
+                ...change,
+                type: "control:set",
+            }));
+            return commitControlEdits(edits);
+        }
         if (event?.type !== "control:set") {
             throw new Error(`Unsupported ControlPanel widget event: ${event?.type || "missing type"}`);
         }
-        const control = this.controls.get(String(event.controlId || event.targetId || ""));
-        if (!control) throw new Error(`Unknown ControlPanel target: ${event.targetId || "missing target"}`);
-        if (event.controlId && event.targetId && String(event.targetId) !== control.targetId) {
-            throw new Error("ControlPanel control and target IDs do not match");
-        }
-        if (control.disabled) throw new Error(`${control.label} is disabled`);
-        if (control.readOnly) throw new Error(`${control.label} is read-only`);
-        const value = controlValue(control, event);
-        const validation = control.validateCandidate?.(value) ?? null;
-        if (validation) throw new Error(validation);
-        const replacedDependencies = Object.freeze([...control.target.dependencies]);
+        const edit = resolveControlEdit(this.controls, event);
+        const { control, value, replacedDependencies } = edit;
         control.target.replaceValue(value, {
             source: "widget",
             widgetKind: "control_panel",
@@ -328,6 +378,40 @@ export class ControlPanelWidgetSession {
         return value;
     }
 
+    stage(event) {
+        if (this.disposed) throw new Error("Cannot stage in a disposed ControlPanelWidgetSession");
+        if (event?.type !== "control:set") {
+            throw new Error(`Unsupported staged ControlPanel event: ${event?.type || "missing type"}`);
+        }
+        const edit = resolveControlEdit(this.controls, event);
+        this.staged.set(edit.control.targetId, edit);
+        return edit.value;
+    }
+
+    commit() {
+        if (this.disposed) throw new Error("Cannot commit a disposed ControlPanelWidgetSession");
+        const edits = [...this.staged.values()].map(({ event }) => resolveControlEdit(this.controls, event));
+        const values = commitControlEdits(edits);
+        this.staged.clear();
+        return values;
+    }
+
+    clearStage() {
+        if (this.disposed) throw new Error("Cannot clear a disposed ControlPanelWidgetSession");
+        const count = this.staged.size;
+        this.staged.clear();
+        return count;
+    }
+
+    stagedChanges() {
+        return Object.freeze([...this.staged.values()].map(({ control, event, value }) => Object.freeze({
+            controlId: control.id,
+            targetId: control.targetId,
+            event,
+            value,
+        })));
+    }
+
     current() {
         return this.widget;
     }
@@ -335,6 +419,7 @@ export class ControlPanelWidgetSession {
     dispose() {
         if (this.disposed) return;
         this.disposed = true;
+        this.staged.clear();
         for (const unsubscribe of this._unsubscribes.splice(0)) unsubscribe?.();
     }
 }

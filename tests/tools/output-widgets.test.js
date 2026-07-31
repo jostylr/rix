@@ -124,6 +124,69 @@ test("reactive ControlPanel remount focus follows the target identity", () => {
     expect(inputs[1].focused).toBe(true);
 });
 
+test("reactive range remount focus follows the edited endpoint", () => {
+    const endpoints = ["low", "high"].map((endpoint) => ({
+        dataset: { rixControlEndpoint: endpoint },
+        focused: false,
+        focus() { this.focused = true; },
+    }));
+    const control = {
+        dataset: { rixControlTarget: "graph:window" },
+        querySelectorAll(selector) {
+            return selector === "[data-rix-control-endpoint]" ? endpoints : [];
+        },
+    };
+    const panel = {
+        querySelectorAll(selector) {
+            return selector === "[data-rix-control-target]" ? [control] : [];
+        },
+    };
+    const root = {
+        matches() { return false; },
+        querySelectorAll(selector) {
+            return selector === ".rix-output-control-panel" ? [panel] : [];
+        },
+    };
+
+    expect(restoreControlPanelFocus(root, {
+        panelIndex: 0,
+        targetId: "graph:window",
+        endpoint: "high",
+    })).toBe(true);
+    expect(endpoints[0].focused).toBe(false);
+    expect(endpoints[1].focused).toBe(true);
+});
+
+test("staged submit remount restores its action focus and live announcement", () => {
+    const status = { textContent: "" };
+    const submit = {
+        focused: false,
+        focus() { this.focused = true; },
+    };
+    const panel = {
+        querySelector(selector) {
+            if (selector === ".rix-output-control-status") return status;
+            if (selector === "[data-rix-control-submit]") return submit;
+            return null;
+        },
+        querySelectorAll() { return []; },
+    };
+    const root = {
+        matches() { return false; },
+        querySelectorAll(selector) {
+            return selector === ".rix-output-control-panel" ? [panel] : [];
+        },
+    };
+
+    expect(restoreControlPanelFocus(root, {
+        panelIndex: 0,
+        action: "submit",
+        status: "2 staged changes applied atomically",
+    })).toBe(true);
+    expect(submit.focused).toBe(true);
+    expect(status.textContent).toBe("2 staged changes applied atomically");
+});
+
 test("a host-observed reactive output remounts and disposes its subscription", () => {
     let notify = null;
     let unsubscribed = false;

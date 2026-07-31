@@ -111,6 +111,7 @@ test("ControlPanel interval range commits both exact-grid indices", () => {
     const inputs = ["2", "5"].map((initial, index) => ({
         value: initial,
         checked: false,
+        dataset: { rixControlEndpoint: index === 0 ? "low" : "high" },
         addEventListener(name, listener) { listeners[index].set(name, listener); },
         getAttribute(name) { return name === "aria-label" ? "window" : null; },
     }));
@@ -141,6 +142,7 @@ test("ControlPanel interval range commits both exact-grid indices", () => {
         type: "control:set",
         targetId: "reactive:window",
         indices: [3, 6],
+        endpoint: "high",
         source: "range",
     });
 });
@@ -174,4 +176,88 @@ test("read-only controls block local interaction before semantic dispatch", () =
     expect(prevented).toBe(true);
     expect(listeners.has("change")).toBe(false);
     expect(calls).toBe(0);
+});
+
+test("staged panels restore discarded values and submit staged edits together", () => {
+    const inputListeners = new Map();
+    const submitListeners = new Map();
+    const discardListeners = new Map();
+    const input = {
+        value: "2",
+        checked: false,
+        addEventListener(name, listener) { inputListeners.set(name, listener); },
+        getAttribute(name) { return name === "aria-label" ? "x" : null; },
+    };
+    const value = { textContent: "2" };
+    const control = {
+        dataset: { rixControlTarget: "reactive:x", rixControlKind: "slider" },
+        querySelector(selector) {
+            if (selector === "[data-rix-control-input]") return input;
+            if (selector === "[data-rix-control-value]") return value;
+            return null;
+        },
+    };
+    const submit = {
+        disabled: true,
+        addEventListener(name, listener) { submitListeners.set(name, listener); },
+    };
+    const discard = {
+        disabled: true,
+        addEventListener(name, listener) { discardListeners.set(name, listener); },
+    };
+    const status = { textContent: "" };
+    const panel = {
+        dataset: { rixControlMode: "staged" },
+        matches: (selector) => selector === ".rix-output-control-panel",
+        querySelector(selector) {
+            if (selector === ".rix-output-control-status") return status;
+            if (selector === "[data-rix-control-submit]") return submit;
+            if (selector === "[data-rix-control-discard]") return discard;
+            return null;
+        },
+        querySelectorAll: (selector) => selector === "[data-rix-control-target]" ? [control] : [],
+        dispatchEvent() {},
+    };
+    const stages = [];
+    let submitted = 0;
+    let discarded = 0;
+    enhanceControlPanelViews(panel, {
+        onSet(detail) {
+            stages.push(detail);
+            return { type: "result", text: "5", staged: true, revision: 0 };
+        },
+        onSubmit() {
+            submitted += 1;
+            return { type: "result", revision: 1 };
+        },
+        onDiscard() {
+            discarded += 1;
+            return { type: "result", count: 1, revision: 0 };
+        },
+    });
+
+    input.value = "5";
+    inputListeners.get("change")();
+    expect(stages).toHaveLength(1);
+    expect(value.textContent).toBe("5");
+    expect(submit.disabled).toBe(false);
+    expect(discard.disabled).toBe(false);
+    discardListeners.get("click")();
+    expect(discarded).toBe(1);
+    expect(input.value).toBe("2");
+    expect(value.textContent).toBe("2");
+    expect(submit.disabled).toBe(true);
+
+    input.value = "5";
+    inputListeners.get("change")();
+    submitListeners.get("click")();
+    expect(submitted).toBe(1);
+    expect(submit.disabled).toBe(true);
+    expect(status.textContent).toContain("applied atomically");
+
+    input.value = "4";
+    inputListeners.get("change")();
+    discardListeners.get("click")();
+    expect(input.value).toBe("5");
+    expect(value.textContent).toBe("5");
 });

@@ -299,6 +299,111 @@ describe("WidgetSession", () => {
         widget.dispose();
     });
 
+    test("commits multiple controls through one atomic reactive epoch", () => {
+        const state = session();
+        const panel = parseAndEvaluate(`
+            $$x := 1;
+            $$y := 2;
+            $$sum := $x + $y;
+            .ControlPanel([
+                .Controls.Slider($$x, 0:10, 1, "x"),
+                .Controls.Slider($$y, 0:10, 1, "y")
+            ])
+        `, state);
+        const graph = state.context.get("x").graph;
+        const epoch = graph.epoch;
+        const events = [];
+        graph.subscribe((event) => events.push(event));
+        const widget = createWidgetSession(panel);
+
+        const values = widget.dispatch({
+            type: "control:batch",
+            changes: panel.controls.map((control, index) => ({
+                controlId: control.id,
+                targetId: control.targetId,
+                index: index + 4,
+                source: "batch",
+            })),
+        });
+
+        expect(values.map(formatValue)).toEqual(["4", "5"]);
+        expect(graph.epoch).toBe(epoch + 1);
+        expect(events).toHaveLength(1);
+        expect(events[0].changed).toEqual(["x", "y", "sum"]);
+        expect(events[0].cause).toMatchObject({
+            type: "control:batch",
+            widgetKind: "control_panel",
+            targets: panel.controls.map(({ targetId }) => targetId),
+        });
+        expect(formatValue(state.context.get("sum").peek())).toBe("9");
+        widget.dispose();
+    });
+
+    test("stages controls without mutation, then applies or discards the set atomically", () => {
+        const state = session();
+        const panel = parseAndEvaluate(`
+            $$x := 1;
+            $$y := 2;
+            $$sum := $x + $y;
+            .ControlPanel({=
+                controls=[
+                    .Controls.Slider($$x, 0:10, 1, "x"),
+                    .Controls.Slider($$y, 0:10, 1, "y")
+                ],
+                mode=:staged
+            })
+        `, state);
+        const graph = state.context.get("x").graph;
+        const events = [];
+        graph.subscribe((event) => events.push(event));
+        const widget = createWidgetSession(panel);
+        const [xControl, yControl] = panel.controls;
+
+        widget.stage({ type: "control:set", controlId: xControl.id, targetId: xControl.targetId, index: 6 });
+        widget.stage({ type: "control:set", controlId: yControl.id, targetId: yControl.targetId, index: 7 });
+        expect(widget.stagedChanges()).toHaveLength(2);
+        expect(formatValue(state.context.get("sum").peek())).toBe("3");
+        expect(events).toHaveLength(0);
+
+        widget.commit();
+        expect(formatValue(state.context.get("sum").peek())).toBe("13");
+        expect(events).toHaveLength(1);
+        expect(widget.stagedChanges()).toHaveLength(0);
+
+        widget.stage({ type: "control:set", controlId: xControl.id, targetId: xControl.targetId, index: 2 });
+        expect(widget.clearStage()).toBe(1);
+        expect(formatValue(state.context.get("x").peek())).toBe("6");
+        expect(events).toHaveLength(1);
+        widget.dispose();
+    });
+
+    test("rejects an invalid atomic control batch before changing any target", () => {
+        const state = session();
+        const panel = parseAndEvaluate(`
+            $$x := 1;
+            $$y := 2;
+            .ControlPanel([
+                .Controls.Slider($$x, 0:10, 1, "x"),
+                .Controls.Slider($$y, 0:3, 1, "y")
+            ])
+        `, state);
+        const graph = state.context.get("x").graph;
+        const epoch = graph.epoch;
+        const widget = createWidgetSession(panel);
+
+        expect(() => widget.dispatch({
+            type: "control:batch",
+            changes: [
+                { controlId: panel.controls[0].id, targetId: panel.controls[0].targetId, index: 8 },
+                { controlId: panel.controls[1].id, targetId: panel.controls[1].targetId, index: 9 },
+            ],
+        })).toThrow("between 0 and 3");
+        expect(graph.epoch).toBe(epoch);
+        expect(formatValue(state.context.get("x").peek())).toBe("1");
+        expect(formatValue(state.context.get("y").peek())).toBe("2");
+        widget.dispose();
+    });
+
     test("a ControlPanel refreshes a named reactive $view through ordinary dollar dependencies", () => {
         const state = session();
         const reactiveReads = new Set();

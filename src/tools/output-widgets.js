@@ -91,9 +91,22 @@ export function restoreControlPanelFocus(root, request) {
     if (!request) return false;
     const panelRoot = renderedControlPanelRoots(root)[request.panelIndex];
     if (!panelRoot) return false;
+    if (request.status) {
+        const status = panelRoot.querySelector?.(".rix-output-control-status");
+        if (status) status.textContent = request.status;
+    }
+    if (request.action) {
+        const action = panelRoot.querySelector?.(`[data-rix-control-${request.action}]`);
+        if (!action) return false;
+        action.focus();
+        return true;
+    }
     const control = [...panelRoot.querySelectorAll("[data-rix-control-target]")]
         .find((candidate) => candidate.dataset.rixControlTarget === request.targetId);
-    const input = control?.querySelector?.("[data-rix-control-input]");
+    const input = request.endpoint
+        ? [...(control?.querySelectorAll?.("[data-rix-control-endpoint]") || [])]
+            .find((candidate) => candidate.dataset.rixControlEndpoint === request.endpoint)
+        : control?.querySelector?.("[data-rix-control-input]");
     if (!input) return false;
     input.focus();
     return true;
@@ -267,6 +280,7 @@ export function mountOutputWidgets(root, value, options = {}) {
                         kind: "control_panel",
                         panelIndex: index,
                         targetId: detail.targetId,
+                        endpoint: detail.endpoint ?? null,
                     };
                     pendingFocusRequest = focusRequest;
                     try {
@@ -285,12 +299,20 @@ export function mountOutputWidgets(root, value, options = {}) {
                             const inputValue = evaluated?.type === "result" ? evaluated.value : evaluated;
                             event = { ...detail, value: inputValue };
                         }
-                        const valueResult = widgetSession.dispatch(event);
+                        const staged = panel.mode === "staged";
+                        const valueResult = staged
+                            ? widgetSession.stage(event)
+                            : widgetSession.dispatch(event);
+                        if (!staged) {
+                            focusRequest.status = `Control value set to ${format(valueResult)}`;
+                            restoreControlPanelFocus(container, focusRequest);
+                        }
                         return {
                             type: "result",
                             value: valueResult,
                             text: format(valueResult),
                             revision: widgetSession.revision,
+                            staged,
                         };
                     } catch (error) {
                         return {
@@ -302,7 +324,44 @@ export function mountOutputWidgets(root, value, options = {}) {
                         if (pendingFocusRequest === focusRequest) pendingFocusRequest = null;
                     }
                 },
+                onSubmit: panel.mode === "staged"
+                    ? () => {
+                        const count = widgetSession.stagedChanges().length;
+                        const focusRequest = {
+                            kind: "control_panel",
+                            panelIndex: index,
+                            action: "submit",
+                            status: `${count} staged ${count === 1 ? "change" : "changes"} applied atomically`,
+                        };
+                        pendingFocusRequest = focusRequest;
+                        try {
+                            const values = widgetSession.commit();
+                            return {
+                                type: "result",
+                                values,
+                                revision: widgetSession.revision,
+                            };
+                        } catch (error) {
+                            return {
+                                type: "error",
+                                text: error instanceof Error ? error.message : String(error),
+                                revision: widgetSession.revision,
+                            };
+                        } finally {
+                            if (pendingFocusRequest === focusRequest) pendingFocusRequest = null;
+                        }
+                    }
+                    : null,
+                onDiscard: panel.mode === "staged"
+                    ? () => ({
+                        type: "result",
+                        count: widgetSession.clearStage(),
+                        revision: widgetSession.revision,
+                    })
+                    : null,
                 onSetCommitted: options.onControlSet,
+                onSubmitted: options.onControlSubmit,
+                onDiscarded: options.onControlDiscard,
             });
         }
     }
