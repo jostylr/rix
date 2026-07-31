@@ -97,6 +97,9 @@ describe("formula-backed sheets", () => {
         expect(() => parseAndEvaluate(
             '.FormulaSheet({:1x1: @{1}}, {= id=" " })',
         )).toThrow("id must not be empty");
+        expect(() => parseAndEvaluate(
+            '.FormulaSheet({:1x1: @{1}}, {= view="not a map" })',
+        )).toThrow("FormulaSheet view must be a map");
 
         const systemFormula = parseAndEvaluate(`
             model := .FormulaSheet({:1x1: @{0}});

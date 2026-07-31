@@ -59,6 +59,7 @@ familiar spreadsheet label; the number is the RiX tensor coordinate.
 | `title` | Optional display title | `_` |
 | `address` | Base used by canonical cell addresses | `"grid"` |
 | `axes` | Rank-length array of axis names | `["axis1", ...]` |
+| `axisLabels` | Rank-length array of cosmetic coordinate-label arrays or `_` | all coordinates numeric/lettered |
 | `viewAxes` | Visible tensor axes, using 1-based RiX indices | `[1,2]` |
 | `slice` | Rank-length locator; visible axes must contain `_` | visible axes `_`, hidden axes `1` |
 | `columnLabels` | `:dual`, `:letters`, or `:numbers` | `:dual` |
@@ -71,9 +72,32 @@ The complete map form is also accepted:
     title = "Exact matrix",
     address = "coefficients",
     axes = ["row", "column"],
+    axisLabels = [["low", "high"], ["x", "y", "z"]],
     columnLabels = :dual
 })
 ```
+
+`axes` names the dimensions; `axisLabels` optionally names the coordinates
+along each dimension. These are presentation metadata, not RiX identifiers:
+
+```rix
+named := .Sheet(t, {=
+    axes = ["region", "measure", "scenario"],
+    axisLabels = [
+        ["North", "South"],
+        ["Revenue", "Cost", "Margin"],
+        ["Actual", "Forecast"]
+    ],
+    slice = [_, _, 2]
+})
+```
+
+The visible headers are `North`/`South` and
+`Revenue`/`Cost`/`Margin`. The hidden scenario selector shows `Actual` and
+`Forecast`. The same entry still has numeric index `[2,3,2]` and canonical
+address `grid[2,3,2]`; labels never change formula syntax or slot identity.
+Each Sheet cell also carries `coordinateLabels` and a joined
+`coordinateLabel` for accessible renderers and semantic selection events.
 
 ## Rank-N tensor planes
 
@@ -229,6 +253,30 @@ model := .FormulaSheet(
     {:1x2: @{2}, @{ grid[1,1] + 1 }},
     {= id="budget", assignmentMode=":=" }
 )
+```
+
+Document-owned presentation can be placed in the FormulaSheet `view` option.
+It becomes the default whenever `.Sheet(model)` is rendered and round-trips
+through `.rixcel`:
+
+```rix
+model := .FormulaSheet(
+    {:2x1x2: @{1}; @{2} ;; @{3}; @{4}},
+    {=
+        id="named-model",
+        view={=
+            title="Scenario model",
+            axes=["region", "measure", "scenario"],
+            axisLabels=[
+                ["North", "South"],
+                ["Value"],
+                ["Actual", "Forecast"]
+            ],
+            slice=[_, _, 2]
+        }
+    }
+);
+.Sheet(model)
 ```
 
 Each slot then has a stable document ID such as `budget:slot:1:2`. `source` is

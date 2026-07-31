@@ -13,9 +13,14 @@ cube := {:2x3x2:
 };
 
 depthTwo := .Sheet(cube, {=
-    title = "Depth 2",
+    title = "Forecast by region and measure",
     address = "cube",
-    axes = ["row", "column", "depth"],
+    axes = ["region", "measure", "scenario"],
+    axisLabels = [
+        ["North", "South"],
+        ["Revenue", "Cost", "Margin"],
+        ["Actual", "Forecast"]
+    ],
     slice = [_, _, 2]
 });
 

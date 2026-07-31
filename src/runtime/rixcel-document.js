@@ -10,6 +10,15 @@ export const RIXCEL_VERSION = 1;
 export const RIXCEL_ASSIGNMENT_MODES = FORMULA_SHEET_ASSIGNMENT_MODES;
 
 const ASSIGNMENT_MODES = new Set(RIXCEL_ASSIGNMENT_MODES);
+const DOCUMENT_VIEW_KEYS = Object.freeze([
+    "title",
+    "axes",
+    "axisLabels",
+    "viewAxes",
+    "slice",
+    "columnLabels",
+    "address",
+]);
 
 function fail(path, message) {
     throw new Error(`Invalid RiXCel document at ${path}: ${message}`);
@@ -123,6 +132,100 @@ function normalizeView(value, path) {
     return jsonClone(value, path);
 }
 
+function normalizeDocumentView(value, path, shape) {
+    const view = normalizeView(value, path);
+    const entries = Object.entries(view);
+    for (const canonical of DOCUMENT_VIEW_KEYS) {
+        const matches = entries.filter(([key]) => key.toLowerCase() === canonical.toLowerCase());
+        if (matches.length > 1) {
+            fail(path, `contains duplicate case variants for ${canonical}`);
+        }
+        if (matches.length === 1 && matches[0][0] !== canonical) {
+            delete view[matches[0][0]];
+            view[canonical] = matches[0][1];
+        }
+    }
+    if (view.title !== undefined && typeof view.title !== "string") {
+        fail(`${path}.title`, "must be a string");
+    }
+    if (
+        view.address !== undefined &&
+        (typeof view.address !== "string" || view.address.length === 0)
+    ) {
+        fail(`${path}.address`, "must be a non-empty string");
+    }
+    if (view.axes !== undefined) {
+        if (!Array.isArray(view.axes) || view.axes.length !== shape.length) {
+            fail(`${path}.axes`, `must contain exactly ${shape.length} names`);
+        }
+        view.axes.forEach((name, axis) => {
+            if (typeof name !== "string" || name.length === 0) {
+                fail(`${path}.axes[${axis}]`, "must be a non-empty string");
+            }
+        });
+    }
+    if (view.axisLabels !== undefined) {
+        if (!Array.isArray(view.axisLabels) || view.axisLabels.length !== shape.length) {
+            fail(`${path}.axisLabels`, `must contain exactly ${shape.length} axis entries`);
+        }
+        view.axisLabels.forEach((labels, axis) => {
+            if (labels === null) return;
+            if (!Array.isArray(labels) || labels.length !== shape[axis]) {
+                fail(
+                    `${path}.axisLabels[${axis}]`,
+                    `must be null or contain exactly ${shape[axis]} labels`,
+                );
+            }
+            labels.forEach((label, index) => {
+                if (typeof label !== "string" || label.length === 0) {
+                    fail(`${path}.axisLabels[${axis}][${index}]`, "must be a non-empty string");
+                }
+            });
+        });
+    }
+    const defaultViewAxes = shape.length === 1 ? [1] : [1, 2];
+    const viewAxes = view.viewAxes === undefined ? defaultViewAxes : view.viewAxes;
+    const visibleCount = shape.length === 1 ? 1 : 2;
+    if (
+        !Array.isArray(viewAxes) ||
+        viewAxes.length !== visibleCount ||
+        viewAxes.some((axis) => !Number.isSafeInteger(axis) || axis < 1 || axis > shape.length) ||
+        new Set(viewAxes).size !== viewAxes.length
+    ) {
+        fail(`${path}.viewAxes`, `must contain ${visibleCount} distinct valid axis indices`);
+    }
+    if (view.slice !== undefined) {
+        if (!Array.isArray(view.slice) || view.slice.length !== shape.length) {
+            fail(`${path}.slice`, `must contain exactly ${shape.length} entries`);
+        }
+        const visible = new Set(viewAxes);
+        view.slice.forEach((coordinate, axisIndex) => {
+            const axis = axisIndex + 1;
+            if (visible.has(axis)) {
+                if (coordinate !== null) fail(`${path}.slice[${axisIndex}]`, "must be null for a visible axis");
+                return;
+            }
+            if (
+                !Number.isSafeInteger(coordinate) ||
+                coordinate < 1 ||
+                coordinate > shape[axisIndex]
+            ) {
+                fail(
+                    `${path}.slice[${axisIndex}]`,
+                    `must be an integer from 1 through ${shape[axisIndex]}`,
+                );
+            }
+        });
+    }
+    if (
+        view.columnLabels !== undefined &&
+        !["dual", "letters", "numbers"].includes(view.columnLabels)
+    ) {
+        fail(`${path}.columnLabels`, "must be dual, letters, or numbers");
+    }
+    return view;
+}
+
 function migrateDraft(document) {
     const input = plainObject(document, "$");
     const declaredVersion = input.version;
@@ -217,7 +320,7 @@ export function parseRixCelDocument(value) {
         version: RIXCEL_VERSION,
         id,
         shape,
-        view: normalizeView(input.view, "$.view"),
+        view: normalizeDocumentView(input.view, "$.view", shape),
         slots,
     };
 }

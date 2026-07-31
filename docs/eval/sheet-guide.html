@@ -674,16 +674,21 @@ grid[2,1]  grid[2,2]  grid[2,3]</code></pre>
 <td><code>["axis1", ...]</code></td>
 </tr>
 <tr class="even">
+<td><code>axisLabels</code></td>
+<td>Rank-length array of cosmetic coordinate-label arrays or <code>_</code></td>
+<td>all coordinates numeric/lettered</td>
+</tr>
+<tr class="odd">
 <td><code>viewAxes</code></td>
 <td>Visible tensor axes, using 1-based RiX indices</td>
 <td><code>[1,2]</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>slice</code></td>
 <td>Rank-length locator; visible axes must contain <code>_</code></td>
 <td>visible axes <code>_</code>, hidden axes <code>1</code></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>columnLabels</code></td>
 <td><code>:dual</code>, <code>:letters</code>, or <code>:numbers</code></td>
 <td><code>:dual</code></td>
@@ -696,8 +701,20 @@ grid[2,1]  grid[2,2]  grid[2,3]</code></pre>
     title = "Exact matrix",
     address = "coefficients",
     axes = ["row", "column"],
+    axisLabels = [["low", "high"], ["x", "y", "z"]],
     columnLabels = :dual
 })</code></pre>
+<p><code>axes</code> names the dimensions; <code>axisLabels</code> optionally names the coordinates along each dimension. These are presentation metadata, not RiX identifiers:</p>
+<pre class="rix"><code>named := .Sheet(t, {=
+    axes = ["region", "measure", "scenario"],
+    axisLabels = [
+        ["North", "South"],
+        ["Revenue", "Cost", "Margin"],
+        ["Actual", "Forecast"]
+    ],
+    slice = [_, _, 2]
+})</code></pre>
+<p>The visible headers are <code>North</code>/<code>South</code> and <code>Revenue</code>/<code>Cost</code>/<code>Margin</code>. The hidden scenario selector shows <code>Actual</code> and <code>Forecast</code>. The same entry still has numeric index <code>[2,3,2]</code> and canonical address <code>grid[2,3,2]</code>; labels never change formula syntax or slot identity. Each Sheet cell also carries <code>coordinateLabels</code> and a joined <code>coordinateLabel</code> for accessible renderers and semantic selection events.</p>
 </section>
 <section id="rank-n-tensor-planes" class="level2">
 <h2 class="anchored" data-anchor-id="rank-n-tensor-planes">Rank-N tensor planes</h2>
@@ -797,6 +814,24 @@ model.Slot(2, 2)</code></pre>
     {:1x2: @{2}, @{ grid[1,1] + 1 }},
     {= id="budget", assignmentMode=":=" }
 )</code></pre>
+<p>Document-owned presentation can be placed in the FormulaSheet <code>view</code> option. It becomes the default whenever <code>.Sheet(model)</code> is rendered and round-trips through <code>.rixcel</code>:</p>
+<pre class="rix"><code>model := .FormulaSheet(
+    {:2x1x2: @{1}; @{2} ;; @{3}; @{4}},
+    {=
+        id="named-model",
+        view={=
+            title="Scenario model",
+            axes=["region", "measure", "scenario"],
+            axisLabels=[
+                ["North", "South"],
+                ["Value"],
+                ["Actual", "Forecast"]
+            ],
+            slice=[_, _, 2]
+        }
+    }
+);
+.Sheet(model)</code></pre>
 <p>Each slot then has a stable document ID such as <code>budget:slot:1:2</code>. <code>source</code> is the authoritative editable RiX body, while <code>assignmentMode</code> is a separate field. <code>SetSource</code> stores those fields, recompiles the body into deferred IR inside the FormulaSheet, and starts the usual atomic graph epoch. <code>SetFormula</code> remains the lower-level API for callers that already have a deferred value.</p>
 <p>Dollar indexing is the concise reactive API. It avoids exposing graph node names:</p>
 <pre class="rix"><code>$$total := $model[1,1] + $model[2,2];

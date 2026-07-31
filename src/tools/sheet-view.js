@@ -57,6 +57,10 @@ function eventDetail(cell) {
     return {
         address: cell.dataset.rixAddress,
         displayAddress: cell.dataset.rixDisplayAddress,
+        coordinateLabel: cell.dataset.rixCoordinateLabel ?? null,
+        coordinateLabels: cell.dataset.rixCoordinateLabels
+            ? JSON.parse(cell.dataset.rixCoordinateLabels)
+            : [],
         slotId: cell.dataset.rixSlotId ?? null,
         assignmentMode: cell.dataset.rixAssignmentMode ?? null,
         index,
@@ -103,9 +107,21 @@ function enhanceSheet(sheet, options) {
         const detail = eventDetail(cell);
         selectedCell = cell;
         sheet.dataset.rixSelectedAddress = detail.address;
-        if (location) location.textContent = `${detail.displayAddress} · ${detail.address}`;
+        if (location) {
+            location.textContent = [
+                detail.coordinateLabel,
+                detail.displayAddress,
+                detail.address,
+            ].filter(Boolean).join(" · ");
+        }
         if (editInput) editInput.value = cell.dataset.rixFormulaSource ?? cell.textContent.trim();
-        if (editLabel) editLabel.textContent = `${detail.displayAddress} · ${detail.address}`;
+        if (editLabel) {
+            editLabel.textContent = [
+                detail.coordinateLabel,
+                detail.displayAddress,
+                detail.address,
+            ].filter(Boolean).join(" · ");
+        }
         if (editStatus) editStatus.textContent = "";
         if (focus) cell.focus();
         if (notify) {
@@ -133,6 +149,7 @@ function enhanceSheet(sheet, options) {
         const selections = planeSelectors.map((selector) => ({
             axis: Number(selector.dataset.rixSheetAxis),
             value: Number(selector.value),
+            label: selector.selectedOptions?.[0]?.textContent ?? null,
         }));
         const key = sheetPlaneKey(selections);
         for (const body of planeBodies) body.hidden = body.dataset.rixPlaneKey !== key;

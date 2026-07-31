@@ -108,6 +108,54 @@ describe("portable structured output", () => {
         expect(rowDepth.cells[1][1].address).toBe("grid[2,2,2]");
     });
 
+    test("Sheet uses cosmetic coordinate labels without changing canonical addresses", () => {
+        const sheet = parseAndEvaluate(`
+            t := {:2x2x2: 1, 2; 3, 4 ;; 5, 6; 7, 8};
+            .Sheet(t, {=
+                title="Named tensor",
+                axes=["region", "measure", "scenario"],
+                axisLabels=[
+                    ["North", "South"],
+                    ["Revenue", "Cost"],
+                    ["Actual", "Forecast"]
+                ],
+                slice=[_, _, 2]
+            })
+        `);
+
+        expect(sheet.rowAxis).toEqual({ axis: 1, name: "region" });
+        expect(sheet.columnAxis).toEqual({ axis: 2, name: "measure" });
+        expect(sheet.rowHeaders).toEqual(["North", "South"]);
+        expect(sheet.columnHeaders).toEqual(["Revenue", "Cost"]);
+        expect(sheet.hiddenAxes).toEqual([{
+            axis: 3,
+            name: "scenario",
+            length: 2,
+            selected: 2,
+            labels: ["Actual", "Forecast"],
+            selectedLabel: "Forecast",
+        }]);
+        expect(sheet.cells[1][1]).toMatchObject({
+            index: [2, 2, 2],
+            coordinateLabels: ["South", "Cost", "Forecast"],
+            coordinateLabel: "South / Cost / Forecast",
+            address: "grid[2,2,2]",
+            displayAddress: "B2",
+        });
+
+        const text = formatValue(sheet);
+        expect(text).toContain("rows region (axis 1)");
+        expect(text).toContain("scenario Forecast (axis 3:2)");
+        expect(text).toContain("Revenue");
+
+        const html = renderOutputHtml(sheet, formatValue);
+        expect(html).toContain("Rows: region · Columns: measure");
+        expect(html).toContain('<option value="2" selected>Forecast</option>');
+        expect(html).toContain('data-rix-coordinate-label="South / Cost / Forecast"');
+        expect(html).toContain('data-rix-address="grid[2,2,2]"');
+        expect(html).toContain('data-rix-display-address="B2"');
+    });
+
     test("Sheet adapts matrices and rank-1 sequences", () => {
         const matrix = parseAndEvaluate(".Sheet([1, 2; 3, 4])");
         expect(matrix.sourceKind).toBe("matrix");
@@ -129,6 +177,12 @@ describe("portable structured output", () => {
             .toThrow("out of range");
         expect(() => parseAndEvaluate(".Sheet([[1], [2, 3]])"))
             .toThrow("rows must have equal lengths");
+        expect(() => parseAndEvaluate(`
+            .Sheet({:2x2: 1, 2; 3, 4}, {= axisLabels=[["only one"], ["a", "b"]] })
+        `)).toThrow("axisLabels axis 1 must contain 2 labels");
+        expect(() => parseAndEvaluate(`
+            .Sheet({:2x2: 1, 2; 3, 4}, {= axisLabels=[["a", "b"]] })
+        `)).toThrow("axisLabels must contain 2 axis entries");
     });
 
     test("Algebra.SyntheticDivision returns a ruled Grid with exact arithmetic", () => {

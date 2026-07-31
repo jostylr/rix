@@ -100,6 +100,7 @@ The implemented `Sheet` value contains:
 - source kind (`tensor`, `matrix`, or `sequence`);
 - full rank and shape;
 - names for every axis;
+- optional cosmetic labels for every coordinate on an axis;
 - the one or two visible axes;
 - fixed indices for hidden axes;
 - display row and column headers;
@@ -114,6 +115,8 @@ value    exact RiX value
 index    full 1-based rank-N index
 address  canonical source-like address, for example grid[2,3,1]
 displayAddress  visible alias, for example C2 or R2C3
+coordinateLabels  cosmetic labels aligned with the full numeric index
+coordinateLabel   joined label path for renderers and semantic events
 ```
 
 The record intentionally has room to grow. FormulaSheet owns
@@ -398,24 +401,21 @@ remain future protocol extensions.
 
 ## Reactive document model
 
-A RiXCel document should be a sparse rank-N collection. A slot will eventually
-store at least:
+RiXCel version 1 is a dense rank-N collection. A slot stores:
 
 ```json
 {
-  "id": "stable-slot-id",
-  "op": ":=",
-  "code": "price * quantity",
-  "style": {},
-  "cache": {
-    "value": null,
-    "inputHash": null
-  }
+  "id": "budget:slot:2:3",
+  "index": [2, 3],
+  "source": "price * quantity",
+  "assignmentMode": ":=",
+  "view": {}
 }
 ```
 
-Source is authoritative. Cached values are optional and valid only when their
-input and runtime hashes match.
+Source is authoritative. Compiled IR, current values, dependencies, and caches
+are rebuilt rather than trusted. A future sparse version can add omitted-slot
+semantics explicitly.
 
 The default implied assignment is `:=`. An explicit leading `=`, `~=`, `::=`,
 or `~~=` retains its RiX binding meaning; it is not decorative spreadsheet

@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
     RIXCEL_FORMAT,
     RIXCEL_VERSION,
+    createSheet,
     exportRixCelDocument,
     formatValue,
     parseAndEvaluate,
@@ -18,7 +19,21 @@ describe("RiXCel documents", () => {
                     ;;
                     @{20}; @{21}
                 },
-                {= id="cube", assignmentMode="~=" }
+                {=
+                    id="cube",
+                    assignmentMode="~=",
+                    view={=
+                        title="Named cube",
+                        axes=["region", "measure", "scenario"],
+                        axisLabels=[
+                            ["North", "South"],
+                            ["Value"],
+                            ["Actual", "Forecast"]
+                        ],
+                        viewAxes=[1, 2],
+                        slice=[_, _, 2]
+                    }
+                }
             );
             original.SetSource(1, 1, 1, "10", ":=");
             original.SetSource(1, 1, 2, "grid[1,1,1] + 3", "~=");
@@ -35,6 +50,17 @@ describe("RiXCel documents", () => {
         expect(document.version).toBe(RIXCEL_VERSION);
         expect(document.id).toBe("cube");
         expect(document.shape).toEqual([2, 1, 2]);
+        expect(document.view).toEqual({
+            title: "Named cube",
+            axes: ["region", "measure", "scenario"],
+            axisLabels: [
+                ["North", "South"],
+                ["Value"],
+                ["Actual", "Forecast"],
+            ],
+            viewAxes: [1, 2],
+            slice: [null, null, 2],
+        });
         expect(document.slots.map((slot) => slot.id)).toEqual([
             "cube:slot:1:1:1",
             "cube:slot:1:1:2",
@@ -52,6 +78,11 @@ describe("RiXCel documents", () => {
         expect(formatValue(restored.get([2, 1, 2]))).toBe("53");
         expect(restored.getFormulaSource([1, 1, 1])).toBe("10");
         expect(restored.slot([1, 1, 1]).assignmentMode).toBe(":=");
+        const restoredSheet = createSheet([restored]);
+        expect(restoredSheet.title).toBe("Named cube");
+        expect(restoredSheet.rowHeaders).toEqual(["North", "South"]);
+        expect(restoredSheet.columnHeaders).toEqual(["Value"]);
+        expect(restoredSheet.hiddenAxes[0].selectedLabel).toBe("Forecast");
     });
 
     test("migrates the code/op/style draft and recompiles it", () => {
@@ -153,6 +184,13 @@ describe("RiXCel documents", () => {
             ...base,
             slots: [{ ...base.slots[0], assignmentMode: "+=" }, base.slots[1]],
         })).toThrow("assignmentMode");
+        expect(() => parseRixCelDocument({
+            ...base,
+            view: {
+                axes: ["row", "column"],
+                axisLabels: [["too", "many"], ["left", "right"]],
+            },
+        })).toThrow("$.view.axisLabels[0]");
         expect(() => parseRixCelDocument({ ...base, version: 2 }))
             .toThrow("Unsupported RiXCel document version 2");
         expect(() => parseRixCelDocument("{ definitely not JSON"))

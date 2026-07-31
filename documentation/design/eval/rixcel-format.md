@@ -13,7 +13,12 @@ source-authoritative FormulaSheet document.
   "id": "budget",
   "shape": [2, 2],
   "view": {
-    "title": "Budget"
+    "title": "Budget",
+    "axes": ["region", "measure"],
+    "axisLabels": [
+      ["North", "South"],
+      ["Revenue", "Cost"]
+    ]
   },
   "slots": [
     {
@@ -48,6 +53,15 @@ Version 1 is intentionally dense. It requires every coordinate exactly once;
 duplicate, missing, out-of-range, or non-canonical slot identities are errors.
 A later format version can add sparse storage without making version 1 readers
 guess whether an omitted coordinate is empty, missing, or corrupt.
+
+The standard Sheet presentation keys in document `view` are `title`, `axes`,
+`axisLabels`, `viewAxes`, `slice`, `columnLabels`, and `address`. `axes` names
+each dimension. `axisLabels` is a rank-length array containing either `null`
+or one cosmetic string for every coordinate on that axis. Visible-axis labels
+become row and column headers; hidden-axis labels become named slice choices.
+They never replace the numeric `index`, participate in formulas, or alter slot
+IDs. Hosts may retain additional JSON-safe view keys for future presentation
+extensions.
 
 ## Runtime reconstruction
 

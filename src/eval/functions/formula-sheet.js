@@ -8,6 +8,7 @@ import { parse } from "../../parser/parser.js";
 import { lower } from "../lower.js";
 import { isReactiveNode, REACTIVE_READ_ENV } from "../../runtime/reactive-graph.js";
 import { createSystemLookup } from "../../runtime/system-manifest.js";
+import { Integer, Rational } from "@ratmath/core";
 
 export function containsOuterRead(node) {
     if (!node || typeof node !== "object") return false;
@@ -89,6 +90,46 @@ export function createFormulaSheetRuntimeOptions(context, evaluate, systemContex
     };
 }
 
+function documentJsonValue(value, path, seen = new Set()) {
+    if (value === null || typeof value === "string" || typeof value === "boolean") return value;
+    if (value?.type === "string") return value.value;
+    if (value instanceof Integer) {
+        const number = Number(value.value);
+        if (!Number.isSafeInteger(number)) throw new Error(`${path} integer is outside the JSON safe range`);
+        return number;
+    }
+    if (value instanceof Rational) {
+        if (value.denominator !== 1n) throw new Error(`${path} must not contain non-integer rationals`);
+        const number = Number(value.numerator);
+        if (!Number.isSafeInteger(number)) throw new Error(`${path} integer is outside the JSON safe range`);
+        return number;
+    }
+    if (typeof value === "number") {
+        if (!Number.isFinite(value)) throw new Error(`${path} must not contain non-finite numbers`);
+        return value;
+    }
+    if (!value || typeof value !== "object") {
+        throw new Error(`${path} contains a value that cannot be stored as JSON`);
+    }
+    if (seen.has(value)) throw new Error(`${path} must not contain cycles`);
+    seen.add(value);
+    try {
+        if (Array.isArray(value) || ["sequence", "tuple", "array"].includes(value.type)) {
+            const values = Array.isArray(value) ? value : value.values || value.elements || [];
+            return values.map((item, index) => documentJsonValue(item, `${path}[${index}]`, seen));
+        }
+        if (value.type === "map" && value.entries instanceof Map) {
+            return Object.fromEntries([...value.entries].map(([key, item]) => [
+                String(key),
+                documentJsonValue(item, `${path}.${String(key)}`, seen),
+            ]));
+        }
+        throw new Error(`${path} must contain only maps, sequences, strings, integers, and null`);
+    } finally {
+        seen.delete(value);
+    }
+}
+
 function formulaSheetCapability(args, context, evaluate, systemContext) {
     if (args.length < 1 || args.length > 2) {
         throw new Error(".FormulaSheet expects deferred formulas and an optional options map");
@@ -108,10 +149,17 @@ function formulaSheetCapability(args, context, evaluate, systemContext) {
         if (text === null) throw new Error(`FormulaSheet ${name} must be a string`);
         return text;
     };
+    const viewOption = option("view");
+    if (viewOption !== null && (viewOption?.type !== "map" || !(viewOption.entries instanceof Map))) {
+        throw new Error("FormulaSheet view must be a map");
+    }
     return createFormulaSheet(args[0], {
         ...createFormulaSheetRuntimeOptions(context, evaluate, systemContext),
         id: stringOption("id"),
         assignmentMode: stringOption("assignmentMode", ":="),
+        documentView: viewOption === null
+            ? {}
+            : documentJsonValue(viewOption, "FormulaSheet view"),
     });
 }
 

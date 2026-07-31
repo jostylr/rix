@@ -72,6 +72,7 @@ Checked items are implemented in the current RiX repository.
 - [x] Add `$sheet[index]` tracked reads and deferred formula updates.
 - [x] Add `$sheet` whole-sheet tracked reads and `$$sheet` identity reads.
 - [x] Accept dense tensor-shaped FormulaSheet definitions at rank N.
+- [x] Add cosmetic rank-N axis names, coordinate headers, and named slice choices.
 - [x] Let interactive hosts observe and dispose a direct final reactive output such as `$frag`.
 - [ ] Coordinate tracked dependencies that span multiple independent ReactiveGraphs.
 - [ ] Subscribe one LiveView to multiple independent observable roots.
@@ -105,7 +106,7 @@ Checked items are implemented in the current RiX repository.
 ## 6. Higher-dimensional and advanced behavior
 
 - [ ] Provide tabs/selectors/sliders for hidden axes.
-- [ ] Add axis labels and labeled-index lookup.
+- [ ] Add labeled-index lookup; cosmetic axis labels are already supported.
 - [ ] Define materialization from tensor values into formula slots.
 - [ ] Define linked tensor-to-sheet views.
 - [ ] Design tensor spill ownership and collision rules.

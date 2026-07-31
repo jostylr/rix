@@ -4,7 +4,12 @@
   "id": "budget",
   "shape": [2, 2],
   "view": {
-    "title": "Budget example"
+    "title": "Budget example",
+    "axes": ["region", "measure"],
+    "axisLabels": [
+      ["North", "South"],
+      ["Revenue", "Cost"]
+    ]
   },
   "slots": [
     {

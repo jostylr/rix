@@ -722,6 +722,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li>source kind (<code>tensor</code>, <code>matrix</code>, or <code>sequence</code>);</li>
 <li>full rank and shape;</li>
 <li>names for every axis;</li>
+<li>optional cosmetic labels for every coordinate on an axis;</li>
 <li>the one or two visible axes;</li>
 <li>fixed indices for hidden axes;</li>
 <li>display row and column headers;</li>
@@ -733,7 +734,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <pre class="text"><code>value    exact RiX value
 index    full 1-based rank-N index
 address  canonical source-like address, for example grid[2,3,1]
-displayAddress  visible alias, for example C2 or R2C3</code></pre>
+displayAddress  visible alias, for example C2 or R2C3
+coordinateLabels  cosmetic labels aligned with the full numeric index
+coordinateLabel   joined label path for renderers and semantic events</code></pre>
 <p>The record intentionally has room to grow. FormulaSheet owns formula, value, dependency, state, and diagnostic records separately from its portable result view. Its persistent adapter stores editable source, assignment mode, view metadata, and stable document slot identity without requiring renderers to infer those from the displayed value.</p>
 </section>
 <section id="address-and-label-convention" class="level2">
@@ -854,18 +857,15 @@ $frag</code></pre>
 </section>
 <section id="reactive-document-model" class="level2">
 <h2 class="anchored" data-anchor-id="reactive-document-model">Reactive document model</h2>
-<p>A RiXCel document should be a sparse rank-N collection. A slot will eventually store at least:</p>
+<p>RiXCel version 1 is a dense rank-N collection. A slot stores:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb18"><pre class="sourceCode json code-with-copy"><code class="sourceCode json"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
-<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"id"</span><span class="fu">:</span> <span class="st">"stable-slot-id"</span><span class="fu">,</span></span>
-<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"op"</span><span class="fu">:</span> <span class="st">":="</span><span class="fu">,</span></span>
-<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"code"</span><span class="fu">:</span> <span class="st">"price * quantity"</span><span class="fu">,</span></span>
-<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"style"</span><span class="fu">:</span> <span class="fu">{},</span></span>
-<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"cache"</span><span class="fu">:</span> <span class="fu">{</span></span>
-<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"value"</span><span class="fu">:</span> <span class="kw">null</span><span class="fu">,</span></span>
-<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"inputHash"</span><span class="fu">:</span> <span class="kw">null</span></span>
-<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">}</span></span>
-<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Source is authoritative. Cached values are optional and valid only when their input and runtime hashes match.</p>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"id"</span><span class="fu">:</span> <span class="st">"budget:slot:2:3"</span><span class="fu">,</span></span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"index"</span><span class="fu">:</span> <span class="ot">[</span><span class="dv">2</span><span class="ot">,</span> <span class="dv">3</span><span class="ot">]</span><span class="fu">,</span></span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"source"</span><span class="fu">:</span> <span class="st">"price * quantity"</span><span class="fu">,</span></span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"assignmentMode"</span><span class="fu">:</span> <span class="st">":="</span><span class="fu">,</span></span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"view"</span><span class="fu">:</span> <span class="fu">{}</span></span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Source is authoritative. Compiled IR, current values, dependencies, and caches are rebuilt rather than trusted. A future sparse version can add omitted-slot semantics explicitly.</p>
 <p>The default implied assignment is <code>:=</code>. An explicit leading <code>=</code>, <code>~=</code>, <code>::=</code>, or <code>~~=</code> retains its RiX binding meaning; it is not decorative spreadsheet syntax.</p>
 </section>
 <section id="dependencies-and-cycles" class="level2">
