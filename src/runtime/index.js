@@ -43,6 +43,11 @@ export {
     createCircle,
     createDragPoint,
     createSliderControl,
+    createInputControl,
+    createChoiceControl,
+    createToggleControl,
+    createRangeControl,
+    createResetControl,
     createControlPanel,
     createClip,
 } from "./output.js";

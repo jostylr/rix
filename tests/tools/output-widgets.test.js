@@ -5,6 +5,7 @@ import {
     restoreGraphicFocus,
     restoreSheetFocus,
 } from "../../src/tools/output-widgets.js";
+import { formatValue, parseAndEvaluate } from "../../src/index.js";
 
 function fakeSheet(addresses) {
     const cells = addresses.map((address) => ({
@@ -151,4 +152,66 @@ test("a host-observed reactive output remounts and disposes its subscription", (
     expect(unsubscribed).toBe(true);
     notify("third");
     expect(root.innerHTML).toBe("<span>second</span>");
+});
+
+test("ControlPanel input uses host RiX evaluation before replacing the reactive identity", () => {
+    const panelValue = parseAndEvaluate(`
+        $$amount := 1/2;
+        .ControlPanel([.Controls.Input($$amount, "amount")])
+    `);
+    const inputListeners = new Map();
+    const buttonListeners = new Map();
+    const input = {
+        value: "7/9",
+        checked: false,
+        addEventListener(name, listener) { inputListeners.set(name, listener); },
+        getAttribute(name) { return name === "aria-label" ? "amount" : null; },
+        focus() {},
+    };
+    const button = { addEventListener(name, listener) { buttonListeners.set(name, listener); } };
+    const displayed = { textContent: "1/2" };
+    const controlValue = panelValue.controls[0];
+    const control = {
+        dataset: {
+            rixControlKind: "input",
+            rixControlId: controlValue.id,
+            rixControlTarget: controlValue.targetId,
+        },
+        querySelector(selector) {
+            if (selector === "[data-rix-control-input]") return input;
+            if (selector === "[data-rix-control-commit]") return button;
+            if (selector === "[data-rix-control-value]") return displayed;
+            return null;
+        },
+        querySelectorAll() { return []; },
+    };
+    const status = { textContent: "" };
+    const root = {
+        dataset: {},
+        matches(selector) { return selector === ".rix-output-control-panel"; },
+        querySelector(selector) {
+            if (selector === ".rix-output-control-status") return status;
+            return null;
+        },
+        querySelectorAll(selector) {
+            if (selector === "[data-rix-control-target]") return [control];
+            return [];
+        },
+        dispatchEvent() {},
+    };
+    let evaluation = null;
+    const dispose = mountOutputWidgets(root, panelValue, {
+        format: formatValue,
+        evaluateEdit(source, context) {
+            evaluation = { source, context };
+            return { type: "result", value: parseAndEvaluate(source) };
+        },
+    });
+
+    buttonListeners.get("click")();
+    expect(evaluation.source).toBe("7/9");
+    expect(evaluation.context.mode).toBe("control");
+    expect(formatValue(controlValue.target.get())).toBe("7/9");
+    expect(displayed.textContent).toBe("7/9");
+    dispose();
 });

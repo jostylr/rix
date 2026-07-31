@@ -672,7 +672,13 @@ $$view := .Fragment([
 $view</code></pre>
 <p>The user-facing API must not require <code>.ReactiveGraph()</code>, <code>.Source(...)</code>, or a second declaration mechanism. <code>$$x := value</code> declares the identity, <code>$x</code> tracks a read, and a control edit replaces the same definition as if the program had evaluated <code>$x := value</code>.</p>
 <p>Controls emit semantic records rather than DOM events:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>{ <span class="dt">type</span><span class="op">:</span> <span class="st">"control:set"</span><span class="op">,</span> <span class="dt">targetId</span><span class="op">:</span> <span class="st">"reactive:x"</span><span class="op">,</span> <span class="dt">index</span><span class="op">:</span> <span class="dv">4</span><span class="op">,</span> <span class="dt">source</span><span class="op">:</span> <span class="st">"range"</span> }</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>{</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">type</span><span class="op">:</span> <span class="st">"control:set"</span><span class="op">,</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">controlId</span><span class="op">:</span> <span class="st">"reactive:x:slider"</span><span class="op">,</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">targetId</span><span class="op">:</span> <span class="st">"reactive:x"</span><span class="op">,</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">index</span><span class="op">:</span> <span class="dv">4</span><span class="op">,</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">source</span><span class="op">:</span> <span class="st">"range"</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>The host-owned widget session validates and converts that record to an exact RiX value, updates the reactive definition, and lets the ordinary dependency graph refresh a named reactive <code>Fragment</code>, <code>Graphic</code>, <code>Table</code>, or other output.</p>
 </section>
 <section id="checklist" class="level2">
@@ -696,11 +702,12 @@ $view</code></pre>
 <section id="next-controls" class="level3">
 <h3 class="anchored" data-anchor-id="next-controls">Next controls</h3>
 <ul class="task-list">
-<li><label><input type="checkbox">Add an exact number/expression input with host-supplied RiX source evaluation.</label></li>
-<li><label><input type="checkbox">Add a choice/select control whose options retain RiX values.</label></li>
-<li><label><input type="checkbox">Add a toggle control with explicit on/off RiX values rather than JavaScript booleans.</label></li>
-<li><label><input type="checkbox">Add a range control backed by two reactive identities or one exact interval value.</label></li>
-<li><label><input type="checkbox">Add a reset action with an explicit initial-value snapshot.</label></li>
+<li><label><input type="checkbox" checked="">Add an exact number/expression input with host-supplied RiX source evaluation.</label></li>
+<li><label><input type="checkbox" checked="">Add a choice/select control whose options retain RiX values.</label></li>
+<li><label><input type="checkbox" checked="">Add a toggle control with explicit on/off RiX values rather than JavaScript booleans.</label></li>
+<li><label><input type="checkbox" checked="">Add a range control backed by one exact interval-valued reactive identity.</label></li>
+<li><label><input type="checkbox" checked="">Add a reset action with an explicit initial-value snapshot.</label></li>
+<li><label><input type="checkbox" checked="">Add a runnable RiX Web tutorial and extend it alongside each control.</label></li>
 </ul>
 </section>
 <section id="panel-behavior" class="level3">

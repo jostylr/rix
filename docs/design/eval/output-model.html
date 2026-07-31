@@ -700,7 +700,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 <div class="callout-body-container callout-body">
-<p>The initial portable-output slice is implemented: <code>.Text</code>, <code>.Paragraph</code>, <code>.Heading</code>, <code>.Fragment</code>, <code>.Table</code>, <code>.Grid</code>, <code>.Sheet</code>, <code>.Graphics</code>, <code>.Figure</code>, <code>.Slide</code>, <code>.Slides</code>, and <code>.ControlPanel</code> construct typed immutable output records. The CLI has a text fallback, and the RiX notebook and RiX Web calculator render tables and grids as HTML and retained 2D scenes as inline SVG. <code>Sheet</code> has host-neutral text and HTML renderers plus shared notebook and web interaction. <code>.Algebra.SyntheticDivision(root, coefficients)</code> returns a ruled exact <code>Grid</code>; after <code>.Plugin.Load("plot")</code>, <code>.plot.Polynomial(coefficients, domain, options?)</code> constructs a portable sampled <code>Graphic</code>. Sheets, <code>.Graphics.DragPoint</code>, and exact <code>.Controls.Slider</code> panels now share host-owned widget sessions for semantic edits without storing DOM state in output values.</p>
+<p>The initial portable-output slice is implemented: <code>.Text</code>, <code>.Paragraph</code>, <code>.Heading</code>, <code>.Fragment</code>, <code>.Table</code>, <code>.Grid</code>, <code>.Sheet</code>, <code>.Graphics</code>, <code>.Figure</code>, <code>.Slide</code>, <code>.Slides</code>, and <code>.ControlPanel</code> construct typed immutable output records. The CLI has a text fallback, and the RiX notebook and RiX Web calculator render tables and grids as HTML and retained 2D scenes as inline SVG. <code>Sheet</code> has host-neutral text and HTML renderers plus shared notebook and web interaction. <code>.Algebra.SyntheticDivision(root, coefficients)</code> returns a ruled exact <code>Grid</code>; after <code>.Plugin.Load("plot")</code>, <code>.plot.Polynomial(coefficients, domain, options?)</code> constructs a portable sampled <code>Graphic</code>. Sheets, <code>.Graphics.DragPoint</code>, and exact <code>.Controls.Slider</code>, <code>.Controls.Input</code>, <code>.Controls.Choice</code>, <code>.Controls.Toggle</code>, <code>.Controls.Range</code>, and <code>.Controls.Reset</code> panels now share host-owned widget sessions for semantic edits without storing DOM state in output values.</p>
 <p><code>@"..."</code> text templates and <code>@"""..."""</code> document templates are executable. The latter supports blank-line blocks, <code>h1:</code> through <code>h6:</code>, plus <code>fig:</code> and <code>table:</code> wrappers around standalone <code>@{...}</code> structured insertions. Output methods, renderer negotiation, geometry, 3D scenes, plugin manifests, and non-HTML export targets remain design work. Examples involving those features are deliberately marked as intended contracts rather than current executable code.</p>
 </div>
 </div>
@@ -756,7 +756,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 .Slide(...)
 .Slides(...)
 .ControlPanel(...)
-.Controls.Slider(...)</code></pre>
+.Controls.Slider(...)
+.Controls.Input(...)
+.Controls.Choice(...)
+.Controls.Toggle(...)
+.Controls.Range(...)
+.Controls.Reset(...)</code></pre>
 <p>The parser normalizes system capability names internally, but source examples use readable Pascal case. Map fields are data keys, not function names, and remain lowercase:</p>
 <pre class="rix"><code>.Table({= columns = columns, rows = rows })</code></pre>
 <p>The initial group should contain the following constructors and generic output protocols.</p>
@@ -853,14 +858,34 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td>An exact range control whose target is declared with <code>$$name := value</code>.</td>
 </tr>
 <tr class="odd">
+<td><code>.Controls.Input</code></td>
+<td>A RiX expression input evaluated by the host and committed to a <code>$$name</code> identity.</td>
+</tr>
+<tr class="even">
+<td><code>.Controls.Choice</code></td>
+<td>A select control whose options retain their original RiX values.</td>
+</tr>
+<tr class="odd">
+<td><code>.Controls.Toggle</code></td>
+<td>A checkbox-like control with explicit off and on RiX values.</td>
+</tr>
+<tr class="even">
+<td><code>.Controls.Range</code></td>
+<td>A two-endpoint control backed by one exact interval-valued <code>$$name</code> identity.</td>
+</tr>
+<tr class="odd">
+<td><code>.Controls.Reset</code></td>
+<td>A button that restores an explicitly supplied RiX value snapshot.</td>
+</tr>
+<tr class="even">
 <td><code>.Render</code> / <code>value.Render(...)</code></td>
 <td>Resolve a renderer for a target or host context.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.Snapshot</code> / <code>value.Snapshot(...)</code></td>
 <td>Produce a static representation where possible.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.Serialize</code> / <code>value.Serialize()</code></td>
 <td>Preserve the portable value for notebooks, reports, and transfer.</td>
 </tr>
@@ -927,7 +952,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 .Slide({= content = value, title = _, id = _, notes = _, metadata = {= } })
 .Slides({= slides = values, title = _, theme = _, metadata = {= } })
 .ControlPanel({= controls = values, title = _, description = _, metadata = {= } })
-.Controls.Slider({= target = $$name, interval = 0:10, step = 1, label = _, help = _, id = _ })</code></pre>
+.Controls.Slider({= target = $$name, interval = 0:10, step = 1, label = _, help = _, id = _ })
+.Controls.Input({= target = $$name, label = _, help = _, placeholder = _, id = _ })
+.Controls.Choice({= target = $$name, options = values, label = _, help = _, id = _ })
+.Controls.Toggle({= target = $$name, off = value, on = value, label = _, help = _, id = _ })
+.Controls.Range({= target = $$name, interval = 0:10, step = 1, label = _, help = _, id = _ })
+.Controls.Reset({= target = $$name, initial = value, label = _, help = _, id = _ })</code></pre>
+<p>Each rendered control publishes both its <code>controlId</code> and reactive <code>targetId</code>. The distinction lets multiple control kinds intentionally share one <code>$$name</code> while the widget session still applies the correct value mapping.</p>
 <p>Plain values in a <code>Fragment</code> or <code>Grid</code> cell are retained as values. A renderer uses its formatting protocol to display an exact rational, interval, polynomial, or string without converting it at construction time.</p>
 <p><code>Sheet</code> similarly retains exact visible values, but also records each visible cell’s complete 1-based tensor index and a canonical address such as <code>grid[2,3,1]</code>. For rank greater than two, <code>viewAxes</code> chooses the displayed axes and <code>slice</code> fixes every hidden axis. The current value is a static snapshot; live editing belongs to the planned <code>Binding</code>/<code>Widget</code> layer described in the <a href="../../design/eval/rixcel-architecture.html">RiXCel architecture</a>.</p>
 <section id="current-2d-scene-primitives" class="level3">

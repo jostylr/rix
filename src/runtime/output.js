@@ -28,6 +28,11 @@ function get(entries, name, fallback = null) {
     return entries.has(canonical) ? entries.get(canonical) : fallback;
 }
 
+function has(entries, name) {
+    const canonical = String(name).toLowerCase();
+    return [...entries.keys()].some((key) => String(key).toLowerCase() === canonical);
+}
+
 function optionalMap(value, label) {
     return value === null || value === undefined ? null : map(value, label);
 }
@@ -111,6 +116,74 @@ function positiveCount(value, label) {
     return count;
 }
 
+function reactiveTarget(entry, name) {
+    const target = get(entry, "target");
+    if (!isReactiveNode(target)) {
+        throw new Error(`${name} target must be a reactive $$name identity`);
+    }
+    return target;
+}
+
+function exactScale(interval, stepValue, stepsValue, name) {
+    if (!(interval instanceof RationalInterval)) {
+        throw new Error(`${name} interval must be a RiX interval such as 0:10`);
+    }
+    const low = interval.low;
+    const high = interval.high;
+    const span = high.subtract(low);
+    if (span.numerator === 0n) throw new Error(`${name} interval endpoints must differ`);
+    if (stepValue !== null && stepsValue !== null) {
+        throw new Error(`${name} accepts either step or steps, not both`);
+    }
+    let steps;
+    let step;
+    if (stepsValue !== null) {
+        steps = positiveCount(stepsValue, `${name} steps`);
+        step = span.divide(new Integer(BigInt(steps)));
+    } else {
+        step = stepValue === null ? span.divide(new Integer(20n)) : exactRational(stepValue, `${name} step`);
+        if (step.numerator <= 0n) throw new Error(`${name} step must be positive`);
+        const ratio = span.divide(step);
+        const count = ratio.numerator / ratio.denominator;
+        if (count < 1n || count > 10000n) {
+            throw new Error(`${name} step must produce between 1 and 10000 positions`);
+        }
+        steps = Number(count);
+    }
+    return { low, high, step, steps };
+}
+
+function scaleIndex(value, scale, label) {
+    const exact = exactRational(value, label);
+    const indexValue = exact.subtract(scale.low).divide(scale.step);
+    if (indexValue.denominator !== 1n) {
+        const stepKind = label.includes("Slider") ? "slider" : "control";
+        throw new Error(`${label} must lie on an exact ${stepKind} step`);
+    }
+    const index = Number(indexValue.numerator);
+    if (!Number.isSafeInteger(index) || index < 0 || index > scale.steps) {
+        throw new Error(`${label} must lie within its interval`);
+    }
+    return index;
+}
+
+function controlValuesEqual(left, right) {
+    if (left === right) return true;
+    if ((left instanceof Integer || left instanceof Rational)
+        && (right instanceof Integer || right instanceof Rational)) {
+        const a = exactRational(left, "Control value");
+        const b = exactRational(right, "Control value");
+        return a.numerator === b.numerator && a.denominator === b.denominator;
+    }
+    if (left instanceof RationalInterval && right instanceof RationalInterval) {
+        return controlValuesEqual(left.start, right.start) && controlValuesEqual(left.end, right.end);
+    }
+    const leftString = asString(left);
+    const rightString = asString(right);
+    if (leftString !== null || rightString !== null) return leftString === rightString;
+    return false;
+}
+
 function numericValue(value, label) {
     if (value instanceof Integer) return Number(value.value);
     if (value instanceof Rational) return Number(value.numerator) / Number(value.denominator);
@@ -191,64 +264,130 @@ export function createGrid(args) {
 
 export function createSliderControl(args) {
     const entry = spec(args, ["target", "interval", "step", "label"], "Controls.Slider");
-    const target = get(entry, "target");
-    if (!isReactiveNode(target)) {
-        throw new Error("Controls.Slider target must be a reactive $$name identity");
-    }
+    const target = reactiveTarget(entry, "Controls.Slider");
     const interval = get(entry, "interval");
-    if (!(interval instanceof RationalInterval)) {
-        throw new Error("Controls.Slider interval must be a RiX interval such as 0:10");
-    }
-    const low = interval.low;
-    const high = interval.high;
-    const span = high.subtract(low);
-    if (span.numerator === 0n) throw new Error("Controls.Slider interval endpoints must differ");
-
-    const stepValue = get(entry, "step");
-    const stepsValue = get(entry, "steps");
-    if (stepValue !== null && stepsValue !== null) {
-        throw new Error("Controls.Slider accepts either step or steps, not both");
-    }
-    let steps;
-    let step;
-    if (stepsValue !== null) {
-        steps = positiveCount(stepsValue, "Controls.Slider steps");
-        step = span.divide(new Integer(BigInt(steps)));
-    } else {
-        step = stepValue === null
-            ? span.divide(new Integer(20n))
-            : exactRational(stepValue, "Controls.Slider step");
-        if (step.numerator <= 0n) throw new Error("Controls.Slider step must be positive");
-        const ratio = span.divide(step);
-        const count = ratio.numerator / ratio.denominator;
-        if (count < 1n || count > 10000n) {
-            throw new Error("Controls.Slider step must produce between 1 and 10000 positions");
-        }
-        steps = Number(count);
-    }
+    const scale = exactScale(interval, get(entry, "step"), get(entry, "steps"), "Controls.Slider");
 
     const value = exactRational(target.get(), "Controls.Slider target value");
-    const indexValue = value.subtract(low).divide(step);
-    if (indexValue.denominator !== 1n) {
-        throw new Error("Controls.Slider target value must lie on an exact slider step");
-    }
-    const index = Number(indexValue.numerator);
-    if (!Number.isSafeInteger(index) || index < 0 || index > steps) {
-        throw new Error("Controls.Slider target value must lie within its interval");
-    }
+    const index = scaleIndex(value, scale, "Controls.Slider target value");
 
     return output("control_slider", {
-        id: asString(get(entry, "id")) || target.id,
+        id: asString(get(entry, "id")) || `${target.id}:slider`,
         label: asString(get(entry, "label")) || target.name,
         help: asString(get(entry, "help")),
         target,
         targetId: target.id,
         value,
-        low,
-        high,
-        step,
-        steps,
+        ...scale,
         index,
+        replacesDependencies: Object.freeze([...target.dependencies]),
+    });
+}
+
+export function createInputControl(args) {
+    const entry = spec(args, ["target", "label", "help", "placeholder"], "Controls.Input");
+    const target = reactiveTarget(entry, "Controls.Input");
+    return output("control_input", {
+        id: asString(get(entry, "id")) || `${target.id}:input`,
+        label: asString(get(entry, "label")) || target.name,
+        help: asString(get(entry, "help")),
+        placeholder: asString(get(entry, "placeholder")) || "RiX expression",
+        target,
+        targetId: target.id,
+        value: target.get(),
+        replacesDependencies: Object.freeze([...target.dependencies]),
+    });
+}
+
+function normalizeChoiceOptions(value) {
+    return sequence(value, "Controls.Choice options").map((option, index) => {
+        if (option?.type !== "map") return Object.freeze({ value: option, label: asString(option) });
+        const entries = map(option, `Controls.Choice option ${index + 1}`);
+        const optionValue = get(entries, "value");
+        if (!has(entries, "value")) throw new Error(`Controls.Choice option ${index + 1} requires value`);
+        return Object.freeze({ value: optionValue, label: asString(get(entries, "label")) });
+    });
+}
+
+export function createChoiceControl(args) {
+    const entry = spec(args, ["target", "options", "label"], "Controls.Choice");
+    const target = reactiveTarget(entry, "Controls.Choice");
+    const options = normalizeChoiceOptions(get(entry, "options"));
+    if (options.length === 0) throw new Error("Controls.Choice requires at least one option");
+    const value = target.get();
+    const index = options.findIndex((option) => controlValuesEqual(option.value, value));
+    if (index === -1) throw new Error("Controls.Choice target value must match one of its options");
+    return output("control_choice", {
+        id: asString(get(entry, "id")) || `${target.id}:choice`,
+        label: asString(get(entry, "label")) || target.name,
+        help: asString(get(entry, "help")),
+        target,
+        targetId: target.id,
+        value,
+        options: Object.freeze(options),
+        index,
+        replacesDependencies: Object.freeze([...target.dependencies]),
+    });
+}
+
+export function createToggleControl(args) {
+    const entry = spec(args, ["target", "off", "on", "label"], "Controls.Toggle");
+    const target = reactiveTarget(entry, "Controls.Toggle");
+    const off = get(entry, "off");
+    const on = get(entry, "on");
+    if (!has(entry, "off") || !has(entry, "on")) throw new Error("Controls.Toggle requires explicit off and on values");
+    const value = target.get();
+    const index = controlValuesEqual(value, off) ? 0 : controlValuesEqual(value, on) ? 1 : -1;
+    if (index === -1) throw new Error("Controls.Toggle target value must match its off or on value");
+    return output("control_toggle", {
+        id: asString(get(entry, "id")) || `${target.id}:toggle`,
+        label: asString(get(entry, "label")) || target.name,
+        help: asString(get(entry, "help")),
+        target,
+        targetId: target.id,
+        value,
+        values: Object.freeze([off, on]),
+        index,
+        replacesDependencies: Object.freeze([...target.dependencies]),
+    });
+}
+
+export function createRangeControl(args) {
+    const entry = spec(args, ["target", "interval", "step", "label"], "Controls.Range");
+    const target = reactiveTarget(entry, "Controls.Range");
+    const scale = exactScale(get(entry, "interval"), get(entry, "step"), get(entry, "steps"), "Controls.Range");
+    const value = target.get();
+    if (!(value instanceof RationalInterval)) throw new Error("Controls.Range target value must be an exact RiX interval");
+    const indices = Object.freeze([
+        scaleIndex(value.low, scale, "Controls.Range lower endpoint"),
+        scaleIndex(value.high, scale, "Controls.Range upper endpoint"),
+    ]);
+    return output("control_range", {
+        id: asString(get(entry, "id")) || `${target.id}:range`,
+        label: asString(get(entry, "label")) || target.name,
+        help: asString(get(entry, "help")),
+        target,
+        targetId: target.id,
+        value,
+        ...scale,
+        indices,
+        replacesDependencies: Object.freeze([...target.dependencies]),
+    });
+}
+
+export function createResetControl(args) {
+    const entry = spec(args, ["target", "initial", "label"], "Controls.Reset");
+    const target = reactiveTarget(entry, "Controls.Reset");
+    const initial = get(entry, "initial");
+    if (!has(entry, "initial")) throw new Error("Controls.Reset requires an explicit initial value snapshot");
+    return output("control_reset", {
+        id: asString(get(entry, "id")) || `${target.id}:reset`,
+        label: asString(get(entry, "label")) || `Reset ${target.name}`,
+        help: asString(get(entry, "help")),
+        target,
+        targetId: target.id,
+        value: target.get(),
+        initial,
         replacesDependencies: Object.freeze([...target.dependencies]),
     });
 }
@@ -1084,6 +1223,16 @@ export function formatOutputText(value, format) {
     if (value.kind === "control_slider") {
         return `${value.label}: ${cellText(value.value, format)} (${cellText(value.low, format)} … ${cellText(value.high, format)})`;
     }
+    if (value.kind === "control_input") return `${value.label}: ${cellText(value.value, format)}`;
+    if (value.kind === "control_choice" || value.kind === "control_toggle") {
+        return `${value.label}: ${cellText(value.value, format)}`;
+    }
+    if (value.kind === "control_range") {
+        return `${value.label}: ${cellText(value.value, format)} within ${cellText(value.low, format)} … ${cellText(value.high, format)}`;
+    }
+    if (value.kind === "control_reset") {
+        return `${value.label}: ${cellText(value.value, format)} → ${cellText(value.initial, format)}`;
+    }
     if (value.kind === "control_panel") {
         return [value.title, value.description, ...value.controls.map((control) => formatOutputText(control, format))]
             .filter(Boolean)
@@ -1129,7 +1278,38 @@ export function renderOutputHtml(value, format = (item) => String(item ?? "")) {
         const dependencies = value.replacesDependencies.length > 0
             ? ` data-rix-replaces-dependencies="${escapeHtml(value.replacesDependencies.join(","))}"`
             : "";
-        return `<label class="rix-output-control rix-output-control-slider" data-rix-control-target="${escapeHtml(value.targetId)}"${dependencies}><span class="rix-output-control-label">${escapeHtml(value.label)}</span><input type="range" min="0" max="${value.steps}" step="1" value="${value.index}" data-rix-control-input aria-label="${escapeHtml(value.label)}"><output data-rix-control-value>${text(value.value)}</output>${value.help ? `<small>${escapeHtml(value.help)}</small>` : ""}</label>`;
+        return `<label class="rix-output-control rix-output-control-slider" data-rix-control-kind="slider" data-rix-control-id="${escapeHtml(value.id)}" data-rix-control-target="${escapeHtml(value.targetId)}"${dependencies}><span class="rix-output-control-label">${escapeHtml(value.label)}</span><input type="range" min="0" max="${value.steps}" step="1" value="${value.index}" data-rix-control-input aria-label="${escapeHtml(value.label)}"><output data-rix-control-value>${text(value.value)}</output>${value.help ? `<small>${escapeHtml(value.help)}</small>` : ""}</label>`;
+    }
+    if (value.kind === "control_input") {
+        const dependencies = value.replacesDependencies.length > 0
+            ? ` data-rix-replaces-dependencies="${escapeHtml(value.replacesDependencies.join(","))}"`
+            : "";
+        return `<label class="rix-output-control rix-output-control-input" data-rix-control-kind="input" data-rix-control-id="${escapeHtml(value.id)}" data-rix-control-target="${escapeHtml(value.targetId)}"${dependencies}><span class="rix-output-control-label">${escapeHtml(value.label)}</span><span class="rix-output-control-input-row"><input type="text" value="${text(value.value)}" placeholder="${escapeHtml(value.placeholder)}" data-rix-control-input aria-label="${escapeHtml(value.label)}"><button type="button" data-rix-control-commit>Set</button></span><output data-rix-control-value>${text(value.value)}</output>${value.help ? `<small>${escapeHtml(value.help)}</small>` : ""}</label>`;
+    }
+    if (value.kind === "control_choice") {
+        const dependencies = value.replacesDependencies.length > 0
+            ? ` data-rix-replaces-dependencies="${escapeHtml(value.replacesDependencies.join(","))}"`
+            : "";
+        const options = value.options.map((option, index) => `<option value="${index}"${index === value.index ? " selected" : ""}>${escapeHtml(option.label ?? cellText(option.value, format))}</option>`).join("");
+        return `<label class="rix-output-control rix-output-control-choice" data-rix-control-kind="choice" data-rix-control-id="${escapeHtml(value.id)}" data-rix-control-target="${escapeHtml(value.targetId)}"${dependencies}><span class="rix-output-control-label">${escapeHtml(value.label)}</span><select data-rix-control-input aria-label="${escapeHtml(value.label)}">${options}</select><output data-rix-control-value>${text(value.value)}</output>${value.help ? `<small>${escapeHtml(value.help)}</small>` : ""}</label>`;
+    }
+    if (value.kind === "control_toggle") {
+        const dependencies = value.replacesDependencies.length > 0
+            ? ` data-rix-replaces-dependencies="${escapeHtml(value.replacesDependencies.join(","))}"`
+            : "";
+        return `<label class="rix-output-control rix-output-control-toggle" data-rix-control-kind="toggle" data-rix-control-id="${escapeHtml(value.id)}" data-rix-control-target="${escapeHtml(value.targetId)}"${dependencies}><span class="rix-output-control-label">${escapeHtml(value.label)}</span><input type="checkbox"${value.index === 1 ? " checked" : ""} data-rix-control-input aria-label="${escapeHtml(value.label)}"><output data-rix-control-value>${text(value.value)}</output>${value.help ? `<small>${escapeHtml(value.help)}</small>` : ""}</label>`;
+    }
+    if (value.kind === "control_range") {
+        const dependencies = value.replacesDependencies.length > 0
+            ? ` data-rix-replaces-dependencies="${escapeHtml(value.replacesDependencies.join(","))}"`
+            : "";
+        return `<fieldset class="rix-output-control rix-output-control-range" data-rix-control-kind="range" data-rix-control-id="${escapeHtml(value.id)}" data-rix-control-target="${escapeHtml(value.targetId)}"${dependencies}><legend class="rix-output-control-label">${escapeHtml(value.label)}</legend><span class="rix-output-control-range-inputs"><input type="range" min="0" max="${value.steps}" step="1" value="${value.indices[0]}" data-rix-control-input data-rix-control-endpoint="low" aria-label="${escapeHtml(value.label)} lower endpoint"><input type="range" min="0" max="${value.steps}" step="1" value="${value.indices[1]}" data-rix-control-input data-rix-control-endpoint="high" aria-label="${escapeHtml(value.label)} upper endpoint"></span><output data-rix-control-value>${text(value.value)}</output>${value.help ? `<small>${escapeHtml(value.help)}</small>` : ""}</fieldset>`;
+    }
+    if (value.kind === "control_reset") {
+        const dependencies = value.replacesDependencies.length > 0
+            ? ` data-rix-replaces-dependencies="${escapeHtml(value.replacesDependencies.join(","))}"`
+            : "";
+        return `<div class="rix-output-control rix-output-control-reset" data-rix-control-kind="reset" data-rix-control-id="${escapeHtml(value.id)}" data-rix-control-target="${escapeHtml(value.targetId)}"${dependencies}><span class="rix-output-control-label">${escapeHtml(value.label)}</span><button type="button" data-rix-control-input aria-label="${escapeHtml(value.label)}">Reset</button><output data-rix-control-value>${text(value.value)}</output>${value.help ? `<small>${escapeHtml(value.help)}</small>` : ""}</div>`;
     }
     if (value.kind === "control_panel") {
         return `<section class="rix-output-control-panel" data-rix-interactive="true">${value.title ? `<h3>${escapeHtml(value.title)}</h3>` : ""}${value.description ? `<p>${escapeHtml(value.description)}</p>` : ""}<div class="rix-output-control-list">${value.controls.map((control) => renderOutputHtml(control, format)).join("")}</div><output class="rix-output-control-status" aria-live="polite"></output></section>`;
@@ -1242,6 +1422,11 @@ export function createGraphicsOutputCollection() {
 export function createControlsOutputCollection() {
     const methods = new Map([
         ["Slider", createSliderControl],
+        ["Input", createInputControl],
+        ["Choice", createChoiceControl],
+        ["Toggle", createToggleControl],
+        ["Range", createRangeControl],
+        ["Reset", createResetControl],
     ]);
     const entries = new Map();
     const extension = new Map([["immutable", int(1)]]);

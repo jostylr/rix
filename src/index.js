@@ -22,7 +22,8 @@ export {
     isOutputValue, formatOutputText, renderOutputHtml, renderGraphicSvg, createSheet, createSheetSnapshot,
     createAlgebraOutputCollection, createGraphicsOutputCollection, createControlsOutputCollection, createSyntheticDivision, createPlotOutputCollection,
     createPolynomialPlot, createGroup, createTransform, createTextMark,
-    createRectangle, createCircle, createDragPoint, createClip, createSliderControl, createControlPanel,
+    createRectangle, createCircle, createDragPoint, createClip, createSliderControl, createInputControl,
+    createChoiceControl, createToggleControl, createRangeControl, createResetControl, createControlPanel,
 } from "./runtime/index.js";
 export { createDrawPluginCollection, installDrawPlugin } from "../plugins/draw/draw.plugin.rix.js";
 export { installPlotPlugin } from "../plugins/plot/plot.plugin.rix.js";

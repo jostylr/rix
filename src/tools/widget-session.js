@@ -9,7 +9,7 @@ import { createSheet, createSheetSnapshot, isOutputValue } from "../runtime/outp
 import { isBinding } from "../runtime/binding.js";
 import { isFormulaSheet } from "../runtime/formula-sheet.js";
 import { isReactiveNode } from "../runtime/reactive-graph.js";
-import { Integer, Rational } from "@ratmath/core";
+import { Integer, Rational, RationalInterval } from "@ratmath/core";
 
 function sheetSource(widget) {
     if (!isOutputValue(widget) || widget.kind !== "sheet") {
@@ -224,8 +224,9 @@ function panelControls(panel) {
     }
     const controls = new Map();
     for (const control of panel.controls) {
-        if (control.kind === "control_slider" && isReactiveNode(control.target)) {
-            controls.set(control.targetId, control);
+        if (control.kind.startsWith("control_") && isReactiveNode(control.target)) {
+            controls.set(control.id, control);
+            if (!controls.has(control.targetId)) controls.set(control.targetId, control);
         }
     }
     if (controls.size === 0) {
@@ -240,6 +241,41 @@ function sliderValue(control, index) {
         throw new Error(`Control slider index must be between 0 and ${control.steps}`);
     }
     return control.low.add(control.step.multiply(new Integer(BigInt(normalized))));
+}
+
+function indexedValue(control, index, values, label) {
+    const normalized = Number(index);
+    if (!Number.isInteger(normalized) || normalized < 0 || normalized >= values.length) {
+        throw new Error(`${label} index must be between 0 and ${values.length - 1}`);
+    }
+    return values[normalized];
+}
+
+function rangeValue(control, indices) {
+    if (!Array.isArray(indices) || indices.length !== 2) {
+        throw new Error("Control range requires lower and upper indices");
+    }
+    const low = sliderValue(control, indices[0]);
+    const high = sliderValue(control, indices[1]);
+    if (low.greaterThan(high)) throw new Error("Control range lower endpoint must not exceed its upper endpoint");
+    return new RationalInterval(low, high);
+}
+
+function controlValue(control, event) {
+    if (control.kind === "control_slider") return sliderValue(control, event.index);
+    if (control.kind === "control_choice") {
+        return indexedValue(control, event.index, control.options.map((option) => option.value), "Control choice");
+    }
+    if (control.kind === "control_toggle") {
+        return indexedValue(control, event.index, control.values, "Control toggle");
+    }
+    if (control.kind === "control_range") return rangeValue(control, event.indices);
+    if (control.kind === "control_reset") return control.initial;
+    if (control.kind === "control_input") {
+        if (!("value" in event)) throw new Error("Control input requires an evaluated RiX value");
+        return event.value;
+    }
+    throw new Error(`Unsupported ControlPanel control: ${control.kind}`);
 }
 
 export class ControlPanelWidgetSession {
@@ -269,11 +305,12 @@ export class ControlPanelWidgetSession {
         if (event?.type !== "control:set") {
             throw new Error(`Unsupported ControlPanel widget event: ${event?.type || "missing type"}`);
         }
-        const control = this.controls.get(String(event.targetId || ""));
+        const control = this.controls.get(String(event.controlId || event.targetId || ""));
         if (!control) throw new Error(`Unknown ControlPanel target: ${event.targetId || "missing target"}`);
-        const value = control.kind === "control_slider"
-            ? sliderValue(control, event.index)
-            : event.value;
+        if (event.controlId && event.targetId && String(event.targetId) !== control.targetId) {
+            throw new Error("ControlPanel control and target IDs do not match");
+        }
+        const value = controlValue(control, event);
         const replacedDependencies = Object.freeze([...control.target.dependencies]);
         control.target.replaceValue(value, {
             source: "widget",

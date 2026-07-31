@@ -26,7 +26,13 @@ program had evaluated `$x := value`.
 Controls emit semantic records rather than DOM events:
 
 ```js
-{ type: "control:set", targetId: "reactive:x", index: 4, source: "range" }
+{
+  type: "control:set",
+  controlId: "reactive:x:slider",
+  targetId: "reactive:x",
+  index: 4,
+  source: "range"
+}
 ```
 
 The host-owned widget session validates and converts that record to an exact
@@ -51,11 +57,12 @@ graph refresh a named reactive `Fragment`, `Graphic`, `Table`, or other output.
 
 ### Next controls
 
-- [ ] Add an exact number/expression input with host-supplied RiX source evaluation.
-- [ ] Add a choice/select control whose options retain RiX values.
-- [ ] Add a toggle control with explicit on/off RiX values rather than JavaScript booleans.
-- [ ] Add a range control backed by two reactive identities or one exact interval value.
-- [ ] Add a reset action with an explicit initial-value snapshot.
+- [x] Add an exact number/expression input with host-supplied RiX source evaluation.
+- [x] Add a choice/select control whose options retain RiX values.
+- [x] Add a toggle control with explicit on/off RiX values rather than JavaScript booleans.
+- [x] Add a range control backed by one exact interval-valued reactive identity.
+- [x] Add a reset action with an explicit initial-value snapshot.
+- [x] Add a runnable RiX Web tutorial and extend it alongside each control.
 
 ### Panel behavior
 
@@ -72,4 +79,3 @@ graph refresh a named reactive `Fragment`, `Graphic`, `Table`, or other output.
 - [ ] Add shared control-panel styling to RiX Web, RiX Notebook, and standalone RiXCel hosts.
 - [ ] Exercise panels in live HTML and Quarto export.
 - [ ] Add an end-to-end example combining controls, a reactive table, and a draggable graphic.
-

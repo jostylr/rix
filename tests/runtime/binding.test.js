@@ -330,6 +330,101 @@ describe("WidgetSession", () => {
         widget.dispose();
     });
 
+    test("all ControlPanel controls replace the same $$ identities with RiX values", () => {
+        const state = session();
+        const panel = parseAndEvaluate(`
+            $$amount := 1/3;
+            $$scale := 1;
+            $$enabled := 0;
+            $$window := 2:5;
+            .ControlPanel([
+                .Controls.Input($$amount, "amount"),
+                .Controls.Choice($$scale, [1/2, 1, 2], "scale"),
+                .Controls.Toggle($$enabled, 0, 1, "enabled"),
+                .Controls.Range($$window, 0:10, 1, "window"),
+                .Controls.Reset($$amount, 1/3, "reset amount")
+            ])
+        `, state);
+        const widget = createWidgetSession(panel);
+        const byKind = new Map(panel.controls.map((control) => [control.kind, control]));
+
+        const inputValue = parseAndEvaluate("7/9", state);
+        widget.dispatch({
+            type: "control:set",
+            targetId: byKind.get("control_input").targetId,
+            value: inputValue,
+            source: "text",
+        });
+        widget.dispatch({
+            type: "control:set",
+            targetId: byKind.get("control_choice").targetId,
+            index: 2,
+            source: "select",
+        });
+        widget.dispatch({
+            type: "control:set",
+            targetId: byKind.get("control_toggle").targetId,
+            index: 1,
+            source: "checkbox",
+        });
+        widget.dispatch({
+            type: "control:set",
+            targetId: byKind.get("control_range").targetId,
+            indices: [3, 7],
+            source: "range",
+        });
+
+        expect(formatValue(state.context.get("amount").peek())).toBe("7/9");
+        expect(formatValue(state.context.get("scale").peek())).toBe("2");
+        expect(formatValue(state.context.get("enabled").peek())).toBe("1");
+        expect(formatValue(state.context.get("window").peek())).toBe("3:7");
+        widget.dispatch({
+            type: "control:set",
+            controlId: byKind.get("control_reset").id,
+            targetId: byKind.get("control_reset").targetId,
+            source: "reset",
+        });
+        expect(formatValue(state.context.get("amount").peek())).toBe("1/3");
+        expect(widget.revision).toBe(5);
+        expect(() => widget.dispatch({
+            type: "control:set",
+            targetId: byKind.get("control_range").targetId,
+            indices: [8, 2],
+        })).toThrow("lower endpoint");
+        widget.dispose();
+    });
+
+    test("control IDs disambiguate two control kinds targeting one $$ identity", () => {
+        const state = session();
+        const panel = parseAndEvaluate(`
+            $$mode := 1;
+            .ControlPanel([
+                .Controls.Choice($$mode, [1, 4/5], "preset"),
+                .Controls.Toggle($$mode, 1, 4/5, "enabled")
+            ])
+        `, state);
+        const [choice, toggle] = panel.controls;
+        expect(choice.id).not.toBe(toggle.id);
+        expect(choice.targetId).toBe(toggle.targetId);
+
+        const widget = createWidgetSession(panel);
+        widget.dispatch({
+            type: "control:set",
+            controlId: choice.id,
+            targetId: choice.targetId,
+            index: 1,
+        });
+        expect(formatValue(state.context.get("mode").peek())).toBe("4/5");
+        widget.dispatch({
+            type: "control:set",
+            controlId: toggle.id,
+            targetId: toggle.targetId,
+            index: 0,
+        });
+        expect(formatValue(state.context.get("mode").peek())).toBe("1");
+        widget.dispose();
+    });
+
     test("rejects malformed and out-of-range events", () => {
         const sheet = parseAndEvaluate(`
             m := {:1x2: 1, 2};

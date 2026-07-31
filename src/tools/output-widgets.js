@@ -270,7 +270,22 @@ export function mountOutputWidgets(root, value, options = {}) {
                     };
                     pendingFocusRequest = focusRequest;
                     try {
-                        const valueResult = widgetSession.dispatch(detail);
+                        let event = detail;
+                        if (typeof detail.sourceText === "string") {
+                            const evaluate = options.evaluateControl || options.evaluateEdit;
+                            if (typeof evaluate !== "function") {
+                                throw new Error("This host cannot evaluate RiX control input");
+                            }
+                            const evaluated = evaluate(detail.sourceText, {
+                                mode: "control",
+                                panel: widgetSession.current(),
+                                targetId: detail.targetId,
+                            });
+                            if (evaluated?.type === "error") return evaluated;
+                            const inputValue = evaluated?.type === "result" ? evaluated.value : evaluated;
+                            event = { ...detail, value: inputValue };
+                        }
+                        const valueResult = widgetSession.dispatch(event);
                         return {
                             type: "result",
                             value: valueResult,

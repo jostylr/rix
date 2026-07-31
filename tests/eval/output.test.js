@@ -39,6 +39,46 @@ describe("portable structured output", () => {
             .toThrow("exact slider step");
     });
 
+    test("ControlPanel input, choice, toggle, range, and reset retain exact RiX values", () => {
+        const panel = parseAndEvaluate(`
+            $$amount := 1/3;
+            $$scale := 1;
+            $$enabled := 0;
+            $$window := 2:5;
+            .ControlPanel([
+                .Controls.Input($$amount, "amount", "Any RiX expression"),
+                .Controls.Choice($$scale, [
+                    {= value=1/2, label="half" },
+                    {= value=1, label="one" },
+                    {= value=2, label="double" }
+                ], "scale"),
+                .Controls.Toggle($$enabled, 0, 1, "enabled"),
+                .Controls.Range($$window, 0:10, 1, "window"),
+                .Controls.Reset($$amount, 1/3, "reset amount")
+            ], "Exact parameters")
+        `);
+        expect(panel.controls.map(({ kind }) => kind)).toEqual([
+            "control_input",
+            "control_choice",
+            "control_toggle",
+            "control_range",
+            "control_reset",
+        ]);
+        expect(panel.controls[1].index).toBe(1);
+        expect(formatValue(panel.controls[1].options[0].value)).toBe("1/2");
+        expect(panel.controls[2].index).toBe(0);
+        expect(panel.controls[3].indices).toEqual([2, 5]);
+
+        const html = renderOutputHtml(panel, formatValue);
+        expect(html).toContain('data-rix-control-kind="input"');
+        expect(html).toContain('data-rix-control-kind="choice"');
+        expect(html).toContain('data-rix-control-kind="toggle"');
+        expect(html).toContain('data-rix-control-kind="range"');
+        expect(html).toContain('data-rix-control-kind="reset"');
+        expect(html).toContain('<option value="1" selected>one</option>');
+        expect(html).toContain('data-rix-control-endpoint="low"');
+    });
+
     test("Table accepts positional shorthand and keeps its semantic structure", () => {
         const table = parseAndEvaluate('.Table(["x", "F(x)"], [[1, 1], [2, 4]])');
         expect(table.type).toBe("output");

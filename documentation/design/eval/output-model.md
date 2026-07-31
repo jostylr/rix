@@ -11,8 +11,9 @@ text and HTML renderers plus shared notebook and web interaction.
 coefficients)` returns a ruled exact `Grid`; after `.Plugin.Load("plot")`,
 `.plot.Polynomial(coefficients, domain, options?)` constructs a portable
 sampled `Graphic`. Sheets, `.Graphics.DragPoint`, and exact
-`.Controls.Slider` panels now share host-owned widget sessions for semantic
-edits without storing DOM state in output values.
+`.Controls.Slider`, `.Controls.Input`, `.Controls.Choice`, `.Controls.Toggle`,
+`.Controls.Range`, and `.Controls.Reset` panels now share host-owned widget
+sessions for semantic edits without storing DOM state in output values.
 
 `@"..."` text templates and `@"""..."""` document templates are executable.
 The latter supports blank-line blocks, `h1:` through `h6:`, plus `fig:` and
@@ -97,6 +98,11 @@ calls are capitalized:
 .Slides(...)
 .ControlPanel(...)
 .Controls.Slider(...)
+.Controls.Input(...)
+.Controls.Choice(...)
+.Controls.Toggle(...)
+.Controls.Range(...)
+.Controls.Reset(...)
 ```
 
 The parser normalizes system capability names internally, but source examples
@@ -132,6 +138,11 @@ protocols.
 | `.Slides` | An ordered deck of `Slide` values, specialized for sequential presentation and export. |
 | `.ControlPanel` | A titled group of host-rendered controls backed by ordinary reactive identities. |
 | `.Controls.Slider` | An exact range control whose target is declared with `$$name := value`. |
+| `.Controls.Input` | A RiX expression input evaluated by the host and committed to a `$$name` identity. |
+| `.Controls.Choice` | A select control whose options retain their original RiX values. |
+| `.Controls.Toggle` | A checkbox-like control with explicit off and on RiX values. |
+| `.Controls.Range` | A two-endpoint control backed by one exact interval-valued `$$name` identity. |
+| `.Controls.Reset` | A button that restores an explicitly supplied RiX value snapshot. |
 | `.Render` / `value.Render(...)` | Resolve a renderer for a target or host context. |
 | `.Snapshot` / `value.Snapshot(...)` | Produce a static representation where possible. |
 | `.Serialize` / `value.Serialize()` | Preserve the portable value for notebooks, reports, and transfer. |
@@ -234,7 +245,16 @@ The proposed initial shapes are:
 .Slides({= slides = values, title = _, theme = _, metadata = {= } })
 .ControlPanel({= controls = values, title = _, description = _, metadata = {= } })
 .Controls.Slider({= target = $$name, interval = 0:10, step = 1, label = _, help = _, id = _ })
+.Controls.Input({= target = $$name, label = _, help = _, placeholder = _, id = _ })
+.Controls.Choice({= target = $$name, options = values, label = _, help = _, id = _ })
+.Controls.Toggle({= target = $$name, off = value, on = value, label = _, help = _, id = _ })
+.Controls.Range({= target = $$name, interval = 0:10, step = 1, label = _, help = _, id = _ })
+.Controls.Reset({= target = $$name, initial = value, label = _, help = _, id = _ })
 ```
+
+Each rendered control publishes both its `controlId` and reactive `targetId`.
+The distinction lets multiple control kinds intentionally share one `$$name`
+while the widget session still applies the correct value mapping.
 
 Plain values in a `Fragment` or `Grid` cell are retained as values. A renderer
 uses its formatting protocol to display an exact rational, interval,

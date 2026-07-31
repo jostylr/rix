@@ -22,37 +22,102 @@ function enhancePanel(panel, options) {
     if (controls.length === 0 || typeof options.onSet !== "function") return;
 
     for (const control of controls) {
-        const input = control.querySelector("[data-rix-control-input]");
+        const inputs = [...(control.querySelectorAll?.("[data-rix-control-input]") || [])];
+        const input = inputs[0] || control.querySelector("[data-rix-control-input]");
         const value = control.querySelector("[data-rix-control-value]");
         if (!input) continue;
-        let committedIndex = Number(input.value);
-
-        input.addEventListener("input", () => {
-            if (status) status.textContent = `${input.getAttribute("aria-label") || "Control"}: position ${input.value}`;
+        const kind = control.dataset.rixControlKind || "slider";
+        const label = input.getAttribute("aria-label") || "Control";
+        const identity = () => ({
+            type: "control:set",
+            ...(control.dataset.rixControlId ? { controlId: control.dataset.rixControlId } : {}),
+            targetId: control.dataset.rixControlTarget,
         });
-        input.addEventListener("change", () => {
-            const detail = Object.freeze({
-                type: "control:set",
-                targetId: control.dataset.rixControlTarget,
-                index: Number(input.value),
-                source: "range",
-            });
+        let committed = inputs.length > 1 ? inputs.map((item) => item.value) : input.value;
+        let committedChecked = Boolean(input.checked);
+
+        const commit = (detail, sourceInput = input) => {
             try {
-                const result = options.onSet(detail, input, panel);
+                const result = options.onSet(Object.freeze(detail), sourceInput, panel);
                 if (result?.type === "error") throw new Error(result.text);
-                committedIndex = Number(input.value);
+                committed = inputs.length > 1 ? inputs.map((item) => item.value) : input.value;
+                committedChecked = Boolean(input.checked);
                 if (value && result?.text !== undefined) value.textContent = result.text;
-                if (status) status.textContent = `${input.getAttribute("aria-label") || "Control"} set to ${result?.text ?? input.value}`;
-                dispatchControlEvent(panel, {
-                    ...detail,
-                    revision: result?.revision ?? null,
-                });
-                options.onSetCommitted?.(detail, result, input, panel);
+                if (status) status.textContent = `${label} set to ${result?.text ?? input.value}`;
+                dispatchControlEvent(panel, { ...detail, revision: result?.revision ?? null });
+                options.onSetCommitted?.(detail, result, sourceInput, panel);
             } catch (error) {
-                input.value = String(committedIndex);
+                if (inputs.length > 1) inputs.forEach((item, index) => { item.value = committed[index]; });
+                else input.value = committed;
+                input.checked = committedChecked;
                 if (status) status.textContent = error instanceof Error ? error.message : String(error);
             }
+        };
+
+        if (kind === "input") {
+            const submit = () => commit({
+                ...identity(),
+                sourceText: input.value,
+                source: "text",
+            });
+            control.querySelector("[data-rix-control-commit]")?.addEventListener("click", submit);
+            input.addEventListener("keydown", (event) => {
+                if (event.key !== "Enter") return;
+                event.preventDefault?.();
+                submit();
+            });
+            continue;
+        }
+
+        if (kind === "reset") {
+            input.addEventListener("click", () => commit({
+                ...identity(),
+                source: "reset",
+            }));
+            continue;
+        }
+
+        if (kind === "choice") {
+            input.addEventListener("change", () => commit({
+                ...identity(),
+                index: Number(input.value),
+                source: "select",
+            }));
+            continue;
+        }
+
+        if (kind === "toggle") {
+            input.addEventListener("change", () => commit({
+                ...identity(),
+                index: input.checked ? 1 : 0,
+                source: "checkbox",
+            }));
+            continue;
+        }
+
+        if (kind === "range") {
+            const preview = () => {
+                if (status) status.textContent = `${label}: positions ${inputs.map((item) => item.value).join(" … ")}`;
+            };
+            for (const endpoint of inputs) {
+                endpoint.addEventListener("input", preview);
+                endpoint.addEventListener("change", () => commit({
+                    ...identity(),
+                    indices: inputs.map((item) => Number(item.value)),
+                    source: "range",
+                }, endpoint));
+            }
+            continue;
+        }
+
+        input.addEventListener("input", () => {
+            if (status) status.textContent = `${label}: position ${input.value}`;
         });
+        input.addEventListener("change", () => commit({
+            ...identity(),
+            index: Number(input.value),
+            source: "range",
+        }));
     }
 }
 
