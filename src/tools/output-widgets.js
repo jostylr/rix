@@ -61,6 +61,22 @@ export function restoreSheetFocus(root, request) {
     return true;
 }
 
+export function restoreGraphicFocus(root, request) {
+    if (!request) return false;
+    const graphicRoot = renderedGraphicRoots(root)[request.graphicIndex];
+    if (!graphicRoot) return false;
+    const handle = [...graphicRoot.querySelectorAll("[data-rix-drag-target]")]
+        .find((candidate) => candidate.dataset.rixDragTarget === request.targetId);
+    if (!handle) return false;
+    handle.focus();
+    return true;
+}
+
+function restoreOutputFocus(root, request) {
+    if (request?.kind === "graphic") return restoreGraphicFocus(root, request);
+    return restoreSheetFocus(root, request);
+}
+
 export function mountOutputWidgets(root, value, options = {}) {
     const format = options.format || ((item) => String(item ?? ""));
     const render = options.render || ((item) => renderOutputHtml(item, format));
@@ -117,6 +133,7 @@ export function mountOutputWidgets(root, value, options = {}) {
                                 valueResult = evaluated?.type === "result" ? evaluated.value : evaluated;
                             }
                             const focusRequest = {
+                                kind: "sheet",
                                 sheetIndex: index,
                                 address: editedAddress(widgetSession.current(), detail.index),
                             };
@@ -178,6 +195,12 @@ export function mountOutputWidgets(root, value, options = {}) {
             widgetDisposers.push(() => widgetSession.dispose());
             enhanceGraphicViews(graphicRoot, {
                 onPosition(detail) {
+                    const focusRequest = {
+                        kind: "graphic",
+                        graphicIndex: index,
+                        targetId: detail.targetId,
+                    };
+                    pendingFocusRequest = focusRequest;
                     try {
                         const valueResult = widgetSession.dispatch(detail);
                         return {
@@ -191,6 +214,8 @@ export function mountOutputWidgets(root, value, options = {}) {
                             text: error instanceof Error ? error.message : String(error),
                             revision: widgetSession.revision,
                         };
+                    } finally {
+                        if (pendingFocusRequest === focusRequest) pendingFocusRequest = null;
                     }
                 },
                 onPositionCommitted: options.onGraphicPosition,
@@ -210,7 +235,7 @@ export function mountOutputWidgets(root, value, options = {}) {
                 liveRoot.innerHTML = render(value.current);
                 liveRoot.dataset.rixLiveRevision = String(value.revision);
                 mountWidgets(liveRoot, value.current);
-                restoreSheetFocus(liveRoot, focusRequest);
+                restoreOutputFocus(liveRoot, focusRequest);
                 options.onLiveChange?.(event, liveRoot);
             });
             disposers.push(unsubscribe);
@@ -227,7 +252,7 @@ export function mountOutputWidgets(root, value, options = {}) {
             currentValue = nextValue;
             root.innerHTML = render(currentValue);
             mountWidgets(root, currentValue);
-            restoreSheetFocus(root, focusRequest);
+            restoreOutputFocus(root, focusRequest);
             options.onLiveChange?.(event, root);
         });
         disposers.push(unsubscribe);

@@ -37,4 +37,4 @@ export {
 } from "./tools/sheet-view.js";
 export { WidgetSession, GraphicWidgetSession, createWidgetSession } from "./tools/widget-session.js";
 export { enhanceGraphicViews, graphicPointFromClient } from "./tools/graphic-view.js";
-export { mountOutputWidgets } from "./tools/output-widgets.js";
+export { mountOutputWidgets, restoreGraphicFocus } from "./tools/output-widgets.js";

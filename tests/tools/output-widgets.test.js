@@ -1,5 +1,9 @@
 import { expect, test } from "bun:test";
-import { mountOutputWidgets, restoreSheetFocus } from "../../src/tools/output-widgets.js";
+import {
+    mountOutputWidgets,
+    restoreGraphicFocus,
+    restoreSheetFocus,
+} from "../../src/tools/output-widgets.js";
 
 function fakeSheet(addresses) {
     const cells = addresses.map((address) => ({
@@ -47,6 +51,40 @@ test("LiveView remount focus safely ignores a removed sheet or coordinate", () =
 
     expect(restoreSheetFocus(root, { sheetIndex: 0, address: "grid[1,1]" })).toBe(false);
     expect(restoreSheetFocus(root, null)).toBe(false);
+});
+
+test("reactive Graphic remount focus follows the drag target identity", () => {
+    const handles = ["graph:other", "graph:point"].map((targetId) => ({
+        dataset: { rixDragTarget: targetId },
+        focused: false,
+        focus() {
+            this.focused = true;
+        },
+    }));
+    const graphic = {
+        querySelectorAll(selector) {
+            return selector === "[data-rix-drag-target]" ? handles : [];
+        },
+    };
+    const root = {
+        matches() {
+            return false;
+        },
+        querySelectorAll(selector) {
+            return selector === ".rix-output-graphic" ? [graphic] : [];
+        },
+    };
+
+    expect(restoreGraphicFocus(root, {
+        graphicIndex: 0,
+        targetId: "graph:point",
+    })).toBe(true);
+    expect(handles[0].focused).toBe(false);
+    expect(handles[1].focused).toBe(true);
+    expect(restoreGraphicFocus(root, {
+        graphicIndex: 0,
+        targetId: "graph:missing",
+    })).toBe(false);
 });
 
 test("a host-observed reactive output remounts and disposes its subscription", () => {
