@@ -66,12 +66,22 @@ graph refresh a named reactive `Fragment`, `Graphic`, `Table`, or other output.
 
 ### Panel behavior
 
-- [ ] Decide whether controls targeting definitions with dependencies require confirmation, opt-in replacement, or only the current warning metadata.
-- [ ] Add panel descriptions, per-control help, disabled/read-only state, and validation messages.
+- [x] Keep dependency replacement explicit in warning metadata; disabled/read-only controls provide the non-replacing alternatives without a host-specific confirmation dialog.
+- [x] Add panel descriptions, per-control help, disabled/read-only state, and validation messages.
 - [ ] Define atomic multi-control commits through `${ ... }` transaction semantics.
 - [ ] Add an optional staged/submit mode only if a transactional form workflow is needed.
 - [ ] Define portable serialization that omits runtime handles but retains target IDs and current-value snapshots.
 - [ ] Define static Markdown, Quarto, PDF, and no-JavaScript snapshots.
+
+### Display formatting
+
+- [x] Keep the reactive value exact and store formatted display snapshots separately.
+- [x] Accept a named `format` map such as `{= value=Mixed }` rather than positional formatter arguments.
+- [x] Support `value`, `low`, `high`, and `step` for sliders.
+- [x] Support `value`, `start`, `end`, `low`, `high`, and `step` for interval ranges.
+- [x] Support `value` and `option` for choices; explicit option labels take precedence.
+- [x] Support `value`, `off`, and `on` for toggles, plus `value` and `initial` for resets.
+- [x] Run formatter functions while rebuilding the reactive output snapshot so renderers do not need an evaluator.
 
 ### Accessibility and hosts
 

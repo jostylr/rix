@@ -310,7 +310,11 @@ export class ControlPanelWidgetSession {
         if (event.controlId && event.targetId && String(event.targetId) !== control.targetId) {
             throw new Error("ControlPanel control and target IDs do not match");
         }
+        if (control.disabled) throw new Error(`${control.label} is disabled`);
+        if (control.readOnly) throw new Error(`${control.label} is read-only`);
         const value = controlValue(control, event);
+        const validation = control.validateCandidate?.(value) ?? null;
+        if (validation) throw new Error(validation);
         const replacedDependencies = Object.freeze([...control.target.dependencies]);
         control.target.replaceValue(value, {
             source: "widget",

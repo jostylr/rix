@@ -184,6 +184,53 @@ function controlValuesEqual(left, right) {
     return false;
 }
 
+function invokeControlCallable(callable, args, runtime, label) {
+    if (runtime?.invoke) return runtime.invoke(callable, args, runtime.context, runtime.evaluate);
+    if (typeof callable === "function") return callable(...args);
+    throw new Error(`${label} must be a RiX callable`);
+}
+
+function controlDisplay(entry, fields, name, runtime, allowed = Object.keys(fields)) {
+    const formatValue = get(entry, "format");
+    if (formatValue === null) return Object.freeze({ ...fields });
+    const formatters = map(formatValue, `${name} format`);
+    const display = { ...fields };
+    for (const [rawKey, formatter] of formatters) {
+        const key = String(rawKey).toLowerCase();
+        if (!allowed.includes(key)) {
+            throw new Error(`${name} format key '${rawKey}' is not one of ${allowed.join(", ")}`);
+        }
+        if (!Object.hasOwn(fields, key)) continue;
+        if (formatter !== null) {
+            display[key] = invokeControlCallable(formatter, [fields[key]], runtime, `${name} formatter '${rawKey}'`);
+        }
+    }
+    return Object.freeze(display);
+}
+
+function controlBehavior(entry, fields, name, runtime, allowed = Object.keys(fields)) {
+    const formatValue = get(entry, "format");
+    const formatKeys = formatValue === null
+        ? []
+        : [...map(formatValue, `${name} format`).keys()].map((key) => String(key).toLowerCase());
+    const validate = get(entry, "validate");
+    const validateCandidate = validate === null ? null : (candidate) => {
+        const result = invokeControlCallable(validate, [candidate], runtime, `${name} validator`);
+        if (result === null || result === undefined) return null;
+        const message = asString(result);
+        if (message === null) throw new Error(`${name} validator must return _ or an error string`);
+        return message;
+    };
+    return {
+        display: controlDisplay(entry, fields, name, runtime, allowed),
+        formatKeys: Object.freeze(formatKeys),
+        disabled: has(entry, "disabled") && get(entry, "disabled") !== null,
+        readOnly: has(entry, "readOnly") && get(entry, "readOnly") !== null,
+        validation: validateCandidate?.(fields.value) ?? null,
+        validateCandidate,
+    };
+}
+
 function numericValue(value, label) {
     if (value instanceof Integer) return Number(value.value);
     if (value instanceof Rational) return Number(value.numerator) / Number(value.denominator);
@@ -262,7 +309,7 @@ export function createGrid(args) {
     });
 }
 
-export function createSliderControl(args) {
+export function createSliderControl(args, runtime = null) {
     const entry = spec(args, ["target", "interval", "step", "label"], "Controls.Slider");
     const target = reactiveTarget(entry, "Controls.Slider");
     const interval = get(entry, "interval");
@@ -280,13 +327,15 @@ export function createSliderControl(args) {
         value,
         ...scale,
         index,
+        ...controlBehavior(entry, { value, low: scale.low, high: scale.high, step: scale.step }, "Controls.Slider", runtime),
         replacesDependencies: Object.freeze([...target.dependencies]),
     });
 }
 
-export function createInputControl(args) {
+export function createInputControl(args, runtime = null) {
     const entry = spec(args, ["target", "label", "help", "placeholder"], "Controls.Input");
     const target = reactiveTarget(entry, "Controls.Input");
+    const value = target.get();
     return output("control_input", {
         id: asString(get(entry, "id")) || `${target.id}:input`,
         label: asString(get(entry, "label")) || target.name,
@@ -294,7 +343,8 @@ export function createInputControl(args) {
         placeholder: asString(get(entry, "placeholder")) || "RiX expression",
         target,
         targetId: target.id,
-        value: target.get(),
+        value,
+        ...controlBehavior(entry, { value }, "Controls.Input", runtime),
         replacesDependencies: Object.freeze([...target.dependencies]),
     });
 }
@@ -309,7 +359,7 @@ function normalizeChoiceOptions(value) {
     });
 }
 
-export function createChoiceControl(args) {
+export function createChoiceControl(args, runtime = null) {
     const entry = spec(args, ["target", "options", "label"], "Controls.Choice");
     const target = reactiveTarget(entry, "Controls.Choice");
     const options = normalizeChoiceOptions(get(entry, "options"));
@@ -317,6 +367,9 @@ export function createChoiceControl(args) {
     const value = target.get();
     const index = options.findIndex((option) => controlValuesEqual(option.value, value));
     if (index === -1) throw new Error("Controls.Choice target value must match one of its options");
+    const displayOptions = options.map((option) => option.label === null
+        ? controlDisplay(entry, { option: option.value }, "Controls.Choice", runtime, ["value", "option"]).option
+        : option.label);
     return output("control_choice", {
         id: asString(get(entry, "id")) || `${target.id}:choice`,
         label: asString(get(entry, "label")) || target.name,
@@ -325,12 +378,14 @@ export function createChoiceControl(args) {
         targetId: target.id,
         value,
         options: Object.freeze(options),
+        displayOptions: Object.freeze(displayOptions),
         index,
+        ...controlBehavior(entry, { value }, "Controls.Choice", runtime, ["value", "option"]),
         replacesDependencies: Object.freeze([...target.dependencies]),
     });
 }
 
-export function createToggleControl(args) {
+export function createToggleControl(args, runtime = null) {
     const entry = spec(args, ["target", "off", "on", "label"], "Controls.Toggle");
     const target = reactiveTarget(entry, "Controls.Toggle");
     const off = get(entry, "off");
@@ -348,11 +403,12 @@ export function createToggleControl(args) {
         value,
         values: Object.freeze([off, on]),
         index,
+        ...controlBehavior(entry, { value, off, on }, "Controls.Toggle", runtime),
         replacesDependencies: Object.freeze([...target.dependencies]),
     });
 }
 
-export function createRangeControl(args) {
+export function createRangeControl(args, runtime = null) {
     const entry = spec(args, ["target", "interval", "step", "label"], "Controls.Range");
     const target = reactiveTarget(entry, "Controls.Range");
     const scale = exactScale(get(entry, "interval"), get(entry, "step"), get(entry, "steps"), "Controls.Range");
@@ -371,23 +427,33 @@ export function createRangeControl(args) {
         value,
         ...scale,
         indices,
+        ...controlBehavior(entry, {
+            value,
+            start: value.start,
+            end: value.end,
+            low: scale.low,
+            high: scale.high,
+            step: scale.step,
+        }, "Controls.Range", runtime),
         replacesDependencies: Object.freeze([...target.dependencies]),
     });
 }
 
-export function createResetControl(args) {
+export function createResetControl(args, runtime = null) {
     const entry = spec(args, ["target", "initial", "label"], "Controls.Reset");
     const target = reactiveTarget(entry, "Controls.Reset");
     const initial = get(entry, "initial");
     if (!has(entry, "initial")) throw new Error("Controls.Reset requires an explicit initial value snapshot");
+    const value = target.get();
     return output("control_reset", {
         id: asString(get(entry, "id")) || `${target.id}:reset`,
         label: asString(get(entry, "label")) || `Reset ${target.name}`,
         help: asString(get(entry, "help")),
         target,
         targetId: target.id,
-        value: target.get(),
+        value,
         initial,
+        ...controlBehavior(entry, { value, initial }, "Controls.Reset", runtime),
         replacesDependencies: Object.freeze([...target.dependencies]),
     });
 }
@@ -989,6 +1055,26 @@ function cellText(value, format) {
     return value === null || value === undefined ? "" : format(value);
 }
 
+function controlField(control, name) {
+    return control.display && Object.hasOwn(control.display, name)
+        ? control.display[name]
+        : control[name];
+}
+
+function controlStateAttributes(control) {
+    return `${control.disabled ? ' data-rix-control-disabled="true"' : ""}${control.readOnly ? ' data-rix-control-read-only="true"' : ""}`;
+}
+
+function controlInputAttributes(control, { text = false } = {}) {
+    if (control.disabled) return " disabled";
+    if (control.readOnly) return text ? " readonly aria-readonly=\"true\"" : " aria-readonly=\"true\"";
+    return "";
+}
+
+function controlMessages(control) {
+    return `${control.validation ? `<small class="rix-output-control-validation" role="alert">${escapeHtml(control.validation)}</small>` : ""}${control.help ? `<small>${escapeHtml(control.help)}</small>` : ""}`;
+}
+
 function ruleField(rule, name) {
     if (rule?.type === "map" && rule.entries instanceof Map) return get(rule.entries, name);
     return rule?.[name] ?? null;
@@ -1221,17 +1307,23 @@ export function formatOutputText(value, format) {
     if (value.kind === "heading") return `${"#".repeat(value.level)} ${cellText(value.content, format)}`;
     if (value.kind === "fragment") return value.children.map((child) => formatOutputText(child, format)).join("\n\n");
     if (value.kind === "control_slider") {
-        return `${value.label}: ${cellText(value.value, format)} (${cellText(value.low, format)} … ${cellText(value.high, format)})`;
+        return `${value.label}: ${cellText(controlField(value, "value"), format)} (${cellText(controlField(value, "low"), format)} … ${cellText(controlField(value, "high"), format)}; step ${cellText(controlField(value, "step"), format)})`;
     }
-    if (value.kind === "control_input") return `${value.label}: ${cellText(value.value, format)}`;
-    if (value.kind === "control_choice" || value.kind === "control_toggle") {
-        return `${value.label}: ${cellText(value.value, format)}`;
+    if (value.kind === "control_input") return `${value.label}: ${cellText(controlField(value, "value"), format)}`;
+    if (value.kind === "control_choice") {
+        return `${value.label}: ${cellText(controlField(value, "value"), format)}`;
+    }
+    if (value.kind === "control_toggle") {
+        return `${value.label}: ${cellText(controlField(value, "value"), format)} (${cellText(controlField(value, "off"), format)} ↔ ${cellText(controlField(value, "on"), format)})`;
     }
     if (value.kind === "control_range") {
-        return `${value.label}: ${cellText(value.value, format)} within ${cellText(value.low, format)} … ${cellText(value.high, format)}`;
+        const current = value.formatKeys.includes("value")
+            ? cellText(controlField(value, "value"), format)
+            : `${cellText(controlField(value, "start"), format)} … ${cellText(controlField(value, "end"), format)}`;
+        return `${value.label}: ${current} within ${cellText(controlField(value, "low"), format)} … ${cellText(controlField(value, "high"), format)}; step ${cellText(controlField(value, "step"), format)}`;
     }
     if (value.kind === "control_reset") {
-        return `${value.label}: ${cellText(value.value, format)} → ${cellText(value.initial, format)}`;
+        return `${value.label}: ${cellText(controlField(value, "value"), format)} → ${cellText(controlField(value, "initial"), format)}`;
     }
     if (value.kind === "control_panel") {
         return [value.title, value.description, ...value.controls.map((control) => formatOutputText(control, format))]
@@ -1278,38 +1370,41 @@ export function renderOutputHtml(value, format = (item) => String(item ?? "")) {
         const dependencies = value.replacesDependencies.length > 0
             ? ` data-rix-replaces-dependencies="${escapeHtml(value.replacesDependencies.join(","))}"`
             : "";
-        return `<label class="rix-output-control rix-output-control-slider" data-rix-control-kind="slider" data-rix-control-id="${escapeHtml(value.id)}" data-rix-control-target="${escapeHtml(value.targetId)}"${dependencies}><span class="rix-output-control-label">${escapeHtml(value.label)}</span><input type="range" min="0" max="${value.steps}" step="1" value="${value.index}" data-rix-control-input aria-label="${escapeHtml(value.label)}"><output data-rix-control-value>${text(value.value)}</output>${value.help ? `<small>${escapeHtml(value.help)}</small>` : ""}</label>`;
+        return `<label class="rix-output-control rix-output-control-slider" data-rix-control-kind="slider" data-rix-control-id="${escapeHtml(value.id)}" data-rix-control-target="${escapeHtml(value.targetId)}"${controlStateAttributes(value)}${dependencies}><span class="rix-output-control-label">${escapeHtml(value.label)}</span><input type="range" min="0" max="${value.steps}" step="1" value="${value.index}" data-rix-control-input aria-label="${escapeHtml(value.label)}"${controlInputAttributes(value)}><output data-rix-control-value>${text(controlField(value, "value"))}</output><small class="rix-output-control-scale">${text(controlField(value, "low"))} … ${text(controlField(value, "high"))} · step ${text(controlField(value, "step"))}</small>${controlMessages(value)}</label>`;
     }
     if (value.kind === "control_input") {
         const dependencies = value.replacesDependencies.length > 0
             ? ` data-rix-replaces-dependencies="${escapeHtml(value.replacesDependencies.join(","))}"`
             : "";
-        return `<label class="rix-output-control rix-output-control-input" data-rix-control-kind="input" data-rix-control-id="${escapeHtml(value.id)}" data-rix-control-target="${escapeHtml(value.targetId)}"${dependencies}><span class="rix-output-control-label">${escapeHtml(value.label)}</span><span class="rix-output-control-input-row"><input type="text" value="${text(value.value)}" placeholder="${escapeHtml(value.placeholder)}" data-rix-control-input aria-label="${escapeHtml(value.label)}"><button type="button" data-rix-control-commit>Set</button></span><output data-rix-control-value>${text(value.value)}</output>${value.help ? `<small>${escapeHtml(value.help)}</small>` : ""}</label>`;
+        return `<label class="rix-output-control rix-output-control-input" data-rix-control-kind="input" data-rix-control-id="${escapeHtml(value.id)}" data-rix-control-target="${escapeHtml(value.targetId)}"${controlStateAttributes(value)}${dependencies}><span class="rix-output-control-label">${escapeHtml(value.label)}</span><span class="rix-output-control-input-row"><input type="text" value="${text(controlField(value, "value"))}" placeholder="${escapeHtml(value.placeholder)}" data-rix-control-input aria-label="${escapeHtml(value.label)}"${controlInputAttributes(value, { text: true })}><button type="button" data-rix-control-commit${controlInputAttributes(value)}>Set</button></span><output data-rix-control-value>${text(controlField(value, "value"))}</output>${controlMessages(value)}</label>`;
     }
     if (value.kind === "control_choice") {
         const dependencies = value.replacesDependencies.length > 0
             ? ` data-rix-replaces-dependencies="${escapeHtml(value.replacesDependencies.join(","))}"`
             : "";
-        const options = value.options.map((option, index) => `<option value="${index}"${index === value.index ? " selected" : ""}>${escapeHtml(option.label ?? cellText(option.value, format))}</option>`).join("");
-        return `<label class="rix-output-control rix-output-control-choice" data-rix-control-kind="choice" data-rix-control-id="${escapeHtml(value.id)}" data-rix-control-target="${escapeHtml(value.targetId)}"${dependencies}><span class="rix-output-control-label">${escapeHtml(value.label)}</span><select data-rix-control-input aria-label="${escapeHtml(value.label)}">${options}</select><output data-rix-control-value>${text(value.value)}</output>${value.help ? `<small>${escapeHtml(value.help)}</small>` : ""}</label>`;
+        const options = value.options.map((option, index) => `<option value="${index}"${index === value.index ? " selected" : ""}>${escapeHtml(cellText(value.displayOptions[index], format))}</option>`).join("");
+        return `<label class="rix-output-control rix-output-control-choice" data-rix-control-kind="choice" data-rix-control-id="${escapeHtml(value.id)}" data-rix-control-target="${escapeHtml(value.targetId)}"${controlStateAttributes(value)}${dependencies}><span class="rix-output-control-label">${escapeHtml(value.label)}</span><select data-rix-control-input aria-label="${escapeHtml(value.label)}"${controlInputAttributes(value)}>${options}</select><output data-rix-control-value>${text(controlField(value, "value"))}</output>${controlMessages(value)}</label>`;
     }
     if (value.kind === "control_toggle") {
         const dependencies = value.replacesDependencies.length > 0
             ? ` data-rix-replaces-dependencies="${escapeHtml(value.replacesDependencies.join(","))}"`
             : "";
-        return `<label class="rix-output-control rix-output-control-toggle" data-rix-control-kind="toggle" data-rix-control-id="${escapeHtml(value.id)}" data-rix-control-target="${escapeHtml(value.targetId)}"${dependencies}><span class="rix-output-control-label">${escapeHtml(value.label)}</span><input type="checkbox"${value.index === 1 ? " checked" : ""} data-rix-control-input aria-label="${escapeHtml(value.label)}"><output data-rix-control-value>${text(value.value)}</output>${value.help ? `<small>${escapeHtml(value.help)}</small>` : ""}</label>`;
+        return `<label class="rix-output-control rix-output-control-toggle" data-rix-control-kind="toggle" data-rix-control-id="${escapeHtml(value.id)}" data-rix-control-target="${escapeHtml(value.targetId)}"${controlStateAttributes(value)}${dependencies}><span class="rix-output-control-label">${escapeHtml(value.label)}</span><input type="checkbox"${value.index === 1 ? " checked" : ""} data-rix-control-input aria-label="${escapeHtml(value.label)}"${controlInputAttributes(value)}><output data-rix-control-value>${text(controlField(value, "value"))}</output><small class="rix-output-control-scale">${text(controlField(value, "off"))} ↔ ${text(controlField(value, "on"))}</small>${controlMessages(value)}</label>`;
     }
     if (value.kind === "control_range") {
         const dependencies = value.replacesDependencies.length > 0
             ? ` data-rix-replaces-dependencies="${escapeHtml(value.replacesDependencies.join(","))}"`
             : "";
-        return `<fieldset class="rix-output-control rix-output-control-range" data-rix-control-kind="range" data-rix-control-id="${escapeHtml(value.id)}" data-rix-control-target="${escapeHtml(value.targetId)}"${dependencies}><legend class="rix-output-control-label">${escapeHtml(value.label)}</legend><span class="rix-output-control-range-inputs"><input type="range" min="0" max="${value.steps}" step="1" value="${value.indices[0]}" data-rix-control-input data-rix-control-endpoint="low" aria-label="${escapeHtml(value.label)} lower endpoint"><input type="range" min="0" max="${value.steps}" step="1" value="${value.indices[1]}" data-rix-control-input data-rix-control-endpoint="high" aria-label="${escapeHtml(value.label)} upper endpoint"></span><output data-rix-control-value>${text(value.value)}</output>${value.help ? `<small>${escapeHtml(value.help)}</small>` : ""}</fieldset>`;
+        const current = value.formatKeys.includes("value")
+            ? text(controlField(value, "value"))
+            : `${text(controlField(value, "start"))} … ${text(controlField(value, "end"))}`;
+        return `<fieldset class="rix-output-control rix-output-control-range" data-rix-control-kind="range" data-rix-control-id="${escapeHtml(value.id)}" data-rix-control-target="${escapeHtml(value.targetId)}"${controlStateAttributes(value)}${dependencies}><legend class="rix-output-control-label">${escapeHtml(value.label)}</legend><span class="rix-output-control-range-inputs"><input type="range" min="0" max="${value.steps}" step="1" value="${value.indices[0]}" data-rix-control-input data-rix-control-endpoint="low" aria-label="${escapeHtml(value.label)} lower endpoint"${controlInputAttributes(value)}><input type="range" min="0" max="${value.steps}" step="1" value="${value.indices[1]}" data-rix-control-input data-rix-control-endpoint="high" aria-label="${escapeHtml(value.label)} upper endpoint"${controlInputAttributes(value)}></span><output data-rix-control-value>${current}</output><small class="rix-output-control-scale">${text(controlField(value, "low"))} … ${text(controlField(value, "high"))} · step ${text(controlField(value, "step"))}</small>${controlMessages(value)}</fieldset>`;
     }
     if (value.kind === "control_reset") {
         const dependencies = value.replacesDependencies.length > 0
             ? ` data-rix-replaces-dependencies="${escapeHtml(value.replacesDependencies.join(","))}"`
             : "";
-        return `<div class="rix-output-control rix-output-control-reset" data-rix-control-kind="reset" data-rix-control-id="${escapeHtml(value.id)}" data-rix-control-target="${escapeHtml(value.targetId)}"${dependencies}><span class="rix-output-control-label">${escapeHtml(value.label)}</span><button type="button" data-rix-control-input aria-label="${escapeHtml(value.label)}">Reset</button><output data-rix-control-value>${text(value.value)}</output>${value.help ? `<small>${escapeHtml(value.help)}</small>` : ""}</div>`;
+        return `<div class="rix-output-control rix-output-control-reset" data-rix-control-kind="reset" data-rix-control-id="${escapeHtml(value.id)}" data-rix-control-target="${escapeHtml(value.targetId)}"${controlStateAttributes(value)}${dependencies}><span class="rix-output-control-label">${escapeHtml(value.label)}</span><button type="button" data-rix-control-input aria-label="${escapeHtml(value.label)}"${controlInputAttributes(value)}>Reset to ${text(controlField(value, "initial"))}</button><output data-rix-control-value>${text(controlField(value, "value"))}</output>${controlMessages(value)}</div>`;
     }
     if (value.kind === "control_panel") {
         return `<section class="rix-output-control-panel" data-rix-interactive="true">${value.title ? `<h3>${escapeHtml(value.title)}</h3>` : ""}${value.description ? `<p>${escapeHtml(value.description)}</p>` : ""}<div class="rix-output-control-list">${value.controls.map((control) => renderOutputHtml(control, format)).join("")}</div><output class="rix-output-control-status" aria-live="polite"></output></section>`;
@@ -1436,7 +1531,11 @@ export function createControlsOutputCollection() {
         extension.set(name.toUpperCase(), {
             type: "method_builtin",
             name,
-            impl: (args) => constructor(args.slice(1)),
+            impl: (args, context, evaluate, invoke) => constructor(args.slice(1), {
+                context,
+                evaluate,
+                invoke,
+            }),
         });
     }
     return { type: "map", entries, _ext: extension };

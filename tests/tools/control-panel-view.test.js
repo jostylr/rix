@@ -144,3 +144,34 @@ test("ControlPanel interval range commits both exact-grid indices", () => {
         source: "range",
     });
 });
+
+test("read-only controls block local interaction before semantic dispatch", () => {
+    const listeners = new Map();
+    const input = {
+        value: "2",
+        addEventListener(name, listener) { listeners.set(name, listener); },
+        getAttribute() { return "locked"; },
+    };
+    const control = {
+        dataset: {
+            rixControlTarget: "reactive:locked",
+            rixControlKind: "slider",
+            rixControlReadOnly: "true",
+        },
+        querySelector: (selector) => selector === "[data-rix-control-input]" ? input : null,
+    };
+    const panel = {
+        dataset: {},
+        matches: (selector) => selector === ".rix-output-control-panel",
+        querySelector: () => null,
+        querySelectorAll: (selector) => selector === "[data-rix-control-target]" ? [control] : [],
+        dispatchEvent() {},
+    };
+    let calls = 0;
+    enhanceControlPanelViews(panel, { onSet: () => { calls += 1; } });
+    let prevented = false;
+    listeners.get("click")({ preventDefault: () => { prevented = true; } });
+    expect(prevented).toBe(true);
+    expect(listeners.has("change")).toBe(false);
+    expect(calls).toBe(0);
+});

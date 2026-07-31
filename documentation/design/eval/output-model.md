@@ -252,6 +252,28 @@ The proposed initial shapes are:
 .Controls.Reset({= target = $$name, initial = value, label = _, help = _, id = _ })
 ```
 
+Every control map may also include `format`, `validate`, `disabled`, and
+`readOnly`. `format` is a map from a displayed field name to a unary RiX
+function. For example:
+
+```rix
+Mixed(x) -> x _> "..";
+Continued(x) -> x _> ".~";
+$$x := 3/2;
+.Controls.Slider({=
+    target=$$x,
+    interval=0:3,
+    step=1/2,
+    format={= value=Mixed, step=Continued }
+})
+```
+
+The formatter result is retained in the portable `display` snapshot while the
+control’s `value` remains the original exact RiX value. Slider fields are
+`value`, `low`, `high`, and `step`; Range adds `start` and `end`; Choice adds
+`option`; Toggle adds `off` and `on`; Reset adds `initial`. A validator is a
+unary RiX function returning `_` for success or an error string for rejection.
+
 Each rendered control publishes both its `controlId` and reactive `targetId`.
 The distinction lets multiple control kinds intentionally share one `$$name`
 while the widget session still applies the correct value mapping.

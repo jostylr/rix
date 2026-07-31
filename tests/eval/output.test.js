@@ -26,7 +26,7 @@ describe("portable structured output", () => {
             index: 3,
         });
         expect(formatValue(panel.controls[0].step)).toBe("1/2");
-        expect(formatValue(panel)).toContain("x: 1..1/2 (0 … 3)");
+        expect(formatValue(panel)).toContain("x: 1..1/2 (0 … 3; step 1/2)");
         const html = renderOutputHtml(panel, formatValue);
         expect(html).toContain('class="rix-output-control-panel"');
         expect(html).toContain('type="range" min="0" max="6" step="1" value="3"');
@@ -77,6 +77,64 @@ describe("portable structured output", () => {
         expect(html).toContain('data-rix-control-kind="reset"');
         expect(html).toContain('<option value="1" selected>one</option>');
         expect(html).toContain('data-rix-control-endpoint="low"');
+    });
+
+    test("ControlPanel format maps name displayed fields without changing exact values", () => {
+        const panel = parseAndEvaluate(`
+            Mixed(x) -> x _> "..";
+            Continued(x) -> x _> ".~";
+            Decimal(x) -> x _> ".8";
+            $$x := 3/2;
+            $$window := 1/2:3/2;
+            $$choice := 3/2;
+            .ControlPanel([
+                .Controls.Slider({=
+                    target=$$x,
+                    interval=0:3,
+                    step=1/2,
+                    label="mixed x",
+                    format={= value=Mixed, low=Decimal, high=Decimal, step=Continued }
+                }),
+                .Controls.Range({=
+                    target=$$window,
+                    interval=0:2,
+                    step=1/2,
+                    label="window",
+                    format={= start=Mixed, end=Continued }
+                }),
+                .Controls.Choice({=
+                    target=$$choice,
+                    options=[1/2, 3/2],
+                    label="notation",
+                    format={= value=Continued, option=Mixed }
+                }),
+                .Controls.Reset({=
+                    target=$$x,
+                    initial=3/2,
+                    label="restore",
+                    format={= value=Continued, initial=Mixed }
+                })
+            ])
+        `);
+        const [slider, range, choice, reset] = panel.controls;
+        expect(slider.value.numerator).toBe(3n);
+        expect(slider.value.denominator).toBe(2n);
+        expect(formatValue(slider.display.value)).toBe("1..1/2");
+        expect(formatValue(slider.display.step)).toBe("0.~2");
+        expect(formatValue(range.display.start)).toBe("0..1/2");
+        expect(formatValue(range.display.end)).toBe("1.~2");
+        expect(choice.displayOptions.map(formatValue)).toEqual(["0..1/2", "1..1/2"]);
+        expect(formatValue(reset.display.initial)).toBe("1..1/2");
+
+        const html = renderOutputHtml(panel, formatValue);
+        expect(html).toContain("1..1/2");
+        expect(html).toContain("0.~2");
+        expect(html).toContain("Reset to 1..1/2");
+        expect(() => parseAndEvaluate(`
+            $$x := 1;
+            F(x) -> x;
+            .Controls.Input({= target=$$x, format={= typo=F } })
+        `)).toThrow("format key 'typo'");
     });
 
     test("Table accepts positional shorthand and keeps its semantic structure", () => {

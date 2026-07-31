@@ -28,6 +28,13 @@ function enhancePanel(panel, options) {
         if (!input) continue;
         const kind = control.dataset.rixControlKind || "slider";
         const label = input.getAttribute("aria-label") || "Control";
+        if (control.dataset.rixControlDisabled === "true" || control.dataset.rixControlReadOnly === "true") {
+            for (const blocked of inputs.length > 0 ? inputs : [input]) {
+                blocked.addEventListener("click", (event) => event.preventDefault?.());
+                blocked.addEventListener("keydown", (event) => event.preventDefault?.());
+            }
+            continue;
+        }
         const identity = () => ({
             type: "control:set",
             ...(control.dataset.rixControlId ? { controlId: control.dataset.rixControlId } : {}),

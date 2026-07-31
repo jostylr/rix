@@ -425,6 +425,59 @@ describe("WidgetSession", () => {
         widget.dispose();
     });
 
+    test("control validation, disabled, and read-only policies are enforced by the session", () => {
+        const state = session();
+        const panel = parseAndEvaluate(`
+            ValidatePositive(x) -> x > 0 ?? _ ?: "amount must be positive";
+            $$amount := 1;
+            $$locked := 2;
+            $$paused := 3;
+            .ControlPanel([
+                .Controls.Input({=
+                    target=$$amount,
+                    label="amount",
+                    validate=ValidatePositive
+                }),
+                .Controls.Slider({=
+                    target=$$locked,
+                    interval=0:5,
+                    step=1,
+                    disabled=1
+                }),
+                .Controls.Reset({=
+                    target=$$paused,
+                    initial=1,
+                    readOnly=1
+                })
+            ])
+        `, state);
+        const [input, disabled, readOnly] = panel.controls;
+        expect(input.validation).toBeNull();
+        expect(disabled.disabled).toBe(true);
+        expect(readOnly.readOnly).toBe(true);
+        const widget = createWidgetSession(panel);
+
+        expect(() => widget.dispatch({
+            type: "control:set",
+            controlId: input.id,
+            targetId: input.targetId,
+            value: parseAndEvaluate("-1"),
+        })).toThrow("amount must be positive");
+        expect(formatValue(state.context.get("amount").peek())).toBe("1");
+        expect(() => widget.dispatch({
+            type: "control:set",
+            controlId: disabled.id,
+            targetId: disabled.targetId,
+            index: 4,
+        })).toThrow("disabled");
+        expect(() => widget.dispatch({
+            type: "control:set",
+            controlId: readOnly.id,
+            targetId: readOnly.targetId,
+        })).toThrow("read-only");
+        widget.dispose();
+    });
+
     test("rejects malformed and out-of-range events", () => {
         const sheet = parseAndEvaluate(`
             m := {:1x2: 1, 2};

@@ -958,6 +958,17 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 .Controls.Toggle({= target = $$name, off = value, on = value, label = _, help = _, id = _ })
 .Controls.Range({= target = $$name, interval = 0:10, step = 1, label = _, help = _, id = _ })
 .Controls.Reset({= target = $$name, initial = value, label = _, help = _, id = _ })</code></pre>
+<p>Every control map may also include <code>format</code>, <code>validate</code>, <code>disabled</code>, and <code>readOnly</code>. <code>format</code> is a map from a displayed field name to a unary RiX function. For example:</p>
+<pre class="rix"><code>Mixed(x) -&gt; x _&gt; "..";
+Continued(x) -&gt; x _&gt; ".~";
+$$x := 3/2;
+.Controls.Slider({=
+    target=$$x,
+    interval=0:3,
+    step=1/2,
+    format={= value=Mixed, step=Continued }
+})</code></pre>
+<p>The formatter result is retained in the portable <code>display</code> snapshot while the control’s <code>value</code> remains the original exact RiX value. Slider fields are <code>value</code>, <code>low</code>, <code>high</code>, and <code>step</code>; Range adds <code>start</code> and <code>end</code>; Choice adds <code>option</code>; Toggle adds <code>off</code> and <code>on</code>; Reset adds <code>initial</code>. A validator is a unary RiX function returning <code>_</code> for success or an error string for rejection.</p>
 <p>Each rendered control publishes both its <code>controlId</code> and reactive <code>targetId</code>. The distinction lets multiple control kinds intentionally share one <code>$$name</code> while the widget session still applies the correct value mapping.</p>
 <p>Plain values in a <code>Fragment</code> or <code>Grid</code> cell are retained as values. A renderer uses its formatting protocol to display an exact rational, interval, polynomial, or string without converting it at construction time.</p>
 <p><code>Sheet</code> similarly retains exact visible values, but also records each visible cell’s complete 1-based tensor index and a canonical address such as <code>grid[2,3,1]</code>. For rank greater than two, <code>viewAxes</code> chooses the displayed axes and <code>slice</code> fixes every hidden axis. The current value is a static snapshot; live editing belongs to the planned <code>Binding</code>/<code>Widget</code> layer described in the <a href="../../design/eval/rixcel-architecture.html">RiXCel architecture</a>.</p>
@@ -1016,7 +1027,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="semantic-graphic-interaction">Semantic Graphic interaction</h3>
 <p><code>.Graphics.DragPoint($$point, radius?, style?, label?)</code> is the first portable Graphic interaction node. <code>point</code> must be a <code>.ReactiveGraph</code> node whose value contains x and y coordinates. The concise form can declare it directly with <code>$$point := {: 90, 70}</code>. The output record retains the node identity and a snapshot of its position; it never retains a DOM node or browser pointer event.</p>
 <p>An interactive host previews movement in the rendered scene and commits one semantic event on release:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>{ <span class="dt">type</span><span class="op">:</span> <span class="st">"graphic:position"</span><span class="op">,</span> <span class="dt">targetId</span><span class="op">:</span> <span class="st">"drag-demo:point"</span><span class="op">,</span> <span class="dt">position</span><span class="op">:</span> [<span class="dv">120</span><span class="op">,</span> <span class="dv">75</span>] }</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>{ <span class="dt">type</span><span class="op">:</span> <span class="st">"graphic:position"</span><span class="op">,</span> <span class="dt">targetId</span><span class="op">:</span> <span class="st">"drag-demo:point"</span><span class="op">,</span> <span class="dt">position</span><span class="op">:</span> [<span class="dv">120</span><span class="op">,</span> <span class="dv">75</span>] }</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>A host-owned <code>GraphicWidgetSession</code> validates the target, converts the coordinates to exact RiX values, and replaces the target’s definition with a literal value, equivalent to <code>$point := {: newX, newY}</code>. Its graph then recomputes dependent values, including a named reactive Fragment returned as a final <code>$view</code>. Static hosts ignore the runtime handle and render the same scene as ordinary SVG. The node identity and downstream dependencies remain intact. If the target previously had incoming dependencies, the replacement removes them and the interactive renderer warns about that consequence before editing.</p>
 </section>
 <section id="reactive-control-panels" class="level3">

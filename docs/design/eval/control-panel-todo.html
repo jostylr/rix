@@ -644,6 +644,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#first-usable-slice" id="toc-first-usable-slice" class="nav-link" data-scroll-target="#first-usable-slice">First usable slice</a></li>
   <li><a href="#next-controls" id="toc-next-controls" class="nav-link" data-scroll-target="#next-controls">Next controls</a></li>
   <li><a href="#panel-behavior" id="toc-panel-behavior" class="nav-link" data-scroll-target="#panel-behavior">Panel behavior</a></li>
+  <li><a href="#display-formatting" id="toc-display-formatting" class="nav-link" data-scroll-target="#display-formatting">Display formatting</a></li>
   <li><a href="#accessibility-and-hosts" id="toc-accessibility-and-hosts" class="nav-link" data-scroll-target="#accessibility-and-hosts">Accessibility and hosts</a></li>
   </ul></li>
   </ul></li>
@@ -713,12 +714,24 @@ $view</code></pre>
 <section id="panel-behavior" class="level3">
 <h3 class="anchored" data-anchor-id="panel-behavior">Panel behavior</h3>
 <ul class="task-list">
-<li><label><input type="checkbox">Decide whether controls targeting definitions with dependencies require confirmation, opt-in replacement, or only the current warning metadata.</label></li>
-<li><label><input type="checkbox">Add panel descriptions, per-control help, disabled/read-only state, and validation messages.</label></li>
+<li><label><input type="checkbox" checked="">Keep dependency replacement explicit in warning metadata; disabled/read-only controls provide the non-replacing alternatives without a host-specific confirmation dialog.</label></li>
+<li><label><input type="checkbox" checked="">Add panel descriptions, per-control help, disabled/read-only state, and validation messages.</label></li>
 <li><label><input type="checkbox">Define atomic multi-control commits through <code>${ ... }</code> transaction semantics.</label></li>
 <li><label><input type="checkbox">Add an optional staged/submit mode only if a transactional form workflow is needed.</label></li>
 <li><label><input type="checkbox">Define portable serialization that omits runtime handles but retains target IDs and current-value snapshots.</label></li>
 <li><label><input type="checkbox">Define static Markdown, Quarto, PDF, and no-JavaScript snapshots.</label></li>
+</ul>
+</section>
+<section id="display-formatting" class="level3">
+<h3 class="anchored" data-anchor-id="display-formatting">Display formatting</h3>
+<ul class="task-list">
+<li><label><input type="checkbox" checked="">Keep the reactive value exact and store formatted display snapshots separately.</label></li>
+<li><label><input type="checkbox" checked="">Accept a named <code>format</code> map such as <code>{= value=Mixed }</code> rather than positional formatter arguments.</label></li>
+<li><label><input type="checkbox" checked="">Support <code>value</code>, <code>low</code>, <code>high</code>, and <code>step</code> for sliders.</label></li>
+<li><label><input type="checkbox" checked="">Support <code>value</code>, <code>start</code>, <code>end</code>, <code>low</code>, <code>high</code>, and <code>step</code> for interval ranges.</label></li>
+<li><label><input type="checkbox" checked="">Support <code>value</code> and <code>option</code> for choices; explicit option labels take precedence.</label></li>
+<li><label><input type="checkbox" checked="">Support <code>value</code>, <code>off</code>, and <code>on</code> for toggles, plus <code>value</code> and <code>initial</code> for resets.</label></li>
+<li><label><input type="checkbox" checked="">Run formatter functions while rebuilding the reactive output snapshot so renderers do not need an evaluator.</label></li>
 </ul>
 </section>
 <section id="accessibility-and-hosts" class="level3">
