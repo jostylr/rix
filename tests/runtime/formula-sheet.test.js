@@ -39,6 +39,68 @@ describe("formula-backed sheets", () => {
         expect(formatValue(model.get([2, 2]))).toBe("4");
     });
 
+    test("resolves complete labeled coordinates without changing numeric identity", () => {
+        const result = parseAndEvaluate(`
+            model := .FormulaSheet(
+                {:2x2:
+                    @{10}, @{20};
+                    @{30}, @{40}
+                },
+                {= view={=
+                    axes=["region", "measure"],
+                    axisLabels=[["North", "South"], ["Revenue", "Cost"]]
+                }}
+            );
+            [
+                model.At({= region="South", measure="Cost"}),
+                model.Index({= region="North", measure="Cost"})
+            ]
+        `);
+        expect(formatValue(result.values[0])).toBe("40");
+        expect(result.values[1].values.map((value) => Number(value.value))).toEqual([1, 2]);
+
+        const slot = parseAndEvaluate(`
+            model := .FormulaSheet(
+                {:2x1: @{10}; @{20}},
+                {= view={= axes=["region", "measure"], axisLabels=[["North", "South"], ["Revenue"]] }}
+            );
+            model.SlotAt({= region="South", measure="Revenue"})
+        `);
+        expect(slot.id).toEndWith(":slot:2:1");
+
+        expect(() => parseAndEvaluate(`
+            model := .FormulaSheet(
+                {:1x2: @{1}, @{2}},
+                {= view={= axes=["row", "kind"], axisLabels=[_, ["same", "same"]] }}
+            );
+            model.At({= row=1, kind="same"})
+        `)).toThrow("coordinate label is ambiguous");
+        expect(() => parseAndEvaluate(`
+            model := .FormulaSheet(
+                {:1x1: @{1}},
+                {= view={= axes=["row", "kind"], axisLabels=[_, ["only"]] }}
+            );
+            model.At({= row=1})
+        `)).toThrow("is missing kind");
+    });
+
+    test("near resolves rank-N relative reads and records dependencies", () => {
+        const model = parseAndEvaluate(`
+            .FormulaSheet({:2x2:
+                @{10}, @{ near[0,-1] + 1 };
+                @{ near[-1,0] * 2 }, @{ near[0,-1] + near[-1,0] }
+            })
+        `);
+        expect(formatValue(model.get([2, 2]))).toBe("31");
+        expect(model.slot([2, 2]).dependencies).toEqual(["2,1", "1,2"]);
+        expect(() => parseAndEvaluate(`
+            .FormulaSheet({:1x1: @{ near[0,-1] }})
+        `)).toThrow("near[0,-1] from grid[1,1] is out of range on axis 2");
+        expect(() => parseAndEvaluate(`
+            .FormulaSheet({:1x1: @{ near[0,0] }})
+        `)).toThrow("Formula cycle: grid[1,1] -> grid[1,1]");
+    });
+
     test("accepts tensor notation for rank-2 and higher formula grids", () => {
         const matrix = parseAndEvaluate(`
             .FormulaSheet({:2x2:
@@ -87,6 +149,12 @@ describe("formula-backed sheets", () => {
         expect(model.slot([1, 2]).assignmentMode).toBe("~=");
         expect(formatValue(model.get([1, 2]))).toBe("11");
         expect(model.getFormulaSource([1, 1])).toBe("10");
+
+        model.setFormulaSource([1, 1], "::= 12");
+        expect(model.slot([1, 1]).source).toBe("12");
+        expect(model.slot([1, 1]).assignmentMode).toBe("::=");
+        expect(() => model.setFormulaSource([1, 1], "~= 13", ":="))
+            .toThrow("source begins with ~=, but assignment mode is :=");
 
         const other = parseAndEvaluate(".FormulaSheet({:1x1: @{1}})");
         expect(other.id).not.toBe(model.id);
@@ -189,6 +257,8 @@ describe("formula-backed sheets", () => {
         expect(renderOutputHtml(view, formatValue)).toContain('data-rix-formula-source="grid[1,1] + 1"');
         expect(renderOutputHtml(view, formatValue)).toContain('data-rix-slot-id="');
         expect(renderOutputHtml(view, formatValue)).toContain('data-rix-assignment-mode=":="');
+        expect(renderOutputHtml(view, formatValue)).toContain('data-rix-edit-assignment-mode');
+        expect(renderOutputHtml(view, formatValue)).toContain('data-rix-edit-value');
 
         const snapshot = createSheetSnapshot(view);
         expect(snapshot.formulaBacked).toBe(false);

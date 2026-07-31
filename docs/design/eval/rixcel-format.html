@@ -644,6 +644,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#runtime-reconstruction" id="toc-runtime-reconstruction" class="nav-link" data-scroll-target="#runtime-reconstruction">Runtime reconstruction</a></li>
   <li><a href="#apis" id="toc-apis" class="nav-link" data-scroll-target="#apis">APIs</a></li>
   <li><a href="#draft-migration" id="toc-draft-migration" class="nav-link" data-scroll-target="#draft-migration">Draft migration</a></li>
+  <li><a href="#delimited-interchange" id="toc-delimited-interchange" class="nav-link" data-scroll-target="#delimited-interchange">Delimited interchange</a></li>
   </ul></li>
   </ul>
 <div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/design/eval/rixcel-format.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
@@ -702,6 +703,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </ul>
 <p>Version 1 is intentionally dense. It requires every coordinate exactly once; duplicate, missing, out-of-range, or non-canonical slot identities are errors. A later format version can add sparse storage without making version 1 readers guess whether an omitted coordinate is empty, missing, or corrupt.</p>
 <p>The standard Sheet presentation keys in document <code>view</code> are <code>title</code>, <code>axes</code>, <code>axisLabels</code>, <code>viewAxes</code>, <code>slice</code>, <code>columnLabels</code>, and <code>address</code>. <code>axes</code> names each dimension. <code>axisLabels</code> is a rank-length array containing either <code>null</code> or one cosmetic string for every coordinate on that axis. Visible-axis labels become row and column headers; hidden-axis labels become named slice choices. They never replace the numeric <code>index</code>, participate in formulas, or alter slot IDs. Hosts may retain additional JSON-safe view keys for future presentation extensions.</p>
+<p>Interactive entry uses implied <code>:=</code>. A leading assignment prefix such as <code>::= expression</code> is split into <code>assignmentMode: "::="</code> and <code>source: "expression"</code> before persistence. Canonical documents never repeat the prefix inside <code>source</code>.</p>
 </section>
 <section id="runtime-reconstruction" class="level2">
 <h2 class="anchored" data-anchor-id="runtime-reconstruction">Runtime reconstruction</h2>
@@ -760,6 +762,10 @@ restored := .RiXCelImport(saved)</code></pre>
 </tbody>
 </table>
 <p>Missing draft slot IDs are generated from the document ID and full index. Documents declaring a version newer than the runtime are rejected rather than silently interpreted.</p>
+</section>
+<section id="delimited-interchange" class="level2">
+<h2 class="anchored" data-anchor-id="delimited-interchange">Delimited interchange</h2>
+<p>CSV and TSV are value interchange formats, not substitutes for <code>.rixcel</code>. Import converts numeric fields to exact RiX literals and all other fields to quoted strings. A foreign field beginning with <code>=</code> is never executed; the original field is retained as <code>view.foreignFormula</code> with <code>executable: false</code>. Export emits current computed values and optional cosmetic column headers. Formula source, modes, IDs, dependencies, and rank-N structure require the native format.</p>
 
 
 </section>

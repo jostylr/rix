@@ -611,6 +611,7 @@ ul.task-list li input[type="checkbox"] {
   <li><a href="#vectors-matrices-and-sequences" id="toc-vectors-matrices-and-sequences" class="nav-link" data-scroll-target="#vectors-matrices-and-sequences">Vectors, matrices, and sequences</a></li>
   <li><a href="#snapshot-and-live-view-boundary" id="toc-snapshot-and-live-view-boundary" class="nav-link" data-scroll-target="#snapshot-and-live-view-boundary">Snapshot and live-view boundary</a></li>
   <li><a href="#formula-backed-prototype" id="toc-formula-backed-prototype" class="nav-link" data-scroll-target="#formula-backed-prototype">Formula-backed prototype</a></li>
+  <li><a href="#csv-and-tsv-interchange" id="toc-csv-and-tsv-interchange" class="nav-link" data-scroll-target="#csv-and-tsv-interchange">CSV and TSV interchange</a></li>
   <li><a href="#reactive-dependent-views" id="toc-reactive-dependent-views" class="nav-link" data-scroll-target="#reactive-dependent-views">Reactive dependent views</a></li>
   </ul></li>
   </ul>
@@ -715,6 +716,18 @@ grid[2,1]  grid[2,2]  grid[2,3]</code></pre>
     slice = [_, _, 2]
 })</code></pre>
 <p>The visible headers are <code>North</code>/<code>South</code> and <code>Revenue</code>/<code>Cost</code>/<code>Margin</code>. The hidden scenario selector shows <code>Actual</code> and <code>Forecast</code>. The same entry still has numeric index <code>[2,3,2]</code> and canonical address <code>grid[2,3,2]</code>; labels never change formula syntax or slot identity. Each Sheet cell also carries <code>coordinateLabels</code> and a joined <code>coordinateLabel</code> for accessible renderers and semantic selection events.</p>
+<p>Complete labeled coordinates can be resolved without changing the underlying numeric identity:</p>
+<pre class="rix"><code>named.At({=
+    region="South",
+    measure="Cost",
+    scenario="Forecast"
+})
+named.Index({=
+    region="South",
+    measure="Cost",
+    scenario="Forecast"
+}) # ( 2, 2, 2 )</code></pre>
+<p><code>At</code> returns the exact value and <code>Index</code> returns the canonical numeric tuple. Every axis must be supplied. Axis names and coordinate labels match exactly, with an unambiguous case-insensitive fallback. Duplicate cosmetic labels remain valid for display but produce an ambiguity error when used for lookup.</p>
 </section>
 <section id="rank-n-tensor-planes" class="level2">
 <h2 class="anchored" data-anchor-id="rank-n-tensor-planes">Rank-N tensor planes</h2>
@@ -807,6 +820,9 @@ model.SetFormula(1, 1, @{10})
 model.GetSource(1, 2)
 model.SetSource(1, 1, "10", ":=")
 model.GetAssignmentMode(1, 1)
+model.At({= region="South", measure="Cost" })
+model.Index({= region="South", measure="Cost" })
+model.SlotAt({= region="South", measure="Cost" })
 model.Recalculate()
 model.Slot(2, 2)</code></pre>
 <p><code>.FormulaSheet(formulas, options)</code> accepts an optional stable <code>id</code> and default <code>assignmentMode</code>:</p>
@@ -833,6 +849,16 @@ model.Slot(2, 2)</code></pre>
 );
 .Sheet(model)</code></pre>
 <p>Each slot then has a stable document ID such as <code>budget:slot:1:2</code>. <code>source</code> is the authoritative editable RiX body, while <code>assignmentMode</code> is a separate field. <code>SetSource</code> stores those fields, recompiles the body into deferred IR inside the FormulaSheet, and starts the usual atomic graph epoch. <code>SetFormula</code> remains the lower-level API for callers that already have a deferred value.</p>
+<p>Formula source uses implied <code>:=</code>. An explicit leading assignment mode is split from the authoritative body:</p>
+<pre class="rix"><code>model.SetSource(1, 1, "10")       # source "10", mode :=
+model.SetSource(1, 1, "::= 10")  # source "10", mode ::=</code></pre>
+<p>The interactive formula bar exposes the same choice as a selector and shows the selected cell’s exact computed value. Passing a separate mode that conflicts with an explicit source prefix is an error rather than silently discarding either choice.</p>
+<p>Inside a formula, <code>near</code> addresses a relative rank-N coordinate and records an ordinary dependency:</p>
+<pre class="rix"><code>model := .FormulaSheet({:2x2:
+    @{10}, @{ near[0,-1] + 1 };
+    @{ near[-1,0] * 2 }, @{ near[0,-1] + near[-1,0] }
+})</code></pre>
+<p>Offsets are relative to the current <code>index</code>. Out-of-range reads report the origin and axis; <code>near[0,0]</code> is a normal self-cycle and is rejected.</p>
 <p>Dollar indexing is the concise reactive API. It avoids exposing graph node names:</p>
 <pre class="rix"><code>$$total := $model[1,1] + $model[2,2];
 $model[1,1] := @{10}</code></pre>
@@ -842,7 +868,17 @@ $model[1,1] := @{10}</code></pre>
 <p>The versioned persistent <code>.rixcel</code> format is available:</p>
 <pre class="rix"><code>saved := .RiXCelExport(model);
 restored := .RiXCelImport(saved)</code></pre>
-<p>Version 1 stores stable IDs, dense rank-N shape, authoritative source, assignment mode, and JSON-safe view metadata. Import validates and recompiles source in a fresh FormulaSheet context, then rebuilds values and dependencies through an initial epoch. Compiled IR and runtime caches are deliberately not trusted or persisted. See the <a href="../design/eval/rixcel-format.html">RiXCel format specification</a>. Browser file-open/save, assignment-mode semantics, explicit imports, and sparse rank-N storage remain on the implementation checklist.</p>
+<p>Version 1 stores stable IDs, dense rank-N shape, authoritative source, assignment mode, and JSON-safe view metadata. Import validates and recompiles source in a fresh FormulaSheet context, then rebuilds values and dependencies through an initial epoch. Compiled IR and runtime caches are deliberately not trusted or persisted. See the <a href="../design/eval/rixcel-format.html">RiXCel format specification</a>. Browser file-open/save, explicit imports, and sparse rank-N storage remain on the implementation checklist.</p>
+</section>
+<section id="csv-and-tsv-interchange" class="level2">
+<h2 class="anchored" data-anchor-id="csv-and-tsv-interchange">CSV and TSV interchange</h2>
+<p>Delimited import creates a rank-2 FormulaSheet whose cells contain literal values, not executable foreign formulas:</p>
+<pre class="rix"><code>table := .RiXCelImportCsv("""name,value
+alpha,3
+beta,4.5""", {= header=1, id="csv-table" });
+.Sheet(table)</code></pre>
+<p>With <code>header=1</code>, the first record becomes cosmetic column labels. Empty fields become <code>_</code>; integer and decimal fields become exact RiX numbers; other fields become quoted RiX strings. A field beginning with <code>=</code> remains a string and is also retained in slot view metadata as a non-executable <code>foreignFormula</code>.</p>
+<p><code>.RiXCelImportTsv</code> behaves the same way with tab separators. Computed rank-2 values can be emitted with <code>.RiXCelExportCsv(sheet)</code> or <code>.RiXCelExportTsv(sheet)</code>. Delimited export is value-oriented; authoritative RiX formulas and dependency structure remain available through <code>.RiXCelExport</code>.</p>
 </section>
 <section id="reactive-dependent-views" class="level2">
 <h2 class="anchored" data-anchor-id="reactive-dependent-views">Reactive dependent views</h2>

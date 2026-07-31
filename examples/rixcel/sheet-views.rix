@@ -24,6 +24,12 @@ depthTwo := .Sheet(cube, {=
     slice = [_, _, 2]
 });
 
+forecastCost := depthTwo.At({=
+    region="South",
+    measure="Cost",
+    scenario="Forecast"
+});
+
 rowByDepth := .Sheet(cube, {=
     title = "Column 2 by depth",
     address = "cube",
@@ -37,5 +43,6 @@ rowByDepth := .Sheet(cube, {=
     .Heading(1, "RiXCel portable Sheet views"),
     matrixView,
     depthTwo,
+    .Text(@"South forecast cost: @{forecastCost}"),
     rowByDepth
 ])

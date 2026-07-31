@@ -47,9 +47,9 @@ Checked items are implemented in the current RiX repository.
 - [x] Add atomic evaluation epochs with explicit dirty/evaluating/error states.
 - [ ] Implement sparse rank-N sheets with stable sheet and slot IDs.
 - [x] Store source separately from assignment mode.
-- [ ] Implement implied `:=` and explicit RiX assignment modes.
+- [x] Implement implied `:=` and explicit RiX assignment modes.
 - [x] Add `grid`, `row`, `col`, and `index` evaluation bindings.
-- [ ] Add the `near` evaluation binding.
+- [x] Add the `near` evaluation binding.
 - [ ] Add `book`, `names`, and `imports` namespaces.
 - [x] Record runtime slot-read dependencies.
 - [x] Incrementally recompute dirty dependents.
@@ -81,32 +81,34 @@ Checked items are implemented in the current RiX repository.
 
 ## 4. Standalone RiXCel editor
 
-- [ ] Replace the placeholder `apps/cel` package with a RiXCel web app.
+- [x] Replace the placeholder `apps/cel` package with a RiXCel web app.
 - [ ] Implement virtualized 2D grid rendering.
 - [x] Edit formula bodies from FormulaSheet grid cells.
-- [ ] Add a dedicated formula bar, assignment-mode control, and exact-value display.
-- [ ] Add copy, paste, fill, undo, and redo.
+- [x] Add a dedicated formula bar, assignment-mode control, and exact-value display.
+- [x] Add document-level undo and redo.
+- [ ] Add copy, paste, and fill.
 - [ ] Add row/column insertion with parsed reference updates.
-- [ ] Add local persistence and `.rixcel` open/save.
+- [x] Add local persistence and `.rixcel` open/save.
 - [ ] Run evaluation in a worker with capability restrictions.
 - [ ] Show dependency, cycle, parse, and runtime diagnostics in the grid.
 - [ ] Add browser-level tests for editing and persistence.
 
 ## 5. Interchange and embedding
 
-- [ ] Import CSV/TSV values.
+- [x] Import CSV/TSV values.
 - [ ] Import `.xlsx` values and sheet structure.
-- [ ] Preserve unsupported foreign formulas as non-executable metadata.
+- [x] Preserve unsupported delimited foreign formulas as non-executable metadata.
 - [ ] Define and test a limited Excel-formula-to-RiX translator.
-- [ ] Export computed values to CSV/TSV and `.xlsx`.
+- [x] Export computed values to CSV/TSV.
+- [ ] Export computed values to `.xlsx`.
 - [ ] Embed a RiXCel document as a notebook widget.
 - [ ] Publish explicit named sheet exports to notebook RiX code.
 - [ ] Detect import cycles across RiX scripts and RiXCel documents.
 
 ## 6. Higher-dimensional and advanced behavior
 
-- [ ] Provide tabs/selectors/sliders for hidden axes.
-- [ ] Add labeled-index lookup; cosmetic axis labels are already supported.
+- [x] Provide selectors for hidden axes.
+- [x] Add labeled-index lookup while retaining canonical numeric identity.
 - [ ] Define materialization from tensor values into formula slots.
 - [ ] Define linked tensor-to-sheet views.
 - [ ] Design tensor spill ownership and collision rules.

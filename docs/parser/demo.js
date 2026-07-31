@@ -1861,11 +1861,34 @@ class Parser {
           });
         } else if (token.value === "$$") {
           this.advance();
+          if (this.current.type === "Identifier" && token.pos?.[2] === this.current.pos?.[1]) {
+            const identifier = this.current;
+            this.advance();
+            return this.createNode("ReactiveCellRef", {
+              name: identifier.value,
+              original: token.original + identifier.original
+            });
+          }
           return this.createNode("ParentSelfRef", {
             original: token.original
           });
         } else if (token.value === "$") {
           this.advance();
+          if (this.current.value === "{" && token.pos?.[2] === this.current.pos?.[1]) {
+            const body = this.parseBraceContainer();
+            return this.createNode("ReactiveTransaction", {
+              body,
+              original: token.original + (body.original || "")
+            });
+          }
+          if (this.current.type === "Identifier" && token.pos?.[2] === this.current.pos?.[1]) {
+            const identifier = this.current;
+            this.advance();
+            return this.createNode("ReactiveRef", {
+              name: identifier.value,
+              original: token.original + identifier.original
+            });
+          }
           return this.createNode("SelfRef", {
             original: token.original
           });
@@ -2354,6 +2377,8 @@ class Parser {
           "PropertyAccess",
           "BracketIndex",
           "SelfRef",
+          "ReactiveRef",
+          "ReactiveCellRef",
           "Number"
         ]);
         if (!simpleLValueTypes.has(left?.type)) {
@@ -4693,20 +4718,62 @@ class Parser {
   parseEmbeddedLanguage(token) {
     const content = token.value;
     if (content.startsWith(".")) {
-      const colonIndex2 = content.indexOf(":");
-      if (colonIndex2 === -1) {
+      let depth = 0;
+      let colonIndex = -1;
+      for (let index = 1;index < content.length; index++) {
+        const character = content[index];
+        if (character === "(")
+          depth++;
+        else if (character === ")") {
+          depth--;
+          if (depth < 0)
+            this.error("Unmatched ')' in backtick parser header");
+        } else if (character === ":" && depth === 0) {
+          colonIndex = index;
+          break;
+        }
+      }
+      if (colonIndex === -1) {
         this.error("Named backtick parser header requires ':' after .Name[.modifier...]");
       }
-      const header2 = content.slice(1, colonIndex2).trim();
-      const parts = header2.split(".").map((part) => part.trim());
-      if (parts.length === 0 || parts.some((part) => !/^[\p{L}_][\p{L}\p{N}_]*$/u.test(part))) {
+      if (depth !== 0)
+        this.error("Unmatched '(' in backtick parser header");
+      const header = content.slice(1, colonIndex).trim();
+      const parts = [];
+      let start = 0;
+      depth = 0;
+      for (let index = 0;index <= header.length; index++) {
+        const character = header[index];
+        if (character === "(")
+          depth++;
+        else if (character === ")")
+          depth--;
+        if (character === "." && depth === 0 || index === header.length) {
+          parts.push(header.slice(start, index).trim());
+          start = index + 1;
+        }
+      }
+      const parsedParts = parts.map((part) => {
+        const match = part.match(/^([\p{L}_][\p{L}\p{N}_]*)(?:\((.*)\))?$/u);
+        if (!match)
+          return null;
+        const args = match[2] === undefined ? null : match[2].split(",").map((argument) => argument.trim()).filter(Boolean);
+        if (args?.some((argument) => !/^[\p{L}_][\p{L}\p{N}_]*$/u.test(argument))) {
+          return null;
+        }
+        return args === null ? match[1] : { name: match[1], args };
+      });
+      if (parsedParts.length === 0 || parsedParts.some((part) => part === null)) {
         this.error("Invalid backtick parser header. Expected .Name[.modifier...]:body");
       }
+      if (typeof parsedParts[0] !== "string") {
+        this.error("The backtick parser name cannot have arguments");
+      }
       return this.createNode("EmbeddedLanguage", {
-        language: parts[0],
+        language: parsedParts[0],
         context: null,
-        modifiers: parts.slice(1),
-        body: content.slice(colonIndex2 + 1),
+        modifiers: parsedParts.slice(1),
+        body: content.slice(colonIndex + 1),
         explicitParser: true,
         original: token.original
       });
@@ -4719,91 +4786,10 @@ class Parser {
         original: token.original
       });
     }
-    if (content.indexOf(":") === -1) {
-      return this.createNode("EmbeddedLanguage", {
-        language: "SArith",
-        context: null,
-        body: content,
-        original: token.original
-      });
-    }
-    if (!/^[A-Z]/.test(content)) {
-      return this.createNode("EmbeddedLanguage", {
-        language: "SArith",
-        context: null,
-        body: content,
-        original: token.original
-      });
-    }
-    const parenStart = content.indexOf("(");
-    let colonIndex = -1;
-    let header = "";
-    let body = "";
-    if (parenStart !== -1) {
-      let parenCount = 0;
-      let parenEnd = -1;
-      for (let i = parenStart;i < content.length; i++) {
-        if (content[i] === "(") {
-          parenCount++;
-        } else if (content[i] === ")") {
-          parenCount--;
-          if (parenCount === 0) {
-            parenEnd = i;
-            break;
-          }
-        }
-      }
-      if (parenEnd !== -1) {
-        const afterParens = content.slice(parenEnd + 1);
-        const colonAfterParens = afterParens.indexOf(":");
-        if (colonAfterParens !== -1) {
-          colonIndex = parenEnd + 1 + colonAfterParens;
-        }
-      }
-    }
-    if (colonIndex === -1) {
-      colonIndex = content.indexOf(":");
-    }
-    header = content.slice(0, colonIndex).trim();
-    body = content.slice(colonIndex + 1);
-    let language = header;
-    let context = null;
-    const headerParenStart = header.indexOf("(");
-    const headerParenEnd = header.lastIndexOf(")");
-    if (headerParenEnd !== -1 && headerParenStart === -1) {
-      this.error("Unmatched closing parenthesis in embedded language header");
-    }
-    if (headerParenStart !== -1) {
-      let parenCount = 0;
-      let parenEnd = -1;
-      for (let i = headerParenStart;i < header.length; i++) {
-        if (header[i] === "(") {
-          parenCount++;
-        } else if (header[i] === ")") {
-          parenCount--;
-          if (parenCount === 0) {
-            parenEnd = i;
-            break;
-          }
-        }
-      }
-      if (parenEnd === -1) {
-        this.error("Unmatched opening parenthesis in embedded language header");
-      }
-      if (parenEnd !== header.length - 1) {
-        this.error("Invalid embedded language header format. Expected: LANGUAGE(CONTEXT):BODY");
-      }
-      const afterCloseParen = header.slice(parenEnd + 1);
-      if (afterCloseParen.includes("(")) {
-        this.error("Multiple parenthetical groups not allowed in embedded language header");
-      }
-      language = header.slice(0, headerParenStart).trim();
-      context = header.slice(headerParenStart + 1, parenEnd).trim();
-    }
     return this.createNode("EmbeddedLanguage", {
-      language: language || null,
-      context,
-      body,
+      language: "SArith",
+      context: null,
+      body: content,
       original: token.original
     });
   }

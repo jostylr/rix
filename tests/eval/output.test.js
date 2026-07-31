@@ -156,6 +156,29 @@ describe("portable structured output", () => {
         expect(html).toContain('data-rix-display-address="B2"');
     });
 
+    test("Sheet labeled lookup reaches coordinates outside the selected plane", () => {
+        const result = parseAndEvaluate(`
+            view := .Sheet(
+                {:2x2x2: 1, 2; 3, 4 ;; 5, 6; 7, 8},
+                {=
+                    axes=["region", "measure", "scenario"],
+                    axisLabels=[
+                        ["North", "South"],
+                        ["Revenue", "Cost"],
+                        ["Actual", "Forecast"]
+                    ],
+                    slice=[_, _, 1]
+                }
+            );
+            [
+                view.At({= region="South", measure="Cost", scenario="Forecast"}),
+                view.Index({= region="North", measure="Revenue", scenario="Actual"})
+            ]
+        `);
+        expect(formatValue(result.values[0])).toBe("8");
+        expect(result.values[1].values.map((value) => Number(value.value))).toEqual([1, 1, 1]);
+    });
+
     test("Sheet adapts matrices and rank-1 sequences", () => {
         const matrix = parseAndEvaluate(".Sheet([1, 2; 3, 4])");
         expect(matrix.sourceKind).toBe("matrix");

@@ -8,6 +8,7 @@ bun bin/rix.js examples/rixcel/sheet-views.rix
 bun bin/rix.js examples/rixcel/live-sheet.rix
 bun bin/rix.js examples/rixcel/formula-sheet.rix
 bun bin/rix.js examples/rixcel/persistence.rix
+bun bin/rix.js examples/rixcel/delimited.rix
 bun bin/rix.js examples/rixcel/reactive-bindings.rix
 bun bin/rix.js examples/rixcel/reactive-view.rix
 ```
@@ -28,6 +29,8 @@ can call `renderOutputHtml` to render the same value as an address-aware grid.
 - a versioned source-backed JSON round trip that recompiles formulas and
   dependencies (`persistence.rix`), plus a standalone canonical
   [`budget.rixcel`](budget.rixcel) document.
+- CSV/TSV value interchange with headers and inert foreign-formula metadata
+  (`delimited.rix`).
 - `$name` tracked reads and updates, `$$name` reactive-cell declarations and
   aliases, and atomic `${ ... }` transactions (`reactive-bindings.rix`).
 - `$sheet[index]` FormulaSheet dependencies and formula updates without

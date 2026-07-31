@@ -282,6 +282,12 @@ export function indexGetResolved(obj, key) {
 }
 
 export function bracketGetResolved(obj, specs) {
+    if (obj?.type === "formula_near" && typeof obj.get === "function") {
+        if (!specs.every((spec) => spec.kind === "index")) {
+            throw new Error("near only accepts exact relative offsets");
+        }
+        return obj.get(specs.map((spec) => spec.value));
+    }
     if (isFormulaSheet(obj)) {
         if (!specs.every((spec) => spec.kind === "index")) {
             throw new Error("FormulaSheet slicing is not implemented yet");

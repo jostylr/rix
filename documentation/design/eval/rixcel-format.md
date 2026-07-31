@@ -63,6 +63,11 @@ They never replace the numeric `index`, participate in formulas, or alter slot
 IDs. Hosts may retain additional JSON-safe view keys for future presentation
 extensions.
 
+Interactive entry uses implied `:=`. A leading assignment prefix such as
+`::= expression` is split into `assignmentMode: "::="` and `source:
+"expression"` before persistence. Canonical documents never repeat the prefix
+inside `source`.
+
 ## Runtime reconstruction
 
 Persisted source is authoritative. An importer:
@@ -119,3 +124,13 @@ or absent. It maps:
 Missing draft slot IDs are generated from the document ID and full index.
 Documents declaring a version newer than the runtime are rejected rather than
 silently interpreted.
+
+## Delimited interchange
+
+CSV and TSV are value interchange formats, not substitutes for `.rixcel`.
+Import converts numeric fields to exact RiX literals and all other fields to
+quoted strings. A foreign field beginning with `=` is never executed; the
+original field is retained as `view.foreignFormula` with `executable: false`.
+Export emits current computed values and optional cosmetic column headers.
+Formula source, modes, IDs, dependencies, and rank-N structure require the
+native format.

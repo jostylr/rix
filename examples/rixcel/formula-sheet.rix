@@ -1,14 +1,24 @@
 ## A formula-backed sheet owns deferred formulas rather than immediate values.
-## grid, row, col, and index belong to the sheet's isolated formula context.
+## grid, near, row, col, and index belong to the isolated formula context.
 
 model := .FormulaSheet({:2x2:
-    @{1}, @{ grid[1,1] + 1 };
-    @{ grid[1,2] * 2 }, @{ grid[2,1] + 1 }
-}, {= id="formula-example" });
+    @{1}, @{ near[0,-1] + 1 };
+    @{ near[-1,1] * 2 }, @{ near[0,-1] + 1 }
+}, {=
+    id="formula-example",
+    view={=
+        axes=["region", "measure"],
+        axisLabels=[["North", "South"], ["Revenue", "Cost"]]
+    }
+});
 
 .Sheet(model, {= title="Formula results" });
 
 ## Source is authoritative and compiles inside the FormulaSheet.
-## The assignment mode is stored separately for future document semantics.
-model.SetSource(1, 1, "10", ":=");
-.Sheet(model, {= title="Recalculated results" })
+## An omitted mode is :=; an explicit prefix is separated from the body.
+model.SetSource(1, 1, "::= 10");
+southCost := model.At({= region="South", measure="Cost" });
+.Fragment([
+    .Sheet(model, {= title="Recalculated results" }),
+    .Text(@"South cost: @{southCost}")
+])

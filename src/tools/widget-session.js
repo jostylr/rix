@@ -86,7 +86,7 @@ export class WidgetSession {
                 this.formulaSheet.setFormulaSource(
                     index,
                     event.source,
-                    event.assignmentMode ?? this.formulaSheet.slot(index).assignmentMode,
+                    event.assignmentMode ?? null,
                 );
             } else {
                 this.formulaSheet.setFormula(index, event.formula, {

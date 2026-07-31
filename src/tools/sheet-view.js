@@ -87,7 +87,9 @@ function enhanceSheet(sheet, options) {
     const planeSelectors = [...sheet.querySelectorAll("select[data-rix-sheet-axis]")];
     const editForm = sheet.querySelector(".rix-output-sheet-editor");
     const editInput = editForm?.querySelector("[data-rix-edit-source]");
+    const editAssignmentMode = editForm?.querySelector("[data-rix-edit-assignment-mode]");
     const editLabel = editForm?.querySelector("[data-rix-edit-label]");
+    const editValue = editForm?.querySelector("[data-rix-edit-value]");
     const editStatus = editForm?.querySelector("[data-rix-edit-status]");
     let selectedCell = null;
     if (editForm && typeof options.onEdit === "function") editForm.hidden = false;
@@ -115,6 +117,9 @@ function enhanceSheet(sheet, options) {
             ].filter(Boolean).join(" · ");
         }
         if (editInput) editInput.value = cell.dataset.rixFormulaSource ?? cell.textContent.trim();
+        if (editAssignmentMode) {
+            editAssignmentMode.value = cell.dataset.rixAssignmentMode || ":=";
+        }
         if (editLabel) {
             editLabel.textContent = [
                 detail.coordinateLabel,
@@ -122,6 +127,7 @@ function enhanceSheet(sheet, options) {
                 detail.address,
             ].filter(Boolean).join(" · ");
         }
+        if (editValue) editValue.textContent = `Exact value: ${cell.textContent.trim()}`;
         if (editStatus) editStatus.textContent = "";
         if (focus) cell.focus();
         if (notify) {
@@ -243,7 +249,11 @@ function enhanceSheet(sheet, options) {
                 if (editStatus) editStatus.textContent = "This host opened the live view read-only";
                 return;
             }
-            const detail = { ...eventDetail(selectedCell), source: editInput?.value ?? "" };
+            const detail = {
+                ...eventDetail(selectedCell),
+                source: editInput?.value ?? "",
+                ...(editAssignmentMode ? { assignmentMode: editAssignmentMode.value } : {}),
+            };
             try {
                 const result = options.onEdit(detail, selectedCell, sheet);
                 if (result?.type === "error") throw new Error(result.text);
@@ -258,10 +268,15 @@ function enhanceSheet(sheet, options) {
                         if (typeof update.formulaSource === "string") {
                             candidate.dataset.rixFormulaSource = update.formulaSource;
                         }
+                        if (typeof update.assignmentMode === "string") {
+                            candidate.dataset.rixAssignmentMode = update.assignmentMode;
+                        }
                     }
                 } else {
                     selectedCell.textContent = result?.text ?? detail.source;
                 }
+                const exact = selectedCell.textContent.trim();
+                if (editValue) editValue.textContent = `Exact value: ${exact}`;
                 if (editStatus) editStatus.textContent = "Saved";
                 options.onEditCommitted?.(detail, result, selectedCell, sheet);
                 dispatchSheetEvent(sheet, "rix-sheet-edit", {

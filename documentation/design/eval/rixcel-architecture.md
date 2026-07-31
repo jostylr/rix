@@ -163,8 +163,8 @@ Rank-N snapshots also retain `hiddenAxes`, `selectedPlaneKey`, and a frozen
 and emit `rix-sheet-plane-change` with the selected slice. This remains a
 read-only view operation.
 
-The prototype supplies `grid`, `row`, `col`, and `index`. Planned contextual
-names include:
+The prototype supplies `grid`, `row`, `col`, `index`, and `near`. Planned
+namespaces include:
 
 ```rix
 row
@@ -308,8 +308,10 @@ value)` adds an originating value, `Derive(name, deferred)` adds a computed
 node, and reads of either kind inside a deferred formula record graph edges.
 The verbose string API uses canonical lowercase RiX user-identifier names.
 Syntax-created dollar bindings preserve the language's uppercase/lowercase
-namespace distinction. FormulaSheet graphs reserve `grid`, `row`, `col`, and
-`index` for their contextual bindings.
+namespace distinction. FormulaSheet graphs reserve `grid`, `row`, `col`,
+`index`, and `near` for their contextual bindings. `near[offset,...]` resolves
+relative to the current slot, then performs the same tracked numeric read as
+`grid[index,...]`.
 A source update finds the old transitive dependent closure, evaluates each
 dirty computation at most once, replaces successful dynamic edges, and emits
 one commit after every staged value succeeds. Direct writes to computed nodes
@@ -418,8 +420,9 @@ are rebuilt rather than trusted. A future sparse version can add omitted-slot
 semantics explicitly.
 
 The default implied assignment is `:=`. An explicit leading `=`, `~=`, `::=`,
-or `~~=` retains its RiX binding meaning; it is not decorative spreadsheet
-syntax.
+or `~~=` is parsed away from the authoritative formula body and retained as the
+slot's assignment mode; it is not decorative spreadsheet syntax. A separate
+mode argument that disagrees with the prefix is rejected.
 
 ## Dependencies and cycles
 
@@ -446,6 +449,21 @@ represented by a selector, tab, or slider.
 A tensor-valued slot does not automatically occupy neighboring slots. It
 renders as an embedded value until explicit spill/materialization semantics
 are designed.
+
+## Standalone host
+
+`apps/cel` is now the first standalone RiXCel host. It reuses the portable
+Sheet renderer, FormulaSheet runtime, and WidgetSession rather than owning a
+second formula engine. The initial shell provides:
+
+- formula editing with modes and exact-value feedback;
+- native `.rixcel` open/save and browser-local recovery;
+- CSV/TSV value import and export; and
+- document-snapshot undo and redo.
+
+The current grid is a dense, ordinary DOM table. Virtualization, structural
+row/column edits, copy/fill operations, worker isolation, and inline diagnostic
+decoration remain separate milestones.
 
 ## Security and imports
 

@@ -9,6 +9,8 @@ import { lower } from "../lower.js";
 import { isReactiveNode, REACTIVE_READ_ENV } from "../../runtime/reactive-graph.js";
 import { createSystemLookup } from "../../runtime/system-manifest.js";
 import { Integer, Rational } from "@ratmath/core";
+import { createTensor } from "../../runtime/tensor.js";
+import { formatValue } from "../format.js";
 
 export function containsOuterRead(node) {
     if (!node || typeof node !== "object") return false;
@@ -179,6 +181,148 @@ function rixCelImportCapability(args, context, evaluate, systemContext) {
     );
 }
 
+function delimitedText(value, label) {
+    const text = value?.type === "string" ? value.value : typeof value === "string" ? value : null;
+    if (text === null) throw new Error(`${label} expects a text string`);
+    return text;
+}
+
+export function parseDelimitedRows(source, delimiter) {
+    const rows = [];
+    let row = [];
+    let field = "";
+    let quoted = false;
+    for (let index = 0; index < source.length; index += 1) {
+        const char = source[index];
+        if (quoted) {
+            if (char === '"' && source[index + 1] === '"') {
+                field += '"';
+                index += 1;
+            } else if (char === '"') {
+                quoted = false;
+            } else {
+                field += char;
+            }
+            continue;
+        }
+        if (char === '"' && field.length === 0) quoted = true;
+        else if (char === delimiter) {
+            row.push(field);
+            field = "";
+        } else if (char === "\n") {
+            row.push(field);
+            rows.push(row);
+            row = [];
+            field = "";
+        } else if (char === "\r" && source[index + 1] === "\n") {
+            continue;
+        } else {
+            field += char;
+        }
+    }
+    if (quoted) throw new Error("Delimited import has an unterminated quoted field");
+    if (field.length > 0 || row.length > 0 || source.length === 0) {
+        row.push(field);
+        rows.push(row);
+    }
+    if (rows.length > 1 && rows.at(-1).length === 1 && rows.at(-1)[0] === "") rows.pop();
+    const width = rows[0]?.length ?? 0;
+    if (width === 0 || rows.length === 0) throw new Error("Delimited import requires at least one cell");
+    if (!rows.every((candidate) => candidate.length === width)) {
+        throw new Error("Delimited import rows must have equal lengths");
+    }
+    return rows;
+}
+
+function delimitedOptions(value, label) {
+    if (value === undefined) return { header: false, id: null };
+    if (value?.type !== "map" || !(value.entries instanceof Map)) {
+        throw new Error(`${label} options must be a map`);
+    }
+    const option = (name) => value.entries.get(name) ?? value.entries.get(name.toLowerCase());
+    const headerValue = option("header");
+    const header = headerValue instanceof Integer
+        ? headerValue.value !== 0n
+        : headerValue === null || headerValue === undefined
+            ? false
+            : Boolean(headerValue);
+    const idValue = option("id");
+    const id = idValue === undefined
+        ? null
+        : delimitedText(idValue, `${label} id`);
+    return { header, id };
+}
+
+function importedFieldSource(value) {
+    if (value === "") return "_";
+    if (/^[+-]?(?:\d+|\d+\.\d+)$/u.test(value.trim())) return value.trim();
+    return JSON.stringify(value);
+}
+
+function importDelimitedCapability(args, context, evaluate, systemContext, delimiter, label) {
+    if (args.length < 1 || args.length > 2) {
+        throw new Error(`${label} expects text and an optional options map`);
+    }
+    const rows = parseDelimitedRows(delimitedText(args[0], label), delimiter);
+    const imported = delimitedOptions(args[1], label);
+    const headers = imported.header ? rows.shift() : null;
+    if (rows.length === 0) throw new Error(`${label} header must be followed by at least one data row`);
+    const runtime = createFormulaSheetRuntimeOptions(context, evaluate, systemContext);
+    const shape = [rows.length, rows[0].length];
+    const formulas = [];
+    const slotMetadata = new Map();
+    for (const [rowIndex, row] of rows.entries()) {
+        for (const [columnIndex, field] of row.entries()) {
+            const source = importedFieldSource(field);
+            formulas.push(runtime.compileFormula(source));
+            slotMetadata.set(`${rowIndex + 1},${columnIndex + 1}`, {
+                source,
+                assignmentMode: ":=",
+                view: field.startsWith("=")
+                    ? { foreignFormula: field, executable: false, format: delimiter === "," ? "csv" : "tsv" }
+                    : {},
+            });
+        }
+    }
+    return createFormulaSheet(createTensor(shape, formulas), {
+        ...runtime,
+        id: imported.id,
+        slotMetadata,
+        documentView: {
+            axes: ["row", "column"],
+            ...(headers ? { axisLabels: [null, headers] } : {}),
+        },
+    });
+}
+
+function csvField(value) {
+    const source = value === null
+        ? ""
+        : value?.type === "string"
+            ? value.value
+            : formatValue(value);
+    return /[",\r\n\t]/u.test(source) ? `"${source.replaceAll('"', '""')}"` : source;
+}
+
+function exportDelimitedCapability(args, delimiter, label) {
+    if (args.length !== 1 || !args[0] || args[0].type !== "formula_sheet") {
+        throw new Error(`${label} expects one FormulaSheet`);
+    }
+    const sheet = args[0];
+    if (sheet.rank !== 2) throw new Error(`${label} requires a rank-2 FormulaSheet`);
+    const lines = [];
+    const labels = sheet.documentView.axisLabels ?? sheet.documentView.axislabels;
+    if (Array.isArray(labels?.[1])) lines.push(labels[1].map(csvField).join(delimiter));
+    for (let row = 1; row <= sheet.shape[0]; row += 1) {
+        const fields = [];
+        for (let column = 1; column <= sheet.shape[1]; column += 1) {
+            fields.push(csvField(sheet.get([row, column])));
+        }
+        lines.push(fields.join(delimiter));
+    }
+    return { type: "string", value: lines.join("\n") };
+}
+
 export const formulaSheetFunctions = {
     FORMULASHEET: {
         pure: false,
@@ -194,5 +338,27 @@ export const formulaSheetFunctions = {
         pure: false,
         impl: rixCelImportCapability,
         doc: "Rebuild a FormulaSheet by compiling authoritative source from RiXCel JSON",
+    },
+    RIXCELIMPORTCSV: {
+        pure: false,
+        impl: (args, context, evaluate, systemContext) =>
+            importDelimitedCapability(args, context, evaluate, systemContext, ",", ".RiXCelImportCsv"),
+        doc: "Import CSV values into a rank-2 FormulaSheet; optional header=1 uses the first row as labels",
+    },
+    RIXCELIMPORTTSV: {
+        pure: false,
+        impl: (args, context, evaluate, systemContext) =>
+            importDelimitedCapability(args, context, evaluate, systemContext, "\t", ".RiXCelImportTsv"),
+        doc: "Import TSV values into a rank-2 FormulaSheet; optional header=1 uses the first row as labels",
+    },
+    RIXCELEXPORTCSV: {
+        pure: false,
+        impl: (args) => exportDelimitedCapability(args, ",", ".RiXCelExportCsv"),
+        doc: "Export the computed values of a rank-2 FormulaSheet as CSV",
+    },
+    RIXCELEXPORTTSV: {
+        pure: false,
+        impl: (args) => exportDelimitedCapability(args, "\t", ".RiXCelExportTsv"),
+        doc: "Export the computed values of a rank-2 FormulaSheet as TSV",
     },
 };

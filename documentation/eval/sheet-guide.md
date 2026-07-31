@@ -99,6 +99,27 @@ address `grid[2,3,2]`; labels never change formula syntax or slot identity.
 Each Sheet cell also carries `coordinateLabels` and a joined
 `coordinateLabel` for accessible renderers and semantic selection events.
 
+Complete labeled coordinates can be resolved without changing the underlying
+numeric identity:
+
+```rix
+named.At({=
+    region="South",
+    measure="Cost",
+    scenario="Forecast"
+})
+named.Index({=
+    region="South",
+    measure="Cost",
+    scenario="Forecast"
+}) # ( 2, 2, 2 )
+```
+
+`At` returns the exact value and `Index` returns the canonical numeric tuple.
+Every axis must be supplied. Axis names and coordinate labels match exactly,
+with an unambiguous case-insensitive fallback. Duplicate cosmetic labels remain
+valid for display but produce an ambiguity error when used for lookup.
+
 ## Rank-N tensor planes
 
 A `Sheet` always presents at most two axes. Other axes select a plane:
@@ -241,6 +262,9 @@ model.SetFormula(1, 1, @{10})
 model.GetSource(1, 2)
 model.SetSource(1, 1, "10", ":=")
 model.GetAssignmentMode(1, 1)
+model.At({= region="South", measure="Cost" })
+model.Index({= region="South", measure="Cost" })
+model.SlotAt({= region="South", measure="Cost" })
 model.Recalculate()
 model.Slot(2, 2)
 ```
@@ -285,6 +309,32 @@ field. `SetSource` stores those fields, recompiles the body into deferred IR
 inside the FormulaSheet, and starts the usual atomic graph epoch. `SetFormula`
 remains the lower-level API for callers that already have a deferred value.
 
+Formula source uses implied `:=`. An explicit leading assignment mode is split
+from the authoritative body:
+
+```rix
+model.SetSource(1, 1, "10")       # source "10", mode :=
+model.SetSource(1, 1, "::= 10")  # source "10", mode ::=
+```
+
+The interactive formula bar exposes the same choice as a selector and shows
+the selected cell's exact computed value. Passing a separate mode that
+conflicts with an explicit source prefix is an error rather than silently
+discarding either choice.
+
+Inside a formula, `near` addresses a relative rank-N coordinate and records an
+ordinary dependency:
+
+```rix
+model := .FormulaSheet({:2x2:
+    @{10}, @{ near[0,-1] + 1 };
+    @{ near[-1,0] * 2 }, @{ near[0,-1] + near[-1,0] }
+})
+```
+
+Offsets are relative to the current `index`. Out-of-range reads report the
+origin and axis; `near[0,0]` is a normal self-cycle and is rejected.
+
 Dollar indexing is the concise reactive API. It avoids exposing graph node
 names:
 
@@ -322,8 +372,30 @@ source in a fresh FormulaSheet context, then rebuilds values and dependencies
 through an initial epoch. Compiled IR and runtime caches are deliberately not
 trusted or persisted. See the
 [RiXCel format specification](../design/eval/rixcel-format.md). Browser
-file-open/save, assignment-mode semantics, explicit imports, and sparse rank-N
-storage remain on the implementation checklist.
+file-open/save, explicit imports, and sparse rank-N storage remain on the
+implementation checklist.
+
+## CSV and TSV interchange
+
+Delimited import creates a rank-2 FormulaSheet whose cells contain literal
+values, not executable foreign formulas:
+
+```rix
+table := .RiXCelImportCsv("""name,value
+alpha,3
+beta,4.5""", {= header=1, id="csv-table" });
+.Sheet(table)
+```
+
+With `header=1`, the first record becomes cosmetic column labels. Empty fields
+become `_`; integer and decimal fields become exact RiX numbers; other fields
+become quoted RiX strings. A field beginning with `=` remains a string and is
+also retained in slot view metadata as a non-executable `foreignFormula`.
+
+`.RiXCelImportTsv` behaves the same way with tab separators. Computed rank-2
+values can be emitted with `.RiXCelExportCsv(sheet)` or
+`.RiXCelExportTsv(sheet)`. Delimited export is value-oriented; authoritative
+RiX formulas and dependency structure remain available through `.RiXCelExport`.
 
 ## Reactive dependent views
 

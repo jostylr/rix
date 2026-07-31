@@ -9,6 +9,7 @@
 import { Integer, Rational } from "@ratmath/core";
 import { createReactiveGraph } from "./reactive-graph.js";
 import { forEachTensorCell, isTensor } from "./tensor.js";
+import { coordinateTuple, resolveLabeledCoordinate } from "./sheet-labels.js";
 
 let nextFormulaSheetId = 1;
 export const FORMULA_SHEET_ASSIGNMENT_MODES = Object.freeze(["=", ":=", "~=", "::=", "~~="]);
@@ -26,6 +27,23 @@ function assignmentMode(value = ":=") {
         throw new Error(`Unsupported FormulaSheet assignment mode: ${mode}`);
     }
     return mode;
+}
+
+function formulaSourceParts(value, requestedMode = null) {
+    const source = text(value, "FormulaSheet formula source");
+    const match = source.match(/^\s*(::=|~~=|:=|~=|=)\s*([\s\S]+)$/u);
+    const explicitMode = match?.[1] ?? null;
+    const body = match ? match[2] : source;
+    if (body.trim().length === 0) throw new Error("FormulaSheet formula source must not be empty");
+    const selectedMode = requestedMode === null || requestedMode === undefined
+        ? (explicitMode ?? ":=")
+        : assignmentMode(requestedMode);
+    if (explicitMode !== null && explicitMode !== selectedMode) {
+        throw new Error(
+            `FormulaSheet source begins with ${explicitMode}, but assignment mode is ${selectedMode}`,
+        );
+    }
+    return { source: body, assignmentMode: selectedMode };
 }
 
 function formulaSheetId(value) {
@@ -151,11 +169,14 @@ function formulaSheetMethods() {
             }
             const index = args.slice(0, rank);
             const source = args[rank];
-            const mode = args[rank + 1] ?? ":=";
+            const mode = args[rank + 1] ?? null;
             return target.setFormulaSource(index, source, mode);
         })],
         ["GETASSIGNMENTMODE", method("GetAssignmentMode", ([target, ...index]) =>
             target.slot(index).assignmentMode)],
+        ["INDEX", method("Index", ([target, selector]) => target.index(selector))],
+        ["AT", method("At", ([target, selector]) => target.at(selector))],
+        ["SLOTAT", method("SlotAt", ([target, selector]) => target.slotAt(selector))],
         ["RECALCULATE", method("Recalculate", ([target]) => target.recalculate())],
         ["SLOT", method("Slot", ([target, ...index]) => target.slot(index))],
         ["GRAPH", method("Graph", ([target]) => target.graph)],
@@ -230,7 +251,7 @@ export function createFormulaSheet(formulasValue, options = {}) {
             );
         },
         cycleLabel: "Formula cycle",
-        reservedNames: ["grid", "row", "col", "index"],
+        reservedNames: ["grid", "row", "col", "index", "near"],
         reservedNameLabel: "FormulaSheet graph node name is reserved",
         labelForNode(name) {
             return addressFor(keyFromNodeName(name).split(","));
@@ -252,6 +273,30 @@ export function createFormulaSheet(formulasValue, options = {}) {
         get(index) {
             const normalized = normalizeIndex(index, shape);
             return graph.get(nodeNameFor(normalized));
+        },
+        index(selector) {
+            return coordinateTuple(resolveLabeledCoordinate(
+                shape,
+                sheet.documentView,
+                selector,
+                "FormulaSheet.Index",
+            ));
+        },
+        at(selector) {
+            return sheet.get(resolveLabeledCoordinate(
+                shape,
+                sheet.documentView,
+                selector,
+                "FormulaSheet.At",
+            ));
+        },
+        slotAt(selector) {
+            return sheet.slot(resolveLabeledCoordinate(
+                shape,
+                sheet.documentView,
+                selector,
+                "FormulaSheet.SlotAt",
+            ));
         },
         track() {
             for (const { index } of formulas.entries) {
@@ -302,17 +347,16 @@ export function createFormulaSheet(formulasValue, options = {}) {
             }
             return sheet;
         },
-        setFormulaSource(index, source, mode = ":=") {
+        setFormulaSource(index, source, mode = null) {
             if (typeof options.compileFormula !== "function") {
                 throw new Error("FormulaSheet source editing requires a formula compiler");
             }
             const normalized = normalizeIndex(index, shape);
-            const authoritativeSource = text(source, "FormulaSheet formula source");
-            const normalizedMode = assignmentMode(mode);
-            const formula = options.compileFormula(authoritativeSource);
+            const parts = formulaSourceParts(source, mode);
+            const formula = options.compileFormula(parts.source);
             return sheet.setFormula(normalized, formula, {
-                source: authoritativeSource,
-                assignmentMode: normalizedMode,
+                source: parts.source,
+                assignmentMode: parts.assignmentMode,
                 sourceKind: "formula-source",
             });
         },
@@ -344,9 +388,33 @@ export function createFormulaSheet(formulasValue, options = {}) {
                 source: metadata.source,
                 initialize: false,
                 evaluator(slotFormula) {
+                    const near = Object.freeze({
+                        type: "formula_near",
+                        rank: shape.length,
+                        index,
+                        get(offsets) {
+                            if (offsets.length !== shape.length) {
+                                throw new Error(
+                                    `near expects ${shape.length} offsets, got ${offsets.length}`,
+                                );
+                            }
+                            const target = offsets.map((offset, axis) => {
+                                const delta = exactIndex(offset, `near axis ${axis + 1} offset`);
+                                const coordinate = index[axis] + delta;
+                                if (coordinate < 1 || coordinate > shape[axis]) {
+                                    throw new Error(
+                                        `near[${offsets.join(",")}] from ${addressFor(index)} is out of range on axis ${axis + 1}`,
+                                    );
+                                }
+                                return coordinate;
+                            });
+                            return sheet.get(target);
+                        },
+                    });
                     const contextualBindings = [
                         ...graph.bindings(),
                         ["grid", sheet],
+                        ["near", near],
                         ["index", {
                             type: "tuple",
                             values: index.map((item) => new Integer(BigInt(item))),

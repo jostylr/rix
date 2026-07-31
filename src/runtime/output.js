@@ -3,7 +3,8 @@
 import { Integer, Rational } from "@ratmath/core";
 import { isTensor, tensorGetBySelectors } from "./tensor.js";
 import { isBinding } from "./binding.js";
-import { isFormulaSheet } from "./formula-sheet.js";
+import { FORMULA_SHEET_ASSIGNMENT_MODES, isFormulaSheet } from "./formula-sheet.js";
+import { coordinateTuple, resolveLabeledCoordinate } from "./sheet-labels.js";
 
 const int = (value) => new Integer(BigInt(value));
 const isSequence = (value) => value && ["sequence", "tuple", "set", "array"].includes(value.type);
@@ -36,7 +37,7 @@ function spec(args, positional, name) {
     return new Map(positional.slice(0, args.length).map((key, index) => [key, args[index]]));
 }
 
-function output(kind, fields) {
+function output(kind, fields, methods = []) {
     return Object.freeze({
         type: "output",
         kind,
@@ -45,8 +46,39 @@ function output(kind, fields) {
             ["_type", { type: "string", value: "output" }],
             ["kind", { type: "string", value: kind }],
             ["immutable", int(1)],
+            ...methods,
         ]),
     });
+}
+
+function method(name, impl) {
+    return { type: "method_builtin", name, impl };
+}
+
+function sheetMethods() {
+    const index = (target, selector, label) => resolveLabeledCoordinate(
+        target.shape,
+        { axes: target.axes, axisLabels: target.axisLabels },
+        selector,
+        label,
+    );
+    const cellAt = (target, coordinate) => {
+        for (const plane of target.planes) {
+            for (const row of plane.cells) {
+                const cell = row.find((candidate) => candidate.index.every(
+                    (item, axis) => item === coordinate[axis],
+                ));
+                if (cell) return cell;
+            }
+        }
+        throw new Error(`Sheet coordinate is unavailable: [${coordinate.join(",")}]`);
+    };
+    return [
+        ["INDEX", method("Index", ([target, selector]) =>
+            coordinateTuple(index(target, selector, "Sheet.Index")))],
+        ["AT", method("At", ([target, selector]) =>
+            cellAt(target, index(target, selector, "Sheet.At")).value)],
+    ];
 }
 
 function exactInteger(value, label) {
@@ -462,7 +494,7 @@ export function createSheet(args) {
         planes: Object.freeze(planes),
         cells,
         options: refreshOptions.size > 0 ? refreshOptions : null,
-    });
+    }, sheetMethods());
 }
 
 /**
@@ -944,8 +976,11 @@ export function renderOutputHtml(value, format = (item) => String(item ?? "")) {
         const liveAttributes = value.editable
             ? ` data-rix-editable="true" data-rix-edit-mode="${value.editMode}"${value.bindingId ? ` data-rix-binding-id="${escapeHtml(value.bindingId)}"` : ""}`
             : "";
+        const assignmentControl = value.editMode === "formula"
+            ? `<label class="rix-output-sheet-assignment"><span>Assignment</span><select data-rix-edit-assignment-mode aria-label="Formula assignment mode">${FORMULA_SHEET_ASSIGNMENT_MODES.map((mode) => `<option value="${escapeHtml(mode)}"${mode === ":=" ? " selected" : ""}>${escapeHtml(mode)}</option>`).join("")}</select></label>`
+            : "";
         const editor = value.editable
-            ? `<form class="rix-output-sheet-editor" hidden><label><span data-rix-edit-label>Choose a cell to edit</span><input data-rix-edit-source aria-label="${value.editMode === "formula" ? "RiX formula" : "RiX value"}" autocomplete="off" spellcheck="false"></label><button type="submit">${value.editMode === "formula" ? "Set formula" : "Set"}</button><output data-rix-edit-status aria-live="polite"></output></form>`
+            ? `<form class="rix-output-sheet-editor" hidden><label class="rix-output-sheet-formula"><span data-rix-edit-label>Choose a cell to edit</span><input data-rix-edit-source aria-label="${value.editMode === "formula" ? "RiX formula" : "RiX value"}" autocomplete="off" spellcheck="false"></label>${assignmentControl}<button type="submit">${value.editMode === "formula" ? "Set formula" : "Set"}</button><output data-rix-edit-value aria-live="polite"></output><output data-rix-edit-status aria-live="polite"></output></form>`
             : "";
         const formulaAttributes = value.formulaBacked ? ` data-rix-formula-sheet="true" data-rix-formula-epoch="${value.formulaSheet.epoch}"` : "";
         return `<section class="rix-output-sheet" data-rix-rank="${value.rank}" data-rix-selected-plane="${escapeHtml(value.selectedPlaneKey)}"${liveAttributes}${formulaAttributes}>${value.title ? `<h3 class="rix-output-sheet-title">${escapeHtml(value.title)}</h3>` : ""}<div class="rix-output-sheet-location" aria-live="polite" data-rix-summary="${escapeHtml(summary)}">${escapeHtml(summary)}</div>${value.showAxisSummary ? `<div class="rix-output-sheet-axis-summary">${escapeHtml(axisSummary)}</div>` : ""}${controls}${editor}<table><thead><tr><th class="rix-output-sheet-corner" scope="col">${escapeHtml(value.addressBase)}</th>${value.columnHeaders.map((header, column) => `<th scope="col" data-rix-column="${column + 1}"${value.columnAxis && value.axisLabels[value.columnAxis.axis - 1] ? ` title="${escapeHtml(value.columnAxis.name)} ${column + 1}"` : ""}>${escapeHtml(header)}</th>`).join("")}</tr></thead>${bodies}</table></section>`;

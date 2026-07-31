@@ -136,6 +136,14 @@ describe("WidgetSession", () => {
         expect(updated.cells[0][0].slotId).toBe(sheet.cells[0][0].slotId);
         expect(widget.cellUpdates(formatValue).map(({ text }) => text)).toEqual(["10", "11", "12"]);
         expect(changes[0].formulaEvent.type).toBe("formula:commit");
+
+        const explicit = widget.dispatch({
+            type: "sheet:formula",
+            index: [1, 1],
+            source: "::= 20",
+        });
+        expect(explicit.cells[0][0].formulaSource).toBe("20");
+        expect(explicit.cells[0][0].assignmentMode).toBe("::=");
         widget.dispose();
     });
 

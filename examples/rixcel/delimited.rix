@@ -1,0 +1,10 @@
+## CSV/TSV interchange is value-oriented. Foreign formulas remain inert text.
+
+imported := .RiXCelImportCsv("""name,value,note
+alpha,3,"exact integer"
+beta,4.5,=SUM(A1:A2)""", {= header=1, id="delimited-example" });
+
+.Fragment([
+    .Sheet(imported, {= title="Imported CSV values" }),
+    .Text(.RiXCelExportTsv(imported))
+])
