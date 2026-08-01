@@ -571,9 +571,73 @@ describe("portable structured output", () => {
             """
         `);
         expect(document.kind).toBe("fragment");
-        expect(document.children.map((child) => child.kind)).toEqual(["heading", "figure"]);
-        expect(document.children[1].content.kind).toBe("table");
+        expect(document.children.map((child) => child.kind)).toEqual(["section"]);
+        expect(document.children[0].children[0].kind).toBe("figure");
+        expect(document.children[0].children[0].content.kind).toBe("table");
         expect(renderOutputHtml(document, formatValue)).toContain("tbl:squares");
+    });
+
+    test("document templates lower strict inline syntax, blocks, literal holes, lists, and assets", () => {
+        const document = parseAndEvaluate(`
+            count := 5;
+            diagram := "assets/proof.svg";
+            diagramMime := "image/svg+xml";
+            @"""
+            h1: *Exact* results #results
+
+            p: The **value** is \`x=@{count}\`, $x_@{count}$, [the proof](link: https://example.invalid/proof {title="Read proof"}), and [a tiny diagram](image: assets/tiny.svg {mime=image/svg+xml}). @@{ is literal.
+
+            h2: Details
+
+            quote: Ada Lovelace
+                p: *Analysis* is not algebra.
+
+            callout: tip — Keep it exact
+                Use intervals.
+
+            code: rix
+                answer := @{count}; @@{
+
+            math:
+                x_@{count} = 25
+
+            ol:
+                - Begin.
+                    ul:
+                        - Preserve the proof.
+
+            image: @{diagram} {mime=@{diagramMime}, alt="Proof diagram", width=320}
+            """
+        `);
+        const section = document.children[0];
+        expect(section.kind).toBe("section");
+        expect(section.title[0].kind).toBe("emphasis");
+        expect(section.children[0].kind).toBe("paragraph");
+        expect(section.children[0].children.map((child) => child.kind)).toContain("strong");
+        expect(section.children[0].children.map((child) => child.kind)).toContain("code");
+        expect(section.children[0].children.map((child) => child.kind)).toContain("math");
+        expect(section.children[0].children.map((child) => child.kind)).toContain("link");
+        expect(section.children[0].children.map((child) => child.kind)).toContain("image");
+        const details = section.children[1];
+        expect(details.kind).toBe("section");
+        expect(details.children.map((child) => child.kind)).toEqual(["quote", "callout", "code_block", "math_block", "list", "image"]);
+        expect(details.children[2].code).toBe("answer := 5; @{");
+        expect(details.children[3].source).toBe("x_5 = 25");
+        expect(details.children[4].items[0].children[1].kind).toBe("list");
+        expect(details.children[5].alt).toBe("Proof diagram");
+        expect(renderOutputHtml(document, formatValue)).toContain("rix-output-callout-tip");
+    });
+
+    test("document templates reject malformed inline delimiters and skipped headings", () => {
+        const triple = parseAndEvaluate('@"""\np: ***very exact***\n"""');
+        expect(triple.children[0].children[0].kind).toBe("strong");
+        expect(triple.children[0].children[0].children[0].kind).toBe("emphasis");
+        expect(formatValue(triple)).toBe("very exact");
+        expect(renderOutputHtml(triple, formatValue)).not.toContain("[object Object]");
+        expect(() => parseAndEvaluate('@"""\np: *unclosed\n"""')).toThrow("Unclosed *emphasis*");
+        expect(() => parseAndEvaluate('@"""\np: ****ambiguous****\n"""')).toThrow("Runs of four or more asterisks");
+        expect(() => parseAndEvaluate('@"""\nh1: One\nh3: Three\n"""')).toThrow("skips a section level");
+        expect(() => parseAndEvaluate('@"""\np: [movie](video: clip.mp4 {mime=video/mp4})\n"""')).toThrow("Inline video assets");
     });
 
     test("the plot plugin produces a portable SVG Graphic", () => {

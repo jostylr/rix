@@ -201,9 +201,8 @@ ol:
             - Keep the endpoint proof.
 ```
 
-Template inline syntax is intentionally shown as a future adapter: its
-Markdown-like punctuation must compile to the inline records above, not become
-a second document representation.
+Template inline syntax lowers directly to the inline records above. It is a
+small authoring convenience, not a second document representation.
 
 ## Template language proposal
 
@@ -219,20 +218,33 @@ fences, or a general extension grammar.
 It borrows familiar *presentation* conventions: blank lines separate
 paragraphs; indented bodies belong to a preceding block; `-` marks a list item;
 and a code block has a language name followed by literal indented source. It
-does **not** borrow Markdown's many precedence rules. In particular, `# title`,
-`*emphasis*`, `**strong**`, backtick code, `[label](url)`, fenced code, and raw
-HTML are ordinary literal text in the first version.
+also borrows a deliberately narrow inline vocabulary:
 
-Authors who need inline semantics write explicit RiX values in holes:
+| Source | Lowers to |
+|---|---|
+| `*text*` | `Emphasis` |
+| `**text**` | `Strong` |
+| `***text***` | nested `Strong(Emphasis(...))` |
+| `` `source` `` | `Code` |
+| `$tex$` | `Math` |
+| `[label](link: primary {attributes})` | `Link` |
+| `[alt](image: primary {attributes})` | `Image` (when inline images are enabled) |
 
-```text
-p: This is @{.Emphasis("exact")} and @{.Link({= href="https://example.invalid/proof", children="portable" })}.
-```
+It does **not** borrow CommonMark's many precedence rules. `# title`, fenced
+code, reference links, raw HTML, and Markdown tables remain literal text. The
+block directive is still `h1:` through `h6:`, never `#`. A compact `Doc`
+tagged-backtick spelling can be added as an alias later; `@\"\"\"...\"\"\"` stays the
+initial template literal so ordinary RiX backticks remain available to RiX.
 
-That choice keeps inline parsing small and lets an eventual Markdown importer
-be an adapter that lowers punctuation into `.Emphasis`, `.Link`, and the other
-records. It also prevents one source document from having a different semantic
-tree depending on whether a host's Markdown flavour is installed.
+Delimiters are strict rather than clever: matching delimiters are required,
+crossing or unclosed delimiters are errors, and only emphasis/strong may nest.
+Code and math take their bodies literally apart from interpolation. A backslash
+escapes the following delimiter or a backslash outside code/math; it has no
+meaning inside code/math.
+
+`***text***` is the one compact nesting shorthand and lowers to nested strong
+and emphasis semantics. Runs of four or more asterisks are rejected as ambiguous;
+write explicit nested pairs when that meaning is wanted.
 
 ### Grammar
 
@@ -248,6 +260,7 @@ BODY           := BLOCK | LIST_ITEM_LINE
 LIST_ITEM_LINE := "-" SPACE INLINE (NEWLINE INDENT BODY)*
 DIRECTIVE      := "h1" … "h6" | "p" | "section" | "fig" | "table"
                | "quote" | "callout" | "code" | "math" | "ul" | "ol" | "slide"
+               | "asset" | "image" | "audio" | "video"
 STANDALONE_HOLE := SPACE* HOLE SPACE*
 HOLE           := "@{" RIX_SOURCE "}"
 LABEL          := SPACE "#" IDENTIFIER
@@ -258,10 +271,14 @@ ends a paragraph but does not change the indentation stack. Only the directive
 names above are special at the start of a physical line, so prose such as
 `Note: this is text` remains a paragraph.
 
-`h1:` through `h6:` remain explicit `Heading` records. `section:` is the
-structural alternative and has the header form `section: LEVEL TITLE #id` with
-an indented block body; it lowers to `Section`. The parser must not infer a
-tree from arbitrary heading-level jumps in its first release.
+`h1:` through `h6:` introduce `Section` records in a template. A lower-numbered
+or equal heading closes the current section and starts a sibling/ancestor;
+a higher-numbered heading starts a child section. Skipping a level is an error
+(`h1:` directly to `h3:`), which keeps the resulting tree obvious. Direct
+`.Heading(...)` and `.Section(...)` constructors remain available when a
+caller needs to construct the records explicitly. `section:` is the explicit
+alternative with header form `section: LEVEL TITLE #id` and an indented block
+body.
 
 `ul:` and `ol:` own their marker semantics. Both use `-` body markers; the
 enclosing directive determines whether they become bullets or numbered items.
@@ -272,9 +289,18 @@ markers everywhere.
 `quote:` accepts an optional attribution header and a block body. `callout:`
 uses `callout: VARIANT — TITLE`, where `VARIANT` is one of the five callout
 variants and the em dash/title portion is optional. `code: LANGUAGE` makes its
-indented body literal source; it never scans holes. `math: tex` makes its body
-literal TeX. A generated `Math` value belongs in a standalone hole or in an
-ordinary inline run, rather than interpolating RiX into TeX by accident.
+indented body literal source. `math:` makes its indented body TeX. Both still
+recognize holes, so a calculated value can be inserted into literal source or
+TeX.
+
+Asset directives use `image: PRIMARY {attributes}`, `audio: PRIMARY
+{attributes}`, `video: PRIMARY {attributes}`, or the generic `asset:` form.
+The primary is an asset reference; `{attributes}` supplies a required MIME type
+and semantic metadata such as `alt`, `width`, `height`, `caption`, or
+`transcript`. In the inline form `[text](type: primary {attributes})`, `text`
+is visible link content for `link:` and alternative text for `image:`. Audio
+and video remain block constructs; inline audio/video syntax is rejected rather
+than silently selecting a player or a link rendering.
 
 ### `@{...}` interaction
 
@@ -285,14 +311,22 @@ interprets RiX operators or names.
 
 | Hole location | Accepted value | Lowering rule |
 |---|---|---|
-| A line containing only one hole | any block output, `Fragment`, table, graphic, or other existing output | splice the output value as one block child; raw values become a `Paragraph(Text(...))` only when explicitly requested by a later convenience rule |
+| A line containing only one hole | any block output, `Fragment`, table, graphic, or other existing output | splice the output value as one block child; a raw value becomes `Paragraph(Text(...))` |
 | Inside paragraph/directive header text | raw RiX value or inline output | raw value uses deterministic text formatting; inline output is inserted as that inline node; block output is an error |
 | `fig:` / `table:` body | one standalone output hole | use it as the figure content; no string fallback |
-| `code:` or `math:` body | no hole scanning | body is literal source/TeX, so `@{` remains characters |
+| `code:` or `math:` body, inline code, inline math | raw RiX value | format the value as literal source/TeX text; output values are errors |
 
-`@@{` escapes to the literal characters `@{`. This one escape is enough for
-documentation about holes; ordinary backslashes remain ordinary content until
-a block type gives them meaning.
+`@@{` escapes to the literal characters `@{` in every context, including code
+and math. Outside code/math, backslash escapes the next delimiter or a
+backslash. Inside code/math it is ordinary content, so TeX and source spelling
+are preserved.
+
+An attribute map is deliberately smaller than a RiX expression map: it is a
+comma-separated `name=value` list inside `{...}`. Attribute values may be a
+quoted string, number, bare word, or hole. A primary ends at whitespace, `{`,
+or `)`; quote it when it needs spaces. Unknown attributes are errors for the
+built-in type. This is sufficient for portable asset metadata without turning
+the document parser into a second RiX parser.
 
 The template scanner should evaluate each hole in document order, so it sees
 the normal lexical scope and cannot reorder effects. It should first build a
@@ -302,19 +336,20 @@ hole that failed.
 
 ### Parser cost and boundary
 
-This is a linear, single-pass scanner over the template plus normal RiX parses
-for each hole. It needs an indentation stack, blank-line tracking, a fixed
-directive lookup, and a tokenizer-aware balanced-hole reader. It does *not*
-need CommonMark's delimiter algorithm, link/reference resolution, HTML block
-rules, table alignment grammar, or an arbitrary extension parser. Nested lists
-are the only recursive document structure in the first pass, and their
-recursion follows indentation directly.
+This is a linear scanner over the template plus normal RiX parses for each
+hole. It needs an indentation stack, blank-line tracking, a fixed directive
+lookup, a short stack of the currently open inline delimiters, and a
+tokenizer-aware balanced-hole reader. It does *not* need CommonMark's delimiter
+algorithm, link/reference resolution, HTML block rules, table alignment
+grammar, or an arbitrary extension parser. Nested lists and sections are the
+only recursive document structures; both follow indentation or heading level
+directly.
 
-Existing `@"""..."""` support may keep its current paragraph/heading/figure/table
-behavior until this parser replaces it behind compatibility tests. The new
-directives should be introduced through a directive registry, but the built-in
-registry remains fixed by default so prose cannot become syntax due to a
-loaded plugin.
+The parser replaces the initial paragraph/heading/figure/table splitter behind
+compatibility tests. The built-in directive registry remains fixed by default
+so prose cannot become syntax due to a loaded plugin. A control panel remains
+ordinary RiX output inserted through `@{panel}`; a `panel:` directive would hide
+the important relationship between the panel and its reactive values.
 
 ## Implementation checklist
 
@@ -346,13 +381,12 @@ loaded plugin.
 
 ### 3. Add document-template support
 
-- [ ] Implement `quote:`, `callout:`, `code:`, `math:`, `ul:`, and `ol:` as
-  directive-registry entries that lower to the shared block records.
-- [ ] Define list-body indentation and nested-list parsing without importing a
-  general Markdown parser into the RiX grammar.
-- [ ] Add template inline lowering for emphasis, strong, code, math, link, and
-  hard line break only after the record-level constructors are tested.
-- [ ] Keep standalone `@{...}` block splices distinct from inline holes.
+- [x] Implement `quote:`, `callout:`, `code:`, `math:`, `ul:`, `ol:`, and
+  asset directives as fixed entries that lower to shared block records.
+- [x] Define strict heading-to-section nesting and list-body indentation.
+- [x] Add strict inline lowering for emphasis, strong, code, math, links, and
+  images, including `@{...}`/`@@{` rules.
+- [x] Keep standalone `@{...}` block splices distinct from inline holes.
 
 ### 4. Integrate media safely
 

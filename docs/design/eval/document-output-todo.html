@@ -1015,17 +1015,59 @@ ol:
     - Refine it.
         ul:
             - Keep the endpoint proof.</code></pre>
-<p>Template inline syntax is intentionally shown as a future adapter: its Markdown-like punctuation must compile to the inline records above, not become a second document representation.</p>
+<p>Template inline syntax lowers directly to the inline records above. It is a small authoring convenience, not a second document representation.</p>
 </section>
 <section id="template-language-proposal" class="level2">
 <h2 class="anchored" data-anchor-id="template-language-proposal">Template language proposal</h2>
 <p>The template language should be a compact RiX document notation, not a Markdown clone. It has three jobs only: split text into blocks, recognize a small fixed directive set, and lower inline runs plus <code>@{...}</code> holes into the same output records available through constructors. It does not accept raw HTML, arbitrary attributes, Markdown tables, reference links, code execution fences, or a general extension grammar.</p>
 <section id="what-it-borrows-from-markdownand-what-it-does-not" class="level3">
 <h3 class="anchored" data-anchor-id="what-it-borrows-from-markdownand-what-it-does-not">What it borrows from Markdown—and what it does not</h3>
-<p>It borrows familiar <em>presentation</em> conventions: blank lines separate paragraphs; indented bodies belong to a preceding block; <code>-</code> marks a list item; and a code block has a language name followed by literal indented source. It does <strong>not</strong> borrow Markdown’s many precedence rules. In particular, <code># title</code>, <code>*emphasis*</code>, <code>**strong**</code>, backtick code, <code>[label](url)</code>, fenced code, and raw HTML are ordinary literal text in the first version.</p>
-<p>Authors who need inline semantics write explicit RiX values in holes:</p>
-<pre class="text"><code>p: This is @{.Emphasis("exact")} and @{.Link({= href="https://example.invalid/proof", children="portable" })}.</code></pre>
-<p>That choice keeps inline parsing small and lets an eventual Markdown importer be an adapter that lowers punctuation into <code>.Emphasis</code>, <code>.Link</code>, and the other records. It also prevents one source document from having a different semantic tree depending on whether a host’s Markdown flavour is installed.</p>
+<p>It borrows familiar <em>presentation</em> conventions: blank lines separate paragraphs; indented bodies belong to a preceding block; <code>-</code> marks a list item; and a code block has a language name followed by literal indented source. It also borrows a deliberately narrow inline vocabulary:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Source</th>
+<th>Lowers to</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>*text*</code></td>
+<td><code>Emphasis</code></td>
+</tr>
+<tr class="even">
+<td><code>**text**</code></td>
+<td><code>Strong</code></td>
+</tr>
+<tr class="odd">
+<td><code>***text***</code></td>
+<td>nested <code>Strong(Emphasis(...))</code></td>
+</tr>
+<tr class="even">
+<td><code>`source`</code></td>
+<td><code>Code</code></td>
+</tr>
+<tr class="odd">
+<td><code>$tex$</code></td>
+<td><code>Math</code></td>
+</tr>
+<tr class="even">
+<td><code>[label](link: primary {attributes})</code></td>
+<td><code>Link</code></td>
+</tr>
+<tr class="odd">
+<td><code>[alt](image: primary {attributes})</code></td>
+<td><code>Image</code> (when inline images are enabled)</td>
+</tr>
+</tbody>
+</table>
+<p>It does <strong>not</strong> borrow CommonMark’s many precedence rules. <code># title</code>, fenced code, reference links, raw HTML, and Markdown tables remain literal text. The block directive is still <code>h1:</code> through <code>h6:</code>, never <code>#</code>. A compact <code>Doc</code> tagged-backtick spelling can be added as an alias later; <code>@\"\"\"...\"\"\"</code> stays the initial template literal so ordinary RiX backticks remain available to RiX.</p>
+<p>Delimiters are strict rather than clever: matching delimiters are required, crossing or unclosed delimiters are errors, and only emphasis/strong may nest. Code and math take their bodies literally apart from interpolation. A backslash escapes the following delimiter or a backslash outside code/math; it has no meaning inside code/math.</p>
+<p><code>***text***</code> is the one compact nesting shorthand and lowers to nested strong and emphasis semantics. Runs of four or more asterisks are rejected as ambiguous; write explicit nested pairs when that meaning is wanted.</p>
 </section>
 <section id="grammar" class="level3">
 <h3 class="anchored" data-anchor-id="grammar">Grammar</h3>
@@ -1038,13 +1080,15 @@ BODY           := BLOCK | LIST_ITEM_LINE
 LIST_ITEM_LINE := "-" SPACE INLINE (NEWLINE INDENT BODY)*
 DIRECTIVE      := "h1" … "h6" | "p" | "section" | "fig" | "table"
                | "quote" | "callout" | "code" | "math" | "ul" | "ol" | "slide"
+               | "asset" | "image" | "audio" | "video"
 STANDALONE_HOLE := SPACE* HOLE SPACE*
 HOLE           := "@{" RIX_SOURCE "}"
 LABEL          := SPACE "#" IDENTIFIER</code></pre>
 <p>Indentation is four spaces per document level; tabs are rejected. A blank line ends a paragraph but does not change the indentation stack. Only the directive names above are special at the start of a physical line, so prose such as <code>Note: this is text</code> remains a paragraph.</p>
-<p><code>h1:</code> through <code>h6:</code> remain explicit <code>Heading</code> records. <code>section:</code> is the structural alternative and has the header form <code>section: LEVEL TITLE #id</code> with an indented block body; it lowers to <code>Section</code>. The parser must not infer a tree from arbitrary heading-level jumps in its first release.</p>
+<p><code>h1:</code> through <code>h6:</code> introduce <code>Section</code> records in a template. A lower-numbered or equal heading closes the current section and starts a sibling/ancestor; a higher-numbered heading starts a child section. Skipping a level is an error (<code>h1:</code> directly to <code>h3:</code>), which keeps the resulting tree obvious. Direct <code>.Heading(...)</code> and <code>.Section(...)</code> constructors remain available when a caller needs to construct the records explicitly. <code>section:</code> is the explicit alternative with header form <code>section: LEVEL TITLE #id</code> and an indented block body.</p>
 <p><code>ul:</code> and <code>ol:</code> own their marker semantics. Both use <code>-</code> body markers; the enclosing directive determines whether they become bullets or numbered items. Nested content is indented one additional level under an item. This avoids the extra grammar and renumbering rules needed for accepting both <code>-</code> and <code>1.</code> markers everywhere.</p>
-<p><code>quote:</code> accepts an optional attribution header and a block body. <code>callout:</code> uses <code>callout: VARIANT — TITLE</code>, where <code>VARIANT</code> is one of the five callout variants and the em dash/title portion is optional. <code>code: LANGUAGE</code> makes its indented body literal source; it never scans holes. <code>math: tex</code> makes its body literal TeX. A generated <code>Math</code> value belongs in a standalone hole or in an ordinary inline run, rather than interpolating RiX into TeX by accident.</p>
+<p><code>quote:</code> accepts an optional attribution header and a block body. <code>callout:</code> uses <code>callout: VARIANT — TITLE</code>, where <code>VARIANT</code> is one of the five callout variants and the em dash/title portion is optional. <code>code: LANGUAGE</code> makes its indented body literal source. <code>math:</code> makes its indented body TeX. Both still recognize holes, so a calculated value can be inserted into literal source or TeX.</p>
+<p>Asset directives use <code>image: PRIMARY {attributes}</code>, <code>audio: PRIMARY {attributes}</code>, <code>video: PRIMARY {attributes}</code>, or the generic <code>asset:</code> form. The primary is an asset reference; <code>{attributes}</code> supplies a required MIME type and semantic metadata such as <code>alt</code>, <code>width</code>, <code>height</code>, <code>caption</code>, or <code>transcript</code>. In the inline form <code>[text](type: primary {attributes})</code>, <code>text</code> is visible link content for <code>link:</code> and alternative text for <code>image:</code>. Audio and video remain block constructs; inline audio/video syntax is rejected rather than silently selecting a player or a link rendering.</p>
 </section>
 <section id="interaction" class="level3">
 <h3 class="anchored" data-anchor-id="interaction"><code>@{...}</code> interaction</h3>
@@ -1066,7 +1110,7 @@ LABEL          := SPACE "#" IDENTIFIER</code></pre>
 <tr class="odd">
 <td>A line containing only one hole</td>
 <td>any block output, <code>Fragment</code>, table, graphic, or other existing output</td>
-<td>splice the output value as one block child; raw values become a <code>Paragraph(Text(...))</code> only when explicitly requested by a later convenience rule</td>
+<td>splice the output value as one block child; a raw value becomes <code>Paragraph(Text(...))</code></td>
 </tr>
 <tr class="even">
 <td>Inside paragraph/directive header text</td>
@@ -1079,19 +1123,20 @@ LABEL          := SPACE "#" IDENTIFIER</code></pre>
 <td>use it as the figure content; no string fallback</td>
 </tr>
 <tr class="even">
-<td><code>code:</code> or <code>math:</code> body</td>
-<td>no hole scanning</td>
-<td>body is literal source/TeX, so <code>@{</code> remains characters</td>
+<td><code>code:</code> or <code>math:</code> body, inline code, inline math</td>
+<td>raw RiX value</td>
+<td>format the value as literal source/TeX text; output values are errors</td>
 </tr>
 </tbody>
 </table>
-<p><code>@@{</code> escapes to the literal characters <code>@{</code>. This one escape is enough for documentation about holes; ordinary backslashes remain ordinary content until a block type gives them meaning.</p>
+<p><code>@@{</code> escapes to the literal characters <code>@{</code> in every context, including code and math. Outside code/math, backslash escapes the next delimiter or a backslash. Inside code/math it is ordinary content, so TeX and source spelling are preserved.</p>
+<p>An attribute map is deliberately smaller than a RiX expression map: it is a comma-separated <code>name=value</code> list inside <code>{...}</code>. Attribute values may be a quoted string, number, bare word, or hole. A primary ends at whitespace, <code>{</code>, or <code>)</code>; quote it when it needs spaces. Unknown attributes are errors for the built-in type. This is sufficient for portable asset metadata without turning the document parser into a second RiX parser.</p>
 <p>The template scanner should evaluate each hole in document order, so it sees the normal lexical scope and cannot reorder effects. It should first build a small block/inline token tree with source ranges, then evaluate holes while lowering. That makes diagnostics point to the directive, indentation, or RiX hole that failed.</p>
 </section>
 <section id="parser-cost-and-boundary" class="level3">
 <h3 class="anchored" data-anchor-id="parser-cost-and-boundary">Parser cost and boundary</h3>
-<p>This is a linear, single-pass scanner over the template plus normal RiX parses for each hole. It needs an indentation stack, blank-line tracking, a fixed directive lookup, and a tokenizer-aware balanced-hole reader. It does <em>not</em> need CommonMark’s delimiter algorithm, link/reference resolution, HTML block rules, table alignment grammar, or an arbitrary extension parser. Nested lists are the only recursive document structure in the first pass, and their recursion follows indentation directly.</p>
-<p>Existing <code>@"""..."""</code> support may keep its current paragraph/heading/figure/table behavior until this parser replaces it behind compatibility tests. The new directives should be introduced through a directive registry, but the built-in registry remains fixed by default so prose cannot become syntax due to a loaded plugin.</p>
+<p>This is a linear scanner over the template plus normal RiX parses for each hole. It needs an indentation stack, blank-line tracking, a fixed directive lookup, a short stack of the currently open inline delimiters, and a tokenizer-aware balanced-hole reader. It does <em>not</em> need CommonMark’s delimiter algorithm, link/reference resolution, HTML block rules, table alignment grammar, or an arbitrary extension parser. Nested lists and sections are the only recursive document structures; both follow indentation or heading level directly.</p>
+<p>The parser replaces the initial paragraph/heading/figure/table splitter behind compatibility tests. The built-in directive registry remains fixed by default so prose cannot become syntax due to a loaded plugin. A control panel remains ordinary RiX output inserted through <code>@{panel}</code>; a <code>panel:</code> directive would hide the important relationship between the panel and its reactive values.</p>
 </section>
 </section>
 <section id="implementation-checklist" class="level2">
@@ -1118,10 +1163,10 @@ LABEL          := SPACE "#" IDENTIFIER</code></pre>
 <section id="add-document-template-support" class="level3">
 <h3 class="anchored" data-anchor-id="add-document-template-support">3. Add document-template support</h3>
 <ul class="task-list">
-<li><label><input type="checkbox">Implement <code>quote:</code>, <code>callout:</code>, <code>code:</code>, <code>math:</code>, <code>ul:</code>, and <code>ol:</code> as directive-registry entries that lower to the shared block records.</label></li>
-<li><label><input type="checkbox">Define list-body indentation and nested-list parsing without importing a general Markdown parser into the RiX grammar.</label></li>
-<li><label><input type="checkbox">Add template inline lowering for emphasis, strong, code, math, link, and hard line break only after the record-level constructors are tested.</label></li>
-<li><label><input type="checkbox">Keep standalone <code>@{...}</code> block splices distinct from inline holes.</label></li>
+<li><label><input type="checkbox" checked="">Implement <code>quote:</code>, <code>callout:</code>, <code>code:</code>, <code>math:</code>, <code>ul:</code>, <code>ol:</code>, and asset directives as fixed entries that lower to shared block records.</label></li>
+<li><label><input type="checkbox" checked="">Define strict heading-to-section nesting and list-body indentation.</label></li>
+<li><label><input type="checkbox" checked="">Add strict inline lowering for emphasis, strong, code, math, links, and images, including <code>@{...}</code>/<code>@@{</code> rules.</label></li>
+<li><label><input type="checkbox" checked="">Keep standalone <code>@{...}</code> block splices distinct from inline holes.</label></li>
 </ul>
 </section>
 <section id="integrate-media-safely" class="level3">

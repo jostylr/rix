@@ -257,11 +257,11 @@ const INLINE_OUTPUT_KINDS = new Set([
 ]);
 
 export function isInlineOutput(value) {
-    return isOutputValue(value) && INLINE_OUTPUT_KINDS.has(value.kind);
+    return isOutputValue(value) && (INLINE_OUTPUT_KINDS.has(value.kind) || (value.kind === "image" && !value.caption));
 }
 
 export function isBlockOutput(value) {
-    return isOutputValue(value) && !INLINE_OUTPUT_KINDS.has(value.kind) && value.kind !== "asset";
+    return isOutputValue(value) && (!INLINE_OUTPUT_KINDS.has(value.kind) || value.kind === "image");
 }
 
 function contentItems(value, label) {
@@ -1675,6 +1675,7 @@ function formatInlineText(value, format) {
     if (value.kind === "link") {
         return `${value.children.map((child) => formatInlineText(child, format)).join("")} <${value.href}>`;
     }
+    if (value.kind === "image") return value.alt;
     if (value.kind === "line_break") return "\n";
     return formatOutputText(value, format);
 }
@@ -1791,6 +1792,12 @@ function renderInlineHtml(value, format) {
         return href
             ? `<a class="rix-output-link" href="${escapeHtml(href)}"${value.title ? ` title="${escapeHtml(value.title)}"` : ""}>${label}</a>`
             : `<span class="rix-output-link-invalid" title="Unsupported link scheme">${label}</span>`;
+    }
+    if (value.kind === "image") {
+        const src = safeHtmlUrl(value.asset.ref, { media: true });
+        return src
+            ? `<img class="rix-output-image" src="${escapeHtml(src)}" alt="${escapeHtml(value.alt)}"${value.title ? ` title="${escapeHtml(value.title)}"` : ""}${mediaDimensions(value)} loading="lazy">`
+            : `<span class="rix-output-image-unavailable" role="img" aria-label="${escapeHtml(value.alt)}">[Image unavailable: ${escapeHtml(value.asset.ref)}]</span>`;
     }
     if (value.kind === "line_break") return "<br>";
     return escapeHtml(formatOutputText(value, format));
