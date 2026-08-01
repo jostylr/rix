@@ -1848,11 +1848,11 @@ u \= {| 2 |}
 <p>Breakable constructs are plain blocks, explicit blocks, case blocks, and loops. The break value becomes the target construct’s final result, and any remaining code inside that target is skipped.</p>
 <p>Examples:</p>
 <pre class="rix"><code>{;
-    a := 1
-    {! 5}
+    a := 1;
+    {! 5};
     99
 }
-## =&gt; 5
+##@ == 5
 
 {@:100@
     i := 0;
@@ -1860,7 +1860,7 @@ u \= {| 2 |}
     {? i &lt; 3 ? _; {!@ i} };
     i += 1
 }
-## =&gt; 3
+##@ == 3
 
 {;outer;
     {;inner;
@@ -1868,7 +1868,7 @@ u \= {| 2 |}
     };
     9
 }
-## =&gt; 5</code></pre>
+##@ == 5</code></pre>
 <p>Scoping inside a break block is intentionally asymmetric:</p>
 <ul>
 <li>Plain reads can see the immediate surrounding scope without <code>@</code>.</li>
@@ -1879,11 +1879,11 @@ u \= {| 2 |}
 <h3 class="anchored" data-anchor-id="code-blocks-in-construct-positions-scope-sharing">Code Blocks in Construct Positions (Scope Sharing)</h3>
 <p>When a scope-creating construct (loop, <code>.Test</code>, etc.) evaluates a sub-part that is itself a code block, that block <strong>shares the construct’s scope</strong> rather than creating an additional isolated scope. This means code blocks in these positions act as grouping (for multi-statement parts) without introducing a scope boundary.</p>
 <pre class="rix"><code>## These are equivalent — the init block shares the loop's scope:
-{@ x = 1; x &lt; 4; x; x += 1 }          ## =&gt; 3
-{@ {; x = 1 }; x &lt; 4; x; x += 1 }     ## =&gt; 3
+{@ x = 1; x &lt; 4; x; x += 1 }          ##@ == 3
+{@ {; x = 1 }; x &lt; 4; x; x += 1 }     ##@ == 3
 
 ## All five loop parts can be code blocks:
-{@ {; i = 0; j = 10 }; {; i &lt; 3 }; {; i + j }; {; i += 1 }; {; i + j } }  ## =&gt; 13</code></pre>
+{@ {; i = 0; j = 10 }; {; i &lt; 3 }; {; i + j }; {; i += 1 }; {; i + j } }  ##@ == 13</code></pre>
 <p>To get a genuinely isolated block inside a construct position, use nested braces. The outer block shares the construct’s scope, but the inner block creates its own:</p>
 <pre class="rix"><code>{@ { { x = 1 } }; x &lt; 4; x; x += 1 }   ## Error: x is undefined in loop scope</code></pre>
 <p>This scope-sharing applies to any lazy construct that manages its own scope and evaluates sub-parts within it. Currently this includes loop sub-parts (init, condition, body, update) and <code>.Test</code> setup/test expressions.</p>

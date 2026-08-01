@@ -1241,13 +1241,13 @@ F G x          ## -&gt; F(G(x))   with x=4: F(8) = 18
 }</code></pre>
 <p>More generally, when a code block appears as a sub-part of any scope-creating construct, it shares that construct’s scope. This is especially useful in loops where one part needs multiple statements:</p>
 <pre class="rix"><code>## The init block shares the loop's scope — x is visible everywhere:
-{@ {; x = 0; y = 10 }; x &lt; 3; x + y; x += 1 }   ## =&gt; 12
+{@ {; x = 0; y = 10 }; x &lt; 3; x + y; x += 1 }   ##@ == 12
 
 ## Equivalent to writing it without a block:
-{@ x = 0; x &lt; 3; x; x += 1 }                      ## =&gt; 2</code></pre>
+{@ x = 0; x &lt; 3; x; x += 1 }                      ##@ == 2</code></pre>
 <p>Inside temporal brace containers such as loops and explicit blocks, a comma can sequence multiple expressions inside one semicolon-delimited slot. It evaluates left-to-right in the current scope and returns the final expression, without creating a new block scope:</p>
-<pre class="rix"><code>{@ i = 1, j = 3; i &lt; j; i + j; i += 1 }            ## =&gt; 5
-{; x = 1, x += 2, x + 4 }                          ## =&gt; 7</code></pre>
+<pre class="rix"><code>{@ i = 1, j = 3; i &lt; j; i + j; i += 1 }            ##@ == 5
+{; x = 1, x += 2, x + 4 }                          ##@ == 7</code></pre>
 <p>To create an isolated block inside a construct position, use nested braces — the outer block shares scope, the inner one isolates:</p>
 <pre class="rix"><code>{@ { { x = 1 } }; x &lt; 4; x; x += 1 }   ## Error: x is not in loop scope</code></pre>
 <p>If you want to explicitly modify or read a variable from an <strong>outer scope</strong>, you must prefix it with <code>@</code>. This prevents accidental shadowing of variables when inside a lambda, block, or loop.</p>
@@ -1653,7 +1653,7 @@ m^^                ## transpose view, shape {: 3, 2 }</code></pre>
 <p>The max check happens <strong>after the loop condition passes and before the next body execution</strong>. A loop with max <code>100</code> can therefore complete 100 iterations; it throws only when iteration 101 would start.</p>
 <p>The three-part form omits the separate update slot. Use it when the body is the full iteration step, such as <code>{@ i = 0; i &lt; 4; {; @total += i; i += 1 } }</code>, or for update-only loops such as <code>{@ i = 0; i &lt; 4; i += 1 }</code>. The underlying lazy system capability accepts the same shape: <code>@_LOOP(init, condition, body)</code>.</p>
 <p>The five-part form adds an <code>after</code> slot: <code>{@ init; condition; body; update; after }</code>. The <code>after</code> slot runs once after the condition becomes false, shares the loop scope, and its value becomes the loop result. This is useful for returning accumulated loop-local state:</p>
-<pre class="rix"><code>{@ i = 0, total = 0; i &lt; 4; total += i; i += 1; total }  ## =&gt; 6</code></pre>
+<pre class="rix"><code>{@ i = 0, total = 0; i &lt; 4; total += i; i += 1; total }  ##@ == 6</code></pre>
 <p><code>BREAK</code> exits the loop immediately and skips the <code>after</code> slot, so the break value remains the loop result.</p>
 <p>Blank loop slots are preserved as no-op holes. For example, <code>{@ i = 0; i &lt; 5; ; i += 1; i^2 }</code> has a blank body slot, still has five loop slots, and returns <code>25</code>.</p>
 <p>Within each loop slot, comma expressions are evaluated left-to-right and stay in that slot. For example, <code>{@ i = 1, j = 3; i &lt; j; i + j; i += 1; i }</code> has five loop slots: init <code>i = 1, j = 3</code>, condition <code>i &lt; j</code>, body <code>i + j</code>, update <code>i += 1</code>, and after <code>i</code>. Commas in arrays, tuples, maps, and function calls remain element or argument separators.</p>

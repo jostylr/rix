@@ -2465,18 +2465,22 @@ result := someFunction(args);</code></pre>
 <p>The RiX parser includes comprehensive support for comments, treating them as first-class AST nodes rather than discarding them during parsing. This allows tools to preserve documentation, implement preprocessing directives, or perform comment-based analysis.</p>
 <section id="comment-syntax" class="level3">
 <h3 class="anchored" data-anchor-id="comment-syntax">Comment Syntax</h3>
-<p>The parser supports two types of comments:</p>
-<p><strong>Line Comments (<code>#</code>)</strong></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb98"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb98-1"><a href="#cb98-1" aria-hidden="true" tabindex="-1"></a># This is a line comment</span>
-<span id="cb98-2"><a href="#cb98-2" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> <span class="dv">5</span>  # Inline comment</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The parser supports line comments, tagged multi-line comments, and star-counted block comments:</p>
+<p><strong>Line Comments (<code>##</code>)</strong></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb98"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb98-1"><a href="#cb98-1" aria-hidden="true" tabindex="-1"></a>## This is a line comment</span>
+<span id="cb98-2"><a href="#cb98-2" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> <span class="dv">5</span>  ## Inline comment</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p><strong>Block Comments (<code>/* */</code>)</strong></p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb99"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb99-1"><a href="#cb99-1" aria-hidden="true" tabindex="-1"></a><span class="co">/* This is a block comment */</span></span>
 <span id="cb99-2"><a href="#cb99-2" aria-hidden="true" tabindex="-1"></a><span class="co">/* Multi-line</span></span>
 <span id="cb99-3"><a href="#cb99-3" aria-hidden="true" tabindex="-1"></a><span class="co">   block comment</span></span>
 <span id="cb99-4"><a href="#cb99-4" aria-hidden="true" tabindex="-1"></a><span class="co">   spanning several lines */</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p><strong>Nested Block Comments</strong></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb100"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb100-1"><a href="#cb100-1" aria-hidden="true" tabindex="-1"></a><span class="co">/**outer /* nested inner */</span> content<span class="op">**</span><span class="ss">/</span></span>
-<span id="cb100-2"><a href="#cb100-2" aria-hidden="true" tabindex="-1"></a><span class="co">/***deeply /* nested /* comment */</span> structure <span class="op">*</span><span class="ss">/ content</span><span class="sc">***</span><span class="ss">/</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><strong>Tagged Multi-line Comments</strong></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb100"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb100-1"><a href="#cb100-1" aria-hidden="true" tabindex="-1"></a>##TAG## comment text</span>
+<span id="cb100-2"><a href="#cb100-2" aria-hidden="true" tabindex="-1"></a>that may span lines</span>
+<span id="cb100-3"><a href="#cb100-3" aria-hidden="true" tabindex="-1"></a>##tag##</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><strong>Star-counted Block Comments</strong></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb101"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb101-1"><a href="#cb101-1" aria-hidden="true" tabindex="-1"></a><span class="co">/**outer /* nested inner */</span> content<span class="op">**</span><span class="ss">/</span></span>
+<span id="cb101-2"><a href="#cb101-2" aria-hidden="true" tabindex="-1"></a><span class="co">/***deeply /* nested /* comment */</span> structure <span class="op">*</span><span class="ss">/ content</span><span class="sc">***</span><span class="ss">/</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="comment-parsing-behavior" class="level3">
 <h3 class="anchored" data-anchor-id="comment-parsing-behavior">Comment Parsing Behavior</h3>
@@ -2490,42 +2494,42 @@ result := someFunction(args);</code></pre>
 <section id="comment-ast-structure" class="level3">
 <h3 class="anchored" data-anchor-id="comment-ast-structure">Comment AST Structure</h3>
 <p>Each comment produces a dedicated AST node:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb101"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb101-1"><a href="#cb101-1" aria-hidden="true" tabindex="-1"></a>{</span>
-<span id="cb101-2"><a href="#cb101-2" aria-hidden="true" tabindex="-1"></a>    <span class="dt">type</span><span class="op">:</span> <span class="st">"Comment"</span><span class="op">,</span></span>
-<span id="cb101-3"><a href="#cb101-3" aria-hidden="true" tabindex="-1"></a>    <span class="dt">value</span><span class="op">:</span> string<span class="op">,</span>          <span class="co">// Comment content without delimiters</span></span>
-<span id="cb101-4"><a href="#cb101-4" aria-hidden="true" tabindex="-1"></a>    <span class="dt">kind</span><span class="op">:</span> <span class="st">"comment"</span><span class="op">,</span>        <span class="co">// Always "comment"</span></span>
-<span id="cb101-5"><a href="#cb101-5" aria-hidden="true" tabindex="-1"></a>    <span class="dt">pos</span><span class="op">:</span> [start<span class="op">,</span> delim<span class="op">,</span> end]<span class="op">,</span></span>
-<span id="cb101-6"><a href="#cb101-6" aria-hidden="true" tabindex="-1"></a>    <span class="dt">original</span><span class="op">:</span> string        <span class="co">// Original text including delimiters</span></span>
-<span id="cb101-7"><a href="#cb101-7" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb102"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb102-1"><a href="#cb102-1" aria-hidden="true" tabindex="-1"></a>{</span>
+<span id="cb102-2"><a href="#cb102-2" aria-hidden="true" tabindex="-1"></a>    <span class="dt">type</span><span class="op">:</span> <span class="st">"Comment"</span><span class="op">,</span></span>
+<span id="cb102-3"><a href="#cb102-3" aria-hidden="true" tabindex="-1"></a>    <span class="dt">value</span><span class="op">:</span> string<span class="op">,</span>          <span class="co">// Comment content without delimiters</span></span>
+<span id="cb102-4"><a href="#cb102-4" aria-hidden="true" tabindex="-1"></a>    <span class="dt">kind</span><span class="op">:</span> <span class="st">"comment"</span><span class="op">,</span>        <span class="co">// Always "comment"</span></span>
+<span id="cb102-5"><a href="#cb102-5" aria-hidden="true" tabindex="-1"></a>    <span class="dt">pos</span><span class="op">:</span> [start<span class="op">,</span> delim<span class="op">,</span> end]<span class="op">,</span></span>
+<span id="cb102-6"><a href="#cb102-6" aria-hidden="true" tabindex="-1"></a>    <span class="dt">original</span><span class="op">:</span> string        <span class="co">// Original text including delimiters</span></span>
+<span id="cb102-7"><a href="#cb102-7" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="parsing-examples" class="level3">
 <h3 class="anchored" data-anchor-id="parsing-examples">Parsing Examples</h3>
 <p><strong>Simple Line Comment</strong></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb102"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb102-1"><a href="#cb102-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Input: "# Calculate result"</span></span>
-<span id="cb102-2"><a href="#cb102-2" aria-hidden="true" tabindex="-1"></a><span class="co">// AST:</span></span>
-<span id="cb102-3"><a href="#cb102-3" aria-hidden="true" tabindex="-1"></a>[{</span>
-<span id="cb102-4"><a href="#cb102-4" aria-hidden="true" tabindex="-1"></a>    <span class="dt">type</span><span class="op">:</span> <span class="st">"Comment"</span><span class="op">,</span></span>
-<span id="cb102-5"><a href="#cb102-5" aria-hidden="true" tabindex="-1"></a>    <span class="dt">value</span><span class="op">:</span> <span class="st">" Calculate result"</span><span class="op">,</span></span>
-<span id="cb102-6"><a href="#cb102-6" aria-hidden="true" tabindex="-1"></a>    <span class="dt">kind</span><span class="op">:</span> <span class="st">"comment"</span><span class="op">,</span></span>
-<span id="cb102-7"><a href="#cb102-7" aria-hidden="true" tabindex="-1"></a>    <span class="dt">original</span><span class="op">:</span> <span class="st">"# Calculate result"</span></span>
-<span id="cb102-8"><a href="#cb102-8" aria-hidden="true" tabindex="-1"></a>}]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p><strong>Comment Between Expressions</strong></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb103"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb103-1"><a href="#cb103-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Input: "x = 5\n# Set variable\ny = 10"</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb103"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb103-1"><a href="#cb103-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Input: "## Calculate result"</span></span>
 <span id="cb103-2"><a href="#cb103-2" aria-hidden="true" tabindex="-1"></a><span class="co">// AST:</span></span>
-<span id="cb103-3"><a href="#cb103-3" aria-hidden="true" tabindex="-1"></a>[</span>
-<span id="cb103-4"><a href="#cb103-4" aria-hidden="true" tabindex="-1"></a>    { <span class="dt">type</span><span class="op">:</span> <span class="st">"BinaryOperation"</span><span class="op">,</span> <span class="dt">operator</span><span class="op">:</span> <span class="st">"="</span><span class="op">,</span> <span class="op">...</span> }<span class="op">,</span></span>
-<span id="cb103-5"><a href="#cb103-5" aria-hidden="true" tabindex="-1"></a>    { <span class="dt">type</span><span class="op">:</span> <span class="st">"Comment"</span><span class="op">,</span> <span class="dt">value</span><span class="op">:</span> <span class="st">" Set variable"</span><span class="op">,</span> <span class="op">...</span> }<span class="op">,</span></span>
-<span id="cb103-6"><a href="#cb103-6" aria-hidden="true" tabindex="-1"></a>    { <span class="dt">type</span><span class="op">:</span> <span class="st">"BinaryOperation"</span><span class="op">,</span> <span class="dt">operator</span><span class="op">:</span> <span class="st">"="</span><span class="op">,</span> <span class="op">...</span> }</span>
-<span id="cb103-7"><a href="#cb103-7" aria-hidden="true" tabindex="-1"></a>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p><strong>Nested Block Comment</strong></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb104"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb104-1"><a href="#cb104-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Input: "/**outer /* inner */ content**/"</span></span>
+<span id="cb103-3"><a href="#cb103-3" aria-hidden="true" tabindex="-1"></a>[{</span>
+<span id="cb103-4"><a href="#cb103-4" aria-hidden="true" tabindex="-1"></a>    <span class="dt">type</span><span class="op">:</span> <span class="st">"Comment"</span><span class="op">,</span></span>
+<span id="cb103-5"><a href="#cb103-5" aria-hidden="true" tabindex="-1"></a>    <span class="dt">value</span><span class="op">:</span> <span class="st">" Calculate result"</span><span class="op">,</span></span>
+<span id="cb103-6"><a href="#cb103-6" aria-hidden="true" tabindex="-1"></a>    <span class="dt">kind</span><span class="op">:</span> <span class="st">"comment"</span><span class="op">,</span></span>
+<span id="cb103-7"><a href="#cb103-7" aria-hidden="true" tabindex="-1"></a>    <span class="dt">original</span><span class="op">:</span> <span class="st">"## Calculate result"</span></span>
+<span id="cb103-8"><a href="#cb103-8" aria-hidden="true" tabindex="-1"></a>}]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><strong>Comment Between Expressions</strong></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb104"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb104-1"><a href="#cb104-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Input: "x = 5\n## Set variable\ny = 10"</span></span>
 <span id="cb104-2"><a href="#cb104-2" aria-hidden="true" tabindex="-1"></a><span class="co">// AST:</span></span>
-<span id="cb104-3"><a href="#cb104-3" aria-hidden="true" tabindex="-1"></a>[{</span>
-<span id="cb104-4"><a href="#cb104-4" aria-hidden="true" tabindex="-1"></a>    <span class="dt">type</span><span class="op">:</span> <span class="st">"Comment"</span><span class="op">,</span></span>
-<span id="cb104-5"><a href="#cb104-5" aria-hidden="true" tabindex="-1"></a>    <span class="dt">value</span><span class="op">:</span> <span class="st">"outer /* inner */ content"</span><span class="op">,</span></span>
-<span id="cb104-6"><a href="#cb104-6" aria-hidden="true" tabindex="-1"></a>    <span class="dt">kind</span><span class="op">:</span> <span class="st">"comment"</span><span class="op">,</span></span>
-<span id="cb104-7"><a href="#cb104-7" aria-hidden="true" tabindex="-1"></a>    <span class="dt">original</span><span class="op">:</span> <span class="st">"/**outer /* inner */ content**/"</span></span>
-<span id="cb104-8"><a href="#cb104-8" aria-hidden="true" tabindex="-1"></a>}]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb104-3"><a href="#cb104-3" aria-hidden="true" tabindex="-1"></a>[</span>
+<span id="cb104-4"><a href="#cb104-4" aria-hidden="true" tabindex="-1"></a>    { <span class="dt">type</span><span class="op">:</span> <span class="st">"BinaryOperation"</span><span class="op">,</span> <span class="dt">operator</span><span class="op">:</span> <span class="st">"="</span><span class="op">,</span> <span class="op">...</span> }<span class="op">,</span></span>
+<span id="cb104-5"><a href="#cb104-5" aria-hidden="true" tabindex="-1"></a>    { <span class="dt">type</span><span class="op">:</span> <span class="st">"Comment"</span><span class="op">,</span> <span class="dt">value</span><span class="op">:</span> <span class="st">" Set variable"</span><span class="op">,</span> <span class="op">...</span> }<span class="op">,</span></span>
+<span id="cb104-6"><a href="#cb104-6" aria-hidden="true" tabindex="-1"></a>    { <span class="dt">type</span><span class="op">:</span> <span class="st">"BinaryOperation"</span><span class="op">,</span> <span class="dt">operator</span><span class="op">:</span> <span class="st">"="</span><span class="op">,</span> <span class="op">...</span> }</span>
+<span id="cb104-7"><a href="#cb104-7" aria-hidden="true" tabindex="-1"></a>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><strong>Nested Block Comment</strong></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb105"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb105-1"><a href="#cb105-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Input: "/**outer /* inner */ content**/"</span></span>
+<span id="cb105-2"><a href="#cb105-2" aria-hidden="true" tabindex="-1"></a><span class="co">// AST:</span></span>
+<span id="cb105-3"><a href="#cb105-3" aria-hidden="true" tabindex="-1"></a>[{</span>
+<span id="cb105-4"><a href="#cb105-4" aria-hidden="true" tabindex="-1"></a>    <span class="dt">type</span><span class="op">:</span> <span class="st">"Comment"</span><span class="op">,</span></span>
+<span id="cb105-5"><a href="#cb105-5" aria-hidden="true" tabindex="-1"></a>    <span class="dt">value</span><span class="op">:</span> <span class="st">"outer /* inner */ content"</span><span class="op">,</span></span>
+<span id="cb105-6"><a href="#cb105-6" aria-hidden="true" tabindex="-1"></a>    <span class="dt">kind</span><span class="op">:</span> <span class="st">"comment"</span><span class="op">,</span></span>
+<span id="cb105-7"><a href="#cb105-7" aria-hidden="true" tabindex="-1"></a>    <span class="dt">original</span><span class="op">:</span> <span class="st">"/**outer /* inner */ content**/"</span></span>
+<span id="cb105-8"><a href="#cb105-8" aria-hidden="true" tabindex="-1"></a>}]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="integration-with-code" class="level3">
 <h3 class="anchored" data-anchor-id="integration-with-code">Integration with Code</h3>
@@ -2543,11 +2547,11 @@ result := someFunction(args);</code></pre>
 <section id="error-handling-1" class="level2">
 <h2 class="anchored" data-anchor-id="error-handling-1">Error Handling</h2>
 <p>The parser provides detailed error messages with position information:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb105"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb105-1"><a href="#cb105-1" aria-hidden="true" tabindex="-1"></a><span class="cf">try</span> {</span>
-<span id="cb105-2"><a href="#cb105-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">const</span> ast <span class="op">=</span> <span class="fu">parse</span>(tokens<span class="op">,</span> systemLookup)<span class="op">;</span></span>
-<span id="cb105-3"><a href="#cb105-3" aria-hidden="true" tabindex="-1"></a>} <span class="cf">catch</span> (error) {</span>
-<span id="cb105-4"><a href="#cb105-4" aria-hidden="true" tabindex="-1"></a>    <span class="bu">console</span><span class="op">.</span><span class="fu">error</span>(<span class="vs">`Parse error at position </span><span class="sc">${</span>error<span class="op">.</span><span class="at">position</span><span class="sc">}</span><span class="vs">: </span><span class="sc">${</span>error<span class="op">.</span><span class="at">message</span><span class="sc">}</span><span class="vs">`</span>)<span class="op">;</span></span>
-<span id="cb105-5"><a href="#cb105-5" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb106"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb106-1"><a href="#cb106-1" aria-hidden="true" tabindex="-1"></a><span class="cf">try</span> {</span>
+<span id="cb106-2"><a href="#cb106-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">const</span> ast <span class="op">=</span> <span class="fu">parse</span>(tokens<span class="op">,</span> systemLookup)<span class="op">;</span></span>
+<span id="cb106-3"><a href="#cb106-3" aria-hidden="true" tabindex="-1"></a>} <span class="cf">catch</span> (error) {</span>
+<span id="cb106-4"><a href="#cb106-4" aria-hidden="true" tabindex="-1"></a>    <span class="bu">console</span><span class="op">.</span><span class="fu">error</span>(<span class="vs">`Parse error at position </span><span class="sc">${</span>error<span class="op">.</span><span class="at">position</span><span class="sc">}</span><span class="vs">: </span><span class="sc">${</span>error<span class="op">.</span><span class="at">message</span><span class="sc">}</span><span class="vs">`</span>)<span class="op">;</span></span>
+<span id="cb106-5"><a href="#cb106-5" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Common error scenarios: - <strong>Unmatched delimiters</strong>: Missing closing parentheses, brackets, or braces - <strong>Unexpected tokens</strong>: Invalid syntax or token sequences - <strong>Expression termination</strong>: Incomplete expressions at statement boundaries - <strong>Mixed metadata</strong>: Cannot mix multiple array elements with metadata assignments - <strong>Mixed container types</strong>: Cannot mix different assignment operators within brace containers - <strong>Invalid system syntax</strong>: System containers require semicolon separators</p>
 </section>
 <section id="position-tracking" class="level2">
@@ -2677,11 +2681,11 @@ x |&gt; Sqrt |&gt; Abs         // Abs(Sqrt(x)) — left associative</code></pre>
 </section>
 <section id="ast-structure-5" class="level4">
 <h4 class="anchored" data-anchor-id="ast-structure-5">AST Structure</h4>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb108"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb108-1"><a href="#cb108-1" aria-hidden="true" tabindex="-1"></a>{</span>
-<span id="cb108-2"><a href="#cb108-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">type</span><span class="op">:</span> <span class="st">"Pipe"</span><span class="op">,</span></span>
-<span id="cb108-3"><a href="#cb108-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">left</span><span class="op">:</span> { <span class="co">/* left operand */</span> }<span class="op">,</span></span>
-<span id="cb108-4"><a href="#cb108-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">right</span><span class="op">:</span> { <span class="co">/* right function */</span> }</span>
-<span id="cb108-5"><a href="#cb108-5" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb109"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb109-1"><a href="#cb109-1" aria-hidden="true" tabindex="-1"></a>{</span>
+<span id="cb109-2"><a href="#cb109-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">type</span><span class="op">:</span> <span class="st">"Pipe"</span><span class="op">,</span></span>
+<span id="cb109-3"><a href="#cb109-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">left</span><span class="op">:</span> { <span class="co">/* left operand */</span> }<span class="op">,</span></span>
+<span id="cb109-4"><a href="#cb109-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">right</span><span class="op">:</span> { <span class="co">/* right function */</span> }</span>
+<span id="cb109-5"><a href="#cb109-5" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 </section>
 <section id="explicit-pipe" class="level3">
@@ -2728,11 +2732,11 @@ x |&gt; Sqrt |&gt; Abs         // Abs(Sqrt(x)) — left associative</code></pre>
 </section>
 <section id="ast-structure-6" class="level4">
 <h4 class="anchored" data-anchor-id="ast-structure-6">AST Structure</h4>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb112"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb112-1"><a href="#cb112-1" aria-hidden="true" tabindex="-1"></a>{</span>
-<span id="cb112-2"><a href="#cb112-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">type</span><span class="op">:</span> <span class="st">"ExplicitPipe"</span><span class="op">,</span></span>
-<span id="cb112-3"><a href="#cb112-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">left</span><span class="op">:</span> { <span class="co">/* tuple operand */</span> }<span class="op">,</span></span>
-<span id="cb112-4"><a href="#cb112-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">right</span><span class="op">:</span> { <span class="co">/* any expression containing PlaceHolder nodes */</span> }</span>
-<span id="cb112-5"><a href="#cb112-5" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb113"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb113-1"><a href="#cb113-1" aria-hidden="true" tabindex="-1"></a>{</span>
+<span id="cb113-2"><a href="#cb113-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">type</span><span class="op">:</span> <span class="st">"ExplicitPipe"</span><span class="op">,</span></span>
+<span id="cb113-3"><a href="#cb113-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">left</span><span class="op">:</span> { <span class="co">/* tuple operand */</span> }<span class="op">,</span></span>
+<span id="cb113-4"><a href="#cb113-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">right</span><span class="op">:</span> { <span class="co">/* any expression containing PlaceHolder nodes */</span> }</span>
+<span id="cb113-5"><a href="#cb113-5" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 </section>
 <section id="map-operator" class="level3">
@@ -2752,11 +2756,11 @@ matrix |&gt;&gt; (row) -&gt; row |&gt; sum     // sum each row</code></pre>
 </section>
 <section id="ast-structure-7" class="level4">
 <h4 class="anchored" data-anchor-id="ast-structure-7">AST Structure</h4>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb115"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb115-1"><a href="#cb115-1" aria-hidden="true" tabindex="-1"></a>{</span>
-<span id="cb115-2"><a href="#cb115-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">type</span><span class="op">:</span> <span class="st">"Map"</span><span class="op">,</span></span>
-<span id="cb115-3"><a href="#cb115-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">left</span><span class="op">:</span> { <span class="co">/* iterable operand */</span> }<span class="op">,</span></span>
-<span id="cb115-4"><a href="#cb115-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">right</span><span class="op">:</span> { <span class="co">/* function or lambda */</span> }</span>
-<span id="cb115-5"><a href="#cb115-5" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb116"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb116-1"><a href="#cb116-1" aria-hidden="true" tabindex="-1"></a>{</span>
+<span id="cb116-2"><a href="#cb116-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">type</span><span class="op">:</span> <span class="st">"Map"</span><span class="op">,</span></span>
+<span id="cb116-3"><a href="#cb116-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">left</span><span class="op">:</span> { <span class="co">/* iterable operand */</span> }<span class="op">,</span></span>
+<span id="cb116-4"><a href="#cb116-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">right</span><span class="op">:</span> { <span class="co">/* function or lambda */</span> }</span>
+<span id="cb116-5"><a href="#cb116-5" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 </section>
 <section id="filter-operator" class="level3">
@@ -2776,11 +2780,11 @@ data |&gt;? isValid                   // filter using named predicate</code></pr
 </section>
 <section id="ast-structure-8" class="level4">
 <h4 class="anchored" data-anchor-id="ast-structure-8">AST Structure</h4>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb118"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb118-1"><a href="#cb118-1" aria-hidden="true" tabindex="-1"></a>{</span>
-<span id="cb118-2"><a href="#cb118-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">type</span><span class="op">:</span> <span class="st">"Filter"</span><span class="op">,</span></span>
-<span id="cb118-3"><a href="#cb118-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">left</span><span class="op">:</span> { <span class="co">/* iterable operand */</span> }<span class="op">,</span></span>
-<span id="cb118-4"><a href="#cb118-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">right</span><span class="op">:</span> { <span class="co">/* predicate function */</span> }</span>
-<span id="cb118-5"><a href="#cb118-5" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb119"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb119-1"><a href="#cb119-1" aria-hidden="true" tabindex="-1"></a>{</span>
+<span id="cb119-2"><a href="#cb119-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">type</span><span class="op">:</span> <span class="st">"Filter"</span><span class="op">,</span></span>
+<span id="cb119-3"><a href="#cb119-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">left</span><span class="op">:</span> { <span class="co">/* iterable operand */</span> }<span class="op">,</span></span>
+<span id="cb119-4"><a href="#cb119-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">right</span><span class="op">:</span> { <span class="co">/* predicate function */</span> }</span>
+<span id="cb119-5"><a href="#cb119-5" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 </section>
 <section id="reduce-operator" class="level3">
@@ -2800,11 +2804,11 @@ words |&gt;: (acc, w) -&gt; acc + " " + w // concatenate with spaces</code></pre
 </section>
 <section id="ast-structure-9" class="level4">
 <h4 class="anchored" data-anchor-id="ast-structure-9">AST Structure</h4>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb121"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb121-1"><a href="#cb121-1" aria-hidden="true" tabindex="-1"></a>{</span>
-<span id="cb121-2"><a href="#cb121-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">type</span><span class="op">:</span> <span class="st">"Reduce"</span><span class="op">,</span></span>
-<span id="cb121-3"><a href="#cb121-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">left</span><span class="op">:</span> { <span class="co">/* iterable operand */</span> }<span class="op">,</span></span>
-<span id="cb121-4"><a href="#cb121-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">right</span><span class="op">:</span> { <span class="co">/* binary function */</span> }</span>
-<span id="cb121-5"><a href="#cb121-5" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb122"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb122-1"><a href="#cb122-1" aria-hidden="true" tabindex="-1"></a>{</span>
+<span id="cb122-2"><a href="#cb122-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">type</span><span class="op">:</span> <span class="st">"Reduce"</span><span class="op">,</span></span>
+<span id="cb122-3"><a href="#cb122-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">left</span><span class="op">:</span> { <span class="co">/* iterable operand */</span> }<span class="op">,</span></span>
+<span id="cb122-4"><a href="#cb122-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">right</span><span class="op">:</span> { <span class="co">/* binary function */</span> }</span>
+<span id="cb122-5"><a href="#cb122-5" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 </section>
 <section id="operator-composition" class="level3">
@@ -2883,17 +2887,17 @@ x |&gt;                // Invalid: missing right operand
 <section id="standard-function-definitions" class="level3">
 <h3 class="anchored" data-anchor-id="standard-function-definitions">Standard Function Definitions</h3>
 <p>Standard functions use the <code>:-&gt;</code> operator and support positional and keyword-only parameters:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb130"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb130-1"><a href="#cb130-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Basic function</span></span>
-<span id="cb130-2"><a href="#cb130-2" aria-hidden="true" tabindex="-1"></a><span class="fu">f</span>(x) <span class="op">:-&gt;</span> x <span class="op">+</span> <span class="dv">1</span></span>
-<span id="cb130-3"><a href="#cb130-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb130-4"><a href="#cb130-4" aria-hidden="true" tabindex="-1"></a><span class="co">// Function with default parameters</span></span>
-<span id="cb130-5"><a href="#cb130-5" aria-hidden="true" tabindex="-1"></a><span class="fu">f</span>(x<span class="op">,</span> n <span class="op">:=</span> <span class="dv">5</span>) <span class="op">:-&gt;</span> x<span class="op">^</span>n</span>
-<span id="cb130-6"><a href="#cb130-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb130-7"><a href="#cb130-7" aria-hidden="true" tabindex="-1"></a><span class="co">// Function with keyword-only parameters (after semicolon)</span></span>
-<span id="cb130-8"><a href="#cb130-8" aria-hidden="true" tabindex="-1"></a><span class="fu">f</span>(x<span class="op">,</span> n <span class="op">:=</span> <span class="dv">5</span><span class="op">;</span> a <span class="op">:=</span> <span class="dv">0</span>) <span class="op">:-&gt;</span> (x<span class="op">-</span>a)<span class="op">^</span>n <span class="op">+</span> <span class="dv">1</span></span>
-<span id="cb130-9"><a href="#cb130-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb130-10"><a href="#cb130-10" aria-hidden="true" tabindex="-1"></a><span class="co">// Function with conditional parameters</span></span>
-<span id="cb130-11"><a href="#cb130-11" aria-hidden="true" tabindex="-1"></a><span class="fu">h</span>(x<span class="op">,</span> y<span class="op">;</span> n <span class="op">:=</span> <span class="dv">2</span> <span class="op">?</span> x<span class="op">^</span><span class="dv">2</span> <span class="op">+</span> y<span class="op">^</span><span class="dv">2</span> <span class="op">=</span> <span class="dv">1</span>) <span class="op">:-&gt;</span> <span class="fu">COS</span>(x<span class="op">;</span> n) <span class="op">*</span> <span class="fu">SIN</span>(y<span class="op">;</span> n)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb131"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb131-1"><a href="#cb131-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Basic function</span></span>
+<span id="cb131-2"><a href="#cb131-2" aria-hidden="true" tabindex="-1"></a><span class="fu">f</span>(x) <span class="op">:-&gt;</span> x <span class="op">+</span> <span class="dv">1</span></span>
+<span id="cb131-3"><a href="#cb131-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb131-4"><a href="#cb131-4" aria-hidden="true" tabindex="-1"></a><span class="co">// Function with default parameters</span></span>
+<span id="cb131-5"><a href="#cb131-5" aria-hidden="true" tabindex="-1"></a><span class="fu">f</span>(x<span class="op">,</span> n <span class="op">:=</span> <span class="dv">5</span>) <span class="op">:-&gt;</span> x<span class="op">^</span>n</span>
+<span id="cb131-6"><a href="#cb131-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb131-7"><a href="#cb131-7" aria-hidden="true" tabindex="-1"></a><span class="co">// Function with keyword-only parameters (after semicolon)</span></span>
+<span id="cb131-8"><a href="#cb131-8" aria-hidden="true" tabindex="-1"></a><span class="fu">f</span>(x<span class="op">,</span> n <span class="op">:=</span> <span class="dv">5</span><span class="op">;</span> a <span class="op">:=</span> <span class="dv">0</span>) <span class="op">:-&gt;</span> (x<span class="op">-</span>a)<span class="op">^</span>n <span class="op">+</span> <span class="dv">1</span></span>
+<span id="cb131-9"><a href="#cb131-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb131-10"><a href="#cb131-10" aria-hidden="true" tabindex="-1"></a><span class="co">// Function with conditional parameters</span></span>
+<span id="cb131-11"><a href="#cb131-11" aria-hidden="true" tabindex="-1"></a><span class="fu">h</span>(x<span class="op">,</span> y<span class="op">;</span> n <span class="op">:=</span> <span class="dv">2</span> <span class="op">?</span> x<span class="op">^</span><span class="dv">2</span> <span class="op">+</span> y<span class="op">^</span><span class="dv">2</span> <span class="op">=</span> <span class="dv">1</span>) <span class="op">:-&gt;</span> <span class="fu">COS</span>(x<span class="op">;</span> n) <span class="op">*</span> <span class="fu">SIN</span>(y<span class="op">;</span> n)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section id="parameter-types" class="level4">
 <h4 class="anchored" data-anchor-id="parameter-types">Parameter Types</h4>
 <ol type="1">
@@ -2905,31 +2909,31 @@ x |&gt;                // Invalid: missing right operand
 </section>
 <section id="ast-structure-10" class="level4">
 <h4 class="anchored" data-anchor-id="ast-structure-10">AST Structure</h4>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb131"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb131-1"><a href="#cb131-1" aria-hidden="true" tabindex="-1"></a>{</span>
-<span id="cb131-2"><a href="#cb131-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">type</span><span class="op">:</span> <span class="st">'FunctionDefinition'</span><span class="op">,</span></span>
-<span id="cb131-3"><a href="#cb131-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">name</span><span class="op">:</span> { <span class="dt">type</span><span class="op">:</span> <span class="st">'UserIdentifier'</span><span class="op">,</span> <span class="dt">name</span><span class="op">:</span> <span class="st">'f'</span> }<span class="op">,</span></span>
-<span id="cb131-4"><a href="#cb131-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">parameters</span><span class="op">:</span> {</span>
-<span id="cb131-5"><a href="#cb131-5" aria-hidden="true" tabindex="-1"></a>    <span class="dt">positional</span><span class="op">:</span> [</span>
-<span id="cb131-6"><a href="#cb131-6" aria-hidden="true" tabindex="-1"></a>      { <span class="dt">name</span><span class="op">:</span> <span class="st">'x'</span><span class="op">,</span> <span class="dt">defaultValue</span><span class="op">:</span> <span class="kw">null</span><span class="op">,</span> <span class="dt">condition</span><span class="op">:</span> <span class="kw">null</span><span class="op">,</span> <span class="dt">isKeywordOnly</span><span class="op">:</span> <span class="kw">false</span> }<span class="op">,</span></span>
-<span id="cb131-7"><a href="#cb131-7" aria-hidden="true" tabindex="-1"></a>      { <span class="dt">name</span><span class="op">:</span> <span class="st">'n'</span><span class="op">,</span> <span class="dt">defaultValue</span><span class="op">:</span> {<span class="op">...</span>}<span class="op">,</span> <span class="dt">condition</span><span class="op">:</span> <span class="kw">null</span><span class="op">,</span> <span class="dt">isKeywordOnly</span><span class="op">:</span> <span class="kw">false</span> }</span>
-<span id="cb131-8"><a href="#cb131-8" aria-hidden="true" tabindex="-1"></a>    ]<span class="op">,</span></span>
-<span id="cb131-9"><a href="#cb131-9" aria-hidden="true" tabindex="-1"></a>    <span class="dt">keyword</span><span class="op">:</span> [</span>
-<span id="cb131-10"><a href="#cb131-10" aria-hidden="true" tabindex="-1"></a>      { <span class="dt">name</span><span class="op">:</span> <span class="st">'a'</span><span class="op">,</span> <span class="dt">defaultValue</span><span class="op">:</span> {<span class="op">...</span>}<span class="op">,</span> <span class="dt">condition</span><span class="op">:</span> {<span class="op">...</span>}<span class="op">,</span> <span class="dt">isKeywordOnly</span><span class="op">:</span> <span class="kw">true</span> }</span>
-<span id="cb131-11"><a href="#cb131-11" aria-hidden="true" tabindex="-1"></a>    ]<span class="op">,</span></span>
-<span id="cb131-12"><a href="#cb131-12" aria-hidden="true" tabindex="-1"></a>    <span class="dt">metadata</span><span class="op">:</span> {}</span>
-<span id="cb131-13"><a href="#cb131-13" aria-hidden="true" tabindex="-1"></a>  }<span class="op">,</span></span>
-<span id="cb131-14"><a href="#cb131-14" aria-hidden="true" tabindex="-1"></a>  <span class="dt">body</span><span class="op">:</span> {<span class="op">...</span>}<span class="op">,</span></span>
-<span id="cb131-15"><a href="#cb131-15" aria-hidden="true" tabindex="-1"></a>  <span class="dt">type</span><span class="op">:</span> <span class="st">'standard'</span></span>
-<span id="cb131-16"><a href="#cb131-16" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb132"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb132-1"><a href="#cb132-1" aria-hidden="true" tabindex="-1"></a>{</span>
+<span id="cb132-2"><a href="#cb132-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">type</span><span class="op">:</span> <span class="st">'FunctionDefinition'</span><span class="op">,</span></span>
+<span id="cb132-3"><a href="#cb132-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">name</span><span class="op">:</span> { <span class="dt">type</span><span class="op">:</span> <span class="st">'UserIdentifier'</span><span class="op">,</span> <span class="dt">name</span><span class="op">:</span> <span class="st">'f'</span> }<span class="op">,</span></span>
+<span id="cb132-4"><a href="#cb132-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">parameters</span><span class="op">:</span> {</span>
+<span id="cb132-5"><a href="#cb132-5" aria-hidden="true" tabindex="-1"></a>    <span class="dt">positional</span><span class="op">:</span> [</span>
+<span id="cb132-6"><a href="#cb132-6" aria-hidden="true" tabindex="-1"></a>      { <span class="dt">name</span><span class="op">:</span> <span class="st">'x'</span><span class="op">,</span> <span class="dt">defaultValue</span><span class="op">:</span> <span class="kw">null</span><span class="op">,</span> <span class="dt">condition</span><span class="op">:</span> <span class="kw">null</span><span class="op">,</span> <span class="dt">isKeywordOnly</span><span class="op">:</span> <span class="kw">false</span> }<span class="op">,</span></span>
+<span id="cb132-7"><a href="#cb132-7" aria-hidden="true" tabindex="-1"></a>      { <span class="dt">name</span><span class="op">:</span> <span class="st">'n'</span><span class="op">,</span> <span class="dt">defaultValue</span><span class="op">:</span> {<span class="op">...</span>}<span class="op">,</span> <span class="dt">condition</span><span class="op">:</span> <span class="kw">null</span><span class="op">,</span> <span class="dt">isKeywordOnly</span><span class="op">:</span> <span class="kw">false</span> }</span>
+<span id="cb132-8"><a href="#cb132-8" aria-hidden="true" tabindex="-1"></a>    ]<span class="op">,</span></span>
+<span id="cb132-9"><a href="#cb132-9" aria-hidden="true" tabindex="-1"></a>    <span class="dt">keyword</span><span class="op">:</span> [</span>
+<span id="cb132-10"><a href="#cb132-10" aria-hidden="true" tabindex="-1"></a>      { <span class="dt">name</span><span class="op">:</span> <span class="st">'a'</span><span class="op">,</span> <span class="dt">defaultValue</span><span class="op">:</span> {<span class="op">...</span>}<span class="op">,</span> <span class="dt">condition</span><span class="op">:</span> {<span class="op">...</span>}<span class="op">,</span> <span class="dt">isKeywordOnly</span><span class="op">:</span> <span class="kw">true</span> }</span>
+<span id="cb132-11"><a href="#cb132-11" aria-hidden="true" tabindex="-1"></a>    ]<span class="op">,</span></span>
+<span id="cb132-12"><a href="#cb132-12" aria-hidden="true" tabindex="-1"></a>    <span class="dt">metadata</span><span class="op">:</span> {}</span>
+<span id="cb132-13"><a href="#cb132-13" aria-hidden="true" tabindex="-1"></a>  }<span class="op">,</span></span>
+<span id="cb132-14"><a href="#cb132-14" aria-hidden="true" tabindex="-1"></a>  <span class="dt">body</span><span class="op">:</span> {<span class="op">...</span>}<span class="op">,</span></span>
+<span id="cb132-15"><a href="#cb132-15" aria-hidden="true" tabindex="-1"></a>  <span class="dt">type</span><span class="op">:</span> <span class="st">'standard'</span></span>
+<span id="cb132-16"><a href="#cb132-16" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 </section>
 <section id="multifunctions" class="level3">
 <h3 class="anchored" data-anchor-id="multifunctions">Multifunctions</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb132"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb132-1"><a href="#cb132-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Array syntax</span></span>
-<span id="cb132-2"><a href="#cb132-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb132-3"><a href="#cb132-3" aria-hidden="true" tabindex="-1"></a><span class="co">// Array with global metadata</span></span>
-<span id="cb132-4"><a href="#cb132-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb132-5"><a href="#cb132-5" aria-hidden="true" tabindex="-1"></a><span class="co">// Separate statements (equivalent to array syntax)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb133"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb133-1"><a href="#cb133-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Array syntax</span></span>
+<span id="cb133-2"><a href="#cb133-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb133-3"><a href="#cb133-3" aria-hidden="true" tabindex="-1"></a><span class="co">// Array with global metadata</span></span>
+<span id="cb133-4"><a href="#cb133-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb133-5"><a href="#cb133-5" aria-hidden="true" tabindex="-1"></a><span class="co">// Separate statements (equivalent to array syntax)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section id="pattern-matching-rules" class="level4">
 <h4 class="anchored" data-anchor-id="pattern-matching-rules">Pattern Matching Rules</h4>
 <ol type="1">
@@ -2942,57 +2946,57 @@ x |&gt;                // Invalid: missing right operand
 </section>
 <section id="ast-structure-11" class="level4">
 <h4 class="anchored" data-anchor-id="ast-structure-11">AST Structure</h4>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb133"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb133-1"><a href="#cb133-1" aria-hidden="true" tabindex="-1"></a>{</span>
-<span id="cb133-2"><a href="#cb133-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">name</span><span class="op">:</span> { <span class="dt">type</span><span class="op">:</span> <span class="st">'UserIdentifier'</span><span class="op">,</span> <span class="dt">name</span><span class="op">:</span> <span class="st">'g'</span> }<span class="op">,</span></span>
-<span id="cb133-3"><a href="#cb133-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">parameters</span><span class="op">:</span> {<span class="op">...</span>}<span class="op">,</span></span>
-<span id="cb133-4"><a href="#cb133-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">patterns</span><span class="op">:</span> [</span>
-<span id="cb133-5"><a href="#cb133-5" aria-hidden="true" tabindex="-1"></a>    {</span>
-<span id="cb133-6"><a href="#cb133-6" aria-hidden="true" tabindex="-1"></a>      <span class="dt">type</span><span class="op">:</span> <span class="st">'BinaryOperation'</span><span class="op">,</span></span>
-<span id="cb133-7"><a href="#cb133-7" aria-hidden="true" tabindex="-1"></a>      <span class="dt">operator</span><span class="op">:</span> <span class="st">'-&gt;'</span><span class="op">,</span></span>
-<span id="cb133-8"><a href="#cb133-8" aria-hidden="true" tabindex="-1"></a>      <span class="dt">left</span><span class="op">:</span> { <span class="co">/* parameter with condition */</span> }<span class="op">,</span></span>
-<span id="cb133-9"><a href="#cb133-9" aria-hidden="true" tabindex="-1"></a>      <span class="dt">right</span><span class="op">:</span> { <span class="co">/* function body */</span> }</span>
-<span id="cb133-10"><a href="#cb133-10" aria-hidden="true" tabindex="-1"></a>    }</span>
-<span id="cb133-11"><a href="#cb133-11" aria-hidden="true" tabindex="-1"></a>  ]<span class="op">,</span></span>
-<span id="cb133-12"><a href="#cb133-12" aria-hidden="true" tabindex="-1"></a>  <span class="dt">metadata</span><span class="op">:</span> { <span class="co">/* global metadata */</span> }</span>
-<span id="cb133-13"><a href="#cb133-13" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb134"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb134-1"><a href="#cb134-1" aria-hidden="true" tabindex="-1"></a>{</span>
+<span id="cb134-2"><a href="#cb134-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">name</span><span class="op">:</span> { <span class="dt">type</span><span class="op">:</span> <span class="st">'UserIdentifier'</span><span class="op">,</span> <span class="dt">name</span><span class="op">:</span> <span class="st">'g'</span> }<span class="op">,</span></span>
+<span id="cb134-3"><a href="#cb134-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">parameters</span><span class="op">:</span> {<span class="op">...</span>}<span class="op">,</span></span>
+<span id="cb134-4"><a href="#cb134-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">patterns</span><span class="op">:</span> [</span>
+<span id="cb134-5"><a href="#cb134-5" aria-hidden="true" tabindex="-1"></a>    {</span>
+<span id="cb134-6"><a href="#cb134-6" aria-hidden="true" tabindex="-1"></a>      <span class="dt">type</span><span class="op">:</span> <span class="st">'BinaryOperation'</span><span class="op">,</span></span>
+<span id="cb134-7"><a href="#cb134-7" aria-hidden="true" tabindex="-1"></a>      <span class="dt">operator</span><span class="op">:</span> <span class="st">'-&gt;'</span><span class="op">,</span></span>
+<span id="cb134-8"><a href="#cb134-8" aria-hidden="true" tabindex="-1"></a>      <span class="dt">left</span><span class="op">:</span> { <span class="co">/* parameter with condition */</span> }<span class="op">,</span></span>
+<span id="cb134-9"><a href="#cb134-9" aria-hidden="true" tabindex="-1"></a>      <span class="dt">right</span><span class="op">:</span> { <span class="co">/* function body */</span> }</span>
+<span id="cb134-10"><a href="#cb134-10" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb134-11"><a href="#cb134-11" aria-hidden="true" tabindex="-1"></a>  ]<span class="op">,</span></span>
+<span id="cb134-12"><a href="#cb134-12" aria-hidden="true" tabindex="-1"></a>  <span class="dt">metadata</span><span class="op">:</span> { <span class="co">/* global metadata */</span> }</span>
+<span id="cb134-13"><a href="#cb134-13" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 </section>
 <section id="function-calls-with-enhanced-syntax" class="level3">
 <h3 class="anchored" data-anchor-id="function-calls-with-enhanced-syntax">Function Calls with Enhanced Syntax</h3>
 <p>Function calls support semicolon separators for keyword arguments:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb134"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb134-1"><a href="#cb134-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Mixed positional and keyword arguments</span></span>
-<span id="cb134-2"><a href="#cb134-2" aria-hidden="true" tabindex="-1"></a><span class="fu">f</span>(<span class="dv">2</span><span class="op">,</span> <span class="dv">3</span><span class="op">;</span> a <span class="op">:=</span> <span class="dv">4</span>)</span>
-<span id="cb134-3"><a href="#cb134-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb134-4"><a href="#cb134-4" aria-hidden="true" tabindex="-1"></a><span class="co">// Shorthand keyword arguments (n := n)</span></span>
-<span id="cb134-5"><a href="#cb134-5" aria-hidden="true" tabindex="-1"></a><span class="fu">f</span>(<span class="dv">2</span><span class="op">;</span> n)</span>
-<span id="cb134-6"><a href="#cb134-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb134-7"><a href="#cb134-7" aria-hidden="true" tabindex="-1"></a><span class="co">// Multiple keyword arguments</span></span>
-<span id="cb134-8"><a href="#cb134-8" aria-hidden="true" tabindex="-1"></a><span class="fu">f</span>(<span class="dv">1</span><span class="op">;</span> a <span class="op">:=</span> <span class="dv">2</span><span class="op">,</span> b <span class="op">:=</span> <span class="dv">3</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb135"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb135-1"><a href="#cb135-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Mixed positional and keyword arguments</span></span>
+<span id="cb135-2"><a href="#cb135-2" aria-hidden="true" tabindex="-1"></a><span class="fu">f</span>(<span class="dv">2</span><span class="op">,</span> <span class="dv">3</span><span class="op">;</span> a <span class="op">:=</span> <span class="dv">4</span>)</span>
+<span id="cb135-3"><a href="#cb135-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb135-4"><a href="#cb135-4" aria-hidden="true" tabindex="-1"></a><span class="co">// Shorthand keyword arguments (n := n)</span></span>
+<span id="cb135-5"><a href="#cb135-5" aria-hidden="true" tabindex="-1"></a><span class="fu">f</span>(<span class="dv">2</span><span class="op">;</span> n)</span>
+<span id="cb135-6"><a href="#cb135-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb135-7"><a href="#cb135-7" aria-hidden="true" tabindex="-1"></a><span class="co">// Multiple keyword arguments</span></span>
+<span id="cb135-8"><a href="#cb135-8" aria-hidden="true" tabindex="-1"></a><span class="fu">f</span>(<span class="dv">1</span><span class="op">;</span> a <span class="op">:=</span> <span class="dv">2</span><span class="op">,</span> b <span class="op">:=</span> <span class="dv">3</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section id="function-call-ast" class="level4">
 <h4 class="anchored" data-anchor-id="function-call-ast">Function Call AST</h4>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb135"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb135-1"><a href="#cb135-1" aria-hidden="true" tabindex="-1"></a>{</span>
-<span id="cb135-2"><a href="#cb135-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">type</span><span class="op">:</span> <span class="st">'FunctionCall'</span><span class="op">,</span></span>
-<span id="cb135-3"><a href="#cb135-3" aria-hidden="true" tabindex="-1"></a>  <span class="kw">function</span><span class="op">:</span> { <span class="dt">type</span><span class="op">:</span> <span class="st">'UserIdentifier'</span><span class="op">,</span> <span class="dt">name</span><span class="op">:</span> <span class="st">'f'</span> }<span class="op">,</span></span>
-<span id="cb135-4"><a href="#cb135-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">arguments</span><span class="op">:</span> {</span>
-<span id="cb135-5"><a href="#cb135-5" aria-hidden="true" tabindex="-1"></a>    <span class="dt">positional</span><span class="op">:</span> [</span>
-<span id="cb135-6"><a href="#cb135-6" aria-hidden="true" tabindex="-1"></a>      { <span class="dt">type</span><span class="op">:</span> <span class="st">'Number'</span><span class="op">,</span> <span class="dt">value</span><span class="op">:</span> <span class="st">'2'</span> }<span class="op">,</span></span>
-<span id="cb135-7"><a href="#cb135-7" aria-hidden="true" tabindex="-1"></a>      { <span class="dt">type</span><span class="op">:</span> <span class="st">'Number'</span><span class="op">,</span> <span class="dt">value</span><span class="op">:</span> <span class="st">'3'</span> }</span>
-<span id="cb135-8"><a href="#cb135-8" aria-hidden="true" tabindex="-1"></a>    ]<span class="op">,</span></span>
-<span id="cb135-9"><a href="#cb135-9" aria-hidden="true" tabindex="-1"></a>    <span class="dt">keyword</span><span class="op">:</span> {</span>
-<span id="cb135-10"><a href="#cb135-10" aria-hidden="true" tabindex="-1"></a>      <span class="dt">a</span><span class="op">:</span> { <span class="dt">type</span><span class="op">:</span> <span class="st">'Number'</span><span class="op">,</span> <span class="dt">value</span><span class="op">:</span> <span class="st">'4'</span> }</span>
-<span id="cb135-11"><a href="#cb135-11" aria-hidden="true" tabindex="-1"></a>    }</span>
-<span id="cb135-12"><a href="#cb135-12" aria-hidden="true" tabindex="-1"></a>  }</span>
-<span id="cb135-13"><a href="#cb135-13" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb136"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb136-1"><a href="#cb136-1" aria-hidden="true" tabindex="-1"></a>{</span>
+<span id="cb136-2"><a href="#cb136-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">type</span><span class="op">:</span> <span class="st">'FunctionCall'</span><span class="op">,</span></span>
+<span id="cb136-3"><a href="#cb136-3" aria-hidden="true" tabindex="-1"></a>  <span class="kw">function</span><span class="op">:</span> { <span class="dt">type</span><span class="op">:</span> <span class="st">'UserIdentifier'</span><span class="op">,</span> <span class="dt">name</span><span class="op">:</span> <span class="st">'f'</span> }<span class="op">,</span></span>
+<span id="cb136-4"><a href="#cb136-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">arguments</span><span class="op">:</span> {</span>
+<span id="cb136-5"><a href="#cb136-5" aria-hidden="true" tabindex="-1"></a>    <span class="dt">positional</span><span class="op">:</span> [</span>
+<span id="cb136-6"><a href="#cb136-6" aria-hidden="true" tabindex="-1"></a>      { <span class="dt">type</span><span class="op">:</span> <span class="st">'Number'</span><span class="op">,</span> <span class="dt">value</span><span class="op">:</span> <span class="st">'2'</span> }<span class="op">,</span></span>
+<span id="cb136-7"><a href="#cb136-7" aria-hidden="true" tabindex="-1"></a>      { <span class="dt">type</span><span class="op">:</span> <span class="st">'Number'</span><span class="op">,</span> <span class="dt">value</span><span class="op">:</span> <span class="st">'3'</span> }</span>
+<span id="cb136-8"><a href="#cb136-8" aria-hidden="true" tabindex="-1"></a>    ]<span class="op">,</span></span>
+<span id="cb136-9"><a href="#cb136-9" aria-hidden="true" tabindex="-1"></a>    <span class="dt">keyword</span><span class="op">:</span> {</span>
+<span id="cb136-10"><a href="#cb136-10" aria-hidden="true" tabindex="-1"></a>      <span class="dt">a</span><span class="op">:</span> { <span class="dt">type</span><span class="op">:</span> <span class="st">'Number'</span><span class="op">,</span> <span class="dt">value</span><span class="op">:</span> <span class="st">'4'</span> }</span>
+<span id="cb136-11"><a href="#cb136-11" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb136-12"><a href="#cb136-12" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb136-13"><a href="#cb136-13" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 </section>
 <section id="assignment-style-function-definitions" class="level3">
 <h3 class="anchored" data-anchor-id="assignment-style-function-definitions">Assignment-Style Function Definitions</h3>
 <p>Alternative syntax using standard assignment operators:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb136"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb136-1"><a href="#cb136-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Equivalent to f(x, n := 5; a := 0) :-&gt; (x-a)^n + 1</span></span>
-<span id="cb136-2"><a href="#cb136-2" aria-hidden="true" tabindex="-1"></a>f <span class="op">:=</span> (x<span class="op">,</span> n <span class="op">:=</span> <span class="dv">5</span><span class="op">;</span> a <span class="op">:=</span> <span class="dv">0</span>) <span class="op">-&gt;</span> (x<span class="op">-</span>a)<span class="op">^</span>n <span class="op">+</span> <span class="dv">1</span></span>
-<span id="cb136-3"><a href="#cb136-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb136-4"><a href="#cb136-4" aria-hidden="true" tabindex="-1"></a><span class="co">// multifunction dispatch with assignment</span></span>
-<span id="cb136-5"><a href="#cb136-5" aria-hidden="true" tabindex="-1"></a>g <span class="op">:=</span> [ (x <span class="op">?</span> x <span class="op">&lt;</span> <span class="dv">0</span>) <span class="op">-&gt;</span> <span class="op">-</span>x<span class="op">,</span> (x) <span class="op">-&gt;</span> x ]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb137"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb137-1"><a href="#cb137-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Equivalent to f(x, n := 5; a := 0) :-&gt; (x-a)^n + 1</span></span>
+<span id="cb137-2"><a href="#cb137-2" aria-hidden="true" tabindex="-1"></a>f <span class="op">:=</span> (x<span class="op">,</span> n <span class="op">:=</span> <span class="dv">5</span><span class="op">;</span> a <span class="op">:=</span> <span class="dv">0</span>) <span class="op">-&gt;</span> (x<span class="op">-</span>a)<span class="op">^</span>n <span class="op">+</span> <span class="dv">1</span></span>
+<span id="cb137-3"><a href="#cb137-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb137-4"><a href="#cb137-4" aria-hidden="true" tabindex="-1"></a><span class="co">// multifunction dispatch with assignment</span></span>
+<span id="cb137-5"><a href="#cb137-5" aria-hidden="true" tabindex="-1"></a>g <span class="op">:=</span> [ (x <span class="op">?</span> x <span class="op">&lt;</span> <span class="dv">0</span>) <span class="op">-&gt;</span> <span class="op">-</span>x<span class="op">,</span> (x) <span class="op">-&gt;</span> x ]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="condition-operator" class="level3">
 <h3 class="anchored" data-anchor-id="condition-operator">Condition Operator</h3>
@@ -3006,108 +3010,108 @@ x |&gt;                // Invalid: missing right operand
 <section id="metadata-integration" class="level3">
 <h3 class="anchored" data-anchor-id="metadata-integration">Metadata Integration</h3>
 <p>Function definitions integrate with the existing metadata system:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb137"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb137-1"><a href="#cb137-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Function with parameter metadata</span></span>
-<span id="cb137-2"><a href="#cb137-2" aria-hidden="true" tabindex="-1"></a><span class="fu">f</span>(x<span class="op">;</span> a <span class="op">:=</span> <span class="dv">0</span><span class="op">,</span> metadata <span class="op">:=</span> <span class="st">"description"</span>) <span class="op">:-&gt;</span> x <span class="op">+</span> a</span>
-<span id="cb137-3"><a href="#cb137-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb137-4"><a href="#cb137-4" aria-hidden="true" tabindex="-1"></a><span class="co">// multifunction dispatch with global metadata</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb138"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb138-1"><a href="#cb138-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Function with parameter metadata</span></span>
+<span id="cb138-2"><a href="#cb138-2" aria-hidden="true" tabindex="-1"></a><span class="fu">f</span>(x<span class="op">;</span> a <span class="op">:=</span> <span class="dv">0</span><span class="op">,</span> metadata <span class="op">:=</span> <span class="st">"description"</span>) <span class="op">:-&gt;</span> x <span class="op">+</span> a</span>
+<span id="cb138-3"><a href="#cb138-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb138-4"><a href="#cb138-4" aria-hidden="true" tabindex="-1"></a><span class="co">// multifunction dispatch with global metadata</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="comprehensive-examples" class="level3">
 <h3 class="anchored" data-anchor-id="comprehensive-examples">Comprehensive Examples</h3>
 <section id="basic-function-definitions" class="level4">
 <h4 class="anchored" data-anchor-id="basic-function-definitions">Basic Function Definitions</h4>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb138"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb138-1"><a href="#cb138-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Simple function</span></span>
-<span id="cb138-2"><a href="#cb138-2" aria-hidden="true" tabindex="-1"></a><span class="fu">square</span>(x) <span class="op">:-&gt;</span> x<span class="op">^</span><span class="dv">2</span></span>
-<span id="cb138-3"><a href="#cb138-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb138-4"><a href="#cb138-4" aria-hidden="true" tabindex="-1"></a><span class="co">// Multi-parameter function</span></span>
-<span id="cb138-5"><a href="#cb138-5" aria-hidden="true" tabindex="-1"></a><span class="fu">add</span>(x<span class="op">,</span> y) <span class="op">:-&gt;</span> x <span class="op">+</span> y</span>
-<span id="cb138-6"><a href="#cb138-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb138-7"><a href="#cb138-7" aria-hidden="true" tabindex="-1"></a><span class="co">// Function with system calls</span></span>
-<span id="cb138-8"><a href="#cb138-8" aria-hidden="true" tabindex="-1"></a><span class="fu">hypotenuse</span>(a<span class="op">,</span> b) <span class="op">:-&gt;</span> <span class="fu">SQRT</span>(a<span class="op">^</span><span class="dv">2</span> <span class="op">+</span> b<span class="op">^</span><span class="dv">2</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb139"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb139-1"><a href="#cb139-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Simple function</span></span>
+<span id="cb139-2"><a href="#cb139-2" aria-hidden="true" tabindex="-1"></a><span class="fu">square</span>(x) <span class="op">:-&gt;</span> x<span class="op">^</span><span class="dv">2</span></span>
+<span id="cb139-3"><a href="#cb139-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb139-4"><a href="#cb139-4" aria-hidden="true" tabindex="-1"></a><span class="co">// Multi-parameter function</span></span>
+<span id="cb139-5"><a href="#cb139-5" aria-hidden="true" tabindex="-1"></a><span class="fu">add</span>(x<span class="op">,</span> y) <span class="op">:-&gt;</span> x <span class="op">+</span> y</span>
+<span id="cb139-6"><a href="#cb139-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb139-7"><a href="#cb139-7" aria-hidden="true" tabindex="-1"></a><span class="co">// Function with system calls</span></span>
+<span id="cb139-8"><a href="#cb139-8" aria-hidden="true" tabindex="-1"></a><span class="fu">hypotenuse</span>(a<span class="op">,</span> b) <span class="op">:-&gt;</span> <span class="fu">SQRT</span>(a<span class="op">^</span><span class="dv">2</span> <span class="op">+</span> b<span class="op">^</span><span class="dv">2</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="default-parameters" class="level4">
 <h4 class="anchored" data-anchor-id="default-parameters">Default Parameters</h4>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb139"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb139-1"><a href="#cb139-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Single default parameter</span></span>
-<span id="cb139-2"><a href="#cb139-2" aria-hidden="true" tabindex="-1"></a><span class="fu">power</span>(x<span class="op">,</span> n <span class="op">:=</span> <span class="dv">2</span>) <span class="op">:-&gt;</span> x<span class="op">^</span>n</span>
-<span id="cb139-3"><a href="#cb139-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb139-4"><a href="#cb139-4" aria-hidden="true" tabindex="-1"></a><span class="co">// Multiple default parameters</span></span>
-<span id="cb139-5"><a href="#cb139-5" aria-hidden="true" tabindex="-1"></a><span class="fu">line</span>(x<span class="op">,</span> m <span class="op">:=</span> <span class="dv">1</span><span class="op">,</span> b <span class="op">:=</span> <span class="dv">0</span>) <span class="op">:-&gt;</span> m<span class="op">*</span>x <span class="op">+</span> b</span>
-<span id="cb139-6"><a href="#cb139-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb139-7"><a href="#cb139-7" aria-hidden="true" tabindex="-1"></a><span class="co">// Mixed parameters</span></span>
-<span id="cb139-8"><a href="#cb139-8" aria-hidden="true" tabindex="-1"></a><span class="fu">poly</span>(x<span class="op">,</span> a<span class="op">,</span> b <span class="op">:=</span> <span class="dv">1</span><span class="op">,</span> c <span class="op">:=</span> <span class="dv">0</span>) <span class="op">:-&gt;</span> a<span class="op">*</span>x<span class="op">^</span><span class="dv">2</span> <span class="op">+</span> b<span class="op">*</span>x <span class="op">+</span> c</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb140"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb140-1"><a href="#cb140-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Single default parameter</span></span>
+<span id="cb140-2"><a href="#cb140-2" aria-hidden="true" tabindex="-1"></a><span class="fu">power</span>(x<span class="op">,</span> n <span class="op">:=</span> <span class="dv">2</span>) <span class="op">:-&gt;</span> x<span class="op">^</span>n</span>
+<span id="cb140-3"><a href="#cb140-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb140-4"><a href="#cb140-4" aria-hidden="true" tabindex="-1"></a><span class="co">// Multiple default parameters</span></span>
+<span id="cb140-5"><a href="#cb140-5" aria-hidden="true" tabindex="-1"></a><span class="fu">line</span>(x<span class="op">,</span> m <span class="op">:=</span> <span class="dv">1</span><span class="op">,</span> b <span class="op">:=</span> <span class="dv">0</span>) <span class="op">:-&gt;</span> m<span class="op">*</span>x <span class="op">+</span> b</span>
+<span id="cb140-6"><a href="#cb140-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb140-7"><a href="#cb140-7" aria-hidden="true" tabindex="-1"></a><span class="co">// Mixed parameters</span></span>
+<span id="cb140-8"><a href="#cb140-8" aria-hidden="true" tabindex="-1"></a><span class="fu">poly</span>(x<span class="op">,</span> a<span class="op">,</span> b <span class="op">:=</span> <span class="dv">1</span><span class="op">,</span> c <span class="op">:=</span> <span class="dv">0</span>) <span class="op">:-&gt;</span> a<span class="op">*</span>x<span class="op">^</span><span class="dv">2</span> <span class="op">+</span> b<span class="op">*</span>x <span class="op">+</span> c</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="keyword-only-parameters" class="level4">
 <h4 class="anchored" data-anchor-id="keyword-only-parameters">Keyword-Only Parameters</h4>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb140"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb140-1"><a href="#cb140-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Basic keyword-only parameters</span></span>
-<span id="cb140-2"><a href="#cb140-2" aria-hidden="true" tabindex="-1"></a><span class="fu">trig</span>(x<span class="op">;</span> precision <span class="op">:=</span> <span class="dv">10</span><span class="op">,</span> angleUnit <span class="op">:=</span> <span class="st">"radians"</span>) <span class="op">:-&gt;</span> <span class="fu">SIN</span>(x<span class="op">;</span> precision)</span>
-<span id="cb140-3"><a href="#cb140-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb140-4"><a href="#cb140-4" aria-hidden="true" tabindex="-1"></a><span class="co">// Complex parameter mix</span></span>
-<span id="cb140-5"><a href="#cb140-5" aria-hidden="true" tabindex="-1"></a><span class="fu">func</span>(x<span class="op">,</span> y<span class="op">,</span> scale <span class="op">:=</span> <span class="dv">1</span><span class="op">;</span> offset <span class="op">:=</span> <span class="dv">0</span><span class="op">,</span> normalize <span class="op">:=</span> <span class="kw">false</span>) <span class="op">:-&gt;</span> (x <span class="op">+</span> y) <span class="op">*</span> scale <span class="op">+</span> offset</span>
-<span id="cb140-6"><a href="#cb140-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb140-7"><a href="#cb140-7" aria-hidden="true" tabindex="-1"></a><span class="co">// Function with unit annotations</span></span>
-<span id="cb140-8"><a href="#cb140-8" aria-hidden="true" tabindex="-1"></a><span class="fu">physics</span>(m<span class="op">~</span>[kg]<span class="op">,</span> v<span class="op">~</span>[m<span class="op">/</span>s]) <span class="op">:-&gt;</span> (<span class="dv">1</span><span class="op">/</span><span class="dv">2</span>) <span class="op">*</span> m <span class="op">*</span> v<span class="op">^</span><span class="dv">2</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb141"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb141-1"><a href="#cb141-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Basic keyword-only parameters</span></span>
+<span id="cb141-2"><a href="#cb141-2" aria-hidden="true" tabindex="-1"></a><span class="fu">trig</span>(x<span class="op">;</span> precision <span class="op">:=</span> <span class="dv">10</span><span class="op">,</span> angleUnit <span class="op">:=</span> <span class="st">"radians"</span>) <span class="op">:-&gt;</span> <span class="fu">SIN</span>(x<span class="op">;</span> precision)</span>
+<span id="cb141-3"><a href="#cb141-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb141-4"><a href="#cb141-4" aria-hidden="true" tabindex="-1"></a><span class="co">// Complex parameter mix</span></span>
+<span id="cb141-5"><a href="#cb141-5" aria-hidden="true" tabindex="-1"></a><span class="fu">func</span>(x<span class="op">,</span> y<span class="op">,</span> scale <span class="op">:=</span> <span class="dv">1</span><span class="op">;</span> offset <span class="op">:=</span> <span class="dv">0</span><span class="op">,</span> normalize <span class="op">:=</span> <span class="kw">false</span>) <span class="op">:-&gt;</span> (x <span class="op">+</span> y) <span class="op">*</span> scale <span class="op">+</span> offset</span>
+<span id="cb141-6"><a href="#cb141-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb141-7"><a href="#cb141-7" aria-hidden="true" tabindex="-1"></a><span class="co">// Function with unit annotations</span></span>
+<span id="cb141-8"><a href="#cb141-8" aria-hidden="true" tabindex="-1"></a><span class="fu">physics</span>(m<span class="op">~</span>[kg]<span class="op">,</span> v<span class="op">~</span>[m<span class="op">/</span>s]) <span class="op">:-&gt;</span> (<span class="dv">1</span><span class="op">/</span><span class="dv">2</span>) <span class="op">*</span> m <span class="op">*</span> v<span class="op">^</span><span class="dv">2</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="conditional-parameters" class="level4">
 <h4 class="anchored" data-anchor-id="conditional-parameters">Conditional Parameters</h4>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb141"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb141-1"><a href="#cb141-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Simple condition</span></span>
-<span id="cb141-2"><a href="#cb141-2" aria-hidden="true" tabindex="-1"></a><span class="fu">safeDivide</span>(x<span class="op">,</span> y<span class="op">;</span> check <span class="op">:=</span> <span class="kw">true</span> <span class="op">?</span> y <span class="op">!=</span> <span class="dv">0</span>) <span class="op">:-&gt;</span> x <span class="op">/</span> y</span>
-<span id="cb141-3"><a href="#cb141-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb141-4"><a href="#cb141-4" aria-hidden="true" tabindex="-1"></a><span class="co">// Complex condition</span></span>
-<span id="cb141-5"><a href="#cb141-5" aria-hidden="true" tabindex="-1"></a><span class="fu">constrainedPower</span>(x<span class="op">,</span> n <span class="op">:=</span> <span class="dv">2</span> <span class="op">?</span> x <span class="op">&gt;</span> <span class="dv">0</span> AND n <span class="op">&gt;=</span> <span class="dv">0</span>) <span class="op">:-&gt;</span> x<span class="op">^</span>n</span>
-<span id="cb141-6"><a href="#cb141-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb141-7"><a href="#cb141-7" aria-hidden="true" tabindex="-1"></a><span class="co">// Multiple conditions</span></span>
-<span id="cb141-8"><a href="#cb141-8" aria-hidden="true" tabindex="-1"></a><span class="fu">constrainedFunc</span>(x<span class="op">,</span> y<span class="op">;</span> a <span class="op">:=</span> <span class="dv">1</span> <span class="op">?</span> x<span class="op">^</span><span class="dv">2</span> <span class="op">+</span> y<span class="op">^</span><span class="dv">2</span> <span class="op">&lt;=</span> <span class="dv">1</span><span class="op">,</span> b <span class="op">:=</span> <span class="dv">0</span> <span class="op">?</span> a <span class="op">&gt;</span> <span class="dv">0</span>) <span class="op">:-&gt;</span> a<span class="op">*</span>x <span class="op">+</span> b<span class="op">*</span>y</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb142"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb142-1"><a href="#cb142-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Simple condition</span></span>
+<span id="cb142-2"><a href="#cb142-2" aria-hidden="true" tabindex="-1"></a><span class="fu">safeDivide</span>(x<span class="op">,</span> y<span class="op">;</span> check <span class="op">:=</span> <span class="kw">true</span> <span class="op">?</span> y <span class="op">!=</span> <span class="dv">0</span>) <span class="op">:-&gt;</span> x <span class="op">/</span> y</span>
+<span id="cb142-3"><a href="#cb142-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb142-4"><a href="#cb142-4" aria-hidden="true" tabindex="-1"></a><span class="co">// Complex condition</span></span>
+<span id="cb142-5"><a href="#cb142-5" aria-hidden="true" tabindex="-1"></a><span class="fu">constrainedPower</span>(x<span class="op">,</span> n <span class="op">:=</span> <span class="dv">2</span> <span class="op">?</span> x <span class="op">&gt;</span> <span class="dv">0</span> AND n <span class="op">&gt;=</span> <span class="dv">0</span>) <span class="op">:-&gt;</span> x<span class="op">^</span>n</span>
+<span id="cb142-6"><a href="#cb142-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb142-7"><a href="#cb142-7" aria-hidden="true" tabindex="-1"></a><span class="co">// Multiple conditions</span></span>
+<span id="cb142-8"><a href="#cb142-8" aria-hidden="true" tabindex="-1"></a><span class="fu">constrainedFunc</span>(x<span class="op">,</span> y<span class="op">;</span> a <span class="op">:=</span> <span class="dv">1</span> <span class="op">?</span> x<span class="op">^</span><span class="dv">2</span> <span class="op">+</span> y<span class="op">^</span><span class="dv">2</span> <span class="op">&lt;=</span> <span class="dv">1</span><span class="op">,</span> b <span class="op">:=</span> <span class="dv">0</span> <span class="op">?</span> a <span class="op">&gt;</span> <span class="dv">0</span>) <span class="op">:-&gt;</span> a<span class="op">*</span>x <span class="op">+</span> b<span class="op">*</span>y</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="multifunctions-1" class="level4">
 <h4 class="anchored" data-anchor-id="multifunctions-1">Multifunctions</h4>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb142"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb142-1"><a href="#cb142-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Basic multifunction dispatch</span></span>
-<span id="cb142-2"><a href="#cb142-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb142-3"><a href="#cb142-3" aria-hidden="true" tabindex="-1"></a><span class="co">// Multiple patterns</span></span>
-<span id="cb142-4"><a href="#cb142-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb142-5"><a href="#cb142-5" aria-hidden="true" tabindex="-1"></a><span class="co">// Pattern with global metadata</span></span>
-<span id="cb142-6"><a href="#cb142-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb142-7"><a href="#cb142-7" aria-hidden="true" tabindex="-1"></a><span class="co">// Pattern with multiple metadata</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb143"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb143-1"><a href="#cb143-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Basic multifunction dispatch</span></span>
+<span id="cb143-2"><a href="#cb143-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb143-3"><a href="#cb143-3" aria-hidden="true" tabindex="-1"></a><span class="co">// Multiple patterns</span></span>
+<span id="cb143-4"><a href="#cb143-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb143-5"><a href="#cb143-5" aria-hidden="true" tabindex="-1"></a><span class="co">// Pattern with global metadata</span></span>
+<span id="cb143-6"><a href="#cb143-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb143-7"><a href="#cb143-7" aria-hidden="true" tabindex="-1"></a><span class="co">// Pattern with multiple metadata</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="function-calls-with-enhanced-syntax-1" class="level4">
 <h4 class="anchored" data-anchor-id="function-calls-with-enhanced-syntax-1">Function Calls with Enhanced Syntax</h4>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb143"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb143-1"><a href="#cb143-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Basic function call</span></span>
-<span id="cb143-2"><a href="#cb143-2" aria-hidden="true" tabindex="-1"></a>result <span class="op">:=</span> <span class="fu">func</span>(<span class="dv">5</span><span class="op">,</span> <span class="dv">10</span>)</span>
-<span id="cb143-3"><a href="#cb143-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb143-4"><a href="#cb143-4" aria-hidden="true" tabindex="-1"></a><span class="co">// Function call with keywords</span></span>
-<span id="cb143-5"><a href="#cb143-5" aria-hidden="true" tabindex="-1"></a>result <span class="op">:=</span> <span class="fu">transform</span>(x<span class="op">;</span> scale <span class="op">:=</span> <span class="dv">2</span><span class="op">,</span> offset <span class="op">:=</span> <span class="dv">5</span>)</span>
-<span id="cb143-6"><a href="#cb143-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb143-7"><a href="#cb143-7" aria-hidden="true" tabindex="-1"></a><span class="co">// Mixed argument call</span></span>
-<span id="cb143-8"><a href="#cb143-8" aria-hidden="true" tabindex="-1"></a>result <span class="op">:=</span> <span class="fu">poly</span>(x<span class="op">,</span> <span class="dv">3</span><span class="op">;</span> b <span class="op">:=</span> <span class="dv">2</span><span class="op">,</span> c <span class="op">:=</span> <span class="dv">1</span>)</span>
-<span id="cb143-9"><a href="#cb143-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb143-10"><a href="#cb143-10" aria-hidden="true" tabindex="-1"></a><span class="co">// Shorthand keywords (n := n)</span></span>
-<span id="cb143-11"><a href="#cb143-11" aria-hidden="true" tabindex="-1"></a>result <span class="op">:=</span> <span class="bu">process</span>(data<span class="op">;</span> verbose<span class="op">,</span> debug)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb144"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb144-1"><a href="#cb144-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Basic function call</span></span>
+<span id="cb144-2"><a href="#cb144-2" aria-hidden="true" tabindex="-1"></a>result <span class="op">:=</span> <span class="fu">func</span>(<span class="dv">5</span><span class="op">,</span> <span class="dv">10</span>)</span>
+<span id="cb144-3"><a href="#cb144-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb144-4"><a href="#cb144-4" aria-hidden="true" tabindex="-1"></a><span class="co">// Function call with keywords</span></span>
+<span id="cb144-5"><a href="#cb144-5" aria-hidden="true" tabindex="-1"></a>result <span class="op">:=</span> <span class="fu">transform</span>(x<span class="op">;</span> scale <span class="op">:=</span> <span class="dv">2</span><span class="op">,</span> offset <span class="op">:=</span> <span class="dv">5</span>)</span>
+<span id="cb144-6"><a href="#cb144-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb144-7"><a href="#cb144-7" aria-hidden="true" tabindex="-1"></a><span class="co">// Mixed argument call</span></span>
+<span id="cb144-8"><a href="#cb144-8" aria-hidden="true" tabindex="-1"></a>result <span class="op">:=</span> <span class="fu">poly</span>(x<span class="op">,</span> <span class="dv">3</span><span class="op">;</span> b <span class="op">:=</span> <span class="dv">2</span><span class="op">,</span> c <span class="op">:=</span> <span class="dv">1</span>)</span>
+<span id="cb144-9"><a href="#cb144-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb144-10"><a href="#cb144-10" aria-hidden="true" tabindex="-1"></a><span class="co">// Shorthand keywords (n := n)</span></span>
+<span id="cb144-11"><a href="#cb144-11" aria-hidden="true" tabindex="-1"></a>result <span class="op">:=</span> <span class="bu">process</span>(data<span class="op">;</span> verbose<span class="op">,</span> debug)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="assignment-style-definitions" class="level4">
 <h4 class="anchored" data-anchor-id="assignment-style-definitions">Assignment-Style Definitions</h4>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb144"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb144-1"><a href="#cb144-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Lambda assignment</span></span>
-<span id="cb144-2"><a href="#cb144-2" aria-hidden="true" tabindex="-1"></a>double <span class="op">:=</span> (x) <span class="op">-&gt;</span> <span class="dv">2</span> <span class="op">*</span> x</span>
-<span id="cb144-3"><a href="#cb144-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb144-4"><a href="#cb144-4" aria-hidden="true" tabindex="-1"></a><span class="co">// Lambda with keywords</span></span>
-<span id="cb144-5"><a href="#cb144-5" aria-hidden="true" tabindex="-1"></a>adjust <span class="op">:=</span> (x<span class="op">;</span> offset <span class="op">:=</span> <span class="dv">0</span><span class="op">,</span> scale <span class="op">:=</span> <span class="dv">1</span>) <span class="op">-&gt;</span> x <span class="op">*</span> scale <span class="op">+</span> offset</span>
-<span id="cb144-6"><a href="#cb144-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb144-7"><a href="#cb144-7" aria-hidden="true" tabindex="-1"></a><span class="co">// Complex lambda</span></span>
-<span id="cb144-8"><a href="#cb144-8" aria-hidden="true" tabindex="-1"></a>polynomial <span class="op">:=</span> (x<span class="op">,</span> coeffs<span class="op">;</span> degree <span class="op">:=</span> <span class="dv">2</span>) <span class="op">-&gt;</span> coeffs[<span class="dv">0</span>] <span class="op">+</span> coeffs[<span class="dv">1</span>]<span class="op">*</span>x <span class="op">+</span> coeffs[<span class="dv">2</span>]<span class="op">*</span>x<span class="op">^</span>degree</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb145"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb145-1"><a href="#cb145-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Lambda assignment</span></span>
+<span id="cb145-2"><a href="#cb145-2" aria-hidden="true" tabindex="-1"></a>double <span class="op">:=</span> (x) <span class="op">-&gt;</span> <span class="dv">2</span> <span class="op">*</span> x</span>
+<span id="cb145-3"><a href="#cb145-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb145-4"><a href="#cb145-4" aria-hidden="true" tabindex="-1"></a><span class="co">// Lambda with keywords</span></span>
+<span id="cb145-5"><a href="#cb145-5" aria-hidden="true" tabindex="-1"></a>adjust <span class="op">:=</span> (x<span class="op">;</span> offset <span class="op">:=</span> <span class="dv">0</span><span class="op">,</span> scale <span class="op">:=</span> <span class="dv">1</span>) <span class="op">-&gt;</span> x <span class="op">*</span> scale <span class="op">+</span> offset</span>
+<span id="cb145-6"><a href="#cb145-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb145-7"><a href="#cb145-7" aria-hidden="true" tabindex="-1"></a><span class="co">// Complex lambda</span></span>
+<span id="cb145-8"><a href="#cb145-8" aria-hidden="true" tabindex="-1"></a>polynomial <span class="op">:=</span> (x<span class="op">,</span> coeffs<span class="op">;</span> degree <span class="op">:=</span> <span class="dv">2</span>) <span class="op">-&gt;</span> coeffs[<span class="dv">0</span>] <span class="op">+</span> coeffs[<span class="dv">1</span>]<span class="op">*</span>x <span class="op">+</span> coeffs[<span class="dv">2</span>]<span class="op">*</span>x<span class="op">^</span>degree</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="real-world-mathematical-examples" class="level4">
 <h4 class="anchored" data-anchor-id="real-world-mathematical-examples">Real-World Mathematical Examples</h4>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb145"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb145-1"><a href="#cb145-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Distance function</span></span>
-<span id="cb145-2"><a href="#cb145-2" aria-hidden="true" tabindex="-1"></a><span class="fu">distance</span>(p1<span class="op">,</span> p2<span class="op">;</span> metric <span class="op">:=</span> <span class="st">"euclidean"</span>) <span class="op">:-&gt;</span> <span class="fu">SQRT</span>((p1[<span class="dv">0</span>] <span class="op">-</span> p2[<span class="dv">0</span>])<span class="op">^</span><span class="dv">2</span> <span class="op">+</span> (p1[<span class="dv">1</span>] <span class="op">-</span> p2[<span class="dv">1</span>])<span class="op">^</span><span class="dv">2</span>)</span>
-<span id="cb145-3"><a href="#cb145-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb145-4"><a href="#cb145-4" aria-hidden="true" tabindex="-1"></a><span class="co">// Newton method step</span></span>
-<span id="cb145-5"><a href="#cb145-5" aria-hidden="true" tabindex="-1"></a><span class="fu">newtonStep</span>(f<span class="op">,</span> df<span class="op">,</span> x<span class="op">;</span> tolerance <span class="op">:=</span> <span class="fl">1e-6</span> <span class="op">?</span> <span class="fu">df</span>(x) <span class="op">!=</span> <span class="dv">0</span>) <span class="op">:-&gt;</span> x <span class="op">-</span> <span class="fu">f</span>(x) <span class="op">/</span> <span class="fu">df</span>(x)</span>
-<span id="cb145-6"><a href="#cb145-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb145-7"><a href="#cb145-7" aria-hidden="true" tabindex="-1"></a><span class="co">// Piecewise function</span></span>
-<span id="cb145-8"><a href="#cb145-8" aria-hidden="true" tabindex="-1"></a>  (x <span class="op">?</span> x <span class="op">&lt;</span> <span class="op">-</span><span class="dv">1</span>) <span class="op">-&gt;</span> <span class="op">-</span>x <span class="op">-</span> <span class="dv">1</span><span class="op">,</span></span>
-<span id="cb145-9"><a href="#cb145-9" aria-hidden="true" tabindex="-1"></a>  (x <span class="op">?</span> x <span class="op">&gt;=</span> <span class="op">-</span><span class="dv">1</span> AND x <span class="op">&lt;=</span> <span class="dv">1</span>) <span class="op">-&gt;</span> x<span class="op">^</span><span class="dv">2</span><span class="op">,</span></span>
-<span id="cb145-10"><a href="#cb145-10" aria-hidden="true" tabindex="-1"></a>  (x <span class="op">?</span> x <span class="op">&gt;</span> <span class="dv">1</span>) <span class="op">-&gt;</span> x <span class="op">+</span> <span class="dv">1</span></span>
-<span id="cb145-11"><a href="#cb145-11" aria-hidden="true" tabindex="-1"></a>]</span>
-<span id="cb145-12"><a href="#cb145-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb145-13"><a href="#cb145-13" aria-hidden="true" tabindex="-1"></a><span class="co">// Matrix operation with validation</span></span>
-<span id="cb145-14"><a href="#cb145-14" aria-hidden="true" tabindex="-1"></a><span class="fu">matmul</span>(A<span class="op">,</span> B<span class="op">;</span> validate <span class="op">:=</span> <span class="kw">true</span> <span class="op">?</span> A<span class="op">.</span><span class="at">cols</span> <span class="op">=</span> B<span class="op">.</span><span class="at">rows</span>) <span class="op">:-&gt;</span> A <span class="op">*</span> B</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb146"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb146-1"><a href="#cb146-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Distance function</span></span>
+<span id="cb146-2"><a href="#cb146-2" aria-hidden="true" tabindex="-1"></a><span class="fu">distance</span>(p1<span class="op">,</span> p2<span class="op">;</span> metric <span class="op">:=</span> <span class="st">"euclidean"</span>) <span class="op">:-&gt;</span> <span class="fu">SQRT</span>((p1[<span class="dv">0</span>] <span class="op">-</span> p2[<span class="dv">0</span>])<span class="op">^</span><span class="dv">2</span> <span class="op">+</span> (p1[<span class="dv">1</span>] <span class="op">-</span> p2[<span class="dv">1</span>])<span class="op">^</span><span class="dv">2</span>)</span>
+<span id="cb146-3"><a href="#cb146-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb146-4"><a href="#cb146-4" aria-hidden="true" tabindex="-1"></a><span class="co">// Newton method step</span></span>
+<span id="cb146-5"><a href="#cb146-5" aria-hidden="true" tabindex="-1"></a><span class="fu">newtonStep</span>(f<span class="op">,</span> df<span class="op">,</span> x<span class="op">;</span> tolerance <span class="op">:=</span> <span class="fl">1e-6</span> <span class="op">?</span> <span class="fu">df</span>(x) <span class="op">!=</span> <span class="dv">0</span>) <span class="op">:-&gt;</span> x <span class="op">-</span> <span class="fu">f</span>(x) <span class="op">/</span> <span class="fu">df</span>(x)</span>
+<span id="cb146-6"><a href="#cb146-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb146-7"><a href="#cb146-7" aria-hidden="true" tabindex="-1"></a><span class="co">// Piecewise function</span></span>
+<span id="cb146-8"><a href="#cb146-8" aria-hidden="true" tabindex="-1"></a>  (x <span class="op">?</span> x <span class="op">&lt;</span> <span class="op">-</span><span class="dv">1</span>) <span class="op">-&gt;</span> <span class="op">-</span>x <span class="op">-</span> <span class="dv">1</span><span class="op">,</span></span>
+<span id="cb146-9"><a href="#cb146-9" aria-hidden="true" tabindex="-1"></a>  (x <span class="op">?</span> x <span class="op">&gt;=</span> <span class="op">-</span><span class="dv">1</span> AND x <span class="op">&lt;=</span> <span class="dv">1</span>) <span class="op">-&gt;</span> x<span class="op">^</span><span class="dv">2</span><span class="op">,</span></span>
+<span id="cb146-10"><a href="#cb146-10" aria-hidden="true" tabindex="-1"></a>  (x <span class="op">?</span> x <span class="op">&gt;</span> <span class="dv">1</span>) <span class="op">-&gt;</span> x <span class="op">+</span> <span class="dv">1</span></span>
+<span id="cb146-11"><a href="#cb146-11" aria-hidden="true" tabindex="-1"></a>]</span>
+<span id="cb146-12"><a href="#cb146-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb146-13"><a href="#cb146-13" aria-hidden="true" tabindex="-1"></a><span class="co">// Matrix operation with validation</span></span>
+<span id="cb146-14"><a href="#cb146-14" aria-hidden="true" tabindex="-1"></a><span class="fu">matmul</span>(A<span class="op">,</span> B<span class="op">;</span> validate <span class="op">:=</span> <span class="kw">true</span> <span class="op">?</span> A<span class="op">.</span><span class="at">cols</span> <span class="op">=</span> B<span class="op">.</span><span class="at">rows</span>) <span class="op">:-&gt;</span> A <span class="op">*</span> B</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 </section>
 </section>
@@ -3395,38 +3399,38 @@ PI::+ -0.1  // → π, π-0.1, π-0.2, π-0.3, ...</code></pre>
 <p>Interval operations generate specific AST node types:</p>
 <section id="intervalstepping" class="level4">
 <h4 class="anchored" data-anchor-id="intervalstepping">IntervalStepping</h4>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb164"><pre class="sourceCode json code-with-copy"><code class="sourceCode json"><span id="cb164-1"><a href="#cb164-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
-<span id="cb164-2"><a href="#cb164-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"type"</span><span class="fu">:</span> <span class="st">"IntervalStepping"</span><span class="fu">,</span></span>
-<span id="cb164-3"><a href="#cb164-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"interval"</span><span class="fu">:</span> <span class="fu">{</span> <span class="er">/*</span> <span class="er">BinaryOperation</span> <span class="er">with</span> <span class="er">operator</span> <span class="dt">":"</span> <span class="er">*/</span> <span class="fu">},</span></span>
-<span id="cb164-4"><a href="#cb164-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"step"</span><span class="fu">:</span> <span class="fu">{</span> <span class="er">/*</span> <span class="er">Number</span> <span class="er">or</span> <span class="er">expression</span> <span class="er">*/</span> <span class="fu">},</span></span>
-<span id="cb164-5"><a href="#cb164-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"direction"</span><span class="fu">:</span> <span class="st">"increment"</span> <span class="er">|</span> <span class="st">"decrement"</span></span>
-<span id="cb164-6"><a href="#cb164-6" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb165"><pre class="sourceCode json code-with-copy"><code class="sourceCode json"><span id="cb165-1"><a href="#cb165-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
+<span id="cb165-2"><a href="#cb165-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"type"</span><span class="fu">:</span> <span class="st">"IntervalStepping"</span><span class="fu">,</span></span>
+<span id="cb165-3"><a href="#cb165-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"interval"</span><span class="fu">:</span> <span class="fu">{</span> <span class="er">/*</span> <span class="er">BinaryOperation</span> <span class="er">with</span> <span class="er">operator</span> <span class="dt">":"</span> <span class="er">*/</span> <span class="fu">},</span></span>
+<span id="cb165-4"><a href="#cb165-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"step"</span><span class="fu">:</span> <span class="fu">{</span> <span class="er">/*</span> <span class="er">Number</span> <span class="er">or</span> <span class="er">expression</span> <span class="er">*/</span> <span class="fu">},</span></span>
+<span id="cb165-5"><a href="#cb165-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"direction"</span><span class="fu">:</span> <span class="st">"increment"</span> <span class="er">|</span> <span class="st">"decrement"</span></span>
+<span id="cb165-6"><a href="#cb165-6" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="intervaldivision" class="level4">
 <h4 class="anchored" data-anchor-id="intervaldivision">IntervalDivision</h4>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb165"><pre class="sourceCode json code-with-copy"><code class="sourceCode json"><span id="cb165-1"><a href="#cb165-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
-<span id="cb165-2"><a href="#cb165-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"type"</span><span class="fu">:</span> <span class="st">"IntervalDivision"</span><span class="fu">,</span></span>
-<span id="cb165-3"><a href="#cb165-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"interval"</span><span class="fu">:</span> <span class="fu">{</span> <span class="er">/*</span> <span class="er">BinaryOperation</span> <span class="er">with</span> <span class="er">operator</span> <span class="dt">":"</span> <span class="er">*/</span> <span class="fu">},</span></span>
-<span id="cb165-4"><a href="#cb165-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"count"</span><span class="fu">:</span> <span class="fu">{</span> <span class="er">/*</span> <span class="er">Number</span> <span class="er">or</span> <span class="er">expression</span> <span class="er">*/</span> <span class="fu">},</span></span>
-<span id="cb165-5"><a href="#cb165-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"type"</span><span class="fu">:</span> <span class="st">"equally_spaced"</span></span>
-<span id="cb165-6"><a href="#cb165-6" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb166"><pre class="sourceCode json code-with-copy"><code class="sourceCode json"><span id="cb166-1"><a href="#cb166-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
+<span id="cb166-2"><a href="#cb166-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"type"</span><span class="fu">:</span> <span class="st">"IntervalDivision"</span><span class="fu">,</span></span>
+<span id="cb166-3"><a href="#cb166-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"interval"</span><span class="fu">:</span> <span class="fu">{</span> <span class="er">/*</span> <span class="er">BinaryOperation</span> <span class="er">with</span> <span class="er">operator</span> <span class="dt">":"</span> <span class="er">*/</span> <span class="fu">},</span></span>
+<span id="cb166-4"><a href="#cb166-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"count"</span><span class="fu">:</span> <span class="fu">{</span> <span class="er">/*</span> <span class="er">Number</span> <span class="er">or</span> <span class="er">expression</span> <span class="er">*/</span> <span class="fu">},</span></span>
+<span id="cb166-5"><a href="#cb166-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"type"</span><span class="fu">:</span> <span class="st">"equally_spaced"</span></span>
+<span id="cb166-6"><a href="#cb166-6" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="intervalmediants" class="level4">
 <h4 class="anchored" data-anchor-id="intervalmediants">IntervalMediants</h4>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb166"><pre class="sourceCode json code-with-copy"><code class="sourceCode json"><span id="cb166-1"><a href="#cb166-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
-<span id="cb166-2"><a href="#cb166-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"type"</span><span class="fu">:</span> <span class="st">"IntervalMediants"</span><span class="fu">,</span></span>
-<span id="cb166-3"><a href="#cb166-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"interval"</span><span class="fu">:</span> <span class="fu">{</span> <span class="er">/*</span> <span class="er">BinaryOperation</span> <span class="er">with</span> <span class="er">operator</span> <span class="dt">":"</span> <span class="er">*/</span> <span class="fu">},</span></span>
-<span id="cb166-4"><a href="#cb166-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"levels"</span><span class="fu">:</span> <span class="fu">{</span> <span class="er">/*</span> <span class="er">Number</span> <span class="er">or</span> <span class="er">expression</span> <span class="er">*/</span> <span class="fu">}</span></span>
-<span id="cb166-5"><a href="#cb166-5" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb167"><pre class="sourceCode json code-with-copy"><code class="sourceCode json"><span id="cb167-1"><a href="#cb167-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
+<span id="cb167-2"><a href="#cb167-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"type"</span><span class="fu">:</span> <span class="st">"IntervalMediants"</span><span class="fu">,</span></span>
+<span id="cb167-3"><a href="#cb167-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"interval"</span><span class="fu">:</span> <span class="fu">{</span> <span class="er">/*</span> <span class="er">BinaryOperation</span> <span class="er">with</span> <span class="er">operator</span> <span class="dt">":"</span> <span class="er">*/</span> <span class="fu">},</span></span>
+<span id="cb167-4"><a href="#cb167-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"levels"</span><span class="fu">:</span> <span class="fu">{</span> <span class="er">/*</span> <span class="er">Number</span> <span class="er">or</span> <span class="er">expression</span> <span class="er">*/</span> <span class="fu">}</span></span>
+<span id="cb167-5"><a href="#cb167-5" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="infinitesequence" class="level4">
 <h4 class="anchored" data-anchor-id="infinitesequence">InfiniteSequence</h4>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb167"><pre class="sourceCode json code-with-copy"><code class="sourceCode json"><span id="cb167-1"><a href="#cb167-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
-<span id="cb167-2"><a href="#cb167-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"type"</span><span class="fu">:</span> <span class="st">"InfiniteSequence"</span><span class="fu">,</span></span>
-<span id="cb167-3"><a href="#cb167-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"start"</span><span class="fu">:</span> <span class="fu">{</span> <span class="er">/*</span> <span class="er">Number</span> <span class="er">or</span> <span class="er">expression</span> <span class="er">*/</span> <span class="fu">},</span></span>
-<span id="cb167-4"><a href="#cb167-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"step"</span><span class="fu">:</span> <span class="fu">{</span> <span class="er">/*</span> <span class="er">Number</span> <span class="er">or</span> <span class="er">expression</span> <span class="er">*/</span> <span class="fu">},</span></span>
-<span id="cb167-5"><a href="#cb167-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"direction"</span><span class="fu">:</span> <span class="st">"increment"</span> <span class="er">|</span> <span class="st">"decrement"</span></span>
-<span id="cb167-6"><a href="#cb167-6" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb168"><pre class="sourceCode json code-with-copy"><code class="sourceCode json"><span id="cb168-1"><a href="#cb168-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
+<span id="cb168-2"><a href="#cb168-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"type"</span><span class="fu">:</span> <span class="st">"InfiniteSequence"</span><span class="fu">,</span></span>
+<span id="cb168-3"><a href="#cb168-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"start"</span><span class="fu">:</span> <span class="fu">{</span> <span class="er">/*</span> <span class="er">Number</span> <span class="er">or</span> <span class="er">expression</span> <span class="er">*/</span> <span class="fu">},</span></span>
+<span id="cb168-4"><a href="#cb168-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"step"</span><span class="fu">:</span> <span class="fu">{</span> <span class="er">/*</span> <span class="er">Number</span> <span class="er">or</span> <span class="er">expression</span> <span class="er">*/</span> <span class="fu">},</span></span>
+<span id="cb168-5"><a href="#cb168-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"direction"</span><span class="fu">:</span> <span class="st">"increment"</span> <span class="er">|</span> <span class="st">"decrement"</span></span>
+<span id="cb168-6"><a href="#cb168-6" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 </section>
 <section id="operator-precedence-1" class="level3">
@@ -3556,17 +3560,17 @@ note_start:note_end:~microtonal_depth   // Microtonal divisions</code></pre>
 <section id="ast-structure-14" class="level3">
 <h3 class="anchored" data-anchor-id="ast-structure-14">AST Structure</h3>
 <p>Generator chains are parsed into <code>GeneratorChain</code> nodes with the following structure:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb178"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb178-1"><a href="#cb178-1" aria-hidden="true" tabindex="-1"></a>{</span>
-<span id="cb178-2"><a href="#cb178-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">type</span><span class="op">:</span> <span class="st">"GeneratorChain"</span><span class="op">,</span></span>
-<span id="cb178-3"><a href="#cb178-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">start</span><span class="op">:</span> <span class="op">&lt;</span>initial_value_node<span class="op">&gt;</span> <span class="op">|</span> <span class="kw">null</span><span class="op">,</span></span>
-<span id="cb178-4"><a href="#cb178-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">operators</span><span class="op">:</span> [</span>
-<span id="cb178-5"><a href="#cb178-5" aria-hidden="true" tabindex="-1"></a>    {</span>
-<span id="cb178-6"><a href="#cb178-6" aria-hidden="true" tabindex="-1"></a>      <span class="dt">type</span><span class="op">:</span> <span class="st">"GeneratorAdd"</span> <span class="op">|</span> <span class="st">"GeneratorMultiply"</span> <span class="op">|</span> <span class="st">"GeneratorFunction"</span> <span class="op">|</span> <span class="st">"GeneratorPipe"</span> <span class="op">|</span> <span class="st">"GeneratorFilter"</span> <span class="op">|</span> <span class="st">"GeneratorLimit"</span> <span class="op">|</span> <span class="st">"GeneratorEagerLimit"</span><span class="op">,</span></span>
-<span id="cb178-7"><a href="#cb178-7" aria-hidden="true" tabindex="-1"></a>      <span class="dt">operator</span><span class="op">:</span> <span class="st">"|+"</span> <span class="op">|</span> <span class="st">"|*"</span> <span class="op">|</span> <span class="st">"|:"</span> <span class="op">|</span> <span class="st">"|&gt;"</span> <span class="op">|</span> <span class="st">"|?"</span> <span class="op">|</span> <span class="st">"|^"</span> <span class="op">|</span> <span class="st">"|;"</span><span class="op">,</span></span>
-<span id="cb178-8"><a href="#cb178-8" aria-hidden="true" tabindex="-1"></a>      <span class="dt">operand</span><span class="op">:</span> <span class="op">&lt;</span>operand_node<span class="op">&gt;</span></span>
-<span id="cb178-9"><a href="#cb178-9" aria-hidden="true" tabindex="-1"></a>    }</span>
-<span id="cb178-10"><a href="#cb178-10" aria-hidden="true" tabindex="-1"></a>  ]</span>
-<span id="cb178-11"><a href="#cb178-11" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb179"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb179-1"><a href="#cb179-1" aria-hidden="true" tabindex="-1"></a>{</span>
+<span id="cb179-2"><a href="#cb179-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">type</span><span class="op">:</span> <span class="st">"GeneratorChain"</span><span class="op">,</span></span>
+<span id="cb179-3"><a href="#cb179-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">start</span><span class="op">:</span> <span class="op">&lt;</span>initial_value_node<span class="op">&gt;</span> <span class="op">|</span> <span class="kw">null</span><span class="op">,</span></span>
+<span id="cb179-4"><a href="#cb179-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">operators</span><span class="op">:</span> [</span>
+<span id="cb179-5"><a href="#cb179-5" aria-hidden="true" tabindex="-1"></a>    {</span>
+<span id="cb179-6"><a href="#cb179-6" aria-hidden="true" tabindex="-1"></a>      <span class="dt">type</span><span class="op">:</span> <span class="st">"GeneratorAdd"</span> <span class="op">|</span> <span class="st">"GeneratorMultiply"</span> <span class="op">|</span> <span class="st">"GeneratorFunction"</span> <span class="op">|</span> <span class="st">"GeneratorPipe"</span> <span class="op">|</span> <span class="st">"GeneratorFilter"</span> <span class="op">|</span> <span class="st">"GeneratorLimit"</span> <span class="op">|</span> <span class="st">"GeneratorEagerLimit"</span><span class="op">,</span></span>
+<span id="cb179-7"><a href="#cb179-7" aria-hidden="true" tabindex="-1"></a>      <span class="dt">operator</span><span class="op">:</span> <span class="st">"|+"</span> <span class="op">|</span> <span class="st">"|*"</span> <span class="op">|</span> <span class="st">"|:"</span> <span class="op">|</span> <span class="st">"|&gt;"</span> <span class="op">|</span> <span class="st">"|?"</span> <span class="op">|</span> <span class="st">"|^"</span> <span class="op">|</span> <span class="st">"|;"</span><span class="op">,</span></span>
+<span id="cb179-8"><a href="#cb179-8" aria-hidden="true" tabindex="-1"></a>      <span class="dt">operand</span><span class="op">:</span> <span class="op">&lt;</span>operand_node<span class="op">&gt;</span></span>
+<span id="cb179-9"><a href="#cb179-9" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb179-10"><a href="#cb179-10" aria-hidden="true" tabindex="-1"></a>  ]</span>
+<span id="cb179-11"><a href="#cb179-11" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="operator-precedence-2" class="level3">
 <h3 class="anchored" data-anchor-id="operator-precedence-2">Operator Precedence</h3>
@@ -3618,19 +3622,19 @@ note_start:note_end:~microtonal_depth   // Microtonal divisions</code></pre>
 <section id="function-expression-parsing" class="level2">
 <h2 class="anchored" data-anchor-id="function-expression-parsing">Function Expression Parsing</h2>
 <p>Generator functions are parsed as <code>FunctionLambda</code> nodes with the structure:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb182"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb182-1"><a href="#cb182-1" aria-hidden="true" tabindex="-1"></a>{</span>
-<span id="cb182-2"><a href="#cb182-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">type</span><span class="op">:</span> <span class="st">"FunctionLambda"</span><span class="op">,</span></span>
-<span id="cb182-3"><a href="#cb182-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">parameters</span><span class="op">:</span> {</span>
-<span id="cb182-4"><a href="#cb182-4" aria-hidden="true" tabindex="-1"></a>    <span class="dt">positional</span><span class="op">:</span> [</span>
-<span id="cb182-5"><a href="#cb182-5" aria-hidden="true" tabindex="-1"></a>      { <span class="dt">name</span><span class="op">:</span> <span class="st">"i"</span><span class="op">,</span> <span class="dt">defaultValue</span><span class="op">:</span> <span class="kw">null</span> }<span class="op">,</span></span>
-<span id="cb182-6"><a href="#cb182-6" aria-hidden="true" tabindex="-1"></a>      { <span class="dt">name</span><span class="op">:</span> <span class="st">"a"</span><span class="op">,</span> <span class="dt">defaultValue</span><span class="op">:</span> <span class="kw">null</span> }</span>
-<span id="cb182-7"><a href="#cb182-7" aria-hidden="true" tabindex="-1"></a>    ]<span class="op">,</span></span>
-<span id="cb182-8"><a href="#cb182-8" aria-hidden="true" tabindex="-1"></a>    <span class="dt">keyword</span><span class="op">:</span> []<span class="op">,</span></span>
-<span id="cb182-9"><a href="#cb182-9" aria-hidden="true" tabindex="-1"></a>    <span class="dt">conditionals</span><span class="op">:</span> []<span class="op">,</span></span>
-<span id="cb182-10"><a href="#cb182-10" aria-hidden="true" tabindex="-1"></a>    <span class="dt">metadata</span><span class="op">:</span> {}</span>
-<span id="cb182-11"><a href="#cb182-11" aria-hidden="true" tabindex="-1"></a>  }<span class="op">,</span></span>
-<span id="cb182-12"><a href="#cb182-12" aria-hidden="true" tabindex="-1"></a>  <span class="dt">body</span><span class="op">:</span> <span class="op">&lt;</span>expression_node<span class="op">&gt;</span></span>
-<span id="cb182-13"><a href="#cb182-13" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb183"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb183-1"><a href="#cb183-1" aria-hidden="true" tabindex="-1"></a>{</span>
+<span id="cb183-2"><a href="#cb183-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">type</span><span class="op">:</span> <span class="st">"FunctionLambda"</span><span class="op">,</span></span>
+<span id="cb183-3"><a href="#cb183-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">parameters</span><span class="op">:</span> {</span>
+<span id="cb183-4"><a href="#cb183-4" aria-hidden="true" tabindex="-1"></a>    <span class="dt">positional</span><span class="op">:</span> [</span>
+<span id="cb183-5"><a href="#cb183-5" aria-hidden="true" tabindex="-1"></a>      { <span class="dt">name</span><span class="op">:</span> <span class="st">"i"</span><span class="op">,</span> <span class="dt">defaultValue</span><span class="op">:</span> <span class="kw">null</span> }<span class="op">,</span></span>
+<span id="cb183-6"><a href="#cb183-6" aria-hidden="true" tabindex="-1"></a>      { <span class="dt">name</span><span class="op">:</span> <span class="st">"a"</span><span class="op">,</span> <span class="dt">defaultValue</span><span class="op">:</span> <span class="kw">null</span> }</span>
+<span id="cb183-7"><a href="#cb183-7" aria-hidden="true" tabindex="-1"></a>    ]<span class="op">,</span></span>
+<span id="cb183-8"><a href="#cb183-8" aria-hidden="true" tabindex="-1"></a>    <span class="dt">keyword</span><span class="op">:</span> []<span class="op">,</span></span>
+<span id="cb183-9"><a href="#cb183-9" aria-hidden="true" tabindex="-1"></a>    <span class="dt">conditionals</span><span class="op">:</span> []<span class="op">,</span></span>
+<span id="cb183-10"><a href="#cb183-10" aria-hidden="true" tabindex="-1"></a>    <span class="dt">metadata</span><span class="op">:</span> {}</span>
+<span id="cb183-11"><a href="#cb183-11" aria-hidden="true" tabindex="-1"></a>  }<span class="op">,</span></span>
+<span id="cb183-12"><a href="#cb183-12" aria-hidden="true" tabindex="-1"></a>  <span class="dt">body</span><span class="op">:</span> <span class="op">&lt;</span>expression_node<span class="op">&gt;</span></span>
+<span id="cb183-13"><a href="#cb183-13" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="compatibility" class="level2">
 <h2 class="anchored" data-anchor-id="compatibility">Compatibility</h2>
@@ -3648,11 +3652,11 @@ note_start:note_end:~microtonal_depth   // Microtonal divisions</code></pre>
 <section id="max_iterations-constant" class="level3">
 <h3 class="anchored" data-anchor-id="max_iterations-constant">MAX_ITERATIONS Constant</h3>
 <p>To prevent infinite loops in filter operations, implementations should enforce a <code>MAX_ITERATIONS</code> global or per-generator setting. Recommended default: 10,000 iterations.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb183"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb183-1"><a href="#cb183-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Example safety implementation</span></span>
-<span id="cb183-2"><a href="#cb183-2" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> MAX_ITERATIONS <span class="op">=</span> <span class="dv">10000</span><span class="op">;</span></span>
-<span id="cb183-3"><a href="#cb183-3" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (iterations <span class="op">&gt;</span> MAX_ITERATIONS) {</span>
-<span id="cb183-4"><a href="#cb183-4" aria-hidden="true" tabindex="-1"></a>  <span class="cf">throw</span> <span class="kw">new</span> <span class="bu">Error</span>(<span class="st">"Generator exceeded maximum iterations - possible infinite loop"</span>)<span class="op">;</span></span>
-<span id="cb183-5"><a href="#cb183-5" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb184"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb184-1"><a href="#cb184-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Example safety implementation</span></span>
+<span id="cb184-2"><a href="#cb184-2" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> MAX_ITERATIONS <span class="op">=</span> <span class="dv">10000</span><span class="op">;</span></span>
+<span id="cb184-3"><a href="#cb184-3" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (iterations <span class="op">&gt;</span> MAX_ITERATIONS) {</span>
+<span id="cb184-4"><a href="#cb184-4" aria-hidden="true" tabindex="-1"></a>  <span class="cf">throw</span> <span class="kw">new</span> <span class="bu">Error</span>(<span class="st">"Generator exceeded maximum iterations - possible infinite loop"</span>)<span class="op">;</span></span>
+<span id="cb184-5"><a href="#cb184-5" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="memory-management" class="level3">
 <h3 class="anchored" data-anchor-id="memory-management">Memory Management</h3>
