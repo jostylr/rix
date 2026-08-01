@@ -502,6 +502,6 @@ Types drive construction, conversion, export/import, normalization, proto constr
 
 The built-in numeric semantic types stay exact and foundational: Integer, Rational, and RationalInterval. Real-number strategies such as oracle reals belong in user-land RiX startup code, because RiX should allow multiple competing real implementations to coexist, be loaded explicitly, and be compared experimentally without making one representation part of the core language.
 
-User-land types can still delegate heavy computation to JavaScript when that is the point of the type. The Float example keeps the registration and semantic interface in RiX (`floats.js.rix`) while calling a JavaScript support file for IEEE-style arithmetic and JavaScript `Math` functions through a generic JS bridge. The core exposes common math multifunction names such as `SIN`, `LOG`, and `EXP`, but Float-specific helpers remain ordinary module exports, not system capabilities.
+User-land types can still delegate heavy computation to JavaScript when that is the point of the type. The Float example keeps the registration and semantic interface in RiX (`floats.js.rix`) while calling a JavaScript support file for IEEE-style arithmetic and JavaScript `Math` functions through a generic JS bridge. Approximate transcendental operations belong to that optional plugin rather than the default RiX system, and Float-specific helpers remain ordinary module exports rather than system capabilities.
 
 This preserves the cell/meta model while giving rich types a single central conversion and protocol path.

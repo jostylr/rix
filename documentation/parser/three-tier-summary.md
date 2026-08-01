@@ -10,7 +10,7 @@ The RiX language implements a revolutionary **three-tier architecture** that ena
 **Core RiX language foundation**
 - Tokenizer with System/User identifier distinction (capitalization-based)
 - Pratt parser with operator precedence handling
-- Core mathematical functions: `SIN`, `COS`, `PI`, `EXP`, `SQRT`, etc.
+- Core exact operations and utilities such as `ADD`, `ABS`, `SQRT`, and collection operations.
 - Universal parsing for all RiX constructs
 
 ### Tier 2: System Tinkerers ⚙️

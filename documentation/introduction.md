@@ -13,7 +13,7 @@ In RiX, the casing of the very first letter of an identifier carries semantic we
 
 - **Variables** should start with a lowercase letter (e.g., `x`, `myVar`, `my_var`). **camelCase** or **snake_case** are recommended.
 - **User-defined functions** start with an uppercase letter (e.g., `Square`, `MyFn`).
-- **System capabilities** (built-in functions like `ADD`, `RAND_NAME`, `SIN`) are **not** accessible as bare identifiers. They must be called via the **system object** using the dot prefix: `.ADD(3, 4)`, `.SIN(x)`, `.RAND_NAME()`.
+- **System capabilities** (built-in functions like `ADD`, `ABS`, and `RAND_NAME`) are **not** accessible as bare identifiers. They must be called via the **system object** using the dot prefix: `.ADD(3, 4)`, `.ABS(-3)`, `.RAND_NAME()`.
 
 > [!NOTE]
 > Standalone `_` is the **null operator** (same as `NULL()`). However, `_` is allowed within identifiers as long as it's not the only character.
@@ -1216,7 +1216,7 @@ The bare `.` refers to the **system capability object** — a frozen, sandboxabl
 
 ```rix
 .ADD(3, 4)       ## 7
-.SIN(.PI())      ## ~0
+.ABS(-3)         ## 3
 .RAND_NAME(8)    ## e.g. "xKqTmPaR"
 .AND(1, _)       ## null (false)
 ```

@@ -402,7 +402,7 @@ Scene3D renderer/refiner, not the SVG renderer.
 # Proposed
 .Plugin.Load("scene3d")
 surface := .scene3d.ParametricSurface({=
-    fn = (u, v) -> [u, v, .Sin(u) * .Cos(v)],
+    fn = (u, v) -> [u, v, u * v],
     u = [-3, 3],
     v = [-3, 3],
     material = {= color="#4b9cd3", opacity=17/20 }

@@ -19,7 +19,7 @@ This architecture provides security, maintainability, and flexibility while prev
 │ Tier 1: Language Maintainers                               │
 │ ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐ │
 │ │   Tokenizer     │ │     Parser      │ │  Core Symbols   │ │
-│ │                 │ │                 │ │  SIN, COS, PI   │ │
+│ │                 │ │                 │ │  ADD, ABS, SQRT │ │
 │ └─────────────────┘ └─────────────────┘ └─────────────────┘ │
 ├─────────────────────────────────────────────────────────────┤
 │ Tier 2: System Tinkerers (JavaScript)                      │
@@ -44,15 +44,15 @@ This architecture provides security, maintainability, and flexibility while prev
 ### Core Components
 - **Tokenizer:** Recognizes System vs User identifiers by capitalization
 - **Parser:** Implements operator precedence and AST generation
-- **Core Registry:** Built-in mathematical functions and constants
+- **Core Registry:** Built-in exact operations, utilities, and special values
 
 ### Core Symbols
 ```javascript
-// Mathematical functions
-SIN, COS, TAN, LOG, EXP, SQRT, ABS, MAX, MIN, SUM
+// Core exact operations and utilities
+ADD, SUB, MUL, DIV, SQRT, ABS, MAX, MIN, SUM
 
-// Constants
-PI, EX, INFINITY, IM
+// Constants and special values supplied by the active system
+NULL, TRUE, FALSE
 
 // Type constructors
 LIST, SET, MAP, TUPLE
@@ -186,7 +186,7 @@ systemLoader.registerHook('keyword-registered', (data) => {
 
 ```rix
 # Mathematical expressions
-result := SIN(PI/2) + COS(0)
+result := x^2 + 2*x + 1
 
 # Variable assignment
 x := 42

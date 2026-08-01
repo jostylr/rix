@@ -8,8 +8,7 @@
  *   bun bin/rix.js                  # Start REPL
  */
 
-import { existsSync, readFileSync } from "fs";
-import { readdirSync, statSync } from "fs";
+import { existsSync, readFileSync, mkdirSync, readdirSync, statSync, writeFileSync } from "fs";
 import path from "path";
 import { createInterface, emitKeypressEvents } from "readline";
 import { fileURLToPath } from "url";
@@ -30,6 +29,9 @@ import { NodePluginCatalog } from "../src/runtime/plugin-catalog-node.js";
 import { formatValue as formatResult } from "../src/eval/format.js";
 import { install as installFloatPlugin } from "../plugins/float/float.plugin.rix.js";
 import { install as installArrayJsExample } from "../examples/plugins/example-array-js/array-js.plugin.rix.js";
+import { install as installDrawPlugin } from "../plugins/draw/draw.plugin.rix.js";
+import { install as installExactAlgebrasPlugin } from "../plugins/exact-algebras/exact-algebras.plugin.rix.js";
+import { install as installPlotPlugin } from "../plugins/plot/plot.plugin.rix.js";
 
 // Known REPL meta-commands (lowercase, intercepted before the evaluator)
 const REPL_COMMANDS = new Set(["help", "exit", "load", "vars", "fns", "reset", "ast", "tokens"]);
@@ -38,6 +40,169 @@ const TOOL_DIR = path.dirname(fileURLToPath(import.meta.url));
 const EXAMPLES_DIR = path.resolve(TOOL_DIR, "../examples");
 const FIRST_PARTY_PLUGINS_DIR = path.resolve(TOOL_DIR, "../plugins");
 const EXAMPLE_PLUGINS_DIR = path.resolve(EXAMPLES_DIR, "plugins");
+const WEB_PAGE_ENTRY = path.resolve(TOOL_DIR, "web-page.js");
+const WEB_PAGE_STYLE = path.resolve(TOOL_DIR, "web-page.css");
+const BUILT_PLUGIN_IDS = new Set(["exact-algebras", "draw", "plot", "float", "example-array-js", "example-array-rix"]);
+
+function usage() {
+    return `Usage:
+  bun rix [options] [file.rix]
+  bun rix test [filters...]
+
+Options:
+  --out=DIR              Write artifacts declared with .Out(path, value) into DIR
+  --plugin=ID             Preload an approved plugin (repeatable)
+  --plugins=a,b           Preload a comma-separated plugin list
+  --all-plugins           Preload every discovered plugin with an approved installer
+  --all-built-plugins     Preload every plugin shipped in this RiX repository
+  --with-floats           Compatibility alias for --plugin=float
+  --help, -h              Show this help
+
+RiX scripts declare artifacts explicitly, for example:
+  .Out("index.html", $view)`;
+}
+
+function parseRunnerArgs(rawArgs) {
+    const plugins = [];
+    let outDir = null;
+    let allPlugins = false;
+    let allBuiltPlugins = false;
+    const positional = [];
+    for (let index = 0; index < rawArgs.length; index += 1) {
+        const arg = rawArgs[index];
+        if (arg === "--with-floats") plugins.push("float");
+        else if (arg === "--all-plugins") allPlugins = true;
+        else if (arg === "--all-built-plugins") allBuiltPlugins = true;
+        else if (arg === "--plugin") {
+            const id = rawArgs[++index];
+            if (!id) throw new Error("--plugin requires a plugin id");
+            plugins.push(id);
+        } else if (arg.startsWith("--plugin=")) {
+            plugins.push(arg.slice("--plugin=".length));
+        } else if (arg.startsWith("--plugins=")) {
+            plugins.push(...arg.slice("--plugins=".length).split(",").map((id) => id.trim()).filter(Boolean));
+        } else if (arg === "--out") {
+            outDir = rawArgs[++index];
+            if (!outDir) throw new Error("--out requires a directory");
+        } else if (arg.startsWith("--out=")) {
+            outDir = arg.slice("--out=".length);
+            if (!outDir) throw new Error("--out requires a directory");
+        } else positional.push(arg);
+    }
+    return { positional, plugins: [...new Set(plugins)], allPlugins, allBuiltPlugins, outDir };
+}
+
+function selectedPluginIds(pluginCatalog, { plugins, allPlugins, allBuiltPlugins }) {
+    if (allPlugins) return pluginCatalog.list().map(({ id }) => id);
+    if (allBuiltPlugins) return pluginCatalog.list().filter(({ id }) => BUILT_PLUGIN_IDS.has(id)).map(({ id }) => id);
+    return plugins;
+}
+
+function registerBuiltPluginInstallers(pluginCatalog) {
+    // Discovery finds the metadata before createDefaultSystemContext has a
+    // chance to register bundled implementations, so approve these explicit
+    // first-party installers in the CLI host.
+    pluginCatalog.registerInstaller("float", installFloatPlugin);
+    pluginCatalog.registerInstaller("example-array-js", installArrayJsExample);
+    pluginCatalog.registerInstaller("draw", ({ systemContext }) => installDrawPlugin({ systemContext }));
+    pluginCatalog.registerInstaller("exact-algebras", ({ systemContext, registry }) => installExactAlgebrasPlugin({ systemContext, registry }));
+    pluginCatalog.registerInstaller("plot", ({ systemContext }) => installPlotPlugin({ systemContext }));
+}
+
+function validateArtifactPath(outDir, artifactPath) {
+    if (typeof artifactPath !== "string" || !artifactPath.trim()) throw new Error(".Out path must be a non-empty string");
+    if (path.isAbsolute(artifactPath)) throw new Error(`.Out path must be relative: ${artifactPath}`);
+    const target = path.resolve(outDir, artifactPath);
+    const relative = path.relative(outDir, target);
+    if (relative.startsWith("..") || path.isAbsolute(relative)) throw new Error(`.Out path escapes --out directory: ${artifactPath}`);
+    return target;
+}
+
+function pageHtml({ source, sourcePath, title, plugins }) {
+    const config = JSON.stringify({ source, sourcePath, title, plugins }).replaceAll("<", "\\u003c");
+    return `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${title.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")}</title><link rel="stylesheet" href="assets/rix-page.css"></head>
+<body><main id="rix-app"><noscript>This RiX page needs JavaScript enabled.</noscript></main><script>globalThis.__RIX_PAGE__=${config};</script><script src="assets/rix-page.js"></script></body></html>\n`;
+}
+
+function browserNodeShims() {
+    return {
+        name: "rix-browser-node-shims",
+        setup(build) {
+            build.onResolve({ filter: /^node:(fs|path|module)$/ }, ({ path: specifier }) => ({ path: specifier, namespace: "rix-node-shim" }));
+            build.onLoad({ filter: /.*/, namespace: "rix-node-shim" }, ({ path: specifier }) => {
+                const message = JSON.stringify(`${specifier} is unavailable in a generated RiX page`);
+                if (specifier === "node:path") {
+                    return {
+                        contents: "const path = { isAbsolute: () => false, resolve: (...parts) => parts.at(-1) || \"\", dirname: () => \"\" }; export default path;",
+                        loader: "js",
+                    };
+                }
+                if (specifier === "node:module") {
+                    return {
+                        contents: `const unavailable = () => { throw new Error(${message}); }; const createRequire = () => unavailable; export { createRequire };`,
+                        loader: "js",
+                    };
+                }
+                return {
+                    contents: `const unavailable = () => { throw new Error(${message}); }; const existsSync = unavailable, readdirSync = unavailable, readFileSync = unavailable, statSync = unavailable; export default new Proxy({}, { get: unavailable }); export { existsSync, readdirSync, readFileSync, statSync };`,
+                    loader: "js",
+                };
+            });
+        },
+    };
+}
+
+async function buildBrowserRuntime(outDir) {
+    const assetsDir = path.join(outDir, "assets");
+    mkdirSync(assetsDir, { recursive: true });
+    writeFileSync(path.join(assetsDir, "rix-page.css"), readFileSync(WEB_PAGE_STYLE, "utf8"));
+    const result = await Bun.build({
+        entrypoints: [WEB_PAGE_ENTRY],
+        outdir: assetsDir,
+        target: "browser",
+        format: "iife",
+        naming: "rix-page.js",
+        sourcemap: "none",
+        loader: { ".rix": "text" },
+        plugins: [browserNodeShims()],
+    });
+    if (!result.success) throw new Error(result.logs.map((log) => log.message).join("\n") || "Could not build the RiX browser runtime");
+}
+
+async function writeArtifacts({ outDir, artifacts, source, sourcePath, plugins, context, result }) {
+    if (!outDir) {
+        if (artifacts.length > 0) throw new Error("This script declares .Out artifacts; rerun with --out=DIR");
+        return [];
+    }
+    const resolvedOutDir = path.resolve(outDir);
+    mkdirSync(resolvedOutDir, { recursive: true });
+    const htmlArtifacts = artifacts.filter(({ path: artifactPath }) => /\.html?$/i.test(artifactPath));
+    if (htmlArtifacts.length > 1) {
+        throw new Error("A RiX program currently supports one .html .Out artifact; use separate programs for separate interactive pages");
+    }
+    if (htmlArtifacts.length === 1 && htmlArtifacts[0].value !== result) {
+        throw new Error("The .html .Out artifact must be the program's final expression so its reactive view can be exported");
+    }
+    if (htmlArtifacts.length > 0) await buildBrowserRuntime(resolvedOutDir);
+    const written = [];
+    for (const artifact of artifacts) {
+        const target = validateArtifactPath(resolvedOutDir, artifact.path);
+        mkdirSync(path.dirname(target), { recursive: true });
+        if (/\.html?$/i.test(artifact.path)) {
+            writeFileSync(target, pageHtml({
+                source,
+                sourcePath,
+                title: path.basename(artifact.path, path.extname(artifact.path)),
+                plugins,
+            }));
+        } else {
+            writeFileSync(target, `${formatResult(artifact.value, { context })}\n`);
+        }
+        written.push(target);
+    }
+    return written;
+}
 
 function resolvePackageStartup(nameOrPath) {
     const spec = String(nameOrPath ?? "").trim();
@@ -477,9 +642,12 @@ async function runTests(filters) {
 }
 
 async function main() {
-    const rawArgs = process.argv.slice(2);
-    const withFloats = rawArgs.includes("--with-floats");
-    const args = rawArgs.filter(arg => arg !== "--with-floats");
+    const { positional: args, plugins, allPlugins, allBuiltPlugins, outDir } = parseRunnerArgs(process.argv.slice(2));
+    if (args[0] === "--help" || args[0] === "-h") {
+        console.log(usage());
+        return;
+    }
+    if (outDir && args[0] === "test") throw new Error("--out is only available when running a RiX program");
     const inputPath = args.length > 0 && args[0] !== "test" ? path.resolve(args[0]) : null;
     const pluginRoots = [
         path.resolve(process.cwd(), "plugins"),
@@ -488,15 +656,10 @@ async function main() {
         EXAMPLE_PLUGINS_DIR,
     ].filter(Boolean);
     const pluginCatalog = new NodePluginCatalog({ roots: [...new Set(pluginRoots)] }).scan();
-    pluginCatalog.registerInstaller("float", installFloatPlugin);
-    pluginCatalog.registerInstaller("example-array-js", installArrayJsExample);
+    registerBuiltPluginInstallers(pluginCatalog);
     const context = new Context();
     const registry = createDefaultRegistry();
     const systemContext = createDefaultSystemContext({ pluginCatalog });
-
-    if (withFloats) {
-        pluginCatalog.load("float", { context, registry, systemContext });
-    }
 
     if (args.length > 0 && args[0] === "test") {
         // Test runner mode
@@ -507,14 +670,33 @@ async function main() {
     if (args.length > 0) {
         // Run file
         const inputFile = args[0];
-        if (inputFile === "--help" || inputFile === "-h") {
-            console.log("Usage: bun rix [--with-floats] [file.rix] | bun rix test [filters...]");
-            process.exit(0);
-        }
 
         try {
             const source = readFileSync(inputFile, "utf-8");
-            const result = parseAndEvaluate(source, { context, registry, systemContext });
+            // Establish the synchronous RiX-plugin loader before command-line
+            // preloads. Scripts may still use .Plugin.Load themselves.
+            parseAndEvaluate("", { context, registry, systemContext });
+            const pluginIds = selectedPluginIds(pluginCatalog, { plugins, allPlugins, allBuiltPlugins });
+            for (const id of pluginIds) {
+                pluginCatalog.load(id, {
+                    context,
+                    registry,
+                    systemContext,
+                    loadRix: context.getEnv("__plugin_load_rix__"),
+                });
+            }
+            const artifacts = [];
+            if (outDir) context.setEnv("__output_sink__", (artifact) => artifacts.push(artifact));
+            const result = parseAndEvaluate(source, { context, registry, systemContext, file: path.resolve(inputFile) });
+            const written = await writeArtifacts({
+                outDir,
+                artifacts,
+                source,
+                sourcePath: path.resolve(inputFile),
+                plugins: pluginIds,
+                context,
+                result,
+            });
             
             const diag = getDiagnostics(context);
             const tracesList = diag.getEventsByKind("trace");
@@ -528,6 +710,7 @@ async function main() {
                     evaluate: (node) => evaluate(node, context, registry, systemContext),
                 }));
             }
+            for (const outputPath of written) console.log(`Wrote ${outputPath}`);
         } catch (error) {
             if (isRixAbort(error)) {
                 const label = error.event?.entries?.get("label")?.value ?? error.message;
@@ -540,6 +723,19 @@ async function main() {
         }
     } else {
         // REPL
+        if (outDir) throw new Error("--out requires a RiX program file with .Out declarations");
+        const pluginIds = selectedPluginIds(pluginCatalog, { plugins, allPlugins, allBuiltPlugins });
+        if (pluginIds.length > 0) {
+            parseAndEvaluate("", { context, registry, systemContext });
+            for (const id of pluginIds) {
+                pluginCatalog.load(id, {
+                    context,
+                    registry,
+                    systemContext,
+                    loadRix: context.getEnv("__plugin_load_rix__"),
+                });
+            }
+        }
         console.log("RiX REPL (Type .help for commands)");
         let buffer = "";
         let multilineMode = false;
@@ -811,4 +1007,7 @@ async function main() {
     }
 }
 
-main();
+main().catch((error) => {
+    console.error(`Error: ${error.message}`);
+    process.exit(1);
+});

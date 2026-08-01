@@ -93,7 +93,8 @@ and return that same value.
 answer ##! Debug("answer")
 Compute(x) ##! Trace("Compute", 3, ["x"])
 model ##! Info("model", 2)
-value ##! Log("value")
+value ##! Dump("value")
+value ##! Log("value")   ### convenient alias for Dump
 ```
 
 - `Debug(label)` records source, a pretty IR form, and the final value.
@@ -101,15 +102,17 @@ value ##! Log("value")
   expression.
 - `Info(label, depth?)` records a depth-oriented inspection event and the
   final value.
-- `Log(label)` records an unrestricted value dump event.
+- `Dump(label)` records an unrestricted value dump event. `Log(label)` is a
+  concise alias for the same diagnostic operation.
 
 `.Error`, `.Stop`, and `.Test*` remain separate control-flow and test APIs.
 They are deliberately not accepted as `##!` actions.
 
-RiX already reserves `.LOG` for natural logarithm, so a normal system
-diagnostic capability cannot be named `.Log` without a case-insensitive name
-collision. The normal capability is `.Dump`; the concise postfix action remains
-`##! Log("label")`.
+The default system intentionally leaves `.Log` unassigned. This keeps the name
+available for a future exact Rational logarithm capability, while `.Dump`
+remains the explicit diagnostic capability. The concise postfix action
+`##! Log("label")` is an alias for `##! Dump("label")` and does not consume the
+system name.
 
 ## Lowering model
 

@@ -1338,7 +1338,9 @@ export function createSyntheticDivision(root, coefficients) {
     return output("grid", {
         columns: Array.from({ length: values.length + 1 }, () => null),
         rows: [[root, ...values], [null, null, ...products.slice(1)], [null, ...bottom]],
-        rules: [{ kind: "vertical", afterColumn: 1 }, { kind: "horizontal", aboveRow: 3 }],
+        // Grid rules are one-based cell boundaries: the second cell is the
+        // first coefficient, so its left edge divides the root from it.
+        rules: [{ kind: "vertical", afterColumn: 2 }, { kind: "horizontal", aboveRow: 3 }],
         style: new Map([["align", { type: "string", value: "right" }]]),
         semantic: { type: "synthetic_division", root, coefficients: values, products, bottom },
     });
@@ -1369,14 +1371,62 @@ export function createPolynomialPlot(coefficients, domain, options = null) {
     const margin = marginValue === null ? 36 : numericValue(marginValue, "Polynomial plot margin");
     if (margin < 0 || margin * 2 >= Math.min(...size)) throw new Error("Polynomial plot margin is too large for its size");
 
-    const coefficientNumbers = values.map((value) => numericValue(value, "Polynomial coefficient"));
-    const evaluatePolynomial = (x) => coefficientNumbers.reduce((total, coefficient) => total * x + coefficient, 0);
-    const samplesData = Array.from({ length: samples }, (_, index) => {
-        const x = xMin + (xMax - xMin) * index / (samples - 1);
-        return [x, evaluatePolynomial(x)];
-    });
-    let yMin = Math.min(0, ...samplesData.map(([, y]) => y));
-    let yMax = Math.max(0, ...samplesData.map(([, y]) => y));
+    const plotStyle = (entries, fallbackStroke, fallbackWidth) => {
+        const supplied = optionalMap(get(entries, "style", null), "Polynomial plot style") || new Map();
+        return new Map([
+            ...supplied,
+            ["stroke", get(entries, "stroke", get(supplied, "stroke", fallbackStroke))],
+            ["width", get(entries, "width", get(supplied, "width", fallbackWidth))],
+            ["fill", get(supplied, "fill", { type: "string", value: "none" })],
+        ]);
+    };
+    const readSeries = (entry, index, primary = false) => {
+        const entries = primary ? optionEntries : map(entry, `Polynomial plot series ${index + 1}`);
+        const coefficients = primary ? values : sequence(get(entries, "coefficients"), `Polynomial plot series ${index + 1} coefficients`)
+            .map((value, coefficientIndex) => exactNumber(value, `Polynomial plot series ${index + 1} coefficient ${coefficientIndex + 1}`));
+        if (coefficients.length < 2) throw new Error(`Polynomial plot series ${index + 1} requires at least two coefficients`);
+        const numbers = coefficients.map((value, coefficientIndex) => numericValue(value, `Polynomial plot series ${index + 1} coefficient ${coefficientIndex + 1}`));
+        const data = Array.from({ length: samples }, (_, sampleIndex) => {
+            const x = xMin + (xMax - xMin) * sampleIndex / (samples - 1);
+            return [x, numbers.reduce((total, coefficient) => total * x + coefficient, 0)];
+        });
+        return {
+            data,
+            style: plotStyle(entries, primary ? { type: "string", value: "#2563eb" } : { type: "string", value: "#b45309" }, primary ? int(3) : int(2)),
+            label: get(entries, "label", null),
+        };
+    };
+    const extraSeries = get(optionEntries, "series", null);
+    const series = [readSeries(null, 0, true), ...(extraSeries === null ? [] : sequence(extraSeries, "Polynomial plot series").map((entry, index) => readSeries(entry, index + 1)))];
+    const readMark = (entry, index) => {
+        const entries = map(entry, `Polynomial plot mark ${index + 1}`);
+        const point = sequence(get(entries, "point"), `Polynomial plot mark ${index + 1} point`);
+        if (point.length !== 2) throw new Error(`Polynomial plot mark ${index + 1} point must contain x and y coordinates`);
+        return {
+            point: point.map((value, coordinate) => numericValue(value, `Polynomial plot mark ${index + 1} ${coordinate === 0 ? "x" : "y"}`)),
+            label: get(entries, "label", null),
+            style: optionalMap(get(entries, "style", null), `Polynomial plot mark ${index + 1} style`) || new Map([
+                ["fill", { type: "string", value: "#be123c" }], ["stroke", { type: "string", value: "#fff" }], ["width", int(2)],
+            ]),
+            labelStyle: optionalMap(get(entries, "labelStyle", null), `Polynomial plot mark ${index + 1} label style`) || new Map([["size", int(13)]]),
+            radius: get(entries, "radius", int(5)),
+        };
+    };
+    const marksValue = get(optionEntries, "marks", null);
+    const marks = marksValue === null ? [] : sequence(marksValue, "Polynomial plot marks").map(readMark);
+    const readTick = (entry, index) => {
+        const entries = map(entry, `Polynomial plot tick ${index + 1}`);
+        return {
+            x: numericValue(get(entries, "x"), `Polynomial plot tick ${index + 1} x`),
+            label: get(entries, "label", null),
+            style: optionalMap(get(entries, "style", null), `Polynomial plot tick ${index + 1} style`) || new Map([["stroke", { type: "string", value: "#334155" }], ["width", int(2)]]),
+            labelStyle: optionalMap(get(entries, "labelStyle", null), `Polynomial plot tick ${index + 1} label style`) || new Map([["size", int(13)], ["anchor", { type: "string", value: "middle" }]]),
+        };
+    };
+    const ticksValue = get(optionEntries, "ticks", null);
+    const ticks = ticksValue === null ? [] : sequence(ticksValue, "Polynomial plot ticks").map(readTick);
+    let yMin = Math.min(0, ...series.flatMap(({ data }) => data.map(([, y]) => y)), ...marks.map(({ point }) => point[1]));
+    let yMax = Math.max(0, ...series.flatMap(({ data }) => data.map(([, y]) => y)), ...marks.map(({ point }) => point[1]));
     if (yMin === yMax) {
         yMin -= 1;
         yMax += 1;
@@ -1390,11 +1440,6 @@ export function createPolynomialPlot(coefficients, domain, options = null) {
         margin + (x - xMin) / (xMax - xMin) * (width - margin * 2),
         height - margin - (y - yMin) / (yMax - yMin) * (height - margin * 2),
     ];
-    const curveStyle = new Map([
-        ["stroke", get(optionEntries, "stroke", { type: "string", value: "#2563eb" })],
-        ["width", get(optionEntries, "width", int(2))],
-        ["fill", { type: "string", value: "none" }],
-    ]);
     const axisStyle = new Map([
         ["stroke", { type: "string", value: "#64748b" }],
         ["width", int(1)],
@@ -1404,7 +1449,27 @@ export function createPolynomialPlot(coefficients, domain, options = null) {
     const children = [];
     if (yMin <= 0 && yMax >= 0) children.push(output("path", { points: [toPoint([xMin, 0]), toPoint([xMax, 0])], style: axisStyle }));
     if (xMin <= 0 && xMax >= 0) children.push(output("path", { points: [toPoint([0, yMin]), toPoint([0, yMax])], style: axisStyle }));
-    children.push(output("path", { points: samplesData.map(toPoint), style: curveStyle }));
+    for (const seriesEntry of series) children.push(output("path", { points: seriesEntry.data.map(toPoint), style: seriesEntry.style }));
+    for (const tick of ticks) {
+        const [tickX, tickY] = toPoint([tick.x, 0]);
+        children.push(output("path", { points: [[tickX, tickY - 5], [tickX, tickY + 5]], style: tick.style }));
+        if (tick.label !== null && tick.label !== undefined) {
+            children.push(output("text_mark", { position: [tickX, tickY + 20], text: tick.label, style: tick.labelStyle }));
+        }
+    }
+    for (const mark of marks) {
+        const [markX, markY] = toPoint(mark.point);
+        children.push(output("circle", { center: [markX, markY], radius: mark.radius, style: mark.style }));
+        if (mark.label !== null && mark.label !== undefined) {
+            children.push(output("text_mark", { position: [markX + 9, markY - 9], text: mark.label, style: mark.labelStyle }));
+        }
+    }
+    const labeledSeries = series.filter(({ label }) => label !== null && label !== undefined);
+    for (const [index, seriesEntry] of labeledSeries.entries()) {
+        const y = margin + 16 + index * 18;
+        children.push(output("path", { points: [[margin + 2, y - 5], [margin + 18, y - 5]], style: seriesEntry.style }));
+        children.push(output("text_mark", { position: [margin + 24, y], text: seriesEntry.label, style: new Map([["size", int(13)]]) }));
+    }
     return output("graphic", {
         size: [int(Math.round(width)), int(Math.round(height))],
         children,
@@ -1756,7 +1821,12 @@ export function formatOutputText(value, format) {
         for (let index = 0; index < strings.length; index += 1) {
             if (hasRule(value, "horizontal", index + 1)) lines.push(`  ${widths.slice(1).map((width) => "-".repeat(width + 2)).join("")}`);
             const parts = strings[index].map((cell, column) => cell.padStart(widths[column]));
-            lines.push(hasRule(value, "vertical", 1) ? `${parts[0]} │ ${parts.slice(1).join("  ")}` : parts.join("  "));
+            let line = parts[0] || "";
+            for (let column = 1; column < parts.length; column += 1) {
+                line += hasRule(value, "vertical", column + 1) ? " │ " : "  ";
+                line += parts[column];
+            }
+            lines.push(line);
         }
         return lines.join("\n");
     }

@@ -63,7 +63,7 @@ b := 2~{i}                      // Number with mathematical unit: 2i
 .ConvertUnit(100~[m], .Units[:ft]) // Unit conversion; source unit is carried
 a:b:%4                          // Pick 4 random points in [a,b]
 [[1,2;3,4], name:="matrix"]     // Matrix with metadata
-SIN(x; n:=4)                    // System function with named argument
+SYSTEM_FN(x; n:=4)              // System function with named argument
 x ?= 3                          // Boolean test: is x equal to 3?
 x^2 :<: 4                       // Inequality to solve
 PI@(1e-10)                      // Get PI with precision 1e-10

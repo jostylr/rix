@@ -44,16 +44,18 @@ describe("postfix checks and diagnostic taps", () => {
     const result = parseAndEvaluate(`
       2 ##! Debug("debug value");
       3 ##! Info("info value", 2);
-      4 ##! Log("log value");
-      5
+      4 ##! Dump("dump value");
+      5 ##! Log("log alias");
+      6
     `, { context });
 
-    expect(result.value).toBe(5n);
+    expect(result.value).toBe(6n);
     const events = getDiagnostics(context).events;
     expect(events.map((event) => event.entries.get("kind")?.value))
-      .toEqual(["debug", "info", "log"]);
+      .toEqual(["debug", "info", "log", "log"]);
     expect(events[1].entries.get("data").entries.get("display").value).toBe("3");
     expect(events[2].entries.get("data").entries.get("display").value).toBe("4");
+    expect(events[3].entries.get("data").entries.get("display").value).toBe("5");
   });
 
   test("Trace taps trace the wrapped expression", () => {

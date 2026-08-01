@@ -38,7 +38,10 @@ import {
 import { callWithConcreteArgs } from "./functions.js";
 
 const BASE_RESERVED_CHARS = new Set([".", "/", "#", "~", "_", "^", "+", "-"]);
-const requireFromHere = createRequire(import.meta.url);
+// ImportJS resolves module targets to absolute paths before loading them, so
+// the synthetic base only needs to be a valid Node filename. Avoid import.meta
+// here: browser IIFE exports retain it as invalid classic-script syntax.
+const requireFromHere = createRequire("/rix-runtime/core.js");
 const BASE_MODE_ALIASES = new Map([
     ["mixed", 1], ["..", 1],
     ["repeat", 2], [".", 2], ["#", 2], ["radix", 2],

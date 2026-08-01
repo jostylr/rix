@@ -536,7 +536,26 @@ const liveViewFunction = {
     },
 };
 
+const outFunction = {
+    pure: false,
+    doc: "Declare an output artifact for the active host output sink",
+    impl(args, context) {
+        if (args.length !== 2) throw new Error(".Out expects a relative output path and a value");
+        const [target, value] = args;
+        if (!target || target.type !== "string" || !target.value.trim()) {
+            throw new Error(".Out output path must be a non-empty string");
+        }
+        const sink = context.getEnv("__output_sink__", null);
+        if (typeof sink !== "function") {
+            throw new Error(".Out requires a host output sink (use rix --out=DIR)");
+        }
+        sink({ path: target.value, value });
+        return value;
+    },
+};
+
 export const outputFunctions = {
+    OUT: outFunction,
     BIND: bindFunction,
     LIVEVIEW: liveViewFunction,
     TEXT: capability(createText, "Create a portable text output node"),

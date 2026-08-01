@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+    Context,
     createControlPanelSnapshot,
     formatValue,
     parseAndEvaluate,
@@ -10,6 +11,19 @@ import {
 } from "../../src/index.js";
 
 describe("portable structured output", () => {
+    test("Out delegates artifact declarations to the embedding host", () => {
+        const context = new Context();
+        const artifacts = [];
+        context.setEnv("__output_sink__", (artifact) => artifacts.push(artifact));
+        const value = parseAndEvaluate('.Out("report.txt", 3/4)', { context });
+        expect(formatValue(value)).toBe("3/4");
+        expect(artifacts).toHaveLength(1);
+        expect(artifacts[0].path).toBe("report.txt");
+        expect(formatValue(artifacts[0].value)).toBe("3/4");
+        expect(() => parseAndEvaluate('.Out("report.txt", 3/4)'))
+            .toThrow("host output sink");
+    });
+
     test("ControlPanel sliders bind directly to $$ identities and retain exact steps", () => {
         const panel = parseAndEvaluate(`
             $$x := 3/2;
@@ -540,8 +554,11 @@ describe("portable structured output", () => {
         expect(division.type).toBe("output");
         expect(division.kind).toBe("grid");
         expect(division.semantic.bottom.map(formatValue)).toEqual(["2", "-4", "-2", "-3"]);
+        expect(division.rules[0]).toMatchObject({ kind: "vertical", afterColumn: 2 });
         expect(formatValue(division)).toContain("│");
-        expect(renderOutputHtml(division, formatValue)).toContain("rix-grid-rule-top");
+        const html = renderOutputHtml(division, formatValue);
+        expect(html).toContain("rix-grid-rule-top");
+        expect(html).toContain('<td>1</td><td class="rix-grid-rule-left">2</td>');
     });
 
     test("Fragments and slides preserve child output values", () => {
@@ -770,6 +787,24 @@ describe("portable structured output", () => {
             .toThrow("Polynomial plot domain must increase");
         expect(() => parseAndEvaluate('.Plugin.Load("plot"); .plot.Polynomial([1, 0], [-1, 1, 2]);'))
             .toThrow("Polynomial plot domain must have a lower and upper bound");
+    });
+
+    test("the plot plugin composes labeled series, x-axis ticks, and marked values", () => {
+        const plot = parseAndEvaluate(`
+            .Plugin.Load("plot");
+            .plot.Polynomial([1, 0, -1], [-2, 2], {=
+                label="quadratic",
+                series=[{= coefficients=[2, 1], label="linear part", stroke="#b45309" }],
+                ticks=[{= x=1/2, label="center = 1/2" }],
+                marks=[{= point=[1/2, -3/4], label="(1/2, f(1/2) = -3/4)" }]
+            })
+        `);
+        const html = renderOutputHtml(plot, formatValue);
+        expect(plot.children.filter(({ kind }) => kind === "circle")).toHaveLength(1);
+        expect(html).toContain("quadratic</text>");
+        expect(html).toContain("linear part</text>");
+        expect(html).toContain("center = 1/2</text>");
+        expect(html).toContain("f(1/2) = -3/4)");
     });
 
     test("Graphics.Path preserves renderer-independent curve and arc commands", () => {

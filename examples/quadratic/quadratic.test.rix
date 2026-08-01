@@ -1,0 +1,26 @@
+report := <"rix/examples/quadratic/quadratic">;
+
+.Test("quadratic rebasing", {; }, {=
+    centered_value = {;
+        R := @report["rebased"];
+        R(1/2) == 3/4
+    },
+
+    synthetic_coefficients = {;
+        result := @report["analysis"];
+        coefficients := result["shiftedcoefficients"];
+        coefficients[2] == result["secondremainder"] && coefficients[3] == result["firstremainder"]
+    },
+
+    tangent_matches_centered_linear_part = {;
+        R := @report["rebased"];
+        T := .Poly({#x# -2*(x - 1/2) + 3/4 });
+        T(3/2) == -5/4
+    },
+
+    negative_center_uses_plus_form = {;
+        d := -3/2;
+        term := d < 0 ?? @"x + @{0 - d}" ?: @"x - @{d}";
+        term == "x + 1..1/2"
+    }
+})

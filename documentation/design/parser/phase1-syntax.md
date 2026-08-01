@@ -45,7 +45,7 @@ a + b == c      # (a + b) == c
 Identifiers starting with an uppercase letter are **System identifiers**. When followed by `(...)`, they produce a **FunctionCall** AST node.
 
 ```
-SIN(x)          # FunctionCall → SystemIdentifier "SIN"
+SYSTEM_FN(x)    # FunctionCall → SystemIdentifier "SYSTEM_FN"
 F(x, y)         # FunctionCall → SystemIdentifier "F"
 PI              # SystemIdentifier (constant)
 ```

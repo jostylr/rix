@@ -287,7 +287,7 @@ const LOWERERS = {
     if (action === "debug") return ir("SYS_CALL", "Debug", ...args, expression);
     if (action === "trace") return ir("SYS_CALL", "Trace", ...args, expression);
     if (action === "info") return ir("SYS_CALL", "InfoValue", ...args, expression);
-    if (action === "log") return ir("SYS_CALL", "Dump", ...args, expression);
+    if (action === "dump" || action === "log") return ir("SYS_CALL", "Dump", ...args, expression);
     throw new Error(`Unknown postfix diagnostic action: ${node.action}`);
   },
 

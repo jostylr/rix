@@ -24,7 +24,9 @@ The supported conventions are:
   passes when it returns a non-null value, so pipelines can use descriptive
   predicates such as `xs ##@ |> isSorted`.
 - `##! Debug("label")`, `Trace("label", depth, vars?)`, `Info("label",
-  depth?)`, and `Log("label")` are value-preserving RiX diagnostic taps.
+  depth?)`, and `Dump("label")` are value-preserving RiX diagnostic taps.
+  `Log("label")` is a concise alias for `Dump` and does not create `.Log` as a
+  system capability.
 - `##SETUP## ... ##SETUP##` evaluates hidden setup code and removes it from the
   normal displayed source.
 - `##: kind` checks the resulting structural kind; optional brackets check

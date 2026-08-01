@@ -802,7 +802,7 @@ curve := .plot.Function({=
     style = {= stroke = "#2463a5", width = 2 }
 })
 
-H := (x, y) -> .Exp(-(x^2 + y^2))
+H := (x, y) -> 1 / (1 + x^2 + y^2)
 
 heat := .plot.HeatMap({=
     fn = H,
@@ -855,7 +855,7 @@ host can ask for an SVG/PNG `Graphic` snapshot.
 
 ```rix
 surface := .Scene3D.ParametricSurface({=
-    fn = (u, v) -> [u, v, .Sin(u) * .Cos(v)],
+    fn = (u, v) -> [u, v, u * v],
     u = [-3, 3],
     v = [-3, 3],
     material = {= color = "#4b9cd3", opacity = 0.85 }

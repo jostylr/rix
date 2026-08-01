@@ -13,7 +13,7 @@ import {
     typeRegistry,
     valueMethod,
 } from "../../src/runtime/type-system.js";
-import { mathFunctions } from "../../src/eval/functions/math.js";
+import { mathFunctions } from "./math-functions.js";
 
 const TYPE_NAME = "FloatIEEE754";
 const NATIVE_TYPE = "float_ieee754";

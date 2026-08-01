@@ -2027,12 +2027,12 @@ class Parser {
     const lineEndAt = this.source.indexOf("\n", marker.pos[2]);
     this.advance();
     if (this.current.type !== "Identifier") {
-      this.error("Expected Debug, Trace, Info, or Log after ##!");
+      this.error("Expected Debug, Trace, Info, Dump, or Log after ##!");
     }
     const action = this.current.value;
     const actionOriginal = this.current.original;
-    if (!new Set(["debug", "trace", "info", "log"]).has(action.toLowerCase())) {
-      this.error("##! supports Debug, Trace, Info, or Log");
+    if (!new Set(["debug", "trace", "info", "dump", "log"]).has(action.toLowerCase())) {
+      this.error("##! supports Debug, Trace, Info, Dump, or Log");
     }
     this.advance();
     if (this.current.value !== "(") this.error("Expected ( after ##! diagnostic action");

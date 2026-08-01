@@ -119,8 +119,6 @@ First-wave operators include:
 - `NEG`
 - `EQ`, `LT`, `GT`, `LTE`, `GTE`
 - `ABS`, `SQRT`
-- `SIN`, `COS`, `TAN`, `ASIN`, `ACOS`, `ATAN`, `ATAN2`
-- `LOG`, `LN`, `LOG10`, `EXP`
 
 Built-in type installation currently installs Rational arithmetic/comparison variants before native fallback. Type install order is dispatch order; fallback remains last.
 
@@ -213,8 +211,10 @@ The generic bridge is:
 f = 1 ~: :Float
 g = 2 ~: :Float
 h = f + g * g
-s = .SIN(f)
-e = .EXP(f)
+s = .float.Sin(f)
+e = .float.Exp(f)
 ```
 
-Float installs overloads for arithmetic, comparison, and common real-valued math functions. Those functions are system multifunctions with `/NativeFallback/` variants, so later user-land real-number types can install their own `SIN`, `LOG`, `EXP`, and related variants without replacing the Float implementation.
+Float installs overloads for arithmetic, comparison, and its own approximate
+math surface. Transcendental operations are not default RiX system
+capabilities; the Float plugin explicitly provides them under `.float`.

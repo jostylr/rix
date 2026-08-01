@@ -643,8 +643,8 @@ RiX provides three postfix operators with the highest precedence for precision c
 
 ## 13. Modules, Loading, and Help
 
-* `Load("trig")` loads trig module with `SIN`, `COS`, etc.
-* `Load("trig", "Tr")` loads with prefix: `TrSIN`, `TrCOS`, etc.
+* `Load("module")` loads a module's exported capabilities.
+* `Load("module", "M")` loads a module with a prefix such as `MTransform`.
 * `Execute(path)` runs file/script in context
 * `Help` or `Help f` displays documentation
 

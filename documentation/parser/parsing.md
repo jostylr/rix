@@ -33,15 +33,15 @@ import { parse } from './src/parser.js';
 // Define system identifier lookup
 function systemLookup(name) {
     const systemSymbols = {
-        'SIN': { type: 'function', arity: 1 },
-        'PI': { type: 'constant', value: Math.PI },
+        'ADD': { type: 'function', arity: 2 },
+        'NULL': { type: 'constant', value: null },
         'AND': { type: 'operator', precedence: 40, associativity: 'left', operatorType: 'infix' }
     };
     return systemSymbols[name] || { type: 'identifier' };
 }
 
 // Parse RiX code
-const code = "x := SIN(PI / 2) + 1;";
+const code = "x := ADD(2, 3) + 1;";
 const tokens = tokenize(code);
 const ast = parse(tokens, systemLookup);
 ```
@@ -491,7 +491,7 @@ expression(arguments...)
 #### Examples
 ```javascript
 // Traditional function call (backward compatible)
-SIN(PI)
+SYSTEM_FN(x)
 
 // Number multiplication via call
 3(4)  // equivalent to 3 * 4
@@ -639,7 +639,7 @@ expression~[unit]
 
 // Units on expressions
 (a + b)~[m]        // sum with meters
-SIN(x)~[rad]       // sine of x radians
+(x + 1)~[rad]      // expression carrying radians
 ```
 
 #### AST Structure
@@ -853,7 +853,7 @@ _ := 42
 
 #### Tuple with Expressions
 ```rix
-(a + b, SIN(x), _)
+(a + b, SYSTEM_FN(x), _)
 ```
 **AST:**
 ```javascript
@@ -868,7 +868,7 @@ _ := 42
         },
         {
             type: "FunctionCall",
-            function: { type: "SystemIdentifier", name: "SIN" },
+            function: { type: "SystemIdentifier", name: "SYSTEM_FN" },
             arguments: { positional: [{ type: "UserIdentifier", name: "x" }], keyword: [] }
         },
         { type: "NULL" }
@@ -1291,7 +1291,7 @@ Code blocks use double braces and contain executable statements or expressions:
 {;a := 1; b := 2; sum := a + b}
 
 // Complex computation pipeline
-{;input := 45; radians := input * PI / 180; result := SIN(radians)}
+{;input := 45; scaled := input / 180; result := scaled^2}
 
 // Nested code blocks
 {; a := {; 3 } }
@@ -1485,14 +1485,14 @@ This distinction matters for piping:
 
 ### Function Call
 ```javascript
-// Input: "SIN(PI / 2);"
+// Input: "SYSTEM_FN(x);"
 {
     type: "Statement",
     expression: {
         type: "FunctionCall",
         function: {
             type: "SystemIdentifier",
-            name: "SIN",
+            name: "SYSTEM_FN",
             systemInfo: { type: "function", arity: 1 }
         },
         arguments: [{
@@ -2005,7 +2005,7 @@ f(x, n := 5) :-> x^n
 f(x, n := 5; a := 0) :-> (x-a)^n + 1
 
 // Function with conditional parameters
-h(x, y; n := 2 ? x^2 + y^2 = 1) :-> COS(x; n) * SIN(y; n)
+h(x, y; n := 2 ? x^2 + y^2 = 1) :-> (x + n) * (y + n)
 ```
 
 #### Parameter Types
@@ -2169,7 +2169,7 @@ poly(x, a, b := 1, c := 0) :-> a*x^2 + b*x + c
 
 ```javascript
 // Basic keyword-only parameters
-trig(x; precision := 10, angleUnit := "radians") :-> SIN(x; precision)
+transform(x; scale := 10, unit := "radians") :-> x * scale
 
 // Complex parameter mix
 func(x, y, scale := 1; offset := 0, normalize := false) :-> (x + y) * scale + offset
@@ -2310,12 +2310,12 @@ below remain syntax/design examples rather than executable promises.
 ### Function Calculus
 
 #### System Functions
-- `SIN(x)'` - Derivative of sine function
-- `'EXP(x^2)` - Integral of exponential function
-- `LOG(x^2 + 1)'[x]` - Derivative with respect to x
+- `F(x)'` - Derivative of a user-defined function
+- `'F(x^2)` - Integral of a user-defined function
+- `G(x^2 + 1)'[x]` - Derivative with respect to x
 
 #### Composed Functions
-- `SIN(COS(x))'` - Derivative of composed trigonometric functions
+- `F(G(x))'` - Derivative of composed functions
 - `'POW(x, n)[x]` - Integral of power function with respect to x
 
 ### Path Derivatives
@@ -2379,9 +2379,9 @@ F'[x, y]    // Partial derivative with variables
 
 #### Function Calculus
 ```rix
-SIN(x)'               // Derivative of sine
-'EXP(x^2)[x]          // Integral of exponential
-LOG(SIN(x))'          // Derivative of composition
+F(x)'                 // Derivative of a user function
+'F(x^2)[x]            // Integral of a user function
+G(F(x))'              // Derivative of composition
 ```
 
 ### Parsing Rules

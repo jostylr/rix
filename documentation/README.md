@@ -47,8 +47,8 @@ assertions.
 
 Use native `##: kind` for a checked structural annotation. Optional brackets
 check the size: `array[5]`, `set[3]`, `map[2]`, `tuple[2]`, or `tensor[2x2]`.
-`##! Debug(...)`, `Trace(...)`, `Info(...)`, and `Log(...)` are native,
-value-preserving diagnostic taps.
+`##! Debug(...)`, `Trace(...)`, `Info(...)`, and `Dump(...)` are native,
+value-preserving diagnostic taps. `Log(...)` is a concise alias for `Dump(...)`.
 
 Run the checker directly with:
 

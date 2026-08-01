@@ -28,7 +28,7 @@ This document provides a comprehensive reference for all token types generated b
 **Purpose:** Represents variable names, function names, and system identifiers  
 **Syntax:** 
 - User identifiers (lowercase first): `x`, `myVar`, `α`
-- System identifiers (uppercase first): `SIN`, `PI`, `Matrix`
+- System identifiers (uppercase first): `ADD`, `ABS`, `Matrix`
 
 ### Symbol
 **Purpose:** Represents operators, punctuation, and delimiters  

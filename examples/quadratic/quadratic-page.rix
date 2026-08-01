@@ -1,0 +1,64 @@
+## Interactive exact quadratic rebasing page.
+##
+## The runner writes this declared page only when given --out=DIR.
+
+.Plugin.Load("plot");
+
+$$a := 1;
+$$b := -3;
+$$c := 2;
+$$center := 1/2;
+
+$$view := {;
+    av := $a;
+    bv := $b;
+    cv := $c;
+    d := $center;
+    P := x -> av*x^2 + bv*x + cv;
+    slope := bv + 2*av*d;
+    value := P(d);
+    centerTerm := d < 0 ?? @"x + @{0 - d}" ?: @"x - @{d}";
+    plotDomain := [d - 4, d + 4];
+    plot := .plot.Polynomial([av, bv, cv], plotDomain, {=
+        size=[620, 320],
+        label="quadratic",
+        stroke="#0c7b7f",
+        series=[{=
+            coefficients=[slope, value - slope*d],
+            label="linear part",
+            stroke="#b45309",
+            width=2
+        }],
+        ticks=[{= x=d, label=@"center = @{d}" }],
+        marks=[{=
+            point=[d, value],
+            label=@"(@{d}, f(@{d}) = @{value})",
+            style={= fill="#be123c", stroke="#fff", width=2 },
+            labelStyle={= fill="#be123c", size=13 }
+        }]
+    });
+
+    .Fragment([
+        .Heading(1, "Quadratic rebasing"),
+        .Paragraph(@"Explore f(x) = @{av}x² + @{bv}x + @{cv}, centered at x = @{d}. All values remain exact RiX rationals."),
+        .ControlPanel({=
+            title="Coefficients and center",
+            description="Each slider recomputes the centered form immediately.",
+            controls=[
+                .Controls.Slider($$a, -5:5, 1, "a"),
+                .Controls.Slider($$b, -8:8, 1, "b"),
+                .Controls.Slider($$c, -8:8, 1, "c"),
+                .Controls.Slider($$center, -3:3, 1/2, "center")
+            ]
+        }),
+        .Heading(2, "Centered form"),
+        .Paragraph(@"f(x) = @{av}(@{centerTerm})² + @{slope}(@{centerTerm}) + @{value}"),
+        .Heading(2, "Quadratic and linear part"),
+        .Figure(plot, "The tick marks the selected center; the red point is (center, f(center))."),
+        .Heading(2, "Exact synthetic division"),
+        .Algebra.SyntheticDivision(d, [av, bv, cv]),
+        .Algebra.SyntheticDivision(d, [av, bv + av*d])
+    ])
+};
+
+.Out("index.html", $view)

@@ -1,0 +1,57 @@
+## Exact quadratic rebasing
+##
+## The browser prototype in apps/quadratic varied these four values:
+##
+##     f(x) = a*x^2 + b*x + c
+##     center = d
+##
+## RiX can keep the same exploration exact.  Centering at d gives
+##
+##     f(x) = a*(x-d)^2 + (b + 2*a*d)*(x-d) + f(d)
+##
+
+Quadratic(a, b, c) -> x -> a*x^2 + b*x + c;
+Tangent(a, b, c, d) -> x -> (b + 2*a*d)*(x - d) + (a*d^2 + b*d + c);
+
+Analyze(a, b, c, d) -> {;
+    q0 := b + a*d;
+    value := a*d^2 + b*d + c;
+    slope := q0 + a*d;
+
+    {=
+        coefficients = [a, b, c],
+        center = d,
+        firstQuotient = [a, q0],
+        firstRemainder = value,
+        secondRemainder = slope,
+        shiftedCoefficients = [a, slope, value]
+    }
+};
+
+a := 1;
+b := -3;
+c := 2;
+center := 1/2;
+
+P := Quadratic(a, b, c);
+RebaseAt(d) -> .Transform(P, :center, d);
+analysis := Analyze(a, b, c, center);
+rebased := RebaseAt(center);
+
+## The first division returns the linear quotient and f(d).  Dividing that
+## quotient by the same factor returns the leading coefficient and f'(d).
+firstDivision := .Algebra.SyntheticDivision(center, [a, b, c]);
+secondDivision := .Algebra.SyntheticDivision(center, [a, b + a*center]);
+
+## The tangent is the degree-one part of the centered form.
+tangent := Tangent(a, b, c, center);
+
+{=
+    polynomial = P,
+    center = center,
+    analysis = analysis,
+    rebased = rebased,
+    tangent = tangent,
+    firstDivision = firstDivision,
+    secondDivision = secondDivision
+}

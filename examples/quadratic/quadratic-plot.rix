@@ -1,0 +1,18 @@
+## Optional graphical view for quadratic.rix.
+## Run this file directly after the exact arithmetic example has been moved to
+## a host with the Plot capability enabled.
+
+report := <"rix/examples/quadratic/quadratic">;
+.Plugin.Load("plot");
+
+center := report["center"];
+coefficients := report["analysis"]["coefficients"];
+shifted := report["analysis"]["shiftedcoefficients"];
+intercept := shifted[3] - shifted[2]*center;
+quadraticGraph := .plot.Polynomial(coefficients, [center - 6, center + 6], {= stroke = "#0c7b7f", width = 3 });
+tangentGraph := .plot.Polynomial([shifted[2], intercept], [center - 6, center + 6], {= stroke = "#b87912", width = 3 });
+
+{=
+    quadratic = quadraticGraph,
+    tangent = tangentGraph
+}

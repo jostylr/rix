@@ -9,9 +9,11 @@ import { NodePluginCatalog } from "../../src/runtime/plugin-catalog-node.js";
 const approximatePluginRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "../../plugins/float");
 
 describe("approximate math plugin", () => {
-    test("transcendental functions are absent from the default system", () => {
+    test("transcendental functions and .Log are absent from the default system", () => {
         expect(() => parseAndEvaluate(".Sin(1)"))
             .toThrow("Unknown system capability: SIN");
+        expect(() => parseAndEvaluate(".Log(1)"))
+            .toThrow("Unknown system capability: LOG");
     });
 
     test("the Float plugin is cataloged and loaded under the float ID", () => {

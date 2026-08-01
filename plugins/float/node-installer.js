@@ -5,7 +5,7 @@
  * substitute interval, arbitrary-precision, or domain-specific behavior.
  */
 
-import { MATH_FUNCTION_NAMES, mathFunctions } from "../../src/eval/functions/math.js";
+import { MATH_FUNCTION_NAMES, mathFunctions } from "./math-functions.js";
 import { installRegisteredTypes, typeRegistry } from "../../src/runtime/type-system.js";
 import { loadFloatPluginStartup } from "./float-loader.js";
 import { Integer, Rational, RationalInterval } from "@ratmath/core";

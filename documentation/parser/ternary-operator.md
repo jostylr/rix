@@ -53,7 +53,7 @@ The ternary operator fully supports RiX's `{; }` code block syntax, enabling com
 
 ```javascript
 // Basic code block in true branch
-result := x > 0 ?? {; a := SIN(5); a + b } ?: 7
+result := x > 0 ?? {; a := x^2; a + b } ?: 7
 
 // Code blocks in both branches
 value := flag ?? {; 
@@ -67,14 +67,14 @@ value := flag ?? {;
 
 // Mathematical computation with intermediate variables
 physics := energy > threshold ?? {; 
-    v := SQRT(2 * energy / mass); 
+    v := (2 * energy / mass)^(1/2);
     momentum := mass * v; 
     momentum 
 } ?: 0
 
 // Nested ternary inside code block
 complex := x > 0 ?? {; 
-    temp := SIN(x); 
+    temp := x^2;
     temp > 0.5 ?? temp^2 ?: temp/2 
 } ?: 0
 ```
@@ -86,7 +86,7 @@ complex := x > 0 ?? {;
 a + b > threshold ?? c * d ?: e / f
 
 // With function calls
-angle > PI/2 ?? SIN(angle) ?: COS(angle)
+angle > threshold ?? angle^2 ?: -angle
 
 // With intervals (no conflict)
 safe ?? 1:10 ?: -10:-1
@@ -115,7 +115,7 @@ data |> (valid ?? NORMALIZE ?: SANITIZE) |> ANALYZE
 det > 0 ?? [[1,0],[0,1]] ?: [[0,1],[1,0]]
 
 // With system functions
-x > 0 ?? LOG(x) ?: LOG(-x)
+x > 0 ?? x^2 ?: (-x)^2
 
 // Code blocks with array operations
 arrayResult := flag ?? {; 
