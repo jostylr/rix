@@ -68,7 +68,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="../../site_libs/quarto-search/fuse.min.js"></script>
 <script src="../../site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="../../">
-<link href="../../design/eval/rixcel-architecture.html" rel="next">
+<link href="../../design/eval/document-output-todo.html" rel="next">
 <link href="../../design/eval/transformation-reference.html" rel="prev">
 <link href="../../rix-logo.png" rel="icon" type="image/png">
 <script src="../../site_libs/quarto-html/quarto.js" type="module"></script>
@@ -569,6 +569,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
+  <a href="../../design/eval/document-output-todo.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Document blocks, inline content, and assets</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
   <a href="../../design/eval/rixcel-architecture.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">RiXCel architecture</span></a>
   </div>
@@ -700,7 +706,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 <div class="callout-body-container callout-body">
-<p>The initial portable-output slice is implemented: <code>.Text</code>, <code>.Paragraph</code>, <code>.Heading</code>, <code>.Fragment</code>, <code>.Table</code>, <code>.Grid</code>, <code>.Sheet</code>, <code>.Graphics</code>, <code>.Figure</code>, <code>.Slide</code>, <code>.Slides</code>, and <code>.ControlPanel</code> construct typed immutable output records. The CLI has a text fallback, and the RiX notebook and RiX Web calculator render tables and grids as HTML and retained 2D scenes as inline SVG. <code>Sheet</code> has host-neutral text and HTML renderers plus shared notebook and web interaction. <code>.Algebra.SyntheticDivision(root, coefficients)</code> returns a ruled exact <code>Grid</code>; after <code>.Plugin.Load("plot")</code>, <code>.plot.Polynomial(coefficients, domain, options?)</code> constructs a portable sampled <code>Graphic</code>. Sheets, <code>.Graphics.DragPoint</code>, and exact <code>.Controls.Slider</code>, <code>.Controls.Input</code>, <code>.Controls.Choice</code>, <code>.Controls.Toggle</code>, <code>.Controls.Range</code>, and <code>.Controls.Reset</code> panels now share host-owned widget sessions for semantic edits without storing DOM state in output values.</p>
+<p>The initial portable-output slice is implemented: <code>.Text</code>, <code>.Paragraph</code>, <code>.Heading</code>, <code>.Fragment</code>, <code>.Section</code>, <code>.List</code>, <code>.ListItem</code>, <code>.Quote</code>, <code>.Callout</code>, <code>.CodeBlock</code>, <code>.MathBlock</code>, <code>.Table</code>, <code>.Grid</code>, <code>.Sheet</code>, <code>.Graphics</code>, <code>.Figure</code>, <code>.Image</code>, <code>.Audio</code>, <code>.Video</code>, <code>.Slide</code>, <code>.Slides</code>, and <code>.ControlPanel</code> construct typed immutable output records. The CLI has a text fallback, and the RiX notebook and RiX Web calculator render tables and grids as HTML and retained 2D scenes as inline SVG. <code>Sheet</code> has host-neutral text and HTML renderers plus shared notebook and web interaction. <code>.Algebra.SyntheticDivision(root, coefficients)</code> returns a ruled exact <code>Grid</code>; after <code>.Plugin.Load("plot")</code>, <code>.plot.Polynomial(coefficients, domain, options?)</code> constructs a portable sampled <code>Graphic</code>. Sheets, <code>.Graphics.DragPoint</code>, and exact <code>.Controls.Slider</code>, <code>.Controls.Input</code>, <code>.Controls.Choice</code>, <code>.Controls.Toggle</code>, <code>.Controls.Range</code>, and <code>.Controls.Reset</code> panels now share host-owned widget sessions for semantic edits without storing DOM state in output values.</p>
+<p>The record-level document slice—lists, quotations/callouts, code and math blocks, semantic inline content, and portable image/audio/video asset references—is implemented. Its remaining template grammar, persistence, and host-asset work is tracked in <a href="../../design/eval/document-output-todo.html">Document blocks, inline content, and assets</a>.</p>
 <p><code>@"..."</code> text templates and <code>@"""..."""</code> document templates are executable. The latter supports blank-line blocks, <code>h1:</code> through <code>h6:</code>, plus <code>fig:</code> and <code>table:</code> wrappers around standalone <code>@{...}</code> structured insertions. Output methods, renderer negotiation, geometry, 3D scenes, plugin manifests, and non-HTML export targets remain design work. Examples involving those features are deliberately marked as intended contracts rather than current executable code.</p>
 </div>
 </div>
@@ -753,6 +760,23 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 .Grid(...)
 .Heading(...)
 .Text(...)
+.Section(...)
+.List(...)
+.ListItem(...)
+.Quote(...)
+.Callout(...)
+.CodeBlock(...)
+.MathBlock(...)
+.Emphasis(...)
+.Strong(...)
+.Code(...)
+.Math(...)
+.Link(...)
+.LineBreak()
+.Asset(...)
+.Image(...)
+.Audio(...)
+.Video(...)
 .Slide(...)
 .Slides(...)
 .ControlPanel(...)
@@ -792,6 +816,30 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <tr class="even">
 <td><code>.Fragment</code></td>
 <td>Ordered document/output children.</td>
+</tr>
+<tr class="odd">
+<td><code>.Section</code></td>
+<td>Structural document section with a level, inline title, stable identifier, and block children.</td>
+</tr>
+<tr class="even">
+<td><code>.List</code> / <code>.ListItem</code></td>
+<td>Ordered or unordered semantic lists whose items can contain nested blocks.</td>
+</tr>
+<tr class="odd">
+<td><code>.Quote</code> / <code>.Callout</code></td>
+<td>A quotation with attribution/citation or a typed document aside.</td>
+</tr>
+<tr class="even">
+<td><code>.CodeBlock</code> / <code>.MathBlock</code></td>
+<td>Literal source code or display math with preserved source and accessibility fallback.</td>
+</tr>
+<tr class="odd">
+<td><code>.Emphasis</code> / <code>.Strong</code> / <code>.Code</code> / <code>.Math</code> / <code>.Link</code> / <code>.LineBreak</code></td>
+<td>Semantic inline vocabulary preserved inside paragraphs and headings.</td>
+</tr>
+<tr class="even">
+<td><code>.Asset</code> / <code>.Image</code> / <code>.Audio</code> / <code>.Video</code></td>
+<td>Portable media references and accessible media records; resolution and playback remain host-owned.</td>
 </tr>
 <tr class="odd">
 <td><code>.Table</code></td>
@@ -2031,8 +2079,8 @@ defaultEnabled: false
       </a>          
   </div>
   <div class="nav-page nav-page-next">
-      <a href="../../design/eval/rixcel-architecture.html" class="pagination-link" aria-label="RiXCel architecture">
-        <span class="nav-page-text">RiXCel architecture</span> <i class="bi bi-arrow-right-short"></i>
+      <a href="../../design/eval/document-output-todo.html" class="pagination-link" aria-label="Document blocks, inline content, and assets">
+        <span class="nav-page-text">Document blocks, inline content, and assets</span> <i class="bi bi-arrow-right-short"></i>
       </a>
   </div>
 </nav>

@@ -2,8 +2,10 @@
 
 ::: {.callout-note title="Implementation status — current portable slice"}
 The initial portable-output slice is implemented: `.Text`, `.Paragraph`,
-`.Heading`, `.Fragment`, `.Table`, `.Grid`, `.Sheet`, `.Graphics`, `.Figure`,
-`.Slide`, `.Slides`, and `.ControlPanel` construct typed immutable output records. The CLI has a
+`.Heading`, `.Fragment`, `.Section`, `.List`, `.ListItem`, `.Quote`,
+`.Callout`, `.CodeBlock`, `.MathBlock`, `.Table`, `.Grid`, `.Sheet`,
+`.Graphics`, `.Figure`, `.Image`, `.Audio`, `.Video`, `.Slide`, `.Slides`, and
+`.ControlPanel` construct typed immutable output records. The CLI has a
 text fallback, and the RiX notebook and RiX Web calculator render tables and
 grids as HTML and retained 2D scenes as inline SVG. `Sheet` has host-neutral
 text and HTML renderers plus shared notebook and web interaction.
@@ -14,6 +16,12 @@ sampled `Graphic`. Sheets, `.Graphics.DragPoint`, and exact
 `.Controls.Slider`, `.Controls.Input`, `.Controls.Choice`, `.Controls.Toggle`,
 `.Controls.Range`, and `.Controls.Reset` panels now share host-owned widget
 sessions for semantic edits without storing DOM state in output values.
+
+The record-level document slice—lists, quotations/callouts, code and math
+blocks, semantic inline content, and portable image/audio/video asset
+references—is implemented. Its remaining template grammar, persistence, and
+host-asset work is tracked in [Document blocks, inline content, and
+assets](document-output-todo.md).
 
 `@"..."` text templates and `@"""..."""` document templates are executable.
 The latter supports blank-line blocks, `h1:` through `h6:`, plus `fig:` and
@@ -94,6 +102,23 @@ calls are capitalized:
 .Grid(...)
 .Heading(...)
 .Text(...)
+.Section(...)
+.List(...)
+.ListItem(...)
+.Quote(...)
+.Callout(...)
+.CodeBlock(...)
+.MathBlock(...)
+.Emphasis(...)
+.Strong(...)
+.Code(...)
+.Math(...)
+.Link(...)
+.LineBreak()
+.Asset(...)
+.Image(...)
+.Audio(...)
+.Video(...)
 .Slide(...)
 .Slides(...)
 .ControlPanel(...)
@@ -122,6 +147,12 @@ protocols.
 | `.Paragraph` | A block of document text; distinct from inline text. |
 | `.Heading` | Structured document heading. |
 | `.Fragment` | Ordered document/output children. |
+| `.Section` | Structural document section with a level, inline title, stable identifier, and block children. |
+| `.List` / `.ListItem` | Ordered or unordered semantic lists whose items can contain nested blocks. |
+| `.Quote` / `.Callout` | A quotation with attribution/citation or a typed document aside. |
+| `.CodeBlock` / `.MathBlock` | Literal source code or display math with preserved source and accessibility fallback. |
+| `.Emphasis` / `.Strong` / `.Code` / `.Math` / `.Link` / `.LineBreak` | Semantic inline vocabulary preserved inside paragraphs and headings. |
+| `.Asset` / `.Image` / `.Audio` / `.Video` | Portable media references and accessible media records; resolution and playback remain host-owned. |
 | `.Table` | Semantic, tabular presentation of columns and rows. |
 | `.Grid` | General positioned layout cells with spans and rules; suitable for mathematical layouts. |
 | `.Sheet` | Address-aware 2D snapshot of rank-N tensor, matrix, or sequence data. |

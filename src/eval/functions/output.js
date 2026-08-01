@@ -2,7 +2,7 @@ import { parse } from "../../parser/parser.js";
 import { lower } from "../lower.js";
 import { formatValue } from "../format.js";
 import { Integer } from "@ratmath/core";
-import { createControlPanel, createFigure, createFragment, createGrid, createHeading, createParagraph, createSheet, createSlide, createSlides, createTable, createText } from "../../runtime/output.js";
+import { createAsset, createAudio, createCallout, createCode, createCodeBlock, createControlPanel, createEmphasis, createFigure, createFragment, createGrid, createHeading, createImage, createLineBreak, createLink, createList, createListItem, createMath, createMathBlock, createParagraph, createQuote, createSection, createSheet, createSlide, createSlides, createStrong, createTable, createText, createVideo } from "../../runtime/output.js";
 import { createBinding } from "../../runtime/binding.js";
 import { createLiveView } from "../../runtime/reactive-view.js";
 import { isReactiveNode, REACTIVE_READ_ENV } from "../../runtime/reactive-graph.js";
@@ -170,6 +170,23 @@ export const outputFunctions = {
     PARAGRAPH: capability(createParagraph, "Create a portable paragraph output node"),
     HEADING: capability(createHeading, "Create a portable document heading"),
     FRAGMENT: capability(createFragment, "Compose portable output values"),
+    EMPHASIS: capability(createEmphasis, "Create semantic inline emphasis"),
+    STRONG: capability(createStrong, "Create semantic inline strong content"),
+    CODE: capability(createCode, "Create literal inline code"),
+    MATH: capability(createMath, "Create portable inline TeX math"),
+    LINK: capability(createLink, "Create a portable link"),
+    LINEBREAK: capability(createLineBreak, "Create an intentional inline line break"),
+    SECTION: capability(createSection, "Create a structural document section"),
+    LIST: capability(createList, "Create an ordered or unordered document list"),
+    LISTITEM: capability(createListItem, "Create a document list item"),
+    QUOTE: capability(createQuote, "Create a document quotation block"),
+    CALLOUT: capability(createCallout, "Create a semantic document callout"),
+    CODEBLOCK: capability(createCodeBlock, "Create a literal source-code block"),
+    MATHBLOCK: capability(createMathBlock, "Create a display TeX math block"),
+    ASSET: capability(createAsset, "Create a portable asset reference"),
+    IMAGE: capability(createImage, "Create a portable image asset"),
+    AUDIO: capability(createAudio, "Create a portable audio asset"),
+    VIDEO: capability(createVideo, "Create a portable video asset"),
     TABLE: capability(createTable, "Create a structured output table"),
     GRID: capability(createGrid, "Create a mathematical layout grid"),
     CONTROLPANEL: capability(createControlPanel, "Group reactive controls in a portable output panel"),

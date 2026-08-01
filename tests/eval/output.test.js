@@ -221,6 +221,114 @@ describe("portable structured output", () => {
         `)).toThrow("format key 'typo'");
     });
 
+    test("document blocks preserve semantic inline content instead of flattening paragraph children", () => {
+        const report = parseAndEvaluate(`
+            .Section({=
+                level=1,
+                id="proof",
+                title=[.Text("A "), .Math({= source="x^2 = 2", alt="x squared equals two" })],
+                children=[
+                    .Paragraph([
+                        .Text("Use "), .Emphasis("exact"), .Text(" values and "),
+                        .Strong("preserve proof"), .Text(" in "), .Code(".Math"),
+                        .Text("; see "), .Link({= href="https://example.test/proof", children="the note" }),
+                        .LineBreak(), .Text("before exporting.")
+                    ]),
+                    .Callout({=
+                        kind=:warning,
+                        title="No implicit fetch",
+                        children=[.Paragraph("Assets remain host-managed.")]
+                    }),
+                    .Quote({=
+                        children=[.Paragraph("Exactness is a useful invariant.")],
+                        attribution="RiX design note"
+                    }),
+                    .CodeBlock({= code="x := 1/2;", language="rix", caption="Exact source", lineNumbers=1 }),
+                    .MathBlock({= source="x = \\frac{1}{2}", alt="x equals one half", label="(1)" }),
+                    .List({=
+                        ordered=1,
+                        start=3,
+                        items=[
+                            .ListItem(.Paragraph("Start with a proof.")),
+                            .ListItem({= children=[
+                                .Paragraph("Keep its evidence."),
+                                .List({= items=[.ListItem(.Paragraph("Keep the source."))] })
+                            ]})
+                        ]
+                    })
+                ]
+            })
+        `);
+
+        expect(report.kind).toBe("section");
+        expect(report.children.map(({ kind }) => kind)).toEqual([
+            "paragraph", "callout", "quote", "code_block", "math_block", "list",
+        ]);
+        expect(report.children[1].variant).toBe("warning");
+        expect(report.children[5].start).toBe(3);
+        const html = renderOutputHtml(report, formatValue);
+        expect(html).toContain('<section class="rix-output-section" data-rix-section-level="1" id="proof">');
+        expect(html).toContain("<em class=\"rix-output-emphasis\">exact</em>");
+        expect(html).toContain("<strong class=\"rix-output-strong\">preserve proof</strong>");
+        expect(html).toContain("<code class=\"rix-output-code\">.Math</code>");
+        expect(html).toContain('<a class="rix-output-link" href="https://example.test/proof">');
+        expect(html).toContain('class="rix-output-callout rix-output-callout-warning"');
+        expect(html).toContain("<blockquote class=\"rix-output-quote\">");
+        expect(html).toContain('data-language="rix"');
+        expect(html).toContain('data-rix-math-notation="tex"');
+        expect(html).toContain('<ol class="rix-output-list" start="3">');
+        const plain = formatValue(report);
+        expect(plain).toContain("[Warning No implicit fetch]");
+        expect(plain).toContain("3. Start with a proof.");
+        expect(plain).toContain("x equals one half");
+
+        expect(() => parseAndEvaluate('.Paragraph(.Table(["x"], [[1]]))'))
+            .toThrow("cannot contain block output table");
+        expect(() => parseAndEvaluate('.List({= items=[.Paragraph("not an item")] })'))
+            .toThrow("must be a ListItem");
+    });
+
+    test("portable assets retain media metadata and provide safe HTML or text fallbacks", () => {
+        const media = parseAndEvaluate(`
+            imageAsset := .Asset({=
+                ref="assets/proof.png",
+                mime="image/png",
+                width=1200,
+                height=800,
+                integrity="sha256:abc"
+            });
+            audioAsset := .Asset({= ref="assets/explanation.ogg", mime="audio/ogg" });
+            videoAsset := .Asset({= ref="assets/proof.webm", mime="video/webm" });
+            .Fragment([
+                .Image({= asset=imageAsset, alt="A proof diagram", width=600, caption="Proof image" }),
+                .Audio({= asset=audioAsset, title="Explanation", transcript="The interval is exact." }),
+                .Video({= asset=videoAsset, poster=imageAsset, title="Walkthrough", transcript="The presenter explains the proof." })
+            ])
+        `);
+        const [image, audio, video] = media.children;
+        expect(image.asset.mime).toBe("image/png");
+        expect(image.asset.width).toBe(1200);
+        expect(audio.transcript).toHaveLength(1);
+        expect(video.poster).toBe(image.asset);
+        const html = renderOutputHtml(media, formatValue);
+        expect(html).toContain('<img class="rix-output-image" src="assets/proof.png" alt="A proof diagram" width="600" loading="lazy">');
+        expect(html).toContain('<audio class="rix-output-audio" controls>');
+        expect(html).toContain('<video class="rix-output-video" controls poster="assets/proof.png">');
+        expect(html).toContain("Transcript");
+        expect(formatValue(media)).toContain("[Image: A proof diagram — assets/proof.png]");
+        expect(formatValue(media)).toContain("The presenter explains the proof.");
+
+        expect(() => parseAndEvaluate('.Image(.Asset("assets/a.txt", "text/plain"), "missing image")'))
+            .toThrow("requires an image asset");
+        expect(() => parseAndEvaluate('.Image(.Asset("assets/a.png", "image/png"), " ")'))
+            .toThrow("Image alt requires a nonempty string");
+        const unsafe = parseAndEvaluate('.Link({= href="javascript:alert(1)", children="bad" })');
+        expect(renderOutputHtml(unsafe, formatValue)).not.toContain("javascript:");
+        const remoteImage = parseAndEvaluate('.Image(.Asset("https://example.test/proof.png", "image/png"), "Remote proof")');
+        expect(renderOutputHtml(remoteImage, formatValue)).toContain("[Image unavailable: https://example.test/proof.png]");
+        expect(renderOutputHtml(remoteImage, formatValue)).not.toContain('src="https://example.test/proof.png"');
+    });
+
     test("Table accepts positional shorthand and keeps its semantic structure", () => {
         const table = parseAndEvaluate('.Table(["x", "F(x)"], [[1, 1], [2, 4]])');
         expect(table.type).toBe("output");

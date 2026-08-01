@@ -41,6 +41,7 @@ project:
     - design/eval/structural-arithmetic-todo.md
     - design/eval/transformation-reference.md
     - design/eval/output-model.md
+    - design/eval/document-output-todo.md
     - design/eval/control-panel-todo.md
     - design/eval/rixcel-architecture.md
     - design/eval/rixcel-format.md
@@ -141,6 +142,8 @@ website:
             href: design/eval/transformation-reference.md
           - text: Structured output, documents, and graphics
             href: design/eval/output-model.md
+          - text: Document blocks, inline content, and assets
+            href: design/eval/document-output-todo.md
           - text: RiXCel architecture
             href: design/eval/rixcel-architecture.md
           - text: RiXCel document format

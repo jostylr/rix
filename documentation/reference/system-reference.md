@@ -8,7 +8,7 @@ toc-depth: 2
 This page is generated from the current RiX implementation by `documentation/scripts/generate-reference.js`. Do not edit it by hand. Descriptions come from registry documentation strings; the narrative [syntax guide](../eval/syntax-guide.md) and [methods guide](../eval/methods-guide.md) provide signatures and examples.
 :::
 
-At this revision RiX exposes **154 named entries** on the default system context and registers **190 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
+At this revision RiX exposes **171 named entries** on the default system context and registers **207 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
 
 ## Public system context
 
@@ -23,16 +23,21 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.AND` | lazy function | Logic | Logical AND (short-circuits on first falsy, returns deciding value) |
 | `.ANY` | lazy function | — | Any: returns first item that passed predicate, null if none pass — callback receives (val, locator, src) |
 | `.ARRAY` | lazy function | — | Create an array/sequence (supports sequence generators) |
+| `.ASSET` | function | — | Create a portable asset reference |
 | `.ASSIGN` | lazy function | — | Alias/rebind — lhs shares the same Cell as rhs variable, or gets a fresh Cell for expressions |
 | `.ASSIGNCOPY` | lazy function | — | Fresh copied-cell assignment (:=) — shallow-copy value + all meta into new binding |
 | `.ASSIGNDEEPCOPY` | lazy function | — | Fresh deep-copied-cell assignment (::=) — deep-copy value + all meta into new binding |
 | `.ASSIGNDEEPUPDATE` | lazy function | — | In-place deep value replacement (~~=) — like ~= but deep-copies rhs value |
 | `.ASSIGNUPDATE` | lazy function | — | In-place value replacement (~=) — preserves cell identity, ordinary meta; replaces ephemeral; preserves sticky unless rhs overrides |
+| `.AUDIO` | function | — | Create a portable audio asset |
 | `.BIND` | lazy function | Output | Capture a live Binding to a RiX variable |
 | `.BLOCK` | lazy function | — | Sequential block execution, returns last value |
+| `.CALLOUT` | function | — | Create a semantic document callout |
 | `.CAPABILITYREGISTER` | function | — | Register a package system capability during trusted package startup |
 | `.CASE` | lazy function | — | Ordered case expression with condition arms, prepared-trial arms, and an optional fallback |
 | `.CHUNK` | lazy function | — | Chunk a collection into subarrays by size or boundary predicate |
+| `.CODE` | function | — | Create literal inline code |
+| `.CODEBLOCK` | function | — | Create a literal source-code block |
 | `.COMPLEX` | value | Exact | Exact complex-number operations |
 | `.CONCAT` | function | — | Core operation CONCAT |
 | `.CONTROLPANEL` | function | Output, Controls | Group reactive controls in a portable output panel |
@@ -52,6 +57,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.DIVUP` | function | — | Ceiling division |
 | `.DOCUMENT_TEMPLATE` | lazy function | — | Create a Fragment from an @""" document template |
 | `.DOUBLEFACTORIAL` | function | Arith | Double factorial of a non-negative integer |
+| `.EMPHASIS` | function | — | Create semantic inline emphasis |
 | `.EQ` | function | Logic | Equality check — returns 1 or null |
 | `.EQUAL` | function | — | Equality check — returns 1 or null |
 | `.ERROR` | function | — | Emit an error event and abort: .Error(label, dataMap ?= {=}) |
@@ -73,6 +79,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.HEADING` | function | Output | Create a portable document heading |
 | `.HOST` | function | — | Host/plugin capability registration and discovery |
 | `.IF` | lazy function | Core | Ternary conditional: condition ?? trueExpr ?: falseExpr |
+| `.IMAGE` | function | — | Create a portable image asset |
 | `.IMPORTJS` | function | — | Import a local JavaScript module for use from a .js.rix startup file |
 | `.INFO` | function | — | Emit an info event: .Info(label, level ?= 1, dataMap ?= {=}) |
 | `.INSPECTSPEC` | function | Symbolic | Return the structural inspection map for a symbolic spec |
@@ -89,11 +96,17 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.LEN` | function | Core, Collections, Arrays | Length of a collection or string |
 | `.LESS` | function | — | Less than — returns 1 or null |
 | `.LESSEQUAL` | function | — | Less than or equal — returns 1 or null |
+| `.LINEBREAK` | function | — | Create an intentional inline line break |
+| `.LINK` | function | — | Create a portable link |
+| `.LIST` | function | — | Create an ordered or unordered document list |
+| `.LISTITEM` | function | — | Create a document list item |
 | `.LIVEVIEW` | function | Output | Deprecated compatibility wrapper for a reactive output derived from a subscribable source; prefer a named $$ output and final $ read |
 | `.LOOP` | lazy function | Core | Loop construct with init, condition, body[, update[, after]] |
 | `.LT` | function | Logic | Less than — returns 1 or null |
 | `.LTE` | function | Logic | Less than or equal — returns 1 or null |
 | `.MAP` | function | Collections, Maps, Arrays | Create a map from .Pair(key, value) entries |
+| `.MATH` | function | — | Create portable inline TeX math |
+| `.MATHBLOCK` | function | — | Create a display TeX math block |
 | `.MAX` | function | — | Maximum over n arguments (ignores nulls) |
 | `.MIN` | function | — | Minimum over n arguments (ignores nulls) |
 | `.MOD` | function | Arith | Floor modulo with a positive divisor |
@@ -117,6 +130,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.POWPROD` | function | — | Exponentiation/product power (currently same implementation as POW) |
 | `.PRINT` | function | Core, Strings | Print each argument through the replaceable \_\_io\_\_ hook |
 | `.PRODUCT` | function | — | Core operation SET\_PROD |
+| `.QUOTE` | function | — | Create a document quotation block |
 | `.RANDOMSEED` | function | Random | Seed the current runtime random-number stream |
 | `.RAND_NAME` | function | Core, Random | Generate a random name string RAND\_NAME(len=10, alphabet=a-zA-Z) |
 | `.REACTIVEGRAPH` | function | RiXCel | Create a transactional graph of reactive source and computed nodes |
@@ -131,6 +145,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.SAMECELL` | lazy function | — | Identity comparison (===) — returns 1 if both sides refer to the same cell, null otherwise |
 | `.SAME_CELL` | lazy function | — | Identity comparison (===) — returns 1 if both sides refer to the same cell, null otherwise |
 | `.SARITH` | function | — | Parse structural arithmetic; backticks use this parser by default, with optional Complex/Quaternion/Octonion/Algebra scopes |
+| `.SECTION` | function | — | Create a structural document section |
 | `.SET` | lazy function | — | Create a set (unique values) |
 | `.SHEET` | function | Output | Create a portable sheet view of indexable data |
 | `.SIMPLIFY` | function | Symbolic | Compatibility alias for Transform |
@@ -144,6 +159,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.SPLIT` | lazy function | — | Split a collection by a delimiter or predicate |
 | `.SQRT` | function | — | Square root (approximate rational) |
 | `.STOP` | lazy function | — | Conditional abort: .Stop(label, condition, dataMap ?= {=}) |
+| `.STRONG` | function | — | Create semantic inline strong content |
 | `.SUB` | function | Arith | Subtraction |
 | `.SUBSTR` | function | Strings | Get substring |
 | `.SYMMETRICDIFFERENCE` | function | — | Core operation SET\_SYMDIFF |
@@ -166,6 +182,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.UNITS` | value | Units | Canonical RiX unit collection |
 | `.UPPER` | function | Strings | Convert string to uppercase |
 | `.VALUES` | function | Core, Maps | Get the values of a map as a set (obj\|.) |
+| `.VIDEO` | function | — | Create a portable video asset |
 | `.WARN` | function | — | Emit a warning event: .Warn(label, dataMap ?= {=}) |
 | `.draw` | function | Draw | Convenient 2D drawing helpers that produce core Graphics nodes. |
 | `.exactalgebras` | function | Exact | Exact rational quaternion and octonion values. |
@@ -283,12 +300,14 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `ASSERT_GTE` | eager, pure | Assert a >= b (:>=:) |
 | `ASSERT_LT` | eager, pure | Assert a < b (:<:) |
 | `ASSERT_LTE` | eager, pure | Assert a <= b (:<=:) |
+| `ASSET` | eager, pure | Create a portable asset reference |
 | `ASSIGN` | lazy, effectful/unspecified | Alias/rebind — lhs shares the same Cell as rhs variable, or gets a fresh Cell for expressions |
 | `ASSIGN_COPY` | lazy, effectful/unspecified | Fresh copied-cell assignment (:=) — shallow-copy value + all meta into new binding |
 | `ASSIGN_DEEP_COPY` | lazy, effectful/unspecified | Fresh deep-copied-cell assignment (::=) — deep-copy value + all meta into new binding |
 | `ASSIGN_DEEP_UPDATE` | lazy, effectful/unspecified | In-place deep value replacement (~~=) — like ~= but deep-copies rhs value |
 | `ASSIGN_EXPR` | lazy, effectful/unspecified | Assignment expression (lvalue = expr) |
 | `ASSIGN_UPDATE` | lazy, effectful/unspecified | In-place value replacement (~=) — preserves cell identity, ordinary meta; replaces ephemeral; preserves sticky unless rhs overrides |
+| `AUDIO` | eager, pure | Create a portable audio asset |
 | `BIND` | lazy, effectful/unspecified | Capture a live Binding to a RiX variable |
 | `BINOP` | eager, pure | Fallback for unrecognized binary operators |
 | `BLOCK` | lazy, effectful/unspecified | Sequential block execution, returns last value |
@@ -296,10 +315,13 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `BRACKET_SET` | lazy, effectful/unspecified | Tensor-aware bracket assignment |
 | `BREAK` | lazy, effectful/unspecified | Structured break block that exits the nearest matching breakable construct |
 | `CALL` | lazy, effectful/unspecified | Call a user-defined or built-in function |
+| `CALLOUT` | eager, pure | Create a semantic document callout |
 | `CALL_EXPR` | lazy, effectful/unspecified | Call an expression that evaluates to a function |
 | `CALL_METHOD` | lazy, effectful/unspecified | Resolve and invoke a receiver-first method call |
 | `CAPABILITY_REGISTER` | eager, effectful/unspecified | Register a package system capability during trusted package startup |
 | `CASE` | lazy, effectful/unspecified | Ordered case expression with condition arms, prepared-trial arms, and an optional fallback |
+| `CODE` | eager, pure | Create literal inline code |
+| `CODEBLOCK` | eager, pure | Create a literal source-code block |
 | `COMPARE` | eager, pure, multifunction | Compare two values; returns -1, 0, or 1 |
 | `CONCAT` | eager, pure | — |
 | `CONTROLPANEL` | eager, pure | Group reactive controls in a portable output panel |
@@ -317,6 +339,7 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `DOCUMENT_TEMPLATE` | lazy, effectful/unspecified | Create a Fragment from an @""" document template |
 | `DOUBLE_FACTORIAL` | eager, pure | Double factorial of a non-negative integer |
 | `EMBEDDED` | eager, effectful/unspecified | Dispatch a backtick body to a registered .Name.Parse parser |
+| `EMPHASIS` | eager, pure | Create semantic inline emphasis |
 | `EQ` | eager, pure, multifunction | Equality check — returns 1 or null |
 | `EVAL` | lazy, effectful/unspecified | Evaluate a deferred AST node or expression: .Eval(ast, bindings ?= \_, mode ?= :inherit) |
 | `FACTORIAL` | eager, pure | Factorial of a non-negative integer |
@@ -333,6 +356,7 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `HEADING` | eager, pure | Create a portable document heading |
 | `HOLE` | eager, pure | Internal hole/undefined sentinel — represents an explicitly omitted value |
 | `HOLE_COALESCE` | lazy, effectful/unspecified | Hole-coalescing: x ?\| y returns x if x is not a hole, else y |
+| `IMAGE` | eager, pure | Create a portable image asset |
 | `IMPORT_JS` | eager, effectful/unspecified | Import a local JavaScript module for use from a .js.rix startup file |
 | `INDEX_GET` | eager, effectful/unspecified | Index into collection (1-based for sequences; string or value keys for maps) — obj[i] |
 | `INDEX_SET` | lazy, effectful/unspecified | Set index in collection (requires .\_mutable meta flag) — obj[i] = val |
@@ -347,12 +371,18 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `KEYS` | eager, pure | Get the keys of a map as a set (obj.\|) |
 | `KWARG` | eager, pure | Keyword argument wrapper |
 | `LAMBDA` | lazy, effectful/unspecified | Create a lambda/anonymous function |
+| `LINEBREAK` | eager, pure | Create an intentional inline line break |
+| `LINK` | eager, pure | Create a portable link |
+| `LIST` | eager, pure | Create an ordered or unordered document list |
+| `LISTITEM` | eager, pure | Create a document list item |
 | `LITERAL` | eager, pure | Parse a number literal string into a ratmath type |
 | `LIVEVIEW` | eager, effectful/unspecified | Deprecated compatibility wrapper for a reactive output derived from a subscribable source; prefer a named $$ output and final $ read |
 | `LOOP` | lazy, effectful/unspecified | Loop construct with init, condition, body[, update[, after]] |
 | `LT` | eager, pure, multifunction | Less than — returns 1 or null |
 | `LTE` | eager, pure, multifunction | Less than or equal — returns 1 or null |
 | `MAP_OBJ` | lazy, pure | Create a map/object |
+| `MATH` | eager, pure | Create portable inline TeX math |
+| `MATHBLOCK` | eager, pure | Create a display TeX math block |
 | `MATHUNIT` | eager, pure | Resolve exact-generator sugar through the active Exact RiX collection |
 | `MATRIX` | eager, pure | Matrix literal |
 | `MAX` | eager, pure, multifunction | Maximum over n arguments (ignores nulls) |
@@ -404,6 +434,7 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `PSLICE_STRICT` | lazy, effectful/unspecified | Strict slice operator \|>/ |
 | `PSORT` | lazy, effectful/unspecified | Sort a collection with comparator function (returns new copy) |
 | `PSPLIT` | lazy, effectful/unspecified | Split a collection by a delimiter or predicate |
+| `QUOTE` | eager, pure | Create a document quotation block |
 | `RANDOM` | eager, effectful/unspecified | Sample exact rational points from an interval |
 | `RANDOM_PARTITION` | eager, effectful/unspecified | Partition an interval at distinct random rational points |
 | `REACTIVEGRAPH` | eager, effectful/unspecified | Create a transactional graph of reactive source and computed nodes |
@@ -425,6 +456,7 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `RIXCELIMPORTTSV` | eager, effectful/unspecified | Import TSV values into a rank-2 FormulaSheet; optional header=1 uses the first row as labels |
 | `SAME_CELL` | lazy, effectful/unspecified | Identity comparison (===) — returns 1 if both sides refer to the same cell, null otherwise |
 | `SARITH_FUNCTION_BODY` | eager, effectful/unspecified | Resolve a structural-arithmetic function template against its arguments |
+| `SECTION` | eager, pure | Create a structural document section |
 | `SELF` | eager, effectful/unspecified | Resolve the current callable object inside a function body |
 | `SEMANTIC_CONVERT_SOFT` | lazy, effectful/unspecified | Convert a value to a semantic type, returning null on failure |
 | `SEMANTIC_CONVERT_STRICT` | lazy, effectful/unspecified | Convert a value to a semantic type, throwing on failure |
@@ -441,6 +473,7 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `SQRT` | eager, pure, multifunction | Square root (approximate rational) |
 | `STEP` | eager, pure | Lazy exact stepped range over a rational interval |
 | `STRING` | eager, pure | Create a string value |
+| `STRONG` | eager, pure | Create semantic inline strong content |
 | `SUB` | eager, pure, multifunction | Subtraction |
 | `SYSREF` | eager, pure | Reference to a system function |
 | `SYSTEM` | lazy, effectful/unspecified | Mathematical system container, currently evaluates as a block |
@@ -464,3 +497,4 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `UNIT` | eager, pure | Resolve scientific unit sugar through the active Units RiX collection |
 | `VALUES` | eager, pure | Get the values of a map as a set (obj\|.) |
 | `VALUE_OUTFIT` | lazy, effectful/unspecified | Apply semantic/value outfitting metadata to a value |
+| `VIDEO` | eager, pure | Create a portable video asset |

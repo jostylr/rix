@@ -6,9 +6,8 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
-<meta name="description" content="Runtime model, composition rules, attached function specs, and the intentionally bounded exact calculus engine.">
 
-<title>Symbolic specs and exact calculus – RiX</title>
+<title>document-output-todo – RiX</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -34,8 +33,8 @@ ul.task-list li input[type="checkbox"] {
 <script src="../../site_libs/quarto-search/fuse.min.js"></script>
 <script src="../../site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="../../">
-<link href="../../design/eval/transformation-reference.html" rel="next">
-<link href="../../design/eval/cayley-polar.html" rel="prev">
+<link href="../../design/eval/rixcel-architecture.html" rel="next">
+<link href="../../design/eval/output-model.html" rel="prev">
 <link href="../../rix-logo.png" rel="icon" type="image/png">
 <script src="../../site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
@@ -300,7 +299,7 @@ ul.task-list li input[type="checkbox"] {
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../../design/eval/cells-assignments.html">Runtime design</a></li><li class="breadcrumb-item"><a href="../../design/eval/symbolic-calculus.html">Symbolic specs and calculus</a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../../design/eval/cells-assignments.html">Runtime design</a></li><li class="breadcrumb-item"><a href="../../design/eval/document-output-todo.html">Document blocks, inline content, and assets</a></li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
     </div>
@@ -517,7 +516,7 @@ ul.task-list li input[type="checkbox"] {
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../design/eval/symbolic-calculus.html" class="sidebar-item-text sidebar-link active">
+  <a href="../../design/eval/symbolic-calculus.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Symbolic specs and calculus</span></a>
   </div>
 </li>
@@ -535,7 +534,7 @@ ul.task-list li input[type="checkbox"] {
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../design/eval/document-output-todo.html" class="sidebar-item-text sidebar-link">
+  <a href="../../design/eval/document-output-todo.html" class="sidebar-item-text sidebar-link active">
  <span class="menu-text">Document blocks, inline content, and assets</span></a>
   </div>
 </li>
@@ -610,169 +609,541 @@ ul.task-list li input[type="checkbox"] {
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#purpose-and-boundary" id="toc-purpose-and-boundary" class="nav-link active" data-scroll-target="#purpose-and-boundary">Purpose and boundary</a></li>
-  <li><a href="#runtime-values" id="toc-runtime-values" class="nav-link" data-scroll-target="#runtime-values">Runtime values</a></li>
-  <li><a href="#application-is-substitution" id="toc-application-is-substitution" class="nav-link" data-scroll-target="#application-is-substitution">Application is substitution</a></li>
-  <li><a href="#arithmetic-propagation" id="toc-arithmetic-propagation" class="nav-link" data-scroll-target="#arithmetic-propagation">Arithmetic propagation</a></li>
-  <li><a href="#function-speccability-and-closure-cells" id="toc-function-speccability-and-closure-cells" class="nav-link" data-scroll-target="#function-speccability-and-closure-cells">Function speccability and closure cells</a></li>
-  <li><a href="#calculus" id="toc-calculus" class="nav-link" data-scroll-target="#calculus">Calculus</a></li>
-  <li><a href="#intentional-transformations" id="toc-intentional-transformations" class="nav-link" data-scroll-target="#intentional-transformations">Intentional transformations</a></li>
-  <li><a href="#public-symbolic-capabilities" id="toc-public-symbolic-capabilities" class="nav-link" data-scroll-target="#public-symbolic-capabilities">Public Symbolic capabilities</a></li>
+  <li><a href="#document-blocks-inline-content-and-assets" id="toc-document-blocks-inline-content-and-assets" class="nav-link active" data-scroll-target="#document-blocks-inline-content-and-assets">Document blocks, inline content, and assets</a>
+  <ul class="collapse">
+  <li><a href="#portable-model-at-a-glance" id="toc-portable-model-at-a-glance" class="nav-link" data-scroll-target="#portable-model-at-a-glance">Portable model at a glance</a>
+  <ul class="collapse">
+  <li><a href="#block-records" id="toc-block-records" class="nav-link" data-scroll-target="#block-records">Block records</a></li>
+  <li><a href="#inline-records" id="toc-inline-records" class="nav-link" data-scroll-target="#inline-records">Inline records</a></li>
+  <li><a href="#asset-records" id="toc-asset-records" class="nav-link" data-scroll-target="#asset-records">Asset records</a></li>
+  </ul></li>
+  <li><a href="#renderer-contract" id="toc-renderer-contract" class="nav-link" data-scroll-target="#renderer-contract">Renderer contract</a></li>
+  <li><a href="#proposed-example" id="toc-proposed-example" class="nav-link" data-scroll-target="#proposed-example">Proposed example</a></li>
+  <li><a href="#template-language-proposal" id="toc-template-language-proposal" class="nav-link" data-scroll-target="#template-language-proposal">Template language proposal</a>
+  <ul class="collapse">
+  <li><a href="#what-it-borrows-from-markdownand-what-it-does-not" id="toc-what-it-borrows-from-markdownand-what-it-does-not" class="nav-link" data-scroll-target="#what-it-borrows-from-markdownand-what-it-does-not">What it borrows from Markdown—and what it does not</a></li>
+  <li><a href="#grammar" id="toc-grammar" class="nav-link" data-scroll-target="#grammar">Grammar</a></li>
+  <li><a href="#interaction" id="toc-interaction" class="nav-link" data-scroll-target="#interaction"><code>@{...}</code> interaction</a></li>
+  <li><a href="#parser-cost-and-boundary" id="toc-parser-cost-and-boundary" class="nav-link" data-scroll-target="#parser-cost-and-boundary">Parser cost and boundary</a></li>
+  </ul></li>
+  <li><a href="#implementation-checklist" id="toc-implementation-checklist" class="nav-link" data-scroll-target="#implementation-checklist">Implementation checklist</a>
+  <ul class="collapse">
+  <li><a href="#lock-the-shared-schema" id="toc-lock-the-shared-schema" class="nav-link" data-scroll-target="#lock-the-shared-schema">1. Lock the shared schema</a></li>
+  <li><a href="#implement-basic-static-rendering" id="toc-implement-basic-static-rendering" class="nav-link" data-scroll-target="#implement-basic-static-rendering">2. Implement basic static rendering</a></li>
+  <li><a href="#add-document-template-support" id="toc-add-document-template-support" class="nav-link" data-scroll-target="#add-document-template-support">3. Add document-template support</a></li>
+  <li><a href="#integrate-media-safely" id="toc-integrate-media-safely" class="nav-link" data-scroll-target="#integrate-media-safely">4. Integrate media safely</a></li>
+  <li><a href="#documentation-and-accessibility" id="toc-documentation-and-accessibility" class="nav-link" data-scroll-target="#documentation-and-accessibility">5. Documentation and accessibility</a></li>
+  </ul></li>
+  </ul></li>
   </ul>
-<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/design/eval/symbolic-calculus.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/design/eval/document-output-todo.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
     </div>
 <!-- main -->
-<main class="content" id="quarto-document-content">
+<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../../design/eval/cells-assignments.html">Runtime design</a></li><li class="breadcrumb-item"><a href="../../design/eval/document-output-todo.html">Document blocks, inline content, and assets</a></li></ol></nav></header>
 
 
-<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../../design/eval/cells-assignments.html">Runtime design</a></li><li class="breadcrumb-item"><a href="../../design/eval/symbolic-calculus.html">Symbolic specs and calculus</a></li></ol></nav>
-<div class="quarto-title">
-<h1 class="title">Symbolic specs and exact calculus</h1>
+
+
+
+<section id="document-blocks-inline-content-and-assets" class="level1">
+<h1>Document blocks, inline content, and assets</h1>
+<div class="callout callout-style-default callout-note callout-titled" title="Status — record layer implemented; template layer proposed">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
 </div>
-
-<div>
-  <div class="description">
-    Runtime model, composition rules, attached function specs, and the intentionally bounded exact calculus engine.
-  </div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Status — record layer implemented; template layer proposed
 </div>
-
-
-<div class="quarto-title-meta">
-
-    
-  
-    
-  </div>
-  
-
-
-</header>
-
-
-<section id="purpose-and-boundary" class="level2">
-<h2 class="anchored" data-anchor-id="purpose-and-boundary">Purpose and boundary</h2>
-<p>The Symbolic capability group performs definite structural transformations. It does not depend on a representation of real numbers and never silently falls back to numerical differentiation or quadrature. Unsupported transformations fail with an error.</p>
-<p>The current implementation is a single-output exact-arithmetic core. Named multi-output specs can be represented and inspected, but arithmetic, <code>.Poly</code>, calculus, and substitution currently require one solved expression.</p>
-</section>
-<section id="runtime-values" class="level2">
-<h2 class="anchored" data-anchor-id="runtime-values">Runtime values</h2>
-<p><code>{# ... }</code> evaluates to a dedicated <code>symbolic_spec</code> value. Its ordinary display is source-like, while <code>.InspectSpec</code> exposes the structural map used for tools.</p>
-<pre class="rix"><code>{#x}                         # identity-symbol form
-{#t# t^2 - 4 }               # anonymous single output
-{#x:p# p = 2*x }             # explicitly solved output
-.InspectSpec({#x# x^2 + 1 }) # structural view</code></pre>
-<p>The implementation stores lowered expression IR, input and output headers, closure scopes, origin information, and transform provenance. A spec body is not executed when the spec is created.</p>
-</section>
-<section id="application-is-substitution" class="level2">
-<h2 class="anchored" data-anchor-id="application-is-substitution">Application is substitution</h2>
-<p>A symbolic spec is callable. Arguments replace input slots positionally, but the result is always another spec:</p>
-<pre class="rix"><code>G := {#t# t^2 - 4 }
-G({#x})          # {#x# x^2 - 4 }
-G({#x# x + 1 })  # composition
-G(3)             # zero-input constant spec</code></pre>
-<p>Unfilled source inputs remain inputs. Inputs contributed by argument specs are collected in argument order and deduplicated by name. <code>.Poly</code> is the explicit boundary from a single-output spec to an executable exact callable.</p>
-</section>
-<section id="arithmetic-propagation" class="level2">
-<h2 class="anchored" data-anchor-id="arithmetic-propagation">Arithmetic propagation</h2>
-<p><code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>, <code>^</code>, and unary <code>-</code> propagate specs. Input names are united by name, preserving first encounter order. Names are not positionally renamed:</p>
-<pre class="rix"><code>{#x# 2*x } * {#t# t^2 - 4 }
-# {#x,t# 2*x*(t^2 - 4) }</code></pre>
-<p>Using <code>x</code> in both operands denotes one shared input. Use substitution such as <code>G({#x})</code> when a rename or composition is intended.</p>
-<p>Arithmetic construction does not simplify. Exact scalars can be lifted when a spec is present. Two spec-backed callables can also be combined, producing a new callable with the combined spec. Callable-scalar arithmetic is deliberately not intercepted because lowercase <code>f(x)</code> is RiX implicit multiplication; use <code>.Spec(F) * scalar</code> followed by <code>.Poly</code> when that distinction matters.</p>
-</section>
-<section id="function-speccability-and-closure-cells" class="level2">
-<h2 class="anchored" data-anchor-id="function-speccability-and-closure-cells">Function speccability and closure cells</h2>
-<p>New lambdas and functions are checked against the safe exact-arithmetic profile by default. A function is auto-speccable when it has ordinary positional parameters, no prep/effects, and a body composed of exact literals, identifiers, negation, <code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>, and <code>^</code>.</p>
-<p>Free identifiers are coefficients, not snapshots. The attached spec and every derived <code>.Poly</code> callable retain the source closure scopes, so captured cells remain live:</p>
-<pre class="rix"><code>a := 2
-F := x -&gt; a*x^2
-D := .Deriv(F, {#x})
-a ~= 3
-D(2) # 12</code></pre>
-<p><code>.Speccability(F)</code> returns a report. <code>.Spec(F)</code> returns an existing spec or performs the explicit analysis and attachment. Hosts can disable automatic analysis by setting the context environment value <code>symbolicAutoSpec</code> to <code>"off"</code>, <code>"none"</code>, or <code>false</code>.</p>
-</section>
-<section id="calculus" class="level2">
-<h2 class="anchored" data-anchor-id="calculus">Calculus</h2>
-<p><code>.Deriv(value, variable)</code> accepts a spec or spec-backed callable. It implements linearity, product and quotient rules, and exact integer powers. <code>.Integrate</code> implements structural polynomial antiderivatives: sums, differences, nonnegative monomials, constant factors, and division by expressions independent of the integration variable. It returns the zero-constant antiderivative; RiX does not invent or attach an integration constant.</p>
-<p>Use <code>{#x}</code> as the canonical variable selector. A string such as <code>"x"</code> remains accepted for compatibility. With a single input, the selector may be omitted.</p>
-<pre class="rix"><code>S := {#x:p# p = x^3 }
-.Deriv(S, {#x})          # {#x:p# p = 3*x^2 }
-.Integrate({#x# 2*x})    # {#x# x^2 }</code></pre>
-<p>For specs, calculus returns a spec and preserves a named-output header. For functions, it returns an executable spec-backed function. Postfix derivative and prefix integral notation use the same engine:</p>
-<pre class="rix"><code>F := x -&gt; x^3
-G := x -&gt; 2*x
-F'(4) # 48
-'G(3) # 9</code></pre>
-<p>Repeated quotes apply repeated transforms. Bracket variable selection supports the exact single-variable subset. Calculus operation sequences and general transcendental rules remain outside this implementation.</p>
-</section>
-<section id="intentional-transformations" class="level2">
-<h2 class="anchored" data-anchor-id="intentional-transformations">Intentional transformations</h2>
-<p>Symbolic arithmetic preserves construction form. Calculus performs only local cleanup needed to avoid artifacts such as <code>0*x</code>, <code>x^1</code>, or constant-only arithmetic. <code>.Transform</code> is the explicit rewrite boundary and returns a new spec or callable without changing its source.</p>
-<pre class="rix"><code>.Transform({#x# x*1 + 0 })
-.Transform({#x# x*(x + 1) }, :expand)</code></pre>
-<p>Default directions are exact constant folding, arithmetic identities, and power identities. <code>:expand</code> additionally distributes multiplication over addition and subtraction.</p>
-<p><code>:center</code> performs exact polynomial expansion and collection. With no center it uses powers of the single input; an exact third argument writes the same polynomial in powers of <code>(input - center)</code>. It is a complete exact polynomial rewrite:</p>
-<pre class="rix"><code>.Transform({#x# (x - 1) * (x + 2) }, :center)
-.Transform({#x# (x - 1) * (x + 2) }, :center, 3)</code></pre>
-<p><code>:decompose</code> performs ordered polynomial quotient/remainder decomposition using caller-supplied roots and polynomial factors. A scalar <code>a</code> means <code>(x - a)</code>:</p>
-<pre class="rix"><code>P := {#x# x^4 }
-Q := {#x# x^2 + 1 }
-.Transform(P, :decompose, 4, Q)</code></pre>
-<p>Transformation tuples run left to right. Parameterized entries use an array, such as <code>.Transform(P, {: :expand, [:center, 3] })</code> or <code>.Transform(P, {: :identities, [:decompose, 4, Q] })</code>.</p>
-<p><code>:gadic</code> repeatedly divides by one positive-degree polynomial <code>Q</code> and returns the flattened exact sum <code>r0 + r1*Q + r2*Q^2 + ...</code>, with every <code>ri</code> lower degree than <code>Q</code>. <code>:distribute</code> selectively distributes only a supplied scalar root or polynomial factor, optionally limited to a number of outermost matches. This provides partial flattening without the global recursion of <code>:expand</code>.</p>
-<p>Direction names accept equivalent colon-string and quoted-string forms and are case-insensitive, so <code>:expand</code>, <code>"expand"</code>, <code>:Expand</code>, and <code>"EXPAND"</code> mean the same thing. See the <a href="../../design/eval/transformation-reference.html">complete symbolic transformation reference</a> for every rewrite, operation-plan syntax, polynomial limits, and deliberate non-transformations. <code>.Simplify</code> remains as a compatibility alias for <code>.Transform</code>.</p>
-</section>
-<section id="public-symbolic-capabilities" class="level2">
-<h2 class="anchored" data-anchor-id="public-symbolic-capabilities">Public Symbolic capabilities</h2>
+</div>
+<div class="callout-body-container callout-body">
+<p>The executable output API now includes the block, inline, and asset records specified below, with deterministic text and safe HTML rendering. The document template directive and inline-markup grammar remains proposed; it must lower to these records rather than create a second document representation.</p>
+</div>
+</div>
+<section id="portable-model-at-a-glance" class="level2">
+<h2 class="anchored" data-anchor-id="portable-model-at-a-glance">Portable model at a glance</h2>
+<p>RiX document output should be a thin semantic document tree, not a reduced HTML DOM. It records what a document <em>is</em>—a quotation, an ordered list, a display equation, an image with alternative text—and leaves tags, layout, file fetching, and media playback to a renderer. A portable record must not contain a DOM node, a browser <code>File</code>, an object URL, a local absolute path, or an open network handle.</p>
 <table class="caption-top table">
 <colgroup>
-<col style="width: 50%">
-<col style="width: 50%">
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
 </colgroup>
 <thead>
 <tr class="header">
-<th>Capability</th>
-<th>Result</th>
+<th>Family</th>
+<th>Proposed values</th>
+<th>Essential portable fields</th>
+<th>Renderer responsibility</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td><code>.Poly(S)</code></td>
-<td>executable exact callable with <code>S</code> attached</td>
+<td>Blocks</td>
+<td><code>Section</code>, <code>List</code>, <code>ListItem</code>, <code>Quote</code>, <code>Callout</code>, <code>CodeBlock</code>, <code>MathBlock</code></td>
+<td>children, labels/metadata, semantic role</td>
+<td>hierarchy, typography, numbering, syntax highlighting, equation layout</td>
 </tr>
 <tr class="even">
-<td><code>.Deriv(S, {#x})</code></td>
-<td>exact symbolic derivative</td>
+<td>Inline</td>
+<td><code>Text</code>, <code>Emphasis</code>, <code>Strong</code>, <code>Code</code>, <code>Math</code>, <code>Link</code>, <code>LineBreak</code></td>
+<td>children or source, plus link destination where applicable</td>
+<td>escaping, inline typography, link policy, line breaking</td>
 </tr>
 <tr class="odd">
-<td><code>.Integrate(S, {#x})</code></td>
-<td>supported zero-constant antiderivative</td>
-</tr>
-<tr class="even">
-<td><code>.Transform(S, direction, arguments...)</code></td>
-<td>new deliberately transformed value</td>
-</tr>
-<tr class="odd">
-<td><code>.Simplify(...)</code></td>
-<td>compatibility alias for <code>.Transform(...)</code></td>
-</tr>
-<tr class="even">
-<td><code>.Spec(F)</code></td>
-<td>attached or newly analyzed function spec</td>
-</tr>
-<tr class="odd">
-<td><code>.Speccability(F)</code></td>
-<td>analysis report map</td>
-</tr>
-<tr class="even">
-<td><code>.InspectSpec(S)</code></td>
-<td>structural inspection map</td>
+<td>Assets</td>
+<td><code>Asset</code>, <code>Image</code>, <code>Audio</code>, <code>Video</code></td>
+<td>stable reference, MIME type, integrity/dimensions where known, required accessibility text</td>
+<td>resolving/embedding media, playback, download policy, conversion or fallback</td>
 </tr>
 </tbody>
 </table>
-<p>All language-provided names remain behind the dot system object. There are no bare <code>Poly</code>, <code>Deriv</code>, or other symbolic globals.</p>
+<section id="block-records" class="level3">
+<h3 class="anchored" data-anchor-id="block-records">Block records</h3>
+<p>All block <code>children</code> are ordered block-output values unless a row says otherwise. A <code>Section</code> is structural: it owns a heading level, title, stable <code>id</code>, and children. It is not merely a <code>Fragment</code> with a heading placed first. This lets HTML establish a section outline and lets PDF/Quarto build bookmarks.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Constructor</th>
+<th>Proposed shape</th>
+<th>Contract</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>.Section</code></td>
+<td><code>{= level, title, children, id?, metadata? }</code></td>
+<td><code>level</code> is 1–6; <code>title</code> is inline content; <code>children</code> are blocks. A renderer may synthesize the visible heading from the section.</td>
+</tr>
+<tr class="even">
+<td><code>.List</code></td>
+<td><code>{= ordered?, items, start?, tight?, style? }</code></td>
+<td><code>items</code> are <code>ListItem</code>; <code>ordered</code> defaults to false; <code>start</code> is valid only for ordered lists. <code>tight</code> is a presentation hint, not a change to nesting or meaning.</td>
+</tr>
+<tr class="odd">
+<td><code>.ListItem</code></td>
+<td><code>{= children, marker? }</code></td>
+<td>Holds one or more blocks, so an item can contain a paragraph, nested list, table, or callout. <code>marker</code> is an optional semantic identifier, never pre-rendered bullet text.</td>
+</tr>
+<tr class="even">
+<td><code>.Quote</code></td>
+<td><code>{= children, attribution?, cite?, id? }</code></td>
+<td>A block quotation. <code>attribution</code> is inline content; <code>cite</code> is an optional portable citation/reference string.</td>
+</tr>
+<tr class="odd">
+<td><code>.Callout</code></td>
+<td><code>{= variant, title?, children, id? }</code></td>
+<td>An authored aside. Initial <code>variant</code> values: <code>note</code>, <code>tip</code>, <code>warning</code>, <code>caution</code>, <code>important</code>. <code>kind</code> remains the output-record discriminator. Renderers may theme the variant, but must preserve it and the title in a plain fallback.</td>
+</tr>
+<tr class="even">
+<td><code>.CodeBlock</code></td>
+<td><code>{= code, language?, caption?, id?, lineNumbers? }</code></td>
+<td><code>code</code> is literal source text, never executed by rendering. <code>language</code> is an advisory identifier such as <code>rix</code>, <code>javascript</code>, or <code>text</code>.</td>
+</tr>
+<tr class="odd">
+<td><code>.MathBlock</code></td>
+<td><code>{= source, notation=:tex, label?, id?, alt? }</code></td>
+<td>A display equation. The first notation is <code>tex</code>; the exact source is retained even when a host cannot typeset it. <code>alt</code> supplies a spoken/plain fallback when source alone is inadequate.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="inline-records" class="level3">
+<h3 class="anchored" data-anchor-id="inline-records">Inline records</h3>
+<p><code>Paragraph.children</code>, <code>Heading.content</code>, <code>Section.title</code>, <code>Quote.attribution</code>, <code>Callout.title</code>, and <code>Link.children</code> use the inline vocabulary. Plain RiX values embedded there retain the existing deterministic text-format behavior; they do not silently become a table, graphic, or arbitrary block. A constructor must reject a block output placed directly in an inline sequence, which fixes the current renderer behavior that text-formats every paragraph child.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Constructor</th>
+<th>Proposed shape</th>
+<th>Contract</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>.Text</code></td>
+<td><code>{= value, style? }</code></td>
+<td>The literal/text-formatted leaf already implemented today.</td>
+</tr>
+<tr class="even">
+<td><code>.Emphasis</code></td>
+<td><code>{= children }</code></td>
+<td>Semantic emphasis, not a CSS italic request.</td>
+</tr>
+<tr class="odd">
+<td><code>.Strong</code></td>
+<td><code>{= children }</code></td>
+<td>Semantic strong importance, not a CSS bold request.</td>
+</tr>
+<tr class="even">
+<td><code>.Code</code></td>
+<td><code>{= code }</code></td>
+<td>Literal inline code; it never parses or executes as RiX.</td>
+</tr>
+<tr class="odd">
+<td><code>.Math</code></td>
+<td><code>{= source, notation=:tex, alt? }</code></td>
+<td>Inline math with preserved source and a textual fallback.</td>
+</tr>
+<tr class="even">
+<td><code>.Link</code></td>
+<td><code>{= href, children, title? }</code></td>
+<td>A link destination plus accessible inline label. Renderers apply their own URL and external-navigation policy.</td>
+</tr>
+<tr class="odd">
+<td><code>.LineBreak</code></td>
+<td><code>{= }</code></td>
+<td>An intentional hard line break; ordinary source wrapping remains whitespace.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="asset-records" class="level3">
+<h3 class="anchored" data-anchor-id="asset-records">Asset records</h3>
+<p><code>Asset</code> is a portable reference to bytes or to an application-managed asset, not a replacement for <code>Graphic</code>. A <code>Graphic</code> remains a retained vector scene; an asset can refer to a PNG, JPEG, WebP, PDF preview, generated plot raster, audio, video, or another supported media resource.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Constructor</th>
+<th>Proposed shape</th>
+<th>Contract</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>.Asset</code></td>
+<td><code>{= ref, mime, integrity?, bytes?, filename?, width?, height?, duration?, metadata? }</code></td>
+<td><code>ref</code> is a relative package reference, content-addressed identifier, or approved URI scheme. <code>mime</code> is required. <code>integrity</code> is a content digest when known. Byte count, intrinsic dimensions, duration, and filename are optional metadata, not byte payloads.</td>
+</tr>
+<tr class="even">
+<td><code>.Image</code></td>
+<td><code>{= asset, alt, width?, height?, title?, caption?, id? }</code></td>
+<td><code>asset</code> has an image MIME type; nonempty <code>alt</code> is required. Dimensions are display hints in CSS pixels or a declared unit, never a demand to resize source bytes.</td>
+</tr>
+<tr class="odd">
+<td><code>.Audio</code></td>
+<td><code>{= asset, transcript?, title?, caption?, id? }</code></td>
+<td><code>asset</code> has an audio MIME type. A transcript or descriptive fallback is required for publication/export; interactive hosts may additionally expose playback controls.</td>
+</tr>
+<tr class="even">
+<td><code>.Video</code></td>
+<td><code>{= asset, poster?, transcript?, title?, caption?, id? }</code></td>
+<td><code>asset</code> has a video MIME type; <code>poster</code> is an optional image asset. A transcript or descriptive fallback is required.</td>
+</tr>
+</tbody>
+</table>
+<p>Asset resolution belongs to the host. A browser may allow package-relative assets and approved <code>https</code> resources; a sealed notebook may resolve only assets embedded in its document bundle; a CLI may print metadata and a local reference. A renderer must fail clearly when policy denies a reference rather than fetching it implicitly from the core evaluator.</p>
+</section>
+</section>
+<section id="renderer-contract" class="level2">
+<h2 class="anchored" data-anchor-id="renderer-contract">Renderer contract</h2>
+<p>The same tree should degrade honestly across targets.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Value</th>
+<th>HTML/live notebook</th>
+<th>Markdown / Quarto</th>
+<th>PDF</th>
+<th>Terminal/plain text</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>Section</code>, lists, quote</td>
+<td>semantic HTML sections/lists/<code>blockquote</code></td>
+<td>native headings, lists, block quotes</td>
+<td>document outline and typographic blocks</td>
+<td>indentation, markers, and attribution lines</td>
+</tr>
+<tr class="even">
+<td><code>Callout</code></td>
+<td><code>&lt;aside&gt;</code>/role plus visible kind and title</td>
+<td>Quarto callout when available; otherwise labeled block quote</td>
+<td>styled aside with kind/title</td>
+<td><code>[Warning]</code>-style prefix followed by text</td>
+</tr>
+<tr class="odd">
+<td><code>CodeBlock</code></td>
+<td>escaped <code>&lt;pre&gt;&lt;code&gt;</code>; optional host highlighter</td>
+<td>fenced code block with language</td>
+<td>monospaced/verbatim block with wrapping policy</td>
+<td>fenced or indented literal source</td>
+</tr>
+<tr class="even">
+<td><code>Math</code> / <code>MathBlock</code></td>
+<td>MathML/KaTeX/MathJax chosen by host</td>
+<td><code>$...$</code> / <code>$$...$$</code> TeX when supported</td>
+<td>TeX engine or math layout system</td>
+<td>source prefixed <code>math:</code> or supplied <code>alt</code></td>
+</tr>
+<tr class="odd">
+<td><code>Link</code></td>
+<td>clickable anchor after URL-policy check</td>
+<td>standard Markdown link</td>
+<td>linked text or printed URL in notes</td>
+<td>label followed by <code>&lt;URL&gt;</code></td>
+</tr>
+<tr class="even">
+<td><code>Image</code></td>
+<td><code>&lt;img&gt;</code> with mandatory <code>alt</code></td>
+<td>Markdown image or Quarto figure</td>
+<td>embedded image when resolvable</td>
+<td><code>[Image: alt — ref]</code></td>
+</tr>
+<tr class="odd">
+<td><code>Audio</code> / <code>Video</code></td>
+<td>host controls plus transcript/description</td>
+<td>linked asset and transcript; optional Quarto embed</td>
+<td>poster/representative frame plus transcript/link</td>
+<td><code>[Audio]</code> / <code>[Video]</code> reference and transcript</td>
+</tr>
+</tbody>
+</table>
+<p>Unsupported rich media must retain a discoverable reference and accessibility fallback. It must not disappear simply because the selected renderer cannot play it.</p>
+</section>
+<section id="proposed-example" class="level2">
+<h2 class="anchored" data-anchor-id="proposed-example">Proposed example</h2>
+<p>The following is deliberately a design example, not runnable RiX until these constructors land. It shows constructor composition without injecting HTML.</p>
+<pre class="rix"><code>photo := .Image({=
+    asset=.Asset({=
+        ref="assets/newton-portrait.jpg",
+        mime="image/jpeg",
+        integrity="sha256:example-digest",
+        width=1200,
+        height=800
+    }),
+    alt="A handwritten Newton iteration beside an exact rational interval",
+    width=560,
+    caption="Iteration notes preserved as a portable image asset"
+});
+
+recording := .Audio({=
+    asset=.Asset({= ref="assets/explanation.ogg", mime="audio/ogg" }),
+    title="Spoken explanation",
+    transcript="The interval narrows at every exact Newton step."
+});
+
+report := .Section({=
+    level=1,
+    id="newton-report",
+    title=[.Text("Newton report: "), .Math({= source="x^2 = 2" })],
+    children=[
+        .Paragraph([
+            .Text("The "), .Emphasis("exact interval"),
+            .Text(" is retained; see "),
+            .Link({= href="https://example.invalid/method", children="the method note" }),
+            .Text("."), .LineBreak(),
+            .Strong("No floating-point state is stored.")
+        ]),
+        .Callout({=
+            variant=:note,
+            title="Display policy",
+            children=[.Paragraph([.Text("Inline "), .Code(".Math"), .Text(" keeps its TeX source.")])]
+        }),
+        .Quote({=
+            children=[.Paragraph("Truth is ever to be found in simplicity.")],
+            attribution="Isaac Newton"
+        }),
+        .CodeBlock({=
+            language="rix",
+            caption="One exact update",
+            code="next := (x + 2 / x) / 2;"
+        }),
+        .MathBlock({=
+            source="x_{n+1} = \\frac{x_n + 2/x_n}{2}",
+            notation=:tex,
+            alt="x sub n plus one equals one half of x sub n plus two divided by x sub n"
+        }),
+        .List({=
+            ordered=1,
+            items=[
+                .ListItem(.Paragraph("Start with an exact interval.")),
+                .ListItem({= children=[
+                    .Paragraph("Refine it."),
+                    .List({= items=[.ListItem(.Paragraph("Keep the endpoint proof."))] })
+                ]})
+            ]
+        }),
+        photo,
+        recording
+    ]
+});</code></pre>
+<p>An HTML host can render the image and audio controls after applying its asset policy. Quarto can emit a native callout, fenced RiX code, TeX display math, an image figure, and a transcript plus audio link. A PDF renderer can include the image, typeset the equation, and append or link the transcript. A terminal still shows the section, quote, list, code, equation source/alt text, image alternative text, and audio transcript.</p>
+<p>The same example can eventually have concise document-template spelling:</p>
+<pre class="text"><code>h1: Newton report: @{.Math({= source="x^2 = 2" })} #newton-report
+
+The *exact interval* is retained; see [the method note](https://example.invalid/method).
+
+callout: note — Display policy
+    Inline `.Math` keeps its TeX source.
+
+quote: Isaac Newton
+    Truth is ever to be found in simplicity.
+
+code: rix
+    next := (x + 2 / x) / 2;
+
+math: tex
+    x_{n+1} = \\frac{x_n + 2/x_n}{2}
+
+ol:
+    - Start with an exact interval.
+    - Refine it.
+        ul:
+            - Keep the endpoint proof.</code></pre>
+<p>Template inline syntax is intentionally shown as a future adapter: its Markdown-like punctuation must compile to the inline records above, not become a second document representation.</p>
+</section>
+<section id="template-language-proposal" class="level2">
+<h2 class="anchored" data-anchor-id="template-language-proposal">Template language proposal</h2>
+<p>The template language should be a compact RiX document notation, not a Markdown clone. It has three jobs only: split text into blocks, recognize a small fixed directive set, and lower inline runs plus <code>@{...}</code> holes into the same output records available through constructors. It does not accept raw HTML, arbitrary attributes, Markdown tables, reference links, code execution fences, or a general extension grammar.</p>
+<section id="what-it-borrows-from-markdownand-what-it-does-not" class="level3">
+<h3 class="anchored" data-anchor-id="what-it-borrows-from-markdownand-what-it-does-not">What it borrows from Markdown—and what it does not</h3>
+<p>It borrows familiar <em>presentation</em> conventions: blank lines separate paragraphs; indented bodies belong to a preceding block; <code>-</code> marks a list item; and a code block has a language name followed by literal indented source. It does <strong>not</strong> borrow Markdown’s many precedence rules. In particular, <code># title</code>, <code>*emphasis*</code>, <code>**strong**</code>, backtick code, <code>[label](url)</code>, fenced code, and raw HTML are ordinary literal text in the first version.</p>
+<p>Authors who need inline semantics write explicit RiX values in holes:</p>
+<pre class="text"><code>p: This is @{.Emphasis("exact")} and @{.Link({= href="https://example.invalid/proof", children="portable" })}.</code></pre>
+<p>That choice keeps inline parsing small and lets an eventual Markdown importer be an adapter that lowers punctuation into <code>.Emphasis</code>, <code>.Link</code>, and the other records. It also prevents one source document from having a different semantic tree depending on whether a host’s Markdown flavour is installed.</p>
+</section>
+<section id="grammar" class="level3">
+<h3 class="anchored" data-anchor-id="grammar">Grammar</h3>
+<p>The following is the proposed initial grammar. <code>INLINE</code> is scanned as literal text interleaved with holes; it is not a general expression grammar.</p>
+<pre class="text"><code>DOCUMENT       := (BLANK | BLOCK)*
+BLOCK          := STANDALONE_HOLE | DIRECTIVE_BLOCK | PARAGRAPH
+DIRECTIVE_BLOCK := DIRECTIVE ":" HEADER? LABEL? (NEWLINE INDENT BODY)?
+PARAGRAPH      := INLINE (NEWLINE INLINE)*
+BODY           := BLOCK | LIST_ITEM_LINE
+LIST_ITEM_LINE := "-" SPACE INLINE (NEWLINE INDENT BODY)*
+DIRECTIVE      := "h1" … "h6" | "p" | "section" | "fig" | "table"
+               | "quote" | "callout" | "code" | "math" | "ul" | "ol" | "slide"
+STANDALONE_HOLE := SPACE* HOLE SPACE*
+HOLE           := "@{" RIX_SOURCE "}"
+LABEL          := SPACE "#" IDENTIFIER</code></pre>
+<p>Indentation is four spaces per document level; tabs are rejected. A blank line ends a paragraph but does not change the indentation stack. Only the directive names above are special at the start of a physical line, so prose such as <code>Note: this is text</code> remains a paragraph.</p>
+<p><code>h1:</code> through <code>h6:</code> remain explicit <code>Heading</code> records. <code>section:</code> is the structural alternative and has the header form <code>section: LEVEL TITLE #id</code> with an indented block body; it lowers to <code>Section</code>. The parser must not infer a tree from arbitrary heading-level jumps in its first release.</p>
+<p><code>ul:</code> and <code>ol:</code> own their marker semantics. Both use <code>-</code> body markers; the enclosing directive determines whether they become bullets or numbered items. Nested content is indented one additional level under an item. This avoids the extra grammar and renumbering rules needed for accepting both <code>-</code> and <code>1.</code> markers everywhere.</p>
+<p><code>quote:</code> accepts an optional attribution header and a block body. <code>callout:</code> uses <code>callout: VARIANT — TITLE</code>, where <code>VARIANT</code> is one of the five callout variants and the em dash/title portion is optional. <code>code: LANGUAGE</code> makes its indented body literal source; it never scans holes. <code>math: tex</code> makes its body literal TeX. A generated <code>Math</code> value belongs in a standalone hole or in an ordinary inline run, rather than interpolating RiX into TeX by accident.</p>
+</section>
+<section id="interaction" class="level3">
+<h3 class="anchored" data-anchor-id="interaction"><code>@{...}</code> interaction</h3>
+<p>The scanner recognizes a hole by finding balanced RiX braces while respecting RiX string, backtick, comment, and nested-container syntax. The body is handed unchanged to the normal RiX parser/evaluator; the document parser never interprets RiX operators or names.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Hole location</th>
+<th>Accepted value</th>
+<th>Lowering rule</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>A line containing only one hole</td>
+<td>any block output, <code>Fragment</code>, table, graphic, or other existing output</td>
+<td>splice the output value as one block child; raw values become a <code>Paragraph(Text(...))</code> only when explicitly requested by a later convenience rule</td>
+</tr>
+<tr class="even">
+<td>Inside paragraph/directive header text</td>
+<td>raw RiX value or inline output</td>
+<td>raw value uses deterministic text formatting; inline output is inserted as that inline node; block output is an error</td>
+</tr>
+<tr class="odd">
+<td><code>fig:</code> / <code>table:</code> body</td>
+<td>one standalone output hole</td>
+<td>use it as the figure content; no string fallback</td>
+</tr>
+<tr class="even">
+<td><code>code:</code> or <code>math:</code> body</td>
+<td>no hole scanning</td>
+<td>body is literal source/TeX, so <code>@{</code> remains characters</td>
+</tr>
+</tbody>
+</table>
+<p><code>@@{</code> escapes to the literal characters <code>@{</code>. This one escape is enough for documentation about holes; ordinary backslashes remain ordinary content until a block type gives them meaning.</p>
+<p>The template scanner should evaluate each hole in document order, so it sees the normal lexical scope and cannot reorder effects. It should first build a small block/inline token tree with source ranges, then evaluate holes while lowering. That makes diagnostics point to the directive, indentation, or RiX hole that failed.</p>
+</section>
+<section id="parser-cost-and-boundary" class="level3">
+<h3 class="anchored" data-anchor-id="parser-cost-and-boundary">Parser cost and boundary</h3>
+<p>This is a linear, single-pass scanner over the template plus normal RiX parses for each hole. It needs an indentation stack, blank-line tracking, a fixed directive lookup, and a tokenizer-aware balanced-hole reader. It does <em>not</em> need CommonMark’s delimiter algorithm, link/reference resolution, HTML block rules, table alignment grammar, or an arbitrary extension parser. Nested lists are the only recursive document structure in the first pass, and their recursion follows indentation directly.</p>
+<p>Existing <code>@"""..."""</code> support may keep its current paragraph/heading/figure/table behavior until this parser replaces it behind compatibility tests. The new directives should be introduced through a directive registry, but the built-in registry remains fixed by default so prose cannot become syntax due to a loaded plugin.</p>
+</section>
+</section>
+<section id="implementation-checklist" class="level2">
+<h2 class="anchored" data-anchor-id="implementation-checklist">Implementation checklist</h2>
+<section id="lock-the-shared-schema" class="level3">
+<h3 class="anchored" data-anchor-id="lock-the-shared-schema">1. Lock the shared schema</h3>
+<ul class="task-list">
+<li><label><input type="checkbox" checked="">Add runtime constructors for block, inline, and asset records with map and positional forms only where positional form stays unambiguous.</label></li>
+<li><label><input type="checkbox" checked="">Introduce <code>isInlineOutput</code> and <code>isBlockOutput</code> classification. Preserve existing <code>.Text</code> compatibility while rejecting block children in <code>Paragraph</code>.</label></li>
+<li><label><input type="checkbox">Define stable JSON serialization tags and exact-value rules for every record before persistence APIs ship.</label></li>
+<li><label><input type="checkbox" checked="">Add required-field validation for nonempty image alt text, asset MIME type, valid section level, and valid list nesting. Publication-level audio/video transcript enforcement remains a host/export policy.</label></li>
+<li><label><input type="checkbox">Define URI/reference policy hooks in hosts; keep resolution and fetching out of the evaluator and output record.</label></li>
+</ul>
+</section>
+<section id="implement-basic-static-rendering" class="level3">
+<h3 class="anchored" data-anchor-id="implement-basic-static-rendering">2. Implement basic static rendering</h3>
+<ul class="task-list">
+<li><label><input type="checkbox" checked="">Extend deterministic text formatting for every new value, including indentation, source/alt fallbacks, and links.</label></li>
+<li><label><input type="checkbox" checked="">Extend the HTML renderer with escaped semantic markup and no implicit remote asset fetching.</label></li>
+<li><label><input type="checkbox">Add Markdown/Quarto rendering adapters with explicit unsupported-media fallbacks; add PDF through that shared document path rather than a separate incompatible tree.</label></li>
+<li><label><input type="checkbox">Add renderer tests proving a paragraph preserves inline semantics rather than text-formatting <code>Emphasis</code>, <code>Link</code>, <code>Math</code>, or <code>Code</code> children.</label></li>
+</ul>
+</section>
+<section id="add-document-template-support" class="level3">
+<h3 class="anchored" data-anchor-id="add-document-template-support">3. Add document-template support</h3>
+<ul class="task-list">
+<li><label><input type="checkbox">Implement <code>quote:</code>, <code>callout:</code>, <code>code:</code>, <code>math:</code>, <code>ul:</code>, and <code>ol:</code> as directive-registry entries that lower to the shared block records.</label></li>
+<li><label><input type="checkbox">Define list-body indentation and nested-list parsing without importing a general Markdown parser into the RiX grammar.</label></li>
+<li><label><input type="checkbox">Add template inline lowering for emphasis, strong, code, math, link, and hard line break only after the record-level constructors are tested.</label></li>
+<li><label><input type="checkbox">Keep standalone <code>@{...}</code> block splices distinct from inline holes.</label></li>
+</ul>
+</section>
+<section id="integrate-media-safely" class="level3">
+<h3 class="anchored" data-anchor-id="integrate-media-safely">4. Integrate media safely</h3>
+<ul class="task-list">
+<li><label><input type="checkbox">Add host asset stores for RiX Web, Notebook, and RiXCel with package- relative/content-addressed references and explicit external-URL approval.</label></li>
+<li><label><input type="checkbox">Add image dimensions, lazy-loading, caption/figure integration, and missing-asset diagnostics.</label></li>
+<li><label><input type="checkbox">Add audio/video controls only in capable hosts; render transcript and reference everywhere else.</label></li>
+<li><label><input type="checkbox">Add end-to-end examples covering a generated plot raster, image asset, audio transcript, and PDF/Quarto export.</label></li>
+</ul>
+</section>
+<section id="documentation-and-accessibility" class="level3">
+<h3 class="anchored" data-anchor-id="documentation-and-accessibility">5. Documentation and accessibility</h3>
+<ul class="task-list">
+<li><label><input type="checkbox">Add a runnable tutorial once the first constructors are implemented.</label></li>
+<li><label><input type="checkbox">Test keyboard navigation and screen-reader names for links and media; test MathBlock plain-language fallbacks.</label></li>
+<li><label><input type="checkbox">Document export lossiness explicitly whenever a target cannot embed a media type, preserve a link, or typeset the chosen math notation.</label></li>
+</ul>
 
 
+</section>
+</section>
 </section>
 
 <a onclick="window.scrollTo(0, 0); return false;" role="button" id="quarto-back-to-top"><i class="bi bi-arrow-up"></i> Back to top</a></main> <!-- /main -->
@@ -1196,13 +1567,13 @@ Q := {#x# x^2 + 1 }
   </script>
 <nav class="page-navigation">
   <div class="nav-page nav-page-previous">
-      <a href="../../design/eval/cayley-polar.html" class="pagination-link" aria-label="Cayley polar complex values">
-        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">Cayley polar complex values</span>
+      <a href="../../design/eval/output-model.html" class="pagination-link" aria-label="Structured output, documents, and graphics">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">Structured output, documents, and graphics</span>
       </a>          
   </div>
   <div class="nav-page nav-page-next">
-      <a href="../../design/eval/transformation-reference.html" class="pagination-link" aria-label="Symbolic transformations">
-        <span class="nav-page-text">Symbolic transformations</span> <i class="bi bi-arrow-right-short"></i>
+      <a href="../../design/eval/rixcel-architecture.html" class="pagination-link" aria-label="RiXCel architecture">
+        <span class="nav-page-text">RiXCel architecture</span> <i class="bi bi-arrow-right-short"></i>
       </a>
   </div>
 </nav>
@@ -1214,7 +1585,7 @@ Q := {#x# x^2 + 1 }
 </div>   
     <div class="nav-footer-center">
       &nbsp;
-    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/design/eval/symbolic-calculus.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/design/eval/document-output-todo.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
     <div class="nav-footer-right">
 <p>Documentation built with <a href="https://quarto.org/">Quarto</a></p>
 </div>

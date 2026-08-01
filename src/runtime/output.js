@@ -252,6 +252,60 @@ export function isOutputValue(value) {
     return Boolean(value && value.type === "output" && typeof value.kind === "string");
 }
 
+const INLINE_OUTPUT_KINDS = new Set([
+    "text", "emphasis", "strong", "code", "math", "link", "line_break",
+]);
+
+export function isInlineOutput(value) {
+    return isOutputValue(value) && INLINE_OUTPUT_KINDS.has(value.kind);
+}
+
+export function isBlockOutput(value) {
+    return isOutputValue(value) && !INLINE_OUTPUT_KINDS.has(value.kind) && value.kind !== "asset";
+}
+
+function contentItems(value, label) {
+    return isSequence(value) || Array.isArray(value) ? sequence(value, label) : [value];
+}
+
+function inlineChildren(value, label) {
+    return Object.freeze(contentItems(value, label).map((child) => {
+        if (isOutputValue(child) && !isInlineOutput(child)) {
+            throw new Error(`${label} cannot contain block output ${child.kind}; use Fragment or a block constructor`);
+        }
+        return child;
+    }));
+}
+
+function blockChildren(value, label) {
+    return Object.freeze(contentItems(value, label).map((child) => {
+        if (!isBlockOutput(child)) {
+            const actual = isOutputValue(child) ? child.kind : typeof child;
+            throw new Error(`${label} requires block output values; received ${actual}`);
+        }
+        return child;
+    }));
+}
+
+function requiredString(value, label) {
+    const result = asString(value);
+    if (result === null || result.trim() === "") throw new Error(`${label} requires a nonempty string`);
+    return result;
+}
+
+function optionalDimension(value, label) {
+    if (value === null || value === undefined) return null;
+    const dimension = exactInteger(value, label);
+    if (!Number.isSafeInteger(dimension) || dimension <= 0) throw new Error(`${label} must be a positive safe integer`);
+    return dimension;
+}
+
+function enabled(value) {
+    if (value instanceof Integer) return value.value !== 0n;
+    if (value instanceof Rational) return value.numerator !== 0n;
+    return Boolean(value);
+}
+
 export function createText(args) {
     const entry = spec(args, ["value", "style"], "Text");
     const value = get(entry, "value");
@@ -262,9 +316,7 @@ export function createText(args) {
 export function createParagraph(args) {
     const entry = spec(args, ["children", "style"], "Paragraph");
     const childrenValue = get(entry, "children");
-    const children = isSequence(childrenValue) || Array.isArray(childrenValue)
-        ? sequence(childrenValue, "Paragraph children")
-        : [childrenValue];
+    const children = inlineChildren(childrenValue, "Paragraph children");
     return output("paragraph", { children, style: optionalMap(get(entry, "style"), "Paragraph style") });
 }
 
@@ -274,12 +326,214 @@ export function createHeading(args) {
     if (level < 1 || level > 6) throw new Error("Heading level must be between 1 and 6");
     const content = get(entry, "content");
     if (content === null) throw new Error("Heading requires content");
+    inlineChildren(content, "Heading content");
     return output("heading", { level, content, id: asString(get(entry, "id")), style: optionalMap(get(entry, "style"), "Heading style") });
 }
 
 export function createFragment(args) {
     const entry = spec(args, ["children", "metadata"], "Fragment");
     return output("fragment", { children: sequence(get(entry, "children"), "Fragment children"), metadata: optionalMap(get(entry, "metadata"), "Fragment metadata") });
+}
+
+export function createEmphasis(args) {
+    const entry = spec(args, ["children"], "Emphasis");
+    return output("emphasis", { children: inlineChildren(get(entry, "children"), "Emphasis children") });
+}
+
+export function createStrong(args) {
+    const entry = spec(args, ["children"], "Strong");
+    return output("strong", { children: inlineChildren(get(entry, "children"), "Strong children") });
+}
+
+export function createCode(args) {
+    const entry = spec(args, ["code"], "Code");
+    return output("code", { code: requiredString(get(entry, "code"), "Code") });
+}
+
+function mathFields(args, name) {
+    const entry = spec(args, ["source", "notation", "alt"], name);
+    const notation = (asString(get(entry, "notation")) || "tex").toLowerCase();
+    if (notation !== "tex") throw new Error(`${name} currently supports only :tex notation`);
+    return {
+        source: requiredString(get(entry, "source"), name),
+        notation,
+        alt: asString(get(entry, "alt")),
+    };
+}
+
+export function createMath(args) {
+    return output("math", mathFields(args, "Math"));
+}
+
+export function createLink(args) {
+    const entry = spec(args, ["href", "children", "title"], "Link");
+    return output("link", {
+        href: requiredString(get(entry, "href"), "Link href"),
+        children: inlineChildren(get(entry, "children"), "Link children"),
+        title: asString(get(entry, "title")),
+    });
+}
+
+export function createLineBreak(args) {
+    if (args.length !== 0 && !(args.length === 1 && args[0]?.type === "map")) {
+        throw new Error("LineBreak does not accept arguments");
+    }
+    return output("line_break", {});
+}
+
+export function createSection(args) {
+    const entry = spec(args, ["level", "title", "children", "id"], "Section");
+    const level = exactInteger(get(entry, "level"), "Section level");
+    if (level < 1 || level > 6) throw new Error("Section level must be between 1 and 6");
+    const title = get(entry, "title");
+    if (title === null) throw new Error("Section requires title");
+    return output("section", {
+        level,
+        title: inlineChildren(title, "Section title"),
+        children: blockChildren(get(entry, "children"), "Section children"),
+        id: asString(get(entry, "id")),
+        metadata: optionalMap(get(entry, "metadata"), "Section metadata"),
+    });
+}
+
+export function createListItem(args) {
+    const entry = spec(args, ["children", "marker"], "ListItem");
+    const childrenValue = get(entry, "children");
+    const children = isSequence(childrenValue) || Array.isArray(childrenValue)
+        ? blockChildren(childrenValue, "ListItem children")
+        : blockChildren([childrenValue], "ListItem children");
+    return output("list_item", { children, marker: asString(get(entry, "marker")) });
+}
+
+export function createList(args) {
+    const entry = spec(args, ["items", "ordered", "start"], "List");
+    const ordered = enabled(get(entry, "ordered"));
+    const items = sequence(get(entry, "items"), "List items").map((item, index) => {
+        if (!isOutputValue(item) || item.kind !== "list_item") {
+            throw new Error(`List item ${index + 1} must be a ListItem output value`);
+        }
+        return item;
+    });
+    if (items.length === 0) throw new Error("List requires at least one ListItem");
+    const start = get(entry, "start");
+    if (!ordered && start !== null && start !== undefined) throw new Error("List start is valid only for ordered lists");
+    return output("list", {
+        ordered,
+        items: Object.freeze(items),
+        start: ordered && start !== null && start !== undefined ? exactInteger(start, "List start") : null,
+        tight: enabled(get(entry, "tight")),
+        style: optionalMap(get(entry, "style"), "List style"),
+    });
+}
+
+export function createQuote(args) {
+    const entry = spec(args, ["children", "attribution", "cite"], "Quote");
+    return output("quote", {
+        children: blockChildren(get(entry, "children"), "Quote children"),
+        attribution: get(entry, "attribution") === null ? null : inlineChildren(get(entry, "attribution"), "Quote attribution"),
+        cite: asString(get(entry, "cite")),
+        id: asString(get(entry, "id")),
+    });
+}
+
+const CALLOUT_KINDS = new Set(["note", "tip", "warning", "caution", "important"]);
+
+export function createCallout(args) {
+    const entry = spec(args, ["variant", "children", "title"], "Callout");
+    const variant = (asString(get(entry, "variant", get(entry, "kind"))) || "note").toLowerCase();
+    if (!CALLOUT_KINDS.has(variant)) throw new Error(`Callout variant must be one of ${[...CALLOUT_KINDS].join(", ")}`);
+    const title = get(entry, "title");
+    return output("callout", {
+        variant,
+        title: title === null ? null : inlineChildren(title, "Callout title"),
+        children: blockChildren(get(entry, "children"), "Callout children"),
+        id: asString(get(entry, "id")),
+    });
+}
+
+export function createCodeBlock(args) {
+    const entry = spec(args, ["code", "language", "caption"], "CodeBlock");
+    return output("code_block", {
+        code: requiredString(get(entry, "code"), "CodeBlock"),
+        language: asString(get(entry, "language")) || "text",
+        caption: get(entry, "caption") === null ? null : inlineChildren(get(entry, "caption"), "CodeBlock caption"),
+        id: asString(get(entry, "id")),
+        lineNumbers: enabled(get(entry, "lineNumbers")),
+    });
+}
+
+export function createMathBlock(args) {
+    const entry = spec(args, ["source", "notation", "alt"], "MathBlock");
+    const fields = mathFields(args, "MathBlock");
+    return output("math_block", {
+        ...fields,
+        label: asString(get(entry, "label")),
+        id: asString(get(entry, "id")),
+    });
+}
+
+function assetValue(value, name, expectedMime = null) {
+    if (!isOutputValue(value) || value.kind !== "asset") throw new Error(`${name} requires an Asset output value`);
+    if (expectedMime && !value.mime.startsWith(`${expectedMime}/`)) {
+        throw new Error(`${name} requires an ${expectedMime} asset; received ${value.mime}`);
+    }
+    return value;
+}
+
+export function createAsset(args) {
+    const entry = spec(args, ["ref", "mime"], "Asset");
+    const mime = requiredString(get(entry, "mime"), "Asset mime").toLowerCase();
+    if (!/^[a-z0-9][a-z0-9!#$&^_.+-]*\/[a-z0-9][a-z0-9!#$&^_.+-]*$/i.test(mime)) {
+        throw new Error("Asset mime must be a media type such as image/png");
+    }
+    return output("asset", {
+        ref: requiredString(get(entry, "ref"), "Asset ref"),
+        mime,
+        integrity: asString(get(entry, "integrity")),
+        bytes: get(entry, "bytes") === null ? null : optionalDimension(get(entry, "bytes"), "Asset bytes"),
+        filename: asString(get(entry, "filename")),
+        width: optionalDimension(get(entry, "width"), "Asset width"),
+        height: optionalDimension(get(entry, "height"), "Asset height"),
+        duration: get(entry, "duration"),
+        metadata: optionalMap(get(entry, "metadata"), "Asset metadata"),
+    });
+}
+
+function mediaFields(entry, name, expectedMime) {
+    return {
+        asset: assetValue(get(entry, "asset"), name, expectedMime),
+        width: optionalDimension(get(entry, "width"), `${name} width`),
+        height: optionalDimension(get(entry, "height"), `${name} height`),
+        title: asString(get(entry, "title")),
+        caption: get(entry, "caption") === null ? null : inlineChildren(get(entry, "caption"), `${name} caption`),
+        id: asString(get(entry, "id")),
+    };
+}
+
+export function createImage(args) {
+    const entry = spec(args, ["asset", "alt", "width", "height"], "Image");
+    return output("image", {
+        ...mediaFields(entry, "Image", "image"),
+        alt: requiredString(get(entry, "alt"), "Image alt"),
+    });
+}
+
+export function createAudio(args) {
+    const entry = spec(args, ["asset", "transcript"], "Audio");
+    return output("audio", {
+        ...mediaFields(entry, "Audio", "audio"),
+        transcript: get(entry, "transcript") === null ? null : inlineChildren(get(entry, "transcript"), "Audio transcript"),
+    });
+}
+
+export function createVideo(args) {
+    const entry = spec(args, ["asset", "poster", "transcript"], "Video");
+    const poster = get(entry, "poster");
+    return output("video", {
+        ...mediaFields(entry, "Video", "video"),
+        poster: poster === null ? null : assetValue(poster, "Video poster", "image"),
+        transcript: get(entry, "transcript") === null ? null : inlineChildren(get(entry, "transcript"), "Video transcript"),
+    });
 }
 
 export function createTable(args) {
@@ -1410,12 +1664,59 @@ function formatSheetText(sheet, format) {
     return [heading, header, ...rows].join("\n");
 }
 
+function formatInlineText(value, format) {
+    if (!isOutputValue(value)) return cellText(value, format);
+    if (value.kind === "text") return cellText(value.value, format);
+    if (value.kind === "emphasis" || value.kind === "strong") {
+        return value.children.map((child) => formatInlineText(child, format)).join("");
+    }
+    if (value.kind === "code") return value.code;
+    if (value.kind === "math") return value.alt || value.source;
+    if (value.kind === "link") {
+        return `${value.children.map((child) => formatInlineText(child, format)).join("")} <${value.href}>`;
+    }
+    if (value.kind === "line_break") return "\n";
+    return formatOutputText(value, format);
+}
+
+function indentText(text, prefix = "  ") {
+    return String(text).split("\n").map((line) => `${prefix}${line}`).join("\n");
+}
+
+function formatBlockChildren(children, format) {
+    return children.map((child) => formatOutputText(child, format)).join("\n\n");
+}
+
 export function formatOutputText(value, format) {
     if (!isOutputValue(value)) return format(value);
     if (value.kind === "live_view") return formatOutputText(value.current, format);
     if (value.kind === "text") return cellText(value.value, format);
-    if (value.kind === "paragraph") return value.children.map((child) => cellText(child, format)).join("");
-    if (value.kind === "heading") return `${"#".repeat(value.level)} ${cellText(value.content, format)}`;
+    if (value.kind === "emphasis" || value.kind === "strong" || value.kind === "code" || value.kind === "math" || value.kind === "link" || value.kind === "line_break") return formatInlineText(value, format);
+    if (value.kind === "paragraph") return value.children.map((child) => formatInlineText(child, format)).join("");
+    if (value.kind === "heading") return `${"#".repeat(value.level)} ${Array.isArray(value.content) ? value.content.map((child) => formatInlineText(child, format)).join("") : formatInlineText(value.content, format)}`;
+    if (value.kind === "section") return `${"#".repeat(value.level)} ${value.title.map((child) => formatInlineText(child, format)).join("")}\n\n${formatBlockChildren(value.children, format)}`;
+    if (value.kind === "list") {
+        return value.items.map((item, index) => {
+            const marker = value.ordered ? `${(value.start ?? 1) + index}.` : "-";
+            return `${marker} ${indentText(formatBlockChildren(item.children, format), "  ").trimStart()}`;
+        }).join("\n");
+    }
+    if (value.kind === "list_item") return formatBlockChildren(value.children, format);
+    if (value.kind === "quote") {
+        const quote = formatBlockChildren(value.children, format).split("\n").map((line) => `> ${line}`).join("\n");
+        const attribution = value.attribution ? `\n> — ${value.attribution.map((child) => formatInlineText(child, format)).join("")}` : "";
+        return `${quote}${attribution}`;
+    }
+    if (value.kind === "callout") {
+        const title = value.title ? ` ${value.title.map((child) => formatInlineText(child, format)).join("")}` : "";
+        return `[${value.variant[0].toUpperCase()}${value.variant.slice(1)}${title}]\n${formatBlockChildren(value.children, format)}`;
+    }
+    if (value.kind === "code_block") return `${value.caption ? `${value.caption.map((child) => formatInlineText(child, format)).join("")}\n` : ""}\`\`\`${value.language}\n${value.code}\n\`\`\``;
+    if (value.kind === "math_block") return value.alt || `math: ${value.source}`;
+    if (value.kind === "asset") return `[Asset: ${value.mime} — ${value.ref}]`;
+    if (value.kind === "image") return `[Image: ${value.alt} — ${value.asset.ref}]`;
+    if (value.kind === "audio") return `[Audio: ${value.title || value.asset.ref}]${value.transcript ? `\n${value.transcript.map((child) => formatInlineText(child, format)).join("")}` : ""}`;
+    if (value.kind === "video") return `[Video: ${value.title || value.asset.ref}]${value.transcript ? `\n${value.transcript.map((child) => formatInlineText(child, format)).join("")}` : ""}`;
     if (value.kind === "fragment") return value.children.map((child) => formatOutputText(child, format)).join("\n\n");
     if (value.kind === "control_slider") {
         return `${value.label}: ${cellText(controlField(value, "value"), format)} (${cellText(controlField(value, "low"), format)} … ${cellText(controlField(value, "high"), format)}; step ${cellText(controlField(value, "step"), format)})`;
@@ -1467,15 +1768,90 @@ export function formatOutputText(value, format) {
     return `[Output: ${value.kind}]`;
 }
 
+function safeHtmlUrl(value, { media = false } = {}) {
+    const url = String(value || "").trim();
+    if (!url || /[\u0000-\u001f\u007f]/.test(url) || url.startsWith("//")) return null;
+    const scheme = url.match(/^([a-z][a-z0-9+.-]*):/i)?.[1]?.toLowerCase() ?? null;
+    if (!scheme) return url;
+    if (media) return null;
+    const allowed = new Set(["http", "https", "mailto"]);
+    return allowed.has(scheme) ? url : null;
+}
+
+function renderInlineHtml(value, format) {
+    if (!isOutputValue(value)) return escapeHtml(cellText(value, format));
+    if (value.kind === "text") return `<span class="rix-output-text">${escapeHtml(cellText(value.value, format))}</span>`;
+    if (value.kind === "emphasis") return `<em class="rix-output-emphasis">${value.children.map((child) => renderInlineHtml(child, format)).join("")}</em>`;
+    if (value.kind === "strong") return `<strong class="rix-output-strong">${value.children.map((child) => renderInlineHtml(child, format)).join("")}</strong>`;
+    if (value.kind === "code") return `<code class="rix-output-code">${escapeHtml(value.code)}</code>`;
+    if (value.kind === "math") return `<span class="rix-output-math" data-rix-math-notation="${escapeHtml(value.notation)}"${value.alt ? ` aria-label="${escapeHtml(value.alt)}"` : ""}>${escapeHtml(value.source)}</span>`;
+    if (value.kind === "link") {
+        const href = safeHtmlUrl(value.href);
+        const label = value.children.map((child) => renderInlineHtml(child, format)).join("");
+        return href
+            ? `<a class="rix-output-link" href="${escapeHtml(href)}"${value.title ? ` title="${escapeHtml(value.title)}"` : ""}>${label}</a>`
+            : `<span class="rix-output-link-invalid" title="Unsupported link scheme">${label}</span>`;
+    }
+    if (value.kind === "line_break") return "<br>";
+    return escapeHtml(formatOutputText(value, format));
+}
+
+function renderInlineSequence(values, format) {
+    return values.map((value) => renderInlineHtml(value, format)).join("");
+}
+
+function mediaCaption(value, format) {
+    return value.caption ? `<figcaption>${renderInlineSequence(value.caption, format)}</figcaption>` : "";
+}
+
+function mediaDimensions(value) {
+    return `${value.width ? ` width="${value.width}"` : ""}${value.height ? ` height="${value.height}"` : ""}`;
+}
+
 export function renderOutputHtml(value, format = (item) => String(item ?? "")) {
     const text = (item) => escapeHtml(isOutputValue(item) ? formatOutputText(item, format) : cellText(item, format));
     if (!isOutputValue(value)) return `<pre>${text(value)}</pre>`;
     if (value.kind === "live_view") {
         return `<section class="rix-output-live-view" data-rix-live-view="${escapeHtml(value.id)}" data-rix-live-revision="${value.revision}">${renderOutputHtml(value.current, format)}</section>`;
     }
-    if (value.kind === "text") return `<span class="rix-output-text">${text(value.value)}</span>`;
-    if (value.kind === "paragraph") return `<p class="rix-output-paragraph">${value.children.map(text).join("")}</p>`;
-    if (value.kind === "heading") return `<h${value.level} class="rix-output-heading">${text(value.content)}</h${value.level}>`;
+    if (isInlineOutput(value)) return renderInlineHtml(value, format);
+    if (value.kind === "paragraph") return `<p class="rix-output-paragraph">${renderInlineSequence(value.children, format)}</p>`;
+    if (value.kind === "heading") return `<h${value.level} class="rix-output-heading"${value.id ? ` id="${escapeHtml(value.id)}"` : ""}>${Array.isArray(value.content) ? renderInlineSequence(value.content, format) : renderInlineHtml(value.content, format)}</h${value.level}>`;
+    if (value.kind === "section") return `<section class="rix-output-section" data-rix-section-level="${value.level}"${value.id ? ` id="${escapeHtml(value.id)}"` : ""}><h${value.level}>${renderInlineSequence(value.title, format)}</h${value.level}>${value.children.map((child) => renderOutputHtml(child, format)).join("")}</section>`;
+    if (value.kind === "list") {
+        const tag = value.ordered ? "ol" : "ul";
+        return `<${tag} class="rix-output-list"${value.ordered && value.start !== null ? ` start="${value.start}"` : ""}${value.tight ? ' data-rix-list-tight="true"' : ""}>${value.items.map((item) => renderOutputHtml(item, format)).join("")}</${tag}>`;
+    }
+    if (value.kind === "list_item") return `<li class="rix-output-list-item">${value.children.map((child) => renderOutputHtml(child, format)).join("")}</li>`;
+    if (value.kind === "quote") return `<blockquote class="rix-output-quote"${value.id ? ` id="${escapeHtml(value.id)}"` : ""}${value.cite ? ` cite="${escapeHtml(value.cite)}"` : ""}>${value.children.map((child) => renderOutputHtml(child, format)).join("")}${value.attribution ? `<footer>— ${renderInlineSequence(value.attribution, format)}</footer>` : ""}</blockquote>`;
+    if (value.kind === "callout") return `<aside class="rix-output-callout rix-output-callout-${escapeHtml(value.variant)}" data-rix-callout="${escapeHtml(value.variant)}"${value.id ? ` id="${escapeHtml(value.id)}"` : ""}${value.variant === "warning" || value.variant === "caution" ? ' role="note"' : ""}>${value.title ? `<h${Math.min(6, 3)}>${renderInlineSequence(value.title, format)}</h3>` : ""}${value.children.map((child) => renderOutputHtml(child, format)).join("")}</aside>`;
+    if (value.kind === "code_block") {
+        const code = `<pre class="rix-output-code-block"${value.id ? ` id="${escapeHtml(value.id)}"` : ""}${value.lineNumbers ? ' data-rix-line-numbers="true"' : ""}><code data-language="${escapeHtml(value.language)}">${escapeHtml(value.code)}</code></pre>`;
+        return value.caption ? `<figure class="rix-output-code-figure">${code}<figcaption>${renderInlineSequence(value.caption, format)}</figcaption></figure>` : code;
+    }
+    if (value.kind === "math_block") return `<div class="rix-output-math-block"${value.id ? ` id="${escapeHtml(value.id)}"` : ""} data-rix-math-notation="${escapeHtml(value.notation)}"${value.alt ? ` aria-label="${escapeHtml(value.alt)}"` : ""}>${escapeHtml(value.source)}${value.label ? `<span class="rix-output-math-label">${escapeHtml(value.label)}</span>` : ""}</div>`;
+    if (value.kind === "asset") {
+        const href = safeHtmlUrl(value.ref, { media: true });
+        return href ? `<a class="rix-output-asset" href="${escapeHtml(href)}" data-rix-mime="${escapeHtml(value.mime)}">${escapeHtml(value.filename || value.ref)}</a>` : `<span class="rix-output-asset" data-rix-mime="${escapeHtml(value.mime)}">${escapeHtml(value.filename || value.ref)}</span>`;
+    }
+    if (value.kind === "image") {
+        const src = safeHtmlUrl(value.asset.ref, { media: true });
+        const image = src
+            ? `<img class="rix-output-image" src="${escapeHtml(src)}" alt="${escapeHtml(value.alt)}"${value.title ? ` title="${escapeHtml(value.title)}"` : ""}${mediaDimensions(value)} loading="lazy">`
+            : `<span class="rix-output-image-unavailable" role="img" aria-label="${escapeHtml(value.alt)}">[Image unavailable: ${escapeHtml(value.asset.ref)}]</span>`;
+        return value.caption ? `<figure class="rix-output-image-figure"${value.id ? ` id="${escapeHtml(value.id)}"` : ""}>${image}${mediaCaption(value, format)}</figure>` : image;
+    }
+    if (value.kind === "audio" || value.kind === "video") {
+        const src = safeHtmlUrl(value.asset.ref, { media: true });
+        const tag = value.kind;
+        const poster = value.kind === "video" && value.poster ? safeHtmlUrl(value.poster.ref, { media: true }) : null;
+        const media = src
+            ? `<${tag} class="rix-output-${tag}" controls${mediaDimensions(value)}${poster ? ` poster="${escapeHtml(poster)}"` : ""}><source src="${escapeHtml(src)}" type="${escapeHtml(value.asset.mime)}"><a href="${escapeHtml(src)}">${escapeHtml(value.title || value.asset.ref)}</a></${tag}>`
+            : `<span class="rix-output-${tag}-unavailable">[${tag}: ${escapeHtml(value.asset.ref)}]</span>`;
+        const transcript = value.transcript ? `<details class="rix-output-${tag}-transcript"><summary>Transcript</summary><p>${renderInlineSequence(value.transcript, format)}</p></details>` : "";
+        const content = `${value.title ? `<h3>${escapeHtml(value.title)}</h3>` : ""}${media}${transcript}${mediaCaption(value, format)}`;
+        return value.caption ? `<figure class="rix-output-${tag}-figure"${value.id ? ` id="${escapeHtml(value.id)}"` : ""}>${content}</figure>` : `<section class="rix-output-${tag}-asset"${value.id ? ` id="${escapeHtml(value.id)}"` : ""}>${content}</section>`;
+    }
     if (value.kind === "fragment") return `<section class="rix-output-fragment">${value.children.map((child) => renderOutputHtml(child, format)).join("")}</section>`;
     if (value.kind === "control_slider") {
         const dependencies = value.replacesDependencies.length > 0
