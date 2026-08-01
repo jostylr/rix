@@ -188,8 +188,12 @@ function tokenize(input) {
 
     let token = null;
 
-    // Try comments FIRST (before numbers, to avoid # conflicts)
-    token = tryMatchComment(input, position);
+    // Postfix checks/taps must be recognized before ## line and tag comments.
+    token = tryMatchPostfixCheck(input, position);
+    if (!token) {
+      // Try comments FIRST (before numbers, to avoid # conflicts)
+      token = tryMatchComment(input, position);
+    }
     if (!token) {
       // Try to match numbers first (before strings/identifiers)
       token = tryMatchNumber(input, position);
@@ -261,6 +265,17 @@ function tokenize(input) {
   }
 
   return tokens;
+}
+
+function tryMatchPostfixCheck(input, position) {
+  const marker = input.slice(position, position + 3);
+  if (marker !== "##@" && marker !== "##:" && marker !== "##!") return null;
+  return {
+    type: "Symbol",
+    original: marker,
+    value: marker,
+    pos: [position, position, position + marker.length],
+  };
 }
 
 function tryMatchComment(input, position) {

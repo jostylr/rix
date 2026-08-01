@@ -20,7 +20,7 @@ Do not edit `../docs/` by hand. The generated runtime catalog at `reference/syst
 ## Runnable RiX examples
 
 Runnable examples are fenced blocks marked with `exec=true`; blocks containing
-an explicit `##@` assertion or standalone `##` output marker are also checked
+a native `##@` or `##:` RiX check, or a standalone `##` output marker, are also checked
 automatically. Quarto renders the source block, while the documentation build
 executes it through the normal RiX evaluator and inserts any requested output
 below it:
@@ -33,7 +33,7 @@ x + 1 ##@ == 8
 ##
 ```
 
-`##@ expression` evaluates the expression with the preceding result inserted
+`##@ expression` is native RiX syntax and evaluates the expression with the preceding result inserted
 on the left, so `x ##@ == 7` checks equality and `xs ##@ |> isSorted` can use
 a setup-defined predicate. The assertion passes when it returns a non-null
 value. A standalone `##` displays the most recent result. A `##SETUP## ...
@@ -45,8 +45,10 @@ accepted for compatibility. Use
 parser-only example. Ordinary `##` comments and `###` comments are not
 assertions.
 
-Use `##: kind` for a checked structural annotation. Optional brackets check
-the size: `array[5]`, `set[3]`, `map[2]`, `tuple[2]`, or `tensor[2x2]`.
+Use native `##: kind` for a checked structural annotation. Optional brackets
+check the size: `array[5]`, `set[3]`, `map[2]`, `tuple[2]`, or `tensor[2x2]`.
+`##! Debug(...)`, `Trace(...)`, `Info(...)`, and `Log(...)` are native,
+value-preserving diagnostic taps.
 
 Run the checker directly with:
 

@@ -100,6 +100,6 @@ describe("documentation RiX examples", () => {
 
     const [result] = runDocuments([{ file: "guide.qmd", source }]);
     expect(result.status).toBe("fail");
-    expect(result.error).toContain("assertion");
+    expect(result.error).toContain("##@ check failed");
   });
 });

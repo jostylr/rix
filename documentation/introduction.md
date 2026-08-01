@@ -30,38 +30,42 @@ A variable in RiX names a **cell** — a mutable container holding a value and m
 **`=` — Alias / Rebind.** Makes the left-hand side point to the same cell as the right-hand side. If the right side is a variable, both names share the same cell; if it is an expression, a fresh cell is created for the result.
 
 ```rix
-x := 5
-y = x        ## y and x share the same cell
-x += 1       ## both x and y see 6
+x := 5;
+y = x;
+x += 1       ##@ == 6
+y            ##@ == 6
+##
 ```
 
 **`:=` — Fresh Copy.** Creates a new, independent cell with a shallow copy of the value and all meta properties.
 
 ```rix
-x := 5
-y := x       ## y gets its own copy
-x += 1       ## x is 6, y is still 5
+x := 5;
+y := x;
+x += 1       ##@ == 6
+y            ##@ == 5
+##
 ```
 
 **`~=` — In-Place Value Replacement.** Replaces the value inside the existing cell. This preserves cell identity, so aliases still track the change. Ordinary meta (`.key`, `.lock`) is preserved; ephemeral meta (`._mutable`, `._spec`) is replaced wholesale from the right-hand side; sticky meta (`.__units`) is preserved unless the right-hand side supplies the same key.
 
 ```rix
-t := [0]
-t.key = "temperature"
-t.__units = "C"
-t._spec = "sensor formula"
-t ~= 21
-## t.key stays "temperature"
-## t.__units stays "C"
-## t._spec is cleared (rhs had none)
+t := [0];
+t.key = "temperature";
+t.__units = "C";
+t._spec = "sensor formula";
+t ~= 21       ##@ == 21
+t             ##@ == 21
+##
 ```
 
 Sticky semantic metadata also powers RiX's type and trait system. A semantic header such as `{^ /::Rational :ordered/ 7}` applies a registered type and traits to the value. Runtime facts live in `._type` and `._proto`; semantic interpretation lives in `.__type`, `.__traits`, and `.__proto`.
 
 ```rix
-r = 7 ~: :Rational
-r ? :number       ## true because :Rational implies numeric traits
+r = 7 ~: :rational;
+r ? :number       ##@ == 1
 r.Num()           ## type-proto method
+##
 ```
 
 Use `x ~: :Type` for soft conversion, `x ~!: :Type` for strict conversion, and `.TypeExport(x)` / `.TypeImport(m)` for registered type export/import.
@@ -71,31 +75,33 @@ Use `x ~: :Type` for soft conversion, `x ~!: :Type` for strict conversion, and `
 **Combo operators** (`+=`, `-=`, `*=`, `/=`, `//=`, `%=`, `^=`, `++=`, `\/=`, `/\=`, `\=`, `**=`, `/^=`, `/~=`) use `~=` semantics — they update the value in place, so aliases see the change and meta is preserved:
 
 ```rix
-x := 5
-y = x
-x += 1       ## desugars to x ~= x + 1
-## both x and y are 6
+x := 5;
+y = x;
+x += 1       ##@ == 6
+y            ##@ == 6
+##
 ```
 
 The same pattern applies to collection-style operators:
 
 ```rix
-xs := [1, 2]
-ys = xs
-xs ++= [3]
-## ys now sees [1, 2, 3]
+xs := [1, 2];
+ys = xs;
+xs ++= [3];
+ys ##: array[3]
 
-s := {| 1, 2 |}
-s \/= {| 2, 3 |}
-## s is now {| 1, 2, 3 |}
+s := {| 1, 2 |};
+s \/= {| 2, 3 |};
+s ##: set[3]
 
-t := {| 1, 2, 3 |}
-t /\= {| 2, 3, 4 |}
-## t is now {| 2, 3 |}
+t := {| 1, 2, 3 |};
+t /\= {| 2, 3, 4 |};
+t ##: set[2]
 
-u := {| 1, 2, 3 |}
-u \= {| 2 |}
-## u is now {| 1, 3 |}
+u := {| 1, 2, 3 |};
+u \= {| 2 |};
+u ##: set[2]
+##
 ```
 
 Formally, combo updates follow the same cell-preserving model for both local and outer writes:
@@ -213,10 +219,11 @@ This uses the same indexing rules RiX already uses for arrays, tuples, maps, and
 For sequence-like values, bracket slices are interval-based, inclusive, and direction-aware:
 
 ```rix
-a := [10, 20, 30, 40, 50]
-a[2:4]      ## [20, 30, 40]
-a[4:2]      ## [40, 30, 20]
-a[-2:-1]    ## [40, 50]
+a := [10, 20, 30, 40, 50];
+a[2:4]      ##: array[3]
+a[4:2]      ##: array[3]
+a[-2:-1]    ##: array[2]
+##
 ```
 
 ### Semantic Inquiry and Explicit Conversion
@@ -341,11 +348,12 @@ RiX supports ordered multi-variant dispatch. Prep success selects the first matc
 F = [
   (x) ?- [x > 0] /Positive/ -> x,
   (x) /Fallback/ -> -x
-]
+];
 
-F(5)          ## 5
-F(-5)         ## 5
-F[:Positive](5)
+F(5)          ##@ == 5
+F(-5)         ##@ == 5
+F[:Positive](5) ##@ == 5
+##
 ```
 
 Use the explicit `{> ... }` literal when the multifunction is anonymous, inline, or assembled from existing callables:
@@ -466,14 +474,15 @@ RiX distinguishes **value equality** from **cell identity**:
 - `===` tests identity: do these names refer to the **same cell**?
 
 ```rix
-x := 5
-y = x       ## y aliases x — same cell
-z := x      ## z is an independent copy
+x := 5;
+y = x;
+z := x;
 
-x == y      ## 1 (same value)
-x === y     ## 1 (same cell)
-x == z      ## 1 (same value)
+x == y      ##@ == 1
+x === y     ##@ == 1
+x == z      ##@ == 1
 x === z     ## null (different cells, even though equal values)
+##
 ```
 
 This distinction matters for tracking mutations: two names sharing a cell will always agree, but two independent copies will not.
@@ -530,8 +539,11 @@ Semantic `.__proto` is layered so trait methods override type methods, and seman
 
 To define a function, you use the `->` operator. You can either use a named function definition or assign an anonymous lambda to a variable:
 ```rix
-Square(n) -> n ^ 2
-Cube := (n) -> n ^ 3
+Square(n) -> n ^ 2;
+Cube := (n) -> n ^ 3;
+Square(4) ##@ == 16
+Cube(3) ##@ == 27
+##
 ```
 
 #### Receiver-First Methods
@@ -551,21 +563,23 @@ arr.Push!(5)
 For example:
 
 ```rix
-a := [1, 2]
-b := a.Push(5)
-## a is still [1, 2]
-## b is [1, 2, 5]
+a := [1, 2];
+b := a.Push(5);
+a ##: array[2]
+b ##: array[3]
 
-a.Push!(5)
-## a is now [1, 2, 5]
+a.Push!(5);
+a ##: array[3]
+##
 ```
 
 Array methods follow the same mutating/non-mutating pairing. A few common ones:
 
 ```rix
-[1, 2, 3, 4].Slice(2, 4)      ## [2, 3]     (method Slice is end-exclusive)
-[10, 20, 30].SWAP(1, 3)       ## [30, 20, 10]
-[1, 2, 3, 4, 5, 6, 7].MOVE(4:6, 2)   ## [1, 4, 5, 6, 2, 3, 7]
+[1, 2, 3, 4].Slice(2, 4)      ##: array[2]
+[10, 20, 30].SWAP(1, 3)       ##: array[3]
+[1, 2, 3, 4, 5, 6, 7].MOVE(4:6, 2)   ##: array[7]
+##
 ```
 
 `MOVE(indexOrInterval, targetIndex)` removes the selected item(s) first, then inserts them into the shortened array. Positive target indices insert before that position; negative target indices insert after the addressed slot counting from the end.
@@ -583,7 +597,7 @@ SumAll := (...args) -> (args |>: @+[2] )
 SumAll(1, 2, 3)     ## -> 6
 
 ## Spread Arguments
-arr = [1, 2, 3]
+arr = [1, 2, 3];
 SumAll(...arr, 4)   ## -> 10
 
 ## Array Spread
@@ -597,14 +611,14 @@ RiX lets you write mathematical expressions the way you would on paper. When two
 **Implicit multiplication** — lowercase variables and numbers multiply when adjacent:
 
 ```rix
-a := 7
-b := 9
-3a             ## -> 21        (same as 3 * a)
-a b            ## -> 63        (same as a * b)
-5 10           ## -> 50        (same as 5 * 10)
-3(7 + 1)       ## -> 24        (same as 3 * (7 + 1))
-(a + 1)(b - 1) ## -> 64        (same as (a + 1) * (b - 1))
-3x^2           ## -> 3 * (x^2) — exponentiation binds tighter
+a := 7;
+b := 9;
+3a             ##@ == 21
+a b            ##@ == 63
+5 10           ##@ == 50
+3(7 + 1)       ##@ == 24
+(a + 1)(b - 1) ##@ == 64
+##
 ```
 
 Note that `ab` is a single identifier, not `a * b`. Only separate tokens produce multiplication.
@@ -612,32 +626,47 @@ Note that `ab` is a single identifier, not `a * b`. Only separate tokens produce
 **Implicit callable application** — an uppercase function name followed by an adjacent expression calls that function, consuming the **maximal multiplicative chunk** to its right as the argument:
 
 ```rix
-F(n) -> n + 10
-G(n) -> 2 * n
-H(n) -> n - 1
+F(n) -> n + 10;
+G(n) -> 2 * n;
+H(n) -> n - 1;
 
-F 3            ## -> 13        F(3)
-F 3x           ## -> F(3*x)    with x=4: F(12) = 22
-F 3x^2         ## -> F(3*x^2)  with x=4: F(48) = 58
-F 3x + 7       ## -> F(3*x) + 7   chunk stops at +
-F (3x + 7)     ## -> F(3*x + 7)   parens extend past the chunk
+F 3            ##@ == 13
+x := 4;
+F 3x           ##@ == 22
+F 3x^2         ##@ == 58
+F 3x + 7       ##@ == 29
+F (3x + 7)     ##@ == 29
+##
 ```
 
 Application binds tighter than implicit multiplication, so a number before a callable multiplies the call result:
 
 ```rix
-3 F 7          ## -> 51        3 * F(7) = 3 * 17
-2 G 3 + 1      ## -> 13        2 * G(3) + 1 = 2*6 + 1
+##SETUP##
+F(n) -> n + 10;
+G(n) -> 2 * n;
+H(n) -> n - 1;
+x := 4;
+##SETUP##
+3 F 7          ##@ == 51
+2 G 3 + 1      ##@ == 13
+##
 ```
 
 Callables chain right-to-left through adjacent callables:
 
 ```rix
-F G 7          ## -> 24        F(G(7)) = F(14)
-3 F G 7        ## -> 72        3 * F(G(7)) = 3 * 24
-F G x          ## -> F(G(x))   with x=4: F(8) = 18
-3 F G 7 H 9    ## -> 366       3 * F(G(7 * H(9)))
-               ##              H(9)=8, 7*8=56, G(56)=112, F(112)=122, 3*122=366
+##SETUP##
+F(n) -> n + 10;
+G(n) -> 2 * n;
+H(n) -> n - 1;
+x := 4;
+##SETUP##
+F G 7          ##@ == 24
+3 F G 7        ##@ == 72
+F G x          ##@ == 18
+3 F G 7 H 9    ##@ == 366
+##
 ```
 
 A few things that do **not** happen:
@@ -877,10 +906,11 @@ Consecutive or trailing commas produce holes:
 `left ?| right` — returns `left` if it is not a hole, otherwise evaluates and returns `right`.
 
 ```rix
-a := [1,,3]
-a[2] ?| 9      ## → 9  (position 2 is a hole)
-a[1] ?| 9      ## → 1  (position 1 is not a hole)
-a[2] ?| a[3]   ## → 3  (chains naturally: left-associative)
+a := [1,,3];
+a[2] ?| 9      ##@ == 9
+a[1] ?| 9      ##@ == 1
+a[2] ?| a[3]   ##@ == 3
+##
 ```
 
 `?|` is lazy — the right side is not evaluated when the left side is not a hole.
@@ -1032,10 +1062,11 @@ Map keys are canonicalized strings:
 - Strings use their value
 
 ```rix
-m = {= a=5, (1)=10, ("x")=20 }
-m["a"]   ## 5
-m[1]     ## 10   (integer 1 → key "1")
-m["x"]   ## 20
+m = {= a=5, (1)=10, ("x")=20 };
+m["a"]   ##@ == 5
+m[1]     ##@ == 10
+m["x"]   ##@ == 20
+##
 ```
 
 When a map callback receives a key locator `k`, it is a RiX string value consistent with `KEYOF` and `INDEX_GET`.
@@ -1049,10 +1080,11 @@ Sort makes sense for arrays but not maps or sets. There is no canonical ordered 
 Tensor literals use an explicit shape header and row-major order:
 
 ```rix
-m := {:2x3: 1, 2, 3; 4, 5, 6 }
-m[2, 3]            ## 6
-m[1, ::]           ## tensor view of the first row
-m^^                ## transpose view, shape {: 3, 2 }
+m := {:2x3: 1, 2, 3; 4, 5, 6 };
+m[2, 3]            ##@ == 6
+m[1, ::]           ##: tensor[3]
+m^^                ##: tensor[3x2]
+##
 ```
 
 Tensor traversal pipes use the index tuple as the locator:
@@ -1090,7 +1122,7 @@ Plain braces `{ ... }` are **always** interpreted as execution blocks. They exec
   x := 5; 
   y := 10; 
   x + y 
-} ## Returns 15
+} ##@ == 15
 ```
 
 ### Sigilled Braces
@@ -1204,7 +1236,8 @@ sys2 := . \ {|"PRINT"|}   ## withhold a capability (not yet in syntax; use .With
 You can also invoke a system capability using the `@_Name()` form, which is an exact equivalent to `.Name()`:
 
 ```rix
-@_ADD(3, 4)    ## same as .ADD(3, 4) → 7
+x := 0;
+@_ADD(3, 4)    ##@ == 7
 @_ASSIGN(x, 5) ## same as .ASSIGN(x, 5) → sets x
 ```
 
@@ -1244,21 +1277,23 @@ The mapping from operator symbol to system name:
 RiX supports powerful partial application using placeholders `_1`, `_2`, etc. When you call a function and use one or more of these placeholders instead of a value, it returns a **Partial Function**.
 
 ```rix
-Double := @*(_1, 2)
-Double(5) ## Returns 10
+Double := @*(_1, 2);
+Double(5) ##@ == 10
 
 ## Reordering arguments
-SwapSubtract := @-(_2, _1)
-SwapSubtract(10, 30) ## Returns 20 (30 - 10)
+SwapSubtract := @-(_2, _1);
+SwapSubtract(10, 30) ##@ == 20
 
 ## Duplicating arguments
-Square := @*(_1, _1)
-Square(4) ## Returns 16
+Square := @*(_1, _1);
+Square(4) ##@ == 16
+##
 ```
 
 Partial functions are especially useful in pipelines:
 ```rix
-[1, 2, 3] |>> @+(_1, 10) ## [11, 12, 13]
+[1, 2, 3] |>> @+(_1, 10) ##: array[3]
+##
 ```
 
 

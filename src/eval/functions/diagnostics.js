@@ -18,6 +18,7 @@ import {
     isRixArray,
 } from "../../runtime/diagnostics.js";
 import { irToText } from "../ir-to-text.js";
+import { formatValue } from "../format.js";
 import { callWithConcreteArgs } from "./functions.js";
 
 const EMPTY_MAP = Object.freeze({ type: "map", entries: new Map() });
@@ -32,6 +33,22 @@ function toRixString(s) {
 
 function isTruthy(val) {
     return val !== null && val !== undefined;
+}
+
+function inspectValue(value, depth) {
+    if (value === null || value === undefined) return "null";
+    if (depth <= 0 && typeof value === "object") return "…";
+    if (value?.type === "sequence" || value?.type === "tuple" || value?.type === "set") {
+        const open = value.type === "set" ? "{| " : value.type === "tuple" ? "{: " : "[";
+        const close = value.type === "set" ? " |}" : value.type === "tuple" ? " }" : "]";
+        return open + (value.values || []).map((entry) => inspectValue(entry, depth - 1)).join(", ") + close;
+    }
+    if (value?.type === "map") {
+        const entries = Array.from(value.entries || []).map(([key, entry]) => `${key} = ${inspectValue(entry, depth - 1)}`);
+        return `{= ${entries.join(", ")} }`;
+    }
+    if (value?.type === "tensor") return `tensor[${(value.shape || []).join("x")}] ${formatValue(value)}`;
+    return formatValue(value);
 }
 
 /**
@@ -122,6 +139,61 @@ export const INFO = {
         return event;
     },
     doc: "Emit an info event: .Info(label, level ?= 1, dataMap ?= {=})",
+};
+
+// --- Value-preserving diagnostic taps ---
+
+export const INFO_VALUE = {
+    lazy: true,
+    impl(args, context, evaluate) {
+        if (args.length !== 2 && args.length !== 3) {
+            throw new Error(".InfoValue expects label, optional depth, and an expression");
+        }
+        const label = requireString(evaluate(args[0]), ".InfoValue label");
+        const hasDepth = args.length === 3;
+        const depthValue = hasDepth ? evaluate(args[1]) : new Integer(1n);
+        const depth = rixIntValue(depthValue);
+        if (depth === null || depth < 0 || !Number.isInteger(depth)) {
+            throw new Error(".InfoValue depth must be a non-negative integer");
+        }
+        const expression = args[hasDepth ? 2 : 1];
+        const finalValue = evaluate(expression);
+        const data = { type: "map", entries: new Map([
+            ["depth", toRixInt(depth)],
+            ["final", finalValue],
+            ["display", toRixString(inspectValue(finalValue, depth))],
+        ]) };
+        getDiagnostics(context).addEvent(createEvent({
+            kind: "info",
+            label,
+            level: depth,
+            file: getCurrentFilePath(context),
+            data,
+        }));
+        return finalValue;
+    },
+    doc: "Inspect expression value: .InfoValue(label, depth ?= 1, expr) — returns expr value",
+};
+
+export const DUMP = {
+    lazy: true,
+    impl(args, context, evaluate) {
+        if (args.length !== 2) throw new Error(".Dump expects a label and an expression");
+        const label = requireString(evaluate(args[0]), ".Dump label");
+        const finalValue = evaluate(args[1]);
+        const data = { type: "map", entries: new Map([
+            ["final", finalValue],
+            ["display", toRixString(formatValue(finalValue))],
+        ]) };
+        getDiagnostics(context).addEvent(createEvent({
+            kind: "log",
+            label,
+            file: getCurrentFilePath(context),
+            data,
+        }));
+        return finalValue;
+    },
+    doc: "Dump expression value: .Dump(label, expr) — returns expr value",
 };
 
 // --- .Error ---
@@ -818,6 +890,8 @@ export const TEST_STOP = {
 export const diagnosticFunctions = {
     WARN,
     INFO,
+    INFOVALUE: INFO_VALUE,
+    DUMP,
     ERROR,
     STOP,
     TEST,

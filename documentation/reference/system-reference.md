@@ -8,7 +8,7 @@ toc-depth: 2
 This page is generated from the current RiX implementation by `documentation/scripts/generate-reference.js`. Do not edit it by hand. Descriptions come from registry documentation strings; the narrative [syntax guide](../eval/syntax-guide.md) and [methods guide](../eval/methods-guide.md) provide signatures and examples.
 :::
 
-At this revision RiX exposes **171 named entries** on the default system context and registers **207 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
+At this revision RiX exposes **173 named entries** on the default system context and registers **207 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
 
 ## Public system context
 
@@ -57,6 +57,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.DIVUP` | function | — | Ceiling division |
 | `.DOCUMENT_TEMPLATE` | lazy function | — | Create a Fragment from an @""" document template |
 | `.DOUBLEFACTORIAL` | function | Arith | Double factorial of a non-negative integer |
+| `.DUMP` | lazy function | — | Dump expression value: .Dump(label, expr) — returns expr value |
 | `.EMPHASIS` | function | — | Create semantic inline emphasis |
 | `.EQ` | function | Logic | Equality check — returns 1 or null |
 | `.EQUAL` | function | — | Equality check — returns 1 or null |
@@ -82,6 +83,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.IMAGE` | function | — | Create a portable image asset |
 | `.IMPORTJS` | function | — | Import a local JavaScript module for use from a .js.rix startup file |
 | `.INFO` | function | — | Emit an info event: .Info(label, level ?= 1, dataMap ?= {=}) |
+| `.INFOVALUE` | lazy function | — | Inspect expression value: .InfoValue(label, depth ?= 1, expr) — returns expr value |
 | `.INSPECTSPEC` | function | Symbolic | Return the structural inspection map for a symbolic spec |
 | `.INTDIV` | function | Arith | Integer division (floor) |
 | `.INTEGRATE` | function | Symbolic | Integrate a supported symbolic spec or spec-backed function exactly |

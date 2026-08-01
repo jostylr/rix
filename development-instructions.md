@@ -3,8 +3,9 @@
 ## Runnable documentation examples
 
 RiX documentation examples are checked with the normal evaluator before
-Quarto renders the authored documentation. The conventions below are
-documentation metadata; they are not RiX language syntax.
+Quarto renders the authored documentation. `##@`, `##:`, and `##!` are RiX
+language syntax; only `##SETUP##` and standalone `##` output markers are
+documentation conventions.
 
 Use an executable Quarto fence when an example should run:
 
@@ -22,6 +23,8 @@ The supported conventions are:
   on the left. For example, `1 + 1 ##@ == 2` checks equality. The assertion
   passes when it returns a non-null value, so pipelines can use descriptive
   predicates such as `xs ##@ |> isSorted`.
+- `##! Debug("label")`, `Trace("label", depth, vars?)`, `Info("label",
+  depth?)`, and `Log("label")` are value-preserving RiX diagnostic taps.
 - `##SETUP## ... ##SETUP##` evaluates hidden setup code and removes it from the
   normal displayed source.
 - `##: kind` checks the resulting structural kind; optional brackets check

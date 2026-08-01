@@ -53,6 +53,70 @@ import { parse } from "../parser/parser.js";
 import { posToLineCol } from "../parser/tokenizer.js";
 import { lower } from "./lower.js";
 import { isLazySequence, materializeLazySequence } from "../runtime/lazy-sequence.js";
+import { formatValue } from "./format.js";
+
+const POSTFIX_CHECK_VALUE_ENV = "__postfix_check_value__";
+
+function formatCheckValue(value) {
+    try {
+        return formatValue(value);
+    } catch (_error) {
+        return String(value);
+    }
+}
+
+function withPostfixCheckValue(context, value, callback) {
+    const hadPrevious = context.env?.has(POSTFIX_CHECK_VALUE_ENV) === true;
+    const previous = context.getEnv(POSTFIX_CHECK_VALUE_ENV, undefined);
+    context.setEnv(POSTFIX_CHECK_VALUE_ENV, value);
+    try {
+        return callback();
+    } finally {
+        if (hadPrevious) context.setEnv(POSTFIX_CHECK_VALUE_ENV, previous);
+        else context.env?.delete(POSTFIX_CHECK_VALUE_ENV);
+    }
+}
+
+function checkPostfixType(value, spec, context, registry, evaluateValue) {
+    const name = String(spec?.name || "").toLowerCase();
+    const structuralKinds = { array: "sequence", set: "set", map: "map", tuple: "tuple", tensor: "tensor" };
+    const expectedType = spec?.semantic ? null : structuralKinds[name];
+
+    if (!expectedType) {
+        if (!spec?.semantic && name === "number") {
+            const constructor = value?.constructor?.name;
+            if (typeof value === "number" || ["Integer", "Rational", "RationalInterval"].includes(constructor)) return;
+        }
+        const semantic = registry.get("SEMANTIC_HAS");
+        const passed = semantic?.impl([value, name], context, evaluateValue);
+        if (passed === null || passed === undefined) {
+            throw new Error(`##: check failed: expected semantic membership :${name}, received ${formatCheckValue(value)}`);
+        }
+        return;
+    }
+
+    if (value === null || value === undefined || value.type !== expectedType) {
+        throw new Error(`##: check failed: expected ${name}, received ${formatCheckValue(value)}`);
+    }
+
+    const shape = spec?.shape;
+    if (!shape) return;
+    if (name === "tensor") {
+        const actual = Array.from(value.shape || []);
+        if (actual.length !== shape.length || actual.some((dimension, index) => dimension !== shape[index])) {
+            throw new Error(`##: check failed: expected tensor[${shape.join("x")}], received tensor[${actual.join("x")}]`);
+        }
+        return;
+    }
+
+    if (shape.length !== 1) {
+        throw new Error(`##: check failed: ${name} accepts one size, not [${shape.join("x")}]`);
+    }
+    const count = name === "map" ? value.entries?.size : value.values?.length;
+    if (count !== shape[0]) {
+        throw new Error(`##: check failed: expected ${name}[${shape[0]}], received ${name}[${count ?? "?"}]`);
+    }
+}
 
 /**
  * Create the internal operator/language registry (no user-accessible stdlib).
@@ -800,6 +864,25 @@ export function evaluate(irNode, context, registry, systemContext) {
 
         // Bind the recursive evaluator for callbacks
         const evalFn = (node) => evaluate(node, context, registry, systemContext);
+
+        if (fn === "POSTFIX_CHECK_VALUE") {
+            return context.getEnv(POSTFIX_CHECK_VALUE_ENV, null);
+        }
+
+        if (fn === "POSTFIX_PREDICATE_CHECK") {
+            const value = evalFn(args[0]);
+            const passed = withPostfixCheckValue(context, value, () => evalFn(args[1]));
+            if (passed === null || passed === undefined) {
+                throw new Error(`##@ check failed for ${formatCheckValue(value)}`);
+            }
+            return value;
+        }
+
+        if (fn === "POSTFIX_TYPE_CHECK") {
+            const value = evalFn(args[0]);
+            checkPostfixType(value, args[1], context, registry, evalFn);
+            return value;
+        }
 
         // --- System context operations (. prefix syntax) ---
 

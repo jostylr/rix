@@ -1562,12 +1562,22 @@ The RiX parser includes comprehensive support for comments, treating them as fir
 ### Comment Syntax
 
 The parser supports line comments, tagged multi-line comments, and star-counted
-block comments:
+block comments. Three no-space `##` forms are language operators rather than
+comments: `##@` predicate checks, `##:` type/shape checks, and `##!` diagnostic
+taps.
 
 **Line Comments (`##`)**
 ```javascript
 ## This is a line comment
 x = 5  ## Inline comment
+```
+
+`##@`, `##:`, and `##!` do not start comments:
+
+```{.rix exec=false}
+x ##@ > 0
+x ##: number
+x ##! Debug("x")
 ```
 
 **Block Comments (`/* */`)**

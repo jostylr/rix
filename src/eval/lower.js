@@ -268,6 +268,29 @@ const LOWERERS = {
     return ir("NOP");
   },
 
+  PostfixCheckValue() {
+    return ir("POSTFIX_CHECK_VALUE");
+  },
+
+  PostfixPredicateCheck(node) {
+    return ir("POSTFIX_PREDICATE_CHECK", lowerNode(node.expression), lowerNode(node.predicate));
+  },
+
+  PostfixTypeCheck(node) {
+    return ir("POSTFIX_TYPE_CHECK", lowerNode(node.expression), node.spec);
+  },
+
+  PostfixDiagnosticTap(node) {
+    const args = lowerCallArgs(node.arguments);
+    const expression = lowerNode(node.expression);
+    const action = node.action.toLowerCase();
+    if (action === "debug") return ir("SYS_CALL", "Debug", ...args, expression);
+    if (action === "trace") return ir("SYS_CALL", "Trace", ...args, expression);
+    if (action === "info") return ir("SYS_CALL", "InfoValue", ...args, expression);
+    if (action === "log") return ir("SYS_CALL", "Dump", ...args, expression);
+    throw new Error(`Unknown postfix diagnostic action: ${node.action}`);
+  },
+
   // === Arithmetic & Binary Operations ===
 
   BinaryOperation(node) {

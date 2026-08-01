@@ -23,6 +23,9 @@ const PRECEDENCE = {
   EXPONENTIATION: 100, // ^, **
   UNARY: 99, // unary -, +, NOT (below powers, above multiplication)
   CALCULUS: 115, // derivatives ('), integrals (')
+  // Checks bind just below assignment, so `x := y + 2 ##@ > 0` checks the
+  // resulting assigned value rather than only the final literal of the RHS.
+  CHECK: 9, // ##@, ##:, ##! postfix checks and diagnostic taps
   POSTFIX: 120, // function calls, array access
   PROPERTY: 130, // .
 };
@@ -491,6 +494,8 @@ class Parser {
     this.position = 0;
     this.current = null;
     this.skippedComments = [];
+    this.stopExpressionAtOffset = null;
+    this.disablePostfixCheckParsing = false;
     this.advance();
   }
 
@@ -1761,6 +1766,9 @@ class Parser {
 
   parseExpressionRec(left, minPrec, stopAtGenerators = false) {
     while (this.current.type !== "End") {
+      if (this.stopExpressionAtOffset !== null && this.current.pos?.[0] >= this.stopExpressionAtOffset) {
+        break;
+      }
       // Check for statement terminators
       if (
         this.current.value === ";" ||
@@ -1771,6 +1779,19 @@ class Parser {
         this.current.type === "SemicolonSequence"
       ) {
         break;
+      }
+
+      if (!this.disablePostfixCheckParsing && (this.current.value === "##@" || this.current.value === "##:" || this.current.value === "##!")) {
+        if (PRECEDENCE.CHECK < minPrec) break;
+        if (this.current.value === "##@") {
+          left = this.parsePostfixPredicateCheck(left);
+        } else if (this.current.value === "##:") {
+          left = this.parsePostfixTypeCheck(left);
+        } else {
+          left = this.parsePostfixDiagnosticTap(left);
+        }
+        if (left.endsLineAt !== null && this.current.pos?.[0] >= left.endsLineAt) break;
+        continue;
       }
 
 
@@ -1921,6 +1942,113 @@ class Parser {
     }
 
     return left;
+  }
+
+  parsePostfixPredicateCheck(expression) {
+    const marker = this.current;
+    const lineEndAt = this.source.indexOf("\n", marker.pos[2]);
+    const previousStop = this.stopExpressionAtOffset;
+    const previousDisable = this.disablePostfixCheckParsing;
+    this.stopExpressionAtOffset = lineEndAt === -1 ? previousStop : lineEndAt;
+    this.disablePostfixCheckParsing = true;
+    this.advance();
+    const operator = this.current;
+    const symbolInfo = this.getSymbolInfo(operator);
+    if (!symbolInfo || symbolInfo.type !== "infix" || symbolInfo.precedence <= PRECEDENCE.ASSIGNMENT) {
+      this.stopExpressionAtOffset = previousStop;
+      this.disablePostfixCheckParsing = previousDisable;
+      this.error("Expected an infix predicate operator after ##@ (for example ==, >, or |>)");
+    }
+    const checkValue = this.createNode("PostfixCheckValue", {
+      pos: marker.pos,
+      original: "<checked value>",
+    });
+    // Reuse ordinary infix parsing so pipes and other specialized operators
+    // retain their normal AST/lowering behavior.
+    try {
+      const predicate = this.parseInfix(checkValue, symbolInfo);
+      return this.createNode("PostfixPredicateCheck", {
+        expression,
+        predicate,
+        endsLineAt: lineEndAt === -1 ? null : lineEndAt,
+        pos: [expression.pos[0], expression.pos[1], predicate.pos[2]],
+        original: expression.original + marker.original + operator.original + (predicate.right?.original || ""),
+      });
+    } finally {
+      this.stopExpressionAtOffset = previousStop;
+      this.disablePostfixCheckParsing = previousDisable;
+    }
+  }
+
+  parsePostfixTypeCheck(expression) {
+    const marker = this.current;
+    const lineEndAt = this.source.indexOf("\n", marker.pos[2]);
+    this.advance();
+    let name = null;
+    let semantic = false;
+    if (this.current.value === ":") {
+      semantic = true;
+      this.advance();
+    }
+    if (this.current.type !== "Identifier") {
+      this.error("Expected a kind or semantic name after ##:");
+    }
+    name = this.current.value;
+    const nameOriginal = this.current.original;
+    this.advance();
+
+    let shape = null;
+    if (this.current.value === "[") {
+      this.advance();
+      let source = "";
+      while (this.current.value !== "]" && this.current.type !== "End") {
+        source += this.current.original;
+        this.advance();
+      }
+      if (this.current.value !== "]") this.error("Expected closing ] in ##: shape check");
+      this.advance();
+      if (!/^\d+(?:x\d+)*$/i.test(source)) {
+        this.error("Shape checks use positive dimensions such as [3] or [2x2]");
+      }
+      shape = source.toLowerCase().split("x").map((part) => Number(part));
+    }
+
+    return this.createNode("PostfixTypeCheck", {
+      expression,
+      spec: { name, semantic, shape },
+      endsLineAt: lineEndAt === -1 ? null : lineEndAt,
+      pos: [expression.pos[0], expression.pos[1], this.current.pos[0]],
+      original: expression.original + marker.original + (semantic ? ":" : "") + nameOriginal,
+    });
+  }
+
+  parsePostfixDiagnosticTap(expression) {
+    const marker = this.current;
+    const lineEndAt = this.source.indexOf("\n", marker.pos[2]);
+    this.advance();
+    if (this.current.type !== "Identifier") {
+      this.error("Expected Debug, Trace, Info, or Log after ##!");
+    }
+    const action = this.current.value;
+    const actionOriginal = this.current.original;
+    if (!new Set(["debug", "trace", "info", "log"]).has(action.toLowerCase())) {
+      this.error("##! supports Debug, Trace, Info, or Log");
+    }
+    this.advance();
+    if (this.current.value !== "(") this.error("Expected ( after ##! diagnostic action");
+    this.advance();
+    const arguments_ = this.parseFunctionCallArgs();
+    if (this.current.value !== ")") this.error("Expected closing ) in ##! diagnostic tap");
+    const end = this.current.pos[2];
+    this.advance();
+    return this.createNode("PostfixDiagnosticTap", {
+      expression,
+      action,
+      arguments: arguments_,
+      endsLineAt: lineEndAt === -1 ? null : lineEndAt,
+      pos: [expression.pos[0], expression.pos[1], end],
+      original: expression.original + marker.original + actionOriginal + "(...)",
+    });
   }
 
   isGeneratorOperator(value) {
