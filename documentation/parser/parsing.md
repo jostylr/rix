@@ -1561,12 +1561,13 @@ The RiX parser includes comprehensive support for comments, treating them as fir
 
 ### Comment Syntax
 
-The parser supports two types of comments:
+The parser supports line comments, tagged multi-line comments, and star-counted
+block comments:
 
-**Line Comments (`#`)**
+**Line Comments (`##`)**
 ```javascript
-# This is a line comment
-x = 5  # Inline comment
+## This is a line comment
+x = 5  ## Inline comment
 ```
 
 **Block Comments (`/* */`)**
@@ -1577,7 +1578,14 @@ x = 5  # Inline comment
    spanning several lines */
 ```
 
-**Nested Block Comments**
+**Tagged Multi-line Comments**
+```javascript
+##TAG## comment text
+that may span lines
+##tag##
+```
+
+**Star-counted Block Comments**
 ```javascript
 /**outer /* nested inner */ content**/
 /***deeply /* nested /* comment */ structure */ content***/
@@ -1607,19 +1615,19 @@ Each comment produces a dedicated AST node:
 
 **Simple Line Comment**
 ```javascript
-// Input: "# Calculate result"
+// Input: "## Calculate result"
 // AST:
 [{
     type: "Comment",
     value: " Calculate result",
     kind: "comment",
-    original: "# Calculate result"
+    original: "## Calculate result"
 }]
 ```
 
 **Comment Between Expressions**
 ```javascript
-// Input: "x = 5\n# Set variable\ny = 10"
+// Input: "x = 5\n## Set variable\ny = 10"
 // AST:
 [
     { type: "BinaryOperation", operator: "=", ... },

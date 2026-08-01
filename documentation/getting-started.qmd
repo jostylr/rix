@@ -39,6 +39,18 @@ rix> Sq(12)
 144
 ```
 
+Executable documentation examples use the same evaluator as the CLI. A
+trailing `##@` assertion checks a value, and a standalone `##` asks the
+documentation build to render the most recent result:
+
+```{.rix exec=true id=getting-started-rational}
+##SETUP##
+half = x -> x / 2
+##SETUP##
+1 |> half ##@ == 1/2
+##
+```
+
 Useful REPL commands include `.help`, `.vars`, `.fns`, `.ast[expr]`, `.tokens[expr]`, `.load[pkg]`, `.reset`, and `.exit`. End a line with `\` for multiline input.
 
 ## Run a file
@@ -116,4 +128,3 @@ Do not hand-edit `rix/docs/`; edit files in `rix/documentation/` and rebuild.
 - [Complete introduction](introduction.md) for a progressive, in-depth guide
 - [Syntax and system function reference](eval/syntax-guide.md) for exact forms
 - [Implementation status](status.qmd) before relying on an advanced feature
-

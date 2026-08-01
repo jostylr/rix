@@ -16,3 +16,37 @@ bun run preview:docs
 ```
 
 Do not edit `../docs/` by hand. The generated runtime catalog at `reference/system-reference.md` is refreshed by `documentation/scripts/generate-reference.js`.
+
+## Runnable RiX examples
+
+Runnable examples are fenced blocks marked with `exec=true`; blocks containing
+an explicit `##@` assertion or standalone `##` output marker are also checked
+automatically. Quarto renders the source block, while the documentation build
+executes it through the normal RiX evaluator and inserts any requested output
+below it:
+
+```{.rix exec=true id=example-name}
+##SETUP##
+x := 7
+##SETUP##
+x + 1 ##@ == 8
+##
+```
+
+`##@ expression` evaluates the expression with the preceding result inserted
+on the left, so `x ##@ == 7` checks equality and `xs ##@ |> isSorted` can use
+a setup-defined predicate. The assertion passes when it returns a non-null
+value. A standalone `##` displays the most recent result. A `##SETUP## ...
+##SETUP##` block is executed as hidden setup and removed from the displayed
+source. In HTML output, a “Show setup code” disclosure provides an escape hatch;
+setup is suppressed in PDF output. The older `/*** ... ***/` form remains
+accepted for compatibility. Use
+`expect-error="text"` for an example that must fail, and `parse=true` for a
+parser-only example. Ordinary `##` comments and `###` comments are not
+assertions.
+
+Run the checker directly with:
+
+```sh
+bun run docs:examples
+```

@@ -652,11 +652,11 @@ Examples:
 
 ```rix
 {;
-    a := 1
-    {! 5}
+    a := 1;
+    {! 5};
     99
 }
-## => 5
+##@ == 5
 
 {@:100@
     i := 0;
@@ -664,7 +664,7 @@ Examples:
     {? i < 3 ? _; {!@ i} };
     i += 1
 }
-## => 3
+##@ == 3
 
 {;outer;
     {;inner;
@@ -672,7 +672,7 @@ Examples:
     };
     9
 }
-## => 5
+##@ == 5
 ```
 
 Scoping inside a break block is intentionally asymmetric:
@@ -686,11 +686,11 @@ When a scope-creating construct (loop, `.Test`, etc.) evaluates a sub-part that 
 
 ```rix
 ## These are equivalent — the init block shares the loop's scope:
-{@ x = 1; x < 4; x; x += 1 }          ## => 3
-{@ {; x = 1 }; x < 4; x; x += 1 }     ## => 3
+{@ x = 1; x < 4; x; x += 1 }          ##@ == 3
+{@ {; x = 1 }; x < 4; x; x += 1 }     ##@ == 3
 
 ## All five loop parts can be code blocks:
-{@ {; i = 0; j = 10 }; {; i < 3 }; {; i + j }; {; i += 1 }; {; i + j } }  ## => 13
+{@ {; i = 0; j = 10 }; {; i < 3 }; {; i + j }; {; i += 1 }; {; i + j } }  ##@ == 13
 ```
 
 To get a genuinely isolated block inside a construct position, use nested braces. The outer block shares the construct's scope, but the inner block creates its own:

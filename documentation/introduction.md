@@ -672,17 +672,17 @@ More generally, when a code block appears as a sub-part of any scope-creating co
 
 ```rix
 ## The init block shares the loop's scope — x is visible everywhere:
-{@ {; x = 0; y = 10 }; x < 3; x + y; x += 1 }   ## => 12
+{@ {; x = 0; y = 10 }; x < 3; x + y; x += 1 }   ##@ == 12
 
 ## Equivalent to writing it without a block:
-{@ x = 0; x < 3; x; x += 1 }                      ## => 2
+{@ x = 0; x < 3; x; x += 1 }                      ##@ == 2
 ```
 
 Inside temporal brace containers such as loops and explicit blocks, a comma can sequence multiple expressions inside one semicolon-delimited slot. It evaluates left-to-right in the current scope and returns the final expression, without creating a new block scope:
 
 ```rix
-{@ i = 1, j = 3; i < j; i + j; i += 1 }            ## => 5
-{; x = 1, x += 2, x + 4 }                          ## => 7
+{@ i = 1, j = 3; i < j; i + j; i += 1 }            ##@ == 5
+{; x = 1, x += 2, x + 4 }                          ##@ == 7
 ```
 
 To create an isolated block inside a construct position, use nested braces — the outer block shares scope, the inner one isolates:
@@ -1136,7 +1136,7 @@ The three-part form omits the separate update slot. Use it when the body is the 
 The five-part form adds an `after` slot: `{@ init; condition; body; update; after }`. The `after` slot runs once after the condition becomes false, shares the loop scope, and its value becomes the loop result. This is useful for returning accumulated loop-local state:
 
 ```rix
-{@ i = 0, total = 0; i < 4; total += i; i += 1; total }  ## => 6
+{@ i = 0, total = 0; i < 4; total += i; i += 1; total }  ##@ == 6
 ```
 
 `BREAK` exits the loop immediately and skips the `after` slot, so the break value remains the loop result.

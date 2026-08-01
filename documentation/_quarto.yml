@@ -52,6 +52,9 @@ project:
     - design/parser/questions.md
     - report-2026-04-02.md
 
+filters:
+  - scripts/rix-examples.lua
+
 website:
   title: "RiX"
   site-url: https://jostylr.github.io/rix/

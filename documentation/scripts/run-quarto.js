@@ -18,6 +18,18 @@ mkdirSync(resolve(cacheRoot, ".cache"), { recursive: true });
 mkdirSync(resolve(cacheRoot, "quarto-cache"), { recursive: true });
 mkdirSync(resolve(cacheRoot, "deno"), { recursive: true });
 
+const exampleResults = resolve(rixRoot, "tmp/quarto-doc-examples.json");
+const examples = Bun.spawn(
+    ["bun", "./documentation/scripts/check-examples.js", "documentation", "development-instructions.md", "--write", exampleResults],
+  {
+    cwd: rixRoot,
+    stdout: "inherit",
+    stderr: "inherit",
+  },
+);
+const examplesExitCode = await examples.exited;
+if (examplesExitCode !== 0) process.exit(examplesExitCode);
+
 const child = Bun.spawn(
   ["quarto", mode, "./documentation", ...process.argv.slice(3)],
   {
@@ -28,6 +40,7 @@ const child = Bun.spawn(
       XDG_CACHE_HOME: resolve(cacheRoot, ".cache"),
       QUARTO_CACHE_DIR: resolve(cacheRoot, "quarto-cache"),
       DENO_DIR: resolve(cacheRoot, "deno"),
+      RIX_DOC_EXAMPLES_RESULTS: exampleResults,
     },
     stdin: "inherit",
     stdout: "inherit",
