@@ -33,6 +33,21 @@ describe("documentation RiX examples", () => {
     expect(result.assertions).toBe(1);
   });
 
+  test("checks structural kind annotations and sizes", () => {
+    const source = [
+      "```{.rix exec=true id=kind-examples}",
+      "[1, 2, 3] ##: array[3]",
+      "{| 1, 2, 3 |} ##: set[3]",
+      "{= name = \"Ada\", age = 37 } ##: map[2]",
+      "{: 2, 3 } ##: tuple[2]",
+      "{:2x2: 1, 2; 3, 4 } ##: tensor[2x2]",
+      "```",
+    ].join("\n");
+
+    const [result] = runDocuments([{ file: "guide.qmd", source }]);
+    expect(result.status).toBe("pass");
+  });
+
   test("executes hidden setup without including it in the visible source", () => {
     const source = [
       "```{.rix exec=true id=setup-example}",

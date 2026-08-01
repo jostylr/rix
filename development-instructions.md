@@ -24,6 +24,9 @@ The supported conventions are:
   predicates such as `xs ##@ |> isSorted`.
 - `##SETUP## ... ##SETUP##` evaluates hidden setup code and removes it from the
   normal displayed source.
+- `##: kind` checks the resulting structural kind; optional brackets check
+  size, for example `array[5]`, `set[3]`, `map[2]`, `tuple[2]`, or
+  `tensor[2x2]`.
 - A standalone `##` displays the most recent result below the code block.
 - `### ...` is an ordinary explanatory comment and is not checked.
 

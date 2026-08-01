@@ -28,6 +28,7 @@ import { Context } from "../../src/runtime/context.js";
  * RiX-level documentation conventions:
  *   ##SETUP## ... ##SETUP## hidden setup, executed but not displayed
  *   expression ##@ == val  assertion applied to that expression's value
+ *   expression ##: array[5] checked structural kind and optional size
  *   ##                     display the most recent result
  *   ### ...                ordinary unchecked comment
  */
@@ -159,6 +160,32 @@ function evaluateAssertion(expression, value, runtime) {
   }
 }
 
+function checkKind(value, kind, size) {
+  const expectedType = kind === "array" ? "sequence" : kind;
+  if (value === null || value === undefined || value.type !== expectedType) {
+    throw new Error(`expected ${kind}, received ${value?.type || "null"}`);
+  }
+
+  if (size === undefined) return;
+  const dimensions = size.split("x").map((part) => Number(part.trim()));
+  if (dimensions.some((dimension) => !Number.isInteger(dimension) || dimension < 0)) {
+    throw new Error(`invalid ${kind} size ${JSON.stringify(size)}`);
+  }
+
+  if (kind === "tensor") {
+    const actualShape = Array.from(value.shape || []);
+    if (actualShape.length !== dimensions.length || actualShape.some((dimension, index) => dimension !== dimensions[index])) {
+      throw new Error(`expected tensor[${size}], received tensor[${actualShape.join("x")}]`);
+    }
+    return;
+  }
+
+  const count = kind === "map" ? value.entries?.size : value.values?.length;
+  if (count !== dimensions[0] || dimensions.length !== 1) {
+    throw new Error(`expected ${kind}[${size}], received ${kind}[${count ?? "?"}]`);
+  }
+}
+
 function processAssertions(source, runtime) {
   const lines = source.split("\n");
   const pending = [];
@@ -190,6 +217,18 @@ function processAssertions(source, runtime) {
       continue;
     }
 
+    const kindAnnotation = line.match(/^(.*?)\s+##:\s*([A-Za-z][A-Za-z0-9_-]*)(?:\[([^\]]+)\])?\s*$/)
+      || line.match(/^\s*##:\s*([A-Za-z][A-Za-z0-9_-]*)(?:\[([^\]]+)\])?\s*$/);
+    if (kindAnnotation) {
+      const code = kindAnnotation.length === 3 ? "" : kindAnnotation[1];
+      const kind = kindAnnotation.length === 3 ? kindAnnotation[1] : kindAnnotation[2];
+      const size = kindAnnotation.length === 3 ? kindAnnotation[2] : kindAnnotation[3];
+      if (!isBlank(code)) pending.push(code);
+      const value = flush();
+      checkKind(value, kind.toLowerCase(), size);
+      continue;
+    }
+
     if (/^\s*##\s*$/.test(line)) {
       const value = flush();
       outputs.push(displayValue(value === undefined ? lastValue : value));
@@ -205,7 +244,7 @@ function processAssertions(source, runtime) {
 
 function shouldRun(fence) {
   if (fence.attrs.exec !== undefined) return boolAttr(fence.attrs.exec);
-  return boolAttr(fence.attrs.parse) || /##@|^\s*##\s*$/m.test(fence.source);
+  return boolAttr(fence.attrs.parse) || /##@|##:\s*[A-Za-z]|^\s*##\s*$/m.test(fence.source);
 }
 
 function createRuntime(file, sessionRuntime, session) {

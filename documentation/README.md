@@ -45,6 +45,9 @@ accepted for compatibility. Use
 parser-only example. Ordinary `##` comments and `###` comments are not
 assertions.
 
+Use `##: kind` for a checked structural annotation. Optional brackets check
+the size: `array[5]`, `set[3]`, `map[2]`, `tuple[2]`, or `tensor[2x2]`.
+
 Run the checker directly with:
 
 ```sh
