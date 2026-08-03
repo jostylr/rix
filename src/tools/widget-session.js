@@ -271,6 +271,7 @@ function controlValue(control, event) {
     }
     if (control.kind === "control_range") return rangeValue(control, event.indices);
     if (control.kind === "control_reset") return control.initial;
+    if (control.kind === "control_action") return control.run();
     if (control.kind === "control_input") {
         if (!("value" in event)) throw new Error("Control input requires an evaluated RiX value");
         return event.value;
@@ -361,10 +362,10 @@ export class ControlPanelWidgetSession {
             }));
             return commitControlEdits(edits);
         }
-        if (event?.type !== "control:set") {
+        if (event?.type !== "control:set" && event?.type !== "control:action") {
             throw new Error(`Unsupported ControlPanel widget event: ${event?.type || "missing type"}`);
         }
-        const edit = resolveControlEdit(this.controls, event);
+        const edit = resolveControlEdit(this.controls, { ...event, type: "control:set" });
         const { control, value, replacedDependencies } = edit;
         control.target.replaceValue(value, {
             source: "widget",

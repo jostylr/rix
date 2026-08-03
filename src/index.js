@@ -24,10 +24,10 @@ export {
     createSection, createList, createListItem, createQuote, createCallout, createCodeBlock, createMathBlock,
     createAsset, createImage, createAudio, createVideo,
     createControlPanelSnapshot, serializeControlPanel, renderControlPanelStaticHtml, renderControlPanelMarkdown,
-    createAlgebraOutputCollection, createGraphicsOutputCollection, createControlsOutputCollection, createSyntheticDivision, createPlotOutputCollection,
+    createAlgebraOutputCollection, createGraphicsOutputCollection, createTimelineOutputCollection, createControlsOutputCollection, createSyntheticDivision, createPlotOutputCollection,
     createPolynomialPlot, createGroup, createTransform, createTextMark,
     createRectangle, createCircle, createDragPoint, createClip, createSliderControl, createInputControl,
-    createChoiceControl, createToggleControl, createRangeControl, createResetControl, createControlPanel,
+    createChoiceControl, createToggleControl, createRangeControl, createResetControl, createActionControl, createControlPanel, createSnapshots, createTimelineSequence, createTimelineRender,
 } from "./runtime/index.js";
 export { createDrawPluginCollection, installDrawPlugin } from "../plugins/draw/draw.plugin.rix.js";
 export { installPlotPlugin } from "../plugins/plot/plot.plugin.rix.js";

@@ -5,6 +5,12 @@ body { margin: 0; background: Canvas; color: CanvasText; }
 .rix-output-control-panel { display: grid; gap: .8rem; max-width: 42rem; padding: 1rem; margin: 1rem 0; border: 1px solid color-mix(in srgb, CanvasText 25%, transparent); border-radius: .6rem; }
 .rix-output-control-list { display: grid; gap: .65rem; }
 .rix-output-control { display: grid; grid-template-columns: minmax(7rem, 1fr) minmax(10rem, 2fr) auto; gap: .6rem; align-items: center; }
+.rix-output-control[data-rix-control-density="compact"] { gap: .3rem; font-size: .9rem; }
+.rix-output-control[data-rix-control-width="compact"] { max-width: 26rem; }
+.rix-output-control[data-rix-control-width="full"] { max-width: none; }
+.rix-output-control[data-rix-control-variant="primary"] button { background: #0c7b7f; color: white; border-color: #0c7b7f; }
+.rix-output-control[data-rix-control-variant="danger"] button { background: #b42318; color: white; border-color: #b42318; }
+.rix-output-control[data-rix-control-variant="quiet"] button { background: transparent; color: inherit; }
 .rix-output-control input[type="range"] { width: 100%; }
 .rix-output-control-value { min-width: 5rem; font-family: ui-monospace, monospace; }
 .rix-output-control-status { min-height: 1.2rem; color: color-mix(in srgb, CanvasText 70%, transparent); }
@@ -14,4 +20,10 @@ body { margin: 0; background: Canvas; color: CanvasText; }
 .rix-output-grid tr.rix-grid-rule-top td { border-top: 2px solid color-mix(in srgb, CanvasText 72%, transparent); }
 .rix-output-graphic { max-width: 100%; margin: 1rem 0; }
 .rix-output-graphic svg { max-width: 100%; height: auto; }
-@media (max-width: 650px) { #rix-app { padding: 1rem; } .rix-output-control { grid-template-columns: 1fr; } }
+.rix-output-snapshots { margin: 1.25rem 0; }
+.rix-output-snapshot-grid { display: grid; grid-template-columns: repeat(var(--rix-snapshot-columns), minmax(0, 1fr)); gap: 1rem; align-items: start; }
+.rix-output-snapshot { min-width: 0; margin: 0; padding: .7rem; border: 1px solid color-mix(in srgb, CanvasText 20%, transparent); border-radius: .55rem; }
+.rix-output-snapshot .rix-output-graphic { margin: 0; }
+.rix-output-snapshot-label { margin: .45rem 0 0; color: color-mix(in srgb, CanvasText 72%, transparent); font-size: .9rem; }
+.rix-output-timeline-caption, .rix-output-snapshots-caption { color: color-mix(in srgb, CanvasText 70%, transparent); }
+@media (max-width: 650px) { #rix-app { padding: 1rem; } .rix-output-control { grid-template-columns: 1fr; } .rix-output-snapshot-grid { grid-template-columns: 1fr; } }

@@ -55,6 +55,7 @@ export {
     renderControlPanelMarkdown,
     createAlgebraOutputCollection,
     createGraphicsOutputCollection,
+    createTimelineOutputCollection,
     createControlsOutputCollection,
     createSyntheticDivision,
     createPlotOutputCollection,
@@ -71,7 +72,11 @@ export {
     createToggleControl,
     createRangeControl,
     createResetControl,
+    createActionControl,
     createControlPanel,
+    createSnapshots,
+    createTimelineSequence,
+    createTimelineRender,
     createClip,
 } from "./output.js";
 export {

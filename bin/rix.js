@@ -21,6 +21,7 @@ import {
     createDefaultRegistry,
     createDefaultSystemContext,
     parseAndEvaluate,
+    renderOutputHtml,
     getDiagnostics,
     isRixAbort,
     complete,
@@ -125,6 +126,14 @@ function pageHtml({ source, sourcePath, title, plugins }) {
 <body><main id="rix-app"><noscript>This RiX page needs JavaScript enabled.</noscript></main><script>globalThis.__RIX_PAGE__=${config};</script><script src="assets/rix-page.js"></script></body></html>\n`;
 }
 
+function staticPageHtml({ value, title, context }) {
+    const escapedTitle = title.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+    const body = renderOutputHtml(value, (item) => formatResult(item, { context }));
+    return `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escapedTitle}</title><link rel="stylesheet" href="assets/rix-page.css"></head>
+<body><main id="rix-app">${body}</main></body></html>\n`;
+}
+
 function browserNodeShims() {
     return {
         name: "rix-browser-node-shims",
@@ -178,11 +187,9 @@ async function writeArtifacts({ outDir, artifacts, source, sourcePath, plugins, 
     const resolvedOutDir = path.resolve(outDir);
     mkdirSync(resolvedOutDir, { recursive: true });
     const htmlArtifacts = artifacts.filter(({ path: artifactPath }) => /\.html?$/i.test(artifactPath));
-    if (htmlArtifacts.length > 1) {
-        throw new Error("A RiX program currently supports one .html .Out artifact; use separate programs for separate interactive pages");
-    }
-    if (htmlArtifacts.length === 1 && htmlArtifacts[0].value !== result) {
-        throw new Error("The .html .Out artifact must be the program's final expression so its reactive view can be exported");
+    const interactiveArtifacts = htmlArtifacts.filter((artifact) => artifact.value === result);
+    if (interactiveArtifacts.length > 1) {
+        throw new Error("Only one .html .Out artifact can be the final reactive view");
     }
     if (htmlArtifacts.length > 0) await buildBrowserRuntime(resolvedOutDir);
     const written = [];
@@ -190,12 +197,10 @@ async function writeArtifacts({ outDir, artifacts, source, sourcePath, plugins, 
         const target = validateArtifactPath(resolvedOutDir, artifact.path);
         mkdirSync(path.dirname(target), { recursive: true });
         if (/\.html?$/i.test(artifact.path)) {
-            writeFileSync(target, pageHtml({
-                source,
-                sourcePath,
-                title: path.basename(artifact.path, path.extname(artifact.path)),
-                plugins,
-            }));
+            const title = path.basename(artifact.path, path.extname(artifact.path));
+            writeFileSync(target, artifact.value === result
+                ? pageHtml({ source, sourcePath, title, plugins })
+                : staticPageHtml({ value: artifact.value, title, context }));
         } else {
             writeFileSync(target, `${formatResult(artifact.value, { context })}\n`);
         }

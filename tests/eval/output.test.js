@@ -101,6 +101,95 @@ describe("portable structured output", () => {
         expect(html).toContain('data-rix-control-endpoint="low"');
     });
 
+    test("ControlPanel styling applies panel rules and lets the control override them", () => {
+        const panel = parseAndEvaluate(`
+            $$x := 1;
+            $$history := [];
+            .ControlPanel({=
+                style={=
+                    all={= density="compact", width="full" },
+                    kinds={= slider={= variant="quiet" }, action={= variant="primary" } },
+                    ids={= clear={= variant="danger" } }
+                },
+                controls=[
+                    .Controls.Slider({= target=$$x, interval=0:3, step=1, id="coefficient" }),
+                    .Controls.Action({= target=$$history, id="freeze", label="Freeze", action=items -> items, style={= variant="quiet" } }),
+                    .Controls.Action({= target=$$history, id="clear", label="Clear", action=items -> [] })
+                ]
+            })
+        `);
+        const html = renderOutputHtml(panel, formatValue);
+        expect(panel.controls[0].style).toBeNull();
+        expect(panel.controls[1].style).toBeInstanceOf(Map);
+        expect(html).toContain('data-rix-control-id="coefficient" data-rix-control-target=');
+        expect(html).toContain('data-rix-control-variant="quiet"');
+        expect(html).toContain('data-rix-control-id="freeze" data-rix-control-target=');
+        expect(html).toContain('data-rix-control-id="clear" data-rix-control-target=');
+        expect(html).toContain('data-rix-control-variant="danger"');
+        expect(html).toContain('data-rix-control-density="compact"');
+        expect(html).toContain('data-rix-control-width="full"');
+    });
+
+    test("ControlPanel Action renders an interactive button", () => {
+        const panel = parseAndEvaluate(`
+            $$history := [];
+            .ControlPanel([.Controls.Action({=
+                target=$$history,
+                id="freeze",
+                label="Freeze quadratic",
+                action=items -> items
+            })])
+        `);
+        const html = renderOutputHtml(panel, formatValue);
+        expect(html).toContain('data-rix-control-kind="action"');
+        expect(html).toContain('data-rix-control-id="freeze"');
+        expect(html).toContain('data-rix-control-input aria-label="Freeze quadratic"');
+        expect(html).toContain('>Freeze quadratic</button>');
+    });
+
+    test("Snapshots materializes tuple-based scenes as a static comic grid", () => {
+        const snapshots = parseAndEvaluate(`
+            scene = state -> .Paragraph(@"center @{state}");
+            .Snapshots({=
+                title="Shared centers",
+                columns=2,
+                entries=[{: scene, [-1, 0]}, {: scene, [1]}]
+            })
+        `);
+        expect(snapshots.kind).toBe("snapshots");
+        expect(snapshots.items).toHaveLength(3);
+        expect(formatValue(snapshots.items[0].state)).toBe("-1");
+        expect(renderOutputHtml(snapshots, formatValue)).toContain('class="rix-output-snapshot-grid"');
+        expect(renderOutputHtml(snapshots, formatValue)).toContain('style="--rix-snapshot-columns:2"');
+        expect(formatValue(snapshots)).toContain("center 0");
+    });
+
+    test("Graphics.Snapshots and Timeline preserve state scenes for static renderers", () => {
+        const rendered = parseAndEvaluate(`
+            scene = state -> .Paragraph(@"frame @{state}");
+            timeline := .Timeline.Sequence({=
+                title="Center motion",
+                duration=2,
+                entries=[{: scene, [-1, 0, 1]}]
+            });
+            .Timeline.Render(timeline, 2)
+        `);
+        expect(rendered.kind).toBe("timeline_render");
+        expect(rendered.frame).toBe(2);
+        expect(rendered.timeline.frames).toHaveLength(3);
+        expect(formatValue(rendered.content)).toContain("frame 0");
+        const html = renderOutputHtml(rendered, formatValue);
+        expect(html).toContain('data-rix-timeline-frame="2"');
+        expect(html).toContain("Frame 2 of 3");
+
+        const graphicsSnapshots = parseAndEvaluate(`
+            scene = state -> .Paragraph(@"graphic state @{state}");
+            .Graphics.Snapshots([{: scene, [1, 2]}], 2)
+        `);
+        expect(graphicsSnapshots.kind).toBe("snapshots");
+        expect(graphicsSnapshots.items).toHaveLength(2);
+    });
+
     test("ControlPanel staged mode renders explicit atomic apply and discard actions", () => {
         const panel = parseAndEvaluate(`
             $$x := 1;
@@ -805,6 +894,18 @@ describe("portable structured output", () => {
         expect(html).toContain("linear part</text>");
         expect(html).toContain("center = 1/2</text>");
         expect(html).toContain("f(1/2) = -3/4)");
+    });
+
+    test("the plot plugin accepts a fixed yDomain for stable axes", () => {
+        const plot = parseAndEvaluate(`
+            .Plugin.Load("plot");
+            .plot.Polynomial([5, 8, 8], [-6, 6], {= size=[400, 240], margin=20, yDomain=[-256, 256] })
+        `);
+        const [horizontalAxis, verticalAxis] = plot.children;
+        expect(horizontalAxis.points.map(([, y]) => y)).toEqual([120, 120]);
+        expect(verticalAxis.points.map(([x]) => x)).toEqual([200, 200]);
+        expect(() => parseAndEvaluate('.Plugin.Load("plot"); .plot.Polynomial([1, 0], [-1, 1], {= yDomain=[1, 1] })'))
+            .toThrow("yDomain must increase");
     });
 
     test("Graphics.Path preserves renderer-independent curve and arc commands", () => {

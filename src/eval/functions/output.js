@@ -2,10 +2,11 @@ import { parse } from "../../parser/parser.js";
 import { lower } from "../lower.js";
 import { formatValue } from "../format.js";
 import { Integer } from "@ratmath/core";
-import { createAsset, createAudio, createCallout, createCode, createCodeBlock, createControlPanel, createEmphasis, createFigure, createFragment, createGrid, createHeading, createImage, createLineBreak, createLink, createList, createListItem, createMath, createMathBlock, createParagraph, createQuote, createSection, createSheet, createSlide, createSlides, createStrong, createTable, createText, createVideo, isInlineOutput, isOutputValue } from "../../runtime/output.js";
+import { createAsset, createAudio, createCallout, createCode, createCodeBlock, createControlPanel, createEmphasis, createFigure, createFragment, createGrid, createHeading, createImage, createLineBreak, createLink, createList, createListItem, createMath, createMathBlock, createParagraph, createQuote, createSection, createSheet, createSlide, createSlides, createSnapshots, createStrong, createTable, createText, createVideo, isInlineOutput, isOutputValue } from "../../runtime/output.js";
 import { createBinding } from "../../runtime/binding.js";
 import { createLiveView } from "../../runtime/reactive-view.js";
 import { isReactiveNode, REACTIVE_READ_ENV } from "../../runtime/reactive-graph.js";
+import { callWithConcreteArgs } from "./functions.js";
 
 const capability = (impl, doc) => ({ impl: (args) => impl(args), pure: true, doc });
 
@@ -562,6 +563,13 @@ export const outputFunctions = {
     PARAGRAPH: capability(createParagraph, "Create a portable paragraph output node"),
     HEADING: capability(createHeading, "Create a portable document heading"),
     FRAGMENT: capability(createFragment, "Compose portable output values"),
+    SNAPSHOTS: {
+        pure: true,
+        doc: "Materialize [scene, states] tuples into a portable static snapshot grid",
+        impl(args, context, evaluate) {
+            return createSnapshots(args, { context, evaluate, invoke: callWithConcreteArgs });
+        },
+    },
     EMPHASIS: capability(createEmphasis, "Create semantic inline emphasis"),
     STRONG: capability(createStrong, "Create semantic inline strong content"),
     CODE: capability(createCode, "Create literal inline code"),

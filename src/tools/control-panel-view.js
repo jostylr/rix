@@ -127,6 +127,15 @@ function enhancePanel(panel, options) {
             continue;
         }
 
+        if (kind === "action") {
+            input.addEventListener("click", () => commit({
+                ...identity(),
+                type: "control:action",
+                source: "action",
+            }));
+            continue;
+        }
+
         if (kind === "choice") {
             input.addEventListener("change", () => commit({
                 ...identity(),

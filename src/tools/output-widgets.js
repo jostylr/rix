@@ -14,6 +14,8 @@ import { createWidgetSession } from "./widget-session.js";
 function childOutputs(value) {
     if (!isOutputValue(value)) return [];
     if (value.kind === "fragment") return value.children;
+    if (value.kind === "snapshots") return value.items.map((item) => item.content);
+    if (value.kind === "timeline_render") return [value.content];
     if (value.kind === "figure" || value.kind === "slide") return [value.content];
     if (value.kind === "slides") return value.slides;
     return [];

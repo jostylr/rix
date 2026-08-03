@@ -8,27 +8,41 @@ $$a := 1;
 $$b := -3;
 $$c := 2;
 $$center := 1/2;
+$$color := "#0c7b7f";
+$$frozen := [];
 
 $$view := {;
     av := $a;
     bv := $b;
     cv := $c;
     d := $center;
+    currentColor := $color;
+    frozenVersions := $frozen;
     P := x -> av*x^2 + bv*x + cv;
     slope := bv + 2*av*d;
     value := P(d);
     centerTerm := d < 0 ?? @"x + @{0 - d}" ?: @"x - @{d}";
-    plotDomain := [d - 4, d + 4];
+    ## These symmetric bounds cover every value reachable by the sliders:
+    ## |a| <= 5, |b| <= 8, |c| <= 8, and |center| <= 3.
+    ## They keep the origin fixed at the centre of every rendered graph.
+    plotDomain := [-6, 6];
+    plotSeries := [{=
+        coefficients=[slope, value - slope*d],
+        label="linear part",
+        stroke="#b45309",
+        width=2
+    }].Concat(frozenVersions.Map(version -> {=
+        coefficients=version["coefficients"],
+        label=version["label"],
+        stroke=version["color"],
+        width=2
+    }));
     plot := .plot.Polynomial([av, bv, cv], plotDomain, {=
         size=[620, 320],
+        yDomain=[-256, 256],
         label="quadratic",
-        stroke="#0c7b7f",
-        series=[{=
-            coefficients=[slope, value - slope*d],
-            label="linear part",
-            stroke="#b45309",
-            width=2
-        }],
+        stroke=currentColor,
+        series=plotSeries,
         ticks=[{= x=d, label=@"center = @{d}" }],
         marks=[{=
             point=[d, value],
@@ -44,11 +58,37 @@ $$view := {;
         .ControlPanel({=
             title="Coefficients and center",
             description="Each slider recomputes the centered form immediately.",
+            style={=
+                kinds={= action={= variant="primary" } },
+                ids={= ("clear-frozen")={= variant="danger" } }
+            },
             controls=[
                 .Controls.Slider($$a, -5:5, 1, "a"),
                 .Controls.Slider($$b, -8:8, 1, "b"),
                 .Controls.Slider($$c, -8:8, 1, "c"),
-                .Controls.Slider($$center, -3:3, 1/2, "center")
+                .Controls.Slider($$center, -3:3, 1/2, "center"),
+                .Controls.Choice($$color, [
+                    {= value="#0c7b7f", label="teal" },
+                    {= value="#7c3aed", label="violet" },
+                    {= value="#be123c", label="crimson" },
+                    {= value="#2563eb", label="blue" }
+                ], "quadratic color"),
+                .Controls.Action({=
+                    id="freeze",
+                    target=$$frozen,
+                    action=versions -> versions ++ [{=
+                        coefficients=[av, bv, cv],
+                        color=currentColor,
+                        label=@"frozen @{versions.Len() + 1}"
+                    }],
+                    label="Freeze quadratic"
+                }),
+                .Controls.Action({=
+                    id="clear-frozen",
+                    target=$$frozen,
+                    action=versions -> [],
+                    label="Clear frozen curves"
+                })
             ]
         }),
         .Heading(2, "Centered form"),
@@ -61,4 +101,49 @@ $$view := {;
     ])
 };
 
+## A static 3×3 comparison: each row is a different quadratic and every
+## column uses the same center. This is the same portable output a future PDF
+## exporter will lay out as a comic strip.
+comicScene := state -> {;
+    av := state["a"];
+    bv := state["b"];
+    cv := state["c"];
+    d := state["center"];
+    P := x -> av*x^2 + bv*x + cv;
+    slope := bv + 2*av*d;
+    value := P(d);
+    .Figure(.plot.Polynomial([av, bv, cv], [-6, 6], {=
+        size=[360, 220],
+        yDomain=[-256, 256],
+        stroke=state["color"],
+        series=[{= coefficients=[slope, value - slope*d], label="linear part", stroke="#b45309", width=2 }],
+        ticks=[{= x=d, label=@"center = @{d}" }],
+        marks=[{= point=[d, value], label=@"(@{d}, @{value})", style={= fill="#be123c" } }]
+    }), @"f(x) = @{av}x² + @{bv}x + @{cv}; center @{d}")
+};
+
+comic := .Snapshots({=
+    title="Quadratic rebasing comic strip",
+    caption="Rows are quadratics; columns share centers −2, 0, and 2.",
+    columns=3,
+    entries=[
+        {: comicScene, [
+            {= a=1, b=-3, c=2, center=-2, color="#0c7b7f" },
+            {= a=1, b=-3, c=2, center=0, color="#0c7b7f" },
+            {= a=1, b=-3, c=2, center=2, color="#0c7b7f" }
+        ]},
+        {: comicScene, [
+            {= a=2, b=1, c=-3, center=-2, color="#7c3aed" },
+            {= a=2, b=1, c=-3, center=0, color="#7c3aed" },
+            {= a=2, b=1, c=-3, center=2, color="#7c3aed" }
+        ]},
+        {: comicScene, [
+            {= a=-1, b=4, c=1, center=-2, color="#be123c" },
+            {= a=-1, b=4, c=1, center=0, color="#be123c" },
+            {= a=-1, b=4, c=1, center=2, color="#be123c" }
+        ]}
+    ]
+});
+
+.Out("comic.html", comic);
 .Out("index.html", $view)

@@ -50,6 +50,14 @@ form and both synthetic-division displays. It also plots the quadratic and
 its centered linear part, marking the selected center on the x-axis and the
 exact point `(center, f(center))`. The output directory contains only the
 artifacts declared by the program plus the shared browser runtime assets.
+The plot window is fixed at `[-6, 6] × [-256, 256]`, which covers every slider
+combination and keeps the origin centered. Pick a color and use **Freeze
+quadratic** to retain that exact curve while exploring another; each frozen
+curve retains its selected color.
+The generated directory also includes `comic.html`: three fixed quadratics by
+three shared centers, laid out as a portable snapshot grid. It is the same
+scene/state model intended for future PDF export. The bundled runner does not
+yet write PDF files; it writes the declared HTML artifacts.
 For an interactive page, make `.Out("page.html", $view)` the program's final
 expression; this keeps the page connected to the named reactive view.
 

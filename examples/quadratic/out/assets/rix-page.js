@@ -1,5 +1,5 @@
 (() => {
-  // rix/src/parser/tokenizer.js
+  // src/parser/tokenizer.js
   var identifierStart = /[\p{L}_]/u;
   var identifierPart = /[\p{L}\p{N}_]/u;
   var symbols = [
@@ -1067,7 +1067,7 @@
     };
   }
 
-  // rix/src/parser/parser.js
+  // src/parser/parser.js
   var PRECEDENCE = {
     STATEMENT: 0,
     ASSIGNMENT: 10,
@@ -5182,7 +5182,7 @@
     const parser = new Parser(tokens, systemLookup, source);
     return parser.parse();
   }
-  // rix/src/parser/system-loader.js
+  // src/parser/system-loader.js
   var DEFAULT_SYSTEM_REGISTRY = {
     LIST: { type: "constructor", category: "collection" },
     SET: { type: "constructor", category: "collection" },
@@ -5601,7 +5601,7 @@
     }
   }
   var defaultSystemLoader = new SystemLoader;
-  // rix/src/runtime/system-context.js
+  // src/runtime/system-context.js
   function firstLetterIsUppercase(name) {
     for (const character of String(name)) {
       if (/\p{L}/u.test(character))
@@ -6061,7 +6061,7 @@
     }
   }
 
-  // packages/core/src/base-system.js
+  // ../packages/core/src/base-system.js
   class BaseSystem {
     #base;
     #characters;
@@ -6422,7 +6422,7 @@
   BaseSystem.registerPrefix("m", BaseSystem.BASE60);
   BaseSystem.registerPrefix("y", BaseSystem.BASE64);
 
-  // packages/core/src/rational.js
+  // ../packages/core/src/rational.js
   var bitLength = function(int) {
     if (int === 0n)
       return 0;
@@ -7569,7 +7569,7 @@
     }
   }
 
-  // packages/core/src/rational-interval.js
+  // ../packages/core/src/rational-interval.js
   class RationalInterval {
     #start;
     #end;
@@ -8079,7 +8079,7 @@
     }
   }
 
-  // packages/core/src/fraction.js
+  // ../packages/core/src/fraction.js
   class Fraction {
     #numerator;
     #denominator;
@@ -8489,7 +8489,7 @@
     }
   }
 
-  // packages/core/src/integer.js
+  // ../packages/core/src/integer.js
   class Integer {
     #value;
     static zero = new Integer(0);
@@ -8760,7 +8760,7 @@
     }
   }
 
-  // packages/core/src/number-parser.js
+  // ../packages/core/src/number-parser.js
   var DIGITS = String.raw`\d(?:_?\d)*`;
   var MAX_EXPANDED_DIGITS = 1e5;
   function inputString(input, label = "number") {
@@ -8990,11 +8990,11 @@
     return parseRationalLiteral(value);
   }
 
-  // rix/src/runtime/hole.js
+  // src/runtime/hole.js
   var HOLE = Object.freeze({ __rix_hole__: true });
   var isHole = (v) => v === HOLE;
 
-  // rix/src/eval/functions/keyof.js
+  // src/eval/functions/keyof.js
   function normalizeKeyPrimitive(value) {
     if (typeof value === "string")
       return value;
@@ -9029,7 +9029,7 @@
     return normalized;
   }
 
-  // rix/src/runtime/tensor.js
+  // src/runtime/tensor.js
   function exactInteger(value, label = "Index") {
     if (value instanceof Integer) {
       return Number(value.value);
@@ -9301,7 +9301,7 @@
     throw new Error("TGEN expects a tensor or tuple shape");
   }
 
-  // rix/src/eval/ir-to-text.js
+  // src/eval/ir-to-text.js
   function irToText(node, options = {}) {
     const { langPrefix = false, indent = 0, pretty = false } = options;
     const prefix = langPrefix ? "@_" : "";
@@ -9352,7 +9352,7 @@ ${indentStr})`;
     return `{${entries.join(", ")}}`;
   }
 
-  // rix/src/runtime/exact-values.js
+  // src/runtime/exact-values.js
   var nextGeneratorId = 1;
   var squareRootGenerators = new Map;
   function int(value) {
@@ -10127,7 +10127,7 @@ ${indentStr})`;
     return createExactGenerator(name, { category: "algebraic", minimalPolynomial: values });
   }
 
-  // rix/src/runtime/quantities.js
+  // src/runtime/quantities.js
   function int2(value) {
     return new Integer(BigInt(value));
   }
@@ -10598,7 +10598,7 @@ ${indentStr})`;
     return stringValue2(value, "Unit name");
   }
 
-  // rix/src/runtime/diagnostics.js
+  // src/runtime/diagnostics.js
   class RixAbort extends Error {
     constructor(event) {
       const label = event?.entries?.get("label")?.value ?? "RiX abort";
@@ -10745,7 +10745,7 @@ ${indentStr})`;
     return val && (val.type === "sequence" || val.type === "array") && Array.isArray(val.values);
   }
 
-  // rix/src/runtime/runtime-config.js
+  // src/runtime/runtime-config.js
   var runtimeDefaults = Object.freeze({
     defaultLoopMax: 1e4,
     defaultConstructorCaptureMode: "deep_copy",
@@ -10763,7 +10763,7 @@ ${indentStr})`;
       permissions: Object.freeze(["IMPORTS"])
     }),
     capabilityGroups: Object.freeze({
-      Output: Object.freeze(["OUT", "BIND", "LIVEVIEW", "TEXT", "PARAGRAPH", "HEADING", "FRAGMENT", "TABLE", "GRID", "SHEET", "CONTROLPANEL", "FIGURE", "SLIDE", "SLIDES", "Algebra"]),
+      Output: Object.freeze(["OUT", "BIND", "LIVEVIEW", "TEXT", "PARAGRAPH", "HEADING", "FRAGMENT", "SNAPSHOTS", "TABLE", "GRID", "SHEET", "CONTROLPANEL", "FIGURE", "SLIDE", "SLIDES", "Algebra", "Timeline"]),
       Controls: Object.freeze(["CONTROLPANEL", "Controls"]),
       Graphics: Object.freeze(["Graphics"]),
       Draw: Object.freeze(["draw"]),
@@ -10788,7 +10788,7 @@ ${indentStr})`;
     })
   });
 
-  // rix/src/runtime/multifunction.js
+  // src/runtime/multifunction.js
   function stringObj(value) {
     return { type: "string", value };
   }
@@ -10933,7 +10933,7 @@ ${indentStr})`;
     ]));
   }
 
-  // rix/src/runtime/lazy-sequence.js
+  // src/runtime/lazy-sequence.js
   function isLazySequence(value) {
     return Boolean(value && value.type === "lazy_sequence" && value._lazy);
   }
@@ -11094,7 +11094,7 @@ ${indentStr})`;
     return filtered;
   }
 
-  // rix/src/eval/functions/symbolic.js
+  // src/eval/functions/symbolic.js
   var BINARY_TEXT = new Map([
     ["ADD", "+"],
     ["SUB", "-"],
@@ -12168,7 +12168,7 @@ ${indentStr})`;
     }
   };
 
-  // rix/src/runtime/reactive-graph.js
+  // src/runtime/reactive-graph.js
   var nextGraphId = 1;
   var REACTIVE_READ_ENV = "__reactive_read__";
   function method(name, impl) {
@@ -12757,7 +12757,7 @@ ${indentStr})`;
     return graph;
   }
 
-  // rix/src/eval/functions/functions.js
+  // src/eval/functions/functions.js
   var isTruthy = (val) => val !== null && val !== undefined;
   function callableValue(value) {
     return isReactiveNode(value) ? value.peek() : value;
@@ -14202,7 +14202,7 @@ ${indentStr})`;
     }
   };
 
-  // rix/src/runtime/binding.js
+  // src/runtime/binding.js
   var cellIds = new WeakMap;
   var nextCellId = 1;
   function cellId(cell) {
@@ -14385,7 +14385,7 @@ ${indentStr})`;
     return Object.freeze(binding);
   }
 
-  // rix/src/runtime/sheet-labels.js
+  // src/runtime/sheet-labels.js
   function text2(value) {
     return value?.type === "string" ? value.value : typeof value === "string" ? value : null;
   }
@@ -14492,7 +14492,7 @@ ${indentStr})`;
     };
   }
 
-  // rix/src/runtime/formula-sheet.js
+  // src/runtime/formula-sheet.js
   var nextFormulaSheetId = 1;
   var FORMULA_SHEET_ASSIGNMENT_MODES = Object.freeze(["=", ":=", "~=", "::=", "~~="]);
   var ASSIGNMENT_MODES = new Set(FORMULA_SHEET_ASSIGNMENT_MODES);
@@ -14980,7 +14980,7 @@ ${indentStr})`;
     return sheet;
   }
 
-  // rix/src/runtime/output.js
+  // src/runtime/output.js
   var int3 = (value) => new Integer(BigInt(value));
   var isSequence = (value) => value && ["sequence", "tuple", "set", "array"].includes(value.type);
   var asString = (value) => value?.type === "string" ? value.value : typeof value === "string" ? value : null;
@@ -15189,6 +15189,8 @@ ${indentStr})`;
     return {
       display: controlDisplay(entry, fields, name, runtime, allowed),
       formatKeys: Object.freeze(formatKeys),
+      style: optionalMap(get(entry, "style"), `${name} style`),
+      metadata: optionalMap(get(entry, "metadata"), `${name} metadata`),
       disabled: has(entry, "disabled") && get(entry, "disabled") !== null,
       readOnly: has(entry, "readOnly") && get(entry, "readOnly") !== null,
       validation: validateCandidate?.(fields.value) ?? null,
@@ -15272,6 +15274,93 @@ ${indentStr})`;
     if (value instanceof Rational)
       return value.numerator !== 0n;
     return Boolean(value);
+  }
+  function exactPositiveIndex(value, label) {
+    const index = exactInteger3(value, label);
+    if (!Number.isSafeInteger(index) || index < 1)
+      throw new Error(`${label} must be a positive safe integer`);
+    return index;
+  }
+  function sceneEntries(value, runtime, name) {
+    return sequence(value, `${name} entries`).flatMap((entry, group) => {
+      let scene;
+      let states;
+      let label = null;
+      if (entry?.type === "map") {
+        const fields = map(entry, `${name} entry ${group + 1}`);
+        if (!has(fields, "scene") || !has(fields, "states")) {
+          throw new Error(`${name} entry ${group + 1} requires scene and states`);
+        }
+        scene = get(fields, "scene");
+        states = get(fields, "states");
+        label = asString(get(fields, "label"));
+      } else {
+        const pair = sequence(entry, `${name} entry ${group + 1}`);
+        if (pair.length !== 2)
+          throw new Error(`${name} entry ${group + 1} must be a [scene, states] tuple`);
+        [scene, states] = pair;
+      }
+      return sequence(states, `${name} entry ${group + 1} states`).map((state, index) => {
+        const content = invokeControlCallable(scene, [state], runtime, `${name} entry ${group + 1} scene`);
+        if (!isBlockOutput(content)) {
+          const actual = isOutputValue(content) ? content.kind : typeof content;
+          throw new Error(`${name} scene ${group + 1}.${index + 1} must return block output; received ${actual}`);
+        }
+        return Object.freeze({
+          group,
+          index,
+          state,
+          label,
+          content
+        });
+      });
+    });
+  }
+  function createSnapshots(args, runtime = null) {
+    const entry = spec(args, ["entries", "columns", "title"], "Snapshots");
+    const items = Object.freeze(sceneEntries(get(entry, "entries"), runtime, "Snapshots"));
+    if (items.length === 0)
+      throw new Error("Snapshots requires at least one rendered scene");
+    const columnsValue = get(entry, "columns");
+    const columns = columnsValue === null || columnsValue === undefined ? null : exactPositiveIndex(columnsValue, "Snapshots columns");
+    return output("snapshots", {
+      items,
+      columns,
+      title: asString(get(entry, "title")),
+      caption: asString(get(entry, "caption")),
+      style: optionalMap(get(entry, "style"), "Snapshots style")
+    });
+  }
+  function createTimelineSequence(args, runtime = null) {
+    const entry = spec(args, ["entries", "duration"], "Timeline.Sequence");
+    const frames = Object.freeze(sceneEntries(get(entry, "entries"), runtime, "Timeline.Sequence"));
+    if (frames.length === 0)
+      throw new Error("Timeline.Sequence requires at least one rendered frame");
+    const duration = get(entry, "duration");
+    return output("timeline", {
+      frames,
+      duration: duration === null || duration === undefined ? null : exactNumber(duration, "Timeline.Sequence duration"),
+      easing: asString(get(entry, "easing")) || "linear",
+      title: asString(get(entry, "title"))
+    });
+  }
+  function createTimelineRender(args) {
+    const entry = spec(args, ["timeline", "frame"], "Timeline.Render");
+    const timeline = get(entry, "timeline");
+    if (!isOutputValue(timeline) || timeline.kind !== "timeline") {
+      throw new Error("Timeline.Render requires a Timeline.Sequence value");
+    }
+    const frame = get(entry, "frame");
+    const index = frame === null || frame === undefined ? 1 : exactPositiveIndex(frame, "Timeline.Render frame");
+    if (index > timeline.frames.length) {
+      throw new Error(`Timeline.Render frame ${index} is outside 1…${timeline.frames.length}`);
+    }
+    return output("timeline_render", {
+      timeline,
+      frame: index,
+      content: timeline.frames[index - 1].content,
+      title: asString(get(entry, "title")) || timeline.title
+    });
   }
   function createText(args) {
     const entry = spec(args, ["value", "style"], "Text");
@@ -15659,6 +15748,26 @@ ${indentStr})`;
       replacesDependencies: Object.freeze([...target.dependencies])
     });
   }
+  function createActionControl(args, runtime = null) {
+    const entry = spec(args, ["target", "action", "label"], "Controls.Action");
+    const target = reactiveTarget(entry, "Controls.Action");
+    const action = get(entry, "action");
+    if (action === null || action === undefined)
+      throw new Error("Controls.Action requires an action callable");
+    const value = target.get();
+    return output("control_action", {
+      id: asString(get(entry, "id")) || `${target.id}:action`,
+      label: asString(get(entry, "label")) || "Run action",
+      help: asString(get(entry, "help")),
+      target,
+      targetId: target.id,
+      value,
+      action,
+      run: () => invokeControlCallable(action, [target.get()], runtime, "Controls.Action action"),
+      ...controlBehavior(entry, { value }, "Controls.Action", runtime),
+      replacesDependencies: Object.freeze([...target.dependencies])
+    });
+  }
   function createControlPanel(args) {
     const entry = spec(args, ["controls", "title", "description"], "ControlPanel");
     const controls = sequence(get(entry, "controls"), "ControlPanel controls");
@@ -15682,6 +15791,7 @@ ${indentStr})`;
       submitLabel: asString(get(entry, "submitLabel")) || "Apply changes",
       discardLabel: asString(get(entry, "discardLabel")) || "Discard",
       interactive: true,
+      style: optionalMap(get(entry, "style"), "ControlPanel style"),
       metadata: optionalMap(get(entry, "metadata"), "ControlPanel metadata")
     }, [["SNAPSHOT", method3("Snapshot", ([target]) => createControlPanelSnapshot(target))]]);
   }
@@ -15689,6 +15799,8 @@ ${indentStr})`;
     const {
       target: _target,
       validateCandidate: _validateCandidate,
+      action: _action,
+      run: _run,
       _ext: _extensions,
       ...fields
     } = control;
@@ -15698,6 +15810,49 @@ ${indentStr})`;
       disabled: true,
       readOnly: true
     });
+  }
+  function styleMap(value) {
+    return value instanceof Map ? value : value?.type === "map" && value.entries instanceof Map ? value.entries : null;
+  }
+  function styleValue(style, key) {
+    const entries2 = styleMap(style);
+    return entries2 ? get(entries2, key) : null;
+  }
+  function mergeStyleMaps(...styles) {
+    const result = new Map;
+    for (const style of styles) {
+      const entries2 = styleMap(style);
+      if (!entries2)
+        continue;
+      for (const [key, value] of entries2)
+        result.set(key, value);
+    }
+    return result.size > 0 ? result : null;
+  }
+  function resolvedControlStyle(panelStyle, control) {
+    if (!styleMap(panelStyle))
+      return control.style;
+    const kinds = styleValue(panelStyle, "kinds");
+    const ids = styleValue(panelStyle, "ids");
+    const kind = control.kind.replace(/^control_/, "");
+    return mergeStyleMaps(styleValue(panelStyle, "all"), styleValue(kinds, kind), styleValue(ids, control.id), control.style);
+  }
+  function controlStyleAttributes(control) {
+    const style = control.style;
+    const variant = asString(styleValue(style, "variant"));
+    const density = asString(styleValue(style, "density"));
+    const width = asString(styleValue(style, "width"));
+    const attributes = [];
+    if (variant && ["primary", "danger", "quiet"].includes(variant)) {
+      attributes.push(` data-rix-control-variant="${escapeHtml(variant)}"`);
+    }
+    if (density && ["compact", "comfortable"].includes(density)) {
+      attributes.push(` data-rix-control-density="${escapeHtml(density)}"`);
+    }
+    if (width && ["auto", "compact", "full"].includes(width)) {
+      attributes.push(` data-rix-control-width="${escapeHtml(width)}"`);
+    }
+    return attributes.join("");
   }
   function createControlPanelSnapshot(panel) {
     if (!isOutputValue(panel) || panel.kind !== "control_panel") {
@@ -16242,15 +16397,28 @@ ${indentStr})`;
     };
     const ticksValue = get(optionEntries, "ticks", null);
     const ticks = ticksValue === null ? [] : sequence(ticksValue, "Polynomial plot ticks").map(readTick);
-    let yMin = Math.min(0, ...series.flatMap(({ data }) => data.map(([, y]) => y)), ...marks.map(({ point }) => point[1]));
-    let yMax = Math.max(0, ...series.flatMap(({ data }) => data.map(([, y]) => y)), ...marks.map(({ point }) => point[1]));
-    if (yMin === yMax) {
-      yMin -= 1;
-      yMax += 1;
+    const yDomainValue = get(optionEntries, "yDomain", null);
+    let yMin;
+    let yMax;
+    if (yDomainValue !== null) {
+      const yBounds = sequence(yDomainValue, "Polynomial plot yDomain");
+      if (yBounds.length !== 2)
+        throw new Error("Polynomial plot yDomain must have a lower and upper bound");
+      yMin = numericValue(yBounds[0], "Polynomial plot yDomain lower bound");
+      yMax = numericValue(yBounds[1], "Polynomial plot yDomain upper bound");
+      if (!(yMin < yMax))
+        throw new Error("Polynomial plot yDomain must increase");
+    } else {
+      yMin = Math.min(0, ...series.flatMap(({ data }) => data.map(([, y]) => y)), ...marks.map(({ point }) => point[1]));
+      yMax = Math.max(0, ...series.flatMap(({ data }) => data.map(([, y]) => y)), ...marks.map(({ point }) => point[1]));
+      if (yMin === yMax) {
+        yMin -= 1;
+        yMax += 1;
+      }
+      const yPadding = (yMax - yMin) * 0.08;
+      yMin -= yPadding;
+      yMax += yPadding;
     }
-    const yPadding = (yMax - yMin) * 0.08;
-    yMin -= yPadding;
-    yMax += yPadding;
     const [width, height] = size;
     const toPoint = ([x, y]) => [
       margin + (x - xMin) / (xMax - xMin) * (width - margin * 2),
@@ -16629,6 +16797,17 @@ ${value.transcript.map((child) => formatInlineText(child, format)).join("")}` : 
       return value.children.map((child) => formatOutputText(child, format)).join(`
 
 `);
+    if (value.kind === "snapshots") {
+      return [value.title, ...value.items.map((item, index) => `Snapshot ${index + 1}: ${formatOutputText(item.content, format)}`)].filter(Boolean).join(`
+
+`);
+    }
+    if (value.kind === "timeline")
+      return `[Timeline: ${value.frames.length} frames]`;
+    if (value.kind === "timeline_render")
+      return [value.title, formatOutputText(value.content, format)].filter(Boolean).join(`
+
+`);
     if (value.kind === "control_slider") {
       return `${value.label}: ${cellText(controlField(value, "value"), format)} (${cellText(controlField(value, "low"), format)} … ${cellText(controlField(value, "high"), format)}; step ${cellText(controlField(value, "step"), format)})`;
     }
@@ -16647,6 +16826,8 @@ ${value.transcript.map((child) => formatInlineText(child, format)).join("")}` : 
     if (value.kind === "control_reset") {
       return `${value.label}: ${cellText(controlField(value, "value"), format)} → ${cellText(controlField(value, "initial"), format)}`;
     }
+    if (value.kind === "control_action")
+      return `[Action: ${value.label}]`;
     if (value.kind === "control_panel") {
       return [value.title, value.description, ...value.controls.map((control) => formatOutputText(control, format))].filter(Boolean).join(`
 `);
@@ -16793,35 +16974,47 @@ ${formatOutputText(slide, format)}`).join(`
     }
     if (value.kind === "fragment")
       return `<section class="rix-output-fragment">${value.children.map((child) => renderOutputHtml(child, format)).join("")}</section>`;
+    if (value.kind === "snapshots") {
+      const columns = value.columns || Math.min(3, value.items.length);
+      return `<section class="rix-output-snapshots" style="--rix-snapshot-columns:${columns}">${value.title ? `<h2>${escapeHtml(value.title)}</h2>` : ""}<div class="rix-output-snapshot-grid">${value.items.map((item, index) => `<article class="rix-output-snapshot" data-rix-snapshot-group="${item.group}" data-rix-snapshot-index="${item.index}">${renderOutputHtml(item.content, format)}<p class="rix-output-snapshot-label">${escapeHtml(item.label || `Snapshot ${index + 1}`)}</p></article>`).join("")}</div>${value.caption ? `<p class="rix-output-snapshots-caption">${escapeHtml(value.caption)}</p>` : ""}</section>`;
+    }
+    if (value.kind === "timeline")
+      return `<section class="rix-output-timeline"><p>${escapeHtml(value.title || "Timeline")} · ${value.frames.length} frames</p></section>`;
+    if (value.kind === "timeline_render")
+      return `<section class="rix-output-timeline-render" data-rix-timeline-frame="${value.frame}" data-rix-timeline-length="${value.timeline.frames.length}">${value.title ? `<h2>${escapeHtml(value.title)}</h2>` : ""}${renderOutputHtml(value.content, format)}<p class="rix-output-timeline-caption">Frame ${value.frame} of ${value.timeline.frames.length}</p></section>`;
     if (value.kind === "control_slider") {
       const dependencies = value.replacesDependencies.length > 0 ? ` data-rix-replaces-dependencies="${escapeHtml(value.replacesDependencies.join(","))}"` : "";
-      return `<label class="rix-output-control rix-output-control-slider" data-rix-control-kind="slider" data-rix-control-id="${escapeHtml(value.id)}" data-rix-control-target="${escapeHtml(value.targetId)}"${controlStateAttributes(value)}${dependencies}><span class="rix-output-control-label">${escapeHtml(value.label)}</span><input type="range" min="0" max="${value.steps}" step="1" value="${value.index}" data-rix-control-input aria-label="${escapeHtml(value.label)}"${controlInputAttributes(value)}><output data-rix-control-value>${text4(controlField(value, "value"))}</output><small class="rix-output-control-scale">${text4(controlField(value, "low"))} … ${text4(controlField(value, "high"))} · step ${text4(controlField(value, "step"))}</small>${controlMessages(value)}</label>`;
+      return `<label class="rix-output-control rix-output-control-slider" data-rix-control-kind="slider" data-rix-control-id="${escapeHtml(value.id)}" data-rix-control-target="${escapeHtml(value.targetId)}"${controlStyleAttributes(value)}${controlStateAttributes(value)}${dependencies}><span class="rix-output-control-label">${escapeHtml(value.label)}</span><input type="range" min="0" max="${value.steps}" step="1" value="${value.index}" data-rix-control-input aria-label="${escapeHtml(value.label)}"${controlInputAttributes(value)}><output data-rix-control-value>${text4(controlField(value, "value"))}</output><small class="rix-output-control-scale">${text4(controlField(value, "low"))} … ${text4(controlField(value, "high"))} · step ${text4(controlField(value, "step"))}</small>${controlMessages(value)}</label>`;
     }
     if (value.kind === "control_input") {
       const dependencies = value.replacesDependencies.length > 0 ? ` data-rix-replaces-dependencies="${escapeHtml(value.replacesDependencies.join(","))}"` : "";
-      return `<label class="rix-output-control rix-output-control-input" data-rix-control-kind="input" data-rix-control-id="${escapeHtml(value.id)}" data-rix-control-target="${escapeHtml(value.targetId)}"${controlStateAttributes(value)}${dependencies}><span class="rix-output-control-label">${escapeHtml(value.label)}</span><span class="rix-output-control-input-row"><input type="text" value="${text4(controlField(value, "value"))}" placeholder="${escapeHtml(value.placeholder)}" data-rix-control-input aria-label="${escapeHtml(value.label)}"${controlInputAttributes(value, { text: true })}><button type="button" data-rix-control-commit${controlInputAttributes(value)}>Set</button></span><output data-rix-control-value>${text4(controlField(value, "value"))}</output>${controlMessages(value)}</label>`;
+      return `<label class="rix-output-control rix-output-control-input" data-rix-control-kind="input" data-rix-control-id="${escapeHtml(value.id)}" data-rix-control-target="${escapeHtml(value.targetId)}"${controlStyleAttributes(value)}${controlStateAttributes(value)}${dependencies}><span class="rix-output-control-label">${escapeHtml(value.label)}</span><span class="rix-output-control-input-row"><input type="text" value="${text4(controlField(value, "value"))}" placeholder="${escapeHtml(value.placeholder)}" data-rix-control-input aria-label="${escapeHtml(value.label)}"${controlInputAttributes(value, { text: true })}><button type="button" data-rix-control-commit${controlInputAttributes(value)}>Set</button></span><output data-rix-control-value>${text4(controlField(value, "value"))}</output>${controlMessages(value)}</label>`;
     }
     if (value.kind === "control_choice") {
       const dependencies = value.replacesDependencies.length > 0 ? ` data-rix-replaces-dependencies="${escapeHtml(value.replacesDependencies.join(","))}"` : "";
       const options = value.options.map((option, index) => `<option value="${index}"${index === value.index ? " selected" : ""}>${escapeHtml(cellText(value.displayOptions[index], format))}</option>`).join("");
-      return `<label class="rix-output-control rix-output-control-choice" data-rix-control-kind="choice" data-rix-control-id="${escapeHtml(value.id)}" data-rix-control-target="${escapeHtml(value.targetId)}"${controlStateAttributes(value)}${dependencies}><span class="rix-output-control-label">${escapeHtml(value.label)}</span><select data-rix-control-input aria-label="${escapeHtml(value.label)}"${controlInputAttributes(value)}>${options}</select><output data-rix-control-value>${text4(controlField(value, "value"))}</output>${controlMessages(value)}</label>`;
+      return `<label class="rix-output-control rix-output-control-choice" data-rix-control-kind="choice" data-rix-control-id="${escapeHtml(value.id)}" data-rix-control-target="${escapeHtml(value.targetId)}"${controlStyleAttributes(value)}${controlStateAttributes(value)}${dependencies}><span class="rix-output-control-label">${escapeHtml(value.label)}</span><select data-rix-control-input aria-label="${escapeHtml(value.label)}"${controlInputAttributes(value)}>${options}</select><output data-rix-control-value>${text4(controlField(value, "value"))}</output>${controlMessages(value)}</label>`;
     }
     if (value.kind === "control_toggle") {
       const dependencies = value.replacesDependencies.length > 0 ? ` data-rix-replaces-dependencies="${escapeHtml(value.replacesDependencies.join(","))}"` : "";
-      return `<label class="rix-output-control rix-output-control-toggle" data-rix-control-kind="toggle" data-rix-control-id="${escapeHtml(value.id)}" data-rix-control-target="${escapeHtml(value.targetId)}"${controlStateAttributes(value)}${dependencies}><span class="rix-output-control-label">${escapeHtml(value.label)}</span><input type="checkbox"${value.index === 1 ? " checked" : ""} data-rix-control-input aria-label="${escapeHtml(value.label)}"${controlInputAttributes(value)}><output data-rix-control-value>${text4(controlField(value, "value"))}</output><small class="rix-output-control-scale">${text4(controlField(value, "off"))} ↔ ${text4(controlField(value, "on"))}</small>${controlMessages(value)}</label>`;
+      return `<label class="rix-output-control rix-output-control-toggle" data-rix-control-kind="toggle" data-rix-control-id="${escapeHtml(value.id)}" data-rix-control-target="${escapeHtml(value.targetId)}"${controlStyleAttributes(value)}${controlStateAttributes(value)}${dependencies}><span class="rix-output-control-label">${escapeHtml(value.label)}</span><input type="checkbox"${value.index === 1 ? " checked" : ""} data-rix-control-input aria-label="${escapeHtml(value.label)}"${controlInputAttributes(value)}><output data-rix-control-value>${text4(controlField(value, "value"))}</output><small class="rix-output-control-scale">${text4(controlField(value, "off"))} ↔ ${text4(controlField(value, "on"))}</small>${controlMessages(value)}</label>`;
     }
     if (value.kind === "control_range") {
       const dependencies = value.replacesDependencies.length > 0 ? ` data-rix-replaces-dependencies="${escapeHtml(value.replacesDependencies.join(","))}"` : "";
       const current = value.formatKeys.includes("value") ? text4(controlField(value, "value")) : `${text4(controlField(value, "start"))} … ${text4(controlField(value, "end"))}`;
-      return `<fieldset class="rix-output-control rix-output-control-range" data-rix-control-kind="range" data-rix-control-id="${escapeHtml(value.id)}" data-rix-control-target="${escapeHtml(value.targetId)}"${controlStateAttributes(value)}${dependencies}><legend class="rix-output-control-label">${escapeHtml(value.label)}</legend><span class="rix-output-control-range-inputs"><input type="range" min="0" max="${value.steps}" step="1" value="${value.indices[0]}" data-rix-control-input data-rix-control-endpoint="low" aria-label="${escapeHtml(value.label)} lower endpoint"${controlInputAttributes(value)}><input type="range" min="0" max="${value.steps}" step="1" value="${value.indices[1]}" data-rix-control-input data-rix-control-endpoint="high" aria-label="${escapeHtml(value.label)} upper endpoint"${controlInputAttributes(value)}></span><output data-rix-control-value>${current}</output><small class="rix-output-control-scale">${text4(controlField(value, "low"))} … ${text4(controlField(value, "high"))} · step ${text4(controlField(value, "step"))}</small>${controlMessages(value)}</fieldset>`;
+      return `<fieldset class="rix-output-control rix-output-control-range" data-rix-control-kind="range" data-rix-control-id="${escapeHtml(value.id)}" data-rix-control-target="${escapeHtml(value.targetId)}"${controlStyleAttributes(value)}${controlStateAttributes(value)}${dependencies}><legend class="rix-output-control-label">${escapeHtml(value.label)}</legend><span class="rix-output-control-range-inputs"><input type="range" min="0" max="${value.steps}" step="1" value="${value.indices[0]}" data-rix-control-input data-rix-control-endpoint="low" aria-label="${escapeHtml(value.label)} lower endpoint"${controlInputAttributes(value)}><input type="range" min="0" max="${value.steps}" step="1" value="${value.indices[1]}" data-rix-control-input data-rix-control-endpoint="high" aria-label="${escapeHtml(value.label)} upper endpoint"${controlInputAttributes(value)}></span><output data-rix-control-value>${current}</output><small class="rix-output-control-scale">${text4(controlField(value, "low"))} … ${text4(controlField(value, "high"))} · step ${text4(controlField(value, "step"))}</small>${controlMessages(value)}</fieldset>`;
     }
     if (value.kind === "control_reset") {
       const dependencies = value.replacesDependencies.length > 0 ? ` data-rix-replaces-dependencies="${escapeHtml(value.replacesDependencies.join(","))}"` : "";
-      return `<div class="rix-output-control rix-output-control-reset" data-rix-control-kind="reset" data-rix-control-id="${escapeHtml(value.id)}" data-rix-control-target="${escapeHtml(value.targetId)}"${controlStateAttributes(value)}${dependencies}><span class="rix-output-control-label">${escapeHtml(value.label)}</span><button type="button" data-rix-control-input aria-label="${escapeHtml(value.label)}"${controlInputAttributes(value)}>Reset to ${text4(controlField(value, "initial"))}</button><output data-rix-control-value>${text4(controlField(value, "value"))}</output>${controlMessages(value)}</div>`;
+      return `<div class="rix-output-control rix-output-control-reset" data-rix-control-kind="reset" data-rix-control-id="${escapeHtml(value.id)}" data-rix-control-target="${escapeHtml(value.targetId)}"${controlStyleAttributes(value)}${controlStateAttributes(value)}${dependencies}><span class="rix-output-control-label">${escapeHtml(value.label)}</span><button type="button" data-rix-control-input aria-label="${escapeHtml(value.label)}"${controlInputAttributes(value)}>Reset to ${text4(controlField(value, "initial"))}</button><output data-rix-control-value>${text4(controlField(value, "value"))}</output>${controlMessages(value)}</div>`;
+    }
+    if (value.kind === "control_action") {
+      const dependencies = value.replacesDependencies.length > 0 ? ` data-rix-replaces-dependencies="${escapeHtml(value.replacesDependencies.join(","))}"` : "";
+      return `<div class="rix-output-control rix-output-control-action" data-rix-control-kind="action" data-rix-control-id="${escapeHtml(value.id)}" data-rix-control-target="${escapeHtml(value.targetId)}"${controlStyleAttributes(value)}${controlStateAttributes(value)}${dependencies}><span class="rix-output-control-label">${escapeHtml(value.label)}</span><button type="button" data-rix-control-input aria-label="${escapeHtml(value.label)}"${controlInputAttributes(value)}>${escapeHtml(value.label)}</button>${controlMessages(value)}</div>`;
     }
     if (value.kind === "control_panel") {
       const actions = value.mode === "staged" ? `<div class="rix-output-control-actions"><button type="button" data-rix-control-submit disabled>${escapeHtml(value.submitLabel)}</button><button type="button" data-rix-control-discard disabled>${escapeHtml(value.discardLabel)}</button></div>` : "";
-      return `<section class="rix-output-control-panel" data-rix-interactive="${value.interactive === false ? "false" : "true"}" data-rix-control-mode="${escapeHtml(value.mode || "immediate")}">${value.title ? `<h3>${escapeHtml(value.title)}</h3>` : ""}${value.description ? `<p>${escapeHtml(value.description)}</p>` : ""}<div class="rix-output-control-list">${value.controls.map((control) => renderOutputHtml(control, format)).join("")}</div>${actions}<output class="rix-output-control-status" aria-live="polite"></output></section>`;
+      return `<section class="rix-output-control-panel" data-rix-interactive="${value.interactive === false ? "false" : "true"}" data-rix-control-mode="${escapeHtml(value.mode || "immediate")}">${value.title ? `<h3>${escapeHtml(value.title)}</h3>` : ""}${value.description ? `<p>${escapeHtml(value.description)}</p>` : ""}<div class="rix-output-control-list">${value.controls.map((control) => renderOutputHtml({ ...control, style: resolvedControlStyle(value.style, control) }, format)).join("")}</div>${actions}<output class="rix-output-control-status" aria-live="polite"></output></section>`;
     }
     if (value.kind === "table")
       return `<table class="rix-output-table">${value.caption ? `<caption>${escapeHtml(value.caption)}</caption>` : ""}<thead><tr>${value.columns.map((column) => `<th>${escapeHtml(column.label)}</th>`).join("")}</tr></thead><tbody>${value.rows.map((row) => `<tr>${row.map((cell) => `<td>${text4(cell)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
@@ -16893,7 +17086,8 @@ ${formatOutputText(slide, format)}`).join(`
       ["Rectangle", createRectangle],
       ["Circle", createCircle],
       ["DragPoint", createDragPoint],
-      ["Clip", createClip]
+      ["Clip", createClip],
+      ["Snapshots", createSnapshots]
     ]);
     const entries2 = new Map;
     const extension = new Map([["immutable", int3(1)]]);
@@ -16903,7 +17097,33 @@ ${formatOutputText(slide, format)}`).join(`
       extension.set(name.toUpperCase(), {
         type: "method_builtin",
         name,
-        impl: (args) => constructor(args.slice(1))
+        impl: (args, context, evaluate, invoke) => constructor(args.slice(1), {
+          context,
+          evaluate,
+          invoke
+        })
+      });
+    }
+    return { type: "map", entries: entries2, _ext: extension };
+  }
+  function createTimelineOutputCollection() {
+    const methods = new Map([
+      ["Sequence", createTimelineSequence],
+      ["Render", createTimelineRender]
+    ]);
+    const entries2 = new Map;
+    const extension = new Map([["immutable", int3(1)]]);
+    for (const [name, constructor] of methods) {
+      entries2.set(name, constructor);
+      entries2.set(name.toUpperCase(), constructor);
+      extension.set(name.toUpperCase(), {
+        type: "method_builtin",
+        name,
+        impl: (args, context, evaluate, invoke) => constructor(args.slice(1), {
+          context,
+          evaluate,
+          invoke
+        })
       });
     }
     return { type: "map", entries: entries2, _ext: extension };
@@ -16915,7 +17135,8 @@ ${formatOutputText(slide, format)}`).join(`
       ["Choice", createChoiceControl],
       ["Toggle", createToggleControl],
       ["Range", createRangeControl],
-      ["Reset", createResetControl]
+      ["Reset", createResetControl],
+      ["Action", createActionControl]
     ]);
     const entries2 = new Map;
     const extension = new Map([["immutable", int3(1)]]);
@@ -16950,7 +17171,7 @@ ${formatOutputText(slide, format)}`).join(`
     };
   }
 
-  // rix/src/runtime/structural-arithmetic.js
+  // src/runtime/structural-arithmetic.js
   var DEFAULT_BINARY = {
     ":": { precedence: 70, associativity: "left", head: "Interval" },
     "+": { precedence: 80, associativity: "left", head: "Sum" },
@@ -18237,7 +18458,7 @@ ${formatOutputText(slide, format)}`).join(`
     return structuralForm(value.head, args, value.mode, structuralSourceSpan(value));
   }
 
-  // rix/src/eval/format.js
+  // src/eval/format.js
   function tensorValueAtTuple(tensor, tuple) {
     const value = tensor.data[tensorOffsetForTuple(tensor, tuple)];
     return value;
@@ -18580,7 +18801,7 @@ ${formatOutputText(slide, format)}`).join(`
     return val.toString();
   }
 
-  // rix/src/eval/functions/deferred.js
+  // src/eval/functions/deferred.js
   function desugarNode(node, maxDepth, currentDepth = 0) {
     if (node === null || node === undefined)
       return "_";
@@ -18815,7 +19036,7 @@ ${indented.join(`,
   };
   var deferredMethods = { EVAL: Eval, DESUGAR: Desugar, INSPECT: Inspect };
 
-  // rix/src/runtime/cell.js
+  // src/runtime/cell.js
   class Cell {
     constructor(value) {
       this.value = value;
@@ -19091,7 +19312,7 @@ ${indented.join(`,
     }
   }
 
-  // rix/src/eval/functions/arithmetic.js
+  // src/eval/functions/arithmetic.js
   function ensureNumeric(val) {
     if (val instanceof Integer || val instanceof Rational)
       return val;
@@ -19363,7 +19584,7 @@ ${indented.join(`,
     }
   };
 
-  // rix/src/runtime/constructor-capture.js
+  // src/runtime/constructor-capture.js
   var CONSTRUCTOR_CAPTURE_MODES = Object.freeze({
     alias: "alias",
     copy: "copy",
@@ -19415,7 +19636,7 @@ ${indented.join(`,
     return captureResolvedValue(value, mode);
   }
 
-  // rix/src/runtime/type-system.js
+  // src/runtime/type-system.js
   function int4(value) {
     return new Integer(BigInt(value));
   }
@@ -20184,7 +20405,7 @@ ${indented.join(`,
   }
   registerBuiltinSemanticTypes();
 
-  // rix/src/runtime/semantic.js
+  // src/runtime/semantic.js
   function int5(value) {
     return new Integer(BigInt(value));
   }
@@ -20469,7 +20690,7 @@ ${indented.join(`,
     return value;
   }
 
-  // rix/src/eval/functions/collections.js
+  // src/eval/functions/collections.js
   function isTruthy2(val) {
     return val !== null && val !== undefined;
   }
@@ -21170,7 +21391,7 @@ ${indented.join(`,
     }
   };
 
-  // rix/src/runtime/methods.js
+  // src/runtime/methods.js
   function int6(value) {
     return new Integer(BigInt(value));
   }
@@ -22723,7 +22944,7 @@ ${indented.join(`,
     return value;
   }
 
-  // rix/src/runtime/system-manifest.js
+  // src/runtime/system-manifest.js
   function memberDescriptor(name, value) {
     return {
       kind: value?.type === "method_builtin" ? "function" : "value",
@@ -22777,12 +22998,12 @@ ${indented.join(`,
     lookup.resolveSystemMember = (parent, name) => manifest.resolveMember(parent, name);
     return lookup;
   }
-  // rix/src/eval/ir.js
+  // src/eval/ir.js
   function ir2(fn, ...args) {
     return { fn, args };
   }
 
-  // rix/src/eval/lower.js
+  // src/eval/lower.js
   var BINARY_OP_MAP = {
     "+": "ADD",
     "-": "SUB",
@@ -23822,7 +24043,7 @@ ${indented.join(`,
     }
     return lowerNode(spec2);
   }
-  // rix/src/eval/registry.js
+  // src/eval/registry.js
   class Registry {
     constructor() {
       this.functions = new Map;
@@ -24013,7 +24234,7 @@ ${indented.join(`,
   var path = { isAbsolute: () => false, resolve: (...parts) => parts.at(-1) || "", dirname: () => "" };
   var node_path_default = path;
 
-  // rix/src/runtime/plugin-catalog.js
+  // src/runtime/plugin-catalog.js
   function validateMetadata(metadata, sourcePath, kind) {
     if (metadata.ignore !== undefined && typeof metadata.ignore !== "boolean") {
       throw new Error(`${sourcePath}: ignore must be true or false`);
@@ -24197,7 +24418,7 @@ ${indented.join(`,
     }
   }
 
-  // rix/src/runtime/context.js
+  // src/runtime/context.js
   class Context {
     constructor() {
       this.globalScope = new Map;
@@ -24487,7 +24708,7 @@ ${indented.join(`,
   };
   var createRequire = () => unavailable2;
 
-  // rix/src/eval/functions/properties.js
+  // src/eval/functions/properties.js
   function toInteger(key) {
     if (key instanceof Integer)
       return Number(key.value);
@@ -25002,7 +25223,7 @@ ${indented.join(`,
     }
   };
 
-  // rix/src/eval/functions/core.js
+  // src/eval/functions/core.js
   var BASE_RESERVED_CHARS = new Set([".", "/", "#", "~", "_", "^", "+", "-"]);
   var requireFromHere = createRequire("/rix-runtime/core.js");
   var BASE_MODE_ALIASES = new Map([
@@ -26918,7 +27139,7 @@ ${indented.join(`,
     }
   };
 
-  // rix/src/eval/functions/comparison.js
+  // src/eval/functions/comparison.js
   function compare2(a, b) {
     if (a && b && typeof a.subtract === "function" && typeof b.subtract === "function") {
       const diff = a.subtract(b);
@@ -27097,7 +27318,7 @@ ${indented.join(`,
     }
   };
 
-  // rix/src/eval/functions/logic.js
+  // src/eval/functions/logic.js
   function isTruthy3(val) {
     return val !== null && val !== undefined;
   }
@@ -27139,7 +27360,7 @@ ${indented.join(`,
     }
   };
 
-  // rix/src/eval/functions/control.js
+  // src/eval/functions/control.js
   function isTruthy4(val) {
     return val !== null && val !== undefined;
   }
@@ -27398,7 +27619,7 @@ ${indented.join(`,
     }
   };
 
-  // rix/src/eval/functions/methods.js
+  // src/eval/functions/methods.js
   function evaluateArgs2(argNodes, evaluate) {
     const evaluatedArgs = [];
     for (const arg of argNodes) {
@@ -27438,7 +27659,7 @@ ${indented.join(`,
     }
   };
 
-  // rix/src/runtime/random.js
+  // src/runtime/random.js
   function seedNumber(value) {
     if (value instanceof Integer)
       return Number(value.value & 0xffffffffn) >>> 0;
@@ -27489,7 +27710,7 @@ ${indented.join(`,
     }
   }
 
-  // rix/src/eval/functions/advanced.js
+  // src/eval/functions/advanced.js
   function toNumber(val) {
     if (val instanceof Integer)
       return Number(val.value);
@@ -27885,7 +28106,7 @@ ${indented.join(`,
     }
   };
 
-  // rix/src/eval/functions/stdlib.js
+  // src/eval/functions/stdlib.js
   var RIX_IO_ENV = "__io__";
   function defaultPrettyFormat(value, options = {}) {
     const indent = options.indent ?? 0;
@@ -28210,7 +28431,7 @@ ${pad}}`;
     }
   };
 
-  // rix/src/eval/functions/diagnostics.js
+  // src/eval/functions/diagnostics.js
   var EMPTY_MAP = Object.freeze({ type: "map", entries: new Map });
   function toRixInt(n) {
     return new Integer(n);
@@ -28961,7 +29182,7 @@ ${pad}}`;
     TRACE
   };
 
-  // rix/src/runtime/reactive-view.js
+  // src/runtime/reactive-view.js
   var nextLiveViewId = 1;
   function methods() {
     return new Map([
@@ -29076,7 +29297,7 @@ ${pad}}`;
     return view;
   }
 
-  // rix/src/eval/functions/output.js
+  // src/eval/functions/output.js
   var capability = (impl, doc) => ({ impl: (args) => impl(args), pure: true, doc });
   function evaluateTemplateSource(source, context, evaluate) {
     const nodes = lower(parse(source));
@@ -29673,6 +29894,13 @@ ${pad}}`;
     PARAGRAPH: capability(createParagraph, "Create a portable paragraph output node"),
     HEADING: capability(createHeading, "Create a portable document heading"),
     FRAGMENT: capability(createFragment, "Compose portable output values"),
+    SNAPSHOTS: {
+      pure: true,
+      doc: "Materialize [scene, states] tuples into a portable static snapshot grid",
+      impl(args, context, evaluate) {
+        return createSnapshots(args, { context, evaluate, invoke: callWithConcreteArgs });
+      }
+    },
     EMPHASIS: capability(createEmphasis, "Create semantic inline emphasis"),
     STRONG: capability(createStrong, "Create semantic inline strong content"),
     CODE: capability(createCode, "Create literal inline code"),
@@ -29701,7 +29929,7 @@ ${pad}}`;
     DOCUMENT_TEMPLATE: documentTemplateFunction
   };
 
-  // rix/src/runtime/rixcel-document.js
+  // src/runtime/rixcel-document.js
   var RIXCEL_FORMAT = "rixcel";
   var RIXCEL_VERSION = 1;
   var RIXCEL_ASSIGNMENT_MODES = FORMULA_SHEET_ASSIGNMENT_MODES;
@@ -30062,7 +30290,7 @@ ${pad}}`;
     });
   }
 
-  // rix/src/eval/functions/formula-sheet.js
+  // src/eval/functions/formula-sheet.js
   function containsOuterRead(node) {
     if (!node || typeof node !== "object")
       return false;
@@ -30417,7 +30645,7 @@ ${pad}}`;
     }
   };
 
-  // rix/src/eval/functions/reactive-graph.js
+  // src/eval/functions/reactive-graph.js
   function createEvaluatedReactiveGraph(context, evaluate, requestedId = null) {
     let graph = null;
     graph = createReactiveGraph({
@@ -30465,7 +30693,7 @@ ${pad}}`;
     }
   };
 
-  // rix/src/eval/functions/reactive-bindings.js
+  // src/eval/functions/reactive-bindings.js
   var REACTIVE_BINDING_GRAPH_ENV = "__reactive_binding_graph__";
   var REACTIVE_ACTIVE_GRAPH_ENV = "__reactive_active_graph__";
   var REACTIVE_TRANSACTION_ENV = "__reactive_transaction__";
@@ -30879,7 +31107,7 @@ ${pad}}`;
     }
   };
 
-  // rix/src/eval/functions/embedded.js
+  // src/eval/functions/embedded.js
   function stringValue4(value) {
     return { type: "string", value: String(value) };
   }
@@ -31180,7 +31408,7 @@ ${pad}}`;
     }
   };
 
-  // rix/plugins/draw/draw.plugin.rix.js
+  // plugins/draw/draw.plugin.rix.js
   function entriesFor(args, positional, name) {
     if (args.length === 1 && args[0]?.type === "map" && args[0].entries instanceof Map)
       return args[0].entries;
@@ -31236,7 +31464,7 @@ ${pad}}`;
     return draw;
   }
 
-  // rix/plugins/exact-algebras/exact-algebras.plugin.rix.js
+  // plugins/exact-algebras/exact-algebras.plugin.rix.js
   var ZERO = new Rational(0n, 1n);
   function toRational3(value, label2 = "component") {
     if (value instanceof Rational)
@@ -31448,14 +31676,14 @@ ${pad}}`;
     return exactAlgebras;
   }
 
-  // rix/plugins/plot/plot.plugin.rix.js
+  // plugins/plot/plot.plugin.rix.js
   function install3({ systemContext }) {
     const plot = createPlotOutputCollection();
     systemContext.registerHostValue("plot", plot, { doc: "Portable plotting helpers that produce intrinsic Graphics scenes" });
     return plot;
   }
 
-  // rix/plugins/bundled.js
+  // plugins/bundled.js
   var BUNDLED_PLUGINS = [
     {
       metadata: {
@@ -31507,7 +31735,7 @@ ${pad}}`;
     return catalog;
   }
 
-  // rix/src/eval/functions/units.js
+  // src/eval/functions/units.js
   function int7(value) {
     return new Integer(BigInt(value));
   }
@@ -31781,7 +32009,7 @@ ${pad}}`;
     });
   }
 
-  // rix/src/eval/evaluator.js
+  // src/eval/evaluator.js
   var POSTFIX_CHECK_VALUE_ENV = "__postfix_check_value__";
   function formatCheckValue(value) {
     try {
@@ -31991,6 +32219,8 @@ ${pad}}`;
     ctx.registerValue("Graphics", graphics, { doc: "Intrinsic portable 2D scene language" });
     const controls = createControlsOutputCollection();
     ctx.registerValue("Controls", controls, { doc: "Reactive control constructors" });
+    const timeline = createTimelineOutputCollection();
+    ctx.registerValue("Timeline", timeline, { doc: "Portable exact timeline constructors" });
     ctx.registerAll(stdlibFunctions);
     ctx.registerAll(symbolicCapabilities);
     ctx.registerCallableValue("Poly", createPolySystemValue(), symbolicCapabilities.POLY, {
@@ -32688,7 +32918,7 @@ ${pad}}`;
     };
     return builtins[name] || { type: "identifier" };
   }
-  // rix/src/tools/sheet-view.js
+  // src/tools/sheet-view.js
   function moveSheetSelection(position, key, rowCount, columnCount) {
     const current = {
       row: Math.min(Math.max(Number(position?.row) || 1, 1), Math.max(rowCount, 1)),
@@ -33207,7 +33437,7 @@ ${pad}}`;
       enhanceSheet(sheet, options);
     return root;
   }
-  // rix/src/tools/widget-session.js
+  // src/tools/widget-session.js
   function sheetSource(widget) {
     if (!isOutputValue(widget) || widget.kind !== "sheet") {
       throw new Error("WidgetSession currently requires a Sheet output value");
@@ -33460,6 +33690,8 @@ ${pad}}`;
       return rangeValue(control, event.indices);
     if (control.kind === "control_reset")
       return control.initial;
+    if (control.kind === "control_action")
+      return control.run();
     if (control.kind === "control_input") {
       if (!("value" in event))
         throw new Error("Control input requires an evaluated RiX value");
@@ -33554,10 +33786,10 @@ ${pad}}`;
         }));
         return commitControlEdits(edits);
       }
-      if (event?.type !== "control:set") {
+      if (event?.type !== "control:set" && event?.type !== "control:action") {
         throw new Error(`Unsupported ControlPanel widget event: ${event?.type || "missing type"}`);
       }
-      const edit = resolveControlEdit(this.controls, event);
+      const edit = resolveControlEdit(this.controls, { ...event, type: "control:set" });
       const { control, value, replacedDependencies } = edit;
       control.target.replaceValue(value, {
         source: "widget",
@@ -33624,7 +33856,7 @@ ${pad}}`;
     }
     return new WidgetSession(widget, options);
   }
-  // rix/src/tools/graphic-view.js
+  // src/tools/graphic-view.js
   function graphicPointFromClient(rect, viewBox, client) {
     const width = Number(rect?.width);
     const height = Number(rect?.height);
@@ -33782,7 +34014,7 @@ ${pad}}`;
       enhanceGraphic(graphic, options);
     return root;
   }
-  // rix/src/tools/control-panel-view.js
+  // src/tools/control-panel-view.js
   function panelRoots(root) {
     if (!root)
       return [];
@@ -33926,6 +34158,14 @@ ${pad}}`;
         }));
         continue;
       }
+      if (kind === "action") {
+        input.addEventListener("click", () => commit({
+          ...identity(),
+          type: "control:action",
+          source: "action"
+        }));
+        continue;
+      }
       if (kind === "choice") {
         input.addEventListener("change", () => commit({
           ...identity(),
@@ -34018,12 +34258,16 @@ ${pad}}`;
       enhancePanel(panel, options);
     return root;
   }
-  // rix/src/tools/output-widgets.js
+  // src/tools/output-widgets.js
   function childOutputs(value) {
     if (!isOutputValue(value))
       return [];
     if (value.kind === "fragment")
       return value.children;
+    if (value.kind === "snapshots")
+      return value.items.map((item) => item.content);
+    if (value.kind === "timeline_render")
+      return [value.content];
     if (value.kind === "figure" || value.kind === "slide")
       return [value.content];
     if (value.kind === "slides")
@@ -34427,7 +34671,7 @@ ${pad}}`;
         dispose?.();
     };
   }
-  // rix/plugins/float/math-functions.js
+  // plugins/float/math-functions.js
   function numberFrom(value) {
     if (value instanceof Integer)
       return Number(value.value);
@@ -34465,7 +34709,7 @@ ${pad}}`;
     EXP: { impl: unary(Math.exp), pure: true, doc: "Float exponential" }
   };
 
-  // rix/plugins/float/browser-installer.js
+  // plugins/float/browser-installer.js
   var TYPE_NAME = "FloatIEEE754";
   var NATIVE_TYPE = "float_ieee754";
   function isFloat(value) {
@@ -34668,7 +34912,7 @@ ${pad}}`;
   }
   var install4 = installBrowserApproxMathPlugin;
 
-  // rix/examples/plugins/example-array-js/array-js.plugin.rix.js
+  // examples/plugins/example-array-js/array-js.plugin.rix.js
   function valuesFrom(value) {
     if (!value || !Array.isArray(value.values)) {
       throw new Error("arrayJs expects an array or sequence");
@@ -34718,7 +34962,7 @@ ${pad}}`;
     return value;
   }
 
-  // rix/examples/plugins/example-array-rix/array-rix.plugin.rix
+  // examples/plugins/example-array-rix/array-rix.plugin.rix
   var array_rix_plugin_default = `/**
 id: example-array-rix
 description: Teaching RiX plugin demonstrating array sum, summary text, and reversal.
@@ -34735,7 +34979,7 @@ defaultEnabled: false
 .Host.Register("arrayRixReverse", (values) -> values.Reverse(), "Reverse an array", ["Examples"]);
 `;
 
-  // rix/bin/web-page.js
+  // bin/web-page.js
   var page = globalThis.__RIX_PAGE__;
   function addPlugin(catalog, metadata, installer = null, source = null) {
     catalog.addMetadata(metadata, { kind: metadata.kind, source });

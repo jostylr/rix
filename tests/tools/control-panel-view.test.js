@@ -106,6 +106,49 @@ test("ControlPanel expression input emits source text only when committed", () =
     expect(status.textContent).toContain("amount set to 7/9");
 });
 
+test("ControlPanel Action button emits a semantic control:action record", () => {
+    const listeners = new Map();
+    const button = {
+        checked: false,
+        addEventListener(name, listener) { listeners.set(name, listener); },
+        getAttribute(name) { return name === "aria-label" ? "Freeze quadratic" : null; },
+    };
+    const control = {
+        dataset: {
+            rixControlTarget: "reactive:frozen",
+            rixControlKind: "action",
+            rixControlId: "freeze",
+        },
+        querySelector(selector) {
+            return selector === "[data-rix-control-input]" ? button : null;
+        },
+    };
+    const status = { textContent: "" };
+    const panel = {
+        dataset: {},
+        matches: (selector) => selector === ".rix-output-control-panel",
+        querySelector: (selector) => selector === ".rix-output-control-status" ? status : null,
+        querySelectorAll: (selector) => selector === "[data-rix-control-target]" ? [control] : [],
+        dispatchEvent() {},
+    };
+    let received = null;
+    enhanceControlPanelViews(panel, {
+        onSet(detail) {
+            received = detail;
+            return { type: "result", text: "1 frozen curve", revision: 3 };
+        },
+    });
+
+    listeners.get("click")();
+    expect(received).toEqual({
+        type: "control:action",
+        controlId: "freeze",
+        targetId: "reactive:frozen",
+        source: "action",
+    });
+    expect(status.textContent).toContain("Freeze quadratic set to 1 frozen curve");
+});
+
 test("ControlPanel interval range commits both exact-grid indices", () => {
     const listeners = [new Map(), new Map()];
     const inputs = ["2", "5"].map((initial, index) => ({

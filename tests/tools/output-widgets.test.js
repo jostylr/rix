@@ -278,3 +278,52 @@ test("ControlPanel input uses host RiX evaluation before replacing the reactive 
     expect(displayed.textContent).toBe("7/9");
     dispose();
 });
+
+test("ControlPanel Action button reaches its reactive target through the mounted browser widget", () => {
+    const panelValue = parseAndEvaluate(`
+        $$frozen := [];
+        .ControlPanel([.Controls.Action({=
+            id="freeze",
+            target=$$frozen,
+            label="Freeze quadratic",
+            action=versions -> versions ++ [3/2]
+        })])
+    `);
+    const listeners = new Map();
+    const button = {
+        checked: false,
+        addEventListener(name, listener) { listeners.set(name, listener); },
+        getAttribute(name) { return name === "aria-label" ? "Freeze quadratic" : null; },
+        focus() {},
+    };
+    const controlValue = panelValue.controls[0];
+    const control = {
+        dataset: {
+            rixControlKind: "action",
+            rixControlId: controlValue.id,
+            rixControlTarget: controlValue.targetId,
+        },
+        querySelector(selector) {
+            return selector === "[data-rix-control-input]" ? button : null;
+        },
+        querySelectorAll() { return []; },
+    };
+    const status = { textContent: "" };
+    const root = {
+        dataset: {},
+        matches(selector) { return selector === ".rix-output-control-panel"; },
+        querySelector(selector) {
+            return selector === ".rix-output-control-status" ? status : null;
+        },
+        querySelectorAll(selector) {
+            return selector === "[data-rix-control-target]" ? [control] : [];
+        },
+        dispatchEvent() {},
+    };
+    const dispose = mountOutputWidgets(root, panelValue, { format: formatValue });
+
+    listeners.get("click")();
+    expect(formatValue(controlValue.target.get())).toBe("[1..1/2]");
+    expect(status.textContent).toContain("Freeze quadratic set to [1..1/2]");
+    dispose();
+});

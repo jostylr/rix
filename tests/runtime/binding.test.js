@@ -299,6 +299,36 @@ describe("WidgetSession", () => {
         widget.dispose();
     });
 
+    test("Action controls evaluate a RiX callback and retain a frozen exact snapshot", () => {
+        const state = session();
+        const panel = parseAndEvaluate(`
+            $$frozen := [];
+            $$a := 2;
+            .ControlPanel([
+                .Controls.Action({=
+                    id="freeze",
+                    target=$$frozen,
+                    action=versions -> versions ++ [{= coefficient=$a }],
+                    label="Freeze quadratic"
+                })
+            ])
+        `, state);
+        const control = panel.controls[0];
+        const widget = createWidgetSession(panel);
+        const result = widget.dispatch({
+            type: "control:action",
+            controlId: control.id,
+            targetId: control.targetId,
+            source: "action",
+        });
+
+        expect(formatValue(result)).toBe("[{= coefficient=2 }]");
+        expect(formatValue(state.context.get("frozen").peek())).toBe("[{= coefficient=2 }]");
+        expect(() => widget.stage({ type: "control:action", controlId: control.id, targetId: control.targetId }))
+            .toThrow("Unsupported staged");
+        widget.dispose();
+    });
+
     test("commits multiple controls through one atomic reactive epoch", () => {
         const state = session();
         const panel = parseAndEvaluate(`

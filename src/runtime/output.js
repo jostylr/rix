@@ -224,6 +224,8 @@ function controlBehavior(entry, fields, name, runtime, allowed = Object.keys(fie
     return {
         display: controlDisplay(entry, fields, name, runtime, allowed),
         formatKeys: Object.freeze(formatKeys),
+        style: optionalMap(get(entry, "style"), `${name} style`),
+        metadata: optionalMap(get(entry, "metadata"), `${name} metadata`),
         disabled: has(entry, "disabled") && get(entry, "disabled") !== null,
         readOnly: has(entry, "readOnly") && get(entry, "readOnly") !== null,
         validation: validateCandidate?.(fields.value) ?? null,
@@ -304,6 +306,107 @@ function enabled(value) {
     if (value instanceof Integer) return value.value !== 0n;
     if (value instanceof Rational) return value.numerator !== 0n;
     return Boolean(value);
+}
+
+function exactPositiveIndex(value, label) {
+    const index = exactInteger(value, label);
+    if (!Number.isSafeInteger(index) || index < 1) throw new Error(`${label} must be a positive safe integer`);
+    return index;
+}
+
+function sceneEntries(value, runtime, name) {
+    return sequence(value, `${name} entries`).flatMap((entry, group) => {
+        let scene;
+        let states;
+        let label = null;
+        if (entry?.type === "map") {
+            const fields = map(entry, `${name} entry ${group + 1}`);
+            if (!has(fields, "scene") || !has(fields, "states")) {
+                throw new Error(`${name} entry ${group + 1} requires scene and states`);
+            }
+            scene = get(fields, "scene");
+            states = get(fields, "states");
+            label = asString(get(fields, "label"));
+        } else {
+            const pair = sequence(entry, `${name} entry ${group + 1}`);
+            if (pair.length !== 2) throw new Error(`${name} entry ${group + 1} must be a [scene, states] tuple`);
+            [scene, states] = pair;
+        }
+        return sequence(states, `${name} entry ${group + 1} states`).map((state, index) => {
+            const content = invokeControlCallable(scene, [state], runtime, `${name} entry ${group + 1} scene`);
+            if (!isBlockOutput(content)) {
+                const actual = isOutputValue(content) ? content.kind : typeof content;
+                throw new Error(`${name} scene ${group + 1}.${index + 1} must return block output; received ${actual}`);
+            }
+            return Object.freeze({
+                group,
+                index,
+                state,
+                label,
+                content,
+            });
+        });
+    });
+}
+
+/**
+ * Materialize one or more state-driven scenes into portable, static output.
+ * Entries are [scene, states] tuples, so different rows may use different
+ * scene functions while sharing a common state sequence.
+ */
+export function createSnapshots(args, runtime = null) {
+    const entry = spec(args, ["entries", "columns", "title"], "Snapshots");
+    const items = Object.freeze(sceneEntries(get(entry, "entries"), runtime, "Snapshots"));
+    if (items.length === 0) throw new Error("Snapshots requires at least one rendered scene");
+    const columnsValue = get(entry, "columns");
+    const columns = columnsValue === null || columnsValue === undefined
+        ? null
+        : exactPositiveIndex(columnsValue, "Snapshots columns");
+    return output("snapshots", {
+        items,
+        columns,
+        title: asString(get(entry, "title")),
+        caption: asString(get(entry, "caption")),
+        style: optionalMap(get(entry, "style"), "Snapshots style"),
+    });
+}
+
+/**
+ * A Timeline owns a deterministic ordered sequence of already-materialized
+ * scene frames. Playback is intentionally a renderer concern; the exact
+ * states and their visible outputs remain portable.
+ */
+export function createTimelineSequence(args, runtime = null) {
+    const entry = spec(args, ["entries", "duration"], "Timeline.Sequence");
+    const frames = Object.freeze(sceneEntries(get(entry, "entries"), runtime, "Timeline.Sequence"));
+    if (frames.length === 0) throw new Error("Timeline.Sequence requires at least one rendered frame");
+    const duration = get(entry, "duration");
+    return output("timeline", {
+        frames,
+        duration: duration === null || duration === undefined ? null : exactNumber(duration, "Timeline.Sequence duration"),
+        easing: asString(get(entry, "easing")) || "linear",
+        title: asString(get(entry, "title")),
+    });
+}
+
+/** Select one exact Timeline frame for a portable/static renderer. */
+export function createTimelineRender(args) {
+    const entry = spec(args, ["timeline", "frame"], "Timeline.Render");
+    const timeline = get(entry, "timeline");
+    if (!isOutputValue(timeline) || timeline.kind !== "timeline") {
+        throw new Error("Timeline.Render requires a Timeline.Sequence value");
+    }
+    const frame = get(entry, "frame");
+    const index = frame === null || frame === undefined ? 1 : exactPositiveIndex(frame, "Timeline.Render frame");
+    if (index > timeline.frames.length) {
+        throw new Error(`Timeline.Render frame ${index} is outside 1…${timeline.frames.length}`);
+    }
+    return output("timeline_render", {
+        timeline,
+        frame: index,
+        content: timeline.frames[index - 1].content,
+        title: asString(get(entry, "title")) || timeline.title,
+    });
 }
 
 export function createText(args) {
@@ -712,6 +815,31 @@ export function createResetControl(args, runtime = null) {
     });
 }
 
+/**
+ * A host-dispatched button whose RiX callback returns the next exact value for
+ * its target. This is deliberately target-based so action history remains in
+ * the reactive graph and is portable to other hosts.
+ */
+export function createActionControl(args, runtime = null) {
+    const entry = spec(args, ["target", "action", "label"], "Controls.Action");
+    const target = reactiveTarget(entry, "Controls.Action");
+    const action = get(entry, "action");
+    if (action === null || action === undefined) throw new Error("Controls.Action requires an action callable");
+    const value = target.get();
+    return output("control_action", {
+        id: asString(get(entry, "id")) || `${target.id}:action`,
+        label: asString(get(entry, "label")) || "Run action",
+        help: asString(get(entry, "help")),
+        target,
+        targetId: target.id,
+        value,
+        action,
+        run: () => invokeControlCallable(action, [target.get()], runtime, "Controls.Action action"),
+        ...controlBehavior(entry, { value }, "Controls.Action", runtime),
+        replacesDependencies: Object.freeze([...target.dependencies]),
+    });
+}
+
 export function createControlPanel(args) {
     const entry = spec(args, ["controls", "title", "description"], "ControlPanel");
     const controls = sequence(get(entry, "controls"), "ControlPanel controls");
@@ -734,6 +862,7 @@ export function createControlPanel(args) {
         submitLabel: asString(get(entry, "submitLabel")) || "Apply changes",
         discardLabel: asString(get(entry, "discardLabel")) || "Discard",
         interactive: true,
+        style: optionalMap(get(entry, "style"), "ControlPanel style"),
         metadata: optionalMap(get(entry, "metadata"), "ControlPanel metadata"),
     }, [["SNAPSHOT", method("Snapshot", ([target]) => createControlPanelSnapshot(target))]]);
 }
@@ -742,6 +871,8 @@ function controlSnapshot(control) {
     const {
         target: _target,
         validateCandidate: _validateCandidate,
+        action: _action,
+        run: _run,
         _ext: _extensions,
         ...fields
     } = control;
@@ -751,6 +882,60 @@ function controlSnapshot(control) {
         disabled: true,
         readOnly: true,
     });
+}
+
+function styleMap(value) {
+    return value instanceof Map ? value : value?.type === "map" && value.entries instanceof Map ? value.entries : null;
+}
+
+function styleValue(style, key) {
+    const entries = styleMap(style);
+    return entries ? get(entries, key) : null;
+}
+
+function mergeStyleMaps(...styles) {
+    const result = new Map();
+    for (const style of styles) {
+        const entries = styleMap(style);
+        if (!entries) continue;
+        for (const [key, value] of entries) result.set(key, value);
+    }
+    return result.size > 0 ? result : null;
+}
+
+/**
+ * A ControlPanel style applies defaults first, then a control-kind rule, then
+ * an id rule. A control's own style wins over all panel rules.
+ */
+function resolvedControlStyle(panelStyle, control) {
+    if (!styleMap(panelStyle)) return control.style;
+    const kinds = styleValue(panelStyle, "kinds");
+    const ids = styleValue(panelStyle, "ids");
+    const kind = control.kind.replace(/^control_/, "");
+    return mergeStyleMaps(
+        styleValue(panelStyle, "all"),
+        styleValue(kinds, kind),
+        styleValue(ids, control.id),
+        control.style,
+    );
+}
+
+function controlStyleAttributes(control) {
+    const style = control.style;
+    const variant = asString(styleValue(style, "variant"));
+    const density = asString(styleValue(style, "density"));
+    const width = asString(styleValue(style, "width"));
+    const attributes = [];
+    if (variant && ["primary", "danger", "quiet"].includes(variant)) {
+        attributes.push(` data-rix-control-variant="${escapeHtml(variant)}"`);
+    }
+    if (density && ["compact", "comfortable"].includes(density)) {
+        attributes.push(` data-rix-control-density="${escapeHtml(density)}"`);
+    }
+    if (width && ["auto", "compact", "full"].includes(width)) {
+        attributes.push(` data-rix-control-width="${escapeHtml(width)}"`);
+    }
+    return attributes.join("");
 }
 
 /** Detach a ControlPanel from reactive identities for persistence or static export. */
@@ -1425,15 +1610,26 @@ export function createPolynomialPlot(coefficients, domain, options = null) {
     };
     const ticksValue = get(optionEntries, "ticks", null);
     const ticks = ticksValue === null ? [] : sequence(ticksValue, "Polynomial plot ticks").map(readTick);
-    let yMin = Math.min(0, ...series.flatMap(({ data }) => data.map(([, y]) => y)), ...marks.map(({ point }) => point[1]));
-    let yMax = Math.max(0, ...series.flatMap(({ data }) => data.map(([, y]) => y)), ...marks.map(({ point }) => point[1]));
-    if (yMin === yMax) {
-        yMin -= 1;
-        yMax += 1;
+    const yDomainValue = get(optionEntries, "yDomain", null);
+    let yMin;
+    let yMax;
+    if (yDomainValue !== null) {
+        const yBounds = sequence(yDomainValue, "Polynomial plot yDomain");
+        if (yBounds.length !== 2) throw new Error("Polynomial plot yDomain must have a lower and upper bound");
+        yMin = numericValue(yBounds[0], "Polynomial plot yDomain lower bound");
+        yMax = numericValue(yBounds[1], "Polynomial plot yDomain upper bound");
+        if (!(yMin < yMax)) throw new Error("Polynomial plot yDomain must increase");
+    } else {
+        yMin = Math.min(0, ...series.flatMap(({ data }) => data.map(([, y]) => y)), ...marks.map(({ point }) => point[1]));
+        yMax = Math.max(0, ...series.flatMap(({ data }) => data.map(([, y]) => y)), ...marks.map(({ point }) => point[1]));
+        if (yMin === yMax) {
+            yMin -= 1;
+            yMax += 1;
+        }
+        const yPadding = (yMax - yMin) * 0.08;
+        yMin -= yPadding;
+        yMax += yPadding;
     }
-    const yPadding = (yMax - yMin) * 0.08;
-    yMin -= yPadding;
-    yMax += yPadding;
 
     const [width, height] = size;
     const toPoint = ([x, y]) => [
@@ -1784,6 +1980,12 @@ export function formatOutputText(value, format) {
     if (value.kind === "audio") return `[Audio: ${value.title || value.asset.ref}]${value.transcript ? `\n${value.transcript.map((child) => formatInlineText(child, format)).join("")}` : ""}`;
     if (value.kind === "video") return `[Video: ${value.title || value.asset.ref}]${value.transcript ? `\n${value.transcript.map((child) => formatInlineText(child, format)).join("")}` : ""}`;
     if (value.kind === "fragment") return value.children.map((child) => formatOutputText(child, format)).join("\n\n");
+    if (value.kind === "snapshots") {
+        return [value.title, ...value.items.map((item, index) => `Snapshot ${index + 1}: ${formatOutputText(item.content, format)}`)]
+            .filter(Boolean).join("\n\n");
+    }
+    if (value.kind === "timeline") return `[Timeline: ${value.frames.length} frames]`;
+    if (value.kind === "timeline_render") return [value.title, formatOutputText(value.content, format)].filter(Boolean).join("\n\n");
     if (value.kind === "control_slider") {
         return `${value.label}: ${cellText(controlField(value, "value"), format)} (${cellText(controlField(value, "low"), format)} … ${cellText(controlField(value, "high"), format)}; step ${cellText(controlField(value, "step"), format)})`;
     }
@@ -1803,6 +2005,7 @@ export function formatOutputText(value, format) {
     if (value.kind === "control_reset") {
         return `${value.label}: ${cellText(controlField(value, "value"), format)} → ${cellText(controlField(value, "initial"), format)}`;
     }
+    if (value.kind === "control_action") return `[Action: ${value.label}]`;
     if (value.kind === "control_panel") {
         return [value.title, value.description, ...value.controls.map((control) => formatOutputText(control, format))]
             .filter(Boolean)
@@ -1930,30 +2133,36 @@ export function renderOutputHtml(value, format = (item) => String(item ?? "")) {
         return value.caption ? `<figure class="rix-output-${tag}-figure"${value.id ? ` id="${escapeHtml(value.id)}"` : ""}>${content}</figure>` : `<section class="rix-output-${tag}-asset"${value.id ? ` id="${escapeHtml(value.id)}"` : ""}>${content}</section>`;
     }
     if (value.kind === "fragment") return `<section class="rix-output-fragment">${value.children.map((child) => renderOutputHtml(child, format)).join("")}</section>`;
+    if (value.kind === "snapshots") {
+        const columns = value.columns || Math.min(3, value.items.length);
+        return `<section class="rix-output-snapshots" style="--rix-snapshot-columns:${columns}">${value.title ? `<h2>${escapeHtml(value.title)}</h2>` : ""}<div class="rix-output-snapshot-grid">${value.items.map((item, index) => `<article class="rix-output-snapshot" data-rix-snapshot-group="${item.group}" data-rix-snapshot-index="${item.index}">${renderOutputHtml(item.content, format)}<p class="rix-output-snapshot-label">${escapeHtml(item.label || `Snapshot ${index + 1}`)}</p></article>`).join("")}</div>${value.caption ? `<p class="rix-output-snapshots-caption">${escapeHtml(value.caption)}</p>` : ""}</section>`;
+    }
+    if (value.kind === "timeline") return `<section class="rix-output-timeline"><p>${escapeHtml(value.title || "Timeline")} · ${value.frames.length} frames</p></section>`;
+    if (value.kind === "timeline_render") return `<section class="rix-output-timeline-render" data-rix-timeline-frame="${value.frame}" data-rix-timeline-length="${value.timeline.frames.length}">${value.title ? `<h2>${escapeHtml(value.title)}</h2>` : ""}${renderOutputHtml(value.content, format)}<p class="rix-output-timeline-caption">Frame ${value.frame} of ${value.timeline.frames.length}</p></section>`;
     if (value.kind === "control_slider") {
         const dependencies = value.replacesDependencies.length > 0
             ? ` data-rix-replaces-dependencies="${escapeHtml(value.replacesDependencies.join(","))}"`
             : "";
-        return `<label class="rix-output-control rix-output-control-slider" data-rix-control-kind="slider" data-rix-control-id="${escapeHtml(value.id)}" data-rix-control-target="${escapeHtml(value.targetId)}"${controlStateAttributes(value)}${dependencies}><span class="rix-output-control-label">${escapeHtml(value.label)}</span><input type="range" min="0" max="${value.steps}" step="1" value="${value.index}" data-rix-control-input aria-label="${escapeHtml(value.label)}"${controlInputAttributes(value)}><output data-rix-control-value>${text(controlField(value, "value"))}</output><small class="rix-output-control-scale">${text(controlField(value, "low"))} … ${text(controlField(value, "high"))} · step ${text(controlField(value, "step"))}</small>${controlMessages(value)}</label>`;
+        return `<label class="rix-output-control rix-output-control-slider" data-rix-control-kind="slider" data-rix-control-id="${escapeHtml(value.id)}" data-rix-control-target="${escapeHtml(value.targetId)}"${controlStyleAttributes(value)}${controlStateAttributes(value)}${dependencies}><span class="rix-output-control-label">${escapeHtml(value.label)}</span><input type="range" min="0" max="${value.steps}" step="1" value="${value.index}" data-rix-control-input aria-label="${escapeHtml(value.label)}"${controlInputAttributes(value)}><output data-rix-control-value>${text(controlField(value, "value"))}</output><small class="rix-output-control-scale">${text(controlField(value, "low"))} … ${text(controlField(value, "high"))} · step ${text(controlField(value, "step"))}</small>${controlMessages(value)}</label>`;
     }
     if (value.kind === "control_input") {
         const dependencies = value.replacesDependencies.length > 0
             ? ` data-rix-replaces-dependencies="${escapeHtml(value.replacesDependencies.join(","))}"`
             : "";
-        return `<label class="rix-output-control rix-output-control-input" data-rix-control-kind="input" data-rix-control-id="${escapeHtml(value.id)}" data-rix-control-target="${escapeHtml(value.targetId)}"${controlStateAttributes(value)}${dependencies}><span class="rix-output-control-label">${escapeHtml(value.label)}</span><span class="rix-output-control-input-row"><input type="text" value="${text(controlField(value, "value"))}" placeholder="${escapeHtml(value.placeholder)}" data-rix-control-input aria-label="${escapeHtml(value.label)}"${controlInputAttributes(value, { text: true })}><button type="button" data-rix-control-commit${controlInputAttributes(value)}>Set</button></span><output data-rix-control-value>${text(controlField(value, "value"))}</output>${controlMessages(value)}</label>`;
+        return `<label class="rix-output-control rix-output-control-input" data-rix-control-kind="input" data-rix-control-id="${escapeHtml(value.id)}" data-rix-control-target="${escapeHtml(value.targetId)}"${controlStyleAttributes(value)}${controlStateAttributes(value)}${dependencies}><span class="rix-output-control-label">${escapeHtml(value.label)}</span><span class="rix-output-control-input-row"><input type="text" value="${text(controlField(value, "value"))}" placeholder="${escapeHtml(value.placeholder)}" data-rix-control-input aria-label="${escapeHtml(value.label)}"${controlInputAttributes(value, { text: true })}><button type="button" data-rix-control-commit${controlInputAttributes(value)}>Set</button></span><output data-rix-control-value>${text(controlField(value, "value"))}</output>${controlMessages(value)}</label>`;
     }
     if (value.kind === "control_choice") {
         const dependencies = value.replacesDependencies.length > 0
             ? ` data-rix-replaces-dependencies="${escapeHtml(value.replacesDependencies.join(","))}"`
             : "";
         const options = value.options.map((option, index) => `<option value="${index}"${index === value.index ? " selected" : ""}>${escapeHtml(cellText(value.displayOptions[index], format))}</option>`).join("");
-        return `<label class="rix-output-control rix-output-control-choice" data-rix-control-kind="choice" data-rix-control-id="${escapeHtml(value.id)}" data-rix-control-target="${escapeHtml(value.targetId)}"${controlStateAttributes(value)}${dependencies}><span class="rix-output-control-label">${escapeHtml(value.label)}</span><select data-rix-control-input aria-label="${escapeHtml(value.label)}"${controlInputAttributes(value)}>${options}</select><output data-rix-control-value>${text(controlField(value, "value"))}</output>${controlMessages(value)}</label>`;
+        return `<label class="rix-output-control rix-output-control-choice" data-rix-control-kind="choice" data-rix-control-id="${escapeHtml(value.id)}" data-rix-control-target="${escapeHtml(value.targetId)}"${controlStyleAttributes(value)}${controlStateAttributes(value)}${dependencies}><span class="rix-output-control-label">${escapeHtml(value.label)}</span><select data-rix-control-input aria-label="${escapeHtml(value.label)}"${controlInputAttributes(value)}>${options}</select><output data-rix-control-value>${text(controlField(value, "value"))}</output>${controlMessages(value)}</label>`;
     }
     if (value.kind === "control_toggle") {
         const dependencies = value.replacesDependencies.length > 0
             ? ` data-rix-replaces-dependencies="${escapeHtml(value.replacesDependencies.join(","))}"`
             : "";
-        return `<label class="rix-output-control rix-output-control-toggle" data-rix-control-kind="toggle" data-rix-control-id="${escapeHtml(value.id)}" data-rix-control-target="${escapeHtml(value.targetId)}"${controlStateAttributes(value)}${dependencies}><span class="rix-output-control-label">${escapeHtml(value.label)}</span><input type="checkbox"${value.index === 1 ? " checked" : ""} data-rix-control-input aria-label="${escapeHtml(value.label)}"${controlInputAttributes(value)}><output data-rix-control-value>${text(controlField(value, "value"))}</output><small class="rix-output-control-scale">${text(controlField(value, "off"))} ↔ ${text(controlField(value, "on"))}</small>${controlMessages(value)}</label>`;
+        return `<label class="rix-output-control rix-output-control-toggle" data-rix-control-kind="toggle" data-rix-control-id="${escapeHtml(value.id)}" data-rix-control-target="${escapeHtml(value.targetId)}"${controlStyleAttributes(value)}${controlStateAttributes(value)}${dependencies}><span class="rix-output-control-label">${escapeHtml(value.label)}</span><input type="checkbox"${value.index === 1 ? " checked" : ""} data-rix-control-input aria-label="${escapeHtml(value.label)}"${controlInputAttributes(value)}><output data-rix-control-value>${text(controlField(value, "value"))}</output><small class="rix-output-control-scale">${text(controlField(value, "off"))} ↔ ${text(controlField(value, "on"))}</small>${controlMessages(value)}</label>`;
     }
     if (value.kind === "control_range") {
         const dependencies = value.replacesDependencies.length > 0
@@ -1962,19 +2171,25 @@ export function renderOutputHtml(value, format = (item) => String(item ?? "")) {
         const current = value.formatKeys.includes("value")
             ? text(controlField(value, "value"))
             : `${text(controlField(value, "start"))} … ${text(controlField(value, "end"))}`;
-        return `<fieldset class="rix-output-control rix-output-control-range" data-rix-control-kind="range" data-rix-control-id="${escapeHtml(value.id)}" data-rix-control-target="${escapeHtml(value.targetId)}"${controlStateAttributes(value)}${dependencies}><legend class="rix-output-control-label">${escapeHtml(value.label)}</legend><span class="rix-output-control-range-inputs"><input type="range" min="0" max="${value.steps}" step="1" value="${value.indices[0]}" data-rix-control-input data-rix-control-endpoint="low" aria-label="${escapeHtml(value.label)} lower endpoint"${controlInputAttributes(value)}><input type="range" min="0" max="${value.steps}" step="1" value="${value.indices[1]}" data-rix-control-input data-rix-control-endpoint="high" aria-label="${escapeHtml(value.label)} upper endpoint"${controlInputAttributes(value)}></span><output data-rix-control-value>${current}</output><small class="rix-output-control-scale">${text(controlField(value, "low"))} … ${text(controlField(value, "high"))} · step ${text(controlField(value, "step"))}</small>${controlMessages(value)}</fieldset>`;
+        return `<fieldset class="rix-output-control rix-output-control-range" data-rix-control-kind="range" data-rix-control-id="${escapeHtml(value.id)}" data-rix-control-target="${escapeHtml(value.targetId)}"${controlStyleAttributes(value)}${controlStateAttributes(value)}${dependencies}><legend class="rix-output-control-label">${escapeHtml(value.label)}</legend><span class="rix-output-control-range-inputs"><input type="range" min="0" max="${value.steps}" step="1" value="${value.indices[0]}" data-rix-control-input data-rix-control-endpoint="low" aria-label="${escapeHtml(value.label)} lower endpoint"${controlInputAttributes(value)}><input type="range" min="0" max="${value.steps}" step="1" value="${value.indices[1]}" data-rix-control-input data-rix-control-endpoint="high" aria-label="${escapeHtml(value.label)} upper endpoint"${controlInputAttributes(value)}></span><output data-rix-control-value>${current}</output><small class="rix-output-control-scale">${text(controlField(value, "low"))} … ${text(controlField(value, "high"))} · step ${text(controlField(value, "step"))}</small>${controlMessages(value)}</fieldset>`;
     }
     if (value.kind === "control_reset") {
         const dependencies = value.replacesDependencies.length > 0
             ? ` data-rix-replaces-dependencies="${escapeHtml(value.replacesDependencies.join(","))}"`
             : "";
-        return `<div class="rix-output-control rix-output-control-reset" data-rix-control-kind="reset" data-rix-control-id="${escapeHtml(value.id)}" data-rix-control-target="${escapeHtml(value.targetId)}"${controlStateAttributes(value)}${dependencies}><span class="rix-output-control-label">${escapeHtml(value.label)}</span><button type="button" data-rix-control-input aria-label="${escapeHtml(value.label)}"${controlInputAttributes(value)}>Reset to ${text(controlField(value, "initial"))}</button><output data-rix-control-value>${text(controlField(value, "value"))}</output>${controlMessages(value)}</div>`;
+        return `<div class="rix-output-control rix-output-control-reset" data-rix-control-kind="reset" data-rix-control-id="${escapeHtml(value.id)}" data-rix-control-target="${escapeHtml(value.targetId)}"${controlStyleAttributes(value)}${controlStateAttributes(value)}${dependencies}><span class="rix-output-control-label">${escapeHtml(value.label)}</span><button type="button" data-rix-control-input aria-label="${escapeHtml(value.label)}"${controlInputAttributes(value)}>Reset to ${text(controlField(value, "initial"))}</button><output data-rix-control-value>${text(controlField(value, "value"))}</output>${controlMessages(value)}</div>`;
+    }
+    if (value.kind === "control_action") {
+        const dependencies = value.replacesDependencies.length > 0
+            ? ` data-rix-replaces-dependencies="${escapeHtml(value.replacesDependencies.join(","))}"`
+            : "";
+        return `<div class="rix-output-control rix-output-control-action" data-rix-control-kind="action" data-rix-control-id="${escapeHtml(value.id)}" data-rix-control-target="${escapeHtml(value.targetId)}"${controlStyleAttributes(value)}${controlStateAttributes(value)}${dependencies}><span class="rix-output-control-label">${escapeHtml(value.label)}</span><button type="button" data-rix-control-input aria-label="${escapeHtml(value.label)}"${controlInputAttributes(value)}>${escapeHtml(value.label)}</button>${controlMessages(value)}</div>`;
     }
     if (value.kind === "control_panel") {
         const actions = value.mode === "staged"
             ? `<div class="rix-output-control-actions"><button type="button" data-rix-control-submit disabled>${escapeHtml(value.submitLabel)}</button><button type="button" data-rix-control-discard disabled>${escapeHtml(value.discardLabel)}</button></div>`
             : "";
-        return `<section class="rix-output-control-panel" data-rix-interactive="${value.interactive === false ? "false" : "true"}" data-rix-control-mode="${escapeHtml(value.mode || "immediate")}">${value.title ? `<h3>${escapeHtml(value.title)}</h3>` : ""}${value.description ? `<p>${escapeHtml(value.description)}</p>` : ""}<div class="rix-output-control-list">${value.controls.map((control) => renderOutputHtml(control, format)).join("")}</div>${actions}<output class="rix-output-control-status" aria-live="polite"></output></section>`;
+        return `<section class="rix-output-control-panel" data-rix-interactive="${value.interactive === false ? "false" : "true"}" data-rix-control-mode="${escapeHtml(value.mode || "immediate")}">${value.title ? `<h3>${escapeHtml(value.title)}</h3>` : ""}${value.description ? `<p>${escapeHtml(value.description)}</p>` : ""}<div class="rix-output-control-list">${value.controls.map((control) => renderOutputHtml({ ...control, style: resolvedControlStyle(value.style, control) }, format)).join("")}</div>${actions}<output class="rix-output-control-status" aria-live="polite"></output></section>`;
     }
     if (value.kind === "table") return `<table class="rix-output-table">${value.caption ? `<caption>${escapeHtml(value.caption)}</caption>` : ""}<thead><tr>${value.columns.map((column) => `<th>${escapeHtml(column.label)}</th>`).join("")}</tr></thead><tbody>${value.rows.map((row) => `<tr>${row.map((cell) => `<td>${text(cell)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
     if (value.kind === "grid") return `<table class="rix-output-grid"><tbody>${value.rows.map((row, rowIndex) => `<tr${hasRule(value, "horizontal", rowIndex + 1) ? " class=\"rix-grid-rule-top\"" : ""}>${row.map((cell, column) => `<td${hasRule(value, "vertical", column + 1) ? " class=\"rix-grid-rule-left\"" : ""}>${text(cell)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
@@ -2066,6 +2281,7 @@ export function createGraphicsOutputCollection() {
         ["Circle", createCircle],
         ["DragPoint", createDragPoint],
         ["Clip", createClip],
+        ["Snapshots", createSnapshots],
     ]);
     const entries = new Map();
     const extension = new Map([["immutable", int(1)]]);
@@ -2075,7 +2291,34 @@ export function createGraphicsOutputCollection() {
         extension.set(name.toUpperCase(), {
             type: "method_builtin",
             name,
-            impl: (args) => constructor(args.slice(1)),
+            impl: (args, context, evaluate, invoke) => constructor(args.slice(1), {
+                context,
+                evaluate,
+                invoke,
+            }),
+        });
+    }
+    return { type: "map", entries, _ext: extension };
+}
+
+export function createTimelineOutputCollection() {
+    const methods = new Map([
+        ["Sequence", createTimelineSequence],
+        ["Render", createTimelineRender],
+    ]);
+    const entries = new Map();
+    const extension = new Map([["immutable", int(1)]]);
+    for (const [name, constructor] of methods) {
+        entries.set(name, constructor);
+        entries.set(name.toUpperCase(), constructor);
+        extension.set(name.toUpperCase(), {
+            type: "method_builtin",
+            name,
+            impl: (args, context, evaluate, invoke) => constructor(args.slice(1), {
+                context,
+                evaluate,
+                invoke,
+            }),
         });
     }
     return { type: "map", entries, _ext: extension };
@@ -2089,6 +2332,7 @@ export function createControlsOutputCollection() {
         ["Toggle", createToggleControl],
         ["Range", createRangeControl],
         ["Reset", createResetControl],
+        ["Action", createActionControl],
     ]);
     const entries = new Map();
     const extension = new Map([["immutable", int(1)]]);
