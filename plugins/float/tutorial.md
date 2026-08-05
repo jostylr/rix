@@ -5,10 +5,7 @@ theme: Numbers and numerics
 status: implemented
 ---
 
-# Optional Float math
-
-RiX exact Integers and Rationals are always available. Load `float` when a
-calculation intentionally needs IEEE-754 behavior:
+Load `float` only when a calculation intentionally needs IEEE-754 behavior:
 
 ```rix
 .Plugin.Load("float");

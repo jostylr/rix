@@ -5,10 +5,7 @@ theme: Graphics and geometry
 status: implemented
 ---
 
-# Drawing portable graphics
-
-Load the drawing conveniences, then build a scene out of regular graphics
-nodes:
+Load the drawing conveniences and build a scene from regular `.Graphics` nodes:
 
 ```rix
 .Plugin.Load("draw");

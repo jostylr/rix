@@ -5,12 +5,6 @@ theme: Numbers and numerics
 status: proposed
 ---
 
-# Rational betweenness oracles
-
-> This tutorial defines the acceptance example for the proposed `oracle`
-> plugin. The code is not runnable until the implementation phases in
-> [specification.md](specification.md) are complete.
-
 Load the package and construct the paper's halo oracle for a rational number:
 
 ```rix

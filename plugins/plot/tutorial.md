@@ -5,9 +5,7 @@ theme: Graphics and geometry
 status: implemented
 ---
 
-# Plotting a polynomial
-
-Start by loading the optional plot package:
+Load the optional plugin and plot a cubic:
 
 ```rix
 .Plugin.Load("plot");
