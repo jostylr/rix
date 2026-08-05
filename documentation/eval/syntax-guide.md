@@ -521,10 +521,11 @@ u \= {| 2 |}
 |--------|----------------|-------------|
 | `{ a; b; c }` | `BLOCK` | Sequential execution, returns last value. Optional top-of-block import header: `{ <...> ... }` |
 | `{; a; b; c }` | `BLOCK` | Sequential execution (explicit block). Optional top-of-block import header: `{; <...> ... }` |
+| `{$ ... }` | — | Reserved for a future async/concurrency design; currently a parse error. |
 | `{? c1 ? v1; c2 ? v2; default }` | `CASE` | Conditional branching (if/elseif/else) |
 | `{@ init; cond; body; update }` | `LOOP` | Loop with init, condition, body, update. A fifth `after` slot may be added: `{@ init; cond; body; update; after }`; it runs on normal completion and supplies the loop result. Loop headers also support `{@name@ ... }`, `{@:100@ ... }`, `{@name:100@ ... }`, `{@::@ ... }`, and `{@name::@ ... }`. Optional top-of-block import header: `{@ <...> ... }` |
 | `{! expr }` | `BREAK` | Break the nearest matching block/case/loop and use `expr` as that target's final value |
-| `{#x}`, `{#x,y# x + y }`, `{#x,y:p# p = x + y }` | `SYSTEM_SPEC` | Identity, anonymous-output, and named-output symbolic spec literals. Optional import header on full forms. |
+| `{#x}`, `{#x,y# x + y }`, `{#x:y# y^2 == x }` | `SYSTEM_SPEC` | Identity, expression, and inert symbolic-system literals. Optional import header on full forms. |
 | `{= k1=v1, (expr)=v2 }` | `MAP` | Map/object literal (`k1` identifier sugar or parenthesized key expression) |
 | `{.. a, b, c }` | `ARRAY_CAPTURE` | Brace-form array literal with constructor capture controls |
 | `{\| a, b, c }` | `SET` | Set literal |
@@ -1311,7 +1312,6 @@ Map literals reject duplicate keys after canonicalization:
 
 | Syntax | System Function | Description |
 |--------|----------------|-------------|
-| `:=:` | `SOLVE` | Solve/assert equality (assigns to variable to satisfy expr) |
 | `:<:` | `ASSERT_LT` | Assert less than |
 | `:>:` | `ASSERT_GT` | Assert greater than |
 | `:<=:` | `ASSERT_LTE` | Assert less or equal |
@@ -1399,7 +1399,6 @@ Map literals reject duplicate keys after canonicalization:
 
 | Function | Description | Syntax Aliases |
 |----------|-------------|----------------|
-| `SOLVE(name, expr)` | Solve/constrain variable | `:=:` |
 | `ASSERT_LT(a, b)` | Assert `a < b` | `:<:` |
 | `ASSERT_GT(a, b)` | Assert `a > b` | `:>:` |
 | `ASSERT_LTE(a, b)` | Assert `a <= b` | `:<=:` |
@@ -1407,14 +1406,18 @@ Map literals reject duplicate keys after canonicalization:
 
 ### Symbolic Specs
 
-`{# ... }` builds a first-class symbolic function instead of executing a runtime block.
+`{# ... }` builds a first-class symbolic expression or system instead of
+executing a runtime block. RiX records the structure; it does not choose a
+solver or optimization policy.
 
 Common forms:
 
 ```rix
 {#x}                       # identity symbol
 {#x,y# x^2 + y }           # anonymous single output
-{#x,y:p# p = x^2 + y }     # named solved output
+{#x,y:p# p = x^2 + y }     # named definition
+{#x:y# y^2 == x; y >= 0 }  # relational system
+{#x:y# scale=2; y==scale*x; y>=0 } # definition plus constraints
 ```
 
 In a named header, names before `:` are inputs and names after `:` are outputs.
@@ -1422,12 +1425,30 @@ Duplicate names and input/output overlap are rejected. When no output is named,
 one expression is the implied output. `{#x}` is shorthand for `{#x# x }`.
 
 Named bodies use `name = expr` symbolic definitions. They do not perform
-ordinary assignment. Multi-output specs are representable and inspectable, but
-the current operators require a single explicitly solved expression.
+ordinary assignment. Other statements are inert constraints. Definitions and
+constraints may be mixed, and a declared output need not have a directional
+definition: a plugin may determine it from relations. Header roles are
+descriptive, not a restriction on auxiliary definitions.
 
-Ordinary display preserves a source-like spec. `.InspectSpec(S)` returns the
-detailed structural map when a tool needs `inputs`, `outputs`, `statements`, and
-expression IR.
+`.InspectSpec(S)` exposes `symbols`, `inputs`, `outputs`, ordered `statements`,
+`definitions`, `constraints`, and lowered expression IR. `symbols` is the
+first-seen union of attached roles, definition targets, and referenced names.
+`.SpecRoles(S)` returns the normalized `symbols`, `inputs`, `outputs`, and
+`unassigned` lists. A role-aware consumer can override the header for one call:
+
+```rix
+.SpecRoles(S, {= inputs=[:scale,:x], outputs=[:y] })
+```
+
+A consumer that does not distinguish input from output can use only `symbols`.
+A role-aware plugin should accept an optional role map and call `.SpecRoles`
+(or the JavaScript `resolveSymbolicRoles` helper); when the map is omitted it
+must use the attached header roles.
+
+Ordinary display preserves a source-like spec. Systems remain inert until a
+plugin deliberately interprets them. Solving, branch choice, approximation,
+work budgets, and proof/certification are plugin policy rather than language
+semantics.
 
 #### Application and arithmetic
 
@@ -1480,10 +1501,10 @@ implement operation-sequence parentheses.
 
 Symbolic capabilities belong to the `Symbolic` sandbox group and are available
 only through dot syntax: `.Poly`, `.Deriv`, `.Integrate`, `.Transform`, `.Spec`,
-`.Speccability`, and `.InspectSpec`. `.Simplify` is a compatibility alias for
-`.Transform`.
-
-Constraint forms such as `:=:`, `:<:`, and `:>:` remain separate and are not part of `{# ... }` semantics yet.
+`.Speccability`, `.InspectSpec`, and `.SpecRoles`. `.Simplify` is a
+compatibility alias for `.Transform`. Arithmetic and calculus deliberately
+remain limited to expression specs or one named definition; they do not solve
+general systems. The former `:=:` solve operator has been removed.
 
 ### Control Flow
 
@@ -1493,7 +1514,7 @@ Constraint forms such as `:=:`, `:<:`, and `:>:` remain separate and are not par
 | `CASE(branches...)` | If/elseif/else branching | `{? cond ? val; default }` |
 | `LOOP(init, cond, body, update, after)` | Loop with optional name/max metadata and optional completion slot | `{@ init; cond; body; update }`, `{@ init; cond; body; update; after }`, `{@name:100@ ... }`, `{@::@ ... }` |
 | `BREAK(meta, value)` | Structured break that exits the nearest matching target | `{! value }`, `{!@ value }`, `{!?name! value }` |
-| `SYSTEM_SPEC(meta)` | Create a symbolic system spec value | `{#x,y:p# p = x + y }` |
+| `SYSTEM_SPEC(meta)` | Create an inert symbolic expression/system value | `{#x:y# y^2 == x; y >= 0 }` |
 | `TERNARY(cond, t, f)` | Ternary conditional | `cond ?? t ?: f` |
 | `IF(cond, t, f)` | If-then-else (stdlib) | — |
 | `MULTI(a, b, c...)` | Evaluate all, return last (stdlib) | — |

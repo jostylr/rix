@@ -774,7 +774,9 @@ f := @{; x + y }
 ```
 
 #### Block Import Headers
-Scoped execution blocks can optionally start with an import header. This is only valid at the top of an explicit scoped block: plain `{ ... }`, `{; ... }`, `{@ ... }`, and `{$ ... }`.
+Scoped execution blocks and symbolic specs can optionally start with an import
+header. This is valid at the top of plain `{ ... }`, `{; ... }`, `{@ ... }`,
+and `{# ... }` forms.
 
 ```rix
 {;
@@ -1134,7 +1136,8 @@ For other types of containers or specialized execution, a "sigil" is used immedi
 | `{? ... }` | **Case / Branch** | Conditional branching. Example: `{? x > 0 ? "pos"; x < 0 ? "neg"; "zero" }` |
 | `{@ ... }` | **Loop** | C-style loop: `{@ init; condition; body; update }`, the three-part form `{@ init; condition; body }` when the body performs its own update, or the five-part form `{@ init; condition; body; update; after }` where `after` runs on normal completion and supplies the loop result. Loop headers may also carry an optional name and/or max-iteration cap such as `{@name@ ... }`, `{@:100@ ... }`, `{@name:100@ ... }`, `{@::@ ... }`, or `{@name::@ ... }`. Supports an optional top-of-block import header `< ... >`. |
 | `{! ... }` | **Break Block** | Terminates the nearest matching block/case/loop and returns a value. Examples: `{! 5 }`, `{!; 5 }`, `{!@ "done" }`, `{!?name! "big" }`. |
-| `{$ ... }` | **System** | Mathematical system of equations/assertions. Example: `{$ x :=: 3; y :>: 10 }`. Supports an optional top-of-block import header `< ... >`. |
+| `{# ... }` | **Symbolic Spec/System** | Preserves expressions, definitions, and constraints for later consumers. Example: `{#x:y# y^2 == x; y >= 0 }`. |
+| `{$ ... }` | **Reserved** | Reserved for a future async/concurrency design; currently a parse error. |
 | `{= ... }` | **Map** | Dictionary / key-value mappings. Example: `{= name="RiX", version=1 }` |
 | `{\| ... }` | **Set** | A collection of unique elements. Example: `{\| 1, 2, 3 }` |
 | `{: ... }` | **Tuple** | Fixed-length collection. Example: `{: x, y, z }` |
@@ -1745,22 +1748,38 @@ P := `.Poly:x^2 + 3/4 x^5 - 7`
 See the parser documentation for custom parser objects, modifiers, raw-string
 backticks, and multiple-backtick nesting.
 
-`{# ... }` creates a first-class symbolic function without executing its body.
-The three common forms are:
+`{# ... }` creates a first-class symbolic expression or system without
+executing its body. Common forms are:
 
 ```rix
 {#x}                       # identity symbol
 {#t# t^2 - 4 }             # anonymous single output
-{#x:p# p = 2*x }           # explicitly solved output
+{#x:p# p = 2*x }           # named definition
+{#x:y# y^2 == x; y >= 0 }  # relational system
 ```
 
 The identity form is useful as a variable value. The anonymous form implies
-that its expression is the result. The named form retains its output name
-through symbolic transformations. Multi-output named specs can be represented
-and inspected, but current arithmetic and calculus require one solved output.
+that its expression is the result. In a system, `name = expression` is an inert
+symbolic definition and other statements are inert constraints. Inputs and
+outputs name intended roles, but do not force a solving direction or require an
+output to have a directional definition. Current arithmetic and calculus still
+require an expression spec or one named definition.
 
-Specs display in source-like form. Use `.InspectSpec(S)` for the structural map
-of inputs, outputs, statements, and expression IR.
+Specs display in source-like form. Use `.InspectSpec(S)` for all symbols,
+attached inputs/outputs, definitions, constraints, ordered statements, and
+expression IR. `.SpecRoles(S)` returns `symbols`, `inputs`, `outputs`, and
+`unassigned`. Direction-aware consumers may supply overrides without changing
+the source:
+
+```rix
+.SpecRoles(S, {= inputs=[:x,:scale], outputs=[:y] })
+```
+
+Plugins that do not care about direction can consume all `symbols`. Plugins
+that do care should accept an optional role map and fall back to the attached
+input/output header when it is absent. Solving choices, approximation, branch
+selection, work budgets, and certification belong to those plugins rather than
+the language.
 
 ### Substitution, arithmetic, and execution
 
@@ -1852,9 +1871,10 @@ example `.Transform(P, {: :expand, [:center, 3] })`. See the [symbolic
 transformation reference](design/eval/transformation-reference.md) for the
 exhaustive behavior. `.Simplify` remains a compatibility alias.
 
-Relation and constraint forms such as `:=:`, `:<:`, and `:>:` remain separate
-from symbolic-spec semantics. See [Symbolic specs and exact calculus](design/eval/symbolic-calculus.md)
-for the full runtime model and supported boundary.
+The former `:=:` solve operator has been removed. Runtime assertions such as
+`:<:` and `:>:` remain separate from inert `{#}` constraints. See [Symbolic
+specs and exact calculus](design/eval/symbolic-calculus.md) for the full runtime
+model and plugin boundary.
 
 
 ---
@@ -1969,7 +1989,6 @@ result := (score > 50) ?? "Pass" ?: "Fail"
 
 ### Assertions
 When validating equations or tests, you have special assertion operators:
-- `:=:` Asserts equality (or acts as a solver check)
 - `:<:` Asserts less than
 - `:>:` Asserts greater than
 - `:<=:` / `:>=:` Asserts boundaries.

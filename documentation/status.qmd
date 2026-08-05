@@ -21,14 +21,14 @@ The repository test suite currently covers 1,700+ cases across parser, evaluator
 | Tooling | REPL/runner, IR converter, native `.test.rix` runner, structured diagnostics, source locations, trace/debug |
 | Structured output | typed `Text`, `Paragraph`, `Heading`, `Fragment`, `Table`, `Grid`, `Graphic`, `Figure`, `Slide`, `Slides`, and reactive `ControlPanel` values; intrinsic 2D scene primitives under `.Graphics` include `DragPoint`, while `.Controls.Slider($$name, ...)` performs exact identity-preserving updates; optional bundled `.draw` and `.plot` plugins load through `.Plugin.Load(...)`; CLI text fallback; HTML tables/grids, controls, and inline SVG graphics; `@"..."`/`@"""..."""` templates; exact synthetic division through `.Algebra.SyntheticDivision` |
 | Embedding | parser exports, evaluator/runtime exports, configurable system loader and system context |
-| Exact symbolic core | identity/expression/named specs, substitution and composition, name-preserving arithmetic, attached pure-function specs, polynomial compilation, exact derivatives/integrals, explicit simplification, quote calculus syntax |
+| Exact symbolic core | identity/expression/system specs, inert definitions and constraints, normalized symbol roles, substitution and composition, name-preserving arithmetic, attached pure-function specs, polynomial compilation, exact derivatives/integrals, explicit simplification, quote calculus syntax |
 
 ## Partial or intentionally bounded
 
 | Area | Boundary |
 |---|---|
-| Symbolic work | The implemented single-output exact-arithmetic subset is complete and tested. Multi-output manipulation, transcendental rules, general algebraic solving, and numerical calculus are intentionally outside it. |
-| Mathematical systems | `{$ ... }` evaluates with block-like semantics. It is not yet a general equation/constraint solver. |
+| Symbolic work | `{# ... }` represents multi-symbol systems, but arithmetic/calculus remain a tested single-expression exact subset. Transcendental rules, general solving, and numerical calculus belong outside that subset. |
+| Mathematical systems | `{# ... }` preserves definitions, constraints, symbols, and advisory input/output roles; solving is delegated to plugins. `{$ ... }` is reserved for future async/concurrency syntax. |
 | Real approximation | the default runtime is exact-first. The repository includes a float package example, but a unified real/oracle layer is not part of the default surface. |
 | Browser use | the parser demo runs in the browser. Full evaluator imports currently include Node file APIs, so evaluator embedding needs a host adapter for browser-only use. |
 | Packaging | the package uses `@ratmath/core` through the parent Bun workspace and has not yet declared a stable standalone release workflow. |

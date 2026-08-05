@@ -1096,7 +1096,7 @@ y                  ## 100</code></pre>
 </section>
 <section id="block-import-headers" class="level4">
 <h4 class="anchored" data-anchor-id="block-import-headers">Block Import Headers</h4>
-<p>Scoped execution blocks can optionally start with an import header. This is only valid at the top of an explicit scoped block: plain <code>{ ... }</code>, <code>{; ... }</code>, <code>{@ ... }</code>, and <code>{$ ... }</code>.</p>
+<p>Scoped execution blocks and symbolic specs can optionally start with an import header. This is valid at the top of plain <code>{ ... }</code>, <code>{; ... }</code>, <code>{@ ... }</code>, and <code>{# ... }</code> forms.</p>
 <pre class="rix"><code>{;
     &lt; a~x, b=y, z=, r &gt;
     ...block body...
@@ -1440,26 +1440,31 @@ m^^                ##: tensor[3x2]
 <td>Terminates the nearest matching block/case/loop and returns a value. Examples: <code>{! 5 }</code>, <code>{!; 5 }</code>, <code>{!@ "done" }</code>, <code>{!?name! "big" }</code>.</td>
 </tr>
 <tr class="odd">
-<td><code>{$ ... }</code></td>
-<td><strong>System</strong></td>
-<td>Mathematical system of equations/assertions. Example: <code>{$ x :=: 3; y :&gt;: 10 }</code>. Supports an optional top-of-block import header <code>&lt; ... &gt;</code>.</td>
+<td><code>{# ... }</code></td>
+<td><strong>Symbolic Spec/System</strong></td>
+<td>Preserves expressions, definitions, and constraints for later consumers. Example: <code>{#x:y# y^2 == x; y &gt;= 0 }</code>.</td>
 </tr>
 <tr class="even">
+<td><code>{$ ... }</code></td>
+<td><strong>Reserved</strong></td>
+<td>Reserved for a future async/concurrency design; currently a parse error.</td>
+</tr>
+<tr class="odd">
 <td><code>{= ... }</code></td>
 <td><strong>Map</strong></td>
 <td>Dictionary / key-value mappings. Example: <code>{= name="RiX", version=1 }</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>{\| ... }</code></td>
 <td><strong>Set</strong></td>
 <td>A collection of unique elements. Example: <code>{\| 1, 2, 3 }</code></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>{: ... }</code></td>
 <td><strong>Tuple</strong></td>
 <td>Fixed-length collection. Example: <code>{: x, y, z }</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>{&gt; ... }</code></td>
 <td><strong>Multifunction</strong></td>
 <td>Ordered callable variants; nested multifunctions flatten in source order.</td>
@@ -1945,12 +1950,15 @@ Constant()                # Fraction(8,4)</code></pre>
 <p>A leading-dot header selects any registered parser object exposing <code>.Parse</code>:</p>
 <pre class="rix"><code>P := `.Poly:x^2 + 3/4 x^5 - 7`</code></pre>
 <p>See the parser documentation for custom parser objects, modifiers, raw-string backticks, and multiple-backtick nesting.</p>
-<p><code>{# ... }</code> creates a first-class symbolic function without executing its body. The three common forms are:</p>
+<p><code>{# ... }</code> creates a first-class symbolic expression or system without executing its body. Common forms are:</p>
 <pre class="rix"><code>{#x}                       # identity symbol
 {#t# t^2 - 4 }             # anonymous single output
-{#x:p# p = 2*x }           # explicitly solved output</code></pre>
-<p>The identity form is useful as a variable value. The anonymous form implies that its expression is the result. The named form retains its output name through symbolic transformations. Multi-output named specs can be represented and inspected, but current arithmetic and calculus require one solved output.</p>
-<p>Specs display in source-like form. Use <code>.InspectSpec(S)</code> for the structural map of inputs, outputs, statements, and expression IR.</p>
+{#x:p# p = 2*x }           # named definition
+{#x:y# y^2 == x; y &gt;= 0 }  # relational system</code></pre>
+<p>The identity form is useful as a variable value. The anonymous form implies that its expression is the result. In a system, <code>name = expression</code> is an inert symbolic definition and other statements are inert constraints. Inputs and outputs name intended roles, but do not force a solving direction or require an output to have a directional definition. Current arithmetic and calculus still require an expression spec or one named definition.</p>
+<p>Specs display in source-like form. Use <code>.InspectSpec(S)</code> for all symbols, attached inputs/outputs, definitions, constraints, ordered statements, and expression IR. <code>.SpecRoles(S)</code> returns <code>symbols</code>, <code>inputs</code>, <code>outputs</code>, and <code>unassigned</code>. Direction-aware consumers may supply overrides without changing the source:</p>
+<pre class="rix"><code>.SpecRoles(S, {= inputs=[:x,:scale], outputs=[:y] })</code></pre>
+<p>Plugins that do not care about direction can consume all <code>symbols</code>. Plugins that do care should accept an optional role map and fall back to the attached input/output header when it is absent. Solving choices, approximation, branch selection, work budgets, and certification belong to those plugins rather than the language.</p>
 <section id="substitution-arithmetic-and-execution" class="level3">
 <h3 class="anchored" data-anchor-id="substitution-arithmetic-and-execution">Substitution, arithmetic, and execution</h3>
 <p>Calling a spec substitutes its input slots positionally and returns a spec:</p>
@@ -1992,7 +2000,7 @@ F'(4) # 48
 .Transform({#x# x*(x + 1) }, :expand)
 .Transform({#x# (x - 1)*(x + 2) }, :center, 3)</code></pre>
 <p><code>:decompose</code> records ordered quotient/remainder divisions by provided roots or polynomial factors. <code>:gadic</code> expands in flattened powers of one provided polynomial, while <code>:distribute</code> selectively distributes only a named root or factor. Parameterized operations inside a transformation tuple use arrays, for example <code>.Transform(P, {: :expand, [:center, 3] })</code>. See the <a href="./design/eval/transformation-reference.html">symbolic transformation reference</a> for the exhaustive behavior. <code>.Simplify</code> remains a compatibility alias.</p>
-<p>Relation and constraint forms such as <code>:=:</code>, <code>:&lt;:</code>, and <code>:&gt;:</code> remain separate from symbolic-spec semantics. See <a href="./design/eval/symbolic-calculus.html">Symbolic specs and exact calculus</a> for the full runtime model and supported boundary.</p>
+<p>The former <code>:=:</code> solve operator has been removed. Runtime assertions such as <code>:&lt;:</code> and <code>:&gt;:</code> remain separate from inert <code>{#}</code> constraints. See <a href="./design/eval/symbolic-calculus.html">Symbolic specs and exact calculus</a> for the full runtime model and plugin boundary.</p>
 <hr>
 </section>
 </section>
@@ -2095,7 +2103,7 @@ angle := pi/2 * .Units[:rad]</code></pre>
 </section>
 <section id="assertions" class="level3">
 <h3 class="anchored" data-anchor-id="assertions">Assertions</h3>
-<p>When validating equations or tests, you have special assertion operators: - <code>:=:</code> Asserts equality (or acts as a solver check) - <code>:&lt;:</code> Asserts less than - <code>:&gt;:</code> Asserts greater than - <code>:&lt;=:</code> / <code>:&gt;=:</code> Asserts boundaries.</p>
+<p>When validating equations or tests, you have special assertion operators: - <code>:&lt;:</code> Asserts less than - <code>:&gt;:</code> Asserts greater than - <code>:&lt;=:</code> / <code>:&gt;=:</code> Asserts boundaries.</p>
 </section>
 <section id="utility-system-function" class="level3">
 <h3 class="anchored" data-anchor-id="utility-system-function">Utility System Function</h3>
@@ -2204,9 +2212,9 @@ angle := pi/2 * .Units[:rad]</code></pre>
 <section id="cli-test-runner" class="level3">
 <h3 class="anchored" data-anchor-id="cli-test-runner">CLI Test Runner</h3>
 <p>Run test files from the command line:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb150"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb150-1"><a href="#cb150-1" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> bin/rix.js test              <span class="co"># discover all *.test.rix files</span></span>
-<span id="cb150-2"><a href="#cb150-2" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> bin/rix.js test parser       <span class="co"># filter by substring match</span></span>
-<span id="cb150-3"><a href="#cb150-3" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> bin/rix.js test math core    <span class="co"># multiple filters (OR)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb151"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb151-1"><a href="#cb151-1" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> bin/rix.js test              <span class="co"># discover all *.test.rix files</span></span>
+<span id="cb151-2"><a href="#cb151-2" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> bin/rix.js test parser       <span class="co"># filter by substring match</span></span>
+<span id="cb151-3"><a href="#cb151-3" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> bin/rix.js test math core    <span class="co"># multiple filters (OR)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>The runner discovers <code>*.test.rix</code> files recursively, runs each in a fresh context, and prints per-file and per-test-group summaries. Exit code is 0 if all pass, nonzero otherwise.</p>
 
 

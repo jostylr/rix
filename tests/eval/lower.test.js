@@ -354,7 +354,7 @@ describe("Lowering Pass", () => {
         outputMode: "named",
         statements: [
           {
-            kind: "assign",
+            kind: "define",
             target: "p",
             expr: {
               fn: "ADD",
@@ -969,9 +969,8 @@ describe("Lowering Pass", () => {
   });
 
   describe("Solve / Assertions", () => {
-    test(":=: → SOLVE", () => {
-      const ir = L("x :=: 5;");
-      expect(ir.fn).toBe("SOLVE");
+    test(":=: is removed in favor of symbolic specs and solver plugins", () => {
+      expect(() => L("x :=: 5;")).toThrow(/solve operator was removed/);
     });
 
     test(":<: → ASSERT_LT", () => {

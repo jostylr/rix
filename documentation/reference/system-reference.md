@@ -8,7 +8,7 @@ toc-depth: 2
 This page is generated from the current RiX implementation by `documentation/scripts/generate-reference.js`. Do not edit it by hand. Descriptions come from registry documentation strings; the narrative [syntax guide](../eval/syntax-guide.md) and [methods guide](../eval/methods-guide.md) provide signatures and examples.
 :::
 
-At this revision RiX exposes **176 named entries** on the default system context and registers **209 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
+At this revision RiX exposes **177 named entries** on the default system context and registers **208 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
 
 ## Public system context
 
@@ -160,6 +160,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.SORT` | lazy function | — | Sort a collection with comparator function (returns new copy) |
 | `.SPEC` | function | Symbolic | Analyze a pure function and attach/return its symbolic spec |
 | `.SPECCABILITY` | function | Symbolic | Report whether a pure function can be represented by the exact symbolic subset |
+| `.SPECROLES` | function | Symbolic | Resolve all symbols and input/output roles, with optional role overrides |
 | `.SPLIT` | lazy function | — | Split a collection by a delimiter or predicate |
 | `.SQRT` | function | — | Square root (approximate rational) |
 | `.STOP` | lazy function | — | Conditional abort: .Stop(label, condition, dataMap ?= {=}) |
@@ -283,7 +284,7 @@ Imported scripts can add or withhold named groups. Permission-like names are int
 | `Files` | `FILES` |
 | `Units` | `UNITS`, `Units`, `CONVERTUNIT`, `ConvertUnit`, `DEFINEUNIT`, `DefineUnit` |
 | `Exact` | `EXACT`, `Exact`, `COMPLEX`, `Complex`, `DEFINEEXACTGENERATOR`, `DefineExactGenerator`, `exactalgebras` |
-| `Symbolic` | `POLY`, `DERIV`, `INTEGRATE`, `TRANSFORM`, `SIMPLIFY`, `SPEC`, `SPECCABILITY`, `INSPECTSPEC`, `SArith` |
+| `Symbolic` | `POLY`, `DERIV`, `INTEGRATE`, `TRANSFORM`, `SIMPLIFY`, `SPEC`, `SPECCABILITY`, `INSPECTSPEC`, `SPECROLES`, `SArith` |
 | `Notation` | `SArith`, `Poly`, `NotationParser` |
 | `Random` | `RANDOMSEED`, `RandomSeed`, `RAND_NAME` |
 | `RiXCel` | `FORMULASHEET`, `REACTIVEGRAPH`, `RIXCELEXPORT`, `RIXCELIMPORT`, `RIXCELIMPORTCSV`, `RIXCELIMPORTTSV`, `RIXCELEXPORTCSV`, `RIXCELEXPORTTSV` |
@@ -476,7 +477,6 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `SLIDE` | eager, pure | Create a presentation slide |
 | `SLIDES` | eager, pure | Create a sequential presentation deck |
 | `SNAPSHOTS` | eager, pure | Materialize [scene, states] tuples into a portable ordered snapshot list |
-| `SOLVE` | lazy, effectful/unspecified | Solve/constrain: x :=: expr |
 | `SQRT` | eager, pure, multifunction | Square root (approximate rational) |
 | `STEP` | eager, pure | Lazy exact stepped range over a rational interval |
 | `STRING` | eager, pure | Create a string value |

@@ -8,7 +8,7 @@ import { tokenize, posToLineCol } from "./tokenizer.js";
 // Precedence levels (higher numbers bind tighter)
 const PRECEDENCE = {
   STATEMENT: 0,
-  ASSIGNMENT: 10, // :=, :=:, :>:, etc.
+  ASSIGNMENT: 10, // :=, :>:, etc.
   PIPE: 20, // |>, ||>, |>>, etc.
   ARROW: 25, // ->, =>, :-> for function definitions
   LOGICAL_OR: 30, // OR (if system identifier)
@@ -37,11 +37,6 @@ const IMPLICIT_APPLICATION_PRECEDENCE = 97; // Implicit callable application, ti
 const SYMBOL_TABLE = {
   // Assignment operators (right associative)
   ":=": {
-    precedence: PRECEDENCE.ASSIGNMENT,
-    associativity: "right",
-    type: "infix",
-  },
-  ":=:": {
     precedence: PRECEDENCE.ASSIGNMENT,
     associativity: "right",
     type: "infix",
@@ -557,6 +552,9 @@ class Parser {
       if (token.value === "|^:") {
         this.error("The legacy '|^:' generator operator was removed; use '|^' for lazy generation");
       }
+      if (token.value === ":=:") {
+        this.error("The ':=:' solve operator was removed; express symbolic constraints with {# ... } and solve them with a plugin");
+      }
       return SYMBOL_TABLE[token.value] || { precedence: 0, type: "unknown" };
     } else if (token.type === "SemicolonSequence") {
       // Semicolon sequences should not be treated as binary operators
@@ -785,6 +783,9 @@ class Parser {
         } else if (token.value === "{=" || token.value === "{?" || token.value === "{;" || token.value === "{|" || token.value === "{:" || token.value === "{@" || token.value === "{#" || token.value === "{.." || token.value === "{>"
           || token.value === "{^"
           || token.value === "{$") {
+          if (token.value === "{$") {
+            this.error("The '{$ ... }' sigil is reserved for future async/concurrency syntax");
+          }
           if (token.value === "{#") {
             return this.parseSystemSpecLiteral();
           }
@@ -842,6 +843,8 @@ class Parser {
             let inner;
             if (nextVal === "{") {
               inner = this.parseBraceContainer();
+            } else if (nextVal === "{$") {
+              this.error("The '{$ ... }' sigil is reserved for future async/concurrency syntax");
             } else if (nextVal === "{#") {
               inner = this.parseSystemSpecLiteral();
             } else if (nextVal === "{^") {
@@ -2998,6 +3001,9 @@ class Parser {
   // Parse brace sigil containers: {= map, {? case, {; block, {| set, {: tuple, {@ loop
   parseBraceSigil(sigil, containerName = null, options = {}) {
     const startToken = this.current;
+    if (sigil === "{$") {
+      this.error("The '{$ ... }' sigil is reserved for future async/concurrency syntax");
+    }
     this.advance(); // consume the sigil token (e.g., '{=')
 
     const isTensorShapeSigil =
@@ -3018,7 +3024,6 @@ class Parser {
       "{|": "SetContainer",
       "{:": "TupleContainer",
       "{@": "LoopContainer",
-      "{$": "BlockContainer",
       "{^": "ValueOutfit",
       "{>": "MultifunctionContainer",
     };
@@ -3026,7 +3031,7 @@ class Parser {
     const nodeType = sigilTypeMap[effectiveSigil];
 
     // Determine separator: temporal (;) vs spatial (,)
-    const temporalSigils = new Set(["{?", "{;", "{@", "{$"]);
+    const temporalSigils = new Set(["{?", "{;", "{@"]);
     const isTemporal = temporalSigils.has(effectiveSigil);
     const closerMap = {
       "{|": ["|}", "}"],
@@ -3065,7 +3070,7 @@ class Parser {
         : null;
 
     const imports =
-      (effectiveSigil === "{;" || effectiveSigil === "{@" || effectiveSigil === "{$") && this.startsImportHeader()
+      (effectiveSigil === "{;" || effectiveSigil === "{@") && this.startsImportHeader()
         ? this.parseImportHeader()
         : [];
     const elements = [];
@@ -3200,8 +3205,7 @@ class Parser {
     }
 
     const imports = this.startsImportHeader() ? this.parseImportHeader() : [];
-    const statements = [];
-    let expressionBody = null;
+    const bodyItems = [];
 
     if (this.current.value !== "}") {
       do {
@@ -3211,17 +3215,11 @@ class Parser {
         }
 
         const expression = this.parseExpression(0);
-        if (expression?.type === "BinaryOperation" && expression.operator === "=") {
-          if (expressionBody) {
-            this.error("A symbolic expression body cannot be mixed with assignments");
-          }
-          statements.push(this.parseSystemSpecStatement(expression));
-        } else {
-          if (statements.length > 0 || expressionBody) {
-            this.error("A symbolic expression spec must contain exactly one expression");
-          }
-          expressionBody = expression;
-        }
+        bodyItems.push(
+          expression?.type === "BinaryOperation" && expression.operator === "="
+            ? this.parseSystemSpecDefinition(expression)
+            : expression,
+        );
 
         if (this.current.value === ";") {
           this.advance();
@@ -3244,6 +3242,20 @@ class Parser {
     }
     this.advance();
 
+    const soleItem = bodyItems.length === 1 ? bodyItems[0] : null;
+    const expressionBody = soleItem && soleItem.type !== "SpecDefinition" && !this.isSystemConstraintExpression(soleItem)
+      ? soleItem
+      : null;
+    const statements = expressionBody
+      ? []
+      : bodyItems.map((item) => item.type === "SpecDefinition"
+        ? item
+        : this.createNode("SpecConstraint", {
+          expr: item,
+          pos: item.pos,
+          original: item.original,
+        }));
+
     if (expressionBody && header.outputsDeclared) {
       this.error("An anonymous symbolic expression cannot declare named outputs");
     }
@@ -3256,7 +3268,11 @@ class Parser {
       inputs: header.inputs,
       outputs: finalized.outputs,
       outputsDeclared: header.outputsDeclared,
-      outputMode: expressionBody ? "expression" : "named",
+      outputMode: expressionBody
+        ? "expression"
+        : finalized.statements.some((statement) => statement.type === "SpecConstraint")
+          ? "system"
+          : "named",
       ...(expressionBody ? { expression: expressionBody } : {}),
       statements: finalized.statements,
       pos: startToken.pos,
@@ -3286,17 +3302,27 @@ class Parser {
     }
   }
 
-  parseSystemSpecStatement(expression) {
+  isSystemConstraintExpression(expression) {
+    const unwrapped = expression?.type === "Grouping" && expression.expression
+      ? expression.expression
+      : expression;
+    if (unwrapped?.type === "BinaryOperation") {
+      return new Set(["==", "!=", "<", ">", "<=", ">=", "===", "?", "!?", "?&", "AND", "&&", "OR", "||"]).has(unwrapped.operator);
+    }
+    return unwrapped?.type === "UnaryOperation" && ["NOT", "!"].includes(unwrapped.operator);
+  }
+
+  parseSystemSpecDefinition(expression) {
     if (!expression || expression.type !== "BinaryOperation" || expression.operator !== "=") {
-      this.error("System spec bodies only support symbolic assignments of the form name = expr");
+      this.error("System spec definitions must have the form name = expr");
     }
 
     const target = expression.left;
     if (target.type !== "UserIdentifier" && target.type !== "SystemIdentifier") {
-      this.error("System spec assignment targets must be bare identifiers");
+      this.error("System spec definition targets must be bare identifiers");
     }
 
-    return this.createNode("SpecAssign", {
+    return this.createNode("SpecDefinition", {
       target: target.name,
       expr: expression.right,
       pos: expression.pos ?? target.pos,
@@ -3305,29 +3331,18 @@ class Parser {
   }
 
   finalizeSystemSpecStatements(header, statements) {
-    const assigned = new Set();
+    const defined = new Set();
     const inferredOutputs = [];
-    const declaredOutputs = new Set(header.outputs);
 
     for (const statement of statements) {
+      if (statement.type !== "SpecDefinition") continue;
       const target = statement.target;
-      if (assigned.has(target)) {
-        this.error(`System spec output '${target}' is assigned more than once`);
+      if (defined.has(target)) {
+        this.error(`System spec symbol '${target}' is defined more than once`);
       }
-      if (header.outputsDeclared && !declaredOutputs.has(target)) {
-        this.error(`System spec assignment target '${target}' is not a declared output`);
-      }
-      assigned.add(target);
+      defined.add(target);
       if (!header.outputsDeclared) {
         inferredOutputs.push(target);
-      }
-    }
-
-    if (header.outputsDeclared) {
-      for (const output of header.outputs) {
-        if (!assigned.has(output)) {
-          this.error(`System spec declared output '${output}' is never assigned`);
-        }
       }
     }
 

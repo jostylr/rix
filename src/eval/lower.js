@@ -340,13 +340,6 @@ const LOWERERS = {
 
       return lowerAssignment(assignAstNode, "ASSIGN_UPDATE");
     }
-    if (op === ":=:") {
-      const left = node.left;
-      if (left.type === "UserIdentifier" || left.type === "SystemIdentifier") {
-        return ir("SOLVE", left.name, lowerNode(node.right));
-      }
-      return ir("SOLVE", lowerNode(left), lowerNode(node.right));
-    }
     if (op === ":<:") {
       return ir("ASSERT_LT", lowerNode(node.left), lowerNode(node.right));
     }
@@ -772,8 +765,8 @@ const LOWERERS = {
       outputMode: node.outputMode || "named",
       ...(node.expression ? { expression: lowerNode(node.expression) } : {}),
       statements: (node.statements || []).map((statement) => ({
-        kind: "assign",
-        target: statement.target,
+        kind: statement.type === "SpecConstraint" ? "constraint" : "define",
+        ...(statement.target ? { target: statement.target } : {}),
         expr: lowerNode(statement.expr),
       })),
     };
@@ -783,12 +776,16 @@ const LOWERERS = {
     return ir("SYSTEM_SPEC", meta);
   },
 
-  SpecAssign(node) {
+  SpecDefinition(node) {
     return {
-      kind: "assign",
+      kind: "define",
       target: node.target,
       expr: lowerNode(node.expr),
     };
+  },
+
+  SpecConstraint(node) {
+    return { kind: "constraint", expr: lowerNode(node.expr) };
   },
 
   BreakBlock(node) {

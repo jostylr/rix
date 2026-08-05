@@ -418,7 +418,7 @@ ul.task-list li input[type="checkbox"] {
 </tr>
 <tr class="odd">
 <td>Exact symbolic core</td>
-<td>identity/expression/named specs, substitution and composition, name-preserving arithmetic, attached pure-function specs, polynomial compilation, exact derivatives/integrals, explicit simplification, quote calculus syntax</td>
+<td>identity/expression/system specs, inert definitions and constraints, normalized symbol roles, substitution and composition, name-preserving arithmetic, attached pure-function specs, polynomial compilation, exact derivatives/integrals, explicit simplification, quote calculus syntax</td>
 </tr>
 </tbody>
 </table>
@@ -439,11 +439,11 @@ ul.task-list li input[type="checkbox"] {
 <tbody>
 <tr class="odd">
 <td>Symbolic work</td>
-<td>The implemented single-output exact-arithmetic subset is complete and tested. Multi-output manipulation, transcendental rules, general algebraic solving, and numerical calculus are intentionally outside it.</td>
+<td><code>{# ... }</code> represents multi-symbol systems, but arithmetic/calculus remain a tested single-expression exact subset. Transcendental rules, general solving, and numerical calculus belong outside that subset.</td>
 </tr>
 <tr class="even">
 <td>Mathematical systems</td>
-<td><code>{$ ... }</code> evaluates with block-like semantics. It is not yet a general equation/constraint solver.</td>
+<td><code>{# ... }</code> preserves definitions, constraints, symbols, and advisory input/output roles; solving is delegated to plugins. <code>{$ ... }</code> is reserved for future async/concurrency syntax.</td>
 </tr>
 <tr class="odd">
 <td>Real approximation</td>

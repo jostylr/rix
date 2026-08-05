@@ -625,19 +625,8 @@ describe("RiX Parser", () => {
       expect(stripMetadata(ast)[0].expression.operator).toBe(operator);
     });
 
-    test("equation solving", () => {
-      const ast = parseCode("x :=: 5;");
-      expect(stripMetadata(ast)).toEqual([
-        {
-          type: "Statement",
-          expression: {
-            type: "BinaryOperation",
-            operator: ":=:",
-            left: { type: "UserIdentifier", name: "x" },
-            right: { type: "Number", value: "5" },
-          },
-        },
-      ]);
+    test("the former equation-solving operator has a migration error", () => {
+      expect(() => parseCode("x :=: 5;")).toThrow(/solve operator was removed/);
     });
   });
 
@@ -852,40 +841,8 @@ describe("RiX Parser", () => {
       ]);
     });
 
-    test("transitional {$ } sigil behaves like a block alias", () => {
-      const ast = parseCode("{$ x :=: 3*x + 2; y :=: x };");
-      expect(stripMetadata(ast)).toEqual([
-        {
-          type: "Statement",
-          expression: {
-            type: "BlockContainer",
-            elements: [
-              {
-                type: "BinaryOperation",
-                operator: ":=:",
-                left: { type: "UserIdentifier", name: "x" },
-                right: {
-                  type: "BinaryOperation",
-                  operator: "+",
-                  left: {
-                    type: "BinaryOperation",
-                    operator: "*",
-                    left: { type: "Number", value: "3" },
-                    right: { type: "UserIdentifier", name: "x" },
-                  },
-                  right: { type: "Number", value: "2" },
-                },
-              },
-              {
-                type: "BinaryOperation",
-                operator: ":=:",
-                left: { type: "UserIdentifier", name: "y" },
-                right: { type: "UserIdentifier", name: "x" },
-              },
-            ],
-          },
-        },
-      ]);
+    test("{$ } is reserved for future async/concurrency syntax", () => {
+      expect(() => parseCode("{$ x }")).toThrow(/reserved for future async\/concurrency/);
     });
 
     test("empty block", () => {

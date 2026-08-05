@@ -45,6 +45,38 @@ describe("first-class symbolic specs", () => {
         expect(result.values[1].entries.get("expression")).toBeNull();
     });
 
+    test("systems preserve mixed definitions and constraints without solving them", () => {
+        const { result } = evalRix("S={#x:y# scale=2; y == scale*x; y >= 0 }; {: S, .InspectSpec(S) };");
+        expect(formatValue(result.values[0])).toBe("{#x:y# scale = 2; y == scale * x; y >= 0 }");
+        const inspected = result.values[1].entries;
+        expect(inspected.get("form").value).toBe("system");
+        expect(inspected.get("symbols").values.map((value) => value.value)).toEqual(["x", "y", "scale"]);
+        expect(inspected.get("definitions").values).toHaveLength(1);
+        expect(inspected.get("constraints").values).toHaveLength(2);
+        expect(inspected.get("statements").values.map((statement) => statement.entries.get("kind").value)).toEqual(["define", "constraint", "constraint"]);
+    });
+
+    test("SpecRoles uses attached roles by default and accepts per-consumer overrides", () => {
+        const { result } = evalRix("S={#x:y# a=2; y == a*x }; {: .SpecRoles(S), .SpecRoles(S,{= inputs=[:a,:x], outputs=[:y] }) };");
+        const roleNames = (map, key) => map.entries.get(key).values.map((value) => value.value);
+        expect(roleNames(result.values[0], "symbols")).toEqual(["x", "y", "a"]);
+        expect(roleNames(result.values[0], "inputs")).toEqual(["x"]);
+        expect(roleNames(result.values[0], "outputs")).toEqual(["y"]);
+        expect(roleNames(result.values[0], "unassigned")).toEqual(["a"]);
+        expect(roleNames(result.values[1], "inputs")).toEqual(["a", "x"]);
+        expect(roleNames(result.values[1], "unassigned")).toEqual([]);
+    });
+
+    test("system calls substitute inputs but retain inert constraints", () => {
+        const { result } = evalRix("S={#x:y# y^2 == x; y >= 0 }; S(9)");
+        expect(formatValue(result)).toBe("{#:y# y ^ 2 == 9; y >= 0 }");
+    });
+
+    test("system display covers common domain and predicate constraints", () => {
+        const { result } = evalRix("{#x# x ? 0:1; F(x) == 0 }");
+        expect(formatValue(result)).toBe("{#x# x ? 0:1; F(x) == 0 }");
+    });
+
     test("Poly compiles expression and named specs and displays its attached spec", () => {
         const { result } = evalRix("P=.Poly({#x:p# p=x^2 + 1}); {: P(3), P }");
         expect(result.values[0].value).toBe(10n);
@@ -345,7 +377,7 @@ describe("exact symbolic calculus", () => {
     });
 
     test("symbolic capabilities are available only behind dot syntax", () => {
-        for (const name of ["Poly", "Deriv", "Integrate", "Transform", "Simplify", "Spec", "Speccability", "InspectSpec"]) {
+        for (const name of ["Poly", "Deriv", "Integrate", "Transform", "Simplify", "Spec", "Speccability", "InspectSpec", "SpecRoles"]) {
             expect(() => evalRix(name)).toThrow(new RegExp(`Undefined variable: ${name.toUpperCase()}`));
         }
     });

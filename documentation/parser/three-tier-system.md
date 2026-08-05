@@ -1,5 +1,15 @@
 # Three-Tier System Architecture for RiX Language
 
+> **Current implementation boundary:** `SystemLoader` is a legacy parser
+> configuration object, not an end-to-end plugin syntax facility. Registered
+> uppercase operator keywords can influence Pratt precedence when its lookup is
+> passed to `parse`. `registerOperator(symbol, ...)` currently stores and
+> exports metadata only; the tokenizer/parser do not consult that registry for
+> new glyphs. Custom keyword operators also lower to generic `BINOP` unless core
+> has a mapping, and `BINOP` errors at evaluation. Plugins should currently add
+> capabilities, callable values, variants of existing operations, or backtick
+> parser objects. Executable custom operator syntax remains future work.
+
 ## Overview
 
 The RiX language implements a **three-tier architecture** that separates concerns and enables controlled extensibility:
@@ -122,6 +132,9 @@ systemLoader.registerSystem('RANDOM', {
 ```
 
 ### Custom Operators
+
+The registration below demonstrates the configuration API only. It does not
+make `<<` tokenize, lower, and execute end to end in the current runtime.
 
 ```javascript
 // Add new symbolic operators

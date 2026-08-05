@@ -35,7 +35,7 @@ describe("System Spec Parser", () => {
       outputMode: "named",
       statements: [
         {
-          type: "SpecAssign",
+          type: "SpecDefinition",
           target: "p",
           expr: {
             type: "BinaryOperation",
@@ -98,23 +98,37 @@ describe("System Spec Parser", () => {
     expect(expr.expression).toEqual({ type: "UserIdentifier", name: "x" });
   });
 
-  test("rejects mixing anonymous expressions and assignments", () => {
-    expect(() => parseCode("{#x# x + 1; p = x };")).toThrow(/cannot be mixed with assignments/);
+  test("parses mixed definitions and constraints as a symbolic system", () => {
+    const expr = stripMetadata(parseCode("{#x:p# p = x + 1; p >= 0 };"))[0].expression;
+    expect(expr.outputMode).toBe("system");
+    expect(expr.statements.map((statement) => statement.type)).toEqual(["SpecDefinition", "SpecConstraint"]);
+    expect(expr.statements[1].expr.operator).toBe(">=");
   });
 
   test("rejects non-identifier assignment targets", () => {
-    expect(() => parseCode("{# a.b = 1 };")).toThrow(/assignment targets must be bare identifiers/);
+    expect(() => parseCode("{# a.b = 1 };")).toThrow(/definition targets must be bare identifiers/);
   });
 
-  test("rejects undeclared outputs when header is present", () => {
-    expect(() => parseCode("{#:p# q = 1 };")).toThrow(/is not a declared output/);
+  test("declared roles do not restrict auxiliary definitions", () => {
+    const expr = stripMetadata(parseCode("{#:p# q = 1; p == q };"))[0].expression;
+    expect(expr.outputs).toEqual(["p"]);
+    expect(expr.statements[0].target).toBe("q");
   });
 
-  test("rejects missing assignments for declared outputs", () => {
-    expect(() => parseCode("{#:p,q# p = 1 };")).toThrow(/declared output 'q' is never assigned/);
+  test("declared outputs may be specified relationally instead of assigned", () => {
+    const expr = stripMetadata(parseCode("{#x:y# y^2 == x };"))[0].expression;
+    expect(expr.outputMode).toBe("system");
+    expect(expr.outputs).toEqual(["y"]);
+    expect(expr.statements[0].type).toBe("SpecConstraint");
   });
 
-  test("rejects duplicate assignments after inference", () => {
-    expect(() => parseCode("{# p = 1; p = 2 };")).toThrow(/assigned more than once/);
+  test("rejects duplicate definitions after inference", () => {
+    expect(() => parseCode("{# p = 1; p = 2 };")).toThrow(/defined more than once/);
+  });
+
+  test("a single comparison is a system rather than an expression spec", () => {
+    const expr = stripMetadata(parseCode("{#x# x^2 == 4 };"))[0].expression;
+    expect(expr.outputMode).toBe("system");
+    expect(expr.statements[0].type).toBe("SpecConstraint");
   });
 });

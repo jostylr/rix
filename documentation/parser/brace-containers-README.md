@@ -1,5 +1,9 @@
 # RiX Brace Container Examples
 
+> **Historical design note:** inferred equation containers and `:=:` described
+> below are obsolete. Use `{#x:y# y^2 == x; y >= 0 }` for inert symbolic
+> systems. `{$ ... }` is reserved for future async/concurrency syntax.
+
 This directory contains examples demonstrating the four different types of brace containers (`{}`) supported by the RiX parser.
 
 ## Container Types

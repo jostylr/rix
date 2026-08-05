@@ -31,6 +31,7 @@ numeric type or one universal rendering engine.
 | `.float` | Implemented plugin | IEEE-754 Float conversion, arithmetic integration, rounding, intervals of stored values, and approximate elementary functions. |
 | `.exactAlgebras` | Implemented plugin | Exact rational quaternion and octonion values with Cayley-Dickson arithmetic. |
 | Plugin catalog | Implemented runtime service | Discovery, metadata, explicit loading, host approval for JavaScript, capability groups, and remounting. |
+| Core symbolic specs | Implemented in RiX core | `{#}` preserves expression IR, definitions, constraints, all symbols, and advisory input/output roles without choosing a solver. |
 | HTML/SVG/terminal display | Implemented in current hosts | Initial rendering behavior; intended to migrate toward the renderer contracts below. |
 
 ### Proposed first-party packages
@@ -98,6 +99,59 @@ Renderers depend on portable output schemas. An SVG renderer must not need to
 understand polynomial factorization, implicit geometry, or an oracle real. A
 domain plugin resolves those semantics into a finite scene before target
 encoding.
+
+### Symbolic specifications as plugin input
+
+`{#}` is the common language-level carrier for symbolic expressions and
+systems. It deliberately does not solve them:
+
+```rix
+system := {#mass,acceleration:force#
+    scale = 1000;
+    force == scale*mass*acceleration;
+    mass > 0
+}
+```
+
+Inside a spec, `name = expression` is an inert definition and other statements
+are inert constraints. `.InspectSpec(system)` provides `symbols`, attached
+`inputs` and `outputs`, ordered `statements`, separate `definitions` and
+`constraints`, and serialized IR. `.SpecRoles(system)` normalizes the attached
+roles and reports symbols in neither role as `unassigned`.
+
+Plugins fall into two categories:
+
+- direction-neutral consumers use the complete `symbols` list and may ignore
+  `inputs`/`outputs`;
+- direction-aware consumers accept an optional role map. When it is absent,
+  they use the attached roles; when present, they resolve it for that operation
+  without modifying the source spec.
+
+For example, a solver API should allow both calls:
+
+```rix
+# Proposed consumer API
+.solve.System(system)
+.solve.System(system, {= inputs=[:mass,:acceleration,:scale], outputs=[:force] })
+```
+
+RiX plugins can call `.SpecRoles`. JavaScript installers can import the public
+helpers from `rix/eval`:
+
+```js
+import { getAttachedSpec, resolveSymbolicRoles } from "rix/eval";
+
+const spec = getAttachedSpec(value);
+if (!spec) throw new Error("Expected a symbolic spec");
+const roles = resolveSymbolicRoles(spec, options?.roles);
+// roles = { symbols, inputs, outputs, unassigned }
+```
+
+A consumer must validate the IR operations and statement forms it supports.
+It must not infer solving direction from statement order, silently discard an
+unsupported constraint, or present heuristic/numerical output as a language
+guarantee. Branch policy, precision, work limits, residuals, certification, and
+provenance belong in the plugin's arguments and result type.
 
 ## 3. Shared protocol layer
 

@@ -473,9 +473,8 @@ describe("RiX Evaluator", () => {
             expect(evalRix("y;", ctx).value).toBe(4n);
         });
 
-        test("transitional {$ blocks behave like isolated block aliases", () => {
-            expect(() => evalRix("x = 5; {$ x }")).toThrow("Undefined variable: x");
-            expect(evalRix("x = 5; {$ @x }").value).toBe(5n);
+        test("{$ blocks are reserved for future async/concurrency syntax", () => {
+            expect(() => evalRix("{$ x }")).toThrow(/reserved for future async\/concurrency/);
         });
 
         test("copy import same-name does not write back on plain assignment", () => {

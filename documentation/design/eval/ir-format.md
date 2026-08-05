@@ -156,11 +156,10 @@ Operations array: `[{action: "add"|"remove", key: string, value: ir|null}]`
 | `PFILTER` | `xs \|>? f` | `[collection, fn]` |
 | `PREDUCE` | `xs \|>: f` | `[collection, fn]` |
 
-### Solve / Assertions
+### Assertions
 
 | IR fn | Source | Args |
 |-------|--------|------|
-| `SOLVE` | `x :=: expr` | `[left, right]` |
 | `ASSERT_LT` | `x :<: 5` | `[left, right]` |
 | `ASSERT_GT` | `x :>: 5` | `[left, right]` |
 | `ASSERT_LTE` | `x :<=: 5` | `[left, right]` |

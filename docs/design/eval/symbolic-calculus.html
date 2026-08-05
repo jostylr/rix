@@ -24,6 +24,41 @@ ul.task-list li input[type="checkbox"] {
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
 }
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
 </style>
 
 
@@ -328,12 +363,14 @@ ul.task-list li input[type="checkbox"] {
   <ul>
   <li><a href="#purpose-and-boundary" id="toc-purpose-and-boundary" class="nav-link active" data-scroll-target="#purpose-and-boundary">Purpose and boundary</a></li>
   <li><a href="#runtime-values" id="toc-runtime-values" class="nav-link" data-scroll-target="#runtime-values">Runtime values</a></li>
+  <li><a href="#systems-constraints-and-roles" id="toc-systems-constraints-and-roles" class="nav-link" data-scroll-target="#systems-constraints-and-roles">Systems, constraints, and roles</a></li>
   <li><a href="#application-is-substitution" id="toc-application-is-substitution" class="nav-link" data-scroll-target="#application-is-substitution">Application is substitution</a></li>
   <li><a href="#arithmetic-propagation" id="toc-arithmetic-propagation" class="nav-link" data-scroll-target="#arithmetic-propagation">Arithmetic propagation</a></li>
   <li><a href="#function-speccability-and-closure-cells" id="toc-function-speccability-and-closure-cells" class="nav-link" data-scroll-target="#function-speccability-and-closure-cells">Function speccability and closure cells</a></li>
   <li><a href="#calculus" id="toc-calculus" class="nav-link" data-scroll-target="#calculus">Calculus</a></li>
   <li><a href="#intentional-transformations" id="toc-intentional-transformations" class="nav-link" data-scroll-target="#intentional-transformations">Intentional transformations</a></li>
   <li><a href="#public-symbolic-capabilities" id="toc-public-symbolic-capabilities" class="nav-link" data-scroll-target="#public-symbolic-capabilities">Public Symbolic capabilities</a></li>
+  <li><a href="#plugin-consumption-contract" id="toc-plugin-consumption-contract" class="nav-link" data-scroll-target="#plugin-consumption-contract">Plugin consumption contract</a></li>
   </ul>
 <div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/design/eval/symbolic-calculus.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
     </div>
@@ -368,7 +405,7 @@ ul.task-list li input[type="checkbox"] {
 <section id="purpose-and-boundary" class="level2">
 <h2 class="anchored" data-anchor-id="purpose-and-boundary">Purpose and boundary</h2>
 <p>The Symbolic capability group performs definite structural transformations. It does not depend on a representation of real numbers and never silently falls back to numerical differentiation or quadrature. Unsupported transformations fail with an error.</p>
-<p>The current implementation is a single-output exact-arithmetic core. Named multi-output specs can be represented and inspected, but arithmetic, <code>.Poly</code>, calculus, and substitution currently require one solved expression.</p>
+<p>The exact-arithmetic transformer is intentionally narrower than the value model. <code>{#}</code> can represent multi-symbol systems, directional definitions, and relations. Arithmetic, <code>.Poly</code>, and calculus still require an expression spec or one named definition. General solving is delegated to plugins.</p>
 </section>
 <section id="runtime-values" class="level2">
 <h2 class="anchored" data-anchor-id="runtime-values">Runtime values</h2>
@@ -376,12 +413,33 @@ ul.task-list li input[type="checkbox"] {
 <pre class="rix"><code>{#x}                         # identity-symbol form
 {#t# t^2 - 4 }               # anonymous single output
 {#x:p# p = 2*x }             # explicitly solved output
+{#x:y# y^2 == x; y &gt;= 0 }    # relational system
 .InspectSpec({#x# x^2 + 1 }) # structural view</code></pre>
-<p>The implementation stores lowered expression IR, input and output headers, closure scopes, origin information, and transform provenance. A spec body is not executed when the spec is created.</p>
+<p>The implementation stores lowered expression IR, input and output headers, ordered definitions and constraints, closure scopes, origin information, and transform provenance. A spec body is not executed when the spec is created.</p>
+</section>
+<section id="systems-constraints-and-roles" class="level2">
+<h2 class="anchored" data-anchor-id="systems-constraints-and-roles">Systems, constraints, and roles</h2>
+<p><code>name = expression</code> is a symbolic definition inside <code>{#}</code>; it does not bind a runtime variable. Every other body item in a multi-statement spec is retained as a constraint. A lone comparison is also a system, while a lone arithmetic expression keeps the compact expression-spec behavior.</p>
+<pre class="rix"><code>S := {#mass,acceleration:force#
+    scale = 1000;
+    force == scale*mass*acceleration;
+    mass &gt; 0
+}</code></pre>
+<p>The header records intended roles, but does not impose a solving direction. Declared outputs may be determined only by constraints, and definitions may introduce auxiliary names. <code>.InspectSpec(S)</code> exposes the full ordered statement IR as well as separate <code>definitions</code> and <code>constraints</code> lists.</p>
+<p><code>.SpecRoles(S)</code> returns four lists:</p>
+<ul>
+<li><code>symbols</code>: every attached or referenced name, in stable first-seen order;</li>
+<li><code>inputs</code> and <code>outputs</code>: the attached header roles;</li>
+<li><code>unassigned</code>: symbols in neither attached role.</li>
+</ul>
+<p>Consumers that do not care about direction can use <code>symbols</code>. A directional consumer accepts an optional override map and otherwise uses the attached roles:</p>
+<pre class="rix"><code>.SpecRoles(S)
+.SpecRoles(S, {= inputs=[:scale,:mass,:acceleration], outputs=[:force] })</code></pre>
+<p>This separation is deliberate. The language does not choose equation order, unknowns, branches, numerical precision, stopping criteria, or whether a result must be certified.</p>
 </section>
 <section id="application-is-substitution" class="level2">
 <h2 class="anchored" data-anchor-id="application-is-substitution">Application is substitution</h2>
-<p>A symbolic spec is callable. Arguments replace input slots positionally, but the result is always another spec:</p>
+<p>A symbolic spec is callable. Arguments replace input slots positionally, but the result is always another spec. For a system, substitution rewrites every definition and constraint without solving it:</p>
 <pre class="rix"><code>G := {#t# t^2 - 4 }
 G({#x})          # {#x# x^2 - 4 }
 G({#x# x + 1 })  # composition
@@ -484,9 +542,28 @@ Q := {#x# x^2 + 1 }
 <td><code>.InspectSpec(S)</code></td>
 <td>structural inspection map</td>
 </tr>
+<tr class="odd">
+<td><code>.SpecRoles(S, overrides?)</code></td>
+<td>normalized symbols and per-consumer input/output roles</td>
+</tr>
 </tbody>
 </table>
 <p>All language-provided names remain behind the dot system object. There are no bare <code>Poly</code>, <code>Deriv</code>, or other symbolic globals.</p>
+</section>
+<section id="plugin-consumption-contract" class="level2">
+<h2 class="anchored" data-anchor-id="plugin-consumption-contract">Plugin consumption contract</h2>
+<p>A RiX-level plugin can consume <code>.InspectSpec(value)</code> for the inert statement IR and <code>.SpecRoles(value, optionalRoles)</code> for direction. A JavaScript plugin can use the corresponding public helpers from <code>rix/eval</code>:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> {</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>  getAttachedSpec<span class="op">,</span></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>  inspectSymbolicSpec<span class="op">,</span></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>  resolveSymbolicRoles<span class="op">,</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>} <span class="im">from</span> <span class="st">"rix/eval"</span><span class="op">;</span></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> spec <span class="op">=</span> <span class="fu">getAttachedSpec</span>(value)<span class="op">;</span></span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (<span class="op">!</span>spec) <span class="cf">throw</span> <span class="kw">new</span> <span class="bu">Error</span>(<span class="st">"Expected a symbolic spec"</span>)<span class="op">;</span></span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> roles <span class="op">=</span> <span class="fu">resolveSymbolicRoles</span>(spec<span class="op">,</span> options<span class="op">?.</span><span class="at">roles</span>)<span class="op">;</span></span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> structure <span class="op">=</span> <span class="fu">inspectSymbolicSpec</span>(spec)<span class="op">;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>resolveSymbolicRoles</code> returns ordinary JavaScript arrays named <code>symbols</code>, <code>inputs</code>, <code>outputs</code>, and <code>unassigned</code>. If <code>options.roles</code> is absent, it uses the spec header. A plugin that ignores direction should consume <code>roles.symbols</code> and must not infer a direction from statement order. Plugins should validate the IR operations they support, preserve unsupported statements in diagnostics, and return their own result/evidence type rather than mutating the spec or implying that RiX itself solved it.</p>
 
 
 </section>

@@ -1,5 +1,11 @@
 # RiX Language Parser Documentation
 
+> **Historical sections:** inferred equation systems and `:=:` examples below
+> predate the current language. `:=:` is removed, `{# ... }` carries inert
+> definitions/constraints for plugins, and `{$ ... }` is reserved for future
+> async/concurrency syntax. Use the evaluator syntax guide as the current
+> contract.
+
 ## Overview
 
 The RiX parser is a Pratt parser implementation that converts tokenized RiX code into Abstract Syntax Trees (ASTs). It handles the full spectrum of RiX language features including mathematical expressions, assignments, function calls, pipe operations, metadata annotations, comments, and more.

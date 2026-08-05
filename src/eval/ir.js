@@ -92,8 +92,7 @@ export const IR = {
   // System direct call (from @_ syntax)
   sys: (name, ...args) => ir(name, ...args),
 
-  // Solve / assertions
-  solve: (name, expr) => ir("SOLVE", name, expr),
+  // Assertions
   assertLt: (a, b) => ir("ASSERT_LT", a, b),
   assertGt: (a, b) => ir("ASSERT_GT", a, b),
 

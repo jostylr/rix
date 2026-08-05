@@ -31,12 +31,12 @@ The main entry points are:
 
 The following evaluator capabilities are intentionally still stubs or partial:
 
-- `DERIVATIVE` and `INTEGRAL` return stub objects.
-- Symbolic `DERIVATIVE` and `INTEGRAL` remain stubs. Array generators,
-  lazy sequences, interval stepping/division/partitions, mediants, random
-  sampling, and infinite arithmetic sequences are implemented.
-- `{$ ... }` system blocks currently evaluate with block-like semantics; the
-  broader constraint/solver model is still design work.
+- Exact symbolic derivative/integral support is intentionally bounded; general
+  transcendental and multi-equation calculus remains future work.
+- Array generators, lazy sequences, interval stepping/division/partitions,
+  mediants, random sampling, and infinite arithmetic sequences are implemented.
+- `{# ... }` retains symbolic definitions and constraints for plugins without
+  solving them. `{$ ... }` is reserved for future async/concurrency syntax.
 - General algebraic field composition and user-declared cross-generator
   relations remain future work; built-in exact generators reduce their known
   single-generator relations.

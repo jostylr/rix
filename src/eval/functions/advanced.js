@@ -1,5 +1,5 @@
 /**
- * Advanced system functions: SOLVE, assertions, generators, and random helpers.
+ * Advanced system functions: assertions, generators, and random helpers.
  *
  * These provide the constraint/assertion system and placeholder
  * implementations for extended features (calculus, generators, etc.)
@@ -148,27 +148,6 @@ function mediantLevels(lo, hi, levels) {
 }
 
 export const advancedFunctions = {
-    SOLVE: {
-        lazy: true,
-        impl(args, context, evaluate) {
-            // SOLVE(name, expr) — set variable to the value that satisfies expr
-            // For now, just evaluate the expression and assign it
-            let name = typeof args[0] === "object" && args[0] !== null && args[0].fn
-                ? evaluate(args[0])
-                : args[0];
-
-            // Unwrap RiX string object if necessary
-            if (name && typeof name === "object" && name.type === "string") {
-                name = name.value;
-            }
-
-            const value = evaluate(args[1]);
-            context.set(name, value);
-            return { type: "constraint", name, value, satisfied: true };
-        },
-        doc: "Solve/constrain: x :=: expr",
-    },
-
     ASSERT_LT: {
         impl(args) {
             const a = toNumber(args[0]);

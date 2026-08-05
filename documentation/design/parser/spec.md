@@ -11,6 +11,10 @@ remains published because it records the larger design space and original
 intent.
 :::
 
+The `:=:` solve operator has since been removed. Symbolic systems use inert
+`{# ... }` definitions and constraints interpreted by explicit plugins.
+`{$ ... }` is reserved for future async/concurrency syntax.
+
 ## Overview
 
 This document defines the syntax, semantics, and practical usage of the RiX (Rational Interval Expression Language) mathematical expression language designed for symbolic computation, mathematical exploration, and interactive scripting.

@@ -1207,96 +1207,101 @@ u \= {| 2 |}
 <td>Sequential execution (explicit block). Optional top-of-block import header: <code>{; &lt;...&gt; ... }</code></td>
 </tr>
 <tr class="odd">
+<td><code>{$ ... }</code></td>
+<td>—</td>
+<td>Reserved for a future async/concurrency design; currently a parse error.</td>
+</tr>
+<tr class="even">
 <td><code>{? c1 ? v1; c2 ? v2; default }</code></td>
 <td><code>CASE</code></td>
 <td>Conditional branching (if/elseif/else)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>{@ init; cond; body; update }</code></td>
 <td><code>LOOP</code></td>
 <td>Loop with init, condition, body, update. A fifth <code>after</code> slot may be added: <code>{@ init; cond; body; update; after }</code>; it runs on normal completion and supplies the loop result. Loop headers also support <code>{@name@ ... }</code>, <code>{@:100@ ... }</code>, <code>{@name:100@ ... }</code>, <code>{@::@ ... }</code>, and <code>{@name::@ ... }</code>. Optional top-of-block import header: <code>{@ &lt;...&gt; ... }</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>{! expr }</code></td>
 <td><code>BREAK</code></td>
 <td>Break the nearest matching block/case/loop and use <code>expr</code> as that target’s final value</td>
 </tr>
-<tr class="even">
-<td><code>{#x}</code>, <code>{#x,y# x + y }</code>, <code>{#x,y:p# p = x + y }</code></td>
-<td><code>SYSTEM_SPEC</code></td>
-<td>Identity, anonymous-output, and named-output symbolic spec literals. Optional import header on full forms.</td>
-</tr>
 <tr class="odd">
+<td><code>{#x}</code>, <code>{#x,y# x + y }</code>, <code>{#x:y# y^2 == x }</code></td>
+<td><code>SYSTEM_SPEC</code></td>
+<td>Identity, expression, and inert symbolic-system literals. Optional import header on full forms.</td>
+</tr>
+<tr class="even">
 <td><code>{= k1=v1, (expr)=v2 }</code></td>
 <td><code>MAP</code></td>
 <td>Map/object literal (<code>k1</code> identifier sugar or parenthesized key expression)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>{.. a, b, c }</code></td>
 <td><code>ARRAY_CAPTURE</code></td>
 <td>Brace-form array literal with constructor capture controls</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>{\| a, b, c }</code></td>
 <td><code>SET</code></td>
 <td>Set literal</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>{: a, b, c }</code></td>
 <td><code>TUPLE</code></td>
 <td>Tuple literal</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>{&gt; f, G, H[:Named] }</code></td>
 <td><code>MULTIFUNCTION</code></td>
 <td>Ordered callable variants; nested multifunctions flatten in source order</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>{+ a, b, c }</code></td>
 <td><code>ADD</code></td>
 <td>N-ary addition or concatenation</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>{* a, b, c }</code></td>
 <td><code>MUL</code></td>
 <td>N-ary multiplication</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>{&amp;&amp; a, b, c }</code></td>
 <td><code>AND</code></td>
 <td>N-ary logical AND (short-circuits on falsy)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>{\|\| a, b, c }</code></td>
 <td><code>OR</code></td>
 <td>N-ary logical OR (short-circuits on truthy)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>{\/ a, b, c }</code></td>
 <td><code>NARY_UNION</code></td>
 <td>N-ary set union / interval hull</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>{/\ a, b, c }</code></td>
 <td><code>NARY_INTERSECT</code></td>
 <td>N-ary set intersection / interval overlap</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>{++ a, b, c }</code></td>
 <td><code>NARY_CONCAT</code></td>
 <td>N-ary concatenation</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>{&lt;&lt; a, b, c }</code></td>
 <td><code>MIN</code></td>
 <td>N-ary minimum (<code>null</code> args ignored)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>{&gt;&gt; a, b, c }</code></td>
 <td><code>MAX</code></td>
 <td>N-ary maximum (<code>null</code> args ignored)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>{/pattern/flags?mode}</code></td>
 <td><code>REGEX</code></td>
 <td>Regular expression literal</td>
@@ -2471,11 +2476,6 @@ Constant()            # Fraction(8,4)</code></pre>
 <section id="assertions" class="level3">
 <h3 class="anchored" data-anchor-id="assertions">Assertions</h3>
 <table class="caption-top table">
-<colgroup>
-<col style="width: 21%">
-<col style="width: 43%">
-<col style="width: 35%">
-</colgroup>
 <thead>
 <tr class="header">
 <th>Syntax</th>
@@ -2485,26 +2485,21 @@ Constant()            # Fraction(8,4)</code></pre>
 </thead>
 <tbody>
 <tr class="odd">
-<td><code>:=:</code></td>
-<td><code>SOLVE</code></td>
-<td>Solve/assert equality (assigns to variable to satisfy expr)</td>
-</tr>
-<tr class="even">
 <td><code>:&lt;:</code></td>
 <td><code>ASSERT_LT</code></td>
 <td>Assert less than</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>:&gt;:</code></td>
 <td><code>ASSERT_GT</code></td>
 <td>Assert greater than</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>:&lt;=:</code></td>
 <td><code>ASSERT_LTE</code></td>
 <td>Assert less or equal</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>:&gt;=:</code></td>
 <td><code>ASSERT_GTE</code></td>
 <td>Assert greater or equal</td>
@@ -2844,26 +2839,21 @@ Constant()            # Fraction(8,4)</code></pre>
 </thead>
 <tbody>
 <tr class="odd">
-<td><code>SOLVE(name, expr)</code></td>
-<td>Solve/constrain variable</td>
-<td><code>:=:</code></td>
-</tr>
-<tr class="even">
 <td><code>ASSERT_LT(a, b)</code></td>
 <td>Assert <code>a &lt; b</code></td>
 <td><code>:&lt;:</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>ASSERT_GT(a, b)</code></td>
 <td>Assert <code>a &gt; b</code></td>
 <td><code>:&gt;:</code></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>ASSERT_LTE(a, b)</code></td>
 <td>Assert <code>a &lt;= b</code></td>
 <td><code>:&lt;=:</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>ASSERT_GTE(a, b)</code></td>
 <td>Assert <code>a &gt;= b</code></td>
 <td><code>:&gt;=:</code></td>
@@ -2873,14 +2863,19 @@ Constant()            # Fraction(8,4)</code></pre>
 </section>
 <section id="symbolic-specs" class="level3">
 <h3 class="anchored" data-anchor-id="symbolic-specs">Symbolic Specs</h3>
-<p><code>{# ... }</code> builds a first-class symbolic function instead of executing a runtime block.</p>
+<p><code>{# ... }</code> builds a first-class symbolic expression or system instead of executing a runtime block. RiX records the structure; it does not choose a solver or optimization policy.</p>
 <p>Common forms:</p>
 <pre class="rix"><code>{#x}                       # identity symbol
 {#x,y# x^2 + y }           # anonymous single output
-{#x,y:p# p = x^2 + y }     # named solved output</code></pre>
+{#x,y:p# p = x^2 + y }     # named definition
+{#x:y# y^2 == x; y &gt;= 0 }  # relational system
+{#x:y# scale=2; y==scale*x; y&gt;=0 } # definition plus constraints</code></pre>
 <p>In a named header, names before <code>:</code> are inputs and names after <code>:</code> are outputs. Duplicate names and input/output overlap are rejected. When no output is named, one expression is the implied output. <code>{#x}</code> is shorthand for <code>{#x# x }</code>.</p>
-<p>Named bodies use <code>name = expr</code> symbolic definitions. They do not perform ordinary assignment. Multi-output specs are representable and inspectable, but the current operators require a single explicitly solved expression.</p>
-<p>Ordinary display preserves a source-like spec. <code>.InspectSpec(S)</code> returns the detailed structural map when a tool needs <code>inputs</code>, <code>outputs</code>, <code>statements</code>, and expression IR.</p>
+<p>Named bodies use <code>name = expr</code> symbolic definitions. They do not perform ordinary assignment. Other statements are inert constraints. Definitions and constraints may be mixed, and a declared output need not have a directional definition: a plugin may determine it from relations. Header roles are descriptive, not a restriction on auxiliary definitions.</p>
+<p><code>.InspectSpec(S)</code> exposes <code>symbols</code>, <code>inputs</code>, <code>outputs</code>, ordered <code>statements</code>, <code>definitions</code>, <code>constraints</code>, and lowered expression IR. <code>symbols</code> is the first-seen union of attached roles, definition targets, and referenced names. <code>.SpecRoles(S)</code> returns the normalized <code>symbols</code>, <code>inputs</code>, <code>outputs</code>, and <code>unassigned</code> lists. A role-aware consumer can override the header for one call:</p>
+<pre class="rix"><code>.SpecRoles(S, {= inputs=[:scale,:x], outputs=[:y] })</code></pre>
+<p>A consumer that does not distinguish input from output can use only <code>symbols</code>. A role-aware plugin should accept an optional role map and call <code>.SpecRoles</code> (or the JavaScript <code>resolveSymbolicRoles</code> helper); when the map is omitted it must use the attached header roles.</p>
+<p>Ordinary display preserves a source-like spec. Systems remain inert until a plugin deliberately interprets them. Solving, branch choice, approximation, work budgets, and proof/certification are plugin policy rather than language semantics.</p>
 <section id="application-and-arithmetic" class="level4">
 <h4 class="anchored" data-anchor-id="application-and-arithmetic">Application and arithmetic</h4>
 <p>Calling a spec performs positional substitution and returns a spec:</p>
@@ -2900,8 +2895,7 @@ A := .Integrate({#x# 2*x }, {#x})
 <p><code>.Deriv</code> supports exact arithmetic differentiation including product, quotient, and integer-power rules. <code>.Integrate</code> supports structural polynomial antiderivatives and returns the zero-constant form. <code>.Transform</code> is explicit and returns a new value; defaults perform exact constant, identity, and power cleanup, <code>:expand</code> distributes multiplication, <code>:center</code> collects shifted polynomial powers, <code>:decompose</code> records ordered quotient/remainder steps, <code>:gadic</code> produces flattened powers of one polynomial, and <code>:distribute</code> selectively expands a supplied factor.</p>
 <p>Pure positional functions whose bodies contain exact literals, identifiers, negation, and <code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>, <code>^</code> receive specs automatically. Captured coefficients retain live closure cells. <code>.Speccability(F)</code> reports analysis and <code>.Spec(F)</code> returns or explicitly attaches the result.</p>
 <p>Postfix derivative <code>F'</code>, evaluated derivative <code>F'(3)</code>, and prefix integral <code>'F(3)</code> use the same engine. Repeated quotes repeat the transform. The current quote implementation accepts one calculus variable per operation and does not implement operation-sequence parentheses.</p>
-<p>Symbolic capabilities belong to the <code>Symbolic</code> sandbox group and are available only through dot syntax: <code>.Poly</code>, <code>.Deriv</code>, <code>.Integrate</code>, <code>.Transform</code>, <code>.Spec</code>, <code>.Speccability</code>, and <code>.InspectSpec</code>. <code>.Simplify</code> is a compatibility alias for <code>.Transform</code>.</p>
-<p>Constraint forms such as <code>:=:</code>, <code>:&lt;:</code>, and <code>:&gt;:</code> remain separate and are not part of <code>{# ... }</code> semantics yet.</p>
+<p>Symbolic capabilities belong to the <code>Symbolic</code> sandbox group and are available only through dot syntax: <code>.Poly</code>, <code>.Deriv</code>, <code>.Integrate</code>, <code>.Transform</code>, <code>.Spec</code>, <code>.Speccability</code>, <code>.InspectSpec</code>, and <code>.SpecRoles</code>. <code>.Simplify</code> is a compatibility alias for <code>.Transform</code>. Arithmetic and calculus deliberately remain limited to expression specs or one named definition; they do not solve general systems. The former <code>:=:</code> solve operator has been removed.</p>
 </section>
 </section>
 <section id="control-flow" class="level3">
@@ -2942,8 +2936,8 @@ A := .Integrate({#x# 2*x }, {#x})
 </tr>
 <tr class="odd">
 <td><code>SYSTEM_SPEC(meta)</code></td>
-<td>Create a symbolic system spec value</td>
-<td><code>{#x,y:p# p = x + y }</code></td>
+<td>Create an inert symbolic expression/system value</td>
+<td><code>{#x:y# y^2 == x; y &gt;= 0 }</code></td>
 </tr>
 <tr class="even">
 <td><code>TERNARY(cond, t, f)</code></td>
@@ -3400,10 +3394,10 @@ x[1] = 9          ## OK: ._mutable controls index assignment, not .lock</code></
 </tbody>
 </table>
 <p>Default <code>PRINT</code> formatting renders maps, arrays, sets, tuples, and export bundles over multiple lines. Hosts can replace either formatting or output by setting:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb53"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript"><span id="cb53-1"><a href="#cb53-1" aria-hidden="true" tabindex="-1"></a>context<span class="op">.</span><span class="fu">setEnv</span>(<span class="st">"__io__"</span><span class="op">,</span> {</span>
-<span id="cb53-2"><a href="#cb53-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">format</span>(value<span class="op">,</span> helpers) { <span class="cf">return</span> helpers<span class="op">.</span><span class="fu">prettyFormat</span>(value)<span class="op">;</span> }<span class="op">,</span></span>
-<span id="cb53-3"><a href="#cb53-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span>(text<span class="op">,</span> value<span class="op">,</span> helpers) { <span class="bu">console</span><span class="op">.</span><span class="fu">log</span>(text)<span class="op">;</span> }</span>
-<span id="cb53-4"><a href="#cb53-4" aria-hidden="true" tabindex="-1"></a>})<span class="op">;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb54"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript"><span id="cb54-1"><a href="#cb54-1" aria-hidden="true" tabindex="-1"></a>context<span class="op">.</span><span class="fu">setEnv</span>(<span class="st">"__io__"</span><span class="op">,</span> {</span>
+<span id="cb54-2"><a href="#cb54-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">format</span>(value<span class="op">,</span> helpers) { <span class="cf">return</span> helpers<span class="op">.</span><span class="fu">prettyFormat</span>(value)<span class="op">;</span> }<span class="op">,</span></span>
+<span id="cb54-3"><a href="#cb54-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span>(text<span class="op">,</span> value<span class="op">,</span> helpers) { <span class="bu">console</span><span class="op">.</span><span class="fu">log</span>(text)<span class="op">;</span> }</span>
+<span id="cb54-4"><a href="#cb54-4" aria-hidden="true" tabindex="-1"></a>})<span class="op">;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="variables" class="level3">
 <h3 class="anchored" data-anchor-id="variables">Variables</h3>

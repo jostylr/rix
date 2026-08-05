@@ -12,11 +12,8 @@ describe("Unified Brace Syntax Verification", () => {
         expect(parseAndEvaluate("{ a := 5; b := a * 2; b / 2 }").toNumber()).toBe(5);
     });
 
-    test("{$ } is the new system container sigil", () => {
-        // System evaluations currently return the last statement (like block)
-        // but preserve system semantics for future solvers.
-        expect(parseAndEvaluate("{$ x :=: 5; x }").toNumber()).toBe(5);
-        expect(parseAndEvaluate("{$ x :=: 10; y :=: 20; x + y }").toNumber()).toBe(30);
+    test("{$ } is reserved for future async/concurrency syntax", () => {
+        expect(() => parseAndEvaluate("{$ x }")).toThrow(/reserved for future async\/concurrency/);
     });
 
     test("Nested plain braces are nested blocks", () => {

@@ -329,6 +329,7 @@ ul.task-list li input[type="checkbox"] {
   <ul class="collapse">
   <li><a href="#the-boundary" id="toc-the-boundary" class="nav-link" data-scroll-target="#the-boundary">The boundary</a></li>
   <li><a href="#current-starting-point" id="toc-current-starting-point" class="nav-link" data-scroll-target="#current-starting-point">Current starting point</a></li>
+  <li><a href="#consuming-from-a-plugin" id="toc-consuming-from-a-plugin" class="nav-link" data-scroll-target="#consuming-from-a-plugin">Consuming <code>{#}</code> from a plugin</a></li>
   <li><a href="#candidate-plugin-roadmap" id="toc-candidate-plugin-roadmap" class="nav-link" data-scroll-target="#candidate-plugin-roadmap">Candidate plugin roadmap</a></li>
   <li><a href="#geometry-implicit-equations-to-graphics" id="toc-geometry-implicit-equations-to-graphics" class="nav-link" data-scroll-target="#geometry-implicit-equations-to-graphics">Geometry implicit equations to graphics</a>
   <ul class="collapse">
@@ -422,9 +423,19 @@ ul.task-list li input[type="checkbox"] {
 <td>Implemented catalog</td>
 <td>The CLI and hosts discover YAML-headed <code>.plugin.rix</code>/<code>.plugin.rix.js</code> entries, expose <code>.Plugin.List</code>/<code>.Info</code>/<code>.Load</code>, and require host approval for JavaScript installers.</td>
 </tr>
+<tr class="even">
+<td>Symbolic system carrier</td>
+<td>Implemented</td>
+<td><code>{#}</code> retains definitions, constraints, all symbols, and advisory input/output roles; <code>.InspectSpec</code> and <code>.SpecRoles</code> expose them to plugins.</td>
+</tr>
 </tbody>
 </table>
 <p>First-party plugins may live in the main RiX repository and be installed selectively by the CLI, notebook, or web host. Independently developed plugins can already use the catalog format; the remaining work is to mature its compatibility, serialization, and permission policies. The operational details are in <a href="../plugin-catalog.html">Plugin catalog</a>.</p>
+</section>
+<section id="consuming-from-a-plugin" class="level2">
+<h2 class="anchored" data-anchor-id="consuming-from-a-plugin">Consuming <code>{#}</code> from a plugin</h2>
+<p>Use <code>{#}</code> to receive a symbolic description without assuming that the language has solved it. A direction-neutral plugin consumes <code>.SpecRoles(spec).symbols</code>. A direction-aware plugin should accept an optional <code>{= inputs=..., outputs=... }</code> argument and otherwise use the roles attached to the spec header. The detailed ordered definitions, constraints, and serialized IR are available through <code>.InspectSpec(spec)</code>.</p>
+<p>JavaScript plugins can import <code>getAttachedSpec</code> and <code>resolveSymbolicRoles</code> from <code>rix/eval</code>. The latter returns ordinary arrays for <code>symbols</code>, <code>inputs</code>, <code>outputs</code>, and <code>unassigned</code>, defaulting to the attached roles when no override is provided. Plugins are responsible for validating supported IR, choosing direction and algorithms, reporting approximation/certification, and returning diagnostics for any unsupported constraint.</p>
 </section>
 <section id="candidate-plugin-roadmap" class="level2">
 <h2 class="anchored" data-anchor-id="candidate-plugin-roadmap">Candidate plugin roadmap</h2>

@@ -278,9 +278,8 @@ describe("RiX-to-IR Script", () => {
     });
 
     describe("Solve / Assertions", () => {
-        test(":=: → SOLVE", () => {
-            const output = rixToIR("x :=: 5;");
-            expect(output).toContain("SOLVE");
+        test(":=: reports its symbolic-spec migration", () => {
+            expect(() => rixToIR("x :=: 5;")).toThrow(/solve operator was removed/);
         });
 
         test(":<: → ASSERT_LT", () => {

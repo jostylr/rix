@@ -10,9 +10,10 @@ does not depend on a representation of real numbers and never silently falls
 back to numerical differentiation or quadrature. Unsupported transformations
 fail with an error.
 
-The current implementation is a single-output exact-arithmetic core. Named
-multi-output specs can be represented and inspected, but arithmetic, `.Poly`,
-calculus, and substitution currently require one solved expression.
+The exact-arithmetic transformer is intentionally narrower than the value
+model. `{#}` can represent multi-symbol systems, directional definitions, and
+relations. Arithmetic, `.Poly`, and calculus still require an expression spec
+or one named definition. General solving is delegated to plugins.
 
 ## Runtime values
 
@@ -23,17 +24,58 @@ is source-like, while `.InspectSpec` exposes the structural map used for tools.
 {#x}                         # identity-symbol form
 {#t# t^2 - 4 }               # anonymous single output
 {#x:p# p = 2*x }             # explicitly solved output
+{#x:y# y^2 == x; y >= 0 }    # relational system
 .InspectSpec({#x# x^2 + 1 }) # structural view
 ```
 
 The implementation stores lowered expression IR, input and output headers,
-closure scopes, origin information, and transform provenance. A spec body is
-not executed when the spec is created.
+ordered definitions and constraints, closure scopes, origin information, and
+transform provenance. A spec body is not executed when the spec is created.
+
+## Systems, constraints, and roles
+
+`name = expression` is a symbolic definition inside `{#}`; it does not bind a
+runtime variable. Every other body item in a multi-statement spec is retained
+as a constraint. A lone comparison is also a system, while a lone arithmetic
+expression keeps the compact expression-spec behavior.
+
+```rix
+S := {#mass,acceleration:force#
+    scale = 1000;
+    force == scale*mass*acceleration;
+    mass > 0
+}
+```
+
+The header records intended roles, but does not impose a solving direction.
+Declared outputs may be determined only by constraints, and definitions may
+introduce auxiliary names. `.InspectSpec(S)` exposes the full ordered statement
+IR as well as separate `definitions` and `constraints` lists.
+
+`.SpecRoles(S)` returns four lists:
+
+- `symbols`: every attached or referenced name, in stable first-seen order;
+- `inputs` and `outputs`: the attached header roles;
+- `unassigned`: symbols in neither attached role.
+
+Consumers that do not care about direction can use `symbols`. A directional
+consumer accepts an optional override map and otherwise uses the attached
+roles:
+
+```rix
+.SpecRoles(S)
+.SpecRoles(S, {= inputs=[:scale,:mass,:acceleration], outputs=[:force] })
+```
+
+This separation is deliberate. The language does not choose equation order,
+unknowns, branches, numerical precision, stopping criteria, or whether a
+result must be certified.
 
 ## Application is substitution
 
 A symbolic spec is callable. Arguments replace input slots positionally, but
-the result is always another spec:
+the result is always another spec. For a system, substitution rewrites every
+definition and constraint without solving it:
 
 ```rix
 G := {#t# t^2 - 4 }
@@ -187,6 +229,34 @@ remains as a compatibility alias for `.Transform`.
 | `.Spec(F)` | attached or newly analyzed function spec |
 | `.Speccability(F)` | analysis report map |
 | `.InspectSpec(S)` | structural inspection map |
+| `.SpecRoles(S, overrides?)` | normalized symbols and per-consumer input/output roles |
 
 All language-provided names remain behind the dot system object. There are no
 bare `Poly`, `Deriv`, or other symbolic globals.
+
+## Plugin consumption contract
+
+A RiX-level plugin can consume `.InspectSpec(value)` for the inert statement IR
+and `.SpecRoles(value, optionalRoles)` for direction. A JavaScript plugin can
+use the corresponding public helpers from `rix/eval`:
+
+```js
+import {
+  getAttachedSpec,
+  inspectSymbolicSpec,
+  resolveSymbolicRoles,
+} from "rix/eval";
+
+const spec = getAttachedSpec(value);
+if (!spec) throw new Error("Expected a symbolic spec");
+const roles = resolveSymbolicRoles(spec, options?.roles);
+const structure = inspectSymbolicSpec(spec);
+```
+
+`resolveSymbolicRoles` returns ordinary JavaScript arrays named `symbols`,
+`inputs`, `outputs`, and `unassigned`. If `options.roles` is absent, it uses the
+spec header. A plugin that ignores direction should consume `roles.symbols` and
+must not infer a direction from statement order. Plugins should validate the IR
+operations they support, preserve unsupported statements in diagnostics, and
+return their own result/evidence type rather than mutating the spec or implying
+that RiX itself solved it.

@@ -48,12 +48,29 @@ contract: `.draw.Line(...)` and `.draw.Circle(...)` simply return core
 | `.Algebra.SyntheticDivision` | Implemented, bundled | Exact arithmetic laid out as a portable `Grid`. |
 | `.plot.Polynomial` | Implemented, bundled | Load with `.Plugin.Load("plot")`; produces a portable static `Graphic`. |
 | Plugin discovery/installation | Implemented catalog | The CLI and hosts discover YAML-headed `.plugin.rix`/`.plugin.rix.js` entries, expose `.Plugin.List`/`.Info`/`.Load`, and require host approval for JavaScript installers. |
+| Symbolic system carrier | Implemented | `{#}` retains definitions, constraints, all symbols, and advisory input/output roles; `.InspectSpec` and `.SpecRoles` expose them to plugins. |
 
 First-party plugins may live in the main RiX repository and be installed
 selectively by the CLI, notebook, or web host. Independently developed plugins
 can already use the catalog format; the remaining work is to mature its
 compatibility, serialization, and permission policies. The operational details
 are in [Plugin catalog](../plugin-catalog.md).
+
+## Consuming `{#}` from a plugin
+
+Use `{#}` to receive a symbolic description without assuming that the language
+has solved it. A direction-neutral plugin consumes `.SpecRoles(spec).symbols`.
+A direction-aware plugin should accept an optional `{= inputs=..., outputs=... }`
+argument and otherwise use the roles attached to the spec header. The detailed
+ordered definitions, constraints, and serialized IR are available through
+`.InspectSpec(spec)`.
+
+JavaScript plugins can import `getAttachedSpec` and `resolveSymbolicRoles` from
+`rix/eval`. The latter returns ordinary arrays for `symbols`, `inputs`,
+`outputs`, and `unassigned`, defaulting to the attached roles when no override
+is provided. Plugins are responsible for validating supported IR, choosing
+direction and algorithms, reporting approximation/certification, and returning
+diagnostics for any unsupported constraint.
 
 ## Candidate plugin roadmap
 
