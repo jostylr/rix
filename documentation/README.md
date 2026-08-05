@@ -15,15 +15,23 @@ bun run build:docs
 bun run preview:docs
 ```
 
+These commands use dynamic navigation for low-churn development builds. Use
+`bun run build:docs:static` or `bun run preview:docs:static` to have Quarto
+pre-render the complete sidebar, breadcrumbs, and previous/next links into each
+page. Both modes are generated from `navigation.js`.
+
 Do not edit `../docs/` by hand. The generated runtime catalog at `reference/system-reference.md` is refreshed by `documentation/scripts/generate-reference.js`.
 
 ## Site navigation
 
 `navigation.js` is the ordered source of truth for the documentation sidebar
 and previous/next links. The build publishes it as `_navigation.json`, and the
-browser loads that small manifest into Quarto's stable sidebar shell. Adding or
-removing a page therefore does not rewrite the page list into every generated
-HTML file. Also add or remove the source in `project.render` in `_quarto.yml`.
+browser loads that small manifest into Quarto's stable sidebar shell in the
+default dynamic profile. Adding or removing a page therefore does not rewrite
+the page list into every generated HTML file. The static profile instead uses a
+generated `_quarto-static.yml` so its pre-rendered navigation cannot drift from
+the dynamic manifest. Also add or remove the source in `project.render` in
+`_quarto.yml`.
 
 The generated HTML retains a link to the overview while the manifest loads or
 when JavaScript is unavailable.

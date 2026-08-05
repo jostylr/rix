@@ -1,0 +1,11 @@
+website:
+  sidebar:
+    contents:
+      - text: Loading documentation…
+        href: index.qmd
+  bread-crumbs: false
+  page-navigation: false
+
+format:
+  html:
+    include-after-body: _includes/dynamic-navigation.html

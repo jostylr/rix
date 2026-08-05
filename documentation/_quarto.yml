@@ -56,6 +56,10 @@ project:
     - design/parser/questions.md
     - report-2026-04-02.md
 
+profile:
+  group:
+    - [dynamic, static]
+
 filters:
   - scripts/rix-examples.lua
 
@@ -87,11 +91,6 @@ website:
   sidebar:
     style: docked
     collapse-level: 1
-    contents:
-      - text: Loading documentation…
-        href: index.qmd
-  bread-crumbs: false
-  page-navigation: false
   back-to-top-navigation: true
   page-footer:
     left: "RiX — Rational Interval Expression Language"
@@ -109,7 +108,6 @@ format:
     anchor-sections: true
     smooth-scroll: true
     link-external-newwindow: true
-    include-after-body: _includes/dynamic-navigation.html
 
 execute:
   freeze: auto

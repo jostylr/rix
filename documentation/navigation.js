@@ -83,3 +83,28 @@ export function navigationManifest(items = documentationNavigation) {
     ...(item.contents ? { contents: navigationManifest(item.contents) } : {}),
   }));
 }
+
+function yamlString(value) {
+  return JSON.stringify(value);
+}
+
+function staticSidebarYaml(items, indent = 6) {
+  const padding = " ".repeat(indent);
+  return items.flatMap((item) => {
+    if (item.contents) {
+      return [
+        `${padding}- section: ${yamlString(item.section)}`,
+        `${padding}  contents:`,
+        staticSidebarYaml(item.contents, indent + 4),
+      ];
+    }
+    return [
+      `${padding}- text: ${yamlString(item.text)}`,
+      `${padding}  href: ${yamlString(item.source || item.href)}`,
+    ];
+  }).flat().join("\n");
+}
+
+export function staticNavigationProfile(items = documentationNavigation) {
+  return `# Generated from navigation.js by scripts/run-quarto.js. Do not edit.\nwebsite:\n  sidebar:\n    contents:\n${staticSidebarYaml(items)}\n  bread-crumbs: true\n  page-navigation: true\n`;
+}

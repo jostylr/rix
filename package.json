@@ -27,7 +27,10 @@
     "docs:examples": "bun ./documentation/scripts/check-examples.js documentation",
     "docs:check": "bun run docs:reference && bun ./documentation/scripts/run-quarto.js render",
     "build:docs": "bun run build:demo && bun run docs:reference && bun ./documentation/scripts/run-quarto.js render",
+    "build:docs:dynamic": "bun run build:docs",
+    "build:docs:static": "bun run build:demo && bun run docs:reference && bun ./documentation/scripts/run-quarto.js render --profile static",
     "preview:docs": "bun run build:demo && bun run docs:reference && bun ./documentation/scripts/run-quarto.js preview",
+    "preview:docs:static": "bun run build:demo && bun run docs:reference && bun ./documentation/scripts/run-quarto.js preview --profile static",
     "build:all": "bun run build:docs"
   },
   "dependencies": {

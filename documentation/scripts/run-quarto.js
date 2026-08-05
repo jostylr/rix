@@ -3,7 +3,7 @@
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { navigationManifest, navigationPages } from "../navigation.js";
+import { navigationManifest, navigationPages, staticNavigationProfile } from "../navigation.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const rixRoot = resolve(here, "../..");
@@ -29,6 +29,10 @@ if (missingNavigationSources.length > 0) {
 writeFileSync(
   resolve(rixRoot, "documentation/_navigation.json"),
   `${JSON.stringify({ version: 1, items: navigationManifest() }, null, 2)}\n`,
+);
+writeFileSync(
+  resolve(rixRoot, "documentation/_quarto-static.yml"),
+  staticNavigationProfile(),
 );
 
 const exampleResults = resolve(rixRoot, "tmp/quarto-doc-examples.json");
