@@ -1,8 +1,9 @@
 #!/usr/bin/env bun
 
-import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { navigationManifest, navigationPages } from "../navigation.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const rixRoot = resolve(here, "../..");
@@ -17,6 +18,18 @@ if (!new Set(["render", "preview"]).has(mode)) {
 mkdirSync(resolve(cacheRoot, ".cache"), { recursive: true });
 mkdirSync(resolve(cacheRoot, "quarto-cache"), { recursive: true });
 mkdirSync(resolve(cacheRoot, "deno"), { recursive: true });
+
+const missingNavigationSources = navigationPages()
+  .map(({ source }) => source)
+  .filter((source) => !existsSync(resolve(rixRoot, "documentation", source)));
+if (missingNavigationSources.length > 0) {
+  console.error(`Missing documentation navigation sources:\n${missingNavigationSources.join("\n")}`);
+  process.exit(1);
+}
+writeFileSync(
+  resolve(rixRoot, "documentation/_navigation.json"),
+  `${JSON.stringify({ version: 1, items: navigationManifest() }, null, 2)}\n`,
+);
 
 const exampleResults = resolve(rixRoot, "tmp/quarto-doc-examples.json");
 const examples = Bun.spawn(

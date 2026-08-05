@@ -11,6 +11,8 @@ project:
     - parser/rix-logo.png
     - design/parser/spec.pdf
     - design/parser/*.txt
+    - scripts/dynamic-navigation.js
+    - _navigation.json
   render:
     - index.qmd
     - getting-started.qmd
@@ -86,94 +88,10 @@ website:
     style: docked
     collapse-level: 1
     contents:
-      - text: Overview
+      - text: Loading documentation…
         href: index.qmd
-      - section: Start here
-        contents:
-          - getting-started.qmd
-          - language-at-a-glance.qmd
-          - highlights.md
-          - status.qmd
-      - section: Learn RiX
-        contents:
-          - text: Complete introduction
-            href: introduction.md
-          - text: Interactive tutorials (RiX Web)
-            href: https://rix.ratmath.com/tutorial/
-          - text: Sheet views
-            href: eval/sheet-guide.md
-      - section: Language reference
-        contents:
-          - text: Syntax and functions
-            href: eval/syntax-guide.md
-          - text: Methods
-            href: eval/methods-guide.md
-          - text: Structured output and graphics
-            href: eval/output-guide.md
-          - text: Reactive controls
-            href: eval/controls-guide.md
-          - text: Types and traits
-            href: eval/types-and-traits-guide.md
-          - text: Generated runtime catalog
-            href: reference/system-reference.md
-      - section: Developer guide
-        contents:
-          - developer-guide.qmd
-          - text: Plugin catalog and loading
-            href: plugin-catalog.md
-          - text: Evaluator overview
-            href: eval/README.md
-          - text: Parser architecture
-            href: parser/architecture.md
-          - text: Parsing and precedence
-            href: parser/parsing.md
-          - text: AST reference
-            href: parser/AST-brief.md
-          - text: IR design snapshot
-            href: design/eval/ir-format.md
-          - text: Array generators
-            href: parser/array-generators-implementation.md
-          - text: Embedded parsing
-            href: parser/embedded-parsing.md
-          - text: Matrices and tensors
-            href: parser/matrix-tensor-implementation.md
-      - section: Runtime design
-        contents:
-          - text: Cells and assignment
-            href: design/eval/cells-assignments.md
-          - text: Units and exact generators
-            href: design/eval/units-and-exact-generators.md
-          - text: Cayley polar complex values
-            href: design/eval/cayley-polar.md
-          - text: Symbolic specs and calculus
-            href: design/eval/symbolic-calculus.md
-          - text: Symbolic transformations
-            href: design/eval/transformation-reference.md
-          - text: Structured output, documents, and graphics
-            href: design/eval/output-model.md
-          - text: Document blocks, inline content, and assets
-            href: design/eval/document-output-todo.md
-          - text: Interactive output extension contracts
-            href: design/interactive-output-plugins.md
-          - text: RiXCel architecture
-            href: design/eval/rixcel-architecture.md
-          - text: RiXCel document format
-            href: design/eval/rixcel-format.md
-          - text: RiXCel implementation checklist
-            href: design/eval/rixcel-todo.md
-          - text: Plugin roadmap and rendering contracts
-            href: design/plugins.md
-      - section: Design and history
-        contents:
-          - text: Design rationales
-            href: rix-rationales.md
-          - text: Early language specification
-            href: design/parser/spec.md
-          - text: Open design areas
-            href: design/parser/questions.md
-          - text: April 2026 review (historical)
-            href: report-2026-04-02.md
-  page-navigation: true
+  bread-crumbs: false
+  page-navigation: false
   back-to-top-navigation: true
   page-footer:
     left: "RiX — Rational Interval Expression Language"
@@ -191,6 +109,7 @@ format:
     anchor-sections: true
     smooth-scroll: true
     link-external-newwindow: true
+    include-after-body: _includes/dynamic-navigation.html
 
 execute:
   freeze: auto

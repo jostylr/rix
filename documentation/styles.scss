@@ -89,6 +89,24 @@ code {
   font-variant-ligatures: none;
 }
 
+.rix-navigation-section {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  border: 0;
+  background: transparent;
+  color: inherit;
+}
+
+.rix-navigation-section i {
+  transition: transform 0.15s ease;
+}
+
+.rix-navigation-section[aria-expanded="true"] i {
+  transform: rotate(90deg);
+}
+
 .table td:first-child code {
   white-space: nowrap;
 }

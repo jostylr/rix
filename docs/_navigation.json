@@ -1,0 +1,196 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "text": "Overview",
+      "href": "index.html"
+    },
+    {
+      "section": "Start here",
+      "contents": [
+        {
+          "text": "Getting started",
+          "href": "getting-started.html"
+        },
+        {
+          "text": "RiX at a glance",
+          "href": "language-at-a-glance.html"
+        },
+        {
+          "text": "RiX highlights",
+          "href": "highlights.html"
+        },
+        {
+          "text": "Implementation status",
+          "href": "status.html"
+        }
+      ]
+    },
+    {
+      "section": "Learn RiX",
+      "contents": [
+        {
+          "text": "Complete introduction",
+          "href": "introduction.html"
+        },
+        {
+          "text": "Interactive tutorials (RiX Web)",
+          "href": "https://rix.ratmath.com/tutorial/",
+          "external": true
+        },
+        {
+          "text": "Sheet views",
+          "href": "eval/sheet-guide.html"
+        }
+      ]
+    },
+    {
+      "section": "Language reference",
+      "contents": [
+        {
+          "text": "Syntax and functions",
+          "href": "eval/syntax-guide.html"
+        },
+        {
+          "text": "Methods",
+          "href": "eval/methods-guide.html"
+        },
+        {
+          "text": "Structured output and graphics",
+          "href": "eval/output-guide.html"
+        },
+        {
+          "text": "Reactive controls",
+          "href": "eval/controls-guide.html"
+        },
+        {
+          "text": "Types and traits",
+          "href": "eval/types-and-traits-guide.html"
+        },
+        {
+          "text": "Generated runtime catalog",
+          "href": "reference/system-reference.html"
+        }
+      ]
+    },
+    {
+      "section": "Developer guide",
+      "contents": [
+        {
+          "text": "Developer guide",
+          "href": "developer-guide.html"
+        },
+        {
+          "text": "Plugin catalog and loading",
+          "href": "plugin-catalog.html"
+        },
+        {
+          "text": "Evaluator overview",
+          "href": "eval/README.html"
+        },
+        {
+          "text": "Parser architecture",
+          "href": "parser/architecture.html"
+        },
+        {
+          "text": "Parsing and precedence",
+          "href": "parser/parsing.html"
+        },
+        {
+          "text": "AST reference",
+          "href": "parser/AST-brief.html"
+        },
+        {
+          "text": "IR design snapshot",
+          "href": "design/eval/ir-format.html"
+        },
+        {
+          "text": "Array generators",
+          "href": "parser/array-generators-implementation.html"
+        },
+        {
+          "text": "Embedded parsing",
+          "href": "parser/embedded-parsing.html"
+        },
+        {
+          "text": "Matrices and tensors",
+          "href": "parser/matrix-tensor-implementation.html"
+        }
+      ]
+    },
+    {
+      "section": "Runtime design",
+      "contents": [
+        {
+          "text": "Cells and assignment",
+          "href": "design/eval/cells-assignments.html"
+        },
+        {
+          "text": "Units and exact generators",
+          "href": "design/eval/units-and-exact-generators.html"
+        },
+        {
+          "text": "Cayley polar complex values",
+          "href": "design/eval/cayley-polar.html"
+        },
+        {
+          "text": "Symbolic specs and calculus",
+          "href": "design/eval/symbolic-calculus.html"
+        },
+        {
+          "text": "Symbolic transformations",
+          "href": "design/eval/transformation-reference.html"
+        },
+        {
+          "text": "Structured output, documents, and graphics",
+          "href": "design/eval/output-model.html"
+        },
+        {
+          "text": "Document blocks, inline content, and assets",
+          "href": "design/eval/document-output-todo.html"
+        },
+        {
+          "text": "Interactive output extension contracts",
+          "href": "design/interactive-output-plugins.html"
+        },
+        {
+          "text": "RiXCel architecture",
+          "href": "design/eval/rixcel-architecture.html"
+        },
+        {
+          "text": "RiXCel document format",
+          "href": "design/eval/rixcel-format.html"
+        },
+        {
+          "text": "RiXCel implementation checklist",
+          "href": "design/eval/rixcel-todo.html"
+        },
+        {
+          "text": "Plugin roadmap and rendering contracts",
+          "href": "design/plugins.html"
+        }
+      ]
+    },
+    {
+      "section": "Design and history",
+      "contents": [
+        {
+          "text": "Design rationales",
+          "href": "rix-rationales.html"
+        },
+        {
+          "text": "Early language specification",
+          "href": "design/parser/spec.html"
+        },
+        {
+          "text": "Open design areas",
+          "href": "design/parser/questions.html"
+        },
+        {
+          "text": "April 2026 review (historical)",
+          "href": "report-2026-04-02.html"
+        }
+      ]
+    }
+  ]
+}

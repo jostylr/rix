@@ -1,0 +1,85 @@
+const page = (source, text, href = source.replace(/\.(?:qmd|md)$/, ".html")) => ({ source, text, href });
+
+export const documentationNavigation = [
+  page("index.qmd", "Overview"),
+  {
+    section: "Start here",
+    contents: [
+      page("getting-started.qmd", "Getting started"),
+      page("language-at-a-glance.qmd", "RiX at a glance"),
+      page("highlights.md", "RiX highlights"),
+      page("status.qmd", "Implementation status"),
+    ],
+  },
+  {
+    section: "Learn RiX",
+    contents: [
+      page("introduction.md", "Complete introduction"),
+      { text: "Interactive tutorials (RiX Web)", href: "https://rix.ratmath.com/tutorial/", external: true },
+      page("eval/sheet-guide.md", "Sheet views"),
+    ],
+  },
+  {
+    section: "Language reference",
+    contents: [
+      page("eval/syntax-guide.md", "Syntax and functions"),
+      page("eval/methods-guide.md", "Methods"),
+      page("eval/output-guide.md", "Structured output and graphics"),
+      page("eval/controls-guide.md", "Reactive controls"),
+      page("eval/types-and-traits-guide.md", "Types and traits"),
+      page("reference/system-reference.md", "Generated runtime catalog"),
+    ],
+  },
+  {
+    section: "Developer guide",
+    contents: [
+      page("developer-guide.qmd", "Developer guide"),
+      page("plugin-catalog.md", "Plugin catalog and loading"),
+      page("eval/README.md", "Evaluator overview"),
+      page("parser/architecture.md", "Parser architecture"),
+      page("parser/parsing.md", "Parsing and precedence"),
+      page("parser/AST-brief.md", "AST reference"),
+      page("design/eval/ir-format.md", "IR design snapshot"),
+      page("parser/array-generators-implementation.md", "Array generators"),
+      page("parser/embedded-parsing.md", "Embedded parsing"),
+      page("parser/matrix-tensor-implementation.md", "Matrices and tensors"),
+    ],
+  },
+  {
+    section: "Runtime design",
+    contents: [
+      page("design/eval/cells-assignments.md", "Cells and assignment"),
+      page("design/eval/units-and-exact-generators.md", "Units and exact generators"),
+      page("design/eval/cayley-polar.md", "Cayley polar complex values"),
+      page("design/eval/symbolic-calculus.md", "Symbolic specs and calculus"),
+      page("design/eval/transformation-reference.md", "Symbolic transformations"),
+      page("design/eval/output-model.md", "Structured output, documents, and graphics"),
+      page("design/eval/document-output-todo.md", "Document blocks, inline content, and assets"),
+      page("design/interactive-output-plugins.md", "Interactive output extension contracts"),
+      page("design/eval/rixcel-architecture.md", "RiXCel architecture"),
+      page("design/eval/rixcel-format.md", "RiXCel document format"),
+      page("design/eval/rixcel-todo.md", "RiXCel implementation checklist"),
+      page("design/plugins.md", "Plugin roadmap and rendering contracts"),
+    ],
+  },
+  {
+    section: "Design and history",
+    contents: [
+      page("rix-rationales.md", "Design rationales"),
+      page("design/parser/spec.md", "Early language specification"),
+      page("design/parser/questions.md", "Open design areas"),
+      page("report-2026-04-02.md", "April 2026 review (historical)"),
+    ],
+  },
+];
+
+export function navigationPages(items = documentationNavigation) {
+  return items.flatMap((item) => item.contents ? navigationPages(item.contents) : item.source ? [item] : []);
+}
+
+export function navigationManifest(items = documentationNavigation) {
+  return items.map(({ source: _source, ...item }) => ({
+    ...item,
+    ...(item.contents ? { contents: navigationManifest(item.contents) } : {}),
+  }));
+}

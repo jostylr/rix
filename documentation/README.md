@@ -17,6 +17,17 @@ bun run preview:docs
 
 Do not edit `../docs/` by hand. The generated runtime catalog at `reference/system-reference.md` is refreshed by `documentation/scripts/generate-reference.js`.
 
+## Site navigation
+
+`navigation.js` is the ordered source of truth for the documentation sidebar
+and previous/next links. The build publishes it as `_navigation.json`, and the
+browser loads that small manifest into Quarto's stable sidebar shell. Adding or
+removing a page therefore does not rewrite the page list into every generated
+HTML file. Also add or remove the source in `project.render` in `_quarto.yml`.
+
+The generated HTML retains a link to the overview while the manifest loads or
+when JavaScript is unavailable.
+
 ## Runnable RiX examples
 
 Runnable examples are fenced blocks marked with `exec=true`; blocks containing
