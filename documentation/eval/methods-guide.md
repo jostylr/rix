@@ -20,6 +20,29 @@ obj.Method!(a, b)
 - Iterator cursor methods are explicitly stateful without `!`; the iterator is a traversal handle, not the source collection.
 - Built-in prototypes are frozen. There is no prototype chaining in v1.
 
+## Reactive identities
+
+`$$name` exposes the reactive-node methods `Get()`, `Peek()`, `Set(value)`,
+`ReplaceValue(value)`, `GetFormula()`, `SetFormula(formula)`, `Live()`, and
+`Touch()`.
+
+`Touch()` is the explicit publication step for an intentionally mutated
+collection. It retains the current value object, recomputes its reactive
+dependents once, and publishes a `reactive:touch` epoch even when the identity
+reference itself did not change:
+
+```rix
+$$items := [1];
+$$count := $items.Len();
+$items.Push!(2);
+$$items.Touch();
+$count  # 2
+```
+
+For an explicit `.ReactiveGraph`, use `graph.Touch("name")`. Prefer ordinary
+value replacement when possible; Touch does not inspect or validate deep
+mutations.
+
 ## Generic Reduce
 
 Collections with a `Reduce` method use this callback shape:

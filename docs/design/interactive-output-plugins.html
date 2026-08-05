@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>units-and-exact-values – RiX</title>
+<title>interactive-output-plugins – RiX</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -33,8 +33,8 @@ ul.task-list li input[type="checkbox"] {
 <script src="../site_libs/quarto-search/fuse.min.js"></script>
 <script src="../site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="../">
-<link href="../eval/sheet-guide.html" rel="next">
-<link href="../introduction.html" rel="prev">
+<link href="../design/eval/rixcel-architecture.html" rel="next">
+<link href="../design/eval/document-output-todo.html" rel="prev">
 <link href="../rix-logo.png" rel="icon" type="image/png">
 <script src="../site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
@@ -299,7 +299,7 @@ ul.task-list li input[type="checkbox"] {
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../introduction.html">Learn RiX</a></li><li class="breadcrumb-item"><a href="../tutorial/units-and-exact-values.html">Units and exact values</a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../design/eval/cells-assignments.html">Runtime design</a></li><li class="breadcrumb-item"><a href="../design/interactive-output-plugins.html">Interactive output extension contracts</a></li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
     </div>
@@ -354,13 +354,13 @@ ul.task-list li input[type="checkbox"] {
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="false">
  <span class="menu-text">Learn RiX</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="Toggle section">
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="false" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 ">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../introduction.html" class="sidebar-item-text sidebar-link">
@@ -369,8 +369,8 @@ ul.task-list li input[type="checkbox"] {
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../tutorial/units-and-exact-values.html" class="sidebar-item-text sidebar-link active">
- <span class="menu-text">Units and exact values</span></a>
+  <a href="https://rix.ratmath.com/tutorial/" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Interactive tutorials (RiX Web)</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -400,6 +400,18 @@ ul.task-list li input[type="checkbox"] {
   <div class="sidebar-item-container"> 
   <a href="../eval/methods-guide.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Methods</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../eval/output-guide.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Structured output and graphics</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../eval/controls-guide.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Reactive controls</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -489,13 +501,13 @@ ul.task-list li input[type="checkbox"] {
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="false">
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true">
  <span class="menu-text">Runtime design</span></a>
-          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="false" aria-label="Toggle section">
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 ">  
+      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../design/eval/cells-assignments.html" class="sidebar-item-text sidebar-link">
@@ -536,6 +548,12 @@ ul.task-list li input[type="checkbox"] {
   <div class="sidebar-item-container"> 
   <a href="../design/eval/document-output-todo.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Document blocks, inline content, and assets</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../design/interactive-output-plugins.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text">Interactive output extension contracts</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -609,113 +627,115 @@ ul.task-list li input[type="checkbox"] {
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#tutorial-quantities-and-exact-values" id="toc-tutorial-quantities-and-exact-values" class="nav-link active" data-scroll-target="#tutorial-quantities-and-exact-values">Tutorial: Quantities and Exact Values</a>
+  <li><a href="#interactive-output-snapshots-and-timelines" id="toc-interactive-output-snapshots-and-timelines" class="nav-link active" data-scroll-target="#interactive-output-snapshots-and-timelines">Interactive output, snapshots, and timelines</a>
   <ul class="collapse">
-  <li><a href="#first-calculations" id="toc-first-calculations" class="nav-link" data-scroll-target="#first-calculations">First calculations</a></li>
-  <li><a href="#compatible-addition-and-conversion" id="toc-compatible-addition-and-conversion" class="nav-link" data-scroll-target="#compatible-addition-and-conversion">Compatible addition and conversion</a></li>
-  <li><a href="#compound-and-inverse-units" id="toc-compound-and-inverse-units" class="nav-link" data-scroll-target="#compound-and-inverse-units">Compound and inverse units</a></li>
-  <li><a href="#temperatures" id="toc-temperatures" class="nav-link" data-scroll-target="#temperatures">Temperatures</a></li>
-  <li><a href="#exact-generators" id="toc-exact-generators" class="nav-link" data-scroll-target="#exact-generators">Exact generators</a></li>
-  <li><a href="#exact-complex-arithmetic" id="toc-exact-complex-arithmetic" class="nav-link" data-scroll-target="#exact-complex-arithmetic">Exact complex arithmetic</a></li>
-  <li><a href="#local-registry-overlays" id="toc-local-registry-overlays" class="nav-link" data-scroll-target="#local-registry-overlays">Local registry overlays</a></li>
+  <li><a href="#controls-and-exact-actions" id="toc-controls-and-exact-actions" class="nav-link" data-scroll-target="#controls-and-exact-actions">Controls and exact actions</a>
+  <ul class="collapse">
+  <li><a href="#styling-controls" id="toc-styling-controls" class="nav-link" data-scroll-target="#styling-controls">Styling controls</a></li>
+  <li><a href="#reactive-collection-boundary" id="toc-reactive-collection-boundary" class="nav-link" data-scroll-target="#reactive-collection-boundary">Reactive collection boundary</a></li>
+  </ul></li>
+  <li><a href="#snapshots-the-comic-strip-primitive" id="toc-snapshots-the-comic-strip-primitive" class="nav-link" data-scroll-target="#snapshots-the-comic-strip-primitive">Snapshots: the comic-strip primitive</a></li>
+  <li><a href="#timeline" id="toc-timeline" class="nav-link" data-scroll-target="#timeline">Timeline</a></li>
   </ul></li>
   </ul>
-<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/tutorial/units-and-exact-values.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/design/interactive-output-plugins.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
     </div>
 <!-- main -->
-<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../introduction.html">Learn RiX</a></li><li class="breadcrumb-item"><a href="../tutorial/units-and-exact-values.html">Units and exact values</a></li></ol></nav></header>
+<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../design/eval/cells-assignments.html">Runtime design</a></li><li class="breadcrumb-item"><a href="../design/interactive-output-plugins.html">Interactive output extension contracts</a></li></ol></nav></header>
 
 
 
 
 
-<section id="tutorial-quantities-and-exact-values" class="level1">
-<h1>Tutorial: Quantities and Exact Values</h1>
-<p>RiX treats units and named exact values as ordinary values. You can use the short notation for calculations or retrieve the values from their registries.</p>
-<section id="first-calculations" class="level2">
-<h2 class="anchored" data-anchor-id="first-calculations">First calculations</h2>
-<pre class="rix"><code>distance := 120~[m];
-time := 10~[s];
-speed := distance / time
-## speed is 12~[m/s]</code></pre>
-<p>The explicit spelling is equivalent:</p>
-<pre class="rix"><code>m := .Units[:m];
-s := .Units[:s];
-speed := (120 * m) / (10 * s)</code></pre>
-<p>Units can therefore be arguments, return values, and collection members:</p>
-<pre class="rix"><code>chosenUnit := .Units[:ft];
-height := chosenUnit(6)</code></pre>
+<section id="interactive-output-snapshots-and-timelines" class="level1">
+<h1>Interactive output, snapshots, and timelines</h1>
+<p>RiX owns exact state and portable output trees. Browser playback, PDF writing, and video encoding are host responsibilities. The common boundary is a <strong>scene</strong>: an ordinary RiX callable that receives one exact state and returns block output, normally a <code>.Graphics.Graphic</code>, a plot graphic, or a <code>.Fragment</code> containing one.</p>
+<pre class="rix"><code>Scene = state -&gt; {;
+    a := state["a"];
+    center := state["center"];
+    ## return a Graphic, Figure, or Fragment
+}</code></pre>
+<p>There is deliberately no special function type named <code>Scene</code>. A normal RiX callable keeps scenes composable and allows one gallery to use several scene functions.</p>
+<section id="controls-and-exact-actions" class="level2">
+<h2 class="anchored" data-anchor-id="controls-and-exact-actions">Controls and exact actions</h2>
+<p><code>.Controls.Action</code> is a real button in the browser renderer. Its callback is called with the target’s current exact value and must return the next exact value. The change is published by replacing that reactive identity, exactly like a slider edit.</p>
+<pre class="rix"><code>$$frozen := [];
+.Controls.Action({=
+    id="freeze",
+    target=$$frozen,
+    action=versions -&gt; versions ++ [{= coefficients=[a, b, c], color=color }],
+    label="Freeze quadratic"
+})</code></pre>
+<p>The button emits <code>control:action</code>; a host routes it through the same control session used for <code>control:set</code>. A static control-panel snapshot disables it.</p>
+<section id="styling-controls" class="level3">
+<h3 class="anchored" data-anchor-id="styling-controls">Styling controls</h3>
+<p>Controls accept <code>style={= ... }</code> and <code>metadata={= ... }</code>. <code>metadata</code> is an opaque renderer handoff. <code>style</code> is a small portable semantic vocabulary:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Key</th>
+<th>Values understood by the bundled HTML renderer</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>variant</code></td>
+<td><code>"primary"</code>, <code>"danger"</code>, <code>"quiet"</code></td>
+</tr>
+<tr class="even">
+<td><code>density</code></td>
+<td><code>"compact"</code>, <code>"comfortable"</code></td>
+</tr>
+<tr class="odd">
+<td><code>width</code></td>
+<td><code>"auto"</code>, <code>"compact"</code>, <code>"full"</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>ControlPanel.style</code> makes global and selective rules. Precedence is <code>all</code>, then <code>kinds</code>, then <code>ids</code>, then the individual control’s own <code>style</code>.</p>
+<pre class="rix"><code>.ControlPanel({=
+    style={=
+        all={= density="compact" },
+        kinds={= action={= variant="primary" } },
+        ids={= ("clear-frozen")={= variant="danger" } }
+    },
+    controls=[...]
+})</code></pre>
+<p>Renderers retain these style maps even when they do not understand a value, so plugins can add their own metadata without altering RiX’s exact values.</p>
 </section>
-<section id="compatible-addition-and-conversion" class="level2">
-<h2 class="anchored" data-anchor-id="compatible-addition-and-conversion">Compatible addition and conversion</h2>
-<pre class="rix"><code>elapsed := 30~[s] + 2~[min];      ## 150~[s]
-elapsedMinutes := .ConvertUnit(elapsed, .Units[:min])
-## elapsedMinutes is 5/2~[min]</code></pre>
-<p>The left operand selects the result’s display unit:</p>
-<pre class="rix"><code>2~[min] + 30~[s]                  ## 5/2~[min]
-30~[s] + 2~[min]                  ## 150~[s]</code></pre>
-<p>Incompatible dimensions are errors:</p>
-<pre class="rix"><code>1~[m] + 1~[s]                     ## error</code></pre>
+<section id="reactive-collection-boundary" class="level3">
+<h3 class="anchored" data-anchor-id="reactive-collection-boundary">Reactive collection boundary</h3>
+<p>Reactivity is currently tracked at the named <code>$$</code> identity, not through a deep proxy. Replacing a source (including via a slider or Action) recomputes all <code>$</code> dependents. In-place collection operations such as <code>Push!</code>, <code>Set!</code>, or map mutation change the collection but <strong>do not</strong> publish a reactive epoch; derived output that read a nested item remains stale. This holds at every depth of arrays, tuples, maps, and tensors.</p>
+<p>For reactive UI state, Actions should return a fresh replacement value:</p>
+<pre class="rix"><code>Action=versions -&gt; versions ++ [newVersion]</code></pre>
+<p>A future <code>Reactive.Collection</code>/lens capability can add tracked deep mutation, but it must make the affected reactive identity and publication semantics explicit rather than silently proxy arbitrary nested values.</p>
 </section>
-<section id="compound-and-inverse-units" class="level2">
-<h2 class="anchored" data-anchor-id="compound-and-inverse-units">Compound and inverse units</h2>
-<pre class="rix"><code>acceleration := 10~[m/s^2];
-mass := 3~[kg];
-force := mass * acceleration
-
-inverseLength := 3 / .Units[:m]
-areaUnit := .Units[:m]^2</code></pre>
-<p>Derived names and expanded expressions remain compatible:</p>
-<pre class="rix"><code>1~[N] + 1~[kg*m/s^2]              ## 2~[N]</code></pre>
 </section>
-<section id="temperatures" class="level2">
-<h2 class="anchored" data-anchor-id="temperatures">Temperatures</h2>
-<p>Temperature coordinates have an origin, so call their unit value:</p>
-<pre class="rix"><code>room := .Units[:degC](20)
-freezingF := .ConvertUnit(.Units[:degC](0), .Units[:degF])</code></pre>
-<p>Temperature differences are linear:</p>
-<pre class="rix"><code>change := 10 * .Units[:deltaDegC]</code></pre>
-<p>Compound expressions containing an affine coordinate unit are rejected.</p>
+<section id="snapshots-the-comic-strip-primitive" class="level2">
+<h2 class="anchored" data-anchor-id="snapshots-the-comic-strip-primitive">Snapshots: the comic-strip primitive</h2>
+<p><code>.Snapshots</code> expands a list of <code>[scene, states]</code> tuples into a portable static grid. <code>.Graphics.Snapshots</code> is the equivalent graphics namespace entry point. Each tuple can name a different scene function; states are evaluated in the listed order. This naturally produces a row-major comic strip.</p>
+<pre class="rix"><code>centers := [-2, 0, 2];
+.Snapshots({=
+    title="Three quadratics at shared centers",
+    columns=3,
+    entries=[
+        {: quadraticOne, centers},
+        {: quadraticTwo, centers},
+        {: quadraticThree, centers}
+    ]
+})</code></pre>
+<p>The result is a block output value and can be placed inside <code>.Fragment</code>, <code>.Figure</code>, slides, or <code>.Out</code>. The HTML host renders it as a responsive grid; the quadratic example declares it as <code>comic.html</code>. A PDF exporter should use the exact same item order and fixed graph window when writing a print grid.</p>
 </section>
-<section id="exact-generators" class="level2">
-<h2 class="anchored" data-anchor-id="exact-generators">Exact generators</h2>
-<p>The <code>.Exact</code> map contains algebraic generators and named transcendental constants:</p>
-<pre class="rix"><code>i := .Exact[:i];
-pi := .Exact[:pi];
-sqrt2 := .Exact[:sqrt2];
-
-i^2                         ## -1
-sqrt2^2                     ## 2
-z := 3 + 4*i
-halfTurn := pi~[rad]</code></pre>
-<p>The sugar form multiplies by an entry from <code>.Exact</code>:</p>
-<pre class="rix"><code>3~{pi}                      ## 3 * .Exact[:pi]
-2~{i}                       ## 2 * .Exact[:i]</code></pre>
-<p>Exact values and physical units compose normally:</p>
-<pre class="rix"><code>angle := (1/2)~{pi}~[rad]
-arc := angle * 2~[m]</code></pre>
-</section>
-<section id="exact-complex-arithmetic" class="level2">
-<h2 class="anchored" data-anchor-id="exact-complex-arithmetic">Exact complex arithmetic</h2>
-<p>Complex values use the algebraic generator <code>i</code>, so division and reduction stay exact:</p>
-<pre class="rix"><code>z := 3 + 4~{i};
-inverseI := 1 / .Exact[:i];
-quotient := (1 + .Exact[:i]) / (1 - .Exact[:i]);
-{: z, inverseI, quotient }</code></pre>
-<p>The <code>.Complex</code> map provides component operations without requiring real-number approximation:</p>
-<pre class="rix"><code>z := 3 + 4~{i};
-{: .Complex.Conjugate(z), .Complex.Re(z), .Complex.Im(z), z.NormSquared() }</code></pre>
-<p>An exact magnitude is available through Cayley polar form without defining a transcendental argument:</p>
-<pre class="rix"><code>c := .Complex.Cayley(1 + 1~{i});
-{: c, c.Magnitude(), c.Direction(), c.Cartesian() }</code></pre>
-<p>The direction is the algebraic half-angle coordinate <code>tan(Arg/2)</code>. <code>Arg</code> itself still waits for explicit real-number and trigonometric precision policies. See <a href="../design/eval/cayley-polar.html">the detailed Cayley writeup</a>.</p>
-</section>
-<section id="local-registry-overlays" class="level2">
-<h2 class="anchored" data-anchor-id="local-registry-overlays">Local registry overlays</h2>
-<p>The default registries are ordinary RiX maps. A program can construct an extended map without mutating the frozen system context:</p>
-<pre class="rix"><code>Exact := .Exact.Merge({= tau = 2 * .Exact[:pi] });
-oneTurn := 1~{tau}~[rad]</code></pre>
-<p>The postfix sugar consults a lexical <code>Exact</code> or <code>Units</code> map before the system default, so overlays work without changing parser configuration.</p>
+<section id="timeline" class="level2">
+<h2 class="anchored" data-anchor-id="timeline">Timeline</h2>
+<p><code>.Timeline.Sequence</code> accepts the same scene tuples and materializes ordered frames. <code>.Timeline.Render(timeline, frame)</code> selects a one-based frame for static renderers. <code>duration</code>, <code>easing</code>, and <code>title</code> remain part of the portable timeline descriptor.</p>
+<pre class="rix"><code>motion := .Timeline.Sequence({=
+    duration=2,
+    easing="linear",
+    entries=[{: scene, [{= center=-3}, {= center=0}, {= center=3}]}]
+});
+.Timeline.Render(motion, 2)</code></pre>
+<p>The bundled HTML renderer intentionally displays the selected frame; it does not yet play or scrub. A browser animation plugin can consume <code>timeline</code> values to add a transport bar or frame recording, while a Manim-style plugin can lower the same exact frames to video. A future <code>.Out("name.pdf", value)</code> backend should handle <code>snapshots</code> and <code>timeline_render</code> as static print layout; it is not implemented by the CLI yet.</p>
 
 
 </section>
@@ -1142,13 +1162,13 @@ oneTurn := 1~{tau}~[rad]</code></pre>
   </script>
 <nav class="page-navigation">
   <div class="nav-page nav-page-previous">
-      <a href="../introduction.html" class="pagination-link" aria-label="Complete introduction">
-        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">Complete introduction</span>
+      <a href="../design/eval/document-output-todo.html" class="pagination-link" aria-label="Document blocks, inline content, and assets">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">Document blocks, inline content, and assets</span>
       </a>          
   </div>
   <div class="nav-page nav-page-next">
-      <a href="../eval/sheet-guide.html" class="pagination-link" aria-label="Sheet views">
-        <span class="nav-page-text">Sheet views</span> <i class="bi bi-arrow-right-short"></i>
+      <a href="../design/eval/rixcel-architecture.html" class="pagination-link" aria-label="RiXCel architecture">
+        <span class="nav-page-text">RiXCel architecture</span> <i class="bi bi-arrow-right-short"></i>
       </a>
   </div>
 </nav>
@@ -1160,7 +1180,7 @@ oneTurn := 1~{tau}~[rad]</code></pre>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
-    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/tutorial/units-and-exact-values.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/design/interactive-output-plugins.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
     <div class="nav-footer-right">
 <p>Documentation built with <a href="https://quarto.org/">Quarto</a></p>
 </div>

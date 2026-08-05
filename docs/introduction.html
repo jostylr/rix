@@ -68,7 +68,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="site_libs/quarto-search/fuse.min.js"></script>
 <script src="site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="./">
-<link href="./tutorial/units-and-exact-values.html" rel="next">
+<link href="./eval/sheet-guide.html" rel="next">
 <link href="./status.html" rel="prev">
 <link href="./rix-logo.png" rel="icon" type="image/png">
 <script src="site_libs/quarto-html/quarto.js" type="module"></script>
@@ -433,8 +433,8 @@ window.Quarto = {
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./tutorial/units-and-exact-values.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Units and exact values</span></a>
+  <a href="https://rix.ratmath.com/tutorial/" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Interactive tutorials (RiX Web)</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -464,6 +464,18 @@ window.Quarto = {
   <div class="sidebar-item-container"> 
   <a href="./eval/methods-guide.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Methods</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./eval/output-guide.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Structured output and graphics</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./eval/controls-guide.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Reactive controls</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -600,6 +612,12 @@ window.Quarto = {
   <div class="sidebar-item-container"> 
   <a href="./design/eval/document-output-todo.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Document blocks, inline content, and assets</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./design/interactive-output-plugins.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Interactive output extension contracts</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -798,7 +816,7 @@ window.Quarto = {
 <ul>
 <li><strong>Variables</strong> should start with a lowercase letter (e.g., <code>x</code>, <code>myVar</code>, <code>my_var</code>). <strong>camelCase</strong> or <strong>snake_case</strong> are recommended.</li>
 <li><strong>User-defined functions</strong> start with an uppercase letter (e.g., <code>Square</code>, <code>MyFn</code>).</li>
-<li><strong>System capabilities</strong> (built-in functions like <code>ADD</code>, <code>RAND_NAME</code>, <code>SIN</code>) are <strong>not</strong> accessible as bare identifiers. They must be called via the <strong>system object</strong> using the dot prefix: <code>.ADD(3, 4)</code>, <code>.SIN(x)</code>, <code>.RAND_NAME()</code>.</li>
+<li><strong>System capabilities</strong> (built-in functions like <code>ADD</code>, <code>ABS</code>, and <code>RAND_NAME</code>) are <strong>not</strong> accessible as bare identifiers. They must be called via the <strong>system object</strong> using the dot prefix: <code>.ADD(3, 4)</code>, <code>.ABS(-3)</code>, <code>.RAND_NAME()</code>.</li>
 </ul>
 <blockquote class="blockquote">
 <p>[!NOTE] Standalone <code>_</code> is the <strong>null operator</strong> (same as <code>NULL()</code>). However, <code>_</code> is allowed within identifiers as long as it’s not the only character.</p>
@@ -815,7 +833,7 @@ window.Quarto = {
 <p><strong><code>=</code> — Alias / Rebind.</strong> Makes the left-hand side point to the same cell as the right-hand side. If the right side is a variable, both names share the same cell; if it is an expression, a fresh cell is created for the result.</p>
 <pre class="rix"><code>x := 5;
 y = x;
-x += 1;      ##@ == 6
+x += 1       ##@ == 6
 y            ##@ == 6
 ##</code></pre>
 <div class="rix-example-output">
@@ -825,7 +843,7 @@ y            ##@ == 6
 <p><strong><code>:=</code> — Fresh Copy.</strong> Creates a new, independent cell with a shallow copy of the value and all meta properties.</p>
 <pre class="rix"><code>x := 5;
 y := x;
-x += 1;      ##@ == 6
+x += 1       ##@ == 6
 y            ##@ == 5
 ##</code></pre>
 <div class="rix-example-output">
@@ -837,7 +855,7 @@ y            ##@ == 5
 t.key = "temperature";
 t.__units = "C";
 t._spec = "sensor formula";
-t ~= 21;      ##@ == 21
+t ~= 21       ##@ == 21
 t             ##@ == 21
 ##</code></pre>
 <div class="rix-example-output">
@@ -858,7 +876,7 @@ r.Num()           ## type-proto method
 <p><strong>Combo operators</strong> (<code>+=</code>, <code>-=</code>, <code>*=</code>, <code>/=</code>, <code>//=</code>, <code>%=</code>, <code>^=</code>, <code>++=</code>, <code>\/=</code>, <code>/\=</code>, <code>\=</code>, <code>**=</code>, <code>/^=</code>, <code>/~=</code>) use <code>~=</code> semantics — they update the value in place, so aliases see the change and meta is preserved:</p>
 <pre class="rix"><code>x := 5;
 y = x;
-x += 1;      ##@ == 6
+x += 1       ##@ == 6
 y            ##@ == 6
 ##</code></pre>
 <div class="rix-example-output">
@@ -1797,7 +1815,7 @@ m^^                ##: tensor[3x2]
 <h3 class="anchored" data-anchor-id="the-system-object-.">The System Object (<code>.</code>)</h3>
 <p>The bare <code>.</code> refers to the <strong>system capability object</strong> — a frozen, sandboxable collection of all built-in functions. You can call any system function by prefixing it with a dot:</p>
 <pre class="rix"><code>.ADD(3, 4)       ## 7
-.SIN(.PI())      ## ~0
+.ABS(-3)         ## 3
 .RAND_NAME(8)    ## e.g. "xKqTmPaR"
 .AND(1, _)       ## null (false)</code></pre>
 <p>The system object can be inspected, copied, and restricted:</p>
@@ -2359,7 +2377,7 @@ angle := pi/2 * .Units[:rad]</code></pre>
 <li><code>2~{i}</code> uses the algebraic generator whose relation is <code>i^2 + 1 = 0</code>.</li>
 </ul>
 <p>Compatible quantities convert automatically for addition and preserve the left operand’s display unit. Incompatible dimensions are errors. Explicit conversion uses <code>.ConvertUnit(value, targetUnit)</code>; the source unit is already carried by the value.</p>
-<p>Unit values are callable constructors, which is especially useful for affine coordinates: <code>.Units[:degC](20)</code>. See <a href="./tutorial/units-and-exact-values.html"><code>units-and-exact-values.md</code></a> for the tutorial and <a href="./design/eval/units-and-exact-generators.html"><code>units-and-exact-generators.md</code></a> for the runtime design.</p>
+<p>Unit values are callable constructors, which is especially useful for affine coordinates: <code>.Units[:degC](20)</code>. See the <a href="https://rix.ratmath.com/tutorial/units.html">RiX Web units tutorial</a> and <a href="./design/eval/units-and-exact-generators.html"><code>units-and-exact-generators.md</code></a> for the runtime design.</p>
 <p>Exact complex values use <code>.Exact[:i]</code> and the <code>.Complex</code> operation map. Division within a single algebraic extension is exact, so <code>1/.Exact[:i]</code> reduces to <code>-i</code>. <code>.Complex.Conjugate(z)</code>, <code>.Complex.Re(z)</code>, <code>.Complex.Im(z)</code>, and <code>.Complex.NormSquared(z)</code> work without selecting a floating approximation.</p>
 <p>For multiplication-oriented work, <code>.Complex.Cayley(z)</code> converts to exact Cayley polar form <code>Cayley(r, t)</code>, with <code>t = tan(Arg(z)/2)</code>. The direction is an algebraic stereographic coordinate rather than a stored angle. Multiplication, division, powers, reciprocal, and conjugation stay in that form; addition and subtraction take an exact Cartesian bridge. Convert back with <code>c.Cartesian()</code>. See <a href="./design/eval/cayley-polar.html">the Cayley polar design</a>.</p>
 <hr>
@@ -2924,8 +2942,8 @@ angle := pi/2 * .Units[:rad]</code></pre>
       </a>          
   </div>
   <div class="nav-page nav-page-next">
-      <a href="./tutorial/units-and-exact-values.html" class="pagination-link" aria-label="Units and exact values">
-        <span class="nav-page-text">Units and exact values</span> <i class="bi bi-arrow-right-short"></i>
+      <a href="./eval/sheet-guide.html" class="pagination-link" aria-label="Sheet views">
+        <span class="nav-page-text">Sheet views</span> <i class="bi bi-arrow-right-short"></i>
       </a>
   </div>
 </nav>

@@ -33,7 +33,7 @@ ul.task-list li input[type="checkbox"] {
 <script src="../site_libs/quarto-search/fuse.min.js"></script>
 <script src="../site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="../">
-<link href="../eval/types-and-traits-guide.html" rel="next">
+<link href="../eval/output-guide.html" rel="next">
 <link href="../eval/syntax-guide.html" rel="prev">
 <link href="../rix-logo.png" rel="icon" type="image/png">
 <script src="../site_libs/quarto-html/quarto.js" type="module"></script>
@@ -369,8 +369,8 @@ ul.task-list li input[type="checkbox"] {
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../tutorial/units-and-exact-values.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Units and exact values</span></a>
+  <a href="https://rix.ratmath.com/tutorial/" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Interactive tutorials (RiX Web)</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -400,6 +400,18 @@ ul.task-list li input[type="checkbox"] {
   <div class="sidebar-item-container"> 
   <a href="../eval/methods-guide.html" class="sidebar-item-text sidebar-link active">
  <span class="menu-text">Methods</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../eval/output-guide.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Structured output and graphics</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../eval/controls-guide.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Reactive controls</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -540,6 +552,12 @@ ul.task-list li input[type="checkbox"] {
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
+  <a href="../design/interactive-output-plugins.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Interactive output extension contracts</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
   <a href="../design/eval/rixcel-architecture.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">RiXCel architecture</span></a>
   </div>
@@ -612,6 +630,7 @@ ul.task-list li input[type="checkbox"] {
   <li><a href="#rix-methods-guide" id="toc-rix-methods-guide" class="nav-link active" data-scroll-target="#rix-methods-guide">RiX Methods Guide</a>
   <ul class="collapse">
   <li><a href="#general-rules" id="toc-general-rules" class="nav-link" data-scroll-target="#general-rules">General rules</a></li>
+  <li><a href="#reactive-identities" id="toc-reactive-identities" class="nav-link" data-scroll-target="#reactive-identities">Reactive identities</a></li>
   <li><a href="#generic-reduce" id="toc-generic-reduce" class="nav-link" data-scroll-target="#generic-reduce">Generic Reduce</a></li>
   <li><a href="#arrays" id="toc-arrays" class="nav-link" data-scroll-target="#arrays">Arrays</a></li>
   <li><a href="#lazy-sequences" id="toc-lazy-sequences" class="nav-link" data-scroll-target="#lazy-sequences">Lazy sequences</a></li>
@@ -663,6 +682,17 @@ obj.Method!(a, b)</code></pre>
 <li>Iterator cursor methods are explicitly stateful without <code>!</code>; the iterator is a traversal handle, not the source collection.</li>
 <li>Built-in prototypes are frozen. There is no prototype chaining in v1.</li>
 </ul>
+</section>
+<section id="reactive-identities" class="level2">
+<h2 class="anchored" data-anchor-id="reactive-identities">Reactive identities</h2>
+<p><code>$$name</code> exposes the reactive-node methods <code>Get()</code>, <code>Peek()</code>, <code>Set(value)</code>, <code>ReplaceValue(value)</code>, <code>GetFormula()</code>, <code>SetFormula(formula)</code>, <code>Live()</code>, and <code>Touch()</code>.</p>
+<p><code>Touch()</code> is the explicit publication step for an intentionally mutated collection. It retains the current value object, recomputes its reactive dependents once, and publishes a <code>reactive:touch</code> epoch even when the identity reference itself did not change:</p>
+<pre class="rix"><code>$$items := [1];
+$$count := $items.Len();
+$items.Push!(2);
+$$items.Touch();
+$count  # 2</code></pre>
+<p>For an explicit <code>.ReactiveGraph</code>, use <code>graph.Touch("name")</code>. Prefer ordinary value replacement when possible; Touch does not inspect or validate deep mutations.</p>
 </section>
 <section id="generic-reduce" class="level2">
 <h2 class="anchored" data-anchor-id="generic-reduce">Generic Reduce</h2>
@@ -1499,8 +1529,8 @@ t.Fill!(0)</code></pre>
       </a>          
   </div>
   <div class="nav-page nav-page-next">
-      <a href="../eval/types-and-traits-guide.html" class="pagination-link" aria-label="Types and traits">
-        <span class="nav-page-text">Types and traits</span> <i class="bi bi-arrow-right-short"></i>
+      <a href="../eval/output-guide.html" class="pagination-link" aria-label="Structured output and graphics">
+        <span class="nav-page-text">Structured output and graphics</span> <i class="bi bi-arrow-right-short"></i>
       </a>
   </div>
 </nav>

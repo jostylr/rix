@@ -37,6 +37,7 @@ function graphMethods() {
         ["DERIVE", method("Derive", ([target, name, formula]) => target.addComputed(name, formula))],
         ["GET", method("Get", ([target, name]) => target.get(name))],
         ["NODE", method("Node", ([target, name]) => target.node(name))],
+        ["TOUCH", method("Touch", ([target, name]) => target.touch(name))],
         ["RECALCULATE", method("Recalculate", ([target]) => target.recalculate())],
         ["_mutable", new Integer(1n)],
     ]);
@@ -48,6 +49,7 @@ function nodeMethods() {
         ["PEEK", method("Peek", ([target]) => target.peek())],
         ["SET", method("Set", ([target, value]) => target.set(value))],
         ["REPLACEVALUE", method("ReplaceValue", ([target, value]) => target.replaceValue(value))],
+        ["TOUCH", method("Touch", ([target]) => target.touch())],
         ["GETFORMULA", method("GetFormula", ([target]) => target.formula)],
         ["SETFORMULA", method("SetFormula", ([target, formula]) => target.setFormula(formula))],
         ["LIVE", method("Live", ([target]) => target.live())],
@@ -161,6 +163,9 @@ export function createReactiveGraph(options = {}) {
             replaceValue(value, metadata = null) {
                 return graph.replaceValue(name, value, metadata);
             },
+            touch(metadata = null) {
+                return graph.touch(name, metadata);
+            },
             setFormula(formula, metadata = null) {
                 if (kind !== "computed") throw new Error(`Reactive source node ${name} has no formula`);
                 return graph.setFormula(name, formula, metadata);
@@ -190,7 +195,7 @@ export function createReactiveGraph(options = {}) {
         return node;
     }
 
-    function runEpoch({ dirty, sourceOverrides = new Map(), cause = null, evaluateAll = false } = {}) {
+    function runEpoch({ dirty, sourceOverrides = new Map(), cause = null, evaluateAll = false, forcePublish = new Set(), preserveValues = new Set() } = {}) {
         if (activeEpoch) {
             throw new Error(options.nestedEpochError || "Reactive computations cannot start a nested graph epoch");
         }
@@ -204,11 +209,11 @@ export function createReactiveGraph(options = {}) {
         for (const [name, value] of sourceOverrides) stagedValues.set(name, value);
         const states = new Map([...nodes].map(([name, node]) => [
             name,
-            requested.has(name) && node.kind === "computed" ? "dirty" : "clean",
+            requested.has(name) && node.kind === "computed" && !preserveValues.has(name) ? "dirty" : "clean",
         ]));
         const dependencies = new Map([...nodes].map(([name, node]) => [
             name,
-            requested.has(name) && node.kind === "computed"
+            requested.has(name) && node.kind === "computed" && !preserveValues.has(name)
                 ? new Set()
                 : new Set(node.dependencies),
         ]));
@@ -300,9 +305,10 @@ export function createReactiveGraph(options = {}) {
             previousEpoch,
             epoch: graph.epoch,
             changed: Object.freeze(changed),
+            touched: Object.freeze([...forcePublish]),
             cause,
         });
-        for (const name of changed) nodes.get(name)._publish(event);
+        for (const name of new Set([...changed, ...forcePublish])) nodes.get(name)._publish(event);
         for (const listener of [...channel]) listener(event);
         return graph;
     }
@@ -559,6 +565,17 @@ export function createReactiveGraph(options = {}) {
                 source: metadata?.source ?? null,
             });
             return value;
+        },
+        touch(name, metadata = null) {
+            name = canonicalName(name);
+            const node = requireNode(name);
+            runEpoch({
+                dirty: new Set([name]),
+                forcePublish: new Set([node.name]),
+                preserveValues: new Set([node.name]),
+                cause: { type: "reactive:touch", name: node.name, metadata },
+            });
+            return node.value;
         },
         setFormula(name, formula, metadata = null) {
             name = canonicalName(name);

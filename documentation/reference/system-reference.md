@@ -8,7 +8,7 @@ toc-depth: 2
 This page is generated from the current RiX implementation by `documentation/scripts/generate-reference.js`. Do not edit it by hand. Descriptions come from registry documentation strings; the narrative [syntax guide](../eval/syntax-guide.md) and [methods guide](../eval/methods-guide.md) provide signatures and examples.
 :::
 
-At this revision RiX exposes **173 named entries** on the default system context and registers **207 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
+At this revision RiX exposes **176 named entries** on the default system context and registers **209 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
 
 ## Public system context
 
@@ -120,6 +120,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.NOTATIONPARSER` | function | — | Wrap a RiX callable as a registered backtick parser object |
 | `.NOTEQUAL` | function | — | Inequality check — returns 1 or null |
 | `.OR` | lazy function | Logic | Logical OR (short-circuits on first truthy, returns deciding value) |
+| `.OUT` | function | Output | Declare an output artifact for the active host output sink |
 | `.PAIR` | function | — | Create a key/value entry for .Map |
 | `.PARAGRAPH` | function | Output | Create a portable paragraph output node |
 | `.PARAMS` | function | — | Create a positional parameter descriptor from names |
@@ -155,6 +156,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.SLICECLAMP` | lazy function | — | Clamped slice operator \|>// |
 | `.SLIDE` | function | Output | Create a presentation slide |
 | `.SLIDES` | function | Output | Create a sequential presentation deck |
+| `.SNAPSHOTS` | function | Output | Materialize [scene, states] tuples into a portable static snapshot grid |
 | `.SORT` | lazy function | — | Sort a collection with comparator function (returns new copy) |
 | `.SPEC` | function | Symbolic | Analyze a pure function and attach/return its symbolic spec |
 | `.SPECCABILITY` | function | Symbolic | Report whether a pure function can be represented by the exact symbolic subset |
@@ -172,6 +174,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.TESTSTOP` | lazy function | — | Abort test: .TestStop(label, setup, expr) — passes if expr aborts via .Stop() |
 | `.TEXT` | function | Output | Create a portable text output node |
 | `.TGEN` | lazy function | Core, Collections, Arrays | Generate a tensor from a shape and index callback |
+| `.TIMELINE` | value | — | Portable exact timeline constructors |
 | `.TRACE` | lazy function | — | Trace execution: .Trace(label, depth, trackedVars?, thunkOrCallable) |
 | `.TRAITREGISTER` | function | — | Register an immutable semantic trait from a RiX map spec |
 | `.TRANSFORM` | function | Symbolic | Apply ordered exact symbolic transformations |
@@ -262,7 +265,7 @@ Imported scripts can add or withhold named groups. Permission-like names are int
 
 | Group | Members |
 | --- | --- |
-| `Output` | `BIND`, `LIVEVIEW`, `TEXT`, `PARAGRAPH`, `HEADING`, `FRAGMENT`, `TABLE`, `GRID`, `SHEET`, `CONTROLPANEL`, `FIGURE`, `SLIDE`, `SLIDES`, `Algebra` |
+| `Output` | `OUT`, `BIND`, `LIVEVIEW`, `TEXT`, `PARAGRAPH`, `HEADING`, `FRAGMENT`, `SNAPSHOTS`, `TABLE`, `GRID`, `SHEET`, `CONTROLPANEL`, `FIGURE`, `SLIDE`, `SLIDES`, `Algebra`, `Timeline` |
 | `Controls` | `CONTROLPANEL`, `Controls` |
 | `Graphics` | `Graphics` |
 | `Draw` | `draw` |
@@ -412,6 +415,7 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `NOT_MEMBER` | eager, pure | Check non-membership (1 if not present, null otherwise) |
 | `NULL` | eager, pure | Null value |
 | `OR` | lazy, pure | Logical OR (short-circuits on first truthy, returns deciding value) |
+| `OUT` | eager, effectful/unspecified | Declare an output artifact for the active host output sink |
 | `OUTER_ASSIGN` | lazy, effectful/unspecified | Assign a value to an existing outer scope variable |
 | `OUTER_RETRIEVE` | eager, effectful/unspecified | Look up a variable strictly in the outer scope chains |
 | `OUTER_UPDATE` | lazy, effectful/unspecified | In-place value replacement on an outer scope variable (~= / ~~= with @) |
@@ -471,6 +475,7 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `SHEET` | eager, pure | Create a portable sheet view of indexable data |
 | `SLIDE` | eager, pure | Create a presentation slide |
 | `SLIDES` | eager, pure | Create a sequential presentation deck |
+| `SNAPSHOTS` | eager, pure | Materialize [scene, states] tuples into a portable static snapshot grid |
 | `SOLVE` | lazy, effectful/unspecified | Solve/constrain: x :=: expr |
 | `SQRT` | eager, pure, multifunction | Square root (approximate rational) |
 | `STEP` | eager, pure | Lazy exact stepped range over a rational interval |

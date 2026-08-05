@@ -69,7 +69,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="../site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="../">
 <link href="../reference/system-reference.html" rel="next">
-<link href="../eval/methods-guide.html" rel="prev">
+<link href="../eval/controls-guide.html" rel="prev">
 <link href="../rix-logo.png" rel="icon" type="image/png">
 <script src="../site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
@@ -404,8 +404,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../tutorial/units-and-exact-values.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Units and exact values</span></a>
+  <a href="https://rix.ratmath.com/tutorial/" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Interactive tutorials (RiX Web)</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -435,6 +435,18 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <div class="sidebar-item-container"> 
   <a href="../eval/methods-guide.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Methods</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../eval/output-guide.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Structured output and graphics</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../eval/controls-guide.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Reactive controls</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -571,6 +583,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <div class="sidebar-item-container"> 
   <a href="../design/eval/document-output-todo.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Document blocks, inline content, and assets</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../design/interactive-output-plugins.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Interactive output extension contracts</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -765,8 +783,6 @@ r == r2</code></pre>
 <li><code>NEG</code></li>
 <li><code>EQ</code>, <code>LT</code>, <code>GT</code>, <code>LTE</code>, <code>GTE</code></li>
 <li><code>ABS</code>, <code>SQRT</code></li>
-<li><code>SIN</code>, <code>COS</code>, <code>TAN</code>, <code>ASIN</code>, <code>ACOS</code>, <code>ATAN</code>, <code>ATAN2</code></li>
-<li><code>LOG</code>, <code>LN</code>, <code>LOG10</code>, <code>EXP</code></li>
 </ul>
 <p>Built-in type installation currently installs Rational arithmetic/comparison variants before native fallback. Type install order is dispatch order; fallback remains last.</p>
 <p><code>^</code> lowers to <code>POW</code>. <code>**</code> lowers to <code>POWPROD</code>. Both currently share native behavior, but they are distinct system functions and operator aliases:</p>
@@ -834,9 +850,9 @@ o2.Mid()</code></pre>
 <pre class="rix"><code>f = 1 ~: :Float
 g = 2 ~: :Float
 h = f + g * g
-s = .SIN(f)
-e = .EXP(f)</code></pre>
-<p>Float installs overloads for arithmetic, comparison, and common real-valued math functions. Those functions are system multifunctions with <code>/NativeFallback/</code> variants, so later user-land real-number types can install their own <code>SIN</code>, <code>LOG</code>, <code>EXP</code>, and related variants without replacing the Float implementation.</p>
+s = .float.Sin(f)
+e = .float.Exp(f)</code></pre>
+<p>Float installs overloads for arithmetic, comparison, and its own approximate math surface. Transcendental operations are not default RiX system capabilities; the Float plugin explicitly provides them under <code>.float</code>.</p>
 
 
 </section>
@@ -1263,8 +1279,8 @@ e = .EXP(f)</code></pre>
   </script>
 <nav class="page-navigation">
   <div class="nav-page nav-page-previous">
-      <a href="../eval/methods-guide.html" class="pagination-link" aria-label="Methods">
-        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">Methods</span>
+      <a href="../eval/controls-guide.html" class="pagination-link" aria-label="Reactive controls">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">Reactive controls</span>
       </a>          
   </div>
   <div class="nav-page nav-page-next">

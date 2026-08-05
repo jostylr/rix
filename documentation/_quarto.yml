@@ -18,8 +18,9 @@ project:
     - highlights.md
     - introduction.md
     - status.qmd
-    - tutorial/units-and-exact-values.md
     - eval/sheet-guide.md
+    - eval/output-guide.md
+    - eval/controls-guide.md
     - eval/syntax-guide.md
     - eval/methods-guide.md
     - eval/types-and-traits-guide.md
@@ -43,6 +44,7 @@ project:
     - design/eval/output-model.md
     - design/eval/document-output-todo.md
     - design/eval/control-panel-todo.md
+    - design/interactive-output-plugins.md
     - design/eval/rixcel-architecture.md
     - design/eval/rixcel-format.md
     - design/eval/rixcel-todo.md
@@ -96,8 +98,8 @@ website:
         contents:
           - text: Complete introduction
             href: introduction.md
-          - text: Units and exact values
-            href: tutorial/units-and-exact-values.md
+          - text: Interactive tutorials (RiX Web)
+            href: https://rix.ratmath.com/tutorial/
           - text: Sheet views
             href: eval/sheet-guide.md
       - section: Language reference
@@ -106,6 +108,10 @@ website:
             href: eval/syntax-guide.md
           - text: Methods
             href: eval/methods-guide.md
+          - text: Structured output and graphics
+            href: eval/output-guide.md
+          - text: Reactive controls
+            href: eval/controls-guide.md
           - text: Types and traits
             href: eval/types-and-traits-guide.md
           - text: Generated runtime catalog
@@ -147,6 +153,8 @@ website:
             href: design/eval/output-model.md
           - text: Document blocks, inline content, and assets
             href: design/eval/document-output-todo.md
+          - text: Interactive output extension contracts
+            href: design/interactive-output-plugins.md
           - text: RiXCel architecture
             href: design/eval/rixcel-architecture.md
           - text: RiXCel document format

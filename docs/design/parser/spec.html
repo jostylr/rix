@@ -369,8 +369,8 @@ ul.task-list li input[type="checkbox"] {
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../tutorial/units-and-exact-values.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Units and exact values</span></a>
+  <a href="https://rix.ratmath.com/tutorial/" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Interactive tutorials (RiX Web)</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -400,6 +400,18 @@ ul.task-list li input[type="checkbox"] {
   <div class="sidebar-item-container"> 
   <a href="../../eval/methods-guide.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Methods</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../eval/output-guide.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Structured output and graphics</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../eval/controls-guide.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Reactive controls</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -536,6 +548,12 @@ ul.task-list li input[type="checkbox"] {
   <div class="sidebar-item-container"> 
   <a href="../../design/eval/document-output-todo.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Document blocks, inline content, and assets</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../design/interactive-output-plugins.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Interactive output extension contracts</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -1584,8 +1602,8 @@ powcases(2, n := 5)    // 2^10</code></pre></li>
 <section id="modules-loading-and-help" class="level2">
 <h2 class="anchored" data-anchor-id="modules-loading-and-help">13. Modules, Loading, and Help</h2>
 <ul>
-<li><code>Load("trig")</code> loads trig module with <code>SIN</code>, <code>COS</code>, etc.</li>
-<li><code>Load("trig", "Tr")</code> loads with prefix: <code>TrSIN</code>, <code>TrCOS</code>, etc.</li>
+<li><code>Load("module")</code> loads a module’s exported capabilities.</li>
+<li><code>Load("module", "M")</code> loads a module with a prefix such as <code>MTransform</code>.</li>
 <li><code>Execute(path)</code> runs file/script in context</li>
 <li><code>Help</code> or <code>Help f</code> displays documentation</li>
 </ul>

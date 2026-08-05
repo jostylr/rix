@@ -404,8 +404,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../../tutorial/units-and-exact-values.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Units and exact values</span></a>
+  <a href="https://rix.ratmath.com/tutorial/" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Interactive tutorials (RiX Web)</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -435,6 +435,18 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <div class="sidebar-item-container"> 
   <a href="../../eval/methods-guide.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Methods</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../eval/output-guide.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Structured output and graphics</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../eval/controls-guide.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Reactive controls</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -571,6 +583,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <div class="sidebar-item-container"> 
   <a href="../../design/eval/document-output-todo.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Document blocks, inline content, and assets</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../design/interactive-output-plugins.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Interactive output extension contracts</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -1447,7 +1465,7 @@ curve := .plot.Function({=
     style = {= stroke = "#2463a5", width = 2 }
 })
 
-H := (x, y) -&gt; .Exp(-(x^2 + y^2))
+H := (x, y) -&gt; 1 / (1 + x^2 + y^2)
 
 heat := .plot.HeatMap({=
     fn = H,
@@ -1485,7 +1503,7 @@ diagram := .geometry.Draw({=
 <h3 class="anchored" data-anchor-id="d-scene-construction">3D scene construction</h3>
 <p>The 3D plugin produces a retained <code>Scene</code> rather than treating WebGL state as the value. A host with an interactive renderer can orbit the camera; an export host can ask for an SVG/PNG <code>Graphic</code> snapshot.</p>
 <pre class="rix"><code>surface := .Scene3D.ParametricSurface({=
-    fn = (u, v) -&gt; [u, v, .Sin(u) * .Cos(v)],
+    fn = (u, v) -&gt; [u, v, u * v],
     u = [-3, 3],
     v = [-3, 3],
     material = {= color = "#4b9cd3", opacity = 0.85 }

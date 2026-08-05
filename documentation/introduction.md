@@ -1925,9 +1925,8 @@ conversion uses `.ConvertUnit(value, targetUnit)`; the source unit is already
 carried by the value.
 
 Unit values are callable constructors, which is especially useful for affine
-coordinates: `.Units[:degC](20)`. See
-[`units-and-exact-values.md`](tutorial/units-and-exact-values.md) for the
-tutorial and [`units-and-exact-generators.md`](design/eval/units-and-exact-generators.md)
+coordinates: `.Units[:degC](20)`. See the [RiX Web units tutorial](https://rix.ratmath.com/tutorial/units.html)
+and [`units-and-exact-generators.md`](design/eval/units-and-exact-generators.md)
 for the runtime design.
 
 Exact complex values use `.Exact[:i]` and the `.Complex` operation map. Division

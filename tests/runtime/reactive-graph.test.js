@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { formatValue, parseAndEvaluate } from "../../src/index.js";
+import { Context, createDefaultRegistry, createDefaultSystemContext, formatValue, parseAndEvaluate } from "../../src/index.js";
 
 describe("ReactiveGraph", () => {
     test("propagates source changes through computed-node chains", () => {
@@ -45,6 +45,32 @@ describe("ReactiveGraph", () => {
         expect(graph.node("selected").live().dependencies).toEqual(["chooseleft", "right"]);
         expect(graph.node("right").live().dependents).toEqual(["selected"]);
         expect(graph.node("left").live().dependents).toEqual([]);
+    });
+
+    test("Touch publishes an in-place collection change through dependent reactive nodes", () => {
+        const state = {
+            context: new Context(),
+            registry: createDefaultRegistry(),
+            systemContext: createDefaultSystemContext(),
+        };
+        const items = parseAndEvaluate(`
+            $$items := [1];
+            $$count := $items.Len();
+            $$items
+        `, state);
+        const events = [];
+        const unsubscribe = items.subscribe((event) => events.push(event));
+
+        items.peek().values.push(parseAndEvaluate("2"));
+        expect(formatValue(state.context.get("count").peek())).toBe("1");
+
+        const count = parseAndEvaluate("$$items.Touch(); $count", state);
+        expect(formatValue(count)).toBe("2");
+        expect(events).toHaveLength(1);
+        expect(events[0].cause).toMatchObject({ type: "reactive:touch", name: "items" });
+        expect(events[0].touched).toEqual(["items"]);
+        expect(events[0].changed).toContain("count");
+        unsubscribe();
     });
 
     test("replaces a computed definition with a literal while preserving identity", () => {
