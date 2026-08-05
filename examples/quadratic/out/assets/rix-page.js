@@ -12192,6 +12192,7 @@ ${indentStr})`;
       ["DERIVE", method("Derive", ([target, name, formula]) => target.addComputed(name, formula))],
       ["GET", method("Get", ([target, name]) => target.get(name))],
       ["NODE", method("Node", ([target, name]) => target.node(name))],
+      ["TOUCH", method("Touch", ([target, name]) => target.touch(name))],
       ["RECALCULATE", method("Recalculate", ([target]) => target.recalculate())],
       ["_mutable", new Integer(1n)]
     ]);
@@ -12202,6 +12203,7 @@ ${indentStr})`;
       ["PEEK", method("Peek", ([target]) => target.peek())],
       ["SET", method("Set", ([target, value]) => target.set(value))],
       ["REPLACEVALUE", method("ReplaceValue", ([target, value]) => target.replaceValue(value))],
+      ["TOUCH", method("Touch", ([target]) => target.touch())],
       ["GETFORMULA", method("GetFormula", ([target]) => target.formula)],
       ["SETFORMULA", method("SetFormula", ([target, formula]) => target.setFormula(formula))],
       ["LIVE", method("Live", ([target]) => target.live())],
@@ -12308,6 +12310,9 @@ ${indentStr})`;
         replaceValue(value, metadata = null) {
           return graph.replaceValue(name, value, metadata);
         },
+        touch(metadata = null) {
+          return graph.touch(name, metadata);
+        },
         setFormula(formula, metadata = null) {
           if (kind !== "computed")
             throw new Error(`Reactive source node ${name} has no formula`);
@@ -12336,7 +12341,7 @@ ${indentStr})`;
       };
       return node;
     }
-    function runEpoch({ dirty, sourceOverrides = new Map, cause = null, evaluateAll = false } = {}) {
+    function runEpoch({ dirty, sourceOverrides = new Map, cause = null, evaluateAll = false, forcePublish = new Set, preserveValues = new Set } = {}) {
       if (activeEpoch) {
         throw new Error(options.nestedEpochError || "Reactive computations cannot start a nested graph epoch");
       }
@@ -12347,11 +12352,11 @@ ${indentStr})`;
         stagedValues.set(name, value);
       const states = new Map([...nodes].map(([name, node]) => [
         name,
-        requested.has(name) && node.kind === "computed" ? "dirty" : "clean"
+        requested.has(name) && node.kind === "computed" && !preserveValues.has(name) ? "dirty" : "clean"
       ]));
       const dependencies = new Map([...nodes].map(([name, node]) => [
         name,
-        requested.has(name) && node.kind === "computed" ? new Set : new Set(node.dependencies)
+        requested.has(name) && node.kind === "computed" && !preserveValues.has(name) ? new Set : new Set(node.dependencies)
       ]));
       const stack = [];
       let currentName = null;
@@ -12441,9 +12446,10 @@ ${indentStr})`;
         previousEpoch,
         epoch: graph.epoch,
         changed: Object.freeze(changed),
+        touched: Object.freeze([...forcePublish]),
         cause
       });
-      for (const name of changed)
+      for (const name of new Set([...changed, ...forcePublish]))
         nodes.get(name)._publish(event);
       for (const listener of [...channel])
         listener(event);
@@ -12704,6 +12710,17 @@ ${indentStr})`;
           source: metadata?.source ?? null
         });
         return value;
+      },
+      touch(name, metadata = null) {
+        name = canonicalName(name);
+        const node = requireNode(name);
+        runEpoch({
+          dirty: new Set([name]),
+          forcePublish: new Set([node.name]),
+          preserveValues: new Set([node.name]),
+          cause: { type: "reactive:touch", name: node.name, metadata }
+        });
+        return node.value;
       },
       setFormula(name, formula, metadata = null) {
         name = canonicalName(name);
@@ -15282,6 +15299,7 @@ ${indentStr})`;
     return index;
   }
   function sceneEntries(value, runtime, name) {
+    let ordinal = 0;
     return sequence(value, `${name} entries`).flatMap((entry, group) => {
       let scene;
       let states;
@@ -15301,31 +15319,39 @@ ${indentStr})`;
         [scene, states] = pair;
       }
       return sequence(states, `${name} entry ${group + 1} states`).map((state, index) => {
-        const content = invokeControlCallable(scene, [state], runtime, `${name} entry ${group + 1} scene`);
+        const originEntries = new Map([
+          ["entry", int3(group + 1)],
+          ["state", int3(index + 1)],
+          ["ordinal", int3(ordinal + 1)]
+        ]);
+        if (label !== null)
+          originEntries.set("label", { type: "string", value: label });
+        const origin = Object.freeze({
+          type: "map",
+          entries: originEntries,
+          _ext: new Map([["immutable", int3(1)]])
+        });
+        const content = invokeControlCallable(scene, [state, origin], runtime, `${name} entry ${group + 1} scene`);
         if (!isBlockOutput(content)) {
           const actual = isOutputValue(content) ? content.kind : typeof content;
           throw new Error(`${name} scene ${group + 1}.${index + 1} must return block output; received ${actual}`);
         }
+        ordinal += 1;
         return Object.freeze({
-          group,
-          index,
           state,
-          label,
+          origin,
           content
         });
       });
     });
   }
   function createSnapshots(args, runtime = null) {
-    const entry = spec(args, ["entries", "columns", "title"], "Snapshots");
-    const items = Object.freeze(sceneEntries(get(entry, "entries"), runtime, "Snapshots"));
-    if (items.length === 0)
+    const entry = spec(args, ["entries"], "Snapshots");
+    const snapshots = Object.freeze(sceneEntries(get(entry, "entries"), runtime, "Snapshots"));
+    if (snapshots.length === 0)
       throw new Error("Snapshots requires at least one rendered scene");
-    const columnsValue = get(entry, "columns");
-    const columns = columnsValue === null || columnsValue === undefined ? null : exactPositiveIndex(columnsValue, "Snapshots columns");
     return output("snapshots", {
-      items,
-      columns,
+      snapshots,
       title: asString(get(entry, "title")),
       caption: asString(get(entry, "caption")),
       style: optionalMap(get(entry, "style"), "Snapshots style")
@@ -15358,6 +15384,7 @@ ${indentStr})`;
     return output("timeline_render", {
       timeline,
       frame: index,
+      snapshot: timeline.frames[index - 1],
       content: timeline.frames[index - 1].content,
       title: asString(get(entry, "title")) || timeline.title
     });
@@ -16798,7 +16825,7 @@ ${value.transcript.map((child) => formatInlineText(child, format)).join("")}` : 
 
 `);
     if (value.kind === "snapshots") {
-      return [value.title, ...value.items.map((item, index) => `Snapshot ${index + 1}: ${formatOutputText(item.content, format)}`)].filter(Boolean).join(`
+      return [value.title, ...value.snapshots.map((snapshot) => formatOutputText(snapshot.content, format))].filter(Boolean).join(`
 
 `);
     }
@@ -16975,8 +17002,10 @@ ${formatOutputText(slide, format)}`).join(`
     if (value.kind === "fragment")
       return `<section class="rix-output-fragment">${value.children.map((child) => renderOutputHtml(child, format)).join("")}</section>`;
     if (value.kind === "snapshots") {
-      const columns = value.columns || Math.min(3, value.items.length);
-      return `<section class="rix-output-snapshots" style="--rix-snapshot-columns:${columns}">${value.title ? `<h2>${escapeHtml(value.title)}</h2>` : ""}<div class="rix-output-snapshot-grid">${value.items.map((item, index) => `<article class="rix-output-snapshot" data-rix-snapshot-group="${item.group}" data-rix-snapshot-index="${item.index}">${renderOutputHtml(item.content, format)}<p class="rix-output-snapshot-label">${escapeHtml(item.label || `Snapshot ${index + 1}`)}</p></article>`).join("")}</div>${value.caption ? `<p class="rix-output-snapshots-caption">${escapeHtml(value.caption)}</p>` : ""}</section>`;
+      return `<section class="rix-output-snapshots">${value.title ? `<h2>${escapeHtml(value.title)}</h2>` : ""}<div class="rix-output-snapshot-list">${value.snapshots.map((snapshot) => {
+        const origin = snapshot.origin.entries;
+        return `<article class="rix-output-snapshot" data-rix-snapshot-entry="${exactInteger3(origin.get("entry"), "Snapshot origin entry")}" data-rix-snapshot-state="${exactInteger3(origin.get("state"), "Snapshot origin state")}" data-rix-snapshot-ordinal="${exactInteger3(origin.get("ordinal"), "Snapshot origin ordinal")}">${renderOutputHtml(snapshot.content, format)}</article>`;
+      }).join("")}</div>${value.caption ? `<p class="rix-output-snapshots-caption">${escapeHtml(value.caption)}</p>` : ""}</section>`;
     }
     if (value.kind === "timeline")
       return `<section class="rix-output-timeline"><p>${escapeHtml(value.title || "Timeline")} · ${value.frames.length} frames</p></section>`;
@@ -29896,7 +29925,7 @@ ${pad}}`;
     FRAGMENT: capability(createFragment, "Compose portable output values"),
     SNAPSHOTS: {
       pure: true,
-      doc: "Materialize [scene, states] tuples into a portable static snapshot grid",
+      doc: "Materialize [scene, states] tuples into a portable ordered snapshot list",
       impl(args, context, evaluate) {
         return createSnapshots(args, { context, evaluate, invoke: callWithConcreteArgs });
       }
@@ -34265,7 +34294,7 @@ ${pad}}`;
     if (value.kind === "fragment")
       return value.children;
     if (value.kind === "snapshots")
-      return value.items.map((item) => item.content);
+      return value.snapshots.map((snapshot) => snapshot.content);
     if (value.kind === "timeline_render")
       return [value.content];
     if (value.kind === "figure" || value.kind === "slide")

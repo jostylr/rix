@@ -332,7 +332,7 @@ ul.task-list li input[type="checkbox"] {
   <li><a href="#styling-controls" id="toc-styling-controls" class="nav-link" data-scroll-target="#styling-controls">Styling controls</a></li>
   <li><a href="#reactive-collection-boundary" id="toc-reactive-collection-boundary" class="nav-link" data-scroll-target="#reactive-collection-boundary">Reactive collection boundary</a></li>
   </ul></li>
-  <li><a href="#snapshots-the-comic-strip-primitive" id="toc-snapshots-the-comic-strip-primitive" class="nav-link" data-scroll-target="#snapshots-the-comic-strip-primitive">Snapshots: the comic-strip primitive</a></li>
+  <li><a href="#snapshots-materialized-scene-lists" id="toc-snapshots-materialized-scene-lists" class="nav-link" data-scroll-target="#snapshots-materialized-scene-lists">Snapshots: materialized scene lists</a></li>
   <li><a href="#timeline" id="toc-timeline" class="nav-link" data-scroll-target="#timeline">Timeline</a></li>
   </ul></li>
   </ul>
@@ -347,10 +347,11 @@ ul.task-list li input[type="checkbox"] {
 
 <section id="interactive-output-snapshots-and-timelines" class="level1">
 <h1>Interactive output, snapshots, and timelines</h1>
-<p>RiX owns exact state and portable output trees. Browser playback, PDF writing, and video encoding are host responsibilities. The common boundary is a <strong>scene</strong>: an ordinary RiX callable that receives one exact state and returns block output, normally a <code>.Graphics.Graphic</code>, a plot graphic, or a <code>.Fragment</code> containing one.</p>
-<pre class="rix"><code>Scene = state -&gt; {;
+<p>RiX owns exact state and portable output trees. Browser playback, PDF writing, and video encoding are host responsibilities. The common boundary is a <strong>scene</strong>: an ordinary RiX callable that receives one exact state and an optional immutable provenance record, then returns block output, normally a <code>.Graphics.Graphic</code>, a plot graphic, or a <code>.Fragment</code> containing one.</p>
+<pre class="rix"><code>Scene = (state, origin) -&gt; {;
     a := state["a"];
     center := state["center"];
+    ## origin["entry"], origin["state"], and origin["ordinal"] are one-based
     ## return a Graphic, Figure, or Fragment
 }</code></pre>
 <p>There is deliberately no special function type named <code>Scene</code>. A normal RiX callable keeps scenes composable and allows one gallery to use several scene functions.</p>
@@ -409,24 +410,23 @@ ul.task-list li input[type="checkbox"] {
 <p>A future <code>Reactive.Collection</code>/lens capability can add tracked deep mutation, but it must make the affected reactive identity and publication semantics explicit rather than silently proxy arbitrary nested values.</p>
 </section>
 </section>
-<section id="snapshots-the-comic-strip-primitive" class="level2">
-<h2 class="anchored" data-anchor-id="snapshots-the-comic-strip-primitive">Snapshots: the comic-strip primitive</h2>
-<p><code>.Snapshots</code> expands a list of <code>[scene, states]</code> tuples into a portable static grid. <code>.Graphics.Snapshots</code> is the equivalent graphics namespace entry point. Each tuple can name a different scene function; states are evaluated in the listed order. This naturally produces a row-major comic strip.</p>
+<section id="snapshots-materialized-scene-lists" class="level2">
+<h2 class="anchored" data-anchor-id="snapshots-materialized-scene-lists">Snapshots: materialized scene lists</h2>
+<p><code>.Snapshots</code> expands a list of <code>[scene, states]</code> tuples into a portable, ordered snapshot list. <code>.Graphics.Snapshots</code> is the equivalent graphics namespace entry point. Each tuple can name a different scene function; states are evaluated in listed order. Every materialized snapshot has <code>state</code>, <code>content</code>, and an immutable <code>origin</code> map with one-based <code>entry</code>, <code>state</code>, and global <code>ordinal</code> fields. The scene receives that same origin as its second argument; a one-argument scene simply ignores it.</p>
 <pre class="rix"><code>centers := [-2, 0, 2];
 .Snapshots({=
-    title="Three quadratics at shared centers",
-    columns=3,
+    title="Three quadratic groups",
     entries=[
         {: quadraticOne, centers},
         {: quadraticTwo, centers},
         {: quadraticThree, centers}
     ]
 })</code></pre>
-<p>The result is a block output value and can be placed inside <code>.Fragment</code>, <code>.Figure</code>, slides, or <code>.Out</code>. The HTML host renders it as a responsive grid; the quadratic example declares it as <code>comic.html</code>. A PDF exporter should use the exact same item order and fixed graph window when writing a print grid.</p>
+<p>The result is a block output value and can be placed inside <code>.Fragment</code>, <code>.Figure</code>, slides, or <code>.Out</code>. The bundled HTML host renders it as a linear list. A grid, comic-strip, or PDF renderer can choose its own grouping from <code>origin["entry"]</code> and <code>origin["state"]</code>; the quadratic example declares the same ordered data as <code>comic.html</code>.</p>
 </section>
 <section id="timeline" class="level2">
 <h2 class="anchored" data-anchor-id="timeline">Timeline</h2>
-<p><code>.Timeline.Sequence</code> accepts the same scene tuples and materializes ordered frames. <code>.Timeline.Render(timeline, frame)</code> selects a one-based frame for static renderers. <code>duration</code>, <code>easing</code>, and <code>title</code> remain part of the portable timeline descriptor.</p>
+<p><code>.Timeline.Sequence</code> accepts the same scene tuples and materializes the same provenance-carrying ordered frame records. <code>.Timeline.Render(timeline, frame)</code> selects a one-based frame for static renderers. <code>duration</code>, <code>easing</code>, and <code>title</code> remain part of the portable timeline descriptor.</p>
 <pre class="rix"><code>motion := .Timeline.Sequence({=
     duration=2,
     easing="linear",

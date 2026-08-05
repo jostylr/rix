@@ -315,6 +315,7 @@ function exactPositiveIndex(value, label) {
 }
 
 function sceneEntries(value, runtime, name) {
+    let ordinal = 0;
     return sequence(value, `${name} entries`).flatMap((entry, group) => {
         let scene;
         let states;
@@ -333,16 +334,26 @@ function sceneEntries(value, runtime, name) {
             [scene, states] = pair;
         }
         return sequence(states, `${name} entry ${group + 1} states`).map((state, index) => {
-            const content = invokeControlCallable(scene, [state], runtime, `${name} entry ${group + 1} scene`);
+            const originEntries = new Map([
+                ["entry", int(group + 1)],
+                ["state", int(index + 1)],
+                ["ordinal", int(ordinal + 1)],
+            ]);
+            if (label !== null) originEntries.set("label", { type: "string", value: label });
+            const origin = Object.freeze({
+                type: "map",
+                entries: originEntries,
+                _ext: new Map([["immutable", int(1)]]),
+            });
+            const content = invokeControlCallable(scene, [state, origin], runtime, `${name} entry ${group + 1} scene`);
             if (!isBlockOutput(content)) {
                 const actual = isOutputValue(content) ? content.kind : typeof content;
                 throw new Error(`${name} scene ${group + 1}.${index + 1} must return block output; received ${actual}`);
             }
+            ordinal += 1;
             return Object.freeze({
-                group,
-                index,
                 state,
-                label,
+                origin,
                 content,
             });
         });
@@ -350,21 +361,19 @@ function sceneEntries(value, runtime, name) {
 }
 
 /**
- * Materialize one or more state-driven scenes into portable, static output.
- * Entries are [scene, states] tuples, so different rows may use different
- * scene functions while sharing a common state sequence.
+ * Materialize one or more state-driven scenes into a portable ordered list.
+ * Every snapshot carries a one-based origin record and every scene receives
+ * that origin as its optional second argument.
  */
 export function createSnapshots(args, runtime = null) {
-    const entry = spec(args, ["entries", "columns", "title"], "Snapshots");
-    const items = Object.freeze(sceneEntries(get(entry, "entries"), runtime, "Snapshots"));
-    if (items.length === 0) throw new Error("Snapshots requires at least one rendered scene");
-    const columnsValue = get(entry, "columns");
-    const columns = columnsValue === null || columnsValue === undefined
-        ? null
-        : exactPositiveIndex(columnsValue, "Snapshots columns");
+    const entry = spec(args, ["entries"], "Snapshots");
+    if (has(entry, "columns")) {
+        throw new Error("Snapshots no longer accepts columns; pass its ordered list to a grid renderer instead");
+    }
+    const snapshots = Object.freeze(sceneEntries(get(entry, "entries"), runtime, "Snapshots"));
+    if (snapshots.length === 0) throw new Error("Snapshots requires at least one rendered scene");
     return output("snapshots", {
-        items,
-        columns,
+        snapshots,
         title: asString(get(entry, "title")),
         caption: asString(get(entry, "caption")),
         style: optionalMap(get(entry, "style"), "Snapshots style"),
@@ -404,6 +413,7 @@ export function createTimelineRender(args) {
     return output("timeline_render", {
         timeline,
         frame: index,
+        snapshot: timeline.frames[index - 1],
         content: timeline.frames[index - 1].content,
         title: asString(get(entry, "title")) || timeline.title,
     });
@@ -1981,7 +1991,7 @@ export function formatOutputText(value, format) {
     if (value.kind === "video") return `[Video: ${value.title || value.asset.ref}]${value.transcript ? `\n${value.transcript.map((child) => formatInlineText(child, format)).join("")}` : ""}`;
     if (value.kind === "fragment") return value.children.map((child) => formatOutputText(child, format)).join("\n\n");
     if (value.kind === "snapshots") {
-        return [value.title, ...value.items.map((item, index) => `Snapshot ${index + 1}: ${formatOutputText(item.content, format)}`)]
+        return [value.title, ...value.snapshots.map((snapshot) => formatOutputText(snapshot.content, format))]
             .filter(Boolean).join("\n\n");
     }
     if (value.kind === "timeline") return `[Timeline: ${value.frames.length} frames]`;
@@ -2134,8 +2144,10 @@ export function renderOutputHtml(value, format = (item) => String(item ?? "")) {
     }
     if (value.kind === "fragment") return `<section class="rix-output-fragment">${value.children.map((child) => renderOutputHtml(child, format)).join("")}</section>`;
     if (value.kind === "snapshots") {
-        const columns = value.columns || Math.min(3, value.items.length);
-        return `<section class="rix-output-snapshots" style="--rix-snapshot-columns:${columns}">${value.title ? `<h2>${escapeHtml(value.title)}</h2>` : ""}<div class="rix-output-snapshot-grid">${value.items.map((item, index) => `<article class="rix-output-snapshot" data-rix-snapshot-group="${item.group}" data-rix-snapshot-index="${item.index}">${renderOutputHtml(item.content, format)}<p class="rix-output-snapshot-label">${escapeHtml(item.label || `Snapshot ${index + 1}`)}</p></article>`).join("")}</div>${value.caption ? `<p class="rix-output-snapshots-caption">${escapeHtml(value.caption)}</p>` : ""}</section>`;
+        return `<section class="rix-output-snapshots">${value.title ? `<h2>${escapeHtml(value.title)}</h2>` : ""}<div class="rix-output-snapshot-list">${value.snapshots.map((snapshot) => {
+            const origin = snapshot.origin.entries;
+            return `<article class="rix-output-snapshot" data-rix-snapshot-entry="${exactInteger(origin.get("entry"), "Snapshot origin entry")}" data-rix-snapshot-state="${exactInteger(origin.get("state"), "Snapshot origin state")}" data-rix-snapshot-ordinal="${exactInteger(origin.get("ordinal"), "Snapshot origin ordinal")}">${renderOutputHtml(snapshot.content, format)}</article>`;
+        }).join("")}</div>${value.caption ? `<p class="rix-output-snapshots-caption">${escapeHtml(value.caption)}</p>` : ""}</section>`;
     }
     if (value.kind === "timeline") return `<section class="rix-output-timeline"><p>${escapeHtml(value.title || "Timeline")} · ${value.frames.length} frames</p></section>`;
     if (value.kind === "timeline_render") return `<section class="rix-output-timeline-render" data-rix-timeline-frame="${value.frame}" data-rix-timeline-length="${value.timeline.frames.length}">${value.title ? `<h2>${escapeHtml(value.title)}</h2>` : ""}${renderOutputHtml(value.content, format)}<p class="rix-output-timeline-caption">Frame ${value.frame} of ${value.timeline.frames.length}</p></section>`;

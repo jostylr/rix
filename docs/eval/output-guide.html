@@ -515,7 +515,7 @@ ul.task-list li input[type="checkbox"] {
 </tr>
 <tr class="odd">
 <td><code>.Graphics.Snapshots</code></td>
-<td><code>[scene, states]</code> entries and optional columns</td>
+<td><code>[scene, states]</code> entries materialized as an ordered snapshot list</td>
 </tr>
 </tbody>
 </table>
@@ -530,10 +530,10 @@ ul.task-list li input[type="checkbox"] {
 </section>
 <section id="snapshots-and-timelines" class="level2">
 <h2 class="anchored" data-anchor-id="snapshots-and-timelines">Snapshots and timelines</h2>
-<p><code>.Snapshots</code> and <code>.Graphics.Snapshots</code> materialize <code>[scene, states]</code> tuples into a static row-major grid. A scene is an ordinary callable:</p>
-<pre class="rix"><code>scene = state -&gt; .Paragraph(@"state = @{state}");
-.Snapshots([{: scene, [1, 2, 3]}], 3)</code></pre>
-<p><code>.Timeline.Sequence</code> accepts the same entries and records ordered frames. <code>.Timeline.Render(timeline, frame?)</code> selects one one-based frame for a static renderer. See the <a href="https://rix.ratmath.com/tutorial/reactive-scenes-and-snapshots.html">RiX Web reactive scenes tutorial</a> for the full workflow and the <a href="../design/interactive-output-plugins.html">plugin contract</a> for renderer-extension boundaries.</p>
+<p><code>.Snapshots</code> and <code>.Graphics.Snapshots</code> materialize <code>[scene, states]</code> tuples into an ordered list. Every snapshot retains an immutable one-based <code>origin={= entry=..., state=..., ordinal=... }</code> record. A scene receives that record as its optional second argument, so it can generate its own headings, captions, or metadata:</p>
+<pre class="rix"><code>scene = (state, origin) -&gt; .Paragraph(@"snapshot @{origin[:ordinal]}: state @{state}");
+.Snapshots([{: scene, [1, 2, 3]}])</code></pre>
+<p><code>.Timeline.Sequence</code> accepts the same entries and records ordered frames. Each timeline frame uses the same <code>state</code>, <code>origin</code>, and <code>content</code> record. <code>.Timeline.Render(timeline, frame?)</code> selects one one-based frame for a static renderer. A grid or comic-strip renderer can group the flat list later by <code>origin["entry"]</code> and <code>origin["state"]</code>. See the <a href="https://rix.ratmath.com/tutorial/reactive-scenes-and-snapshots.html">RiX Web reactive scenes tutorial</a> for the full workflow and the <a href="../design/interactive-output-plugins.html">plugin contract</a> for renderer-extension boundaries.</p>
 </section>
 <section id="output-artifacts" class="level2">
 <h2 class="anchored" data-anchor-id="output-artifacts">Output artifacts</h2>

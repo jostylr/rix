@@ -565,7 +565,7 @@ export const outputFunctions = {
     FRAGMENT: capability(createFragment, "Compose portable output values"),
     SNAPSHOTS: {
         pure: true,
-        doc: "Materialize [scene, states] tuples into a portable static snapshot grid",
+        doc: "Materialize [scene, states] tuples into a portable ordered snapshot list",
         impl(args, context, evaluate) {
             return createSnapshots(args, { context, evaluate, invoke: callWithConcreteArgs });
         },

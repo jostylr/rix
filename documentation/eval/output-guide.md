@@ -61,7 +61,7 @@ table of unrelated HTML.
 | `.Graphics.Rectangle` / `.Graphics.Circle` | geometry and optional style |
 | `.Graphics.Clip` | `children`, rectangular bounds |
 | `.Graphics.DragPoint` | reactive `$$` target, radius, style, label |
-| `.Graphics.Snapshots` | `[scene, states]` entries and optional columns |
+| `.Graphics.Snapshots` | `[scene, states]` entries materialized as an ordered snapshot list |
 
 ```rix
 .Graphics.Graphic({=
@@ -79,16 +79,21 @@ and use `.plot.Polynomial(coefficients, domain, options)`.
 ## Snapshots and timelines
 
 `.Snapshots` and `.Graphics.Snapshots` materialize `[scene, states]` tuples
-into a static row-major grid. A scene is an ordinary callable:
+into an ordered list. Every snapshot retains an immutable one-based
+`origin={= entry=..., state=..., ordinal=... }` record. A scene receives that
+record as its optional second argument, so it can generate its own headings,
+captions, or metadata:
 
 ```rix
-scene = state -> .Paragraph(@"state = @{state}");
-.Snapshots([{: scene, [1, 2, 3]}], 3)
+scene = (state, origin) -> .Paragraph(@"snapshot @{origin[:ordinal]}: state @{state}");
+.Snapshots([{: scene, [1, 2, 3]}])
 ```
 
 `.Timeline.Sequence` accepts the same entries and records ordered frames.
+Each timeline frame uses the same `state`, `origin`, and `content` record.
 `.Timeline.Render(timeline, frame?)` selects one one-based frame for a static
-renderer. See the [RiX Web reactive scenes tutorial](https://rix.ratmath.com/tutorial/reactive-scenes-and-snapshots.html)
+renderer. A grid or comic-strip renderer can group the flat list later by
+`origin["entry"]` and `origin["state"]`. See the [RiX Web reactive scenes tutorial](https://rix.ratmath.com/tutorial/reactive-scenes-and-snapshots.html)
 for the full workflow and the [plugin contract](../design/interactive-output-plugins.md)
 for renderer-extension boundaries.
 

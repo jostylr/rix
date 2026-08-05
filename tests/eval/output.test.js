@@ -147,21 +147,30 @@ describe("portable structured output", () => {
         expect(html).toContain('>Freeze quadratic</button>');
     });
 
-    test("Snapshots materializes tuple-based scenes as a static comic grid", () => {
+    test("Snapshots materializes a linear provenance-carrying scene list", () => {
         const snapshots = parseAndEvaluate(`
-            scene = state -> .Paragraph(@"center @{state}");
+            scene = (state, origin) -> .Paragraph(@"@{origin[:entry]}.@{origin[:state]}/@{origin[:ordinal]}: center @{state}");
             .Snapshots({=
                 title="Shared centers",
-                columns=2,
                 entries=[{: scene, [-1, 0]}, {: scene, [1]}]
             })
         `);
         expect(snapshots.kind).toBe("snapshots");
-        expect(snapshots.items).toHaveLength(3);
-        expect(formatValue(snapshots.items[0].state)).toBe("-1");
-        expect(renderOutputHtml(snapshots, formatValue)).toContain('class="rix-output-snapshot-grid"');
-        expect(renderOutputHtml(snapshots, formatValue)).toContain('style="--rix-snapshot-columns:2"');
-        expect(formatValue(snapshots)).toContain("center 0");
+        expect(snapshots.snapshots).toHaveLength(3);
+        expect(formatValue(snapshots.snapshots[0].state)).toBe("-1");
+        expect(snapshots.snapshots[2].origin.entries.get("entry").value).toBe(2n);
+        expect(snapshots.snapshots[2].origin.entries.get("state").value).toBe(1n);
+        expect(snapshots.snapshots[2].origin.entries.get("ordinal").value).toBe(3n);
+        const html = renderOutputHtml(snapshots, formatValue);
+        expect(html).toContain('class="rix-output-snapshot-list"');
+        expect(html).toContain('data-rix-snapshot-entry="2"');
+        expect(html).toContain('data-rix-snapshot-state="1"');
+        expect(html).toContain('data-rix-snapshot-ordinal="3"');
+        expect(formatValue(snapshots)).toContain("2.1/3: center 1");
+        expect(() => parseAndEvaluate(`
+            scene = state -> .Paragraph(@"center @{state}");
+            .Snapshots({= columns=2, entries=[{: scene, [0]}] })
+        `)).toThrow("no longer accepts columns");
     });
 
     test("Graphics.Snapshots and Timeline preserve state scenes for static renderers", () => {
@@ -177,6 +186,7 @@ describe("portable structured output", () => {
         expect(rendered.kind).toBe("timeline_render");
         expect(rendered.frame).toBe(2);
         expect(rendered.timeline.frames).toHaveLength(3);
+        expect(rendered.snapshot.origin.entries.get("ordinal").value).toBe(2n);
         expect(formatValue(rendered.content)).toContain("frame 0");
         const html = renderOutputHtml(rendered, formatValue);
         expect(html).toContain('data-rix-timeline-frame="2"');
@@ -184,10 +194,10 @@ describe("portable structured output", () => {
 
         const graphicsSnapshots = parseAndEvaluate(`
             scene = state -> .Paragraph(@"graphic state @{state}");
-            .Graphics.Snapshots([{: scene, [1, 2]}], 2)
+            .Graphics.Snapshots([{: scene, [1, 2]}])
         `);
         expect(graphicsSnapshots.kind).toBe("snapshots");
-        expect(graphicsSnapshots.items).toHaveLength(2);
+        expect(graphicsSnapshots.snapshots).toHaveLength(2);
     });
 
     test("ControlPanel staged mode renders explicit atomic apply and discard actions", () => {

@@ -156,7 +156,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.SLICECLAMP` | lazy function | — | Clamped slice operator \|>// |
 | `.SLIDE` | function | Output | Create a presentation slide |
 | `.SLIDES` | function | Output | Create a sequential presentation deck |
-| `.SNAPSHOTS` | function | Output | Materialize [scene, states] tuples into a portable static snapshot grid |
+| `.SNAPSHOTS` | function | Output | Materialize [scene, states] tuples into a portable ordered snapshot list |
 | `.SORT` | lazy function | — | Sort a collection with comparator function (returns new copy) |
 | `.SPEC` | function | Symbolic | Analyze a pure function and attach/return its symbolic spec |
 | `.SPECCABILITY` | function | Symbolic | Report whether a pure function can be represented by the exact symbolic subset |
@@ -475,7 +475,7 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `SHEET` | eager, pure | Create a portable sheet view of indexable data |
 | `SLIDE` | eager, pure | Create a presentation slide |
 | `SLIDES` | eager, pure | Create a sequential presentation deck |
-| `SNAPSHOTS` | eager, pure | Materialize [scene, states] tuples into a portable static snapshot grid |
+| `SNAPSHOTS` | eager, pure | Materialize [scene, states] tuples into a portable ordered snapshot list |
 | `SOLVE` | lazy, effectful/unspecified | Solve/constrain: x :=: expr |
 | `SQRT` | eager, pure, multifunction | Square root (approximate rational) |
 | `STEP` | eager, pure | Lazy exact stepped range over a rational interval |

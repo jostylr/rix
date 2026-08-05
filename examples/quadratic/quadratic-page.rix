@@ -101,10 +101,10 @@ $$view := {;
     ])
 };
 
-## A static 3×3 comparison: each row is a different quadratic and every
-## column uses the same center. This is the same portable output a future PDF
-## exporter will lay out as a comic strip.
-comicScene := state -> {;
+## A static ordered comparison: each entry is one quadratic group and each
+## group visits the same centers. A future grid/PDF renderer can recover that
+## grouping from the scene origin metadata.
+comicScene := (state, origin) -> {;
     av := state["a"];
     bv := state["b"];
     cv := state["c"];
@@ -119,13 +119,12 @@ comicScene := state -> {;
         series=[{= coefficients=[slope, value - slope*d], label="linear part", stroke="#b45309", width=2 }],
         ticks=[{= x=d, label=@"center = @{d}" }],
         marks=[{= point=[d, value], label=@"(@{d}, @{value})", style={= fill="#be123c" } }]
-    }), @"f(x) = @{av}x² + @{bv}x + @{cv}; center @{d}")
+    }), @"Snapshot @{origin[:ordinal]} (group @{origin[:entry]}, center @{origin[:state]}): f(x) = @{av}x² + @{bv}x + @{cv}; center @{d}")
 };
 
 comic := .Snapshots({=
-    title="Quadratic rebasing comic strip",
-    caption="Rows are quadratics; columns share centers −2, 0, and 2.",
-    columns=3,
+    title="Quadratic rebasing snapshots",
+    caption="Three quadratic groups, each evaluated at centers −2, 0, and 2.",
     entries=[
         {: comicScene, [
             {= a=1, b=-3, c=2, center=-2, color="#0c7b7f" },

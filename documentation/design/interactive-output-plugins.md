@@ -2,14 +2,15 @@
 
 RiX owns exact state and portable output trees. Browser playback, PDF writing,
 and video encoding are host responsibilities. The common boundary is a
-**scene**: an ordinary RiX callable that receives one exact state and returns
-block output, normally a `.Graphics.Graphic`, a plot graphic, or a
+**scene**: an ordinary RiX callable that receives one exact state and an
+optional immutable provenance record, then returns block output, normally a `.Graphics.Graphic`, a plot graphic, or a
 `.Fragment` containing one.
 
 ```rix
-Scene = state -> {;
+Scene = (state, origin) -> {;
     a := state["a"];
     center := state["center"];
+    ## origin["entry"], origin["state"], and origin["ordinal"] are one-based
     ## return a Graphic, Figure, or Fragment
 }
 ```
@@ -85,18 +86,20 @@ A future `Reactive.Collection`/lens capability can add tracked deep mutation,
 but it must make the affected reactive identity and publication semantics
 explicit rather than silently proxy arbitrary nested values.
 
-## Snapshots: the comic-strip primitive
+## Snapshots: materialized scene lists
 
-`.Snapshots` expands a list of `[scene, states]` tuples into a portable static
-grid. `.Graphics.Snapshots` is the equivalent graphics namespace entry point.
-Each tuple can name a different scene function; states are evaluated in the
-listed order. This naturally produces a row-major comic strip.
+`.Snapshots` expands a list of `[scene, states]` tuples into a portable,
+ordered snapshot list. `.Graphics.Snapshots` is the equivalent graphics
+namespace entry point. Each tuple can name a different scene function; states
+are evaluated in listed order. Every materialized snapshot has `state`,
+`content`, and an immutable `origin` map with one-based `entry`, `state`, and
+global `ordinal` fields. The scene receives that same origin as its second
+argument; a one-argument scene simply ignores it.
 
 ```rix
 centers := [-2, 0, 2];
 .Snapshots({=
-    title="Three quadratics at shared centers",
-    columns=3,
+    title="Three quadratic groups",
     entries=[
         {: quadraticOne, centers},
         {: quadraticTwo, centers},
@@ -106,16 +109,17 @@ centers := [-2, 0, 2];
 ```
 
 The result is a block output value and can be placed inside `.Fragment`,
-`.Figure`, slides, or `.Out`. The HTML host renders it as a responsive grid;
-the quadratic example declares it as `comic.html`. A PDF exporter should use
-the exact same item order and fixed graph window when writing a print grid.
+`.Figure`, slides, or `.Out`. The bundled HTML host renders it as a linear
+list. A grid, comic-strip, or PDF renderer can choose its own grouping from
+`origin["entry"]` and `origin["state"]`; the quadratic example declares the same
+ordered data as `comic.html`.
 
 ## Timeline
 
-`.Timeline.Sequence` accepts the same scene tuples and materializes ordered
-frames. `.Timeline.Render(timeline, frame)` selects a one-based frame for
-static renderers. `duration`, `easing`, and `title` remain part of the
-portable timeline descriptor.
+`.Timeline.Sequence` accepts the same scene tuples and materializes the same
+provenance-carrying ordered frame records. `.Timeline.Render(timeline, frame)`
+selects a one-based frame for static renderers. `duration`, `easing`, and
+`title` remain part of the portable timeline descriptor.
 
 ```rix
 motion := .Timeline.Sequence({=
