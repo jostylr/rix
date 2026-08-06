@@ -99,19 +99,20 @@ function lowerFunctionBody(node) {
     return ir("TAIL_SELF", ...args);
   }
 
-  if (node.type === "BlockContainer" || node.type === "SystemContainer") {
+  if (node.type === "BlockContainer" || node.type === "SystemContainer" || node.type === "AsyncContainer") {
     const elements = node.elements || [];
     const loweredElements = elements.map((element, index) =>
       index === elements.length - 1 ? lowerFunctionBody(element) : lowerNode(element),
     );
-    const fn = node.type === "BlockContainer" ? "BLOCK" : "SYSTEM";
-    const hasMeta = (node.imports && node.imports.length > 0) || node.name;
+    const fn = node.type === "BlockContainer" ? "BLOCK" : node.type === "SystemContainer" ? "SYSTEM" : "ASYNC_SCOPE";
+    const hasMeta = (node.imports && node.imports.length > 0) || node.name || node.concurrencyLimit !== undefined;
     if (!hasMeta) {
       return ir(fn, ...loweredElements);
     }
     const meta = {};
     if (node.imports && node.imports.length > 0) meta.imports = lowerImports(node.imports);
     if (node.name) meta.name = node.name;
+    if (node.concurrencyLimit !== undefined) meta.concurrencyLimit = node.concurrencyLimit;
     return ir(fn, meta, ...loweredElements);
   }
 
@@ -757,6 +758,26 @@ const LOWERERS = {
       return ir("LOOP", meta, ...node.elements.map((el) => ir("DEFER", lowerNode(el))));
     }
     return ir("LOOP", ...node.elements.map((el) => ir("DEFER", lowerNode(el))));
+  },
+
+  AsyncContainer(node) {
+    const meta = {};
+    if (node.imports && node.imports.length > 0) meta.imports = lowerImports(node.imports);
+    if (node.name) meta.name = node.name;
+    if (node.concurrencyLimit !== undefined) meta.concurrencyLimit = node.concurrencyLimit;
+    const hasMeta = Object.keys(meta).length > 0;
+    return hasMeta
+      ? ir("ASYNC_SCOPE", meta, ...node.elements.map(lowerNode))
+      : ir("ASYNC_SCOPE", ...node.elements.map(lowerNode));
+  },
+
+  DetachedBlock(node) {
+    const meta = {};
+    if (node.imports && node.imports.length > 0) meta.imports = lowerImports(node.imports);
+    const hasMeta = Object.keys(meta).length > 0;
+    return hasMeta
+      ? ir("DETACH", meta, ...node.elements.map(lowerNode))
+      : ir("DETACH", ...node.elements.map(lowerNode));
   },
 
   SystemContainer(node) {

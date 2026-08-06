@@ -2,7 +2,8 @@
 
 > **Historical design note:** inferred equation containers and `:=:` described
 > below are obsolete. Use `{#x:y# y^2 == x; y >= 0 }` for inert symbolic
-> systems. `{$ ... }` is reserved for future async/concurrency syntax.
+> systems. `{$ ... }` is now the awaited concurrency code block; see the
+> [async runtime design](../design/eval/async-concurrency.md).
 
 This directory contains examples demonstrating the four different types of brace containers (`{}`) supported by the RiX parser.
 

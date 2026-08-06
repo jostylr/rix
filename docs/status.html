@@ -397,26 +397,30 @@ ul.task-list li input[type="checkbox"] {
 <td>blocks, cases, ternaries, loops, break blocks, cells, five assignment modes, destructuring, imports</td>
 </tr>
 <tr class="even">
+<td>Async runtime</td>
+<td>promise-aware host API; <code>{$ ... }</code> code blocks with import headers, FIFO bounded finite-collection fan-out, nested structural collections, fused map/filter/find/all stages, and named completion breaks; supervised <code>{$$ ... }</code> blocks with host draining</td>
+</tr>
+<tr class="odd">
 <td>Semantics</td>
 <td>metadata classes, semantic inquiry/conversion, type and trait registries, constructor capture</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>Exact extensions</td>
 <td>units/quantities, algebraic exact generators, exact complex operations, Cayley polar representation</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>Tooling</td>
 <td>REPL/runner, IR converter, native <code>.test.rix</code> runner, structured diagnostics, source locations, trace/debug</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>Structured output</td>
 <td>typed <code>Text</code>, <code>Paragraph</code>, <code>Heading</code>, <code>Fragment</code>, <code>Table</code>, <code>Grid</code>, <code>Graphic</code>, <code>Figure</code>, <code>Slide</code>, <code>Slides</code>, and reactive <code>ControlPanel</code> values; intrinsic 2D scene primitives under <code>.Graphics</code> include <code>DragPoint</code>, while <code>.Controls.Slider($$name, ...)</code> performs exact identity-preserving updates; optional bundled <code>.draw</code> and <code>.plot</code> plugins load through <code>.Plugin.Load(...)</code>; CLI text fallback; HTML tables/grids, controls, and inline SVG graphics; <code>@"..."</code>/<code>@"""..."""</code> templates; exact synthetic division through <code>.Algebra.SyntheticDivision</code></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>Embedding</td>
 <td>parser exports, evaluator/runtime exports, configurable system loader and system context</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>Exact symbolic core</td>
 <td>identity/expression/system specs, inert definitions and constraints, normalized symbol roles, substitution and composition, name-preserving arithmetic, attached pure-function specs, polynomial compilation, exact derivatives/integrals, explicit simplification, quote calculus syntax</td>
 </tr>
@@ -442,8 +446,8 @@ ul.task-list li input[type="checkbox"] {
 <td><code>{# ... }</code> represents multi-symbol systems, but arithmetic/calculus remain a tested single-expression exact subset. Transcendental rules, general solving, and numerical calculus belong outside that subset.</td>
 </tr>
 <tr class="even">
-<td>Mathematical systems</td>
-<td><code>{# ... }</code> preserves definitions, constraints, symbols, and advisory input/output roles; solving is delegated to plugins. <code>{$ ... }</code> is reserved for future async/concurrency syntax.</td>
+<td>Mathematical systems and async follow-up</td>
+<td><code>{# ... }</code> preserves definitions, constraints, symbols, and advisory input/output roles; solving is delegated to plugins. Async matrices/tensors, lazy bounded pull, all pipe barriers, worker execution, snapshot/COW task writes, and capability-level abort signals remain follow-up work.</td>
 </tr>
 <tr class="odd">
 <td>Real approximation</td>

@@ -1003,6 +1003,31 @@ describe("Lowering Pass", () => {
       expect(ir.args[1].fn).toBe("RETRIEVE");
       expect(ir.args[2].fn).toBe("RETRIEVE");
     });
+
+    test("async code block lowers imports, name, and limit", () => {
+      const ir = L("{$jobs:4$ <a~x, b=y> a; b };");
+      expect(ir.fn).toBe("ASYNC_SCOPE");
+      expect(ir.args[0]).toEqual({
+        imports: [
+          { local: "a", source: "x", mode: "copy" },
+          { local: "b", source: "y", mode: "alias" },
+        ],
+        name: "jobs",
+        concurrencyLimit: 4,
+      });
+      expect(ir.args[1].fn).toBe("RETRIEVE");
+      expect(ir.args[2].fn).toBe("RETRIEVE");
+    });
+
+    test("detached code block lowers its import header", () => {
+      const ir = L("{$$ <a~x> a; b };");
+      expect(ir.fn).toBe("DETACH");
+      expect(ir.args[0]).toEqual({
+        imports: [{ local: "a", source: "x", mode: "copy" }],
+      });
+      expect(ir.args[1].fn).toBe("RETRIEVE");
+      expect(ir.args[2].fn).toBe("RETRIEVE");
+    });
   });
 
   describe("Integration: complex expressions", () => {

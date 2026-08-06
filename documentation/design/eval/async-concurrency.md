@@ -1,14 +1,21 @@
 ---
 title: "Async, concurrency, and background tasks"
-description: "Proposed semantics and implementation plan for {$ ... } concurrency scopes and {$$ ... } detached tasks."
+description: "Semantics, current implementation boundary, and follow-up plan for {$ ... } concurrency scopes and {$$ ... } detached tasks."
 toc-depth: 4
 ---
 
 # Status
 
-This is a concrete design proposal. The parser currently reserves `{$ ... }`
-for async/concurrency work, but none of the behavior in this document is
-implemented yet. `{# ... }` remains the inert symbolic-system form.
+This is the normative design and implementation tracker. The initial runtime
+slice is implemented: syntax and IR, code-block import headers, async host APIs,
+FIFO bounded finite-collection scheduling, nested arrays/maps/tuples/sets,
+fused `|>>` and `|>?`, ordered `|>||`, `|>&&`, named async breaks, and
+supervised/drainable `{$$ ... }` tasks. `{# ... }` remains the inert
+symbolic-system form.
+
+Still planned are matrices/tensors, bounded lazy-source pull, async structural
+pipe barriers, complete task snapshot/copy-on-write enforcement, deterministic
+task RNG streams, worker execution, and capability-level cooperative abort.
 
 The proposal deliberately separates two operations:
 
@@ -661,55 +668,55 @@ reactive batch later publishes `result` and `status` together.
 
 ## 0. Lock the language contract
 
-- [ ] Add parser, lowering, and evaluator design tests that describe the syntax
+- [x] Add parser, lowering, and evaluator design tests that describe the syntax
   before enabling execution.
-- [ ] Remove stale user-facing references that call `{$ ... }` a mathematical
+- [x] Remove stale user-facing references that call `{$ ... }` a mathematical
   system block; keep `{# ... }` as the symbolic-system form.
-- [ ] Decide and document canonical map traversal order; use insertion order for
+- [x] Decide and document canonical map traversal order; use insertion order for
   deterministic ordered pipes.
-- [ ] Add `defaultAsyncConcurrency: 10` and host override plumbing.
+- [x] Add `defaultAsyncConcurrency: 10` and host override plumbing.
 - [ ] Add a `BACKGROUND` script permission and sandbox policy tests.
 
 ## 1. Parser and IR
 
-- [ ] Teach the tokenizer to recognize `{$ ... }`, `{$name$ ... }`,
+- [x] Teach the tokenizer to recognize `{$ ... }`, `{$name$ ... }`,
   `{$:n$ ... }`, and `{$name:n$ ... }` with required following whitespace.
-- [ ] Recognize `{$$ ... }` before generic `$` sigil handling.
-- [ ] Add `AsyncContainer` and `DetachedBlock` AST nodes.
-- [ ] Parse `{!$ value }` and `{!$name! value }` as async-targeted breaks.
-- [ ] Lower to `ASYNC_SCOPE`, `DETACH`, and `BREAK(targetType="async")`.
-- [ ] Preserve scope names, limits, source spans, and nesting paths in IR.
-- [ ] Add tokenizer/parser/lowering negative tests for zero, malformed, and
+- [x] Recognize `{$$ ... }` before generic `$` sigil handling.
+- [x] Add `AsyncContainer` and `DetachedBlock` AST nodes.
+- [x] Parse `{!$ value }` and `{!$name! value }` as async-targeted breaks.
+- [x] Lower to `ASYNC_SCOPE`, `DETACH`, and `BREAK(targetType="async")`.
+- [x] Preserve scope names, limits, and source spans in IR. Stable task paths remain pending.
+- [x] Add tokenizer/parser/lowering negative tests for zero, malformed, and
   unsafe concurrency limits.
 
 ## 2. Promise-aware evaluation
 
-- [ ] Add `evaluateAsync` and `parseAndEvaluateAsync` while retaining the sync
+- [x] Add `evaluateAsync` and `parseAndEvaluateAsync` while retaining the sync
   API for sync-only scripts.
 - [ ] Extend registry/system capability entries with async implementations or a
   promise-aware dispatch contract.
-- [ ] Reuse ordinary eager implementations after asynchronously evaluating
+- [x] Reuse ordinary eager implementations after asynchronously evaluating
   their arguments.
 - [ ] Add async implementations for lazy control, assignment, function-call,
   collection, pipe, diagnostic, and reactive operations that selectively
   evaluate IR.
-- [ ] Make CLI, REPL, notebook, and web hosts select/await the async entry point
-  when required.
-- [ ] Verify that raw promises cannot be assigned, collected, formatted, or
+- [x] Make the CLI, CLI REPL, generated-page host, RiX Web REPL, and tutorial
+  runner select/await the async entry point. Notebook host work remains pending.
+- [x] Verify that raw promises cannot be assigned, collected, formatted, or
   returned as RiX values.
 - [ ] Preserve source annotation and call-stack diagnostics across `await`.
 
 ## 3. Scheduler and task contexts
 
-- [ ] Add a runtime-owned `TaskScheduler` with ordered admission, bounded
+- [x] Add a runtime-owned `TaskScheduler` with ordered admission, bounded
   permits, cancellation, stable task paths, and cleanup draining.
 - [ ] Implement effective-limit composition for nested scopes and host caps.
-- [ ] Ensure structural parents and nested scopes do not retain leaf permits
+- [x] Ensure structural parents do not retain leaf permits
   while awaiting children.
 - [ ] Add task-local `Context` forks with snapshot/copy-on-write reads and
   rejected ordinary outer writes.
 - [ ] Derive deterministic random substreams from stable task paths.
-- [ ] Add fake-clock/deferred-capability tests that assert admission and
+- [x] Add deferred-capability tests that assert admission and
   completion traces without relying on wall-clock timing.
 
 ## 4. Concurrent collection construction
@@ -718,21 +725,21 @@ reactive batch later publishes `result` and `status` together.
   maps, matrices, and tensors.
 - [ ] Recursively inherit concurrency through called functions and nested
   explicit constructors.
-- [ ] Preserve source-order result assembly despite completion-order slot fills.
-- [ ] Implement map key/value and insertion-order rules.
-- [ ] Treat pre-existing collections as data sources without re-evaluation.
+- [x] Preserve source-order result assembly despite completion-order slot fills.
+- [x] Implement finite map key/value and insertion-order rules.
+- [x] Treat pre-existing collections as data sources without re-evaluation.
 - [ ] Add bounded pull for lazy/generator sources and keep recurrence generation
   sequential where values depend on history.
-- [ ] Test the limit-2 `{= a=[F(), G()], b=H() }` admission scenario exactly.
+- [x] Test the limit-2 `{= a=[F(), G()], b=H() }` admission scenario exactly.
 
 ## 5. Fused async pipes
 
-- [ ] Add a planner that flattens pipe chains before source evaluation.
-- [ ] Classify every current pipe operator as elementwise, terminal, or barrier.
-- [ ] Implement end-to-end permit retention through `|>>` and `|>?` stages.
+- [x] Add a planner that flattens supported pipe chains before source evaluation.
+- [x] Classify every current pipe operator as elementwise, terminal, or barrier.
+- [x] Implement end-to-end permit retention through finite `|>>` and `|>?` stages.
 - [ ] Preserve collection shape, locators, callback arguments, strings, maps,
   tensors, and source-order result assembly.
-- [ ] Implement ordered `|>||`, including buffering a later passing result until
+- [x] Implement ordered `|>||`, including buffering a later passing result until
   every earlier candidate fails.
 - [ ] Implement `|>&&` cancellation once a falsy result determines the outcome.
 - [ ] Implement ordered reduce barriers with concurrent upstream stages.
@@ -746,10 +753,10 @@ reactive batch later publishes `result` and `status` together.
 
 - [ ] Thread cancellation signals through evaluator calls, loops, source pulls,
   stages, capabilities, and workers.
-- [ ] Implement fail-fast admission stop followed by sibling cancellation and
+- [x] Implement fail-fast admission stop followed by queued-sibling cancellation and
   cleanup drain.
 - [ ] Attach suppressed cleanup failures in stable task-path order.
-- [ ] Implement named and unnamed `{!$...}` completion races.
+- [x] Implement named and unnamed `{!$...}` completion races with queued-sibling cancellation.
 - [ ] Specify capability metadata for parallel safety, cancellation, executor,
   and effects; serialize unsafe capabilities through a single lane.
 - [ ] Add tests for queued cancellation, cooperative I/O abort, loop
@@ -758,11 +765,11 @@ reactive batch later publishes `result` and `status` together.
 
 ## 7. Background supervisor and reactive publication
 
-- [ ] Implement `DETACH` as immediate null plus a supervisor-owned task.
+- [x] Implement `DETACH` as immediate null plus a supervisor-owned task.
 - [ ] Add active-task/queue limits, task IDs, source diagnostics, session-close
   cancellation, and bounded cleanup.
 - [ ] Define CLI drain-by-default and host no-drain/cancel behavior.
-- [ ] Report background errors as structured diagnostics without retroactively
+- [x] Report background errors to the host handler/error queue without retroactively
   failing continued main evaluation.
 - [ ] Snapshot ordinary captured values and capability permissions at spawn.
 - [ ] Reject ordinary outer-cell writes and detached spawn during reactive
@@ -771,7 +778,7 @@ reactive batch later publishes `result` and `status` together.
   graph owner; support atomic `${ ... }` batches.
 - [ ] Document and test arrival-order conflicts between multiple background
   writers.
-- [ ] Add supervisor inspection/disposal APIs for hosts without exposing task
+- [x] Add a supervisor drain API for hosts without exposing task
   handles as RiX values.
 
 ## 8. Worker-backed CPU parallelism
@@ -786,7 +793,7 @@ reactive batch later publishes `result` and `status` together.
 
 ## 9. Documentation, observability, and hardening
 
-- [ ] Add syntax/reference documentation only when the corresponding runtime
+- [x] Add syntax/reference documentation for the implemented runtime
   slice is implemented.
 - [ ] Show scope/task paths, queue state, running count, cancellation reason,
   and executor in trace diagnostics.
@@ -796,7 +803,7 @@ reactive batch later publishes `result` and `status` together.
   cancellation storms, and background shutdown.
 - [ ] Add benchmarks for I/O overlap, pipeline latency, scheduler overhead, and
   worker CPU scaling.
-- [ ] Run `bun test` from `rix/` after every implementation slice.
+- [x] Run `bun test` from `rix/` after every implementation slice.
 
 # Recommended delivery slices
 

@@ -130,4 +130,18 @@ Mediant(a, b) -> a + b;
         expect(result.stderr).toBe("");
         expect(result.stdout).toContain("42");
     });
+
+    test("the CLI file runner awaits async scopes", () => {
+        const directory = temporaryDirectory();
+        const sourcePath = path.join(directory, "async.rix");
+        writeFileSync(sourcePath, "{$:2$ [1 + 1, 2 + 2] };\n");
+        const result = spawnSync("bun", [
+            path.join(rixRoot, "bin/rix.js"),
+            "--no-config",
+            sourcePath,
+        ], { encoding: "utf8" });
+        expect(result.status).toBe(0);
+        expect(result.stderr).toBe("");
+        expect(result.stdout).toContain("[2, 4]");
+    });
 });

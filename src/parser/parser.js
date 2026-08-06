@@ -798,10 +798,8 @@ class Parser {
           return this.parseBraceContainer();
         } else if (token.value === "{=" || token.value === "{?" || token.value === "{;" || token.value === "{|" || token.value === "{:" || token.value === "{@" || token.value === "{#" || token.value === "{.." || token.value === "{>"
           || token.value === "{^"
-          || token.value === "{$") {
-          if (token.value === "{$") {
-            this.error("The '{$ ... }' sigil is reserved for future async/concurrency syntax");
-          }
+          || token.value === "{$"
+          || token.value === "{$$") {
           if (token.value === "{#") {
             return this.parseSystemSpecLiteral();
           }
@@ -811,6 +809,7 @@ class Parser {
           return this.parseBraceSigil(token.value, token.containerName ?? null, {
             loopMax: token.loopMax,
             loopUnlimited: token.loopUnlimited === true,
+            asyncLimit: token.asyncLimit,
             destructureAlias: token.destructureAlias === true,
           });
         } else if (
@@ -855,12 +854,10 @@ class Parser {
 
           // @ followed by { or brace sigil = deferred block: @{; ...}, @{? ...}, @{...}
           const nextVal = this.current.value;
-          if (nextVal === "{" || nextVal === "{;" || nextVal === "{?" || nextVal === "{=" || nextVal === "{|" || nextVal === "{:" || nextVal === "{@" || nextVal === "{#" || nextVal === "{$" || nextVal === "{.." || nextVal === "{^" || nextVal === "{>") {
+          if (nextVal === "{" || nextVal === "{;" || nextVal === "{?" || nextVal === "{=" || nextVal === "{|" || nextVal === "{:" || nextVal === "{@" || nextVal === "{#" || nextVal === "{$" || nextVal === "{$$" || nextVal === "{.." || nextVal === "{^" || nextVal === "{>") {
             let inner;
             if (nextVal === "{") {
               inner = this.parseBraceContainer();
-            } else if (nextVal === "{$") {
-              this.error("The '{$ ... }' sigil is reserved for future async/concurrency syntax");
             } else if (nextVal === "{#") {
               inner = this.parseSystemSpecLiteral();
             } else if (nextVal === "{^") {
@@ -869,6 +866,7 @@ class Parser {
               inner = this.parseBraceSigil(nextVal, this.current.containerName ?? null, {
                 loopMax: this.current.loopMax,
                 loopUnlimited: this.current.loopUnlimited === true,
+                asyncLimit: this.current.asyncLimit,
                 destructureAlias: this.current.destructureAlias === true,
               });
             }
@@ -3042,12 +3040,9 @@ class Parser {
     });
   }
 
-  // Parse brace sigil containers: {= map, {? case, {; block, {| set, {: tuple, {@ loop
+  // Parse brace sigil containers: constructors plus temporal code blocks.
   parseBraceSigil(sigil, containerName = null, options = {}) {
     const startToken = this.current;
-    if (sigil === "{$") {
-      this.error("The '{$ ... }' sigil is reserved for future async/concurrency syntax");
-    }
     this.advance(); // consume the sigil token (e.g., '{=')
 
     const isTensorShapeSigil =
@@ -3068,6 +3063,8 @@ class Parser {
       "{|": "SetContainer",
       "{:": "TupleContainer",
       "{@": "LoopContainer",
+      "{$": "AsyncContainer",
+      "{$$": "DetachedBlock",
       "{^": "ValueOutfit",
       "{>": "MultifunctionContainer",
     };
@@ -3075,7 +3072,7 @@ class Parser {
     const nodeType = sigilTypeMap[effectiveSigil];
 
     // Determine separator: temporal (;) vs spatial (,)
-    const temporalSigils = new Set(["{?", "{;", "{@"]);
+    const temporalSigils = new Set(["{?", "{;", "{@", "{$", "{$$"]);
     const isTemporal = temporalSigils.has(effectiveSigil);
     const closerMap = {
       "{|": ["|}", "}"],
@@ -3114,7 +3111,7 @@ class Parser {
         : null;
 
     const imports =
-      (effectiveSigil === "{;" || effectiveSigil === "{@") && this.startsImportHeader()
+      (effectiveSigil === "{;" || effectiveSigil === "{@" || effectiveSigil === "{$" || effectiveSigil === "{$$") && this.startsImportHeader()
         ? this.parseImportHeader()
         : [];
     const elements = [];
@@ -3206,6 +3203,7 @@ class Parser {
         : {}),
       ...(effectiveSigil === "{@" && options.loopMax !== undefined ? { maxIterations: options.loopMax } : {}),
       ...(effectiveSigil === "{@" && options.loopUnlimited ? { unlimited: true } : {}),
+      ...(effectiveSigil === "{$" && options.asyncLimit !== undefined ? { concurrencyLimit: options.asyncLimit } : {}),
       ...(header ? { header } : {}),
       ...(imports.length > 0 ? { imports: imports } : {}),
       elements: elements,
@@ -3409,6 +3407,9 @@ class Parser {
       this.advance();
     } else if (this.current.value === "?") {
       targetType = "case";
+      this.advance();
+    } else if (this.current.value === "$") {
+      targetType = "async";
       this.advance();
     } else if (this.current.type === "OuterIdentifier" && this.peek().value === "!") {
       targetType = "loop";

@@ -656,6 +656,62 @@ function tryMatchBrace(input, position) {
     pos: [position, position, end],
     ...extras
   });
+  if (ch === "$") {
+    const start = position + 2;
+    const first = input[start];
+    const requireBoundary = (end2, label) => {
+      const afterHeader = input[end2];
+      if (!isWhitespace(afterHeader) && afterHeader !== "}") {
+        const { line: line2, col: col2 } = posToLineCol(input, position);
+        throw new Error(`${label} must be followed by a space or '}' at line ${line2}:${col2}`);
+      }
+    };
+    if (first === "$") {
+      const end2 = start + 1;
+      requireBoundary(end2, "Detached block header '{$$'");
+      return makeAdvancedConstructorToken("{$$", position, end2, { detached: true });
+    }
+    if (isWhitespace(first)) {
+      return makeAdvancedConstructorToken("{$", position, start, { containerName: null });
+    }
+    let cursor = start;
+    let containerName = null;
+    if (/[a-zA-Z0-9_]/.test(input[cursor] || "")) {
+      const nameStart = cursor;
+      while (cursor < input.length && /[a-zA-Z0-9_]/.test(input[cursor]))
+        cursor++;
+      containerName = input.slice(nameStart, cursor).toLowerCase();
+      if (input[cursor] === "$") {
+        const end2 = cursor + 1;
+        requireBoundary(end2, `Named async scope '{$${containerName}$'`);
+        return makeAdvancedConstructorToken("{$", position, end2, { containerName });
+      }
+    }
+    if (input[cursor] !== ":") {
+      const { line: line2, col: col2 } = posToLineCol(input, position);
+      throw new Error(`Async scope '{$' must be followed by a space, '$', 'name$', ':limit$', or 'name:limit$' at line ${line2}:${col2}`);
+    }
+    cursor++;
+    const digitsStart = cursor;
+    while (cursor < input.length && /[0-9]/.test(input[cursor]))
+      cursor++;
+    if (digitsStart === cursor || input[cursor] !== "$") {
+      const { line: line2, col: col2 } = posToLineCol(input, position);
+      throw new Error(`Async concurrency limit must be a positive integer ending in '$' at line ${line2}:${col2}`);
+    }
+    const rawLimit = input.slice(digitsStart, cursor);
+    const asyncLimit = Number(rawLimit);
+    if (!Number.isSafeInteger(asyncLimit) || asyncLimit < 1) {
+      const { line: line2, col: col2 } = posToLineCol(input, position);
+      throw new Error(`Invalid async concurrency limit '${rawLimit}' at line ${line2}:${col2}`);
+    }
+    const end = cursor + 1;
+    requireBoundary(end, "Async scope header");
+    return makeAdvancedConstructorToken("{$", position, end, {
+      containerName,
+      asyncLimit
+    });
+  }
   if (input.slice(position + 1).startsWith("=..")) {
     const after = input[position + 4];
     if (!isWhitespace(after) && after !== "}") {
@@ -2015,10 +2071,7 @@ class Parser {
           return this.parseAngleForm();
         } else if (token.value === "{") {
           return this.parseBraceContainer();
-        } else if (token.value === "{=" || token.value === "{?" || token.value === "{;" || token.value === "{|" || token.value === "{:" || token.value === "{@" || token.value === "{#" || token.value === "{.." || token.value === "{>" || token.value === "{^" || token.value === "{$") {
-          if (token.value === "{$") {
-            this.error("The '{$ ... }' sigil is reserved for future async/concurrency syntax");
-          }
+        } else if (token.value === "{=" || token.value === "{?" || token.value === "{;" || token.value === "{|" || token.value === "{:" || token.value === "{@" || token.value === "{#" || token.value === "{.." || token.value === "{>" || token.value === "{^" || token.value === "{$" || token.value === "{$$") {
           if (token.value === "{#") {
             return this.parseSystemSpecLiteral();
           }
@@ -2028,6 +2081,7 @@ class Parser {
           return this.parseBraceSigil(token.value, token.containerName ?? null, {
             loopMax: token.loopMax,
             loopUnlimited: token.loopUnlimited === true,
+            asyncLimit: token.asyncLimit,
             destructureAlias: token.destructureAlias === true
           });
         } else if (token.value === "{+" || token.value === "{*" || token.value === "{&&" || token.value === "{||" || token.value === "{\\/" || token.value === "{/\\" || token.value === "{++" || token.value === "{<<" || token.value === "{>>") {
@@ -2056,12 +2110,10 @@ class Parser {
             });
           }
           const nextVal = this.current.value;
-          if (nextVal === "{" || nextVal === "{;" || nextVal === "{?" || nextVal === "{=" || nextVal === "{|" || nextVal === "{:" || nextVal === "{@" || nextVal === "{#" || nextVal === "{$" || nextVal === "{.." || nextVal === "{^" || nextVal === "{>") {
+          if (nextVal === "{" || nextVal === "{;" || nextVal === "{?" || nextVal === "{=" || nextVal === "{|" || nextVal === "{:" || nextVal === "{@" || nextVal === "{#" || nextVal === "{$" || nextVal === "{$$" || nextVal === "{.." || nextVal === "{^" || nextVal === "{>") {
             let inner;
             if (nextVal === "{") {
               inner = this.parseBraceContainer();
-            } else if (nextVal === "{$") {
-              this.error("The '{$ ... }' sigil is reserved for future async/concurrency syntax");
             } else if (nextVal === "{#") {
               inner = this.parseSystemSpecLiteral();
             } else if (nextVal === "{^") {
@@ -2070,6 +2122,7 @@ class Parser {
               inner = this.parseBraceSigil(nextVal, this.current.containerName ?? null, {
                 loopMax: this.current.loopMax,
                 loopUnlimited: this.current.loopUnlimited === true,
+                asyncLimit: this.current.asyncLimit,
                 destructureAlias: this.current.destructureAlias === true
               });
             }
@@ -3821,9 +3874,6 @@ class Parser {
   }
   parseBraceSigil(sigil, containerName = null, options = {}) {
     const startToken = this.current;
-    if (sigil === "{$") {
-      this.error("The '{$ ... }' sigil is reserved for future async/concurrency syntax");
-    }
     this.advance();
     const isTensorShapeSigil = sigil === "{:" && containerName && /^\d+(?:x\d+)*$/.test(containerName);
     if (isTensorShapeSigil && !options.destructureAlias) {
@@ -3838,11 +3888,13 @@ class Parser {
       "{|": "SetContainer",
       "{:": "TupleContainer",
       "{@": "LoopContainer",
+      "{$": "AsyncContainer",
+      "{$$": "DetachedBlock",
       "{^": "ValueOutfit",
       "{>": "MultifunctionContainer"
     };
     const nodeType = sigilTypeMap[effectiveSigil];
-    const temporalSigils = new Set(["{?", "{;", "{@"]);
+    const temporalSigils = new Set(["{?", "{;", "{@", "{$", "{$$"]);
     const isTemporal = temporalSigils.has(effectiveSigil);
     const closerMap = {
       "{|": ["|}", "}"]
@@ -3868,7 +3920,7 @@ class Parser {
       elements.push(this.createNode("Hole", { original: "" }));
     };
     const header = effectiveSigil === "{=" || effectiveSigil === "{|" || effectiveSigil === "{:" || effectiveSigil === "{.." ? this.parseSemanticHeader() : null;
-    const imports = (effectiveSigil === "{;" || effectiveSigil === "{@") && this.startsImportHeader() ? this.parseImportHeader() : [];
+    const imports = (effectiveSigil === "{;" || effectiveSigil === "{@" || effectiveSigil === "{$" || effectiveSigil === "{$$") && this.startsImportHeader() ? this.parseImportHeader() : [];
     const elements = [];
     const parseElement = effectiveSigil === "{=" ? () => this.parseMapConstructorEntry() : effectiveSigil === "{|" || effectiveSigil === "{:" || effectiveSigil === "{.." ? () => this.parseCapturedConstructorElement() : isTemporal ? () => this.parseCommaSequenceExpression(0) : () => this.parseExpression(0);
     if (!isCloser(this.current.value)) {
@@ -3933,6 +3985,7 @@ class Parser {
       ...isTensorShapeSigil && options.destructureAlias ? { tensorShape: containerName.split("x").map((part) => Number(part)) } : {},
       ...effectiveSigil === "{@" && options.loopMax !== undefined ? { maxIterations: options.loopMax } : {},
       ...effectiveSigil === "{@" && options.loopUnlimited ? { unlimited: true } : {},
+      ...effectiveSigil === "{$" && options.asyncLimit !== undefined ? { concurrencyLimit: options.asyncLimit } : {},
       ...header ? { header } : {},
       ...imports.length > 0 ? { imports } : {},
       elements,
@@ -4099,6 +4152,9 @@ class Parser {
       this.advance();
     } else if (this.current.value === "?") {
       targetType = "case";
+      this.advance();
+    } else if (this.current.value === "$") {
+      targetType = "async";
       this.advance();
     } else if (this.current.type === "OuterIdentifier" && this.peek().value === "!") {
       targetType = "loop";

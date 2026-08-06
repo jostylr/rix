@@ -5,7 +5,7 @@ export {
 } from "./parser/index.js";
 export { createSystemManifest, createSystemLookup } from "./runtime/system-manifest.js";
 export { complete, REPL_COMMANDS } from "./repl/completion.js";
-export { lower, lowerNode, ir, IR, Registry, evaluate, createDefaultRegistry, createDefaultSystemContext, parseAndEvaluate, irToText, irListToText, formatValue } from "./eval/index.js";
+export { lower, lowerNode, ir, IR, Registry, evaluate, evaluateAsync, createDefaultRegistry, createDefaultSystemContext, parseAndEvaluate, parseAndEvaluateAsync, drainBackgroundTasks, irToText, irListToText, formatValue } from "./eval/index.js";
 export {
     Context, SystemContext, PluginCatalog, parsePluginYaml, readPluginHeader, readSourceHeader, Cell, HOLE, isHole, DiagnosticsRegistry,
     createFormulaSheet, isFormulaSheet, createLiveView, isLiveView, isReactiveSource,

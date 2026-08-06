@@ -1,4 +1,4 @@
-import { parseAndEvaluate } from "../../src/eval/evaluator.js";
+import { parseAndEvaluate, parseAndEvaluateAsync } from "../../src/eval/evaluator.js";
 
 describe("Unified Brace Syntax Verification", () => {
     test("plain {} is always a block (replaces Set/Map inference)", () => {
@@ -12,8 +12,8 @@ describe("Unified Brace Syntax Verification", () => {
         expect(parseAndEvaluate("{ a := 5; b := a * 2; b / 2 }").toNumber()).toBe(5);
     });
 
-    test("{$ } is reserved for future async/concurrency syntax", () => {
-        expect(() => parseAndEvaluate("{$ x }")).toThrow(/reserved for future async\/concurrency/);
+    test("{$ } is an awaited concurrency code block", async () => {
+        expect((await parseAndEvaluateAsync("{$ 5 }")).toNumber()).toBe(5);
     });
 
     test("Nested plain braces are nested blocks", () => {

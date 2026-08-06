@@ -2236,6 +2236,31 @@ describe("Math Oracle Tokenizer", () => {
       expect(brace.containerName).toBe("loop");
     });
 
+    test("{$ headers store async name and concurrency limit", () => {
+      const anonymous = tokenize("{$ work }").find((token) => token.value === "{$");
+      expect(anonymous).toBeDefined();
+      expect(anonymous.containerName).toBe(null);
+
+      const limited = tokenize("{$:4$ work }").find((token) => token.value === "{$");
+      expect(limited.containerName).toBe(null);
+      expect(limited.asyncLimit).toBe(4);
+
+      const named = tokenize("{$JOBS:12$ work }").find((token) => token.value === "{$");
+      expect(named.containerName).toBe("jobs");
+      expect(named.asyncLimit).toBe(12);
+    });
+
+    test("{$$ produces a detached code-block token", () => {
+      const detached = tokenize("{$$ work }").find((token) => token.value === "{$$");
+      expect(detached).toBeDefined();
+      expect(detached.containerName).toBeUndefined();
+    });
+
+    test("async concurrency limits must be positive integers", () => {
+      expect(() => tokenize("{$:0$ work }")).toThrow(/Invalid async concurrency limit/);
+      expect(() => tokenize("{$:many$ work }")).toThrow(/positive integer/);
+    });
+
     test("{@:100@ stores an explicit loop max", () => {
       const tokens = tokenize("{@:100@ body }");
       const brace = tokens.find((t) => t.value === "{@");

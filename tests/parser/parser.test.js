@@ -841,8 +841,34 @@ describe("RiX Parser", () => {
       ]);
     });
 
-    test("{$ } is reserved for future async/concurrency syntax", () => {
-      expect(() => parseCode("{$ x }")).toThrow(/reserved for future async\/concurrency/);
+    test("async scope parses as a temporal code block", () => {
+      const expr = stripMetadata(parseCode("{$ x; y };"))[0].expression;
+      expect(expr).toEqual({
+        type: "AsyncContainer",
+        elements: [
+          { type: "UserIdentifier", name: "x" },
+          { type: "UserIdentifier", name: "y" },
+        ],
+      });
+    });
+
+    test("named limited async scope parses imports", () => {
+      const expr = stripMetadata(parseCode("{$jobs:4$ <a~x, b=y> a; b };"))[0].expression;
+      expect(expr.type).toBe("AsyncContainer");
+      expect(expr.name).toBe("jobs");
+      expect(expr.concurrencyLimit).toBe(4);
+      expect(expr.imports).toEqual([
+        { local: "a", source: "x", mode: "copy" },
+        { local: "b", source: "y", mode: "alias" },
+      ]);
+      expect(expr.elements).toHaveLength(2);
+    });
+
+    test("detached scope parses as a code block with imports", () => {
+      const expr = stripMetadata(parseCode("{$$ <a~x> a; y := a };"))[0].expression;
+      expect(expr.type).toBe("DetachedBlock");
+      expect(expr.imports).toEqual([{ local: "a", source: "x", mode: "copy" }]);
+      expect(expr.elements).toHaveLength(2);
     });
 
     test("empty block", () => {
@@ -1621,6 +1647,14 @@ describe("RiX Parser", () => {
           left: { type: "UserIdentifier", name: "x" },
           right: { type: "Number", value: "1" },
         },
+      });
+
+      const asyncNamed = stripMetadata(parseCode("{!$jobs! x };"))[0].expression;
+      expect(asyncNamed).toEqual({
+        type: "BreakBlock",
+        targetType: "async",
+        targetName: "jobs",
+        value: { type: "UserIdentifier", name: "x" },
       });
     });
   });

@@ -6,7 +6,7 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
-<meta name="description" content="Proposed semantics and implementation plan for {$ … } concurrency scopes and {$$ … } detached tasks.">
+<meta name="description" content="Semantics, current implementation boundary, and follow-up plan for {$ … } concurrency scopes and {$$ … } detached tasks.">
 
 <title>Async, concurrency, and background tasks – RiX</title>
 <style>
@@ -466,7 +466,7 @@ window.Quarto = {
 
 <div>
   <div class="description">
-    Proposed semantics and implementation plan for {$ … } concurrency scopes and {$$ … } detached tasks.
+    Semantics, current implementation boundary, and follow-up plan for {$ … } concurrency scopes and {$$ … } detached tasks.
   </div>
 </div>
 
@@ -485,7 +485,8 @@ window.Quarto = {
 
 <section id="status" class="level1">
 <h1>Status</h1>
-<p>This is a concrete design proposal. The parser currently reserves <code>{$ ... }</code> for async/concurrency work, but none of the behavior in this document is implemented yet. <code>{# ... }</code> remains the inert symbolic-system form.</p>
+<p>This is the normative design and implementation tracker. The initial runtime slice is implemented: syntax and IR, code-block import headers, async host APIs, FIFO bounded finite-collection scheduling, nested arrays/maps/tuples/sets, fused <code>|&gt;&gt;</code> and <code>|&gt;?</code>, ordered <code>|&gt;||</code>, <code>|&gt;&amp;&amp;</code>, named async breaks, and supervised/drainable <code>{$$ ... }</code> tasks. <code>{# ... }</code> remains the inert symbolic-system form.</p>
+<p>Still planned are matrices/tensors, bounded lazy-source pull, async structural pipe barriers, complete task snapshot/copy-on-write enforcement, deterministic task RNG streams, worker execution, and capability-level cooperative abort.</p>
 <p>The proposal deliberately separates two operations:</p>
 <ul>
 <li><code>{$ ... }</code> is an <strong>awaited concurrency scope</strong>. It permits explicitly independent work to overlap, waits for every required result or an early terminal result, and returns an ordinary RiX value.</li>
@@ -973,46 +974,46 @@ RenderMainView()</code></pre>
 <section id="lock-the-language-contract" class="level2">
 <h2 class="anchored" data-anchor-id="lock-the-language-contract">0. Lock the language contract</h2>
 <ul class="task-list">
-<li><label><input type="checkbox">Add parser, lowering, and evaluator design tests that describe the syntax before enabling execution.</label></li>
-<li><label><input type="checkbox">Remove stale user-facing references that call <code>{$ ... }</code> a mathematical system block; keep <code>{# ... }</code> as the symbolic-system form.</label></li>
-<li><label><input type="checkbox">Decide and document canonical map traversal order; use insertion order for deterministic ordered pipes.</label></li>
-<li><label><input type="checkbox">Add <code>defaultAsyncConcurrency: 10</code> and host override plumbing.</label></li>
+<li><label><input type="checkbox" checked="">Add parser, lowering, and evaluator design tests that describe the syntax before enabling execution.</label></li>
+<li><label><input type="checkbox" checked="">Remove stale user-facing references that call <code>{$ ... }</code> a mathematical system block; keep <code>{# ... }</code> as the symbolic-system form.</label></li>
+<li><label><input type="checkbox" checked="">Decide and document canonical map traversal order; use insertion order for deterministic ordered pipes.</label></li>
+<li><label><input type="checkbox" checked="">Add <code>defaultAsyncConcurrency: 10</code> and host override plumbing.</label></li>
 <li><label><input type="checkbox">Add a <code>BACKGROUND</code> script permission and sandbox policy tests.</label></li>
 </ul>
 </section>
 <section id="parser-and-ir" class="level2">
 <h2 class="anchored" data-anchor-id="parser-and-ir">1. Parser and IR</h2>
 <ul class="task-list">
-<li><label><input type="checkbox">Teach the tokenizer to recognize <code>{$ ... }</code>, <code>{$name$ ... }</code>, <code>{$:n$ ... }</code>, and <code>{$name:n$ ... }</code> with required following whitespace.</label></li>
-<li><label><input type="checkbox">Recognize <code>{$$ ... }</code> before generic <code>$</code> sigil handling.</label></li>
-<li><label><input type="checkbox">Add <code>AsyncContainer</code> and <code>DetachedBlock</code> AST nodes.</label></li>
-<li><label><input type="checkbox">Parse <code>{!$ value }</code> and <code>{!$name! value }</code> as async-targeted breaks.</label></li>
-<li><label><input type="checkbox">Lower to <code>ASYNC_SCOPE</code>, <code>DETACH</code>, and <code>BREAK(targetType="async")</code>.</label></li>
-<li><label><input type="checkbox">Preserve scope names, limits, source spans, and nesting paths in IR.</label></li>
-<li><label><input type="checkbox">Add tokenizer/parser/lowering negative tests for zero, malformed, and unsafe concurrency limits.</label></li>
+<li><label><input type="checkbox" checked="">Teach the tokenizer to recognize <code>{$ ... }</code>, <code>{$name$ ... }</code>, <code>{$:n$ ... }</code>, and <code>{$name:n$ ... }</code> with required following whitespace.</label></li>
+<li><label><input type="checkbox" checked="">Recognize <code>{$$ ... }</code> before generic <code>$</code> sigil handling.</label></li>
+<li><label><input type="checkbox" checked="">Add <code>AsyncContainer</code> and <code>DetachedBlock</code> AST nodes.</label></li>
+<li><label><input type="checkbox" checked="">Parse <code>{!$ value }</code> and <code>{!$name! value }</code> as async-targeted breaks.</label></li>
+<li><label><input type="checkbox" checked="">Lower to <code>ASYNC_SCOPE</code>, <code>DETACH</code>, and <code>BREAK(targetType="async")</code>.</label></li>
+<li><label><input type="checkbox" checked="">Preserve scope names, limits, and source spans in IR. Stable task paths remain pending.</label></li>
+<li><label><input type="checkbox" checked="">Add tokenizer/parser/lowering negative tests for zero, malformed, and unsafe concurrency limits.</label></li>
 </ul>
 </section>
 <section id="promise-aware-evaluation" class="level2">
 <h2 class="anchored" data-anchor-id="promise-aware-evaluation">2. Promise-aware evaluation</h2>
 <ul class="task-list">
-<li><label><input type="checkbox">Add <code>evaluateAsync</code> and <code>parseAndEvaluateAsync</code> while retaining the sync API for sync-only scripts.</label></li>
+<li><label><input type="checkbox" checked="">Add <code>evaluateAsync</code> and <code>parseAndEvaluateAsync</code> while retaining the sync API for sync-only scripts.</label></li>
 <li><label><input type="checkbox">Extend registry/system capability entries with async implementations or a promise-aware dispatch contract.</label></li>
-<li><label><input type="checkbox">Reuse ordinary eager implementations after asynchronously evaluating their arguments.</label></li>
+<li><label><input type="checkbox" checked="">Reuse ordinary eager implementations after asynchronously evaluating their arguments.</label></li>
 <li><label><input type="checkbox">Add async implementations for lazy control, assignment, function-call, collection, pipe, diagnostic, and reactive operations that selectively evaluate IR.</label></li>
-<li><label><input type="checkbox">Make CLI, REPL, notebook, and web hosts select/await the async entry point when required.</label></li>
-<li><label><input type="checkbox">Verify that raw promises cannot be assigned, collected, formatted, or returned as RiX values.</label></li>
+<li><label><input type="checkbox" checked="">Make the CLI, CLI REPL, generated-page host, RiX Web REPL, and tutorial runner select/await the async entry point. Notebook host work remains pending.</label></li>
+<li><label><input type="checkbox" checked="">Verify that raw promises cannot be assigned, collected, formatted, or returned as RiX values.</label></li>
 <li><label><input type="checkbox">Preserve source annotation and call-stack diagnostics across <code>await</code>.</label></li>
 </ul>
 </section>
 <section id="scheduler-and-task-contexts" class="level2">
 <h2 class="anchored" data-anchor-id="scheduler-and-task-contexts">3. Scheduler and task contexts</h2>
 <ul class="task-list">
-<li><label><input type="checkbox">Add a runtime-owned <code>TaskScheduler</code> with ordered admission, bounded permits, cancellation, stable task paths, and cleanup draining.</label></li>
+<li><label><input type="checkbox" checked="">Add a runtime-owned <code>TaskScheduler</code> with ordered admission, bounded permits, cancellation, stable task paths, and cleanup draining.</label></li>
 <li><label><input type="checkbox">Implement effective-limit composition for nested scopes and host caps.</label></li>
-<li><label><input type="checkbox">Ensure structural parents and nested scopes do not retain leaf permits while awaiting children.</label></li>
+<li><label><input type="checkbox" checked="">Ensure structural parents do not retain leaf permits while awaiting children.</label></li>
 <li><label><input type="checkbox">Add task-local <code>Context</code> forks with snapshot/copy-on-write reads and rejected ordinary outer writes.</label></li>
 <li><label><input type="checkbox">Derive deterministic random substreams from stable task paths.</label></li>
-<li><label><input type="checkbox">Add fake-clock/deferred-capability tests that assert admission and completion traces without relying on wall-clock timing.</label></li>
+<li><label><input type="checkbox" checked="">Add deferred-capability tests that assert admission and completion traces without relying on wall-clock timing.</label></li>
 </ul>
 </section>
 <section id="concurrent-collection-construction" class="level2">
@@ -1020,21 +1021,21 @@ RenderMainView()</code></pre>
 <ul class="task-list">
 <li><label><input type="checkbox">Add async planning/evaluation for arrays, brace arrays, tuples, sets, maps, matrices, and tensors.</label></li>
 <li><label><input type="checkbox">Recursively inherit concurrency through called functions and nested explicit constructors.</label></li>
-<li><label><input type="checkbox">Preserve source-order result assembly despite completion-order slot fills.</label></li>
-<li><label><input type="checkbox">Implement map key/value and insertion-order rules.</label></li>
-<li><label><input type="checkbox">Treat pre-existing collections as data sources without re-evaluation.</label></li>
+<li><label><input type="checkbox" checked="">Preserve source-order result assembly despite completion-order slot fills.</label></li>
+<li><label><input type="checkbox" checked="">Implement finite map key/value and insertion-order rules.</label></li>
+<li><label><input type="checkbox" checked="">Treat pre-existing collections as data sources without re-evaluation.</label></li>
 <li><label><input type="checkbox">Add bounded pull for lazy/generator sources and keep recurrence generation sequential where values depend on history.</label></li>
-<li><label><input type="checkbox">Test the limit-2 <code>{= a=[F(), G()], b=H() }</code> admission scenario exactly.</label></li>
+<li><label><input type="checkbox" checked="">Test the limit-2 <code>{= a=[F(), G()], b=H() }</code> admission scenario exactly.</label></li>
 </ul>
 </section>
 <section id="fused-async-pipes" class="level2">
 <h2 class="anchored" data-anchor-id="fused-async-pipes">5. Fused async pipes</h2>
 <ul class="task-list">
-<li><label><input type="checkbox">Add a planner that flattens pipe chains before source evaluation.</label></li>
-<li><label><input type="checkbox">Classify every current pipe operator as elementwise, terminal, or barrier.</label></li>
-<li><label><input type="checkbox">Implement end-to-end permit retention through <code>|&gt;&gt;</code> and <code>|&gt;?</code> stages.</label></li>
+<li><label><input type="checkbox" checked="">Add a planner that flattens supported pipe chains before source evaluation.</label></li>
+<li><label><input type="checkbox" checked="">Classify every current pipe operator as elementwise, terminal, or barrier.</label></li>
+<li><label><input type="checkbox" checked="">Implement end-to-end permit retention through finite <code>|&gt;&gt;</code> and <code>|&gt;?</code> stages.</label></li>
 <li><label><input type="checkbox">Preserve collection shape, locators, callback arguments, strings, maps, tensors, and source-order result assembly.</label></li>
-<li><label><input type="checkbox">Implement ordered <code>|&gt;||</code>, including buffering a later passing result until every earlier candidate fails.</label></li>
+<li><label><input type="checkbox" checked="">Implement ordered <code>|&gt;||</code>, including buffering a later passing result until every earlier candidate fails.</label></li>
 <li><label><input type="checkbox">Implement <code>|&gt;&amp;&amp;</code> cancellation once a falsy result determines the outcome.</label></li>
 <li><label><input type="checkbox">Implement ordered reduce barriers with concurrent upstream stages.</label></li>
 <li><label><input type="checkbox">Implement stable async sort and the remaining structural barriers.</label></li>
@@ -1046,9 +1047,9 @@ RenderMainView()</code></pre>
 <h2 class="anchored" data-anchor-id="failure-and-cancellation">6. Failure and cancellation</h2>
 <ul class="task-list">
 <li><label><input type="checkbox">Thread cancellation signals through evaluator calls, loops, source pulls, stages, capabilities, and workers.</label></li>
-<li><label><input type="checkbox">Implement fail-fast admission stop followed by sibling cancellation and cleanup drain.</label></li>
+<li><label><input type="checkbox" checked="">Implement fail-fast admission stop followed by queued-sibling cancellation and cleanup drain.</label></li>
 <li><label><input type="checkbox">Attach suppressed cleanup failures in stable task-path order.</label></li>
-<li><label><input type="checkbox">Implement named and unnamed <code>{!$...}</code> completion races.</label></li>
+<li><label><input type="checkbox" checked="">Implement named and unnamed <code>{!$...}</code> completion races with queued-sibling cancellation.</label></li>
 <li><label><input type="checkbox">Specify capability metadata for parallel safety, cancellation, executor, and effects; serialize unsafe capabilities through a single lane.</label></li>
 <li><label><input type="checkbox">Add tests for queued cancellation, cooperative I/O abort, loop checkpoints, simultaneous breaks, and uncancellable synchronous code.</label></li>
 <li><label><input type="checkbox">Verify explicitly that cancellation does not imply effect rollback.</label></li>
@@ -1057,15 +1058,15 @@ RenderMainView()</code></pre>
 <section id="background-supervisor-and-reactive-publication" class="level2">
 <h2 class="anchored" data-anchor-id="background-supervisor-and-reactive-publication">7. Background supervisor and reactive publication</h2>
 <ul class="task-list">
-<li><label><input type="checkbox">Implement <code>DETACH</code> as immediate null plus a supervisor-owned task.</label></li>
+<li><label><input type="checkbox" checked="">Implement <code>DETACH</code> as immediate null plus a supervisor-owned task.</label></li>
 <li><label><input type="checkbox">Add active-task/queue limits, task IDs, source diagnostics, session-close cancellation, and bounded cleanup.</label></li>
 <li><label><input type="checkbox">Define CLI drain-by-default and host no-drain/cancel behavior.</label></li>
-<li><label><input type="checkbox">Report background errors as structured diagnostics without retroactively failing continued main evaluation.</label></li>
+<li><label><input type="checkbox" checked="">Report background errors to the host handler/error queue without retroactively failing continued main evaluation.</label></li>
 <li><label><input type="checkbox">Snapshot ordinary captured values and capability permissions at spawn.</label></li>
 <li><label><input type="checkbox">Reject ordinary outer-cell writes and detached spawn during reactive formula evaluation.</label></li>
 <li><label><input type="checkbox">Transfer background reactive updates as resolved literal messages to the graph owner; support atomic <code>${ ... }</code> batches.</label></li>
 <li><label><input type="checkbox">Document and test arrival-order conflicts between multiple background writers.</label></li>
-<li><label><input type="checkbox">Add supervisor inspection/disposal APIs for hosts without exposing task handles as RiX values.</label></li>
+<li><label><input type="checkbox" checked="">Add a supervisor drain API for hosts without exposing task handles as RiX values.</label></li>
 </ul>
 </section>
 <section id="worker-backed-cpu-parallelism" class="level2">
@@ -1082,12 +1083,12 @@ RenderMainView()</code></pre>
 <section id="documentation-observability-and-hardening" class="level2">
 <h2 class="anchored" data-anchor-id="documentation-observability-and-hardening">9. Documentation, observability, and hardening</h2>
 <ul class="task-list">
-<li><label><input type="checkbox">Add syntax/reference documentation only when the corresponding runtime slice is implemented.</label></li>
+<li><label><input type="checkbox" checked="">Add syntax/reference documentation for the implemented runtime slice is implemented.</label></li>
 <li><label><input type="checkbox">Show scope/task paths, queue state, running count, cancellation reason, and executor in trace diagnostics.</label></li>
 <li><label><input type="checkbox">Tag concurrent output events with task paths and define host presentation ordering.</label></li>
 <li><label><input type="checkbox">Add deterministic stress tests for deep nesting, low limits, barriers, cancellation storms, and background shutdown.</label></li>
 <li><label><input type="checkbox">Add benchmarks for I/O overlap, pipeline latency, scheduler overhead, and worker CPU scaling.</label></li>
-<li><label><input type="checkbox">Run <code>bun test</code> from <code>rix/</code> after every implementation slice.</label></li>
+<li><label><input type="checkbox" checked="">Run <code>bun test</code> from <code>rix/</code> after every implementation slice.</label></li>
 </ul>
 </section>
 </section>

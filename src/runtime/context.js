@@ -378,6 +378,29 @@ export class Context {
     }
 
     /**
+     * Create a context for one concurrent item. Binding cells and environment
+     * state are visible, while the scope/call stacks themselves are independent.
+     * This makes concurrent function calls stack-safe without implying that
+     * unsynchronised writes to shared outer cells are safe.
+     */
+    concurrentChild() {
+        const child = new Context();
+        child.globalScope = this.globalScope;
+        child.localScopes = this.localScopes.map((scope) => ({
+            bindings: scope.bindings,
+            isolated: scope.isolated === true,
+            readThrough: scope.readThrough === true,
+            callableBoundary: scope.callableBoundary === true,
+        }));
+        child.functions = this.functions;
+        child.env = this.env;
+        child.callStack = [...this.callStack];
+        child.currentCallables = [...this.currentCallables];
+        child.sharedBodyOverrides = [];
+        return child;
+    }
+
+    /**
      * Allow the immediate evaluation of a top-level block-like function body
      * to share the current scope once. Nested blocks are unaffected.
      */

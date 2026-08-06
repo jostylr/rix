@@ -1,5 +1,6 @@
 export const runtimeDefaults = Object.freeze({
   defaultLoopMax: 10000,
+  defaultAsyncConcurrency: 10,
   defaultConstructorCaptureMode: "deep_copy",
   symbolicAutoSpec: "safe",
   warnings: Object.freeze({

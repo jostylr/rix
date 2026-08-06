@@ -16,6 +16,7 @@ The repository test suite currently covers 1,700+ cases across parser, evaluator
 | Functions | lambdas, named functions, rest/spread, partials, arity caps, prepared functions, multifunctions, tail-self call path |
 | Collections | arrays, lazy sequences, iterators, maps, sets, tuples, tensors, indexing/slicing, traversal pipes, methods |
 | Control and scope | blocks, cases, ternaries, loops, break blocks, cells, five assignment modes, destructuring, imports |
+| Async runtime | promise-aware host API; `{$ ... }` code blocks with import headers, FIFO bounded finite-collection fan-out, nested structural collections, fused map/filter/find/all stages, and named completion breaks; supervised `{$$ ... }` blocks with host draining |
 | Semantics | metadata classes, semantic inquiry/conversion, type and trait registries, constructor capture |
 | Exact extensions | units/quantities, algebraic exact generators, exact complex operations, Cayley polar representation |
 | Tooling | REPL/runner, IR converter, native `.test.rix` runner, structured diagnostics, source locations, trace/debug |
@@ -28,7 +29,7 @@ The repository test suite currently covers 1,700+ cases across parser, evaluator
 | Area | Boundary |
 |---|---|
 | Symbolic work | `{# ... }` represents multi-symbol systems, but arithmetic/calculus remain a tested single-expression exact subset. Transcendental rules, general solving, and numerical calculus belong outside that subset. |
-| Mathematical systems | `{# ... }` preserves definitions, constraints, symbols, and advisory input/output roles; solving is delegated to plugins. `{$ ... }` is reserved for future async/concurrency syntax. |
+| Mathematical systems and async follow-up | `{# ... }` preserves definitions, constraints, symbols, and advisory input/output roles; solving is delegated to plugins. Async matrices/tensors, lazy bounded pull, all pipe barriers, worker execution, snapshot/COW task writes, and capability-level abort signals remain follow-up work. |
 | Real approximation | the default runtime is exact-first. The repository includes a float package example, but a unified real/oracle layer is not part of the default surface. |
 | Browser use | the parser demo runs in the browser. Full evaluator imports currently include Node file APIs, so evaluator embedding needs a host adapter for browser-only use. |
 | Packaging | the package uses `@ratmath/core` through the parent Bun workspace and has not yet declared a stable standalone release workflow. |

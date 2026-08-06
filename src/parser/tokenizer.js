@@ -837,6 +837,75 @@ function tryMatchBrace(input, position) {
     ...extras,
   });
 
+  // Async/concurrency blocks have richer headers than ordinary named sigils:
+  //   {$ ... }          awaited scope, runtime-default concurrency
+  //   {$name$ ... }     named awaited scope
+  //   {$:4$ ... }       anonymous awaited scope capped at four items
+  //   {$name:4$ ... }   named/capped awaited scope
+  //   {$$ ... }         supervised detached block
+  // Match them before generic sigil handling so {$$ is not diagnosed as a
+  // malformed {$ container.
+  if (ch === "$") {
+    const start = position + 2;
+    const first = input[start];
+    const requireBoundary = (end, label) => {
+      const afterHeader = input[end];
+      if (!isWhitespace(afterHeader) && afterHeader !== "}") {
+        const { line, col } = posToLineCol(input, position);
+        throw new Error(`${label} must be followed by a space or '}' at line ${line}:${col}`);
+      }
+    };
+
+    if (first === "$") {
+      const end = start + 1;
+      requireBoundary(end, "Detached block header '{$$'");
+      return makeAdvancedConstructorToken("{$$", position, end, { detached: true });
+    }
+
+    if (isWhitespace(first)) {
+      return makeAdvancedConstructorToken("{$", position, start, { containerName: null });
+    }
+
+    let cursor = start;
+    let containerName = null;
+    if (/[a-zA-Z0-9_]/.test(input[cursor] || "")) {
+      const nameStart = cursor;
+      while (cursor < input.length && /[a-zA-Z0-9_]/.test(input[cursor])) cursor++;
+      containerName = input.slice(nameStart, cursor).toLowerCase();
+      if (input[cursor] === "$") {
+        const end = cursor + 1;
+        requireBoundary(end, `Named async scope '{$${containerName}$'`);
+        return makeAdvancedConstructorToken("{$", position, end, { containerName });
+      }
+    }
+
+    if (input[cursor] !== ":") {
+      const { line, col } = posToLineCol(input, position);
+      throw new Error(
+        `Async scope '{$' must be followed by a space, '$', 'name$', ':limit$', or 'name:limit$' at line ${line}:${col}`
+      );
+    }
+    cursor++;
+    const digitsStart = cursor;
+    while (cursor < input.length && /[0-9]/.test(input[cursor])) cursor++;
+    if (digitsStart === cursor || input[cursor] !== "$") {
+      const { line, col } = posToLineCol(input, position);
+      throw new Error(`Async concurrency limit must be a positive integer ending in '$' at line ${line}:${col}`);
+    }
+    const rawLimit = input.slice(digitsStart, cursor);
+    const asyncLimit = Number(rawLimit);
+    if (!Number.isSafeInteger(asyncLimit) || asyncLimit < 1) {
+      const { line, col } = posToLineCol(input, position);
+      throw new Error(`Invalid async concurrency limit '${rawLimit}' at line ${line}:${col}`);
+    }
+    const end = cursor + 1;
+    requireBoundary(end, "Async scope header");
+    return makeAdvancedConstructorToken("{$", position, end, {
+      containerName,
+      asyncLimit,
+    });
+  }
+
   if (input.slice(position + 1).startsWith("=..")) {
     const after = input[position + 4];
     if (!isWhitespace(after) && after !== "}") {

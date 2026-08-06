@@ -1207,101 +1207,106 @@ u \= {| 2 |}
 <td>Sequential execution (explicit block). Optional top-of-block import header: <code>{; &lt;...&gt; ... }</code></td>
 </tr>
 <tr class="odd">
-<td><code>{$ ... }</code></td>
-<td>—</td>
-<td>Reserved for a future async/concurrency design; currently a parse error.</td>
+<td><code>{$ ... }</code>, <code>{$name:4$ ... }</code></td>
+<td><code>ASYNC_SCOPE</code></td>
+<td>Awaited concurrency code block. Explicit collection entries fan out with a default limit of 10; statements remain sequential. Supports an optional top-of-block import header.</td>
 </tr>
 <tr class="even">
+<td><code>{$$ ... }</code></td>
+<td><code>DETACH</code></td>
+<td>Start one supervised background code block and immediately return <code>null</code>; its statements remain sequential. Supports an optional import header.</td>
+</tr>
+<tr class="odd">
 <td><code>{? c1 ? v1; c2 ? v2; default }</code></td>
 <td><code>CASE</code></td>
 <td>Conditional branching (if/elseif/else)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>{@ init; cond; body; update }</code></td>
 <td><code>LOOP</code></td>
 <td>Loop with init, condition, body, update. A fifth <code>after</code> slot may be added: <code>{@ init; cond; body; update; after }</code>; it runs on normal completion and supplies the loop result. Loop headers also support <code>{@name@ ... }</code>, <code>{@:100@ ... }</code>, <code>{@name:100@ ... }</code>, <code>{@::@ ... }</code>, and <code>{@name::@ ... }</code>. Optional top-of-block import header: <code>{@ &lt;...&gt; ... }</code></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>{! expr }</code></td>
 <td><code>BREAK</code></td>
-<td>Break the nearest matching block/case/loop and use <code>expr</code> as that target’s final value</td>
+<td>Break the nearest matching block/case/loop and use <code>expr</code> as that target’s final value. <code>{!$name! expr }</code> races to exit a named async scope.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>{#x}</code>, <code>{#x,y# x + y }</code>, <code>{#x:y# y^2 == x }</code></td>
 <td><code>SYSTEM_SPEC</code></td>
 <td>Identity, expression, and inert symbolic-system literals. Optional import header on full forms.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>{= k1=v1, (expr)=v2 }</code></td>
 <td><code>MAP</code></td>
 <td>Map/object literal (<code>k1</code> identifier sugar or parenthesized key expression)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>{.. a, b, c }</code></td>
 <td><code>ARRAY_CAPTURE</code></td>
 <td>Brace-form array literal with constructor capture controls</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>{\| a, b, c }</code></td>
 <td><code>SET</code></td>
 <td>Set literal</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>{: a, b, c }</code></td>
 <td><code>TUPLE</code></td>
 <td>Tuple literal</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>{&gt; f, G, H[:Named] }</code></td>
 <td><code>MULTIFUNCTION</code></td>
 <td>Ordered callable variants; nested multifunctions flatten in source order</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>{+ a, b, c }</code></td>
 <td><code>ADD</code></td>
 <td>N-ary addition or concatenation</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>{* a, b, c }</code></td>
 <td><code>MUL</code></td>
 <td>N-ary multiplication</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>{&amp;&amp; a, b, c }</code></td>
 <td><code>AND</code></td>
 <td>N-ary logical AND (short-circuits on falsy)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>{\|\| a, b, c }</code></td>
 <td><code>OR</code></td>
 <td>N-ary logical OR (short-circuits on truthy)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>{\/ a, b, c }</code></td>
 <td><code>NARY_UNION</code></td>
 <td>N-ary set union / interval hull</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>{/\ a, b, c }</code></td>
 <td><code>NARY_INTERSECT</code></td>
 <td>N-ary set intersection / interval overlap</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>{++ a, b, c }</code></td>
 <td><code>NARY_CONCAT</code></td>
 <td>N-ary concatenation</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>{&lt;&lt; a, b, c }</code></td>
 <td><code>MIN</code></td>
 <td>N-ary minimum (<code>null</code> args ignored)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>{&gt;&gt; a, b, c }</code></td>
 <td><code>MAX</code></td>
 <td>N-ary maximum (<code>null</code> args ignored)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>{/pattern/flags?mode}</code></td>
 <td><code>REGEX</code></td>
 <td>Regular expression literal</td>

@@ -2,8 +2,8 @@
 
 > **Historical sections:** inferred equation systems and `:=:` examples below
 > predate the current language. `:=:` is removed, `{# ... }` carries inert
-> definitions/constraints for plugins, and `{$ ... }` is reserved for future
-> async/concurrency syntax. Use the evaluator syntax guide as the current
+> definitions/constraints for plugins. `{$ ... }` and `{$$ ... }` are current
+> async code blocks. Use the evaluator syntax guide as the current
 > contract.
 
 ## Overview

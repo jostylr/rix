@@ -1137,7 +1137,8 @@ For other types of containers or specialized execution, a "sigil" is used immedi
 | `{@ ... }` | **Loop** | C-style loop: `{@ init; condition; body; update }`, the three-part form `{@ init; condition; body }` when the body performs its own update, or the five-part form `{@ init; condition; body; update; after }` where `after` runs on normal completion and supplies the loop result. Loop headers may also carry an optional name and/or max-iteration cap such as `{@name@ ... }`, `{@:100@ ... }`, `{@name:100@ ... }`, `{@::@ ... }`, or `{@name::@ ... }`. Supports an optional top-of-block import header `< ... >`. |
 | `{! ... }` | **Break Block** | Terminates the nearest matching block/case/loop and returns a value. Examples: `{! 5 }`, `{!; 5 }`, `{!@ "done" }`, `{!?name! "big" }`. |
 | `{# ... }` | **Symbolic Spec/System** | Preserves expressions, definitions, and constraints for later consumers. Example: `{#x:y# y^2 == x; y >= 0 }`. |
-| `{$ ... }` | **Reserved** | Reserved for a future async/concurrency design; currently a parse error. |
+| `{$ ... }` | **Awaited concurrency block** | Runs statements sequentially while explicit collection entries and elementwise pipes use bounded concurrency. Named/limited form: `{$jobs:4$ ... }`. Supports import headers. |
+| `{$$ ... }` | **Background block** | Starts supervised background work, returns `null` immediately, and discards its final value. Supports import headers. |
 | `{= ... }` | **Map** | Dictionary / key-value mappings. Example: `{= name="RiX", version=1 }` |
 | `{\| ... }` | **Set** | A collection of unique elements. Example: `{\| 1, 2, 3 }` |
 | `{: ... }` | **Tuple** | Fixed-length collection. Example: `{: x, y, z }` |

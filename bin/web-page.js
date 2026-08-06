@@ -8,7 +8,9 @@ import {
     formatValue,
     mountOutputWidgets,
     parseAndEvaluate,
+    parseAndEvaluateAsync,
     renderOutputHtml,
+    tokenize,
 } from "../src/index.js";
 import { install as installFloat } from "../plugins/float/browser-installer.js";
 import { install as installArrayJs } from "../examples/plugins/example-array-js/array-js.plugin.rix.js";
@@ -47,7 +49,7 @@ function showError(error) {
     root.classList.add("rix-page-error");
 }
 
-function run() {
+async function run() {
     if (!page?.source) throw new Error("This RiX page has no embedded source.");
     const context = new Context();
     const registry = createDefaultRegistry();
@@ -65,7 +67,12 @@ function run() {
     }
 
     const reads = new Set();
-    const value = parseAndEvaluate(page.source, { ...runtime, file: page.sourcePath || "<generated-page>", reactiveReads: reads });
+    const options = { ...runtime, file: page.sourcePath || "<generated-page>", reactiveReads: reads };
+    const usesAsyncBlocks = tokenize(page.source)
+        .some((token) => token.value === "{$" || token.value === "{$$");
+    const value = usesAsyncBlocks
+        ? await parseAndEvaluateAsync(page.source, options)
+        : parseAndEvaluate(page.source, options);
     const root = document.querySelector("#rix-app");
     const format = (item) => formatValue(item, { context });
     root.innerHTML = renderOutputHtml(value, format);
@@ -81,8 +88,4 @@ function run() {
     });
 }
 
-try {
-    run();
-} catch (error) {
-    showError(error);
-}
+run().catch(showError);

@@ -13,7 +13,9 @@ intent.
 
 The `:=:` solve operator has since been removed. Symbolic systems use inert
 `{# ... }` definitions and constraints interpreted by explicit plugins.
-`{$ ... }` is reserved for future async/concurrency syntax.
+`{$ ... }` now denotes an awaited concurrency code block and `{$$ ... }` a
+supervised background block. See the current
+[async runtime design](../eval/async-concurrency.md).
 
 ## Overview
 

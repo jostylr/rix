@@ -521,10 +521,11 @@ u \= {| 2 |}
 |--------|----------------|-------------|
 | `{ a; b; c }` | `BLOCK` | Sequential execution, returns last value. Optional top-of-block import header: `{ <...> ... }` |
 | `{; a; b; c }` | `BLOCK` | Sequential execution (explicit block). Optional top-of-block import header: `{; <...> ... }` |
-| `{$ ... }` | — | Reserved for a future async/concurrency design; currently a parse error. |
+| `{$ ... }`, `{$name:4$ ... }` | `ASYNC_SCOPE` | Awaited concurrency code block. Explicit collection entries fan out with a default limit of 10; statements remain sequential. Supports an optional top-of-block import header. |
+| `{$$ ... }` | `DETACH` | Start one supervised background code block and immediately return `null`; its statements remain sequential. Supports an optional import header. |
 | `{? c1 ? v1; c2 ? v2; default }` | `CASE` | Conditional branching (if/elseif/else) |
 | `{@ init; cond; body; update }` | `LOOP` | Loop with init, condition, body, update. A fifth `after` slot may be added: `{@ init; cond; body; update; after }`; it runs on normal completion and supplies the loop result. Loop headers also support `{@name@ ... }`, `{@:100@ ... }`, `{@name:100@ ... }`, `{@::@ ... }`, and `{@name::@ ... }`. Optional top-of-block import header: `{@ <...> ... }` |
-| `{! expr }` | `BREAK` | Break the nearest matching block/case/loop and use `expr` as that target's final value |
+| `{! expr }` | `BREAK` | Break the nearest matching block/case/loop and use `expr` as that target's final value. `{!$name! expr }` races to exit a named async scope. |
 | `{#x}`, `{#x,y# x + y }`, `{#x:y# y^2 == x }` | `SYSTEM_SPEC` | Identity, expression, and inert symbolic-system literals. Optional import header on full forms. |
 | `{= k1=v1, (expr)=v2 }` | `MAP` | Map/object literal (`k1` identifier sugar or parenthesized key expression) |
 | `{.. a, b, c }` | `ARRAY_CAPTURE` | Brace-form array literal with constructor capture controls |

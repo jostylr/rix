@@ -1446,25 +1446,30 @@ m^^                ##: tensor[3x2]
 </tr>
 <tr class="even">
 <td><code>{$ ... }</code></td>
-<td><strong>Reserved</strong></td>
-<td>Reserved for a future async/concurrency design; currently a parse error.</td>
+<td><strong>Awaited concurrency block</strong></td>
+<td>Runs statements sequentially while explicit collection entries and elementwise pipes use bounded concurrency. Named/limited form: <code>{$jobs:4$ ... }</code>. Supports import headers.</td>
 </tr>
 <tr class="odd">
+<td><code>{$$ ... }</code></td>
+<td><strong>Background block</strong></td>
+<td>Starts supervised background work, returns <code>null</code> immediately, and discards its final value. Supports import headers.</td>
+</tr>
+<tr class="even">
 <td><code>{= ... }</code></td>
 <td><strong>Map</strong></td>
 <td>Dictionary / key-value mappings. Example: <code>{= name="RiX", version=1 }</code></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>{\| ... }</code></td>
 <td><strong>Set</strong></td>
 <td>A collection of unique elements. Example: <code>{\| 1, 2, 3 }</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>{: ... }</code></td>
 <td><strong>Tuple</strong></td>
 <td>Fixed-length collection. Example: <code>{: x, y, z }</code></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>{&gt; ... }</code></td>
 <td><strong>Multifunction</strong></td>
 <td>Ordered callable variants; nested multifunctions flatten in source order.</td>

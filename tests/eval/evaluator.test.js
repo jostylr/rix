@@ -2,7 +2,7 @@ import { describe, test, expect, beforeEach } from "bun:test";
 import { tokenize } from "../../src/parser/tokenizer.js";
 import { parse } from "../../src/parser/parser.js";
 import { lower } from "../../src/eval/lower.js";
-import { evaluate, createDefaultRegistry, createDefaultSystemContext, parseAndEvaluate } from "../../src/eval/evaluator.js";
+import { evaluate, createDefaultRegistry, createDefaultSystemContext, parseAndEvaluate, parseAndEvaluateAsync } from "../../src/eval/evaluator.js";
 import { Context } from "../../src/runtime/context.js";
 import { Integer, Rational, BaseSystem } from "@ratmath/core";
 import { getDiagnostics } from "../../src/runtime/diagnostics.js";
@@ -473,8 +473,8 @@ describe("RiX Evaluator", () => {
             expect(evalRix("y;", ctx).value).toBe(4n);
         });
 
-        test("{$ blocks are reserved for future async/concurrency syntax", () => {
-            expect(() => evalRix("{$ x }")).toThrow(/reserved for future async\/concurrency/);
+        test("{$ blocks await and return their final value", async () => {
+            expect((await parseAndEvaluateAsync("{$ 7 };")).value).toBe(7n);
         });
 
         test("copy import same-name does not write back on plain assignment", () => {

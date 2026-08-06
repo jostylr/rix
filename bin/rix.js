@@ -21,6 +21,8 @@ import {
     createDefaultRegistry,
     createDefaultSystemContext,
     parseAndEvaluate,
+    parseAndEvaluateAsync,
+    drainBackgroundTasks,
     renderOutputHtml,
     getDiagnostics,
     isRixAbort,
@@ -55,6 +57,16 @@ const WEB_PAGE_ENTRY = path.resolve(TOOL_DIR, "web-page.js");
 const WEB_PAGE_STYLE = path.resolve(TOOL_DIR, "web-page.css");
 const BUILT_PLUGIN_IDS = new Set(["exact-algebras", "draw", "plot", "float", "example-array-js", "example-array-rix"]);
 const STANDARD_PLUGIN_IDS = new Set(["exact-algebras", "draw", "plot", "float"]);
+
+function sourceUsesAsyncBlocks(source) {
+    return tokenize(source).some((token) => token.value === "{$" || token.value === "{$$");
+}
+
+function evaluateSource(source, options) {
+    return sourceUsesAsyncBlocks(source)
+        ? parseAndEvaluateAsync(source, options)
+        : Promise.resolve(parseAndEvaluate(source, options));
+}
 
 function usage() {
     return `Usage:
@@ -816,13 +828,14 @@ async function main() {
             }
             const artifacts = [];
             if (outDir) context.setEnv("__output_sink__", (artifact) => artifacts.push(artifact));
-            const result = parseAndEvaluate(source, {
+            const result = await evaluateSource(source, {
                 context,
                 registry,
                 systemContext,
                 file: path.resolve(inputFile),
                 operatorDefinitions: sourceOperatorDefinitions,
             });
+            await drainBackgroundTasks(context);
             const written = await writeArtifacts({
                 outDir,
                 artifacts,
@@ -904,7 +917,7 @@ async function main() {
             });
         }
         if (preamblePath) {
-            parseAndEvaluate(preambleSource, {
+            await evaluateSource(preambleSource, {
                 context,
                 registry,
                 systemContext,
@@ -1098,7 +1111,7 @@ async function main() {
 
         rl.prompt();
 
-        rl.on("line", (line) => {
+        rl.on("line", async (line) => {
             if (buffer === "" && !multilineMode && line.trim().startsWith(".")) {
                 const m = line.trim().slice(1).match(/^([a-z]+)/);
                 if (m && REPL_COMMANDS.has(m[1])) {
@@ -1132,12 +1145,18 @@ async function main() {
             }
 
             try {
-                const result = parseAndEvaluate(buffer, {
+                const evaluationOptions = {
                     context,
                     registry,
                     systemContext,
                     operatorDefinitions: replOperatorDefinitions,
-                });
+                };
+                // Keep ordinary REPL submissions fully synchronous so multiple
+                // lines already buffered by readline cannot overlap. Async
+                // syntax deliberately yields until its scope has completed.
+                const result = sourceUsesAsyncBlocks(buffer)
+                    ? await parseAndEvaluateAsync(buffer, evaluationOptions)
+                    : parseAndEvaluate(buffer, evaluationOptions);
                 
                 const diag = getDiagnostics(context);
                 const tracesList = diag.getEventsByKind("trace");

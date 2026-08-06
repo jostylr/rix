@@ -6,7 +6,7 @@
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/design/parser/spec.html</loc>
-    <lastmod>2026-08-05T14:33:28.158Z</lastmod>
+    <lastmod>2026-08-06T13:21:35.286Z</lastmod>
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/design/plugins.html</loc>
@@ -62,7 +62,7 @@
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/reference/system-reference.html</loc>
-    <lastmod>2026-08-06T12:36:51.727Z</lastmod>
+    <lastmod>2026-08-06T13:28:14.354Z</lastmod>
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/eval/methods-guide.html</loc>
@@ -78,7 +78,7 @@
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/introduction.html</loc>
-    <lastmod>2026-08-05T14:30:45.968Z</lastmod>
+    <lastmod>2026-08-06T13:21:34.922Z</lastmod>
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/language-at-a-glance.html</loc>
@@ -98,7 +98,7 @@
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/status.html</loc>
-    <lastmod>2026-08-05T14:33:20.687Z</lastmod>
+    <lastmod>2026-08-06T13:21:35.044Z</lastmod>
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/eval/output-guide.html</loc>
@@ -106,7 +106,7 @@
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/eval/syntax-guide.html</loc>
-    <lastmod>2026-08-05T14:33:20.573Z</lastmod>
+    <lastmod>2026-08-06T13:21:34.804Z</lastmod>
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/eval/types-and-traits-guide.html</loc>
@@ -118,11 +118,11 @@
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/eval/README.html</loc>
-    <lastmod>2026-08-05T14:32:09.434Z</lastmod>
+    <lastmod>2026-08-06T13:21:34.683Z</lastmod>
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/parser/parsing.html</loc>
-    <lastmod>2026-08-05T14:33:20.801Z</lastmod>
+    <lastmod>2026-08-06T13:21:35.405Z</lastmod>
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/parser/AST-brief.html</loc>
@@ -138,7 +138,7 @@
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/design/eval/async-concurrency.html</loc>
-    <lastmod>2026-08-06T12:36:01.169Z</lastmod>
+    <lastmod>2026-08-06T13:23:00.854Z</lastmod>
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/design/eval/cayley-polar.html</loc>
