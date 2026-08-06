@@ -3,7 +3,9 @@
  *
  * A scheduler admits source items, not individual awaits. Callers decide the
  * lifetime of an item by keeping the promise returned from run() pending until
- * the item has passed through its complete fused pipeline region.
+ * the item has passed through its complete fused pipeline region. An admitted
+ * item may temporarily yield its ticket while a nested structural fan-out runs
+ * and reacquire it before continuing.
  */
 export class AsyncScheduler {
     constructor(limit) {
@@ -16,12 +18,56 @@ export class AsyncScheduler {
         this.cancelled = false;
         this.cancelReason = null;
         this.idleWaiters = [];
+        this.defaultGroup = this.createGroup(limit);
     }
 
-    run(task) {
-        if (this.cancelled) return Promise.reject(this.cancelReason);
+    createGroup(limit = this.limit, parent = null) {
+        if (!Number.isSafeInteger(limit) || limit < 1) {
+            throw new Error("Async concurrency limit must be a positive safe integer");
+        }
+        const group = {
+            limit: Math.min(limit, parent?.limit ?? this.limit),
+            parent,
+            children: new Set(),
+            inFlight: 0,
+            cancelled: false,
+            cancelReason: null,
+        };
+        parent?.children.add(group);
+        return group;
+    }
+
+    run(task, group = this.defaultGroup) {
+        const cancellation = this.#cancellationFor(group);
+        if (cancellation) return Promise.reject(cancellation);
         return new Promise((resolve, reject) => {
-            this.queue.push({ task, resolve, reject });
+            this.queue.push({ kind: "task", task, resolve, reject, group });
+            this.#admit();
+        });
+    }
+
+    suspend(ticket) {
+        if (!ticket?.active) return false;
+        ticket.active = false;
+        this.active--;
+        this.#adjustInFlight(ticket.group, -1);
+        this.#admit();
+        this.#notifyIdle();
+        return true;
+    }
+
+    resume(ticket) {
+        if (!ticket || ticket.active) return Promise.resolve();
+        const cancellation = this.#cancellationFor(ticket.group);
+        if (cancellation) return Promise.reject(cancellation);
+        return new Promise((resolve, reject) => {
+            this.queue.push({
+                kind: "resume",
+                ticket,
+                group: ticket.group,
+                resolve,
+                reject,
+            });
             this.#admit();
         });
     }
@@ -35,35 +81,113 @@ export class AsyncScheduler {
         this.#notifyIdle();
     }
 
-    waitForIdle() {
-        if (this.active === 0 && this.queue.length === 0) return Promise.resolve();
-        return new Promise((resolve) => this.idleWaiters.push(resolve));
+    cancelGroup(group, reason = new Error("Async scope cancelled")) {
+        if (!group || group.cancelled) return;
+        const cancelledGroups = new Set();
+        const markCancelled = (current) => {
+            if (current.cancelled) return;
+            current.cancelled = true;
+            current.cancelReason = reason;
+            cancelledGroups.add(current);
+            for (const child of current.children) markCancelled(child);
+        };
+        markCancelled(group);
+        const retained = [];
+        for (const entry of this.queue) {
+            if (cancelledGroups.has(entry.group)) entry.reject(reason);
+            else retained.push(entry);
+        }
+        this.queue = retained;
+        this.#admit();
+        this.#notifyIdle();
+    }
+
+    waitForIdle(group = null) {
+        if (this.#isIdle(group)) return Promise.resolve();
+        return new Promise((resolve) => this.idleWaiters.push({ group, resolve }));
+    }
+
+    closeGroup(group) {
+        if (!group || !this.#isIdle(group)) return false;
+        group.parent?.children.delete(group);
+        return true;
     }
 
     #admit() {
         while (!this.cancelled && this.active < this.limit && this.queue.length > 0) {
-            const entry = this.queue.shift();
+            const index = this.queue.findIndex((entry) => this.#canAdmit(entry.group));
+            if (index < 0) break;
+            const [entry] = this.queue.splice(index, 1);
             this.active++;
+            this.#adjustInFlight(entry.group, 1);
+            if (entry.kind === "resume") {
+                entry.ticket.active = true;
+                entry.resolve();
+                continue;
+            }
+            const ticket = { group: entry.group, active: true };
             Promise.resolve()
-                .then(entry.task)
+                .then(() => entry.task(ticket))
                 .then(entry.resolve, (error) => {
                     // Fail fast: stop admitting queued siblings before the
                     // rejected item releases its slot.
-                    this.cancel(error);
+                    this.cancelGroup(entry.group, error);
                     entry.reject(error);
                 })
                 .finally(() => {
-                    this.active--;
+                    if (ticket.active) {
+                        ticket.active = false;
+                        this.active--;
+                        this.#adjustInFlight(entry.group, -1);
+                    }
                     this.#admit();
                     this.#notifyIdle();
                 });
         }
     }
 
+    #canAdmit(group) {
+        if (this.cancelled) return false;
+        for (let current = group; current; current = current.parent) {
+            if (current.cancelled || current.inFlight >= current.limit) return false;
+        }
+        return true;
+    }
+
+    #adjustInFlight(group, delta) {
+        for (let current = group; current; current = current.parent) {
+            current.inFlight += delta;
+        }
+    }
+
+    #cancellationFor(group) {
+        if (this.cancelled) return this.cancelReason;
+        for (let current = group; current; current = current.parent) {
+            if (current.cancelled) return current.cancelReason;
+        }
+        return null;
+    }
+
+    #isDescendant(group, ancestor) {
+        for (let current = group; current; current = current.parent) {
+            if (current === ancestor) return true;
+        }
+        return false;
+    }
+
+    #isIdle(group) {
+        if (!group) return this.active === 0 && this.queue.length === 0;
+        if (group.inFlight !== 0) return false;
+        return !this.queue.some((entry) => this.#isDescendant(entry.group, group));
+    }
+
     #notifyIdle() {
-        if (this.active !== 0 || this.queue.length !== 0) return;
-        const waiters = this.idleWaiters.splice(0);
-        for (const resolve of waiters) resolve();
+        const pending = [];
+        for (const waiter of this.idleWaiters) {
+            if (this.#isIdle(waiter.group)) waiter.resolve();
+            else pending.push(waiter);
+        }
+        this.idleWaiters = pending;
     }
 }
 

@@ -29,7 +29,7 @@ The repository test suite currently covers 1,700+ cases across parser, evaluator
 | Area | Boundary |
 |---|---|
 | Symbolic work | `{# ... }` represents multi-symbol systems, but arithmetic/calculus remain a tested single-expression exact subset. Transcendental rules, general solving, and numerical calculus belong outside that subset. |
-| Mathematical systems and async follow-up | `{# ... }` preserves definitions, constraints, symbols, and advisory input/output roles; solving is delegated to plugins. Async matrices/tensors, lazy bounded pull, all pipe barriers, worker execution, snapshot/COW task writes, and capability-level abort signals remain follow-up work. |
+| Mathematical systems and async follow-up | `{# ... }` preserves definitions, constraints, symbols, and advisory input/output roles; solving is delegated to plugins. Async finite collections, matrices/tensors, nested scope caps, and finite pipe barriers are implemented. Lazy bounded pull, worker execution, snapshot/COW task writes, stable task paths, and capability-level abort signals remain follow-up work. |
 | Real approximation | the default runtime is exact-first. The repository includes a float package example, but a unified real/oracle layer is not part of the default surface. |
 | Browser use | the parser demo runs in the browser. Full evaluator imports currently include Node file APIs, so evaluator embedding needs a host adapter for browser-only use. |
 | Packaging | the package uses `@ratmath/core` through the parent Bun workspace and has not yet declared a stable standalone release workflow. |

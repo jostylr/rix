@@ -6,16 +6,18 @@ toc-depth: 4
 
 # Status
 
-This is the normative design and implementation tracker. The initial runtime
-slice is implemented: syntax and IR, code-block import headers, async host APIs,
-FIFO bounded finite-collection scheduling, nested arrays/maps/tuples/sets,
-fused `|>>` and `|>?`, ordered `|>||`, `|>&&`, named async breaks, and
-supervised/drainable `{$$ ... }` tasks. `{# ... }` remains the inert
-symbolic-system form.
+This is the normative design and implementation tracker. The current runtime
+slice includes syntax and IR, code-block import headers, async host APIs,
+grouped FIFO bounded scheduling, nested scope-limit composition, concurrent
+arrays/maps/tuples/sets/matrices/tensors, fused `|>>` and `|>?`, ordered
+`|>||` and `|>&&`, promise-aware reduce/sort/slice/split/chunk barriers, named
+async breaks, and supervised/drainable `{$$ ... }` tasks. `{# ... }` remains
+the inert symbolic-system form.
 
-Still planned are matrices/tensors, bounded lazy-source pull, async structural
-pipe barriers, complete task snapshot/copy-on-write enforcement, deterministic
-task RNG streams, worker execution, and capability-level cooperative abort.
+Still planned are bounded lazy-source pull, complete task
+snapshot/copy-on-write enforcement, deterministic task RNG streams, worker
+execution, stable task-path diagnostics, and capability-level cooperative
+abort.
 
 The proposal deliberately separates two operations:
 
@@ -231,6 +233,9 @@ resolved. Its source key/element order is retained.
 
 A suspended structural parent yields scheduler capacity while nested children
 run. This prevents a nested collection from deadlocking when the limit is 1.
+The same rule applies when a called RiX function reaches a collection or nested
+async scope: its source-item ticket is temporarily yielded and reacquired after
+the structural work completes.
 
 ## Map entries
 
@@ -368,6 +373,13 @@ The scheduler is work-conserving but deterministic about admission:
 - a barrier consumes values in source order even if they arrived out of order;
 - nested scopes share the ancestor scheduler rather than creating capacity;
 - waiting scope controllers do not hold leaf permits.
+
+Each nested scope owns a scheduler group. A group's in-flight count includes
+all descendant groups, so `{$outer:4$ {$inner:2$ ... } }` can use at most two
+slots in `inner` and at most four across `outer`. Cancellation is group-local:
+a handled break in `inner` rejects its queued descendants without cancelling
+independent `outer` siblings. Running capability work remains cooperative and
+is drained before the owning scope returns.
 
 The scheduler must attach a stable path to each item, for example
 `scope jobs / map entry a / array index 2 / pipe stage H`. Diagnostics, output,
@@ -709,8 +721,10 @@ reactive batch later publishes `result` and `status` together.
 ## 3. Scheduler and task contexts
 
 - [x] Add a runtime-owned `TaskScheduler` with ordered admission, bounded
-  permits, cancellation, stable task paths, and cleanup draining.
-- [ ] Implement effective-limit composition for nested scopes and host caps.
+  permits, grouped cancellation, and cleanup draining.
+- [ ] Attach stable task paths to scheduler entries and diagnostics.
+- [x] Implement effective-limit composition for nested scopes. A distinct host
+  maximum remains follow-up configuration work.
 - [x] Ensure structural parents do not retain leaf permits
   while awaiting children.
 - [ ] Add task-local `Context` forks with snapshot/copy-on-write reads and
@@ -721,10 +735,12 @@ reactive batch later publishes `result` and `status` together.
 
 ## 4. Concurrent collection construction
 
-- [ ] Add async planning/evaluation for arrays, brace arrays, tuples, sets,
+- [x] Add async planning/evaluation for arrays, brace arrays, tuples, sets,
   maps, matrices, and tensors.
-- [ ] Recursively inherit concurrency through called functions and nested
-  explicit constructors.
+- [x] Recursively inherit concurrency through called functions and nested
+  explicit constructors, yielding an enclosing item permit around fan-out.
+- [ ] Give fan-out discovered inside opaque calls stable admission priority
+  relative to already queued later siblings.
 - [x] Preserve source-order result assembly despite completion-order slot fills.
 - [x] Implement finite map key/value and insertion-order rules.
 - [x] Treat pre-existing collections as data sources without re-evaluation.
@@ -737,15 +753,15 @@ reactive batch later publishes `result` and `status` together.
 - [x] Add a planner that flattens supported pipe chains before source evaluation.
 - [x] Classify every current pipe operator as elementwise, terminal, or barrier.
 - [x] Implement end-to-end permit retention through finite `|>>` and `|>?` stages.
-- [ ] Preserve collection shape, locators, callback arguments, strings, maps,
-  tensors, and source-order result assembly.
+- [x] Preserve collection shape, locators, callback arguments, strings, maps,
+  tensors, and source-order result assembly for finite eager sources.
 - [x] Implement ordered `|>||`, including buffering a later passing result until
   every earlier candidate fails.
 - [ ] Implement `|>&&` cancellation once a falsy result determines the outcome.
-- [ ] Implement ordered reduce barriers with concurrent upstream stages.
-- [ ] Implement stable async sort and the remaining structural barriers.
-- [ ] Test pipelines separated by multiple barriers and nested inside collection
-  entries.
+- [x] Implement ordered reduce barriers with concurrent upstream stages.
+- [x] Implement stable async sort and promise-aware finite structural barriers.
+- [x] Test pipelines separated by multiple barriers. Nested barrier expressions
+  inside collection entries remain follow-up coverage.
 - [ ] Test infinite/lazy sources for strict bounded admission and early terminal
   cancellation.
 

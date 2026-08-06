@@ -392,7 +392,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li>Diagnostics, testing helpers, tracing, and debug events</li>
 <li>Runtime error messages with line/column source locations when source text is available through <code>parseAndEvaluate()</code> or script imports</li>
 <li>First-class unit, quantity, and exact-generator values loaded through the <code>.Units</code> and <code>.Exact</code> RiX map collections</li>
-<li>Promise-aware evaluation, bounded <code>{$ ... }</code> collection concurrency, fused map/filter/find/all pipes, named async breaks, and supervised <code>{$$ ... }</code> background blocks</li>
+<li>Promise-aware evaluation, bounded <code>{$ ... }</code> collection concurrency, fused map/filter/find/all pipes, nested limit groups, finite matrix/tensor fan-out, ordered reduce and structural barriers, named async breaks, and supervised <code>{$$ ... }</code> background blocks</li>
 </ul>
 <p>The main entry points are:</p>
 <ul>
@@ -410,7 +410,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <ul>
 <li>Exact symbolic derivative/integral support is intentionally bounded; general transcendental and multi-equation calculus remains future work.</li>
 <li>Array generators, lazy sequences, interval stepping/division/partitions, mediants, random sampling, and infinite arithmetic sequences are implemented.</li>
-<li><code>{# ... }</code> retains symbolic definitions and constraints for plugins without solving them. The initial async runtime supports finite arrays, brace arrays, tuples, sets, maps, and fused <code>|&gt;&gt;</code>/<code>|&gt;?</code>/<code>|&gt;||</code>/<code>|&gt;&amp;&amp;</code>; matrices, tensors, lazy sources, structural pipe barriers, worker execution, and full cooperative capability cancellation remain follow-up work.</li>
+<li><code>{# ... }</code> retains symbolic definitions and constraints for plugins without solving them. The async runtime supports finite collections, matrices, tensors, fused <code>|&gt;&gt;</code>/<code>|&gt;?</code>/<code>|&gt;||</code>/<code>|&gt;&amp;&amp;</code>, and finite structural barriers. Lazy bounded pull, worker execution, snapshot/COW task isolation, and full cooperative capability cancellation remain follow-up work.</li>
 <li>General algebraic field composition and user-declared cross-generator relations remain future work; built-in exact generators reduce their known single-generator relations.</li>
 </ul>
 <p>Run the evaluator tests from this directory with:</p>

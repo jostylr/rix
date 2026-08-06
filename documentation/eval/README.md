@@ -20,8 +20,9 @@ This is the active RiX runtime, not a stub. It currently supports:
 - First-class unit, quantity, and exact-generator values loaded through the
   `.Units` and `.Exact` RiX map collections
 - Promise-aware evaluation, bounded `{$ ... }` collection concurrency, fused
-  map/filter/find/all pipes, named async breaks, and supervised `{$$ ... }`
-  background blocks
+  map/filter/find/all pipes, nested limit groups, finite matrix/tensor fan-out,
+  ordered reduce and structural barriers, named async breaks, and supervised
+  `{$$ ... }` background blocks
 
 The main entry points are:
 
@@ -42,9 +43,9 @@ The following evaluator capabilities are intentionally still stubs or partial:
 - Array generators, lazy sequences, interval stepping/division/partitions,
   mediants, random sampling, and infinite arithmetic sequences are implemented.
 - `{# ... }` retains symbolic definitions and constraints for plugins without
-  solving them. The initial async runtime supports finite arrays, brace arrays,
-  tuples, sets, maps, and fused `|>>`/`|>?`/`|>||`/`|>&&`; matrices, tensors,
-  lazy sources, structural pipe barriers, worker execution, and full
+  solving them. The async runtime supports finite collections, matrices,
+  tensors, fused `|>>`/`|>?`/`|>||`/`|>&&`, and finite structural barriers.
+  Lazy bounded pull, worker execution, snapshot/COW task isolation, and full
   cooperative capability cancellation remain follow-up work.
 - General algebraic field composition and user-declared cross-generator
   relations remain future work; built-in exact generators reduce their known

@@ -87,6 +87,130 @@ describe("RiX async and concurrency", () => {
         expect(Number(result.entries.get("b").value)).toBe(3);
     });
 
+    test("a called function yields its item permit while constructing a nested collection", async () => {
+        const starts = [];
+        const releases = new Map();
+        const systemContext = asyncSystem("work", ([value]) => new Promise((resolve) => {
+            const number = Number(value.value);
+            starts.push(number);
+            releases.set(number, () => {
+                releases.delete(number);
+                resolve(value);
+            });
+        }));
+
+        const evaluation = parseAndEvaluateAsync(
+            "Build() -> [.work(1), .work(2)]; {$:1$ <Build> [Build()] };",
+            { systemContext },
+        );
+        await waitUntil(() => releases.has(1), "first called-function child");
+        expect(starts).toEqual([1]);
+        releases.get(1)();
+        await waitUntil(() => releases.has(2), "second called-function child");
+        releases.get(2)();
+
+        const result = await evaluation;
+        expect(result.values[0].values.map((value) => Number(value.value))).toEqual([1, 2]);
+    });
+
+    test("tensor literal cells fan out and retain row-major assembly", async () => {
+        const starts = [];
+        const releases = new Map();
+        const systemContext = asyncSystem("work", ([value]) => new Promise((resolve) => {
+            const number = Number(value.value);
+            starts.push(number);
+            releases.set(number, () => {
+                releases.delete(number);
+                resolve(value);
+            });
+        }));
+
+        const evaluation = parseAndEvaluateAsync(
+            "{$:2$ {:2x2: .work(1), .work(2); .work(3), .work(4)} };",
+            { systemContext },
+        );
+        await waitUntil(() => releases.size === 2, "first tensor cells");
+        expect(starts).toEqual([1, 2]);
+        releases.get(2)();
+        await waitUntil(() => releases.has(3), "third tensor cell");
+        releases.get(1)();
+        await waitUntil(() => releases.has(4), "fourth tensor cell");
+        releases.get(3)();
+        releases.get(4)();
+
+        const result = await evaluation;
+        expect(result.shape).toEqual([2, 2]);
+        expect(result.data.map((value) => Number(value.value))).toEqual([1, 2, 3, 4]);
+    });
+
+    test("a nested scope enforces its stricter limit without escaping the parent cap", async () => {
+        const starts = [];
+        const releases = new Map();
+        let active = 0;
+        let maxActive = 0;
+        const systemContext = asyncSystem("work", ([value]) => new Promise((resolve) => {
+            const number = Number(value.value);
+            starts.push(number);
+            active++;
+            maxActive = Math.max(maxActive, active);
+            releases.set(number, () => {
+                releases.delete(number);
+                active--;
+                resolve(value);
+            });
+        }));
+
+        const evaluation = parseAndEvaluateAsync(
+            "{$:3$ {$:1$ [.work(1), .work(2), .work(3)] } };",
+            { systemContext },
+        );
+        await waitUntil(() => releases.has(1), "first nested task");
+        expect(starts).toEqual([1]);
+        releases.get(1)();
+        await waitUntil(() => releases.has(2), "second nested task");
+        expect(starts).toEqual([1, 2]);
+        releases.get(2)();
+        await waitUntil(() => releases.has(3), "third nested task");
+        releases.get(3)();
+
+        const result = await evaluation;
+        expect(result.values.map((value) => Number(value.value))).toEqual([1, 2, 3]);
+        expect(maxActive).toBe(1);
+    });
+
+    test("a nested named break cancels only that scope's queued descendants", async () => {
+        const starts = [];
+        const releases = new Map();
+        const systemContext = asyncSystem("finish", ([value]) => new Promise((resolve) => {
+            const number = Number(value.value);
+            starts.push(number);
+            releases.set(number, () => {
+                releases.delete(number);
+                resolve(value);
+            });
+        }));
+
+        const evaluation = parseAndEvaluateAsync(
+            "{$:2$ ["
+                + "{$inner:1$ ["
+                + ".finish(1) |> ((x) -> {!$inner! x }), "
+                + ".finish(2) |> ((x) -> {!$inner! x })"
+                + "] }, "
+                + ".finish(3)"
+                + "] };",
+            { systemContext },
+        );
+        await waitUntil(() => releases.has(1) && releases.has(3), "nested racer and outer sibling");
+        expect(starts).toEqual([1, 3]);
+        releases.get(1)();
+        await waitUntil(() => !releases.has(1), "nested break cleanup");
+        expect(starts).toEqual([1, 3]);
+        releases.get(3)();
+
+        const result = await evaluation;
+        expect(result.values.map((value) => Number(value.value))).toEqual([1, 3]);
+    });
+
     test("async code blocks support import headers and await statements in order", async () => {
         const events = [];
         const systemContext = asyncSystem("record", async ([value]) => {
@@ -117,6 +241,23 @@ describe("RiX async and concurrency", () => {
         );
         expect(result.values.map((value) => Number(value.value))).toEqual([4, 6]);
         expect(maxActive).toBe(2);
+    });
+
+    test("tensor map stages preserve shape and receive index-tuple locators", async () => {
+        const locators = [];
+        const systemContext = asyncSystem("withIndex", async ([value, locator]) => {
+            locators.push(locator.values.map((index) => Number(index.value)));
+            await Promise.resolve();
+            return value;
+        });
+        const result = await parseAndEvaluateAsync(
+            "matrix := {:2x2: 1, 2; 3, 4}; "
+                + "{$:2$ <matrix> matrix |>> ((x, index) -> .withIndex(x, index)) };",
+            { systemContext },
+        );
+        expect(result.shape).toEqual([2, 2]);
+        expect(result.data.map((value) => Number(value.value))).toEqual([1, 2, 3, 4]);
+        expect(locators).toEqual([[1, 1], [1, 2], [2, 1], [2, 2]]);
     });
 
     test("an item continues through a fused pipe before a slower sibling resolves", async () => {
@@ -171,6 +312,107 @@ describe("RiX async and concurrency", () => {
             "{$:2$ [1, 2, 3, 4] |>? ((x) -> x > 2) |>&& ((x) -> x < 5) };",
         );
         expect(result.value).toBe(4n);
+    });
+
+    test("ordered reduce waits for concurrent upstream work and awaits one accumulator at a time", async () => {
+        const starts = [];
+        const releases = new Map();
+        const reduced = [];
+        let activeReducers = 0;
+        let maxReducers = 0;
+        const systemContext = createDefaultSystemContext({ frozen: false });
+        systemContext.registerHost("source", {
+            impl: ([value]) => new Promise((resolve) => {
+                const number = Number(value.value);
+                starts.push(number);
+                releases.set(number, () => {
+                    releases.delete(number);
+                    resolve(value);
+                });
+            }),
+        });
+        systemContext.registerHost("sum", {
+            impl: async ([accumulator, value]) => {
+                reduced.push(Number(value.value));
+                activeReducers++;
+                maxReducers = Math.max(maxReducers, activeReducers);
+                await Promise.resolve();
+                activeReducers--;
+                return new Integer(accumulator.value + value.value);
+            },
+        });
+        systemContext.freeze();
+
+        const evaluation = parseAndEvaluateAsync(
+            "{$:3$ [.source(1), .source(2), .source(3)] "
+                + "|>> ((x) -> x * 2) "
+                + "|:> 0 >: ((acc, x) -> .sum(acc, x)) };",
+            { systemContext },
+        );
+        await waitUntil(() => releases.size === 3, "concurrent reduce source items");
+        expect(starts).toEqual([1, 2, 3]);
+        releases.get(3)();
+        releases.get(1)();
+        releases.get(2)();
+
+        const result = await evaluation;
+        expect(result.value).toBe(12n);
+        expect(reduced).toEqual([2, 4, 6]);
+        expect(maxReducers).toBe(1);
+    });
+
+    test("sort is a stable barrier with a promise-aware comparator", async () => {
+        const comparisons = [];
+        const systemContext = asyncSystem("compare", async ([left, right]) => {
+            const leftKey = left.values[0].value;
+            const rightKey = right.values[0].value;
+            comparisons.push([Number(leftKey), Number(rightKey)]);
+            await Promise.resolve();
+            return new Integer(leftKey < rightKey ? -1n : leftKey > rightKey ? 1n : 0n);
+        });
+        const result = await parseAndEvaluateAsync(
+            "{$ [{: 2, 1 }, {: 1, 2 }, {: 2, 3 }] "
+                + "|<> ((a, b) -> .compare(a, b)) };",
+            { systemContext },
+        );
+        expect(result.values.map((tuple) => Number(tuple.values[1].value))).toEqual([2, 1, 3]);
+        expect(comparisons.length).toBeGreaterThan(0);
+    });
+
+    test("elementwise regions resume after sort and slice barriers", async () => {
+        const result = await parseAndEvaluateAsync(
+            "{$:2$ [3, 1, 4, 2] "
+                + "|>> ((x) -> x * 10) "
+                + "|<> ((a, b) -> a - b) "
+                + "|>/ 2:3 "
+                + "|>> ((x) -> x + 1) };",
+        );
+        expect(result.values.map((value) => Number(value.value))).toEqual([21, 31]);
+    });
+
+    test("split and chunk barriers await promise-aware predicates in order", async () => {
+        const visits = [];
+        const systemContext = asyncSystem("even", async ([value]) => {
+            visits.push(Number(value.value));
+            await Promise.resolve();
+            return value.value % 2n === 0n ? value : null;
+        });
+        const split = await parseAndEvaluateAsync(
+            "{$ [1, 2, 3, 4] |>/| ((x) -> .even(x)) };",
+            { systemContext },
+        );
+        expect(split.values.map((piece) => piece.values.map((value) => Number(value.value))))
+            .toEqual([[1], [3], []]);
+        expect(visits).toEqual([1, 2, 3, 4]);
+
+        visits.length = 0;
+        const chunked = await parseAndEvaluateAsync(
+            "{$ [1, 2, 3, 4] |>#| ((x) -> .even(x)) };",
+            { systemContext },
+        );
+        expect(chunked.values.map((piece) => piece.values.map((value) => Number(value.value))))
+            .toEqual([[1, 2], [3, 4]]);
+        expect(visits).toEqual([1, 2, 3, 4]);
     });
 
     test("named async break races by completion and cancels queued siblings", async () => {

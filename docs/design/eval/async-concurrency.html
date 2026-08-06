@@ -485,8 +485,8 @@ window.Quarto = {
 
 <section id="status" class="level1">
 <h1>Status</h1>
-<p>This is the normative design and implementation tracker. The initial runtime slice is implemented: syntax and IR, code-block import headers, async host APIs, FIFO bounded finite-collection scheduling, nested arrays/maps/tuples/sets, fused <code>|&gt;&gt;</code> and <code>|&gt;?</code>, ordered <code>|&gt;||</code>, <code>|&gt;&amp;&amp;</code>, named async breaks, and supervised/drainable <code>{$$ ... }</code> tasks. <code>{# ... }</code> remains the inert symbolic-system form.</p>
-<p>Still planned are matrices/tensors, bounded lazy-source pull, async structural pipe barriers, complete task snapshot/copy-on-write enforcement, deterministic task RNG streams, worker execution, and capability-level cooperative abort.</p>
+<p>This is the normative design and implementation tracker. The current runtime slice includes syntax and IR, code-block import headers, async host APIs, grouped FIFO bounded scheduling, nested scope-limit composition, concurrent arrays/maps/tuples/sets/matrices/tensors, fused <code>|&gt;&gt;</code> and <code>|&gt;?</code>, ordered <code>|&gt;||</code> and <code>|&gt;&amp;&amp;</code>, promise-aware reduce/sort/slice/split/chunk barriers, named async breaks, and supervised/drainable <code>{$$ ... }</code> tasks. <code>{# ... }</code> remains the inert symbolic-system form.</p>
+<p>Still planned are bounded lazy-source pull, complete task snapshot/copy-on-write enforcement, deterministic task RNG streams, worker execution, stable task-path diagnostics, and capability-level cooperative abort.</p>
 <p>The proposal deliberately separates two operations:</p>
 <ul>
 <li><code>{$ ... }</code> is an <strong>awaited concurrency scope</strong>. It permits explicitly independent work to overlap, waits for every required result or an early terminal result, and returns an ordinary RiX value.</li>
@@ -632,7 +632,7 @@ mapped := {$ existing |&gt;&gt; H }</code></pre>
     {= a=[F(), G()], b=H() }
 }</code></pre>
 <p>The admission sequence is <code>F()</code>, <code>G()</code>, <code>H()</code>. <code>F</code> and <code>G</code> start first. If <code>G</code> finishes while <code>F</code> remains active, <code>H</code> may begin. The internal slot for <code>b</code> may resolve before <code>a</code>, but the map is not published until every required slot is resolved. Its source key/element order is retained.</p>
-<p>A suspended structural parent yields scheduler capacity while nested children run. This prevents a nested collection from deadlocking when the limit is 1.</p>
+<p>A suspended structural parent yields scheduler capacity while nested children run. This prevents a nested collection from deadlocking when the limit is 1. The same rule applies when a called RiX function reaches a collection or nested async scope: its source-item ticket is temporarily yielded and reacquired after the structural work completes.</p>
 </section>
 <section id="map-entries" class="level2">
 <h2 class="anchored" data-anchor-id="map-entries">Map entries</h2>
@@ -778,6 +778,7 @@ mapped := {$ existing |&gt;&gt; H }</code></pre>
 <li>nested scopes share the ancestor scheduler rather than creating capacity;</li>
 <li>waiting scope controllers do not hold leaf permits.</li>
 </ul>
+<p>Each nested scope owns a scheduler group. A group’s in-flight count includes all descendant groups, so <code>{$outer:4$ {$inner:2$ ... } }</code> can use at most two slots in <code>inner</code> and at most four across <code>outer</code>. Cancellation is group-local: a handled break in <code>inner</code> rejects its queued descendants without cancelling independent <code>outer</code> siblings. Running capability work remains cooperative and is drained before the owning scope returns.</p>
 <p>The scheduler must attach a stable path to each item, for example <code>scope jobs / map entry a / array index 2 / pipe stage H</code>. Diagnostics, output, and suppressed errors use this path.</p>
 </section>
 <section id="scope-cells-and-effects" class="level1">
@@ -1008,8 +1009,9 @@ RenderMainView()</code></pre>
 <section id="scheduler-and-task-contexts" class="level2">
 <h2 class="anchored" data-anchor-id="scheduler-and-task-contexts">3. Scheduler and task contexts</h2>
 <ul class="task-list">
-<li><label><input type="checkbox" checked="">Add a runtime-owned <code>TaskScheduler</code> with ordered admission, bounded permits, cancellation, stable task paths, and cleanup draining.</label></li>
-<li><label><input type="checkbox">Implement effective-limit composition for nested scopes and host caps.</label></li>
+<li><label><input type="checkbox" checked="">Add a runtime-owned <code>TaskScheduler</code> with ordered admission, bounded permits, grouped cancellation, and cleanup draining.</label></li>
+<li><label><input type="checkbox">Attach stable task paths to scheduler entries and diagnostics.</label></li>
+<li><label><input type="checkbox" checked="">Implement effective-limit composition for nested scopes. A distinct host maximum remains follow-up configuration work.</label></li>
 <li><label><input type="checkbox" checked="">Ensure structural parents do not retain leaf permits while awaiting children.</label></li>
 <li><label><input type="checkbox">Add task-local <code>Context</code> forks with snapshot/copy-on-write reads and rejected ordinary outer writes.</label></li>
 <li><label><input type="checkbox">Derive deterministic random substreams from stable task paths.</label></li>
@@ -1019,8 +1021,9 @@ RenderMainView()</code></pre>
 <section id="concurrent-collection-construction" class="level2">
 <h2 class="anchored" data-anchor-id="concurrent-collection-construction">4. Concurrent collection construction</h2>
 <ul class="task-list">
-<li><label><input type="checkbox">Add async planning/evaluation for arrays, brace arrays, tuples, sets, maps, matrices, and tensors.</label></li>
-<li><label><input type="checkbox">Recursively inherit concurrency through called functions and nested explicit constructors.</label></li>
+<li><label><input type="checkbox" checked="">Add async planning/evaluation for arrays, brace arrays, tuples, sets, maps, matrices, and tensors.</label></li>
+<li><label><input type="checkbox" checked="">Recursively inherit concurrency through called functions and nested explicit constructors, yielding an enclosing item permit around fan-out.</label></li>
+<li><label><input type="checkbox">Give fan-out discovered inside opaque calls stable admission priority relative to already queued later siblings.</label></li>
 <li><label><input type="checkbox" checked="">Preserve source-order result assembly despite completion-order slot fills.</label></li>
 <li><label><input type="checkbox" checked="">Implement finite map key/value and insertion-order rules.</label></li>
 <li><label><input type="checkbox" checked="">Treat pre-existing collections as data sources without re-evaluation.</label></li>
@@ -1034,12 +1037,12 @@ RenderMainView()</code></pre>
 <li><label><input type="checkbox" checked="">Add a planner that flattens supported pipe chains before source evaluation.</label></li>
 <li><label><input type="checkbox" checked="">Classify every current pipe operator as elementwise, terminal, or barrier.</label></li>
 <li><label><input type="checkbox" checked="">Implement end-to-end permit retention through finite <code>|&gt;&gt;</code> and <code>|&gt;?</code> stages.</label></li>
-<li><label><input type="checkbox">Preserve collection shape, locators, callback arguments, strings, maps, tensors, and source-order result assembly.</label></li>
+<li><label><input type="checkbox" checked="">Preserve collection shape, locators, callback arguments, strings, maps, tensors, and source-order result assembly for finite eager sources.</label></li>
 <li><label><input type="checkbox" checked="">Implement ordered <code>|&gt;||</code>, including buffering a later passing result until every earlier candidate fails.</label></li>
 <li><label><input type="checkbox">Implement <code>|&gt;&amp;&amp;</code> cancellation once a falsy result determines the outcome.</label></li>
-<li><label><input type="checkbox">Implement ordered reduce barriers with concurrent upstream stages.</label></li>
-<li><label><input type="checkbox">Implement stable async sort and the remaining structural barriers.</label></li>
-<li><label><input type="checkbox">Test pipelines separated by multiple barriers and nested inside collection entries.</label></li>
+<li><label><input type="checkbox" checked="">Implement ordered reduce barriers with concurrent upstream stages.</label></li>
+<li><label><input type="checkbox" checked="">Implement stable async sort and promise-aware finite structural barriers.</label></li>
+<li><label><input type="checkbox" checked="">Test pipelines separated by multiple barriers. Nested barrier expressions inside collection entries remain follow-up coverage.</label></li>
 <li><label><input type="checkbox">Test infinite/lazy sources for strict bounded admission and early terminal cancellation.</label></li>
 </ul>
 </section>
