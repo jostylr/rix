@@ -25,6 +25,7 @@ import {
 } from "../../runtime/lazy-sequence.js";
 import { applySymbolicSpec, attachAutoSpec, isSymbolicSpec } from "./symbolic.js";
 import { isReactiveNode } from "../../runtime/reactive-graph.js";
+import { filterAsyncStream, isAsyncStream, mapAsyncStream } from "../../runtime/async-stream.js";
 
 const isTruthy = (val) => val !== null && val !== undefined;
 
@@ -345,6 +346,10 @@ export function callWithConcreteArgs(fn, callArgs, context, evaluate) {
         return callWithConcreteArgs(innerFn, args, context, evaluate);
     }
 
+    if (fn.type === "method_lift") {
+        return fn.invokeSync(callArgs, context, evaluate);
+    }
+
     if (isSymbolicSpec(fn)) {
         return applySymbolicSpec(fn, callArgs);
     }
@@ -412,6 +417,9 @@ function invokeTraversalCallback(func, callArgs, context, evaluate) {
             (max, t) => (t && t.type === "placeholder") ? Math.max(max, t.index) : max, 0
         );
         return callWithConcreteArgs(func, callArgs.slice(0, maxIdx), context, evaluate);
+    }
+    if (func && func.type === "method_lift") {
+        return callWithConcreteArgs(func, [callArgs[0]], context, evaluate);
     }
     if (func && func.type === "sysref") {
         return evaluate({ fn: func.name, args: callArgs });
@@ -1218,6 +1226,10 @@ export const functionFunctions = {
 
             const func = evaluate(funcNode);
 
+            if (isAsyncStream(collection)) {
+                return mapAsyncStream(collection, func);
+            }
+
             if (isLazySequence(collection)) {
                 return mapLazySequence(collection, (item, index, source) =>
                     invokeTraversalCallback(func, [item, new Integer(BigInt(index)), source], context, evaluate));
@@ -1303,6 +1315,10 @@ export const functionFunctions = {
             if (collection === null || collection === undefined) return null;
 
             const func = evaluate(funcNode);
+
+            if (isAsyncStream(collection)) {
+                return filterAsyncStream(collection, func);
+            }
 
             if (isLazySequence(collection)) {
                 return filterLazySequence(collection, (item, index, source) =>

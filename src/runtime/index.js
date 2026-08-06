@@ -9,6 +9,23 @@ export {
     isOperationalFault,
     faultToRixValue,
 } from "./operational-fault.js";
+export {
+    createAsyncStream,
+    asyncStreamFromIterable,
+    createHotAsyncStream,
+    isAsyncStream,
+    closeAsyncStream,
+    asyncStreamStatus,
+    asyncStreamCanCompleteWithoutPull,
+} from "./async-stream.js";
+export {
+    AsyncScheduler,
+    registerBackgroundTask,
+    drainBackgroundTasks,
+    registerAsyncResource,
+    unregisterAsyncResource,
+    disposeAsyncResources,
+} from "./async-runtime.js";
 export { createBinding, isBinding } from "./binding.js";
 export { createFormulaSheet, isFormulaSheet } from "./formula-sheet.js";
 export {

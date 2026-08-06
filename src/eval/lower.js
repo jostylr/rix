@@ -564,6 +564,11 @@ const LOWERERS = {
     return ir("CALL_METHOD", lowerNode(node.object), node.method, ...args);
   },
 
+  MethodLift(node) {
+    const args = lowerCallArgs(node.arguments);
+    return ir("METHOD_LIFT", node.method, ...args);
+  },
+
   PreparedTrial(node) {
     const gates = (node.gates || []).map((gate) => ({
       pattern: lowerDestructureTarget(gate.pattern),

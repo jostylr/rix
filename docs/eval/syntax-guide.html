@@ -404,6 +404,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#control-flow" id="toc-control-flow" class="nav-link" data-scroll-target="#control-flow">Control Flow</a></li>
   <li><a href="#collections" id="toc-collections" class="nav-link" data-scroll-target="#collections">Collections</a></li>
   <li><a href="#functional-pipes" id="toc-functional-pipes" class="nav-link" data-scroll-target="#functional-pipes">Functional / Pipes</a></li>
+  <li><a href="#async-streams" id="toc-async-streams" class="nav-link" data-scroll-target="#async-streams">Async streams</a></li>
   <li><a href="#functions" id="toc-functions" class="nav-link" data-scroll-target="#functions">Functions</a></li>
   <li><a href="#property-meta-access-1" id="toc-property-meta-access-1" class="nav-link" data-scroll-target="#property-meta-access-1">Property &amp; Meta Access</a></li>
   <li><a href="#regex" id="toc-regex" class="nav-link" data-scroll-target="#regex">Regex</a></li>
@@ -3156,6 +3157,62 @@ A := .Integrate({#x# 2*x }, {#x})
 </tbody>
 </table>
 </section>
+<section id="async-streams" class="level3">
+<h3 class="anchored" data-anchor-id="async-streams">Async streams</h3>
+<p><code>.Stream(collection, label?)</code> creates a cold <code>async_stream</code>. A stream is a linear pull handle, not a promise, lazy sequence, or materialized collection. Displaying it never pulls it. <code>stream |&gt;&gt; F</code> and <code>stream |&gt;? P</code> create lazy derived streams; an explicit terminal begins consumption.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Method</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>Map(F)</code>, <code>Filter(P)</code></td>
+<td>Lazy elementwise derived stream</td>
+</tr>
+<tr class="even">
+<td><code>Take(n)</code>, <code>Drop(n)</code></td>
+<td>Lazy ordered bound/offset stage</td>
+</tr>
+<tr class="odd">
+<td><code>Chunk(n)</code>, <code>Window(size, step?=1)</code></td>
+<td>Lazy ordered grouping stage</td>
+</tr>
+<tr class="even">
+<td><code>ForEach(F)</code></td>
+<td>Consume for effects; return null</td>
+</tr>
+<tr class="odd">
+<td><code>Reduce(initial, F)</code></td>
+<td>Consume and fold in source order</td>
+</tr>
+<tr class="even">
+<td><code>Collect()</code>, <code>Collect(n)</code></td>
+<td>Consume to a sequence, optionally bounded</td>
+</tr>
+<tr class="odd">
+<td><code>First()</code>, <code>Find(P)</code></td>
+<td>Consume until an early ordered result</td>
+</tr>
+<tr class="even">
+<td><code>Count()</code>, <code>Count(n)</code></td>
+<td>Count a finite stream or an explicit bound</td>
+</tr>
+<tr class="odd">
+<td><code>Close(reason?)</code>, <code>Done()</code>, <code>Status()</code></td>
+<td>Lifecycle and inspection</td>
+</tr>
+</tbody>
+</table>
+<p>Outside <code>{$ ... }</code>, terminals consume sequentially. Within <code>{$:L$ ... }</code>, safe map/filter work uses the structured scheduler with at most <code>L</code> executing items and a <code>2L</code> admitted-but-unpublished window. Results publish in source order, timeouts and cancellation are inherited, and the root source closes exactly once on completion, early result, error, timeout, cancellation, background shutdown, or host disposal. Stateful pipelines currently consume sequentially. <code>Collect(0)</code>, <code>Count(0)</code>, and <code>Take(0)</code> close without pulling the source.</p>
+<p>Host adapters can use the exported cold async-iterable and bounded hot-source constructors for HTTP bodies, file chunks, cursors, WebSockets, UI events, or timers. Hot queues require one of <code>:drop_oldest</code>, <code>:drop_latest</code>, <code>:error</code>, or producer-aware <code>:block</code> overflow policies.</p>
+</section>
 <section id="functions" class="level3">
 <h3 class="anchored" data-anchor-id="functions">Functions</h3>
 <table class="caption-top table">
@@ -3235,42 +3292,48 @@ A := .Integrate({#x# 2*x }, {#x})
 <td><code>obj.Method(args)</code>, <code>obj.Method!(args)</code></td>
 </tr>
 <tr class="even">
+<td><code>METHOD_LIFT(name, args...)</code></td>
+<td>Create <code>(value) -&gt; value.Method(args...)</code></td>
+<td><code>..Method</code>, <code>..Method(args...)</code></td>
+</tr>
+<tr class="odd">
 <td><code>INDEX_GET(obj, key)</code></td>
 <td>Index into collection (1-based for sequences/strings; normalized keys for maps)</td>
 <td><code>obj[expr]</code>, <code>obj[:name]</code>, <code>obj[:1]</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>INDEX_SET(obj, key, val)</code></td>
 <td>Set index (requires <code>._mutable</code> value flag)</td>
 <td><code>obj[i] = val</code></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>BRACKET_GET(obj, specs...)</code></td>
 <td>Tensor-aware bracket indexing and slicing</td>
 <td><code>obj[i, ::]</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>BRACKET_SET(obj, specs..., val)</code></td>
 <td>Tensor-aware bracket assignment</td>
 <td><code>obj[::, 1] = val</code></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.KEYOF(x)</code></td>
 <td>Resolve canonical map key string</td>
 <td><code>.KEYOF(x)</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.KEYS(obj)</code></td>
 <td>Get keys of map as set</td>
 <td><code>obj.\|</code>, <code>.KEYS(obj)</code></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.VALUES(obj)</code></td>
 <td>Get values of map as set</td>
 <td><code>obj\|.</code>, <code>.VALUES(obj)</code></td>
 </tr>
 </tbody>
 </table>
+<p>Prefix <code>..Method(args...)</code> is distinct from external meta access. <code>obj..</code> continues to return the external meta map, while <code>obj..name</code> remains invalid. For example, <code>stream |&gt;&gt; ..DecodeText("utf8")</code> is equivalent to <code>stream.Map((chunk) -&gt; chunk.DecodeText("utf8"))</code>.</p>
 <p><strong>Meta Property Categories:</strong></p>
 <p>Meta properties are classified by key prefix, which controls how they behave during <code>~=</code> / <code>~~=</code> (in-place value replacement):</p>
 <table class="caption-top table">

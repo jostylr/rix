@@ -319,6 +319,7 @@ export function registerBuiltinSemanticTypes() {
         ["Map", "map", ["maplike"], (value) => value?.type === "map" ? value : null],
         ["Set", "set", ["collection"], (value) => value?.type === "set" ? value : null],
         ["Iterator", "iterator", [], (value) => value?.type === "iterator" ? value : null],
+        ["AsyncStream", "async_stream", [], (value) => value?.type === "async_stream" ? value : null],
         ["Function", "function", [], (value) => value?.type === "function" || value?.type === "lambda" ? value : null],
         ["Multifunction", "multifunction", [], (value) => value?._ext?.get("_type")?.value === "multifunction" ? value : null],
         ["Null", "null", [], (value) => value === null ? value : null],

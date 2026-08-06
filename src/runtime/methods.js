@@ -34,6 +34,7 @@ import {
 } from "./exact-values.js";
 import { isUnitValue } from "./quantities.js";
 import { ensureLazyIndex, lazyKnownLength, materializeLazySequence } from "./lazy-sequence.js";
+import { asyncStreamMethodHelpers } from "./async-stream.js";
 import {
     collapseStructuralValue,
     formatStructuralValue,
@@ -811,6 +812,54 @@ const lazySequenceMethods = {
     MATERIALIZE: method("MATERIALIZE", ([target]) => materializeLazySequence(target)),
 };
 
+function requireAsyncStreamExecution(execution, methodName) {
+    if (!execution?.consume) {
+        throw new Error(`Async stream ${methodName} requires promise-aware RiX evaluation`);
+    }
+    return execution;
+}
+
+function optionalBound(value, label) {
+    if (value === undefined || value === null) return null;
+    return asyncStreamMethodHelpers.positiveInteger(value, label, { allowZero: true });
+}
+
+const asyncStreamMethods = {
+    MAP: method("MAP", ([target, mapper]) => asyncStreamMethodHelpers.mapAsyncStream(target, mapper)),
+    FILTER: method("FILTER", ([target, predicate]) => asyncStreamMethodHelpers.filterAsyncStream(target, predicate)),
+    TAKE: method("TAKE", ([target, count]) => asyncStreamMethodHelpers.takeAsyncStream(target, count)),
+    DROP: method("DROP", ([target, count]) => asyncStreamMethodHelpers.dropAsyncStream(target, count)),
+    CHUNK: method("CHUNK", ([target, size]) => asyncStreamMethodHelpers.chunkAsyncStream(target, size)),
+    WINDOW: method("WINDOW", ([target, size, step]) => asyncStreamMethodHelpers.windowAsyncStream(target, size, step)),
+    FOREACH: method("FOREACH", ([target, callable], _context, _evaluate, _invoke, execution) =>
+        requireAsyncStreamExecution(execution, "ForEach").consume(target, {
+            kind: "forEach", callable, initial: null, bound: null,
+        })),
+    REDUCE: method("REDUCE", ([target, initial, callable], _context, _evaluate, _invoke, execution) =>
+        requireAsyncStreamExecution(execution, "Reduce").consume(target, {
+            kind: "reduce", callable, initial, bound: null,
+        })),
+    COLLECT: method("COLLECT", ([target, bound], _context, _evaluate, _invoke, execution) =>
+        requireAsyncStreamExecution(execution, "Collect").consume(target, {
+            kind: "collect", callable: null, initial: null, bound: optionalBound(bound, "Collect bound"),
+        })),
+    FIRST: method("FIRST", ([target], _context, _evaluate, _invoke, execution) =>
+        requireAsyncStreamExecution(execution, "First").consume(target, {
+            kind: "first", callable: null, initial: null, bound: 1,
+        })),
+    FIND: method("FIND", ([target, callable], _context, _evaluate, _invoke, execution) =>
+        requireAsyncStreamExecution(execution, "Find").consume(target, {
+            kind: "find", callable, initial: null, bound: null,
+        })),
+    COUNT: method("COUNT", ([target, bound], _context, _evaluate, _invoke, execution) =>
+        requireAsyncStreamExecution(execution, "Count").consume(target, {
+            kind: "count", callable: null, initial: null, bound: optionalBound(bound, "Count bound"),
+        })),
+    CLOSE: method("CLOSE", ([target, reason]) => asyncStreamMethodHelpers.closeAsyncStream(target, reason)),
+    DONE: method("DONE", ([target]) => bool(asyncStreamMethodHelpers.asyncStreamDone(target))),
+    STATUS: method("STATUS", ([target]) => asyncStreamMethodHelpers.asyncStreamStatus(target)),
+};
+
 const iterableMethods = {
     ITERATOR: method("ITERATOR", ([target]) => createCollectionIterator(target)),
 };
@@ -1506,6 +1555,7 @@ const PROTOS = new Map([
     ["structural_value", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(structuralMethods)])],
     ["sequence", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(iterableMethods), ...Object.entries(arrayMethods)])],
     ["lazy_sequence", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(iterableMethods), ...Object.entries(lazySequenceMethods)])],
+    ["async_stream", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(asyncStreamMethods)])],
     ["map", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(iterableMethods), ...Object.entries(mapMethods)])],
     ["set", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(iterableMethods), ...Object.entries(setMethods)])],
     ["string", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(iterableMethods), ...Object.entries(stringMethods)])],
@@ -1552,6 +1602,7 @@ export function isCallableValue(value) {
                 value.type === "sysref" ||
                 value.type === "partial" ||
                 value.type === "arityCap" ||
+                value.type === "method_lift" ||
                 value.type === "method_builtin")) ||
         isUnitValue(value) ||
         isExactValue(value)

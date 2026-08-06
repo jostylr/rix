@@ -21,6 +21,10 @@ function evaluateArgs(argNodes, evaluate) {
     return evaluatedArgs;
 }
 
+function isPromiseLike(value) {
+    return value && typeof value.then === "function";
+}
+
 export const methodFunctions = {
     CUSTOM_OPERATOR: {
         impl(args, context, evaluate, systemContext) {
@@ -76,11 +80,40 @@ export const methodFunctions = {
             }
 
             const fn = resolveMethod(target, methodName);
-            if (fn?.type === "method_builtin") {
-                return fn.impl([target, ...callArgs], context, evaluate, callWithConcreteArgs);
+            const result = fn?.type === "method_builtin"
+                ? fn.impl([target, ...callArgs], context, evaluate, callWithConcreteArgs)
+                : callWithConcreteArgs(fn, [target, ...callArgs], context, evaluate);
+            if (isPromiseLike(result)) {
+                result.catch(() => {});
+                throw new Error(`Method ${methodName} requires promise-aware RiX evaluation`);
             }
-            return callWithConcreteArgs(fn, [target, ...callArgs], context, evaluate);
+            return result;
         },
         doc: "Resolve and invoke a receiver-first method call",
+    },
+
+    METHOD_LIFT: {
+        impl(args) {
+            const [methodName, ...capturedArgs] = args;
+            return {
+                type: "method_lift",
+                methodName,
+                capturedArgs,
+                invokeSync(callArgs, context, evaluate) {
+                    if (callArgs.length < 1) throw new Error(`..${methodName} requires a receiver`);
+                    const target = callArgs[0];
+                    const fn = resolveMethod(target, methodName);
+                    const result = fn?.type === "method_builtin"
+                        ? fn.impl([target, ...capturedArgs], context, evaluate, callWithConcreteArgs)
+                        : callWithConcreteArgs(fn, [target, ...capturedArgs], context, evaluate);
+                    if (isPromiseLike(result)) {
+                        result.catch(() => {});
+                        throw new Error(`..${methodName} requires promise-aware RiX evaluation`);
+                    }
+                    return result;
+                },
+            };
+        },
+        doc: "Create a receiver-first callable from prefix ..Method syntax",
     },
 };

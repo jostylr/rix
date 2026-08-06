@@ -7,6 +7,7 @@ import { callWithConcreteArgs } from "./functions/functions.js";
 import { formatExact, isCayleyInfinity, isCayleyValue } from "../runtime/exact-values.js";
 import { formatQuantity, formatUnit, isQuantity, isUnitValue } from "../runtime/quantities.js";
 import { isLazySequence, lazyKnownLength } from "../runtime/lazy-sequence.js";
+import { isAsyncStream } from "../runtime/async-stream.js";
 import { formatSymbolicSpec, getAttachedSpec, isSymbolicSpec, renderSymbolicIr } from "./functions/symbolic.js";
 import { formatOutputText, isOutputValue } from "../runtime/output.js";
 import {
@@ -294,6 +295,10 @@ export function formatValue(val, options = {}) {
             const suffix = length === null ? "" : `; length ${length}`;
             return `[LazySequence${suffix}: ${cached}${more}]`;
         }
+        if (isAsyncStream(val)) {
+            const root = val._stream.root;
+            return `[AsyncStream ${val._stream.label}; ${root.status}; pulled ${root.pulled}]`;
+        }
         if (val.type === "iterator") {
             return val.cursor === null ? "[Iterator: done]" : `[Iterator: index ${val.cursor}]`;
         }
@@ -361,6 +366,9 @@ export function formatValue(val, options = {}) {
                 0,
             );
             return `[Partial: ${arity}]`;
+        }
+        if (val.type === "method_lift") {
+            return `[..${val.methodName}]`;
         }
         if (val.type === "interval") {
             return `${val.start || val.lo}:${val.end || val.hi}`;

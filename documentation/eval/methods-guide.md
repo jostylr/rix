@@ -108,6 +108,33 @@ Notes:
 - Lazy map and filter pipes preserve laziness; they are operators rather than methods.
 - Lazy sequences are not cursor-stateful. Call `Iterator()` to create an independent traversal position.
 
+## Async streams
+
+Lazy derived streams:
+`Map`, `Filter`, `Take`, `Drop`, `Chunk`, `Window`
+
+Promise-aware terminals:
+`ForEach`, `Reduce`, `Collect`, `First`, `Find`, `Count`
+
+Lifecycle:
+`Close`, `Done`, `Status`
+
+Notes:
+
+- An async stream is a linear pull handle, not a cached lazy sequence. These
+  methods never expose host promises as RiX values.
+- Derived methods are lazy. `Map` and `Filter` are also spelled `|>>` and
+  `|>?`; only a terminal begins pulling.
+- `Collect(n)` and `Count(n)` bound an otherwise unbounded stream. A zero bound
+  and `Take(0)` close without pulling.
+- `First` and `Find` close as soon as the ordered result is known.
+- Terminals are sequential outside `{$ ... }`. Within `{$:L$ ... }`, safe
+  elementwise stages use the structured scheduler while retaining source-order
+  publication.
+- `Close` is idempotent. `Done` and `Status` inspect lifecycle without pulling.
+- Prefix `..Method(args...)` creates a receiver-first callable suitable for a
+  stream `Map`, such as `stream |>> ..DecodeText("utf8")`.
+
 ## Iterators
 
 Stateful:

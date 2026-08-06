@@ -20,6 +20,7 @@ export class AsyncScheduler {
         this.idleWaiters = [];
         this.nextTaskId = 1;
         this.nextObservationOrder = 1;
+        this.admitScheduled = false;
         this.defaultGroup = this.createGroup(limit);
     }
 
@@ -36,6 +37,7 @@ export class AsyncScheduler {
             cancelReason: null,
             primaryError: null,
             suppressedErrors: [],
+            branchAdmissions: new Map(),
             controller: new AbortController(),
         };
         group.signal = group.controller.signal;
@@ -55,8 +57,9 @@ export class AsyncScheduler {
                 reject,
                 group,
                 path: options.path || `task ${id}`,
+                branchPath: Array.isArray(options.branchPath) ? [...options.branchPath] : null,
             });
-            this.#admit();
+            this.#scheduleAdmit();
         });
     }
 
@@ -65,7 +68,7 @@ export class AsyncScheduler {
         ticket.active = false;
         this.active--;
         this.#adjustInFlight(ticket.group, -1);
-        this.#admit();
+        this.#scheduleAdmit();
         this.#notifyIdle();
         return true;
     }
@@ -79,10 +82,11 @@ export class AsyncScheduler {
                 kind: "resume",
                 ticket,
                 group: ticket.group,
+                branchPath: null,
                 resolve,
                 reject,
             });
-            this.#admit();
+            this.#scheduleAdmit();
         });
     }
 
@@ -114,7 +118,7 @@ export class AsyncScheduler {
             else retained.push(entry);
         }
         this.queue = retained;
-        this.#admit();
+        this.#scheduleAdmit();
         this.#notifyIdle();
     }
 
@@ -131,9 +135,10 @@ export class AsyncScheduler {
 
     #admit() {
         while (!this.cancelled && this.active < this.limit && this.queue.length > 0) {
-            const index = this.queue.findIndex((entry) => this.#canAdmit(entry.group));
+            const index = this.#nextAdmissionIndex();
             if (index < 0) break;
             const [entry] = this.queue.splice(index, 1);
+            this.#recordBranchAdmission(entry);
             this.active++;
             this.#adjustInFlight(entry.group, 1);
             if (entry.kind === "resume") {
@@ -154,9 +159,67 @@ export class AsyncScheduler {
                         this.active--;
                         this.#adjustInFlight(entry.group, -1);
                     }
-                    this.#admit();
+                    this.#scheduleAdmit();
                     this.#notifyIdle();
                 });
+        }
+    }
+
+    #scheduleAdmit() {
+        if (this.admitScheduled) return;
+        this.admitScheduled = true;
+        queueMicrotask(() => {
+            this.admitScheduled = false;
+            this.#admit();
+        });
+    }
+
+    #nextAdmissionIndex() {
+        let bestIndex = -1;
+        let bestScore = null;
+        for (let index = 0; index < this.queue.length; index++) {
+            const entry = this.queue[index];
+            if (!this.#canAdmit(entry.group)) continue;
+            if (!entry.branchPath || entry.branchPath.length === 0) {
+                if (bestIndex < 0) return index;
+                continue;
+            }
+            const score = this.#branchScore(entry);
+            if (bestIndex < 0 || this.#compareBranchScores(score, bestScore) < 0) {
+                bestIndex = index;
+                bestScore = score;
+            }
+        }
+        return bestIndex;
+    }
+
+    #branchScore(entry) {
+        const score = [];
+        const prefix = [];
+        for (const segment of entry.branchPath) {
+            prefix.push(segment);
+            score.push(entry.group.branchAdmissions.get(prefix.join("/")) || 0);
+        }
+        return score;
+    }
+
+    #compareBranchScores(left, right) {
+        const length = Math.max(left.length, right.length);
+        for (let index = 0; index < length; index++) {
+            const a = left[index] ?? 0;
+            const b = right[index] ?? 0;
+            if (a !== b) return a - b;
+        }
+        return 0;
+    }
+
+    #recordBranchAdmission(entry) {
+        if (!entry.branchPath || entry.branchPath.length === 0) return;
+        const prefix = [];
+        for (const segment of entry.branchPath) {
+            prefix.push(segment);
+            const key = prefix.join("/");
+            entry.group.branchAdmissions.set(key, (entry.group.branchAdmissions.get(key) || 0) + 1);
         }
     }
 
@@ -235,6 +298,41 @@ export class AsyncScheduler {
 
 export const BACKGROUND_TASKS_ENV = "__async_background_tasks__";
 export const BACKGROUND_ERRORS_ENV = "__async_background_errors__";
+const asyncResources = new WeakMap();
+
+export function registerAsyncResource(context, resource, close) {
+    if (!context || !resource || typeof close !== "function") return resource;
+    let resources = asyncResources.get(context);
+    if (!resources) {
+        resources = new Map();
+        asyncResources.set(context, resources);
+    }
+    resources.set(resource, close);
+    return resource;
+}
+
+export function unregisterAsyncResource(context, resource) {
+    const resources = asyncResources.get(context);
+    if (!resources) return false;
+    const removed = resources.delete(resource);
+    if (resources.size === 0) asyncResources.delete(context);
+    return removed;
+}
+
+export async function disposeAsyncResources(context, reason = { kind: "session shutdown" }) {
+    const resources = asyncResources.get(context);
+    if (!resources || resources.size === 0) return [];
+    asyncResources.delete(context);
+    const failures = [];
+    for (const [resource, close] of [...resources].reverse()) {
+        try {
+            await close(resource, reason);
+        } catch (error) {
+            failures.push(error);
+        }
+    }
+    return failures;
+}
 
 export function registerBackgroundTask(context, task) {
     const tasks = context.getEnv(BACKGROUND_TASKS_ENV, new Set());

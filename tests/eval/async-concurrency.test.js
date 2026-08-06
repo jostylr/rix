@@ -123,7 +123,7 @@ describe("RiX async and concurrency", () => {
         await evaluation;
     });
 
-    test("nested collection parents do not consume permits", async () => {
+    test("nested collection parents use hierarchical sibling-first admission without permits", async () => {
         const starts = [];
         const releases = new Map();
         const systemContext = asyncSystem("work", ([value]) => new Promise((resolve) => {
@@ -139,13 +139,13 @@ describe("RiX async and concurrency", () => {
             "{$:2$ {= a=[.work(1), .work(2)], b=.work(3) } };",
             { systemContext },
         );
-        await waitUntil(() => releases.size === 2, "nested array leaves");
-        expect(starts).toEqual([1, 2]);
-        releases.get(2)();
-        await waitUntil(() => releases.has(3), "map sibling");
-        expect(starts).toEqual([1, 2, 3]);
-        releases.get(1)();
+        await waitUntil(() => releases.size === 2, "sibling-first leaves");
+        expect(starts).toEqual([1, 3]);
         releases.get(3)();
+        await waitUntil(() => releases.has(2), "second nested array leaf");
+        expect(starts).toEqual([1, 3, 2]);
+        releases.get(1)();
+        releases.get(2)();
 
         const result = await evaluation;
         expect(result.entries.get("a").values.map((value) => Number(value.value))).toEqual([1, 2]);

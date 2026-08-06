@@ -602,6 +602,7 @@ class Parser {
     }
     if (node.type === "SystemFunctionRef") return true;
     if (node.type === "FunctionLambda") return true;
+    if (node.type === "MethodLift") return true;
     if (node.type === "ImplicitApplication") return true;
     if (node.type === "FunctionCall") return true;
     if (node.type === "SystemAccess") {
@@ -922,6 +923,29 @@ class Parser {
         } else if (token.value === "'") {
           // Leading quote for integral
           return this.parseIntegral();
+        } else if (token.value === "..") {
+          // Prefix method lift: ..Method or ..Method(args...) creates a
+          // receiver-first callable. Infix obj.. remains the meta-map form.
+          this.advance();
+          if (this.current.type !== "Identifier") {
+            this.error("Expected a method name after prefix '..'");
+          }
+          const method = this.parseMethodName();
+          let arguments_ = { positional: [], keyword: {} };
+          let end = this.current.pos?.[0] ?? token.pos?.[2];
+          if (this.current.value === "(") {
+            this.advance();
+            arguments_ = this.parseFunctionCallArgs();
+            if (this.current.value !== ")") this.error("Expected closing parenthesis in method lift");
+            end = this.current.pos[2];
+            this.advance();
+          }
+          return this.createNode("MethodLift", {
+            method: method.name,
+            arguments: arguments_,
+            pos: [token.pos[0], token.pos[1], end],
+            original: this.source.slice(token.pos[0], end),
+          });
         } else if (token.value === ".") {
           // Leading dot: system context object access
           // . alone → SystemObject (the system context itself)

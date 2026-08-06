@@ -1561,6 +1561,38 @@ general systems. The former `:=:` solve operator has been removed.
 | `PREVERSE(coll)` | Reverse collection (new copy) | `coll \|><` |
 | `PSORT(coll, fn)` | Sort with comparator (new copy) | `coll \|<> fn` |
 
+### Async streams
+
+`.Stream(collection, label?)` creates a cold `async_stream`. A stream is a
+linear pull handle, not a promise, lazy sequence, or materialized collection.
+Displaying it never pulls it. `stream |>> F` and `stream |>? P` create lazy
+derived streams; an explicit terminal begins consumption.
+
+| Method | Result |
+|--------|--------|
+| `Map(F)`, `Filter(P)` | Lazy elementwise derived stream |
+| `Take(n)`, `Drop(n)` | Lazy ordered bound/offset stage |
+| `Chunk(n)`, `Window(size, step?=1)` | Lazy ordered grouping stage |
+| `ForEach(F)` | Consume for effects; return null |
+| `Reduce(initial, F)` | Consume and fold in source order |
+| `Collect()`, `Collect(n)` | Consume to a sequence, optionally bounded |
+| `First()`, `Find(P)` | Consume until an early ordered result |
+| `Count()`, `Count(n)` | Count a finite stream or an explicit bound |
+| `Close(reason?)`, `Done()`, `Status()` | Lifecycle and inspection |
+
+Outside `{$ ... }`, terminals consume sequentially. Within `{$:L$ ... }`, safe
+map/filter work uses the structured scheduler with at most `L` executing items
+and a `2L` admitted-but-unpublished window. Results publish in source order,
+timeouts and cancellation are inherited, and the root source closes exactly
+once on completion, early result, error, timeout, cancellation, background
+shutdown, or host disposal. Stateful pipelines currently consume sequentially.
+`Collect(0)`, `Count(0)`, and `Take(0)` close without pulling the source.
+
+Host adapters can use the exported cold async-iterable and bounded hot-source
+constructors for HTTP bodies, file chunks, cursors, WebSockets, UI events, or
+timers. Hot queues require one of `:drop_oldest`, `:drop_latest`, `:error`, or
+producer-aware `:block` overflow policies.
+
 ### Functions
 
 | Function | Description | Syntax Aliases |
@@ -1587,6 +1619,7 @@ Function-call lookup note:
 | `META_ALL(obj)` | Get all meta properties as read-only map | `obj..` |
 | `META_MERGE(obj, map)` | Bulk merge map into meta (null values = delete) | `obj .= map` |
 | `CALL_METHOD(obj, name, args...)` | Resolve and invoke a receiver-first method | `obj.Method(args)`, `obj.Method!(args)` |
+| `METHOD_LIFT(name, args...)` | Create `(value) -> value.Method(args...)` | `..Method`, `..Method(args...)` |
 | `INDEX_GET(obj, key)` | Index into collection (1-based for sequences/strings; normalized keys for maps) | `obj[expr]`, `obj[:name]`, `obj[:1]` |
 | `INDEX_SET(obj, key, val)` | Set index (requires `._mutable` value flag) | `obj[i] = val` |
 | `BRACKET_GET(obj, specs...)` | Tensor-aware bracket indexing and slicing | `obj[i, ::]` |
@@ -1594,6 +1627,11 @@ Function-call lookup note:
 | `.KEYOF(x)` | Resolve canonical map key string | `.KEYOF(x)` |
 | `.KEYS(obj)` | Get keys of map as set | `obj.\|`, `.KEYS(obj)` |
 | `.VALUES(obj)` | Get values of map as set | `obj\|.`, `.VALUES(obj)` |
+
+Prefix `..Method(args...)` is distinct from external meta access. `obj..`
+continues to return the external meta map, while `obj..name` remains invalid.
+For example, `stream |>> ..DecodeText("utf8")` is equivalent to
+`stream.Map((chunk) -> chunk.DecodeText("utf8"))`.
 
 **Meta Property Categories:**
 

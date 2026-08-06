@@ -60,7 +60,7 @@ describe("AsyncScheduler cancellation groups", () => {
         const releases = [];
         const first = scheduler.run(() => new Promise((resolve, reject) => releases.push(() => reject(new Error("first")))), undefined, { path: "item 1" });
         const second = scheduler.run(() => new Promise((resolve, reject) => releases.push(() => reject(new Error("second")))), undefined, { path: "item 2" });
-        await Promise.resolve();
+        while (releases.length < 2) await Promise.resolve();
 
         releases[1]();
         const secondError = await second.catch((error) => error);

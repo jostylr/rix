@@ -332,6 +332,7 @@ ul.task-list li input[type="checkbox"] {
   <li><a href="#generic-reduce" id="toc-generic-reduce" class="nav-link" data-scroll-target="#generic-reduce">Generic Reduce</a></li>
   <li><a href="#arrays" id="toc-arrays" class="nav-link" data-scroll-target="#arrays">Arrays</a></li>
   <li><a href="#lazy-sequences" id="toc-lazy-sequences" class="nav-link" data-scroll-target="#lazy-sequences">Lazy sequences</a></li>
+  <li><a href="#async-streams" id="toc-async-streams" class="nav-link" data-scroll-target="#async-streams">Async streams</a></li>
   <li><a href="#iterators" id="toc-iterators" class="nav-link" data-scroll-target="#iterators">Iterators</a></li>
   <li><a href="#maps" id="toc-maps" class="nav-link" data-scroll-target="#maps">Maps</a></li>
   <li><a href="#sets" id="toc-sets" class="nav-link" data-scroll-target="#sets">Sets</a></li>
@@ -467,6 +468,22 @@ $count  # 2</code></pre>
 <li><code>Last</code>, negative indexing, and <code>Materialize</code> require a known finite sequence. Predicate-bounded sequences become known only after reaching their terminating value.</li>
 <li>Lazy map and filter pipes preserve laziness; they are operators rather than methods.</li>
 <li>Lazy sequences are not cursor-stateful. Call <code>Iterator()</code> to create an independent traversal position.</li>
+</ul>
+</section>
+<section id="async-streams" class="level2">
+<h2 class="anchored" data-anchor-id="async-streams">Async streams</h2>
+<p>Lazy derived streams: <code>Map</code>, <code>Filter</code>, <code>Take</code>, <code>Drop</code>, <code>Chunk</code>, <code>Window</code></p>
+<p>Promise-aware terminals: <code>ForEach</code>, <code>Reduce</code>, <code>Collect</code>, <code>First</code>, <code>Find</code>, <code>Count</code></p>
+<p>Lifecycle: <code>Close</code>, <code>Done</code>, <code>Status</code></p>
+<p>Notes:</p>
+<ul>
+<li>An async stream is a linear pull handle, not a cached lazy sequence. These methods never expose host promises as RiX values.</li>
+<li>Derived methods are lazy. <code>Map</code> and <code>Filter</code> are also spelled <code>|&gt;&gt;</code> and <code>|&gt;?</code>; only a terminal begins pulling.</li>
+<li><code>Collect(n)</code> and <code>Count(n)</code> bound an otherwise unbounded stream. A zero bound and <code>Take(0)</code> close without pulling.</li>
+<li><code>First</code> and <code>Find</code> close as soon as the ordered result is known.</li>
+<li>Terminals are sequential outside <code>{$ ... }</code>. Within <code>{$:L$ ... }</code>, safe elementwise stages use the structured scheduler while retaining source-order publication.</li>
+<li><code>Close</code> is idempotent. <code>Done</code> and <code>Status</code> inspect lifecycle without pulling.</li>
+<li>Prefix <code>..Method(args...)</code> creates a receiver-first callable suitable for a stream <code>Map</code>, such as <code>stream |&gt;&gt; ..DecodeText("utf8")</code>.</li>
 </ul>
 </section>
 <section id="iterators" class="level2">

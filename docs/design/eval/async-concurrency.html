@@ -429,7 +429,13 @@ window.Quarto = {
   <li><a href="#errors" id="toc-errors" class="nav-link" data-scroll-target="#errors">Errors</a></li>
   <li><a href="#reactive-reads-and-writes" id="toc-reactive-reads-and-writes" class="nav-link" data-scroll-target="#reactive-reads-and-writes">Reactive reads and writes</a></li>
   </ul></li>
-  <li><a href="#async-streams-remain-open" id="toc-async-streams-remain-open" class="nav-link" data-scroll-target="#async-streams-remain-open">Async streams remain open</a></li>
+  <li><a href="#async-streams" id="toc-async-streams" class="nav-link" data-scroll-target="#async-streams">Async streams</a>
+  <ul>
+  <li><a href="#value-and-pull-contract" id="toc-value-and-pull-contract" class="nav-link" data-scroll-target="#value-and-pull-contract">Value and pull contract</a></li>
+  <li><a href="#lazy-stages-and-terminals" id="toc-lazy-stages-and-terminals" class="nav-link" data-scroll-target="#lazy-stages-and-terminals">Lazy stages and terminals</a></li>
+  <li><a href="#structured-consumption-and-lifecycle" id="toc-structured-consumption-and-lifecycle" class="nav-link" data-scroll-target="#structured-consumption-and-lifecycle">Structured consumption and lifecycle</a></li>
+  <li><a href="#hot-sources-and-reactive-projection" id="toc-hot-sources-and-reactive-projection" class="nav-link" data-scroll-target="#hot-sources-and-reactive-projection">Hot sources and reactive projection</a></li>
+  </ul></li>
   <li><a href="#execution-model" id="toc-execution-model" class="nav-link" data-scroll-target="#execution-model">Execution model</a></li>
   <li><a href="#ir-and-runtime-shape" id="toc-ir-and-runtime-shape" class="nav-link" data-scroll-target="#ir-and-runtime-shape">IR and runtime shape</a></li>
   <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a>
@@ -488,8 +494,8 @@ window.Quarto = {
 
 <section id="status" class="level1">
 <h1>Status</h1>
-<p>This is the normative design and implementation tracker. The current runtime slice includes syntax and IR, code-block import headers, async host APIs, grouped FIFO bounded scheduling, nested scope-limit composition, concurrent arrays/maps/tuples/sets/matrices/tensors, fused <code>|&gt;&gt;</code> and <code>|&gt;?</code>, ordered <code>|&gt;||</code> and <code>|&gt;&amp;&amp;</code>, promise-aware reduce/sort/slice/split/chunk barriers, named async breaks, lexical function fan-out, group cancellation signals, and supervised/drainable <code>{$$ ... }</code> tasks. It also includes timeout headers, typed operational-fault recovery, LIFO <code>##_</code> cleanup, a <code>2L</code> ordered publication window, task-local ordinary snapshots/write rejection, and strict detached import capture. <code>{# ... }</code> remains the inert symbolic-system form.</p>
-<p>Still planned are bounded lazy-source pull, hierarchical round-robin nested admission, complete mutation-safety enforcement, deterministic task RNG streams, worker execution, full stable task-path diagnostics, and cancellation checkpoints inside loops and lazy sources.</p>
+<p>This is the normative design and implementation tracker. The current runtime slice includes syntax and IR, code-block import headers, async host APIs, grouped FIFO bounded scheduling, nested scope-limit composition, concurrent arrays/maps/tuples/sets/matrices/tensors, fused <code>|&gt;&gt;</code> and <code>|&gt;?</code>, ordered <code>|&gt;||</code> and <code>|&gt;&amp;&amp;</code>, promise-aware reduce/sort/slice/split/chunk barriers, named async breaks, lexical function fan-out, group cancellation signals, and supervised/drainable <code>{$$ ... }</code> tasks. It also includes timeout headers, typed operational-fault recovery, LIFO <code>##_</code> cleanup, a <code>2L</code> ordered publication window, task-local ordinary snapshots/write rejection, and strict detached import capture. It also includes first-class linear <code>async_stream</code> values, cold and hot source infrastructure, lazy stream stages, explicit terminals, structured stream consumption, and prefix method lifting. <code>{# ... }</code> remains the inert symbolic-system form.</p>
+<p>Still planned are bounded pull for legacy lazy generators, complete mutation-safety enforcement, deterministic task RNG streams, worker execution, full stable task-path diagnostics, and cancellation checkpoints inside loops and lazy sources.</p>
 <p>The proposal deliberately separates two operations:</p>
 <ul>
 <li><code>{$ ... }</code> is an <strong>awaited concurrency scope</strong>. It permits explicitly independent work to overlap, waits for every required result or an early terminal result, and returns an ordinary RiX value.</li>
@@ -642,7 +648,7 @@ later := BuildParallel()      // temporary default-limited scope</code></pre>
 <pre class="rix"><code>{$:2$
     {= a=[F(), G()], b=H() }
 }</code></pre>
-<p>The settled admission contract is hierarchical round-robin across sibling branches. For nested branches <code>[A1, A2, ...]</code>, <code>[B1, B2, ...]</code>, and leaf <code>C</code>, a limit of four admits <code>A1</code>, <code>B1</code>, <code>C</code>, then <code>A2</code>. Applied to the map above, its two top-level value branches offer <code>F()</code> and <code>H()</code> before the first branch offers <code>G()</code>. This breadth-first fairness prevents a large early subtree from monopolizing admission. The current scheduler slice still walks nested leaves depth-first; hierarchical admission is tracked as follow-up work.</p>
+<p>The settled admission contract is hierarchical round-robin across sibling branches. For nested branches <code>[A1, A2, ...]</code>, <code>[B1, B2, ...]</code>, and leaf <code>C</code>, a limit of four admits <code>A1</code>, <code>B1</code>, <code>C</code>, then <code>A2</code>. Applied to the map above, its two top-level value branches offer <code>F()</code> and <code>H()</code> before the first branch offers <code>G()</code>. This breadth-first fairness prevents a large early subtree from monopolizing admission. The scheduler batches ready admissions and tracks hierarchical prefix counts so sibling subtrees receive a leaf opportunity before a subtree consumes additional permits.</p>
 <p>Internal slots may resolve in any order, but the map is not published until every required slot is resolved. Its source key/element order is retained.</p>
 <p>A suspended structural parent yields scheduler capacity while nested children run. This prevents a nested collection from deadlocking when the limit is 1. The same rule applies to a lexically concurrent function or an explicit nested async scope: its source-item ticket is temporarily yielded and reacquired after the structural work completes. An outside-defined sequential function does not turn its ordinary collections into scheduler fan-out points.</p>
 </section>
@@ -867,19 +873,17 @@ later := BuildParallel()      // temporary default-limited scope</code></pre>
 <section id="spawn-and-isolation" class="level2">
 <h2 class="anchored" data-anchor-id="spawn-and-isolation">Spawn and isolation</h2>
 <p><code>{$$ ... }</code> has an explicit import boundary. An unlisted outer binding is invisible. A listed ordinary value is deep-copied at spawn, and an ordinary alias import is rejected. A listed reactive value is an alias so that reactive publication remains an explicit communication channel. External user functions must also be listed; their captured ordinary values are validated and deep-copied. The block also snapshots its source location and allowed capability frame. It cannot mutate ordinary outer cells. The spawning evaluation receives null immediately and cannot join or inspect the final value.</p>
-<p>The runtime registers the task with a background supervisor. The supervisor:</p>
+<p>The runtime registers the task with a background supervisor. The implemented supervisor retains the task, reports uncaught errors, and owns cancellation and resource disposal when its host session closes. The complete supervisor will also:</p>
 <ul>
 <li>assigns an ID and retains source diagnostics;</li>
 <li>enforces a host-configured active-task and queue limit;</li>
-<li>owns cancellation when the session closes;</li>
-<li>reports uncaught task errors as diagnostic events;</li>
 <li>prevents an abandoned task from retaining a closed runtime indefinitely.</li>
 </ul>
 <p>Starting a background task requires a <code>BACKGROUND</code> script permission. The task inherits, but does not broaden, the caller’s other permissions.</p>
 </section>
 <section id="host-lifecycle" class="level2">
 <h2 class="anchored" data-anchor-id="host-lifecycle">Host lifecycle</h2>
-<p>Interactive hosts keep background tasks alive until they finish, are cancelled, or the session closes. Session close requests cancellation and drains cleanup for a bounded grace period.</p>
+<p>Interactive hosts keep background tasks alive until they finish, are cancelled, or the session closes. RiX Web reset/page disposal and the exported runtime disposal API request cancellation, close task-owned streams, and drain cleanup for a bounded grace period.</p>
 <p>The CLI drains supervised background tasks before normal process exit by default, so a background file write is not silently truncated merely because the main expression finished. A host/CLI no-drain mode may instead cancel them at main completion. This lifecycle choice affects process lifetime, never the value or statement ordering of the main RiX evaluation.</p>
 </section>
 <section id="errors" class="level2">
@@ -901,9 +905,49 @@ later := BuildParallel()      // temporary default-limited scope</code></pre>
 <p>The first implementation rejects <code>{$$ ... }</code> while evaluating a reactive formula. Otherwise every recomputation could spawn another external effect. A later reactive-effect abstraction may define replacement/cancellation rules.</p>
 </section>
 </section>
-<section id="async-streams-remain-open" class="level1">
-<h1>Async streams remain open</h1>
-<p>Async streams and their relationship to reactive state are still under design. This document intentionally does not assign them syntax, buffering semantics, or a runtime type yet.</p>
+<section id="async-streams" class="level1">
+<h1>Async streams</h1>
+<section id="value-and-pull-contract" class="level2">
+<h2 class="anchored" data-anchor-id="value-and-pull-contract">Value and pull contract</h2>
+<p><code>async_stream</code> is an ordinary first-class RiX runtime value, but it is neither a promise nor a materialized collection. It is a descriptive, linear handle over an internal asynchronous resource protocol equivalent to:</p>
+<pre class="text"><code>Next(cancellationSignal) -&gt; { done, value }
+Close(reason)</code></pre>
+<p>Promises used by <code>Next</code> remain inside the promise-aware evaluator. Formatting prints the stream label, lifecycle state, and pull count without pulling or materializing it. Streams may be asynchronous, non-restartable, non-cacheable, and unbounded; they therefore do not reuse <code>lazy_sequence</code>.</p>
+<p>The built-in <code>.Stream(collection, label?)</code> adapter creates a cold finite stream. Hosts can construct a stream from a synchronous iterable, async iterable, HTTP body reader, file-chunk reader, database cursor, or paged API through the same runtime protocol. Pulling supplies backpressure: a cold source is not asked for another value merely because a stream handle was created or formatted.</p>
+</section>
+<section id="lazy-stages-and-terminals" class="level2">
+<h2 class="anchored" data-anchor-id="lazy-stages-and-terminals">Lazy stages and terminals</h2>
+<p>Receiver-first methods <code>Map</code>, <code>Filter</code>, <code>Take</code>, <code>Drop</code>, <code>Chunk</code>, and <code>Window</code> return derived streams without pulling. Derived handles share one idempotent root lifecycle and cannot be consumed independently. <code>stream |&gt;&gt; F</code> and <code>stream |&gt;? P</code> are polymorphic spellings of lazy <code>Map</code> and <code>Filter</code> stages. Ending <code>{$ ... }</code> with a stream returns the handle; it never implicitly drains it.</p>
+<p>Consumption begins only at an explicit terminal:</p>
+<ul>
+<li><code>ForEach(F)</code> performs an effect for each item and returns null;</li>
+<li><code>Reduce(initial, F)</code> folds in source order;</li>
+<li><code>Collect()</code> requires natural completion, while <code>Collect(n)</code> is bounded;</li>
+<li><code>First()</code> and <code>Find(P)</code> stop and close early;</li>
+<li><code>Count()</code> requires a known-finite stream, while <code>Count(n)</code> is bounded.</li>
+</ul>
+<p><code>Close(reason?)</code>, <code>Done()</code>, and <code>Status()</code> expose lifecycle control and inspection without exposing promises as RiX values. Stateful stages remain source ordered. The current implementation overlaps the safe <code>Map</code>/<code>Filter</code> region; stateful stage pipelines use ordered sequential pulls until segmented concurrent regions are implemented.</p>
+<p>Prefix method lifting makes receiver transformations concise:</p>
+<pre class="rix"><code>stream |&gt;&gt; ..DecodeText("utf8")</code></pre>
+<p><code>..Method(args...)</code> is a callable equivalent to <code>(value) -&gt; value.Method(args...)</code>. It is prefix-only; the rejected <code>obj..name</code> form remains rejected, and an ordinary lambda is always equivalent.</p>
+</section>
+<section id="structured-consumption-and-lifecycle" class="level2">
+<h2 class="anchored" data-anchor-id="structured-consumption-and-lifecycle">Structured consumption and lifecycle</h2>
+<p>Outside <code>{$ ... }</code>, terminals pull and transform sequentially. Inside <code>{$:L$ ... }</code>, safe elementwise work uses the containing scheduler: at most <code>L</code> items execute at once, no more than <code>2L</code> items are admitted but unpublished, and values publish in source order. Pull requests are created only behind an available scheduler permit. Nested scopes inherit the earliest timeout and the stricter limit; early terminals cancel and drain their child group.</p>
+<p>Normal exhaustion, bounded completion, <code>First</code>/<code>Find</code>, transformation or source fault, fatal error, timeout, cancellation, background shutdown, and explicit host disposal all close the root exactly once. A source can additionally be registered with block cleanup:</p>
+<pre class="rix"><code>stream := OpenCustomStream() ##_ ..Close</code></pre>
+<p>Operational source and overflow failures use the typed <code>fault</code> channel and can be recovered with <code>##!&gt;</code>. Fatal language errors and cancellation propagate. If both consumption and close fail, the consumption failure remains primary and close failure is suppressed.</p>
+</section>
+<section id="hot-sources-and-reactive-projection" class="level2">
+<h2 class="anchored" data-anchor-id="hot-sources-and-reactive-projection">Hot sources and reactive projection</h2>
+<p>The host hot-stream infrastructure uses a bounded queue with explicit <code>:drop_oldest</code>, <code>:drop_latest</code>, <code>:error</code>, or producer-aware <code>:block</code> overflow. It defines FIFO delivery, completion, fault propagation, cancellation of a pending pull, exact-once unsubscribe, and blocked-producer release. The initial public <code>.Stream</code> adapter is cold; WebSocket, UI, timer, and reactive-event capabilities can expose the hot constructor as their host contracts mature.</p>
+<p>A stream is an ordered event sequence; a reactive binding is current state. The bridge is explicit supervised consumption rather than formula restart:</p>
+<pre class="rix"><code>{$$ &lt;latest=latest&gt;
+    .Stream([:connecting, :ready, :done])
+        .ForEach((item) -&gt; ($latest := item))
+}</code></pre>
+<p>Reactive graph identity still crosses a detached boundary only through an explicit reactive alias import. Reactive formula recomputation never silently opens or restarts a stream.</p>
+</section>
 </section>
 <section id="execution-model" class="level1">
 <h1>Execution model</h1>
@@ -1038,7 +1082,7 @@ RenderMainView()</code></pre>
 <li><label><input type="checkbox" checked="">Add a runtime-owned <code>TaskScheduler</code> with ordered admission, bounded permits, grouped cancellation, and cleanup draining.</label></li>
 <li><label><input type="checkbox" checked="">Give each scheduler group an <code>AbortSignal</code> and abort descendant groups without aborting their parent.</label></li>
 <li><label><input type="checkbox" checked="">Bound finite eager admitted-but-unpublished work to <code>2L</code>.</label></li>
-<li><label><input type="checkbox">Use hierarchical round-robin admission across nested sibling branches.</label></li>
+<li><label><input type="checkbox" checked="">Use hierarchical round-robin admission across nested sibling branches.</label></li>
 <li><label><input type="checkbox" checked="">Attach stable scheduler task IDs, observation order, and timestamps to failures.</label></li>
 <li><label><input type="checkbox">Replace fallback task IDs with complete structural task paths in every evaluator admission and diagnostic.</label></li>
 <li><label><input type="checkbox" checked="">Implement effective-limit composition for nested scopes. A distinct host maximum remains follow-up configuration work.</label></li>
@@ -1060,7 +1104,7 @@ RenderMainView()</code></pre>
 <li><label><input type="checkbox" checked="">Treat pre-existing collections as data sources without re-evaluation.</label></li>
 <li><label><input type="checkbox">Add bounded pull for lazy/generator sources and keep recurrence generation sequential where values depend on history.</label></li>
 <li><label><input type="checkbox" checked="">Test the current limit-2 <code>{= a=[F(), G()], b=H() }</code> structural-parent behavior without consuming permits.</label></li>
-<li><label><input type="checkbox">Change that scenario’s admission assertion from the current <code>F, G, H</code> depth-first order to the settled <code>F, H, G</code> hierarchical order.</label></li>
+<li><label><input type="checkbox" checked="">Assert the settled <code>F, H, G</code> hierarchical order for that scenario.</label></li>
 </ul>
 </section>
 <section id="fused-async-pipes" class="level2">
@@ -1096,7 +1140,8 @@ RenderMainView()</code></pre>
 <h2 class="anchored" data-anchor-id="background-supervisor-and-reactive-publication">7. Background supervisor and reactive publication</h2>
 <ul class="task-list">
 <li><label><input type="checkbox" checked="">Implement <code>DETACH</code> as immediate null plus a supervisor-owned task.</label></li>
-<li><label><input type="checkbox">Add active-task/queue limits, task IDs, source diagnostics, session-close cancellation, and bounded cleanup.</label></li>
+<li><label><input type="checkbox" checked="">Add session-close cancellation, task-owned resource disposal, and bounded cleanup; RiX Web invokes it on reset and page disposal.</label></li>
+<li><label><input type="checkbox">Add active-task/queue limits, task IDs, and complete source diagnostics.</label></li>
 <li><label><input type="checkbox">Define CLI drain-by-default and host no-drain/cancel behavior.</label></li>
 <li><label><input type="checkbox" checked="">Report background errors to the host handler/error queue without retroactively failing continued main evaluation.</label></li>
 <li><label><input type="checkbox" checked="">Snapshot explicitly imported ordinary values at spawn.</label></li>
@@ -1124,7 +1169,14 @@ RenderMainView()</code></pre>
 <li><label><input type="checkbox" checked="">Parse keyed and positional timeout headers and enforce earliest nested monotonic deadlines with cancellation and drain.</label></li>
 <li><label><input type="checkbox" checked="">Add typed operational faults and restrict <code>##!&gt;</code> to that channel.</label></li>
 <li><label><input type="checkbox" checked="">Parse and lower value-preserving <code>##_</code> cleanup registration; run finalizers LIFO, sequentially, shielded, and before permit release.</label></li>
-<li><label><input type="checkbox">Define async streams/reactive integration in a separate design review; no language contract is settled here.</label></li>
+<li><label><input type="checkbox" checked="">Add first-class linear <code>async_stream</code> values with hidden async pull and exact-once close protocols.</label></li>
+<li><label><input type="checkbox" checked="">Add cold iterable adapters, lazy map/filter/take/drop/chunk/window stages, explicit terminals, lifecycle methods, and prefix method lifting.</label></li>
+<li><label><input type="checkbox" checked="">Integrate safe elementwise terminals with <code>L</code> execution, the <code>2L</code> publication window, inherited cancellation, timeouts, and cleanup.</label></li>
+<li><label><input type="checkbox" checked="">Add bounded hot-source queues with all four settled overflow policies.</label></li>
+<li><label><input type="checkbox" checked="">Add explicit supervised stream-to-reactive publication examples and reject detached stream copying.</label></li>
+<li><label><input type="checkbox" checked="">Cancel long-lived detached stream pulls and close their sources during host/session disposal.</label></li>
+<li><label><input type="checkbox">Add built-in HTTP, file, database, WebSocket, UI, timer, and reactive-event capabilities on top of the implemented host stream adapters.</label></li>
+<li><label><input type="checkbox">Segment stateful stream pipelines so later elementwise regions can regain structured concurrency; add <code>ChunkBy</code>, <code>Merge</code>, <code>Timeout</code>, <code>Debounce</code>, <code>Throttle</code>, and <code>Latest</code> only after those semantics are proven.</label></li>
 </ul>
 </section>
 <section id="documentation-observability-and-hardening" class="level2">

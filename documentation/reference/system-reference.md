@@ -8,7 +8,7 @@ toc-depth: 2
 This page is generated from the current RiX implementation by `documentation/scripts/generate-reference.js`. Do not edit it by hand. Descriptions come from registry documentation strings; the narrative [syntax guide](../eval/syntax-guide.md) and [methods guide](../eval/methods-guide.md) provide signatures and examples.
 :::
 
-At this revision RiX exposes **177 named entries** on the default system context and registers **209 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
+At this revision RiX exposes **178 named entries** on the default system context and registers **210 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
 
 ## Public system context
 
@@ -164,6 +164,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.SPLIT` | lazy function | — | Split a collection by a delimiter or predicate |
 | `.SQRT` | function | — | Square root (approximate rational) |
 | `.STOP` | lazy function | — | Conditional abort: .Stop(label, condition, dataMap ?= {=}) |
+| `.STREAM` | function | — | Create a cold, pull-based async stream from a finite collection |
 | `.STRONG` | function | — | Create semantic inline strong content |
 | `.SUB` | function | Arith | Subtraction |
 | `.SUBSTR` | function | Strings | Get substring |
@@ -225,6 +226,7 @@ Every built-in receiver also supports `CheckTraits` / `CHECKTRAITS`.
 | `Map` | map | `map` | `maplike` |
 | `Set` | set | `set` | `collection` |
 | `Iterator` | iterator | `iterator` | — |
+| `AsyncStream` | async\_stream | `async_stream` | — |
 | `Function` | function | `function` | — |
 | `Multifunction` | multifunction | `multifunction` | — |
 | `Null` | null | `null` | — |
@@ -274,7 +276,8 @@ Imported scripts can add or withhold named groups. Permission-like names are int
 | `Core` | `LEN`, `FIRST`, `LAST`, `GETEL`, `IRANGE`, `IF`, `LOOP`, `MULTI`, `RAND_NAME`, `PRINT`, `TGEN`, `KEYOF`, `KEYS`, `VALUES` |
 | `Arith` | `ADD`, `SUB`, `MUL`, `DIV`, `INTDIV`, `DIVMOD`, `MOD`, `POW`, `FACTORIAL`, `DOUBLEFACTORIAL` |
 | `Logic` | `EQ`, `NEQ`, `LT`, `GT`, `LTE`, `GTE`, `AND`, `OR`, `NOT` |
-| `Collections` | `LEN`, `FIRST`, `LAST`, `GETEL`, `IRANGE`, `MAP`, `FILTER`, `REDUCE`, `TGEN` |
+| `Collections` | `LEN`, `FIRST`, `LAST`, `GETEL`, `IRANGE`, `MAP`, `FILTER`, `REDUCE`, `TGEN`, `Stream` |
+| `Async` | `Stream` |
 | `Maps` | `MAP`, `KEYOF`, `KEYS`, `VALUES` |
 | `Arrays` | `LEN`, `FIRST`, `LAST`, `GETEL`, `IRANGE`, `MAP`, `FILTER`, `REDUCE`, `TGEN` |
 | `Strings` | `UPPER`, `SUBSTR`, `PRINT` |
@@ -400,6 +403,7 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `META_GET` | eager, effectful/unspecified | Get meta property (returns null if absent) — obj.name |
 | `META_MERGE` | lazy, effectful/unspecified | Bulk merge map into object meta properties (null values = delete) — obj .= map |
 | `META_SET` | lazy, effectful/unspecified | Set meta property (null deletes; respects immutable/frozen) — obj.name = val |
+| `METHOD_LIFT` | eager, effectful/unspecified | Create a receiver-first callable from prefix ..Method syntax |
 | `MIN` | eager, pure, multifunction | Minimum over n arguments (ignores nulls) |
 | `MOD` | eager, pure, multifunction | Floor modulo with a positive divisor |
 | `MUL` | eager, pure, multifunction | Multiplication (Product of values) |

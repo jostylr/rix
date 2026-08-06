@@ -15,10 +15,13 @@ async breaks, lexical function fan-out, group cancellation signals, and
 supervised/drainable `{$$ ... }` tasks. It also includes timeout headers,
 typed operational-fault recovery, LIFO `##_` cleanup, a `2L` ordered
 publication window, task-local ordinary snapshots/write rejection, and strict
-detached import capture. `{# ... }` remains the inert symbolic-system form.
+detached import capture. It also includes first-class linear `async_stream`
+values, cold and hot source infrastructure, lazy stream stages, explicit
+terminals, structured stream consumption, and prefix method lifting.
+`{# ... }` remains the inert symbolic-system form.
 
-Still planned are bounded lazy-source pull, hierarchical round-robin nested
-admission, complete mutation-safety enforcement, deterministic task RNG
+Still planned are bounded pull for legacy lazy generators, complete
+mutation-safety enforcement, deterministic task RNG
 streams, worker execution, full stable task-path diagnostics, and cancellation
 checkpoints inside loops and lazy sources.
 
@@ -260,8 +263,9 @@ branches. For nested branches `[A1, A2, ...]`, `[B1, B2, ...]`, and leaf `C`, a
 limit of four admits `A1`, `B1`, `C`, then `A2`. Applied to the map above, its
 two top-level value branches offer `F()` and `H()` before the first branch
 offers `G()`. This breadth-first fairness prevents a large early subtree from
-monopolizing admission. The current scheduler slice still walks nested leaves
-depth-first; hierarchical admission is tracked as follow-up work.
+monopolizing admission. The scheduler batches ready admissions and tracks
+hierarchical prefix counts so sibling subtrees receive a leaf opportunity
+before a subtree consumes additional permits.
 
 Internal slots may resolve in any order, but the map is not published until
 every required slot is resolved. Its source key/element order is retained.
@@ -571,12 +575,13 @@ deep-copied. The block also snapshots its source location and allowed capability
 frame. It cannot mutate ordinary outer cells. The spawning evaluation receives
 null immediately and cannot join or inspect the final value.
 
-The runtime registers the task with a background supervisor. The supervisor:
+The runtime registers the task with a background supervisor. The implemented
+supervisor retains the task, reports uncaught errors, and owns cancellation and
+resource disposal when its host session closes. The complete supervisor will
+also:
 
 - assigns an ID and retains source diagnostics;
 - enforces a host-configured active-task and queue limit;
-- owns cancellation when the session closes;
-- reports uncaught task errors as diagnostic events;
 - prevents an abandoned task from retaining a closed runtime indefinitely.
 
 Starting a background task requires a `BACKGROUND` script permission. The task
@@ -585,7 +590,8 @@ inherits, but does not broaden, the caller's other permissions.
 ## Host lifecycle
 
 Interactive hosts keep background tasks alive until they finish, are cancelled,
-or the session closes. Session close requests cancellation and drains cleanup
+or the session closes. RiX Web reset/page disposal and the exported runtime
+disposal API request cancellation, close task-owned streams, and drain cleanup
 for a bounded grace period.
 
 The CLI drains supervised background tasks before normal process exit by
@@ -627,11 +633,108 @@ The first implementation rejects `{$$ ... }` while evaluating a reactive
 formula. Otherwise every recomputation could spawn another external effect.
 A later reactive-effect abstraction may define replacement/cancellation rules.
 
-# Async streams remain open
+# Async streams
 
-Async streams and their relationship to reactive state are still under design.
-This document intentionally does not assign them syntax, buffering semantics,
-or a runtime type yet.
+## Value and pull contract
+
+`async_stream` is an ordinary first-class RiX runtime value, but it is neither a
+promise nor a materialized collection. It is a descriptive, linear handle over
+an internal asynchronous resource protocol equivalent to:
+
+```text
+Next(cancellationSignal) -> { done, value }
+Close(reason)
+```
+
+Promises used by `Next` remain inside the promise-aware evaluator. Formatting
+prints the stream label, lifecycle state, and pull count without pulling or
+materializing it. Streams may be asynchronous, non-restartable, non-cacheable,
+and unbounded; they therefore do not reuse `lazy_sequence`.
+
+The built-in `.Stream(collection, label?)` adapter creates a cold finite stream.
+Hosts can construct a stream from a synchronous iterable, async iterable, HTTP
+body reader, file-chunk reader, database cursor, or paged API through the same
+runtime protocol. Pulling supplies backpressure: a cold source is not asked for
+another value merely because a stream handle was created or formatted.
+
+## Lazy stages and terminals
+
+Receiver-first methods `Map`, `Filter`, `Take`, `Drop`, `Chunk`, and `Window`
+return derived streams without pulling. Derived handles share one idempotent
+root lifecycle and cannot be consumed independently. `stream |>> F` and
+`stream |>? P` are polymorphic spellings of lazy `Map` and `Filter` stages.
+Ending `{$ ... }` with a stream returns the handle; it never implicitly drains
+it.
+
+Consumption begins only at an explicit terminal:
+
+- `ForEach(F)` performs an effect for each item and returns null;
+- `Reduce(initial, F)` folds in source order;
+- `Collect()` requires natural completion, while `Collect(n)` is bounded;
+- `First()` and `Find(P)` stop and close early;
+- `Count()` requires a known-finite stream, while `Count(n)` is bounded.
+
+`Close(reason?)`, `Done()`, and `Status()` expose lifecycle control and
+inspection without exposing promises as RiX values. Stateful stages remain
+source ordered. The current implementation overlaps the safe `Map`/`Filter`
+region; stateful stage pipelines use ordered sequential pulls until segmented
+concurrent regions are implemented.
+
+Prefix method lifting makes receiver transformations concise:
+
+```rix
+stream |>> ..DecodeText("utf8")
+```
+
+`..Method(args...)` is a callable equivalent to
+`(value) -> value.Method(args...)`. It is prefix-only; the rejected `obj..name`
+form remains rejected, and an ordinary lambda is always equivalent.
+
+## Structured consumption and lifecycle
+
+Outside `{$ ... }`, terminals pull and transform sequentially. Inside
+`{$:L$ ... }`, safe elementwise work uses the containing scheduler: at most `L`
+items execute at once, no more than `2L` items are admitted but unpublished,
+and values publish in source order. Pull requests are created only behind an
+available scheduler permit. Nested scopes inherit the earliest timeout and the
+stricter limit; early terminals cancel and drain their child group.
+
+Normal exhaustion, bounded completion, `First`/`Find`, transformation or source
+fault, fatal error, timeout, cancellation, background shutdown, and explicit
+host disposal all close the root exactly once. A source can additionally be
+registered with block cleanup:
+
+```rix
+stream := OpenCustomStream() ##_ ..Close
+```
+
+Operational source and overflow failures use the typed `fault` channel and can
+be recovered with `##!>`. Fatal language errors and cancellation propagate.
+If both consumption and close fail, the consumption failure remains primary
+and close failure is suppressed.
+
+## Hot sources and reactive projection
+
+The host hot-stream infrastructure uses a bounded queue with explicit
+`:drop_oldest`, `:drop_latest`, `:error`, or producer-aware `:block` overflow.
+It defines FIFO delivery, completion, fault propagation, cancellation of a
+pending pull, exact-once unsubscribe, and blocked-producer release. The initial
+public `.Stream` adapter is cold; WebSocket, UI, timer, and reactive-event
+capabilities can expose the hot constructor as their host contracts mature.
+
+A stream is an ordered event sequence; a reactive binding is current state.
+The bridge is explicit supervised consumption rather than formula restart:
+
+```rix
+{$$ <latest=latest>
+    .Stream([:connecting, :ready, :done])
+        .ForEach((item) -> ($latest := item))
+}
+```
+
+Reactive graph identity still crosses a detached boundary only through an
+explicit reactive alias import. Reactive formula recomputation never silently
+opens or restarts a stream.
 
 # Execution model
 
@@ -813,7 +916,7 @@ reactive batch later publishes `result` and `status` together.
 - [x] Give each scheduler group an `AbortSignal` and abort descendant groups
   without aborting their parent.
 - [x] Bound finite eager admitted-but-unpublished work to `2L`.
-- [ ] Use hierarchical round-robin admission across nested sibling branches.
+- [x] Use hierarchical round-robin admission across nested sibling branches.
 - [x] Attach stable scheduler task IDs, observation order, and timestamps to
   failures.
 - [ ] Replace fallback task IDs with complete structural task paths in every
@@ -845,8 +948,7 @@ reactive batch later publishes `result` and `status` together.
   sequential where values depend on history.
 - [x] Test the current limit-2 `{= a=[F(), G()], b=H() }` structural-parent
   behavior without consuming permits.
-- [ ] Change that scenario's admission assertion from the current `F, G, H`
-  depth-first order to the settled `F, H, G` hierarchical order.
+- [x] Assert the settled `F, H, G` hierarchical order for that scenario.
 
 ## 5. Fused async pipes
 
@@ -886,8 +988,9 @@ reactive batch later publishes `result` and `status` together.
 ## 7. Background supervisor and reactive publication
 
 - [x] Implement `DETACH` as immediate null plus a supervisor-owned task.
-- [ ] Add active-task/queue limits, task IDs, source diagnostics, session-close
-  cancellation, and bounded cleanup.
+- [x] Add session-close cancellation, task-owned resource disposal, and bounded
+  cleanup; RiX Web invokes it on reset and page disposal.
+- [ ] Add active-task/queue limits, task IDs, and complete source diagnostics.
 - [ ] Define CLI drain-by-default and host no-drain/cancel behavior.
 - [x] Report background errors to the host handler/error queue without retroactively
   failing continued main evaluation.
@@ -921,8 +1024,22 @@ reactive batch later publishes `result` and `status` together.
 - [x] Add typed operational faults and restrict `##!>` to that channel.
 - [x] Parse and lower value-preserving `##_` cleanup registration; run
   finalizers LIFO, sequentially, shielded, and before permit release.
-- [ ] Define async streams/reactive integration in a separate design review;
-  no language contract is settled here.
+- [x] Add first-class linear `async_stream` values with hidden async pull and
+  exact-once close protocols.
+- [x] Add cold iterable adapters, lazy map/filter/take/drop/chunk/window stages,
+  explicit terminals, lifecycle methods, and prefix method lifting.
+- [x] Integrate safe elementwise terminals with `L` execution, the `2L`
+  publication window, inherited cancellation, timeouts, and cleanup.
+- [x] Add bounded hot-source queues with all four settled overflow policies.
+- [x] Add explicit supervised stream-to-reactive publication examples and
+  reject detached stream copying.
+- [x] Cancel long-lived detached stream pulls and close their sources during
+  host/session disposal.
+- [ ] Add built-in HTTP, file, database, WebSocket, UI, timer, and reactive-event
+  capabilities on top of the implemented host stream adapters.
+- [ ] Segment stateful stream pipelines so later elementwise regions can regain
+  structured concurrency; add `ChunkBy`, `Merge`, `Timeout`, `Debounce`,
+  `Throttle`, and `Latest` only after those semantics are proven.
 
 ## 9. Documentation, observability, and hardening
 
