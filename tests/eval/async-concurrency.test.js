@@ -87,7 +87,7 @@ describe("RiX async and concurrency", () => {
         expect(Number(result.entries.get("b").value)).toBe(3);
     });
 
-    test("a called function yields its item permit while constructing a nested collection", async () => {
+    test("a function defined outside the async scope keeps sequential collection semantics", async () => {
         const starts = [];
         const releases = new Map();
         const systemContext = asyncSystem("work", ([value]) => new Promise((resolve) => {
@@ -100,7 +100,7 @@ describe("RiX async and concurrency", () => {
         }));
 
         const evaluation = parseAndEvaluateAsync(
-            "Build() -> [.work(1), .work(2)]; {$:1$ <Build> [Build()] };",
+            "Build() -> [.work(1), .work(2)]; {$:2$ <Build> [Build()] };",
             { systemContext },
         );
         await waitUntil(() => releases.has(1), "first called-function child");
@@ -111,6 +111,86 @@ describe("RiX async and concurrency", () => {
 
         const result = await evaluation;
         expect(result.values[0].values.map((value) => Number(value.value))).toEqual([1, 2]);
+    });
+
+    test("a function defined inside an async scope retains lexical concurrency after escaping", async () => {
+        const starts = [];
+        const releases = new Map();
+        const systemContext = asyncSystem("work", ([value]) => new Promise((resolve) => {
+            const number = Number(value.value);
+            starts.push(number);
+            releases.set(number, () => {
+                releases.delete(number);
+                resolve(value);
+            });
+        }));
+
+        const evaluation = parseAndEvaluateAsync(
+            "Build = {$:2$ () -> [.work(1), .work(2)] }; Build();",
+            { systemContext },
+        );
+        await waitUntil(() => releases.size === 2, "escaped function children");
+        expect(starts).toEqual([1, 2]);
+        releases.get(2)();
+        releases.get(1)();
+
+        const result = await evaluation;
+        expect(result.values.map((value) => Number(value.value))).toEqual([1, 2]);
+    });
+
+    test("an external function can opt into an explicit nested async scope at limit one", async () => {
+        const starts = [];
+        const releases = new Map();
+        const systemContext = asyncSystem("work", ([value]) => new Promise((resolve) => {
+            const number = Number(value.value);
+            starts.push(number);
+            releases.set(number, () => {
+                releases.delete(number);
+                resolve(value);
+            });
+        }));
+
+        const evaluation = parseAndEvaluateAsync(
+            "Build() -> {$:1$ [.work(1), .work(2)] }; {$:1$ <Build> [Build()] };",
+            { systemContext },
+        );
+        await waitUntil(() => releases.has(1), "first explicit nested-scope child");
+        expect(starts).toEqual([1]);
+        releases.get(1)();
+        await waitUntil(() => releases.has(2), "second explicit nested-scope child");
+        releases.get(2)();
+
+        const result = await evaluation;
+        expect(result.values[0].values.map((value) => Number(value.value))).toEqual([1, 2]);
+    });
+
+    test("an outside-defined function processes async pipe items sequentially", async () => {
+        const starts = [];
+        const releases = new Map();
+        const systemContext = asyncSystem("work", ([value]) => new Promise((resolve) => {
+            const number = Number(value.value);
+            starts.push(number);
+            releases.set(number, () => {
+                releases.delete(number);
+                resolve(value);
+            });
+        }));
+
+        const evaluation = parseAndEvaluateAsync(
+            "Transform(xs) -> xs |>> ((x) -> .work(x)); {$:3$ <Transform> [Transform([1, 2, 3])] };",
+            { systemContext },
+        );
+        await waitUntil(() => releases.has(1), "first sequential pipe item");
+        expect(starts).toEqual([1]);
+        releases.get(1)();
+        await waitUntil(() => releases.has(2), "second sequential pipe item");
+        expect(starts).toEqual([1, 2]);
+        releases.get(2)();
+        await waitUntil(() => releases.has(3), "third sequential pipe item");
+        releases.get(3)();
+
+        const result = await evaluation;
+        expect(result.values[0].values.map((value) => Number(value.value))).toEqual([1, 2, 3]);
     });
 
     test("tensor literal cells fan out and retain row-major assembly", async () => {

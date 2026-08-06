@@ -11,8 +11,9 @@ slice includes syntax and IR, code-block import headers, async host APIs,
 grouped FIFO bounded scheduling, nested scope-limit composition, concurrent
 arrays/maps/tuples/sets/matrices/tensors, fused `|>>` and `|>?`, ordered
 `|>||` and `|>&&`, promise-aware reduce/sort/slice/split/chunk barriers, named
-async breaks, and supervised/drainable `{$$ ... }` tasks. `{# ... }` remains
-the inert symbolic-system form.
+async breaks, lexical function fan-out, group cancellation signals, and
+supervised/drainable `{$$ ... }` tasks. `{# ... }` remains the inert
+symbolic-system form.
 
 Still planned are bounded lazy-source pull, complete task
 snapshot/copy-on-write enforcement, deterministic task RNG streams, worker
@@ -119,6 +120,20 @@ defaultAsyncConcurrency: 10
 A host may override the default for a runtime. An explicit header overrides
 the runtime default but cannot escape a stricter containing scope or host cap.
 
+An accepted follow-up extends the header with keyed options:
+
+```rix
+{$jobs:limit=10,timeout=5$ expression }
+{$:limit=10,timeout=5$ expression }
+```
+
+The positional forms remain shorthand: `{$jobs:10,5$ ... }` supplies limit and
+timeout, while an omitted positional field such as `{$jobs:,5$ ... }` uses the
+default limit. Timeout values are positive safe-integer seconds. The timer uses
+a monotonic clock and starts when the scope is entered; nested scopes observe
+the earliest active deadline. Timeout parsing and execution are not part of the
+current runtime slice.
+
 `{$ ... }` is block-scoped and returns its final statement's value. Statements
 inside it execute one at a time. Each statement waits for its own required
 concurrent work before the next statement begins.
@@ -202,23 +217,33 @@ constructors are fan-out points:
 Function argument lists, arithmetic operands, and block statements are not
 collection constructors and remain sequential.
 
-Every collection-producing expression invoked under the dynamic concurrency
-context inherits it, including constructors inside called RiX functions.
+Concurrency inheritance is lexical, not dynamic. A function defined outside a
+concurrency scope keeps ordinary sequential collection construction when it is
+called from inside that scope. A function defined lexically inside `{$ ... }`
+retains parallel collection construction on later calls. It captures only that
+semantic flag, never a particular scheduler, limit, timeout, or cancellation
+signal. When such a function is called outside an active scope, the runtime
+creates a temporary scope using the runtime default limit. An outside function
+can opt in explicitly by putting its own `{$ ... }` around the intended fan-out.
+
 Collections fully constructed before the scope are already values and are not
 re-evaluated. They become ordinary pipe sources.
 
 ```rix
 existing := [F(), G()]       // already evaluated sequentially
+Build() -> [F(), G()]         // defined outside: remains sequential
 
 inside := {$ [F(), G()] }    // F and G overlap
 mapped := {$ existing |>> H }
+BuildParallel = {$ () -> [F(), G()] }
+later := BuildParallel()      // temporary default-limited scope
 ```
 
 ## Nested collections
 
 Nested explicit collections share the containing scheduler and cancellation
-signal. Admission walks source expressions depth-first and left-to-right.
-Structural parent nodes do not consume permits while waiting for children.
+signal. Structural parent nodes do not consume permits while waiting for
+children.
 
 ```rix
 {$:2$
@@ -226,16 +251,23 @@ Structural parent nodes do not consume permits while waiting for children.
 }
 ```
 
-The admission sequence is `F()`, `G()`, `H()`. `F` and `G` start first. If `G`
-finishes while `F` remains active, `H` may begin. The internal slot for `b` may
-resolve before `a`, but the map is not published until every required slot is
-resolved. Its source key/element order is retained.
+The accepted admission contract is hierarchical round-robin across sibling
+branches. For nested branches `[A1, A2, ...]`, `[B1, B2, ...]`, and leaf `C`, a
+limit of four admits `A1`, `B1`, `C`, then `A2`. Applied to the map above, its
+two top-level value branches offer `F()` and `H()` before the first branch
+offers `G()`. This breadth-first fairness prevents a large early subtree from
+monopolizing admission. The current scheduler slice still walks nested leaves
+depth-first; hierarchical admission is tracked as follow-up work.
+
+Internal slots may resolve in any order, but the map is not published until
+every required slot is resolved. Its source key/element order is retained.
 
 A suspended structural parent yields scheduler capacity while nested children
 run. This prevents a nested collection from deadlocking when the limit is 1.
-The same rule applies when a called RiX function reaches a collection or nested
+The same rule applies to a lexically concurrent function or an explicit nested
 async scope: its source-item ticket is temporarily yielded and reacquired after
-the structural work completes.
+the structural work completes. An outside-defined sequential function does not
+turn its ordinary collections into scheduler fan-out points.
 
 ## Map entries
 
@@ -374,6 +406,12 @@ The scheduler is work-conserving but deterministic about admission:
 - nested scopes share the ancestor scheduler rather than creating capacity;
 - waiting scope controllers do not hold leaf permits.
 
+For a limit `L`, no more than `L` items execute at once and no more than `2L`
+items may be admitted but not yet published. The second bound is an ordered
+publication window: it permits useful overlap without allowing a slow early
+item to cause unbounded buffering of later completed results. This window and
+hierarchical round-robin nested admission remain follow-up scheduler work.
+
 Each nested scope owns a scheduler group. A group's in-flight count includes
 all descendant groups, so `{$outer:4$ {$inner:2$ ... } }` can use at most two
 slots in `inner` and at most four across `outer`. Cancellation is group-local:
@@ -445,8 +483,11 @@ By default, an unhandled child error fails the containing `{$ ... }` scope:
 3. await sibling cleanup/settlement;
 4. throw an annotated error from the scope.
 
-Additional errors observed during cleanup are attached as suppressed errors in
-stable task-path order. Cancellation is not itself reported as a sibling error.
+The first fatal error observed by the scheduler is the primary error. Because
+observation order depends on timing, two nearly simultaneous failures need not
+select the same primary error across runs. Later failures are attached as
+suppressed errors with stable task paths and observation timestamps.
+Cancellation is not itself reported as a sibling error.
 
 Future `AllSettled`-style behavior should be an explicit operation; it is not
 the default collection-construction contract.
@@ -470,6 +511,35 @@ undo completed external effects.
 Cancellation never promises rollback. A request may already have been sent, a
 file may already have been written, and output may already have been emitted.
 
+Implicit suspension is therefore not an atomic region. Ordinary task-local
+state follows snapshot/copy-on-write rules, reactive commits become visible at
+their defined publication points, and external effects and output remain in
+completion order unless a host explicitly presents them differently.
+
+## Guaranteed finalization
+
+The accepted acquisition postfix `##_` registers guaranteed cleanup while
+preserving the acquired value:
+
+```rix
+file := Open(path) ##_ Close
+```
+
+Registration occurs only after the expression on the left succeeds and belongs
+to the nearest block activation. Registered finalizers run sequentially in
+LIFO order on normal return, break, error, timeout, cancellation, and host
+shutdown. Cleanup is implicitly awaited and finishes before a concurrent item
+publishes its result or releases its permit. It is cancellation-shielded within
+a host cleanup grace period.
+
+If the body failed, that failure remains primary and cleanup failures are
+suppressed. If the body succeeded, the first cleanup failure becomes primary.
+Parsing, lowering, and executing `##_` remain follow-up work.
+
+`##!>` catches only a typed operational `fault`, such as timeout or a capability
+failure declared recoverable. It does not catch language errors or control
+signals. The fault hierarchy and operator implementation remain follow-up work.
+
 ## Async-scope break
 
 `{!$...}` is a controlled scope completion rather than an error. Its value is
@@ -484,10 +554,14 @@ answer is acceptable. Ordered selection uses `|>||`.
 
 ## Spawn and isolation
 
-`{$$ ... }` snapshots its visible ordinary values, callable definitions, source
-location, and allowed capability frame at spawn. It cannot mutate ordinary
-outer cells. The spawning evaluation receives null immediately and cannot join
-or inspect the final value.
+`{$$ ... }` has an explicit import boundary. An unlisted outer binding is
+invisible. A listed ordinary value is deep-copied at spawn, and an ordinary
+alias import is rejected. A listed reactive value is an alias so that reactive
+publication remains an explicit communication channel. External user functions
+must also be listed; their captured ordinary values are validated and
+deep-copied. The block also snapshots its source location and allowed capability
+frame. It cannot mutate ordinary outer cells. The spawning evaluation receives
+null immediately and cannot join or inspect the final value.
 
 The runtime registers the task with a background supervisor. The supervisor:
 
@@ -544,6 +618,16 @@ task communicates through supervisor messages.
 The first implementation rejects `{$$ ... }` while evaluating a reactive
 formula. Otherwise every recomputation could spawn another external effect.
 A later reactive-effect abstraction may define replacement/cancellation rules.
+
+# Async streams
+
+Long-lived or incremental asynchronous data is a separate runtime abstraction,
+not a reactive variable containing a promise or stream. An `async_stream`
+supports cancellation-aware `Next(signal)` and `Close(reason)`. Cold streams
+pull lazily; hot streams push through an explicitly bounded buffer. Async pipe
+stages remain lazy until a terminal operation consumes the stream. Reactive
+variables may project a latest value or progress snapshot from a stream, but do
+not own the stream itself. Syntax and runtime support remain follow-up work.
 
 # Execution model
 
@@ -722,6 +806,10 @@ reactive batch later publishes `result` and `status` together.
 
 - [x] Add a runtime-owned `TaskScheduler` with ordered admission, bounded
   permits, grouped cancellation, and cleanup draining.
+- [x] Give each scheduler group an `AbortSignal` and abort descendant groups
+  without aborting their parent.
+- [ ] Bound admitted-but-unpublished work to `2L` and use hierarchical
+  round-robin admission across nested sibling branches.
 - [ ] Attach stable task paths to scheduler entries and diagnostics.
 - [x] Implement effective-limit composition for nested scopes. A distinct host
   maximum remains follow-up configuration work.
@@ -737,10 +825,11 @@ reactive batch later publishes `result` and `status` together.
 
 - [x] Add async planning/evaluation for arrays, brace arrays, tuples, sets,
   maps, matrices, and tensors.
-- [x] Recursively inherit concurrency through called functions and nested
-  explicit constructors, yielding an enclosing item permit around fan-out.
-- [ ] Give fan-out discovered inside opaque calls stable admission priority
-  relative to already queued later siblings.
+- [x] Capture parallel-constructor semantics lexically for functions defined
+  inside `{$ ... }`; keep outside-defined functions sequential unless they use
+  an explicit inner concurrency scope.
+- [ ] Classify callable safety and reject unsynchronised ordinary shared writes
+  from concurrent functions.
 - [x] Preserve source-order result assembly despite completion-order slot fills.
 - [x] Implement finite map key/value and insertion-order rules.
 - [x] Treat pre-existing collections as data sources without re-evaluation.
@@ -767,8 +856,8 @@ reactive batch later publishes `result` and `status` together.
 
 ## 6. Failure and cancellation
 
-- [ ] Thread cancellation signals through evaluator calls, loops, source pulls,
-  stages, capabilities, and workers.
+- [ ] Thread the implemented group cancellation signals through evaluator
+  calls, loops, source pulls, stages, capabilities, and workers.
 - [x] Implement fail-fast admission stop followed by queued-sibling cancellation and
   cleanup drain.
 - [ ] Attach suppressed cleanup failures in stable task-path order.
@@ -788,6 +877,9 @@ reactive batch later publishes `result` and `status` together.
 - [x] Report background errors to the host handler/error queue without retroactively
   failing continued main evaluation.
 - [ ] Snapshot ordinary captured values and capability permissions at spawn.
+- [ ] Enforce detached import isolation: deep-copy listed ordinary values,
+  reject ordinary aliases, alias listed reactive values, and hide unlisted
+  bindings.
 - [ ] Reject ordinary outer-cell writes and detached spawn during reactive
   formula evaluation.
 - [ ] Transfer background reactive updates as resolved literal messages to the
@@ -806,6 +898,16 @@ reactive batch later publishes `result` and `status` together.
 - [ ] Route reactive commits and output events back through owner messages.
 - [ ] Add worker termination and grace-period behavior.
 - [ ] Compare event-loop and worker execution for semantic equivalence.
+
+## 8a. Accepted async follow-ups
+
+- [ ] Parse keyed and positional timeout headers and enforce earliest nested
+  monotonic deadlines with cancellation and drain.
+- [ ] Add typed operational faults and restrict `##!>` to that channel.
+- [ ] Parse and lower value-preserving `##_` cleanup registration; run
+  finalizers LIFO, sequentially, shielded, and before permit release.
+- [ ] Add the separate bounded `async_stream` runtime with lazy async pipes and
+  terminal consumers.
 
 ## 9. Documentation, observability, and hardening
 

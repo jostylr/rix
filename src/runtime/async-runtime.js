@@ -32,7 +32,9 @@ export class AsyncScheduler {
             inFlight: 0,
             cancelled: false,
             cancelReason: null,
+            controller: new AbortController(),
         };
+        group.signal = group.controller.signal;
         parent?.children.add(group);
         return group;
     }
@@ -76,6 +78,7 @@ export class AsyncScheduler {
         if (this.cancelled) return;
         this.cancelled = true;
         this.cancelReason = reason;
+        this.#abortGroupTree(this.defaultGroup, reason);
         const queued = this.queue.splice(0);
         for (const entry of queued) entry.reject(reason);
         this.#notifyIdle();
@@ -88,6 +91,7 @@ export class AsyncScheduler {
             if (current.cancelled) return;
             current.cancelled = true;
             current.cancelReason = reason;
+            current.controller.abort(reason);
             cancelledGroups.add(current);
             for (const child of current.children) markCancelled(child);
         };
@@ -166,6 +170,14 @@ export class AsyncScheduler {
             if (current.cancelled) return current.cancelReason;
         }
         return null;
+    }
+
+    #abortGroupTree(group, reason) {
+        if (!group) return;
+        group.cancelled = true;
+        group.cancelReason = reason;
+        group.controller.abort(reason);
+        for (const child of group.children) this.#abortGroupTree(child, reason);
     }
 
     #isDescendant(group, ancestor) {
