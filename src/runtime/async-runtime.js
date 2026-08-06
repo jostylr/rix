@@ -18,6 +18,8 @@ export class AsyncScheduler {
         this.cancelled = false;
         this.cancelReason = null;
         this.idleWaiters = [];
+        this.nextTaskId = 1;
+        this.nextObservationOrder = 1;
         this.defaultGroup = this.createGroup(limit);
     }
 
@@ -32,6 +34,8 @@ export class AsyncScheduler {
             inFlight: 0,
             cancelled: false,
             cancelReason: null,
+            primaryError: null,
+            suppressedErrors: [],
             controller: new AbortController(),
         };
         group.signal = group.controller.signal;
@@ -39,11 +43,19 @@ export class AsyncScheduler {
         return group;
     }
 
-    run(task, group = this.defaultGroup) {
+    run(task, group = this.defaultGroup, options = {}) {
         const cancellation = this.#cancellationFor(group);
         if (cancellation) return Promise.reject(cancellation);
         return new Promise((resolve, reject) => {
-            this.queue.push({ kind: "task", task, resolve, reject, group });
+            const id = this.nextTaskId++;
+            this.queue.push({
+                kind: "task",
+                task,
+                resolve,
+                reject,
+                group,
+                path: options.path || `task ${id}`,
+            });
             this.#admit();
         });
     }
@@ -133,9 +145,7 @@ export class AsyncScheduler {
             Promise.resolve()
                 .then(() => entry.task(ticket))
                 .then(entry.resolve, (error) => {
-                    // Fail fast: stop admitting queued siblings before the
-                    // rejected item releases its slot.
-                    this.cancelGroup(entry.group, error);
+                    this.#observeFailure(entry.group, error, entry.path);
                     entry.reject(error);
                 })
                 .finally(() => {
@@ -156,6 +166,26 @@ export class AsyncScheduler {
             if (current.cancelled || current.inFlight >= current.limit) return false;
         }
         return true;
+    }
+
+    #observeFailure(group, error, path) {
+        if (!error || typeof error !== "object") error = new Error(String(error));
+        error.asyncTaskPath ??= path;
+        error.asyncObservationOrder ??= this.nextObservationOrder++;
+        error.asyncObservedAt ??= performance.now();
+        if (!group.primaryError) {
+            group.primaryError = error;
+            // Fail fast: stop admitting queued siblings before the rejected
+            // item releases its slot.
+            this.cancelGroup(group, error);
+            return;
+        }
+        if (error === group.primaryError || error === group.cancelReason) return;
+        group.suppressedErrors.push(error);
+        const existing = Array.isArray(group.primaryError.suppressed)
+            ? group.primaryError.suppressed
+            : [];
+        group.primaryError.suppressed = [...existing, error];
     }
 
     #adjustInFlight(group, delta) {

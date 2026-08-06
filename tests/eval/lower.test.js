@@ -1019,6 +1019,25 @@ describe("Lowering Pass", () => {
       expect(ir.args[2].fn).toBe("RETRIEVE");
     });
 
+    test("async code block lowers timeout metadata", () => {
+      const ir = L("{$jobs:limit=4,timeout=5$ a };");
+      expect(ir.args[0]).toEqual({
+        name: "jobs",
+        concurrencyLimit: 4,
+        timeoutSeconds: 5,
+      });
+    });
+
+    test("cleanup and fault recovery lower to dedicated postfix IR", () => {
+      const cleanup = L("value ##_ Close;");
+      expect(cleanup.fn).toBe("POSTFIX_FINALIZER");
+      expect(cleanup.args[0].fn).toBe("RETRIEVE");
+      expect(cleanup.args[1].fn).toBe("RETRIEVE");
+
+      const recovery = L("value ##!> Recover;");
+      expect(recovery.fn).toBe("POSTFIX_FAULT_RECOVERY");
+    });
+
     test("detached code block lowers its import header", () => {
       const ir = L("{$$ <a~x> a; b };");
       expect(ir.fn).toBe("DETACH");

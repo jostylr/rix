@@ -521,8 +521,8 @@ u \= {| 2 |}
 |--------|----------------|-------------|
 | `{ a; b; c }` | `BLOCK` | Sequential execution, returns last value. Optional top-of-block import header: `{ <...> ... }` |
 | `{; a; b; c }` | `BLOCK` | Sequential execution (explicit block). Optional top-of-block import header: `{; <...> ... }` |
-| `{$ ... }`, `{$name:4$ ... }` | `ASYNC_SCOPE` | Awaited concurrency code block. Explicit collection entries fan out with a default limit of 10; statements remain sequential. Supports an optional top-of-block import header. |
-| `{$$ ... }` | `DETACH` | Start one supervised background code block and immediately return `null`; its statements remain sequential. Supports an optional import header. |
+| `{$ ... }`, `{$name:4$ ... }`, `{$name:limit=4,timeout=5$ ... }` | `ASYNC_SCOPE` | Awaited concurrency code block. Explicit collection entries fan out with a default limit of 10; statements remain sequential. Timeout is in positive integer seconds. Supports an optional top-of-block import header. |
+| `{$$ ... }` | `DETACH` | Start one supervised background code block and immediately return `null`; its statements remain sequential. Only listed imports are visible: ordinary imports are deep snapshots, ordinary aliases are rejected, and reactive alias imports retain their graph identity. |
 | `{? c1 ? v1; c2 ? v2; default }` | `CASE` | Conditional branching (if/elseif/else) |
 | `{@ init; cond; body; update }` | `LOOP` | Loop with init, condition, body, update. A fifth `after` slot may be added: `{@ init; cond; body; update; after }`; it runs on normal completion and supplies the loop result. Loop headers also support `{@name@ ... }`, `{@:100@ ... }`, `{@name:100@ ... }`, `{@::@ ... }`, and `{@name::@ ... }`. Optional top-of-block import header: `{@ <...> ... }` |
 | `{! expr }` | `BREAK` | Break the nearest matching block/case/loop and use `expr` as that target's final value. `{!$name! expr }` races to exit a named async scope. |
@@ -1769,6 +1769,23 @@ is automatic for `parseAndEvaluate(...)`, script imports, and the CLI paths that
 use those APIs. Direct calls to `evaluate(irNode, ...)` only include
 line/column locations if the caller has attached source metadata or set the
 source environment for the context.
+
+### Cleanup and operational-fault postfixes
+
+`value ##_ Cleanup` evaluates `value` once, registers `Cleanup(value)` with the
+nearest code-block activation, and returns `value` unchanged. Registered
+cleanups run sequentially in LIFO order on normal exit, break, error, timeout,
+cancellation, and supervised background completion. Async cleanup is awaited;
+concurrent-item cleanup finishes before that item releases its permit.
+
+`expression ##!> Recover` evaluates the expression once. Success passes through
+unchanged. A typed operational fault calls `Recover(fault)` and returns the
+recovery value. Language errors, `.Error`, breaks, and cancellation are not
+caught. If recovery fails, its error propagates.
+
+Body failure remains primary when cleanup also fails; cleanup errors are
+attached as suppressed failures. Cleanup after a successful body may itself
+become the block failure and is bounded by the runtime cleanup grace period.
 
 ### `.Warn(label, dataMap ?= {=})`
 

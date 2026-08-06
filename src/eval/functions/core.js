@@ -933,6 +933,7 @@ function performUpdate(name, rhsValue, context, depth, evaluate = null) {
     const cell = context.getCell(name);
 
     if (cell) {
+        context.assertCellWritable(cell, name);
         const oldValue = cell.value;
         checkLocked(oldValue);
         checkFrozenImmutable(oldValue);
@@ -967,6 +968,7 @@ function performOuterUpdate(name, rhsValue, context, depth, evaluate = null) {
     const cell = context.getOuterCell(name);
 
     if (cell) {
+        context.assertCellWritable(cell, name);
         const oldValue = cell.value;
         checkLocked(oldValue);
         checkFrozenImmutable(oldValue);

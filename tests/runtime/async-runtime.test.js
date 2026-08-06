@@ -54,4 +54,25 @@ describe("AsyncScheduler cancellation groups", () => {
         await Promise.all([first, second]);
         expect(events).toEqual(["outer:start", "sibling", "outer:resumed"]);
     });
+
+    test("the first observed fatal error is primary and later failures are suppressed", async () => {
+        const scheduler = new AsyncScheduler(2);
+        const releases = [];
+        const first = scheduler.run(() => new Promise((resolve, reject) => releases.push(() => reject(new Error("first")))), undefined, { path: "item 1" });
+        const second = scheduler.run(() => new Promise((resolve, reject) => releases.push(() => reject(new Error("second")))), undefined, { path: "item 2" });
+        await Promise.resolve();
+
+        releases[1]();
+        const secondError = await second.catch((error) => error);
+        releases[0]();
+        await first.catch(() => null);
+        await scheduler.waitForIdle();
+
+        expect(secondError.message).toBe("second");
+        expect(secondError.asyncTaskPath).toBe("item 2");
+        expect(secondError.asyncObservationOrder).toBe(1);
+        expect(secondError.suppressed).toHaveLength(1);
+        expect(secondError.suppressed[0].message).toBe("first");
+        expect(secondError.suppressed[0].asyncObservationOrder).toBe(2);
+    });
 });

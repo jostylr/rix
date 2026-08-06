@@ -257,8 +257,17 @@ function tryMatchCustomOperator(input, position) {
   };
 }
 function tryMatchPostfixCheck(input, position) {
+  const longMarker = input.slice(position, position + 4);
+  if (longMarker === "##!>") {
+    return {
+      type: "Symbol",
+      original: longMarker,
+      value: longMarker,
+      pos: [position, position, position + longMarker.length]
+    };
+  }
   const marker = input.slice(position, position + 3);
-  if (marker !== "##@" && marker !== "##:" && marker !== "##!")
+  if (marker !== "##@" && marker !== "##:" && marker !== "##!" && marker !== "##_")
     return null;
   return {
     type: "Symbol",
@@ -689,27 +698,85 @@ function tryMatchBrace(input, position) {
     }
     if (input[cursor] !== ":") {
       const { line: line2, col: col2 } = posToLineCol(input, position);
-      throw new Error(`Async scope '{$' must be followed by a space, '$', 'name$', ':limit$', or 'name:limit$' at line ${line2}:${col2}`);
+      throw new Error(`Async scope '{$' must be followed by a space, '$', 'name$', or a ':' option header ending in '$' at line ${line2}:${col2}`);
     }
     cursor++;
-    const digitsStart = cursor;
-    while (cursor < input.length && /[0-9]/.test(input[cursor]))
+    const optionsStart = cursor;
+    while (cursor < input.length && input[cursor] !== "$")
       cursor++;
-    if (digitsStart === cursor || input[cursor] !== "$") {
+    if (input[cursor] !== "$") {
       const { line: line2, col: col2 } = posToLineCol(input, position);
-      throw new Error(`Async concurrency limit must be a positive integer ending in '$' at line ${line2}:${col2}`);
+      throw new Error(`Async scope option header must end in '$' at line ${line2}:${col2}`);
     }
-    const rawLimit = input.slice(digitsStart, cursor);
-    const asyncLimit = Number(rawLimit);
-    if (!Number.isSafeInteger(asyncLimit) || asyncLimit < 1) {
+    const rawOptions = input.slice(optionsStart, cursor);
+    const parsePositive = (raw, label) => {
+      if (!/^\d+$/.test(raw)) {
+        const { line: line2, col: col2 } = posToLineCol(input, position);
+        throw new Error(`Async ${label} must be a positive integer at line ${line2}:${col2}`);
+      }
+      const value = Number(raw);
+      if (!Number.isSafeInteger(value) || value < 1) {
+        const { line: line2, col: col2 } = posToLineCol(input, position);
+        throw new Error(`Invalid async ${label} '${raw}' at line ${line2}:${col2}`);
+      }
+      return value;
+    };
+    let asyncLimit;
+    let asyncTimeout;
+    const pieces = rawOptions.split(",").map((piece) => piece.trim());
+    const keyed = pieces.some((piece) => piece.includes("="));
+    if (keyed) {
+      if (pieces.some((piece) => !piece.includes("="))) {
+        const { line: line2, col: col2 } = posToLineCol(input, position);
+        throw new Error(`Async scope options cannot mix keyed and positional fields at line ${line2}:${col2}`);
+      }
+      const seen = new Set;
+      for (const piece of pieces) {
+        const match = piece.match(/^(limit|timeout)\s*=\s*(\d+)$/i);
+        if (!match) {
+          const { line: line2, col: col2 } = posToLineCol(input, position);
+          throw new Error(`Malformed async scope option '${piece}' at line ${line2}:${col2}`);
+        }
+        const key = match[1].toLowerCase();
+        if (seen.has(key)) {
+          const { line: line2, col: col2 } = posToLineCol(input, position);
+          throw new Error(`Duplicate async scope option '${key}' at line ${line2}:${col2}`);
+        }
+        seen.add(key);
+        if (key === "limit")
+          asyncLimit = parsePositive(match[2], "concurrency limit");
+        else
+          asyncTimeout = parsePositive(match[2], "timeout");
+      }
+    } else {
+      if (pieces.length > 2 || pieces.length === 0 || pieces.length === 1 && pieces[0] === "") {
+        const { line: line2, col: col2 } = posToLineCol(input, position);
+        throw new Error(`Async positional header expects limit and optional timeout at line ${line2}:${col2}`);
+      }
+      if (pieces[0] !== "")
+        asyncLimit = parsePositive(pieces[0], "concurrency limit");
+      if (pieces.length > 1) {
+        if (pieces[1] === "") {
+          const { line: line2, col: col2 } = posToLineCol(input, position);
+          throw new Error(`Async timeout cannot be omitted after ',' at line ${line2}:${col2}`);
+        }
+        asyncTimeout = parsePositive(pieces[1], "timeout");
+      }
+      if (asyncLimit === undefined && asyncTimeout === undefined) {
+        const { line: line2, col: col2 } = posToLineCol(input, position);
+        throw new Error(`Async scope header must specify a limit or timeout at line ${line2}:${col2}`);
+      }
+    }
+    if (asyncLimit === undefined && asyncTimeout === undefined) {
       const { line: line2, col: col2 } = posToLineCol(input, position);
-      throw new Error(`Invalid async concurrency limit '${rawLimit}' at line ${line2}:${col2}`);
+      throw new Error(`Async scope header must specify a limit or timeout at line ${line2}:${col2}`);
     }
     const end = cursor + 1;
     requireBoundary(end, "Async scope header");
     return makeAdvancedConstructorToken("{$", position, end, {
       containerName,
-      asyncLimit
+      ...asyncLimit !== undefined ? { asyncLimit } : {},
+      ...asyncTimeout !== undefined ? { asyncTimeout } : {}
     });
   }
   if (input.slice(position + 1).startsWith("=..")) {
@@ -2082,6 +2149,7 @@ class Parser {
             loopMax: token.loopMax,
             loopUnlimited: token.loopUnlimited === true,
             asyncLimit: token.asyncLimit,
+            asyncTimeout: token.asyncTimeout,
             destructureAlias: token.destructureAlias === true
           });
         } else if (token.value === "{+" || token.value === "{*" || token.value === "{&&" || token.value === "{||" || token.value === "{\\/" || token.value === "{/\\" || token.value === "{++" || token.value === "{<<" || token.value === "{>>") {
@@ -2123,6 +2191,7 @@ class Parser {
                 loopMax: this.current.loopMax,
                 loopUnlimited: this.current.loopUnlimited === true,
                 asyncLimit: this.current.asyncLimit,
+                asyncTimeout: this.current.asyncTimeout,
                 destructureAlias: this.current.destructureAlias === true
               });
             }
@@ -2903,15 +2972,19 @@ class Parser {
       if (this.current.value === ";" || this.current.value === "," || this.current.value === ")" || this.current.value === "]" || this.current.value === "}" || this.current.type === "SemicolonSequence") {
         break;
       }
-      if (!this.disablePostfixCheckParsing && (this.current.value === "##@" || this.current.value === "##:" || this.current.value === "##!")) {
+      if (!this.disablePostfixCheckParsing && (this.current.value === "##@" || this.current.value === "##:" || this.current.value === "##!" || this.current.value === "##_" || this.current.value === "##!>")) {
         if (PRECEDENCE.CHECK < minPrec)
           break;
         if (this.current.value === "##@") {
           left = this.parsePostfixPredicateCheck(left);
         } else if (this.current.value === "##:") {
           left = this.parsePostfixTypeCheck(left);
-        } else {
+        } else if (this.current.value === "##!") {
           left = this.parsePostfixDiagnosticTap(left);
+        } else if (this.current.value === "##_") {
+          left = this.parsePostfixHandler(left, "PostfixFinalizer", "cleanup callable");
+        } else {
+          left = this.parsePostfixHandler(left, "PostfixFaultRecovery", "fault handler");
         }
         if (left.endsLineAt !== null && this.current.pos?.[0] >= left.endsLineAt)
           break;
@@ -3119,6 +3192,32 @@ class Parser {
       pos: [expression.pos[0], expression.pos[1], end],
       original: expression.original + marker.original + actionOriginal + "(...)"
     });
+  }
+  parsePostfixHandler(expression, nodeType, label) {
+    const marker = this.current;
+    const lineEndAt = this.source.indexOf(`
+`, marker.pos[2]);
+    const previousStop = this.stopExpressionAtOffset;
+    const previousDisable = this.disablePostfixCheckParsing;
+    this.stopExpressionAtOffset = lineEndAt === -1 ? previousStop : lineEndAt;
+    this.disablePostfixCheckParsing = true;
+    this.advance();
+    try {
+      if (this.current.type === "End" || this.current.value === ";" || this.current.value === "}") {
+        this.error(`Expected ${label} after ${marker.value}`);
+      }
+      const handler = this.parseExpression(PRECEDENCE.CHECK + 1);
+      return this.createNode(nodeType, {
+        expression,
+        handler,
+        endsLineAt: lineEndAt === -1 ? null : lineEndAt,
+        pos: [expression.pos[0], expression.pos[1], handler.pos[2]],
+        original: expression.original + marker.original + handler.original
+      });
+    } finally {
+      this.stopExpressionAtOffset = previousStop;
+      this.disablePostfixCheckParsing = previousDisable;
+    }
   }
   isGeneratorOperator(value) {
     return ["|+", "|*", "|:", "|?", "|^", "|;", "|>"].includes(value);
@@ -3986,6 +4085,7 @@ class Parser {
       ...effectiveSigil === "{@" && options.loopMax !== undefined ? { maxIterations: options.loopMax } : {},
       ...effectiveSigil === "{@" && options.loopUnlimited ? { unlimited: true } : {},
       ...effectiveSigil === "{$" && options.asyncLimit !== undefined ? { concurrencyLimit: options.asyncLimit } : {},
+      ...effectiveSigil === "{$" && options.asyncTimeout !== undefined ? { timeoutSeconds: options.asyncTimeout } : {},
       ...header ? { header } : {},
       ...imports.length > 0 ? { imports } : {},
       elements,

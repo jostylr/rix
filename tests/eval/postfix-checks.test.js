@@ -1,16 +1,17 @@
 import { describe, expect, test } from "bun:test";
 
-import { parseAndEvaluate } from "../../src/eval/evaluator.js";
+import { createDefaultSystemContext, parseAndEvaluate, parseAndEvaluateAsync } from "../../src/eval/evaluator.js";
 import { parse } from "../../src/parser/parser.js";
 import { tokenize } from "../../src/parser/tokenizer.js";
 import { getDiagnostics } from "../../src/runtime/diagnostics.js";
 import { Context } from "../../src/runtime/context.js";
+import { OperationalFault } from "../../src/runtime/operational-fault.js";
 
 describe("postfix checks and diagnostic taps", () => {
   test("tokenizes and parses ## operators ahead of comments", () => {
-    const tokens = tokenize("x ##@ == 2 ##: number ##! Debug(\"x\")");
-    expect(tokens.filter((token) => ["##@", "##:", "##!"].includes(token.value)).map((token) => token.value))
-      .toEqual(["##@", "##:", "##!"]);
+    const tokens = tokenize("x ##@ == 2 ##: number ##! Debug(\"x\") ##_ Close ##!> Recover");
+    expect(tokens.filter((token) => ["##@", "##:", "##!", "##_", "##!>"].includes(token.value)).map((token) => token.value))
+      .toEqual(["##@", "##:", "##!", "##_", "##!>"]);
 
     const [ast] = parse("x ##@ == 2 ##: number");
     expect(ast.type).toBe("PostfixTypeCheck");
@@ -64,5 +65,85 @@ describe("postfix checks and diagnostic taps", () => {
     expect(result.value).toBe(3n);
     const trace = getDiagnostics(context).events.find((event) => event.entries.get("kind")?.value === "trace");
     expect(trace).toBeDefined();
+  });
+
+  test("##_ preserves acquisitions and runs cleanup in LIFO order", () => {
+    const closed = [];
+    const systemContext = createDefaultSystemContext({ frozen: false });
+    systemContext.registerHost("close", {
+      impl: ([value]) => {
+        closed.push(Number(value.value));
+        return null;
+      },
+    });
+    systemContext.freeze();
+
+    const result = parseAndEvaluate("{; first := 1 ##_ .close; second := 2 ##_ .close; first + second };", {
+      systemContext,
+    });
+    expect(result.value).toBe(3n);
+    expect(closed).toEqual([2, 1]);
+  });
+
+  test("cleanup failure is suppressed behind a body failure", () => {
+    const systemContext = createDefaultSystemContext({ frozen: false });
+    systemContext.registerHost("close", { impl: () => { throw new Error("cleanup failed"); } });
+    systemContext.registerHost("fail", { impl: () => { throw new Error("body failed"); } });
+    systemContext.freeze();
+
+    let caught;
+    try {
+      parseAndEvaluate("{; 1 ##_ .close; .fail() };", { systemContext });
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught.message).toContain("body failed");
+    expect(caught.suppressed).toHaveLength(1);
+    expect(caught.suppressed[0].message).toContain("cleanup failed");
+  });
+
+  test("async cleanup is awaited before a block publishes its result", async () => {
+    const events = [];
+    const systemContext = createDefaultSystemContext({ frozen: false });
+    systemContext.registerHost("close", {
+      impl: async ([value]) => {
+        await Promise.resolve();
+        events.push(`close:${Number(value.value)}`);
+      },
+    });
+    systemContext.freeze();
+
+    const result = await parseAndEvaluateAsync("{$:1$ 4 ##_ .close };", { systemContext });
+    events.push("published");
+    expect(result.value).toBe(4n);
+    expect(events).toEqual(["close:4", "published"]);
+  });
+
+  test("##!> recovers typed operational faults but not language errors", async () => {
+    const systemContext = createDefaultSystemContext({ frozen: false });
+    systemContext.registerHost("fault", {
+      impl: () => { throw new OperationalFault("network unavailable", { code: "NET_DOWN" }); },
+    });
+    systemContext.registerHost("bug", { impl: () => { throw new Error("language bug"); } });
+    systemContext.freeze();
+
+    const recovered = await parseAndEvaluateAsync(".fault() ##!> ((fault) -> 42);", { systemContext });
+    expect(recovered.value).toBe(42n);
+    await expect(parseAndEvaluateAsync(".bug() ##!> ((fault) -> 42);", { systemContext }))
+      .rejects.toThrow("language bug");
+  });
+
+  test("async cleanup has a bounded grace period", async () => {
+    const context = new Context();
+    context.setEnv("asyncCleanupGraceMs", 5);
+    const systemContext = createDefaultSystemContext({ frozen: false });
+    systemContext.registerHost("hang", { impl: () => new Promise(() => {}) });
+    systemContext.freeze();
+
+    const recovered = await parseAndEvaluateAsync(
+      "({; 1 ##_ .hang; 2 }) ##!> ((fault) -> 8);",
+      { context, systemContext },
+    );
+    expect(recovered.value).toBe(8n);
   });
 });

@@ -304,8 +304,17 @@ function tryMatchCustomOperator(input, position) {
 }
 
 function tryMatchPostfixCheck(input, position) {
+  const longMarker = input.slice(position, position + 4);
+  if (longMarker === "##!>") {
+    return {
+      type: "Symbol",
+      original: longMarker,
+      value: longMarker,
+      pos: [position, position, position + longMarker.length],
+    };
+  }
   const marker = input.slice(position, position + 3);
-  if (marker !== "##@" && marker !== "##:" && marker !== "##!") return null;
+  if (marker !== "##@" && marker !== "##:" && marker !== "##!" && marker !== "##_") return null;
   return {
     type: "Symbol",
     original: marker,
@@ -842,6 +851,8 @@ function tryMatchBrace(input, position) {
   //   {$name$ ... }     named awaited scope
   //   {$:4$ ... }       anonymous awaited scope capped at four items
   //   {$name:4$ ... }   named/capped awaited scope
+  //   {$name:limit=4,timeout=5$ ... } keyed limit/timeout in seconds
+  //   {$name:4,5$ ... } positional limit/timeout shorthand
   //   {$$ ... }         supervised detached block
   // Match them before generic sigil handling so {$$ is not diagnosed as a
   // malformed {$ container.
@@ -882,27 +893,85 @@ function tryMatchBrace(input, position) {
     if (input[cursor] !== ":") {
       const { line, col } = posToLineCol(input, position);
       throw new Error(
-        `Async scope '{$' must be followed by a space, '$', 'name$', ':limit$', or 'name:limit$' at line ${line}:${col}`
+        `Async scope '{$' must be followed by a space, '$', 'name$', or a ':' option header ending in '$' at line ${line}:${col}`
       );
     }
     cursor++;
-    const digitsStart = cursor;
-    while (cursor < input.length && /[0-9]/.test(input[cursor])) cursor++;
-    if (digitsStart === cursor || input[cursor] !== "$") {
+    const optionsStart = cursor;
+    while (cursor < input.length && input[cursor] !== "$") cursor++;
+    if (input[cursor] !== "$") {
       const { line, col } = posToLineCol(input, position);
-      throw new Error(`Async concurrency limit must be a positive integer ending in '$' at line ${line}:${col}`);
+      throw new Error(`Async scope option header must end in '$' at line ${line}:${col}`);
     }
-    const rawLimit = input.slice(digitsStart, cursor);
-    const asyncLimit = Number(rawLimit);
-    if (!Number.isSafeInteger(asyncLimit) || asyncLimit < 1) {
+
+    const rawOptions = input.slice(optionsStart, cursor);
+    const parsePositive = (raw, label) => {
+      if (!/^\d+$/.test(raw)) {
+        const { line, col } = posToLineCol(input, position);
+        throw new Error(`Async ${label} must be a positive integer at line ${line}:${col}`);
+      }
+      const value = Number(raw);
+      if (!Number.isSafeInteger(value) || value < 1) {
+        const { line, col } = posToLineCol(input, position);
+        throw new Error(`Invalid async ${label} '${raw}' at line ${line}:${col}`);
+      }
+      return value;
+    };
+
+    let asyncLimit;
+    let asyncTimeout;
+    const pieces = rawOptions.split(",").map((piece) => piece.trim());
+    const keyed = pieces.some((piece) => piece.includes("="));
+    if (keyed) {
+      if (pieces.some((piece) => !piece.includes("="))) {
+        const { line, col } = posToLineCol(input, position);
+        throw new Error(`Async scope options cannot mix keyed and positional fields at line ${line}:${col}`);
+      }
+      const seen = new Set();
+      for (const piece of pieces) {
+        const match = piece.match(/^(limit|timeout)\s*=\s*(\d+)$/i);
+        if (!match) {
+          const { line, col } = posToLineCol(input, position);
+          throw new Error(`Malformed async scope option '${piece}' at line ${line}:${col}`);
+        }
+        const key = match[1].toLowerCase();
+        if (seen.has(key)) {
+          const { line, col } = posToLineCol(input, position);
+          throw new Error(`Duplicate async scope option '${key}' at line ${line}:${col}`);
+        }
+        seen.add(key);
+        if (key === "limit") asyncLimit = parsePositive(match[2], "concurrency limit");
+        else asyncTimeout = parsePositive(match[2], "timeout");
+      }
+    } else {
+      if (pieces.length > 2 || pieces.length === 0 || (pieces.length === 1 && pieces[0] === "")) {
+        const { line, col } = posToLineCol(input, position);
+        throw new Error(`Async positional header expects limit and optional timeout at line ${line}:${col}`);
+      }
+      if (pieces[0] !== "") asyncLimit = parsePositive(pieces[0], "concurrency limit");
+      if (pieces.length > 1) {
+        if (pieces[1] === "") {
+          const { line, col } = posToLineCol(input, position);
+          throw new Error(`Async timeout cannot be omitted after ',' at line ${line}:${col}`);
+        }
+        asyncTimeout = parsePositive(pieces[1], "timeout");
+      }
+      if (asyncLimit === undefined && asyncTimeout === undefined) {
+        const { line, col } = posToLineCol(input, position);
+        throw new Error(`Async scope header must specify a limit or timeout at line ${line}:${col}`);
+      }
+    }
+
+    if (asyncLimit === undefined && asyncTimeout === undefined) {
       const { line, col } = posToLineCol(input, position);
-      throw new Error(`Invalid async concurrency limit '${rawLimit}' at line ${line}:${col}`);
+      throw new Error(`Async scope header must specify a limit or timeout at line ${line}:${col}`);
     }
     const end = cursor + 1;
     requireBoundary(end, "Async scope header");
     return makeAdvancedConstructorToken("{$", position, end, {
       containerName,
-      asyncLimit,
+      ...(asyncLimit !== undefined ? { asyncLimit } : {}),
+      ...(asyncTimeout !== undefined ? { asyncTimeout } : {}),
     });
   }
 

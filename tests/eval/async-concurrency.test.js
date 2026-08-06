@@ -58,6 +58,71 @@ describe("RiX async and concurrency", () => {
         expect(maxActive).toBe(2);
     });
 
+    test("ordered publication limits straggler lookahead to twice the execution limit", async () => {
+        const starts = [];
+        const releases = new Map();
+        const systemContext = asyncSystem("work", ([value]) => new Promise((resolve) => {
+            const number = Number(value.value);
+            starts.push(number);
+            releases.set(number, () => {
+                releases.delete(number);
+                resolve(value);
+            });
+        }));
+
+        const evaluation = parseAndEvaluateAsync(
+            "{$:2$ [.work(1), .work(2), .work(3), .work(4), .work(5), .work(6)] };",
+            { systemContext },
+        );
+        await waitUntil(() => releases.has(1) && releases.has(2), "first two lookahead tasks");
+        releases.get(2)();
+        await waitUntil(() => releases.has(3), "third lookahead task");
+        releases.get(3)();
+        await waitUntil(() => releases.has(4), "fourth lookahead task");
+        releases.get(4)();
+        await Promise.resolve();
+        expect(starts).toEqual([1, 2, 3, 4]);
+
+        releases.get(1)();
+        await waitUntil(() => releases.has(5) && releases.has(6), "window after first publication");
+        releases.get(5)();
+        releases.get(6)();
+        const result = await evaluation;
+        expect(result.values.map((value) => Number(value.value))).toEqual([1, 2, 3, 4, 5, 6]);
+    });
+
+    test("item cleanup completes before its execution permit is released", async () => {
+        const events = [];
+        const cleanupReleases = new Map();
+        const systemContext = createDefaultSystemContext({ frozen: false });
+        systemContext.registerHost("work", {
+            impl: ([value]) => {
+                events.push(`work:${Number(value.value)}`);
+                return value;
+            },
+        });
+        systemContext.registerHost("close", {
+            impl: ([value]) => new Promise((resolve) => {
+                const number = Number(value.value);
+                events.push(`close:${number}`);
+                cleanupReleases.set(number, resolve);
+            }),
+        });
+        systemContext.freeze();
+
+        const evaluation = parseAndEvaluateAsync(
+            "{$:1$ [{; .work(1) ##_ .close }, {; .work(2) ##_ .close }] };",
+            { systemContext },
+        );
+        await waitUntil(() => cleanupReleases.has(1), "first item cleanup");
+        expect(events).toEqual(["work:1", "close:1"]);
+        cleanupReleases.get(1)();
+        await waitUntil(() => cleanupReleases.has(2), "second item cleanup");
+        expect(events).toEqual(["work:1", "close:1", "work:2", "close:2"]);
+        cleanupReleases.get(2)();
+        await evaluation;
+    });
+
     test("nested collection parents do not consume permits", async () => {
         const starts = [];
         const releases = new Map();
@@ -136,6 +201,15 @@ describe("RiX async and concurrency", () => {
 
         const result = await evaluation;
         expect(result.values.map((value) => Number(value.value))).toEqual([1, 2]);
+    });
+
+    test("concurrent items cannot write captured ordinary bindings", async () => {
+        const context = new Context();
+        await expect(parseAndEvaluateAsync(
+            "total := 0; {$:2$ <total> [@total = 1, @total = 2] };",
+            { context },
+        )).rejects.toThrow("cannot write captured ordinary binding 'total'");
+        expect(context.get("total").value).toBe(0n);
     });
 
     test("an external function can opt into an explicit nested async scope at limit one", async () => {
@@ -527,6 +601,39 @@ describe("RiX async and concurrency", () => {
         expect(starts).toEqual([1]);
     });
 
+    test("timeout headers abort capability work, drain, clean up, and expose a recoverable fault", async () => {
+        const events = [];
+        const systemContext = createDefaultSystemContext({ frozen: false });
+        systemContext.registerHost("open", { impl: ([value]) => value });
+        systemContext.registerHost("close", {
+            impl: ([value]) => {
+                events.push(`close:${Number(value.value)}`);
+                return null;
+            },
+        });
+        systemContext.registerHost("wait", {
+            impl: (args, context, evaluate, { signal }) => new Promise((resolve, reject) => {
+                if (signal?.aborted) {
+                    reject(signal.reason);
+                    return;
+                }
+                signal?.addEventListener("abort", () => {
+                    events.push("aborted");
+                    reject(signal.reason);
+                }, { once: true });
+            }),
+        });
+        systemContext.freeze();
+
+        const result = await parseAndEvaluateAsync(
+            "({$job:limit=2,timeout=1$ resource := .open(7) ##_ .close; .wait() }) "
+                + "##!> ((fault) -> 99);",
+            { systemContext },
+        );
+        expect(result.value).toBe(99n);
+        expect(events).toEqual(["aborted", "close:7"]);
+    });
+
     test("detached blocks return null immediately and are runtime-supervised", async () => {
         const context = new Context();
         const events = [];
@@ -553,5 +660,35 @@ describe("RiX async and concurrency", () => {
         );
         expect(await drainBackgroundTasks(context)).toEqual([]);
         expect(parseAndEvaluate("$status;", { context }).value).toBe("finished");
+    });
+
+    test("detached ordinary imports are deep snapshots and ordinary aliases are rejected", async () => {
+        const context = new Context();
+        const recorded = [];
+        const systemContext = asyncSystem("record", async ([value]) => {
+            recorded.push(value.values.map((item) => Number(item.value)));
+            return null;
+        });
+
+        await parseAndEvaluateAsync(
+            "items := [1]; {$$ <items~items> items.Push!(2); .record(items) }; items;",
+            { context, systemContext },
+        );
+        expect(context.get("items").values.map((item) => Number(item.value))).toEqual([1]);
+        expect(await drainBackgroundTasks(context)).toEqual([]);
+        expect(recorded).toEqual([[1, 2]]);
+
+        await expect(parseAndEvaluateAsync(
+            "value := 1; {$$ <value=value> value };",
+            { context },
+        )).rejects.toThrow("requires a reactive cell");
+    });
+
+    test("detached blocks silence unlisted functions", async () => {
+        const context = new Context();
+        await parseAndEvaluateAsync("Hidden() -> 7; {$$ Hidden() }; 1;", { context });
+        const errors = await drainBackgroundTasks(context);
+        expect(errors).toHaveLength(1);
+        expect(errors[0].message).toContain("Undefined callable: HIDDEN");
     });
 });

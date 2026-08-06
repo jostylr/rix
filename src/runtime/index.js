@@ -2,6 +2,13 @@ export { Context } from "./context.js";
 export { SystemContext } from "./system-context.js";
 export { PluginCatalog, parsePluginYaml, readPluginHeader, readSourceHeader } from "./plugin-catalog.js";
 export { Cell } from "./cell.js";
+export {
+    OperationalFault,
+    TimeoutFault,
+    CleanupGraceFault,
+    isOperationalFault,
+    faultToRixValue,
+} from "./operational-fault.js";
 export { createBinding, isBinding } from "./binding.js";
 export { createFormulaSheet, isFormulaSheet } from "./formula-sheet.js";
 export {

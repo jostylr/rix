@@ -292,6 +292,14 @@ const LOWERERS = {
     throw new Error(`Unknown postfix diagnostic action: ${node.action}`);
   },
 
+  PostfixFinalizer(node) {
+    return ir("POSTFIX_FINALIZER", lowerNode(node.expression), lowerNode(node.handler));
+  },
+
+  PostfixFaultRecovery(node) {
+    return ir("POSTFIX_FAULT_RECOVERY", lowerNode(node.expression), lowerNode(node.handler));
+  },
+
   // === Arithmetic & Binary Operations ===
 
   BinaryOperation(node) {
@@ -765,6 +773,7 @@ const LOWERERS = {
     if (node.imports && node.imports.length > 0) meta.imports = lowerImports(node.imports);
     if (node.name) meta.name = node.name;
     if (node.concurrencyLimit !== undefined) meta.concurrencyLimit = node.concurrencyLimit;
+    if (node.timeoutSeconds !== undefined) meta.timeoutSeconds = node.timeoutSeconds;
     const hasMeta = Object.keys(meta).length > 0;
     return hasMeta
       ? ir("ASYNC_SCOPE", meta, ...node.elements.map(lowerNode))

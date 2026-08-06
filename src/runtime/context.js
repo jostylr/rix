@@ -10,7 +10,7 @@
  *   a ~= v   → mutates Cell in-place; all names sharing that Cell see the change
  */
 
-import { Cell } from "./cell.js";
+import { Cell, deepCopyValue } from "./cell.js";
 
 export class Context {
     constructor() {
@@ -29,6 +29,11 @@ export class Context {
         // One-shot overrides for top-level function/lambda bodies that should
         // reuse the current local scope instead of creating a nested block scope.
         this.sharedBodyOverrides = [];
+        // Each entry contains cleanup callbacks registered by ##_ in one
+        // lexical block activation. Concurrent child contexts own their stack.
+        this.finalizerActivations = [];
+        this.readOnlyCells = new WeakSet();
+        this.globalReadOnly = false;
     }
 
     // --- Scope management ---
@@ -47,13 +52,19 @@ export class Context {
         for (const [k, v] of rawMap) {
             // If already a Cell (e.g. passed from setCell context), share it;
             // otherwise wrap in a new Cell.
-            bindings.set(k, v instanceof Cell ? v : new Cell(v));
+            const sourceCell = v instanceof Cell ? v : new Cell(v);
+            const cell = options.snapshot === true
+                ? new Cell(deepCopyValue(sourceCell.value))
+                : sourceCell;
+            bindings.set(k, cell);
+            if (options.readOnly === true) this.readOnlyCells.add(cell);
         }
         const scope = {
             bindings,
             isolated: options.isolated === true,
             readThrough: options.readThrough === true,
             callableBoundary: options.callableBoundary === true,
+            readOnly: options.readOnly === true,
         };
         this.localScopes.push(scope);
         return bindings;
@@ -64,6 +75,26 @@ export class Context {
      */
     pop() {
         return this.localScopes.pop();
+    }
+
+    pushFinalizerActivation() {
+        const activation = [];
+        this.finalizerActivations.push(activation);
+        return activation;
+    }
+
+    registerFinalizer(finalizer) {
+        const activation = this.finalizerActivations.at(-1);
+        if (!activation) {
+            throw new Error("##_ cleanup registration requires an active code block");
+        }
+        activation.push(finalizer);
+    }
+
+    popFinalizerActivation() {
+        const activation = this.finalizerActivations.pop();
+        if (!activation) throw new Error("No active cleanup scope");
+        return activation;
     }
 
     captureClosureScopes() {
@@ -95,6 +126,7 @@ export class Context {
             const scope = this.localScopes[this.localScopes.length - 1];
             const cell = scope.bindings.get(name);
             if (cell) {
+                this.assertCellWritable(cell, name);
                 cell.value = value;
                 return;
             }
@@ -102,6 +134,7 @@ export class Context {
         } else {
             const cell = this.globalScope.get(name);
             if (cell) {
+                this.assertCellWritable(cell, name);
                 cell.value = value;
                 return;
             }
@@ -116,8 +149,14 @@ export class Context {
     setFresh(name, value) {
         const newCell = new Cell(value);
         if (this.localScopes.length > 0) {
-            this.localScopes[this.localScopes.length - 1].bindings.set(name, newCell);
+            const scope = this.localScopes[this.localScopes.length - 1];
+            const existing = scope.bindings.get(name);
+            if (existing) this.assertCellWritable(existing, name);
+            scope.bindings.set(name, newCell);
         } else {
+            const existing = this.globalScope.get(name);
+            if (existing) this.assertCellWritable(existing, name);
+            if (this.globalReadOnly) throw new Error(`Concurrent work cannot create global binding '${name}'`);
             this.globalScope.set(name, newCell);
         }
     }
@@ -128,8 +167,14 @@ export class Context {
      */
     setCell(name, cell) {
         if (this.localScopes.length > 0) {
-            this.localScopes[this.localScopes.length - 1].bindings.set(name, cell);
+            const scope = this.localScopes[this.localScopes.length - 1];
+            const existing = scope.bindings.get(name);
+            if (existing) this.assertCellWritable(existing, name);
+            scope.bindings.set(name, cell);
         } else {
+            const existing = this.globalScope.get(name);
+            if (existing) this.assertCellWritable(existing, name);
+            if (this.globalReadOnly) throw new Error(`Concurrent work cannot create global binding '${name}'`);
             this.globalScope.set(name, cell);
         }
     }
@@ -176,6 +221,7 @@ export class Context {
      * Set a variable in the global scope regardless of local scopes.
      */
     setGlobal(name, value) {
+        if (this.globalReadOnly) throw new Error(`Concurrent work cannot write global binding '${name}'`);
         const cell = this.globalScope.get(name);
         if (cell) {
             cell.value = value;
@@ -199,10 +245,17 @@ export class Context {
     setOuter(name, value) {
         const cell = this._findCell(name, { skipInnermost: true, respectIsolation: false });
         if (cell) {
+            this.assertCellWritable(cell, name);
             cell.value = value;
             return;
         }
         throw new Error(`Cannot assign to outer variable '@${name}' because it does not exist in any outer scope.`);
+    }
+
+    assertCellWritable(cell, name = "binding") {
+        if (cell && this.readOnlyCells.has(cell)) {
+            throw new Error(`Concurrent work cannot write captured ordinary binding '${name}'`);
+        }
     }
 
     /**
@@ -374,6 +427,7 @@ export class Context {
         child.callStack = [...this.callStack];
         child.currentCallables = [...this.currentCallables];
         child.sharedBodyOverrides = [...this.sharedBodyOverrides];
+        child.finalizerActivations = [];
         return child;
     }
 
@@ -385,18 +439,29 @@ export class Context {
      */
     concurrentChild() {
         const child = new Context();
-        child.globalScope = this.globalScope;
+        child.globalScope = new Map([...this.globalScope].map(([name, cell]) => {
+            const snapshot = new Cell(deepCopyValue(cell.value));
+            child.readOnlyCells.add(snapshot);
+            return [name, snapshot];
+        }));
+        child.globalReadOnly = true;
         child.localScopes = this.localScopes.map((scope) => ({
-            bindings: scope.bindings,
+            bindings: new Map([...scope.bindings].map(([name, cell]) => {
+                const snapshot = new Cell(deepCopyValue(cell.value));
+                child.readOnlyCells.add(snapshot);
+                return [name, snapshot];
+            })),
             isolated: scope.isolated === true,
             readThrough: scope.readThrough === true,
             callableBoundary: scope.callableBoundary === true,
+            readOnly: true,
         }));
         child.functions = this.functions;
         child.env = this.env;
         child.callStack = [...this.callStack];
         child.currentCallables = [...this.currentCallables];
         child.sharedBodyOverrides = [];
+        child.finalizerActivations = [];
         return child;
     }
 

@@ -17,6 +17,9 @@ import { Context } from "../runtime/context.js";
 import { Cell, copyAllMeta, deepCopyValue, shallowCopyValue } from "../runtime/cell.js";
 import { isHole } from "../runtime/hole.js";
 import { runtimeDefaults } from "../runtime/runtime-config.js";
+import { isReactiveNode } from "../runtime/reactive-graph.js";
+import { isOperationalFault, faultToRixValue, TimeoutFault } from "../runtime/operational-fault.js";
+import { withFinalizerActivationAsync, withFinalizerActivationSync } from "../runtime/finalization.js";
 import { coreFunctions } from "./functions/core.js";
 import { arithmeticFunctions } from "./functions/arithmetic.js";
 import { comparisonFunctions } from "./functions/comparison.js";
@@ -126,6 +129,15 @@ function checkPostfixType(value, spec, context, registry, evaluateValue) {
     if (count !== shape[0]) {
         throw new Error(`##: check failed: expected ${name}[${shape[0]}], received ${name}[${count ?? "?"}]`);
     }
+}
+
+function invokeResolvedCallableSync(fn, args, context, evaluateValue, systemContext) {
+    if (fn?.type === "sysref" && systemContext?.has(fn.name)) {
+        const capability = systemContext.get(fn.name);
+        if (capability.kind !== "function") throw new Error(`System ${capability.kind} .${capability.displayName} is not callable`);
+        return capability.impl(args, context, evaluateValue, { signal: null });
+    }
+    return callWithConcreteArgs(fn, args, context, evaluateValue);
 }
 
 /**
@@ -905,6 +917,24 @@ export function evaluate(irNode, context, registry, systemContext) {
             return value;
         }
 
+        if (fn === "POSTFIX_FINALIZER") {
+            const value = evalFn(args[0]);
+            const cleanup = evalFn(args[1]);
+            context.registerFinalizer(() =>
+                invokeResolvedCallableSync(cleanup, [value], context, evalFn, systemContext));
+            return value;
+        }
+
+        if (fn === "POSTFIX_FAULT_RECOVERY") {
+            try {
+                return evalFn(args[0]);
+            } catch (error) {
+                if (!isOperationalFault(error)) throw error;
+                const handler = evalFn(args[1]);
+                return invokeResolvedCallableSync(handler, [faultToRixValue(error)], context, evalFn, systemContext);
+            }
+        }
+
         // --- System context operations (. prefix syntax) ---
 
         // SYS_OBJ: bare `.` — returns a copy of the system context as a RiX value
@@ -1036,6 +1066,7 @@ function splitAsyncBlockArgs(args) {
     const first = args[0];
     if (first && !first.fn && (
         Array.isArray(first.imports) || first.name !== undefined || first.concurrencyLimit !== undefined
+        || first.timeoutSeconds !== undefined
     )) {
         return { meta: first, body: args.slice(1) };
     }
@@ -1047,6 +1078,60 @@ function applyAsyncImports(imports, context) {
         if (spec.mode === "alias") context.importAlias(spec.local, spec.source);
         else context.importCopy(spec.local, spec.source);
     }
+}
+
+function deepCopyDetachedValue(value, seen = new WeakMap()) {
+    if (!value || typeof value !== "object") return value;
+    if (seen.has(value)) return seen.get(value);
+    if (isReactiveNode(value)) {
+        throw new Error("Reactive cells must use alias imports in detached blocks");
+    }
+    if (value.type === "function" || value.type === "lambda") {
+        const clone = { ...value };
+        seen.set(value, clone);
+        clone.__closureScopes = (value.__closureScopes || []).map((scope) => ({
+            ...scope,
+            bindings: new Map([...scope.bindings].map(([name, cell]) => [
+                name,
+                new Cell(deepCopyDetachedValue(cell.value, seen)),
+            ])),
+        }));
+        return clone;
+    }
+    if (value.type === "multifunction" && Array.isArray(value.values)) {
+        const clone = { ...value, values: [] };
+        seen.set(value, clone);
+        clone.values = value.values.map((variant) => deepCopyDetachedValue(variant, seen));
+        return clone;
+    }
+    if (value.type === "partial") {
+        const clone = { ...value, template: [] };
+        seen.set(value, clone);
+        clone.fn = deepCopyDetachedValue(value.fn, seen);
+        clone.template = value.template.map((entry) => deepCopyDetachedValue(entry, seen));
+        return clone;
+    }
+    const copy = deepCopyValue(value);
+    seen.set(value, copy);
+    return copy;
+}
+
+function captureDetachedImports(imports, context) {
+    const bindings = new Map();
+    for (const spec of imports || []) {
+        const cell = context.getCell(spec.source);
+        if (!cell) throw new Error(`Undefined outer variable for detached import: ${spec.source}`);
+        if (spec.mode === "alias") {
+            if (!isReactiveNode(cell.value)) {
+                throw new Error(`Detached alias import '${spec.local}=${spec.source}' requires a reactive cell`);
+            }
+            bindings.set(spec.local, cell);
+            continue;
+        }
+        const snapshot = isReactiveNode(cell.value) ? cell.value.peek() : cell.value;
+        bindings.set(spec.local, new Cell(deepCopyDetachedValue(snapshot)));
+    }
+    return bindings;
 }
 
 function isTruthyAsync(value) {
@@ -1146,6 +1231,8 @@ async function invokeUserCallableAsync(fn, callArgs, context, registry, systemCo
             isolated: closure.isolated === true,
             readThrough: closure.readThrough === true,
             callableBoundary: closure.callableBoundary === true,
+            snapshot: !!state?.admission,
+            readOnly: !!state?.admission,
         });
         pushed++;
     }
@@ -1196,6 +1283,12 @@ async function invokeCallableAsync(fn, callArgs, context, registry, systemContex
         return invokeUserCallableAsync(fn, callArgs, context, registry, systemContext, state);
     }
     if (fn.type === "sysref") {
+        if (systemContext?.has(fn.name)) {
+            const capability = systemContext.get(fn.name);
+            if (capability.kind !== "function") throw new Error(`System ${capability.kind} .${capability.displayName} is not callable`);
+            return await capability.impl(callArgs, context, (node) =>
+                evaluateAsyncInternal(node, context, registry, systemContext, state), { signal: state?.signal ?? null });
+        }
         return evaluateAsyncInternal({ fn: fn.name, args: callArgs }, context, registry, systemContext, state);
     }
     if (typeof fn === "function") return await fn(...callArgs);
@@ -1210,6 +1303,38 @@ async function invokeCallableAsync(fn, callArgs, context, registry, systemContex
     );
 }
 
+function withAsyncItemFinalizers(context, callback) {
+    return withFinalizerActivationAsync(context, callback, {
+        graceMs: context.getEnv("asyncCleanupGraceMs", runtimeDefaults.asyncCleanupGraceMs),
+    });
+}
+
+async function orderedAsyncMap(items, state, worker) {
+    if (items.length === 0) return [];
+    const window = Math.max(1, state.limit * 2);
+    const promises = new Array(items.length);
+    const results = new Array(items.length);
+    let nextToStart = 0;
+    const start = (index) => {
+        let promise;
+        try {
+            promise = Promise.resolve(worker(items[index], index));
+        } catch (error) {
+            promise = Promise.reject(error);
+        }
+        // A sibling may fail before its source-order turn is awaited. Attach a
+        // rejection observer immediately while preserving the original promise.
+        promise.catch(() => {});
+        promises[index] = promise;
+    };
+    while (nextToStart < items.length && nextToStart < window) start(nextToStart++);
+    for (let published = 0; published < items.length; published++) {
+        results[published] = await promises[published];
+        if (nextToStart < items.length) start(nextToStart++);
+    }
+    return results;
+}
+
 function asyncCollectionEntry(node, context, registry, systemContext, state) {
     if (state.parallelCollections === false) {
         return evaluateAsyncInternal(node, context, registry, systemContext, state);
@@ -1220,13 +1345,13 @@ function asyncCollectionEntry(node, context, registry, systemContext, state) {
     }
     const itemContext = context.concurrentChild();
     return state.scheduler.run((admission) =>
-        evaluateAsyncInternal(
+        withAsyncItemFinalizers(itemContext, () => evaluateAsyncInternal(
             node,
             itemContext,
             registry,
             systemContext,
             { ...state, admission },
-        ), state.group);
+        )), state.group);
 }
 
 async function resolveAsyncCollectionArg(arg, context, registry, systemContext, state) {
@@ -1287,14 +1412,15 @@ async function evaluateAsyncCollectionBody(irNode, context, registry, systemCont
                 // permits, not this map-entry wrapper.
                 return containsNestedAsyncCollection(value)
                     ? resolveEntry()
-                    : state.scheduler.run(resolveEntry, state.group);
+                    : state.scheduler.run((admission) =>
+                        withAsyncItemFinalizers(itemContext, () => resolveEntry(admission)), state.group);
             }
             return resolveAsyncCollectionArg(entry, context, registry, systemContext, state);
         };
         if (state.parallelCollections === false) {
             for (const entry of args.slice(start)) resolved.push(await resolveMapEntry(entry));
         } else {
-            resolved.push(...await Promise.all(args.slice(start).map(resolveMapEntry)));
+            resolved.push(...await orderedAsyncMap(args.slice(start), state, resolveMapEntry));
         }
     } else if (irNode.fn === "TENSOR_LITERAL") {
         const shapeIndex = hasHeader ? 1 : 0;
@@ -1303,18 +1429,16 @@ async function evaluateAsyncCollectionBody(irNode, context, registry, systemCont
         if (state.parallelCollections === false) {
             for (const arg of entries) resolved.push(await resolveAsyncCollectionArg(arg, context, registry, systemContext, state));
         } else {
-            resolved.push(...await Promise.all(
-                entries.map((arg) => resolveAsyncCollectionArg(arg, context, registry, systemContext, state)),
-            ));
+            resolved.push(...await orderedAsyncMap(entries, state,
+                (arg) => resolveAsyncCollectionArg(arg, context, registry, systemContext, state)));
         }
     } else {
         const entries = args.slice(start);
         if (state.parallelCollections === false) {
             for (const arg of entries) resolved.push(await resolveAsyncCollectionArg(arg, context, registry, systemContext, state));
         } else {
-            resolved.push(...await Promise.all(
-                entries.map((arg) => resolveAsyncCollectionArg(arg, context, registry, systemContext, state)),
-            ));
+            resolved.push(...await orderedAsyncMap(entries, state,
+                (arg) => resolveAsyncCollectionArg(arg, context, registry, systemContext, state)));
         }
     }
 
@@ -1512,9 +1636,9 @@ async function evaluateAsyncPipe(irNode, context, registry, systemContext, state
     }
     const fusedSource = rawFusedSource(sourceNode);
     if (fusedSource) {
-        const records = await Promise.all(fusedSource.entries.map((entry, index) => {
+        const records = await orderedAsyncMap(fusedSource.entries, state, (entry, index) => {
             const itemContext = context.concurrentChild();
-            return state.scheduler.run(async (admission) => {
+            return state.scheduler.run((admission) => withAsyncItemFinalizers(itemContext, async () => {
                 const itemState = { ...state, admission };
                 const rawNode = entry?.expression || entry;
                 const resolved = await evaluateAsyncInternal(rawNode, itemContext, registry, systemContext, itemState);
@@ -1538,8 +1662,8 @@ async function evaluateAsyncPipe(irNode, context, registry, systemContext, state
                     systemContext,
                     itemState,
                 );
-            }, state.group);
-        }));
+            }), state.group);
+        });
         const terminal = stages.at(-1)?.fn;
         if (terminal === "PANY" || terminal === "PALL") return asyncTerminalResult(terminal, records);
         return assembleAsyncPipeResult(
@@ -1553,9 +1677,9 @@ async function evaluateAsyncPipe(irNode, context, registry, systemContext, state
     const collection = await evaluateAsyncInternal(sourceNode, context, registry, systemContext, state);
     if (collection === null || collection === undefined) return null;
     const items = collectionItems(collection);
-    const records = await Promise.all(items.map((item, index) => {
+    const records = await orderedAsyncMap(items, state, (item, index) => {
         const itemContext = context.concurrentChild();
-        return state.scheduler.run((admission) => runAsyncPipeStages(
+        return state.scheduler.run((admission) => withAsyncItemFinalizers(itemContext, () => runAsyncPipeStages(
             item.value,
             index,
             item.key,
@@ -1567,8 +1691,8 @@ async function evaluateAsyncPipe(irNode, context, registry, systemContext, state
             systemContext,
             { ...state, admission },
             item.locator,
-        ), state.group);
-    }));
+        )), state.group);
+    });
 
     const terminal = stages.at(-1)?.fn;
     if (terminal === "PANY" || terminal === "PALL") return asyncTerminalResult(terminal, records);
@@ -1843,6 +1967,7 @@ async function evaluateAsyncChunk(args, context, registry, systemContext, state)
 
 async function evaluateAsyncScopeBody(args, context, registry, systemContext, parentState) {
     const { meta, body } = splitAsyncBlockArgs(args);
+    const enteredAt = performance.now();
     const configured = meta.concurrencyLimit ?? context.getEnv(
         "defaultAsyncConcurrency",
         runtimeDefaults.defaultAsyncConcurrency,
@@ -1853,6 +1978,16 @@ async function evaluateAsyncScopeBody(args, context, registry, systemContext, pa
     const group = hasParentScheduler
         ? scheduler.createGroup(effectiveLimit, parentState.group)
         : scheduler.defaultGroup;
+    const ownDeadline = meta.timeoutSeconds !== undefined
+        ? enteredAt + meta.timeoutSeconds * 1000
+        : Infinity;
+    const inheritedDeadline = parentState?.deadlineMs ?? Infinity;
+    const deadlineMs = Math.min(ownDeadline, inheritedDeadline);
+    const deadlineFault = inheritedDeadline <= ownDeadline
+        ? parentState?.deadlineFault
+        : new TimeoutFault(meta.timeoutSeconds, {
+            data: { timeoutSeconds: meta.timeoutSeconds, scope: meta.name ?? null },
+        });
     const state = {
         scheduler,
         group,
@@ -1860,28 +1995,46 @@ async function evaluateAsyncScopeBody(args, context, registry, systemContext, pa
         limit: effectiveLimit,
         name: meta.name ?? null,
         parallelCollections: true,
+        deadlineMs,
+        deadlineFault,
     };
+    let timeoutId = null;
+    if (Number.isFinite(deadlineMs)) {
+        timeoutId = setTimeout(() => {
+            scheduler.cancelGroup(group, deadlineFault);
+        }, Math.max(0, deadlineMs - performance.now()));
+    }
     context.push(undefined, { isolated: true });
     try {
-        applyAsyncImports(meta.imports, context);
-        let result = null;
-        try {
-            for (const statement of body) {
-                result = await evaluateAsyncInternal(statement, context, registry, systemContext, state);
+        return await withFinalizerActivationAsync(context, async () => {
+            try {
+                applyAsyncImports(meta.imports, context);
+                let result = null;
+                try {
+                    for (const statement of body) {
+                        result = await evaluateAsyncInternal(statement, context, registry, systemContext, state);
+                    }
+                    await state.scheduler.waitForIdle(state.group);
+                    if (state.signal.aborted) throw state.signal.reason;
+                    return result;
+                } catch (error) {
+                    if (!matchesAsyncBreak(error, state.name)) {
+                        state.scheduler.cancelGroup(state.group, error);
+                        await state.scheduler.waitForIdle(state.group);
+                        throw error;
+                    }
+                    state.scheduler.cancelGroup(state.group, error);
+                    await state.scheduler.waitForIdle(state.group);
+                    return error.value;
+                }
+            } finally {
+                if (timeoutId !== null) clearTimeout(timeoutId);
             }
-            await state.scheduler.waitForIdle(state.group);
-            return result;
-        } catch (error) {
-            if (!matchesAsyncBreak(error, state.name)) {
-                state.scheduler.cancelGroup(state.group, error);
-                await state.scheduler.waitForIdle(state.group);
-                throw error;
-            }
-            state.scheduler.cancelGroup(state.group, error);
-            await state.scheduler.waitForIdle(state.group);
-            return error.value;
-        }
+        }, {
+            graceMs: context.getEnv("asyncCleanupGraceMs", runtimeDefaults.asyncCleanupGraceMs),
+        });
     } finally {
+        if (timeoutId !== null) clearTimeout(timeoutId);
         state.scheduler.closeGroup(state.group);
         context.pop();
     }
@@ -1897,14 +2050,18 @@ async function evaluateAsyncScope(args, context, registry, systemContext, parent
 
 function startDetachedBlock(args, context, registry, systemContext, parentState) {
     const { meta, body } = splitAsyncBlockArgs(args);
+    const importedBindings = captureDetachedImports(meta.imports, context);
     const taskContext = context.concurrentChild();
     const task = Promise.resolve().then(async () => {
-        taskContext.push(undefined, { isolated: true });
+        taskContext.push(importedBindings, { isolated: true, callableBoundary: true });
         try {
-            applyAsyncImports(meta.imports, taskContext);
-            for (const statement of body) {
-                await evaluateAsyncInternal(statement, taskContext, registry, systemContext, parentState);
-            }
+            await withFinalizerActivationAsync(taskContext, async () => {
+                for (const statement of body) {
+                    await evaluateAsyncInternal(statement, taskContext, registry, systemContext, null);
+                }
+            }, {
+                graceMs: taskContext.getEnv("asyncCleanupGraceMs", runtimeDefaults.asyncCleanupGraceMs),
+            });
         } finally {
             taskContext.pop();
         }
@@ -1926,6 +2083,43 @@ async function evaluateAsyncInternal(irNode, context, registry, systemContext, s
     if (fn === "DEFER") return irNode;
 
     try {
+        if (state?.signal?.aborted) throw state.signal.reason;
+        if (fn === "POSTFIX_FINALIZER") {
+            const value = await evaluateAsyncInternal(args[0], context, registry, systemContext, state);
+            const cleanup = await evaluateAsyncInternal(args[1], context, registry, systemContext, state);
+            context.registerFinalizer((cleanupSignal) => invokeCallableAsync(
+                cleanup,
+                [value],
+                context,
+                registry,
+                systemContext,
+                state ? {
+                    ...state,
+                    signal: cleanupSignal,
+                    scheduler: null,
+                    group: null,
+                    admission: null,
+                    parallelCollections: false,
+                } : null,
+            ));
+            return value;
+        }
+        if (fn === "POSTFIX_FAULT_RECOVERY") {
+            try {
+                return await evaluateAsyncInternal(args[0], context, registry, systemContext, state);
+            } catch (error) {
+                if (!isOperationalFault(error)) throw error;
+                const handler = await evaluateAsyncInternal(args[1], context, registry, systemContext, state);
+                return invokeCallableAsync(
+                    handler,
+                    [faultToRixValue(error)],
+                    context,
+                    registry,
+                    systemContext,
+                    state,
+                );
+            }
+        }
         if (fn === "ASYNC_SCOPE") return await evaluateAsyncScope(args, context, registry, systemContext, state);
         if (fn === "DETACH") return startDetachedBlock(args, context, registry, systemContext, state);
         if (state && ASYNC_COLLECTION_FNS.has(fn)) {
@@ -1957,10 +2151,11 @@ async function evaluateAsyncInternal(irNode, context, registry, systemContext, s
             const capability = systemContext?.get(name);
             if (!capability) throw new Error(`Unknown system capability: ${name}`);
             if (capability.kind !== "function") throw new Error(`System ${capability.kind} .${capability.displayName} is not callable`);
-            if (capability.lazy) return await capability.impl(args.slice(1), context, evalAsync);
+            if (capability.lazy) return await capability.impl(args.slice(1), context, evalAsync, { signal: state?.signal ?? null });
             const values = [];
             for (const arg of args.slice(1)) values.push(await evalAsync(arg));
-            return await capability.impl(values, context, evalAsync);
+            if (state?.signal?.aborted) throw state.signal.reason;
+            return await capability.impl(values, context, evalAsync, { signal: state?.signal ?? null });
         }
         if (["SYS_GET", "SYS_OBJ"].includes(fn)) return evaluate(irNode, context, registry, systemContext);
 
@@ -1973,10 +2168,14 @@ async function evaluateAsyncInternal(irNode, context, registry, systemContext, s
             const { meta, body } = splitAsyncBlockArgs(args);
             context.push(undefined, { isolated: true });
             try {
-                applyAsyncImports(meta.imports, context);
-                let result = null;
-                for (const arg of body) result = await evalAsync(arg);
-                return result;
+                return await withFinalizerActivationAsync(context, async () => {
+                    applyAsyncImports(meta.imports, context);
+                    let result = null;
+                    for (const arg of body) result = await evalAsync(arg);
+                    return result;
+                }, {
+                    graceMs: context.getEnv("asyncCleanupGraceMs", runtimeDefaults.asyncCleanupGraceMs),
+                });
             } finally {
                 context.pop();
             }
@@ -2134,28 +2333,30 @@ export function parseAndEvaluate(code, options = {}) {
     const irNodes = lower(ast);
     attachSourceInfo(irNodes, code, options.file || "<repl>");
 
-    let result = null;
-    for (const irNode of irNodes) {
-        if (!(options.reactiveReads instanceof Set)) {
-            result = evaluate(irNode, context, registry, systemContext);
-            continue;
+    return withFinalizerActivationSync(context, () => {
+        let result = null;
+        for (const irNode of irNodes) {
+            if (!(options.reactiveReads instanceof Set)) {
+                result = evaluate(irNode, context, registry, systemContext);
+                continue;
+            }
+            const reads = new Set();
+            const previousObserver = {
+                has: context.env?.has(REACTIVE_OUTPUT_READ_ENV) === true,
+                value: context.getEnv(REACTIVE_OUTPUT_READ_ENV, undefined),
+            };
+            context.setEnv(REACTIVE_OUTPUT_READ_ENV, (source) => reads.add(source));
+            try {
+                result = evaluate(irNode, context, registry, systemContext);
+            } finally {
+                if (previousObserver.has) context.setEnv(REACTIVE_OUTPUT_READ_ENV, previousObserver.value);
+                else context.env?.delete(REACTIVE_OUTPUT_READ_ENV);
+            }
+            options.reactiveReads.clear();
+            for (const source of reads) options.reactiveReads.add(source);
         }
-        const reads = new Set();
-        const previousObserver = {
-            has: context.env?.has(REACTIVE_OUTPUT_READ_ENV) === true,
-            value: context.getEnv(REACTIVE_OUTPUT_READ_ENV, undefined),
-        };
-        context.setEnv(REACTIVE_OUTPUT_READ_ENV, (source) => reads.add(source));
-        try {
-            result = evaluate(irNode, context, registry, systemContext);
-        } finally {
-            if (previousObserver.has) context.setEnv(REACTIVE_OUTPUT_READ_ENV, previousObserver.value);
-            else context.env?.delete(REACTIVE_OUTPUT_READ_ENV);
-        }
-        options.reactiveReads.clear();
-        for (const source of reads) options.reactiveReads.add(source);
-    }
-    return result;
+        return result;
+    });
 }
 
 /**
@@ -2198,28 +2399,32 @@ export async function parseAndEvaluateAsync(code, options = {}) {
     const irNodes = lower(ast);
     attachSourceInfo(irNodes, code, options.file || "<repl>");
 
-    let result = null;
-    for (const irNode of irNodes) {
-        if (!(options.reactiveReads instanceof Set)) {
-            result = await evaluateAsync(irNode, context, registry, systemContext);
-            continue;
+    return withFinalizerActivationAsync(context, async () => {
+        let result = null;
+        for (const irNode of irNodes) {
+            if (!(options.reactiveReads instanceof Set)) {
+                result = await evaluateAsync(irNode, context, registry, systemContext);
+                continue;
+            }
+            const reads = new Set();
+            const previousObserver = {
+                has: context.env?.has(REACTIVE_OUTPUT_READ_ENV) === true,
+                value: context.getEnv(REACTIVE_OUTPUT_READ_ENV, undefined),
+            };
+            context.setEnv(REACTIVE_OUTPUT_READ_ENV, (source) => reads.add(source));
+            try {
+                result = await evaluateAsync(irNode, context, registry, systemContext);
+            } finally {
+                if (previousObserver.has) context.setEnv(REACTIVE_OUTPUT_READ_ENV, previousObserver.value);
+                else context.env?.delete(REACTIVE_OUTPUT_READ_ENV);
+            }
+            options.reactiveReads.clear();
+            for (const source of reads) options.reactiveReads.add(source);
         }
-        const reads = new Set();
-        const previousObserver = {
-            has: context.env?.has(REACTIVE_OUTPUT_READ_ENV) === true,
-            value: context.getEnv(REACTIVE_OUTPUT_READ_ENV, undefined),
-        };
-        context.setEnv(REACTIVE_OUTPUT_READ_ENV, (source) => reads.add(source));
-        try {
-            result = await evaluateAsync(irNode, context, registry, systemContext);
-        } finally {
-            if (previousObserver.has) context.setEnv(REACTIVE_OUTPUT_READ_ENV, previousObserver.value);
-            else context.env?.delete(REACTIVE_OUTPUT_READ_ENV);
-        }
-        options.reactiveReads.clear();
-        for (const source of reads) options.reactiveReads.add(source);
-    }
-    return result;
+        return result;
+    }, {
+        graceMs: context.getEnv("asyncCleanupGraceMs", runtimeDefaults.asyncCleanupGraceMs),
+    });
 }
 
 export { drainBackgroundTasks };

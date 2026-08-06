@@ -417,6 +417,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   </ul></li>
   <li><a href="#part-4-diagnostics-testing-and-debugging" id="toc-part-4-diagnostics-testing-and-debugging" class="nav-link" data-scroll-target="#part-4-diagnostics-testing-and-debugging">Part 4: Diagnostics, Testing, and Debugging</a>
   <ul class="collapse">
+  <li><a href="#cleanup-and-operational-fault-postfixes" id="toc-cleanup-and-operational-fault-postfixes" class="nav-link" data-scroll-target="#cleanup-and-operational-fault-postfixes">Cleanup and operational-fault postfixes</a></li>
   <li><a href="#warnlabel-datamap" id="toc-warnlabel-datamap" class="nav-link" data-scroll-target="#warnlabel-datamap"><code>.Warn(label, dataMap ?= {=})</code></a></li>
   <li><a href="#infolabel-level-1-datamap" id="toc-infolabel-level-1-datamap" class="nav-link" data-scroll-target="#infolabel-level-1-datamap"><code>.Info(label, level ?= 1, dataMap ?= {=})</code></a></li>
   <li><a href="#errorlabel-datamap" id="toc-errorlabel-datamap" class="nav-link" data-scroll-target="#errorlabel-datamap"><code>.Error(label, dataMap ?= {=})</code></a></li>
@@ -1207,14 +1208,14 @@ u \= {| 2 |}
 <td>Sequential execution (explicit block). Optional top-of-block import header: <code>{; &lt;...&gt; ... }</code></td>
 </tr>
 <tr class="odd">
-<td><code>{$ ... }</code>, <code>{$name:4$ ... }</code></td>
+<td><code>{$ ... }</code>, <code>{$name:4$ ... }</code>, <code>{$name:limit=4,timeout=5$ ... }</code></td>
 <td><code>ASYNC_SCOPE</code></td>
-<td>Awaited concurrency code block. Explicit collection entries fan out with a default limit of 10; statements remain sequential. Supports an optional top-of-block import header.</td>
+<td>Awaited concurrency code block. Explicit collection entries fan out with a default limit of 10; statements remain sequential. Timeout is in positive integer seconds. Supports an optional top-of-block import header.</td>
 </tr>
 <tr class="even">
 <td><code>{$$ ... }</code></td>
 <td><code>DETACH</code></td>
-<td>Start one supervised background code block and immediately return <code>null</code>; its statements remain sequential. Supports an optional import header.</td>
+<td>Start one supervised background code block and immediately return <code>null</code>; its statements remain sequential. Only listed imports are visible: ordinary imports are deep snapshots, ordinary aliases are rejected, and reactive alias imports retain their graph identity.</td>
 </tr>
 <tr class="odd">
 <td><code>{? c1 ? v1; c2 ? v2; default }</code></td>
@@ -3723,6 +3724,12 @@ x[1] = 9          ## OK: ._mutable controls index assignment, not .lock</code></
 <h2 class="anchored" data-anchor-id="part-4-diagnostics-testing-and-debugging">Part 4: Diagnostics, Testing, and Debugging</h2>
 <p>All diagnostic system capabilities produce structured RiX map values with at minimum: <code>kind</code>, <code>label</code>, <code>file</code>, <code>time</code>, <code>data</code>.</p>
 <p>Runtime errors include source locations when the evaluator has source text. This is automatic for <code>parseAndEvaluate(...)</code>, script imports, and the CLI paths that use those APIs. Direct calls to <code>evaluate(irNode, ...)</code> only include line/column locations if the caller has attached source metadata or set the source environment for the context.</p>
+<section id="cleanup-and-operational-fault-postfixes" class="level3">
+<h3 class="anchored" data-anchor-id="cleanup-and-operational-fault-postfixes">Cleanup and operational-fault postfixes</h3>
+<p><code>value ##_ Cleanup</code> evaluates <code>value</code> once, registers <code>Cleanup(value)</code> with the nearest code-block activation, and returns <code>value</code> unchanged. Registered cleanups run sequentially in LIFO order on normal exit, break, error, timeout, cancellation, and supervised background completion. Async cleanup is awaited; concurrent-item cleanup finishes before that item releases its permit.</p>
+<p><code>expression ##!&gt; Recover</code> evaluates the expression once. Success passes through unchanged. A typed operational fault calls <code>Recover(fault)</code> and returns the recovery value. Language errors, <code>.Error</code>, breaks, and cancellation are not caught. If recovery fails, its error propagates.</p>
+<p>Body failure remains primary when cleanup also fails; cleanup errors are attached as suppressed failures. Cleanup after a successful body may itself become the block failure and is bounded by the runtime cleanup grace period.</p>
+</section>
 <section id="warnlabel-datamap" class="level3">
 <h3 class="anchored" data-anchor-id="warnlabel-datamap"><code>.Warn(label, dataMap ?= {=})</code></h3>
 <p>Emits a <code>kind="warn"</code> event. Returns the event object.</p>

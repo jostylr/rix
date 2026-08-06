@@ -14,6 +14,7 @@ export {
     importRixCelDocument,
     createReactiveGraph, isReactiveGraph, isReactiveNode, REACTIVE_READ_ENV,
     getDiagnostics, RixAbort, isRixAbort, createEvent, runtimeDefaults,
+    OperationalFault, TimeoutFault, CleanupGraceFault, isOperationalFault, faultToRixValue,
     createDefaultUnitCollection, createUnit, constructQuantity, convertQuantity,
     parseUnitExpression, isUnitValue, isQuantity, createDefaultExactCollection,
     createExactGenerator, exactGeneratorFromPolynomial, isExactValue,

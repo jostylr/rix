@@ -810,6 +810,7 @@ class Parser {
             loopMax: token.loopMax,
             loopUnlimited: token.loopUnlimited === true,
             asyncLimit: token.asyncLimit,
+            asyncTimeout: token.asyncTimeout,
             destructureAlias: token.destructureAlias === true,
           });
         } else if (
@@ -867,6 +868,7 @@ class Parser {
                 loopMax: this.current.loopMax,
                 loopUnlimited: this.current.loopUnlimited === true,
                 asyncLimit: this.current.asyncLimit,
+                asyncTimeout: this.current.asyncTimeout,
                 destructureAlias: this.current.destructureAlias === true,
               });
             }
@@ -1815,14 +1817,21 @@ class Parser {
         break;
       }
 
-      if (!this.disablePostfixCheckParsing && (this.current.value === "##@" || this.current.value === "##:" || this.current.value === "##!")) {
+      if (!this.disablePostfixCheckParsing && (
+        this.current.value === "##@" || this.current.value === "##:" || this.current.value === "##!"
+        || this.current.value === "##_" || this.current.value === "##!>"
+      )) {
         if (PRECEDENCE.CHECK < minPrec) break;
         if (this.current.value === "##@") {
           left = this.parsePostfixPredicateCheck(left);
         } else if (this.current.value === "##:") {
           left = this.parsePostfixTypeCheck(left);
-        } else {
+        } else if (this.current.value === "##!") {
           left = this.parsePostfixDiagnosticTap(left);
+        } else if (this.current.value === "##_") {
+          left = this.parsePostfixHandler(left, "PostfixFinalizer", "cleanup callable");
+        } else {
+          left = this.parsePostfixHandler(left, "PostfixFaultRecovery", "fault handler");
         }
         if (left.endsLineAt !== null && this.current.pos?.[0] >= left.endsLineAt) break;
         continue;
@@ -2094,6 +2103,32 @@ class Parser {
       pos: [expression.pos[0], expression.pos[1], end],
       original: expression.original + marker.original + actionOriginal + "(...)",
     });
+  }
+
+  parsePostfixHandler(expression, nodeType, label) {
+    const marker = this.current;
+    const lineEndAt = this.source.indexOf("\n", marker.pos[2]);
+    const previousStop = this.stopExpressionAtOffset;
+    const previousDisable = this.disablePostfixCheckParsing;
+    this.stopExpressionAtOffset = lineEndAt === -1 ? previousStop : lineEndAt;
+    this.disablePostfixCheckParsing = true;
+    this.advance();
+    try {
+      if (this.current.type === "End" || this.current.value === ";" || this.current.value === "}") {
+        this.error(`Expected ${label} after ${marker.value}`);
+      }
+      const handler = this.parseExpression(PRECEDENCE.CHECK + 1);
+      return this.createNode(nodeType, {
+        expression,
+        handler,
+        endsLineAt: lineEndAt === -1 ? null : lineEndAt,
+        pos: [expression.pos[0], expression.pos[1], handler.pos[2]],
+        original: expression.original + marker.original + handler.original,
+      });
+    } finally {
+      this.stopExpressionAtOffset = previousStop;
+      this.disablePostfixCheckParsing = previousDisable;
+    }
   }
 
   isGeneratorOperator(value) {
@@ -3204,6 +3239,7 @@ class Parser {
       ...(effectiveSigil === "{@" && options.loopMax !== undefined ? { maxIterations: options.loopMax } : {}),
       ...(effectiveSigil === "{@" && options.loopUnlimited ? { unlimited: true } : {}),
       ...(effectiveSigil === "{$" && options.asyncLimit !== undefined ? { concurrencyLimit: options.asyncLimit } : {}),
+      ...(effectiveSigil === "{$" && options.asyncTimeout !== undefined ? { timeoutSeconds: options.asyncTimeout } : {}),
       ...(header ? { header } : {}),
       ...(imports.length > 0 ? { imports: imports } : {}),
       elements: elements,

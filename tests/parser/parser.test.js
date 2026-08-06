@@ -864,6 +864,45 @@ describe("RiX Parser", () => {
       expect(expr.elements).toHaveLength(2);
     });
 
+    test("async scope parses keyed and positional timeout headers", () => {
+      const keyed = stripMetadata(parseCode("{$jobs:limit=4,timeout=5$ x };"))[0].expression;
+      expect(keyed.name).toBe("jobs");
+      expect(keyed.concurrencyLimit).toBe(4);
+      expect(keyed.timeoutSeconds).toBe(5);
+
+      const anonymous = stripMetadata(parseCode("{$:,7$ x };"))[0].expression;
+      expect(anonymous.name).toBeUndefined();
+      expect(anonymous.concurrencyLimit).toBeUndefined();
+      expect(anonymous.timeoutSeconds).toBe(7);
+
+      const positional = [
+        ["{$jobs:10,5$ x };", "jobs", 10, 5],
+        ["{$jobs:,5$ x };", "jobs", undefined, 5],
+        ["{$:10,5$ x };", undefined, 10, 5],
+        ["{$:,5$ x };", undefined, undefined, 5],
+        ["{$name:10$ x };", "name", 10, undefined],
+      ];
+      for (const [source, name, limit, timeout] of positional) {
+        const expr = stripMetadata(parseCode(source))[0].expression;
+        expect(expr.name).toBe(name);
+        expect(expr.concurrencyLimit).toBe(limit);
+        expect(expr.timeoutSeconds).toBe(timeout);
+      }
+    });
+
+    test("async scope options require unique positive safe integers", () => {
+      for (const source of [
+        "{$:0,5$ x };",
+        "{$:,0$ x };",
+        "{$:limit=2,timeout=0$ x };",
+        "{$:limit=2,limit=3$ x };",
+        "{$:limit=2,5$ x };",
+        "{$:9007199254740992$ x };",
+      ]) {
+        expect(() => parseCode(source)).toThrow();
+      }
+    });
+
     test("detached scope parses as a code block with imports", () => {
       const expr = stripMetadata(parseCode("{$$ <a~x> a; y := a };"))[0].expression;
       expect(expr.type).toBe("DetachedBlock");

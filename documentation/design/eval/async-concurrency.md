@@ -12,13 +12,15 @@ grouped FIFO bounded scheduling, nested scope-limit composition, concurrent
 arrays/maps/tuples/sets/matrices/tensors, fused `|>>` and `|>?`, ordered
 `|>||` and `|>&&`, promise-aware reduce/sort/slice/split/chunk barriers, named
 async breaks, lexical function fan-out, group cancellation signals, and
-supervised/drainable `{$$ ... }` tasks. `{# ... }` remains the inert
-symbolic-system form.
+supervised/drainable `{$$ ... }` tasks. It also includes timeout headers,
+typed operational-fault recovery, LIFO `##_` cleanup, a `2L` ordered
+publication window, task-local ordinary snapshots/write rejection, and strict
+detached import capture. `{# ... }` remains the inert symbolic-system form.
 
-Still planned are bounded lazy-source pull, complete task
-snapshot/copy-on-write enforcement, deterministic task RNG streams, worker
-execution, stable task-path diagnostics, and capability-level cooperative
-abort.
+Still planned are bounded lazy-source pull, hierarchical round-robin nested
+admission, complete mutation-safety enforcement, deterministic task RNG
+streams, worker execution, full stable task-path diagnostics, and cancellation
+checkpoints inside loops and lazy sources.
 
 The proposal deliberately separates two operations:
 
@@ -120,7 +122,7 @@ defaultAsyncConcurrency: 10
 A host may override the default for a runtime. An explicit header overrides
 the runtime default but cannot escape a stricter containing scope or host cap.
 
-An accepted follow-up extends the header with keyed options:
+Keyed options add an optional timeout:
 
 ```rix
 {$jobs:limit=10,timeout=5$ expression }
@@ -129,10 +131,12 @@ An accepted follow-up extends the header with keyed options:
 
 The positional forms remain shorthand: `{$jobs:10,5$ ... }` supplies limit and
 timeout, while an omitted positional field such as `{$jobs:,5$ ... }` uses the
-default limit. Timeout values are positive safe-integer seconds. The timer uses
-a monotonic clock and starts when the scope is entered; nested scopes observe
-the earliest active deadline. Timeout parsing and execution are not part of the
-current runtime slice.
+default limit. The anonymous forms `{$:10,5$ ... }` and `{$:,5$ ... }` work the
+same way. Timeout values are positive safe-integer seconds. The timer uses a
+monotonic clock and starts when the scope is entered; nested scopes observe the
+earliest active deadline. A timeout stops admission, aborts cooperative
+capabilities, drains admitted work, and then runs cleanup under its separate
+grace period.
 
 `{$ ... }` is block-scoped and returns its final statement's value. Statements
 inside it execute one at a time. Each statement waits for its own required
@@ -251,7 +255,7 @@ children.
 }
 ```
 
-The accepted admission contract is hierarchical round-robin across sibling
+The settled admission contract is hierarchical round-robin across sibling
 branches. For nested branches `[A1, A2, ...]`, `[B1, B2, ...]`, and leaf `C`, a
 limit of four admits `A1`, `B1`, `C`, then `A2`. Applied to the map above, its
 two top-level value branches offer `F()` and `H()` before the first branch
@@ -409,8 +413,9 @@ The scheduler is work-conserving but deterministic about admission:
 For a limit `L`, no more than `L` items execute at once and no more than `2L`
 items may be admitted but not yet published. The second bound is an ordered
 publication window: it permits useful overlap without allowing a slow early
-item to cause unbounded buffering of later completed results. This window and
-hierarchical round-robin nested admission remain follow-up scheduler work.
+item to cause unbounded buffering of later completed results. The finite eager
+runtime enforces this window. Hierarchical round-robin nested admission and
+bounded lazy/infinite source pulls remain follow-up scheduler work.
 
 Each nested scope owns a scheduler group. A group's in-flight count includes
 all descendant groups, so `{$outer:4$ {$inner:2$ ... } }` can use at most two
@@ -518,7 +523,7 @@ completion order unless a host explicitly presents them differently.
 
 ## Guaranteed finalization
 
-The accepted acquisition postfix `##_` registers guaranteed cleanup while
+The acquisition postfix `##_` registers guaranteed cleanup while
 preserving the acquired value:
 
 ```rix
@@ -534,11 +539,14 @@ a host cleanup grace period.
 
 If the body failed, that failure remains primary and cleanup failures are
 suppressed. If the body succeeded, the first cleanup failure becomes primary.
-Parsing, lowering, and executing `##_` remain follow-up work.
+The current runtime implements this for top-level scripts, ordinary and async
+blocks, concurrent items, and supervised background blocks.
 
-`##!>` catches only a typed operational `fault`, such as timeout or a capability
-failure declared recoverable. It does not catch language errors or control
-signals. The fault hierarchy and operator implementation remain follow-up work.
+`##!>` evaluates its left side once and catches only a typed operational
+`fault`, such as timeout or a capability failure declared recoverable. It calls
+the handler with a fault record and returns the handler's recovery value. It
+does not catch language errors, `.Error`, breaks, or ordinary cancellation;
+handler failures propagate.
 
 ## Async-scope break
 
@@ -619,15 +627,11 @@ The first implementation rejects `{$$ ... }` while evaluating a reactive
 formula. Otherwise every recomputation could spawn another external effect.
 A later reactive-effect abstraction may define replacement/cancellation rules.
 
-# Async streams
+# Async streams remain open
 
-Long-lived or incremental asynchronous data is a separate runtime abstraction,
-not a reactive variable containing a promise or stream. An `async_stream`
-supports cancellation-aware `Next(signal)` and `Close(reason)`. Cold streams
-pull lazily; hot streams push through an explicitly bounded buffer. Async pipe
-stages remain lazy until a terminal operation consumes the stream. Reactive
-variables may project a latest value or progress snapshot from a stream, but do
-not own the stream itself. Syntax and runtime support remain follow-up work.
+Async streams and their relationship to reactive state are still under design.
+This document intentionally does not assign them syntax, buffering semantics,
+or a runtime type yet.
 
 # Execution model
 
@@ -808,15 +812,19 @@ reactive batch later publishes `result` and `status` together.
   permits, grouped cancellation, and cleanup draining.
 - [x] Give each scheduler group an `AbortSignal` and abort descendant groups
   without aborting their parent.
-- [ ] Bound admitted-but-unpublished work to `2L` and use hierarchical
-  round-robin admission across nested sibling branches.
-- [ ] Attach stable task paths to scheduler entries and diagnostics.
+- [x] Bound finite eager admitted-but-unpublished work to `2L`.
+- [ ] Use hierarchical round-robin admission across nested sibling branches.
+- [x] Attach stable scheduler task IDs, observation order, and timestamps to
+  failures.
+- [ ] Replace fallback task IDs with complete structural task paths in every
+  evaluator admission and diagnostic.
 - [x] Implement effective-limit composition for nested scopes. A distinct host
   maximum remains follow-up configuration work.
 - [x] Ensure structural parents do not retain leaf permits
   while awaiting children.
-- [ ] Add task-local `Context` forks with snapshot/copy-on-write reads and
-  rejected ordinary outer writes.
+- [x] Add task-local ordinary snapshots and reject captured-cell writes.
+- [ ] Reject every mutation path on captured composite values and finish the
+  callable/capability concurrency-safety classification.
 - [ ] Derive deterministic random substreams from stable task paths.
 - [x] Add deferred-capability tests that assert admission and
   completion traces without relying on wall-clock timing.
@@ -828,14 +836,17 @@ reactive batch later publishes `result` and `status` together.
 - [x] Capture parallel-constructor semantics lexically for functions defined
   inside `{$ ... }`; keep outside-defined functions sequential unless they use
   an explicit inner concurrency scope.
-- [ ] Classify callable safety and reject unsynchronised ordinary shared writes
-  from concurrent functions.
+- [ ] Classify callable/capability safety beyond the implemented captured-cell
+  write rejection.
 - [x] Preserve source-order result assembly despite completion-order slot fills.
 - [x] Implement finite map key/value and insertion-order rules.
 - [x] Treat pre-existing collections as data sources without re-evaluation.
 - [ ] Add bounded pull for lazy/generator sources and keep recurrence generation
   sequential where values depend on history.
-- [x] Test the limit-2 `{= a=[F(), G()], b=H() }` admission scenario exactly.
+- [x] Test the current limit-2 `{= a=[F(), G()], b=H() }` structural-parent
+  behavior without consuming permits.
+- [ ] Change that scenario's admission assertion from the current `F, G, H`
+  depth-first order to the settled `F, H, G` hierarchical order.
 
 ## 5. Fused async pipes
 
@@ -856,11 +867,15 @@ reactive batch later publishes `result` and `status` together.
 
 ## 6. Failure and cancellation
 
-- [ ] Thread the implemented group cancellation signals through evaluator
-  calls, loops, source pulls, stages, capabilities, and workers.
+- [x] Thread group cancellation signals through evaluator and capability-call
+  boundaries.
+- [ ] Add cancellation checkpoints to loops, lazy source pulls, stages, and
+  workers.
 - [x] Implement fail-fast admission stop followed by queued-sibling cancellation and
   cleanup drain.
-- [ ] Attach suppressed cleanup failures in stable task-path order.
+- [x] Preserve body failure as primary and attach later cleanup failures as
+  suppressed errors.
+- [ ] Give every cleanup and scheduler error a complete structural task path.
 - [x] Implement named and unnamed `{!$...}` completion races with queued-sibling cancellation.
 - [ ] Specify capability metadata for parallel safety, cancellation, executor,
   and effects; serialize unsafe capabilities through a single lane.
@@ -876,8 +891,8 @@ reactive batch later publishes `result` and `status` together.
 - [ ] Define CLI drain-by-default and host no-drain/cancel behavior.
 - [x] Report background errors to the host handler/error queue without retroactively
   failing continued main evaluation.
-- [ ] Snapshot ordinary captured values and capability permissions at spawn.
-- [ ] Enforce detached import isolation: deep-copy listed ordinary values,
+- [x] Snapshot explicitly imported ordinary values at spawn.
+- [x] Enforce detached import isolation: deep-copy listed ordinary values,
   reject ordinary aliases, alias listed reactive values, and hide unlisted
   bindings.
 - [ ] Reject ordinary outer-cell writes and detached spawn during reactive
@@ -899,20 +914,19 @@ reactive batch later publishes `result` and `status` together.
 - [ ] Add worker termination and grace-period behavior.
 - [ ] Compare event-loop and worker execution for semantic equivalence.
 
-## 8a. Accepted async follow-ups
+## 8a. Settled async runtime additions
 
-- [ ] Parse keyed and positional timeout headers and enforce earliest nested
+- [x] Parse keyed and positional timeout headers and enforce earliest nested
   monotonic deadlines with cancellation and drain.
-- [ ] Add typed operational faults and restrict `##!>` to that channel.
-- [ ] Parse and lower value-preserving `##_` cleanup registration; run
+- [x] Add typed operational faults and restrict `##!>` to that channel.
+- [x] Parse and lower value-preserving `##_` cleanup registration; run
   finalizers LIFO, sequentially, shielded, and before permit release.
-- [ ] Add the separate bounded `async_stream` runtime with lazy async pipes and
-  terminal consumers.
+- [ ] Define async streams/reactive integration in a separate design review;
+  no language contract is settled here.
 
 ## 9. Documentation, observability, and hardening
 
-- [x] Add syntax/reference documentation for the implemented runtime
-  slice is implemented.
+- [x] Add syntax/reference documentation for the implemented runtime slice.
 - [ ] Show scope/task paths, queue state, running count, cancellation reason,
   and executor in trace diagnostics.
 - [ ] Tag concurrent output events with task paths and define host presentation

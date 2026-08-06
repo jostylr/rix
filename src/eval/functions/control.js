@@ -9,6 +9,7 @@
 
 import { runtimeDefaults } from "../../runtime/runtime-config.js";
 import { PREP_TRIAL_NO_MATCH } from "./core.js";
+import { withFinalizerActivationSync } from "../../runtime/finalization.js";
 
 function isTruthy(val) {
     return val !== null && val !== undefined;
@@ -139,19 +140,21 @@ export const controlFunctions = {
             const shareCurrentScope = context.consumeSharedBody("BLOCK");
             if (!shareCurrentScope) context.push(undefined, { isolated: true });
             try {
-                applyImports(imports, context);
-                let result = null;
-                try {
-                    for (const stmt of bodyArgs) {
-                        result = evaluate(stmt);
+                return withFinalizerActivationSync(context, () => {
+                    applyImports(imports, context);
+                    let result = null;
+                    try {
+                        for (const stmt of bodyArgs) {
+                            result = evaluate(stmt);
+                        }
+                    } catch (error) {
+                        if (matchesBreakTarget(error, "block", containerName)) {
+                            return error.value;
+                        }
+                        throw error;
                     }
-                } catch (error) {
-                    if (matchesBreakTarget(error, "block", containerName)) {
-                        return error.value;
-                    }
-                    throw error;
-                }
-                return result;
+                    return result;
+                });
             } finally {
                 if (!shareCurrentScope) context.pop();
             }
