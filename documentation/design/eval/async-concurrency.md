@@ -307,6 +307,8 @@ are barriers.
 |---|---|---|
 | `|>>` | map | Elementwise fused stage; transformed items retain source order in the result. |
 | `|>?` | filter | Elementwise fused predicate; passing items continue immediately; final result retains source order. |
+| `|>!` | expected-error value handler | Elementwise fused recovery stage. Canonical `{: :error, ...args }` values call the handler with `args`; returning null drops that item. Other values pass through. |
+| `|>_` | ForEach/drain with callback | Consuming terminal. Calls the callback for every item, discards callback results, awaits exhaustion, and returns null. |
 | `|>||` | any/some | Ordered Find terminal; returns the first source-order item whose predicate is truthy. |
 | `|>&&` | every/all | Terminal; may request cancellation once a falsy predicate fixes the result; returns the source-order last item if all pass. |
 | `|>:` / `|:>` | reduce | Ordered accumulator barrier; upstream work overlaps, reducer calls occur in source order. |
@@ -321,6 +323,31 @@ are barriers.
 This classification preserves current value semantics while permitting a
 streaming implementation where it is observable only through latency and
 effects.
+
+The tokenizer recognizes `|>_` and `|>!` before their shorter `|>` prefix.
+Both operators use the same callback convention as other elementwise pipes.
+For `|>_`, that is `(value, locator, source)`; the return value is deliberately
+ignored and no output collection is allocated. Outside a concurrency scope it
+drains sequentially. Inside `{$:L$ ... }`, each handler holds one item permit
+until it settles, fail-fast cancellation applies, and the terminal waits for
+every admitted handler before returning null. Streams and lazy sources are
+pulled only as downstream capacity becomes available. A callback-free `Drain`
+terminal remains a possible convenience API, distinct from `|>_`.
+
+`|>!` handles expected failures represented as values, not thrown failures.
+Only a tuple whose leading value is `:error` is intercepted:
+
+```rix
+{: :error, :timeout, url } |>! ((kind, resource) -> Cached(resource))
+```
+
+The leading tag is removed and the remaining entries become positional handler
+arguments. A non-null recovery value continues through later stages. Null is
+an internal skip signal: a fused collection/stream item is removed and later
+stages are not called for it; a scalar pipeline short-circuits and evaluates to
+RiX null. The sentinel is never observable as a value or collection hole.
+Non-error values pass unchanged, and language errors, operational faults,
+breaks, and cancellation propagate normally.
 
 ## Fused example
 
@@ -551,6 +578,39 @@ blocks, concurrent items, and supervised background blocks.
 the handler with a fault record and returns the handler's recovery value. It
 does not catch language errors, `.Error`, breaks, or ordinary cancellation;
 handler failures propagate.
+
+## Expected-value retry
+
+`.Retry` repeatedly evaluates deferred work when, and only when, it returns a
+canonical expected-error tuple. The short form supplies the total number of
+attempts:
+
+```rix
+.Retry(3, @{ Fetch(url) })
+```
+
+The policy-map form adds a delay in seconds, multiplicative backoff, and an
+optional allow-list matched against the first value after `:error`:
+
+```rix
+.Retry(
+    {= attempts=4, delay=1, backoff=2, kinds=[:timeout, :unavailable] },
+    @{ Fetch(url) }
+)
+```
+
+`attempts` is a positive safe integer. `delay` and `backoff` are finite
+non-negative numbers; their defaults are 0 and 1. Success returns immediately.
+An unlisted error kind also returns immediately, and exhaustion returns the
+final error tuple so a following `|>!` can recover or skip it. Thrown errors and
+control flow are never retried. Cancellation or the containing scope's earliest
+deadline interrupts a pending backoff and prevents another attempt.
+
+Retries for one source item are sequential and retain that item's concurrency
+permit. Every attempt has its own block activation, so its `##_` finalizers are
+fully drained before the next attempt begins. The finalizer failure contract is
+unchanged. Deterministic jitter is reserved for a later policy extension.
+`Retry` belongs to the `Async` capability group.
 
 ## Async-scope break
 
@@ -891,6 +951,8 @@ reactive batch later publishes `result` and `status` together.
 - [x] Preserve scope names, limits, and source spans in IR. Stable task paths remain pending.
 - [x] Add tokenizer/parser/lowering negative tests for zero, malformed, and
   unsafe concurrency limits.
+- [x] Recognize `|>_` and `|>!` before `|>` and lower them to `PFOREACH` and
+  `PEXPECT`.
 
 ## 2. Promise-aware evaluation
 
@@ -966,6 +1028,12 @@ reactive batch later publishes `result` and `status` together.
   inside collection entries remain follow-up coverage.
 - [ ] Test infinite/lazy sources for strict bounded admission and early terminal
   cancellation.
+- [x] Add terminal `|>_` with ordinary callback arguments, result discard,
+  bounded stream/lazy drain, null result, and fail-fast cancellation.
+- [x] Add `|>!` expected-error tuple recovery with positional tail arguments,
+  scalar short-circuit, and collection/stream item skipping without holes.
+- [x] Add `.Retry` with count/policy forms, kind filtering, cancellable backoff,
+  per-attempt cleanup, and permit retention.
 
 ## 6. Failure and cancellation
 

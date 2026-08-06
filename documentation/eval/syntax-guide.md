@@ -1557,16 +1557,42 @@ general systems. The former `:=:` solve operator has been removed.
 | `PCHUNK(coll, n)` | Chunk collection by size or predicate | `coll \|>#\| nOrFn` |
 | `PMAP(coll, fn)` | Map function over collection (arrays/strings/maps/tensors); maps preserve keys; tensors preserve shape | `coll \|>> fn`, `MAP(coll, fn)` |
 | `PFILTER(coll, pred)` | Filter by predicate (arrays/strings/maps/tensors) | `coll \|>? pred`, `FILTER(coll, pred)` |
+| `PEXPECT(value, fn)` | Recover canonical `{: :error, ...args }` values; null recovery skips the current item | `value \|>! fn` |
+| `PFOREACH(coll, fn)` | Drain for effects, ignore callback results, and return null | `coll \|>_ fn` |
 | `PREDUCE(coll, fn, init)` | Reduce/fold (arrays/strings/maps/tensors) | `coll \|>: fn`, `coll \|:> init >: fn`, `REDUCE(coll, fn, init)` |
 | `PREVERSE(coll)` | Reverse collection (new copy) | `coll \|><` |
 | `PSORT(coll, fn)` | Sort with comparator (new copy) | `coll \|<> fn` |
+
+`source |>_ F` is a consuming terminal. It calls `F(value, locator, source)`
+for every item, discards every callback result, does not buffer an output
+collection, and returns RiX null after exhaustion. It is sequential normally
+and bounded by the containing `{$:L$ ... }` scheduler when present. Lazy and
+stream sources are pulled with backpressure.
+
+`value |>! F` handles an expected error represented by the tuple
+`{: :error, ...args }`. It removes `:error` and calls `F(...args)`. Other values
+pass through without calling `F`. If recovery returns null, a collection or
+stream item is removed and later fused stages are skipped; a scalar pipeline
+short-circuits to null. This does not catch thrown language errors, typed
+operational faults, cancellation, or breaks.
+
+`.Retry(attempts, @{ work })` repeatedly evaluates deferred work while it
+returns an expected-error tuple. The policy form is
+`.Retry({= attempts=4, delay=1, backoff=2, kinds=[:timeout] }, @{ work })`.
+The explicit system-call spelling `@_Retry(...)` is equivalent.
+Attempts is the positive total attempt count; delay is seconds before the next
+attempt and backoff scales subsequent delays. A kinds list matches the first
+tail value after `:error`. Success, an unlisted kind, or the final failed
+attempt returns immediately. Thrown failures propagate. Cancellation and an
+async-scope timeout interrupt backoff; retries retain the current item permit
+and drain each attempt's registered cleanup before continuing.
 
 ### Async streams
 
 `.Stream(collection, label?)` creates a cold `async_stream`. A stream is a
 linear pull handle, not a promise, lazy sequence, or materialized collection.
-Displaying it never pulls it. `stream |>> F` and `stream |>? P` create lazy
-derived streams; an explicit terminal begins consumption.
+Displaying it never pulls it. `stream |>> F`, `stream |>? P`, and `stream |>! H`
+create lazy derived streams; an explicit terminal begins consumption.
 
 | Method | Result |
 |--------|--------|
@@ -1574,6 +1600,7 @@ derived streams; an explicit terminal begins consumption.
 | `Take(n)`, `Drop(n)` | Lazy ordered bound/offset stage |
 | `Chunk(n)`, `Window(size, step?=1)` | Lazy ordered grouping stage |
 | `ForEach(F)` | Consume for effects; return null |
+| `stream |>_ F` | Pipe spelling of ForEach; callback-free Drain is reserved |
 | `Reduce(initial, F)` | Consume and fold in source order |
 | `Collect()`, `Collect(n)` | Consume to a sequence, optionally bounded |
 | `First()`, `Find(P)` | Consume until an early ordered result |

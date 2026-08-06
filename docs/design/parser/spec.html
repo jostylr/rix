@@ -1422,6 +1422,8 @@ Solve(sys)</code></pre>
 <li><p><strong><code>|&gt;</code></strong> <em>Feeds the array as arguments to a function.</em> Example: <code>[1, 2, 3] |&gt; f</code> (calls <code>f(1, 2, 3)</code>)</p></li>
 <li><p><strong><code>|&gt;&gt;</code></strong> <em>Maps function over array (like <code>map</code>).</em> Example: <code>[1, 2, 3] |&gt;&gt; f</code> → <code>[f(1), f(2), f(3)]</code></p></li>
 <li><p><strong><code>|&gt;?</code></strong> <em>Filters array with predicate (like <code>filter</code>).</em> Example: <code>[1, 2, 3] |&gt;? (x) -&gt; x &gt; 1</code> → <code>[2, 3]</code></p></li>
+<li><p><strong><code>|&gt;!</code></strong> <em>Handles canonical expected-error tuple values.</em> Example: <code>{: :error, :missing, 0 } |&gt;! (kind, fallback) -&gt; fallback</code> → <code>0</code></p></li>
+<li><p><strong><code>|&gt;_</code></strong> <em>Drains a source with an effect callback, discards callback results, and returns null.</em> Example: <code>[1, 2, 3] |&gt;_ Log</code></p></li>
 <li><p><strong><code>|&gt;:</code></strong> <em>Reduces array with function (like <code>reduce</code>).</em> Example: <code>[1, 2, 3] |&gt;: (a, b) -&gt; a + b</code> → <code>6</code></p></li>
 <li><p><strong>All can be chained:</strong> Example: <code>[1, 2, 3, 4, 5] |&gt;&gt; (x) -&gt; x * 2 |&gt;? (x) -&gt; x &lt; 7 |&gt;: (a, b) -&gt; a + b</code> (<code>[2, 4, 6]</code> summed to <code>12</code>)</p></li>
 </ul>
@@ -1432,6 +1434,8 @@ Solve(sys)</code></pre>
 <li><p><strong><code>|&gt;</code></strong> feeds the entire array/sequence as function arguments (destructures if function expects multiple args).</p></li>
 <li><p><strong><code>|&gt;&gt;</code></strong> maps the function over the array (like Python’s <code>map</code>).</p></li>
 <li><p><strong><code>|&gt;?</code></strong> filters the array (like Python’s <code>filter</code>).</p></li>
+<li><p><strong><code>|&gt;!</code></strong> handles expected <code>{: :error, ... }</code> values; null recovery skips an item.</p></li>
+<li><p><strong><code>|&gt;_</code></strong> consumes each item for effects and returns null.</p></li>
 <li><p><strong><code>|&gt;:</code></strong> reduces/folds the array (like Python’s <code>reduce</code>).</p></li>
 <li><p>All piping operators can be chained for expressive data pipelines:</p>
 <pre class="plaintext"><code>[1,2,3,4,5] |&gt;&gt; (x)-&gt;x*2 |&gt;? (x)-&gt;x&lt;7 |&gt;: (a,b)-&gt;a+b   // (([2,4,6,8,10] filtered to [2,4,6]) reduced to 12)</code></pre></li>

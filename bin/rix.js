@@ -58,12 +58,15 @@ const WEB_PAGE_STYLE = path.resolve(TOOL_DIR, "web-page.css");
 const BUILT_PLUGIN_IDS = new Set(["exact-algebras", "draw", "plot", "float", "example-array-js", "example-array-rix"]);
 const STANDARD_PLUGIN_IDS = new Set(["exact-algebras", "draw", "plot", "float"]);
 
-function sourceUsesAsyncBlocks(source) {
-    return tokenize(source).some((token) => token.value === "{$" || token.value === "{$$");
+function sourceUsesAsyncEvaluation(source) {
+    const tokens = tokenize(source);
+    return tokens.some((token) => token.value === "{$" || token.value === "{$$"
+        || token.value === "|>_" || token.value === "|>!")
+        || /\.(?:ForEach|Reduce|Collect|First|Find|Count|Close|Retry)\s*\(/i.test(source);
 }
 
 function evaluateSource(source, options) {
-    return sourceUsesAsyncBlocks(source)
+    return sourceUsesAsyncEvaluation(source)
         ? parseAndEvaluateAsync(source, options)
         : Promise.resolve(parseAndEvaluate(source, options));
 }
@@ -1154,7 +1157,7 @@ async function main() {
                 // Keep ordinary REPL submissions fully synchronous so multiple
                 // lines already buffered by readline cannot overlap. Async
                 // syntax deliberately yields until its scope has completed.
-                const result = sourceUsesAsyncBlocks(buffer)
+                const result = sourceUsesAsyncEvaluation(buffer)
                     ? await parseAndEvaluateAsync(buffer, evaluationOptions)
                     : parseAndEvaluate(buffer, evaluationOptions);
                 

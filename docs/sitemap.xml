@@ -6,7 +6,7 @@
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/design/parser/spec.html</loc>
-    <lastmod>2026-08-06T13:21:35.286Z</lastmod>
+    <lastmod>2026-08-06T20:14:21.528Z</lastmod>
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/design/plugins.html</loc>
@@ -62,7 +62,7 @@
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/reference/system-reference.html</loc>
-    <lastmod>2026-08-06T19:40:22.478Z</lastmod>
+    <lastmod>2026-08-06T20:21:40.845Z</lastmod>
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/eval/methods-guide.html</loc>
@@ -106,7 +106,7 @@
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/eval/syntax-guide.html</loc>
-    <lastmod>2026-08-06T19:35:38.091Z</lastmod>
+    <lastmod>2026-08-06T20:19:35.525Z</lastmod>
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/eval/types-and-traits-guide.html</loc>
@@ -122,7 +122,7 @@
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/parser/parsing.html</loc>
-    <lastmod>2026-08-06T13:21:35.405Z</lastmod>
+    <lastmod>2026-08-06T20:14:21.635Z</lastmod>
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/parser/AST-brief.html</loc>
@@ -138,7 +138,7 @@
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/design/eval/async-concurrency.html</loc>
-    <lastmod>2026-08-06T19:35:37.977Z</lastmod>
+    <lastmod>2026-08-06T20:14:21.319Z</lastmod>
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/design/eval/cayley-polar.html</loc>

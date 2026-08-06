@@ -3140,6 +3140,16 @@ A := .Integrate({#x# 2*x }, {#x})
 <td><code>coll \|&gt;? pred</code>, <code>FILTER(coll, pred)</code></td>
 </tr>
 <tr class="odd">
+<td><code>PEXPECT(value, fn)</code></td>
+<td>Recover canonical <code>{: :error, ...args }</code> values; null recovery skips the current item</td>
+<td><code>value \|&gt;! fn</code></td>
+</tr>
+<tr class="even">
+<td><code>PFOREACH(coll, fn)</code></td>
+<td>Drain for effects, ignore callback results, and return null</td>
+<td><code>coll \|&gt;_ fn</code></td>
+</tr>
+<tr class="odd">
 <td><code>PREDUCE(coll, fn, init)</code></td>
 <td>Reduce/fold (arrays/strings/maps/tensors)</td>
 <td><code>coll \|&gt;: fn</code>, <code>coll \|:&gt; init &gt;: fn</code>, <code>REDUCE(coll, fn, init)</code></td>
@@ -3156,10 +3166,13 @@ A := .Integrate({#x# 2*x }, {#x})
 </tr>
 </tbody>
 </table>
+<p><code>source |&gt;_ F</code> is a consuming terminal. It calls <code>F(value, locator, source)</code> for every item, discards every callback result, does not buffer an output collection, and returns RiX null after exhaustion. It is sequential normally and bounded by the containing <code>{$:L$ ... }</code> scheduler when present. Lazy and stream sources are pulled with backpressure.</p>
+<p><code>value |&gt;! F</code> handles an expected error represented by the tuple <code>{: :error, ...args }</code>. It removes <code>:error</code> and calls <code>F(...args)</code>. Other values pass through without calling <code>F</code>. If recovery returns null, a collection or stream item is removed and later fused stages are skipped; a scalar pipeline short-circuits to null. This does not catch thrown language errors, typed operational faults, cancellation, or breaks.</p>
+<p><code>.Retry(attempts, @{ work })</code> repeatedly evaluates deferred work while it returns an expected-error tuple. The policy form is <code>.Retry({= attempts=4, delay=1, backoff=2, kinds=[:timeout] }, @{ work })</code>. The explicit system-call spelling <code>@_Retry(...)</code> is equivalent. Attempts is the positive total attempt count; delay is seconds before the next attempt and backoff scales subsequent delays. A kinds list matches the first tail value after <code>:error</code>. Success, an unlisted kind, or the final failed attempt returns immediately. Thrown failures propagate. Cancellation and an async-scope timeout interrupt backoff; retries retain the current item permit and drain each attempt’s registered cleanup before continuing.</p>
 </section>
 <section id="async-streams" class="level3">
 <h3 class="anchored" data-anchor-id="async-streams">Async streams</h3>
-<p><code>.Stream(collection, label?)</code> creates a cold <code>async_stream</code>. A stream is a linear pull handle, not a promise, lazy sequence, or materialized collection. Displaying it never pulls it. <code>stream |&gt;&gt; F</code> and <code>stream |&gt;? P</code> create lazy derived streams; an explicit terminal begins consumption.</p>
+<p><code>.Stream(collection, label?)</code> creates a cold <code>async_stream</code>. A stream is a linear pull handle, not a promise, lazy sequence, or materialized collection. Displaying it never pulls it. <code>stream |&gt;&gt; F</code>, <code>stream |&gt;? P</code>, and <code>stream |&gt;! H</code> create lazy derived streams; an explicit terminal begins consumption.</p>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 50%">
@@ -3189,22 +3202,26 @@ A := .Integrate({#x# 2*x }, {#x})
 <td>Consume for effects; return null</td>
 </tr>
 <tr class="odd">
+<td><code>stream |&gt;_ F</code></td>
+<td>Pipe spelling of ForEach; callback-free Drain is reserved</td>
+</tr>
+<tr class="even">
 <td><code>Reduce(initial, F)</code></td>
 <td>Consume and fold in source order</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>Collect()</code>, <code>Collect(n)</code></td>
 <td>Consume to a sequence, optionally bounded</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>First()</code>, <code>Find(P)</code></td>
 <td>Consume until an early ordered result</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>Count()</code>, <code>Count(n)</code></td>
 <td>Count a finite stream or an explicit bound</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>Close(reason?)</code>, <code>Done()</code>, <code>Status()</code></td>
 <td>Lifecycle and inspection</td>
 </tr>

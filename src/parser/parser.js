@@ -75,6 +75,8 @@ const SYMBOL_TABLE = {
   "|>?": { precedence: PRECEDENCE.PIPE, associativity: "left", type: "infix" },
   "|>&&": { precedence: PRECEDENCE.PIPE, associativity: "left", type: "infix" },
   "|>||": { precedence: PRECEDENCE.PIPE, associativity: "left", type: "infix" },
+  "|>_": { precedence: PRECEDENCE.PIPE, associativity: "left", type: "infix" },
+  "|>!": { precedence: PRECEDENCE.PIPE, associativity: "left", type: "infix" },
   "|><": { precedence: PRECEDENCE.PIPE, associativity: "left", type: "infix" },
   "|>/|": { precedence: PRECEDENCE.PIPE, associativity: "left", type: "infix" },
   "|>#|": { precedence: PRECEDENCE.PIPE, associativity: "left", type: "infix" },
@@ -1280,6 +1282,22 @@ class Parser {
         operator: operator.value,
         left: left,
         right: right,
+        pos: left.pos,
+        original: left.original + operator.original,
+      });
+    } else if (operator.value === "|>_") {
+      right = this.parseExpression(rightPrec);
+      return this.createNode("ForEachPipe", {
+        left,
+        right,
+        pos: left.pos,
+        original: left.original + operator.original,
+      });
+    } else if (operator.value === "|>!") {
+      right = this.parseExpression(rightPrec);
+      return this.createNode("ExpectedErrorPipe", {
+        left,
+        right,
         pos: left.pos,
         original: left.original + operator.original,
       });

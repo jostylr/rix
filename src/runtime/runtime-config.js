@@ -26,7 +26,7 @@ export const runtimeDefaults = Object.freeze({
     Arith: Object.freeze(["ADD", "SUB", "MUL", "DIV", "INTDIV", "DIVMOD", "MOD", "POW", "FACTORIAL", "DOUBLEFACTORIAL"]),
     Logic: Object.freeze(["EQ", "NEQ", "LT", "GT", "LTE", "GTE", "AND", "OR", "NOT"]),
     Collections: Object.freeze(["LEN", "FIRST", "LAST", "GETEL", "IRANGE", "MAP", "FILTER", "REDUCE", "TGEN", "Stream"]),
-    Async: Object.freeze(["Stream"]),
+    Async: Object.freeze(["Stream", "Retry"]),
     Maps: Object.freeze(["MAP", "KEYOF", "KEYS", "VALUES"]),
     Arrays: Object.freeze(["LEN", "FIRST", "LAST", "GETEL", "IRANGE", "MAP", "FILTER", "REDUCE", "TGEN"]),
     Strings: Object.freeze(["UPPER", "SUBSTR", "PRINT"]),

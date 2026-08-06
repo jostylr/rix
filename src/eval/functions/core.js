@@ -28,6 +28,7 @@ import { lower } from "../lower.js";
 import { runtimeDefaults } from "../../runtime/runtime-config.js";
 import { maybeAutoMarkMultifunction } from "../../runtime/multifunction.js";
 import { isReactiveNode, REACTIVE_READ_ENV } from "../../runtime/reactive-graph.js";
+import { materializePipeSkip } from "../../runtime/expected-error.js";
 import {
     exportByRegisteredTypeRuntime,
     importByRegisteredTypeRuntime,
@@ -1953,7 +1954,7 @@ export const coreFunctions = {
             }
 
             // Otherwise evaluate and create a fresh Cell
-            const value = maybeAutoMarkMultifunction(name, evaluate(rhsIR));
+            const value = maybeAutoMarkMultifunction(name, materializePipeSkip(evaluate(rhsIR)));
             recordTraceWrite(context, name, context.get(name) ?? null, value);
             context.setFresh(name, value);
             return value;
@@ -1965,7 +1966,7 @@ export const coreFunctions = {
         lazy: true,
         impl(args, context, evaluate) {
             const name = resolveAssignName(args[0], evaluate);
-            const rhsValue = evaluate(args[1]);
+            const rhsValue = materializePipeSkip(evaluate(args[1]));
             const newValue = shallowCopyValue(rhsValue);
             copyAllMeta(rhsValue, newValue, "shallow");
             recordTraceWrite(context, name, context.get(name) ?? null, newValue);
@@ -1979,7 +1980,7 @@ export const coreFunctions = {
         lazy: true,
         impl(args, context, evaluate) {
             const name = resolveAssignName(args[0], evaluate);
-            const rhsValue = evaluate(args[1]);
+            const rhsValue = materializePipeSkip(evaluate(args[1]));
             return performUpdate(name, rhsValue, context, "shallow", evaluate);
         },
         doc: "In-place value replacement (~=) — preserves cell identity, ordinary meta; replaces ephemeral; preserves sticky unless rhs overrides",
@@ -1989,7 +1990,7 @@ export const coreFunctions = {
         lazy: true,
         impl(args, context, evaluate) {
             const name = resolveAssignName(args[0], evaluate);
-            const rhsValue = evaluate(args[1]);
+            const rhsValue = materializePipeSkip(evaluate(args[1]));
             const newValue = deepCopyValue(rhsValue);
             copyAllMeta(rhsValue, newValue, "deep");
             recordTraceWrite(context, name, context.get(name) ?? null, newValue);
@@ -2003,7 +2004,7 @@ export const coreFunctions = {
         lazy: true,
         impl(args, context, evaluate) {
             const name = resolveAssignName(args[0], evaluate);
-            const rhsValue = evaluate(args[1]);
+            const rhsValue = materializePipeSkip(evaluate(args[1]));
             return performUpdate(name, rhsValue, context, "deep", evaluate);
         },
         doc: "In-place deep value replacement (~~=) — like ~= but deep-copies rhs value",

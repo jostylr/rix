@@ -144,4 +144,22 @@ Mediant(a, b) -> a + b;
         expect(result.stderr).toBe("");
         expect(result.stdout).toContain("[2, 4]");
     });
+
+    test("the CLI file runner selects async evaluation for drain pipes and Retry", () => {
+        const directory = temporaryDirectory();
+        const sourcePath = path.join(directory, "async-pipes.rix");
+        writeFileSync(sourcePath, `
+.Stream([1,2,3]) |>_ ((value) -> value^2);
+.Retry({= attempts=2, delay=1/100 }, @{ {: :error, :timeout, 7 } })
+    |>! ((kind, value) -> value);
+`);
+        const result = spawnSync("bun", [
+            path.join(rixRoot, "bin/rix.js"),
+            "--no-config",
+            sourcePath,
+        ], { encoding: "utf8" });
+        expect(result.status).toBe(0);
+        expect(result.stderr).toBe("");
+        expect(result.stdout).toContain("7");
+    });
 });

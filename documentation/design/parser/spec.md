@@ -830,6 +830,16 @@ Piping can be used to apply functional transformations to arrays, sets, sequence
   Example:
   `[1, 2, 3] |>? (x) -> x > 1` → `[2, 3]`
 
+* **`|>!`**
+  *Handles canonical expected-error tuple values.*
+  Example:
+  `{: :error, :missing, 0 } |>! (kind, fallback) -> fallback` → `0`
+
+* **`|>_`**
+  *Drains a source with an effect callback, discards callback results, and returns null.*
+  Example:
+  `[1, 2, 3] |>_ Log`
+
 * **`|>:`**
   *Reduces array with function (like `reduce`).*
   Example:
@@ -845,6 +855,8 @@ Piping can be used to apply functional transformations to arrays, sets, sequence
 * **`|>`** feeds the entire array/sequence as function arguments (destructures if function expects multiple args).
 * **`|>>`** maps the function over the array (like Python's `map`).
 * **`|>?`** filters the array (like Python's `filter`).
+* **`|>!`** handles expected `{: :error, ... }` values; null recovery skips an item.
+* **`|>_`** consumes each item for effects and returns null.
 * **`|>:`** reduces/folds the array (like Python's `reduce`).
 * All piping operators can be chained for expressive data pipelines:
 

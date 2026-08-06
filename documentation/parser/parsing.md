@@ -1729,6 +1729,8 @@ Piping operators allow data to flow from left to right through a sequence of tra
 | `\|\|>` | `ExplicitPipe` | 20 | left | Explicit pipe with placeholders for argument rearrangement |
 | `\|>>` | `Map` | 20 | left | Map function over each element of iterable |
 | `\|>?` | `Filter` | 20 | left | Filter elements where predicate returns true |
+| `\|>!` | `ExpectedErrorPipe` | 20 | left | Handle expected-error tuple values; null recovery skips an item |
+| `\|>_` | `ForEachPipe` | 20 | left | Drain with a callback, discard results, and return null |
 | `\|>:` | `Reduce` | 20 | left | Reduce iterable to single value using binary function |
 
 ### Simple Pipe (`|>`)

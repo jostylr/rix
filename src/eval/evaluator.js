@@ -27,6 +27,8 @@ import {
     claimAsyncStream,
     closeAsyncStream,
     consumeAsyncStreamSequential,
+    createAsyncStream,
+    expectedErrorAsyncStream,
     filterAsyncStream,
     isAsyncStream,
     mapAsyncStream,
@@ -50,6 +52,7 @@ import { installSymbolicVariants, symbolicCapabilities, symbolicFunctions } from
 import { outputFunctions } from "./functions/output.js";
 import { formulaSheetFunctions } from "./functions/formula-sheet.js";
 import { reactiveGraphFunctions } from "./functions/reactive-graph.js";
+import { retryCapabilities } from "./functions/retry.js";
 import {
     reactiveBindingFunctions,
     REACTIVE_OUTPUT_READ_ENV,
@@ -70,7 +73,13 @@ import { parse } from "../parser/parser.js";
 import { posToLineCol } from "../parser/tokenizer.js";
 import { mergeOperatorDefinitions } from "../parser/custom-operators.js";
 import { lower } from "./lower.js";
-import { isLazySequence, materializeLazySequence } from "../runtime/lazy-sequence.js";
+import { ensureLazyIndex, isLazySequence, materializeLazySequence } from "../runtime/lazy-sequence.js";
+import {
+    expectedErrorArgs,
+    isPipeSkip,
+    materializePipeSkip,
+    PIPE_SKIP,
+} from "../runtime/expected-error.js";
 import { createTensor, forEachTensorCell, isTensor, tensorIndexTuple } from "../runtime/tensor.js";
 import { formatValue } from "./format.js";
 import { Integer } from "@ratmath/core";
@@ -308,6 +317,7 @@ export function createDefaultSystemContext(options = {}) {
     ctx.registerAll(formulaSheetFunctions);
     ctx.registerAll(reactiveGraphFunctions);
     ctx.register("Stream", asyncStreamCapabilities.STREAM);
+    ctx.register("Retry", retryCapabilities.Retry);
     const sArith = sArithCapability.create();
     ctx.registerCallableValue("SArith", sArith.value, sArith.definition, {
         doc: sArith.definition.doc,
@@ -1077,7 +1087,7 @@ const ASYNC_COLLECTION_FNS = new Set([
     "ARRAY", "ARRAY_CAPTURE", "TUPLE", "SET", "MAP_OBJ",
     "MATRIX", "TENSOR", "TENSOR_LITERAL",
 ]);
-const ASYNC_PIPE_FNS = new Set(["PMAP", "PFILTER", "PANY", "PALL"]);
+const ASYNC_PIPE_FNS = new Set(["PMAP", "PFILTER", "PEXPECT", "PFOREACH", "PANY", "PALL"]);
 const ASYNC_RESOLVED_BARRIER_FNS = new Set(["PSLICE_STRICT", "PSLICE_CLAMP"]);
 
 function splitAsyncBlockArgs(args) {
@@ -1424,7 +1434,7 @@ async function consumeAsyncStreamStructured(stream, terminal, context, registry,
                 if (terminal.kind === "forEach") {
                     terminalValue = await invokeCallableAsync(
                         terminal.callable,
-                        [value, new Integer(BigInt(raw.sourceIndex)), stream],
+                        [value, new Integer(BigInt(raw.sourceIndex)), stream._stream.callbackSource ?? stream],
                         itemContext,
                         registry,
                         systemContext,
@@ -1433,7 +1443,7 @@ async function consumeAsyncStreamStructured(stream, terminal, context, registry,
                 } else if (terminal.kind === "find") {
                     terminalValue = await invokeCallableAsync(
                         terminal.callable,
-                        [value, new Integer(BigInt(raw.sourceIndex)), stream],
+                        [value, new Integer(BigInt(raw.sourceIndex)), stream._stream.callbackSource ?? stream],
                         itemContext,
                         registry,
                         systemContext,
@@ -1482,7 +1492,7 @@ async function consumeAsyncStreamStructured(stream, terminal, context, registry,
                 else if (terminal.kind === "reduce") {
                     accumulator = await invokeCallableAsync(
                         terminal.callable,
-                        [accumulator, entry.value, new Integer(BigInt(outputIndex)), stream],
+                        [accumulator, entry.value, new Integer(BigInt(outputIndex)), stream._stream.callbackSource ?? stream],
                         context,
                         registry,
                         systemContext,
@@ -1816,6 +1826,25 @@ async function runAsyncPipeStages(value, index, key, collection, stages, callabl
         : new Integer(BigInt(index + 1)));
     for (let stageIndex = 0; stageIndex < stages.length; stageIndex++) {
         const stage = stages[stageIndex];
+        if (stage.fn === "PEXPECT") {
+            const errorArgs = expectedErrorArgs(current);
+            if (errorArgs === null) continue;
+            const result = await invokeCallableAsync(
+                callables[stageIndex],
+                errorArgs,
+                context,
+                registry,
+                systemContext,
+                state,
+            );
+            if (result === null || result === undefined) {
+                keep = false;
+                dropped = true;
+                break;
+            }
+            current = result;
+            continue;
+        }
         const result = await invokeCallableAsync(
             callables[stageIndex],
             [current, locator, collection],
@@ -1833,6 +1862,8 @@ async function runAsyncPipeStages(value, index, key, collection, stages, callabl
             terminalPassed = isTruthyAsync(result);
             keep = terminalPassed;
             break;
+        } else if (stage.fn === "PFOREACH") {
+            break;
         }
     }
     return { index, value: current, keep, dropped, terminalPassed };
@@ -1847,23 +1878,74 @@ function asyncTerminalResult(terminal, records) {
         if (candidates.length === 0 || candidates.some((record) => !record.terminalPassed)) return null;
         return candidates.at(-1).value;
     }
+    if (terminal === "PFOREACH") return null;
     return undefined;
 }
 
-function deriveAsyncStreamPipe(stream, stages, callables) {
+async function evaluateAsyncStreamPipe(stream, stages, callables, context, registry, systemContext, state) {
     let derived = stream;
     for (let index = 0; index < stages.length; index++) {
         if (stages[index].fn === "PMAP") derived = mapAsyncStream(derived, callables[index]);
         else if (stages[index].fn === "PFILTER") derived = filterAsyncStream(derived, callables[index]);
+        else if (stages[index].fn === "PEXPECT") derived = expectedErrorAsyncStream(derived, callables[index]);
+        else if (stages[index].fn === "PFOREACH") {
+            return createAsyncMethodExecution(context, registry, systemContext, state).consume(derived, {
+                kind: "forEach",
+                callable: callables[index],
+                initial: null,
+                bound: null,
+            });
+        }
         else throw new Error("Async stream pipes support lazy |>> and |>? stages; use an explicit stream terminal to consume");
     }
     return derived;
+}
+
+function lazySequenceAsyncStream(source) {
+    let index = 1;
+    return createAsyncStream({
+        label: "lazy sequence",
+        finite: false,
+        callbackSource: source,
+        next(signal) {
+            if (signal?.aborted) throw signal.reason;
+            const value = ensureLazyIndex(source, index);
+            if (source._lazy.done && source._lazy.cache.length < index) return { done: true };
+            index++;
+            return { done: false, value };
+        },
+    });
+}
+
+function expectedPipeScalarSource(source, stages) {
+    if (stages[0]?.fn !== "PEXPECT") return false;
+    if (expectedErrorArgs(source) !== null || source?.type === "tuple") return true;
+    if (isAsyncStream(source) || isLazySequence(source) || isTensor(source) || source?.type === "map") return false;
+    return !Array.isArray(source?.values);
+}
+
+async function evaluateScalarExpectedPipe(source, stages, callables, context, registry, systemContext, state) {
+    const record = await runAsyncPipeStages(
+        source,
+        0,
+        undefined,
+        source,
+        stages,
+        callables,
+        context,
+        registry,
+        systemContext,
+        state,
+    );
+    if (stages.at(-1)?.fn === "PFOREACH") return null;
+    return record.keep ? record.value : PIPE_SKIP;
 }
 
 async function evaluateSequentialAsyncPipe(irNode, context, registry, systemContext, state) {
     const stages = [];
     let sourceNode = irNode;
     while (sourceNode?.fn && ASYNC_PIPE_FNS.has(sourceNode.fn)) {
+        if (sourceNode.fn === "PFOREACH" && stages.length > 0) break;
         stages.unshift({ fn: sourceNode.fn, callableNode: sourceNode.args[1] });
         sourceNode = sourceNode.args[0];
     }
@@ -1873,7 +1955,23 @@ async function evaluateSequentialAsyncPipe(irNode, context, registry, systemCont
     }
     const collection = await evaluateAsyncInternal(sourceNode, context, registry, systemContext, state);
     if (collection === null || collection === undefined) return null;
-    if (isAsyncStream(collection)) return deriveAsyncStreamPipe(collection, stages, callables);
+    if (isAsyncStream(collection)) {
+        return evaluateAsyncStreamPipe(collection, stages, callables, context, registry, systemContext, state);
+    }
+    if (isLazySequence(collection) && stages.at(-1)?.fn === "PFOREACH") {
+        return evaluateAsyncStreamPipe(
+            lazySequenceAsyncStream(collection),
+            stages,
+            callables,
+            context,
+            registry,
+            systemContext,
+            state,
+        );
+    }
+    if (expectedPipeScalarSource(collection, stages)) {
+        return evaluateScalarExpectedPipe(collection, stages, callables, context, registry, systemContext, state);
+    }
     const items = collectionItems(collection);
     const records = [];
     for (let index = 0; index < items.length; index++) {
@@ -1893,7 +1991,9 @@ async function evaluateSequentialAsyncPipe(irNode, context, registry, systemCont
         ));
     }
     const terminal = stages.at(-1)?.fn;
-    if (terminal === "PANY" || terminal === "PALL") return asyncTerminalResult(terminal, records);
+    if (terminal === "PANY" || terminal === "PALL" || terminal === "PFOREACH") {
+        return asyncTerminalResult(terminal, records);
+    }
     return assembleAsyncPipeResult(collection, items, records, stages);
 }
 
@@ -1904,6 +2004,7 @@ async function evaluateAsyncPipe(irNode, context, registry, systemContext, state
     const stages = [];
     let sourceNode = irNode;
     while (sourceNode?.fn && ASYNC_PIPE_FNS.has(sourceNode.fn)) {
+        if (sourceNode.fn === "PFOREACH" && stages.length > 0) break;
         stages.unshift({ fn: sourceNode.fn, callableNode: sourceNode.args[1] });
         sourceNode = sourceNode.args[0];
     }
@@ -1946,7 +2047,9 @@ async function evaluateAsyncPipe(irNode, context, registry, systemContext, state
             });
         });
         const terminal = stages.at(-1)?.fn;
-        if (terminal === "PANY" || terminal === "PALL") return asyncTerminalResult(terminal, records);
+        if (terminal === "PANY" || terminal === "PALL" || terminal === "PFOREACH") {
+            return asyncTerminalResult(terminal, records);
+        }
         return assembleAsyncPipeResult(
             fusedSource.shell,
             fusedSource.entries.map((value) => ({ value })),
@@ -1957,7 +2060,23 @@ async function evaluateAsyncPipe(irNode, context, registry, systemContext, state
 
     const collection = await evaluateAsyncInternal(sourceNode, context, registry, systemContext, state);
     if (collection === null || collection === undefined) return null;
-    if (isAsyncStream(collection)) return deriveAsyncStreamPipe(collection, stages, callables);
+    if (isAsyncStream(collection)) {
+        return evaluateAsyncStreamPipe(collection, stages, callables, context, registry, systemContext, state);
+    }
+    if (isLazySequence(collection) && stages.at(-1)?.fn === "PFOREACH") {
+        return evaluateAsyncStreamPipe(
+            lazySequenceAsyncStream(collection),
+            stages,
+            callables,
+            context,
+            registry,
+            systemContext,
+            state,
+        );
+    }
+    if (expectedPipeScalarSource(collection, stages)) {
+        return evaluateScalarExpectedPipe(collection, stages, callables, context, registry, systemContext, state);
+    }
     const items = collectionItems(collection);
     const records = await orderedAsyncMap(items, state, (item, index) => {
         const itemContext = context.concurrentChild();
@@ -1981,7 +2100,9 @@ async function evaluateAsyncPipe(irNode, context, registry, systemContext, state
     });
 
     const terminal = stages.at(-1)?.fn;
-    if (terminal === "PANY" || terminal === "PALL") return asyncTerminalResult(terminal, records);
+    if (terminal === "PANY" || terminal === "PALL" || terminal === "PFOREACH") {
+        return asyncTerminalResult(terminal, records);
+    }
     return assembleAsyncPipeResult(collection, items, records, stages);
 }
 
@@ -2470,8 +2591,10 @@ async function evaluateAsyncInternal(irNode, context, registry, systemContext, s
         if (state && ASYNC_COLLECTION_FNS.has(fn)) {
             return await evaluateAsyncCollection(irNode, context, registry, systemContext, state);
         }
-        if (state && ASYNC_PIPE_FNS.has(fn)) {
-            return await evaluateAsyncPipe(irNode, context, registry, systemContext, state);
+        if (ASYNC_PIPE_FNS.has(fn) && (state || fn === "PFOREACH" || fn === "PEXPECT")) {
+            return state
+                ? await evaluateAsyncPipe(irNode, context, registry, systemContext, state)
+                : await evaluateSequentialAsyncPipe(irNode, context, registry, systemContext, null);
         }
         if (state && fn === "PREDUCE") {
             return await evaluateAsyncReduce(args, context, registry, systemContext, state);
@@ -2511,7 +2634,8 @@ async function evaluateAsyncInternal(irNode, context, registry, systemContext, s
         }
         if (fn === "BLOCK" || fn === "SYSTEM") {
             const { meta, body } = splitAsyncBlockArgs(args);
-            context.push(undefined, { isolated: true });
+            const shareCurrentScope = context.consumeSharedBody(fn);
+            if (!shareCurrentScope) context.push(undefined, { isolated: true });
             try {
                 return await withFinalizerActivationAsync(context, async () => {
                     applyAsyncImports(meta.imports, context);
@@ -2522,7 +2646,7 @@ async function evaluateAsyncInternal(irNode, context, registry, systemContext, s
                     graceMs: context.getEnv("asyncCleanupGraceMs", runtimeDefaults.asyncCleanupGraceMs),
                 });
             } finally {
-                context.pop();
+                if (!shareCurrentScope) context.pop();
             }
         }
         if (fn === "TERNARY") {
@@ -2575,6 +2699,7 @@ async function evaluateAsyncInternal(irNode, context, registry, systemContext, s
         }
         if (fn === "PIPE") {
             const value = await evalAsync(args[0]);
+            if (isPipeSkip(value)) return PIPE_SKIP;
             const callable = await evalAsync(args[1]);
             return invokeCallableAsync(
                 callable,
@@ -2700,7 +2825,7 @@ export function parseAndEvaluate(code, options = {}) {
             options.reactiveReads.clear();
             for (const source of reads) options.reactiveReads.add(source);
         }
-        return result;
+        return materializePipeSkip(result);
     });
 }
 
@@ -2766,7 +2891,7 @@ export async function parseAndEvaluateAsync(code, options = {}) {
             options.reactiveReads.clear();
             for (const source of reads) options.reactiveReads.add(source);
         }
-        return result;
+        return materializePipeSkip(result);
     }, {
         graceMs: context.getEnv("asyncCleanupGraceMs", runtimeDefaults.asyncCleanupGraceMs),
     });

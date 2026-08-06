@@ -25,7 +25,17 @@ import {
 } from "../../runtime/lazy-sequence.js";
 import { applySymbolicSpec, attachAutoSpec, isSymbolicSpec } from "./symbolic.js";
 import { isReactiveNode } from "../../runtime/reactive-graph.js";
-import { filterAsyncStream, isAsyncStream, mapAsyncStream } from "../../runtime/async-stream.js";
+import {
+    expectedErrorAsyncStream,
+    filterAsyncStream,
+    isAsyncStream,
+    mapAsyncStream,
+} from "../../runtime/async-stream.js";
+import {
+    expectedErrorArgs,
+    isPipeSkip,
+    PIPE_SKIP,
+} from "../../runtime/expected-error.js";
 
 const isTruthy = (val) => val !== null && val !== undefined;
 
@@ -375,6 +385,11 @@ export function callWithConcreteArgs(fn, callArgs, context, evaluate) {
     // System function reference — concrete values have no .fn so they pass
     // through evaluate() unchanged, whether the sysref is lazy or not.
     if (fn.type === "sysref") {
+        const systemContext = context.getEnv?.("__system_context__", null);
+        const capability = systemContext?.get?.(fn.name);
+        if (capability?.kind === "function") {
+            return capability.impl(callArgs, context, evaluate);
+        }
         return evaluate({ fn: fn.name, args: callArgs });
     }
 
@@ -422,7 +437,7 @@ function invokeTraversalCallback(func, callArgs, context, evaluate) {
         return callWithConcreteArgs(func, [callArgs[0]], context, evaluate);
     }
     if (func && func.type === "sysref") {
-        return evaluate({ fn: func.name, args: callArgs });
+        return callWithConcreteArgs(func, callArgs, context, evaluate);
     }
     if (func && (func.type === "function" || func.type === "lambda")) {
         return invokeUserCallable(func, callArgs, context, evaluate, {
@@ -673,6 +688,7 @@ export const functionFunctions = {
             // args[0] = value expression
             // args[1] = function expression
             const value = evaluate(args[0]);
+            if (isPipeSkip(value)) return PIPE_SKIP;
             const funcNode = args[1];
 
             // Tuples are unpacked as positional args; all other values are a single arg
@@ -1216,10 +1232,130 @@ export const functionFunctions = {
         doc: "Chunk a collection into subarrays by size or boundary predicate",
     },
 
+    PFOREACH: {
+        lazy: true,
+        impl(args, context, evaluate) {
+            const collection = evaluate(args[0]);
+            if (isPipeSkip(collection)) return null;
+            if (collection === null || collection === undefined) return null;
+            const func = evaluate(args[1]);
+
+            if (isAsyncStream(collection)) {
+                throw new Error("|>_ on an async stream requires promise-aware RiX evaluation");
+            }
+            if (isLazySequence(collection)) {
+                for (let index = 1; ; index++) {
+                    const item = ensureLazyIndex(collection, index);
+                    if (collection._lazy.done && collection._lazy.cache.length < index) break;
+                    invokeTraversalCallback(func, [item, new Integer(BigInt(index)), collection], context, evaluate);
+                }
+                return null;
+            }
+            if (isTensor(collection)) {
+                forEachTensorCell(collection, (item, tuple) => {
+                    invokeTraversalCallback(func, [item, tensorIndexTuple(tuple), collection], context, evaluate);
+                });
+                return null;
+            }
+            if (collection?.type === "map") {
+                if (!(collection.entries instanceof Map)) throw new Error("PFOREACH: invalid map");
+                for (const [key, value] of collection.entries) {
+                    invokeTraversalCallback(
+                        func,
+                        [value, { type: "string", value: key }, collection],
+                        context,
+                        evaluate,
+                    );
+                }
+                return null;
+            }
+            const isStringObject = collection?.type === "string";
+            const isString = typeof collection === "string" || isStringObject;
+            const items = isString
+                ? Array.from(isStringObject ? collection.value : collection)
+                    .map((value) => isStringObject ? { type: "string", value } : value)
+                : Array.isArray(collection?.values) ? collection.values : null;
+            if (!items) throw new Error("PFOREACH requires a collection, lazy source, or async stream");
+            for (let index = 0; index < items.length; index++) {
+                invokeTraversalCallback(
+                    func,
+                    [items[index], new Integer(BigInt(index + 1)), collection],
+                    context,
+                    evaluate,
+                );
+            }
+            return null;
+        },
+        doc: "Drain a source through a callback, ignore callback results, and return null",
+    },
+
+    PEXPECT: {
+        lazy: true,
+        impl(args, context, evaluate) {
+            const source = evaluate(args[0]);
+            if (isPipeSkip(source)) return PIPE_SKIP;
+            let handler;
+            const recover = (value) => {
+                const errorArgs = expectedErrorArgs(value);
+                if (errorArgs === null) return value;
+                handler ??= evaluate(args[1]);
+                const result = callWithConcreteArgs(handler, errorArgs, context, evaluate);
+                return result === null || result === undefined ? PIPE_SKIP : result;
+            };
+
+            if (source?.type === "tuple" || expectedErrorArgs(source) !== null) {
+                return recover(source);
+            }
+
+            if (isAsyncStream(source)) {
+                handler ??= evaluate(args[1]);
+                return expectedErrorAsyncStream(source, handler);
+            }
+            if (isLazySequence(source)) {
+                const recovered = mapLazySequence(source, recover);
+                return filterLazySequence(recovered, (value) => !isPipeSkip(value));
+            }
+            if (isTensor(source)) {
+                const records = [];
+                let skipped = false;
+                forEachTensorCell(source, (value, tuple) => {
+                    const result = recover(value);
+                    if (isPipeSkip(result)) skipped = true;
+                    else records.push({ value: result, locator: tensorIndexTuple(tuple) });
+                });
+                if (!skipped) return createTensor(source.shape, records.map((record) => record.value));
+                return {
+                    type: "sequence",
+                    values: records.map((record) => ({ type: "tuple", values: [record.value, record.locator] })),
+                };
+            }
+            if (source?.type === "map") {
+                if (!(source.entries instanceof Map)) throw new Error("PEXPECT: invalid map");
+                const entries = new Map();
+                for (const [key, value] of source.entries) {
+                    const result = recover(value);
+                    if (!isPipeSkip(result)) entries.set(key, result);
+                }
+                return { type: "map", entries };
+            }
+            if (source && Array.isArray(source.values)) {
+                const values = [];
+                for (const value of source.values) {
+                    const result = recover(value);
+                    if (!isPipeSkip(result)) values.push(result);
+                }
+                return { type: source.type || "sequence", values };
+            }
+            return recover(source);
+        },
+        doc: "Recover expected {: :error, ... } values or skip when the handler returns null",
+    },
+
     PMAP: {
         lazy: true,
         impl(args, context, evaluate) {
             const collection = evaluate(args[0]);
+            if (isPipeSkip(collection)) return PIPE_SKIP;
             const funcNode = args[1];
 
             if (collection === null || collection === undefined) return null;
@@ -1310,6 +1446,7 @@ export const functionFunctions = {
         lazy: true,
         impl(args, context, evaluate) {
             const collection = evaluate(args[0]);
+            if (isPipeSkip(collection)) return PIPE_SKIP;
             const funcNode = args[1];
 
             if (collection === null || collection === undefined) return null;
@@ -1394,6 +1531,7 @@ export const functionFunctions = {
         lazy: true,
         impl(args, context, evaluate) {
             let collection = evaluate(args[0]);
+            if (isPipeSkip(collection)) return PIPE_SKIP;
             const funcNode = args[1];
             const initProvided = args.length > 2;
             const explicitInit = initProvided ? evaluate(args[2]) : null;
@@ -1588,6 +1726,7 @@ export const functionFunctions = {
         lazy: true,
         impl(args, context, evaluate) {
             const collection = evaluate(args[0]);
+            if (isPipeSkip(collection)) return PIPE_SKIP;
             const funcNode = args[1];
 
             if (collection === null || collection === undefined) return null;
@@ -1687,6 +1826,7 @@ export const functionFunctions = {
         lazy: true,
         impl(args, context, evaluate) {
             const collection = evaluate(args[0]);
+            if (isPipeSkip(collection)) return PIPE_SKIP;
             const funcNode = args[1];
 
             if (collection === null || collection === undefined) return null;

@@ -1,6 +1,7 @@
 import { Integer } from "@ratmath/core";
 import { OperationalFault } from "./operational-fault.js";
 import { registerAsyncResource } from "./async-runtime.js";
+import { expectedErrorArgs } from "./expected-error.js";
 
 let nextStreamId = 1;
 
@@ -62,6 +63,7 @@ export function createAsyncStream(options) {
             stages: [],
             finite: options.finite === true,
             label: options.label || "stream",
+            callbackSource: options.callbackSource ?? null,
         },
         _ext: options.ext ? new Map(options.ext) : new Map(),
     };
@@ -77,6 +79,7 @@ function derive(source, stage, options = {}) {
             stages: [...source._stream.stages, stage],
             finite: options.finite ?? source._stream.finite,
             label: options.label || `${source._stream.label}.${stage.kind}`,
+            callbackSource: source._stream.callbackSource,
         },
         _ext: new Map(),
     };
@@ -88,6 +91,10 @@ export function mapAsyncStream(source, mapper) {
 
 export function filterAsyncStream(source, predicate) {
     return derive(source, { kind: "filter", callable: predicate });
+}
+
+export function expectedErrorAsyncStream(source, handler) {
+    return derive(source, { kind: "expected_error", callable: handler });
 }
 
 export function takeAsyncStream(source, countValue) {
@@ -112,7 +119,8 @@ export function windowAsyncStream(source, sizeValue, stepValue = new Integer(1n)
 }
 
 export function asyncStreamSupportsConcurrentItems(stream) {
-    return isAsyncStream(stream) && stream._stream.stages.every((stage) => stage.kind === "map" || stage.kind === "filter");
+    return isAsyncStream(stream) && stream._stream.stages.every((stage) =>
+        stage.kind === "map" || stage.kind === "filter" || stage.kind === "expected_error");
 }
 
 export function asyncStreamCanCompleteWithoutPull(stream) {
@@ -202,20 +210,34 @@ export async function pullRawAsyncStream(stream, signal = null) {
 }
 
 async function applyStage(stage, values, stream, execution) {
+    const callbackSource = stream._stream.callbackSource ?? stream;
     if (stage.kind === "map") {
         const mapped = [];
         for (const entry of values) {
-            mapped.push(await execution.invoke(stage.callable, [entry, new Integer(BigInt(execution.sourceIndex)), stream]));
+            mapped.push(await execution.invoke(stage.callable, [entry, new Integer(BigInt(execution.sourceIndex)), callbackSource]));
         }
         return { values: mapped, stop: false };
     }
     if (stage.kind === "filter") {
         const kept = [];
         for (const entry of values) {
-            const result = await execution.invoke(stage.callable, [entry, new Integer(BigInt(execution.sourceIndex)), stream]);
+            const result = await execution.invoke(stage.callable, [entry, new Integer(BigInt(execution.sourceIndex)), callbackSource]);
             if (result !== null && result !== undefined) kept.push(entry);
         }
         return { values: kept, stop: false };
+    }
+    if (stage.kind === "expected_error") {
+        const recovered = [];
+        for (const entry of values) {
+            const args = expectedErrorArgs(entry);
+            if (args === null) {
+                recovered.push(entry);
+                continue;
+            }
+            const result = await execution.invoke(stage.callable, args);
+            if (result !== null && result !== undefined) recovered.push(result);
+        }
+        return { values: recovered, stop: false };
     }
     if (stage.kind === "drop") {
         const kept = [];
@@ -322,14 +344,14 @@ export async function consumeAsyncStreamSequential(stream, terminal, execution) 
             for (const value of processed.values) {
                 count++;
                 if (terminal.kind === "collect") result.push(value);
-                else if (terminal.kind === "forEach") await execution.invoke(terminal.callable, [value, new Integer(BigInt(count)), stream]);
-                else if (terminal.kind === "reduce") result = await execution.invoke(terminal.callable, [result, value, new Integer(BigInt(count)), stream]);
+                else if (terminal.kind === "forEach") await execution.invoke(terminal.callable, [value, new Integer(BigInt(count)), stream._stream.callbackSource ?? stream]);
+                else if (terminal.kind === "reduce") result = await execution.invoke(terminal.callable, [result, value, new Integer(BigInt(count)), stream._stream.callbackSource ?? stream]);
                 else if (terminal.kind === "first") {
                     reason = { kind: "early terminal" };
                     return value;
                 }
                 else if (terminal.kind === "find") {
-                    const match = await execution.invoke(terminal.callable, [value, new Integer(BigInt(count)), stream]);
+                    const match = await execution.invoke(terminal.callable, [value, new Integer(BigInt(count)), stream._stream.callbackSource ?? stream]);
                     if (match !== null && match !== undefined) {
                         reason = { kind: "early terminal" };
                         return value;

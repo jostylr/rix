@@ -914,6 +914,14 @@ const LOWERERS = {
     return ir("PIPE", lowerNode(node.left), lowerNode(node.right));
   },
 
+  ForEachPipe(node) {
+    return ir("PFOREACH", lowerNode(node.left), lowerNode(node.right));
+  },
+
+  ExpectedErrorPipe(node) {
+    return ir("PEXPECT", lowerNode(node.left), lowerNode(node.right));
+  },
+
   ExplicitPipe(node) {
     return ir("PIPE_EXPLICIT", lowerNode(node.left), lowerNode(node.right));
   },

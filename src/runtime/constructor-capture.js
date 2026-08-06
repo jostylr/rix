@@ -1,5 +1,6 @@
 import { copyAllMeta, deepCopyValue, shallowCopyValue, transferMetaForUpdate } from "./cell.js";
 import { runtimeDefaults } from "./runtime-config.js";
+import { materializePipeSkip } from "./expected-error.js";
 
 export const CONSTRUCTOR_CAPTURE_MODES = Object.freeze({
     alias: "alias",
@@ -35,6 +36,7 @@ export function constructorDefaultCaptureMode(context) {
 }
 
 export function captureResolvedValue(value, mode) {
+    value = materializePipeSkip(value);
     if (mode === CONSTRUCTOR_CAPTURE_MODES.alias) {
         return value;
     }

@@ -8,7 +8,7 @@ toc-depth: 2
 This page is generated from the current RiX implementation by `documentation/scripts/generate-reference.js`. Do not edit it by hand. Descriptions come from registry documentation strings; the narrative [syntax guide](../eval/syntax-guide.md) and [methods guide](../eval/methods-guide.md) provide signatures and examples.
 :::
 
-At this revision RiX exposes **178 named entries** on the default system context and registers **210 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
+At this revision RiX exposes **179 named entries** on the default system context and registers **212 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
 
 ## Public system context
 
@@ -138,6 +138,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.RAND_NAME` | function | Core, Random | Generate a random name string RAND\_NAME(len=10, alphabet=a-zA-Z) |
 | `.REACTIVEGRAPH` | function | RiXCel | Create a transactional graph of reactive source and computed nodes |
 | `.REDUCE` | lazy function | Collections, Arrays | Reduce a collection with an accumulator function — callback receives (acc, val, locator, src) |
+| `.RETRY` | lazy function | — | Repeat deferred work for expected error tuple values under a bounded retry policy |
 | `.REVERSE` | function | — | Reverse a collection (returns new copy) |
 | `.RIXCELEXPORT` | function | RiXCel | Serialize a FormulaSheet to canonical versioned RiXCel JSON |
 | `.RIXCELEXPORTCSV` | function | RiXCel | Export the computed values of a rank-2 FormulaSheet as CSV |
@@ -277,7 +278,7 @@ Imported scripts can add or withhold named groups. Permission-like names are int
 | `Arith` | `ADD`, `SUB`, `MUL`, `DIV`, `INTDIV`, `DIVMOD`, `MOD`, `POW`, `FACTORIAL`, `DOUBLEFACTORIAL` |
 | `Logic` | `EQ`, `NEQ`, `LT`, `GT`, `LTE`, `GTE`, `AND`, `OR`, `NOT` |
 | `Collections` | `LEN`, `FIRST`, `LAST`, `GETEL`, `IRANGE`, `MAP`, `FILTER`, `REDUCE`, `TGEN`, `Stream` |
-| `Async` | `Stream` |
+| `Async` | `Stream`, `Retry` |
 | `Maps` | `MAP`, `KEYOF`, `KEYS`, `VALUES` |
 | `Arrays` | `LEN`, `FIRST`, `LAST`, `GETEL`, `IRANGE`, `MAP`, `FILTER`, `REDUCE`, `TGEN` |
 | `Strings` | `UPPER`, `SUBSTR`, `PRINT` |
@@ -431,7 +432,9 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `PARENT_SELF` | eager, effectful/unspecified | Resolve the parent multifunction inside a variant body |
 | `PARTITION` | eager, pure | Partition an interval into n equal touching subintervals |
 | `PCHUNK` | lazy, effectful/unspecified | Chunk a collection into subarrays by size or boundary predicate |
+| `PEXPECT` | lazy, effectful/unspecified | Recover expected {: :error, ... } values or skip when the handler returns null |
 | `PFILTER` | lazy, effectful/unspecified | Filter a collection with a predicate — callback receives (val, locator, src) |
+| `PFOREACH` | lazy, effectful/unspecified | Drain a source through a callback, ignore callback results, and return null |
 | `PIPE` | lazy, effectful/unspecified | Pipe a value into a function |
 | `PIPE_EXPLICIT` | lazy, effectful/unspecified | Explicit pipe operator — placeholders \_1, \_2, … map tuple elements to specific argument positions |
 | `PLACEHOLDER` | eager, pure | Numbered placeholder for partial application and explicit pipes |

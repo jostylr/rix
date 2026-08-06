@@ -34,6 +34,8 @@ var symbols = [
   "/~=",
   "|>&&",
   "|>||",
+  "|>_",
+  "|>!",
   "|>>",
   "|:>",
   "|>:",
@@ -1502,6 +1504,8 @@ var SYMBOL_TABLE = {
   "|>?": { precedence: PRECEDENCE.PIPE, associativity: "left", type: "infix" },
   "|>&&": { precedence: PRECEDENCE.PIPE, associativity: "left", type: "infix" },
   "|>||": { precedence: PRECEDENCE.PIPE, associativity: "left", type: "infix" },
+  "|>_": { precedence: PRECEDENCE.PIPE, associativity: "left", type: "infix" },
+  "|>!": { precedence: PRECEDENCE.PIPE, associativity: "left", type: "infix" },
   "|><": { precedence: PRECEDENCE.PIPE, associativity: "left", type: "infix" },
   "|>/|": { precedence: PRECEDENCE.PIPE, associativity: "left", type: "infix" },
   "|>#|": { precedence: PRECEDENCE.PIPE, associativity: "left", type: "infix" },
@@ -2536,6 +2540,22 @@ class Parser {
       }
       return this.createNode("BinaryOperation", {
         operator: operator.value,
+        left,
+        right,
+        pos: left.pos,
+        original: left.original + operator.original
+      });
+    } else if (operator.value === "|>_") {
+      right = this.parseExpression(rightPrec);
+      return this.createNode("ForEachPipe", {
+        left,
+        right,
+        pos: left.pos,
+        original: left.original + operator.original
+      });
+    } else if (operator.value === "|>!") {
+      right = this.parseExpression(rightPrec);
+      return this.createNode("ExpectedErrorPipe", {
         left,
         right,
         pos: left.pos,

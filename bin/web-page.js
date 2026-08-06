@@ -68,9 +68,11 @@ async function run() {
 
     const reads = new Set();
     const options = { ...runtime, file: page.sourcePath || "<generated-page>", reactiveReads: reads };
-    const usesAsyncBlocks = tokenize(page.source)
-        .some((token) => token.value === "{$" || token.value === "{$$");
-    const value = usesAsyncBlocks
+    const tokens = tokenize(page.source);
+    const usesAsyncEvaluation = tokens.some((token) => token.value === "{$" || token.value === "{$$"
+        || token.value === "|>_" || token.value === "|>!")
+        || /\.(?:ForEach|Reduce|Collect|First|Find|Count|Close|Retry)\s*\(/i.test(page.source);
+    const value = usesAsyncEvaluation
         ? await parseAndEvaluateAsync(page.source, options)
         : parseAndEvaluate(page.source, options);
     const root = document.querySelector("#rix-app");
