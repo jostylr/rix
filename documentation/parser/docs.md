@@ -10,7 +10,7 @@ Welcome to the RiX Language Parser documentation. This comprehensive guide cover
 
 ## Features
 
-- [Three-Tier System](./three-tier-system.html) - Advanced parsing system
+- [Custom Operators](./custom-operators.html) - Statically declared infix notation
 - [Array Generators](./array-generators-implementation.html) - Array and set comprehensions
 - [Functions](./function-definitions-summary.html) - Function definitions and calls
 - [Matrix & Tensor](./matrix-tensor-implementation.html) - Matrix and tensor support

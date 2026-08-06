@@ -188,6 +188,9 @@ function tokenize(input) {
       token = tryMatchIdentifier(input, position);
     }
     if (!token) {
+      token = tryMatchCustomOperator(input, position);
+    }
+    if (!token) {
       token = tryMatchRegexLiteral(input, position);
     }
     if (!token) {
@@ -221,6 +224,37 @@ function tokenize(input) {
     });
   }
   return tokens;
+}
+function tryMatchCustomOperator(input, position) {
+  if (!input.startsWith(":<", position))
+    return null;
+  let end = -1;
+  for (let cursor = position + 2;cursor < input.length; cursor += 1) {
+    if (input.startsWith(">:", cursor)) {
+      end = cursor;
+      break;
+    }
+    if (input[cursor] === ":")
+      return null;
+    if (/\s/u.test(input[cursor]))
+      break;
+  }
+  if (end < 0) {
+    const { line, col } = posToLineCol(input, position);
+    throw new Error(`Unclosed custom operator delimiter at line ${line}:${col}`);
+  }
+  const value = input.slice(position + 2, end);
+  if (!value || /[<>:\s]/u.test(value)) {
+    const { line, col } = posToLineCol(input, position);
+    throw new Error(`Invalid custom operator delimiter at line ${line}:${col}`);
+  }
+  const original = input.slice(position, end + 2);
+  return {
+    type: "CustomOperator",
+    original,
+    value,
+    pos: [position, position, end + 2]
+  };
 }
 function tryMatchPostfixCheck(input, position) {
   const marker = input.slice(position, position + 3);
@@ -1063,6 +1097,230 @@ function tryMatchRegexLiteral(input, position) {
   };
 }
 
+// src/parser/custom-operators.js
+var BUILTIN_PRECEDENCE_BANDS = Object.freeze({
+  assignment: 10,
+  pipe: 20,
+  arrow: 25,
+  logical_or: 30,
+  logical_and: 40,
+  condition: 45,
+  equality: 50,
+  comparison: 60,
+  interval: 70,
+  conversion: 75,
+  additive: 80,
+  multiplicative: 90,
+  power: 100,
+  calculus: 115,
+  postfix: 120,
+  property: 130
+});
+var BAND_ALIASES = Object.freeze({
+  addition: "additive",
+  multiplication: "multiplicative",
+  exponentiation: "power",
+  exponential: "power",
+  logicalor: "logical_or",
+  logicaland: "logical_and"
+});
+var FIXITIES = new Set(["infix", "prefix", "postfix"]);
+var ASSOCIATIVITIES = new Set(["left", "right", "none"]);
+var RELATIONS = new Set(["above", "below"]);
+var OPERATOR_TOKEN = /^:<([^<>:\s]+)>:$/u;
+var WORD_TOKEN = /^:([\p{L}_][\p{L}\p{N}_-]*)$/u;
+var TARGET_TOKEN = /^(?:[\p{L}_][\p{L}\p{N}_]*|\.[\p{L}_][\p{L}\p{N}_]*\.[\p{L}_][\p{L}\p{N}_]*)$/u;
+function normalizedBand(name) {
+  const normalized = String(name).toLowerCase().replace(/-/g, "_");
+  return BAND_ALIASES[normalized] || normalized;
+}
+function relativePrecedence(band, relation) {
+  const value = BUILTIN_PRECEDENCE_BANDS[band];
+  if (value === undefined)
+    throw new Error(`Unknown precedence band ':${band}'`);
+  const boundaries = Array.from(new Set([
+    ...Object.values(BUILTIN_PRECEDENCE_BANDS),
+    95,
+    97,
+    99
+  ])).sort((left, right) => left - right);
+  const index = boundaries.indexOf(value);
+  if (relation === "above") {
+    const next = boundaries[index + 1];
+    if (next === undefined)
+      throw new Error(`Cannot place an operator above ':${band}'`);
+    return (value + next) / 2;
+  }
+  const previous = boundaries[index - 1];
+  if (previous === undefined)
+    throw new Error(`Cannot place an operator below ':${band}'`);
+  return (previous + value) / 2;
+}
+function declarationError(label, line, message) {
+  throw new Error(`${label}:${line}: ${message}`);
+}
+function normalizedIdentifier(name) {
+  const firstLetter = Array.from(String(name)).find((character) => /\p{L}/u.test(character));
+  if (!firstLetter)
+    return name;
+  return firstLetter === firstLetter.toUpperCase() ? String(name).toUpperCase() : String(name).toLowerCase();
+}
+function parseTarget(rawTarget, owner, label, line) {
+  if (!TARGET_TOKEN.test(rawTarget)) {
+    declarationError(label, line, `Invalid operator target '${rawTarget}'`);
+  }
+  if (rawTarget.startsWith(".")) {
+    const [, mount, method] = rawTarget.split(".");
+    return {
+      kind: "system-method",
+      mount: normalizedIdentifier(mount),
+      method: normalizedIdentifier(method)
+    };
+  }
+  if (owner?.pluginId) {
+    return {
+      kind: "plugin-method",
+      pluginId: owner.pluginId,
+      mount: owner.mount || null,
+      method: normalizedIdentifier(rawTarget)
+    };
+  }
+  return { kind: "function", name: normalizedIdentifier(rawTarget) };
+}
+function parseOperatorDeclarationLine(source, options = {}) {
+  const label = options.label || "OPS";
+  const line = options.line || 1;
+  const fields = String(source).trim().split(/\s+/).filter(Boolean);
+  let symbol = null;
+  let target = null;
+  let fixity = null;
+  let associativity = null;
+  let relation = null;
+  let band = null;
+  for (const field of fields) {
+    const operatorMatch = field.match(OPERATOR_TOKEN);
+    if (operatorMatch) {
+      if (symbol !== null)
+        declarationError(label, line, "Operator declaration has more than one :<...>: symbol");
+      symbol = operatorMatch[1];
+      continue;
+    }
+    const wordMatch = field.match(WORD_TOKEN);
+    if (wordMatch) {
+      const word = wordMatch[1].toLowerCase();
+      if (FIXITIES.has(word)) {
+        if (fixity !== null)
+          declarationError(label, line, "Operator declaration has more than one fixity");
+        fixity = word;
+      } else if (ASSOCIATIVITIES.has(word)) {
+        if (associativity !== null)
+          declarationError(label, line, "Operator declaration has more than one associativity");
+        associativity = word;
+      } else if (RELATIONS.has(word)) {
+        if (relation !== null)
+          declarationError(label, line, "Operator declaration has more than one precedence relation");
+        relation = word;
+      } else {
+        const candidate = normalizedBand(word);
+        if (!Object.hasOwn(BUILTIN_PRECEDENCE_BANDS, candidate)) {
+          declarationError(label, line, `Unknown operator modifier '${field}'`);
+        }
+        if (band !== null)
+          declarationError(label, line, "Operator declaration has more than one precedence band");
+        band = candidate;
+      }
+      continue;
+    }
+    if (target !== null)
+      declarationError(label, line, `Unexpected operator declaration field '${field}'`);
+    target = field;
+  }
+  if (symbol === null)
+    declarationError(label, line, "Operator declaration requires one :<...>: symbol");
+  if (target === null)
+    declarationError(label, line, "Operator declaration requires one function or method target");
+  if (fixity === null)
+    declarationError(label, line, "Operator declaration requires a fixity such as :infix");
+  if (fixity !== "infix")
+    declarationError(label, line, `Custom ${fixity} operators are not implemented yet`);
+  if (band === null)
+    declarationError(label, line, "Operator declaration requires a named precedence band");
+  if (associativity === null)
+    declarationError(label, line, "Operator declaration requires :left, :right, or :none");
+  const precedence = relation ? relativePrecedence(band, relation) : BUILTIN_PRECEDENCE_BANDS[band];
+  return Object.freeze({
+    symbol,
+    spelling: `:<${symbol}>:`,
+    target: Object.freeze(parseTarget(target, options.owner, label, line)),
+    fixity,
+    associativity,
+    precedence,
+    precedenceBand: band,
+    precedenceRelation: relation,
+    source: label,
+    line
+  });
+}
+function isOpsComment(token) {
+  return token?.type === "String" && token.kind === "comment" && /^\s*##ops##/i.test(token.original || "");
+}
+function extractOperatorDeclarations(tokens, options = {}) {
+  const definitions = new Map;
+  let reachedCode = false;
+  for (const token of tokens || []) {
+    if (token.type === "End")
+      break;
+    if (token.type !== "String" || token.kind !== "comment") {
+      reachedCode = true;
+      continue;
+    }
+    if (!isOpsComment(token))
+      continue;
+    if (reachedCode) {
+      throw new Error(`${options.label || "source"}: ##OPS## blocks must appear before executable code`);
+    }
+    const bodyStart = token.pos?.[1] || 0;
+    const firstLine = options.source ? options.source.slice(0, bodyStart).split(`
+`).length : 1;
+    const lines = String(token.value || "").replace(/\r/g, "").split(`
+`);
+    for (let index = 0;index < lines.length; index += 1) {
+      const text = lines[index].trim();
+      if (!text)
+        continue;
+      const definition = parseOperatorDeclarationLine(text, {
+        owner: options.owner,
+        label: options.label || "OPS",
+        line: firstLine + index
+      });
+      if (definitions.has(definition.symbol)) {
+        declarationError(options.label || "OPS", firstLine + index, `Duplicate operator '${definition.spelling}'`);
+      }
+      definitions.set(definition.symbol, definition);
+    }
+  }
+  return definitions;
+}
+function mergeOperatorDefinitions(...collections) {
+  const merged = new Map;
+  for (const collection of collections) {
+    if (!collection)
+      continue;
+    const entries = collection instanceof Map ? collection : collection.map ? collection.map((definition) => [definition.symbol, definition]) : Object.entries(collection);
+    for (const [symbol, definition] of entries) {
+      if (merged.has(symbol)) {
+        const previous = merged.get(symbol);
+        if (JSON.stringify(previous) !== JSON.stringify(definition)) {
+          throw new Error(`Conflicting definitions for custom operator ':<${symbol}>:'`);
+        }
+        continue;
+      }
+      merged.set(symbol, definition);
+    }
+  }
+  return merged;
+}
+
 // src/parser/parser.js
 var PRECEDENCE = {
   STATEMENT: 0,
@@ -1477,10 +1735,11 @@ var SYMBOL_TABLE = {
 };
 
 class Parser {
-  constructor(tokens, systemLookup, source = "") {
+  constructor(tokens, systemLookup, source = "", customOperators = new Map) {
     this.tokens = tokens;
     this.systemLookup = systemLookup || (() => ({ type: "identifier" }));
     this.source = source;
+    this.customOperators = customOperators;
     this.position = 0;
     this.current = null;
     this.skippedComments = [];
@@ -1537,7 +1796,18 @@ class Parser {
     throw new Error(`Parse error at position ${pos[0]}: ${message}`);
   }
   getSymbolInfo(token) {
-    if (token.type === "Symbol") {
+    if (token.type === "CustomOperator") {
+      const definition = this.customOperators.get(token.value);
+      if (!definition) {
+        this.error(`Custom operator ':<${token.value}>:' is not declared in an ##OPS## header`);
+      }
+      return {
+        precedence: definition.precedence,
+        associativity: definition.associativity,
+        type: definition.fixity,
+        custom: definition
+      };
+    } else if (token.type === "Symbol") {
       if (token.value === "|^:") {
         this.error("The legacy '|^:' generator operator was removed; use '|^' for lazy generation");
       }
@@ -1929,6 +2199,9 @@ class Parser {
           this.error(`Unexpected token in prefix position: ${token.value}`);
         }
         break;
+      case "CustomOperator":
+        this.error(`Custom infix operator ':<${token.value}>:' cannot appear in prefix position`);
+        break;
       default:
         this.error(`Unexpected token: ${token.type}`);
     }
@@ -2042,11 +2315,24 @@ class Parser {
     }
     this.advance();
     let rightPrec = symbolInfo.precedence;
-    if (symbolInfo.associativity === "left") {
+    if (symbolInfo.associativity === "left" || symbolInfo.associativity === "none") {
       rightPrec += 1;
     }
     let right;
-    if (operator.value === "[" && symbolInfo.type === "postfix") {
+    if (operator.type === "CustomOperator") {
+      right = this.parseExpression(rightPrec);
+      return this.createNode("CustomOperator", {
+        operator: operator.value,
+        spelling: `:<${operator.value}>:`,
+        definition: symbolInfo.custom,
+        precedence: symbolInfo.precedence,
+        associativity: symbolInfo.associativity,
+        left,
+        right,
+        pos: left.pos,
+        original: left.original + operator.original
+      });
+    } else if (operator.value === "[" && symbolInfo.type === "postfix") {
       if (this.current.value === ":" && ["Identifier", "Number", "String"].includes(this.peek().type)) {
         this.advance();
         const keyName = this.current.value;
@@ -2661,6 +2947,9 @@ class Parser {
       }
       if (!symbolInfo || symbolInfo.precedence < minPrec) {
         break;
+      }
+      if (symbolInfo.custom && left?.type === "CustomOperator" && left.precedence === symbolInfo.precedence && (left.associativity === "none" || symbolInfo.associativity === "none")) {
+        this.error(`Non-associative custom operator chain requires parentheses around ':<${left.operator}>:' or ':<${this.current.value}>:'`);
       }
       if (symbolInfo.type === "statement" || symbolInfo.type === "separator") {
         break;
@@ -5165,7 +5454,7 @@ class Parser {
     });
   }
 }
-function parse(input, systemLookup) {
+function parse(input, systemLookup, options = {}) {
   let tokens;
   let source = "";
   if (typeof input === "string") {
@@ -5173,429 +5462,17 @@ function parse(input, systemLookup) {
     tokens = tokenize(input);
   } else {
     tokens = input;
+    source = options.source || "";
   }
-  const parser = new Parser(tokens, systemLookup, source);
+  const localOperators = extractOperatorDeclarations(tokens, {
+    source,
+    owner: options.operatorOwner || null,
+    label: options.file || "source"
+  });
+  const customOperators = mergeOperatorDefinitions(options.operatorDefinitions, localOperators);
+  const parser = new Parser(tokens, systemLookup, source, customOperators);
   return parser.parse();
 }
-// src/parser/system-loader.js
-var DEFAULT_SYSTEM_REGISTRY = {
-  LIST: { type: "constructor", category: "collection" },
-  SET: { type: "constructor", category: "collection" },
-  MAP: { type: "constructor", category: "collection" },
-  TUPLE: { type: "constructor", category: "collection" },
-  TYPE: { type: "function", arity: 1, precedence: 120, category: "meta" },
-  HELP: { type: "function", arity: -1, precedence: 120, category: "meta" },
-  INFO: { type: "function", arity: 1, precedence: 120, category: "meta" }
-};
-var isBrowser = typeof window !== "undefined" && typeof document !== "undefined";
-
-class SystemLoader {
-  constructor(options = {}) {
-    this.coreRegistry = new Map(Object.entries(DEFAULT_SYSTEM_REGISTRY));
-    this.systemRegistry = new Map;
-    this.operatorRegistry = new Map;
-    this.keywordRegistry = new Map;
-    this.hooks = new Map;
-    this.contexts = new Map;
-    this.config = {
-      allowUserOverrides: options.allowUserOverrides ?? false,
-      strictMode: options.strictMode ?? false,
-      browserIntegration: options.browserIntegration ?? isBrowser,
-      moduleLoader: options.moduleLoader ?? null,
-      ...options
-    };
-    this.initializeDefaultKeywords();
-    if (this.config.browserIntegration) {
-      this.setupBrowserIntegration();
-    }
-  }
-  initializeDefaultKeywords() {
-    this.registerKeyword("AND", {
-      type: "operator",
-      precedence: 40,
-      associativity: "left",
-      operatorType: "infix",
-      category: "logical"
-    });
-    this.registerKeyword("OR", {
-      type: "operator",
-      precedence: 30,
-      associativity: "left",
-      operatorType: "infix",
-      category: "logical"
-    });
-    this.registerKeyword("NOT", {
-      type: "operator",
-      precedence: 110,
-      operatorType: "prefix",
-      category: "logical"
-    });
-    this.registerKeyword("IF", {
-      type: "control",
-      structure: "conditional",
-      precedence: 5,
-      category: "control"
-    });
-    this.registerKeyword("ELSE", {
-      type: "control",
-      structure: "conditional",
-      precedence: 5,
-      category: "control"
-    });
-    this.registerKeyword("WHILE", {
-      type: "control",
-      structure: "loop",
-      precedence: 5,
-      category: "control"
-    });
-    this.registerKeyword("FOR", {
-      type: "control",
-      structure: "loop",
-      precedence: 5,
-      category: "control"
-    });
-    this.registerKeyword("IN", {
-      type: "operator",
-      precedence: 60,
-      associativity: "left",
-      operatorType: "infix",
-      category: "set"
-    });
-    this.registerKeyword("UNION", {
-      type: "operator",
-      precedence: 50,
-      associativity: "left",
-      operatorType: "infix",
-      category: "set"
-    });
-    this.registerKeyword("INTERSECT", {
-      type: "operator",
-      precedence: 50,
-      associativity: "left",
-      operatorType: "infix",
-      category: "set"
-    });
-  }
-  registerSystem(name, definition) {
-    if (!name || typeof name !== "string") {
-      throw new Error("System symbol name must be a non-empty string");
-    }
-    const normalizedName = name.toUpperCase();
-    const validatedDef = this.validateDefinition(definition);
-    if (this.config.strictMode && this.coreRegistry.has(normalizedName)) {
-      throw new Error(`Cannot override core system symbol: ${normalizedName}`);
-    }
-    this.systemRegistry.set(normalizedName, {
-      ...validatedDef,
-      source: "system",
-      registered: Date.now()
-    });
-    this.triggerHook("system-registered", {
-      name: normalizedName,
-      definition: validatedDef
-    });
-    return this;
-  }
-  registerKeyword(name, definition) {
-    const normalizedName = name.toUpperCase();
-    const validatedDef = this.validateDefinition(definition);
-    this.keywordRegistry.set(normalizedName, {
-      ...validatedDef,
-      source: "keyword",
-      registered: Date.now()
-    });
-    this.triggerHook("keyword-registered", {
-      name: normalizedName,
-      definition: validatedDef
-    });
-    return this;
-  }
-  registerOperator(symbol, definition) {
-    if (!symbol || typeof symbol !== "string") {
-      throw new Error("Operator symbol must be a non-empty string");
-    }
-    const validatedDef = this.validateOperatorDefinition(definition);
-    this.operatorRegistry.set(symbol, {
-      ...validatedDef,
-      source: "operator",
-      registered: Date.now()
-    });
-    this.triggerHook("operator-registered", {
-      symbol,
-      definition: validatedDef
-    });
-    return this;
-  }
-  lookup(name) {
-    const normalizedName = name.toUpperCase();
-    if (this.keywordRegistry.has(normalizedName)) {
-      const def = this.keywordRegistry.get(normalizedName);
-      if (def.type === "control") {
-        return this.enrichDefinition({
-          ...def,
-          functionalForm: true,
-          type: "function",
-          controlType: def.type,
-          arity: this.getControlArity(normalizedName, def)
-        }, normalizedName);
-      }
-      return this.enrichDefinition(def, normalizedName);
-    }
-    if (this.systemRegistry.has(normalizedName)) {
-      const def = this.systemRegistry.get(normalizedName);
-      return this.enrichDefinition(def, normalizedName);
-    }
-    if (this.coreRegistry.has(normalizedName)) {
-      const def = this.coreRegistry.get(normalizedName);
-      return this.enrichDefinition(def, normalizedName);
-    }
-    return { type: "identifier", name: normalizedName, source: "unknown" };
-  }
-  validateDefinition(definition) {
-    if (!definition || typeof definition !== "object") {
-      throw new Error("Definition must be an object");
-    }
-    const { type } = definition;
-    if (!type || typeof type !== "string") {
-      throw new Error("Definition must have a type property");
-    }
-    switch (type) {
-      case "operator":
-        if (!definition.precedence || typeof definition.precedence !== "number") {
-          throw new Error("Operator definition must have numeric precedence");
-        }
-        break;
-      case "function":
-        if (definition.arity !== undefined && typeof definition.arity !== "number") {
-          throw new Error("Function arity must be a number or undefined");
-        }
-        break;
-      case "control":
-        if (!definition.structure || typeof definition.structure !== "string") {
-          throw new Error("Control definition must have a structure property");
-        }
-        break;
-    }
-    return { ...definition };
-  }
-  validateOperatorDefinition(definition) {
-    const validated = this.validateDefinition(definition);
-    if (validated.type !== "operator") {
-      validated.type = "operator";
-    }
-    if (!validated.precedence) {
-      validated.precedence = 50;
-    }
-    if (!validated.associativity) {
-      validated.associativity = "left";
-    }
-    if (!validated.operatorType) {
-      validated.operatorType = "infix";
-    }
-    return validated;
-  }
-  enrichDefinition(definition, name) {
-    return {
-      ...definition,
-      name,
-      resolvedAt: Date.now()
-    };
-  }
-  registerHook(eventName, callback) {
-    if (!this.hooks.has(eventName)) {
-      this.hooks.set(eventName, []);
-    }
-    this.hooks.get(eventName).push(callback);
-    return this;
-  }
-  triggerHook(eventName, data) {
-    if (this.hooks.has(eventName)) {
-      this.hooks.get(eventName).forEach((callback) => {
-        try {
-          callback(data);
-        } catch (error) {
-          console.warn(`Hook ${eventName} failed:`, error);
-        }
-      });
-    }
-  }
-  setupBrowserIntegration() {
-    if (!isBrowser)
-      return;
-    if (typeof window.RiX === "undefined") {
-      window.RiX = {};
-    }
-    window.RiX.SystemLoader = this;
-    window.RiX.registerSystem = (name, def) => this.registerSystem(name, def);
-    window.RiX.registerKeyword = (name, def) => this.registerKeyword(name, def);
-    window.RiX.registerOperator = (symbol, def) => this.registerOperator(symbol, def);
-    if (!this.config.moduleLoader) {
-      this.config.moduleLoader = this.createBrowserModuleLoader();
-    }
-    document.addEventListener("rix-system-define", (event) => {
-      const { name, definition } = event.detail;
-      this.registerSystem(name, definition);
-    });
-    document.addEventListener("rix-keyword-define", (event) => {
-      const { name, definition } = event.detail;
-      this.registerKeyword(name, definition);
-    });
-  }
-  createBrowserModuleLoader() {
-    return {
-      async load(moduleSpec) {
-        if (moduleSpec.startsWith("http://") || moduleSpec.startsWith("https://")) {
-          const response = await fetch(moduleSpec);
-          const code = await response.text();
-          return this.evaluateModule(code);
-        } else if (moduleSpec.startsWith("data:")) {
-          const code = decodeURIComponent(moduleSpec.split(",")[1]);
-          return this.evaluateModule(code);
-        } else {
-          const scriptTag = document.getElementById(moduleSpec);
-          if (scriptTag && scriptTag.type === "text/rix-system") {
-            return this.evaluateModule(scriptTag.textContent);
-          }
-        }
-        throw new Error(`Cannot load module: ${moduleSpec}`);
-      },
-      evaluateModule(code) {
-        try {
-          const moduleFunction = new Function("SystemLoader", "registerSystem", "registerKeyword", "registerOperator", code);
-          return moduleFunction(this, (name, def) => this.registerSystem(name, def), (name, def) => this.registerKeyword(name, def), (symbol, def) => this.registerOperator(symbol, def));
-        } catch (error) {
-          throw new Error(`Module evaluation failed: ${error.message}`);
-        }
-      }
-    };
-  }
-  async loadModule(moduleSpec) {
-    if (!this.config.moduleLoader) {
-      throw new Error("No module loader configured");
-    }
-    try {
-      const result = await this.config.moduleLoader.load(moduleSpec);
-      this.triggerHook("module-loaded", { moduleSpec, result });
-      return result;
-    } catch (error) {
-      this.triggerHook("module-load-error", { moduleSpec, error });
-      throw error;
-    }
-  }
-  createContext(name, parentContext = null) {
-    const context = {
-      name,
-      parent: parentContext,
-      created: Date.now(),
-      symbols: new Map,
-      operators: new Map
-    };
-    this.contexts.set(name, context);
-    return context;
-  }
-  getControlArity(name, definition) {
-    switch (definition.structure) {
-      case "conditional":
-        return name === "IF" ? -1 : 1;
-      case "loop":
-        return name === "FOR" ? 4 : 2;
-      case "loop_body":
-      case "loop_terminator":
-      case "block_end":
-        return 1;
-      default:
-        return -1;
-    }
-  }
-  transformFunctionalForm(name, args, definition) {
-    switch (name) {
-      case "WHILE":
-        if (args.length >= 2) {
-          return {
-            type: "ControlStructure",
-            keyword: "WHILE",
-            condition: args[0],
-            body: args[1],
-            structure: "while_loop",
-            functionalOrigin: true
-          };
-        }
-        break;
-      case "IF":
-        if (args.length >= 2) {
-          const result = {
-            type: "ControlStructure",
-            keyword: "IF",
-            condition: args[0],
-            thenBranch: args[1],
-            structure: "conditional",
-            functionalOrigin: true
-          };
-          if (args.length >= 3) {
-            result.elseBranch = args[2];
-          }
-          return result;
-        }
-        break;
-      case "FOR":
-        if (args.length >= 4) {
-          return {
-            type: "ControlStructure",
-            keyword: "FOR",
-            init: args[0],
-            condition: args[1],
-            increment: args[2],
-            body: args[3],
-            structure: "for_loop",
-            functionalOrigin: true
-          };
-        }
-        break;
-    }
-    return {
-      type: "FunctionCall",
-      function: { type: "SystemIdentifier", name, systemInfo: definition },
-      arguments: args,
-      functionalForm: true
-    };
-  }
-  getSymbolsByCategory(category) {
-    const result = [];
-    [this.coreRegistry, this.systemRegistry, this.keywordRegistry].forEach((registry) => {
-      for (const [name, definition] of registry) {
-        if (definition.category === category) {
-          result.push({ name, ...definition });
-        }
-      }
-    });
-    return result;
-  }
-  createParserLookup() {
-    return (name) => this.lookup(name);
-  }
-  exportConfig() {
-    return {
-      core: Array.from(this.coreRegistry.entries()),
-      system: Array.from(this.systemRegistry.entries()),
-      keywords: Array.from(this.keywordRegistry.entries()),
-      operators: Array.from(this.operatorRegistry.entries()),
-      config: { ...this.config }
-    };
-  }
-  importConfig(config) {
-    if (config.system) {
-      config.system.forEach(([name, def]) => this.systemRegistry.set(name, def));
-    }
-    if (config.keywords) {
-      config.keywords.forEach(([name, def]) => this.keywordRegistry.set(name, def));
-    }
-    if (config.operators) {
-      config.operators.forEach(([symbol, def]) => this.operatorRegistry.set(symbol, def));
-    }
-    this.triggerHook("config-imported", config);
-  }
-}
-var defaultSystemLoader = new SystemLoader;
 // documentation/parser/src/demo.js
 var inputExpression = document.getElementById("input-expression");
 var parseButton = document.getElementById("parse-button");

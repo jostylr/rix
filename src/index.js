@@ -1,5 +1,5 @@
 export {
-    parse, tokenize, posToLineCol, SystemLoader, createNodeSystemLoader, createWebPageSystemLoader,
+    parse, tokenize, posToLineCol,
     BUILTIN_PRECEDENCE_BANDS, extractOperatorDeclarations, extractOperatorDeclarationsFromSource,
     mergeOperatorDefinitions, parseOperatorDeclarationLine,
 } from "./parser/index.js";

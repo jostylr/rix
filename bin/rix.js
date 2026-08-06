@@ -36,6 +36,13 @@ import { install as installArrayJsExample } from "../examples/plugins/example-ar
 import { install as installDrawPlugin } from "../plugins/draw/draw.plugin.rix.js";
 import { install as installExactAlgebrasPlugin } from "../plugins/exact-algebras/exact-algebras.plugin.rix.js";
 import { install as installPlotPlugin } from "../plugins/plot/plot.plugin.rix.js";
+import {
+    ensureRixCliPreamble,
+    readRixCliConfig,
+    resolvePluginSelectors,
+    resolveRixConfigDir,
+    writeRixCliConfig,
+} from "../src/cli/config.js";
 
 // Known REPL meta-commands (lowercase, intercepted before the evaluator)
 const REPL_COMMANDS = new Set(["help", "exit", "load", "vars", "fns", "reset", "ast", "tokens"]);
@@ -47,6 +54,7 @@ const EXAMPLE_PLUGINS_DIR = path.resolve(EXAMPLES_DIR, "plugins");
 const WEB_PAGE_ENTRY = path.resolve(TOOL_DIR, "web-page.js");
 const WEB_PAGE_STYLE = path.resolve(TOOL_DIR, "web-page.css");
 const BUILT_PLUGIN_IDS = new Set(["exact-algebras", "draw", "plot", "float", "example-array-js", "example-array-rix"]);
+const STANDARD_PLUGIN_IDS = new Set(["exact-algebras", "draw", "plot", "float"]);
 
 function usage() {
     return `Usage:
@@ -60,7 +68,16 @@ Options:
   --all-plugins           Preload every discovered plugin with an approved installer
   --all-built-plugins     Preload every plugin shipped in this RiX repository
   --with-floats           Compatibility alias for --plugin=float
+  --operator-file=FILE    Load custom operators before parsing (repeatable)
+  --preamble=FILE         Run a RiX preamble before starting the REPL
+  --no-preamble           Do not run the configured REPL preamble
+  --no-config             Ignore persistent REPL plugin and preamble setup
+  --config-dir=DIR        Override the RiX configuration directory
   --help, -h              Show this help
+
+Persistent REPL setup:
+  rix setup --plugins=full
+  rix setup --plugins=plot,renderers
 
 RiX scripts declare artifacts explicitly, for example:
   .Out("index.html", $view)`;
@@ -71,20 +88,56 @@ function parseRunnerArgs(rawArgs) {
     let outDir = null;
     let allPlugins = false;
     let allBuiltPlugins = false;
+    let pluginsSpecified = false;
+    let preamble = null;
+    let noPreamble = false;
+    let noConfig = false;
+    let configDir = null;
+    const operatorFiles = [];
     const positional = [];
     for (let index = 0; index < rawArgs.length; index += 1) {
         const arg = rawArgs[index];
-        if (arg === "--with-floats") plugins.push("float");
+        if (arg === "--with-floats") {
+            plugins.push("float");
+            pluginsSpecified = true;
+        }
         else if (arg === "--all-plugins") allPlugins = true;
         else if (arg === "--all-built-plugins") allBuiltPlugins = true;
         else if (arg === "--plugin") {
             const id = rawArgs[++index];
             if (!id) throw new Error("--plugin requires a plugin id");
             plugins.push(id);
+            pluginsSpecified = true;
         } else if (arg.startsWith("--plugin=")) {
             plugins.push(arg.slice("--plugin=".length));
+            pluginsSpecified = true;
         } else if (arg.startsWith("--plugins=")) {
             plugins.push(...arg.slice("--plugins=".length).split(",").map((id) => id.trim()).filter(Boolean));
+            pluginsSpecified = true;
+        } else if (arg === "--operator-file") {
+            const filename = rawArgs[++index];
+            if (!filename) throw new Error("--operator-file requires a file");
+            operatorFiles.push(filename);
+        } else if (arg.startsWith("--operator-file=")) {
+            const filename = arg.slice("--operator-file=".length);
+            if (!filename) throw new Error("--operator-file requires a file");
+            operatorFiles.push(filename);
+        } else if (arg === "--preamble") {
+            preamble = rawArgs[++index];
+            if (!preamble) throw new Error("--preamble requires a file");
+        } else if (arg.startsWith("--preamble=")) {
+            preamble = arg.slice("--preamble=".length);
+            if (!preamble) throw new Error("--preamble requires a file");
+        } else if (arg === "--no-preamble") {
+            noPreamble = true;
+        } else if (arg === "--no-config") {
+            noConfig = true;
+        } else if (arg === "--config-dir") {
+            configDir = rawArgs[++index];
+            if (!configDir) throw new Error("--config-dir requires a directory");
+        } else if (arg.startsWith("--config-dir=")) {
+            configDir = arg.slice("--config-dir=".length);
+            if (!configDir) throw new Error("--config-dir requires a directory");
         } else if (arg === "--out") {
             outDir = rawArgs[++index];
             if (!outDir) throw new Error("--out requires a directory");
@@ -93,13 +146,34 @@ function parseRunnerArgs(rawArgs) {
             if (!outDir) throw new Error("--out requires a directory");
         } else positional.push(arg);
     }
-    return { positional, plugins: [...new Set(plugins)], allPlugins, allBuiltPlugins, outDir };
+    if (preamble && noPreamble) throw new Error("--preamble and --no-preamble cannot be used together");
+    return {
+        positional,
+        plugins: [...new Set(plugins)],
+        pluginsSpecified,
+        allPlugins,
+        allBuiltPlugins,
+        outDir,
+        operatorFiles,
+        preamble,
+        noPreamble,
+        noConfig,
+        configDir,
+    };
 }
 
 function selectedPluginIds(pluginCatalog, { plugins, allPlugins, allBuiltPlugins }) {
     if (allPlugins) return pluginCatalog.list().map(({ id }) => id);
     if (allBuiltPlugins) return pluginCatalog.list().filter(({ id }) => BUILT_PLUGIN_IDS.has(id)).map(({ id }) => id);
-    return plugins;
+    return resolvePluginSelectors(pluginCatalog, plugins, { standardIds: STANDARD_PLUGIN_IDS });
+}
+
+function readOperatorFiles(filenames, baseDir) {
+    return filenames.map((filename) => {
+        const operatorPath = path.resolve(baseDir, String(filename));
+        const operatorSource = readFileSync(operatorPath, "utf8");
+        return extractOperatorDeclarationsFromSource(operatorSource, { label: operatorPath });
+    });
 }
 
 function registerBuiltPluginInstallers(pluginCatalog) {
@@ -650,13 +724,25 @@ async function runTests(filters) {
 }
 
 async function main() {
-    const { positional: args, plugins, allPlugins, allBuiltPlugins, outDir } = parseRunnerArgs(process.argv.slice(2));
+    const {
+        positional: args,
+        plugins,
+        pluginsSpecified,
+        allPlugins,
+        allBuiltPlugins,
+        outDir,
+        operatorFiles,
+        preamble,
+        noPreamble,
+        noConfig,
+        configDir: configDirOption,
+    } = parseRunnerArgs(process.argv.slice(2));
     if (args[0] === "--help" || args[0] === "-h") {
         console.log(usage());
         return;
     }
     if (outDir && args[0] === "test") throw new Error("--out is only available when running a RiX program");
-    const inputPath = args.length > 0 && args[0] !== "test" ? path.resolve(args[0]) : null;
+    const inputPath = args.length > 0 && args[0] !== "test" && args[0] !== "setup" ? path.resolve(args[0]) : null;
     const pluginRoots = [
         path.resolve(process.cwd(), "plugins"),
         inputPath ? path.join(path.dirname(inputPath), "plugins") : null,
@@ -665,6 +751,32 @@ async function main() {
     ].filter(Boolean);
     const pluginCatalog = new NodePluginCatalog({ roots: [...new Set(pluginRoots)] }).scan();
     registerBuiltPluginInstallers(pluginCatalog);
+    const configDir = configDirOption ? path.resolve(configDirOption) : resolveRixConfigDir();
+
+    if (args[0] === "setup") {
+        if (args.length > 1) throw new Error("rix setup does not accept positional arguments");
+        if (outDir || allPlugins || allBuiltPlugins || operatorFiles.length || preamble || noPreamble || noConfig) {
+            throw new Error("rix setup accepts --plugins and --config-dir only");
+        }
+        const current = readRixCliConfig(configDir);
+        const configuredPlugins = pluginsSpecified ? plugins : current.plugins;
+        // Resolve now so misspelled plugin IDs and group names do not become a
+        // persistent startup failure. Store selectors so groups remain dynamic.
+        const resolved = resolvePluginSelectors(pluginCatalog, configuredPlugins, {
+            standardIds: STANDARD_PLUGIN_IDS,
+        });
+        const configPath = writeRixCliConfig(configDir, {
+            ...current,
+            plugins: configuredPlugins,
+        });
+        const preamblePath = ensureRixCliPreamble(configDir);
+        console.log(`RiX configuration: ${configPath}`);
+        console.log(`REPL preamble: ${preamblePath}`);
+        console.log(`Default REPL plugins: ${configuredPlugins.join(", ") || "none"}`);
+        console.log(`Currently resolved: ${resolved.join(", ") || "none"}`);
+        return;
+    }
+
     const context = new Context();
     const registry = createDefaultRegistry();
     const systemContext = createDefaultSystemContext({ pluginCatalog });
@@ -682,14 +794,10 @@ async function main() {
         try {
             const source = readFileSync(inputFile, "utf-8");
             const sourceHeader = readSourceHeader(source, inputFile);
-            const operatorDefinitionSources = [];
-            for (const relativePath of sourceHeader.operatorFiles) {
-                const operatorPath = path.resolve(path.dirname(inputFile), String(relativePath));
-                const operatorSource = readFileSync(operatorPath, "utf8");
-                operatorDefinitionSources.push(extractOperatorDeclarationsFromSource(operatorSource, {
-                    label: operatorPath,
-                }));
-            }
+            const operatorDefinitionSources = [
+                ...readOperatorFiles(sourceHeader.operatorFiles, path.dirname(inputFile)),
+                ...readOperatorFiles(operatorFiles, process.cwd()),
+            ];
             const sourceOperatorDefinitions = mergeOperatorDefinitions(...operatorDefinitionSources);
             // Establish the synchronous RiX-plugin loader before command-line
             // preloads. Scripts may still use .Plugin.Load themselves.
@@ -751,17 +859,58 @@ async function main() {
     } else {
         // REPL
         if (outDir) throw new Error("--out requires a RiX program file with .Out declarations");
-        const pluginIds = selectedPluginIds(pluginCatalog, { plugins, allPlugins, allBuiltPlugins });
-        if (pluginIds.length > 0) {
-            parseAndEvaluate("", { context, registry, systemContext });
-            for (const id of pluginIds) {
-                pluginCatalog.load(id, {
-                    context,
-                    registry,
-                    systemContext,
-                    loadRix: context.getEnv("__plugin_load_rix__"),
-                });
-            }
+        const cliConfig = noConfig
+            ? { plugins: [] }
+            : readRixCliConfig(configDir);
+        const automaticPreamble = path.join(configDir, "cli-preamble.rix");
+        const preamblePath = noPreamble
+            ? null
+            : preamble
+                ? path.resolve(preamble)
+                : !noConfig && existsSync(automaticPreamble)
+                    ? automaticPreamble
+                    : null;
+        const preambleSource = preamblePath ? readFileSync(preamblePath, "utf8") : "";
+        const preambleHeader = preamblePath
+            ? readSourceHeader(preambleSource, preamblePath)
+            : { plugins: [], operatorFiles: [] };
+        const requestedPlugins = [
+            ...cliConfig.plugins,
+            ...plugins,
+            ...preambleHeader.plugins.map(String),
+        ];
+        const pluginIds = selectedPluginIds(pluginCatalog, {
+            plugins: requestedPlugins,
+            allPlugins,
+            allBuiltPlugins,
+        });
+        const replOperatorDefinitions = mergeOperatorDefinitions(
+            ...readOperatorFiles(operatorFiles, process.cwd()),
+            ...(preamblePath ? readOperatorFiles(preambleHeader.operatorFiles, path.dirname(preamblePath)) : []),
+            ...(preamblePath ? [extractOperatorDeclarationsFromSource(preambleSource, {
+                label: preamblePath,
+            })] : []),
+        );
+
+        // Install the plugin loader first; plugin-provided syntax is then
+        // available while parsing the preamble and all later submissions.
+        parseAndEvaluate("", { context, registry, systemContext });
+        for (const id of pluginIds) {
+            pluginCatalog.load(id, {
+                context,
+                registry,
+                systemContext,
+                loadRix: context.getEnv("__plugin_load_rix__"),
+            });
+        }
+        if (preamblePath) {
+            parseAndEvaluate(preambleSource, {
+                context,
+                registry,
+                systemContext,
+                file: preamblePath,
+                operatorDefinitions: replOperatorDefinitions,
+            });
         }
         console.log("RiX REPL (Type .help for commands)");
         let buffer = "";
@@ -983,7 +1132,12 @@ async function main() {
             }
 
             try {
-                const result = parseAndEvaluate(buffer, { context, registry, systemContext });
+                const result = parseAndEvaluate(buffer, {
+                    context,
+                    registry,
+                    systemContext,
+                    operatorDefinitions: replOperatorDefinitions,
+                });
                 
                 const diag = getDiagnostics(context);
                 const tracesList = diag.getEventsByKind("trace");

@@ -53,6 +53,42 @@ half = x -> x / 2
 
 Useful REPL commands include `.help`, `.vars`, `.fns`, `.ast[expr]`, `.tokens[expr]`, `.load[pkg]`, `.reset`, and `.exit`. End a line with `\` for multiline input.
 
+## Persistent REPL setup
+
+RiX keeps CLI configuration under `$XDG_CONFIG_HOME/rix`, falling back to
+`~/.config/rix`. Set `RIX_CONFIG_DIR` to use another location. Create or update
+the configuration with:
+
+```sh
+rix setup --plugins=full
+rix setup --plugins=float,renderers
+```
+
+Plugin names and plugin groups are case-insensitive. `full` selects the
+standard first-party plugin set; `renderers` currently selects `draw` and
+`plot`. RiX stores the selectors rather than expanding groups permanently, so
+new standard plugins or group members can join later releases. The proposed
+`oracle` package remains specification-only and cannot be selected until it has
+an executable plugin manifest.
+
+`rix setup` also creates `cli-preamble.rix` in the configuration directory. Its
+leading YAML comment can request more plugins or operator files, and its RiX
+body runs before each REPL starts:
+
+```rix
+/**
+plugins: [float]
+operator-files: [personal.operators.rix]
+**/
+
+digits := 50;
+```
+
+Use `--no-config` for a clean session, `--no-preamble` to retain configured
+plugins without running the preamble, or `--preamble=FILE` for an explicit
+project preamble. `--plugin`, `--plugins`, and `--operator-file` remain
+one-session additions. Persistent setup affects the REPL, not script execution.
+
 ## Run a file
 
 ```sh

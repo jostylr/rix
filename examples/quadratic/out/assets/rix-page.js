@@ -189,6 +189,9 @@
         token = tryMatchIdentifier(input, position);
       }
       if (!token) {
+        token = tryMatchCustomOperator(input, position);
+      }
+      if (!token) {
         token = tryMatchRegexLiteral(input, position);
       }
       if (!token) {
@@ -222,6 +225,37 @@
       });
     }
     return tokens;
+  }
+  function tryMatchCustomOperator(input, position) {
+    if (!input.startsWith(":<", position))
+      return null;
+    let end = -1;
+    for (let cursor = position + 2;cursor < input.length; cursor += 1) {
+      if (input.startsWith(">:", cursor)) {
+        end = cursor;
+        break;
+      }
+      if (input[cursor] === ":")
+        return null;
+      if (/\s/u.test(input[cursor]))
+        break;
+    }
+    if (end < 0) {
+      const { line, col } = posToLineCol(input, position);
+      throw new Error(`Unclosed custom operator delimiter at line ${line}:${col}`);
+    }
+    const value = input.slice(position + 2, end);
+    if (!value || /[<>:\s]/u.test(value)) {
+      const { line, col } = posToLineCol(input, position);
+      throw new Error(`Invalid custom operator delimiter at line ${line}:${col}`);
+    }
+    const original = input.slice(position, end + 2);
+    return {
+      type: "CustomOperator",
+      original,
+      value,
+      pos: [position, position, end + 2]
+    };
   }
   function tryMatchPostfixCheck(input, position) {
     const marker = input.slice(position, position + 3);
@@ -1067,6 +1101,236 @@
     };
   }
 
+  // src/parser/custom-operators.js
+  var BUILTIN_PRECEDENCE_BANDS = Object.freeze({
+    assignment: 10,
+    pipe: 20,
+    arrow: 25,
+    logical_or: 30,
+    logical_and: 40,
+    condition: 45,
+    equality: 50,
+    comparison: 60,
+    interval: 70,
+    conversion: 75,
+    additive: 80,
+    multiplicative: 90,
+    power: 100,
+    calculus: 115,
+    postfix: 120,
+    property: 130
+  });
+  var BAND_ALIASES = Object.freeze({
+    addition: "additive",
+    multiplication: "multiplicative",
+    exponentiation: "power",
+    exponential: "power",
+    logicalor: "logical_or",
+    logicaland: "logical_and"
+  });
+  var FIXITIES = new Set(["infix", "prefix", "postfix"]);
+  var ASSOCIATIVITIES = new Set(["left", "right", "none"]);
+  var RELATIONS = new Set(["above", "below"]);
+  var OPERATOR_TOKEN = /^:<([^<>:\s]+)>:$/u;
+  var WORD_TOKEN = /^:([\p{L}_][\p{L}\p{N}_-]*)$/u;
+  var TARGET_TOKEN = /^(?:[\p{L}_][\p{L}\p{N}_]*|\.[\p{L}_][\p{L}\p{N}_]*\.[\p{L}_][\p{L}\p{N}_]*)$/u;
+  function normalizedBand(name) {
+    const normalized = String(name).toLowerCase().replace(/-/g, "_");
+    return BAND_ALIASES[normalized] || normalized;
+  }
+  function relativePrecedence(band, relation) {
+    const value = BUILTIN_PRECEDENCE_BANDS[band];
+    if (value === undefined)
+      throw new Error(`Unknown precedence band ':${band}'`);
+    const boundaries = Array.from(new Set([
+      ...Object.values(BUILTIN_PRECEDENCE_BANDS),
+      95,
+      97,
+      99
+    ])).sort((left, right) => left - right);
+    const index = boundaries.indexOf(value);
+    if (relation === "above") {
+      const next = boundaries[index + 1];
+      if (next === undefined)
+        throw new Error(`Cannot place an operator above ':${band}'`);
+      return (value + next) / 2;
+    }
+    const previous = boundaries[index - 1];
+    if (previous === undefined)
+      throw new Error(`Cannot place an operator below ':${band}'`);
+    return (previous + value) / 2;
+  }
+  function declarationError(label, line, message) {
+    throw new Error(`${label}:${line}: ${message}`);
+  }
+  function normalizedIdentifier(name) {
+    const firstLetter = Array.from(String(name)).find((character) => /\p{L}/u.test(character));
+    if (!firstLetter)
+      return name;
+    return firstLetter === firstLetter.toUpperCase() ? String(name).toUpperCase() : String(name).toLowerCase();
+  }
+  function parseTarget(rawTarget, owner, label, line) {
+    if (!TARGET_TOKEN.test(rawTarget)) {
+      declarationError(label, line, `Invalid operator target '${rawTarget}'`);
+    }
+    if (rawTarget.startsWith(".")) {
+      const [, mount, method] = rawTarget.split(".");
+      return {
+        kind: "system-method",
+        mount: normalizedIdentifier(mount),
+        method: normalizedIdentifier(method)
+      };
+    }
+    if (owner?.pluginId) {
+      return {
+        kind: "plugin-method",
+        pluginId: owner.pluginId,
+        mount: owner.mount || null,
+        method: normalizedIdentifier(rawTarget)
+      };
+    }
+    return { kind: "function", name: normalizedIdentifier(rawTarget) };
+  }
+  function parseOperatorDeclarationLine(source, options = {}) {
+    const label = options.label || "OPS";
+    const line = options.line || 1;
+    const fields = String(source).trim().split(/\s+/).filter(Boolean);
+    let symbol = null;
+    let target = null;
+    let fixity = null;
+    let associativity = null;
+    let relation = null;
+    let band = null;
+    for (const field of fields) {
+      const operatorMatch = field.match(OPERATOR_TOKEN);
+      if (operatorMatch) {
+        if (symbol !== null)
+          declarationError(label, line, "Operator declaration has more than one :<...>: symbol");
+        symbol = operatorMatch[1];
+        continue;
+      }
+      const wordMatch = field.match(WORD_TOKEN);
+      if (wordMatch) {
+        const word = wordMatch[1].toLowerCase();
+        if (FIXITIES.has(word)) {
+          if (fixity !== null)
+            declarationError(label, line, "Operator declaration has more than one fixity");
+          fixity = word;
+        } else if (ASSOCIATIVITIES.has(word)) {
+          if (associativity !== null)
+            declarationError(label, line, "Operator declaration has more than one associativity");
+          associativity = word;
+        } else if (RELATIONS.has(word)) {
+          if (relation !== null)
+            declarationError(label, line, "Operator declaration has more than one precedence relation");
+          relation = word;
+        } else {
+          const candidate = normalizedBand(word);
+          if (!Object.hasOwn(BUILTIN_PRECEDENCE_BANDS, candidate)) {
+            declarationError(label, line, `Unknown operator modifier '${field}'`);
+          }
+          if (band !== null)
+            declarationError(label, line, "Operator declaration has more than one precedence band");
+          band = candidate;
+        }
+        continue;
+      }
+      if (target !== null)
+        declarationError(label, line, `Unexpected operator declaration field '${field}'`);
+      target = field;
+    }
+    if (symbol === null)
+      declarationError(label, line, "Operator declaration requires one :<...>: symbol");
+    if (target === null)
+      declarationError(label, line, "Operator declaration requires one function or method target");
+    if (fixity === null)
+      declarationError(label, line, "Operator declaration requires a fixity such as :infix");
+    if (fixity !== "infix")
+      declarationError(label, line, `Custom ${fixity} operators are not implemented yet`);
+    if (band === null)
+      declarationError(label, line, "Operator declaration requires a named precedence band");
+    if (associativity === null)
+      declarationError(label, line, "Operator declaration requires :left, :right, or :none");
+    const precedence = relation ? relativePrecedence(band, relation) : BUILTIN_PRECEDENCE_BANDS[band];
+    return Object.freeze({
+      symbol,
+      spelling: `:<${symbol}>:`,
+      target: Object.freeze(parseTarget(target, options.owner, label, line)),
+      fixity,
+      associativity,
+      precedence,
+      precedenceBand: band,
+      precedenceRelation: relation,
+      source: label,
+      line
+    });
+  }
+  function isOpsComment(token) {
+    return token?.type === "String" && token.kind === "comment" && /^\s*##ops##/i.test(token.original || "");
+  }
+  function extractOperatorDeclarations(tokens, options = {}) {
+    const definitions = new Map;
+    let reachedCode = false;
+    for (const token of tokens || []) {
+      if (token.type === "End")
+        break;
+      if (token.type !== "String" || token.kind !== "comment") {
+        reachedCode = true;
+        continue;
+      }
+      if (!isOpsComment(token))
+        continue;
+      if (reachedCode) {
+        throw new Error(`${options.label || "source"}: ##OPS## blocks must appear before executable code`);
+      }
+      const bodyStart = token.pos?.[1] || 0;
+      const firstLine = options.source ? options.source.slice(0, bodyStart).split(`
+`).length : 1;
+      const lines = String(token.value || "").replace(/\r/g, "").split(`
+`);
+      for (let index = 0;index < lines.length; index += 1) {
+        const text = lines[index].trim();
+        if (!text)
+          continue;
+        const definition = parseOperatorDeclarationLine(text, {
+          owner: options.owner,
+          label: options.label || "OPS",
+          line: firstLine + index
+        });
+        if (definitions.has(definition.symbol)) {
+          declarationError(options.label || "OPS", firstLine + index, `Duplicate operator '${definition.spelling}'`);
+        }
+        definitions.set(definition.symbol, definition);
+      }
+    }
+    return definitions;
+  }
+  function extractOperatorDeclarationsFromSource(source, options = {}) {
+    return extractOperatorDeclarations(tokenize(source), {
+      ...options,
+      source
+    });
+  }
+  function mergeOperatorDefinitions(...collections) {
+    const merged = new Map;
+    for (const collection of collections) {
+      if (!collection)
+        continue;
+      const entries = collection instanceof Map ? collection : collection.map ? collection.map((definition) => [definition.symbol, definition]) : Object.entries(collection);
+      for (const [symbol, definition] of entries) {
+        if (merged.has(symbol)) {
+          const previous = merged.get(symbol);
+          if (JSON.stringify(previous) !== JSON.stringify(definition)) {
+            throw new Error(`Conflicting definitions for custom operator ':<${symbol}>:'`);
+          }
+          continue;
+        }
+        merged.set(symbol, definition);
+      }
+    }
+    return merged;
+  }
+
   // src/parser/parser.js
   var PRECEDENCE = {
     STATEMENT: 0,
@@ -1093,11 +1357,6 @@
   var IMPLICIT_APPLICATION_PRECEDENCE = 97;
   var SYMBOL_TABLE = {
     ":=": {
-      precedence: PRECEDENCE.ASSIGNMENT,
-      associativity: "right",
-      type: "infix"
-    },
-    ":=:": {
       precedence: PRECEDENCE.ASSIGNMENT,
       associativity: "right",
       type: "infix"
@@ -1486,10 +1745,11 @@
   };
 
   class Parser {
-    constructor(tokens, systemLookup, source = "") {
+    constructor(tokens, systemLookup, source = "", customOperators = new Map) {
       this.tokens = tokens;
       this.systemLookup = systemLookup || (() => ({ type: "identifier" }));
       this.source = source;
+      this.customOperators = customOperators;
       this.position = 0;
       this.current = null;
       this.skippedComments = [];
@@ -1546,9 +1806,23 @@
       throw new Error(`Parse error at position ${pos[0]}: ${message}`);
     }
     getSymbolInfo(token) {
-      if (token.type === "Symbol") {
+      if (token.type === "CustomOperator") {
+        const definition = this.customOperators.get(token.value);
+        if (!definition) {
+          this.error(`Custom operator ':<${token.value}>:' is not declared in an ##OPS## header`);
+        }
+        return {
+          precedence: definition.precedence,
+          associativity: definition.associativity,
+          type: definition.fixity,
+          custom: definition
+        };
+      } else if (token.type === "Symbol") {
         if (token.value === "|^:") {
           this.error("The legacy '|^:' generator operator was removed; use '|^' for lazy generation");
+        }
+        if (token.value === ":=:") {
+          this.error("The ':=:' solve operator was removed; express symbolic constraints with {# ... } and solve them with a plugin");
         }
         return SYMBOL_TABLE[token.value] || { precedence: 0, type: "unknown" };
       } else if (token.type === "SemicolonSequence") {
@@ -1752,6 +2026,9 @@
           } else if (token.value === "{") {
             return this.parseBraceContainer();
           } else if (token.value === "{=" || token.value === "{?" || token.value === "{;" || token.value === "{|" || token.value === "{:" || token.value === "{@" || token.value === "{#" || token.value === "{.." || token.value === "{>" || token.value === "{^" || token.value === "{$") {
+            if (token.value === "{$") {
+              this.error("The '{$ ... }' sigil is reserved for future async/concurrency syntax");
+            }
             if (token.value === "{#") {
               return this.parseSystemSpecLiteral();
             }
@@ -1793,6 +2070,8 @@
               let inner;
               if (nextVal === "{") {
                 inner = this.parseBraceContainer();
+              } else if (nextVal === "{$") {
+                this.error("The '{$ ... }' sigil is reserved for future async/concurrency syntax");
               } else if (nextVal === "{#") {
                 inner = this.parseSystemSpecLiteral();
               } else if (nextVal === "{^") {
@@ -1930,6 +2209,9 @@
             this.error(`Unexpected token in prefix position: ${token.value}`);
           }
           break;
+        case "CustomOperator":
+          this.error(`Custom infix operator ':<${token.value}>:' cannot appear in prefix position`);
+          break;
         default:
           this.error(`Unexpected token: ${token.type}`);
       }
@@ -2043,11 +2325,24 @@
       }
       this.advance();
       let rightPrec = symbolInfo.precedence;
-      if (symbolInfo.associativity === "left") {
+      if (symbolInfo.associativity === "left" || symbolInfo.associativity === "none") {
         rightPrec += 1;
       }
       let right;
-      if (operator.value === "[" && symbolInfo.type === "postfix") {
+      if (operator.type === "CustomOperator") {
+        right = this.parseExpression(rightPrec);
+        return this.createNode("CustomOperator", {
+          operator: operator.value,
+          spelling: `:<${operator.value}>:`,
+          definition: symbolInfo.custom,
+          precedence: symbolInfo.precedence,
+          associativity: symbolInfo.associativity,
+          left,
+          right,
+          pos: left.pos,
+          original: left.original + operator.original
+        });
+      } else if (operator.value === "[" && symbolInfo.type === "postfix") {
         if (this.current.value === ":" && ["Identifier", "Number", "String"].includes(this.peek().type)) {
           this.advance();
           const keyName = this.current.value;
@@ -2662,6 +2957,9 @@
         }
         if (!symbolInfo || symbolInfo.precedence < minPrec) {
           break;
+        }
+        if (symbolInfo.custom && left?.type === "CustomOperator" && left.precedence === symbolInfo.precedence && (left.associativity === "none" || symbolInfo.associativity === "none")) {
+          this.error(`Non-associative custom operator chain requires parentheses around ':<${left.operator}>:' or ':<${this.current.value}>:'`);
         }
         if (symbolInfo.type === "statement" || symbolInfo.type === "separator") {
           break;
@@ -3533,6 +3831,9 @@
     }
     parseBraceSigil(sigil, containerName = null, options = {}) {
       const startToken = this.current;
+      if (sigil === "{$") {
+        this.error("The '{$ ... }' sigil is reserved for future async/concurrency syntax");
+      }
       this.advance();
       const isTensorShapeSigil = sigil === "{:" && containerName && /^\d+(?:x\d+)*$/.test(containerName);
       if (isTensorShapeSigil && !options.destructureAlias) {
@@ -3547,12 +3848,11 @@
         "{|": "SetContainer",
         "{:": "TupleContainer",
         "{@": "LoopContainer",
-        "{$": "BlockContainer",
         "{^": "ValueOutfit",
         "{>": "MultifunctionContainer"
       };
       const nodeType = sigilTypeMap[effectiveSigil];
-      const temporalSigils = new Set(["{?", "{;", "{@", "{$"]);
+      const temporalSigils = new Set(["{?", "{;", "{@"]);
       const isTemporal = temporalSigils.has(effectiveSigil);
       const closerMap = {
         "{|": ["|}", "}"]
@@ -3578,7 +3878,7 @@
         elements.push(this.createNode("Hole", { original: "" }));
       };
       const header = effectiveSigil === "{=" || effectiveSigil === "{|" || effectiveSigil === "{:" || effectiveSigil === "{.." ? this.parseSemanticHeader() : null;
-      const imports = (effectiveSigil === "{;" || effectiveSigil === "{@" || effectiveSigil === "{$") && this.startsImportHeader() ? this.parseImportHeader() : [];
+      const imports = (effectiveSigil === "{;" || effectiveSigil === "{@") && this.startsImportHeader() ? this.parseImportHeader() : [];
       const elements = [];
       const parseElement = effectiveSigil === "{=" ? () => this.parseMapConstructorEntry() : effectiveSigil === "{|" || effectiveSigil === "{:" || effectiveSigil === "{.." ? () => this.parseCapturedConstructorElement() : isTemporal ? () => this.parseCommaSequenceExpression(0) : () => this.parseExpression(0);
       if (!isCloser(this.current.value)) {
@@ -3682,8 +3982,7 @@
         });
       }
       const imports = this.startsImportHeader() ? this.parseImportHeader() : [];
-      const statements = [];
-      let expressionBody = null;
+      const bodyItems = [];
       if (this.current.value !== "}") {
         do {
           if (this.current.value === ";") {
@@ -3691,17 +3990,7 @@
             continue;
           }
           const expression = this.parseExpression(0);
-          if (expression?.type === "BinaryOperation" && expression.operator === "=") {
-            if (expressionBody) {
-              this.error("A symbolic expression body cannot be mixed with assignments");
-            }
-            statements.push(this.parseSystemSpecStatement(expression));
-          } else {
-            if (statements.length > 0 || expressionBody) {
-              this.error("A symbolic expression spec must contain exactly one expression");
-            }
-            expressionBody = expression;
-          }
+          bodyItems.push(expression?.type === "BinaryOperation" && expression.operator === "=" ? this.parseSystemSpecDefinition(expression) : expression);
           if (this.current.value === ";") {
             this.advance();
             if (this.current.value === "}")
@@ -3723,6 +4012,13 @@
         this.error("Expected closing } for system spec literal");
       }
       this.advance();
+      const soleItem = bodyItems.length === 1 ? bodyItems[0] : null;
+      const expressionBody = soleItem && soleItem.type !== "SpecDefinition" && !this.isSystemConstraintExpression(soleItem) ? soleItem : null;
+      const statements = expressionBody ? [] : bodyItems.map((item) => item.type === "SpecDefinition" ? item : this.createNode("SpecConstraint", {
+        expr: item,
+        pos: item.pos,
+        original: item.original
+      }));
       if (expressionBody && header.outputsDeclared) {
         this.error("An anonymous symbolic expression cannot declare named outputs");
       }
@@ -3733,7 +4029,7 @@
         inputs: header.inputs,
         outputs: finalized.outputs,
         outputsDeclared: header.outputsDeclared,
-        outputMode: expressionBody ? "expression" : "named",
+        outputMode: expressionBody ? "expression" : finalized.statements.some((statement) => statement.type === "SpecConstraint") ? "system" : "named",
         ...expressionBody ? { expression: expressionBody } : {},
         statements: finalized.statements,
         pos: startToken.pos,
@@ -3759,15 +4055,22 @@
         }
       }
     }
-    parseSystemSpecStatement(expression) {
+    isSystemConstraintExpression(expression) {
+      const unwrapped = expression?.type === "Grouping" && expression.expression ? expression.expression : expression;
+      if (unwrapped?.type === "BinaryOperation") {
+        return new Set(["==", "!=", "<", ">", "<=", ">=", "===", "?", "!?", "?&", "AND", "&&", "OR", "||"]).has(unwrapped.operator);
+      }
+      return unwrapped?.type === "UnaryOperation" && ["NOT", "!"].includes(unwrapped.operator);
+    }
+    parseSystemSpecDefinition(expression) {
       if (!expression || expression.type !== "BinaryOperation" || expression.operator !== "=") {
-        this.error("System spec bodies only support symbolic assignments of the form name = expr");
+        this.error("System spec definitions must have the form name = expr");
       }
       const target = expression.left;
       if (target.type !== "UserIdentifier" && target.type !== "SystemIdentifier") {
-        this.error("System spec assignment targets must be bare identifiers");
+        this.error("System spec definition targets must be bare identifiers");
       }
-      return this.createNode("SpecAssign", {
+      return this.createNode("SpecDefinition", {
         target: target.name,
         expr: expression.right,
         pos: expression.pos ?? target.pos,
@@ -3775,27 +4078,18 @@
       });
     }
     finalizeSystemSpecStatements(header, statements) {
-      const assigned = new Set;
+      const defined = new Set;
       const inferredOutputs = [];
-      const declaredOutputs = new Set(header.outputs);
       for (const statement of statements) {
+        if (statement.type !== "SpecDefinition")
+          continue;
         const target = statement.target;
-        if (assigned.has(target)) {
-          this.error(`System spec output '${target}' is assigned more than once`);
+        if (defined.has(target)) {
+          this.error(`System spec symbol '${target}' is defined more than once`);
         }
-        if (header.outputsDeclared && !declaredOutputs.has(target)) {
-          this.error(`System spec assignment target '${target}' is not a declared output`);
-        }
-        assigned.add(target);
+        defined.add(target);
         if (!header.outputsDeclared) {
           inferredOutputs.push(target);
-        }
-      }
-      if (header.outputsDeclared) {
-        for (const output of header.outputs) {
-          if (!assigned.has(output)) {
-            this.error(`System spec declared output '${output}' is never assigned`);
-          }
         }
       }
       return {
@@ -5170,7 +5464,7 @@
       });
     }
   }
-  function parse(input, systemLookup) {
+  function parse(input, systemLookup, options = {}) {
     let tokens;
     let source = "";
     if (typeof input === "string") {
@@ -5178,429 +5472,17 @@
       tokens = tokenize(input);
     } else {
       tokens = input;
+      source = options.source || "";
     }
-    const parser = new Parser(tokens, systemLookup, source);
+    const localOperators = extractOperatorDeclarations(tokens, {
+      source,
+      owner: options.operatorOwner || null,
+      label: options.file || "source"
+    });
+    const customOperators = mergeOperatorDefinitions(options.operatorDefinitions, localOperators);
+    const parser = new Parser(tokens, systemLookup, source, customOperators);
     return parser.parse();
   }
-  // src/parser/system-loader.js
-  var DEFAULT_SYSTEM_REGISTRY = {
-    LIST: { type: "constructor", category: "collection" },
-    SET: { type: "constructor", category: "collection" },
-    MAP: { type: "constructor", category: "collection" },
-    TUPLE: { type: "constructor", category: "collection" },
-    TYPE: { type: "function", arity: 1, precedence: 120, category: "meta" },
-    HELP: { type: "function", arity: -1, precedence: 120, category: "meta" },
-    INFO: { type: "function", arity: 1, precedence: 120, category: "meta" }
-  };
-  var isBrowser = typeof window !== "undefined" && typeof document !== "undefined";
-
-  class SystemLoader {
-    constructor(options = {}) {
-      this.coreRegistry = new Map(Object.entries(DEFAULT_SYSTEM_REGISTRY));
-      this.systemRegistry = new Map;
-      this.operatorRegistry = new Map;
-      this.keywordRegistry = new Map;
-      this.hooks = new Map;
-      this.contexts = new Map;
-      this.config = {
-        allowUserOverrides: options.allowUserOverrides ?? false,
-        strictMode: options.strictMode ?? false,
-        browserIntegration: options.browserIntegration ?? isBrowser,
-        moduleLoader: options.moduleLoader ?? null,
-        ...options
-      };
-      this.initializeDefaultKeywords();
-      if (this.config.browserIntegration) {
-        this.setupBrowserIntegration();
-      }
-    }
-    initializeDefaultKeywords() {
-      this.registerKeyword("AND", {
-        type: "operator",
-        precedence: 40,
-        associativity: "left",
-        operatorType: "infix",
-        category: "logical"
-      });
-      this.registerKeyword("OR", {
-        type: "operator",
-        precedence: 30,
-        associativity: "left",
-        operatorType: "infix",
-        category: "logical"
-      });
-      this.registerKeyword("NOT", {
-        type: "operator",
-        precedence: 110,
-        operatorType: "prefix",
-        category: "logical"
-      });
-      this.registerKeyword("IF", {
-        type: "control",
-        structure: "conditional",
-        precedence: 5,
-        category: "control"
-      });
-      this.registerKeyword("ELSE", {
-        type: "control",
-        structure: "conditional",
-        precedence: 5,
-        category: "control"
-      });
-      this.registerKeyword("WHILE", {
-        type: "control",
-        structure: "loop",
-        precedence: 5,
-        category: "control"
-      });
-      this.registerKeyword("FOR", {
-        type: "control",
-        structure: "loop",
-        precedence: 5,
-        category: "control"
-      });
-      this.registerKeyword("IN", {
-        type: "operator",
-        precedence: 60,
-        associativity: "left",
-        operatorType: "infix",
-        category: "set"
-      });
-      this.registerKeyword("UNION", {
-        type: "operator",
-        precedence: 50,
-        associativity: "left",
-        operatorType: "infix",
-        category: "set"
-      });
-      this.registerKeyword("INTERSECT", {
-        type: "operator",
-        precedence: 50,
-        associativity: "left",
-        operatorType: "infix",
-        category: "set"
-      });
-    }
-    registerSystem(name, definition) {
-      if (!name || typeof name !== "string") {
-        throw new Error("System symbol name must be a non-empty string");
-      }
-      const normalizedName = name.toUpperCase();
-      const validatedDef = this.validateDefinition(definition);
-      if (this.config.strictMode && this.coreRegistry.has(normalizedName)) {
-        throw new Error(`Cannot override core system symbol: ${normalizedName}`);
-      }
-      this.systemRegistry.set(normalizedName, {
-        ...validatedDef,
-        source: "system",
-        registered: Date.now()
-      });
-      this.triggerHook("system-registered", {
-        name: normalizedName,
-        definition: validatedDef
-      });
-      return this;
-    }
-    registerKeyword(name, definition) {
-      const normalizedName = name.toUpperCase();
-      const validatedDef = this.validateDefinition(definition);
-      this.keywordRegistry.set(normalizedName, {
-        ...validatedDef,
-        source: "keyword",
-        registered: Date.now()
-      });
-      this.triggerHook("keyword-registered", {
-        name: normalizedName,
-        definition: validatedDef
-      });
-      return this;
-    }
-    registerOperator(symbol, definition) {
-      if (!symbol || typeof symbol !== "string") {
-        throw new Error("Operator symbol must be a non-empty string");
-      }
-      const validatedDef = this.validateOperatorDefinition(definition);
-      this.operatorRegistry.set(symbol, {
-        ...validatedDef,
-        source: "operator",
-        registered: Date.now()
-      });
-      this.triggerHook("operator-registered", {
-        symbol,
-        definition: validatedDef
-      });
-      return this;
-    }
-    lookup(name) {
-      const normalizedName = name.toUpperCase();
-      if (this.keywordRegistry.has(normalizedName)) {
-        const def = this.keywordRegistry.get(normalizedName);
-        if (def.type === "control") {
-          return this.enrichDefinition({
-            ...def,
-            functionalForm: true,
-            type: "function",
-            controlType: def.type,
-            arity: this.getControlArity(normalizedName, def)
-          }, normalizedName);
-        }
-        return this.enrichDefinition(def, normalizedName);
-      }
-      if (this.systemRegistry.has(normalizedName)) {
-        const def = this.systemRegistry.get(normalizedName);
-        return this.enrichDefinition(def, normalizedName);
-      }
-      if (this.coreRegistry.has(normalizedName)) {
-        const def = this.coreRegistry.get(normalizedName);
-        return this.enrichDefinition(def, normalizedName);
-      }
-      return { type: "identifier", name: normalizedName, source: "unknown" };
-    }
-    validateDefinition(definition) {
-      if (!definition || typeof definition !== "object") {
-        throw new Error("Definition must be an object");
-      }
-      const { type } = definition;
-      if (!type || typeof type !== "string") {
-        throw new Error("Definition must have a type property");
-      }
-      switch (type) {
-        case "operator":
-          if (!definition.precedence || typeof definition.precedence !== "number") {
-            throw new Error("Operator definition must have numeric precedence");
-          }
-          break;
-        case "function":
-          if (definition.arity !== undefined && typeof definition.arity !== "number") {
-            throw new Error("Function arity must be a number or undefined");
-          }
-          break;
-        case "control":
-          if (!definition.structure || typeof definition.structure !== "string") {
-            throw new Error("Control definition must have a structure property");
-          }
-          break;
-      }
-      return { ...definition };
-    }
-    validateOperatorDefinition(definition) {
-      const validated = this.validateDefinition(definition);
-      if (validated.type !== "operator") {
-        validated.type = "operator";
-      }
-      if (!validated.precedence) {
-        validated.precedence = 50;
-      }
-      if (!validated.associativity) {
-        validated.associativity = "left";
-      }
-      if (!validated.operatorType) {
-        validated.operatorType = "infix";
-      }
-      return validated;
-    }
-    enrichDefinition(definition, name) {
-      return {
-        ...definition,
-        name,
-        resolvedAt: Date.now()
-      };
-    }
-    registerHook(eventName, callback) {
-      if (!this.hooks.has(eventName)) {
-        this.hooks.set(eventName, []);
-      }
-      this.hooks.get(eventName).push(callback);
-      return this;
-    }
-    triggerHook(eventName, data) {
-      if (this.hooks.has(eventName)) {
-        this.hooks.get(eventName).forEach((callback) => {
-          try {
-            callback(data);
-          } catch (error) {
-            console.warn(`Hook ${eventName} failed:`, error);
-          }
-        });
-      }
-    }
-    setupBrowserIntegration() {
-      if (!isBrowser)
-        return;
-      if (typeof window.RiX === "undefined") {
-        window.RiX = {};
-      }
-      window.RiX.SystemLoader = this;
-      window.RiX.registerSystem = (name, def) => this.registerSystem(name, def);
-      window.RiX.registerKeyword = (name, def) => this.registerKeyword(name, def);
-      window.RiX.registerOperator = (symbol, def) => this.registerOperator(symbol, def);
-      if (!this.config.moduleLoader) {
-        this.config.moduleLoader = this.createBrowserModuleLoader();
-      }
-      document.addEventListener("rix-system-define", (event) => {
-        const { name, definition } = event.detail;
-        this.registerSystem(name, definition);
-      });
-      document.addEventListener("rix-keyword-define", (event) => {
-        const { name, definition } = event.detail;
-        this.registerKeyword(name, definition);
-      });
-    }
-    createBrowserModuleLoader() {
-      return {
-        async load(moduleSpec) {
-          if (moduleSpec.startsWith("http://") || moduleSpec.startsWith("https://")) {
-            const response = await fetch(moduleSpec);
-            const code = await response.text();
-            return this.evaluateModule(code);
-          } else if (moduleSpec.startsWith("data:")) {
-            const code = decodeURIComponent(moduleSpec.split(",")[1]);
-            return this.evaluateModule(code);
-          } else {
-            const scriptTag = document.getElementById(moduleSpec);
-            if (scriptTag && scriptTag.type === "text/rix-system") {
-              return this.evaluateModule(scriptTag.textContent);
-            }
-          }
-          throw new Error(`Cannot load module: ${moduleSpec}`);
-        },
-        evaluateModule(code) {
-          try {
-            const moduleFunction = new Function("SystemLoader", "registerSystem", "registerKeyword", "registerOperator", code);
-            return moduleFunction(this, (name, def) => this.registerSystem(name, def), (name, def) => this.registerKeyword(name, def), (symbol, def) => this.registerOperator(symbol, def));
-          } catch (error) {
-            throw new Error(`Module evaluation failed: ${error.message}`);
-          }
-        }
-      };
-    }
-    async loadModule(moduleSpec) {
-      if (!this.config.moduleLoader) {
-        throw new Error("No module loader configured");
-      }
-      try {
-        const result = await this.config.moduleLoader.load(moduleSpec);
-        this.triggerHook("module-loaded", { moduleSpec, result });
-        return result;
-      } catch (error) {
-        this.triggerHook("module-load-error", { moduleSpec, error });
-        throw error;
-      }
-    }
-    createContext(name, parentContext = null) {
-      const context = {
-        name,
-        parent: parentContext,
-        created: Date.now(),
-        symbols: new Map,
-        operators: new Map
-      };
-      this.contexts.set(name, context);
-      return context;
-    }
-    getControlArity(name, definition) {
-      switch (definition.structure) {
-        case "conditional":
-          return name === "IF" ? -1 : 1;
-        case "loop":
-          return name === "FOR" ? 4 : 2;
-        case "loop_body":
-        case "loop_terminator":
-        case "block_end":
-          return 1;
-        default:
-          return -1;
-      }
-    }
-    transformFunctionalForm(name, args, definition) {
-      switch (name) {
-        case "WHILE":
-          if (args.length >= 2) {
-            return {
-              type: "ControlStructure",
-              keyword: "WHILE",
-              condition: args[0],
-              body: args[1],
-              structure: "while_loop",
-              functionalOrigin: true
-            };
-          }
-          break;
-        case "IF":
-          if (args.length >= 2) {
-            const result = {
-              type: "ControlStructure",
-              keyword: "IF",
-              condition: args[0],
-              thenBranch: args[1],
-              structure: "conditional",
-              functionalOrigin: true
-            };
-            if (args.length >= 3) {
-              result.elseBranch = args[2];
-            }
-            return result;
-          }
-          break;
-        case "FOR":
-          if (args.length >= 4) {
-            return {
-              type: "ControlStructure",
-              keyword: "FOR",
-              init: args[0],
-              condition: args[1],
-              increment: args[2],
-              body: args[3],
-              structure: "for_loop",
-              functionalOrigin: true
-            };
-          }
-          break;
-      }
-      return {
-        type: "FunctionCall",
-        function: { type: "SystemIdentifier", name, systemInfo: definition },
-        arguments: args,
-        functionalForm: true
-      };
-    }
-    getSymbolsByCategory(category) {
-      const result = [];
-      [this.coreRegistry, this.systemRegistry, this.keywordRegistry].forEach((registry) => {
-        for (const [name, definition] of registry) {
-          if (definition.category === category) {
-            result.push({ name, ...definition });
-          }
-        }
-      });
-      return result;
-    }
-    createParserLookup() {
-      return (name) => this.lookup(name);
-    }
-    exportConfig() {
-      return {
-        core: Array.from(this.coreRegistry.entries()),
-        system: Array.from(this.systemRegistry.entries()),
-        keywords: Array.from(this.keywordRegistry.entries()),
-        operators: Array.from(this.operatorRegistry.entries()),
-        config: { ...this.config }
-      };
-    }
-    importConfig(config) {
-      if (config.system) {
-        config.system.forEach(([name, def]) => this.systemRegistry.set(name, def));
-      }
-      if (config.keywords) {
-        config.keywords.forEach(([name, def]) => this.keywordRegistry.set(name, def));
-      }
-      if (config.operators) {
-        config.operators.forEach(([symbol, def]) => this.operatorRegistry.set(symbol, def));
-      }
-      this.triggerHook("config-imported", config);
-    }
-  }
-  var defaultSystemLoader = new SystemLoader;
   // src/runtime/system-context.js
   function firstLetterIsUppercase(name) {
     for (const character of String(name)) {
@@ -10781,7 +10663,7 @@ ${indentStr})`;
       Files: Object.freeze(["FILES"]),
       Units: Object.freeze(["UNITS", "Units", "CONVERTUNIT", "ConvertUnit", "DEFINEUNIT", "DefineUnit"]),
       Exact: Object.freeze(["EXACT", "Exact", "COMPLEX", "Complex", "DEFINEEXACTGENERATOR", "DefineExactGenerator", "exactalgebras"]),
-      Symbolic: Object.freeze(["POLY", "DERIV", "INTEGRATE", "TRANSFORM", "SIMPLIFY", "SPEC", "SPECCABILITY", "INSPECTSPEC", "SArith"]),
+      Symbolic: Object.freeze(["POLY", "DERIV", "INTEGRATE", "TRANSFORM", "SIMPLIFY", "SPEC", "SPECCABILITY", "INSPECTSPEC", "SPECROLES", "SArith"]),
       Notation: Object.freeze(["SArith", "Poly", "NotationParser"]),
       Random: Object.freeze(["RANDOMSEED", "RandomSeed", "RAND_NAME"]),
       RiXCel: Object.freeze(["FORMULASHEET", "REACTIVEGRAPH", "RIXCELEXPORT", "RIXCELIMPORT", "RIXCELIMPORTCSV", "RIXCELIMPORTTSV", "RIXCELEXPORTCSV", "RIXCELEXPORTTSV"])
@@ -11104,6 +10986,21 @@ ${indentStr})`;
     ["INTDIV", "//"],
     ["MOD", "%"]
   ]);
+  var DISPLAY_BINARY_TEXT = new Map([
+    ...BINARY_TEXT,
+    ["EQ", "=="],
+    ["NEQ", "!="],
+    ["SAME_CELL", "==="],
+    ["LT", "<"],
+    ["GT", ">"],
+    ["LTE", "<="],
+    ["GTE", ">="],
+    ["AND", "AND"],
+    ["OR", "OR"],
+    ["MEMBER", "?"],
+    ["NOT_MEMBER", "!?"],
+    ["INTERSECTS", "?&"]
+  ]);
   var TEXT_BINARY = new Map(Array.from(BINARY_TEXT, ([name, text]) => [text, name]));
   var ir = (fn, ...args) => ({ fn, args });
   var literal = (value) => ir("LITERAL", String(value));
@@ -11146,7 +11043,7 @@ ${indentStr})`;
       throw new Error("Expected a symbolic specification");
     if (spec.expression)
       return spec.expression;
-    if (spec.outputs.length !== 1 || spec.statements.length !== 1) {
+    if (spec.outputs.length !== 1 || spec.statements.length !== 1 || spec.statements[0].kind !== "define") {
       throw new Error("Symbolic operations currently require a single explicitly solved output");
     }
     return spec.statements[0].expr;
@@ -11160,8 +11057,8 @@ ${indentStr})`;
     let outputs = [...meta.outputs || []];
     let expression = meta.expression ? cloneIr(meta.expression) : null;
     let statements = (meta.statements || []).map((statement) => ({
-      kind: "assign",
-      target: statement.target,
+      kind: statement.kind === "constraint" ? "constraint" : "define",
+      ...statement.target ? { target: statement.target } : {},
       expr: cloneIr(statement.expr)
     }));
     if (outputMode === "identity") {
@@ -11211,11 +11108,17 @@ ${indentStr})`;
   function precedence(node) {
     if (!node?.fn)
       return 100;
+    if (node.fn === "OR")
+      return 2;
+    if (node.fn === "AND")
+      return 3;
+    if (["EQ", "NEQ", "SAME_CELL", "LT", "GT", "LTE", "GTE", "MEMBER", "NOT_MEMBER", "INTERSECTS"].includes(node.fn))
+      return 5;
     if (node.fn === "ADD" || node.fn === "SUB")
       return 10;
     if (node.fn === "MUL" || node.fn === "DIV" || node.fn === "INTDIV" || node.fn === "MOD")
       return 20;
-    if (node.fn === "NEG")
+    if (node.fn === "NEG" || node.fn === "NOT")
       return 30;
     if (node.fn === "POW")
       return 40;
@@ -11240,6 +11143,10 @@ ${indentStr})`;
       const text = `-${renderSymbolicIr(node.args[0], precedence(node))}`;
       return precedence(node) < parentPrecedence ? `(${text})` : text;
     }
+    if (node.fn === "NOT") {
+      const text = `NOT ${renderSymbolicIr(node.args[0], precedence(node))}`;
+      return precedence(node) < parentPrecedence ? `(${text})` : text;
+    }
     if (node.fn === "CALL") {
       return `${node.args[0]}(${node.args.slice(1).map((arg) => renderSymbolicIr(arg)).join(", ")})`;
     }
@@ -11249,7 +11156,24 @@ ${indentStr})`;
     if (node.fn === "SYS_CALL") {
       return `.${node.args[0]}(${node.args.slice(1).map((arg) => renderSymbolicIr(arg)).join(", ")})`;
     }
-    const op = BINARY_TEXT.get(node.fn);
+    if (node.fn === "ABS")
+      return `|${renderSymbolicIr(node.args[0])}|`;
+    if (node.fn === "INTERVAL")
+      return node.args.map((arg) => renderSymbolicIr(arg)).join(":");
+    if (node.fn === "ARRAY")
+      return `[${node.args.map((arg) => renderSymbolicIr(arg)).join(", ")}]`;
+    if (node.fn === "TUPLE")
+      return `{: ${node.args.map((arg) => renderSymbolicIr(arg)).join(", ")} }`;
+    if (node.fn === "SET")
+      return `{| ${node.args.map((arg) => renderSymbolicIr(arg)).join(", ")} |}`;
+    if (node.fn === "META_GET")
+      return `${renderSymbolicIr(node.args[0], 100)}.${node.args[1]}`;
+    if (node.fn === "INDEX_GET") {
+      const target = renderSymbolicIr(node.args[0], 100);
+      const index = typeof node.args[1] === "string" ? node.args[1] : renderSymbolicIr(node.args[1]);
+      return `${target}[${index}]`;
+    }
+    const op = DISPLAY_BINARY_TEXT.get(node.fn);
     if (op) {
       const own = precedence(node);
       const left = renderSymbolicIr(node.args[0], own, "left");
@@ -11259,7 +11183,8 @@ ${indentStr})`;
       const parens = own < parentPrecedence || side === "left" && node.fn === "POW" && own === parentPrecedence;
       return parens ? `(${text})` : text;
     }
-    throw new Error(`Cannot render unsupported symbolic IR '${node.fn}'`);
+    const genericArgs = (node.args || []).map((arg) => arg?.fn ? renderSymbolicIr(arg) : typeof arg === "string" ? JSON.stringify(arg) : JSON.stringify(arg)).join(", ");
+    return `@_${node.fn}(${genericArgs})`;
   }
   function formatSymbolicSpec(spec) {
     const inputs = spec.inputs.join(",");
@@ -11270,9 +11195,10 @@ ${indentStr})`;
         return item.local;
       return `${item.local}${item.mode === "alias" ? "=" : "~"}${item.source}`;
     }).join(",")}> ` : "";
-    if (outputModeOf(spec) === "named") {
+    if (outputModeOf(spec) === "named" || outputModeOf(spec) === "system") {
       const header2 = spec.outputsDeclared ? `${inputs}:${spec.outputs.join(",")}# ` : inputs ? `${inputs}# ` : " ";
-      return `{#${header2}${imports}${spec.statements.map((s) => `${s.target} = ${renderSymbolicIr(s.expr)}`).join("; ")} }`;
+      const body = spec.statements.map((statement) => statement.kind === "constraint" ? renderSymbolicIr(statement.expr) : `${statement.target} = ${renderSymbolicIr(statement.expr)}`).join("; ");
+      return `{#${header2}${imports}${body}${body ? " " : ""}}`;
     }
     const header = inputs ? `${inputs}# ` : " ";
     return `{#${header}${imports}${renderSymbolicIr(expressionOf(spec))} }`;
@@ -11288,13 +11214,18 @@ ${indentStr})`;
       return rixMap([["kind", rixString2("outer")], ["name", rixString2(node.args[0])]]);
     if (node.fn === "NEG")
       return rixMap([["kind", rixString2("unary")], ["op", rixString2("-")], ["expr", serializeIr(node.args[0])]]);
-    const op = BINARY_TEXT.get(node.fn);
+    if (node.fn === "NOT")
+      return rixMap([["kind", rixString2("unary")], ["op", rixString2("NOT")], ["expr", serializeIr(node.args[0])]]);
+    const op = DISPLAY_BINARY_TEXT.get(node.fn);
     if (op)
       return rixMap([["kind", rixString2("binary")], ["op", rixString2(op)], ["left", serializeIr(node.args[0])], ["right", serializeIr(node.args[1])]]);
     return rixMap([["kind", rixString2("ir")], ["fn", rixString2(node.fn)], ["args", rixTuple(node.args.map(serializeIr))]]);
   }
   function inspectSymbolicSpec(spec) {
-    const inspectExpression = spec.expression ? serializeIr(spec.expression) : spec.statements.length === 1 ? serializeIr(spec.statements[0].expr) : null;
+    const inspectExpression = spec.expression ? serializeIr(spec.expression) : spec.statements.length === 1 && spec.statements[0].kind === "define" ? serializeIr(spec.statements[0].expr) : null;
+    const symbols2 = symbolicNames(spec);
+    const definitions = spec.statements.filter((statement) => statement.kind === "define");
+    const constraints = spec.statements.filter((statement) => statement.kind === "constraint");
     return rixMap([
       ["kind", rixString2("systemSpec")],
       ["syntax", rixString2("#")],
@@ -11302,9 +11233,15 @@ ${indentStr})`;
       ["source", rixString2(formatSymbolicSpec(spec))],
       ["inputs", rixTuple(spec.inputs.map(rixString2))],
       ["outputs", rixTuple(spec.outputs.map(rixString2))],
-      ["statements", rixTuple(spec.statements.map((statement) => rixMap([
-        ["kind", rixString2("assign")],
+      ["symbols", rixTuple(symbols2.map(rixString2))],
+      ["definitions", rixTuple(definitions.map((statement) => rixMap([
         ["target", rixString2(statement.target)],
+        ["expr", serializeIr(statement.expr)]
+      ])))],
+      ["constraints", rixTuple(constraints.map((statement) => serializeIr(statement.expr)))],
+      ["statements", rixTuple(spec.statements.map((statement) => rixMap([
+        ["kind", rixString2(statement.kind)],
+        ...statement.target ? [["target", rixString2(statement.target)]] : [],
         ["expr", serializeIr(statement.expr)]
       ])))],
       ["expression", inspectExpression]
@@ -11608,6 +11545,82 @@ ${indentStr})`;
         retrieveNames(arg, names);
     return names;
   }
+  function symbolicNames(value) {
+    const spec = getAttachedSpec(value);
+    if (!isSymbolicSpec(spec))
+      throw new Error("Expected a symbolic specification");
+    const names = unionNames([spec.inputs, spec.outputs]);
+    const add = (name) => {
+      if (!names.includes(name))
+        names.push(name);
+    };
+    for (const statement of spec.statements || []) {
+      if (statement.kind === "define" && statement.target)
+        add(statement.target);
+      for (const name of retrieveNames(statement.expr))
+        add(name);
+    }
+    if (spec.expression)
+      for (const name of retrieveNames(spec.expression))
+        add(name);
+    return names;
+  }
+  function roleEntries(overrides) {
+    if (overrides === null || overrides === undefined)
+      return null;
+    if (overrides?.type === "map" && overrides.entries instanceof Map)
+      return overrides.entries;
+    if (overrides instanceof Map)
+      return overrides;
+    if (typeof overrides === "object" && !Array.isArray(overrides))
+      return new Map(Object.entries(overrides));
+    throw new Error("Symbolic role overrides must be a map with inputs and/or outputs");
+  }
+  function roleName(value) {
+    const name = value?.value ?? value;
+    if (typeof name !== "string" || !name.length)
+      throw new Error("Symbolic role names must be strings or colon-strings");
+    return name;
+  }
+  function roleList(value, label) {
+    if (value === null || value === undefined)
+      return [];
+    const values = Array.isArray(value) ? value : ["tuple", "array", "sequence"].includes(value?.type) ? value.values : [value];
+    const result = values.map(roleName);
+    if (new Set(result).size !== result.length)
+      throw new Error(`Duplicate symbolic ${label} role`);
+    return result;
+  }
+  function resolveSymbolicRoles(value, overrides = null) {
+    const spec = getAttachedSpec(value);
+    if (!isSymbolicSpec(spec))
+      throw new Error("Expected a symbolic specification or spec-backed value");
+    const symbols2 = symbolicNames(spec);
+    const entries = roleEntries(overrides);
+    const inputs = entries?.has("inputs") ? roleList(entries.get("inputs"), "input") : [...spec.inputs];
+    const outputs = entries?.has("outputs") ? roleList(entries.get("outputs"), "output") : [...spec.outputs];
+    const known = new Set(symbols2);
+    for (const name of [...inputs, ...outputs]) {
+      if (!known.has(name))
+        throw new Error(`Symbolic role '${name}' is not present in the specification`);
+    }
+    const inputSet = new Set(inputs);
+    for (const name of outputs) {
+      if (inputSet.has(name))
+        throw new Error(`Symbolic role '${name}' cannot be both an input and an output`);
+    }
+    const assigned = new Set([...inputs, ...outputs]);
+    return { symbols: symbols2, inputs, outputs, unassigned: symbols2.filter((name) => !assigned.has(name)) };
+  }
+  function symbolicRolesValue(value, overrides = null) {
+    const roles = resolveSymbolicRoles(value, overrides);
+    return rixMap([
+      ["symbols", rixTuple(roles.symbols.map(rixString2))],
+      ["inputs", rixTuple(roles.inputs.map(rixString2))],
+      ["outputs", rixTuple(roles.outputs.map(rixString2))],
+      ["unassigned", rixTuple(roles.unassigned.map(rixString2))]
+    ]);
+  }
   function unionScopes(groups, referencedNames = null) {
     const result = [];
     const seen = new Set;
@@ -11655,8 +11668,30 @@ ${indentStr})`;
       }
     }
     const remaining = spec.inputs.slice(args.length);
-    const expression = substituteIr(expressionOf(spec), substitutions);
     const inputs = unionNames([...argumentSpecs.map((item) => item.inputs), remaining]);
+    if (outputModeOf(spec) === "system") {
+      const statements = spec.statements.map((statement) => ({
+        ...statement,
+        expr: substituteIr(statement.expr, substitutions)
+      }));
+      const capturedNames2 = new Set;
+      for (const statement of statements)
+        retrieveNames(statement.expr, capturedNames2);
+      for (const input of inputs)
+        capturedNames2.delete(input);
+      return createSymbolicSpec({
+        inputs,
+        outputs: spec.outputs,
+        outputsDeclared: spec.outputsDeclared,
+        outputMode: "system",
+        statements,
+        imports: spec.imports,
+        __closureScopes: unionScopes([spec.__closureScopes, ...argumentSpecs.map((item) => item.__closureScopes)], capturedNames2),
+        origin: spec.origin,
+        transform: { operation: "substitute" }
+      });
+    }
+    const expression = substituteIr(expressionOf(spec), substitutions);
     const capturedNames = retrieveNames(expression);
     for (const input of inputs)
       capturedNames.delete(input);
@@ -12133,7 +12168,8 @@ ${indentStr})`;
     SIMPLIFY: { impl: (args) => transformValue(args), pure: true, doc: "Compatibility alias for Transform" },
     SPEC: { impl: ([value]) => explicitSpec(value), doc: "Analyze a pure function and attach/return its symbolic spec" },
     SPECCABILITY: { impl: ([value]) => speccabilityValue(value), pure: true, doc: "Report whether a pure function can be represented by the exact symbolic subset" },
-    INSPECTSPEC: { impl: ([value]) => inspectSymbolicSpec(getAttachedSpec(value) || value), pure: true, doc: "Return the structural inspection map for a symbolic spec" }
+    INSPECTSPEC: { impl: ([value]) => inspectSymbolicSpec(getAttachedSpec(value) || value), pure: true, doc: "Return the structural inspection map for a symbolic spec" },
+    SPECROLES: { impl: ([value, overrides = null]) => symbolicRolesValue(value, overrides), pure: true, doc: "Resolve all symbols and input/output roles, with optional role overrides" }
   };
   var symbolicFunctions = {
     SYSTEM_SPEC: {
@@ -15347,6 +15383,9 @@ ${indentStr})`;
   }
   function createSnapshots(args, runtime = null) {
     const entry = spec(args, ["entries"], "Snapshots");
+    if (has(entry, "columns")) {
+      throw new Error("Snapshots no longer accepts columns; pass its ordered list to a grid renderer instead");
+    }
     const snapshots = Object.freeze(sceneEntries(get(entry, "entries"), runtime, "Snapshots"));
     if (snapshots.length === 0)
       throw new Error("Snapshots requires at least one rendered scene");
@@ -23292,13 +23331,6 @@ ${indented.join(`,
         };
         return lowerAssignment(assignAstNode, "ASSIGN_UPDATE");
       }
-      if (op === ":=:") {
-        const left = node.left;
-        if (left.type === "UserIdentifier" || left.type === "SystemIdentifier") {
-          return ir2("SOLVE", left.name, lowerNode(node.right));
-        }
-        return ir2("SOLVE", lowerNode(left), lowerNode(node.right));
-      }
       if (op === ":<:") {
         return ir2("ASSERT_LT", lowerNode(node.left), lowerNode(node.right));
       }
@@ -23369,6 +23401,13 @@ ${indented.join(`,
         }
       }
       return ir2("BINOP", op, lowerNode(node.left), lowerNode(node.right));
+    },
+    CustomOperator(node) {
+      return ir2("CUSTOM_OPERATOR", {
+        symbol: node.operator,
+        spelling: node.spelling,
+        target: node.definition.target
+      }, lowerNode(node.left), lowerNode(node.right));
     },
     UnaryOperation(node) {
       if (node.operator === "-") {
@@ -23641,8 +23680,8 @@ ${indented.join(`,
         outputMode: node.outputMode || "named",
         ...node.expression ? { expression: lowerNode(node.expression) } : {},
         statements: (node.statements || []).map((statement) => ({
-          kind: "assign",
-          target: statement.target,
+          kind: statement.type === "SpecConstraint" ? "constraint" : "define",
+          ...statement.target ? { target: statement.target } : {},
           expr: lowerNode(statement.expr)
         }))
       };
@@ -23651,12 +23690,15 @@ ${indented.join(`,
       }
       return ir2("SYSTEM_SPEC", meta);
     },
-    SpecAssign(node) {
+    SpecDefinition(node) {
       return {
-        kind: "assign",
+        kind: "define",
         target: node.target,
         expr: lowerNode(node.expr)
       };
+    },
+    SpecConstraint(node) {
+      return { kind: "constraint", expr: lowerNode(node.expr) };
     },
     BreakBlock(node) {
       const meta = {};
@@ -24264,6 +24306,7 @@ ${indented.join(`,
   var node_path_default = path;
 
   // src/runtime/plugin-catalog.js
+  var CUSTOM_OPERATOR_ENV_KEY = "__custom_operator_definitions__";
   function validateMetadata(metadata, sourcePath, kind) {
     if (metadata.ignore !== undefined && typeof metadata.ignore !== "boolean") {
       throw new Error(`${sourcePath}: ignore must be true or false`);
@@ -24280,7 +24323,7 @@ ${indented.join(`,
     if (metadata.mount !== undefined && (typeof metadata.mount !== "string" || !/^[a-z][A-Za-z0-9_]*$/.test(metadata.mount))) {
       throw new Error(`${sourcePath}: mount must be a camelCase host capability name`);
     }
-    for (const key of ["exports", "groups", "permissions"]) {
+    for (const key of ["exports", "groups", "permissions", "operator-files"]) {
       if (metadata[key] !== undefined && !Array.isArray(metadata[key])) {
         throw new Error(`${sourcePath}: ${key} must be an inline YAML array or a YAML list`);
       }
@@ -24294,10 +24337,33 @@ ${indented.join(`,
       exports: metadata.exports || [],
       groups: metadata.groups || [],
       permissions: metadata.permissions || [],
+      operatorFiles: metadata["operator-files"] || metadata.operatorFiles || [],
+      operatorDefinitions: metadata.operatorDefinitions || [],
       defaultEnabled: metadata.defaultEnabled === true,
       ignore: metadata.ignore === true,
       sourcePath
     };
+  }
+  function mountedOperatorDefinitions(definitions, metadata, mount) {
+    return (definitions || []).map((definition) => {
+      if (definition.target?.kind !== "plugin-method" || definition.target.pluginId !== metadata.id) {
+        return definition;
+      }
+      return {
+        ...definition,
+        target: { ...definition.target, mount }
+      };
+    });
+  }
+  function installOperatorDefinitions(context, definitions, metadata, mount) {
+    if (!context?.getEnv || !context?.setEnv || !definitions?.length)
+      return;
+    const mountedDefinitions = mountedOperatorDefinitions(definitions, metadata, mount);
+    const merged = mergeOperatorDefinitions(context.getEnv(CUSTOM_OPERATOR_ENV_KEY, new Map), mountedDefinitions);
+    context.setEnv(CUSTOM_OPERATOR_ENV_KEY, merged);
+    const runtime = context.getEnv("__script_runtime__", null);
+    if (runtime)
+      runtime.operatorDefinitions = merged;
   }
   function rixString3(value) {
     return { type: "string", value: String(value) };
@@ -24348,7 +24414,15 @@ ${indented.join(`,
       if (validatedKind !== "rix" && validatedKind !== "host") {
         throw new Error(`${sourcePath}: plugin kind must be 'rix' or 'host'`);
       }
-      const entry = validateMetadata(metadata, sourcePath, validatedKind);
+      let enrichedMetadata = metadata;
+      if (validatedKind === "rix" && typeof source === "string" && !metadata.operatorDefinitions) {
+        const operatorDefinitions = Array.from(extractOperatorDeclarationsFromSource(source, {
+          label: sourcePath,
+          owner: { pluginId: metadata.id, mount: metadata.mount || null }
+        }).values());
+        enrichedMetadata = { ...metadata, operatorDefinitions };
+      }
+      const entry = validateMetadata(enrichedMetadata, sourcePath, validatedKind);
       if (entry.kind === "rix" && typeof source !== "string") {
         throw new Error(`${sourcePath}: RiX plugin metadata requires source supplied by its host scanner`);
       }
@@ -24401,6 +24475,7 @@ ${indented.join(`,
           ["exports", { type: "sequence", values: metadata.exports.map(rixString3) }],
           ["groups", { type: "sequence", values: metadata.groups.map(rixString3) }],
           ["permissions", { type: "sequence", values: metadata.permissions.map(rixString3) }],
+          ["operators", { type: "sequence", values: metadata.operatorDefinitions.map((definition) => rixString3(definition.spelling)) }],
           ["loaded", loaded ? { type: "integer", value: 1n } : null]
         ])
       };
@@ -24426,7 +24501,11 @@ ${indented.join(`,
       if (metadata.kind === "rix") {
         if (typeof runtime.loadRix !== "function")
           throw new Error(`No RiX plugin loader is available for '${metadata.id}'`);
-        runtime.loadRix({ ...api, source: metadata.source });
+        runtime.loadRix({
+          ...api,
+          source: metadata.source,
+          operatorDefinitions: mountedOperatorDefinitions(metadata.operatorDefinitions, metadata, mount)
+        });
       } else {
         const installer = this.installers.get(metadata.id);
         if (!installer) {
@@ -24442,6 +24521,7 @@ ${indented.join(`,
       if (mount && runtime.visibleSystemContext && runtime.visibleSystemContext !== runtime.systemContext) {
         runtime.visibleSystemContext.adoptHostCapability(runtime.systemContext, mount);
       }
+      installOperatorDefinitions(runtime.context, metadata.operatorDefinitions, metadata, mount);
       this.loaded.set(metadata.id, { metadata, mount });
       return this.infoValue(metadata);
     }
@@ -27669,6 +27749,39 @@ ${indented.join(`,
     return evaluatedArgs;
   }
   var methodFunctions = {
+    CUSTOM_OPERATOR: {
+      impl(args, context, evaluate, systemContext) {
+        const [definition, left, right] = args;
+        const target = definition?.target;
+        if (!target)
+          throw new Error("Custom operator is missing its dispatch target");
+        if (target.kind === "function") {
+          const fn = context.getCallable(target.name);
+          if (!fn) {
+            throw new Error(`Custom operator ${definition.spelling} target '${target.name}' is not defined`);
+          }
+          return callWithConcreteArgs(fn, [left, right], context, evaluate);
+        }
+        if (target.kind === "plugin-method" || target.kind === "system-method") {
+          const mount = target.mount;
+          if (!mount) {
+            throw new Error(`Custom operator ${definition.spelling} plugin '${target.pluginId}' has no active mount`);
+          }
+          const entry = systemContext?.get?.(mount);
+          const receiver = entry && Object.hasOwn(entry, "value") ? entry.value : entry;
+          if (!receiver) {
+            throw new Error(`Custom operator ${definition.spelling} requires plugin/system object '.${mount}'`);
+          }
+          const fn = resolveMethod(receiver, target.method);
+          if (fn?.type === "method_builtin") {
+            return fn.impl([receiver, left, right], context, evaluate, callWithConcreteArgs);
+          }
+          return callWithConcreteArgs(fn, [receiver, left, right], context, evaluate);
+        }
+        throw new Error(`Unsupported custom operator target kind '${target.kind}'`);
+      },
+      doc: "Dispatch a statically declared custom operator to a function or plugin method"
+    },
     CALL_METHOD: {
       lazy: true,
       impl(args, context, evaluate) {
@@ -27883,19 +27996,6 @@ ${indented.join(`,
     return { levels: result, boundaries };
   }
   var advancedFunctions = {
-    SOLVE: {
-      lazy: true,
-      impl(args, context, evaluate) {
-        let name = typeof args[0] === "object" && args[0] !== null && args[0].fn ? evaluate(args[0]) : args[0];
-        if (name && typeof name === "object" && name.type === "string") {
-          name = name.value;
-        }
-        const value = evaluate(args[1]);
-        context.set(name, value);
-        return { type: "constraint", name, value, satisfied: true };
-      },
-      doc: "Solve/constrain: x :=: expr"
-    },
     ASSERT_LT: {
       impl(args) {
         const a = toNumber(args[0]);
@@ -31734,7 +31834,7 @@ ${pad}}`;
         kind: "host",
         mount: "draw",
         exports: ["Line", "Polygon", "Label", "Box", "Circle"],
-        groups: ["Draw"],
+        groups: ["Draw", "Renderers"],
         permissions: [],
         defaultEnabled: false
       },
@@ -31747,7 +31847,7 @@ ${pad}}`;
         kind: "host",
         mount: "plot",
         exports: ["Polynomial"],
-        groups: ["Plot"],
+        groups: ["Plot", "Renderers"],
         permissions: [],
         defaultEnabled: false
       },
@@ -32232,6 +32332,7 @@ ${pad}}`;
   }
   var SCRIPT_RUNTIME_ENV_KEY = "__script_runtime__";
   var SOURCE_ENV_KEY = "__source__";
+  var CUSTOM_OPERATOR_ENV_KEY2 = "__custom_operator_definitions__";
   var CURRENT_FILE_ENV_KEY = "__current_file__";
   function createDefaultSystemContext(options = {}) {
     const frozen = options.frozen !== false;
@@ -32332,7 +32433,8 @@ ${pad}}`;
         systemLookup: options.systemLookup || defaultSystemLookup,
         preparedScripts: new Map,
         activeImports: [],
-        frameStack: []
+        frameStack: [],
+        operatorDefinitions: context.getEnv(CUSTOM_OPERATOR_ENV_KEY2, new Map)
       };
       context.setEnv(SCRIPT_RUNTIME_ENV_KEY, runtime);
       return runtime;
@@ -32340,6 +32442,7 @@ ${pad}}`;
     if (!runtime.systemLookup) {
       runtime.systemLookup = options.systemLookup || defaultSystemLookup;
     }
+    runtime.operatorDefinitions = context.getEnv(CUSTOM_OPERATOR_ENV_KEY2, runtime.operatorDefinitions || new Map);
     return runtime;
   }
   function getScriptCapabilityConfig(context, systemContext = null) {
@@ -32453,7 +32556,10 @@ ${pad}}`;
     } catch (error) {
       throw new Error(`Unable to load script '${resolvedPath}': ${error.message}`);
     }
-    const ast = parse(source, runtime.systemLookup || defaultSystemLookup);
+    const ast = parse(source, runtime.systemLookup || defaultSystemLookup, {
+      operatorDefinitions: runtime.operatorDefinitions,
+      file: resolvedPath
+    });
     const { inputContract, exportBindings, body } = extractScriptInterface(ast, resolvedPath);
     const bodyIr = lower(body);
     attachSourceInfo(bodyIr, source, resolvedPath);
@@ -32882,9 +32988,10 @@ ${pad}}`;
     const systemContext = options.systemContext || createDefaultSystemContext();
     context.setEnv("__system_context__", systemContext);
     const systemLookup = createSystemLookup(systemContext, options.systemLookup || defaultSystemLookup);
-    getScriptRuntime(context, { systemLookup });
+    const runtime = getScriptRuntime(context, { systemLookup });
+    runtime.operatorDefinitions = mergeOperatorDefinitions(context.getEnv(CUSTOM_OPERATOR_ENV_KEY2, new Map), options.operatorDefinitions);
     context.setEnv("__registry__", registry);
-    context.setEnv("__plugin_load_rix__", ({ source, sourcePath, context: pluginContext = context, registry: pluginRegistry = registry, systemContext: pluginSystemContext = systemContext }) => {
+    context.setEnv("__plugin_load_rix__", ({ source, sourcePath, metadata, options: pluginOptions, operatorDefinitions, context: pluginContext = context, registry: pluginRegistry = registry, systemContext: pluginSystemContext = systemContext }) => {
       const previousSource = pluginContext.getEnv(SOURCE_ENV_KEY, undefined);
       const previousFile = pluginContext.getEnv(CURRENT_FILE_ENV_KEY, undefined);
       try {
@@ -32892,7 +32999,12 @@ ${pad}}`;
           context: pluginContext,
           registry: pluginRegistry,
           systemContext: pluginSystemContext,
-          file: sourcePath
+          file: sourcePath,
+          operatorDefinitions,
+          operatorOwner: metadata?.id ? {
+            pluginId: metadata.id,
+            mount: pluginOptions?.as || metadata.mount || null
+          } : null
         });
       } finally {
         pluginContext.setEnv(SOURCE_ENV_KEY, previousSource);
@@ -32903,7 +33015,11 @@ ${pad}}`;
       context.setEnv("randomFunction", options.rng);
     context.setEnv(SOURCE_ENV_KEY, code);
     context.setEnv(CURRENT_FILE_ENV_KEY, options.file || "<repl>");
-    const ast = parse(code, systemLookup);
+    const ast = parse(code, systemLookup, {
+      operatorDefinitions: runtime.operatorDefinitions,
+      operatorOwner: options.operatorOwner || null,
+      file: options.file || "<repl>"
+    });
     const irNodes = lower(ast);
     attachSourceInfo(irNodes, code, options.file || "<repl>");
     let result = null;

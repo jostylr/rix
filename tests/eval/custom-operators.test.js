@@ -11,6 +11,7 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 
 const header = (declaration, body) => `##OPS##\n${declaration}\n##OPS##\n${body}`;
+const rixRoot = path.resolve(import.meta.dir, "../..");
 
 describe("custom operator evaluation", () => {
     test("dispatches to an ordinary RiX function", () => {
@@ -67,7 +68,7 @@ describe("custom operator evaluation", () => {
 
     test("a preloaded plugin contributes OPS declarations from its operator file", () => {
         const catalog = new NodePluginCatalog({
-            roots: [path.resolve("tests/fixtures/operator-plugins")],
+            roots: [path.join(rixRoot, "tests/fixtures/operator-plugins")],
         }).scan();
         catalog.registerInstaller("fraction-ops", ({ systemContext }) => {
             const method = (name, impl) => ({ type: "method_builtin", name, impl });
@@ -105,8 +106,8 @@ describe("custom operator evaluation", () => {
     });
 
     test("the CLI loads an operator file named by a script YAML header", () => {
-        const sourcePath = path.resolve("tests/fixtures/custom-operators/source-header.rix");
-        const result = spawnSync("bun", [path.resolve("bin/rix.js"), sourcePath], {
+        const sourcePath = path.join(rixRoot, "tests/fixtures/custom-operators/source-header.rix");
+        const result = spawnSync("bun", [path.join(rixRoot, "bin/rix.js"), sourcePath], {
             encoding: "utf8",
         });
         expect(result.status).toBe(0);

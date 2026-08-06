@@ -364,6 +364,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#requirements" id="toc-requirements" class="nav-link active" data-scroll-target="#requirements">Requirements</a></li>
   <li><a href="#clone-and-test" id="toc-clone-and-test" class="nav-link" data-scroll-target="#clone-and-test">Clone and test</a></li>
   <li><a href="#open-the-repl" id="toc-open-the-repl" class="nav-link" data-scroll-target="#open-the-repl">Open the REPL</a></li>
+  <li><a href="#persistent-repl-setup" id="toc-persistent-repl-setup" class="nav-link" data-scroll-target="#persistent-repl-setup">Persistent REPL setup</a></li>
   <li><a href="#run-a-file" id="toc-run-a-file" class="nav-link" data-scroll-target="#run-a-file">Run a file</a></li>
   <li><a href="#inspect-the-intermediate-representation" id="toc-inspect-the-intermediate-representation" class="nav-link" data-scroll-target="#inspect-the-intermediate-representation">Inspect the intermediate representation</a></li>
   <li><a href="#embed-rix-in-javascript" id="toc-embed-rix-in-javascript" class="nav-link" data-scroll-target="#embed-rix-in-javascript">Embed RiX in JavaScript</a></li>
@@ -440,48 +441,63 @@ half = x -&gt; x / 2
 </div>
 <p>Useful REPL commands include <code>.help</code>, <code>.vars</code>, <code>.fns</code>, <code>.ast[expr]</code>, <code>.tokens[expr]</code>, <code>.load[pkg]</code>, <code>.reset</code>, and <code>.exit</code>. End a line with <code>\</code> for multiline input.</p>
 </section>
+<section id="persistent-repl-setup" class="level2">
+<h2 class="anchored" data-anchor-id="persistent-repl-setup">Persistent REPL setup</h2>
+<p>RiX keeps CLI configuration under <code>$XDG_CONFIG_HOME/rix</code>, falling back to <code>~/.config/rix</code>. Set <code>RIX_CONFIG_DIR</code> to use another location. Create or update the configuration with:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="ex">rix</span> setup <span class="at">--plugins</span><span class="op">=</span>full</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="ex">rix</span> setup <span class="at">--plugins</span><span class="op">=</span>float,renderers</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Plugin names and plugin groups are case-insensitive. <code>full</code> selects the standard first-party plugin set; <code>renderers</code> currently selects <code>draw</code> and <code>plot</code>. RiX stores the selectors rather than expanding groups permanently, so new standard plugins or group members can join later releases. The proposed <code>oracle</code> package remains specification-only and cannot be selected until it has an executable plugin manifest.</p>
+<p><code>rix setup</code> also creates <code>cli-preamble.rix</code> in the configuration directory. Its leading YAML comment can request more plugins or operator files, and its RiX body runs before each REPL starts:</p>
+<pre class="rix"><code>/**
+plugins: [float]
+operator-files: [personal.operators.rix]
+**/
+
+digits := 50;</code></pre>
+<p>Use <code>--no-config</code> for a clean session, <code>--no-preamble</code> to retain configured plugins without running the preamble, or <code>--preamble=FILE</code> for an explicit project preamble. <code>--plugin</code>, <code>--plugins</code>, and <code>--operator-file</code> remain one-session additions. Persistent setup affects the REPL, not script execution.</p>
+</section>
 <section id="run-a-file" class="level2">
 <h2 class="anchored" data-anchor-id="run-a-file">Run a file</h2>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> run rix ./rix/examples/eval/units-and-exact.rix</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> run rix ./rix/examples/eval/units-and-exact.rix</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Or, from inside <code>rix/</code>:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> bin/rix.js examples/eval/cayley-polar.rix</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> bin/rix.js examples/eval/cayley-polar.rix</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Native RiX test files use the <code>.test.rix</code> suffix:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> bin/rix.js test</span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> bin/rix.js test diagnostics</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> bin/rix.js test</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> bin/rix.js test diagnostics</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="inspect-the-intermediate-representation" class="level2">
 <h2 class="anchored" data-anchor-id="inspect-the-intermediate-representation">Inspect the intermediate representation</h2>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> run rix-to-ir <span class="at">--pretty</span> ./rix/examples/eval/factorial.rix</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> run rix-to-ir <span class="at">--pretty</span> ./rix/examples/eval/factorial.rix</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>The <code>rix-to-ir</code> command exposes the call-shaped IR used by the evaluator. Add <code>--lang</code> to prefix generated system calls with <code>@_</code>.</p>
 </section>
 <section id="embed-rix-in-javascript" class="level2">
 <h2 class="anchored" data-anchor-id="embed-rix-in-javascript">Embed RiX in JavaScript</h2>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> {</span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>  Context<span class="op">,</span></span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>  createDefaultRegistry<span class="op">,</span></span>
-<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>  createDefaultSystemContext<span class="op">,</span></span>
-<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>  parseAndEvaluate<span class="op">,</span></span>
-<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>} <span class="im">from</span> <span class="st">"rix"</span><span class="op">;</span></span>
-<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> context <span class="op">=</span> <span class="kw">new</span> <span class="fu">Context</span>()<span class="op">;</span></span>
-<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> registry <span class="op">=</span> <span class="fu">createDefaultRegistry</span>()<span class="op">;</span></span>
-<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> systemContext <span class="op">=</span> <span class="fu">createDefaultSystemContext</span>()<span class="op">;</span></span>
-<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> result <span class="op">=</span> <span class="fu">parseAndEvaluate</span>(<span class="st">"x := 7; x^2 + 1"</span><span class="op">,</span> {</span>
-<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>  context<span class="op">,</span></span>
-<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>  registry<span class="op">,</span></span>
-<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>  systemContext<span class="op">,</span></span>
-<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a>})<span class="op">;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> {</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>  Context<span class="op">,</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>  createDefaultRegistry<span class="op">,</span></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>  createDefaultSystemContext<span class="op">,</span></span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>  parseAndEvaluate<span class="op">,</span></span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>} <span class="im">from</span> <span class="st">"rix"</span><span class="op">;</span></span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> context <span class="op">=</span> <span class="kw">new</span> <span class="fu">Context</span>()<span class="op">;</span></span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> registry <span class="op">=</span> <span class="fu">createDefaultRegistry</span>()<span class="op">;</span></span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> systemContext <span class="op">=</span> <span class="fu">createDefaultSystemContext</span>()<span class="op">;</span></span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> result <span class="op">=</span> <span class="fu">parseAndEvaluate</span>(<span class="st">"x := 7; x^2 + 1"</span><span class="op">,</span> {</span>
+<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a>  context<span class="op">,</span></span>
+<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a>  registry<span class="op">,</span></span>
+<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a>  systemContext<span class="op">,</span></span>
+<span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a>})<span class="op">;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>The public package also exports narrower entry points from <code>rix/parser</code>, <code>rix/eval</code>, and <code>rix/runtime</code>. See the <a href="./developer-guide.html">developer guide</a> for the pipeline and extension boundaries.</p>
 </section>
 <section id="build-this-documentation" class="level2">
 <h2 class="anchored" data-anchor-id="build-this-documentation">Build this documentation</h2>
 <p>Install <a href="https://quarto.org/docs/get-started/">Quarto</a> and run:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> rix</span>
-<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> run build:docs</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> rix</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> run build:docs</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>The build refreshes source-derived runtime reference tables, bundles the browser parser demo, validates the documentation inputs, and renders the site into <code>rix/docs/</code>. That output directory is suitable for GitHub Pages with <strong>Deploy from a branch</strong>, using the <code>main</code> branch and <code>/docs</code> folder.</p>
 <p>For local authoring:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> run preview:docs</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> run preview:docs</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Do not hand-edit <code>rix/docs/</code>; edit files in <code>rix/documentation/</code> and rebuild.</p>
 </section>
 <section id="where-next" class="level2">

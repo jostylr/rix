@@ -71,6 +71,12 @@ renamed after activation. A rename is principally intended for a REPL or a
 plugin-selection prelude because a complete script is statically checked before
 its first expression executes.
 
+The CLI also resolves manifest `groups` as selectors. For example,
+`rix --plugins=renderers` loads every discovered member of the `Renderers`
+group, while `rix setup --plugins=renderers` makes that selection the default
+for future REPL sessions. An exact plugin ID takes precedence over a group with
+the same case-insensitive name.
+
 ## Bundled exact algebras
 
 The opt-in `exact-algebras` host plugin is the initial exact quaternion and

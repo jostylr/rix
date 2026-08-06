@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>plugin-catalog – RiX</title>
+<title>custom-operators – RiX</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -23,31 +23,66 @@ ul.task-list li input[type="checkbox"] {
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
 }
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
 </style>
 
 
-<script src="site_libs/quarto-nav/quarto-nav.js"></script>
-<script src="site_libs/quarto-nav/headroom.min.js"></script>
-<script src="site_libs/clipboard/clipboard.min.js"></script>
-<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
-<script src="site_libs/quarto-search/fuse.min.js"></script>
-<script src="site_libs/quarto-search/quarto-search.js"></script>
-<meta name="quarto:offset" content="./">
-<link href="./rix-logo.png" rel="icon" type="image/png">
-<script src="site_libs/quarto-html/quarto.js" type="module"></script>
-<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
-<script src="site_libs/quarto-html/popper.min.js"></script>
-<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
-<script src="site_libs/quarto-html/anchor.min.js"></script>
-<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="site_libs/quarto-html/quarto-syntax-highlighting-4a0610749eeff5ab924a4729b5181608.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
-<link href="site_libs/quarto-html/quarto-syntax-highlighting-dark-de927ec96a2411cf822331f71755f83e.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
-<link href="site_libs/quarto-html/quarto-syntax-highlighting-4a0610749eeff5ab924a4729b5181608.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
-<script src="site_libs/bootstrap/bootstrap.min.js"></script>
-<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="site_libs/bootstrap/bootstrap-dfa129ac6e33aa8a1407114b8c26932f.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
-<link href="site_libs/bootstrap/bootstrap-dark-de8d9ea7065925b465f143946b8defe2.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
-<link href="site_libs/bootstrap/bootstrap-dfa129ac6e33aa8a1407114b8c26932f.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<link href="../rix-logo.png" rel="icon" type="image/png">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-4a0610749eeff5ab924a4729b5181608.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-dark-de927ec96a2411cf822331f71755f83e.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-4a0610749eeff5ab924a4729b5181608.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-dfa129ac6e33aa8a1407114b8c26932f.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-dark-de8d9ea7065925b465f143946b8defe2.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../site_libs/bootstrap/bootstrap-dfa129ac6e33aa8a1407114b8c26932f.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -248,11 +283,11 @@ ul.task-list li input[type="checkbox"] {
     <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
       <div class="navbar-container container-fluid">
       <div class="navbar-brand-container mx-auto">
-    <a href="./index.html" class="navbar-brand navbar-brand-logo">
-    <img src="./rix-logo.png" alt="" class="navbar-logo light-content">
-    <img src="./rix-logo.png" alt="" class="navbar-logo dark-content">
+    <a href="../index.html" class="navbar-brand navbar-brand-logo">
+    <img src="../rix-logo.png" alt="" class="navbar-logo light-content">
+    <img src="../rix-logo.png" alt="" class="navbar-logo dark-content">
     </a>
-    <a class="navbar-brand" href="./index.html">
+    <a class="navbar-brand" href="../index.html">
     <span class="navbar-title">RiX</span>
     </a>
   </div>
@@ -263,19 +298,19 @@ ul.task-list li input[type="checkbox"] {
           <div class="collapse navbar-collapse" id="navbarCollapse">
             <ul class="navbar-nav navbar-nav-scroll me-auto">
   <li class="nav-item">
-    <a class="nav-link" href="./getting-started.html"> 
+    <a class="nav-link" href="../getting-started.html"> 
 <span class="menu-text">Start</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="./language-at-a-glance.html"> 
+    <a class="nav-link" href="../language-at-a-glance.html"> 
 <span class="menu-text">Learn</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="./eval/syntax-guide.html"> 
+    <a class="nav-link" href="../eval/syntax-guide.html"> 
 <span class="menu-text">Reference</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="./developer-guide.html"> 
+    <a class="nav-link" href="../developer-guide.html"> 
 <span class="menu-text">Internals</span></a>
   </li>  
 </ul>
@@ -311,7 +346,7 @@ ul.task-list li input[type="checkbox"] {
     <ul class="list-unstyled mt-1">
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./index.html" class="sidebar-item-text sidebar-link">
+  <a href="../index.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Loading documentation…</span></a>
   </div>
 </li>
@@ -325,14 +360,13 @@ ul.task-list li input[type="checkbox"] {
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#plugin-catalog" id="toc-plugin-catalog" class="nav-link active" data-scroll-target="#plugin-catalog">Plugin catalog</a>
+  <li><a href="#custom-operators" id="toc-custom-operators" class="nav-link active" data-scroll-target="#custom-operators">Custom operators</a>
   <ul class="collapse">
-  <li><a href="#placement-by-host" id="toc-placement-by-host" class="nav-link" data-scroll-target="#placement-by-host">Placement by host</a></li>
-  <li><a href="#bundled-exact-algebras" id="toc-bundled-exact-algebras" class="nav-link" data-scroll-target="#bundled-exact-algebras">Bundled exact algebras</a></li>
-  <li><a href="#typed-operator-variants" id="toc-typed-operator-variants" class="nav-link" data-scroll-target="#typed-operator-variants">Typed operator variants</a></li>
+  <li><a href="#preloading" id="toc-preloading" class="nav-link" data-scroll-target="#preloading">Preloading</a></li>
+  <li><a href="#scope" id="toc-scope" class="nav-link" data-scroll-target="#scope">Scope</a></li>
   </ul></li>
   </ul>
-<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/plugin-catalog.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/parser/custom-operators.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
     </div>
 <!-- main -->
 <main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"></header>
@@ -341,57 +375,45 @@ ul.task-list li input[type="checkbox"] {
 
 
 
-<section id="plugin-catalog" class="level1">
-<h1>Plugin catalog</h1>
-<p>RiX hosts can discover optional plugins without evaluating them. A plugin is a file named <code>*.plugin.rix</code> or <code>*.plugin.rix.js</code> whose first non-whitespace text is a <code>/** ... **/</code> YAML header. The matching two-star close is accepted by both RiX and JavaScript: RiX preserves its balanced block-comment rule and JavaScript treats the final <code>*/</code> as the end of the comment.</p>
+<section id="custom-operators" class="level1">
+<h1>Custom operators</h1>
+<p>RiX supports statically declared, delimited infix operators. The delimiter is <code>:&lt;...&gt;:</code> and declarations live in a tagged comment before executable code:</p>
+<pre class="rix"><code>##OPS##
+:&lt;o+&gt;: Mediant :infix :additive :none
+##OPS##
+
+Mediant(a, b) -&gt; a + b
+value := 2 :&lt;o+&gt;: 3</code></pre>
+<p>Declaration fields are separated by whitespace and their order is irrelevant. Exactly one field must supply each meaning: operator spelling, callable target, fixity, precedence, and associativity. RiX supports <code>:infix</code> with <code>:left</code>, <code>:right</code>, or <code>:none</code>.</p>
+<p>Named precedence bands include <code>:assignment</code>, <code>:pipe</code>, <code>:arrow</code>, <code>:logical_or</code>, <code>:logical_and</code>, <code>:condition</code>, <code>:equality</code>, <code>:comparison</code>, <code>:interval</code>, <code>:conversion</code>, <code>:additive</code>, <code>:multiplicative</code>, <code>:power</code>, <code>:calculus</code>, <code>:postfix</code>, and <code>:property</code>. <code>:above</code> or <code>:below</code> places an operator in the adjacent gap:</p>
+<pre class="rix"><code>##OPS##
+:&lt;dot+&gt;: DotAdd :infix :above :additive :left
+##OPS##</code></pre>
+<p>A standalone declaration may target a system/plugin method explicitly:</p>
+<pre class="rix"><code>##OPS##
+:&lt;o+&gt;: .fractions.Mediant :infix :additive :none
+##OPS##</code></pre>
+<p>Inside a plugin-owned operator file, the plugin is already known, so the short target <code>Mediant</code> means the method on that plugin object rather than a global function.</p>
+<section id="preloading" class="level2">
+<h2 class="anchored" data-anchor-id="preloading">Preloading</h2>
+<p>The CLI reads an optional leading YAML doc-comment before parsing a script:</p>
 <pre class="rix"><code>/**
-id: exact-statistics
-description: Exact descriptive statistics for RiX collections.
-kind: rix
-mount: stats
-exports: [Mean, Median]
-groups: [Statistics]
-permissions: []
-defaultEnabled: false
-**/
-
-.Host.Register("stats", (values) -&gt; values, "Statistics plugin", ["Statistics"])</code></pre>
-<p>The catalog scans only configured <code>plugins/</code> roots. It reads headers and declares disabled host mounts so static path checking can recognize a known surface, but a disabled mount errors when called.</p>
-<p>Set <code>ignore: true</code> in an otherwise valid header to keep an unfinished or alternate source file out of discovery. An ignored entry is absent from <code>.Plugin.List()</code> and does not reserve its ID.</p>
-<p>For future candidate packages and the contract used by output-producing plugins, see <a href="./design/plugins.html">Plugin Roadmap and Rendering Contracts</a>.</p>
-<section id="placement-by-host" class="level2">
-<h2 class="anchored" data-anchor-id="placement-by-host">Placement by host</h2>
-<ul>
-<li><strong>RiX CLI:</strong> scans the current working directory’s <code>plugins/</code>, a script sibling’s <code>plugins/</code>, and the example plugin roots configured by the CLI.</li>
-<li><strong>RiX web:</strong> first-party packages live in <code>rix/plugins/&lt;id&gt;/</code>. The web generator has an explicit reviewed-package list and writes its static adapter at <code>rix-web/src/generated/bundled-plugin-catalog.js</code>. Only selected packages become part of the published browser bundle; a browser never scans a visitor’s filesystem. Add a package to that list only after approving its browser-safe JavaScript installer (if it has one).</li>
-<li><strong>RiX Notebook:</strong> put project-local entries under <code>&lt;project&gt;/plugins/</code>, add app-wide roots in <strong>Settings</strong>, or configure portable in-project roots with <code>plugin_dirs = ["shared-plugins"]</code> in <code>project.toml</code> or <code>notebook.toml</code>. Either manifest can enable known entries with <code>plugins = ["plugin-id"]</code>. The notebook settings can additionally name app-wide automatically loaded plugin IDs. Bundled JavaScript installers remain trusted by virtue of the signed app; a discovered JavaScript plugin needs an explicit notebook-user approval unless the user has enabled the global JavaScript-plugin setting.</li>
-</ul>
-<p>In the web host, a <code>.plugin.rix.js</code> must be imported by the application’s bundle/catalog source to be executable. RiX Notebook may import a discovered desktop JavaScript plugin only after its approval flow has run. A project <code>.plugin.rix</code> is retained as source and can be loaded through the regular RiX plugin boundary.</p>
-<pre class="rix"><code>.Plugin.List()
-.Plugin.Info("exact-statistics")
-.Plugin.Load("exact-statistics")
-.stats.Mean([1, 2, 3])</code></pre>
-<p><code>.Plugin("id")</code> is shorthand for <code>.Plugin.Load("id")</code>. A load can choose a different camelCase mount with <code>{= as = "otherStats" }</code>; the capability is renamed after activation. A rename is principally intended for a REPL or a plugin-selection prelude because a complete script is statically checked before its first expression executes.</p>
-<p>The CLI also resolves manifest <code>groups</code> as selectors. For example, <code>rix --plugins=renderers</code> loads every discovered member of the <code>Renderers</code> group, while <code>rix setup --plugins=renderers</code> makes that selection the default for future REPL sessions. An exact plugin ID takes precedence over a group with the same case-insensitive name.</p>
+plugins: [fraction-ops]
+operator-files:
+  - ./project.operators.rix
+**/</code></pre>
+<p>Paths are resolved relative to the script. A plugin can contribute operator files from its own manifest:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">operator-files</span><span class="kw">:</span><span class="at"> </span><span class="kw">[</span><span class="at">fraction.operators.rix</span><span class="kw">]</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Loading with <code>.Plugin.Load(...)</code> inside a complete source file is too late to affect that file’s parse. Use the source header, a CLI preload option, or a plugin already loaded by the host. Runtime loading can make syntax available to later REPL submissions.</p>
+<p>For an interactive session, operator files can be supplied directly:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="ex">rix</span> <span class="at">--operator-file</span><span class="op">=</span>project.operators.rix</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="ex">rix</span> <span class="at">--preamble</span><span class="op">=</span>project-preamble.rix</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The default REPL preamble is <code>cli-preamble.rix</code> in the RiX configuration directory. Its YAML header can preload plugins and operator files, and its body can define functions and values used by the session. See <a href="../getting-started.html#persistent-repl-setup">Getting started</a>.</p>
 </section>
-<section id="bundled-exact-algebras" class="level2">
-<h2 class="anchored" data-anchor-id="bundled-exact-algebras">Bundled exact algebras</h2>
-<p>The opt-in <code>exact-algebras</code> host plugin is the initial exact quaternion and octonion extension. Its coefficients remain core <code>Integer</code> or <code>Rational</code> values, and loading it installs exact variants for ordinary arithmetic and equality operators.</p>
-<pre class="rix"><code>.Plugin.Load("exact-algebras");
-i := .exactAlgebras.Quaternion(0, 1, 0, 0);
-j := .exactAlgebras.Quaternion(0, 0, 1, 0);
-k := i * j;
-
-o := .exactAlgebras.Octonion(1, 2, 3, 4, 5, 6, 7, 8);
-one := o * .exactAlgebras.Inverse(o);</code></pre>
-<p>The initial namespace also provides <code>Components</code>, <code>Conjugate</code>, and <code>NormSquared</code>. Quaternion and octonion dimensions are not mixed implicitly, and division is exact right division (<code>a / b</code> is <code>a * Inverse(b)</code>). The plugin is intentionally a foundation for later semantic types, named basis values, and matrix or polynomial integrations.</p>
-<p>RiX-backed plugin entries are evaluated only when loaded. JavaScript-backed entries are discoverable from the same header but require a host-approved installer. Discovery alone never imports arbitrary JavaScript: a web host must bundle it, while RiX Notebook requires the user’s explicit approval or global preference before importing it. This keeps the boundary explicit: RiX plugins run at a host-controlled RiX load boundary, while JavaScript plugins are trusted host extensions.</p>
-</section>
-<section id="typed-operator-variants" class="level2">
-<h2 class="anchored" data-anchor-id="typed-operator-variants">Typed operator variants</h2>
-<p>An approved host plugin can register a semantic type and install variants for the generic evaluator operators. Arithmetic, comparisons, <code>Abs</code>, approximate functions, and <code>Min</code>/<code>Max</code> therefore do not need plugin-specific evaluator branches. A comparison variant may normalize its operands (for example, exact numbers promoted to a plugin’s floating representation); generic <code>Min</code> and <code>Max</code> carry those normalized values forward and return the promoted winner. Variants may declare a numeric <code>priority</code>; the highest explicit priority wins, and equal highest priorities are an activation error rather than an accidental plugin-load-order decision. Existing variants without a priority retain their installed order for compatibility.</p>
-<p>Plugins should give coexisting implementations distinct semantic type names such as <code>FloatIEEE754</code> and <code>FloatMPFR</code>, while exposing a friendly mounted namespace such as <code>.float</code> to ordinary RiX code. <code>Min</code>/<code>Max</code> reduce through the generic <code>COMPARE</code> operator, so a plugin normally installs ordering once rather than separate min/max implementations.</p>
-<p>The metadata <code>groups</code> are attached to the mounted capability after activation. <code>permissions</code> is descriptive catalog metadata today; a host decides the actual permission frame given to a plugin. Plugin metadata never grants core registration: <code>.Core.Register</code> remains trusted-bootstrap only.</p>
+<section id="scope" class="level2">
+<h2 class="anchored" data-anchor-id="scope">Scope</h2>
+<p>There are no current plans for user-defined prefix, postfix, or n-ary custom operators. Prefix notation such as negation or square root is generally as clear as an ordinary function. Postfix notation has familiar special cases such as factorial, percent, transpose, and derivatives, but the visible <code>:&lt;...&gt;:</code> delimiter removes much of its ergonomic advantage. N-ary notation is usually mixfix syntax—conditionals, slicing, bounded sums, or “between … and …”—and requires a grammar template with several operand holes rather than an operator token. Functions, methods, containers, and existing RiX syntax cover those cases more clearly. Binary infix notation remains the intended custom operator extension point.</p>
+<p>Custom operator declarations are static for a parse. Undeclared operators, conflicting declarations, duplicate fields, late <code>##OPS##</code> blocks, and chains of <code>:none</code> operators without parentheses are errors.</p>
 
 
 </section>
@@ -828,7 +850,7 @@ one := o * .exactAlgebras.Inverse(o);</code></pre>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
-    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/plugin-catalog.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/parser/custom-operators.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
     <div class="nav-footer-right">
 <p>Documentation built with <a href="https://quarto.org/">Quarto</a></p>
 </div>
@@ -838,5 +860,5 @@ one := o * .exactAlgebras.Inverse(o);</code></pre>
 
 
 
-<script src="site_libs/quarto-html/zenscroll-min.js"></script>
+<script src="../site_libs/quarto-html/zenscroll-min.js"></script>
 </body></html>

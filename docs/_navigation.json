@@ -97,6 +97,10 @@
           "href": "parser/parsing.html"
         },
         {
+          "text": "Custom operators",
+          "href": "parser/custom-operators.html"
+        },
+        {
           "text": "AST reference",
           "href": "parser/AST-brief.html"
         },

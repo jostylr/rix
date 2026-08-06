@@ -8,7 +8,7 @@ toc-depth: 2
 This page is generated from the current RiX implementation by `documentation/scripts/generate-reference.js`. Do not edit it by hand. Descriptions come from registry documentation strings; the narrative [syntax guide](../eval/syntax-guide.md) and [methods guide](../eval/methods-guide.md) provide signatures and examples.
 :::
 
-At this revision RiX exposes **177 named entries** on the default system context and registers **208 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
+At this revision RiX exposes **177 named entries** on the default system context and registers **209 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
 
 ## Public system context
 
@@ -332,6 +332,7 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `CONCAT` | eager, pure | — |
 | `CONTROLPANEL` | eager, pure | Group reactive controls in a portable output panel |
 | `CONVERTUNIT` | eager, pure | Convert a quantity to a compatible display unit |
+| `CUSTOM_OPERATOR` | eager, effectful/unspecified | Dispatch a statically declared custom operator to a function or plugin method |
 | `DEFINEBASE` | lazy, effectful/unspecified | Define a custom uppercase base prefix (0A = ...), one-time global definition |
 | `DEFINEEXACTGENERATOR` | eager, pure | Create an algebraic exact generator from low-to-high polynomial coefficients |
 | `DEFINEUNIT` | eager, pure | Create a linear Unit value from a name and Unit/Quantity definition |
