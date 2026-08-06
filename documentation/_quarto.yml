@@ -32,6 +32,7 @@ project:
     - eval/README.md
     - parser/architecture.md
     - parser/parsing.md
+    - parser/custom-operators.md
     - parser/AST-brief.md
     - parser/array-generators-implementation.md
     - parser/embedded-parsing.md

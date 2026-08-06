@@ -8,6 +8,13 @@
  * asynchronous and, more importantly, is a host trust decision.
  */
 
+import {
+    extractOperatorDeclarationsFromSource,
+    mergeOperatorDefinitions,
+} from "../parser/custom-operators.js";
+
+const CUSTOM_OPERATOR_ENV_KEY = "__custom_operator_definitions__";
+
 function parseScalar(source) {
     const value = source.trim();
     if (!value) return "";
@@ -72,6 +79,27 @@ export function readPluginHeader(source, filename = "plugin") {
     return parsePluginYaml(match[1], `${filename} header`);
 }
 
+export function readSourceHeader(source, filename = "script") {
+    const emptyHeader = { plugins: [], operatorFiles: [] };
+    const body = String(source).replace(/^\uFEFF/, "");
+    const opening = body.match(/^\s*\/(\*+)/);
+    if (!opening || opening[1].length < 2) return emptyHeader;
+    const stars = opening[1].length;
+    const header = new RegExp(`^\\s*\\/\\*{${stars}}([\\s\\S]*?)\\*{${stars}}\\/`);
+    const match = body.match(header);
+    if (!match || !/^\s*\*?\s*(?:plugins|operator-files)\s*:/im.test(match[1])) return emptyHeader;
+    const metadata = parsePluginYaml(match[1], `${filename} header`);
+    for (const key of ["plugins", "operator-files"]) {
+        if (metadata[key] !== undefined && !Array.isArray(metadata[key])) {
+            throw new Error(`${filename}: ${key} must be an inline YAML array or a YAML list`);
+        }
+    }
+    return {
+        plugins: metadata.plugins || [],
+        operatorFiles: metadata["operator-files"] || [],
+    };
+}
+
 function validateMetadata(metadata, sourcePath, kind) {
     if (metadata.ignore !== undefined && typeof metadata.ignore !== "boolean") {
         throw new Error(`${sourcePath}: ignore must be true or false`);
@@ -88,7 +116,7 @@ function validateMetadata(metadata, sourcePath, kind) {
     if (metadata.mount !== undefined && (typeof metadata.mount !== "string" || !/^[a-z][A-Za-z0-9_]*$/.test(metadata.mount))) {
         throw new Error(`${sourcePath}: mount must be a camelCase host capability name`);
     }
-    for (const key of ["exports", "groups", "permissions"]) {
+    for (const key of ["exports", "groups", "permissions", "operator-files"]) {
         if (metadata[key] !== undefined && !Array.isArray(metadata[key])) {
             throw new Error(`${sourcePath}: ${key} must be an inline YAML array or a YAML list`);
         }
@@ -102,10 +130,36 @@ function validateMetadata(metadata, sourcePath, kind) {
         exports: metadata.exports || [],
         groups: metadata.groups || [],
         permissions: metadata.permissions || [],
+        operatorFiles: metadata["operator-files"] || metadata.operatorFiles || [],
+        operatorDefinitions: metadata.operatorDefinitions || [],
         defaultEnabled: metadata.defaultEnabled === true,
         ignore: metadata.ignore === true,
         sourcePath,
     };
+}
+
+function mountedOperatorDefinitions(definitions, metadata, mount) {
+    return (definitions || []).map((definition) => {
+        if (definition.target?.kind !== "plugin-method" || definition.target.pluginId !== metadata.id) {
+            return definition;
+        }
+        return {
+            ...definition,
+            target: { ...definition.target, mount },
+        };
+    });
+}
+
+function installOperatorDefinitions(context, definitions, metadata, mount) {
+    if (!context?.getEnv || !context?.setEnv || !definitions?.length) return;
+    const mountedDefinitions = mountedOperatorDefinitions(definitions, metadata, mount);
+    const merged = mergeOperatorDefinitions(
+        context.getEnv(CUSTOM_OPERATOR_ENV_KEY, new Map()),
+        mountedDefinitions,
+    );
+    context.setEnv(CUSTOM_OPERATOR_ENV_KEY, merged);
+    const runtime = context.getEnv("__script_runtime__", null);
+    if (runtime) runtime.operatorDefinitions = merged;
 }
 
 function rixString(value) {
@@ -161,7 +215,19 @@ export class PluginCatalog {
         if (validatedKind !== "rix" && validatedKind !== "host") {
             throw new Error(`${sourcePath}: plugin kind must be 'rix' or 'host'`);
         }
-        const entry = validateMetadata(metadata, sourcePath, validatedKind);
+        let enrichedMetadata = metadata;
+        if (
+            validatedKind === "rix"
+            && typeof source === "string"
+            && !metadata.operatorDefinitions
+        ) {
+            const operatorDefinitions = Array.from(extractOperatorDeclarationsFromSource(source, {
+                label: sourcePath,
+                owner: { pluginId: metadata.id, mount: metadata.mount || null },
+            }).values());
+            enrichedMetadata = { ...metadata, operatorDefinitions };
+        }
+        const entry = validateMetadata(enrichedMetadata, sourcePath, validatedKind);
         if (entry.kind === "rix" && typeof source !== "string") {
             throw new Error(`${sourcePath}: RiX plugin metadata requires source supplied by its host scanner`);
         }
@@ -216,6 +282,7 @@ export class PluginCatalog {
                 ["exports", { type: "sequence", values: metadata.exports.map(rixString) }],
                 ["groups", { type: "sequence", values: metadata.groups.map(rixString) }],
                 ["permissions", { type: "sequence", values: metadata.permissions.map(rixString) }],
+                ["operators", { type: "sequence", values: metadata.operatorDefinitions.map((definition) => rixString(definition.spelling)) }],
                 ["loaded", loaded ? { type: "integer", value: 1n } : null],
             ]),
         };
@@ -241,7 +308,11 @@ export class PluginCatalog {
         };
         if (metadata.kind === "rix") {
             if (typeof runtime.loadRix !== "function") throw new Error(`No RiX plugin loader is available for '${metadata.id}'`);
-            runtime.loadRix({ ...api, source: metadata.source });
+            runtime.loadRix({
+                ...api,
+                source: metadata.source,
+                operatorDefinitions: mountedOperatorDefinitions(metadata.operatorDefinitions, metadata, mount),
+            });
         } else {
             const installer = this.installers.get(metadata.id);
             if (!installer) {
@@ -256,6 +327,7 @@ export class PluginCatalog {
         if (mount && runtime.visibleSystemContext && runtime.visibleSystemContext !== runtime.systemContext) {
             runtime.visibleSystemContext.adoptHostCapability(runtime.systemContext, mount);
         }
+        installOperatorDefinitions(runtime.context, metadata.operatorDefinitions, metadata, mount);
         this.loaded.set(metadata.id, { metadata, mount });
         return this.infoValue(metadata);
     }

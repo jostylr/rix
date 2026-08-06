@@ -25,6 +25,7 @@ A comprehensive tokenizer and parser for the RiX (Rational Interval Expression L
   - Pipe operations and functional constructs
   - Postfix operators for precision control and queries
   - Operators as functions with universal call syntax
+  - Statically declared `:<...>:` infix operators in `##OPS##` headers
 
 - **Rich Mathematical Notation:**
   - Interval arithmetic (`2:5`, `1.5:2.7`)

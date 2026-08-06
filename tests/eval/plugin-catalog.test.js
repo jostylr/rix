@@ -6,6 +6,7 @@ import {
     createDefaultRegistry,
     createDefaultSystemContext,
     parseAndEvaluate,
+    readSourceHeader,
 } from "../../src/index.js";
 import { NodePluginCatalog } from "../../src/runtime/plugin-catalog-node.js";
 import { install as installArrayJsExample } from "../../examples/plugins/example-array-js/array-js.plugin.rix.js";
@@ -27,6 +28,22 @@ function evaluate(code, options) {
 }
 
 describe("plugin catalog", () => {
+    test("script YAML headers request plugin and operator-file preloads", () => {
+        expect(readSourceHeader(`/**
+plugins: [fraction-ops, plot]
+operator-files:
+  - local.operators.rix
+**/
+1 + 1`, "example.rix")).toEqual({
+            plugins: ["fraction-ops", "plot"],
+            operatorFiles: ["local.operators.rix"],
+        });
+        expect(readSourceHeader("1 + 1", "plain.rix")).toEqual({
+            plugins: [],
+            operatorFiles: [],
+        });
+    });
+
     test("scans only correctly named files and reads their leading YAML comments without execution", () => {
         const catalog = new NodePluginCatalog({ roots: [fixtureRoot] }).scan();
 

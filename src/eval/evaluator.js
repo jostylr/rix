@@ -51,6 +51,7 @@ import { createDefaultUnitCollection } from "../runtime/quantities.js";
 import { installUnitExactVariants, unitExactFunctions } from "./functions/units.js";
 import { parse } from "../parser/parser.js";
 import { posToLineCol } from "../parser/tokenizer.js";
+import { mergeOperatorDefinitions } from "../parser/custom-operators.js";
 import { lower } from "./lower.js";
 import { isLazySequence, materializeLazySequence } from "../runtime/lazy-sequence.js";
 import { formatValue } from "./format.js";
@@ -230,6 +231,7 @@ function defineCapability(args, _context, evaluate) {
 }
 const SCRIPT_RUNTIME_ENV_KEY = "__script_runtime__";
 const SOURCE_ENV_KEY = "__source__";
+const CUSTOM_OPERATOR_ENV_KEY = "__custom_operator_definitions__";
 const CURRENT_FILE_ENV_KEY = "__current_file__";
 
 /**
@@ -343,6 +345,7 @@ function getScriptRuntime(context, options = {}) {
             preparedScripts: new Map(),
             activeImports: [],
             frameStack: [],
+            operatorDefinitions: context.getEnv(CUSTOM_OPERATOR_ENV_KEY, new Map()),
         };
         context.setEnv(SCRIPT_RUNTIME_ENV_KEY, runtime);
         return runtime;
@@ -351,6 +354,10 @@ function getScriptRuntime(context, options = {}) {
     if (!runtime.systemLookup) {
         runtime.systemLookup = options.systemLookup || defaultSystemLookup;
     }
+    runtime.operatorDefinitions = context.getEnv(
+        CUSTOM_OPERATOR_ENV_KEY,
+        runtime.operatorDefinitions || new Map(),
+    );
     return runtime;
 }
 
@@ -489,7 +496,10 @@ function prepareScript(resolvedPath, runtime) {
         throw new Error(`Unable to load script '${resolvedPath}': ${error.message}`);
     }
 
-    const ast = parse(source, runtime.systemLookup || defaultSystemLookup);
+    const ast = parse(source, runtime.systemLookup || defaultSystemLookup, {
+        operatorDefinitions: runtime.operatorDefinitions,
+        file: resolvedPath,
+    });
     const { inputContract, exportBindings, body } = extractScriptInterface(ast, resolvedPath);
     const bodyIr = lower(body);
     attachSourceInfo(bodyIr, source, resolvedPath);
@@ -1015,6 +1025,8 @@ export function evaluate(irNode, context, registry, systemContext) {
  * @param {Registry} [options.registry] - Internal registry (creates default if not provided)
  * @param {SystemContext} [options.systemContext] - System capability object (creates default if not provided)
  * @param {Function} [options.systemLookup] - System symbol lookup for parser
+ * @param {Map|Array} [options.operatorDefinitions] - Operator declarations supplied by the host
+ * @param {Object} [options.operatorOwner] - Plugin identity used by shorthand method targets
  * @param {Set} [options.reactiveReads] - Receives reactive sources read by the final expression
  * @returns {*} The result of the last expression
  */
@@ -1024,9 +1036,13 @@ export function parseAndEvaluate(code, options = {}) {
     const systemContext = options.systemContext || createDefaultSystemContext();
     context.setEnv("__system_context__", systemContext);
     const systemLookup = createSystemLookup(systemContext, options.systemLookup || defaultSystemLookup);
-    getScriptRuntime(context, { systemLookup });
+    const runtime = getScriptRuntime(context, { systemLookup });
+    runtime.operatorDefinitions = mergeOperatorDefinitions(
+        context.getEnv(CUSTOM_OPERATOR_ENV_KEY, new Map()),
+        options.operatorDefinitions,
+    );
     context.setEnv("__registry__", registry);
-    context.setEnv("__plugin_load_rix__", ({ source, sourcePath, context: pluginContext = context, registry: pluginRegistry = registry, systemContext: pluginSystemContext = systemContext }) => {
+    context.setEnv("__plugin_load_rix__", ({ source, sourcePath, metadata, options: pluginOptions, operatorDefinitions, context: pluginContext = context, registry: pluginRegistry = registry, systemContext: pluginSystemContext = systemContext }) => {
         const previousSource = pluginContext.getEnv(SOURCE_ENV_KEY, undefined);
         const previousFile = pluginContext.getEnv(CURRENT_FILE_ENV_KEY, undefined);
         try {
@@ -1035,6 +1051,11 @@ export function parseAndEvaluate(code, options = {}) {
                 registry: pluginRegistry,
                 systemContext: pluginSystemContext,
                 file: sourcePath,
+                operatorDefinitions,
+                operatorOwner: metadata?.id ? {
+                    pluginId: metadata.id,
+                    mount: pluginOptions?.as || metadata.mount || null,
+                } : null,
             });
         } finally {
             pluginContext.setEnv(SOURCE_ENV_KEY, previousSource);
@@ -1045,7 +1066,11 @@ export function parseAndEvaluate(code, options = {}) {
     context.setEnv(SOURCE_ENV_KEY, code);
     context.setEnv(CURRENT_FILE_ENV_KEY, options.file || "<repl>");
 
-    const ast = parse(code, systemLookup);
+    const ast = parse(code, systemLookup, {
+        operatorDefinitions: runtime.operatorDefinitions,
+        operatorOwner: options.operatorOwner || null,
+        file: options.file || "<repl>",
+    });
     const irNodes = lower(ast);
     attachSourceInfo(irNodes, code, options.file || "<repl>");
 

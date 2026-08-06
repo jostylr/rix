@@ -1,0 +1,6 @@
+/**
+operator-files: [source-header.operators.rix]
+**/
+
+Mediant(a, b) -> a + b;
+20 :<o+>: 22

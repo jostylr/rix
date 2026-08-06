@@ -38,6 +38,7 @@ export const documentationNavigation = [
       page("eval/README.md", "Evaluator overview"),
       page("parser/architecture.md", "Parser architecture"),
       page("parser/parsing.md", "Parsing and precedence"),
+      page("parser/custom-operators.md", "Custom operators"),
       page("parser/AST-brief.md", "AST reference"),
       page("design/eval/ir-format.md", "IR design snapshot"),
       page("parser/array-generators-implementation.md", "Array generators"),

@@ -219,6 +219,11 @@ function tokenize(input) {
       token = tryMatchIdentifier(input, position);
     }
     if (!token) {
+      // Delimited custom operators are lexically self-identifying. Their
+      // declaration is validated by the parser, not by the tokenizer.
+      token = tryMatchCustomOperator(input, position);
+    }
+    if (!token) {
       // Try to match regex literals first (so '{/' is not seen as '{' followed by '/')
       token = tryMatchRegexLiteral(input, position);
     }
@@ -265,6 +270,37 @@ function tokenize(input) {
   }
 
   return tokens;
+}
+
+function tryMatchCustomOperator(input, position) {
+  if (!input.startsWith(":<", position)) return null;
+  // Existing assertion operators such as :<: and :<=: share this prefix.
+  // A colon before the custom closer therefore belongs to core tokenization.
+  let end = -1;
+  for (let cursor = position + 2; cursor < input.length; cursor += 1) {
+    if (input.startsWith(">:", cursor)) {
+      end = cursor;
+      break;
+    }
+    if (input[cursor] === ":") return null;
+    if (/\s/u.test(input[cursor])) break;
+  }
+  if (end < 0) {
+    const { line, col } = posToLineCol(input, position);
+    throw new Error(`Unclosed custom operator delimiter at line ${line}:${col}`);
+  }
+  const value = input.slice(position + 2, end);
+  if (!value || /[<>:\s]/u.test(value)) {
+    const { line, col } = posToLineCol(input, position);
+    throw new Error(`Invalid custom operator delimiter at line ${line}:${col}`);
+  }
+  const original = input.slice(position, end + 2);
+  return {
+    type: "CustomOperator",
+    original,
+    value,
+    pos: [position, position, end + 2],
+  };
 }
 
 function tryMatchPostfixCheck(input, position) {

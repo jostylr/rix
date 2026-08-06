@@ -1,9 +1,13 @@
-export { parse, tokenize, posToLineCol, SystemLoader, createNodeSystemLoader, createWebPageSystemLoader } from "./parser/index.js";
+export {
+    parse, tokenize, posToLineCol, SystemLoader, createNodeSystemLoader, createWebPageSystemLoader,
+    BUILTIN_PRECEDENCE_BANDS, extractOperatorDeclarations, extractOperatorDeclarationsFromSource,
+    mergeOperatorDefinitions, parseOperatorDeclarationLine,
+} from "./parser/index.js";
 export { createSystemManifest, createSystemLookup } from "./runtime/system-manifest.js";
 export { complete, REPL_COMMANDS } from "./repl/completion.js";
 export { lower, lowerNode, ir, IR, Registry, evaluate, createDefaultRegistry, createDefaultSystemContext, parseAndEvaluate, irToText, irListToText, formatValue } from "./eval/index.js";
 export {
-    Context, SystemContext, PluginCatalog, parsePluginYaml, readPluginHeader, Cell, HOLE, isHole, DiagnosticsRegistry,
+    Context, SystemContext, PluginCatalog, parsePluginYaml, readPluginHeader, readSourceHeader, Cell, HOLE, isHole, DiagnosticsRegistry,
     createFormulaSheet, isFormulaSheet, createLiveView, isLiveView, isReactiveSource,
     RIXCEL_FORMAT, RIXCEL_VERSION, RIXCEL_ASSIGNMENT_MODES,
     parseRixCelDocument, exportRixCelDocument, stringifyRixCelDocument,

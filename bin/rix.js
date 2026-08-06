@@ -25,6 +25,9 @@ import {
     getDiagnostics,
     isRixAbort,
     complete,
+    readSourceHeader,
+    extractOperatorDeclarationsFromSource,
+    mergeOperatorDefinitions,
 } from "../src/index.js";
 import { NodePluginCatalog } from "../src/runtime/plugin-catalog-node.js";
 import { formatValue as formatResult } from "../src/eval/format.js";
@@ -678,10 +681,23 @@ async function main() {
 
         try {
             const source = readFileSync(inputFile, "utf-8");
+            const sourceHeader = readSourceHeader(source, inputFile);
+            const operatorDefinitionSources = [];
+            for (const relativePath of sourceHeader.operatorFiles) {
+                const operatorPath = path.resolve(path.dirname(inputFile), String(relativePath));
+                const operatorSource = readFileSync(operatorPath, "utf8");
+                operatorDefinitionSources.push(extractOperatorDeclarationsFromSource(operatorSource, {
+                    label: operatorPath,
+                }));
+            }
+            const sourceOperatorDefinitions = mergeOperatorDefinitions(...operatorDefinitionSources);
             // Establish the synchronous RiX-plugin loader before command-line
             // preloads. Scripts may still use .Plugin.Load themselves.
             parseAndEvaluate("", { context, registry, systemContext });
-            const pluginIds = selectedPluginIds(pluginCatalog, { plugins, allPlugins, allBuiltPlugins });
+            const pluginIds = [...new Set([
+                ...selectedPluginIds(pluginCatalog, { plugins, allPlugins, allBuiltPlugins }),
+                ...sourceHeader.plugins.map(String),
+            ])];
             for (const id of pluginIds) {
                 pluginCatalog.load(id, {
                     context,
@@ -692,7 +708,13 @@ async function main() {
             }
             const artifacts = [];
             if (outDir) context.setEnv("__output_sink__", (artifact) => artifacts.push(artifact));
-            const result = parseAndEvaluate(source, { context, registry, systemContext, file: path.resolve(inputFile) });
+            const result = parseAndEvaluate(source, {
+                context,
+                registry,
+                systemContext,
+                file: path.resolve(inputFile),
+                operatorDefinitions: sourceOperatorDefinitions,
+            });
             const written = await writeArtifacts({
                 outDir,
                 artifacts,

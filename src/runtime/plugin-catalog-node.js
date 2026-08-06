@@ -3,6 +3,10 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { PluginCatalog, readPluginHeader } from "./plugin-catalog.js";
+import {
+    extractOperatorDeclarationsFromSource,
+    mergeOperatorDefinitions,
+} from "../parser/custom-operators.js";
 
 const RIX_PLUGIN_SUFFIX = ".plugin.rix";
 const JS_PLUGIN_SUFFIX = ".plugin.rix.js";
@@ -49,6 +53,27 @@ export class NodePluginCatalog extends PluginCatalog {
         const kind = pluginKind(sourcePath);
         if (!kind) throw new Error(`${sourcePath}: not a RiX plugin filename`);
         const source = readFileSync(sourcePath, "utf8");
-        return this.addMetadata(readPluginHeader(source, sourcePath), { sourcePath, source, kind });
+        const metadata = readPluginHeader(source, sourcePath);
+        const owner = { pluginId: metadata.id, mount: metadata.mount || null };
+        const inlineDefinitions = kind === "rix"
+            ? extractOperatorDeclarationsFromSource(source, { label: sourcePath, owner })
+            : new Map();
+        const fileDefinitions = [];
+        const operatorFiles = metadata["operator-files"] || [];
+        for (const relativePath of operatorFiles) {
+            const operatorPath = path.resolve(path.dirname(sourcePath), String(relativePath));
+            const operatorSource = readFileSync(operatorPath, "utf8");
+            fileDefinitions.push(extractOperatorDeclarationsFromSource(operatorSource, {
+                label: operatorPath,
+                owner,
+            }));
+        }
+        const operatorDefinitions = Array.from(
+            mergeOperatorDefinitions(inlineDefinitions, ...fileDefinitions).values(),
+        );
+        return this.addMetadata(
+            { ...metadata, operatorDefinitions },
+            { sourcePath, source, kind },
+        );
     }
 }

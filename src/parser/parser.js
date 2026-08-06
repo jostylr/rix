@@ -4,6 +4,10 @@
  */
 
 import { tokenize, posToLineCol } from "./tokenizer.js";
+import {
+  extractOperatorDeclarations,
+  mergeOperatorDefinitions,
+} from "./custom-operators.js";
 
 // Precedence levels (higher numbers bind tighter)
 const PRECEDENCE = {
@@ -482,10 +486,11 @@ const SYMBOL_TABLE = {
 };
 
 class Parser {
-  constructor(tokens, systemLookup, source = "") {
+  constructor(tokens, systemLookup, source = "", customOperators = new Map()) {
     this.tokens = tokens;
     this.systemLookup = systemLookup || (() => ({ type: "identifier" }));
     this.source = source;
+    this.customOperators = customOperators;
     this.position = 0;
     this.current = null;
     this.skippedComments = [];
@@ -548,7 +553,18 @@ class Parser {
 
   // Get symbol info, including system identifier lookup
   getSymbolInfo(token) {
-    if (token.type === "Symbol") {
+    if (token.type === "CustomOperator") {
+      const definition = this.customOperators.get(token.value);
+      if (!definition) {
+        this.error(`Custom operator ':<${token.value}>:' is not declared in an ##OPS## header`);
+      }
+      return {
+        precedence: definition.precedence,
+        associativity: definition.associativity,
+        type: definition.fixity,
+        custom: definition,
+      };
+    } else if (token.type === "Symbol") {
       if (token.value === "|^:") {
         this.error("The legacy '|^:' generator operator was removed; use '|^' for lazy generation");
       }
@@ -992,6 +1008,10 @@ class Parser {
         }
         break;
 
+      case "CustomOperator":
+        this.error(`Custom infix operator ':<${token.value}>:' cannot appear in prefix position`);
+        break;
+
       default:
         this.error(`Unexpected token: ${token.type}`);
     }
@@ -1142,12 +1162,25 @@ class Parser {
     this.advance();
 
     let rightPrec = symbolInfo.precedence;
-    if (symbolInfo.associativity === "left") {
+    if (symbolInfo.associativity === "left" || symbolInfo.associativity === "none") {
       rightPrec += 1;
     }
 
     let right;
-    if (operator.value === "[" && symbolInfo.type === "postfix") {
+    if (operator.type === "CustomOperator") {
+      right = this.parseExpression(rightPrec);
+      return this.createNode("CustomOperator", {
+        operator: operator.value,
+        spelling: `:<${operator.value}>:`,
+        definition: symbolInfo.custom,
+        precedence: symbolInfo.precedence,
+        associativity: symbolInfo.associativity,
+        left,
+        right,
+        pos: left.pos,
+        original: left.original + operator.original,
+      });
+    } else if (operator.value === "[" && symbolInfo.type === "postfix") {
       // Check for key literal syntax: obj[:name], obj[:1], obj[:"1"]
       if (
         this.current.value === ":" &&
@@ -1930,6 +1963,17 @@ class Parser {
 
       if (!symbolInfo || symbolInfo.precedence < minPrec) {
         break;
+      }
+
+      if (
+        symbolInfo.custom
+        && left?.type === "CustomOperator"
+        && left.precedence === symbolInfo.precedence
+        && (left.associativity === "none" || symbolInfo.associativity === "none")
+      ) {
+        this.error(
+          `Non-associative custom operator chain requires parentheses around ':<${left.operator}>:' or ':<${this.current.value}>:'`,
+        );
       }
 
       if (symbolInfo.type === "statement" || symbolInfo.type === "separator") {
@@ -5041,7 +5085,7 @@ class Parser {
 }
 
 // Main parse function
-export function parse(input, systemLookup) {
+export function parse(input, systemLookup, options = {}) {
   let tokens;
   let source = "";
   if (typeof input === "string") {
@@ -5049,7 +5093,17 @@ export function parse(input, systemLookup) {
     tokens = tokenize(input);
   } else {
     tokens = input;
+    source = options.source || "";
   }
-  const parser = new Parser(tokens, systemLookup, source);
+  const localOperators = extractOperatorDeclarations(tokens, {
+    source,
+    owner: options.operatorOwner || null,
+    label: options.file || "source",
+  });
+  const customOperators = mergeOperatorDefinitions(
+    options.operatorDefinitions,
+    localOperators,
+  );
+  const parser = new Parser(tokens, systemLookup, source, customOperators);
   return parser.parse();
 }

@@ -22,6 +22,48 @@ function evaluateArgs(argNodes, evaluate) {
 }
 
 export const methodFunctions = {
+    CUSTOM_OPERATOR: {
+        impl(args, context, evaluate, systemContext) {
+            const [definition, left, right] = args;
+            const target = definition?.target;
+            if (!target) throw new Error("Custom operator is missing its dispatch target");
+
+            if (target.kind === "function") {
+                const fn = context.getCallable(target.name);
+                if (!fn) {
+                    throw new Error(
+                        `Custom operator ${definition.spelling} target '${target.name}' is not defined`,
+                    );
+                }
+                return callWithConcreteArgs(fn, [left, right], context, evaluate);
+            }
+
+            if (target.kind === "plugin-method" || target.kind === "system-method") {
+                const mount = target.mount;
+                if (!mount) {
+                    throw new Error(
+                        `Custom operator ${definition.spelling} plugin '${target.pluginId}' has no active mount`,
+                    );
+                }
+                const entry = systemContext?.get?.(mount);
+                const receiver = entry && Object.hasOwn(entry, "value") ? entry.value : entry;
+                if (!receiver) {
+                    throw new Error(
+                        `Custom operator ${definition.spelling} requires plugin/system object '.${mount}'`,
+                    );
+                }
+                const fn = resolveMethod(receiver, target.method);
+                if (fn?.type === "method_builtin") {
+                    return fn.impl([receiver, left, right], context, evaluate, callWithConcreteArgs);
+                }
+                return callWithConcreteArgs(fn, [receiver, left, right], context, evaluate);
+            }
+
+            throw new Error(`Unsupported custom operator target kind '${target.kind}'`);
+        },
+        doc: "Dispatch a statically declared custom operator to a function or plugin method",
+    },
+
     CALL_METHOD: {
         lazy: true,
         impl(args, context, evaluate) {

@@ -433,6 +433,19 @@ const LOWERERS = {
     return ir("BINOP", op, lowerNode(node.left), lowerNode(node.right));
   },
 
+  CustomOperator(node) {
+    return ir(
+      "CUSTOM_OPERATOR",
+      {
+        symbol: node.operator,
+        spelling: node.spelling,
+        target: node.definition.target,
+      },
+      lowerNode(node.left),
+      lowerNode(node.right),
+    );
+  },
+
   UnaryOperation(node) {
     if (node.operator === "-") {
       return ir("NEG", lowerNode(node.operand));
