@@ -1,0 +1,1551 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.38">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="description" content="Proposed semantics and implementation plan for {$ … } concurrency scopes and {$$ … } detached tasks.">
+
+<title>Async, concurrency, and background tasks – RiX</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<link href="../../rix-logo.png" rel="icon" type="image/png">
+<script src="../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-4a0610749eeff5ab924a4729b5181608.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-dark-de927ec96a2411cf822331f71755f83e.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-4a0610749eeff5ab924a4729b5181608.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap-dfa129ac6e33aa8a1407114b8c26932f.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../../site_libs/bootstrap/bootstrap-dark-de8d9ea7065925b465f143946b8defe2.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../../site_libs/bootstrap/bootstrap-dfa129ac6e33aa8a1407114b8c26932f.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+</head>
+
+<body class="nav-sidebar docked nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const darkModeDefault = authorPrefersDark;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a href="../../index.html" class="navbar-brand navbar-brand-logo">
+    <img src="../../rix-logo.png" alt="" class="navbar-logo light-content">
+    <img src="../../rix-logo.png" alt="" class="navbar-logo dark-content">
+    </a>
+    <a class="navbar-brand" href="../../index.html">
+    <span class="navbar-title">RiX</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../getting-started.html"> 
+<span class="menu-text">Start</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../language-at-a-glance.html"> 
+<span class="menu-text">Learn</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../eval/syntax-guide.html"> 
+<span class="menu-text">Reference</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../../developer-guide.html"> 
+<span class="menu-text">Internals</span></a>
+  </li>  
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/jostylr/rix"> <i class="bi bi-github" role="img" aria-label="RiX on GitHub">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <a class="flex-grow-1 no-decor" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+          <h1 class="quarto-secondary-nav-title">Async, concurrency, and background tasks</h1>
+        </a>     
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation docked overflow-auto">
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Loading documentation…</span></a>
+  </div>
+</li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#status" id="toc-status" class="nav-link active" data-scroll-target="#status">Status</a></li>
+  <li><a href="#goals-and-non-goals" id="toc-goals-and-non-goals" class="nav-link" data-scroll-target="#goals-and-non-goals">Goals and non-goals</a></li>
+  <li><a href="#terminology" id="toc-terminology" class="nav-link" data-scroll-target="#terminology">Terminology</a></li>
+  <li><a href="#syntax" id="toc-syntax" class="nav-link" data-scroll-target="#syntax">Syntax</a>
+  <ul>
+  <li><a href="#awaited-concurrency-scopes" id="toc-awaited-concurrency-scopes" class="nav-link" data-scroll-target="#awaited-concurrency-scopes">Awaited concurrency scopes</a></li>
+  <li><a href="#background-tasks" id="toc-background-tasks" class="nav-link" data-scroll-target="#background-tasks">Background tasks</a></li>
+  <li><a href="#async-scope-breaks" id="toc-async-scope-breaks" class="nav-link" data-scroll-target="#async-scope-breaks">Async-scope breaks</a></li>
+  </ul></li>
+  <li><a href="#awaiting-model" id="toc-awaiting-model" class="nav-link" data-scroll-target="#awaiting-model">Awaiting model</a></li>
+  <li><a href="#explicit-collection-construction" id="toc-explicit-collection-construction" class="nav-link" data-scroll-target="#explicit-collection-construction">Explicit collection construction</a>
+  <ul>
+  <li><a href="#fan-out-rule" id="toc-fan-out-rule" class="nav-link" data-scroll-target="#fan-out-rule">Fan-out rule</a></li>
+  <li><a href="#nested-collections" id="toc-nested-collections" class="nav-link" data-scroll-target="#nested-collections">Nested collections</a></li>
+  <li><a href="#map-entries" id="toc-map-entries" class="nav-link" data-scroll-target="#map-entries">Map entries</a></li>
+  <li><a href="#generators-and-lazy-sources" id="toc-generators-and-lazy-sources" class="nav-link" data-scroll-target="#generators-and-lazy-sources">Generators and lazy sources</a></li>
+  </ul></li>
+  <li><a href="#async-pipe-semantics" id="toc-async-pipe-semantics" class="nav-link" data-scroll-target="#async-pipe-semantics">Async pipe semantics</a>
+  <ul>
+  <li><a href="#fused-example" id="toc-fused-example" class="nav-link" data-scroll-target="#fused-example">Fused example</a></li>
+  <li><a href="#barriers-and-later-stages" id="toc-barriers-and-later-stages" class="nav-link" data-scroll-target="#barriers-and-later-stages">Barriers and later stages</a></li>
+  <li><a href="#ordered-find" id="toc-ordered-find" class="nav-link" data-scroll-target="#ordered-find">Ordered Find</a></li>
+  </ul></li>
+  <li><a href="#scheduler-and-ordering-contract" id="toc-scheduler-and-ordering-contract" class="nav-link" data-scroll-target="#scheduler-and-ordering-contract">Scheduler and ordering contract</a></li>
+  <li><a href="#scope-cells-and-effects" id="toc-scope-cells-and-effects" class="nav-link" data-scroll-target="#scope-cells-and-effects">Scope, cells, and effects</a></li>
+  <li><a href="#failure-cancellation-and-cleanup" id="toc-failure-cancellation-and-cleanup" class="nav-link" data-scroll-target="#failure-cancellation-and-cleanup">Failure, cancellation, and cleanup</a>
+  <ul>
+  <li><a href="#scope-failure" id="toc-scope-failure" class="nav-link" data-scroll-target="#scope-failure">Scope failure</a></li>
+  <li><a href="#cooperative-cancellation" id="toc-cooperative-cancellation" class="nav-link" data-scroll-target="#cooperative-cancellation">Cooperative cancellation</a></li>
+  <li><a href="#async-scope-break" id="toc-async-scope-break" class="nav-link" data-scroll-target="#async-scope-break">Async-scope break</a></li>
+  </ul></li>
+  <li><a href="#background-task-contract" id="toc-background-task-contract" class="nav-link" data-scroll-target="#background-task-contract">Background-task contract</a>
+  <ul>
+  <li><a href="#spawn-and-isolation" id="toc-spawn-and-isolation" class="nav-link" data-scroll-target="#spawn-and-isolation">Spawn and isolation</a></li>
+  <li><a href="#host-lifecycle" id="toc-host-lifecycle" class="nav-link" data-scroll-target="#host-lifecycle">Host lifecycle</a></li>
+  <li><a href="#errors" id="toc-errors" class="nav-link" data-scroll-target="#errors">Errors</a></li>
+  <li><a href="#reactive-reads-and-writes" id="toc-reactive-reads-and-writes" class="nav-link" data-scroll-target="#reactive-reads-and-writes">Reactive reads and writes</a></li>
+  </ul></li>
+  <li><a href="#execution-model" id="toc-execution-model" class="nav-link" data-scroll-target="#execution-model">Execution model</a></li>
+  <li><a href="#ir-and-runtime-shape" id="toc-ir-and-runtime-shape" class="nav-link" data-scroll-target="#ir-and-runtime-shape">IR and runtime shape</a></li>
+  <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a>
+  <ul>
+  <li><a href="#parallel-construction-followed-by-a-barrier-pipe" id="toc-parallel-construction-followed-by-a-barrier-pipe" class="nav-link" data-scroll-target="#parallel-construction-followed-by-a-barrier-pipe">Parallel construction followed by a barrier pipe</a></li>
+  <li><a href="#end-to-end-bounded-pipeline" id="toc-end-to-end-bounded-pipeline" class="nav-link" data-scroll-target="#end-to-end-bounded-pipeline">End-to-end bounded pipeline</a></li>
+  <li><a href="#ordered-selection" id="toc-ordered-selection" class="nav-link" data-scroll-target="#ordered-selection">Ordered selection</a></li>
+  <li><a href="#completion-race" id="toc-completion-race" class="nav-link" data-scroll-target="#completion-race">Completion race</a></li>
+  <li><a href="#background-publication" id="toc-background-publication" class="nav-link" data-scroll-target="#background-publication">Background publication</a></li>
+  </ul></li>
+  <li><a href="#implementation-checklist" id="toc-implementation-checklist" class="nav-link" data-scroll-target="#implementation-checklist">Implementation checklist</a>
+  <ul>
+  <li><a href="#lock-the-language-contract" id="toc-lock-the-language-contract" class="nav-link" data-scroll-target="#lock-the-language-contract">0. Lock the language contract</a></li>
+  <li><a href="#parser-and-ir" id="toc-parser-and-ir" class="nav-link" data-scroll-target="#parser-and-ir">1. Parser and IR</a></li>
+  <li><a href="#promise-aware-evaluation" id="toc-promise-aware-evaluation" class="nav-link" data-scroll-target="#promise-aware-evaluation">2. Promise-aware evaluation</a></li>
+  <li><a href="#scheduler-and-task-contexts" id="toc-scheduler-and-task-contexts" class="nav-link" data-scroll-target="#scheduler-and-task-contexts">3. Scheduler and task contexts</a></li>
+  <li><a href="#concurrent-collection-construction" id="toc-concurrent-collection-construction" class="nav-link" data-scroll-target="#concurrent-collection-construction">4. Concurrent collection construction</a></li>
+  <li><a href="#fused-async-pipes" id="toc-fused-async-pipes" class="nav-link" data-scroll-target="#fused-async-pipes">5. Fused async pipes</a></li>
+  <li><a href="#failure-and-cancellation" id="toc-failure-and-cancellation" class="nav-link" data-scroll-target="#failure-and-cancellation">6. Failure and cancellation</a></li>
+  <li><a href="#background-supervisor-and-reactive-publication" id="toc-background-supervisor-and-reactive-publication" class="nav-link" data-scroll-target="#background-supervisor-and-reactive-publication">7. Background supervisor and reactive publication</a></li>
+  <li><a href="#worker-backed-cpu-parallelism" id="toc-worker-backed-cpu-parallelism" class="nav-link" data-scroll-target="#worker-backed-cpu-parallelism">8. Worker-backed CPU parallelism</a></li>
+  <li><a href="#documentation-observability-and-hardening" id="toc-documentation-observability-and-hardening" class="nav-link" data-scroll-target="#documentation-observability-and-hardening">9. Documentation, observability, and hardening</a></li>
+  </ul></li>
+  <li><a href="#recommended-delivery-slices" id="toc-recommended-delivery-slices" class="nav-link" data-scroll-target="#recommended-delivery-slices">Recommended delivery slices</a></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/design/eval/async-concurrency.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title d-none d-lg-block">Async, concurrency, and background tasks</h1>
+</div>
+
+<div>
+  <div class="description">
+    Proposed semantics and implementation plan for {$ … } concurrency scopes and {$$ … } detached tasks.
+  </div>
+</div>
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="status" class="level1">
+<h1>Status</h1>
+<p>This is a concrete design proposal. The parser currently reserves <code>{$ ... }</code> for async/concurrency work, but none of the behavior in this document is implemented yet. <code>{# ... }</code> remains the inert symbolic-system form.</p>
+<p>The proposal deliberately separates two operations:</p>
+<ul>
+<li><code>{$ ... }</code> is an <strong>awaited concurrency scope</strong>. It permits explicitly independent work to overlap, waits for every required result or an early terminal result, and returns an ordinary RiX value.</li>
+<li><code>{$$ ... }</code> is a <strong>supervised background task</strong>. Its statements execute in order while the spawning evaluation continues immediately. Its final value is discarded.</li>
+</ul>
+<p>Neither form exposes JavaScript promises as RiX values. <code>{$$ ... }</code> describes detached control flow, not a guaranteed operating-system thread. A host may run it on the event loop or in a worker according to the capabilities used by its body.</p>
+</section>
+<section id="goals-and-non-goals" class="level1">
+<h1>Goals and non-goals</h1>
+<p>The design must:</p>
+<ul>
+<li>overlap independent collection construction and collection-pipe work;</li>
+<li>retain deterministic source-order results where the existing operation is ordered;</li>
+<li>bound admitted work, with a runtime default of 10 concurrent items;</li>
+<li>let an item continue through elementwise pipe stages without waiting for unrelated items;</li>
+<li>compose through nested explicit collections and nested concurrency scopes;</li>
+<li>provide cooperative cancellation and a completion-order escape from a named concurrency scope;</li>
+<li>keep ordinary statements temporal and sequential;</li>
+<li>let a background task publish results through effects or literal reactive updates without returning a promise or task handle;</li>
+<li>preserve the host capability and sandbox boundary.</li>
+</ul>
+<p>The first implementation will not:</p>
+<ul>
+<li>infer that arbitrary loop iterations, function arguments, or arithmetic operands are independent;</li>
+<li>permit unsynchronized writes to ordinary outer cells;</li>
+<li>promise rollback of files, requests, output, or other completed effects;</li>
+<li>promise CPU parallelism for code running on one JavaScript event loop;</li>
+<li>provide detached-task handles, joins, or promise values;</li>
+<li>spawn detached tasks from reactive formula evaluation.</li>
+</ul>
+</section>
+<section id="terminology" class="level1">
+<h1>Terminology</h1>
+<p>An <strong>async evaluation</strong> is evaluation by the promise-aware RiX evaluator. It still awaits operands in language order unless a construct in this document creates explicit concurrency.</p>
+<p>A <strong>concurrency scope</strong> owns a scheduler, cancellation signal, result assembly, and optional name. It cannot finish while required child work remains active. This is structured concurrency.</p>
+<p>A <strong>source item</strong> is one independently admitted element or entry of an explicit collection, or one item read from a pre-existing collection by an elementwise pipe.</p>
+<p>A <strong>fused region</strong> is a consecutive sequence of elementwise pipe stages. One source item retains its concurrency permit until it exits that region, is filtered out, or supplies a terminal answer. This gives the concurrency limit the useful meaning “items in flight through this pipeline,” rather than “individual function calls currently active.”</p>
+<p>A <strong>barrier</strong> needs a complete ordered collection or shared accumulator before it can proceed. A barrier ends one fused region. A later elementwise stage starts a new region.</p>
+<p>A <strong>background task</strong> is runtime-owned work started by <code>{$$ ... }</code>. It outlives the spawning statement but never outlives its host runtime/session.</p>
+</section>
+<section id="syntax" class="level1">
+<h1>Syntax</h1>
+<section id="awaited-concurrency-scopes" class="level2">
+<h2 class="anchored" data-anchor-id="awaited-concurrency-scopes">Awaited concurrency scopes</h2>
+<pre class="rix"><code>{$ expression }
+{$name$ expression }
+{$:4$ expression }
+{$name:4$ expression }</code></pre>
+<p>The forms mean:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Form</th>
+<th>Name</th>
+<th>Concurrency limit</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>{$ ... }</code></td>
+<td>anonymous</td>
+<td>runtime default</td>
+</tr>
+<tr class="even">
+<td><code>{$jobs$ ... }</code></td>
+<td><code>jobs</code></td>
+<td>runtime default</td>
+</tr>
+<tr class="odd">
+<td><code>{$:4$ ... }</code></td>
+<td>anonymous</td>
+<td>4</td>
+</tr>
+<tr class="even">
+<td><code>{$jobs:4$ ... }</code></td>
+<td><code>jobs</code></td>
+<td>4</td>
+</tr>
+</tbody>
+</table>
+<p>The colon follows the existing named/capped loop-header convention. A limit must be a positive safe integer. There is intentionally no unbounded form in the initial design. The runtime default is:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>defaultAsyncConcurrency<span class="op">:</span> <span class="dv">10</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>A host may override the default for a runtime. An explicit header overrides the runtime default but cannot escape a stricter containing scope or host cap.</p>
+<p><code>{$ ... }</code> is block-scoped and returns its final statement’s value. Statements inside it execute one at a time. Each statement waits for its own required concurrent work before the next statement begins.</p>
+</section>
+<section id="background-tasks" class="level2">
+<h2 class="anchored" data-anchor-id="background-tasks">Background tasks</h2>
+<pre class="rix"><code>{$$
+    statement1
+    statement2
+}</code></pre>
+<p><code>{$$ ... }</code> starts one supervised background task and immediately evaluates to <code>_</code>/null in the spawning evaluation. The task’s statements execute in order and implicitly await async capability calls. Its final expression is evaluated but the value is discarded.</p>
+<p>The background block does not make its contents parallel. It may contain an ordinary concurrency scope:</p>
+<pre class="rix"><code>{$$
+    results := {$:4$ urls |&gt;&gt; Fetch }
+    $downloads := results
+}</code></pre>
+<p>Named background tasks, handles, and joins are reserved for a later proposal.</p>
+</section>
+<section id="async-scope-breaks" class="level2">
+<h2 class="anchored" data-anchor-id="async-scope-breaks">Async-scope breaks</h2>
+<p>The typed break syntax gains <code>$</code> as a target:</p>
+<pre class="rix"><code>{!$ value }              // nearest concurrency scope
+{!$search! value }       // named concurrency scope</code></pre>
+<p>An async-scope break is a completion-order race. The first accepted break requests cancellation of siblings and becomes the scope result after cleanup. It is intentionally different from ordered <code>|&gt;||</code>.</p>
+</section>
+</section>
+<section id="awaiting-model" class="level1">
+<h1>Awaiting model</h1>
+<p>Async capability results are implicitly awaited by the async evaluator. RiX values never contain a raw promise.</p>
+<p>Outside an explicit fan-out, evaluation order remains the ordinary RiX order:</p>
+<pre class="rix"><code>a := Fetch(url1)      // completes before the next statement
+b := Fetch(url2)</code></pre>
+<p>The statement after a concurrency scope waits for the scope:</p>
+<pre class="rix"><code>results := {$ [Fetch(url1), Fetch(url2)] }
+Use(results)          // starts only after both fetches settle successfully</code></pre>
+<p>The top-level host API must therefore offer an async entry point. The existing fully synchronous entry point remains valid for scripts that contain no async capability or async syntax.</p>
+</section>
+<section id="explicit-collection-construction" class="level1">
+<h1>Explicit collection construction</h1>
+<section id="fan-out-rule" class="level2">
+<h2 class="anchored" data-anchor-id="fan-out-rule">Fan-out rule</h2>
+<p>While a concurrency scope is dynamically active, explicit collection constructors are fan-out points:</p>
+<ul>
+<li>arrays and brace arrays;</li>
+<li>tuples;</li>
+<li>maps;</li>
+<li>sets;</li>
+<li>matrices and tensors;</li>
+<li>finite eager generator output, subject to the generator rules below.</li>
+</ul>
+<p>Function argument lists, arithmetic operands, and block statements are not collection constructors and remain sequential.</p>
+<p>Every collection-producing expression invoked under the dynamic concurrency context inherits it, including constructors inside called RiX functions. Collections fully constructed before the scope are already values and are not re-evaluated. They become ordinary pipe sources.</p>
+<pre class="rix"><code>existing := [F(), G()]       // already evaluated sequentially
+
+inside := {$ [F(), G()] }    // F and G overlap
+mapped := {$ existing |&gt;&gt; H }</code></pre>
+</section>
+<section id="nested-collections" class="level2">
+<h2 class="anchored" data-anchor-id="nested-collections">Nested collections</h2>
+<p>Nested explicit collections share the containing scheduler and cancellation signal. Admission walks source expressions depth-first and left-to-right. Structural parent nodes do not consume permits while waiting for children.</p>
+<pre class="rix"><code>{$:2$
+    {= a=[F(), G()], b=H() }
+}</code></pre>
+<p>The admission sequence is <code>F()</code>, <code>G()</code>, <code>H()</code>. <code>F</code> and <code>G</code> start first. If <code>G</code> finishes while <code>F</code> remains active, <code>H</code> may begin. The internal slot for <code>b</code> may resolve before <code>a</code>, but the map is not published until every required slot is resolved. Its source key/element order is retained.</p>
+<p>A suspended structural parent yields scheduler capacity while nested children run. This prevents a nested collection from deadlocking when the limit is 1.</p>
+</section>
+<section id="map-entries" class="level2">
+<h2 class="anchored" data-anchor-id="map-entries">Map entries</h2>
+<p>An identifier-key map entry schedules its value expression as one source item. A computed-key entry evaluates its key and value as one item in ordinary key-before-value order. Map entry admission follows literal source order.</p>
+<p>Async traversal operators use the collection’s canonical traversal order. The implementation must make map traversal order explicit and stable before shipping ordered async <code>|&gt;||</code>; the recommended rule is insertion order, which matches current runtime storage.</p>
+</section>
+<section id="generators-and-lazy-sources" class="level2">
+<h2 class="anchored" data-anchor-id="generators-and-lazy-sources">Generators and lazy sources</h2>
+<p>A recurrence-dependent generator remains sequential at its generation step. Independent downstream pipe stages may overlap across generated items.</p>
+<p>Lazy and unbounded sources must use bounded pull: at most the effective concurrency limit may be admitted into a fused region. They must never be fully materialized merely because evaluation occurs inside <code>{$ ... }</code>.</p>
+</section>
+</section>
+<section id="async-pipe-semantics" class="level1">
+<h1>Async pipe semantics</h1>
+<p>All pipe operators use the async evaluator inside <code>{$ ... }</code>, but only elementwise operators naturally fuse. Whole-value and structural operations are barriers.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Pipe</th>
+<th>Existing role</th>
+<th>Async behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>|&gt;&gt;</code></td>
+<td>map</td>
+<td>Elementwise fused stage; transformed items retain source order in the result.</td>
+</tr>
+<tr class="even">
+<td><code>|&gt;?</code></td>
+<td>filter</td>
+<td>Elementwise fused predicate; passing items continue immediately; final result retains source order.</td>
+</tr>
+<tr class="odd">
+<td><code>|&gt;||</code></td>
+<td>any/some</td>
+<td>Ordered Find terminal; returns the first source-order item whose predicate is truthy.</td>
+</tr>
+<tr class="even">
+<td><code>|&gt;&amp;&amp;</code></td>
+<td>every/all</td>
+<td>Terminal; may request cancellation once a falsy predicate fixes the result; returns the source-order last item if all pass.</td>
+</tr>
+<tr class="odd">
+<td><code>|&gt;:</code> / <code>|:&gt;</code></td>
+<td>reduce</td>
+<td>Ordered accumulator barrier; upstream work overlaps, reducer calls occur in source order.</td>
+</tr>
+<tr class="even">
+<td><code>|&lt;&gt;</code></td>
+<td>sort</td>
+<td>Full barrier; use a stable async-aware comparator implementation.</td>
+</tr>
+<tr class="odd">
+<td><code>|&gt;&lt;</code></td>
+<td>reverse</td>
+<td>Full barrier.</td>
+</tr>
+<tr class="even">
+<td><code>|&gt;/</code> / <code>|&gt;//</code></td>
+<td>slice</td>
+<td>Full barrier in the first implementation.</td>
+</tr>
+<tr class="odd">
+<td><code>|&gt;/|</code></td>
+<td>split</td>
+<td>Full ordered barrier in the first implementation.</td>
+</tr>
+<tr class="even">
+<td><code>|&gt;#|</code></td>
+<td>chunk</td>
+<td>Full ordered barrier in the first implementation.</td>
+</tr>
+<tr class="odd">
+<td><code>|&gt;</code></td>
+<td>whole-value function application</td>
+<td>Full barrier; arrays remain one argument and tuples unpack.</td>
+</tr>
+<tr class="even">
+<td><code>||&gt;</code></td>
+<td>explicit placeholder pipe</td>
+<td>Full barrier.</td>
+</tr>
+</tbody>
+</table>
+<p>This classification preserves current value semantics while permitting a streaming implementation where it is observable only through latency and effects.</p>
+<section id="fused-example" class="level2">
+<h2 class="anchored" data-anchor-id="fused-example">Fused example</h2>
+<pre class="rix"><code>{$:2$
+    [F(), G()]
+        |&gt;&gt; H
+        |&gt;? J
+}</code></pre>
+<p><code>F()</code> and <code>G()</code> start. If <code>G()</code> resolves first, that item immediately enters <code>H</code>, then <code>J</code>; it does not wait for <code>F()</code>. The source item retains one in-flight permit through <code>F/G -&gt; H -&gt; J</code>. The final filtered collection is nevertheless assembled in source order.</p>
+<p>For a longer source at limit 2:</p>
+<pre class="rix"><code>{$:2$ [F(), G(), K()] |&gt;&gt; H |&gt;? J }</code></pre>
+<p><code>K()</code> is admitted only after either the <code>F</code> item or the <code>G</code> item completely exits the fused <code>H/J</code> region. This prevents a wide source from starving its own downstream stages and makes the limit describe end-to-end work in flight.</p>
+</section>
+<section id="barriers-and-later-stages" class="level2">
+<h2 class="anchored" data-anchor-id="barriers-and-later-stages">Barriers and later stages</h2>
+<pre class="rix"><code>{$:4$ values |&gt;&gt; F |&lt;&gt; Compare |&gt;&gt; G }</code></pre>
+<p>The first map is one concurrent region. Sort waits for its complete output. The second map starts a new concurrent region over the sorted values.</p>
+<p>An ordinary pipe also waits for the complete collection:</p>
+<pre class="rix"><code>{$ [F(), G()] } |&gt; H</code></pre>
+<p>This calls <code>H([fResult, gResult])</code>. To unpack positional results, construct a tuple:</p>
+<pre class="rix"><code>{$ {: F(), G() } } |&gt; H</code></pre>
+</section>
+<section id="ordered-find" class="level2">
+<h2 class="anchored" data-anchor-id="ordered-find">Ordered Find</h2>
+<p><code>|&gt;||</code> retains its current “first passing input item” result contract. In an async pipeline, “first” means traversal order, not completion order.</p>
+<p>If item 7 passes while item 3 is unresolved, item 7 is remembered but cannot be returned until all earlier candidates have resolved as failures. Once the answer is determined, later queued work is discarded and later active work is cancelled cooperatively.</p>
+<p>“Success” means a truthy predicate result. An exception is not implicitly a miss: by default it fails the scope. Code that wants fallible attempts to count as misses must convert failures into ordinary RiX values through the language’s soft trial/case mechanisms.</p>
+<p>For completion-order behavior, use a named scope break instead:</p>
+<pre class="rix"><code>{$search:4$
+    candidates |&gt;&gt; (candidate) -&gt; {;
+        result := Try(candidate)
+        IsAnswer(result) ?? {!$search! result} ?: _
+    }
+}</code></pre>
+</section>
+</section>
+<section id="scheduler-and-ordering-contract" class="level1">
+<h1>Scheduler and ordering contract</h1>
+<p>The effective concurrency limit is the minimum of:</p>
+<ol type="1">
+<li>the nearest explicit scope limit, if present;</li>
+<li>inherited containing-scope limits;</li>
+<li>the runtime default or host maximum;</li>
+<li>executor-specific limits, such as a worker-pool size.</li>
+</ol>
+<p>The scheduler is work-conserving but deterministic about admission:</p>
+<ul>
+<li>source items are admitted in canonical source/traversal order;</li>
+<li>an admitted item retains its permit through its fused region;</li>
+<li>completion order may expose later-ready internal slots, but final ordered values retain source order;</li>
+<li>a barrier consumes values in source order even if they arrived out of order;</li>
+<li>nested scopes share the ancestor scheduler rather than creating capacity;</li>
+<li>waiting scope controllers do not hold leaf permits.</li>
+</ul>
+<p>The scheduler must attach a stable path to each item, for example <code>scope jobs / map entry a / array index 2 / pipe stage H</code>. Diagnostics, output, and suppressed errors use this path.</p>
+</section>
+<section id="scope-cells-and-effects" class="level1">
+<h1>Scope, cells, and effects</h1>
+<p>Each concurrent source item runs in a task-local context forked from the scope at admission. It receives a stable snapshot of visible ordinary values and the same callable/capability boundary. Implementations may use immutable sharing or copy-on-write rather than eagerly deep-copying everything.</p>
+<p>Within a source item:</p>
+<ul>
+<li>local assignment and mutation are allowed;</li>
+<li>writes to ordinary cells outside the task are rejected;</li>
+<li>task-local state does not escape except as the returned value;</li>
+<li>reactive writes and host effects follow the special rules below.</li>
+</ul>
+<p>Consequently, this is invalid concurrent accumulation:</p>
+<pre class="rix"><code>total := 0
+{$ values |&gt;&gt; (x) -&gt; @total += F(x) }</code></pre>
+<p>The deterministic form returns values and reduces them:</p>
+<pre class="rix"><code>total := {$ values |&gt;&gt; F } |&gt;: @+</code></pre>
+<p>Capability groups remain authority boundaries. <code>{$ ... }</code> grants no network, file, plugin, process, or output permission that the caller did not already have. A capability may additionally declare:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb18"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>{</span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">async</span><span class="op">:</span> <span class="kw">true</span><span class="op">,</span></span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">parallelSafe</span><span class="op">:</span> <span class="kw">true</span><span class="op">,</span></span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">cancellable</span><span class="op">:</span> <span class="kw">true</span><span class="op">,</span></span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">executor</span><span class="op">:</span> <span class="st">"event-loop"</span><span class="op">,</span> <span class="co">// or "worker"</span></span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">effects</span><span class="op">:</span> [<span class="st">"net"</span>]</span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The exact metadata spelling can change during implementation, but the runtime must distinguish promise-awareness, safe overlap, cooperative cancellation, executor needs, and effects. A capability not marked parallel-safe executes through a serialized lane even inside a concurrency scope.</p>
+<p>Random work receives a deterministic child stream derived from the parent seed and stable task path. Completion timing must not change random results.</p>
+</section>
+<section id="failure-cancellation-and-cleanup" class="level1">
+<h1>Failure, cancellation, and cleanup</h1>
+<section id="scope-failure" class="level2">
+<h2 class="anchored" data-anchor-id="scope-failure">Scope failure</h2>
+<p>By default, an unhandled child error fails the containing <code>{$ ... }</code> scope:</p>
+<ol type="1">
+<li>stop admitting new source items;</li>
+<li>request cancellation of active siblings;</li>
+<li>await sibling cleanup/settlement;</li>
+<li>throw an annotated error from the scope.</li>
+</ol>
+<p>Additional errors observed during cleanup are attached as suppressed errors in stable task-path order. Cancellation is not itself reported as a sibling error.</p>
+<p>Future <code>AllSettled</code>-style behavior should be an explicit operation; it is not the default collection-construction contract.</p>
+</section>
+<section id="cooperative-cancellation" class="level2">
+<h2 class="anchored" data-anchor-id="cooperative-cancellation">Cooperative cancellation</h2>
+<p>Every task receives a cancellation signal. The evaluator checks it at least at:</p>
+<ul>
+<li>function/capability call boundaries;</li>
+<li>loop backedges;</li>
+<li>lazy-source pulls;</li>
+<li>pipe-stage transitions;</li>
+<li>worker message boundaries.</li>
+</ul>
+<p>I/O capabilities should forward the signal to host APIs such as <code>AbortController</code>. Synchronous JavaScript or native code that neither yields nor checks the signal cannot be safely interrupted on the event loop. A worker may be terminated, but termination discards its local state and still cannot undo completed external effects.</p>
+<p>Cancellation never promises rollback. A request may already have been sent, a file may already have been written, and output may already have been emitted.</p>
+</section>
+<section id="async-scope-break" class="level2">
+<h2 class="anchored" data-anchor-id="async-scope-break">Async-scope break</h2>
+<p><code>{!$...}</code> is a controlled scope completion rather than an error. Its value is fully evaluated in the winning task before cancellation begins. The scope then follows the same stop, cancel, and cleanup sequence and returns that value.</p>
+<p>Two nearly simultaneous breaks are resolved by scheduler observation order. This is intentionally nondeterministic and appropriate only when any winning answer is acceptable. Ordered selection uses <code>|&gt;||</code>.</p>
+</section>
+</section>
+<section id="background-task-contract" class="level1">
+<h1>Background-task contract</h1>
+<section id="spawn-and-isolation" class="level2">
+<h2 class="anchored" data-anchor-id="spawn-and-isolation">Spawn and isolation</h2>
+<p><code>{$$ ... }</code> snapshots its visible ordinary values, callable definitions, source location, and allowed capability frame at spawn. It cannot mutate ordinary outer cells. The spawning evaluation receives null immediately and cannot join or inspect the final value.</p>
+<p>The runtime registers the task with a background supervisor. The supervisor:</p>
+<ul>
+<li>assigns an ID and retains source diagnostics;</li>
+<li>enforces a host-configured active-task and queue limit;</li>
+<li>owns cancellation when the session closes;</li>
+<li>reports uncaught task errors as diagnostic events;</li>
+<li>prevents an abandoned task from retaining a closed runtime indefinitely.</li>
+</ul>
+<p>Starting a background task requires a <code>BACKGROUND</code> script permission. The task inherits, but does not broaden, the caller’s other permissions.</p>
+</section>
+<section id="host-lifecycle" class="level2">
+<h2 class="anchored" data-anchor-id="host-lifecycle">Host lifecycle</h2>
+<p>Interactive hosts keep background tasks alive until they finish, are cancelled, or the session closes. Session close requests cancellation and drains cleanup for a bounded grace period.</p>
+<p>The CLI drains supervised background tasks before normal process exit by default, so a background file write is not silently truncated merely because the main expression finished. A host/CLI no-drain mode may instead cancel them at main completion. This lifecycle choice affects process lifetime, never the value or statement ordering of the main RiX evaluation.</p>
+</section>
+<section id="errors" class="level2">
+<h2 class="anchored" data-anchor-id="errors">Errors</h2>
+<p>An uncaught background error cannot propagate to the already-continued spawning expression. It emits a structured diagnostic containing task ID, spawn location, current task path, and error stack. Hosts may treat background errors as nonfatal diagnostics or terminate the session by policy.</p>
+</section>
+<section id="reactive-reads-and-writes" class="level2">
+<h2 class="anchored" data-anchor-id="reactive-reads-and-writes">Reactive reads and writes</h2>
+<p>A background task is a one-shot effect, not a persistent reactive formula. Reactive reads are point-in-time reads and do not retain a dependency after the task ends.</p>
+<p>A reactive assignment performed by a background task:</p>
+<ol type="1">
+<li>fully evaluates the right-hand side in the task;</li>
+<li>transfers/copies the resolved value to the graph-owning runtime;</li>
+<li>commits it as a literal reactive definition on the owner event queue;</li>
+<li>triggers ordinary reactive propagation there.</li>
+</ol>
+<p>The task must not install a formula that closes over task-local cells. <code>${ ... }</code> inside a background task transfers one atomic batch of resolved literal updates. Multiple background tasks that update the same reactive identity are serialized by arrival order and are therefore timing-dependent; deterministic programs should use one writer or distinct identities.</p>
+<p>Direct cross-thread access to a <code>ReactiveGraph</code> is forbidden. A worker-backed task communicates through supervisor messages.</p>
+<p>The first implementation rejects <code>{$$ ... }</code> while evaluating a reactive formula. Otherwise every recomputation could spawn another external effect. A later reactive-effect abstraction may define replacement/cancellation rules.</p>
+</section>
+</section>
+<section id="execution-model" class="level1">
+<h1>Execution model</h1>
+<p>The language specifies overlap and isolation, not a particular executor:</p>
+<ul>
+<li>promise-returning file/network/timer/plugin work normally uses event-loop concurrency;</li>
+<li>CPU-heavy pure RiX work requires a worker pool for true simultaneous execution;</li>
+<li>worker execution requires serializable lowered IR, captured values, random state, capability descriptors, results, diagnostics, and cancellation;</li>
+<li>host-only or non-serializable capabilities remain on the owner executor;</li>
+<li>worker results and reactive commits cross the boundary as messages.</li>
+</ul>
+<p>An event-loop implementation still satisfies ordering and awaiting semantics, but a long synchronous task can block every sibling. Documentation and diagnostics should use “concurrent” unless a worker executor actually guarantees parallel CPU execution.</p>
+</section>
+<section id="ir-and-runtime-shape" class="level1">
+<h1>IR and runtime shape</h1>
+<p>The intended lowered forms are conceptually:</p>
+<pre class="text"><code>ASYNC_SCOPE({ name?, limit? }, DEFER(body))
+DETACH({}, DEFER(body))
+BREAK({ targetType: "async", targetName? }, value)</code></pre>
+<p>The async evaluator may plan an expression into internal nodes such as:</p>
+<pre class="text"><code>ASYNC_SOURCE
+ASYNC_STAGE_MAP
+ASYNC_STAGE_FILTER
+ASYNC_TERMINAL_ANY
+ASYNC_TERMINAL_ALL
+ASYNC_BARRIER</code></pre>
+<p>These are evaluator-internal plans, not first-class RiX values. A promise, scheduler permit, task handle, or partially resolved collection must never escape into ordinary RiX operations.</p>
+<p>The current nested <code>PMAP(PFILTER(...))</code> IR does not by itself preserve enough information to fuse a whole expression after inner evaluation materializes. Implementation should either:</p>
+<ol type="1">
+<li>add an async planning pass that flattens a pipe chain before evaluating its source; or</li>
+<li>lower pipe chains under <code>ASYNC_SCOPE</code> to an explicit <code>ASYNC_PIPELINE</code> plan.</li>
+</ol>
+<p>The planning pass is preferred initially because it avoids changing ordinary sync IR and can classify existing pipe functions as stages or barriers in one place.</p>
+</section>
+<section id="examples" class="level1">
+<h1>Examples</h1>
+<section id="parallel-construction-followed-by-a-barrier-pipe" class="level2">
+<h2 class="anchored" data-anchor-id="parallel-construction-followed-by-a-barrier-pipe">Parallel construction followed by a barrier pipe</h2>
+<pre class="rix"><code>summary := {$
+    {= left=Fetch(leftUrl), right=Fetch(rightUrl) }
+} |&gt; Summarize</code></pre>
+<p>Both fetches overlap. <code>Summarize</code> receives the completed map.</p>
+</section>
+<section id="end-to-end-bounded-pipeline" class="level2">
+<h2 class="anchored" data-anchor-id="end-to-end-bounded-pipeline">End-to-end bounded pipeline</h2>
+<pre class="rix"><code>accepted := {$imports:10$
+    paths
+        |&gt;&gt; ReadFile
+        |&gt;&gt; ParseRecord
+        |&gt;? ValidRecord
+        |&gt;&gt; Normalize
+}
+Store(accepted)</code></pre>
+<p>At most ten path items occupy the fused pipeline. A fast item may reach <code>Normalize</code> while an earlier file is still being read. <code>accepted</code> retains path traversal order among passing records.</p>
+</section>
+<section id="ordered-selection" class="level2">
+<h2 class="anchored" data-anchor-id="ordered-selection">Ordered selection</h2>
+<pre class="rix"><code>answer := {$search:6$
+    candidates
+        |&gt;&gt; TryCandidate
+        |&gt;|| IsAnswer
+}</code></pre>
+<p>This returns the first candidate result in source order that passes <code>IsAnswer</code>, not the fastest passing result.</p>
+</section>
+<section id="completion-race" class="level2">
+<h2 class="anchored" data-anchor-id="completion-race">Completion race</h2>
+<pre class="rix"><code>answer := {$race:3$
+    strategies |&gt;&gt; (strategy) -&gt; {;
+        result := strategy(problem)
+        IsAnswer(result) ?? {!$race! result} ?: _
+    }
+}</code></pre>
+<p>This returns whichever strategy first produces an accepted answer.</p>
+</section>
+<section id="background-publication" class="level2">
+<h2 class="anchored" data-anchor-id="background-publication">Background publication</h2>
+<pre class="rix"><code>$$status := :idle
+$$result := _
+
+{$$
+    $status := :working
+    value := {$:4$ sources |&gt;&gt; Fetch |&gt;&gt; Decode }
+    ${
+        $result := value
+        $status := :done
+    }
+}
+
+RenderMainView()</code></pre>
+<p><code>RenderMainView()</code> begins without waiting for the task. The resolved literal reactive batch later publishes <code>result</code> and <code>status</code> together.</p>
+</section>
+</section>
+<section id="implementation-checklist" class="level1">
+<h1>Implementation checklist</h1>
+<section id="lock-the-language-contract" class="level2">
+<h2 class="anchored" data-anchor-id="lock-the-language-contract">0. Lock the language contract</h2>
+<ul class="task-list">
+<li><label><input type="checkbox">Add parser, lowering, and evaluator design tests that describe the syntax before enabling execution.</label></li>
+<li><label><input type="checkbox">Remove stale user-facing references that call <code>{$ ... }</code> a mathematical system block; keep <code>{# ... }</code> as the symbolic-system form.</label></li>
+<li><label><input type="checkbox">Decide and document canonical map traversal order; use insertion order for deterministic ordered pipes.</label></li>
+<li><label><input type="checkbox">Add <code>defaultAsyncConcurrency: 10</code> and host override plumbing.</label></li>
+<li><label><input type="checkbox">Add a <code>BACKGROUND</code> script permission and sandbox policy tests.</label></li>
+</ul>
+</section>
+<section id="parser-and-ir" class="level2">
+<h2 class="anchored" data-anchor-id="parser-and-ir">1. Parser and IR</h2>
+<ul class="task-list">
+<li><label><input type="checkbox">Teach the tokenizer to recognize <code>{$ ... }</code>, <code>{$name$ ... }</code>, <code>{$:n$ ... }</code>, and <code>{$name:n$ ... }</code> with required following whitespace.</label></li>
+<li><label><input type="checkbox">Recognize <code>{$$ ... }</code> before generic <code>$</code> sigil handling.</label></li>
+<li><label><input type="checkbox">Add <code>AsyncContainer</code> and <code>DetachedBlock</code> AST nodes.</label></li>
+<li><label><input type="checkbox">Parse <code>{!$ value }</code> and <code>{!$name! value }</code> as async-targeted breaks.</label></li>
+<li><label><input type="checkbox">Lower to <code>ASYNC_SCOPE</code>, <code>DETACH</code>, and <code>BREAK(targetType="async")</code>.</label></li>
+<li><label><input type="checkbox">Preserve scope names, limits, source spans, and nesting paths in IR.</label></li>
+<li><label><input type="checkbox">Add tokenizer/parser/lowering negative tests for zero, malformed, and unsafe concurrency limits.</label></li>
+</ul>
+</section>
+<section id="promise-aware-evaluation" class="level2">
+<h2 class="anchored" data-anchor-id="promise-aware-evaluation">2. Promise-aware evaluation</h2>
+<ul class="task-list">
+<li><label><input type="checkbox">Add <code>evaluateAsync</code> and <code>parseAndEvaluateAsync</code> while retaining the sync API for sync-only scripts.</label></li>
+<li><label><input type="checkbox">Extend registry/system capability entries with async implementations or a promise-aware dispatch contract.</label></li>
+<li><label><input type="checkbox">Reuse ordinary eager implementations after asynchronously evaluating their arguments.</label></li>
+<li><label><input type="checkbox">Add async implementations for lazy control, assignment, function-call, collection, pipe, diagnostic, and reactive operations that selectively evaluate IR.</label></li>
+<li><label><input type="checkbox">Make CLI, REPL, notebook, and web hosts select/await the async entry point when required.</label></li>
+<li><label><input type="checkbox">Verify that raw promises cannot be assigned, collected, formatted, or returned as RiX values.</label></li>
+<li><label><input type="checkbox">Preserve source annotation and call-stack diagnostics across <code>await</code>.</label></li>
+</ul>
+</section>
+<section id="scheduler-and-task-contexts" class="level2">
+<h2 class="anchored" data-anchor-id="scheduler-and-task-contexts">3. Scheduler and task contexts</h2>
+<ul class="task-list">
+<li><label><input type="checkbox">Add a runtime-owned <code>TaskScheduler</code> with ordered admission, bounded permits, cancellation, stable task paths, and cleanup draining.</label></li>
+<li><label><input type="checkbox">Implement effective-limit composition for nested scopes and host caps.</label></li>
+<li><label><input type="checkbox">Ensure structural parents and nested scopes do not retain leaf permits while awaiting children.</label></li>
+<li><label><input type="checkbox">Add task-local <code>Context</code> forks with snapshot/copy-on-write reads and rejected ordinary outer writes.</label></li>
+<li><label><input type="checkbox">Derive deterministic random substreams from stable task paths.</label></li>
+<li><label><input type="checkbox">Add fake-clock/deferred-capability tests that assert admission and completion traces without relying on wall-clock timing.</label></li>
+</ul>
+</section>
+<section id="concurrent-collection-construction" class="level2">
+<h2 class="anchored" data-anchor-id="concurrent-collection-construction">4. Concurrent collection construction</h2>
+<ul class="task-list">
+<li><label><input type="checkbox">Add async planning/evaluation for arrays, brace arrays, tuples, sets, maps, matrices, and tensors.</label></li>
+<li><label><input type="checkbox">Recursively inherit concurrency through called functions and nested explicit constructors.</label></li>
+<li><label><input type="checkbox">Preserve source-order result assembly despite completion-order slot fills.</label></li>
+<li><label><input type="checkbox">Implement map key/value and insertion-order rules.</label></li>
+<li><label><input type="checkbox">Treat pre-existing collections as data sources without re-evaluation.</label></li>
+<li><label><input type="checkbox">Add bounded pull for lazy/generator sources and keep recurrence generation sequential where values depend on history.</label></li>
+<li><label><input type="checkbox">Test the limit-2 <code>{= a=[F(), G()], b=H() }</code> admission scenario exactly.</label></li>
+</ul>
+</section>
+<section id="fused-async-pipes" class="level2">
+<h2 class="anchored" data-anchor-id="fused-async-pipes">5. Fused async pipes</h2>
+<ul class="task-list">
+<li><label><input type="checkbox">Add a planner that flattens pipe chains before source evaluation.</label></li>
+<li><label><input type="checkbox">Classify every current pipe operator as elementwise, terminal, or barrier.</label></li>
+<li><label><input type="checkbox">Implement end-to-end permit retention through <code>|&gt;&gt;</code> and <code>|&gt;?</code> stages.</label></li>
+<li><label><input type="checkbox">Preserve collection shape, locators, callback arguments, strings, maps, tensors, and source-order result assembly.</label></li>
+<li><label><input type="checkbox">Implement ordered <code>|&gt;||</code>, including buffering a later passing result until every earlier candidate fails.</label></li>
+<li><label><input type="checkbox">Implement <code>|&gt;&amp;&amp;</code> cancellation once a falsy result determines the outcome.</label></li>
+<li><label><input type="checkbox">Implement ordered reduce barriers with concurrent upstream stages.</label></li>
+<li><label><input type="checkbox">Implement stable async sort and the remaining structural barriers.</label></li>
+<li><label><input type="checkbox">Test pipelines separated by multiple barriers and nested inside collection entries.</label></li>
+<li><label><input type="checkbox">Test infinite/lazy sources for strict bounded admission and early terminal cancellation.</label></li>
+</ul>
+</section>
+<section id="failure-and-cancellation" class="level2">
+<h2 class="anchored" data-anchor-id="failure-and-cancellation">6. Failure and cancellation</h2>
+<ul class="task-list">
+<li><label><input type="checkbox">Thread cancellation signals through evaluator calls, loops, source pulls, stages, capabilities, and workers.</label></li>
+<li><label><input type="checkbox">Implement fail-fast admission stop followed by sibling cancellation and cleanup drain.</label></li>
+<li><label><input type="checkbox">Attach suppressed cleanup failures in stable task-path order.</label></li>
+<li><label><input type="checkbox">Implement named and unnamed <code>{!$...}</code> completion races.</label></li>
+<li><label><input type="checkbox">Specify capability metadata for parallel safety, cancellation, executor, and effects; serialize unsafe capabilities through a single lane.</label></li>
+<li><label><input type="checkbox">Add tests for queued cancellation, cooperative I/O abort, loop checkpoints, simultaneous breaks, and uncancellable synchronous code.</label></li>
+<li><label><input type="checkbox">Verify explicitly that cancellation does not imply effect rollback.</label></li>
+</ul>
+</section>
+<section id="background-supervisor-and-reactive-publication" class="level2">
+<h2 class="anchored" data-anchor-id="background-supervisor-and-reactive-publication">7. Background supervisor and reactive publication</h2>
+<ul class="task-list">
+<li><label><input type="checkbox">Implement <code>DETACH</code> as immediate null plus a supervisor-owned task.</label></li>
+<li><label><input type="checkbox">Add active-task/queue limits, task IDs, source diagnostics, session-close cancellation, and bounded cleanup.</label></li>
+<li><label><input type="checkbox">Define CLI drain-by-default and host no-drain/cancel behavior.</label></li>
+<li><label><input type="checkbox">Report background errors as structured diagnostics without retroactively failing continued main evaluation.</label></li>
+<li><label><input type="checkbox">Snapshot ordinary captured values and capability permissions at spawn.</label></li>
+<li><label><input type="checkbox">Reject ordinary outer-cell writes and detached spawn during reactive formula evaluation.</label></li>
+<li><label><input type="checkbox">Transfer background reactive updates as resolved literal messages to the graph owner; support atomic <code>${ ... }</code> batches.</label></li>
+<li><label><input type="checkbox">Document and test arrival-order conflicts between multiple background writers.</label></li>
+<li><label><input type="checkbox">Add supervisor inspection/disposal APIs for hosts without exposing task handles as RiX values.</label></li>
+</ul>
+</section>
+<section id="worker-backed-cpu-parallelism" class="level2">
+<h2 class="anchored" data-anchor-id="worker-backed-cpu-parallelism">8. Worker-backed CPU parallelism</h2>
+<ul class="task-list">
+<li><label><input type="checkbox">Define the serializable IR, closure-value, random-state, capability, result, diagnostic, and cancellation message protocol.</label></li>
+<li><label><input type="checkbox">Add a bounded worker executor for pure/worker-safe RiX tasks.</label></li>
+<li><label><input type="checkbox">Keep non-serializable and host-owned capabilities on the owner executor.</label></li>
+<li><label><input type="checkbox">Route reactive commits and output events back through owner messages.</label></li>
+<li><label><input type="checkbox">Add worker termination and grace-period behavior.</label></li>
+<li><label><input type="checkbox">Compare event-loop and worker execution for semantic equivalence.</label></li>
+</ul>
+</section>
+<section id="documentation-observability-and-hardening" class="level2">
+<h2 class="anchored" data-anchor-id="documentation-observability-and-hardening">9. Documentation, observability, and hardening</h2>
+<ul class="task-list">
+<li><label><input type="checkbox">Add syntax/reference documentation only when the corresponding runtime slice is implemented.</label></li>
+<li><label><input type="checkbox">Show scope/task paths, queue state, running count, cancellation reason, and executor in trace diagnostics.</label></li>
+<li><label><input type="checkbox">Tag concurrent output events with task paths and define host presentation ordering.</label></li>
+<li><label><input type="checkbox">Add deterministic stress tests for deep nesting, low limits, barriers, cancellation storms, and background shutdown.</label></li>
+<li><label><input type="checkbox">Add benchmarks for I/O overlap, pipeline latency, scheduler overhead, and worker CPU scaling.</label></li>
+<li><label><input type="checkbox">Run <code>bun test</code> from <code>rix/</code> after every implementation slice.</label></li>
+</ul>
+</section>
+</section>
+<section id="recommended-delivery-slices" class="level1">
+<h1>Recommended delivery slices</h1>
+<ol type="1">
+<li><strong>Async foundation:</strong> promise-aware evaluator plus sequential implicit await, with no concurrency syntax enabled.</li>
+<li><strong>Awaited gather:</strong> <code>{$ ... }</code>, bounded explicit arrays/tuples/maps, nested constructors, ordered results, and fail-fast cancellation.</li>
+<li><strong>Pipeline concurrency:</strong> fused <code>|&gt;&gt;</code>/<code>|&gt;?</code>, then ordered <code>|&gt;||</code>/<code>|&gt;&amp;&amp;</code>, then barriers.</li>
+<li><strong>Structured escape:</strong> named <code>{!$...}</code> and complete cancellation diagnostics.</li>
+<li><strong>Background effects:</strong> <code>{$$ ... }</code>, supervisor lifecycle, and literal reactive publication.</li>
+<li><strong>True CPU parallelism:</strong> worker-safe tasks after event-loop semantics are stable.</li>
+</ol>
+<p>Each slice must leave ordinary synchronous RiX behavior unchanged and keep the existing test suite green.</p>
+
+
+</section>
+
+<a onclick="window.scrollTo(0, 0); return false;" role="button" id="quarto-back-to-top"><i class="bi bi-arrow-up"></i> Back to top</a></main> <!-- /main -->
+<script type="module">
+  const offset = document.querySelector('meta[name="quarto:offset"]')?.content || "./";
+  import(new URL(`${offset}scripts/dynamic-navigation.js`, document.baseURI));
+</script>
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/jostylr\.github\.io\/rix\/");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+            // target, if specified
+            link.setAttribute("target", "_blank");
+            if (link.getAttribute("rel") === null) {
+              link.setAttribute("rel", "noopener");
+            }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>RiX — Rational Interval Expression Language</p>
+</div>   
+    <div class="nav-footer-center">
+      &nbsp;
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/design/eval/async-concurrency.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="nav-footer-right">
+<p>Documentation built with <a href="https://quarto.org/">Quarto</a></p>
+</div>
+  </div>
+</footer>
+
+
+
+
+<script src="../../site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>

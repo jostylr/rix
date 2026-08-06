@@ -39,6 +39,7 @@ project:
     - parser/matrix-tensor-implementation.md
     - design/eval/ir-format.md
     - design/eval/cells-assignments.md
+    - design/eval/async-concurrency.md
     - design/eval/units-and-exact-generators.md
     - design/eval/cayley-polar.md
     - design/eval/symbolic-calculus.md

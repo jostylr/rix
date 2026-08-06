@@ -130,6 +130,10 @@
           "href": "design/eval/cells-assignments.html"
         },
         {
+          "text": "Async, concurrency, and background tasks",
+          "href": "design/eval/async-concurrency.html"
+        },
+        {
           "text": "Units and exact generators",
           "href": "design/eval/units-and-exact-generators.html"
         },
