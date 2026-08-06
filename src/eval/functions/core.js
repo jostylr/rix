@@ -1312,6 +1312,12 @@ function destructureInto(pattern, sourceRef, outerMode, context, evaluate) {
     throw new Error("Invalid destructuring target");
 }
 
+/** Apply an already-resolved value to a destructuring pattern. */
+export function destructureResolvedValue(pattern, value, mode, context, evaluate) {
+    destructureInto(pattern, makeSourceRef(value), mode, context, evaluate);
+    return value;
+}
+
 export const PREP_TRIAL_NO_MATCH = Symbol("preparedTrialNoMatch");
 
 function preparedTrialFailure(preserveFailure) {

@@ -19,7 +19,7 @@ function isTruthy(val) {
  * Unwrap a DEFER node: if the node is { fn: "DEFER", args: [body] },
  * return the body; otherwise return the node itself.
  */
-function unwrapDefer(node) {
+export function unwrapDefer(node) {
     if (node && node.fn === "DEFER" && node.args && node.args.length > 0) {
         return node.args[0];
     }
@@ -30,7 +30,7 @@ function isHoleNode(node) {
     return Boolean(node) && node.fn === "HOLE";
 }
 
-function splitScopedBlockArgs(args) {
+export function splitScopedBlockArgs(args) {
     const first = args[0];
     if (
         first &&
@@ -78,7 +78,7 @@ function isBreakSignal(error) {
     return Boolean(error) && error.kind === "break";
 }
 
-function matchesBreakTarget(signal, targetType, targetName) {
+export function matchesBreakTarget(signal, targetType, targetName) {
     if (!isBreakSignal(signal)) return false;
     if (signal.targetType !== null && signal.targetType !== targetType) {
         return false;

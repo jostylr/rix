@@ -36,11 +36,11 @@ import {
     pullRawAsyncStream,
 } from "../runtime/async-stream.js";
 import { ensureMutableReceiver, resolveMethod } from "../runtime/methods.js";
-import { coreFunctions } from "./functions/core.js";
+import { coreFunctions, destructureResolvedValue, PREP_TRIAL_NO_MATCH } from "./functions/core.js";
 import { arithmeticFunctions } from "./functions/arithmetic.js";
 import { comparisonFunctions } from "./functions/comparison.js";
 import { logicFunctions } from "./functions/logic.js";
-import { controlFunctions } from "./functions/control.js";
+import { controlFunctions, matchesBreakTarget, splitScopedBlockArgs, unwrapDefer } from "./functions/control.js";
 import { collectionFunctions } from "./functions/collections.js";
 import { functionFunctions } from "./functions/functions.js";
 import { methodFunctions } from "./functions/methods.js";
@@ -55,6 +55,7 @@ import { reactiveGraphFunctions } from "./functions/reactive-graph.js";
 import { retryCapabilities } from "./functions/retry.js";
 import {
     reactiveBindingFunctions,
+    REACTIVE_ACTIVE_GRAPH_ENV,
     REACTIVE_OUTPUT_READ_ENV,
 } from "./functions/reactive-bindings.js";
 import {
@@ -845,16 +846,19 @@ function evaluateScriptImport(spec, context, registry, systemContext) {
     );
 
     const scriptContext = new Context();
-    scriptContext.env = context.env;
+    scriptContext.env = new Map(context.env);
+    const importRuntime = {
+        ...runtime,
+        activeImports: [...runtime.activeImports, resolvedPath],
+        frameStack: [...runtime.frameStack, {
+            path: prepared.path,
+            dir: prepared.dir,
+            functionNames: capabilityFrame.functionNames,
+            permissions: capabilityFrame.permissions,
+        }],
+    };
+    scriptContext.setEnv(SCRIPT_RUNTIME_ENV_KEY, importRuntime);
     scriptContext.push(undefined, { isolated: true, callableBoundary: true });
-
-    runtime.activeImports.push(resolvedPath);
-    runtime.frameStack.push({
-        path: prepared.path,
-        dir: prepared.dir,
-        functionNames: capabilityFrame.functionNames,
-        permissions: capabilityFrame.permissions,
-    });
 
     try {
         bindScriptInputs(scriptContext, context, spec.inputs || [], prepared.inputContract);
@@ -875,8 +879,74 @@ function evaluateScriptImport(spec, context, registry, systemContext) {
         applyCallerOutputBindings(context, spec.outputs || [], bundle);
         return bundle;
     } finally {
-        runtime.frameStack.pop();
-        runtime.activeImports.pop();
+        scriptContext.pop();
+    }
+}
+
+async function evaluateScriptImportAsync(spec, context, registry, systemContext, state) {
+    const runtime = getScriptRuntime(context);
+    const parentFrame = runtime.frameStack[runtime.frameStack.length - 1] || null;
+
+    if (parentFrame && !parentFrame.permissions.has("IMPORTS")) {
+        throw new Error("Script imports are not allowed in this script context");
+    }
+
+    const resolvedPath = resolveScriptPath(spec.path, runtime, context);
+    if (runtime.activeImports.includes(resolvedPath)) {
+        throw new Error(`Cyclic script import detected: ${[...runtime.activeImports, resolvedPath].join(" -> ")}`);
+    }
+
+    const prepared = prepareScript(resolvedPath, runtime);
+    const parentPermissions = parentFrame
+        ? new Set(parentFrame.permissions)
+        : getHostAvailablePermissions(context);
+    const capabilityFrame = deriveScriptCapabilityFrame(
+        systemContext,
+        parentPermissions,
+        spec.capabilityModifiers || [],
+        context,
+    );
+
+    const scriptContext = new Context();
+    scriptContext.env = new Map(context.env);
+    const importRuntime = {
+        ...runtime,
+        activeImports: [...runtime.activeImports, resolvedPath],
+        frameStack: [...runtime.frameStack, {
+            path: prepared.path,
+            dir: prepared.dir,
+            functionNames: capabilityFrame.functionNames,
+            permissions: capabilityFrame.permissions,
+        }],
+    };
+    scriptContext.setEnv(SCRIPT_RUNTIME_ENV_KEY, importRuntime);
+    scriptContext.push(undefined, { isolated: true, callableBoundary: true });
+
+    try {
+        bindScriptInputs(scriptContext, context, spec.inputs || [], prepared.inputContract);
+
+        let finalResult = null;
+        for (const node of prepared.bodyIr) {
+            finalResult = await evaluateAsyncInternal(
+                node,
+                scriptContext,
+                registry,
+                capabilityFrame.systemContext,
+                state,
+            );
+        }
+
+        if (!prepared.exportBindings || prepared.exportBindings.length === 0) {
+            if (spec.outputs && spec.outputs.length > 0) {
+                throw new Error("Caller-side script outputs require the imported script to declare exports");
+            }
+            return finalResult;
+        }
+
+        const bundle = buildExportBundle(scriptContext, prepared.exportBindings);
+        applyCallerOutputBindings(context, spec.outputs || [], bundle);
+        return bundle;
+    } finally {
         scriptContext.pop();
     }
 }
@@ -1283,7 +1353,8 @@ async function invokeUserCallableAsync(fn, callArgs, context, registry, systemCo
                 return null;
             }
         }
-        return await evaluateAsyncInternal(fn.body, context, registry, systemContext, callableState);
+        return await context.withSharedBodyAsync(fn.body, () =>
+            evaluateAsyncInternal(fn.body, context, registry, systemContext, callableState));
     } catch (error) {
         if (callableAsync.ownsScheduler) {
             callableState.scheduler.cancelGroup(callableState.group, error);
@@ -1388,6 +1459,57 @@ async function orderedAsyncMap(items, state, worker) {
     return results;
 }
 
+async function orderedAsyncTerminal(items, state, worker, terminal) {
+    if (items.length === 0) return null;
+    const scheduler = state.scheduler;
+    const group = scheduler.createGroup(state.limit, state.group);
+    const terminalState = { ...state, group, signal: group.signal };
+    const window = Math.max(1, state.limit * 2);
+    const promises = new Array(items.length);
+    let nextToStart = 0;
+    let candidateCount = 0;
+    let lastCandidate = null;
+
+    const start = (index) => {
+        let promise;
+        try {
+            promise = Promise.resolve(worker(items[index], index, terminalState));
+        } catch (error) {
+            promise = Promise.reject(error);
+        }
+        promise.catch(() => {});
+        promises[index] = promise;
+    };
+    const stop = async (result) => {
+        if (!group.cancelled) scheduler.cancelGroup(group, streamEarlyStop("ordered terminal result"));
+        await scheduler.waitForIdle(group);
+        return result;
+    };
+
+    try {
+        while (nextToStart < items.length && nextToStart < window) start(nextToStart++);
+        for (let published = 0; published < items.length; published++) {
+            const record = await promises[published];
+            if (!record.dropped) {
+                candidateCount++;
+                lastCandidate = record.value;
+                if (terminal === "PANY" && record.terminalPassed) return await stop(record.value);
+                if (terminal === "PALL" && !record.terminalPassed) return await stop(null);
+            }
+            if (nextToStart < items.length) start(nextToStart++);
+        }
+        await scheduler.waitForIdle(group);
+        if (terminal === "PALL" && candidateCount > 0) return lastCandidate;
+        return null;
+    } catch (error) {
+        if (!group.cancelled) scheduler.cancelGroup(group, error);
+        await scheduler.waitForIdle(group);
+        throw group.primaryError || error;
+    } finally {
+        scheduler.closeGroup(group);
+    }
+}
+
 function streamEarlyStop(reason = "terminal result") {
     return Object.assign(new Error(`Async stream stopped after ${reason}`), {
         kind: "cancellation",
@@ -1440,7 +1562,7 @@ async function consumeAsyncStreamStructured(stream, terminal, context, registry,
                         systemContext,
                         itemState,
                     );
-                } else if (terminal.kind === "find") {
+                } else if (terminal.kind === "find" || terminal.kind === "all") {
                     terminalValue = await invokeCallableAsync(
                         terminal.callable,
                         [value, new Integer(BigInt(raw.sourceIndex)), stream._stream.callbackSource ?? stream],
@@ -1475,7 +1597,7 @@ async function consumeAsyncStreamStructured(stream, terminal, context, registry,
             stopReason = { kind: "early terminal" };
             if (terminal.kind === "collect") return { type: "sequence", values: [] };
             if (terminal.kind === "count") return new Integer(0n);
-            if (terminal.kind === "forEach" || terminal.kind === "first" || terminal.kind === "find") return null;
+            if (terminal.kind === "forEach" || terminal.kind === "first" || terminal.kind === "find" || terminal.kind === "all") return null;
             return accumulator;
         }
         while (nextToStart < window) start(nextToStart++);
@@ -1504,6 +1626,13 @@ async function consumeAsyncStreamStructured(stream, terminal, context, registry,
                 } else if (terminal.kind === "find" && isTruthyAsync(entry.terminalValue)) {
                     finalResult = entry.value;
                     stopped = true;
+                } else if (terminal.kind === "all") {
+                    if (!isTruthyAsync(entry.terminalValue)) {
+                        finalResult = null;
+                        stopped = true;
+                    } else {
+                        finalResult = entry.value;
+                    }
                 }
                 if (terminal.bound !== null && outputIndex >= terminal.bound) stopped = true;
                 if (stopped) break;
@@ -1622,6 +1751,21 @@ function asyncCollectionEntry(node, context, registry, systemContext, state) {
 
 async function resolveAsyncCollectionArg(arg, context, registry, systemContext, state) {
     if (arg?.fn === "HOLE") return arg;
+    if (arg?.fn === "GENERATOR") {
+        const resolved = [];
+        for (const component of arg.args) {
+            if (component?.fn?.startsWith("GEN_")) {
+                const opArgs = [];
+                for (const operand of component.args || []) {
+                    opArgs.push(await evaluateAsyncInternal(operand, context, registry, systemContext, state));
+                }
+                resolved.push({ ...component, args: opArgs });
+            } else {
+                resolved.push(await evaluateAsyncInternal(component, context, registry, systemContext, state));
+            }
+        }
+        return { ...arg, args: resolved };
+    }
     if (arg?.fn === "SPREAD") {
         const value = await asyncCollectionEntry(arg.args[0], context, registry, systemContext, state);
         return { fn: "SPREAD", args: [value] };
@@ -1896,6 +2040,14 @@ async function evaluateAsyncStreamPipe(stream, stages, callables, context, regis
                 bound: null,
             });
         }
+        else if (stages[index].fn === "PANY" || stages[index].fn === "PALL") {
+            return createAsyncMethodExecution(context, registry, systemContext, state).consume(derived, {
+                kind: stages[index].fn === "PANY" ? "find" : "all",
+                callable: callables[index],
+                initial: null,
+                bound: null,
+            });
+        }
         else throw new Error("Async stream pipes support lazy |>> and |>? stages; use an explicit stream terminal to consume");
     }
     return derived;
@@ -1905,7 +2057,7 @@ function lazySequenceAsyncStream(source) {
     let index = 1;
     return createAsyncStream({
         label: "lazy sequence",
-        finite: false,
+        finite: source._lazy.knownLength !== null,
         callbackSource: source,
         next(signal) {
             if (signal?.aborted) throw signal.reason;
@@ -1958,7 +2110,7 @@ async function evaluateSequentialAsyncPipe(irNode, context, registry, systemCont
     if (isAsyncStream(collection)) {
         return evaluateAsyncStreamPipe(collection, stages, callables, context, registry, systemContext, state);
     }
-    if (isLazySequence(collection) && stages.at(-1)?.fn === "PFOREACH") {
+    if (isLazySequence(collection)) {
         return evaluateAsyncStreamPipe(
             lazySequenceAsyncStream(collection),
             stages,
@@ -2014,10 +2166,11 @@ async function evaluateAsyncPipe(irNode, context, registry, systemContext, state
     }
     const fusedSource = rawFusedSource(sourceNode);
     if (fusedSource) {
-        const records = await orderedAsyncMap(fusedSource.entries, state, (entry, index) => {
+        const terminal = stages.at(-1)?.fn;
+        const runEntry = (entry, index, taskState = state) => {
             const itemContext = context.concurrentChild();
-            const branchState = childBranchState(state, index);
-            return state.scheduler.run((admission) => withAsyncItemFinalizers(itemContext, async () => {
+            const branchState = childBranchState(taskState, index);
+            return taskState.scheduler.run((admission) => withAsyncItemFinalizers(itemContext, async () => {
                 const itemState = { ...branchState, admission };
                 const rawNode = entry?.expression || entry;
                 const resolved = await evaluateAsyncInternal(rawNode, itemContext, registry, systemContext, itemState);
@@ -2041,12 +2194,15 @@ async function evaluateAsyncPipe(irNode, context, registry, systemContext, state
                     systemContext,
                     itemState,
                 );
-            }), state.group, {
+            }), taskState.group, {
                 branchPath: branchState.branchPath,
                 path: `${asyncTaskPath(branchState)} / fused pipe`,
             });
-        });
-        const terminal = stages.at(-1)?.fn;
+        };
+        if (terminal === "PANY" || terminal === "PALL") {
+            return orderedAsyncTerminal(fusedSource.entries, state, runEntry, terminal);
+        }
+        const records = await orderedAsyncMap(fusedSource.entries, state, runEntry);
         if (terminal === "PANY" || terminal === "PALL" || terminal === "PFOREACH") {
             return asyncTerminalResult(terminal, records);
         }
@@ -2063,7 +2219,7 @@ async function evaluateAsyncPipe(irNode, context, registry, systemContext, state
     if (isAsyncStream(collection)) {
         return evaluateAsyncStreamPipe(collection, stages, callables, context, registry, systemContext, state);
     }
-    if (isLazySequence(collection) && stages.at(-1)?.fn === "PFOREACH") {
+    if (isLazySequence(collection)) {
         return evaluateAsyncStreamPipe(
             lazySequenceAsyncStream(collection),
             stages,
@@ -2078,10 +2234,11 @@ async function evaluateAsyncPipe(irNode, context, registry, systemContext, state
         return evaluateScalarExpectedPipe(collection, stages, callables, context, registry, systemContext, state);
     }
     const items = collectionItems(collection);
-    const records = await orderedAsyncMap(items, state, (item, index) => {
+    const terminal = stages.at(-1)?.fn;
+    const runItem = (item, index, taskState = state) => {
         const itemContext = context.concurrentChild();
-        const branchState = childBranchState(state, index);
-        return state.scheduler.run((admission) => withAsyncItemFinalizers(itemContext, () => runAsyncPipeStages(
+        const branchState = childBranchState(taskState, index);
+        return taskState.scheduler.run((admission) => withAsyncItemFinalizers(itemContext, () => runAsyncPipeStages(
             item.value,
             index,
             item.key,
@@ -2093,13 +2250,16 @@ async function evaluateAsyncPipe(irNode, context, registry, systemContext, state
             systemContext,
             { ...branchState, admission },
             item.locator,
-        )), state.group, {
+        )), taskState.group, {
             branchPath: branchState.branchPath,
             path: `${asyncTaskPath(branchState)} / pipe`,
         });
-    });
+    };
 
-    const terminal = stages.at(-1)?.fn;
+    if (terminal === "PANY" || terminal === "PALL") {
+        return orderedAsyncTerminal(items, state, runItem, terminal);
+    }
+    const records = await orderedAsyncMap(items, state, runItem);
     if (terminal === "PANY" || terminal === "PALL" || terminal === "PFOREACH") {
         return asyncTerminalResult(terminal, records);
     }
@@ -2468,6 +2628,14 @@ async function evaluateAsyncScope(args, context, registry, systemContext, parent
 }
 
 function startDetachedBlock(args, context, registry, systemContext, parentState) {
+    const runtime = context.getEnv(SCRIPT_RUNTIME_ENV_KEY, null);
+    const frame = runtime?.frameStack?.[runtime.frameStack.length - 1] ?? null;
+    if (frame && !frame.permissions.has("BACKGROUND")) {
+        throw new Error("Background tasks are not allowed in this script context");
+    }
+    if (context.getEnv(REACTIVE_ACTIVE_GRAPH_ENV, null)) {
+        throw new Error("Reactive formulas cannot start detached background tasks");
+    }
     const { meta, body } = splitAsyncBlockArgs(args);
     const importedBindings = captureDetachedImports(meta.imports, context);
     const taskContext = context.concurrentChild();
@@ -2527,6 +2695,138 @@ function startDetachedBlock(args, context, registry, systemContext, parentState)
     return null;
 }
 
+function asyncPreparedTrialFailure(preserveFailure) {
+    return preserveFailure ? PREP_TRIAL_NO_MATCH : null;
+}
+
+async function evaluatePreparedTrialAsync(args, context, registry, systemContext, state, preserveFailure) {
+    const candidateNode = args[0];
+    const gates = args.slice(1);
+    if (gates.length === 0) throw new Error("Prepared trial requires at least one gate");
+
+    let candidate;
+    try {
+        candidate = await evaluateAsyncInternal(candidateNode, context, registry, systemContext, state);
+    } catch (error) {
+        if (gates[0]?.strict === true) throw error;
+        return asyncPreparedTrialFailure(preserveFailure);
+    }
+
+    context.push();
+    try {
+        for (let gateIndex = 0; gateIndex < gates.length; gateIndex++) {
+            const gate = gates[gateIndex] || {};
+            const strict = gate.strict === true;
+            try {
+                destructureResolvedValue(
+                    gate.pattern,
+                    candidate,
+                    "alias",
+                    context,
+                    (node) => evaluate(node, context, registry, systemContext),
+                );
+                const prep = Array.isArray(gate.prep) ? gate.prep : [];
+                for (let entryIndex = 0; entryIndex < prep.length; entryIndex++) {
+                    const value = await evaluateAsyncInternal(prep[entryIndex], context, registry, systemContext, state);
+                    if (!isTruthyAsync(value)) {
+                        if (strict) {
+                            throw new Error(`Prepared trial failed at gate ${gateIndex + 1}, prep entry ${entryIndex + 1}`);
+                        }
+                        return asyncPreparedTrialFailure(preserveFailure);
+                    }
+                }
+            } catch (error) {
+                if (strict) throw error;
+                return asyncPreparedTrialFailure(preserveFailure);
+            }
+        }
+        return candidate;
+    } finally {
+        context.pop();
+    }
+}
+
+async function evaluateAsyncCase(args, context, registry, systemContext, state) {
+    const { containerName, bodyArgs } = splitScopedBlockArgs(args);
+    try {
+        for (const branch of bodyArgs) {
+            const inner = unwrapDefer(branch);
+            if (inner?.fn === "CONDITION") {
+                const condition = await evaluateAsyncInternal(inner.args[0], context, registry, systemContext, state);
+                if (isTruthyAsync(condition)) {
+                    return await evaluateAsyncInternal(inner.args[1], context, registry, systemContext, state);
+                }
+                continue;
+            }
+            if (inner?.fn === "PREP_TRIAL") {
+                const result = await evaluatePreparedTrialAsync(
+                    inner.args,
+                    context,
+                    registry,
+                    systemContext,
+                    state,
+                    true,
+                );
+                if (result === PREP_TRIAL_NO_MATCH) continue;
+                return result;
+            }
+            return await evaluateAsyncInternal(inner, context, registry, systemContext, state);
+        }
+    } catch (error) {
+        if (matchesBreakTarget(error, "case", containerName)) return error.value;
+        throw error;
+    }
+    return null;
+}
+
+async function evaluateAsyncLoop(args, context, registry, systemContext, state) {
+    const {
+        imports,
+        containerName,
+        maxIterations: configuredMax,
+        unlimited,
+        bodyArgs,
+    } = splitScopedBlockArgs(args);
+    if (bodyArgs.length > 5) throw new Error(`LOOP expected at most 5 arguments, got ${bodyArgs.length}`);
+    const [rawInit, rawCondition, rawBody, rawUpdate, rawAfter] = bodyArgs.map(unwrapDefer);
+    const usable = (node) => node?.fn === "HOLE" ? null : node;
+    const [initNode, conditionNode, bodyNode, updateNode, afterNode] = [
+        rawInit, rawCondition, rawBody, rawUpdate, rawAfter,
+    ].map(usable);
+    const shareCurrentScope = context.consumeSharedBody("LOOP");
+    if (!shareCurrentScope) context.push(undefined, { isolated: true });
+    const evaluateShared = (node) => context.withSharedBody(node, () => (
+        evaluateAsyncInternal(node, context, registry, systemContext, state)
+    ));
+    try {
+        applyAsyncImports(imports, context);
+        try {
+            if (initNode) await evaluateShared(initNode);
+            let result = null;
+            let iterations = 0;
+            const maxIterations = unlimited
+                ? null
+                : configuredMax ?? context.getEnv("defaultLoopMax", runtimeDefaults.defaultLoopMax);
+            while (true) {
+                if (state?.signal?.aborted) throw state.signal.reason;
+                if (conditionNode && !isTruthyAsync(await evaluateShared(conditionNode))) break;
+                if (maxIterations !== null && iterations >= maxIterations) {
+                    throw new Error(`Loop exceeded max iteration count: ${maxIterations}`);
+                }
+                if (bodyNode) result = await evaluateShared(bodyNode);
+                if (updateNode) await evaluateShared(updateNode);
+                iterations++;
+            }
+            return afterNode ? await evaluateShared(afterNode) : result;
+        } catch (error) {
+            if (matchesBreakTarget(error, "loop", containerName)) return error.value;
+            throw error;
+        }
+    } finally {
+        if (!shareCurrentScope) context.pop();
+    }
+}
+
 async function evaluateAsyncInternal(irNode, context, registry, systemContext, state = null) {
     if (irNode === null || irNode === undefined) return null;
     if (typeof irNode !== "object" || Array.isArray(irNode) || !irNode.fn) return irNode;
@@ -2535,6 +2835,27 @@ async function evaluateAsyncInternal(irNode, context, registry, systemContext, s
 
     try {
         if (state?.signal?.aborted) throw state.signal.reason;
+        if (fn === "SCRIPT_IMPORT") {
+            return await evaluateScriptImportAsync(args[0] || {}, context, registry, systemContext, state);
+        }
+        if (fn === "CASE") return await evaluateAsyncCase(args, context, registry, systemContext, state);
+        if (fn === "LOOP") return await evaluateAsyncLoop(args, context, registry, systemContext, state);
+        if (fn === "PREP_TRIAL" || fn === "PREP_TRIAL_CASE") {
+            return await evaluatePreparedTrialAsync(
+                args,
+                context,
+                registry,
+                systemContext,
+                state,
+                fn === "PREP_TRIAL_CASE",
+            );
+        }
+        if (fn === "HOLE_COALESCE") {
+            const left = await evaluateAsyncInternal(args[0], context, registry, systemContext, state);
+            return isHole(left)
+                ? evaluateAsyncInternal(args[1], context, registry, systemContext, state)
+                : left;
+        }
         if (fn === "POSTFIX_FINALIZER") {
             const value = await evaluateAsyncInternal(args[0], context, registry, systemContext, state);
             const cleanup = await evaluateAsyncInternal(args[1], context, registry, systemContext, state);
@@ -2591,7 +2912,7 @@ async function evaluateAsyncInternal(irNode, context, registry, systemContext, s
         if (state && ASYNC_COLLECTION_FNS.has(fn)) {
             return await evaluateAsyncCollection(irNode, context, registry, systemContext, state);
         }
-        if (ASYNC_PIPE_FNS.has(fn) && (state || fn === "PFOREACH" || fn === "PEXPECT")) {
+        if (ASYNC_PIPE_FNS.has(fn)) {
             return state
                 ? await evaluateAsyncPipe(irNode, context, registry, systemContext, state)
                 : await evaluateSequentialAsyncPipe(irNode, context, registry, systemContext, null);
@@ -2640,8 +2961,15 @@ async function evaluateAsyncInternal(irNode, context, registry, systemContext, s
                 return await withFinalizerActivationAsync(context, async () => {
                     applyAsyncImports(meta.imports, context);
                     let result = null;
-                    for (const arg of body) result = await evalAsync(arg);
-                    return result;
+                    try {
+                        for (const arg of body) result = await evalAsync(arg);
+                        return result;
+                    } catch (error) {
+                        if (fn === "BLOCK" && matchesBreakTarget(error, "block", meta.name ?? null)) {
+                            return error.value;
+                        }
+                        throw error;
+                    }
                 }, {
                     graceMs: context.getEnv("asyncCleanupGraceMs", runtimeDefaults.asyncCleanupGraceMs),
                 });
@@ -2665,8 +2993,23 @@ async function evaluateAsyncInternal(irNode, context, registry, systemContext, s
         if (fn === "BREAK") {
             const definition = registry.get(fn);
             const hasMeta = args[0] && !args[0].fn;
-            const value = await evalAsync(hasMeta ? args[1] : args[0]);
+            context.push(undefined, { isolated: true, readThrough: true });
+            let value;
+            try {
+                value = await evalAsync(hasMeta ? args[1] : args[0]);
+            } finally {
+                context.pop();
+            }
             return definition.impl(hasMeta ? [args[0], value] : [value], context, (node) => node);
+        }
+
+        if (fn === "DESTRUCTURE_ASSIGN") {
+            const value = await evalAsync(args[2]);
+            return coreFunctions.DESTRUCTURE_ASSIGN.impl(
+                [args[0], args[1], value],
+                context,
+                (node) => node?.fn ? evaluate(node, context, registry, systemContext) : node,
+            );
         }
 
         if (["ASSIGN", "ASSIGN_COPY", "ASSIGN_UPDATE", "ASSIGN_DEEP_COPY", "ASSIGN_DEEP_UPDATE", "OUTER_ASSIGN", "OUTER_UPDATE", "GLOBAL"].includes(fn)) {

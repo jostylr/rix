@@ -11,7 +11,7 @@ export const runtimeDefaults = Object.freeze({
     implicitUnitConversion: false,
     reactiveUntrackedRead: true,
   }),
-  scriptPermissionNames: Object.freeze(["IMPORTS", "NET", "FILES", "PLUGINS"]),
+  scriptPermissionNames: Object.freeze(["IMPORTS", "NET", "FILES", "PLUGINS", "BACKGROUND"]),
   defaultScriptCapabilityPolicy: Object.freeze({
     includeAllFunctions: true,
     permissions: Object.freeze(["IMPORTS"]),
@@ -27,6 +27,7 @@ export const runtimeDefaults = Object.freeze({
     Logic: Object.freeze(["EQ", "NEQ", "LT", "GT", "LTE", "GTE", "AND", "OR", "NOT"]),
     Collections: Object.freeze(["LEN", "FIRST", "LAST", "GETEL", "IRANGE", "MAP", "FILTER", "REDUCE", "TGEN", "Stream"]),
     Async: Object.freeze(["Stream", "Retry"]),
+    Background: Object.freeze(["BACKGROUND"]),
     Maps: Object.freeze(["MAP", "KEYOF", "KEYS", "VALUES"]),
     Arrays: Object.freeze(["LEN", "FIRST", "LAST", "GETEL", "IRANGE", "MAP", "FILTER", "REDUCE", "TGEN"]),
     Strings: Object.freeze(["UPPER", "SUBSTR", "PRINT"]),

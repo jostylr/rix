@@ -11,9 +11,36 @@ function seedNumber(value) {
 
 export function seedRuntimeRandom(context, value) {
     const seed = seedNumber(value);
-    context.setEnv("randomState", { value: seed });
+    context.setEnv("randomState", { value: seed, seed });
+    context.setEnv("randomForkCounter", { value: 0 });
     context.setEnv("randomFunction", null);
     return new Integer(BigInt(seed));
+}
+
+function mix32(value) {
+    let mixed = value >>> 0;
+    mixed ^= mixed >>> 16;
+    mixed = Math.imul(mixed, 0x7feb352d);
+    mixed ^= mixed >>> 15;
+    mixed = Math.imul(mixed, 0x846ca68b);
+    mixed ^= mixed >>> 16;
+    return mixed >>> 0;
+}
+
+/** Give a concurrent child an independent, reproducible seeded PRNG stream. */
+export function forkRuntimeRandom(parent, child) {
+    const state = parent?.getEnv?.("randomState", null);
+    if (!state) return;
+    let counter = parent.getEnv("randomForkCounter", null);
+    if (!counter) {
+        counter = { value: 0 };
+        parent.setEnv("randomForkCounter", counter);
+    }
+    const ordinal = ++counter.value;
+    const base = state.seed ?? state.value;
+    const seed = mix32((base ^ Math.imul(ordinal, 0x9e3779b9)) >>> 0);
+    child.setEnv("randomState", { value: seed, seed });
+    child.setEnv("randomForkCounter", { value: 0 });
 }
 
 export function runtimeRandom(context) {

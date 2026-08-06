@@ -6,7 +6,13 @@ import { tokenize } from "../../src/parser/tokenizer.js";
 import { parse } from "../../src/parser/parser.js";
 import { lower } from "../../src/eval/lower.js";
 import { Context } from "../../src/runtime/context.js";
-import { createDefaultRegistry, createDefaultSystemContext, evaluate } from "../../src/eval/evaluator.js";
+import {
+    createDefaultRegistry,
+    createDefaultSystemContext,
+    drainBackgroundTasks,
+    evaluate,
+    parseAndEvaluateAsync,
+} from "../../src/eval/evaluator.js";
 import { runtimeDefaults } from "../../src/runtime/runtime-config.js";
 
 const TMP_ROOT = path.resolve(process.cwd(), ".test-tmp", `script-import-tests-${Date.now()}`);
@@ -59,6 +65,14 @@ function makeSystemContext(extraDefs = {}) {
     }
     ctx.freeze();
     return ctx;
+}
+
+async function waitUntil(predicate, label = "condition") {
+    for (let attempt = 0; attempt < 200; attempt++) {
+        if (predicate()) return;
+        await new Promise((resolve) => setTimeout(resolve, 1));
+    }
+    throw new Error(`Timed out waiting for ${label}`);
 }
 
 afterAll(() => {
@@ -257,6 +271,86 @@ describe("script import execution", () => {
             systemContext,
             capabilityGroups,
         })).toThrow("Unknown system capability: NETPING");
+    });
+
+    test("promise-aware imports await async script bodies", async () => {
+        const dir = writeScripts({
+            worker: "{$ .wait(41) + 1 }",
+        });
+        const context = new Context();
+        context.setEnv("scriptBaseDir", dir);
+        const systemContext = makeSystemContext({
+            async wait([value]) {
+                await Promise.resolve();
+                return value;
+            },
+        });
+
+        const result = await parseAndEvaluateAsync('<"worker">', { context, systemContext });
+        expect(result.value).toBe(42n);
+    });
+
+    test("concurrent imports keep independent relative-path and permission frames", async () => {
+        const dir = writeScripts({
+            "a/parent": '.wait(1); <"child">',
+            "a/child": "11",
+            "b/parent": '.wait(2); <"child">',
+            "b/child": "22",
+        });
+        const releases = new Map();
+        const systemContext = makeSystemContext({
+            wait([value]) {
+                return new Promise((resolve) => releases.set(Number(value.value), resolve));
+            },
+        });
+        const context = new Context();
+        context.setEnv("scriptBaseDir", dir);
+        context.setEnv("capabilityGroups", {
+            ...runtimeDefaults.capabilityGroups,
+            Wait: ["wait"],
+        });
+
+        const evaluation = parseAndEvaluateAsync(
+            '{$:2$ [<"a/parent" /+Wait/>, <"b/parent" /+Wait/>] }',
+            { context, systemContext },
+        );
+        await waitUntil(() => releases.size === 2, "concurrent script imports");
+        releases.get(1)();
+        await Promise.resolve();
+        releases.get(2)();
+        const result = await evaluation;
+        expect(result.values.map((value) => Number(value.value))).toEqual([11, 22]);
+    });
+
+    test("imported scripts require the explicit Background permission to detach", async () => {
+        const dir = writeScripts({
+            worker: "{$$ .record(7) }; 9",
+        });
+        const events = [];
+        const systemContext = makeSystemContext({
+            async record([value]) {
+                await Promise.resolve();
+                events.push(Number(value.value));
+                return null;
+            },
+        });
+
+        const deniedContext = new Context();
+        deniedContext.setEnv("scriptBaseDir", dir);
+        await expect(parseAndEvaluateAsync('<"worker">', {
+            context: deniedContext,
+            systemContext,
+        })).rejects.toThrow("Background tasks are not allowed");
+
+        const allowedContext = new Context();
+        allowedContext.setEnv("scriptBaseDir", dir);
+        const result = await parseAndEvaluateAsync('<"worker" /+Background/>', {
+            context: allowedContext,
+            systemContext,
+        });
+        expect(result.value).toBe(9n);
+        expect(await drainBackgroundTasks(allowedContext)).toEqual([]);
+        expect(events).toEqual([7]);
     });
 
     test("plugin registration from imports requires Plugins and attaches to the host", () => {

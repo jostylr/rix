@@ -334,7 +334,7 @@ export async function consumeAsyncStreamSequential(stream, terminal, execution) 
             reason = { kind: "early terminal" };
             if (terminal.kind === "collect") return rixSequence([]);
             if (terminal.kind === "count") return new Integer(0n);
-            if (terminal.kind === "forEach" || terminal.kind === "first" || terminal.kind === "find") return null;
+            if (terminal.kind === "forEach" || terminal.kind === "first" || terminal.kind === "find" || terminal.kind === "all") return null;
             return result;
         }
         while (true) {
@@ -357,6 +357,14 @@ export async function consumeAsyncStreamSequential(stream, terminal, execution) 
                         return value;
                     }
                 }
+                else if (terminal.kind === "all") {
+                    const match = await execution.invoke(terminal.callable, [value, new Integer(BigInt(count)), stream._stream.callbackSource ?? stream]);
+                    if (match === null || match === undefined) {
+                        reason = { kind: "early terminal" };
+                        return null;
+                    }
+                    result = value;
+                }
                 if (terminal.bound !== null && count >= terminal.bound) {
                     reason = { kind: "early terminal" };
                     if (terminal.kind === "collect") return rixSequence(result);
@@ -376,11 +384,21 @@ export async function consumeAsyncStreamSequential(stream, terminal, execution) 
             else if (terminal.kind === "forEach") await execution.invoke(terminal.callable, [value, new Integer(BigInt(count)), stream]);
             else if (terminal.kind === "reduce") result = await execution.invoke(terminal.callable, [result, value, new Integer(BigInt(count)), stream]);
             else if (terminal.kind === "first") return value;
+            else if (terminal.kind === "find") {
+                const match = await execution.invoke(terminal.callable, [value, new Integer(BigInt(count)), stream]);
+                if (match !== null && match !== undefined) return value;
+            }
+            else if (terminal.kind === "all") {
+                const match = await execution.invoke(terminal.callable, [value, new Integer(BigInt(count)), stream]);
+                if (match === null || match === undefined) return null;
+                result = value;
+            }
         }
         if (terminal.kind === "collect") return rixSequence(result);
         if (terminal.kind === "count") return new Integer(BigInt(count));
         if (terminal.kind === "forEach") return null;
         if (terminal.kind === "first" || terminal.kind === "find") return null;
+        if (terminal.kind === "all") return count === 0 ? null : result;
         return result;
     } catch (error) {
         reason = error;

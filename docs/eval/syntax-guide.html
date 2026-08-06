@@ -3172,7 +3172,7 @@ A := .Integrate({#x# 2*x }, {#x})
 </section>
 <section id="async-streams" class="level3">
 <h3 class="anchored" data-anchor-id="async-streams">Async streams</h3>
-<p><code>.Stream(collection, label?)</code> creates a cold <code>async_stream</code>. A stream is a linear pull handle, not a promise, lazy sequence, or materialized collection. Displaying it never pulls it. <code>stream |&gt;&gt; F</code>, <code>stream |&gt;? P</code>, and <code>stream |&gt;! H</code> create lazy derived streams; an explicit terminal begins consumption.</p>
+<p><code>.Stream(collection, label?)</code> creates a cold <code>async_stream</code>. A stream is a linear pull handle, not a promise, lazy sequence, or materialized collection. Displaying it never pulls it. <code>stream |&gt;&gt; F</code>, <code>stream |&gt;? P</code>, and <code>stream |&gt;! H</code> create lazy derived streams; an explicit terminal begins consumption. The pipe terminals <code>stream |&gt;|| P</code>, <code>stream |&gt;&amp;&amp; P</code>, and <code>stream |&gt;_ F</code> consume with backpressure and close the source when their result is known.</p>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 50%">
@@ -3218,10 +3218,14 @@ A := .Integrate({#x# 2*x }, {#x})
 <td>Consume until an early ordered result</td>
 </tr>
 <tr class="odd">
+<td><code>stream |&gt;|| P</code>, <code>stream |&gt;&amp;&amp; P</code></td>
+<td>Ordered Find/All pipe terminals; close early once decided</td>
+</tr>
+<tr class="even">
 <td><code>Count()</code>, <code>Count(n)</code></td>
 <td>Count a finite stream or an explicit bound</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>Close(reason?)</code>, <code>Done()</code>, <code>Status()</code></td>
 <td>Lifecycle and inspection</td>
 </tr>

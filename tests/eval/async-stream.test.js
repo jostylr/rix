@@ -132,6 +132,50 @@ describe("RiX async streams", () => {
         expect(values(await evaluation)).toEqual([1, 2, 3, 4, 5, 6]);
     });
 
+    test("Any and All pipe terminals consume streams lazily and close on an early result", async () => {
+        const sequential = await parseAndEvaluateAsync(
+            ".Stream([1,2,3]) |>|| ((x) -> x == 2)",
+        );
+        expect(sequential.value).toBe(2n);
+
+        let pulls = 0;
+        let closes = 0;
+        const makeStream = () => createAsyncStream({
+            label: "terminal source",
+            async next() {
+                pulls++;
+                return { done: false, value: new Integer(BigInt(pulls)) };
+            },
+            close() { closes++; },
+        });
+
+        const anyContext = new Context();
+        anyContext.set("source", makeStream());
+        const found = await parseAndEvaluateAsync(
+            "{$:2$ <s~source> s |>|| ((x) -> x == 3) }",
+            { context: anyContext },
+        );
+        expect(found.value).toBe(3n);
+        expect(pulls).toBeLessThanOrEqual(6);
+        expect(closes).toBe(1);
+
+        const allContext = new Context();
+        allContext.set("source", makeStream());
+        const all = await parseAndEvaluateAsync(
+            "{$:2$ <s~source> s |>&& ((x) -> x < 3) }",
+            { context: allContext },
+        );
+        expect(all).toBeNull();
+        expect(closes).toBe(2);
+    });
+
+    test("bounded async terminals stop unbounded lazy sequences", async () => {
+        const found = await parseAndEvaluateAsync("{$:2$ [1 |+1] |>|| ((x) -> x == 3) }");
+        expect(found.value).toBe(3n);
+        const all = await parseAndEvaluateAsync("{$:2$ [1 |+1] |>&& ((x) -> x < 3) }");
+        expect(all).toBeNull();
+    });
+
     test("timeout cancels Next, closes the source, and can be recovered as a typed fault", async () => {
         let closes = 0;
         const context = new Context();

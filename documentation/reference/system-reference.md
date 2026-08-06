@@ -279,6 +279,7 @@ Imported scripts can add or withhold named groups. Permission-like names are int
 | `Logic` | `EQ`, `NEQ`, `LT`, `GT`, `LTE`, `GTE`, `AND`, `OR`, `NOT` |
 | `Collections` | `LEN`, `FIRST`, `LAST`, `GETEL`, `IRANGE`, `MAP`, `FILTER`, `REDUCE`, `TGEN`, `Stream` |
 | `Async` | `Stream`, `Retry` |
+| `Background` | `BACKGROUND` |
 | `Maps` | `MAP`, `KEYOF`, `KEYS`, `VALUES` |
 | `Arrays` | `LEN`, `FIRST`, `LAST`, `GETEL`, `IRANGE`, `MAP`, `FILTER`, `REDUCE`, `TGEN` |
 | `Strings` | `UPPER`, `SUBSTR`, `PRINT` |
@@ -293,7 +294,7 @@ Imported scripts can add or withhold named groups. Permission-like names are int
 | `Random` | `RANDOMSEED`, `RandomSeed`, `RAND_NAME` |
 | `RiXCel` | `FORMULASHEET`, `REACTIVEGRAPH`, `RIXCELEXPORT`, `RIXCELIMPORT`, `RIXCELIMPORTCSV`, `RIXCELIMPORTTSV`, `RIXCELEXPORTCSV`, `RIXCELEXPORTTSV` |
 
-Default script policy includes all functions and the `IMPORTS` permission. Recognized permission names are `IMPORTS`, `NET`, `FILES`, `PLUGINS`. The default loop limit is 10,000 iterations and the default constructor capture mode is `deep_copy`.
+Default script policy includes all functions and the `IMPORTS` permission. Recognized permission names are `IMPORTS`, `NET`, `FILES`, `PLUGINS`, `BACKGROUND`. The default loop limit is 10,000 iterations and the default constructor capture mode is `deep_copy`.
 
 ## Internal IR registry
 

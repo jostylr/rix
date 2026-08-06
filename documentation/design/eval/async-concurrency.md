@@ -20,10 +20,13 @@ values, cold and hot source infrastructure, lazy stream stages, explicit
 terminals, structured stream consumption, and prefix method lifting.
 `{# ... }` remains the inert symbolic-system form.
 
-Still planned are bounded pull for legacy lazy generators, complete
-mutation-safety enforcement, deterministic task RNG
-streams, worker execution, full stable task-path diagnostics, and cancellation
-checkpoints inside loops and lazy sources.
+The event-loop implementation now also supplies bounded pull for legacy lazy
+sources when an explicit async terminal consumes them, ordered early
+cancellation for both `|>||` and `|>&&`, loop/pull/stage cancellation
+checkpoints, promise-aware script imports and selective control forms, and
+deterministic seeded random substreams per source branch. Still planned are
+async callbacks inside recurrence generators, capability safety/serialization
+metadata, worker execution, and complete structural task-path diagnostics.
 
 The proposal deliberately separates two operations:
 
@@ -293,9 +296,13 @@ matches current runtime storage.
 A recurrence-dependent generator remains sequential at its generation step.
 Independent downstream pipe stages may overlap across generated items.
 
-Lazy and unbounded sources must use bounded pull: at most the effective
-concurrency limit may be admitted into a fused region. They must never be fully
-materialized merely because evaluation occurs inside `{$ ... }`.
+Lazy and unbounded sources use bounded pull when consumed by `|>_`, `|>||`, or
+`|>&&`: no more than the `2L` admission/publication window is outstanding, and
+an early result closes the adapter. They are never fully materialized merely
+because evaluation occurs inside `{$ ... }`. Arithmetic lazy generators may be
+constructed either before or inside the scope and consumed there.
+Promise-returning generator source/stage callbacks remain a separate runtime
+extension because synchronous `lazy_sequence` caches cannot contain promises.
 
 # Async pipe semantics
 
@@ -444,9 +451,9 @@ The scheduler is work-conserving but deterministic about admission:
 For a limit `L`, no more than `L` items execute at once and no more than `2L`
 items may be admitted but not yet published. The second bound is an ordered
 publication window: it permits useful overlap without allowing a slow early
-item to cause unbounded buffering of later completed results. The finite eager
-runtime enforces this window. Hierarchical round-robin nested admission and
-bounded lazy/infinite source pulls remain follow-up scheduler work.
+item to cause unbounded buffering of later completed results. Finite eager
+work, async streams, and explicitly consumed legacy lazy sources enforce this
+window. Hierarchical round-robin admission also applies to nested branches.
 
 Each nested scope owns a scheduler group. A group's in-flight count includes
 all descendant groups, so `{$outer:4$ {$inner:2$ ... } }` can use at most two
@@ -505,8 +512,10 @@ must distinguish promise-awareness, safe overlap, cooperative cancellation,
 executor needs, and effects. A capability not marked parallel-safe executes
 through a serialized lane even inside a concurrency scope.
 
-Random work receives a deterministic child stream derived from the parent seed
-and stable task path. Completion timing must not change random results.
+After `.RANDOMSEED`, concurrent work receives a deterministic child stream
+derived in stable source-branch creation order. Completion timing does not
+change random results. Unseeded randomness and a host-injected random function
+retain their host-defined behavior.
 
 # Failure, cancellation, and cleanup
 
@@ -938,7 +947,7 @@ reactive batch later publishes `result` and `status` together.
 - [x] Decide and document canonical map traversal order; use insertion order for
   deterministic ordered pipes.
 - [x] Add `defaultAsyncConcurrency: 10` and host override plumbing.
-- [ ] Add a `BACKGROUND` script permission and sandbox policy tests.
+- [x] Add a `BACKGROUND` script permission and sandbox policy tests.
 
 ## 1. Parser and IR
 
@@ -958,18 +967,20 @@ reactive batch later publishes `result` and `status` together.
 
 - [x] Add `evaluateAsync` and `parseAndEvaluateAsync` while retaining the sync
   API for sync-only scripts.
-- [ ] Extend registry/system capability entries with async implementations or a
-  promise-aware dispatch contract.
+- [x] Make registry/system capability dispatch promise-aware and pass the
+  containing cancellation signal to host calls.
 - [x] Reuse ordinary eager implementations after asynchronously evaluating
   their arguments.
-- [ ] Add async implementations for lazy control, assignment, function-call,
-  collection, pipe, diagnostic, and reactive operations that selectively
-  evaluate IR.
+- [x] Add selective async implementations for assignment, calls, blocks,
+  imports, case, loop, trial, hole-coalescing, destructuring, collections, and
+  pipes. Promise-aware generator callbacks and some diagnostic/reactive host
+  extensions remain tracked separately.
 - [x] Make the CLI, CLI REPL, generated-page host, RiX Web REPL, and tutorial
   runner select/await the async entry point. Notebook host work remains pending.
 - [x] Verify that raw promises cannot be assigned, collected, formatted, or
   returned as RiX values.
-- [ ] Preserve source annotation and call-stack diagnostics across `await`.
+- [x] Preserve source annotations and scheduler failure metadata across
+  `await`. Complete structural paths for every nested operation remain below.
 
 ## 3. Scheduler and task contexts
 
@@ -988,9 +999,11 @@ reactive batch later publishes `result` and `status` together.
 - [x] Ensure structural parents do not retain leaf permits
   while awaiting children.
 - [x] Add task-local ordinary snapshots and reject captured-cell writes.
-- [ ] Reject every mutation path on captured composite values and finish the
-  callable/capability concurrency-safety classification.
-- [ ] Derive deterministic random substreams from stable task paths.
+- [x] Isolate captured composites by deep task snapshot so local mutation
+  cannot change the surrounding ordinary value.
+- [ ] Finish callable/capability concurrency-safety classification.
+- [x] Derive deterministic seeded random substreams in stable source-branch
+  creation order.
 - [x] Add deferred-capability tests that assert admission and
   completion traces without relying on wall-clock timing.
 
@@ -1006,8 +1019,10 @@ reactive batch later publishes `result` and `status` together.
 - [x] Preserve source-order result assembly despite completion-order slot fills.
 - [x] Implement finite map key/value and insertion-order rules.
 - [x] Treat pre-existing collections as data sources without re-evaluation.
-- [ ] Add bounded pull for lazy/generator sources and keep recurrence generation
-  sequential where values depend on history.
+- [x] Add bounded pull and early close for pre-existing lazy/generator sources
+  consumed by async terminals; recurrence generation remains sequential.
+- [ ] Add promise-returning callbacks to the legacy recurrence-generator
+  protocol without allowing promises into its synchronous cache.
 - [x] Test the current limit-2 `{= a=[F(), G()], b=H() }` structural-parent
   behavior without consuming permits.
 - [x] Assert the settled `F, H, G` hierarchical order for that scenario.
@@ -1021,12 +1036,13 @@ reactive batch later publishes `result` and `status` together.
   tensors, and source-order result assembly for finite eager sources.
 - [x] Implement ordered `|>||`, including buffering a later passing result until
   every earlier candidate fails.
-- [ ] Implement `|>&&` cancellation once a falsy result determines the outcome.
+- [x] Implement `|>&&` cancellation once a source-ordered falsy result
+  determines the outcome.
 - [x] Implement ordered reduce barriers with concurrent upstream stages.
 - [x] Implement stable async sort and promise-aware finite structural barriers.
 - [x] Test pipelines separated by multiple barriers. Nested barrier expressions
   inside collection entries remain follow-up coverage.
-- [ ] Test infinite/lazy sources for strict bounded admission and early terminal
+- [x] Test infinite/lazy sources for bounded lookahead and early terminal
   cancellation.
 - [x] Add terminal `|>_` with ordinary callback arguments, result discard,
   bounded stream/lazy drain, null result, and fail-fast cancellation.
@@ -1039,8 +1055,9 @@ reactive batch later publishes `result` and `status` together.
 
 - [x] Thread group cancellation signals through evaluator and capability-call
   boundaries.
-- [ ] Add cancellation checkpoints to loops, lazy source pulls, stages, and
-  workers.
+- [x] Add cancellation checkpoints to event-loop loops, lazy source pulls, and
+  stage/evaluator boundaries.
+- [ ] Add worker message-boundary checkpoints with the worker executor.
 - [x] Implement fail-fast admission stop followed by queued-sibling cancellation and
   cleanup drain.
 - [x] Preserve body failure as primary and attach later cleanup failures as
@@ -1049,9 +1066,10 @@ reactive batch later publishes `result` and `status` together.
 - [x] Implement named and unnamed `{!$...}` completion races with queued-sibling cancellation.
 - [ ] Specify capability metadata for parallel safety, cancellation, executor,
   and effects; serialize unsafe capabilities through a single lane.
-- [ ] Add tests for queued cancellation, cooperative I/O abort, loop
-  checkpoints, simultaneous breaks, and uncancellable synchronous code.
-- [ ] Verify explicitly that cancellation does not imply effect rollback.
+- [x] Test queued cancellation and cooperative I/O abort.
+- [ ] Add focused tests for a loop checkpoint after suspension, simultaneous
+  breaks, and uncancellable synchronous work.
+- [x] Verify explicitly that cancellation does not imply effect rollback.
 
 ## 7. Background supervisor and reactive publication
 
@@ -1059,19 +1077,20 @@ reactive batch later publishes `result` and `status` together.
 - [x] Add session-close cancellation, task-owned resource disposal, and bounded
   cleanup; RiX Web invokes it on reset and page disposal.
 - [ ] Add active-task/queue limits, task IDs, and complete source diagnostics.
-- [ ] Define CLI drain-by-default and host no-drain/cancel behavior.
+- [x] Define and implement CLI drain-by-default plus exported host/session
+  disposal for cancel-and-drain behavior.
 - [x] Report background errors to the host handler/error queue without retroactively
   failing continued main evaluation.
 - [x] Snapshot explicitly imported ordinary values at spawn.
 - [x] Enforce detached import isolation: deep-copy listed ordinary values,
   reject ordinary aliases, alias listed reactive values, and hide unlisted
   bindings.
-- [ ] Reject ordinary outer-cell writes and detached spawn during reactive
+- [x] Reject ordinary outer-cell writes and detached spawn during reactive
   formula evaluation.
 - [ ] Transfer background reactive updates as resolved literal messages to the
   graph owner; support atomic `${ ... }` batches.
-- [ ] Document and test arrival-order conflicts between multiple background
-  writers.
+- [x] Document and test arrival-order conflicts between multiple background
+  writers on the owner event loop.
 - [x] Add a supervisor drain API for hosts without exposing task
   handles as RiX values.
 

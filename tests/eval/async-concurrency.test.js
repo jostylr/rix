@@ -212,6 +212,16 @@ describe("RiX async and concurrency", () => {
         expect(context.get("total").value).toBe(0n);
     });
 
+    test("concurrent composite captures are isolated mutable snapshots", async () => {
+        const context = new Context();
+        const result = await parseAndEvaluateAsync(
+            "items := [0]; {$:2$ <items> [1,2] |>> ((x) -> {; items.Push!(x); .LEN(items) }) }",
+            { context },
+        );
+        expect(result.values.map((value) => Number(value.value))).toEqual([2, 2]);
+        expect(context.get("items").values.map((value) => Number(value.value))).toEqual([0]);
+    });
+
     test("an external function can opt into an explicit nested async scope at limit one", async () => {
         const starts = [];
         const releases = new Map();
@@ -379,6 +389,46 @@ describe("RiX async and concurrency", () => {
         expect(result.value).toBe(9n);
     });
 
+    test("loops, case arms, hole coalescing, and destructuring await their selected work", async () => {
+        const events = [];
+        const systemContext = createDefaultSystemContext({ frozen: false });
+        systemContext.registerHost("step", {
+            impl: async ([value]) => {
+                await Promise.resolve();
+                events.push(Number(value.value));
+                return value;
+            },
+        });
+        systemContext.registerHost("no", { impl: async () => null });
+        systemContext.registerHost("pair", {
+            impl: async () => ({ type: "sequence", values: [new Integer(4n), new Integer(5n)] }),
+        });
+        systemContext.freeze();
+
+        const loop = await parseAndEvaluateAsync(
+            "{$ {@ i := 0; i < 3; .step(i); i += 1; i } }",
+            { systemContext },
+        );
+        expect(loop.value).toBe(3n);
+        expect(events).toEqual([0, 1, 2]);
+
+        const selected = await parseAndEvaluateAsync(
+            "{$ {? .no() ? .step(8); .step(9) } }",
+            { systemContext },
+        );
+        expect(selected.value).toBe(9n);
+        const coalesced = await parseAndEvaluateAsync(
+            "{$ [1,,3][2] ?| .step(10) }",
+            { systemContext },
+        );
+        expect(coalesced.value).toBe(10n);
+        const destructured = await parseAndEvaluateAsync(
+            "{$ [a, b] := .pair(); a + b }",
+            { systemContext },
+        );
+        expect(destructured.value).toBe(9n);
+    });
+
     test("map and filter pipe stages run promise-aware callbacks concurrently", async () => {
         let active = 0;
         let maxActive = 0;
@@ -466,6 +516,52 @@ describe("RiX async and concurrency", () => {
             "{$:2$ [1, 2, 3, 4] |>? ((x) -> x > 2) |>&& ((x) -> x < 5) };",
         );
         expect(result.value).toBe(4n);
+    });
+
+    test("ordered Any stops queued work and cooperatively cancels active siblings", async () => {
+        const starts = [];
+        const releases = new Map();
+        let cancellations = 0;
+        const systemContext = asyncSystem("probe", ([value], _context, _evaluate, options) => {
+            const number = Number(value.value);
+            starts.push(number);
+            if (number >= 3) {
+                return new Promise((_, reject) => {
+                    options.signal.addEventListener("abort", () => {
+                        cancellations++;
+                        reject(options.signal.reason);
+                    }, { once: true });
+                });
+            }
+            return new Promise((resolve) => releases.set(number, () => resolve(number === 2 ? value : null)));
+        });
+
+        const evaluation = parseAndEvaluateAsync(
+            "{$:2$ [1,2,3,4,5,6] |>|| .probe }",
+            { systemContext },
+        );
+        await waitUntil(() => releases.has(1) && releases.has(2), "ordered Any leaders");
+        releases.get(1)();
+        await waitUntil(() => starts.includes(3), "ordered Any lookahead");
+        releases.get(2)();
+
+        expect((await evaluation).value).toBe(2n);
+        expect(starts).not.toContain(5);
+        expect(starts).not.toContain(6);
+        expect(cancellations).toBeGreaterThanOrEqual(1);
+    });
+
+    test("seeded concurrent random streams are stable by source branch", async () => {
+        const systemContext = asyncSystem("jitter", async ([value]) => {
+            await new Promise((resolve) => setTimeout(resolve, 4 - Number(value.value)));
+            return value;
+        });
+        const code = ".RANDOMSEED(731); {$:3$ [1,2,3] |>> ((x) -> {; .jitter(x); .RAND_NAME(8) }) }";
+
+        const first = await parseAndEvaluateAsync(code, { systemContext });
+        const second = await parseAndEvaluateAsync(code, { systemContext });
+        expect(first.values.map((value) => value.value)).toEqual(second.values.map((value) => value.value));
+        expect(new Set(first.values.map((value) => value.value)).size).toBe(3);
     });
 
     test("ordered reduce waits for concurrent upstream work and awaits one accumulator at a time", async () => {
@@ -601,6 +697,19 @@ describe("RiX async and concurrency", () => {
         expect(starts).toEqual([1]);
     });
 
+    test("cancellation does not roll back an effect completed before failure", async () => {
+        const effects = [];
+        const systemContext = asyncSystem("effectThenFail", ([value]) => {
+            effects.push(Number(value.value));
+            throw new Error("after effect");
+        });
+        await expect(parseAndEvaluateAsync(
+            "{$:1$ [.effectThenFail(1), .effectThenFail(2)] }",
+            { systemContext },
+        )).rejects.toThrow("after effect");
+        expect(effects).toEqual([1]);
+    });
+
     test("timeout headers abort capability work, drain, clean up, and expose a recoverable fault", async () => {
         const events = [];
         const systemContext = createDefaultSystemContext({ frozen: false });
@@ -662,6 +771,26 @@ describe("RiX async and concurrency", () => {
         expect(parseAndEvaluate("$status;", { context }).value).toBe("finished");
     });
 
+    test("multiple background reactive writers commit in arrival order", async () => {
+        const releases = new Map();
+        const systemContext = asyncSystem("gate", ([value]) => new Promise((resolve) => {
+            releases.set(Number(value.value), resolve);
+        }));
+        const context = new Context();
+        await parseAndEvaluateAsync(
+            "$$status := :idle; "
+                + "{$$ <status=status> .gate(1); $status := :one }; "
+                + "{$$ <status=status> .gate(2); $status := :two }; _;",
+            { context, systemContext },
+        );
+        await waitUntil(() => releases.size === 2, "background reactive writers");
+        releases.get(2)();
+        await waitUntil(() => parseAndEvaluate("$status", { context }).value === "two", "second writer commit");
+        releases.get(1)();
+        expect(await drainBackgroundTasks(context)).toEqual([]);
+        expect(parseAndEvaluate("$status", { context }).value).toBe("one");
+    });
+
     test("detached ordinary imports are deep snapshots and ordinary aliases are rejected", async () => {
         const context = new Context();
         const recorded = [];
@@ -690,5 +819,12 @@ describe("RiX async and concurrency", () => {
         const errors = await drainBackgroundTasks(context);
         expect(errors).toHaveLength(1);
         expect(errors[0].message).toContain("Undefined callable: HIDDEN");
+    });
+
+    test("reactive formula evaluation cannot launch detached work", async () => {
+        const context = new Context();
+        context.setEnv("__reactive_active_graph__", {});
+        await expect(parseAndEvaluateAsync("{$$ 1 }", { context }))
+            .rejects.toThrow("cannot start detached background tasks");
     });
 });

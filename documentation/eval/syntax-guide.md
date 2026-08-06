@@ -1592,7 +1592,9 @@ and drain each attempt's registered cleanup before continuing.
 `.Stream(collection, label?)` creates a cold `async_stream`. A stream is a
 linear pull handle, not a promise, lazy sequence, or materialized collection.
 Displaying it never pulls it. `stream |>> F`, `stream |>? P`, and `stream |>! H`
-create lazy derived streams; an explicit terminal begins consumption.
+create lazy derived streams; an explicit terminal begins consumption. The pipe
+terminals `stream |>|| P`, `stream |>&& P`, and `stream |>_ F` consume with
+backpressure and close the source when their result is known.
 
 | Method | Result |
 |--------|--------|
@@ -1604,6 +1606,7 @@ create lazy derived streams; an explicit terminal begins consumption.
 | `Reduce(initial, F)` | Consume and fold in source order |
 | `Collect()`, `Collect(n)` | Consume to a sequence, optionally bounded |
 | `First()`, `Find(P)` | Consume until an early ordered result |
+| `stream |>|| P`, `stream |>&& P` | Ordered Find/All pipe terminals; close early once decided |
 | `Count()`, `Count(n)` | Count a finite stream or an explicit bound |
 | `Close(reason?)`, `Done()`, `Status()` | Lifecycle and inspection |
 

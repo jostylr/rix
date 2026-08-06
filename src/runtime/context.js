@@ -11,6 +11,7 @@
  */
 
 import { Cell, deepCopyValue } from "./cell.js";
+import { forkRuntimeRandom } from "./random.js";
 
 export class Context {
     constructor() {
@@ -457,7 +458,8 @@ export class Context {
             readOnly: true,
         }));
         child.functions = this.functions;
-        child.env = this.env;
+        child.env = new Map(this.env);
+        forkRuntimeRandom(this, child);
         child.callStack = [...this.callStack];
         child.currentCallables = [...this.currentCallables];
         child.sharedBodyOverrides = [];
@@ -482,6 +484,20 @@ export class Context {
             if (!token.consumed) {
                 this.sharedBodyOverrides.pop();
             }
+        }
+    }
+
+    async withSharedBodyAsync(bodyNode, callback) {
+        const sharedFns = new Set(["BLOCK", "LOOP", "SYSTEM"]);
+        if (!bodyNode || !sharedFns.has(bodyNode.fn)) {
+            return await callback();
+        }
+        const token = { fn: bodyNode.fn, consumed: false };
+        this.sharedBodyOverrides.push(token);
+        try {
+            return await callback();
+        } finally {
+            if (!token.consumed) this.sharedBodyOverrides.pop();
         }
     }
 

@@ -496,7 +496,7 @@ window.Quarto = {
 <section id="status" class="level1">
 <h1>Status</h1>
 <p>This is the normative design and implementation tracker. The current runtime slice includes syntax and IR, code-block import headers, async host APIs, grouped FIFO bounded scheduling, nested scope-limit composition, concurrent arrays/maps/tuples/sets/matrices/tensors, fused <code>|&gt;&gt;</code> and <code>|&gt;?</code>, ordered <code>|&gt;||</code> and <code>|&gt;&amp;&amp;</code>, promise-aware reduce/sort/slice/split/chunk barriers, named async breaks, lexical function fan-out, group cancellation signals, and supervised/drainable <code>{$$ ... }</code> tasks. It also includes timeout headers, typed operational-fault recovery, LIFO <code>##_</code> cleanup, a <code>2L</code> ordered publication window, task-local ordinary snapshots/write rejection, and strict detached import capture. It also includes first-class linear <code>async_stream</code> values, cold and hot source infrastructure, lazy stream stages, explicit terminals, structured stream consumption, and prefix method lifting. <code>{# ... }</code> remains the inert symbolic-system form.</p>
-<p>Still planned are bounded pull for legacy lazy generators, complete mutation-safety enforcement, deterministic task RNG streams, worker execution, full stable task-path diagnostics, and cancellation checkpoints inside loops and lazy sources.</p>
+<p>The event-loop implementation now also supplies bounded pull for legacy lazy sources when an explicit async terminal consumes them, ordered early cancellation for both <code>|&gt;||</code> and <code>|&gt;&amp;&amp;</code>, loop/pull/stage cancellation checkpoints, promise-aware script imports and selective control forms, and deterministic seeded random substreams per source branch. Still planned are async callbacks inside recurrence generators, capability safety/serialization metadata, worker execution, and complete structural task-path diagnostics.</p>
 <p>The proposal deliberately separates two operations:</p>
 <ul>
 <li><code>{$ ... }</code> is an <strong>awaited concurrency scope</strong>. It permits explicitly independent work to overlap, waits for every required result or an early terminal result, and returns an ordinary RiX value.</li>
@@ -661,7 +661,7 @@ later := BuildParallel()      // temporary default-limited scope</code></pre>
 <section id="generators-and-lazy-sources" class="level2">
 <h2 class="anchored" data-anchor-id="generators-and-lazy-sources">Generators and lazy sources</h2>
 <p>A recurrence-dependent generator remains sequential at its generation step. Independent downstream pipe stages may overlap across generated items.</p>
-<p>Lazy and unbounded sources must use bounded pull: at most the effective concurrency limit may be admitted into a fused region. They must never be fully materialized merely because evaluation occurs inside <code>{$ ... }</code>.</p>
+<p>Lazy and unbounded sources use bounded pull when consumed by <code>|&gt;_</code>, <code>|&gt;||</code>, or <code>|&gt;&amp;&amp;</code>: no more than the <code>2L</code> admission/publication window is outstanding, and an early result closes the adapter. They are never fully materialized merely because evaluation occurs inside <code>{$ ... }</code>. Arithmetic lazy generators may be constructed either before or inside the scope and consumed there. Promise-returning generator source/stage callbacks remain a separate runtime extension because synchronous <code>lazy_sequence</code> caches cannot contain promises.</p>
 </section>
 </section>
 <section id="async-pipe-semantics" class="level1">
@@ -811,7 +811,7 @@ later := BuildParallel()      // temporary default-limited scope</code></pre>
 <li>nested scopes share the ancestor scheduler rather than creating capacity;</li>
 <li>waiting scope controllers do not hold leaf permits.</li>
 </ul>
-<p>For a limit <code>L</code>, no more than <code>L</code> items execute at once and no more than <code>2L</code> items may be admitted but not yet published. The second bound is an ordered publication window: it permits useful overlap without allowing a slow early item to cause unbounded buffering of later completed results. The finite eager runtime enforces this window. Hierarchical round-robin nested admission and bounded lazy/infinite source pulls remain follow-up scheduler work.</p>
+<p>For a limit <code>L</code>, no more than <code>L</code> items execute at once and no more than <code>2L</code> items may be admitted but not yet published. The second bound is an ordered publication window: it permits useful overlap without allowing a slow early item to cause unbounded buffering of later completed results. Finite eager work, async streams, and explicitly consumed legacy lazy sources enforce this window. Hierarchical round-robin admission also applies to nested branches.</p>
 <p>Each nested scope owns a scheduler group. A group’s in-flight count includes all descendant groups, so <code>{$outer:4$ {$inner:2$ ... } }</code> can use at most two slots in <code>inner</code> and at most four across <code>outer</code>. Cancellation is group-local: a handled break in <code>inner</code> rejects its queued descendants without cancelling independent <code>outer</code> siblings. Running capability work remains cooperative and is drained before the owning scope returns.</p>
 <p>The scheduler must attach a stable path to each item, for example <code>scope jobs / map entry a / array index 2 / pipe stage H</code>. Diagnostics, output, and suppressed errors use this path.</p>
 </section>
@@ -839,7 +839,7 @@ later := BuildParallel()      // temporary default-limited scope</code></pre>
 <span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">effects</span><span class="op">:</span> [<span class="st">"net"</span>]</span>
 <span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>The exact metadata spelling can change during implementation, but the runtime must distinguish promise-awareness, safe overlap, cooperative cancellation, executor needs, and effects. A capability not marked parallel-safe executes through a serialized lane even inside a concurrency scope.</p>
-<p>Random work receives a deterministic child stream derived from the parent seed and stable task path. Completion timing must not change random results.</p>
+<p>After <code>.RANDOMSEED</code>, concurrent work receives a deterministic child stream derived in stable source-branch creation order. Completion timing does not change random results. Unseeded randomness and a host-injected random function retain their host-defined behavior.</p>
 </section>
 <section id="failure-cancellation-and-cleanup" class="level1">
 <h1>Failure, cancellation, and cleanup</h1>
@@ -1076,7 +1076,7 @@ RenderMainView()</code></pre>
 <li><label><input type="checkbox" checked="">Remove stale user-facing references that call <code>{$ ... }</code> a mathematical system block; keep <code>{# ... }</code> as the symbolic-system form.</label></li>
 <li><label><input type="checkbox" checked="">Decide and document canonical map traversal order; use insertion order for deterministic ordered pipes.</label></li>
 <li><label><input type="checkbox" checked="">Add <code>defaultAsyncConcurrency: 10</code> and host override plumbing.</label></li>
-<li><label><input type="checkbox">Add a <code>BACKGROUND</code> script permission and sandbox policy tests.</label></li>
+<li><label><input type="checkbox" checked="">Add a <code>BACKGROUND</code> script permission and sandbox policy tests.</label></li>
 </ul>
 </section>
 <section id="parser-and-ir" class="level2">
@@ -1096,12 +1096,12 @@ RenderMainView()</code></pre>
 <h2 class="anchored" data-anchor-id="promise-aware-evaluation">2. Promise-aware evaluation</h2>
 <ul class="task-list">
 <li><label><input type="checkbox" checked="">Add <code>evaluateAsync</code> and <code>parseAndEvaluateAsync</code> while retaining the sync API for sync-only scripts.</label></li>
-<li><label><input type="checkbox">Extend registry/system capability entries with async implementations or a promise-aware dispatch contract.</label></li>
+<li><label><input type="checkbox" checked="">Make registry/system capability dispatch promise-aware and pass the containing cancellation signal to host calls.</label></li>
 <li><label><input type="checkbox" checked="">Reuse ordinary eager implementations after asynchronously evaluating their arguments.</label></li>
-<li><label><input type="checkbox">Add async implementations for lazy control, assignment, function-call, collection, pipe, diagnostic, and reactive operations that selectively evaluate IR.</label></li>
+<li><label><input type="checkbox" checked="">Add selective async implementations for assignment, calls, blocks, imports, case, loop, trial, hole-coalescing, destructuring, collections, and pipes. Promise-aware generator callbacks and some diagnostic/reactive host extensions remain tracked separately.</label></li>
 <li><label><input type="checkbox" checked="">Make the CLI, CLI REPL, generated-page host, RiX Web REPL, and tutorial runner select/await the async entry point. Notebook host work remains pending.</label></li>
 <li><label><input type="checkbox" checked="">Verify that raw promises cannot be assigned, collected, formatted, or returned as RiX values.</label></li>
-<li><label><input type="checkbox">Preserve source annotation and call-stack diagnostics across <code>await</code>.</label></li>
+<li><label><input type="checkbox" checked="">Preserve source annotations and scheduler failure metadata across <code>await</code>. Complete structural paths for every nested operation remain below.</label></li>
 </ul>
 </section>
 <section id="scheduler-and-task-contexts" class="level2">
@@ -1116,8 +1116,9 @@ RenderMainView()</code></pre>
 <li><label><input type="checkbox" checked="">Implement effective-limit composition for nested scopes. A distinct host maximum remains follow-up configuration work.</label></li>
 <li><label><input type="checkbox" checked="">Ensure structural parents do not retain leaf permits while awaiting children.</label></li>
 <li><label><input type="checkbox" checked="">Add task-local ordinary snapshots and reject captured-cell writes.</label></li>
-<li><label><input type="checkbox">Reject every mutation path on captured composite values and finish the callable/capability concurrency-safety classification.</label></li>
-<li><label><input type="checkbox">Derive deterministic random substreams from stable task paths.</label></li>
+<li><label><input type="checkbox" checked="">Isolate captured composites by deep task snapshot so local mutation cannot change the surrounding ordinary value.</label></li>
+<li><label><input type="checkbox">Finish callable/capability concurrency-safety classification.</label></li>
+<li><label><input type="checkbox" checked="">Derive deterministic seeded random substreams in stable source-branch creation order.</label></li>
 <li><label><input type="checkbox" checked="">Add deferred-capability tests that assert admission and completion traces without relying on wall-clock timing.</label></li>
 </ul>
 </section>
@@ -1130,7 +1131,8 @@ RenderMainView()</code></pre>
 <li><label><input type="checkbox" checked="">Preserve source-order result assembly despite completion-order slot fills.</label></li>
 <li><label><input type="checkbox" checked="">Implement finite map key/value and insertion-order rules.</label></li>
 <li><label><input type="checkbox" checked="">Treat pre-existing collections as data sources without re-evaluation.</label></li>
-<li><label><input type="checkbox">Add bounded pull for lazy/generator sources and keep recurrence generation sequential where values depend on history.</label></li>
+<li><label><input type="checkbox" checked="">Add bounded pull and early close for pre-existing lazy/generator sources consumed by async terminals; recurrence generation remains sequential.</label></li>
+<li><label><input type="checkbox">Add promise-returning callbacks to the legacy recurrence-generator protocol without allowing promises into its synchronous cache.</label></li>
 <li><label><input type="checkbox" checked="">Test the current limit-2 <code>{= a=[F(), G()], b=H() }</code> structural-parent behavior without consuming permits.</label></li>
 <li><label><input type="checkbox" checked="">Assert the settled <code>F, H, G</code> hierarchical order for that scenario.</label></li>
 </ul>
@@ -1143,11 +1145,11 @@ RenderMainView()</code></pre>
 <li><label><input type="checkbox" checked="">Implement end-to-end permit retention through finite <code>|&gt;&gt;</code> and <code>|&gt;?</code> stages.</label></li>
 <li><label><input type="checkbox" checked="">Preserve collection shape, locators, callback arguments, strings, maps, tensors, and source-order result assembly for finite eager sources.</label></li>
 <li><label><input type="checkbox" checked="">Implement ordered <code>|&gt;||</code>, including buffering a later passing result until every earlier candidate fails.</label></li>
-<li><label><input type="checkbox">Implement <code>|&gt;&amp;&amp;</code> cancellation once a falsy result determines the outcome.</label></li>
+<li><label><input type="checkbox" checked="">Implement <code>|&gt;&amp;&amp;</code> cancellation once a source-ordered falsy result determines the outcome.</label></li>
 <li><label><input type="checkbox" checked="">Implement ordered reduce barriers with concurrent upstream stages.</label></li>
 <li><label><input type="checkbox" checked="">Implement stable async sort and promise-aware finite structural barriers.</label></li>
 <li><label><input type="checkbox" checked="">Test pipelines separated by multiple barriers. Nested barrier expressions inside collection entries remain follow-up coverage.</label></li>
-<li><label><input type="checkbox">Test infinite/lazy sources for strict bounded admission and early terminal cancellation.</label></li>
+<li><label><input type="checkbox" checked="">Test infinite/lazy sources for bounded lookahead and early terminal cancellation.</label></li>
 <li><label><input type="checkbox" checked="">Add terminal <code>|&gt;_</code> with ordinary callback arguments, result discard, bounded stream/lazy drain, null result, and fail-fast cancellation.</label></li>
 <li><label><input type="checkbox" checked="">Add <code>|&gt;!</code> expected-error tuple recovery with positional tail arguments, scalar short-circuit, and collection/stream item skipping without holes.</label></li>
 <li><label><input type="checkbox" checked="">Add <code>.Retry</code> with count/policy forms, kind filtering, cancellable backoff, per-attempt cleanup, and permit retention.</label></li>
@@ -1157,14 +1159,16 @@ RenderMainView()</code></pre>
 <h2 class="anchored" data-anchor-id="failure-and-cancellation">6. Failure and cancellation</h2>
 <ul class="task-list">
 <li><label><input type="checkbox" checked="">Thread group cancellation signals through evaluator and capability-call boundaries.</label></li>
-<li><label><input type="checkbox">Add cancellation checkpoints to loops, lazy source pulls, stages, and workers.</label></li>
+<li><label><input type="checkbox" checked="">Add cancellation checkpoints to event-loop loops, lazy source pulls, and stage/evaluator boundaries.</label></li>
+<li><label><input type="checkbox">Add worker message-boundary checkpoints with the worker executor.</label></li>
 <li><label><input type="checkbox" checked="">Implement fail-fast admission stop followed by queued-sibling cancellation and cleanup drain.</label></li>
 <li><label><input type="checkbox" checked="">Preserve body failure as primary and attach later cleanup failures as suppressed errors.</label></li>
 <li><label><input type="checkbox">Give every cleanup and scheduler error a complete structural task path.</label></li>
 <li><label><input type="checkbox" checked="">Implement named and unnamed <code>{!$...}</code> completion races with queued-sibling cancellation.</label></li>
 <li><label><input type="checkbox">Specify capability metadata for parallel safety, cancellation, executor, and effects; serialize unsafe capabilities through a single lane.</label></li>
-<li><label><input type="checkbox">Add tests for queued cancellation, cooperative I/O abort, loop checkpoints, simultaneous breaks, and uncancellable synchronous code.</label></li>
-<li><label><input type="checkbox">Verify explicitly that cancellation does not imply effect rollback.</label></li>
+<li><label><input type="checkbox" checked="">Test queued cancellation and cooperative I/O abort.</label></li>
+<li><label><input type="checkbox">Add focused tests for a loop checkpoint after suspension, simultaneous breaks, and uncancellable synchronous work.</label></li>
+<li><label><input type="checkbox" checked="">Verify explicitly that cancellation does not imply effect rollback.</label></li>
 </ul>
 </section>
 <section id="background-supervisor-and-reactive-publication" class="level2">
@@ -1173,13 +1177,13 @@ RenderMainView()</code></pre>
 <li><label><input type="checkbox" checked="">Implement <code>DETACH</code> as immediate null plus a supervisor-owned task.</label></li>
 <li><label><input type="checkbox" checked="">Add session-close cancellation, task-owned resource disposal, and bounded cleanup; RiX Web invokes it on reset and page disposal.</label></li>
 <li><label><input type="checkbox">Add active-task/queue limits, task IDs, and complete source diagnostics.</label></li>
-<li><label><input type="checkbox">Define CLI drain-by-default and host no-drain/cancel behavior.</label></li>
+<li><label><input type="checkbox" checked="">Define and implement CLI drain-by-default plus exported host/session disposal for cancel-and-drain behavior.</label></li>
 <li><label><input type="checkbox" checked="">Report background errors to the host handler/error queue without retroactively failing continued main evaluation.</label></li>
 <li><label><input type="checkbox" checked="">Snapshot explicitly imported ordinary values at spawn.</label></li>
 <li><label><input type="checkbox" checked="">Enforce detached import isolation: deep-copy listed ordinary values, reject ordinary aliases, alias listed reactive values, and hide unlisted bindings.</label></li>
-<li><label><input type="checkbox">Reject ordinary outer-cell writes and detached spawn during reactive formula evaluation.</label></li>
+<li><label><input type="checkbox" checked="">Reject ordinary outer-cell writes and detached spawn during reactive formula evaluation.</label></li>
 <li><label><input type="checkbox">Transfer background reactive updates as resolved literal messages to the graph owner; support atomic <code>${ ... }</code> batches.</label></li>
-<li><label><input type="checkbox">Document and test arrival-order conflicts between multiple background writers.</label></li>
+<li><label><input type="checkbox" checked="">Document and test arrival-order conflicts between multiple background writers on the owner event loop.</label></li>
 <li><label><input type="checkbox" checked="">Add a supervisor drain API for hosts without exposing task handles as RiX values.</label></li>
 </ul>
 </section>
