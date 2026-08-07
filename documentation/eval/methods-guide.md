@@ -20,6 +20,31 @@ obj.Method!(a, b)
 - Iterator cursor methods are explicitly stateful without `!`; the iterator is a traversal handle, not the source collection.
 - Built-in prototypes are frozen. There is no prototype chaining in v1.
 
+## Plugin extension methods
+
+Plugins can add a receiver-first method to an existing semantic/runtime type
+without mutating individual values or patching a RatMath JavaScript class:
+
+```rix
+.RegisterMethod(:Rational, :Twice, (self) -> self * 2);
+(3/7).Twice();
+```
+
+Lookup checks direct value metadata, semantic trait/type methods, active plugin
+extensions, and finally the frozen built-in prototype. A registration cannot
+replace a built-in method, and a second extension with the same type/name pair
+is an error rather than a load-order override. Plugin-owned extensions remain
+usable only while their owning mount is visible in the active system context.
+
+The bundled `.radix` plugin uses this facility to add `Expansion`, `Digits`,
+`PeriodLength`, `PeriodInfo`, and `RadixString` to exact numeric values. The
+`.float` plugin adds the explicit exact-to-approximate conversion `Float()` to
+Integers and Rationals.
+
+`RationalInterval.Random(parameters)` and `RandomPartition(parameters)` consume
+the RNG selected by `.RNG`. Their parameter tuple matches the interval `:%`
+and `:/%` operators: count, optional fixed denominator, and optional tolerance.
+
 ## Reactive identities
 
 `$$name` exposes the reactive-node methods `Get()`, `Peek()`, `Set(value)`,

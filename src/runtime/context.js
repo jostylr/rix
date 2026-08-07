@@ -24,6 +24,9 @@ export class Context {
         this.functions = new Map();
         // Environment config
         this.env = new Map();
+        // Lexically scoped runtime services. Entries inherit through pushed
+        // scopes, while assignment writes only to the immediate scope.
+        this.globalScopedEnv = new Map();
         // Call stack for debugging
         this.callStack = [];
         this.currentCallables = [];
@@ -62,6 +65,7 @@ export class Context {
         }
         const scope = {
             bindings,
+            scopedEnv: options.scopedEnv instanceof Map ? options.scopedEnv : new Map(),
             isolated: options.isolated === true,
             readThrough: options.readThrough === true,
             callableBoundary: options.callableBoundary === true,
@@ -101,6 +105,7 @@ export class Context {
     captureClosureScopes() {
         return this.localScopes.map((scope) => ({
             bindings: scope.bindings,
+            scopedEnv: scope.scopedEnv,
             isolated: scope.isolated === true,
             readThrough: scope.readThrough === true,
             callableBoundary: scope.callableBoundary === true,
@@ -416,6 +421,26 @@ export class Context {
         this.env.set(key, value);
     }
 
+    getScopedEnv(key, defaultValue) {
+        for (let index = this.localScopes.length - 1; index >= 0; index--) {
+            const scopedEnv = this.localScopes[index].scopedEnv;
+            if (scopedEnv?.has(key)) return scopedEnv.get(key);
+        }
+        return this.globalScopedEnv.has(key) ? this.globalScopedEnv.get(key) : defaultValue;
+    }
+
+    setScopedEnv(key, value) {
+        const scope = this.localScopes.at(-1);
+        if (scope) scope.scopedEnv.set(key, value);
+        else this.globalScopedEnv.set(key, value);
+        return value;
+    }
+
+    setRootScopedEnv(key, value) {
+        this.globalScopedEnv.set(key, value);
+        return value;
+    }
+
     /**
      * Create a child context (shares global scope and functions but has
      * independent local scopes).
@@ -425,6 +450,10 @@ export class Context {
         child.globalScope = this.globalScope;
         child.functions = this.functions;
         child.env = this.env;
+        child.globalScopedEnv = new Map(this.globalScopedEnv);
+        for (const scope of this.localScopes) {
+            for (const [key, value] of scope.scopedEnv || []) child.globalScopedEnv.set(key, value);
+        }
         child.callStack = [...this.callStack];
         child.currentCallables = [...this.currentCallables];
         child.sharedBodyOverrides = [...this.sharedBodyOverrides];
@@ -446,12 +475,14 @@ export class Context {
             return [name, snapshot];
         }));
         child.globalReadOnly = true;
+        child.globalScopedEnv = new Map(this.globalScopedEnv);
         child.localScopes = this.localScopes.map((scope) => ({
             bindings: new Map([...scope.bindings].map(([name, cell]) => {
                 const snapshot = new Cell(deepCopyValue(cell.value));
                 child.readOnlyCells.add(snapshot);
                 return [name, snapshot];
             })),
+            scopedEnv: new Map(scope.scopedEnv || []),
             isolated: scope.isolated === true,
             readThrough: scope.readThrough === true,
             callableBoundary: scope.callableBoundary === true,
@@ -517,6 +548,7 @@ export class Context {
     clear() {
         this.globalScope.clear();
         this.localScopes = [];
+        this.globalScopedEnv.clear();
         this.functions.clear();
         this.callStack = [];
         this.currentCallables = [];

@@ -3,7 +3,7 @@ import { Integer, Rational, RationalInterval } from "@ratmath/core";
 import { tokenize } from "../../src/parser/tokenizer.js";
 import { parse } from "../../src/parser/parser.js";
 import { lower } from "../../src/eval/lower.js";
-import { evaluate, createDefaultRegistry, createDefaultSystemContext } from "../../src/eval/evaluator.js";
+import { evaluate, createDefaultRegistry, createDefaultSystemContext, parseAndEvaluate } from "../../src/eval/evaluator.js";
 import { Context } from "../../src/runtime/context.js";
 import { isHole } from "../../src/runtime/hole.js";
 import { forEachTensorCell, isTensor } from "../../src/runtime/tensor.js";
@@ -98,6 +98,33 @@ describe("Built-in exact-number methods", () => {
             1, "1/2", "1/2", 1, 1,
         ]);
         expect(result.values[10].toString()).toBe("1/2:3/4");
+    });
+});
+
+describe("Existing-type method extensions", () => {
+    test("RegisterMethod adds receiver-first methods without mutating values", () => {
+        const systemContext = createDefaultSystemContext();
+        const context = new Context();
+        const registry = createDefaultRegistry();
+        const result = parseAndEvaluate(`
+            .RegisterMethod(:Rational, :Twice, (self) -> self * 2);
+            {: (3/7).Twice(), (5/11).Twice() };
+        `, { context, registry, systemContext });
+        expect(unbox(result)).toEqual(["6/7", "10/11"]);
+    });
+
+    test("method extension collisions are explicit", () => {
+        const systemContext = createDefaultSystemContext();
+        const options = { context: new Context(), registry: createDefaultRegistry(), systemContext };
+        expect(() => parseAndEvaluate(
+            ".RegisterMethod(:Rational, :Numerator, (self) -> 0);",
+            options,
+        )).toThrow("already built in");
+        parseAndEvaluate(".RegisterMethod(:Rational, :Extra, (self) -> self);", options);
+        expect(() => parseAndEvaluate(
+            ".RegisterMethod(:Rational, :Extra, (self) -> self);",
+            options,
+        )).toThrow("already registered");
     });
 });
 

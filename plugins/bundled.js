@@ -8,6 +8,7 @@ import { install as installExactAlgebrasPlugin } from "./exact-algebras/exact-al
 import { install as installPlotPlugin } from "./plot/plot.plugin.rix.js";
 import { install as installScene3DPlugin } from "./scene3d/scene3d.plugin.rix.js";
 import { install as installNdPlugin } from "./nd/nd.plugin.rix.js";
+import { install as installRadixPlugin } from "./radix/radix.plugin.rix.js";
 import { install as installSvgPlugin } from "./render-svg/svg.plugin.rix.js";
 import { install as installCanvasPlugin } from "./render-canvas/canvas.plugin.rix.js";
 import { install as installTikzPlugin } from "./render-tikz/tikz.plugin.rix.js";
@@ -29,6 +30,20 @@ const BUNDLED_PLUGINS = [
         metadata: readPluginHeader(oracleSource, "oracle.plugin.rix"),
         source: oracleSource,
         sourcePath: "bundled:oracle.plugin.rix",
+    },
+    {
+        metadata: {
+            id: "radix",
+            description: "Bounded exact positional expansions and repeating-period analysis for rational values.",
+            kind: "host",
+            mount: "radix",
+            exports: ["Expansion", "Digits", "PeriodLength", "PeriodInfo", "ToString"],
+            groups: ["Exact", "Radix"],
+            permissions: [],
+            deterministic: true,
+            defaultEnabled: false,
+        },
+        install: installRadixPlugin,
     },
     {
         metadata: {

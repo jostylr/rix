@@ -128,7 +128,16 @@ export {
     lazyKnownLength,
     materializeLazySequence,
 } from "./lazy-sequence.js";
-export { runtimeRandom, seedRuntimeRandom } from "./random.js";
+export {
+    DEFAULT_RANDOM_SEED,
+    RUNTIME_RNG_KEY,
+    configureRuntimeRandom,
+    createRngImplementation,
+    createRuntimeRng,
+    runtimeRandom,
+    runtimeRandomInfo,
+    seedRuntimeRandom,
+} from "./random.js";
 export {
     applyStructuralBinary,
     applyStructuralPostfix,

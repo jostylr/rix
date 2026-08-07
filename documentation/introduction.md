@@ -2012,6 +2012,29 @@ Examples:
 .RAND_NAME(12, "abc")
 ```
 
+Each fresh RiX runtime begins with the same fixed default random stream. Use
+`.RNG` to install a fresh stream in the current lexical scope:
+
+```rix
+.RNG();                              ## default implementation and fixed seed
+.RNG(:default, {= seed=12345 });    ## reproducible explicit seed
+.RNG(:default, {= seed=:random });  ## request host-provided entropy
+```
+
+Subscopes inherit their parent's stream. Calling `.RNG` in a subscope replaces
+the default only there and below; after that scope exits, the outer stream
+continues untouched. Closures retain the RNG from their defining lexical
+scope. `seed=:random` uses a host entropy service such as Web Crypto and errors
+when the host supplies none. `.RandomSeed(seed)` remains the compatibility
+spelling for installing a fresh default implementation with an explicit seed.
+Approved host plugins can supply another implementation with the exported
+`createRngImplementation(name, factory)` runtime helper. A factory returns a
+fresh object implementing `nextUint32()` or `next()`; `.RNG` invokes the factory
+on every call, so an unchanged configuration still creates independent state.
+The bundled Mulberry32 implementation is a small reproducible PRNG, not a
+cryptographic generator; `seed=:random` chooses its starting seed securely but
+does not change that algorithm.
+
 ## Diagnostics, Testing, and Debugging
 
 RiX includes a built-in diagnostics subsystem accessed through system capabilities. All diagnostic operations produce structured RiX map values with a consistent `kind` field, making them inspectable and composable.

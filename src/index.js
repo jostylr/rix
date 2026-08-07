@@ -18,6 +18,7 @@ export {
     importRixCelDocument, rewriteRixCelReferences,
     createReactiveGraph, isReactiveGraph, isReactiveNode, REACTIVE_READ_ENV,
     getDiagnostics, RixAbort, isRixAbort, createEvent, runtimeDefaults,
+    createRngImplementation, createRuntimeRng, configureRuntimeRandom,
     OperationalFault, TimeoutFault, CleanupGraceFault, isOperationalFault, faultToRixValue,
     createAsyncStream, asyncStreamFromIterable, createHotAsyncStream, isAsyncStream,
     closeAsyncStream, asyncStreamStatus, asyncStreamCanCompleteWithoutPull,

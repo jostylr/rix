@@ -163,7 +163,7 @@ function method(name, impl) {
 }
 
 /** Install `.float` plus the FloatIEEE754 semantic type and its variants. */
-export function installBrowserApproxMathPlugin({ systemContext, registry }) {
+export function installBrowserApproxMathPlugin({ systemContext, registry, metadata = {}, options = {} }) {
     registerFloatType();
     registry.registerAll(mathFunctions);
     installRegisteredTypes(registry, [TYPE_NAME], { skipMissing: true, skipExisting: true });
@@ -196,6 +196,13 @@ export function installBrowserApproxMathPlugin({ systemContext, registry }) {
         doc: "Optional IEEE-754 Float conversion and approximate math",
         groups: ["ApproximateMath", "Float"],
     });
+    const floatExtension = method("Float", (args, _context, evaluate) => requireFloat(args[0], evaluate));
+    const owner = {
+        pluginId: metadata.id || "float",
+        mount: options.as || metadata.mount || "float",
+    };
+    systemContext.registerMethod("Integer", "Float", floatExtension, owner);
+    systemContext.registerMethod("Rational", "Float", floatExtension, owner);
     return systemContext;
 }
 

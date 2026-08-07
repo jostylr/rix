@@ -208,6 +208,7 @@ export class SystemContext {
         this._hostContext = options.hostContext || this;
         this._pluginCatalog = options.pluginCatalog || null;
         this._rendererRegistry = options.rendererRegistry || null;
+        this._methodExtensions = options.methodExtensions || new Map();
 
         for (const [name, entry] of capabilities) {
             const normalised = normalizeCapabilityName(name);
@@ -321,6 +322,45 @@ export class SystemContext {
         this._capabilities.set(normalised, entry);
         this._addEntryToGroups(normalised, entry.groups);
         return this;
+    }
+
+    /** Register one receiver-first method on an existing semantic/runtime type. */
+    registerMethod(typeName, methodName, callable, options = {}) {
+        const typeKey = String(typeName ?? "").replace(/^:/, "").toLowerCase();
+        const methodKey = String(methodName ?? "").replace(/^:/, "").toUpperCase();
+        if (!typeKey) throw new Error("Method registration requires a target type");
+        if (!methodKey) throw new Error("Method registration requires a method name");
+        if (!callable) throw new Error(`Method ${methodName} requires a callable implementation`);
+        let methods = this._methodExtensions.get(typeKey);
+        if (!methods) {
+            methods = new Map();
+            this._methodExtensions.set(typeKey, methods);
+        }
+        if (methods.has(methodKey)) {
+            throw new Error(`Method ${methodName} is already registered for ${typeName}`);
+        }
+        methods.set(methodKey, {
+            callable,
+            typeName: String(typeName),
+            methodName: String(methodName),
+            pluginId: options.pluginId || null,
+            mount: options.mount || null,
+        });
+        return this;
+    }
+
+    /** Resolve an extension method, respecting the capabilities visible here. */
+    resolveMethodExtension(typeNames, methodName) {
+        const methodKey = String(methodName).toUpperCase();
+        for (const typeName of typeNames || []) {
+            const entry = this._methodExtensions
+                .get(String(typeName).replace(/^:/, "").toLowerCase())
+                ?.get(methodKey);
+            if (!entry) continue;
+            if (entry.mount && !this.has(entry.mount)) continue;
+            return entry;
+        }
+        return null;
     }
 
     /** Register a named import/sandbox group independently of ownership. */
@@ -584,6 +624,7 @@ export class SystemContext {
             hostContext,
             pluginCatalog: this._pluginCatalog,
             rendererRegistry: this._rendererRegistry,
+            methodExtensions: this._methodExtensions,
         })._rebindManagementNamespaces();
     }
 

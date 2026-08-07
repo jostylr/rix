@@ -8,8 +8,9 @@ import { coerceShapeValue, createTensor, forEachTensorCell, tensorIndexTuple, te
 import { callWithConcreteArgs } from "./functions.js";
 import { formatValue } from "../format.js";
 import { deepSetMutable } from "./core.js";
-import { runtimeRandom, seedRuntimeRandom } from "../../runtime/random.js";
+import { configureRuntimeRandom, runtimeRandom, runtimeRandomInfo, seedRuntimeRandom } from "../../runtime/random.js";
 import { ensureLazyIndex, isLazySequence, lazyKnownLength, materializeLazySequence } from "../../runtime/lazy-sequence.js";
+import { builtinMethodNamesForType, isCallableValue } from "../../runtime/methods.js";
 
 export const RIX_IO_ENV = "__io__";
 
@@ -57,6 +58,26 @@ function defaultPrettyFormat(value, options = {}) {
 }
 
 export const stdlibFunctions = {
+    REGISTERMETHOD: {
+        impl(args, context) {
+            if (args.length !== 3) {
+                throw new Error("RegisterMethod expects a type, method name, and receiver-first callable");
+            }
+            const typeName = args[0]?.type === "string" ? args[0].value : String(args[0] ?? "");
+            const methodName = args[1]?.type === "string" ? args[1].value : String(args[1] ?? "");
+            const systemContext = context?.getEnv?.("__system_context__", null);
+            if (!systemContext?.registerMethod) throw new Error("RegisterMethod requires an active system context");
+            if (!isCallableValue(args[2])) throw new Error("RegisterMethod requires a receiver-first callable");
+            if (builtinMethodNamesForType(typeName).has(methodName.toUpperCase())) {
+                throw new Error(`Method ${methodName} is already built in for ${typeName}`);
+            }
+            const owner = context.getEnv("__plugin_owner__", null) || {};
+            systemContext.registerMethod(typeName, methodName, args[2], owner);
+            return { type: "string", value: `${typeName}.${methodName}` };
+        },
+        doc: "Register a receiver-first extension method on an existing semantic/runtime type",
+    },
+
     // --- Collection Functions ---
     LEN: {
         impl(args) {
@@ -325,7 +346,21 @@ export const stdlibFunctions = {
             if (args.length !== 1) throw new Error("RANDOMSEED expects exactly one integer seed");
             return seedRuntimeRandom(context, args[0]);
         },
-        doc: "Seed the current runtime random-number stream",
+        doc: "Install a fresh default RNG with an explicit seed in the current lexical scope",
+    },
+
+    RNG: {
+        impl(args, context) {
+            if (args.length > 2) throw new Error("RNG expects an optional implementation and options map");
+            let implementation = args[0] ?? null;
+            let options = args[1] ?? null;
+            if (args.length === 1 && implementation?.type === "map") {
+                options = implementation;
+                implementation = null;
+            }
+            return runtimeRandomInfo(configureRuntimeRandom(context, implementation, options));
+        },
+        doc: "Install a fresh RNG for the current lexical scope and its subscopes",
     },
 
     // --- I/O ---

@@ -660,6 +660,7 @@ function restrictSystemContext(systemContext, allowedNames) {
     const child = new SystemContext(new Map(), false, {
         hostContext: systemContext._hostContext,
         pluginCatalog: systemContext._pluginCatalog,
+        methodExtensions: systemContext._methodExtensions,
     });
     for (const name of systemContext.getAllNames()) {
         if (allowedNames.has(name)) {
@@ -1339,6 +1340,7 @@ async function invokeUserCallableAsync(fn, callArgs, context, registry, systemCo
     let pushed = 0;
     for (const closure of closureScopes) {
         context.push(closure instanceof Map ? closure : closure.bindings, {
+            scopedEnv: closure.scopedEnv,
             isolated: closure.isolated === true,
             readThrough: closure.readThrough === true,
             callableBoundary: closure.callableBoundary === true,
@@ -1718,7 +1720,7 @@ function createAsyncMethodExecution(context, registry, systemContext, state) {
 
 async function invokeMethodAsync(target, methodName, callArgs, context, registry, systemContext, state) {
     if (methodName.endsWith("!")) ensureMutableReceiver(target);
-    const fn = resolveMethod(target, methodName);
+    const fn = resolveMethod(target, methodName, context);
     if (fn?.type === "method_builtin") {
         try {
             return await fn.impl(
@@ -3127,7 +3129,12 @@ export function parseAndEvaluate(code, options = {}) {
     context.setEnv("__plugin_load_rix__", ({ source, sourcePath, metadata, options: pluginOptions, operatorDefinitions, context: pluginContext = context, registry: pluginRegistry = registry, systemContext: pluginSystemContext = systemContext }) => {
         const previousSource = pluginContext.getEnv(SOURCE_ENV_KEY, undefined);
         const previousFile = pluginContext.getEnv(CURRENT_FILE_ENV_KEY, undefined);
+        const previousOwner = pluginContext.getEnv("__plugin_owner__", undefined);
         try {
+            pluginContext.setEnv("__plugin_owner__", metadata?.id ? {
+                pluginId: metadata.id,
+                mount: pluginOptions?.as || metadata.mount || null,
+            } : null);
             return parseAndEvaluate(source, {
                 context: pluginContext,
                 registry: pluginRegistry,
@@ -3142,6 +3149,7 @@ export function parseAndEvaluate(code, options = {}) {
         } finally {
             pluginContext.setEnv(SOURCE_ENV_KEY, previousSource);
             pluginContext.setEnv(CURRENT_FILE_ENV_KEY, previousFile);
+            pluginContext.setEnv("__plugin_owner__", previousOwner);
         }
     });
     if (typeof options.rng === "function") context.setEnv("randomFunction", options.rng);
@@ -3198,18 +3206,28 @@ export async function parseAndEvaluateAsync(code, options = {}) {
         options.operatorDefinitions,
     );
     context.setEnv("__registry__", registry);
-    context.setEnv("__plugin_load_rix__", ({ source, sourcePath, metadata, options: pluginOptions, operatorDefinitions, context: pluginContext = context, registry: pluginRegistry = registry, systemContext: pluginSystemContext = systemContext }) =>
-        parseAndEvaluateAsync(source, {
-            context: pluginContext,
-            registry: pluginRegistry,
-            systemContext: pluginSystemContext,
-            file: sourcePath,
-            operatorDefinitions,
-            operatorOwner: metadata?.id ? {
+    context.setEnv("__plugin_load_rix__", async ({ source, sourcePath, metadata, options: pluginOptions, operatorDefinitions, context: pluginContext = context, registry: pluginRegistry = registry, systemContext: pluginSystemContext = systemContext }) => {
+        const previousOwner = pluginContext.getEnv("__plugin_owner__", undefined);
+        try {
+            pluginContext.setEnv("__plugin_owner__", metadata?.id ? {
                 pluginId: metadata.id,
                 mount: pluginOptions?.as || metadata.mount || null,
-            } : null,
-        }));
+            } : null);
+            return await parseAndEvaluateAsync(source, {
+                context: pluginContext,
+                registry: pluginRegistry,
+                systemContext: pluginSystemContext,
+                file: sourcePath,
+                operatorDefinitions,
+                operatorOwner: metadata?.id ? {
+                    pluginId: metadata.id,
+                    mount: pluginOptions?.as || metadata.mount || null,
+                } : null,
+            });
+        } finally {
+            pluginContext.setEnv("__plugin_owner__", previousOwner);
+        }
+    });
     if (typeof options.rng === "function") context.setEnv("randomFunction", options.rng);
     context.setEnv(SOURCE_ENV_KEY, code);
     context.setEnv(CURRENT_FILE_ENV_KEY, options.file || "<repl>");

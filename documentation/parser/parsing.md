@@ -2502,9 +2502,13 @@ a:b:/%n     // Partition into n random sub-intervals
 0:1:/%5     // → 5 random partitions of unit interval
 ```
 
-Use `.RandomSeed(seed)` for a repeatable context-local stream, or inject an RNG
-through the host evaluator options. Fixed-denominator partition points are
-chosen without replacement.
+Use `.RNG(:default, {= seed=seed })` for a repeatable lexically scoped stream.
+The no-argument form installs a fresh default stream with RiX's fixed startup
+seed. `{= seed=:random }` requests host entropy. Subscopes inherit the current
+stream until they call `.RNG` themselves, and closures retain the stream from
+their defining scope. `.RandomSeed(seed)` is the compatibility shorthand;
+hosts may also inject an RNG through evaluator options. Fixed-denominator
+partition points are chosen without replacement.
 
 ### Infinite Ranges
 

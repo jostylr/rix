@@ -89,6 +89,18 @@ newline normalization.
 
 ## Authoring and mathematical plugins
 
+### `.radix`
+
+1. **Phase 1 — Bounded exact positional representations**
+   - [x] Add collision-safe plugin methods on existing exact numeric types.
+   - [x] Return structured terminating, repeating, and budget-exhausted expansions.
+   - [x] Provide finite digit generation and bounded period analysis.
+   - [x] Add reference documentation, a tutorial, and focused tests.
+2. **Phase 2 — Streaming and richer representation**
+   - [ ] Add a cloneable lazy digit stream once plugin-defined lazy values have a stable protocol.
+   - [ ] Add formatting policies for digit alphabets above base 36 and grouped radices.
+   - [ ] Share generic work-budget diagnostics with `.numerics`.
+
 ### `.draw`
 
 1. **Phase 1 — Portable 2D construction**

@@ -261,7 +261,7 @@ function callRegisteredParser(parserName, body, modifiers, meta, context, evalua
     const parserObject = entry.value;
     let parseMethod;
     try {
-        parseMethod = resolveMethod(parserObject, "Parse");
+        parseMethod = resolveMethod(parserObject, "Parse", context);
     } catch {
         throw new Error(`Backtick parser '.${entry.displayName}' does not expose a callable .Parse method`);
     }

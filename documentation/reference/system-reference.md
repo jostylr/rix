@@ -8,7 +8,7 @@ toc-depth: 2
 This page is generated from the current RiX implementation by `documentation/scripts/generate-reference.js`. Do not edit it by hand. Descriptions come from registry documentation strings; the narrative [syntax guide](../eval/syntax-guide.md) and [methods guide](../eval/methods-guide.md) provide signatures and examples.
 :::
 
-At this revision RiX exposes **193 named entries** on the default system context and registers **212 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
+At this revision RiX exposes **198 named entries** on the default system context and registers **212 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
 
 ## Public system context
 
@@ -134,10 +134,11 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.PRINT` | function | Core, Strings | Print each argument through the replaceable \_\_io\_\_ hook |
 | `.PRODUCT` | function | — | Core operation SET\_PROD |
 | `.QUOTE` | function | — | Create a document quotation block |
-| `.RANDOMSEED` | function | Random | Seed the current runtime random-number stream |
+| `.RANDOMSEED` | function | Random | Install a fresh default RNG with an explicit seed in the current lexical scope |
 | `.RAND_NAME` | function | Core, Random | Generate a random name string RAND\_NAME(len=10, alphabet=a-zA-Z) |
 | `.REACTIVEGRAPH` | function | RiXCel | Create a transactional graph of reactive source and computed nodes |
 | `.REDUCE` | lazy function | Collections, Arrays | Reduce a collection with an accumulator function — callback receives (acc, val, locator, src) |
+| `.REGISTERMETHOD` | function | Core, Methods | Register a receiver-first extension method on an existing semantic/runtime type |
 | `.RENDER` | function | — | Render a portable value through an installed target plugin |
 | `.RENDERER` | value | — | Discover installed output renderers and their target contracts |
 | `.RETRY` | lazy function | — | Repeat deferred work for expected error tuple values under a bounded retry policy |
@@ -148,6 +149,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.RIXCELIMPORT` | function | RiXCel | Rebuild a FormulaSheet by compiling authoritative source from RiXCel JSON |
 | `.RIXCELIMPORTCSV` | function | RiXCel | Import CSV values into a rank-2 FormulaSheet; optional header=1 uses the first row as labels |
 | `.RIXCELIMPORTTSV` | function | RiXCel | Import TSV values into a rank-2 FormulaSheet; optional header=1 uses the first row as labels |
+| `.RNG` | function | Random | Install a fresh RNG for the current lexical scope and its subscopes |
 | `.SAMECELL` | lazy function | — | Identity comparison (===) — returns 1 if both sides refer to the same cell, null otherwise |
 | `.SAME_CELL` | lazy function | — | Identity comparison (===) — returns 1 if both sides refer to the same cell, null otherwise |
 | `.SARITH` | function | — | Parse structural arithmetic; backticks use this parser by default, with optional Complex/Quaternion/Octonion/Algebra scopes |
@@ -202,10 +204,13 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.latex` | function | — | Standalone LaTeX renderer for portable RiX documents and figures. |
 | `.markdown` | function | — | CommonMark-oriented renderer for portable RiX documents. |
 | `.nd` | function | — | Exact n-dimensional geometry with explicit affine and Cayley projection records. |
+| `.numerics` | function | — | Backend-neutral bounded enclosure and refinement orchestration. |
+| `.oracle` | function | — | Exact rational-betweenness oracle demonstrations and bounded refinement. |
 | `.pdf` | function | — | PDF document and figure renderer orchestrated through LaTeX. |
 | `.plot` | function | Plot | Portable plotting helpers that produce core Graphics scenes. |
 | `.png` | function | — | PNG snapshot renderer for core Graphics through a host rasterizer. |
 | `.quarto` | function | — | Quarto Markdown renderer with front matter and portable figure lowering. |
+| `.radix` | function | — | Bounded exact positional expansions and repeating-period analysis for rational values. |
 | `.scene3d` | function | — | Exact retained 3D scenes with deterministic wireframe Graphics snapshots. |
 | `.svg` | function | — | Portable SVG renderer for core Graphics scenes. |
 | `.tikz` | function | — | Editable TikZ/PGF source renderer for core Graphics scenes. |
@@ -216,6 +221,9 @@ Method lookup is case-flexible at the language boundary. The table uses the regi
 
 | Receiver | Registered methods |
 | --- | --- |
+| Integer | `ABS`, `BITLENGTH`, `E`, `NEGATE`, `TOSTRING` |
+| Rational | `ABS`, `APPROXIMATIONERROR`, `BESTAPPROXIMATION`, `BESTCONVERGENT`, `BITLENGTH`, `CEIL`, `CONVERGENT`, `CONVERGENTS`, `DENOMINATOR`, `E`, `FLOOR`, `NEGATE`, `NUMERATOR`, `RECIPROCAL`, `ROUND`, `ROUNDTO`, `TOCONTINUEDFRACTION`, `TOCONTINUEDFRACTIONSTRING`, `TODECIMAL`, `TOMIXEDSTRING`, `TOSTRING`, `TRUNC` |
+| Rational interval | `BITLENGTH`, `CONTAINS`, `CONTAINSVALUE`, `CONTAINSZERO`, `DENOMINATORINTERVAL`, `E`, `END`, `HIGH`, `INTERSECTION`, `ISASCENDING`, `LOW`, `MEDIANT`, `MIDPOINT`, `NEGATE`, `OVERLAPS`, `RANDOM`, `RANDOMPARTITION`, `RECIPROCAL`, `SHORTESTDECIMAL`, `START`, `TOMIXEDSTRING`, `TOSTRING`, `UNION`, `WIDTH` |
 | Array | `ALL`, `ANY`, `CONCAT`, `CONCAT!`, `COUNT`, `DISTINCT`, `DISTINCT!`, `DROPFIRST`, `DROPLAST`, `FILTER`, `FIND`, `FINDINDEX`, `FIRST`, `FLATTEN`, `FLATTEN!`, `GET`, `HASAT`, `INCLUDES`, `INDEXOF`, `INSERT`, `INSERT!`, `ISEMPTY`, `ITERATOR`, `JOIN`, `LAST`, `LASTINDEXOF`, `LEN`, `MAP`, `MOVE`, `MOVE!`, `POP!`, `PUSH`, `PUSH!`, `REDUCE`, `REMOVEAT`, `REMOVEAT!`, `REVERSE`, `REVERSE!`, `SET`, `SET!`, `SHIFT!`, `SLICE`, `SORT`, `SORT!`, `SWAP`, `SWAP!`, `UNSHIFT`, `UNSHIFT!` |
 | Lazy sequence | `FIRST`, `GET`, `ISEMPTY`, `ITERATOR`, `LAST`, `LEN`, `MATERIALIZE` |
 | Iterator | `DONE`, `INDEX`, `NEXT`, `PEEK`, `RESET` |
@@ -288,7 +296,8 @@ Imported scripts can add or withhold named groups. Permission-like names are int
 | `Graphics` | `Graphics` |
 | `Draw` | `draw` |
 | `Plot` | `plot` |
-| `Core` | `LEN`, `FIRST`, `LAST`, `GETEL`, `IRANGE`, `IF`, `LOOP`, `MULTI`, `RAND_NAME`, `PRINT`, `TGEN`, `KEYOF`, `KEYS`, `VALUES` |
+| `Core` | `LEN`, `FIRST`, `LAST`, `GETEL`, `IRANGE`, `IF`, `LOOP`, `MULTI`, `RAND_NAME`, `PRINT`, `TGEN`, `KEYOF`, `KEYS`, `VALUES`, `REGISTERMETHOD` |
+| `Methods` | `REGISTERMETHOD` |
 | `Arith` | `ADD`, `SUB`, `MUL`, `DIV`, `INTDIV`, `DIVMOD`, `MOD`, `POW`, `FACTORIAL`, `DOUBLEFACTORIAL` |
 | `Logic` | `EQ`, `NEQ`, `LT`, `GT`, `LTE`, `GTE`, `AND`, `OR`, `NOT` |
 | `Collections` | `LEN`, `FIRST`, `LAST`, `GETEL`, `IRANGE`, `MAP`, `FILTER`, `REDUCE`, `TGEN`, `Stream` |
@@ -305,7 +314,7 @@ Imported scripts can add or withhold named groups. Permission-like names are int
 | `Exact` | `EXACT`, `Exact`, `COMPLEX`, `Complex`, `DEFINEEXACTGENERATOR`, `DefineExactGenerator`, `exactalgebras` |
 | `Symbolic` | `POLY`, `DERIV`, `INTEGRATE`, `TRANSFORM`, `SIMPLIFY`, `SPEC`, `SPECCABILITY`, `INSPECTSPEC`, `SPECROLES`, `SArith` |
 | `Notation` | `SArith`, `Poly`, `NotationParser` |
-| `Random` | `RANDOMSEED`, `RandomSeed`, `RAND_NAME` |
+| `Random` | `RNG`, `RANDOMSEED`, `RandomSeed`, `RAND_NAME` |
 | `RiXCel` | `FORMULASHEET`, `REACTIVEGRAPH`, `RIXCELEXPORT`, `RIXCELIMPORT`, `RIXCELIMPORTCSV`, `RIXCELIMPORTTSV`, `RIXCELEXPORTCSV`, `RIXCELEXPORTTSV` |
 
 Default script policy includes all functions and the `IMPORTS` permission. Recognized permission names are `IMPORTS`, `NET`, `FILES`, `PLUGINS`, `BACKGROUND`. The default loop limit is 10,000 iterations and the default constructor capture mode is `deep_copy`.

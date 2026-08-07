@@ -38,6 +38,8 @@ describe("approximate math plugin", () => {
             .toEqual({ type: "string", value: String(1 / 3) });
         expect(parseAndEvaluate(".float(1/3).Value()", { systemContext, registry }))
             .toEqual({ type: "string", value: String(1 / 3) });
+        expect(parseAndEvaluate("(1/3).Float().Value()", { systemContext, registry }))
+            .toEqual({ type: "string", value: String(1 / 3) });
         expect(() => parseAndEvaluate(".float.sin(1)", { systemContext, registry }))
             .toThrow("Unknown system member 'float.sin'");
     });

@@ -79,6 +79,7 @@ function capturedFormulaEvaluator(context, evaluate, closureScopes) {
 
         for (const closureScope of closureScopes) {
             context.push(closureScope.bindings, {
+                scopedEnv: closureScope.scopedEnv,
                 isolated: closureScope.isolated === true,
                 readThrough: closureScope.readThrough === true,
                 callableBoundary: closureScope.callableBoundary === true,

@@ -1577,6 +1577,10 @@ const rationalIntervalMethods = {
                 : exactBigInt(denominator, "Grid denominator"),
             onEmpty === undefined ? undefined : stringValue(onEmpty),
         )),
+    RANDOM: method("Random", ([target, parameters], _context, evaluate) =>
+        evaluate({ fn: "RANDOM", args: [target, parameters] })),
+    RANDOMPARTITION: method("RandomPartition", ([target, parameters], _context, evaluate) =>
+        evaluate({ fn: "RANDOM_PARTITION", args: [target, parameters] })),
     E: method("E", ([target, exponent]) => target.E(exactBigInt(exponent, "Exponent"))),
     BITLENGTH: method("BitLength", ([target]) => int(target.bitLength())),
     TOMIXEDSTRING: method("ToMixedString", ([target]) => stringObj(target.toMixedString())),
@@ -1756,6 +1760,19 @@ function builtinProtoFor(target) {
     return PROTOS.get(target?.type) ?? null;
 }
 
+function extensionTypeNames(target) {
+    const names = [];
+    const semanticName = target?._ext instanceof Map ? target._ext.get("__type")?.value : null;
+    if (semanticName) names.push(semanticName);
+    if (target instanceof Integer) names.push("Integer");
+    else if (target instanceof Rational) names.push("Rational");
+    else if (target instanceof RationalInterval) names.push("RationalInterval");
+    else if (isTensor(target)) names.push("Tensor");
+    else if (target?.type === "sequence" || target?.type === "lazy_sequence") names.push("Array");
+    else if (target?.type) names.push(target.type);
+    return [...new Set(names)];
+}
+
 function resolveFromProto(proto, candidates, methodName) {
     if (proto === null || proto === undefined) return null;
     if (proto.type !== "map" || !(proto.entries instanceof Map)) {
@@ -1782,7 +1799,7 @@ export function getBuiltinProto(target) {
     return builtinProtoFor(target);
 }
 
-export function resolveMethod(target, name) {
+export function resolveMethod(target, name, context = null) {
     const ext = target?._ext;
     const candidates = [name, `__${name}`, `_${name}`];
     const special = checkTraitsMethod(name);
@@ -1807,12 +1824,37 @@ export function resolveMethod(target, name) {
         return semanticResolved;
     }
 
+    const systemContext = context?.getEnv?.("__system_context__", null);
+    const extension = systemContext?.resolveMethodExtension?.(extensionTypeNames(target), name);
+    if (extension) return ensureCallableMethod(extension.callable, name);
+
     const resolved = resolveFromProto(getBuiltinProto(target), candidates, name);
     if (resolved) {
         return resolved;
     }
 
     throw new Error(`Method not found: ${name}`);
+}
+
+export function builtinMethodNamesForType(typeName) {
+    const aliases = new Map([
+        ["integer", "integer"],
+        ["rational", "rational"],
+        ["rationalinterval", "rational_interval"],
+        ["interval", "rational_interval"],
+        ["array", "sequence"],
+        ["sequence", "sequence"],
+        ["map", "map"],
+        ["set", "set"],
+        ["string", "string"],
+        ["tuple", "tuple"],
+        ["tensor", "tensor"],
+        ["iterator", "iterator"],
+        ["asyncstream", "async_stream"],
+    ]);
+    const key = aliases.get(String(typeName).replaceAll("_", "").toLowerCase());
+    const proto = key ? PROTOS.get(key) : null;
+    return new Set(Array.from(proto?.entries?.keys?.() || [], (name) => String(name).toUpperCase()));
 }
 
 export function ensureMutableReceiver(target) {

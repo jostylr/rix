@@ -7,6 +7,7 @@ import { createDefaultRegistry, createDefaultSystemContext } from "../../src/eva
 import { runtimeDefaults } from "../../src/runtime/runtime-config.js";
 import { getBuiltinProto } from "../../src/runtime/methods.js";
 import { createTensor } from "../../src/runtime/tensor.js";
+import { Integer, Rational, RationalInterval } from "@ratmath/core";
 import { traitRegistry, typeRegistry } from "../../src/runtime/type-system.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -65,6 +66,9 @@ const internalRows = registry.list().map((name) => {
 });
 
 const receiverSamples = [
+  ["Integer", new Integer(1n)],
+  ["Rational", new Rational(1n, 2n)],
+  ["Rational interval", new RationalInterval(new Rational(0n, 1n), new Rational(1n, 1n))],
   ["Array", { type: "sequence", values: [] }],
   ["Lazy sequence", { type: "lazy_sequence" }],
   ["Iterator", { type: "iterator" }],

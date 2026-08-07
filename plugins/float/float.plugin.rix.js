@@ -12,6 +12,9 @@ defaultEnabled: false
 import { loadFloatPlugin } from "./node-installer.js";
 
 /** Host-approved installer used by the CLI or another embedding host. */
-export function install({ systemContext, registry }) {
-    return loadFloatPlugin(systemContext, registry);
+export function install({ systemContext, registry, metadata, options }) {
+    return loadFloatPlugin(systemContext, registry, {
+        pluginId: metadata?.id || "float",
+        mount: options?.as || metadata?.mount || "float",
+    });
 }

@@ -158,7 +158,7 @@ function floatValue(registry) {
  * namespace, so `.float.Float(1/3)` and `.float.Sin(x)` always refer to the
  * same numeric implementation.
  */
-export function loadFloatPlugin(systemContext, registry) {
+export function loadFloatPlugin(systemContext, registry, owner = { pluginId: "float", mount: "float" }) {
     if (!systemContext?.registerHostValue) {
         throw new Error("Approximate math plugin requires a SystemContext");
     }
@@ -182,6 +182,13 @@ export function loadFloatPlugin(systemContext, registry) {
         doc: "Optional JavaScript Float conversion and approximate math",
         groups: ["ApproximateMath", "Float"],
     });
+    const floatExtension = {
+        type: "method_builtin",
+        name: "Float",
+        impl(args, _context, evaluate) { return requireFloat(args[0], evaluate); },
+    };
+    systemContext.registerMethod("Integer", "Float", floatExtension, owner);
+    systemContext.registerMethod("Rational", "Float", floatExtension, owner);
     return systemContext;
 }
 

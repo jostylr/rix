@@ -10,6 +10,7 @@ real-valued math without making JavaScript numbers part of RiX core.
 .Plugin.Load("float")
 
 x := .float.Float(1 / 3)
+y := (1 / 3).Float()
 .float.Sin(x)
 .float.Round(.float.Float(2.675), 2)
 ```
@@ -22,7 +23,7 @@ loaded.
 
 | Command | Purpose |
 | --- | --- |
-| `.float(value)` / `.float.Float(value)` | Convert a finite value to Float. |
+| `.float(value)` / `.float.Float(value)` / `value.Float()` | Convert a finite Integer or Rational to Float. |
 | `.float.Interval(value)` | Construct an exact enclosure of the stored IEEE value. |
 | `.float.Round(value, places?)` | Exact decimal representation of IEEE rounding. |
 | `.float.Floor(value, places?)`, `.float.Ceiling(value, places?)` | Directed decimal rounding. |

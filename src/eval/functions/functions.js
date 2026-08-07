@@ -221,6 +221,7 @@ function invokeUserCallable(fn, callArgs, context, evaluate, options = {}) {
     for (const closureScope of closureScopes) {
         const bindings = closureScope instanceof Map ? closureScope : closureScope.bindings;
         context.push(bindings, {
+            scopedEnv: closureScope.scopedEnv,
             isolated: closureScope.isolated === true,
             readThrough: closureScope.readThrough === true,
             callableBoundary: closureScope.callableBoundary === true,

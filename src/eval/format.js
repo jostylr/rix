@@ -259,7 +259,7 @@ function formatViaSemanticDisplay(value, options) {
     for (const methodName of ["ToString", "TOSTRING", "Value", "VALUE"]) {
         let fn;
         try {
-            fn = resolveMethod(value, methodName);
+            fn = resolveMethod(value, methodName, options.context);
         } catch {
             continue;
         }

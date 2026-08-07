@@ -56,7 +56,7 @@ export const methodFunctions = {
                         `Custom operator ${definition.spelling} requires plugin/system object '.${mount}'`,
                     );
                 }
-                const fn = resolveMethod(receiver, target.method);
+                const fn = resolveMethod(receiver, target.method, context);
                 if (fn?.type === "method_builtin") {
                     return fn.impl([receiver, left, right], context, evaluate, callWithConcreteArgs);
                 }
@@ -79,7 +79,7 @@ export const methodFunctions = {
                 ensureMutableReceiver(target);
             }
 
-            const fn = resolveMethod(target, methodName);
+            const fn = resolveMethod(target, methodName, context);
             const result = fn?.type === "method_builtin"
                 ? fn.impl([target, ...callArgs], context, evaluate, callWithConcreteArgs)
                 : callWithConcreteArgs(fn, [target, ...callArgs], context, evaluate);
@@ -102,7 +102,7 @@ export const methodFunctions = {
                 invokeSync(callArgs, context, evaluate) {
                     if (callArgs.length < 1) throw new Error(`..${methodName} requires a receiver`);
                     const target = callArgs[0];
-                    const fn = resolveMethod(target, methodName);
+                    const fn = resolveMethod(target, methodName, context);
                     const result = fn?.type === "method_builtin"
                         ? fn.impl([target, ...capturedArgs], context, evaluate, callWithConcreteArgs)
                         : callWithConcreteArgs(fn, [target, ...capturedArgs], context, evaluate);
