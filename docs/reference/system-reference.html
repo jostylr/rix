@@ -376,7 +376,7 @@ Note
 <p>This page is generated from the current RiX implementation by <code>documentation/scripts/generate-reference.js</code>. Do not edit it by hand. Descriptions come from registry documentation strings; the narrative <a href="../eval/syntax-guide.html">syntax guide</a> and <a href="../eval/methods-guide.html">methods guide</a> provide signatures and examples.</p>
 </div>
 </div>
-<p>At this revision RiX exposes <strong>193 named entries</strong> on the default system context and registers <strong>212 internal IR operations</strong>. Aliases with different spelling are listed separately because they are separately addressable names.</p>
+<p>At this revision RiX exposes <strong>198 named entries</strong> on the default system context and registers <strong>212 internal IR operations</strong>. Aliases with different spelling are listed separately because they are separately addressable names.</p>
 <section id="public-system-context" class="level2">
 <h2 class="anchored" data-anchor-id="public-system-context">Public system context</h2>
 <p>These names are available through the leading-dot system object, such as <code>.Len(value)</code>. Uppercase names are also used by explicit system/operator forms where applicable.</p>
@@ -1108,7 +1108,7 @@ Note
 <td><code>.RANDOMSEED</code></td>
 <td>function</td>
 <td>Random</td>
-<td>Seed the current runtime random-number stream</td>
+<td>Install a fresh default RNG with an explicit seed in the current lexical scope</td>
 </tr>
 <tr class="even">
 <td><code>.RAND_NAME</code></td>
@@ -1129,64 +1129,76 @@ Note
 <td>Reduce a collection with an accumulator function — callback receives (acc, val, locator, src)</td>
 </tr>
 <tr class="odd">
+<td><code>.REGISTERMETHOD</code></td>
+<td>function</td>
+<td>Core, Methods</td>
+<td>Register a receiver-first extension method on an existing semantic/runtime type</td>
+</tr>
+<tr class="even">
 <td><code>.RENDER</code></td>
 <td>function</td>
 <td>—</td>
 <td>Render a portable value through an installed target plugin</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.RENDERER</code></td>
 <td>value</td>
 <td>—</td>
 <td>Discover installed output renderers and their target contracts</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.RETRY</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Repeat deferred work for expected error tuple values under a bounded retry policy</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.REVERSE</code></td>
 <td>function</td>
 <td>—</td>
 <td>Reverse a collection (returns new copy)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.RIXCELEXPORT</code></td>
 <td>function</td>
 <td>RiXCel</td>
 <td>Serialize a FormulaSheet to canonical versioned RiXCel JSON</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.RIXCELEXPORTCSV</code></td>
 <td>function</td>
 <td>RiXCel</td>
 <td>Export the computed values of a rank-2 FormulaSheet as CSV</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.RIXCELEXPORTTSV</code></td>
 <td>function</td>
 <td>RiXCel</td>
 <td>Export the computed values of a rank-2 FormulaSheet as TSV</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.RIXCELIMPORT</code></td>
 <td>function</td>
 <td>RiXCel</td>
 <td>Rebuild a FormulaSheet by compiling authoritative source from RiXCel JSON</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.RIXCELIMPORTCSV</code></td>
 <td>function</td>
 <td>RiXCel</td>
 <td>Import CSV values into a rank-2 FormulaSheet; optional header=1 uses the first row as labels</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.RIXCELIMPORTTSV</code></td>
 <td>function</td>
 <td>RiXCel</td>
 <td>Import TSV values into a rank-2 FormulaSheet; optional header=1 uses the first row as labels</td>
+</tr>
+<tr class="even">
+<td><code>.RNG</code></td>
+<td>function</td>
+<td>Random</td>
+<td>Install a fresh RNG for the current lexical scope and its subscopes</td>
 </tr>
 <tr class="odd">
 <td><code>.SAMECELL</code></td>
@@ -1513,6 +1525,18 @@ Note
 <td>Exact n-dimensional geometry with explicit affine and Cayley projection records.</td>
 </tr>
 <tr class="odd">
+<td><code>.numerics</code></td>
+<td>function</td>
+<td>—</td>
+<td>Backend-neutral bounded enclosure and refinement orchestration.</td>
+</tr>
+<tr class="even">
+<td><code>.oracle</code></td>
+<td>function</td>
+<td>—</td>
+<td>Exact rational-betweenness oracle demonstrations and bounded refinement.</td>
+</tr>
+<tr class="odd">
 <td><code>.pdf</code></td>
 <td>function</td>
 <td>—</td>
@@ -1537,18 +1561,24 @@ Note
 <td>Quarto Markdown renderer with front matter and portable figure lowering.</td>
 </tr>
 <tr class="odd">
+<td><code>.radix</code></td>
+<td>function</td>
+<td>—</td>
+<td>Bounded exact positional expansions and repeating-period analysis for rational values.</td>
+</tr>
+<tr class="even">
 <td><code>.scene3d</code></td>
 <td>function</td>
 <td>—</td>
 <td>Exact retained 3D scenes with deterministic wireframe Graphics snapshots.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.svg</code></td>
 <td>function</td>
 <td>—</td>
 <td>Portable SVG renderer for core Graphics scenes.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.tikz</code></td>
 <td>function</td>
 <td>—</td>
@@ -1573,12 +1603,28 @@ Note
 </thead>
 <tbody>
 <tr class="odd">
+<td>Integer</td>
+<td><code>ABS</code>, <code>BITLENGTH</code>, <code>E</code>, <code>NEGATE</code>, <code>TOSTRING</code></td>
+</tr>
+<tr class="even">
+<td>Rational</td>
+<td><code>ABS</code>, <code>APPROXIMATIONERROR</code>, <code>BESTAPPROXIMATION</code>, <code>BESTCONVERGENT</code>, <code>BITLENGTH</code>, <code>CEIL</code>, <code>CONVERGENT</code>, <code>CONVERGENTS</code>, <code>DENOMINATOR</code>, <code>E</code>, <code>FLOOR</code>, <code>NEGATE</code>, <code>NUMERATOR</code>, <code>RECIPROCAL</code>, <code>ROUND</code>, <code>ROUNDTO</code>, <code>TOCONTINUEDFRACTION</code>, <code>TOCONTINUEDFRACTIONSTRING</code>, <code>TODECIMAL</code>, <code>TOMIXEDSTRING</code>, <code>TOSTRING</code>, <code>TRUNC</code></td>
+</tr>
+<tr class="odd">
+<td>Rational interval</td>
+<td><code>BITLENGTH</code>, <code>CONTAINS</code>, <code>CONTAINSVALUE</code>, <code>CONTAINSZERO</code>, <code>DENOMINATORINTERVAL</code>, <code>E</code>, <code>END</code>, <code>HIGH</code>, <code>INTERSECTION</code>, <code>ISASCENDING</code>, <code>LOW</code>, <code>MEDIANT</code>, <code>MIDPOINT</code>, <code>NEGATE</code>, <code>OVERLAPS</code>, <code>RANDOM</code>, <code>RANDOMPARTITION</code>, <code>RECIPROCAL</code>, <code>SHORTESTDECIMAL</code>, <code>START</code>, <code>TOMIXEDSTRING</code>, <code>TOSTRING</code>, <code>UNION</code>, <code>WIDTH</code></td>
+</tr>
+<tr class="even">
 <td>Array</td>
 <td><code>ALL</code>, <code>ANY</code>, <code>CONCAT</code>, <code>CONCAT!</code>, <code>COUNT</code>, <code>DISTINCT</code>, <code>DISTINCT!</code>, <code>DROPFIRST</code>, <code>DROPLAST</code>, <code>FILTER</code>, <code>FIND</code>, <code>FINDINDEX</code>, <code>FIRST</code>, <code>FLATTEN</code>, <code>FLATTEN!</code>, <code>GET</code>, <code>HASAT</code>, <code>INCLUDES</code>, <code>INDEXOF</code>, <code>INSERT</code>, <code>INSERT!</code>, <code>ISEMPTY</code>, <code>ITERATOR</code>, <code>JOIN</code>, <code>LAST</code>, <code>LASTINDEXOF</code>, <code>LEN</code>, <code>MAP</code>, <code>MOVE</code>, <code>MOVE!</code>, <code>POP!</code>, <code>PUSH</code>, <code>PUSH!</code>, <code>REDUCE</code>, <code>REMOVEAT</code>, <code>REMOVEAT!</code>, <code>REVERSE</code>, <code>REVERSE!</code>, <code>SET</code>, <code>SET!</code>, <code>SHIFT!</code>, <code>SLICE</code>, <code>SORT</code>, <code>SORT!</code>, <code>SWAP</code>, <code>SWAP!</code>, <code>UNSHIFT</code>, <code>UNSHIFT!</code></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>Lazy sequence</td>
 <td><code>FIRST</code>, <code>GET</code>, <code>ISEMPTY</code>, <code>ITERATOR</code>, <code>LAST</code>, <code>LEN</code>, <code>MATERIALIZE</code></td>
+</tr>
+<tr class="even">
+<td>Async stream</td>
+<td><code>CHUNK</code>, <code>CLOSE</code>, <code>COLLECT</code>, <code>COUNT</code>, <code>DONE</code>, <code>DROP</code>, <code>FILTER</code>, <code>FIND</code>, <code>FIRST</code>, <code>FOREACH</code>, <code>MAP</code>, <code>REDUCE</code>, <code>STATUS</code>, <code>TAKE</code>, <code>WINDOW</code></td>
 </tr>
 <tr class="odd">
 <td>Iterator</td>
@@ -1609,14 +1655,18 @@ Note
 <td><code>DESUGAR</code>, <code>EVAL</code>, <code>INSPECT</code></td>
 </tr>
 <tr class="even">
+<td>Structural value</td>
+<td><code>ARGUMENTS</code>, <code>COLLAPSE</code>, <code>HEAD</code>, <code>INSPECT</code>, <code>MAPARGUMENTS</code>, <code>RENDER</code>, <code>SIMPLIFY</code>, <code>SOURCESPAN</code>, <code>TOEXACT</code></td>
+</tr>
+<tr class="odd">
 <td>Exact generator</td>
 <td><code>CAYLEY</code>, <code>CONJUGATE</code>, <code>IM</code>, <code>NORMSQUARED</code>, <code>RE</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>Exact expression</td>
 <td><code>CAYLEY</code>, <code>CONJUGATE</code>, <code>IM</code>, <code>NORMSQUARED</code>, <code>RE</code></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>Cayley value</td>
 <td><code>CARTESIAN</code>, <code>CAYLEY</code>, <code>CONJUGATE</code>, <code>DIRECTION</code>, <code>IM</code>, <code>INVERSE</code>, <code>MAGNITUDE</code>, <code>NORMSQUARED</code>, <code>RE</code></td>
 </tr>
@@ -1900,77 +1950,81 @@ Note
 </tr>
 <tr class="even">
 <td><code>Core</code></td>
-<td><code>LEN</code>, <code>FIRST</code>, <code>LAST</code>, <code>GETEL</code>, <code>IRANGE</code>, <code>IF</code>, <code>LOOP</code>, <code>MULTI</code>, <code>RAND_NAME</code>, <code>PRINT</code>, <code>TGEN</code>, <code>KEYOF</code>, <code>KEYS</code>, <code>VALUES</code></td>
+<td><code>LEN</code>, <code>FIRST</code>, <code>LAST</code>, <code>GETEL</code>, <code>IRANGE</code>, <code>IF</code>, <code>LOOP</code>, <code>MULTI</code>, <code>RAND_NAME</code>, <code>PRINT</code>, <code>TGEN</code>, <code>KEYOF</code>, <code>KEYS</code>, <code>VALUES</code>, <code>REGISTERMETHOD</code></td>
 </tr>
 <tr class="odd">
+<td><code>Methods</code></td>
+<td><code>REGISTERMETHOD</code></td>
+</tr>
+<tr class="even">
 <td><code>Arith</code></td>
 <td><code>ADD</code>, <code>SUB</code>, <code>MUL</code>, <code>DIV</code>, <code>INTDIV</code>, <code>DIVMOD</code>, <code>MOD</code>, <code>POW</code>, <code>FACTORIAL</code>, <code>DOUBLEFACTORIAL</code></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>Logic</code></td>
 <td><code>EQ</code>, <code>NEQ</code>, <code>LT</code>, <code>GT</code>, <code>LTE</code>, <code>GTE</code>, <code>AND</code>, <code>OR</code>, <code>NOT</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>Collections</code></td>
 <td><code>LEN</code>, <code>FIRST</code>, <code>LAST</code>, <code>GETEL</code>, <code>IRANGE</code>, <code>MAP</code>, <code>FILTER</code>, <code>REDUCE</code>, <code>TGEN</code>, <code>Stream</code></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>Async</code></td>
 <td><code>Stream</code>, <code>Retry</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>Background</code></td>
 <td><code>BACKGROUND</code></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>Maps</code></td>
 <td><code>MAP</code>, <code>KEYOF</code>, <code>KEYS</code>, <code>VALUES</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>Arrays</code></td>
 <td><code>LEN</code>, <code>FIRST</code>, <code>LAST</code>, <code>GETEL</code>, <code>IRANGE</code>, <code>MAP</code>, <code>FILTER</code>, <code>REDUCE</code>, <code>TGEN</code></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>Strings</code></td>
 <td><code>UPPER</code>, <code>SUBSTR</code>, <code>PRINT</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>Imports</code></td>
 <td><code>IMPORTS</code></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>Plugins</code></td>
 <td><code>PLUGINS</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>Net</code></td>
 <td><code>NET</code></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>Files</code></td>
 <td><code>FILES</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>Units</code></td>
 <td><code>UNITS</code>, <code>Units</code>, <code>CONVERTUNIT</code>, <code>ConvertUnit</code>, <code>DEFINEUNIT</code>, <code>DefineUnit</code></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>Exact</code></td>
 <td><code>EXACT</code>, <code>Exact</code>, <code>COMPLEX</code>, <code>Complex</code>, <code>DEFINEEXACTGENERATOR</code>, <code>DefineExactGenerator</code>, <code>exactalgebras</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>Symbolic</code></td>
 <td><code>POLY</code>, <code>DERIV</code>, <code>INTEGRATE</code>, <code>TRANSFORM</code>, <code>SIMPLIFY</code>, <code>SPEC</code>, <code>SPECCABILITY</code>, <code>INSPECTSPEC</code>, <code>SPECROLES</code>, <code>SArith</code></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>Notation</code></td>
 <td><code>SArith</code>, <code>Poly</code>, <code>NotationParser</code></td>
 </tr>
-<tr class="odd">
-<td><code>Random</code></td>
-<td><code>RANDOMSEED</code>, <code>RandomSeed</code>, <code>RAND_NAME</code></td>
-</tr>
 <tr class="even">
+<td><code>Random</code></td>
+<td><code>RNG</code>, <code>RANDOMSEED</code>, <code>RandomSeed</code>, <code>RAND_NAME</code></td>
+</tr>
+<tr class="odd">
 <td><code>RiXCel</code></td>
 <td><code>FORMULASHEET</code>, <code>REACTIVEGRAPH</code>, <code>RIXCELEXPORT</code>, <code>RIXCELIMPORT</code>, <code>RIXCELIMPORTCSV</code>, <code>RIXCELIMPORTTSV</code>, <code>RIXCELEXPORTCSV</code>, <code>RIXCELEXPORTTSV</code></td>
 </tr>

@@ -64,6 +64,16 @@ accepted for compatibility. Use
 parser-only example. Ordinary `##` comments and `###` comments are not
 assertions.
 
+Use `async=true` with `exec=true` when an example must run through the
+promise-aware evaluator, for example an AsyncStream terminal. Assign an async
+terminal result before applying `##@` so the postfix check itself operates on
+the resolved RiX value:
+
+```{.rix exec=true async=true}
+values := .Stream([1, 2, 3]).Collect();
+values.Join() ##@ == "1,2,3";
+```
+
 Use native `##: kind` for a checked structural annotation. Optional brackets
 check the size: `array[5]`, `set[3]`, `map[2]`, `tuple[2]`, or `tensor[2x2]`.
 `##! Debug(...)`, `Trace(...)`, `Info(...)`, and `Dump(...)` are native,

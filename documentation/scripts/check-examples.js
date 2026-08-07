@@ -8,6 +8,7 @@ import {
   createDefaultRegistry,
   createDefaultSystemContext,
   parseAndEvaluate,
+  parseAndEvaluateAsync,
 } from "../../src/eval/evaluator.js";
 import { formatValue } from "../../src/eval/format.js";
 import { parse } from "../../src/parser/parser.js";
@@ -21,7 +22,7 @@ import { Context } from "../../src/runtime/context.js";
  * an expected error.
  *
  * Supported fence attributes:
- *   {.rix exec=true id=name session=chapter output=true}
+ *   {.rix exec=true id=name session=chapter output=true async=true}
  *   {.rix parse=true}
  *   expect-error="text"
  *
@@ -138,6 +139,15 @@ function evaluateSource(source, runtime) {
   });
 }
 
+function evaluateSourceAsync(source, runtime) {
+  return parseAndEvaluateAsync(source, {
+    context: runtime.context,
+    registry: runtime.registry,
+    systemContext: runtime.systemContext,
+    file: runtime.file,
+  });
+}
+
 function parseSource(source) {
   return parse(tokenize(source));
 }
@@ -172,6 +182,35 @@ function processAssertions(source, runtime) {
   }
 
   const value = flush();
+  return { value: value === undefined ? lastValue : value, outputs, assertionCount };
+}
+
+async function processAssertionsAsync(source, runtime) {
+  const lines = source.split("\n");
+  const pending = [];
+  const outputs = [];
+  let lastValue;
+  const assertionCount = (source.match(/##[@:]/g) || []).length;
+
+  const flush = async () => {
+    const chunk = pending.join("\n");
+    pending.length = 0;
+    if (isBlank(chunk)) return undefined;
+    lastValue = await evaluateSourceAsync(chunk, runtime);
+    return lastValue;
+  };
+
+  for (const line of lines) {
+    if (/^\s*##\s*$/.test(line)) {
+      const value = await flush();
+      outputs.push(displayValue(value === undefined ? lastValue : value));
+      continue;
+    }
+
+    pending.push(line);
+  }
+
+  const value = await flush();
   return { value: value === undefined ? lastValue : value, outputs, assertionCount };
 }
 
@@ -238,6 +277,54 @@ export function runFence(fence, sessionRuntime = new Map()) {
   return result;
 }
 
+export async function runFenceAsync(fence, sessionRuntime = new Map()) {
+  if (!boolAttr(fence.attrs.async)) return runFence(fence, sessionRuntime);
+
+  const attrs = fence.attrs;
+  const { setup, visible } = splitHiddenSetup(fence.source);
+  const runtime = createRuntime(fence.file, sessionRuntime, attrs.session);
+  const result = {
+    ...fence,
+    visibleSource: visible,
+    setupSource: setup,
+    status: "pass",
+    output: "",
+    assertions: 0,
+  };
+
+  try {
+    if (!isBlank(setup)) await evaluateSourceAsync(setup, runtime);
+    if (boolAttr(attrs.parse) && !boolAttr(attrs.exec)) {
+      parseSource(visible);
+      return result;
+    }
+
+    const processed = await processAssertionsAsync(visible, runtime);
+    result.assertions = processed.assertionCount;
+    if (boolAttr(attrs.output) || processed.outputs.length > 0) {
+      result.output = processed.outputs.length > 0
+        ? processed.outputs.join("\n")
+        : displayValue(processed.value);
+    }
+
+    if (attrs["expect-error"] !== undefined) {
+      result.status = "fail";
+      result.error = "expected an error, but evaluation completed";
+    }
+  } catch (error) {
+    const message = String(error?.message || error);
+    const expectedError = attrs["expect-error"];
+    if (expectedError !== undefined && message.includes(expectedError)) {
+      result.status = "pass";
+      result.error = message;
+    } else {
+      result.status = "fail";
+      result.error = message;
+    }
+  }
+  return result;
+}
+
 export function runDocuments(documents) {
   const results = [];
   for (const document of documents) {
@@ -250,7 +337,19 @@ export function runDocuments(documents) {
   return results;
 }
 
-function main() {
+export async function runDocumentsAsync(documents) {
+  const results = [];
+  for (const document of documents) {
+    const sessions = new Map();
+    for (const fence of extractFences(document.source, document.file)) {
+      if (!shouldRun(fence)) continue;
+      results.push(await runFenceAsync(fence, sessions));
+    }
+  }
+  return results;
+}
+
+async function main() {
   const args = process.argv.slice(2);
   const outputIndex = args.indexOf("--write");
   const outputPath = outputIndex === -1 ? null : resolve(args[outputIndex + 1]);
@@ -272,7 +371,7 @@ function main() {
   // Directory walking is kept local to the CLI; tests use runDocuments().
   for (const path of files) collect(path);
 
-  const results = runDocuments(documents);
+  const results = await runDocumentsAsync(documents);
   if (outputPath) writeFileSync(outputPath, JSON.stringify({ results }, null, 2));
   const failures = results.filter((result) => result.status === "fail");
   console.log(`Checked ${results.length} runnable RiX documentation block(s): ${results.length - failures.length} passed, ${failures.length} failed`);

@@ -56,6 +56,75 @@
           "href": "eval/methods-guide.html"
         },
         {
+          "section": "Object methods",
+          "contents": [
+            {
+              "text": "Integer",
+              "href": "eval/objects/integer.html"
+            },
+            {
+              "text": "Rational",
+              "href": "eval/objects/rational.html"
+            },
+            {
+              "text": "RationalInterval",
+              "href": "eval/objects/rational-interval.html"
+            },
+            {
+              "text": "Array",
+              "href": "eval/objects/array.html"
+            },
+            {
+              "text": "LazySequence",
+              "href": "eval/objects/lazy-sequence.html"
+            },
+            {
+              "text": "AsyncStream",
+              "href": "eval/objects/async-stream.html"
+            },
+            {
+              "text": "Iterator",
+              "href": "eval/objects/iterator.html"
+            },
+            {
+              "text": "Map",
+              "href": "eval/objects/map.html"
+            },
+            {
+              "text": "Set",
+              "href": "eval/objects/set.html"
+            },
+            {
+              "text": "String",
+              "href": "eval/objects/string.html"
+            },
+            {
+              "text": "Tuple",
+              "href": "eval/objects/tuple.html"
+            },
+            {
+              "text": "Tensor",
+              "href": "eval/objects/tensor.html"
+            },
+            {
+              "text": "Deferred",
+              "href": "eval/objects/deferred.html"
+            },
+            {
+              "text": "Structural values",
+              "href": "eval/objects/structural-values.html"
+            },
+            {
+              "text": "Exact Cartesian values",
+              "href": "eval/objects/exact-cartesian.html"
+            },
+            {
+              "text": "Cayley",
+              "href": "eval/objects/cayley.html"
+            }
+          ]
+        },
+        {
           "text": "Structured output and graphics",
           "href": "eval/output-guide.html"
         },

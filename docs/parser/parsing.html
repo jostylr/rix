@@ -3104,7 +3104,7 @@ a:b:%(n, _, tol)   // Override simplest-fraction tolerance
 <pre class="rix"><code>a:b:/%n     // Partition into n random sub-intervals
 1:10:/%3    // → 3 randomly-sized sub-intervals
 0:1:/%5     // → 5 random partitions of unit interval</code></pre>
-<p>Use <code>.RandomSeed(seed)</code> for a repeatable context-local stream, or inject an RNG through the host evaluator options. Fixed-denominator partition points are chosen without replacement.</p>
+<p>Use <code>.RNG(:default, {= seed=seed })</code> for a repeatable lexically scoped stream. The no-argument form installs a fresh default stream with RiX’s fixed startup seed. <code>{= seed=:random }</code> requests host entropy. Subscopes inherit the current stream until they call <code>.RNG</code> themselves, and closures retain the stream from their defining scope. <code>.RandomSeed(seed)</code> is the compatibility shorthand; hosts may also inject an RNG through evaluator options. Fixed-denominator partition points are chosen without replacement.</p>
 </section>
 </section>
 <section id="infinite-ranges" class="level3">

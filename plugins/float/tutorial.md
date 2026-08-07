@@ -9,9 +9,15 @@ Load `float` only when a calculation intentionally needs IEEE-754 behavior:
 
 ```rix
 .Plugin.Load("float");
-x := .float.Float(1 / 3);
-.float.Sin(x);
+viaNamespace := .float.Float(1 / 3);
+viaMethod := (1 / 3).Float();
+{: viaNamespace, viaMethod, .float.Sin(viaMethod) };
 ```
+
+`value.Float()` is the receiver-first spelling of the same explicit
+conversion. The method appears on integers and rationals only while the plugin
+is loaded; neither spelling permits exact arithmetic to become approximate
+silently.
 
 The package owns the `Float` semantic type and the `.float` command namespace.
 This keeps other future numerical plugins—interval oracles, Cauchy sequences,

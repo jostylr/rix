@@ -27,7 +27,9 @@ test("the published documentation manifest omits build-only source paths", () =>
   const manifest = navigationManifest(documentationNavigation);
   expect(JSON.stringify(manifest)).not.toContain('"source"');
   expect(manifest[0]).toEqual({ text: "Overview", href: "index.html" });
-  expect(manifest.find(({ section }) => section === "Language reference")?.contents.length).toBe(8);
+  const languageReference = manifest.find(({ section }) => section === "Language reference");
+  expect(languageReference?.contents.length).toBe(9);
+  expect(languageReference?.contents.find(({ section }) => section === "Object methods")?.contents.length).toBe(16);
 });
 
 test("the renderer reference covers every first-party target and host boundary", async () => {

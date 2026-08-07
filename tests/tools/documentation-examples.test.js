@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { extractFences, runDocuments } from "../../documentation/scripts/check-examples.js";
+import { extractFences, runDocuments, runDocumentsAsync } from "../../documentation/scripts/check-examples.js";
 
 describe("documentation RiX examples", () => {
   test("extracts Quarto attributes and checks an asserted/displayed result", () => {
@@ -101,5 +101,18 @@ describe("documentation RiX examples", () => {
     const [result] = runDocuments([{ file: "guide.qmd", source }]);
     expect(result.status).toBe("fail");
     expect(result.error).toContain("##@ check failed");
+  });
+
+  test("runs promise-aware examples when async=true", async () => {
+    const source = [
+      "```{.rix exec=true async=true id=async-stream-example}",
+      "values := .Stream([1, 2, 3]).Collect();",
+      "values.Join() ##@ == \"1,2,3\";",
+      "```",
+    ].join("\n");
+
+    const [result] = await runDocumentsAsync([{ file: "async-guide.qmd", source }]);
+    expect(result.status).toBe("pass");
+    expect(result.assertions).toBe(1);
   });
 });

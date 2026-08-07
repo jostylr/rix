@@ -1891,6 +1891,7 @@ m |&gt;&gt; (v, k) -&gt; k ++ "=" ++ v   ## {= a="a=2", b="b=3" }
 <section id="intervals-and-betweenness" class="level3">
 <h3 class="anchored" data-anchor-id="intervals-and-betweenness">Intervals and Betweenness</h3>
 <p>RiX treats intervals as first-class objects using the colon <code>:</code> operator. An interval represents the range of values between two endpoints. - <code>1:5</code> creates a <strong>RationalInterval</strong> from 1 to 5. - <code>5:2</code> creates an interval from 5 down to 2. RiX preserves the input order for display, but mathematically they cover the same range.</p>
+<p>Exact values expose their common number-theory and interval operations as receiver methods. For an interval <code>i</code>, use <code>i.Low()</code>, <code>i.High()</code>, <code>i.Width()</code>, <code>i.Midpoint()</code>, <code>i.Mediant()</code>, <code>i.ContainsValue(x)</code>, <code>i.Intersection(j)</code>, and <code>i.Union(j)</code>. Rational values expose <code>Numerator</code>, <code>Denominator</code>, exact rounding, continued fractions, convergents, best bounded-denominator approximations, and bit length. <code>Convergent(n)</code> follows RiX’s one-based indexing convention.</p>
 <p>Decimal brackets provide compact exact interval notation:</p>
 <ul>
 <li><code>1.23[56:67]</code> appends the unsigned suffixes, producing <code>1.2356:1.2367</code>.</li>
@@ -2117,6 +2118,11 @@ angle := pi/2 * .Units[:rad]</code></pre>
 <pre class="rix"><code>.RAND_NAME()
 .RAND_NAME(5)
 .RAND_NAME(12, "abc")</code></pre>
+<p>Each fresh RiX runtime begins with the same fixed default random stream. Use <code>.RNG</code> to install a fresh stream in the current lexical scope:</p>
+<pre class="rix"><code>.RNG();                              ## default implementation and fixed seed
+.RNG(:default, {= seed=12345 });    ## reproducible explicit seed
+.RNG(:default, {= seed=:random });  ## request host-provided entropy</code></pre>
+<p>Subscopes inherit their parent’s stream. Calling <code>.RNG</code> in a subscope replaces the default only there and below; after that scope exits, the outer stream continues untouched. Closures retain the RNG from their defining lexical scope. <code>seed=:random</code> uses a host entropy service such as Web Crypto and errors when the host supplies none. <code>.RandomSeed(seed)</code> remains the compatibility spelling for installing a fresh default implementation with an explicit seed. Approved host plugins can supply another implementation with the exported <code>createRngImplementation(name, factory)</code> runtime helper. A factory returns a fresh object implementing <code>nextUint32()</code> or <code>next()</code>; <code>.RNG</code> invokes the factory on every call, so an unchanged configuration still creates independent state. The bundled Mulberry32 implementation is a small reproducible PRNG, not a cryptographic generator; <code>seed=:random</code> chooses its starting seed securely but does not change that algorithm.</p>
 </section>
 </section>
 <section id="diagnostics-testing-and-debugging" class="level2">
@@ -2217,9 +2223,9 @@ angle := pi/2 * .Units[:rad]</code></pre>
 <section id="cli-test-runner" class="level3">
 <h3 class="anchored" data-anchor-id="cli-test-runner">CLI Test Runner</h3>
 <p>Run test files from the command line:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb151"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb151-1"><a href="#cb151-1" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> bin/rix.js test              <span class="co"># discover all *.test.rix files</span></span>
-<span id="cb151-2"><a href="#cb151-2" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> bin/rix.js test parser       <span class="co"># filter by substring match</span></span>
-<span id="cb151-3"><a href="#cb151-3" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> bin/rix.js test math core    <span class="co"># multiple filters (OR)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb152"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb152-1"><a href="#cb152-1" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> bin/rix.js test              <span class="co"># discover all *.test.rix files</span></span>
+<span id="cb152-2"><a href="#cb152-2" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> bin/rix.js test parser       <span class="co"># filter by substring match</span></span>
+<span id="cb152-3"><a href="#cb152-3" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> bin/rix.js test math core    <span class="co"># multiple filters (OR)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>The runner discovers <code>*.test.rix</code> files recursively, runs each in a fresh context, and prints per-file and per-test-group summaries. Exit code is 0 if all pass, nonzero otherwise.</p>
 
 

@@ -27,6 +27,22 @@ project:
     - eval/controls-guide.md
     - eval/syntax-guide.md
     - eval/methods-guide.md
+    - eval/objects/integer.md
+    - eval/objects/rational.md
+    - eval/objects/rational-interval.md
+    - eval/objects/array.md
+    - eval/objects/lazy-sequence.md
+    - eval/objects/async-stream.md
+    - eval/objects/iterator.md
+    - eval/objects/map.md
+    - eval/objects/set.md
+    - eval/objects/string.md
+    - eval/objects/tuple.md
+    - eval/objects/tensor.md
+    - eval/objects/deferred.md
+    - eval/objects/structural-values.md
+    - eval/objects/exact-cartesian.md
+    - eval/objects/cayley.md
     - eval/types-and-traits-guide.md
     - reference/system-reference.md
     - plugin-catalog.md
