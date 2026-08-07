@@ -214,12 +214,17 @@ export function mountOutputWidgets(root, value, options = {}) {
                                 revision: widgetSession.revision,
                             };
                         } catch (error) {
+                            const failedUpdates = widgetSession.editMode === "formula"
+                                ? widgetSession.cellUpdates(format)
+                                : undefined;
+                            const diagnosticUpdates = failedUpdates?.some((update) =>
+                                update.state === "error" || update.diagnostics?.length)
+                                ? failedUpdates
+                                : undefined;
                             return {
                                 type: "error",
                                 text: error instanceof Error ? error.message : String(error),
-                                updates: widgetSession.editMode === "formula"
-                                    ? widgetSession.cellUpdates(format)
-                                    : undefined,
+                                updates: diagnosticUpdates,
                                 revision: widgetSession.revision,
                             };
                         }

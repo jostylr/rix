@@ -1,136 +1,198 @@
 # RiXCel document format
 
 RiXCel files use UTF-8 JSON and the `.rixcel` extension. The root `format` and
-integer `version` fields identify the schema. Version 1 is a dense, rank-N,
-source-authoritative FormulaSheet document.
+integer `version` fields identify the schema. Version 2 is a sparse, rank-N,
+source-authoritative event log. Version 0 drafts and dense version 1 documents
+remain readable and migrate to version 2 in memory.
 
-## Version 1
+## Version 2
 
 ```json
 {
   "format": "rixcel",
-  "version": 1,
+  "version": 2,
   "id": "budget",
-  "shape": [2, 2],
+  "shape": [1000, 1000],
   "view": {
     "title": "Budget",
-    "axes": ["region", "measure"],
-    "axisLabels": [
-      ["North", "South"],
-      ["Revenue", "Cost"]
-    ]
+    "axes": ["region", "measure"]
   },
-  "slots": [
+  "defaultSlot": {
+    "source": "_",
+    "assignmentMode": ":=",
+    "view": { "blank": true }
+  },
+  "events": [
     {
-      "id": "budget:slot:1:1",
-      "index": [1, 1],
-      "source": "10",
+      "id": "budget:event:1",
+      "sequence": 1,
+      "type": "slot:set",
+      "index": [1, 2],
+      "source": "grid[1,1] * 2",
       "assignmentMode": ":=",
-      "view": {}
+      "view": {},
+      "command": "document.SetSource(1, 2, \"grid[1,1] * 2\", \":=\")"
     }
-  ]
+  ],
+  "cursor": 1,
+  "drafts": []
 }
 ```
 
-The fields are:
+The root fields are:
 
 - `format`: exactly `"rixcel"`.
-- `version`: currently `1`.
-- `id`: a non-empty, document-owned FormulaSheet identity.
+- `version`: currently `2`.
+- `id`: a non-empty document-owned sheet identity.
 - `shape`: one or more positive safe integers.
-- `view`: JSON-safe document presentation metadata.
-- `slots`: one record for every coordinate, in canonical row-major order.
+- `view`: JSON-safe presentation metadata before replayed view events.
+- `defaultSlot`: source, assignment mode, and view metadata inherited by every
+  coordinate that has no active edit event. `_` is RiX's null value.
+- `events`: the append-only edit history, including redo events beyond the
+  current cursor.
+- `cursor`: the number of active events. Undo and redo move this cursor rather
+  than cloning full documents or deleting history.
+- `drafts`: failed/uncommitted formula text and diagnostics. Drafts survive
+  local recovery but do not affect current values or dependency evaluation.
 
-Each slot contains:
+A million-cell empty logical sheet is therefore approximately the same size as
+a twenty-cell empty sheet. Dense FormulaSheet compatibility views are
+materialized only when the current runtime evaluates or renders the document.
 
-- `id`: `${documentId}:slot:${index.join(":")}`.
-- `index`: the full 1-based rank-N coordinate.
-- `source`: authoritative RiX formula body, without the surrounding `@{...}`.
-- `assignmentMode`: one of `=`, `:=`, `~=`, `::=`, or `~~=`.
-- `view`: JSON-safe slot presentation metadata.
+## Events and executable RiX commands
 
-Version 1 is intentionally dense. It requires every coordinate exactly once;
-duplicate, missing, out-of-range, or non-canonical slot identities are errors.
-A later format version can add sparse storage without making version 1 readers
-guess whether an omitted coordinate is empty, missing, or corrupt.
+`slot:set` is the basic editing event:
 
-The standard Sheet presentation keys in document `view` are `title`, `axes`,
-`axisLabels`, `viewAxes`, `slice`, `columnLabels`, and `address`. `axes` names
-each dimension. `axisLabels` is a rank-length array containing either `null`
-or one cosmetic string for every coordinate on that axis. Visible-axis labels
-become row and column headers; hidden-axis labels become named slice choices.
-They never replace the numeric `index`, participate in formulas, or alter slot
-IDs. Hosts may retain additional JSON-safe view keys for future presentation
-extensions.
+```json
+{
+  "id": "budget:event:12",
+  "sequence": 12,
+  "type": "slot:set",
+  "index": [4, 7],
+  "source": "near[0,-1] * tax",
+  "assignmentMode": ":=",
+  "view": {},
+  "command": "document.SetSource(4, 7, \"near[0,-1] * tax\", \":=\")"
+}
+```
 
-Interactive entry uses implied `:=`. A leading assignment prefix such as
-`::= expression` is split into `assignmentMode: "::="` and `source:
-"expression"` before persistence. Canonical documents never repeat the prefix
-inside `source`.
+The structured fields are authoritative. The `command` is a canonical,
+validated rendering of the same edit and is executable when the target
+FormulaSheet is bound as `document`. Keeping both forms makes logs safely
+machine-replayable and human-auditable. A host operation that captures a
+one-time result should store a literal RiX source value. A live formula keeps
+its original formula source.
+
+Cosmetic coordinate labels use `view:axis-label` events with canonical commands
+such as:
+
+```rix
+document.SetAxisLabel(2, 1, "Revenue")
+```
+
+Future range, fill, paste, and structural operations can add compact event
+types without expanding into one document snapshot per affected cell. Their
+structured representation remains authoritative, and each can expose an
+equivalent canonical RiX command.
+
+## Replay and branching
+
+Readers apply `events[0:cursor]` in order over `defaultSlot` and the initial
+document `view`. Events after `cursor` are redo history. Appending an edit after
+undo truncates that inactive redo suffix and assigns the next canonical event
+identity.
+
+Slot IDs remain stable and derivable as:
+
+```text
+${documentId}:slot:${index.join(":")}
+```
+
+Event IDs are:
+
+```text
+${documentId}:event:${sequence}
+```
+
+## Failed drafts
+
+A worker-rejected parse, cycle, timeout, or runtime edit is stored separately:
+
+```json
+{
+  "index": [1, 1],
+  "source": "grid[1,2]",
+  "assignmentMode": ":=",
+  "kind": "cycle",
+  "message": "Formula cycle: grid[1,1] -> grid[1,2] -> grid[1,1]",
+  "command": "document.SetSource(1, 1, \"grid[1,2]\", \":=\")"
+}
+```
+
+The current committed event prefix remains valid and supplies last-good values.
+Interactive hosts can restore the draft into the formula bar and mark the slot
+without executing the failed source during document recovery.
 
 ## Runtime reconstruction
 
-Persisted source is authoritative. An importer:
+An importer:
 
 1. parses JSON;
-2. migrates supported older drafts;
-3. validates shape, coordinates, identities, modes, and JSON metadata;
-4. recompiles every `source` as a deferred RiX formula;
-5. creates a fresh FormulaSheet graph and isolated execution context; and
-6. evaluates the initial atomic epoch, rebuilding dependencies from actual
-   slot reads.
+2. migrates supported older versions;
+3. validates shape, event identities, commands, modes, coordinates, and JSON
+   metadata;
+4. replays the active event prefix;
+5. compiles the resulting authoritative slot sources;
+6. creates a fresh FormulaSheet graph and isolated execution context; and
+7. evaluates the initial atomic epoch, rebuilding dependencies from actual
+   reads.
 
-Compiled IR, current values, prior values, dependency edges, graph state,
-diagnostics, and caches are not stored in version 1. This avoids trusting stale
-or host-specific runtime state. A future optional cache must be explicitly
-non-authoritative and independently verifiable.
+Compiled IR, current values, prior values, dependency edges, graph state, and
+caches are never trusted from the document.
+
+## Worker boundary
+
+The standalone editor evaluates every imported document and proposed formula
+edit in a fresh-state Web Worker before committing it to the UI model. Dynamic
+JavaScript/module registration, plugin management, streams, and retry
+capabilities are withheld. A timed-out worker is terminated and replaced.
+The main compatibility model uses the same restricted capability set.
+
+The remaining scalability step is moving ownership of the persistent
+FormulaSheet graph and visible-plane projection fully into the worker so the UI
+thread never materializes the dense compatibility view.
 
 ## APIs
 
-RiX code can serialize and rebuild a sheet:
+RiX code continues to use:
 
 ```rix
 saved := .RiXCelExport(model);
 restored := .RiXCelImport(saved)
 ```
 
-JavaScript hosts can use:
+JavaScript hosts can additionally create and manipulate event logs:
 
 ```js
 import {
-  exportRixCelDocument,
-  stringifyRixCelDocument,
-  parseRixCelDocument,
-  importRixCelDocument,
+  createRixCelDocument,
+  appendRixCelEvent,
+  setRixCelCursor,
+  setRixCelDraft,
+  materializeRixCelDocument,
 } from "rix";
 ```
 
-`importRixCelDocument` is host-neutral and therefore requires the host's
-`compileFormula` and `runFormula` callbacks. `.RiXCelImport` supplies the
-standard RiX evaluator callbacks automatically.
+## Version 1 migration
 
-## Draft migration
-
-The importer recognizes the pre-version-1 design draft when `version` is `0`
-or absent. It maps:
-
-| Draft | Version 1 |
-|---|---|
-| `kind` | `format` |
-| `code` | `source` |
-| `op` | `assignmentMode` |
-| `style` | `view` |
-
-Missing draft slot IDs are generated from the document ID and full index.
-Documents declaring a version newer than the runtime are rejected rather than
-silently interpreted.
+Version 1 stored one dense slot record for every coordinate. Import validates
+that dense schema exactly, then converts every non-default slot to a
+`slot:set` event. Draft version 0 fields (`kind`, `code`, `op`, and `style`) are
+first migrated to version 1 and then to version 2. Newer unsupported versions
+are rejected.
 
 ## Delimited interchange
 
-CSV and TSV are value interchange formats, not substitutes for `.rixcel`.
-Import converts numeric fields to exact RiX literals and all other fields to
-quoted strings. A foreign field beginning with `=` is never executed; the
-original field is retained as `view.foreignFormula` with `executable: false`.
-Export emits current computed values and optional cosmetic column headers.
-Formula source, modes, IDs, dependencies, and rank-N structure require the
-native format.
+CSV and TSV remain value interchange formats rather than document formats.
+Foreign formulas beginning with `=` remain inert metadata. Import converts the
+result to a version 2 event log; export emits current computed values only.

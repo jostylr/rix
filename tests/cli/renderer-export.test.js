@@ -63,24 +63,21 @@ doc := .Fragment([.Heading(1, "Renderer export"), .Figure(g, "Portable scene")])
         if ((rsvg.status !== 0 && magick.status !== 0) || pdflatex.status !== 0) return;
 
         const directory = temporaryDirectory();
-        const sourcePath = path.join(directory, "binary.rix");
         const outputPath = path.join(directory, "out");
-        writeFileSync(sourcePath, `/** plugins: [png, pdf] **/
-g := .Graphics.Graphic([80, 60], [.Graphics.Circle([40, 30], 20, {= fill="#0c7b7f" })]);
-doc := .Fragment([.Heading(1, "Binary export"), .Figure(g, "Circle")]);
-.Out("scene.png", g);
-.Out("report.pdf", doc);
-0;
-`, "utf8");
+        const sourcePath = path.join(rixRoot, "examples/renderers/all-formats.rix");
         const result = spawnSync("bun", [path.join(rixRoot, "bin/rix.js"), `--out=${outputPath}`, sourcePath], {
             cwd: rixRoot,
             encoding: "utf8",
         });
         expect(result.status).toBe(0);
         expect(result.stderr).toBe("");
-        expect([...readFileSync(path.join(outputPath, "scene.png")).subarray(0, 8)])
+        expect([...readFileSync(path.join(outputPath, "diagram.png")).subarray(0, 8)])
             .toEqual([137, 80, 78, 71, 13, 10, 26, 10]);
         expect(readFileSync(path.join(outputPath, "report.pdf")).subarray(0, 5).toString("ascii"))
             .toBe("%PDF-");
+        expect([
+            "diagram.svg", "diagram.canvas.json", "diagram.tikz", "diagram.png",
+            "report.md", "report.html", "report.qmd", "report.tex", "report.pdf",
+        ].every((name) => existsSync(path.join(outputPath, name)))).toBe(true);
     });
 });

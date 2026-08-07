@@ -45,7 +45,8 @@ Checked items are implemented in the current RiX repository.
 - [x] Give each formula sheet a document-owned isolated execution context.
 - [x] Define `sheet:formula` separately from immediate `sheet:set` events.
 - [x] Add atomic evaluation epochs with explicit dirty/evaluating/error states.
-- [ ] Implement sparse rank-N sheets with stable sheet and slot IDs.
+- [x] Add sparse version-2 persistence with stable sheet, slot, and event IDs.
+- [ ] Keep the FormulaSheet graph itself sparse instead of materializing a dense compatibility view.
 - [x] Store source separately from assignment mode.
 - [x] Implement implied `:=` and explicit RiX assignment modes.
 - [x] Add `grid`, `row`, `col`, and `index` evaluation bindings.
@@ -86,12 +87,13 @@ Checked items are implemented in the current RiX repository.
 - [ ] Implement virtualized 2D grid rendering.
 - [x] Edit formula bodies from FormulaSheet grid cells.
 - [x] Add a dedicated formula bar, assignment-mode control, and exact-value display.
-- [x] Add document-level undo and redo.
+- [x] Add document-level undo and redo as event-log cursor movement.
 - [x] Add single-cell formula copy/paste with explicit absolute `grid` and relative `near` semantics.
 - [ ] Add multi-cell copy/paste and fill.
 - [ ] Add row/column insertion with parsed reference updates.
 - [x] Add local persistence and `.rixcel` open/save.
-- [ ] Run evaluation in a worker with capability restrictions.
+- [x] Preflight imports and edits in a restartable, timed worker with restricted capabilities.
+- [ ] Move persistent FormulaSheet ownership and visible-plane projection fully into the worker.
 - [x] Show dependency, cycle, parse, and runtime diagnostics in the grid.
 - [ ] Add browser-level tests for editing and persistence.
 

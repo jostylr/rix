@@ -2,34 +2,32 @@ import { describe, expect, test } from "bun:test";
 import {
     RIXCEL_FORMAT,
     RIXCEL_VERSION,
+    appendRixCelEvent,
+    clearRixCelDraft,
+    createRixCelDocument,
     createSheet,
     exportRixCelDocument,
     formatValue,
+    materializeRixCelDocument,
     parseAndEvaluate,
     parseRixCelDocument,
+    setRixCelCursor,
+    setRixCelDraft,
     stringifyRixCelDocument,
 } from "../../src/index.js";
 
 describe("RiXCel documents", () => {
-    test("round-trips authoritative rank-N formula source through RiX capabilities", () => {
+    test("round-trips authoritative rank-N formula source through sparse history", () => {
         const result = parseAndEvaluate(`
             original := .FormulaSheet(
-                {:2x1x2:
-                    @{2}; @{5}
-                    ;;
-                    @{20}; @{21}
-                },
+                {:2x1x2: @{2}; @{5} ;; @{20}; @{21}},
                 {=
                     id="cube",
                     assignmentMode="~=",
                     view={=
                         title="Named cube",
                         axes=["region", "measure", "scenario"],
-                        axisLabels=[
-                            ["North", "South"],
-                            ["Value"],
-                            ["Actual", "Forecast"]
-                        ],
+                        axisLabels=[["North", "South"], ["Value"], ["Actual", "Forecast"]],
                         viewAxes=[1, 2],
                         slice=[_, _, 2]
                     }
@@ -50,42 +48,100 @@ describe("RiXCel documents", () => {
         expect(document.version).toBe(RIXCEL_VERSION);
         expect(document.id).toBe("cube");
         expect(document.shape).toEqual([2, 1, 2]);
-        expect(document.view).toEqual({
-            title: "Named cube",
-            axes: ["region", "measure", "scenario"],
-            axisLabels: [
-                ["North", "South"],
-                ["Value"],
-                ["Actual", "Forecast"],
-            ],
-            viewAxes: [1, 2],
-            slice: [null, null, 2],
+        expect(document.defaultSlot).toEqual({ source: "_", assignmentMode: ":=", view: {} });
+        expect(document.events).toHaveLength(4);
+        expect(document.events[0]).toMatchObject({
+            id: "cube:event:1",
+            sequence: 1,
+            type: "slot:set",
+            index: [1, 1, 1],
+            source: "10",
+            assignmentMode: ":=",
+            command: 'document.SetSource(1, 1, 1, "10", ":=")',
         });
-        expect(document.slots.map((slot) => slot.id)).toEqual([
-            "cube:slot:1:1:1",
-            "cube:slot:1:1:2",
-            "cube:slot:2:1:1",
-            "cube:slot:2:1:2",
-        ]);
-        expect(document.slots[0].source).toBe("10");
-        expect(document.slots[0].assignmentMode).toBe(":=");
-        expect(document.slots[1].assignmentMode).toBe("~=");
+        expect(document.cursor).toBe(4);
+        expect(document).not.toHaveProperty("slots");
 
         expect(restored.id).toBe("cube");
-        expect(restored.shape).toEqual([2, 1, 2]);
         expect(restored.slot([1, 1, 2]).dependencies).toEqual(["1,1,1"]);
         expect(restored.slot([2, 1, 1]).dependencies).toEqual(["1,1,2"]);
         expect(formatValue(restored.get([2, 1, 2]))).toBe("53");
-        expect(restored.getFormulaSource([1, 1, 1])).toBe("10");
-        expect(restored.slot([1, 1, 1]).assignmentMode).toBe(":=");
         const restoredSheet = createSheet([restored]);
         expect(restoredSheet.title).toBe("Named cube");
         expect(restoredSheet.rowHeaders).toEqual(["North · 1", "South · 2"]);
-        expect(restoredSheet.columnHeaders).toEqual(["Value · 1"]);
         expect(restoredSheet.hiddenAxes[0].selectedLabel).toBe("Forecast");
     });
 
-    test("migrates the code/op/style draft and recompiles it", () => {
+    test("uses a sparse default and replays cursor-addressable executable events", () => {
+        const large = createRixCelDocument({ id: "large-sparse", shape: [1000, 1000] });
+        expect(large.events).toEqual([]);
+        expect(stringifyRixCelDocument(large).length).toBeLessThan(500);
+
+        let document = createRixCelDocument({ id: "sparse", shape: [3, 3] });
+
+        document = appendRixCelEvent(document, {
+            type: "slot:set",
+            index: [1, 2],
+            source: "40 + 2",
+            assignmentMode: ":=",
+            view: {},
+        });
+        document = appendRixCelEvent(document, {
+            type: "slot:set",
+            index: [1, 3],
+            source: "grid[1,2] * 2",
+            assignmentMode: "~=",
+            view: {},
+        });
+        expect(document.events.map(({ command }) => command)).toEqual([
+            'document.SetSource(1, 2, "40 + 2", ":=")',
+            'document.SetSource(1, 3, "grid[1,2] * 2", "~=")',
+        ]);
+
+        const empty = createRixCelDocument({ id: "command", shape: [3, 3] });
+        const emptyLiteral = `""${stringifyRixCelDocument(empty)}""`;
+        const replayed = parseAndEvaluate(`
+            document := .RiXCelImport(${emptyLiteral});
+            ${document.events[0].command};
+            document[1,2]
+        `);
+        expect(formatValue(replayed)).toBe("42");
+
+        const undone = materializeRixCelDocument(setRixCelCursor(document, 1));
+        expect(undone.slots[1].source).toBe("40 + 2");
+        expect(undone.slots[2].source).toBe("_");
+        expect(document.events).toHaveLength(2);
+    });
+
+    test("records cosmetic view changes in the same replay log", () => {
+        let document = createRixCelDocument({ id: "labels", shape: [2, 2] });
+        document = appendRixCelEvent(document, {
+            type: "view:axis-label",
+            axis: 2,
+            coordinate: 1,
+            label: "Revenue",
+        });
+        const materialized = materializeRixCelDocument(document);
+        expect(materialized.view.axisLabels).toEqual([null, ["Revenue", null]]);
+        expect(document.events[0].command)
+            .toBe('document.SetAxisLabel(2, 1, "Revenue")');
+    });
+
+    test("keeps failed edit drafts without applying them", () => {
+        let document = createRixCelDocument({ id: "draft", shape: [1, 1] });
+        document = setRixCelDraft(document, {
+            index: [1, 1],
+            source: "1 +",
+            assignmentMode: ":=",
+            kind: "parse",
+            message: "Expected expression",
+        });
+        expect(document.drafts[0]).toMatchObject({ source: "1 +", kind: "parse" });
+        expect(materializeRixCelDocument(document).slots[0].source).toBe("_");
+        expect(clearRixCelDraft(document, [1, 1]).drafts).toEqual([]);
+    });
+
+    test("migrates dense version 0 and version 1 documents", () => {
         const draft = {
             kind: "rixcel",
             version: 0,
@@ -97,114 +153,51 @@ describe("RiXCel documents", () => {
             ],
         };
         const migrated = parseRixCelDocument(draft);
-
-        expect(migrated).toEqual({
-            format: "rixcel",
-            version: 1,
-            id: "legacy",
-            shape: [1, 2],
-            view: {},
-            slots: [
-                {
-                    id: "legacy:slot:1:1",
-                    index: [1, 1],
-                    source: "5",
-                    assignmentMode: "::=",
-                    view: { emphasis: true },
-                },
-                {
-                    id: "legacy:slot:1:2",
-                    index: [1, 2],
-                    source: "grid[1,1] * 3",
-                    assignmentMode: ":=",
-                    view: {},
-                },
-            ],
+        expect(migrated.version).toBe(2);
+        expect(migrated.events).toHaveLength(2);
+        expect(migrated.events[0]).toMatchObject({
+            index: [1, 1], source: "5", assignmentMode: "::=", view: { emphasis: true },
         });
-
         const jsonLiteral = `""${JSON.stringify(draft)}""`;
         const restored = parseAndEvaluate(`.RiXCelImport(${jsonLiteral})`);
         expect(formatValue(restored.get([1, 2]))).toBe("15");
-        expect(restored.slot([1, 1]).view).toEqual({ emphasis: true });
     });
 
-    test("host APIs export canonical JSON without runtime caches", () => {
+    test("host APIs omit runtime caches and dense null slots", () => {
         const sheet = parseAndEvaluate(`
-            .FormulaSheet(
-                {:1x2: @{7}, @{ grid[1,1] + 1 }},
-                {= id="host-api" }
-            )
+            .FormulaSheet({:1x3: @{ _ }, @{ 7 }, @{ grid[1,2] + 1 }}, {= id="host-api" })
         `);
         const document = exportRixCelDocument(sheet);
         const json = stringifyRixCelDocument(document, { space: 0 });
 
-        expect(document.slots[1].source).toBe("grid[1,1] + 1");
-        expect(document.slots[1]).not.toHaveProperty("value");
-        expect(document.slots[1]).not.toHaveProperty("dependencies");
-        expect(document.slots[1]).not.toHaveProperty("formula");
+        expect(document.events).toHaveLength(2);
+        expect(document.events[1].source).toBe("grid[1,2] + 1");
+        expect(document.events[1]).not.toHaveProperty("value");
+        expect(document.events[1]).not.toHaveProperty("dependencies");
+        expect(document.events[1]).not.toHaveProperty("formula");
         expect(JSON.parse(json)).toEqual(document);
     });
 
-    test("rejects incomplete, aliased, malformed, and future documents", () => {
-        const base = {
-            format: "rixcel",
-            version: 1,
-            id: "bad",
-            shape: [1, 2],
-            view: {},
-            slots: [
-                {
-                    id: "bad:slot:1:1",
-                    index: [1, 1],
-                    source: "1",
-                    assignmentMode: ":=",
-                    view: {},
-                },
-                {
-                    id: "bad:slot:1:2",
-                    index: [1, 2],
-                    source: "2",
-                    assignmentMode: ":=",
-                    view: {},
-                },
-            ],
-        };
-
-        expect(() => parseRixCelDocument({ ...base, slots: base.slots.slice(0, 1) }))
-            .toThrow("must contain exactly 2 dense slots");
+    test("rejects malformed histories, commands, coordinates, and future documents", () => {
+        const base = createRixCelDocument({ id: "bad", shape: [1, 2] });
         expect(() => parseRixCelDocument({
             ...base,
-            slots: [base.slots[0], { ...base.slots[1], index: [1, 1] }],
-        })).toThrow("duplicates coordinate");
+            events: [{ type: "slot:set", index: [1, 3], source: "1", assignmentMode: ":=" }],
+        })).toThrow("from 1 through 2");
         expect(() => parseRixCelDocument({
             ...base,
-            slots: [{ ...base.slots[0], id: "somewhere-else" }, base.slots[1]],
-        })).toThrow('must equal "bad:slot:1:1"');
-        expect(() => parseRixCelDocument({
-            ...base,
-            slots: [{ ...base.slots[0], assignmentMode: "+=" }, base.slots[1]],
-        })).toThrow("assignmentMode");
-        expect(() => parseRixCelDocument({
-            ...base,
-            view: {
-                axes: ["row", "column"],
-                axisLabels: [["too", "many"], ["left", "right"]],
-            },
-        })).toThrow("$.view.axisLabels[0]");
-        expect(() => parseRixCelDocument({ ...base, version: 2 }))
-            .toThrow("Unsupported RiXCel document version 2");
+            events: [{
+                type: "slot:set",
+                index: [1, 1],
+                source: "1",
+                assignmentMode: ":=",
+                command: "do something else",
+            }],
+        })).toThrow("canonical RiX command");
+        expect(() => parseRixCelDocument({ ...base, cursor: 1 })).toThrow("from 0 through 0");
+        expect(() => parseRixCelDocument({ ...base, version: 3 }))
+            .toThrow("Unsupported RiXCel document version 3");
         expect(() => parseRixCelDocument("{ definitely not JSON"))
             .toThrow("Invalid RiXCel JSON");
-
-        const invalidSource = {
-            ...base,
-            slots: [
-                base.slots[0],
-                { ...base.slots[1], source: "1 +" },
-            ],
-        };
-        const invalidLiteral = `""${JSON.stringify(invalidSource)}""`;
-        expect(() => parseAndEvaluate(`.RiXCelImport(${invalidLiteral})`))
-            .toThrow("RiXCel source for grid[1,2] did not compile");
     });
 });

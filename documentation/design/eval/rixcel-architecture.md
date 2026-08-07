@@ -28,9 +28,9 @@ successful epochs. It is a coordinate adapter over the general
 `.ReactiveGraph(...)` runtime, exposed as `formulaSheet.Graph()`. Named scalar
 computations can therefore join the same graph as formula slots.
 `.Sheet(formulaSheet)` stages current results and editable formula source for
-display. Dense rank-N `.rixcel` documents now round-trip authoritative source
-through a versioned JSON format. Sparse storage and the standalone editor
-remain implementation work. See [the format](rixcel-format.md) and
+display. Sparse rank-N `.rixcel` version-2 documents now round-trip
+authoritative source and executable-style edit history. The standalone editor
+uses that log for recovery and undo/redo. See [the format](rixcel-format.md) and
 [the checklist](rixcel-todo.md).
 
 ## Vocabulary
@@ -259,11 +259,12 @@ diagnostics     parse, cycle, or runtime diagnostics
 view            presentation metadata
 ```
 
-The implemented version-1 `.rixcel` JSON format persists the document ID,
-shape, canonical slot IDs, formula source, assignment mode, and JSON-safe view
-metadata. It does not persist compiled IR, values, dependencies, graph state,
-or diagnostics. `.RiXCelImport` validates and recompiles all source before a
-fresh initial epoch reconstructs those runtime records. See
+The implemented version-2 `.rixcel` JSON format persists the document ID,
+shape, a default slot, canonical edit events, a history cursor, failed drafts,
+formula source, assignment mode, and JSON-safe view metadata. It does not
+persist compiled IR, values, dependencies, graph state, or caches.
+`.RiXCelImport` validates, replays, and recompiles source before a fresh initial
+epoch reconstructs those runtime records. See
 [RiXCel document format](rixcel-format.md).
 
 Deferred syntax such as `@{ ... }` is the programmatic formula representation.
@@ -409,21 +410,25 @@ spanning multiple independent ReactiveGraphs remain a future protocol extension.
 
 ## Reactive document model
 
-RiXCel version 1 is a dense rank-N collection. A slot stores:
+RiXCel version 2 is a sparse rank-N event log. An edited slot event stores:
 
 ```json
 {
-  "id": "budget:slot:2:3",
+  "id": "budget:event:7",
+  "sequence": 7,
+  "type": "slot:set",
   "index": [2, 3],
   "source": "price * quantity",
   "assignmentMode": ":=",
-  "view": {}
+  "view": {},
+  "command": "document.SetSource(2, 3, \"price * quantity\", \":=\")"
 }
 ```
 
-Source is authoritative. Compiled IR, current values, dependencies, and caches
-are rebuilt rather than trusted. A future sparse version can add omitted-slot
-semantics explicitly.
+Structured event fields are authoritative; `command` is a validated executable
+RiX rendering for audit and manual replay. Unedited coordinates inherit the
+document's default null slot. Compiled IR, current values, dependencies, and
+caches are rebuilt rather than trusted.
 
 The default implied assignment is `:=`. An explicit leading `=`, `~=`, `::=`,
 or `~~=` is parsed away from the authoritative formula body and retained as the
@@ -465,11 +470,13 @@ second formula engine. The initial shell provides:
 - formula editing with modes and exact-value feedback;
 - native `.rixcel` open/save and browser-local recovery;
 - CSV/TSV value import and export; and
-- document-snapshot undo and redo.
+- event-log cursor undo and redo with redo history retained in the document.
 
-The current grid is a dense, ordinary DOM table. Virtualization, structural
-row/column edits, copy/fill operations, worker isolation, and inline diagnostic
-decoration remain separate milestones.
+The current grid is a dense, ordinary DOM table. Imports and edits are guarded
+by a restartable restricted worker, while the main compatibility model uses the
+same capability set. Virtualization, structural row/column edits, copy/fill
+operations, and moving persistent graph ownership fully into the worker remain
+separate milestones.
 
 ## Security and imports
 

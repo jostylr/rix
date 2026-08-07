@@ -220,7 +220,7 @@ function normalizeDocumentView(value, path, shape) {
 
 function normalizeSlotDefinition(value, path, { defaultView = {} } = {}) {
     const slot = value === undefined ? {} : plainObject(value, path);
-    const source = slot.source ?? "null";
+    const source = slot.source ?? "_";
     const assignmentMode = slot.assignmentMode ?? ":=";
     if (typeof source !== "string" || source.trim().length === 0) {
         fail(`${path}.source`, "must be a non-empty string");
@@ -418,7 +418,7 @@ export function createRixCelDocument(options = {}) {
         id: options.id ?? "untitled",
         shape,
         view: options.view ?? {},
-        defaultSlot: options.defaultSlot ?? { source: "null", assignmentMode: ":=", view: { blank: true } },
+        defaultSlot: options.defaultSlot ?? { source: "_", assignmentMode: ":=", view: { blank: true } },
         events: [],
         cursor: 0,
         drafts: [],
@@ -499,7 +499,7 @@ export function exportRixCelDocument(sheet) {
         id: sheet.id,
         shape: [...sheet.shape],
         view: jsonClone(sheet.documentView ?? {}, "$.view"),
-        defaultSlot: { source: "null", assignmentMode: ":=", view: {} },
+        defaultSlot: { source: "_", assignmentMode: ":=", view: {} },
     });
     const visit = (axis, index) => {
         if (axis === sheet.shape.length) {

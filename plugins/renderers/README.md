@@ -55,6 +55,10 @@ plugins: [svg, png, markdown, quarto, latex, pdf]
 .Out("report.pdf", report);
 ```
 
+[`examples/renderers/all-formats.rix`](../../examples/renderers/all-formats.rix)
+is a runnable CLI example that emits every currently implemented target from
+one Graphic and one document tree.
+
 ## Current targets
 
 | Target plugin | Inputs | Result | Host requirements |

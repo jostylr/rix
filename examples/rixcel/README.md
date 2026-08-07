@@ -39,9 +39,10 @@ can call `renderOutputHtml` to render the same value as an address-aware grid.
   a locally defined function, an observed `$$frag`, a live Table, and a Graphic
   (`reactive-view.rix`).
 
-`.RiXCelExport(model)` produces canonical version-1 JSON and
+`.RiXCelExport(model)` produces canonical sparse version-2 JSON and
 `.RiXCelImport(json)` validates, migrates, recompiles, and evaluates it in a
 fresh FormulaSheet context. The format is specified in
 [`rixcel-format.md`](../../documentation/design/eval/rixcel-format.md);
-browser file-open/save remains on the
+the standalone browser editor can open, save, recover, and replay that history.
+Remaining scalability work is tracked on the
 [implementation checklist](../../documentation/design/eval/rixcel-todo.md).

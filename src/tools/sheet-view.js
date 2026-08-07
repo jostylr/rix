@@ -515,6 +515,8 @@ function enhanceSheet(sheet, options) {
                 const result = await options.onEdit(detail, submittedCell, sheet);
                 if (Array.isArray(result?.updates)) {
                     applyCellUpdates(result.updates);
+                } else if (result?.type === "error") {
+                    throw new Error(result.text);
                 } else {
                     submittedCell.textContent = result?.text ?? detail.source;
                 }

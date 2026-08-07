@@ -1,0 +1,54 @@
+/**
+plugins: [svg, canvas, tikz, png, markdown, html, quarto, latex, pdf]
+**/
+
+## One retained Graphic is lowered to each implemented 2D target.
+diagram := .Graphics.Graphic({=
+    size=[240, 150],
+    metadata={= title="One scene, four renderers" },
+    children=[
+        .Graphics.Rectangle([8, 8], [224, 134], {=
+            fill="#f4fbfb", stroke="#0c7b7f", width=2
+        }),
+        .Graphics.Path([[28, 112], [82, 42], [132, 96], [202, 30]], {=
+            fill="none", stroke="#2563eb", width=4
+        }),
+        .Graphics.Circle([82, 42], 9, {=
+            fill="#be123c", stroke="white", width=2
+        }),
+        .Graphics.Circle([202, 30], 9, {=
+            fill="#0c7b7f", stroke="white", width=2
+        }),
+        .Graphics.Text([120, 132], "portable .Graphics", {=
+            fill="#12343b", anchor="middle", size=13
+        })
+    ]
+});
+
+## The same Graphic can be embedded in each implemented document target.
+report := .Fragment([
+    .Heading(1, "RiX renderer example", "rix-renderer-example"),
+    .Paragraph([
+        .Text("This report and its diagram come from one portable output tree. "),
+        .Strong("No target-specific scene was authored." )
+    ]),
+    .MathBlock({= source="f(x) = x^2 + 1", alt="f of x equals x squared plus one" }),
+    .Table(["target family", "outputs"], [
+        ["2D", "SVG, Canvas plan, TikZ, PNG"],
+        ["document", "Markdown, HTML, Quarto, LaTeX, PDF"]
+    ], {= caption="Artifacts emitted by this example" }),
+    .Figure(diagram, "The same retained scene rendered through several adapters.")
+]);
+
+.Out("diagram.svg", diagram);
+.Out("diagram.canvas.json", diagram);
+.Out("diagram.tikz", diagram);
+.Out("diagram.png", diagram);
+.Out("report.md", report);
+.Out("report.html", report);
+.Out("report.qmd", report);
+.Out("report.tex", report);
+.Out("report.pdf", report);
+
+## Keep the final value non-HTML so report.html remains a static renderer export.
+0;
