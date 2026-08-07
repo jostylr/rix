@@ -78,6 +78,33 @@ function requireFormula(formula, index) {
 }
 
 function normalizeFormulaGrid(value) {
+    if (value?.type === "sparse_formula_grid") {
+        if (!Array.isArray(value.shape) || value.shape.length === 0) {
+            throw new Error("Sparse FormulaSheet requires a non-empty shape");
+        }
+        const shape = value.shape.map((length, axis) => {
+            if (!Number.isSafeInteger(length) || length < 1) {
+                throw new Error(`Sparse FormulaSheet axis ${axis + 1} must have a positive safe length`);
+            }
+            return length;
+        });
+        const entries = [...(value.entries ?? [])].map(({ index, formula }) => ({
+            index: Object.freeze(normalizeIndex(index, shape)),
+            formula: requireFormula(formula, index),
+        }));
+        const keys = new Set();
+        for (const { index } of entries) {
+            const key = slotKey(index);
+            if (keys.has(key)) throw new Error(`Sparse FormulaSheet repeats grid[${key}]`);
+            keys.add(key);
+        }
+        return {
+            shape,
+            entries,
+            defaultFormula: requireFormula(value.defaultFormula, Array(shape.length).fill(1)),
+        };
+    }
+
     if (isTensor(value)) {
         const shape = [...value.shape];
         if (shape.length === 0 || shape.some((length) => length === 0)) {
@@ -90,7 +117,7 @@ function normalizeFormulaGrid(value) {
                 formula: requireFormula(formula, index),
             });
         });
-        return { shape, entries };
+        return { shape, entries, defaultFormula: null };
     }
 
     const rows = valuesOf(value, "FormulaSheet formulas");
@@ -108,7 +135,7 @@ function normalizeFormulaGrid(value) {
             entries.push({ index, formula: requireFormula(formula, index) });
         }
     }
-    return { shape: [matrix.length, columns], entries };
+    return { shape: [matrix.length, columns], entries, defaultFormula: null };
 }
 
 function nodeNameFor(index) {
@@ -129,6 +156,16 @@ function slotKey(index) {
 
 function slotIdFor(sheetId, index) {
     return `${sheetId}:slot:${index.join(":")}`;
+}
+
+function visitLogicalIndices(shape, visitor, axis = 0, index = []) {
+    if (axis === shape.length) {
+        visitor(Object.freeze([...index]));
+        return;
+    }
+    for (let coordinate = 1; coordinate <= shape[axis]; coordinate += 1) {
+        visitLogicalIndices(shape, visitor, axis + 1, [...index, coordinate]);
+    }
 }
 
 function normalizeIndex(index, shape) {
@@ -240,6 +277,14 @@ export function createFormulaSheet(formulasValue, options = {}) {
     const providedSlotMetadata = options.slotMetadata instanceof Map
         ? options.slotMetadata
         : new Map();
+    const defaultSlotMetadata = options.defaultSlotMetadata ?? {};
+    const defaultSlotDefinition = Object.freeze({
+        source: defaultSlotMetadata.source
+            ?? (formulas.defaultFormula ? options.formulaSource?.(formulas.defaultFormula) : null)
+            ?? "_",
+        assignmentMode: assignmentMode(defaultSlotMetadata.assignmentMode ?? ":="),
+        view: Object.freeze({ ...(defaultSlotMetadata.view ?? {}) }),
+    });
     const slotMetadata = new Map(formulas.entries.map(({ index, formula }) => {
         const provided = providedSlotMetadata.get(slotKey(index)) ?? {};
         const source = provided.source ?? options.formulaSource?.(formula) ?? null;
@@ -257,6 +302,7 @@ export function createFormulaSheet(formulasValue, options = {}) {
             diagnosticSource: null,
         }];
     }));
+    const materializedSlotKeys = new Set();
     const channel = new Set();
     let currentDocumentView = Object.freeze({ ...(options.documentView ?? {}) });
     const graph = createReactiveGraph({
@@ -288,12 +334,14 @@ export function createFormulaSheet(formulasValue, options = {}) {
             return currentDocumentView;
         },
         graph,
+        defaultSlotDefinition,
         get epoch() {
             return graph.epoch;
         },
         _ext: formulaSheetMethods(),
         get(index) {
             const normalized = normalizeIndex(index, shape);
+            ensureSlot(normalized);
             return graph.get(nodeNameFor(normalized));
         },
         index(selector) {
@@ -339,26 +387,30 @@ export function createFormulaSheet(formulasValue, options = {}) {
             ));
         },
         track() {
-            for (const { index } of formulas.entries) {
-                graph.get(nodeNameFor(index));
-            }
+            visitLogicalIndices(shape, (index) => sheet.get(index));
             return sheet;
         },
         getFormula(index) {
-            return graph.node(nodeNameFor(normalizeIndex(index, shape))).formula;
+            const normalized = normalizeIndex(index, shape);
+            ensureSlot(normalized);
+            return graph.node(nodeNameFor(normalized)).formula;
         },
         getFormulaSource(index) {
             const normalized = normalizeIndex(index, shape);
+            ensureSlot(normalized);
             return slotMetadata.get(slotKey(normalized)).source;
         },
         reactiveNode(index) {
-            return graph.node(nodeNameFor(normalizeIndex(index, shape)));
+            const normalized = normalizeIndex(index, shape);
+            ensureSlot(normalized);
+            return graph.node(nodeNameFor(normalized));
         },
         setFormula(index, formula, metadata = null) {
             if (!formula || formula.fn !== "DEFER") {
                 throw new Error("FormulaSheet.SetFormula requires deferred syntax @{ ... }");
             }
             const normalized = normalizeIndex(index, shape);
+            ensureSlot(normalized);
             const record = slotMetadata.get(slotKey(normalized));
             const previousSource = record.source;
             const previousMode = record.assignmentMode;
@@ -443,6 +495,58 @@ export function createFormulaSheet(formulasValue, options = {}) {
                 sourceKind: "formula-source",
             });
         },
+        setFormulaSources(edits) {
+            if (!Array.isArray(edits) || edits.length === 0) {
+                throw new Error("FormulaSheet batch edit requires at least one edit");
+            }
+            if (typeof options.compileFormula !== "function") {
+                throw new Error("FormulaSheet source editing requires a formula compiler");
+            }
+            const occupied = new Set();
+            const prepared = edits.map((edit) => {
+                const index = normalizeIndex(edit?.index, shape);
+                const key = slotKey(index);
+                if (occupied.has(key)) throw new Error(`FormulaSheet batch repeats ${addressFor(index)}`);
+                occupied.add(key);
+                const parts = formulaSourceParts(edit?.source, edit?.assignmentMode ?? null);
+                return { index, key, parts, formula: options.compileFormula(parts.source) };
+            });
+            for (const edit of prepared) ensureSlot(edit.index, false);
+            const previous = new Map(prepared.map(({ key }) => {
+                const record = slotMetadata.get(key);
+                return [key, { ...record }];
+            }));
+            for (const { key, parts } of prepared) {
+                const record = slotMetadata.get(key);
+                record.source = parts.source;
+                record.assignmentMode = parts.assignmentMode;
+                record.view = record.view?.blank === true
+                    ? Object.freeze(Object.fromEntries(Object.entries(record.view)
+                        .filter(([name]) => name !== "blank")))
+                    : record.view;
+                record.editDiagnostics = Object.freeze([]);
+                record.diagnosticKind = null;
+                record.diagnosticSource = null;
+            }
+            const publicEdits = Object.freeze(prepared.map(({ index, parts }) => Object.freeze({
+                index: Object.freeze([...index]),
+                source: parts.source,
+                assignmentMode: parts.assignmentMode,
+                view: slotMetadata.get(slotKey(index)).view,
+            })));
+            try {
+                graph.applyBatch(prepared.map(({ index, formula, parts }) => ({
+                    kind: "update",
+                    name: nodeNameFor(index),
+                    formula,
+                    source: parts.source,
+                })), { type: "formula:batch", edits: publicEdits });
+            } catch (error) {
+                for (const [key, snapshot] of previous) Object.assign(slotMetadata.get(key), snapshot);
+                throw error;
+            }
+            return sheet;
+        },
         setAxisLabel(axisValue, coordinateValue, labelValue) {
             const axis = exactIndex(axisValue, "FormulaSheet axis label axis");
             if (axis < 1 || axis > shape.length) {
@@ -492,6 +596,7 @@ export function createFormulaSheet(formulasValue, options = {}) {
         },
         slot(index) {
             const normalized = normalizeIndex(index, shape);
+            ensureSlot(normalized);
             return publicSlot(
                 graph.node(nodeNameFor(normalized)),
                 normalized,
@@ -507,16 +612,47 @@ export function createFormulaSheet(formulasValue, options = {}) {
             channel.add(listener);
             return () => channel.delete(listener);
         },
+        get materializedSlotCount() {
+            return materializedSlotKeys.size;
+        },
+        materializedSlots() {
+            return Object.freeze([...materializedSlotKeys].map((key) => {
+                const index = Object.freeze(key.split(",").map(Number));
+                return sheet.slot(index);
+            }));
+        },
         toString() {
             return `[FormulaSheet ${shape.join("×")} · epoch ${sheet.epoch}]`;
         },
     };
 
-    for (const { index, formula } of formulas.entries) {
-        const metadata = slotMetadata.get(slotKey(index));
-        graph.addComputed(nodeNameFor(index), formula, {
+    function slotMetadataFor(index) {
+        const key = slotKey(index);
+        let metadata = slotMetadata.get(key);
+        if (metadata) return metadata;
+        const idForSlot = slotIdFor(id, index);
+        metadata = {
+            id: idForSlot,
+            source: defaultSlotDefinition.source,
+            assignmentMode: defaultSlotDefinition.assignmentMode,
+            view: defaultSlotDefinition.view,
+            editDiagnostics: Object.freeze([]),
+            diagnosticKind: null,
+            diagnosticSource: null,
+        };
+        slotMetadata.set(key, metadata);
+        return metadata;
+    }
+
+    function addSlot(index, formula, initialize) {
+        const key = slotKey(index);
+        if (materializedSlotKeys.has(key)) return graph.node(nodeNameFor(index));
+        const metadata = slotMetadataFor(index);
+        materializedSlotKeys.add(key);
+        try {
+            graph.addComputed(nodeNameFor(index), formula, {
                 source: metadata.source,
-                initialize: false,
+                initialize,
                 evaluator(slotFormula) {
                     const near = Object.freeze({
                         type: "formula_near",
@@ -550,6 +686,24 @@ export function createFormulaSheet(formulasValue, options = {}) {
                     );
                 },
             });
+        } catch (error) {
+            materializedSlotKeys.delete(key);
+            throw error;
+        }
+        return graph.node(nodeNameFor(index));
+    }
+
+    function ensureSlot(index, initialize = !graph.evaluating) {
+        const key = slotKey(index);
+        if (materializedSlotKeys.has(key)) return graph.node(nodeNameFor(index));
+        if (!formulas.defaultFormula) {
+            throw new Error(`FormulaSheet slot ${addressFor(index)} is not defined`);
+        }
+        return addSlot(index, formulas.defaultFormula, initialize);
+    }
+
+    for (const { index, formula } of formulas.entries) {
+        addSlot(index, formula, false);
     }
 
     graph.subscribe((event) => {

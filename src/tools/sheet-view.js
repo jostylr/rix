@@ -39,6 +39,7 @@ export function sheetPlaneKey(selections) {
 }
 
 export const RIXCEL_FORMULA_CLIPBOARD_TYPE = "application/x-rixcel-formula";
+export const RIXCEL_FORMULA_BLOCK_CLIPBOARD_TYPE = "application/x-rixcel-formula-block";
 
 export function parseSheetFormulaClipboard(text, fallbackAssignmentMode = ":=") {
     const source = String(text ?? "");
@@ -47,6 +48,35 @@ export function parseSheetFormulaClipboard(text, fallbackAssignmentMode = ":=") 
         source: match ? match[2] : source,
         assignmentMode: match?.[1] ?? fallbackAssignmentMode,
     });
+}
+
+export function parseSheetFormulaBlock(text, fallbackAssignmentMode = ":=") {
+    const rows = String(text ?? "").replace(/\r\n?/gu, "\n").split("\n");
+    if (rows.at(-1) === "") rows.pop();
+    return Object.freeze(rows.map((row) => Object.freeze(
+        row.split("\t").map((cell) => parseSheetFormulaClipboard(cell, fallbackAssignmentMode)),
+    )));
+}
+
+export function sheetFormulaFill(block, direction = "down") {
+    if (!Array.isArray(block) || block.length === 0 || !block.every((row) => Array.isArray(row))) {
+        throw new Error("Formula fill requires a non-empty rectangular block");
+    }
+    const width = block[0].length;
+    if (width === 0 || !block.every((row) => row.length === width)) {
+        throw new Error("Formula fill requires a non-empty rectangular block");
+    }
+    if (direction === "down") {
+        return Object.freeze(block.map((_row, row) => Object.freeze(
+            block[0].map((formula) => Object.freeze({ ...formula })),
+        )));
+    }
+    if (direction === "right") {
+        return Object.freeze(block.map((row) => Object.freeze(
+            row.map(() => Object.freeze({ ...row[0] })),
+        )));
+    }
+    throw new Error(`Unsupported formula fill direction: ${direction}`);
 }
 
 export function sheetCellDiagnostics(dataset = {}) {
@@ -156,6 +186,8 @@ function enhanceSheet(sheet, options) {
         "th[data-rix-header-axis][data-rix-header-coordinate]",
     )];
     let selectedCell = null;
+    let selectionAnchor = null;
+    let selectedCells = [];
     let editPending = false;
     if (editForm && typeof options.onEdit === "function") editForm.hidden = false;
     if (!table || !cells.length) return;
@@ -217,12 +249,44 @@ function enhanceSheet(sheet, options) {
         }
     }
 
-    function select(cell, { focus = false, notify = true } = {}) {
+    function selectionFor(cell, extend) {
+        if (!extend || !selectionAnchor || selectionAnchor.closest("tbody") !== cell.closest("tbody")) {
+            selectionAnchor = cell;
+            return [cell];
+        }
+        const rowStart = Math.min(Number(selectionAnchor.dataset.rixRow), Number(cell.dataset.rixRow));
+        const rowEnd = Math.max(Number(selectionAnchor.dataset.rixRow), Number(cell.dataset.rixRow));
+        const columnStart = Math.min(Number(selectionAnchor.dataset.rixColumn), Number(cell.dataset.rixColumn));
+        const columnEnd = Math.max(Number(selectionAnchor.dataset.rixColumn), Number(cell.dataset.rixColumn));
+        return [...cell.closest("tbody").querySelectorAll("td[data-rix-address]")].filter((candidate) => {
+            const row = Number(candidate.dataset.rixRow);
+            const column = Number(candidate.dataset.rixColumn);
+            return row >= rowStart && row <= rowEnd && column >= columnStart && column <= columnEnd;
+        });
+    }
+
+    function selectedFormulaBlock() {
+        const rows = [...new Set(selectedCells.map((cell) => Number(cell.dataset.rixRow)))].sort((a, b) => a - b);
+        const columns = [...new Set(selectedCells.map((cell) => Number(cell.dataset.rixColumn)))].sort((a, b) => a - b);
+        return rows.map((row) => columns.map((column) => {
+            const cell = selectedCells.find((candidate) =>
+                Number(candidate.dataset.rixRow) === row
+                && Number(candidate.dataset.rixColumn) === column);
+            return {
+                source: cell?.dataset.rixFormulaSource ?? "_",
+                assignmentMode: cell?.dataset.rixAssignmentMode || ":=",
+            };
+        }));
+    }
+
+    function select(cell, { focus = false, notify = true, extend = false } = {}) {
+        selectedCells = selectionFor(cell, extend);
+        const selectedSet = new Set(selectedCells);
         for (const candidate of cells) {
-            const selected = candidate === cell;
+            const selected = selectedSet.has(candidate);
             candidate.classList.toggle("rix-sheet-cell-selected", selected);
             candidate.setAttribute("aria-selected", String(selected));
-            candidate.tabIndex = selected ? 0 : -1;
+            candidate.tabIndex = candidate === cell ? 0 : -1;
         }
         const detail = eventDetail(cell);
         selectedCell = cell;
@@ -261,8 +325,9 @@ function enhanceSheet(sheet, options) {
         }
         if (focus) cell.focus();
         if (notify) {
-            options.onSelection?.(detail, cell, sheet);
-            dispatchSheetEvent(sheet, "rix-sheet-select", detail);
+            const selection = selectedCells.map(eventDetail);
+            options.onSelection?.({ ...detail, selection }, cell, sheet);
+            dispatchSheetEvent(sheet, "rix-sheet-select", { ...detail, selection });
         }
         return detail;
     }
@@ -309,6 +374,33 @@ function enhanceSheet(sheet, options) {
         return true;
     }
 
+    async function applyFormulaBlock(originCell, block, kind = "paste") {
+        if (typeof options.onBatchEdit !== "function" || !Array.isArray(block) || !block.length) return false;
+        const bodyCells = [...originCell.closest("tbody").querySelectorAll("td[data-rix-address]")];
+        const originRow = Number(originCell.dataset.rixRow);
+        const originColumn = Number(originCell.dataset.rixColumn);
+        const edits = [];
+        for (const [rowOffset, row] of block.entries()) {
+            for (const [columnOffset, formula] of row.entries()) {
+                const target = bodyCells.find((candidate) =>
+                    Number(candidate.dataset.rixRow) === originRow + rowOffset
+                    && Number(candidate.dataset.rixColumn) === originColumn + columnOffset);
+                if (!target) continue;
+                edits.push({
+                    ...eventDetail(target),
+                    source: formula.source,
+                    assignmentMode: formula.assignmentMode || ":=",
+                });
+            }
+        }
+        if (!edits.length) return false;
+        const result = await options.onBatchEdit({ type: kind, edits }, originCell, sheet);
+        if (result?.type === "error") throw new Error(result.text);
+        if (Array.isArray(result?.updates)) applyCellUpdates(result.updates);
+        dispatchSheetEvent(sheet, `rix-sheet-${kind}`, { edits, revision: result?.revision ?? null });
+        return true;
+    }
+
     function changePlane() {
         const selections = planeSelectors.map((selector) => ({
             axis: Number(selector.dataset.rixSheetAxis),
@@ -342,7 +434,7 @@ function enhanceSheet(sheet, options) {
         });
         cell.addEventListener("click", (event) => {
             event.stopPropagation();
-            select(cell, { focus: true });
+            select(cell, { focus: true, extend: event.shiftKey });
         });
         cell.addEventListener("dblclick", (event) => {
             event.preventDefault();
@@ -353,10 +445,14 @@ function enhanceSheet(sheet, options) {
         cell.addEventListener("copy", (event) => {
             const source = cell.dataset.rixFormulaSource;
             if (!event.clipboardData || source === undefined) return;
+            const block = selectedFormulaBlock();
+            const plain = block.map((row) => row.map((formula) =>
+                `${formula.assignmentMode} ${formula.source}`).join("\t")).join("\n");
             event.clipboardData.setData(
                 "text/plain",
-                `${cell.dataset.rixAssignmentMode || ":="} ${source}`,
+                plain,
             );
+            event.clipboardData.setData(RIXCEL_FORMULA_BLOCK_CLIPBOARD_TYPE, JSON.stringify({ cells: block }));
             event.clipboardData.setData(RIXCEL_FORMULA_CLIPBOARD_TYPE, JSON.stringify({
                 source,
                 assignmentMode: cell.dataset.rixAssignmentMode || ":=",
@@ -364,13 +460,52 @@ function enhanceSheet(sheet, options) {
             event.preventDefault();
             dispatchSheetEvent(sheet, "rix-sheet-copy", eventDetail(cell));
         });
-        cell.addEventListener("paste", (event) => {
+        cell.addEventListener("paste", async (event) => {
+            let block = null;
+            const encoded = event.clipboardData?.getData?.(RIXCEL_FORMULA_BLOCK_CLIPBOARD_TYPE);
+            if (encoded) {
+                try {
+                    const parsed = JSON.parse(encoded);
+                    if (Array.isArray(parsed.cells)) block = parsed.cells;
+                } catch {
+                    block = null;
+                }
+            }
+            block ??= parseSheetFormulaBlock(event.clipboardData?.getData?.("text/plain") ?? "");
+            if (block.length > 1 || block[0]?.length > 1) {
+                if (!options.onBatchEdit) return;
+                event.preventDefault();
+                event.stopPropagation();
+                try {
+                    await applyFormulaBlock(cell, block, "paste");
+                } catch (error) {
+                    if (editStatus) editStatus.textContent = error.message || String(error);
+                }
+                return;
+            }
             if (!pasteInto(cell, event.clipboardData)) return;
             event.preventDefault();
             event.stopPropagation();
             dispatchSheetEvent(sheet, "rix-sheet-paste", eventDetail(cell));
         });
         cell.addEventListener("keydown", (event) => {
+            if ((event.metaKey || event.ctrlKey) && (event.key === "d" || event.key === "r")) {
+                if (selectedCells.length > 1 && options.onBatchEdit) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const block = sheetFormulaFill(selectedFormulaBlock(), event.key === "d" ? "down" : "right");
+                    const origin = selectedCells.reduce((best, candidate) => (
+                        Number(candidate.dataset.rixRow) < Number(best.dataset.rixRow)
+                        || (candidate.dataset.rixRow === best.dataset.rixRow
+                            && Number(candidate.dataset.rixColumn) < Number(best.dataset.rixColumn))
+                            ? candidate : best
+                    ));
+                    applyFormulaBlock(origin, block, "fill").catch((error) => {
+                        if (editStatus) editStatus.textContent = error.message || String(error);
+                    });
+                }
+                return;
+            }
             if (event.key === "F2") {
                 event.preventDefault();
                 event.stopPropagation();
@@ -399,7 +534,7 @@ function enhanceSheet(sheet, options) {
             const target = bodyCells.find((candidate) =>
                 Number(candidate.dataset.rixRow) === next.row
                 && Number(candidate.dataset.rixColumn) === next.column);
-            if (target) select(target, { focus: true });
+            if (target) select(target, { focus: true, extend: event.shiftKey });
         });
     }
     if (typeof options.onHeaderEdit === "function") {

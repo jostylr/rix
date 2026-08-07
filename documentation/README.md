@@ -4,7 +4,7 @@ This directory contains the authored source for the RiX documentation site. Quar
 
 The documentation has three authority levels:
 
-1. Current guides and generated reference: `index.qmd`, `getting-started.qmd`, `language-at-a-glance.qmd`, `status.qmd`, `introduction.md`, `plugin-catalog.md`, `eval/`, and `reference/`. RiX Web's `../rix-web/tutorials/` directory is the learner-facing tutorial authority; `eval/output-guide.md` and `eval/controls-guide.md` are the reference material for output and controls.
+1. Current guides and generated reference: `index.qmd`, `getting-started.qmd`, `language-at-a-glance.qmd`, `status.qmd`, `introduction.md`, `plugin-catalog.md`, `eval/`, and `reference/`. RiX Web's `../rix-web/tutorials/` directory plus each first-party plugin's `tutorial.md` are the learner-facing tutorial authority; `eval/output-guide.md`, `eval/renderer-guide.md`, and `eval/controls-guide.md` are the reference material for output, renderers, and controls.
 2. Implementation and design material: `developer-guide.qmd`, selected `parser/` pages, `design/eval/`, `design/plugins.md`, and `rix-rationales.md`.
 3. Historical/archive material: dated reports, early phase specs, scratch text, the old parser Pages build, and pre-generated parser HTML. These files preserve design history but are not the current language contract.
 

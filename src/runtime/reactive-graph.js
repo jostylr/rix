@@ -224,6 +224,15 @@ export function createReactiveGraph(options = {}) {
             read(name) {
                 name = canonicalName(name);
                 const node = requireNode(name);
+                // FormulaSheet can add an implicit sparse slot while another
+                // formula is being evaluated. Admit that node into the active
+                // epoch instead of forcing a nested recalculation.
+                if (!states.has(name)) {
+                    requested.add(name);
+                    stagedValues.set(name, node.value);
+                    states.set(name, node.kind === "computed" ? "dirty" : "clean");
+                    dependencies.set(name, new Set(node.dependencies));
+                }
                 if (currentName && currentName !== name) dependencies.get(currentName).add(name);
                 if (node.kind === "source") return stagedValues.get(name);
                 if (states.get(name) === "clean") return stagedValues.get(name);
@@ -317,6 +326,12 @@ export function createReactiveGraph(options = {}) {
         type: "reactive_graph",
         id,
         epoch: 0,
+        get evaluating() {
+            return activeEpoch !== null;
+        },
+        get nodeCount() {
+            return nodes.size;
+        },
         _ext: graphMethods(),
         addSource(name, value) {
             name = normalizeName(name);
@@ -355,6 +370,13 @@ export function createReactiveGraph(options = {}) {
                 throw new Error(node.diagnostics[0] || `Reactive node ${name} has an error`);
             }
             return node.value;
+        },
+        has(name) {
+            try {
+                return nodes.has(canonicalName(name));
+            } catch {
+                return false;
+            }
         },
         peek(name) {
             name = normalizeName(name);

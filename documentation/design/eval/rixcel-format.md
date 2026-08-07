@@ -56,8 +56,8 @@ The root fields are:
   local recovery but do not affect current values or dependency evaluation.
 
 A million-cell empty logical sheet is therefore approximately the same size as
-a twenty-cell empty sheet. Dense FormulaSheet compatibility views are
-materialized only when the current runtime evaluates or renders the document.
+a twenty-cell empty sheet. The imported FormulaSheet graph also stays sparse;
+individual implicit slots are materialized only when evaluated or rendered.
 
 ## Events and executable RiX commands
 
@@ -90,10 +90,10 @@ such as:
 document.SetAxisLabel(2, 1, "Revenue")
 ```
 
-Future range, fill, paste, and structural operations can add compact event
-types without expanding into one document snapshot per affected cell. Their
-structured representation remains authoritative, and each can expose an
-equivalent canonical RiX command.
+Multi-cell paste and fill use one `slot:batch` event containing ordered slot
+edits rather than one history event per cell. Its canonical command is an
+executable RiX block of `SetSource` calls, so one undo step reverts the entire
+operation. Future structural operations can add further compact event types.
 
 ## Replay and branching
 
@@ -143,8 +143,9 @@ An importer:
    metadata;
 4. replays the active event prefix;
 5. compiles the resulting authoritative slot sources;
-6. creates a fresh FormulaSheet graph and isolated execution context; and
-7. evaluates the initial atomic epoch, rebuilding dependencies from actual
+6. creates a fresh sparse FormulaSheet graph and isolated execution context;
+7. materializes edited slots plus implicit slots reached by runtime reads; and
+8. evaluates the initial atomic epoch, rebuilding dependencies from actual
    reads.
 
 Compiled IR, current values, prior values, dependency edges, graph state, and
@@ -158,9 +159,10 @@ JavaScript/module registration, plugin management, streams, and retry
 capabilities are withheld. A timed-out worker is terminated and replaced.
 The main compatibility model uses the same restricted capability set.
 
-The remaining scalability step is moving ownership of the persistent
-FormulaSheet graph and visible-plane projection fully into the worker so the UI
-thread never materializes the dense compatibility view.
+The graph produced by `.RiXCelImport` is sparse and implicit default slots are
+created lazily. The remaining scalability step is moving ownership of that
+persistent graph and visible-plane projection fully into the worker, plus
+virtualizing the browser DOM grid.
 
 ## APIs
 

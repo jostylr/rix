@@ -346,7 +346,7 @@ ul.task-list li input[type="checkbox"] {
 
 <section id="structured-output-and-graphics-reference" class="level1">
 <h1>Structured output and graphics reference</h1>
-<p>RiX output constructors return portable values. They describe content and layout semantics; a host decides how to render HTML, SVG, terminal text, or a future PDF. Use <code>.Out("relative-path", value)</code> to hand an artifact to the <code>rix --out=directory</code> host.</p>
+<p>RiX output constructors return portable values. They describe content and layout semantics; a host decides how to render HTML, SVG, terminal text, PDF, or another loaded target. Use <code>.Out("relative-path", value)</code> to hand an artifact to the <code>rix --out=directory</code> host.</p>
 <section id="composition-and-document-blocks" class="level2">
 <h2 class="anchored" data-anchor-id="composition-and-document-blocks">Composition and document blocks</h2>
 <table class="caption-top table">
@@ -561,7 +561,7 @@ same := .svg.Render(graphic);</code></pre>
 .Out("report.pdf", report);
 .Out("comic.html", snapshots);
 .Out("index.html", $view)</code></pre>
-<p>Run with <code>rix --out=out program.rix</code>. Every declared artifact is written below <code>out</code>. The final HTML artifact can retain its reactive source and host widgets; earlier HTML artifacts are written as static pages. When a loaded renderer matches an extension, <code>.Out</code> writes its text or original binary bytes and any validated relative assets. See the full <a href="../design/plugins.html">renderer contract and format matrix</a>.</p>
+<p>Run with <code>rix --out=out program.rix</code>. Every declared artifact is written below <code>out</code>. The final HTML artifact can retain its reactive source and host widgets; earlier HTML artifacts are written as static pages. When a loaded renderer matches an extension, <code>.Out</code> writes its text or original binary bytes and any validated relative assets. See the full <a href="../eval/renderer-guide.html">renderer plugin reference and format matrix</a>.</p>
 
 
 </section>

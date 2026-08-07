@@ -2,6 +2,8 @@ import { describe, expect, test } from "bun:test";
 import {
     moveSheetSelection,
     parseSheetFormulaClipboard,
+    parseSheetFormulaBlock,
+    sheetFormulaFill,
     sheetCellDiagnostics,
     sheetCellDependencies,
     sheetDisplayAddress,
@@ -44,6 +46,28 @@ describe("portable Sheet host interaction helpers", () => {
             source: "near[0,-1] * 2",
             assignmentMode: ":=",
         });
+    });
+
+    test("multi-cell clipboard and fill preserve absolute and relative formula text", () => {
+        const block = parseSheetFormulaBlock(":= 2\t~= grid[1,1]\n:= near[-1,0]\t:= 9");
+        expect(block).toEqual([
+            [
+                { source: "2", assignmentMode: ":=" },
+                { source: "grid[1,1]", assignmentMode: "~=" },
+            ],
+            [
+                { source: "near[-1,0]", assignmentMode: ":=" },
+                { source: "9", assignmentMode: ":=" },
+            ],
+        ]);
+        expect(sheetFormulaFill(block, "down")).toEqual([
+            block[0],
+            block[0],
+        ]);
+        expect(sheetFormulaFill(block, "right")).toEqual([
+            [block[0][0], block[0][0]],
+            [block[1][0], block[1][0]],
+        ]);
     });
 
     test("cell diagnostics decode structured and fallback host metadata", () => {

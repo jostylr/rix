@@ -158,6 +158,28 @@ describe("formula-backed sheets", () => {
         expect(formatValue(value)).toBe("23");
     });
 
+    test("applies multi-cell source edits in one atomic graph epoch", () => {
+        const model = parseAndEvaluate(`${chainSource} model`);
+        const events = [];
+        model.subscribe((event) => events.push(event));
+        model.setFormulaSources([
+            { index: [1, 1], source: "10", assignmentMode: ":=" },
+            { index: [1, 2], source: "near[0,-1] + 5", assignmentMode: "~=" },
+        ]);
+        expect(model.epoch).toBe(2);
+        expect(formatValue(model.get([2, 2]))).toBe("31");
+        expect(events).toHaveLength(1);
+        expect(events[0].cause).toMatchObject({ type: "formula:batch" });
+        expect(events[0].cause.edits).toHaveLength(2);
+
+        expect(() => model.setFormulaSources([
+            { index: [1, 1], source: "grid[1,2]", assignmentMode: ":=" },
+            { index: [1, 2], source: "grid[1,1]", assignmentMode: ":=" },
+        ])).toThrow("Formula cycle");
+        expect(model.getFormulaSource([1, 1])).toBe("10");
+        expect(model.getFormulaSource([1, 2])).toBe("near[0,-1] + 5");
+    });
+
     test("stable slot IDs keep authoritative source separate from assignment mode", () => {
         const model = parseAndEvaluate(`
             model := .FormulaSheet(

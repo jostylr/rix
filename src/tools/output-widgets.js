@@ -230,6 +230,31 @@ export function mountOutputWidgets(root, value, options = {}) {
                         }
                     }
                     : null,
+                onBatchEdit: widgetSession?.editMode === "formula"
+                    ? async (detail) => {
+                        try {
+                            if (typeof options.beforeSheetBatchEdit === "function") {
+                                await options.beforeSheetBatchEdit(detail, widgetSession.current());
+                            }
+                            widgetSession.formulaSheet.setFormulaSources(detail.edits.map((edit) => ({
+                                index: edit.index,
+                                source: edit.source,
+                                assignmentMode: edit.assignmentMode,
+                            })));
+                            return {
+                                type: "result",
+                                updates: widgetSession.cellUpdates(format),
+                                revision: widgetSession.revision,
+                            };
+                        } catch (error) {
+                            return {
+                                type: "error",
+                                text: error instanceof Error ? error.message : String(error),
+                                revision: widgetSession.revision,
+                            };
+                        }
+                    }
+                    : null,
             });
         }
         const graphicValues = collectGraphics(outputValue);

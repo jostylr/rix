@@ -359,7 +359,7 @@ defaultEnabled: false
 <p>The catalog scans only configured <code>plugins/</code> roots. It reads headers and declares disabled host mounts so static path checking can recognize a known surface, but a disabled mount errors when called.</p>
 <p>Renderer/service packages can additionally declare array-valued <code>requires</code>, <code>optional</code>, <code>provides</code>, <code>schemas</code>, and <code>targets</code> fields plus Boolean <code>snapshot</code> and <code>deterministic</code> claims. Discovery exposes <code>requires</code>, <code>provides</code>, <code>targets</code>, <code>snapshot</code>, and <code>deterministic</code> through <code>.Plugin.Info</code> without executing the plugin. Runtime renderer registration still verifies the declared target; full version-range and dependency resolution is future work.</p>
 <p>Set <code>ignore: true</code> in an otherwise valid header to keep an unfinished or alternate source file out of discovery. An ignored entry is absent from <code>.Plugin.List()</code> and does not reserve its ID.</p>
-<p>For future candidate packages and the contract used by output-producing plugins, see <a href="./design/plugins.html">Plugin Roadmap and Rendering Contracts</a>.</p>
+<p>For future candidate packages and the contract used by output-producing plugins, see <a href="./design/plugins.html">Plugin Roadmap and Rendering Contracts</a>. The current targets, options, results, diagnostics, and host support are specified by the <a href="./eval/renderer-guide.html">Renderer Plugins reference</a>.</p>
 <section id="placement-by-host" class="level2">
 <h2 class="anchored" data-anchor-id="placement-by-host">Placement by host</h2>
 <ul>

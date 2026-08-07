@@ -60,6 +60,10 @@
           "href": "eval/output-guide.html"
         },
         {
+          "text": "Renderer plugins",
+          "href": "eval/renderer-guide.html"
+        },
+        {
           "text": "Reactive controls",
           "href": "eval/controls-guide.html"
         },

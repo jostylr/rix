@@ -1,8 +1,8 @@
 # Structured output and graphics reference
 
 RiX output constructors return portable values. They describe content and
-layout semantics; a host decides how to render HTML, SVG, terminal text, or a
-future PDF. Use `.Out("relative-path", value)` to hand an artifact to the
+layout semantics; a host decides how to render HTML, SVG, terminal text, PDF,
+or another loaded target. Use `.Out("relative-path", value)` to hand an artifact to the
 `rix --out=directory` host.
 
 ## Composition and document blocks
@@ -147,5 +147,5 @@ Run with `rix --out=out program.rix`. Every declared artifact is written below
 `out`. The final HTML artifact can retain its reactive source and host widgets;
 earlier HTML artifacts are written as static pages. When a loaded renderer
 matches an extension, `.Out` writes its text or original binary bytes and any
-validated relative assets. See the full [renderer contract and format
-matrix](../design/plugins.md).
+validated relative assets. See the full [renderer plugin reference and format
+matrix](renderer-guide.md).

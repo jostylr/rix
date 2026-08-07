@@ -3,14 +3,13 @@ import {
     FORMULA_SHEET_ASSIGNMENT_MODES,
     isFormulaSheet,
 } from "./formula-sheet.js";
-import { createTensor } from "./tensor.js";
 
 export const RIXCEL_FORMAT = "rixcel";
 export const RIXCEL_VERSION = 2;
 export const RIXCEL_ASSIGNMENT_MODES = FORMULA_SHEET_ASSIGNMENT_MODES;
 
 const ASSIGNMENT_MODES = new Set(RIXCEL_ASSIGNMENT_MODES);
-const EVENT_TYPES = new Set(["slot:set", "view:axis-label"]);
+const EVENT_TYPES = new Set(["slot:set", "slot:batch", "view:axis-label"]);
 const DOCUMENT_VIEW_KEYS = Object.freeze([
     "title",
     "axes",
@@ -242,6 +241,9 @@ export function rixCelEventCommand(event, binding = "document") {
     if (event.type === "view:axis-label") {
         return `${binding}.SetAxisLabel(${event.axis}, ${event.coordinate}, ${JSON.stringify(event.label)})`;
     }
+    if (event.type === "slot:batch") {
+        return `{; ${event.edits.map((edit) => rixCelEventCommand({ type: "slot:set", ...edit }, binding)).join("; ")} }`;
+    }
     throw new Error(`Unsupported RiXCel history event type: ${event.type}`);
 }
 
@@ -259,7 +261,24 @@ function normalizeEvent(rawEvent, offset, id, shape) {
             index: normalizeIndex(event.index, shape, `${path}.index`),
             ...normalizeSlotDefinition(event, path),
           }
-        : (() => {
+        : type === "slot:batch"
+            ? (() => {
+                if (!Array.isArray(event.edits) || event.edits.length < 1) {
+                    fail(`${path}.edits`, "must be a non-empty array");
+                }
+                const occupied = new Set();
+                const edits = event.edits.map((edit, editOffset) => {
+                    const editPath = `${path}.edits[${editOffset}]`;
+                    plainObject(edit, editPath);
+                    const index = normalizeIndex(edit.index, shape, `${editPath}.index`);
+                    const key = indexKey(index);
+                    if (occupied.has(key)) fail(`${editPath}.index`, "duplicates a coordinate in this batch");
+                    occupied.add(key);
+                    return { index, ...normalizeSlotDefinition(edit, editPath) };
+                });
+                return { id: eventId(id, sequence), sequence, type, edits };
+            })()
+            : (() => {
             const axis = event.axis;
             const coordinate = event.coordinate;
             if (!Number.isSafeInteger(axis) || axis < 1 || axis > shape.length) {
@@ -456,28 +475,29 @@ export function clearRixCelDraft(value, index) {
     });
 }
 
-/** Materialize the active event prefix for compatibility with the dense FormulaSheet runtime. */
-export function materializeRixCelDocument(value) {
+function replayRixCelDocument(value) {
     const document = parseRixCelDocument(value);
-    const { size } = documentShape(document.shape);
-    const slots = Array.from({ length: size }, (_unused, offset) => {
-        const index = indexFromOffset(offset, document.shape);
-        return {
-            id: slotId(document.id, index),
-            index,
-            source: document.defaultSlot.source,
-            assignmentMode: document.defaultSlot.assignmentMode,
-            view: jsonClone(document.defaultSlot.view, "$.defaultSlot.view"),
-        };
-    });
-    const byIndex = new Map(slots.map((slot) => [indexKey(slot.index), slot]));
+    const byIndex = new Map();
     let view = jsonClone(document.view, "$.view");
     for (const event of document.events.slice(0, document.cursor)) {
         if (event.type === "slot:set") {
-            const slot = byIndex.get(indexKey(event.index));
-            slot.source = event.source;
-            slot.assignmentMode = event.assignmentMode;
-            slot.view = jsonClone(event.view, `$.events[${event.sequence - 1}].view`);
+            byIndex.set(indexKey(event.index), {
+                id: slotId(document.id, event.index),
+                index: [...event.index],
+                source: event.source,
+                assignmentMode: event.assignmentMode,
+                view: jsonClone(event.view, `$.events[${event.sequence - 1}].view`),
+            });
+        } else if (event.type === "slot:batch") {
+            for (const edit of event.edits) {
+                byIndex.set(indexKey(edit.index), {
+                    id: slotId(document.id, edit.index),
+                    index: [...edit.index],
+                    source: edit.source,
+                    assignmentMode: edit.assignmentMode,
+                    view: jsonClone(edit.view, `$.events[${event.sequence - 1}].edits.view`),
+                });
+            }
         } else if (event.type === "view:axis-label") {
             const labels = Array.from({ length: document.shape.length }, (_unused, axis) => {
                 const existing = view.axisLabels?.[axis];
@@ -489,7 +509,30 @@ export function materializeRixCelDocument(value) {
             view = { ...view, axisLabels: labels.map((axisLabels) => axisLabels.every((label) => label === null) ? null : axisLabels) };
         }
     }
-    return { ...document, view: normalizeDocumentView(view, "$.view", document.shape), slots };
+    return {
+        document,
+        view: normalizeDocumentView(view, "$.view", document.shape),
+        slots: [...byIndex.values()].sort((left, right) =>
+            linearOffset(left.index, document.shape) - linearOffset(right.index, document.shape)),
+    };
+}
+
+/** Materialize the active event prefix for dense compatibility consumers. */
+export function materializeRixCelDocument(value) {
+    const { document, view, slots: sparseSlots } = replayRixCelDocument(value);
+    const { size } = documentShape(document.shape);
+    const byIndex = new Map(sparseSlots.map((slot) => [indexKey(slot.index), slot]));
+    const slots = Array.from({ length: size }, (_unused, offset) => {
+        const index = indexFromOffset(offset, document.shape);
+        return byIndex.get(indexKey(index)) ?? {
+            id: slotId(document.id, index),
+            index,
+            source: document.defaultSlot.source,
+            assignmentMode: document.defaultSlot.assignmentMode,
+            view: jsonClone(document.defaultSlot.view, "$.defaultSlot.view"),
+        };
+    });
+    return { ...document, view, slots };
 }
 
 /** Export current sheet state as a sparse event log. Runtime caches are never persisted. */
@@ -499,23 +542,16 @@ export function exportRixCelDocument(sheet) {
         id: sheet.id,
         shape: [...sheet.shape],
         view: jsonClone(sheet.documentView ?? {}, "$.view"),
-        defaultSlot: { source: "_", assignmentMode: ":=", view: {} },
+        defaultSlot: sheet.defaultSlotDefinition ?? { source: "_", assignmentMode: ":=", view: {} },
     });
-    const visit = (axis, index) => {
-        if (axis === sheet.shape.length) {
-            const slot = sheet.slot(index);
-            if (typeof slot.source !== "string") throw new Error(`RiXCel export requires source for grid[${index.join(",")}]`);
-            const current = { source: slot.source, assignmentMode: slot.assignmentMode, view: slot.view ?? {} };
-            if (JSON.stringify(current) !== JSON.stringify(document.defaultSlot)) {
-                document = appendRixCelEvent(document, { type: "slot:set", index: [...index], ...current });
-            }
-            return;
+    for (const slot of sheet.materializedSlots()) {
+        const index = [...slot.index];
+        if (typeof slot.source !== "string") throw new Error(`RiXCel export requires source for grid[${index.join(",")}]`);
+        const current = { source: slot.source, assignmentMode: slot.assignmentMode, view: slot.view ?? {} };
+        if (JSON.stringify(current) !== JSON.stringify(document.defaultSlot)) {
+            document = appendRixCelEvent(document, { type: "slot:set", index, ...current });
         }
-        for (let coordinate = 1; coordinate <= sheet.shape[axis]; coordinate += 1) {
-            visit(axis + 1, [...index, coordinate]);
-        }
-    };
-    visit(0, []);
+    }
     return document;
 }
 
@@ -528,28 +564,40 @@ export function stringifyRixCelDocument(value, options = {}) {
     return JSON.stringify(document, null, space);
 }
 
-/** Rebuild a dense FormulaSheet compatibility view from the sparse event log. */
+/** Rebuild a lazy FormulaSheet whose graph contains only active edited slots. */
 export function importRixCelDocument(value, options = {}) {
-    const document = materializeRixCelDocument(value);
+    const { document, view, slots } = replayRixCelDocument(value);
     if (typeof options.compileFormula !== "function") throw new Error("RiXCel import requires a formula compiler");
     if (typeof options.runFormula !== "function") throw new Error("RiXCel import requires a deferred formula evaluator");
-    const formulas = document.slots.map((slot) => {
+    let defaultFormula;
+    try {
+        defaultFormula = options.compileFormula(document.defaultSlot.source);
+    } catch (error) {
+        throw new Error(`RiXCel default slot source did not compile: ${error.message}`);
+    }
+    const entries = slots.map((slot) => {
         try {
-            return options.compileFormula(slot.source);
+            return { index: slot.index, formula: options.compileFormula(slot.source) };
         } catch (error) {
             throw new Error(`RiXCel source for grid[${slot.index.join(",")}] did not compile: ${error.message}`);
         }
     });
-    const slotMetadata = new Map(document.slots.map((slot) => [indexKey(slot.index), {
+    const slotMetadata = new Map(slots.map((slot) => [indexKey(slot.index), {
         id: slot.id,
         source: slot.source,
         assignmentMode: slot.assignmentMode,
         view: slot.view,
     }]));
-    return createFormulaSheet(createTensor(document.shape, formulas), {
+    return createFormulaSheet({
+        type: "sparse_formula_grid",
+        shape: document.shape,
+        entries,
+        defaultFormula,
+    }, {
         ...options,
         id: document.id,
-        documentView: document.view,
+        documentView: view,
+        defaultSlotMetadata: document.defaultSlot,
         slotMetadata,
     });
 }

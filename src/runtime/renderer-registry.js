@@ -219,7 +219,7 @@ export class RendererRegistry {
                 failures.push({ level: "warning", code: error.code, message: error.message });
             }
         }
-        const detail = failures.map(({ message }) => message).join("; ");
+        const detail = failures.map(({ code, message }) => `[${code}] ${message}`).join("; ");
         throw new UnsupportedRenderError(`Cannot render ${inputKind(value)} as '${requested}'${detail ? `: ${detail}` : ""}`, {
             code: "render-negotiation-failed",
             target: requested,

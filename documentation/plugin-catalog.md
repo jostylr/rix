@@ -37,7 +37,9 @@ alternate source file out of discovery. An ignored entry is absent from
 `.Plugin.List()` and does not reserve its ID.
 
 For future candidate packages and the contract used by output-producing
-plugins, see [Plugin Roadmap and Rendering Contracts](design/plugins.md).
+plugins, see [Plugin Roadmap and Rendering Contracts](design/plugins.md). The
+current targets, options, results, diagnostics, and host support are specified
+by the [Renderer Plugins reference](eval/renderer-guide.md).
 
 ## Placement by host
 

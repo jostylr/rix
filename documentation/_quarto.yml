@@ -22,6 +22,7 @@ project:
     - status.qmd
     - eval/sheet-guide.md
     - eval/output-guide.md
+    - eval/renderer-guide.md
     - eval/controls-guide.md
     - eval/syntax-guide.md
     - eval/methods-guide.md

@@ -472,11 +472,13 @@ second formula engine. The initial shell provides:
 - CSV/TSV value import and export; and
 - event-log cursor undo and redo with redo history retained in the document.
 
-The current grid is a dense, ordinary DOM table. Imports and edits are guarded
-by a restartable restricted worker, while the main compatibility model uses the
-same capability set. Virtualization, structural row/column edits, copy/fill
-operations, and moving persistent graph ownership fully into the worker remain
-separate milestones.
+The current visible grid is an ordinary DOM table. Imported FormulaSheet graphs
+are sparse: edited cells are installed initially and implicit default cells are
+created only when displayed or reached by a dependency. Imports and edits are
+guarded by a restartable restricted worker, while the main model uses the same
+capability set. Multi-cell paste and directional fill commit as one atomic
+`slot:batch` event. DOM virtualization, structural row/column edits, and moving
+persistent graph ownership fully into the worker remain separate milestones.
 
 ## Security and imports
 

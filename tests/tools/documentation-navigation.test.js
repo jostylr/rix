@@ -27,7 +27,18 @@ test("the published documentation manifest omits build-only source paths", () =>
   const manifest = navigationManifest(documentationNavigation);
   expect(JSON.stringify(manifest)).not.toContain('"source"');
   expect(manifest[0]).toEqual({ text: "Overview", href: "index.html" });
-  expect(manifest.find(({ section }) => section === "Language reference")?.contents.length).toBe(6);
+  expect(manifest.find(({ section }) => section === "Language reference")?.contents.length).toBe(7);
+});
+
+test("the renderer reference covers every first-party target and host boundary", async () => {
+  const guide = await Bun.file(resolve(rixRoot, "documentation/eval/renderer-guide.md")).text();
+  for (const target of ["svg", "canvas", "tikz", "png", "markdown", "html", "quarto", "latex", "pdf"]) {
+    expect(guide, target).toContain(`| \`${target}\` |`);
+    expect(guide, target).toContain(`/plugin-${target}.html`);
+  }
+  expect(guide).toContain("png-rasterizer-unavailable");
+  expect(guide).toContain("pdf-toolchain-unavailable");
+  expect(guide).toContain("The example and its binary outputs are exercised by the CLI renderer tests.");
 });
 
 test("dynamic and static documentation modes share one navigation catalog", async () => {

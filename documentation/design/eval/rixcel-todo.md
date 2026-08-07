@@ -46,7 +46,7 @@ Checked items are implemented in the current RiX repository.
 - [x] Define `sheet:formula` separately from immediate `sheet:set` events.
 - [x] Add atomic evaluation epochs with explicit dirty/evaluating/error states.
 - [x] Add sparse version-2 persistence with stable sheet, slot, and event IDs.
-- [ ] Keep the FormulaSheet graph itself sparse instead of materializing a dense compatibility view.
+- [x] Keep imported FormulaSheet graphs sparse with lazy implicit-slot materialization.
 - [x] Store source separately from assignment mode.
 - [x] Implement implied `:=` and explicit RiX assignment modes.
 - [x] Add `grid`, `row`, `col`, and `index` evaluation bindings.
@@ -89,7 +89,7 @@ Checked items are implemented in the current RiX repository.
 - [x] Add a dedicated formula bar, assignment-mode control, and exact-value display.
 - [x] Add document-level undo and redo as event-log cursor movement.
 - [x] Add single-cell formula copy/paste with explicit absolute `grid` and relative `near` semantics.
-- [ ] Add multi-cell copy/paste and fill.
+- [x] Add multi-cell copy/paste and fill with atomic batch history events.
 - [ ] Add row/column insertion with parsed reference updates.
 - [x] Add local persistence and `.rixcel` open/save.
 - [x] Preflight imports and edits in a restartable, timed worker with restricted capabilities.
@@ -117,4 +117,4 @@ Checked items are implemented in the current RiX repository.
 - [ ] Define linked tensor-to-sheet views.
 - [ ] Design tensor spill ownership and collision rules.
 - [ ] Add block formatting and named rank-N regions.
-- [ ] Test sparse sheets at large logical shapes.
+- [x] Test sparse sheets at large logical shapes.

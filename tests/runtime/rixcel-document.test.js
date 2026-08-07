@@ -113,6 +113,29 @@ describe("RiXCel documents", () => {
         expect(document.events).toHaveLength(2);
     });
 
+    test("keeps large imported FormulaSheet graphs sparse and materializes defaults lazily", () => {
+        let document = createRixCelDocument({ id: "million", shape: [1000, 1000] });
+        document = appendRixCelEvent(document, {
+            type: "slot:set",
+            index: [1000, 1000],
+            source: "grid[500,500]",
+            assignmentMode: ":=",
+            view: {},
+        });
+        const literal = `""${stringifyRixCelDocument(document)}""`;
+        const sheet = parseAndEvaluate(`.RiXCelImport(${literal})`);
+
+        expect(sheet.shape).toEqual([1000, 1000]);
+        expect(sheet.materializedSlotCount).toBe(2);
+        expect(sheet.graph.nodeCount).toBe(2);
+        expect(sheet.slot([1000, 1000]).dependencies).toEqual(["500,500"]);
+        expect(sheet.slot([500, 500]).value).toBeNull();
+
+        expect(sheet.slot([999, 999]).value).toBeNull();
+        expect(sheet.materializedSlotCount).toBe(3);
+        expect(exportRixCelDocument(sheet).events).toHaveLength(1);
+    });
+
     test("records cosmetic view changes in the same replay log", () => {
         let document = createRixCelDocument({ id: "labels", shape: [2, 2] });
         document = appendRixCelEvent(document, {
@@ -125,6 +148,26 @@ describe("RiXCel documents", () => {
         expect(materialized.view.axisLabels).toEqual([null, ["Revenue", null]]);
         expect(document.events[0].command)
             .toBe('document.SetAxisLabel(2, 1, "Revenue")');
+    });
+
+    test("records and replays a multi-cell edit as one executable history event", () => {
+        let document = createRixCelDocument({ id: "batch", shape: [2, 2] });
+        document = appendRixCelEvent(document, {
+            type: "slot:batch",
+            edits: [
+                { index: [1, 1], source: "4", assignmentMode: ":=", view: {} },
+                { index: [1, 2], source: "near[0,-1] * 3", assignmentMode: "~=", view: {} },
+            ],
+        });
+        expect(document.events).toHaveLength(1);
+        expect(document.events[0].edits).toHaveLength(2);
+        expect(document.events[0].command).toBe(
+            '{; document.SetSource(1, 1, "4", ":="); document.SetSource(1, 2, "near[0,-1] * 3", "~=") }',
+        );
+        const literal = `""${stringifyRixCelDocument(document)}""`;
+        const restored = parseAndEvaluate(`.RiXCelImport(${literal})`);
+        expect(formatValue(restored.get([1, 2]))).toBe("12");
+        expect(materializeRixCelDocument(setRixCelCursor(document, 0)).slots[0].source).toBe("_");
     });
 
     test("keeps failed edit drafts without applying them", () => {
