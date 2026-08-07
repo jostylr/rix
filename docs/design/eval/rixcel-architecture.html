@@ -612,6 +612,7 @@ $frag</code></pre>
 <h2 class="anchored" data-anchor-id="rank-n-editing">Rank-N editing</h2>
 <p>Storage is rank-N from the beginning. The first standalone editor can remain two-dimensional: two axes are shown as the grid, and every additional axis is represented by a selector, tab, or slider.</p>
 <p>A tensor-valued slot does not automatically occupy neighboring slots. It renders as an embedded value until explicit spill/materialization semantics are designed.</p>
+<p>Row and column insertion requires a shape-changing history event; rewriting a snapshot in place would make cursor undo/redo inconsistent. The reference rewriter tokenizes authoritative formula source and changes only literal coordinates in contextual <code>grid[...]</code> and <code>near[...]</code> reads. Strings, comments, member names, and unrelated formatting remain byte-for-byte unchanged. A dynamic reference such as <code>grid[row, 2]</code> is reported and left untouched so the structural operation can stop for explicit user resolution rather than guess. For <code>near</code>, the old formula origin and target are shifted independently, then a new relative offset is calculated.</p>
 </section>
 <section id="standalone-host" class="level2">
 <h2 class="anchored" data-anchor-id="standalone-host">Standalone host</h2>
@@ -622,7 +623,7 @@ $frag</code></pre>
 <li>CSV/TSV value import and export; and</li>
 <li>event-log cursor undo and redo with redo history retained in the document.</li>
 </ul>
-<p>The current grid is a dense, ordinary DOM table. Imports and edits are guarded by a restartable restricted worker, while the main compatibility model uses the same capability set. Virtualization, structural row/column edits, copy/fill operations, and moving persistent graph ownership fully into the worker remain separate milestones.</p>
+<p>The UI renders a bounded row/column window as an ordinary DOM table, with controls for moving that window across a large logical plane. The persistent FormulaSheet, exact values, dependencies, diagnostics, and HTML plane projection live entirely in a restartable restricted worker. The main thread holds the event log and enhances the returned HTML with selection and editing behavior; it does not compile or evaluate RiX. Imported graphs remain sparse, and implicit default cells are created only when displayed or reached by a dependency. Multi-cell paste and directional fill commit as one atomic <code>slot:batch</code> event. Structural row/column edits remain a separate milestone.</p>
 </section>
 <section id="security-and-imports" class="level2">
 <h2 class="anchored" data-anchor-id="security-and-imports">Security and imports</h2>

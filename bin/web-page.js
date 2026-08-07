@@ -24,6 +24,9 @@ import { install as installQuarto } from "../plugins/render-quarto/quarto.plugin
 import { install as installLatex } from "../plugins/render-latex/latex.plugin.rix.js";
 import { install as installPng } from "../plugins/render-png/png.plugin.rix.js";
 import { install as installPdf } from "../plugins/render-pdf/pdf.plugin.rix.js";
+import { install as installScene3D } from "../plugins/scene3d/scene3d.plugin.rix.js";
+import { install as installNd } from "../plugins/nd/nd.plugin.rix.js";
+import { install as installGltf } from "../plugins/render-gltf/gltf.plugin.rix.js";
 
 const page = globalThis.__RIX_PAGE__;
 
@@ -49,6 +52,16 @@ function createCatalog() {
         kind: "rix", mount: "arrayRix", exports: ["arrayRixSum", "arrayRixDescribe", "arrayRixReverse"],
         groups: ["Examples"], permissions: [], defaultEnabled: false,
     }, null, arrayRixSource);
+    addPlugin(catalog, {
+        id: "scene3d", description: "Exact retained 3D scenes with deterministic wireframe Graphics snapshots.",
+        kind: "host", mount: "scene3d", exports: ["Scene", "Group", "Transform", "Mesh", "Polyline", "PointCloud", "Material", "PerspectiveCamera", "OrthographicCamera", "Snapshot"],
+        groups: ["Scene3D", "Graphics"], permissions: [], provides: ["rix.scene3d@1"], defaultEnabled: false,
+    }, installScene3D);
+    addPlugin(catalog, {
+        id: "nd", description: "Exact n-dimensional geometry with explicit affine and Cayley projection records.",
+        kind: "host", mount: "nd", exports: ["Point", "Polyline", "Polytope", "Hypercube", "Projection", "CoordinateProjection", "CayleyRotation", "Compose", "Project", "ToScene3D"],
+        groups: ["Geometry", "Scene3D", "Exact"], permissions: [], requires: ["rix.scene3d@1"], defaultEnabled: false,
+    }, installNd);
     for (const [id, description, installer, permissions = []] of [
         ["svg", "Portable SVG renderer for core Graphics scenes.", installSvg],
         ["canvas", "Serializable Canvas 2D drawing plans for core Graphics scenes.", installCanvas],
@@ -59,6 +72,7 @@ function createCatalog() {
         ["latex", "Standalone LaTeX renderer for portable RiX documents and figures.", installLatex],
         ["png", "PNG snapshot renderer for core Graphics through a host rasterizer.", installPng, ["process"]],
         ["pdf", "PDF document and figure renderer orchestrated through LaTeX.", installPdf, ["process", "files"]],
+        ["gltf", "Browser-safe glTF 2.0 JSON exporter for retained Scene3D values.", installGltf],
     ]) {
         addPlugin(catalog, {
             id, description, kind: "host", mount: id, exports: ["Render"],

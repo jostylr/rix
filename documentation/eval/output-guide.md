@@ -105,10 +105,12 @@ graphics to TikZ, and PDF compiles that result. In the CLI, PNG uses
 `rsvg-convert` or ImageMagick and PDF uses `pdflatex`; browser hosts report an
 unavailable-toolchain diagnostic unless they deliberately install an adapter.
 
-The retained `Scene3D` schema is not implemented yet. Future glTF/GLB,
-OBJ/MTL, STL, PLY, and USD/USDZ exporters will consume that schema. Static 3D
-snapshots will lower camera-projected content to Graphics or raster output;
-2D renderers will not infer cameras or meshes from ad-hoc Graphics metadata.
+The optional `.scene3d` plugin now provides the initial retained
+`rix.scene3d@1` schema. Its deterministic wireframe `Snapshot` applies a
+perspective or orthographic camera and returns core Graphics; 2D renderers do
+not infer cameras or meshes. The optional `.nd` plugin provides exact explicit
+affine projections into 3D, and `.gltf` exports retained scenes as embedded
+glTF 2.0 JSON. See [3D scenes and n-dimensional projection](scene3d-guide.md).
 
 ## Snapshots and timelines
 

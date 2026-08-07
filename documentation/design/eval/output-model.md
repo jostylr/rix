@@ -849,25 +849,22 @@ approximation policy only while creating pixels or SVG coordinates.
 
 ### 3D scene construction
 
-The 3D plugin produces a retained `Scene` rather than treating WebGL state as
-the value. A host with an interactive renderer can orbit the camera; an export
-host can ask for an SVG/PNG `Graphic` snapshot.
+The initial `.scene3d` plugin produces a retained `rix.scene3d@1` value rather
+than treating WebGL state as the value. Its implemented wireframe snapshot
+applies a retained camera and returns core Graphics. Interactive orbit,
+adaptive surfaces, and lit/hidden-surface modes remain follow-up work.
 
 ```rix
-surface := .Scene3D.ParametricSurface({=
-    fn = (u, v) -> [u, v, u * v],
-    u = [-3, 3],
-    v = [-3, 3],
-    material = {= color = "#4b9cd3", opacity = 0.85 }
-})
-
-scene := .Scene3D({=
-    objects = [surface],
-    camera = {= position = [6, 5, 7], target = [0, 0, 0] },
-    lights = [{= type = :directional, direction = [1, -1, -1] }]
-})
-
-staticFigure := scene.Snapshot(:svg, {= size = [720, 480] })
+.Plugin.Load("scene3d");
+mesh := .scene3d.Mesh(
+    [[0,0,0], [1,0,0], [0,1,0]],
+    [[1,2,3]],
+    {= color="#4b9cd3", opacity=17/20 }
+);
+scene := .scene3d.Scene([mesh], {=
+    camera=.scene3d.PerspectiveCamera([6,5,7], [0,0,0])
+});
+staticFigure := .scene3d.Snapshot(scene, {= size=[720,480] })["value"];
 ```
 
 ### Exact and adaptive renderables

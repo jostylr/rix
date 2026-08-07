@@ -3,6 +3,8 @@
 import { install as installDrawPlugin } from "./draw/draw.plugin.rix.js";
 import { install as installExactAlgebrasPlugin } from "./exact-algebras/exact-algebras.plugin.rix.js";
 import { install as installPlotPlugin } from "./plot/plot.plugin.rix.js";
+import { install as installScene3DPlugin } from "./scene3d/scene3d.plugin.rix.js";
+import { install as installNdPlugin } from "./nd/nd.plugin.rix.js";
 import { install as installSvgPlugin } from "./render-svg/svg.plugin.rix.js";
 import { install as installCanvasPlugin } from "./render-canvas/canvas.plugin.rix.js";
 import { install as installTikzPlugin } from "./render-tikz/tikz.plugin.rix.js";
@@ -12,6 +14,7 @@ import { install as installQuartoPlugin } from "./render-quarto/quarto.plugin.ri
 import { install as installLatexPlugin } from "./render-latex/latex.plugin.rix.js";
 import { install as installPngPlugin } from "./render-png/png.plugin.rix.js";
 import { install as installPdfPlugin } from "./render-pdf/pdf.plugin.rix.js";
+import { install as installGltfPlugin } from "./render-gltf/gltf.plugin.rix.js";
 
 const BUNDLED_PLUGINS = [
     {
@@ -53,6 +56,27 @@ const BUNDLED_PLUGINS = [
         },
         install: ({ systemContext }) => installPlotPlugin({ systemContext }),
     },
+    {
+        metadata: {
+            id: "scene3d", description: "Exact retained 3D scenes with deterministic wireframe Graphics snapshots.",
+            kind: "host", mount: "scene3d",
+            exports: ["Scene", "Group", "Transform", "Mesh", "Polyline", "PointCloud", "Material", "PerspectiveCamera", "OrthographicCamera", "Snapshot"],
+            groups: ["Scene3D", "Graphics"], permissions: [], provides: ["rix.scene3d@1"], schemas: ["rix.scene3d@1"],
+            snapshot: true, deterministic: true, defaultEnabled: false,
+        },
+        install: ({ systemContext }) => installScene3DPlugin({ systemContext }),
+    },
+    {
+        metadata: {
+            id: "nd", description: "Exact n-dimensional geometry with explicit affine and Cayley projection records.",
+            kind: "host", mount: "nd",
+            exports: ["Point", "Polyline", "Polytope", "Hypercube", "Projection", "CoordinateProjection", "CayleyRotation", "Compose", "Project", "ToScene3D"],
+            groups: ["Geometry", "Scene3D", "Exact"], permissions: [], requires: ["rix.scene3d@1"],
+            provides: ["rix.nd@1", "rix.nd.projection@1"], schemas: ["rix.nd@1", "rix.nd.projection@1"],
+            snapshot: true, deterministic: true, defaultEnabled: false,
+        },
+        install: ({ systemContext }) => installNdPlugin({ systemContext }),
+    },
     ...[
         ["svg", "Portable SVG renderer for core Graphics scenes.", "svg", ["Render"], [], installSvgPlugin, "image/svg+xml", true],
         ["canvas", "Serializable Canvas 2D drawing plans for core Graphics scenes.", "canvas", ["Render"], [], installCanvasPlugin, "application/vnd.rix.canvas+json", true],
@@ -63,6 +87,7 @@ const BUNDLED_PLUGINS = [
         ["latex", "Standalone LaTeX renderer for portable RiX documents and figures.", "latex", ["Render"], [], installLatexPlugin, "text/x-tex", true],
         ["png", "PNG snapshot renderer for core Graphics through a host rasterizer.", "png", ["Render"], ["process"], installPngPlugin, "image/png", true],
         ["pdf", "PDF document and figure renderer orchestrated through LaTeX.", "pdf", ["Render"], ["process", "files"], installPdfPlugin, "application/pdf", false],
+        ["gltf", "Browser-safe glTF 2.0 JSON exporter for retained Scene3D values.", "gltf", ["Render"], [], installGltfPlugin, "model/gltf+json", true],
     ].map(([id, description, mount, exports, permissions, install, mime, deterministic]) => ({
         metadata: {
             id,

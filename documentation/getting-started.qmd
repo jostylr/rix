@@ -66,8 +66,9 @@ rix setup --plugins=float,renderers
 
 Plugin names and plugin groups are case-insensitive. `full` selects the
 standard first-party plugin set; `renderers` selects the SVG, Canvas-plan,
-TikZ, PNG, Markdown, HTML, Quarto, LaTeX, and PDF target plugins. `.draw` and
-`.plot` are scene producers and remain in their own groups. RiX stores the selectors rather than expanding groups permanently, so
+TikZ, PNG, Markdown, HTML, Quarto, LaTeX, PDF, and glTF target plugins. `.draw`,
+`.plot`, `.scene3d`, and `.nd` are producers and remain in their own groups.
+RiX stores the selectors rather than expanding groups permanently, so
 new standard plugins or group members can join later releases. The proposed
 `oracle` package remains specification-only and cannot be selected until it has
 an executable plugin manifest.

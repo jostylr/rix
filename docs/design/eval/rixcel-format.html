@@ -428,7 +428,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><code>cursor</code>: the number of active events. Undo and redo move this cursor rather than cloning full documents or deleting history.</li>
 <li><code>drafts</code>: failed/uncommitted formula text and diagnostics. Drafts survive local recovery but do not affect current values or dependency evaluation.</li>
 </ul>
-<p>A million-cell empty logical sheet is therefore approximately the same size as a twenty-cell empty sheet. Dense FormulaSheet compatibility views are materialized only when the current runtime evaluates or renders the document.</p>
+<p>A million-cell empty logical sheet is therefore approximately the same size as a twenty-cell empty sheet. The imported FormulaSheet graph also stays sparse; individual implicit slots are materialized only when evaluated or rendered.</p>
 </section>
 <section id="events-and-executable-rix-commands" class="level2">
 <h2 class="anchored" data-anchor-id="events-and-executable-rix-commands">Events and executable RiX commands</h2>
@@ -446,7 +446,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>The structured fields are authoritative. The <code>command</code> is a canonical, validated rendering of the same edit and is executable when the target FormulaSheet is bound as <code>document</code>. Keeping both forms makes logs safely machine-replayable and human-auditable. A host operation that captures a one-time result should store a literal RiX source value. A live formula keeps its original formula source.</p>
 <p>Cosmetic coordinate labels use <code>view:axis-label</code> events with canonical commands such as:</p>
 <pre class="rix"><code>document.SetAxisLabel(2, 1, "Revenue")</code></pre>
-<p>Future range, fill, paste, and structural operations can add compact event types without expanding into one document snapshot per affected cell. Their structured representation remains authoritative, and each can expose an equivalent canonical RiX command.</p>
+<p>Multi-cell paste and fill use one <code>slot:batch</code> event containing ordered slot edits rather than one history event per cell. Its canonical command is an executable RiX block of <code>SetSource</code> calls, so one undo step reverts the entire operation. Future structural operations can add further compact event types.</p>
 </section>
 <section id="replay-and-branching" class="level2">
 <h2 class="anchored" data-anchor-id="replay-and-branching">Replay and branching</h2>
@@ -478,15 +478,16 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li>validates shape, event identities, commands, modes, coordinates, and JSON metadata;</li>
 <li>replays the active event prefix;</li>
 <li>compiles the resulting authoritative slot sources;</li>
-<li>creates a fresh FormulaSheet graph and isolated execution context; and</li>
+<li>creates a fresh sparse FormulaSheet graph and isolated execution context;</li>
+<li>materializes edited slots plus implicit slots reached by runtime reads; and</li>
 <li>evaluates the initial atomic epoch, rebuilding dependencies from actual reads.</li>
 </ol>
 <p>Compiled IR, current values, prior values, dependency edges, graph state, and caches are never trusted from the document.</p>
 </section>
 <section id="worker-boundary" class="level2">
 <h2 class="anchored" data-anchor-id="worker-boundary">Worker boundary</h2>
-<p>The standalone editor evaluates every imported document and proposed formula edit in a fresh-state Web Worker before committing it to the UI model. Dynamic JavaScript/module registration, plugin management, streams, and retry capabilities are withheld. A timed-out worker is terminated and replaced. The main compatibility model uses the same restricted capability set.</p>
-<p>The remaining scalability step is moving ownership of the persistent FormulaSheet graph and visible-plane projection fully into the worker so the UI thread never materializes the dense compatibility view.</p>
+<p>The standalone editor keeps its persistent FormulaSheet and visible-plane projector in a restricted Web Worker. Dynamic JavaScript/module registration, plugin management, streams, and retry capabilities are withheld. The main thread retains only the event log and interactive DOM. It submits a complete candidate log for each commit, allowing a replacement worker to reconstruct the session after a timeout or termination.</p>
+<p>The graph produced by <code>.RiXCelImport</code> is sparse and implicit default slots are created lazily. Projection requests bound row and column counts, so a large logical plane creates only the currently visible DOM cells.</p>
 </section>
 <section id="apis" class="level2">
 <h2 class="anchored" data-anchor-id="apis">APIs</h2>

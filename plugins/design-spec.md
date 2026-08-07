@@ -35,6 +35,9 @@ numeric type or one universal rendering engine.
 | Renderer registry | Implemented runtime service | `.Renderer.List`/`.Info`, generic `.Render`, MIME/extension aliases, explicit fallback negotiation, structured results/assets/diagnostics, and `.Out` target selection. |
 | `.svg`, `.canvas`, `.tikz`, `.png` | Implemented plugins | Core Graphics to SVG, Canvas 2D plans, TikZ, and host-rasterized PNG. PNG uses an approved CLI toolchain adapter. |
 | `.markdown`, `.html`, `.quarto`, `.latex`, `.pdf` | Implemented plugins | Portable document/output trees to standalone text/document formats. PDF delegates through LaTeX and an approved CLI compiler adapter. |
+| `.scene3d` | Implemented initial plugin | Retained exact mesh/polyline/point scenes, transforms, perspective/orthographic cameras, and deterministic wireframe snapshots to core Graphics. |
+| `.nd` | Implemented initial plugin | Exact points, polylines, polytopes/hypercubes, affine projection records, rational Cayley rotations, composition, and explicit conversion of 3D results to Scene3D. |
+| `.gltf` | Implemented initial renderer | Retained Scene3D to embedded-buffer glTF 2.0 JSON with explicit Z-up to Y-up and Float32 conversion diagnostics. |
 | HTML/SVG/terminal display | Implemented compatibility hosts | Existing direct host display remains available without loading an exporter; explicit artifacts use the renderer registry when a matching plugin is loaded. |
 
 ### Proposed first-party packages
@@ -46,13 +49,13 @@ numeric type or one universal rendering engine.
 | Real backends | `.float`, `.ball`, `.oracle`, `.cauchy`, `.continuedFraction`, `.algebraicReal` | Alternative representations that satisfy shared real-number and enclosure protocols. |
 | Geometry | `.geometry` | Exact constructions, transformations, constraints, intersections, implicit loci, and certified drawing refinement. |
 | Plotting | `.plot` | Function, parametric, implicit, data, statistical, vector, contour, and heat-map plots. |
-| 3D scenes | `.scene3d` | Retained cameras, lights, materials, curves, meshes, surfaces, volumes, projection, and static snapshots. |
-| Higher dimensions | `.nd` | N-dimensional points, fields, meshes, implicit regions, projections, slices, sections, and fibers. |
+| 3D scene expansion | `.scene3d` | Hidden-surface/lighting policies, adaptive surfaces and volumes, textures, animation, clipping, and interactive orbit beyond the implemented retained wireframe slice. |
+| Higher-dimensional expansion | `.nd` | Fields, meshes, implicit regions, slices, sections, fibers, sampling, and marginalization beyond implemented affine projection. |
 | Complex visualization | `.complexViz` | Domain coloring, magnitude/phase surfaces, Cayley color mappings, Riemann-sphere views, and complex-to-complex projections. |
 | Data | `.data` | Relations, schemas, joins, transformations, and presentation-neutral tabular data. |
 | Statistics | `.stats` | Exact/approximate summaries, distributions, models, regression, and plot-ready result values. |
 | Document features | `.document` | Citations, references, numbering, themes, assets, and report/deck assembly beyond core fragments. |
-| Rendering and export | `.terminalAscii`, `.gif`, `.csv`; 3D glTF/GLB, OBJ, STL, PLY, USD/USDZ adapters | Remaining target encoders/exporters. SVG, Canvas, TikZ, PNG, Markdown, HTML, Quarto, LaTeX, and PDF have initial implementations. 3D targets wait for the retained `Scene3D` schema. |
+| Rendering and export | `.terminalAscii`, `.gif`, `.csv`; 3D GLB, OBJ, STL, PLY, USD/USDZ adapters | Remaining target encoders/exporters. SVG, Canvas, TikZ, PNG, Markdown, HTML, Quarto, LaTeX, PDF, and glTF JSON have initial implementations. |
 
 Plugin IDs and mount names remain lowercase or lower camel case. Core portable
 constructors retain their existing PascalCase system names.
@@ -429,7 +432,9 @@ always provide SVG/PNG snapshot lowering.
 ## 7. Scene3D plugin
 
 `.scene3d` defines a retained three-dimensional scene. It must not expose
-WebGL state as the value.
+WebGL state as the value. The initial `rix.scene3d@1` mesh/polyline/point,
+transform, camera, wireframe Snapshot, and glTF JSON slice is implemented;
+the broader surface and volume list below remains a design target.
 
 ### Scene values
 
@@ -456,26 +461,21 @@ Hidden-surface removal, lighting, tessellation, and depth sorting belong to a
 Scene3D renderer/refiner, not the SVG renderer.
 
 ```rix
-# Proposed
 .Plugin.Load("scene3d")
-surface := .scene3d.ParametricSurface({=
-    fn = (u, v) -> [u, v, u * v],
-    u = [-3, 3],
-    v = [-3, 3],
-    material = {= color="#4b9cd3", opacity=17/20 }
+mesh := .scene3d.Mesh([[0,0,0], [1,0,0], [0,1,0]], [[1,2,3]])
+scene := .scene3d.Scene([mesh], {=
+    camera=.scene3d.PerspectiveCamera([6,5,7], [0,0,0])
 })
-
-scene := .scene3d.Scene({=
-    objects = [surface],
-    camera = .scene3d.Camera([6, 5, 7], [0, 0, 0]),
-    lights = [.scene3d.Light(:directional, [1, -1, -1])]
-})
+graphic := .scene3d.Snapshot(scene)["value"]
 ```
 
 ## 8. Higher-dimensional plugin
 
 `.nd` retains N-dimensional semantics and performs explicit dimensional
 reduction. It does not pretend an N-dimensional object is intrinsically 3D.
+Exact affine projections, Cayley rotations, points/polylines/polytopes, and
+hypercubes are implemented; slices, fields, fibers, and marginalization below
+remain design targets.
 
 ### Values
 
@@ -638,7 +638,7 @@ not silently discarded.
 | Plugin | Primary inputs | Output and responsibilities |
 | --- | --- | --- |
 | `.svg` | `Graphic`, standalone `Figure`; projected `Scene3D` | SVG text/bytes, clipping, paths, exact-to-decimal coordinate policy, metadata, accessibility. |
-| `.canvas` | `Graphic`; projected `Scene3D`; rapidly changing plot frames | Browser `CanvasRenderingContext2D` drawing plan and host-owned surface. Optimized for repainting, large sample counts, hit-test metadata, and interactive views; provides PNG snapshots because a canvas is not itself a portable serialized result. |
+| `.canvas` | `Graphic`, including a `Scene3D` Snapshot result; rapidly changing plot frames | Browser `CanvasRenderingContext2D` drawing plan and host-owned surface. Optimized for repainting, large sample counts, hit-test metadata, and interactive views; provides PNG snapshots because a canvas is not itself a portable serialized result. |
 | `.png` | `Graphic`, rendered document region, `Scene3D`, slide frame | Raster image; delegates scene construction to SVG/Scene3D and owns resolution, antialiasing, color profile, and transparency. |
 | `.terminalAscii` | Scalars, tables, grids, fragments, graphics, slides | Strict ASCII output with widths, pagination, line styles, plot approximation, and no Unicode dependency. A future terminal-Unicode renderer may offer richer glyphs. |
 | `.tikz` | `Graphic`, geometry diagrams, plot snapshots | TikZ/PGF source, coordinates, paths, labels, styles, and optional PGFPlots lowering. Reports unsupported raster/3D effects. |
@@ -797,8 +797,8 @@ Teaching-only plugins belong under `rix/examples/plugins/`, not this directory.
    and heat maps using Numerics.
 6. Extract the existing SVG/terminal behavior into renderer registrations, add
    Canvas over the same `Graphic` traversal contract, then add PNG and TikZ.
-7. Implement the retained `.scene3d` schema and deterministic static snapshot.
-8. Add `.nd` projection/slicing and validate it with a 4D-to-3D section example.
+7. **Implemented initial slice:** retained `.scene3d` schema and deterministic wireframe static snapshot.
+8. **Implemented projection slice:** `.nd` exact affine projection validated with a 4D-to-3D tesseract example; slicing remains next.
 9. Add `.complexViz.DomainColoring` and `.complexViz.CayleySurface`, including
    poles, projective infinity, and uncertainty visualization.
 10. Add CSV/TSV early as a small `Table`/relation exporter. Add

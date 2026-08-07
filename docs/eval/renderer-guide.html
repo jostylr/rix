@@ -372,6 +372,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#canvas" id="toc-canvas" class="nav-link" data-scroll-target="#canvas">Canvas</a></li>
   <li><a href="#tikz" id="toc-tikz" class="nav-link" data-scroll-target="#tikz">TikZ</a></li>
   <li><a href="#png" id="toc-png" class="nav-link" data-scroll-target="#png">PNG</a></li>
+  <li><a href="#gltf" id="toc-gltf" class="nav-link" data-scroll-target="#gltf">glTF</a></li>
   </ul></li>
   <li><a href="#document-targets" id="toc-document-targets" class="nav-link" data-scroll-target="#document-targets">Document targets</a>
   <ul class="collapse">
@@ -408,7 +409,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 targets := .Renderer.List();
 svg := .Renderer.Info("image/svg+xml");</code></pre>
 <pre class="rix"><code>/**
-plugins: [svg, canvas, tikz, png, markdown, html, quarto, latex, pdf]
+plugins: [svg, canvas, tikz, png, markdown, html, quarto, latex, pdf, gltf]
 **/</code></pre>
 <p>The CLI also accepts <code>--plugins=renderers</code>, and <code>rix setup --plugins=renderers</code> can make the group part of the local CLI configuration. <code>.Renderer.Info(target)</code> reports the canonical target, MIME type, extension, accepted input kinds, aliases, and determinism claim.</p>
 </section>
@@ -562,6 +563,13 @@ source := result.Get("content");</code></pre>
 <td>Contract only</td>
 <td><code>pdflatex</code></td>
 </tr>
+<tr class="even">
+<td><code>gltf</code></td>
+<td>retained Scene3D</td>
+<td><code>.gltf</code>, <code>model/gltf+json</code></td>
+<td>Full</td>
+<td>None</td>
+</tr>
 </tbody>
 </table>
 <p>“Full” means the browser can produce the target content. Source targets do not compile or open their downstream application. Contract-only targets can be loaded and inspected in a browser, but rendering reports a toolchain error because browsers do not spawn rasterizers or TeX.</p>
@@ -591,6 +599,11 @@ source := result.Get("content");</code></pre>
 <p>PNG first lowers a Graphic to SVG and asks the host for an approved rasterizer. <code>scale</code> multiplies the Graphic dimensions; explicit <code>width</code> and <code>height</code> override the corresponding scaled dimensions, and <code>background</code> requests a background color. Dimensions must be finite and positive after host rounding.</p>
 <pre class="rix"><code>.png.Render(graphic, {= scale=2, background="white" });</code></pre>
 <p>The CLI tries <code>rsvg-convert</code>, then ImageMagick’s <code>magick</code>, and records the chosen toolchain. A browser render fails with <code>png-rasterizer-unavailable</code>. See the <a href="https://rix.ratmath.com/tutorial/plugin-png.html">PNG host-boundary tutorial</a>.</p>
+</section>
+<section id="gltf" class="level3">
+<h3 class="anchored" data-anchor-id="gltf">glTF</h3>
+<p>glTF accepts the retained <code>rix.scene3d@1</code> scene rather than a projected Graphic. It converts RiX’s right-handed Z-up coordinates to glTF’s right-handed Y-up convention and embeds a base64 geometry buffer in glTF 2.0 JSON. Mesh triangles, lines, points, basic colors, and opacity are supported. Exact positions become Float32 at this explicit export boundary. Cameras, lights, textures, animation, and GLB remain follow-up work.</p>
+<p>Learn interactively in the <a href="https://rix.ratmath.com/tutorial/plugin-gltf.html">glTF renderer tutorial</a>.</p>
 </section>
 </section>
 <section id="document-targets" class="level2">
@@ -661,6 +674,14 @@ source := result.Get("content");</code></pre>
 <td><code>html-static-interaction</code></td>
 <td>Static HTML retained markup without a live widget runtime.</td>
 </tr>
+<tr class="odd">
+<td><code>gltf-float32-approximation</code></td>
+<td>Exact Scene3D coordinates were rounded to Float32.</td>
+</tr>
+<tr class="even">
+<td><code>gltf-line-width-portability</code></td>
+<td>glTF lines cannot portably retain authored width.</td>
+</tr>
 </tbody>
 </table>
 </section>
@@ -672,7 +693,7 @@ source := result.Get("content");</code></pre>
 </section>
 <section id="d-boundary" class="level2">
 <h2 class="anchored" data-anchor-id="d-boundary">3D boundary</h2>
-<p>RiX does not yet have a retained <code>Scene3D</code> value, so no plugin pretends that ad-hoc <code>.Graphics</code> metadata is a mesh, camera, material, or light. glTF/GLB, OBJ/MTL, STL, PLY, and USD/USDZ will consume that future schema. A static 3D snapshot will own camera projection and hidden-surface decisions before lowering to a Graphic or raster artifact.</p>
+<p>The initial retained <code>rix.scene3d@1</code> schema, deterministic wireframe snapshot, and glTF JSON exporter are implemented. Scene3D owns cameras and projection; SVG/Canvas/TikZ still consume only the Graphic returned by <code>.scene3d.Snapshot</code>. The snapshot does not claim hidden-line removal or lighting. OBJ/MTL, STL, PLY, USD/USDZ, GLB, adaptive surfaces, and interactive orbit controls remain future adapters or refiners. See the complete <a href="../eval/scene3d-guide.html">3D and n-dimensional guide</a>.</p>
 
 
 </section>

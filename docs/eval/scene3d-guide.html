@@ -6,9 +6,8 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
-<meta name="description" content="Install RiX in the RatMath workspace, run the REPL, execute scripts, and embed the evaluator.">
 
-<title>Getting started – RiX</title>
+<title>scene3d-guide – RiX</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -62,28 +61,28 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </style>
 
 
-<script src="site_libs/quarto-nav/quarto-nav.js"></script>
-<script src="site_libs/quarto-nav/headroom.min.js"></script>
-<script src="site_libs/clipboard/clipboard.min.js"></script>
-<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
-<script src="site_libs/quarto-search/fuse.min.js"></script>
-<script src="site_libs/quarto-search/quarto-search.js"></script>
-<meta name="quarto:offset" content="./">
-<link href="./rix-logo.png" rel="icon" type="image/png">
-<script src="site_libs/quarto-html/quarto.js" type="module"></script>
-<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
-<script src="site_libs/quarto-html/popper.min.js"></script>
-<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
-<script src="site_libs/quarto-html/anchor.min.js"></script>
-<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="site_libs/quarto-html/quarto-syntax-highlighting-4a0610749eeff5ab924a4729b5181608.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
-<link href="site_libs/quarto-html/quarto-syntax-highlighting-dark-de927ec96a2411cf822331f71755f83e.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
-<link href="site_libs/quarto-html/quarto-syntax-highlighting-4a0610749eeff5ab924a4729b5181608.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
-<script src="site_libs/bootstrap/bootstrap.min.js"></script>
-<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="site_libs/bootstrap/bootstrap-dfa129ac6e33aa8a1407114b8c26932f.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
-<link href="site_libs/bootstrap/bootstrap-dark-de8d9ea7065925b465f143946b8defe2.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
-<link href="site_libs/bootstrap/bootstrap-dfa129ac6e33aa8a1407114b8c26932f.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<link href="../rix-logo.png" rel="icon" type="image/png">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-4a0610749eeff5ab924a4729b5181608.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-dark-de927ec96a2411cf822331f71755f83e.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-4a0610749eeff5ab924a4729b5181608.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-dfa129ac6e33aa8a1407114b8c26932f.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-dark-de8d9ea7065925b465f143946b8defe2.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../site_libs/bootstrap/bootstrap-dfa129ac6e33aa8a1407114b8c26932f.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -284,11 +283,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
       <div class="navbar-container container-fluid">
       <div class="navbar-brand-container mx-auto">
-    <a href="./index.html" class="navbar-brand navbar-brand-logo">
-    <img src="./rix-logo.png" alt="" class="navbar-logo light-content">
-    <img src="./rix-logo.png" alt="" class="navbar-logo dark-content">
+    <a href="../index.html" class="navbar-brand navbar-brand-logo">
+    <img src="../rix-logo.png" alt="" class="navbar-logo light-content">
+    <img src="../rix-logo.png" alt="" class="navbar-logo dark-content">
     </a>
-    <a class="navbar-brand" href="./index.html">
+    <a class="navbar-brand" href="../index.html">
     <span class="navbar-title">RiX</span>
     </a>
   </div>
@@ -299,19 +298,19 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
           <div class="collapse navbar-collapse" id="navbarCollapse">
             <ul class="navbar-nav navbar-nav-scroll me-auto">
   <li class="nav-item">
-    <a class="nav-link active" href="./getting-started.html" aria-current="page"> 
+    <a class="nav-link" href="../getting-started.html"> 
 <span class="menu-text">Start</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="./language-at-a-glance.html"> 
+    <a class="nav-link" href="../language-at-a-glance.html"> 
 <span class="menu-text">Learn</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="./eval/syntax-guide.html"> 
+    <a class="nav-link" href="../eval/syntax-guide.html"> 
 <span class="menu-text">Reference</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="./developer-guide.html"> 
+    <a class="nav-link" href="../developer-guide.html"> 
 <span class="menu-text">Internals</span></a>
   </li>  
 </ul>
@@ -334,7 +333,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
         <a class="flex-grow-1 no-decor" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
-          <h1 class="quarto-secondary-nav-title">Getting started</h1>
+          <h1 class="quarto-secondary-nav-title"></h1>
         </a>     
     </div>
   </nav>
@@ -347,7 +346,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <ul class="list-unstyled mt-1">
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./index.html" class="sidebar-item-text sidebar-link">
+  <a href="../index.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Loading documentation…</span></a>
   </div>
 </li>
@@ -361,155 +360,135 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#requirements" id="toc-requirements" class="nav-link active" data-scroll-target="#requirements">Requirements</a></li>
-  <li><a href="#clone-and-test" id="toc-clone-and-test" class="nav-link" data-scroll-target="#clone-and-test">Clone and test</a></li>
-  <li><a href="#open-the-repl" id="toc-open-the-repl" class="nav-link" data-scroll-target="#open-the-repl">Open the REPL</a></li>
-  <li><a href="#persistent-repl-setup" id="toc-persistent-repl-setup" class="nav-link" data-scroll-target="#persistent-repl-setup">Persistent REPL setup</a></li>
-  <li><a href="#run-a-file" id="toc-run-a-file" class="nav-link" data-scroll-target="#run-a-file">Run a file</a></li>
-  <li><a href="#inspect-the-intermediate-representation" id="toc-inspect-the-intermediate-representation" class="nav-link" data-scroll-target="#inspect-the-intermediate-representation">Inspect the intermediate representation</a></li>
-  <li><a href="#embed-rix-in-javascript" id="toc-embed-rix-in-javascript" class="nav-link" data-scroll-target="#embed-rix-in-javascript">Embed RiX in JavaScript</a></li>
-  <li><a href="#build-this-documentation" id="toc-build-this-documentation" class="nav-link" data-scroll-target="#build-this-documentation">Build this documentation</a></li>
-  <li><a href="#where-next" id="toc-where-next" class="nav-link" data-scroll-target="#where-next">Where next?</a></li>
+  <li><a href="#retained-3d-and-n-dimensional-projection" id="toc-retained-3d-and-n-dimensional-projection" class="nav-link active" data-scroll-target="#retained-3d-and-n-dimensional-projection">Retained 3D and n-dimensional projection</a>
+  <ul class="collapse">
+  <li><a href="#scene3d-values" id="toc-scene3d-values" class="nav-link" data-scroll-target="#scene3d-values">Scene3D values</a></li>
+  <li><a href="#deterministic-snapshots" id="toc-deterministic-snapshots" class="nav-link" data-scroll-target="#deterministic-snapshots">Deterministic snapshots</a></li>
+  <li><a href="#exact-n-dimensional-projections" id="toc-exact-n-dimensional-projections" class="nav-link" data-scroll-target="#exact-n-dimensional-projections">Exact n-dimensional projections</a></li>
+  <li><a href="#gltf-export" id="toc-gltf-export" class="nav-link" data-scroll-target="#gltf-export">glTF export</a></li>
+  <li><a href="#runnable-4d-example" id="toc-runnable-4d-example" class="nav-link" data-scroll-target="#runnable-4d-example">Runnable 4D example</a></li>
+  </ul></li>
   </ul>
-<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/getting-started.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/scene3d-guide.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
     </div>
 <!-- main -->
-<main class="content" id="quarto-document-content">
+<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"></header>
 
 
-<header id="title-block-header" class="quarto-title-block default">
-<div class="quarto-title">
-<h1 class="title d-none d-lg-block">Getting started</h1>
-</div>
-
-<div>
-  <div class="description">
-    Install RiX in the RatMath workspace, run the REPL, execute scripts, and embed the evaluator.
-  </div>
-</div>
 
 
-<div class="quarto-title-meta">
 
-    
-  
-    
-  </div>
-  
+<section id="retained-3d-and-n-dimensional-projection" class="level1">
+<h1>Retained 3D and n-dimensional projection</h1>
+<p>RiX keeps three distinct representations instead of treating a display as the mathematical object:</p>
+<pre class="text"><code>exact n-dimensional geometry -&gt; explicit projection -&gt; retained Scene3D -&gt; Snapshot Graphic or glTF</code></pre>
+<p>The bundled <code>nd</code>, <code>scene3d</code>, and <code>gltf</code> plugins implement the first bounded slice of that pipeline. They are browser-safe and opt-in.</p>
+<section id="scene3d-values" class="level2">
+<h2 class="anchored" data-anchor-id="scene3d-values">Scene3D values</h2>
+<p><code>.scene3d.Scene</code> is an immutable <code>output</code> value with schema <code>rix.scene3d@1</code>. Coordinates and 4×4 transforms remain exact RiX integers or rationals until a camera snapshot or target exporter needs numeric coordinates. The internal coordinate convention is right-handed and Z-up.</p>
+<pre class="rix"><code>.Plugin.Load("scene3d");
 
-
-</header>
-
-
-<p>RiX currently lives in the RatMath workspace and uses Bun. The package is an active alpha and is not yet presented as a stable registry release; the workspace is the supported way to run it today.</p>
-<section id="requirements" class="level2">
-<h2 class="anchored" data-anchor-id="requirements">Requirements</h2>
-<ul>
-<li><a href="https://bun.sh/">Bun</a> 1.2 or newer</li>
-<li>Git</li>
-<li>Quarto 1.6 or newer only if you want to build this documentation site</li>
-</ul>
+mesh := .scene3d.Mesh(
+    [[0,0,0], [1,0,0], [0,1,0]],
+    [[1,2,3]],
+    {= color="#275dad", opacity=4/5 }
+);
+camera := .scene3d.PerspectiveCamera([4,4,3], [0,0,0], {=
+    up=[0,0,1], fov=50, near=1/100, far=1000
+});
+scene := .scene3d.Scene([mesh], {= camera=camera });</code></pre>
+<p>Initial constructors are:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Constructor</th>
+<th>Contract</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>Scene(children, options?)</code></td>
+<td>Retained root with <code>camera</code>, optional <code>lights</code>, and metadata.</td>
+</tr>
+<tr class="even">
+<td><code>Group(children, options?)</code></td>
+<td>Ordered retained children.</td>
+</tr>
+<tr class="odd">
+<td><code>Transform(children, options?)</code></td>
+<td>Exact flat row-major 4×4 <code>matrix</code>, or <code>translate</code>/<code>scale</code>.</td>
+</tr>
+<tr class="even">
+<td><code>Mesh(vertices, triangles, options?)</code></td>
+<td>Exact 3-vectors and 1-based triangle indices.</td>
+</tr>
+<tr class="odd">
+<td><code>Polyline(points, options?)</code></td>
+<td>Exact 3-vectors; <code>closed=1</code> optionally closes it.</td>
+</tr>
+<tr class="even">
+<td><code>PointCloud(points, options?)</code></td>
+<td>Exact 3-vectors with display <code>radius</code>.</td>
+</tr>
+<tr class="odd">
+<td><code>Material(options)</code></td>
+<td><code>color</code>, <code>opacity</code>, and wire width hints. A material may be passed in node options.</td>
+</tr>
+<tr class="even">
+<td><code>PerspectiveCamera(position, target, options?)</code></td>
+<td><code>up</code>, degree <code>fov</code>, <code>near</code>, and <code>far</code>.</td>
+</tr>
+<tr class="odd">
+<td><code>OrthographicCamera(position, target, options?)</code></td>
+<td>Automatic fit, or explicit vertical <code>scale</code>.</td>
+</tr>
+</tbody>
+</table>
+<p>The initial schema intentionally contains realized geometry. Parametric and implicit surfaces will be adaptive producers of meshes rather than adding unevaluated functions to interchange files.</p>
 </section>
-<section id="clone-and-test" class="level2">
-<h2 class="anchored" data-anchor-id="clone-and-test">Clone and test</h2>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> clone https://github.com/jostylr/ratmath.git</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> ratmath</span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> install</span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> <span class="at">--cwd</span> rix test</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>The RiX test suite exercises tokenizer, parser, lowering, evaluator, runtime, CLI, examples, exact values, types, methods, tensors, generators, and diagnostics.</p>
+<section id="deterministic-snapshots" class="level2">
+<h2 class="anchored" data-anchor-id="deterministic-snapshots">Deterministic snapshots</h2>
+<p><code>.scene3d.Snapshot</code> projects a retained scene into core <code>.Graphics</code>. Phase 1 implements an explicitly named <code>wireframe</code> mode. It clips perspective segments against the camera’s near/far planes, but does not claim hidden-line removal, surface lighting, or tessellation.</p>
+<pre class="rix"><code>snapshot := .scene3d.Snapshot(scene, {=
+    size=[640,480],
+    mode="wireframe"
+});
+graphic := snapshot["value"];</code></pre>
+<p>The result is an adaptive-result map with <code>value</code>, <code>resolved</code>, <code>uncertainty</code>, <code>work</code>, <code>source</code>, and <code>diagnostics</code>. <code>value</code> is a normal Graphic and therefore works unchanged with SVG, Canvas, TikZ, and PNG.</p>
 </section>
-<section id="open-the-repl" class="level2">
-<h2 class="anchored" data-anchor-id="open-the-repl">Open the REPL</h2>
-<p>From the RatMath repository root:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> run rix</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<pre class="text"><code>rix&gt; 1/3 + 1/6
-1/2
-rix&gt; Sq(x) -&gt; x^2
-&lt;function Sq(x) ...&gt;
-rix&gt; Sq(12)
-144</code></pre>
-<p>Executable documentation examples use the same evaluator as the CLI. A trailing <code>##@</code> assertion checks a value, and a standalone <code>##</code> asks the documentation build to render the most recent result:</p>
-<pre id="getting-started-rational" class="rix" data-exec="true"><code>
-1 |&gt; half ##@ == 1/2
-##</code></pre>
-<details class="rix-setup"><summary>Show setup code</summary><pre><code>
-half = x -&gt; x / 2
-</code></pre></details>
-<div class="rix-example-output">
-<p><strong>Output</strong></p>
-<pre class="text rix-output"><code>1/2</code></pre>
-</div>
-<p>Useful REPL commands include <code>.help</code>, <code>.vars</code>, <code>.fns</code>, <code>.ast[expr]</code>, <code>.tokens[expr]</code>, <code>.load[pkg]</code>, <code>.reset</code>, and <code>.exit</code>. End a line with <code>\</code> for multiline input.</p>
-</section>
-<section id="persistent-repl-setup" class="level2">
-<h2 class="anchored" data-anchor-id="persistent-repl-setup">Persistent REPL setup</h2>
-<p>RiX keeps CLI configuration under <code>$XDG_CONFIG_HOME/rix</code>, falling back to <code>~/.config/rix</code>. Set <code>RIX_CONFIG_DIR</code> to use another location. Create or update the configuration with:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="ex">rix</span> setup <span class="at">--plugins</span><span class="op">=</span>full</span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="ex">rix</span> setup <span class="at">--plugins</span><span class="op">=</span>float,renderers</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Plugin names and plugin groups are case-insensitive. <code>full</code> selects the standard first-party plugin set; <code>renderers</code> selects the SVG, Canvas-plan, TikZ, PNG, Markdown, HTML, Quarto, LaTeX, PDF, and glTF target plugins. <code>.draw</code>, <code>.plot</code>, <code>.scene3d</code>, and <code>.nd</code> are producers and remain in their own groups. RiX stores the selectors rather than expanding groups permanently, so new standard plugins or group members can join later releases. The proposed <code>oracle</code> package remains specification-only and cannot be selected until it has an executable plugin manifest.</p>
-<p><code>rix setup</code> also creates <code>cli-preamble.rix</code> in the configuration directory. Its leading YAML comment can request more plugins or operator files, and its RiX body runs before each REPL starts:</p>
-<pre class="rix"><code>/**
-plugins: [float]
-operator-files: [personal.operators.rix]
-**/
+<section id="exact-n-dimensional-projections" class="level2">
+<h2 class="anchored" data-anchor-id="exact-n-dimensional-projections">Exact n-dimensional projections</h2>
+<p><code>.nd</code> provides <code>Point</code>, <code>Polyline</code>, <code>Polytope</code>, and <code>Hypercube</code> geometry under schema <code>rix.nd@1</code>. A projection is a separate <code>rix.nd.projection@1</code> value with source/target dimensions, exact matrix, exact offset, method, and provenance. No operation silently discards coordinates.</p>
+<pre class="rix"><code>.Plugin.Load("nd");
 
-digits := 50;</code></pre>
-<p>Use <code>--no-config</code> for a clean session, <code>--no-preamble</code> to retain configured plugins without running the preamble, or <code>--preamble=FILE</code> for an explicit project preamble. <code>--plugin</code>, <code>--plugins</code>, and <code>--operator-file</code> remain one-session additions. Persistent setup affects the REPL, not script execution.</p>
+tesseract := .nd.Hypercube(4, 2);
+rotation := .nd.CayleyRotation(4, 1, 4, 1/3);
+xyz := .nd.CoordinateProjection(4, [1,2,3]);
+projected := .nd.Project(tesseract, .nd.Compose(xyz, rotation));
+scene := .nd.ToScene3D(projected);</code></pre>
+<p><code>Projection(matrix, offset?, options?)</code> constructs an exact affine map. <code>CoordinateProjection(sourceDimension, axes)</code> uses 1-based axes. <code>CayleyRotation(dimension, axis1, axis2, t)</code> uses the rational parameterization <code>cos=(1-t²)/(1+t²)</code> and <code>sin=2t/(1+t²)</code>; the core Cayley <code>Infinity</code> value denotes the half-turn. <code>Compose(after, before)</code> means “apply before, then after.” <code>ToScene3D</code> requires dimension 3 and reports an error if the caller has not explicitly projected first.</p>
+<p>Projection, slice, fiber, and marginalization remain different notions. This slice implements affine projection; sections/slices and fibers remain future operations and will not be aliases for <code>Project</code>.</p>
 </section>
-<section id="run-a-file" class="level2">
-<h2 class="anchored" data-anchor-id="run-a-file">Run a file</h2>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> run rix ./rix/examples/eval/units-and-exact.rix</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Or, from inside <code>rix/</code>:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> bin/rix.js examples/eval/cayley-polar.rix</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Native RiX test files use the <code>.test.rix</code> suffix:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> bin/rix.js test</span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> bin/rix.js test diagnostics</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section id="gltf-export" class="level2">
+<h2 class="anchored" data-anchor-id="gltf-export">glTF export</h2>
+<p>The <code>gltf</code> renderer accepts <code>Scene3D</code>, converts Z-up coordinates to glTF’s right-handed Y-up convention, and writes glTF 2.0 JSON with an embedded base64 buffer. Mesh triangles, line primitives, point primitives, basic colors, and opacity are exported. Exact positions are rounded to Float32 only here and a <code>gltf-float32-approximation</code> diagnostic records the loss when applicable.</p>
+<pre class="rix"><code>.Plugin.Load("gltf");
+result := .gltf.Render(scene);
+.Out("scene.gltf", scene);</code></pre>
+<p>Phase 1 does not export retained lights, camera nodes, textures, animation, or GLB. glTF line width is not portable and is reported as an informational diagnostic.</p>
 </section>
-<section id="inspect-the-intermediate-representation" class="level2">
-<h2 class="anchored" data-anchor-id="inspect-the-intermediate-representation">Inspect the intermediate representation</h2>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> run rix-to-ir <span class="at">--pretty</span> ./rix/examples/eval/factorial.rix</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>The <code>rix-to-ir</code> command exposes the call-shaped IR used by the evaluator. Add <code>--lang</code> to prefix generated system calls with <code>@_</code>.</p>
-</section>
-<section id="embed-rix-in-javascript" class="level2">
-<h2 class="anchored" data-anchor-id="embed-rix-in-javascript">Embed RiX in JavaScript</h2>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> {</span>
-<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>  Context<span class="op">,</span></span>
-<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>  createDefaultRegistry<span class="op">,</span></span>
-<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>  createDefaultSystemContext<span class="op">,</span></span>
-<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>  parseAndEvaluate<span class="op">,</span></span>
-<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>} <span class="im">from</span> <span class="st">"rix"</span><span class="op">;</span></span>
-<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> context <span class="op">=</span> <span class="kw">new</span> <span class="fu">Context</span>()<span class="op">;</span></span>
-<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> registry <span class="op">=</span> <span class="fu">createDefaultRegistry</span>()<span class="op">;</span></span>
-<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> systemContext <span class="op">=</span> <span class="fu">createDefaultSystemContext</span>()<span class="op">;</span></span>
-<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> result <span class="op">=</span> <span class="fu">parseAndEvaluate</span>(<span class="st">"x := 7; x^2 + 1"</span><span class="op">,</span> {</span>
-<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a>  context<span class="op">,</span></span>
-<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a>  registry<span class="op">,</span></span>
-<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a>  systemContext<span class="op">,</span></span>
-<span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a>})<span class="op">;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>The public package also exports narrower entry points from <code>rix/parser</code>, <code>rix/eval</code>, and <code>rix/runtime</code>. See the <a href="./developer-guide.html">developer guide</a> for the pipeline and extension boundaries.</p>
-</section>
-<section id="build-this-documentation" class="level2">
-<h2 class="anchored" data-anchor-id="build-this-documentation">Build this documentation</h2>
-<p>Install <a href="https://quarto.org/docs/get-started/">Quarto</a> and run:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> rix</span>
-<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> run build:docs</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>The build refreshes source-derived runtime reference tables, bundles the browser parser demo, validates the documentation inputs, and renders the site into <code>rix/docs/</code>. That output directory is suitable for GitHub Pages with <strong>Deploy from a branch</strong>, using the <code>main</code> branch and <code>/docs</code> folder.</p>
-<p>For local authoring:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> run preview:docs</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Do not hand-edit <code>rix/docs/</code>; edit files in <code>rix/documentation/</code> and rebuild.</p>
-</section>
-<section id="where-next" class="level2">
-<h2 class="anchored" data-anchor-id="where-next">Where next?</h2>
-<ul>
-<li><a href="./language-at-a-glance.html">Language at a glance</a> for the ten-minute tour</li>
-<li><a href="./introduction.html">Complete introduction</a> for a progressive, in-depth guide</li>
-<li><a href="./eval/syntax-guide.html">Syntax and system function reference</a> for exact forms</li>
-<li><a href="./status.html">Implementation status</a> before relying on an advanced feature</li>
-</ul>
+<section id="runnable-4d-example" class="level2">
+<h2 class="anchored" data-anchor-id="runnable-4d-example">Runnable 4D example</h2>
+<p>From <code>rix/</code>:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> bin/rix.js <span class="at">--out</span><span class="op">=</span>tmp/tesseract-out examples/geometry/tesseract.rix</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>This creates <code>tesseract.svg</code> from a deterministic wireframe snapshot and <code>tesseract.gltf</code> from the same retained 3D scene. The corresponding RiX Web tutorials run the browser-safe parts directly.</p>
 
 
+</section>
 </section>
 
 <a onclick="window.scrollTo(0, 0); return false;" role="button" id="quarto-back-to-top"><i class="bi bi-arrow-up"></i> Back to top</a></main> <!-- /main -->
@@ -943,7 +922,7 @@ digits := 50;</code></pre>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
-    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/getting-started.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/scene3d-guide.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
     <div class="nav-footer-right">
 <p>Documentation built with <a href="https://quarto.org/">Quarto</a></p>
 </div>
@@ -953,5 +932,5 @@ digits := 50;</code></pre>
 
 
 
-<script src="site_libs/quarto-html/zenscroll-min.js"></script>
+<script src="../site_libs/quarto-html/zenscroll-min.js"></script>
 </body></html>

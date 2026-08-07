@@ -26,6 +26,7 @@ export const documentationNavigation = [
       page("eval/methods-guide.md", "Methods"),
       page("eval/output-guide.md", "Structured output and graphics"),
       page("eval/renderer-guide.md", "Renderer plugins"),
+      page("eval/scene3d-guide.md", "3D scenes and n-dimensional projection"),
       page("eval/controls-guide.md", "Reactive controls"),
       page("eval/types-and-traits-guide.md", "Types and traits"),
       page("reference/system-reference.md", "Generated runtime catalog"),

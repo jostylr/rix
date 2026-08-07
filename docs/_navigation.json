@@ -64,6 +64,10 @@
           "href": "eval/renderer-guide.html"
         },
         {
+          "text": "3D scenes and n-dimensional projection",
+          "href": "eval/scene3d-guide.html"
+        },
+        {
           "text": "Reactive controls",
           "href": "eval/controls-guide.html"
         },

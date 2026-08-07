@@ -24,7 +24,7 @@ svg := .Renderer.Info("image/svg+xml");
 
 ```rix
 /**
-plugins: [svg, canvas, tikz, png, markdown, html, quarto, latex, pdf]
+plugins: [svg, canvas, tikz, png, markdown, html, quarto, latex, pdf, gltf]
 **/
 ```
 
@@ -90,6 +90,7 @@ diagnostics accumulated while negotiating earlier candidates.
 | `quarto` | Documents and slides | `.qmd`, `text/x-quarto` | Source generation | None |
 | `latex` | Documents, figures, slides | `.tex`, `text/x-tex` | Source generation | None |
 | `pdf` | Documents, figures, static slides | `.pdf`, `application/pdf` | Contract only | `pdflatex` |
+| `gltf` | retained Scene3D | `.gltf`, `model/gltf+json` | Full | None |
 
 “Full” means the browser can produce the target content. Source targets do not
 compile or open their downstream application. Contract-only targets can be
@@ -148,6 +149,17 @@ background color. Dimensions must be finite and positive after host rounding.
 The CLI tries `rsvg-convert`, then ImageMagick's `magick`, and records the
 chosen toolchain. A browser render fails with `png-rasterizer-unavailable`.
 See the [PNG host-boundary tutorial](https://rix.ratmath.com/tutorial/plugin-png.html).
+
+### glTF
+
+glTF accepts the retained `rix.scene3d@1` scene rather than a projected
+Graphic. It converts RiX's right-handed Z-up coordinates to glTF's
+right-handed Y-up convention and embeds a base64 geometry buffer in glTF 2.0
+JSON. Mesh triangles, lines, points, basic colors, and opacity are supported.
+Exact positions become Float32 at this explicit export boundary. Cameras,
+lights, textures, animation, and GLB remain follow-up work.
+
+Learn interactively in the [glTF renderer tutorial](https://rix.ratmath.com/tutorial/plugin-gltf.html).
 
 ## Document targets
 
@@ -216,6 +228,8 @@ diagnostics or a failed render negotiation. Important codes include:
 | `png-rasterizer-unavailable` | The host has no PNG rasterizer adapter. |
 | `pdf-toolchain-unavailable` | The host has no LaTeX compiler adapter. |
 | `html-static-interaction` | Static HTML retained markup without a live widget runtime. |
+| `gltf-float32-approximation` | Exact Scene3D coordinates were rounded to Float32. |
+| `gltf-line-width-portability` | glTF lines cannot portably retain authored width. |
 
 ## Complete CLI example
 
@@ -230,8 +244,10 @@ The example and its binary outputs are exercised by the CLI renderer tests.
 
 ## 3D boundary
 
-RiX does not yet have a retained `Scene3D` value, so no plugin pretends that
-ad-hoc `.Graphics` metadata is a mesh, camera, material, or light. glTF/GLB,
-OBJ/MTL, STL, PLY, and USD/USDZ will consume that future schema. A static 3D
-snapshot will own camera projection and hidden-surface decisions before
-lowering to a Graphic or raster artifact.
+The initial retained `rix.scene3d@1` schema, deterministic wireframe snapshot,
+and glTF JSON exporter are implemented. Scene3D owns cameras and projection;
+SVG/Canvas/TikZ still consume only the Graphic returned by
+`.scene3d.Snapshot`. The snapshot does not claim hidden-line removal or
+lighting. OBJ/MTL, STL, PLY, USD/USDZ, GLB, adaptive surfaces, and interactive
+orbit controls remain future adapters or refiners. See the complete
+[3D and n-dimensional guide](scene3d-guide.md).

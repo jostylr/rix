@@ -19,6 +19,23 @@ afterEach(() => {
 });
 
 describe("CLI renderer export", () => {
+    test("the 4D example exports a Scene3D snapshot and embedded glTF", () => {
+        const directory = temporaryDirectory();
+        const outputPath = path.join(directory, "out");
+        const sourcePath = path.join(rixRoot, "examples/geometry/tesseract.rix");
+        const result = spawnSync("bun", [path.join(rixRoot, "bin/rix.js"), `--out=${outputPath}`, sourcePath], {
+            cwd: rixRoot,
+            encoding: "utf8",
+        });
+        expect(result.status).toBe(0);
+        expect(result.stderr).toBe("");
+        expect(readFileSync(path.join(outputPath, "tesseract.svg"), "utf8")).toContain("<svg");
+        const gltf = JSON.parse(readFileSync(path.join(outputPath, "tesseract.gltf"), "utf8"));
+        expect(gltf.asset.version).toBe("2.0");
+        expect(gltf.meshes).toHaveLength(32);
+        expect(gltf.buffers[0].uri).toStartWith("data:application/octet-stream;base64,");
+    });
+
     test(".Out selects loaded text/vector renderers by extension", () => {
         const directory = temporaryDirectory();
         const sourcePath = path.join(directory, "report.rix");

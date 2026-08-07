@@ -437,6 +437,16 @@ ul.task-list li input[type="checkbox"] {
 <td><code>.svg</code>, <code>.canvas</code>, <code>.tikz</code>, <code>.png</code>, <code>.markdown</code>, <code>.html</code>, <code>.quarto</code>, <code>.latex</code>, and <code>.pdf</code>; binary toolchains remain host-owned.</td>
 </tr>
 <tr class="even">
+<td>Retained 3D and ND</td>
+<td>Implemented initial versions</td>
+<td><code>.scene3d</code> retains exact realized geometry/cameras and snapshots wireframes to Graphics; <code>.nd</code> retains exact affine projection records and polytopes.</td>
+</tr>
+<tr class="odd">
+<td>glTF renderer</td>
+<td>Implemented initial version</td>
+<td><code>.gltf</code> exports retained Scene3D as glTF 2.0 JSON with an embedded buffer and explicit Float32 diagnostics.</td>
+</tr>
+<tr class="even">
 <td>Symbolic system carrier</td>
 <td>Implemented</td>
 <td><code>{#}</code> retains definitions, constraints, all symbols, and advisory input/output roles; <code>.InspectSpec</code> and <code>.SpecRoles</code> expose them to plugins.</td>
@@ -473,12 +483,12 @@ ul.task-list li input[type="checkbox"] {
 </tr>
 <tr class="odd">
 <td>3D</td>
-<td>None until retained <code>Scene3D</code> exists</td>
-<td>glTF/GLB is the primary planned scene interchange; OBJ/MTL, STL, PLY, and USD/USDZ are lossy or host-specific adapters.</td>
+<td>glTF 2.0 JSON</td>
+<td>Consumes <code>rix.scene3d@1</code>; GLB, OBJ/MTL, STL, PLY, and USD/USDZ remain future lossy or host-specific adapters.</td>
 </tr>
 </tbody>
 </table>
-<p>Static 3D publication will ask <code>Scene3D</code> to apply its camera and hidden-surface policy, then lower to <code>.Graphics</code> or raster output. SVG/Canvas/TikZ renderers do not infer 3D semantics from scene metadata. Unsupported and fallback behavior is recorded in structured diagnostics rather than silently dropped.</p>
+<p>Static 3D publication asks <code>Scene3D</code> to apply its camera, then lowers the implemented wireframe mode to <code>.Graphics</code>. Hidden-surface and lighting policy remain follow-up work. SVG/Canvas/TikZ renderers do not infer 3D semantics from scene metadata. Unsupported and fallback behavior is recorded in structured diagnostics rather than silently dropped.</p>
 </section>
 </section>
 <section id="consuming-from-a-plugin" class="level2">
@@ -524,58 +534,64 @@ ul.task-list li input[type="checkbox"] {
 <td>Pure authoring sugar over <code>.Graphics</code>, not a second scene format.</td>
 </tr>
 <tr class="even">
-<td>Later</td>
-<td><code>.scene3d</code></td>
-<td>Meshes, curves, surfaces, camera, light, material, projection, snapshot.</td>
-<td>Own retained <code>Scene3D</code> schema; snapshots lower to <code>Graphic</code>/SVG or raster assets. It should not overload the 2D scene node vocabulary.</td>
+<td>Next</td>
+<td><code>.scene3d</code> expansion</td>
+<td>Hidden-surface/lighting policies, curves, adaptive surfaces/volumes, textures, animation, and orbit metadata.</td>
+<td>Builds on the implemented <code>rix.scene3d@1</code> realized geometry and wireframe snapshot.</td>
 </tr>
 <tr class="odd">
+<td>Next</td>
+<td><code>.nd</code> expansion</td>
+<td>Slices, sections, fibers, fields, sampling, and marginalization.</td>
+<td>Builds on implemented exact affine/Cayley projections and explicit 3D conversion.</td>
+</tr>
+<tr class="even">
 <td>Later</td>
 <td><code>.data</code> / tables</td>
 <td>Relations, schemas, sorting, filtering, joins, calculated columns, table views and formatters.</td>
 <td>A <code>TableView</code> lowers to core <code>Table</code>; CSV is an exporter of data, not a replacement for a presentation table.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>Later</td>
 <td><code>.stats</code></td>
 <td>Distributions, summaries, regression, histograms, confidence intervals.</td>
 <td>Returns data/analysis values; chart constructors compose with <code>.plot</code>.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>Later</td>
 <td><code>.graph</code></td>
 <td>Nodes, edges, layouts, paths, graph algorithms.</td>
 <td>Layout output becomes <code>.Graphics</code>; graph semantics stay available for computation.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>Later</td>
 <td><code>.numerics</code></td>
 <td>Root isolation, integration, ODEs, optimization, certified-real adapters.</td>
 <td>Supplies certified or explicitly approximate values to <code>.geometry</code> and <code>.plot</code>; it should surface error bounds.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>Later</td>
 <td><code>.solve</code></td>
 <td>Polynomial systems, constraints, symbolic/numeric solving.</td>
 <td>Returns solution objects and isolating boxes; <code>.geometry</code> can visualize them.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>Later</td>
 <td><code>.document</code> extras</td>
 <td>Citation, bibliography, cross-references, themes, code/output inclusion.</td>
 <td>Produces core <code>Fragment</code>, <code>Figure</code>, <code>Table</code>, and <code>Slides</code> values; renderers own HTML/Quarto/PDF specifics.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>Host-dependent</td>
 <td><code>.widgets</code></td>
 <td>Sliders, selection, animation, browser events.</td>
 <td>Requires runtime-specific JavaScript; must declare capability needs and provide a portable static snapshot.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>Host-dependent</td>
 <td>Remaining exporters</td>
-<td>Terminal ASCII, GIF/video, CSV/data formats, and—after <code>Scene3D</code>—glTF/GLB, OBJ, STL, PLY, and USD/USDZ.</td>
-<td>These use the implemented renderer registry and are selected by MIME/target negotiation rather than mathematical libraries.</td>
+<td>Terminal ASCII, GIF/video, CSV/data formats, GLB, OBJ, STL, PLY, and USD/USDZ.</td>
+<td>glTF JSON is implemented; remaining targets use the same renderer registry and MIME/target negotiation.</td>
 </tr>
 </tbody>
 </table>

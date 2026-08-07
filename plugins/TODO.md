@@ -406,10 +406,12 @@ newline normalization.
 ### `.scene3d`
 
 1. **Phase 1 — Retained mesh scene**
-   - [ ] Define Scene, Camera, Mesh, Material, Light, and Transform values.
-   - [ ] Demonstrate a lit cube or polynomial surface with a deterministic
-     projected snapshot.
-   - [ ] Add README, tutorial, schema tests, and static snapshot fixtures.
+   - [x] Define versioned Scene, perspective/orthographic Camera, Mesh,
+     Polyline, PointCloud, Material, Group, and Transform values.
+   - [x] Demonstrate deterministic camera-projected wireframe snapshots.
+   - [x] Add reference documentation, RiX Web tutorial, schema/projection tests,
+     and a CLI fixture.
+   - [ ] Add retained Light constructors and a lit snapshot mode.
 2. **Phase 2 — Curves, surfaces, and interaction metadata**
    - [ ] Add parametric curves/surfaces, axes, annotations, picking IDs, and
      orbit-camera descriptions.
@@ -418,15 +420,16 @@ newline normalization.
    - [ ] Add implicit surfaces, volume data, adaptive meshes, slicing planes,
      uncertainty masks, and level-of-detail policies.
 4. **Phase 4 — 3D ecosystem**
-   - [ ] Add glTF/GLB import/export, animation, WebGPU acceleration, and
-     optional AR/3D-print adapters.
+   - [x] Add browser-safe glTF 2.0 JSON export for realized geometry and basic materials.
+   - [ ] Add GLB/import, cameras/lights/textures, animation, WebGPU acceleration,
+     and optional AR/3D-print adapters.
 
 ### `.nd`
 
 1. **Phase 1 — Explicit 4D projection**
-   - [ ] Represent N-dimensional points and an explicit projection into 2D/3D.
-   - [ ] Demonstrate a rotating or sliced 4D hypercube.
-   - [ ] Add README, tutorial, projection metadata, and deterministic tests.
+   - [x] Represent N-dimensional points/polytopes and explicit exact affine projections.
+   - [x] Demonstrate a Cayley-rotated 4D hypercube projected to 3D.
+   - [x] Add reference documentation, tutorial, projection provenance, and deterministic tests.
 2. **Phase 2 — Fields, slices, and fibers**
    - [ ] Add N-dimensional fields, affine slices, sections, fibers, and
      parameterized projection families.

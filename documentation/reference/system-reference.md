@@ -8,7 +8,7 @@ toc-depth: 2
 This page is generated from the current RiX implementation by `documentation/scripts/generate-reference.js`. Do not edit it by hand. Descriptions come from registry documentation strings; the narrative [syntax guide](../eval/syntax-guide.md) and [methods guide](../eval/methods-guide.md) provide signatures and examples.
 :::
 
-At this revision RiX exposes **190 named entries** on the default system context and registers **212 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
+At this revision RiX exposes **193 named entries** on the default system context and registers **212 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
 
 ## Public system context
 
@@ -197,13 +197,16 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.canvas` | function | — | Serializable Canvas 2D drawing plans for core Graphics scenes. |
 | `.draw` | function | Draw | Convenient 2D drawing helpers that produce core Graphics nodes. |
 | `.exactalgebras` | function | Exact | Exact rational quaternion and octonion values. |
+| `.gltf` | function | — | Browser-safe glTF 2.0 JSON exporter for retained Scene3D values. |
 | `.html` | function | — | Standalone semantic HTML renderer for portable RiX output trees. |
 | `.latex` | function | — | Standalone LaTeX renderer for portable RiX documents and figures. |
 | `.markdown` | function | — | CommonMark-oriented renderer for portable RiX documents. |
+| `.nd` | function | — | Exact n-dimensional geometry with explicit affine and Cayley projection records. |
 | `.pdf` | function | — | PDF document and figure renderer orchestrated through LaTeX. |
 | `.plot` | function | Plot | Portable plotting helpers that produce core Graphics scenes. |
 | `.png` | function | — | PNG snapshot renderer for core Graphics through a host rasterizer. |
 | `.quarto` | function | — | Quarto Markdown renderer with front matter and portable figure lowering. |
+| `.scene3d` | function | — | Exact retained 3D scenes with deterministic wireframe Graphics snapshots. |
 | `.svg` | function | — | Portable SVG renderer for core Graphics scenes. |
 | `.tikz` | function | — | Editable TikZ/PGF source renderer for core Graphics scenes. |
 

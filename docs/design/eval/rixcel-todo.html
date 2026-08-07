@@ -398,7 +398,7 @@ ul.task-list li input[type="checkbox"] {
 <li><label><input type="checkbox" checked="">Define <code>sheet:formula</code> separately from immediate <code>sheet:set</code> events.</label></li>
 <li><label><input type="checkbox" checked="">Add atomic evaluation epochs with explicit dirty/evaluating/error states.</label></li>
 <li><label><input type="checkbox" checked="">Add sparse version-2 persistence with stable sheet, slot, and event IDs.</label></li>
-<li><label><input type="checkbox">Keep the FormulaSheet graph itself sparse instead of materializing a dense compatibility view.</label></li>
+<li><label><input type="checkbox" checked="">Keep imported FormulaSheet graphs sparse with lazy implicit-slot materialization.</label></li>
 <li><label><input type="checkbox" checked="">Store source separately from assignment mode.</label></li>
 <li><label><input type="checkbox" checked="">Implement implied <code>:=</code> and explicit RiX assignment modes.</label></li>
 <li><label><input type="checkbox" checked="">Add <code>grid</code>, <code>row</code>, <code>col</code>, and <code>index</code> evaluation bindings.</label></li>
@@ -438,16 +438,20 @@ ul.task-list li input[type="checkbox"] {
 <h2 class="anchored" data-anchor-id="standalone-rixcel-editor">4. Standalone RiXCel editor</h2>
 <ul class="task-list">
 <li><label><input type="checkbox" checked="">Replace the placeholder <code>apps/cel</code> package with a RiXCel web app.</label></li>
-<li><label><input type="checkbox">Implement virtualized 2D grid rendering.</label></li>
+<li><label><input type="checkbox" checked="">Implement bounded 2D grid-window rendering with row/column navigation.</label></li>
 <li><label><input type="checkbox" checked="">Edit formula bodies from FormulaSheet grid cells.</label></li>
 <li><label><input type="checkbox" checked="">Add a dedicated formula bar, assignment-mode control, and exact-value display.</label></li>
 <li><label><input type="checkbox" checked="">Add document-level undo and redo as event-log cursor movement.</label></li>
 <li><label><input type="checkbox" checked="">Add single-cell formula copy/paste with explicit absolute <code>grid</code> and relative <code>near</code> semantics.</label></li>
-<li><label><input type="checkbox">Add multi-cell copy/paste and fill.</label></li>
-<li><label><input type="checkbox">Add row/column insertion with parsed reference updates.</label></li>
+<li><label><input type="checkbox" checked="">Add multi-cell copy/paste and fill with atomic batch history events.</label></li>
+<li><label><input type="checkbox">Add row/column insertion with parsed reference updates.</label>
+<ul class="task-list">
+<li><label><input type="checkbox" checked="">Add tokenizer-aware <code>grid</code>/<code>near</code> reference rewriting and dynamic-reference detection.</label></li>
+<li><label><input type="checkbox">Add shape-changing structural history events with cursor-safe undo/redo.</label></li>
+</ul></li>
 <li><label><input type="checkbox" checked="">Add local persistence and <code>.rixcel</code> open/save.</label></li>
 <li><label><input type="checkbox" checked="">Preflight imports and edits in a restartable, timed worker with restricted capabilities.</label></li>
-<li><label><input type="checkbox">Move persistent FormulaSheet ownership and visible-plane projection fully into the worker.</label></li>
+<li><label><input type="checkbox" checked="">Move persistent FormulaSheet ownership and visible-plane projection fully into the worker.</label></li>
 <li><label><input type="checkbox" checked="">Show dependency, cycle, parse, and runtime diagnostics in the grid.</label></li>
 <li><label><input type="checkbox">Add browser-level tests for editing and persistence.</label></li>
 </ul>
@@ -475,7 +479,7 @@ ul.task-list li input[type="checkbox"] {
 <li><label><input type="checkbox">Define linked tensor-to-sheet views.</label></li>
 <li><label><input type="checkbox">Design tensor spill ownership and collision rules.</label></li>
 <li><label><input type="checkbox">Add block formatting and named rank-N regions.</label></li>
-<li><label><input type="checkbox">Test sparse sheets at large logical shapes.</label></li>
+<li><label><input type="checkbox" checked="">Test sparse sheets at large logical shapes.</label></li>
 </ul>
 
 

@@ -20,7 +20,8 @@ The repository test suite currently covers 1,700+ cases across parser, evaluator
 | Semantics | metadata classes, semantic inquiry/conversion, type and trait registries, constructor capture |
 | Exact extensions | units/quantities, algebraic exact generators, exact complex operations, Cayley polar representation |
 | Tooling | REPL/runner, IR converter, native `.test.rix` runner, structured diagnostics, source locations, trace/debug |
-| Structured output | typed `Text`, `Paragraph`, `Heading`, `Fragment`, `Table`, `Grid`, `Graphic`, `Figure`, `Slide`, `Slides`, and reactive `ControlPanel` values; intrinsic 2D scene primitives under `.Graphics` include `DragPoint`, while `.Controls.Slider($$name, ...)` performs exact identity-preserving updates; optional bundled `.draw` and `.plot` producers; `.Renderer`/`.Render` negotiation and initial SVG, Canvas-plan, TikZ, PNG, Markdown, HTML, Quarto, LaTeX, and PDF plugins; extension-driven CLI `.Out` text/binary export; `@"..."`/`@"""..."""` templates; exact synthetic division through `.Algebra.SyntheticDivision` |
+| Structured output | typed `Text`, `Paragraph`, `Heading`, `Fragment`, `Table`, `Grid`, `Graphic`, `Figure`, `Slide`, `Slides`, and reactive `ControlPanel` values; intrinsic 2D scene primitives under `.Graphics` include `DragPoint`, while `.Controls.Slider($$name, ...)` performs exact identity-preserving updates; optional bundled `.draw` and `.plot` producers; `.Renderer`/`.Render` negotiation and SVG, Canvas-plan, TikZ, PNG, Markdown, HTML, Quarto, LaTeX, PDF, and glTF plugins; extension-driven CLI `.Out` text/binary export; `@"..."`/`@"""..."""` templates; exact synthetic division through `.Algebra.SyntheticDivision` |
+| 3D and higher dimensions | optional `.scene3d` retained `rix.scene3d@1` values with exact meshes, polylines, point clouds, transforms, perspective/orthographic cameras, and deterministic wireframe-to-Graphics snapshots; `.nd` exact affine/Cayley projection records and polytopes; browser-safe embedded-buffer glTF 2.0 export; runnable 4D tesseract example |
 | Embedding | parser exports, evaluator/runtime exports, configurable system loader and system context |
 | Exact symbolic core | identity/expression/system specs, inert definitions and constraints, normalized symbol roles, substitution and composition, name-preserving arithmetic, attached pure-function specs, polynomial compilation, exact derivatives/integrals, explicit simplification, quote calculus syntax |
 
@@ -33,7 +34,7 @@ The repository test suite currently covers 1,700+ cases across parser, evaluator
 | Real approximation | the default runtime is exact-first. The repository includes a float package example, but a unified real/oracle layer is not part of the default surface. |
 | Browser use | the parser demo runs in the browser. Full evaluator imports currently include Node file APIs, so evaluator embedding needs a host adapter for browser-only use. |
 | Packaging | the package uses `@ratmath/core` through the parent Bun workspace and has not yet declared a stable standalone release workflow. |
-| 3D rendering | The renderer registry and 2D/document targets are implemented, but retained `Scene3D` values and glTF/GLB, OBJ, STL, PLY, or USD/USDZ exporters remain design work. Static camera projection belongs to `Scene3D`, not to the 2D SVG/Canvas/TikZ renderers. |
+| 3D rendering | The first retained scene, wireframe snapshot, and glTF JSON slice is implemented. Hidden-surface removal, lighting, adaptive parametric/implicit surfaces, textures, animation/orbit controls, GLB, OBJ, STL, PLY, and USD/USDZ remain design work. Static camera projection belongs to `Scene3D`, not to the 2D SVG/Canvas/TikZ renderers. |
 
 ## Documentation authority
 

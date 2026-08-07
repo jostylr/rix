@@ -50,6 +50,8 @@ contract: `.draw.Line(...)` and `.draw.Circle(...)` simply return core
 | Plugin discovery/installation | Implemented catalog | The CLI and hosts discover YAML-headed `.plugin.rix`/`.plugin.rix.js` entries, expose `.Plugin.List`/`.Info`/`.Load`, and require host approval for JavaScript installers. |
 | Renderer registry | Implemented | `.Renderer.List`/`.Info`, generic `.Render`, target/MIME/extension aliases, explicit fallback diagnostics, and structured text/binary results. |
 | First renderer plugins | Implemented initial versions | `.svg`, `.canvas`, `.tikz`, `.png`, `.markdown`, `.html`, `.quarto`, `.latex`, and `.pdf`; binary toolchains remain host-owned. |
+| Retained 3D and ND | Implemented initial versions | `.scene3d` retains exact realized geometry/cameras and snapshots wireframes to Graphics; `.nd` retains exact affine projection records and polytopes. |
+| glTF renderer | Implemented initial version | `.gltf` exports retained Scene3D as glTF 2.0 JSON with an embedded buffer and explicit Float32 diagnostics. |
 | Symbolic system carrier | Implemented | `{#}` retains definitions, constraints, all symbols, and advisory input/output roles; `.InspectSpec` and `.SpecRoles` expose them to plugins. |
 
 First-party plugins may live in the main RiX repository and be installed
@@ -71,12 +73,13 @@ determinism, and toolchain fields. A target plugin also exposes the equivalent
 |---|---|---|
 | 2D | SVG, Canvas 2D plan, TikZ, PNG | All consume core `.Graphics`; PNG uses a host SVG rasterizer. |
 | Documents | Markdown, HTML, Quarto, LaTeX, PDF | Graphics delegate to SVG/TikZ; PDF uses a host LaTeX compiler. |
-| 3D | None until retained `Scene3D` exists | glTF/GLB is the primary planned scene interchange; OBJ/MTL, STL, PLY, and USD/USDZ are lossy or host-specific adapters. |
+| 3D | glTF 2.0 JSON | Consumes `rix.scene3d@1`; GLB, OBJ/MTL, STL, PLY, and USD/USDZ remain future lossy or host-specific adapters. |
 
-Static 3D publication will ask `Scene3D` to apply its camera and hidden-surface
-policy, then lower to `.Graphics` or raster output. SVG/Canvas/TikZ renderers do
-not infer 3D semantics from scene metadata. Unsupported and fallback behavior
-is recorded in structured diagnostics rather than silently dropped.
+Static 3D publication asks `Scene3D` to apply its camera, then lowers the
+implemented wireframe mode to `.Graphics`. Hidden-surface and lighting policy
+remain follow-up work. SVG/Canvas/TikZ renderers do not infer 3D semantics from
+scene metadata. Unsupported and fallback behavior is recorded in structured
+diagnostics rather than silently dropped.
 
 ## Consuming `{#}` from a plugin
 
@@ -104,7 +107,8 @@ The first two build directly on the current graphics work.
 | Next | `.geometry` | Points, lines, circles, conics, transformations, constructions, intersections, `Implicit`, and certified `Refine`. | Lowers diagrams and implicit loci into `.Graphics`; retains exact specifications and isolating regions outside the graphic. |
 | Next | `.plot` expansion | Function, parametric, implicit, scatter, bar, axes, scales, legends, viewport fitting, discontinuity handling. | Produces `.Graphics`; interactive controls belong in a separate widget layer and always need a static snapshot. |
 | Next | `.draw` expansion | Arrowheads, dimensions, callouts, paths/builders, alignment/layout helpers. | Pure authoring sugar over `.Graphics`, not a second scene format. |
-| Later | `.scene3d` | Meshes, curves, surfaces, camera, light, material, projection, snapshot. | Own retained `Scene3D` schema; snapshots lower to `Graphic`/SVG or raster assets. It should not overload the 2D scene node vocabulary. |
+| Next | `.scene3d` expansion | Hidden-surface/lighting policies, curves, adaptive surfaces/volumes, textures, animation, and orbit metadata. | Builds on the implemented `rix.scene3d@1` realized geometry and wireframe snapshot. |
+| Next | `.nd` expansion | Slices, sections, fibers, fields, sampling, and marginalization. | Builds on implemented exact affine/Cayley projections and explicit 3D conversion. |
 | Later | `.data` / tables | Relations, schemas, sorting, filtering, joins, calculated columns, table views and formatters. | A `TableView` lowers to core `Table`; CSV is an exporter of data, not a replacement for a presentation table. |
 | Later | `.stats` | Distributions, summaries, regression, histograms, confidence intervals. | Returns data/analysis values; chart constructors compose with `.plot`. |
 | Later | `.graph` | Nodes, edges, layouts, paths, graph algorithms. | Layout output becomes `.Graphics`; graph semantics stay available for computation. |
@@ -112,7 +116,7 @@ The first two build directly on the current graphics work.
 | Later | `.solve` | Polynomial systems, constraints, symbolic/numeric solving. | Returns solution objects and isolating boxes; `.geometry` can visualize them. |
 | Later | `.document` extras | Citation, bibliography, cross-references, themes, code/output inclusion. | Produces core `Fragment`, `Figure`, `Table`, and `Slides` values; renderers own HTML/Quarto/PDF specifics. |
 | Host-dependent | `.widgets` | Sliders, selection, animation, browser events. | Requires runtime-specific JavaScript; must declare capability needs and provide a portable static snapshot. |
-| Host-dependent | Remaining exporters | Terminal ASCII, GIF/video, CSV/data formats, and—after `Scene3D`—glTF/GLB, OBJ, STL, PLY, and USD/USDZ. | These use the implemented renderer registry and are selected by MIME/target negotiation rather than mathematical libraries. |
+| Host-dependent | Remaining exporters | Terminal ASCII, GIF/video, CSV/data formats, GLB, OBJ, STL, PLY, and USD/USDZ. | glTF JSON is implemented; remaining targets use the same renderer registry and MIME/target negotiation. |
 
 Potential high-level packages should depend downward: `.geometry` and `.plot`
 depend on exact/numerical services and emit core graphics; renderers depend on

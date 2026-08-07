@@ -72,6 +72,7 @@ one Graphic and one document tree.
 | `.quarto` | Portable documents and slides | `.qmd` with front matter | None; Quarto is only needed for a final build |
 | `.latex` | Portable documents, figures, and slides | Standalone `.tex`, with graphics lowered to TikZ | None; TeX is only needed to compile it |
 | `.pdf` | Portable documents, figures, and static slide content | PDF bytes through the LaTeX renderer | CLI requires `pdflatex` |
+| `.gltf` | Retained `Scene3D` | glTF 2.0 JSON with embedded buffer | None |
 
 Canvas is an execution target, not another scene model. Its plan traverses the
 same `.Graphics` tree as SVG and TikZ and can be repainted with
@@ -94,23 +95,26 @@ For 2D, `.Graphics` is the portable retained scene. SVG, Canvas, TikZ, and PNG
 all consume it. PDF consumes it either as a standalone TikZ figure or inside a
 document.
 
-For 3D, RiX still needs the retained `Scene3D` schema described in
-[`../design-spec.md`](../design-spec.md). Renderer plugins must not encode
+For 3D, RiX has the initial retained `rix.scene3d@1` schema described in
+[`../design-spec.md`](../design-spec.md). Renderer plugins do not encode
 meshes, cameras, materials, lights, or uncertainty as ad-hoc `.Graphics`
-metadata. Once that schema lands, the intended targets are:
+metadata. The first glTF JSON target is implemented; the broader target family
+is:
 
 | 3D target | Role |
 | --- | --- |
-| glTF / GLB | Primary portable scene interchange, including hierarchy, mesh data, materials, cameras, and animation. |
+| glTF | Implemented JSON interchange for realized mesh/line/point geometry and basic material color/opacity. |
+| GLB | Planned binary scene interchange including broader hierarchy, cameras, textures, and animation. |
 | OBJ + MTL | Simple editable mesh interchange with explicit loss diagnostics. |
 | STL | Manufacturing-oriented triangle surface export; drops color, cameras, hierarchy, and semantics visibly. |
 | PLY | Geometry/point-cloud interchange with optional vertex attributes. |
 | USD / USDZ | Rich scene/AR exchange when a suitable host toolchain is available. |
 
-Static 3D publication does not wait for every interchange target. A `Scene3D`
-snapshot operation will own camera projection and hidden-surface decisions,
-then return either a `.Graphics` scene for SVG/TikZ/PDF or raster content for
-PNG. The 2D renderer never performs those 3D decisions.
+Static 3D publication does not wait for every interchange target. The
+implemented `Scene3D` wireframe snapshot owns camera projection and returns a
+`.Graphics` scene for SVG/TikZ/PDF or raster lowering. Hidden-surface decisions
+remain a later snapshot mode. The 2D renderer never performs those 3D
+decisions.
 
 ## Design rules
 

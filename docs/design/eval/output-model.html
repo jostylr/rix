@@ -1199,21 +1199,17 @@ diagram := .geometry.Draw({=
 </section>
 <section id="d-scene-construction" class="level3">
 <h3 class="anchored" data-anchor-id="d-scene-construction">3D scene construction</h3>
-<p>The 3D plugin produces a retained <code>Scene</code> rather than treating WebGL state as the value. A host with an interactive renderer can orbit the camera; an export host can ask for an SVG/PNG <code>Graphic</code> snapshot.</p>
-<pre class="rix"><code>surface := .Scene3D.ParametricSurface({=
-    fn = (u, v) -&gt; [u, v, u * v],
-    u = [-3, 3],
-    v = [-3, 3],
-    material = {= color = "#4b9cd3", opacity = 0.85 }
-})
-
-scene := .Scene3D({=
-    objects = [surface],
-    camera = {= position = [6, 5, 7], target = [0, 0, 0] },
-    lights = [{= type = :directional, direction = [1, -1, -1] }]
-})
-
-staticFigure := scene.Snapshot(:svg, {= size = [720, 480] })</code></pre>
+<p>The initial <code>.scene3d</code> plugin produces a retained <code>rix.scene3d@1</code> value rather than treating WebGL state as the value. Its implemented wireframe snapshot applies a retained camera and returns core Graphics. Interactive orbit, adaptive surfaces, and lit/hidden-surface modes remain follow-up work.</p>
+<pre class="rix"><code>.Plugin.Load("scene3d");
+mesh := .scene3d.Mesh(
+    [[0,0,0], [1,0,0], [0,1,0]],
+    [[1,2,3]],
+    {= color="#4b9cd3", opacity=17/20 }
+);
+scene := .scene3d.Scene([mesh], {=
+    camera=.scene3d.PerspectiveCamera([6,5,7], [0,0,0])
+});
+staticFigure := .scene3d.Snapshot(scene, {= size=[720,480] })["value"];</code></pre>
 </section>
 <section id="exact-and-adaptive-renderables" class="level3">
 <h3 class="anchored" data-anchor-id="exact-and-adaptive-renderables">Exact and adaptive renderables</h3>

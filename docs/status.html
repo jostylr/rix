@@ -414,13 +414,17 @@ ul.task-list li input[type="checkbox"] {
 </tr>
 <tr class="even">
 <td>Structured output</td>
-<td>typed <code>Text</code>, <code>Paragraph</code>, <code>Heading</code>, <code>Fragment</code>, <code>Table</code>, <code>Grid</code>, <code>Graphic</code>, <code>Figure</code>, <code>Slide</code>, <code>Slides</code>, and reactive <code>ControlPanel</code> values; intrinsic 2D scene primitives under <code>.Graphics</code> include <code>DragPoint</code>, while <code>.Controls.Slider($$name, ...)</code> performs exact identity-preserving updates; optional bundled <code>.draw</code> and <code>.plot</code> producers; <code>.Renderer</code>/<code>.Render</code> negotiation and initial SVG, Canvas-plan, TikZ, PNG, Markdown, HTML, Quarto, LaTeX, and PDF plugins; extension-driven CLI <code>.Out</code> text/binary export; <code>@"..."</code>/<code>@"""..."""</code> templates; exact synthetic division through <code>.Algebra.SyntheticDivision</code></td>
+<td>typed <code>Text</code>, <code>Paragraph</code>, <code>Heading</code>, <code>Fragment</code>, <code>Table</code>, <code>Grid</code>, <code>Graphic</code>, <code>Figure</code>, <code>Slide</code>, <code>Slides</code>, and reactive <code>ControlPanel</code> values; intrinsic 2D scene primitives under <code>.Graphics</code> include <code>DragPoint</code>, while <code>.Controls.Slider($$name, ...)</code> performs exact identity-preserving updates; optional bundled <code>.draw</code> and <code>.plot</code> producers; <code>.Renderer</code>/<code>.Render</code> negotiation and SVG, Canvas-plan, TikZ, PNG, Markdown, HTML, Quarto, LaTeX, PDF, and glTF plugins; extension-driven CLI <code>.Out</code> text/binary export; <code>@"..."</code>/<code>@"""..."""</code> templates; exact synthetic division through <code>.Algebra.SyntheticDivision</code></td>
 </tr>
 <tr class="odd">
+<td>3D and higher dimensions</td>
+<td>optional <code>.scene3d</code> retained <code>rix.scene3d@1</code> values with exact meshes, polylines, point clouds, transforms, perspective/orthographic cameras, and deterministic wireframe-to-Graphics snapshots; <code>.nd</code> exact affine/Cayley projection records and polytopes; browser-safe embedded-buffer glTF 2.0 export; runnable 4D tesseract example</td>
+</tr>
+<tr class="even">
 <td>Embedding</td>
 <td>parser exports, evaluator/runtime exports, configurable system loader and system context</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>Exact symbolic core</td>
 <td>identity/expression/system specs, inert definitions and constraints, normalized symbol roles, substitution and composition, name-preserving arithmetic, attached pure-function specs, polynomial compilation, exact derivatives/integrals, explicit simplification, quote calculus syntax</td>
 </tr>
@@ -463,7 +467,7 @@ ul.task-list li input[type="checkbox"] {
 </tr>
 <tr class="even">
 <td>3D rendering</td>
-<td>The renderer registry and 2D/document targets are implemented, but retained <code>Scene3D</code> values and glTF/GLB, OBJ, STL, PLY, or USD/USDZ exporters remain design work. Static camera projection belongs to <code>Scene3D</code>, not to the 2D SVG/Canvas/TikZ renderers.</td>
+<td>The first retained scene, wireframe snapshot, and glTF JSON slice is implemented. Hidden-surface removal, lighting, adaptive parametric/implicit surfaces, textures, animation/orbit controls, GLB, OBJ, STL, PLY, and USD/USDZ remain design work. Static camera projection belongs to <code>Scene3D</code>, not to the 2D SVG/Canvas/TikZ renderers.</td>
 </tr>
 </tbody>
 </table>
