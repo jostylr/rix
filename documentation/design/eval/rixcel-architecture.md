@@ -461,6 +461,16 @@ A tensor-valued slot does not automatically occupy neighboring slots. It
 renders as an embedded value until explicit spill/materialization semantics
 are designed.
 
+Row and column insertion requires a shape-changing history event; rewriting a
+snapshot in place would make cursor undo/redo inconsistent. The reference
+rewriter tokenizes authoritative formula source and changes only literal
+coordinates in contextual `grid[...]` and `near[...]` reads. Strings, comments,
+member names, and unrelated formatting remain byte-for-byte unchanged. A
+dynamic reference such as `grid[row, 2]` is reported and left untouched so the
+structural operation can stop for explicit user resolution rather than guess.
+For `near`, the old formula origin and target are shifted independently, then a
+new relative offset is calculated.
+
 ## Standalone host
 
 `apps/cel` is now the first standalone RiXCel host. It reuses the portable

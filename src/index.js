@@ -15,7 +15,7 @@ export {
     appendRixCelEvent, clearRixCelDraft, createRixCelDocument,
     materializeRixCelDocument, parseRixCelDocument, exportRixCelDocument,
     rixCelEventCommand, setRixCelCursor, setRixCelDraft, stringifyRixCelDocument,
-    importRixCelDocument,
+    importRixCelDocument, rewriteRixCelReferences,
     createReactiveGraph, isReactiveGraph, isReactiveNode, REACTIVE_READ_ENV,
     getDiagnostics, RixAbort, isRixAbort, createEvent, runtimeDefaults,
     OperationalFault, TimeoutFault, CleanupGraceFault, isOperationalFault, faultToRixValue,

@@ -91,6 +91,8 @@ Checked items are implemented in the current RiX repository.
 - [x] Add single-cell formula copy/paste with explicit absolute `grid` and relative `near` semantics.
 - [x] Add multi-cell copy/paste and fill with atomic batch history events.
 - [ ] Add row/column insertion with parsed reference updates.
+  - [x] Add tokenizer-aware `grid`/`near` reference rewriting and dynamic-reference detection.
+  - [ ] Add shape-changing structural history events with cursor-safe undo/redo.
 - [x] Add local persistence and `.rixcel` open/save.
 - [x] Preflight imports and edits in a restartable, timed worker with restricted capabilities.
 - [x] Move persistent FormulaSheet ownership and visible-plane projection fully into the worker.

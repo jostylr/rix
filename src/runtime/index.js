@@ -53,6 +53,7 @@ export {
     stringifyRixCelDocument,
     importRixCelDocument,
 } from "./rixcel-document.js";
+export { rewriteRixCelReferences } from "./rixcel-references.js";
 export { createLiveView, isLiveView, isReactiveSource } from "./reactive-view.js";
 export {
     createReactiveGraph,
