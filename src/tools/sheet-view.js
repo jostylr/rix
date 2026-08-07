@@ -156,6 +156,7 @@ function enhanceSheet(sheet, options) {
         "th[data-rix-header-axis][data-rix-header-coordinate]",
     )];
     let selectedCell = null;
+    let editPending = false;
     if (editForm && typeof options.onEdit === "function") editForm.hidden = false;
     if (!table || !cells.length) return;
 
@@ -487,9 +488,10 @@ function enhanceSheet(sheet, options) {
                 selectedCell.focus();
             }
         });
-        editForm.addEventListener("submit", (event) => {
+        editForm.addEventListener("submit", async (event) => {
             event.preventDefault();
             event.stopPropagation();
+            if (editPending) return;
             if (!selectedCell) {
                 if (editStatus) editStatus.textContent = "Choose a cell first";
                 return;
@@ -498,41 +500,48 @@ function enhanceSheet(sheet, options) {
                 if (editStatus) editStatus.textContent = "This host opened the live view read-only";
                 return;
             }
+            const submittedCell = selectedCell;
             const detail = {
-                ...eventDetail(selectedCell),
+                ...eventDetail(submittedCell),
                 source: editInput?.value ?? "",
                 ...(editAssignmentMode ? { assignmentMode: editAssignmentMode.value } : {}),
             };
+            const submitButton = editForm.querySelector('button[type="submit"]');
             try {
-                const result = options.onEdit(detail, selectedCell, sheet);
-                if (result && typeof result.then === "function") {
-                    throw new Error("Asynchronous Sheet edits are not supported by this host");
-                }
+                editPending = true;
+                editForm.setAttribute("aria-busy", "true");
+                if (submitButton) submitButton.disabled = true;
+                if (editStatus) editStatus.textContent = "Evaluating…";
+                const result = await options.onEdit(detail, submittedCell, sheet);
                 if (Array.isArray(result?.updates)) {
                     applyCellUpdates(result.updates);
                 } else {
-                    selectedCell.textContent = result?.text ?? detail.source;
+                    submittedCell.textContent = result?.text ?? detail.source;
                 }
                 if (result?.type === "error") throw new Error(result.text);
-                const exact = selectedCell.textContent.trim();
+                const exact = submittedCell.textContent.trim();
                 if (editValue) editValue.textContent = `Exact value: ${exact}`;
                 if (editStatus) editStatus.textContent = "Saved";
-                options.onEditCommitted?.(detail, result, selectedCell, sheet);
+                options.onEditCommitted?.(detail, result, submittedCell, sheet);
                 dispatchSheetEvent(sheet, "rix-sheet-edit", {
                     ...detail,
                     revision: result?.revision ?? null,
                 });
-                selectedCell.focus();
+                submittedCell.focus();
             } catch (error) {
-                const diagnostic = sheetCellDiagnostics(selectedCell.dataset);
+                const diagnostic = sheetCellDiagnostics(submittedCell.dataset);
                 if (editValue && diagnostic.state === "error") {
-                    editValue.textContent = `Last good value: ${selectedCell.textContent.trim()}`;
+                    editValue.textContent = `Last good value: ${submittedCell.textContent.trim()}`;
                 }
                 if (editStatus) {
                     editStatus.textContent = diagnosticStatus(diagnostic)
                         || error.message
                         || String(error);
                 }
+            } finally {
+                editPending = false;
+                editForm.removeAttribute("aria-busy");
+                if (submitButton) submitButton.disabled = false;
             }
         });
     }

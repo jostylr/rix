@@ -116,7 +116,7 @@ function validateMetadata(metadata, sourcePath, kind) {
     if (metadata.mount !== undefined && (typeof metadata.mount !== "string" || !/^[a-z][A-Za-z0-9_]*$/.test(metadata.mount))) {
         throw new Error(`${sourcePath}: mount must be a camelCase host capability name`);
     }
-    for (const key of ["exports", "groups", "permissions", "operator-files"]) {
+    for (const key of ["exports", "groups", "permissions", "operator-files", "requires", "optional", "provides", "schemas", "targets"]) {
         if (metadata[key] !== undefined && !Array.isArray(metadata[key])) {
             throw new Error(`${sourcePath}: ${key} must be an inline YAML array or a YAML list`);
         }
@@ -130,6 +130,13 @@ function validateMetadata(metadata, sourcePath, kind) {
         exports: metadata.exports || [],
         groups: metadata.groups || [],
         permissions: metadata.permissions || [],
+        requires: metadata.requires || [],
+        optional: metadata.optional || [],
+        provides: metadata.provides || [],
+        schemas: metadata.schemas || [],
+        targets: metadata.targets || [],
+        snapshot: metadata.snapshot === true,
+        deterministic: metadata.deterministic === true,
         operatorFiles: metadata["operator-files"] || metadata.operatorFiles || [],
         operatorDefinitions: metadata.operatorDefinitions || [],
         defaultEnabled: metadata.defaultEnabled === true,
@@ -282,6 +289,11 @@ export class PluginCatalog {
                 ["exports", { type: "sequence", values: metadata.exports.map(rixString) }],
                 ["groups", { type: "sequence", values: metadata.groups.map(rixString) }],
                 ["permissions", { type: "sequence", values: metadata.permissions.map(rixString) }],
+                ["requires", { type: "sequence", values: metadata.requires.map(rixString) }],
+                ["provides", { type: "sequence", values: metadata.provides.map(rixString) }],
+                ["targets", { type: "sequence", values: metadata.targets.map(rixString) }],
+                ["snapshot", metadata.snapshot ? { type: "integer", value: 1n } : null],
+                ["deterministic", metadata.deterministic ? { type: "integer", value: 1n } : null],
                 ["operators", { type: "sequence", values: metadata.operatorDefinitions.map((definition) => rixString(definition.spelling)) }],
                 ["loaded", loaded ? { type: "integer", value: 1n } : null],
             ]),
@@ -305,6 +317,7 @@ export class PluginCatalog {
             context: runtime.context,
             registry: runtime.registry,
             systemContext: runtime.systemContext,
+            rendererRegistry: runtime.rendererRegistry || runtime.systemContext?._rendererRegistry || null,
         };
         if (metadata.kind === "rix") {
             if (typeof runtime.loadRix !== "function") throw new Error(`No RiX plugin loader is available for '${metadata.id}'`);

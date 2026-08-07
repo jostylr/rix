@@ -464,10 +464,11 @@ newline normalization.
 ### `.svg`
 
 1. **Phase 1 — Portable core Graphic renderer**
-   - [ ] Extract current host SVG behavior into a registered renderer plugin.
-   - [ ] Render paths, groups, transforms, clips, text, rectangles, circles,
+   - [x] Expose current host SVG behavior through a registered renderer plugin.
+   - [x] Render paths, groups, transforms, clips, text, rectangles, circles,
      figures, and accessibility metadata.
-   - [ ] Add README, tutorial, golden fixtures, and CLI/Web/Notebook tests.
+   - [x] Add README, tutorial, focused source fixtures, and CLI/runtime tests.
+   - [ ] Add explicit RiX Web/Notebook renderer-plugin integration tests.
 2. **Phase 2 — Complete 2D scene fidelity**
    - [ ] Add reusable definitions, markers, gradients, patterns, masks, style
      inheritance, font policy, and stable IDs.
@@ -482,12 +483,13 @@ newline normalization.
 ### `.canvas`
 
 1. **Phase 1 — Interactive browser rendering**
-   - [ ] Traverse the same core Graphic tree as SVG into
+   - [x] Traverse the same core Graphic tree as SVG into
      `CanvasRenderingContext2D`.
-   - [ ] Demonstrate a polynomial plot that can be rapidly repainted.
-   - [ ] Provide PNG snapshot and visible unsupported-feature diagnostics.
-   - [ ] Add README, tutorial, browser tests, and SVG/Canvas comparison
+   - [x] Provide a versioned serializable plan and host `paintCanvasPlan` executor.
+   - [x] Provide PNG snapshots through `.png` and visible static-interaction diagnostics.
+   - [x] Add README, tutorial, and SVG/Canvas comparison
      fixtures.
+   - [ ] Add a browser performance/repaint tutorial and browser interaction tests.
 2. **Phase 2 — Interaction services**
    - [ ] Add device-pixel scaling, hit-test IDs, pointer-coordinate inversion,
      dirty-region repaint, and image asset loading.
@@ -501,11 +503,12 @@ newline normalization.
 ### `.png`
 
 1. **Phase 1 — Deterministic raster snapshot**
-   - [ ] Rasterize one Graphic through SVG or Canvas at explicit pixel size and
+   - [x] Rasterize one Graphic through SVG at explicit pixel size and
      scale.
-   - [ ] Demonstrate exporting a polynomial plot with transparency.
-   - [ ] Add README, tutorial, dimension/color tests, and deterministic fixture
+   - [x] Keep process execution in a host adapter and report an unavailable rasterizer.
+   - [x] Add README, tutorial, dimension tests, and deterministic fixture
      policy.
+   - [ ] Add a polynomial transparency visual fixture across rasterizer versions.
 2. **Phase 2 — Color and asset policy**
    - [ ] Add DPI, background, color profile, antialiasing, metadata, and
      document-region rendering.
@@ -535,9 +538,9 @@ newline normalization.
 ### `.tikz`
 
 1. **Phase 1 — Geometry/Graphic to TikZ**
-   - [ ] Export paths, shapes, transforms, labels, and clipping for one exact
+   - [x] Export paths, shapes, transforms, labels, and clipping for exact
      geometry diagram.
-   - [ ] Add README, tutorial, source fixtures, and compilation smoke tests when
+   - [x] Add README, tutorial, source fixtures, and a compilation smoke test when
      TeX is available.
 2. **Phase 2 — PGFPlots and styles**
    - [ ] Add axes/plot lowering, reusable styles, markers, gradients, and
@@ -552,10 +555,11 @@ newline normalization.
 ### `.latex`
 
 1. **Phase 1 — Structured report to TeX**
-   - [ ] Export headings, paragraphs, math, tables, grids, figures, labels, and
+   - [x] Export headings, paragraphs, math, tables, grids, figures, labels, and
      references to a standalone `.tex` document.
-   - [ ] Demonstrate a synthetic-division report.
-   - [ ] Add README, tutorial, source fixtures, and optional compilation test.
+   - [x] Lower embedded Graphics through the shared TikZ traversal.
+   - [x] Add README, tutorial, source fixtures, and optional compilation test.
+   - [ ] Add a dedicated synthetic-division publication example.
 2. **Phase 2 — Themes, citations, and assets**
    - [ ] Add package negotiation, bibliography, numbering, figure/table
      placement, and delegated TikZ/SVG/PNG assets.
@@ -566,13 +570,32 @@ newline normalization.
    - [ ] Add engine profiles, font management, reproducible builds, and journal
      template adapters.
 
+### `.markdown` and `.html`
+
+1. **Phase 1 — Portable document source and standalone web output**
+   - [x] Render semantic inline/block document nodes, tables, figures, media,
+     snapshots, and static interaction fallbacks.
+   - [x] Delegate Markdown graphics to SVG and reuse the structured-output HTML
+     traversal for standalone pages.
+   - [x] Add README, tutorials, source fixtures, and extension-driven CLI export.
+2. **Phase 2 — Asset and style policies**
+   - [ ] Add external/inline asset negotiation, document themes, semantic CSS
+     bundles, cross-references, and configurable raw-markup policy.
+3. **Phase 3 — Interactive publication**
+   - [ ] Add progressive enhancement descriptors without changing the static
+     document result.
+4. **Phase 4 — Web publication profiles**
+   - [ ] Add CSP/integrity profiles, offline bundles, and reproducible site
+     packaging.
+
 ### `.quarto`
 
 1. **Phase 1 — Document to QMD**
-   - [ ] Export one structured report to `.qmd` plus SVG/PNG assets and front
-     matter.
-   - [ ] Preserve labels and ordinary Markdown where possible.
-   - [ ] Add README, tutorial, golden source, and optional Quarto smoke test.
+   - [x] Export structured reports to `.qmd` with front matter and inline SVG.
+   - [ ] Add external SVG/PNG asset policies.
+   - [x] Preserve labels and ordinary Markdown where possible.
+   - [x] Add README, tutorial, and golden source tests.
+   - [ ] Add an optional Quarto compilation smoke test.
 2. **Phase 2 — Projects and citations**
    - [ ] Add multi-document projects, navigation, bibliographies, themes, code
      source policy, and target-specific blocks.
@@ -586,10 +609,10 @@ newline normalization.
 ### `.pdf`
 
 1. **Phase 1 — Orchestrated document PDF**
-   - [ ] Produce a PDF from one Fragment/Document by delegating to the installed
-     LaTeX or Quarto pipeline.
-   - [ ] Record the exact toolchain and all fallback diagnostics.
-   - [ ] Add README, tutorial, page-render fixture, and visual regression test.
+   - [x] Produce a PDF from portable output by delegating to the LaTeX/TikZ pipeline.
+   - [x] Record the host toolchain and lowering diagnostics.
+   - [x] Add README, tutorial, byte/toolchain tests, and CLI compilation smoke coverage.
+   - [ ] Add a page-render visual regression fixture.
 2. **Phase 2 — Figures and slides**
    - [ ] Add standalone vector/raster figures, slide decks, page sizing,
      metadata, bookmarks, and font diagnostics.

@@ -38,6 +38,16 @@ import { install as installArrayJsExample } from "../examples/plugins/example-ar
 import { install as installDrawPlugin } from "../plugins/draw/draw.plugin.rix.js";
 import { install as installExactAlgebrasPlugin } from "../plugins/exact-algebras/exact-algebras.plugin.rix.js";
 import { install as installPlotPlugin } from "../plugins/plot/plot.plugin.rix.js";
+import { install as installSvgPlugin } from "../plugins/render-svg/svg.plugin.rix.js";
+import { install as installCanvasPlugin } from "../plugins/render-canvas/canvas.plugin.rix.js";
+import { install as installTikzPlugin } from "../plugins/render-tikz/tikz.plugin.rix.js";
+import { install as installMarkdownPlugin } from "../plugins/render-markdown/markdown.plugin.rix.js";
+import { install as installHtmlPlugin } from "../plugins/render-html/html.plugin.rix.js";
+import { install as installQuartoPlugin } from "../plugins/render-quarto/quarto.plugin.rix.js";
+import { install as installLatexPlugin } from "../plugins/render-latex/latex.plugin.rix.js";
+import { install as installPngPlugin } from "../plugins/render-png/png.plugin.rix.js";
+import { install as installPdfPlugin } from "../plugins/render-pdf/pdf.plugin.rix.js";
+import { compileLatex, rasterizeSvg } from "./node-renderer-tools.js";
 import {
     ensureRixCliPreamble,
     readRixCliConfig,
@@ -55,8 +65,9 @@ const FIRST_PARTY_PLUGINS_DIR = path.resolve(TOOL_DIR, "../plugins");
 const EXAMPLE_PLUGINS_DIR = path.resolve(EXAMPLES_DIR, "plugins");
 const WEB_PAGE_ENTRY = path.resolve(TOOL_DIR, "web-page.js");
 const WEB_PAGE_STYLE = path.resolve(TOOL_DIR, "web-page.css");
-const BUILT_PLUGIN_IDS = new Set(["exact-algebras", "draw", "plot", "float", "example-array-js", "example-array-rix"]);
-const STANDARD_PLUGIN_IDS = new Set(["exact-algebras", "draw", "plot", "float"]);
+const RENDERER_PLUGIN_IDS = ["svg", "canvas", "tikz", "markdown", "html", "quarto", "latex", "png", "pdf"];
+const BUILT_PLUGIN_IDS = new Set(["exact-algebras", "draw", "plot", "float", ...RENDERER_PLUGIN_IDS, "example-array-js", "example-array-rix"]);
+const STANDARD_PLUGIN_IDS = new Set(["exact-algebras", "draw", "plot", "float", ...RENDERER_PLUGIN_IDS]);
 
 function sourceUsesAsyncEvaluation(source) {
     const tokens = tokenize(source);
@@ -200,6 +211,15 @@ function registerBuiltPluginInstallers(pluginCatalog) {
     pluginCatalog.registerInstaller("draw", ({ systemContext }) => installDrawPlugin({ systemContext }));
     pluginCatalog.registerInstaller("exact-algebras", ({ systemContext, registry }) => installExactAlgebrasPlugin({ systemContext, registry }));
     pluginCatalog.registerInstaller("plot", ({ systemContext }) => installPlotPlugin({ systemContext }));
+    pluginCatalog.registerInstaller("svg", installSvgPlugin);
+    pluginCatalog.registerInstaller("canvas", installCanvasPlugin);
+    pluginCatalog.registerInstaller("tikz", installTikzPlugin);
+    pluginCatalog.registerInstaller("markdown", installMarkdownPlugin);
+    pluginCatalog.registerInstaller("html", installHtmlPlugin);
+    pluginCatalog.registerInstaller("quarto", installQuartoPlugin);
+    pluginCatalog.registerInstaller("latex", installLatexPlugin);
+    pluginCatalog.registerInstaller("png", (api) => installPngPlugin({ ...api, rasterizeSvg }));
+    pluginCatalog.registerInstaller("pdf", (api) => installPdfPlugin({ ...api, compileLatex }));
 }
 
 function validateArtifactPath(outDir, artifactPath) {
@@ -271,7 +291,7 @@ async function buildBrowserRuntime(outDir) {
     if (!result.success) throw new Error(result.logs.map((log) => log.message).join("\n") || "Could not build the RiX browser runtime");
 }
 
-async function writeArtifacts({ outDir, artifacts, source, sourcePath, plugins, context, result }) {
+async function writeArtifacts({ outDir, artifacts, source, sourcePath, plugins, context, result, rendererRegistry = null }) {
     if (!outDir) {
         if (artifacts.length > 0) throw new Error("This script declares .Out artifacts; rerun with --out=DIR");
         return [];
@@ -283,12 +303,32 @@ async function writeArtifacts({ outDir, artifacts, source, sourcePath, plugins, 
     if (interactiveArtifacts.length > 1) {
         throw new Error("Only one .html .Out artifact can be the final reactive view");
     }
-    if (htmlArtifacts.length > 0) await buildBrowserRuntime(resolvedOutDir);
+    const legacyHtmlArtifacts = htmlArtifacts.filter((artifact) =>
+        !artifact.value?._renderResult
+        && (artifact.value === result || !rendererRegistry?.targetForPath(artifact.path)));
+    if (legacyHtmlArtifacts.length > 0) await buildBrowserRuntime(resolvedOutDir);
     const written = [];
     for (const artifact of artifacts) {
         const target = validateArtifactPath(resolvedOutDir, artifact.path);
         mkdirSync(path.dirname(target), { recursive: true });
-        if (/\.html?$/i.test(artifact.path)) {
+        let rendered = artifact.value?._renderResult || null;
+        if (!rendered && rendererRegistry && !(artifact.value === result && /\.html?$/i.test(artifact.path))) {
+            const renderTarget = rendererRegistry.targetForPath(artifact.path);
+            if (renderTarget) {
+                rendered = rendererRegistry.render(artifact.value, renderTarget, {
+                    title: path.basename(artifact.path, path.extname(artifact.path)),
+                }, { format: (item) => formatResult(item, { context }) });
+            }
+        }
+        if (rendered) {
+            writeFileSync(target, rendered.content);
+            for (const asset of rendered.assets) {
+                const assetTarget = validateArtifactPath(path.dirname(target), asset.path);
+                mkdirSync(path.dirname(assetTarget), { recursive: true });
+                writeFileSync(assetTarget, asset.content);
+                written.push(assetTarget);
+            }
+        } else if (/\.html?$/i.test(artifact.path)) {
             const title = path.basename(artifact.path, path.extname(artifact.path));
             writeFileSync(target, artifact.value === result
                 ? pageHtml({ source, sourcePath, title, plugins })
@@ -847,6 +887,7 @@ async function main() {
                 plugins: pluginIds,
                 context,
                 result,
+                rendererRegistry: systemContext._rendererRegistry,
             });
             
             const diag = getDiagnostics(context);

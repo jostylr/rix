@@ -25,6 +25,13 @@ The catalog scans only configured `plugins/` roots. It reads headers and
 declares disabled host mounts so static path checking can recognize a known
 surface, but a disabled mount errors when called.
 
+Renderer/service packages can additionally declare array-valued `requires`,
+`optional`, `provides`, `schemas`, and `targets` fields plus Boolean `snapshot`
+and `deterministic` claims. Discovery exposes `requires`, `provides`, `targets`,
+`snapshot`, and `deterministic` through `.Plugin.Info` without executing the
+plugin. Runtime renderer registration still verifies the declared target; full
+version-range and dependency resolution is future work.
+
 Set `ignore: true` in an otherwise valid header to keep an unfinished or
 alternate source file out of discovery. An ignored entry is absent from
 `.Plugin.List()` and does not reserve its ID.

@@ -76,6 +76,40 @@ table of unrelated HTML.
 The Plot plugin returns a compatible Graphic. Load it with `.Plugin.Load("plot")`
 and use `.plot.Polynomial(coefficients, domain, options)`.
 
+## Renderer plugins
+
+Renderers are opt-in target adapters over the portable values above. They do
+not solve geometry or reevaluate expressions.
+
+```rix
+.Plugin.Load("svg");
+
+available := .Renderer.List();
+info := .Renderer.Info("image/svg+xml");
+result := .Render(graphic, "svg", {= alt="An exact diagram" });
+source := result.Get("content");
+
+## Equivalent target convenience:
+same := .svg.Render(graphic);
+```
+
+Initial targets are `svg`, `canvas`, `tikz`, `png`, `markdown`, `html`,
+`quarto`, `latex`, and `pdf`. A render result records the actual target, MIME,
+extension, encoding/content, subsidiary assets, diagnostics, determinism, and
+external toolchain. Binary content is exposed to RiX as base64 while a host
+retains the original bytes.
+
+Canvas produces a versioned, serializable drawing plan over the same Graphics
+tree. PNG rasterizes SVG through an approved host adapter. LaTeX lowers
+graphics to TikZ, and PDF compiles that result. In the CLI, PNG uses
+`rsvg-convert` or ImageMagick and PDF uses `pdflatex`; browser hosts report an
+unavailable-toolchain diagnostic unless they deliberately install an adapter.
+
+The retained `Scene3D` schema is not implemented yet. Future glTF/GLB,
+OBJ/MTL, STL, PLY, and USD/USDZ exporters will consume that schema. Static 3D
+snapshots will lower camera-projected content to Graphics or raster output;
+2D renderers will not infer cameras or meshes from ad-hoc Graphics metadata.
+
 ## Snapshots and timelines
 
 `.Snapshots` and `.Graphics.Snapshots` materialize `[scene, states]` tuples
@@ -100,12 +134,18 @@ for renderer-extension boundaries.
 ## Output artifacts
 
 ```rix
-.Out("report.txt", .Paragraph("Exact result"));
+.Out("report.md", report);
+.Out("diagram.svg", graphic);
+.Out("diagram.png", graphic);
+.Out("report.tex", report);
+.Out("report.pdf", report);
 .Out("comic.html", snapshots);
 .Out("index.html", $view)
 ```
 
 Run with `rix --out=out program.rix`. Every declared artifact is written below
 `out`. The final HTML artifact can retain its reactive source and host widgets;
-earlier HTML artifacts are written as static pages. PDF output is not yet a
-built-in backend.
+earlier HTML artifacts are written as static pages. When a loaded renderer
+matches an extension, `.Out` writes its text or original binary bytes and any
+validated relative assets. See the full [renderer contract and format
+matrix](../design/plugins.md).

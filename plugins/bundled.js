@@ -3,6 +3,15 @@
 import { install as installDrawPlugin } from "./draw/draw.plugin.rix.js";
 import { install as installExactAlgebrasPlugin } from "./exact-algebras/exact-algebras.plugin.rix.js";
 import { install as installPlotPlugin } from "./plot/plot.plugin.rix.js";
+import { install as installSvgPlugin } from "./render-svg/svg.plugin.rix.js";
+import { install as installCanvasPlugin } from "./render-canvas/canvas.plugin.rix.js";
+import { install as installTikzPlugin } from "./render-tikz/tikz.plugin.rix.js";
+import { install as installMarkdownPlugin } from "./render-markdown/markdown.plugin.rix.js";
+import { install as installHtmlPlugin } from "./render-html/html.plugin.rix.js";
+import { install as installQuartoPlugin } from "./render-quarto/quarto.plugin.rix.js";
+import { install as installLatexPlugin } from "./render-latex/latex.plugin.rix.js";
+import { install as installPngPlugin } from "./render-png/png.plugin.rix.js";
+import { install as installPdfPlugin } from "./render-pdf/pdf.plugin.rix.js";
 
 const BUNDLED_PLUGINS = [
     {
@@ -25,7 +34,7 @@ const BUNDLED_PLUGINS = [
             kind: "host",
             mount: "draw",
             exports: ["Line", "Polygon", "Label", "Box", "Circle"],
-            groups: ["Draw", "Renderers"],
+            groups: ["Draw"],
             permissions: [],
             defaultEnabled: false,
         },
@@ -38,12 +47,39 @@ const BUNDLED_PLUGINS = [
             kind: "host",
             mount: "plot",
             exports: ["Polynomial"],
-            groups: ["Plot", "Renderers"],
+            groups: ["Plot"],
             permissions: [],
             defaultEnabled: false,
         },
         install: ({ systemContext }) => installPlotPlugin({ systemContext }),
     },
+    ...[
+        ["svg", "Portable SVG renderer for core Graphics scenes.", "svg", ["Render"], [], installSvgPlugin, "image/svg+xml", true],
+        ["canvas", "Serializable Canvas 2D drawing plans for core Graphics scenes.", "canvas", ["Render"], [], installCanvasPlugin, "application/vnd.rix.canvas+json", true],
+        ["tikz", "Editable TikZ/PGF source renderer for core Graphics scenes.", "tikz", ["Render"], [], installTikzPlugin, "text/x-tikz", true],
+        ["markdown", "CommonMark-oriented renderer for portable RiX documents.", "markdown", ["Render"], [], installMarkdownPlugin, "text/markdown", true],
+        ["html", "Standalone semantic HTML renderer for portable RiX output trees.", "html", ["Render"], [], installHtmlPlugin, "text/html", true],
+        ["quarto", "Quarto Markdown renderer with front matter and portable figure lowering.", "quarto", ["Render"], [], installQuartoPlugin, "text/x-quarto", true],
+        ["latex", "Standalone LaTeX renderer for portable RiX documents and figures.", "latex", ["Render"], [], installLatexPlugin, "text/x-tex", true],
+        ["png", "PNG snapshot renderer for core Graphics through a host rasterizer.", "png", ["Render"], ["process"], installPngPlugin, "image/png", true],
+        ["pdf", "PDF document and figure renderer orchestrated through LaTeX.", "pdf", ["Render"], ["process", "files"], installPdfPlugin, "application/pdf", false],
+    ].map(([id, description, mount, exports, permissions, install, mime, deterministic]) => ({
+        metadata: {
+            id,
+            description,
+            kind: "host",
+            mount,
+            exports,
+            groups: ["Renderers"],
+            permissions,
+            provides: [`rix.renderer.${id}@1`],
+            targets: [id, mime],
+            snapshot: true,
+            deterministic,
+            defaultEnabled: false,
+        },
+        install,
+    })),
 ];
 
 /**

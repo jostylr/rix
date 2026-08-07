@@ -15,6 +15,15 @@ import {
 import { install as installFloat } from "../plugins/float/browser-installer.js";
 import { install as installArrayJs } from "../examples/plugins/example-array-js/array-js.plugin.rix.js";
 import arrayRixSource from "../examples/plugins/example-array-rix/array-rix.plugin.rix";
+import { install as installSvg } from "../plugins/render-svg/svg.plugin.rix.js";
+import { install as installCanvas } from "../plugins/render-canvas/canvas.plugin.rix.js";
+import { install as installTikz } from "../plugins/render-tikz/tikz.plugin.rix.js";
+import { install as installMarkdown } from "../plugins/render-markdown/markdown.plugin.rix.js";
+import { install as installHtml } from "../plugins/render-html/html.plugin.rix.js";
+import { install as installQuarto } from "../plugins/render-quarto/quarto.plugin.rix.js";
+import { install as installLatex } from "../plugins/render-latex/latex.plugin.rix.js";
+import { install as installPng } from "../plugins/render-png/png.plugin.rix.js";
+import { install as installPdf } from "../plugins/render-pdf/pdf.plugin.rix.js";
 
 const page = globalThis.__RIX_PAGE__;
 
@@ -40,6 +49,22 @@ function createCatalog() {
         kind: "rix", mount: "arrayRix", exports: ["arrayRixSum", "arrayRixDescribe", "arrayRixReverse"],
         groups: ["Examples"], permissions: [], defaultEnabled: false,
     }, null, arrayRixSource);
+    for (const [id, description, installer, permissions = []] of [
+        ["svg", "Portable SVG renderer for core Graphics scenes.", installSvg],
+        ["canvas", "Serializable Canvas 2D drawing plans for core Graphics scenes.", installCanvas],
+        ["tikz", "Editable TikZ/PGF source renderer for core Graphics scenes.", installTikz],
+        ["markdown", "CommonMark-oriented renderer for portable RiX documents.", installMarkdown],
+        ["html", "Standalone semantic HTML renderer for portable RiX output trees.", installHtml],
+        ["quarto", "Quarto Markdown renderer with front matter and portable figure lowering.", installQuarto],
+        ["latex", "Standalone LaTeX renderer for portable RiX documents and figures.", installLatex],
+        ["png", "PNG snapshot renderer for core Graphics through a host rasterizer.", installPng, ["process"]],
+        ["pdf", "PDF document and figure renderer orchestrated through LaTeX.", installPdf, ["process", "files"]],
+    ]) {
+        addPlugin(catalog, {
+            id, description, kind: "host", mount: id, exports: ["Render"],
+            groups: ["Renderers"], permissions, defaultEnabled: false,
+        }, installer);
+    }
     return catalog;
 }
 

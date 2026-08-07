@@ -4,7 +4,7 @@ description: Portable plotting helpers that produce core Graphics scenes.
 kind: host
 mount: plot
 exports: [Polynomial]
-groups: [Plot, Renderers]
+groups: [Plot]
 permissions: []
 defaultEnabled: false
 **/

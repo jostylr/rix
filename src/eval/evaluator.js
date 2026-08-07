@@ -67,6 +67,7 @@ import {
 import { installRegisteredTypes, registerBuiltinSemanticTypes } from "../runtime/type-system.js";
 import { createDefaultComplexCollection, createDefaultExactCollection } from "../runtime/exact-values.js";
 import { createAlgebraOutputCollection, createControlsOutputCollection, createGraphicsOutputCollection, createTimelineOutputCollection } from "../runtime/output.js";
+import { createRendererCollection, RendererRegistry, renderResultValue } from "../runtime/renderer-registry.js";
 import { installBundledPlugins } from "../../plugins/bundled.js";
 import { createDefaultUnitCollection } from "../runtime/quantities.js";
 import { installUnitExactVariants, unitExactFunctions } from "./functions/units.js";
@@ -378,6 +379,15 @@ export function createDefaultSystemContext(options = {}) {
     ctx.register("DefineUnit", unitExactFunctions.DEFINEUNIT);
     ctx.register("DefineExactGenerator", unitExactFunctions.DEFINEEXACTGENERATOR);
     ctx.installManagementNamespaces();
+    const rendererRegistry = options.rendererRegistry || new RendererRegistry();
+    ctx.attachRendererRegistry(rendererRegistry, {
+        collection: createRendererCollection(rendererRegistry),
+        renderValue(value, target, renderOptions, { evaluationContext, evaluate: evaluateValue } = {}) {
+            return renderResultValue(rendererRegistry.render(value, target, renderOptions, {
+                format: (item) => formatValue(item, { context: evaluationContext, evaluate: evaluateValue }),
+            }));
+        },
+    });
     const pluginCatalog = installBundledPlugins(options.pluginCatalog || new PluginCatalog());
     ctx.attachPluginCatalog(pluginCatalog);
     for (const [group, members] of Object.entries(runtimeDefaults.capabilityGroups)) {

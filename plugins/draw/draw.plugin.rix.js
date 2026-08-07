@@ -4,7 +4,7 @@ description: Convenient 2D drawing helpers that produce core Graphics nodes.
 kind: host
 mount: draw
 exports: [Line, Polygon, Label, Box, Circle]
-groups: [Draw, Renderers]
+groups: [Draw]
 permissions: []
 defaultEnabled: false
 **/

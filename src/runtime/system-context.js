@@ -172,7 +172,7 @@ export class SystemContext {
     /**
      * @param {Map<string, object>} capabilities
      * @param {boolean} frozen
-     * @param {{groups?: Map<string, Iterable<string>>|object, hostContext?: SystemContext, pluginCatalog?: object}} options
+     * @param {{groups?: Map<string, Iterable<string>>|object, hostContext?: SystemContext, pluginCatalog?: object, rendererRegistry?: object}} options
      */
     constructor(capabilities = new Map(), frozen = false, options = {}) {
         this._capabilities = new Map();
@@ -182,6 +182,7 @@ export class SystemContext {
         // plugins attach at host scope; ordinary copies get their own host.
         this._hostContext = options.hostContext || this;
         this._pluginCatalog = options.pluginCatalog || null;
+        this._rendererRegistry = options.rendererRegistry || null;
 
         for (const [name, entry] of capabilities) {
             const normalised = normalizeCapabilityName(name);
@@ -488,6 +489,32 @@ export class SystemContext {
         return this;
     }
 
+    /** Attach the host-owned renderer registry used by plugins and `.Render`. */
+    attachRendererRegistry(registry, { collection, renderValue } = {}) {
+        this._checkMutable();
+        if (!registry?.register || !registry?.render || !registry?.list) {
+            throw new Error("Renderer registry must provide register(), render(), and list()");
+        }
+        if (!collection || typeof renderValue !== "function") {
+            throw new Error("Renderer attachment requires its core namespace and render adapter");
+        }
+        this._rendererRegistry = registry;
+        this.registerValue("Renderer", collection, {
+            doc: "Discover installed output renderers and their target contracts",
+            groups: ["Renderers"],
+        });
+        this.register("Render", {
+            pure: false,
+            doc: "Render a portable value through an installed target plugin",
+            groups: ["Renderers"],
+            impl(args, evaluationContext, evaluate) {
+                if (args.length < 2 || args.length > 3) throw new Error(".Render expects value, target, and optional options");
+                return renderValue(args[0], args[1], args[2] ?? null, { evaluationContext, evaluate });
+            },
+        });
+        return this;
+    }
+
     /**
      * Management namespace values close over their owning context. Rebuild
      * them for a derived context so .Core/.Host discovery and registration
@@ -525,7 +552,12 @@ export class SystemContext {
             ]),
         );
         const hostContext = this._hostContext === this ? undefined : this._hostContext;
-        return new SystemContext(capabilities, frozen, { groups, hostContext, pluginCatalog: this._pluginCatalog })._rebindManagementNamespaces();
+        return new SystemContext(capabilities, frozen, {
+            groups,
+            hostContext,
+            pluginCatalog: this._pluginCatalog,
+            rendererRegistry: this._rendererRegistry,
+        })._rebindManagementNamespaces();
     }
 
     // --- Capability object operations (return new instances) ---

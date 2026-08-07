@@ -414,7 +414,7 @@ ul.task-list li input[type="checkbox"] {
 </tr>
 <tr class="even">
 <td>Structured output</td>
-<td>typed <code>Text</code>, <code>Paragraph</code>, <code>Heading</code>, <code>Fragment</code>, <code>Table</code>, <code>Grid</code>, <code>Graphic</code>, <code>Figure</code>, <code>Slide</code>, <code>Slides</code>, and reactive <code>ControlPanel</code> values; intrinsic 2D scene primitives under <code>.Graphics</code> include <code>DragPoint</code>, while <code>.Controls.Slider($$name, ...)</code> performs exact identity-preserving updates; optional bundled <code>.draw</code> and <code>.plot</code> plugins load through <code>.Plugin.Load(...)</code>; CLI text fallback; HTML tables/grids, controls, and inline SVG graphics; <code>@"..."</code>/<code>@"""..."""</code> templates; exact synthetic division through <code>.Algebra.SyntheticDivision</code></td>
+<td>typed <code>Text</code>, <code>Paragraph</code>, <code>Heading</code>, <code>Fragment</code>, <code>Table</code>, <code>Grid</code>, <code>Graphic</code>, <code>Figure</code>, <code>Slide</code>, <code>Slides</code>, and reactive <code>ControlPanel</code> values; intrinsic 2D scene primitives under <code>.Graphics</code> include <code>DragPoint</code>, while <code>.Controls.Slider($$name, ...)</code> performs exact identity-preserving updates; optional bundled <code>.draw</code> and <code>.plot</code> producers; <code>.Renderer</code>/<code>.Render</code> negotiation and initial SVG, Canvas-plan, TikZ, PNG, Markdown, HTML, Quarto, LaTeX, and PDF plugins; extension-driven CLI <code>.Out</code> text/binary export; <code>@"..."</code>/<code>@"""..."""</code> templates; exact synthetic division through <code>.Algebra.SyntheticDivision</code></td>
 </tr>
 <tr class="odd">
 <td>Embedding</td>
@@ -460,6 +460,10 @@ ul.task-list li input[type="checkbox"] {
 <tr class="odd">
 <td>Packaging</td>
 <td>the package uses <code>@ratmath/core</code> through the parent Bun workspace and has not yet declared a stable standalone release workflow.</td>
+</tr>
+<tr class="even">
+<td>3D rendering</td>
+<td>The renderer registry and 2D/document targets are implemented, but retained <code>Scene3D</code> values and glTF/GLB, OBJ, STL, PLY, or USD/USDZ exporters remain design work. Static camera projection belongs to <code>Scene3D</code>, not to the 2D SVG/Canvas/TikZ renderers.</td>
 </tr>
 </tbody>
 </table>

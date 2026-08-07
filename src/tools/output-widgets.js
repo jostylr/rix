@@ -163,8 +163,11 @@ export function mountOutputWidgets(root, value, options = {}) {
                     widgetSession.editMode === "formula"
                     || typeof options.evaluateEdit === "function"
                 )
-                    ? (detail) => {
+                    ? async (detail) => {
                         try {
+                            if (typeof options.beforeSheetEdit === "function") {
+                                await options.beforeSheetEdit(detail, widgetSession.current());
+                            }
                             let valueResult = null;
                             if (widgetSession.editMode !== "formula") {
                                 const evaluated = options.evaluateEdit(detail.source, {

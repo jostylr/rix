@@ -39,9 +39,11 @@ afterEach(() => {
 function catalog() {
     const result = new PluginCatalog();
     for (const metadata of [
-        { id: "draw", groups: ["Draw", "Renderers"] },
-        { id: "plot", groups: ["Plot", "Renderers"] },
+        { id: "draw", groups: ["Draw"] },
+        { id: "plot", groups: ["Plot"] },
         { id: "float", groups: ["ApproximateMath"] },
+        { id: "svg", groups: ["Renderers"] },
+        { id: "html", groups: ["Renderers"] },
     ]) {
         result.addMetadata({
             description: `${metadata.id} test plugin`,
@@ -82,9 +84,9 @@ describe("RiX CLI configuration", () => {
 
     test("resolves plugin IDs, dynamic groups, and the standard full set", () => {
         const plugins = catalog();
-        expect(availablePluginGroups(plugins).get("renderers")).toEqual(["draw", "plot"]);
+        expect(availablePluginGroups(plugins).get("renderers")).toEqual(["html", "svg"]);
         expect(resolvePluginSelectors(plugins, ["float", "renderers"]))
-            .toEqual(["float", "draw", "plot"]);
+            .toEqual(["float", "html", "svg"]);
         expect(resolvePluginSelectors(plugins, ["full"], { standardIds: new Set(["draw", "float"]) }))
             .toEqual(["draw", "float"]);
         expect(() => resolvePluginSelectors(plugins, ["oracle"]))
@@ -103,7 +105,7 @@ describe("RiX CLI configuration", () => {
         expect(result.stderr).toBe("");
         expect(readRixCliConfig(directory).plugins).toEqual(["renderers"]);
         expect(existsSync(path.join(directory, "cli-preamble.rix"))).toBe(true);
-        expect(result.stdout).toContain("Currently resolved: draw, plot");
+        expect(result.stdout).toContain("Currently resolved: canvas, html, latex, markdown, pdf, png, quarto, svg, tikz");
     });
 
     test("the automatic preamble supplies functions and operators to later REPL submissions", () => {

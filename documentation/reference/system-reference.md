@@ -8,7 +8,7 @@ toc-depth: 2
 This page is generated from the current RiX implementation by `documentation/scripts/generate-reference.js`. Do not edit it by hand. Descriptions come from registry documentation strings; the narrative [syntax guide](../eval/syntax-guide.md) and [methods guide](../eval/methods-guide.md) provide signatures and examples.
 :::
 
-At this revision RiX exposes **179 named entries** on the default system context and registers **212 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
+At this revision RiX exposes **190 named entries** on the default system context and registers **212 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
 
 ## Public system context
 
@@ -138,6 +138,8 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.RAND_NAME` | function | Core, Random | Generate a random name string RAND\_NAME(len=10, alphabet=a-zA-Z) |
 | `.REACTIVEGRAPH` | function | RiXCel | Create a transactional graph of reactive source and computed nodes |
 | `.REDUCE` | lazy function | Collections, Arrays | Reduce a collection with an accumulator function — callback receives (acc, val, locator, src) |
+| `.RENDER` | function | — | Render a portable value through an installed target plugin |
+| `.RENDERER` | value | — | Discover installed output renderers and their target contracts |
 | `.RETRY` | lazy function | — | Repeat deferred work for expected error tuple values under a bounded retry policy |
 | `.REVERSE` | function | — | Reverse a collection (returns new copy) |
 | `.RIXCELEXPORT` | function | RiXCel | Serialize a FormulaSheet to canonical versioned RiXCel JSON |
@@ -192,9 +194,18 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.VALUES` | function | Core, Maps | Get the values of a map as a set (obj\|.) |
 | `.VIDEO` | function | — | Create a portable video asset |
 | `.WARN` | function | — | Emit a warning event: .Warn(label, dataMap ?= {=}) |
+| `.canvas` | function | — | Serializable Canvas 2D drawing plans for core Graphics scenes. |
 | `.draw` | function | Draw | Convenient 2D drawing helpers that produce core Graphics nodes. |
 | `.exactalgebras` | function | Exact | Exact rational quaternion and octonion values. |
+| `.html` | function | — | Standalone semantic HTML renderer for portable RiX output trees. |
+| `.latex` | function | — | Standalone LaTeX renderer for portable RiX documents and figures. |
+| `.markdown` | function | — | CommonMark-oriented renderer for portable RiX documents. |
+| `.pdf` | function | — | PDF document and figure renderer orchestrated through LaTeX. |
 | `.plot` | function | Plot | Portable plotting helpers that produce core Graphics scenes. |
+| `.png` | function | — | PNG snapshot renderer for core Graphics through a host rasterizer. |
+| `.quarto` | function | — | Quarto Markdown renderer with front matter and portable figure lowering. |
+| `.svg` | function | — | Portable SVG renderer for core Graphics scenes. |
+| `.tikz` | function | — | Editable TikZ/PGF source renderer for core Graphics scenes. |
 
 ## Built-in receiver methods
 

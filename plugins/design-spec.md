@@ -32,7 +32,10 @@ numeric type or one universal rendering engine.
 | `.exactAlgebras` | Implemented plugin | Exact rational quaternion and octonion values with Cayley-Dickson arithmetic. |
 | Plugin catalog | Implemented runtime service | Discovery, metadata, explicit loading, host approval for JavaScript, capability groups, and remounting. |
 | Core symbolic specs | Implemented in RiX core | `{#}` preserves expression IR, definitions, constraints, all symbols, and advisory input/output roles without choosing a solver. |
-| HTML/SVG/terminal display | Implemented in current hosts | Initial rendering behavior; intended to migrate toward the renderer contracts below. |
+| Renderer registry | Implemented runtime service | `.Renderer.List`/`.Info`, generic `.Render`, MIME/extension aliases, explicit fallback negotiation, structured results/assets/diagnostics, and `.Out` target selection. |
+| `.svg`, `.canvas`, `.tikz`, `.png` | Implemented plugins | Core Graphics to SVG, Canvas 2D plans, TikZ, and host-rasterized PNG. PNG uses an approved CLI toolchain adapter. |
+| `.markdown`, `.html`, `.quarto`, `.latex`, `.pdf` | Implemented plugins | Portable document/output trees to standalone text/document formats. PDF delegates through LaTeX and an approved CLI compiler adapter. |
+| HTML/SVG/terminal display | Implemented compatibility hosts | Existing direct host display remains available without loading an exporter; explicit artifacts use the renderer registry when a matching plugin is loaded. |
 
 ### Proposed first-party packages
 
@@ -49,7 +52,7 @@ numeric type or one universal rendering engine.
 | Data | `.data` | Relations, schemas, joins, transformations, and presentation-neutral tabular data. |
 | Statistics | `.stats` | Exact/approximate summaries, distributions, models, regression, and plot-ready result values. |
 | Document features | `.document` | Citations, references, numbering, themes, assets, and report/deck assembly beyond core fragments. |
-| Rendering and export | `.quarto`, `.latex`, `.tikz`, `.svg`, `.canvas`, `.png`, `.pdf`, `.terminalAscii`, `.gif`, `.csv` | Target encoders and data exporters registered through shared output protocols. |
+| Rendering and export | `.terminalAscii`, `.gif`, `.csv`; 3D glTF/GLB, OBJ, STL, PLY, USD/USDZ adapters | Remaining target encoders/exporters. SVG, Canvas, TikZ, PNG, Markdown, HTML, Quarto, LaTeX, and PDF have initial implementations. 3D targets wait for the retained `Scene3D` schema. |
 
 Plugin IDs and mount names remain lowercase or lower camel case. Core portable
 constructors retain their existing PascalCase system names.
@@ -639,6 +642,8 @@ not silently discarded.
 | `.png` | `Graphic`, rendered document region, `Scene3D`, slide frame | Raster image; delegates scene construction to SVG/Scene3D and owns resolution, antialiasing, color profile, and transparency. |
 | `.terminalAscii` | Scalars, tables, grids, fragments, graphics, slides | Strict ASCII output with widths, pagination, line styles, plot approximation, and no Unicode dependency. A future terminal-Unicode renderer may offer richer glyphs. |
 | `.tikz` | `Graphic`, geometry diagrams, plot snapshots | TikZ/PGF source, coordinates, paths, labels, styles, and optional PGFPlots lowering. Reports unsupported raster/3D effects. |
+| `.markdown` | `Fragment`, document blocks, tables, figures, slides | CommonMark-oriented Markdown, native semantic constructs where possible, inline/delegated graphics, and visible static fallbacks. |
+| `.html` | Portable output values | Standalone semantic HTML with safe URLs, escaped content, embedded SVG, accessibility metadata, and an optional style policy. |
 | `.latex` | `Fragment`, `Document`, `Table`, `Grid`, `Figure`, `Slides` | `.tex` plus assets; mathematical formatting, environments, numbering, references, and package declarations. May delegate graphics to TikZ, SVG conversion, PDF, or PNG. |
 | `.quarto` | `Fragment`, `Document`, `Slides` | `.qmd` plus assets/front matter; emits Markdown where portable and raw target blocks only when necessary. Preserves labels, citations, and executable-source policy. |
 | `.pdf` | Documents, figures, slides | Final PDF bytes/assets. May use LaTeX/Quarto for documents, SVG/TikZ for vector figures, PNG for raster content, and Scene3D snapshots. Records its toolchain. |
@@ -719,8 +724,11 @@ snapshot: true
 deterministic: true
 ```
 
-These fields are proposed; the current small YAML parser and validator do not
-yet enforce version ranges or service resolution.
+`requires`, `optional`, `provides`, `schemas`, `targets`, `snapshot`, and
+`deterministic` are now retained and type-checked by discovery, and renderer
+plugins publish their target/service metadata through `.Plugin.Info`. Version
+ranges and dependency/service resolution remain proposed; loading still relies
+on the host-approved installer to register a matching runtime target.
 
 Plugin loading proceeds in four steps:
 

@@ -48,6 +48,8 @@ contract: `.draw.Line(...)` and `.draw.Circle(...)` simply return core
 | `.Algebra.SyntheticDivision` | Implemented, bundled | Exact arithmetic laid out as a portable `Grid`. |
 | `.plot.Polynomial` | Implemented, bundled | Load with `.Plugin.Load("plot")`; produces a portable static `Graphic`. |
 | Plugin discovery/installation | Implemented catalog | The CLI and hosts discover YAML-headed `.plugin.rix`/`.plugin.rix.js` entries, expose `.Plugin.List`/`.Info`/`.Load`, and require host approval for JavaScript installers. |
+| Renderer registry | Implemented | `.Renderer.List`/`.Info`, generic `.Render`, target/MIME/extension aliases, explicit fallback diagnostics, and structured text/binary results. |
+| First renderer plugins | Implemented initial versions | `.svg`, `.canvas`, `.tikz`, `.png`, `.markdown`, `.html`, `.quarto`, `.latex`, and `.pdf`; binary toolchains remain host-owned. |
 | Symbolic system carrier | Implemented | `{#}` retains definitions, constraints, all symbols, and advisory input/output roles; `.InspectSpec` and `.SpecRoles` expose them to plugins. |
 
 First-party plugins may live in the main RiX repository and be installed
@@ -55,6 +57,26 @@ selectively by the CLI, notebook, or web host. Independently developed plugins
 can already use the catalog format; the remaining work is to mature its
 compatibility, serialization, and permission policies. The operational details
 are in [Plugin catalog](../plugin-catalog.md).
+
+### Implemented renderer negotiation
+
+The host owns a target registry. `.Renderer.List()` and `.Renderer.Info(target)`
+inspect installed adapters; `.Render(value, target, options?)` returns target,
+MIME, extension, encoding/content, subsidiary assets, diagnostics,
+determinism, and toolchain fields. A target plugin also exposes the equivalent
+`.svg.Render(...)`-style convenience. Renderer manifests publish `provides`,
+`targets`, `snapshot`, and `deterministic` metadata before execution.
+
+| Family | Implemented targets | Boundary |
+|---|---|---|
+| 2D | SVG, Canvas 2D plan, TikZ, PNG | All consume core `.Graphics`; PNG uses a host SVG rasterizer. |
+| Documents | Markdown, HTML, Quarto, LaTeX, PDF | Graphics delegate to SVG/TikZ; PDF uses a host LaTeX compiler. |
+| 3D | None until retained `Scene3D` exists | glTF/GLB is the primary planned scene interchange; OBJ/MTL, STL, PLY, and USD/USDZ are lossy or host-specific adapters. |
+
+Static 3D publication will ask `Scene3D` to apply its camera and hidden-surface
+policy, then lower to `.Graphics` or raster output. SVG/Canvas/TikZ renderers do
+not infer 3D semantics from scene metadata. Unsupported and fallback behavior
+is recorded in structured diagnostics rather than silently dropped.
 
 ## Consuming `{#}` from a plugin
 
@@ -90,7 +112,7 @@ The first two build directly on the current graphics work.
 | Later | `.solve` | Polynomial systems, constraints, symbolic/numeric solving. | Returns solution objects and isolating boxes; `.geometry` can visualize them. |
 | Later | `.document` extras | Citation, bibliography, cross-references, themes, code/output inclusion. | Produces core `Fragment`, `Figure`, `Table`, and `Slides` values; renderers own HTML/Quarto/PDF specifics. |
 | Host-dependent | `.widgets` | Sliders, selection, animation, browser events. | Requires runtime-specific JavaScript; must declare capability needs and provide a portable static snapshot. |
-| Host-dependent | Exporters | SVG, HTML, Quarto, PDF, PNG, terminal. | These are renderer plugins/adapters, selected by MIME/target negotiation rather than mathematical libraries. |
+| Host-dependent | Remaining exporters | Terminal ASCII, GIF/video, CSV/data formats, and—after `Scene3D`—glTF/GLB, OBJ, STL, PLY, and USD/USDZ. | These use the implemented renderer registry and are selected by MIME/target negotiation rather than mathematical libraries. |
 
 Potential high-level packages should depend downward: `.geometry` and `.plot`
 depend on exact/numerical services and emit core graphics; renderers depend on

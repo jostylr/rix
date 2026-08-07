@@ -328,7 +328,10 @@ ul.task-list li input[type="checkbox"] {
   <li><a href="#plugin-roadmap-and-rendering-contracts" id="toc-plugin-roadmap-and-rendering-contracts" class="nav-link active" data-scroll-target="#plugin-roadmap-and-rendering-contracts">Plugin Roadmap and Rendering Contracts</a>
   <ul class="collapse">
   <li><a href="#the-boundary" id="toc-the-boundary" class="nav-link" data-scroll-target="#the-boundary">The boundary</a></li>
-  <li><a href="#current-starting-point" id="toc-current-starting-point" class="nav-link" data-scroll-target="#current-starting-point">Current starting point</a></li>
+  <li><a href="#current-starting-point" id="toc-current-starting-point" class="nav-link" data-scroll-target="#current-starting-point">Current starting point</a>
+  <ul class="collapse">
+  <li><a href="#implemented-renderer-negotiation" id="toc-implemented-renderer-negotiation" class="nav-link" data-scroll-target="#implemented-renderer-negotiation">Implemented renderer negotiation</a></li>
+  </ul></li>
   <li><a href="#consuming-from-a-plugin" id="toc-consuming-from-a-plugin" class="nav-link" data-scroll-target="#consuming-from-a-plugin">Consuming <code>{#}</code> from a plugin</a></li>
   <li><a href="#candidate-plugin-roadmap" id="toc-candidate-plugin-roadmap" class="nav-link" data-scroll-target="#candidate-plugin-roadmap">Candidate plugin roadmap</a></li>
   <li><a href="#geometry-implicit-equations-to-graphics" id="toc-geometry-implicit-equations-to-graphics" class="nav-link" data-scroll-target="#geometry-implicit-equations-to-graphics">Geometry implicit equations to graphics</a>
@@ -424,6 +427,16 @@ ul.task-list li input[type="checkbox"] {
 <td>The CLI and hosts discover YAML-headed <code>.plugin.rix</code>/<code>.plugin.rix.js</code> entries, expose <code>.Plugin.List</code>/<code>.Info</code>/<code>.Load</code>, and require host approval for JavaScript installers.</td>
 </tr>
 <tr class="even">
+<td>Renderer registry</td>
+<td>Implemented</td>
+<td><code>.Renderer.List</code>/<code>.Info</code>, generic <code>.Render</code>, target/MIME/extension aliases, explicit fallback diagnostics, and structured text/binary results.</td>
+</tr>
+<tr class="odd">
+<td>First renderer plugins</td>
+<td>Implemented initial versions</td>
+<td><code>.svg</code>, <code>.canvas</code>, <code>.tikz</code>, <code>.png</code>, <code>.markdown</code>, <code>.html</code>, <code>.quarto</code>, <code>.latex</code>, and <code>.pdf</code>; binary toolchains remain host-owned.</td>
+</tr>
+<tr class="even">
 <td>Symbolic system carrier</td>
 <td>Implemented</td>
 <td><code>{#}</code> retains definitions, constraints, all symbols, and advisory input/output roles; <code>.InspectSpec</code> and <code>.SpecRoles</code> expose them to plugins.</td>
@@ -431,6 +444,42 @@ ul.task-list li input[type="checkbox"] {
 </tbody>
 </table>
 <p>First-party plugins may live in the main RiX repository and be installed selectively by the CLI, notebook, or web host. Independently developed plugins can already use the catalog format; the remaining work is to mature its compatibility, serialization, and permission policies. The operational details are in <a href="../plugin-catalog.html">Plugin catalog</a>.</p>
+<section id="implemented-renderer-negotiation" class="level3">
+<h3 class="anchored" data-anchor-id="implemented-renderer-negotiation">Implemented renderer negotiation</h3>
+<p>The host owns a target registry. <code>.Renderer.List()</code> and <code>.Renderer.Info(target)</code> inspect installed adapters; <code>.Render(value, target, options?)</code> returns target, MIME, extension, encoding/content, subsidiary assets, diagnostics, determinism, and toolchain fields. A target plugin also exposes the equivalent <code>.svg.Render(...)</code>-style convenience. Renderer manifests publish <code>provides</code>, <code>targets</code>, <code>snapshot</code>, and <code>deterministic</code> metadata before execution.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Family</th>
+<th>Implemented targets</th>
+<th>Boundary</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>2D</td>
+<td>SVG, Canvas 2D plan, TikZ, PNG</td>
+<td>All consume core <code>.Graphics</code>; PNG uses a host SVG rasterizer.</td>
+</tr>
+<tr class="even">
+<td>Documents</td>
+<td>Markdown, HTML, Quarto, LaTeX, PDF</td>
+<td>Graphics delegate to SVG/TikZ; PDF uses a host LaTeX compiler.</td>
+</tr>
+<tr class="odd">
+<td>3D</td>
+<td>None until retained <code>Scene3D</code> exists</td>
+<td>glTF/GLB is the primary planned scene interchange; OBJ/MTL, STL, PLY, and USD/USDZ are lossy or host-specific adapters.</td>
+</tr>
+</tbody>
+</table>
+<p>Static 3D publication will ask <code>Scene3D</code> to apply its camera and hidden-surface policy, then lower to <code>.Graphics</code> or raster output. SVG/Canvas/TikZ renderers do not infer 3D semantics from scene metadata. Unsupported and fallback behavior is recorded in structured diagnostics rather than silently dropped.</p>
+</section>
 </section>
 <section id="consuming-from-a-plugin" class="level2">
 <h2 class="anchored" data-anchor-id="consuming-from-a-plugin">Consuming <code>{#}</code> from a plugin</h2>
@@ -524,9 +573,9 @@ ul.task-list li input[type="checkbox"] {
 </tr>
 <tr class="even">
 <td>Host-dependent</td>
-<td>Exporters</td>
-<td>SVG, HTML, Quarto, PDF, PNG, terminal.</td>
-<td>These are renderer plugins/adapters, selected by MIME/target negotiation rather than mathematical libraries.</td>
+<td>Remaining exporters</td>
+<td>Terminal ASCII, GIF/video, CSV/data formats, and—after <code>Scene3D</code>—glTF/GLB, OBJ, STL, PLY, and USD/USDZ.</td>
+<td>These use the implemented renderer registry and are selected by MIME/target negotiation rather than mathematical libraries.</td>
 </tr>
 </tbody>
 </table>

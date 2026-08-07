@@ -1,6 +1,15 @@
 export { Context } from "./context.js";
 export { SystemContext } from "./system-context.js";
 export { PluginCatalog, parsePluginYaml, readPluginHeader, readSourceHeader } from "./plugin-catalog.js";
+export {
+    RendererRegistry,
+    UnsupportedRenderError,
+    createRenderResult,
+    createRendererCollection,
+    createRendererPluginCollection,
+    isRenderResult,
+    renderResultValue,
+} from "./renderer-registry.js";
 export { Cell } from "./cell.js";
 export {
     OperationalFault,
@@ -32,8 +41,15 @@ export {
     RIXCEL_FORMAT,
     RIXCEL_VERSION,
     RIXCEL_ASSIGNMENT_MODES,
+    appendRixCelEvent,
+    clearRixCelDraft,
+    createRixCelDocument,
+    materializeRixCelDocument,
     parseRixCelDocument,
     exportRixCelDocument,
+    rixCelEventCommand,
+    setRixCelCursor,
+    setRixCelDraft,
     stringifyRixCelDocument,
     importRixCelDocument,
 } from "./rixcel-document.js";
