@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { Integer, Rational } from "@ratmath/core";
+import { Integer, Rational, RationalInterval } from "@ratmath/core";
 import { tokenize } from "../../src/parser/tokenizer.js";
 import { parse } from "../../src/parser/parser.js";
 import { lower } from "../../src/eval/lower.js";
@@ -54,6 +54,52 @@ function tensorSnapshot(tensor) {
         flat,
     };
 }
+
+describe("Built-in exact-number methods", () => {
+    test("rational methods expose exact structure, rounding, and continued fractions", () => {
+        const result = evalRiX(`
+            q := 355 / 113;
+            {:
+                q.Numerator(),
+                q.Denominator(),
+                q.Floor(),
+                q.Round(),
+                q.ToContinuedFraction(),
+                q.Convergent(2),
+                q.BestApproximation(100),
+                q.ApproximationError(22 / 7)
+            }
+        `);
+        expect(unbox(result)).toEqual([
+            355,
+            113,
+            3,
+            3,
+            [3, 7, 16],
+            "22/7",
+            "311/99",
+            "1/791",
+        ]);
+    });
+
+    test("ordinary interval literals expose bounds, width, midpoint, and mediant", () => {
+        const result = evalRiX(`
+            i := 3/4 : 1/4;
+            j := 1/2 : 1;
+            {:
+                i.Start(), i.End(), i.Low(), i.High(), i.Width(),
+                i.IsAscending(), i.Midpoint(), i.Mediant(),
+                i.ContainsValue(1/2), i.Overlaps(j), i.Intersection(j)
+            }
+        `);
+        expect(result.values[10]).toBeInstanceOf(RationalInterval);
+        expect(unbox({ type: "tuple", values: result.values.slice(0, 10) })).toEqual([
+            "1/4", "3/4", "1/4", "3/4", "1/2",
+            1, "1/2", "1/2", 1, 1,
+        ]);
+        expect(result.values[10].toString()).toBe("1/2:3/4");
+    });
+});
 
 describe("Built-in array methods", () => {
     test("read-only and paired array methods work without mutating the receiver", () => {

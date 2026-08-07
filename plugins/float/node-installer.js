@@ -9,6 +9,7 @@ import { MATH_FUNCTION_NAMES, mathFunctions } from "./math-functions.js";
 import { installRegisteredTypes, typeRegistry } from "../../src/runtime/type-system.js";
 import { loadFloatPluginStartup } from "./float-loader.js";
 import { Integer, Rational, RationalInterval } from "@ratmath/core";
+import { exactFloatRational } from "./protocol.js";
 
 const FLOAT_METHOD_NAMES = ["ABS", "SQRT", ...MATH_FUNCTION_NAMES];
 
@@ -42,28 +43,6 @@ function installFloatCompareVariant(registry) {
             return new Integer(left < right ? -1n : left > right ? 1n : 0n);
         },
     });
-}
-
-function exactFloatRational(float) {
-    const value = float?.value;
-    if (typeof value !== "number" || !Number.isFinite(value)) {
-        throw new Error("Float exact conversion requires a finite Float");
-    }
-    if (value === 0) return new Rational(0n, 1n);
-
-    const bytes = new ArrayBuffer(8);
-    const view = new DataView(bytes);
-    view.setFloat64(0, value, false);
-    const bits = view.getBigUint64(0, false);
-    const negative = (bits >> 63n) !== 0n;
-    const exponent = Number((bits >> 52n) & 0x7ffn);
-    const fraction = bits & ((1n << 52n) - 1n);
-    const significand = exponent === 0 ? fraction : (1n << 52n) | fraction;
-    const binaryExponent = exponent === 0 ? -1074 : exponent - 1075;
-    const numerator = negative ? -significand : significand;
-    return binaryExponent >= 0
-        ? new Rational(numerator << BigInt(binaryExponent), 1n)
-        : new Rational(numerator, 1n << BigInt(-binaryExponent));
 }
 
 function decimalPlaces(value) {

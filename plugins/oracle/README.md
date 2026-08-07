@@ -8,9 +8,10 @@ relation and a finite procedure that answers fuzzy rational-interval queries.
 
 Phase 1 is implemented in `oracle.plugin.rix` without a JavaScript arithmetic
 backend. It provides exact value schemas, five rational procedure
-demonstrations, Range validation, reproducible finite alternatives, and
-bounded bisection refinement. Funnel adapters, Newton constructions,
-arithmetic, and the shared Numerics dispatcher remain later-phase work.
+demonstrations, Range validation, reproducible finite alternatives, bounded
+bisection refinement, and the neutral provider methods consumed by
+`.numerics`. Funnel adapters, Newton constructions, and arithmetic remain
+later-phase work.
 
 ## Phase 1 surface
 

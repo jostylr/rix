@@ -29,6 +29,12 @@ loaded.
 | `.float.Abs`, `.float.Sqrt`, `.float.Sin`, `.float.Cos`, `.float.Tan` | Common Float math. |
 | `.float.Log`, `.float.Exp` | Exponential/logarithmic Float math. |
 
+Float values also implement the neutral `Enclose`, `Refine`, and
+`NumericsCapabilities` receiver protocol consumed by `.numerics`. The protocol
+result is deliberately `:approximate`: its point interval is exact for the
+stored IEEE value, but it is not an error bound for the intended real-valued
+calculation.
+
 ## Dependencies
 
 The Node implementation pairs `node-installer.js` with the RiX type startup

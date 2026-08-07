@@ -14,6 +14,7 @@ import {
     valueMethod,
 } from "../../src/runtime/type-system.js";
 import { mathFunctions } from "./math-functions.js";
+import { Enclose, NumericsCapabilities, exactFloatRational } from "./protocol.js";
 
 const TYPE_NAME = "FloatIEEE754";
 const NATIVE_TYPE = "float_ieee754";
@@ -42,24 +43,6 @@ function float(value) {
 
 function requireFloat(value, evaluate) {
     return evaluate({ fn: "SEMANTIC_CONVERT_STRICT", args: [value, TYPE_NAME] });
-}
-
-function exactFloatRational(value) {
-    const number = float(value).value;
-    if (number === 0) return new Rational(0n, 1n);
-    const bytes = new ArrayBuffer(8);
-    const view = new DataView(bytes);
-    view.setFloat64(0, number, false);
-    const bits = view.getBigUint64(0, false);
-    const negative = (bits >> 63n) !== 0n;
-    const exponent = Number((bits >> 52n) & 0x7ffn);
-    const fraction = bits & ((1n << 52n) - 1n);
-    const significand = exponent === 0 ? fraction : (1n << 52n) | fraction;
-    const binaryExponent = exponent === 0 ? -1074 : exponent - 1075;
-    const numerator = negative ? -significand : significand;
-    return binaryExponent >= 0
-        ? new Rational(numerator << BigInt(binaryExponent), 1n)
-        : new Rational(numerator, 1n << BigInt(-binaryExponent));
 }
 
 function decimalPlaces(value) {
@@ -167,6 +150,9 @@ function registerFloatType() {
         proto: () => makeProto([
             ["ToString", valueMethod("ToString", (value) => stringObj(String(value.value)))],
             ["Value", valueMethod("Value", (value) => stringObj(String(value.value)))],
+            ["Enclose", valueMethod("Enclose", (value, request) => Enclose(value, request))],
+            ["Refine", valueMethod("Refine", (value, request) => Enclose(value, request))],
+            ["NumericsCapabilities", valueMethod("NumericsCapabilities", () => NumericsCapabilities())],
         ]),
         installs,
     });

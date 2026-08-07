@@ -1,0 +1,105 @@
+import { describe, expect, test } from "bun:test";
+import { RationalInterval } from "@ratmath/core";
+import {
+    Context,
+    createDefaultRegistry,
+    createDefaultSystemContext,
+    parseAndEvaluate,
+} from "../../src/index.js";
+import { loadFloatPlugin } from "../../plugins/float/node-installer.js";
+
+function runtime() {
+    return {
+        context: new Context(),
+        registry: createDefaultRegistry(),
+        systemContext: createDefaultSystemContext(),
+    };
+}
+
+function entry(map, key) {
+    return map.entries.get(String(key).toLowerCase());
+}
+
+function textValue(value) {
+    return value?.value ?? null;
+}
+
+describe("pure RiX Numerics plugin", () => {
+    test("is bundled as RiX and has no concrete backend dependency", () => {
+        const options = runtime();
+        const info = parseAndEvaluate('.Plugin.Info("numerics")', options);
+        expect(textValue(entry(info, "kind"))).toBe("rix");
+        expect(entry(info, "requires").values).toHaveLength(0);
+
+        const result = parseAndEvaluate(`
+            .Plugin.Load("numerics");
+            provider = {= };
+            provider._proto = {=
+                Enclose = (self, request) -> {=
+                    valueKind=:enclosure,
+                    schema="rix.numerics.enclosure@1",
+                    status=:enclosed,
+                    interval=2:2,
+                    certified=1,
+                    goalMet=1,
+                    requestedWidth=request[:absoluteWidth],
+                    achievedWidth=0,
+                    evidenceLevel=:proof,
+                    backend=:testProvider,
+                    work={= calls=0 },
+                    diagnostics=[]
+                }
+            };
+            .numerics.Enclose(provider, {= absoluteWidth=1/100 })
+        `, options);
+        expect(textValue(entry(result, "backend"))).toBe("testProvider");
+        expect(entry(result, "interval")).toBeInstanceOf(RationalInterval);
+    });
+
+    test("refines an Oracle through only the value protocol", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("numerics");
+            .Plugin.Load("oracle");
+            real = .oracle.Rational(3/7, {= procedure=:bisection });
+            .numerics.Refine(real, {= absoluteWidth=1/1000, maxWork=20, trace=1 })
+        `, options);
+
+        expect(textValue(entry(result, "status"))).toBe("enclosed");
+        expect(textValue(entry(result, "backend"))).toBe("oracle");
+        expect(entry(result, "certified").value).toBe(1n);
+        expect(entry(result, "goalMet").value).toBe(1n);
+        expect(entry(result, "achievedWidth").toString()).toBe("1/1024");
+        expect(entry(result, "interval")).toBeInstanceOf(RationalInterval);
+    });
+
+    test("reports Float sampling as approximate rather than certified", () => {
+        const options = runtime();
+        loadFloatPlugin(options.systemContext, options.registry);
+        const result = parseAndEvaluate(`
+            .Plugin.Load("numerics");
+            x = .float(1/3);
+            .numerics.Sample(x, {= absoluteWidth=1/1000, maxWork=20 })
+        `, options);
+
+        expect(textValue(entry(result, "status"))).toBe("approximate");
+        expect(textValue(entry(result, "backend"))).toBe("float");
+        expect(entry(result, "certified")).toBeNull();
+        expect(entry(result, "goalMet")).toBeNull();
+        expect(entry(result, "interval").low.equals(entry(result, "interval").high)).toBe(true);
+        expect(entry(result, "diagnostics").values.map(textValue)).toContain("noErrorBoundForIntendedReal");
+    });
+
+    test("preserves bounded exhaustion as a normal structured result", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("numerics");
+            .Plugin.Load("oracle");
+            .numerics.Refine(.oracle.Rational(3/7), {= absoluteWidth=1/1000, maxWork=3 })
+        `, options);
+        expect(textValue(entry(result, "status"))).toBe("budgetExhausted");
+        expect(entry(result, "certified").value).toBe(1n);
+        expect(entry(result, "goalMet")).toBeNull();
+        expect(entry(entry(result, "work"), "exhausted").value).toBe(1n);
+    });
+});

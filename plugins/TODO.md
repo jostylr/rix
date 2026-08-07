@@ -152,9 +152,9 @@ newline normalization.
    - [x] Provide reference documentation and tutorial.
    - [x] Consolidate plugin-specific tests across Node, RiX Web, and RiX
      Notebook catalogs.
-   - [ ] Mark certification metadata as approximate rather than enclosed.
+   - [x] Mark certification metadata as approximate rather than enclosed.
 2. **Phase 2 — Numerical protocol provider**
-   - [ ] Implement the shared `EnclosableReal`/sampling capability with an
+   - [x] Implement the shared `EnclosableReal`/sampling capability with an
      explicitly non-certified result level.
    - [ ] Add configurable binary32/binary64 behavior and directed-next-value
      helpers.
@@ -185,7 +185,7 @@ newline normalization.
 2. **Phase 2 — Funnels and generic refinement**
    - [ ] Implement refinement funnels and the paper's funnel-to-oracle adapter.
    - [ ] Implement the rational Newton nth-root funnel and Cauchy adapter.
-   - [ ] Register the shared `EnclosableReal` provider used by `.numerics`.
+   - [x] Register the shared `EnclosableReal` provider used by `.numerics`.
    - [ ] Implement coarse oracles and distinguish `eta` resolution from host
      resource exhaustion.
 3. **Phase 3 — Ordering, arithmetic, and evidence**
@@ -204,14 +204,14 @@ newline normalization.
 ### `.numerics`
 
 1. **Phase 1 — Backend-neutral enclosure and root refinement**
-   - [ ] Define `RefinementRequest`, `Enclosure`, evidence level, and bounded
+   - [x] Define `RefinementRequest`, `Enclosure`, evidence level, and bounded
      work-policy records.
-   - [ ] Dispatch one bisection/root-refinement use case to `.oracle` and one
+   - [x] Dispatch one bisection/root-refinement use case to `.oracle` and one
      approximate sampling use case to `.float`.
-   - [ ] Return structured convergence or exhaustion results.
-   - [ ] Add README, API reference, and a tutorial comparing certified and
+   - [x] Return structured convergence or exhaustion results.
+   - [x] Add README, API reference, and a tutorial comparing certified and
      approximate results.
-   - [ ] Test that Numerics imports protocols, not concrete backend packages.
+   - [x] Test that Numerics imports protocols, not concrete backend packages.
 2. **Phase 2 — Core algorithms**
    - [ ] Add generic `Enclose`, `Refine`, `Compare`, `Sign`, root isolation,
      adaptive sampling, integration, and optimization.
@@ -227,6 +227,9 @@ newline normalization.
    - [ ] Add sparse methods, PDE helpers, continuation, and precision
      escalation across multiple backends.
    - [ ] Explore parallel/distributed work policies with reproducible results.
+   - [ ] Add optional JavaScript, WebAssembly, and native acceleration providers
+     behind the same RiX request/result protocol; accelerated paths must not
+     change evidence semantics.
 
 ### `.algebra`
 

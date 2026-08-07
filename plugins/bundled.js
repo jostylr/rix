@@ -1,6 +1,7 @@
 /** Register bundled opt-in plugins with a host catalog. */
 
 import oracleSource from "./oracle/oracle.plugin.rix" with { type: "text" };
+import numericsSource from "./numerics/numerics.plugin.rix" with { type: "text" };
 import { readPluginHeader } from "../src/runtime/plugin-catalog.js";
 import { install as installDrawPlugin } from "./draw/draw.plugin.rix.js";
 import { install as installExactAlgebrasPlugin } from "./exact-algebras/exact-algebras.plugin.rix.js";
@@ -19,6 +20,11 @@ import { install as installPdfPlugin } from "./render-pdf/pdf.plugin.rix.js";
 import { install as installGltfPlugin } from "./render-gltf/gltf.plugin.rix.js";
 
 const BUNDLED_PLUGINS = [
+    {
+        metadata: readPluginHeader(numericsSource, "numerics.plugin.rix"),
+        source: numericsSource,
+        sourcePath: "bundled:numerics.plugin.rix",
+    },
     {
         metadata: readPluginHeader(oracleSource, "oracle.plugin.rix"),
         source: oracleSource,

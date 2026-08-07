@@ -19,6 +19,7 @@ The implementation order and per-plugin phased work are tracked in
 | `plot/` | host | `plot` | Portable plot constructors that lower to core graphics. |
 | `float/` | host | `float` | IEEE-754 Float conversion and approximate math. |
 | `oracle/` | RiX | `oracle` | Phase 1 rational-betweenness oracle values, procedures, validation, and bounded refinement. |
+| `numerics/` | RiX | `numerics` | Backend-neutral bounded enclosure, refinement, and sampling protocol orchestration. |
 | `render-svg/` | host | `svg` | Core Graphics to accessible SVG. |
 | `render-canvas/` | host | `canvas` | Core Graphics to a serializable Canvas 2D plan. |
 | `render-tikz/` | host | `tikz` | Core Graphics to editable TikZ/PGF. |

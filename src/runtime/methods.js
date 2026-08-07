@@ -68,6 +68,36 @@ function stringObj(value) {
     return { type: "string", value };
 }
 
+function exactBigInt(value, label) {
+    if (value instanceof Integer) return value.value;
+    if (value instanceof Rational && value.denominator === 1n) return value.numerator;
+    throw new Error(`${label} must be an exact integer`);
+}
+
+function safeExactNumber(value, label) {
+    const bigint = exactBigInt(value, label);
+    const number = Number(bigint);
+    if (!Number.isSafeInteger(number)) {
+        throw new Error(`${label} must fit in a safe JavaScript integer`);
+    }
+    return number;
+}
+
+function exactRational(value, label) {
+    if (value instanceof Rational) return value;
+    if (value instanceof Integer) return new Rational(value.value, 1n);
+    throw new Error(`${label} must be an exact integer or rational`);
+}
+
+function exactInterval(value, label) {
+    if (value instanceof RationalInterval) return value;
+    throw new Error(`${label} must be a rational interval`);
+}
+
+function exactSequence(values) {
+    return { type: "sequence", values, _ext: mutableExt() };
+}
+
 function createFrozenMeta() {
     return new Map([
         ["frozen", int(1)],
@@ -1461,6 +1491,98 @@ function assumptionName(value) {
     throw new Error("Structural nonzero assumptions must be names or structural symbols");
 }
 
+const integerExactMethods = {
+    NEGATE: method("Negate", ([target]) => target.negate()),
+    ABS: method("Abs", ([target]) => target.abs()),
+    E: method("E", ([target, exponent]) => target.E(exactBigInt(exponent, "Exponent"))),
+    BITLENGTH: method("BitLength", ([target]) => int(target.bitLength())),
+    TOSTRING: method("ToString", ([target]) => stringObj(target.toString())),
+};
+
+const rationalExactMethods = {
+    NUMERATOR: method("Numerator", ([target]) => int(target.numerator)),
+    DENOMINATOR: method("Denominator", ([target]) => int(target.denominator)),
+    NEGATE: method("Negate", ([target]) => target.negate()),
+    RECIPROCAL: method("Reciprocal", ([target]) => target.reciprocal()),
+    ABS: method("Abs", ([target]) => target.abs()),
+    FLOOR: method("Floor", ([target]) => int(target.floor())),
+    CEIL: method("Ceil", ([target]) => int(target.ceil())),
+    TRUNC: method("Trunc", ([target]) => int(target.trunc())),
+    ROUND: method("Round", ([target, mode]) => int(
+        target.round(mode === undefined ? undefined : stringValue(mode)),
+    )),
+    ROUNDTO: method("RoundTo", ([target, places, mode]) => target.roundTo(
+        safeExactNumber(places, "Decimal places"),
+        mode === undefined ? undefined : stringValue(mode),
+    )),
+    E: method("E", ([target, exponent]) => target.E(exactBigInt(exponent, "Exponent"))),
+    TOMIXEDSTRING: method("ToMixedString", ([target]) => stringObj(target.toMixedString())),
+    TODECIMAL: method("ToDecimal", ([target]) => stringObj(target.toDecimal())),
+    TOCONTINUEDFRACTION: method("ToContinuedFraction", ([target, maxTerms]) => exactSequence(
+        target.toContinuedFraction(
+            maxTerms === undefined ? undefined : safeExactNumber(maxTerms, "Maximum terms"),
+        ).map((value) => int(value)),
+    )),
+    TOCONTINUEDFRACTIONSTRING: method("ToContinuedFractionString", ([target]) =>
+        stringObj(target.toContinuedFractionString())),
+    CONVERGENTS: method("Convergents", ([target, maxCount]) => exactSequence(
+        target.convergents(
+            maxCount === undefined ? undefined : safeExactNumber(maxCount, "Maximum convergents"),
+        ),
+    )),
+    CONVERGENT: method("Convergent", ([target, index]) => {
+        const oneBasedIndex = safeExactNumber(index, "Convergent index");
+        if (oneBasedIndex < 1) throw new Error("Convergent index must be at least 1");
+        return target.getConvergent(oneBasedIndex - 1);
+    }),
+    APPROXIMATIONERROR: method("ApproximationError", ([target, other]) =>
+        target.approximationError(exactRational(other, "Approximation target"))),
+    BESTAPPROXIMATION: method("BestApproximation", ([target, maxDenominator]) =>
+        target.bestApproximation(exactBigInt(maxDenominator, "Maximum denominator"))),
+    BESTCONVERGENT: method("BestConvergent", ([target, maxDenominator]) =>
+        target.bestConvergent(exactBigInt(maxDenominator, "Maximum denominator"))),
+    BITLENGTH: method("BitLength", ([target]) => int(target.bitLength())),
+    TOSTRING: method("ToString", ([target]) => stringObj(target.toString())),
+};
+
+const rationalIntervalMethods = {
+    START: method("Start", ([target]) => target.start),
+    END: method("End", ([target]) => target.end),
+    LOW: method("Low", ([target]) => target.low),
+    HIGH: method("High", ([target]) => target.high),
+    WIDTH: method("Width", ([target]) => target.high.subtract(target.low)),
+    ISASCENDING: method("IsAscending", ([target]) => bool(target.isAscending)),
+    MIDPOINT: method("Midpoint", ([target]) => target.midpoint()),
+    MEDIANT: method("Mediant", ([target]) => target.mediant()),
+    NEGATE: method("Negate", ([target]) => target.negate()),
+    RECIPROCAL: method("Reciprocal", ([target]) => target.reciprocate()),
+    OVERLAPS: method("Overlaps", ([target, other]) =>
+        bool(target.overlaps(exactInterval(other, "Other interval")))),
+    CONTAINS: method("Contains", ([target, other]) =>
+        bool(target.contains(exactInterval(other, "Contained interval")))),
+    CONTAINSVALUE: method("ContainsValue", ([target, value]) =>
+        bool(target.containsValue(exactRational(value, "Contained value")))),
+    CONTAINSZERO: method("ContainsZero", ([target]) => bool(target.containsZero())),
+    INTERSECTION: method("Intersection", ([target, other]) =>
+        target.intersection(exactInterval(other, "Other interval"))),
+    UNION: method("Union", ([target, other]) =>
+        target.union(exactInterval(other, "Other interval"))),
+    SHORTESTDECIMAL: method("ShortestDecimal", ([target, base]) => target.shortestDecimal(
+        base === undefined ? undefined : exactBigInt(base, "Base"),
+    )),
+    DENOMINATORINTERVAL: method("DenominatorInterval", ([target, denominator, onEmpty]) =>
+        target.denominatorInterval(
+            denominator === undefined || denominator === null
+                ? undefined
+                : exactBigInt(denominator, "Grid denominator"),
+            onEmpty === undefined ? undefined : stringValue(onEmpty),
+        )),
+    E: method("E", ([target, exponent]) => target.E(exactBigInt(exponent, "Exponent"))),
+    BITLENGTH: method("BitLength", ([target]) => int(target.bitLength())),
+    TOMIXEDSTRING: method("ToMixedString", ([target]) => stringObj(target.toMixedString())),
+    TOSTRING: method("ToString", ([target]) => stringObj(target.toString())),
+};
+
 const structuralMethods = {
     INSPECT: method("Inspect", ([target]) => inspectStructuralValue(target)),
     RENDER: method("Render", ([target]) => stringObj(formatStructuralValue(target, valueKey))),
@@ -1548,6 +1670,9 @@ const structuralMethods = {
 };
 
 const PROTOS = new Map([
+    ["integer", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(integerExactMethods)])],
+    ["rational", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(rationalExactMethods)])],
+    ["rational_interval", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(rationalIntervalMethods)])],
     ["structural_algebra", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(structuralMethods)])],
     ["structural_symbol", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(structuralMethods)])],
     ["structural_literal", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(structuralMethods)])],
@@ -1622,6 +1747,9 @@ function checkTraitsMethod(name) {
 }
 
 function builtinProtoFor(target) {
+    if (target instanceof Integer) return PROTOS.get("integer");
+    if (target instanceof Rational) return PROTOS.get("rational");
+    if (target instanceof RationalInterval) return PROTOS.get("rational_interval");
     if (target instanceof Fraction) return PROTOS.get("structural_value");
     if (isTensor(target)) return PROTOS.get("tensor");
     if (target && typeof target === "object" && target.fn === "DEFER") return PROTOS.get("deferred");

@@ -1,0 +1,113 @@
+/**
+id: numerics
+description: Backend-neutral bounded enclosure and refinement orchestration.
+kind: rix
+mount: numerics
+exports: [Request, WorkPolicy, Enclose, Refine, Sample, Capabilities, CheckResult]
+groups: [Numerics]
+permissions: []
+provides: [rix.numerics@1, rix.enclosable-real-consumer@1]
+schemas: [rix.numerics.refinement-request@1, rix.numerics.enclosure@1]
+defaultEnabled: false
+**/
+
+Option(options, key, fallback) -> options.Has(key) ?? options[key] ?: fallback;
+
+RequirePositive(value, label) -> {;
+    rational = value ~!: :Rational;
+    rational > 0 ?? rational ?: .Error(@"@{label} must be a positive rational");
+};
+
+RequireNonnegativeInteger(value, label) -> {;
+    integer = value ~!: :Integer;
+    integer >= 0 ?? integer ?: .Error(@"@{label} must be a nonnegative integer");
+};
+
+NumericsWorkPolicy(options ?= {= }) -> {;
+    maxWork = RequireNonnegativeInteger(Option(options, "maxwork", 100), "maxWork");
+    {=
+        valueKind = :numericsWorkPolicy,
+        schema = "rix.numerics.work-policy@1",
+        maxWork = maxWork,
+        maxCalls = RequireNonnegativeInteger(Option(options, "maxcalls", maxWork), "maxCalls"),
+        maxIterations = RequireNonnegativeInteger(Option(options, "maxiterations", maxWork), "maxIterations"),
+        maxDepth = RequireNonnegativeInteger(Option(options, "maxdepth", maxWork), "maxDepth")
+    };
+};
+
+NumericsRequest(options ?= {= }) -> {;
+    width = RequirePositive(
+        Option(options, "absolutewidth", Option(options, "width", 1 / 1000)),
+        "absoluteWidth"
+    );
+    relativeWidth = Option(options, "relativewidth", _);
+    relativeWidth == _ ?? _ ?: RequirePositive(relativeWidth, "relativeWidth");
+    {=
+        valueKind = :refinementRequest,
+        schema = "rix.numerics.refinement-request@1",
+        operation = Option(options, "operation", :enclose),
+        absoluteWidth = width,
+        relativeWidth = relativeWidth,
+        evidenceRequired = Option(options, "evidencerequired", :any),
+        trace = Option(options, "trace", 1),
+        seed = Option(options, "seed", 1),
+        work = NumericsWorkPolicy(options)
+    };
+};
+
+AsRequest(value) -> {;
+    isRequest = value.Has("schema") && value[:schema] == "rix.numerics.refinement-request@1";
+    isRequest ?? value ?: NumericsRequest(value);
+};
+
+CheckEnclosure(result, request) -> {;
+    fieldsPresent = result.Has("status") && result.Has("interval") &&
+        result.Has("certified") && result.Has("goalmet") &&
+        result.Has("evidencelevel") && result.Has("backend") &&
+        result.Has("work") && result.Has("diagnostics");
+    validStatus = {| :enclosed, :approximate, :goalNotMet, :budgetExhausted, :unsupported |}.Has(result[:status]);
+    interval = result[:interval] ~!: :RationalInterval;
+    schemaValid = result[:schema] == "rix.numerics.enclosure@1";
+    valid = fieldsPresent && validStatus && schemaValid;
+    {=
+        valueKind = :numericsResultCheck,
+        valid = valid,
+        fieldsPresent = fieldsPresent,
+        statusValid = validStatus,
+        schemaValid = schemaValid,
+        interval = interval,
+        request = request,
+        result = result
+    };
+};
+
+CheckedEnclosure(result, request) -> {;
+    check = CheckEnclosure(result, request);
+    check[:valid] ?? result ?: .Error("EnclosableReal provider returned an invalid enclosure record");
+};
+
+ProviderEnclose(value, request) -> CheckedEnclosure(value.Enclose(request), request);
+ProviderRefine(value, request) -> CheckedEnclosure(value.Refine(request), request);
+
+NumericsEnclose(value, options ?= {= }) -> {;
+    request = AsRequest(options);
+    ProviderEnclose(value, request);
+};
+
+NumericsRefine(value, options ?= {= }) -> {;
+    request = AsRequest(options);
+    ProviderRefine(value, request);
+};
+
+numericsNamespace = {= };
+numericsNamespace._proto = {=
+    Request = (self, options ?= {= }) -> NumericsRequest(options),
+    WorkPolicy = (self, options ?= {= }) -> NumericsWorkPolicy(options),
+    Enclose = (self, value, options ?= {= }) -> NumericsEnclose(value, options),
+    Refine = (self, value, options ?= {= }) -> NumericsRefine(value, options),
+    Sample = (self, value, options ?= {= }) -> NumericsEnclose(value, options),
+    Capabilities = (self, value) -> value.NumericsCapabilities(),
+    CheckResult = (self, result, options ?= {= }) -> CheckEnclosure(result, AsRequest(options))
+};
+
+.Host.RegisterValue("numerics", numericsNamespace, "Backend-neutral bounded enclosure and refinement orchestration", ["Numerics"]);

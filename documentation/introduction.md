@@ -1615,6 +1615,13 @@ RiX treats intervals as first-class objects using the colon `:` operator. An int
 - `1:5` creates a **RationalInterval** from 1 to 5.
 - `5:2` creates an interval from 5 down to 2. RiX preserves the input order for display, but mathematically they cover the same range.
 
+Exact values expose their common number-theory and interval operations as
+receiver methods. For an interval `i`, use `i.Low()`, `i.High()`, `i.Width()`,
+`i.Midpoint()`, `i.Mediant()`, `i.ContainsValue(x)`, `i.Intersection(j)`, and
+`i.Union(j)`. Rational values expose `Numerator`, `Denominator`, exact rounding,
+continued fractions, convergents, best bounded-denominator approximations, and
+bit length. `Convergent(n)` follows RiX's one-based indexing convention.
+
 Decimal brackets provide compact exact interval notation:
 
 - `1.23[56:67]` appends the unsigned suffixes, producing

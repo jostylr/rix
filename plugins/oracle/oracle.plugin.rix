@@ -25,14 +25,9 @@ RequireNonnegativeInteger(value, label) -> {;
 
 AsInterval(value) -> value ~!: :RationalInterval;
 
-IntervalData(interval) -> {;
-    exported = .TypeExport(AsInterval(interval));
-    exported[:data];
-};
-
-IntervalLow(interval) -> IntervalData(interval)[:low];
-IntervalHigh(interval) -> IntervalData(interval)[:high];
-IntervalWidth(interval) -> IntervalHigh(interval) - IntervalLow(interval);
+IntervalLow(interval) -> AsInterval(interval).Low();
+IntervalHigh(interval) -> AsInterval(interval).High();
+IntervalWidth(interval) -> AsInterval(interval).Width();
 
 OracleWorkPolicy(options ?= {= }) -> {=
     valueKind = :oracleWorkPolicy,
@@ -94,23 +89,34 @@ OracleAnswer(status, query, prophecy ?= _, reason ?= _, procedure ?= _) -> {;
     } ?: .Error("Oracle answer status must be :yes, :no, or :unknown");
 };
 
-RationalOracle(value, options ?= {= }) -> {;
-    exactValue = value ~!: :Rational;
-    procedure = Option(options, "procedure", :singular);
-    allowed = {| :singular, :reflexive, :halo, :randomHalo, :bisection |};
-    allowed.Has(procedure) ?? {=
+BuildRationalOracle(exactValue, selectedProcedure, options) -> {;
+    real = {=
         valueKind = :oracle,
         schema = "rix.oracle@1",
         kind = :complete,
         constructor = :rational,
-        procedure = procedure,
+        procedure = selectedProcedure,
         parameters = {= value = exactValue },
         eta = _,
         declaredProperties = [:range, :existence, :separation, :disjointness, :consistency, :singularity, :closure],
-        choicePolicy = procedure == :randomHalo ?? :enumerable ?: :single,
+        choicePolicy = selectedProcedure == :randomHalo ?? :enumerable ?: :single,
         seed = Option(options, "seed", 1),
         provenance = {= plugin = :oracle, version = 1, source = :rationalConstructor }
-    } ?: .Error("Unknown rational oracle procedure");
+    };
+    real._proto = {=
+        Enclose = (self, request) -> OracleProtocolEnclose(self, request),
+        Refine = (self, request) -> OracleProtocolEnclose(self, request),
+        NumericsCapabilities = (self) -> OracleNumericsCapabilities(self)
+    };
+    real;
+};
+
+RationalOracle(value, options ?= {= }) -> {;
+    exactValue = value ~!: :Rational;
+    procedure = Option(options, "procedure", :singular);
+    allowed = {| :singular, :reflexive, :halo, :randomHalo, :bisection |};
+    allowed.Has(procedure) ?? BuildRationalOracle(exactValue, procedure, options)
+                           ?: .Error("Unknown rational oracle procedure");
 };
 
 PointProphecy(real, query, branch) -> {;
@@ -281,6 +287,47 @@ OracleRefine(real, options ?= {= }) -> {;
         work = {= calls = calls, maxCalls = maxCalls, exhausted = !enclosed },
         assumptions = [:rationalConstructor, :range, :existence, :separation],
         evidence = OracleEvidence(:enclosure, :constructorGuarantee, real, low:high)
+    };
+};
+
+OracleNumericsCapabilities(real) -> {=
+    valueKind = :numericsCapabilities,
+    schema = "rix.numerics.capabilities@1",
+    backend = :oracle,
+    representation = :rationalBetweennessOracle,
+    operations = [:enclose, :refine],
+    evidenceLevels = [:constructorGuarantee],
+    certified = 1,
+    arbitraryRefinement = 1,
+    deterministic = 1,
+    minimumWidth = 0,
+    provider = real[:provenance]
+};
+
+OracleProtocolEnclose(real, request) -> {;
+    refined = OracleRefine(real, {=
+        width = request[:absoluteWidth],
+        maxCalls = request[:work][:maxCalls],
+        trace = request[:trace]
+    });
+    goalMet = refined[:status] == :enclosed;
+    {=
+        valueKind = :enclosure,
+        schema = "rix.numerics.enclosure@1",
+        status = refined[:status],
+        interval = refined[:interval],
+        certified = 1,
+        goalMet = goalMet,
+        requestedWidth = request[:absoluteWidth],
+        achievedWidth = refined[:achievedWidth],
+        evidenceLevel = :constructorGuarantee,
+        backend = :oracle,
+        operation = request[:operation],
+        trace = refined[:trace],
+        work = refined[:work],
+        diagnostics = [],
+        evidence = refined[:evidence],
+        source = real[:provenance]
     };
 };
 
