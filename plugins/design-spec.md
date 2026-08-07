@@ -29,6 +29,7 @@ numeric type or one universal rendering engine.
 | `.draw` | Implemented plugin | Convenient 2D authoring helpers that return core `.Graphics` nodes. |
 | `.plot` | Implemented initial plugin | Polynomial plotting with automatic vertical fitting; returns core `.Graphics`. |
 | `.float` | Implemented plugin | IEEE-754 Float conversion, arithmetic integration, rounding, intervals of stored values, and approximate elementary functions. |
+| `.oracle` | Implemented Phase 1 plugin | Pure RiX rational-betweenness values, five rational procedure demonstrations, Range validation, finite alternatives, and bounded exact refinement. |
 | `.exactAlgebras` | Implemented plugin | Exact rational quaternion and octonion values with Cayley-Dickson arithmetic. |
 | Plugin catalog | Implemented runtime service | Discovery, metadata, explicit loading, host approval for JavaScript, capability groups, and remounting. |
 | Core symbolic specs | Implemented in RiX core | `{#}` preserves expression IR, definitions, constraints, all symbols, and advisory input/output roles without choosing a solver. |
@@ -46,7 +47,7 @@ numeric type or one universal rendering engine.
 | --- | --- | --- |
 | Exact mathematics | `.algebra` | Polynomial/rational-function structures, exact transformations, elimination, factorization, exact root evidence, and algebraic-number support beyond the small core surface. |
 | Numeric orchestration | `.numerics` | Generic refinement, enclosure, root finding, integration, optimization, ODE/PDE helpers, sampling, error budgets, and algorithm dispatch. |
-| Real backends | `.float`, `.ball`, `.oracle`, `.cauchy`, `.continuedFraction`, `.algebraicReal` | Alternative representations that satisfy shared real-number and enclosure protocols. |
+| Real backends | `.ball`, `.cauchy`, `.continuedFraction`, `.algebraicReal`; later `.oracle` expansion | Alternative representations that satisfy shared real-number and enclosure protocols. `.float` and `.oracle` now have initial implementations. |
 | Geometry | `.geometry` | Exact constructions, transformations, constraints, intersections, implicit loci, and certified drawing refinement. |
 | Plotting | `.plot` | Function, parametric, implicit, data, statistical, vector, contour, and heat-map plots. |
 | 3D scene expansion | `.scene3d` | Hidden-surface/lighting policies, adaptive surfaces and volumes, textures, animation, clipping, and interactive orbit beyond the implemented retained wireframe slice. |

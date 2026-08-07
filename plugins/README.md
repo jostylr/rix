@@ -18,7 +18,7 @@ The implementation order and per-plugin phased work are tracked in
 | `exact-algebras/` | host | `exact-algebras` | Exact rational quaternion and octonion values. |
 | `plot/` | host | `plot` | Portable plot constructors that lower to core graphics. |
 | `float/` | host | `float` | IEEE-754 Float conversion and approximate math. |
-| `oracle/` | specification | `oracle` (proposed) | Rational-betweenness oracle real numbers based on the project paper. |
+| `oracle/` | RiX | `oracle` | Phase 1 rational-betweenness oracle values, procedures, validation, and bounded refinement. |
 | `render-svg/` | host | `svg` | Core Graphics to accessible SVG. |
 | `render-canvas/` | host | `canvas` | Core Graphics to a serializable Canvas 2D plan. |
 | `render-tikz/` | host | `tikz` | Core Graphics to editable TikZ/PGF. |

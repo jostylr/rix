@@ -2,7 +2,7 @@
 title: Rational betweenness oracles
 description: Query and refine a real number through exact rational intervals.
 theme: Numbers and numerics
-status: proposed
+status: implemented
 ---
 
 Load the package and construct the paper's halo oracle for a rational number:
@@ -14,7 +14,12 @@ x := .oracle.Rational(3 / 7, {= procedure = :halo });
 answer := .oracle.Ask(x, (2 / 5):(1 / 2), 1 / 100);
 .Table({=
   columns = ["status", "query", "fuzziness", "prophecy"],
-  rows = [[answer.status, answer.query, answer.delta, answer.prophecy]]
+  rows = [[
+    answer[:status],
+    answer[:query][:interval],
+    answer[:query][:delta],
+    answer[:prophecy][:interval]
+  ]]
 });
 ```
 
@@ -28,13 +33,19 @@ Refine the same represented number with a finite work budget:
 result := .oracle.Refine(x, {=
   width = 1 / 1000,
   maxCalls = 100,
-  trace = true
+  trace = 1
 });
 
 .Fragment([
   .Heading(2, "Refinement result"),
-  .Paragraph(["Certified interval: ", result.interval]),
-  .Table(result.trace)
+  .Paragraph(["Certified interval: ", result[:interval]]),
+  .Table({=
+    columns = ["iteration", "split", "branch", "interval", "width"],
+    rows = result[:trace].Map((step) -> [
+      step[:iteration], step[:split], step[:branch],
+      step[:interval], step[:width]
+    ])
+  })
 ]);
 ```
 
@@ -42,32 +53,27 @@ The trace is suitable for the CLI, RiX Web, or a document renderer. A renderer
 does not query the oracle itself; the bounded mathematical operation first
 produces a portable interval and evidence.
 
-## A Newton funnel
+## Reproducible alternatives
 
-The paper constructs nth-root oracles from nested Newton intervals. The plugin
-will expose that construction directly:
-
-```rix
-sqrt2 := .oracle.NthRoot(2, 2, {= method = :newtonFunnel });
-view := .oracle.Refine(sqrt2, {= width = 1 / 1000000 });
-view.interval;
-```
-
-`sqrt2` retains the constructor parameters and refinement procedure, while
-`view.interval` is a finite exact enclosure suitable for serialization and
-display.
-
-## Approximate comparison
-
-Exact equality of arbitrary oracle reals is not generally a finite numerical
-test. The useful executable operation is the paper's epsilon-trichotomy:
+The random-halo demonstration records its seed. `Ask` replays one branch,
+while bounded `AskAll` shows the two finite alternatives without treating that
+observation as a theorem about every possible oracle:
 
 ```rix
-y := .oracle.NthRoot(2, 2);
-.oracle.CompareWithin(x, y, 1 / 1000);
+.Plugin.Load("oracle");
+random := .oracle.Rational(3 / 7, {=
+  procedure = :randomHalo,
+  seed = 17
+});
+alternatives := .oracle.AskAll(
+  random,
+  (1 / 2):(3 / 5),
+  1 / 10,
+  {= maxAlternatives = 2 }
+);
+alternatives.Map((item) -> item[:status]);
 ```
 
-The result is one of `:less`, `:greater`, `:compatible`, or `:undecided`, with
-the disjoint intervals or common compatible interval that justify it. It does
-not turn a failed attempt to separate two values into a claim of exact
-equality.
+Newton funnels, Cauchy adapters, arithmetic, and epsilon-trichotomy are later
+phases. Their absence is explicit rather than replaced with floating-point
+guesses.

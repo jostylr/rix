@@ -12,8 +12,16 @@ import { normalizeCapabilityName } from "./system-context.js";
 import { getBuiltinProto } from "./methods.js";
 
 function memberDescriptor(name, value) {
+    const callableKinds = new Set([
+        "method_builtin",
+        "lambda",
+        "function",
+        "multifunction",
+        "partial",
+        "sysref",
+    ]);
     return {
-        kind: value?.type === "method_builtin" ? "function" : "value",
+        kind: callableKinds.has(value?.type) ? "function" : "value",
         displayName: value?.name || name,
         members: null,
     };

@@ -1,5 +1,7 @@
 /** Register bundled opt-in plugins with a host catalog. */
 
+import oracleSource from "./oracle/oracle.plugin.rix" with { type: "text" };
+import { readPluginHeader } from "../src/runtime/plugin-catalog.js";
 import { install as installDrawPlugin } from "./draw/draw.plugin.rix.js";
 import { install as installExactAlgebrasPlugin } from "./exact-algebras/exact-algebras.plugin.rix.js";
 import { install as installPlotPlugin } from "./plot/plot.plugin.rix.js";
@@ -17,6 +19,11 @@ import { install as installPdfPlugin } from "./render-pdf/pdf.plugin.rix.js";
 import { install as installGltfPlugin } from "./render-gltf/gltf.plugin.rix.js";
 
 const BUNDLED_PLUGINS = [
+    {
+        metadata: readPluginHeader(oracleSource, "oracle.plugin.rix"),
+        source: oracleSource,
+        sourcePath: "bundled:oracle.plugin.rix",
+    },
     {
         metadata: {
             id: "exact-algebras",
@@ -113,12 +120,16 @@ const BUNDLED_PLUGINS = [
  * context; it is deliberately not overwritten here.
  */
 export function installBundledPlugins(catalog) {
-    for (const { metadata, install } of BUNDLED_PLUGINS) {
+    for (const { metadata, install, source, sourcePath } of BUNDLED_PLUGINS) {
         // An embedding host may deliberately supply a plugin with this ID.
         // Do not silently pair its metadata with the bundled implementation.
         if (catalog.info(metadata.id)) continue;
-        catalog.addMetadata(metadata, { kind: "host" });
-        catalog.registerInstaller(metadata.id, install);
+        if (source) {
+            catalog.addMetadata(metadata, { kind: "rix", source, sourcePath });
+        } else {
+            catalog.addMetadata(metadata, { kind: "host" });
+            catalog.registerInstaller(metadata.id, install);
+        }
     }
     return catalog;
 }

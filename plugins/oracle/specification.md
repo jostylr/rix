@@ -1,6 +1,6 @@
 # Oracle Plugin Implementation Specification
 
-> **Status:** proposed, no executable plugin manifest yet.  
+> **Status:** Phase 1 implemented as a pure RiX plugin; later phases remain proposed.  
 > **Source of truth reviewed:**
 > [`paper/oracles_short.tex`](../../../paper/oracles_short.tex), as present in
 > this repository on 2026-07-22. The paper is still evolving; terminology and

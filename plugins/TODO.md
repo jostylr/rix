@@ -174,13 +174,13 @@ newline normalization.
 1. **Phase 1 — Rational betweenness demonstration**
    - [x] Write the paper-based [implementation specification](oracle/specification.md).
    - [x] Write the proposed acceptance tutorial.
-   - [ ] Implement exact Query, Answer, Prophecy, WorkPolicy, and evidence
+   - [x] Implement exact Query, Answer, Prophecy, WorkPolicy, and evidence
      values.
-   - [ ] Implement singular, reflexive, halo, seeded random-halo, and
+   - [x] Implement singular, reflexive, halo, seeded random-halo, and
      bisection procedures for a rational number.
-   - [ ] Implement bounded `Ask`, `CheckRange`, and `Refine` with a visible
+   - [x] Implement bounded `Ask`, `CheckRange`, and `Refine` with a visible
      bisection trace.
-   - [ ] Make the tutorial runnable in CLI, RiX Web, and RiX Notebook; then set
+   - [x] Make the tutorial runnable in CLI, RiX Web, and RiX Notebook; then set
      `status: implemented`.
 2. **Phase 2 — Funnels and generic refinement**
    - [ ] Implement refinement funnels and the paper's funnel-to-oracle adapter.

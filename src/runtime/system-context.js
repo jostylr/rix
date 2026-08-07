@@ -96,6 +96,31 @@ function namespaceEntry(context, namespace) {
         },
     });
 
+    value._ext.set("REGISTERVALUE", {
+        type: "method_builtin",
+        name: "RegisterValue",
+        impl(args, evaluationContext) {
+            if (!canRegister(evaluationContext)) {
+                throw new Error(`.${title}.RegisterValue is not permitted in this execution context`);
+            }
+            const name = rixString(args[1], `.${title}.RegisterValue name`);
+            const registeredValue = args[2];
+            const doc = args[3]?.type === "string" ? args[3].value : "";
+            const groups = rixStringList(args[4], `.${title}.RegisterValue groups`);
+            if (namespace === "core") {
+                context.registerValue(name, registeredValue, { namespace, doc, groups });
+            } else {
+                registryContext.registerHostValue(name, registeredValue, { namespace, doc, groups });
+                // Keep the newly registered value visible inside a derived
+                // plugin/script capability frame for the rest of that source.
+                if (registryContext !== context) {
+                    context.registerHostValue(name, registeredValue, { namespace, doc, groups });
+                }
+            }
+            return stringValue(name);
+        },
+    });
+
     value._ext.set("FIND", {
         type: "method_builtin",
         name: "Find",
@@ -371,8 +396,10 @@ export class SystemContext {
     adoptHostCapability(source, name) {
         const entry = source?.get?.(name);
         if (!entry || entry.namespace !== "host") throw new Error(`Unknown host capability '${name}'`);
-        if (Object.prototype.hasOwnProperty.call(entry, "value")) {
+        if (entry.kind === "function" && Object.prototype.hasOwnProperty.call(entry, "value")) {
             this.registerHostCallableValue(entry.displayName, entry.value, entry, entry);
+        } else if (Object.prototype.hasOwnProperty.call(entry, "value")) {
+            this.registerHostValue(entry.displayName, entry.value, entry);
         } else {
             this.registerHost(entry.displayName, entry, entry);
         }
