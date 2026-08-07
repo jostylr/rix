@@ -378,6 +378,31 @@ describe("formula-backed sheets", () => {
         expect(formatValue(snapshot.cells[1][1].value)).toBe("5");
     });
 
+    test("Sheet projects bounded row and column windows with canonical coordinates", () => {
+        const view = parseAndEvaluate(`
+            model := .FormulaSheet({:4x4:
+                @{1}, @{2}, @{3}, @{4};
+                @{5}, @{6}, @{7}, @{8};
+                @{9}, @{10}, @{11}, @{12};
+                @{13}, @{14}, @{15}, @{16}
+            });
+            .Sheet(model, {= rowStart=2, rowCount=2, columnStart=3, columnCount=2 })
+        `);
+        expect(view.window).toEqual({
+            rowStart: 2, rowCount: 2, totalRowCount: 4,
+            columnStart: 3, columnCount: 2, totalColumnCount: 4,
+        });
+        expect(view.rowHeaders).toEqual(["2", "3"]);
+        expect(view.columnHeaders).toEqual(["C · 3", "D · 4"]);
+        expect(view.cells.map((row) => row.map((cell) => cell.index))).toEqual([
+            [[2, 3], [2, 4]],
+            [[3, 3], [3, 4]],
+        ]);
+        const html = renderOutputHtml(view, formatValue);
+        expect(html).toContain('data-rix-window-row-start="2"');
+        expect(html).toContain('data-rix-index="3,4"');
+    });
+
     test("requires rectangular deferred formulas", () => {
         expect(() => parseAndEvaluate(".FormulaSheet([[1]])")).toThrow("must use deferred syntax");
         expect(() => parseAndEvaluate(".FormulaSheet([[@{; 1 }], [@{; 2 }, @{; 3 }]])")).toThrow("equal lengths");

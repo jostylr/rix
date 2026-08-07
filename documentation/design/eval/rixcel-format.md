@@ -153,16 +153,16 @@ caches are never trusted from the document.
 
 ## Worker boundary
 
-The standalone editor evaluates every imported document and proposed formula
-edit in a fresh-state Web Worker before committing it to the UI model. Dynamic
-JavaScript/module registration, plugin management, streams, and retry
-capabilities are withheld. A timed-out worker is terminated and replaced.
-The main compatibility model uses the same restricted capability set.
+The standalone editor keeps its persistent FormulaSheet and visible-plane
+projector in a restricted Web Worker. Dynamic JavaScript/module registration,
+plugin management, streams, and retry capabilities are withheld. The main
+thread retains only the event log and interactive DOM. It submits a complete
+candidate log for each commit, allowing a replacement worker to reconstruct
+the session after a timeout or termination.
 
 The graph produced by `.RiXCelImport` is sparse and implicit default slots are
-created lazily. The remaining scalability step is moving ownership of that
-persistent graph and visible-plane projection fully into the worker, plus
-virtualizing the browser DOM grid.
+created lazily. Projection requests bound row and column counts, so a large
+logical plane creates only the currently visible DOM cells.
 
 ## APIs
 

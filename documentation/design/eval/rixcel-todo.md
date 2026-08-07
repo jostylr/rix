@@ -84,7 +84,7 @@ Checked items are implemented in the current RiX repository.
 ## 4. Standalone RiXCel editor
 
 - [x] Replace the placeholder `apps/cel` package with a RiXCel web app.
-- [ ] Implement virtualized 2D grid rendering.
+- [x] Implement bounded 2D grid-window rendering with row/column navigation.
 - [x] Edit formula bodies from FormulaSheet grid cells.
 - [x] Add a dedicated formula bar, assignment-mode control, and exact-value display.
 - [x] Add document-level undo and redo as event-log cursor movement.
@@ -93,7 +93,7 @@ Checked items are implemented in the current RiX repository.
 - [ ] Add row/column insertion with parsed reference updates.
 - [x] Add local persistence and `.rixcel` open/save.
 - [x] Preflight imports and edits in a restartable, timed worker with restricted capabilities.
-- [ ] Move persistent FormulaSheet ownership and visible-plane projection fully into the worker.
+- [x] Move persistent FormulaSheet ownership and visible-plane projection fully into the worker.
 - [x] Show dependency, cycle, parse, and runtime diagnostics in the grid.
 - [ ] Add browser-level tests for editing and persistence.
 
