@@ -8,6 +8,7 @@ import { install as installExactAlgebrasPlugin } from "./exact-algebras/exact-al
 import { install as installPlotPlugin } from "./plot/plot.plugin.rix.js";
 import { install as installScene3DPlugin } from "./scene3d/scene3d.plugin.rix.js";
 import { install as installNdPlugin } from "./nd/nd.plugin.rix.js";
+import { install as installGeometryPlugin } from "./geometry/geometry.plugin.rix.js";
 import { install as installDataPlugin } from "./data/data.plugin.rix.js";
 import { install as installDocumentPlugin } from "./document/document.plugin.rix.js";
 import { install as installRadixPlugin } from "./radix/radix.plugin.rix.js";
@@ -107,6 +108,17 @@ const BUNDLED_PLUGINS = [
             snapshot: true, deterministic: true, defaultEnabled: false,
         },
         install: ({ systemContext }) => installNdPlugin({ systemContext }),
+    },
+    {
+        metadata: {
+            id: "geometry", description: "Exact ruler-and-compass geometry with explicit intersections and portable Graphics snapshots.",
+            kind: "host", mount: "geometry",
+            exports: ["Point", "Line", "Circle", "Midpoint", "PerpendicularBisector", "Circumcircle", "Intersect", "Points", "Status", "Draw"],
+            groups: ["Geometry", "Graphics", "Exact"], permissions: [],
+            provides: ["rix.geometry@1", "rix.geometry.intersection@1"], schemas: ["rix.geometry@1", "rix.geometry.intersection@1"],
+            snapshot: true, deterministic: true, defaultEnabled: false,
+        },
+        install: ({ systemContext }) => installGeometryPlugin({ systemContext }),
     },
     {
         metadata: {

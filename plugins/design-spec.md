@@ -40,6 +40,7 @@ numeric type or one universal rendering engine.
 | `.markdown`, `.html`, `.quarto`, `.latex`, `.pdf` | Implemented plugins | Portable document/output trees to standalone text/document formats. PDF delegates through LaTeX and an approved CLI compiler adapter. |
 | `.scene3d` | Implemented initial plugin | Retained exact mesh/polyline/point scenes, transforms, perspective/orthographic cameras, and deterministic wireframe snapshots to core Graphics. |
 | `.nd` | Implemented initial plugin | Exact points, polylines, polytopes/hypercubes, affine projection records, rational Cayley rotations, composition, and explicit conversion of 3D results to Scene3D. |
+| `.geometry` | Implemented Phase 1 plugin | Exact rational points, lines, circles, line intersections, ruler-and-compass constructions with provenance, and deterministic lowering to core Graphics. |
 | `.gltf` | Implemented initial renderer | Retained Scene3D to embedded-buffer glTF 2.0 JSON with explicit Z-up to Y-up and Float32 conversion diagnostics. |
 | `.data` | Implemented Phase 1 plugin | Immutable typed in-memory relations, exact-value-preserving projection/filter/sort, and portable Table views. |
 | `.csv` | Implemented Phase 1 renderer | Deterministic CSV/TSV export for core Tables and Data relations with exact scalar formatting and explicit dialect options. |
@@ -53,7 +54,7 @@ numeric type or one universal rendering engine.
 | Exact mathematics | `.algebra` | Polynomial/rational-function structures, exact transformations, elimination, factorization, exact root evidence, and algebraic-number support beyond the small core surface. |
 | Numeric orchestration expansion | `.numerics` | Root finding, integration, optimization, ODE/PDE helpers, adaptive sampling, error propagation, and broader algorithm dispatch beyond the implemented neutral Phase 1 enclosure/refinement protocol. |
 | Real backends | `.ball`, `.cauchy`, `.continuedFraction`, `.algebraicReal`; later `.oracle` expansion | Alternative representations that satisfy shared real-number and enclosure protocols. `.float` and `.oracle` now have initial implementations. |
-| Geometry | `.geometry` | Exact constructions, transformations, constraints, intersections, implicit loci, and certified drawing refinement. |
+| Geometry expansion | `.geometry` | Transformations, constraints, conics, implicit loci, and certified intersections/drawing refinement beyond the implemented ruler-and-compass slice. |
 | Plotting | `.plot` | Function, parametric, implicit, data, statistical, vector, contour, and heat-map plots. |
 | 3D scene expansion | `.scene3d` | Hidden-surface/lighting policies, adaptive surfaces and volumes, textures, animation, clipping, and interactive orbit beyond the implemented retained wireframe slice. |
 | Higher-dimensional expansion | `.nd` | Fields, meshes, implicit regions, slices, sections, fibers, sampling, and marginalization beyond implemented affine projection. |

@@ -387,11 +387,11 @@ newline normalization.
 ### `.geometry`
 
 1. **Phase 1 — Exact ruler-and-compass construction**
-   - [ ] Implement semantic Point, Line, Circle, and intersection result values.
-   - [ ] Demonstrate a perpendicular bisector/circumcircle construction that
+   - [x] Implement semantic Point, Line, Circle, and intersection result values.
+   - [x] Demonstrate a perpendicular bisector/circumcircle construction that
      lowers to core `Graphics`.
-   - [ ] Add README, runnable tutorial, exact tests, and SVG/Canvas snapshots.
-   - [ ] Preserve construction provenance and unresolved intersections.
+   - [x] Add README, runnable tutorial, exact tests, and SVG/Canvas snapshots.
+   - [x] Preserve construction provenance and unresolved intersections.
 2. **Phase 2 — Transformations, conics, and constraints**
    - [ ] Add segments, rays, polygons, affine/projective transforms, conics,
      loci, and simple constraints.

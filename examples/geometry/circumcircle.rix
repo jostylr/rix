@@ -1,0 +1,13 @@
+.Plugin.Load("geometry");
+.Plugin.Load("svg");
+
+a := .geometry.Point(0, 0);
+b := .geometry.Point(6, 0);
+c := .geometry.Point(2, 4);
+bisector := .geometry.PerpendicularBisector(a, b);
+circle := .geometry.Circumcircle(a, b, c);
+graphic := .geometry.Draw([bisector, circle, a, b, c], {=
+    view=[-1,-2,7,6],
+    size=[560,560]
+});
+.svg.Render(graphic).Get("content");

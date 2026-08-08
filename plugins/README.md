@@ -21,6 +21,7 @@ The implementation order and per-plugin phased work are tracked in
 | `oracle/` | RiX | `oracle` | Phase 1 rational-betweenness oracle values, procedures, validation, and bounded refinement. |
 | `numerics/` | RiX | `numerics` | Backend-neutral bounded enclosure, refinement, and sampling protocol orchestration. |
 | `radix/` | host | `radix` | Bounded exact positional expansions and repeating-period analysis. |
+| `geometry/` | host | `geometry` | Exact ruler-and-compass constructions, intersections, and Graphics snapshots. |
 | `data/` | host | `data` | Immutable typed relations, deterministic transformations, and portable Table views. |
 | `document/` | host | `document` | Numbered portable reports, cross-references, captions, and small themes. |
 | `render-svg/` | host | `svg` | Core Graphics to accessible SVG. |
