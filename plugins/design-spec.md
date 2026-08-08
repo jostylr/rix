@@ -46,13 +46,14 @@ numeric type or one universal rendering engine.
 | `.csv` | Implemented Phase 1 renderer | Deterministic CSV/TSV export for core Tables and Data relations with exact scalar formatting and explicit dialect options. |
 | `.document` | Implemented Phase 1 plugin | Numbered core Fragment reports with deterministic section/figure/table labels, resolved forward references, captions, and small semantic themes. |
 | `.terminalAscii` | Implemented Phase 1 renderer | Strict-ASCII Tables, Grids, Fragments, and simple Graphic snapshots with deterministic width truncation and diagnostics. |
+| `.algebra` | Implemented Phase 1 plugin | Canonical exact univariate polynomials, portable coefficient records, exact evaluation and division, factor/equality metadata, and synthetic-division Grids. |
 | HTML/SVG/terminal display | Implemented compatibility hosts | Existing direct host display remains available without loading an exporter; explicit artifacts use the renderer registry when a matching plugin is loaded. |
 
 ### Proposed first-party packages
 
 | Layer | Plugin | Principal responsibility |
 | --- | --- | --- |
-| Exact mathematics | `.algebra` | Polynomial/rational-function structures, exact transformations, elimination, factorization, exact root evidence, and algebraic-number support beyond the small core surface. |
+| Exact mathematics expansion | `.algebra` | Polynomial gcd/factorization, rational functions, elimination, exact root evidence, and algebraic-number support beyond the implemented univariate transformation slice. |
 | Numeric orchestration expansion | `.numerics` | Root finding, integration, optimization, ODE/PDE helpers, adaptive sampling, error propagation, and broader algorithm dispatch beyond the implemented neutral Phase 1 enclosure/refinement protocol. |
 | Real backends | `.ball`, `.cauchy`, `.continuedFraction`, `.algebraicReal`; later `.oracle` expansion | Alternative representations that satisfy shared real-number and enclosure protocols. `.float` and `.oracle` now have initial implementations. |
 | Geometry expansion | `.geometry` | Transformations, constraints, conics, implicit loci, and certified intersections/drawing refinement beyond the implemented ruler-and-compass slice. |

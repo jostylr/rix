@@ -292,12 +292,12 @@ newline normalization.
 ### `.algebra`
 
 1. **Phase 1 — Exact polynomial object and transformation**
-   - [ ] Move one coherent capability beyond core helpers: polynomial values,
+   - [x] Move one coherent capability beyond core helpers: polynomial values,
      evaluation, quotient/remainder, and factor/equality metadata.
-   - [ ] Reproduce synthetic division through portable `Grid` output.
-   - [ ] Provide README documentation and a tutorial connecting exact
+   - [x] Reproduce synthetic division through portable `Grid` output.
+   - [x] Provide README documentation and a tutorial connecting exact
      polynomial work to the existing synthetic-division layout.
-   - [ ] Add exact round-trip and plugin-loading tests.
+   - [x] Add exact round-trip and plugin-loading tests.
 2. **Phase 2 — Polynomial and rational-function algorithms**
    - [ ] Add gcd, square-free decomposition, rational roots, factor evidence,
      resultants, and rational functions.

@@ -55,8 +55,19 @@ function constrainText(value, state, path) {
     }).join("\n");
 }
 
+function portableValueText(value, state, path) {
+    if (Array.isArray(value) || Array.isArray(value?.values)) {
+        const values = Array.isArray(value) ? value : value.values;
+        return `[${values.map((item, index) => portableValueText(item, state, `${path}.${index + 1}`)).join(", ")}]`;
+    }
+    if (value?.type === "map" && value.entries instanceof Map) {
+        return `{${[...value.entries].map(([key, item]) => `${key}=${portableValueText(item, state, `${path}.${key}`)}`).join(", ")}}`;
+    }
+    return value === null || value === undefined ? "" : textValue(value, state.format);
+}
+
 function cellText(value, state, path) {
-    const formatted = value === null || value === undefined ? "" : textValue(value, state.format);
+    const formatted = portableValueText(value, state, path);
     return strictAscii(formatted, state, path).replace(/[\r\n]+/g, " / ");
 }
 
@@ -222,7 +233,7 @@ function renderGraphic(value, state, path) {
 }
 
 function renderNode(value, state, path = "value") {
-    if (!isOutputValue(value)) return constrainText(strictAscii(state.format(value), state, path), state, path);
+    if (!isOutputValue(value)) return constrainText(strictAscii(portableValueText(value, state, path), state, path), state, path);
     if (value.kind === "table") return renderTable(value, state, path);
     if (value.kind === "grid") return renderGrid(value, state, path);
     if (value.kind === "graphic") return renderGraphic(value, state, path);

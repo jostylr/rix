@@ -19,6 +19,19 @@ afterEach(() => {
 });
 
 describe("CLI renderer export", () => {
+    test("the exact polynomial example prints quotient, remainder, and synthetic Grid", () => {
+        const sourcePath = path.join(rixRoot, "examples/algebra/exact-polynomial.rix");
+        const result = spawnSync("bun", [path.join(rixRoot, "bin/rix.js"), sourcePath], {
+            cwd: rixRoot,
+            encoding: "utf8",
+        });
+        expect(result.status).toBe(0);
+        expect(result.stderr).toBe("");
+        expect(result.stdout).toContain("# Exact polynomial division");
+        expect(result.stdout).toContain("| quotient  | [1, -4, 3]");
+        expect(result.stdout).toContain("2 | 1  -6  11  -6");
+    });
+
     test("the terminal ASCII example prints synthetic division and a small plot", () => {
         const sourcePath = path.join(rixRoot, "examples/renderers/terminal-ascii-report.rix");
         const result = spawnSync("bun", [path.join(rixRoot, "bin/rix.js"), sourcePath], {

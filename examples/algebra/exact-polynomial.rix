@@ -1,0 +1,17 @@
+.Plugin.Load("algebra");
+.Plugin.Load("terminal-ascii");
+
+p := .algebra.Polynomial([1, -6, 11, -6]);
+division := .algebra.SyntheticDivide(p, 2);
+summary := .Fragment([
+    .Heading(1, "Exact polynomial division"),
+    .Table(
+        ["result", "coefficients"],
+        [
+            ["quotient", .algebra.Coefficients(.algebra.Quotient(division))],
+            ["remainder", .algebra.Coefficients(.algebra.Remainder(division))]
+        ]
+    ),
+    .algebra.Grid(division)
+]);
+.terminalAscii.Render(summary, {= width=64 }).Get("content");
