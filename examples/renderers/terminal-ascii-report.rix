@@ -1,0 +1,11 @@
+.Plugin.Load("plot");
+.Plugin.Load("terminal-ascii");
+
+division := .Algebra.SyntheticDivision(1, [2, -6, 2, -1]);
+plot := .plot.Polynomial([1, 0, -1], [-2, 2], {= size=[320,180], samples=81 });
+report := .Fragment([
+    .Heading(1, "Exact terminal report"),
+    division,
+    plot
+]);
+.terminalAscii.Render(report, {= width=64, height=16 }).Get("content");

@@ -19,6 +19,20 @@ afterEach(() => {
 });
 
 describe("CLI renderer export", () => {
+    test("the terminal ASCII example prints synthetic division and a small plot", () => {
+        const sourcePath = path.join(rixRoot, "examples/renderers/terminal-ascii-report.rix");
+        const result = spawnSync("bun", [path.join(rixRoot, "bin/rix.js"), sourcePath], {
+            cwd: rixRoot,
+            encoding: "utf8",
+        });
+        expect(result.status).toBe(0);
+        expect(result.stderr).toBe("");
+        expect(result.stdout).toContain("# Exact terminal report");
+        expect(result.stdout).toContain("1 | 2  -6   2  -1");
+        expect(result.stdout).toContain("********");
+        expect([...result.stdout].every((character) => character === "\n" || (character.codePointAt(0) >= 32 && character.codePointAt(0) <= 126))).toBe(true);
+    });
+
     test("the numbered document example exports resolved Markdown and HTML references", () => {
         const directory = temporaryDirectory();
         const outputPath = path.join(directory, "out");
@@ -59,7 +73,7 @@ describe("CLI renderer export", () => {
         const sourcePath = path.join(directory, "report.rix");
         const outputPath = path.join(directory, "out");
         writeFileSync(sourcePath, `/**
-plugins: [svg, canvas, tikz, markdown, html, quarto, latex, csv]
+plugins: [svg, canvas, terminal-ascii, tikz, markdown, html, quarto, latex, csv]
 **/
 g := .Graphics.Graphic([120, 80], [
     .Graphics.Circle([60, 40], 24, {= fill="#0c7b7f" }),
@@ -74,6 +88,7 @@ table := .Table(["name", "value"], [["half", 1/2], ["unknown", _]]);
 .Out("report.html", doc);
 .Out("report.qmd", doc);
 .Out("report.tex", doc);
+.Out("report.txt", doc);
 .Out("values.csv", table);
 .Out("values.tsv", table);
 0;
@@ -91,6 +106,7 @@ table := .Table(["name", "value"], [["half", 1/2], ["unknown", _]]);
         expect(readFileSync(path.join(outputPath, "report.html"), "utf8")).toContain("<!doctype html>");
         expect(readFileSync(path.join(outputPath, "report.qmd"), "utf8")).toStartWith('---\ntitle: "report"\nformat: html');
         expect(readFileSync(path.join(outputPath, "report.tex"), "utf8")).toContain("\\documentclass{article}");
+        expect(readFileSync(path.join(outputPath, "report.txt"), "utf8")).toContain("# Renderer export");
         expect(readFileSync(path.join(outputPath, "values.csv"), "utf8")).toBe("name,value\nhalf,1/2\nunknown,\n");
         expect(readFileSync(path.join(outputPath, "values.tsv"), "utf8")).toBe("name\tvalue\nhalf\t1/2\nunknown\t\n");
         expect(existsSync(path.join(outputPath, "assets", "rix-page.js"))).toBe(false);

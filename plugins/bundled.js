@@ -11,6 +11,7 @@ import { install as installNdPlugin } from "./nd/nd.plugin.rix.js";
 import { install as installGeometryPlugin } from "./geometry/geometry.plugin.rix.js";
 import { install as installDataPlugin } from "./data/data.plugin.rix.js";
 import { install as installDocumentPlugin } from "./document/document.plugin.rix.js";
+import { install as installTerminalAsciiPlugin } from "./render-terminal-ascii/terminal-ascii.plugin.rix.js";
 import { install as installRadixPlugin } from "./radix/radix.plugin.rix.js";
 import { install as installSvgPlugin } from "./render-svg/svg.plugin.rix.js";
 import { install as installCanvasPlugin } from "./render-canvas/canvas.plugin.rix.js";
@@ -140,6 +141,15 @@ const BUNDLED_PLUGINS = [
             snapshot: true, deterministic: true, defaultEnabled: false,
         },
         install: ({ systemContext }) => installDocumentPlugin({ systemContext }),
+    },
+    {
+        metadata: {
+            id: "terminal-ascii", description: "Deterministic strict-ASCII fallback for tables, grids, fragments, and simple Graphics.",
+            kind: "host", mount: "terminalAscii", exports: ["Render"], groups: ["Renderers"], permissions: [],
+            provides: ["rix.renderer.terminal-ascii@1"], targets: ["terminal-ascii", "terminal", "ascii", "txt", "text/plain"],
+            snapshot: true, deterministic: true, defaultEnabled: false,
+        },
+        install: installTerminalAsciiPlugin,
     },
     ...[
         ["svg", "Portable SVG renderer for core Graphics scenes.", "svg", ["Render"], [], installSvgPlugin, "image/svg+xml", true],

@@ -24,6 +24,7 @@ The implementation order and per-plugin phased work are tracked in
 | `geometry/` | host | `geometry` | Exact ruler-and-compass constructions, intersections, and Graphics snapshots. |
 | `data/` | host | `data` | Immutable typed relations, deterministic transformations, and portable Table views. |
 | `document/` | host | `document` | Numbered portable reports, cross-references, captions, and small themes. |
+| `render-terminal-ascii/` | host | `terminal-ascii` | Strict-ASCII fallback for tables, grids, fragments, and simple Graphics. |
 | `render-svg/` | host | `svg` | Core Graphics to accessible SVG. |
 | `render-canvas/` | host | `canvas` | Core Graphics to a serializable Canvas 2D plan. |
 | `render-tikz/` | host | `tikz` | Core Graphics to editable TikZ/PGF. |

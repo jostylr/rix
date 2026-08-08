@@ -45,6 +45,7 @@ numeric type or one universal rendering engine.
 | `.data` | Implemented Phase 1 plugin | Immutable typed in-memory relations, exact-value-preserving projection/filter/sort, and portable Table views. |
 | `.csv` | Implemented Phase 1 renderer | Deterministic CSV/TSV export for core Tables and Data relations with exact scalar formatting and explicit dialect options. |
 | `.document` | Implemented Phase 1 plugin | Numbered core Fragment reports with deterministic section/figure/table labels, resolved forward references, captions, and small semantic themes. |
+| `.terminalAscii` | Implemented Phase 1 renderer | Strict-ASCII Tables, Grids, Fragments, and simple Graphic snapshots with deterministic width truncation and diagnostics. |
 | HTML/SVG/terminal display | Implemented compatibility hosts | Existing direct host display remains available without loading an exporter; explicit artifacts use the renderer registry when a matching plugin is loaded. |
 
 ### Proposed first-party packages
@@ -62,7 +63,7 @@ numeric type or one universal rendering engine.
 | Data expansion | `.data` | Joins, groups, aggregates, calculated columns, external sources, and large-data planning beyond the implemented Phase 1 relation slice. |
 | Statistics | `.stats` | Exact/approximate summaries, distributions, models, regression, and plot-ready result values. |
 | Document expansion | `.document` | Citations, bibliographies, asset manifests, broader numbering policy, templates, and report/deck assembly beyond the implemented numbered-report slice. |
-| Rendering and export | `.terminalAscii`, `.gif`; 3D GLB, OBJ, STL, PLY, USD/USDZ adapters | Remaining target encoders/exporters. SVG, Canvas, TikZ, PNG, Markdown, HTML, Quarto, LaTeX, PDF, CSV/TSV, and glTF JSON have initial implementations. |
+| Rendering and export | `.gif`; `.terminalAscii` expansion; 3D GLB, OBJ, STL, PLY, USD/USDZ adapters | Remaining target encoders/exporters and richer terminal layout. SVG, Canvas, Terminal ASCII, TikZ, PNG, Markdown, HTML, Quarto, LaTeX, PDF, CSV/TSV, and glTF JSON have initial implementations. |
 
 Plugin IDs and mount names remain lowercase or lower camel case. Core portable
 constructors retain their existing PascalCase system names.

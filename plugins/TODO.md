@@ -608,10 +608,10 @@ newline normalization.
 ### `.terminalAscii`
 
 1. **Phase 1 — Portable table/grid/plot fallback**
-   - [ ] Render Table, Grid, Fragment, and one simple Graphic using strict
+   - [x] Render Table, Grid, Fragment, and one simple Graphic using strict
      ASCII.
-   - [ ] Demonstrate synthetic division and a small plot in the CLI.
-   - [ ] Add README, tutorial, fixed-width golden tests, and width diagnostics.
+   - [x] Demonstrate synthetic division and a small plot in the CLI.
+   - [x] Add README, tutorial, fixed-width golden tests, and width diagnostics.
 2. **Phase 2 — Layout and pagination**
    - [ ] Add wrapping, alignment, pagination, captions, slides, and configurable
      terminal dimensions.
