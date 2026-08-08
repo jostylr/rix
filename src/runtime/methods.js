@@ -1767,6 +1767,7 @@ function extensionTypeNames(target) {
     if (target instanceof Integer) names.push("Integer");
     else if (target instanceof Rational) names.push("Rational");
     else if (target instanceof RationalInterval) names.push("RationalInterval");
+    else if (target instanceof Fraction) names.push("Fraction");
     else if (isTensor(target)) names.push("Tensor");
     else if (target?.type === "sequence" || target?.type === "lazy_sequence") names.push("Array");
     else if (target?.type) names.push(target.type);

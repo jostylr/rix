@@ -4,8 +4,11 @@ import oracleSource from "./oracle/oracle.plugin.rix" with { type: "text" };
 import numericsSource from "./numerics/numerics.plugin.rix" with { type: "text" };
 import { readPluginHeader } from "../src/runtime/plugin-catalog.js";
 import { install as installDrawPlugin } from "./draw/draw.plugin.rix.js";
+import { install as installFractionPlugin } from "./fraction/fraction.plugin.rix.js";
+import { install as installFracfunPlugin } from "./fracfun/fracfun.plugin.rix.js";
 import { install as installPolyPlugin } from "./poly/poly.plugin.rix.js";
 import { install as installRatfunPlugin } from "./ratfun/ratfun.plugin.rix.js";
+import { install as installSymbolicPlugin } from "./symbolic/symbolic.plugin.rix.js";
 import { install as installAlgebraPlugin } from "./algebra/algebra.plugin.rix.js";
 import { install as installExactAlgebrasPlugin } from "./exact-algebras/exact-algebras.plugin.rix.js";
 import { install as installPlotPlugin } from "./plot/plot.plugin.rix.js";
@@ -68,6 +71,17 @@ const BUNDLED_PLUGINS = [
     },
     {
         metadata: {
+            id: "fraction",
+            description: "Representation-sensitive unreduced integer fractions with mediant and classroom addition policies.",
+            kind: "host", mount: "fraction", aliases: ["frac", "f"],
+            exports: ["Fraction", "Parse"], groups: ["Algebra", "Exact", "Symbolic"], permissions: [],
+            provides: ["rix.fraction@1"], schemas: ["rix.fraction@1"],
+            snapshot: true, deterministic: true, defaultEnabled: false,
+        },
+        install: installFractionPlugin,
+    },
+    {
+        metadata: {
             id: "poly",
             description: "Semantic callable univariate polynomials with structural and symbolic entry forms.",
             kind: "host",
@@ -102,6 +116,29 @@ const BUNDLED_PLUGINS = [
             defaultEnabled: false,
         },
         install: installRatfunPlugin,
+    },
+    {
+        metadata: {
+            id: "fracfun",
+            description: "Form-preserving callable polynomial and rational expressions with explicit transformations and canonical projections.",
+            kind: "host", mount: "fracfun", aliases: ["fractionFunction", "ff"],
+            exports: ["FractionFunction", "Parse", "Var", "Fun"], groups: ["Algebra", "Exact", "Symbolic"], permissions: [],
+            requires: ["rix.fraction@1", "rix.rational-function@1"],
+            provides: ["rix.fraction-function@1"], schemas: ["rix.fraction-function@1"],
+            snapshot: false, deterministic: true, defaultEnabled: false,
+        },
+        install: installFracfunPlugin,
+    },
+    {
+        metadata: {
+            id: "symbolic",
+            description: "Meta-plugin loading RiX representation-sensitive Fraction and FractionFunction workspaces.",
+            kind: "host", mount: "symbolic",
+            exports: ["Fraction", "FractionFunction", "Services"], groups: ["Algebra", "Exact", "Symbolic"], permissions: [],
+            requires: ["rix.fraction-function@1"], provides: ["rix.symbolic.formal@1"],
+            snapshot: false, deterministic: true, defaultEnabled: false,
+        },
+        install: installSymbolicPlugin,
     },
     {
         metadata: {

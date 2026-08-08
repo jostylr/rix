@@ -30,9 +30,9 @@ expression. Construction and every operation:
 Thus `(x^2-1)/(x-1)` is the same value as `x+1`, and it evaluates to `2` at
 `x=1`. `Domain()` reports the zeros of the *reduced* denominator as excluded.
 Restrictions contributed only by cancelled source factors are deliberately not
-preserved. A future domain-aware expression/function wrapper is the right place
-for a removable hole, because preserving it would make equality depend on
-source history rather than rational-function value.
+preserved. The `.fracfun` plugin is the domain-aware, form-preserving workspace
+for removable holes; keeping that concern separate prevents RationalFunction
+equality from depending on source history.
 
 ## Operators and methods
 

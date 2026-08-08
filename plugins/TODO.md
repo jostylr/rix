@@ -318,10 +318,9 @@ newline normalization.
    - [ ] Add RationalFunction partial fractions, factored/together presentation
      views, pole/zero multiplicity evidence, and coefficient-domain support
      beyond exact univariate Q[x].
-   - [ ] Add a separate restricted-expression/function value for inherited
-     source exclusions and removable holes. Canonical RationalFunction domain
-     currently uses only the reduced denominator and intentionally forgets
-     cancelled input restrictions.
+   - [x] Add `.fracfun` as the separate form/domain-preserving value for
+     inherited exclusions and removable holes. Canonical RationalFunction
+     domain continues to use only the reduced denominator intentionally.
    - [ ] Expose exact sign/root-count protocols to Numerics and Geometry.
    - [ ] Keep transformations explicit and provenance-preserving.
 3. **Phase 3 — Algebraic systems**
@@ -331,6 +330,68 @@ newline normalization.
 4. **Phase 4 — Proof and computer-algebra ecosystem**
    - [ ] Add certificate import/export and optional external CAS adapters.
    - [ ] Explore verified algorithms and proof-assistant exchange.
+
+### `.fraction`
+
+1. **Phase 1 — Representation-sensitive exact fractions**
+   - [x] Surface core unreduced `Fraction` values through `.fraction`, `.frac`,
+     and `.f`, while retaining structural-backtick construction.
+   - [x] Add unreduced arithmetic, pair equality, value equivalence/order,
+     mediants, reduction/canonical conversion, records, and receiver methods.
+   - [x] Add `AddLikeDenominator` and `AddLCMDenominator` classroom policies.
+   - [x] Document and tutorialize the Rational-versus-Fraction boundary.
+2. **Phase 2 — Fraction intervals and Farey exploration**
+   - [ ] Surface core `FractionInterval` with mediant subdivision and explicit
+     conversion to canonical RationalInterval.
+   - [ ] Add portable Farey/Stern-Brocot tree, path, and classroom Grid views.
+   - [ ] Decide explicit infinity construction and renderer policies; never
+     admit `0/0`.
+3. **Phase 3 — Representation-aware algorithms**
+   - [ ] Add continued-fraction/Farey interoperability and bounded searches
+     that retain component provenance.
+4. **Phase 4 — Evidence and interchange**
+   - [ ] Add portable representations and verification records for fraction
+     paths, parentage, and classroom derivations.
+
+### `.fracfun`
+
+1. **Phase 1 — Form-preserving callable algebra**
+   - [x] Add `.fracfun`, `.fractionFunction`, and `.ff` entry for polynomial
+     and quotient forms without implicit expansion, combination, or reduction.
+   - [x] Preserve operation trees and source-domain evaluation while making
+     `Simplify`, `Expand`, `Together`, `Recenter`, and `Cancel` explicit.
+   - [x] Cache explicit canonical Polynomial/RationalFunction projections and
+     distinguish form equality, value equivalence, and same-domain function
+     equality.
+   - [x] Support composition, exact Fraction evaluation, reactive rebuilds,
+     records, documentation, and a tutorial.
+2. **Phase 2 — Factored and decomposed presentations**
+   - [ ] Add verified `Factor`, square-free, and partial-fraction presentations
+     without changing the authoritative source domain.
+   - [ ] Add pole/zero multiplicity and removable-hole evidence.
+   - [ ] Add presentation-aware rendering and side-by-side transformation
+     Grids for teaching.
+3. **Phase 3 — Broader coefficient domains**
+   - [ ] Support multivariate forms and declared coefficient domains while
+     keeping canonical projections optional and inspectable.
+4. **Phase 4 — Transformation evidence**
+   - [ ] Export replayable transformation histories and optional CAS/proof
+     certificates.
+
+### `.symbolic`
+
+1. **Phase 1 — Formal-workspace meta-plugin**
+   - [x] Load `.fraction` and `.fracfun` through one `.symbolic` capability;
+     transitively expose their canonical `.poly` and `.ratfun` projections.
+   - [x] Keep focused plugin ownership and schemas intact.
+2. **Phase 2 — Discoverable transformation registry**
+   - [ ] List available formal/canonical transformations and their owning
+     plugins without centralizing their implementations.
+3. **Phase 3 — Assumptions and domains**
+   - [ ] Coordinate explicit assumptions and restricted-domain wrappers across
+     formal symbolic plugins.
+4. **Phase 4 — External symbolic providers**
+   - [ ] Negotiate optional CAS and proof backends through capability services.
 
 ### `.ball`
 

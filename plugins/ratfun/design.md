@@ -16,8 +16,9 @@ factorization evidence object are not implemented yet.
 `rix.rational-function@1` value containing two canonical Polynomials over the
 exact rationals. They are coprime and the denominator is monic. Operations,
 composition, records, and Polynomial promotion are implemented. Partial
-fractions, factorized display, root/pole evidence, and restricted domains are
-future work.
+fractions, factorized display, and root/pole evidence are future work. The
+`.fracfun` plugin now supplies form-preserving expressions with inherited
+source-domain restrictions and explicit canonical projection.
 
 ## What established systems do
 
@@ -58,8 +59,8 @@ that retain parameters and evidence:
 - `PolynomialFactorization` for unit, ordered factors, multiplicities,
   coefficient domain, algorithm, and verification evidence;
 - `RationalPresentation` for together/factored/partial-fraction views; and
-- a separate `RestrictedFunction` or `ExpressionWithDomain` wrapper when
-  original exclusions and removable holes must survive cancellation.
+- `FractionFunction` when original exclusions and removable holes must survive
+  cancellation (implemented by `.fracfun`).
 
 Each presentation should convert back to its canonical semantic value, and
 formatters may select a presentation without changing arithmetic or `==`.

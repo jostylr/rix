@@ -451,7 +451,7 @@ function rationalPower(value, exponentValue, context, evaluate) {
     );
 }
 
-function rationalFunctionsEqual(left, right, context, evaluate) {
+export function rationalFunctionsEqual(left, right, context, evaluate) {
     const variable = fieldVariable(left, right);
     try {
         const a = operandParts(left, variable, context, evaluate);
