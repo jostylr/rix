@@ -41,6 +41,7 @@ import { install as installPlotPlugin } from "../plugins/plot/plot.plugin.rix.js
 import { install as installScene3DPlugin } from "../plugins/scene3d/scene3d.plugin.rix.js";
 import { install as installNdPlugin } from "../plugins/nd/nd.plugin.rix.js";
 import { install as installDataPlugin } from "../plugins/data/data.plugin.rix.js";
+import { install as installDocumentPlugin } from "../plugins/document/document.plugin.rix.js";
 import { install as installSvgPlugin } from "../plugins/render-svg/svg.plugin.rix.js";
 import { install as installCanvasPlugin } from "../plugins/render-canvas/canvas.plugin.rix.js";
 import { install as installTikzPlugin } from "../plugins/render-tikz/tikz.plugin.rix.js";
@@ -71,8 +72,8 @@ const EXAMPLE_PLUGINS_DIR = path.resolve(EXAMPLES_DIR, "plugins");
 const WEB_PAGE_ENTRY = path.resolve(TOOL_DIR, "web-page.js");
 const WEB_PAGE_STYLE = path.resolve(TOOL_DIR, "web-page.css");
 const RENDERER_PLUGIN_IDS = ["svg", "canvas", "tikz", "markdown", "html", "quarto", "latex", "png", "pdf", "gltf", "csv"];
-const BUILT_PLUGIN_IDS = new Set(["exact-algebras", "draw", "plot", "scene3d", "nd", "data", "float", ...RENDERER_PLUGIN_IDS, "example-array-js", "example-array-rix"]);
-const STANDARD_PLUGIN_IDS = new Set(["exact-algebras", "draw", "plot", "scene3d", "nd", "data", "float", ...RENDERER_PLUGIN_IDS]);
+const BUILT_PLUGIN_IDS = new Set(["exact-algebras", "draw", "plot", "scene3d", "nd", "data", "document", "float", ...RENDERER_PLUGIN_IDS, "example-array-js", "example-array-rix"]);
+const STANDARD_PLUGIN_IDS = new Set(["exact-algebras", "draw", "plot", "scene3d", "nd", "data", "document", "float", ...RENDERER_PLUGIN_IDS]);
 
 function sourceUsesAsyncEvaluation(source) {
     const tokens = tokenize(source);
@@ -219,6 +220,7 @@ function registerBuiltPluginInstallers(pluginCatalog) {
     pluginCatalog.registerInstaller("scene3d", ({ systemContext }) => installScene3DPlugin({ systemContext }));
     pluginCatalog.registerInstaller("nd", ({ systemContext }) => installNdPlugin({ systemContext }));
     pluginCatalog.registerInstaller("data", ({ systemContext }) => installDataPlugin({ systemContext }));
+    pluginCatalog.registerInstaller("document", ({ systemContext }) => installDocumentPlugin({ systemContext }));
     pluginCatalog.registerInstaller("svg", installSvgPlugin);
     pluginCatalog.registerInstaller("canvas", installCanvasPlugin);
     pluginCatalog.registerInstaller("tikz", installTikzPlugin);

@@ -43,6 +43,7 @@ numeric type or one universal rendering engine.
 | `.gltf` | Implemented initial renderer | Retained Scene3D to embedded-buffer glTF 2.0 JSON with explicit Z-up to Y-up and Float32 conversion diagnostics. |
 | `.data` | Implemented Phase 1 plugin | Immutable typed in-memory relations, exact-value-preserving projection/filter/sort, and portable Table views. |
 | `.csv` | Implemented Phase 1 renderer | Deterministic CSV/TSV export for core Tables and Data relations with exact scalar formatting and explicit dialect options. |
+| `.document` | Implemented Phase 1 plugin | Numbered core Fragment reports with deterministic section/figure/table labels, resolved forward references, captions, and small semantic themes. |
 | HTML/SVG/terminal display | Implemented compatibility hosts | Existing direct host display remains available without loading an exporter; explicit artifacts use the renderer registry when a matching plugin is loaded. |
 
 ### Proposed first-party packages
@@ -59,7 +60,7 @@ numeric type or one universal rendering engine.
 | Complex visualization | `.complexViz` | Domain coloring, magnitude/phase surfaces, Cayley color mappings, Riemann-sphere views, and complex-to-complex projections. |
 | Data expansion | `.data` | Joins, groups, aggregates, calculated columns, external sources, and large-data planning beyond the implemented Phase 1 relation slice. |
 | Statistics | `.stats` | Exact/approximate summaries, distributions, models, regression, and plot-ready result values. |
-| Document features | `.document` | Citations, references, numbering, themes, assets, and report/deck assembly beyond core fragments. |
+| Document expansion | `.document` | Citations, bibliographies, asset manifests, broader numbering policy, templates, and report/deck assembly beyond the implemented numbered-report slice. |
 | Rendering and export | `.terminalAscii`, `.gif`; 3D GLB, OBJ, STL, PLY, USD/USDZ adapters | Remaining target encoders/exporters. SVG, Canvas, TikZ, PNG, Markdown, HTML, Quarto, LaTeX, PDF, CSV/TSV, and glTF JSON have initial implementations. |
 
 Plugin IDs and mount names remain lowercase or lower camel case. Core portable

@@ -102,7 +102,13 @@ function blockMarkdown(value, state, depth = 0) {
         state.diagnostics.push(diagnostic("markdown-static-control", "Interactive controls were lowered to their static text representation", "warning"));
         return formatOutputText(value, state.format);
     }
-    if (value.kind === "table") return [value.caption ? `**${markdownEscape(value.caption)}**` : null, markdownTable(value, state)].filter(Boolean).join("\n\n");
+    if (value.kind === "table") {
+        const body = [value.caption ? `**${markdownEscape(value.caption)}**` : null, markdownTable(value, state)].filter(Boolean).join("\n\n");
+        if (!value.label) return body;
+        return state.quarto
+            ? `::: {#tbl-${value.label.replace(/^tbl-/, "")}}\n${body}\n:::`
+            : `<a id="${value.label.replaceAll('"', '&quot;')}"></a>\n\n${body}`;
+    }
     if (value.kind === "grid" || value.kind === "sheet") {
         state.diagnostics.push(diagnostic("markdown-fixed-width-layout", `${value.kind} was lowered to a fixed-width static text block`, "info"));
         return `\`\`\`text\n${formatOutputText(value, state.format)}\n\`\`\``;
@@ -210,6 +216,9 @@ function blockLatex(value, state) {
     if (value.kind.startsWith("control_") || value.kind === "control_panel") {
         state.diagnostics.push(diagnostic("latex-static-control", "Interactive controls were lowered to static text", "warning"));
         return `\\begin{verbatim}\n${formatOutputText(value, state.format)}\n\\end{verbatim}`;
+    }
+    if (value.kind === "table" && value.label) {
+        return `\\hypertarget{${texEscape(value.label)}}{}\n${blockLatex({ ...value, label: null }, state)}`;
     }
     if (value.kind === "table") {
         const columns = value.columns.map((column) => column.align === "right" ? "r" : column.align === "center" ? "c" : "l").join("");

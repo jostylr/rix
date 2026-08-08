@@ -9,6 +9,7 @@ import { install as installPlotPlugin } from "./plot/plot.plugin.rix.js";
 import { install as installScene3DPlugin } from "./scene3d/scene3d.plugin.rix.js";
 import { install as installNdPlugin } from "./nd/nd.plugin.rix.js";
 import { install as installDataPlugin } from "./data/data.plugin.rix.js";
+import { install as installDocumentPlugin } from "./document/document.plugin.rix.js";
 import { install as installRadixPlugin } from "./radix/radix.plugin.rix.js";
 import { install as installSvgPlugin } from "./render-svg/svg.plugin.rix.js";
 import { install as installCanvasPlugin } from "./render-canvas/canvas.plugin.rix.js";
@@ -116,6 +117,17 @@ const BUNDLED_PLUGINS = [
             snapshot: false, deterministic: true, defaultEnabled: false,
         },
         install: ({ systemContext }) => installDataPlugin({ systemContext }),
+    },
+    {
+        metadata: {
+            id: "document", description: "Numbered portable reports with labels, forward references, captions, and small semantic themes.",
+            kind: "host", mount: "document",
+            exports: ["Report", "Label", "Ref", "Theme", "References"],
+            groups: ["Documents"], permissions: [], provides: ["rix.document.report@1"],
+            schemas: ["rix.document.report@1", "rix.document.theme@1"],
+            snapshot: true, deterministic: true, defaultEnabled: false,
+        },
+        install: ({ systemContext }) => installDocumentPlugin({ systemContext }),
     },
     ...[
         ["svg", "Portable SVG renderer for core Graphics scenes.", "svg", ["Render"], [], installSvgPlugin, "image/svg+xml", true],

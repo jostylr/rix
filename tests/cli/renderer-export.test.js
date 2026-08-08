@@ -19,6 +19,24 @@ afterEach(() => {
 });
 
 describe("CLI renderer export", () => {
+    test("the numbered document example exports resolved Markdown and HTML references", () => {
+        const directory = temporaryDirectory();
+        const outputPath = path.join(directory, "out");
+        const sourcePath = path.join(rixRoot, "examples/documents/numbered-report.rix");
+        const result = spawnSync("bun", [path.join(rixRoot, "bin/rix.js"), `--out=${outputPath}`, sourcePath], {
+            cwd: rixRoot,
+            encoding: "utf8",
+        });
+        expect(result.status).toBe(0);
+        expect(result.stderr).toBe("");
+        const markdown = readFileSync(path.join(outputPath, "numbered-report.md"), "utf8");
+        const html = readFileSync(path.join(outputPath, "numbered-report.html"), "utf8");
+        expect(markdown).toContain("[Table 1](#tbl-values)");
+        expect(markdown).toContain("Figure 1\\. A fitted polynomial view");
+        expect(html).toContain('href="#fig-curve"');
+        expect(html).toContain('id="tbl-values"');
+    });
+
     test("the 4D example exports a Scene3D snapshot and embedded glTF", () => {
         const directory = temporaryDirectory();
         const outputPath = path.join(directory, "out");

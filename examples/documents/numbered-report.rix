@@ -1,0 +1,31 @@
+/**
+plugins: [document, plot, svg, markdown, html]
+**/
+
+intro := @"""
+h1: Results #results
+
+p: Compare @{.document.Ref("tbl-values")} with @{.document.Ref("fig-curve")}.
+""";
+
+values := .document.Label("tbl-values", .Table(
+    ["x", "x² - 1"],
+    [[-1, 0], [0, -1], [1, 0]],
+    {= caption="Selected exact values" }
+));
+
+curve := .document.Label("fig-curve", .Figure(
+    .plot.Polynomial([1, 0, -1], [-2, 2]),
+    "A fitted polynomial view"
+));
+
+report := .document.Report("Exact polynomial report", [intro, values, curve], {=
+    author="RiX",
+    theme=:compact
+});
+
+.Out("numbered-report.md", report);
+.Out("numbered-report.html", report);
+
+## Keep the final value separate so the HTML artifact is a static renderer export.
+0;

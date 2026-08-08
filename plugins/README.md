@@ -22,6 +22,7 @@ The implementation order and per-plugin phased work are tracked in
 | `numerics/` | RiX | `numerics` | Backend-neutral bounded enclosure, refinement, and sampling protocol orchestration. |
 | `radix/` | host | `radix` | Bounded exact positional expansions and repeating-period analysis. |
 | `data/` | host | `data` | Immutable typed relations, deterministic transformations, and portable Table views. |
+| `document/` | host | `document` | Numbered portable reports, cross-references, captions, and small themes. |
 | `render-svg/` | host | `svg` | Core Graphics to accessible SVG. |
 | `render-canvas/` | host | `canvas` | Core Graphics to a serializable Canvas 2D plan. |
 | `render-tikz/` | host | `tikz` | Core Graphics to editable TikZ/PGF. |

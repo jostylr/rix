@@ -445,10 +445,10 @@ newline normalization.
 ### `.document`
 
 1. **Phase 1 — Numbered report fragment**
-   - [ ] Assemble core Fragment/Figure/Table values with labels, references,
+   - [x] Assemble core Fragment/Figure/Table values with labels, references,
      captions, and a small theme.
-   - [ ] Demonstrate a report containing prose, a table, and a plotted figure.
-   - [ ] Add README, template-language tutorial, and cross-reference tests.
+   - [x] Demonstrate a report containing prose, a table, and a plotted figure.
+   - [x] Add README, template-language tutorial, and cross-reference tests.
 2. **Phase 2 — Citations, assets, and templates**
    - [ ] Add bibliography/citation values, asset manifests, numbering policies,
      headers/footers, and reusable document templates.

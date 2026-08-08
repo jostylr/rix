@@ -449,6 +449,8 @@ describe("portable structured output", () => {
         expect(table.columns.map((column) => column.label)).toEqual(["x", "F(x)"]);
         expect(formatValue(table)).toContain("F(x)");
         expect(renderOutputHtml(table, formatValue)).toContain("rix-output-table");
+        const captioned = parseAndEvaluate('.Table(["x"], [[1]], {= caption="Values" })');
+        expect(captioned.caption).toBe("Values");
     });
 
     test("Sheet creates a portable tensor view with canonical RiX addresses", () => {
