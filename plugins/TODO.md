@@ -409,10 +409,10 @@ newline normalization.
 ### `.data`
 
 1. **Phase 1 — Typed relation feeding a table**
-   - [ ] Implement schema, rows, projection, filter, sort, and a `TableView`
+   - [x] Implement schema, rows, projection, filter, sort, and a `TableView`
      adapter.
-   - [ ] Demonstrate transforming a small exact dataset and exporting CSV.
-   - [ ] Add README, tutorial, schema diagnostics, and deterministic tests.
+   - [x] Demonstrate transforming a small exact dataset and exporting CSV.
+   - [x] Add README, tutorial, schema diagnostics, and deterministic tests.
 2. **Phase 2 — Relational operations**
    - [ ] Add joins, groups, aggregates, calculated columns, missing-value
      policy, and streaming row sources.
@@ -730,10 +730,10 @@ newline normalization.
 ### `.csv`
 
 1. **Phase 1 — Table/relation export**
-   - [ ] Export Table and `.data` relation values with headers, RFC-style
+   - [x] Export Table and `.data` relation values with headers, RFC-style
      quoting, configurable newline, and exact scalar formatting.
-   - [ ] Demonstrate commas, quotes, newlines, rationals, and missing cells.
-   - [ ] Add README, tutorial, byte-level tests, and CSV/TSV dialect fixtures.
+   - [x] Demonstrate commas, quotes, newlines, rationals, and missing cells.
+   - [x] Add README, tutorial, byte-level tests, and CSV/TSV dialect fixtures.
 2. **Phase 2 — Schema-aware tabular interchange**
    - [ ] Add typed import, explicit locale/decimal policy, streaming rows,
      comments/metadata sidecars, and flattening diagnostics.
@@ -746,13 +746,13 @@ newline normalization.
 ## Cross-plugin release gates
 
 1. **Phase 1 gate**
-   - [ ] Every implemented tutorial is discovered automatically by RiX Web.
-   - [ ] Plugin tutorials appear after the core tutorial sections and are
+   - [x] Every implemented tutorial is discovered automatically by RiX Web.
+   - [x] Plugin tutorials appear after the core tutorial sections and are
      grouped by theme.
-   - [ ] RiX Notebook recognizes an opened first-party `plugins/<id>/tutorial.md`,
+   - [x] RiX Notebook recognizes an opened first-party `plugins/<id>/tutorial.md`,
      enables the bundled plugin when available, and provides a rescan/rerun
      action for project-local RiX plugins.
-   - [ ] Proposed tutorials are readable but cannot misleadingly run.
+   - [x] Proposed tutorials are readable but cannot misleadingly run.
 2. **Phase 2 gate**
    - [ ] Shared schema versions and capability negotiation are tested across at
      least two independent providers.

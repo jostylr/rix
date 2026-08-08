@@ -145,12 +145,12 @@ export class RendererRegistry {
         return [...this.renderers.values()].sort((left, right) => left.target.localeCompare(right.target));
     }
 
-    targetForPath(filename) {
+    targetForPath(filename, { preserveAlias = false } = {}) {
         const lower = String(filename).toLowerCase();
         const aliases = [...this.aliases.keys()]
             .filter((alias) => !alias.includes("/") && lower.endsWith(`.${alias}`))
             .sort((left, right) => right.length - left.length);
-        return aliases.length ? this.resolve(aliases[0]) : null;
+        return aliases.length ? (preserveAlias ? aliases[0] : this.resolve(aliases[0])) : null;
     }
 
     render(value, targetValue, optionsValue = null, runtime = {}) {

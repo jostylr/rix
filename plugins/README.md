@@ -21,6 +21,7 @@ The implementation order and per-plugin phased work are tracked in
 | `oracle/` | RiX | `oracle` | Phase 1 rational-betweenness oracle values, procedures, validation, and bounded refinement. |
 | `numerics/` | RiX | `numerics` | Backend-neutral bounded enclosure, refinement, and sampling protocol orchestration. |
 | `radix/` | host | `radix` | Bounded exact positional expansions and repeating-period analysis. |
+| `data/` | host | `data` | Immutable typed relations, deterministic transformations, and portable Table views. |
 | `render-svg/` | host | `svg` | Core Graphics to accessible SVG. |
 | `render-canvas/` | host | `canvas` | Core Graphics to a serializable Canvas 2D plan. |
 | `render-tikz/` | host | `tikz` | Core Graphics to editable TikZ/PGF. |
@@ -30,6 +31,7 @@ The implementation order and per-plugin phased work are tracked in
 | `render-quarto/` | host | `quarto` | Portable documents to Quarto Markdown. |
 | `render-latex/` | host | `latex` | Portable documents and figures to LaTeX/TikZ. |
 | `render-pdf/` | host | `pdf` | LaTeX-orchestrated PDF output. |
+| `render-csv/` | host | `csv` | Exact scalar Table/relation export to CSV and TSV dialects. |
 
 The shared renderer contract, format matrix, toolchain boundary, and future 3D
 targets are documented in [`renderers/README.md`](renderers/README.md).

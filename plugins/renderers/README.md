@@ -73,6 +73,7 @@ one Graphic and one document tree.
 | `.latex` | Portable documents, figures, and slides | Standalone `.tex`, with graphics lowered to TikZ | None; TeX is only needed to compile it |
 | `.pdf` | Portable documents, figures, and static slide content | PDF bytes through the LaTeX renderer | CLI requires `pdflatex` |
 | `.gltf` | Retained `Scene3D` | glTF 2.0 JSON with embedded buffer | None |
+| `.csv` | Core `Table` and `.data` Relation | CSV or TSV with exact scalar text | None |
 
 Canvas is an execution target, not another scene model. Its plan traverses the
 same `.Graphics` tree as SVG and TikZ and can be repainted with

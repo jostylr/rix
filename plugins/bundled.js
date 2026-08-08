@@ -8,6 +8,7 @@ import { install as installExactAlgebrasPlugin } from "./exact-algebras/exact-al
 import { install as installPlotPlugin } from "./plot/plot.plugin.rix.js";
 import { install as installScene3DPlugin } from "./scene3d/scene3d.plugin.rix.js";
 import { install as installNdPlugin } from "./nd/nd.plugin.rix.js";
+import { install as installDataPlugin } from "./data/data.plugin.rix.js";
 import { install as installRadixPlugin } from "./radix/radix.plugin.rix.js";
 import { install as installSvgPlugin } from "./render-svg/svg.plugin.rix.js";
 import { install as installCanvasPlugin } from "./render-canvas/canvas.plugin.rix.js";
@@ -19,6 +20,7 @@ import { install as installLatexPlugin } from "./render-latex/latex.plugin.rix.j
 import { install as installPngPlugin } from "./render-png/png.plugin.rix.js";
 import { install as installPdfPlugin } from "./render-pdf/pdf.plugin.rix.js";
 import { install as installGltfPlugin } from "./render-gltf/gltf.plugin.rix.js";
+import { install as installCsvPlugin } from "./render-csv/csv.plugin.rix.js";
 
 const BUNDLED_PLUGINS = [
     {
@@ -105,6 +107,16 @@ const BUNDLED_PLUGINS = [
         },
         install: ({ systemContext }) => installNdPlugin({ systemContext }),
     },
+    {
+        metadata: {
+            id: "data", description: "Immutable typed relations with deterministic projection, filtering, sorting, and Table views.",
+            kind: "host", mount: "data",
+            exports: ["Relation", "Project", "Filter", "Sort", "TableView", "Schema", "Rows"],
+            groups: ["Data"], permissions: [], provides: ["rix.data.relation@1"], schemas: ["rix.data.relation@1"],
+            snapshot: false, deterministic: true, defaultEnabled: false,
+        },
+        install: ({ systemContext }) => installDataPlugin({ systemContext }),
+    },
     ...[
         ["svg", "Portable SVG renderer for core Graphics scenes.", "svg", ["Render"], [], installSvgPlugin, "image/svg+xml", true],
         ["canvas", "Serializable Canvas 2D drawing plans for core Graphics scenes.", "canvas", ["Render"], [], installCanvasPlugin, "application/vnd.rix.canvas+json", true],
@@ -116,17 +128,18 @@ const BUNDLED_PLUGINS = [
         ["png", "PNG snapshot renderer for core Graphics through a host rasterizer.", "png", ["Render"], ["process"], installPngPlugin, "image/png", true],
         ["pdf", "PDF document and figure renderer orchestrated through LaTeX.", "pdf", ["Render"], ["process", "files"], installPdfPlugin, "application/pdf", false],
         ["gltf", "Browser-safe glTF 2.0 JSON exporter for retained Scene3D values.", "gltf", ["Render"], [], installGltfPlugin, "model/gltf+json", true],
-    ].map(([id, description, mount, exports, permissions, install, mime, deterministic]) => ({
+        ["csv", "Deterministic CSV and TSV export for portable Tables and typed data Relations.", "csv", ["Render"], [], installCsvPlugin, "text/csv", true, ["tsv", "text/tab-separated-values"], ["Renderers", "Data"]],
+    ].map(([id, description, mount, exports, permissions, install, mime, deterministic, aliases = [], groups = ["Renderers"]]) => ({
         metadata: {
             id,
             description,
             kind: "host",
             mount,
             exports,
-            groups: ["Renderers"],
+            groups,
             permissions,
             provides: [`rix.renderer.${id}@1`],
-            targets: [id, mime],
+            targets: [id, mime, ...aliases],
             snapshot: true,
             deterministic,
             defaultEnabled: false,

@@ -40,6 +40,7 @@ import { install as installExactAlgebrasPlugin } from "../plugins/exact-algebras
 import { install as installPlotPlugin } from "../plugins/plot/plot.plugin.rix.js";
 import { install as installScene3DPlugin } from "../plugins/scene3d/scene3d.plugin.rix.js";
 import { install as installNdPlugin } from "../plugins/nd/nd.plugin.rix.js";
+import { install as installDataPlugin } from "../plugins/data/data.plugin.rix.js";
 import { install as installSvgPlugin } from "../plugins/render-svg/svg.plugin.rix.js";
 import { install as installCanvasPlugin } from "../plugins/render-canvas/canvas.plugin.rix.js";
 import { install as installTikzPlugin } from "../plugins/render-tikz/tikz.plugin.rix.js";
@@ -50,6 +51,7 @@ import { install as installLatexPlugin } from "../plugins/render-latex/latex.plu
 import { install as installPngPlugin } from "../plugins/render-png/png.plugin.rix.js";
 import { install as installPdfPlugin } from "../plugins/render-pdf/pdf.plugin.rix.js";
 import { install as installGltfPlugin } from "../plugins/render-gltf/gltf.plugin.rix.js";
+import { install as installCsvPlugin } from "../plugins/render-csv/csv.plugin.rix.js";
 import { compileLatex, rasterizeSvg } from "./node-renderer-tools.js";
 import {
     ensureRixCliPreamble,
@@ -68,9 +70,9 @@ const FIRST_PARTY_PLUGINS_DIR = path.resolve(TOOL_DIR, "../plugins");
 const EXAMPLE_PLUGINS_DIR = path.resolve(EXAMPLES_DIR, "plugins");
 const WEB_PAGE_ENTRY = path.resolve(TOOL_DIR, "web-page.js");
 const WEB_PAGE_STYLE = path.resolve(TOOL_DIR, "web-page.css");
-const RENDERER_PLUGIN_IDS = ["svg", "canvas", "tikz", "markdown", "html", "quarto", "latex", "png", "pdf", "gltf"];
-const BUILT_PLUGIN_IDS = new Set(["exact-algebras", "draw", "plot", "scene3d", "nd", "float", ...RENDERER_PLUGIN_IDS, "example-array-js", "example-array-rix"]);
-const STANDARD_PLUGIN_IDS = new Set(["exact-algebras", "draw", "plot", "scene3d", "nd", "float", ...RENDERER_PLUGIN_IDS]);
+const RENDERER_PLUGIN_IDS = ["svg", "canvas", "tikz", "markdown", "html", "quarto", "latex", "png", "pdf", "gltf", "csv"];
+const BUILT_PLUGIN_IDS = new Set(["exact-algebras", "draw", "plot", "scene3d", "nd", "data", "float", ...RENDERER_PLUGIN_IDS, "example-array-js", "example-array-rix"]);
+const STANDARD_PLUGIN_IDS = new Set(["exact-algebras", "draw", "plot", "scene3d", "nd", "data", "float", ...RENDERER_PLUGIN_IDS]);
 
 function sourceUsesAsyncEvaluation(source) {
     const tokens = tokenize(source);
@@ -216,6 +218,7 @@ function registerBuiltPluginInstallers(pluginCatalog) {
     pluginCatalog.registerInstaller("plot", ({ systemContext }) => installPlotPlugin({ systemContext }));
     pluginCatalog.registerInstaller("scene3d", ({ systemContext }) => installScene3DPlugin({ systemContext }));
     pluginCatalog.registerInstaller("nd", ({ systemContext }) => installNdPlugin({ systemContext }));
+    pluginCatalog.registerInstaller("data", ({ systemContext }) => installDataPlugin({ systemContext }));
     pluginCatalog.registerInstaller("svg", installSvgPlugin);
     pluginCatalog.registerInstaller("canvas", installCanvasPlugin);
     pluginCatalog.registerInstaller("tikz", installTikzPlugin);
@@ -226,6 +229,7 @@ function registerBuiltPluginInstallers(pluginCatalog) {
     pluginCatalog.registerInstaller("png", (api) => installPngPlugin({ ...api, rasterizeSvg }));
     pluginCatalog.registerInstaller("pdf", (api) => installPdfPlugin({ ...api, compileLatex }));
     pluginCatalog.registerInstaller("gltf", installGltfPlugin);
+    pluginCatalog.registerInstaller("csv", installCsvPlugin);
 }
 
 function validateArtifactPath(outDir, artifactPath) {
@@ -319,7 +323,7 @@ async function writeArtifacts({ outDir, artifacts, source, sourcePath, plugins, 
         mkdirSync(path.dirname(target), { recursive: true });
         let rendered = artifact.value?._renderResult || null;
         if (!rendered && rendererRegistry && !(artifact.value === result && /\.html?$/i.test(artifact.path))) {
-            const renderTarget = rendererRegistry.targetForPath(artifact.path);
+            const renderTarget = rendererRegistry.targetForPath(artifact.path, { preserveAlias: true });
             if (renderTarget) {
                 rendered = rendererRegistry.render(artifact.value, renderTarget, {
                     title: path.basename(artifact.path, path.extname(artifact.path)),

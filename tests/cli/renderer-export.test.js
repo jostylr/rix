@@ -41,13 +41,14 @@ describe("CLI renderer export", () => {
         const sourcePath = path.join(directory, "report.rix");
         const outputPath = path.join(directory, "out");
         writeFileSync(sourcePath, `/**
-plugins: [svg, canvas, tikz, markdown, html, quarto, latex]
+plugins: [svg, canvas, tikz, markdown, html, quarto, latex, csv]
 **/
 g := .Graphics.Graphic([120, 80], [
     .Graphics.Circle([60, 40], 24, {= fill="#0c7b7f" }),
     .Graphics.Text([60, 44], "RiX", {= fill="white", anchor="middle" })
 ]);
 doc := .Fragment([.Heading(1, "Renderer export"), .Figure(g, "Portable scene")]);
+table := .Table(["name", "value"], [["half", 1/2], ["unknown", _]]);
 .Out("scene.svg", g);
 .Out("scene.canvas.json", g);
 .Out("scene.tikz", g);
@@ -55,6 +56,8 @@ doc := .Fragment([.Heading(1, "Renderer export"), .Figure(g, "Portable scene")])
 .Out("report.html", doc);
 .Out("report.qmd", doc);
 .Out("report.tex", doc);
+.Out("values.csv", table);
+.Out("values.tsv", table);
 0;
 `, "utf8");
         const result = spawnSync("bun", [path.join(rixRoot, "bin/rix.js"), `--out=${outputPath}`, sourcePath], {
@@ -70,6 +73,8 @@ doc := .Fragment([.Heading(1, "Renderer export"), .Figure(g, "Portable scene")])
         expect(readFileSync(path.join(outputPath, "report.html"), "utf8")).toContain("<!doctype html>");
         expect(readFileSync(path.join(outputPath, "report.qmd"), "utf8")).toStartWith('---\ntitle: "report"\nformat: html');
         expect(readFileSync(path.join(outputPath, "report.tex"), "utf8")).toContain("\\documentclass{article}");
+        expect(readFileSync(path.join(outputPath, "values.csv"), "utf8")).toBe("name,value\nhalf,1/2\nunknown,\n");
+        expect(readFileSync(path.join(outputPath, "values.tsv"), "utf8")).toBe("name\tvalue\nhalf\t1/2\nunknown\t\n");
         expect(existsSync(path.join(outputPath, "assets", "rix-page.js"))).toBe(false);
     });
 

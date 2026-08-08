@@ -41,6 +41,7 @@ describe("renderer registry", () => {
 
         expect(registry.resolve("text/plain")).toBe("text");
         expect(registry.targetForPath("report.TXT")).toBe("text");
+        expect(registry.targetForPath("report.TXT", { preserveAlias: true })).toBe("txt");
         expect(registry.render(3, "plain").content).toBe("3\n");
         const fallback = registry.render(3, "missing", { fallback: ["text"] });
         expect(fallback.target).toBe("text");

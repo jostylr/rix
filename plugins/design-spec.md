@@ -41,6 +41,8 @@ numeric type or one universal rendering engine.
 | `.scene3d` | Implemented initial plugin | Retained exact mesh/polyline/point scenes, transforms, perspective/orthographic cameras, and deterministic wireframe snapshots to core Graphics. |
 | `.nd` | Implemented initial plugin | Exact points, polylines, polytopes/hypercubes, affine projection records, rational Cayley rotations, composition, and explicit conversion of 3D results to Scene3D. |
 | `.gltf` | Implemented initial renderer | Retained Scene3D to embedded-buffer glTF 2.0 JSON with explicit Z-up to Y-up and Float32 conversion diagnostics. |
+| `.data` | Implemented Phase 1 plugin | Immutable typed in-memory relations, exact-value-preserving projection/filter/sort, and portable Table views. |
+| `.csv` | Implemented Phase 1 renderer | Deterministic CSV/TSV export for core Tables and Data relations with exact scalar formatting and explicit dialect options. |
 | HTML/SVG/terminal display | Implemented compatibility hosts | Existing direct host display remains available without loading an exporter; explicit artifacts use the renderer registry when a matching plugin is loaded. |
 
 ### Proposed first-party packages
@@ -55,10 +57,10 @@ numeric type or one universal rendering engine.
 | 3D scene expansion | `.scene3d` | Hidden-surface/lighting policies, adaptive surfaces and volumes, textures, animation, clipping, and interactive orbit beyond the implemented retained wireframe slice. |
 | Higher-dimensional expansion | `.nd` | Fields, meshes, implicit regions, slices, sections, fibers, sampling, and marginalization beyond implemented affine projection. |
 | Complex visualization | `.complexViz` | Domain coloring, magnitude/phase surfaces, Cayley color mappings, Riemann-sphere views, and complex-to-complex projections. |
-| Data | `.data` | Relations, schemas, joins, transformations, and presentation-neutral tabular data. |
+| Data expansion | `.data` | Joins, groups, aggregates, calculated columns, external sources, and large-data planning beyond the implemented Phase 1 relation slice. |
 | Statistics | `.stats` | Exact/approximate summaries, distributions, models, regression, and plot-ready result values. |
 | Document features | `.document` | Citations, references, numbering, themes, assets, and report/deck assembly beyond core fragments. |
-| Rendering and export | `.terminalAscii`, `.gif`, `.csv`; 3D GLB, OBJ, STL, PLY, USD/USDZ adapters | Remaining target encoders/exporters. SVG, Canvas, TikZ, PNG, Markdown, HTML, Quarto, LaTeX, PDF, and glTF JSON have initial implementations. |
+| Rendering and export | `.terminalAscii`, `.gif`; 3D GLB, OBJ, STL, PLY, USD/USDZ adapters | Remaining target encoders/exporters. SVG, Canvas, TikZ, PNG, Markdown, HTML, Quarto, LaTeX, PDF, CSV/TSV, and glTF JSON have initial implementations. |
 
 Plugin IDs and mount names remain lowercase or lower camel case. Core portable
 constructors retain their existing PascalCase system names.
