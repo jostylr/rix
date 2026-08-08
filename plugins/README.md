@@ -15,7 +15,8 @@ The implementation order and per-plugin phased work are tracked in
 | Package | Kind | Public load ID | Purpose |
 | --- | --- | --- | --- |
 | `draw/` | host | `draw` | Convenient 2D scene authoring helpers. |
-| `algebra/` | host | `algebra` | Canonical exact polynomials, verified division, and factor metadata. |
+| `poly/` | host | `poly` | Callable semantic polynomials; aliases `.polynomial` and `.p`. |
+| `algebra/` | host | `algebra` | Verified division and factor metadata for semantic Polynomials; auto-loads `poly`. |
 | `exact-algebras/` | host | `exact-algebras` | Exact rational quaternion and octonion values. |
 | `plot/` | host | `plot` | Portable plot constructors that lower to core graphics. |
 | `float/` | host | `float` | IEEE-754 Float conversion and approximate math. |

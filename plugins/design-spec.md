@@ -719,13 +719,14 @@ produce an explicit unsupported result.
 
 ## 12. Plugin manifests and service discovery
 
-The current manifest fields—`id`, `description`, `kind`, `mount`, `exports`,
-`groups`, `permissions`, and `defaultEnabled`—remain the discovery baseline.
-Future compatibility fields should include:
+The manifest fields—`id`, `description`, `kind`, `mount`, `aliases`, `exports`,
+`groups`, `permissions`, and `defaultEnabled`—form the discovery baseline.
+Service-oriented packages can additionally use:
 
 ```yaml
 version: 0.2.0
 rix: ">=0.2 <0.3"
+aliases: [floating, fp]
 requires: [numerics-protocol@1, graphics-schema@1]
 optional: [algebra@1, ball@1]
 provides: [rix.real.enclosure@1, rix.renderer.svg@1]
@@ -735,11 +736,12 @@ snapshot: true
 deterministic: true
 ```
 
-`requires`, `optional`, `provides`, `schemas`, `targets`, `snapshot`, and
-`deterministic` are now retained and type-checked by discovery, and renderer
-plugins publish their target/service metadata through `.Plugin.Info`. Version
-ranges and dependency/service resolution remain proposed; loading still relies
-on the host-approved installer to register a matching runtime target.
+`aliases`, `requires`, `optional`, `provides`, `schemas`, `targets`, `snapshot`,
+and `deterministic` are retained and type-checked by discovery. Aliases mount
+the same capability value and implementation under additional camelCase names.
+Required plugin IDs or uniquely provided services load first and are idempotent
+across dependency paths. Version-range selection remains proposed; host plugins
+still require an approved installer.
 
 Plugin loading proceeds in four steps:
 
@@ -761,8 +763,9 @@ rix/plugins/
   design-spec.md
   draw/
   plot/
+  poly/                    # callable semantic Polynomial values
   float/
-  algebra/                 # proposed
+  algebra/                 # exact Polynomial transformations
   numerics/                # proposed orchestration
   real-ball/               # proposed real backend
   oracle/                  # specification; proposed real backend

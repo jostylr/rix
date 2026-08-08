@@ -295,6 +295,11 @@ newline normalization.
    - [x] Move one coherent capability beyond core helpers: polynomial values,
      evaluation, quotient/remainder, and factor/equality metadata.
    - [x] Reproduce synthetic division through portable `Grid` output.
+   - [x] Move callable Polynomial identity into the focused `.poly` dependency,
+     with `.polynomial` and `.p` manifest aliases and concise backtick/postfix
+     construction.
+   - [x] Preserve Polynomial identity through arithmetic, composition, reactive
+     dependency chains, receiver methods, and quotient/remainder operators.
    - [x] Provide README documentation and a tutorial connecting exact
      polynomial work to the existing synthetic-division layout.
    - [x] Add exact round-trip and plugin-loading tests.

@@ -1,22 +1,24 @@
-/** Canonical exact univariate polynomials and transformation evidence. */
+/** Exact transformations for semantic callable Polynomials. */
 
 import { Integer, Rational } from "@ratmath/core";
+import { callWithConcreteArgs } from "../../src/eval/functions/functions.js";
 import { createSyntheticDivision } from "../../src/runtime/output.js";
+import {
+    POLYNOMIAL_SCHEMA,
+    createPolynomial as createSemanticPolynomial,
+    isPolynomial,
+    polynomialCoefficients as semanticCoefficients,
+    polynomialRecord as semanticRecord,
+    polynomialsEqual,
+    requirePolynomial,
+} from "../poly/polynomial.js";
 
-export const POLYNOMIAL_SCHEMA = "rix.algebra.polynomial@1";
+export { POLYNOMIAL_SCHEMA };
 export const DIVISION_SCHEMA = "rix.algebra.division@1";
 
 const int = (value) => new Integer(BigInt(value));
 const str = (value) => ({ type: "string", value: String(value) });
 const seq = (values) => ({ type: "sequence", values });
-const rixMap = (entries) => ({ type: "map", entries: new Map(entries) });
-
-function sequence(value, label) {
-    if (Array.isArray(value)) return value;
-    if (Array.isArray(value?.values)) return value.values;
-    if (Array.isArray(value?.elements)) return value.elements;
-    throw new Error(`${label} must be a sequence`);
-}
 
 function entriesFor(args, positional, name) {
     if (args.length === 1 && args[0]?.type === "map" && args[0].entries instanceof Map) return args[0].entries;
@@ -37,113 +39,67 @@ function field(entries, name, fallback = null) {
     return fallback;
 }
 
-function text(value, fallback = null) {
-    if (value?.type === "string") return value.value;
-    return typeof value === "string" ? value : fallback;
-}
-
 function rational(value, label) {
     if (value instanceof Rational) return value;
     if (value instanceof Integer) return new Rational(value.value, 1n);
     throw new Error(`${label} must be an exact integer or rational`);
 }
 
-function zero() {
-    return new Rational(0n, 1n);
-}
-
-function one() {
-    return new Rational(1n, 1n);
-}
-
-function isZero(value) {
-    return value.numerator === 0n;
-}
+const zero = () => new Rational(0n, 1n);
+const one = () => new Rational(1n, 1n);
+const isZero = (value) => value.numerator === 0n;
 
 function normalizeCoefficients(values, label = "Polynomial coefficients") {
     if (values.length === 0) throw new Error(`${label} cannot be empty`);
     const exact = values.map((value, index) => rational(value, `${label} ${index + 1}`));
     const first = exact.findIndex((value) => !isZero(value));
-    return Object.freeze(first < 0 ? [zero()] : exact.slice(first));
+    return first < 0 ? [zero()] : exact.slice(first);
 }
 
-function polynomialValue(coefficients, variable, operation, inputs) {
-    const normalized = normalizeCoefficients(coefficients);
-    const zeroPolynomial = normalized.length === 1 && isZero(normalized[0]);
-    return Object.freeze({
-        type: "algebra_polynomial",
-        kind: "polynomial",
-        schema: POLYNOMIAL_SCHEMA,
-        variable,
-        coefficients: normalized,
-        degree: zeroPolynomial ? -1 : normalized.length - 1,
-        leadingCoefficient: normalized[0],
-        canonical: true,
-        equalityPolicy: "canonical-coefficients",
-        factorStatus: zeroPolynomial ? "zero" : normalized.length === 1 ? "constant" : "unknown",
-        provenance: Object.freeze([{ operation, inputs: Object.freeze([...inputs]) }]),
-        _ext: new Map([
-            ["_type", str("algebra_polynomial")],
-            ["kind", str("polynomial")],
-            ["immutable", int(1)],
-        ]),
-    });
+function exactCoefficients(polynomial, context, evaluate, label) {
+    requirePolynomial(polynomial, label);
+    return normalizeCoefficients(semanticCoefficients(polynomial, context, evaluate), `${label} coefficients`);
 }
 
-export function isPolynomial(value) {
-    return Boolean(value?.type === "algebra_polynomial" && value.schema === POLYNOMIAL_SCHEMA && Array.isArray(value.coefficients));
+function polynomialValue(coefficients, variable, context) {
+    return createSemanticPolynomial([seq(normalizeCoefficients(coefficients)), str(variable)], context);
 }
 
-function requirePolynomial(value, label) {
-    if (!isPolynomial(value)) throw new Error(`${label} must be an algebra Polynomial`);
-    return value;
-}
-
-export function createPolynomial(args) {
-    if (args.length === 1 && isPolynomial(args[0])) return args[0];
-    const entries = entriesFor(args, ["coefficients", "options"], "algebra.Polynomial");
-    const coefficients = sequence(field(entries, "coefficients"), "algebra.Polynomial coefficients");
-    const variable = text(field(entries, "variable"), "x");
-    if (!variable || !/^[A-Za-z][A-Za-z0-9_]*$/.test(variable)) {
-        throw new Error("algebra.Polynomial variable must be a simple identifier string");
+export function createPolynomial(args, context) {
+    try {
+        return createSemanticPolynomial(args, context);
+    } catch (error) {
+        throw new Error(`algebra.Polynomial: ${error.message}`);
     }
-    return polynomialValue(coefficients, variable, "Polynomial", [seq(coefficients), str(variable)]);
 }
 
-export function polynomialCoefficients(args) {
+export function polynomialCoefficients(args, context, evaluate) {
     const entries = entriesFor(args, ["polynomial"], "algebra.Coefficients");
     const polynomial = requirePolynomial(field(entries, "polynomial"), "algebra.Coefficients value");
-    return seq([...polynomial.coefficients]);
+    return seq(semanticCoefficients(polynomial, context, evaluate));
 }
 
-export function polynomialRecord(args) {
+export function polynomialRecord(args, context, evaluate) {
     const entries = entriesFor(args, ["polynomial"], "algebra.Record");
-    const polynomial = requirePolynomial(field(entries, "polynomial"), "algebra.Record value");
-    return rixMap([
-        ["schema", str(POLYNOMIAL_SCHEMA)],
-        ["variable", str(polynomial.variable)],
-        ["coefficients", seq([...polynomial.coefficients])],
-        ["canonical", int(1)],
-        ["equalityPolicy", str(polynomial.equalityPolicy)],
-    ]);
+    return semanticRecord(requirePolynomial(field(entries, "polynomial"), "algebra.Record value"), context, evaluate);
 }
 
-export function evaluatePolynomial(args) {
+export function evaluatePolynomial(args, context, evaluate) {
     const entries = entriesFor(args, ["polynomial", "value"], "algebra.Evaluate");
     const polynomial = requirePolynomial(field(entries, "polynomial"), "algebra.Evaluate polynomial");
-    const value = rational(field(entries, "value"), "algebra.Evaluate value");
-    return polynomial.coefficients.reduce((result, coefficient) => result.multiply(value).add(coefficient), zero());
-}
-
-function coefficientsEqual(left, right) {
-    return left.length === right.length && left.every((value, index) => value.equals(right[index]));
+    return callWithConcreteArgs(polynomial, [field(entries, "value")], context, evaluate);
 }
 
 export function equalPolynomials(args) {
     const entries = entriesFor(args, ["left", "right"], "algebra.Equal");
-    const left = requirePolynomial(field(entries, "left"), "algebra.Equal left value");
-    const right = requirePolynomial(field(entries, "right"), "algebra.Equal right value");
-    return int(left.variable === right.variable && coefficientsEqual(left.coefficients, right.coefficients) ? 1 : 0);
+    return int(polynomialsEqual(
+        requirePolynomial(field(entries, "left"), "algebra.Equal left value"),
+        requirePolynomial(field(entries, "right"), "algebra.Equal right value"),
+    ) ? 1 : 0);
+}
+
+function coefficientsEqual(left, right) {
+    return left.length === right.length && left.every((value, index) => value.equals(right[index]));
 }
 
 function addCoefficients(left, right) {
@@ -161,10 +117,13 @@ function multiplyCoefficients(left, right) {
     return normalizeCoefficients(result);
 }
 
-function divisionValue(dividend, divisor, quotient, remainder, method, extra = {}) {
-    const reconstructed = addCoefficients(multiplyCoefficients(divisor.coefficients, quotient.coefficients), remainder.coefficients);
-    const identityVerified = coefficientsEqual(reconstructed, dividend.coefficients);
-    const divisorIsFactor = remainder.coefficients.length === 1 && isZero(remainder.coefficients[0]);
+function divisionValue(dividend, divisor, quotient, remainder, coefficients, method, extra = {}) {
+    const reconstructed = addCoefficients(
+        multiplyCoefficients(coefficients.divisor, coefficients.quotient),
+        coefficients.remainder,
+    );
+    const identityVerified = coefficientsEqual(reconstructed, coefficients.dividend);
+    const factor = coefficients.remainder.length === 1 && isZero(coefficients.remainder[0]);
     return Object.freeze({
         type: "algebra_division",
         kind: "polynomial_division",
@@ -175,18 +134,16 @@ function divisionValue(dividend, divisor, quotient, remainder, method, extra = {
         quotient,
         remainder,
         exact: true,
-        identity: Object.freeze({
-            relation: "dividend = divisor * quotient + remainder",
-            verified: identityVerified,
-        }),
+        identity: Object.freeze({ relation: "dividend = divisor * quotient + remainder", verified: identityVerified }),
         factor: Object.freeze({
-            divisorIsFactor,
-            status: divisorIsFactor ? "exact-factor" : "nonzero-remainder",
+            divisorIsFactor: factor,
+            status: factor ? "exact-factor" : "nonzero-remainder",
             equalityPolicy: dividend.equalityPolicy,
         }),
         provenance: Object.freeze([{ operation: method === "synthetic" ? "SyntheticDivide" : "Divide", inputs: Object.freeze([dividend, divisor]) }]),
         ...extra,
         _ext: new Map([
+            ["__type", str("PolynomialDivision")],
             ["_type", str("algebra_division")],
             ["kind", str("polynomial_division")],
             ["immutable", int(1)],
@@ -194,54 +151,61 @@ function divisionValue(dividend, divisor, quotient, remainder, method, extra = {
     });
 }
 
-function divideValues(dividend, divisor, method = "long") {
-    if (divisor.degree < 0) throw new Error("algebra.Divide divisor cannot be the zero polynomial");
-    if (dividend.degree < divisor.degree) {
-        return divisionValue(
-            dividend,
-            divisor,
-            polynomialValue([zero()], dividend.variable, "DivisionQuotient", [dividend, divisor]),
-            polynomialValue(dividend.coefficients, dividend.variable, "DivisionRemainder", [dividend, divisor]),
-            method,
-        );
-    }
-    const difference = dividend.degree - divisor.degree;
-    const quotient = Array.from({ length: difference + 1 }, zero);
-    const working = [...dividend.coefficients];
-    for (let index = 0; index <= difference; index += 1) {
-        const factor = working[index].divide(divisor.leadingCoefficient);
-        quotient[index] = factor;
-        for (let divisorIndex = 0; divisorIndex < divisor.coefficients.length; divisorIndex += 1) {
-            working[index + divisorIndex] = working[index + divisorIndex].subtract(factor.multiply(divisor.coefficients[divisorIndex]));
-        }
-    }
-    const remainderValues = working.slice(difference + 1);
-    return divisionValue(
-        dividend,
-        divisor,
-        polynomialValue(quotient, dividend.variable, "DivisionQuotient", [dividend, divisor]),
-        polynomialValue(remainderValues.length ? remainderValues : [zero()], dividend.variable, "DivisionRemainder", [dividend, divisor]),
-        method,
-    );
-}
-
-export function dividePolynomials(args) {
-    const entries = entriesFor(args, ["dividend", "divisor"], "algebra.Divide");
-    const dividend = requirePolynomial(field(entries, "dividend"), "algebra.Divide dividend");
-    const divisor = requirePolynomial(field(entries, "divisor"), "algebra.Divide divisor");
+function divideValues(dividend, divisor, context, evaluate, method = "long") {
+    requirePolynomial(dividend, "algebra.Divide dividend");
+    requirePolynomial(divisor, "algebra.Divide divisor");
     if (dividend.variable !== divisor.variable) throw new Error("algebra.Divide polynomials must use the same variable");
-    return divideValues(dividend, divisor);
+    const dividendValues = exactCoefficients(dividend, context, evaluate, "algebra.Divide dividend");
+    const divisorValues = exactCoefficients(divisor, context, evaluate, "algebra.Divide divisor");
+    const dividendDegree = dividendValues.length === 1 && isZero(dividendValues[0]) ? -1 : dividendValues.length - 1;
+    const divisorDegree = divisorValues.length === 1 && isZero(divisorValues[0]) ? -1 : divisorValues.length - 1;
+    if (divisorDegree < 0) throw new Error("algebra.Divide divisor cannot be the zero polynomial");
+
+    let quotientValues;
+    let remainderValues;
+    if (dividendDegree < divisorDegree) {
+        quotientValues = [zero()];
+        remainderValues = dividendValues;
+    } else {
+        const difference = dividendDegree - divisorDegree;
+        quotientValues = Array.from({ length: difference + 1 }, zero);
+        const working = [...dividendValues];
+        for (let index = 0; index <= difference; index += 1) {
+            const factor = working[index].divide(divisorValues[0]);
+            quotientValues[index] = factor;
+            for (let divisorIndex = 0; divisorIndex < divisorValues.length; divisorIndex += 1) {
+                working[index + divisorIndex] = working[index + divisorIndex].subtract(factor.multiply(divisorValues[divisorIndex]));
+            }
+        }
+        remainderValues = normalizeCoefficients(working.slice(difference + 1).length ? working.slice(difference + 1) : [zero()]);
+    }
+
+    const quotient = polynomialValue(quotientValues, dividend.variable, context);
+    const remainder = polynomialValue(remainderValues, dividend.variable, context);
+    return divisionValue(dividend, divisor, quotient, remainder, {
+        dividend: dividendValues,
+        divisor: divisorValues,
+        quotient: quotientValues,
+        remainder: remainderValues,
+    }, method);
 }
 
-export function syntheticDivide(args) {
+export function dividePolynomials(args, context, evaluate) {
+    const entries = entriesFor(args, ["dividend", "divisor"], "algebra.Divide");
+    return divideValues(field(entries, "dividend"), field(entries, "divisor"), context, evaluate);
+}
+
+export function syntheticDivide(args, context, evaluate) {
     const entries = entriesFor(args, ["polynomial", "root"], "algebra.SyntheticDivide");
     const polynomial = requirePolynomial(field(entries, "polynomial"), "algebra.SyntheticDivide polynomial");
     const root = rational(field(entries, "root"), "algebra.SyntheticDivide root");
-    const divisor = polynomialValue([one(), root.negate()], polynomial.variable, "LinearFactor", [root]);
-    const result = divideValues(polynomial, divisor, "synthetic");
-    return divisionValue(result.dividend, result.divisor, result.quotient, result.remainder, "synthetic", {
+    const coefficients = exactCoefficients(polynomial, context, evaluate, "algebra.SyntheticDivide polynomial");
+    const divisor = polynomialValue([one(), root.negate()], polynomial.variable, context);
+    const result = divideValues(polynomial, divisor, context, evaluate, "synthetic");
+    return Object.freeze({
+        ...result,
         root,
-        grid: createSyntheticDivision(root, polynomial.coefficients),
+        grid: createSyntheticDivision(root, coefficients),
     });
 }
 
@@ -260,12 +224,9 @@ export function divisionRemainder(args) {
     return requireDivision(field(entries, "division"), "algebra.Remainder value").remainder;
 }
 
-export function divisorIsFactor(args) {
+export function divisorIsFactor(args, context, evaluate) {
     const entries = entriesFor(args, ["polynomial", "candidate"], "algebra.IsFactor");
-    const polynomial = requirePolynomial(field(entries, "polynomial"), "algebra.IsFactor polynomial");
-    const candidate = requirePolynomial(field(entries, "candidate"), "algebra.IsFactor candidate");
-    if (polynomial.variable !== candidate.variable) throw new Error("algebra.IsFactor polynomials must use the same variable");
-    return int(divideValues(polynomial, candidate).factor.divisorIsFactor ? 1 : 0);
+    return int(divideValues(field(entries, "polynomial"), field(entries, "candidate"), context, evaluate).factor.divisorIsFactor ? 1 : 0);
 }
 
 export function divisionGrid(args) {
@@ -273,4 +234,36 @@ export function divisionGrid(args) {
     const division = requireDivision(field(entries, "division"), "algebra.Grid value");
     if (division.method !== "synthetic" || !division.grid) throw new Error("algebra.Grid requires a SyntheticDivide result");
     return division.grid;
+}
+
+function method(name, impl) {
+    return { type: "method_builtin", name, impl };
+}
+
+export function registerAlgebraMethods(systemContext, owner = {}) {
+    const register = (type, name, impl) => systemContext.registerMethod(type, name, method(name, impl), owner);
+    register("Polynomial", "Divide", ([value, divisor], context, evaluate) => dividePolynomials([value, divisor], context, evaluate));
+    register("Polynomial", "DivMod", ([value, divisor], context, evaluate) => dividePolynomials([value, divisor], context, evaluate));
+    register("Polynomial", "SyntheticDiv", ([value, root], context, evaluate) => syntheticDivide([value, root], context, evaluate));
+    register("Polynomial", "SyntheticDivide", ([value, root], context, evaluate) => syntheticDivide([value, root], context, evaluate));
+    register("Polynomial", "IsFactor", ([value, candidate], context, evaluate) => divisorIsFactor([value, candidate], context, evaluate));
+    register("PolynomialDivision", "Quotient", ([value]) => divisionQuotient([value]));
+    register("PolynomialDivision", "Remainder", ([value]) => divisionRemainder([value]));
+    register("PolynomialDivision", "Grid", ([value]) => divisionGrid([value]));
+}
+
+export function installPolynomialDivisionOperators(registry) {
+    if (!registry) return;
+    const install = (name, impl) => registry.installVariant(name, {
+        name: `Polynomial.${name}`,
+        priority: 260,
+        prepare(args) { return args.length === 2 && isPolynomial(args[0]) && isPolynomial(args[1]) ? { args } : false; },
+        impl,
+    });
+    install("INTDIV", ([left, right], context, evaluate) => divideValues(left, right, context, evaluate).quotient);
+    install("MOD", ([left, right], context, evaluate) => divideValues(left, right, context, evaluate).remainder);
+    install("DIVMOD", ([left, right], context, evaluate) => {
+        const result = divideValues(left, right, context, evaluate);
+        return { type: "tuple", values: [result.quotient, result.remainder] };
+    });
 }

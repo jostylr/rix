@@ -410,5 +410,19 @@ P(2)            # 21
 Unsupported symbolic forms fail rather than silently switching to approximate
 arithmetic.
 
+For a value that remains recognizably a Polynomial after construction and
+algebra, load the optional `poly` plugin. Its `.poly`, `.polynomial`, and `.p`
+names are aliases for one callable capability:
+
+```rix
+.Plugin.Load("poly")
+P := .p`x^2 + 2x + 1`              # outside-label form
+Q := `.poly.Var(t):t^2 + y*t`      # named header with explicit variable
+R := (`z^3-z`).P()                 # postfix conversion
+```
+
+These values are ordinary one-argument functions and carry the semantic
+`rix.polynomial@1` record used by Polynomial methods and operator variants.
+
 The completed implementation checklist is retained in the
 [structural arithmetic implementation record](../design/eval/structural-arithmetic-todo.md).

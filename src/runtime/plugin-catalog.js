@@ -116,10 +116,22 @@ function validateMetadata(metadata, sourcePath, kind) {
     if (metadata.mount !== undefined && (typeof metadata.mount !== "string" || !/^[a-z][A-Za-z0-9_]*$/.test(metadata.mount))) {
         throw new Error(`${sourcePath}: mount must be a camelCase host capability name`);
     }
-    for (const key of ["exports", "groups", "permissions", "operator-files", "requires", "optional", "provides", "schemas", "targets"]) {
+    for (const key of ["aliases", "exports", "groups", "permissions", "operator-files", "requires", "optional", "provides", "schemas", "targets"]) {
         if (metadata[key] !== undefined && !Array.isArray(metadata[key])) {
             throw new Error(`${sourcePath}: ${key} must be an inline YAML array or a YAML list`);
         }
+    }
+    const aliases = metadata.aliases || [];
+    for (const alias of aliases) {
+        if (typeof alias !== "string" || !/^[a-z][A-Za-z0-9_]*$/.test(alias)) {
+            throw new Error(`${sourcePath}: plugin aliases must be camelCase host capability names`);
+        }
+    }
+    if (new Set(aliases.map((alias) => alias.toLowerCase())).size !== aliases.length) {
+        throw new Error(`${sourcePath}: plugin aliases must be unique`);
+    }
+    if (metadata.mount && aliases.some((alias) => alias.toLowerCase() === metadata.mount.toLowerCase())) {
+        throw new Error(`${sourcePath}: plugin aliases must not repeat the canonical mount`);
     }
     return {
         ...metadata,
@@ -127,6 +139,7 @@ function validateMetadata(metadata, sourcePath, kind) {
         description: metadata.description.trim(),
         kind,
         mount: metadata.mount || null,
+        aliases,
         exports: metadata.exports || [],
         groups: metadata.groups || [],
         permissions: metadata.permissions || [],
@@ -206,6 +219,7 @@ export class PluginCatalog {
         this.entries = new Map();
         this.installers = new Map(Object.entries(installers));
         this.loaded = new Map();
+        this.loading = new Set();
     }
 
     registerInstaller(id, installer) {
@@ -240,6 +254,15 @@ export class PluginCatalog {
         }
         const complete = { ...entry, source };
         if (this.entries.has(complete.id)) throw new Error(`Duplicate plugin id '${complete.id}'`);
+        const claimed = new Set([complete.mount, ...complete.aliases].filter(Boolean).map((name) => name.toLowerCase()));
+        for (const existing of this.entries.values()) {
+            const collision = [existing.mount, ...existing.aliases]
+                .filter(Boolean)
+                .find((name) => claimed.has(name.toLowerCase()));
+            if (collision) {
+                throw new Error(`Plugin '${complete.id}' capability name '${collision}' conflicts with plugin '${existing.id}'`);
+            }
+        }
         this.entries.set(complete.id, complete);
         return complete;
     }
@@ -254,18 +277,20 @@ export class PluginCatalog {
 
     declareInto(systemContext) {
         for (const metadata of this.list()) {
-            if (!metadata.mount || systemContext.has(metadata.mount)) continue;
-            const value = descriptorValue(metadata);
-            systemContext.registerHostCallableValue(metadata.mount, value, {
-                impl() {
-                    throw new Error(`Plugin '${metadata.id}' is available but not loaded; call .Plugin.Load("${metadata.id}") first`);
-                },
-            }, {
-                doc: metadata.description,
-                groups: metadata.groups,
-                pluginId: metadata.id,
-                pluginDisabled: true,
-            });
+            for (const mount of [metadata.mount, ...metadata.aliases].filter(Boolean)) {
+                if (systemContext.has(mount)) continue;
+                const value = descriptorValue(metadata);
+                systemContext.registerHostCallableValue(mount, value, {
+                    impl() {
+                        throw new Error(`Plugin '${metadata.id}' is available but not loaded; call .Plugin.Load("${metadata.id}") first`);
+                    },
+                }, {
+                    doc: metadata.description,
+                    groups: metadata.groups,
+                    pluginId: metadata.id,
+                    pluginDisabled: true,
+                });
+            }
         }
     }
 
@@ -286,6 +311,7 @@ export class PluginCatalog {
                 ["description", rixString(metadata.description)],
                 ["kind", rixString(metadata.kind)],
                 ["mount", (loaded?.mount || metadata.mount) ? rixString(loaded?.mount || metadata.mount) : null],
+                ["aliases", { type: "sequence", values: (loaded?.aliases || metadata.aliases).map(rixString) }],
                 ["exports", { type: "sequence", values: metadata.exports.map(rixString) }],
                 ["groups", { type: "sequence", values: metadata.groups.map(rixString) }],
                 ["permissions", { type: "sequence", values: metadata.permissions.map(rixString) }],
@@ -304,44 +330,79 @@ export class PluginCatalog {
         const metadata = this.info(id);
         if (!metadata) throw new Error(`Unknown plugin '${id}'`);
         if (this.loaded.has(metadata.id)) return this.infoValue(metadata);
-
-        const options = optionMap(runtime.options);
-        if (options.as !== undefined && (typeof options.as !== "string" || !/^[a-z][A-Za-z0-9_]*$/.test(options.as))) {
-            throw new Error(`Plugin '${metadata.id}' option as must be a camelCase host capability name`);
+        if (this.loading.has(metadata.id)) {
+            throw new Error(`Plugin dependency cycle detected while loading '${metadata.id}'`);
         }
-        const mount = options.as || metadata.mount;
 
-        const api = {
-            metadata,
-            options,
-            context: runtime.context,
-            registry: runtime.registry,
-            systemContext: runtime.systemContext,
-            rendererRegistry: runtime.rendererRegistry || runtime.systemContext?._rendererRegistry || null,
-        };
-        if (metadata.kind === "rix") {
-            if (typeof runtime.loadRix !== "function") throw new Error(`No RiX plugin loader is available for '${metadata.id}'`);
-            runtime.loadRix({
-                ...api,
-                source: metadata.source,
-                operatorDefinitions: mountedOperatorDefinitions(metadata.operatorDefinitions, metadata, mount),
-            });
-        } else {
-            const installer = this.installers.get(metadata.id);
-            if (!installer) {
-                throw new Error(`Plugin '${metadata.id}' is discoverable but its host installer has not been approved by this host`);
+        this.loading.add(metadata.id);
+        try {
+            for (const requirement of metadata.requires) {
+                const exact = this.info(requirement);
+                const providers = exact
+                    ? [exact]
+                    : this.list().filter((candidate) => candidate.provides.includes(requirement));
+                if (providers.length === 0) {
+                    throw new Error(`Plugin '${metadata.id}' requires unavailable service '${requirement}'`);
+                }
+                if (providers.length > 1) {
+                    throw new Error(`Plugin '${metadata.id}' requirement '${requirement}' has multiple providers: ${providers.map(({ id: providerId }) => providerId).join(", ")}`);
+                }
+                // Activation options belong to the requested plugin. In
+                // particular, a parent's `as` remount must not rename its
+                // dependencies as they are pulled in.
+                this.load(providers[0].id, { ...runtime, options: null });
             }
-            installer(api);
+
+            const options = optionMap(runtime.options);
+            if (options.as !== undefined && (typeof options.as !== "string" || !/^[a-z][A-Za-z0-9_]*$/.test(options.as))) {
+                throw new Error(`Plugin '${metadata.id}' option as must be a camelCase host capability name`);
+            }
+            const mount = options.as || metadata.mount;
+            const aliases = options.as === undefined ? metadata.aliases : [];
+
+            const api = {
+                metadata,
+                options,
+                context: runtime.context,
+                registry: runtime.registry,
+                systemContext: runtime.systemContext,
+                rendererRegistry: runtime.rendererRegistry || runtime.systemContext?._rendererRegistry || null,
+            };
+            if (metadata.kind === "rix") {
+                if (typeof runtime.loadRix !== "function") throw new Error(`No RiX plugin loader is available for '${metadata.id}'`);
+                runtime.loadRix({
+                    ...api,
+                    source: metadata.source,
+                    operatorDefinitions: mountedOperatorDefinitions(metadata.operatorDefinitions, metadata, mount),
+                });
+            } else {
+                const installer = this.installers.get(metadata.id);
+                if (!installer) {
+                    throw new Error(`Plugin '${metadata.id}' is discoverable but its host installer has not been approved by this host`);
+                }
+                installer(api);
+            }
+            if (metadata.mount && mount && mount !== metadata.mount) {
+                runtime.systemContext?.renameHostCapability(metadata.mount, mount);
+            }
+            for (const alias of aliases) {
+                const existing = runtime.systemContext?.get(alias);
+                if (existing && !(existing.pluginDisabled && existing.pluginId === metadata.id)) {
+                    throw new Error(`Plugin '${metadata.id}' alias '${alias}' conflicts with an existing host capability`);
+                }
+                runtime.systemContext?.aliasHostCapability(alias, mount);
+            }
+            for (const name of [mount, ...aliases].filter(Boolean)) {
+                if (metadata.groups.length) runtime.systemContext?.addCapabilityGroups(name, metadata.groups);
+                if (runtime.visibleSystemContext && runtime.visibleSystemContext !== runtime.systemContext) {
+                    runtime.visibleSystemContext.adoptHostCapability(runtime.systemContext, name);
+                }
+            }
+            installOperatorDefinitions(runtime.context, metadata.operatorDefinitions, metadata, mount);
+            this.loaded.set(metadata.id, { metadata, mount, aliases });
+            return this.infoValue(metadata);
+        } finally {
+            this.loading.delete(metadata.id);
         }
-        if (metadata.mount && mount && mount !== metadata.mount) {
-            runtime.systemContext?.renameHostCapability(metadata.mount, mount);
-        }
-        if (mount && metadata.groups.length) runtime.systemContext?.addCapabilityGroups(mount, metadata.groups);
-        if (mount && runtime.visibleSystemContext && runtime.visibleSystemContext !== runtime.systemContext) {
-            runtime.visibleSystemContext.adoptHostCapability(runtime.systemContext, mount);
-        }
-        installOperatorDefinitions(runtime.context, metadata.operatorDefinitions, metadata, mount);
-        this.loaded.set(metadata.id, { metadata, mount });
-        return this.infoValue(metadata);
     }
 }

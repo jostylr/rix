@@ -4,6 +4,7 @@ import oracleSource from "./oracle/oracle.plugin.rix" with { type: "text" };
 import numericsSource from "./numerics/numerics.plugin.rix" with { type: "text" };
 import { readPluginHeader } from "../src/runtime/plugin-catalog.js";
 import { install as installDrawPlugin } from "./draw/draw.plugin.rix.js";
+import { install as installPolyPlugin } from "./poly/poly.plugin.rix.js";
 import { install as installAlgebraPlugin } from "./algebra/algebra.plugin.rix.js";
 import { install as installExactAlgebrasPlugin } from "./exact-algebras/exact-algebras.plugin.rix.js";
 import { install as installPlotPlugin } from "./plot/plot.plugin.rix.js";
@@ -66,14 +67,33 @@ const BUNDLED_PLUGINS = [
     },
     {
         metadata: {
+            id: "poly",
+            description: "Semantic callable univariate polynomials with structural and symbolic entry forms.",
+            kind: "host",
+            mount: "poly",
+            aliases: ["polynomial", "p"],
+            exports: ["Polynomial", "Parse", "Var", "Fun"],
+            groups: ["Algebra", "Exact", "Symbolic"],
+            permissions: [],
+            provides: ["rix.polynomial@1"],
+            schemas: ["rix.polynomial@1"],
+            snapshot: false,
+            deterministic: true,
+            defaultEnabled: false,
+        },
+        install: installPolyPlugin,
+    },
+    {
+        metadata: {
             id: "algebra", description: "Canonical exact univariate polynomials with verified division and portable synthetic-division Grids.",
             kind: "host", mount: "algebra",
             exports: ["Polynomial", "Coefficients", "Record", "Evaluate", "Equal", "Divide", "SyntheticDivide", "Quotient", "Remainder", "IsFactor", "Grid"],
             groups: ["Algebra", "Exact"], permissions: [],
-            provides: ["rix.algebra.polynomial@1", "rix.algebra.division@1"], schemas: ["rix.algebra.polynomial@1", "rix.algebra.division@1"],
+            requires: ["rix.polynomial@1"],
+            provides: ["rix.algebra.division@1"], schemas: ["rix.algebra.division@1"],
             snapshot: false, deterministic: true, defaultEnabled: false,
         },
-        install: ({ systemContext }) => installAlgebraPlugin({ systemContext }),
+        install: installAlgebraPlugin,
     },
     {
         metadata: {

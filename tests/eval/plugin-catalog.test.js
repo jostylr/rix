@@ -62,6 +62,22 @@ operator-files:
         expect(catalog.info("work-in-progress")).toBeNull();
     });
 
+    test("rejects plugin aliases that collide under RiX host-name normalization", () => {
+        const catalog = new NodePluginCatalog();
+        expect(() => catalog.addMetadata({
+            id: "bad-aliases", description: "Invalid duplicate aliases.", kind: "host", mount: "badAliases",
+            aliases: ["shortName", "shortname"], exports: [], groups: [], permissions: [],
+        }, { kind: "host" })).toThrow("aliases must be unique");
+        catalog.addMetadata({
+            id: "first-alias", description: "Claims one alias.", kind: "host", mount: "firstAlias",
+            aliases: ["sharedAlias"], exports: [], groups: [], permissions: [],
+        }, { kind: "host" });
+        expect(() => catalog.addMetadata({
+            id: "second-alias", description: "Claims the same alias.", kind: "host", mount: "secondAlias",
+            aliases: ["sharedalias"], exports: [], groups: [], permissions: [],
+        }, { kind: "host" })).toThrow("conflicts with plugin 'first-alias'");
+    });
+
     test("declares a disabled mount for static checking, then loads a RiX plugin only on demand", () => {
         const options = runtime(new NodePluginCatalog({ roots: [fixtureRoot] }).scan());
 
@@ -92,6 +108,37 @@ operator-files:
         expect(options.systemContext.has("echo")).toBe(false);
         expect(options.systemContext.has("echoAlt")).toBe(true);
         expect(evaluate('.Plugin.Info("echo").Get("mount")', options).value).toBe("echoAlt");
+    });
+
+    test("loads required services once and mounts manifest aliases on the same capability", () => {
+        const catalog = new NodePluginCatalog();
+        let providerLoads = 0;
+        catalog.addMetadata({
+            id: "support-provider", description: "Provides a shared support service.", kind: "host",
+            mount: "supportProvider", aliases: ["support", "sup"], exports: [], groups: ["Examples"],
+            permissions: [], provides: ["example.support@1"],
+        }, { kind: "host" });
+        catalog.addMetadata({
+            id: "support-consumer", description: "Consumes the shared support service.", kind: "host",
+            mount: "supportConsumer", exports: [], groups: ["Examples"], permissions: [],
+            requires: ["example.support@1"],
+        }, { kind: "host" });
+        catalog.registerInstaller("support-provider", ({ systemContext }) => {
+            providerLoads += 1;
+            systemContext.registerHost("supportProvider", { impl: ([value]) => value });
+        });
+        catalog.registerInstaller("support-consumer", ({ systemContext }) => {
+            systemContext.registerHost("supportConsumer", { impl: () => 1n });
+        });
+        const options = runtime(catalog);
+
+        expect(evaluate('.Plugin.Load("support-consumer"); [.support(4), .sup(5), .supportProvider(6)]', options)
+            .values.map(String)).toEqual(["4", "5", "6"]);
+        expect(providerLoads).toBe(1);
+        expect(options.systemContext.get("support").impl).toBe(options.systemContext.get("supportProvider").impl);
+        expect(evaluate('.Plugin.Info("support-provider").Get("aliases").Len()', options).value).toBe(2n);
+        evaluate('.Plugin.Load("support-provider")', options);
+        expect(providerLoads).toBe(1);
     });
 
     test("an imported script needs the Plugins permission before it can activate a catalog entry", () => {

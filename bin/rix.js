@@ -36,6 +36,7 @@ import { formatValue as formatResult } from "../src/eval/format.js";
 import { install as installFloatPlugin } from "../plugins/float/float.plugin.rix.js";
 import { install as installArrayJsExample } from "../examples/plugins/example-array-js/array-js.plugin.rix.js";
 import { install as installDrawPlugin } from "../plugins/draw/draw.plugin.rix.js";
+import { install as installPolyPlugin } from "../plugins/poly/poly.plugin.rix.js";
 import { install as installAlgebraPlugin } from "../plugins/algebra/algebra.plugin.rix.js";
 import { install as installExactAlgebrasPlugin } from "../plugins/exact-algebras/exact-algebras.plugin.rix.js";
 import { install as installPlotPlugin } from "../plugins/plot/plot.plugin.rix.js";
@@ -218,7 +219,8 @@ function registerBuiltPluginInstallers(pluginCatalog) {
     pluginCatalog.registerInstaller("float", installFloatPlugin);
     pluginCatalog.registerInstaller("example-array-js", installArrayJsExample);
     pluginCatalog.registerInstaller("draw", ({ systemContext }) => installDrawPlugin({ systemContext }));
-    pluginCatalog.registerInstaller("algebra", ({ systemContext }) => installAlgebraPlugin({ systemContext }));
+    pluginCatalog.registerInstaller("poly", installPolyPlugin);
+    pluginCatalog.registerInstaller("algebra", installAlgebraPlugin);
     pluginCatalog.registerInstaller("exact-algebras", ({ systemContext, registry }) => installExactAlgebrasPlugin({ systemContext, registry }));
     pluginCatalog.registerInstaller("plot", ({ systemContext }) => installPlotPlugin({ systemContext }));
     pluginCatalog.registerInstaller("scene3d", ({ systemContext }) => installScene3DPlugin({ systemContext }));

@@ -446,6 +446,19 @@ export class SystemContext {
         return this;
     }
 
+    /** Register another host-owned name for the same capability value and implementation. */
+    aliasHostCapability(alias, target) {
+        const entry = this.get(target);
+        if (!entry || entry.namespace !== "host") throw new Error(`Unknown host capability '${target}'`);
+        if (entry.kind === "function" && Object.prototype.hasOwnProperty.call(entry, "value")) {
+            return this.registerHostCallableValue(alias, entry.value, entry, { ...entry, displayName: alias });
+        }
+        if (Object.prototype.hasOwnProperty.call(entry, "value")) {
+            return this.registerHostValue(alias, entry.value, { ...entry, displayName: alias });
+        }
+        return this.registerHost(alias, entry, { ...entry, displayName: alias });
+    }
+
     /**
      * Freeze this context. After freezing, register/delete throw.
      */

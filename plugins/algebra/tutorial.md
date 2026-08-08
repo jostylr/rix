@@ -13,14 +13,14 @@ contains everything needed to reconstruct the same canonical polynomial.
 
 ```rix
 .Plugin.Load("algebra");
-p := .algebra.Polynomial([0, 0, 1, -6, 11, -6]);
-copy := .algebra.Polynomial(.algebra.Record(p));
+P := .algebra.Polynomial([0, 0, 1, -6, 11, -6]);
+Copy := .algebra.Polynomial(P.Record());
 .Table(
     ["property", "exact value"],
     [
-        ["coefficients", .algebra.Coefficients(p)],
-        ["p(2)", .algebra.Evaluate(p, 2)],
-        ["round trip equal", .algebra.Equal(p, copy)]
+        ["coefficients", P.Coefficients()],
+        ["P(2)", P(2)],
+        ["round trip equal", .algebra.Equal(P, Copy)]
     ]
 );
 ```
@@ -33,11 +33,11 @@ metadata. Its Grid is the same portable layout family as intrinsic
 
 ```rix
 .Plugin.Load("algebra");
-p := .algebra.Polynomial([1, -6, 11, -6]);
-factor := .algebra.Polynomial([1, -2]);
-division := .algebra.SyntheticDivide(p, 2);
-quotient := .algebra.Coefficients(.algebra.Quotient(division));
-remainder := .algebra.Coefficients(.algebra.Remainder(division));
-isFactor := .algebra.IsFactor(p, factor);
-.algebra.Grid(division);
+P := .p`x^3 - 6x^2 + 11x - 6`;
+Factor := .p`x - 2`;
+division := P.SyntheticDiv(2);
+quotient := division.Quotient().Coefficients();
+remainder := division.Remainder().Coefficients();
+isFactor := P.IsFactor(Factor);
+division.Grid();
 ```

@@ -6,8 +6,9 @@ mount: algebra
 exports: [Polynomial, Coefficients, Record, Evaluate, Equal, Divide, SyntheticDivide, Quotient, Remainder, IsFactor, Grid]
 groups: [Algebra, Exact]
 permissions: []
-provides: [rix.algebra.polynomial@1, rix.algebra.division@1]
-schemas: [rix.algebra.polynomial@1, rix.algebra.division@1]
+requires: [rix.polynomial@1]
+provides: [rix.algebra.division@1]
+schemas: [rix.algebra.division@1]
 snapshot: false
 deterministic: true
 defaultEnabled: false
@@ -23,8 +24,10 @@ import {
     divisorIsFactor,
     equalPolynomials,
     evaluatePolynomial,
+    installPolynomialDivisionOperators,
     polynomialCoefficients,
     polynomialRecord,
+    registerAlgebraMethods,
     syntheticDivide,
 } from "./algebra.js";
 
@@ -48,17 +51,19 @@ export function createAlgebraPluginCollection() {
     for (const [name, helper] of HELPERS) {
         entries.set(name, helper);
         entries.set(name.toUpperCase(), helper);
-        extension.set(name.toUpperCase(), { type: "method_builtin", name, impl: (args) => helper(args.slice(1)) });
+        extension.set(name.toUpperCase(), { type: "method_builtin", name, impl: (args, context, evaluate) => helper(args.slice(1), context, evaluate) });
     }
     return { type: "map", entries, _ext: extension };
 }
 
-export function install({ systemContext }) {
+export function install({ systemContext, registry, metadata = {} }) {
     const collection = createAlgebraPluginCollection();
     systemContext.registerHostValue("algebra", collection, {
         doc: "Canonical exact univariate polynomials and verified transformations",
         groups: ["Algebra", "Exact"],
     });
+    registerAlgebraMethods(systemContext, { pluginId: metadata.id || "algebra", mount: metadata.mount || "algebra" });
+    installPolynomialDivisionOperators(registry);
     return collection;
 }
 

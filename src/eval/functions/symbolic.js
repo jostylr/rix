@@ -14,14 +14,18 @@ const DISPLAY_BINARY_TEXT = new Map([
 ]);
 const TEXT_BINARY = new Map(Array.from(BINARY_TEXT, ([name, text]) => [text, name]));
 
-const ir = (fn, ...args) => ({ fn, args });
-const literal = (value) => ir("LITERAL", String(value));
-const retrieve = (name) => ir("RETRIEVE", name);
-const cloneIr = (node) => {
+export const symbolicIr = (fn, ...args) => ({ fn, args });
+const ir = symbolicIr;
+export const symbolicLiteral = (value) => ir("LITERAL", String(value));
+const literal = symbolicLiteral;
+export const symbolicRetrieve = (name) => ir("RETRIEVE", name);
+const retrieve = symbolicRetrieve;
+export const cloneSymbolicIr = (node) => {
     if (Array.isArray(node)) return node.map(cloneIr);
     if (!node || typeof node !== "object") return node;
     return Object.fromEntries(Object.entries(node).map(([key, value]) => [key, cloneIr(value)]));
 };
+const cloneIr = cloneSymbolicIr;
 
 function rixString(value) { return { type: "string", value: String(value) }; }
 function rixTuple(values) { return { type: "tuple", values }; }
@@ -44,7 +48,7 @@ function attachSpec(value, spec, kind = null) {
     return value;
 }
 
-function expressionOf(spec) {
+export function expressionOf(spec) {
     if (!isSymbolicSpec(spec)) throw new Error("Expected a symbolic specification");
     if (spec.expression) return spec.expression;
     if (spec.outputs.length !== 1 || spec.statements.length !== 1 || spec.statements[0].kind !== "define") {
@@ -312,7 +316,7 @@ function isExactScalar(value) {
     return value instanceof Integer || value instanceof Rational || typeof value === "bigint" || Number.isInteger(value);
 }
 
-function exactToIr(value) {
+export function exactToIr(value) {
     if (value instanceof Integer) return literal(value.value);
     if (value instanceof Rational) {
         return value.denominator === 1n ? literal(value.numerator) : ir("DIV", literal(value.numerator), literal(value.denominator));
@@ -626,7 +630,7 @@ function symbolicOperand(value) {
     return null;
 }
 
-function combineSymbolic(operator, leftValue, rightValue = null) {
+export function combineSymbolic(operator, leftValue, rightValue = null) {
     const left = symbolicOperand(leftValue);
     const right = rightValue === null ? null : symbolicOperand(rightValue);
     if (!left || (rightValue !== null && !right)) throw new Error("Unsupported symbolic arithmetic operand");
@@ -731,7 +735,7 @@ function polynomialPower(base, exponent) {
     return result;
 }
 
-function polynomialFromIr(node, variable, variablePolynomial) {
+export function polynomialFromIr(node, variable, variablePolynomial = new Map([[1n, literal(1)]])) {
     if (node.fn === "RETRIEVE" && node.args[0] === variable) {
         return new Map(Array.from(variablePolynomial, ([power, coefficient]) => [power, cloneIr(coefficient)]));
     }
@@ -781,7 +785,7 @@ function signedTerm(coefficient, basis, power) {
     return { negative, expression: isOne(magnitude) ? powered : ir("MUL", magnitude, powered) };
 }
 
-function polynomialToIr(polynomial, basis) {
+export function polynomialToIr(polynomial, basis) {
     const powers = Array.from(polynomial.keys()).sort((a, b) => a > b ? -1 : a < b ? 1 : 0);
     if (!powers.length) return literal(0);
     let result = null;
@@ -816,7 +820,7 @@ function centerIr(node, variable, centerValue) {
     return polynomialToIr(polynomial, basis);
 }
 
-function polynomialDegree(polynomial) {
+export function polynomialDegree(polynomial) {
     let degree = null;
     for (const power of polynomial.keys()) if (degree === null || power > degree) degree = power;
     return degree;
@@ -919,7 +923,7 @@ function gadicIr(node, variable, args) {
     return { expression: expression || literal(0), closureScopes: [base.closureScopes] };
 }
 
-function sameIr(left, right) {
+export function sameIr(left, right) {
     if (left === right) return true;
     if (!left || !right || left.fn !== right.fn) return false;
     const leftArgs = left.args || [], rightArgs = right.args || [];

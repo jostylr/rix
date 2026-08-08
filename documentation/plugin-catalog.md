@@ -12,6 +12,7 @@ id: exact-statistics
 description: Exact descriptive statistics for RiX collections.
 kind: rix
 mount: stats
+aliases: [statistics, stat]
 exports: [Mean, Median]
 groups: [Statistics]
 permissions: []
@@ -25,12 +26,18 @@ The catalog scans only configured `plugins/` roots. It reads headers and
 declares disabled host mounts so static path checking can recognize a known
 surface, but a disabled mount errors when called.
 
-Renderer/service packages can additionally declare array-valued `requires`,
-`optional`, `provides`, `schemas`, and `targets` fields plus Boolean `snapshot`
-and `deterministic` claims. Discovery exposes `requires`, `provides`, `targets`,
-`snapshot`, and `deterministic` through `.Plugin.Info` without executing the
-plugin. Runtime renderer registration still verifies the declared target; full
-version-range and dependency resolution is future work.
+Plugins can additionally declare array-valued `aliases`, `requires`, `optional`,
+`provides`, `schemas`, and `targets` fields plus Boolean `snapshot`
+and `deterministic` claims. Discovery exposes `aliases`, `requires`, `provides`,
+`targets`, `snapshot`, and `deterministic` through `.Plugin.Info` without executing the
+plugin. Every alias is a camelCase name for the same mounted capability—not a
+copy or a second activation—and `.Plugin.Info` reports the alias list.
+
+Loading resolves each `requires` entry first. A requirement may name an exact
+plugin ID or a service in another plugin's `provides` list. A unique provider
+loads automatically; no provider, multiple providers, or a dependency cycle is
+an error. Repeated direct or transitive loads are idempotent. Version-range
+selection remains future work.
 
 Set `ignore: true` in an otherwise valid header to keep an unfinished or
 alternate source file out of discovery. An ignored entry is absent from
@@ -76,7 +83,8 @@ plugin boundary.
 
 `.Plugin("id")` is shorthand for `.Plugin.Load("id")`. A load can choose a
 different camelCase mount with `{= as = "otherStats" }`; the capability is
-renamed after activation. A rename is principally intended for a REPL or a
+renamed after activation and manifest aliases are suppressed for that remount.
+A rename is principally intended for a REPL or a
 plugin-selection prelude because a complete script is statically checked before
 its first expression executes.
 

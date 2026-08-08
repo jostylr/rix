@@ -206,9 +206,10 @@ function previewIr(node, options = {}) {
 function formatCallablePreview(fn, label) {
     const attachedSpec = getAttachedSpec(fn);
     const symbolicKind = fn._ext?.get?.("_symbolicKind")?.value || null;
-    if (attachedSpec && symbolicKind === "Poly") {
+    if (attachedSpec && (symbolicKind === "Poly" || symbolicKind === "Polynomial")) {
         const params = fn.params?.positional?.map((param) => param.name).join(", ") || "";
-        return `[Poly ${params} -> ${renderSymbolicIr(fn.body)}; Spec ${formatSymbolicSpec(attachedSpec)}]`;
+        const label = symbolicKind === "Polynomial" ? "Polynomial" : "Poly";
+        return `[${label} ${params} -> ${renderSymbolicIr(fn.body)}; Spec ${formatSymbolicSpec(attachedSpec)}]`;
     }
     const params = fn.params?.positional?.map((param) => param.isRest ? `...${param.name}` : param.name).join(", ") || "";
     const prepEntries = [

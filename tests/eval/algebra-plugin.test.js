@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { Integer, Rational } from "@ratmath/core";
+import { Integer } from "@ratmath/core";
 import { parseAndEvaluate } from "../../src/eval/evaluator.js";
 
 describe("algebra Phase 1 plugin", () => {
@@ -14,18 +14,15 @@ describe("algebra Phase 1 plugin", () => {
         `);
         const [polynomial, record, copy, equal, evaluated, coefficients] = result.values;
         expect(polynomial).toMatchObject({
-            type: "algebra_polynomial",
-            kind: "polynomial",
-            schema: "rix.algebra.polynomial@1",
+            type: "lambda",
+            schema: "rix.polynomial@1",
             variable: "x",
             degree: 2,
             canonical: true,
-            equalityPolicy: "canonical-coefficients",
+            equalityPolicy: "canonical-symbolic-coefficients",
         });
-        expect(polynomial.coefficients).toHaveLength(3);
-        expect(polynomial.coefficients.every((value) => value instanceof Rational)).toBe(true);
-        expect(record.entries.get("schema").value).toBe("rix.algebra.polynomial@1");
-        expect(copy.coefficients.map(String)).toEqual(["1/2", "-3", "2"]);
+        expect(record.entries.get("schema").value).toBe("rix.polynomial@1");
+        expect(copy.type).toBe("lambda");
         expect(equal).toBeInstanceOf(Integer);
         expect(equal.value).toBe(1n);
         expect(String(evaluated)).toBe("-2");
