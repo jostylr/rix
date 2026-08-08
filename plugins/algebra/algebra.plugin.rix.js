@@ -6,7 +6,7 @@ mount: algebra
 exports: [Polynomial, Coefficients, Record, Evaluate, Equal, Divide, SyntheticDivide, Quotient, Remainder, IsFactor, Grid]
 groups: [Algebra, Exact]
 permissions: []
-requires: [rix.polynomial@1]
+requires: [rix.rational-function@1]
 provides: [rix.algebra.division@1]
 schemas: [rix.algebra.division@1]
 snapshot: false

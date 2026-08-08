@@ -305,7 +305,7 @@ export function installPolynomialOperators(registry) {
         priority: 249,
         prepare(args) { return args.length === 2 && isPolynomial(args[1]) ? { args } : false; },
         impl() {
-            throw new Error("Division by a Polynomial is a rational-function operation; use //, %, or /% after loading algebra");
+            throw new Error("Division by a Polynomial is a rational-function operation; load .ratfun (or .algebra), or use //, %, or /% for quotient/remainder");
         },
     });
     registry.installVariant("POW", {

@@ -41,5 +41,6 @@ host/plugin capability and is both callable and method-bearing. The older core
 `.Poly` capability remains the general exact symbolic-spec compiler; it does
 not attach the semantic `rix.polynomial@1` identity supplied here.
 
-`.algebra` declares `requires: [rix.polynomial@1]`, so loading algebra loads
-this plugin first. Repeated `.Plugin.Load("poly")` calls are harmless.
+`.ratfun` declares `requires: [rix.polynomial@1]`, and `.algebra` requires the
+rational-function service, so loading either higher-level plugin loads this
+plugin first. Repeated `.Plugin.Load("poly")` calls are harmless.

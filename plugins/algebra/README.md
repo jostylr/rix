@@ -1,7 +1,8 @@
 # `.algebra`
 
 Provides verified exact transformations for callable semantic Polynomials from
-the `poly` plugin. Loading `.algebra` automatically loads that dependency.
+the `poly` plugin. Loading `.algebra` automatically loads `.ratfun`, which in
+turn loads `.poly`.
 Coefficients are ordered from highest degree to the constant term and normalized
 by removing leading zeros. The zero polynomial has coefficients `[0]` and
 degree `-1`.
@@ -31,13 +32,16 @@ division.Quotient().Coefficients();
 - Receiver methods include `P.Divide(F)`, `P.SyntheticDiv(root)`,
   `division.Quotient()`, `division.Remainder()`, and `division.Grid()`.
 - `P // F`, `P % F`, and `P /% F` return the quotient, remainder, and a tuple of
-  both. `/` remains scalar division for Polynomials.
+  both. `P / F` instead creates a canonical RationalFunction.
 
 Division records use schema `rix.algebra.division@1`. Their `identity` metadata
 records the verified relation `dividend = divisor * quotient + remainder`, and
 their `factor` metadata distinguishes an exact factor from a nonzero remainder.
 Polynomial records use `rix.polynomial@1` and declare canonical symbolic
-coefficient equality. Phase 1 is univariate and does not attempt factor search,
-gcd, root isolation, or rational functions.
+coefficient equality. `.algebra` requires `.ratfun`, so `/` promotes two
+Polynomials to a canonical `rix.rational-function@1` value while `//`, `%`, and
+`/%` retain quotient/remainder meaning. Public factor search, gcd, and root
+isolation remain later algebra work; RationalFunction cancellation currently
+uses a private exact Euclidean gcd.
 
 See [tutorial.md](tutorial.md).

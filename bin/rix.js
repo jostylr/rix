@@ -37,6 +37,7 @@ import { install as installFloatPlugin } from "../plugins/float/float.plugin.rix
 import { install as installArrayJsExample } from "../examples/plugins/example-array-js/array-js.plugin.rix.js";
 import { install as installDrawPlugin } from "../plugins/draw/draw.plugin.rix.js";
 import { install as installPolyPlugin } from "../plugins/poly/poly.plugin.rix.js";
+import { install as installRatfunPlugin } from "../plugins/ratfun/ratfun.plugin.rix.js";
 import { install as installAlgebraPlugin } from "../plugins/algebra/algebra.plugin.rix.js";
 import { install as installExactAlgebrasPlugin } from "../plugins/exact-algebras/exact-algebras.plugin.rix.js";
 import { install as installPlotPlugin } from "../plugins/plot/plot.plugin.rix.js";
@@ -76,7 +77,7 @@ const EXAMPLE_PLUGINS_DIR = path.resolve(EXAMPLES_DIR, "plugins");
 const WEB_PAGE_ENTRY = path.resolve(TOOL_DIR, "web-page.js");
 const WEB_PAGE_STYLE = path.resolve(TOOL_DIR, "web-page.css");
 const RENDERER_PLUGIN_IDS = ["svg", "canvas", "terminal-ascii", "tikz", "markdown", "html", "quarto", "latex", "png", "pdf", "gltf", "csv"];
-const BUILT_PLUGIN_IDS = new Set(["exact-algebras", "algebra", "draw", "plot", "scene3d", "nd", "geometry", "data", "document", "float", ...RENDERER_PLUGIN_IDS, "example-array-js", "example-array-rix"]);
+const BUILT_PLUGIN_IDS = new Set(["exact-algebras", "algebra", "ratfun", "poly", "draw", "plot", "scene3d", "nd", "geometry", "data", "document", "float", ...RENDERER_PLUGIN_IDS, "example-array-js", "example-array-rix"]);
 const STANDARD_PLUGIN_IDS = new Set(["exact-algebras", "algebra", "draw", "plot", "scene3d", "nd", "geometry", "data", "document", "float", ...RENDERER_PLUGIN_IDS]);
 
 function sourceUsesAsyncEvaluation(source) {
@@ -220,6 +221,7 @@ function registerBuiltPluginInstallers(pluginCatalog) {
     pluginCatalog.registerInstaller("example-array-js", installArrayJsExample);
     pluginCatalog.registerInstaller("draw", ({ systemContext }) => installDrawPlugin({ systemContext }));
     pluginCatalog.registerInstaller("poly", installPolyPlugin);
+    pluginCatalog.registerInstaller("ratfun", installRatfunPlugin);
     pluginCatalog.registerInstaller("algebra", installAlgebraPlugin);
     pluginCatalog.registerInstaller("exact-algebras", ({ systemContext, registry }) => installExactAlgebrasPlugin({ systemContext, registry }));
     pluginCatalog.registerInstaller("plot", ({ systemContext }) => installPlotPlugin({ systemContext }));

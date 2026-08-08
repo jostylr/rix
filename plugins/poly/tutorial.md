@@ -6,8 +6,8 @@ status: implemented
 plugin: poly
 ---
 
-Load the focused polynomial plugin directly, or load `.algebra`, which requires
-and activates it automatically.
+Load the focused polynomial plugin directly, or load `.ratfun`/`.algebra`,
+which require and activate it automatically.
 
 ```rix
 .Plugin.Load("poly");
@@ -71,6 +71,7 @@ division := P.SyntheticDiv(2);
 Q := P // F;                   ## quotient
 R := P % F;                    ## remainder
 pair := P /% F;                ## {: quotient, remainder }
+fraction := P/F;               ## canonical RationalFunction from .ratfun
 {: division.Quotient()(4), Q(4), R(4), pair[1](4) };
 ```
 

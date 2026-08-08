@@ -303,9 +303,25 @@ newline normalization.
    - [x] Provide README documentation and a tutorial connecting exact
      polynomial work to the existing synthetic-division layout.
    - [x] Add exact round-trip and plugin-loading tests.
+   - [x] Add focused `.ratfun` RationalFunction values with `.rf` and
+     `.rationalFunction` aliases, `.R()` symbolic/structural conversion,
+     canonical gcd cancellation, Polynomial `/` promotion, ordinary field
+     operators, composition, reactive rebuilds, records, docs, and a tutorial.
 2. **Phase 2 — Polynomial and rational-function algorithms**
-   - [ ] Add gcd, square-free decomposition, rational roots, factor evidence,
-     resultants, and rational functions.
+   - [ ] Expose public polynomial gcd/lcm (the exact Euclidean gcd currently
+     used internally for RationalFunction cancellation is not yet an API),
+     square-free decomposition, rational roots, factor evidence, and
+     resultants.
+   - [ ] Add explicit centered-expansion and factorization presentation values;
+     keep canonical Polynomial equality on expanded coefficients and verify
+     every presentation when converting back.
+   - [ ] Add RationalFunction partial fractions, factored/together presentation
+     views, pole/zero multiplicity evidence, and coefficient-domain support
+     beyond exact univariate Q[x].
+   - [ ] Add a separate restricted-expression/function value for inherited
+     source exclusions and removable holes. Canonical RationalFunction domain
+     currently uses only the reduced denominator and intentionally forgets
+     cancelled input restrictions.
    - [ ] Expose exact sign/root-count protocols to Numerics and Geometry.
    - [ ] Keep transformations explicit and provenance-preserving.
 3. **Phase 3 — Algebraic systems**
