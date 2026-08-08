@@ -7,6 +7,61 @@ template directive and inline-markup grammar remains proposed; it must lower to
 these records rather than create a second document representation.
 :::
 
+## Exact numeric interchange and notation policies
+
+Document persistence and renderers need a shared exact-number policy rather
+than independent string conventions. This layer is presentation and
+interchange: it must not change arithmetic values or pass exact integers through
+JavaScript `number`.
+
+Portable exact numeric records should be versioned and distinguish `Integer`,
+reduced `Rational`, orientation-preserving `RationalInterval`, and formal
+unreduced `Fraction` values. An interval record should retain `start` and `end`
+as well as derived `low` and `high`, so serialization does not erase the route
+from the first endpoint to the second.
+
+The oracle papers use a slanted triple-colon interval mark. A compact RiX
+proposal worth evaluating is `a .: b` for a lower-to-higher interval and
+`a :. b` for a higher-to-lower interval. These spellings would make orientation
+visible rather than infer it after normalization. They are proposals, not a
+change to the current `a:b` parser contract; adoption requires parser,
+lowering, formatter, and ambiguity tests.
+
+A formal unreduced fraction can use a labeled form such as ``F`2/4` ``. Its
+parser/importer must retain the written numerator and denominator rather than
+constructing a reduced `Rational`. The body should participate in the same
+configurable exact-number parsing system as ordinary and custom-radix numeral
+languages, including clear nesting rules when another labeled backtick parser
+is involved.
+
+Tagged document/interchange parsing should have an explicit unknown-tag policy.
+The proposed default is `warn-and-skip`: emit a structured warning containing
+the tag, version, and source location, then skip that record where the enclosing
+schema permits it. Configurable `strict-error` and `preserve-opaque` modes allow
+validation tools and forward-compatible editors to choose different behavior.
+Skipping must never silently substitute a numeric zero, null, or fabricated
+exact value.
+
+### Shared numeric presentation policy
+
+Render requests should carry one serializable numeric-format policy that can be
+inherited by a document and overridden for a specific table, figure, or scalar.
+The policy should cover:
+
+- improper versus mixed fractions and whether formal fractions stay unreduced;
+- terminating/repeating notation and work limits for discovering a period;
+- interval delimiters, endpoint inclusion, and ascending/descending orientation;
+- ordinary, engineering, and scientific notation, significant digits, and
+  explicit rounding modes;
+- radix/numeral-system labels plus locale or symbol profiles; and
+- disclosure of loss when an exact value is converted to bounded decimal,
+  pixel, or target-specific text.
+
+Lossless interchange and display formatting must remain separate operations.
+A renderer may shorten a value under an explicit policy, but the portable
+record retains the exact value and the result reports the applied policy and
+any approximation.
+
 ## Portable model at a glance
 
 RiX document output should be a thin semantic document tree, not a reduced
@@ -361,6 +416,11 @@ the important relationship between the panel and its reactive values.
   existing `.Text` compatibility while rejecting block children in `Paragraph`.
 - [ ] Define stable JSON serialization tags and exact-value rules for every
   record before persistence APIs ship.
+- [ ] Define the orientation-preserving interval and unreduced-fraction tags,
+  including migration and round-trip tests for the proposed `.:`, `:.`, and
+  ``F`...` `` presentation forms.
+- [ ] Add configurable unknown-tag handling with `warn-and-skip` as the normal
+  document-import default plus `strict-error` and `preserve-opaque` modes.
 - [x] Add required-field validation for nonempty image alt text, asset MIME
   type, valid section level, and valid list nesting. Publication-level
   audio/video transcript enforcement remains a host/export policy.
@@ -378,6 +438,9 @@ the important relationship between the panel and its reactive values.
   incompatible tree.
 - [ ] Add renderer tests proving a paragraph preserves inline semantics rather
   than text-formatting `Emphasis`, `Link`, `Math`, or `Code` children.
+- [ ] Implement the shared numeric presentation policy and cross-renderer
+  fixtures proving that exact source values survive mixed/improper, interval,
+  scientific/significant-digit, locale, and approximation display choices.
 
 ### 3. Add document-template support
 

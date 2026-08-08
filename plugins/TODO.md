@@ -100,6 +100,43 @@ newline normalization.
    - [ ] Add a cloneable lazy digit stream once plugin-defined lazy values have a stable protocol.
    - [ ] Add formatting policies for digit alphabets above base 36 and grouped radices.
    - [ ] Share generic work-budget diagnostics with `.numerics`.
+3. **Phase 3 — Extensible numeral-system definitions**
+   - [ ] Define versioned numeral-system constructors and a common parse/format
+     protocol rather than assuming every system is a positive positional base
+     whose digits are the single characters numbered `0` through `base - 1`.
+   - [ ] Let a constructed system register a stable named backtick parser label.
+     The parser must accept the full exact-number string grammar under that
+     system—signed values, separators, radix points, fractions, mixed fractions
+     such as `1..3/4`, repeating expansions, continued fractions, interval and
+     uncertainty forms, and radix shifts where meaningful—and formatting must
+     emit the same labeled backtick language for an exact round trip. For
+     example, a registered `balancedTernary` label could parse and print
+     `` `.balancedTernary:...` `` rather than returning an unlabelled string.
+   - [ ] Support multi-token digit alphabets with an explicit tokenizer policy.
+     Multi-token systems use digit tokens rather than one Unicode code point per
+     digit, so registration must reject ambiguous token sets or define a visible
+     longest-match rule.
+   - [ ] Support balanced positional systems, whose digit values extend on both
+     sides of zero (for example `-1, 0, 1`) and therefore encode sign through
+     digits and carry rules rather than only a leading minus.
+   - [ ] Support negative bases, whose place weights alternate sign and can
+     represent positive and negative values without a separate sign digit.
+     Parsing, normalization, repeating expansions, and canonical output need
+     rules specific to the system instead of reusing positive-base division.
+   - [ ] Explore locale and symbol profiles as reversible lexical adapters over
+     a numeral system. Profiles may replace digit glyphs, signs, grouping,
+     radix, repeat, fraction, mixed-number, and continued-fraction symbols, but
+     must diagnose collisions and distinguish display-only substitutions from
+     lossless parsing. Decide which alphabet/value rules belong in
+     `@ratmath/core` and which syntax/registration rules belong in RiX.
+4. **Phase 4 — RiX Web numeral-system playground**
+   - [ ] Implement an interactive RiX Web playground for constructing and
+     comparing ordinary, multi-token, balanced, and negative-base systems.
+   - [ ] Show exact parsing, canonical labeled-backtick output, digit/place
+     values, carries, terminating versus repeating behavior, and locale/symbol
+     substitutions without passing exact values through JavaScript `number`.
+   - [ ] Cross-link the playground from the `.radix` tutorial and keep its
+     serializable examples reusable outside the browser host.
 
 ### `.draw`
 
@@ -228,6 +265,15 @@ newline normalization.
    - [ ] Add generic `Enclose`, `Refine`, `Compare`, `Sign`, root isolation,
      adaptive sampling, integration, and optimization.
    - [ ] Define absolute/relative error budgets and propagation rules.
+   - [ ] Define refinement-cache semantics in the shared contract. A backend
+     may reuse prior work, but every certified result in one refinement history
+     must be compatible with and nested inside the applicable earlier
+     enclosure; cache hits must retain evidence, provenance, requested
+     precision, achieved precision, and work accounting.
+   - [ ] Define backend-neutral certified-constant requests for at least `pi`
+     and `e`. Results must provide exact rational bounds, evidence/provenance,
+     and a finite verification path independent of trusting a displayed decimal
+     or an unbounded computation.
    - [ ] Add capability negotiation and explain why an algorithm/backend pair
      was selected.
 3. **Phase 3 — Differential and multidimensional methods**
@@ -411,8 +457,16 @@ newline normalization.
    - [ ] Add page/deck themes, floats, multi-column layout, indexes, and
      renderer capability negotiation.
 4. **Phase 4 — Collaborative publishing**
-   - [ ] Explore incremental builds, document dependency graphs, accessible
-     publication validation, and external CMS adapters.
+   - [ ] Add deterministic batch builds over document/input sets and explicit
+     target matrices, with shared templates, asset manifests, stable output
+     names, bounded concurrency, and structured per-document diagnostics.
+   - [ ] Add watch workflows over the document dependency graph with debounced
+     invalidation, cancellation of superseded work, atomic output replacement,
+     and clear recovery after a failed rebuild.
+   - [ ] Explore incremental builds, accessible publication validation, and
+     external CMS adapters. Filesystem watching and external publication remain
+     host capabilities with explicit permissions rather than evaluator side
+     effects.
 
 ---
 
@@ -490,10 +544,21 @@ newline normalization.
 2. **Phase 2 — Complete 2D scene fidelity**
    - [ ] Add reusable definitions, markers, gradients, patterns, masks, style
      inheritance, font policy, and stable IDs.
+   - [ ] Define an exact-coordinate lowering result that retains the original
+     exact value and records when SVG text rounds or approximates it. Make the
+     precision/rounding policy selectable and expose approximation diagnostics
+     or metadata instead of silently applying a fixed decimal cutoff.
+   - [ ] Add conformance fixtures for huge numerators, sub-pixel and extremely
+     narrow intervals, reversed interval presentation, overlapping labels, and
+     coordinates that collide only after decimal lowering.
    - [ ] Report unsupported scene features.
 3. **Phase 3 — Optimization and interactivity**
    - [ ] Add deterministic optimization, metadata/hit targets, animation
      lowering, and incremental scene updates.
+   - [ ] Define renderer-neutral viewport and semantic-selection records for
+     pan, zoom, focus, and selected mathematical objects. SVG hosts must expose
+     keyboard navigation, stable accessible names/descriptions, and an
+     equivalent screen-reader representation rather than pointer-only targets.
 4. **Phase 4 — Production vector workflows**
    - [ ] Add font embedding/subsetting and rigorous cross-renderer conformance
      fixtures.
@@ -511,6 +576,10 @@ newline normalization.
 2. **Phase 2 — Interaction services**
    - [ ] Add device-pixel scaling, hit-test IDs, pointer-coordinate inversion,
      dirty-region repaint, and image asset loading.
+   - [ ] Implement the shared viewport/selection protocol for pan and zoom,
+     preserve semantic object IDs through hit testing, and provide a DOM/text
+     accessibility companion so Canvas interaction is not pointer-only or
+     screen-reader silent.
 3. **Phase 3 — Large scenes and workers**
    - [ ] Add OffscreenCanvas/worker rendering, path caches, large heat maps, and
      animation timing.
