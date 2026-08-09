@@ -2,6 +2,7 @@
 
 import oracleSource from "./oracle/oracle.plugin.rix" with { type: "text" };
 import numericsSource from "./numerics/numerics.plugin.rix" with { type: "text" };
+import cauchySource from "./cauchy/cauchy.plugin.rix" with { type: "text" };
 import sternBrocotSource from "./stern-brocot/stern-brocot.plugin.rix" with { type: "text" };
 import { readPluginHeader } from "../src/runtime/plugin-catalog.js";
 import { install as installDrawPlugin } from "./draw/draw.plugin.rix.js";
@@ -32,7 +33,6 @@ import { install as installPdfPlugin } from "./render-pdf/pdf.plugin.rix.js";
 import { install as installGltfPlugin } from "./render-gltf/gltf.plugin.rix.js";
 import { install as installCsvPlugin } from "./render-csv/csv.plugin.rix.js";
 import { install as installBallPlugin } from "./ball/ball.plugin.rix.js";
-import { install as installCauchyPlugin } from "./cauchy/cauchy.plugin.rix.js";
 
 const BUNDLED_PLUGINS = [
     {
@@ -64,17 +64,9 @@ const BUNDLED_PLUGINS = [
         install: installBallPlugin,
     },
     {
-        metadata: {
-            id: "cauchy",
-            description: "Rational Cauchy sequences with explicit certified tail bounds and moduli.",
-            kind: "host", mount: "cauchy",
-            exports: ["Sequence", "Certified", "Geometric", "Term", "TailBound", "Modulus", "Enclosure", "Record"],
-            groups: ["Numerics", "Exact"], permissions: [],
-            provides: ["rix.cauchy@1", "rix.refinable@1", "rix.enclosable-real@1"],
-            schemas: ["rix.cauchy.sequence@1", "rix.cauchy.real@1"],
-            snapshot: false, deterministic: true, defaultEnabled: false,
-        },
-        install: installCauchyPlugin,
+        metadata: readPluginHeader(cauchySource, "cauchy.plugin.rix"),
+        source: cauchySource,
+        sourcePath: "bundled:cauchy.plugin.rix",
     },
     {
         metadata: {

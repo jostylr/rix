@@ -7,7 +7,6 @@ import {
     parseAndEvaluate,
     undecidedReason,
 } from "../../src/index.js";
-import { CauchySequence, CertifiedCauchyReal } from "../../plugins/cauchy/cauchy.js";
 
 function runtime() {
     return {
@@ -26,18 +25,21 @@ function textValue(value) {
 }
 
 describe("Cauchy plugin", () => {
-    test("is bundled as an opt-in EnclosableReal and Refinable host plugin", () => {
+    test("is bundled as an opt-in pure RiX EnclosableReal and Refinable plugin", async () => {
         const options = runtime();
         const info = parseAndEvaluate('.Plugin.Info("cauchy")', options);
 
-        expect(textValue(entry(info, "kind"))).toBe("host");
+        expect(textValue(entry(info, "kind"))).toBe("rix");
         expect(textValue(entry(info, "mount"))).toBe("cauchy");
         expect(entry(info, "provides").values.map(textValue)).toEqual([
             "rix.cauchy@1", "rix.refinable@1", "rix.enclosable-real@1",
         ]);
         expect(() => parseAndEvaluate(".cauchy.Geometric(1, 1/2)", options)).toThrow("available but not loaded");
-        expect(parseAndEvaluate('.Plugin.Load("cauchy"); .cauchy.Geometric(1, 1/2)', options))
-            .toBeInstanceOf(CertifiedCauchyReal);
+        const value = parseAndEvaluate('.Plugin.Load("cauchy"); .cauchy.Geometric(1, 1/2)', options);
+        expect(textValue(entry(value, "kind"))).toBe("geometric");
+
+        const reference = await Bun.file(new URL("../../plugins/cauchy/cauchy.js", import.meta.url)).text();
+        expect(reference).toContain("Reference host implementation for comparison");
     });
 
     test("keeps a bare rational sequence explicitly non-certifying", () => {
@@ -49,7 +51,7 @@ describe("Cauchy plugin", () => {
             {: s, s.Term(3), s.Record(), s.NumericsCapabilities(), .numerics.Refine(s) }
         `, options);
 
-        expect(result.values[0]).toBeInstanceOf(CauchySequence);
+        expect(textValue(entry(result.values[0], "kind"))).toBe("bare");
         expect(result.values[1].toString()).toBe("1/4");
         expect(entry(result.values[2], "certified")).toBeNull();
         expect(entry(result.values[2], "tailModulus")).toBeNull();
@@ -77,7 +79,7 @@ describe("Cauchy plugin", () => {
                .numerics.Refine(c, {= absoluteWidth=1/100, maxWork=3 }) }
         `, options);
 
-        expect(result.values[0]).toBeInstanceOf(CertifiedCauchyReal);
+        expect(textValue(entry(result.values[0], "kind"))).toBe("declared");
         expect(result.values.slice(1, 5).map(String)).toEqual(["0", "1", "0", "1"]);
         expect(result.values[5].toString()).toBe("1:1");
         expect(textValue(entry(result.values[6], "kind"))).toBe("declared");
@@ -98,7 +100,7 @@ describe("Cauchy plugin", () => {
                g.Enclosure(3), g.Record() }
         `, options);
 
-        expect(result.values[0]).toBeInstanceOf(CertifiedCauchyReal);
+        expect(textValue(entry(result.values[0], "kind"))).toBe("geometric");
         expect(result.values.slice(1, 7).map(String)).toEqual([
             "1", "3/2", "15/8", "1", "1/8", "10",
         ]);
@@ -169,7 +171,7 @@ describe("Cauchy plugin", () => {
         expect(() => parseAndEvaluate(".cauchy.Geometric(1, 1)", options)).toThrow("less than one");
         expect(() => parseAndEvaluate(".cauchy.Geometric(1, -1)", options)).toThrow("less than one");
         expect(() => parseAndEvaluate(".cauchy.Sequence((n) -> \"not rational\").Term(0)", options))
-            .toThrow("exact Integer or Rational");
+            .toThrow("semantic type Rational");
         expect(() => parseAndEvaluate(`
             .cauchy.Certified((n)->0, (n)->-1, (radius)->0)
         `, options)).toThrow("must be nonnegative");

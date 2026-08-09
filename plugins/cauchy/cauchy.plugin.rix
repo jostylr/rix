@@ -1,0 +1,363 @@
+/**
+id: cauchy
+description: Rational Cauchy sequences with explicit certified tail bounds and moduli.
+kind: rix
+mount: cauchy
+exports: [Sequence, Certified, Geometric, Term, TailBound, Modulus, Enclosure, Record]
+groups: [Numerics, Exact]
+permissions: []
+provides: [rix.cauchy@1, rix.refinable@1, rix.enclosable-real@1]
+schemas: [rix.cauchy.sequence@1, rix.cauchy.real@1]
+snapshot: false
+deterministic: true
+defaultEnabled: false
+**/
+
+CauchyOption(options, key, fallback) -> options.Has(key) ?: options[key] ?_ fallback;
+
+CauchyRequireRational(value, label) -> value ~!: :Rational;
+
+CauchyRequirePositive(value, label) -> {;
+    rational = CauchyRequireRational(value, label);
+    rational > 0 ?: rational ?_ .Error(@"@{label} must be positive");
+};
+
+CauchyRequireNonnegative(value, label) -> {;
+    rational = CauchyRequireRational(value, label);
+    rational >= 0 ?: rational ?_ .Error(@"@{label} must be nonnegative");
+};
+
+CauchyRequireIndex(value, label) -> {;
+    integer = value ~!: :Integer;
+    integer >= 0 ?: integer ?_ .Error(@"@{label} must be a nonnegative Integer");
+};
+
+CauchyWitness(term, tailBound, index) -> {;
+    exactTerm = CauchyRequireRational(term, @"Cauchy term @{index}");
+    exactTail = CauchyRequireNonnegative(tailBound, @"Cauchy tail bound @{index}");
+    interval = (exactTerm - exactTail):(exactTerm + exactTail);
+    {=
+        index = index,
+        term = exactTerm,
+        tailBound = exactTail,
+        interval = interval,
+        width = interval.Width()
+    };
+};
+
+CauchyTermAt(real, index) -> {;
+    n = CauchyRequireIndex(index, "Cauchy term index");
+    real[:kind] == :geometric
+      ?: CauchyGeometricTerm(real, n)
+      ?_ CauchyRequireRational(real[:termFunction](n), @"Cauchy term @{n}");
+};
+
+CauchyTailBoundAt(real, index) -> {;
+    n = CauchyRequireIndex(index, "Cauchy tail-bound index");
+    real[:kind] == :geometric
+      ?: CauchyGeometricTailBound(real, n)
+      ?_ CauchyRequireNonnegative(real[:tailFunction](n), @"Cauchy tail bound @{n}");
+};
+
+CauchyWitnessAt(real, index) -> CauchyWitness(
+    CauchyTermAt(real, index),
+    CauchyTailBoundAt(real, index),
+    index
+);
+
+CauchyGeometricTerm(real, index) ->
+    real[:first] * (1 - real[:ratio]^(index + 1)) / (1 - real[:ratio]);
+
+CauchyGeometricTailBound(real, index) -> {;
+    magnitude = real[:ratio].Abs();
+    real[:first].Abs() * magnitude^(index + 1) / (1 - magnitude);
+};
+
+CauchyGeometricModulus(real, radius) -> {;
+    requestedRadius = CauchyRequirePositive(radius, "Cauchy modulus radius");
+    index = 0;
+    bound = CauchyGeometricTailBound(real, index);
+    {@ step = 1; @bound > @requestedRadius && @index < 100000; {;
+        @index += 1;
+        @bound = CauchyGeometricTailBound(@real, @index);
+    }; step += 1 };
+    bound <= requestedRadius ?: index
+      ?_ .Error("Cauchy modulus exceeds the provider index limit");
+};
+
+CauchyModulusAt(real, radius) -> {;
+    requestedRadius = CauchyRequirePositive(radius, "Cauchy modulus radius");
+    index = real[:kind] == :geometric
+      ?: CauchyGeometricModulus(real, requestedRadius)
+      ?_ CauchyRequireIndex(real[:modulusFunction](requestedRadius), "Cauchy modulus result");
+    witness = CauchyWitnessAt(real, index);
+    witness[:tailBound] <= requestedRadius ?: index
+      ?_ .Error(@"Cauchy modulus certificate failed at index @{index}: tail bound @{witness[:tailBound]} exceeds @{requestedRadius}");
+};
+
+CauchyCapabilities(real) -> {;
+    certified = real[:kind] != :bare;
+    evidenceLevels = real[:kind] == :geometric
+      ?: [:proof]
+      ?_ (real[:kind] == :declared ?: [:constructorGuarantee] ?_ []);
+    {=
+        valueKind = :numericsCapabilities,
+        schema = "rix.numerics.capabilities@1",
+        backend = :cauchy,
+        representation = certified ?: :rationalSequenceWithTailModulus ?_ :bareRationalSequence,
+        operations = certified ?: [:enclose, :refine] ?_ [],
+        evidenceLevels = evidenceLevels,
+        certified = certified,
+        arbitraryRefinement = certified,
+        deterministic = 1,
+        minimumWidth = 0,
+        maxCalls = certified ?: 100000 ?_ 0,
+        maxIterations = certified ?: 100000 ?_ 0
+    };
+};
+
+CauchyBareRecord(real) -> {=
+    valueKind = :cauchySequence,
+    schema = "rix.cauchy.sequence@1",
+    name = real[:name],
+    certified = _,
+    tailModulus = _
+};
+
+CauchyCertifiedRecord(real) -> {;
+    record = {=
+        valueKind = :cauchyReal,
+        schema = "rix.cauchy.real@1",
+        name = real[:name],
+        kind = real[:kind],
+        certified = 1,
+        initialWitness = real[:initialWitness],
+        evidence = real[:evidence]
+    };
+    real[:kind] == :geometric ?: {;
+        @record["first"] = @real[:first];
+        @record["ratio"] = @real[:ratio];
+    } ?_ _;
+    record;
+};
+
+CauchyRecord(real) -> real[:kind] == :bare ?: CauchyBareRecord(real) ?_ CauchyCertifiedRecord(real);
+
+CauchyUnsupported(real, request, operation) -> .RefinementUnsupported(
+    .RefinementRequest(request, operation, CauchyCapabilities(real)),
+    CauchyCapabilities(real),
+    :missingCertifiedTailModulus
+);
+
+CauchyAttachBareProtocol(real) -> {;
+    real._proto = {=
+        Term = (self, index) -> CauchyTermAt(self, index),
+        Record = (self) -> CauchyRecord(self),
+        NumericsCapabilities = (self) -> CauchyCapabilities(self),
+        Enclose = (self, request ?= {= }) -> CauchyUnsupported(self, request, :enclose),
+        Refine = (self, request ?= {= }) -> CauchyUnsupported(self, request, :refine)
+    };
+    real;
+};
+
+CauchyAttachCertifiedProtocol(real) -> {;
+    real._proto = {=
+        Term = (self, index) -> CauchyTermAt(self, index),
+        TailBound = (self, index) -> CauchyTailBoundAt(self, index),
+        Modulus = (self, radius) -> CauchyModulusAt(self, radius),
+        Enclosure = (self, index) -> CauchyWitnessAt(self, index)[:interval],
+        InitialEnclosure = (self) -> self[:initialWitness][:interval],
+        Record = (self) -> CauchyRecord(self),
+        NumericsCapabilities = (self) -> CauchyCapabilities(self),
+        Enclose = (self, request ?= {= }) -> CauchyProtocolEnclosure(self, request, :enclose),
+        Refine = (self, request ?= {= }) -> CauchyProtocolEnclosure(self, request, :refine)
+    };
+    real;
+};
+
+BuildBareCauchy(termFunction, options) -> CauchyAttachBareProtocol({=
+    valueKind = :cauchySequence,
+    schema = "rix.cauchy.sequence@1",
+    kind = :bare,
+    name = CauchyOption(options, "name", :sequence),
+    termFunction = termFunction,
+    provenance = {= plugin=:cauchy, version=1, source=:sequence }
+});
+
+BuildCertifiedCauchy(termFunction, tailFunction, modulusFunction, options) -> {;
+    initialTerm = CauchyRequireRational(0 |> termFunction, "Cauchy term 0");
+    initialTail = CauchyRequireNonnegative(0 |> tailFunction, "Cauchy tail bound 0");
+    CauchyAttachCertifiedProtocol({=
+        valueKind = :cauchyReal,
+        schema = "rix.cauchy.real@1",
+        kind = :declared,
+        name = CauchyOption(options, "name", :certifiedSequence),
+        termFunction = termFunction,
+        tailFunction = tailFunction,
+        modulusFunction = modulusFunction,
+        evidence = CauchyOption(options, "evidence", :declaredTailModulus),
+        initialWitness = CauchyWitness(initialTerm, initialTail, 0),
+        provenance = {= plugin=:cauchy, version=1, source=:declaredTailModulus }
+    });
+};
+
+CauchySequenceConstructor(termFunction, tailFunction ?= _, modulusFunction ?= _, options ?= {= }) -> {;
+    noCertificate = tailFunction == _ && modulusFunction == _;
+    completeCertificate = tailFunction != _ && modulusFunction != _;
+    {? noCertificate ? BuildBareCauchy(termFunction, options);
+       completeCertificate ? BuildCertifiedCauchy(termFunction, tailFunction, modulusFunction, options);
+       .Error("cauchy.Sequence expects term, or term, tailBound, modulus, and optional options")
+    };
+};
+
+CauchyCertifiedConstructor(termFunction, tailFunction, modulusFunction, options ?= {= }) ->
+    BuildCertifiedCauchy(termFunction, tailFunction, modulusFunction, options);
+
+CauchyGeometricConstructor(first, ratio, options ?= {= }) -> {;
+    exactFirst = CauchyRequireRational(first, "Cauchy geometric first term");
+    exactRatio = CauchyRequireRational(ratio, "Cauchy geometric ratio");
+    exactRatio.Abs() < 1 ?: _ ?_ .Error("Cauchy geometric ratio must have absolute value less than one");
+    initial = CauchyWitness(
+        exactFirst,
+        exactFirst.Abs() * exactRatio.Abs() / (1 - exactRatio.Abs()),
+        0
+    );
+    CauchyAttachCertifiedProtocol({=
+        valueKind = :cauchyReal,
+        schema = "rix.cauchy.real@1",
+        kind = :geometric,
+        name = CauchyOption(options, "name", :geometricSeries),
+        first = exactFirst,
+        ratio = exactRatio,
+        evidence = {=
+            kind = :geometricTail,
+            property = :absoluteRemainderBound,
+            ratio = exactRatio
+        },
+        initialWitness = initial,
+        provenance = {= plugin=:cauchy, version=1, source=:geometricTail }
+    });
+};
+
+CauchyGeometricRefinement(real, requestedWidth, maxCalls, maxIterations) -> {;
+    selected = real[:initialWitness];
+    calls = 0;
+    iterations = 0;
+    {@ step = 1;
+       @selected[:width] > @requestedWidth && @calls < @maxCalls && @iterations < @maxIterations;
+       {;
+           @selected = CauchyWitnessAt(@real, @selected[:index] + 1);
+           @calls += 1;
+           @iterations += 1;
+       };
+       step += 1
+    };
+    {=
+        selected = selected,
+        calls = calls,
+        iterations = iterations,
+        diagnostic = selected[:width] <= requestedWidth ?: _ ?_ :workBudgetReached
+    };
+};
+
+CauchyDeclaredRefinement(real, requestedWidth, maxCalls, maxIterations) -> {;
+    selected = real[:initialWitness];
+    calls = 0;
+    iterations = 0;
+    diagnostic = _;
+    selected[:width] > requestedWidth ?: {;
+        enoughWork = @maxCalls >= 3 && @maxIterations >= 1;
+        enoughWork ?: {;
+            targetRadius = @requestedWidth / 2;
+            index = CauchyRequireIndex(@real[:modulusFunction](targetRadius), "Cauchy modulus result");
+            @calls = 1;
+            candidate = CauchyWitnessAt(@real, index);
+            @calls = 3;
+            @iterations = 1;
+            candidate[:tailBound] <= targetRadius ?: _ ?_ .Error(
+                @"Cauchy modulus certificate failed at index @{index}: tail bound @{candidate[:tailBound]} exceeds @{targetRadius}"
+            );
+            candidate[:interval].Overlaps(@real[:initialWitness][:interval]) ?: _ ?_ .Error(
+                @"Cauchy certificate at index @{index} contradicts the initial certified enclosure"
+            );
+            @selected = candidate;
+        } ?_ {;
+            @diagnostic = :insufficientBudgetForModulusWitness;
+        };
+    } ?_ _;
+    {= selected=selected, calls=calls, iterations=iterations, diagnostic=diagnostic };
+};
+
+CauchyProtocolEnclosure(real, request, operation) -> {;
+    capabilities = CauchyCapabilities(real);
+    normalized = .RefinementRequest(request, operation, capabilities);
+    requestedWidth = normalized[:absoluteWidth];
+    maxCalls = normalized[:work][:maxCalls];
+    maxIterations = normalized[:work][:maxIterations];
+    state = real[:kind] == :geometric
+      ?: CauchyGeometricRefinement(real, requestedWidth, maxCalls, maxIterations)
+      ?_ CauchyDeclaredRefinement(real, requestedWidth, maxCalls, maxIterations);
+    selected = state[:selected];
+    achievedWidth = selected[:width];
+    goalMet = achievedWidth <= requestedWidth;
+    status = goalMet ?: :enclosed ?_ :budgetExhausted;
+    evidenceLevel = real[:kind] == :geometric ?: :proof ?_ :constructorGuarantee;
+    approximation = .CertifiedApproximation(selected[:term], selected[:interval], {=
+        reason = status,
+        requested = requestedWidth,
+        achieved = achievedWidth,
+        provider = :cauchy
+    });
+    {=
+        valueKind = :enclosure,
+        schema = "rix.numerics.enclosure@1",
+        status = status,
+        interval = selected[:interval],
+        certified = 1,
+        goalMet = goalMet,
+        requestedWidth = requestedWidth,
+        achievedWidth = achievedWidth,
+        approximation = approximation,
+        evidenceLevel = evidenceLevel,
+        backend = :cauchy,
+        operation = normalized[:operation],
+        trace = [selected],
+        work = {=
+            calls = state[:calls],
+            iterations = state[:iterations],
+            index = selected[:index],
+            maxCalls = maxCalls,
+            maxIterations = maxIterations,
+            exhausted = !goalMet
+        },
+        diagnostics = state[:diagnostic] == _ ?: [] ?_ [state[:diagnostic]],
+        evidence = {=
+            kind = real[:kind] == :geometric ?: :geometricTail ?_ :declaredTailModulus,
+            property = :limitWithinTermPlusOrMinusTailBound,
+            witness = selected,
+            certificate = real[:evidence]
+        },
+        source = real[:provenance]
+    };
+};
+
+cauchyNamespace = {= };
+cauchyNamespace._proto = {=
+    Sequence = (self, termFunction, tailFunction ?= _, modulusFunction ?= _, options ?= {= }) ->
+        CauchySequenceConstructor(termFunction, tailFunction, modulusFunction, options),
+    Certified = (self, termFunction, tailFunction, modulusFunction, options ?= {= }) ->
+        CauchyCertifiedConstructor(termFunction, tailFunction, modulusFunction, options),
+    Geometric = (self, first, ratio, options ?= {= }) -> CauchyGeometricConstructor(first, ratio, options),
+    Term = (self, real, index) -> CauchyTermAt(real, index),
+    TailBound = (self, real, index) -> CauchyTailBoundAt(real, index),
+    Modulus = (self, real, radius) -> CauchyModulusAt(real, radius),
+    Enclosure = (self, real, index) -> CauchyWitnessAt(real, index)[:interval],
+    Record = (self, real) -> CauchyRecord(real)
+};
+
+.Host.RegisterValue(
+    "cauchy",
+    cauchyNamespace,
+    "Rational Cauchy sequences with explicit certified tail bounds and moduli",
+    ["Numerics", "Exact"]
+);

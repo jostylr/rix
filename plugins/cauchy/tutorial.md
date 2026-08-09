@@ -1,9 +1,12 @@
 ---
-title: Certified Cauchy sequences
-description: Turn rational terms and effective tail bounds into certified real enclosures.
+title: Certified Cauchy sequences in RiX
+description: Use pure RiX rational terms and effective tail bounds to build certified real enclosures.
 theme: Numbers and numerics
 status: implemented
 ---
+
+The plugin itself is written in RiX, so the same definitions run in the CLI,
+RiX Web, and RiX Notebook without a JavaScript plugin permission boundary.
 
 ## A sequence is not yet a certified real
 

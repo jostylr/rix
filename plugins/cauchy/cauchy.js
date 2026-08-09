@@ -1,3 +1,9 @@
+/**
+ * Reference host implementation for comparison with cauchy.plugin.rix.
+ *
+ * This file is intentionally not a discoverable plugin entry point. The
+ * executable first-party Cauchy plugin is implemented in RiX itself.
+ */
 import { CertifiedApproximation, Integer, Rational, RationalInterval } from "@ratmath/core";
 import {
     normalizeRefinementRequest,
@@ -460,7 +466,7 @@ export function createCauchyPluginValue() {
     return { type: "map", entries, _ext: extension };
 }
 
-export function installCauchyPlugin({ systemContext, metadata = {}, options = {} }) {
+export function installReferenceCauchyPlugin({ systemContext, metadata = {}, options = {} }) {
     const value = createCauchyPluginValue();
     const mount = options.as || metadata.mount || "cauchy";
     const owner = { pluginId: metadata.id || "cauchy", mount };

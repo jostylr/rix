@@ -1,8 +1,9 @@
 # `cauchy`
 
-`cauchy` is an opt-in exact-real package for rational sequences. It keeps the
-sequence itself distinct from the extra information required to certify its
-limit.
+`cauchy` is an opt-in exact-real package implemented entirely in RiX. It keeps
+the rational sequence itself distinct from the extra information required to
+certify its limit. Loading it evaluates `cauchy.plugin.rix`; it does not request
+approval for a JavaScript host installer.
 
 ## Bare and certified sequences
 
@@ -82,5 +83,10 @@ Language Halo comparisons use the same protocol.
 Phase 1 does not infer a modulus for a bare sequence. Arithmetic with computed
 moduli, lazy stream policies, convergence transformations, and the
 paper-compatible funnel/Oracle adapter remain later phases.
+
+The directory also retains [`cauchy.js`](cauchy.js), the earlier host-side
+implementation, as a point of comparison. It is not a plugin manifest, is not
+loaded by `.Plugin.Load("cauchy")`, and is not included in the browser plugin
+catalog.
 
 See [tutorial.md](tutorial.md).
