@@ -8,7 +8,7 @@ toc-depth: 2
 This page is generated from the current RiX implementation by `documentation/scripts/generate-reference.js`. Do not edit it by hand. Descriptions come from registry documentation strings; the narrative [syntax guide](../eval/syntax-guide.md) and [methods guide](../eval/methods-guide.md) provide signatures and examples.
 :::
 
-At this revision RiX exposes **219 named entries** on the default system context and registers **216 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
+At this revision RiX exposes **231 named entries** on the default system context and registers **224 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
 
 ## Public system context
 
@@ -82,6 +82,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.HOST` | function | — | Host/plugin capability registration and discovery |
 | `.IF` | lazy function | Core | Decision conditional: condition ?: truthExpr ?\_ nullExpr ?? undecidedExpr |
 | `.IMAGE` | function | — | Create a portable image asset |
+| `.IMMUTABLEVALUE` | function | — | Mark a newly constructed structured value immutable and return it |
 | `.IMPORTJS` | function | — | Import a local JavaScript module for use from a .js.rix startup file |
 | `.INFO` | function | — | Emit an info event: .Info(label, level ?= 1, dataMap ?= {=}) |
 | `.INFOVALUE` | lazy function | — | Inspect expression value: .InfoValue(label, depth ?= 1, expr) — returns expr value |
@@ -139,6 +140,11 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.RAND_NAME` | function | Core, Random | Generate a random name string RAND\_NAME(len=10, alphabet=a-zA-Z) |
 | `.REACTIVEGRAPH` | function | RiXCel | Create a transactional graph of reactive source and computed nodes |
 | `.REDUCE` | lazy function | Collections, Arrays | Reduce a collection with an accumulator function — callback receives (acc, val, locator, src) |
+| `.REFINEMENTCHECK` | function | — | Validate a numerical provider result against its request and capabilities |
+| `.REFINEMENTEFFECTIVELIMITS` | function | — | Intersect requester and numerical-provider resource limits |
+| `.REFINEMENTREQUEST` | function | — | Normalize a shared bounded numerical refinement request |
+| `.REFINEMENTSUPPORTS` | function | — | Check whether numerical provider capabilities support an operation |
+| `.REFINEMENTUNSUPPORTED` | function | — | Construct a structured unsupported numerical result |
 | `.REGISTERMETHOD` | function | Core, Methods | Register a receiver-first extension method on an existing semantic/runtime type |
 | `.RENDER` | function | — | Render a portable value through an installed target plugin |
 | `.RENDERER` | value | — | Discover installed output renderers and their target contracts |
@@ -190,7 +196,9 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.TYPEEXPORT` | lazy function | — | Export a semantically typed value through its registered type exporter |
 | `.TYPEIMPORT` | lazy function | — | Import a value from a tagged type export map |
 | `.TYPEINSTALL` | function | — | Install a registered semantic type into system multifunctions |
+| `.TYPEKNOWN` | function | — | Return 1 when a semantic type or alias is already registered, otherwise null |
 | `.TYPEREGISTER` | function | — | Register an immutable semantic type from a RiX map spec |
+| `.UNDECIDED` | function | — | Construct an undecided decision carrying a reason and optional evidence |
 | `.UNION` | function | — | Join/Union of two collections (set union or interval hull) |
 | `.UNITS` | value | Units | Canonical RiX unit collection |
 | `.UPPER` | function | Strings | Convert string to uppercase |
@@ -198,7 +206,11 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.VIDEO` | function | — | Create a portable video asset |
 | `.WARN` | function | — | Emit a warning event: .Warn(label, dataMap ?= {=}) |
 | `.algebra` | function | — | Canonical exact univariate polynomials with verified division and portable synthetic-division Grids. |
+| `.ball` | function | — | Certified rational midpoint-radius balls and nested square-root refinement. |
 | `.canvas` | function | — | Serializable Canvas 2D drawing plans for core Graphics scenes. |
+| `.cauchy` | function | — | Rational Cauchy sequences with explicit certified tail bounds and moduli. |
+| `.cf` | function | — | Finite and lazy simple continued fractions with exact convergents and certified enclosures. |
+| `.continuedfraction` | function | — | Finite and lazy simple continued fractions with exact convergents and certified enclosures. |
 | `.csv` | function | — | Deterministic CSV and TSV export for portable Tables and typed data Relations. |
 | `.data` | function | — | Immutable typed relations with deterministic projection, filtering, sorting, and Table views. |
 | `.document` | function | — | Numbered portable reports with labels, forward references, captions, and small semantic themes. |
@@ -325,7 +337,7 @@ Imported scripts can add or withhold named groups. Permission-like names are int
 | `Graphics` | `Graphics` |
 | `Draw` | `draw` |
 | `Plot` | `plot` |
-| `Core` | `LEN`, `FIRST`, `LAST`, `GETEL`, `IRANGE`, `IF`, `LOOP`, `MULTI`, `RAND_NAME`, `PRINT`, `TGEN`, `KEYOF`, `KEYS`, `VALUES`, `REGISTERMETHOD`, `CertifiedApproximation` |
+| `Core` | `LEN`, `FIRST`, `LAST`, `GETEL`, `IRANGE`, `IF`, `LOOP`, `MULTI`, `RAND_NAME`, `PRINT`, `TGEN`, `KEYOF`, `KEYS`, `VALUES`, `REGISTERMETHOD`, `CertifiedApproximation`, `Undecided`, `RefinementRequest`, `RefinementEffectiveLimits`, `RefinementSupports`, `RefinementCheck`, `RefinementUnsupported`, `TypeKnown`, `ImmutableValue` |
 | `Methods` | `REGISTERMETHOD` |
 | `Arith` | `ADD`, `SUB`, `MUL`, `DIV`, `INTDIV`, `DIVMOD`, `MOD`, `POW`, `FACTORIAL`, `DOUBLEFACTORIAL` |
 | `Logic` | `EQ`, `NEQ`, `LT`, `GT`, `LTE`, `GTE`, `AND`, `OR`, `NOT` |
@@ -406,7 +418,7 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `DOUBLE_FACTORIAL` | eager, pure | Double factorial of a non-negative integer |
 | `EMBEDDED` | eager, effectful/unspecified | Dispatch a backtick body to a registered .Name.Parse parser |
 | `EMPHASIS` | eager, pure | Create semantic inline emphasis |
-| `EQ` | eager, pure, multifunction | Equality check — returns 1 or null |
+| `EQ` | eager, effectful/unspecified, multifunction | Equality check — returns 1 or null |
 | `EVAL` | lazy, effectful/unspecified | Evaluate a deferred AST node or expression: .Eval(ast, bindings ?= \_, mode ?= :inherit) |
 | `FACTORIAL` | eager, pure | Factorial of a non-negative integer |
 | `FIGURE` | eager, pure | Wrap output with figure metadata |
@@ -417,13 +429,14 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `GENERATOR` | eager, effectful/unspecified | Internal array-generator marker |
 | `GLOBAL` | lazy, effectful/unspecified | Assign a value to a variable in the global scope |
 | `GRID` | eager, pure | Create a mathematical layout grid |
-| `GT` | eager, pure, multifunction | Greater than — returns 1 or null |
-| `GTE` | eager, pure, multifunction | Greater than or equal — returns 1 or null |
+| `GT` | eager, effectful/unspecified, multifunction | Greater than — returns 1 or null |
+| `GTE` | eager, effectful/unspecified, multifunction | Greater than or equal — returns 1 or null |
 | `HALO` | eager, pure | Construct a halo neighborhood for bounded-refinement comparison |
 | `HEADING` | eager, pure | Create a portable document heading |
 | `HOLE` | eager, pure | Internal hole/undefined sentinel — represents an explicitly omitted value |
 | `HOLE_COALESCE` | lazy, effectful/unspecified | Hole-coalescing: x ?\| y returns x if x is not a hole, else y |
 | `IMAGE` | eager, pure | Create a portable image asset |
+| `IMMUTABLE_VALUE` | eager, effectful/unspecified | Mark a newly constructed structured value immutable and return it |
 | `IMPORT_JS` | eager, effectful/unspecified | Import a local JavaScript module for use from a .js.rix startup file |
 | `INDEX_GET` | eager, effectful/unspecified | Index into collection (1-based for sequences; string or value keys for maps) — obj[i] |
 | `INDEX_SET` | lazy, effectful/unspecified | Set index in collection (requires .\_mutable meta flag) — obj[i] = val |
@@ -445,8 +458,8 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `LITERAL` | eager, pure | Parse a number literal string into a ratmath type |
 | `LIVEVIEW` | eager, effectful/unspecified | Deprecated compatibility wrapper for a reactive output derived from a subscribable source; prefer a named $$ output and final $ read |
 | `LOOP` | lazy, effectful/unspecified | Loop construct with init, condition, body[, update[, after]] |
-| `LT` | eager, pure, multifunction | Less than — returns 1 or null |
-| `LTE` | eager, pure, multifunction | Less than or equal — returns 1 or null |
+| `LT` | eager, effectful/unspecified, multifunction | Less than — returns 1 or null |
+| `LTE` | eager, effectful/unspecified, multifunction | Less than or equal — returns 1 or null |
 | `MAP_OBJ` | lazy, pure | Create a map/object |
 | `MATH` | eager, pure | Create portable inline TeX math |
 | `MATHBLOCK` | eager, pure | Create a display TeX math block |
@@ -455,7 +468,7 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `MAX` | eager, pure, multifunction | Maximum over n arguments (ignores nulls) |
 | `MEDIANTS` | eager, pure | Return nested levels of exact mediants |
 | `MEDIANT_PARTITION` | eager, pure | Partition an interval using exact mediant boundaries |
-| `MEMBER` | eager, pure | Check membership (1 if present, null otherwise) |
+| `MEMBER` | eager, effectful/unspecified | Check membership (1 if present, null otherwise) |
 | `META_ALL` | eager, effectful/unspecified | Get all meta properties as a map (read-only copy) — obj.. |
 | `META_GET` | eager, effectful/unspecified | Get meta property (returns null if absent) — obj.name |
 | `META_MERGE` | lazy, effectful/unspecified | Bulk merge map into object meta properties (null values = delete) — obj .= map |
@@ -472,10 +485,10 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `NARY_INTERSECT` | eager, pure | N-ary intersection/overlap fold for sets or intervals |
 | `NARY_UNION` | eager, pure | N-ary union/hull fold for sets or intervals |
 | `NEG` | eager, pure, multifunction | Negation |
-| `NEQ` | eager, pure, multifunction | Inequality check — returns 1 or null |
+| `NEQ` | eager, effectful/unspecified, multifunction | Inequality check — returns 1 or null |
 | `NOP` | eager, pure | No operation |
 | `NOT` | eager, pure | Logical NOT — returns Integer(1) for null input, null otherwise |
-| `NOT_MEMBER` | eager, pure | Check non-membership (1 if not present, null otherwise) |
+| `NOT_MEMBER` | eager, effectful/unspecified | Check non-membership (1 if not present, null otherwise) |
 | `NULL` | eager, pure | Null value |
 | `OR` | lazy, pure | Logical OR (short-circuits on first truthy, returns deciding value) |
 | `OUT` | eager, effectful/unspecified | Declare an output artifact for the active host output sink |
@@ -517,6 +530,11 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `REACTIVE_READ` | eager, effectful/unspecified | Read a reactive cell value and record a dependency |
 | `REACTIVE_TRANSACTION` | lazy, effectful/unspecified | Stage reactive declarations and updates and commit one atomic graph epoch |
 | `REACTIVE_UPDATE` | lazy, effectful/unspecified | Replace a reactive cell definition while preserving its identity |
+| `REFINEMENT_CHECK` | eager, pure | Validate a numerical provider result against its request and capabilities |
+| `REFINEMENT_EFFECTIVE_LIMITS` | eager, pure | Intersect requester and numerical-provider resource limits |
+| `REFINEMENT_REQUEST` | eager, pure | Normalize a shared bounded numerical refinement request |
+| `REFINEMENT_SUPPORTS` | eager, pure | Check whether numerical provider capabilities support an operation |
+| `REFINEMENT_UNSUPPORTED` | eager, pure | Construct a structured unsupported numerical result |
 | `REGEX` | eager, effectful/unspecified | Create a regex matching function |
 | `RETRIEVE` | eager, effectful/unspecified | Look up a variable in the current scope chain |
 | `RIXCELEXPORT` | eager, effectful/unspecified | Serialize a FormulaSheet to canonical versioned RiXCel JSON |
@@ -563,8 +581,10 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `TYPE_EXPORT` | lazy, effectful/unspecified | Export a semantically typed value through its registered type exporter |
 | `TYPE_IMPORT` | lazy, effectful/unspecified | Import a value from a tagged type export map |
 | `TYPE_INSTALL` | eager, effectful/unspecified | Install a registered semantic type into system multifunctions |
+| `TYPE_KNOWN` | eager, effectful/unspecified | Return 1 when a semantic type or alias is already registered, otherwise null |
 | `TYPE_REGISTER` | eager, effectful/unspecified | Register an immutable semantic type from a RiX map spec |
 | `UNDECIDED` | eager, pure | Return the singleton undecided decision value |
+| `UNDECIDED_DIAGNOSTIC` | eager, pure | Construct an undecided decision carrying a reason and optional evidence |
 | `UNION` | eager, pure | Join/Union of two collections (set union or interval hull) |
 | `UNIT` | eager, pure | Resolve scientific unit sugar through the active Units RiX collection |
 | `VALUES` | eager, pure | Get the values of a map as a set (obj\|.) |

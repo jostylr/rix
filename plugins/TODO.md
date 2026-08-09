@@ -440,11 +440,11 @@ newline normalization.
 ### `.continuedFraction`
 
 1. **Phase 1 — Exact convergents**
-   - [ ] Represent finite and lazy simple continued fractions.
-   - [ ] Demonstrate convergents for a quadratic irrational with exact rational
+   - [x] Represent finite and lazy simple continued fractions.
+   - [x] Demonstrate convergents for a quadratic irrational with exact rational
      error intervals.
-   - [ ] Add README, tutorial, parser interoperability, and convergent tests.
-   - [ ] Register bounded enclosure/refinement.
+   - [x] Add README, tutorial, parser interoperability, and convergent tests.
+   - [x] Register bounded enclosure/refinement.
 2. **Phase 2 — Arithmetic and recognition**
    - [ ] Add periodic quadratic forms, best-approximation queries, and selected
      arithmetic transformations.

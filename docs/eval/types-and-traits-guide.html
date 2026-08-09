@@ -516,6 +516,8 @@ r == r2</code></pre>
 })
 
 .TypeInstall(:Example)</code></pre>
+<p>Plugin sources can guard process-wide immutable registration with <code>.TypeKnown(:Example)</code>. They should still call <code>.TypeInstall(:Example)</code> for each evaluator registry so its operator variants are available in that runtime.</p>
+<p>Constructors that return structured records with invariants can finish with <code>.ImmutableValue(value)</code>. This marks the returned value itself—not merely its temporary local cell—so later entry or metadata mutation is rejected.</p>
 <p>Hosts can still use the JS-side helpers in <code>src/runtime/type-system.js</code> for core bootstrapping:</p>
 <ul>
 <li><code>registerTrait(spec)</code></li>

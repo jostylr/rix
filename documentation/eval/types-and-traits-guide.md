@@ -167,6 +167,15 @@ The runtime core is implemented in JavaScript, but extension registration is ava
 .TypeInstall(:Example)
 ```
 
+Plugin sources can guard process-wide immutable registration with
+`.TypeKnown(:Example)`. They should still call `.TypeInstall(:Example)` for
+each evaluator registry so its operator variants are available in that
+runtime.
+
+Constructors that return structured records with invariants can finish with
+`.ImmutableValue(value)`. This marks the returned value itself—not merely its
+temporary local cell—so later entry or metadata mutation is rejected.
+
 Hosts can still use the JS-side helpers in `src/runtime/type-system.js` for core bootstrapping:
 
 - `registerTrait(spec)`

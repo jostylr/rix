@@ -1,0 +1,391 @@
+/**
+id: continued-fraction
+description: Finite and lazy simple continued fractions with exact convergents and certified enclosures.
+kind: rix
+mount: continuedFraction
+aliases: [cf]
+exports: [Finite, Lazy, Periodic, Sqrt2, FromRational, Coefficient, Coefficients, Convergent, Convergents, Enclosure, ErrorInterval, Record]
+groups: [Numerics, Exact]
+permissions: []
+provides: [rix.continued-fraction@1, rix.refinable@1, rix.enclosable-real@1]
+schemas: [rix.continued-fraction.finite@1, rix.continued-fraction.lazy@1]
+snapshot: false
+deterministic: true
+defaultEnabled: false
+**/
+
+CFOption(options, key, fallback) -> options.Has(key) ?: options[key] ?_ fallback;
+
+CFRequireIndex(value, label) -> {;
+    index = value ~!: :Integer;
+    index >= 0 ?: index ?_ .Error(@"@{label} must be a nonnegative Integer");
+};
+
+CFRequireCount(value, label) -> {;
+    count = value ~!: :Integer;
+    count >= 1 ?: count ?_ .Error(@"@{label} must be a positive Integer");
+};
+
+CFValidateCoefficient(value, index) -> {;
+    coefficient = value ~!: :Integer;
+    valid = index == 0 ?: 1 ?_ coefficient > 0;
+    valid
+      ?: coefficient
+      ?_ .Error(@"Continued-fraction coefficient @{index} must be a positive Integer");
+};
+
+CFCoefficientAt(real, index) -> {;
+    n = CFRequireIndex(index, "Continued-fraction coefficient index");
+    outOfRange = real[:kind] == :finite ?: n >= real[:length] ?_ _;
+    outOfRange
+      ?: .Error(@"Finite continued fraction has no coefficient at index @{n}")
+      ?_ CFValidateCoefficient(n |> real[:coefficientFunction], n);
+};
+
+CFCoefficients(real, count ?= _) -> {;
+    amount = count == _
+      ?: (real[:kind] == :finite ?: real[:length] ?_ .Error("Lazy continued fractions require an explicit coefficient count"))
+      ?_ CFRequireIndex(count, "Continued-fraction coefficient count");
+    exceedsFinite = real[:kind] == :finite ?: amount > real[:length] ?_ _;
+    exceedsFinite
+      ?: .Error("Requested coefficient count exceeds the finite continued fraction")
+      ?_ _;
+    values = [];
+    {@ index = 0; index < @amount; {;
+        @values ~= @values.Push(CFCoefficientAt(@real, index));
+    }; index += 1 };
+    values;
+};
+
+CFConvergentState(real, count) -> {;
+    amount = CFRequireCount(count, "Continued-fraction convergent count");
+    exceedsFinite = real[:kind] == :finite ?: amount > real[:length] ?_ _;
+    exceedsFinite
+      ?: .Error("Requested convergent exceeds the finite continued fraction")
+      ?_ _;
+    p0 = 0;
+    p1 = 1;
+    q0 = 1;
+    q1 = 0;
+    {@ index = 0; index < @amount; {;
+        coefficient = CFCoefficientAt(@real, index);
+        nextP = coefficient * @p1 + @p0;
+        nextQ = coefficient * @q1 + @q0;
+        @p0 ~= @p1;
+        @p1 ~= nextP;
+        @q0 ~= @q1;
+        @q1 ~= nextQ;
+    }; index += 1 };
+    {=
+        count = amount,
+        previous = q0 == 0 ?: _ ?_ p0 / q0,
+        current = q1 == 0 ?: _ ?_ p1 / q1,
+        p0 = p0,
+        p1 = p1,
+        q0 = q0,
+        q1 = q1
+    };
+};
+
+CFConvergent(real, count) -> CFConvergentState(real, count)[:current];
+
+CFConvergents(real, count ?= _) -> {;
+    amount = count == _
+      ?: (real[:kind] == :finite ?: real[:length] ?_ .Error("Lazy continued fractions require an explicit convergent count"))
+      ?_ CFRequireIndex(count, "Continued-fraction convergent count");
+    results = [];
+    {@ index = 1; index <= @amount; {;
+        @results ~= @results.Push(CFConvergent(@real, index));
+    }; index += 1 };
+    results;
+};
+
+CFWitness(real, count) -> {;
+    state = CFConvergentState(real, count);
+    interval = state[:previous]:state[:current];
+    {=
+        count = state[:count],
+        previous = state[:previous],
+        convergent = state[:current],
+        interval = interval,
+        width = interval.Width(),
+        p0 = state[:p0],
+        p1 = state[:p1],
+        q0 = state[:q0],
+        q1 = state[:q1]
+    };
+};
+
+CFNextWitness(real, witness) -> {;
+    index = witness[:count];
+    coefficient = CFCoefficientAt(real, index);
+    nextP = coefficient * witness[:p1] + witness[:p0];
+    nextQ = coefficient * witness[:q1] + witness[:q0];
+    next = nextP / nextQ;
+    interval = witness[:convergent]:next;
+    {=
+        count = index + 1,
+        previous = witness[:convergent],
+        convergent = next,
+        interval = interval,
+        width = interval.Width(),
+        p0 = witness[:p1],
+        p1 = nextP,
+        q0 = witness[:q1],
+        q1 = nextQ
+    };
+};
+
+CFEnclosureAt(real, count ?= _) -> {;
+    real[:kind] == :finite
+      ?: {;
+          exact = CFConvergent(real, count == _ ?: real[:length] ?_ count);
+          exact:exact;
+      }
+      ?_ CFWitness(real, count == _ ?: 2 ?_ CFRequireCount(count, "Continued-fraction enclosure count"))[:interval];
+};
+
+CFErrorInterval(real, count) -> {;
+    convergent = CFConvergent(real, count);
+    enclosure = CFEnclosureAt(real, real[:kind] == :finite ?: _ ?_ count);
+    (enclosure.Low() - convergent):(enclosure.High() - convergent);
+};
+
+CFCapabilities(real) -> {;
+    lazy = real[:kind] != :finite;
+    {=
+        valueKind = :numericsCapabilities,
+        schema = "rix.numerics.capabilities@1",
+        backend = :continuedFraction,
+        representation = lazy ?: :lazySimpleContinuedFraction ?_ :finiteSimpleContinuedFraction,
+        operations = [:enclose, :refine],
+        evidenceLevels = [lazy ?: real[:evidenceLevel] ?_ :proof],
+        certified = 1,
+        arbitraryRefinement = lazy,
+        deterministic = 1,
+        minimumWidth = 0,
+        maxCalls = lazy ?: 100000 ?_ 0,
+        maxIterations = lazy ?: 100000 ?_ 0
+    };
+};
+
+CFRecord(real) -> {=
+    valueKind = :continuedFraction,
+    schema = real[:schema],
+    kind = real[:kind],
+    name = real[:name],
+    coefficients = real[:kind] == :finite ?: real[:coefficients] ?_ _,
+    length = real[:kind] == :finite ?: real[:length] ?_ _,
+    period = real[:period],
+    initialEnclosure = real[:initialWitness][:interval],
+    evidence = real[:evidence],
+    certified = 1
+};
+
+CFAttachProtocol(real) -> {;
+    real._proto = {=
+        Coefficient = (self, index) -> CFCoefficientAt(self, index),
+        Coefficients = (self, count ?= _) -> CFCoefficients(self, count),
+        Convergent = (self, count) -> CFConvergent(self, count),
+        Convergents = (self, count ?= _) -> CFConvergents(self, count),
+        Value = (self) -> self[:kind] == :finite ?: CFConvergent(self, self[:length]) ?_ .Error("Lazy continued fractions do not have a finite exact Value"),
+        Enclosure = (self, count ?= _) -> CFEnclosureAt(self, count),
+        ErrorInterval = (self, count) -> CFErrorInterval(self, count),
+        Record = (self) -> CFRecord(self),
+        Enclose = (self, request ?= {= }) -> CFProtocolEnclosure(self, request, :enclose),
+        Refine = (self, request ?= {= }) -> CFProtocolEnclosure(self, request, :refine),
+        NumericsCapabilities = (self) -> CFCapabilities(self)
+    };
+    .ImmutableValue(real);
+};
+
+CFFinite(coefficients, options ?= {= }) -> {;
+    length = coefficients.Len();
+    length >= 1 ?: _ ?_ .Error("Finite continued fractions require at least one coefficient");
+    exactCoefficients = [];
+    {@ index = 0; index < @length; {;
+        @exactCoefficients ~= @exactCoefficients.Push(CFValidateCoefficient((@coefficients)[index + 1], index));
+    }; index += 1 };
+    coefficientFunction = (index) -> (@exactCoefficients)[index + 1];
+    provisional = {=
+        valueKind = :continuedFraction,
+        schema = "rix.continued-fraction.finite@1",
+        kind = :finite,
+        name = CFOption(options, "name", :finite),
+        coefficients = exactCoefficients,
+        length = length,
+        coefficientFunction = coefficientFunction,
+        evidenceLevel = :proof,
+        evidence = {= kind=:finiteEvaluation, property=:exactRationalValue }
+    };
+    exact = CFConvergent(provisional, length) ~!: :Rational;
+    provisional["initialwitness"] = {=
+        count=length,
+        previous=exact,
+        convergent=exact,
+        interval=exact:exact,
+        width=0,
+        p0=exact.Numerator(), p1=exact.Numerator(),
+        q0=exact.Denominator(), q1=exact.Denominator()
+    };
+    CFAttachProtocol(provisional);
+};
+
+CFLazy(coefficientFunction, options ?= {= }) -> {;
+    provisional = {=
+        valueKind = :continuedFraction,
+        schema = "rix.continued-fraction.lazy@1",
+        kind = CFOption(options, "kind", :lazy),
+        name = CFOption(options, "name", :lazy),
+        coefficientFunction = coefficientFunction,
+        prefix = CFOption(options, "prefix", _),
+        period = CFOption(options, "period", _),
+        evidenceLevel = CFOption(options, "evidenceLevel", :constructorGuarantee),
+        evidence = CFOption(options, "evidence", {=
+            kind=:declaredSimpleContinuedFraction,
+            property=:positiveTailCoefficients
+        })
+    };
+    provisional["initialwitness"] = CFWitness(provisional, 2);
+    CFAttachProtocol(provisional);
+};
+
+CFPeriodic(prefix, period, options ?= {= }) -> {;
+    prefixLength = prefix.Len();
+    periodLength = period.Len();
+    prefixLength >= 1 ?: _ ?_ .Error("Periodic continued fractions require a nonempty prefix");
+    periodLength >= 1 ?: _ ?_ .Error("Periodic continued fractions require a nonempty period");
+    exactPrefix = CFCoefficients(CFFinite(prefix), prefixLength);
+    exactPeriod = [];
+    {@ index = 0; index < @periodLength; {;
+        @exactPeriod ~= @exactPeriod.Push(CFValidateCoefficient((@period)[index + 1], index + 1));
+    }; index += 1 };
+    rule = (index) -> index < @prefixLength
+      ?: (@exactPrefix)[index + 1]
+      ?_ (@exactPeriod)[((index - @prefixLength) % @periodLength) + 1];
+    CFLazy(rule, {=
+        kind = :periodic,
+        name = CFOption(options, "name", :periodic),
+        prefix = exactPrefix,
+        period = exactPeriod,
+        evidenceLevel = CFOption(options, "evidenceLevel", :constructorGuarantee),
+        evidence = CFOption(options, "evidence", {=
+            kind=:periodicSimpleContinuedFraction,
+            property=:positiveRepeatingTail
+        })
+    });
+};
+
+CFSqrt2() -> CFPeriodic([1], [2], {=
+    name = :sqrt2,
+    evidenceLevel = :proof,
+    evidence = {=
+        kind=:periodicQuadraticIrrational,
+        property=:squareEqualsTwo,
+        equation="x = 1 + 1/(1+x)"
+    }
+});
+
+CFFromRational(value, options ?= {= }) -> {;
+    exact = value ~!: :Rational;
+    CFFinite(exact.ToContinuedFraction(), {= name=CFOption(options, "name", :rational) });
+};
+
+CFConstruct(value, options ?= {= }) -> {;
+    alreadyContinuedFraction = value ? :Map ?: value[:valueKind] == :continuedFraction ?_ _;
+    alreadyContinuedFraction
+      ?: value
+      ?_ (value ? :Array ?: CFFinite(value, options) ?_ CFFromRational(value, options));
+};
+
+CFRefinementState(real, requestedWidth, maxCalls, maxIterations) -> {;
+    selected = real[:initialWitness];
+    calls = 0;
+    iterations = 0;
+    {@ step = 1;
+       (@selected)[:width] > @requestedWidth && @calls < @maxCalls && @iterations < @maxIterations;
+       {;
+           @selected ~= CFNextWitness(@real, @selected);
+           @calls += 1;
+           @iterations += 1;
+       };
+       step += 1
+    };
+    {= selected=selected, calls=calls, iterations=iterations };
+};
+
+CFProtocolEnclosure(real, request, operation) -> {;
+    capabilities = CFCapabilities(real);
+    normalized = .RefinementRequest(request, operation, capabilities);
+    requestedWidth = normalized[:absoluteWidth];
+    maxCalls = normalized[:work][:maxCalls];
+    maxIterations = normalized[:work][:maxIterations];
+    finite = real[:kind] == :finite;
+    state = finite
+      ?: {= selected=real[:initialWitness], calls=0, iterations=0 }
+      ?_ CFRefinementState(real, requestedWidth, maxCalls, maxIterations);
+    selected = state[:selected];
+    achievedWidth = selected[:width];
+    goalMet = achievedWidth <= requestedWidth;
+    status = goalMet ?: :enclosed ?_ :budgetExhausted;
+    approximation = .CertifiedApproximation(selected[:convergent], selected[:interval], {=
+        reason=status,
+        requested=requestedWidth,
+        achieved=achievedWidth,
+        provider=:continuedFraction
+    });
+    {=
+        valueKind = :enclosure,
+        schema = "rix.numerics.enclosure@1",
+        status = status,
+        interval = selected[:interval],
+        certified = 1,
+        goalMet = goalMet,
+        requestedWidth = requestedWidth,
+        achievedWidth = achievedWidth,
+        approximation = approximation,
+        evidenceLevel = finite ?: :proof ?_ real[:evidenceLevel],
+        backend = :continuedFraction,
+        operation = normalized[:operation],
+        trace = [selected],
+        work = {=
+            calls=state[:calls],
+            iterations=state[:iterations],
+            coefficients=selected[:count],
+            maxCalls=maxCalls,
+            maxIterations=maxIterations,
+            exhausted=!goalMet
+        },
+        diagnostics = goalMet ?: [] ?_ [:maxCallsReached],
+        evidence = {=
+            kind=finite ?: :finiteEvaluation ?_ :consecutiveConvergents,
+            property=:containment,
+            witness=selected,
+            certificate=real[:evidence]
+        },
+        source = {= plugin=:continuedFraction, schema=real[:schema], kind=real[:kind] }
+    };
+};
+
+continuedFractionNamespace = (value, options ?= {= }) -> CFConstruct(value, options);
+continuedFractionNamespace._proto = {=
+    Finite = (self, coefficients, options ?= {= }) -> CFFinite(coefficients, options),
+    Lazy = (self, coefficientFunction, options ?= {= }) -> CFLazy(coefficientFunction, options),
+    Periodic = (self, prefix, period, options ?= {= }) -> CFPeriodic(prefix, period, options),
+    Sqrt2 = (self) -> CFSqrt2(),
+    FromRational = (self, value, options ?= {= }) -> CFFromRational(value, options),
+    Coefficient = (self, real, index) -> CFCoefficientAt(real, index),
+    Coefficients = (self, real, count ?= _) -> CFCoefficients(real, count),
+    Convergent = (self, real, count) -> CFConvergent(real, count),
+    Convergents = (self, real, count ?= _) -> CFConvergents(real, count),
+    Enclosure = (self, real, count ?= _) -> CFEnclosureAt(real, count),
+    ErrorInterval = (self, real, count) -> CFErrorInterval(real, count),
+    Record = (self, real) -> CFRecord(real)
+};
+
+.Host.RegisterCallableValue(
+    "continuedFraction",
+    continuedFractionNamespace,
+    "Finite and lazy simple continued fractions with exact convergents and certified enclosures",
+    ["Numerics", "Exact"]
+);

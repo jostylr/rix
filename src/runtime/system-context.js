@@ -121,6 +121,35 @@ function namespaceEntry(context, namespace) {
         },
     });
 
+    value._ext.set("REGISTERCALLABLEVALUE", {
+        type: "method_builtin",
+        name: "RegisterCallableValue",
+        impl(args, evaluationContext, _evaluate, callWithConcreteArgs) {
+            if (!canRegister(evaluationContext)) {
+                throw new Error(`.${title}.RegisterCallableValue is not permitted in this execution context`);
+            }
+            const name = rixString(args[1], `.${title}.RegisterCallableValue name`);
+            const callableValue = args[2];
+            const doc = args[3]?.type === "string" ? args[3].value : "";
+            const groups = rixStringList(args[4], `.${title}.RegisterCallableValue groups`);
+            const definition = {
+                impl(callArgs, callContext, callEvaluate) {
+                    return callWithConcreteArgs(callableValue, callArgs, callContext, callEvaluate);
+                },
+                doc,
+            };
+            if (namespace === "core") {
+                context.registerCallableValue(name, callableValue, definition, { namespace, doc, groups });
+            } else {
+                registryContext.registerHostCallableValue(name, callableValue, definition, { namespace, doc, groups });
+                if (registryContext !== context) {
+                    context.registerHostCallableValue(name, callableValue, definition, { namespace, doc, groups });
+                }
+            }
+            return stringValue(name);
+        },
+    });
+
     value._ext.set("FIND", {
         type: "method_builtin",
         name: "Find",

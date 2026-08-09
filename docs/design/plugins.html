@@ -657,9 +657,8 @@ SVG / Canvas / PDF / terminal representation</code></pre>
 <section id="certified-numerics-contract" class="level2">
 <h2 class="anchored" data-anchor-id="certified-numerics-contract">Certified numerics contract</h2>
 <p>Different real-number representations should interoperate through certified evidence, not by converting every value to an IEEE-754 number. An oracle, a Cauchy sequence, a continued fraction, an algebraic isolating interval, and an arbitrary-precision float may all represent a real number differently. A numerical algorithm should only require that the representation can either produce a proven rational enclosure at a requested tolerance or report that it cannot meet the request within a bounded amount of work.</p>
-<p>The proposed common operation is <code>.numerics.Enclose</code> (with a value-level <code>value.Enclose</code> convenience where a type supports it):</p>
-<pre class="rix"><code># Proposed, not implemented
-e := .numerics.Enclose(realValue, {=
+<p>The implemented common operation is <code>.numerics.Enclose</code> (with a value-level <code>value.Enclose</code> convenience where a type supports it):</p>
+<pre class="rix"><code>e := .numerics.Enclose(realValue, {=
     absoluteWidth = 1 / 1000000,
     relativeWidth = _,
     maxWork = 50000
@@ -691,7 +690,7 @@ e := .numerics.Enclose(realValue, {=
 </tr>
 <tr class="even">
 <td>Cauchy sequence</td>
-<td>Use a supplied convergence modulus to select a rational term and a proven tail-error bound. A bare sequence without a modulus is not certifying.</td>
+<td>Use a supplied convergence modulus to select a rational term and verify its exact tail-error bound. Phase 1 includes declared certificates and a proof-backed geometric-series constructor; a bare sequence without a modulus is not certifying.</td>
 </tr>
 <tr class="odd">
 <td>Continued fraction</td>
@@ -702,8 +701,8 @@ e := .numerics.Enclose(realValue, {=
 <td>Refine its existing rational isolating interval with exact sign or root-counting evidence.</td>
 </tr>
 <tr class="odd">
-<td>Arbitrary-precision interval/ball</td>
-<td>Increase precision and outward-round to rational endpoints.</td>
+<td>Rational/nested Ball</td>
+<td>Preserve exact rational endpoints, explicitly round outward to a dyadic grid, or refine a retained recipe. Phase 1 demonstrates exact-bisection square roots.</td>
 </tr>
 <tr class="even">
 <td>IEEE-754 float</td>

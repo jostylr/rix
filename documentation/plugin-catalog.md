@@ -22,6 +22,11 @@ defaultEnabled: false
 .Host.Register("stats", (values) -> values, "Statistics plugin", ["Statistics"])
 ```
 
+Use `.Host.RegisterValue(...)` for a namespace value. A pure RiX package whose
+root is both callable and has receiver-style namespace methods can use
+`.Host.RegisterCallableValue(...)`; Ball and Continued Fraction use this to
+support both `.ball(...)`/`.continuedFraction(...)` and dotted helpers.
+
 The catalog scans only configured `plugins/` roots. It reads headers and
 declares disabled host mounts so static path checking can recognize a known
 surface, but a disabled mount errors when called.

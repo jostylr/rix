@@ -40,6 +40,7 @@ import {
     installRegisteredTypes,
     registerTraitFromRixSpec,
     registerTypeFromRixSpec,
+    typeRegistry,
 } from "../../runtime/type-system.js";
 import { callWithConcreteArgs } from "./functions.js";
 import { HaloNeighborhood } from "../../runtime/halo.js";
@@ -1756,6 +1757,27 @@ export const coreFunctions = {
             return args[0];
         },
         doc: "Register an immutable semantic type from a RiX map spec",
+    },
+
+    TYPE_KNOWN: {
+        impl(args) {
+            const name = args[0]?.type === "string" ? args[0].value : String(args[0] ?? "");
+            return typeRegistry.has(name) ? new Integer(1n) : null;
+        },
+        doc: "Return 1 when a semantic type or alias is already registered, otherwise null",
+    },
+
+    IMMUTABLE_VALUE: {
+        impl(args) {
+            const value = args[0];
+            if (!value || typeof value !== "object") {
+                throw new Error("ImmutableValue requires a structured value");
+            }
+            if (!(value._ext instanceof Map)) value._ext = new Map();
+            value._ext.set("immutable", new Integer(1n));
+            return value;
+        },
+        doc: "Mark a newly constructed structured value immutable and return it",
     },
 
     TYPE_INSTALL: {

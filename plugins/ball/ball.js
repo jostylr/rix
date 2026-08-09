@@ -1,3 +1,9 @@
+/**
+ * Reference host implementation for comparison with ball.plugin.rix.
+ *
+ * This file is intentionally not a discoverable plugin entry point. The
+ * executable first-party Ball plugin is implemented in RiX itself.
+ */
 import { CertifiedApproximation, Integer, Rational, RationalInterval } from "@ratmath/core";
 import {
     normalizeRefinementRequest,
@@ -384,7 +390,7 @@ export function createBallPluginValue() {
     return { type: "map", entries, _ext: extension };
 }
 
-export function installBallPlugin({ systemContext, registry, metadata = {}, options = {} }) {
+export function installReferenceBallPlugin({ systemContext, registry, metadata = {}, options = {} }) {
     const value = createBallPluginValue();
     const mount = options.as || metadata.mount || "ball";
     const owner = { pluginId: metadata.id || "ball", mount };

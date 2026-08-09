@@ -1,13 +1,14 @@
 ---
-title: Certified nested real balls
-description: Explore exact midpoint-radius balls and bounded square-root refinement.
+title: Certified nested real balls in RiX
+description: Use pure RiX exact midpoint-radius balls and bounded square-root refinement.
 theme: Numbers and numerics
 status: implemented
 ---
 
 ## Exact finite balls
 
-A `Ball` is an immutable exact midpoint-radius snapshot. Its interval and
+A `Ball` is an exact midpoint-radius snapshot implemented as a semantic RiX
+value. Its interval and
 component accessors never pass through a floating-point value:
 
 ```rix

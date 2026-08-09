@@ -1,0 +1,302 @@
+/**
+id: ball
+description: Certified rational midpoint-radius balls and nested square-root refinement.
+kind: rix
+mount: ball
+exports: [Ball, Interval, Sqrt, Midpoint, Radius, Lower, Upper, Contains, RoundOut, Record]
+groups: [Numerics, Exact]
+permissions: []
+provides: [rix.ball@1, rix.enclosable-real@1]
+schemas: [rix.ball@1, rix.ball.nested-real@1]
+snapshot: false
+deterministic: true
+defaultEnabled: false
+**/
+
+BallRequireRational(value, label) -> value ~!: :Rational;
+
+BallRequireNonnegativeInteger(value, label) -> {;
+    integer = value ~!: :Integer;
+    integer >= 0 ?: integer ?_ .Error(@"@{label} must be a nonnegative Integer");
+};
+
+BallRaw(midpoint, radius ?= 0) -> {;
+    exactMidpoint = BallRequireRational(midpoint, "Ball midpoint");
+    exactRadius = BallRequireRational(radius, "Ball radius");
+    exactRadius >= 0 ?: _ ?_ .Error("Ball radius must be nonnegative");
+    {=
+        valueKind = :ball,
+        schema = "rix.ball@1",
+        midpoint = exactMidpoint,
+        radius = exactRadius,
+        interval = (exactMidpoint - exactRadius):(exactMidpoint + exactRadius)
+    };
+};
+
+BallConstruct(midpoint, radius ?= 0) -> {;
+    ball = BallRaw(midpoint, radius) ~!: :Ball;
+    .ImmutableValue(ball);
+};
+
+BallRequire(value) -> value ? :Ball ?: value ?_ .Error("Expected a Ball value");
+
+BallPromote(value) -> value ? :Ball ?: value ?_ BallConstruct(value, 0);
+
+BallFromInterval(interval) -> {;
+    exactInterval = interval ~!: :RationalInterval;
+    BallConstruct(exactInterval.Midpoint(), exactInterval.Width() / 2);
+};
+
+BallContains(ball, candidate) -> {;
+    exactBall = BallRequire(ball);
+    candidate ? :Ball
+      ?: exactBall[:interval].Contains(candidate[:interval])
+      ?_ exactBall[:interval].ContainsValue(BallRequireRational(candidate, "Ball containment candidate"));
+};
+
+BallRoundOut(ball, bits ?= 53) -> {;
+    exactBall = BallRequire(ball);
+    precision = BallRequireNonnegativeInteger(bits, "Ball dyadic precision");
+    precision <= 100000 ?: _ ?_ .Error("Ball dyadic precision must not exceed 100000 bits");
+    scale = 2^precision;
+    low = (exactBall[:interval].Low() * scale).Floor() / scale;
+    high = (exactBall[:interval].High() * scale).Ceil() / scale;
+    BallFromInterval(low:high);
+};
+
+BallRecord(ball) -> {;
+    exactBall = BallRequire(ball);
+    {=
+        valueKind = :ball,
+        schema = "rix.ball@1",
+        midpoint = exactBall[:midpoint],
+        radius = exactBall[:radius],
+        interval = exactBall[:interval],
+        lower = exactBall[:interval].Low(),
+        upper = exactBall[:interval].High(),
+        certified = 1
+    };
+};
+
+BallIntegerSqrtFloor(value) -> {;
+    n = BallRequireNonnegativeInteger(value, "Integer square root argument");
+    n < 2 ?: n ?_ {;
+        x := @n;
+        next := (x + 1) // 2;
+        {@ step = 1; @next < @x; {;
+            @x ~= @next;
+            @next ~= (@x + (@n // @x)) // 2;
+        }; step += 1 };
+        x;
+    };
+};
+
+BallExactSqrt(value) -> {;
+    numeratorRoot = BallIntegerSqrtFloor(value.Numerator());
+    denominatorRoot = BallIntegerSqrtFloor(value.Denominator());
+    exact = numeratorRoot^2 == value.Numerator() && denominatorRoot^2 == value.Denominator();
+    exact ?: numeratorRoot / denominatorRoot ?_ _;
+};
+
+BallInitialSqrt(value) -> {;
+    value >= 0 ?: _ ?_ .Error("Ball square root requires a nonnegative exact value");
+    exact = BallExactSqrt(value);
+    exact ?: BallConstruct(exact, 0) ?_ BallFromInterval(0:(value > 1 ?: value ?_ 1));
+};
+
+BallNestedRecord(real) -> {=
+    valueKind = :nestedBallReal,
+    schema = "rix.ball.nested-real@1",
+    recipe = real[:kind],
+    parameter = real[:parameter],
+    initialBall = real[:initialBall],
+    certified = 1
+};
+
+BallCapabilities(real) -> {;
+    nested = real[:valueKind] == :nestedBallReal;
+    {=
+        valueKind = :numericsCapabilities,
+        schema = "rix.numerics.capabilities@1",
+        backend = :ball,
+        representation = nested ?: :nestedRationalBalls ?_ :rationalMidpointRadius,
+        operations = [:enclose, :refine],
+        evidenceLevels = [:proof],
+        certified = 1,
+        arbitraryRefinement = nested,
+        deterministic = 1,
+        minimumWidth = 0,
+        maxCalls = nested ?: 100000 ?_ 0,
+        maxIterations = nested ?: 100000 ?_ 0
+    };
+};
+
+BallSqrtState(real, callLimit, requestedWidth ?= _) -> {;
+    low = real[:initialBall][:interval].Low();
+    high = real[:initialBall][:interval].High();
+    calls = 0;
+    {@ step = 1;
+       @calls < @callLimit && @high - @low > 0 && (@requestedWidth == _ || @high - @low > @requestedWidth);
+       {;
+           midpoint = (@low + @high) / 2;
+           midpoint^2 <= @real[:parameter]
+             ?: {; @low ~= @midpoint; }
+             ?_ {; @high ~= @midpoint; };
+           @calls += 1;
+       };
+       step += 1
+    };
+    {= ball=BallFromInterval(low:high), calls=calls };
+};
+
+BallAt(real, iterations ?= 0) -> {;
+    calls = BallRequireNonnegativeInteger(iterations, "Nested Ball iteration count");
+    BallSqrtState(real, calls)[:ball];
+};
+
+BallProtocolEnclosure(subject, request, operation) -> {;
+    capabilities = BallCapabilities(subject);
+    normalized = .RefinementRequest(request, operation, capabilities);
+    requestedWidth = normalized[:absoluteWidth];
+    maxCalls = normalized[:work][:maxCalls];
+    nested = subject[:valueKind] == :nestedBallReal;
+    state = nested
+      ?: BallSqrtState(subject, maxCalls, requestedWidth)
+      ?_ {= ball=BallRequire(subject), calls=0 };
+    selected = state[:ball];
+    interval = selected[:interval];
+    achievedWidth = interval.Width();
+    goalMet = achievedWidth <= requestedWidth;
+    status = goalMet ?: :enclosed ?_ nested ?: :budgetExhausted ?_ :resolutionFloor;
+    approximation = .CertifiedApproximation(selected[:midpoint], interval, {=
+        reason = status,
+        requested = requestedWidth,
+        achieved = achievedWidth,
+        provider = :ball
+    });
+    {=
+        valueKind = :enclosure,
+        schema = "rix.numerics.enclosure@1",
+        status = status,
+        interval = interval,
+        certified = 1,
+        goalMet = goalMet,
+        requestedWidth = requestedWidth,
+        achievedWidth = achievedWidth,
+        approximation = approximation,
+        evidenceLevel = :proof,
+        backend = :ball,
+        operation = normalized[:operation],
+        trace = [],
+        work = {=
+            calls = state[:calls],
+            iterations = state[:calls],
+            maxCalls = maxCalls,
+            exhausted = !goalMet && nested
+        },
+        diagnostics = status == :budgetExhausted
+          ?: [:maxCallsReached]
+          ?_ status == :resolutionFloor ?: [:finiteBallCannotRefine] ?_ [],
+        evidence = {=
+            kind = nested ?: :nestedBisection ?_ :exactEndpoints,
+            property = :containment,
+            subject = nested ?: subject[:parameter] ?_ subject[:interval]
+        },
+        source = {=
+            plugin = :ball,
+            schema = nested ?: "rix.ball.nested-real@1" ?_ "rix.ball@1",
+            recipe = nested ?: subject[:kind] ?_ :finite
+        }
+    };
+};
+
+BallSqrt(value) -> {;
+    radicand = BallRequireRational(value, "Ball square-root argument");
+    initial = BallInitialSqrt(radicand);
+    real = {=
+        valueKind = :nestedBallReal,
+        schema = "rix.ball.nested-real@1",
+        kind = :sqrt,
+        parameter = radicand,
+        initialBall = initial
+    };
+    real._proto = {=
+        Ball = (self, iterations ?= 0) -> BallAt(self, iterations),
+        InitialBall = (self) -> self[:initialBall],
+        Record = (self) -> BallNestedRecord(self),
+        Enclose = (self, request ?= {= }) -> BallProtocolEnclosure(self, request, :enclose),
+        Refine = (self, request ?= {= }) -> BallProtocolEnclosure(self, request, :refine),
+        NumericsCapabilities = (self) -> BallCapabilities(self)
+    };
+    .ImmutableValue(real);
+};
+
+BallAdd(left, right) -> BallFromInterval(BallPromote(left)[:interval] + BallPromote(right)[:interval]);
+BallSub(left, right) -> BallFromInterval(BallPromote(left)[:interval] - BallPromote(right)[:interval]);
+BallMul(left, right) -> BallFromInterval(BallPromote(left)[:interval] * BallPromote(right)[:interval]);
+BallDiv(left, right) -> {;
+    divisor = BallPromote(right);
+    divisor[:interval].ContainsZero() ?: .Error("Cannot divide by a Ball containing zero")
+                                        ?_ BallFromInterval(BallPromote(left)[:interval] / divisor[:interval]);
+};
+BallNeg(value) -> BallConstruct(-value[:midpoint], value[:radius]);
+BallEq(left, right) -> {;
+    a = BallPromote(left);
+    b = BallPromote(right);
+    a[:midpoint] == b[:midpoint] && a[:radius] == b[:radius];
+};
+
+.TypeKnown(:Ball) ?: _ ?_ .TypeRegister({=
+    name = :Ball,
+    nativeType = :map,
+    defaultTraits = [:number, :enclosed],
+    convertFrom = {=
+        map = (x) ?- [x[:valueKind] == :ball] -> x
+    },
+    validate = (x) -> x[:valueKind] == :ball && x[:radius] >= 0,
+    proto = {=
+        Midpoint = (self) -> self[:midpoint],
+        Radius = (self) -> self[:radius],
+        Interval = (self) -> self[:interval],
+        Lower = (self) -> self[:interval].Low(),
+        Upper = (self) -> self[:interval].High(),
+        Contains = (self, candidate) -> BallContains(self, candidate),
+        RoundOut = (self, bits ?= 53) -> BallRoundOut(self, bits),
+        Record = (self) -> BallRecord(self),
+        Enclose = (self, request ?= {= }) -> BallProtocolEnclosure(self, request, :enclose),
+        Refine = (self, request ?= {= }) -> BallProtocolEnclosure(self, request, :refine),
+        NumericsCapabilities = (self) -> BallCapabilities(self)
+    },
+    installs = {=
+        ADD = [{= name=:BallAdd, prep=(x, y) -> (x ? :Ball) || (y ? :Ball), impl=(x, y) -> BallAdd(x, y) }],
+        SUB = [{= name=:BallSub, prep=(x, y) -> (x ? :Ball) || (y ? :Ball), impl=(x, y) -> BallSub(x, y) }],
+        MUL = [{= name=:BallMul, prep=(x, y) -> (x ? :Ball) || (y ? :Ball), impl=(x, y) -> BallMul(x, y) }],
+        DIV = [{= name=:BallDiv, prep=(x, y) -> (x ? :Ball) || (y ? :Ball), impl=(x, y) -> BallDiv(x, y) }],
+        NEG = [{= name=:BallNeg, prep=(x) -> x ? :Ball, impl=(x) -> BallNeg(x) }],
+        EQ = [{= name=:BallEq, prep=(x, y) -> (x ? :Ball) || (y ? :Ball), impl=(x, y) -> BallEq(x, y) }],
+        NEQ = [{= name=:BallNeq, prep=(x, y) -> (x ? :Ball) || (y ? :Ball), impl=(x, y) -> !BallEq(x, y) }]
+    }
+});
+
+.TypeInstall(:Ball);
+
+ballNamespace = (midpoint, radius ?= 0) -> BallConstruct(midpoint, radius);
+ballNamespace._proto = {=
+    Ball = (self, midpoint, radius ?= 0) -> BallConstruct(midpoint, radius),
+    Interval = (self, low, high) -> BallFromInterval((BallRequireRational(low, "Ball lower endpoint")):(BallRequireRational(high, "Ball upper endpoint"))),
+    Sqrt = (self, value) -> BallSqrt(value),
+    Midpoint = (self, ball) -> BallRequire(ball)[:midpoint],
+    Radius = (self, ball) -> BallRequire(ball)[:radius],
+    Lower = (self, ball) -> BallRequire(ball)[:interval].Low(),
+    Upper = (self, ball) -> BallRequire(ball)[:interval].High(),
+    Contains = (self, ball, candidate) -> BallContains(ball, candidate),
+    RoundOut = (self, ball, bits ?= 53) -> BallRoundOut(ball, bits),
+    Record = (self, value) -> value[:valueKind] == :ball ?: BallRecord(value) ?_ BallNestedRecord(value)
+};
+
+.Host.RegisterCallableValue(
+    "ball",
+    ballNamespace,
+    "Certified rational midpoint-radius balls and nested square-root refinement",
+    ["Numerics", "Exact"]
+);

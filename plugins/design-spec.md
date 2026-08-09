@@ -31,6 +31,9 @@ numeric type or one universal rendering engine.
 | `.float` | Implemented plugin | IEEE-754 Float conversion, arithmetic integration, rounding, intervals of stored values, and approximate elementary functions. |
 | `.oracle` | Implemented Phase 1 plugin | Pure RiX rational-betweenness values, five rational procedure demonstrations, Range validation, finite alternatives, and bounded exact refinement. |
 | `.numerics` | Implemented Phase 1 plugin | Pure RiX request normalization and backend-neutral dispatch for certified Oracle refinement and explicitly approximate Float sampling. |
+| `.ball` | Implemented Phase 1 plugin | Pure RiX exact midpoint-radius snapshots, outward dyadic rounding, finite arithmetic, and nested square-root refinement. |
+| `.cauchy` | Implemented Phase 1 plugin | Pure RiX rational sequences with explicit tail bounds/moduli and certified geometric refinement. |
+| `.continuedFraction` | Implemented Phase 1 plugin | Pure RiX finite and lazy simple continued fractions, exact convergent cylinders, and bounded refinement. |
 | `.radix` | Implemented plugin | Bounded exact positional expansions, finite digit requests, and repeating-period analysis; extends Integer and Rational methods. |
 | `.exactAlgebras` | Implemented plugin | Exact rational quaternion and octonion values with Cayley-Dickson arithmetic. |
 | Plugin catalog | Implemented runtime service | Discovery, metadata, explicit loading, host approval for JavaScript, capability groups, and remounting. |
@@ -55,7 +58,7 @@ numeric type or one universal rendering engine.
 | --- | --- | --- |
 | Exact mathematics expansion | `.algebra` | Polynomial gcd/factorization, rational functions, elimination, exact root evidence, and algebraic-number support beyond the implemented univariate transformation slice. |
 | Numeric orchestration expansion | `.numerics` | Root finding, integration, optimization, ODE/PDE helpers, adaptive sampling, error propagation, and broader algorithm dispatch beyond the implemented neutral Phase 1 enclosure/refinement protocol. |
-| Real backends | `.ball`, `.cauchy`, `.continuedFraction`, `.algebraicReal`; later `.oracle` expansion | Alternative representations that satisfy shared real-number and enclosure protocols. `.float`, `.oracle`, nested `.ball`, and modulus-backed `.cauchy` now have initial implementations. |
+| Real backends | `.algebraicReal`; later expansion of implemented `.ball`, `.cauchy`, `.continuedFraction`, and `.oracle` | Alternative representations that satisfy shared real-number and enclosure protocols. `.float`, `.oracle`, nested `.ball`, modulus-backed `.cauchy`, and convergent-backed `.continuedFraction` now have initial implementations. |
 | Geometry expansion | `.geometry` | Transformations, constraints, conics, implicit loci, and certified intersections/drawing refinement beyond the implemented ruler-and-compass slice. |
 | Plotting | `.plot` | Function, parametric, implicit, data, statistical, vector, contour, and heat-map plots. |
 | 3D scene expansion | `.scene3d` | Certified hidden-surface/shadow policies, adaptive surfaces and volumes, textures, animation, clipping, and interactive orbit beyond the implemented retained wireframe/flat-lit slice. |
@@ -315,10 +318,10 @@ providers when installed.
 | Plugin | Stored representation | Certified enclosure policy | Best uses |
 | --- | --- | --- | --- |
 | `.float` | IEEE-754 binary64 | Exact dyadic enclosure of the stored value; elementary-function results are approximate unless backed by directed error analysis. | Fast exploratory computation, screen sampling, compatibility. |
-| `.ball` | Exact rational midpoint plus radius; explicitly outward-rounded dyadic snapshots | Preserve exact rational endpoints, or widen both endpoints to a requested dyadic grid. Nested recipes refine through certified exact bisection. | Certified snapshots and nested square-root exploration; robust transcendental work and interval Newton remain later phases. |
+| `.ball` | Pure RiX exact rational midpoint plus radius; explicitly outward-rounded dyadic snapshots | Preserve exact rational endpoints, or widen both endpoints to a requested dyadic grid. Nested recipes refine through certified exact bisection. | Certified snapshots and nested square-root exploration; robust transcendental work and interval Newton remain later phases. |
 | `.oracle` | Procedure answering precision requests | Ask directly for a proven rational interval. | Computable reals and lazy exactness. |
 | `.cauchy` | Pure RiX rational sequence plus exact tail-bound function and modulus | Use the modulus to select a term, verify its exact tail inequality, and return the corresponding rational enclosure. A bare sequence remains explicitly non-certifying. | Constructive analysis, visible geometric-series refinement, and sequence-defined constants. |
-| `.continuedFraction` | Finite/rule-generated continued fraction | Use convergents and a proven tail bound; finite rationals terminate exactly. | Diophantine approximation and exact rational recovery. |
+| `.continuedFraction` | Pure RiX finite/rule-generated simple continued fraction | Consecutive convergents form exact certified cylinders for positive tails; finite rationals terminate exactly. | Diophantine approximation, quadratic-irrational exploration, and exact rational recovery. |
 | `.algebraicReal` | Polynomial plus rational isolating interval | Refine using exact sign/root-count evidence. | Exact roots, geometry intersections, certified comparisons. |
 
 Each backend registers implementations for the common operations it can
@@ -767,10 +770,10 @@ rix/plugins/
   float/
   algebra/                 # exact Polynomial transformations
   numerics/                # proposed orchestration
-  real-ball/               # proposed real backend
+  ball/                    # pure RiX Phase 1 real backend
   oracle/                  # specification; proposed real backend
-  real-cauchy/             # proposed real backend
-  real-continued-fraction/ # proposed real backend
+  cauchy/                  # pure RiX Phase 1 real backend
+  continued-fraction/      # pure RiX Phase 1 real backend
   real-algebraic/          # proposed real backend
   geometry/                # proposed
   scene3d/                 # proposed

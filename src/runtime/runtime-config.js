@@ -22,7 +22,7 @@ export const runtimeDefaults = Object.freeze({
     Graphics: Object.freeze(["Graphics"]),
     Draw: Object.freeze(["draw"]),
     Plot: Object.freeze(["plot"]),
-    Core: Object.freeze(["LEN", "FIRST", "LAST", "GETEL", "IRANGE", "IF", "LOOP", "MULTI", "RAND_NAME", "PRINT", "TGEN", "KEYOF", "KEYS", "VALUES", "REGISTERMETHOD", "CertifiedApproximation", "Undecided", "RefinementRequest", "RefinementEffectiveLimits", "RefinementSupports", "RefinementCheck", "RefinementUnsupported"]),
+    Core: Object.freeze(["LEN", "FIRST", "LAST", "GETEL", "IRANGE", "IF", "LOOP", "MULTI", "RAND_NAME", "PRINT", "TGEN", "KEYOF", "KEYS", "VALUES", "REGISTERMETHOD", "CertifiedApproximation", "Undecided", "RefinementRequest", "RefinementEffectiveLimits", "RefinementSupports", "RefinementCheck", "RefinementUnsupported", "TypeKnown", "ImmutableValue"]),
     Methods: Object.freeze(["REGISTERMETHOD"]),
     Arith: Object.freeze(["ADD", "SUB", "MUL", "DIV", "INTDIV", "DIVMOD", "MOD", "POW", "FACTORIAL", "DOUBLEFACTORIAL"]),
     Logic: Object.freeze(["EQ", "NEQ", "LT", "GT", "LTE", "GTE", "AND", "OR", "NOT"]),

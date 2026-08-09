@@ -1,8 +1,10 @@
 # `ball`
 
-`ball` is an opt-in certified-real package. It provides exact rational
-midpoint-radius `Ball` snapshots and immutable `NestedBallReal` recipes whose
+`ball` is an opt-in certified-real package implemented entirely in RiX. It
+provides exact rational midpoint-radius `Ball` snapshots and nested recipes whose
 successive snapshots are guaranteed to be contained in their predecessors.
+Loading it evaluates `ball.plugin.rix`; it does not request approval for a
+JavaScript host installer.
 
 ## Finite balls
 
@@ -68,3 +70,9 @@ precision escalation, complex balls, and validated algorithms such as
 interval Newton belong to later phases.
 
 See [tutorial.md](tutorial.md).
+
+## JavaScript comparison implementation
+
+[`ball.js`](ball.js) retains the original host implementation for comparison
+and profiling. It is intentionally not a plugin manifest and is not bundled or
+discovered by RiX hosts.

@@ -7,7 +7,6 @@ import {
     parseAndEvaluate,
     undecidedReason,
 } from "../../src/index.js";
-import { ExactBall, NestedBallReal } from "../../plugins/ball/ball.js";
 
 function runtime() {
     return {
@@ -26,18 +25,23 @@ function textValue(value) {
 }
 
 describe("Ball plugin", () => {
-    test("is bundled as an opt-in host plugin with EnclosableReal metadata", () => {
+    test("is bundled as an opt-in pure RiX plugin with EnclosableReal metadata", async () => {
         const options = runtime();
         const info = parseAndEvaluate('.Plugin.Info("ball")', options);
 
-        expect(textValue(entry(info, "kind"))).toBe("host");
+        expect(textValue(entry(info, "kind"))).toBe("rix");
         expect(textValue(entry(info, "mount"))).toBe("ball");
         expect(entry(info, "provides").values.map(textValue)).toContain("rix.enclosable-real@1");
         expect(() => parseAndEvaluate(".ball(1, 0)", options)).toThrow("available but not loaded");
-        expect(parseAndEvaluate('.Plugin.Load("ball"); .ball(1, 0)', options)).toBeInstanceOf(ExactBall);
+        const value = parseAndEvaluate('.Plugin.Load("ball"); .ball(1, 0)', options);
+        expect(textValue(entry(value, "valueKind"))).toBe("ball");
+        expect(value._ext.get("__type").value).toBe("Ball");
+
+        const reference = await Bun.file(new URL("../../plugins/ball/ball.js", import.meta.url)).text();
+        expect(reference).toContain("Reference host implementation for comparison");
     });
 
-    test("constructs immutable exact midpoint-radius balls and exposes their records", () => {
+    test("constructs semantic exact midpoint-radius balls and exposes their records", () => {
         const options = runtime();
         const result = parseAndEvaluate(`
             .Plugin.Load("ball");
@@ -46,12 +50,13 @@ describe("Ball plugin", () => {
         `, options);
 
         const ball = result.values[0];
-        expect(ball).toBeInstanceOf(ExactBall);
-        expect(Object.isFrozen(ball)).toBe(true);
+        expect(textValue(entry(ball, "valueKind"))).toBe("ball");
+        expect(ball._ext.get("__type").value).toBe("Ball");
         expect(result.values.slice(1, 5).map(String)).toEqual(["3/2", "1/4", "5/4", "7/4"]);
         expect(result.values[5].value).toBe(1n);
         expect(textValue(entry(result.values[6], "schema"))).toBe("rix.ball@1");
         expect(entry(result.values[6], "interval")).toBeInstanceOf(RationalInterval);
+        expect(() => parseAndEvaluate('b.Set!("radius", 2)', options)).toThrow("immutable value");
     });
 
     test("rounds both endpoints outward to a requested dyadic grid", () => {
@@ -63,12 +68,12 @@ describe("Ball plugin", () => {
             {: original, rounded, rounded.Contains(original) }
         `, options);
 
-        expect(result.values[1].interval.toString()).toBe("3/16:7/16");
+        expect(entry(result.values[1], "interval").toString()).toBe("3/16:7/16");
         expect(result.values[2].value).toBe(1n);
-        expect(result.values[1].interval.contains(result.values[0].interval)).toBe(true);
+        expect(entry(result.values[1], "interval").contains(entry(result.values[0], "interval"))).toBe(true);
 
         const negative = parseAndEvaluate(".ball(-1/3, 1/10).RoundOut(4)", options);
-        expect(negative.interval.toString()).toBe("-7/16:-3/16");
+        expect(entry(negative, "interval").toString()).toBe("-7/16:-3/16");
     });
 
     test("performs exact outward interval arithmetic with exact scalar promotion", () => {
@@ -80,7 +85,7 @@ describe("Ball plugin", () => {
             {: a+b, a-b, a*b, a/b, -a, a+1 }
         `, options);
 
-        expect(result.values.map((ball) => ball.interval.toString())).toEqual([
+        expect(result.values.map((ball) => entry(ball, "interval").toString())).toEqual([
             "47/10:53/10",
             "-13/10:-7/10",
             "133/25:168/25",
@@ -99,22 +104,24 @@ describe("Ball plugin", () => {
             {: root, root.Ball(0), root.Ball(1), root.Ball(2), root.Ball(8), .ball.Sqrt(9).Ball(0) }
         `, options);
 
-        expect(result.values[0]).toBeInstanceOf(NestedBallReal);
+        expect(textValue(entry(result.values[0], "valueKind"))).toBe("nestedBallReal");
         const chain = result.values.slice(1, 5);
-        expect(chain.map((ball) => ball.interval.toString())).toEqual([
+        expect(chain.map((ball) => entry(ball, "interval").toString())).toEqual([
             "0:2",
             "1:2",
             "1:3/2",
             "181/128:91/64",
         ]);
         for (let index = 1; index < chain.length; index += 1) {
-            expect(chain[index - 1].interval.contains(chain[index].interval)).toBe(true);
+            expect(entry(chain[index - 1], "interval").contains(entry(chain[index], "interval"))).toBe(true);
         }
         for (const ball of chain) {
-            expect(ball.interval.low.multiply(ball.interval.low).lessThanOrEqual(result.values[0].parameter)).toBe(true);
-            expect(ball.interval.high.multiply(ball.interval.high).greaterThanOrEqual(result.values[0].parameter)).toBe(true);
+            const interval = entry(ball, "interval");
+            const parameter = entry(result.values[0], "parameter");
+            expect(interval.low.multiply(interval.low).lessThanOrEqual(parameter)).toBe(true);
+            expect(interval.high.multiply(interval.high).greaterThanOrEqual(parameter)).toBe(true);
         }
-        expect(result.values[5].interval.toString()).toBe("3:3");
+        expect(entry(result.values[5], "interval").toString()).toBe("3:3");
     });
 
     test("implements the shared certified refinement contract", () => {

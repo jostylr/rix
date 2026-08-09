@@ -3,6 +3,8 @@
 import oracleSource from "./oracle/oracle.plugin.rix" with { type: "text" };
 import numericsSource from "./numerics/numerics.plugin.rix" with { type: "text" };
 import cauchySource from "./cauchy/cauchy.plugin.rix" with { type: "text" };
+import ballSource from "./ball/ball.plugin.rix" with { type: "text" };
+import continuedFractionSource from "./continued-fraction/continued-fraction.plugin.rix" with { type: "text" };
 import sternBrocotSource from "./stern-brocot/stern-brocot.plugin.rix" with { type: "text" };
 import { readPluginHeader } from "../src/runtime/plugin-catalog.js";
 import { install as installDrawPlugin } from "./draw/draw.plugin.rix.js";
@@ -32,7 +34,6 @@ import { install as installPngPlugin } from "./render-png/png.plugin.rix.js";
 import { install as installPdfPlugin } from "./render-pdf/pdf.plugin.rix.js";
 import { install as installGltfPlugin } from "./render-gltf/gltf.plugin.rix.js";
 import { install as installCsvPlugin } from "./render-csv/csv.plugin.rix.js";
-import { install as installBallPlugin } from "./ball/ball.plugin.rix.js";
 
 const BUNDLED_PLUGINS = [
     {
@@ -51,22 +52,19 @@ const BUNDLED_PLUGINS = [
         sourcePath: "bundled:oracle.plugin.rix",
     },
     {
-        metadata: {
-            id: "ball",
-            description: "Certified rational midpoint-radius balls and nested square-root refinement.",
-            kind: "host", mount: "ball",
-            exports: ["Ball", "Interval", "Sqrt", "Midpoint", "Radius", "Lower", "Upper", "Contains", "RoundOut", "Record"],
-            groups: ["Numerics", "Exact"], permissions: [],
-            provides: ["rix.ball@1", "rix.enclosable-real@1"],
-            schemas: ["rix.ball@1", "rix.ball.nested-real@1"],
-            snapshot: false, deterministic: true, defaultEnabled: false,
-        },
-        install: installBallPlugin,
+        metadata: readPluginHeader(ballSource, "ball.plugin.rix"),
+        source: ballSource,
+        sourcePath: "bundled:ball.plugin.rix",
     },
     {
         metadata: readPluginHeader(cauchySource, "cauchy.plugin.rix"),
         source: cauchySource,
         sourcePath: "bundled:cauchy.plugin.rix",
+    },
+    {
+        metadata: readPluginHeader(continuedFractionSource, "continued-fraction.plugin.rix"),
+        source: continuedFractionSource,
+        sourcePath: "bundled:continued-fraction.plugin.rix",
     },
     {
         metadata: {

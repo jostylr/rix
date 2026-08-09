@@ -345,6 +345,8 @@ export function createDefaultSystemContext(options = {}) {
     ctx.register("RefinementUnsupported", { ...coreFunctions.REFINEMENT_UNSUPPORTED, groups: ["Core", "Numerics"] });
     ctx.register("TraitRegister", coreFunctions.TRAIT_REGISTER);
     ctx.register("TypeRegister", coreFunctions.TYPE_REGISTER);
+    ctx.register("TypeKnown", { ...coreFunctions.TYPE_KNOWN, groups: ["Core"] });
+    ctx.register("ImmutableValue", { ...coreFunctions.IMMUTABLE_VALUE, groups: ["Core"] });
     ctx.register("TypeInstall", coreFunctions.TYPE_INSTALL);
     ctx.register("CapabilityRegister", coreFunctions.CAPABILITY_REGISTER);
     ctx.register("ImportJS", coreFunctions.IMPORT_JS);
