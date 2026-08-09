@@ -80,3 +80,30 @@ branches:
 real := .oracle.Rational(5 / 8);
 .numerics.Capabilities(real);
 ```
+
+The three entry points make distinct requests. A provider may support only a
+subset; unsupported work is returned as a structured result rather than being
+silently treated as another operation:
+
+```rix
+.Plugin.Load("numerics");
+.Plugin.Load("float");
+
+sample := .numerics.Sample(.float(1 / 3));    ## operation :sample
+refine := .numerics.Refine(.float(1 / 3));   ## status :unsupported
+```
+
+Language Halo neighborhoods use this same Core contract directly:
+
+```rix
+.Plugin.Load("oracle");
+
+x := .oracle.Rational(3 / 7);
+x < {~ 1 / 2, 1 / 1000 };              ## true, certified
+x ? {~ (2 / 5):(1 / 2), 1 / 1000 };    ## true, certified membership
+x < {~ 1 / 2, 1 / 1000, {= maxCalls=0 } }; ## undecided: budgetExhausted
+```
+
+Here epsilon requests enclosure width; it does not enlarge the target. An
+uncertified provider, including Float when interpreted as an intended real,
+produces a diagnostic undecided result rather than proving a relation.

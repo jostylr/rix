@@ -506,6 +506,15 @@ limits are intersected by taking the minimum finite bound. Exhaustion returns
 the best certified enclosure plus diagnostics; it does not invalidate work
 already completed.
 
+The normalized request/result contract is a Core runtime service. Provider
+results are accepted for proof only when their capability record supports the
+requested operation, the result is certified, its `CertifiedApproximation`
+matches the returned interval, width and goal fields agree, requested evidence
+is present, and reported work stays within the effective limits. Status also
+admits `:resolutionFloor` and `:unknown`. Uncertified, unsupported, malformed,
+or exhausted results remain diagnostic undecided outcomes; an exhausted best
+certified enclosure may still decide the relation if it already proves it.
+
 ## Guard modes and diagnostic undecided values
 
 The four prep markers have distinct contracts:

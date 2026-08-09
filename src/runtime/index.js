@@ -65,6 +65,17 @@ export { HOLE, isHole } from "./hole.js";
 export { DiagnosticsRegistry, getDiagnostics, RixAbort, isRixAbort, createEvent } from "./diagnostics.js";
 export { runtimeDefaults } from "./runtime-config.js";
 export {
+    REFINEMENT_REQUEST_SCHEMA,
+    REFINEMENT_RESULT_SCHEMA,
+    REFINEMENT_CAPABILITIES_SCHEMA,
+    normalizeRefinementRequest,
+    refinementEffectiveLimits,
+    refinementSupports,
+    checkRefinementResult,
+    unsupportedRefinementResult,
+    refinementOutcome,
+} from "./refinement.js";
+export {
     isOutputValue,
     isInlineOutput,
     isBlockOutput,

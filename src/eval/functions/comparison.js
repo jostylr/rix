@@ -15,99 +15,38 @@ import {
 } from "@ratmath/core";
 import { UNDECIDED, isUndecided, undecidedDiagnostic } from "../../runtime/decision.js";
 import { HaloNeighborhood } from "../../runtime/halo.js";
+import {
+    normalizeRefinementRequest,
+    refinementEntry,
+    refinementMap,
+    refinementOutcome,
+    refinementSupports,
+} from "../../runtime/refinement.js";
 import { resolveMethod } from "../../runtime/methods.js";
 import { callWithConcreteArgs } from "./functions.js";
 
-const STANDARD_LIMIT_KEYS = new Set([
-    "timeout", "memory", "maxmemory", "maxwork", "maxcalls",
-    "maxiterations", "maxdepth", "maxprecision",
-]);
-
-function limitMapEntries(value) {
-    return value?.type === "map" && value.entries instanceof Map ? value.entries : null;
-}
-
-function exactLimit(value) {
-    if (value instanceof Rational) return value;
-    if (value instanceof Integer) return new Rational(value.value, 1n);
-    return null;
-}
-
-function restrictiveLimit(requested, provider) {
-    if (requested == null) return provider;
-    if (provider == null) return requested;
-    const requestedExact = exactLimit(requested);
-    const providerExact = exactLimit(provider);
-    if (!requestedExact || !providerExact) return requested;
-    return requestedExact.lessThanOrEqual(providerExact) ? requested : provider;
-}
-
-function collectRequesterLimits(limits) {
-    const collected = new Map();
-    const entries = limitMapEntries(limits);
-    if (!entries) return collected;
-    for (const [key, value] of entries) {
-        const normalized = String(key).toLowerCase() === "maxmemory" ? "memory" : String(key).toLowerCase();
-        collected.set(normalized, value);
-    }
-    return collected;
-}
-
-function collectProviderLimits(capabilities) {
-    const collected = new Map();
-    const entries = limitMapEntries(capabilities);
-    if (!entries) return collected;
-
-    for (const [key, value] of entries) {
-        const normalized = String(key).toLowerCase();
-        if (STANDARD_LIMIT_KEYS.has(normalized)) {
-            collected.set(normalized === "maxmemory" ? "memory" : normalized, value);
-        }
-    }
-    for (const containerName of ["limits", "work"]) {
-        const nested = limitMapEntries(entries.get(containerName));
-        if (!nested) continue;
-        for (const [key, value] of nested) {
-            const normalized = String(key).toLowerCase() === "maxmemory" ? "memory" : String(key).toLowerCase();
-            collected.set(normalized, value);
-        }
-    }
-    return collected;
-}
-
-function haloRequest(halo, operation, capabilities = null) {
-    const requester = collectRequesterLimits(halo.limits);
-    const provider = collectProviderLimits(capabilities);
-    const effective = new Map();
-    for (const key of new Set([...requester.keys(), ...provider.keys()])) {
-        effective.set(key, restrictiveLimit(requester.get(key), provider.get(key)));
-    }
-
-    const workEntries = new Map(effective);
-    const requestEntries = new Map([
-        ["schema", { type: "string", value: "rix.numerics.refinement-request@1" }],
-        ["operation", { type: "string", value: operation }],
-        ["absoluteWidth", halo.epsilon],
-    ]);
-    if (effective.has("timeout")) requestEntries.set("timeout", effective.get("timeout"));
-    if (effective.has("memory")) requestEntries.set("memory", effective.get("memory"));
-    requestEntries.set("work", { type: "map", entries: workEntries });
-    return { type: "map", entries: requestEntries };
-}
-
-function refinedValueFromResult(result) {
-    if (result?.type !== "map" || !(result.entries instanceof Map)) return null;
-    return result.entries.get("approximation") ?? result.entries.get("interval") ?? null;
+function haloRequest(halo, purpose, capabilities = null) {
+    const entries = new Map(halo.limits?.entries ?? []);
+    entries.set("absolutewidth", halo.epsilon);
+    entries.set("purpose", { type: "string", value: purpose });
+    return normalizeRefinementRequest(refinementMap(entries), {
+        operation: { type: "string", value: "refine" },
+        capabilities,
+    });
 }
 
 export function maybeRefineForHalo(value, halo, operation, context, evaluate) {
-    if (!(halo instanceof HaloNeighborhood)) return value;
-    if (isEnclosed(value) || value instanceof Integer || value instanceof Rational) return value;
+    if (!(halo instanceof HaloNeighborhood)) return { value, diagnostic: null };
+    if (isEnclosed(value) || value instanceof Integer || value instanceof Rational) return { value, diagnostic: null };
     let method;
     try {
         method = resolveMethod(value, "REFINE", context);
     } catch (error) {
-        if (/Method not found/.test(error?.message || "")) return value;
+        if (/Method not found/.test(error?.message || "")) {
+            return { value, diagnostic: undecidedDiagnostic("unsupported", refinementMap([
+                ["operation", { type: "string", value: "refine" }],
+            ])) };
+        }
         throw error;
     }
     const invokeMethod = (resolved, args) => resolved.type === "method_builtin"
@@ -123,12 +62,33 @@ export function maybeRefineForHalo(value, halo, operation, context, evaluate) {
     if (capabilities && typeof capabilities.then === "function") {
         throw new Error("Async halo capabilities require an async comparison context");
     }
+    if (capabilities === null) {
+        return { value, diagnostic: undecidedDiagnostic("unsupported", refinementMap([
+            ["operation", { type: "string", value: "refine" }],
+            ["diagnostics", { type: "sequence", values: [{ type: "string", value: "missingNumericsCapabilities" }] }],
+        ])) };
+    }
     const request = haloRequest(halo, operation, capabilities);
+    if (capabilities !== null && !refinementSupports(capabilities, "refine")) {
+        const reason = refinementEntry(capabilities, "certified", null) === null
+            ? "providerUncertified"
+            : "unsupported";
+        return { value, diagnostic: undecidedDiagnostic(reason, refinementMap([
+            ["operation", { type: "string", value: "refine" }],
+            ["backend", refinementEntry(capabilities, "backend", null)],
+            ["capabilities", capabilities],
+        ])) };
+    }
     const result = invokeMethod(method, [value, request]);
     if (result && typeof result.then === "function") {
         throw new Error("Async halo refinement requires an async comparison context");
     }
-    return refinedValueFromResult(result) ?? value;
+    const outcome = refinementOutcome(result, request, capabilities);
+    return {
+        value: outcome.value ?? value,
+        diagnostic: outcome.value === null ? undecidedDiagnostic(outcome.reason, outcome.details) :
+            outcome.reason === "haloResolutionReached" ? null : undecidedDiagnostic(outcome.reason, outcome.details),
+    };
 }
 
 function isEnclosed(value) {
@@ -149,13 +109,16 @@ function relationDecision(a, b, operation) {
     }
 }
 
-function haloDecision(left, right, operation) {
+function haloDecision(left, right, operation, unresolvedDiagnostic = null) {
     if (!(right instanceof HaloNeighborhood)) return null;
+    if (unresolvedDiagnostic && !isEnclosed(left) && !(left instanceof Integer || left instanceof Rational)) {
+        return unresolvedDiagnostic;
+    }
     if (right.target instanceof RationalInterval) {
         throw new Error(`Relational halo target for '${operation}' must be an exact scalar`);
     }
     const mask = possibleRelations(left, right.target);
-    const unresolved = () => undecidedDiagnostic("haloResolutionReached", {
+    const unresolved = () => unresolvedDiagnostic ?? undecidedDiagnostic("haloResolutionReached", {
         type: "map",
         entries: new Map([
             ["epsilon", right.epsilon],
@@ -281,14 +244,16 @@ export const comparisonFunctions = {
     EQ: {
         impl(args, context, evaluate) {
             const [rawA, b] = args;
-            const a = maybeRefineForHalo(rawA, b, "eq", context, evaluate);
-            const decision = haloDecision(a, b, "eq") ?? relationDecision(a, b, "eq");
+            const refinement = maybeRefineForHalo(rawA, b, "eq", context, evaluate);
+            const a = refinement.value;
+            const decision = haloDecision(a, b, "eq", refinement.diagnostic) ?? relationDecision(a, b, "eq");
             if (decision !== null) return boolResult(decision);
             if (a && b && typeof a.equals === "function") {
                 return boolResult(a.equals(b));
             }
             if (a && b && a.type === "string" && b.type === "string") return boolResult(a.value === b.value); return boolResult(a === b);
         },
+        preempt: (args) => args[1] instanceof HaloNeighborhood,
         pure: false,
         doc: "Equality check — returns 1 or null",
     },
@@ -296,54 +261,64 @@ export const comparisonFunctions = {
     NEQ: {
         impl(args, context, evaluate) {
             const [rawA, b] = args;
-            const a = maybeRefineForHalo(rawA, b, "neq", context, evaluate);
-            const decision = haloDecision(a, b, "neq") ?? relationDecision(a, b, "neq");
+            const refinement = maybeRefineForHalo(rawA, b, "neq", context, evaluate);
+            const a = refinement.value;
+            const decision = haloDecision(a, b, "neq", refinement.diagnostic) ?? relationDecision(a, b, "neq");
             if (decision !== null) return boolResult(decision);
             if (a && b && typeof a.equals === "function") {
                 return boolResult(!a.equals(b));
             }
             if (a && b && a.type === "string" && b.type === "string") return boolResult(a.value !== b.value); return boolResult(a !== b);
         },
+        preempt: (args) => args[1] instanceof HaloNeighborhood,
         pure: false,
         doc: "Inequality check — returns 1 or null",
     },
 
     LT: {
         impl(args, context, evaluate) {
-            const left = maybeRefineForHalo(args[0], args[1], "lt", context, evaluate);
-            const decision = haloDecision(left, args[1], "lt") ?? relationDecision(left, args[1], "lt");
+            const refinement = maybeRefineForHalo(args[0], args[1], "lt", context, evaluate);
+            const left = refinement.value;
+            const decision = haloDecision(left, args[1], "lt", refinement.diagnostic) ?? relationDecision(left, args[1], "lt");
             return decision === null ? boolResult(compare(left, args[1]) < 0) : boolResult(decision);
         },
+        preempt: (args) => args[1] instanceof HaloNeighborhood,
         pure: false,
         doc: "Less than — returns 1 or null",
     },
 
     GT: {
         impl(args, context, evaluate) {
-            const left = maybeRefineForHalo(args[0], args[1], "gt", context, evaluate);
-            const decision = haloDecision(left, args[1], "gt") ?? relationDecision(left, args[1], "gt");
+            const refinement = maybeRefineForHalo(args[0], args[1], "gt", context, evaluate);
+            const left = refinement.value;
+            const decision = haloDecision(left, args[1], "gt", refinement.diagnostic) ?? relationDecision(left, args[1], "gt");
             return decision === null ? boolResult(compare(left, args[1]) > 0) : boolResult(decision);
         },
+        preempt: (args) => args[1] instanceof HaloNeighborhood,
         pure: false,
         doc: "Greater than — returns 1 or null",
     },
 
     LTE: {
         impl(args, context, evaluate) {
-            const left = maybeRefineForHalo(args[0], args[1], "lte", context, evaluate);
-            const decision = haloDecision(left, args[1], "lte") ?? relationDecision(left, args[1], "lte");
+            const refinement = maybeRefineForHalo(args[0], args[1], "lte", context, evaluate);
+            const left = refinement.value;
+            const decision = haloDecision(left, args[1], "lte", refinement.diagnostic) ?? relationDecision(left, args[1], "lte");
             return decision === null ? boolResult(compare(left, args[1]) <= 0) : boolResult(decision);
         },
+        preempt: (args) => args[1] instanceof HaloNeighborhood,
         pure: false,
         doc: "Less than or equal — returns 1 or null",
     },
 
     GTE: {
         impl(args, context, evaluate) {
-            const left = maybeRefineForHalo(args[0], args[1], "gte", context, evaluate);
-            const decision = haloDecision(left, args[1], "gte") ?? relationDecision(left, args[1], "gte");
+            const refinement = maybeRefineForHalo(args[0], args[1], "gte", context, evaluate);
+            const left = refinement.value;
+            const decision = haloDecision(left, args[1], "gte", refinement.diagnostic) ?? relationDecision(left, args[1], "gte");
             return decision === null ? boolResult(compare(left, args[1]) >= 0) : boolResult(decision);
         },
+        preempt: (args) => args[1] instanceof HaloNeighborhood,
         pure: false,
         doc: "Greater than or equal — returns 1 or null",
     },

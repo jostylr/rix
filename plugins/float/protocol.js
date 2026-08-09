@@ -1,4 +1,5 @@
 import { Integer, Rational, RationalInterval } from "@ratmath/core";
+import { unsupportedRefinementResult } from "../../src/runtime/refinement.js";
 
 function int(value) {
     return new Integer(BigInt(value));
@@ -65,7 +66,7 @@ export function NumericsCapabilities() {
     ]);
 }
 
-export function Enclose(value, request) {
+function approximateStoredValue(value, request, operation) {
     const exact = exactFloatRational(value);
     const requestedWidth = entry(request, "absolutewidth", null);
     const requestedWork = entry(entry(request, "work", null), "maxwork", int(0));
@@ -80,7 +81,7 @@ export function Enclose(value, request) {
         ["achievedwidth", Rational.zero],
         ["evidencelevel", text("approximate")],
         ["backend", text("float")],
-        ["operation", text("sample")],
+        ["operation", text(operation)],
         ["trace", sequence([])],
         ["work", map([
             ["samples", int(1)],
@@ -99,4 +100,14 @@ export function Enclose(value, request) {
     ]);
 }
 
-export const Refine = Enclose;
+export function Sample(value, request) {
+    return approximateStoredValue(value, request, "sample");
+}
+
+export function Enclose(value, request) {
+    return approximateStoredValue(value, request, "enclose");
+}
+
+export function Refine(_value, request) {
+    return unsupportedRefinementResult(request, NumericsCapabilities(), "noArbitraryRefinementForIntendedReal");
+}

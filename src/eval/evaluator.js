@@ -337,6 +337,12 @@ export function createDefaultSystemContext(options = {}) {
         ...coreFunctions.CERTIFIED_APPROXIMATION,
         groups: ["Core"],
     });
+    ctx.register("Undecided", { ...coreFunctions.UNDECIDED_DIAGNOSTIC, groups: ["Core"] });
+    ctx.register("RefinementRequest", { ...coreFunctions.REFINEMENT_REQUEST, groups: ["Core", "Numerics"] });
+    ctx.register("RefinementEffectiveLimits", { ...coreFunctions.REFINEMENT_EFFECTIVE_LIMITS, groups: ["Core", "Numerics"] });
+    ctx.register("RefinementSupports", { ...coreFunctions.REFINEMENT_SUPPORTS, groups: ["Core", "Numerics"] });
+    ctx.register("RefinementCheck", { ...coreFunctions.REFINEMENT_CHECK, groups: ["Core", "Numerics"] });
+    ctx.register("RefinementUnsupported", { ...coreFunctions.REFINEMENT_UNSUPPORTED, groups: ["Core", "Numerics"] });
     ctx.register("TraitRegister", coreFunctions.TRAIT_REGISTER);
     ctx.register("TypeRegister", coreFunctions.TYPE_REGISTER);
     ctx.register("TypeInstall", coreFunctions.TYPE_INSTALL);

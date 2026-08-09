@@ -23,7 +23,7 @@ answer := .oracle.Ask(q, 0:1, 1 / 100)
 small := .oracle.Refine(q, {= width = 1 / 1000, maxCalls = 100 })
 ```
 
-The available methods are `.Rational`, `.Query`, `.Answer`, `.Prophecy`,
+The available methods are `.Rational`, `.Query`, `.Answer`, `.Decision`, `.Prophecy`,
 `.WorkPolicy`, `.Evidence`, `.Ask`, `.AskAll`, `.CheckRange`, and `.Refine`.
 The rational constructor accepts `:singular`, `:reflexive`, `:halo`,
 `:randomHalo`, and `:bisection` procedure modes. Every refinement operation
@@ -33,6 +33,12 @@ Certified refinement records also include `approximation`, a
 `CertifiedApproximation` retaining the exact interval reached when the budget
 ends. Budget exhaustion is therefore usable uncertainty, not an error or a
 silently truncated decimal.
+
+The paper-specific `procedure=:halo` and `.Ask(real, interval, delta)` retain
+their original open-delta query meaning. They are distinct from a language
+Halo neighborhood such as `real < {~ 1/2, 1/1000 }`: the latter asks the
+shared refinement contract for a certified enclosure of the represented real,
+and its epsilon is a resolution target rather than an expansion of `1/2`.
 
 See the [implementation specification](specification.md) and the
 [tutorial](tutorial.md).

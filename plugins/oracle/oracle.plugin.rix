@@ -3,7 +3,7 @@ id: oracle
 description: Exact rational-betweenness oracle demonstrations and bounded refinement.
 kind: rix
 mount: oracle
-exports: [Rational, Query, Answer, Prophecy, WorkPolicy, Evidence, Ask, AskAll, CheckRange, Refine]
+exports: [Rational, Query, Answer, Decision, Prophecy, WorkPolicy, Evidence, Ask, AskAll, CheckRange, Refine]
 groups: [Numerics, Exact]
 permissions: []
 provides: [rix.oracle@1, rix.enclosable-real@1]
@@ -87,6 +87,23 @@ OracleAnswer(status, query, prophecy ?= _, reason ?= _, procedure ?= _) -> {;
         evidence = _,
         work = {= calls = 1, iterations = 1 }
     } ?_ .Error("Oracle answer status must be :yes, :no, or :unknown");
+};
+
+OracleDecision(answer) -> {;
+    check = OracleCheckRange(answer);
+    check[:valid] ?: {?
+      answer[:status] == :yes ? 1;
+      answer[:status] == :no ? _;
+      answer[:status] == :unknown ? .Undecided(:oracleUnknown, {=
+        reason = answer[:reason],
+        procedure = answer[:procedure],
+        query = answer[:query],
+        prophecy = answer[:prophecy],
+        evidence = answer[:evidence],
+        work = answer[:work]
+      });
+      .Error("Oracle Decision requires an answer with :yes, :no, or :unknown status")
+    } ?_ .Error("Oracle Decision received an answer that violates Range");
 };
 
 BuildRationalOracle(exactValue, selectedProcedure, options) -> {;
@@ -313,12 +330,16 @@ OracleNumericsCapabilities(real) -> {=
 };
 
 OracleProtocolEnclose(real, request) -> {;
+    workRequest = request[:work];
     refined = OracleRefine(real, {=
         width = request[:absoluteWidth],
-        maxCalls = request[:work][:maxCalls],
+        maxCalls = workRequest[:maxCalls],
         trace = request[:trace]
     });
     goalMet = refined[:status] == :enclosed;
+    diagnostics = [];
+    diagnostics = workRequest.Has("timeout") ?: diagnostics.Push(:timeoutNotCooperativelyEnforced) ?_ diagnostics;
+    diagnostics = workRequest.Has("memory") ?: diagnostics.Push(:memoryNotCooperativelyEnforced) ?_ diagnostics;
     {=
         valueKind = :enclosure,
         schema = "rix.numerics.enclosure@1",
@@ -334,7 +355,7 @@ OracleProtocolEnclose(real, request) -> {;
         operation = request[:operation],
         trace = refined[:trace],
         work = refined[:work],
-        diagnostics = [],
+        diagnostics = diagnostics,
         evidence = refined[:evidence],
         source = real[:provenance]
     };
@@ -345,6 +366,7 @@ oracleNamespace._proto = {=
     Rational = (self, value, options ?= {= }) -> RationalOracle(value, options),
     Query = (self, interval, delta, auxiliary ?= _) -> OracleQuery(interval, delta, auxiliary),
     Answer = (self, status, query, prophecy ?= _, reason ?= _) -> OracleAnswer(status, query, prophecy, reason),
+    Decision = (self, answer) -> OracleDecision(answer),
     Prophecy = (self, real, interval, query ?= _) -> OracleProphecy(real, interval, query),
     WorkPolicy = (self, options ?= {= }) -> OracleWorkPolicy(options),
     Evidence = (self, property, level, subject, witness ?= _) -> OracleEvidence(property, level, subject, witness),

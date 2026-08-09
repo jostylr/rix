@@ -518,12 +518,13 @@ export const collectionFunctions = {
                 if (!(coll.target instanceof RationalInterval)) {
                     throw new Error("Membership halo target must be a RationalInterval");
                 }
-                x = maybeRefineForHalo(x, coll, "member", context, evaluate);
+                const refinement = maybeRefineForHalo(x, coll, "member", context, evaluate);
+                x = refinement.value;
                 const enclosure = enclosureOf(x);
-                if (!enclosure) throw new Error("Halo membership requires an exact or enclosed numeric value");
+                if (!enclosure) return refinement.diagnostic ?? undecidedDiagnostic("unsupported");
                 if (coll.target.contains(enclosure)) return new Integer(1);
                 if (enclosure.high.lessThan(coll.target.low) || enclosure.low.greaterThan(coll.target.high)) return null;
-                return undecidedDiagnostic("haloOverlap", {
+                return refinement.diagnostic ?? undecidedDiagnostic("haloOverlap", {
                     type: "map",
                     entries: new Map([["epsilon", coll.epsilon], ["limits", coll.limits]]),
                 });

@@ -33,3 +33,17 @@ For display-oriented decimal work, rounding is explicit:
 
 The results preserve the actual stored IEEE value, rather than pretending that
 the input was a decimal real number.
+
+With `.numerics`, Float is an honest sampling backend rather than a refiner:
+
+```rix
+.Plugin.Load("numerics");
+
+sample := .numerics.Sample(viaMethod); ## :approximate stored-value sample
+refine := .numerics.Refine(viaMethod); ## :unsupported
+viaMethod < {~ 1 / 2, 1 / 1000 };      ## undecided: providerUncertified
+```
+
+The point interval in `sample` exactly identifies the stored binary64 value.
+It does not certify the intended real that led to that value, so neither
+Numerics nor a Halo comparison promotes it to proof.

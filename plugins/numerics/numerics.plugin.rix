@@ -11,132 +11,49 @@ schemas: [rix.numerics.refinement-request@1, rix.numerics.enclosure@1]
 defaultEnabled: false
 **/
 
-Option(options, key, fallback) -> options.Has(key) ?: options[key] ?_ fallback;
+NumericsRequest(options ?= {= }, operation ?= _, capabilities ?= _) ->
+    .RefinementRequest(options, operation, capabilities);
 
-RequirePositive(value, label) -> {;
-    rational = value ~!: :Rational;
-    rational > 0 ?: rational ?_ .Error(@"@{label} must be a positive rational");
-};
+NumericsWorkPolicy(options ?= {= }) -> NumericsRequest(options)[:work];
 
-RequireNonnegativeInteger(value, label) -> {;
-    integer = value ~!: :Integer;
-    integer >= 0 ?: integer ?_ .Error(@"@{label} must be a nonnegative integer");
-};
+NumericsEffectiveLimits(request, capabilities ?= {= }) ->
+    .RefinementEffectiveLimits(request, capabilities);
 
-OptionalPositive(value, label) -> value == _ ?: _ ?_ RequirePositive(value, label);
-OptionalNonnegativeInteger(value, label) -> value == _ ?: _ ?_ RequireNonnegativeInteger(value, label);
+CheckEnclosure(result, request, capabilities ?= _) ->
+    .RefinementCheck(result, request, capabilities);
 
-RestrictiveLimit(requested, provider) ->
-    requested == _ ?: provider ?_
-    provider == _ ?: requested ?_
-    .Min(requested, provider);
-
-NumericsWorkPolicy(options ?= {= }) -> {;
-    maxWork = RequireNonnegativeInteger(Option(options, "maxwork", 100), "maxWork");
-    {=
-        valueKind = :numericsWorkPolicy,
-        schema = "rix.numerics.work-policy@1",
-        maxWork = maxWork,
-        maxCalls = RequireNonnegativeInteger(Option(options, "maxcalls", maxWork), "maxCalls"),
-        maxIterations = RequireNonnegativeInteger(Option(options, "maxiterations", maxWork), "maxIterations"),
-        maxDepth = OptionalNonnegativeInteger(Option(options, "maxdepth", _), "maxDepth"),
-        timeout = OptionalPositive(Option(options, "timeout", _), "timeout"),
-        memory = OptionalNonnegativeInteger(
-            Option(options, "memory", Option(options, "maxmemory", _)),
-            "memory"
-        )
-    };
-};
-
-NumericsEffectiveLimits(request, capabilities ?= {= }) -> {;
-    work = request[:work];
-    {=
-        maxWork = RestrictiveLimit(work[:maxWork], Option(capabilities, "maxwork", _)),
-        maxCalls = RestrictiveLimit(work[:maxCalls], Option(capabilities, "maxcalls", _)),
-        maxIterations = RestrictiveLimit(work[:maxIterations], Option(capabilities, "maxiterations", _)),
-        maxDepth = RestrictiveLimit(work[:maxDepth], Option(capabilities, "maxdepth", _)),
-        timeout = RestrictiveLimit(work[:timeout], Option(capabilities, "timeout", _)),
-        memory = RestrictiveLimit(work[:memory], Option(capabilities, "memory", Option(capabilities, "maxmemory", _)))
-    };
-};
-
-NumericsRequest(options ?= {= }) -> {;
-    width = RequirePositive(
-        Option(options, "absolutewidth", Option(options, "width", 1 / 1000)),
-        "absoluteWidth"
-    );
-    relativeWidth = Option(options, "relativewidth", _);
-    relativeWidth == _ ?: _ ?_ RequirePositive(relativeWidth, "relativeWidth");
-    {=
-        valueKind = :refinementRequest,
-        schema = "rix.numerics.refinement-request@1",
-        operation = Option(options, "operation", :enclose),
-        absoluteWidth = width,
-        relativeWidth = relativeWidth,
-        evidenceRequired = Option(options, "evidencerequired", :any),
-        trace = Option(options, "trace", 1),
-        seed = Option(options, "seed", 1),
-        work = NumericsWorkPolicy(options)
-    };
-};
-
-AsRequest(value) -> {;
-    isRequest = value.Has("schema") && value[:schema] == "rix.numerics.refinement-request@1";
-    isRequest ?: value ?_ NumericsRequest(value);
-};
-
-CheckEnclosure(result, request) -> {;
-    fieldsPresent = result.Has("status") && result.Has("interval") &&
-        result.Has("certified") && result.Has("goalmet") &&
-        result.Has("evidencelevel") && result.Has("backend") &&
-        result.Has("work") && result.Has("diagnostics");
-    validStatus = {| :enclosed, :approximate, :goalNotMet, :budgetExhausted, :unsupported |}.Has(result[:status]);
-    interval = result[:interval] ~!: :RationalInterval;
-    schemaValid = result[:schema] == "rix.numerics.enclosure@1";
-    approximationPresent = !result[:certified] || result.Has("approximation");
-    valid = fieldsPresent && validStatus && schemaValid;
-    {=
-        valueKind = :numericsResultCheck,
-        valid = valid,
-        fieldsPresent = fieldsPresent,
-        statusValid = validStatus,
-        schemaValid = schemaValid,
-        approximationPresent = approximationPresent,
-        interval = interval,
-        request = request,
-        result = result
-    };
-};
-
-CheckedEnclosure(result, request) -> {;
-    check = CheckEnclosure(result, request);
+CheckedEnclosure(result, request, capabilities) -> {;
+    check = CheckEnclosure(result, request, capabilities);
     check[:valid] ?: result ?_ .Error("EnclosableReal provider returned an invalid enclosure record");
 };
 
-ProviderEnclose(value, request) -> CheckedEnclosure(value.Enclose(request), request);
-ProviderRefine(value, request) -> CheckedEnclosure(value.Refine(request), request);
+InvokeProvider(value, request, selectedOperation) ->
+    selectedOperation == :enclose ?: value.Enclose(request) ?_
+    selectedOperation == :refine ?: value.Refine(request) ?_
+    selectedOperation == :sample ?: value.Sample(request) ?_
+    .RefinementUnsupported(request, value.NumericsCapabilities(), :unknownOperation);
 
-NumericsEnclose(value, options ?= {= }) -> {;
-    request = AsRequest(options);
-    ProviderEnclose(value, request);
-};
-
-NumericsRefine(value, options ?= {= }) -> {;
-    request = AsRequest(options);
-    ProviderRefine(value, request);
+ProviderOperation(value, options, operation) -> {;
+    capabilities = value.NumericsCapabilities();
+    request = NumericsRequest(options, operation, capabilities);
+    supported = .RefinementSupports(capabilities, operation);
+    result = supported ?: InvokeProvider(value, request, operation)
+                       ?_ .RefinementUnsupported(request, capabilities, :operationUnsupported);
+    supported ?: CheckedEnclosure(result, request, capabilities) ?_ result;
 };
 
 numericsNamespace = {= };
 numericsNamespace._proto = {=
     Request = (self, options ?= {= }) -> NumericsRequest(options),
     WorkPolicy = (self, options ?= {= }) -> NumericsWorkPolicy(options),
-    EffectiveLimits = (self, request, capabilities ?= {= }) -> NumericsEffectiveLimits(AsRequest(request), capabilities),
-    Enclose = (self, value, options ?= {= }) -> NumericsEnclose(value, options),
-    Refine = (self, value, options ?= {= }) -> NumericsRefine(value, options),
-    Sample = (self, value, options ?= {= }) -> NumericsEnclose(value, options),
+    EffectiveLimits = (self, request, capabilities ?= {= }) -> NumericsEffectiveLimits(request, capabilities),
+    Enclose = (self, value, options ?= {= }) -> ProviderOperation(value, options, :enclose),
+    Refine = (self, value, options ?= {= }) -> ProviderOperation(value, options, :refine),
+    Sample = (self, value, options ?= {= }) -> ProviderOperation(value, options, :sample),
     Approximation = (self, result) -> result.Has("approximation") ?: result[:approximation] ?_ _,
     Capabilities = (self, value) -> value.NumericsCapabilities(),
-    CheckResult = (self, result, options ?= {= }) -> CheckEnclosure(result, AsRequest(options))
+    CheckResult = (self, result, options ?= {= }, capabilities ?= _) ->
+        CheckEnclosure(result, NumericsRequest(options), capabilities)
 };
 
 .Host.RegisterValue("numerics", numericsNamespace, "Backend-neutral bounded enclosure and refinement orchestration", ["Numerics"]);

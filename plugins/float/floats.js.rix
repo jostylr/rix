@@ -30,6 +30,7 @@
   proto = {=
     Value = (self) -> .JSCall("floats.js", :Value, self),
     ToString = (self) -> .JSCall("floats.js", :Value, self),
+    Sample = (self, request) -> .JSCall("protocol.js", :Sample, self, request),
     Enclose = (self, request) -> .JSCall("protocol.js", :Enclose, self, request),
     Refine = (self, request) -> .JSCall("protocol.js", :Refine, self, request),
     NumericsCapabilities = (self) -> .JSCall("protocol.js", :NumericsCapabilities)

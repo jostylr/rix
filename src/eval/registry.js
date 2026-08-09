@@ -32,6 +32,7 @@ export class Registry {
             lazy: options.lazy || false,
             pure: options.pure || false,
             doc: options.doc || "",
+            preempt: options.preempt || null,
         };
         if (this.multifunctionNames.has(name) && !entry.lazy) {
             this.functions.set(name, this._createSystemMultifunction(name, entry));
@@ -48,6 +49,7 @@ export class Registry {
                 name: "NativeFallback",
                 impl: fallback.impl,
                 prep: null,
+                preempt: fallback.preempt,
                 nativeFallback: true,
                 targetFunction: name,
                 installOrder: Number.POSITIVE_INFINITY,
@@ -83,6 +85,14 @@ export class Registry {
         const func = this.functions.get(name);
         if (!func?.systemMultifunction) {
             throw new Error(`${name} is not a system multifunction`);
+        }
+        const nativeFallback = func.variants.find((variant) => variant.nativeFallback);
+        if (nativeFallback?.preempt?.(args, context, evaluate)) {
+            return {
+                value: nativeFallback.impl(args, context, evaluate),
+                args,
+                variant: nativeFallback,
+            };
         }
         const candidates = [];
         for (const variant of func.variants) {

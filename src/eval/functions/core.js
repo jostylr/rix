@@ -16,7 +16,7 @@ import {
     parseNumber as parseCoreNumber,
 } from "@ratmath/core";
 import { HOLE, isHole } from "../../runtime/hole.js";
-import { UNDECIDED, decisionState } from "../../runtime/decision.js";
+import { UNDECIDED, decisionState, undecidedDiagnostic } from "../../runtime/decision.js";
 import {
     shallowCopyValue, deepCopyValue,
     copyAllMeta, transferMetaForUpdate,
@@ -43,6 +43,13 @@ import {
 } from "../../runtime/type-system.js";
 import { callWithConcreteArgs } from "./functions.js";
 import { HaloNeighborhood } from "../../runtime/halo.js";
+import {
+    checkRefinementResult,
+    normalizeRefinementRequest,
+    refinementEffectiveLimits,
+    refinementSupports,
+    unsupportedRefinementResult,
+} from "../../runtime/refinement.js";
 
 const BASE_RESERVED_CHARS = new Set([".", "/", "#", "~", "_", "^", "+", "-"]);
 // ImportJS resolves module targets to absolute paths before loading them, so
@@ -1553,6 +1560,53 @@ export const coreFunctions = {
         },
         pure: true,
         doc: "Return the singleton undecided decision value",
+    },
+    UNDECIDED_DIAGNOSTIC: {
+        impl(args) {
+            const reason = args[0]?.type === "string" ? args[0].value : String(args[0] ?? "undecided");
+            return undecidedDiagnostic(reason, args[1] ?? null);
+        },
+        pure: true,
+        doc: "Construct an undecided decision carrying a reason and optional evidence",
+    },
+    REFINEMENT_REQUEST: {
+        impl(args) {
+            return normalizeRefinementRequest(args[0], {
+                operation: isHole(args[1]) ? null : (args[1] ?? null),
+                capabilities: isHole(args[2]) ? null : (args[2] ?? null),
+            });
+        },
+        pure: true,
+        doc: "Normalize a shared bounded numerical refinement request",
+    },
+    REFINEMENT_EFFECTIVE_LIMITS: {
+        impl(args) {
+            return refinementEffectiveLimits(args[0], args[1] ?? null);
+        },
+        pure: true,
+        doc: "Intersect requester and numerical-provider resource limits",
+    },
+    REFINEMENT_SUPPORTS: {
+        impl(args) {
+            return refinementSupports(args[0], args[1]) ? new Integer(1n) : null;
+        },
+        pure: true,
+        doc: "Check whether numerical provider capabilities support an operation",
+    },
+    REFINEMENT_CHECK: {
+        impl(args) {
+            return checkRefinementResult(args[0], args[1], isHole(args[2]) ? null : (args[2] ?? null));
+        },
+        pure: true,
+        doc: "Validate a numerical provider result against its request and capabilities",
+    },
+    REFINEMENT_UNSUPPORTED: {
+        impl(args) {
+            const reason = args[2]?.type === "string" ? args[2].value : String(args[2] ?? "unsupported");
+            return unsupportedRefinementResult(args[0], isHole(args[1]) ? null : (args[1] ?? null), reason);
+        },
+        pure: true,
+        doc: "Construct a structured unsupported numerical result",
     },
     CERTIFIED_APPROXIMATION: {
         impl(args) {

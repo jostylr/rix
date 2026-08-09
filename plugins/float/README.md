@@ -30,11 +30,14 @@ loaded.
 | `.float.Abs`, `.float.Sqrt`, `.float.Sin`, `.float.Cos`, `.float.Tan` | Common Float math. |
 | `.float.Log`, `.float.Exp` | Exponential/logarithmic Float math. |
 
-Float values also implement the neutral `Enclose`, `Refine`, and
-`NumericsCapabilities` receiver protocol consumed by `.numerics`. The protocol
-result is deliberately `:approximate`: its point interval is exact for the
+Float values implement the neutral `Sample`, `Enclose`, `Refine`, and
+`NumericsCapabilities` receiver protocol consumed by `.numerics`. Sampling
+and enclosure return `:approximate`: the point interval is exact for the
 stored IEEE value, but it is not an error bound for the intended real-valued
-calculation.
+calculation. Refinement is explicitly `:unsupported`, because a stored binary64
+value carries no information from which to refine the intended real. For the
+same reason, a Float comparison against a language Halo is diagnostic
+undecided rather than a certified Boolean result.
 
 ## Dependencies
 

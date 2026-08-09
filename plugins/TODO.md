@@ -202,6 +202,8 @@ newline normalization.
    - [x] Consolidate plugin-specific tests across Node, RiX Web, and RiX
      Notebook catalogs.
    - [x] Mark certification metadata as approximate rather than enclosed.
+   - [x] Separate `Sample`/`Enclose` from structured unsupported `Refine`, and
+     keep Float Halo comparisons diagnostic rather than certified.
 2. **Phase 2 — Numerical protocol provider**
    - [x] Implement the shared `EnclosableReal`/sampling capability with an
      explicitly non-certified result level.
@@ -231,6 +233,8 @@ newline normalization.
      bisection trace.
    - [x] Make the tutorial runnable in CLI, RiX Web, and RiX Notebook; then set
      `status: implemented`.
+   - [x] Adapt Oracle answers to RiX decisions and connect language Halo
+     comparison/membership through the shared certified-refinement contract.
 2. **Phase 2 — Funnels and generic refinement**
    - [ ] Implement refinement funnels and the paper's funnel-to-oracle adapter.
    - [ ] Implement the rational Newton nth-root funnel and Cauchy adapter.
@@ -261,6 +265,8 @@ newline normalization.
    - [x] Add README, API reference, and a tutorial comparing certified and
      approximate results.
    - [x] Test that Numerics imports protocols, not concrete backend packages.
+   - [x] Move request normalization, capability negotiation, limit
+     intersection, and result validation into the shared Core contract.
 2. **Phase 2 — Core algorithms**
    - [ ] Add generic `Enclose`, `Refine`, `Compare`, `Sign`, root isolation,
      adaptive sampling, integration, and optimization.

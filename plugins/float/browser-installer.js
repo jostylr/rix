@@ -14,7 +14,7 @@ import {
     valueMethod,
 } from "../../src/runtime/type-system.js";
 import { mathFunctions } from "./math-functions.js";
-import { Enclose, NumericsCapabilities, exactFloatRational } from "./protocol.js";
+import { Enclose, NumericsCapabilities, Refine, Sample, exactFloatRational } from "./protocol.js";
 
 const TYPE_NAME = "FloatIEEE754";
 const NATIVE_TYPE = "float_ieee754";
@@ -150,8 +150,9 @@ function registerFloatType() {
         proto: () => makeProto([
             ["ToString", valueMethod("ToString", (value) => stringObj(String(value.value)))],
             ["Value", valueMethod("Value", (value) => stringObj(String(value.value)))],
-            ["Enclose", valueMethod("Enclose", (value, request) => Enclose(value, request))],
-            ["Refine", valueMethod("Refine", (value, request) => Enclose(value, request))],
+            ["Sample", valueMethod("Sample", (value, [request]) => Sample(value, request))],
+            ["Enclose", valueMethod("Enclose", (value, [request]) => Enclose(value, request))],
+            ["Refine", valueMethod("Refine", (value, [request]) => Refine(value, request))],
             ["NumericsCapabilities", valueMethod("NumericsCapabilities", () => NumericsCapabilities())],
         ]),
         installs,

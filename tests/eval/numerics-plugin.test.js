@@ -49,6 +49,12 @@ describe("pure RiX Numerics plugin", () => {
             .Plugin.Load("numerics");
             provider = {= };
             provider._proto = {=
+                NumericsCapabilities = (self) -> {=
+                    schema="rix.numerics.capabilities@1",
+                    backend=:testProvider,
+                    operations=[:enclose],
+                    certified=1
+                },
                 Enclose = (self, request) -> {=
                     valueKind=:enclosure,
                     schema="rix.numerics.enclosure@1",
@@ -58,8 +64,10 @@ describe("pure RiX Numerics plugin", () => {
                     goalMet=1,
                     requestedWidth=request[:absoluteWidth],
                     achievedWidth=0,
+                    approximation=.CertifiedApproximation(2, 2:2),
                     evidenceLevel=:proof,
                     backend=:testProvider,
+                    operation=request[:operation],
                     work={= calls=0 },
                     diagnostics=[]
                 }
@@ -119,5 +127,58 @@ describe("pure RiX Numerics plugin", () => {
         expect(entry(entry(result, "work"), "exhausted").value).toBe(1n);
         expect(entry(result, "approximation")).toBeInstanceOf(CertifiedApproximation);
         expect(parseAndEvaluate(".numerics.Approximation(result)", options)).toBeInstanceOf(CertifiedApproximation);
+    });
+
+    test("forces each public entry point's operation and reports unsupported Float refinement", () => {
+        const options = runtime();
+        loadFloatPlugin(options.systemContext, options.registry);
+        const result = parseAndEvaluate(`
+            .Plugin.Load("numerics");
+            .Plugin.Load("oracle");
+            oracle = .oracle.Rational(3/7);
+            float = .float(1/3);
+            {:
+                .numerics.Request({= operation=:refine })[:operation],
+                .numerics.Enclose(oracle)[:operation],
+                .numerics.Refine(oracle)[:operation],
+                .numerics.Sample(float)[:operation],
+                .numerics.Refine(float)[:status],
+                float.Refine(.RefinementRequest({= }, :refine))[:status]
+            }
+        `, options);
+        expect(result.values.map(textValue)).toEqual(["refine", "enclose", "refine", "sample", "unsupported", "unsupported"]);
+    });
+
+    test("rejects contradictory certified results and work-limit violations", () => {
+        const options = runtime();
+        const check = parseAndEvaluate(`
+            .Plugin.Load("numerics");
+            request = .numerics.Request({= absoluteWidth=1, maxCalls=1 });
+            .numerics.CheckResult({=
+                schema="rix.numerics.enclosure@1",
+                status=:enclosed,
+                interval=0:10,
+                certified=1,
+                goalMet=1,
+                achievedWidth=10,
+                evidenceLevel=:proof,
+                backend=:bad,
+                operation=:enclose,
+                work={= calls=999 },
+                diagnostics=[]
+            }, request)
+        `, options);
+        expect(entry(check, "valid")).toBeNull();
+        expect(entry(check, "approximationPresent")).toBeNull();
+        expect(entry(check, "goalConsistent")).toBeNull();
+        expect(entry(check, "workWithinLimits")).toBeNull();
+    });
+
+    test("Float Halo comparisons are undecided evidence questions, not Float conversions", () => {
+        const options = runtime();
+        loadFloatPlugin(options.systemContext, options.registry);
+        const decision = parseAndEvaluate(".float(1/3) < {~ 1/2, 1/1000 }", options);
+        expect(decision.__rix_undecided__).toBe(true);
+        expect(decision.reason).toBe("providerUncertified");
     });
 });

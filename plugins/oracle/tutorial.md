@@ -27,6 +27,18 @@ The answer is structured data. `:yes`, `:no`, and `:unknown` are distinct, and
 a returned prophecy is an exact rational interval with provenance rather than
 a pair of display decimals.
 
+When ordinary RiX control flow needs a logical value, adapt the procedural
+answer explicitly:
+
+```rix
+decision := .oracle.Decision(answer);
+```
+
+`:yes` becomes true, `:no` becomes null/false, and `:unknown` becomes a
+diagnostic undecided value carrying the query, reason, evidence, and work.
+This keeps the procedure's three statuses without making a symbol accidentally
+truthy.
+
 Refine the same represented number with a finite work budget:
 
 ```rix
@@ -62,6 +74,27 @@ bounded[:approximation];  ## certified candidate plus the achieved enclosure
 This value can participate in ordinary Core/RiX arithmetic and three-state
 comparisons. The Oracle remains responsible for further refinement; the
 finite approximation itself does not hide an infinite process.
+
+## Language Halo neighborhoods
+
+A language Halo is the compact comparison and membership surface for bounded
+certified refinement:
+
+```rix
+.Plugin.Load("oracle");
+
+x := .oracle.Rational(3 / 7);
+x < {~ 1 / 2, 1 / 1000 };
+x ? {~ (2 / 5):(1 / 2), 1 / 1000 };
+x < {~ 1 / 2, 1 / 1000, {= maxCalls=3 } };
+```
+
+This is not the paper procedure named `:halo`. In `.oracle.Ask`, `delta`
+expands the query's open neighborhood. In `{~ target, epsilon }`, epsilon only
+sets the requested enclosure width; the target itself is unchanged. If a
+budget ends, RiX still uses the best certified enclosure to prove a result
+when it can, otherwise the decision is undecided with `:budgetExhausted`
+details.
 
 The trace is suitable for the CLI, RiX Web, or a document renderer. A renderer
 does not query the oracle itself; the bounded mathematical operation first

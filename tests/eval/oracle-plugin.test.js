@@ -5,6 +5,7 @@ import {
     createDefaultRegistry,
     createDefaultSystemContext,
     parseAndEvaluate,
+    undecidedReason,
 } from "../../src/index.js";
 
 function runtime() {
@@ -152,5 +153,57 @@ describe("pure RiX Oracle plugin", () => {
             .toThrow("width must be a positive rational");
         expect(() => parseAndEvaluate('.oracle.Rational(1/3, {= procedure=:guess })', options))
             .toThrow("Unknown rational oracle procedure");
+    });
+
+    test("adapts procedural answers to logical decisions with unknown evidence", () => {
+        const options = runtime();
+        const decisions = parseAndEvaluate(`
+            .Plugin.Load("oracle");
+            query = .oracle.Query(0:1, 1/10);
+            real = .oracle.Rational(1/3);
+            {:
+                .oracle.Decision(.oracle.Ask(real, 0:1, 1/10)),
+                .oracle.Decision(.oracle.Ask(real, 2:3, 1/10)),
+                .oracle.Decision(.oracle.Answer(:unknown, query, _, :procedureUnknown))
+            }
+        `, options);
+        expect(decisions.values[0].value).toBe(1n);
+        expect(decisions.values[1]).toBeNull();
+        expect(undecidedReason(decisions.values[2])).toBe("oracleUnknown");
+        expect(entry(decisions.values[2].details, "reason").value).toBe("procedureUnknown");
+    });
+
+    test("uses language Halo neighborhoods for certified comparison and membership", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("oracle");
+            real = .oracle.Rational(3/7);
+            {:
+                real < {~ 1/2, 1/1000 },
+                real > {~ 1/2, 1/1000 },
+                real ? {~ 2/5:1/2, 1/1000 },
+                real ? {~ 1/2:3/5, 1/1000 }
+            }
+        `, options);
+        expect(result.values[0].value).toBe(1n);
+        expect(result.values[1]).toBeNull();
+        expect(result.values[2].value).toBe(1n);
+        expect(result.values[3]).toBeNull();
+    });
+
+    test("preserves a best certified enclosure when a Halo budget is exhausted", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("oracle");
+            real = .oracle.Rational(3/7);
+            {:
+                real < {~ 100, 1/1000, {= maxCalls=0 } },
+                real < {~ 1/2, 1/1000, {= maxCalls=0 } }
+            }
+        `, options);
+        expect(result.values[0].value).toBe(1n);
+        expect(undecidedReason(result.values[1])).toBe("budgetExhausted");
+        expect(entry(result.values[1].details, "backend").value).toBe("oracle");
+        expect(entry(result.values[1].details, "achievedWidth").toString()).toBe("2");
     });
 });

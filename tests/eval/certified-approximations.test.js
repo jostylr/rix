@@ -135,11 +135,34 @@ describe("certified approximations and undecided decisions", () => {
         expect(parseAndEvaluate(`
             provider := {= };
             provider._proto = {=
-                NumericsCapabilities=(self) -> {= timeout=1, memory=2000, maxWork=3 },
+                NumericsCapabilities=(self) -> {=
+                    schema="rix.numerics.capabilities@1",
+                    backend=:testProvider,
+                    operations=[:refine],
+                    certified=1,
+                    timeout=1,
+                    memory=2000,
+                    maxWork=3
+                },
                 Refine=(self, request) -> {;
                     limitsMerged = request[:timeout] == 1 &&
                         request[:memory] == 1000 && request[:work][:maxWork] == 3;
-                    {= interval=limitsMerged ?: 0.54:0.541 ?_ 0.549:0.551 };
+                    interval = limitsMerged ?: 0.54:0.541 ?_ 0.549:0.551;
+                    {=
+                        schema="rix.numerics.enclosure@1",
+                        status=:enclosed,
+                        interval=interval,
+                        certified=1,
+                        goalMet=1,
+                        requestedWidth=request[:absoluteWidth],
+                        achievedWidth=interval.Width(),
+                        approximation=.CertifiedApproximation(interval.Midpoint(), interval),
+                        evidenceLevel=:proof,
+                        backend=:testProvider,
+                        operation=request[:operation],
+                        work={= calls=1 },
+                        diagnostics=[]
+                    };
                 }
             };
             provider < {~ 0.55, 0.001, {= timeout=2, memory=1000, maxWork=10 } }
@@ -155,6 +178,38 @@ describe("certified approximations and undecided decisions", () => {
         expect(parseAndEvaluate("[1, 2] |>|| (x) -> ?")).toBe(UNDECIDED);
         expect(parseAndEvaluate("[1, 2] |>|| (x) -> (x == 2 ?: 1 ?? ?)").value).toBe(2n);
         expect(parseAndEvaluate("{? ? ? 1; 2 }")).toBe(UNDECIDED);
+    });
+
+    it("does not let an uncertified refinement provider prove a Halo relation", () => {
+        const decision = parseAndEvaluate(`
+            provider = {= };
+            provider._proto = {=
+                NumericsCapabilities=(self) -> {=
+                    schema="rix.numerics.capabilities@1",
+                    backend=:uncertifiedTest,
+                    operations=[:refine],
+                    certified=_,
+                    arbitraryRefinement=1
+                },
+                Refine=(self, request) -> {=
+                    schema="rix.numerics.enclosure@1",
+                    status=:approximate,
+                    interval=0:0,
+                    certified=_,
+                    goalMet=_,
+                    requestedWidth=request[:absoluteWidth],
+                    achievedWidth=0,
+                    evidenceLevel=:approximate,
+                    backend=:uncertifiedTest,
+                    operation=request[:operation],
+                    work={= calls=1 },
+                    diagnostics=[:noErrorBound]
+                }
+            };
+            provider < {~ 1, 1/1000 }
+        `);
+        expect(undecidedReason(decision)).toBe("providerUncertified");
+        expect(decision.details.entries.get("backend").value).toBe("uncertifiedTest");
     });
 
     it("records unresolved tests and leaves undecided stops unresolved", () => {

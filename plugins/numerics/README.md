@@ -24,7 +24,7 @@ result := .numerics.Refine(real, {=
 - `certified`: whether the interval is proven to contain the represented real;
 - `goalMet`: whether the requested width was reached;
 - `status`: `:enclosed`, `:approximate`, `:goalNotMet`,
-  `:budgetExhausted`, or `:unsupported`;
+  `:budgetExhausted`, `:resolutionFloor`, `:unsupported`, or `:unknown`;
 - `evidenceLevel`: the provider's honest evidence claim;
 - `work` and `diagnostics`: bounded resource use and unresolved limitations.
 - `approximation`: for certified providers, a scalar `CertifiedApproximation`
@@ -41,6 +41,7 @@ A provider value supplies receiver methods:
 ```rix
 value.Enclose(request)
 value.Refine(request)
+value.Sample(request)
 value.NumericsCapabilities()
 ```
 
@@ -49,6 +50,12 @@ The request schema is `rix.numerics.refinement-request@1`; the result schema is
 for future `.ball`, `.cauchy`, `.continuedFraction`, and `.algebraicReal`
 implementations. Providers may use pure RiX or an approved host implementation
 without changing Numerics algorithms.
+
+Core owns request normalization, limit intersection, capability negotiation,
+and result validation. This lets language Halo comparisons use exactly the
+same contract without requiring the Numerics plugin to be loaded. Numerics is
+the user-facing orchestration surface: `.Enclose`, `.Refine`, and `.Sample`
+force their corresponding operation even when handed an existing request.
 
 Phase 1 includes a certified Oracle adapter and an approximate Float adapter.
 For Float, the returned point interval exactly describes the stored IEEE-754
