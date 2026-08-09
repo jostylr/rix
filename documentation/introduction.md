@@ -1604,6 +1604,34 @@ To **negate** a continued fraction value, apply unary minus:
 Use `~-1.~2` for a negative first coefficient; it is `−1 + 1/2 = −1/2`,
 which is different from negating `[1; 2]`.
 
+### Certified finite approximations (`?`)
+
+An embedded question mark separates certified representation data from
+optional provisional digits or coefficients:
+
+```rix
+23.456?          ## candidate 23.456, enclosure 23.456:23.457
+23.456?789       ## candidate 23.456789, same certified enclosure
+3.~7~15?         ## a certified continued-fraction cylinder
+0xA.B?C          ## the same idea in a named base
+```
+
+These values are uncertain scalars, not interval collections. Arithmetic
+propagates their exact rational enclosure, and comparisons return `1`, `_`, or
+the standalone undecided value `?`. An optional bracket can state a tighter
+bound, for example `23.456?789[+-12]`; RiX rejects it if it contradicts the
+certified prefix.
+
+After arithmetic or provider refinement, a value may instead format as
+`23.556?[=5889/250:23557/1000]`. The `=` bracket stores authoritative exact
+endpoints so parsing the string reconstructs a certified scalar rather than an
+interval collection.
+
+Ordinary formatter output ending in `...` is only a shortened display of its
+underlying value. Use `ToDecimalApproximation(digits)` or
+`ToContinuedFractionApproximation(terms)` when a work limit should deliberately
+produce a parseable certified value ending in `?`.
+
 ### Mixed Numbers
 Mixed numbers are supported using a double period `..` to attach an integer to a fraction seamlessly (with no internal spaces):
 - `1..3/4` parses exactly as $1 + 3/4 = 7/4$.
@@ -1989,11 +2017,22 @@ tighter than exponentiation and unary minus, so `-3!` is `-(3!)`, `1/3!` is
 `1/(3!)`, and `(-3)!` is rejected. Their operand must be a non-negative
 integer.
 
-### Ternary Operators
-RiX replaces the traditional `C` style ternary (`cond ? true : false`) with its own null-coalscing style syntax using `??` and `?:`.
+### Decision conditionals
+
+RiX decisions have three states: truth, null (`_`), and undecided (`?`). A
+conditional requires the truth branch; null and undecided branches are
+optional and may appear in either order:
+
 ```rix
-result := (score > 50) ?? "Pass" ?: "Fail"
+result := score > 50
+    ?: "Pass"
+    ?_ "Fail"
+    ?? "Needs more precision"
 ```
+
+If omitted, the null branch defaults to `_` and the undecided branch defaults
+to `?`. Only the selected branch is evaluated. `!`, `&&`, and `||` use the same
+three-state decision model; notably `? && _` is `_`, while `? || 1` is `1`.
 
 ### Assertions
 When validating equations or tests, you have special assertion operators:

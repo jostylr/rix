@@ -27693,7 +27693,7 @@ ${indented.join(`,
           return evaluate(unwrapDefer(args[2]));
         }
       },
-      doc: "Ternary conditional: condition ?? trueExpr ?: falseExpr"
+      doc: "Ternary conditional: condition ?: trueExpr ?_ falseExpr"
     },
     BREAK: {
       lazy: true,

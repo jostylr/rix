@@ -1,5 +1,5 @@
 NthRootPretty(label, n, q, result) -> {;
-    Abs(x) -> x >= 0 ?? x ?: -x;
+    Abs(x) -> x >= 0 ?: x ?_ -x;
 
     Decimal(x) -> x _> ".12";
 
@@ -24,8 +24,8 @@ NthRootPretty(label, n, q, result) -> {;
     StepSummary(index, step) -> {;
         x := step[2];
         y := step[3];
-        lo := x <= y ?? x ?: y;
-        hi := x <= y ?? y ?: x;
+        lo := x <= y ?: x ?_ y;
+        hi := x <= y ?: y ?_ x;
         width := hi - lo;
         center := (lo + hi) / 2;
         {=
@@ -47,8 +47,8 @@ NthRootPretty(label, n, q, result) -> {;
     };
 
     finalStep := result[2][.LEN(result[2])];
-    lo := finalStep[2] <= finalStep[3] ?? finalStep[2] ?: finalStep[3];
-    hi := finalStep[2] <= finalStep[3] ?? finalStep[3] ?: finalStep[2];
+    lo := finalStep[2] <= finalStep[3] ?: finalStep[2] ?_ finalStep[3];
+    hi := finalStep[2] <= finalStep[3] ?: finalStep[3] ?_ finalStep[2];
     width := hi - lo;
     center := (lo + hi) / 2;
 

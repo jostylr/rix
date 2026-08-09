@@ -24,6 +24,7 @@
 | `||` | `OR` | `x == 0 || y == 0` |
 | `?|` | `HOLE_COALESCE` | `a[2] ?| 9` — returns left if not a hole, else right |
 | `!` | `NOT` | `!(x == 0)` |
+| `condition ?: truth ?_ null ?? undecided` | `TERNARY` | Three-state lazy decision conditional; `?_` and `??` are optional |
 | `n!` | `FACTORIAL` | `5!` → `120` |
 | `n!!` | `DOUBLE_FACTORIAL` | `6!!` → `48` |
 | `x ? :name` | `SEMANTIC_HAS` | Checks `.__type`, `._type`, and `.__traits` |
@@ -1219,6 +1220,29 @@ A continued fraction `[a₀; a₁, a₂, …]` is written as `a₀.~a₁~a₂~�
 |--------|-------|-------|
 | `-~1.~2` | −3/2 | negate the value of `~1.~2` (= 3/2) |
 
+#### Certified approximations (`?`)
+
+Inside a number, `?` marks the boundary after the certified prefix. Digits or
+continued-fraction coefficients to its right are provisional candidate data:
+
+| Syntax | Candidate | Certified enclosure |
+|---|---|---|
+| `23.456?` | `23.456` | `23.456:23.457` |
+| `23.456?789` | `23.456789` | `23.456:23.457` |
+| `3.~7~15?` | `333/106` | `333/106:355/113` |
+| `0xA.B?C` | hexadecimal `A.BC` | hexadecimal prefix cell `A.B?` |
+| `23.556?[=5889/250:23557/1000]` | `23.556` | explicit exact enclosure for a derived/provider value |
+
+A standalone `?` is instead the `Undecided` decision value. Spaces therefore
+matter: `23.456?789` is one numeric token, while `23.456 ? 789` retains the
+existing infix-question operation. `value?(request)` remains postfix Ask.
+
+Certified approximations carry exact rational enclosures through arithmetic.
+Comparisons may return `?`; use `?:`, `?_`, and `??` to handle truth, null, and
+undecided explicitly. Derived values format with `?[=low:high]` when no honest
+common radix prefix expresses their entire enclosure; this remains a certified
+scalar when parsed again.
+
 Because minus is an operator, `-1.~2` negates the implicit-start continued
 fraction and therefore has the same value as `-~1.~2`. Use `~-1.~2` when the
 first continued-fraction coefficient itself is negative.
@@ -1338,7 +1362,7 @@ Map literals reject duplicate keys after canonicalization:
 
 | Syntax | System Function | Example |
 |--------|----------------|---------|
-| `cond ?? trueVal ?: falseVal` | `TERNARY` | `x > 0 ?? "pos" ?: "neg"` |
+| `cond ?: trueVal ?_ falseVal` | `TERNARY` | `x > 0 ?: "pos" ?_ "neg"` |
 
 ---
 
@@ -1516,7 +1540,7 @@ general systems. The former `:=:` solve operator has been removed.
 | `LOOP(init, cond, body, update, after)` | Loop with optional name/max metadata and optional completion slot | `{@ init; cond; body; update }`, `{@ init; cond; body; update; after }`, `{@name:100@ ... }`, `{@::@ ... }` |
 | `BREAK(meta, value)` | Structured break that exits the nearest matching target | `{! value }`, `{!@ value }`, `{!?name! value }` |
 | `SYSTEM_SPEC(meta)` | Create an inert symbolic expression/system value | `{#x:y# y^2 == x; y >= 0 }` |
-| `TERNARY(cond, t, f)` | Ternary conditional | `cond ?? t ?: f` |
+| `TERNARY(cond, t, f)` | Ternary conditional | `cond ?: t ?_ f` |
 | `IF(cond, t, f)` | If-then-else (stdlib) | — |
 | `MULTI(a, b, c...)` | Evaluate all, return last (stdlib) | — |
 

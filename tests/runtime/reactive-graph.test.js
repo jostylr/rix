@@ -34,7 +34,7 @@ describe("ReactiveGraph", () => {
             chooseLeft := graph.Source("chooseLeft", 1);
             left := graph.Source("left", 10);
             right := graph.Source("right", 20);
-            selected := graph.Derive("selected", @{ chooseLeft > 0 ?? left ?: right });
+            selected := graph.Derive("selected", @{ chooseLeft > 0 ?: left ?_ right });
             unrelated := graph.Derive("unrelated", @{ 99 });
             graph
         `);

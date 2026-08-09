@@ -420,6 +420,8 @@ x ? :rational</code></pre>
 <li><code>:Integer</code></li>
 <li><code>:Rational</code></li>
 <li><code>:RationalInterval</code></li>
+<li><code>:CertifiedApproximation</code></li>
+<li><code>:Undecided</code></li>
 <li><code>:String</code></li>
 <li><code>:Array</code></li>
 <li><code>:Tuple</code></li>
@@ -431,6 +433,7 @@ x ? :rational</code></pre>
 <li><code>:Null</code></li>
 <li><code>:Hole</code></li>
 </ul>
+<p><code>CertifiedApproximation</code> has <code>:number</code>, <code>:approximate</code>, <code>:enclosed</code>, and <code>:orderInquiry</code> traits. It is a scalar rather than an interval collection. <code>Undecided</code> has the <code>:decision</code> trait and is the singleton value written <code>?</code>. Type export/import preserves both values; copies of an approximation retain source identity so <code>x == x</code> remains certifiably true.</p>
 <p>Lowercase aliases such as <code>:rational</code>, <code>:interval</code>, and <code>:tensor</code> remain supported for compatibility. New code should prefer registered semantic names such as <code>:Rational</code>.</p>
 </section>
 <section id="conversion" class="level2">
@@ -520,17 +523,17 @@ r == r2</code></pre>
 <li><code>installRegisteredTypes(registry, typeNames)</code></li>
 </ul>
 <p>Registration stores immutable specs. Installation injects operator variants into system multifunctions.</p>
-<p>Integer, Rational, and RationalInterval are built-in exact numeric types. Oracle-style real number implementations are deliberately not built in. They are user-land types so multiple real-number representations can coexist and be compared.</p>
-<p>The example startup source in <code>src/startup/oracle-example.rix</code> registers:</p>
+<p>Integer, Rational, and RationalInterval are built-in exact numeric types. CertifiedApproximation is the finite, backend-neutral uncertainty carrier in the core runtime. Infinite refinement algorithms remain user-land types so Oracle, ball, Cauchy, and other real-number representations can coexist and return or refine the same certified value contract.</p>
+<p>The example startup source in <code>src/eval/startup/oracle-example.rix</code> registers:</p>
 <ul>
 <li><code>:refinable</code></li>
-<li><code>:approximate</code></li>
 <li><code>:oracle</code></li>
 <li><code>:Oracle</code></li>
 </ul>
-<p>The JavaScript loader in <code>src/startup/oracle-example.js</code> only reads and evaluates that RiX startup source. Hosts can load it when creating the registry:</p>
+<p>It reuses the built-in <code>:approximate</code> trait shared by certified approximation values and provider types.</p>
+<p>The JavaScript loader in <code>src/eval/startup/oracle-example.js</code> only reads and evaluates that RiX startup source. Hosts can load it when creating the registry:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> { createDefaultRegistry } <span class="im">from</span> <span class="st">"./src/evaluator.js"</span><span class="op">;</span></span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> { loadOracleExampleStartup } <span class="im">from</span> <span class="st">"./src/startup/oracle-example.js"</span><span class="op">;</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> { loadOracleExampleStartup } <span class="im">from</span> <span class="st">"./src/eval/startup/oracle-example.js"</span><span class="op">;</span></span>
 <span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> registry <span class="op">=</span> <span class="fu">createDefaultRegistry</span>({</span>
 <span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">startupLoaders</span><span class="op">:</span> [loadOracleExampleStartup]<span class="op">,</span></span>

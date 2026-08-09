@@ -113,7 +113,7 @@ describe("|>! expected error values", () => {
     test("null recovery skips collection items and later fused stages", async () => {
         const result = await parseAndEvaluateAsync(
             "{$:2$ [{: :error, :bad, 2}, 3, {: :error, :replace, 4}] "
-            + "|>! ((kind, value) -> kind == :bad ?? _ ?: value * 10) "
+            + "|>! ((kind, value) -> kind == :bad ?: _ ?_ value * 10) "
             + "|>> ((value) -> value + 1) }",
         );
         expect(numbers(result)).toEqual([4, 41]);
@@ -148,7 +148,7 @@ describe("|>! expected error values", () => {
         systemContext.freeze();
         const result = await parseAndEvaluateAsync(
             "(.Stream([{: :error, :drop}, 2, {: :error, :replace, 3}]) "
-            + "|>! ((kind, value) -> kind == :drop ?? _ ?: value * 10) "
+            + "|>! ((kind, value) -> kind == :drop ?: _ ?_ value * 10) "
             + "|>> ((value) -> value + 1)) |>_ .record",
             { systemContext },
         );

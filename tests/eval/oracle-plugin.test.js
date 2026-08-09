@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { Rational, RationalInterval } from "@ratmath/core";
+import { CertifiedApproximation, Rational, RationalInterval } from "@ratmath/core";
 import {
     Context,
     createDefaultRegistry,
@@ -140,6 +140,7 @@ describe("pure RiX Oracle plugin", () => {
         );
         expect(textValue(entry(exhausted, "status"))).toBe("budgetExhausted");
         expect(entry(exhausted, "achievedWidth").toString()).toBe("1/4");
+        expect(entry(exhausted, "approximation")).toBeInstanceOf(CertifiedApproximation);
     });
 
     test("rejects nonpositive tolerances and invalid procedure names", () => {

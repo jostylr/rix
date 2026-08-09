@@ -655,7 +655,7 @@ ul.task-list li input[type="checkbox"] {
 </ol>
 <pre><code># Factorial with tail recursion
 fact = (n, acc) -&gt; {
-  n == 0 ?? acc ?: $(n - 1, n * acc)
+  n == 0 ?: acc ?_ $(n - 1, n * acc)
 }
 
 fact(5, 1)  # Evaluates to 120 without stack growth</code></pre>
@@ -669,15 +669,15 @@ In RiX, the following would eventually stack-overflow because `Even` calls `Odd`
 
 ```rix
 # This will stack-overflow for large N
-Even = n -&gt; n == 0 ?? 1 ?: Odd(n - 1)
-Odd  = n -&gt; n == 0 ?? 0 ?: Even(n - 1)</code></pre>
+Even = n -&gt; n == 0 ?: 1 ?_ Odd(n - 1)
+Odd  = n -&gt; n == 0 ?: 0 ?_ Even(n - 1)</code></pre>
 <section id="the-self-call-solution-dispatch-pattern" class="level3">
 <h3 class="anchored" data-anchor-id="the-self-call-solution-dispatch-pattern">2. The Self-Call Solution (Dispatch Pattern)</h3>
 <p>You can collapse these into a single function that takes a “state” or “mode” identifier as its first argument. Since it now calls itself via <code>$</code>, RiX will reuse the same frame.</p>
 <pre class="rix"><code># Optimized version using self-call $
 Parity = (mode, n) -&gt; {
-  n == 0 ?? (mode == :even ?? 1 : 0) ?: {
-    nextMode = mode == :even ?? :odd ?: :even
+  n == 0 ?: (mode == :even ?: 1 : 0) ?_ {
+    nextMode = mode == :even ?: :odd ?_ :even
     $(nextMode, n - 1) # Tail-call optimized!
   }
 }

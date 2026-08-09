@@ -2,6 +2,7 @@ import { Integer } from "@ratmath/core";
 import { OperationalFault } from "./operational-fault.js";
 import { registerAsyncResource } from "./async-runtime.js";
 import { expectedErrorArgs } from "./expected-error.js";
+import { UNDECIDED, decisionState } from "./decision.js";
 
 let nextStreamId = 1;
 
@@ -222,7 +223,9 @@ async function applyStage(stage, values, stream, execution) {
         const kept = [];
         for (const entry of values) {
             const result = await execution.invoke(stage.callable, [entry, new Integer(BigInt(execution.sourceIndex)), callbackSource]);
-            if (result !== null && result !== undefined) kept.push(entry);
+            const state = decisionState(result);
+            if (state === "undecided") return { values: [], stop: true, unresolved: UNDECIDED };
+            if (state === "truth") kept.push(entry);
         }
         return { values: kept, stop: false };
     }
@@ -294,6 +297,9 @@ export async function processAsyncStreamItem(stream, raw, execution) {
     const stageExecution = { ...execution, sourceIndex: raw.sourceIndex };
     for (const stage of stream._stream.stages) {
         const result = await applyStage(stage, values, stream, stageExecution);
+        if (result.unresolved !== undefined) {
+            return { values: [], stop: true, unresolved: result.unresolved, sourceIndex: raw.sourceIndex };
+        }
         values = result.values;
         stop ||= result.stop;
         if (values.length === 0 && !stop) break;
@@ -324,6 +330,7 @@ export async function consumeAsyncStreamSequential(stream, terminal, execution) 
     let reason = { kind: "complete" };
     let primary = null;
     let claimed = false;
+    let uncertain = false;
     try {
         claimAsyncStream(stream);
         claimed = true;
@@ -341,6 +348,7 @@ export async function consumeAsyncStreamSequential(stream, terminal, execution) 
             const raw = await pullRawAsyncStream(stream, execution.signal);
             if (raw.done) break;
             const processed = await processAsyncStreamItem(stream, raw, execution);
+            if (processed.unresolved !== undefined) return processed.unresolved;
             for (const value of processed.values) {
                 count++;
                 if (terminal.kind === "collect") result.push(value);
@@ -352,18 +360,22 @@ export async function consumeAsyncStreamSequential(stream, terminal, execution) 
                 }
                 else if (terminal.kind === "find") {
                     const match = await execution.invoke(terminal.callable, [value, new Integer(BigInt(count)), stream._stream.callbackSource ?? stream]);
-                    if (match !== null && match !== undefined) {
+                    const state = decisionState(match);
+                    if (state === "truth") {
                         reason = { kind: "early terminal" };
                         return value;
                     }
+                    if (state === "undecided") uncertain = true;
                 }
                 else if (terminal.kind === "all") {
                     const match = await execution.invoke(terminal.callable, [value, new Integer(BigInt(count)), stream._stream.callbackSource ?? stream]);
-                    if (match === null || match === undefined) {
+                    const state = decisionState(match);
+                    if (state === "null") {
                         reason = { kind: "early terminal" };
                         return null;
                     }
-                    result = value;
+                    if (state === "undecided") uncertain = true;
+                    else if (!uncertain) result = value;
                 }
                 if (terminal.bound !== null && count >= terminal.bound) {
                     reason = { kind: "early terminal" };
@@ -386,19 +398,24 @@ export async function consumeAsyncStreamSequential(stream, terminal, execution) 
             else if (terminal.kind === "first") return value;
             else if (terminal.kind === "find") {
                 const match = await execution.invoke(terminal.callable, [value, new Integer(BigInt(count)), stream]);
-                if (match !== null && match !== undefined) return value;
+                const state = decisionState(match);
+                if (state === "truth") return value;
+                if (state === "undecided") uncertain = true;
             }
             else if (terminal.kind === "all") {
                 const match = await execution.invoke(terminal.callable, [value, new Integer(BigInt(count)), stream]);
-                if (match === null || match === undefined) return null;
-                result = value;
+                const state = decisionState(match);
+                if (state === "null") return null;
+                if (state === "undecided") uncertain = true;
+                else if (!uncertain) result = value;
             }
         }
         if (terminal.kind === "collect") return rixSequence(result);
         if (terminal.kind === "count") return new Integer(BigInt(count));
         if (terminal.kind === "forEach") return null;
-        if (terminal.kind === "first" || terminal.kind === "find") return null;
-        if (terminal.kind === "all") return count === 0 ? null : result;
+        if (terminal.kind === "first") return null;
+        if (terminal.kind === "find") return uncertain ? UNDECIDED : null;
+        if (terminal.kind === "all") return count === 0 ? null : uncertain ? UNDECIDED : result;
         return result;
     } catch (error) {
         reason = error;

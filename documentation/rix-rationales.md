@@ -505,3 +505,37 @@ The built-in numeric semantic types stay exact and foundational: Integer, Ration
 User-land types can still delegate heavy computation to JavaScript when that is the point of the type. The Float example keeps the registration and semantic interface in RiX (`floats.js.rix`) while calling a JavaScript support file for IEEE-style arithmetic and JavaScript `Math` functions through a generic JS bridge. Approximate transcendental operations belong to that optional plugin rather than the default RiX system, and Float-specific helpers remain ordinary module exports rather than system capabilities.
 
 This preserves the cell/meta model while giving rich types a single central conversion and protocol path.
+
+## Certified Prefixes and Undecided Decisions (2026-08-08)
+
+RiX uses `?` in two related value positions. Inside a radix or continued-
+fraction spelling it marks the boundary after the certified prefix;
+standalone it is the singleton undecided decision. The shared glyph is
+intentional: an uncertain scalar can make a comparison undecidable at the
+current enclosure.
+
+The numeric value is not merely an `inexact` bit and is not an interval
+collection. `CertifiedApproximation` carries a representative candidate plus
+an authoritative exact RationalInterval. Arithmetic propagates that enclosure,
+while a possible-relation mask lets RiX map comparisons to truth (`1`), a
+decided negative (`_`), or undecided (`?`). The same-source rule preserves
+basic identity facts such as `x == x` without claiming that two independently
+written uncertain literals name the same hidden real.
+
+`...` remains display-only truncation. A parseable string ending in `?` is a
+mathematical uncertainty claim and therefore must carry a reconstructible
+enclosure. Bounded decimal and continued-fraction conversion APIs return such
+values instead of silently shortening an exact string.
+
+Control flow uses `condition ?: truth ?_ null ?? undecided`. The null and
+undecided branches are independent because “known not selected” differs from
+“not determined.” Strong three-valued `&&` and `||` continue after an
+undecided operand when a later operand can settle the result. Predicate
+consumers either propagate undecided or record a structured unresolved result;
+they never accept it as ordinary truth.
+
+Core owns the finite approximation, parsing, enclosure arithmetic, relation
+information, and serialization. RiX owns the undecided singleton, language
+syntax, three-state comparison mapping, conditional evaluation, and provider
+integration. Oracle and Numerics may refine a value, but the finite Core type
+does not embed one privileged infinite-real implementation.

@@ -43,9 +43,10 @@ A comprehensive tokenizer and parser for the RiX (Rational Interval Expression L
   - multifunction dispatch with metadata
   - Function self-reference with `$`, `$(...)`, `$.prop`, and `$..`
   - Tail-self-call optimization for direct tail `$(...)`
-  - **Postfix operators (`@`, `?`, `()`, `~[...]`, `~{...}`) for precision, queries, universal calls, and units
+  - **Postfix operators (`@`, `?()`, `()`, `~[...]`, `~{...}`) for precision, queries, universal calls, and units
+  - Certified numeric prefixes such as `23.456?789` and standalone undecided `?`
   - Operator symbols as functions (`+(a,b,c)`, `*(x,y,z)`)
-  - Ternary operator (`?? ?:`) for conditional expressions
+  - Ternary operator (`?: ?_`) for conditional expressions
 
 ---
 
@@ -71,9 +72,9 @@ PI@(1e-10)                      // Get PI with precision 1e-10
 result?(3.14:3.15)              // Check if result is in interval
 3(4)                            // Universal call: 3 * 4
 +(2, 3, 5)                      // Addition operator as function
-x > 0 ?? x ?: -x                // Ternary operator: condition ?? true ?: false
-CountDown := n -> n > 0 ?? $(n - 1) ?: 0
-Fact := (n, acc ?| 1) -> n > 1 ?? $(n - 1, acc * n) ?: acc
+x > 0 ?: x ?_ -x                // Ternary operator: condition ?: true ?_ false
+CountDown := n -> n > 0 ?: $(n - 1) ?_ 0
+Fact := (n, acc ?| 1) -> n > 1 ?: $(n - 1, acc * n) ?_ acc
 ```
 
 ### Tokenization Features
@@ -111,9 +112,9 @@ Named(0)        # => 42
 RiX optimizes only direct self calls of the form `$(...)` when they are in tail position.
 
 ```rix
-CountDown := n -> n > 0 ?? $(n - 1) ?: 0
-Fact := (n, acc ?| 1) -> n > 1 ?? $(n - 1, acc * n) ?: acc
-BadFact := n -> n > 1 ?? n * $(n - 1) ?: 1
+CountDown := n -> n > 0 ?: $(n - 1) ?_ 0
+Fact := (n, acc ?| 1) -> n > 1 ?: $(n - 1, acc * n) ?_ acc
+BadFact := n -> n > 1 ?: n * $(n - 1) ?_ 1
 ```
 
 - `CountDown` and accumulator-style `Fact` are optimized because the self call is returned directly.
@@ -218,7 +219,8 @@ The parser generates various AST node types:
 - **GeneratorChain:** `{ type: 'GeneratorChain', start: ..., operators: [...] }`
 - **Number:** `{ type: 'Number', value: '3.14', format: 'decimal' }`
 - **Identifier:** `{ type: 'UserIdentifier' | 'SystemIdentifier', name: 'x' }`
-- **TernaryOperation:** `{ type: 'TernaryOperation', condition: ..., trueExpression: ..., falseExpression: ... }`
+- **TernaryOperation:** `{ type: 'TernaryOperation', condition: ..., trueExpression: ..., nullExpression: ..., undecidedExpression: ... }`
+- **UndecidedLiteral:** `{ type: 'UndecidedLiteral' }`
 - **At:** `{ type: 'At', target: ..., arg: ... }`
 - **Ask:** `{ type: 'Ask', target: ..., arg: ... }`
 

@@ -64,7 +64,7 @@ describe("String Pipes & Code Points", () => {
     test("Sort string code points", () => {
         expect(evalRiX(`"cab" |<> _`)).toBe("abc");
         // with emojis, descending sort
-        expect(evalRiX(`"b😀a😃" |<> (x, y) -> x < y ?? 1 ?: (x > y ?? -1 ?: 0)`)).toBe("😃😀ba");
+        expect(evalRiX(`"b😀a😃" |<> (x, y) -> x < y ?: 1 ?_ (x > y ?: -1 ?_ 0)`)).toBe("😃😀ba");
         // fallback default code point sort is valid but simple JS sort might misalign surrogates if not split properly. Since we split by Array.from, the string parts are correct, but JS sort on string pieces is code unit wise.
     });
 

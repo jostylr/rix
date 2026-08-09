@@ -86,6 +86,7 @@ var symbols = [
   "=>",
   "**",
   "?=",
+  "?_",
   "??",
   "?:",
   "?|",
@@ -407,7 +408,25 @@ function tryMatchString(input, position) {
 }
 function tryMatchExplicitCF(input, position) {
   const remaining = input.slice(position);
-  let match = remaining.match(/^~-?(?:0z\[\d+\]|0[a-zA-Z])[0-9a-zA-Z]+\.\~[0-9a-zA-Z]+(?:~[0-9a-zA-Z]+)*/);
+  let match = remaining.match(/^~-?(?:0z\[\d+\]|0[a-zA-Z])[0-9a-zA-Z]+\.~[0-9a-zA-Z]+(?:~[0-9a-zA-Z]+)*\?(?:[0-9a-zA-Z]+(?:~[0-9a-zA-Z]+)*)?/);
+  if (match) {
+    return {
+      type: "Number",
+      original: match[0],
+      value: match[0],
+      pos: [position, position, position + match[0].length]
+    };
+  }
+  match = remaining.match(/^~-?\d+\.~\d+(?:~\d+)*\?(?:\d+(?:~\d+)*)?/);
+  if (match) {
+    return {
+      type: "Number",
+      original: match[0],
+      value: match[0],
+      pos: [position, position, position + match[0].length]
+    };
+  }
+  match = remaining.match(/^~-?(?:0z\[\d+\]|0[a-zA-Z])[0-9a-zA-Z]+\.\~[0-9a-zA-Z]+(?:~[0-9a-zA-Z]+)*/);
   if (match) {
     return {
       type: "Number",
@@ -432,6 +451,37 @@ function tryMatchNumber(input, position) {
   let match;
   if (!/^(\d|\.\d)/.test(remaining)) {
     return null;
+  }
+  match = remaining.match(/^(?:\d(?:_?\d)*(?:\.(?:\d(?:_?\d)*)?)?|\.\d(?:_?\d)*)\?(?:\d(?:_?\d)*)?(?:\[[^\]]+\])?/);
+  if (match) {
+    const after = remaining[match[0].length] ?? "";
+    const markerHasPayload = /\?\d/.test(match[0]) || match[0].includes("[");
+    if (markerHasPayload || !/[(_!:=|&?-]/.test(after)) {
+      return {
+        type: "Number",
+        original: match[0],
+        value: match[0],
+        pos: [position, position, position + match[0].length]
+      };
+    }
+  }
+  match = remaining.match(/^(?:0z\[\d+\]|0[a-zA-Z])[0-9a-zA-Z]+\.~[0-9a-zA-Z]+(?:~[0-9a-zA-Z]+)*\?(?:[0-9a-zA-Z]+(?:~[0-9a-zA-Z]+)*)?/);
+  if (match) {
+    return {
+      type: "Number",
+      original: match[0],
+      value: match[0],
+      pos: [position, position, position + match[0].length]
+    };
+  }
+  match = remaining.match(/^(?:0z\[\d+\]|0[a-zA-Z])[0-9a-zA-Z]+(?:\.[0-9a-zA-Z]*)?\?(?:[0-9a-zA-Z]+)?/);
+  if (match) {
+    return {
+      type: "Number",
+      original: match[0],
+      value: match[0],
+      pos: [position, position, position + match[0].length]
+    };
   }
   match = remaining.match(/^-?(?:0z\[\d+\]|0[a-zA-Z])[0-9a-zA-Z]+\.~[0-9a-zA-Z]+(?:~[0-9a-zA-Z]+)*/);
   if (match) {
@@ -479,6 +529,15 @@ function tryMatchNumber(input, position) {
     };
   }
   match = remaining.match(/^-?(?:0z\[\d+\]|0[a-zA-Z])[0-9a-zA-Z]*/);
+  if (match) {
+    return {
+      type: "Number",
+      original: match[0],
+      value: match[0],
+      pos: [position, position, position + match[0].length]
+    };
+  }
+  match = remaining.match(/^\d+\.~\d+(?:~\d+)*\?(?:\d+(?:~\d+)*)?/);
   if (match) {
     return {
       type: "Number",
@@ -1800,6 +1859,11 @@ var SYMBOL_TABLE = {
     associativity: "right",
     type: "infix"
   },
+  "?_": {
+    precedence: PRECEDENCE.CONDITION,
+    associativity: "right",
+    type: "infix"
+  },
   ".": {
     precedence: PRECEDENCE.PROPERTY,
     associativity: "left",
@@ -2044,6 +2108,13 @@ class Parser {
     const left = this.parsePrefix();
     return this.parseExpressionRec(left, minPrec, false);
   }
+  parseDecisionBranchExpression() {
+    let expression = this.parseExpression(PRECEDENCE.CONDITION + 1);
+    if (this.current.value === "?:") {
+      expression = this.parseInfix(expression, this.getSymbolInfo(this.current));
+    }
+    return expression;
+  }
   parseCommaSequenceExpression(minPrec = 0) {
     const expressions = [this.parseExpression(minPrec)];
     while (this.current.value === ",") {
@@ -2126,7 +2197,12 @@ class Parser {
           original: token.original
         });
       case "Symbol":
-        if (token.value === "...") {
+        if (token.value === "?") {
+          this.advance();
+          return this.createNode("UndecidedLiteral", {
+            original: token.original
+          });
+        } else if (token.value === "...") {
           this.advance();
           const expr = this.parseExpression(PRECEDENCE.POSTFIX);
           return this.createNode("Spread", {
@@ -2750,20 +2826,34 @@ class Parser {
         pos: left.pos,
         original: left.original + operator.original
       });
-    } else if (operator.value === "??") {
-      const trueExpr = this.parseExpression(PRECEDENCE.CONDITION + 5);
-      if (this.current.value !== "?:") {
-        this.error('Expected "?:" in ternary operator after true expression');
+    } else if (operator.value === "?:") {
+      const trueExpr = this.parseDecisionBranchExpression();
+      let nullExpr = null;
+      let undecidedExpr = null;
+      while (this.current.value === "?_" || this.current.value === "??") {
+        const branch = this.current.value;
+        this.advance();
+        const expression = this.parseDecisionBranchExpression();
+        if (branch === "?_") {
+          if (nullExpr)
+            this.error('Duplicate "?_" null branch');
+          nullExpr = expression;
+        } else {
+          if (undecidedExpr)
+            this.error('Duplicate "??" undecided branch');
+          undecidedExpr = expression;
+        }
       }
-      this.advance();
-      const falseExpr = this.parseExpression(rightPrec);
       return this.createNode("TernaryOperation", {
         condition: left,
         trueExpression: trueExpr,
-        falseExpression: falseExpr,
+        nullExpression: nullExpr,
+        undecidedExpression: undecidedExpr,
         pos: left.pos,
         original: left.original + operator.original
       });
+    } else if (operator.value === "??") {
+      this.error('"??" is an undecided branch marker and must follow a "?:" decision conditional');
     } else if (operator.value === ".") {
       const property = this.parseMethodName();
       let systemPathInfo = null;
@@ -5889,7 +5979,7 @@ function getNodeIdentifyingInfo(node) {
     case "MathematicalUnit":
       return { value: `~{${node.unit}}`, key: "unit" };
     case "TernaryOperation":
-      return { value: "?? ?: ", key: null };
+      return { value: "?: ?_ ", key: null };
     case "GeneratorChain":
       return { value: `${node.operators?.length || 0} generators`, key: null };
     default:

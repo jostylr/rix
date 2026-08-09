@@ -833,13 +833,13 @@ describe("RiX Evaluator", () => {
 
     describe("Control Flow", () => {
         test("ternary: true branch", () => {
-            const result = evalRix("1 > 0 ?? 10 ?: 20;");
+            const result = evalRix("1 > 0 ?: 10 ?_ 20;");
             expect(result).toBeInstanceOf(Integer);
             expect(result.value).toBe(10n);
         });
 
         test("ternary: false branch", () => {
-            const result = evalRix("0 > 1 ?? 10 ?: 20;");
+            const result = evalRix("0 > 1 ?: 10 ?_ 20;");
             expect(result.value).toBe(20n);
         });
 
@@ -934,7 +934,7 @@ describe("RiX Evaluator", () => {
         });
 
         test("$(...) recurses through the current callable and aliasing still works", () => {
-            const result = evalRix("F = x -> x > 0 ?? $(x - 1) ?: 0; G = F; G(3);");
+            const result = evalRix("F = x -> x > 0 ?: $(x - 1) ?_ 0; G = F; G(3);");
             expect(result).toBeInstanceOf(Integer);
             expect(result.value).toBe(0n);
         });
@@ -959,37 +959,37 @@ describe("RiX Evaluator", () => {
         });
 
         test("tail self call optimization works for accumulator recursion", () => {
-            const result = evalRix("SumDown = (n, acc ?= 0) -> n > 0 ?? $(n - 1, acc + n) ?: acc; SumDown(5);");
+            const result = evalRix("SumDown = (n, acc ?= 0) -> n > 0 ?: $(n - 1, acc + n) ?_ acc; SumDown(5);");
             expect(result).toBeInstanceOf(Integer);
             expect(result.value).toBe(15n);
         });
 
         test("tail self call optimization works in both ternary branches", () => {
-            const result = evalRix("F = x -> x == 0 ?? 0 ?: x > 0 ?? $(x - 1) ?: $(x + 1); F(-3);");
+            const result = evalRix("F = x -> x == 0 ?: 0 ?_ x > 0 ?: $(x - 1) ?_ $(x + 1); F(-3);");
             expect(result).toBeInstanceOf(Integer);
             expect(result.value).toBe(0n);
         });
 
         test("non-tail self recursion remains an ordinary recursive call", () => {
-            const result = evalRix("Fact = x -> x > 1 ?? x * $(x - 1) ?: 1; Fact(5);");
+            const result = evalRix("Fact = x -> x > 1 ?: x * $(x - 1) ?_ 1; Fact(5);");
             expect(result).toBeInstanceOf(Integer);
             expect(result.value).toBe(120n);
         });
 
         test("wrapped self calls are not tail optimized but still evaluate normally", () => {
-            const result = evalRix("Wrap = x -> x; F = x -> x > 0 ?? Wrap($(x - 1)) ?: 0; F(3);");
+            const result = evalRix("Wrap = x -> x; F = x -> x > 0 ?: Wrap($(x - 1)) ?_ 0; F(3);");
             expect(result).toBeInstanceOf(Integer);
             expect(result.value).toBe(0n);
         });
 
         test("tail self calls keep defaulted accumulator parameters working", () => {
-            const result = evalRix("Fact = (n, acc ?= 1) -> n > 1 ?? $(n - 1, acc * n) ?: acc; Fact(5);");
+            const result = evalRix("Fact = (n, acc ?= 1) -> n > 1 ?: $(n - 1, acc * n) ?_ acc; Fact(5);");
             expect(result).toBeInstanceOf(Integer);
             expect(result.value).toBe(120n);
         });
 
         test.skip("deep tail self recursion can run without proportional stack growth", () => {
-            const result = evalRix("Loop = (n, acc ?= 0) -> n > 0 ?? $(n - 1, acc + 1) ?: acc; Loop(20000);");
+            const result = evalRix("Loop = (n, acc ?= 0) -> n > 0 ?: $(n - 1, acc + 1) ?_ acc; Loop(20000);");
             expect(result).toBeInstanceOf(Integer);
             expect(result.value).toBe(20000n);
         });
@@ -1021,7 +1021,7 @@ describe("RiX Evaluator", () => {
         });
 
         test("tail self calls rerun prep after each rebinding", () => {
-            const result = evalRix("F(n, acc ?= 0) ?- [n >= 0, acc >= 0] -> n > 0 ?? $(n - 1, acc + n) ?: acc; F(4);");
+            const result = evalRix("F(n, acc ?= 0) ?- [n >= 0, acc >= 0] -> n > 0 ?: $(n - 1, acc + n) ?_ acc; F(4);");
             expect(result).toBeInstanceOf(Integer);
             expect(result.value).toBe(10n);
         });
@@ -1844,7 +1844,7 @@ describe("RiX Evaluator", () => {
         test("nested ternary", () => {
             const ctx = new Context();
             evalRix("x = 15;", ctx);
-            const result = evalRix("x > 10 ?? 1 ?: x > 5 ?? 2 ?: 3;", ctx);
+            const result = evalRix("x > 10 ?: 1 ?_ x > 5 ?: 2 ?_ 3;", ctx);
             expect(result.value).toBe(1n);
         });
     });
@@ -2001,7 +2001,7 @@ describe("RiX Evaluator", () => {
             const ctx = new Context();
             const registry = createDefaultRegistry();
             const code = `
-                F(n) :-> n == 0 ?? 1 ?: n * F(n - 1);
+                F(n) :-> n == 0 ?: 1 ?_ n * F(n - 1);
                 F(5);
             `;
             const tokens = tokenize(code);

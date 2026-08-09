@@ -30,6 +30,7 @@ project:
     - eval/objects/integer.md
     - eval/objects/rational.md
     - eval/objects/rational-interval.md
+    - eval/objects/certified-approximation.md
     - eval/objects/array.md
     - eval/objects/lazy-sequence.md
     - eval/objects/async-stream.md

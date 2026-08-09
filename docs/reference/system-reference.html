@@ -376,7 +376,7 @@ Note
 <p>This page is generated from the current RiX implementation by <code>documentation/scripts/generate-reference.js</code>. Do not edit it by hand. Descriptions come from registry documentation strings; the narrative <a href="../eval/syntax-guide.html">syntax guide</a> and <a href="../eval/methods-guide.html">methods guide</a> provide signatures and examples.</p>
 </div>
 </div>
-<p>At this revision RiX exposes <strong>198 named entries</strong> on the default system context and registers <strong>212 internal IR operations</strong>. Aliases with different spelling are listed separately because they are separately addressable names.</p>
+<p>At this revision RiX exposes <strong>218 named entries</strong> on the default system context and registers <strong>214 internal IR operations</strong>. Aliases with different spelling are listed separately because they are separately addressable names.</p>
 <section id="public-system-context" class="level2">
 <h2 class="anchored" data-anchor-id="public-system-context">Public system context</h2>
 <p>These names are available through the leading-dot system object, such as <code>.Len(value)</code>. Uppercase names are also used by explicit system/operator forms where applicable.</p>
@@ -511,970 +511,982 @@ Note
 <td>Ordered case expression with condition arms, prepared-trial arms, and an optional fallback</td>
 </tr>
 <tr class="even">
+<td><code>.CERTIFIEDAPPROXIMATION</code></td>
+<td>function</td>
+<td>—</td>
+<td>Construct a certified approximate scalar from an exact candidate and rational enclosure</td>
+</tr>
+<tr class="odd">
 <td><code>.CHUNK</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Chunk a collection into subarrays by size or boundary predicate</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.CODE</code></td>
 <td>function</td>
 <td>—</td>
 <td>Create literal inline code</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.CODEBLOCK</code></td>
 <td>function</td>
 <td>—</td>
 <td>Create a literal source-code block</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.COMPLEX</code></td>
 <td>value</td>
 <td>Exact</td>
 <td>Exact complex-number operations</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.CONCAT</code></td>
 <td>function</td>
 <td>—</td>
 <td>Core operation CONCAT</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.CONTROLPANEL</code></td>
 <td>function</td>
 <td>Output, Controls</td>
 <td>Group reactive controls in a portable output panel</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.CONTROLS</code></td>
 <td>value</td>
 <td>—</td>
 <td>Reactive control constructors</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.CONVERTUNIT</code></td>
 <td>function</td>
 <td>Units</td>
 <td>Convert a quantity to a compatible display unit</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.CORE</code></td>
 <td>function</td>
 <td>—</td>
 <td>Core capability registration and discovery</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.DEBUG</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Debug expression: .Debug(label, expr) — returns expr value, records AST/source</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.DEEPMUTABLE</code></td>
 <td>function</td>
 <td>—</td>
 <td>Recursively set (flag≠_) or remove (flag=_) ._mutable on all nested arrays/maps/tensors. Called via .DeepMutable(value, flag).</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.DEFINE</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Define a named function from a name, .Params descriptor, and body</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.DEFINEEXACTGENERATOR</code></td>
 <td>function</td>
 <td>Exact</td>
 <td>Create an algebraic exact generator from low-to-high polynomial coefficients</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.DEFINEUNIT</code></td>
 <td>function</td>
 <td>Units</td>
 <td>Create a linear Unit value from a name and Unit/Quantity definition</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.DERIV</code></td>
 <td>function</td>
 <td>Symbolic</td>
 <td>Differentiate a symbolic spec or spec-backed function exactly</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.DIFFERENCE</code></td>
 <td>function</td>
 <td>—</td>
 <td>Core operation SET_DIFF</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.DIV</code></td>
 <td>function</td>
 <td>Arith</td>
 <td>Division</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.DIVMOD</code></td>
 <td>function</td>
 <td>Arith</td>
 <td>Floor quotient and exact remainder for a positive divisor</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.DIVROUND</code></td>
 <td>function</td>
 <td>—</td>
 <td>Rounded division</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.DIVUP</code></td>
 <td>function</td>
 <td>—</td>
 <td>Ceiling division</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.DOCUMENT_TEMPLATE</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Create a Fragment from an @““” document template</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.DOUBLEFACTORIAL</code></td>
 <td>function</td>
 <td>Arith</td>
 <td>Double factorial of a non-negative integer</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.DUMP</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Dump expression value: .Dump(label, expr) — returns expr value</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.EMPHASIS</code></td>
 <td>function</td>
 <td>—</td>
 <td>Create semantic inline emphasis</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.EQ</code></td>
 <td>function</td>
 <td>Logic</td>
 <td>Equality check — returns 1 or null</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.EQUAL</code></td>
 <td>function</td>
 <td>—</td>
 <td>Equality check — returns 1 or null</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.ERROR</code></td>
 <td>function</td>
 <td>—</td>
 <td>Emit an error event and abort: .Error(label, dataMap ?= {=})</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.EVAL</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Evaluate a deferred AST node or expression: .Eval(ast, bindings ?= _, mode ?= :inherit)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.EXACT</code></td>
 <td>value</td>
 <td>Exact</td>
 <td>Canonical RiX exact-generator collection</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.FACTORIAL</code></td>
 <td>function</td>
 <td>Arith</td>
 <td>Factorial of a non-negative integer</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.FIGURE</code></td>
 <td>function</td>
 <td>Output</td>
 <td>Wrap output with figure metadata</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.FILTER</code></td>
 <td>lazy function</td>
 <td>Collections, Arrays</td>
 <td>Filter a collection with a predicate — callback receives (val, locator, src)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.FIRST</code></td>
 <td>function</td>
 <td>Core, Collections, Arrays</td>
 <td>First element of a collection</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.FORMULASHEET</code></td>
 <td>function</td>
 <td>RiXCel</td>
 <td>Create a formula-backed sheet from a tensor or rectangular array of deferred RiX formulas</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.FRAGMENT</code></td>
 <td>function</td>
 <td>Output</td>
 <td>Compose portable output values</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.GETEL</code></td>
 <td>function</td>
 <td>Core, Collections, Arrays</td>
 <td>Get element at index (1-based)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.GRAPHICS</code></td>
 <td>value</td>
 <td>—</td>
 <td>Intrinsic portable 2D scene language</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.GREATER</code></td>
 <td>function</td>
 <td>—</td>
 <td>Greater than — returns 1 or null</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.GREATEREQUAL</code></td>
 <td>function</td>
 <td>—</td>
 <td>Greater than or equal — returns 1 or null</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.GRID</code></td>
 <td>function</td>
 <td>Output</td>
 <td>Create a mathematical layout grid</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.GT</code></td>
 <td>function</td>
 <td>Logic</td>
 <td>Greater than — returns 1 or null</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.GTE</code></td>
 <td>function</td>
 <td>Logic</td>
 <td>Greater than or equal — returns 1 or null</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.HEADING</code></td>
 <td>function</td>
 <td>Output</td>
 <td>Create a portable document heading</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.HOST</code></td>
 <td>function</td>
 <td>—</td>
 <td>Host/plugin capability registration and discovery</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.IF</code></td>
 <td>lazy function</td>
 <td>Core</td>
-<td>Ternary conditional: condition ?? trueExpr ?: falseExpr</td>
+<td>Decision conditional: condition ?: truthExpr ?_ nullExpr ?? undecidedExpr</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.IMAGE</code></td>
 <td>function</td>
 <td>—</td>
 <td>Create a portable image asset</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.IMPORTJS</code></td>
 <td>function</td>
 <td>—</td>
 <td>Import a local JavaScript module for use from a .js.rix startup file</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.INFO</code></td>
 <td>function</td>
 <td>—</td>
 <td>Emit an info event: .Info(label, level ?= 1, dataMap ?= {=})</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.INFOVALUE</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Inspect expression value: .InfoValue(label, depth ?= 1, expr) — returns expr value</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.INSPECTSPEC</code></td>
 <td>function</td>
 <td>Symbolic</td>
 <td>Return the structural inspection map for a symbolic spec</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.INTDIV</code></td>
 <td>function</td>
 <td>Arith</td>
 <td>Integer division (floor)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.INTEGRATE</code></td>
 <td>function</td>
 <td>Symbolic</td>
 <td>Integrate a supported symbolic spec or spec-backed function exactly</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.INTERSECT</code></td>
 <td>function</td>
 <td>—</td>
 <td>Intersection of two collections (set intersection or interval overlap)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.INTERVAL</code></td>
 <td>function</td>
 <td>—</td>
 <td>Create an interval [lo, hi] or test betweenness like a:b:c</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.IRANGE</code></td>
 <td>function</td>
 <td>Core, Collections, Arrays</td>
 <td>Create an integer range [start, end]</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.JSCALL</code></td>
 <td>function</td>
 <td>—</td>
 <td>Call a named export from a local JavaScript module</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.KEYOF</code></td>
 <td>function</td>
 <td>Core, Maps</td>
 <td>Resolve canonical map key string for a value</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.KEYS</code></td>
 <td>function</td>
 <td>Core, Maps</td>
 <td>Get the keys of a map as a set (obj.|)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.LAMBDA</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Create a lambda/anonymous function</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.LAST</code></td>
 <td>function</td>
 <td>Core, Collections, Arrays</td>
 <td>Last element of a collection</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.LEN</code></td>
 <td>function</td>
 <td>Core, Collections, Arrays</td>
 <td>Length of a collection or string</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.LESS</code></td>
 <td>function</td>
 <td>—</td>
 <td>Less than — returns 1 or null</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.LESSEQUAL</code></td>
 <td>function</td>
 <td>—</td>
 <td>Less than or equal — returns 1 or null</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.LINEBREAK</code></td>
 <td>function</td>
 <td>—</td>
 <td>Create an intentional inline line break</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.LINK</code></td>
 <td>function</td>
 <td>—</td>
 <td>Create a portable link</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.LIST</code></td>
 <td>function</td>
 <td>—</td>
 <td>Create an ordered or unordered document list</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.LISTITEM</code></td>
 <td>function</td>
 <td>—</td>
 <td>Create a document list item</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.LIVEVIEW</code></td>
 <td>function</td>
 <td>Output</td>
 <td>Deprecated compatibility wrapper for a reactive output derived from a subscribable source; prefer a named $$ output and final $ read</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.LOOP</code></td>
 <td>lazy function</td>
 <td>Core</td>
 <td>Loop construct with init, condition, body[, update[, after]]</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.LT</code></td>
 <td>function</td>
 <td>Logic</td>
 <td>Less than — returns 1 or null</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.LTE</code></td>
 <td>function</td>
 <td>Logic</td>
 <td>Less than or equal — returns 1 or null</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.MAP</code></td>
 <td>function</td>
 <td>Collections, Maps, Arrays</td>
 <td>Create a map from .Pair(key, value) entries</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.MATH</code></td>
 <td>function</td>
 <td>—</td>
 <td>Create portable inline TeX math</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.MATHBLOCK</code></td>
 <td>function</td>
 <td>—</td>
 <td>Create a display TeX math block</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.MAX</code></td>
 <td>function</td>
 <td>—</td>
 <td>Maximum over n arguments (ignores nulls)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.MIN</code></td>
 <td>function</td>
 <td>—</td>
 <td>Minimum over n arguments (ignores nulls)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.MOD</code></td>
 <td>function</td>
 <td>Arith</td>
 <td>Floor modulo with a positive divisor</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.MUL</code></td>
 <td>function</td>
 <td>Arith</td>
 <td>Multiplication (Product of values)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.MULTI</code></td>
 <td>lazy function</td>
 <td>Core</td>
 <td>Evaluate multiple expressions, return last</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.NEG</code></td>
 <td>function</td>
 <td>—</td>
 <td>Negation</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.NEQ</code></td>
 <td>function</td>
 <td>Logic</td>
 <td>Inequality check — returns 1 or null</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.NOT</code></td>
 <td>function</td>
 <td>Logic</td>
 <td>Logical NOT — returns Integer(1) for null input, null otherwise</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.NOTATIONPARSER</code></td>
 <td>function</td>
 <td>—</td>
 <td>Wrap a RiX callable as a registered backtick parser object</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.NOTEQUAL</code></td>
 <td>function</td>
 <td>—</td>
 <td>Inequality check — returns 1 or null</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.OR</code></td>
 <td>lazy function</td>
 <td>Logic</td>
 <td>Logical OR (short-circuits on first truthy, returns deciding value)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.OUT</code></td>
 <td>function</td>
 <td>Output</td>
 <td>Declare an output artifact for the active host output sink</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.PAIR</code></td>
 <td>function</td>
 <td>—</td>
 <td>Create a key/value entry for .Map</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.PARAGRAPH</code></td>
 <td>function</td>
 <td>Output</td>
 <td>Create a portable paragraph output node</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.PARAMS</code></td>
 <td>function</td>
 <td>—</td>
 <td>Create a positional parameter descriptor from names</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.PIPE</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Pipe a value into a function</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.PIPEEXPLICIT</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Explicit pipe operator — placeholders _1, _2, … map tuple elements to specific argument positions</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.PLUGIN</code></td>
 <td>function</td>
 <td>—</td>
 <td>Discover and load host-approved RiX plugins</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.PMAP</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Map a function over a collection — callback receives (val, locator, src)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.POLY</code></td>
 <td>function</td>
 <td>Symbolic</td>
 <td>Compile a single-output symbolic spec into an exact callable; exposes .Parse for backtick polynomial forms</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.POW</code></td>
 <td>function</td>
 <td>Arith</td>
 <td>Exponentiation</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.POWPROD</code></td>
 <td>function</td>
 <td>—</td>
 <td>Exponentiation/product power (currently same implementation as POW)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.PRINT</code></td>
 <td>function</td>
 <td>Core, Strings</td>
 <td>Print each argument through the replaceable __io__ hook</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.PRODUCT</code></td>
 <td>function</td>
 <td>—</td>
 <td>Core operation SET_PROD</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.QUOTE</code></td>
 <td>function</td>
 <td>—</td>
 <td>Create a document quotation block</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.RANDOMSEED</code></td>
 <td>function</td>
 <td>Random</td>
 <td>Install a fresh default RNG with an explicit seed in the current lexical scope</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.RAND_NAME</code></td>
 <td>function</td>
 <td>Core, Random</td>
 <td>Generate a random name string RAND_NAME(len=10, alphabet=a-zA-Z)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.REACTIVEGRAPH</code></td>
 <td>function</td>
 <td>RiXCel</td>
 <td>Create a transactional graph of reactive source and computed nodes</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.REDUCE</code></td>
 <td>lazy function</td>
 <td>Collections, Arrays</td>
 <td>Reduce a collection with an accumulator function — callback receives (acc, val, locator, src)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.REGISTERMETHOD</code></td>
 <td>function</td>
 <td>Core, Methods</td>
 <td>Register a receiver-first extension method on an existing semantic/runtime type</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.RENDER</code></td>
 <td>function</td>
 <td>—</td>
 <td>Render a portable value through an installed target plugin</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.RENDERER</code></td>
 <td>value</td>
 <td>—</td>
 <td>Discover installed output renderers and their target contracts</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.RETRY</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Repeat deferred work for expected error tuple values under a bounded retry policy</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.REVERSE</code></td>
 <td>function</td>
 <td>—</td>
 <td>Reverse a collection (returns new copy)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.RIXCELEXPORT</code></td>
 <td>function</td>
 <td>RiXCel</td>
 <td>Serialize a FormulaSheet to canonical versioned RiXCel JSON</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.RIXCELEXPORTCSV</code></td>
 <td>function</td>
 <td>RiXCel</td>
 <td>Export the computed values of a rank-2 FormulaSheet as CSV</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.RIXCELEXPORTTSV</code></td>
 <td>function</td>
 <td>RiXCel</td>
 <td>Export the computed values of a rank-2 FormulaSheet as TSV</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.RIXCELIMPORT</code></td>
 <td>function</td>
 <td>RiXCel</td>
 <td>Rebuild a FormulaSheet by compiling authoritative source from RiXCel JSON</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.RIXCELIMPORTCSV</code></td>
 <td>function</td>
 <td>RiXCel</td>
 <td>Import CSV values into a rank-2 FormulaSheet; optional header=1 uses the first row as labels</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.RIXCELIMPORTTSV</code></td>
 <td>function</td>
 <td>RiXCel</td>
 <td>Import TSV values into a rank-2 FormulaSheet; optional header=1 uses the first row as labels</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.RNG</code></td>
 <td>function</td>
 <td>Random</td>
 <td>Install a fresh RNG for the current lexical scope and its subscopes</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.SAMECELL</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Identity comparison (===) — returns 1 if both sides refer to the same cell, null otherwise</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.SAME_CELL</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Identity comparison (===) — returns 1 if both sides refer to the same cell, null otherwise</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.SARITH</code></td>
 <td>function</td>
 <td>—</td>
 <td>Parse structural arithmetic; backticks use this parser by default, with optional Complex/Quaternion/Octonion/Algebra scopes</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.SECTION</code></td>
 <td>function</td>
 <td>—</td>
 <td>Create a structural document section</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.SET</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Create a set (unique values)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.SHEET</code></td>
 <td>function</td>
 <td>Output</td>
 <td>Create a portable sheet view of indexable data</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.SIMPLIFY</code></td>
 <td>function</td>
 <td>Symbolic</td>
 <td>Compatibility alias for Transform</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.SLICE</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Strict slice operator |&gt;/</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.SLICECLAMP</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Clamped slice operator |&gt;//</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.SLIDE</code></td>
 <td>function</td>
 <td>Output</td>
 <td>Create a presentation slide</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.SLIDES</code></td>
 <td>function</td>
 <td>Output</td>
 <td>Create a sequential presentation deck</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.SNAPSHOTS</code></td>
 <td>function</td>
 <td>Output</td>
 <td>Materialize [scene, states] tuples into a portable ordered snapshot list</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.SORT</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Sort a collection with comparator function (returns new copy)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.SPEC</code></td>
 <td>function</td>
 <td>Symbolic</td>
 <td>Analyze a pure function and attach/return its symbolic spec</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.SPECCABILITY</code></td>
 <td>function</td>
 <td>Symbolic</td>
 <td>Report whether a pure function can be represented by the exact symbolic subset</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.SPECROLES</code></td>
 <td>function</td>
 <td>Symbolic</td>
 <td>Resolve all symbols and input/output roles, with optional role overrides</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.SPLIT</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Split a collection by a delimiter or predicate</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.SQRT</code></td>
 <td>function</td>
 <td>—</td>
 <td>Square root (approximate rational)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.STOP</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Conditional abort: .Stop(label, condition, dataMap ?= {=})</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.STREAM</code></td>
 <td>function</td>
 <td>—</td>
 <td>Create a cold, pull-based async stream from a finite collection</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.STRONG</code></td>
 <td>function</td>
 <td>—</td>
 <td>Create semantic inline strong content</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.SUB</code></td>
 <td>function</td>
 <td>Arith</td>
 <td>Subtraction</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.SUBSTR</code></td>
 <td>function</td>
 <td>Strings</td>
 <td>Get substring</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.SYMMETRICDIFFERENCE</code></td>
 <td>function</td>
 <td>—</td>
 <td>Core operation SET_SYMDIFF</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.TABLE</code></td>
 <td>function</td>
 <td>Output</td>
 <td>Create a structured output table</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.TEMPLATE_TEXT</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Create interpolated text with <span class="citation" data-cites="expression">@expression</span> insertions</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.TEST</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Run tests: .Test(label, setup, [tests] | {= tests })</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.TESTERROR</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Abort test: .TestError(label, setup, expr) — passes if expr aborts with .Error() or a runtime error</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.TESTSTOP</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Abort test: .TestStop(label, setup, expr) — passes if expr aborts via .Stop()</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.TEXT</code></td>
 <td>function</td>
 <td>Output</td>
 <td>Create a portable text output node</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.TGEN</code></td>
 <td>lazy function</td>
 <td>Core, Collections, Arrays</td>
 <td>Generate a tensor from a shape and index callback</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.TIMELINE</code></td>
 <td>value</td>
 <td>—</td>
 <td>Portable exact timeline constructors</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.TRACE</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Trace execution: .Trace(label, depth, trackedVars?, thunkOrCallable)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.TRAITREGISTER</code></td>
 <td>function</td>
 <td>—</td>
 <td>Register an immutable semantic trait from a RiX map spec</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.TRANSFORM</code></td>
 <td>function</td>
 <td>Symbolic</td>
 <td>Apply ordered exact symbolic transformations</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.TUPLE</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Create a tuple</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.TYPEEXPORT</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Export a semantically typed value through its registered type exporter</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.TYPEIMPORT</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Import a value from a tagged type export map</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.TYPEINSTALL</code></td>
 <td>function</td>
 <td>—</td>
 <td>Install a registered semantic type into system multifunctions</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.TYPEREGISTER</code></td>
 <td>function</td>
 <td>—</td>
 <td>Register an immutable semantic type from a RiX map spec</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.UNION</code></td>
 <td>function</td>
 <td>—</td>
 <td>Join/Union of two collections (set union or interval hull)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.UNITS</code></td>
 <td>value</td>
 <td>Units</td>
 <td>Canonical RiX unit collection</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.UPPER</code></td>
 <td>function</td>
 <td>Strings</td>
 <td>Convert string to uppercase</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.VALUES</code></td>
 <td>function</td>
 <td>Core, Maps</td>
 <td>Get the values of a map as a set (obj|.)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.VIDEO</code></td>
 <td>function</td>
 <td>—</td>
 <td>Create a portable video asset</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.WARN</code></td>
 <td>function</td>
 <td>—</td>
 <td>Emit a warning event: .Warn(label, dataMap ?= {=})</td>
+</tr>
+<tr class="even">
+<td><code>.algebra</code></td>
+<td>function</td>
+<td>—</td>
+<td>Canonical exact univariate polynomials with verified division and portable synthetic-division Grids.</td>
 </tr>
 <tr class="odd">
 <td><code>.canvas</code></td>
@@ -1483,16 +1495,76 @@ Note
 <td>Serializable Canvas 2D drawing plans for core Graphics scenes.</td>
 </tr>
 <tr class="even">
+<td><code>.csv</code></td>
+<td>function</td>
+<td>—</td>
+<td>Deterministic CSV and TSV export for portable Tables and typed data Relations.</td>
+</tr>
+<tr class="odd">
+<td><code>.data</code></td>
+<td>function</td>
+<td>—</td>
+<td>Immutable typed relations with deterministic projection, filtering, sorting, and Table views.</td>
+</tr>
+<tr class="even">
+<td><code>.document</code></td>
+<td>function</td>
+<td>—</td>
+<td>Numbered portable reports with labels, forward references, captions, and small semantic themes.</td>
+</tr>
+<tr class="odd">
 <td><code>.draw</code></td>
 <td>function</td>
 <td>Draw</td>
 <td>Convenient 2D drawing helpers that produce core Graphics nodes.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.exactalgebras</code></td>
 <td>function</td>
 <td>Exact</td>
 <td>Exact rational quaternion and octonion values.</td>
+</tr>
+<tr class="odd">
+<td><code>.f</code></td>
+<td>function</td>
+<td>—</td>
+<td>Representation-sensitive unreduced integer fractions with mediant and classroom addition policies.</td>
+</tr>
+<tr class="even">
+<td><code>.ff</code></td>
+<td>function</td>
+<td>—</td>
+<td>Form-preserving callable polynomial and rational expressions with explicit transformations and canonical projections.</td>
+</tr>
+<tr class="odd">
+<td><code>.frac</code></td>
+<td>function</td>
+<td>—</td>
+<td>Representation-sensitive unreduced integer fractions with mediant and classroom addition policies.</td>
+</tr>
+<tr class="even">
+<td><code>.fracfun</code></td>
+<td>function</td>
+<td>—</td>
+<td>Form-preserving callable polynomial and rational expressions with explicit transformations and canonical projections.</td>
+</tr>
+<tr class="odd">
+<td><code>.fraction</code></td>
+<td>function</td>
+<td>—</td>
+<td>Representation-sensitive unreduced integer fractions with mediant and classroom addition policies.</td>
+</tr>
+<tr class="even">
+<td><code>.fractionfunction</code></td>
+<td>function</td>
+<td>—</td>
+<td>Form-preserving callable polynomial and rational expressions with explicit transformations and canonical projections.</td>
+</tr>
+<tr class="odd">
+<td><code>.geometry</code></td>
+<td>function</td>
+<td>—</td>
+<td>Exact ruler-and-compass geometry with explicit intersections and portable Graphics snapshots.</td>
 </tr>
 <tr class="even">
 <td><code>.gltf</code></td>
@@ -1537,34 +1609,70 @@ Note
 <td>Exact rational-betweenness oracle demonstrations and bounded refinement.</td>
 </tr>
 <tr class="odd">
+<td><code>.p</code></td>
+<td>function</td>
+<td>—</td>
+<td>Semantic callable univariate polynomials with structural and symbolic entry forms.</td>
+</tr>
+<tr class="even">
 <td><code>.pdf</code></td>
 <td>function</td>
 <td>—</td>
 <td>PDF document and figure renderer orchestrated through LaTeX.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.plot</code></td>
 <td>function</td>
 <td>Plot</td>
 <td>Portable plotting helpers that produce core Graphics scenes.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.png</code></td>
 <td>function</td>
 <td>—</td>
 <td>PNG snapshot renderer for core Graphics through a host rasterizer.</td>
 </tr>
+<tr class="odd">
+<td><code>.poly</code></td>
+<td>function</td>
+<td>—</td>
+<td>Semantic callable univariate polynomials with structural and symbolic entry forms.</td>
+</tr>
 <tr class="even">
+<td><code>.polynomial</code></td>
+<td>function</td>
+<td>—</td>
+<td>Semantic callable univariate polynomials with structural and symbolic entry forms.</td>
+</tr>
+<tr class="odd">
 <td><code>.quarto</code></td>
 <td>function</td>
 <td>—</td>
 <td>Quarto Markdown renderer with front matter and portable figure lowering.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.radix</code></td>
 <td>function</td>
 <td>—</td>
 <td>Bounded exact positional expansions and repeating-period analysis for rational values.</td>
+</tr>
+<tr class="odd">
+<td><code>.ratfun</code></td>
+<td>function</td>
+<td>—</td>
+<td>Canonical callable univariate rational functions with exact cancellation and Polynomial interoperability.</td>
+</tr>
+<tr class="even">
+<td><code>.rationalfunction</code></td>
+<td>function</td>
+<td>—</td>
+<td>Canonical callable univariate rational functions with exact cancellation and Polynomial interoperability.</td>
+</tr>
+<tr class="odd">
+<td><code>.rf</code></td>
+<td>function</td>
+<td>—</td>
+<td>Canonical callable univariate rational functions with exact cancellation and Polynomial interoperability.</td>
 </tr>
 <tr class="even">
 <td><code>.scene3d</code></td>
@@ -1577,6 +1685,18 @@ Note
 <td>function</td>
 <td>—</td>
 <td>Portable SVG renderer for core Graphics scenes.</td>
+</tr>
+<tr class="even">
+<td><code>.symbolic</code></td>
+<td>function</td>
+<td>—</td>
+<td>Meta-plugin loading RiX representation-sensitive Fraction and FractionFunction workspaces.</td>
+</tr>
+<tr class="odd">
+<td><code>.terminalascii</code></td>
+<td>function</td>
+<td>—</td>
+<td>Deterministic strict-ASCII fallback for tables, grids, fragments, and simple Graphics.</td>
 </tr>
 <tr class="even">
 <td><code>.tikz</code></td>
@@ -1608,7 +1728,7 @@ Note
 </tr>
 <tr class="even">
 <td>Rational</td>
-<td><code>ABS</code>, <code>APPROXIMATIONERROR</code>, <code>BESTAPPROXIMATION</code>, <code>BESTCONVERGENT</code>, <code>BITLENGTH</code>, <code>CEIL</code>, <code>CONVERGENT</code>, <code>CONVERGENTS</code>, <code>DENOMINATOR</code>, <code>E</code>, <code>FLOOR</code>, <code>NEGATE</code>, <code>NUMERATOR</code>, <code>RECIPROCAL</code>, <code>ROUND</code>, <code>ROUNDTO</code>, <code>TOCONTINUEDFRACTION</code>, <code>TOCONTINUEDFRACTIONSTRING</code>, <code>TODECIMAL</code>, <code>TOMIXEDSTRING</code>, <code>TOSTRING</code>, <code>TRUNC</code></td>
+<td><code>ABS</code>, <code>APPROXIMATIONERROR</code>, <code>BESTAPPROXIMATION</code>, <code>BESTCONVERGENT</code>, <code>BITLENGTH</code>, <code>CEIL</code>, <code>CONVERGENT</code>, <code>CONVERGENTS</code>, <code>DENOMINATOR</code>, <code>E</code>, <code>FLOOR</code>, <code>NEGATE</code>, <code>NUMERATOR</code>, <code>RECIPROCAL</code>, <code>ROUND</code>, <code>ROUNDTO</code>, <code>TOCONTINUEDFRACTION</code>, <code>TOCONTINUEDFRACTIONAPPROXIMATION</code>, <code>TOCONTINUEDFRACTIONSTRING</code>, <code>TODECIMAL</code>, <code>TODECIMALAPPROXIMATION</code>, <code>TOMIXEDSTRING</code>, <code>TOSTRING</code>, <code>TRUNC</code></td>
 </tr>
 <tr class="odd">
 <td>Rational interval</td>
@@ -1759,16 +1879,28 @@ Note
 <td>—</td>
 </tr>
 <tr class="even">
+<td><code>Undecided</code></td>
+<td>undecided</td>
+<td><code>undecided</code></td>
+<td><code>decision</code></td>
+</tr>
+<tr class="odd">
 <td><code>Rational</code></td>
 <td>rational</td>
 <td><code>rational</code></td>
 <td><code>rational</code>, <code>number</code>, <code>ordered</code>, <code>field</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>Integer</code></td>
 <td>integer</td>
 <td><code>integer</code></td>
 <td><code>integer</code>, <code>rational</code>, <code>number</code>, <code>ordered</code></td>
+</tr>
+<tr class="odd">
+<td><code>CertifiedApproximation</code></td>
+<td>approximation</td>
+<td><code>approximation</code>, <code>approximate</code></td>
+<td><code>number</code>, <code>approximate</code>, <code>enclosed</code>, <code>orderInquiry</code></td>
 </tr>
 <tr class="even">
 <td><code>RationalInterval</code></td>
@@ -1844,6 +1976,26 @@ Note
 <td><code>ordered</code></td>
 <td><code>number</code></td>
 <td>ordered semantic trait</td>
+</tr>
+<tr class="odd">
+<td><code>orderInquiry</code></td>
+<td><code>number</code></td>
+<td>orderInquiry semantic trait</td>
+</tr>
+<tr class="even">
+<td><code>approximate</code></td>
+<td><code>number</code></td>
+<td>approximate semantic trait</td>
+</tr>
+<tr class="odd">
+<td><code>enclosed</code></td>
+<td><code>number</code></td>
+<td>enclosed semantic trait</td>
+</tr>
+<tr class="even">
+<td><code>decision</code></td>
+<td>—</td>
+<td>decision semantic trait</td>
 </tr>
 <tr class="odd">
 <td><code>rational</code></td>
@@ -1950,7 +2102,7 @@ Note
 </tr>
 <tr class="even">
 <td><code>Core</code></td>
-<td><code>LEN</code>, <code>FIRST</code>, <code>LAST</code>, <code>GETEL</code>, <code>IRANGE</code>, <code>IF</code>, <code>LOOP</code>, <code>MULTI</code>, <code>RAND_NAME</code>, <code>PRINT</code>, <code>TGEN</code>, <code>KEYOF</code>, <code>KEYS</code>, <code>VALUES</code>, <code>REGISTERMETHOD</code></td>
+<td><code>LEN</code>, <code>FIRST</code>, <code>LAST</code>, <code>GETEL</code>, <code>IRANGE</code>, <code>IF</code>, <code>LOOP</code>, <code>MULTI</code>, <code>RAND_NAME</code>, <code>PRINT</code>, <code>TGEN</code>, <code>KEYOF</code>, <code>KEYS</code>, <code>VALUES</code>, <code>REGISTERMETHOD</code>, <code>CertifiedApproximation</code></td>
 </tr>
 <tr class="odd">
 <td><code>Methods</code></td>
@@ -2195,894 +2347,904 @@ Note
 <td>Ordered case expression with condition arms, prepared-trial arms, and an optional fallback</td>
 </tr>
 <tr class="even">
+<td><code>CERTIFIED_APPROXIMATION</code></td>
+<td>eager, pure</td>
+<td>Construct a certified approximate scalar from an exact candidate and rational enclosure</td>
+</tr>
+<tr class="odd">
 <td><code>CODE</code></td>
 <td>eager, pure</td>
 <td>Create literal inline code</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>CODEBLOCK</code></td>
 <td>eager, pure</td>
 <td>Create a literal source-code block</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>COMPARE</code></td>
 <td>eager, pure, multifunction</td>
 <td>Compare two values; returns -1, 0, or 1</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>CONCAT</code></td>
 <td>eager, pure</td>
 <td>—</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>CONTROLPANEL</code></td>
 <td>eager, pure</td>
 <td>Group reactive controls in a portable output panel</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>CONVERTUNIT</code></td>
 <td>eager, pure</td>
 <td>Convert a quantity to a compatible display unit</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>CUSTOM_OPERATOR</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Dispatch a statically declared custom operator to a function or plugin method</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>DEFINEBASE</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Define a custom uppercase base prefix (0A = …), one-time global definition</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>DEFINEEXACTGENERATOR</code></td>
 <td>eager, pure</td>
 <td>Create an algebraic exact generator from low-to-high polynomial coefficients</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>DEFINEUNIT</code></td>
 <td>eager, pure</td>
 <td>Create a linear Unit value from a name and Unit/Quantity definition</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>DERIVATIVE</code></td>
 <td>eager, pure</td>
 <td>Postfix exact symbolic derivative</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>DESTRUCTURE_ASSIGN</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>General lhs destructuring assignment</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>DIV</code></td>
 <td>eager, pure, multifunction</td>
 <td>Division</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>DIVIDE</code></td>
 <td>eager, pure</td>
 <td>Return n lazy equally spaced points including interval endpoints</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>DIVMOD</code></td>
 <td>eager, pure</td>
 <td>Floor quotient and exact remainder for a positive divisor</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>DIVROUND</code></td>
 <td>eager, pure</td>
 <td>Rounded division</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>DIVUP</code></td>
 <td>eager, pure</td>
 <td>Ceiling division</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>DOCUMENT_TEMPLATE</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Create a Fragment from an @““” document template</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>DOUBLE_FACTORIAL</code></td>
 <td>eager, pure</td>
 <td>Double factorial of a non-negative integer</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>EMBEDDED</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Dispatch a backtick body to a registered .Name.Parse parser</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>EMPHASIS</code></td>
 <td>eager, pure</td>
 <td>Create semantic inline emphasis</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>EQ</code></td>
 <td>eager, pure, multifunction</td>
 <td>Equality check — returns 1 or null</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>EVAL</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Evaluate a deferred AST node or expression: .Eval(ast, bindings ?= _, mode ?= :inherit)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>FACTORIAL</code></td>
 <td>eager, pure</td>
 <td>Factorial of a non-negative integer</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>FIGURE</code></td>
 <td>eager, pure</td>
 <td>Wrap output with figure metadata</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>FORMULASHEET</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Create a formula-backed sheet from a tensor or rectangular array of deferred RiX formulas</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>FRAGMENT</code></td>
 <td>eager, pure</td>
 <td>Compose portable output values</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>FROMBASE</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Parse base string to number: str &lt;_ baseSpec</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>FUNCDEF</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Define a named function</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>GENERATOR</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Internal array-generator marker</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>GLOBAL</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Assign a value to a variable in the global scope</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>GRID</code></td>
 <td>eager, pure</td>
 <td>Create a mathematical layout grid</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>GT</code></td>
 <td>eager, pure, multifunction</td>
 <td>Greater than — returns 1 or null</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>GTE</code></td>
 <td>eager, pure, multifunction</td>
 <td>Greater than or equal — returns 1 or null</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>HEADING</code></td>
 <td>eager, pure</td>
 <td>Create a portable document heading</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>HOLE</code></td>
 <td>eager, pure</td>
 <td>Internal hole/undefined sentinel — represents an explicitly omitted value</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>HOLE_COALESCE</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Hole-coalescing: x ?| y returns x if x is not a hole, else y</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>IMAGE</code></td>
 <td>eager, pure</td>
 <td>Create a portable image asset</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>IMPORT_JS</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Import a local JavaScript module for use from a .js.rix startup file</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>INDEX_GET</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Index into collection (1-based for sequences; string or value keys for maps) — obj[i]</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>INDEX_SET</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Set index in collection (requires ._mutable meta flag) — obj[i] = val</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>INFSEQ</code></td>
 <td>eager, pure</td>
 <td>Lazy unbounded exact arithmetic sequence</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>INTDIV</code></td>
 <td>eager, pure, multifunction</td>
 <td>Integer division (floor)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>INTEGRAL</code></td>
 <td>eager, pure</td>
 <td>Prefix exact symbolic integral</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>INTERSECT</code></td>
 <td>eager, pure</td>
 <td>Intersection of two collections (set intersection or interval overlap)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>INTERSECTS</code></td>
 <td>eager, pure</td>
 <td>Check if two collections intersect (1 if true, null otherwise)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>INTERVAL</code></td>
 <td>eager, pure</td>
 <td>Create an interval [lo, hi] or test betweenness like a:b:c</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>JS_CALL</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Call a named export from a local JavaScript module</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>KEYOF</code></td>
 <td>eager, pure</td>
 <td>Resolve canonical map key string for a value</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>KEYS</code></td>
 <td>eager, pure</td>
 <td>Get the keys of a map as a set (obj.|)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>KWARG</code></td>
 <td>eager, pure</td>
 <td>Keyword argument wrapper</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>LAMBDA</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Create a lambda/anonymous function</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>LINEBREAK</code></td>
 <td>eager, pure</td>
 <td>Create an intentional inline line break</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>LINK</code></td>
 <td>eager, pure</td>
 <td>Create a portable link</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>LIST</code></td>
 <td>eager, pure</td>
 <td>Create an ordered or unordered document list</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>LISTITEM</code></td>
 <td>eager, pure</td>
 <td>Create a document list item</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>LITERAL</code></td>
 <td>eager, pure</td>
 <td>Parse a number literal string into a ratmath type</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>LIVEVIEW</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Deprecated compatibility wrapper for a reactive output derived from a subscribable source; prefer a named $$ output and final $ read</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>LOOP</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Loop construct with init, condition, body[, update[, after]]</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>LT</code></td>
 <td>eager, pure, multifunction</td>
 <td>Less than — returns 1 or null</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>LTE</code></td>
 <td>eager, pure, multifunction</td>
 <td>Less than or equal — returns 1 or null</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>MAP_OBJ</code></td>
 <td>lazy, pure</td>
 <td>Create a map/object</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>MATH</code></td>
 <td>eager, pure</td>
 <td>Create portable inline TeX math</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>MATHBLOCK</code></td>
 <td>eager, pure</td>
 <td>Create a display TeX math block</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>MATHUNIT</code></td>
 <td>eager, pure</td>
 <td>Resolve exact-generator sugar through the active Exact RiX collection</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>MATRIX</code></td>
 <td>eager, pure</td>
 <td>Matrix literal</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>MAX</code></td>
 <td>eager, pure, multifunction</td>
 <td>Maximum over n arguments (ignores nulls)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>MEDIANTS</code></td>
 <td>eager, pure</td>
 <td>Return nested levels of exact mediants</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>MEDIANT_PARTITION</code></td>
 <td>eager, pure</td>
 <td>Partition an interval using exact mediant boundaries</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>MEMBER</code></td>
 <td>eager, pure</td>
 <td>Check membership (1 if present, null otherwise)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>META_ALL</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Get all meta properties as a map (read-only copy) — obj..</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>META_GET</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Get meta property (returns null if absent) — obj.name</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>META_MERGE</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Bulk merge map into object meta properties (null values = delete) — obj .= map</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>META_SET</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Set meta property (null deletes; respects immutable/frozen) — obj.name = val</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>METHOD_LIFT</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Create a receiver-first callable from prefix ..Method syntax</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>MIN</code></td>
 <td>eager, pure, multifunction</td>
 <td>Minimum over n arguments (ignores nulls)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>MOD</code></td>
 <td>eager, pure, multifunction</td>
 <td>Floor modulo with a positive divisor</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>MUL</code></td>
 <td>eager, pure, multifunction</td>
 <td>Multiplication (Product of values)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>MULTIFUNCDEF</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Append or prepend a multifunction variant</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>MULTIFUNCTION</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Create an ordered multifunction literal, flattening nested multifunctions</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>MUTCOPY</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Clone a map and apply mutations (obj{= +a=3, -.b })</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>MUTINPLACE</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Mutate a map in-place (obj{! +a=3, -.b })</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>NARY_CONCAT</code></td>
 <td>eager, pure</td>
 <td>N-ary concatenation fold</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>NARY_INTERSECT</code></td>
 <td>eager, pure</td>
 <td>N-ary intersection/overlap fold for sets or intervals</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>NARY_UNION</code></td>
 <td>eager, pure</td>
 <td>N-ary union/hull fold for sets or intervals</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>NEG</code></td>
 <td>eager, pure, multifunction</td>
 <td>Negation</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>NEQ</code></td>
 <td>eager, pure, multifunction</td>
 <td>Inequality check — returns 1 or null</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>NOP</code></td>
 <td>eager, pure</td>
 <td>No operation</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>NOT</code></td>
 <td>eager, pure</td>
 <td>Logical NOT — returns Integer(1) for null input, null otherwise</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>NOT_MEMBER</code></td>
 <td>eager, pure</td>
 <td>Check non-membership (1 if not present, null otherwise)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>NULL</code></td>
 <td>eager, pure</td>
 <td>Null value</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>OR</code></td>
 <td>lazy, pure</td>
 <td>Logical OR (short-circuits on first truthy, returns deciding value)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>OUT</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Declare an output artifact for the active host output sink</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>OUTER_ASSIGN</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Assign a value to an existing outer scope variable</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>OUTER_RETRIEVE</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Look up a variable strictly in the outer scope chains</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>OUTER_UPDATE</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>In-place value replacement on an outer scope variable (~= / <sub></sub>= with @)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>PALL</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Every: returns last element if predicate is truthy for ALL elements, null on first failure — callback receives (val, locator, src)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>PANY</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Any: returns first item that passed predicate, null if none pass — callback receives (val, locator, src)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>PARAGRAPH</code></td>
 <td>eager, pure</td>
 <td>Create a portable paragraph output node</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>PARENT_SELF</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Resolve the parent multifunction inside a variant body</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>PARTITION</code></td>
 <td>eager, pure</td>
 <td>Partition an interval into n equal touching subintervals</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>PCHUNK</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Chunk a collection into subarrays by size or boundary predicate</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>PEXPECT</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Recover expected {: :error, … } values or skip when the handler returns null</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>PFILTER</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Filter a collection with a predicate — callback receives (val, locator, src)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>PFOREACH</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Drain a source through a callback, ignore callback results, and return null</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>PIPE</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Pipe a value into a function</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>PIPE_EXPLICIT</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Explicit pipe operator — placeholders _1, _2, … map tuple elements to specific argument positions</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>PLACEHOLDER</code></td>
 <td>eager, pure</td>
 <td>Numbered placeholder for partial application and explicit pipes</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>PMAP</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Map a function over a collection — callback receives (val, locator, src)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>POW</code></td>
 <td>eager, pure, multifunction</td>
 <td>Exponentiation</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>POWPROD</code></td>
 <td>eager, pure, multifunction</td>
 <td>Exponentiation/product power (currently same implementation as POW)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>PREDUCE</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Reduce a collection with an accumulator function — callback receives (acc, val, locator, src)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>PREP_TRIAL</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Evaluate a candidate through ordered soft/strict prep gates, returning null on soft failure</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>PREP_TRIAL_CASE</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Evaluate a prepared-trial case arm while preserving its no-match status</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>PREVERSE</code></td>
 <td>eager, pure</td>
 <td>Reverse a collection (returns new copy)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>PSLICE_CLAMP</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Clamped slice operator |&gt;//</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>PSLICE_STRICT</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Strict slice operator |&gt;/</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>PSORT</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Sort a collection with comparator function (returns new copy)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>PSPLIT</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Split a collection by a delimiter or predicate</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>QUOTE</code></td>
 <td>eager, pure</td>
 <td>Create a document quotation block</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>RANDOM</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Sample exact rational points from an interval</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>RANDOM_PARTITION</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Partition an interval at distinct random rational points</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>REACTIVEGRAPH</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Create a transactional graph of reactive source and computed nodes</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>REACTIVE_DECLARE</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Declare a new reactive cell from a deferred definition</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>REACTIVE_INDEX_NODE</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Retrieve a FormulaSheet cell identity without dereferencing it</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>REACTIVE_INDEX_READ</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Read a FormulaSheet cell and record a dependency</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>REACTIVE_INDEX_UPDATE</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Replace a FormulaSheet cell’s deferred formula</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>REACTIVE_NODE</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Retrieve a reactive cell identity without dereferencing it</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>REACTIVE_READ</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Read a reactive cell value and record a dependency</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>REACTIVE_TRANSACTION</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Stage reactive declarations and updates and commit one atomic graph epoch</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>REACTIVE_UPDATE</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Replace a reactive cell definition while preserving its identity</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>REGEX</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Create a regex matching function</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>RETRIEVE</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Look up a variable in the current scope chain</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>RIXCELEXPORT</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Serialize a FormulaSheet to canonical versioned RiXCel JSON</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>RIXCELEXPORTCSV</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Export the computed values of a rank-2 FormulaSheet as CSV</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>RIXCELEXPORTTSV</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Export the computed values of a rank-2 FormulaSheet as TSV</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>RIXCELIMPORT</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Rebuild a FormulaSheet by compiling authoritative source from RiXCel JSON</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>RIXCELIMPORTCSV</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Import CSV values into a rank-2 FormulaSheet; optional header=1 uses the first row as labels</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>RIXCELIMPORTTSV</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Import TSV values into a rank-2 FormulaSheet; optional header=1 uses the first row as labels</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>SAME_CELL</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Identity comparison (===) — returns 1 if both sides refer to the same cell, null otherwise</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>SARITH_FUNCTION_BODY</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Resolve a structural-arithmetic function template against its arguments</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>SECTION</code></td>
 <td>eager, pure</td>
 <td>Create a structural document section</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>SELF</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Resolve the current callable object inside a function body</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>SEMANTIC_CONVERT_SOFT</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Convert a value to a semantic type, returning null on failure</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>SEMANTIC_CONVERT_STRICT</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Convert a value to a semantic type, throwing on failure</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>SEMANTIC_HAS</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Check semantic type/trait membership against __type, _type, and __traits</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>SEQ</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Expression sequence: evaluate arguments left-to-right in the current scope and return the last value</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>SET</code></td>
 <td>lazy, pure</td>
 <td>Create a set (unique values)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>SET_DIFF</code></td>
 <td>eager, pure</td>
 <td>—</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>SET_PROD</code></td>
 <td>eager, pure</td>
 <td>—</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>SET_SYMDIFF</code></td>
 <td>eager, pure</td>
 <td>—</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>SHEET</code></td>
 <td>eager, pure</td>
 <td>Create a portable sheet view of indexable data</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>SLIDE</code></td>
 <td>eager, pure</td>
 <td>Create a presentation slide</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>SLIDES</code></td>
 <td>eager, pure</td>
 <td>Create a sequential presentation deck</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>SNAPSHOTS</code></td>
 <td>eager, pure</td>
 <td>Materialize [scene, states] tuples into a portable ordered snapshot list</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>SQRT</code></td>
 <td>eager, pure, multifunction</td>
 <td>Square root (approximate rational)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>STEP</code></td>
 <td>eager, pure</td>
 <td>Lazy exact stepped range over a rational interval</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>STRING</code></td>
 <td>eager, pure</td>
 <td>Create a string value</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>STRONG</code></td>
 <td>eager, pure</td>
 <td>Create semantic inline strong content</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>SUB</code></td>
 <td>eager, pure, multifunction</td>
 <td>Subtraction</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>SYSREF</code></td>
 <td>eager, pure</td>
 <td>Reference to a system function</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>SYSTEM</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Mathematical system container, currently evaluates as a block</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>SYSTEM_SPEC</code></td>
 <td>lazy, pure</td>
 <td>Create a first-class symbolic system specification</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>TABLE</code></td>
 <td>eager, pure</td>
 <td>Create a structured output table</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>TAIL_SELF</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Tail-position self call that reuses the current function frame</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>TEMPLATE_TEXT</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Create interpolated text with <span class="citation" data-cites="expression">@expression</span> insertions</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>TENSOR</code></td>
 <td>lazy, pure</td>
 <td>Tensor literal</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>TENSOR_LITERAL</code></td>
 <td>lazy, pure</td>
 <td>Tensor literal with explicit shape</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>TENSOR_TRANSPOSE</code></td>
 <td>eager, pure</td>
 <td>Transpose a rank-2 tensor view</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>TERNARY</code></td>
 <td>lazy, effectful/unspecified</td>
-<td>Ternary conditional: condition ?? trueExpr ?: falseExpr</td>
+<td>Decision conditional: condition ?: truthExpr ?_ nullExpr ?? undecidedExpr</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>TEXT</code></td>
 <td>eager, pure</td>
 <td>Create a portable text output node</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>TOBASE</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Format number to base string: expr _&gt; baseSpec</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>TRAIT_REGISTER</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Register an immutable semantic trait from a RiX map spec</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>TUPLE</code></td>
 <td>lazy, pure</td>
 <td>Create a tuple</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>TYPE_EXPORT</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Export a semantically typed value through its registered type exporter</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>TYPE_IMPORT</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Import a value from a tagged type export map</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>TYPE_INSTALL</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Install a registered semantic type into system multifunctions</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>TYPE_REGISTER</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Register an immutable semantic type from a RiX map spec</td>
+</tr>
+<tr class="odd">
+<td><code>UNDECIDED</code></td>
+<td>eager, pure</td>
+<td>Return the singleton undecided decision value</td>
 </tr>
 <tr class="even">
 <td><code>UNION</code></td>

@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>ir-format – RiX</title>
+<title>certified-approximation – RiX</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -22,41 +22,6 @@ ul.task-list li input[type="checkbox"] {
   width: 0.8em;
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
-}
-/* CSS for syntax highlighting */
-html { -webkit-text-size-adjust: 100%; }
-pre > code.sourceCode { white-space: pre; position: relative; }
-pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
-pre > code.sourceCode > span:empty { height: 1.2em; }
-.sourceCode { overflow: visible; }
-code.sourceCode > span { color: inherit; text-decoration: inherit; }
-div.sourceCode { margin: 1em 0; }
-pre.sourceCode { margin: 0; }
-@media screen {
-div.sourceCode { overflow: auto; }
-}
-@media print {
-pre > code.sourceCode { white-space: pre-wrap; }
-pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
-}
-pre.numberSource code
-  { counter-reset: source-line 0; }
-pre.numberSource code > span
-  { position: relative; left: -4em; counter-increment: source-line; }
-pre.numberSource code > span > a:first-child::before
-  { content: counter(source-line);
-    position: relative; left: -1em; text-align: right; vertical-align: baseline;
-    border: none; display: inline-block;
-    -webkit-touch-callout: none; -webkit-user-select: none;
-    -khtml-user-select: none; -moz-user-select: none;
-    -ms-user-select: none; user-select: none;
-    padding: 0 4px; width: 4em;
-  }
-pre.numberSource { margin-left: 3em;  padding-left: 4px; }
-div.sourceCode
-  {   }
-@media screen {
-pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
 }
 </style>
 
@@ -360,32 +325,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#rix-ir-format-reference" id="toc-rix-ir-format-reference" class="nav-link active" data-scroll-target="#rix-ir-format-reference">RiX IR Format Reference</a>
+  <li><a href="#certified-approximation-methods" id="toc-certified-approximation-methods" class="nav-link active" data-scroll-target="#certified-approximation-methods">Certified approximation methods</a>
   <ul class="collapse">
-  <li><a href="#complete-system-function-catalog" id="toc-complete-system-function-catalog" class="nav-link" data-scroll-target="#complete-system-function-catalog">Complete System Function Catalog</a>
-  <ul class="collapse">
-  <li><a href="#variables-assignment" id="toc-variables-assignment" class="nav-link" data-scroll-target="#variables-assignment">Variables &amp; Assignment</a></li>
-  <li><a href="#arithmetic" id="toc-arithmetic" class="nav-link" data-scroll-target="#arithmetic">Arithmetic</a></li>
-  <li><a href="#comparison" id="toc-comparison" class="nav-link" data-scroll-target="#comparison">Comparison</a></li>
-  <li><a href="#logic" id="toc-logic" class="nav-link" data-scroll-target="#logic">Logic</a></li>
-  <li><a href="#control-flow" id="toc-control-flow" class="nav-link" data-scroll-target="#control-flow">Control Flow</a></li>
-  <li><a href="#functions" id="toc-functions" class="nav-link" data-scroll-target="#functions">Functions</a></li>
-  <li><a href="#collections" id="toc-collections" class="nav-link" data-scroll-target="#collections">Collections</a></li>
-  <li><a href="#property-access" id="toc-property-access" class="nav-link" data-scroll-target="#property-access">Property Access</a></li>
-  <li><a href="#mutation" id="toc-mutation" class="nav-link" data-scroll-target="#mutation">Mutation</a></li>
-  <li><a href="#pipes" id="toc-pipes" class="nav-link" data-scroll-target="#pipes">Pipes</a></li>
-  <li><a href="#assertions" id="toc-assertions" class="nav-link" data-scroll-target="#assertions">Assertions</a></li>
-  <li><a href="#calculus" id="toc-calculus" class="nav-link" data-scroll-target="#calculus">Calculus</a></li>
-  <li><a href="#interval-operations" id="toc-interval-operations" class="nav-link" data-scroll-target="#interval-operations">Interval Operations</a></li>
-  <li><a href="#units" id="toc-units" class="nav-link" data-scroll-target="#units">Units</a></li>
-  <li><a href="#postfix-metadata" id="toc-postfix-metadata" class="nav-link" data-scroll-target="#postfix-metadata">Postfix / Metadata</a></li>
-  <li><a href="#meta-repl" id="toc-meta-repl" class="nav-link" data-scroll-target="#meta-repl">Meta / REPL</a></li>
-  </ul></li>
-  <li><a href="#parameter-format" id="toc-parameter-format" class="nav-link" data-scroll-target="#parameter-format">Parameter Format</a></li>
-  <li><a href="#key-design-principles" id="toc-key-design-principles" class="nav-link" data-scroll-target="#key-design-principles">Key Design Principles</a></li>
+  <li><a href="#construction" id="toc-construction" class="nav-link" data-scroll-target="#construction">Construction</a></li>
+  <li><a href="#method-reference" id="toc-method-reference" class="nav-link" data-scroll-target="#method-reference">Method reference</a></li>
   </ul></li>
   </ul>
-<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/design/eval/ir-format.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/objects/certified-approximation.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
     </div>
 <!-- main -->
 <main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"></header>
@@ -394,791 +340,92 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 
 
-<section id="rix-ir-format-reference" class="level1">
-<h1>RiX IR Format Reference</h1>
-<div class="callout callout-style-default callout-warning callout-titled" title="IR design snapshot">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-<span class="screen-reader-only">Warning</span>IR design snapshot
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<p>This hand-written catalog captures the core IR model and useful source-to-IR mappings, but it is not exhaustive and some assignment/function rows reflect earlier language phases. For the complete current registry, including lazy, pure, and multifunction dispatch flags, use the generated <a href="../../reference/system-reference.html#internal-ir-registry">internal IR registry</a>.</p>
-</div>
-</div>
-<p>The Intermediate Representation (IR) is the output of the lowering pass. Every IR node is a system function call:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>{ <span class="dt">fn</span><span class="op">:</span> <span class="st">"SYSTEM_FUNC_NAME"</span><span class="op">,</span> <span class="dt">args</span><span class="op">:</span> [<span class="op">...</span>] }</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Args can contain other IR nodes (nested calls), literal strings, numbers, or structured objects (for params, metadata).</p>
-<hr>
-<section id="complete-system-function-catalog" class="level2">
-<h2 class="anchored" data-anchor-id="complete-system-function-catalog">Complete System Function Catalog</h2>
-<section id="variables-assignment" class="level3">
-<h3 class="anchored" data-anchor-id="variables-assignment">Variables &amp; Assignment</h3>
+<section id="certified-approximation-methods" class="level1">
+<h1>Certified approximation methods</h1>
+<p><code>CertifiedApproximation</code> is one uncertain scalar with an exact rational enclosure. It is not a <code>RationalInterval</code> collection. A literal such as <code>23.456?789</code> certifies the prefix <code>23.456</code>, retains <code>789</code> as provisional display information, and guarantees that the represented value lies in <code>23.456:23.457</code>.</p>
+<section id="construction" class="level2">
+<h2 class="anchored" data-anchor-id="construction">Construction</h2>
+<pre class="rix"><code>x := 23.456?789
+y := 3.~7~15?
+z := 0xA.B?C
+providerValue := .CertifiedApproximation(3/2, 1:2, {=
+  reason = :budgetExhausted,
+  requested = 1/100,
+  achieved = 1
+})</code></pre>
+<p>The system constructor is intended for certified providers. Its candidate must be an exact Integer or Rational inside the supplied RationalInterval. The enclosure, not the candidate or provisional digits, is authoritative.</p>
+</section>
+<section id="method-reference" class="level2">
+<h2 class="anchored" data-anchor-id="method-reference">Method reference</h2>
 <table class="caption-top table">
 <colgroup>
-<col style="width: 17%">
 <col style="width: 33%">
-<col style="width: 15%">
+<col style="width: 33%">
 <col style="width: 33%">
 </colgroup>
 <thead>
 <tr class="header">
-<th>IR fn</th>
-<th>Source syntax</th>
-<th>Args</th>
-<th>Description</th>
+<th>Full syntax</th>
+<th>Result</th>
+<th>Meaning</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td><code>LITERAL</code></td>
-<td><code>42</code>, <code>3/4</code>, <code>0xFF</code></td>
-<td><code>[value_string]</code></td>
-<td>Number literal (parsed at eval time)</td>
+<td><code>x.Candidate()</code></td>
+<td>exact scalar</td>
+<td>Return the non-authoritative representative.</td>
 </tr>
 <tr class="even">
-<td><code>STRING</code></td>
-<td><code>"hello"</code></td>
-<td><code>[value_string]</code></td>
-<td>String literal</td>
+<td><code>x.Enclosure()</code></td>
+<td><code>RationalInterval</code></td>
+<td>Return the authoritative enclosure.</td>
 </tr>
 <tr class="odd">
-<td><code>NULL</code></td>
-<td><code>_</code></td>
-<td><code>[]</code></td>
-<td>Null value</td>
+<td><code>x.Low()</code> / <code>x.High()</code></td>
+<td><code>Rational</code></td>
+<td>Return an enclosure endpoint.</td>
 </tr>
 <tr class="even">
-<td><code>RETRIEVE</code></td>
-<td><code>x</code>, <code>PI</code></td>
-<td><code>[name]</code></td>
-<td>Variable/constant lookup</td>
+<td><code>x.Negate()</code></td>
+<td>certified or exact scalar</td>
+<td>Negate candidate and enclosure.</td>
 </tr>
 <tr class="odd">
-<td><code>ASSIGN</code></td>
-<td><code>x = 5</code>, <code>x := 5</code></td>
-<td><code>[name, value_ir]</code></td>
-<td>Variable assignment</td>
+<td><code>x.Reciprocal()</code></td>
+<td>certified or exact scalar</td>
+<td>Reciprocate when the enclosure excludes zero.</td>
 </tr>
 <tr class="even">
-<td><code>PLACEHOLDER</code></td>
-<td><code>_1</code>, <code>_2</code></td>
-<td><code>[place_number]</code></td>
-<td>Pipe placeholder</td>
+<td><code>x.PossibleRelations(y)</code></td>
+<td><code>Array</code></td>
+<td>Return the possible <code>&lt;</code>, <code>=</code>, and <code>&gt;</code> relations.</td>
+</tr>
+<tr class="odd">
+<td><code>x.CertainlyLessThan(y)</code></td>
+<td><code>1 \| null</code></td>
+<td>Ask whether every represented value is less than <code>y</code>.</td>
+</tr>
+<tr class="even">
+<td><code>x.PossiblyLessThan(y)</code></td>
+<td><code>1 \| null</code></td>
+<td>Ask whether some represented value may be less than <code>y</code>.</td>
+</tr>
+<tr class="odd">
+<td><code>x.ToString()</code></td>
+<td><code>String</code></td>
+<td>Return a parseable certified spelling when available.</td>
 </tr>
 </tbody>
 </table>
-</section>
-<section id="arithmetic" class="level3">
-<h3 class="anchored" data-anchor-id="arithmetic">Arithmetic</h3>
-<table class="caption-top table">
-<thead>
-<tr class="header">
-<th>IR fn</th>
-<th>Source</th>
-<th>Args</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>ADD</code></td>
-<td><code>a + b</code></td>
-<td><code>[left, right]</code></td>
-</tr>
-<tr class="even">
-<td><code>SUB</code></td>
-<td><code>a - b</code></td>
-<td><code>[left, right]</code></td>
-</tr>
-<tr class="odd">
-<td><code>MUL</code></td>
-<td><code>a * b</code>, <code>f(x)</code></td>
-<td><code>[left, right]</code></td>
-</tr>
-<tr class="even">
-<td><code>DIV</code></td>
-<td><code>a / b</code></td>
-<td><code>[left, right]</code></td>
-</tr>
-<tr class="odd">
-<td><code>INTDIV</code></td>
-<td><code>a // b</code></td>
-<td><code>[left, right]</code></td>
-</tr>
-<tr class="even">
-<td><code>MOD</code></td>
-<td><code>a % b</code></td>
-<td><code>[left, right]</code></td>
-</tr>
-<tr class="odd">
-<td><code>POW</code></td>
-<td><code>a ^ b</code></td>
-<td><code>[left, right]</code></td>
-</tr>
-<tr class="even">
-<td><code>POWPROD</code></td>
-<td><code>a ** b</code></td>
-<td><code>[left, right]</code></td>
-</tr>
-<tr class="odd">
-<td><code>NEG</code></td>
-<td><code>-x</code></td>
-<td><code>[operand]</code></td>
-</tr>
-</tbody>
-</table>
-</section>
-<section id="comparison" class="level3">
-<h3 class="anchored" data-anchor-id="comparison">Comparison</h3>
-<table class="caption-top table">
-<thead>
-<tr class="header">
-<th>IR fn</th>
-<th>Source</th>
-<th>Args</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>EQ</code></td>
-<td><code>a == b</code></td>
-<td><code>[left, right]</code></td>
-</tr>
-<tr class="even">
-<td><code>NEQ</code></td>
-<td><code>a != b</code></td>
-<td><code>[left, right]</code></td>
-</tr>
-<tr class="odd">
-<td><code>LT</code></td>
-<td><code>a &lt; b</code></td>
-<td><code>[left, right]</code></td>
-</tr>
-<tr class="even">
-<td><code>GT</code></td>
-<td><code>a &gt; b</code></td>
-<td><code>[left, right]</code></td>
-</tr>
-<tr class="odd">
-<td><code>LTE</code></td>
-<td><code>a &lt;= b</code></td>
-<td><code>[left, right]</code></td>
-</tr>
-<tr class="even">
-<td><code>GTE</code></td>
-<td><code>a &gt;= b</code></td>
-<td><code>[left, right]</code></td>
-</tr>
-</tbody>
-</table>
-</section>
-<section id="logic" class="level3">
-<h3 class="anchored" data-anchor-id="logic">Logic</h3>
-<table class="caption-top table">
-<thead>
-<tr class="header">
-<th>IR fn</th>
-<th>Source</th>
-<th>Args</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>AND</code></td>
-<td><code>a AND b</code></td>
-<td><code>[left, right]</code></td>
-</tr>
-<tr class="even">
-<td><code>OR</code></td>
-<td><code>a OR b</code></td>
-<td><code>[left, right]</code></td>
-</tr>
-<tr class="odd">
-<td><code>NOT</code></td>
-<td><code>NOT a</code></td>
-<td><code>[operand]</code></td>
-</tr>
-</tbody>
-</table>
-</section>
-<section id="control-flow" class="level3">
-<h3 class="anchored" data-anchor-id="control-flow">Control Flow</h3>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 25%">
-<col style="width: 28%">
-<col style="width: 21%">
-<col style="width: 25%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>IR fn</th>
-<th>Source</th>
-<th>Args</th>
-<th>Notes</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>BLOCK</code></td>
-<td><code>{; a; b; c }</code>, <code>{ a; b }</code></td>
-<td><code>[stmt1, stmt2, ...]</code></td>
-<td>Sequential execution</td>
-</tr>
-<tr class="even">
-<td><code>CASE</code></td>
-<td><code>{? cond1; cond2 }</code></td>
-<td><code>[DEFER(c1), DEFER(c2), ...]</code></td>
-<td>Case/conditional with deferred args</td>
-</tr>
-<tr class="odd">
-<td><code>PREP_TRIAL</code></td>
-<td><code>expr ?- pattern: [prep]</code></td>
-<td><code>[candidate, gate1, ...]</code></td>
-<td>Evaluates one candidate through ordered soft/strict binding and prep gates</td>
-</tr>
-<tr class="even">
-<td><code>PREP_TRIAL_CASE</code></td>
-<td>prepared-trial arm inside <code>{? ... }</code></td>
-<td><code>[candidate, gate1, ...]</code></td>
-<td>Preserves internal no-match status so <code>CASE</code> can advance without confusing it with a successful <code>_</code></td>
-</tr>
-<tr class="odd">
-<td><code>LOOP</code></td>
-<td><code>{@ init; cond; body; upd }</code>, <code>{@ init; cond; body }</code>, <code>{@ init; cond; body; upd; after }</code></td>
-<td><code>[DEFER(init), DEFER(cond), ...]</code></td>
-<td>Loop with deferred args; the three-argument form has no separate update step; the five-argument form runs <code>after</code> on normal completion and returns its value</td>
-</tr>
-<tr class="even">
-<td><code>TERNARY</code></td>
-<td><code>c ?: t ?_ f</code></td>
-<td><code>[condition, DEFER(true), DEFER(false)]</code></td>
-<td>Ternary conditional</td>
-</tr>
-<tr class="odd">
-<td><code>DEFER</code></td>
-<td><code>@{...}</code></td>
-<td><code>[body_ir]</code></td>
-<td>Deferred (lazy) computation</td>
-</tr>
-<tr class="even">
-<td><code>REACTIVE_READ</code></td>
-<td><code>$name</code></td>
-<td><code>[name]</code></td>
-<td>Read a reactive cell and record an edge</td>
-</tr>
-<tr class="odd">
-<td><code>REACTIVE_NODE</code></td>
-<td><code>$$name</code></td>
-<td><code>[name]</code></td>
-<td>Retrieve reactive cell identity</td>
-</tr>
-<tr class="even">
-<td><code>REACTIVE_DECLARE</code></td>
-<td><code>$$name := expr</code></td>
-<td><code>[name, DEFER(expr)]</code></td>
-<td>Declare a new reactive cell</td>
-</tr>
-<tr class="odd">
-<td><code>REACTIVE_UPDATE</code></td>
-<td><code>$name := expr</code></td>
-<td><code>[name, DEFER(expr)]</code></td>
-<td>Replace a cell definition without replacing identity</td>
-</tr>
-<tr class="even">
-<td><code>REACTIVE_INDEX_READ</code></td>
-<td><code>$sheet[i,...]</code></td>
-<td><code>[name, rank, ...indices]</code></td>
-<td>Read and track an exact FormulaSheet cell</td>
-</tr>
-<tr class="odd">
-<td><code>REACTIVE_INDEX_NODE</code></td>
-<td><code>$$sheet[i,...]</code></td>
-<td><code>[name, rank, ...indices]</code></td>
-<td>Retrieve an exact FormulaSheet cell identity</td>
-</tr>
-<tr class="even">
-<td><code>REACTIVE_INDEX_UPDATE</code></td>
-<td><code>$sheet[i,...] := @{...}</code></td>
-<td><code>[name, rank, ...indices, DEFER(...)]</code></td>
-<td>Replace a FormulaSheet cell formula</td>
-</tr>
-<tr class="odd">
-<td><code>REACTIVE_TRANSACTION</code></td>
-<td><code>${ ... }</code></td>
-<td><code>[stmt1, stmt2, ...]</code></td>
-<td>Stage and atomically commit reactive changes</td>
-</tr>
-<tr class="even">
-<td><code>SYSTEM_SPEC</code></td>
-<td><code>{#x# x^2 }</code></td>
-<td><code>[spec_meta]</code></td>
-<td>Create a first-class symbolic spec; metadata carries headers, output mode, expression/statements, and imports</td>
-</tr>
-<tr class="odd">
-<td><code>DERIVATIVE</code></td>
-<td><code>F'</code>, <code>F'(3)</code></td>
-<td><code>[callable, order, variable]</code></td>
-<td>Exact symbolic derivative; evaluated syntax wraps the result in <code>CALL_EXPR</code></td>
-</tr>
-<tr class="even">
-<td><code>INTEGRAL</code></td>
-<td><code>'F</code>, <code>'F(3)</code></td>
-<td><code>[callable, order, variable]</code></td>
-<td>Exact supported antiderivative; evaluated syntax wraps the result in <code>CALL_EXPR</code></td>
-</tr>
-</tbody>
-</table>
-</section>
-<section id="functions" class="level3">
-<h3 class="anchored" data-anchor-id="functions">Functions</h3>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 33%">
-<col style="width: 38%">
-<col style="width: 28%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>IR fn</th>
-<th>Source</th>
-<th>Args</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>CALL</code></td>
-<td><code>F(x, y)</code></td>
-<td><code>[name, arg1, arg2, ...]</code></td>
-</tr>
-<tr class="even">
-<td><code>CALL_EXPR</code></td>
-<td><code>expr(x)</code></td>
-<td><code>[expr_ir, arg1, ...]</code></td>
-</tr>
-<tr class="odd">
-<td><code>FUNCDEF</code></td>
-<td><code>f(x) :-&gt; body</code></td>
-<td><code>[name, params, body]</code></td>
-</tr>
-<tr class="even">
-<td><code>LAMBDA</code></td>
-<td><code>(x) -&gt; x^2</code></td>
-<td><code>[params, body]</code></td>
-</tr>
-<tr class="odd">
-<td><code>MULTIFUNCTION</code></td>
-<td><code>{&gt; f, G, H[:Named] }</code></td>
-<td><code>[callable1, callable2, ...]</code></td>
-</tr>
-<tr class="even">
-<td><code>MULTIFUNCDEF</code></td>
-<td><code>F(x) =&gt; body</code>, <code>F(x) ^=&gt; body</code></td>
-<td><code>[name, mode, params, body]</code></td>
-</tr>
-<tr class="odd">
-<td><code>KWARG</code></td>
-<td><code>; a := 4</code></td>
-<td><code>[key, value]</code></td>
-</tr>
-<tr class="even">
-<td><code>SYSREF</code></td>
-<td><code>@_ASSIGN</code></td>
-<td><code>[name]</code></td>
-</tr>
-</tbody>
-</table>
-</section>
-<section id="collections" class="level3">
-<h3 class="anchored" data-anchor-id="collections">Collections</h3>
-<table class="caption-top table">
-<thead>
-<tr class="header">
-<th>IR fn</th>
-<th>Source</th>
-<th>Args</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>ARRAY</code></td>
-<td><code>[1, 2, 3]</code></td>
-<td><code>[elem1, elem2, ...]</code></td>
-</tr>
-<tr class="even">
-<td><code>SET</code></td>
-<td><code>{| 1, 2, 3 }</code></td>
-<td><code>[elem1, elem2, ...]</code></td>
-</tr>
-<tr class="odd">
-<td><code>MAP</code></td>
-<td><code>{= a, b, c }</code></td>
-<td><code>[elem1, elem2, ...]</code></td>
-</tr>
-<tr class="even">
-<td><code>TUPLE</code></td>
-<td><code>{: a, b }</code>, <code>(a, b)</code></td>
-<td><code>[elem1, elem2, ...]</code></td>
-</tr>
-<tr class="odd">
-<td><code>INTERVAL</code></td>
-<td><code>a : b</code></td>
-<td><code>[low, high]</code></td>
-</tr>
-<tr class="even">
-<td><code>MATRIX</code></td>
-<td>matrix literal</td>
-<td><code>[row1, row2, ...]</code></td>
-</tr>
-<tr class="odd">
-<td><code>TENSOR</code></td>
-<td>tensor literal</td>
-<td><code>[elem1, ...]</code></td>
-</tr>
-</tbody>
-</table>
-</section>
-<section id="property-access" class="level3">
-<h3 class="anchored" data-anchor-id="property-access">Property Access</h3>
-<p>Two distinct concepts: <strong>meta properties</strong> (external annotations on any object, stored in <code>obj._ext</code>) and <strong>collection indices/keys</strong> (actual content of sequences and maps).</p>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 25%">
-<col style="width: 28%">
-<col style="width: 21%">
-<col style="width: 25%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>IR fn</th>
-<th>Source</th>
-<th>Args</th>
-<th>Notes</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>META_GET</code></td>
-<td><code>obj.a</code></td>
-<td><code>[object, property_name]</code></td>
-<td>Returns null if absent</td>
-</tr>
-<tr class="even">
-<td><code>META_SET</code></td>
-<td><code>obj.a = 7</code></td>
-<td><code>[object, prop, value]</code></td>
-<td>null value = delete; respects immutable/frozen flags</td>
-</tr>
-<tr class="odd">
-<td><code>META_ALL</code></td>
-<td><code>obj..</code></td>
-<td><code>[object]</code></td>
-<td>Returns read-only copy of all meta properties as map</td>
-</tr>
-<tr class="even">
-<td><code>META_MERGE</code></td>
-<td><code>obj .= map</code></td>
-<td><code>[object, map_ir]</code></td>
-<td>Bulk merge map into meta properties (null values = delete)</td>
-</tr>
-<tr class="odd">
-<td><code>INDEX_GET</code></td>
-<td><code>arr[i]</code>, <code>arr[:key]</code></td>
-<td><code>[object, index_ir]</code></td>
-<td>1-based for sequences/strings; string or value keys for maps</td>
-</tr>
-<tr class="even">
-<td><code>INDEX_SET</code></td>
-<td><code>arr[i] = v</code></td>
-<td><code>[object, index_ir, value]</code></td>
-<td>Requires <code>mutable=true</code> meta flag</td>
-</tr>
-<tr class="odd">
-<td><code>KEYS</code></td>
-<td><code>obj.\|</code></td>
-<td><code>[object]</code></td>
-<td>Returns set of map keys</td>
-</tr>
-<tr class="even">
-<td><code>VALUES</code></td>
-<td><code>obj\|.</code></td>
-<td><code>[object]</code></td>
-<td>Returns set of map values</td>
-</tr>
-</tbody>
-</table>
-<p><strong>Syntax notes:</strong> - <code>obj.name</code> → <code>META_GET(obj, "name")</code> — meta/external properties, separate from map keys - <code>obj[expr]</code> → <code>INDEX_GET(obj, expr)</code> — collection index or map key lookup - <code>obj[:name]</code> → <code>INDEX_GET(obj, "name")</code> — string key literal syntax (KeyLiteral) - <code>obj..name</code> → <strong>parse error</strong> (use <code>obj.name</code> for meta access) - <code>obj..</code> → <code>META_ALL(obj)</code> — returns read-only copy of all meta properties - <code>obj.Method(args)</code> → <code>CALL_EXPR(META_GET(obj, "Method"), obj, args...)</code> — method call desugaring</p>
-<p><strong>Removed:</strong> <code>DOT</code>, <code>INDEX</code>, <code>DOT_ASSIGN</code>, <code>INDEX_ASSIGN</code>, <code>EXTGET</code>, <code>EXTSET</code>, <code>EXTALL</code></p>
-</section>
-<section id="mutation" class="level3">
-<h3 class="anchored" data-anchor-id="mutation">Mutation</h3>
-<table class="caption-top table">
-<thead>
-<tr class="header">
-<th>IR fn</th>
-<th>Source</th>
-<th>Args</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>MUTCOPY</code></td>
-<td><code>obj{= +a=3 }</code></td>
-<td><code>[target, operations]</code></td>
-</tr>
-<tr class="even">
-<td><code>MUTINPLACE</code></td>
-<td><code>obj{! +a=3 }</code></td>
-<td><code>[target, operations]</code></td>
-</tr>
-</tbody>
-</table>
-<p>Operations array: <code>[{action: "add"|"remove", key: string, value: ir|null}]</code></p>
-</section>
-<section id="pipes" class="level3">
-<h3 class="anchored" data-anchor-id="pipes">Pipes</h3>
-<table class="caption-top table">
-<thead>
-<tr class="header">
-<th>IR fn</th>
-<th>Source</th>
-<th>Args</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>PIPE</code></td>
-<td><code>x \|&gt; F</code></td>
-<td><code>[value, fn]</code></td>
-</tr>
-<tr class="even">
-<td><code>PIPE_EXPLICIT</code></td>
-<td><code>(a,b) \|\|&gt; f(_2,_1)</code></td>
-<td><code>[value, template]</code></td>
-</tr>
-<tr class="odd">
-<td><code>PMAP</code></td>
-<td><code>xs \|&gt;&gt; f</code></td>
-<td><code>[collection, fn]</code></td>
-</tr>
-<tr class="even">
-<td><code>PFILTER</code></td>
-<td><code>xs \|&gt;? f</code></td>
-<td><code>[collection, fn]</code></td>
-</tr>
-<tr class="odd">
-<td><code>PREDUCE</code></td>
-<td><code>xs \|&gt;: f</code></td>
-<td><code>[collection, fn]</code></td>
-</tr>
-</tbody>
-</table>
-</section>
-<section id="assertions" class="level3">
-<h3 class="anchored" data-anchor-id="assertions">Assertions</h3>
-<table class="caption-top table">
-<thead>
-<tr class="header">
-<th>IR fn</th>
-<th>Source</th>
-<th>Args</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>ASSERT_LT</code></td>
-<td><code>x :&lt;: 5</code></td>
-<td><code>[left, right]</code></td>
-</tr>
-<tr class="even">
-<td><code>ASSERT_GT</code></td>
-<td><code>x :&gt;: 5</code></td>
-<td><code>[left, right]</code></td>
-</tr>
-<tr class="odd">
-<td><code>ASSERT_LTE</code></td>
-<td><code>x :&lt;=: 5</code></td>
-<td><code>[left, right]</code></td>
-</tr>
-<tr class="even">
-<td><code>ASSERT_GTE</code></td>
-<td><code>x :&gt;=: 5</code></td>
-<td><code>[left, right]</code></td>
-</tr>
-</tbody>
-</table>
-</section>
-<section id="calculus" class="level3">
-<h3 class="anchored" data-anchor-id="calculus">Calculus</h3>
-<table class="caption-top table">
-<thead>
-<tr class="header">
-<th>IR fn</th>
-<th>Source</th>
-<th>Args</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>DERIVATIVE</code></td>
-<td><code>F'</code>, <code>F''</code></td>
-<td><code>[fn, order]</code></td>
-</tr>
-<tr class="even">
-<td><code>INTEGRAL</code></td>
-<td><code>'expr</code></td>
-<td><code>[expression]</code></td>
-</tr>
-</tbody>
-</table>
-</section>
-<section id="interval-operations" class="level3">
-<h3 class="anchored" data-anchor-id="interval-operations">Interval Operations</h3>
-<table class="caption-top table">
-<thead>
-<tr class="header">
-<th>IR fn</th>
-<th>Source</th>
-<th>Args</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>STEP</code></td>
-<td><code>a:b :+ s</code></td>
-<td><code>[interval, step]</code></td>
-</tr>
-<tr class="even">
-<td><code>DIVIDE</code></td>
-<td><code>a:b :: n</code></td>
-<td><code>[interval, count]</code></td>
-</tr>
-<tr class="odd">
-<td><code>PARTITION</code></td>
-<td><code>a:b :/: n</code></td>
-<td><code>[interval, count]</code></td>
-</tr>
-<tr class="even">
-<td><code>MEDIANTS</code></td>
-<td><code>a:b :~ n</code></td>
-<td><code>[interval, levels]</code></td>
-</tr>
-<tr class="odd">
-<td><code>RANDOM</code></td>
-<td><code>a:b :% n</code></td>
-<td><code>[interval, count]</code></td>
-</tr>
-<tr class="even">
-<td><code>INFSEQ</code></td>
-<td><code>a ::+ s</code></td>
-<td><code>[start, step]</code></td>
-</tr>
-</tbody>
-</table>
-</section>
-<section id="units" class="level3">
-<h3 class="anchored" data-anchor-id="units">Units</h3>
-<p>These IR operations are syntax sugar. <code>UNIT</code> resolves its string through the active <code>Units</code> RiX map and multiplies the expression by the resulting unit value. <code>MATHUNIT</code> does the same through the active <code>Exact</code> map. The resulting runtime values are ordinary <code>Quantity</code> or <code>ExactExpression</code> values.</p>
-<table class="caption-top table">
-<thead>
-<tr class="header">
-<th>IR fn</th>
-<th>Source</th>
-<th>Args</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>UNIT</code></td>
-<td><code>3.2~[m]</code></td>
-<td><code>[expr, unit_string]</code></td>
-</tr>
-<tr class="even">
-<td><code>MATHUNIT</code></td>
-<td><code>2~{sqrt2}</code></td>
-<td><code>[expr, unit_string]</code></td>
-</tr>
-</tbody>
-</table>
-</section>
-<section id="postfix-metadata" class="level3">
-<h3 class="anchored" data-anchor-id="postfix-metadata">Postfix / Metadata</h3>
-<table class="caption-top table">
-<thead>
-<tr class="header">
-<th>IR fn</th>
-<th>Source</th>
-<th>Args</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>AT</code></td>
-<td><code>expr@(eps)</code></td>
-<td><code>[target, arg]</code></td>
-</tr>
-<tr class="even">
-<td><code>ASK</code></td>
-<td><code>expr?(key)</code></td>
-<td><code>[target, arg]</code></td>
-</tr>
-<tr class="odd">
-<td><code>WITH_META</code></td>
-<td><code>[expr, k:=v]</code></td>
-<td><code>[expr, metadata_obj]</code></td>
-</tr>
-</tbody>
-</table>
-</section>
-<section id="meta-repl" class="level3">
-<h3 class="anchored" data-anchor-id="meta-repl">Meta / REPL</h3>
-<table class="caption-top table">
-<thead>
-<tr class="header">
-<th>IR fn</th>
-<th>Source</th>
-<th>Args</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>NOP</code></td>
-<td><code># comment</code></td>
-<td><code>[]</code></td>
-</tr>
-<tr class="even">
-<td><code>EMBEDDED</code></td>
-<td><code>`lang code`</code></td>
-<td><code>[language, code]</code></td>
-</tr>
-</tbody>
-</table>
-<hr>
-</section>
-</section>
-<section id="parameter-format" class="level2">
-<h2 class="anchored" data-anchor-id="parameter-format">Parameter Format</h2>
-<p>Function parameters are lowered as:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>{</span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">positional</span><span class="op">:</span> [{ <span class="dt">name</span><span class="op">:</span> <span class="st">"x"</span><span class="op">,</span> <span class="cf">default</span><span class="op">:</span> <span class="kw">null</span> }<span class="op">,</span> { <span class="dt">name</span><span class="op">:</span> <span class="st">"n"</span><span class="op">,</span> <span class="cf">default</span><span class="op">:</span> IR_NODE }]<span class="op">,</span></span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">keyword</span><span class="op">:</span> [{ <span class="dt">name</span><span class="op">:</span> <span class="st">"a"</span><span class="op">,</span> <span class="cf">default</span><span class="op">:</span> IR_NODE }]<span class="op">,</span></span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">conditionals</span><span class="op">:</span> [IR_NODE<span class="op">,</span> <span class="op">...</span>]<span class="op">,</span></span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">metadata</span><span class="op">:</span> {}</span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<hr>
-</section>
-<section id="key-design-principles" class="level2">
-<h2 class="anchored" data-anchor-id="key-design-principles">Key Design Principles</h2>
-<ol type="1">
-<li><strong>Flat tree</strong> — every node is <code>{ fn, args }</code>, no special cases</li>
-<li><strong>Deferred</strong> — lazy args wrapped in <code>DEFER</code> nodes (CASE, LOOP, TERNARY branches)</li>
-<li><strong>Direct mapping</strong> — <code>@_ADD(a,b)</code> lowers to <code>{fn:"ADD", args:[...]}</code> with no indirection</li>
-<li><strong>Name-based dispatch</strong> — evaluator looks up <code>fn</code> in a registry to execute</li>
-<li><strong>Configurable</strong> — any system function can be swapped out for debugging/profiling</li>
-</ol>
+<p>Ordinary arithmetic propagates enclosures. Mixing an exact scalar with a certified scalar returns a certified scalar unless the enclosure collapses to a point. Mixing an explicit RationalInterval with either returns a RationalInterval.</p>
+<p>Comparisons return <code>1</code>, <code>_</code>, or <code>?</code>. Use the decision conditional when all three outcomes matter:</p>
+<pre class="rix"><code>x := 23.456?
+x &lt; 23.4565
+  ?: "certainly less"
+  ?_ "certainly not less"
+  ?? "not decided by this enclosure"</code></pre>
+<p><a href="../../eval/methods-guide.html">Back to the methods overview</a></p>
 
 
 </section>
@@ -1615,7 +862,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>   
     <div class="nav-footer-center">
       &nbsp;
-    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/design/eval/ir-format.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/objects/certified-approximation.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
     <div class="nav-footer-right">
 <p>Documentation built with <a href="https://quarto.org/">Quarto</a></p>
 </div>

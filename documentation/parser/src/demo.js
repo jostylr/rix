@@ -293,7 +293,7 @@ function getNodeIdentifyingInfo(node) {
         case 'MathematicalUnit':
             return { value: `~{${node.unit}}`, key: 'unit' };
         case 'TernaryOperation':
-            return { value: '?? ?: ', key: null };
+            return { value: '?: ?_ ', key: null };
         case 'GeneratorChain':
             return { value: `${node.operators?.length || 0} generators`, key: null };
         default:

@@ -9,9 +9,13 @@ import {
     Rational,
     RationalInterval,
     BaseSystem,
+    CertifiedApproximation,
+    certifiedContinuedFractionPrefix,
+    certifiedRadixPrefix,
     parseNumber as parseCoreNumber,
 } from "@ratmath/core";
 import { HOLE, isHole } from "../../runtime/hole.js";
+import { UNDECIDED } from "../../runtime/decision.js";
 import {
     shallowCopyValue, deepCopyValue,
     copyAllMeta, transferMetaForUpdate,
@@ -359,6 +363,17 @@ function parseSimpleBaseNumeral(str, baseSystem) {
     return result;
 }
 
+function normalizeBaseDigits(value, baseSystem) {
+    const usesLower = baseSystem.characters.some((character) => /[a-z]/.test(character));
+    const usesUpper = baseSystem.characters.some((character) => /[A-Z]/.test(character));
+    return Array.from(value, (character) => {
+        if (baseSystem.charMap.has(character)) return character;
+        if (usesLower && !usesUpper && baseSystem.charMap.has(character.toLowerCase())) return character.toLowerCase();
+        if (usesUpper && !usesLower && baseSystem.charMap.has(character.toUpperCase())) return character.toUpperCase();
+        return character;
+    }).join("");
+}
+
 function continuedFractionFromTerms(terms) {
     let acc = new Rational(terms[terms.length - 1], 1n);
     for (let i = terms.length - 2; i >= 0; i--) {
@@ -574,10 +589,50 @@ function parseLiteral(str) {
 
     // Decimal/integer uncertainty intervals are part of RatMath Core's shared
     // number grammar. Keep RiX-specific bases and radix shifts below.
-    const isCoreUncertainty =
+    const isCoreApproximation = str.includes("?") &&
+        !/^~?(?:0z\[\d+\]|0[a-zA-Z])/.test(str) &&
+        !/^0[A-Z]"/.test(str);
+    const isCoreUncertainty = isCoreApproximation ||
         /^[+-]?(?:\d(?:_?\d)*(?:\.(?:\d(?:_?\d)*)?)?|\.\d(?:_?\d)*)\[[^\]]+\]$/.test(str);
     if (isCoreUncertainty) {
         return parseCoreNumber(str);
+    }
+
+    const basedApproximation = str.match(/^(-?)(?:0z\[(\d+)\]|0([a-zA-Z]))([0-9a-zA-Z]+)(?:\.([0-9a-zA-Z]*))?\?([0-9a-zA-Z]*)$/);
+    if (basedApproximation) {
+        const baseSystem = basedApproximation[2]
+            ? BaseSystem.fromBase(parseInt(basedApproximation[2], 10))
+            : BaseSystem.getSystemForPrefix(basedApproximation[3]);
+        if (!baseSystem) throw new Error(`Unknown base prefix in approximation: ${str}`);
+        return certifiedRadixPrefix({
+            integerDigits: normalizeBaseDigits(basedApproximation[4], baseSystem),
+            fractionalDigits: normalizeBaseDigits(basedApproximation[5] ?? "", baseSystem),
+            provisionalDigits: normalizeBaseDigits(basedApproximation[6] ?? "", baseSystem),
+            negative: basedApproximation[1] === "-",
+            baseSystem,
+            original: str,
+        });
+    }
+
+    const basedCfApproximation = str.match(/^~?(-?)(?:0z\[(\d+)\]|0([a-zA-Z]))([0-9a-zA-Z]+)\.~([0-9a-zA-Z]+(?:~[0-9a-zA-Z]+)*)\?([0-9a-zA-Z]+(?:~[0-9a-zA-Z]+)*)?$/);
+    if (basedCfApproximation) {
+        const baseSystem = basedCfApproximation[2]
+            ? BaseSystem.fromBase(parseInt(basedCfApproximation[2], 10))
+            : BaseSystem.getSystemForPrefix(basedCfApproximation[3]);
+        if (!baseSystem) throw new Error(`Unknown base prefix in continued-fraction approximation: ${str}`);
+        const coefficient = (digits) => baseSystem.toDecimal(normalizeBaseDigits(digits, baseSystem));
+        const certified = [
+            coefficient(basedCfApproximation[4]) * (basedCfApproximation[1] === "-" ? -1n : 1n),
+            ...basedCfApproximation[5].split("~").map(coefficient),
+        ];
+        const provisional = basedCfApproximation[6]
+            ? basedCfApproximation[6].split("~").map(coefficient)
+            : [];
+        return certifiedContinuedFractionPrefix({
+            coefficients: certified,
+            provisionalCoefficients: provisional,
+            original: str,
+        });
     }
 
     // Bare base-prefix tokens are valid BASESPEC values in conversion contexts.
@@ -1428,6 +1483,45 @@ export function deepSetMutable(value, flag, visited = new Set()) {
 }
 
 export const coreFunctions = {
+    UNDECIDED: {
+        impl() {
+            return UNDECIDED;
+        },
+        pure: true,
+        doc: "Return the singleton undecided decision value",
+    },
+    CERTIFIED_APPROXIMATION: {
+        impl(args) {
+            const candidate = args[0];
+            const enclosure = args[1];
+            if (!(candidate instanceof Integer || candidate instanceof Rational)) {
+                throw new Error("CertifiedApproximation candidate must be an exact Integer or Rational");
+            }
+            if (!(enclosure instanceof RationalInterval)) {
+                throw new Error("CertifiedApproximation enclosure must be a RationalInterval");
+            }
+            const metadata = args[2]?.type === "map" && args[2].entries instanceof Map
+                ? args[2].entries
+                : new Map();
+            const readText = (name, fallback = null) => {
+                const value = metadata.get(name.toLowerCase()) ?? metadata.get(name);
+                if (value === null || value === undefined) return fallback;
+                return value?.type === "string" ? value.value : String(value);
+            };
+            return new CertifiedApproximation(candidate, enclosure, {
+                representation: {
+                    kind: "derived",
+                    reason: readText("reason", "provider"),
+                    original: null,
+                    requested: metadata.get("requested") ?? null,
+                    achieved: metadata.get("achieved") ?? null,
+                    provider: readText("provider"),
+                },
+            });
+        },
+        pure: true,
+        doc: "Construct a certified approximate scalar from an exact candidate and rational enclosure",
+    },
     LITERAL: {
         impl(args) {
             return parseLiteral(args[0]);

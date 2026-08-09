@@ -424,7 +424,7 @@ For completion-order behavior, use a named scope break instead:
 {$search:4$
     candidates |>> (candidate) -> {;
         result := Try(candidate)
-        IsAnswer(result) ?? {!$search! result} ?: _
+        IsAnswer(result) ?: {!$search! result} ?_ _
     }
 }
 ```
@@ -908,7 +908,7 @@ not the fastest passing result.
 answer := {$race:3$
     strategies |>> (strategy) -> {;
         result := strategy(problem)
-        IsAnswer(result) ?? {!$race! result} ?: _
+        IsAnswer(result) ?: {!$race! result} ?_ _
     }
 }
 ```

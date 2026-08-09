@@ -10,10 +10,7 @@
 import { runtimeDefaults } from "../../runtime/runtime-config.js";
 import { PREP_TRIAL_NO_MATCH } from "./core.js";
 import { withFinalizerActivationSync } from "../../runtime/finalization.js";
-
-function isTruthy(val) {
-    return val !== null && val !== undefined;
-}
+import { UNDECIDED, decisionState } from "../../runtime/decision.js";
 
 /**
  * Unwrap a DEFER node: if the node is { fn: "DEFER", args: [body] },
@@ -178,9 +175,11 @@ export const controlFunctions = {
                     // Check if this is a CONDITION node (from `cond ? action`)
                     if (inner && inner.fn === "CONDITION") {
                         const condResult = evaluate(inner.args[0]);
-                        if (isTruthy(condResult)) {
+                        const state = decisionState(condResult);
+                        if (state === "truth") {
                             return evaluate(inner.args[1]);
                         }
+                        if (state === "undecided") return UNDECIDED;
                         // Not truthy — try next branch
                         continue;
                     }
@@ -241,7 +240,9 @@ export const controlFunctions = {
                     while (true) {
                         if (condNode) {
                             const condResult = evaluateShared(condNode, context, evaluate);
-                            if (!isTruthy(condResult)) break;
+                            const state = decisionState(condResult);
+                            if (state === "undecided") return UNDECIDED;
+                            if (state === "null") break;
                         }
 
                         // The max check happens after the condition passes and before the next body run.
@@ -281,15 +282,14 @@ export const controlFunctions = {
         impl(args, context, evaluate) {
             // args[0] = condition (evaluated)
             // args[1] = true branch (DEFER)
-            // args[2] = false branch (DEFER)
+            // args[2] = null branch (DEFER)
+            // args[3] = undecided branch (DEFER)
             const condResult = evaluate(args[0]);
-            if (isTruthy(condResult)) {
-                return evaluate(unwrapDefer(args[1]));
-            } else {
-                return evaluate(unwrapDefer(args[2]));
-            }
+            const state = decisionState(condResult);
+            const branch = state === "truth" ? args[1] : state === "null" ? args[2] : args[3];
+            return evaluate(unwrapDefer(branch));
         },
-        doc: "Ternary conditional: condition ?? trueExpr ?: falseExpr",
+        doc: "Decision conditional: condition ?: truthExpr ?_ nullExpr ?? undecidedExpr",
     },
 
     BREAK: {

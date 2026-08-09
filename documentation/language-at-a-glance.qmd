@@ -19,6 +19,27 @@ RiX uses familiar expression syntax, then adds notation for ideas that mathemati
 
 RiX delegates its foundational exact arithmetic to RatMath core types. Approximation is an explicit extension boundary rather than the default numeric model.
 
+## Certified uncertainty stays exact
+
+```rix
+23.456?          ## certified prefix; enclosure 23.456:23.457
+23.456?789       ## 789 is provisional, not part of the guarantee
+3.~7~15?         ## a continued-fraction cylinder, not an exact finite CF
+(1/7).ToDecimalApproximation(5)  ## 0.14285?
+```
+
+Every such value carries exact rational endpoints. Arithmetic propagates the
+enclosure, while comparisons may produce the undecided decision `?`:
+
+```rix
+decision := 23.456? < 23.4565
+decision ?: "yes" ?_ "no" ?? "needs refinement"
+```
+
+Here `1` is truth, `_` is a decided negative/null result, and `?` means the
+current information does not decide the question. It is not treated as truth
+by filters, guards, assertions, cases, or loops.
+
 Unsigned bracket values append digits to a decimal. Signed values are offsets
 measured in units of the base's last visible digit: `1.23` uses hundredths,
 while `1.2` uses tenths. Thus `1.23[+5:-6]` adds `5 × 0.01` and subtracts

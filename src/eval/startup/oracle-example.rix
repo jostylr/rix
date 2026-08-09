@@ -7,14 +7,6 @@
 });
 
 .TraitRegister({=
-  name = :approximate,
-  description = "Example user-land trait for approximate real representations",
-  proto = {=
-    Describe = (self) -> "trait:approximate"
-  }
-});
-
-.TraitRegister({=
   name = :oracle,
   implies = [:refinable, :approximate],
   description = "Example user-land trait for oracle real values",

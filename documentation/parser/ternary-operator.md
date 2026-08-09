@@ -1,28 +1,31 @@
-# Ternary Operator in RiX Language
+# Decision Conditionals in RiX
 
-The RiX language parser now supports a ternary operator using the syntax `condition ?? trueExpression ?: falseExpression`. This provides a clean, conflict-free way to express conditional logic in mathematical expressions.
+RiX uses a three-state decision conditional. Truth is handled by `?:`, null by
+`?_`, and undecided by `??`.
 
 ## Syntax
 
 ```
-condition ?? trueExpression ?: falseExpression
+condition ?: truthExpression ?_ nullExpression ?? undecidedExpression
 ```
 
 Where:
-- `condition` is any boolean expression
-- `trueExpression` is evaluated and returned if condition is true
-- `falseExpression` is evaluated and returned if condition is false
+- `condition` is any decision expression
+- `truthExpression` is required
+- `nullExpression` and `undecidedExpression` are independently optional and
+  may occur in either order
+- omitted branches return `_` and `?`, respectively
 
 ## Design Rationale
 
-### Why `??` and `?:`?
+### Why `?:` and `?_`?
 
 The traditional ternary operator `condition ? trueExpr : falseExpr` would conflict with existing RiX operators:
 
 - `?` is already used for postfix query operations: `result?(3.14:3.15)`
 - `:` is already used for interval notation: `1:5` or `a:b`
 
-Using `??` and `?:` as distinct tokens eliminates these conflicts while maintaining intuitive conditional syntax.
+Using `?:` and `?_` as distinct tokens eliminates these conflicts while maintaining intuitive conditional syntax.
 
 ### Precedence
 
@@ -38,13 +41,13 @@ The ternary operator has `CONDITION` precedence (45), making it:
 
 ```javascript
 // Absolute value function
-x > 0 ?? x ?: -x
+x > 0 ?: x ?_ -x
 
 // Safe division
-denominator != 0 ?? numerator / denominator ?: 0
+denominator != 0 ?: numerator / denominator ?_ 0
 
 // Temperature classification
-temp < 0 ?? "frozen" ?: "normal"
+temp < 0 ?: "frozen" ?_ "normal"
 ```
 
 ### Code Block Integration
@@ -53,83 +56,83 @@ The ternary operator fully supports RiX's `{; }` code block syntax, enabling com
 
 ```javascript
 // Basic code block in true branch
-result := x > 0 ?? {; a := x^2; a + b } ?: 7
+result := x > 0 ?: {; a := x^2; a + b } ?_ 7
 
 // Code blocks in both branches
-value := flag ?? {; 
-    x := 10; 
-    y := 20; 
-    x * y 
-} ?: {; 
-    z := -5; 
-    z^2 
+value := flag ?: {;
+    x := 10;
+    y := 20;
+    x * y
+} ?_ {;
+    z := -5;
+    z^2
 }
 
 // Mathematical computation with intermediate variables
-physics := energy > threshold ?? {; 
+physics := energy > threshold ?: {;
     v := (2 * energy / mass)^(1/2);
-    momentum := mass * v; 
-    momentum 
-} ?: 0
+    momentum := mass * v;
+    momentum
+} ?_ 0
 
 // Nested ternary inside code block
-complex := x > 0 ?? {; 
+complex := x > 0 ?: {;
     temp := x^2;
-    temp > 0.5 ?? temp^2 ?: temp/2 
-} ?: 0
+    temp > 0.5 ?: temp^2 ?_ temp/2
+} ?_ 0
 ```
 
 ### Complex Expressions
 
 ```javascript
 // With arithmetic operations
-a + b > threshold ?? c * d ?: e / f
+a + b > threshold ?: c * d ?_ e / f
 
 // With function calls
-angle > threshold ?? angle^2 ?: -angle
+angle > threshold ?: angle^2 ?_ -angle
 
 // With intervals (no conflict)
-safe ?? 1:10 ?: -10:-1
+safe ?: 1:10 ?_ -10:-1
 ```
 
 ### Nested Ternary Operations
 
 ```javascript
 // Explicit grouping with parentheses
-temp < 0 ?? "frozen" ?: (temp > 100 ?? "boiling" ?: "normal")
+temp < 0 ?: "frozen" ?_ (temp > 100 ?: "boiling" ?_ "normal")
 
 // Grade classification
-grade >= 90 ?? "A" ?: (grade >= 80 ?? "B" ?: (grade >= 70 ?? "C" ?: "F"))
+grade >= 90 ?: "A" ?_ (grade >= 80 ?: "B" ?_ (grade >= 70 ?: "C" ?_ "F"))
 ```
 
 ### Integration with RiX Features
 
 ```javascript
 // With assignment
-result := x > 0 ?? x ?: -x
+result := x > 0 ?: x ?_ -x
 
 // With pipe operations
-data |> (valid ?? NORMALIZE ?: SANITIZE) |> ANALYZE
+data |> (valid ?: NORMALIZE ?_ SANITIZE) |> ANALYZE
 
 // With matrix operations
-det > 0 ?? [[1,0],[0,1]] ?: [[0,1],[1,0]]
+det > 0 ?: [[1,0],[0,1]] ?_ [[0,1],[1,0]]
 
 // With system functions
-x > 0 ?? x^2 ?: (-x)^2
+x > 0 ?: x^2 ?_ (-x)^2
 
 // Code blocks with array operations
-arrayResult := flag ?? {; 
-    a := [1,2,3]; 
-    b := [4,5,6]; 
-    a + b 
-} ?: [0,0,0]
+arrayResult := flag ?: {;
+    a := [1,2,3];
+    b := [4,5,6];
+    a + b
+} ?_ [0,0,0]
 
 // Code blocks with pipe operations
-processed := valid ?? {; 
-    raw := getData(); 
-    clean := raw |> sanitize |> normalize; 
-    clean 
-} ?: empty_data
+processed := valid ?: {;
+    raw := getData();
+    clean := raw |> sanitize |> normalize;
+    clean
+} ?_ empty_data
 ```
 
 ## AST Structure
@@ -141,7 +144,8 @@ The ternary operator generates a `TernaryOperation` AST node:
   type: 'TernaryOperation',
   condition: { /* AST node for condition */ },
   trueExpression: { /* AST node for true branch */ },
-  falseExpression: { /* AST node for false branch */ },
+  nullExpression: { /* AST node for ?_ branch, or null */ },
+  undecidedExpression: { /* AST node for ?? branch, or null */ },
   pos: [start, valueStart, end],
   original: 'original text'
 }
@@ -163,17 +167,17 @@ The ternary operator integrates naturally with RiX's precedence hierarchy:
 
 ```javascript
 // Arithmetic operators bind tighter
-x + y > z ?? a * b ?: c / d
-// Parsed as: (x + y) > z ?? (a * b) ?: (c / d)
+x + y > z ?: a * b ?_ c / d
+// Parsed as: (x + y) > z ?: (a * b) ?_ (c / d)
 
 // Assignment operators bind looser
-result := x > 0 ?? x ?: -x
-// Parsed as: result := (x > 0 ?? x ?: -x)
+result := x > 0 ?: x ?_ -x
+// Parsed as: result := (x > 0 ?: x ?_ -x)
 ```
 
 ## Current Limitations
 
-1. **Right-associative nesting**: Automatic parsing of `a ?? b ?? c ?: d ?: e` requires explicit parentheses for complex cases
+1. **Right-associative nesting**: Automatic parsing of `a ?: b ?: c ?_ d ?_ e` requires explicit parentheses for complex cases
 2. **Error recovery**: Parse errors in ternary expressions may not provide optimal recovery suggestions
 
 ## Code Block Support
@@ -190,14 +194,14 @@ The ternary operator seamlessly integrates with RiX's code block syntax:
 
 ### Tokenizer Changes
 
-- Added `??` and `?:` to the symbols list with proper maximal munch ordering
+- Added `?:`, `?_`, and `??` to the symbols list with proper maximal munch ordering
 - Both tokens are recognized as single `Symbol` tokens
 
 ### Parser Changes
 
-- Added `??` and `?:` to `SYMBOL_TABLE` with `CONDITION` precedence and right associativity
-- Special handling in `parseInfix()` for `??` operator
-- Precedence adjustment to prevent `?:` consumption during true expression parsing
+- Added all three markers to `SYMBOL_TABLE` with `CONDITION` precedence and right associativity
+- `?:` starts the conditional; `?_` and `??` are branch markers only
+- Duplicate branches and missing expressions are parse errors
 
 ### Test Coverage
 
@@ -214,9 +218,8 @@ Comprehensive test suite covers:
 Potential improvements for future versions:
 
 1. **Enhanced right-associativity**: Better automatic parsing of nested ternary chains
-2. **Short-circuit evaluation**: Documentation of evaluation semantics
-3. **multifunction dispatch integration**: Combining ternary with multifunctions
-4. **N-ary conditional expressions**: Extended conditional syntax for multiple conditions
+2. **Structured partial-order results**: richer alternatives to returning `?`
+3. **Provider refinement**: bounded refinement before choosing `??`
 
 ## Usage Recommendations
 

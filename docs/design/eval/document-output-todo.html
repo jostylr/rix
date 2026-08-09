@@ -327,6 +327,10 @@ ul.task-list li input[type="checkbox"] {
   <ul>
   <li><a href="#document-blocks-inline-content-and-assets" id="toc-document-blocks-inline-content-and-assets" class="nav-link active" data-scroll-target="#document-blocks-inline-content-and-assets">Document blocks, inline content, and assets</a>
   <ul class="collapse">
+  <li><a href="#exact-numeric-interchange-and-notation-policies" id="toc-exact-numeric-interchange-and-notation-policies" class="nav-link" data-scroll-target="#exact-numeric-interchange-and-notation-policies">Exact numeric interchange and notation policies</a>
+  <ul class="collapse">
+  <li><a href="#shared-numeric-presentation-policy" id="toc-shared-numeric-presentation-policy" class="nav-link" data-scroll-target="#shared-numeric-presentation-policy">Shared numeric presentation policy</a></li>
+  </ul></li>
   <li><a href="#portable-model-at-a-glance" id="toc-portable-model-at-a-glance" class="nav-link" data-scroll-target="#portable-model-at-a-glance">Portable model at a glance</a>
   <ul class="collapse">
   <li><a href="#block-records" id="toc-block-records" class="nav-link" data-scroll-target="#block-records">Block records</a></li>
@@ -376,6 +380,27 @@ ul.task-list li input[type="checkbox"] {
 <p>The executable output API now includes the block, inline, and asset records specified below, with deterministic text and safe HTML rendering. The document template directive and inline-markup grammar remains proposed; it must lower to these records rather than create a second document representation.</p>
 </div>
 </div>
+<section id="exact-numeric-interchange-and-notation-policies" class="level2">
+<h2 class="anchored" data-anchor-id="exact-numeric-interchange-and-notation-policies">Exact numeric interchange and notation policies</h2>
+<p>Document persistence and renderers need a shared exact-number policy rather than independent string conventions. This layer is presentation and interchange: it must not change arithmetic values or pass exact integers through JavaScript <code>number</code>.</p>
+<p>Portable exact numeric records should be versioned and distinguish <code>Integer</code>, reduced <code>Rational</code>, orientation-preserving <code>RationalInterval</code>, and formal unreduced <code>Fraction</code> values. An interval record should retain <code>start</code> and <code>end</code> as well as derived <code>low</code> and <code>high</code>, so serialization does not erase the route from the first endpoint to the second.</p>
+<p>The oracle papers use a slanted triple-colon interval mark. A compact RiX proposal worth evaluating is <code>a .: b</code> for a lower-to-higher interval and <code>a :. b</code> for a higher-to-lower interval. These spellings would make orientation visible rather than infer it after normalization. They are proposals, not a change to the current <code>a:b</code> parser contract; adoption requires parser, lowering, formatter, and ambiguity tests.</p>
+<p>A formal unreduced fraction can use a labeled form such as <code>F`2/4`</code>. Its parser/importer must retain the written numerator and denominator rather than constructing a reduced <code>Rational</code>. The body should participate in the same configurable exact-number parsing system as ordinary and custom-radix numeral languages, including clear nesting rules when another labeled backtick parser is involved.</p>
+<p>Tagged document/interchange parsing should have an explicit unknown-tag policy. The proposed default is <code>warn-and-skip</code>: emit a structured warning containing the tag, version, and source location, then skip that record where the enclosing schema permits it. Configurable <code>strict-error</code> and <code>preserve-opaque</code> modes allow validation tools and forward-compatible editors to choose different behavior. Skipping must never silently substitute a numeric zero, null, or fabricated exact value.</p>
+<section id="shared-numeric-presentation-policy" class="level3">
+<h3 class="anchored" data-anchor-id="shared-numeric-presentation-policy">Shared numeric presentation policy</h3>
+<p>Render requests should carry one serializable numeric-format policy that can be inherited by a document and overridden for a specific table, figure, or scalar. The policy should cover:</p>
+<ul>
+<li>improper versus mixed fractions and whether formal fractions stay unreduced;</li>
+<li>terminating/repeating notation and work limits for discovering a period;</li>
+<li>interval delimiters, endpoint inclusion, and ascending/descending orientation;</li>
+<li>ordinary, engineering, and scientific notation, significant digits, and explicit rounding modes;</li>
+<li>radix/numeral-system labels plus locale or symbol profiles; and</li>
+<li>disclosure of loss when an exact value is converted to bounded decimal, pixel, or target-specific text.</li>
+</ul>
+<p>Lossless interchange and display formatting must remain separate operations. A renderer may shorten a value under an explicit policy, but the portable record retains the exact value and the result reports the applied policy and any approximation.</p>
+</section>
+</section>
 <section id="portable-model-at-a-glance" class="level2">
 <h2 class="anchored" data-anchor-id="portable-model-at-a-glance">Portable model at a glance</h2>
 <p>RiX document output should be a thin semantic document tree, not a reduced HTML DOM. It records what a document <em>is</em>—a quotation, an ordered list, a display equation, an image with alternative text—and leaves tags, layout, file fetching, and media playback to a renderer. A portable record must not contain a DOM node, a browser <code>File</code>, an object URL, a local absolute path, or an open network handle.</p>
@@ -863,6 +888,8 @@ LABEL          := SPACE "#" IDENTIFIER</code></pre>
 <li><label><input type="checkbox" checked="">Add runtime constructors for block, inline, and asset records with map and positional forms only where positional form stays unambiguous.</label></li>
 <li><label><input type="checkbox" checked="">Introduce <code>isInlineOutput</code> and <code>isBlockOutput</code> classification. Preserve existing <code>.Text</code> compatibility while rejecting block children in <code>Paragraph</code>.</label></li>
 <li><label><input type="checkbox">Define stable JSON serialization tags and exact-value rules for every record before persistence APIs ship.</label></li>
+<li><label><input type="checkbox">Define the orientation-preserving interval and unreduced-fraction tags, including migration and round-trip tests for the proposed <code>.:</code>, <code>:.</code>, and <code>F`...`</code> presentation forms.</label></li>
+<li><label><input type="checkbox">Add configurable unknown-tag handling with <code>warn-and-skip</code> as the normal document-import default plus <code>strict-error</code> and <code>preserve-opaque</code> modes.</label></li>
 <li><label><input type="checkbox" checked="">Add required-field validation for nonempty image alt text, asset MIME type, valid section level, and valid list nesting. Publication-level audio/video transcript enforcement remains a host/export policy.</label></li>
 <li><label><input type="checkbox">Define URI/reference policy hooks in hosts; keep resolution and fetching out of the evaluator and output record.</label></li>
 </ul>
@@ -874,6 +901,7 @@ LABEL          := SPACE "#" IDENTIFIER</code></pre>
 <li><label><input type="checkbox" checked="">Extend the HTML renderer with escaped semantic markup and no implicit remote asset fetching.</label></li>
 <li><label><input type="checkbox">Add Markdown/Quarto rendering adapters with explicit unsupported-media fallbacks; add PDF through that shared document path rather than a separate incompatible tree.</label></li>
 <li><label><input type="checkbox">Add renderer tests proving a paragraph preserves inline semantics rather than text-formatting <code>Emphasis</code>, <code>Link</code>, <code>Math</code>, or <code>Code</code> children.</label></li>
+<li><label><input type="checkbox">Implement the shared numeric presentation policy and cross-renderer fixtures proving that exact source values survive mixed/improper, interval, scientific/significant-digit, locale, and approximation display choices.</label></li>
 </ul>
 </section>
 <section id="add-document-template-support" class="level3">

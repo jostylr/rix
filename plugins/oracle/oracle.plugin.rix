@@ -11,16 +11,16 @@ schemas: [rix.oracle@1]
 defaultEnabled: false
 **/
 
-Option(options, key, fallback) -> options.Has(key) ?? options[key] ?: fallback;
+Option(options, key, fallback) -> options.Has(key) ?: options[key] ?_ fallback;
 
 RequirePositive(value, label) -> {;
     rational = value ~!: :Rational;
-    rational > 0 ?? rational ?: .Error(@"@{label} must be a positive rational");
+    rational > 0 ?: rational ?_ .Error(@"@{label} must be a positive rational");
 };
 
 RequireNonnegativeInteger(value, label) -> {;
     integer = value ~!: :Integer;
-    integer >= 0 ?? integer ?: .Error(@"@{label} must be a nonnegative integer");
+    integer >= 0 ?: integer ?_ .Error(@"@{label} must be a nonnegative integer");
 };
 
 AsInterval(value) -> value ~!: :RationalInterval;
@@ -75,7 +75,7 @@ OracleProphecy(real, interval, query ?= _, branch ?= :direct) -> {=
 
 OracleAnswer(status, query, prophecy ?= _, reason ?= _, procedure ?= _) -> {;
     validStatus = {| :yes, :no, :unknown |}.Has(status);
-    validStatus ?? {=
+    validStatus ?: {=
         valueKind = :oracleAnswer,
         schema = "rix.oracle.answer@1",
         status = status,
@@ -86,7 +86,7 @@ OracleAnswer(status, query, prophecy ?= _, reason ?= _, procedure ?= _) -> {;
         procedure = procedure,
         evidence = _,
         work = {= calls = 1, iterations = 1 }
-    } ?: .Error("Oracle answer status must be :yes, :no, or :unknown");
+    } ?_ .Error("Oracle answer status must be :yes, :no, or :unknown");
 };
 
 BuildRationalOracle(exactValue, selectedProcedure, options) -> {;
@@ -99,7 +99,7 @@ BuildRationalOracle(exactValue, selectedProcedure, options) -> {;
         parameters = {= value = exactValue },
         eta = _,
         declaredProperties = [:range, :existence, :separation, :disjointness, :consistency, :singularity, :closure],
-        choicePolicy = selectedProcedure == :randomHalo ?? :enumerable ?: :single,
+        choicePolicy = selectedProcedure == :randomHalo ?: :enumerable ?_ :single,
         seed = Option(options, "seed", 1),
         provenance = {= plugin = :oracle, version = 1, source = :rationalConstructor }
     };
@@ -115,8 +115,8 @@ RationalOracle(value, options ?= {= }) -> {;
     exactValue = value ~!: :Rational;
     procedure = Option(options, "procedure", :singular);
     allowed = {| :singular, :reflexive, :halo, :randomHalo, :bisection |};
-    allowed.Has(procedure) ?? BuildRationalOracle(exactValue, procedure, options)
-                           ?: .Error("Unknown rational oracle procedure");
+    allowed.Has(procedure) ?: BuildRationalOracle(exactValue, procedure, options)
+                           ?_ .Error("Unknown rational oracle procedure");
 };
 
 PointProphecy(real, query, branch) -> {;
@@ -141,8 +141,8 @@ SingularAnswer(real, query, procedure) -> {;
     high = IntervalHigh(interval);
     inside = value >= low && value <= high;
     point = PointProphecy(real, query, procedure);
-    inside ?? OracleAnswer(:yes, query, point, :contained, procedure)
-           ?: OracleAnswer(:no, query, point, :disjoint, procedure);
+    inside ?: OracleAnswer(:yes, query, point, :contained, procedure)
+           ?_ OracleAnswer(:no, query, point, :disjoint, procedure);
 };
 
 ReflexiveAnswer(real, query, procedure) -> {;
@@ -151,8 +151,8 @@ ReflexiveAnswer(real, query, procedure) -> {;
     low = IntervalLow(interval);
     high = IntervalHigh(interval);
     inside = value >= low && value <= high;
-    inside ?? OracleAnswer(:yes, query, OracleProphecy(real, interval, query, :reflexive), :contained, procedure)
-           ?: OracleAnswer(:no, query, PointProphecy(real, query, procedure), :disjoint, procedure);
+    inside ?: OracleAnswer(:yes, query, OracleProphecy(real, interval, query, :reflexive), :contained, procedure)
+           ?_ OracleAnswer(:no, query, PointProphecy(real, query, procedure), :disjoint, procedure);
 };
 
 HaloAnswer(real, query, procedure, branch, yesReason, noReason) -> {;
@@ -162,16 +162,16 @@ HaloAnswer(real, query, procedure, branch, yesReason, noReason) -> {;
     low = IntervalLow(interval);
     high = IntervalHigh(interval);
     inOpenHalo = value > low - delta && value < high + delta;
-    inOpenHalo ?? OracleAnswer(:yes, query, HaloProphecy(real, query, branch), yesReason, procedure)
-               ?: OracleAnswer(:no, query, PointProphecy(real, query, procedure), noReason, procedure);
+    inOpenHalo ?: OracleAnswer(:yes, query, HaloProphecy(real, query, branch), yesReason, procedure)
+               ?_ OracleAnswer(:no, query, PointProphecy(real, query, procedure), noReason, procedure);
 };
 
-AskWithProcedure(real, query, procedure) -> {;
-    procedure == :singular ?? SingularAnswer(real, query, procedure) ?:
-    procedure == :reflexive ?? ReflexiveAnswer(real, query, procedure) ?:
-    procedure == :halo ?? HaloAnswer(real, query, procedure, :halo, :withinHalo, :outsideHalo) ?:
-    procedure == :bisection ?? HaloAnswer(real, query, procedure, :bisection, :bisectionWitness, :separated) ?:
-    OracleAnswer(:unknown, query, _, :procedureUnknown, procedure);
+AskWithProcedure(real, query, procedure) -> {?
+    procedure == :singular ? SingularAnswer(real, query, procedure);
+    procedure == :reflexive ? ReflexiveAnswer(real, query, procedure);
+    procedure == :halo ? HaloAnswer(real, query, procedure, :halo, :withinHalo, :outsideHalo);
+    procedure == :bisection ? HaloAnswer(real, query, procedure, :bisection, :bisectionWitness, :separated);
+    OracleAnswer(:unknown, query, _, :procedureUnknown, procedure)
 };
 
 OracleCheckReturnedRange(answer, status, query, prophecy) -> {;
@@ -184,10 +184,10 @@ OracleCheckReturnedRange(answer, status, query, prophecy) -> {;
     prophecyHigh = IntervalHigh(prophecyInterval);
     intersects = prophecyHigh >= low && prophecyLow <= high;
     withinHalo = prophecyLow > low - delta && prophecyHigh < high + delta;
-    valid = status == :yes ?? (intersects && withinHalo) ?: !intersects;
+    valid = status == :yes ?: (intersects && withinHalo) ?_ !intersects;
     {=
         valid = valid,
-        reason = valid ?? :rangeChecked ?: :rangeViolation,
+        reason = valid ?: :rangeChecked ?_ :rangeViolation,
         status = status,
         intersects = intersects,
         withinHalo = withinHalo,
@@ -213,36 +213,37 @@ OracleCheckRange(answer) -> {;
 
 CheckedAnswer(answer) -> {;
     check = OracleCheckRange(answer);
-    check[:valid] ?? answer ?: .Error("Oracle procedure produced an answer that violates Range");
+    check[:valid] ?: answer ?_ .Error("Oracle procedure produced an answer that violates Range");
 };
 
 OracleAsk(real, interval, delta, auxiliary ?= _) -> {;
-    real[:constructor] == :rational ?? _ ?: .Error("Phase 1 Ask supports rational oracle constructors");
+    real[:constructor] == :rational ?: _ ?_ .Error("Phase 1 Ask supports rational oracle constructors");
     query = OracleQuery(interval, delta, auxiliary);
     procedure = real[:procedure];
     chosen = procedure == :randomHalo
-        ?? (.Mod(real[:seed], 2) == 0 ?? :singular ?: :halo)
-        ?: procedure;
+        ?: (.Mod(real[:seed], 2) == 0 ?: :singular ?_ :halo)
+        ?_ procedure;
     CheckedAnswer(AskWithProcedure(real, query, chosen));
 };
 
 RandomHaloAlternatives(real, interval, delta, maxAlternatives) -> {;
     query = OracleQuery(interval, delta, _);
     singular = CheckedAnswer(AskWithProcedure(real, query, :singular));
-    maxAlternatives == 1 ?? [singular]
-        ?: [singular, CheckedAnswer(AskWithProcedure(real, query, :halo))];
+    maxAlternatives == 1 ?: [singular]
+        ?_ [singular, CheckedAnswer(AskWithProcedure(real, query, :halo))];
 };
 
 OracleAskAll(real, interval, delta, options ?= {= }) -> {;
     maxAlternatives = OracleWorkPolicy(options)[:maxAlternatives];
-    maxAlternatives == 0 ?? [] ?:
+    maxAlternatives == 0 ?: [] ?_ (
       real[:procedure] == :randomHalo
-        ?? RandomHaloAlternatives(real, interval, delta, maxAlternatives)
-        ?: [OracleAsk(real, interval, delta)];
+        ?: RandomHaloAlternatives(real, interval, delta, maxAlternatives)
+        ?_ [OracleAsk(real, interval, delta)]
+    );
 };
 
 OracleRefine(real, options ?= {= }) -> {;
-    real[:constructor] == :rational ?? _ ?: .Error("Phase 1 Refine supports rational oracle constructors");
+    real[:constructor] == :rational ?: _ ?_ .Error("Phase 1 Refine supports rational oracle constructors");
     requestedWidth = RequirePositive(Option(options, "width", 1 / 1000), "width");
     maxCalls = RequireNonnegativeInteger(Option(options, "maxcalls", 100), "maxCalls");
     keepTrace = Option(options, "trace", 1);
@@ -256,33 +257,40 @@ OracleRefine(real, options ?= {= }) -> {;
     {@ iteration = 1; @achievedWidth > @requestedWidth && @calls < @maxCalls; {;
         midpoint = (@low + @high) / 2;
         chooseLeft = @value <= midpoint;
-        nextLow = chooseLeft ?? @low ?: midpoint;
-        nextHigh = chooseLeft ?? midpoint ?: @high;
+        nextLow = chooseLeft ?: @low ?_ midpoint;
+        nextHigh = chooseLeft ?: midpoint ?_ @high;
         @low = nextLow;
         @high = nextHigh;
         @calls += 1;
         @achievedWidth = @high - @low;
-        @trace = @keepTrace ?? @trace.Push({=
+        @trace = @keepTrace ?: @trace.Push({=
             iteration = iteration,
             split = midpoint,
-            branch = @value <= midpoint ?? :left ?: :right,
+            branch = @value <= midpoint ?: :left ?_ :right,
             interval = @low:@high,
             width = @achievedWidth,
             delta = @achievedWidth / 3,
             answer = :constructorGuarantee
-        }) ?: @trace;
+        }) ?_ @trace;
       };
       iteration += 1
     };
 
     enclosed = achievedWidth <= requestedWidth;
+    approximation = .CertifiedApproximation((low + high) / 2, low:high, {=
+        reason = enclosed ?: :refined ?_ :budgetExhausted,
+        requested = requestedWidth,
+        achieved = achievedWidth,
+        provider = :oracle
+    });
     {=
         valueKind = :oracleRefinement,
         schema = "rix.oracle.refinement@1",
-        status = enclosed ?? :enclosed ?: :budgetExhausted,
+        status = enclosed ?: :enclosed ?_ :budgetExhausted,
         interval = low:high,
         requestedWidth = requestedWidth,
         achievedWidth = achievedWidth,
+        approximation = approximation,
         trace = trace,
         work = {= calls = calls, maxCalls = maxCalls, exhausted = !enclosed },
         assumptions = [:rationalConstructor, :range, :existence, :separation],
@@ -320,6 +328,7 @@ OracleProtocolEnclose(real, request) -> {;
         goalMet = goalMet,
         requestedWidth = request[:absoluteWidth],
         achievedWidth = refined[:achievedWidth],
+        approximation = refined[:approximation],
         evidenceLevel = :constructorGuarantee,
         backend = :oracle,
         operation = request[:operation],

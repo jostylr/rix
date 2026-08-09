@@ -48,6 +48,8 @@ Built-in registered types include:
 - `:Integer`
 - `:Rational`
 - `:RationalInterval`
+- `:CertifiedApproximation`
+- `:Undecided`
 - `:String`
 - `:Array`
 - `:Tuple`
@@ -58,6 +60,12 @@ Built-in registered types include:
 - `:Multifunction`
 - `:Null`
 - `:Hole`
+
+`CertifiedApproximation` has `:number`, `:approximate`, `:enclosed`, and
+`:orderInquiry` traits. It is a scalar rather than an interval collection.
+`Undecided` has the `:decision` trait and is the singleton value written `?`.
+Type export/import preserves both values; copies of an approximation retain
+source identity so `x == x` remains certifiably true.
 
 Lowercase aliases such as `:rational`, `:interval`, and `:tensor` remain supported for compatibility. New code should prefer registered semantic names such as `:Rational`.
 
@@ -167,20 +175,26 @@ Hosts can still use the JS-side helpers in `src/runtime/type-system.js` for core
 
 Registration stores immutable specs. Installation injects operator variants into system multifunctions.
 
-Integer, Rational, and RationalInterval are built-in exact numeric types. Oracle-style real number implementations are deliberately not built in. They are user-land types so multiple real-number representations can coexist and be compared.
+Integer, Rational, and RationalInterval are built-in exact numeric types.
+CertifiedApproximation is the finite, backend-neutral uncertainty carrier in
+the core runtime. Infinite refinement algorithms remain user-land types so
+Oracle, ball, Cauchy, and other real-number representations can coexist and
+return or refine the same certified value contract.
 
-The example startup source in `src/startup/oracle-example.rix` registers:
+The example startup source in `src/eval/startup/oracle-example.rix` registers:
 
 - `:refinable`
-- `:approximate`
 - `:oracle`
 - `:Oracle`
 
-The JavaScript loader in `src/startup/oracle-example.js` only reads and evaluates that RiX startup source. Hosts can load it when creating the registry:
+It reuses the built-in `:approximate` trait shared by certified approximation
+values and provider types.
+
+The JavaScript loader in `src/eval/startup/oracle-example.js` only reads and evaluates that RiX startup source. Hosts can load it when creating the registry:
 
 ```js
 import { createDefaultRegistry } from "./src/evaluator.js";
-import { loadOracleExampleStartup } from "./src/startup/oracle-example.js";
+import { loadOracleExampleStartup } from "./src/eval/startup/oracle-example.js";
 
 const registry = createDefaultRegistry({
   startupLoaders: [loadOracleExampleStartup],

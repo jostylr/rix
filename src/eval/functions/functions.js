@@ -36,8 +36,9 @@ import {
     isPipeSkip,
     PIPE_SKIP,
 } from "../../runtime/expected-error.js";
+import { UNDECIDED, decisionState } from "../../runtime/decision.js";
 
-const isTruthy = (val) => val !== null && val !== undefined;
+const isTruthy = (val) => decisionState(val) === "truth";
 
 function callableValue(value) {
     return isReactiveNode(value) ? value.peek() : value;
@@ -151,7 +152,9 @@ function runCallablePrep(fn, context, evaluate) {
     for (let i = 0; i < entries.length; i++) {
         try {
             const value = evaluate(entries[i]);
-            if (value === null) {
+            const state = decisionState(value);
+            if (state === "undecided") return { ok: false, undecided: true };
+            if (state === "null") {
                 if (strict) {
                     throw prepFailureError(fn, i);
                 }
@@ -236,9 +239,12 @@ function invokeUserCallable(fn, callArgs, context, evaluate, options = {}) {
         while (true) {
             const prepResult = runCallablePrep(fn, context, evaluate);
             if (!prepResult.ok) {
-                doTraceExit(null, false);
+                const value = prepResult.undecided ? UNDECIDED : null;
+                doTraceExit(value, false);
                 traceActive = false;
-                return returnPrepStatus ? { matched: false, value: null } : null;
+                return returnPrepStatus
+                    ? { matched: prepResult.undecided === true, value }
+                    : value;
             }
 
             let result;
@@ -1045,7 +1051,9 @@ export const functionFunctions = {
                 for (let i = 0; i < items.length; i++) {
                     const item = items[i];
                     const loc = new Integer(BigInt(i + 1));
-                    const isSep = isTruthy(invokeTraversalCallback(sepVal, [item, loc, collection], context, evaluate));
+                    const separatorState = decisionState(invokeTraversalCallback(sepVal, [item, loc, collection], context, evaluate));
+                    if (separatorState === "undecided") return UNDECIDED;
+                    const isSep = separatorState === "truth";
 
                     if (isSep) {
                         if (!inSeparator) {
@@ -1181,7 +1189,9 @@ export const functionFunctions = {
                 // Predicate receives (val, locator, src) where locator is 1-based Integer position.
                 for (let i = 0; i < items.length; i++) {
                     const loc = new Integer(BigInt(i + 1));
-                    const isBound = isTruthy(invokeTraversalCallback(boundVal, [items[i], loc, collection], context, evaluate));
+                    const boundaryState = decisionState(invokeTraversalCallback(boundVal, [items[i], loc, collection], context, evaluate));
+                    if (boundaryState === "undecided") return UNDECIDED;
+                    const isBound = boundaryState === "truth";
 
                     currentChunk.push(items[i]);
                     if (isBound) {
@@ -1459,29 +1469,37 @@ export const functionFunctions = {
             }
 
             if (isLazySequence(collection)) {
-                return filterLazySequence(collection, (item, index, source) =>
-                    isTruthy(invokeTraversalCallback(func, [item, new Integer(BigInt(index)), source], context, evaluate)));
+                return filterLazySequence(collection, (item, index, source) => {
+                    const state = decisionState(invokeTraversalCallback(
+                        func,
+                        [item, new Integer(BigInt(index)), source],
+                        context,
+                        evaluate,
+                    ));
+                    return state === "undecided" ? UNDECIDED : state === "truth";
+                }, { isUnresolved: (value) => value === UNDECIDED });
             }
 
             if (isTensor(collection)) {
                 const results = [];
+                let uncertain = false;
                 forEachTensorCell(collection, (item, tuple) => {
-                    if (
-                        isTruthy(
-                            invokeTraversalCallback(
+                    const state = decisionState(invokeTraversalCallback(
                                 func,
                                 [item, tensorIndexTuple(tuple), collection],
                                 context,
                                 evaluate,
-                            ),
-                        )
-                    ) {
+                            ));
+                    if (state === "undecided") {
+                        uncertain = true;
+                    } else if (state === "truth") {
                         results.push({
                             type: "tuple",
                             values: [item, tensorIndexTuple(tuple)],
                         });
                     }
                 });
+                if (uncertain) return UNDECIDED;
                 return { type: "sequence", values: results };
             }
 
@@ -1493,7 +1511,9 @@ export const functionFunctions = {
                 const newEntries = new Map();
                 for (const [k, v] of entries) {
                     const loc = { type: "string", value: k };
-                    if (isTruthy(invokeTraversalCallback(func, [v, loc, collection], context, evaluate))) {
+                    const state = decisionState(invokeTraversalCallback(func, [v, loc, collection], context, evaluate));
+                    if (state === "undecided") return UNDECIDED;
+                    if (state === "truth") {
                         newEntries.set(k, v);
                     }
                 }
@@ -1513,10 +1533,14 @@ export const functionFunctions = {
             }
 
             // Callback receives (val, locator, src) where locator is 1-based Integer position.
-            const results = items.filter((item, i) => {
+            const results = [];
+            for (let i = 0; i < items.length; i++) {
+                const item = items[i];
                 const loc = new Integer(BigInt(i + 1));
-                return isTruthy(invokeTraversalCallback(func, [item, loc, collection], context, evaluate));
-            });
+                const state = decisionState(invokeTraversalCallback(func, [item, loc, collection], context, evaluate));
+                if (state === "undecided") return UNDECIDED;
+                if (state === "truth") results.push(item);
+            }
 
             if (isString) {
                 const filteredStr = results.map(r => r && r.type === "string" ? r.value : r).join("");
@@ -1666,18 +1690,22 @@ export const functionFunctions = {
             }
 
             const func = evaluate(funcNode);
-            const sorted = [...items].sort((a, b) => {
-                if (func && func.type === "partial") {
-                    const result = callWithConcreteArgs(func, [a, b], context, evaluate);
-                    if (result && result.constructor && result.constructor.name === "Integer") return Number(result.value);
-                    if (typeof result === "number") return result;
+            let uncertainOrdering = false;
+            const comparatorResult = (result) => {
+                if (result === UNDECIDED) {
+                    uncertainOrdering = true;
                     return 0;
                 }
+                if (result && result.constructor && result.constructor.name === "Integer") return Number(result.value);
+                if (typeof result === "number") return result;
+                return 0;
+            };
+            const sorted = [...items].sort((a, b) => {
+                if (func && func.type === "partial") {
+                    return comparatorResult(callWithConcreteArgs(func, [a, b], context, evaluate));
+                }
                 if (func && func.type === "sysref") {
-                    const result = evaluate({ fn: func.name, args: [a, b] });
-                    if (result && result.constructor && result.constructor.name === "Integer") return Number(result.value);
-                    if (typeof result === "number") return result;
-                    return 0;
+                    return comparatorResult(evaluate({ fn: func.name, args: [a, b] }));
                 }
                 if (func && (func.type === "function" || func.type === "lambda")) {
                     const scope = new Map();
@@ -1687,17 +1715,17 @@ export const functionFunctions = {
                     }
                     context.push(scope);
                     try {
-                        const result = evaluate(func.body);
-                        if (result && result.constructor && result.constructor.name === "Integer") return Number(result.value);
-                        if (typeof result === "number") return result;
-                        return 0;
+                        return comparatorResult(evaluate(func.body));
                     } finally {
                         context.pop();
                     }
                 }
                 if (typeof func === "function") {
-                    const result = func(a, b);
-                    return typeof result === "number" ? result : 0;
+                    return comparatorResult(func(a, b));
+                }
+                if (a?.isCertifiedApproximation || b?.isCertifiedApproximation
+                    || a?.constructor?.name === "RationalInterval" || b?.constructor?.name === "RationalInterval") {
+                    return comparatorResult(evaluate({ fn: "COMPARE", args: [a, b] }));
                 }
                 // Default string ordering for code points if no comparator and is string
                 if (isString) {
@@ -1712,6 +1740,7 @@ export const functionFunctions = {
                 const nb = (b && b.constructor && b.constructor.name === "Integer") ? Number(b.value) : Number(b);
                 return na - nb;
             });
+            if (uncertainOrdering) return UNDECIDED;
 
             if (isString) {
                 const joined = sorted.map(r => r && r.type === "string" ? r.value : r).join("");
@@ -1737,10 +1766,13 @@ export const functionFunctions = {
             if (isLazySequence(collection)) {
                 let index = 1;
                 let last = null;
+                let uncertain = false;
                 while (true) {
                     const item = ensureLazyIndex(collection, index);
-                    if (collection._lazy.done && collection._lazy.cache.length < index) return index === 1 ? null : last;
-                    if (!isTruthy(invokeTraversalCallback(func, [item, new Integer(BigInt(index)), collection], context, evaluate))) return null;
+                    if (collection._lazy.done && collection._lazy.cache.length < index) return uncertain ? UNDECIDED : index === 1 ? null : last;
+                    const state = decisionState(invokeTraversalCallback(func, [item, new Integer(BigInt(index)), collection], context, evaluate));
+                    if (state === "null") return null;
+                    if (state === "undecided") uncertain = true;
                     last = item;
                     index++;
                 }
@@ -1750,21 +1782,22 @@ export const functionFunctions = {
                 let sawAny = false;
                 let lastItem = null;
                 let failed = false;
+                let uncertain = false;
                 forEachTensorCell(collection, (item, tuple) => {
                     if (!sawAny) {
                         sawAny = true;
                     }
-                    if (
-                        failed ||
-                        !isTruthy(
-                            invokeTraversalCallback(
+                    const state = decisionState(invokeTraversalCallback(
                                 func,
                                 [item, tensorIndexTuple(tuple), collection],
                                 context,
                                 evaluate,
-                            ),
-                        )
-                    ) {
+                            ));
+                    if (state === "undecided") {
+                        uncertain = true;
+                        return;
+                    }
+                    if (failed || state === "null") {
                         failed = true;
                         return;
                     }
@@ -1772,6 +1805,7 @@ export const functionFunctions = {
                 });
                 if (!sawAny) return null;
                 if (failed) return null;
+                if (uncertain) return UNDECIDED;
                 return lastItem;
             }
 
@@ -1782,14 +1816,15 @@ export const functionFunctions = {
                 if (!(entries instanceof Map)) throw new Error("PALL: invalid map");
                 if (entries.size === 0) return null;
                 let lastVal = null;
+                let uncertain = false;
                 for (const [k, v] of entries) {
                     const loc = { type: "string", value: k };
-                    if (!isTruthy(invokeTraversalCallback(func, [v, loc, collection], context, evaluate))) {
-                        return null;
-                    }
+                    const state = decisionState(invokeTraversalCallback(func, [v, loc, collection], context, evaluate));
+                    if (state === "null") return null;
+                    if (state === "undecided") uncertain = true;
                     lastVal = v;
                 }
-                return lastVal;
+                return uncertain ? UNDECIDED : lastVal;
             }
 
             const isStringObj = (collection && collection.type === "string");
@@ -1810,15 +1845,16 @@ export const functionFunctions = {
 
             // Callback receives (val, locator, src) where locator is 1-based Integer position.
             let lastItem = null;
+            let uncertain = false;
             for (let i = 0; i < items.length; i++) {
                 const item = items[i];
                 const loc = new Integer(BigInt(i + 1));
-                if (!isTruthy(invokeTraversalCallback(func, [item, loc, collection], context, evaluate))) {
-                    return null;
-                }
+                const state = decisionState(invokeTraversalCallback(func, [item, loc, collection], context, evaluate));
+                if (state === "null") return null;
+                if (state === "undecided") uncertain = true;
                 lastItem = item;
             }
-            return lastItem;
+            return uncertain ? UNDECIDED : lastItem;
         },
         doc: "Every: returns last element if predicate is truthy for ALL elements, null on first failure — callback receives (val, locator, src)",
     },
@@ -1836,10 +1872,13 @@ export const functionFunctions = {
 
             if (isLazySequence(collection)) {
                 let index = 1;
+                let uncertain = false;
                 while (true) {
                     const item = ensureLazyIndex(collection, index);
-                    if (collection._lazy.done && collection._lazy.cache.length < index) return null;
-                    if (isTruthy(invokeTraversalCallback(func, [item, new Integer(BigInt(index)), collection], context, evaluate))) return item;
+                    if (collection._lazy.done && collection._lazy.cache.length < index) return uncertain ? UNDECIDED : null;
+                    const state = decisionState(invokeTraversalCallback(func, [item, new Integer(BigInt(index)), collection], context, evaluate));
+                    if (state === "truth") return item;
+                    if (state === "undecided") uncertain = true;
                     index++;
                 }
             }
@@ -1847,23 +1886,22 @@ export const functionFunctions = {
             if (isTensor(collection)) {
                 let found = null;
                 let foundAny = false;
+                let uncertain = false;
                 forEachTensorCell(collection, (item, tuple) => {
-                    if (
-                        !foundAny &&
-                        isTruthy(
-                            invokeTraversalCallback(
+                    if (!foundAny) {
+                        const state = decisionState(invokeTraversalCallback(
                                 func,
                                 [item, tensorIndexTuple(tuple), collection],
                                 context,
                                 evaluate,
-                            ),
-                        )
-                    ) {
-                        found = item;
-                        foundAny = true;
+                            ));
+                        if (state === "truth") {
+                            found = item;
+                            foundAny = true;
+                        } else if (state === "undecided") uncertain = true;
                     }
                 });
-                return foundAny ? found : null;
+                return foundAny ? found : uncertain ? UNDECIDED : null;
             }
 
             // Map support: test entries with (val, key, src).
@@ -1871,13 +1909,14 @@ export const functionFunctions = {
             if (collection.type === "map") {
                 const entries = collection.entries;
                 if (!(entries instanceof Map)) throw new Error("PANY: invalid map");
+                let uncertain = false;
                 for (const [k, v] of entries) {
                     const loc = { type: "string", value: k };
-                    if (isTruthy(invokeTraversalCallback(func, [v, loc, collection], context, evaluate))) {
-                        return v;
-                    }
+                    const state = decisionState(invokeTraversalCallback(func, [v, loc, collection], context, evaluate));
+                    if (state === "truth") return v;
+                    if (state === "undecided") uncertain = true;
                 }
-                return null;
+                return uncertain ? UNDECIDED : null;
             }
 
             const isStringObj = (collection && collection.type === "string");
@@ -1893,14 +1932,15 @@ export const functionFunctions = {
             }
 
             // Callback receives (val, locator, src) where locator is 1-based Integer position.
+            let uncertain = false;
             for (let i = 0; i < items.length; i++) {
                 const item = items[i];
                 const loc = new Integer(BigInt(i + 1));
-                if (isTruthy(invokeTraversalCallback(func, [item, loc, collection], context, evaluate))) {
-                    return item;
-                }
+                const state = decisionState(invokeTraversalCallback(func, [item, loc, collection], context, evaluate));
+                if (state === "truth") return item;
+                if (state === "undecided") uncertain = true;
             }
-            return null;
+            return uncertain ? UNDECIDED : null;
         },
         doc: "Any: returns first item that passed predicate, null if none pass — callback receives (val, locator, src)",
     },

@@ -18,7 +18,7 @@ FinalStep(result) -> result[2][.LEN(result[2])];
     sqrt2_stops_by_epsilon = {;
         result := NthRoot(2, 2, 20, 10^-8);
         step := FinalStep(result);
-        width := step[3] >= step[2] ?? step[3] - step[2] ?: step[2] - step[3];
+        width := step[3] >= step[2] ?: step[3] - step[2] ?_ step[2] - step[3];
         width < 10^-8
     },
 

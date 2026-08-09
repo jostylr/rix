@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { RationalInterval } from "@ratmath/core";
+import { CertifiedApproximation, RationalInterval } from "@ratmath/core";
 import {
     Context,
     createDefaultRegistry,
@@ -71,6 +71,7 @@ describe("pure RiX Numerics plugin", () => {
         expect(entry(result, "goalMet").value).toBe(1n);
         expect(entry(result, "achievedWidth").toString()).toBe("1/1024");
         expect(entry(result, "interval")).toBeInstanceOf(RationalInterval);
+        expect(entry(result, "approximation")).toBeInstanceOf(CertifiedApproximation);
     });
 
     test("reports Float sampling as approximate rather than certified", () => {
@@ -95,11 +96,14 @@ describe("pure RiX Numerics plugin", () => {
         const result = parseAndEvaluate(`
             .Plugin.Load("numerics");
             .Plugin.Load("oracle");
-            .numerics.Refine(.oracle.Rational(3/7), {= absoluteWidth=1/1000, maxWork=3 })
+            result = .numerics.Refine(.oracle.Rational(3/7), {= absoluteWidth=1/1000, maxWork=3 });
+            result
         `, options);
         expect(textValue(entry(result, "status"))).toBe("budgetExhausted");
         expect(entry(result, "certified").value).toBe(1n);
         expect(entry(result, "goalMet")).toBeNull();
         expect(entry(entry(result, "work"), "exhausted").value).toBe(1n);
+        expect(entry(result, "approximation")).toBeInstanceOf(CertifiedApproximation);
+        expect(parseAndEvaluate(".numerics.Approximation(result)", options)).toBeInstanceOf(CertifiedApproximation);
     });
 });

@@ -23,6 +23,7 @@ Postfix { Group | Array | Container }
 
 Primary {
   Number |
+  Undecided |
   String |
   BacktickString |
   Regex |
@@ -91,7 +92,8 @@ BraceClose { "|}" | "}" }
   SystemIdentifier,
   Identifier,
   Placeholder,
-  Operator
+  Operator,
+  Undecided
 }
 
 @tokens {

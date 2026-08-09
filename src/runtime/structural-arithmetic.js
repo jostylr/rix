@@ -1,4 +1,5 @@
 import {
+    CertifiedApproximation,
     Fraction,
     Integer,
     Rational,
@@ -336,6 +337,7 @@ export function liftStructuralValue(value) {
     if (
         value instanceof Integer ||
         value instanceof Fraction ||
+        value instanceof CertifiedApproximation ||
         value instanceof RationalInterval ||
         isStructuralSymbol(value) ||
         isStructuralLiteral(value) ||
@@ -353,6 +355,7 @@ export function liftStructuralValue(value) {
 }
 
 function literalKind(text) {
+    if (text.includes("?")) return "CertifiedApproximation";
     if (text.includes("..")) return "MixedNumber";
     if (text.includes(".~")) return "ContinuedFraction";
     if (/^~?(?:0z\[\d+\]|0[A-Za-z])/u.test(text)) return "BasedNumber";

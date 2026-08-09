@@ -27,8 +27,12 @@ result := .numerics.Refine(real, {=
   `:budgetExhausted`, or `:unsupported`;
 - `evidenceLevel`: the provider's honest evidence claim;
 - `work` and `diagnostics`: bounded resource use and unresolved limitations.
+- `approximation`: for certified providers, a scalar `CertifiedApproximation`
+  carrying the candidate, exact enclosure, and precision provenance.
 
-Exhaustion is a normal result. It is not converted into a guessed answer.
+Exhaustion is a normal result. Certified providers preserve it as a certified
+approximation rather than a guessed answer or an exception; uncertified
+providers must not populate that field as though they had an error bound.
 
 ## Provider protocol
 

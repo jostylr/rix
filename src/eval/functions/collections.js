@@ -14,12 +14,17 @@ import {
 } from "../../runtime/lazy-sequence.js";
 import { callWithConcreteArgs } from "./functions.js";
 import { shallowCopyValue } from "../../runtime/cell.js";
+import { UNDECIDED, decisionState, isUndecided } from "../../runtime/decision.js";
 
 function isTruthy(val) {
-    return val !== null && val !== undefined;
+    return decisionState(val) === "truth";
 }
 
 function valueKey(val) {
+    if (isUndecided(val)) return "?:undecided";
+    if (val?.isCertifiedApproximation === true) {
+        throw new Error("Certified approximations cannot be used as structural set keys");
+    }
     if (val === null || val === undefined) return "null";
     if (typeof val === "object") {
         if (typeof val.toString === "function" && val.toString !== Object.prototype.toString) {
@@ -244,7 +249,9 @@ function createGeneratorValue(args, ctx, evaluate, defaultMode) {
                     if (stage.fn === "GEN_PIPE") {
                         value = invoke(stage.value, [value]);
                     } else if (stage.fn === "GEN_FILTER") {
-                        accepted = isTruthy(invoke(stage.value, [value, new Integer(BigInt(state.sourcePosition)), self]));
+                        const filterValue = invoke(stage.value, [value, new Integer(BigInt(state.sourcePosition)), self]);
+                        if (isUndecided(filterValue)) return { unresolved: UNDECIDED, attempts };
+                        accepted = isTruthy(filterValue);
                         if (!accepted) break;
                     }
                 }
@@ -252,7 +259,9 @@ function createGeneratorValue(args, ctx, evaluate, defaultMode) {
 
                 state.emitted++;
                 if (terminal && numericLimit === null) {
-                    state.stop = isTruthy(invoke(terminal.value, [value, new Integer(BigInt(state.sourcePosition)), self]));
+                    const terminalValue = invoke(terminal.value, [value, new Integer(BigInt(state.sourcePosition)), self]);
+                    if (isUndecided(terminalValue)) return { unresolved: UNDECIDED, attempts };
+                    state.stop = isTruthy(terminalValue);
                 }
                 return { done: false, value: captureResolvedValue(value, defaultMode), attempts };
             }
@@ -262,6 +271,7 @@ function createGeneratorValue(args, ctx, evaluate, defaultMode) {
 
     if (!eager) return sequence;
     const materialized = materializeLazySequence(sequence, { allowUnknown: true, maxIterations });
+    if (isUndecided(materialized)) return UNDECIDED;
     materialized._ext = new Map([["_mutable", new Integer(1n)]]);
     return attachBuiltinProto(materialized);
 }
@@ -272,7 +282,7 @@ export const collectionFunctions = {
         impl(args, ctx, evaluate) {
             const defaultMode = constructorDefaultCaptureMode(ctx);
             const generated = createGeneratorValue(args, ctx, evaluate, defaultMode);
-            if (generated) return attachBuiltinProto(generated);
+            if (generated) return isUndecided(generated) ? generated : attachBuiltinProto(generated);
             const values = [];
             let i = 0;
             while (i < args.length) {

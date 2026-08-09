@@ -6,6 +6,7 @@ export {
 export { createSystemManifest, createSystemLookup } from "./runtime/system-manifest.js";
 export { complete, REPL_COMMANDS } from "./repl/completion.js";
 export { lower, lowerNode, ir, IR, Registry, evaluate, evaluateAsync, createDefaultRegistry, createDefaultSystemContext, parseAndEvaluate, parseAndEvaluateAsync, drainBackgroundTasks, irToText, irListToText, formatValue } from "./eval/index.js";
+export { UNDECIDED, isUndecided, decisionState, reviveDecisionValue } from "./runtime/decision.js";
 export {
     Context, SystemContext, PluginCatalog, parsePluginYaml, readPluginHeader, readSourceHeader,
     RendererRegistry, UnsupportedRenderError, createRenderResult, createRendererCollection, createRendererPluginCollection, isRenderResult, renderResultValue,

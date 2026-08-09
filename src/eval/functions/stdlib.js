@@ -256,19 +256,18 @@ export const stdlibFunctions = {
     IF: {
         lazy: true,
         impl(args, _context, evaluate) {
-            // IF(cond, trueVal, falseVal) -> TERNARY(cond, DEFER(trueVal), DEFER(falseVal))
-            // Note: IF in stdlib usually evaluates its branches unless it's the specific lazy IF.
-            // But we'll follow TERNARY logic for efficiency.
+            // IF(cond, truthVal, nullVal?, undecidedVal?) shares decision-conditional semantics.
             return evaluate({
                 fn: "TERNARY",
                 args: [
                     args[0],
                     { fn: "DEFER", args: [args[1]] },
-                    args[2] ? { fn: "DEFER", args: [args[2]] } : { fn: "NULL", args: [] }
+                    args[2] ? { fn: "DEFER", args: [args[2]] } : { fn: "DEFER", args: [{ fn: "NULL", args: [] }] },
+                    args[3] ? { fn: "DEFER", args: [args[3]] } : { fn: "DEFER", args: [{ fn: "UNDECIDED", args: [] }] },
                 ]
             });
         },
-        doc: "Conditional function IF(cond, t, f)",
+        doc: "Lazy decision conditional IF(cond, truth, null?, undecided?)",
     },
 
     MULTI: {

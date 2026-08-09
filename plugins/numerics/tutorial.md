@@ -20,13 +20,26 @@ certified := .numerics.Refine(real, {=
 });
 
 .Table({=
-  columns = ["status", "certified", "goal met", "interval", "width", "calls"],
+  columns = ["status", "certified", "goal met", "value", "interval", "width", "calls"],
   rows = [[
     certified[:status], certified[:certified], certified[:goalMet],
-    certified[:interval], certified[:achievedWidth], certified[:work][:calls]
+    certified[:approximation], certified[:interval],
+    certified[:achievedWidth], certified[:work][:calls]
   ]]
 });
 ```
+
+The provider always returns its structured work record. When its enclosure is
+certified, `approximation` is also a first-class `CertifiedApproximation`.
+Reaching `maxWork` therefore does not throw away completed work or invent
+digits: the status becomes `:budgetExhausted`, while the value retains the
+candidate, the exact enclosure reached so far, and requested/achieved
+precision metadata. `.numerics.Approximation(result)` extracts that value.
+
+When displayed after derived work it may use an interval spelling; bounded
+radix conversion such as `(1/7).ToDecimalApproximation(5)` instead produces the
+parseable prefix `0.14285?`. By contrast, `...` remains display-only
+truncation and never claims a certified enclosure.
 
 The same request shape works with the Float provider:
 

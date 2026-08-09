@@ -40,6 +40,13 @@ describe("RiX Lezer grammar", () => {
     expect(result).not.toContain("⚠");
   });
 
+  test("recognizes certified number tokens and standalone undecided values", () => {
+    const result = tree("x := 23.456?789; answer := ?; relation := x ? y;");
+    expect(result).toContain("Number");
+    expect(result).toContain("Undecided");
+    expect(result).not.toContain("⚠");
+  });
+
   test("exposes a CodeMirror language parser", () => {
     expect(rixLanguage.parser.parse("x := [1, 2, 3]").length).toBeGreaterThan(0);
   });

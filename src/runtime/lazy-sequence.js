@@ -18,6 +18,7 @@ export function createLazySequence(options) {
             pull: options.pull,
             cache: options.cache ? [...options.cache] : [],
             done: false,
+            unresolved: null,
             knownLength: options.knownLength ?? null,
             maxIterations: options.maxIterations ?? 10000,
             label: options.label || "generator",
@@ -48,6 +49,12 @@ export function pullLazyValue(sequence, iterationBudget = null) {
     if (attempts > budget) {
         throw new Error(`${lazy.label} exceeded the iteration limit of ${budget} while producing one value`);
     }
+    if (result.unresolved !== undefined) {
+        lazy.unresolved = result.unresolved;
+        lazy.done = true;
+        lazy.knownLength = null;
+        return { done: true, unresolved: result.unresolved, attempts };
+    }
     if (result.done) {
         lazy.done = true;
         lazy.knownLength = lazy.cache.length;
@@ -64,6 +71,7 @@ export function ensureLazyIndex(sequence, oneBasedIndex) {
     while (sequence._lazy.cache.length < oneBasedIndex && !sequence._lazy.done) {
         pullLazyValue(sequence);
     }
+    if (sequence._lazy.unresolved !== null) return sequence._lazy.unresolved;
     return sequence._lazy.cache[oneBasedIndex - 1] ?? null;
 }
 
@@ -82,6 +90,7 @@ export function materializeLazySequence(sequence, options = {}) {
             throw new Error(`${lazy.label} exceeded the iteration limit of ${limit} while materializing`);
         }
     }
+    if (lazy.unresolved !== null) return lazy.unresolved;
     return { type: "sequence", values: [...lazy.cache], _ext: new Map([["_mutable", 1]]) };
 }
 
@@ -99,6 +108,7 @@ export function cloneLazySequence(sequence, options = {}) {
             pull: source.pull,
             cache: restart ? [] : source.cache.map(cloneValue),
             done: restart ? false : source.done,
+            unresolved: restart ? null : source.unresolved,
             knownLength: source.knownLength,
             maxIterations: source.maxIterations,
             label: source.label,
@@ -157,7 +167,11 @@ export function filterLazySequence(source, predicate, options = {}) {
                 if (value === null && state.source._lazy.done && state.source._lazy.cache.length < state.sourceIndex) {
                     return { done: true, attempts };
                 }
-                if (predicate(value, state.sourceIndex, state.source, filtered)) {
+                const decision = predicate(value, state.sourceIndex, state.source, filtered);
+                if (options.isUnresolved?.(decision)) {
+                    return { unresolved: decision, attempts };
+                }
+                if (decision) {
                     return { done: false, value, attempts };
                 }
             }

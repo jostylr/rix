@@ -8,7 +8,7 @@ toc-depth: 2
 This page is generated from the current RiX implementation by `documentation/scripts/generate-reference.js`. Do not edit it by hand. Descriptions come from registry documentation strings; the narrative [syntax guide](../eval/syntax-guide.md) and [methods guide](../eval/methods-guide.md) provide signatures and examples.
 :::
 
-At this revision RiX exposes **198 named entries** on the default system context and registers **212 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
+At this revision RiX exposes **218 named entries** on the default system context and registers **214 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
 
 ## Public system context
 
@@ -35,6 +35,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.CALLOUT` | function | — | Create a semantic document callout |
 | `.CAPABILITYREGISTER` | function | — | Register a package system capability during trusted package startup |
 | `.CASE` | lazy function | — | Ordered case expression with condition arms, prepared-trial arms, and an optional fallback |
+| `.CERTIFIEDAPPROXIMATION` | function | — | Construct a certified approximate scalar from an exact candidate and rational enclosure |
 | `.CHUNK` | lazy function | — | Chunk a collection into subarrays by size or boundary predicate |
 | `.CODE` | function | — | Create literal inline code |
 | `.CODEBLOCK` | function | — | Create a literal source-code block |
@@ -79,7 +80,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.GTE` | function | Logic | Greater than or equal — returns 1 or null |
 | `.HEADING` | function | Output | Create a portable document heading |
 | `.HOST` | function | — | Host/plugin capability registration and discovery |
-| `.IF` | lazy function | Core | Ternary conditional: condition ?? trueExpr ?: falseExpr |
+| `.IF` | lazy function | Core | Decision conditional: condition ?: truthExpr ?\_ nullExpr ?? undecidedExpr |
 | `.IMAGE` | function | — | Create a portable image asset |
 | `.IMPORTJS` | function | — | Import a local JavaScript module for use from a .js.rix startup file |
 | `.INFO` | function | — | Emit an info event: .Info(label, level ?= 1, dataMap ?= {=}) |
@@ -196,9 +197,20 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.VALUES` | function | Core, Maps | Get the values of a map as a set (obj\|.) |
 | `.VIDEO` | function | — | Create a portable video asset |
 | `.WARN` | function | — | Emit a warning event: .Warn(label, dataMap ?= {=}) |
+| `.algebra` | function | — | Canonical exact univariate polynomials with verified division and portable synthetic-division Grids. |
 | `.canvas` | function | — | Serializable Canvas 2D drawing plans for core Graphics scenes. |
+| `.csv` | function | — | Deterministic CSV and TSV export for portable Tables and typed data Relations. |
+| `.data` | function | — | Immutable typed relations with deterministic projection, filtering, sorting, and Table views. |
+| `.document` | function | — | Numbered portable reports with labels, forward references, captions, and small semantic themes. |
 | `.draw` | function | Draw | Convenient 2D drawing helpers that produce core Graphics nodes. |
 | `.exactalgebras` | function | Exact | Exact rational quaternion and octonion values. |
+| `.f` | function | — | Representation-sensitive unreduced integer fractions with mediant and classroom addition policies. |
+| `.ff` | function | — | Form-preserving callable polynomial and rational expressions with explicit transformations and canonical projections. |
+| `.frac` | function | — | Representation-sensitive unreduced integer fractions with mediant and classroom addition policies. |
+| `.fracfun` | function | — | Form-preserving callable polynomial and rational expressions with explicit transformations and canonical projections. |
+| `.fraction` | function | — | Representation-sensitive unreduced integer fractions with mediant and classroom addition policies. |
+| `.fractionfunction` | function | — | Form-preserving callable polynomial and rational expressions with explicit transformations and canonical projections. |
+| `.geometry` | function | — | Exact ruler-and-compass geometry with explicit intersections and portable Graphics snapshots. |
 | `.gltf` | function | — | Browser-safe glTF 2.0 JSON exporter for retained Scene3D values. |
 | `.html` | function | — | Standalone semantic HTML renderer for portable RiX output trees. |
 | `.latex` | function | — | Standalone LaTeX renderer for portable RiX documents and figures. |
@@ -206,13 +218,21 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.nd` | function | — | Exact n-dimensional geometry with explicit affine and Cayley projection records. |
 | `.numerics` | function | — | Backend-neutral bounded enclosure and refinement orchestration. |
 | `.oracle` | function | — | Exact rational-betweenness oracle demonstrations and bounded refinement. |
+| `.p` | function | — | Semantic callable univariate polynomials with structural and symbolic entry forms. |
 | `.pdf` | function | — | PDF document and figure renderer orchestrated through LaTeX. |
 | `.plot` | function | Plot | Portable plotting helpers that produce core Graphics scenes. |
 | `.png` | function | — | PNG snapshot renderer for core Graphics through a host rasterizer. |
+| `.poly` | function | — | Semantic callable univariate polynomials with structural and symbolic entry forms. |
+| `.polynomial` | function | — | Semantic callable univariate polynomials with structural and symbolic entry forms. |
 | `.quarto` | function | — | Quarto Markdown renderer with front matter and portable figure lowering. |
 | `.radix` | function | — | Bounded exact positional expansions and repeating-period analysis for rational values. |
+| `.ratfun` | function | — | Canonical callable univariate rational functions with exact cancellation and Polynomial interoperability. |
+| `.rationalfunction` | function | — | Canonical callable univariate rational functions with exact cancellation and Polynomial interoperability. |
+| `.rf` | function | — | Canonical callable univariate rational functions with exact cancellation and Polynomial interoperability. |
 | `.scene3d` | function | — | Exact retained 3D scenes with deterministic wireframe Graphics snapshots. |
 | `.svg` | function | — | Portable SVG renderer for core Graphics scenes. |
+| `.symbolic` | function | — | Meta-plugin loading RiX representation-sensitive Fraction and FractionFunction workspaces. |
+| `.terminalascii` | function | — | Deterministic strict-ASCII fallback for tables, grids, fragments, and simple Graphics. |
 | `.tikz` | function | — | Editable TikZ/PGF source renderer for core Graphics scenes. |
 
 ## Built-in receiver methods
@@ -222,7 +242,7 @@ Method lookup is case-flexible at the language boundary. The table uses the regi
 | Receiver | Registered methods |
 | --- | --- |
 | Integer | `ABS`, `BITLENGTH`, `E`, `NEGATE`, `TOSTRING` |
-| Rational | `ABS`, `APPROXIMATIONERROR`, `BESTAPPROXIMATION`, `BESTCONVERGENT`, `BITLENGTH`, `CEIL`, `CONVERGENT`, `CONVERGENTS`, `DENOMINATOR`, `E`, `FLOOR`, `NEGATE`, `NUMERATOR`, `RECIPROCAL`, `ROUND`, `ROUNDTO`, `TOCONTINUEDFRACTION`, `TOCONTINUEDFRACTIONSTRING`, `TODECIMAL`, `TOMIXEDSTRING`, `TOSTRING`, `TRUNC` |
+| Rational | `ABS`, `APPROXIMATIONERROR`, `BESTAPPROXIMATION`, `BESTCONVERGENT`, `BITLENGTH`, `CEIL`, `CONVERGENT`, `CONVERGENTS`, `DENOMINATOR`, `E`, `FLOOR`, `NEGATE`, `NUMERATOR`, `RECIPROCAL`, `ROUND`, `ROUNDTO`, `TOCONTINUEDFRACTION`, `TOCONTINUEDFRACTIONAPPROXIMATION`, `TOCONTINUEDFRACTIONSTRING`, `TODECIMAL`, `TODECIMALAPPROXIMATION`, `TOMIXEDSTRING`, `TOSTRING`, `TRUNC` |
 | Rational interval | `BITLENGTH`, `CONTAINS`, `CONTAINSVALUE`, `CONTAINSZERO`, `DENOMINATORINTERVAL`, `E`, `END`, `HIGH`, `INTERSECTION`, `ISASCENDING`, `LOW`, `MEDIANT`, `MIDPOINT`, `NEGATE`, `OVERLAPS`, `RANDOM`, `RANDOMPARTITION`, `RECIPROCAL`, `SHORTESTDECIMAL`, `START`, `TOMIXEDSTRING`, `TOSTRING`, `UNION`, `WIDTH` |
 | Array | `ALL`, `ANY`, `CONCAT`, `CONCAT!`, `COUNT`, `DISTINCT`, `DISTINCT!`, `DROPFIRST`, `DROPLAST`, `FILTER`, `FIND`, `FINDINDEX`, `FIRST`, `FLATTEN`, `FLATTEN!`, `GET`, `HASAT`, `INCLUDES`, `INDEXOF`, `INSERT`, `INSERT!`, `ISEMPTY`, `ITERATOR`, `JOIN`, `LAST`, `LASTINDEXOF`, `LEN`, `MAP`, `MOVE`, `MOVE!`, `POP!`, `PUSH`, `PUSH!`, `REDUCE`, `REMOVEAT`, `REMOVEAT!`, `REVERSE`, `REVERSE!`, `SET`, `SET!`, `SHIFT!`, `SLICE`, `SORT`, `SORT!`, `SWAP`, `SWAP!`, `UNSHIFT`, `UNSHIFT!` |
 | Lazy sequence | `FIRST`, `GET`, `ISEMPTY`, `ITERATOR`, `LAST`, `LEN`, `MATERIALIZE` |
@@ -256,8 +276,10 @@ Every built-in receiver also supports `CheckTraits` / `CHECKTRAITS`.
 | `Multifunction` | multifunction | `multifunction` | — |
 | `Null` | null | `null` | — |
 | `Hole` | hole | `hole` | — |
+| `Undecided` | undecided | `undecided` | `decision` |
 | `Rational` | rational | `rational` | `rational`, `number`, `ordered`, `field` |
 | `Integer` | integer | `integer` | `integer`, `rational`, `number`, `ordered` |
+| `CertifiedApproximation` | approximation | `approximation`, `approximate` | `number`, `approximate`, `enclosed`, `orderInquiry` |
 | `RationalInterval` | interval | `Interval`, `interval` | `ordered` |
 | `Tensor` | tensor | `tensor` | `tensor`, `indexable`, `shapeAware`, `collection` |
 | `Length` | Length | — | — |
@@ -273,6 +295,10 @@ Every built-in receiver also supports `CheckTraits` / `CHECKTRAITS`.
 | `ring` | `number` | ring semantic trait |
 | `field` | `ring`, `number` | field semantic trait |
 | `ordered` | `number` | ordered semantic trait |
+| `orderInquiry` | `number` | orderInquiry semantic trait |
+| `approximate` | `number` | approximate semantic trait |
+| `enclosed` | `number` | enclosed semantic trait |
+| `decision` | — | decision semantic trait |
 | `rational` | `field`, `ordered` | rational semantic trait |
 | `integer` | `rational` | integer semantic trait |
 | `indexable` | — | indexable semantic trait |
@@ -298,7 +324,7 @@ Imported scripts can add or withhold named groups. Permission-like names are int
 | `Graphics` | `Graphics` |
 | `Draw` | `draw` |
 | `Plot` | `plot` |
-| `Core` | `LEN`, `FIRST`, `LAST`, `GETEL`, `IRANGE`, `IF`, `LOOP`, `MULTI`, `RAND_NAME`, `PRINT`, `TGEN`, `KEYOF`, `KEYS`, `VALUES`, `REGISTERMETHOD` |
+| `Core` | `LEN`, `FIRST`, `LAST`, `GETEL`, `IRANGE`, `IF`, `LOOP`, `MULTI`, `RAND_NAME`, `PRINT`, `TGEN`, `KEYOF`, `KEYS`, `VALUES`, `REGISTERMETHOD`, `CertifiedApproximation` |
 | `Methods` | `REGISTERMETHOD` |
 | `Arith` | `ADD`, `SUB`, `MUL`, `DIV`, `INTDIV`, `DIVMOD`, `MOD`, `POW`, `FACTORIAL`, `DOUBLEFACTORIAL` |
 | `Logic` | `EQ`, `NEQ`, `LT`, `GT`, `LTE`, `GTE`, `AND`, `OR`, `NOT` |
@@ -356,6 +382,7 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `CALL_METHOD` | lazy, effectful/unspecified | Resolve and invoke a receiver-first method call |
 | `CAPABILITY_REGISTER` | eager, effectful/unspecified | Register a package system capability during trusted package startup |
 | `CASE` | lazy, effectful/unspecified | Ordered case expression with condition arms, prepared-trial arms, and an optional fallback |
+| `CERTIFIED_APPROXIMATION` | eager, pure | Construct a certified approximate scalar from an exact candidate and rational enclosure |
 | `CODE` | eager, pure | Create literal inline code |
 | `CODEBLOCK` | eager, pure | Create a literal source-code block |
 | `COMPARE` | eager, pure, multifunction | Compare two values; returns -1, 0, or 1 |
@@ -525,7 +552,7 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `TENSOR` | lazy, pure | Tensor literal |
 | `TENSOR_LITERAL` | lazy, pure | Tensor literal with explicit shape |
 | `TENSOR_TRANSPOSE` | eager, pure | Transpose a rank-2 tensor view |
-| `TERNARY` | lazy, effectful/unspecified | Ternary conditional: condition ?? trueExpr ?: falseExpr |
+| `TERNARY` | lazy, effectful/unspecified | Decision conditional: condition ?: truthExpr ?\_ nullExpr ?? undecidedExpr |
 | `TEXT` | eager, pure | Create a portable text output node |
 | `TOBASE` | lazy, effectful/unspecified | Format number to base string: expr \_> baseSpec |
 | `TRAIT_REGISTER` | eager, effectful/unspecified | Register an immutable semantic trait from a RiX map spec |
@@ -534,6 +561,7 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `TYPE_IMPORT` | lazy, effectful/unspecified | Import a value from a tagged type export map |
 | `TYPE_INSTALL` | eager, effectful/unspecified | Install a registered semantic type into system multifunctions |
 | `TYPE_REGISTER` | eager, effectful/unspecified | Register an immutable semantic type from a RiX map spec |
+| `UNDECIDED` | eager, pure | Return the singleton undecided decision value |
 | `UNION` | eager, pure | Join/Union of two collections (set union or interval hull) |
 | `UNIT` | eager, pure | Resolve scientific unit sugar through the active Units RiX collection |
 | `VALUES` | eager, pure | Get the values of a map as a set (obj\|.) |

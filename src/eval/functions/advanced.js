@@ -5,7 +5,8 @@
  * implementations for extended features (calculus, generators, etc.)
  */
 
-import { Integer, Rational, RationalInterval } from "@ratmath/core";
+import { CertifiedApproximation, Integer, Rational, RationalInterval, Relation, possibleRelations } from "@ratmath/core";
+import { UNDECIDED } from "../../runtime/decision.js";
 import { createTensor, createTensorView, isTensor, tensorRank } from "../../runtime/tensor.js";
 import { captureIrValue, constructorDefaultCaptureMode } from "../../runtime/constructor-capture.js";
 import { applySemanticHeader } from "../../runtime/semantic.js";
@@ -150,6 +151,12 @@ function mediantLevels(lo, hi, levels) {
 export const advancedFunctions = {
     ASSERT_LT: {
         impl(args) {
+            if (args.some((value) => value instanceof CertifiedApproximation || value instanceof RationalInterval)) {
+                const relations = possibleRelations(args[0], args[1]);
+                if (relations === Relation.LESS) return new Integer(1n);
+                if ((relations & Relation.LESS) !== 0) return UNDECIDED;
+                throw new Error("Assertion failed: left value is not less than right value");
+            }
             const a = toNumber(args[0]);
             const b = toNumber(args[1]);
             if (!(a < b)) {
@@ -163,6 +170,12 @@ export const advancedFunctions = {
 
     ASSERT_LTE: {
         impl(args) {
+            if (args.some((value) => value instanceof CertifiedApproximation || value instanceof RationalInterval)) {
+                const relations = possibleRelations(args[0], args[1]);
+                if ((relations & Relation.GREATER) === 0) return new Integer(1n);
+                if (relations !== Relation.GREATER) return UNDECIDED;
+                throw new Error("Assertion failed: left value is greater than right value");
+            }
             const a = toNumber(args[0]);
             const b = toNumber(args[1]);
             if (!(a <= b)) {
@@ -176,6 +189,12 @@ export const advancedFunctions = {
 
     ASSERT_GT: {
         impl(args) {
+            if (args.some((value) => value instanceof CertifiedApproximation || value instanceof RationalInterval)) {
+                const relations = possibleRelations(args[0], args[1]);
+                if (relations === Relation.GREATER) return new Integer(1n);
+                if ((relations & Relation.GREATER) !== 0) return UNDECIDED;
+                throw new Error("Assertion failed: left value is not greater than right value");
+            }
             const a = toNumber(args[0]);
             const b = toNumber(args[1]);
             if (!(a > b)) {
@@ -189,6 +208,12 @@ export const advancedFunctions = {
 
     ASSERT_GTE: {
         impl(args) {
+            if (args.some((value) => value instanceof CertifiedApproximation || value instanceof RationalInterval)) {
+                const relations = possibleRelations(args[0], args[1]);
+                if ((relations & Relation.LESS) === 0) return new Integer(1n);
+                if (relations !== Relation.LESS) return UNDECIDED;
+                throw new Error("Assertion failed: left value is less than right value");
+            }
             const a = toNumber(args[0]);
             const b = toNumber(args[1]);
             if (!(a >= b)) {

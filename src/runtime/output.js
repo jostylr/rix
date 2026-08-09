@@ -1,6 +1,7 @@
 /** Portable structured-output values and host-neutral render helpers. */
 
-import { Integer, Rational, RationalInterval } from "@ratmath/core";
+import { CertifiedApproximation, Integer, Rational, RationalInterval } from "@ratmath/core";
+import { isUndecided } from "./decision.js";
 import { isTensor, tensorGetBySelectors } from "./tensor.js";
 import { isBinding } from "./binding.js";
 import { FORMULA_SHEET_ASSIGNMENT_MODES, isFormulaSheet } from "./formula-sheet.js";
@@ -972,6 +973,7 @@ export function createControlPanelSnapshot(panel) {
 }
 
 function portableSnapshotValue(value) {
+    if (isUndecided(value)) return { type: "undecided" };
     if (value === null || typeof value === "string" || typeof value === "boolean") return value;
     if (typeof value === "number") {
         if (!Number.isFinite(value)) throw new Error("ControlPanel snapshots cannot serialize non-finite numbers");
@@ -991,6 +993,14 @@ function portableSnapshotValue(value) {
             type: "rational_interval",
             start: portableSnapshotValue(value.start),
             end: portableSnapshotValue(value.end),
+        };
+    }
+    if (value instanceof CertifiedApproximation) {
+        return {
+            type: "certified_approximation",
+            spelling: value.toString(),
+            candidate: portableSnapshotValue(value.candidate),
+            enclosure: portableSnapshotValue(value.enclosure),
         };
     }
     if (Array.isArray(value)) return value.map(portableSnapshotValue);

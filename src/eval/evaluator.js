@@ -16,6 +16,7 @@ import { createSystemLookup } from "../runtime/system-manifest.js";
 import { Context } from "../runtime/context.js";
 import { Cell, copyAllMeta, deepCopyValue, shallowCopyValue } from "../runtime/cell.js";
 import { isHole } from "../runtime/hole.js";
+import { UNDECIDED, decisionState } from "../runtime/decision.js";
 import { runtimeDefaults } from "../runtime/runtime-config.js";
 import { isReactiveNode } from "../runtime/reactive-graph.js";
 import { CleanupGraceFault, isOperationalFault, faultToRixValue, TimeoutFault } from "../runtime/operational-fault.js";
@@ -332,6 +333,10 @@ export function createDefaultSystemContext(options = {}) {
     ctx.register("EVAL", coreFunctions.EVAL);
     ctx.register("TypeExport", coreFunctions.TYPE_EXPORT);
     ctx.register("TypeImport", coreFunctions.TYPE_IMPORT);
+    ctx.register("CertifiedApproximation", {
+        ...coreFunctions.CERTIFIED_APPROXIMATION,
+        groups: ["Core"],
+    });
     ctx.register("TraitRegister", coreFunctions.TRAIT_REGISTER);
     ctx.register("TypeRegister", coreFunctions.TYPE_REGISTER);
     ctx.register("TypeInstall", coreFunctions.TYPE_INSTALL);
@@ -1247,7 +1252,7 @@ function captureDetachedImports(imports, context) {
 }
 
 function isTruthyAsync(value) {
-    return value !== null && value !== undefined;
+    return decisionState(value) === "truth";
 }
 
 function markLexicalAsyncCallable(value, state) {
@@ -1359,7 +1364,9 @@ async function invokeUserCallableAsync(fn, callArgs, context, registry, systemCo
         ]) {
             try {
                 const passed = await evaluateAsyncInternal(prep, context, registry, systemContext, callableState);
-                if (!isTruthyAsync(passed)) return null;
+                const state = decisionState(passed);
+                if (state === "undecided") return UNDECIDED;
+                if (state === "null") return null;
             } catch (error) {
                 if (fn.params?.prepStrict === true) throw error;
                 return null;
@@ -1481,6 +1488,7 @@ async function orderedAsyncTerminal(items, state, worker, terminal) {
     let nextToStart = 0;
     let candidateCount = 0;
     let lastCandidate = null;
+    let uncertain = false;
 
     const start = (index) => {
         let promise;
@@ -1505,12 +1513,14 @@ async function orderedAsyncTerminal(items, state, worker, terminal) {
             if (!record.dropped) {
                 candidateCount++;
                 lastCandidate = record.value;
-                if (terminal === "PANY" && record.terminalPassed) return await stop(record.value);
-                if (terminal === "PALL" && !record.terminalPassed) return await stop(null);
+                if (record.terminalState === "undecided") uncertain = true;
+                if (terminal === "PANY" && record.terminalState === "truth") return await stop(record.value);
+                if (terminal === "PALL" && record.terminalState === "null") return await stop(null);
             }
             if (nextToStart < items.length) start(nextToStart++);
         }
         await scheduler.waitForIdle(group);
+        if (uncertain) return UNDECIDED;
         if (terminal === "PALL" && candidateCount > 0) return lastCandidate;
         return null;
     } catch (error) {
@@ -1562,6 +1572,9 @@ async function consumeAsyncStreamStructured(stream, terminal, context, registry,
                     itemState,
                 ),
             });
+            if (processed.unresolved !== undefined) {
+                return { done: false, index, records: [], stop: true, unresolved: processed.unresolved };
+            }
             const records = [];
             for (const value of processed.values) {
                 let terminalValue = null;
@@ -1620,6 +1633,10 @@ async function consumeAsyncStreamStructured(stream, terminal, context, registry,
                 cancelPending(streamEarlyStop("source completion"));
                 break;
             }
+            if (record.unresolved !== undefined) {
+                finalResult = record.unresolved;
+                stopped = true;
+            }
             for (const entry of record.records) {
                 outputIndex++;
                 if (terminal.kind === "collect") collected.push(entry.value);
@@ -1635,15 +1652,23 @@ async function consumeAsyncStreamStructured(stream, terminal, context, registry,
                 } else if (terminal.kind === "first") {
                     finalResult = entry.value;
                     stopped = true;
-                } else if (terminal.kind === "find" && isTruthyAsync(entry.terminalValue)) {
-                    finalResult = entry.value;
-                    stopped = true;
+                } else if (terminal.kind === "find") {
+                    const entryState = decisionState(entry.terminalValue);
+                    if (entryState === "truth") {
+                        finalResult = entry.value;
+                        stopped = true;
+                    } else if (entryState === "undecided" && finalResult === undefined) {
+                        finalResult = UNDECIDED;
+                    }
                 } else if (terminal.kind === "all") {
-                    if (!isTruthyAsync(entry.terminalValue)) {
+                    const entryState = decisionState(entry.terminalValue);
+                    if (entryState === "null") {
                         finalResult = null;
                         stopped = true;
+                    } else if (entryState === "undecided") {
+                        finalResult = UNDECIDED;
                     } else {
-                        finalResult = entry.value;
+                        if (finalResult !== UNDECIDED) finalResult = entry.value;
                     }
                 }
                 if (terminal.bound !== null && outputIndex >= terminal.bound) stopped = true;
@@ -1910,6 +1935,7 @@ function collectionItems(collection) {
 }
 
 function assembleAsyncPipeResult(collection, items, records, stages = []) {
+    if (records.some((record) => record.unresolved === true)) return UNDECIDED;
     if (isTensor(collection)) {
         const kept = records.filter((record) => record.keep);
         if (stages.some((stage) => stage.fn === "PFILTER")) {
@@ -1977,6 +2003,8 @@ async function runAsyncPipeStages(value, index, key, collection, stages, callabl
     let keep = true;
     let dropped = false;
     let terminalPassed = null;
+    let terminalState = null;
+    let unresolved = false;
     const locator = explicitLocator ?? (key !== undefined
         ? { type: "string", value: key }
         : new Integer(BigInt(index + 1)));
@@ -2010,28 +2038,39 @@ async function runAsyncPipeStages(value, index, key, collection, stages, callabl
             state,
         );
         if (stage.fn === "PMAP") current = result;
-        else if (stage.fn === "PFILTER" && !isTruthyAsync(result)) {
-            keep = false;
-            dropped = true;
-            break;
+        else if (stage.fn === "PFILTER") {
+            const resultState = decisionState(result);
+            if (resultState === "undecided") {
+                unresolved = true;
+                break;
+            }
+            if (resultState === "null") {
+                keep = false;
+                dropped = true;
+                break;
+            }
         } else if (stage.fn === "PANY" || stage.fn === "PALL") {
-            terminalPassed = isTruthyAsync(result);
-            keep = terminalPassed;
+            terminalState = decisionState(result);
+            terminalPassed = terminalState === "truth";
+            keep = true;
             break;
         } else if (stage.fn === "PFOREACH") {
             break;
         }
     }
-    return { index, value: current, keep, dropped, terminalPassed };
+    return { index, value: current, keep, dropped, terminalPassed, terminalState, unresolved };
 }
 
 function asyncTerminalResult(terminal, records) {
     if (terminal === "PANY") {
-        return records.find((record) => !record.dropped && record.terminalPassed)?.value ?? null;
+        const match = records.find((record) => !record.dropped && record.terminalState === "truth");
+        if (match) return match.value;
+        return records.some((record) => !record.dropped && record.terminalState === "undecided") ? UNDECIDED : null;
     }
     if (terminal === "PALL") {
         const candidates = records.filter((record) => !record.dropped);
-        if (candidates.length === 0 || candidates.some((record) => !record.terminalPassed)) return null;
+        if (candidates.length === 0 || candidates.some((record) => record.terminalState === "null")) return null;
+        if (candidates.some((record) => record.terminalState === "undecided")) return UNDECIDED;
         return candidates.at(-1).value;
     }
     if (terminal === "PFOREACH") return null;
@@ -2381,6 +2420,16 @@ async function evaluateAsyncSort(args, context, registry, systemContext, state) 
     const callable = args[1] === undefined
         ? null
         : await evaluateAsyncInternal(args[1], context, registry, systemContext, state);
+    let uncertainOrdering = false;
+    const comparatorResult = (result) => {
+        if (result === UNDECIDED) {
+            uncertainOrdering = true;
+            return 0;
+        }
+        if (result?.constructor?.name === "Integer") return Number(result.value);
+        if (typeof result === "number") return result;
+        return 0;
+    };
     const compare = async (left, right) => {
         if (callable && !isHole(callable)) {
             const result = await invokeCallableAsync(
@@ -2391,9 +2440,17 @@ async function evaluateAsyncSort(args, context, registry, systemContext, state) 
                 systemContext,
                 state,
             );
-            if (result?.constructor?.name === "Integer") return Number(result.value);
-            if (typeof result === "number") return result;
-            return 0;
+            return comparatorResult(result);
+        }
+        if (left?.isCertifiedApproximation || right?.isCertifiedApproximation
+            || left?.constructor?.name === "RationalInterval" || right?.constructor?.name === "RationalInterval") {
+            return comparatorResult(await evaluateAsyncInternal(
+                { fn: "COMPARE", args: [left, right] },
+                context,
+                registry,
+                systemContext,
+                state,
+            ));
         }
         if (isString) {
             const leftValue = left?.type === "string" ? left.value : left;
@@ -2405,6 +2462,7 @@ async function evaluateAsyncSort(args, context, registry, systemContext, state) 
         return leftNumber - rightNumber;
     };
     const sorted = await stableAsyncMergeSort(items, compare);
+    if (uncertainOrdering) return UNDECIDED;
 
     if (isString) {
         const joined = sorted.map((value) => value?.type === "string" ? value.value : value).join("");
@@ -2486,14 +2544,17 @@ async function evaluateAsyncSplit(args, context, registry, systemContext, state)
     let inSeparator = false;
     for (let index = 0; index < items.length; index++) {
         const locator = new Integer(BigInt(index + 1));
-        const separates = isTruthyAsync(await invokeCallableAsync(
+        const separatorValue = await invokeCallableAsync(
             separator,
             [items[index], locator, collection],
             context,
             registry,
             systemContext,
             state,
-        ));
+        );
+        const separatorState = decisionState(separatorValue);
+        if (separatorState === "undecided") return UNDECIDED;
+        const separates = separatorState === "truth";
         if (separates) {
             if (!inSeparator) {
                 pieces.push(currentPiece);
@@ -2526,14 +2587,17 @@ async function evaluateAsyncChunk(args, context, registry, systemContext, state)
     for (let index = 0; index < items.length; index++) {
         const item = items[index];
         const locator = new Integer(BigInt(index + 1));
-        const endsChunk = isTruthyAsync(await invokeCallableAsync(
+        const boundaryValue = await invokeCallableAsync(
             boundary,
             [item, locator, collection],
             context,
             registry,
             systemContext,
             state,
-        ));
+        );
+        const boundaryState = decisionState(boundaryValue);
+        if (boundaryState === "undecided") return UNDECIDED;
+        const endsChunk = boundaryState === "truth";
         currentPiece.push(item);
         if (endsChunk) {
             pieces.push(currentPiece);
@@ -2991,16 +3055,21 @@ async function evaluateAsyncInternal(irNode, context, registry, systemContext, s
         }
         if (fn === "TERNARY") {
             const condition = await evalAsync(args[0]);
-            const branch = isTruthyAsync(condition) ? args[1] : args[2];
+            const state = decisionState(condition);
+            const branch = state === "truth" ? args[1] : state === "null" ? args[2] : args[3];
             return evalAsync(branch?.fn === "DEFER" ? branch.args[0] : branch);
         }
         if (fn === "AND" || fn === "OR") {
             let last = fn === "AND" ? new Integer(1n) : null;
+            let uncertain = false;
             for (const arg of args) {
                 last = await evalAsync(arg);
-                if (fn === "AND" ? !isTruthyAsync(last) : isTruthyAsync(last)) return last;
+                const state = decisionState(last);
+                if (fn === "AND" && state === "null") return null;
+                if (fn === "OR" && state === "truth") return last;
+                if (state === "undecided") uncertain = true;
             }
-            return last;
+            return uncertain ? UNDECIDED : last;
         }
         if (fn === "BREAK") {
             const definition = registry.get(fn);

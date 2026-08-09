@@ -551,6 +551,12 @@ tensorNotation.Parse("a⊗b", [], {= })  # Tensor(a, b)</code></pre>
 <pre class="rix"><code>P := `.Poly:x^2 + 3/4 x^5 - 7`
 P(2)            # 21</code></pre>
 <p>Unsupported symbolic forms fail rather than silently switching to approximate arithmetic.</p>
+<p>For a value that remains recognizably a Polynomial after construction and algebra, load the optional <code>poly</code> plugin. Its <code>.poly</code>, <code>.polynomial</code>, and <code>.p</code> names are aliases for one callable capability:</p>
+<pre class="rix"><code>.Plugin.Load("poly")
+P := .p`x^2 + 2x + 1`              # outside-label form
+Q := `.poly.Var(t):t^2 + y*t`      # named header with explicit variable
+R := (`z^3-z`).P()                 # postfix conversion</code></pre>
+<p>These values are ordinary one-argument functions and carry the semantic <code>rix.polynomial@1</code> record used by Polynomial methods and operator variants.</p>
 <p>The completed implementation checklist is retained in the <a href="../design/eval/structural-arithmetic-todo.html">structural arithmetic implementation record</a>.</p>
 
 

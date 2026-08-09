@@ -49,6 +49,20 @@ result := .oracle.Refine(x, {=
 ]);
 ```
 
+`result[:approximation]` is the scalar form of the work completed by the
+refiner. It is present whether the requested width was reached or the finite
+budget was exhausted:
+
+```rix
+bounded := .oracle.Refine(x, {= width = 1/1000000, maxCalls = 3 });
+bounded[:status];         ## :budgetExhausted
+bounded[:approximation];  ## certified candidate plus the achieved enclosure
+```
+
+This value can participate in ordinary Core/RiX arithmetic and three-state
+comparisons. The Oracle remains responsible for further refinement; the
+finite approximation itself does not hide an infinite process.
+
 The trace is suitable for the CLI, RiX Web, or a document renderer. A renderer
 does not query the oracle itself; the bounded mathematical operation first
 produces a portable interval and evidence.

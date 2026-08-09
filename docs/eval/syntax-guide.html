@@ -552,66 +552,71 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td><code>!(x == 0)</code></td>
 </tr>
 <tr class="odd">
+<td><code>condition ?: truth ?_ null ?? undecided</code></td>
+<td><code>TERNARY</code></td>
+<td>Three-state lazy decision conditional; <code>?_</code> and <code>??</code> are optional</td>
+</tr>
+<tr class="even">
 <td><code>n!</code></td>
 <td><code>FACTORIAL</code></td>
 <td><code>5!</code> → <code>120</code></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>n!!</code></td>
 <td><code>DOUBLE_FACTORIAL</code></td>
 <td><code>6!!</code> → <code>48</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>x ? :name</code></td>
 <td><code>SEMANTIC_HAS</code></td>
 <td>Checks <code>.__type</code>, <code>._type</code>, and <code>.__traits</code></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>x ~: :type</code></td>
 <td><code>SEMANTIC_CONVERT_SOFT</code></td>
 <td>Convert or return <code>_</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>x ~!: :type</code></td>
 <td><code>SEMANTIC_CONVERT_STRICT</code></td>
 <td>Convert or throw</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>=</code></td>
 <td><code>ASSIGN</code></td>
 <td><code>y = x</code> (alias/rebind)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>:=</code></td>
 <td><code>ASSIGN_COPY</code></td>
 <td><code>x := 5</code> (fresh copy)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>~=</code></td>
 <td><code>ASSIGN_UPDATE</code></td>
 <td><code>x ~= 9</code> (in-place)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>::=</code></td>
 <td><code>ASSIGN_DEEP_COPY</code></td>
 <td><code>y ::= x</code> (deep copy)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>~~=</code></td>
 <td><code>ASSIGN_DEEP_UPDATE</code></td>
 <td><code>x ~~= val</code> (deep in-place)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>[a, b] = rhs</code></td>
 <td><code>DESTRUCTURE_ASSIGN</code></td>
 <td>Destructure with outer <code>=</code> as the default per-entry binding mode</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>{= a, b[:x] } := rhs</code></td>
 <td><code>DESTRUCTURE_ASSIGN</code></td>
 <td>Map destructuring with outer <code>:=</code> as the default per-entry binding mode</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>-</code> (unary)</td>
 <td><code>NEG</code></td>
 <td><code>-x</code></td>
@@ -2313,6 +2318,53 @@ Constant()            # Fraction(8,4)</code></pre>
 </tr>
 </tbody>
 </table>
+</section>
+<section id="certified-approximations" class="level4">
+<h4 class="anchored" data-anchor-id="certified-approximations">Certified approximations (<code>?</code>)</h4>
+<p>Inside a number, <code>?</code> marks the boundary after the certified prefix. Digits or continued-fraction coefficients to its right are provisional candidate data:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Syntax</th>
+<th>Candidate</th>
+<th>Certified enclosure</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>23.456?</code></td>
+<td><code>23.456</code></td>
+<td><code>23.456:23.457</code></td>
+</tr>
+<tr class="even">
+<td><code>23.456?789</code></td>
+<td><code>23.456789</code></td>
+<td><code>23.456:23.457</code></td>
+</tr>
+<tr class="odd">
+<td><code>3.~7~15?</code></td>
+<td><code>333/106</code></td>
+<td><code>333/106:355/113</code></td>
+</tr>
+<tr class="even">
+<td><code>0xA.B?C</code></td>
+<td>hexadecimal <code>A.BC</code></td>
+<td>hexadecimal prefix cell <code>A.B?</code></td>
+</tr>
+<tr class="odd">
+<td><code>23.556?[=5889/250:23557/1000]</code></td>
+<td><code>23.556</code></td>
+<td>explicit exact enclosure for a derived/provider value</td>
+</tr>
+</tbody>
+</table>
+<p>A standalone <code>?</code> is instead the <code>Undecided</code> decision value. Spaces therefore matter: <code>23.456?789</code> is one numeric token, while <code>23.456 ? 789</code> retains the existing infix-question operation. <code>value?(request)</code> remains postfix Ask.</p>
+<p>Certified approximations carry exact rational enclosures through arithmetic. Comparisons may return <code>?</code>; use <code>?:</code>, <code>?_</code>, and <code>??</code> to handle truth, null, and undecided explicitly. Derived values format with <code>?[=low:high]</code> when no honest common radix prefix expresses their entire enclosure; this remains a certified scalar when parsed again.</p>
 <p>Because minus is an operator, <code>-1.~2</code> negates the implicit-start continued fraction and therefore has the same value as <code>-~1.~2</code>. Use <code>~-1.~2</code> when the first continued-fraction coefficient itself is negative.</p>
 </section>
 </section>
@@ -2599,9 +2651,9 @@ Constant()            # Fraction(8,4)</code></pre>
 </thead>
 <tbody>
 <tr class="odd">
-<td><code>cond ?? trueVal ?: falseVal</code></td>
+<td><code>cond ?: trueVal ?_ falseVal</code></td>
 <td><code>TERNARY</code></td>
-<td><code>x &gt; 0 ?? "pos" ?: "neg"</code></td>
+<td><code>x &gt; 0 ?: "pos" ?_ "neg"</code></td>
 </tr>
 </tbody>
 </table>
@@ -2949,7 +3001,7 @@ A := .Integrate({#x# 2*x }, {#x})
 <tr class="even">
 <td><code>TERNARY(cond, t, f)</code></td>
 <td>Ternary conditional</td>
-<td><code>cond ?? t ?: f</code></td>
+<td><code>cond ?: t ?_ f</code></td>
 </tr>
 <tr class="odd">
 <td><code>IF(cond, t, f)</code></td>

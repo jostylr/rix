@@ -20,6 +20,7 @@ import {
 import { irToText } from "../ir-to-text.js";
 import { formatValue } from "../format.js";
 import { callWithConcreteArgs } from "./functions.js";
+import { UNDECIDED, decisionState } from "../../runtime/decision.js";
 
 const EMPTY_MAP = Object.freeze({ type: "map", entries: new Map() });
 
@@ -32,7 +33,7 @@ function toRixString(s) {
 }
 
 function isTruthy(val) {
-    return val !== null && val !== undefined;
+    return decisionState(val) === "truth";
 }
 
 function inspectValue(value, depth) {
@@ -224,6 +225,7 @@ export const STOP = {
     impl(args, context, evaluate) {
         const label = requireString(evaluate(args[0]), ".Stop label");
         const condition = evaluate(args[1]);
+        if (decisionState(condition) === "undecided") return UNDECIDED;
 
         if (!isTruthy(condition)) {
             return null;
@@ -295,6 +297,7 @@ function runSequentialTests(label, setupNode, testArgs, filePath, context, evalu
     let totalFailed = 0;
     let totalErrored = 0;
     let totalSkipped = 0;
+    let totalUnresolved = 0;
     let stopped = false;
 
     // Run setup once in a new scope, sharing the scope so bindings persist
@@ -336,7 +339,12 @@ function runSequentialTests(label, setupNode, testArgs, filePath, context, evalu
                 } else {
                     val = evaluate(testNode);
                 }
-                if (isTruthy(val)) {
+                const state = decisionState(val);
+                if (state === "undecided") {
+                    results.push(makeTestEntry(i + 1, null, val, null, false, true));
+                    totalUnresolved++;
+                    passedAll = false;
+                } else if (state === "truth") {
                     results.push(makeTestEntry(i + 1, true, val, null, false));
                     totalPassed++;
                 } else {
@@ -370,6 +378,7 @@ function runSequentialTests(label, setupNode, testArgs, filePath, context, evalu
     summaryEntries.set("failed", toRixInt(totalFailed));
     summaryEntries.set("errored", toRixInt(totalErrored));
     summaryEntries.set("skipped", toRixInt(totalSkipped));
+    summaryEntries.set("unresolved", toRixInt(totalUnresolved));
 
     const resultEntries = new Map();
     resultEntries.set("kind", toRixString("test"));
@@ -393,6 +402,7 @@ function runSequentialTestsFromValues(label, setupNode, testValues, filePath, co
     let passedAll = true;
     let totalPassed = 0;
     let totalFailed = 0;
+    let totalUnresolved = 0;
 
     // Run setup
     context.push(undefined, { isolated: true });
@@ -400,7 +410,12 @@ function runSequentialTestsFromValues(label, setupNode, testValues, filePath, co
 
     for (let i = 0; i < testValues.length; i++) {
         const val = testValues[i];
-        if (isTruthy(val)) {
+        const state = decisionState(val);
+        if (state === "undecided") {
+            results.push(makeTestEntry(i + 1, null, val, null, false, true));
+            totalUnresolved++;
+            passedAll = false;
+        } else if (state === "truth") {
             results.push(makeTestEntry(i + 1, true, val, null, false));
             totalPassed++;
         } else {
@@ -418,6 +433,7 @@ function runSequentialTestsFromValues(label, setupNode, testValues, filePath, co
     summaryEntries.set("failed", toRixInt(totalFailed));
     summaryEntries.set("errored", toRixInt(0));
     summaryEntries.set("skipped", toRixInt(0));
+    summaryEntries.set("unresolved", toRixInt(totalUnresolved));
 
     const resultEntries = new Map();
     resultEntries.set("kind", toRixString("test"));
@@ -462,9 +478,15 @@ function runIsolatedTestsFromValues(label, setupNode, testsMap, filePath, contex
     let totalPassed = 0;
     let totalFailed = 0;
     let totalErrored = 0;
+    let totalUnresolved = 0;
 
     for (const { key, value } of testEntries) {
-        if (isTruthy(value)) {
+        const state = decisionState(value);
+        if (state === "undecided") {
+            resultMap.set(key, makeIsolatedEntry(null, value, null, true));
+            totalUnresolved++;
+            passedAll = false;
+        } else if (state === "truth") {
             resultMap.set(key, makeIsolatedEntry(true, value, null));
             totalPassed++;
         } else {
@@ -475,7 +497,7 @@ function runIsolatedTestsFromValues(label, setupNode, testsMap, filePath, contex
     }
 
     return buildIsolatedResult(label, filePath, passedAll, resultMap, testEntries.length,
-        totalPassed, totalFailed, totalErrored, diag);
+        totalPassed, totalFailed, totalErrored, diag, totalUnresolved);
 }
 
 function runIsolatedTestEntries(label, setupNode, testEntries, filePath, context, evaluate, diag) {
@@ -484,6 +506,7 @@ function runIsolatedTestEntries(label, setupNode, testEntries, filePath, context
     let totalPassed = 0;
     let totalFailed = 0;
     let totalErrored = 0;
+    let totalUnresolved = 0;
 
     for (const { key, valNode } of testEntries) {
         // Fresh isolated scope for each test — setup bindings live here.
@@ -505,7 +528,12 @@ function runIsolatedTestEntries(label, setupNode, testEntries, filePath, context
             } else {
                 val = evaluate(valNode);
             }
-            if (isTruthy(val)) {
+            const state = decisionState(val);
+            if (state === "undecided") {
+                resultMap.set(key, makeIsolatedEntry(null, val, null, true));
+                totalUnresolved++;
+                passedAll = false;
+            } else if (state === "truth") {
                 resultMap.set(key, makeIsolatedEntry(true, val, null));
                 totalPassed++;
             } else {
@@ -523,15 +551,16 @@ function runIsolatedTestEntries(label, setupNode, testEntries, filePath, context
     }
 
     return buildIsolatedResult(label, filePath, passedAll, resultMap, testEntries.length,
-        totalPassed, totalFailed, totalErrored, diag);
+        totalPassed, totalFailed, totalErrored, diag, totalUnresolved);
 }
 
-function buildIsolatedResult(label, filePath, passedAll, resultMap, total, passed, failed, errored, diag) {
+function buildIsolatedResult(label, filePath, passedAll, resultMap, total, passed, failed, errored, diag, unresolved = 0) {
     const summaryEntries = new Map();
     summaryEntries.set("total", toRixInt(total));
     summaryEntries.set("passed", toRixInt(passed));
     summaryEntries.set("failed", toRixInt(failed));
     summaryEntries.set("errored", toRixInt(errored));
+    summaryEntries.set("unresolved", toRixInt(unresolved));
 
     const resultEntries = new Map();
     resultEntries.set("kind", toRixString("test"));
@@ -548,21 +577,23 @@ function buildIsolatedResult(label, filePath, passedAll, resultMap, total, passe
     return resultObj;
 }
 
-function makeTestEntry(index, passed, value, error, skipped) {
+function makeTestEntry(index, passed, value, error, skipped, unresolved = false) {
     const entries = new Map();
     entries.set("index", toRixInt(index));
     entries.set("passed", passed === true ? toRixInt(1) : null);
     if (value !== null && value !== undefined) entries.set("value", value);
     if (error !== null && error !== undefined) entries.set("error", toRixString(error));
     entries.set("skipped", skipped ? toRixInt(1) : null);
+    entries.set("unresolved", unresolved ? toRixInt(1) : null);
     return { type: "map", entries };
 }
 
-function makeIsolatedEntry(passed, value, error) {
+function makeIsolatedEntry(passed, value, error, unresolved = false) {
     const entries = new Map();
     entries.set("passed", passed ? toRixInt(1) : null);
     if (value !== null && value !== undefined) entries.set("value", value);
     if (error !== null && error !== undefined) entries.set("error", toRixString(error));
+    entries.set("unresolved", unresolved ? toRixInt(1) : null);
     return { type: "map", entries };
 }
 

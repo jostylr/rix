@@ -455,6 +455,7 @@ window.Quarto = {
   <li><a href="#repeating-decimals" id="toc-repeating-decimals" class="nav-link" data-scroll-target="#repeating-decimals">Repeating Decimals (<code>#</code>)</a></li>
   <li><a href="#radix-shift-_" id="toc-radix-shift-_" class="nav-link" data-scroll-target="#radix-shift-_">Radix Shift (<code>_^</code>)</a></li>
   <li><a href="#continued-fractions-." id="toc-continued-fractions-." class="nav-link" data-scroll-target="#continued-fractions-.">Continued Fractions (<code>.~</code>)</a></li>
+  <li><a href="#certified-finite-approximations" id="toc-certified-finite-approximations" class="nav-link" data-scroll-target="#certified-finite-approximations">Certified finite approximations (<code>?</code>)</a></li>
   <li><a href="#mixed-numbers" id="toc-mixed-numbers" class="nav-link" data-scroll-target="#mixed-numbers">Mixed Numbers</a></li>
   <li><a href="#intervals-and-betweenness" id="toc-intervals-and-betweenness" class="nav-link" data-scroll-target="#intervals-and-betweenness">Intervals and Betweenness</a></li>
   <li><a href="#bases" id="toc-bases" class="nav-link" data-scroll-target="#bases">Bases</a></li>
@@ -476,7 +477,7 @@ window.Quarto = {
   <li><a href="#other-notable-features" id="toc-other-notable-features" class="nav-link" data-scroll-target="#other-notable-features">11. Other Notable Features</a>
   <ul class="collapse">
   <li><a href="#division-variants" id="toc-division-variants" class="nav-link" data-scroll-target="#division-variants">Division Variants</a></li>
-  <li><a href="#ternary-operators" id="toc-ternary-operators" class="nav-link" data-scroll-target="#ternary-operators">Ternary Operators</a></li>
+  <li><a href="#decision-conditionals" id="toc-decision-conditionals" class="nav-link" data-scroll-target="#decision-conditionals">Decision conditionals</a></li>
   <li><a href="#assertions" id="toc-assertions" class="nav-link" data-scroll-target="#assertions">Assertions</a></li>
   <li><a href="#utility-system-function" id="toc-utility-system-function" class="nav-link" data-scroll-target="#utility-system-function">Utility System Function</a></li>
   </ul></li>
@@ -1884,6 +1885,17 @@ m |&gt;&gt; (v, k) -&gt; k ++ "=" ++ v   ## {= a="a=2", b="b=3" }
 <p>To <strong>negate</strong> a continued fraction value, apply unary minus: - <code>-~1.~2</code> = <code>−(1 + 1/2) = −3/2</code>. - <code>-1.~2</code> has the same value because minus is an operator, not part of the implicit-start literal.</p>
 <p>Use <code>~-1.~2</code> for a negative first coefficient; it is <code>−1 + 1/2 = −1/2</code>, which is different from negating <code>[1; 2]</code>.</p>
 </section>
+<section id="certified-finite-approximations" class="level3">
+<h3 class="anchored" data-anchor-id="certified-finite-approximations">Certified finite approximations (<code>?</code>)</h3>
+<p>An embedded question mark separates certified representation data from optional provisional digits or coefficients:</p>
+<pre class="rix"><code>23.456?          ## candidate 23.456, enclosure 23.456:23.457
+23.456?789       ## candidate 23.456789, same certified enclosure
+3.~7~15?         ## a certified continued-fraction cylinder
+0xA.B?C          ## the same idea in a named base</code></pre>
+<p>These values are uncertain scalars, not interval collections. Arithmetic propagates their exact rational enclosure, and comparisons return <code>1</code>, <code>_</code>, or the standalone undecided value <code>?</code>. An optional bracket can state a tighter bound, for example <code>23.456?789[+-12]</code>; RiX rejects it if it contradicts the certified prefix.</p>
+<p>After arithmetic or provider refinement, a value may instead format as <code>23.556?[=5889/250:23557/1000]</code>. The <code>=</code> bracket stores authoritative exact endpoints so parsing the string reconstructs a certified scalar rather than an interval collection.</p>
+<p>Ordinary formatter output ending in <code>...</code> is only a shortened display of its underlying value. Use <code>ToDecimalApproximation(digits)</code> or <code>ToContinuedFractionApproximation(terms)</code> when a work limit should deliberately produce a parseable certified value ending in <code>?</code>.</p>
+</section>
 <section id="mixed-numbers" class="level3">
 <h3 class="anchored" data-anchor-id="mixed-numbers">Mixed Numbers</h3>
 <p>Mixed numbers are supported using a double period <code>..</code> to attach an integer to a fraction seamlessly (with no internal spaces): - <code>1..3/4</code> parses exactly as <span class="math inline">\(1 + 3/4 = 7/4\)</span>. - <code>-2..1/2</code> parses exactly as <span class="math inline">\(-5/2\)</span>.</p>
@@ -2102,10 +2114,14 @@ angle := pi/2 * .Units[:rad]</code></pre>
 <p>Because RiX operates internally on rich math types, division is highly granular: - <code>/</code> performs rational (fractional) division. - <code>//</code> performs integer (floor) division. - <code>%</code> is exact floor modulo for a positive divisor, including rational operands; its result satisfies <code>0 &lt;= remainder &lt; divisor</code>. - <code>/%</code> returns a tuple containing that floor quotient and exact remainder. - <code>/~</code> performs rounded division. - <code>/^</code> performs ceiling division.</p>
 <p>Postfix <code>!</code> computes factorial and <code>!!</code> computes double factorial. They bind tighter than exponentiation and unary minus, so <code>-3!</code> is <code>-(3!)</code>, <code>1/3!</code> is <code>1/(3!)</code>, and <code>(-3)!</code> is rejected. Their operand must be a non-negative integer.</p>
 </section>
-<section id="ternary-operators" class="level3">
-<h3 class="anchored" data-anchor-id="ternary-operators">Ternary Operators</h3>
-<p>RiX replaces the traditional <code>C</code> style ternary (<code>cond ? true : false</code>) with its own null-coalscing style syntax using <code>??</code> and <code>?:</code>.</p>
-<pre class="rix"><code>result := (score &gt; 50) ?? "Pass" ?: "Fail"</code></pre>
+<section id="decision-conditionals" class="level3">
+<h3 class="anchored" data-anchor-id="decision-conditionals">Decision conditionals</h3>
+<p>RiX decisions have three states: truth, null (<code>_</code>), and undecided (<code>?</code>). A conditional requires the truth branch; null and undecided branches are optional and may appear in either order:</p>
+<pre class="rix"><code>result := score &gt; 50
+    ?: "Pass"
+    ?_ "Fail"
+    ?? "Needs more precision"</code></pre>
+<p>If omitted, the null branch defaults to <code>_</code> and the undecided branch defaults to <code>?</code>. Only the selected branch is evaluated. <code>!</code>, <code>&amp;&amp;</code>, and <code>||</code> use the same three-state decision model; notably <code>? &amp;&amp; _</code> is <code>_</code>, while <code>? || 1</code> is <code>1</code>.</p>
 </section>
 <section id="assertions" class="level3">
 <h3 class="anchored" data-anchor-id="assertions">Assertions</h3>
@@ -2223,9 +2239,9 @@ angle := pi/2 * .Units[:rad]</code></pre>
 <section id="cli-test-runner" class="level3">
 <h3 class="anchored" data-anchor-id="cli-test-runner">CLI Test Runner</h3>
 <p>Run test files from the command line:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb152"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb152-1"><a href="#cb152-1" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> bin/rix.js test              <span class="co"># discover all *.test.rix files</span></span>
-<span id="cb152-2"><a href="#cb152-2" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> bin/rix.js test parser       <span class="co"># filter by substring match</span></span>
-<span id="cb152-3"><a href="#cb152-3" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> bin/rix.js test math core    <span class="co"># multiple filters (OR)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb153"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb153-1"><a href="#cb153-1" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> bin/rix.js test              <span class="co"># discover all *.test.rix files</span></span>
+<span id="cb153-2"><a href="#cb153-2" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> bin/rix.js test parser       <span class="co"># filter by substring match</span></span>
+<span id="cb153-3"><a href="#cb153-3" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> bin/rix.js test math core    <span class="co"># multiple filters (OR)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>The runner discovers <code>*.test.rix</code> files recursively, runs each in a fresh context, and prints per-file and per-test-group summaries. Exit code is 0 if all pass, nonzero otherwise.</p>
 
 

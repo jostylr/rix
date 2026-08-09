@@ -405,6 +405,11 @@ const SYMBOL_TABLE = {
     associativity: "right",
     type: "infix",
   },
+  "?_": {
+    precedence: PRECEDENCE.CONDITION,
+    associativity: "right",
+    type: "infix",
+  },
 
   // Property access
   ".": {
@@ -681,6 +686,17 @@ class Parser {
     return this.parseExpressionRec(left, minPrec, false);
   }
 
+  parseDecisionBranchExpression() {
+    let expression = this.parseExpression(PRECEDENCE.CONDITION + 1);
+    // A conditional beginning at the branch's top level belongs to that
+    // branch. This supplies the useful right-associative form without letting
+    // a bare ?_ or ?? marker get consumed as an ordinary infix operator.
+    if (this.current.value === "?:") {
+      expression = this.parseInfix(expression, this.getSymbolInfo(this.current));
+    }
+    return expression;
+  }
+
   parseCommaSequenceExpression(minPrec = 0) {
     const expressions = [this.parseExpression(minPrec)];
 
@@ -780,7 +796,12 @@ class Parser {
         });
 
       case "Symbol":
-        if (token.value === "...") {
+        if (token.value === "?") {
+          this.advance();
+          return this.createNode("UndecidedLiteral", {
+            original: token.original,
+          });
+        } else if (token.value === "...") {
           this.advance();
           // The precedence here ensures we capture the trailing expression.
           const expr = this.parseExpression(PRECEDENCE.POSTFIX);
@@ -1517,27 +1538,33 @@ class Parser {
         pos: left.pos,
         original: left.original + operator.original,
       });
-    } else if (operator.value === "??") {
-      // Ternary operator: condition ?? trueExpr ?: falseExpr
-      // Parse true expression with higher precedence to prevent ?: consumption
-      const trueExpr = this.parseExpression(PRECEDENCE.CONDITION + 5);
-
-      if (this.current.value !== "?:") {
-        this.error('Expected "?:" in ternary operator after true expression');
+    } else if (operator.value === "?:") {
+      // Decision conditional: condition ?: truth [?_ null] [?? undecided].
+      const trueExpr = this.parseDecisionBranchExpression();
+      let nullExpr = null;
+      let undecidedExpr = null;
+      while (this.current.value === "?_" || this.current.value === "??") {
+        const branch = this.current.value;
+        this.advance();
+        const expression = this.parseDecisionBranchExpression();
+        if (branch === "?_") {
+          if (nullExpr) this.error('Duplicate "?_" null branch');
+          nullExpr = expression;
+        } else {
+          if (undecidedExpr) this.error('Duplicate "??" undecided branch');
+          undecidedExpr = expression;
+        }
       }
-
-      this.advance(); // consume '?:'
-
-      // Parse false expression with right-associative precedence
-      const falseExpr = this.parseExpression(rightPrec);
-
       return this.createNode("TernaryOperation", {
         condition: left,
         trueExpression: trueExpr,
-        falseExpression: falseExpr,
+        nullExpression: nullExpr,
+        undecidedExpression: undecidedExpr,
         pos: left.pos,
         original: left.original + operator.original,
       });
+    } else if (operator.value === "??") {
+      this.error('"??" is an undecided branch marker and must follow a "?:" decision conditional');
     } else if (operator.value === ".") {
       // Dot property access: P.type, P.Derivative, etc.
       // Right side must be an identifier (property name)

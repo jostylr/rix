@@ -11,6 +11,7 @@ import {
   String as StringToken,
   SystemFunction,
   SystemIdentifier,
+  Undecided,
 } from "./parser.terms.js";
 
 const code = {
@@ -169,8 +170,18 @@ function startsNumber(input) {
 function consumeNumber(input) {
   if (!startsNumber(input)) return false;
   let offset = input.next === 45 ? 1 : 0;
-  const allowed = /[0-9A-Za-z_#.:/\[\]~^]/;
-  while (input.peek(offset) >= 0 && allowed.test(String.fromCharCode(input.peek(offset)))) offset++;
+  const allowed = /[0-9A-Za-z_#.:/=\[\]~^]/;
+  while (input.peek(offset) >= 0) {
+    const next = input.peek(offset);
+    if (next === 63) {
+      const after = input.peek(offset + 1);
+      if ([40, 95, 33, 58, 61, 124, 38, 63, 45].includes(after)) break;
+      offset++;
+      continue;
+    }
+    if (!allowed.test(String.fromCharCode(next))) break;
+    offset++;
+  }
   input.advance(offset);
   return true;
 }
@@ -179,7 +190,7 @@ function isOperatorCharacter(next) {
   return next >= 0 && "+-*/^%=<>!?|:&~\\@.#".includes(String.fromCharCode(next));
 }
 
-export const rixTokens = new ExternalTokenizer((input) => {
+export const rixTokens = new ExternalTokenizer((input, stack) => {
   if (input.next === code.hash && input.peek(1) === code.hash) {
     if (consumeTaggedComment(input)) return input.acceptToken(Comment);
     while (input.next >= 0 && input.next !== 10) input.advance();
@@ -221,6 +232,10 @@ export const rixTokens = new ExternalTokenizer((input) => {
     return input.acceptToken(firstLetterIsUppercase(identifier.value) ? SystemIdentifier : Identifier);
   }
   if (input.next === 124 && input.peek(1) === code.closeBrace) return;
+  if (input.next === 63 && !isOperatorCharacter(input.peek(1)) && stack.canShift(Undecided)) {
+    input.advance();
+    return input.acceptToken(Undecided);
+  }
   if (isOperatorCharacter(input.next)) {
     do input.advance(); while (isOperatorCharacter(input.next));
     input.acceptToken(Operator);

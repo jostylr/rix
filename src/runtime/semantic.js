@@ -1,4 +1,5 @@
-import { Integer, Rational, RationalInterval } from "@ratmath/core";
+import { CertifiedApproximation, Integer, Rational, RationalInterval } from "@ratmath/core";
+import { isUndecided } from "./decision.js";
 import { createEvent, getCurrentFilePath, getDiagnostics } from "./diagnostics.js";
 import {
     convertToRegisteredType,
@@ -65,9 +66,10 @@ function getLabel(value) {
 
 function summarizeValue(value) {
     if (value === null) return "_";
-    if (value instanceof Integer || value instanceof Rational || value instanceof RationalInterval) {
+    if (value instanceof Integer || value instanceof Rational || value instanceof RationalInterval || value instanceof CertifiedApproximation) {
         return value.toString();
     }
+    if (isUndecided(value)) return "?";
     if (value?.type === "string") return JSON.stringify(value.value);
     if (value?.type) return `<${value.type}>`;
     return getLabel(value);

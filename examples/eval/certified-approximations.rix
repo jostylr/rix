@@ -1,0 +1,18 @@
+## Certified numeric prefixes and three-state decisions.
+
+x := 23.456?789;
+y := x + 1/10;
+
+summary := {=
+    spelling = x.ToString(),
+    candidate = x.Candidate(),
+    enclosure = x.Enclosure(),
+    shifted = y,
+    decision = x < 23.4565,
+    explanation = (x < 23.4565)
+        ?: "certainly less"
+        ?_ "certainly not less"
+        ?? "not decided by the current enclosure"
+};
+
+summary;

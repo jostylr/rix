@@ -1,12 +1,11 @@
 # Certified approximations, undecided values, and decision conditionals
 
-::: {.callout-note title="Implementation design, not current behavior"}
-This document records the intended design for certified finite approximations,
-three-valued decisions, and the replacement conditional syntax. It is written
-as an implementation handoff. The existing
-`condition ?? truthExpression ?: falseExpression` syntax remains in the
-repository at the time of writing, but RiX is not yet released and the final
-migration step is to remove that legacy grammar.
+::: {.callout-note title="Implemented language design"}
+This document is the normative design for certified finite approximations,
+three-valued decisions, and decision conditionals. RatMath Core and RiX now
+implement the first finite-enclosure version described here. The former
+`condition ?? truthExpression ?: falseExpression` grammar has been removed;
+`??` is only an undecided branch marker after `?:`.
 :::
 
 ## Decision summary
@@ -35,9 +34,8 @@ The design makes the following coordinated changes.
    The `?_` and `??` branches are independently optional and may occur in
    either order. A missing null branch produces `null`; a missing undecided
    branch produces `?`.
-7. The existing `condition ?? truthExpression ?: falseExpression` grammar is
-   accepted only during migration. Repository source and documentation are
-   migrated before its parser support is removed.
+7. The former `condition ?? truthExpression ?: falseExpression` grammar was
+   used only during migration and is no longer accepted.
 8. The previously considered `?! undecidedExpression` extension to the legacy
    ternary is not part of the final language. The symmetric syntax gives `??`
    that role and avoids adding a temporary operator.
@@ -99,6 +97,30 @@ would trigger the evaluator's hole errors. Using an ordinary map or symbol
 would make undecided truthy under RiX's current truth rules. A dedicated value
 is therefore required.
 
+## Ownership boundary
+
+RatMath Core owns finite numeric certification. RiX owns decisions and language
+control. The boundary is normative:
+
+| RatMath Core | RiX |
+|---|---|
+| `CertifiedApproximation` | `UNDECIDED` |
+| Numeric `?` parsing in number-only input | Standalone `?` parsing |
+| Decimal, radix, and CF cylinder construction | Source-token ambiguity resolution |
+| Candidate/enclosure arithmetic | `1`/`null`/`?` comparison results |
+| Possible-relation results | Decision logic and conditional control |
+| Approximation serialization and conversion | Cells, traits, methods, snapshots, and provider policy |
+
+Core's `parseNumber("?")` must reject it: bare undecided is not a number. Core
+comparison never returns RiX's `UNDECIDED`; it returns possible-relation
+information that RiX maps to a decision. Conversely, RiX must not reimplement
+radix-cell or continued-fraction-cylinder mathematics.
+
+Core can parse standard base spellings and construct a radix approximation
+from an explicit `BaseSystem`. RiX remains responsible for resolving
+runtime-defined base names, then passes the resolved base and digit stream to
+Core. This is language name resolution, not duplicate numeric semantics.
+
 ## RatMath Core: `CertifiedApproximation`
 
 ### Value model
@@ -132,11 +154,20 @@ ApproximationRepresentation
   certifiedPrefix   exact source spelling or coefficient sequence
   provisionalSuffix optional source spelling or coefficient sequence
   original          complete literal spelling when available
+  reason            :literal | :truncated | :rounded | :derived | :budgetExhausted
+  requested         optional requested digits, terms, width, or rounding record
+  achieved          optional achieved digits, terms, width, or rounding record
+  roundingMode      optional exact rounding policy
 ```
 
 Arithmetic results normally use `kind=:derived`; they retain a candidate and
 enclosure but need not pretend that the result still has the operand's digit
 prefix.
+
+`reason`, `requested`, and `achieved` are provenance. They never override the
+enclosure. They distinguish uncertainty written by the user from precision
+deliberately discarded by a conversion, formatter work exhaustion, rounding,
+and widening introduced by derived arithmetic.
 
 ### Construction invariants
 
@@ -148,6 +179,22 @@ prefix.
   `Integer` or `Rational`; callers may request a wrapper only when provenance
   itself must be retained.
 - Instances and their representation records are immutable in normal use.
+
+### Source identity and copying
+
+Two separately constructed approximation literals denote independent unknown
+scalars even when their text is identical. Reusing or copying one value does
+not create a fresh unknown:
+
+- comparison of the same approximation value/source with itself is certified
+  equal;
+- RiX alias, shallow-copy, and deep-copy operations preserve `sourceId`;
+- serialized stable source IDs are preserved, while runtime-only provider
+  identities are explicitly omitted or reconstructed by their provider;
+- derived-expression correlation remains later work, so `x - x` may still
+  widen in the first implementation.
+
+This minimum identity law does not require an expression DAG.
 
 ### Arithmetic
 
@@ -162,6 +209,19 @@ Exact operands are lifted to point enclosures. If any operand is a
 `CertifiedApproximation` and the result enclosure is non-point, return another
 `CertifiedApproximation`. If the result enclosure is a point, normalize to the
 exact scalar.
+
+`CertifiedApproximation` does not occupy one more level in the existing linear
+`Integer -> Rational -> RationalInterval` promotion hierarchy. Mixed-operation
+semantics are:
+
+```text
+exact scalar op certified scalar       -> CertifiedApproximation
+certified scalar op certified scalar   -> CertifiedApproximation
+explicit interval collection op either -> RationalInterval
+```
+
+The last rule preserves the set-valued meaning of an explicitly supplied
+`RationalInterval`; it does not invent a candidate for an interval collection.
 
 This is deliberately stronger than propagating an `inexact` bit:
 
@@ -224,6 +284,28 @@ The marker is semantic and parseable. It is not an ellipsis.
 A marker at the end is valuable: it says that every displayed digit or
 coefficient is certified while still denying exact completion.
 
+### Truncation versus certified conversion
+
+Ellipsis and question mark have deliberately different contracts:
+
+- `...` is display-only truncation of an underlying value. It is informative,
+  nonparseable, and does not change that value's precision or exactness.
+- `?` is the parseable rendering of an actual `CertifiedApproximation`. Parsing
+  it reconstructs the certified candidate/enclosure information expressible by
+  the text.
+
+Existing string formatters may therefore retain output such as
+`3.~7~15~...`. A new explicit bounded conversion, or an explicit
+`onLimit=:certify` structured API, returns a `CertifiedApproximation`; formatting
+that value produces `3.~7~15?`. A formatter must not unpredictably change from
+returning a string to returning a numeric object.
+
+When repeating-decimal work stops before establishing a complete period, the
+safe certified rendering is an ordinary radix prefix such as `0.14285?`, not a
+partial-period claim such as `0.#14285?`. Structured provenance may retain the
+known repeat start and work limit even when the portable numeric spelling does
+not.
+
 ### Decimal and arbitrary-radix cylinders
 
 For a positive base-10 prefix with `n` fractional digits:
@@ -267,6 +349,11 @@ last-visible-place bracket semantics, giving
 certified common digits and must be validated against the explicit enclosure.
 The bracket enclosure remains authoritative.
 
+The validation rule is containment: the explicit enclosure must lie inside the
+closed cylinder certified by the prefix and must contain the candidate. A
+marker may conservatively certify fewer digits than the enclosure could prove;
+it need not be the longest possible common prefix.
+
 Custom base alphabets may contain `?` as data. Reserve bare `?` as syntax in
 unquoted numeric literals; a digit alphabet that uses `?` must use the quoted
 digit-stream form so the boundary is explicit.
@@ -298,6 +385,22 @@ Canonical finite-CF rules, especially the alternative final coefficient `1`,
 must be tested. The closed hull may contain an endpoint that is not itself an
 infinite continuation; that is acceptable because the enclosure remains
 certified.
+
+### Formatting derived approximations
+
+For `kind=:derived`, formatting must be driven by the enclosure, not merely by
+the candidate. In a requested radix, a formatter may emit the longest certified
+common prefix followed by `?` and optional provisional candidate digits. If the
+enclosure crosses a boundary for which no useful prefix exists, use the
+parseable derived form `candidate?[=low:high]`. The bracket gives authoritative
+exact rational endpoints; the digits before `?` are then a contained display
+candidate, not a newly invented prefix guarantee. Do not invent a continued-
+fraction prefix from an arbitrary enclosure.
+
+RiX tokenizes a leading sign as unary arithmetic. Negation of a radix or
+continued-fraction approximation should transform and preserve a valid
+representation record where possible; it should not discard the literal's
+presentation merely because the sign was applied by the parser.
 
 ### Lexical interaction with existing RiX `?`
 
@@ -379,6 +482,13 @@ turning `?` into an untyped value that masks programming mistakes.
 
 The comparison itself does not error when it cannot decide; it returns `?`.
 An error from `? + 3`, for example, is a separate and appropriate domain error.
+
+`UNDECIDED` has a stable singleton key. A `CertifiedApproximation`, however,
+must not silently become a map or set key through its candidate or formatted
+text: numeric identity may be undecided. The first implementation rejects it as
+an ordinary structural key unless the caller explicitly requests a stable
+source/representation key. Approximate set membership is likewise deferred
+until it has an explicit decision-valued contract.
 
 ## Core comparison: preserve possible relations
 
@@ -490,13 +600,14 @@ Centralize decision classification instead of continuing to duplicate local
 
 ```text
 decisionState(value)
-  null/undefined -> :null
+  HOLE/raw missing -> reject as missing data
+  null            -> :null
   UNDECIDED       -> :undecided
   otherwise       -> :truth
 ```
 
-Holes are checked separately and retain missing-data behavior. They are not
-classified as undecided.
+RiX's frozen `HOLE` sentinel and an accidentally escaped raw `undefined` retain
+missing-data behavior. They are neither null nor undecided.
 
 Use strong three-valued logic while preserving RiX's operand-return behavior
 where the result is decided:
@@ -539,6 +650,10 @@ discover a later null, since null determines the result.
 An `OR` implementation encountering undecided must continue far enough to
 discover a later truthy value.
 
+This continued evaluation is observable. Effects occur in source order, and a
+hole or error reached while searching for a decisive later operand still
+propagates. Tests must cover effects and errors after an undecided operand.
+
 Decision-aware control consumers must be audited. At minimum:
 
 - the new decision conditional selects its explicit undecided branch;
@@ -548,6 +663,23 @@ Decision-aware control consumers must be audited. At minimum:
 - filters, assertions, retries, tests, and other predicate consumers must not
   treat `?` as truthy. Each should either propagate `?` or return a structured
   unresolved result appropriate to its API.
+
+The first implementation uses these policies:
+
+| Consumer | Undecided policy |
+|---|---|
+| conditional | select `??`, or return `?` when absent |
+| ordered case | return `?` at the first undecided arm that precedes any selected arm |
+| loop condition | stop before body/update/after and return `?` |
+| assertion | return/record unresolved, never pass or fail |
+| filter, split, chunk, generator predicate | return `?` rather than a silently partial collection |
+| `Any`/`Every` | continue only to seek a decisive truth/null; otherwise return `?` |
+| function guards, prep, prepared trials, multifunction selection | treat as unresolved, never as a passing guard |
+| test/retry APIs | record a structured unresolved outcome |
+| `Min`/`Max`/sort | return `?` unless the API explicitly returns structured partial order work |
+
+Later APIs may preserve partial collection work in a structured result, but
+must opt into that contract explicitly.
 
 ## Replacement conditional syntax
 
@@ -658,11 +790,11 @@ it; no durable source should emit it.
 
 ## Legacy migration and removal
 
-RiX is not released, so the final language does not need permanent support for
-the old grammar. Removal should nevertheless be last so implementation can
-proceed with a working test suite.
+RiX is not released, so the final language has no permanent support for the old
+grammar. Migration was staged so implementation could proceed with a working
+test suite.
 
-During migration the two forms are contextually distinguishable:
+During migration the two forms were contextually distinguishable:
 
 ```rix
 # Legacy start
@@ -672,10 +804,9 @@ c ?? t ?: f
 c ?: t ?_ f ?? u
 ```
 
-When `??` follows a condition in the legacy parser, it starts the old form.
-When `??` appears after a new `?:` conditional has begun, it marks the
-undecided branch. This permits a staged migration without an intermediate
-repository state in which existing scripts stop parsing.
+The transitional parser used context to distinguish the forms. That path has
+now been deleted. A `??` encountered outside a conditional already begun by
+`?:` is a parse error.
 
 At the time this design was written, executable RiX source, plugins, examples,
 and tests contained roughly 85 same-line uses of `?? ... ?:` across 19 files,
@@ -683,7 +814,7 @@ before documentation and generated output. Nested forms must be migrated with
 parser/AST assistance or careful manual review; a blind regular-expression
 swap is unsafe.
 
-Migration order:
+Completed migration order:
 
 1. Add the undecided value and decision runtime semantics.
 2. Add the new `?:`, `?_`, `??` conditional while continuing to parse legacy
@@ -701,128 +832,136 @@ already started by `?:`; it is no longer a conditional starter.
 
 ## Implementation checklist
 
+Implementation status: complete. The checked items below describe the Core,
+RiX, provider, editor, tutorial, and documentation work verified together in
+August 2026. The temporary legacy-grammar steps in section H were transitional;
+the final parser intentionally accepts only the new decision grammar.
+
 ### A. RatMath Core value
 
-- [ ] Add `CertifiedApproximation` with immutable candidate, enclosure,
+- [x] Add `CertifiedApproximation` with immutable candidate, enclosure,
       representation, and optional source identity.
-- [ ] Validate candidate containment and representation invariants.
-- [ ] Add decimal/base-prefix constructors using closed rational cell hulls.
-- [ ] Add continued-fraction-prefix construction using convergent-cylinder
+- [x] Validate candidate containment and representation invariants.
+- [x] Define source identity creation, copy preservation, and serialization.
+- [x] Add decimal/base-prefix constructors using closed rational cell hulls.
+- [x] Add continued-fraction-prefix construction using convergent-cylinder
       endpoints.
-- [ ] Add optional explicit-bracket enclosure composition and marker
+- [x] Add optional explicit-bracket enclosure composition and marker
       validation.
-- [ ] Implement arithmetic propagation and exact point normalization.
-- [ ] Define exact-only behavior for discrete operations and conversions.
-- [ ] Add `isCertifiedApproximation` and include it in `isCoreNumber`.
-- [ ] Update mixed arithmetic in `Integer`, `Rational`, `RationalInterval`, and
+- [x] Implement arithmetic propagation and exact point normalization.
+- [x] Define exact-only behavior for discrete operations and conversions.
+- [x] Define mixed explicit-interval/approximation results; do not extend the
+      linear promotion hierarchy blindly.
+- [x] Add `isCertifiedApproximation` and include it in `isCoreNumber`.
+- [x] Update mixed arithmetic in `Integer`, `Rational`, `RationalInterval`, and
       `TypePromotion` without relying on interval duck typing.
-- [ ] Add JSON output/revival, exports, default namespace entries, and
+- [x] Add JSON output/revival, exports, default namespace entries, and
       TypeScript declarations.
-- [ ] Add unit tests for positive/negative prefixes, arbitrary bases, guard
+- [x] Add unit tests for positive/negative prefixes, arbitrary bases, guard
       digits, explicit bounds, CF parity, canonical CF tails, arithmetic, and
       point collapse.
-- [ ] Document that this is a finite certified enclosure, not a refinement
+- [x] Document that this is a finite certified enclosure, not a refinement
       oracle.
 
 ### B. Core comparison
 
-- [ ] Define public relation constants/result type for LESS, EQUAL, GREATER,
+- [x] Define public relation constants/result type for LESS, EQUAL, GREATER,
       and combinations.
-- [ ] Implement `possibleRelationsTo` for exact scalars, point enclosures, and
+- [x] Implement `possibleRelationsTo` for exact scalars, point enclosures, and
       independent rational enclosures.
-- [ ] Preserve existing exact `compareTo` contracts.
-- [ ] Add tests for separated, touching, overlapping, equal-point, and
+- [x] Preserve existing exact `compareTo` contracts.
+- [x] Add tests for separated, touching, overlapping, equal-point, and
       orientation-reversed enclosures.
-- [ ] Remove or guard any accidental JavaScript object/string comparison path.
-- [ ] Leave hooks for future source-identity refinement without requiring an
+- [x] Remove or guard any accidental JavaScript object/string comparison path.
+- [x] Leave hooks for future source-identity refinement without requiring an
       expression DAG now.
 
 ### C. RiX tokenization and parsing of numeric approximations
 
-- [ ] Extend the semantic number scanner with no-space `?` approximation
+- [x] Extend the semantic number scanner with no-space `?` approximation
       patterns, longest first.
-- [ ] Preserve `value?(request)` Ask syntax and compound `?` operators.
-- [ ] Route recognized approximation spellings through Core parsing.
-- [ ] Extend structural-literal recognition so symbolic/embedded arithmetic
+- [x] Preserve `value?(request)` Ask syntax and compound `?` operators.
+- [x] Route recognized approximation spellings through Core parsing.
+- [x] Extend structural-literal recognition so symbolic/embedded arithmetic
       preserves the notation and value.
-- [ ] Update `scanNumberLiteral` consumers.
-- [ ] Update the Lezer external tokenizer and regenerate its parser if needed.
-- [ ] Add ambiguity tests for `23.456?789` versus `23.456 ? 789`, trailing
-      markers, CF markers, Ask syntax, and custom-base quoting.
+- [x] Update `scanNumberLiteral` consumers.
+- [x] Update the Lezer external tokenizer and regenerate its parser if needed.
+- [x] Add ambiguity tests for `23.456?789` versus `23.456 ? 789`, trailing
+      markers, CF markers, Ask syntax, `?_`, and custom-base quoting.
 
 ### D. RiX undecided value
 
-- [ ] Add and export the frozen `UNDECIDED` singleton and `isUndecided`.
-- [ ] Parse standalone `?` in prefix position as `UndecidedLiteral`.
-- [ ] Add lowering and evaluator support distinct from NULL and HOLE.
-- [ ] Format it as `?`.
-- [ ] Add runtime type/trait metadata and builtin method/proto handling.
-- [ ] Preserve identity through shallow/deep copying and cell operations.
-- [ ] Add portable serialization, snapshots, interchange, and revival.
-- [ ] Give it a stable key/diagnostic representation.
-- [ ] Add tests for assignment, arrays/maps, arguments, return values, copying,
+- [x] Add and export the frozen `UNDECIDED` singleton and `isUndecided`.
+- [x] Parse standalone `?` in prefix position as `UndecidedLiteral`.
+- [x] Add lowering and evaluator support distinct from NULL and HOLE.
+- [x] Format it as `?`.
+- [x] Add runtime type/trait metadata and builtin method/proto handling.
+- [x] Preserve identity through shallow/deep copying and cell operations.
+- [x] Add portable serialization, snapshots, interchange, and revival.
+- [x] Give it a stable key/diagnostic representation.
+- [x] Add tests for assignment, arrays/maps, arguments, return values, copying,
       formatting, serialization, and non-decision type errors.
 
 ### E. Decision logic and control
 
-- [ ] Centralize `decisionState`; replace relevant duplicated `isTruthy`
+- [x] Centralize `decisionState`; replace relevant duplicated `isTruthy`
       helpers.
-- [ ] Implement three-valued NOT, AND, and OR with correct continued
+- [x] Implement three-valued NOT, AND, and OR with correct continued
       evaluation after undecided.
-- [ ] Ensure holes retain their existing missing-data behavior.
-- [ ] Make CASE propagate an undecided earlier condition rather than skip it.
-- [ ] Define LOOP termination on undecided conditions and test side-effect
+- [x] Ensure holes retain their existing missing-data behavior.
+- [x] Make CASE propagate an undecided earlier condition rather than skip it.
+- [x] Define LOOP termination on undecided conditions and test side-effect
       boundaries.
-- [ ] Audit filters, assertions, tests, retries, generators, and predicate
+- [x] Audit filters, assertions, tests, retries, generators, and predicate
       callbacks so `?` is never accepted as ordinary truth.
-- [ ] Mirror all decision behavior in the async evaluator.
+- [x] Mirror all decision behavior in the async evaluator.
 
 ### F. New conditional grammar
 
-- [ ] Add `?_` as a tokenizer symbol; retain longer compound tokens first.
-- [ ] Parse `condition ?: truthExpression` as the new conditional starter.
-- [ ] Parse optional `?_` and `??` branches in either order.
-- [ ] Reject duplicate branch markers and missing branch expressions.
-- [ ] Insert null and undecided defaults for omitted branches.
-- [ ] Define and test right-associative nesting and parenthesized cases.
-- [ ] Extend the AST and lazy IR to carry the undecided branch.
-- [ ] Update synchronous and asynchronous conditional evaluation.
-- [ ] Update `.IF` or its replacement to share the same semantics.
-- [ ] Do not add durable `?!` syntax.
+- [x] Add `?_` as a tokenizer symbol; retain longer compound tokens first.
+- [x] Parse `condition ?: truthExpression` as the new conditional starter.
+- [x] Parse optional `?_` and `??` branches in either order.
+- [x] Reject duplicate branch markers and missing branch expressions.
+- [x] Insert null and undecided defaults for omitted branches.
+- [x] Define and test right-associative nesting and parenthesized cases.
+- [x] Extend the AST and lazy IR to carry the undecided branch.
+- [x] Update synchronous and asynchronous conditional evaluation.
+- [x] Update `.IF` or its replacement to share the same semantics.
+- [x] Do not add durable `?!` syntax.
 
 ### G. RiX numeric integration
 
-- [ ] Register `CertifiedApproximation` as an enclosed approximate scalar, not
+- [x] Register `CertifiedApproximation` as an enclosed approximate scalar, not
       an interval collection.
-- [ ] Add `number`, `approximate`, `enclosed`, and applicable ordered/decision
-      traits.
-- [ ] Integrate arithmetic dispatch, methods, formatting, copy/deep-copy,
+- [x] Add `number`, `approximate`, `enclosed`, and an order-inquiry trait whose
+      name does not promise a decidable total order. The numeric value itself
+      does not receive the `decision` trait.
+- [x] Integrate arithmetic dispatch, methods, formatting, copy/deep-copy,
       tensors, structural arithmetic, output snapshots, and interchange.
-- [ ] Ensure strict Rational conversion fails for non-point enclosures.
-- [ ] Ensure RationalInterval conversion exposes the enclosure explicitly.
-- [ ] Implement three-state relational operators and explicit
+- [x] Ensure strict Rational conversion fails for non-point enclosures.
+- [x] Ensure RationalInterval conversion exposes the enclosure explicitly.
+- [x] Implement three-state relational operators and explicit
       Certainly/Possibly inquiries.
-- [ ] Make Min/Max/Sort surface undecided ordering instead of choosing a host
+- [x] Make Min/Max/Sort surface undecided ordering instead of choosing a host
       object order.
-- [ ] Add oracle/numerics adapter tests showing optional bounded refinement
+- [x] Add oracle/numerics adapter tests showing optional bounded refinement
       followed by an undecided result on budget exhaustion.
 
 ### H. Migration and documentation
 
-- [ ] Keep legacy parsing temporarily while adding the new grammar.
-- [ ] Migrate executable `.rix` sources and first-party plugins.
-- [ ] Migrate JavaScript-embedded RiX source strings and fixtures.
-- [ ] Migrate parser, lowering, evaluator, runtime, and documentation tests.
-- [ ] Replace documentation examples and syntax tables.
-- [ ] Update number-format, tokenizer, parser, introduction, type, interval,
+- [x] Keep legacy parsing temporarily while adding the new grammar.
+- [x] Migrate executable `.rix` sources and first-party plugins.
+- [x] Migrate JavaScript-embedded RiX source strings and fixtures.
+- [x] Migrate parser, lowering, evaluator, runtime, and documentation tests.
+- [x] Replace documentation examples and syntax tables.
+- [x] Update number-format, tokenizer, parser, introduction, type, interval,
       oracle, numerics, and rationale documentation.
-- [ ] Replace truncated-CF `~...` output with a parseable certified form via a
-      deliberate formatter/API change; keep exact serialization visibly
-      distinct.
-- [ ] Regenerate Lezer output, static references, demos, and documentation.
-- [ ] Search for remaining legacy `?? ... ?:` forms.
-- [ ] Remove legacy grammar as the final source change.
-- [ ] Run Core tests, RiX parser tests, RiX evaluator/runtime tests, and the full
+- [x] Retain `...` for display-only truncation and add explicit bounded
+      conversions that return parseable `?` certified forms.
+- [x] Regenerate Lezer output, static references, demos, and documentation.
+- [x] Search for remaining legacy `?? ... ?:` forms.
+- [x] Remove legacy grammar as the final source change.
+- [x] Run Core tests, RiX parser tests, RiX evaluator/runtime tests, and the full
       monorepo test suite.
 
 ## Required test matrix

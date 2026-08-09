@@ -427,7 +427,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 rix&gt; Sq(x) -&gt; x^2
 &lt;function Sq(x) ...&gt;
 rix&gt; Sq(12)
-144</code></pre>
+144
+rix&gt; 23.456? &lt; 23.4565
+?
+rix&gt; ? ?: "yes" ?_ "no" ?? "not decided"
+"not decided"</code></pre>
+<p>The question mark inside a number creates a certified approximation with an exact rational enclosure. A standalone question mark is an undecided decision; it is distinct from null (<code>_</code>) and can be handled by the <code>??</code> branch of the three-state conditional.</p>
 <p>Executable documentation examples use the same evaluator as the CLI. A trailing <code>##@</code> assertion checks a value, and a standalone <code>##</code> asks the documentation build to render the most recent result:</p>
 <pre id="getting-started-rational" class="rix" data-exec="true"><code>
 1 |&gt; half ##@ == 1/2

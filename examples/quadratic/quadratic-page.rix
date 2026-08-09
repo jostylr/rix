@@ -21,7 +21,7 @@ $$view := {;
     P := x -> av*x^2 + bv*x + cv;
     slope := bv + 2*av*d;
     value := P(d);
-    centerTerm := d < 0 ?? @"x + @{0 - d}" ?: @"x - @{d}";
+    centerTerm := d < 0 ?: @"x + @{0 - d}" ?_ @"x - @{d}";
     ## These symmetric bounds cover every value reachable by the sliders:
     ## |a| <= 5, |b| <= 8, |c| <= 8, and |center| <= 3.
     ## They keep the origin fixed at the centre of every rendered graph.

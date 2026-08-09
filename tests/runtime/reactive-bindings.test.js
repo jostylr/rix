@@ -313,7 +313,7 @@ describe("reactive dollar bindings", () => {
     });
 
     test("dollar adjacency leaves callable self and parent self intact", () => {
-        expect(formatValue(parseAndEvaluate("Again(x) -> x > 0 ?? $(x - 1) ?: 7; Again(2)"))).toBe("7");
+        expect(formatValue(parseAndEvaluate("Again(x) -> x > 0 ?: $(x - 1) ?_ 7; Again(2)"))).toBe("7");
         expect(() => parseAndEvaluate("$ source1")).toThrow("Self reference '$'");
         expect(() => parseAndEvaluate("$$ source1")).toThrow("Parent self reference '$$'");
     });

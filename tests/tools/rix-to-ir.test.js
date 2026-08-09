@@ -189,7 +189,7 @@ describe("RiX-to-IR Script", () => {
         });
 
         test("ternary", () => {
-            const output = rixToIR("x > 0 ?? 1 ?: -1;");
+            const output = rixToIR("x > 0 ?: 1 ?_ -1;");
             expect(output).toContain("TERNARY");
             expect(output).toContain("GT");
             expect(output).toContain("DEFER");

@@ -1,4 +1,5 @@
 import { Integer } from "@ratmath/core";
+import { isUndecided } from "../../runtime/decision.js";
 
 function normalizeKeyPrimitive(value) {
     if (typeof value === "string") return value;
@@ -15,6 +16,10 @@ function normalizeKeyPrimitive(value) {
  * - otherwise: use x.key meta property (string/integer only)
  */
 export function keyOf(value) {
+    if (isUndecided(value)) return "?:undecided";
+    if (value?.isCertifiedApproximation === true) {
+        throw new Error("Certified approximations cannot be used as structural map keys");
+    }
     const direct = normalizeKeyPrimitive(value);
     if (direct !== null) return direct;
 
@@ -41,4 +46,3 @@ export function canonicalizeMetaKey(value) {
     }
     return normalized;
 }
-

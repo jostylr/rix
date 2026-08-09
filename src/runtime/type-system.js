@@ -1,6 +1,7 @@
-import { Integer, Rational, RationalInterval } from "@ratmath/core";
+import { CertifiedApproximation, Integer, Rational, RationalInterval, parseCertifiedApproximation } from "@ratmath/core";
 import { createTensor, isTensor } from "./tensor.js";
 import { callWithConcreteArgs } from "../eval/functions/functions.js";
+import { UNDECIDED, isUndecided } from "./decision.js";
 
 function int(value) {
     return new Integer(BigInt(value));
@@ -178,6 +179,8 @@ export function runtimeTypeName(value) {
     if (value instanceof Integer) return "Integer";
     if (value instanceof Rational) return "Rational";
     if (value instanceof RationalInterval) return "RationalInterval";
+    if (value instanceof CertifiedApproximation) return "CertifiedApproximation";
+    if (isUndecided(value)) return "Undecided";
     if (isTensor(value)) return "tensor";
     if (value?.type === "sequence") return "array";
     if (value?.type) return value.type;
@@ -285,6 +288,10 @@ export function registerBuiltinSemanticTypes() {
         ["ring", ["number"]],
         ["field", ["ring", "number"]],
         ["ordered", ["number"]],
+        ["orderInquiry", ["number"]],
+        ["approximate", ["number"]],
+        ["enclosed", ["number"]],
+        ["decision"],
         ["rational", ["field", "ordered"]],
         ["integer", ["rational"]],
         ["indexable"],
@@ -335,6 +342,34 @@ export function registerBuiltinSemanticTypes() {
             proto: () => makeProto([["Describe", valueMethod("Describe", () => stringObj(`type:${name}`))]]),
         });
     }
+
+    registerType({
+        name: "Undecided",
+        aliases: ["undecided"],
+        nativeType: "undecided",
+        defaultTraits: ["decision"],
+        convert: (value) => isUndecided(value) ? value : null,
+        validate: isUndecided,
+        export() {
+            return {
+                type: "map",
+                entries: new Map([
+                    ["type", stringObj("Undecided")],
+                    ["data", null],
+                    ["cache", null],
+                    ["version", new Integer(1n)],
+                ]),
+            };
+        },
+        import() {
+            return UNDECIDED;
+        },
+        proto: () => makeProto([
+            ["ToString", valueMethod("ToString", () => stringObj("?"))],
+            ["Describe", valueMethod("Describe", () => stringObj("type:Undecided"))],
+        ]),
+        installs: {},
+    });
 
     registerType({
         name: "Rational",
@@ -449,6 +484,51 @@ export function registerBuiltinSemanticTypes() {
         proto: () => makeProto([
             ["ToString", valueMethod("ToString", (self) => stringObj(self.toString()))],
             ["Describe", valueMethod("Describe", () => stringObj("type:Integer"))],
+        ]),
+        installs: {},
+    });
+
+    registerType({
+        name: "CertifiedApproximation",
+        aliases: ["approximation", "approximate"],
+        nativeType: "approximation",
+        defaultTraits: ["number", "approximate", "enclosed", "orderInquiry"],
+        convertFrom: {
+            CertifiedApproximation: (value) => value,
+            approximation: (value) => value,
+        },
+        convert(value) {
+            return value instanceof CertifiedApproximation ? value : null;
+        },
+        validate: (value) => value instanceof CertifiedApproximation,
+        export(value) {
+            return {
+                type: "map",
+                entries: new Map([
+                    ["type", stringObj("CertifiedApproximation")],
+                    ["data", { type: "map", entries: new Map([
+                        ["candidate", value.candidate],
+                        ["low", value.low],
+                        ["high", value.high],
+                        ["spelling", stringObj(value.toString())],
+                    ]) }],
+                    ["cache", null],
+                    ["version", new Integer(1n)],
+                ]),
+            };
+        },
+        import(value) {
+            const spelling = value?.entries?.get("data")?.entries?.get("spelling")?.value;
+            if (!spelling) throw new Error("CertifiedApproximation interchange requires a spelling");
+            return parseCertifiedApproximation(spelling);
+        },
+        proto: () => makeProto([
+            ["Candidate", valueMethod("Candidate", (self) => self.candidate)],
+            ["Enclosure", valueMethod("Enclosure", (self) => self.enclosure)],
+            ["Low", valueMethod("Low", (self) => self.low)],
+            ["High", valueMethod("High", (self) => self.high)],
+            ["ToString", valueMethod("ToString", (self) => stringObj(self.toString()))],
+            ["Describe", valueMethod("Describe", () => stringObj("type:CertifiedApproximation"))],
         ]),
         installs: {},
     });
@@ -582,6 +662,7 @@ export function importByRegisteredType(value) {
 }
 
 function finalizeImportedRegisteredValue(imported, typeName, entry) {
+    if (isUndecided(imported)) return imported;
     if (imported && typeof imported === "object") {
         if (!(imported._ext instanceof Map)) imported._ext = new Map();
         imported._ext.set("__type", stringObj(typeName));
@@ -613,7 +694,7 @@ export function importByRegisteredTypeRuntime(value, context = null, evaluate = 
     return finalizeImportedRegisteredValue(invokeMaybeCallable(entry.import, [value], context, evaluate), typeName, entry);
 }
 
-export function installRegisteredTypes(registry, typeNames = ["Integer", "Rational", "RationalInterval", "Tensor"], options = {}) {
+export function installRegisteredTypes(registry, typeNames = ["Integer", "Rational", "CertifiedApproximation", "RationalInterval", "Tensor"], options = {}) {
     let order = 0;
     for (const typeName of typeNames) {
         const entry = typeRegistry.get(typeName);

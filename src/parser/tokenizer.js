@@ -93,6 +93,7 @@ const symbols = [
   "=>",
   "**",
   "?=",
+  "?_",
   "??",
   "?:",
   "?|",
@@ -499,8 +500,27 @@ function tryMatchString(input, position) {
 
 function tryMatchExplicitCF(input, position) {
   const remaining = input.slice(position);
+  let match = remaining.match(/^~-?(?:0z\[\d+\]|0[a-zA-Z])[0-9a-zA-Z]+\.~[0-9a-zA-Z]+(?:~[0-9a-zA-Z]+)*\?(?:[0-9a-zA-Z]+(?:~[0-9a-zA-Z]+)*)?/);
+  if (match) {
+    return {
+      type: "Number",
+      original: match[0],
+      value: match[0],
+      pos: [position, position, position + match[0].length],
+    };
+  }
+  // Certified decimal-base continued-fraction approximation.
+  match = remaining.match(/^~-?\d+\.~\d+(?:~\d+)*\?(?:\d+(?:~\d+)*)?/);
+  if (match) {
+    return {
+      type: "Number",
+      original: match[0],
+      value: match[0],
+      pos: [position, position, position + match[0].length],
+    };
+  }
   // Explicit-start CF with prefixed base integer part: ~0b101.~11~10, ~-0B4.~3
-  let match = remaining.match(/^~-?(?:0z\[\d+\]|0[a-zA-Z])[0-9a-zA-Z]+\.\~[0-9a-zA-Z]+(?:~[0-9a-zA-Z]+)*/);
+  match = remaining.match(/^~-?(?:0z\[\d+\]|0[a-zA-Z])[0-9a-zA-Z]+\.\~[0-9a-zA-Z]+(?:~[0-9a-zA-Z]+)*/);
   if (match) {
     return {
       type: "Number",
@@ -537,8 +557,46 @@ function tryMatchNumber(input, position) {
 
   // Try all number patterns (longest first for maximal munch)
 
+  // Certified base-10 approximation. A marker immediately followed by `(`
+  // remains postfix Ask, and compound question operators remain operators.
+  match = remaining.match(/^(?:\d(?:_?\d)*(?:\.(?:\d(?:_?\d)*)?)?|\.\d(?:_?\d)*)\?(?:\d(?:_?\d)*)?(?:\[[^\]]+\])?/);
+  if (match) {
+    const after = remaining[match[0].length] ?? "";
+    const markerHasPayload = /\?\d/.test(match[0]) || match[0].includes("[");
+    if (markerHasPayload || !/[(_!:=|&?-]/.test(after)) {
+      return {
+        type: "Number",
+        original: match[0],
+        value: match[0],
+        pos: [position, position, position + match[0].length],
+      };
+    }
+  }
+
   // Prefix Patterns (0x..., 0b..., 0k..., etc.)
   // Must check these before standard decimal patterns to avoid catching '0' as Integer(0) and 'x' as Identifier
+
+  // Prefixed-base continued-fraction approximation.
+  match = remaining.match(/^(?:0z\[\d+\]|0[a-zA-Z])[0-9a-zA-Z]+\.~[0-9a-zA-Z]+(?:~[0-9a-zA-Z]+)*\?(?:[0-9a-zA-Z]+(?:~[0-9a-zA-Z]+)*)?/);
+  if (match) {
+    return {
+      type: "Number",
+      original: match[0],
+      value: match[0],
+      pos: [position, position, position + match[0].length],
+    };
+  }
+
+  // Ordinary prefixed-base approximation.
+  match = remaining.match(/^(?:0z\[\d+\]|0[a-zA-Z])[0-9a-zA-Z]+(?:\.[0-9a-zA-Z]*)?\?(?:[0-9a-zA-Z]+)?/);
+  if (match) {
+    return {
+      type: "Number",
+      original: match[0],
+      value: match[0],
+      pos: [position, position, position + match[0].length],
+    };
+  }
 
   // Prefix continued fraction: 0b101.~11~10
   match = remaining.match(/^-?(?:0z\[\d+\]|0[a-zA-Z])[0-9a-zA-Z]+\.~[0-9a-zA-Z]+(?:~[0-9a-zA-Z]+)*/);
@@ -598,6 +656,17 @@ function tryMatchNumber(input, position) {
 
   // Prefix Integer: 0xA, 0b101, 0z[10]10
   match = remaining.match(/^-?(?:0z\[\d+\]|0[a-zA-Z])[0-9a-zA-Z]*/);
+  if (match) {
+    return {
+      type: "Number",
+      original: match[0],
+      value: match[0],
+      pos: [position, position, position + match[0].length],
+    };
+  }
+
+  // Implicit-start continued fractions: INT.~term~term~... (no sign, no ~ prefix)
+  match = remaining.match(/^\d+\.~\d+(?:~\d+)*\?(?:\d+(?:~\d+)*)?/);
   if (match) {
     return {
       type: "Number",

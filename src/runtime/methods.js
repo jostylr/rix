@@ -1,4 +1,15 @@
-import { Fraction, Integer, RationalInterval, Rational } from "@ratmath/core";
+import {
+    CertifiedApproximation,
+    Fraction,
+    Integer,
+    RationalInterval,
+    Rational,
+    Relation,
+    boundedContinuedFractionApproximation,
+    boundedDecimalApproximation,
+    possibleRelations,
+} from "@ratmath/core";
+import { isUndecided } from "./decision.js";
 import { HOLE, isHole } from "./hole.js";
 import { keyOf } from "../eval/functions/keyof.js";
 import { deferredMethods } from "../eval/functions/deferred.js";
@@ -1518,6 +1529,10 @@ const rationalExactMethods = {
     E: method("E", ([target, exponent]) => target.E(exactBigInt(exponent, "Exponent"))),
     TOMIXEDSTRING: method("ToMixedString", ([target]) => stringObj(target.toMixedString())),
     TODECIMAL: method("ToDecimal", ([target]) => stringObj(target.toDecimal())),
+    TODECIMALAPPROXIMATION: method("ToDecimalApproximation", ([target, digits]) =>
+        boundedDecimalApproximation(target, {
+            fractionalDigits: digits === undefined ? undefined : safeExactNumber(digits, "Fractional digits"),
+        })),
     TOCONTINUEDFRACTION: method("ToContinuedFraction", ([target, maxTerms]) => exactSequence(
         target.toContinuedFraction(
             maxTerms === undefined ? undefined : safeExactNumber(maxTerms, "Maximum terms"),
@@ -1525,6 +1540,10 @@ const rationalExactMethods = {
     )),
     TOCONTINUEDFRACTIONSTRING: method("ToContinuedFractionString", ([target]) =>
         stringObj(target.toContinuedFractionString())),
+    TOCONTINUEDFRACTIONAPPROXIMATION: method("ToContinuedFractionApproximation", ([target, maxTerms]) =>
+        boundedContinuedFractionApproximation(target, {
+            maxTerms: maxTerms === undefined ? undefined : safeExactNumber(maxTerms, "Maximum terms"),
+        })),
     CONVERGENTS: method("Convergents", ([target, maxCount]) => exactSequence(
         target.convergents(
             maxCount === undefined ? undefined : safeExactNumber(maxCount, "Maximum convergents"),
@@ -1584,6 +1603,19 @@ const rationalIntervalMethods = {
     E: method("E", ([target, exponent]) => target.E(exactBigInt(exponent, "Exponent"))),
     BITLENGTH: method("BitLength", ([target]) => int(target.bitLength())),
     TOMIXEDSTRING: method("ToMixedString", ([target]) => stringObj(target.toMixedString())),
+    TOSTRING: method("ToString", ([target]) => stringObj(target.toString())),
+};
+
+const certifiedApproximationMethods = {
+    CANDIDATE: method("Candidate", ([target]) => target.candidate),
+    ENCLOSURE: method("Enclosure", ([target]) => target.enclosure),
+    LOW: method("Low", ([target]) => target.low),
+    HIGH: method("High", ([target]) => target.high),
+    NEGATE: method("Negate", ([target]) => target.negate()),
+    RECIPROCAL: method("Reciprocal", ([target]) => target.reciprocal()),
+    POSSIBLERELATIONS: method("PossibleRelations", ([target, other]) => int(possibleRelations(target, other))),
+    CERTAINLYLESSTHAN: method("CertainlyLessThan", ([target, other]) => bool(possibleRelations(target, other) === Relation.LESS)),
+    POSSIBLYLESSTHAN: method("PossiblyLessThan", ([target, other]) => bool((possibleRelations(target, other) & Relation.LESS) !== 0)),
     TOSTRING: method("ToString", ([target]) => stringObj(target.toString())),
 };
 
@@ -1677,6 +1709,8 @@ const PROTOS = new Map([
     ["integer", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(integerExactMethods)])],
     ["rational", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(rationalExactMethods)])],
     ["rational_interval", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(rationalIntervalMethods)])],
+    ["certified_approximation", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(certifiedApproximationMethods)])],
+    ["undecided", createBuiltinProto([...Object.entries(commonMethods)])],
     ["structural_algebra", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(structuralMethods)])],
     ["structural_symbol", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(structuralMethods)])],
     ["structural_literal", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(structuralMethods)])],
@@ -1751,9 +1785,11 @@ function checkTraitsMethod(name) {
 }
 
 function builtinProtoFor(target) {
+    if (isUndecided(target)) return PROTOS.get("undecided");
     if (target instanceof Integer) return PROTOS.get("integer");
     if (target instanceof Rational) return PROTOS.get("rational");
     if (target instanceof RationalInterval) return PROTOS.get("rational_interval");
+    if (target instanceof CertifiedApproximation) return PROTOS.get("certified_approximation");
     if (target instanceof Fraction) return PROTOS.get("structural_value");
     if (isTensor(target)) return PROTOS.get("tensor");
     if (target && typeof target === "object" && target.fn === "DEFER") return PROTOS.get("deferred");
@@ -1767,6 +1803,8 @@ function extensionTypeNames(target) {
     if (target instanceof Integer) names.push("Integer");
     else if (target instanceof Rational) names.push("Rational");
     else if (target instanceof RationalInterval) names.push("RationalInterval");
+    else if (target instanceof CertifiedApproximation) names.push("CertifiedApproximation");
+    else if (isUndecided(target)) names.push("Undecided");
     else if (target instanceof Fraction) names.push("Fraction");
     else if (isTensor(target)) names.push("Tensor");
     else if (target?.type === "sequence" || target?.type === "lazy_sequence") names.push("Array");
@@ -1843,6 +1881,9 @@ export function builtinMethodNamesForType(typeName) {
         ["rational", "rational"],
         ["rationalinterval", "rational_interval"],
         ["interval", "rational_interval"],
+        ["certifiedapproximation", "certified_approximation"],
+        ["approximation", "certified_approximation"],
+        ["undecided", "undecided"],
         ["array", "sequence"],
         ["sequence", "sequence"],
         ["map", "map"],

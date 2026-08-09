@@ -580,7 +580,7 @@ describe("Lowering Pass", () => {
     });
 
     test("ternary branches preserve tail position for self calls", () => {
-      const ir = L("(x) -> x == 0 ?? $(1) ?: $(x - 1);");
+      const ir = L("(x) -> x == 0 ?: $(1) ?_ $(x - 1);");
       expect(ir.fn).toBe("LAMBDA");
       expect(ir.args[1].fn).toBe("TERNARY");
       expect(ir.args[1].args[1].args[0].fn).toBe("TAIL_SELF");
@@ -773,8 +773,8 @@ describe("Lowering Pass", () => {
       });
     });
 
-    test("ternary a ?? b ?: c → TERNARY with DEFERs", () => {
-      const ir = L("x > 0 ?? 1 ?: -1;");
+    test("ternary a ?: b ?_ c → TERNARY with DEFERs", () => {
+      const ir = L("x > 0 ?: 1 ?_ -1;");
       expect(ir.fn).toBe("TERNARY");
       expect(ir.args[0].fn).toBe("GT"); // condition
       expect(ir.args[1].fn).toBe("DEFER"); // true branch
@@ -1069,8 +1069,8 @@ describe("Lowering Pass", () => {
       expect(ir.args[2].args[1].fn).toBe("ADD");
     });
 
-    test("result = x > 0 ?? SIN(x) ?: COS(x)", () => {
-      const ir = L("result = x > 0 ?? SIN(x) ?: COS(x);");
+    test("result = x > 0 ?: SIN(x) ?_ COS(x)", () => {
+      const ir = L("result = x > 0 ?: SIN(x) ?_ COS(x);");
       expect(ir.fn).toBe("ASSIGN");
       expect(ir.args[0]).toBe("result");
       expect(ir.args[1].fn).toBe("TERNARY");

@@ -426,14 +426,24 @@ ul.task-list li input[type="checkbox"] {
 <td>Format an exact terminating or repeating decimal representation.</td>
 </tr>
 <tr class="even">
+<td><code>rational.ToDecimalApproximation(places)</code></td>
+<td>exact or <code>CertifiedApproximation</code></td>
+<td>Return an exact terminating result when possible, otherwise a parseable certified decimal prefix.</td>
+</tr>
+<tr class="odd">
 <td><code>rational.ToContinuedFraction(maxTerms?)</code></td>
 <td><code>Array</code></td>
 <td>Return continued-fraction terms.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>rational.ToContinuedFractionString()</code></td>
 <td><code>String</code></td>
 <td>Format the continued fraction.</td>
+</tr>
+<tr class="odd">
+<td><code>rational.ToContinuedFractionApproximation(maxTerms)</code></td>
+<td>exact or <code>CertifiedApproximation</code></td>
+<td>Return an exact finite continued fraction when complete, otherwise its certified cylinder.</td>
 </tr>
 <tr class="even">
 <td><code>rational.Convergents(maxCount?)</code></td>
@@ -514,7 +524,9 @@ q.BestApproximation(100) ##@ == 311/99;
 q.BestConvergent(100) ##@ == 22/7;
 q.BitLength() ##@ &gt; 0;
 q.ToString() ##@ == "355/113";
-q.CheckTraits() ##@ == 1;</code></pre>
+q.CheckTraits() ##@ == 1;
+(1/7).ToDecimalApproximation(5).ToString() ##@ == "0.14285?";
+(103993/33102).ToContinuedFractionApproximation(3).ToString() ##@ == "3.~7~15?";</code></pre>
 <p><code>BestApproximation</code> searches all denominators under the bound; <code>BestConvergent</code> restricts the result to continued-fraction convergents, so the answers can differ.</p>
 <p><a href="../../eval/methods-guide.html">Back to the methods overview</a></p>
 

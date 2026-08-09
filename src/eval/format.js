@@ -1,5 +1,6 @@
-import { Rational, RationalInterval } from "@ratmath/core";
+import { CertifiedApproximation, Rational, RationalInterval } from "@ratmath/core";
 import { isHole } from "../runtime/hole.js";
+import { isUndecided } from "../runtime/decision.js";
 import { isTensor, tensorOffsetForTuple, tensorSize } from "../runtime/tensor.js";
 import { irToText } from "./ir-to-text.js";
 import { resolveMethod } from "../runtime/methods.js";
@@ -282,6 +283,7 @@ function formatViaSemanticDisplay(value, options) {
 export function formatValue(val, options = {}) {
     const formatChild = (child) => formatValue(child, options);
     if (isHole(val)) return "undefined";
+    if (isUndecided(val)) return "?";
     if (val === null) return "_";
     if (val === undefined) return "undefined";
 
@@ -389,5 +391,6 @@ export function formatValue(val, options = {}) {
 
     if (val instanceof Rational) return val.toMixedString();
     if (val instanceof RationalInterval) return val.toMixedString();
+    if (val instanceof CertifiedApproximation) return val.toString();
     return val.toString();
 }

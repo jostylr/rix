@@ -788,7 +788,7 @@ later := BuildParallel()      // temporary default-limited scope</code></pre>
 <pre class="rix"><code>{$search:4$
     candidates |&gt;&gt; (candidate) -&gt; {;
         result := Try(candidate)
-        IsAnswer(result) ?? {!$search! result} ?: _
+        IsAnswer(result) ?: {!$search! result} ?_ _
     }
 }</code></pre>
 </section>
@@ -1044,7 +1044,7 @@ Store(accepted)</code></pre>
 <pre class="rix"><code>answer := {$race:3$
     strategies |&gt;&gt; (strategy) -&gt; {;
         result := strategy(problem)
-        IsAnswer(result) ?? {!$race! result} ?: _
+        IsAnswer(result) ?: {!$race! result} ?_ _
     }
 }</code></pre>
 <p>This returns whichever strategy first produces an accepted answer.</p>

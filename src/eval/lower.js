@@ -90,7 +90,8 @@ function lowerFunctionBody(node) {
       "TERNARY",
       lowerNode(node.condition),
       ir("DEFER", lowerFunctionBody(node.trueExpression)),
-      ir("DEFER", lowerFunctionBody(node.falseExpression)),
+      ir("DEFER", node.nullExpression ? lowerFunctionBody(node.nullExpression) : ir("NULL")),
+      ir("DEFER", node.undecidedExpression ? lowerFunctionBody(node.undecidedExpression) : ir("UNDECIDED")),
     );
   }
 
@@ -198,6 +199,10 @@ const LOWERERS = {
 
   Hole() {
     return ir("HOLE");
+  },
+
+  UndecidedLiteral() {
+    return ir("UNDECIDED");
   },
 
   SemanticHas(node) {
@@ -980,7 +985,8 @@ const LOWERERS = {
       "TERNARY",
       lowerNode(node.condition),
       ir("DEFER", lowerNode(node.trueExpression)),
-      ir("DEFER", lowerNode(node.falseExpression)),
+      ir("DEFER", node.nullExpression ? lowerNode(node.nullExpression) : ir("NULL")),
+      ir("DEFER", node.undecidedExpression ? lowerNode(node.undecidedExpression) : ir("UNDECIDED")),
     );
   },
 

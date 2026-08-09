@@ -37,7 +37,16 @@ rix> Sq(x) -> x^2
 <function Sq(x) ...>
 rix> Sq(12)
 144
+rix> 23.456? < 23.4565
+?
+rix> ? ?: "yes" ?_ "no" ?? "not decided"
+"not decided"
 ```
+
+The question mark inside a number creates a certified approximation with an
+exact rational enclosure. A standalone question mark is an undecided decision;
+it is distinct from null (`_`) and can be handled by the `??` branch of the
+three-state conditional.
 
 Executable documentation examples use the same evaluator as the CLI. A
 trailing `##@` assertion checks a value, and a standalone `##` asks the

@@ -5,7 +5,33 @@
  * (In RiX, only null is falsy; 0 is truthy.)
  */
 
-import { Integer, Rational } from "@ratmath/core";
+import {
+    CertifiedApproximation,
+    Integer,
+    Rational,
+    RationalInterval,
+    Relation,
+    possibleRelations,
+} from "@ratmath/core";
+import { UNDECIDED, isUndecided } from "../../runtime/decision.js";
+
+function isEnclosed(value) {
+    return value instanceof CertifiedApproximation || value instanceof RationalInterval;
+}
+
+function relationDecision(a, b, operation) {
+    if (!isEnclosed(a) && !isEnclosed(b)) return null;
+    const mask = possibleRelations(a, b);
+    switch (operation) {
+    case "eq": return mask === Relation.EQUAL ? true : (mask & Relation.EQUAL) === 0 ? false : UNDECIDED;
+    case "neq": return mask === Relation.EQUAL ? false : (mask & Relation.EQUAL) === 0 ? true : UNDECIDED;
+    case "lt": return mask === Relation.LESS ? true : (mask & Relation.LESS) === 0 ? false : UNDECIDED;
+    case "gt": return mask === Relation.GREATER ? true : (mask & Relation.GREATER) === 0 ? false : UNDECIDED;
+    case "lte": return (mask & Relation.GREATER) === 0 ? true : mask === Relation.GREATER ? false : UNDECIDED;
+    case "gte": return (mask & Relation.LESS) === 0 ? true : mask === Relation.LESS ? false : UNDECIDED;
+    default: throw new Error(`Unknown relation operation '${operation}'`);
+    }
+}
 
 function compare(a, b) {
     // Both have .equals and .subtract (ratmath types)
@@ -32,12 +58,13 @@ function compare(a, b) {
 }
 
 function boolResult(val) {
+    if (isUndecided(val)) return UNDECIDED;
     return val ? new Integer(1) : null;
 }
 
 function classifyMinMaxType(val) {
     if (val === null || val === undefined) return null;
-    if (val instanceof Integer || val instanceof Rational) return "number";
+    if (val instanceof Integer || val instanceof Rational || isEnclosed(val)) return "number";
     if (typeof val === "number" || typeof val === "bigint") return "number";
     if (typeof val === "string") return "string";
     if (val && typeof val === "object" && val.type === "string") return "string";
@@ -76,6 +103,7 @@ function minMaxImpl(args, mode, context, evaluate) {
             throw new Error(`${mode} requires an active evaluator registry`);
         }
         const invocation = registry.invokeWithVariant("COMPARE", [filtered[i], best], context, evaluate);
+        if (isUndecided(invocation.value)) return UNDECIDED;
         const c = comparisonInteger(invocation.value);
         // A type's compare variant may promote both values. Carry that result
         // forward so Min/Max returns a value in the chosen common domain.
@@ -98,6 +126,13 @@ export const comparisonFunctions = {
                 throw new Error("COMPARE requires two values from the same built-in ordered domain");
             }
             const result = compare(args[0], args[1]);
+            if (isEnclosed(args[0]) || isEnclosed(args[1])) {
+                const mask = possibleRelations(args[0], args[1]);
+                if (mask === Relation.LESS) return new Integer(-1n);
+                if (mask === Relation.EQUAL) return new Integer(0n);
+                if (mask === Relation.GREATER) return new Integer(1n);
+                return UNDECIDED;
+            }
             return new Integer(BigInt(result < 0 ? -1 : result > 0 ? 1 : 0));
         },
         pure: true,
@@ -106,6 +141,8 @@ export const comparisonFunctions = {
     EQ: {
         impl(args) {
             const [a, b] = args;
+            const decision = relationDecision(a, b, "eq");
+            if (decision !== null) return boolResult(decision);
             if (a && b && typeof a.equals === "function") {
                 return boolResult(a.equals(b));
             }
@@ -118,6 +155,8 @@ export const comparisonFunctions = {
     NEQ: {
         impl(args) {
             const [a, b] = args;
+            const decision = relationDecision(a, b, "neq");
+            if (decision !== null) return boolResult(decision);
             if (a && b && typeof a.equals === "function") {
                 return boolResult(!a.equals(b));
             }
@@ -129,7 +168,8 @@ export const comparisonFunctions = {
 
     LT: {
         impl(args) {
-            return boolResult(compare(args[0], args[1]) < 0);
+            const decision = relationDecision(args[0], args[1], "lt");
+            return decision === null ? boolResult(compare(args[0], args[1]) < 0) : boolResult(decision);
         },
         pure: true,
         doc: "Less than — returns 1 or null",
@@ -137,7 +177,8 @@ export const comparisonFunctions = {
 
     GT: {
         impl(args) {
-            return boolResult(compare(args[0], args[1]) > 0);
+            const decision = relationDecision(args[0], args[1], "gt");
+            return decision === null ? boolResult(compare(args[0], args[1]) > 0) : boolResult(decision);
         },
         pure: true,
         doc: "Greater than — returns 1 or null",
@@ -145,7 +186,8 @@ export const comparisonFunctions = {
 
     LTE: {
         impl(args) {
-            return boolResult(compare(args[0], args[1]) <= 0);
+            const decision = relationDecision(args[0], args[1], "lte");
+            return decision === null ? boolResult(compare(args[0], args[1]) <= 0) : boolResult(decision);
         },
         pure: true,
         doc: "Less than or equal — returns 1 or null",
@@ -153,7 +195,8 @@ export const comparisonFunctions = {
 
     GTE: {
         impl(args) {
-            return boolResult(compare(args[0], args[1]) >= 0);
+            const decision = relationDecision(args[0], args[1], "gte");
+            return decision === null ? boolResult(compare(args[0], args[1]) >= 0) : boolResult(decision);
         },
         pure: true,
         doc: "Greater than or equal — returns 1 or null",

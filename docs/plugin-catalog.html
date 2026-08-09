@@ -349,6 +349,7 @@ id: exact-statistics
 description: Exact descriptive statistics for RiX collections.
 kind: rix
 mount: stats
+aliases: [statistics, stat]
 exports: [Mean, Median]
 groups: [Statistics]
 permissions: []
@@ -357,7 +358,8 @@ defaultEnabled: false
 
 .Host.Register("stats", (values) -&gt; values, "Statistics plugin", ["Statistics"])</code></pre>
 <p>The catalog scans only configured <code>plugins/</code> roots. It reads headers and declares disabled host mounts so static path checking can recognize a known surface, but a disabled mount errors when called.</p>
-<p>Renderer/service packages can additionally declare array-valued <code>requires</code>, <code>optional</code>, <code>provides</code>, <code>schemas</code>, and <code>targets</code> fields plus Boolean <code>snapshot</code> and <code>deterministic</code> claims. Discovery exposes <code>requires</code>, <code>provides</code>, <code>targets</code>, <code>snapshot</code>, and <code>deterministic</code> through <code>.Plugin.Info</code> without executing the plugin. Runtime renderer registration still verifies the declared target; full version-range and dependency resolution is future work.</p>
+<p>Plugins can additionally declare array-valued <code>aliases</code>, <code>requires</code>, <code>optional</code>, <code>provides</code>, <code>schemas</code>, and <code>targets</code> fields plus Boolean <code>snapshot</code> and <code>deterministic</code> claims. Discovery exposes <code>aliases</code>, <code>requires</code>, <code>provides</code>, <code>targets</code>, <code>snapshot</code>, and <code>deterministic</code> through <code>.Plugin.Info</code> without executing the plugin. Every alias is a camelCase name for the same mounted capability—not a copy or a second activation—and <code>.Plugin.Info</code> reports the alias list.</p>
+<p>Loading resolves each <code>requires</code> entry first. A requirement may name an exact plugin ID or a service in another plugin’s <code>provides</code> list. A unique provider loads automatically; no provider, multiple providers, or a dependency cycle is an error. Repeated direct or transitive loads are idempotent. Version-range selection remains future work.</p>
 <p>Set <code>ignore: true</code> in an otherwise valid header to keep an unfinished or alternate source file out of discovery. An ignored entry is absent from <code>.Plugin.List()</code> and does not reserve its ID.</p>
 <p>For future candidate packages and the contract used by output-producing plugins, see <a href="./design/plugins.html">Plugin Roadmap and Rendering Contracts</a>. The current targets, options, results, diagnostics, and host support are specified by the <a href="./eval/renderer-guide.html">Renderer Plugins reference</a>.</p>
 <section id="placement-by-host" class="level2">
@@ -372,7 +374,7 @@ defaultEnabled: false
 .Plugin.Info("exact-statistics")
 .Plugin.Load("exact-statistics")
 .stats.Mean([1, 2, 3])</code></pre>
-<p><code>.Plugin("id")</code> is shorthand for <code>.Plugin.Load("id")</code>. A load can choose a different camelCase mount with <code>{= as = "otherStats" }</code>; the capability is renamed after activation. A rename is principally intended for a REPL or a plugin-selection prelude because a complete script is statically checked before its first expression executes.</p>
+<p><code>.Plugin("id")</code> is shorthand for <code>.Plugin.Load("id")</code>. A load can choose a different camelCase mount with <code>{= as = "otherStats" }</code>; the capability is renamed after activation and manifest aliases are suppressed for that remount. A rename is principally intended for a REPL or a plugin-selection prelude because a complete script is statically checked before its first expression executes.</p>
 <p>The CLI also resolves manifest <code>groups</code> as selectors. For example, <code>rix --plugins=renderers</code> loads every discovered member of the <code>Renderers</code> group, while <code>rix setup --plugins=renderers</code> makes that selection the default for future REPL sessions. An exact plugin ID takes precedence over a group with the same case-insensitive name.</p>
 </section>
 <section id="bundled-exact-algebras" class="level2">

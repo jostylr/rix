@@ -327,6 +327,7 @@ ul.task-list li input[type="checkbox"] {
    
   <ul>
   <li><a href="#exact-values-first" id="toc-exact-values-first" class="nav-link active" data-scroll-target="#exact-values-first">Exact values first</a></li>
+  <li><a href="#certified-uncertainty-stays-exact" id="toc-certified-uncertainty-stays-exact" class="nav-link" data-scroll-target="#certified-uncertainty-stays-exact">Certified uncertainty stays exact</a></li>
   <li><a href="#names-reveal-intent" id="toc-names-reveal-intent" class="nav-link" data-scroll-target="#names-reveal-intent">Names reveal intent</a></li>
   <li><a href="#functions-can-prepare-their-inputs" id="toc-functions-can-prepare-their-inputs" class="nav-link" data-scroll-target="#functions-can-prepare-their-inputs">Functions can prepare their inputs</a></li>
   <li><a href="#containers-announce-what-they-are" id="toc-containers-announce-what-they-are" class="nav-link" data-scroll-target="#containers-announce-what-they-are">Containers announce what they are</a></li>
@@ -378,6 +379,17 @@ ul.task-list li input[type="checkbox"] {
 1.23[+5:-6]     ## last-place offsets: 1.17:1.28
 1.2[+-0.1]      ## symmetric offset: 1.19:1.21</code></pre>
 <p>RiX delegates its foundational exact arithmetic to RatMath core types. Approximation is an explicit extension boundary rather than the default numeric model.</p>
+</section>
+<section id="certified-uncertainty-stays-exact" class="level2">
+<h2 class="anchored" data-anchor-id="certified-uncertainty-stays-exact">Certified uncertainty stays exact</h2>
+<pre class="rix"><code>23.456?          ## certified prefix; enclosure 23.456:23.457
+23.456?789       ## 789 is provisional, not part of the guarantee
+3.~7~15?         ## a continued-fraction cylinder, not an exact finite CF
+(1/7).ToDecimalApproximation(5)  ## 0.14285?</code></pre>
+<p>Every such value carries exact rational endpoints. Arithmetic propagates the enclosure, while comparisons may produce the undecided decision <code>?</code>:</p>
+<pre class="rix"><code>decision := 23.456? &lt; 23.4565
+decision ?: "yes" ?_ "no" ?? "needs refinement"</code></pre>
+<p>Here <code>1</code> is truth, <code>_</code> is a decided negative/null result, and <code>?</code> means the current information does not decide the question. It is not treated as truth by filters, guards, assertions, cases, or loops.</p>
 <p>Unsigned bracket values append digits to a decimal. Signed values are offsets measured in units of the base’s last visible digit: <code>1.23</code> uses hundredths, while <code>1.2</code> uses tenths. Thus <code>1.23[+5:-6]</code> adds <code>5 × 0.01</code> and subtracts <code>6 × 0.01</code>; <code>1.2[+-0.1]</code> applies <code>0.1 × 0.1 = 0.01</code> in both directions. When a bracket contains two values, colon is the required separator.</p>
 </section>
 <section id="names-reveal-intent" class="level2">

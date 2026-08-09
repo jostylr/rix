@@ -19,8 +19,10 @@
 | `rational.E(exponent)` | `Rational` | Multiply exactly by `10^exponent`. |
 | `rational.ToMixedString()` | `String` | Format as a mixed number. |
 | `rational.ToDecimal()` | `String` | Format an exact terminating or repeating decimal representation. |
+| `rational.ToDecimalApproximation(places)` | exact or `CertifiedApproximation` | Return an exact terminating result when possible, otherwise a parseable certified decimal prefix. |
 | `rational.ToContinuedFraction(maxTerms?)` | `Array` | Return continued-fraction terms. |
 | `rational.ToContinuedFractionString()` | `String` | Format the continued fraction. |
+| `rational.ToContinuedFractionApproximation(maxTerms)` | exact or `CertifiedApproximation` | Return an exact finite continued fraction when complete, otherwise its certified cylinder. |
 | `rational.Convergents(maxCount?)` | `Array` | Return successive continued-fraction convergents. |
 | `rational.Convergent(index)` | `Rational` | Return a one-based convergent. |
 | `rational.ApproximationError(other)` | `Rational` | Return the absolute error from another exact rational. |
@@ -71,6 +73,8 @@ q.BestConvergent(100) ##@ == 22/7;
 q.BitLength() ##@ > 0;
 q.ToString() ##@ == "355/113";
 q.CheckTraits() ##@ == 1;
+(1/7).ToDecimalApproximation(5).ToString() ##@ == "0.14285?";
+(103993/33102).ToContinuedFractionApproximation(3).ToString() ##@ == "3.~7~15?";
 ```
 
 `BestApproximation` searches all denominators under the bound; `BestConvergent` restricts the result to continued-fraction convergents, so the answers can differ.

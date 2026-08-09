@@ -29,6 +29,10 @@ The rational constructor accepts `:singular`, `:reflexive`, `:halo`,
 `:randomHalo`, and `:bisection` procedure modes. Every refinement operation
 has a finite call budget and returns its exact interval, achieved width, work
 record, evidence level, and optional trace as ordinary portable RiX values.
+Certified refinement records also include `approximation`, a
+`CertifiedApproximation` retaining the exact interval reached when the budget
+ends. Budget exhaustion is therefore usable uncertainty, not an error or a
+silently truncated decimal.
 
 See the [implementation specification](specification.md) and the
-[planned tutorial](tutorial.md).
+[tutorial](tutorial.md).

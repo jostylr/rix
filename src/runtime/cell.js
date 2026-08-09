@@ -43,7 +43,8 @@ export class Cell {
     }
 }
 
-import { Integer, Rational, RationalInterval } from "@ratmath/core";
+import { CertifiedApproximation, Integer, Rational, RationalInterval } from "@ratmath/core";
+import { isUndecided } from "./decision.js";
 import { isTensor, computeDefaultStrides } from "./tensor.js";
 import { cloneLazySequence, isLazySequence } from "./lazy-sequence.js";
 
@@ -72,6 +73,8 @@ export function classifyMetaKey(name) {
 export function shallowCopyValue(value) {
     if (value == null) return value;
     if (typeof value !== "object") return value;
+    if (isUndecided(value)) return value;
+    if (value instanceof CertifiedApproximation) return value.copy();
 
     // Ratmath numeric types — create fresh instances so _ext is independent
     if (value instanceof Integer) return new Integer(value.value);
@@ -177,6 +180,8 @@ export function shallowCopyValue(value) {
 export function deepCopyValue(value) {
     if (value == null) return value;
     if (typeof value !== "object") return value;
+    if (isUndecided(value)) return value;
+    if (value instanceof CertifiedApproximation) return value.copy();
     if (value instanceof Integer) return new Integer(value.value);
     if (value instanceof Rational) return new Rational(value.numerator, value.denominator);
     if (value instanceof RationalInterval) {

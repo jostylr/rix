@@ -20,7 +20,7 @@ report := <"rix/examples/quadratic/quadratic">;
 
     negative_center_uses_plus_form = {;
         d := -3/2;
-        term := d < 0 ?? @"x + @{0 - d}" ?: @"x - @{d}";
+        term := d < 0 ?: @"x + @{0 - d}" ?_ @"x - @{d}";
         term == "x + 1..1/2"
     }
 })

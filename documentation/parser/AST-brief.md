@@ -605,11 +605,17 @@ On the left of `:=`, `ReactiveRef` updates an existing reactive definition and
 ### TernaryOperation
 ```javascript
 {
-  condition: ASTNode,     // Boolean condition expression
-  trueExpression: ASTNode, // Expression evaluated if condition is true
-  falseExpression: ASTNode, // Expression evaluated if condition is false
-  original: string        // Combined original text
+  condition: ASTNode,              // Three-state decision expression
+  trueExpression: ASTNode,         // Required truth branch
+  nullExpression: ASTNode | null,  // Optional ?_ branch
+  undecidedExpression: ASTNode | null, // Optional ?? branch
+  original: string
 }
+```
+
+### UndecidedLiteral
+```javascript
+{ type: "UndecidedLiteral", original: "?" }
 ```
 
 ### EmbeddedLanguage

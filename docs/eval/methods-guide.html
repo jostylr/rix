@@ -334,6 +334,7 @@ ul.task-list li input[type="checkbox"] {
   <li><a href="#integer" id="toc-integer" class="nav-link" data-scroll-target="#integer">Integer</a></li>
   <li><a href="#rational" id="toc-rational" class="nav-link" data-scroll-target="#rational">Rational</a></li>
   <li><a href="#rationalinterval" id="toc-rationalinterval" class="nav-link" data-scroll-target="#rationalinterval">RationalInterval</a></li>
+  <li><a href="#certifiedapproximation" id="toc-certifiedapproximation" class="nav-link" data-scroll-target="#certifiedapproximation">CertifiedApproximation</a></li>
   <li><a href="#array" id="toc-array" class="nav-link" data-scroll-target="#array">Array</a></li>
   <li><a href="#lazysequence" id="toc-lazysequence" class="nav-link" data-scroll-target="#lazysequence">LazySequence</a></li>
   <li><a href="#asyncstream" id="toc-asyncstream" class="nav-link" data-scroll-target="#asyncstream">AsyncStream</a></li>
@@ -411,66 +412,71 @@ object.Method!(argument1, argument2)</code></pre>
 <td>Exact bounded rational intervals</td>
 </tr>
 <tr class="even">
+<td>CertifiedApproximation</td>
+<td><a href="../eval/objects/certified-approximation.html">Certified approximation methods</a></td>
+<td>Uncertain scalars with exact rational enclosures</td>
+</tr>
+<tr class="odd">
 <td>Array</td>
 <td><a href="../eval/objects/array.html">Array methods</a></td>
 <td>Mutable eager sequences</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>LazySequence</td>
 <td><a href="../eval/objects/lazy-sequence.html">LazySequence methods</a></td>
 <td>Cached on-demand sequences</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>AsyncStream</td>
 <td><a href="../eval/objects/async-stream.html">AsyncStream methods</a></td>
 <td>Linear asynchronous pull streams</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>Iterator</td>
 <td><a href="../eval/objects/iterator.html">Iterator methods</a></td>
 <td>Stateful collection cursors</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>Map</td>
 <td><a href="../eval/objects/map.html">Map methods</a></td>
 <td>Insertion-ordered keyed collections</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>Set</td>
 <td><a href="../eval/objects/set.html">Set methods</a></td>
 <td>Insertion-ordered distinct collections</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>String</td>
 <td><a href="../eval/objects/string.html">String methods</a></td>
 <td>Immutable Unicode text</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>Tuple</td>
 <td><a href="../eval/objects/tuple.html">Tuple methods</a></td>
 <td>Fixed-arity ordered values</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>Tensor</td>
 <td><a href="../eval/objects/tensor.html">Tensor methods</a></td>
 <td>Rectangular rank-N collections</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>Deferred</td>
 <td><a href="../eval/objects/deferred.html">Deferred methods</a></td>
 <td>Stored lowered RiX code</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>Structural values</td>
 <td><a href="../eval/objects/structural-values.html">Structural value methods</a></td>
 <td>Structural symbols, literals, forms, and algebras</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>Exact generator / expression</td>
 <td><a href="../eval/objects/exact-cartesian.html">Exact Cartesian methods</a></td>
 <td>Exact Cartesian complex expressions</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>Cayley</td>
 <td><a href="../eval/objects/cayley.html">Cayley methods</a></td>
 <td>Exact magnitude/direction complex values</td>
@@ -487,12 +493,16 @@ object.Method!(argument1, argument2)</code></pre>
 </section>
 <section id="rational" class="level3">
 <h3 class="anchored" data-anchor-id="rational">Rational</h3>
-<p><code>Numerator</code>, <code>Denominator</code>, <code>Negate</code>, <code>Reciprocal</code>, <code>Abs</code>, <code>Floor</code>, <code>Ceil</code>, <code>Trunc</code>, <code>Round</code>, <code>RoundTo</code>, <code>E</code>, <code>ToMixedString</code>, <code>ToDecimal</code>, <code>ToContinuedFraction</code>, <code>ToContinuedFractionString</code>, <code>Convergents</code>, <code>Convergent</code>, <code>ApproximationError</code>, <code>BestApproximation</code>, <code>BestConvergent</code>, <code>BitLength</code>, <code>ToString</code>, <code>CheckTraits</code></p>
+<p><code>Numerator</code>, <code>Denominator</code>, <code>Negate</code>, <code>Reciprocal</code>, <code>Abs</code>, <code>Floor</code>, <code>Ceil</code>, <code>Trunc</code>, <code>Round</code>, <code>RoundTo</code>, <code>E</code>, <code>ToMixedString</code>, <code>ToDecimal</code>, <code>ToDecimalApproximation</code>, <code>ToContinuedFraction</code>, <code>ToContinuedFractionString</code>, <code>ToContinuedFractionApproximation</code>, <code>Convergents</code>, <code>Convergent</code>, <code>ApproximationError</code>, <code>BestApproximation</code>, <code>BestConvergent</code>, <code>BitLength</code>, <code>ToString</code>, <code>CheckTraits</code></p>
 </section>
 <section id="rationalinterval" class="level3">
 <h3 class="anchored" data-anchor-id="rationalinterval">RationalInterval</h3>
 <p><code>Start</code>, <code>End</code>, <code>Low</code>, <code>High</code>, <code>Width</code>, <code>IsAscending</code>, <code>Midpoint</code>, <code>Mediant</code>, <code>Negate</code>, <code>Reciprocal</code>, <code>Overlaps</code>, <code>Contains</code>, <code>ContainsValue</code>, <code>ContainsZero</code>, <code>Intersection</code>, <code>Union</code>, <code>ShortestDecimal</code>, <code>DenominatorInterval</code>, <code>Random</code>, <code>RandomPartition</code>, <code>E</code>, <code>BitLength</code>, <code>ToMixedString</code>, <code>ToString</code>, <code>CheckTraits</code></p>
 <p><code>Random(parameters)</code> and <code>RandomPartition(parameters)</code> consume the RNG selected by <code>.RNG</code>. Their parameter tuple matches the interval <code>:%</code> and <code>:/%</code> operators: count, optional fixed denominator, and optional tolerance.</p>
+</section>
+<section id="certifiedapproximation" class="level3">
+<h3 class="anchored" data-anchor-id="certifiedapproximation">CertifiedApproximation</h3>
+<p><code>Candidate</code>, <code>Enclosure</code>, <code>Low</code>, <code>High</code>, <code>Negate</code>, <code>Reciprocal</code>, <code>PossibleRelations</code>, <code>CertainlyLessThan</code>, <code>PossiblyLessThan</code>, <code>ToString</code>, <code>CheckTraits</code></p>
 </section>
 <section id="array" class="level3">
 <h3 class="anchored" data-anchor-id="array">Array</h3>

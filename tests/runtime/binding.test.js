@@ -563,7 +563,7 @@ describe("WidgetSession", () => {
     test("control validation, disabled, and read-only policies are enforced by the session", () => {
         const state = session();
         const panel = parseAndEvaluate(`
-            ValidatePositive(x) -> x > 0 ?? _ ?: "amount must be positive";
+            ValidatePositive(x) -> x > 0 ?: _ ?_ "amount must be positive";
             $$amount := 1;
             $$locked := 2;
             $$paused := 3;

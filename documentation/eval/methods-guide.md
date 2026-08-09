@@ -29,6 +29,7 @@ Built-in prototypes are frozen and do not chain. Lookup checks direct value meta
 | Integer | [Integer methods](./objects/integer.md) | Exact whole numbers |
 | Rational | [Rational methods](./objects/rational.md) | Reduced exact fractions |
 | RationalInterval | [RationalInterval methods](./objects/rational-interval.md) | Exact bounded rational intervals |
+| CertifiedApproximation | [Certified approximation methods](./objects/certified-approximation.md) | Uncertain scalars with exact rational enclosures |
 | Array | [Array methods](./objects/array.md) | Mutable eager sequences |
 | LazySequence | [LazySequence methods](./objects/lazy-sequence.md) | Cached on-demand sequences |
 | AsyncStream | [AsyncStream methods](./objects/async-stream.md) | Linear asynchronous pull streams |
@@ -53,13 +54,19 @@ The lists below include inherited `Iterator` and `CheckTraits` methods where the
 
 ### Rational
 
-`Numerator`, `Denominator`, `Negate`, `Reciprocal`, `Abs`, `Floor`, `Ceil`, `Trunc`, `Round`, `RoundTo`, `E`, `ToMixedString`, `ToDecimal`, `ToContinuedFraction`, `ToContinuedFractionString`, `Convergents`, `Convergent`, `ApproximationError`, `BestApproximation`, `BestConvergent`, `BitLength`, `ToString`, `CheckTraits`
+`Numerator`, `Denominator`, `Negate`, `Reciprocal`, `Abs`, `Floor`, `Ceil`, `Trunc`, `Round`, `RoundTo`, `E`, `ToMixedString`, `ToDecimal`, `ToDecimalApproximation`, `ToContinuedFraction`, `ToContinuedFractionString`, `ToContinuedFractionApproximation`, `Convergents`, `Convergent`, `ApproximationError`, `BestApproximation`, `BestConvergent`, `BitLength`, `ToString`, `CheckTraits`
 
 ### RationalInterval
 
 `Start`, `End`, `Low`, `High`, `Width`, `IsAscending`, `Midpoint`, `Mediant`, `Negate`, `Reciprocal`, `Overlaps`, `Contains`, `ContainsValue`, `ContainsZero`, `Intersection`, `Union`, `ShortestDecimal`, `DenominatorInterval`, `Random`, `RandomPartition`, `E`, `BitLength`, `ToMixedString`, `ToString`, `CheckTraits`
 
 `Random(parameters)` and `RandomPartition(parameters)` consume the RNG selected by `.RNG`. Their parameter tuple matches the interval `:%` and `:/%` operators: count, optional fixed denominator, and optional tolerance.
+
+### CertifiedApproximation
+
+`Candidate`, `Enclosure`, `Low`, `High`, `Negate`, `Reciprocal`,
+`PossibleRelations`, `CertainlyLessThan`, `PossiblyLessThan`, `ToString`,
+`CheckTraits`
 
 ### Array
 

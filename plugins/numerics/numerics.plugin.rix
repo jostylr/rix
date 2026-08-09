@@ -11,16 +11,16 @@ schemas: [rix.numerics.refinement-request@1, rix.numerics.enclosure@1]
 defaultEnabled: false
 **/
 
-Option(options, key, fallback) -> options.Has(key) ?? options[key] ?: fallback;
+Option(options, key, fallback) -> options.Has(key) ?: options[key] ?_ fallback;
 
 RequirePositive(value, label) -> {;
     rational = value ~!: :Rational;
-    rational > 0 ?? rational ?: .Error(@"@{label} must be a positive rational");
+    rational > 0 ?: rational ?_ .Error(@"@{label} must be a positive rational");
 };
 
 RequireNonnegativeInteger(value, label) -> {;
     integer = value ~!: :Integer;
-    integer >= 0 ?? integer ?: .Error(@"@{label} must be a nonnegative integer");
+    integer >= 0 ?: integer ?_ .Error(@"@{label} must be a nonnegative integer");
 };
 
 NumericsWorkPolicy(options ?= {= }) -> {;
@@ -41,7 +41,7 @@ NumericsRequest(options ?= {= }) -> {;
         "absoluteWidth"
     );
     relativeWidth = Option(options, "relativewidth", _);
-    relativeWidth == _ ?? _ ?: RequirePositive(relativeWidth, "relativeWidth");
+    relativeWidth == _ ?: _ ?_ RequirePositive(relativeWidth, "relativeWidth");
     {=
         valueKind = :refinementRequest,
         schema = "rix.numerics.refinement-request@1",
@@ -57,7 +57,7 @@ NumericsRequest(options ?= {= }) -> {;
 
 AsRequest(value) -> {;
     isRequest = value.Has("schema") && value[:schema] == "rix.numerics.refinement-request@1";
-    isRequest ?? value ?: NumericsRequest(value);
+    isRequest ?: value ?_ NumericsRequest(value);
 };
 
 CheckEnclosure(result, request) -> {;
@@ -68,6 +68,7 @@ CheckEnclosure(result, request) -> {;
     validStatus = {| :enclosed, :approximate, :goalNotMet, :budgetExhausted, :unsupported |}.Has(result[:status]);
     interval = result[:interval] ~!: :RationalInterval;
     schemaValid = result[:schema] == "rix.numerics.enclosure@1";
+    approximationPresent = !result[:certified] || result.Has("approximation");
     valid = fieldsPresent && validStatus && schemaValid;
     {=
         valueKind = :numericsResultCheck,
@@ -75,6 +76,7 @@ CheckEnclosure(result, request) -> {;
         fieldsPresent = fieldsPresent,
         statusValid = validStatus,
         schemaValid = schemaValid,
+        approximationPresent = approximationPresent,
         interval = interval,
         request = request,
         result = result
@@ -83,7 +85,7 @@ CheckEnclosure(result, request) -> {;
 
 CheckedEnclosure(result, request) -> {;
     check = CheckEnclosure(result, request);
-    check[:valid] ?? result ?: .Error("EnclosableReal provider returned an invalid enclosure record");
+    check[:valid] ?: result ?_ .Error("EnclosableReal provider returned an invalid enclosure record");
 };
 
 ProviderEnclose(value, request) -> CheckedEnclosure(value.Enclose(request), request);
@@ -106,6 +108,7 @@ numericsNamespace._proto = {=
     Enclose = (self, value, options ?= {= }) -> NumericsEnclose(value, options),
     Refine = (self, value, options ?= {= }) -> NumericsRefine(value, options),
     Sample = (self, value, options ?= {= }) -> NumericsEnclose(value, options),
+    Approximation = (self, result) -> result.Has("approximation") ?: result[:approximation] ?_ _,
     Capabilities = (self, value) -> value.NumericsCapabilities(),
     CheckResult = (self, result, options ?= {= }) -> CheckEnclosure(result, AsRequest(options))
 };

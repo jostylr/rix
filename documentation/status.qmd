@@ -11,7 +11,7 @@ The repository test suite currently covers 1,700+ cases across parser, evaluator
 
 | Area | Current surface |
 |---|---|
-| Exact arithmetic | integers, rationals, mixed/repeating/continued-fraction forms, rational intervals |
+| Exact arithmetic | integers, rationals, mixed/repeating/continued-fraction forms, rational intervals, and exact rational enclosures for certified approximations |
 | Language pipeline | tokenizer, Pratt parser, AST, lowering, call-shaped IR, evaluator dispatch |
 | Functions | lambdas, named functions, rest/spread, partials, arity caps, prepared functions, multifunctions, tail-self call path |
 | Collections | arrays, lazy sequences, iterators, maps, sets, tuples, tensors, indexing/slicing, traversal pipes, methods |
@@ -31,7 +31,7 @@ The repository test suite currently covers 1,700+ cases across parser, evaluator
 |---|---|
 | Symbolic work | `{# ... }` represents multi-symbol systems, but arithmetic/calculus remain a tested single-expression exact subset. Transcendental rules, general solving, and numerical calculus belong outside that subset. |
 | Mathematical systems and async follow-up | `{# ... }` preserves definitions, constraints, symbols, and advisory input/output roles; solving is delegated to plugins. Async finite collections, matrices/tensors, nested scope caps, and finite pipe barriers are implemented. Lazy bounded pull, worker execution, snapshot/COW task writes, stable task paths, and capability-level abort signals remain follow-up work. |
-| Real approximation | the default runtime is exact-first. The repository includes a float package example, but a unified real/oracle layer is not part of the default surface. |
+| Real approximation | certified radix/continued-fraction prefixes and three-state comparisons are in Core/RiX; optional Float, Oracle, and Numerics plugins provide backend-specific computation and bounded refinement. |
 | Browser use | the parser demo runs in the browser. Full evaluator imports currently include Node file APIs, so evaluator embedding needs a host adapter for browser-only use. |
 | Packaging | the package uses `@ratmath/core` through the parent Bun workspace and has not yet declared a stable standalone release workflow. |
 | 3D rendering | The first retained scene, wireframe snapshot, and glTF JSON slice is implemented. Hidden-surface removal, lighting, adaptive parametric/implicit surfaces, textures, animation/orbit controls, GLB, OBJ, STL, PLY, and USD/USDZ remain design work. Static camera projection belongs to `Scene3D`, not to the 2D SVG/Canvas/TikZ renderers. |
