@@ -4,7 +4,7 @@ description: Representation-sensitive unreduced integer fractions with mediant a
 kind: host
 mount: fraction
 aliases: [frac, f]
-exports: [Fraction, Parse]
+exports: [Fraction, Parse, FromSternBrocotPath]
 groups: [Algebra, Exact, Symbolic]
 permissions: []
 provides: [rix.fraction@1]

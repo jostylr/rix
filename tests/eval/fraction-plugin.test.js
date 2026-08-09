@@ -82,4 +82,44 @@ describe("representation-sensitive Fraction plugin", () => {
         expect(result.values[6].value).toBe("rix.fraction@1");
         expect(String(result.values[7])).toBe("6/8");
     });
+
+    test("exposes complete Stern-Brocot navigation and path reconstruction", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("fraction");
+            value := .frac(3, 5);
+            path := value.SternBrocotPath();
+            children := value.SternBrocotChildren();
+            ancestors := value.SternBrocotAncestors();
+            [path, .fraction.FromSternBrocotPath(path), value.SternBrocotParent(),
+             children[1], children[2], value.SternBrocotDepth(), ancestors,
+             value.IsSternBrocotValid(), value.IsInfinite()];
+        `);
+        expect(result.values[0].values.map((item) => item.value)).toEqual(["R", "L", "R", "L"]);
+        expect(strings({ values: result.values.slice(1, 6) })).toEqual([
+            "3/5", "2/3", "4/7", "5/8", "4",
+        ]);
+        expect(strings(result.values[6])).toEqual(["2/3", "1/2", "1", "0"]);
+        expect(result.values[7]).toBeInstanceOf(Integer);
+        expect(result.values[8]).toBeNull();
+    });
+
+    test("handles the generalized zero root and validates path inputs", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("fraction");
+            root := .frac(0, 1);
+            parents := root.FareyParents();
+            [root.SternBrocotParent(), root.SternBrocotChildren(),
+             parents[1].IsInfinite(), parents[2].IsInfinite(),
+             .fraction.FromSternBrocotPath([])];
+        `);
+        expect(result.values[0]).toBeNull();
+        expect(strings(result.values[1])).toEqual(["-1", "1"]);
+        expect(result.values[2]).toBeInstanceOf(Integer);
+        expect(result.values[3]).toBeInstanceOf(Integer);
+        expect(String(result.values[4])).toBe("0");
+        expect(() => parseAndEvaluate(`
+            .Plugin.Load("fraction");
+            .fraction.FromSternBrocotPath(["left"]);
+        `)).toThrow('directions must be "L" or "R"');
+    });
 });

@@ -178,6 +178,38 @@ function fareyParents(value) {
     return { type: "tuple", values: [parents.left, parents.right] };
 }
 
+function sequenceValues(value, label) {
+    if (!value || !Array.isArray(value.values)) {
+        throw new Error(label + " must be a sequence");
+    }
+    return value.values;
+}
+
+function sternBrocotDirections(value) {
+    return sequenceValues(value, "Stern-Brocot path").map((direction) => {
+        const name = text(direction);
+        if (name !== "L" && name !== "R") {
+            throw new Error('Stern-Brocot path directions must be "L" or "R"');
+        }
+        return name;
+    });
+}
+
+function sternBrocotPath(value, maxLength) {
+    const limit = maxLength === undefined
+        ? undefined
+        : Number(exactInteger(maxLength, "Stern-Brocot path limit"));
+    const path = limit === undefined
+        ? finite(value, "Fraction").sternBrocotPath()
+        : finite(value, "Fraction").sternBrocotPath(limit);
+    return seq(path.map(str));
+}
+
+function sternBrocotChildren(value) {
+    const children = finite(value, "Fraction").sternBrocotChildren();
+    return { type: "tuple", values: [children.left, children.right] };
+}
+
 export function registerFractionMethods(systemContext, owner = {}) {
     const register = (type, name, impl) => systemContext.registerMethod(type, name, method(name, impl), owner);
     for (const type of ["Integer", "Rational", "Fraction"]) register(type, "F", ([value]) => asFraction(value));
@@ -198,7 +230,13 @@ export function registerFractionMethods(systemContext, owner = {}) {
     register("Fraction", "SamePair", ([value, other]) => bool(value.equals(asFraction(other))));
     register("Fraction", "Equivalent", ([value, other]) => bool(compare(value, other) === 0));
     register("Fraction", "FareyParents", ([value]) => fareyParents(value));
-    register("Fraction", "SternBrocotPath", ([value]) => seq(value.sternBrocotPath().map(str)));
+    register("Fraction", "SternBrocotPath", ([value, maxLength]) => sternBrocotPath(value, maxLength));
+    register("Fraction", "SternBrocotParent", ([value]) => finite(value, "Fraction").sternBrocotParent());
+    register("Fraction", "SternBrocotChildren", ([value]) => sternBrocotChildren(value));
+    register("Fraction", "SternBrocotAncestors", ([value]) => seq(finite(value, "Fraction").sternBrocotAncestors()));
+    register("Fraction", "SternBrocotDepth", ([value]) => int(finite(value, "Fraction").sternBrocotDepth()));
+    register("Fraction", "IsSternBrocotValid", ([value]) => bool(value.isSternBrocotValid()));
+    register("Fraction", "IsInfinite", ([value]) => bool(value.isInfinite));
     register("Fraction", "ToString", ([value]) => str(value.toString()));
     register("Fraction", "Record", ([value]) => rixMap([
         ["schema", str(FRACTION_SCHEMA)], ["numerator", int(value.numerator)],
@@ -231,11 +269,15 @@ function parseFraction(args, context, evaluate) {
 export function createFractionPluginValue() {
     const constructor = (args) => createFraction(args);
     const parseMethod = method("Parse", parseFraction);
+    const fromSternBrocotPathMethod = method("FromSternBrocotPath", ([, path]) =>
+        Fraction.fromSternBrocotPath(sternBrocotDirections(path)));
     return {
         type: "fraction_plugin",
         entries: new Map([["Fraction", constructor], ["FRACTION", constructor]]),
         _ext: new Map([
             ["PARSE", parseMethod], ["Parse", parseMethod],
+            ["FROMSTERNBROCOTPATH", fromSternBrocotPathMethod],
+            ["FromSternBrocotPath", fromSternBrocotPathMethod],
             ["FRACTION", method("Fraction", ([, ...args]) => createFraction(args))],
             ["immutable", int(1)],
         ]),

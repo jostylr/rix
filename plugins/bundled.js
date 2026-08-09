@@ -2,6 +2,7 @@
 
 import oracleSource from "./oracle/oracle.plugin.rix" with { type: "text" };
 import numericsSource from "./numerics/numerics.plugin.rix" with { type: "text" };
+import sternBrocotSource from "./stern-brocot/stern-brocot.plugin.rix" with { type: "text" };
 import { readPluginHeader } from "../src/runtime/plugin-catalog.js";
 import { install as installDrawPlugin } from "./draw/draw.plugin.rix.js";
 import { install as installFractionPlugin } from "./fraction/fraction.plugin.rix.js";
@@ -32,6 +33,11 @@ import { install as installGltfPlugin } from "./render-gltf/gltf.plugin.rix.js";
 import { install as installCsvPlugin } from "./render-csv/csv.plugin.rix.js";
 
 const BUNDLED_PLUGINS = [
+    {
+        metadata: readPluginHeader(sternBrocotSource, "stern-brocot.plugin.rix"),
+        source: sternBrocotSource,
+        sourcePath: "bundled:stern-brocot.plugin.rix",
+    },
     {
         metadata: readPluginHeader(numericsSource, "numerics.plugin.rix"),
         source: numericsSource,
@@ -74,7 +80,7 @@ const BUNDLED_PLUGINS = [
             id: "fraction",
             description: "Representation-sensitive unreduced integer fractions with mediant and classroom addition policies.",
             kind: "host", mount: "fraction", aliases: ["frac", "f"],
-            exports: ["Fraction", "Parse"], groups: ["Algebra", "Exact", "Symbolic"], permissions: [],
+            exports: ["Fraction", "Parse", "FromSternBrocotPath"], groups: ["Algebra", "Exact", "Symbolic"], permissions: [],
             provides: ["rix.fraction@1"], schemas: ["rix.fraction@1"],
             snapshot: true, deterministic: true, defaultEnabled: false,
         },

@@ -1,0 +1,101 @@
+/**
+id: stern-brocot
+description: Pure RiX Stern-Brocot node descriptions, visible tree records, and exact formula evaluation.
+kind: rix
+mount: sternBrocot
+exports: [sternBrocotDescribe, sternBrocotVisibleTree, sternBrocotEvaluate]
+groups: [Exact, Graphics]
+permissions: []
+requires: [rix.fraction@1]
+provides: [rix.stern-brocot@1]
+schemas: [rix.stern-brocot.node@1, rix.stern-brocot.tree@1]
+snapshot: true
+deterministic: true
+defaultEnabled: false
+**/
+
+{;
+    SternBrocotNodeRecord(fraction, role, level) -> {=
+        fraction=fraction,
+        parent=fraction.SternBrocotParent(),
+        role=role,
+        level=level,
+        path=fraction.SternBrocotPath()
+    };
+
+    SternBrocotDescribe(fraction) -> {;
+        current := fraction.F();
+        path := current.SternBrocotPath();
+        parents := current.FareyParents();
+        children := current.SternBrocotChildren();
+        rational := current.Rational();
+        {=
+            schema="rix.stern-brocot.node@1",
+            current=current,
+            parent=current.SternBrocotParent(),
+            children=children,
+            ancestors=current.SternBrocotAncestors(),
+            depth=current.SternBrocotDepth(),
+            path=path,
+            boundaries=parents,
+            mediant=parents[1].Mediant(parents[2]),
+            rational=rational,
+            continuedFraction=rational.ToContinuedFraction(),
+            convergents=rational.Convergents()
+        }
+    };
+
+    SternBrocotVisibleTree(fraction, descendantDepth ?= 2) -> {;
+        current := fraction.F();
+        ancestors := current.SternBrocotAncestors();
+        ancestorRecords := ancestors.Map((ancestor, index) ->
+            SternBrocotNodeRecord(ancestor, "ancestor", 0 - index));
+        descendantRecords := [];
+        frontier := [current];
+        level := 1;
+        {@ tick := 0; @level <= @descendantDepth; {;
+            next := @frontier.Reduce((items, item) -> {;
+                children := item.SternBrocotChildren();
+                items ++ [children[1], children[2]]
+            }, []);
+            @descendantRecords = @descendantRecords ++ next.Map(item ->
+                SternBrocotNodeRecord(item, "descendant", @level));
+            @frontier = next
+        }; @level += 1 };
+        nodes := [SternBrocotNodeRecord(current, "current", 0)]
+            ++ ancestorRecords
+            ++ descendantRecords;
+        edges := nodes.Filter(node -> node["parent"] != _).Map(node -> {=
+            parent=node["parent"],
+            child=node["fraction"]
+        });
+        {=
+            schema="rix.stern-brocot.tree@1",
+            current=current,
+            descendantDepth=descendantDepth,
+            nodes=nodes,
+            edges=edges
+        }
+    };
+
+    SternBrocotEvaluate(formula, fraction) -> fraction.F().Rational() |> formula;
+
+    .Host.Register(
+        "sternBrocotDescribe",
+        SternBrocotDescribe,
+        "Describe one exact Stern-Brocot node and its related values",
+        ["Exact", "Graphics"]
+    );
+    .Host.Register(
+        "sternBrocotVisibleTree",
+        SternBrocotVisibleTree,
+        "Build portable exact node and edge records around a Stern-Brocot node",
+        ["Exact", "Graphics"]
+    );
+    .Host.Register(
+        "sternBrocotEvaluate",
+        SternBrocotEvaluate,
+        "Evaluate a RiX callable at the selected exact rational",
+        ["Exact"]
+    )
+}
