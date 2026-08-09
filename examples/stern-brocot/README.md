@@ -1,7 +1,7 @@
 # Stern–Brocot generated page
 
 This example is the declarative companion to the prewritten page in
-apps/webcalc. Both versions use the pure RiX stern-brocot plugin.
+rix-web. Both versions use the pure RiX stern-brocot plugin.
 
 Generate the standalone reactive page from the repository root:
 
@@ -15,3 +15,6 @@ path, boundary, continued-fraction, convergent, and visible-tree tables.
 Clickable Graphic nodes, pan/zoom, URL history, and dialog output remain host
 interaction work. The prewritten page retains those native browser behaviors
 while the shared protocols are developed.
+
+The rix-web build publishes this page at `docs/stern-brocot-rix/` and the
+prewritten hybrid at `docs/stern-brocot.html`.

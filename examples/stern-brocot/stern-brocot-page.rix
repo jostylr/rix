@@ -3,7 +3,7 @@ plugins: [stern-brocot]
 **/
 
 ## A first generated-page slice for the exact Stern-Brocot explorer.
-## The same pure RiX model also drives apps/webcalc's prewritten page.
+## The same pure RiX model also drives rix-web's prewritten page.
 
 SternBrocotGlyph(fraction, x, y, fill) -> .Graphics.Group([
     .Graphics.Rectangle([x - 45, y - 22], [90, 44], {=
