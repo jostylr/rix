@@ -31,6 +31,7 @@ import { install as installPngPlugin } from "./render-png/png.plugin.rix.js";
 import { install as installPdfPlugin } from "./render-pdf/pdf.plugin.rix.js";
 import { install as installGltfPlugin } from "./render-gltf/gltf.plugin.rix.js";
 import { install as installCsvPlugin } from "./render-csv/csv.plugin.rix.js";
+import { install as installBallPlugin } from "./ball/ball.plugin.rix.js";
 
 const BUNDLED_PLUGINS = [
     {
@@ -47,6 +48,19 @@ const BUNDLED_PLUGINS = [
         metadata: readPluginHeader(oracleSource, "oracle.plugin.rix"),
         source: oracleSource,
         sourcePath: "bundled:oracle.plugin.rix",
+    },
+    {
+        metadata: {
+            id: "ball",
+            description: "Certified rational midpoint-radius balls and nested square-root refinement.",
+            kind: "host", mount: "ball",
+            exports: ["Ball", "Interval", "Sqrt", "Midpoint", "Radius", "Lower", "Upper", "Contains", "RoundOut", "Record"],
+            groups: ["Numerics", "Exact"], permissions: [],
+            provides: ["rix.ball@1", "rix.enclosable-real@1"],
+            schemas: ["rix.ball@1", "rix.ball.nested-real@1"],
+            snapshot: false, deterministic: true, defaultEnabled: false,
+        },
+        install: installBallPlugin,
     },
     {
         metadata: {

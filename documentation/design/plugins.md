@@ -223,11 +223,10 @@ numerical algorithm should only require that the representation can either
 produce a proven rational enclosure at a requested tolerance or report that it
 cannot meet the request within a bounded amount of work.
 
-The proposed common operation is `.numerics.Enclose` (with a value-level
+The implemented common operation is `.numerics.Enclose` (with a value-level
 `value.Enclose` convenience where a type supports it):
 
 ```rix
-# Proposed, not implemented
 e := .numerics.Enclose(realValue, {=
     absoluteWidth = 1 / 1000000,
     relativeWidth = _,
@@ -262,7 +261,7 @@ Representation plugins meet the contract differently:
 | Cauchy sequence | Use a supplied convergence modulus to select a rational term and a proven tail-error bound. A bare sequence without a modulus is not certifying. |
 | Continued fraction | Use convergents plus a certified bound on the remaining tail. A finite prefix alone is insufficient unless the value is rational or has a declared tail theorem. |
 | Algebraic/constraint real | Refine its existing rational isolating interval with exact sign or root-counting evidence. |
-| Arbitrary-precision interval/ball | Increase precision and outward-round to rational endpoints. |
+| Rational/nested Ball | Preserve exact rational endpoints, explicitly round outward to a dyadic grid, or refine a retained recipe. Phase 1 demonstrates exact-bisection square roots. |
 | IEEE-754 float | It can enclose its *stored binary value* exactly as a dyadic point. Transcendental results need directed-rounding/error analysis to claim enclosure of a mathematical real; otherwise they must mark the result heuristic rather than certified. |
 
 The corresponding generic operations should be deliberately small:

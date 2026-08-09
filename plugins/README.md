@@ -20,6 +20,7 @@ The implementation order and per-plugin phased work are tracked in
 | `exact-algebras/` | host | `exact-algebras` | Exact rational quaternion and octonion values. |
 | `plot/` | host | `plot` | Portable plot constructors that lower to core graphics. |
 | `float/` | host | `float` | IEEE-754 Float conversion and approximate math. |
+| `ball/` | host | `ball` | Certified rational midpoint-radius balls and nested square-root refinement. |
 | `oracle/` | RiX | `oracle` | Phase 1 rational-betweenness oracle values, procedures, validation, and bounded refinement. |
 | `numerics/` | RiX | `numerics` | Backend-neutral bounded enclosure, refinement, and sampling protocol orchestration. |
 | `radix/` | host | `radix` | Bounded exact positional expansions and repeating-period analysis. |

@@ -402,14 +402,16 @@ newline normalization.
 ### `.ball`
 
 1. **Phase 1 — Certified real ball arithmetic**
-   - [ ] Implement midpoint-radius rational or dyadic balls with outward
+   - [x] Implement midpoint-radius rational or dyadic balls with outward
      rounding.
-   - [ ] Demonstrate a certified square root or exponential enclosure.
-   - [ ] Register `EnclosableReal`.
-   - [ ] Add documentation, tutorial, and containment tests.
+   - [x] Demonstrate a certified square root or exponential enclosure.
+   - [x] Register `EnclosableReal`.
+   - [x] Add documentation, tutorial, and containment tests.
 2. **Phase 2 — Elementary functions and precision escalation**
-   - [ ] Add arithmetic, roots, exp/log, trigonometry, and complex balls.
-   - [ ] Negotiate precision through Numerics requests.
+   - [ ] Lift arithmetic to nested-real recipes and add further roots, exp/log,
+     trigonometry, and complex balls.
+   - [ ] Negotiate internal working precision through Numerics requests beyond
+     the Phase 1 exact-bisection recipe.
 3. **Phase 3 — Validated algorithms**
    - [ ] Add polynomial evaluation, interval Newton, validated linear algebra,
      and derivative bounds.
