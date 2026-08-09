@@ -1358,16 +1358,26 @@ async function invokeUserCallableAsync(fn, callArgs, context, registry, systemCo
     if (fn.name) context.pushCall(fn.name);
     context.pushCurrentCallable(fn, fn.__parentMultifunction ?? null);
     try {
-        for (const prep of [
+        const prepEntries = [
             ...(fn.params?.conditionals || []),
             ...(fn.params?.prep || []),
-        ]) {
+        ];
+        for (let prepIndex = 0; prepIndex < prepEntries.length; prepIndex++) {
+            const prep = prepEntries[prepIndex];
             try {
                 const passed = await evaluateAsyncInternal(prep, context, registry, systemContext, callableState);
                 const state = decisionState(passed);
-                if (state === "undecided") return UNDECIDED;
+                if (state === "undecided") {
+                    if (fn.params?.prepUndecided === "throw") {
+                        const error = new Error(`${fn.name || "<lambda>"} prep remained undecided at entry ${prepIndex + 1}`);
+                        error.undecided = passed;
+                        throw error;
+                    }
+                    return passed;
+                }
                 if (state === "null") return null;
             } catch (error) {
+                if (error?.message?.includes("prep remained undecided")) throw error;
                 if (fn.params?.prepStrict === true) throw error;
                 return null;
             }
@@ -2804,7 +2814,19 @@ async function evaluatePreparedTrialAsync(args, context, registry, systemContext
                 const prep = Array.isArray(gate.prep) ? gate.prep : [];
                 for (let entryIndex = 0; entryIndex < prep.length; entryIndex++) {
                     const value = await evaluateAsyncInternal(prep[entryIndex], context, registry, systemContext, state);
-                    if (!isTruthyAsync(value)) {
+                    const prepState = decisionState(value);
+                    if (prepState === "undecided") {
+                        if (gate.undecidedMode === "throw") {
+                            const error = new Error(`Prepared trial remained undecided at gate ${gateIndex + 1}, prep entry ${entryIndex + 1}`);
+                            error.undecided = value;
+                            throw error;
+                        }
+                        if (gate.undecidedMode === "fallthrough") {
+                            return preserveFailure ? PREP_TRIAL_NO_MATCH : UNDECIDED;
+                        }
+                        return UNDECIDED;
+                    }
+                    if (prepState === "null") {
                         if (strict) {
                             throw new Error(`Prepared trial failed at gate ${gateIndex + 1}, prep entry ${entryIndex + 1}`);
                         }
@@ -2812,6 +2834,7 @@ async function evaluatePreparedTrialAsync(args, context, registry, systemContext
                     }
                 }
             } catch (error) {
+                if (error?.message?.includes("remained undecided")) throw error;
                 if (strict) throw error;
                 return asyncPreparedTrialFailure(preserveFailure);
             }

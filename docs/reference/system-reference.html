@@ -376,7 +376,7 @@ Note
 <p>This page is generated from the current RiX implementation by <code>documentation/scripts/generate-reference.js</code>. Do not edit it by hand. Descriptions come from registry documentation strings; the narrative <a href="../eval/syntax-guide.html">syntax guide</a> and <a href="../eval/methods-guide.html">methods guide</a> provide signatures and examples.</p>
 </div>
 </div>
-<p>At this revision RiX exposes <strong>218 named entries</strong> on the default system context and registers <strong>214 internal IR operations</strong>. Aliases with different spelling are listed separately because they are separately addressable names.</p>
+<p>At this revision RiX exposes <strong>219 named entries</strong> on the default system context and registers <strong>216 internal IR operations</strong>. Aliases with different spelling are listed separately because they are separately addressable names.</p>
 <section id="public-system-context" class="level2">
 <h2 class="anchored" data-anchor-id="public-system-context">Public system context</h2>
 <p>These names are available through the leading-dot system object, such as <code>.Len(value)</code>. Uppercase names are also used by explicit system/operator forms where applicable.</p>
@@ -1678,27 +1678,33 @@ Note
 <td><code>.scene3d</code></td>
 <td>function</td>
 <td>—</td>
-<td>Exact retained 3D scenes with deterministic wireframe Graphics snapshots.</td>
+<td>Exact retained 3D scenes with deterministic wireframe and lit Graphics snapshots.</td>
 </tr>
 <tr class="odd">
+<td><code>.sternbrocot</code></td>
+<td>function</td>
+<td>—</td>
+<td>Pure RiX Stern-Brocot node descriptions, visible tree records, and exact formula evaluation.</td>
+</tr>
+<tr class="even">
 <td><code>.svg</code></td>
 <td>function</td>
 <td>—</td>
 <td>Portable SVG renderer for core Graphics scenes.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.symbolic</code></td>
 <td>function</td>
 <td>—</td>
 <td>Meta-plugin loading RiX representation-sensitive Fraction and FractionFunction workspaces.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.terminalascii</code></td>
 <td>function</td>
 <td>—</td>
 <td>Deterministic strict-ASCII fallback for tables, grids, fragments, and simple Graphics.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.tikz</code></td>
 <td>function</td>
 <td>—</td>
@@ -1728,11 +1734,11 @@ Note
 </tr>
 <tr class="even">
 <td>Rational</td>
-<td><code>ABS</code>, <code>APPROXIMATIONERROR</code>, <code>BESTAPPROXIMATION</code>, <code>BESTCONVERGENT</code>, <code>BITLENGTH</code>, <code>CEIL</code>, <code>CONVERGENT</code>, <code>CONVERGENTS</code>, <code>DENOMINATOR</code>, <code>E</code>, <code>FLOOR</code>, <code>NEGATE</code>, <code>NUMERATOR</code>, <code>RECIPROCAL</code>, <code>ROUND</code>, <code>ROUNDTO</code>, <code>TOCONTINUEDFRACTION</code>, <code>TOCONTINUEDFRACTIONAPPROXIMATION</code>, <code>TOCONTINUEDFRACTIONSTRING</code>, <code>TODECIMAL</code>, <code>TODECIMALAPPROXIMATION</code>, <code>TOMIXEDSTRING</code>, <code>TOSTRING</code>, <code>TRUNC</code></td>
+<td><code>ABS</code>, <code>APPROXIMATIONERROR</code>, <code>BESTAPPROXIMATION</code>, <code>BESTCONVERGENT</code>, <code>BITLENGTH</code>, <code>CEIL</code>, <code>CONVERGENT</code>, <code>CONVERGENTS</code>, <code>DENOMINATOR</code>, <code>E</code>, <code>FLOOR</code>, <code>NEGATE</code>, <code>NUMERATOR</code>, <code>RECIPROCAL</code>, <code>ROUND</code>, <code>ROUNDTO</code>, <code>TOCONTINUEDFRACTION</code>, <code>TOCONTINUEDFRACTIONAPPROXIMATION</code>, <code>TOCONTINUEDFRACTIONSTRING</code>, <code>TODECIMAL</code>, <code>TODECIMALAPPROXIMATION</code>, <code>TOLOCALESTRING</code>, <code>TOMIXEDSTRING</code>, <code>TOREPEATINGDECIMAL</code>, <code>TOREPEATINGDECIMALINFO</code>, <code>TOSTRING</code>, <code>TRUNC</code></td>
 </tr>
 <tr class="odd">
 <td>Rational interval</td>
-<td><code>BITLENGTH</code>, <code>CONTAINS</code>, <code>CONTAINSVALUE</code>, <code>CONTAINSZERO</code>, <code>DENOMINATORINTERVAL</code>, <code>E</code>, <code>END</code>, <code>HIGH</code>, <code>INTERSECTION</code>, <code>ISASCENDING</code>, <code>LOW</code>, <code>MEDIANT</code>, <code>MIDPOINT</code>, <code>NEGATE</code>, <code>OVERLAPS</code>, <code>RANDOM</code>, <code>RANDOMPARTITION</code>, <code>RECIPROCAL</code>, <code>SHORTESTDECIMAL</code>, <code>START</code>, <code>TOMIXEDSTRING</code>, <code>TOSTRING</code>, <code>UNION</code>, <code>WIDTH</code></td>
+<td><code>BITLENGTH</code>, <code>CONTAINS</code>, <code>CONTAINSVALUE</code>, <code>CONTAINSZERO</code>, <code>DENOMINATORINTERVAL</code>, <code>E</code>, <code>END</code>, <code>HIGH</code>, <code>INTERSECTION</code>, <code>ISASCENDING</code>, <code>LOW</code>, <code>MEDIANT</code>, <code>MIDPOINT</code>, <code>NEGATE</code>, <code>OVERLAPS</code>, <code>RANDOM</code>, <code>RANDOMPARTITION</code>, <code>RECIPROCAL</code>, <code>SHORTESTDECIMAL</code>, <code>START</code>, <code>TOCOMPACTDECIMAL</code>, <code>TOMIXEDSTRING</code>, <code>TORELATIVEDECIMAL</code>, <code>TORELATIVEMIDDECIMAL</code>, <code>TOREPEATINGDECIMAL</code>, <code>TOSTRING</code>, <code>UNION</code>, <code>WIDTH</code></td>
 </tr>
 <tr class="even">
 <td>Array</td>
@@ -2352,174 +2358,184 @@ Note
 <td>Construct a certified approximate scalar from an exact candidate and rational enclosure</td>
 </tr>
 <tr class="odd">
+<td><code>CERTIFY_FORMAT</code></td>
+<td>lazy, effectful/unspecified</td>
+<td>Convert an exact number to a bounded certified representation</td>
+</tr>
+<tr class="even">
 <td><code>CODE</code></td>
 <td>eager, pure</td>
 <td>Create literal inline code</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>CODEBLOCK</code></td>
 <td>eager, pure</td>
 <td>Create a literal source-code block</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>COMPARE</code></td>
 <td>eager, pure, multifunction</td>
 <td>Compare two values; returns -1, 0, or 1</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>CONCAT</code></td>
 <td>eager, pure</td>
 <td>—</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>CONTROLPANEL</code></td>
 <td>eager, pure</td>
 <td>Group reactive controls in a portable output panel</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>CONVERTUNIT</code></td>
 <td>eager, pure</td>
 <td>Convert a quantity to a compatible display unit</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>CUSTOM_OPERATOR</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Dispatch a statically declared custom operator to a function or plugin method</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>DEFINEBASE</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Define a custom uppercase base prefix (0A = …), one-time global definition</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>DEFINEEXACTGENERATOR</code></td>
 <td>eager, pure</td>
 <td>Create an algebraic exact generator from low-to-high polynomial coefficients</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>DEFINEUNIT</code></td>
 <td>eager, pure</td>
 <td>Create a linear Unit value from a name and Unit/Quantity definition</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>DERIVATIVE</code></td>
 <td>eager, pure</td>
 <td>Postfix exact symbolic derivative</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>DESTRUCTURE_ASSIGN</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>General lhs destructuring assignment</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>DIV</code></td>
 <td>eager, pure, multifunction</td>
 <td>Division</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>DIVIDE</code></td>
 <td>eager, pure</td>
 <td>Return n lazy equally spaced points including interval endpoints</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>DIVMOD</code></td>
 <td>eager, pure</td>
 <td>Floor quotient and exact remainder for a positive divisor</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>DIVROUND</code></td>
 <td>eager, pure</td>
 <td>Rounded division</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>DIVUP</code></td>
 <td>eager, pure</td>
 <td>Ceiling division</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>DOCUMENT_TEMPLATE</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Create a Fragment from an @““” document template</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>DOUBLE_FACTORIAL</code></td>
 <td>eager, pure</td>
 <td>Double factorial of a non-negative integer</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>EMBEDDED</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Dispatch a backtick body to a registered .Name.Parse parser</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>EMPHASIS</code></td>
 <td>eager, pure</td>
 <td>Create semantic inline emphasis</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>EQ</code></td>
 <td>eager, pure, multifunction</td>
 <td>Equality check — returns 1 or null</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>EVAL</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Evaluate a deferred AST node or expression: .Eval(ast, bindings ?= _, mode ?= :inherit)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>FACTORIAL</code></td>
 <td>eager, pure</td>
 <td>Factorial of a non-negative integer</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>FIGURE</code></td>
 <td>eager, pure</td>
 <td>Wrap output with figure metadata</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>FORMULASHEET</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Create a formula-backed sheet from a tensor or rectangular array of deferred RiX formulas</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>FRAGMENT</code></td>
 <td>eager, pure</td>
 <td>Compose portable output values</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>FROMBASE</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Parse base string to number: str &lt;_ baseSpec</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>FUNCDEF</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Define a named function</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>GENERATOR</code></td>
 <td>eager, effectful/unspecified</td>
 <td>Internal array-generator marker</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>GLOBAL</code></td>
 <td>lazy, effectful/unspecified</td>
 <td>Assign a value to a variable in the global scope</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>GRID</code></td>
 <td>eager, pure</td>
 <td>Create a mathematical layout grid</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>GT</code></td>
 <td>eager, pure, multifunction</td>
 <td>Greater than — returns 1 or null</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>GTE</code></td>
 <td>eager, pure, multifunction</td>
 <td>Greater than or equal — returns 1 or null</td>
+</tr>
+<tr class="even">
+<td><code>HALO</code></td>
+<td>eager, pure</td>
+<td>Construct a halo neighborhood for bounded-refinement comparison</td>
 </tr>
 <tr class="odd">
 <td><code>HEADING</code></td>

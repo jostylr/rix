@@ -8,7 +8,7 @@ toc-depth: 2
 This page is generated from the current RiX implementation by `documentation/scripts/generate-reference.js`. Do not edit it by hand. Descriptions come from registry documentation strings; the narrative [syntax guide](../eval/syntax-guide.md) and [methods guide](../eval/methods-guide.md) provide signatures and examples.
 :::
 
-At this revision RiX exposes **218 named entries** on the default system context and registers **214 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
+At this revision RiX exposes **219 named entries** on the default system context and registers **216 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
 
 ## Public system context
 
@@ -229,7 +229,8 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.ratfun` | function | — | Canonical callable univariate rational functions with exact cancellation and Polynomial interoperability. |
 | `.rationalfunction` | function | — | Canonical callable univariate rational functions with exact cancellation and Polynomial interoperability. |
 | `.rf` | function | — | Canonical callable univariate rational functions with exact cancellation and Polynomial interoperability. |
-| `.scene3d` | function | — | Exact retained 3D scenes with deterministic wireframe Graphics snapshots. |
+| `.scene3d` | function | — | Exact retained 3D scenes with deterministic wireframe and lit Graphics snapshots. |
+| `.sternbrocot` | function | — | Pure RiX Stern-Brocot node descriptions, visible tree records, and exact formula evaluation. |
 | `.svg` | function | — | Portable SVG renderer for core Graphics scenes. |
 | `.symbolic` | function | — | Meta-plugin loading RiX representation-sensitive Fraction and FractionFunction workspaces. |
 | `.terminalascii` | function | — | Deterministic strict-ASCII fallback for tables, grids, fragments, and simple Graphics. |
@@ -242,8 +243,8 @@ Method lookup is case-flexible at the language boundary. The table uses the regi
 | Receiver | Registered methods |
 | --- | --- |
 | Integer | `ABS`, `BITLENGTH`, `E`, `NEGATE`, `TOSTRING` |
-| Rational | `ABS`, `APPROXIMATIONERROR`, `BESTAPPROXIMATION`, `BESTCONVERGENT`, `BITLENGTH`, `CEIL`, `CONVERGENT`, `CONVERGENTS`, `DENOMINATOR`, `E`, `FLOOR`, `NEGATE`, `NUMERATOR`, `RECIPROCAL`, `ROUND`, `ROUNDTO`, `TOCONTINUEDFRACTION`, `TOCONTINUEDFRACTIONAPPROXIMATION`, `TOCONTINUEDFRACTIONSTRING`, `TODECIMAL`, `TODECIMALAPPROXIMATION`, `TOMIXEDSTRING`, `TOSTRING`, `TRUNC` |
-| Rational interval | `BITLENGTH`, `CONTAINS`, `CONTAINSVALUE`, `CONTAINSZERO`, `DENOMINATORINTERVAL`, `E`, `END`, `HIGH`, `INTERSECTION`, `ISASCENDING`, `LOW`, `MEDIANT`, `MIDPOINT`, `NEGATE`, `OVERLAPS`, `RANDOM`, `RANDOMPARTITION`, `RECIPROCAL`, `SHORTESTDECIMAL`, `START`, `TOMIXEDSTRING`, `TOSTRING`, `UNION`, `WIDTH` |
+| Rational | `ABS`, `APPROXIMATIONERROR`, `BESTAPPROXIMATION`, `BESTCONVERGENT`, `BITLENGTH`, `CEIL`, `CONVERGENT`, `CONVERGENTS`, `DENOMINATOR`, `E`, `FLOOR`, `NEGATE`, `NUMERATOR`, `RECIPROCAL`, `ROUND`, `ROUNDTO`, `TOCONTINUEDFRACTION`, `TOCONTINUEDFRACTIONAPPROXIMATION`, `TOCONTINUEDFRACTIONSTRING`, `TODECIMAL`, `TODECIMALAPPROXIMATION`, `TOLOCALESTRING`, `TOMIXEDSTRING`, `TOREPEATINGDECIMAL`, `TOREPEATINGDECIMALINFO`, `TOSTRING`, `TRUNC` |
+| Rational interval | `BITLENGTH`, `CONTAINS`, `CONTAINSVALUE`, `CONTAINSZERO`, `DENOMINATORINTERVAL`, `E`, `END`, `HIGH`, `INTERSECTION`, `ISASCENDING`, `LOW`, `MEDIANT`, `MIDPOINT`, `NEGATE`, `OVERLAPS`, `RANDOM`, `RANDOMPARTITION`, `RECIPROCAL`, `SHORTESTDECIMAL`, `START`, `TOCOMPACTDECIMAL`, `TOMIXEDSTRING`, `TORELATIVEDECIMAL`, `TORELATIVEMIDDECIMAL`, `TOREPEATINGDECIMAL`, `TOSTRING`, `UNION`, `WIDTH` |
 | Array | `ALL`, `ANY`, `CONCAT`, `CONCAT!`, `COUNT`, `DISTINCT`, `DISTINCT!`, `DROPFIRST`, `DROPLAST`, `FILTER`, `FIND`, `FINDINDEX`, `FIRST`, `FLATTEN`, `FLATTEN!`, `GET`, `HASAT`, `INCLUDES`, `INDEXOF`, `INSERT`, `INSERT!`, `ISEMPTY`, `ITERATOR`, `JOIN`, `LAST`, `LASTINDEXOF`, `LEN`, `MAP`, `MOVE`, `MOVE!`, `POP!`, `PUSH`, `PUSH!`, `REDUCE`, `REMOVEAT`, `REMOVEAT!`, `REVERSE`, `REVERSE!`, `SET`, `SET!`, `SHIFT!`, `SLICE`, `SORT`, `SORT!`, `SWAP`, `SWAP!`, `UNSHIFT`, `UNSHIFT!` |
 | Lazy sequence | `FIRST`, `GET`, `ISEMPTY`, `ITERATOR`, `LAST`, `LEN`, `MATERIALIZE` |
 | Async stream | `CHUNK`, `CLOSE`, `COLLECT`, `COUNT`, `DONE`, `DROP`, `FILTER`, `FIND`, `FIRST`, `FOREACH`, `MAP`, `REDUCE`, `STATUS`, `TAKE`, `WINDOW` |
@@ -383,6 +384,7 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `CAPABILITY_REGISTER` | eager, effectful/unspecified | Register a package system capability during trusted package startup |
 | `CASE` | lazy, effectful/unspecified | Ordered case expression with condition arms, prepared-trial arms, and an optional fallback |
 | `CERTIFIED_APPROXIMATION` | eager, pure | Construct a certified approximate scalar from an exact candidate and rational enclosure |
+| `CERTIFY_FORMAT` | lazy, effectful/unspecified | Convert an exact number to a bounded certified representation |
 | `CODE` | eager, pure | Create literal inline code |
 | `CODEBLOCK` | eager, pure | Create a literal source-code block |
 | `COMPARE` | eager, pure, multifunction | Compare two values; returns -1, 0, or 1 |
@@ -417,6 +419,7 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `GRID` | eager, pure | Create a mathematical layout grid |
 | `GT` | eager, pure, multifunction | Greater than — returns 1 or null |
 | `GTE` | eager, pure, multifunction | Greater than or equal — returns 1 or null |
+| `HALO` | eager, pure | Construct a halo neighborhood for bounded-refinement comparison |
 | `HEADING` | eager, pure | Create a portable document heading |
 | `HOLE` | eager, pure | Internal hole/undefined sentinel — represents an explicitly omitted value |
 | `HOLE_COALESCE` | lazy, effectful/unspecified | Hole-coalescing: x ?\| y returns x if x is not a hole, else y |

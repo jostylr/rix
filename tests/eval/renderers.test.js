@@ -8,6 +8,8 @@ import {
     parseAndEvaluate,
 } from "../../src/index.js";
 import { createDefinition as createPngDefinition } from "../../plugins/render-png/png.plugin.rix.js";
+import { definition as quartoDefinition } from "../../plugins/render-quarto/quarto.plugin.rix.js";
+import { definition as svgDefinition } from "../../plugins/render-svg/svg.plugin.rix.js";
 
 function runtime() {
     return {
@@ -125,6 +127,27 @@ describe("renderer registry", () => {
         expect([...result.content]).toEqual([137, 80, 78, 71]);
         expect(result.toolchain).toBe("test-rasterizer");
         expect(result.metadata).toMatchObject({ width: 320, height: 200 });
+    });
+
+    test("Quarto can return stable external SVG or PNG assets", () => {
+        const graphic = parseAndEvaluate(`${sceneSource} g`, runtime());
+        const svgRegistry = new RendererRegistry();
+        svgRegistry.register(svgDefinition);
+        svgRegistry.register(quartoDefinition);
+        const svg = svgRegistry.render(graphic, "quarto", { assets: "svg", assetDir: "figures" }, { format: String });
+        expect(svg.content).toContain("![Figure 1](figures/figure-1.svg)");
+        expect(svg.assets).toHaveLength(1);
+        expect(svg.assets[0]).toMatchObject({ path: "figures/figure-1.svg", mime: "image/svg+xml" });
+        expect(svg.assets[0].content).toContain("<svg");
+
+        const pngRegistry = new RendererRegistry();
+        pngRegistry.register(createPngDefinition(() => ({
+            content: new Uint8Array([137, 80, 78, 71]), toolchain: "fixture", width: 160, height: 100,
+        })));
+        pngRegistry.register(quartoDefinition);
+        const png = pngRegistry.render(graphic, "quarto", { assets: "png" }, { format: String });
+        expect(png.content).toContain("assets/figure-1.png");
+        expect([...png.assets[0].content]).toEqual([137, 80, 78, 71]);
     });
 
     test("unsupported target features fail visibly instead of disappearing", () => {

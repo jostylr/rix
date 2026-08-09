@@ -1,0 +1,20 @@
+/**
+plugins: [algebra, latex]
+**/
+
+polynomial := .algebra.Polynomial([1, -6, 11, -6]);
+division := .algebra.SyntheticDivide(polynomial, 2);
+report := .Fragment([
+    .Heading(1, "Synthetic division"),
+    .Paragraph("Divide x^3 - 6x^2 + 11x - 6 by x - 2 using exact arithmetic."),
+    .algebra.Grid(division),
+    .Table(
+        ["result", "coefficients"],
+        [
+            ["quotient", .algebra.Coefficients(.algebra.Quotient(division))],
+            ["remainder", .algebra.Coefficients(.algebra.Remainder(division))]
+        ]
+    )
+]);
+.Out("synthetic-division.tex", report);
+0;

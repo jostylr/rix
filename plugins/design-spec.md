@@ -38,7 +38,7 @@ numeric type or one universal rendering engine.
 | Renderer registry | Implemented runtime service | `.Renderer.List`/`.Info`, generic `.Render`, MIME/extension aliases, explicit fallback negotiation, structured results/assets/diagnostics, and `.Out` target selection. |
 | `.svg`, `.canvas`, `.tikz`, `.png` | Implemented plugins | Core Graphics to SVG, Canvas 2D plans, TikZ, and host-rasterized PNG. PNG uses an approved CLI toolchain adapter. |
 | `.markdown`, `.html`, `.quarto`, `.latex`, `.pdf` | Implemented plugins | Portable document/output trees to standalone text/document formats. PDF delegates through LaTeX and an approved CLI compiler adapter. |
-| `.scene3d` | Implemented initial plugin | Retained exact mesh/polyline/point scenes, transforms, perspective/orthographic cameras, and deterministic wireframe snapshots to core Graphics. |
+| `.scene3d` | Implemented initial plugin | Retained exact mesh/polyline/point scenes, transforms, cameras and lights, plus deterministic wireframe and flat-lit snapshots to core Graphics. |
 | `.nd` | Implemented initial plugin | Exact points, polylines, polytopes/hypercubes, affine projection records, rational Cayley rotations, composition, and explicit conversion of 3D results to Scene3D. |
 | `.geometry` | Implemented Phase 1 plugin | Exact rational points, lines, circles, line intersections, ruler-and-compass constructions with provenance, and deterministic lowering to core Graphics. |
 | `.gltf` | Implemented initial renderer | Retained Scene3D to embedded-buffer glTF 2.0 JSON with explicit Z-up to Y-up and Float32 conversion diagnostics. |
@@ -58,7 +58,7 @@ numeric type or one universal rendering engine.
 | Real backends | `.ball`, `.cauchy`, `.continuedFraction`, `.algebraicReal`; later `.oracle` expansion | Alternative representations that satisfy shared real-number and enclosure protocols. `.float` and `.oracle` now have initial implementations. |
 | Geometry expansion | `.geometry` | Transformations, constraints, conics, implicit loci, and certified intersections/drawing refinement beyond the implemented ruler-and-compass slice. |
 | Plotting | `.plot` | Function, parametric, implicit, data, statistical, vector, contour, and heat-map plots. |
-| 3D scene expansion | `.scene3d` | Hidden-surface/lighting policies, adaptive surfaces and volumes, textures, animation, clipping, and interactive orbit beyond the implemented retained wireframe slice. |
+| 3D scene expansion | `.scene3d` | Certified hidden-surface/shadow policies, adaptive surfaces and volumes, textures, animation, clipping, and interactive orbit beyond the implemented retained wireframe/flat-lit slice. |
 | Higher-dimensional expansion | `.nd` | Fields, meshes, implicit regions, slices, sections, fibers, sampling, and marginalization beyond implemented affine projection. |
 | Complex visualization | `.complexViz` | Domain coloring, magnitude/phase surfaces, Cayley color mappings, Riemann-sphere views, and complex-to-complex projections. |
 | Data expansion | `.data` | Joins, groups, aggregates, calculated columns, external sources, and large-data planning beyond the implemented Phase 1 relation slice. |
@@ -444,7 +444,7 @@ always provide SVG/PNG snapshot lowering.
 
 `.scene3d` defines a retained three-dimensional scene. It must not expose
 WebGL state as the value. The initial `rix.scene3d@1` mesh/polyline/point,
-transform, camera, wireframe Snapshot, and glTF JSON slice is implemented;
+transform, camera/light, wireframe/flat-lit Snapshot, and glTF JSON slice is implemented;
 the broader surface and volume list below remains a design target.
 
 ### Scene values
@@ -811,7 +811,7 @@ Teaching-only plugins belong under `rix/examples/plugins/`, not this directory.
    and heat maps using Numerics.
 6. Extract the existing SVG/terminal behavior into renderer registrations, add
    Canvas over the same `Graphic` traversal contract, then add PNG and TikZ.
-7. **Implemented initial slice:** retained `.scene3d` schema and deterministic wireframe static snapshot.
+7. **Implemented initial slice:** retained `.scene3d` schema and deterministic wireframe/flat-lit static snapshots.
 8. **Implemented projection slice:** `.nd` exact affine projection validated with a 4D-to-3D tesseract example; slicing remains next.
 9. Add `.complexViz.DomainColoring` and `.complexViz.CayleySurface`, including
    poles, projective infinity, and uncertainty visualization.

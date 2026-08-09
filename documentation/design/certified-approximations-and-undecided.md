@@ -69,8 +69,9 @@ false or missing data.
   expression DAG are later refinements.
 - Defining probability distributions over provisional digits. An enclosure is
   epistemic/set-valued information, not a claim of uniform probability.
-- Automatically refining every comparison. A provider may later refine before
-  returning undecided, but finite comparison must work without a provider.
+- Automatically refining an ordinary comparison. Refinement is requested by a
+  halo neighborhood, described below; finite comparison continues to work
+  without a provider.
 - Defining partial repeating-period syntax such as `0.#14285?`. The first
   implementation covers ordinary radix prefixes and simple continued-fraction
   prefixes. A partial repeating block has different completion semantics and
@@ -161,8 +162,10 @@ ApproximationRepresentation
 ```
 
 Arithmetic results normally use `kind=:derived`; they retain a candidate and
-enclosure but need not pretend that the result still has the operand's digit
-prefix.
+enclosure. They also retain presentation hints (radix, certified-place count,
+and provisional-place count) when those hints can still be represented
+honestly. Presentation provenance is not a proof: it may be emitted only after
+validation against the result enclosure.
 
 `reason`, `requested`, and `achieved` are provenance. They never override the
 enclosure. They distinguish uncertainty written by the user from precision
@@ -396,6 +399,138 @@ parseable derived form `candidate?[=low:high]`. The bracket gives authoritative
 exact rational endpoints; the digits before `?` are then a contained display
 candidate, not a newly invented prefix guarantee. Do not invent a continued-
 fraction prefix from an arbitrary enclosure.
+
+Provisional digits are useful working information and should not be discarded
+merely because arithmetic occurred. A derived formatter should first transform
+the exact candidate, then test a candidate spelling against the authoritative
+result enclosure. It may preserve or recompute provisional digits when parsing
+the emitted spelling produces exactly the same enclosure. For example:
+
+```rix
+x := 23.456?789
+x + 1                 ## 24.456?789
+```
+
+Here addition translates both endpoints by one, so the decimal cylinder is
+unchanged apart from its integer part. If a candidate spelling would widen or
+narrow the enclosure, it must retain an explicit authoritative bracket:
+`candidate?[=low:high]`. The `=` in that fallback is not an arithmetic
+operator; it says that the exact interval following it is the authoritative
+enclosure. Candidate digits may precede that bracket, but may never replace it.
+
+## Number input and output conventions
+
+RiX intentionally has no `E`/`e` exponent notation. Radix shift `_^` is the
+source and display notation for this purpose. Exact number input accepts a
+leading decimal point (`.123`), underscore digit grouping (`1_000_000`), and
+compressed digit runs (`0.{0~7}1`) wherever the spelling remains lexically
+unambiguous. Source parsing is locale-independent.
+
+`_>` is the ordinary string formatter. Its continued-fraction modes are:
+
+- `".~"`: the ordinary implicit-first-coefficient spelling, such as
+  `3.~7~15`;
+- `"~"`: the same value with an explicit leading continued-fraction marker,
+  useful when a leading sign or surrounding grammar would be ambiguous.
+
+`ToContinuedFractionString(options)` is the receiver-method form. With default
+options it agrees with `_> ".~"`; its map form exposes options such as
+`maxTerms` and the alternate/long finite continued fraction. The method form is
+also where locale and grouping options live. Locale affects display strings,
+never numeric source grammar or certification.
+
+`~>` is the certified-conversion counterpart to `_>`. It returns a numeric
+`CertifiedApproximation`, not a string. Bounded radix and continued-fraction
+modes use the same mode names where meaningful; an exact finite result remains
+exact. Complicated requests use a map rather than accumulating positional
+arguments.
+
+## Halo neighborhoods and bounded refinement
+
+### Value and syntax
+
+```rix
+{~ target, epsilon }
+{~ target, epsilon, {= timeout=2, memory=64_000_000, maxWork=5000 } }
+```
+
+A halo is a comparison request, not a fuzzy number and not an enlarged target.
+`target` is an exact scalar or a rational interval and `epsilon` is a positive
+rational requested enclosure width. The optional map supplies requester
+limits. A refinable value may publish its own limits and its own provider-
+specific notion of depth. For every comparable limit, the effective limit is
+the more restrictive of requester and refiner limits.
+
+Wall-clock time is the primary generic limit. A provider should also honor a
+memory limit when it can measure or reserve memory meaningfully. `maxWork`,
+calls, iterations, precision, and depth remain supported, but depth is mainly a
+provider concern: the refiner understands what one level means. Limits are
+capabilities and request fields, not promises that a host can safely preempt
+arbitrary synchronous code. Async providers must be raced against a deadline;
+cooperative providers must check the request during work.
+
+### Relational classification
+
+For `x < {~ t, epsilon}`, refinement tries to obtain an enclosure of `x` whose
+width is at most `epsilon`, subject to the effective limits. At any stage:
+
+- return true when the enclosure proves `x < t`;
+- return false when it proves `x >= t`;
+- otherwise continue while refinement is available and allowed;
+- return undecided when the requested resolution or an effective limit is
+  reached without a proof.
+
+Other relations use their ordinary enclosure proofs. Epsilon controls how far
+to try; it does not turn equality into a tolerance comparison.
+
+### Interval membership
+
+For `x ? {~ a:b, epsilon}`, classification always concerns the original closed
+interval `[a,b]`:
+
+- true when the enclosure of `x` is contained in `[a,b]`;
+- false when it is disjoint from `[a,b]`;
+- undecided when it overlaps `[a,b]` without being contained.
+
+In particular, an enclosure disjoint from `[a,b]` is false even when it lies in
+`[a-epsilon,b+epsilon]`. The expanded interval is not a third semantic region.
+Epsilon only determines the requested refinement resolution.
+
+### Provider contract
+
+An exact value, `RationalInterval`, or finite `CertifiedApproximation` is not
+implicitly refinable. It is classified at its current enclosure. A refinable
+provider receives a normalized request containing `absoluteWidth`, deadline or
+timeout, memory, and a work-policy map. Provider capability limits and request
+limits are intersected by taking the minimum finite bound. Exhaustion returns
+the best certified enclosure plus diagnostics; it does not invalidate work
+already completed.
+
+## Guard modes and diagnostic undecided values
+
+The four prep markers have distinct contracts:
+
+| marker | false/error | undecided |
+|---|---|---|
+| `?-` | soft no-match | stop selection and return undecided |
+| `?!-` | throw | stop selection and return undecided |
+| `??-` | soft no-match | no-match; continue to the next variant/arm |
+| `??!-` | throw | throw: adequate refinement was required |
+
+Thus `??-` is the explicit multifunction fallthrough form. A direct guarded
+call with no later variant still returns undecided, rather than pretending the
+guard was false. `??!-` is for code where proceeding is valid only after the
+guard has become decidable.
+
+The plain `UNDECIDED` singleton remains the allocation-free canonical value.
+It cannot safely carry per-occurrence properties. A reason-bearing undecided
+result therefore uses a RiX diagnostic decision carrier recognized by
+`decisionState` and formatted as `?`; its external properties may record
+`reason`, effective limits, achieved width, provider diagnostics, and source.
+When such a value is assigned, its ordinary Cell can carry further annotations,
+but intermediate undecided results are values rather than automatically
+allocated Cells. Errors and traces should preserve the carrier's reason when
+available.
 
 RiX tokenizes a leading sign as unary arithmetic. Negation of a radix or
 continued-fraction approximation should transform and preserve a valid
@@ -963,6 +1098,24 @@ the final parser intentionally accepts only the new decision grammar.
 - [x] Remove legacy grammar as the final source change.
 - [x] Run Core tests, RiX parser tests, RiX evaluator/runtime tests, and the full
       monorepo test suite.
+
+### I. Halo and presentation follow-up
+
+- [x] Preserve provisional radix digits through derived arithmetic whenever
+      the compact spelling reconstructs exactly the authoritative enclosure.
+- [x] Accept leading decimals, grouped digits, and compressed digit runs in
+      RiX while retaining `_^` instead of `E` notation.
+- [x] Add certified conversion `~>` and option-map receiver formatting,
+      including alternate continued fractions, period information, interval
+      formats, and locale display.
+- [x] Add `{~ target, epsilon, limits? }` with exact relation and membership
+      classification and cooperative refiner requests.
+- [x] Make time, memory, work, and provider-specific limits intersect by the
+      more restrictive finite bound.
+- [x] Add reason-bearing undecided diagnostics without mutating the canonical
+      singleton.
+- [x] Add `??-` undecided fallthrough and `??!-` required-decision failure for
+      function prep and prepared trials.
 
 ## Required test matrix
 

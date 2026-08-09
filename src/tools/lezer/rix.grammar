@@ -51,7 +51,7 @@ Container {
   LoopContainer | MatchContainer | RangeContainer | GreaterContainer | PowerContainer |
   DollarContainer | MutationContainer | PlusContainer | StarContainer | AndContainer |
   OrContainer | BackslashContainer | SlashContainer | IncrementContainer |
-  ShiftLeftContainer | ShiftRightContainer | PlainContainer
+  ShiftLeftContainer | ShiftRightContainer | HaloContainer | PlainContainer
 }
 
 ContainerContents { Expression (Separator Expression)* }
@@ -67,6 +67,7 @@ RangeContainer { "{.." ContainerContents? BraceClose }
 GreaterContainer { "{>" ContainerContents? BraceClose }
 PowerContainer { "{^" ContainerContents? BraceClose }
 DollarContainer { "{$" ContainerContents? BraceClose }
+HaloContainer { "{~" ContainerContents? BraceClose }
 MutationContainer { "{!" ContainerContents? BraceClose }
 PlusContainer { "{+" ContainerContents? BraceClose }
 StarContainer { "{*" ContainerContents? BraceClose }

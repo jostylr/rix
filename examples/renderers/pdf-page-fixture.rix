@@ -1,0 +1,19 @@
+/**
+plugins: [pdf]
+**/
+
+diagram := .Graphics.Graphic([240, 120], [
+    .Graphics.Rectangle([8,8], [224,104], {= fill="#eef6ff", stroke="#1d4ed8", width=2 }),
+    .Graphics.Path([[24,92], [72,54], [120,72], [168,28], [216,48]], {=
+        stroke="#2563eb", width=4, fill="none"
+    }),
+    .Graphics.Circle([168,28], 7, {= fill="#be123c" })
+]);
+report := .Fragment([
+    .Heading(1, "PDF page fixture"),
+    .Paragraph("This fixed page exercises prose, exact values, a table, and vector geometry."),
+    .Table(["quantity", "value"], [["one half", 1/2], ["two thirds", 2/3]]),
+    .Figure(diagram, "A deterministic vector fixture.")
+]);
+.Out("pdf-page-fixture.pdf", report);
+0;

@@ -1,0 +1,20 @@
+/**
+plugins: [svg]
+**/
+
+## A stable visual fixture: a quadratic curve beneath translucent annotations.
+graphic := .Graphics.Graphic([320, 220], [
+    .Graphics.Rectangle([0, 0], [320, 220], {= fill="#ffffff" }),
+    .Graphics.Path([[20,110], [300,110]], {= stroke="#94a3b8", width=1 }),
+    .Graphics.Path([[160,15], [160,205]], {= stroke="#94a3b8", width=1 }),
+    .Graphics.Path([
+        [40,190], [70,145], [100,110], [130,89], [160,82],
+        [190,89], [220,110], [250,145], [280,190]
+    ], {= stroke="#2563eb", width=4, fill="none" }),
+    .Graphics.Rectangle([112,52], [96,74], {=
+        fill="#f59e0b", stroke="#b45309", width=2, opacity=1/2
+    }),
+    .Graphics.Text([160,44], "y = x^2", {= fill="#0f172a", anchor="middle", size=18 })
+]);
+.Out("polynomial-transparency.svg", graphic);
+0;

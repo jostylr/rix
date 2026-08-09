@@ -25,6 +25,20 @@ function textValue(value) {
 }
 
 describe("pure RiX Numerics plugin", () => {
+    test("intersects requester and provider time, memory, and depth limits", () => {
+        const options = runtime();
+        const limits = parseAndEvaluate(`
+            .Plugin.Load("numerics");
+            .numerics.EffectiveLimits(
+                .numerics.Request({= timeout=2, memory=100, maxDepth=8 }),
+                {= timeout=1, memory=200, maxDepth=4 }
+            )
+        `, options);
+        expect(entry(limits, "timeout").value).toBe(1n);
+        expect(entry(limits, "memory").value).toBe(100n);
+        expect(entry(limits, "maxDepth").value).toBe(4n);
+    });
+
     test("is bundled as RiX and has no concrete backend dependency", () => {
         const options = runtime();
         const info = parseAndEvaluate('.Plugin.Info("numerics")', options);

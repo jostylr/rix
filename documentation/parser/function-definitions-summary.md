@@ -1,6 +1,6 @@
 # Function and Multifunction Definitions
 
-RiX uses ordinary functions plus ordered multifunction variants. Soft prep (`?-`) performs validation, conversion, setup, and dispatch selection; strict prep (`?!-`) propagates failures.
+RiX uses ordinary functions plus ordered multifunction variants. Soft prep (`?-`) performs validation, conversion, setup, and dispatch selection; strict prep (`?!-`) propagates failures. `??-` opts into fallthrough on undecided, while `??!-` requires a decided successful guard and throws otherwise.
 
 ```rix
 Square = (x) -> x^2

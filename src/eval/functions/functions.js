@@ -138,6 +138,13 @@ function prepFailureError(fn, entryIndex) {
     return new Error(`${label} prep failed at entry ${entryIndex + 1}`);
 }
 
+function prepUndecidedError(fn, entryIndex, undecided = UNDECIDED) {
+    const label = fn?.name || "<lambda>";
+    const error = new Error(`${label} prep remained undecided at entry ${entryIndex + 1}`);
+    error.undecided = undecided;
+    return error;
+}
+
 function runCallablePrep(fn, context, evaluate) {
     const conditionals = Array.isArray(fn?.params?.conditionals) ? fn.params.conditionals : [];
     const prep = Array.isArray(fn?.params?.prep) ? fn.params.prep : [];
@@ -148,12 +155,16 @@ function runCallablePrep(fn, context, evaluate) {
     }
 
     const strict = fn?.params?.prepStrict === true;
+    const undecidedMode = fn?.params?.prepUndecided || "stop";
 
     for (let i = 0; i < entries.length; i++) {
         try {
             const value = evaluate(entries[i]);
             const state = decisionState(value);
-            if (state === "undecided") return { ok: false, undecided: true };
+            if (state === "undecided") {
+                if (undecidedMode === "throw") throw prepUndecidedError(fn, i, value);
+                return { ok: false, undecided: true, value, fallthrough: undecidedMode === "fallthrough" };
+            }
             if (state === "null") {
                 if (strict) {
                     throw prepFailureError(fn, i);
@@ -161,6 +172,7 @@ function runCallablePrep(fn, context, evaluate) {
                 return { ok: false };
             }
         } catch (error) {
+            if (error?.message?.includes("prep remained undecided")) throw error;
             if (strict) {
                 throw error;
             }
@@ -239,11 +251,11 @@ function invokeUserCallable(fn, callArgs, context, evaluate, options = {}) {
         while (true) {
             const prepResult = runCallablePrep(fn, context, evaluate);
             if (!prepResult.ok) {
-                const value = prepResult.undecided ? UNDECIDED : null;
+                const value = prepResult.undecided ? prepResult.value ?? UNDECIDED : null;
                 doTraceExit(value, false);
                 traceActive = false;
                 return returnPrepStatus
-                    ? { matched: prepResult.undecided === true, value }
+                    ? { matched: prepResult.undecided === true && prepResult.fallthrough !== true, value, unresolved: prepResult.undecided === true }
                     : value;
             }
 
@@ -294,6 +306,7 @@ function invokeMultifunction(multifn, callArgs, context, evaluate, options = {})
     rebuildMultifunctionState(multifn);
 
     const variants = namedOnly ? [namedOnly] : multifn.values;
+    let unresolved = null;
     for (let index = 0; index < variants.length; index++) {
         const variant = variants[index];
         if (!variant || (variant.type !== "function" && variant.type !== "lambda")) {
@@ -324,6 +337,7 @@ function invokeMultifunction(multifn, callArgs, context, evaluate, options = {})
             returnPrepStatus: true,
         });
         if (!result.matched) {
+            if (result.unresolved) unresolved = result.value;
             traceCallEvent(context, {
                 event: "prep_fail",
                 fn: ownerName || "<multifunction>",
@@ -344,7 +358,7 @@ function invokeMultifunction(multifn, callArgs, context, evaluate, options = {})
         return result.value;
     }
 
-    return null;
+    return unresolved ?? null;
 }
 
 /**

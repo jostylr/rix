@@ -869,6 +869,16 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td>Strict prep phase before body</td>
 </tr>
 <tr class="even">
+<td><code>(x) ??- [prep] -&gt; body</code></td>
+<td><code>LAMBDA</code></td>
+<td>Fall through on undecided prep</td>
+</tr>
+<tr class="odd">
+<td><code>(x) ??!- [prep] -&gt; body</code></td>
+<td><code>LAMBDA</code></td>
+<td>Throw unless prep becomes decided and true</td>
+</tr>
+<tr class="even">
 <td><code>expr ?- pattern: [prep]</code></td>
 <td><code>PREP_TRIAL</code></td>
 <td>Return the candidate or <code>_</code> on evaluation, binding, or prep failure</td>
@@ -877,6 +887,16 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td><code>expr ?!- pattern: [prep]</code></td>
 <td><code>PREP_TRIAL</code></td>
 <td>Return the candidate or throw on evaluation, binding, or prep failure</td>
+</tr>
+<tr class="even">
+<td><code>expr ??- pattern: [prep]</code></td>
+<td><code>PREP_TRIAL</code></td>
+<td>Let an ordered case advance on undecided prep</td>
+</tr>
+<tr class="odd">
+<td><code>expr ??!- pattern: [prep]</code></td>
+<td><code>PREP_TRIAL</code></td>
+<td>Throw when prep is undecided or fails</td>
 </tr>
 <tr class="even">
 <td><code>F(x) =&gt; body</code></td>
@@ -917,6 +937,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li>Prep-created bindings are visible to later prep entries and to the body.</li>
 <li>In <code>?-</code>, a prep entry that returns <code>_</code> or throws makes the call return <code>_</code>.</li>
 <li>In <code>?!-</code>, the same failures throw.</li>
+<li><code>?-</code> and <code>?!-</code> return <code>?</code> when prep is undecided.</li>
+<li><code>??-</code> makes undecided a no-match for ordered dispatch.</li>
+<li><code>??!-</code> throws when prep remains undecided.</li>
 </ul>
 <p>Prep is meant for validation, conversion, destructuring, and local setup. RiX does not currently restrict mutation or IO in prep.</p>
 </section>
@@ -952,11 +975,12 @@ F(3) ?!- {: x, y }: [x + y == 1]</code></pre>
 <li>variants are considered in array order</li>
 <li>prep success selects the variant</li>
 <li>prep failure (<code>_</code> or soft prep error) moves to the next variant</li>
+<li>undecided prep stops dispatch unless the variant uses <code>??-</code></li>
 <li>body errors propagate</li>
 <li>body return values are final, including <code>_</code></li>
 <li>if nothing matches, the result is <code>_</code></li>
 </ul>
-<p><code>?!-</code> keeps its strict meaning inside multifunctions: a thrown prep error or a prep result of <code>_</code> propagates as a failure instead of trying the next variant.</p>
+<p><code>?!-</code> keeps its strict meaning inside multifunctions: a thrown prep error or a prep result of <code>_</code> propagates as a failure instead of trying the next variant. <code>??!-</code> additionally treats an undecided prep result as a required-decision failure and throws. <code>??-</code> is the opt-in fallthrough form.</p>
 <p>Append and prepend forms mutate the multifunction definition:</p>
 <pre class="rix"><code>F(x) =&gt; x + 1
 F(x) ^=&gt; x * 10

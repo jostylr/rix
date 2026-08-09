@@ -715,6 +715,7 @@ x ~!: :rational</code></pre>
 <p>Prep entries run left-to-right in the function’s local scope. They may perform checks, conversions, destructuring, and local setup, and any bindings they create are visible to later prep entries and to the body.</p>
 <p><code>?-</code> is the soft form: if any prep entry returns <code>_</code> or throws, the call returns <code>_</code>.</p>
 <p><code>?!-</code> is the strict form: the same failures throw instead of collapsing to <code>_</code>.</p>
+<p>An undecided prep result is neither failure nor success. <code>?-</code> and <code>?!-</code> stop the call and return <code>?</code>. <code>??-</code> explicitly treats undecided as a no-match so a later multifunction variant or case arm can handle it. <code>??!-</code> requires a decided result and throws when the prep remains undecided.</p>
 <p><code>~:</code> and <code>~!:</code> are explicit type conversions, not trait conversions. They reuse the same copy/meta/type-canonicalization path as <code>{^ /::type/ expr }</code>, so they return a converted value with the same outfitting behavior rather than mutating the original variable in place.</p>
 <ul>
 <li><code>x ~: :type</code> returns the converted value or <code>_</code></li>
@@ -734,6 +735,8 @@ F(3) ?!- x: [x ? :Integer]</code></pre>
 <ul>
 <li><code>?-</code> returns <code>_</code> when candidate evaluation, destructuring, or prep fails.</li>
 <li><code>?!-</code> throws on the same failures.</li>
+<li><code>??-</code> advances an ordered alternative on undecided (a direct trial remains undecided when there is nowhere to advance).</li>
+<li><code>??!-</code> throws on undecided as well as strict failure.</li>
 <li>The first gate controls errors raised while evaluating the candidate.</li>
 <li>Chained gates run in source order and each gate supplies its own failure policy.</li>
 </ul>
@@ -1894,7 +1897,10 @@ m |&gt;&gt; (v, k) -&gt; k ++ "=" ++ v   ## {= a="a=2", b="b=3" }
 0xA.B?C          ## the same idea in a named base</code></pre>
 <p>These values are uncertain scalars, not interval collections. Arithmetic propagates their exact rational enclosure, and comparisons return <code>1</code>, <code>_</code>, or the standalone undecided value <code>?</code>. An optional bracket can state a tighter bound, for example <code>23.456?789[+-12]</code>; RiX rejects it if it contradicts the certified prefix.</p>
 <p>After arithmetic or provider refinement, a value may instead format as <code>23.556?[=5889/250:23557/1000]</code>. The <code>=</code> bracket stores authoritative exact endpoints so parsing the string reconstructs a certified scalar rather than an interval collection.</p>
+<p>Candidate digits are preserved through derived arithmetic when validation shows that they imply exactly the result enclosure: <code>23.456?789 + 1</code> displays as <code>24.456?789</code>. Otherwise the explicit <code>[=low:high]</code> enclosure remains.</p>
 <p>Ordinary formatter output ending in <code>...</code> is only a shortened display of its underlying value. Use <code>ToDecimalApproximation(digits)</code> or <code>ToContinuedFractionApproximation(terms)</code> when a work limit should deliberately produce a parseable certified value ending in <code>?</code>.</p>
+<p>The <code>~&gt;</code> operator is the certified-conversion counterpart to <code>_&gt;</code>: for example, <code>1/97 ~&gt; ".12"</code> and <code>103993/33102 ~&gt; ".~3"</code>. RiX uses <code>_^</code> rather than <code>E</code> scientific notation. Leading decimals, digit grouping, and compressed runs are valid source forms: <code>.125</code>, <code>1_000</code>, and <code>0.{0~7}1</code>.</p>
+<p>A halo <code>{~ target, epsilon, limits? }</code> requests bounded refinement for a comparison. Epsilon is a requested enclosure width, not a fuzzy enlargement. For <code>x ? {~ a:b, epsilon }</code>, contained is true, disjoint is false, and overlap is undecided. Optional time, memory, work, and provider-specific limits combine with provider limits by taking the more restrictive bound.</p>
 </section>
 <section id="mixed-numbers" class="level3">
 <h3 class="anchored" data-anchor-id="mixed-numbers">Mixed Numbers</h3>

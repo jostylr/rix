@@ -14,7 +14,9 @@ import {
 } from "../../runtime/lazy-sequence.js";
 import { callWithConcreteArgs } from "./functions.js";
 import { shallowCopyValue } from "../../runtime/cell.js";
-import { UNDECIDED, decisionState, isUndecided } from "../../runtime/decision.js";
+import { UNDECIDED, decisionState, isUndecided, undecidedDiagnostic } from "../../runtime/decision.js";
+import { HaloNeighborhood, enclosureOf } from "../../runtime/halo.js";
+import { maybeRefineForHalo } from "./comparison.js";
 
 function isTruthy(val) {
     return decisionState(val) === "truth";
@@ -508,9 +510,24 @@ export const collectionFunctions = {
     },
 
     MEMBER: {
-        impl(args) {
-            const [x, coll] = args;
+        impl(args, context, evaluate) {
+            let [x, coll] = args;
             if (!coll || typeof coll !== "object") return null;
+
+            if (coll instanceof HaloNeighborhood) {
+                if (!(coll.target instanceof RationalInterval)) {
+                    throw new Error("Membership halo target must be a RationalInterval");
+                }
+                x = maybeRefineForHalo(x, coll, "member", context, evaluate);
+                const enclosure = enclosureOf(x);
+                if (!enclosure) throw new Error("Halo membership requires an exact or enclosed numeric value");
+                if (coll.target.contains(enclosure)) return new Integer(1);
+                if (enclosure.high.lessThan(coll.target.low) || enclosure.low.greaterThan(coll.target.high)) return null;
+                return undecidedDiagnostic("haloOverlap", {
+                    type: "map",
+                    entries: new Map([["epsilon", coll.epsilon], ["limits", coll.limits]]),
+                });
+            }
 
             if (coll.type === "set" || coll.type === "tuple" || coll.type === "sequence") {
                 const values = coll.values || coll.elements || [];
@@ -536,15 +553,17 @@ export const collectionFunctions = {
             }
             return null;
         },
-        pure: true,
+        pure: false,
         doc: "Check membership (1 if present, null otherwise)",
     },
 
     NOT_MEMBER: {
-        impl(args) {
-            return isTruthy(collectionFunctions.MEMBER.impl(args)) ? null : new Integer(1);
+        impl(args, context, evaluate) {
+            const result = collectionFunctions.MEMBER.impl(args, context, evaluate);
+            const state = decisionState(result);
+            return state === "undecided" ? result : state === "truth" ? null : new Integer(1);
         },
-        pure: true,
+        pure: false,
         doc: "Check non-membership (1 if not present, null otherwise)",
     },
 

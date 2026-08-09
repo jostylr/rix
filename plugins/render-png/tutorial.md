@@ -27,3 +27,8 @@ or `.Out("diagram.png", scene)` with the CLI.
 - Browser: contract discovery and portable input preview only.
 - CLI: requires `rsvg-convert` or ImageMagick's `magick`.
 - Options: `scale`, `width`, `height`, and `background`.
+
+The repository's `polynomial-transparency.rix` fixture overlays a half-opacity
+annotation on a quadratic curve. Host tests render that same SVG through
+librsvg and ImageMagick and compare the visible result with a tolerant metric,
+so toolchain upgrades need not preserve incidental PNG bytes.

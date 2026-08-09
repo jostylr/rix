@@ -140,6 +140,38 @@ export function createMaterial(args) {
     return sceneValue("material", { values: new Map([["color", str(color)], ["opacity", opacity], ["width", width]]) });
 }
 
+function lightOptions(entries, name) {
+    const color = text(field(entries, "color"), "#ffffff");
+    const intensity = field(entries, "intensity", int(1));
+    if (numeric(intensity, `${name} intensity`) < 0) throw new Error(`${name} intensity must be nonnegative`);
+    if (!/^#[0-9a-f]{6}$/i.test(color) && !/^#[0-9a-f]{3}$/i.test(color)) {
+        throw new Error(`${name} color must be a three- or six-digit hexadecimal color`);
+    }
+    return { color, intensity };
+}
+
+export function createAmbientLight(args) {
+    const entries = entriesFor(args, ["color", "intensity"], "scene3d.AmbientLight");
+    return sceneValue("ambient_light", lightOptions(entries, "scene3d.AmbientLight"));
+}
+
+export function createDirectionalLight(args) {
+    const entries = entriesFor(args, ["direction", "options"], "scene3d.DirectionalLight");
+    const direction = exactVector(field(entries, "direction"), 3, "scene3d.DirectionalLight direction");
+    if (Math.hypot(...direction.map((value, index) => numeric(value, `scene3d.DirectionalLight direction ${index + 1}`))) < 1e-12) {
+        throw new Error("scene3d.DirectionalLight direction must not be zero");
+    }
+    return sceneValue("directional_light", { direction, ...lightOptions(entries, "scene3d.DirectionalLight") });
+}
+
+export function createPointLight(args) {
+    const entries = entriesFor(args, ["position", "options"], "scene3d.PointLight");
+    return sceneValue("point_light", {
+        position: exactVector(field(entries, "position"), 3, "scene3d.PointLight position"),
+        ...lightOptions(entries, "scene3d.PointLight"),
+    });
+}
+
 export function createMesh(args) {
     const entries = entriesFor(args, ["vertices", "triangles", "options"], "scene3d.Mesh");
     const vertices = Object.freeze(sequence(field(entries, "vertices"), "scene3d.Mesh vertices")
@@ -237,10 +269,16 @@ export function createScene3D(args) {
     const entries = entriesFor(args, ["children", "options"], "scene3d.Scene");
     const cameraValue = field(entries, "camera", defaultCamera());
     if (!isScene3DNode(cameraValue) || cameraValue.kind !== "camera") throw new Error("scene3d.Scene camera must be a Scene3D camera");
+    const lights = field(entries, "lights") === null ? [] : sequence(field(entries, "lights"), "scene3d.Scene lights");
+    for (const [index, light] of lights.entries()) {
+        if (!isScene3DNode(light) || !["ambient_light", "directional_light", "point_light"].includes(light.kind)) {
+            throw new Error(`scene3d.Scene light ${index + 1} must be a Scene3D light`);
+        }
+    }
     return sceneValue("scene", {
         children: normalizeChildren(field(entries, "children"), "scene3d.Scene children"),
         camera: cameraValue,
-        lights: Object.freeze(field(entries, "lights") === null ? [] : sequence(field(entries, "lights"), "scene3d.Scene lights")),
+        lights: Object.freeze([...lights]),
         metadata: field(entries, "metadata"),
         coordinateSystem: Object.freeze({ handedness: "right", up: "z", units: "unspecified" }),
     });
@@ -345,12 +383,49 @@ function styleMap(style, fill = false) {
     ]);
 }
 
+function rgb(color) {
+    if (!/^#[0-9a-f]{6}$/i.test(color) && !/^#[0-9a-f]{3}$/i.test(color)) {
+        throw new Error("Scene3D lit snapshots require hexadecimal material colors");
+    }
+    const source = color.length === 4
+        ? color.slice(1).split("").map((digit) => digit + digit).join("")
+        : color.slice(1);
+    return [0, 2, 4].map((offset) => Number.parseInt(source.slice(offset, offset + 2), 16));
+}
+
+function hex(values) {
+    return `#${values.map((value) => Math.max(0, Math.min(255, Math.round(value))).toString(16).padStart(2, "0")).join("")}`;
+}
+
+function litMeshColor(style, triangle, lights) {
+    const edge1 = subtract(triangle[1], triangle[0]);
+    const edge2 = subtract(triangle[2], triangle[0]);
+    const normal = normalize(cross(edge1, edge2), "Scene3D triangle");
+    const center = [0, 1, 2].map((index) => triangle.reduce((sum, point) => sum + point[index], 0) / 3);
+    const illumination = [0, 0, 0];
+    const activeLights = lights.length ? lights : [{ kind: "ambient_light", color: "#ffffff", intensity: int(1) }];
+    for (const light of activeLights) {
+        let factor = numeric(light.intensity, "Scene3D light intensity");
+        if (light.kind === "directional_light") {
+            const direction = normalize(light.direction.map((value, index) => -numeric(value, `Directional light direction ${index + 1}`)), "Directional light direction");
+            factor *= Math.abs(dot(normal, direction));
+        } else if (light.kind === "point_light") {
+            const position = light.position.map((value, index) => numeric(value, `Point light position ${index + 1}`));
+            factor *= Math.abs(dot(normal, normalize(subtract(position, center), "Point light position")));
+        }
+        const lightRgb = rgb(light.color);
+        for (let index = 0; index < 3; index += 1) illumination[index] += factor * lightRgb[index] / 255;
+    }
+    const base = rgb(style.color);
+    return hex(base.map((value, index) => value * Math.min(1, illumination[index])));
+}
+
 export function snapshotScene3D(args) {
     const entries = entriesFor(args, ["scene", "options"], "scene3d.Snapshot");
     const scene = field(entries, "scene");
     if (!isScene3D(scene)) throw new Error("scene3d.Snapshot requires a Scene3D scene");
     const mode = text(field(entries, "mode"), "wireframe");
-    if (mode !== "wireframe") throw new Error("scene3d.Snapshot currently supports only mode='wireframe'");
+    if (!["wireframe", "lit"].includes(mode)) throw new Error("scene3d.Snapshot mode must be 'wireframe' or 'lit'");
     const sizeValue = field(entries, "size", seq([int(640), int(480)]));
     const [width, height] = sequence(sizeValue, "scene3d.Snapshot size").map((value, index) => numeric(value, `scene3d.Snapshot size ${index + 1}`));
     if (width <= 0 || height <= 0) throw new Error("scene3d.Snapshot size must be positive");
@@ -382,14 +457,36 @@ export function snapshotScene3D(args) {
     const children = [];
     let segmentCount = 0;
     let pointCount = 0;
+    let faceCount = 0;
+    if (mode === "lit") {
+        const faces = cameraPrimitives.flatMap((primitive) => {
+            if (primitive.kind !== "mesh") return [];
+            return primitive.triangles.map((indices) => {
+                const points = indices.map((index) => primitive.points[index]);
+                return { points, style: primitive.style, depth: points.reduce((sum, point) => sum + point[2], 0) / 3 };
+            }).filter(({ points }) => points.every((point) => point[2] >= near && point[2] <= far));
+        }).sort((left, right) => right.depth - left.depth);
+        for (const face of faces) {
+            const worldPoints = face.points.map((point) => {
+                const delta = [
+                    frame.right[0] * point[0] + frame.up[0] * point[1] + frame.forward[0] * point[2],
+                    frame.right[1] * point[0] + frame.up[1] * point[1] + frame.forward[1] * point[2],
+                    frame.right[2] * point[0] + frame.up[2] * point[1] + frame.forward[2] * point[2],
+                ];
+                return delta.map((value, index) => value + frame.position[index]);
+            });
+            children.push(createPath([face.points.map(project), styleMap({ ...face.style, color: litMeshColor(face.style, worldPoints, scene.lights) }, true)]));
+            faceCount += 1;
+        }
+    }
     for (const primitive of cameraPrimitives) {
-        if (primitive.kind === "lines" || primitive.kind === "mesh") for (const [aIndex, bIndex] of primitive.segments) {
+        if (primitive.kind === "lines" || (primitive.kind === "mesh" && mode === "wireframe")) for (const [aIndex, bIndex] of primitive.segments) {
             let endpoints = [primitive.points[aIndex], primitive.points[bIndex]];
             endpoints = clipDepth(endpoints[0], endpoints[1], near, far);
             if (!endpoints) continue;
             children.push(createPath([[project(endpoints[0]), project(endpoints[1])], styleMap(primitive.style)]));
             segmentCount += 1;
-        } else {
+        } else if (primitive.kind === "points") {
             const radius = numeric(primitive.radius, "PointCloud radius");
             for (const point of primitive.points) {
                 if (point[2] < near || point[2] > far) continue;
@@ -399,14 +496,14 @@ export function snapshotScene3D(args) {
         }
     }
     const graphic = createGraphic([[width, height], children, rixMap([["schema", str("rix.graphics@1")], ["source", str(SCENE3D_SCHEMA)], ["mode", str(mode)]])]);
-    const diagnostics = scene.lights.length > 0
+    const diagnostics = mode === "wireframe" && scene.lights.length > 0
         ? [rixMap([["level", str("info")], ["code", str("scene3d-wireframe-ignores-lights")], ["message", str("Wireframe snapshots do not evaluate Scene3D lights.")]])]
         : [];
     return rixMap([
         ["value", graphic],
         ["resolved", int(1)],
         ["uncertainty", seq([])],
-        ["work", rixMap([["primitives", int(primitives.length)], ["segments", int(segmentCount)], ["points", int(pointCount)]])],
+        ["work", rixMap([["primitives", int(primitives.length)], ["segments", int(segmentCount)], ["faces", int(faceCount)], ["points", int(pointCount)]])],
         ["source", rixMap([["schema", str(SCENE3D_SCHEMA)], ["projection", str(cameraValue.projection)], ["mode", str(mode)]])],
         ["diagnostics", seq(diagnostics)],
     ]);

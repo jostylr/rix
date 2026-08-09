@@ -19,6 +19,8 @@ const symbols = [
   "/\\=",
   "\\/",
   "/\\",
+  "??!-",
+  "??-",
   "?!-",
   "?-",
   "^=>",
@@ -31,6 +33,7 @@ const symbols = [
   ">>",
   "<>",
   "_>",
+  "~>",
   "<_",
   "||>",
   "~~=",
@@ -747,8 +750,21 @@ function tryMatchNumber(input, position) {
     };
   }
 
+  // Core decimal spellings with underscore grouping and compressed digit
+  // runs. Keep this ahead of ordinary decimals so `{digits~count}` remains
+  // part of the numeric token rather than opening a RiX brace construct.
+  match = remaining.match(/^(?:(?:\d(?:_?\d)*|\{\d+~\d+\})+(?:\.(?:\d(?:_?\d)*|\{\d+~\d+\})+)?|\.(?:\d(?:_?\d)*|\{\d+~\d+\})+)(?:#(?:\d(?:_?\d)*|\{\d+~\d+\})+)?/);
+  if (match) {
+    return {
+      type: "Number",
+      original: match[0],
+      value: match[0],
+      pos: [position, position, position + match[0].length],
+    };
+  }
+
   // Decimals (including leading decimal)
-  match = remaining.match(/^-?(?:\d+\.\d+|\.\d+)/);
+  match = remaining.match(/^(?:\d(?:_?\d)*\.\d(?:_?\d)*|\.\d(?:_?\d)*)/);
   if (match) {
     return {
       type: "Number",
@@ -759,7 +775,7 @@ function tryMatchNumber(input, position) {
   }
 
   // Integers
-  match = remaining.match(/^-?\d+/);
+  match = remaining.match(/^\d(?:_?\d)*/);
   if (match) {
     return {
       type: "Number",
@@ -1107,7 +1123,7 @@ function tryMatchBrace(input, position) {
   }
 
   // 2. Sigil container detection
-  const sigilChars = new Set(["@", ";", "|", ":", "=", "?", "$", "#", "^", ">"]);
+  const sigilChars = new Set(["@", ";", "|", ":", "=", "?", "$", "#", "^", ">", "~"]);
   if (sigilChars.has(ch)) {
     const sigil = ch;
     const after = input[position + 2];
@@ -1200,7 +1216,7 @@ function tryMatchBrace(input, position) {
   // 5. All other cases: error (missing space after {)
   const { line, col } = posToLineCol(input, position);
   throw new Error(
-    `'{' must be followed by a space, a sigil (@;|:=?$#^>), or an operator (+, *, &&, ||, \\/, /\\, ++, <<, >>) at line ${line}:${col}`
+    `'{' must be followed by a space, a sigil (@;|:=?$#^>~), or an operator (+, *, &&, ||, \\/, /\\, ++, <<, >>) at line ${line}:${col}`
   );
 }
 

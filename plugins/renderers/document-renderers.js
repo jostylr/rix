@@ -36,6 +36,7 @@ function markdownTable(value, state) {
 }
 
 function graphicMarkdown(value, state) {
+    if (typeof state.graphic === "function") return state.graphic(value, state);
     try {
         return state.render(value, "svg", { alt: state.figureAlt || "" }).content;
     } catch (error) {
@@ -129,8 +130,8 @@ function blockMarkdown(value, state, depth = 0) {
     return formatOutputText(value, state.format);
 }
 
-export function renderMarkdown(value, { format, render, quarto = false } = {}) {
-    const state = { format, render, quarto, diagnostics: [], figureAlt: null };
+export function renderMarkdown(value, { format, render, quarto = false, graphic = null } = {}) {
+    const state = { format, render, quarto, graphic, diagnostics: [], figureAlt: null };
     return { content: `${blockMarkdown(value, state).trim()}\n`, diagnostics: state.diagnostics };
 }
 

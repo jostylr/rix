@@ -562,7 +562,7 @@ newline normalization.
    - [x] Demonstrate deterministic camera-projected wireframe snapshots.
    - [x] Add reference documentation, RiX Web tutorial, schema/projection tests,
      and a CLI fixture.
-   - [ ] Add retained Light constructors and a lit snapshot mode.
+   - [x] Add retained Light constructors and a lit snapshot mode.
 2. **Phase 2 — Curves, surfaces, and interaction metadata**
    - [ ] Add parametric curves/surfaces, axes, annotations, picking IDs, and
      orbit-camera descriptions.
@@ -622,7 +622,7 @@ newline normalization.
    - [x] Render paths, groups, transforms, clips, text, rectangles, circles,
      figures, and accessibility metadata.
    - [x] Add README, tutorial, focused source fixtures, and CLI/runtime tests.
-   - [ ] Add explicit RiX Web/Notebook renderer-plugin integration tests.
+   - [x] Add explicit RiX Web/Notebook renderer-plugin integration tests.
 2. **Phase 2 — Complete 2D scene fidelity**
    - [ ] Add reusable definitions, markers, gradients, patterns, masks, style
      inheritance, font policy, and stable IDs.
@@ -654,7 +654,7 @@ newline normalization.
    - [x] Provide PNG snapshots through `.png` and visible static-interaction diagnostics.
    - [x] Add README, tutorial, and SVG/Canvas comparison
      fixtures.
-   - [ ] Add a browser performance/repaint tutorial and browser interaction tests.
+   - [x] Add a browser performance/repaint tutorial and browser interaction tests.
 2. **Phase 2 — Interaction services**
    - [ ] Add device-pixel scaling, hit-test IDs, pointer-coordinate inversion,
      dirty-region repaint, and image asset loading.
@@ -677,7 +677,7 @@ newline normalization.
    - [x] Keep process execution in a host adapter and report an unavailable rasterizer.
    - [x] Add README, tutorial, dimension tests, and deterministic fixture
      policy.
-   - [ ] Add a polynomial transparency visual fixture across rasterizer versions.
+   - [x] Add a polynomial transparency visual fixture across rasterizer versions.
 2. **Phase 2 — Color and asset policy**
    - [ ] Add DPI, background, color profile, antialiasing, metadata, and
      document-region rendering.
@@ -728,7 +728,7 @@ newline normalization.
      references to a standalone `.tex` document.
    - [x] Lower embedded Graphics through the shared TikZ traversal.
    - [x] Add README, tutorial, source fixtures, and optional compilation test.
-   - [ ] Add a dedicated synthetic-division publication example.
+   - [x] Add a dedicated synthetic-division publication example.
 2. **Phase 2 — Themes, citations, and assets**
    - [ ] Add package negotiation, bibliography, numbering, figure/table
      placement, and delegated TikZ/SVG/PNG assets.
@@ -761,10 +761,10 @@ newline normalization.
 
 1. **Phase 1 — Document to QMD**
    - [x] Export structured reports to `.qmd` with front matter and inline SVG.
-   - [ ] Add external SVG/PNG asset policies.
+   - [x] Add external SVG/PNG asset policies.
    - [x] Preserve labels and ordinary Markdown where possible.
    - [x] Add README, tutorial, and golden source tests.
-   - [ ] Add an optional Quarto compilation smoke test.
+   - [x] Add an optional Quarto compilation smoke test.
 2. **Phase 2 — Projects and citations**
    - [ ] Add multi-document projects, navigation, bibliographies, themes, code
      source policy, and target-specific blocks.
@@ -781,7 +781,7 @@ newline normalization.
    - [x] Produce a PDF from portable output by delegating to the LaTeX/TikZ pipeline.
    - [x] Record the host toolchain and lowering diagnostics.
    - [x] Add README, tutorial, byte/toolchain tests, and CLI compilation smoke coverage.
-   - [ ] Add a page-render visual regression fixture.
+   - [x] Add a page-render visual regression fixture.
 2. **Phase 2 — Figures and slides**
    - [ ] Add standalone vector/raster figures, slide decks, page sizing,
      metadata, bookmarks, and font diagnostics.

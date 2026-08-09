@@ -285,6 +285,11 @@ const SYMBOL_TABLE = {
     associativity: "left",
     type: "infix",
   },
+  "~>": {
+    precedence: PRECEDENCE.CONVERSION,
+    associativity: "left",
+    type: "infix",
+  },
   "<_": {
     precedence: PRECEDENCE.CONVERSION,
     associativity: "left",
@@ -386,6 +391,8 @@ const SYMBOL_TABLE = {
   },
   "?-": { precedence: PRECEDENCE.ARROW, associativity: "right", type: "infix" },
   "?!-": { precedence: PRECEDENCE.ARROW, associativity: "right", type: "infix" },
+  "??-": { precedence: PRECEDENCE.ARROW, associativity: "right", type: "infix" },
+  "??!-": { precedence: PRECEDENCE.ARROW, associativity: "right", type: "infix" },
 
   // Membership operator (also used for function parameter conditions)
   "?": {
@@ -472,6 +479,7 @@ const SYMBOL_TABLE = {
   "{$": { precedence: 0, type: "brace_sigil" },
   "{^": { precedence: 0, type: "brace_sigil" },
   "{>": { precedence: 0, type: "brace_sigil" },
+  "{~": { precedence: 0, type: "brace_sigil" },
 
   // Mutation brace
   "{!": { precedence: 0, type: "brace_sigil" },
@@ -820,7 +828,7 @@ class Parser {
           return this.parseAngleForm();
         } else if (token.value === "{") {
           return this.parseBraceContainer();
-        } else if (token.value === "{=" || token.value === "{?" || token.value === "{;" || token.value === "{|" || token.value === "{:" || token.value === "{@" || token.value === "{#" || token.value === "{.." || token.value === "{>"
+        } else if (token.value === "{=" || token.value === "{?" || token.value === "{;" || token.value === "{|" || token.value === "{:" || token.value === "{@" || token.value === "{#" || token.value === "{.." || token.value === "{>" || token.value === "{~"
           || token.value === "{^"
           || token.value === "{$"
           || token.value === "{$$") {
@@ -1127,9 +1135,13 @@ class Parser {
       });
     }
 
-    if (operator.value === "?-" || operator.value === "?!-") {
-      this.advance(); // consume ?- / ?!-
-      const strict = operator.value === "?!-";
+    if (["?-", "?!-", "??-", "??!-"].includes(operator.value)) {
+      const prepOperator = operator.value;
+      this.advance(); // consume the prep marker
+      const strict = prepOperator.includes("!");
+      const undecidedMode = prepOperator.startsWith("??")
+        ? (strict ? "throw" : "fallthrough")
+        : "stop";
       const first = this.current.value === "["
         ? this.parseArray()
         : this.parseExpression(PRECEDENCE.INTERVAL + 1);
@@ -1146,7 +1158,7 @@ class Parser {
         }
         const prep = this.parseArray();
         const pattern = this.convertExpressionToDestructureTarget(first);
-        const gate = { pattern, prep, strict };
+        const gate = { pattern, prep, strict, undecidedMode };
 
         if (left.type === "PreparedTrial") {
           return this.createNode("PreparedTrial", {
@@ -1183,6 +1195,7 @@ class Parser {
       const fnNode = this.buildFunctionArrowNode(left, arrow, body, {
         prep,
         prepStrict,
+        prepUndecided: undecidedMode,
         variantName,
       });
       if (fnNode) {
@@ -3171,6 +3184,7 @@ class Parser {
       "{$$": "DetachedBlock",
       "{^": "ValueOutfit",
       "{>": "MultifunctionContainer",
+      "{~": "HaloContainer",
     };
 
     const nodeType = sigilTypeMap[effectiveSigil];
@@ -3299,6 +3313,9 @@ class Parser {
       this.error(`Expected closing ${primaryCloser} for ${nodeType}`);
     }
     this.advance(); // consume closer
+    if (effectiveSigil === "{~" && (elements.length < 2 || elements.length > 3)) {
+      this.error("Halo neighborhood requires target, positive epsilon, and optional limits map");
+    }
     return this.createNode(nodeType, {
       sigil: sigil,
       ...(containerName && !options.destructureAlias ? { name: containerName } : {}),
@@ -4681,7 +4698,7 @@ class Parser {
   }
 
   buildFunctionArrowNode(left, operator, body, options = {}) {
-    const { prep = null, prepStrict = false, variantName = null } = options;
+    const { prep = null, prepStrict = false, prepUndecided = "stop", variantName = null } = options;
     const namedSig = this.extractNamedFunctionSignature(left);
 
     if (operator === "=>" || operator === "^=>") {
@@ -4693,6 +4710,7 @@ class Parser {
         parameters: namedSig.parameters,
         prep,
         prepStrict,
+        ...(prepUndecided !== "stop" ? { prepUndecided } : {}),
         ...(variantName ? { variantName } : {}),
         mode: operator === "^=>" ? "prepend" : "append",
         body,
@@ -4707,6 +4725,7 @@ class Parser {
         parameters: namedSig.parameters,
         prep,
         prepStrict,
+        ...(prepUndecided !== "stop" ? { prepUndecided } : {}),
         ...(variantName ? { variantName } : {}),
         body,
         pos: left.pos,
@@ -4720,6 +4739,7 @@ class Parser {
         parameters: lambdaParameters,
         prep,
         prepStrict,
+        ...(prepUndecided !== "stop" ? { prepUndecided } : {}),
         ...(variantName ? { variantName } : {}),
         body,
         pos: left.pos,

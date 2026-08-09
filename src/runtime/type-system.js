@@ -1,7 +1,7 @@
 import { CertifiedApproximation, Integer, Rational, RationalInterval, parseCertifiedApproximation } from "@ratmath/core";
 import { createTensor, isTensor } from "./tensor.js";
 import { callWithConcreteArgs } from "../eval/functions/functions.js";
-import { UNDECIDED, isUndecided } from "./decision.js";
+import { UNDECIDED, UndecidedDiagnostic, isUndecided } from "./decision.js";
 
 function int(value) {
     return new Integer(BigInt(value));
@@ -350,19 +350,28 @@ export function registerBuiltinSemanticTypes() {
         defaultTraits: ["decision"],
         convert: (value) => isUndecided(value) ? value : null,
         validate: isUndecided,
-        export() {
+        export(value) {
             return {
                 type: "map",
                 entries: new Map([
                     ["type", stringObj("Undecided")],
-                    ["data", null],
+                    ["data", value instanceof UndecidedDiagnostic ? {
+                        type: "map",
+                        entries: new Map([
+                            ["reason", stringObj(value.reason)],
+                            ["details", value.details],
+                        ]),
+                    } : null],
                     ["cache", null],
                     ["version", new Integer(1n)],
                 ]),
             };
         },
-        import() {
-            return UNDECIDED;
+        import(value) {
+            const data = value.entries.get("data");
+            return data?.type === "map" && data.entries.get("reason")?.value
+                ? new UndecidedDiagnostic(data.entries.get("reason").value, data.entries.get("details") ?? null)
+                : UNDECIDED;
         },
         proto: () => makeProto([
             ["ToString", valueMethod("ToString", () => stringObj("?"))],

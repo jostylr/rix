@@ -35,7 +35,7 @@ The `{> ... }` sigil is the explicit multifunction literal. It closes the anonym
 
 The no-prep warning follows from the same philosophy. A prep-less variant in the middle of the list is not forbidden, but it is almost certainly a mistake because later variants become unreachable if execution reaches it. Warning instead of rejection keeps the model flexible while still surfacing a strong signal.
 
-## Function Prep Phase (`?-` / `?!-`) (2026-04-01)
+## Function Prep Phase (`?-` / `?!-` / `??-` / `??!-`) (2026-04-01, extended 2026-08-09)
 
 RiX functions now support an explicit prep stage:
 
@@ -60,6 +60,12 @@ The prep phase exists to centralize work that logically belongs between binding 
 The soft form `?-` matches RiX's null-propagation style: if a prep entry returns `_` or throws, the function call returns `_`.
 
 The strict form `?!-` keeps the same prep structure but throws instead of collapsing failure to `_`.
+
+Three-valued comparisons require two more policies. `??-` says that undecided
+is an ordered no-match because a later variant or case arm is expected to
+handle it. `??!-` says that continuation requires an adequately refined,
+decided guard, so undecided throws. Ordinary `?-` and `?!-` continue to stop
+dispatch and return undecided rather than silently selecting a later variant.
 
 Prep is intentionally permissive for now. RiX does not yet try to prove purity, block mutation, or separate benign internal state changes from externally visible mutation. The design intent is still "setup before body", but enforcement is deferred until the runtime has a sharper mutation model.
 

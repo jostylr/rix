@@ -7,6 +7,7 @@ import {
     parseAndEvaluate,
     parseAndEvaluateAsync,
     reviveDecisionValue,
+    undecidedReason,
 } from "../../src/index.js";
 import { deepCopyValue, shallowCopyValue } from "../../src/runtime/cell.js";
 import { keyOf } from "../../src/eval/functions/keyof.js";
@@ -29,6 +30,14 @@ describe("certified approximations and undecided decisions", () => {
         expect(roundTrip.toString()).toBe("23.456?789");
     });
 
+    it("accepts leading decimals, grouped digits, compressed runs, and no E notation", () => {
+        expect(parseAndEvaluate(".123").toString()).toBe("123/1000");
+        expect(parseAndEvaluate("1_000").value).toBe(1000n);
+        expect(parseAndEvaluate("0.{0~7}1").toString()).toBe("1/100000000");
+        expect(() => parseAndEvaluate("1E3")).toThrow();
+        expect(parseAndEvaluate("1_^3").value).toBe(1000n);
+    });
+
     it("preserves Ask and spaced infix-question syntax", () => {
         expect(parseAndEvaluate("23.456 ? 789")).toBeNull();
         expect(() => parseAndEvaluate("23.456?(1)")).toThrow(/ASK/);
@@ -38,7 +47,7 @@ describe("certified approximations and undecided decisions", () => {
         const result = parseAndEvaluate("23.456? + 1");
         expect(result).toBeInstanceOf(CertifiedApproximation);
         const spelling = formatValue(result);
-        expect(spelling).toContain("?[=");
+        expect(spelling).toBe("24.456?");
         const roundTrip = parseAndEvaluate(spelling);
         expect(roundTrip).toBeInstanceOf(CertifiedApproximation);
         expect(roundTrip.enclosure.equals(result.enclosure)).toBe(true);
@@ -101,6 +110,40 @@ describe("certified approximations and undecided decisions", () => {
         const constructed = parseAndEvaluate('.CertifiedApproximation(3/2, 1:2, {= reason=:budgetExhausted })');
         expect(constructed).toBeInstanceOf(CertifiedApproximation);
         expect(constructed.enclosure.toString()).toBe("1:2");
+        expect(formatValue(parseAndEvaluate('1/97 ~> ".10"'))).toBe("0.0103092783?");
+        expect(formatValue(parseAndEvaluate('103993/33102 ~> ".~3"'))).toBe("3.~7~15?");
+        expect(formatValue(parseAndEvaluate('(3/2).ToContinuedFractionString({= long=1 })'))).toBe("1.~1~1");
+        expect(formatValue(parseAndEvaluate('(1234567/100).ToLocaleString({= decimal=",", group=".", groupSize=3 })')))
+            .toBe("12.345,67");
+    });
+
+    it("uses halos as bounded-resolution requests without fuzzy membership", () => {
+        expect(parseAndEvaluate("0.54 < {~ 0.55, 0.001 }").value).toBe(1n);
+        expect(parseAndEvaluate("0.55 < {~ 0.55, 0.001 }")).toBeNull();
+        expect(parseAndEvaluate("0.551? ? {~ 0.55:0.56, 0.001 }").value).toBe(1n);
+        expect(parseAndEvaluate("0.5495 ? {~ 0.55:0.56, 0.001 }")).toBeNull();
+        const overlap = parseAndEvaluate("0.549? ? {~ 0.55:0.56, 0.001 }");
+        expect(isUndecided(overlap)).toBe(true);
+        expect(undecidedReason(overlap)).toBe("haloOverlap");
+        expect(formatValue(overlap)).toBe("?");
+        expect(undecidedReason(parseAndEvaluate("d := 0.549? ? {~ 0.55:0.56, 0.001 }; .TypeImport(.TypeExport(d))")))
+            .toBe("haloOverlap");
+        expect(undecidedReason(parseAndEvaluate("0.549? < {~ 0.55, 0.001 }")))
+            .toBe("haloResolutionReached");
+        expect(undecidedReason(parseAndEvaluate("0.549? !? {~ 0.55:0.56, 0.001 }")))
+            .toBe("haloOverlap");
+        expect(parseAndEvaluate(`
+            provider := {= };
+            provider._proto = {=
+                NumericsCapabilities=(self) -> {= timeout=1, memory=2000, maxWork=3 },
+                Refine=(self, request) -> {;
+                    limitsMerged = request[:timeout] == 1 &&
+                        request[:memory] == 1000 && request[:work][:maxWork] == 3;
+                    {= interval=limitsMerged ?: 0.54:0.541 ?_ 0.549:0.551 };
+                }
+            };
+            provider < {~ 0.55, 0.001, {= timeout=2, memory=1000, maxWork=10 } }
+        `).value).toBe(1n);
     });
 
     it("does not accept undecided as an ordinary predicate", () => {
@@ -148,5 +191,25 @@ describe("certified approximations and undecided decisions", () => {
         expect(result.values[2]).toBe(UNDECIDED);
         expect(parseAndEvaluate("Strict(x) ?!- [x < 0.55] -> :below; Strict(0.5?)"))
             .toBe(UNDECIDED);
+    });
+
+    it("supports explicit undecided fallthrough and required-decision guards", () => {
+        const source = `
+            Classify = {>
+                (x) ??- [x < 0.55] /Below/ -> :below,
+                (x) /Fallback/ -> :fallback
+            };
+            Classify(0.5?)
+        `;
+        expect(parseAndEvaluate(source).value).toBe("fallback");
+        let requiredError;
+        try {
+            parseAndEvaluate("Required(x) ??!- [x < {~ 0.55, 0.001 }] -> x; Required(0.549?)");
+        } catch (error) {
+            requiredError = error;
+        }
+        expect(requiredError?.message).toMatch(/remained undecided/);
+        expect(undecidedReason(requiredError?.undecided)).toBe("haloResolutionReached");
+        expect(parseAndEvaluate("{? 0.5? ??- x: [x < 0.55]; 7 }").value).toBe(7n);
     });
 });

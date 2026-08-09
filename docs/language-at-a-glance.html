@@ -385,7 +385,8 @@ ul.task-list li input[type="checkbox"] {
 <pre class="rix"><code>23.456?          ## certified prefix; enclosure 23.456:23.457
 23.456?789       ## 789 is provisional, not part of the guarantee
 3.~7~15?         ## a continued-fraction cylinder, not an exact finite CF
-(1/7).ToDecimalApproximation(5)  ## 0.14285?</code></pre>
+(1/7).ToDecimalApproximation(5)  ## 0.14285?
+(1/97) ~&gt; ".12"                 ## certified bounded conversion</code></pre>
 <p>Every such value carries exact rational endpoints. Arithmetic propagates the enclosure, while comparisons may produce the undecided decision <code>?</code>:</p>
 <pre class="rix"><code>decision := 23.456? &lt; 23.4565
 decision ?: "yes" ?_ "no" ?? "needs refinement"</code></pre>
@@ -406,7 +407,7 @@ Sq 3x           ## Sq(3*x)</code></pre>
 <h2 class="anchored" data-anchor-id="functions-can-prepare-their-inputs">Functions can prepare their inputs</h2>
 <pre class="rix"><code>Positive(x) ?- [x &gt; 0] -&gt; x
 Nonzero(x) ?!- [x != 0] -&gt; x</code></pre>
-<p><code>?-</code> is a soft preparation gate: failure means “this function does not accept that candidate.” <code>?!-</code> is strict and propagates failure. Ordered variants combine into multifunctions, letting dispatch be written in RiX rather than hidden in host code.</p>
+<p><code>?-</code> is a soft preparation gate: failure means “this function does not accept that candidate.” <code>?!-</code> is strict and propagates failure. <code>??-</code> additionally lets undecided fall through; <code>??!-</code> throws unless the guard is decided and successful. Ordered variants combine into multifunctions, letting dispatch be written in RiX rather than hidden in host code.</p>
 </section>
 <section id="containers-announce-what-they-are" class="level2">
 <h2 class="anchored" data-anchor-id="containers-announce-what-they-are">Containers announce what they are</h2>

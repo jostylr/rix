@@ -26,6 +26,7 @@ RiX delegates its foundational exact arithmetic to RatMath core types. Approxima
 23.456?789       ## 789 is provisional, not part of the guarantee
 3.~7~15?         ## a continued-fraction cylinder, not an exact finite CF
 (1/7).ToDecimalApproximation(5)  ## 0.14285?
+(1/97) ~> ".12"                 ## certified bounded conversion
 ```
 
 Every such value carries exact rational endpoints. Arithmetic propagates the
@@ -67,7 +68,7 @@ Positive(x) ?- [x > 0] -> x
 Nonzero(x) ?!- [x != 0] -> x
 ```
 
-`?-` is a soft preparation gate: failure means “this function does not accept that candidate.” `?!-` is strict and propagates failure. Ordered variants combine into multifunctions, letting dispatch be written in RiX rather than hidden in host code.
+`?-` is a soft preparation gate: failure means “this function does not accept that candidate.” `?!-` is strict and propagates failure. `??-` additionally lets undecided fall through; `??!-` throws unless the guard is decided and successful. Ordered variants combine into multifunctions, letting dispatch be written in RiX rather than hidden in host code.
 
 ## Containers announce what they are
 

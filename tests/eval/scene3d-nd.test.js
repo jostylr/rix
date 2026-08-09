@@ -25,6 +25,32 @@ describe("Scene3D and n-dimensional geometry plugins", () => {
         expect(result.values[3].value).toBe("wireframe");
     });
 
+    test("retains lights and produces a deterministic lit mesh snapshot", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("scene3d");
+            mesh := .scene3d.Mesh(
+                [[-1,-1,0], [1,-1,0], [0,1,0]],
+                [[1,2,3]],
+                {= color="#4080c0" }
+            );
+            ambient := .scene3d.AmbientLight("#ffffff", 1/4);
+            sun := .scene3d.DirectionalLight([1,1,-2], {= intensity=3/4 });
+            scene := .scene3d.Scene([mesh], {=
+                camera=.scene3d.PerspectiveCamera([3,3,2], [0,0,0]),
+                lights=[ambient, sun]
+            });
+            snapshot := .scene3d.Snapshot(scene, {= size=[240,180], mode="lit" });
+            [ambient, sun, scene, snapshot];
+        `);
+        expect(result.values[0]).toMatchObject({ kind: "ambient_light", color: "#ffffff" });
+        expect(result.values[1]).toMatchObject({ kind: "directional_light" });
+        expect(result.values[2].lights).toHaveLength(2);
+        const snapshot = result.values[3].entries;
+        expect(snapshot.get("source").entries.get("mode").value).toBe("lit");
+        expect(snapshot.get("work").entries.get("faces").value).toBe(1n);
+        expect(snapshot.get("value").children[0]).toMatchObject({ kind: "path" });
+    });
+
     test("projects a tesseract exactly and records the projection chain", () => {
         const result = parseAndEvaluate(`
             .Plugin.Load("scene3d"); .Plugin.Load("nd");
@@ -70,4 +96,3 @@ describe("Scene3D and n-dimensional geometry plugins", () => {
         });
     });
 });
-

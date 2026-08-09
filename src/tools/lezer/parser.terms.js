@@ -46,5 +46,6 @@ export const
   IncrementContainer = 44,
   ShiftLeftContainer = 45,
   ShiftRightContainer = 46,
-  PlainContainer = 47,
-  Postfix = 48
+  HaloContainer = 47,
+  PlainContainer = 48,
+  Postfix = 49

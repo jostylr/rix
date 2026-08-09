@@ -8,3 +8,8 @@ timelines must already have a static representation.
 Use `.pdf.Render(document)` in a capable host or `.Out("report.pdf", document)`
 with the CLI. Browser hosts without a compiler report
 `pdf-toolchain-unavailable`.
+
+The optional host regression test compiles
+[`pdf-page-fixture.rix`](../../examples/renderers/pdf-page-fixture.rix), renders
+its first page through Poppler, and checks page geometry plus nonblank ink
+coverage without treating compiler-specific PDF bytes as a stable golden.

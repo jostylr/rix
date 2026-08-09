@@ -28,3 +28,8 @@ Use `.pdf.Render(report, {= title="Exact report" })` in a capable host, or
 - Browser: contract discovery and portable input preview only.
 - CLI: requires `pdflatex`.
 - Option: `title`; compilation always uses standalone LaTeX.
+
+The CLI regression fixture combines prose, a table of exact rationals, and a
+vector Graphic on one letter-size page. When `pdflatex` and Poppler are
+available, the test rasterizes that page and checks its dimensions and ink
+coverage rather than comparing unstable compiler metadata bytes.

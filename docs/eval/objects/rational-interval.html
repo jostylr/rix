@@ -476,6 +476,26 @@ ul.task-list li input[type="checkbox"] {
 <td>Format both endpoints as mixed numbers.</td>
 </tr>
 <tr class="even">
+<td><code>interval.ToRepeatingDecimal(options?)</code></td>
+<td><code>String \| null</code></td>
+<td>Format both endpoints as repeating decimals with an optional limit policy.</td>
+</tr>
+<tr class="odd">
+<td><code>interval.ToCompactDecimal()</code></td>
+<td><code>String</code></td>
+<td>Compact a shared decimal prefix and endpoint suffixes.</td>
+</tr>
+<tr class="even">
+<td><code>interval.ToRelativeMidDecimal()</code></td>
+<td><code>String</code></td>
+<td>Format exact offsets around the midpoint.</td>
+</tr>
+<tr class="odd">
+<td><code>interval.ToRelativeDecimal()</code></td>
+<td><code>String</code></td>
+<td>Format exact offsets around a short contained decimal.</td>
+</tr>
+<tr class="even">
 <td><code>interval.ToString()</code></td>
 <td><code>String</code></td>
 <td>Return the exact interval spelling.</td>
@@ -524,6 +544,10 @@ parts.Len() ##@ == 4;
 (1/4:3/4).E(2) ##@ == 25:75;
 i.BitLength() ##@ &gt; 0;
 (7/3:8/3).ToMixedString().Len() ##@ &gt; 0;
+i.ToRepeatingDecimal().Len() ##@ &gt; 0;
+i.ToCompactDecimal().Len() ##@ &gt; 0;
+i.ToRelativeMidDecimal().Len() ##@ &gt; 0;
+i.ToRelativeDecimal().Len() ##@ &gt; 0;
 i.ToString() ##@ == "1/10:2/5";
 i.CheckTraits() ##@ == 1;</code></pre>
 <p>Seeding <code>.RNG</code> makes examples and simulations repeatable. Without an explicit seed, the host’s configured random source is used.</p>

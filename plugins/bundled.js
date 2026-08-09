@@ -186,9 +186,9 @@ const BUNDLED_PLUGINS = [
     },
     {
         metadata: {
-            id: "scene3d", description: "Exact retained 3D scenes with deterministic wireframe Graphics snapshots.",
+            id: "scene3d", description: "Exact retained 3D scenes with deterministic wireframe and lit Graphics snapshots.",
             kind: "host", mount: "scene3d",
-            exports: ["Scene", "Group", "Transform", "Mesh", "Polyline", "PointCloud", "Material", "PerspectiveCamera", "OrthographicCamera", "Snapshot"],
+            exports: ["Scene", "Group", "Transform", "Mesh", "Polyline", "PointCloud", "Material", "AmbientLight", "DirectionalLight", "PointLight", "PerspectiveCamera", "OrthographicCamera", "Snapshot"],
             groups: ["Scene3D", "Graphics"], permissions: [], provides: ["rix.scene3d@1"], schemas: ["rix.scene3d@1"],
             snapshot: true, deterministic: true, defaultEnabled: false,
         },

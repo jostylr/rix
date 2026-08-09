@@ -13,17 +13,22 @@ Implemented constructors:
 - `Polyline(points, {= closed?, color?, width?, opacity?, material? })`
 - `PointCloud(points, {= radius?, color?, opacity?, material? })`
 - `Material({= color?, opacity?, width? })`
+- `AmbientLight(color?, intensity?)`
+- `DirectionalLight(direction, {= color?, intensity? })`
+- `PointLight(position, {= color?, intensity? })`
 - `PerspectiveCamera(position, target, {= up?, fov?, near?, far? })`
 - `OrthographicCamera(position, target, {= up?, scale?, near?, far? })`
 - `Snapshot(scene, {= camera?, size?, mode? })`
 
-`Snapshot` currently accepts only `mode="wireframe"`. It returns an
+`Snapshot` accepts `mode="wireframe"` and `mode="lit"`. Lit snapshots use
+deterministic flat Lambert shading and painter's ordering over retained mesh
+triangles. It returns an
 adaptive-result map whose `value` is a core Graphic and whose `work`, `source`,
-`uncertainty`, and `diagnostics` fields make the boundary inspectable. Lighting,
-hidden-surface removal, adaptive surfaces/volumes, texture, and interaction are
-not silently approximated; they remain future modes or producers.
+`uncertainty`, and `diagnostics` fields make the boundary inspectable. Shadows,
+triangle clipping, certified hidden-surface removal, adaptive surfaces/volumes,
+texture, and interaction are not silently approximated; they remain future
+modes or producers.
 
 See the [3D/ND guide](../../documentation/eval/scene3d-guide.md), the
 [browser tutorial](tutorial.md), and the runnable
 [`tesseract.rix`](../../examples/geometry/tesseract.rix) example.
-

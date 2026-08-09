@@ -62,7 +62,7 @@
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/reference/system-reference.html</loc>
-    <lastmod>2026-08-09T01:58:22.372Z</lastmod>
+    <lastmod>2026-08-09T14:19:46.702Z</lastmod>
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/eval/objects/cayley.html</loc>
@@ -94,7 +94,7 @@
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/eval/objects/rational-interval.html</loc>
-    <lastmod>2026-08-07T21:22:16.974Z</lastmod>
+    <lastmod>2026-08-09T14:17:54.090Z</lastmod>
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/eval/objects/integer.html</loc>
@@ -102,11 +102,11 @@
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/eval/syntax-guide.html</loc>
-    <lastmod>2026-08-09T01:57:47.263Z</lastmod>
+    <lastmod>2026-08-09T14:06:35.428Z</lastmod>
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/eval/scene3d-guide.html</loc>
-    <lastmod>2026-08-07T13:18:12.948Z</lastmod>
+    <lastmod>2026-08-09T13:48:49.777Z</lastmod>
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/eval/output-guide.html</loc>
@@ -130,11 +130,11 @@
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/language-at-a-glance.html</loc>
-    <lastmod>2026-08-09T01:20:42.360Z</lastmod>
+    <lastmod>2026-08-09T14:06:47.834Z</lastmod>
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/introduction.html</loc>
-    <lastmod>2026-08-09T01:57:47.314Z</lastmod>
+    <lastmod>2026-08-09T14:06:35.379Z</lastmod>
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/eval/sheet-guide.html</loc>
@@ -150,11 +150,11 @@
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/eval/methods-guide.html</loc>
-    <lastmod>2026-08-09T01:22:59.594Z</lastmod>
+    <lastmod>2026-08-09T14:06:35.521Z</lastmod>
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/eval/objects/rational.html</loc>
-    <lastmod>2026-08-09T01:19:59.481Z</lastmod>
+    <lastmod>2026-08-09T14:06:35.474Z</lastmod>
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/eval/objects/certified-approximation.html</loc>
@@ -242,7 +242,7 @@
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/rix-rationales.html</loc>
-    <lastmod>2026-08-09T01:22:59.643Z</lastmod>
+    <lastmod>2026-08-09T14:06:35.568Z</lastmod>
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/design/parser/questions.html</loc>

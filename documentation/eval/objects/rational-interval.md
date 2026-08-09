@@ -29,6 +29,10 @@
 | `interval.E(exponent)` | `RationalInterval` | Multiply both bounds exactly by `10^exponent`. |
 | `interval.BitLength()` | `Integer` | Return the combined exact storage bit length. |
 | `interval.ToMixedString()` | `String` | Format both endpoints as mixed numbers. |
+| `interval.ToRepeatingDecimal(options?)` | `String \| null` | Format both endpoints as repeating decimals with an optional limit policy. |
+| `interval.ToCompactDecimal()` | `String` | Compact a shared decimal prefix and endpoint suffixes. |
+| `interval.ToRelativeMidDecimal()` | `String` | Format exact offsets around the midpoint. |
+| `interval.ToRelativeDecimal()` | `String` | Format exact offsets around a short contained decimal. |
 | `interval.ToString()` | `String` | Return the exact interval spelling. |
 | `interval.CheckTraits()` | `1 \| null` | Validate attached semantic traits. |
 
@@ -71,6 +75,10 @@ parts.Len() ##@ == 4;
 (1/4:3/4).E(2) ##@ == 25:75;
 i.BitLength() ##@ > 0;
 (7/3:8/3).ToMixedString().Len() ##@ > 0;
+i.ToRepeatingDecimal().Len() ##@ > 0;
+i.ToCompactDecimal().Len() ##@ > 0;
+i.ToRelativeMidDecimal().Len() ##@ > 0;
+i.ToRelativeDecimal().Len() ##@ > 0;
 i.ToString() ##@ == "1/10:2/5";
 i.CheckTraits() ##@ == 1;
 ```

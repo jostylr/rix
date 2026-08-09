@@ -266,6 +266,11 @@ Prep entries run left-to-right in the function's local scope. They may perform c
 
 `?!-` is the strict form: the same failures throw instead of collapsing to `_`.
 
+An undecided prep result is neither failure nor success. `?-` and `?!-` stop
+the call and return `?`. `??-` explicitly treats undecided as a no-match so a
+later multifunction variant or case arm can handle it. `??!-` requires a
+decided result and throws when the prep remains undecided.
+
 `~:` and `~!:` are explicit type conversions, not trait conversions. They reuse the same copy/meta/type-canonicalization path as `{^ /::type/ expr }`, so they return a converted value with the same outfitting behavior rather than mutating the original variable in place.
 
 - `x ~: :type` returns the converted value or `_`
@@ -296,6 +301,9 @@ prep code.
 
 - `?-` returns `_` when candidate evaluation, destructuring, or prep fails.
 - `?!-` throws on the same failures.
+- `??-` advances an ordered alternative on undecided (a direct trial remains
+  undecided when there is nowhere to advance).
+- `??!-` throws on undecided as well as strict failure.
 - The first gate controls errors raised while evaluating the candidate.
 - Chained gates run in source order and each gate supplies its own failure
   policy.
@@ -1627,10 +1635,25 @@ After arithmetic or provider refinement, a value may instead format as
 endpoints so parsing the string reconstructs a certified scalar rather than an
 interval collection.
 
+Candidate digits are preserved through derived arithmetic when validation
+shows that they imply exactly the result enclosure: `23.456?789 + 1` displays
+as `24.456?789`. Otherwise the explicit `[=low:high]` enclosure remains.
+
 Ordinary formatter output ending in `...` is only a shortened display of its
 underlying value. Use `ToDecimalApproximation(digits)` or
 `ToContinuedFractionApproximation(terms)` when a work limit should deliberately
 produce a parseable certified value ending in `?`.
+
+The `~>` operator is the certified-conversion counterpart to `_>`: for example,
+`1/97 ~> ".12"` and `103993/33102 ~> ".~3"`. RiX uses `_^` rather than `E`
+scientific notation. Leading decimals, digit grouping, and compressed runs are
+valid source forms: `.125`, `1_000`, and `0.{0~7}1`.
+
+A halo `{~ target, epsilon, limits? }` requests bounded refinement for a
+comparison. Epsilon is a requested enclosure width, not a fuzzy enlargement.
+For `x ? {~ a:b, epsilon }`, contained is true, disjoint is false, and overlap
+is undecided. Optional time, memory, work, and provider-specific limits combine
+with provider limits by taking the more restrictive bound.
 
 ### Mixed Numbers
 Mixed numbers are supported using a double period `..` to attach an integer to a fraction seamlessly (with no internal spaces):

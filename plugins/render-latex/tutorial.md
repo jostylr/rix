@@ -28,3 +28,20 @@ write a complete source document from the CLI.
 - Browser: complete TeX source generation; no compilation.
 - CLI: no external tools to emit `.tex`.
 - Options: `title` and `standalone`.
+
+## Publish synthetic division
+
+The Algebra Grid is a portable document node, so it lowers directly into a
+LaTeX table without rebuilding the calculation for TeX.
+
+```rix
+.Plugin.Load("algebra");
+.Plugin.Load("latex");
+polynomial := .algebra.Polynomial([1, -6, 11, -6]);
+division := .algebra.SyntheticDivide(polynomial, 2);
+report := .Fragment([
+    .Heading(1, "Synthetic division"),
+    .algebra.Grid(division)
+]);
+.latex.Render(report).Get("content");
+```

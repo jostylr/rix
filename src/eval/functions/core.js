@@ -12,10 +12,11 @@ import {
     CertifiedApproximation,
     certifiedContinuedFractionPrefix,
     certifiedRadixPrefix,
+    boundedContinuedFractionApproximation,
     parseNumber as parseCoreNumber,
 } from "@ratmath/core";
 import { HOLE, isHole } from "../../runtime/hole.js";
-import { UNDECIDED } from "../../runtime/decision.js";
+import { UNDECIDED, decisionState } from "../../runtime/decision.js";
 import {
     shallowCopyValue, deepCopyValue,
     copyAllMeta, transferMetaForUpdate,
@@ -41,6 +42,7 @@ import {
     registerTypeFromRixSpec,
 } from "../../runtime/type-system.js";
 import { callWithConcreteArgs } from "./functions.js";
+import { HaloNeighborhood } from "../../runtime/halo.js";
 
 const BASE_RESERVED_CHARS = new Set([".", "/", "#", "~", "_", "^", "+", "-"]);
 // ImportJS resolves module targets to absolute paths before loading them, so
@@ -468,10 +470,12 @@ function resolveModeSpec(modeValue) {
     if (modeValue === undefined || modeValue === null) return { mode: 1 };
     if (typeof modeValue === "string") {
         const s = modeValue.trim().toLowerCase();
-        const limitedRadix = s.match(/^(?:\.|#|repeat|radix)(\d+)$/);
+    const limitedRadix = s.match(/^(?:\.|#|repeat|radix)(\d+)$/);
         if (limitedRadix) return { mode: 2, limit: parseInt(limitedRadix[1], 10) };
-        const limitedShifted = s.match(/^(?:\^|_\^|shifted)(\d+)$/);
-        if (limitedShifted) return { mode: 5, limit: parseInt(limitedShifted[1], 10) };
+    const limitedShifted = s.match(/^(?:\^|_\^|shifted)(\d+)$/);
+    if (limitedShifted) return { mode: 5, limit: parseInt(limitedShifted[1], 10) };
+        const limitedCf = s.match(/^(?:\.~|~|cf)(\d+)$/);
+        if (limitedCf) return { mode: s.startsWith("~") ? 4 : 3, limit: parseInt(limitedCf[1], 10) };
         const alias = BASE_MODE_ALIASES.get(s);
         if (alias !== undefined) return { mode: alias };
         throw new Error(`Unknown formatting mode '${modeValue}'`);
@@ -486,6 +490,35 @@ function resolveModeSpec(modeValue) {
 
 function toBaseDigitsInt(value, baseSystem) {
     return groupDigits(baseSystem.fromDecimal(value));
+}
+
+function boundedBaseApproximation(value, baseSystem, digitLimit) {
+    if (value instanceof CertifiedApproximation) return value;
+    const limit = digitLimit ?? DEFAULT_BASE_EXPANSION_LIMIT;
+    if (!Number.isSafeInteger(limit) || limit < 0) throw new Error("Certified radix digit limit must be nonnegative");
+    const rational = toRationalValue(value);
+    const negative = rational.numerator < 0n;
+    const numerator = negative ? -rational.numerator : rational.numerator;
+    const integer = numerator / rational.denominator;
+    let remainder = numerator % rational.denominator;
+    let digits = "";
+    for (let index = 0; index < limit && remainder !== 0n; index++) {
+        remainder *= BigInt(baseSystem.base);
+        digits += baseSystem.fromDecimal(remainder / rational.denominator);
+        remainder %= rational.denominator;
+    }
+    if (remainder === 0n) return value;
+    const integerDigits = baseSystem.fromDecimal(integer);
+    return certifiedRadixPrefix({
+        integerDigits,
+        fractionalDigits: digits,
+        negative,
+        baseSystem,
+        original: `${negative ? "-" : ""}${integerDigits}${digits.length ? `.${digits}` : ""}?`,
+        reason: "truncated",
+        requested: { fractionalDigits: limit, base: baseSystem.base },
+        achieved: { fractionalDigits: digits.length },
+    });
 }
 
 function toBaseString(value, baseSystem, modeSpec = { mode: 1 }) {
@@ -595,6 +628,13 @@ function parseLiteral(str) {
     const isCoreUncertainty = isCoreApproximation ||
         /^[+-]?(?:\d(?:_?\d)*(?:\.(?:\d(?:_?\d)*)?)?|\.\d(?:_?\d)*)\[[^\]]+\]$/.test(str);
     if (isCoreUncertainty) {
+        return parseCoreNumber(str);
+    }
+
+    // Locale-independent Core decimal grammar, including leading points,
+    // underscore grouping, and compressed digit runs. RiX deliberately does
+    // not add E/e exponent notation; `_^` is handled below.
+    if (/^(?:(?:\d(?:_?\d)*|\{\d+~\d+\})+(?:\.(?:\d(?:_?\d)*|\{\d+~\d+\})*)?|\.(?:\d(?:_?\d)*|\{\d+~\d+\})+)(?:#(?:\d(?:_?\d)*|\{\d+~\d+\})+)?$/.test(str)) {
         return parseCoreNumber(str);
     }
 
@@ -1386,6 +1426,12 @@ function preparedTrialFailureError(gateIndex, entryIndex = null) {
     return new Error(`Prepared trial failed at ${location}`);
 }
 
+function preparedTrialUndecidedError(gateIndex, entryIndex, undecided) {
+    const error = new Error(`Prepared trial remained undecided at gate ${gateIndex + 1}, prep entry ${entryIndex + 1}`);
+    error.undecided = undecided;
+    return error;
+}
+
 function evaluatePreparedTrial(args, context, evaluate, preserveFailure) {
     const candidateNode = args[0];
     const gates = args.slice(1);
@@ -1411,7 +1457,17 @@ function evaluatePreparedTrial(args, context, evaluate, preserveFailure) {
                 const prep = Array.isArray(gate.prep) ? gate.prep : [];
                 for (let entryIndex = 0; entryIndex < prep.length; entryIndex++) {
                     const value = evaluate(prep[entryIndex]);
-                    if (value === null) {
+                    const state = decisionState(value);
+                    if (state === "undecided") {
+                        if (gate.undecidedMode === "throw") {
+                            throw preparedTrialUndecidedError(gateIndex, entryIndex, value);
+                        }
+                        if (gate.undecidedMode === "fallthrough") {
+                            return preserveFailure ? PREP_TRIAL_NO_MATCH : UNDECIDED;
+                        }
+                        return UNDECIDED;
+                    }
+                    if (state === "null") {
                         if (strict) {
                             throw preparedTrialFailureError(gateIndex, entryIndex);
                         }
@@ -1419,6 +1475,7 @@ function evaluatePreparedTrial(args, context, evaluate, preserveFailure) {
                     }
                 }
             } catch (error) {
+                if (error?.message?.includes("remained undecided")) throw error;
                 if (strict) throw error;
                 return preparedTrialFailure(preserveFailure);
             }
@@ -1483,6 +1540,13 @@ export function deepSetMutable(value, flag, visited = new Set()) {
 }
 
 export const coreFunctions = {
+    HALO: {
+        impl(args) {
+            return new HaloNeighborhood(args[0], args[1], args[2] ?? null);
+        },
+        pure: true,
+        doc: "Construct a halo neighborhood for bounded-refinement comparison",
+    },
     UNDECIDED: {
         impl() {
             return UNDECIDED;
@@ -1733,6 +1797,31 @@ export const coreFunctions = {
             return { type: "string", value: text };
         },
         doc: "Format number to base string: expr _> baseSpec",
+    },
+
+    CERTIFY_FORMAT: {
+        lazy: true,
+        impl(args, context, evaluate) {
+            const value = evaluate(args[0]);
+            let spec = evaluate(args[1]);
+            let baseValue = new Integer(10n);
+            let modeSpec;
+            if (spec?.type === "tuple" && Array.isArray(spec.values) && spec.values.length === 2) {
+                baseValue = spec.values[0];
+                modeSpec = resolveModeSpec(spec.values[1]);
+            } else {
+                modeSpec = resolveModeSpec(spec);
+            }
+            const baseSystem = resolveBaseSpecFromValue(baseValue);
+            if (modeSpec.mode === 3 || modeSpec.mode === 4) {
+                return boundedContinuedFractionApproximation(value, {
+                    maxTerms: modeSpec.limit ?? Rational.DEFAULT_CF_LIMIT,
+                });
+            }
+            if (modeSpec.mode === 1 || modeSpec.mode === 6) return value;
+            return boundedBaseApproximation(value, baseSystem, modeSpec.limit);
+        },
+        doc: "Convert an exact number to a bounded certified representation",
     },
 
     FROMBASE: {

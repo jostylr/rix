@@ -1,9 +1,9 @@
 /**
 id: scene3d
-description: Exact retained 3D scenes with deterministic wireframe Graphics snapshots.
+description: Exact retained 3D scenes with deterministic wireframe and lit Graphics snapshots.
 kind: host
 mount: scene3d
-exports: [Scene, Group, Transform, Mesh, Polyline, PointCloud, Material, PerspectiveCamera, OrthographicCamera, Snapshot]
+exports: [Scene, Group, Transform, Mesh, Polyline, PointCloud, Material, AmbientLight, DirectionalLight, PointLight, PerspectiveCamera, OrthographicCamera, Snapshot]
 groups: [Scene3D, Graphics]
 permissions: []
 provides: [rix.scene3d@1]
@@ -15,12 +15,15 @@ defaultEnabled: false
 
 import { Integer } from "@ratmath/core";
 import {
+    createAmbientLight,
+    createDirectionalLight,
     createGroup3D,
     createMaterial,
     createMesh,
     createOrthographicCamera,
     createPerspectiveCamera,
     createPointCloud,
+    createPointLight,
     createPolyline,
     createScene3D,
     createTransform3D,
@@ -35,6 +38,9 @@ const HELPERS = new Map([
     ["Polyline", createPolyline],
     ["PointCloud", createPointCloud],
     ["Material", createMaterial],
+    ["AmbientLight", createAmbientLight],
+    ["DirectionalLight", createDirectionalLight],
+    ["PointLight", createPointLight],
     ["PerspectiveCamera", createPerspectiveCamera],
     ["OrthographicCamera", createOrthographicCamera],
     ["Snapshot", snapshotScene3D],
@@ -54,9 +60,8 @@ export function createScene3DPluginCollection() {
 export function install({ systemContext }) {
     const collection = createScene3DPluginCollection();
     systemContext.registerHostValue("scene3d", collection, {
-        doc: "Exact retained 3D scenes and deterministic wireframe snapshots",
+        doc: "Exact retained 3D scenes and deterministic wireframe or lit snapshots",
         groups: ["Scene3D", "Graphics"],
     });
     return collection;
 }
-

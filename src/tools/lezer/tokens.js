@@ -173,6 +173,17 @@ function consumeNumber(input) {
   const allowed = /[0-9A-Za-z_#.:/=\[\]~^]/;
   while (input.peek(offset) >= 0) {
     const next = input.peek(offset);
+    if (next === 123) {
+      let run = offset + 1;
+      while (input.peek(run) >= 48 && input.peek(run) <= 57) run++;
+      if (run === offset + 1 || input.peek(run) !== 126) break;
+      run++;
+      const countStart = run;
+      while (input.peek(run) >= 48 && input.peek(run) <= 57) run++;
+      if (run === countStart || input.peek(run) !== 125) break;
+      offset = run + 1;
+      continue;
+    }
     if (next === 63) {
       const after = input.peek(offset + 1);
       if ([40, 95, 33, 58, 61, 124, 38, 63, 45].includes(after)) break;

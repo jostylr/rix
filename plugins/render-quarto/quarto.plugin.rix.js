@@ -13,8 +13,24 @@ deterministic: true
 defaultEnabled: false
 **/
 
-import { installRendererPlugin } from "../renderers/common.js";
+import { installRendererPlugin, option, rixString } from "../renderers/common.js";
 import { quartoFrontMatter, renderMarkdown } from "../renderers/document-renderers.js";
+
+function assetPolicy(options) {
+    const requested = (rixString(option(options, "assets")) || "inline").toLowerCase();
+    if (requested === "inline") return null;
+    if (["external", "svg", "external-svg"].includes(requested)) return "svg";
+    if (["png", "external-png"].includes(requested)) return "png";
+    throw new Error("quarto assets must be 'inline', 'svg', or 'png'");
+}
+
+function assetDirectory(options) {
+    const directory = rixString(option(options, "assetDir")) || "assets";
+    if (!directory || directory.startsWith("/") || directory.includes("\\") || directory.split("/").includes("..")) {
+        throw new Error("quarto assetDir must be a safe relative directory");
+    }
+    return directory.replace(/\/$/, "");
+}
 
 export const definition = {
     target: "quarto",
@@ -25,8 +41,23 @@ export const definition = {
     deterministic: true,
     description: "Quarto Markdown renderer with front matter and portable figure lowering",
     render({ value, options, format, render }) {
-        const rendered = renderMarkdown(value, { format, render, quarto: true });
-        return { ...rendered, content: `${quartoFrontMatter(options)}${rendered.content}` };
+        const policy = assetPolicy(options);
+        const assets = [];
+        let figure = 0;
+        const rendered = renderMarkdown(value, {
+            format,
+            render,
+            quarto: true,
+            graphic: policy ? (graphic, state) => {
+                figure += 1;
+                const nested = render(graphic, policy, { alt: state.figureAlt || "" });
+                const path = `${assetDirectory(options)}/figure-${figure}.${nested.extension}`;
+                assets.push({ path, mime: nested.mime, content: nested.content });
+                state.diagnostics.push(...nested.diagnostics);
+                return `![${state.figureAlt || `Figure ${figure}`}](${path})`;
+            } : null,
+        });
+        return { ...rendered, assets, content: `${quartoFrontMatter(options)}${rendered.content}` };
     },
 };
 

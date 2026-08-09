@@ -24,5 +24,28 @@ scene := .scene3d.Scene([mesh], {= camera=camera });
 ```
 
 The browser renders the returned core Graphic. The initial mode is
-deliberately called `wireframe`: lighting and hidden-line removal are not
-silently approximated.
+deliberately called `wireframe`: hidden-line removal is not silently
+approximated.
+
+## Add retained lights and request a lit view
+
+Ambient, directional, and point lights remain part of the Scene3D value. The
+Phase 1 `lit` snapshot uses deterministic flat Lambert shading and painter's
+ordering; it does not claim hidden-surface or shadow certification.
+
+```rix
+.Plugin.Load("scene3d");
+mesh := .scene3d.Mesh(
+    [[-1,-1,0], [1,-1,0], [0,1,0]],
+    [[1,2,3]],
+    {= color="#4080c0" }
+);
+scene := .scene3d.Scene([mesh], {=
+    camera=.scene3d.PerspectiveCamera([3,3,2], [0,0,0]),
+    lights=[
+        .scene3d.AmbientLight("#ffffff", 1/4),
+        .scene3d.DirectionalLight([1,1,-2], {= intensity=3/4 })
+    ]
+});
+.scene3d.Snapshot(scene, {= size=[360,240], mode="lit" })["value"];
+```

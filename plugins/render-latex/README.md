@@ -7,3 +7,8 @@ document.
 
 Use `.latex.Render(document)` or `.Out("report.tex", document)`. Producing TeX
 does not require an installed compiler.
+
+The runnable
+[`synthetic-division-publication.rix`](../../examples/renderers/synthetic-division-publication.rix)
+example publishes the exact synthetic-division Grid and quotient/remainder
+table as standalone TeX.

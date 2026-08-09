@@ -16,6 +16,8 @@ real := .oracle.Rational(3 / 7, {= procedure = :bisection });
 certified := .numerics.Refine(real, {=
   absoluteWidth = 1 / 1000,
   maxWork = 20,
+  timeout = 2,
+  memory = 64_000_000,
   trace = 1
 });
 
@@ -35,6 +37,9 @@ Reaching `maxWork` therefore does not throw away completed work or invent
 digits: the status becomes `:budgetExhausted`, while the value retains the
 candidate, the exact enclosure reached so far, and requested/achieved
 precision metadata. `.numerics.Approximation(result)` extracts that value.
+Time and memory are cooperative provider limits; provider capability ceilings
+and requester limits combine by taking the smaller finite value. Depth remains
+available, but providers are better placed to define what one depth unit means.
 
 When displayed after derived work it may use an interval spelling; bounded
 radix conversion such as `(1/7).ToDecimalApproximation(5)` instead produces the

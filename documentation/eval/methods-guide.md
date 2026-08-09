@@ -54,11 +54,11 @@ The lists below include inherited `Iterator` and `CheckTraits` methods where the
 
 ### Rational
 
-`Numerator`, `Denominator`, `Negate`, `Reciprocal`, `Abs`, `Floor`, `Ceil`, `Trunc`, `Round`, `RoundTo`, `E`, `ToMixedString`, `ToDecimal`, `ToDecimalApproximation`, `ToContinuedFraction`, `ToContinuedFractionString`, `ToContinuedFractionApproximation`, `Convergents`, `Convergent`, `ApproximationError`, `BestApproximation`, `BestConvergent`, `BitLength`, `ToString`, `CheckTraits`
+`Numerator`, `Denominator`, `Negate`, `Reciprocal`, `Abs`, `Floor`, `Ceil`, `Trunc`, `Round`, `RoundTo`, `E`, `ToMixedString`, `ToDecimal`, `ToLocaleString`, `ToRepeatingDecimal`, `ToRepeatingDecimalInfo`, `ToDecimalApproximation`, `ToContinuedFraction`, `ToContinuedFractionString`, `ToContinuedFractionApproximation`, `Convergents`, `Convergent`, `ApproximationError`, `BestApproximation`, `BestConvergent`, `BitLength`, `ToString`, `CheckTraits`
 
 ### RationalInterval
 
-`Start`, `End`, `Low`, `High`, `Width`, `IsAscending`, `Midpoint`, `Mediant`, `Negate`, `Reciprocal`, `Overlaps`, `Contains`, `ContainsValue`, `ContainsZero`, `Intersection`, `Union`, `ShortestDecimal`, `DenominatorInterval`, `Random`, `RandomPartition`, `E`, `BitLength`, `ToMixedString`, `ToString`, `CheckTraits`
+`Start`, `End`, `Low`, `High`, `Width`, `IsAscending`, `Midpoint`, `Mediant`, `Negate`, `Reciprocal`, `Overlaps`, `Contains`, `ContainsValue`, `ContainsZero`, `Intersection`, `Union`, `ShortestDecimal`, `DenominatorInterval`, `Random`, `RandomPartition`, `E`, `BitLength`, `ToMixedString`, `ToRepeatingDecimal`, `ToCompactDecimal`, `ToRelativeMidDecimal`, `ToRelativeDecimal`, `ToString`, `CheckTraits`
 
 `Random(parameters)` and `RandomPartition(parameters)` consume the RNG selected by `.RNG`. Their parameter tuple matches the interval `:%` and `:/%` operators: count, optional fixed denominator, and optional tolerance.
 

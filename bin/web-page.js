@@ -53,8 +53,8 @@ function createCatalog() {
         groups: ["Examples"], permissions: [], defaultEnabled: false,
     }, null, arrayRixSource);
     addPlugin(catalog, {
-        id: "scene3d", description: "Exact retained 3D scenes with deterministic wireframe Graphics snapshots.",
-        kind: "host", mount: "scene3d", exports: ["Scene", "Group", "Transform", "Mesh", "Polyline", "PointCloud", "Material", "PerspectiveCamera", "OrthographicCamera", "Snapshot"],
+        id: "scene3d", description: "Exact retained 3D scenes with deterministic wireframe and lit Graphics snapshots.",
+        kind: "host", mount: "scene3d", exports: ["Scene", "Group", "Transform", "Mesh", "Polyline", "PointCloud", "Material", "AmbientLight", "DirectionalLight", "PointLight", "PerspectiveCamera", "OrthographicCamera", "Snapshot"],
         groups: ["Scene3D", "Graphics"], permissions: [], provides: ["rix.scene3d@1"], defaultEnabled: false,
     }, installScene3D);
     addPlugin(catalog, {

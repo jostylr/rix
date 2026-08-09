@@ -26,3 +26,23 @@ diagnostics. Use `.Out("diagram.canvas.json", scene)` to save it with the CLI.
 - Browser: complete plan generation and optional host painting.
 - CLI: no external tools.
 - Options: none in the version 1 plan.
+
+## Repaint without rebuilding semantics
+
+For animation or reactive views, retain the semantic Graphic and generate a
+fresh plan only when its inputs change. A browser may then replay the commands
+against the same canvas; repainting does not parse RiX or mutate the Graphic.
+
+```rix
+.Plugin.Load("canvas");
+MakeFrame(offset) -> .Graphics.Graphic([180, 100], [
+    .Graphics.Circle([30 + offset, 50], 14, {= fill="#0c7b7f" })
+]);
+first := .canvas.Render(MakeFrame(0)).Get("content");
+second := .canvas.Render(MakeFrame(80)).Get("content");
+[first, second];
+```
+
+Plan creation and painting are linear in the emitted command count. Hosts
+should reuse the canvas element and its context; the Phase 1 executor deliberately
+has no hidden scene cache or event state.

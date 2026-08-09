@@ -392,6 +392,9 @@ const LOWERERS = {
     if (op === "_>") {
       return ir("TOBASE", lowerNode(node.left), lowerNode(node.right));
     }
+    if (op === "~>") {
+      return ir("CERTIFY_FORMAT", lowerNode(node.left), lowerNode(node.right));
+    }
     if (op === "<_") {
       return ir("FROMBASE", lowerNode(node.left), lowerNode(node.right));
     }
@@ -579,6 +582,7 @@ const LOWERERS = {
       pattern: lowerDestructureTarget(gate.pattern),
       prep: gate.prep?.type === "Array" ? gate.prep.elements.map(lowerNode) : [],
       strict: gate.strict === true,
+      ...(gate.undecidedMode && gate.undecidedMode !== "stop" ? { undecidedMode: gate.undecidedMode } : {}),
     }));
     return ir("PREP_TRIAL", lowerNode(node.candidate), ...gates);
   },
@@ -587,20 +591,20 @@ const LOWERERS = {
 
   FunctionDefinition(node) {
     const name = node.name.name || node.name.value;
-    const params = lowerParams(node.parameters, node.prep, node.prepStrict, node.variantName);
+    const params = lowerParams(node.parameters, node.prep, node.prepStrict, node.variantName, node.prepUndecided);
     const body = lowerFunctionBody(node.body);
     return ir("FUNCDEF", name, params, body);
   },
 
   FunctionLambda(node) {
-    const params = lowerParams(node.parameters, node.prep, node.prepStrict, node.variantName);
+    const params = lowerParams(node.parameters, node.prep, node.prepStrict, node.variantName, node.prepUndecided);
     const body = lowerFunctionBody(node.body);
     return ir("LAMBDA", params, body);
   },
 
   FunctionVariantDefinition(node) {
     const name = node.name.name || node.name.value;
-    const params = lowerParams(node.parameters, node.prep, node.prepStrict, node.variantName);
+    const params = lowerParams(node.parameters, node.prep, node.prepStrict, node.variantName, node.prepUndecided);
     const body = lowerFunctionBody(node.body);
     return ir("MULTIFUNCDEF", name, node.mode, params, body);
   },
@@ -759,6 +763,10 @@ const LOWERERS = {
 
   MultifunctionContainer(node) {
     return ir("MULTIFUNCTION", ...node.elements.map(lowerNode));
+  },
+
+  HaloContainer(node) {
+    return ir("HALO", ...node.elements.map(lowerNode));
   },
 
   LoopContainer(node) {
@@ -1391,7 +1399,7 @@ function lowerCallArgs(args) {
 /**
  * Lower parameter definitions into a serializable format.
  */
-function lowerParams(params, prep = null, prepStrict = false, variantName = null) {
+function lowerParams(params, prep = null, prepStrict = false, variantName = null, prepUndecided = "stop") {
   if (!params) return { positional: [], keyword: [], conditionals: [] };
 
   return {
@@ -1411,6 +1419,7 @@ function lowerParams(params, prep = null, prepStrict = false, variantName = null
     conditionals: (params.conditionals || []).map(lowerNode),
     prep: prep && prep.type === "Array" ? prep.elements.map(lowerNode) : [],
     prepStrict: prepStrict === true,
+    prepUndecided,
     metadata: {
       ...(params.metadata || {}),
       ...(variantName ? { variantName } : {}),

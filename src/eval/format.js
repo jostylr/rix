@@ -1,4 +1,5 @@
 import { CertifiedApproximation, Rational, RationalInterval } from "@ratmath/core";
+import { HaloNeighborhood } from "../runtime/halo.js";
 import { isHole } from "../runtime/hole.js";
 import { isUndecided } from "../runtime/decision.js";
 import { isTensor, tensorOffsetForTuple, tensorSize } from "../runtime/tensor.js";
@@ -392,5 +393,6 @@ export function formatValue(val, options = {}) {
     if (val instanceof Rational) return val.toMixedString();
     if (val instanceof RationalInterval) return val.toMixedString();
     if (val instanceof CertifiedApproximation) return val.toString();
+    if (val instanceof HaloNeighborhood) return val.toString();
     return val.toString();
 }

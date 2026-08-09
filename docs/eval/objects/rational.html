@@ -426,61 +426,76 @@ ul.task-list li input[type="checkbox"] {
 <td>Format an exact terminating or repeating decimal representation.</td>
 </tr>
 <tr class="even">
-<td><code>rational.ToDecimalApproximation(places)</code></td>
+<td><code>rational.ToDecimalApproximation(options)</code></td>
 <td>exact or <code>CertifiedApproximation</code></td>
-<td>Return an exact terminating result when possible, otherwise a parseable certified decimal prefix.</td>
+<td>Use <code>{= fractionalDigits=n }</code> to return a parseable certified decimal prefix.</td>
 </tr>
 <tr class="odd">
-<td><code>rational.ToContinuedFraction(maxTerms?)</code></td>
-<td><code>Array</code></td>
-<td>Return continued-fraction terms.</td>
+<td><code>rational.ToRepeatingDecimal(options?)</code></td>
+<td><code>String \| null</code></td>
+<td>Format a repeat, with map options <code>limit</code>, <code>onLimit</code>, and <code>useRepeatNotation</code>.</td>
 </tr>
 <tr class="even">
-<td><code>rational.ToContinuedFractionString()</code></td>
+<td><code>rational.ToRepeatingDecimalInfo(options?)</code></td>
+<td><code>Map</code></td>
+<td>Return the decimal, period length, and truncation status.</td>
+</tr>
+<tr class="odd">
+<td><code>rational.ToLocaleString(options)</code></td>
 <td><code>String</code></td>
-<td>Format the continued fraction.</td>
-</tr>
-<tr class="odd">
-<td><code>rational.ToContinuedFractionApproximation(maxTerms)</code></td>
-<td>exact or <code>CertifiedApproximation</code></td>
-<td>Return an exact finite continued fraction when complete, otherwise its certified cylinder.</td>
+<td>Display with exact locale separators and grouping; source grammar is unchanged.</td>
 </tr>
 <tr class="even">
+<td><code>rational.ToContinuedFraction(options?)</code></td>
+<td><code>Array</code></td>
+<td>Return terms; map options include <code>maxTerms</code> and <code>long</code>.</td>
+</tr>
+<tr class="odd">
+<td><code>rational.ToContinuedFractionString(options?)</code></td>
+<td><code>String</code></td>
+<td>Format the continued fraction; <code>long=1</code> selects the alternate finite form.</td>
+</tr>
+<tr class="even">
+<td><code>rational.ToContinuedFractionApproximation(options)</code></td>
+<td>exact or <code>CertifiedApproximation</code></td>
+<td>Use <code>{= maxTerms=n }</code> to return a certified cylinder.</td>
+</tr>
+<tr class="odd">
 <td><code>rational.Convergents(maxCount?)</code></td>
 <td><code>Array</code></td>
 <td>Return successive continued-fraction convergents.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>rational.Convergent(index)</code></td>
 <td><code>Rational</code></td>
 <td>Return a one-based convergent.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>rational.ApproximationError(other)</code></td>
 <td><code>Rational</code></td>
 <td>Return the absolute error from another exact rational.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>rational.BestApproximation(maxDenominator)</code></td>
 <td><code>Rational</code></td>
 <td>Find the closest rational with a bounded denominator.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>rational.BestConvergent(maxDenominator)</code></td>
 <td><code>Rational</code></td>
 <td>Find the best continued-fraction convergent under the bound.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>rational.BitLength()</code></td>
 <td><code>Integer</code></td>
 <td>Return the combined exact storage bit length.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>rational.ToString()</code></td>
 <td><code>String</code></td>
 <td>Return the reduced fraction spelling.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>rational.CheckTraits()</code></td>
 <td><code>1 \| null</code></td>
 <td>Validate attached semantic traits.</td>
@@ -525,8 +540,9 @@ q.BestConvergent(100) ##@ == 22/7;
 q.BitLength() ##@ &gt; 0;
 q.ToString() ##@ == "355/113";
 q.CheckTraits() ##@ == 1;
-(1/7).ToDecimalApproximation(5).ToString() ##@ == "0.14285?";
-(103993/33102).ToContinuedFractionApproximation(3).ToString() ##@ == "3.~7~15?";</code></pre>
+(1/7).ToDecimalApproximation({= fractionalDigits=5 }).ToString() ##@ == "0.14285?";
+(103993/33102).ToContinuedFractionApproximation({= maxTerms=3 }).ToString() ##@ == "3.~7~15?";
+(3/2).ToContinuedFractionString({= long=1 }) ##@ == "1.~1~1";</code></pre>
 <p><code>BestApproximation</code> searches all denominators under the bound; <code>BestConvergent</code> restricts the result to continued-fraction convergents, so the answers can differ.</p>
 <p><a href="../../eval/methods-guide.html">Back to the methods overview</a></p>
 

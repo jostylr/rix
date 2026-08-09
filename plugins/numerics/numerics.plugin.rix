@@ -3,7 +3,7 @@ id: numerics
 description: Backend-neutral bounded enclosure and refinement orchestration.
 kind: rix
 mount: numerics
-exports: [Request, WorkPolicy, Enclose, Refine, Sample, Capabilities, CheckResult]
+exports: [Request, WorkPolicy, EffectiveLimits, Enclose, Refine, Sample, Capabilities, CheckResult]
 groups: [Numerics]
 permissions: []
 provides: [rix.numerics@1, rix.enclosable-real-consumer@1]
@@ -23,6 +23,14 @@ RequireNonnegativeInteger(value, label) -> {;
     integer >= 0 ?: integer ?_ .Error(@"@{label} must be a nonnegative integer");
 };
 
+OptionalPositive(value, label) -> value == _ ?: _ ?_ RequirePositive(value, label);
+OptionalNonnegativeInteger(value, label) -> value == _ ?: _ ?_ RequireNonnegativeInteger(value, label);
+
+RestrictiveLimit(requested, provider) ->
+    requested == _ ?: provider ?_
+    provider == _ ?: requested ?_
+    .Min(requested, provider);
+
 NumericsWorkPolicy(options ?= {= }) -> {;
     maxWork = RequireNonnegativeInteger(Option(options, "maxwork", 100), "maxWork");
     {=
@@ -31,7 +39,24 @@ NumericsWorkPolicy(options ?= {= }) -> {;
         maxWork = maxWork,
         maxCalls = RequireNonnegativeInteger(Option(options, "maxcalls", maxWork), "maxCalls"),
         maxIterations = RequireNonnegativeInteger(Option(options, "maxiterations", maxWork), "maxIterations"),
-        maxDepth = RequireNonnegativeInteger(Option(options, "maxdepth", maxWork), "maxDepth")
+        maxDepth = OptionalNonnegativeInteger(Option(options, "maxdepth", _), "maxDepth"),
+        timeout = OptionalPositive(Option(options, "timeout", _), "timeout"),
+        memory = OptionalNonnegativeInteger(
+            Option(options, "memory", Option(options, "maxmemory", _)),
+            "memory"
+        )
+    };
+};
+
+NumericsEffectiveLimits(request, capabilities ?= {= }) -> {;
+    work = request[:work];
+    {=
+        maxWork = RestrictiveLimit(work[:maxWork], Option(capabilities, "maxwork", _)),
+        maxCalls = RestrictiveLimit(work[:maxCalls], Option(capabilities, "maxcalls", _)),
+        maxIterations = RestrictiveLimit(work[:maxIterations], Option(capabilities, "maxiterations", _)),
+        maxDepth = RestrictiveLimit(work[:maxDepth], Option(capabilities, "maxdepth", _)),
+        timeout = RestrictiveLimit(work[:timeout], Option(capabilities, "timeout", _)),
+        memory = RestrictiveLimit(work[:memory], Option(capabilities, "memory", Option(capabilities, "maxmemory", _)))
     };
 };
 
@@ -105,6 +130,7 @@ numericsNamespace = {= };
 numericsNamespace._proto = {=
     Request = (self, options ?= {= }) -> NumericsRequest(options),
     WorkPolicy = (self, options ?= {= }) -> NumericsWorkPolicy(options),
+    EffectiveLimits = (self, request, capabilities ?= {= }) -> NumericsEffectiveLimits(AsRequest(request), capabilities),
     Enclose = (self, value, options ?= {= }) -> NumericsEnclose(value, options),
     Refine = (self, value, options ?= {= }) -> NumericsRefine(value, options),
     Sample = (self, value, options ?= {= }) -> NumericsEnclose(value, options),

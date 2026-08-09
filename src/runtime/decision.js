@@ -8,10 +8,35 @@ export const UNDECIDED = Object.freeze({
         return { $rix: "Undecided" };
     },
 });
-export const isUndecided = (value) => value === UNDECIDED;
+
+/** Per-occurrence evidence for an undecided result. Plain `?` stays singleton. */
+export class UndecidedDiagnostic {
+    constructor(reason, details = null) {
+        this.__rix_undecided__ = true;
+        this.reason = String(reason || "undecided");
+        this.details = details;
+        this._ext = new Map([
+            ["reason", { type: "string", value: this.reason }],
+            ...(details === null ? [] : [["details", details]]),
+        ]);
+    }
+
+    toJSON() {
+        return { $rix: "Undecided", reason: this.reason, details: this.details };
+    }
+
+    copy() {
+        return new UndecidedDiagnostic(this.reason, this.details);
+    }
+}
+
+export const undecidedDiagnostic = (reason, details = null) => new UndecidedDiagnostic(reason, details);
+export const isUndecided = (value) => value === UNDECIDED || value instanceof UndecidedDiagnostic;
+export const undecidedReason = (value) => value instanceof UndecidedDiagnostic ? value.reason : null;
 
 export function reviveDecisionValue(_key, value) {
-    return value?.$rix === "Undecided" ? UNDECIDED : value;
+    if (value?.$rix !== "Undecided") return value;
+    return value.reason ? new UndecidedDiagnostic(value.reason, value.details ?? null) : UNDECIDED;
 }
 
 /** Classify a value for RiX decision-aware logic and control flow. */

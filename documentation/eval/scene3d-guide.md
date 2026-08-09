@@ -42,6 +42,9 @@ Initial constructors are:
 | `Polyline(points, options?)` | Exact 3-vectors; `closed=1` optionally closes it. |
 | `PointCloud(points, options?)` | Exact 3-vectors with display `radius`. |
 | `Material(options)` | `color`, `opacity`, and wire width hints. A material may be passed in node options. |
+| `AmbientLight(color?, intensity?)` | Retained uniform light contribution. |
+| `DirectionalLight(direction, options?)` | Retained exact direction with hexadecimal `color` and exact `intensity`. |
+| `PointLight(position, options?)` | Retained exact position with hexadecimal `color` and exact `intensity`. |
 | `PerspectiveCamera(position, target, options?)` | `up`, degree `fov`, `near`, and `far`. |
 | `OrthographicCamera(position, target, options?)` | Automatic fit, or explicit vertical `scale`. |
 
@@ -52,9 +55,11 @@ unevaluated functions to interchange files.
 ## Deterministic snapshots
 
 `.scene3d.Snapshot` projects a retained scene into core `.Graphics`. Phase 1
-implements an explicitly named `wireframe` mode. It clips perspective segments
-against the camera's near/far planes, but does not claim hidden-line removal,
-surface lighting, or tessellation.
+implements explicitly named `wireframe` and `lit` modes. Wireframe clips
+perspective segments against the camera's near/far planes. Lit mode uses
+deterministic flat Lambert shading and painter's ordering for mesh triangles;
+it does not claim certified hidden-surface removal, shadows, triangle clipping,
+or tessellation.
 
 ```rix
 snapshot := .scene3d.Snapshot(scene, {=
@@ -63,6 +68,10 @@ snapshot := .scene3d.Snapshot(scene, {=
 });
 graphic := snapshot["value"];
 ```
+
+Lights remain retained scene nodes and affect only an explicitly requested lit
+snapshot. A wireframe snapshot reports that it ignored present lights instead
+of silently changing its line rendering.
 
 The result is an adaptive-result map with `value`, `resolved`, `uncertainty`,
 `work`, `source`, and `diagnostics`. `value` is a normal Graphic and therefore
@@ -126,4 +135,3 @@ bun bin/rix.js --out=tmp/tesseract-out examples/geometry/tesseract.rix
 This creates `tesseract.svg` from a deterministic wireframe snapshot and
 `tesseract.gltf` from the same retained 3D scene. The corresponding RiX Web
 tutorials run the browser-safe parts directly.
-

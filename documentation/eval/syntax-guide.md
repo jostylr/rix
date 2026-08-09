@@ -121,8 +121,12 @@ Variables name **cells** — mutable containers holding a value and meta propert
 | `(x) -> body` | `LAMBDA` | `(x) -> x + 1` |
 | `F(x) ?- [prep] -> body` | `FUNCDEF` | Soft prep phase before body |
 | `(x) ?!- [prep] -> body` | `LAMBDA` | Strict prep phase before body |
+| `(x) ??- [prep] -> body` | `LAMBDA` | Fall through on undecided prep |
+| `(x) ??!- [prep] -> body` | `LAMBDA` | Throw unless prep becomes decided and true |
 | `expr ?- pattern: [prep]` | `PREP_TRIAL` | Return the candidate or `_` on evaluation, binding, or prep failure |
 | `expr ?!- pattern: [prep]` | `PREP_TRIAL` | Return the candidate or throw on evaluation, binding, or prep failure |
+| `expr ??- pattern: [prep]` | `PREP_TRIAL` | Let an ordered case advance on undecided prep |
+| `expr ??!- pattern: [prep]` | `PREP_TRIAL` | Throw when prep is undecided or fails |
 | `F(x) => body` | `MULTIFUNCDEF` | Append variant to multifunction |
 | `F(x) ^=> body` | `MULTIFUNCDEF` | Prepend variant to multifunction |
 | `{> f, G, H[:Named] }` | `MULTIFUNCTION` | Explicit multifunction literal; nested multifunctions flatten in order |
@@ -153,6 +157,9 @@ Rules:
 - Prep-created bindings are visible to later prep entries and to the body.
 - In `?-`, a prep entry that returns `_` or throws makes the call return `_`.
 - In `?!-`, the same failures throw.
+- `?-` and `?!-` return `?` when prep is undecided.
+- `??-` makes undecided a no-match for ordered dispatch.
+- `??!-` throws when prep remains undecided.
 
 Prep is meant for validation, conversion, destructuring, and local setup. RiX does not currently restrict mutation or IO in prep.
 
@@ -214,11 +221,14 @@ Dispatch model:
 - variants are considered in array order
 - prep success selects the variant
 - prep failure (`_` or soft prep error) moves to the next variant
+- undecided prep stops dispatch unless the variant uses `??-`
 - body errors propagate
 - body return values are final, including `_`
 - if nothing matches, the result is `_`
 
 `?!-` keeps its strict meaning inside multifunctions: a thrown prep error or a prep result of `_` propagates as a failure instead of trying the next variant.
+`??!-` additionally treats an undecided prep result as a required-decision
+failure and throws. `??-` is the opt-in fallthrough form.
 
 Append and prepend forms mutate the multifunction definition:
 

@@ -44,7 +44,7 @@ export class Cell {
 }
 
 import { CertifiedApproximation, Integer, Rational, RationalInterval } from "@ratmath/core";
-import { isUndecided } from "./decision.js";
+import { UndecidedDiagnostic, isUndecided } from "./decision.js";
 import { isTensor, computeDefaultStrides } from "./tensor.js";
 import { cloneLazySequence, isLazySequence } from "./lazy-sequence.js";
 
@@ -73,6 +73,7 @@ export function classifyMetaKey(name) {
 export function shallowCopyValue(value) {
     if (value == null) return value;
     if (typeof value !== "object") return value;
+    if (value instanceof UndecidedDiagnostic) return value.copy();
     if (isUndecided(value)) return value;
     if (value instanceof CertifiedApproximation) return value.copy();
 
@@ -180,6 +181,7 @@ export function shallowCopyValue(value) {
 export function deepCopyValue(value) {
     if (value == null) return value;
     if (typeof value !== "object") return value;
+    if (value instanceof UndecidedDiagnostic) return value.copy();
     if (isUndecided(value)) return value;
     if (value instanceof CertifiedApproximation) return value.copy();
     if (value instanceof Integer) return new Integer(value.value);

@@ -12,6 +12,8 @@ var symbols = [
   "/\\=",
   "\\/",
   "/\\",
+  "??!-",
+  "??-",
   "?!-",
   "?-",
   "^=>",
@@ -24,6 +26,7 @@ var symbols = [
   ">>",
   "<>",
   "_>",
+  "~>",
   "<_",
   "||>",
   "~~=",
@@ -600,7 +603,7 @@ function tryMatchNumber(input, position) {
       pos: [position, position, position + match[0].length]
     };
   }
-  match = remaining.match(/^-?(?:\d+\.\d+|\.\d+)/);
+  match = remaining.match(/^(?:(?:\d(?:_?\d)*|\{\d+~\d+\})+(?:\.(?:\d(?:_?\d)*|\{\d+~\d+\})+)?|\.(?:\d(?:_?\d)*|\{\d+~\d+\})+)(?:#(?:\d(?:_?\d)*|\{\d+~\d+\})+)?/);
   if (match) {
     return {
       type: "Number",
@@ -609,7 +612,16 @@ function tryMatchNumber(input, position) {
       pos: [position, position, position + match[0].length]
     };
   }
-  match = remaining.match(/^-?\d+/);
+  match = remaining.match(/^(?:\d(?:_?\d)*\.\d(?:_?\d)*|\.\d(?:_?\d)*)/);
+  if (match) {
+    return {
+      type: "Number",
+      original: match[0],
+      value: match[0],
+      pos: [position, position, position + match[0].length]
+    };
+  }
+  match = remaining.match(/^\d(?:_?\d)*/);
   if (match) {
     return {
       type: "Number",
@@ -893,7 +905,7 @@ function tryMatchBrace(input, position) {
       };
     }
   }
-  const sigilChars = new Set(["@", ";", "|", ":", "=", "?", "$", "#", "^", ">"]);
+  const sigilChars = new Set(["@", ";", "|", ":", "=", "?", "$", "#", "^", ">", "~"]);
   if (sigilChars.has(ch)) {
     const sigil = ch;
     const after = input[position + 2];
@@ -958,7 +970,7 @@ function tryMatchBrace(input, position) {
     return null;
   }
   const { line, col } = posToLineCol(input, position);
-  throw new Error(`'{' must be followed by a space, a sigil (@;|:=?$#^>), or an operator (+, *, &&, ||, \\/, /\\, ++, <<, >>) at line ${line}:${col}`);
+  throw new Error(`'{' must be followed by a space, a sigil (@;|:=?$#^>~), or an operator (+, *, &&, ||, \\/, /\\, ++, <<, >>) at line ${line}:${col}`);
 }
 function tryMatchSystemSpecHeader(input, position) {
   const start = position + 2;
@@ -1751,6 +1763,11 @@ var SYMBOL_TABLE = {
     associativity: "left",
     type: "infix"
   },
+  "~>": {
+    precedence: PRECEDENCE.CONVERSION,
+    associativity: "left",
+    type: "infix"
+  },
   "<_": {
     precedence: PRECEDENCE.CONVERSION,
     associativity: "left",
@@ -1844,6 +1861,8 @@ var SYMBOL_TABLE = {
   },
   "?-": { precedence: PRECEDENCE.ARROW, associativity: "right", type: "infix" },
   "?!-": { precedence: PRECEDENCE.ARROW, associativity: "right", type: "infix" },
+  "??-": { precedence: PRECEDENCE.ARROW, associativity: "right", type: "infix" },
+  "??!-": { precedence: PRECEDENCE.ARROW, associativity: "right", type: "infix" },
   "?": {
     precedence: PRECEDENCE.CONDITION,
     associativity: "left",
@@ -1912,6 +1931,7 @@ var SYMBOL_TABLE = {
   "{$": { precedence: 0, type: "brace_sigil" },
   "{^": { precedence: 0, type: "brace_sigil" },
   "{>": { precedence: 0, type: "brace_sigil" },
+  "{~": { precedence: 0, type: "brace_sigil" },
   "{!": { precedence: 0, type: "brace_sigil" },
   "..": { precedence: PRECEDENCE.PROPERTY, associativity: "left", type: "infix" },
   ".|": { precedence: PRECEDENCE.PROPERTY, associativity: "left", type: "postfix" },
@@ -2220,7 +2240,7 @@ class Parser {
           return this.parseAngleForm();
         } else if (token.value === "{") {
           return this.parseBraceContainer();
-        } else if (token.value === "{=" || token.value === "{?" || token.value === "{;" || token.value === "{|" || token.value === "{:" || token.value === "{@" || token.value === "{#" || token.value === "{.." || token.value === "{>" || token.value === "{^" || token.value === "{$" || token.value === "{$$") {
+        } else if (token.value === "{=" || token.value === "{?" || token.value === "{;" || token.value === "{|" || token.value === "{:" || token.value === "{@" || token.value === "{#" || token.value === "{.." || token.value === "{>" || token.value === "{~" || token.value === "{^" || token.value === "{$" || token.value === "{$$") {
           if (token.value === "{#") {
             return this.parseSystemSpecLiteral();
           }
@@ -2473,9 +2493,11 @@ class Parser {
         original: left.original + operator.original
       });
     }
-    if (operator.value === "?-" || operator.value === "?!-") {
+    if (["?-", "?!-", "??-", "??!-"].includes(operator.value)) {
+      const prepOperator = operator.value;
       this.advance();
-      const strict = operator.value === "?!-";
+      const strict = prepOperator.includes("!");
+      const undecidedMode = prepOperator.startsWith("??") ? strict ? "throw" : "fallthrough" : "stop";
       const first = this.current.value === "[" ? this.parseArray() : this.parseExpression(PRECEDENCE.INTERVAL + 1);
       if (this.current.value === ":") {
         this.advance();
@@ -2484,7 +2506,7 @@ class Parser {
         }
         const prep2 = this.parseArray();
         const pattern = this.convertExpressionToDestructureTarget(first);
-        const gate = { pattern, prep: prep2, strict };
+        const gate = { pattern, prep: prep2, strict, undecidedMode };
         if (left.type === "PreparedTrial") {
           return this.createNode("PreparedTrial", {
             candidate: left.candidate,
@@ -2518,6 +2540,7 @@ class Parser {
       const fnNode = this.buildFunctionArrowNode(left, arrow, body, {
         prep,
         prepStrict,
+        prepUndecided: undecidedMode,
         variantName
       });
       if (fnNode) {
@@ -4124,7 +4147,8 @@ class Parser {
       "{$": "AsyncContainer",
       "{$$": "DetachedBlock",
       "{^": "ValueOutfit",
-      "{>": "MultifunctionContainer"
+      "{>": "MultifunctionContainer",
+      "{~": "HaloContainer"
     };
     const nodeType = sigilTypeMap[effectiveSigil];
     const temporalSigils = new Set(["{?", "{;", "{@", "{$", "{$$"]);
@@ -4212,6 +4236,9 @@ class Parser {
       this.error(`Expected closing ${primaryCloser} for ${nodeType}`);
     }
     this.advance();
+    if (effectiveSigil === "{~" && (elements.length < 2 || elements.length > 3)) {
+      this.error("Halo neighborhood requires target, positive epsilon, and optional limits map");
+    }
     return this.createNode(nodeType, {
       sigil,
       ...containerName && !options.destructureAlias ? { name: containerName } : {},
@@ -5341,7 +5368,7 @@ class Parser {
     return name;
   }
   buildFunctionArrowNode(left, operator, body, options = {}) {
-    const { prep = null, prepStrict = false, variantName = null } = options;
+    const { prep = null, prepStrict = false, prepUndecided = "stop", variantName = null } = options;
     const namedSig = this.extractNamedFunctionSignature(left);
     if (operator === "=>" || operator === "^=>") {
       if (!namedSig) {
@@ -5352,6 +5379,7 @@ class Parser {
         parameters: namedSig.parameters,
         prep,
         prepStrict,
+        ...prepUndecided !== "stop" ? { prepUndecided } : {},
         ...variantName ? { variantName } : {},
         mode: operator === "^=>" ? "prepend" : "append",
         body,
@@ -5365,6 +5393,7 @@ class Parser {
         parameters: namedSig.parameters,
         prep,
         prepStrict,
+        ...prepUndecided !== "stop" ? { prepUndecided } : {},
         ...variantName ? { variantName } : {},
         body,
         pos: left.pos,
@@ -5377,6 +5406,7 @@ class Parser {
         parameters: lambdaParameters,
         prep,
         prepStrict,
+        ...prepUndecided !== "stop" ? { prepUndecided } : {},
         ...variantName ? { variantName } : {},
         body,
         pos: left.pos,

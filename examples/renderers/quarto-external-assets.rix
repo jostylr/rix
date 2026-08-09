@@ -1,0 +1,13 @@
+/**
+plugins: [svg, quarto]
+**/
+
+graphic := .Graphics.Graphic([100,60], [
+    .Graphics.Circle([50,30], 18, {= fill="#0c7b7f" })
+]);
+document := .Fragment([
+    .Heading(1, "External asset report"),
+    .Figure(graphic, "A circle", "circle", "Exact circle")
+]);
+.Out("report.qmd", .quarto.Render(document, {= title="Asset report", assets="svg" }));
+0;

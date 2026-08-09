@@ -328,7 +328,7 @@ ul.task-list li input[type="checkbox"] {
   <li><a href="#rix-rationales" id="toc-rix-rationales" class="nav-link active" data-scroll-target="#rix-rationales">RiX Rationales</a>
   <ul class="collapse">
   <li><a href="#multifunctions-2026-04-01" id="toc-multifunctions-2026-04-01" class="nav-link" data-scroll-target="#multifunctions-2026-04-01">Multifunctions (2026-04-01)</a></li>
-  <li><a href="#function-prep-phase-----2026-04-01" id="toc-function-prep-phase-----2026-04-01" class="nav-link" data-scroll-target="#function-prep-phase-----2026-04-01">Function Prep Phase (<code>?-</code> / <code>?!-</code>) (2026-04-01)</a></li>
+  <li><a href="#function-prep-phase---------2026-04-01-extended-2026-08-09" id="toc-function-prep-phase---------2026-04-01-extended-2026-08-09" class="nav-link" data-scroll-target="#function-prep-phase---------2026-04-01-extended-2026-08-09">Function Prep Phase (<code>?-</code> / <code>?!-</code> / <code>??-</code> / <code>??!-</code>) (2026-04-01, extended 2026-08-09)</a></li>
   <li><a href="#prepared-trial-expressions-and-case-arms-2026-07-12" id="toc-prepared-trial-expressions-and-case-arms-2026-07-12" class="nav-link" data-scroll-target="#prepared-trial-expressions-and-case-arms-2026-07-12">Prepared Trial Expressions and Case Arms (2026-07-12)</a></li>
   <li><a href="#semantic-inquiry-and-explicit-conversion-operators-2026-03-30" id="toc-semantic-inquiry-and-explicit-conversion-operators-2026-03-30" class="nav-link" data-scroll-target="#semantic-inquiry-and-explicit-conversion-operators-2026-03-30">Semantic Inquiry and Explicit Conversion Operators (2026-03-30)</a></li>
   <li><a href="#sticky-semantic-metadata-vs-ephemeral-runtime-facts-2026-03-29" id="toc-sticky-semantic-metadata-vs-ephemeral-runtime-facts-2026-03-29" class="nav-link" data-scroll-target="#sticky-semantic-metadata-vs-ephemeral-runtime-facts-2026-03-29">Sticky Semantic Metadata vs Ephemeral Runtime Facts (2026-03-29)</a></li>
@@ -427,8 +427,8 @@ ul.task-list li input[type="checkbox"] {
 <p>The <code>{&gt; ... }</code> sigil is the explicit multifunction literal. It closes the anonymous/inline gap left by uppercase-assignment auto-marking. Its entries may be ordinary functions, selected named variants, or whole multifunctions; nested multifunctions flatten recursively in source order. This keeps inline pipe dispatch on the same runtime representation and invocation path as named multifunctions.</p>
 <p>The no-prep warning follows from the same philosophy. A prep-less variant in the middle of the list is not forbidden, but it is almost certainly a mistake because later variants become unreachable if execution reaches it. Warning instead of rejection keeps the model flexible while still surfacing a strong signal.</p>
 </section>
-<section id="function-prep-phase-----2026-04-01" class="level2">
-<h2 class="anchored" data-anchor-id="function-prep-phase-----2026-04-01">Function Prep Phase (<code>?-</code> / <code>?!-</code>) (2026-04-01)</h2>
+<section id="function-prep-phase---------2026-04-01-extended-2026-08-09" class="level2">
+<h2 class="anchored" data-anchor-id="function-prep-phase---------2026-04-01-extended-2026-08-09">Function Prep Phase (<code>?-</code> / <code>?!-</code> / <code>??-</code> / <code>??!-</code>) (2026-04-01, extended 2026-08-09)</h2>
 <p>RiX functions now support an explicit prep stage:</p>
 <pre class="rix"><code>(x, y) ?- [ ... ] -&gt; body
 F(x, y) ?!- [ ... ] -&gt; body</code></pre>
@@ -447,6 +447,7 @@ F(x, y) ?!- [ ... ] -&gt; body</code></pre>
 </ul>
 <p>The soft form <code>?-</code> matches RiX’s null-propagation style: if a prep entry returns <code>_</code> or throws, the function call returns <code>_</code>.</p>
 <p>The strict form <code>?!-</code> keeps the same prep structure but throws instead of collapsing failure to <code>_</code>.</p>
+<p>Three-valued comparisons require two more policies. <code>??-</code> says that undecided is an ordered no-match because a later variant or case arm is expected to handle it. <code>??!-</code> says that continuation requires an adequately refined, decided guard, so undecided throws. Ordinary <code>?-</code> and <code>?!-</code> continue to stop dispatch and return undecided rather than silently selecting a later variant.</p>
 <p>Prep is intentionally permissive for now. RiX does not yet try to prove purity, block mutation, or separate benign internal state changes from externally visible mutation. The design intent is still “setup before body”, but enforcement is deferred until the runtime has a sharper mutation model.</p>
 </section>
 <section id="prepared-trial-expressions-and-case-arms-2026-07-12" class="level2">

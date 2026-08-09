@@ -79,6 +79,55 @@ function stringObj(value) {
     return { type: "string", value };
 }
 
+function optionValue(options, name, fallback = undefined) {
+    if (options?.type !== "map" || !(options.entries instanceof Map)) return fallback;
+    return options.entries.get(name.toLowerCase()) ?? options.entries.get(name) ?? fallback;
+}
+
+function numericFormatOptions(value, countName, label) {
+    if (value === undefined) return {};
+    if (value?.type === "map") {
+        const count = optionValue(value, countName);
+        const longValue = optionValue(value, "long", null);
+        return {
+            ...(count === undefined || count === null ? {} : { [countName]: safeExactNumber(count, label) }),
+            ...(longValue === null ? {} : { long: truthy(longValue) }),
+        };
+    }
+    return { [countName]: safeExactNumber(value, label) };
+}
+
+function localeNumberString(target, options) {
+    const decimal = stringValue(optionValue(options, "decimal", stringObj(".")));
+    const group = stringValue(optionValue(options, "group", stringObj("_")));
+    const groupSizeValue = optionValue(options, "groupsize", new Integer(3n));
+    const groupSize = safeExactNumber(groupSizeValue, "Locale group size");
+    if (groupSize < 1) throw new Error("Locale group size must be positive");
+    const raw = target.toRepeatingDecimal().replace(/#0$/, "");
+    const sign = raw.startsWith("-") ? "-" : "";
+    const unsigned = sign ? raw.slice(1) : raw;
+    const dot = unsigned.indexOf(".");
+    const integer = dot === -1 ? unsigned.split("#")[0] : unsigned.slice(0, dot);
+    const tail = dot === -1 ? unsigned.slice(integer.length) : unsigned.slice(dot + 1);
+    const grouped = integer.replace(new RegExp(`\\B(?=(\\d{${groupSize}})+(?!\\d))`, "g"), group);
+    return dot === -1 ? `${sign}${grouped}${tail}` : `${sign}${grouped}${decimal}${tail}`;
+}
+
+function repeatingOptions(options) {
+    if (options === undefined) return undefined;
+    if (options?.type !== "map") {
+        return { limit: safeExactNumber(options, "Repeating-decimal limit") };
+    }
+    const limit = optionValue(options, "limit", undefined);
+    const onLimit = optionValue(options, "onlimit", undefined);
+    const repeat = optionValue(options, "userepeatnotation", undefined);
+    return {
+        ...(limit === undefined ? {} : { limit: safeExactNumber(limit, "Repeating-decimal limit") }),
+        ...(onLimit === undefined ? {} : { onLimit: stringValue(onLimit) }),
+        ...(repeat === undefined ? {} : { useRepeatNotation: truthy(repeat) }),
+    };
+}
+
 function exactBigInt(value, label) {
     if (value instanceof Integer) return value.value;
     if (value instanceof Rational && value.denominator === 1n) return value.numerator;
@@ -1528,21 +1577,40 @@ const rationalExactMethods = {
     )),
     E: method("E", ([target, exponent]) => target.E(exactBigInt(exponent, "Exponent"))),
     TOMIXEDSTRING: method("ToMixedString", ([target]) => stringObj(target.toMixedString())),
-    TODECIMAL: method("ToDecimal", ([target]) => stringObj(target.toDecimal())),
-    TODECIMALAPPROXIMATION: method("ToDecimalApproximation", ([target, digits]) =>
+    TODECIMAL: method("ToDecimal", ([target, options]) => {
+        const parsed = numericFormatOptions(options, "maxDigits", "Maximum decimal digits");
+        return stringObj(target.toDecimal(parsed.maxDigits));
+    }),
+    TOLOCALESTRING: method("ToLocaleString", ([target, options]) =>
+        stringObj(localeNumberString(target, options ?? { type: "map", entries: new Map() }))),
+    TOREPEATINGDECIMAL: method("ToRepeatingDecimal", ([target, options]) => {
+        const parsed = repeatingOptions(options);
+        const result = target.toRepeatingDecimalWithPeriod(parsed ?? true).decimal;
+        return result === null ? null : stringObj(result);
+    }),
+    TOREPEATINGDECIMALINFO: method("ToRepeatingDecimalInfo", ([target, options]) => {
+        const info = target.toRepeatingDecimalWithPeriod(repeatingOptions(options) ?? true);
+        return {
+            type: "map",
+            entries: new Map([
+                ["decimal", info.decimal === null ? null : stringObj(info.decimal)],
+                ["period", int(info.period)],
+                ["truncated", bool(info.truncated)],
+            ]),
+        };
+    }),
+    TODECIMALAPPROXIMATION: method("ToDecimalApproximation", ([target, options]) =>
         boundedDecimalApproximation(target, {
-            fractionalDigits: digits === undefined ? undefined : safeExactNumber(digits, "Fractional digits"),
+            fractionalDigits: numericFormatOptions(options, "fractionalDigits", "Fractional digits").fractionalDigits,
         })),
-    TOCONTINUEDFRACTION: method("ToContinuedFraction", ([target, maxTerms]) => exactSequence(
-        target.toContinuedFraction(
-            maxTerms === undefined ? undefined : safeExactNumber(maxTerms, "Maximum terms"),
-        ).map((value) => int(value)),
+    TOCONTINUEDFRACTION: method("ToContinuedFraction", ([target, options]) => exactSequence(
+        target.toContinuedFraction(numericFormatOptions(options, "maxTerms", "Maximum terms")).map((value) => int(value)),
     )),
-    TOCONTINUEDFRACTIONSTRING: method("ToContinuedFractionString", ([target]) =>
-        stringObj(target.toContinuedFractionString())),
-    TOCONTINUEDFRACTIONAPPROXIMATION: method("ToContinuedFractionApproximation", ([target, maxTerms]) =>
+    TOCONTINUEDFRACTIONSTRING: method("ToContinuedFractionString", ([target, options]) =>
+        stringObj(target.toContinuedFractionString(numericFormatOptions(options, "maxTerms", "Maximum terms")))),
+    TOCONTINUEDFRACTIONAPPROXIMATION: method("ToContinuedFractionApproximation", ([target, options]) =>
         boundedContinuedFractionApproximation(target, {
-            maxTerms: maxTerms === undefined ? undefined : safeExactNumber(maxTerms, "Maximum terms"),
+            maxTerms: numericFormatOptions(options, "maxTerms", "Maximum terms").maxTerms,
         })),
     CONVERGENTS: method("Convergents", ([target, maxCount]) => exactSequence(
         target.convergents(
@@ -1603,6 +1671,18 @@ const rationalIntervalMethods = {
     E: method("E", ([target, exponent]) => target.E(exactBigInt(exponent, "Exponent"))),
     BITLENGTH: method("BitLength", ([target]) => int(target.bitLength())),
     TOMIXEDSTRING: method("ToMixedString", ([target]) => stringObj(target.toMixedString())),
+    TOREPEATINGDECIMAL: method("ToRepeatingDecimal", ([target, options]) => {
+        const maxDigits = optionValue(options, "maxdigits", undefined);
+        const onLimit = optionValue(options, "onlimit", undefined);
+        const text = target.toRepeatingDecimal(options?.type === "map" ? {
+            ...(maxDigits === undefined ? {} : { maxDigits: safeExactNumber(maxDigits, "Maximum decimal digits") }),
+            ...(onLimit === undefined ? {} : { onLimit: stringValue(onLimit) }),
+        } : true);
+        return text === null ? null : stringObj(text);
+    }),
+    TOCOMPACTDECIMAL: method("ToCompactDecimal", ([target]) => stringObj(target.compactedDecimalInterval())),
+    TORELATIVEMIDDECIMAL: method("ToRelativeMidDecimal", ([target]) => stringObj(target.relativeMidDecimalInterval())),
+    TORELATIVEDECIMAL: method("ToRelativeDecimal", ([target]) => stringObj(target.relativeDecimalInterval())),
     TOSTRING: method("ToString", ([target]) => stringObj(target.toString())),
 };
 
