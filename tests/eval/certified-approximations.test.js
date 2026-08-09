@@ -132,4 +132,21 @@ describe("certified approximations and undecided decisions", () => {
         expect(parseAndEvaluate("23.456? :<: 23.4565")).toBe(UNDECIDED);
         expect(parseAndEvaluate("Guarded(x ? x < 0.55) -> x; Guarded(0.5?)")).toBe(UNDECIDED);
     });
+
+    it("blocks multifunction fallthrough when an earlier guard is undecided", () => {
+        const source = `
+            Classify = {>
+                (x) ?- [x < 0.55] /Below/ -> :below,
+                (x) ?- [x >= 0.55] /AtOrAbove/ -> :above,
+                (x) /Fallback/ -> .Error("undecided guard fell through")
+            };
+            [Classify(0.5), Classify(0.6), Classify(0.5?)]
+        `;
+        const result = parseAndEvaluate(source);
+        expect(result.values[0].value).toBe("below");
+        expect(result.values[1].value).toBe("above");
+        expect(result.values[2]).toBe(UNDECIDED);
+        expect(parseAndEvaluate("Strict(x) ?!- [x < 0.55] -> :below; Strict(0.5?)"))
+            .toBe(UNDECIDED);
+    });
 });
