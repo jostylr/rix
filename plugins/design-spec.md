@@ -55,7 +55,7 @@ numeric type or one universal rendering engine.
 | --- | --- | --- |
 | Exact mathematics expansion | `.algebra` | Polynomial gcd/factorization, rational functions, elimination, exact root evidence, and algebraic-number support beyond the implemented univariate transformation slice. |
 | Numeric orchestration expansion | `.numerics` | Root finding, integration, optimization, ODE/PDE helpers, adaptive sampling, error propagation, and broader algorithm dispatch beyond the implemented neutral Phase 1 enclosure/refinement protocol. |
-| Real backends | `.ball`, `.cauchy`, `.continuedFraction`, `.algebraicReal`; later `.oracle` expansion | Alternative representations that satisfy shared real-number and enclosure protocols. `.float`, `.oracle`, and nested `.ball` now have initial implementations. |
+| Real backends | `.ball`, `.cauchy`, `.continuedFraction`, `.algebraicReal`; later `.oracle` expansion | Alternative representations that satisfy shared real-number and enclosure protocols. `.float`, `.oracle`, nested `.ball`, and modulus-backed `.cauchy` now have initial implementations. |
 | Geometry expansion | `.geometry` | Transformations, constraints, conics, implicit loci, and certified intersections/drawing refinement beyond the implemented ruler-and-compass slice. |
 | Plotting | `.plot` | Function, parametric, implicit, data, statistical, vector, contour, and heat-map plots. |
 | 3D scene expansion | `.scene3d` | Certified hidden-surface/shadow policies, adaptive surfaces and volumes, textures, animation, clipping, and interactive orbit beyond the implemented retained wireframe/flat-lit slice. |
@@ -317,7 +317,7 @@ providers when installed.
 | `.float` | IEEE-754 binary64 | Exact dyadic enclosure of the stored value; elementary-function results are approximate unless backed by directed error analysis. | Fast exploratory computation, screen sampling, compatibility. |
 | `.ball` | Exact rational midpoint plus radius; explicitly outward-rounded dyadic snapshots | Preserve exact rational endpoints, or widen both endpoints to a requested dyadic grid. Nested recipes refine through certified exact bisection. | Certified snapshots and nested square-root exploration; robust transcendental work and interval Newton remain later phases. |
 | `.oracle` | Procedure answering precision requests | Ask directly for a proven rational interval. | Computable reals and lazy exactness. |
-| `.cauchy` | Rational sequence plus convergence modulus | Use the modulus and proven tail bound. A bare sequence is non-certifying. | Constructive analysis and sequence-defined constants. |
+| `.cauchy` | Rational sequence plus exact tail-bound function and modulus | Use the modulus to select a term, verify its exact tail inequality, and return the corresponding rational enclosure. A bare sequence remains explicitly non-certifying. | Constructive analysis, visible geometric-series refinement, and sequence-defined constants. |
 | `.continuedFraction` | Finite/rule-generated continued fraction | Use convergents and a proven tail bound; finite rationals terminate exactly. | Diophantine approximation and exact rational recovery. |
 | `.algebraicReal` | Polynomial plus rational isolating interval | Refine using exact sign/root-count evidence. | Exact roots, geometry intersections, certified comparisons. |
 

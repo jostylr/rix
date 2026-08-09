@@ -422,10 +422,10 @@ newline normalization.
 ### `.cauchy`
 
 1. **Phase 1 — Rational sequence with a modulus**
-   - [ ] Represent a rational Cauchy sequence plus certified tail modulus.
-   - [ ] Demonstrate a geometric-series real and produce a requested enclosure.
-   - [ ] Add README, runnable tutorial, and exact tail-bound tests.
-   - [ ] Register `Refinable`/`EnclosableReal`.
+   - [x] Represent a rational Cauchy sequence plus certified tail modulus.
+   - [x] Demonstrate a geometric-series real and produce a requested enclosure.
+   - [x] Add README, runnable tutorial, and exact tail-bound tests.
+   - [x] Register `Refinable`/`EnclosableReal`.
 2. **Phase 2 — Constructions and oracle adapter**
    - [ ] Add arithmetic with computed moduli.
    - [ ] Implement the paper-compatible funnel and Oracle adapter.

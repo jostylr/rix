@@ -258,7 +258,7 @@ Representation plugins meet the contract differently:
 | Representation | How it obtains a certified enclosure |
 |---|---|
 | Oracle real | Ask the oracle for a rational interval of the requested width. |
-| Cauchy sequence | Use a supplied convergence modulus to select a rational term and a proven tail-error bound. A bare sequence without a modulus is not certifying. |
+| Cauchy sequence | Use a supplied convergence modulus to select a rational term and verify its exact tail-error bound. Phase 1 includes declared certificates and a proof-backed geometric-series constructor; a bare sequence without a modulus is not certifying. |
 | Continued fraction | Use convergents plus a certified bound on the remaining tail. A finite prefix alone is insufficient unless the value is rational or has a declared tail theorem. |
 | Algebraic/constraint real | Refine its existing rational isolating interval with exact sign or root-counting evidence. |
 | Rational/nested Ball | Preserve exact rational endpoints, explicitly round outward to a dyadic grid, or refine a retained recipe. Phase 1 demonstrates exact-bisection square roots. |
