@@ -51,14 +51,15 @@ describe("Continued Fraction plugin", () => {
             .Plugin.Load("continued-fraction");
             finite = .cf.Finite([3, 7, 16]);
             literal = .continuedFraction(3.~7~16);
-            {: finite.Coefficients(), finite.Convergents(), finite.Value(), literal.Coefficients(), literal.Value() }
+            {: finite.Coefficients(), finite.Convergents(), finite.Value(), finite.Enclosure(), literal.Coefficients(), literal.Value() }
         `, options);
 
         expect(result.values[0].values.map(String)).toEqual(["3", "7", "16"]);
         expect(result.values[1].values.map(String)).toEqual(["3", "22/7", "355/113"]);
         expect(result.values[2].toString()).toBe("355/113");
-        expect(result.values[3].values.map(String)).toEqual(["3", "7", "16"]);
-        expect(result.values[4].toString()).toBe("355/113");
+        expect(result.values[3].toString()).toBe("355/113:355/113");
+        expect(result.values[4].values.map(String)).toEqual(["3", "7", "16"]);
+        expect(result.values[5].toString()).toBe("355/113");
         expect(result.values[2]).toEqual(parseAndEvaluate("355/113", options));
     });
 

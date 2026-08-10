@@ -95,9 +95,9 @@ FractionPower(value, exponent) -> {;
       ?_ power > 0
       ?: FractionRaw(FractionNumerator(exact)^power, FractionDenominator(exact)^power)
       ?_ {;
-          FractionNumerator(exact) != 0 ?: _ ?_ .Error("Zero Fraction cannot have a negative exponent");
-          magnitude = -power;
-          FractionRaw(FractionDenominator(exact)^magnitude, FractionNumerator(exact)^magnitude);
+          FractionNumerator(@exact) != 0 ?: _ ?_ .Error("Zero Fraction cannot have a negative exponent");
+          magnitude = -@power;
+          FractionRaw(FractionDenominator(@exact)^magnitude, FractionNumerator(@exact)^magnitude);
       };
 };
 
@@ -198,8 +198,8 @@ FractionFareyParents(value) -> {;
       ?: (scale == 1
           ?: {: FractionRaw(-1,0), FractionRaw(1,0) }
           ?_ {;
-              leftDenominator = scale // 2;
-              {: FractionRaw(-1,leftDenominator), FractionRaw(1,scale-leftDenominator) };
+              leftDenominator = @scale // 2;
+              {: FractionRaw(-1,leftDenominator), FractionRaw(1,@scale-leftDenominator) };
           })
       ?_ {;
           parents = FractionBaseParents(@reducedNumerator, @reducedDenominator);

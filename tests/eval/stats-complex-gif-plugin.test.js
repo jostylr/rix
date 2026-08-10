@@ -58,6 +58,7 @@ describe("Phase 1 statistics plugin", () => {
         expect(() => parseAndEvaluate('.Plugin.Load("stats"); .stats.Mean([])', runtime())).toThrow("at least one value");
         expect(() => parseAndEvaluate('.Plugin.Load("stats"); .stats.SampleVariance([1])', runtime())).toThrow("at least two values");
         expect(() => parseAndEvaluate('.Plugin.Load("stats"); .stats.Quantile([1,2], 3/2)', runtime())).toThrow("between 0 and 1");
+        expect(formatValue(parseAndEvaluate('.Plugin.Load("stats"); .stats.Variance([5])', runtime()))).toBe("0");
     });
 });
 

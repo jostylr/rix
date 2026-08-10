@@ -6,7 +6,7 @@ describe("pure RiX Stern-Brocot plugin", () => {
     test("loads its Fraction dependency and describes an exact node", () => {
         const result = parseAndEvaluate(`
             .Plugin.Load("stern-brocot");
-            .sternBrocotDescribe(.frac(3, 5));
+            .sternBrocot.Describe(.frac(3, 5));
         `);
         expect(result.entries.get("schema").value).toBe("rix.stern-brocot.node@1");
         expect(String(result.entries.get("current"))).toBe("3/5");
@@ -17,6 +17,17 @@ describe("pure RiX Stern-Brocot plugin", () => {
         expect(result.entries.get("mediant")).toBeInstanceOf(Fraction);
         expect(result.entries.get("rational")).toBeInstanceOf(Rational);
         expect(result.entries.get("continuedfraction").values.map(String)).toEqual(["0", "1", "1", "2"]);
+    });
+
+    test("keeps the direct callable exports alongside the mounted namespace", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("stern-brocot");
+            [
+                .sternBrocot.Evaluate(x -> x^2, .frac(2, 3)),
+                .sternBrocotEvaluate(x -> x^2, .frac(2, 3))
+            ];
+        `);
+        expect(result.values.map(String)).toEqual(["4/9", "4/9"]);
     });
 
     test("describes the signed-tree root without constructing an indeterminate mediant", () => {

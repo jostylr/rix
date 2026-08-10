@@ -64,7 +64,8 @@ describe("radix plugin", () => {
                 (1/7).Digits(10, {= }),
                 (1/7).PeriodLength(10),
                 (1/8).PeriodLength(10),
-                (1/7).RadixString(10)
+                (1/7).RadixString(10),
+                23.RadixString(10)
             };
         `, options);
         expect(ints(result.values[0])).toEqual([1, 4, 2, 8, 5, 7, 1, 4]);
@@ -72,6 +73,16 @@ describe("radix plugin", () => {
         expect(result.values[2].value).toBe(6n);
         expect(result.values[3].value).toBe(0n);
         expect(result.values[4].value).toBe("0.(142857)");
+        expect(result.values[5].value).toBe("23");
+    });
+
+    test("recognizes a repeat reached exactly at the digit budget", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("radix");
+            (1/3).Expansion(10, {= maxDigits=1 });
+        `, runtime());
+        expect(entry(result, "status").value).toBe("complete");
+        expect(ints(entry(result, "repeatingDigits"))).toEqual([3]);
     });
 
     test("period work exhaustion has both structured and throwing forms", () => {

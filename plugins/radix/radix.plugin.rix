@@ -57,7 +57,7 @@ RadixIntegerDigits(value, base) -> {;
       ?: [0]
       ?_ {;
           result := [];
-          remaining := value;
+          remaining := @value;
           {@ step = 1; @remaining > 0; {;
               @result ~= @result.Push(@remaining % @base);
               @remaining ~= @remaining // @base;
@@ -87,7 +87,7 @@ RadixExpansion(value, baseValue ?= 10, options ?= _) -> {;
           };
     }; step += 1 };
     repeatStart == _ && remainder != 0 && seen.Has(@"r@{remainder}")
-      ?: {; repeatStart ~= seen[@"r@{remainder}"]; }
+      ?: {; @repeatStart ~= @seen[@"r@{@remainder}"]; }
       ?_ _;
     complete = remainder == 0 || repeatStart != _;
     prefix = repeatStart == _ ?: fractional ?_ fractional.Slice(1, repeatStart + 1);

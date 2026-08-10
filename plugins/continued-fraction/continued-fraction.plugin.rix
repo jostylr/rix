@@ -139,7 +139,7 @@ CFNextWitness(real, witness) -> {;
 CFEnclosureAt(real, count ?= _) -> {;
     real[:kind] == :finite
       ?: {;
-          exact = CFConvergent(real, count == _ ?: real[:length] ?_ count);
+          exact = CFConvergent(@real, @count == _ ?: @real[:length] ?_ @count);
           exact:exact;
       }
       ?_ CFWitness(real, count == _ ?: 2 ?_ CFRequireCount(count, "Continued-fraction enclosure count"))[:interval];

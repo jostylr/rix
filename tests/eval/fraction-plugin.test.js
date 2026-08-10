@@ -33,9 +33,9 @@ describe("representation-sensitive Fraction plugin", () => {
             b := \`1/3\`;
             c := \`2/4\`;
             d := \`3/6\`;
-            [a+b, a-b, c*d, c/d, c^2, -c, c+1, 1/c];
+            [a+b, a-b, c*d, c/d, c^2, c^-2, -c, c+1, 1/c];
         `);
-        expect(strings(result)).toEqual(["5/6", "1/6", "6/24", "12/12", "4/16", "-2/4", "6/4", "4/2"]);
+        expect(strings(result)).toEqual(["5/6", "1/6", "6/24", "12/12", "4/16", "16/4", "-2/4", "6/4", "4/2"]);
     });
 
     test("supports like-denominator and LCM-denominator classroom addition", () => {
@@ -121,5 +121,8 @@ describe("representation-sensitive Fraction plugin", () => {
             .Plugin.Load("fraction");
             .fraction.FromSternBrocotPath(["left"]);
         `)).toThrow("directions must be L or R");
+
+        const scaledParents = parseAndEvaluate('.Plugin.Load("fraction"); .frac(0,4).FareyParents()');
+        expect(strings(scaledParents)).toEqual(["-1/2", "1/2"]);
     });
 });

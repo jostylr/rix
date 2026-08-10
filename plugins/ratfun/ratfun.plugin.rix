@@ -179,19 +179,19 @@ RatfunPolyFromInspect(node, variable) -> {;
     state := [node, variable];
     kind = state[1][:kind];
     kind == "number"
-      ?: .poly([@state[1][:integer]],@state[2])
+      ?: .poly([state[1][:integer]],state[2])
       ?_ (kind == "identifier"
-          ?: (@state[1][:name] == @state[2] ?: .poly([1,0],@state[2]) ?_ .Error(@"Unexpected RationalFunction symbol @{@state[1][:name]}"))
+          ?: (state[1][:name] == state[2] ?: .poly([1,0],state[2]) ?_ .Error(@"Unexpected RationalFunction symbol @{state[1][:name]}"))
           ?_ (kind == "unary"
-              ?: (@state[1][:op] == "-" ?: -RatfunPolyFromInspect(@state[1][:argument],@state[2]) ?_ .Error(@"Unsupported RationalFunction unary operator @{@state[1][:op]}"))
+              ?: (state[1][:op] == "-" ?: -RatfunPolyFromInspect(state[1][:argument],state[2]) ?_ .Error(@"Unsupported RationalFunction unary operator @{state[1][:op]}"))
               ?_ (kind == "binary"
                   ?: {;
                       leftState:=[RatfunPolyFromInspect(@state[1][:left],@state[2])];
                       op=@state[1][:op];
-                      op == "+" ?: @leftState[1] + RatfunPolyFromInspect(@state[1][:right],@state[2])
-                        ?_ op == "-" ?: @leftState[1] - RatfunPolyFromInspect(@state[1][:right],@state[2])
-                        ?_ op == "*" ?: @leftState[1] * RatfunPolyFromInspect(@state[1][:right],@state[2])
-                        ?_ op == "^" ?: @leftState[1] ^ @state[1][:right][:integer]
+                      op == "+" ?: leftState[1] + RatfunPolyFromInspect(@state[1][:right],@state[2])
+                        ?_ op == "-" ?: leftState[1] - RatfunPolyFromInspect(@state[1][:right],@state[2])
+                        ?_ op == "*" ?: leftState[1] * RatfunPolyFromInspect(@state[1][:right],@state[2])
+                        ?_ op == "^" ?: leftState[1] ^ @state[1][:right][:integer]
                         ?_ .Error(@"Operator @{op} does not form a Polynomial");
                   }
                   ?_ .Error(@"Unsupported RationalFunction symbolic node @{kind}"))));

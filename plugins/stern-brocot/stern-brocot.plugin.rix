@@ -3,7 +3,7 @@ id: stern-brocot
 description: Pure RiX Stern-Brocot node descriptions, visible tree records, and exact formula evaluation.
 kind: rix
 mount: sternBrocot
-exports: [sternBrocotDescribe, sternBrocotVisibleTree, sternBrocotEvaluate]
+exports: [Describe, VisibleTree, Evaluate, sternBrocotDescribe, sternBrocotVisibleTree, sternBrocotEvaluate]
 groups: [Exact, Graphics]
 permissions: []
 requires: [rix.fraction@1]
@@ -81,6 +81,19 @@ defaultEnabled: false
     };
 
     SternBrocotEvaluate(formula, fraction) -> fraction.F().Rational() |> formula;
+
+    sternBrocotNamespace = {= };
+    sternBrocotNamespace._proto = {=
+        Describe=(self, fraction)->SternBrocotDescribe(fraction),
+        VisibleTree=(self, fraction, descendantDepth ?= 3)->SternBrocotVisibleTree(fraction, descendantDepth),
+        Evaluate=(self, formula, fraction)->SternBrocotEvaluate(formula, fraction)
+    };
+    .Host.RegisterValue(
+        "sternBrocot",
+        sternBrocotNamespace,
+        "Exact Stern-Brocot descriptions, visible trees, and formula evaluation",
+        ["Exact", "Graphics"]
+    );
 
     .Host.Register(
         "sternBrocotDescribe",

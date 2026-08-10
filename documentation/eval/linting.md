@@ -20,8 +20,10 @@ rix lint --level=pedantic program.rix
 
 The default is `standard`. Levels are cumulative: `essential` is level 1,
 `standard` adds level 2, `thorough` adds level 3, and `pedantic` adds level 4.
-The level controls how speculative or stylistic a check may be; diagnostic
-severity independently says whether a finding is an error, warning, or note.
+Essential and standard prioritize actionable semantic problems. Thorough adds
+heuristics that may need human confirmation. Pedantic adds convention and
+style review. Diagnostic severity independently says whether a finding is an
+error, warning, or note.
 
 Profiles select relevant domains:
 
@@ -36,6 +38,12 @@ Profiles select relevant domains:
 
 Profiles can be repeated or comma-separated. Plugin files automatically use
 the plugin profile unless an explicit profile is supplied.
+
+Valid-but-noteworthy constructs such as dense conditionals, deliberate block
+capture boundaries, function values, and capture-density suggestions live in
+the `teaching` or `style` concerns. They do not dilute the default or plugin
+profiles; request `--profile=teaching`, `--profile=pedantic`, or
+`--profile=all` when that review is useful.
 
 Warnings are advisory by default. CI can opt into failure on warnings:
 
@@ -149,7 +157,7 @@ or incorrectly marked outer, plus its owning scope and suggested spelling.
 | `RX1805` | Polynomial `/` needs the rational-function capability. |
 | `RX1806` | Refinement has no visible precision/work budget. |
 | `RX1901`–`RX1910` | Plugin header, exports, mount, dependencies, collisions, portability, schemas, mutation naming, idempotence, and capability groups. |
-| `RX2001` | A lazy branch is capture-dense enough to consider extraction. |
+| `RX2001` | A lazy branch is capture-dense enough to consider extraction (style profile at thorough level). |
 | `RX2002` | A lint suppression lacks an explanatory reason. |
 
 Errors always produce a nonzero status. `--strict` additionally fails on

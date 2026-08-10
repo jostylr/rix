@@ -40,9 +40,9 @@ export const RIX_LINT_RULES = Object.freeze({
     RX1701: { level: 1, profiles: ["syntax", "teaching"], title: "Lowercase call-like multiplication" },
     RX1702: { level: 1, profiles: ["syntax", "teaching"], title: "Zero index in a one-based collection" },
     RX1703: { level: 2, profiles: ["syntax", "teaching"], title: "Collection or string decision" },
-    RX1704: { level: 3, profiles: ["syntax", "style"], title: "Dense nested conditional" },
-    RX1705: { level: 3, profiles: ["syntax", "teaching"], title: "Block introduces capture boundary" },
-    RX1706: { level: 3, profiles: ["syntax", "teaching"], title: "Function value reference" },
+    RX1704: { level: 3, profiles: ["style"], title: "Dense nested conditional" },
+    RX1705: { level: 3, profiles: ["teaching", "style"], title: "Block introduces capture boundary" },
+    RX1706: { level: 4, profiles: ["teaching", "style"], title: "Function value reference" },
     RX1801: { level: 2, profiles: ["math", "teaching"], title: "Exact division versus truncation" },
     RX1802: { level: 3, profiles: ["math", "teaching"], title: "Fraction equality policy" },
     RX1803: { level: 3, profiles: ["math"], title: "Exactness discarded" },
@@ -59,7 +59,7 @@ export const RIX_LINT_RULES = Object.freeze({
     RX1908: { level: 2, profiles: ["plugin"], title: "Mutation naming contract" },
     RX1909: { level: 3, profiles: ["plugin"], title: "Plugin initialization idempotence" },
     RX1910: { level: 2, profiles: ["plugin"], title: "Capability group mismatch" },
-    RX2001: { level: 2, profiles: ["style", "core"], title: "Capture-dense lazy branch" },
+    RX2001: { level: 3, profiles: ["style"], title: "Capture-dense lazy branch" },
     RX2002: { level: 4, profiles: ["style"], title: "Suppression lacks a reason" },
 });
 
@@ -148,7 +148,7 @@ function statementExpression(node) {
 
 function targetNames(node, names = []) {
     if (!node || typeof node !== "object") return names;
-    if (["UserIdentifier", "SystemIdentifier", "ReactiveCellRef", "ReactiveRef"].includes(node.type)) {
+    if (["UserIdentifier", "SystemIdentifier", "OuterIdentifier", "ReactiveCellRef", "ReactiveRef"].includes(node.type)) {
         names.push({ name: node.name, node });
         return names;
     }
@@ -313,11 +313,10 @@ function callArguments(node) {
 function explicitFix(node, source, mode) {
     const offset = sourceOffset(node);
     const name = String(node?.name || "");
-    const identifierStart = source.slice(offset, offset + name.length) === name
-        ? offset
-        : source.slice(Math.max(0, offset - name.length), offset) === name
-            ? offset - name.length
-            : offset;
+    const sameIdentifier = (start) => start >= 0
+        && source.slice(start, start + name.length).toLowerCase() === name.toLowerCase();
+    const identifierStart = [offset, offset - name.length, offset + 1, offset - name.length - 1]
+        .find(sameIdentifier) ?? offset;
     if (mode === "insert-outer") {
         return { start: identifierStart, end: identifierStart, replacement: "@", safe: true, description: `Capture '${node.name}' from the enclosing scope` };
     }
@@ -397,7 +396,7 @@ function declarationNodes(nodes, options = {}) {
         if (!node) return;
         const assignment = assignmentDetails(node);
         if (assignment && !UPDATE_OPERATORS.has(assignment.operator) && assignment.left?.type !== "ReactiveRef") {
-            for (const target of targetNames(assignment.left)) {
+            for (const target of targetNames(assignment.left).filter(({ node: targetNode }) => targetNode?.type !== "OuterIdentifier")) {
                 result.push({ ...target, initializer: assignment.right, declaration: assignment });
             }
             return;
@@ -645,7 +644,7 @@ export function analyzeRix(source, options = {}) {
         else if (outerAccess && scope.current(node.name)) {
             status = "spurious-outer";
             recommendation = node.name;
-        } else if (!outerAccess && !scope.current(node.name) && scope.outer(node.name) && role !== "callee") {
+        } else if (!outerAccess && scope.kind !== "function" && !scope.current(node.name) && scope.outer(node.name) && role !== "callee") {
             status = "capture-required";
             recommendation = `@${node.name}`;
         } else if (resolved?.scope === scope) status = "current";
@@ -807,7 +806,7 @@ export function analyzeRix(source, options = {}) {
                     `Use '$${node.name}' when changes should recompute this definition; keep the bare name only for an intentional snapshot.`,
                 );
             }
-            if (!scope.current(node.name) && scope.outer(node.name)) {
+            if (scope.kind !== "function" && !scope.current(node.name) && scope.outer(node.name)) {
                 emit(
                     "RX1001",
                     "warning",
@@ -861,6 +860,7 @@ export function analyzeRix(source, options = {}) {
                 state.role !== "declaration"
                 && state.role !== "mapKey"
                 && state.role !== "callee"
+                && scope.kind !== "function"
                 && !scope.current(node.name)
                 && scope.outer(node.name)
             ) {
@@ -1041,7 +1041,13 @@ export function analyzeRix(source, options = {}) {
             visit(node.condition, scope, { ...state, role: "value", tail: false, discarded: false });
             for (const branch of [node.trueExpression, node.nullExpression, node.undecidedExpression]) {
                 warnCaptureDensity(branch);
-                visit(branch, scope, { ...state, role: "value", tail: state.tail, discarded: state.discarded });
+                visit(branch, scope, {
+                    ...state,
+                    role: "value",
+                    sharedScope: false,
+                    tail: state.tail,
+                    discarded: state.discarded,
+                });
             }
             return;
         }

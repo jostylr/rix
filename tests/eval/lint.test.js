@@ -45,6 +45,17 @@ describe("RiX static lint diagnostics", () => {
             ]));
         expect(diagnostics.some(({ message }) => message.includes("@values"))).toBe(false);
         expect(diagnostics.some(({ message }) => message.includes("@total"))).toBe(false);
+        expect(diagnostics.some(({ code }) => code === "RX1401")).toBe(false);
+    });
+
+    test("treats function closures as lexical and lazy blocks as capture boundaries", () => {
+        expect(codes("Make=(a)->(x)->a*x; F=Make(2); F(3);")).not.toContain("RX1001");
+
+        const missing = lintRix("F=()->{; value=7; 1 ?: {; value; } ?_ _; }; F();");
+        expect(missing.find(({ code }) => code === "RX1001")?.message).toContain("value");
+
+        const explicit = lintRix("F=()->{; value=7; 1 ?: {; @value; } ?_ _; }; F();");
+        expect(explicit.map(({ code }) => code)).not.toContain("RX1002");
     });
 
     test("warns about numeric decisions and undecided fallthrough", () => {
@@ -66,8 +77,10 @@ describe("RiX static lint diagnostics", () => {
 
     test("reports shadowing and capture-dense lazy branches", () => {
         expect(codes("x=1; 1 ?: {; x=2; x; } ?_ _;" )).toContain("RX1302");
-        const dense = lintRix("a=1;b=2;c=3;d=4; 1 ?: {; @a+@b+@c+@d+@a; } ?_ _;");
-        expect(dense.find(({ code }) => code === "RX2001")).toMatchObject({ severity: "info" });
+        const source = "a=1;b=2;c=3;d=4; 1 ?: {; @a+@b+@c+@d+@a; } ?_ _;";
+        expect(lintRix(source).map(({ code }) => code)).not.toContain("RX2001");
+        expect(lintRix(source, { profile: "all", level: "thorough" }).find(({ code }) => code === "RX2001"))
+            .toMatchObject({ severity: "info" });
     });
 
     test("corrected translation patterns stay clean", () => {
@@ -138,6 +151,12 @@ describe("RiX static lint diagnostics", () => {
         const fixed = applyRixLintFixes(source, diagnostics, { edit: true });
         expect(fixed).toMatchObject({ source: "x=1; {; @x; };", applied: 1 });
         expect(lintRix(fixed.source)).toEqual([]);
+
+        const camelSource = "repeatStart=_; 1 ?: {; repeatStart ~= 2; } ?_ _;";
+        const camelDiagnostics = lintRix(camelSource);
+        const camelFixed = applyRixLintFixes(camelSource, camelDiagnostics, { edit: true });
+        expect(camelFixed.source).toContain("@repeatStart ~= 2");
+        expect(() => parseAndEvaluate(camelFixed.source)).not.toThrow();
 
         const sarif = lintDiagnosticsToSarif(diagnostics);
         expect(sarif).toMatchObject({ version: "2.1.0" });

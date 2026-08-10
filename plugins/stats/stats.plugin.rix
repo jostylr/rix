@@ -52,7 +52,7 @@ StatsMedian(values) -> StatsQuantile(values, 1/2);
 
 StatsVariance(values, sample ?= 0) -> {;
     exact = StatsValues(values);
-    sample && exact.Len() < 2 ?: .Error("Sample variance requires at least two values") ?_ _;
+    sample == 1 && exact.Len() < 2 ?: .Error("Sample variance requires at least two values") ?_ _;
     mean = StatsSum(exact) / exact.Len();
     squared = exact.Reduce((sum, value) -> sum + (value - mean)^2, 0);
     squared / (sample == 1 ?: exact.Len() - 1 ?_ exact.Len());
