@@ -1,5 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import { explainRixScopes, lintRix, parseAndEvaluate } from "../../src/index.js";
+import {
+    analyzeRix,
+    applyRixLintFixes,
+    explainRixScopes,
+    lintDiagnosticsToSarif,
+    lintRix,
+    parseAndEvaluate,
+} from "../../src/index.js";
 
 function codes(source) {
     return lintRix(source).map(({ code }) => code);
@@ -85,6 +92,70 @@ describe("RiX static lint diagnostics", () => {
             .toMatchObject({ owner: "block", access: "bare" });
         expect(scopes.find(({ name, status }) => name === "local" && status === "spurious-outer"))
             .toMatchObject({ recommendation: "local" });
+    });
+
+    test("supports progressive levels and domain profiles", () => {
+        const alias = "items=[1]; shared=items;";
+        expect(codes(alias)).toContain("RX1202");
+        expect(lintRix(alias, { level: "essential" }).map(({ code }) => code)).not.toContain("RX1202");
+
+        const reactive = "$$source:=1; $$derived:=source+1;";
+        expect(lintRix(reactive).map(({ code }) => code)).not.toContain("RX1601");
+        expect(lintRix(reactive, { profile: "reactive" }).map(({ code }) => code)).toContain("RX1601");
+    });
+
+    test("finds control-flow, syntax, reactive, and math hazards", () => {
+        const all = (source) => lintRix(source, { profile: "all", level: "pedantic" }).map(({ code }) => code);
+        expect(all("{@ i=0; i<3; 1; _ };")).toContain("RX1401");
+        expect(all("{@ i=0; i<3; {; i+=1; }; i+=1 };")).toContain("RX1402");
+        expect(all("F(n)->n==0 ?: 1 ?_ n*F(n-1);")).toContain("RX1501");
+        expect(all("f=(x)->x; f(2); values=[1]; values[0];")).toEqual(expect.arrayContaining(["RX1701", "RX1702"]));
+        expect(all("F(d)->1/d;")).toContain("RX1804");
+        expect(all("$$a:=$b; $$b:=$a;")).toContain("RX1604");
+        expect(all("$$items:=[1]; $items.Push!(2);")).toContain("RX1603");
+        expect(all("$$items:=[1]; $items.Push!(2); $$items.Touch();")).not.toContain("RX1603");
+    });
+
+    test("detects path initialization, aliasing, ignored values, and explicit-capture mistakes", () => {
+        const all = (source) => lintRix(source, { profile: "all", level: "pedantic" });
+        expect(all("condition ?: (chosen=1) ?_ _;").map(({ code }) => code)).toContain("RX1303");
+        expect(all("items=[1]; shared=items;").map(({ code }) => code)).toContain("RX1202");
+        expect(all("items=[1]; items.Push(2); 0;").map(({ code }) => code)).toContain("RX1203");
+        expect(all("{; @missing; };").map(({ code }) => code)).toContain("RX1003");
+    });
+
+    test("suppresses named rules with reasons and reports suppressed diagnostics", () => {
+        const source = "x=1;\n## rix-lint-disable-next-line RX1001 -- intentional teaching example\n{; x; };\n";
+        const analysis = analyzeRix(source, { level: "pedantic", profile: "all" });
+        expect(analysis.diagnostics.map(({ code }) => code)).not.toContain("RX1001");
+        expect(analysis.suppressedDiagnostics.map(({ code }) => code)).toContain("RX1001");
+    });
+
+    test("safe fixes require an explicit edit option and SARIF retains rule locations", () => {
+        const source = "x=1; {; x; };";
+        const diagnostics = lintRix(source);
+        expect(() => applyRixLintFixes(source, diagnostics)).toThrow("explicit option");
+        const fixed = applyRixLintFixes(source, diagnostics, { edit: true });
+        expect(fixed).toMatchObject({ source: "x=1; {; @x; };", applied: 1 });
+        expect(lintRix(fixed.source)).toEqual([]);
+
+        const sarif = lintDiagnosticsToSarif(diagnostics);
+        expect(sarif).toMatchObject({ version: "2.1.0" });
+        expect(sarif.runs[0].results[0]).toMatchObject({ ruleId: "RX1001", level: "warning" });
+    });
+
+    test("checks RiX plugin metadata and registrations under the plugin profile", () => {
+        const source = `.Host.RegisterValue("wrongMount", {= }, "demo", ["Other"]);`;
+        const diagnostics = lintRix(source, {
+            ast: [],
+            profile: "plugin",
+            level: "thorough",
+            pluginMetadata: {
+                id: "demo", kind: "rix", mount: "demo", aliases: [], exports: ["Missing"],
+                groups: ["Demo"], permissions: ["files"], provides: [], schemas: [], requires: [],
+            },
+        });
+        expect(diagnostics.map(({ code }) => code)).toEqual(expect.arrayContaining(["RX1902", "RX1903", "RX1906", "RX1907", "RX1910"]));
     });
 });
 

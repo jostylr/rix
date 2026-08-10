@@ -28,11 +28,15 @@ import {
     isRixAbort,
     complete,
     readSourceHeader,
+    readPluginHeader,
     extractOperatorDeclarationsFromSource,
     mergeOperatorDefinitions,
     lintRix,
     explainRixScopes,
     formatLintDiagnostic,
+    applyRixLintFixes,
+    lintDiagnosticsToSarif,
+    RIX_LINT_RULES,
 } from "../src/index.js";
 import { NodePluginCatalog } from "../src/runtime/plugin-catalog-node.js";
 import { formatValue as formatResult } from "../src/eval/format.js";
@@ -98,7 +102,7 @@ function usage() {
     return `Usage:
   bun rix [options] [file.rix]
   bun rix test [filters...]
-  bun rix lint [--strict] [--json] [--operator-file=FILE] file.rix [...]
+  bun rix lint [--level=LEVEL] [--profile=PROFILE] [--strict] [--json|--sarif] file.rix [...]
   bun rix explain-scope [--json] file.rix:line[:column]
 
 Options:
@@ -129,8 +133,17 @@ function lintUsage() {
   bun rix lint [options] -
 
 Options:
+  --level=LEVEL           essential, standard (default), thorough, or pedantic
+  --profile=PROFILE       default, plugin, reactive, math, teaching, pedantic, or all
   --strict                Exit nonzero when warnings are found
   --json                  Emit diagnostics as JSON
+  --sarif                 Emit SARIF 2.1.0 for code-scanning systems
+  --fix                   Explicitly apply only fixes marked safe, then lint again
+  --baseline=FILE         Hide diagnostics recorded in a JSON lint baseline
+  --write-baseline=FILE   Explicitly write the current diagnostic baseline
+  --coverage=FILE         Annotate diagnostics using executed-line JSON data
+  --closed-plugin-set     Require plugin dependencies to be provided by the lint inputs
+  --list-rules            List rule codes, levels, and profile groups
   --operator-file=FILE    Load custom operator declarations before parsing
   --help, -h              Show this help`;
 }
@@ -138,13 +151,51 @@ Options:
 function parseLintArgs(rawArgs) {
     let strict = false;
     let json = false;
+    let sarif = false;
+    let fix = false;
+    let level = "standard";
+    let profileSpecified = false;
+    let closedPluginSet = false;
+    let baseline = null;
+    let writeBaseline = null;
+    let coverage = null;
+    let listRules = false;
+    const profiles = [];
     const operatorFiles = [];
     const files = [];
     for (let index = 0; index < rawArgs.length; index += 1) {
         const arg = rawArgs[index];
         if (arg === "--strict") strict = true;
         else if (arg === "--json") json = true;
-        else if (arg === "--help" || arg === "-h") return { help: true, strict, json, operatorFiles, files };
+        else if (arg === "--sarif") sarif = true;
+        else if (arg === "--fix") fix = true;
+        else if (arg === "--closed-plugin-set") closedPluginSet = true;
+        else if (arg === "--list-rules") listRules = true;
+        else if (arg === "--level") {
+            level = rawArgs[++index];
+            if (!level) throw new Error("--level requires a value");
+        } else if (arg.startsWith("--level=")) level = arg.slice("--level=".length);
+        else if (arg === "--profile") {
+            const value = rawArgs[++index];
+            if (!value) throw new Error("--profile requires a value");
+            profiles.push(...value.split(","));
+            profileSpecified = true;
+        } else if (arg.startsWith("--profile=")) {
+            profiles.push(...arg.slice("--profile=".length).split(","));
+            profileSpecified = true;
+        } else if (arg === "--baseline") {
+            baseline = rawArgs[++index];
+            if (!baseline) throw new Error("--baseline requires a file");
+        } else if (arg.startsWith("--baseline=")) baseline = arg.slice("--baseline=".length);
+        else if (arg === "--write-baseline") {
+            writeBaseline = rawArgs[++index];
+            if (!writeBaseline) throw new Error("--write-baseline requires a file");
+        } else if (arg.startsWith("--write-baseline=")) writeBaseline = arg.slice("--write-baseline=".length);
+        else if (arg === "--coverage") {
+            coverage = rawArgs[++index];
+            if (!coverage) throw new Error("--coverage requires a file");
+        } else if (arg.startsWith("--coverage=")) coverage = arg.slice("--coverage=".length);
+        else if (arg === "--help" || arg === "-h") return { help: true };
         else if (arg === "--operator-file") {
             const filename = rawArgs[++index];
             if (!filename) throw new Error("--operator-file requires a file");
@@ -157,7 +208,35 @@ function parseLintArgs(rawArgs) {
             throw new Error(`Unknown lint option: ${arg}`);
         } else files.push(arg);
     }
-    return { help: false, strict, json, operatorFiles, files };
+    if (json && sarif) throw new Error("Use only one of --json or --sarif");
+    return {
+        help: false, strict, json, sarif, fix, level, profiles, profileSpecified,
+        closedPluginSet, baseline, writeBaseline, coverage, listRules, operatorFiles, files,
+    };
+}
+
+function lintBaselineKey(diagnostic) {
+    return `${diagnostic.code}|${path.resolve(diagnostic.file)}|${diagnostic.message}`;
+}
+
+function lintBaselineKeys(filename) {
+    if (!filename) return new Set();
+    const parsed = JSON.parse(readFileSync(filename, "utf8"));
+    const entries = Array.isArray(parsed) ? parsed : parsed.entries;
+    if (!Array.isArray(entries)) throw new Error("Lint baseline must be an array or an object with an entries array");
+    return new Set(entries.map((entry) => typeof entry === "string" ? entry : entry.key).filter(Boolean));
+}
+
+function readLintCoverage(filename) {
+    if (!filename) return null;
+    const parsed = JSON.parse(readFileSync(filename, "utf8"));
+    const files = parsed.files || parsed;
+    const result = new Map();
+    for (const [file, value] of Object.entries(files)) {
+        const lines = Array.isArray(value) ? value : value.executedLines || value.lines || [];
+        result.set(path.resolve(file), new Set(lines.map(Number).filter(Number.isFinite)));
+    }
+    return result;
 }
 
 function runLint(rawArgs) {
@@ -166,40 +245,149 @@ function runLint(rawArgs) {
         console.log(lintUsage());
         return;
     }
+    if (options.listRules) {
+        for (const [code, rule] of Object.entries(RIX_LINT_RULES)) {
+            console.log(`${code} level=${rule.level} profiles=${rule.profiles.join(",")} ${rule.title}`);
+        }
+        return;
+    }
     if (options.files.length === 0) throw new Error("rix lint requires at least one file, or '-' for stdin");
     if (options.files.filter((file) => file === "-").length > 1 || (options.files.includes("-") && options.files.length > 1)) {
         throw new Error("stdin '-' must be the only lint input");
     }
+    if (options.fix && options.files.includes("-")) throw new Error("--fix requires named files; stdin is read-only");
 
     const operatorDefinitions = mergeOperatorDefinitions(...readOperatorFiles(options.operatorFiles, process.cwd()));
-    const diagnostics = [];
+    let diagnostics = [];
+    const pluginRecords = [];
+    let fixesApplied = 0;
     for (const filename of options.files) {
-        const source = filename === "-" ? readFileSync("/dev/stdin", "utf8") : readFileSync(filename, "utf8");
+        let source = filename === "-" ? readFileSync("/dev/stdin", "utf8") : readFileSync(filename, "utf8");
         const file = filename === "-" ? "<stdin>" : path.resolve(filename);
         try {
             const sourceHeader = readSourceHeader(source, file);
+            const isPlugin = /\.plugin\.rix(?:\.js)?$/.test(file);
+            const rawPluginMetadata = isPlugin ? readPluginHeader(source, file) : null;
+            const pluginMetadata = rawPluginMetadata
+                ? new NodePluginCatalog().addMetadata(rawPluginMetadata, {
+                    sourcePath: file,
+                    source,
+                    kind: /\.plugin\.rix\.js$/.test(file) ? "host" : "rix",
+                })
+                : null;
+            if (pluginMetadata) pluginRecords.push({ file, source, metadata: pluginMetadata });
             const fileOperatorDefinitions = filename === "-"
                 ? operatorDefinitions
                 : mergeOperatorDefinitions(
                     operatorDefinitions,
                     ...readOperatorFiles(sourceHeader.operatorFiles, path.dirname(file)),
                 );
-            diagnostics.push(...lintRix(source, { file, operatorDefinitions: fileOperatorDefinitions }));
+            const lintOptions = {
+                file,
+                level: options.level,
+                profiles: options.profileSpecified ? options.profiles : (pluginMetadata ? ["plugin"] : ["default"]),
+                operatorDefinitions: fileOperatorDefinitions,
+                pluginMetadata,
+                ...(/\.plugin\.rix\.js$/.test(file) ? { ast: [] } : {}),
+            };
+            let fileDiagnostics = lintRix(source, lintOptions);
+            if (options.fix) {
+                const fixed = applyRixLintFixes(source, fileDiagnostics, { edit: true });
+                if (fixed.applied > 0) {
+                    writeFileSync(file, fixed.source);
+                    source = fixed.source;
+                    fixesApplied += fixed.applied;
+                    fileDiagnostics = lintRix(source, lintOptions);
+                }
+            }
+            diagnostics.push(...fileDiagnostics);
         } catch (error) {
+            const pluginHeaderFailure = /plugin (?:file|header)|plugin header|header requires|header kind|mount|aliases/i.test(error.message);
             diagnostics.push({
-                code: "RX0001",
+                code: pluginHeaderFailure ? "RX1901" : "RX0001",
                 severity: "error",
                 message: error.message,
-                hint: "Fix the parse error before applying semantic lint rules.",
+                hint: pluginHeaderFailure
+                    ? "Fix the plugin metadata contract before loading or publishing the plugin."
+                    : "Fix the parse error before applying semantic lint rules.",
                 file,
                 line: 1,
                 column: 1,
                 offset: 0,
+                level: 1,
             });
         }
     }
 
-    if (options.json) {
+    const capabilityOwners = new Map();
+    const methodOwners = new Map();
+    const provided = new Set(pluginRecords.flatMap(({ metadata }) => metadata.provides || []));
+    for (const record of pluginRecords) {
+        for (const capability of [record.metadata.mount, ...(record.metadata.aliases || [])].filter(Boolean)) {
+            const key = capability.toLowerCase();
+            const prior = capabilityOwners.get(key);
+            if (prior && prior.file !== record.file) {
+                diagnostics.push({
+                    code: "RX1905", severity: "error", level: 1,
+                    message: `Plugin capability '${capability}' collides with '${prior.capability}' from ${prior.file}.`,
+                    hint: "Choose a unique canonical mount/alias or remove the duplicate alias.",
+                    file: record.file, line: 1, column: 1, offset: 0,
+                });
+            } else capabilityOwners.set(key, { file: record.file, capability });
+        }
+        for (const match of record.source.matchAll(/\.Host\.RegisterMethod\s*\(\s*["']([^"']+)["']\s*,\s*["']([^"']+)["']/g)) {
+            const key = `${match[1].toUpperCase()}:${match[2].toUpperCase()}`;
+            const prior = methodOwners.get(key);
+            if (prior && prior.file !== record.file) {
+                diagnostics.push({
+                    code: "RX1905", severity: "error", level: 1,
+                    message: `Receiver method '${match[1]}.${match[2]}' collides with a registration from ${prior.file}.`,
+                    hint: "Coordinate method ownership or give one extension a distinct method name.",
+                    file: record.file, line: 1, column: 1, offset: match.index,
+                });
+            } else methodOwners.set(key, { file: record.file });
+        }
+        if (options.closedPluginSet) {
+            for (const requirement of record.metadata.requires || []) {
+                if (!provided.has(requirement)) {
+                    diagnostics.push({
+                        code: "RX1904", severity: "error", level: 1,
+                        message: `Required capability '${requirement}' is not provided by the closed plugin input set.`,
+                        hint: "Add the provider to the lint inputs or correct the requirement version.",
+                        file: record.file, line: 1, column: 1, offset: 0,
+                    });
+                }
+            }
+        }
+    }
+
+    const coverage = readLintCoverage(options.coverage);
+    if (coverage) {
+        diagnostics = diagnostics.map((diagnostic) => {
+            const executedLines = coverage.get(path.resolve(diagnostic.file));
+            return {
+                ...diagnostic,
+                coverage: executedLines ? (executedLines.has(diagnostic.line) ? "observed" : "unobserved") : "unknown",
+            };
+        });
+    }
+    diagnostics.sort((left, right) => {
+        if (coverage && left.coverage !== right.coverage) {
+            const rank = { observed: 0, unknown: 1, unobserved: 2 };
+            return rank[left.coverage] - rank[right.coverage];
+        }
+        return String(left.file).localeCompare(String(right.file)) || left.offset - right.offset || left.code.localeCompare(right.code);
+    });
+    if (options.writeBaseline) {
+        const entries = diagnostics.map((diagnostic) => ({ key: lintBaselineKey(diagnostic), code: diagnostic.code, file: diagnostic.file, message: diagnostic.message }));
+        writeFileSync(options.writeBaseline, `${JSON.stringify({ version: 1, entries }, null, 2)}\n`);
+    }
+    const baseline = lintBaselineKeys(options.baseline);
+    if (baseline.size > 0) diagnostics = diagnostics.filter((diagnostic) => !baseline.has(lintBaselineKey(diagnostic)));
+
+    if (options.sarif) {
+        console.log(JSON.stringify(lintDiagnosticsToSarif(diagnostics), null, 2));
+    } else if (options.json) {
         console.log(JSON.stringify(diagnostics, null, 2));
     } else if (diagnostics.length === 0) {
         console.log(`RiX lint: no diagnostics in ${options.files.length} file(s)`);
@@ -210,6 +398,8 @@ function runLint(rawArgs) {
         const infos = diagnostics.filter(({ severity }) => severity === "info").length;
         console.log(`RiX lint: ${errors} error(s), ${warnings} warning(s), ${infos} info`);
     }
+    if (fixesApplied > 0 && !options.json && !options.sarif) console.log(`RiX lint: applied ${fixesApplied} safe fix(es) with explicit --fix`);
+    if (options.writeBaseline && !options.json && !options.sarif) console.log(`RiX lint: wrote baseline ${path.resolve(options.writeBaseline)}`);
 
     if (diagnostics.some(({ severity }) => severity === "error") || (options.strict && diagnostics.some(({ severity }) => severity === "warning"))) {
         process.exitCode = 1;

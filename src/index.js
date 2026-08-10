@@ -5,7 +5,14 @@ export {
 } from "./parser/index.js";
 export { createSystemManifest, createSystemLookup } from "./runtime/system-manifest.js";
 export { complete, REPL_COMMANDS } from "./repl/completion.js";
-export { lower, lowerNode, ir, IR, Registry, evaluate, evaluateAsync, createDefaultRegistry, createDefaultSystemContext, parseAndEvaluate, parseAndEvaluateAsync, drainBackgroundTasks, irToText, irListToText, formatValue, analyzeRix, lintRix, explainRixScopes, formatLintDiagnostic } from "./eval/index.js";
+export {
+    lower, lowerNode, ir, IR, Registry, evaluate, evaluateAsync,
+    createDefaultRegistry, createDefaultSystemContext, parseAndEvaluate, parseAndEvaluateAsync,
+    drainBackgroundTasks, irToText, irListToText, formatValue,
+    RIX_LINT_LEVELS, RIX_LINT_PROFILES, RIX_LINT_RULES,
+    analyzeRix, lintRix, explainRixScopes, formatLintDiagnostic,
+    applyRixLintFixes, lintDiagnosticsToSarif,
+} from "./eval/index.js";
 export { UNDECIDED, UndecidedDiagnostic, undecidedDiagnostic, undecidedReason, isUndecided, decisionState, reviveDecisionValue } from "./runtime/decision.js";
 export { HaloNeighborhood, isHaloNeighborhood } from "./runtime/halo.js";
 export {
