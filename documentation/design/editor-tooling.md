@@ -403,11 +403,14 @@ The initial profiles are:
 
 | Profile | Purpose | Initial behavior |
 |---|---|---|
-| `readable` | Default source and documentation style | Four-space indentation, `printWidth: 100`, spaces around infix operators and after separators, multiline blocks/containers when structure or comments benefit from it |
-| `compact` | Dense formulas, examples, and small containers | Retain or choose single-line groups more aggressively, while respecting the configured print width and mandatory sigil spacing |
+| `readable` | Default source and documentation style | Candidate B: four-space indentation, `printWidth: 100`, spaces around infix operators and after separators, and balanced multiline blocks/containers when structure or comments benefit from it |
+| `compact` | Dense formulas, examples, and small containers | Candidate A: retain or choose single-line groups more aggressively, while respecting the configured print width and mandatory sigil spacing |
 
 Both profiles share the same semantics and only differ in line-breaking
-preferences. The first stable formatter contract is intentionally narrow:
+preferences. Candidate C is not a separate profile; its fully expanded layout
+is a last-resort fallback when width, comments, or deeply nested structure make
+the balanced layout impractical. The first stable formatter contract is
+intentionally narrow:
 
 - preserve comments, tagged comments, documentation markers, and embedded
   notation contents;
@@ -432,11 +435,12 @@ backtick forms.
 
 “Short mathematical containers” means ordinary small arrays, maps, sets,
 tuples, and brace-sigil containers that hold formulas or exact values. It does
-not name a separate RiX feature. The formatter review should choose among these
-three layouts, or explicitly select a hybrid. All three examples parse today
-and represent the same program.
+not name a separate RiX feature. The selected formatter contract uses Candidate
+B for `readable`, Candidate A for `compact`, and Candidate C only as the
+last-resort expansion of groups that cannot remain clear in the balanced
+layout. All three examples parse today and represent the same program.
 
-Candidate A, **compact containers**:
+Candidate A, **compact profile**:
 
 ```rix
 settings := {= bounds={: -3, 3 }, samples=[1/4, 1/2, 3/4], exact=1 };
@@ -448,7 +452,7 @@ total := settings[:samples]
 total ##@ > 0;
 ```
 
-Candidate B, **balanced readable** (recommended default):
+Candidate B, **balanced readable** (default):
 
 ```rix
 settings := {=
@@ -464,7 +468,7 @@ total := settings[:samples]
 total ##@ > 0;
 ```
 
-Candidate C, **fully expanded containers**:
+Candidate C, **fully expanded containers** (last-resort fallback):
 
 ```rix
 settings := {=
@@ -969,10 +973,11 @@ that bypass earlier ones.
 - [x] Define the high-level sandbox policy for the `standard` profile.
 - [ ] Generate, audit, and freeze the exact capability/plugin allowlist snapshot
   for `standard`, with deny-by-default CI tests.
-- [ ] Approve representative readable/compact formatter fixtures before
-  declaring either profile stable.
-- [ ] Audit and approve the first structural preview/asset allowlist; omit all
-  external tool renderers.
+- [x] Select Candidate B as the default `readable` profile, Candidate A as the
+  explicit `compact` profile, and Candidate C only as a last-resort fallback.
+- [x] Approve the first-release preview boundary: structural portable output
+  only, with external tool renderers, full HTML, and plugin-provided CSS
+  disabled.
 
 ### 1. Source spans and structured runtime events
 
@@ -1127,18 +1132,13 @@ that bypass earlier ones.
 - [ ] Evaluate Tree-sitter only for a concrete consumer that cannot use LSP,
   Lezer, or TextMate.
 
-## Remaining review choices
+## Deferred review gate
 
-Most initial policy choices are now resolved. Three reviews remain:
+The initial policy choices are resolved. One review remains after the relevant
+implementation exists: review the generated `standard` capability/plugin
+snapshot before release. The governing policy is an explicit allowlist plus
+deny-by-default CI, not a manually maintained prose list.
 
-1. Select formatter Candidate A, B, C, or a stated hybrid as the `readable`
-   default. `compact` remains an explicit denser profile.
-2. Review the generated `standard` capability/plugin snapshot once it exists;
-   the policy is explicit allowlist plus deny-by-default CI, not a manually
-   maintained prose list.
-3. Review the concrete first preview allowlist after the structural adapter is
-   implemented. External tool renderers are out of scope; full HTML and
-   plugin-provided CSS remain disabled.
-
-These choices should become fixtures, generated policy data, and security tests
-rather than remain extension-specific conventions.
+The formatter decisions should become golden fixtures, while preview and
+capability policy should become generated policy data and security tests rather
+than remain extension-specific conventions.
