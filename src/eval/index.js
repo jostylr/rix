@@ -12,4 +12,5 @@ export {
 } from "./evaluator.js";
 export { irToText, irListToText } from "./ir-to-text.js";
 export { formatValue } from "./format.js";
+export { analyzeRix, lintRix, explainRixScopes, formatLintDiagnostic } from "./lint.js";
 export { getAttachedSpec, inspectSymbolicSpec, isSymbolicSpec, resolveSymbolicRoles, symbolicNames } from "./functions/symbolic.js";

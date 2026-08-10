@@ -41,7 +41,7 @@ import { coreFunctions, destructureResolvedValue, PREP_TRIAL_NO_MATCH } from "./
 import { arithmeticFunctions } from "./functions/arithmetic.js";
 import { comparisonFunctions } from "./functions/comparison.js";
 import { logicFunctions } from "./functions/logic.js";
-import { controlFunctions, matchesBreakTarget, splitScopedBlockArgs, unwrapDefer } from "./functions/control.js";
+import { addEvaluationContext, controlFunctions, matchesBreakTarget, splitScopedBlockArgs, unwrapDefer } from "./functions/control.js";
 import { collectionFunctions } from "./functions/collections.js";
 import { functionFunctions } from "./functions/functions.js";
 import { methodFunctions } from "./functions/methods.js";
@@ -2916,12 +2916,32 @@ async function evaluateAsyncLoop(args, context, registry, systemContext, state) 
                 : configuredMax ?? context.getEnv("defaultLoopMax", runtimeDefaults.defaultLoopMax);
             while (true) {
                 if (state?.signal?.aborted) throw state.signal.reason;
-                if (conditionNode && !isTruthyAsync(await evaluateShared(conditionNode))) break;
+                if (conditionNode) {
+                    let condition;
+                    try {
+                        condition = await evaluateShared(conditionNode);
+                    } catch (error) {
+                        throw addEvaluationContext(error, `while evaluating loop condition before iteration ${iterations + 1}`);
+                    }
+                    if (!isTruthyAsync(condition)) break;
+                }
                 if (maxIterations !== null && iterations >= maxIterations) {
                     throw new Error(`Loop exceeded max iteration count: ${maxIterations}`);
                 }
-                if (bodyNode) result = await evaluateShared(bodyNode);
-                if (updateNode) await evaluateShared(updateNode);
+                if (bodyNode) {
+                    try {
+                        result = await evaluateShared(bodyNode);
+                    } catch (error) {
+                        throw addEvaluationContext(error, `while evaluating loop body, iteration ${iterations + 1}`);
+                    }
+                }
+                if (updateNode) {
+                    try {
+                        await evaluateShared(updateNode);
+                    } catch (error) {
+                        throw addEvaluationContext(error, `while evaluating loop update after iteration ${iterations + 1}`);
+                    }
+                }
                 iterations++;
             }
             return afterNode ? await evaluateShared(afterNode) : result;
@@ -3088,7 +3108,12 @@ async function evaluateAsyncInternal(irNode, context, registry, systemContext, s
             const condition = await evalAsync(args[0]);
             const state = decisionState(condition);
             const branch = state === "truth" ? args[1] : state === "null" ? args[2] : args[3];
-            return evalAsync(branch?.fn === "DEFER" ? branch.args[0] : branch);
+            const marker = state === "truth" ? "?:" : state === "null" ? "?_" : "??";
+            try {
+                return await evalAsync(branch?.fn === "DEFER" ? branch.args[0] : branch);
+            } catch (error) {
+                throw addEvaluationContext(error, `while evaluating '${marker}' branch`);
+            }
         }
         if (fn === "AND" || fn === "OR") {
             let last = fn === "AND" ? new Integer(1n) : null;

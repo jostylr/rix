@@ -1864,6 +1864,9 @@ REPL-specific commands use all-lowercase dot notation. They are not part of the 
 
 ## Part 4: Diagnostics, Testing, and Debugging
 
+For non-evaluating scope, truthiness, undecided-decision, and immutable-update
+checks, see [Static linting and actionable diagnostics](linting.md).
+
 All diagnostic system capabilities produce structured RiX map values with at minimum: `kind`, `label`, `file`, `time`, `data`.
 
 Runtime errors include source locations when the evaluator has source text. This

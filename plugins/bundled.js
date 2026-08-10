@@ -14,6 +14,8 @@ import exactAlgebrasSource from "./exact-algebras/exact-algebras.plugin.rix" wit
 import fractionSource from "./fraction/fraction.plugin.rix" with { type: "text" };
 import ratfunSource from "./ratfun/ratfun.plugin.rix" with { type: "text" };
 import symbolicSource from "./symbolic/symbolic.plugin.rix" with { type: "text" };
+import statsSource from "./stats/stats.plugin.rix" with { type: "text" };
+import complexVizSource from "./complex-visualization/complex-viz.plugin.rix" with { type: "text" };
 import { readPluginHeader } from "../src/runtime/plugin-catalog.js";
 import { install as installDrawPlugin } from "./draw/draw.plugin.rix.js";
 import { install as installFracfunPlugin } from "./fracfun/fracfun.plugin.rix.js";
@@ -35,6 +37,7 @@ import { install as installPngPlugin } from "./render-png/png.plugin.rix.js";
 import { install as installPdfPlugin } from "./render-pdf/pdf.plugin.rix.js";
 import { install as installGltfPlugin } from "./render-gltf/gltf.plugin.rix.js";
 import { install as installCsvPlugin } from "./render-csv/csv.plugin.rix.js";
+import { install as installGifPlugin } from "./render-gif/gif.plugin.rix.js";
 
 const BUNDLED_PLUGINS = [
     {
@@ -94,6 +97,8 @@ const BUNDLED_PLUGINS = [
         install: installFracfunPlugin,
     },
     { metadata: readPluginHeader(symbolicSource, "symbolic.plugin.rix"), source: symbolicSource, sourcePath: "bundled:symbolic.plugin.rix" },
+    { metadata: readPluginHeader(statsSource, "stats.plugin.rix"), source: statsSource, sourcePath: "bundled:stats.plugin.rix" },
+    { metadata: readPluginHeader(complexVizSource, "complex-viz.plugin.rix"), source: complexVizSource, sourcePath: "bundled:complex-viz.plugin.rix" },
     {
         metadata: readPluginHeader(algebraSource, "algebra.plugin.rix"),
         source: algebraSource,
@@ -199,7 +204,8 @@ const BUNDLED_PLUGINS = [
         ["pdf", "PDF document and figure renderer orchestrated through LaTeX.", "pdf", ["Render"], ["process", "files"], installPdfPlugin, "application/pdf", false],
         ["gltf", "Browser-safe glTF 2.0 JSON exporter for retained Scene3D values.", "gltf", ["Render"], [], installGltfPlugin, "model/gltf+json", true],
         ["csv", "Deterministic CSV and TSV export for portable Tables and typed data Relations.", "csv", ["Render"], [], installCsvPlugin, "text/csv", true, ["tsv", "text/tab-separated-values"], ["Renderers", "Data"]],
-    ].map(([id, description, mount, exports, permissions, install, mime, deterministic, aliases = [], groups = ["Renderers"]]) => ({
+        ["gif", "Deterministic animated GIF rendering from Slides, Timelines, or Snapshots through PNG frames.", "gif", ["Render"], ["process", "files"], installGifPlugin, "image/gif", true, [], ["Renderers"], ["rix.renderer.png@1"]],
+    ].map(([id, description, mount, exports, permissions, install, mime, deterministic, aliases = [], groups = ["Renderers"], requires = []]) => ({
         metadata: {
             id,
             description,
@@ -208,6 +214,7 @@ const BUNDLED_PLUGINS = [
             exports,
             groups,
             permissions,
+            requires,
             provides: [`rix.renderer.${id}@1`],
             targets: [id, mime, ...aliases],
             snapshot: true,

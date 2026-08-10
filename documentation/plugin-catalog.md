@@ -130,6 +130,31 @@ preference before importing it. This keeps the boundary explicit: RiX plugins
 run at a host-controlled RiX load boundary, while JavaScript plugins are
 trusted host extensions.
 
+## Exact statistics and complex visualization
+
+The bundled `.stats` and `.complexViz` Phase 1 implementations are pure RiX.
+Statistics uses exact linear quantiles and rational variance, then returns core
+Tables and Graphics for presentation. Complex visualization samples exact
+Cartesian complex values, makes poles/unresolved samples explicit, and lowers
+its documented discrete phase/magnitude colors to the same Graphic vocabulary.
+
+```rix
+.Plugin.Load("stats");
+.Plugin.Load("complex-viz");
+
+summary := .stats.Summary([1/3, 2/3, 5/3, 7/3]);
+f := .complexViz.RationalFunction((z) -> z^2 - 1, (z) -> z);
+coloring := .complexViz.DomainColoring({=
+    fn=f,
+    domain={= re=[-2, 2], im=[-2, 2] },
+    resolution=[21, 21]
+});
+```
+
+The `.gif` renderer is intentionally host-backed. It auto-loads the PNG
+renderer service, expands portable Slides/Timelines into frames, and delegates
+only rasterization and encoding to approved CLI tools.
+
 ## Typed operator variants
 
 An approved host plugin can register a semantic type and install variants for

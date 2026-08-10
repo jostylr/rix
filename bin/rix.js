@@ -30,6 +30,9 @@ import {
     readSourceHeader,
     extractOperatorDeclarationsFromSource,
     mergeOperatorDefinitions,
+    lintRix,
+    explainRixScopes,
+    formatLintDiagnostic,
 } from "../src/index.js";
 import { NodePluginCatalog } from "../src/runtime/plugin-catalog-node.js";
 import { formatValue as formatResult } from "../src/eval/format.js";
@@ -55,7 +58,8 @@ import { install as installPngPlugin } from "../plugins/render-png/png.plugin.ri
 import { install as installPdfPlugin } from "../plugins/render-pdf/pdf.plugin.rix.js";
 import { install as installGltfPlugin } from "../plugins/render-gltf/gltf.plugin.rix.js";
 import { install as installCsvPlugin } from "../plugins/render-csv/csv.plugin.rix.js";
-import { compileLatex, rasterizeSvg } from "./node-renderer-tools.js";
+import { install as installGifPlugin } from "../plugins/render-gif/gif.plugin.rix.js";
+import { compileLatex, encodeGifFrames, rasterizeSvg } from "./node-renderer-tools.js";
 import {
     ensureRixCliPreamble,
     readRixCliConfig,
@@ -73,8 +77,8 @@ const FIRST_PARTY_PLUGINS_DIR = path.resolve(TOOL_DIR, "../plugins");
 const EXAMPLE_PLUGINS_DIR = path.resolve(EXAMPLES_DIR, "plugins");
 const WEB_PAGE_ENTRY = path.resolve(TOOL_DIR, "web-page.js");
 const WEB_PAGE_STYLE = path.resolve(TOOL_DIR, "web-page.css");
-const RENDERER_PLUGIN_IDS = ["svg", "canvas", "terminal-ascii", "tikz", "markdown", "html", "quarto", "latex", "png", "pdf", "gltf", "csv"];
-const BUILT_PLUGIN_IDS = new Set(["exact-algebras", "algebra", "symbolic", "fracfun", "fraction", "ratfun", "poly", "draw", "plot", "scene3d", "nd", "geometry", "data", "document", "float", ...RENDERER_PLUGIN_IDS, "example-array-js", "example-array-rix"]);
+const RENDERER_PLUGIN_IDS = ["svg", "canvas", "terminal-ascii", "tikz", "markdown", "html", "quarto", "latex", "png", "pdf", "gif", "gltf", "csv"];
+const BUILT_PLUGIN_IDS = new Set(["exact-algebras", "algebra", "symbolic", "fracfun", "fraction", "ratfun", "poly", "draw", "plot", "scene3d", "nd", "complex-viz", "geometry", "data", "stats", "document", "float", ...RENDERER_PLUGIN_IDS, "example-array-js", "example-array-rix"]);
 const STANDARD_PLUGIN_IDS = new Set(["exact-algebras", "algebra", "draw", "plot", "scene3d", "nd", "geometry", "data", "document", "float", ...RENDERER_PLUGIN_IDS]);
 
 function sourceUsesAsyncEvaluation(source) {
@@ -94,6 +98,8 @@ function usage() {
     return `Usage:
   bun rix [options] [file.rix]
   bun rix test [filters...]
+  bun rix lint [--strict] [--json] [--operator-file=FILE] file.rix [...]
+  bun rix explain-scope [--json] file.rix:line[:column]
 
 Options:
   --out=DIR              Write artifacts declared with .Out(path, value) into DIR
@@ -115,6 +121,144 @@ Persistent REPL setup:
 
 RiX scripts declare artifacts explicitly, for example:
   .Out("index.html", $view)`;
+}
+
+function lintUsage() {
+    return `Usage:
+  bun rix lint [options] file.rix [...]
+  bun rix lint [options] -
+
+Options:
+  --strict                Exit nonzero when warnings are found
+  --json                  Emit diagnostics as JSON
+  --operator-file=FILE    Load custom operator declarations before parsing
+  --help, -h              Show this help`;
+}
+
+function parseLintArgs(rawArgs) {
+    let strict = false;
+    let json = false;
+    const operatorFiles = [];
+    const files = [];
+    for (let index = 0; index < rawArgs.length; index += 1) {
+        const arg = rawArgs[index];
+        if (arg === "--strict") strict = true;
+        else if (arg === "--json") json = true;
+        else if (arg === "--help" || arg === "-h") return { help: true, strict, json, operatorFiles, files };
+        else if (arg === "--operator-file") {
+            const filename = rawArgs[++index];
+            if (!filename) throw new Error("--operator-file requires a file");
+            operatorFiles.push(filename);
+        } else if (arg.startsWith("--operator-file=")) {
+            const filename = arg.slice("--operator-file=".length);
+            if (!filename) throw new Error("--operator-file requires a file");
+            operatorFiles.push(filename);
+        } else if (arg.startsWith("--")) {
+            throw new Error(`Unknown lint option: ${arg}`);
+        } else files.push(arg);
+    }
+    return { help: false, strict, json, operatorFiles, files };
+}
+
+function runLint(rawArgs) {
+    const options = parseLintArgs(rawArgs);
+    if (options.help) {
+        console.log(lintUsage());
+        return;
+    }
+    if (options.files.length === 0) throw new Error("rix lint requires at least one file, or '-' for stdin");
+    if (options.files.filter((file) => file === "-").length > 1 || (options.files.includes("-") && options.files.length > 1)) {
+        throw new Error("stdin '-' must be the only lint input");
+    }
+
+    const operatorDefinitions = mergeOperatorDefinitions(...readOperatorFiles(options.operatorFiles, process.cwd()));
+    const diagnostics = [];
+    for (const filename of options.files) {
+        const source = filename === "-" ? readFileSync("/dev/stdin", "utf8") : readFileSync(filename, "utf8");
+        const file = filename === "-" ? "<stdin>" : path.resolve(filename);
+        try {
+            const sourceHeader = readSourceHeader(source, file);
+            const fileOperatorDefinitions = filename === "-"
+                ? operatorDefinitions
+                : mergeOperatorDefinitions(
+                    operatorDefinitions,
+                    ...readOperatorFiles(sourceHeader.operatorFiles, path.dirname(file)),
+                );
+            diagnostics.push(...lintRix(source, { file, operatorDefinitions: fileOperatorDefinitions }));
+        } catch (error) {
+            diagnostics.push({
+                code: "RX0001",
+                severity: "error",
+                message: error.message,
+                hint: "Fix the parse error before applying semantic lint rules.",
+                file,
+                line: 1,
+                column: 1,
+                offset: 0,
+            });
+        }
+    }
+
+    if (options.json) {
+        console.log(JSON.stringify(diagnostics, null, 2));
+    } else if (diagnostics.length === 0) {
+        console.log(`RiX lint: no diagnostics in ${options.files.length} file(s)`);
+    } else {
+        for (const diagnostic of diagnostics) console.log(formatLintDiagnostic(diagnostic));
+        const warnings = diagnostics.filter(({ severity }) => severity === "warning").length;
+        const errors = diagnostics.filter(({ severity }) => severity === "error").length;
+        const infos = diagnostics.filter(({ severity }) => severity === "info").length;
+        console.log(`RiX lint: ${errors} error(s), ${warnings} warning(s), ${infos} info`);
+    }
+
+    if (diagnostics.some(({ severity }) => severity === "error") || (options.strict && diagnostics.some(({ severity }) => severity === "warning"))) {
+        process.exitCode = 1;
+    }
+}
+
+function scopeUsage() {
+    return `Usage:
+  bun rix explain-scope [--json] file.rix:line[:column]
+
+Shows the owner and required access form for identifiers on a source line.`;
+}
+
+function runExplainScope(rawArgs) {
+    const json = rawArgs.includes("--json");
+    const positional = rawArgs.filter((arg) => arg !== "--json");
+    if (positional.includes("--help") || positional.includes("-h")) {
+        console.log(scopeUsage());
+        return;
+    }
+    if (positional.length !== 1) throw new Error("rix explain-scope requires file.rix:line[:column]");
+    const match = positional[0].match(/^(.*):(\d+)(?::(\d+))?$/);
+    if (!match || !match[1]) throw new Error("Scope target must be file.rix:line[:column]");
+    const file = path.resolve(match[1]);
+    const line = Number(match[2]);
+    const column = match[3] ? Number(match[3]) : null;
+    const source = readFileSync(file, "utf8");
+    const sourceHeader = readSourceHeader(source, file);
+    const operatorDefinitions = mergeOperatorDefinitions(
+        ...readOperatorFiles(sourceHeader.operatorFiles, path.dirname(file)),
+    );
+    let entries = explainRixScopes(source, { file, operatorDefinitions }).filter((entry) => entry.line === line);
+    if (column !== null && entries.length > 0) {
+        const distance = Math.min(...entries.map((entry) => Math.abs(entry.column - column)));
+        entries = entries.filter((entry) => Math.abs(entry.column - column) === distance);
+    }
+    if (json) {
+        console.log(JSON.stringify(entries, null, 2));
+        return;
+    }
+    if (entries.length === 0) {
+        console.log(`${file}:${line}${column === null ? "" : `:${column}`}: no identifiers`);
+        return;
+    }
+    for (const entry of entries) {
+        const owner = entry.owner ? `; owner=${entry.owner}` : "";
+        const recommendation = entry.recommendation ? `; use ${entry.recommendation}` : "";
+        console.log(`${entry.file}:${entry.line}:${entry.column} ${entry.name}: ${entry.status}${owner}${recommendation}`);
+    }
 }
 
 function parseRunnerArgs(rawArgs) {
@@ -236,6 +380,7 @@ function registerBuiltPluginInstallers(pluginCatalog) {
     pluginCatalog.registerInstaller("pdf", (api) => installPdfPlugin({ ...api, compileLatex }));
     pluginCatalog.registerInstaller("gltf", installGltfPlugin);
     pluginCatalog.registerInstaller("csv", installCsvPlugin);
+    pluginCatalog.registerInstaller("gif", (api) => installGifPlugin({ ...api, encodeGif: encodeGifFrames }));
 }
 
 function validateArtifactPath(outDir, artifactPath) {
@@ -795,6 +940,9 @@ async function runTests(filters) {
 }
 
 async function main() {
+    const rawArgs = process.argv.slice(2);
+    if (rawArgs[0] === "lint") return runLint(rawArgs.slice(1));
+    if (rawArgs[0] === "explain-scope") return runExplainScope(rawArgs.slice(1));
     const {
         positional: args,
         plugins,
@@ -807,7 +955,7 @@ async function main() {
         noPreamble,
         noConfig,
         configDir: configDirOption,
-    } = parseRunnerArgs(process.argv.slice(2));
+    } = parseRunnerArgs(rawArgs);
     if (args[0] === "--help" || args[0] === "-h") {
         console.log(usage());
         return;

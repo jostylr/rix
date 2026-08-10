@@ -44,7 +44,7 @@ is the normal export form:
 
 ```rix
 /**
-plugins: [svg, png, markdown, quarto, latex, pdf]
+plugins: [svg, png, markdown, quarto, latex, pdf, gif]
 **/
 
 .Out("diagram.svg", graphic);
@@ -72,6 +72,7 @@ one Graphic and one document tree.
 | `.quarto` | Portable documents and slides | `.qmd` with front matter | None; Quarto is only needed for a final build |
 | `.latex` | Portable documents, figures, and slides | Standalone `.tex`, with graphics lowered to TikZ | None; TeX is only needed to compile it |
 | `.pdf` | Portable documents, figures, and static slide content | PDF bytes through the LaTeX renderer | CLI requires `pdflatex` |
+| `.gif` | `Slides`, `Timeline`, `Snapshots` with Graphic frames | Animated GIF bytes with explicit centisecond delays | CLI uses PNG plus ImageMagick |
 | `.gltf` | Retained `Scene3D` | glTF 2.0 JSON with embedded buffer | None |
 | `.csv` | Core `Table` and `.data` Relation | CSV or TSV with exact scalar text | None |
 
@@ -79,9 +80,9 @@ Canvas is an execution target, not another scene model. Its plan traverses the
 same `.Graphics` tree as SVG and TikZ and can be repainted with
 `paintCanvasPlan(context, plan)` from `render-canvas/canvas-plan.js`.
 
-PNG and PDF separate portable lowering from host execution. Browser hosts can
+PNG, PDF, and GIF separate portable lowering from host execution. Browser hosts can
 load their contracts but receive `png-rasterizer-unavailable` or
-`pdf-toolchain-unavailable` unless they deliberately supply an adapter. The
+`pdf-toolchain-unavailable`, or `gif-encoder-unavailable` unless they deliberately supply an adapter. The
 CLI supplies approved process/file adapters and records the chosen toolchain.
 
 ## 2D, 3D, and document boundary

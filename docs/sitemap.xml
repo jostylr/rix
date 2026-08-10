@@ -10,7 +10,7 @@
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/design/plugins.html</loc>
-    <lastmod>2026-08-09T17:34:43.612Z</lastmod>
+    <lastmod>2026-08-10T03:05:47.493Z</lastmod>
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/design/eval/rixcel-format.html</loc>
@@ -62,7 +62,7 @@
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/reference/system-reference.html</loc>
-    <lastmod>2026-08-10T00:36:18.418Z</lastmod>
+    <lastmod>2026-08-10T03:09:31.136Z</lastmod>
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/eval/objects/cayley.html</loc>
@@ -101,52 +101,56 @@
     <lastmod>2026-08-07T21:20:26.917Z</lastmod>
   </url>
   <url>
-    <loc>https://jostylr.github.io/rix/eval/syntax-guide.html</loc>
-    <lastmod>2026-08-09T14:06:35.428Z</lastmod>
+    <loc>https://jostylr.github.io/rix/eval/linting.html</loc>
+    <lastmod>2026-08-10T03:03:49.487Z</lastmod>
   </url>
   <url>
-    <loc>https://jostylr.github.io/rix/eval/scene3d-guide.html</loc>
-    <lastmod>2026-08-09T13:48:49.777Z</lastmod>
+    <loc>https://jostylr.github.io/rix/eval/controls-guide.html</loc>
+    <lastmod>2026-08-03T20:48:28.992Z</lastmod>
   </url>
   <url>
-    <loc>https://jostylr.github.io/rix/eval/output-guide.html</loc>
-    <lastmod>2026-08-07T13:19:02.838Z</lastmod>
-  </url>
-  <url>
-    <loc>https://jostylr.github.io/rix/status.html</loc>
-    <lastmod>2026-08-10T00:35:28.683Z</lastmod>
-  </url>
-  <url>
-    <loc>https://jostylr.github.io/rix/highlights.html</loc>
-    <lastmod>2026-07-12T18:20:36.996Z</lastmod>
-  </url>
-  <url>
-    <loc>https://jostylr.github.io/rix/getting-started.html</loc>
-    <lastmod>2026-08-09T01:20:42.409Z</lastmod>
-  </url>
-  <url>
-    <loc>https://jostylr.github.io/rix/index.html</loc>
-    <lastmod>2026-07-17T16:23:43.488Z</lastmod>
-  </url>
-  <url>
-    <loc>https://jostylr.github.io/rix/language-at-a-glance.html</loc>
-    <lastmod>2026-08-09T14:06:47.834Z</lastmod>
-  </url>
-  <url>
-    <loc>https://jostylr.github.io/rix/introduction.html</loc>
-    <lastmod>2026-08-09T14:06:35.379Z</lastmod>
+    <loc>https://jostylr.github.io/rix/eval/renderer-guide.html</loc>
+    <lastmod>2026-08-10T03:05:47.397Z</lastmod>
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/eval/sheet-guide.html</loc>
     <lastmod>2026-07-31T17:19:04.225Z</lastmod>
   </url>
   <url>
-    <loc>https://jostylr.github.io/rix/eval/renderer-guide.html</loc>
-    <lastmod>2026-08-07T13:19:02.784Z</lastmod>
+    <loc>https://jostylr.github.io/rix/introduction.html</loc>
+    <lastmod>2026-08-09T14:06:35.379Z</lastmod>
   </url>
   <url>
-    <loc>https://jostylr.github.io/rix/eval/controls-guide.html</loc>
-    <lastmod>2026-08-03T20:48:28.992Z</lastmod>
+    <loc>https://jostylr.github.io/rix/language-at-a-glance.html</loc>
+    <lastmod>2026-08-09T14:06:47.834Z</lastmod>
+  </url>
+  <url>
+    <loc>https://jostylr.github.io/rix/index.html</loc>
+    <lastmod>2026-07-17T16:23:43.488Z</lastmod>
+  </url>
+  <url>
+    <loc>https://jostylr.github.io/rix/getting-started.html</loc>
+    <lastmod>2026-08-09T01:20:42.409Z</lastmod>
+  </url>
+  <url>
+    <loc>https://jostylr.github.io/rix/highlights.html</loc>
+    <lastmod>2026-07-12T18:20:36.996Z</lastmod>
+  </url>
+  <url>
+    <loc>https://jostylr.github.io/rix/status.html</loc>
+    <lastmod>2026-08-10T00:35:28.683Z</lastmod>
+  </url>
+  <url>
+    <loc>https://jostylr.github.io/rix/eval/output-guide.html</loc>
+    <lastmod>2026-08-07T13:19:02.838Z</lastmod>
+  </url>
+  <url>
+    <loc>https://jostylr.github.io/rix/eval/scene3d-guide.html</loc>
+    <lastmod>2026-08-09T13:48:49.777Z</lastmod>
+  </url>
+  <url>
+    <loc>https://jostylr.github.io/rix/eval/syntax-guide.html</loc>
+    <lastmod>2026-08-10T03:01:43.482Z</lastmod>
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/eval/methods-guide.html</loc>
@@ -190,7 +194,7 @@
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/plugin-catalog.html</loc>
-    <lastmod>2026-08-10T00:35:28.729Z</lastmod>
+    <lastmod>2026-08-10T03:05:47.445Z</lastmod>
   </url>
   <url>
     <loc>https://jostylr.github.io/rix/eval/README.html</loc>

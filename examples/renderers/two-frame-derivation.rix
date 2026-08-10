@@ -1,0 +1,11 @@
+/**
+plugins: [gif]
+**/
+
+frame := (step) -> .Graphics.Graphic([360, 140], [
+    .Graphics.Rectangle([0, 0], [360, 140], {= fill="#ffffff" }),
+    .Graphics.Text([180, 55], "x² - 1 = (x - 1)(x + 1)", {= anchor=:middle, size=22 }),
+    .Graphics.Text([180, 98], step == 1 ?: "difference of squares" ?_ "zeros at -1 and 1", {= anchor=:middle, size=16, fill="#2563eb" })
+]);
+timeline := .Timeline.Sequence({= duration=2, entries=[{: frame, [1, 2] }] });
+.Out("two-frame-derivation.gif", timeline);

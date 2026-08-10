@@ -376,7 +376,7 @@ Note
 <p>This page is generated from the current RiX implementation by <code>documentation/scripts/generate-reference.js</code>. Do not edit it by hand. Descriptions come from registry documentation strings; the narrative <a href="../eval/syntax-guide.html">syntax guide</a> and <a href="../eval/methods-guide.html">methods guide</a> provide signatures and examples.</p>
 </div>
 </div>
-<p>At this revision RiX exposes <strong>234 named entries</strong> on the default system context and registers <strong>224 internal IR operations</strong>. Aliases with different spelling are listed separately because they are separately addressable names.</p>
+<p>At this revision RiX exposes <strong>239 named entries</strong> on the default system context and registers <strong>224 internal IR operations</strong>. Aliases with different spelling are listed separately because they are separately addressable names.</p>
 <section id="public-system-context" class="level2">
 <h2 class="anchored" data-anchor-id="public-system-context">Public system context</h2>
 <p>These names are available through the leading-dot system object, such as <code>.Len(value)</code>. Uppercase names are also used by explicit system/operator forms where applicable.</p>
@@ -1579,28 +1579,40 @@ Note
 <td>Finite and lazy simple continued fractions with exact convergents and certified enclosures.</td>
 </tr>
 <tr class="even">
+<td><code>.complexviz</code></td>
+<td>function</td>
+<td>—</td>
+<td>Exact domain-color sampling for complex functions rendered as portable Graphics.</td>
+</tr>
+<tr class="odd">
 <td><code>.continuedfraction</code></td>
 <td>function</td>
 <td>—</td>
 <td>Finite and lazy simple continued fractions with exact convergents and certified enclosures.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.csv</code></td>
 <td>function</td>
 <td>—</td>
 <td>Deterministic CSV and TSV export for portable Tables and typed data Relations.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.data</code></td>
 <td>function</td>
 <td>—</td>
 <td>Immutable typed relations with deterministic projection, filtering, sorting, and Table views.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.document</code></td>
 <td>function</td>
 <td>—</td>
 <td>Numbered portable reports with labels, forward references, captions, and small semantic themes.</td>
+</tr>
+<tr class="odd">
+<td><code>.domaincoloring</code></td>
+<td>function</td>
+<td>—</td>
+<td>Exact domain-color sampling for complex functions rendered as portable Graphics.</td>
 </tr>
 <tr class="even">
 <td><code>.draw</code></td>
@@ -1657,144 +1669,162 @@ Note
 <td>Exact ruler-and-compass geometry with explicit intersections and portable Graphics snapshots.</td>
 </tr>
 <tr class="odd">
+<td><code>.gif</code></td>
+<td>function</td>
+<td>—</td>
+<td>Deterministic animated GIF rendering from Slides, Timelines, or Snapshots through PNG frames.</td>
+</tr>
+<tr class="even">
 <td><code>.gltf</code></td>
 <td>function</td>
 <td>—</td>
 <td>Browser-safe glTF 2.0 JSON exporter for retained Scene3D values.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.html</code></td>
 <td>function</td>
 <td>—</td>
 <td>Standalone semantic HTML renderer for portable RiX output trees.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.latex</code></td>
 <td>function</td>
 <td>—</td>
 <td>Standalone LaTeX renderer for portable RiX documents and figures.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.markdown</code></td>
 <td>function</td>
 <td>—</td>
 <td>CommonMark-oriented renderer for portable RiX documents.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.nd</code></td>
 <td>function</td>
 <td>—</td>
 <td>Exact n-dimensional geometry with explicit affine and Cayley projection records.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.numerics</code></td>
 <td>function</td>
 <td>—</td>
 <td>Backend-neutral bounded enclosure and refinement orchestration.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.oracle</code></td>
 <td>function</td>
 <td>—</td>
 <td>Exact rational-betweenness oracle demonstrations and bounded refinement.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.p</code></td>
 <td>function</td>
 <td>—</td>
 <td>Semantic callable univariate polynomials with structural and symbolic entry forms.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.pdf</code></td>
 <td>function</td>
 <td>—</td>
 <td>PDF document and figure renderer orchestrated through LaTeX.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.plot</code></td>
 <td>function</td>
 <td>Plot</td>
 <td>Portable plotting helpers that produce core Graphics scenes.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.png</code></td>
 <td>function</td>
 <td>—</td>
 <td>PNG snapshot renderer for core Graphics through a host rasterizer.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.poly</code></td>
 <td>function</td>
 <td>—</td>
 <td>Semantic callable univariate polynomials with structural and symbolic entry forms.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.polynomial</code></td>
 <td>function</td>
 <td>—</td>
 <td>Semantic callable univariate polynomials with structural and symbolic entry forms.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.quarto</code></td>
 <td>function</td>
 <td>—</td>
 <td>Quarto Markdown renderer with front matter and portable figure lowering.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.radix</code></td>
 <td>function</td>
 <td>—</td>
 <td>Bounded exact positional expansions and repeating-period analysis for rational values.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.ratfun</code></td>
 <td>function</td>
 <td>—</td>
 <td>Canonical callable univariate rational functions with exact cancellation and Polynomial interoperability.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.rationalfunction</code></td>
 <td>function</td>
 <td>—</td>
 <td>Canonical callable univariate rational functions with exact cancellation and Polynomial interoperability.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.rf</code></td>
 <td>function</td>
 <td>—</td>
 <td>Canonical callable univariate rational functions with exact cancellation and Polynomial interoperability.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.scene3d</code></td>
 <td>function</td>
 <td>—</td>
 <td>Exact retained 3D scenes with deterministic wireframe and lit Graphics snapshots.</td>
 </tr>
+<tr class="odd">
+<td><code>.statistics</code></td>
+<td>function</td>
+<td>—</td>
+<td>Exact descriptive statistics with portable summary tables, histograms, and box plots.</td>
+</tr>
 <tr class="even">
+<td><code>.stats</code></td>
+<td>function</td>
+<td>—</td>
+<td>Exact descriptive statistics with portable summary tables, histograms, and box plots.</td>
+</tr>
+<tr class="odd">
 <td><code>.sternbrocot</code></td>
 <td>function</td>
 <td>—</td>
 <td>Pure RiX Stern-Brocot node descriptions, visible tree records, and exact formula evaluation.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.svg</code></td>
 <td>function</td>
 <td>—</td>
 <td>Portable SVG renderer for core Graphics scenes.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.symbolic</code></td>
 <td>function</td>
 <td>—</td>
 <td>Meta-plugin loading RiX representation-sensitive Fraction and FractionFunction workspaces.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.terminalascii</code></td>
 <td>function</td>
 <td>—</td>
 <td>Deterministic strict-ASCII fallback for tables, grids, fragments, and simple Graphics.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.tikz</code></td>
 <td>function</td>
 <td>—</td>

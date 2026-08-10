@@ -33,7 +33,9 @@ The implementation order and per-plugin phased work are tracked in
 | `symbolic/` | RiX | `symbolic` | Pure-RiX meta-plugin loading the formal fraction/function workspace. |
 | `geometry/` | host | `geometry` | Exact ruler-and-compass constructions, intersections, and Graphics snapshots. |
 | `data/` | host | `data` | Immutable typed relations, deterministic transformations, and portable Table views. |
+| `stats/` | RiX | `stats` | Exact descriptive statistics, summary Tables, histograms, and box plots; alias `.statistics`. |
 | `document/` | host | `document` | Numbered portable reports, cross-references, captions, and small themes. |
+| `complex-visualization/` | RiX | `complex-viz` | Exact phase/magnitude domain coloring to portable Graphics; mount `.complexViz`. |
 | `render-terminal-ascii/` | host | `terminal-ascii` | Strict-ASCII fallback for tables, grids, fragments, and simple Graphics. |
 | `render-svg/` | host | `svg` | Core Graphics to accessible SVG. |
 | `render-canvas/` | host | `canvas` | Core Graphics to a serializable Canvas 2D plan. |
@@ -44,6 +46,7 @@ The implementation order and per-plugin phased work are tracked in
 | `render-quarto/` | host | `quarto` | Portable documents to Quarto Markdown. |
 | `render-latex/` | host | `latex` | Portable documents and figures to LaTeX/TikZ. |
 | `render-pdf/` | host | `pdf` | LaTeX-orchestrated PDF output. |
+| `render-gif/` | host | `gif` | PNG-frame orchestration and host-encoded animated GIF output. |
 | `render-csv/` | host | `csv` | Exact scalar Table/relation export to CSV and TSV dialects. |
 
 The shared renderer contract, format matrix, toolchain boundary, and future 3D

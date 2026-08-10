@@ -87,6 +87,23 @@ describe("CLI renderer export", () => {
         expect(normalized).toBeLessThan(0.1);
     });
 
+    test("the mathematical timeline fixture exports two timed GIF frames", () => {
+        if (spawnSync("magick", ["--version"]).status !== 0 || spawnSync("rsvg-convert", ["--version"]).status !== 0) return;
+        const directory = temporaryDirectory();
+        const outputPath = path.join(directory, "out");
+        const sourcePath = path.join(rixRoot, "examples/renderers/two-frame-derivation.rix");
+        const result = spawnSync("bun", [path.join(rixRoot, "bin/rix.js"), `--out=${outputPath}`, sourcePath], {
+            cwd: rixRoot,
+            encoding: "utf8",
+        });
+        expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
+        const gifPath = path.join(outputPath, "two-frame-derivation.gif");
+        expect(readFileSync(gifPath).subarray(0, 6).toString("ascii")).toBe("GIF89a");
+        const identified = spawnSync("magick", ["identify", "-format", "%n %T %w %h\\n", gifPath], { encoding: "utf8" });
+        expect(identified.status).toBe(0);
+        expect(identified.stdout.trim().split("\n")).toEqual(["2 100 360 140", "2 100 360 140"]);
+    });
+
     test("Quarto writes external SVG assets and optionally compiles the QMD", () => {
         const directory = temporaryDirectory();
         const outputPath = path.join(directory, "out");

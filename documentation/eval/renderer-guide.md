@@ -24,7 +24,7 @@ svg := .Renderer.Info("image/svg+xml");
 
 ```rix
 /**
-plugins: [svg, canvas, tikz, png, markdown, html, quarto, latex, pdf, gltf]
+plugins: [svg, canvas, tikz, png, markdown, html, quarto, latex, pdf, gif, gltf, csv]
 **/
 ```
 
@@ -90,6 +90,7 @@ diagnostics accumulated while negotiating earlier candidates.
 | `quarto` | Documents and slides | `.qmd`, `text/x-quarto` | Source generation | None |
 | `latex` | Documents, figures, slides | `.tex`, `text/x-tex` | Source generation | None |
 | `pdf` | Documents, figures, static slides | `.pdf`, `application/pdf` | Contract only | `pdflatex` |
+| `gif` | Slides, Timeline, Snapshots | `.gif`, `image/gif` | Contract only | PNG rasterizer plus ImageMagick |
 | `gltf` | retained Scene3D | `.gltf`, `model/gltf+json` | Full | None |
 
 “Full” means the browser can produce the target content. Source targets do not
@@ -149,6 +150,21 @@ background color. Dimensions must be finite and positive after host rounding.
 The CLI tries `rsvg-convert`, then ImageMagick's `magick`, and records the
 chosen toolchain. A browser render fails with `png-rasterizer-unavailable`.
 See the [PNG host-boundary tutorial](https://rix.ratmath.com/tutorial/plugin-png.html).
+
+### GIF
+
+GIF expands `Slides`, `Timeline`, or `Snapshots` deterministically, delegates
+each Graphic frame to PNG, and then asks the CLI host to encode the ordered
+PNGs. `duration` is measured in seconds, `delays` supplies one seconds value
+per frame, and the RenderResult records integer-centisecond delays and loop
+count. Phase 1 frames must resolve to a single Graphic or graphic Figure.
+
+```rix
+.gif.Render(timeline, {= duration=1/2, loop=0 });
+```
+
+The browser exposes the contract and portable timeline preview but reports
+`gif-encoder-unavailable`. See the [GIF tutorial](https://rix.ratmath.com/tutorial/plugin-gif.html).
 
 ### glTF
 

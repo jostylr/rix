@@ -19,6 +19,16 @@ describe("pure RiX Stern-Brocot plugin", () => {
         expect(result.entries.get("continuedfraction").values.map(String)).toEqual(["0", "1", "1", "2"]);
     });
 
+    test("describes the signed-tree root without constructing an indeterminate mediant", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("stern-brocot");
+            .sternBrocotDescribe(.frac(0, 1));
+        `);
+        expect(String(result.entries.get("current"))).toBe("0");
+        expect(String(result.entries.get("mediant"))).toBe("0");
+        expect(result.entries.get("boundaries").values.map(String)).toEqual(["-1/0", "1/0"]);
+    });
+
     test("builds deterministic exact visible nodes and edges", () => {
         const result = parseAndEvaluate(`
             .Plugin.Load("stern-brocot");

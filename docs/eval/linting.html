@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>renderer-guide – RiX</title>
+<title>linting – RiX</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -360,35 +360,16 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#renderer-plugins" id="toc-renderer-plugins" class="nav-link active" data-scroll-target="#renderer-plugins">Renderer plugins</a>
+  <li><a href="#static-linting-and-actionable-diagnostics" id="toc-static-linting-and-actionable-diagnostics" class="nav-link active" data-scroll-target="#static-linting-and-actionable-diagnostics">Static linting and actionable diagnostics</a>
   <ul class="collapse">
-  <li><a href="#loading-and-discovery" id="toc-loading-and-discovery" class="nav-link" data-scroll-target="#loading-and-discovery">Loading and discovery</a></li>
-  <li><a href="#rendering-and-export" id="toc-rendering-and-export" class="nav-link" data-scroll-target="#rendering-and-export">Rendering and export</a></li>
-  <li><a href="#renderresult-contract" id="toc-renderresult-contract" class="nav-link" data-scroll-target="#renderresult-contract">RenderResult contract</a></li>
-  <li><a href="#target-matrix" id="toc-target-matrix" class="nav-link" data-scroll-target="#target-matrix">Target matrix</a></li>
-  <li><a href="#graphics-targets" id="toc-graphics-targets" class="nav-link" data-scroll-target="#graphics-targets">Graphics targets</a>
-  <ul class="collapse">
-  <li><a href="#svg" id="toc-svg" class="nav-link" data-scroll-target="#svg">SVG</a></li>
-  <li><a href="#canvas" id="toc-canvas" class="nav-link" data-scroll-target="#canvas">Canvas</a></li>
-  <li><a href="#tikz" id="toc-tikz" class="nav-link" data-scroll-target="#tikz">TikZ</a></li>
-  <li><a href="#png" id="toc-png" class="nav-link" data-scroll-target="#png">PNG</a></li>
-  <li><a href="#gif" id="toc-gif" class="nav-link" data-scroll-target="#gif">GIF</a></li>
-  <li><a href="#gltf" id="toc-gltf" class="nav-link" data-scroll-target="#gltf">glTF</a></li>
-  </ul></li>
-  <li><a href="#document-targets" id="toc-document-targets" class="nav-link" data-scroll-target="#document-targets">Document targets</a>
-  <ul class="collapse">
-  <li><a href="#markdown" id="toc-markdown" class="nav-link" data-scroll-target="#markdown">Markdown</a></li>
-  <li><a href="#html" id="toc-html" class="nav-link" data-scroll-target="#html">HTML</a></li>
-  <li><a href="#quarto" id="toc-quarto" class="nav-link" data-scroll-target="#quarto">Quarto</a></li>
-  <li><a href="#latex" id="toc-latex" class="nav-link" data-scroll-target="#latex">LaTeX</a></li>
-  <li><a href="#pdf" id="toc-pdf" class="nav-link" data-scroll-target="#pdf">PDF</a></li>
-  </ul></li>
-  <li><a href="#diagnostics-and-unsupported-content" id="toc-diagnostics-and-unsupported-content" class="nav-link" data-scroll-target="#diagnostics-and-unsupported-content">Diagnostics and unsupported content</a></li>
-  <li><a href="#complete-cli-example" id="toc-complete-cli-example" class="nav-link" data-scroll-target="#complete-cli-example">Complete CLI example</a></li>
-  <li><a href="#d-boundary" id="toc-d-boundary" class="nav-link" data-scroll-target="#d-boundary">3D boundary</a></li>
+  <li><a href="#command-line" id="toc-command-line" class="nav-link" data-scroll-target="#command-line">Command line</a></li>
+  <li><a href="#javascript-api" id="toc-javascript-api" class="nav-link" data-scroll-target="#javascript-api">JavaScript API</a></li>
+  <li><a href="#initial-rules" id="toc-initial-rules" class="nav-link" data-scroll-target="#initial-rules">Initial rules</a></li>
+  <li><a href="#runtime-assistance" id="toc-runtime-assistance" class="nav-link" data-scroll-target="#runtime-assistance">Runtime assistance</a></li>
+  <li><a href="#scope-model-used-by-the-linter" id="toc-scope-model-used-by-the-linter" class="nav-link" data-scroll-target="#scope-model-used-by-the-linter">Scope model used by the linter</a></li>
   </ul></li>
   </ul>
-<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/renderer-guide.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/linting.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
     </div>
 <!-- main -->
 <main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"></header>
@@ -397,261 +378,34 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 
 
-<section id="renderer-plugins" class="level1">
-<h1>Renderer plugins</h1>
-<p>RiX renderer plugins turn retained <code>.Graphics</code> scenes and portable document values into target artifacts. They are deliberately downstream of evaluation: a renderer does not run user expressions, solve geometry, or refine a mathematical value.</p>
-<pre class="text"><code>domain value -&gt; portable Graphic/document -&gt; renderer -&gt; RenderResult -&gt; host artifact</code></pre>
-<section id="loading-and-discovery" class="level2">
-<h2 class="anchored" data-anchor-id="loading-and-discovery">Loading and discovery</h2>
-<p>Renderers are ordinary opt-in plugins. Load one target, load a configured group, or declare the plugins in a script header:</p>
-<pre class="rix"><code>.Plugin.Load("svg");
-.Plugin.Load("markdown");
-
-targets := .Renderer.List();
-svg := .Renderer.Info("image/svg+xml");</code></pre>
-<pre class="rix"><code>/**
-plugins: [svg, canvas, tikz, png, markdown, html, quarto, latex, pdf, gif, gltf, csv]
-**/</code></pre>
-<p>The CLI also accepts <code>--plugins=renderers</code>, and <code>rix setup --plugins=renderers</code> can make the group part of the local CLI configuration. <code>.Renderer.Info(target)</code> reports the canonical target, MIME type, extension, accepted input kinds, aliases, and determinism claim.</p>
+<section id="static-linting-and-actionable-diagnostics" class="level1">
+<h1>Static linting and actionable diagnostics</h1>
+<p>RiX linting checks scope ownership and decision semantics without evaluating a program. It is additive: linting does not rewrite source, load plugins, or change evaluator behavior.</p>
+<section id="command-line" class="level2">
+<h2 class="anchored" data-anchor-id="command-line">Command line</h2>
+<p>Lint one or more files:</p>
+<pre class="text"><code>rix lint program.rix
+rix lint plugins/fraction/fraction.plugin.rix</code></pre>
+<p>Warnings are advisory by default, so the command exits successfully after printing them. CI and plugin validation can opt into a nonzero exit status:</p>
+<pre class="text"><code>rix lint --strict plugins/my-plugin/my-plugin.plugin.rix</code></pre>
+<p>Use <code>--json</code> for editor and build-tool integration. Custom operator files can be supplied with <code>--operator-file=FILE</code>. A single <code>-</code> input reads standard input.</p>
+<p>To inspect ownership rather than only warnings, select a source line or the identifier nearest a column:</p>
+<pre class="text"><code>rix explain-scope plugin.rix:42
+rix explain-scope --json plugin.rix:42:18</code></pre>
+<p>Each entry reports whether the name is current, captured, missing a capture, or incorrectly marked as outer, together with its owning scope and suggested spelling.</p>
 </section>
-<section id="rendering-and-export" class="level2">
-<h2 class="anchored" data-anchor-id="rendering-and-export">Rendering and export</h2>
-<p>The generic and target-specific calls are equivalent:</p>
-<pre class="rix"><code>result := .Render(graphic, "svg", {= alt="An exact construction" });
-same := .svg.Render(graphic, {= alt="An exact construction" });
-source := result.Get("content");</code></pre>
-<p><code>.Out</code> asks the CLI host to select a loaded renderer from the filename’s longest matching extension. It writes original binary bytes rather than the RiX-visible base64 representation:</p>
-<pre class="rix"><code>.Out("diagram.svg", graphic);
-.Out("diagram.canvas.json", graphic);
-.Out("report.pdf", report);</code></pre>
-<p>Run a program containing those declarations with <code>rix --out=out program.rix</code>. Paths must remain relative to the output directory. Renderer-supplied assets are subject to the same validation.</p>
+<section id="javascript-api" class="level2">
+<h2 class="anchored" data-anchor-id="javascript-api">JavaScript API</h2>
+<p><code>lintRix(source, options)</code> returns ordered diagnostic records. Each record has <code>code</code>, <code>severity</code>, <code>message</code>, <code>hint</code>, <code>file</code>, <code>line</code>, <code>column</code>, and <code>offset</code>. <code>explainRixScopes(source, options)</code> returns identifier-ownership records for editor integrations. <code>analyzeRix</code> returns both arrays in one parse.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> { lintRix<span class="op">,</span> formatLintDiagnostic } <span class="im">from</span> <span class="st">"rix"</span><span class="op">;</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> diagnostics <span class="op">=</span> <span class="fu">lintRix</span>(<span class="st">"x=1; {; x; };"</span><span class="op">,</span> { <span class="dt">file</span><span class="op">:</span> <span class="st">"example.rix"</span> })<span class="op">;</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (<span class="kw">const</span> diagnostic <span class="kw">of</span> diagnostics) {</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    <span class="bu">console</span><span class="op">.</span><span class="fu">log</span>(<span class="fu">formatLintDiagnostic</span>(diagnostic))<span class="op">;</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
-<section id="renderresult-contract" class="level2">
-<h2 class="anchored" data-anchor-id="renderresult-contract">RenderResult contract</h2>
-<p>Every successful renderer returns an immutable RiX map:</p>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 50%">
-<col style="width: 50%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>Field</th>
-<th>Meaning</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>target</code></td>
-<td>Canonical target actually selected after negotiation.</td>
-</tr>
-<tr class="even">
-<td><code>mime</code></td>
-<td>MIME type of the primary artifact.</td>
-</tr>
-<tr class="odd">
-<td><code>extension</code></td>
-<td>Preferred extension without a leading dot.</td>
-</tr>
-<tr class="even">
-<td><code>encoding</code></td>
-<td><code>utf8</code> for text and <code>base64</code> for RiX-visible binary content.</td>
-</tr>
-<tr class="odd">
-<td><code>content</code></td>
-<td>Text source or base64. The host retains original binary bytes.</td>
-</tr>
-<tr class="even">
-<td><code>assets</code></td>
-<td>Relative-path subsidiary artifacts with MIME, encoding, and content.</td>
-</tr>
-<tr class="odd">
-<td><code>diagnostics</code></td>
-<td>Structured <code>level</code>, <code>code</code>, <code>message</code>, and optional scene <code>path</code>.</td>
-</tr>
-<tr class="even">
-<td><code>deterministic</code></td>
-<td>The adapter’s repeatability claim for the same options and toolchain.</td>
-</tr>
-<tr class="odd">
-<td><code>toolchain</code></td>
-<td>External implementation used, or <code>_</code> for a portable renderer.</td>
-</tr>
-</tbody>
-</table>
-<p>The generic call accepts <code>fallback</code> or <code>fallbacks</code> in its options map. A fallback is never silent: the result contains <code>renderer-fallback</code> plus any diagnostics accumulated while negotiating earlier candidates.</p>
-</section>
-<section id="target-matrix" class="level2">
-<h2 class="anchored" data-anchor-id="target-matrix">Target matrix</h2>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 20%">
-<col style="width: 20%">
-<col style="width: 20%">
-<col style="width: 20%">
-<col style="width: 20%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>Plugin</th>
-<th>Inputs</th>
-<th>Extension and MIME</th>
-<th>Browser</th>
-<th>CLI requirement</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>svg</code></td>
-<td>Graphic, graphic Figure</td>
-<td><code>.svg</code>, <code>image/svg+xml</code></td>
-<td>Full</td>
-<td>None</td>
-</tr>
-<tr class="even">
-<td><code>canvas</code></td>
-<td>Graphic, graphic Figure</td>
-<td><code>.canvas.json</code>, <code>application/vnd.rix.canvas+json</code></td>
-<td>Full</td>
-<td>None</td>
-</tr>
-<tr class="odd">
-<td><code>tikz</code></td>
-<td>Graphic, graphic Figure</td>
-<td><code>.tikz</code>, <code>text/x-tikz</code></td>
-<td>Source generation</td>
-<td>None</td>
-</tr>
-<tr class="even">
-<td><code>png</code></td>
-<td>Graphic, graphic Figure</td>
-<td><code>.png</code>, <code>image/png</code></td>
-<td>Contract only</td>
-<td><code>rsvg-convert</code> or <code>magick</code></td>
-</tr>
-<tr class="odd">
-<td><code>markdown</code></td>
-<td>Document/output trees</td>
-<td><code>.md</code>, <code>text/markdown</code></td>
-<td>Full</td>
-<td>None</td>
-</tr>
-<tr class="even">
-<td><code>html</code></td>
-<td>Any portable output</td>
-<td><code>.html</code>, <code>text/html</code></td>
-<td>Full</td>
-<td>None</td>
-</tr>
-<tr class="odd">
-<td><code>quarto</code></td>
-<td>Documents and slides</td>
-<td><code>.qmd</code>, <code>text/x-quarto</code></td>
-<td>Source generation</td>
-<td>None</td>
-</tr>
-<tr class="even">
-<td><code>latex</code></td>
-<td>Documents, figures, slides</td>
-<td><code>.tex</code>, <code>text/x-tex</code></td>
-<td>Source generation</td>
-<td>None</td>
-</tr>
-<tr class="odd">
-<td><code>pdf</code></td>
-<td>Documents, figures, static slides</td>
-<td><code>.pdf</code>, <code>application/pdf</code></td>
-<td>Contract only</td>
-<td><code>pdflatex</code></td>
-</tr>
-<tr class="even">
-<td><code>gif</code></td>
-<td>Slides, Timeline, Snapshots</td>
-<td><code>.gif</code>, <code>image/gif</code></td>
-<td>Contract only</td>
-<td>PNG rasterizer plus ImageMagick</td>
-</tr>
-<tr class="odd">
-<td><code>gltf</code></td>
-<td>retained Scene3D</td>
-<td><code>.gltf</code>, <code>model/gltf+json</code></td>
-<td>Full</td>
-<td>None</td>
-</tr>
-</tbody>
-</table>
-<p>“Full” means the browser can produce the target content. Source targets do not compile or open their downstream application. Contract-only targets can be loaded and inspected in a browser, but rendering reports a toolchain error because browsers do not spawn rasterizers or TeX.</p>
-</section>
-<section id="graphics-targets" class="level2">
-<h2 class="anchored" data-anchor-id="graphics-targets">Graphics targets</h2>
-<section id="svg" class="level3">
-<h3 class="anchored" data-anchor-id="svg">SVG</h3>
-<p>SVG traverses paths and curve commands, groups, transforms, rectangular clips, text, rectangles, circles, and drag-point metadata. Output is standalone and deterministic. The <code>alt</code> option adds an accessible <code>&lt;title&gt;</code> and <code>aria-label</code>.</p>
-<pre class="rix"><code>.Plugin.Load("svg");
-.svg.Render(graphic, {= alt="A teal construction" });</code></pre>
-<p>Learn interactively in the <a href="https://rix.ratmath.com/tutorial/plugin-svg.html">SVG renderer tutorial</a>.</p>
-</section>
-<section id="canvas" class="level3">
-<h3 class="anchored" data-anchor-id="canvas">Canvas</h3>
-<p>Canvas returns versioned <code>rix.canvas-plan@1</code> JSON. It is an execution plan for <code>CanvasRenderingContext2D</code>, not another scene model. JavaScript hosts can paint it with <code>paintCanvasPlan(context, plan)</code> from the Canvas plugin. There are no target options in version 1.</p>
-<p>Learn interactively in the <a href="https://rix.ratmath.com/tutorial/plugin-canvas.html">Canvas renderer tutorial</a>.</p>
-</section>
-<section id="tikz" class="level3">
-<h3 class="anchored" data-anchor-id="tikz">TikZ</h3>
-<p>TikZ emits editable TikZ/PGF. Coordinates use <code>x=1pt,y=-1pt</code> so orientation matches SVG and Canvas. Set <code>standalone=1</code> to wrap the picture in a compilable document; the default is a <code>tikzpicture</code> fragment. Endpoint-form SVG arc commands currently fail visibly because their geometric conversion is not yet defined.</p>
-<pre class="rix"><code>.tikz.Render(graphic, {= standalone=1 });</code></pre>
-<p>Learn interactively in the <a href="https://rix.ratmath.com/tutorial/plugin-tikz.html">TikZ renderer tutorial</a>.</p>
-</section>
-<section id="png" class="level3">
-<h3 class="anchored" data-anchor-id="png">PNG</h3>
-<p>PNG first lowers a Graphic to SVG and asks the host for an approved rasterizer. <code>scale</code> multiplies the Graphic dimensions; explicit <code>width</code> and <code>height</code> override the corresponding scaled dimensions, and <code>background</code> requests a background color. Dimensions must be finite and positive after host rounding.</p>
-<pre class="rix"><code>.png.Render(graphic, {= scale=2, background="white" });</code></pre>
-<p>The CLI tries <code>rsvg-convert</code>, then ImageMagick’s <code>magick</code>, and records the chosen toolchain. A browser render fails with <code>png-rasterizer-unavailable</code>. See the <a href="https://rix.ratmath.com/tutorial/plugin-png.html">PNG host-boundary tutorial</a>.</p>
-</section>
-<section id="gif" class="level3">
-<h3 class="anchored" data-anchor-id="gif">GIF</h3>
-<p>GIF expands <code>Slides</code>, <code>Timeline</code>, or <code>Snapshots</code> deterministically, delegates each Graphic frame to PNG, and then asks the CLI host to encode the ordered PNGs. <code>duration</code> is measured in seconds, <code>delays</code> supplies one seconds value per frame, and the RenderResult records integer-centisecond delays and loop count. Phase 1 frames must resolve to a single Graphic or graphic Figure.</p>
-<pre class="rix"><code>.gif.Render(timeline, {= duration=1/2, loop=0 });</code></pre>
-<p>The browser exposes the contract and portable timeline preview but reports <code>gif-encoder-unavailable</code>. See the <a href="https://rix.ratmath.com/tutorial/plugin-gif.html">GIF tutorial</a>.</p>
-</section>
-<section id="gltf" class="level3">
-<h3 class="anchored" data-anchor-id="gltf">glTF</h3>
-<p>glTF accepts the retained <code>rix.scene3d@1</code> scene rather than a projected Graphic. It converts RiX’s right-handed Z-up coordinates to glTF’s right-handed Y-up convention and embeds a base64 geometry buffer in glTF 2.0 JSON. Mesh triangles, lines, points, basic colors, and opacity are supported. Exact positions become Float32 at this explicit export boundary. Cameras, lights, textures, animation, and GLB remain follow-up work.</p>
-<p>Learn interactively in the <a href="https://rix.ratmath.com/tutorial/plugin-gltf.html">glTF renderer tutorial</a>.</p>
-</section>
-</section>
-<section id="document-targets" class="level2">
-<h2 class="anchored" data-anchor-id="document-targets">Document targets</h2>
-<section id="markdown" class="level3">
-<h3 class="anchored" data-anchor-id="markdown">Markdown</h3>
-<p>Markdown preserves headings, emphasis, code, math, lists, quotes, tables, media links, and code/math blocks. Graphics become inline SVG. Interactive controls and timelines use their static representation and report loss of interaction through diagnostics. It has no target-specific options.</p>
-<p>Learn interactively in the <a href="https://rix.ratmath.com/tutorial/plugin-markdown.html">Markdown renderer tutorial</a>.</p>
-</section>
-<section id="html" class="level3">
-<h3 class="anchored" data-anchor-id="html">HTML</h3>
-<p>HTML produces a standalone semantic document with embedded Graphics SVG. The <code>title</code> option sets the document title; <code>style</code> replaces the compact default stylesheet. Static HTML preserves output semantics but does not include the RiX reactive widget runtime. The CLI reserves a final reactive HTML <code>.Out</code> for its interactive page path; other HTML artifacts use this static renderer.</p>
-<pre class="rix"><code>.html.Render(report, {= title="Exact report" });</code></pre>
-<p>Learn interactively in the <a href="https://rix.ratmath.com/tutorial/plugin-html.html">HTML renderer tutorial</a>.</p>
-</section>
-<section id="quarto" class="level3">
-<h3 class="anchored" data-anchor-id="quarto">Quarto</h3>
-<p>Quarto emits <code>.qmd</code> with YAML front matter and CommonMark-oriented content. Options may be supplied directly or beneath <code>metadata</code>; recognized metadata is <code>title</code>, <code>author</code>, <code>date</code>, and <code>format</code>. The default format is <code>html</code>. Quarto callouts and labels remain native, while Graphics become inline SVG.</p>
-<p>Learn interactively in the <a href="https://rix.ratmath.com/tutorial/plugin-quarto.html">Quarto renderer tutorial</a>.</p>
-</section>
-<section id="latex" class="level3">
-<h3 class="anchored" data-anchor-id="latex">LaTeX</h3>
-<p>LaTeX preserves document structure, math, tables, figures, labels, and code. Graphics lower to TikZ. <code>title</code> sets an optional title and <code>standalone</code> controls whether a complete document or body fragment is returned; standalone defaults to true. Producing <code>.tex</code> does not require TeX.</p>
-<p>Learn interactively in the <a href="https://rix.ratmath.com/tutorial/plugin-latex.html">LaTeX renderer tutorial</a>.</p>
-</section>
-<section id="pdf" class="level3">
-<h3 class="anchored" data-anchor-id="pdf">PDF</h3>
-<p>PDF is the LaTeX/TikZ lowering followed by a host compiler. It accepts <code>title</code> and always requests standalone LaTeX. The CLI invokes <code>pdflatex</code> with non-interactive, halt-on-error settings, returns the original PDF bytes, and records <code>pdflatex</code> as its toolchain. Browser rendering fails with <code>pdf-toolchain-unavailable</code>.</p>
-<p>See the <a href="https://rix.ratmath.com/tutorial/plugin-pdf.html">PDF host-boundary tutorial</a>.</p>
-</section>
-</section>
-<section id="diagnostics-and-unsupported-content" class="level2">
-<h2 class="anchored" data-anchor-id="diagnostics-and-unsupported-content">Diagnostics and unsupported content</h2>
-<p>Renderers do not silently discard unsupported structures. Target limitations, lost interaction, fallback selection, and absent host tools appear as diagnostics or a failed render negotiation. Important codes include:</p>
+<section id="initial-rules" class="level2">
+<h2 class="anchored" data-anchor-id="initial-rules">Initial rules</h2>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 50%">
@@ -665,49 +419,56 @@ source := result.Get("content");</code></pre>
 </thead>
 <tbody>
 <tr class="odd">
-<td><code>renderer-unavailable</code></td>
-<td>No loaded renderer matched a requested candidate.</td>
+<td><code>RX1001</code></td>
+<td>A bare name belongs to an enclosing scope and needs <code>@</code> or an explicit import.</td>
 </tr>
 <tr class="even">
-<td><code>unsupported-input</code></td>
-<td>The target does not accept the portable value kind.</td>
+<td><code>RX1002</code></td>
+<td><code>@name</code> points outward even though <code>name</code> belongs to the current scope.</td>
 </tr>
 <tr class="odd">
-<td><code>renderer-fallback</code></td>
-<td>An explicitly allowed fallback produced the result.</td>
+<td><code>RX1101</code></td>
+<td>A numeric literal or numerically defaulted parameter is used directly as a decision; <code>0</code> is truthy.</td>
 </tr>
 <tr class="even">
-<td><code>png-rasterizer-unavailable</code></td>
-<td>The host has no PNG rasterizer adapter.</td>
+<td><code>RX1102</code></td>
+<td>A conditional or loop can receive undecided <code>?</code> without explicitly handling or refining it.</td>
 </tr>
 <tr class="odd">
-<td><code>pdf-toolchain-unavailable</code></td>
-<td>The host has no LaTeX compiler adapter.</td>
+<td><code>RX1201</code></td>
+<td><code>~=</code> or another identity-preserving update targets a value known statically to be immutable.</td>
 </tr>
 <tr class="even">
-<td><code>html-static-interaction</code></td>
-<td>Static HTML retained markup without a live widget runtime.</td>
+<td><code>RX1302</code></td>
+<td>A nested block or loop binding shadows an enclosing binding.</td>
 </tr>
 <tr class="odd">
-<td><code>gltf-float32-approximation</code></td>
-<td>Exact Scene3D coordinates were rounded to Float32.</td>
-</tr>
-<tr class="even">
-<td><code>gltf-line-width-portability</code></td>
-<td>glTF lines cannot portably retain authored width.</td>
+<td><code>RX2001</code></td>
+<td>A lazy branch has enough explicit captures that a helper with parameters may be clearer.</td>
 </tr>
 </tbody>
 </table>
+<p><code>RX2001</code> is informational. The other initial rules are warnings. <code>--strict</code> fails on warnings but not on informational style suggestions.</p>
 </section>
-<section id="complete-cli-example" class="level2">
-<h2 class="anchored" data-anchor-id="complete-cli-example">Complete CLI example</h2>
-<p><code>examples/renderers/all-formats.rix</code> sends one retained Graphic to all four 2D targets and one document tree to all five document targets:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> bin/rix.js <span class="at">--out</span><span class="op">=</span>tmp/renderer-example-out examples/renderers/all-formats.rix</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>The example and its binary outputs are exercised by the CLI renderer tests.</p>
+<section id="runtime-assistance" class="level2">
+<h2 class="anchored" data-anchor-id="runtime-assistance">Runtime assistance</h2>
+<p>The evaluator gives the same capture-direction hints when static linting was not run. For example, a selected lazy branch can report:</p>
+<pre class="text"><code>Undefined variable: numerator
+RX1001: 'numerator' exists in an enclosing scope; use '@numerator' to capture it, or import it explicitly.
+while evaluating '?_' branch</code></pre>
+<p>Loop failures identify whether the condition, body, or update failed and name the iteration. Immutable <code>~=</code> failures explain that the operator preserves cell identity and suggest an explicit rebind/copy or mutable state holder.</p>
 </section>
-<section id="d-boundary" class="level2">
-<h2 class="anchored" data-anchor-id="d-boundary">3D boundary</h2>
-<p>The initial retained <code>rix.scene3d@1</code> schema, deterministic wireframe snapshot, and glTF JSON exporter are implemented. Scene3D owns cameras and projection; SVG/Canvas/TikZ still consume only the Graphic returned by <code>.scene3d.Snapshot</code>. The snapshot does not claim hidden-line removal or lighting. OBJ/MTL, STL, PLY, USD/USDZ, GLB, adaptive surfaces, and interactive orbit controls remain future adapters or refiners. See the complete <a href="../eval/scene3d-guide.html">3D and n-dimensional guide</a>.</p>
+<section id="scope-model-used-by-the-linter" class="level2">
+<h2 class="anchored" data-anchor-id="scope-model-used-by-the-linter">Scope model used by the linter</h2>
+<p>The analyzer follows evaluator ownership rules rather than ordinary JavaScript block visibility:</p>
+<ul>
+<li>a function owns its parameters and top-level body bindings;</li>
+<li>a standalone <code>{; ... }</code> owns a new isolated scope;</li>
+<li>a loop owns its header locals, and direct code blocks in loop slots share that loop scope;</li>
+<li>a block used as a ternary branch is nested and must capture enclosing names;</li>
+<li>direct function calls retain callable lookup behavior and are not mistaken for ordinary value captures.</li>
+</ul>
+<p>The analyzer intentionally reports only immutable and undecided cases it can infer with useful confidence. Dynamic plugin dispatch and values supplied by a host may still require runtime diagnostics.</p>
 
 
 </section>
@@ -1144,7 +905,7 @@ source := result.Get("content");</code></pre>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
-    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/renderer-guide.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/linting.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
     <div class="nav-footer-right">
 <p>Documentation built with <a href="https://quarto.org/">Quarto</a></p>
 </div>

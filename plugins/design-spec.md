@@ -69,11 +69,11 @@ numeric type or one universal rendering engine.
 | Plotting | `.plot` | Function, parametric, implicit, data, statistical, vector, contour, and heat-map plots. |
 | 3D scene expansion | `.scene3d` | Certified hidden-surface/shadow policies, adaptive surfaces and volumes, textures, animation, clipping, and interactive orbit beyond the implemented retained wireframe/flat-lit slice. |
 | Higher-dimensional expansion | `.nd` | Fields, meshes, implicit regions, slices, sections, fibers, sampling, and marginalization beyond implemented affine projection. |
-| Complex visualization | `.complexViz` | Domain coloring, magnitude/phase surfaces, Cayley color mappings, Riemann-sphere views, and complex-to-complex projections. |
+| Complex visualization | `.complexViz` | Phase 1 exact discrete domain coloring is implemented; magnitude/phase surfaces, Cayley color mappings, Riemann-sphere views, and complex-to-complex projections remain. |
 | Data expansion | `.data` | Joins, groups, aggregates, calculated columns, external sources, and large-data planning beyond the implemented Phase 1 relation slice. |
-| Statistics | `.stats` | Exact/approximate summaries, distributions, models, regression, and plot-ready result values. |
+| Statistics | `.stats` | Phase 1 exact summaries, linear quantiles, variance, histogram, and box plots are implemented in RiX; distributions, models, and regression remain. |
 | Document expansion | `.document` | Citations, bibliographies, asset manifests, broader numbering policy, templates, and report/deck assembly beyond the implemented numbered-report slice. |
-| Rendering and export | `.gif`; `.terminalAscii` expansion; 3D GLB, OBJ, STL, PLY, USD/USDZ adapters | Remaining target encoders/exporters and richer terminal layout. SVG, Canvas, Terminal ASCII, TikZ, PNG, Markdown, HTML, Quarto, LaTeX, PDF, CSV/TSV, and glTF JSON have initial implementations. |
+| Rendering and export | `.terminalAscii` expansion; video and 3D GLB, OBJ, STL, PLY, USD/USDZ adapters | GIF now joins SVG, Canvas, Terminal ASCII, TikZ, PNG, Markdown, HTML, Quarto, LaTeX, PDF, CSV/TSV, and glTF JSON with an initial implementation. |
 
 Plugin IDs and mount names remain lowercase or lower camel case. Core portable
 constructors retain their existing PascalCase system names.
@@ -791,7 +791,7 @@ rix/plugins/
   geometry/                # exact Phase 1 geometry
   scene3d/                 # exact retained Phase 1 scenes
   nd/                      # exact retained Phase 1 ND geometry
-  complex-visualization/   # proposed
+  complex-visualization/   # pure RiX Phase 1 domain coloring
   render-svg/              # proposed extraction from hosts
   render-canvas/
   render-png/
@@ -800,7 +800,7 @@ rix/plugins/
   render-latex/
   render-quarto/
   render-pdf/
-  render-gif/
+  render-gif/              # host PNG/GIF orchestration
   export-csv/
 ```
 

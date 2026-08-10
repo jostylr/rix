@@ -1016,10 +1016,17 @@ function checkLocked(value) {
 function checkFrozenImmutable(value) {
     const ext = value?._ext;
     if (ext?.get("immutable")) {
-        throw new Error("Cannot update value: cell is immutable");
+        throw new Error(
+            "Cannot update value: cell is immutable\n"
+            + "RX1201: '~=' preserves cell identity. Use an appropriate rebind/copy assignment, "
+            + "or carry immutable values inside a mutable state holder.",
+        );
     }
     if (ext?.get("frozen")) {
-        throw new Error("Cannot update value: cell is frozen");
+        throw new Error(
+            "Cannot update value: cell is frozen\n"
+            + "RX1201: '~=' preserves cell identity. Rebind explicitly if replacement is intended.",
+        );
     }
 }
 
@@ -2140,6 +2147,12 @@ export const coreFunctions = {
             const name = args[0];
             const value = context.get(name);
             if (value === undefined) {
+                if (context.getAncestorCell(name)) {
+                    throw new Error(
+                        `Undefined variable: ${name}\n`
+                        + `RX1001: '${name}' exists in an enclosing scope; use '@${name}' to capture it, or import it explicitly.`,
+                    );
+                }
                 throw new Error(`Undefined variable: ${name}`);
             }
             const reactiveRead = context.getEnv(REACTIVE_READ_ENV, null);
@@ -2176,6 +2189,12 @@ export const coreFunctions = {
             const name = args[0];
             const value = context.getOuter(name);
             if (value === undefined) {
+                if (context.getImmediateCell(name)) {
+                    throw new Error(
+                        `Undefined outer variable: @${name}\n`
+                        + `RX1002: '${name}' belongs to the current scope; remove '@' and use '${name}'.`,
+                    );
+                }
                 throw new Error(`Undefined outer variable: @${name}`);
             }
             const reactiveRead = context.getEnv(REACTIVE_READ_ENV, null);

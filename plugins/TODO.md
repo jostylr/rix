@@ -18,6 +18,9 @@ Later phases deliberately become broader, harder, and easier to postpone.
 Except where a dependency is called out below, finish most Phase 1 milestones
 before beginning broad Phase 2 work.
 
+All catalogued Phase 1 milestones are now implemented. Unchecked work below is
+Phase 2 or later unless a section explicitly says otherwise.
+
 ## Basic order of implementation
 
 The order is organized as waves rather than one rigid serial queue. Items
@@ -535,10 +538,10 @@ newline normalization.
 ### `.stats`
 
 1. **Phase 1 — Exact descriptive statistics**
-   - [ ] Compute count, exact mean, median/quantiles policy, variance, and a
+   - [x] Compute count, exact mean, median/quantiles policy, variance, and a
      plot-ready summary for a small dataset.
-   - [ ] Demonstrate a summary table plus histogram/box representation.
-   - [ ] Add README, tutorial, and exact/edge-case tests.
+   - [x] Demonstrate a summary table plus histogram/box representation.
+   - [x] Add README, tutorial, and exact/edge-case tests.
 2. **Phase 2 — Distributions and regression**
    - [ ] Add distributions, sampling with explicit RNG state, confidence
      objects, linear regression, and residual outputs.
@@ -621,10 +624,10 @@ newline normalization.
 ### `.complexViz`
 
 1. **Phase 1 — Domain coloring**
-   - [ ] Implement a documented phase/magnitude color convention.
-   - [ ] Demonstrate domain coloring of a rational complex function with zeros,
+   - [x] Implement a documented phase/magnitude color convention.
+   - [x] Demonstrate domain coloring of a rational complex function with zeros,
      poles, and unresolved samples marked.
-   - [ ] Add README, tutorial, color fixtures, and SVG/Canvas output tests.
+   - [x] Add README, tutorial, color fixtures, and SVG/Canvas output tests.
 2. **Phase 2 — Cayley and surface views**
    - [ ] Add magnitude/phase surfaces, Cayley color mapping, Riemann sphere,
      and branch-cut metadata.
@@ -821,10 +824,10 @@ newline normalization.
 ### `.gif`
 
 1. **Phase 1 — Slides to animated GIF**
-   - [ ] Expand a deterministic two-slide timeline into PNG frames and encode a
+   - [x] Expand a deterministic two-slide timeline into PNG frames and encode a
      looping GIF.
-   - [ ] Demonstrate a short mathematical derivation or rotating 2D plot.
-   - [ ] Add README, tutorial, frame/timing tests, and a visual fixture.
+   - [x] Demonstrate a short mathematical derivation or rotating 2D plot.
+   - [x] Add README, tutorial, frame/timing tests, and a visual fixture.
 2. **Phase 2 — Transitions and scene animation**
    - [ ] Add supported transitions, per-slide duration, dithering, palette
      policy, and Scene3D rotation snapshots.

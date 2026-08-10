@@ -8,7 +8,7 @@ toc-depth: 2
 This page is generated from the current RiX implementation by `documentation/scripts/generate-reference.js`. Do not edit it by hand. Descriptions come from registry documentation strings; the narrative [syntax guide](../eval/syntax-guide.md) and [methods guide](../eval/methods-guide.md) provide signatures and examples.
 :::
 
-At this revision RiX exposes **234 named entries** on the default system context and registers **224 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
+At this revision RiX exposes **239 named entries** on the default system context and registers **224 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
 
 ## Public system context
 
@@ -213,10 +213,12 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.canvas` | function | — | Serializable Canvas 2D drawing plans for core Graphics scenes. |
 | `.cauchy` | function | — | Rational Cauchy sequences with explicit certified tail bounds and moduli. |
 | `.cf` | function | — | Finite and lazy simple continued fractions with exact convergents and certified enclosures. |
+| `.complexviz` | function | — | Exact domain-color sampling for complex functions rendered as portable Graphics. |
 | `.continuedfraction` | function | — | Finite and lazy simple continued fractions with exact convergents and certified enclosures. |
 | `.csv` | function | — | Deterministic CSV and TSV export for portable Tables and typed data Relations. |
 | `.data` | function | — | Immutable typed relations with deterministic projection, filtering, sorting, and Table views. |
 | `.document` | function | — | Numbered portable reports with labels, forward references, captions, and small semantic themes. |
+| `.domaincoloring` | function | — | Exact domain-color sampling for complex functions rendered as portable Graphics. |
 | `.draw` | function | Draw | Convenient 2D drawing helpers that produce core Graphics nodes. |
 | `.exactalgebras` | function | Exact | Exact rational quaternion and octonion values. |
 | `.f` | function | — | Representation-sensitive unreduced integer fractions with mediant and classroom addition policies. |
@@ -226,6 +228,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.fraction` | function | — | Representation-sensitive unreduced integer fractions with mediant and classroom addition policies. |
 | `.fractionfunction` | function | — | Form-preserving callable polynomial and rational expressions with explicit transformations and canonical projections. |
 | `.geometry` | function | — | Exact ruler-and-compass geometry with explicit intersections and portable Graphics snapshots. |
+| `.gif` | function | — | Deterministic animated GIF rendering from Slides, Timelines, or Snapshots through PNG frames. |
 | `.gltf` | function | — | Browser-safe glTF 2.0 JSON exporter for retained Scene3D values. |
 | `.html` | function | — | Standalone semantic HTML renderer for portable RiX output trees. |
 | `.latex` | function | — | Standalone LaTeX renderer for portable RiX documents and figures. |
@@ -245,6 +248,8 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.rationalfunction` | function | — | Canonical callable univariate rational functions with exact cancellation and Polynomial interoperability. |
 | `.rf` | function | — | Canonical callable univariate rational functions with exact cancellation and Polynomial interoperability. |
 | `.scene3d` | function | — | Exact retained 3D scenes with deterministic wireframe and lit Graphics snapshots. |
+| `.statistics` | function | — | Exact descriptive statistics with portable summary tables, histograms, and box plots. |
+| `.stats` | function | — | Exact descriptive statistics with portable summary tables, histograms, and box plots. |
 | `.sternbrocot` | function | — | Pure RiX Stern-Brocot node descriptions, visible tree records, and exact formula evaluation. |
 | `.svg` | function | — | Portable SVG renderer for core Graphics scenes. |
 | `.symbolic` | function | — | Meta-plugin loading RiX representation-sensitive Fraction and FractionFunction workspaces. |

@@ -110,13 +110,13 @@ The first two build directly on the current graphics work.
 | Next | `.scene3d` expansion | Hidden-surface/lighting policies, curves, adaptive surfaces/volumes, textures, animation, and orbit metadata. | Builds on the implemented `rix.scene3d@1` realized geometry and wireframe snapshot. |
 | Next | `.nd` expansion | Slices, sections, fibers, fields, sampling, and marginalization. | Builds on implemented exact affine/Cayley projections and explicit 3D conversion. |
 | Later | `.data` / tables | Relations, schemas, sorting, filtering, joins, calculated columns, table views and formatters. | A `TableView` lowers to core `Table`; CSV is an exporter of data, not a replacement for a presentation table. |
-| Later | `.stats` | Distributions, summaries, regression, histograms, confidence intervals. | Returns data/analysis values; chart constructors compose with `.plot`. |
+| Next | `.stats` expansion | Distributions, regression, confidence objects, and model diagnostics. | Builds on implemented exact summaries, linear quantiles, histograms, and box plots written in RiX. |
 | Later | `.graph` | Nodes, edges, layouts, paths, graph algorithms. | Layout output becomes `.Graphics`; graph semantics stay available for computation. |
 | Later | `.numerics` | Root isolation, integration, ODEs, optimization, certified-real adapters. | Supplies certified or explicitly approximate values to `.geometry` and `.plot`; it should surface error bounds. |
 | Later | `.solve` | Polynomial systems, constraints, symbolic/numeric solving. | Returns solution objects and isolating boxes; `.geometry` can visualize them. |
 | Later | `.document` extras | Citation, bibliography, cross-references, themes, code/output inclusion. | Produces core `Fragment`, `Figure`, `Table`, and `Slides` values; renderers own HTML/Quarto/PDF specifics. |
 | Host-dependent | `.widgets` | Sliders, selection, animation, browser events. | Requires runtime-specific JavaScript; must declare capability needs and provide a portable static snapshot. |
-| Host-dependent | Remaining exporters | Terminal ASCII, GIF/video, CSV/data formats, GLB, OBJ, STL, PLY, and USD/USDZ. | glTF JSON is implemented; remaining targets use the same renderer registry and MIME/target negotiation. |
+| Host-dependent | Remaining exporters | Video, GLB, OBJ, STL, PLY, and USD/USDZ. | GIF, CSV/TSV, terminal ASCII, and glTF JSON have Phase 1 implementations; remaining targets use the same registry. |
 
 Potential high-level packages should depend downward: `.geometry` and `.plot`
 depend on exact/numerical services and emit core graphics; renderers depend on

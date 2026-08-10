@@ -38,6 +38,38 @@ export function rasterizeSvg(svg, options = {}) {
     throw new Error("No SVG rasterizer is available (tried rsvg-convert and magick)");
 }
 
+export function encodeGifFrames(frames, options = {}) {
+    if (!Array.isArray(frames) || frames.length < 2) throw new Error("GIF encoding requires at least two PNG frames");
+    const delays = options.delays || frames.map(() => 100);
+    if (delays.length !== frames.length) throw new Error("GIF encoding requires one delay per frame");
+    const temporaryRoot = path.resolve(process.cwd(), "tmp");
+    mkdirSync(temporaryRoot, { recursive: true });
+    const directory = mkdtempSync(path.join(temporaryRoot, "rix-gif-"));
+    try {
+        const files = frames.map((content, index) => {
+            const filename = path.join(directory, `frame-${String(index + 1).padStart(4, "0")}.png`);
+            writeFileSync(filename, content);
+            return filename;
+        });
+        const args = [];
+        for (let index = 0; index < files.length; index += 1) {
+            args.push("-delay", String(delays[index]), files[index]);
+        }
+        args.push("-loop", String(options.loop ?? 0), "-strip", "gif:-");
+        const runOptions = {
+            env: { ...process.env, SOURCE_DATE_EPOCH: "946684800" },
+            maxBuffer: 128 * 1024 * 1024,
+        };
+        const magick = run("magick", args, runOptions);
+        if (magick) return { content: new Uint8Array(magick.stdout), toolchain: "ImageMagick" };
+        const convert = run("convert", args, runOptions);
+        if (convert) return { content: new Uint8Array(convert.stdout), toolchain: "ImageMagick convert" };
+        throw new Error("No GIF encoder is available (tried magick and convert)");
+    } finally {
+        rmSync(directory, { recursive: true, force: true });
+    }
+}
+
 export function compileLatex(source) {
     const temporaryRoot = path.resolve(process.cwd(), "tmp");
     mkdirSync(temporaryRoot, { recursive: true });

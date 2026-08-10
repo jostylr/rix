@@ -75,6 +75,15 @@ function isBreakSignal(error) {
     return Boolean(error) && error.kind === "break";
 }
 
+export function addEvaluationContext(error, detail) {
+    if (!error || typeof error !== "object" || isBreakSignal(error)) return error;
+    if (!Array.isArray(error.rixEvaluationContexts)) error.rixEvaluationContexts = [];
+    if (error.rixEvaluationContexts.includes(detail)) return error;
+    error.rixEvaluationContexts.push(detail);
+    error.message = `${error.message}\n${detail}`;
+    return error;
+}
+
 export function matchesBreakTarget(signal, targetType, targetName) {
     if (!isBreakSignal(signal)) return false;
     if (signal.targetType !== null && signal.targetType !== targetType) {
@@ -239,7 +248,12 @@ export const controlFunctions = {
 
                     while (true) {
                         if (condNode) {
-                            const condResult = evaluateShared(condNode, context, evaluate);
+                            let condResult;
+                            try {
+                                condResult = evaluateShared(condNode, context, evaluate);
+                            } catch (error) {
+                                throw addEvaluationContext(error, `while evaluating loop condition before iteration ${iterations + 1}`);
+                            }
                             const state = decisionState(condResult);
                             if (state === "undecided") return UNDECIDED;
                             if (state === "null") break;
@@ -251,11 +265,19 @@ export const controlFunctions = {
                         }
 
                         if (bodyNode) {
-                            result = evaluateShared(bodyNode, context, evaluate);
+                            try {
+                                result = evaluateShared(bodyNode, context, evaluate);
+                            } catch (error) {
+                                throw addEvaluationContext(error, `while evaluating loop body, iteration ${iterations + 1}`);
+                            }
                         }
 
                         if (updateNode) {
-                            evaluateShared(updateNode, context, evaluate);
+                            try {
+                                evaluateShared(updateNode, context, evaluate);
+                            } catch (error) {
+                                throw addEvaluationContext(error, `while evaluating loop update after iteration ${iterations + 1}`);
+                            }
                         }
 
                         iterations++;
@@ -287,7 +309,12 @@ export const controlFunctions = {
             const condResult = evaluate(args[0]);
             const state = decisionState(condResult);
             const branch = state === "truth" ? args[1] : state === "null" ? args[2] : args[3];
-            return evaluate(unwrapDefer(branch));
+            const marker = state === "truth" ? "?:" : state === "null" ? "?_" : "??";
+            try {
+                return evaluate(unwrapDefer(branch));
+            } catch (error) {
+                throw addEvaluationContext(error, `while evaluating '${marker}' branch`);
+            }
         },
         doc: "Decision conditional: condition ?: truthExpr ?_ nullExpr ?? undecidedExpr",
     },

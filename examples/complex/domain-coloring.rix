@@ -1,0 +1,12 @@
+/**
+plugins: [complex-viz, svg]
+**/
+
+f := .complexViz.RationalFunction((z) -> z^2 - 1, (z) -> z);
+coloring := .complexViz.DomainColoring({=
+    fn=f,
+    domain={= re=[-5/2, 5/2], im=[-5/2, 5/2] },
+    resolution=[31, 31],
+    size=[496, 496]
+});
+.Out("domain-coloring.svg", coloring);

@@ -3882,6 +3882,7 @@ x[1] = 9          ## OK: ._mutable controls index assignment, not .lock</code></
 </section>
 <section id="part-4-diagnostics-testing-and-debugging" class="level2">
 <h2 class="anchored" data-anchor-id="part-4-diagnostics-testing-and-debugging">Part 4: Diagnostics, Testing, and Debugging</h2>
+<p>For non-evaluating scope, truthiness, undecided-decision, and immutable-update checks, see <a href="../eval/linting.html">Static linting and actionable diagnostics</a>.</p>
 <p>All diagnostic system capabilities produce structured RiX map values with at minimum: <code>kind</code>, <code>label</code>, <code>file</code>, <code>time</code>, <code>data</code>.</p>
 <p>Runtime errors include source locations when the evaluator has source text. This is automatic for <code>parseAndEvaluate(...)</code>, script imports, and the CLI paths that use those APIs. Direct calls to <code>evaluate(irNode, ...)</code> only include line/column locations if the caller has attached source metadata or set the source environment for the context.</p>
 <section id="cleanup-and-operational-fault-postfixes" class="level3">

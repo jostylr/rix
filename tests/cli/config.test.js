@@ -105,7 +105,7 @@ describe("RiX CLI configuration", () => {
         expect(result.stderr).toBe("");
         expect(readRixCliConfig(directory).plugins).toEqual(["renderers"]);
         expect(existsSync(path.join(directory, "cli-preamble.rix"))).toBe(true);
-        expect(result.stdout).toContain("Currently resolved: canvas, csv, gltf, html, latex, markdown, pdf, png, quarto, svg, terminal-ascii, tikz");
+        expect(result.stdout).toContain("Currently resolved: canvas, csv, gif, gltf, html, latex, markdown, pdf, png, quarto, svg, terminal-ascii, tikz");
     });
 
     test("the automatic preamble supplies functions and operators to later REPL submissions", () => {

@@ -1,0 +1,148 @@
+/**
+id: complex-viz
+description: Exact domain-color sampling for complex functions rendered as portable Graphics.
+kind: rix
+mount: complexViz
+aliases: [domainColoring]
+exports: [DomainColoring, RationalFunction, Sample, Pole, Unresolved, PhaseSector, MagnitudeBand, Color]
+groups: [Graphics, Exact, Algebra]
+permissions: []
+provides: [rix.complex-visualization@1]
+schemas: [rix.complex-viz.sample@1, rix.complex-viz.domain-coloring@1]
+snapshot: true
+deterministic: true
+defaultEnabled: false
+**/
+
+CVOption(options, key, fallback) -> options.Has(key) ?: options[key] ?_ fallback;
+CVAbs(value) -> value < 0 ?: -value ?_ value;
+
+CVSample(value) -> {=
+    valueKind=:complexVizSample,
+    schema="rix.complex-viz.sample@1",
+    status=:value,
+    value=value
+};
+CVPole() -> {= valueKind=:complexVizSample, schema="rix.complex-viz.sample@1", status=:pole, value=_ };
+CVUnresolved(reason ?= :unresolved) -> {= valueKind=:complexVizSample, schema="rix.complex-viz.sample@1", status=:unresolved, reason=reason, value=_ };
+
+CVNormalizeSample(value) -> ((value ? :Map) && value.Has("status")) ?: value ?_ CVSample(value);
+
+CVRationalSample(numerator, denominator, point) -> {;
+    denominatorValue = point |> denominator;
+    .Complex.NormSquared(denominatorValue) == 0
+      ?: CVPole()
+      ?_ CVSample((point |> numerator) / denominatorValue);
+};
+
+CVRationalFunction(numerator, denominator) -> (point) -> CVRationalSample(numerator, denominator, point);
+
+CVPhaseSector(value) -> {;
+    x = .Complex.Re(value) ~!: :Rational;
+    y = .Complex.Im(value) ~!: :Rational;
+    (x == 0 && y == 0)
+      ?: :zero
+      ?_ x >= 0
+           ?: (y >= 0
+                 ?: (y <= x ?: 0 ?_ 1)
+                 ?_ ((-y) >= x ?: 6 ?_ 7))
+           ?_ (y >= 0
+                 ?: (y >= (-x) ?: 2 ?_ 3)
+                 ?_ ((-y) <= (-x) ?: 4 ?_ 5));
+};
+
+CVMagnitudeBand(value) -> {;
+    magnitudeSquared = .Complex.NormSquared(value) ~!: :Rational;
+    magnitudeSquared == 0 ?: :zero ?_ magnitudeSquared <= 1/4 ?: :small ?_ magnitudeSquared <= 4 ?: :medium ?_ :large;
+};
+
+CVPalette(sector, band) -> {;
+    small = ["#fecaca", "#fed7aa", "#fef08a", "#d9f99d", "#a7f3d0", "#a5f3fc", "#bfdbfe", "#ddd6fe"];
+    medium = ["#ef4444", "#f97316", "#eab308", "#84cc16", "#10b981", "#06b6d4", "#3b82f6", "#8b5cf6"];
+    large = ["#991b1b", "#9a3412", "#854d0e", "#3f6212", "#065f46", "#155e75", "#1e3a8a", "#4c1d95"];
+    band == :small ?: small[sector + 1] ?_ band == :medium ?: medium[sector + 1] ?_ large[sector + 1];
+};
+
+CVColor(sampleValue) -> {;
+    sample = CVNormalizeSample(sampleValue);
+    sample[:status] == :pole
+      ?: "#ffffff"
+      ?_ sample[:status] == :unresolved
+           ?: "#64748b"
+           ?_ {;
+               sector = CVPhaseSector(@sample[:value]);
+               sector == :zero ?: "#111827" ?_ CVPalette(sector, CVMagnitudeBand(@sample[:value]));
+           };
+};
+
+CVPositiveInteger(value, label) -> {;
+    integer = value ~!: :Integer;
+    integer >= 1 ?: integer ?_ .Error(@"@{label} must be a positive Integer");
+};
+
+CVDomainColoring(spec) -> {;
+    fn = spec[:fn];
+    fn == _ ?: .Error("DomainColoring requires fn") ?_ _;
+    domain = CVOption(spec, "domain", {= re=[-2, 2], im=[-2, 2] });
+    re = domain[:re];
+    im = domain[:im];
+    resolution = CVOption(spec, "resolution", [32, 32]);
+    columns = CVPositiveInteger(resolution[1], "DomainColoring columns");
+    rows = CVPositiveInteger(resolution[2], "DomainColoring rows");
+    size = CVOption(spec, "size", [360, 360]);
+    cellWidth = size[1] / columns;
+    cellHeight = size[2] / rows;
+    reStep = (re[2] - re[1]) / columns;
+    imStep = (im[2] - im[1]) / rows;
+    children := [];
+    poles := 0;
+    unresolved := 0;
+    zeros := 0;
+    {@ row = 1; row <= @rows; {;
+        {@ column = 1; column <= @columns; {;
+            real = @re[1] + (column - 1/2) * @reStep;
+            imaginary = @im[2] - (@row - 1/2) * @imStep;
+            point = .Complex.FromParts(real, imaginary);
+            sample = CVNormalizeSample(point |> @fn);
+            sample[:status] == :pole ?: {; @poles += 1; } ?_ _;
+            sample[:status] == :unresolved ?: {; @unresolved += 1; } ?_ _;
+            (sample[:status] == :value && .Complex.NormSquared(sample[:value]) == 0) ?: {; @zeros += 1; } ?_ _;
+            color = CVColor(sample);
+            @children ~= @children.Push(.Graphics.Rectangle(
+                [(column - 1) * @cellWidth, (@row - 1) * @cellHeight],
+                [@cellWidth, @cellHeight],
+                {= fill=color, stroke=color, width=0 }
+            ));
+        }; column += 1 };
+    }; row += 1 };
+    .Graphics.Graphic(size, children, {=
+        schema="rix.complex-viz.domain-coloring@1",
+        convention=:exactOctantPhaseThreeBandMagnitude,
+        phase=:octantsByCartesianDominance,
+        magnitude=:normSquaredBands,
+        magnitudeBands=[0, 1/4, 4],
+        poleColor="#ffffff",
+        unresolvedColor="#64748b",
+        zeroColor="#111827",
+        domain=domain,
+        resolution=resolution,
+        samples=rows * columns,
+        poles=poles,
+        unresolved=unresolved,
+        zeros=zeros,
+        alt="Complex domain coloring"
+    });
+};
+
+complexVizNamespace = {= };
+complexVizNamespace._proto = {=
+    DomainColoring=(self, spec)->CVDomainColoring(spec),
+    RationalFunction=(self, numerator, denominator)->CVRationalFunction(numerator, denominator),
+    Sample=(self, value)->CVSample(value),
+    Pole=(self)->CVPole(),
+    Unresolved=(self, reason ?= :unresolved)->CVUnresolved(reason),
+    PhaseSector=(self, value)->CVPhaseSector(value),
+    MagnitudeBand=(self, value)->CVMagnitudeBand(value),
+    Color=(self, value)->CVColor(value)
+};
+.Host.RegisterValue("complexViz", complexVizNamespace, "Exact complex domain coloring as portable Graphics", ["Graphics", "Exact", "Algebra"]);

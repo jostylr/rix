@@ -28,7 +28,7 @@ defaultEnabled: false
         path := current.SternBrocotPath();
         parents := current.FareyParents();
         children := current.SternBrocotChildren();
-        rational := current.Rational();
+        rational := current.Rational() ~!: :Rational;
         {=
             schema="rix.stern-brocot.node@1",
             current=current,
@@ -38,7 +38,9 @@ defaultEnabled: false
             depth=current.SternBrocotDepth(),
             path=path,
             boundaries=parents,
-            mediant=parents[1].Mediant(parents[2]),
+            mediant=(parents[1].Denominator() + parents[2].Denominator() == 0)
+                ?: current
+                ?_ parents[1].Mediant(parents[2]),
             rational=rational,
             continuedFraction=rational.ToContinuedFraction(),
             convergents=rational.Convergents()

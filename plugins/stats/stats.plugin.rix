@@ -1,0 +1,216 @@
+/**
+id: stats
+description: Exact descriptive statistics with portable summary tables, histograms, and box plots.
+kind: rix
+mount: stats
+aliases: [statistics]
+exports: [Count, Mean, Quantile, Median, Variance, SampleVariance, Summary, SummaryTable, Histogram, HistogramGraphic, BoxPlot]
+groups: [Statistics, Exact, Graphics]
+permissions: []
+provides: [rix.statistics@1]
+schemas: [rix.stats.summary@1, rix.stats.histogram@1]
+snapshot: true
+deterministic: true
+defaultEnabled: false
+**/
+
+StatsOption(options, key, fallback) -> options.Has(key) ?: options[key] ?_ fallback;
+
+StatsValues(values, allowEmpty ?= 0) -> {;
+    values ? :Array ?: _ ?_ .Error("Statistics values must be an Array");
+    (allowEmpty == 1 || values.Len() > 0) ?: _ ?_ .Error("Statistics requires at least one value");
+    values.Map((value) -> {;
+        exact = value ~!: :Rational;
+        exact == _ ?: .Error("Statistics values must be exact Integers or Rationals") ?_ exact;
+    });
+};
+
+StatsCount(values) -> StatsValues(values, 1).Len();
+
+StatsSum(exactValues) -> exactValues.Reduce((sum, value) -> sum + value, 0);
+
+StatsMean(values) -> {;
+    exact = StatsValues(values);
+    StatsSum(exact) / exact.Len();
+};
+
+StatsQuantile(values, probability, policy ?= :linear) -> {;
+    exact = StatsValues(values).Sort();
+    p = probability ~!: :Rational;
+    (p >= 0 && p <= 1) ?: _ ?_ .Error("Quantile probability must be between 0 and 1");
+    policy == :linear ?: _ ?_ .Error("Phase 1 supports the exact :linear quantile policy");
+    rank = p * (exact.Len() - 1);
+    lowerOffset = rank.Floor();
+    lowerIndex = lowerOffset + 1;
+    weight = rank - lowerOffset;
+    lowerIndex == exact.Len()
+      ?: exact[lowerIndex]
+      ?_ exact[lowerIndex] + weight * (exact[lowerIndex + 1] - exact[lowerIndex]);
+};
+
+StatsMedian(values) -> StatsQuantile(values, 1/2);
+
+StatsVariance(values, sample ?= 0) -> {;
+    exact = StatsValues(values);
+    sample && exact.Len() < 2 ?: .Error("Sample variance requires at least two values") ?_ _;
+    mean = StatsSum(exact) / exact.Len();
+    squared = exact.Reduce((sum, value) -> sum + (value - mean)^2, 0);
+    squared / (sample == 1 ?: exact.Len() - 1 ?_ exact.Len());
+};
+
+StatsSummary(values) -> {;
+    exact = StatsValues(values);
+    sorted = exact.Sort();
+    count = sorted.Len();
+    mean = StatsSum(sorted) / count;
+    {=
+        valueKind=:statsSummary,
+        schema="rix.stats.summary@1",
+        count=count,
+        minimum=sorted[1],
+        q1=StatsQuantile(sorted, 1/4),
+        median=StatsQuantile(sorted, 1/2),
+        q3=StatsQuantile(sorted, 3/4),
+        maximum=sorted.Last(),
+        mean=mean,
+        populationVariance=StatsVariance(sorted),
+        sampleVariance=count >= 2 ?: StatsVariance(sorted, 1) ?_ _,
+        quantilePolicy=:linearNMinusOne,
+        exact=1
+    };
+};
+
+StatsSummaryTable(values, options ?= {= }) -> {;
+    summary = StatsSummary(values);
+    caption = StatsOption(options, "caption", "Exact descriptive statistics");
+    .Table(["statistic", "value"], [
+        ["count", summary[:count]],
+        ["minimum", summary[:minimum]],
+        ["q1", summary[:q1]],
+        ["median", summary[:median]],
+        ["q3", summary[:q3]],
+        ["maximum", summary[:maximum]],
+        ["mean", summary[:mean]],
+        ["population variance", summary[:populationVariance]],
+        ["sample variance", summary[:sampleVariance]]
+    ], {= caption=caption });
+};
+
+StatsPositiveInteger(value, label) -> {;
+    integer = value ~!: :Integer;
+    integer >= 1 ?: integer ?_ .Error(@"@{label} must be a positive Integer");
+};
+
+StatsZeros(length) -> {;
+    result := [];
+    {@ index = 1; index <= @length; {; @result ~= @result.Push(0); }; index += 1 };
+    result;
+};
+
+StatsHistogram(values, binCount ?= 5) -> {;
+    exact = StatsValues(values);
+    count = StatsPositiveInteger(binCount, "Histogram bin count");
+    minimum = exact.Sort()[1];
+    maximum = exact.Sort().Last();
+    constant = minimum == maximum;
+    effectiveCount = constant ?: 1 ?_ count;
+    width = constant ?: 0 ?_ (maximum - minimum) / effectiveCount;
+    counts := StatsZeros(effectiveCount);
+    {@ index = 1; index <= @exact.Len(); {;
+        bin = @constant ?: 1 ?_ ((@exact[index] - @minimum) / @width).Floor() + 1;
+        bin > @effectiveCount ?: {; @bin ~= @effectiveCount; } ?_ _;
+        @counts ~= @counts.Set(bin, @counts[bin] + 1);
+    }; index += 1 };
+    bins := [];
+    {@ index = 1; index <= @effectiveCount; {;
+        low = @constant ?: @minimum ?_ @minimum + (index - 1) * @width;
+        high = @constant ?: @maximum ?_ @minimum + index * @width;
+        @bins ~= @bins.Push({=
+            index=index,
+            low=low,
+            high=high,
+            count=@counts[index],
+            includesHigh=index == @effectiveCount
+        });
+    }; index += 1 };
+    {=
+        valueKind=:statsHistogram,
+        schema="rix.stats.histogram@1",
+        bins=bins,
+        count=exact.Len(),
+        minimum=minimum,
+        maximum=maximum,
+        width=width,
+        exact=1
+    };
+};
+
+StatsHistogramGraphic(value, options ?= {= }) -> {;
+    histogram = value ? :Array
+      ?: StatsHistogram(value, StatsOption(options, "bins", 5))
+      ?_ value;
+    histogram[:schema] == "rix.stats.histogram@1" ?: _ ?_ .Error("HistogramGraphic expects values or a stats histogram");
+    size = StatsOption(options, "size", [420, 220]);
+    fill = StatsOption(options, "fill", "#2563eb");
+    margin = 28;
+    chartWidth = size[1] - 2 * margin;
+    chartHeight = size[2] - 2 * margin;
+    bins = histogram[:bins];
+    maximumCount = bins.Map((bin) -> bin[:count]).Sort().Last();
+    cellWidth = chartWidth / bins.Len();
+    children := [
+        .Graphics.Path([[margin, margin], [margin, margin + chartHeight], [margin + chartWidth, margin + chartHeight]], {= stroke="#334155", width=1, fill="none" })
+    ];
+    {@ index = 1; index <= @bins.Len(); {;
+        height = @chartHeight * @bins[index][:count] / @maximumCount;
+        @children ~= @children.Push(.Graphics.Rectangle(
+            [@margin + (index - 1) * @cellWidth + 1, @margin + @chartHeight - height],
+            [@cellWidth - 2, height],
+            {= fill=@fill, stroke="#1e3a8a", width=1 }
+        ));
+    }; index += 1 };
+    .Graphics.Graphic(size, children, {=
+        schema="rix.stats.histogram-graphic@1",
+        histogram=histogram,
+        alt="Exact histogram"
+    });
+};
+
+StatsBoxPlot(values, options ?= {= }) -> {;
+    summary = StatsSummary(values);
+    size = StatsOption(options, "size", [420, 120]);
+    fill = StatsOption(options, "fill", "#bfdbfe");
+    left = 30;
+    right = size[1] - 30;
+    y = size[2] / 2;
+    spread = summary[:maximum] - summary[:minimum];
+    position = (value) -> @spread == 0 ?: (@left + @right) / 2 ?_ @left + (value - @summary[:minimum]) * (@right - @left) / @spread;
+    minX = summary[:minimum] |> position;
+    q1X = summary[:q1] |> position;
+    medianX = summary[:median] |> position;
+    q3X = summary[:q3] |> position;
+    maxX = summary[:maximum] |> position;
+    .Graphics.Graphic(size, [
+        .Graphics.Path([[minX, y], [maxX, y]], {= stroke="#334155", width=2, fill="none" }),
+        .Graphics.Path([[minX, y - 14], [minX, y + 14]], {= stroke="#334155", width=2 }),
+        .Graphics.Path([[maxX, y - 14], [maxX, y + 14]], {= stroke="#334155", width=2 }),
+        .Graphics.Rectangle([q1X, y - 24], [q3X - q1X, 48], {= fill=fill, stroke="#1e3a8a", width=2 }),
+        .Graphics.Path([[medianX, y - 24], [medianX, y + 24]], {= stroke="#be123c", width=3 })
+    ], {= schema="rix.stats.box-plot@1", summary=summary, alt="Exact box plot" });
+};
+
+statsNamespace = {= };
+statsNamespace._proto = {=
+    Count=(self, values)->StatsCount(values),
+    Mean=(self, values)->StatsMean(values),
+    Quantile=(self, values, probability, policy ?= :linear)->StatsQuantile(values, probability, policy),
+    Median=(self, values)->StatsMedian(values),
+    Variance=(self, values)->StatsVariance(values),
+    SampleVariance=(self, values)->StatsVariance(values, 1),
+    Summary=(self, values)->StatsSummary(values),
+    SummaryTable=(self, values, options ?= {= })->StatsSummaryTable(values, options),
+    Histogram=(self, values, binCount ?= 5)->StatsHistogram(values, binCount),
+    HistogramGraphic=(self, value, options ?= {= })->StatsHistogramGraphic(value, options),
+    BoxPlot=(self, values, options ?= {= })->StatsBoxPlot(values, options)
+};
+.Host.RegisterValue("stats", statsNamespace, "Exact descriptive statistics and portable plots", ["Statistics", "Exact", "Graphics"]);
