@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "lint": { "level": "thorough", "profiles": ["default", "math"] },
+  "format": { "printWidth": 88 },
+  "execution": { "timeoutMs": 5000 }
+}
+

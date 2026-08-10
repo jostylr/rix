@@ -158,6 +158,10 @@
           "href": "developer-guide.html"
         },
         {
+          "text": "Editor and coding-agent tooling",
+          "href": "editor-and-agent-tooling.html"
+        },
+        {
           "text": "Plugin catalog and loading",
           "href": "plugin-catalog.html"
         },
@@ -237,6 +241,10 @@
         {
           "text": "Interactive output extension contracts",
           "href": "design/interactive-output-plugins.html"
+        },
+        {
+          "text": "Editor, language-server, and AI tooling",
+          "href": "design/editor-tooling.html"
         },
         {
           "text": "RiXCel architecture",

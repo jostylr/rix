@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/verify.schema.json",
+  "title": "RiX verify report",
+  "type": "object",
+  "required": ["protocol", "uri", "diagnostics", "events", "summary"],
+  "properties": {
+    "protocol": { "const": "rix.verify/1" },
+    "uri": { "type": "string" },
+    "diagnostics": { "type": "array", "items": { "$ref": "static-diagnostic.schema.json" } },
+    "events": { "type": "array", "items": { "$ref": "execution-event.schema.json" } },
+    "summary": {
+      "type": "object", "required": ["state"],
+      "properties": {
+        "state": { "enum": ["passed", "failed", "cancelled"] },
+        "checks": { "type": "object" }
+      }
+    }
+  }
+}
+

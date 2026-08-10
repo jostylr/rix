@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "extends": "../rix.json",
+  "operatorFiles": ["../operators/sample.operators.rix"],
+  "format": { "profile": "compact" }
+}
+

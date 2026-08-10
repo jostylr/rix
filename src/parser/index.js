@@ -1,4 +1,4 @@
-export { parse } from "./parser.js";
+export { parse, RixParseError } from "./parser.js";
 export { tokenize, posToLineCol } from "./tokenizer.js";
 export {
   BUILTIN_PRECEDENCE_BANDS,

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/execution-event.schema.json",
+  "title": "RiX execution event",
+  "type": "object",
+  "required": ["protocol", "requestId", "sequence", "kind", "uri", "version", "time", "payload"],
+  "properties": {
+    "protocol": { "const": "rix.execution/1" },
+    "requestId": { "type": "string" },
+    "sequence": { "type": "integer", "minimum": 0 },
+    "kind": { "enum": ["run-start", "diagnostic", "check", "test", "log", "trace", "result", "artifact", "render", "run-end", "worker-error"] },
+    "uri": { "type": "string" },
+    "version": { "type": "integer" },
+    "range": { "type": ["object", "null"] },
+    "time": { "type": "integer" },
+    "payload": { "type": "object" }
+  }
+}
+

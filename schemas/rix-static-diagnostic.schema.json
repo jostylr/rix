@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/static-diagnostic.schema.json",
+  "title": "RiX static diagnostic",
+  "type": "object",
+  "required": ["uri", "version", "range", "severity", "code", "source", "message", "fixes"],
+  "properties": {
+    "uri": { "type": "string" },
+    "version": { "type": "integer" },
+    "range": { "$ref": "#/$defs/range" },
+    "severity": { "enum": ["error", "warning", "info", "hint"] },
+    "code": { "type": "string" },
+    "source": { "type": "string" },
+    "message": { "type": "string" },
+    "hint": { "type": ["string", "null"] },
+    "related": { "type": "array" },
+    "fixes": {
+      "type": "array",
+      "items": {
+        "type": "object", "required": ["title", "edits"],
+        "properties": {
+          "title": { "type": "string" },
+          "edits": { "type": "array", "items": { "type": "object", "required": ["range", "text"], "properties": { "range": { "$ref": "#/$defs/range" }, "text": { "type": "string" } } } }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "range": { "type": "object", "required": ["start", "end"], "properties": { "start": { "type": "integer", "minimum": 0 }, "end": { "type": "integer", "minimum": 0 } } }
+  }
+}
+

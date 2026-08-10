@@ -1,0 +1,72 @@
+{
+  "name": "rix-language",
+  "displayName": "RiX Language Support",
+  "description": "Language tooling, checks, and sandboxed execution for the RiX language.",
+  "version": "0.1.0",
+  "publisher": "ratmath",
+  "license": "MIT",
+  "type": "module",
+  "engines": { "vscode": "^1.96.0" },
+  "categories": ["Programming Languages", "Linters", "Formatters", "Testing"],
+  "keywords": ["rix", "ratmath", "mathematics", "intervals"],
+  "activationEvents": ["onLanguage:rix", "onCommand:rix.runFile", "onCommand:rix.runSelection"],
+  "main": "./src/extension.js",
+  "extensionKind": ["workspace"],
+  "capabilities": { "untrustedWorkspaces": { "supported": "limited", "description": "Static language features work; execution is disabled." } },
+  "contributes": {
+    "languages": [{
+      "id": "rix",
+      "aliases": ["RiX", "rix"],
+      "extensions": [".rix"],
+      "configuration": "./language-configuration.json"
+    }],
+    "grammars": [
+      { "language": "rix", "scopeName": "source.rix", "path": "./syntaxes/rix.tmLanguage.json" },
+      { "scopeName": "markdown.rix.codeblock", "path": "./syntaxes/rix-markdown.tmLanguage.json", "injectTo": ["text.html.markdown", "text.html.quarto"], "embeddedLanguages": { "meta.embedded.block.rix": "rix" } }
+    ],
+    "snippets": [{ "language": "rix", "path": "./snippets/rix.json" }],
+    "jsonValidation": [{ "fileMatch": ["/rix.json"], "url": "./schemas/rix.schema.json" }],
+    "commands": [
+      { "command": "rix.runFile", "title": "RiX: Run File", "category": "RiX" },
+      { "command": "rix.runSelection", "title": "RiX: Run Selection", "category": "RiX" },
+      { "command": "rix.checkFile", "title": "RiX: Check File", "category": "RiX" },
+      { "command": "rix.restartSession", "title": "RiX: Restart Session", "category": "RiX" },
+      { "command": "rix.showOutput", "title": "RiX: Show Output", "category": "RiX" },
+      { "command": "rix.showAst", "title": "RiX: Show AST", "category": "RiX" },
+      { "command": "rix.explainScope", "title": "RiX: Explain Scope at Cursor", "category": "RiX" }
+    ],
+    "menus": {
+      "editor/context": [
+        { "command": "rix.runSelection", "when": "editorLangId == rix && editorHasSelection", "group": "rix@1" },
+        { "command": "rix.runFile", "when": "editorLangId == rix", "group": "rix@2" },
+        { "command": "rix.checkFile", "when": "editorLangId == rix", "group": "rix@3" }
+      ],
+      "editor/title/run": [{ "command": "rix.runFile", "when": "editorLangId == rix", "group": "navigation" }]
+    },
+    "configuration": {
+      "title": "RiX",
+      "properties": {
+        "rix.lint.level": { "type": "string", "enum": ["essential", "standard", "thorough", "pedantic"], "default": "standard", "description": "Static lint analysis level." },
+        "rix.lint.profiles": { "type": "array", "items": { "type": "string" }, "default": ["default"], "description": "Static lint profiles." },
+        "rix.format.profile": { "type": "string", "enum": ["readable", "compact"], "default": "readable", "description": "Candidate B readable formatting or Candidate A compact formatting." },
+        "rix.format.printWidth": { "type": "number", "minimum": 40, "default": 100 },
+        "rix.checks.inline.enabled": { "type": "boolean", "default": true },
+        "rix.checks.inline.decorations": { "type": "boolean", "default": true },
+        "rix.checks.inline.showInTestExplorer": { "type": "boolean", "default": true },
+        "rix.execution.mode": { "type": "string", "enum": ["isolated", "session"], "default": "isolated" },
+        "rix.execution.timeoutMs": { "type": "number", "minimum": 100, "maximum": 120000, "default": 10000, "scope": "resource", "restricted": true }
+      }
+    }
+  },
+  "scripts": {
+    "build:server": "bun build ../../bin/rix-language-server.js --outfile dist/rix-language-server.js --target node --format esm",
+    "build:worker": "bun build ../../bin/rix-worker.js --outfile dist/rix-worker.js --target node --format esm",
+    "build": "bun run build:server && bun run build:worker",
+    "test": "bun test ./tests",
+    "package": "bun run build && npx @vscode/vsce package"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.96.0",
+    "@vscode/vsce": "^3.2.2"
+  }
+}

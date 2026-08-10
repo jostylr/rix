@@ -7,7 +7,11 @@ RiX is the Rational Interval Expression Language: a mathematical language with e
 - `src/parser/`: tokenization, parsing, and system identifier configuration.
 - `src/eval/`: IR, lowering, evaluator dispatch, formatting, and built-in functions.
 - `src/runtime/`: contexts, values, types, tensors, diagnostics, and runtime configuration.
-- `bin/`: the `rix` REPL/runner and `rix-to-ir` utility.
+- `src/tools/`: CodeMirror/Lezer support, the portable language service, LSP,
+  and editor execution protocol.
+- `editors/vscode/`: desktop VS Code extension package and Node bundle build.
+- `bin/`: the `rix` REPL/runner, machine-facing editor commands, language
+  server, worker, and `rix-to-ir` utility.
 - `tests/`: parser, evaluator, and command-line tests.
 - `documentation/`: authored Quarto documentation, language guides, references, and design records.
 - `development-instructions.md`: developer workflow and runnable documentation conventions.
@@ -31,7 +35,19 @@ For a standalone clone, provide `@ratmath/core` through a Bun workspace until it
 import { parse, tokenize, lower, evaluate, parseAndEvaluate } from "rix";
 ```
 
-Use `rix/parser`, `rix/eval`, and `rix/runtime` for narrower entry points. The command-line tools are available as `rix` and `rix-to-ir` after installation.
+Use `rix/parser`, `rix/eval`, `rix/runtime`, and `rix/language-service` for
+narrower entry points. The command-line tools include `rix`,
+`rix-language-server`, `rix-worker`, and `rix-to-ir` after installation.
+
+For deterministic editor/agent feedback:
+
+```sh
+bun bin/rix.js format --check --json example.rix
+bun bin/rix.js verify --json example.rix
+```
+
+See [`documentation/editor-and-agent-tooling.md`](documentation/editor-and-agent-tooling.md)
+for the VS Code development build and current security boundary.
 
 ## Documentation
 

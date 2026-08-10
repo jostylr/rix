@@ -37,7 +37,10 @@ import {
     applyRixLintFixes,
     lintDiagnosticsToSarif,
     RIX_LINT_RULES,
+    analyzeRixDocument,
+    formatRix,
 } from "../src/index.js";
+import { createExecutionSession } from "../src/tools/execution/worker.js";
 import { NodePluginCatalog } from "../src/runtime/plugin-catalog-node.js";
 import { formatValue as formatResult } from "../src/eval/format.js";
 import { install as installFloatPlugin } from "../plugins/float/float.plugin.rix.js";
@@ -104,6 +107,10 @@ function usage() {
   bun rix test [filters...]
   bun rix lint [--level=LEVEL] [--profile=PROFILE] [--strict] [--json|--sarif] file.rix [...]
   bun rix explain-scope [--json] file.rix:line[:column]
+  bun rix parse --json file.rix
+  bun rix symbols --json file.rix
+  bun rix format [--check] [--profile=readable|compact] file.rix [...]
+  bun rix verify --json file.rix
 
 Options:
   --out=DIR              Write artifacts declared with .Out(path, value) into DIR
@@ -125,6 +132,75 @@ Persistent REPL setup:
 
 RiX scripts declare artifacts explicitly, for example:
   .Out("index.html", $view)`;
+}
+
+function editorToolUsage(command) {
+    const usages = {
+        parse: "rix parse --json file.rix",
+        symbols: "rix symbols --json file.rix",
+        format: "rix format [--check] [--profile=readable|compact] file.rix [...]",
+        verify: "rix verify --json file.rix",
+    };
+    return `Usage: ${usages[command]}`;
+}
+
+async function runEditorTool(command, rawArgs) {
+    if (rawArgs.includes("--help") || rawArgs.includes("-h")) {
+        console.log(editorToolUsage(command));
+        return;
+    }
+    const json = rawArgs.includes("--json");
+    const check = rawArgs.includes("--check");
+    const profileArg = rawArgs.find((argument) => argument.startsWith("--profile="));
+    const profile = profileArg?.slice("--profile=".length) || "readable";
+    if (!["readable", "compact"].includes(profile)) throw new Error(`Unknown formatter profile '${profile}'`);
+    const files = rawArgs.filter((argument) => !argument.startsWith("--"));
+    if (files.length === 0 || ((command === "parse" || command === "symbols" || command === "verify") && files.length !== 1)) {
+        throw new Error(editorToolUsage(command));
+    }
+
+    if (command === "format") {
+        let changed = 0;
+        const results = [];
+        for (const filename of files) {
+            const file = path.resolve(filename);
+            const source = readFileSync(file, "utf8");
+            const formatted = formatRix(source, { profile });
+            const different = source !== formatted;
+            if (different) changed++;
+            if (different && !check) writeFileSync(file, formatted, "utf8");
+            results.push({ file, changed: different });
+        }
+        if (json) console.log(JSON.stringify({ protocol: "rix.format/1", profile, check, files: results }, null, 2));
+        else for (const result of results) console.log(`${result.changed ? check ? "would format" : "formatted" : "unchanged"} ${result.file}`);
+        if (check && changed > 0) process.exitCode = 1;
+        return;
+    }
+
+    const file = path.resolve(files[0]);
+    const source = readFileSync(file, "utf8");
+    const uri = new URL(`file://${file}`).href;
+    const analysis = analyzeRixDocument(source, { uri, version: 0 });
+    if (command === "parse") {
+        const result = { protocol: "rix.parse/1", uri, diagnostics: analysis.diagnostics, ast: analysis.ast };
+        console.log(JSON.stringify(result, null, json ? 2 : 2));
+        if (analysis.parseError) process.exitCode = 1;
+        return;
+    }
+    if (command === "symbols") {
+        console.log(JSON.stringify({ protocol: "rix.symbols/1", uri, symbols: analysis.symbols }, null, 2));
+        if (analysis.parseError) process.exitCode = 1;
+        return;
+    }
+
+    const events = [];
+    const session = createExecutionSession({ emit: (event) => events.push(event) });
+    await session.run({ command: "run", requestId: "verify", uri, version: 0, filePath: file, source, mode: "isolated" });
+    const summary = events.findLast(({ kind }) => kind === "run-end")?.payload || { state: "failed" };
+    const result = { protocol: "rix.verify/1", uri, diagnostics: analysis.diagnostics, events, summary };
+    if (json) console.log(JSON.stringify(result, null, 2));
+    else console.log(`RiX verify: ${summary.state}; ${summary.checks?.passed || 0}/${summary.checks?.total || 0} inline checks passed`);
+    if (summary.state !== "passed" || analysis.diagnostics.some(({ severity }) => severity === "error")) process.exitCode = 1;
 }
 
 function lintUsage() {
@@ -1133,6 +1209,7 @@ async function main() {
     const rawArgs = process.argv.slice(2);
     if (rawArgs[0] === "lint") return runLint(rawArgs.slice(1));
     if (rawArgs[0] === "explain-scope") return runExplainScope(rawArgs.slice(1));
+    if (["parse", "symbols", "format", "verify"].includes(rawArgs[0])) return runEditorTool(rawArgs[0], rawArgs.slice(1));
     const {
         positional: args,
         plugins,

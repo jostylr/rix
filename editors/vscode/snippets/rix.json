@@ -1,0 +1,12 @@
+{
+  "Function": { "prefix": "fun", "body": ["${1:F}(${2:x}) -> ${3:${2:x}};"], "description": "RiX function definition" },
+  "Lambda": { "prefix": "lambda", "body": ["(${1:x}) -> ${2:${1:x}}"], "description": "RiX lambda" },
+  "Block": { "prefix": "block", "body": ["{;", "    ${1}", "}"], "description": "Lexical code block" },
+  "Map": { "prefix": "map", "body": ["{=", "    ${1:key} = ${2:value}", "}"], "description": "Map container" },
+  "Case": { "prefix": "case", "body": ["{?", "    ${1:condition} ?: ${2:value}", "}"], "description": "Case container" },
+  "Loop": { "prefix": "loop", "body": ["{@ ${1:i} = ${2:1}; ${1:i} <= ${3:n}; {;", "    ${4}", "}; ${1:i} += 1 }"], "description": "Bounded loop" },
+  "Predicate check": { "prefix": "check", "body": ["##@ ${1:==} ${2:expected}"], "description": "Inline predicate check" },
+  "Structural check": { "prefix": "checktype", "body": ["##: ${1:Integer}"], "description": "Inline structural check" },
+  "Diagnostic tap": { "prefix": "tap", "body": ["##! ${1|Dump,Info,Debug,Trace,Log|}(${2})"], "description": "Value-preserving diagnostic tap" }
+}
+

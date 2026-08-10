@@ -957,7 +957,8 @@ that bypass earlier ones.
   extension; do not discover or require Bun in the first release.
 - [x] Make desktop the first complete target and keep the portable static core
   suitable for later web-worker packaging.
-- [ ] Confirm internal byte/code-unit offsets and LSP UTF-16 conversion rules.
+- [x] Use zero-based UTF-16 code-unit offsets internally and test LSP position
+  conversion, including non-BMP text.
 - [ ] Approve the static diagnostic schema.
 - [ ] Approve `rix.execution/1` envelopes and event kinds.
 - [ ] Approve check/test status semantics, including `unresolved`.
@@ -971,8 +972,8 @@ that bypass earlier ones.
 - [x] Restrict followed operator files to relative descendant regular files,
   reject symlinks, and apply explicit file/count/depth budgets.
 - [x] Define the high-level sandbox policy for the `standard` profile.
-- [ ] Generate, audit, and freeze the exact capability/plugin allowlist snapshot
-  for `standard`, with deny-by-default CI tests.
+- [ ] Audit and freeze the generated capability/plugin allowlist snapshot for
+  `standard`; drift generation and deny-by-default tests are implemented.
 - [x] Select Candidate B as the default `readable` profile, Candidate A as the
   explicit `compact` profile, and Candidate C only as a last-resort fallback.
 - [x] Approve the first-release preview boundary: structural portable output
@@ -986,14 +987,15 @@ that bypass earlier ones.
 - [ ] Normalize parser node positions to documented half-open spans.
 - [ ] Preserve source identity and spans through lowering for user-visible IR.
 - [ ] Add structured parser errors with code, span, expected input, and hint.
-- [ ] Give lint diagnostics end ranges and machine-applicable fix records.
+- [x] Give editor-facing lint diagnostics end ranges and machine-applicable fix
+  records.
 - [x] Diagnostics registry stores ordered runtime events.
-- [ ] Add URI, full range, request/session identity, and sequence to runtime
-  events.
+- [x] Add URI, full range, request identity, version, and sequence to worker
+  runtime events.
 - [ ] Emit pass/fail/unresolved/error events for every `##@` and `##:` check.
 - [ ] Attach source ranges to `##!` diagnostic events.
-- [ ] Define safe runtime-value summaries for JSON transport.
-- [ ] Add serialization and ordering tests.
+- [x] Define bounded, cycle-safe runtime-value summaries for JSON transport.
+- [x] Add serialization and ordering tests.
 
 ### 2. Portable language-service core
 
@@ -1003,29 +1005,33 @@ that bypass earlier ones.
 - [x] Implement scope explanation.
 - [x] Implement side-effect-free live-context completion primitives.
 - [ ] Add a versioned document cache and cancellation points.
-- [ ] Add a source/line index with UTF-16 LSP conversion tests.
-- [ ] Create document symbol and reference indexes.
-- [ ] Adapt completion to static scopes and catalog providers.
+- [x] Add a source/line index with UTF-16 LSP conversion tests.
+- [x] Create document symbol and reference indexes.
+- [x] Adapt completion to static scopes and catalog providers.
 - [ ] Generate the machine-readable system/method/plugin/operator catalog.
 - [ ] Implement hover and signature records independent of VS Code types.
-- [ ] Implement definition, references, and rename planning.
-- [ ] Implement code-action records from lint fixes.
-- [ ] Implement conservative formatting and golden fixtures.
+- [x] Implement definition, references, and rename planning.
+- [x] Implement code-action records from lint fixes.
+- [x] Implement conservative formatting and golden fixtures.
 - [ ] Add shared grammar-drift fixtures for Pratt, Lezer, and TextMate surfaces.
 
 ### 3. Language server
 
-- [ ] Add `rix-language-server` stdio entry point.
-- [ ] Implement initialize/shutdown and capability negotiation.
-- [ ] Synchronize versioned open documents and discard stale work.
-- [ ] Publish parser and lint diagnostics with debounce/cancellation.
-- [ ] Implement completion and completion resolution.
-- [ ] Implement hover and signature help.
-- [ ] Implement document symbols, definition, references, and rename.
-- [ ] Implement code actions.
+- [x] Add `rix-language-server` stdio entry point.
+- [x] Implement initialize/shutdown and capability negotiation.
+- [x] Synchronize versioned open documents.
+- [x] Publish parser and lint diagnostics with client-side debounce.
+- [x] Implement completion; resolution is deferred until catalog entries need
+  lazy documentation.
+- [ ] Implement hover and signature help. Hover is implemented; signature help
+  remains.
+- [x] Implement document symbols, definition, references, and rename.
+- [x] Implement code actions.
 - [ ] Implement folding and selection ranges.
-- [ ] Implement semantic tokens with delta support if practical.
-- [ ] Implement document and range formatting.
+- [x] Implement full semantic tokens; delta responses are deferred until
+  profiling justifies them.
+- [ ] Implement document and range formatting. Document formatting is
+  implemented; range formatting remains.
 - [ ] Watch `rix.json`, source headers, operator files, preambles, and plugin
   metadata.
 - [ ] Support multi-root workspaces without sharing configuration accidentally.
@@ -1035,19 +1041,21 @@ that bypass earlier ones.
 
 ### 4. VS Code extension baseline
 
-- [ ] Scaffold `rix/editors/vscode` with extension-host tests.
-- [ ] Register the `rix` language and `.rix` files.
-- [ ] Add language configuration for comments, brackets, indentation, and
+- [ ] Add extension-host integration tests to the implemented
+  `rix/editors/vscode` scaffold.
+- [x] Register the `rix` language and `.rix` files.
+- [x] Add language configuration for comments, brackets, indentation, and
   folding.
-- [ ] Add the baseline TextMate grammar.
-- [ ] Add Markdown/Quarto RiX fence injection.
+- [x] Add the baseline TextMate grammar.
+- [x] Add Markdown/Quarto RiX fence injection.
 - [ ] Add semantic-token mappings and theme compatibility tests.
-- [ ] Add snippets.
-- [ ] Bundle or launch the language server with version checks.
-- [ ] Map diagnostics to Problems and code actions to Quick Fix.
+- [x] Add snippets.
+- [ ] Bundle and launch the language server; explicit component version-range
+  checks remain.
+- [x] Map diagnostics to Problems and code actions to Quick Fix.
 - [ ] Add AST/IR read-only virtual documents.
-- [ ] Add Explain Scope at Cursor.
-- [ ] Declare limited untrusted-workspace support and restricted settings.
+- [x] Add Explain Scope at Cursor.
+- [x] Declare limited untrusted-workspace support and restricted settings.
 - [ ] Test trusted, untrusted, virtual, and multi-root workspace behavior.
 - [ ] Keep extension-host/LSP transport behind interfaces that have browser
   worker equivalents, without delaying the desktop release.
@@ -1057,32 +1065,35 @@ that bypass earlier ones.
 - [x] CLI runs files, REPL submissions, and `.Test` suites.
 - [x] CLI loads approved plugins and constrains artifact paths.
 - [x] Runtime can render portable output and declared artifacts.
-- [ ] Add a framed/JSON Lines worker entry point with no human stdout mixed into
+- [x] Add a framed/JSON Lines worker entry point with no human stdout mixed into
   protocol output.
-- [ ] Implement isolated and named-session run modes.
+- [x] Implement isolated and named-session run modes.
 - [ ] Implement Run File, Run Selection, Check File, Run Tests, cancel, and
   restart requests.
 - [ ] Add cooperative cancellation and forced termination grace period.
 - [ ] Add time, output, background-task, artifact-size, and memory policies.
-- [ ] Pass explicit capability/plugin allowlists into every run.
-- [ ] Refuse workspace execution when trust is absent.
+- [x] Pass an explicit generated capability/plugin allowlist into every editor
+  run.
+- [x] Refuse workspace execution when trust is absent.
 - [ ] Emit structured run, diagnostic, check, test, trace, result, render, and
   artifact events.
 - [ ] Add crash recovery and clean-session tests.
 - [ ] Add `--json` to run/test/check paths without parsing human output.
-- [ ] Implement `rix verify --json` and stable exit codes.
+- [x] Implement `rix verify --json` and stable exit codes.
 
 ### 6. VS Code execution and reporting UI
 
 - [ ] Add Run File, Run Selection, Check File, Run Tests, cancel, and Restart
   Session commands.
 - [ ] Display active source version, configuration, session, and run state.
-- [ ] Send scalar/text output to a RiX Output channel.
-- [ ] Add source-linked gutter and CodeLens states for `##@` and `##:`.
+- [x] Send scalar/text output to a RiX Output channel.
+- [ ] Add source-linked gutter and CodeLens states for `##@` and `##:`. Gutter
+  decorations are implemented; CodeLens remains.
 - [ ] Add `.Test` discovery and execution to Test Explorer.
-- [ ] Add optional inline-check Test Explorer items.
+- [x] Add optional inline-check Test Explorer items.
 - [ ] Add an accessible diagnostic/trace tree for `##!` events.
 - [ ] Navigate from Problems, tests, checks, and traces to precise source.
+  Problems and inline Test Explorer items navigate today; trace UI remains.
 - [ ] Add artifact tree/file links.
 - [ ] Ensure stale run output is visibly marked and never decorates a newer
   document as current.
@@ -1106,12 +1117,14 @@ that bypass earlier ones.
 
 - [x] Lint supports JSON output.
 - [x] Scope explanation supports JSON output.
-- [ ] Add parse, symbols, check, test, run, and verify JSON schemas.
+- [ ] Add parse, symbols, check, test, run, and verify JSON schemas. Parse,
+  symbols, format, execution-event, diagnostic, and verify contracts exist;
+  test/run specialization remains.
 - [ ] Add JUnit output for tests/checks.
-- [ ] Add SARIF output for static diagnostics.
+- [x] Add SARIF output for static diagnostics.
 - [ ] Add an HTML combined report.
 - [ ] Publish JSON schemas with the CLI and documentation.
-- [ ] Document the deterministic agent edit/format/verify loop.
+- [x] Document the deterministic agent edit/format/verify loop.
 - [ ] Add verified small examples and common-error repair fixtures.
 - [ ] Add CI examples for `rix format --check` and `rix verify`.
 - [ ] Evaluate a thin MCP wrapper only after the core schemas stabilize.

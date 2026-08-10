@@ -500,6 +500,29 @@ const SYMBOL_TABLE = {
   "|}": { precedence: 0, type: "separator" },
 };
 
+export class RixParseError extends Error {
+  constructor(message, options = {}) {
+    const offset = Number.isInteger(options.offset) ? options.offset : 0;
+    const source = options.source || "";
+    const { line, col } = source
+      ? posToLineCol(source, offset)
+      : { line: 1, col: offset + 1 };
+    super(source
+      ? `Parse error at line ${line}, column ${col} (position ${offset}): ${message}`
+      : `Parse error at position ${offset}: ${message}`);
+    this.name = "RixParseError";
+    this.code = options.code || "RXP1000";
+    this.offset = offset;
+    this.endOffset = Number.isInteger(options.endOffset)
+      ? Math.max(offset, options.endOffset)
+      : offset;
+    this.line = line;
+    this.column = col;
+    this.reason = message;
+    this.token = options.token || null;
+  }
+}
+
 class Parser {
   constructor(tokens, systemLookup, source = "", customOperators = new Map()) {
     this.tokens = tokens;
@@ -559,11 +582,14 @@ class Parser {
 
   error(message) {
     const pos = this.current ? this.current.pos : [0, 0, 0];
-    if (this.source) {
-      const { line, col } = posToLineCol(this.source, pos[0]);
-      throw new Error(`Parse error at line ${line}, column ${col} (position ${pos[0]}): ${message}`);
-    }
-    throw new Error(`Parse error at position ${pos[0]}: ${message}`);
+    const offset = Number.isInteger(pos?.[1]) ? pos[1] : (pos?.[0] || 0);
+    const endOffset = Number.isInteger(pos?.[2]) ? pos[2] : offset;
+    throw new RixParseError(message, {
+      source: this.source,
+      offset,
+      endOffset,
+      token: this.current,
+    });
   }
 
   // Get symbol info, including system identifier lookup

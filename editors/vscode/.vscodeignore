@@ -1,0 +1,6 @@
+tests/**
+.vscode/**
+src/**/*.test.js
+dist/.gitkeep
+node_modules/**
+*.vsix

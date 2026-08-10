@@ -7,12 +7,17 @@
     ".": "./src/index.js",
     "./parser": "./src/parser/index.js",
     "./codemirror": "./src/tools/codemirror/index.js",
+    "./language-service": "./src/tools/language-service/index.js",
+    "./language-service/config-node": "./src/tools/language-service/config-node.js",
+    "./schemas/*": "./schemas/*",
     "./eval": "./src/eval/index.js",
     "./runtime": "./src/runtime/index.js"
   },
   "bin": {
     "rix": "./bin/rix.js",
-    "rix-to-ir": "./bin/rix-to-ir.js"
+    "rix-to-ir": "./bin/rix-to-ir.js",
+    "rix-language-server": "./bin/rix-language-server.js",
+    "rix-worker": "./bin/rix-worker.js"
   },
   "scripts": {
     "test": "bun test",
@@ -21,7 +26,9 @@
     "test:tools": "bun test tests/tools",
     "test:docs": "bun test tests/tools/documentation-examples.test.js",
     "build:lezer": "lezer-generator src/tools/lezer/rix.grammar -o src/tools/lezer/parser.js",
+    "check:editor-policy": "bun ./scripts/generate-editor-policy.js --check",
     "test:codemirror": "bun test tests/tools/codemirror.test.js",
+    "test:editor": "bun test tests/tools/language-service.test.js tests/tools/lsp.test.js tests/tools/workspace-config.test.js tests/tools/execution-worker.test.js tests/cli/editor-tools.test.js editors/vscode/tests",
     "build:demo": "bun build ./documentation/parser/src/demo.js --outfile ./documentation/parser/demo.js --target browser",
     "docs:reference": "bun ./documentation/scripts/generate-reference.js",
     "docs:examples": "bun ./documentation/scripts/check-examples.js documentation",

@@ -1,5 +1,5 @@
 export {
-    parse, tokenize, posToLineCol,
+    parse, RixParseError, tokenize, posToLineCol,
     BUILTIN_PRECEDENCE_BANDS, extractOperatorDeclarations, extractOperatorDeclarationsFromSource,
     mergeOperatorDefinitions, parseOperatorDeclarationLine,
 } from "./parser/index.js";
@@ -70,3 +70,21 @@ export { WidgetSession, GraphicWidgetSession, ControlPanelWidgetSession, createW
 export { enhanceGraphicViews, graphicPointFromClient } from "./tools/graphic-view.js";
 export { enhanceControlPanelViews } from "./tools/control-panel-view.js";
 export { mountOutputWidgets, restoreGraphicFocus, restoreControlPanelFocus } from "./tools/output-widgets.js";
+export {
+    RIX_LANGUAGE_SERVICE_VERSION,
+    RIX_SEMANTIC_TOKEN_TYPES,
+    RIX_SEMANTIC_TOKEN_MODIFIERS,
+    analyzeRixDocument,
+    astNodes,
+    checkRixFormat,
+    codeActionsForRange,
+    completionAt,
+    createRixDocumentStore,
+    definitionsAt,
+    formatRix,
+    hoverAt,
+    lintRuleCatalog,
+    occurrenceAt,
+    referencesAt,
+    renameAt,
+} from "./tools/language-service/index.js";

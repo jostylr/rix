@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/rix.schema.json",
+  "title": "RiX workspace configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "version": { "const": 1 },
+    "extends": { "type": "string", "description": "Relative path to an explicitly inherited configuration." },
+    "plugins": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true, "default": ["standard"] },
+    "operatorFiles": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true, "default": [] },
+    "preamble": { "type": ["string", "null"], "default": null },
+    "lint": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "level": { "enum": ["essential", "standard", "thorough", "pedantic"], "default": "standard" },
+        "profiles": { "type": "array", "items": { "type": "string" }, "uniqueItems": true, "default": ["default"] }
+      }
+    },
+    "format": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean", "default": true },
+        "profile": { "enum": ["readable", "compact"], "default": "readable" },
+        "printWidth": { "type": "integer", "minimum": 40, "default": 100 },
+        "indentWidth": { "type": "integer", "minimum": 1, "maximum": 8, "default": 4 }
+      }
+    },
+    "execution": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "mode": { "enum": ["isolated", "session"], "default": "isolated" },
+        "timeoutMs": { "type": "integer", "minimum": 100, "maximum": 120000, "default": 10000 },
+        "capabilityGroups": { "type": "array", "items": { "type": "string" }, "uniqueItems": true, "default": ["standard"] },
+        "artifactDirectory": { "type": "string", "default": ".rix-output" }
+      }
+    }
+  }
+}
+

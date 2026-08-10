@@ -49,6 +49,7 @@ project:
     - reference/system-reference.md
     - plugin-catalog.md
     - developer-guide.qmd
+    - editor-and-agent-tooling.md
     - eval/README.md
     - parser/architecture.md
     - parser/parsing.md

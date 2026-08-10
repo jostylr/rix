@@ -1,0 +1,41 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "RiX",
+  "scopeName": "source.rix",
+  "patterns": [
+    { "include": "#comments" }, { "include": "#strings" }, { "include": "#numbers" },
+    { "include": "#checks" }, { "include": "#reactive" }, { "include": "#identifiers" },
+    { "include": "#containers" }, { "include": "#operators" }
+  ],
+  "repository": {
+    "comments": { "patterns": [
+      { "name": "comment.block.documentation.rix", "begin": "/\\*\\*", "end": "\\*\\*/" },
+      { "name": "comment.block.rix", "begin": "/\\*", "end": "\\*/" },
+      { "name": "comment.line.number-sign.rix", "match": "##(?![@:!_])[^\\n]*" }
+    ] },
+    "strings": { "patterns": [
+      { "name": "string.quoted.double.rix", "begin": "\"", "end": "\"", "patterns": [{ "name": "constant.character.escape.rix", "match": "\\\\." }] },
+      { "name": "string.quoted.single.rix", "begin": "`+", "end": "`+" },
+      { "name": "string.regexp.rix", "begin": "\\{/\\\\", "end": "\\}" }
+    ] },
+    "numbers": { "patterns": [{ "name": "constant.numeric.rix", "match": "(?<![\\p{L}\\p{N}_])(?:\\d+(?:_\\d+)*(?:\\.\\d+(?:_\\d+)*)?(?:[eE][+-]?\\d+)?(?:#\\d+)?|\\.\\d+)(?![\\p{L}\\p{N}_])" }] },
+    "checks": { "patterns": [
+      { "name": "keyword.operator.check.predicate.rix", "match": "##@" },
+      { "name": "keyword.operator.check.structural.rix", "match": "##:" },
+      { "name": "keyword.operator.check.diagnostic.rix", "match": "##!" }
+    ] },
+    "reactive": { "patterns": [
+      { "name": "variable.other.readwrite.reactive.rix", "match": "\\$\\$[\\p{L}_][\\p{L}\\p{N}_]*" },
+      { "name": "variable.other.reactive.rix", "match": "\\$[\\p{L}_][\\p{L}\\p{N}_]*" }
+    ] },
+    "identifiers": { "patterns": [
+      { "name": "support.function.system.rix", "match": "@_[\\p{L}_][\\p{L}\\p{N}_]*" },
+      { "name": "variable.other.outer.rix", "match": "@[\\p{L}_][\\p{L}\\p{N}_]*" },
+      { "name": "support.type.system.rix", "match": "\\b[\\p{Lu}][\\p{L}\\p{N}_]*\\b" },
+      { "name": "variable.other.rix", "match": "\\b[\\p{Ll}_][\\p{L}\\p{N}_]*\\b" }
+    ] },
+    "containers": { "patterns": [{ "name": "punctuation.section.block.begin.rix", "match": "\\{(?:[=;?|:@!#$]|\\$\\$?)?" }, { "name": "punctuation.section.block.end.rix", "match": "[}\\]()]" }] },
+    "operators": { "patterns": [{ "name": "keyword.operator.rix", "match": "(?:\\|>[?!_&|#/<>:.]*|:<[^>]+>:|:=|~=|==|!=|<=|>=|->|=>|\\^=>|\\?[:=_?&|]|\\+|-|\\*{1,2}|/{1,2}|%|\\^|&&|\\|\\||\\.\\.?|:|=)" }] }
+  }
+}
+

@@ -1,0 +1,2029 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.38">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>editor-tooling – RiX</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<link href="../rix-logo.png" rel="icon" type="image/png">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-4a0610749eeff5ab924a4729b5181608.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-dark-de927ec96a2411cf822331f71755f83e.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-4a0610749eeff5ab924a4729b5181608.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-dfa129ac6e33aa8a1407114b8c26932f.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-dark-de8d9ea7065925b465f143946b8defe2.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../site_libs/bootstrap/bootstrap-dfa129ac6e33aa8a1407114b8c26932f.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+
+
+</head>
+
+<body class="nav-sidebar docked nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const darkModeDefault = authorPrefersDark;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a href="../index.html" class="navbar-brand navbar-brand-logo">
+    <img src="../rix-logo.png" alt="" class="navbar-logo light-content">
+    <img src="../rix-logo.png" alt="" class="navbar-logo dark-content">
+    </a>
+    <a class="navbar-brand" href="../index.html">
+    <span class="navbar-title">RiX</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../getting-started.html"> 
+<span class="menu-text">Start</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../language-at-a-glance.html"> 
+<span class="menu-text">Learn</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../eval/syntax-guide.html"> 
+<span class="menu-text">Reference</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../developer-guide.html"> 
+<span class="menu-text">Internals</span></a>
+  </li>  
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/jostylr/rix"> <i class="bi bi-github" role="img" aria-label="RiX on GitHub">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <a class="flex-grow-1 no-decor" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+          <h1 class="quarto-secondary-nav-title"></h1>
+        </a>     
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation docked overflow-auto">
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Loading documentation…</span></a>
+  </div>
+</li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#rix-editor-language-server-execution-and-ai-tooling" id="toc-rix-editor-language-server-execution-and-ai-tooling" class="nav-link active" data-scroll-target="#rix-editor-language-server-execution-and-ai-tooling">RiX editor, language-server, execution, and AI tooling</a>
+  <ul class="collapse">
+  <li><a href="#objective" id="toc-objective" class="nav-link" data-scroll-target="#objective">Objective</a></li>
+  <li><a href="#goals" id="toc-goals" class="nav-link" data-scroll-target="#goals">Goals</a></li>
+  <li><a href="#non-goals" id="toc-non-goals" class="nav-link" data-scroll-target="#non-goals">Non-goals</a></li>
+  <li><a href="#resolved-implementation-decisions" id="toc-resolved-implementation-decisions" class="nav-link" data-scroll-target="#resolved-implementation-decisions">Resolved implementation decisions</a></li>
+  <li><a href="#existing-foundation" id="toc-existing-foundation" class="nav-link" data-scroll-target="#existing-foundation">Existing foundation</a></li>
+  <li><a href="#architecture" id="toc-architecture" class="nav-link" data-scroll-target="#architecture">Architecture</a>
+  <ul class="collapse">
+  <li><a href="#proposed-source-layout" id="toc-proposed-source-layout" class="nav-link" data-scroll-target="#proposed-source-layout">Proposed source layout</a></li>
+  <li><a href="#process-boundaries" id="toc-process-boundaries" class="nav-link" data-scroll-target="#process-boundaries">Process boundaries</a></li>
+  </ul></li>
+  <li><a href="#shared-language-service-contracts" id="toc-shared-language-service-contracts" class="nav-link" data-scroll-target="#shared-language-service-contracts">Shared language-service contracts</a>
+  <ul class="collapse">
+  <li><a href="#document-identity-and-versions" id="toc-document-identity-and-versions" class="nav-link" data-scroll-target="#document-identity-and-versions">Document identity and versions</a></li>
+  <li><a href="#source-locations" id="toc-source-locations" class="nav-link" data-scroll-target="#source-locations">Source locations</a></li>
+  <li><a href="#static-diagnostic-record" id="toc-static-diagnostic-record" class="nav-link" data-scroll-target="#static-diagnostic-record">Static diagnostic record</a></li>
+  <li><a href="#runtime-event-envelope" id="toc-runtime-event-envelope" class="nav-link" data-scroll-target="#runtime-event-envelope">Runtime event envelope</a></li>
+  <li><a href="#inline-check-event" id="toc-inline-check-event" class="nav-link" data-scroll-target="#inline-check-event">Inline check event</a></li>
+  <li><a href="#machine-readable-symbol-catalog" id="toc-machine-readable-symbol-catalog" class="nav-link" data-scroll-target="#machine-readable-symbol-catalog">Machine-readable symbol catalog</a></li>
+  </ul></li>
+  <li><a href="#parsing-and-grammar-policy" id="toc-parsing-and-grammar-policy" class="nav-link" data-scroll-target="#parsing-and-grammar-policy">Parsing and grammar policy</a></li>
+  <li><a href="#language-server-protocol-surface" id="toc-language-server-protocol-surface" class="nav-link" data-scroll-target="#language-server-protocol-surface">Language Server Protocol surface</a>
+  <ul class="collapse">
+  <li><a href="#required-first-release-methods" id="toc-required-first-release-methods" class="nav-link" data-scroll-target="#required-first-release-methods">Required first-release methods</a></li>
+  <li><a href="#later-standard-methods" id="toc-later-standard-methods" class="nav-link" data-scroll-target="#later-standard-methods">Later standard methods</a></li>
+  <li><a href="#rix-specific-requests" id="toc-rix-specific-requests" class="nav-link" data-scroll-target="#rix-specific-requests">RiX-specific requests</a></li>
+  </ul></li>
+  <li><a href="#completion-behavior" id="toc-completion-behavior" class="nav-link" data-scroll-target="#completion-behavior">Completion behavior</a></li>
+  <li><a href="#formatting" id="toc-formatting" class="nav-link" data-scroll-target="#formatting">Formatting</a>
+  <ul class="collapse">
+  <li><a href="#formatter-candidate-fixtures" id="toc-formatter-candidate-fixtures" class="nav-link" data-scroll-target="#formatter-candidate-fixtures">Formatter candidate fixtures</a></li>
+  </ul></li>
+  <li><a href="#workspace-configuration" id="toc-workspace-configuration" class="nav-link" data-scroll-target="#workspace-configuration">Workspace configuration</a></li>
+  <li><a href="#vs-code-extension" id="toc-vs-code-extension" class="nav-link" data-scroll-target="#vs-code-extension">VS Code extension</a>
+  <ul class="collapse">
+  <li><a href="#declarative-language-support" id="toc-declarative-language-support" class="nav-link" data-scroll-target="#declarative-language-support">Declarative language support</a></li>
+  <li><a href="#native-ui-mapping" id="toc-native-ui-mapping" class="nav-link" data-scroll-target="#native-ui-mapping">Native UI mapping</a></li>
+  <li><a href="#commands" id="toc-commands" class="nav-link" data-scroll-target="#commands">Commands</a></li>
+  <li><a href="#rich-preview" id="toc-rich-preview" class="nav-link" data-scroll-target="#rich-preview">Rich preview</a></li>
+  <li><a href="#web-follow-up-boundary" id="toc-web-follow-up-boundary" class="nav-link" data-scroll-target="#web-follow-up-boundary">Web follow-up boundary</a></li>
+  </ul></li>
+  <li><a href="#execution-model" id="toc-execution-model" class="nav-link" data-scroll-target="#execution-model">Execution model</a>
+  <ul class="collapse">
+  <li><a href="#run-modes" id="toc-run-modes" class="nav-link" data-scroll-target="#run-modes">Run modes</a></li>
+  <li><a href="#worker-lifecycle" id="toc-worker-lifecycle" class="nav-link" data-scroll-target="#worker-lifecycle">Worker lifecycle</a></li>
+  <li><a href="#plugins-and-capabilities" id="toc-plugins-and-capabilities" class="nav-link" data-scroll-target="#plugins-and-capabilities">Plugins and capabilities</a></li>
+  </ul></li>
+  <li><a href="#checks-tests-and-reports" id="toc-checks-tests-and-reports" class="nav-link" data-scroll-target="#checks-tests-and-reports">Checks, tests, and reports</a>
+  <ul class="collapse">
+  <li><a href="#discovery" id="toc-discovery" class="nav-link" data-scroll-target="#discovery">Discovery</a></li>
+  <li><a href="#result-presentation" id="toc-result-presentation" class="nav-link" data-scroll-target="#result-presentation">Result presentation</a></li>
+  <li><a href="#reporters" id="toc-reporters" class="nav-link" data-scroll-target="#reporters">Reporters</a></li>
+  </ul></li>
+  <li><a href="#security-and-trust" id="toc-security-and-trust" class="nav-link" data-scroll-target="#security-and-trust">Security and trust</a></li>
+  <li><a href="#cli-and-coding-agent-support" id="toc-cli-and-coding-agent-support" class="nav-link" data-scroll-target="#cli-and-coding-agent-support">CLI and coding-agent support</a></li>
+  <li><a href="#testing-and-compatibility" id="toc-testing-and-compatibility" class="nav-link" data-scroll-target="#testing-and-compatibility">Testing and compatibility</a>
+  <ul class="collapse">
+  <li><a href="#test-layers" id="toc-test-layers" class="nav-link" data-scroll-target="#test-layers">Test layers</a></li>
+  <li><a href="#compatibility-policy" id="toc-compatibility-policy" class="nav-link" data-scroll-target="#compatibility-policy">Compatibility policy</a></li>
+  </ul></li>
+  <li><a href="#acceptance-criteria-for-the-first-useful-release" id="toc-acceptance-criteria-for-the-first-useful-release" class="nav-link" data-scroll-target="#acceptance-criteria-for-the-first-useful-release">Acceptance criteria for the first useful release</a></li>
+  <li><a href="#implementation-checklist" id="toc-implementation-checklist" class="nav-link" data-scroll-target="#implementation-checklist">Implementation checklist</a>
+  <ul class="collapse">
+  <li><a href="#confirm-design-and-public-contracts" id="toc-confirm-design-and-public-contracts" class="nav-link" data-scroll-target="#confirm-design-and-public-contracts">0. Confirm design and public contracts</a></li>
+  <li><a href="#source-spans-and-structured-runtime-events" id="toc-source-spans-and-structured-runtime-events" class="nav-link" data-scroll-target="#source-spans-and-structured-runtime-events">1. Source spans and structured runtime events</a></li>
+  <li><a href="#portable-language-service-core" id="toc-portable-language-service-core" class="nav-link" data-scroll-target="#portable-language-service-core">2. Portable language-service core</a></li>
+  <li><a href="#language-server" id="toc-language-server" class="nav-link" data-scroll-target="#language-server">3. Language server</a></li>
+  <li><a href="#vs-code-extension-baseline" id="toc-vs-code-extension-baseline" class="nav-link" data-scroll-target="#vs-code-extension-baseline">4. VS Code extension baseline</a></li>
+  <li><a href="#execution-worker-and-cli-protocol" id="toc-execution-worker-and-cli-protocol" class="nav-link" data-scroll-target="#execution-worker-and-cli-protocol">5. Execution worker and CLI protocol</a></li>
+  <li><a href="#vs-code-execution-and-reporting-ui" id="toc-vs-code-execution-and-reporting-ui" class="nav-link" data-scroll-target="#vs-code-execution-and-reporting-ui">6. VS Code execution and reporting UI</a></li>
+  <li><a href="#rich-preview-1" id="toc-rich-preview-1" class="nav-link" data-scroll-target="#rich-preview-1">7. Rich preview</a></li>
+  <li><a href="#reports-ci-and-coding-agent-workflow" id="toc-reports-ci-and-coding-agent-workflow" class="nav-link" data-scroll-target="#reports-ci-and-coding-agent-workflow">8. Reports, CI, and coding-agent workflow</a></li>
+  <li><a href="#broader-editor-and-debugging-support" id="toc-broader-editor-and-debugging-support" class="nav-link" data-scroll-target="#broader-editor-and-debugging-support">9. Broader editor and debugging support</a></li>
+  </ul></li>
+  <li><a href="#deferred-review-gate" id="toc-deferred-review-gate" class="nav-link" data-scroll-target="#deferred-review-gate">Deferred review gate</a></li>
+  </ul></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/design/editor-tooling.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"></header>
+
+
+
+
+
+<section id="rix-editor-language-server-execution-and-ai-tooling" class="level1">
+<h1>RiX editor, language-server, execution, and AI tooling</h1>
+<div class="callout callout-style-default callout-note callout-titled" title="Design target, not implemented surface">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Design target, not implemented surface
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>This document specifies the intended RiX authoring toolchain. Checked items in the implementation checklist already exist in the RiX repository. Unchecked items are proposed work and must not be presented as current behavior.</p>
+</div>
+</div>
+<section id="objective" class="level2">
+<h2 class="anchored" data-anchor-id="objective">Objective</h2>
+<p>RiX should provide a responsive authoring experience in VS Code and other editors, a safe way to run and inspect programs, structured reporting for inline checks and tests, and deterministic feedback that coding agents can consume without scraping human-oriented terminal output.</p>
+<p>The implementation should expose one portable language-service core rather than putting RiX semantics directly into each editor integration. A VS Code extension is the first full client, but the static analysis and execution protocols must remain host-neutral.</p>
+</section>
+<section id="goals" class="level2">
+<h2 class="anchored" data-anchor-id="goals">Goals</h2>
+<ul>
+<li>Highlight and edit <code>.rix</code> files, RiX documentation fences, and supported embedded notations accurately while a document is incomplete.</li>
+<li>Report parser and lint diagnostics with stable codes and exact source ranges.</li>
+<li>Provide completion, hover, symbols, navigation, rename, code actions, formatting, and plugin/custom-operator awareness through an LSP server.</li>
+<li>Run files and selections without blocking the editor or language server.</li>
+<li>Surface <code>.Test</code>, <code>##@</code>, <code>##:</code>, and <code>##!</code> results through structured events and appropriate native editor UI.</li>
+<li>Render RiX’s portable rich outputs without making the editor a new evaluator or renderer authority.</li>
+<li>Give CI and coding agents stable JSON commands for the complete edit-check-run loop.</li>
+<li>Preserve RiX capability groups, plugin approval, and workspace trust at every execution boundary.</li>
+</ul>
+</section>
+<section id="non-goals" class="level2">
+<h2 class="anchored" data-anchor-id="non-goals">Non-goals</h2>
+<ul>
+<li>The LSP server does not evaluate arbitrary source to answer completion, hover, navigation, or lint requests.</li>
+<li>The VS Code extension does not become the source of truth for parsing, plugin resolution, formatting, or runtime semantics.</li>
+<li>The first release does not implement a full step debugger. Structured diagnostics, traces, AST/IR inspection, and restartable execution come first.</li>
+<li>The first release does not require Tree-sitter, a Jupyter kernel, an MCP server, or separate implementations for every editor.</li>
+<li>Rich output does not permit unsanitized plugin HTML or workspace scripts to execute in the extension host or webview.</li>
+</ul>
+</section>
+<section id="resolved-implementation-decisions" class="level2">
+<h2 class="anchored" data-anchor-id="resolved-implementation-decisions">Resolved implementation decisions</h2>
+<p>The initial design review established these defaults:</p>
+<ul>
+<li>The extension begins in <code>rix/editors/vscode</code>, not a separate repository. It retains its own package, version, build, tests, and release workflow.</li>
+<li>Desktop is the first complete target. The portable language-service core and extension client should avoid unnecessary Node-only coupling so static web support can follow. A later web worker should reuse the evaluator subset already proven by RiX Web.</li>
+<li>Desktop execution uses the Node-compatible runtime supplied by VS Code and a version-matched worker bundled with the extension. The first release does not discover or require Bun.</li>
+<li>Inline checks participate in Check File and display source feedback by default. Discovery, source decorations, and Test Explorer publication are independently configurable.</li>
+<li>Formatting uses a Prettier-style document model with readable and compact profiles. It borrows the settled principles of JavaScript formatters without pretending RiX is JavaScript.</li>
+<li>Static plugin discovery may read and validate declarative headers and RiX operator declarations, but must not import or evaluate plugin modules.</li>
+<li>Portable output is the preferred preview boundary. Complete HTML renderer output is untrusted input to a webview and is never inserted directly.</li>
+<li><code>rix.json</code> follows nearest-package configuration discovery. Parent configuration is inherited only through an explicit <code>extends</code> field.</li>
+<li>The editor’s standard execution profile permits sandboxed RiX imports and approved permissionless plugins while denying network access, general file access, workspace JavaScript installers, and unrestricted background work.</li>
+</ul>
+</section>
+<section id="existing-foundation" class="level2">
+<h2 class="anchored" data-anchor-id="existing-foundation">Existing foundation</h2>
+<p>The first implementation should reuse these current components rather than replace them:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Component</th>
+<th>Current state</th>
+<th>Intended reuse</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Pratt parser and tokenizer</td>
+<td>Implemented; semantic source of truth</td>
+<td>Valid-document AST, static analysis, lowering, and execution</td>
+</tr>
+<tr class="even">
+<td>Lezer grammar and CodeMirror support</td>
+<td>Implemented and tested</td>
+<td>Error-tolerant editor structure, folding, indentation, highlighting classes, and embedded regions</td>
+</tr>
+<tr class="odd">
+<td><code>analyzeRix</code> / <code>lintRix</code></td>
+<td>Implemented</td>
+<td>LSP diagnostics and code-action inputs</td>
+</tr>
+<tr class="even">
+<td><code>explainRixScopes</code></td>
+<td>Implemented</td>
+<td>Capture diagnostics, hover, local navigation, and rename safety</td>
+</tr>
+<tr class="odd">
+<td><code>complete</code></td>
+<td>Implemented for live contexts</td>
+<td>Completion candidate model and runtime-session completion</td>
+</tr>
+<tr class="even">
+<td>CLI runner and REPL</td>
+<td>Implemented</td>
+<td>Execution behavior and initial worker adapter</td>
+</tr>
+<tr class="odd">
+<td><code>.Test</code> and diagnostics registry</td>
+<td>Implemented</td>
+<td>Structured test and diagnostic reporting foundation</td>
+</tr>
+<tr class="even">
+<td><code>##@</code>, <code>##:</code>, and <code>##!</code></td>
+<td>Implemented</td>
+<td>Inline checks and value-preserving diagnostic taps</td>
+</tr>
+<tr class="odd">
+<td>Portable output and renderer registry</td>
+<td>Implemented</td>
+<td>Rich preview payloads and artifact rendering</td>
+</tr>
+</tbody>
+</table>
+<p>The important gaps are exact ranges on every relevant diagnostic, preservation of source locations through lowering, pass events for inline checks, a stable machine protocol, static symbol metadata independent of a live evaluator session, and editor packaging.</p>
+</section>
+<section id="architecture" class="level2">
+<h2 class="anchored" data-anchor-id="architecture">Architecture</h2>
+<pre class="mermaid"><code>flowchart TD
+    S["RiX source and workspace configuration"]
+    C["Portable language-service core"]
+    P["Tokenizer / Pratt parser"]
+    E["Lezer editor parser"]
+    A["Lint, scopes, symbols, docs, formatting"]
+    L["RiX language server"]
+    X["Structured CLI"]
+    W["Restartable execution worker"]
+    V["VS Code extension"]
+    O["Other LSP editors"]
+    I["CI and coding agents"]
+    U["Problems, Testing, Output, and rich preview"]
+
+    S --&gt; C
+    C --&gt; P
+    C --&gt; E
+    C --&gt; A
+    C --&gt; L
+    C --&gt; X
+    C --&gt; W
+    L --&gt; V
+    L --&gt; O
+    X --&gt; I
+    W --&gt; V
+    V --&gt; U</code></pre>
+<section id="proposed-source-layout" class="level3">
+<h3 class="anchored" data-anchor-id="proposed-source-layout">Proposed source layout</h3>
+<p>Keep portable logic inside the RiX package and editor packaging outside its runtime surface:</p>
+<pre class="text"><code>rix/
+  src/tools/language-service/   document model, symbols, diagnostics, docs
+  src/tools/lsp/                LSP request/response adapter
+  src/tools/execution/          worker protocol and event serialization
+  src/tools/codemirror/         existing CodeMirror integration
+  src/tools/lezer/              existing tolerant editor grammar
+  bin/rix-language-server.js    stdio LSP entry point
+  bin/rix-worker.js             isolated execution entry point
+  editors/vscode/               VS Code client, grammar, snippets, views</code></pre>
+<p>The VS Code extension may move to a separate repository when publishing and release cadence require it. Its client/server protocol must not depend on its physical repository location.</p>
+</section>
+<section id="process-boundaries" class="level3">
+<h3 class="anchored" data-anchor-id="process-boundaries">Process boundaries</h3>
+<p>The system has three distinct processes or logical workers:</p>
+<ol type="1">
+<li><strong>Extension client:</strong> owns VS Code registration and UI only.</li>
+<li><strong>Language server:</strong> owns side-effect-free document and workspace analysis.</li>
+<li><strong>Execution worker:</strong> owns mutable RiX contexts, plugin loading, evaluation, background tasks, and runtime diagnostics.</li>
+</ol>
+<p>The language server must remain responsive if evaluation hangs or exhausts a work budget. Killing or restarting an execution worker must not discard LSP document state.</p>
+</section>
+</section>
+<section id="shared-language-service-contracts" class="level2">
+<h2 class="anchored" data-anchor-id="shared-language-service-contracts">Shared language-service contracts</h2>
+<section id="document-identity-and-versions" class="level3">
+<h3 class="anchored" data-anchor-id="document-identity-and-versions">Document identity and versions</h3>
+<p>Every operation uses a document URI, monotonically increasing client version, and exact source text. Results include the version they describe. Clients must discard diagnostics, completions, runs, and rendered output produced for a stale version unless the result is explicitly a saved-file run.</p>
+<p>The service should cache by the tuple:</p>
+<pre class="text"><code>document URI
+document version or content hash
+workspace configuration hash
+plugin/operator metadata hash</code></pre>
+</section>
+<section id="source-locations" class="level3">
+<h3 class="anchored" data-anchor-id="source-locations">Source locations</h3>
+<p>RiX needs one internal zero-based half-open source span:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>{</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    <span class="dt">uri</span><span class="op">:</span> <span class="st">"file:///workspace/example.rix"</span><span class="op">,</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    <span class="dt">start</span><span class="op">:</span> <span class="dv">24</span><span class="op">,</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>    <span class="dt">end</span><span class="op">:</span> <span class="dv">37</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Line and column values are derived at protocol boundaries. LSP positions are zero-based UTF-16 positions; terminal presentation may remain one-based. AST nodes and lowered IR nodes that can produce user-visible events must retain a source span or a stable source identifier that resolves to one.</p>
+<p>Synthetic IR nodes should point to the nearest meaningful source construct and carry a <code>synthetic</code> marker. Generated setup or preamble sources require their own URI rather than pretending to belong to the main document.</p>
+</section>
+<section id="static-diagnostic-record" class="level3">
+<h3 class="anchored" data-anchor-id="static-diagnostic-record">Static diagnostic record</h3>
+<p>Parser and lint diagnostics use a common serializable shape:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode json code-with-copy"><code class="sourceCode json"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"uri"</span><span class="fu">:</span> <span class="st">"file:///workspace/example.rix"</span><span class="fu">,</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"version"</span><span class="fu">:</span> <span class="dv">12</span><span class="fu">,</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"range"</span><span class="fu">:</span> <span class="fu">{</span> <span class="dt">"start"</span><span class="fu">:</span> <span class="dv">24</span><span class="fu">,</span> <span class="dt">"end"</span><span class="fu">:</span> <span class="dv">31</span> <span class="fu">},</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"severity"</span><span class="fu">:</span> <span class="st">"warning"</span><span class="fu">,</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"code"</span><span class="fu">:</span> <span class="st">"RX1001"</span><span class="fu">,</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"source"</span><span class="fu">:</span> <span class="st">"rix-lint"</span><span class="fu">,</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"message"</span><span class="fu">:</span> <span class="st">"'numerator' belongs to an enclosing scope"</span><span class="fu">,</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"hint"</span><span class="fu">:</span> <span class="st">"Use '@numerator' to capture it"</span><span class="fu">,</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"related"</span><span class="fu">:</span> <span class="ot">[]</span><span class="fu">,</span></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"fixes"</span><span class="fu">:</span> <span class="ot">[</span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>    <span class="fu">{</span></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>      <span class="dt">"title"</span><span class="fu">:</span> <span class="st">"Capture numerator from the enclosing scope"</span><span class="fu">,</span></span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>      <span class="dt">"edits"</span><span class="fu">:</span> <span class="ot">[</span><span class="fu">{</span> <span class="dt">"range"</span><span class="fu">:</span> <span class="fu">{</span> <span class="dt">"start"</span><span class="fu">:</span> <span class="dv">24</span><span class="fu">,</span> <span class="dt">"end"</span><span class="fu">:</span> <span class="dv">24</span> <span class="fu">},</span> <span class="dt">"text"</span><span class="fu">:</span> <span class="st">"@"</span> <span class="fu">}</span><span class="ot">]</span></span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>    <span class="fu">}</span></span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>  <span class="ot">]</span></span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Diagnostic codes and meanings are public compatibility surface. Messages may improve without changing a code, but changing the condition represented by a code requires documentation and tests.</p>
+</section>
+<section id="runtime-event-envelope" class="level3">
+<h3 class="anchored" data-anchor-id="runtime-event-envelope">Runtime event envelope</h3>
+<p>All execution output is transported as JSON Lines or equivalent framed messages. Every event has an envelope:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode json code-with-copy"><code class="sourceCode json"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"protocol"</span><span class="fu">:</span> <span class="st">"rix.execution/1"</span><span class="fu">,</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"requestId"</span><span class="fu">:</span> <span class="st">"run-42"</span><span class="fu">,</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"sequence"</span><span class="fu">:</span> <span class="dv">7</span><span class="fu">,</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"kind"</span><span class="fu">:</span> <span class="st">"check"</span><span class="fu">,</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"uri"</span><span class="fu">:</span> <span class="st">"file:///workspace/example.rix"</span><span class="fu">,</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"version"</span><span class="fu">:</span> <span class="dv">12</span><span class="fu">,</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"range"</span><span class="fu">:</span> <span class="fu">{</span> <span class="dt">"start"</span><span class="fu">:</span> <span class="dv">24</span><span class="fu">,</span> <span class="dt">"end"</span><span class="fu">:</span> <span class="dv">37</span> <span class="fu">},</span></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"time"</span><span class="fu">:</span> <span class="dv">1786311123123</span><span class="fu">,</span></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"payload"</span><span class="fu">:</span> <span class="fu">{}</span></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Required event kinds are:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Kind</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>run-start</code></td>
+<td>Resolved configuration, session identity, and source identity</td>
+</tr>
+<tr class="even">
+<td><code>diagnostic</code></td>
+<td>Runtime error, warning, stop, or recoverable fault</td>
+</tr>
+<tr class="odd">
+<td><code>check</code></td>
+<td>Pass, fail, unresolved, or error for <code>##@</code> and <code>##:</code></td>
+</tr>
+<tr class="even">
+<td><code>test</code></td>
+<td>Discovered or completed <code>.Test</code>, <code>.TestError</code>, or <code>.TestStop</code> result</td>
+</tr>
+<tr class="odd">
+<td><code>log</code></td>
+<td><code>##! Dump</code>, <code>Log</code>, ordinary log, or formatted textual output</td>
+</tr>
+<tr class="even">
+<td><code>trace</code></td>
+<td>Structured call/write trace data</td>
+</tr>
+<tr class="odd">
+<td><code>result</code></td>
+<td>Final exact value plus safe display representations</td>
+</tr>
+<tr class="even">
+<td><code>artifact</code></td>
+<td>Declared artifact metadata and approved path or content handle</td>
+</tr>
+<tr class="odd">
+<td><code>render</code></td>
+<td>Portable output or renderer result for rich preview</td>
+</tr>
+<tr class="even">
+<td><code>run-end</code></td>
+<td>Duration, exit state, counts, and cancellation reason</td>
+</tr>
+</tbody>
+</table>
+<p>Event order is stable within a request. Binary content is referenced by a bounded temporary artifact handle rather than embedded in JSON.</p>
+</section>
+<section id="inline-check-event" class="level3">
+<h3 class="anchored" data-anchor-id="inline-check-event">Inline check event</h3>
+<p>Inline checks must emit successful outcomes as well as failures:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode json code-with-copy"><code class="sourceCode json"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"checkKind"</span><span class="fu">:</span> <span class="st">"predicate"</span><span class="fu">,</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"status"</span><span class="fu">:</span> <span class="st">"failed"</span><span class="fu">,</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"label"</span><span class="fu">:</span> <span class="st">"line 8 predicate check"</span><span class="fu">,</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"observed"</span><span class="fu">:</span> <span class="fu">{</span> <span class="dt">"text"</span><span class="fu">:</span> <span class="st">"7"</span> <span class="fu">},</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"expected"</span><span class="fu">:</span> <span class="fu">{</span> <span class="dt">"source"</span><span class="fu">:</span> <span class="st">"== 8"</span> <span class="fu">},</span></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"message"</span><span class="fu">:</span> <span class="st">"Predicate returned null"</span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>status</code> is one of <code>passed</code>, <code>failed</code>, <code>unresolved</code>, <code>errored</code>, or <code>skipped</code>. Type/shape checks use <code>checkKind: "structural"</code> and report the requested and observed kind, semantic name, or shape. A source-derived stable check ID allows the editor to update the same gutter/Test Explorer item across runs.</p>
+</section>
+<section id="machine-readable-symbol-catalog" class="level3">
+<h3 class="anchored" data-anchor-id="machine-readable-symbol-catalog">Machine-readable symbol catalog</h3>
+<p>System functions, methods, capabilities, plugins, operators, and configuration keys should be available through one generated catalog. Each callable entry should include:</p>
+<ul>
+<li>canonical and display names;</li>
+<li>kind and namespace;</li>
+<li>signature and parameter metadata;</li>
+<li>concise and extended documentation;</li>
+<li>capability group and plugin owner;</li>
+<li>purity/laziness/async metadata when known;</li>
+<li>examples and documentation links;</li>
+<li>deprecation and replacement metadata;</li>
+<li>source or generated-definition identity.</li>
+</ul>
+<p>Documentation, completion, hover, signature help, and AI-facing queries should consume this catalog instead of maintaining separate hard-coded descriptions.</p>
+</section>
+</section>
+<section id="parsing-and-grammar-policy" class="level2">
+<h2 class="anchored" data-anchor-id="parsing-and-grammar-policy">Parsing and grammar policy</h2>
+<p>The Pratt parser remains the semantic authority. The Lezer grammar remains the error-tolerant editor grammar and must accept useful partial source while the user types.</p>
+<ul>
+<li>A complete document is semantically parsed with the Pratt parser.</li>
+<li>Lezer supplies structure, folding, indentation, selection ranges, lexical highlighting, and fallback syntax errors for incomplete source.</li>
+<li>Semantic lint runs only over a trustworthy Pratt AST. A parse failure must not produce misleading downstream scope diagnostics.</li>
+<li>A small TextMate grammar provides immediate baseline VS Code highlighting. Semantic tokens refine it after analysis.</li>
+<li>Shared token/operator metadata and golden source fixtures should generate or test all three grammar surfaces to detect drift.</li>
+<li>Embedded backtick regions retain their explicit notation identity. Hosts may delegate to a registered embedded-language parser but must preserve the original RiX range mapping.</li>
+</ul>
+</section>
+<section id="language-server-protocol-surface" class="level2">
+<h2 class="anchored" data-anchor-id="language-server-protocol-surface">Language Server Protocol surface</h2>
+<p>The server communicates over stdio first. It should use standard LSP methods wherever they fit and custom requests only for RiX-specific inspection.</p>
+<section id="required-first-release-methods" class="level3">
+<h3 class="anchored" data-anchor-id="required-first-release-methods">Required first-release methods</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>LSP capability</th>
+<th>RiX source</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Diagnostics</td>
+<td>Pratt parse plus <code>analyzeRix</code></td>
+</tr>
+<tr class="even">
+<td>Completion</td>
+<td>Static catalog, document scopes, plugin metadata, and adapted <code>complete</code> candidates</td>
+</tr>
+<tr class="odd">
+<td>Hover</td>
+<td>Symbol catalog, inferred ownership, operator and container help</td>
+</tr>
+<tr class="even">
+<td>Signature help</td>
+<td>Callable catalog and current call argument</td>
+</tr>
+<tr class="odd">
+<td>Document symbols</td>
+<td>Assignments, functions, reactive cells, tests, and named containers</td>
+</tr>
+<tr class="even">
+<td>Definition</td>
+<td>Current document declarations and resolved imported/operator definitions</td>
+</tr>
+<tr class="odd">
+<td>References</td>
+<td>Scope-aware identifier index</td>
+</tr>
+<tr class="even">
+<td>Rename</td>
+<td>References with capture and system-name safety checks</td>
+</tr>
+<tr class="odd">
+<td>Code actions</td>
+<td>Machine-applicable lint fixes and safe syntax repairs</td>
+</tr>
+<tr class="even">
+<td>Folding ranges</td>
+<td>Lezer container and comment structure</td>
+</tr>
+<tr class="odd">
+<td>Selection ranges</td>
+<td>Nested Lezer/AST structure</td>
+</tr>
+<tr class="even">
+<td>Semantic tokens</td>
+<td>Declaration/reference roles, system names, captures, reactive names, methods</td>
+</tr>
+<tr class="odd">
+<td>Formatting</td>
+<td>Conservative token/AST formatter</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="later-standard-methods" class="level3">
+<h3 class="anchored" data-anchor-id="later-standard-methods">Later standard methods</h3>
+<ul>
+<li>workspace symbols;</li>
+<li>call hierarchy;</li>
+<li>inlay hints for inferred capture direction, structural shape, or plugin origin where they remain low-noise;</li>
+<li>code lens for run, check, test, AST, and IR commands;</li>
+<li>linked editing and document links for imports, operator files, plugins, and documentation;</li>
+<li>pull diagnostics if client support justifies them.</li>
+</ul>
+</section>
+<section id="rix-specific-requests" class="level3">
+<h3 class="anchored" data-anchor-id="rix-specific-requests">RiX-specific requests</h3>
+<p>Custom requests should be few, versioned, and useful outside VS Code:</p>
+<pre class="text"><code>rix/explainScope
+rix/inspectAst
+rix/inspectIr
+rix/runtimeCompletions
+rix/catalog</code></pre>
+<p>Runtime completions require an explicit execution-session ID. Static requests must never silently start or mutate a session.</p>
+</section>
+</section>
+<section id="completion-behavior" class="level2">
+<h2 class="anchored" data-anchor-id="completion-behavior">Completion behavior</h2>
+<p>Completion combines several side-effect-free providers:</p>
+<ol type="1">
+<li>lexical and syntactic candidates appropriate to the cursor;</li>
+<li>current and enclosing document bindings;</li>
+<li>configured plugin and system-capability catalog entries;</li>
+<li>custom operators visible to the document;</li>
+<li>statically known members and map keys;</li>
+<li>snippets for brace containers, functions, tests, checks, and diagnostics;</li>
+<li>optional live-session values requested explicitly from the execution worker.</li>
+</ol>
+<p>Every item should include a kind, insertion text, replacement range, signature or short detail, documentation, source/plugin identity, and a stable sort key. The server must not evaluate receiver expressions to discover members.</p>
+</section>
+<section id="formatting" class="level2">
+<h2 class="anchored" data-anchor-id="formatting">Formatting</h2>
+<p>Formatting should be conservative until RiX style is settled. The implementation should use a Prettier-style document algebra—groups, indentation, soft lines, and a print width—so the same syntax can choose a compact or expanded layout deterministically.</p>
+<p>The initial profiles are:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Profile</th>
+<th>Purpose</th>
+<th>Initial behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>readable</code></td>
+<td>Default source and documentation style</td>
+<td>Candidate B: four-space indentation, <code>printWidth: 100</code>, spaces around infix operators and after separators, and balanced multiline blocks/containers when structure or comments benefit from it</td>
+</tr>
+<tr class="even">
+<td><code>compact</code></td>
+<td>Dense formulas, examples, and small containers</td>
+<td>Candidate A: retain or choose single-line groups more aggressively, while respecting the configured print width and mandatory sigil spacing</td>
+</tr>
+</tbody>
+</table>
+<p>Both profiles share the same semantics and only differ in line-breaking preferences. Candidate C is not a separate profile; its fully expanded layout is a last-resort fallback when width, comments, or deeply nested structure make the balanced layout impractical. The first stable formatter contract is intentionally narrow:</p>
+<ul>
+<li>preserve comments, tagged comments, documentation markers, and embedded notation contents;</li>
+<li>preserve the meaning and line-scoped behavior of <code>##@</code>, <code>##:</code>, and <code>##!</code>;</li>
+<li>keep a postfix check or diagnostic tap on the same logical line as its value;</li>
+<li>normalize unambiguous whitespace around operators, separators, assignments, arrows, and brace sigils;</li>
+<li>preserve statement separators in the first version rather than inserting or removing semicolons globally;</li>
+<li>be idempotent;</li>
+<li>avoid changing custom operator precedence through parenthesis removal;</li>
+<li>format only successfully parsed regions when a document contains errors;</li>
+<li>support whole-document, range, and format-on-type requests eventually;</li>
+<li>expose <code>rix format</code>, <code>rix format --check</code>, and editor formatting through the same implementation.</li>
+</ul>
+<p>Golden formatting fixtures must include every brace sigil, nested comments, custom operators, reactive syntax, async scopes, diagnostic taps, and embedded backtick forms.</p>
+<section id="formatter-candidate-fixtures" class="level3">
+<h3 class="anchored" data-anchor-id="formatter-candidate-fixtures">Formatter candidate fixtures</h3>
+<p>“Short mathematical containers” means ordinary small arrays, maps, sets, tuples, and brace-sigil containers that hold formulas or exact values. It does not name a separate RiX feature. The selected formatter contract uses Candidate B for <code>readable</code>, Candidate A for <code>compact</code>, and Candidate C only as the last-resort expansion of groups that cannot remain clear in the balanced layout. All three examples parse today and represent the same program.</p>
+<p>Candidate A, <strong>compact profile</strong>:</p>
+<pre class="rix"><code>settings := {= bounds={: -3, 3 }, samples=[1/4, 1/2, 3/4], exact=1 };
+total := settings[:samples]
+    |&gt;? (x) -&gt; x &gt; 1/3
+    |&gt;&gt; (x) -&gt; x^2 + 1
+    |&gt;: (sum, x) -&gt; sum + x;
+## Keep the check attached to the expression it describes.
+total ##@ &gt; 0;</code></pre>
+<p>Candidate B, <strong>balanced readable</strong> (default):</p>
+<pre class="rix"><code>settings := {=
+    bounds = {: -3, 3 },
+    samples = [1/4, 1/2, 3/4],
+    exact = 1
+};
+total := settings[:samples]
+    |&gt;? (x) -&gt; x &gt; 1/3
+    |&gt;&gt; (x) -&gt; x^2 + 1
+    |&gt;: (sum, x) -&gt; sum + x;
+## Keep the check attached to the expression it describes.
+total ##@ &gt; 0;</code></pre>
+<p>Candidate C, <strong>fully expanded containers</strong> (last-resort fallback):</p>
+<pre class="rix"><code>settings := {=
+    bounds = {:
+        -3,
+        3
+    },
+    samples = [
+        1/4,
+        1/2,
+        3/4
+    ],
+    exact = 1
+};
+total := settings[:samples]
+    |&gt;? (x) -&gt; x &gt; 1/3
+    |&gt;&gt; (x) -&gt; x^2 + 1
+    |&gt;: (sum, x) -&gt; sum + x;
+## Keep the check attached to the expression it describes.
+total ##@ &gt; 0;</code></pre>
+<p>The current common rules are independent of that selection:</p>
+<ul>
+<li>a broken pipeline places the pipe operator first on the continuation line;</li>
+<li>continuation pipes indent one level relative to the assignment/expression;</li>
+<li>comments are not automatically wrapped or moved;</li>
+<li>postfix checks/taps remain attached to the expression line even when that line exceeds <code>printWidth</code>;</li>
+<li>a user can select <code>compact</code> explicitly when dense formulas are preferred.</li>
+</ul>
+</section>
+</section>
+<section id="workspace-configuration" class="level2">
+<h2 class="anchored" data-anchor-id="workspace-configuration">Workspace configuration</h2>
+<p>The toolchain should support a versioned <code>rix.json</code> at the workspace or package root. Source headers continue to provide per-file declarations. Command-line arguments override file and workspace configuration in the usual order.</p>
+<p>Proposed initial shape:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode json code-with-copy"><code class="sourceCode json"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"$schema"</span><span class="fu">:</span> <span class="st">"https://rix.ratmath.com/schema/rix.schema.json"</span><span class="fu">,</span></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"version"</span><span class="fu">:</span> <span class="dv">1</span><span class="fu">,</span></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"plugins"</span><span class="fu">:</span> <span class="ot">[</span><span class="st">"standard"</span><span class="ot">]</span><span class="fu">,</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"operatorFiles"</span><span class="fu">:</span> <span class="ot">[]</span><span class="fu">,</span></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"preamble"</span><span class="fu">:</span> <span class="kw">null</span><span class="fu">,</span></span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"lint"</span><span class="fu">:</span> <span class="fu">{</span></span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"level"</span><span class="fu">:</span> <span class="st">"standard"</span><span class="fu">,</span></span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"profiles"</span><span class="fu">:</span> <span class="ot">[</span><span class="st">"default"</span><span class="ot">]</span></span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">},</span></span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"format"</span><span class="fu">:</span> <span class="fu">{</span></span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"enabled"</span><span class="fu">:</span> <span class="kw">true</span><span class="fu">,</span></span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"profile"</span><span class="fu">:</span> <span class="st">"readable"</span><span class="fu">,</span></span>
+<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"printWidth"</span><span class="fu">:</span> <span class="dv">100</span><span class="fu">,</span></span>
+<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"indentWidth"</span><span class="fu">:</span> <span class="dv">4</span></span>
+<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">},</span></span>
+<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"execution"</span><span class="fu">:</span> <span class="fu">{</span></span>
+<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"mode"</span><span class="fu">:</span> <span class="st">"isolated"</span><span class="fu">,</span></span>
+<span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"timeoutMs"</span><span class="fu">:</span> <span class="dv">10000</span><span class="fu">,</span></span>
+<span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"capabilityGroups"</span><span class="fu">:</span> <span class="ot">[</span><span class="st">"standard"</span><span class="ot">]</span><span class="fu">,</span></span>
+<span id="cb12-21"><a href="#cb12-21" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"artifactDirectory"</span><span class="fu">:</span> <span class="st">".rix-output"</span></span>
+<span id="cb12-22"><a href="#cb12-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">}</span></span>
+<span id="cb12-23"><a href="#cb12-23" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The extension bundles the version-matched Node-compatible worker and does not perform runtime discovery in the first release. Protocol-major mismatches, unsupported configuration schema versions, and a worker missing a required advertised feature are hard failures. A newer compatible minor/patch component may produce a warning after successful capability negotiation, though the normal bundled installation should keep extension, server, and worker versions exactly aligned.</p>
+<p>Configuration discovery starts at the document directory and selects the nearest <code>rix.json</code>, stopping at the active workspace-folder boundary. There is no implicit merge with more distant files. A configuration may declare <code>extends</code>, resolved relative to that file with cycle detection and the same workspace/trust boundaries. Source headers add file-local plugins and operator files but cannot widen execution permissions.</p>
+<p>The remaining exact fields and capability group membership require a compatibility review against runtime configuration. The schema must reject unknown security-sensitive keys and provide descriptions/defaults to editors.</p>
+<p>The language server watches resolved configuration, operator files, plugin metadata, and preambles. It invalidates only documents whose effective inputs changed.</p>
+</section>
+<section id="vs-code-extension" class="level2">
+<h2 class="anchored" data-anchor-id="vs-code-extension">VS Code extension</h2>
+<section id="declarative-language-support" class="level3">
+<h3 class="anchored" data-anchor-id="declarative-language-support">Declarative language support</h3>
+<p>The extension contributes:</p>
+<ul>
+<li>language ID <code>rix</code> and <code>.rix</code> file association;</li>
+<li>TextMate grammar and Markdown/Quarto fence injection;</li>
+<li>language configuration for comments, brackets, autoclosing, surrounding, indentation, and folding;</li>
+<li>snippets for common RiX constructs;</li>
+<li>semantic-token scope mappings compatible with ordinary themes;</li>
+<li>configuration schema and settings;</li>
+<li>commands, menus, keybindings, view containers, and Testing integration.</li>
+</ul>
+<p>The extension should use ordinary theme scopes and semantic token types before introducing RiX-specific types. System capabilities, outer captures, reactive cells, and embedded notations may use custom modifiers when standard token types are insufficient.</p>
+</section>
+<section id="native-ui-mapping" class="level3">
+<h3 class="anchored" data-anchor-id="native-ui-mapping">Native UI mapping</h3>
+<p>Use existing VS Code UI before adding custom webviews:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Information</th>
+<th>Primary surface</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Parse, lint, and runtime errors</td>
+<td>Problems and editor squiggles</td>
+</tr>
+<tr class="even">
+<td>Final scalar/text result</td>
+<td>Output channel and optional inline decoration</td>
+</tr>
+<tr class="odd">
+<td><code>.Test</code> groups and cases</td>
+<td>Test Explorer</td>
+</tr>
+<tr class="even">
+<td><code>##@</code> and <code>##:</code> checks</td>
+<td>Gutter decoration, CodeLens, and optional Test Explorer items</td>
+</tr>
+<tr class="odd">
+<td><code>##! Dump</code> / <code>Info</code></td>
+<td>Output channel or Diagnostics tree</td>
+</tr>
+<tr class="even">
+<td><code>##! Trace</code> / <code>Debug</code></td>
+<td>Expandable tree with source navigation</td>
+</tr>
+<tr class="odd">
+<td>AST and IR</td>
+<td>Read-only virtual document</td>
+</tr>
+<tr class="even">
+<td>Graphics, plots, sheets, controls, HTML, and documents</td>
+<td>Rich preview webview</td>
+</tr>
+<tr class="odd">
+<td>Declared files</td>
+<td>Artifact tree and normal file links</td>
+</tr>
+</tbody>
+</table>
+<p>Inline decorations are summaries, not the only record. Every result remains available through an accessible tree, Problems, Testing, or Output surface.</p>
+</section>
+<section id="commands" class="level3">
+<h3 class="anchored" data-anchor-id="commands">Commands</h3>
+<p>The initial command set is:</p>
+<pre class="text"><code>RiX: Run File
+RiX: Run Selection
+RiX: Check File
+RiX: Run Tests
+RiX: Restart Session
+RiX: Show Output
+RiX: Show AST
+RiX: Show IR
+RiX: Explain Scope at Cursor
+RiX: Select Plugins and Capabilities</code></pre>
+<p>Run commands must make saved-versus-unsaved source behavior explicit. Running an unsaved editor buffer sends its exact versioned content to the worker and must not claim that generated artifacts came from the saved file.</p>
+</section>
+<section id="rich-preview" class="level3">
+<h3 class="anchored" data-anchor-id="rich-preview">Rich preview</h3>
+<p>The preview consumes portable RiX output or an approved renderer result. It does not call evaluator functions directly. Preview inputs fall into three classes:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Input</th>
+<th>Initial policy</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Validated portable output such as Text, Fragment, Graphic, Table, Sheet, Figure, and Slides</td>
+<td>Render through a VS Code-owned structural adapter</td>
+</tr>
+<tr class="even">
+<td>Validated assets such as bounded local raster images or renderer SVG</td>
+<td>Serve through webview resource URIs after MIME, size, URL, and SVG policy checks</td>
+</tr>
+<tr class="odd">
+<td>Complete HTML, Markdown-converted HTML, plugin CSS/JS, or unknown renderer markup</td>
+<td>Never insert directly; sanitize through a dedicated adapter or expose as an artifact opened by an explicit user action</td>
+</tr>
+</tbody>
+</table>
+<p>The existing structured-output HTML traversal escapes text and filters URLs, so it is a useful implementation reference. It is not itself the webview trust boundary. In particular, the standalone HTML renderer accepts caller-provided CSS and returns a complete document; its output must be treated as untrusted markup.</p>
+<p>The first release may keep preview deliberately small: text in Output plus portable Fragment/Table/Sheet/Graphic output already handled in-process by RiX Web. It does not run PDF, PNG rasterization, LaTeX, Quarto, video, or other external toolchains. Additional current renderer outputs can be enabled later only after their MIME and permission class joins the allowlist.</p>
+<p>If untrusted HTML or SVG sanitization becomes necessary, use a pinned and promptly updated DOMPurify release with an explicit profile, together with the webview CSP. The initial SVG profile forbids scripts, event attributes, <code>foreignObject</code>, external URLs, <code>&lt;style&gt;</code>, and inline style attributes. The first release accepts no plugin-provided CSS; previews use extension-owned theme styles. Structural DOM construction remains preferable to sanitizing strings.</p>
+<p>Requirements include:</p>
+<ul>
+<li>strict Content Security Policy and per-load nonces;</li>
+<li>no arbitrary network access;</li>
+<li>sanitization of renderer HTML and URLs;</li>
+<li>theme-token styling, keyboard access, ARIA labeling, and text fallbacks;</li>
+<li>bounded message and artifact sizes;</li>
+<li>explicit disposal of reactive subscriptions and workers;</li>
+<li>source/version/session labels so stale results are visible;</li>
+<li>static snapshot support when interactive controls are unavailable.</li>
+</ul>
+<p>The existing HTML/output widget implementation can be adapted, but editor transport and security policy remain host-owned.</p>
+</section>
+<section id="web-follow-up-boundary" class="level3">
+<h3 class="anchored" data-anchor-id="web-follow-up-boundary">Web follow-up boundary</h3>
+<p>The first web follow-up should match the functionality already exercised by the RiX Web calculator rather than define a new browser runtime. Its worker bundle may include:</p>
+<ul>
+<li>tokenizer, Pratt parser, Lezer parser, lint, scopes, completion, and formatting;</li>
+<li><code>Context</code>, the default registry/system context, synchronous and asynchronous evaluation, exact values, reactive values, and session reset/disposal;</li>
+<li>the generated browser-safe bundled plugin catalog and only its approved installers;</li>
+<li><code>formatValue</code>, portable output values, and the host-owned structured preview adapter.</li>
+</ul>
+<p>It does not use the Node filesystem plugin scanner, execute uploaded/workspace JavaScript modules, spawn processes, or load external tool renderers. Workspace <code>.rix</code> imports require a VS Code <code>workspace.fs</code> adapter with the same contained, no-symlink path policy; they can follow after basic single-document execution. This makes web static support mostly a packaging/transport task, while web execution remains a separate worker and host-I/O integration milestone.</p>
+</section>
+</section>
+<section id="execution-model" class="level2">
+<h2 class="anchored" data-anchor-id="execution-model">Execution model</h2>
+<section id="run-modes" class="level3">
+<h3 class="anchored" data-anchor-id="run-modes">Run modes</h3>
+<p>Support two explicit modes:</p>
+<ul>
+<li><strong>Isolated:</strong> a fresh context for each file/check/test run. This is the default for reproducibility and CI.</li>
+<li><strong>Session:</strong> a named restartable context used by selection evaluation and exploratory work. The UI always displays the active session and provides a restart command.</li>
+</ul>
+<p>Selection execution in isolated mode evaluates only the selected source plus an explicitly configured preamble. It does not silently execute the rest of the file. Session mode may use prior successfully evaluated submissions but must identify that dependency in the run record.</p>
+</section>
+<section id="worker-lifecycle" class="level3">
+<h3 class="anchored" data-anchor-id="worker-lifecycle">Worker lifecycle</h3>
+<ul>
+<li>One misbehaving run must be cancellable without restarting VS Code.</li>
+<li>Cancellation first uses cooperative abort; after a grace period the host terminates the worker.</li>
+<li>Timeouts, background-task draining, memory/output budgets, and maximum artifact sizes are explicit configuration.</li>
+<li>A crashed or terminated worker yields a structured <code>run-end</code>, and a new run starts a clean worker unless the user deliberately restores a safe session.</li>
+<li>The worker emits heartbeats or progress for operations expected to take long enough that the editor would otherwise appear stuck.</li>
+<li>Stdout/stderr from host tools are captured, bounded, and associated with the run rather than mixed with the LSP transport.</li>
+</ul>
+</section>
+<section id="plugins-and-capabilities" class="level3">
+<h3 class="anchored" data-anchor-id="plugins-and-capabilities">Plugins and capabilities</h3>
+<p>Static plugin metadata may be inspected without installing or executing plugin JavaScript. The current catalog’s deliberately small YAML header format is the allowed discovery surface. Static tooling may consume validated fields such as <code>id</code>, <code>description</code>, <code>kind</code>, <code>mount</code>, <code>aliases</code>, <code>exports</code>, <code>groups</code>, <code>permissions</code>, <code>requires</code>, <code>optional</code>, <code>provides</code>, <code>schemas</code>, <code>targets</code>, <code>snapshot</code>, <code>deterministic</code>, and <code>operator-files</code>.</p>
+<p>For <code>.plugin.rix</code>, tooling may tokenize source to extract static custom-operator declarations without evaluation. For <code>.plugin.rix.js</code>, tooling reads only the leading manifest and must not import the module or infer behavior from its JavaScript body. Referenced operator files must be bounded text files resolved inside the plugin/workspace root unless they belong to the trusted bundled installation. A reference must be relative to its declaring file/configuration, must name that directory or a descendant, and may not contain or traverse a symbolic link. Static discovery rejects absolute paths, parent escapes, non-regular files, and any resolved path outside the active workspace folder. Use <code>lstat</code> on each existing path component and a final canonical-path containment check rather than relying on string-prefix comparison alone.</p>
+<p>Initial defensive limits are 1 MiB per manifest/operator source, 10 MiB total per workspace analysis, 256 followed files, and 32 directory levels. These are RiX host limits, not universal Node conventions, and user/workspace settings may only lower them in an untrusted workspace. Dependency resolution may construct a proposed load graph from <code>requires</code> and <code>provides</code>, but it does not activate that graph.</p>
+<p>Execution resolves plugins through the normal catalog and approval rules. Workspace-provided JavaScript installers require a trusted workspace and explicit host approval.</p>
+<p>The worker receives a capability allowlist, not an unrestricted system context. A file cannot broaden that allowlist through a source header or workspace-owned setting. The initial <code>standard</code> profile is defined by policy, not merely by exposing every registered function:</p>
+<ul>
+<li>allow core arithmetic, logic, exact values, collections, strings, units, symbolic operations, portable output construction, and bounded internal async operations;</li>
+<li>allow <code>.rix</code> imports whose resolved paths remain inside the workspace or the bundled standard library;</li>
+<li>allow host-preloaded first-party plugins and workspace <code>.plugin.rix</code> plugins that request no denied permissions and stay inside the workspace;</li>
+<li>deny <code>NET</code>, general <code>FILES</code>, unrestricted <code>BACKGROUND</code>, and workspace <code>.plugin.rix.js</code> installers by default;</li>
+<li>do not grant source code an unrestricted <code>.Plugin.Load</code>; the host resolves the configured plugin allowlist before the run;</li>
+<li>allow <code>.Out</code> only as a host-mediated artifact declaration inside the selected output root, not as general file access;</li>
+<li>omit renderers that invoke external tools from the first release.</li>
+</ul>
+<p>Artifact writes retain the CLI’s path-escape checks. The exact function/group expansion of <code>standard</code> must be an explicit allowlist, not “all functions minus known-dangerous functions.” A generated, checked-in policy snapshot records every capability name and allowed first-party plugin ID plus its declared permissions. CI constructs a fresh default system context/catalog and fails if the generated snapshot differs. Adding or removing an entry therefore requires an intentional policy diff, review, tests, and a changelog note. Negative tests must prove that <code>NET</code>, <code>FILES</code>, unrestricted <code>BACKGROUND</code>, dynamic plugin loading, child processes, and unapproved JavaScript installers remain absent.</p>
+</section>
+</section>
+<section id="checks-tests-and-reports" class="level2">
+<h2 class="anchored" data-anchor-id="checks-tests-and-reports">Checks, tests, and reports</h2>
+<section id="discovery" class="level3">
+<h3 class="anchored" data-anchor-id="discovery">Discovery</h3>
+<p>The static service discovers source locations and provisional identities for:</p>
+<ul>
+<li>postfix predicate checks (<code>##@</code>);</li>
+<li>structural checks (<code>##:</code>);</li>
+<li>diagnostic taps (<code>##!</code>);</li>
+<li><code>.Test</code>, <code>.TestError</code>, and <code>.TestStop</code> groups when their labels are statically available;</li>
+<li>documentation-only setup/output markers, which are identified but not treated as ordinary <code>.rix</code> file tests.</li>
+</ul>
+<p>Dynamic test labels remain executable but may appear only after a run.</p>
+<p>Inline check settings are independent:</p>
+<pre class="text"><code>rix.checks.inline.enabled = true
+rix.checks.inline.decorations = true
+rix.checks.inline.showInTestExplorer = true</code></pre>
+<p>Disabling Test Explorer publication does not disable Check File or source decorations. Disabling inline checks prevents their execution while leaving ordinary <code>.Test</code> discovery intact.</p>
+</section>
+<section id="result-presentation" class="level3">
+<h3 class="anchored" data-anchor-id="result-presentation">Result presentation</h3>
+<ul>
+<li>Failed and errored checks create source diagnostics.</li>
+<li>Passed checks receive a subtle gutter state and optional CodeLens summary.</li>
+<li>Unresolved exact decisions are distinct from failures.</li>
+<li>Test Explorer represents <code>.Test</code> groups and cases; inline checks may appear under a per-file “Inline checks” group by default and can be hidden through configuration.</li>
+<li>Selecting a result navigates to its precise source range.</li>
+<li>Re-running one discovered item is allowed only when the worker can preserve its setup and source semantics; otherwise the containing file/group runs.</li>
+</ul>
+</section>
+<section id="reporters" class="level3">
+<h3 class="anchored" data-anchor-id="reporters">Reporters</h3>
+<p>All reporters consume the same event/summary model:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Reporter</th>
+<th>Intended consumer</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Human terminal</td>
+<td>Local command line</td>
+</tr>
+<tr class="even">
+<td>JSON</td>
+<td>Editors, scripts, and coding agents</td>
+</tr>
+<tr class="odd">
+<td>JSON Lines</td>
+<td>Streaming editor/worker protocol</td>
+</tr>
+<tr class="even">
+<td>JUnit XML</td>
+<td>CI test dashboards</td>
+</tr>
+<tr class="odd">
+<td>SARIF</td>
+<td>Static parser/lint diagnostics and code-scanning systems</td>
+</tr>
+<tr class="even">
+<td>HTML</td>
+<td>Shareable combined source/check/output report</td>
+</tr>
+</tbody>
+</table>
+<p>Runtime values need a safe canonical summary. JSON reporters must not serialize arbitrary cyclic runtime objects or rely on JavaScript class internals.</p>
+</section>
+</section>
+<section id="security-and-trust" class="level2">
+<h2 class="anchored" data-anchor-id="security-and-trust">Security and trust</h2>
+<p>The extension supports limited functionality in untrusted workspaces:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 27%">
+<col style="width: 36%">
+<col style="width: 36%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Feature</th>
+<th style="text-align: right;">Untrusted workspace</th>
+<th style="text-align: right;">Trusted workspace</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>TextMate/semantic highlighting</td>
+<td style="text-align: right;">Yes</td>
+<td style="text-align: right;">Yes</td>
+</tr>
+<tr class="even">
+<td>Parsing, linting, symbols, and local formatting</td>
+<td style="text-align: right;">Yes</td>
+<td style="text-align: right;">Yes</td>
+</tr>
+<tr class="odd">
+<td>Reading workspace JavaScript plugin metadata</td>
+<td style="text-align: right;">Only declarative bounded metadata</td>
+<td style="text-align: right;">Yes</td>
+</tr>
+<tr class="even">
+<td>Running RiX source</td>
+<td style="text-align: right;">No</td>
+<td style="text-align: right;">Yes</td>
+</tr>
+<tr class="odd">
+<td>Loading workspace plugin installers</td>
+<td style="text-align: right;">No</td>
+<td style="text-align: right;">With explicit approval</td>
+</tr>
+<tr class="even">
+<td>Running external renderer toolchains</td>
+<td style="text-align: right;">No</td>
+<td style="text-align: right;">Not included in the first release</td>
+</tr>
+<tr class="odd">
+<td>Writing artifacts</td>
+<td style="text-align: right;">No</td>
+<td style="text-align: right;">Inside configured output root</td>
+</tr>
+</tbody>
+</table>
+<p>Security-sensitive settings must be declared as restricted workspace configuration. Hiding a command is insufficient; command handlers must also check trust and execution policy.</p>
+<p>The execution worker is a containment boundary for reliability and accidental damage, not a complete operating-system sandbox. Documentation and UI must not claim stronger isolation than the host actually provides.</p>
+</section>
+<section id="cli-and-coding-agent-support" class="level2">
+<h2 class="anchored" data-anchor-id="cli-and-coding-agent-support">CLI and coding-agent support</h2>
+<p>The CLI is the primary portable interface for coding agents. It should expose:</p>
+<pre class="text"><code>rix parse --json file.rix
+rix lint --json file.rix
+rix symbols --json file.rix
+rix explain-scope --json file.rix:line:column
+rix format [--check] file.rix
+rix check --json file.rix
+rix test --json [filters...]
+rix run --json --capabilities=standard file.rix
+rix verify --json file.rix</code></pre>
+<p><code>rix verify</code> is the preferred one-command feedback loop. It resolves the same configuration as the editor, parses, lints, and runs enabled checks/tests, then returns one versioned summary with deterministic exit codes.</p>
+<p>Agent-facing support should also include:</p>
+<ul>
+<li>a concise canonical syntax and common-errors reference;</li>
+<li>generated callable/operator/plugin metadata;</li>
+<li>verified examples with source, AST/IR snapshots where useful, and expected results;</li>
+<li>stable diagnostics and machine-applicable edits;</li>
+<li>an <code>AGENTS.md</code> workflow describing <code>format -&gt; verify -&gt; inspect diagnostic</code>;</li>
+<li>small fixtures that exercise one language feature at a time.</li>
+</ul>
+<p>An MCP server may later wrap <code>parse</code>, <code>lint</code>, <code>symbols</code>, <code>explainScope</code>, <code>runSandboxed</code>, and documentation search. It must reuse the CLI/core contracts rather than establish a separate semantic implementation.</p>
+</section>
+<section id="testing-and-compatibility" class="level2">
+<h2 class="anchored" data-anchor-id="testing-and-compatibility">Testing and compatibility</h2>
+<section id="test-layers" class="level3">
+<h3 class="anchored" data-anchor-id="test-layers">Test layers</h3>
+<ul>
+<li>Unit tests for offsets, UTF-16 position conversion, diagnostics, symbols, completion, formatting, serialization, and configuration merging.</li>
+<li>Golden parser/Lezer/TextMate fixtures covering complete and partial source.</li>
+<li>LSP protocol tests with version changes, cancellation, multi-root workspaces, watched configuration, and stale responses.</li>
+<li>Execution protocol tests for event order, cancellation, crashes, timeouts, output limits, plugin denial, and artifact path traversal.</li>
+<li>VS Code integration tests for Problems, completion, navigation, formatting, Testing, trusted/untrusted behavior, and worker restart.</li>
+<li>Webview tests for CSP, sanitization, accessibility, disposal, and stale results.</li>
+<li>End-to-end fixtures that produce scalar, trace, test, Graphic, Sheet, reactive, and artifact output.</li>
+</ul>
+</section>
+<section id="compatibility-policy" class="level3">
+<h3 class="anchored" data-anchor-id="compatibility-policy">Compatibility policy</h3>
+<ul>
+<li>LSP uses standard capabilities and negotiates optional features.</li>
+<li>Custom LSP requests and execution events carry explicit protocol versions.</li>
+<li><code>rix.json</code> carries a schema version.</li>
+<li>Diagnostic codes and report field meanings are documented compatibility surface.</li>
+<li>The extension declares supported RiX and protocol version ranges and reports mismatches clearly.</li>
+<li>Golden fixtures run in the RiX test suite so syntax changes cannot silently break editor support.</li>
+</ul>
+</section>
+</section>
+<section id="acceptance-criteria-for-the-first-useful-release" class="level2">
+<h2 class="anchored" data-anchor-id="acceptance-criteria-for-the-first-useful-release">Acceptance criteria for the first useful release</h2>
+<p>The first public extension release is complete when:</p>
+<ol type="1">
+<li>A <code>.rix</code> file receives correct baseline highlighting, comments, brackets, indentation, and folding.</li>
+<li>Unsaved edits receive debounced parse/lint diagnostics with accurate ranges and no stale results.</li>
+<li>Completion and hover cover local bindings, system capabilities, common methods, brace forms, and configured plugins without evaluating code.</li>
+<li>Go to definition and document symbols work within one file.</li>
+<li><code>RX1001</code> and <code>RX1002</code> offer tested capture-direction code actions.</li>
+<li>Run File and Run Selection use a restartable worker and support cancellation.</li>
+<li><code>##@</code>, <code>##:</code>, <code>##!</code>, and <code>.Test</code> emit structured source-linked results.</li>
+<li>Scalar and textual output use native VS Code UI. Rich Graphic/Sheet preview is an optional follow-up and does not block the basic extension release.</li>
+<li>Untrusted workspaces retain static language features but cannot execute RiX or workspace plugins.</li>
+<li><code>rix verify --json</code> returns the same core diagnostics/check outcomes used by the extension.</li>
+</ol>
+</section>
+<section id="implementation-checklist" class="level2">
+<h2 class="anchored" data-anchor-id="implementation-checklist">Implementation checklist</h2>
+<p>The phases are ordered so each leaves a usable, testable layer. Work may be split into smaller pull requests, but later phases must not invent contracts that bypass earlier ones.</p>
+<section id="confirm-design-and-public-contracts" class="level3">
+<h3 class="anchored" data-anchor-id="confirm-design-and-public-contracts">0. Confirm design and public contracts</h3>
+<ul class="task-list">
+<li><label><input type="checkbox" checked="">Review and accept the three-process boundary.</label></li>
+<li><label><input type="checkbox" checked="">Keep the initial extension in <code>rix/editors/vscode</code> with independent packaging and versioning rather than creating a separate repository.</label></li>
+<li><label><input type="checkbox">Choose and reserve the VS Code Marketplace publisher and extension ID.</label></li>
+<li><label><input type="checkbox" checked="">Use a version-matched Node-compatible worker bundled with the desktop extension; do not discover or require Bun in the first release.</label></li>
+<li><label><input type="checkbox" checked="">Make desktop the first complete target and keep the portable static core suitable for later web-worker packaging.</label></li>
+<li><label><input type="checkbox" checked="">Use zero-based UTF-16 code-unit offsets internally and test LSP position conversion, including non-BMP text.</label></li>
+<li><label><input type="checkbox">Approve the static diagnostic schema.</label></li>
+<li><label><input type="checkbox">Approve <code>rix.execution/1</code> envelopes and event kinds.</label></li>
+<li><label><input type="checkbox">Approve check/test status semantics, including <code>unresolved</code>.</label></li>
+<li><label><input type="checkbox">Define protocol and configuration compatibility policy.</label></li>
+<li><label><input type="checkbox" checked="">Enable inline checks, source feedback, and Test Explorer publication by default with independent settings to disable each presentation.</label></li>
+<li><label><input type="checkbox" checked="">Adopt nearest-ancestor <code>rix.json</code> discovery with explicit <code>extends</code> and no implicit parent composition.</label></li>
+<li><label><input type="checkbox" checked="">Limit static plugin discovery to declarative manifests, bounded operator sources, and no module execution.</label></li>
+<li><label><input type="checkbox" checked="">Restrict followed operator files to relative descendant regular files, reject symlinks, and apply explicit file/count/depth budgets.</label></li>
+<li><label><input type="checkbox" checked="">Define the high-level sandbox policy for the <code>standard</code> profile.</label></li>
+<li><label><input type="checkbox">Audit and freeze the generated capability/plugin allowlist snapshot for <code>standard</code>; drift generation and deny-by-default tests are implemented.</label></li>
+<li><label><input type="checkbox" checked="">Select Candidate B as the default <code>readable</code> profile, Candidate A as the explicit <code>compact</code> profile, and Candidate C only as a last-resort fallback.</label></li>
+<li><label><input type="checkbox" checked="">Approve the first-release preview boundary: structural portable output only, with external tool renderers, full HTML, and plugin-provided CSS disabled.</label></li>
+</ul>
+</section>
+<section id="source-spans-and-structured-runtime-events" class="level3">
+<h3 class="anchored" data-anchor-id="source-spans-and-structured-runtime-events">1. Source spans and structured runtime events</h3>
+<ul class="task-list">
+<li><label><input type="checkbox" checked="">Tokenizer records source offsets.</label></li>
+<li><label><input type="checkbox" checked="">Parser nodes expose source-position data.</label></li>
+<li><label><input type="checkbox">Normalize parser node positions to documented half-open spans.</label></li>
+<li><label><input type="checkbox">Preserve source identity and spans through lowering for user-visible IR.</label></li>
+<li><label><input type="checkbox">Add structured parser errors with code, span, expected input, and hint.</label></li>
+<li><label><input type="checkbox" checked="">Give editor-facing lint diagnostics end ranges and machine-applicable fix records.</label></li>
+<li><label><input type="checkbox" checked="">Diagnostics registry stores ordered runtime events.</label></li>
+<li><label><input type="checkbox" checked="">Add URI, full range, request identity, version, and sequence to worker runtime events.</label></li>
+<li><label><input type="checkbox">Emit pass/fail/unresolved/error events for every <code>##@</code> and <code>##:</code> check.</label></li>
+<li><label><input type="checkbox">Attach source ranges to <code>##!</code> diagnostic events.</label></li>
+<li><label><input type="checkbox" checked="">Define bounded, cycle-safe runtime-value summaries for JSON transport.</label></li>
+<li><label><input type="checkbox" checked="">Add serialization and ordering tests.</label></li>
+</ul>
+</section>
+<section id="portable-language-service-core" class="level3">
+<h3 class="anchored" data-anchor-id="portable-language-service-core">2. Portable language-service core</h3>
+<ul class="task-list">
+<li><label><input type="checkbox" checked="">Implement and test the Lezer editor grammar.</label></li>
+<li><label><input type="checkbox" checked="">Export CodeMirror language support.</label></li>
+<li><label><input type="checkbox" checked="">Implement static lint rules and JSON-oriented records.</label></li>
+<li><label><input type="checkbox" checked="">Implement scope explanation.</label></li>
+<li><label><input type="checkbox" checked="">Implement side-effect-free live-context completion primitives.</label></li>
+<li><label><input type="checkbox">Add a versioned document cache and cancellation points.</label></li>
+<li><label><input type="checkbox" checked="">Add a source/line index with UTF-16 LSP conversion tests.</label></li>
+<li><label><input type="checkbox" checked="">Create document symbol and reference indexes.</label></li>
+<li><label><input type="checkbox" checked="">Adapt completion to static scopes and catalog providers.</label></li>
+<li><label><input type="checkbox">Generate the machine-readable system/method/plugin/operator catalog.</label></li>
+<li><label><input type="checkbox">Implement hover and signature records independent of VS Code types.</label></li>
+<li><label><input type="checkbox" checked="">Implement definition, references, and rename planning.</label></li>
+<li><label><input type="checkbox" checked="">Implement code-action records from lint fixes.</label></li>
+<li><label><input type="checkbox" checked="">Implement conservative formatting and golden fixtures.</label></li>
+<li><label><input type="checkbox">Add shared grammar-drift fixtures for Pratt, Lezer, and TextMate surfaces.</label></li>
+</ul>
+</section>
+<section id="language-server" class="level3">
+<h3 class="anchored" data-anchor-id="language-server">3. Language server</h3>
+<ul class="task-list">
+<li><label><input type="checkbox" checked="">Add <code>rix-language-server</code> stdio entry point.</label></li>
+<li><label><input type="checkbox" checked="">Implement initialize/shutdown and capability negotiation.</label></li>
+<li><label><input type="checkbox" checked="">Synchronize versioned open documents.</label></li>
+<li><label><input type="checkbox" checked="">Publish parser and lint diagnostics with client-side debounce.</label></li>
+<li><label><input type="checkbox" checked="">Implement completion; resolution is deferred until catalog entries need lazy documentation.</label></li>
+<li><label><input type="checkbox">Implement hover and signature help. Hover is implemented; signature help remains.</label></li>
+<li><label><input type="checkbox" checked="">Implement document symbols, definition, references, and rename.</label></li>
+<li><label><input type="checkbox" checked="">Implement code actions.</label></li>
+<li><label><input type="checkbox">Implement folding and selection ranges.</label></li>
+<li><label><input type="checkbox" checked="">Implement full semantic tokens; delta responses are deferred until profiling justifies them.</label></li>
+<li><label><input type="checkbox">Implement document and range formatting. Document formatting is implemented; range formatting remains.</label></li>
+<li><label><input type="checkbox">Watch <code>rix.json</code>, source headers, operator files, preambles, and plugin metadata.</label></li>
+<li><label><input type="checkbox">Support multi-root workspaces without sharing configuration accidentally.</label></li>
+<li><label><input type="checkbox">Add <code>rix/explainScope</code>, <code>rix/inspectAst</code>, <code>rix/inspectIr</code>, and catalog requests.</label></li>
+<li><label><input type="checkbox">Add protocol and cancellation tests.</label></li>
+</ul>
+</section>
+<section id="vs-code-extension-baseline" class="level3">
+<h3 class="anchored" data-anchor-id="vs-code-extension-baseline">4. VS Code extension baseline</h3>
+<ul class="task-list">
+<li><label><input type="checkbox">Add extension-host integration tests to the implemented <code>rix/editors/vscode</code> scaffold.</label></li>
+<li><label><input type="checkbox" checked="">Register the <code>rix</code> language and <code>.rix</code> files.</label></li>
+<li><label><input type="checkbox" checked="">Add language configuration for comments, brackets, indentation, and folding.</label></li>
+<li><label><input type="checkbox" checked="">Add the baseline TextMate grammar.</label></li>
+<li><label><input type="checkbox" checked="">Add Markdown/Quarto RiX fence injection.</label></li>
+<li><label><input type="checkbox">Add semantic-token mappings and theme compatibility tests.</label></li>
+<li><label><input type="checkbox" checked="">Add snippets.</label></li>
+<li><label><input type="checkbox">Bundle and launch the language server; explicit component version-range checks remain.</label></li>
+<li><label><input type="checkbox" checked="">Map diagnostics to Problems and code actions to Quick Fix.</label></li>
+<li><label><input type="checkbox">Add AST/IR read-only virtual documents.</label></li>
+<li><label><input type="checkbox" checked="">Add Explain Scope at Cursor.</label></li>
+<li><label><input type="checkbox" checked="">Declare limited untrusted-workspace support and restricted settings.</label></li>
+<li><label><input type="checkbox">Test trusted, untrusted, virtual, and multi-root workspace behavior.</label></li>
+<li><label><input type="checkbox">Keep extension-host/LSP transport behind interfaces that have browser worker equivalents, without delaying the desktop release.</label></li>
+</ul>
+</section>
+<section id="execution-worker-and-cli-protocol" class="level3">
+<h3 class="anchored" data-anchor-id="execution-worker-and-cli-protocol">5. Execution worker and CLI protocol</h3>
+<ul class="task-list">
+<li><label><input type="checkbox" checked="">CLI runs files, REPL submissions, and <code>.Test</code> suites.</label></li>
+<li><label><input type="checkbox" checked="">CLI loads approved plugins and constrains artifact paths.</label></li>
+<li><label><input type="checkbox" checked="">Runtime can render portable output and declared artifacts.</label></li>
+<li><label><input type="checkbox" checked="">Add a framed/JSON Lines worker entry point with no human stdout mixed into protocol output.</label></li>
+<li><label><input type="checkbox" checked="">Implement isolated and named-session run modes.</label></li>
+<li><label><input type="checkbox">Implement Run File, Run Selection, Check File, Run Tests, cancel, and restart requests.</label></li>
+<li><label><input type="checkbox">Add cooperative cancellation and forced termination grace period.</label></li>
+<li><label><input type="checkbox">Add time, output, background-task, artifact-size, and memory policies.</label></li>
+<li><label><input type="checkbox" checked="">Pass an explicit generated capability/plugin allowlist into every editor run.</label></li>
+<li><label><input type="checkbox" checked="">Refuse workspace execution when trust is absent.</label></li>
+<li><label><input type="checkbox">Emit structured run, diagnostic, check, test, trace, result, render, and artifact events.</label></li>
+<li><label><input type="checkbox">Add crash recovery and clean-session tests.</label></li>
+<li><label><input type="checkbox">Add <code>--json</code> to run/test/check paths without parsing human output.</label></li>
+<li><label><input type="checkbox" checked="">Implement <code>rix verify --json</code> and stable exit codes.</label></li>
+</ul>
+</section>
+<section id="vs-code-execution-and-reporting-ui" class="level3">
+<h3 class="anchored" data-anchor-id="vs-code-execution-and-reporting-ui">6. VS Code execution and reporting UI</h3>
+<ul class="task-list">
+<li><label><input type="checkbox">Add Run File, Run Selection, Check File, Run Tests, cancel, and Restart Session commands.</label></li>
+<li><label><input type="checkbox">Display active source version, configuration, session, and run state.</label></li>
+<li><label><input type="checkbox" checked="">Send scalar/text output to a RiX Output channel.</label></li>
+<li><label><input type="checkbox">Add source-linked gutter and CodeLens states for <code>##@</code> and <code>##:</code>. Gutter decorations are implemented; CodeLens remains.</label></li>
+<li><label><input type="checkbox">Add <code>.Test</code> discovery and execution to Test Explorer.</label></li>
+<li><label><input type="checkbox" checked="">Add optional inline-check Test Explorer items.</label></li>
+<li><label><input type="checkbox">Add an accessible diagnostic/trace tree for <code>##!</code> events.</label></li>
+<li><label><input type="checkbox">Navigate from Problems, tests, checks, and traces to precise source. Problems and inline Test Explorer items navigate today; trace UI remains.</label></li>
+<li><label><input type="checkbox">Add artifact tree/file links.</label></li>
+<li><label><input type="checkbox">Ensure stale run output is visibly marked and never decorates a newer document as current.</label></li>
+<li><label><input type="checkbox">Add continuous check/test mode with cancellation and debounce.</label></li>
+</ul>
+</section>
+<section id="rich-preview-1" class="level3">
+<h3 class="anchored" data-anchor-id="rich-preview-1">7. Rich preview</h3>
+<ul class="task-list">
+<li><label><input type="checkbox">Define the safe serialized preview payload.</label></li>
+<li><label><input type="checkbox">Reuse portable output and renderer contracts rather than evaluator internals.</label></li>
+<li><label><input type="checkbox">Implement CSP, nonces, bounded messages, URL policy, and a pinned DOMPurify adapter only for allowed markup that cannot be structurally built.</label></li>
+<li><label><input type="checkbox">Render text fallback, Fragment, Graphic, Plot output, and Sheet.</label></li>
+<li><label><input type="checkbox">Add reactive controls through an explicit worker session channel.</label></li>
+<li><label><input type="checkbox">Dispose subscriptions, workers, and artifacts when a preview closes.</label></li>
+<li><label><input type="checkbox">Add theme, keyboard, screen-reader, and reduced-motion support.</label></li>
+<li><label><input type="checkbox">Add static snapshot behavior for unavailable interactive features.</label></li>
+<li><label><input type="checkbox">Add security and accessibility tests.</label></li>
+</ul>
+</section>
+<section id="reports-ci-and-coding-agent-workflow" class="level3">
+<h3 class="anchored" data-anchor-id="reports-ci-and-coding-agent-workflow">8. Reports, CI, and coding-agent workflow</h3>
+<ul class="task-list">
+<li><label><input type="checkbox" checked="">Lint supports JSON output.</label></li>
+<li><label><input type="checkbox" checked="">Scope explanation supports JSON output.</label></li>
+<li><label><input type="checkbox">Add parse, symbols, check, test, run, and verify JSON schemas. Parse, symbols, format, execution-event, diagnostic, and verify contracts exist; test/run specialization remains.</label></li>
+<li><label><input type="checkbox">Add JUnit output for tests/checks.</label></li>
+<li><label><input type="checkbox" checked="">Add SARIF output for static diagnostics.</label></li>
+<li><label><input type="checkbox">Add an HTML combined report.</label></li>
+<li><label><input type="checkbox">Publish JSON schemas with the CLI and documentation.</label></li>
+<li><label><input type="checkbox" checked="">Document the deterministic agent edit/format/verify loop.</label></li>
+<li><label><input type="checkbox">Add verified small examples and common-error repair fixtures.</label></li>
+<li><label><input type="checkbox">Add CI examples for <code>rix format --check</code> and <code>rix verify</code>.</label></li>
+<li><label><input type="checkbox">Evaluate a thin MCP wrapper only after the core schemas stabilize.</label></li>
+</ul>
+</section>
+<section id="broader-editor-and-debugging-support" class="level3">
+<h3 class="anchored" data-anchor-id="broader-editor-and-debugging-support">9. Broader editor and debugging support</h3>
+<ul class="task-list">
+<li><label><input type="checkbox">Validate the LSP with at least one non-VS Code client.</label></li>
+<li><label><input type="checkbox">Publish generic LSP installation instructions.</label></li>
+<li><label><input type="checkbox">Package the static language service and LSP for VS Code for the Web.</label></li>
+<li><label><input type="checkbox">Package the RiX-Web-equivalent evaluator and generated browser-safe plugin catalog in a web worker before enabling web Run commands.</label></li>
+<li><label><input type="checkbox">Add contained <code>workspace.fs</code> RiX imports after single-document web execution is stable.</label></li>
+<li><label><input type="checkbox">Evaluate a notebook/Jupyter kernel after session and rich-output protocols stabilize.</label></li>
+<li><label><input type="checkbox">Design a Debug Adapter Protocol mapping from evaluator frames and trace events.</label></li>
+<li><label><input type="checkbox">Evaluate Tree-sitter only for a concrete consumer that cannot use LSP, Lezer, or TextMate.</label></li>
+</ul>
+</section>
+</section>
+<section id="deferred-review-gate" class="level2">
+<h2 class="anchored" data-anchor-id="deferred-review-gate">Deferred review gate</h2>
+<p>The initial policy choices are resolved. One review remains after the relevant implementation exists: review the generated <code>standard</code> capability/plugin snapshot before release. The governing policy is an explicit allowlist plus deny-by-default CI, not a manually maintained prose list.</p>
+<p>The formatter decisions should become golden fixtures, while preview and capability policy should become generated policy data and security tests rather than remain extension-specific conventions.</p>
+
+
+</section>
+</section>
+
+<a onclick="window.scrollTo(0, 0); return false;" role="button" id="quarto-back-to-top"><i class="bi bi-arrow-up"></i> Back to top</a></main> <!-- /main -->
+<script type="module">
+  const offset = document.querySelector('meta[name="quarto:offset"]')?.content || "./";
+  import(new URL(`${offset}scripts/dynamic-navigation.js`, document.baseURI));
+</script>
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/jostylr\.github\.io\/rix\/");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+            // target, if specified
+            link.setAttribute("target", "_blank");
+            if (link.getAttribute("rel") === null) {
+              link.setAttribute("rel", "noopener");
+            }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>RiX — Rational Interval Expression Language</p>
+</div>   
+    <div class="nav-footer-center">
+      &nbsp;
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/design/editor-tooling.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="nav-footer-right">
+<p>Documentation built with <a href="https://quarto.org/">Quarto</a></p>
+</div>
+  </div>
+</footer>
+
+
+
+
+<script src="../site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>

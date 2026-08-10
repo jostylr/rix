@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>linting – RiX</title>
+<title>editor-and-agent-tooling – RiX</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -61,28 +61,28 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </style>
 
 
-<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
-<script src="../site_libs/quarto-nav/headroom.min.js"></script>
-<script src="../site_libs/clipboard/clipboard.min.js"></script>
-<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
-<script src="../site_libs/quarto-search/fuse.min.js"></script>
-<script src="../site_libs/quarto-search/quarto-search.js"></script>
-<meta name="quarto:offset" content="../">
-<link href="../rix-logo.png" rel="icon" type="image/png">
-<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
-<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
-<script src="../site_libs/quarto-html/popper.min.js"></script>
-<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
-<script src="../site_libs/quarto-html/anchor.min.js"></script>
-<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-4a0610749eeff5ab924a4729b5181608.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-dark-de927ec96a2411cf822331f71755f83e.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-4a0610749eeff5ab924a4729b5181608.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
-<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
-<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-dfa129ac6e33aa8a1407114b8c26932f.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
-<link href="../site_libs/bootstrap/bootstrap-dark-de8d9ea7065925b465f143946b8defe2.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
-<link href="../site_libs/bootstrap/bootstrap-dfa129ac6e33aa8a1407114b8c26932f.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/quarto-nav/headroom.min.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<link href="./rix-logo.png" rel="icon" type="image/png">
+<script src="site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-4a0610749eeff5ab924a4729b5181608.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-dark-de927ec96a2411cf822331f71755f83e.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-4a0610749eeff5ab924a4729b5181608.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap-dfa129ac6e33aa8a1407114b8c26932f.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-dark-de8d9ea7065925b465f143946b8defe2.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="site_libs/bootstrap/bootstrap-dfa129ac6e33aa8a1407114b8c26932f.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -283,11 +283,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
       <div class="navbar-container container-fluid">
       <div class="navbar-brand-container mx-auto">
-    <a href="../index.html" class="navbar-brand navbar-brand-logo">
-    <img src="../rix-logo.png" alt="" class="navbar-logo light-content">
-    <img src="../rix-logo.png" alt="" class="navbar-logo dark-content">
+    <a href="./index.html" class="navbar-brand navbar-brand-logo">
+    <img src="./rix-logo.png" alt="" class="navbar-logo light-content">
+    <img src="./rix-logo.png" alt="" class="navbar-logo dark-content">
     </a>
-    <a class="navbar-brand" href="../index.html">
+    <a class="navbar-brand" href="./index.html">
     <span class="navbar-title">RiX</span>
     </a>
   </div>
@@ -298,19 +298,19 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
           <div class="collapse navbar-collapse" id="navbarCollapse">
             <ul class="navbar-nav navbar-nav-scroll me-auto">
   <li class="nav-item">
-    <a class="nav-link" href="../getting-started.html"> 
+    <a class="nav-link" href="./getting-started.html"> 
 <span class="menu-text">Start</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="../language-at-a-glance.html"> 
+    <a class="nav-link" href="./language-at-a-glance.html"> 
 <span class="menu-text">Learn</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="../eval/syntax-guide.html"> 
+    <a class="nav-link" href="./eval/syntax-guide.html"> 
 <span class="menu-text">Reference</span></a>
   </li>  
   <li class="nav-item">
-    <a class="nav-link" href="../developer-guide.html"> 
+    <a class="nav-link" href="./developer-guide.html"> 
 <span class="menu-text">Internals</span></a>
   </li>  
 </ul>
@@ -346,7 +346,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <ul class="list-unstyled mt-1">
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../index.html" class="sidebar-item-text sidebar-link">
+  <a href="./index.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Loading documentation…</span></a>
   </div>
 </li>
@@ -360,19 +360,15 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#static-linting-and-actionable-diagnostics" id="toc-static-linting-and-actionable-diagnostics" class="nav-link active" data-scroll-target="#static-linting-and-actionable-diagnostics">Static linting and actionable diagnostics</a>
+  <li><a href="#editor-and-coding-agent-tooling" id="toc-editor-and-coding-agent-tooling" class="nav-link active" data-scroll-target="#editor-and-coding-agent-tooling">Editor and coding-agent tooling</a>
   <ul class="collapse">
-  <li><a href="#levels-and-profiles" id="toc-levels-and-profiles" class="nav-link" data-scroll-target="#levels-and-profiles">Levels and profiles</a></li>
-  <li><a href="#explicit-fixes-and-baselines" id="toc-explicit-fixes-and-baselines" class="nav-link" data-scroll-target="#explicit-fixes-and-baselines">Explicit fixes and baselines</a></li>
-  <li><a href="#local-suppressions" id="toc-local-suppressions" class="nav-link" data-scroll-target="#local-suppressions">Local suppressions</a></li>
-  <li><a href="#coverage-assisted-prioritization" id="toc-coverage-assisted-prioritization" class="nav-link" data-scroll-target="#coverage-assisted-prioritization">Coverage-assisted prioritization</a></li>
-  <li><a href="#scope-explanation" id="toc-scope-explanation" class="nav-link" data-scroll-target="#scope-explanation">Scope explanation</a></li>
-  <li><a href="#rule-catalog" id="toc-rule-catalog" class="nav-link" data-scroll-target="#rule-catalog">Rule catalog</a></li>
-  <li><a href="#javascript-api" id="toc-javascript-api" class="nav-link" data-scroll-target="#javascript-api">JavaScript API</a></li>
-  <li><a href="#runtime-assistance-and-scope-model" id="toc-runtime-assistance-and-scope-model" class="nav-link" data-scroll-target="#runtime-assistance-and-scope-model">Runtime assistance and scope model</a></li>
+  <li><a href="#vs-code-development-build" id="toc-vs-code-development-build" class="nav-link" data-scroll-target="#vs-code-development-build">VS Code development build</a></li>
+  <li><a href="#deterministic-coding-agent-loop" id="toc-deterministic-coding-agent-loop" class="nav-link" data-scroll-target="#deterministic-coding-agent-loop">Deterministic coding-agent loop</a></li>
+  <li><a href="#formatter-profiles" id="toc-formatter-profiles" class="nav-link" data-scroll-target="#formatter-profiles">Formatter profiles</a></li>
+  <li><a href="#current-limitations" id="toc-current-limitations" class="nav-link" data-scroll-target="#current-limitations">Current limitations</a></li>
   </ul></li>
   </ul>
-<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/linting.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+<div class="toc-actions"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/editor-and-agent-tooling.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
     </div>
 <!-- main -->
 <main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"></header>
@@ -381,276 +377,44 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 
 
-<section id="static-linting-and-actionable-diagnostics" class="level1">
-<h1>Static linting and actionable diagnostics</h1>
-<p>RiX linting checks scope ownership, control flow, reactive boundaries, mathematical intent, and plugin contracts without evaluating a program. It is read-only by default: linting does not rewrite source, load plugins, or change evaluator behavior. Source edits require the explicit <code>--fix</code> flag, and even then only diagnostics carrying a safe replacement are applied.</p>
-<section id="levels-and-profiles" class="level2">
-<h2 class="anchored" data-anchor-id="levels-and-profiles">Levels and profiles</h2>
-<p>Lint one or more files, starting with the highest-confidence findings and gradually widening the review:</p>
-<pre class="text"><code>rix lint --level=essential program.rix
-rix lint --level=standard program.rix
-rix lint --level=thorough program.rix
-rix lint --level=pedantic program.rix</code></pre>
-<p>The default is <code>standard</code>. Levels are cumulative: <code>essential</code> is level 1, <code>standard</code> adds level 2, <code>thorough</code> adds level 3, and <code>pedantic</code> adds level 4. Essential and standard prioritize actionable semantic problems. Thorough adds heuristics that may need human confirmation. Pedantic adds convention and style review. Diagnostic severity independently says whether a finding is an error, warning, or note.</p>
-<p>Profiles select relevant domains:</p>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 50%">
-<col style="width: 50%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>Profile</th>
-<th>Included concerns</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>default</code></td>
-<td>Core semantics and syntax gotchas</td>
-</tr>
-<tr class="even">
-<td><code>plugin</code></td>
-<td>Default checks plus plugin contracts</td>
-</tr>
-<tr class="odd">
-<td><code>reactive</code></td>
-<td>Default checks plus dependency and identity rules</td>
-</tr>
-<tr class="even">
-<td><code>math</code></td>
-<td>Default checks plus exact arithmetic and refinement rules</td>
-</tr>
-<tr class="odd">
-<td><code>teaching</code></td>
-<td>Syntax, math, and reactive explanations useful in coursework</td>
-</tr>
-<tr class="even">
-<td><code>pedantic</code> / <code>all</code></td>
-<td>Every domain, including style information</td>
-</tr>
-</tbody>
-</table>
-<p>Profiles can be repeated or comma-separated. Plugin files automatically use the plugin profile unless an explicit profile is supplied.</p>
-<p>Valid-but-noteworthy constructs such as dense conditionals, deliberate block capture boundaries, function values, and capture-density suggestions live in the <code>teaching</code> or <code>style</code> concerns. They do not dilute the default or plugin profiles; request <code>--profile=teaching</code>, <code>--profile=pedantic</code>, or <code>--profile=all</code> when that review is useful.</p>
-<p>Warnings are advisory by default. CI can opt into failure on warnings:</p>
-<pre class="text"><code>rix lint --strict plugins/my-plugin/my-plugin.plugin.rix</code></pre>
-<p>Use <code>--json</code> for editor/build integration, <code>--sarif</code> for SARIF 2.1.0, and <code>--list-rules</code> for the installed rule catalog. Custom operators can be supplied with <code>--operator-file=FILE</code>; a single <code>-</code> input reads standard input. <code>--closed-plugin-set</code> treats the listed plugins as a complete dependency closure and errors when a <code>requires</code> contract has no provider in that set.</p>
+<section id="editor-and-coding-agent-tooling" class="level1">
+<h1>Editor and coding-agent tooling</h1>
+<p>RiX includes a portable static language service, a stdio language server, a desktop VS Code extension, a separate execution worker, and machine-readable CLI commands. The implementation lives with RiX under <code>src/tools</code>, while the extension package lives in <code>editors/vscode</code>.</p>
+<section id="vs-code-development-build" class="level2">
+<h2 class="anchored" data-anchor-id="vs-code-development-build">VS Code development build</h2>
+<p>Build the version-matched Node bundles before launching or packaging the extension:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> editors/vscode</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> run build</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The resulting extension does not require Bun at runtime. VS Code launches the bundled language server and evaluator worker using its Node-compatible desktop runtime. Static parsing, highlighting, linting, navigation, and formatting remain available in an untrusted workspace; execution does not.</p>
+<p>The initial execution profile uses an explicit checked-in capability allowlist and no plugins. Network, general files, background capabilities, dynamic JavaScript imports, plugin loading, host/core registration roots, artifact output, and renderers are absent. Check policy drift with:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> run check:editor-policy</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
-<section id="explicit-fixes-and-baselines" class="level2">
-<h2 class="anchored" data-anchor-id="explicit-fixes-and-baselines">Explicit fixes and baselines</h2>
-<p>Ordinary lint is observational. This command is the opt-in boundary for source edits:</p>
-<pre class="text"><code>rix lint --fix program.rix</code></pre>
-<p>Currently only statically proven <code>@</code> capture-marker corrections are marked safe. A diagnostic may suggest a larger refactor without exposing an automatic edit. Standard input cannot be fixed.</p>
-<p>A baseline supports incremental adoption without changing source:</p>
-<pre class="text"><code>rix lint --write-baseline=lint-baseline.json existing.rix
-rix lint --baseline=lint-baseline.json existing.rix new-code.rix</code></pre>
-<p>Writing a baseline is also explicit. Baselines key on rule, absolute file, and message; new diagnostics remain visible.</p>
+<section id="deterministic-coding-agent-loop" class="level2">
+<h2 class="anchored" data-anchor-id="deterministic-coding-agent-loop">Deterministic coding-agent loop</h2>
+<p>Use formatting as a non-mutating check first, then verify the exact file:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> bin/rix.js format <span class="at">--check</span> <span class="at">--json</span> example.rix</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> bin/rix.js format example.rix</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> bin/rix.js verify <span class="at">--json</span> example.rix</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>When verification fails, inspect static structure without evaluating source:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> bin/rix.js parse <span class="at">--json</span> example.rix</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> bin/rix.js symbols <span class="at">--json</span> example.rix</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> bin/rix.js lint <span class="at">--json</span> example.rix</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> bin/rix.js explain-scope <span class="at">--json</span> example.rix:12:8</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>These commands emit versioned records. <code>verify</code> combines normalized static diagnostics, structured <code>rix.execution/1</code> events, inline-check outcomes, and a stable final summary. JSON Schemas are shipped in <code>schemas/</code>.</p>
 </section>
-<section id="local-suppressions" class="level2">
-<h2 class="anchored" data-anchor-id="local-suppressions">Local suppressions</h2>
-<p>Suppress a named rule and include a reason:</p>
-<pre class="rix"><code>## rix-lint-disable-next-line RX1601 -- this definition intentionally snapshots the initial seed
-$$frozen := seed + 1;</code></pre>
-<p><code>rix-lint-disable-line</code>, <code>rix-lint-disable</code>, and <code>rix-lint-enable</code> are also recognized. Codes can be comma- or whitespace-separated; <code>ALL</code> is available for exceptional generated code. At pedantic level a suppression without <code>-- reason</code> produces <code>RX2002</code>. The API retains suppressed records separately.</p>
+<section id="formatter-profiles" class="level2">
+<h2 class="anchored" data-anchor-id="formatter-profiles">Formatter profiles</h2>
+<p>The default <code>readable</code> profile is Candidate B: four-space indentation, balanced multiline containers, and pipes at the beginning of an indented continuation line. The explicit <code>compact</code> profile is Candidate A. Comments and postfix <code>##@</code>, <code>##:</code>, and <code>##!</code> constructs remain on their logical source line. Formatting refuses a source that does not parse and is idempotent for accepted input.</p>
 </section>
-<section id="coverage-assisted-prioritization" class="level2">
-<h2 class="anchored" data-anchor-id="coverage-assisted-prioritization">Coverage-assisted prioritization</h2>
-<p><code>--coverage=FILE</code> accepts executed-line JSON and annotates/prioritizes findings:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode json code-with-copy"><code class="sourceCode json"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"files"</span><span class="fu">:</span> <span class="fu">{</span></span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"/absolute/path/program.rix"</span><span class="fu">:</span> <span class="fu">{</span> <span class="dt">"executedLines"</span><span class="fu">:</span> <span class="ot">[</span><span class="dv">1</span><span class="ot">,</span> <span class="dv">2</span><span class="ot">,</span> <span class="dv">5</span><span class="ot">,</span> <span class="dv">8</span><span class="ot">]</span> <span class="fu">}</span></span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">}</span></span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Findings are marked <code>observed</code>, <code>unobserved</code>, or <code>unknown</code>. Coverage changes priority and evidence, never whether a static rule exists.</p>
-</section>
-<section id="scope-explanation" class="level2">
-<h2 class="anchored" data-anchor-id="scope-explanation">Scope explanation</h2>
-<p>To inspect ownership rather than only warnings, select a source line or the identifier nearest a column:</p>
-<pre class="text"><code>rix explain-scope plugin.rix:42
-rix explain-scope --json plugin.rix:42:18</code></pre>
-<p>Each entry reports whether the name is current, captured, missing a capture, or incorrectly marked outer, plus its owning scope and suggested spelling.</p>
-</section>
-<section id="rule-catalog" class="level2">
-<h2 class="anchored" data-anchor-id="rule-catalog">Rule catalog</h2>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 50%">
-<col style="width: 50%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>Code</th>
-<th>Meaning</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>RX1001</code></td>
-<td>A bare name belongs to an enclosing scope and needs <code>@</code> or an explicit import.</td>
-</tr>
-<tr class="even">
-<td><code>RX1002</code></td>
-<td><code>@name</code> points outward even though <code>name</code> belongs to the current scope.</td>
-</tr>
-<tr class="odd">
-<td><code>RX1003</code></td>
-<td><code>@name</code> requests an enclosing binding that does not exist.</td>
-</tr>
-<tr class="even">
-<td><code>RX1101</code></td>
-<td>A number is used directly as a decision; <code>0</code> is truthy.</td>
-</tr>
-<tr class="odd">
-<td><code>RX1102</code></td>
-<td>A conditional or loop may receive undecided <code>?</code> without handling/refinement.</td>
-</tr>
-<tr class="even">
-<td><code>RX1201</code></td>
-<td>An identity-preserving update targets a statically known immutable value.</td>
-</tr>
-<tr class="odd">
-<td><code>RX1202</code></td>
-<td><code>=</code> aliases a known mutable cell where copy assignment may be intended.</td>
-</tr>
-<tr class="even">
-<td><code>RX1203</code></td>
-<td>The result of a known non-mutating collection method is ignored.</td>
-</tr>
-<tr class="odd">
-<td><code>RX1302</code></td>
-<td>A nested binding shadows an enclosing binding.</td>
-</tr>
-<tr class="even">
-<td><code>RX1303</code></td>
-<td>A binding is initialized along only some conditional paths.</td>
-</tr>
-<tr class="odd">
-<td><code>RX1401</code></td>
-<td>No visible loop operation can change a binding used by its condition.</td>
-</tr>
-<tr class="even">
-<td><code>RX1402</code></td>
-<td>One loop-control binding advances in both body and update slot.</td>
-</tr>
-<tr class="odd">
-<td><code>RX1403</code></td>
-<td>A closure created in a loop refers to a loop-local binding.</td>
-</tr>
-<tr class="even">
-<td><code>RX1501</code></td>
-<td>A self-call is not in tail position and may consume unbounded stack.</td>
-</tr>
-<tr class="odd">
-<td><code>RX1601</code></td>
-<td>A reactive definition takes an untracked snapshot where <code>$name</code> may be intended.</td>
-</tr>
-<tr class="even">
-<td><code>RX1602</code></td>
-<td>A <code>$$name</code> identity is used in an ordinary value position.</td>
-</tr>
-<tr class="odd">
-<td><code>RX1603</code></td>
-<td>In-place <code>$name</code> mutation has no visible <code>.Touch()</code> publication.</td>
-</tr>
-<tr class="even">
-<td><code>RX1604</code></td>
-<td>Static <code>$name</code> edges form a reactive dependency cycle.</td>
-</tr>
-<tr class="odd">
-<td><code>RX1701</code></td>
-<td>Lowercase <code>f(x)</code> parsed as implicit multiplication, not a direct call.</td>
-</tr>
-<tr class="even">
-<td><code>RX1702</code></td>
-<td>Literal index zero is used on a one-based collection.</td>
-</tr>
-<tr class="odd">
-<td><code>RX1703</code></td>
-<td>A string/collection is used with JavaScript-like emptiness assumptions.</td>
-</tr>
-<tr class="even">
-<td><code>RX1704</code></td>
-<td>Ternary nesting is dense enough to obscure branch meaning.</td>
-</tr>
-<tr class="odd">
-<td><code>RX1705</code></td>
-<td>A single-expression block creates a capture boundary where grouping may be intended.</td>
-</tr>
-<tr class="even">
-<td><code>RX1706</code></td>
-<td>A function binding is referenced as a value rather than directly called.</td>
-</tr>
-<tr class="odd">
-<td><code>RX1801</code></td>
-<td>Exact <code>/</code> versus truncating <code>//</code> deserves an intent check.</td>
-</tr>
-<tr class="even">
-<td><code>RX1802</code></td>
-<td>Fraction equality may mean same stored pair or equivalent rational value.</td>
-</tr>
-<tr class="odd">
-<td><code>RX1803</code></td>
-<td>An exact value is explicitly converted to an inexact Float.</td>
-</tr>
-<tr class="even">
-<td><code>RX1804</code></td>
-<td>A divisor is literal zero or an unguarded function parameter.</td>
-</tr>
-<tr class="odd">
-<td><code>RX1805</code></td>
-<td>Polynomial <code>/</code> needs the rational-function capability.</td>
-</tr>
-<tr class="even">
-<td><code>RX1806</code></td>
-<td>Refinement has no visible precision/work budget.</td>
-</tr>
-<tr class="odd">
-<td><code>RX1901</code>–<code>RX1910</code></td>
-<td>Plugin header, exports, mount, dependencies, collisions, portability, schemas, mutation naming, idempotence, and capability groups.</td>
-</tr>
-<tr class="even">
-<td><code>RX2001</code></td>
-<td>A lazy branch is capture-dense enough to consider extraction (style profile at thorough level).</td>
-</tr>
-<tr class="odd">
-<td><code>RX2002</code></td>
-<td>A lint suppression lacks an explanatory reason.</td>
-</tr>
-</tbody>
-</table>
-<p>Errors always produce a nonzero status. <code>--strict</code> additionally fails on warnings, but not informational suggestions.</p>
-</section>
-<section id="javascript-api" class="level2">
-<h2 class="anchored" data-anchor-id="javascript-api">JavaScript API</h2>
-<p><code>lintRix(source, options)</code> returns ordered diagnostics. <code>analyzeRix</code> returns <code>diagnostics</code>, <code>suppressedDiagnostics</code>, ownership <code>scopes</code>, and the resolved level/profiles. Options include <code>level</code>, <code>profile</code>/<code>profiles</code>, plugin metadata, custom operators, and a pre-parsed AST.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> {</span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>    applyRixLintFixes<span class="op">,</span></span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>    formatLintDiagnostic<span class="op">,</span></span>
-<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>    lintDiagnosticsToSarif<span class="op">,</span></span>
-<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>    lintRix<span class="op">,</span></span>
-<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>} <span class="im">from</span> <span class="st">"rix"</span><span class="op">;</span></span>
-<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> source <span class="op">=</span> <span class="st">"x=1; {; x; };"</span><span class="op">;</span></span>
-<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> diagnostics <span class="op">=</span> <span class="fu">lintRix</span>(source<span class="op">,</span> { <span class="dt">file</span><span class="op">:</span> <span class="st">"example.rix"</span><span class="op">,</span> <span class="dt">level</span><span class="op">:</span> <span class="st">"essential"</span> })<span class="op">;</span></span>
-<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (<span class="kw">const</span> diagnostic <span class="kw">of</span> diagnostics) <span class="bu">console</span><span class="op">.</span><span class="fu">log</span>(<span class="fu">formatLintDiagnostic</span>(diagnostic))<span class="op">;</span></span>
-<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a><span class="co">// This throws unless edit:true is supplied.</span></span>
-<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> fixed <span class="op">=</span> <span class="fu">applyRixLintFixes</span>(source<span class="op">,</span> diagnostics<span class="op">,</span> { <span class="dt">edit</span><span class="op">:</span> <span class="kw">true</span> })<span class="op">;</span></span>
-<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> sarif <span class="op">=</span> <span class="fu">lintDiagnosticsToSarif</span>(diagnostics)<span class="op">;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</section>
-<section id="runtime-assistance-and-scope-model" class="level2">
-<h2 class="anchored" data-anchor-id="runtime-assistance-and-scope-model">Runtime assistance and scope model</h2>
-<p>The evaluator gives capture-direction hints when static linting was not run. Selected lazy branches name their <code>?:</code>, <code>?_</code>, or <code>??</code> context; loop failures name the condition/body/update phase and iteration; immutable <code>~=</code> failures explain the identity-preserving contract.</p>
-<p>The analyzer follows evaluator ownership rather than JavaScript visibility:</p>
+<section id="current-limitations" class="level2">
+<h2 class="anchored" data-anchor-id="current-limitations">Current limitations</h2>
 <ul>
-<li>a function owns its parameters and top-level body bindings;</li>
-<li>a standalone <code>{; ... }</code> owns a new isolated scope;</li>
-<li>a loop owns its header locals, and direct blocks in loop slots share it;</li>
-<li>a block used as a lazy branch is nested and needs explicit captures;</li>
-<li>direct function calls retain callable lookup behavior.</li>
+<li>Static symbols and references are document-local; imported definitions and plugin catalogs are not indexed yet.</li>
+<li>Signature help, selection ranges, range formatting, and LSP cancellation are not implemented yet.</li>
+<li>Inline checks appear in Test Explorer, but <code>.Test</code> group discovery is still pending.</li>
+<li>The first worker emits scalar/text results and check/log diagnostics. Rich preview, artifacts, external renderers, full HTML, and plugin CSS are not enabled.</li>
+<li>Forced timeout restarts the worker; cooperative evaluator cancellation and resource budgets beyond time/capability containment remain future work.</li>
 </ul>
-<p>Dynamic plugin dispatch, host values, and alias effects can still require runtime evidence. This is why levels, profiles, coverage annotations, and reasoned suppressions are separate controls rather than pretending every heuristic has the same confidence.</p>
 
 
 </section>
@@ -1087,7 +851,7 @@ rix explain-scope --json plugin.rix:42:18</code></pre>
 </div>   
     <div class="nav-footer-center">
       &nbsp;
-    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/eval/linting.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/jostylr/rix/edit/main/documentation/editor-and-agent-tooling.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/jostylr/rix/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
     <div class="nav-footer-right">
 <p>Documentation built with <a href="https://quarto.org/">Quarto</a></p>
 </div>
@@ -1097,5 +861,5 @@ rix explain-scope --json plugin.rix:42:18</code></pre>
 
 
 
-<script src="../site_libs/quarto-html/zenscroll-min.js"></script>
+<script src="site_libs/quarto-html/zenscroll-min.js"></script>
 </body></html>

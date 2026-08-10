@@ -57,6 +57,7 @@ export const documentationNavigation = [
     section: "Developer guide",
     contents: [
       page("developer-guide.qmd", "Developer guide"),
+      page("editor-and-agent-tooling.md", "Editor and coding-agent tooling"),
       page("plugin-catalog.md", "Plugin catalog and loading"),
       page("eval/README.md", "Evaluator overview"),
       page("parser/architecture.md", "Parser architecture"),
