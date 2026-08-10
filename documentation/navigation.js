@@ -81,6 +81,7 @@ export const documentationNavigation = [
       page("design/eval/output-model.md", "Structured output, documents, and graphics"),
       page("design/eval/document-output-todo.md", "Document blocks, inline content, and assets"),
       page("design/interactive-output-plugins.md", "Interactive output extension contracts"),
+      page("design/editor-tooling.md", "Editor, language-server, and AI tooling"),
       page("design/eval/rixcel-architecture.md", "RiXCel architecture"),
       page("design/eval/rixcel-format.md", "RiXCel document format"),
       page("design/eval/rixcel-todo.md", "RiXCel implementation checklist"),

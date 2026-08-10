@@ -69,6 +69,7 @@ project:
     - design/eval/document-output-todo.md
     - design/eval/control-panel-todo.md
     - design/interactive-output-plugins.md
+    - design/editor-tooling.md
     - design/eval/rixcel-architecture.md
     - design/eval/rixcel-format.md
     - design/eval/rixcel-todo.md
