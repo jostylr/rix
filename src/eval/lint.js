@@ -520,6 +520,10 @@ export function analyzeRix(source, options = {}) {
 
     if (options.pluginMetadata) {
         const metadata = options.pluginMetadata;
+        // Header declarations are contracts, not implementations. Searching the
+        // complete file would make every declared export appear implemented
+        // merely because its name occurs in the YAML header.
+        const pluginBody = source.replace(/^\s*\/\*{2,}[\s\S]*?\*{2,}\//, "");
         const at = (offset = 0) => ({ pos: [Math.max(0, offset)] });
         const registerPattern = /\.Host\.Register(?:Callable)?Value\s*\(\s*["']([^"']+)["']/g;
         const registeredMounts = [];
@@ -542,7 +546,7 @@ export function analyzeRix(source, options = {}) {
             );
         }
         for (const exported of metadata.exports || []) {
-            if (!new RegExp(`\\b${String(exported).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`).test(source)) {
+            if (!new RegExp(`\\b${String(exported).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`).test(pluginBody)) {
                 emit(
                     "RX1902",
                     "warning",
@@ -1110,7 +1114,7 @@ export function analyzeRix(source, options = {}) {
                     `Prefer '$${node.object.name} := updatedValue', or call '$$${node.object.name}.Touch()' after an intentional deep mutation.`,
                 );
             }
-            if (method === "REFINE" && positional.length < 2 && !Object.keys(keyword).some((key) => /budget|max|limit|steps|work/i.test(key))) {
+            if (method === "REFINE" && positional.length < 1 && !Object.keys(keyword).some((key) => /budget|max|limit|steps|work/i.test(key))) {
                 emit(
                     "RX1806",
                     "warning",

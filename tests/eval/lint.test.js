@@ -157,6 +157,32 @@ describe("RiX static lint diagnostics", () => {
         });
         expect(diagnostics.map(({ code }) => code)).toEqual(expect.arrayContaining(["RX1902", "RX1903", "RX1906", "RX1907", "RX1910"]));
     });
+
+    test("does not count a plugin header declaration as an implemented export", () => {
+        const source = `/**
+id: demo
+description: Demonstration plugin.
+kind: rix
+mount: demo
+exports: [Missing]
+**/
+.Host.RegisterValue("demo", {= }, "demo", []);`;
+        const diagnostics = lintRix(source, {
+            profile: "plugin",
+            level: "thorough",
+            pluginMetadata: {
+                id: "demo", kind: "rix", mount: "demo", aliases: [], exports: ["Missing"],
+                groups: [], permissions: [], provides: ["rix.demo@1"], schemas: [], requires: [],
+            },
+        });
+        expect(diagnostics.map(({ code }) => code)).toContain("RX1902");
+    });
+
+    test("accepts one explicit request argument for receiver refinement", () => {
+        const all = (source) => lintRix(source, { profile: "all", level: "pedantic" }).map(({ code }) => code);
+        expect(all("RefineWithin=(real, request)->real.Refine(request);")).not.toContain("RX1806");
+        expect(all("RefineWithoutBudget=(real)->real.Refine();")).toContain("RX1806");
+    });
 });
 
 describe("RiX actionable runtime diagnostics", () => {
