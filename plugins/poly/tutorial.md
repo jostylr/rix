@@ -61,7 +61,9 @@ B := Q^3;
 {: R(3), A(3), B(1) };
 ```
 
-Loading `.algebra` adds receiver methods and exact division operators:
+The Polynomial itself owns exact receiver methods and quotient/remainder
+operators. Loading `.algebra` also loads `.ratfun` and adds the presentation
+wrapper used for verified division metadata and synthetic-division Grids:
 
 ```rix
 .Plugin.Load("algebra");       ## also loads poly

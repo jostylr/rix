@@ -1,4 +1,7 @@
 /**
+ * JavaScript reference implementation retained for comparison with the
+ * executable pure-RiX plugin in radix.plugin.rix.
+ *
 id: radix
 description: Bounded exact positional expansions and repeating-period analysis for rational values.
 kind: host

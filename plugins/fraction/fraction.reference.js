@@ -1,4 +1,7 @@
 /**
+ * JavaScript host installer retained for comparison with the executable
+ * pure-RiX plugin in fraction.plugin.rix.
+ *
 id: fraction
 description: Representation-sensitive unreduced integer fractions with mediant and classroom addition policies.
 kind: host

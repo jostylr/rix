@@ -13,14 +13,10 @@ describe("algebra Phase 1 plugin", () => {
             [p, record, copy, .algebra.Equal(p, copy), .algebra.Evaluate(p, 2), .algebra.Coefficients(p)];
         `);
         const [polynomial, record, copy, equal, evaluated, coefficients] = result.values;
-        expect(polynomial).toMatchObject({
-            type: "lambda",
-            schema: "rix.polynomial@1",
-            variable: "x",
-            degree: 2,
-            canonical: true,
-            equalityPolicy: "canonical-symbolic-coefficients",
-        });
+        expect(polynomial.type).toBe("lambda");
+        expect(polynomial._ext.get("__type").value).toBe("Polynomial");
+        expect(polynomial._ext.get("schema").value).toBe("rix.polynomial@1");
+        expect(polynomial._ext.get("variable").value).toBe("x");
         expect(record.entries.get("schema").value).toBe("rix.polynomial@1");
         expect(copy.type).toBe("lambda");
         expect(equal).toBeInstanceOf(Integer);
@@ -36,19 +32,18 @@ describe("algebra Phase 1 plugin", () => {
             factor := .algebra.Polynomial([1, -2]);
             other := .algebra.Polynomial([1, -4]);
             division := .algebra.Divide(p, factor);
-            [division, .algebra.Coefficients(.algebra.Quotient(division)),
+            [division[:schema], division[:method], division[:identity][:verified],
+             division[:factor][:divisorIsFactor], division[:factor][:status],
+             .algebra.Coefficients(.algebra.Quotient(division)),
              .algebra.Coefficients(.algebra.Remainder(division)),
              .algebra.IsFactor(p, factor), .algebra.IsFactor(p, other)];
         `);
-        const [division, quotient, remainder, factor, other] = result.values;
-        expect(division).toMatchObject({
-            type: "algebra_division",
-            schema: "rix.algebra.division@1",
-            method: "long",
-            exact: true,
-            identity: { verified: true },
-            factor: { divisorIsFactor: true, status: "exact-factor" },
-        });
+        const [schema, method, verified, divisorIsFactor, status, quotient, remainder, factor, other] = result.values;
+        expect(schema.value).toBe("rix.algebra.division@1");
+        expect(method.value).toBe("long");
+        expect(verified.value).toBe(1n);
+        expect(divisorIsFactor.value).toBe(1n);
+        expect(status.value).toBe("exactFactor");
         expect(quotient.values.map(String)).toEqual(["1", "-4", "3"]);
         expect(remainder.values.map(String)).toEqual(["0"]);
         expect(factor.value).toBe(1n);
@@ -64,9 +59,10 @@ describe("algebra Phase 1 plugin", () => {
              .algebra.Coefficients(.algebra.Remainder(division)), .algebra.Grid(division)];
         `);
         const [division, quotient, remainder, grid] = result.values;
-        expect(division.method).toBe("synthetic");
-        expect(division.identity.verified).toBe(true);
-        expect(division.factor).toMatchObject({ divisorIsFactor: false, status: "nonzero-remainder" });
+        expect(division.entries.get("method").value).toBe("synthetic");
+        expect(division.entries.get("identity").entries.get("verified").value).toBe(1n);
+        expect(division.entries.get("factor").entries.get("divisorisfactor").value).toBe(0n);
+        expect(division.entries.get("factor").entries.get("status").value).toBe("nonzeroRemainder");
         expect(quotient.values.map(String)).toEqual(["2", "-4", "-2"]);
         expect(remainder.values.map(String)).toEqual(["-3"]);
         expect(grid).toMatchObject({ type: "output", kind: "grid" });
@@ -77,7 +73,7 @@ describe("algebra Phase 1 plugin", () => {
         expect(() => parseAndEvaluate(`
             .Plugin.Load("algebra");
             .algebra.Divide(.algebra.Polynomial([1,2]), .algebra.Polynomial([0]));
-        `)).toThrow("zero polynomial");
+        `)).toThrow("division by zero");
         expect(() => parseAndEvaluate(`
             .Plugin.Load("algebra");
             .algebra.Grid(.algebra.Divide(.algebra.Polynomial([1,2]), .algebra.Polynomial([1])));

@@ -380,7 +380,7 @@ defaultEnabled: false
 </section>
 <section id="bundled-exact-algebras" class="level2">
 <h2 class="anchored" data-anchor-id="bundled-exact-algebras">Bundled exact algebras</h2>
-<p>The opt-in <code>exact-algebras</code> host plugin is the initial exact quaternion and octonion extension. Its coefficients remain core <code>Integer</code> or <code>Rational</code> values, and loading it installs exact variants for ordinary arithmetic and equality operators.</p>
+<p>The opt-in <code>exact-algebras</code> pure-RiX plugin is the initial exact quaternion and octonion extension. Its coefficients remain core <code>Integer</code> or <code>Rational</code> values, and loading it installs exact variants for ordinary arithmetic and equality operators through <code>.TypeRegister</code>/<code>.TypeInstall</code>.</p>
 <pre class="rix"><code>.Plugin.Load("exact-algebras");
 i := .exactAlgebras.Quaternion(0, 1, 0, 0);
 j := .exactAlgebras.Quaternion(0, 0, 1, 0);

@@ -150,8 +150,9 @@ describe("backtick parser dispatch and structural arithmetic", () => {
             .Plugin.Load("exact-algebras");
             (\`.SArith.Quaternion:1+2i+3j+4k\`).ToExact();
         `);
-        expect(value.type).toBe("exact_quaternion");
-        expect(value.components.map(String)).toEqual(["1", "2", "3", "4"]);
+        expect(value.type).toBe("map");
+        expect(value.entries.get("type").value).toBe("exact_quaternion");
+        expect(value.entries.get("components").values.map(String)).toEqual(["1", "2", "3", "4"]);
     });
 
     test("one-sided operator spacing is rejected", () => {

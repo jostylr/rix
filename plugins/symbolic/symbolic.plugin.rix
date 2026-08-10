@@ -1,0 +1,24 @@
+/**
+id: symbolic
+description: Meta-plugin loading RiX representation-sensitive Fraction and FractionFunction workspaces.
+kind: rix
+mount: symbolic
+exports: [Fraction, FractionFunction, Services]
+groups: [Algebra, Exact, Symbolic]
+permissions: []
+requires: [rix.fraction-function@1]
+provides: [rix.symbolic.formal@1]
+schemas: []
+snapshot: false
+deterministic: true
+defaultEnabled: false
+**/
+
+symbolicNamespace = {= };
+symbolicNamespace._proto = {=
+    Fraction = (self, first, second ?= _) -> second == _ ?: .fraction(first) ?_ .fraction(first,second),
+    FractionFunction = (self, value, variable ?= _) -> variable == _ ?: .fracfun(value) ?_ .fracfun(value,variable),
+    Services = (self) -> ["fraction","fracfun","poly","ratfun"]
+};
+
+.Host.RegisterValue("symbolic",symbolicNamespace,"Representation-sensitive symbolic workspace",["Algebra","Exact","Symbolic"]);

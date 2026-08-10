@@ -1,0 +1,271 @@
+/**
+id: ratfun
+description: Canonical callable univariate rational functions with exact cancellation and Polynomial interoperability.
+kind: rix
+mount: ratfun
+aliases: [rationalFunction, rf]
+exports: [RationalFunction, Parse, Var, Fun]
+groups: [Algebra, Exact, Symbolic]
+permissions: []
+requires: [rix.polynomial@1]
+provides: [rix.rational-function@1]
+schemas: [rix.rational-function@1]
+snapshot: false
+deterministic: true
+defaultEnabled: false
+**/
+
+RatfunIs(value) -> value ? :RationalFunction;
+RatfunRequire(value, label ?= "value") -> RatfunIs(value) ?: value ?_ .Error(@"@{label} must be a RationalFunction");
+RatfunScalar(value) -> (value ? :Integer) || (value ? :Rational);
+RatfunOperand(value) -> RatfunIs(value) || (value ? :Polynomial) || RatfunScalar(value);
+
+RatfunVariable(value) -> value == _ ?: :x ?_ value;
+RatfunPolynomial(value, variable) -> value ? :Polynomial ?: value ?_ .poly(value, variable);
+RatfunZero(polynomial) -> polynomial.Degree() == -1;
+RatfunOne(variable) -> .poly([1], variable);
+
+RatfunGcd(left, right) -> {;
+    state := [left, right];
+    {@ step = 1; @state[2].Degree() >= 0; {;
+        remainder = @state[1] % @state[2];
+        @state ~= [@state[2], remainder];
+    }; step += 1 };
+    state[1];
+};
+
+RatfunCanonical(numeratorValue, denominatorValue, variable ?= :x) -> {;
+    initialNumerator = RatfunPolynomial(numeratorValue, variable);
+    initialDenominator = RatfunPolynomial(denominatorValue, initialNumerator.Variable());
+    state := [initialNumerator, initialDenominator];
+    numerator = state[1];
+    denominator = state[2];
+    numerator.Variable() == denominator.Variable()
+      ?: _
+      ?_ .Error("RationalFunction numerator and denominator variables must match");
+    RatfunZero(denominator) ?: .Error("RationalFunction denominator cannot be zero") ?_ _;
+    RatfunZero(numerator)
+      ?: {; @state ~= [@state[1], RatfunOne(@state[1].Variable())]; }
+      ?_ {;
+          common = RatfunGcd(@numerator, @denominator);
+          common.Degree() >= 0
+            ?: {; @state ~= [@state[1] // @common, @state[2] // @common]; }
+            ?_ _;
+          leading = @state[2].Coefficients()[1];
+          @state ~= [@state[1] / leading, @state[2] / leading];
+      };
+    {: state[1], state[2] };
+};
+
+RatfunPolynomialAt(polynomial, argument) -> {;
+    coefficients = polynomial.Coefficients();
+    state := [RatfunPromote(0, polynomial.Variable())];
+    {@ index = 1; index <= @coefficients.Len(); {;
+        @state ~= [@state[1] * @argument + @coefficients[index]];
+    }; index += 1 };
+    state[1];
+};
+
+RatfunCompose(value, argument) -> {;
+    exact = RatfunRequire(value);
+    promoted = RatfunPromote(argument, exact.variable);
+    RatfunPolynomialAt(exact.numerator, promoted) / RatfunPolynomialAt(exact.denominator, promoted);
+};
+
+RatfunEvaluate(value, argument) -> {;
+    exact = RatfunRequire(value);
+    RatfunIs(argument) || (argument ? :Polynomial)
+      ?: RatfunCompose(exact, argument)
+      ?_ exact.numerator.Evaluate(argument) / exact.denominator.Evaluate(argument);
+};
+
+RatfunComposeParts(numerator, denominator, argument) -> {;
+    promoted=RatfunPromote(argument,numerator.Variable());
+    RatfunPolynomialAt(numerator,promoted)/RatfunPolynomialAt(denominator,promoted);
+};
+
+RatfunApply(numerator, denominator, argument) -> {;
+    RatfunIs(argument) || (argument ? :Polynomial)
+      ?: RatfunComposeParts(numerator,denominator,argument)
+      ?_ numerator.Evaluate(argument) / denominator.Evaluate(argument);
+};
+
+RatfunRecord(value) -> {;
+    exact = RatfunRequire(value);
+    {=
+        valueKind = :rationalFunction,
+        schema = "rix.rational-function@1",
+        variable = exact.variable,
+        numerator = exact.numerator,
+        denominator = exact.denominator,
+        canonical = 1,
+        equalityPolicy = :canonicalReducedFractionField,
+        domainPolicy = :reducedDenominatorNonzero,
+        reactive = exact.reactive,
+        provenance = exact.provenance
+    };
+};
+
+RatfunBuild(numeratorValue, denominatorValue ?= 1, variable ?= :x, provenance ?= []) -> {;
+    canonical = RatfunCanonical(numeratorValue, denominatorValue, variable);
+    numerator = canonical[1];
+    denominator = canonical[2];
+    RationalFunctionValue = (argument) -> RatfunApply(numerator, denominator, argument);
+    RationalFunctionValue.schema = "rix.rational-function@1";
+    RationalFunctionValue.variable = numerator.Variable();
+    RationalFunctionValue.numerator = numerator;
+    RationalFunctionValue.denominator = denominator;
+    RationalFunctionValue.canonical = 1;
+    RationalFunctionValue.equalityPolicy = :canonicalReducedFractionField;
+    RationalFunctionValue.domainPolicy = :reducedDenominatorNonzero;
+    RationalFunctionValue.reactive = numerator.reactive || denominator.reactive;
+    RationalFunctionValue.provenance = provenance;
+    RationalFunctionValue.__type = "RationalFunction";
+    RationalFunctionValue._type = "rational_function";
+    RationalFunctionValue._proto = {=
+        R = (self) -> self,
+        RationalFunction = (self) -> self,
+        Numerator = (self) -> self.numerator,
+        Denominator = (self) -> self.denominator,
+        Variable = (self) -> self.variable,
+        Record = (self) -> RatfunRecord(self),
+        Evaluate = (self, argument) -> RatfunEvaluate(self, argument),
+        Compose = (self, argument) -> RatfunCompose(self, argument),
+        Domain = (self) -> {=
+            valueKind=:rationalFunctionDomain,
+            condition="reduced denominator != 0",
+            denominator=self.denominator
+        }.Set("cancelledInputRestrictionsPreserved",0),
+        IsPolynomial = (self) -> self.denominator.Degree() == 0 ?: 1 ?_ _,
+        ToPolynomial = (self) -> self.denominator.Degree() == 0
+            ?: self.numerator / self.denominator.Coefficients()[1]
+            ?_ .Error("ToPolynomial requires canonical denominator 1")
+    };
+    .ImmutableValue(RationalFunctionValue);
+};
+
+RatfunPromote(value, variable ?= :x) -> {;
+    RatfunIs(value)
+      ?: value
+      ?_ (((value ? :Polynomial) || RatfunScalar(value))
+          ?: RatfunBuild(value, 1, (value ? :Polynomial ?: value.Variable() ?_ variable), [:promotion])
+          ?_ .Error("RationalFunction operand must be exact, Polynomial, or RationalFunction"));
+};
+
+RatfunSameVariable(left, right) -> left.variable == right.variable ?: 1 ?_ .Error("RationalFunction variables must match");
+RatfunAdd(leftValue, rightValue) -> {; left=RatfunPromote(leftValue); right=RatfunPromote(rightValue,left.variable); RatfunSameVariable(left,right); RatfunBuild(left.numerator*right.denominator+right.numerator*left.denominator,left.denominator*right.denominator,left.variable,[:add]); };
+RatfunSubtract(leftValue, rightValue) -> RatfunAdd(leftValue, -RatfunPromote(rightValue));
+RatfunMultiply(leftValue, rightValue) -> {; left=RatfunPromote(leftValue); right=RatfunPromote(rightValue,left.variable); RatfunSameVariable(left,right); RatfunBuild(left.numerator*right.numerator,left.denominator*right.denominator,left.variable,[:multiply]); };
+RatfunDivide(leftValue, rightValue) -> {; left=RatfunPromote(leftValue); right=RatfunPromote(rightValue,left.variable); RatfunSameVariable(left,right); RatfunZero(right.numerator) ?: .Error("RationalFunction division by zero") ?_ RatfunBuild(left.numerator*right.denominator,left.denominator*right.numerator,left.variable,[:divide]); };
+RatfunNegate(value) -> {; exact=RatfunPromote(value); RatfunBuild(-exact.numerator,exact.denominator,exact.variable,[:negate]); };
+RatfunPower(value, exponent) -> {;
+    exact = RatfunPromote(value);
+    power = exponent ~!: :Integer;
+    power == 0
+      ?: RatfunBuild(1,1,exact.variable,[:power])
+      ?_ (power > 0
+          ?: RatfunBuild(exact.numerator^power,exact.denominator^power,exact.variable,[:power])
+          ?_ RatfunBuild(exact.denominator^(-power),exact.numerator^(-power),exact.variable,[:power]));
+};
+RatfunEqual(leftValue, rightValue) -> {; left=RatfunPromote(leftValue); right=RatfunPromote(rightValue,left.variable); left.variable==right.variable && left.numerator==right.numerator && left.denominator==right.denominator; };
+
+RatfunFromStructural(structural, variable ?= :x) -> {;
+    structural.Head() == "Fraction"
+      ?: {; args=@structural.Arguments(); RatfunBuild(.poly(args[1],@variable),.poly(args[2],@variable),@variable,[:structural]); }
+      ?_ RatfunBuild(.poly(structural,variable),1,variable,[:structural]);
+};
+
+RatfunPolyFromInspect(node, variable) -> {;
+    state := [node, variable];
+    kind = state[1][:kind];
+    kind == "number"
+      ?: .poly([@state[1][:integer]],@state[2])
+      ?_ (kind == "identifier"
+          ?: (@state[1][:name] == @state[2] ?: .poly([1,0],@state[2]) ?_ .Error(@"Unexpected RationalFunction symbol @{@state[1][:name]}"))
+          ?_ (kind == "unary"
+              ?: (@state[1][:op] == "-" ?: -RatfunPolyFromInspect(@state[1][:argument],@state[2]) ?_ .Error(@"Unsupported RationalFunction unary operator @{@state[1][:op]}"))
+              ?_ (kind == "binary"
+                  ?: {;
+                      leftState:=[RatfunPolyFromInspect(@state[1][:left],@state[2])];
+                      op=@state[1][:op];
+                      op == "+" ?: @leftState[1] + RatfunPolyFromInspect(@state[1][:right],@state[2])
+                        ?_ op == "-" ?: @leftState[1] - RatfunPolyFromInspect(@state[1][:right],@state[2])
+                        ?_ op == "*" ?: @leftState[1] * RatfunPolyFromInspect(@state[1][:right],@state[2])
+                        ?_ op == "^" ?: @leftState[1] ^ @state[1][:right][:integer]
+                        ?_ .Error(@"Operator @{op} does not form a Polynomial");
+                  }
+                  ?_ .Error(@"Unsupported RationalFunction symbolic node @{kind}"))));
+};
+
+RatfunFromSpec(spec, variable ?= _) -> {;
+    inspected = .InspectSpec(spec);
+    selected = variable == _ ?: inspected[:inputs][1] ?_ variable;
+    parts = .SpecFractionParts(spec);
+    parts[2] == _
+      ?: RatfunBuild(.poly(parts[1],selected),1,selected,[:symbolicSpec])
+      ?_ RatfunBuild(.poly(parts[1],selected),.poly(parts[2],selected),selected,[:symbolicSpec]);
+};
+
+RatfunConstruct(first, second ?= _, variable ?= :x) -> {;
+    RatfunIs(first)
+      ?: first
+      ?_ (((first ? :Map) && first[:schema] == "rix.rational-function@1")
+          ?: RatfunBuild(first[:numerator],first[:denominator],first[:variable],[:record])
+          ?_ (second == _
+              ?: (((first ? :Polynomial) || RatfunScalar(first))
+                  ?: RatfunBuild(first,1,variable)
+                  ?_ RatfunFromStructural(first,variable))
+              ?_ RatfunBuild(first,second,variable)));
+};
+
+RatfunModifierVariable(modifiers) -> {;
+    variable := :x;
+    {@ index = 1; index <= @modifiers.Len(); {;
+        modifier = @modifiers[index];
+        upper = modifier.Upper();
+        upper == "FUN" ?: _ ?_ upper.StartsWith("VAR(")
+          ?: {; @variable ~= @modifier.Slice(5, @modifier.Len()); }
+          ?_ .Error(@"Unknown .ratfun modifier @{modifier}");
+    }; index += 1 };
+    variable;
+};
+
+RatfunParse(self, body, modifiers, info) -> RatfunFromStructural(.SArith.Parse(body,[],{= }),RatfunModifierVariable(modifiers));
+
+.TypeKnown(:RationalFunction) ?: _ ?_ .TypeRegister({=
+    name=:RationalFunction,
+    nativeType=:function,
+    defaultTraits=[:number],
+    validate=(value)->value.schema=="rix.rational-function@1",
+    proto={= },
+    installs={=
+        ADD=[{= name=:RatfunAdd, priority=300, prep=(left,right)->RatfunOperand(left)&&RatfunOperand(right)&&(RatfunIs(left)||RatfunIs(right)), impl=RatfunAdd }],
+        SUB=[{= name=:RatfunSub, priority=300, prep=(left,right)->RatfunOperand(left)&&RatfunOperand(right)&&(RatfunIs(left)||RatfunIs(right)), impl=RatfunSubtract }],
+        MUL=[{= name=:RatfunMul, priority=300, prep=(left,right)->RatfunOperand(left)&&RatfunOperand(right)&&(RatfunIs(left)||RatfunIs(right)), impl=RatfunMultiply }],
+        DIV=[{= name=:RatfunDiv, priority=300, prep=(left,right)->RatfunOperand(left)&&RatfunOperand(right)&&(RatfunIs(left)||RatfunIs(right)||(right ? :Polynomial)), impl=RatfunDivide }],
+        POW=[
+            {= name=:RatfunPow, priority=300, prep=(left,right)->RatfunIs(left)&&(right ? :Integer), impl=RatfunPower },
+            {= name=:PolynomialNegativePow, priority=300, prep=(left,right)->(left ? :Polynomial)&&(right ? :Integer)&&right<0, impl=RatfunPower }
+        ],
+        NEG=[{= name=:RatfunNeg, priority=300, prep=(value)->RatfunIs(value), impl=RatfunNegate }],
+        EQ=[{= name=:RatfunEq, priority=300, prep=(left,right)->RatfunOperand(left)&&RatfunOperand(right)&&(RatfunIs(left)||RatfunIs(right)), impl=(left,right)->RatfunEqual(left,right) ?: 1 ?_ _ }],
+        NEQ=[{= name=:RatfunNeq, priority=300, prep=(left,right)->RatfunOperand(left)&&RatfunOperand(right)&&(RatfunIs(left)||RatfunIs(right)), impl=(left,right)->RatfunEqual(left,right) ?: _ ?_ 1 }]
+    }
+});
+.TypeInstall(:RationalFunction);
+
+ratfunNamespace = (first, second ?= _) -> RatfunConstruct(first,second);
+ratfunNamespace._proto = {=
+    Parse=RatfunParse,
+    RationalFunction=(self,first,second ?= _)->RatfunConstruct(first,second),
+    Var=(self)->.Error(".ratfun.Var(name) is a backtick parser modifier"),
+    Fun=(self)->.Error(".ratfun.Fun is a backtick parser modifier")
+};
+.Host.RegisterCallableValue("ratfun",ratfunNamespace,"Canonical callable univariate rational functions",["Algebra","Exact","Symbolic"]);
+
+RatfunConversion=(value,variable ?= :x)->RatfunFromStructural(value,variable);
+RatfunSpecConversion=(value,variable ?= _)->RatfunFromSpec(value,variable);
+.Host.RegisterMethod("structural_form","R",RatfunConversion,"ratfun","ratfun");
+.Host.RegisterMethod("structural_symbol","R",RatfunConversion,"ratfun","ratfun");
+.Host.RegisterMethod("structural_literal","R",RatfunConversion,"ratfun","ratfun");
+.Host.RegisterMethod("symbolic_spec","R",RatfunSpecConversion,"ratfun","ratfun");

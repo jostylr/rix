@@ -1,4 +1,7 @@
 /**
+ * JavaScript reference implementation retained for comparison with the
+ * executable pure-RiX plugin in exact-algebras.plugin.rix.
+ *
 id: exact-algebras
 description: Exact rational quaternion and octonion values.
 kind: host

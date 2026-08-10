@@ -10,6 +10,8 @@
  * separate concern: a host capability may belong to any import/sandbox group.
  */
 
+import { builtinMethodNamesForType, isCallableValue } from "./methods.js";
+
 function firstLetterIsUppercase(name) {
     for (const character of String(name)) {
         if (/\p{L}/u.test(character)) return character === character.toUpperCase();
@@ -147,6 +149,57 @@ function namespaceEntry(context, namespace) {
                 }
             }
             return stringValue(name);
+        },
+    });
+
+    value._ext.set("REGISTERMETHOD", {
+        type: "method_builtin",
+        name: "RegisterMethod",
+        impl(args, evaluationContext, _evaluate, invoke) {
+            if (!canRegister(evaluationContext)) {
+                throw new Error(`.${title}.RegisterMethod is not permitted in this execution context`);
+            }
+            if (namespace !== "host") {
+                throw new Error(".Core.RegisterMethod is not supported; core methods belong in trusted startup code");
+            }
+            const typeName = rixString(args[1], ".Host.RegisterMethod type");
+            const methodName = rixString(args[2], ".Host.RegisterMethod name");
+            const callable = args[3];
+            const pluginId = args[4]?.type === "string" ? args[4].value : null;
+            const mount = args[5]?.type === "string" ? args[5].value : null;
+            if (!isCallableValue(callable)) {
+                throw new Error(".Host.RegisterMethod requires a receiver-first callable");
+            }
+            if (builtinMethodNamesForType(typeName).has(methodName.toUpperCase())) {
+                throw new Error(`Method ${methodName} is already built in for ${typeName}`);
+            }
+            const wrapped = {
+                type: "method_builtin",
+                name: methodName,
+                impl(callArgs, callContext, callEvaluate) {
+                    const envKey = "__embedded_caller_scopes__";
+                    const hadCallerScopes = callContext.env.has(envKey);
+                    const priorCallerScopes = callContext.getEnv(envKey, null);
+                    callContext.setEnv(envKey, [{
+                        bindings: callContext.globalScope,
+                        scopedEnv: callContext.globalScopedEnv,
+                        isolated: false,
+                        readThrough: true,
+                        callableBoundary: false,
+                    }, ...callContext.captureClosureScopes()]);
+                    try {
+                        return invoke(callable, callArgs, callContext, callEvaluate);
+                    } finally {
+                        if (hadCallerScopes) callContext.setEnv(envKey, priorCallerScopes);
+                        else callContext.env.delete(envKey);
+                    }
+                },
+            };
+            registryContext.registerMethod(typeName, methodName, wrapped, { pluginId, mount });
+            if (registryContext !== context) {
+                context.registerMethod(typeName, methodName, wrapped, { pluginId, mount });
+            }
+            return stringValue(methodName);
         },
     });
 

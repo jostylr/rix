@@ -409,6 +409,14 @@ ul.task-list li input[type="checkbox"] {
 <td>units/quantities, algebraic exact generators, exact complex operations, Cayley polar representation</td>
 </tr>
 <tr class="odd">
+<td>Exact polynomial plugins</td>
+<td>pure-RiX <code>.poly</code> owns the canonical callable Polynomial identity, reactive coefficients, exact arithmetic/division, derivatives, Sturm chains, root counts, and root bounds; pure-RiX <code>.algebra</code> supplies presentation metadata and synthetic-division Grids; pure-RiX <code>.algebraicReal</code> reuses the same Polynomial service for certified roots</td>
+</tr>
+<tr class="even">
+<td>Exact plugin implementations</td>
+<td><code>.fraction</code>, <code>.radix</code>, <code>.poly</code>, <code>.ratfun</code>, <code>.algebra</code>, <code>.exactAlgebras</code>, <code>.oracle</code>, <code>.ball</code>, <code>.cauchy</code>, <code>.continuedFraction</code>, <code>.algebraicReal</code>, <code>.numerics</code>, and the <code>.symbolic</code> meta-plugin are implemented in RiX; former JavaScript versions are non-discoverable reference sources</td>
+</tr>
+<tr class="odd">
 <td>Tooling</td>
 <td>REPL/runner, IR converter, native <code>.test.rix</code> runner, structured diagnostics, source locations, trace/debug</td>
 </tr>
@@ -450,22 +458,26 @@ ul.task-list li input[type="checkbox"] {
 <td><code>{# ... }</code> represents multi-symbol systems, but arithmetic/calculus remain a tested single-expression exact subset. Transcendental rules, general solving, and numerical calculus belong outside that subset.</td>
 </tr>
 <tr class="even">
+<td>FractionFunction migration</td>
+<td><code>.fracfun</code> remains the sole host-backed computational exact-algebra plugin because it clones and rewrites private symbolic IR, closure scopes, and source-domain restrictions. Its canonical projections already use pure-RiX <code>.poly</code> and <code>.ratfun</code>; migration waits for a versioned public symbolic-expression builder.</td>
+</tr>
+<tr class="odd">
 <td>Mathematical systems and async follow-up</td>
 <td><code>{# ... }</code> preserves definitions, constraints, symbols, and advisory input/output roles; solving is delegated to plugins. Async finite collections, matrices/tensors, nested scope caps, and finite pipe barriers are implemented. Lazy bounded pull, worker execution, snapshot/COW task writes, stable task paths, and capability-level abort signals remain follow-up work.</td>
 </tr>
-<tr class="odd">
-<td>Real approximation</td>
-<td>certified radix/continued-fraction prefixes and three-state comparisons are in Core/RiX; optional Float, Oracle, and Numerics plugins provide backend-specific computation and bounded refinement.</td>
-</tr>
 <tr class="even">
+<td>Real approximation</td>
+<td>certified radix/continued-fraction prefixes and three-state comparisons are in Core/RiX; optional Float, Oracle, Ball, Cauchy, continued-fraction, algebraic-real, and Numerics plugins provide backend-specific computation and bounded refinement.</td>
+</tr>
+<tr class="odd">
 <td>Browser use</td>
 <td>the parser demo runs in the browser. Full evaluator imports currently include Node file APIs, so evaluator embedding needs a host adapter for browser-only use.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>Packaging</td>
 <td>the package uses <code>@ratmath/core</code> through the parent Bun workspace and has not yet declared a stable standalone release workflow.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>3D rendering</td>
 <td>The first retained scene, wireframe snapshot, and glTF JSON slice is implemented. Hidden-surface removal, lighting, adaptive parametric/implicit surfaces, textures, animation/orbit controls, GLB, OBJ, STL, PLY, and USD/USDZ remain design work. Static camera projection belongs to <code>Scene3D</code>, not to the 2D SVG/Canvas/TikZ renderers.</td>
 </tr>

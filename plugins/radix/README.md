@@ -7,6 +7,10 @@ unbounded repeating expansion as a harmless conversion. Load it with:
 .Plugin.Load("radix");
 ```
 
+Expansion, bounded period detection, digit generation, formatting, and the
+Integer/Rational receiver methods are implemented in RiX. The former host
+installer is retained only as `radix.reference.js`.
+
 The plugin exposes namespace operations and matching methods on `Integer` and
 `Rational` values:
 

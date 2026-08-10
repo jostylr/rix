@@ -1,4 +1,7 @@
 /**
+ * Historical JavaScript host façade retained as a porting reference.
+ * The active plugin is algebra.plugin.rix.
+ *
 id: algebra
 description: Canonical exact univariate polynomials with verified division and portable synthetic-division Grids.
 kind: host

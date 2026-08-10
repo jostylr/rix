@@ -1,0 +1,355 @@
+/**
+id: algebraic-real
+description: Exact real algebraic roots certified by canonical Polynomial values and Sturm isolating intervals.
+kind: rix
+mount: algebraicReal
+aliases: [ar]
+exports: [Root, Sqrt2, Polynomial, Evaluate, Derivative, SturmSequence, RootCount, IsSquareFree, Refine, Sign, CompareRational, Export, Import]
+groups: [Numerics, Exact, Algebra]
+permissions: []
+requires: [rix.polynomial.algorithms@1]
+provides: [rix.algebraic-real@1, rix.exact-sign@1, rix.refinable@1, rix.enclosable-real@1]
+schemas: [rix.algebraic-real@1, rix.algebraic-real.export@1, rix.polynomial@1]
+snapshot: false
+deterministic: true
+defaultEnabled: false
+**/
+
+AROption(options, key, fallback) -> options.Has(key) ?: options[key] ?_ fallback;
+
+ARRequirePositiveInteger(value, label) -> {;
+    integer = value ~!: :Integer;
+    integer >= 1 ?: integer ?_ .Error(@"@{label} must be a positive Integer");
+};
+
+ARScalarIsZero(value, label ?= "value") -> (value ? :Integer)
+  ?: (value == 0)
+  ?_ ((value ? :Rational)
+       ?: (value.Numerator() == 0)
+       ?_ .Error(@"Expected an exact Integer or Rational @{label}; received @{value}"));
+ARSignOf(value) -> value < 0 ?: -1 ?_ value > 0 ?: 1 ?_ 0;
+
+ARPolynomial(coefficients) -> {;
+    coefficients ? :Array ?: _ ?_ .Error("Algebraic-real polynomials require an Array of coefficients");
+    candidate = .poly({= coefficients=coefficients, order=:ascending, variable=:x });
+    candidate.Degree() >= 1 ?: _ ?_ .Error("Algebraic-real polynomials must have positive degree");
+    canonicalCoefficients = candidate.PrimitiveInteger();
+    polynomial = .poly({= coefficients=canonicalCoefficients, order=:ascending, variable=:x });
+    polynomial.IsSquareFree()
+      ?: polynomial
+      ?_ .Error("Algebraic-real defining polynomial must be square-free");
+};
+
+ARRequirePolynomial(value) -> value ? :Polynomial ?: value ?_ .Error("Expected a Polynomial value");
+ARPolynomialEvaluate(polynomial, point) -> ARRequirePolynomial(polynomial).Evaluate(point ~!: :Rational);
+ARRootCount(polynomial, interval) -> ARRequirePolynomial(polynomial).RootCount(interval);
+
+ARRequireReal(value) -> {;
+    valid = value ? :Map ?: value[:valueKind] == :algebraicReal ?_ _;
+    valid ?: value ?_ .Error("Expected an AlgebraicReal value");
+};
+
+ARCapabilities(real) -> {=
+    valueKind = :numericsCapabilities,
+    schema = "rix.numerics.capabilities@1",
+    backend = :algebraicReal,
+    representation = :squareFreeIntegerPolynomialIsolatingInterval,
+    operations = [:enclose, :refine],
+    evidenceLevels = [:proof],
+    certified = 1,
+    exactSign = 1,
+    exactRationalComparison = 1,
+    arbitraryRefinement = 1,
+    deterministic = 1,
+    minimumWidth = 0,
+    maxCalls = 100000,
+    maxIterations = 100000
+};
+
+ARRefinementState(real, requestedWidth, maxCalls, maxIterations) -> {;
+    polynomial = real[:polynomial];
+    low := real[:interval].Low();
+    high := real[:interval].High();
+    lowValue := polynomial.Evaluate(low);
+    highValue := polynomial.Evaluate(high);
+    calls := 0;
+    iterations := 0;
+    {@ step = 1;
+       ((@high - @low) > @requestedWidth) && (@calls < @maxCalls) && (@iterations < @maxIterations);
+       {;
+           midpoint = (@low + @high) / 2;
+           midpointValue = @polynomial.Evaluate(midpoint);
+           ARScalarIsZero(midpointValue)
+             ?: {;
+                 @low ~= @midpoint;
+                 @high ~= @midpoint;
+                 @lowValue ~= 0;
+                 @highValue ~= 0;
+             }
+             ?_ ARSignOf(@lowValue) == ARSignOf(midpointValue)
+                  ?: {; @low ~= @midpoint; @lowValue ~= @midpointValue; }
+                  ?_ {; @high ~= @midpoint; @highValue ~= @midpointValue; };
+           @calls += 1;
+           @iterations += 1;
+       };
+       step += 1
+    };
+    interval = low:high;
+    {=
+        interval = interval,
+        width = interval.Width(),
+        midpoint = interval.Midpoint(),
+        lowValue = lowValue,
+        highValue = highValue,
+        calls = calls,
+        iterations = iterations
+    };
+};
+
+ARProtocolEnclosure(real, request, operation) -> {;
+    exactReal = ARRequireReal(real);
+    capabilities = ARCapabilities(exactReal);
+    normalized = .RefinementRequest(request, operation, capabilities);
+    requestedWidth = normalized[:absoluteWidth];
+    maxCalls = normalized[:work][:maxCalls];
+    maxIterations = normalized[:work][:maxIterations];
+    state = ARRefinementState(exactReal, requestedWidth, maxCalls, maxIterations);
+    goalMet = state[:width] <= requestedWidth;
+    status = goalMet ?: :enclosed ?_ :budgetExhausted;
+    approximation = .CertifiedApproximation(state[:midpoint], state[:interval], {=
+        reason = status,
+        requested = requestedWidth,
+        achieved = state[:width],
+        provider = :algebraicReal
+    });
+    {=
+        valueKind = :enclosure,
+        schema = "rix.numerics.enclosure@1",
+        status = status,
+        interval = state[:interval],
+        certified = 1,
+        goalMet = goalMet,
+        requestedWidth = requestedWidth,
+        achievedWidth = state[:width],
+        approximation = approximation,
+        evidenceLevel = :proof,
+        backend = :algebraicReal,
+        operation = normalized[:operation],
+        trace = [{=
+            interval=state[:interval],
+            lowValue=state[:lowValue],
+            highValue=state[:highValue],
+            rootCount=1
+        }],
+        work = {=
+            calls=state[:calls],
+            iterations=state[:iterations],
+            maxCalls=maxCalls,
+            maxIterations=maxIterations,
+            exhausted=!goalMet
+        },
+        diagnostics = goalMet ?: [] ?_ [:maxCallsReached],
+        evidence = {=
+            kind=:sturmIsolationWithSignBisection,
+            property=:containment,
+            polynomial=exactReal[:coefficients],
+            rootIndex=exactReal[:rootIndex],
+            rootCount=1
+        },
+        source = {=
+            plugin=:algebraicReal,
+            schema=exactReal[:schema],
+            rootIndex=exactReal[:rootIndex]
+        }
+    };
+};
+
+ARExactSign(real) -> {;
+    exactReal = ARRequireReal(real);
+    interval = exactReal[:interval];
+    interval.High() <= 0
+      ?: :negative
+      ?_ interval.Low() >= 0
+           ?: :positive
+           ?_ {;
+               atZero = @exactReal[:polynomial].Evaluate(0);
+               ARScalarIsZero(atZero)
+                 ?: :zero
+                 ?_ @exactReal[:polynomial].RootCount(@interval.Low():0) == 1
+                      ?: :negative
+                      ?_ :positive;
+           };
+};
+
+ARCompareRational(real, value) -> {;
+    exactReal = ARRequireReal(real);
+    rational = value ~!: :Rational;
+    interval = exactReal[:interval];
+    polynomialValue = exactReal[:polynomial].Evaluate(rational);
+    exactMatch = ARScalarIsZero(polynomialValue) ?: interval.ContainsValue(rational) ?_ _;
+    exactMatch
+      ?: :equal
+      ?_ {;
+          @rational <= @interval.Low()
+            ?: :greater
+            ?_ @rational >= @interval.High()
+                 ?: :less
+                 ?_ @exactReal[:polynomial].RootCount(@interval.Low():@rational) == 1
+                      ?: :less
+                      ?_ :greater;
+      };
+};
+
+ARExport(real) -> {;
+    exactReal = ARRequireReal(real);
+    {=
+        valueKind = :algebraicRealExport,
+        schema = "rix.algebraic-real.export@1",
+        version = 1,
+        coefficients = exactReal[:coefficients],
+        interval = exactReal[:interval],
+        rootIndex = exactReal[:rootIndex],
+        name = exactReal[:name],
+        evidence = exactReal[:evidence]
+    };
+};
+
+ARRecord(real) -> {;
+    exactReal = ARRequireReal(real);
+    {=
+        valueKind = :algebraicReal,
+        schema = exactReal[:schema],
+        polynomial = exactReal[:polynomial],
+        coefficients = exactReal[:coefficients],
+        interval = exactReal[:interval],
+        rootIndex = exactReal[:rootIndex],
+        name = exactReal[:name],
+        evidence = exactReal[:evidence],
+        certified = 1
+    };
+};
+
+ARAttachProtocol(real) -> {;
+    real._proto = {=
+        Polynomial = (self) -> self[:polynomial],
+        Coefficients = (self) -> self[:coefficients],
+        Interval = (self) -> self[:interval],
+        RootIndex = (self) -> self[:rootIndex],
+        EvaluatePolynomial = (self, point) -> self[:polynomial].Evaluate(point),
+        RootCount = (self, interval) -> self[:polynomial].RootCount(interval),
+        Sign = (self) -> ARExactSign(self),
+        CompareRational = (self, value) -> ARCompareRational(self, value),
+        Record = (self) -> ARRecord(self),
+        Export = (self) -> ARExport(self),
+        Enclose = (self, request ?= {= }) -> ARProtocolEnclosure(self, request, :enclose),
+        Refine = (self, request ?= {= }) -> ARProtocolEnclosure(self, request, :refine),
+        NumericsCapabilities = (self) -> ARCapabilities(self)
+    };
+    .ImmutableValue(real);
+};
+
+ARRoot(coefficients, interval, rootIndex ?= 1, options ?= {= }) -> {;
+    polynomial = ARPolynomial(coefficients);
+    canonical = polynomial.AscendingCoefficients();
+    exactInterval = interval ~!: :RationalInterval;
+    low = exactInterval.Low();
+    high = exactInterval.High();
+    low < high ?: _ ?_ .Error("Algebraic-real isolating interval must have increasing endpoints");
+    lowValue = polynomial.Evaluate(low);
+    highValue = polynomial.Evaluate(high);
+    lowIsRoot = ARScalarIsZero(lowValue, "low endpoint evaluation");
+    highIsRoot = ARScalarIsZero(highValue, "high endpoint evaluation");
+    endpointRoot = lowIsRoot || highIsRoot;
+    endpointRoot
+      ?: .Error("Algebraic-real isolating endpoints cannot be roots")
+      ?_ _;
+    sturmSequence = polynomial.SturmSequence();
+    isolatedCount = polynomial.RootCount(exactInterval);
+    isolatedCount == 1
+      ?: _
+      ?_ .Error(@"Algebraic-real interval must isolate exactly one distinct real root; found @{isolatedCount}");
+    index = ARRequirePositiveInteger(rootIndex, "Algebraic-real root index");
+    bound = polynomial.RootBound();
+    leftBoundary = low <= -bound ?: low - 1 ?_ -bound;
+    computedIndex = polynomial.RootCount(leftBoundary:low) + 1;
+    index == computedIndex
+      ?: _
+      ?_ .Error(@"Algebraic-real root index @{index} does not match certified index @{computedIndex}");
+    evidence = {=
+        kind = :sturmIsolation,
+        property = :uniqueRealRoot,
+        squareFree = 1,
+        rootCount = isolatedCount,
+        rootIndex = computedIndex,
+        cauchyBound = bound,
+        endpointSigns = [ARSignOf(lowValue), ARSignOf(highValue)],
+        sturmLength = sturmSequence.Len(),
+        provenance = AROption(options, "evidence", _)
+    };
+    real = {=
+        valueKind = :algebraicReal,
+        schema = "rix.algebraic-real@1",
+        name = AROption(options, "name", :root),
+        polynomial = polynomial,
+        coefficients = canonical,
+        interval = exactInterval,
+        rootIndex = computedIndex,
+        sturmSequence = sturmSequence,
+        evidence = evidence,
+        certified = 1
+    };
+    ARAttachProtocol(real);
+};
+
+ARSqrt2(sign ?= 1) -> {;
+    direction = sign ~!: :Integer;
+    direction == 1
+      ?: ARRoot([-2, 0, 1], 1:2, 2, {=
+          name=:sqrt2,
+          evidence={= kind=:definingEquation, equation="x^2 - 2 = 0", branch=:positive }
+      })
+      ?_ direction == -1
+           ?: ARRoot([-2, 0, 1], -2:-1, 1, {=
+               name=:negativeSqrt2,
+               evidence={= kind=:definingEquation, equation="x^2 - 2 = 0", branch=:negative }
+           })
+           ?_ .Error("Algebraic-real Sqrt2 sign must be 1 or -1");
+};
+
+ARImport(record) -> {;
+    valid = record ? :Map ?: record[:schema] == "rix.algebraic-real.export@1" ?_ _;
+    valid ?: _ ?_ .Error("Expected an algebraic-real export record");
+    record[:version] == 1 ?: _ ?_ .Error("Unsupported algebraic-real export version");
+    ARRoot(record[:coefficients], record[:interval], record[:rootIndex], {=
+        name=record[:name],
+        evidence=record[:evidence]
+    });
+};
+
+ARConstruct(coefficients, interval, rootIndex ?= 1, options ?= {= }) ->
+    ARRoot(coefficients, interval, rootIndex, options);
+
+algebraicRealNamespace = (coefficients, interval, rootIndex ?= 1, options ?= {= }) ->
+    ARConstruct(coefficients, interval, rootIndex, options);
+algebraicRealNamespace._proto = {=
+    Root = (self, coefficients, interval, rootIndex ?= 1, options ?= {= }) -> ARRoot(coefficients, interval, rootIndex, options),
+    Sqrt2 = (self, sign ?= 1) -> ARSqrt2(sign),
+    Polynomial = (self, coefficients) -> ARPolynomial(coefficients),
+    Evaluate = (self, coefficients, point) -> ARPolynomial(coefficients).Evaluate(point),
+    Derivative = (self, coefficients) -> ARPolynomial(coefficients).Derivative(),
+    SturmSequence = (self, coefficients) -> ARPolynomial(coefficients).SturmSequence(),
+    RootCount = (self, coefficients, interval) -> ARPolynomial(coefficients).RootCount(interval),
+    IsSquareFree = (self, coefficients) -> {; candidate=.poly({= coefficients=coefficients, order=:ascending, variable=:x }); candidate.IsSquareFree(); },
+    Refine = (self, real, request ?= {= }) -> ARProtocolEnclosure(real, request, :refine),
+    Sign = (self, real) -> ARExactSign(real),
+    CompareRational = (self, real, value) -> ARCompareRational(real, value),
+    Export = (self, real) -> ARExport(real),
+    Import = (self, record) -> ARImport(record)
+};
+
+.Host.RegisterCallableValue(
+    "algebraicReal",
+    algebraicRealNamespace,
+    "Exact real algebraic roots certified by canonical Polynomial values and Sturm isolating intervals",
+    ["Numerics", "Exact", "Algebra"]
+);

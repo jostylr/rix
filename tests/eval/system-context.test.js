@@ -369,6 +369,21 @@ describe("Capability namespaces", () => {
         expect(sys.getCapabilityGroups().Graphics).toContain("plot");
     });
 
+    test("Host.RegisterMethod lets a pure RiX plugin extend an existing receiver type", () => {
+        const context = new Context();
+        const systemContext = createDefaultSystemContext();
+        const result = parseAndEvaluate(`
+            .Host.RegisterMethod("Rational", "PluginTriple", (self) -> self * 3, "example", _);
+            (4/7).PluginTriple();
+        `, { context, systemContext });
+
+        expect(result.toString()).toBe("12/7");
+        expect(() => parseAndEvaluate(
+            '.Host.RegisterMethod("Rational", "Numerator", (self) -> 0);',
+            { context, systemContext },
+        )).toThrow("already built in");
+    });
+
     test("dotted implicit application remains a system-context call", () => {
         const result = parseAndEvaluate('.Len ([1, 2, 3]);');
         expect(result.value).toBe(3n);

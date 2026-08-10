@@ -1,0 +1,239 @@
+/**
+id: radix
+description: Bounded exact positional expansions and repeating-period analysis for rational values.
+kind: rix
+mount: radix
+exports: [Expansion, Digits, PeriodLength, PeriodInfo, ToString]
+groups: [Exact, Radix]
+permissions: []
+provides: [rix.radix@1]
+schemas: [rix.radix.expansion@1]
+snapshot: true
+deterministic: true
+defaultEnabled: false
+**/
+
+RadixOption(options, key, fallback ?= _) -> {;
+    normalized = key.Lower();
+    options == _ ?: fallback ?_ options.Has(normalized) ?: options[normalized] ?_ fallback;
+};
+
+RadixInteger(value, label) -> {;
+    exact = value ~!: :Integer;
+    exact == _ ?: .Error(@"@{label} must be an exact integer") ?_ exact;
+};
+
+RadixBounded(value, label, fallback, maximum ?= 1000000) -> {;
+    selected = value == _ ?: fallback ?_ RadixInteger(value, label);
+    selected >= 0 && selected <= maximum
+      ?: selected
+      ?_ .Error(@"@{label} must be between 0 and @{maximum}");
+};
+
+RadixBase(value ?= 10) -> {;
+    base = RadixInteger(value, "Radix base");
+    base >= 2 && base <= 65536
+      ?: base
+      ?_ .Error("Radix base must be between 2 and 65536");
+};
+
+RadixRational(value) -> {;
+    exact = value ~!: :Rational;
+    exact == _ ?: .Error("Radix operations require an exact Integer or Rational") ?_ exact;
+};
+
+RadixUnsigned(value) -> {;
+    rational = RadixRational(value);
+    negative = rational.Numerator() < 0;
+    {=
+        sign = negative ?: -1 ?_ 1,
+        numerator = negative ?: -rational.Numerator() ?_ rational.Numerator(),
+        denominator = rational.Denominator()
+    };
+};
+
+RadixIntegerDigits(value, base) -> {;
+    value == 0
+      ?: [0]
+      ?_ {;
+          result := [];
+          remaining := value;
+          {@ step = 1; @remaining > 0; {;
+              @result ~= @result.Push(@remaining % @base);
+              @remaining ~= @remaining // @base;
+          }; step += 1 };
+          result.Reverse();
+      };
+};
+
+RadixExpansion(value, baseValue ?= 10, options ?= _) -> {;
+    base = RadixBase(baseValue);
+    maxDigits = RadixBounded(RadixOption(options, "maxDigits"), "maxDigits", 1024);
+    parts = RadixUnsigned(value);
+    whole = parts[:numerator] // parts[:denominator];
+    remainder := parts[:numerator] % parts[:denominator];
+    fractional := [];
+    seen := {= };
+    repeatStart := _;
+    {@ step = 1; @remainder != 0 && @fractional.Len() < @maxDigits && @repeatStart == _; {;
+        key = @"r@{@remainder}";
+        @seen.Has(key)
+          ?: {; @repeatStart ~= @seen[@key]; }
+          ?_ {;
+              @seen ~= @seen.Set(@key, @fractional.Len());
+              @remainder *= @base;
+              @fractional ~= @fractional.Push(@remainder // @parts[:denominator]);
+              @remainder %= @parts[:denominator];
+          };
+    }; step += 1 };
+    repeatStart == _ && remainder != 0 && seen.Has(@"r@{remainder}")
+      ?: {; repeatStart ~= seen[@"r@{remainder}"]; }
+      ?_ _;
+    complete = remainder == 0 || repeatStart != _;
+    prefix = repeatStart == _ ?: fractional ?_ fractional.Slice(1, repeatStart + 1);
+    repeating = repeatStart == _ ?: _ ?_ fractional.Slice(repeatStart + 1);
+    {=
+        valueKind = :radixExpansion,
+        schema = "rix.radix.expansion@1",
+        status = complete ?: :complete ?_ :budgetExhausted,
+        base = base,
+        sign = parts[:numerator] == 0 ?: 0 ?_ parts[:sign],
+        integerDigits = RadixIntegerDigits(whole, base),
+        nonRepeatingDigits = prefix,
+        repeatingDigits = repeating,
+        terminating = remainder == 0 ?: 1 ?_ _,
+        repeating = repeatStart != _ ?: 1 ?_ _,
+        complete = complete ?: 1 ?_ _,
+        truncated = complete ?: _ ?_ 1,
+        producedDigits = fractional.Len(),
+        maxDigits = maxDigits,
+        remainingRemainder = remainder
+    };
+};
+
+RadixDigits(value, baseValue ?= 10, countValue ?= 1) -> {;
+    base = RadixBase(baseValue);
+    requested = countValue ? :Map ?: RadixOption(countValue, "count") ?_ countValue;
+    count = RadixBounded(requested, "Digit count", 1);
+    parts = RadixUnsigned(value);
+    remainder := parts[:numerator] % parts[:denominator];
+    digits := [];
+    {@ index = 1; index <= @count; {;
+        @remainder *= @base;
+        @digits ~= @digits.Push(@remainder // @parts[:denominator]);
+        @remainder %= @parts[:denominator];
+    }; index += 1 };
+    digits;
+};
+
+RadixGcd(left, right) -> {;
+    a := left.Abs();
+    b := right.Abs();
+    {@ step = 1; @b != 0; {;
+        remainder = @a % @b;
+        @a ~= @b;
+        @b ~= remainder;
+    }; step += 1 };
+    a;
+};
+
+RadixPeriodInfo(value, baseValue ?= 10, options ?= _) -> {;
+    base = RadixBase(baseValue);
+    maxWork = RadixBounded(RadixOption(options, "maxWork"), "maxWork", 100000);
+    denominator := RadixUnsigned(value)[:denominator];
+    reducing := 1;
+    {@ step = 1; @reducing == 1; {;
+        common = RadixGcd(@denominator, @base);
+        common == 1
+          ?: {; @reducing ~= 0; }
+          ?_ {; @denominator //= @common; };
+    }; step += 1 };
+    denominator == 1
+      ?: {= status=:complete, base=base, periodLength=0, work=0, maxWork=maxWork }
+      ?_ maxWork == 0
+      ?: {= status=:budgetExhausted, base=base, periodLength=_, work=0, maxWork=0, reducedDenominator=denominator }
+      ?_ {;
+          power := @base % @denominator;
+          length := 1;
+          {@ step = 1; @power != 1 && @length < @maxWork; {;
+              @power ~= (@power * @base) % @denominator;
+              @length += 1;
+          }; step += 1 };
+          complete = power == 1;
+          {=
+              status = complete ?: :complete ?_ :budgetExhausted,
+              base = @base,
+              periodLength = complete ?: length ?_ _,
+              work = length,
+              maxWork = @maxWork,
+              reducedDenominator = @denominator
+          };
+      };
+};
+
+RadixPeriodLength(value, baseValue ?= 10, options ?= _) -> {;
+    info = RadixPeriodInfo(value, baseValue, options);
+    info[:periodLength] == _
+      ?: .Error(@"PeriodLength exceeded maxWork=@{info[:maxWork]}; use PeriodInfo for a structured result")
+      ?_ info[:periodLength];
+};
+
+RadixDigitText(values) -> {;
+    values.Len() == 0
+      ?: " ".Slice(1,1)
+      ?_ {;
+          result := "0123456789abcdefghijklmnopqrstuvwxyz"[@values[1] + 1];
+          {@ index = 2; index <= @values.Len(); {;
+              @result ~= @result + "0123456789abcdefghijklmnopqrstuvwxyz"[@values[index] + 1];
+          }; index += 1 };
+          result;
+      };
+};
+
+RadixRenderText(value, baseValue ?= 10, options ?= _) -> {;
+    base = RadixBase(baseValue);
+    base <= 36 ?: _ ?_ .Error("Radix ToString supports bases through 36; use Expansion for larger bases");
+    expansion = RadixExpansion(value, base, options);
+    negative = expansion[:sign] < 0 ?: "-" ?_ " ".Slice(1,1);
+    whole = RadixDigitText(expansion[:integerDigits]);
+    prefix = RadixDigitText(expansion[:nonRepeatingDigits]);
+    expansion[:repeatingDigits] != _
+      ?: @"@{negative}@{whole}.@{prefix}(@{RadixDigitText(expansion[:repeatingDigits])})"
+      ?_ (expansion[:terminating]
+          ?: (prefix.Len() > 0 ?: @"@{negative}@{whole}.@{prefix}" ?_ @"@{negative}@{whole}")
+          ?_ @"@{negative}@{whole}.@{prefix}…");
+};
+
+radixNamespace = {= };
+radixNamespace._proto = {=
+    Expansion = (self, value, base ?= 10, options ?= _) -> RadixExpansion(value, base, options),
+    Digits = (self, value, base ?= 10, count ?= 1) -> RadixDigits(value, base, count),
+    PeriodLength = (self, value, base ?= 10, options ?= _) -> RadixPeriodLength(value, base, options),
+    PeriodInfo = (self, value, base ?= 10, options ?= _) -> RadixPeriodInfo(value, base, options),
+    ToString = (self, value, baseValue ?= 10, options ?= _) -> {;
+        base = RadixBase(baseValue);
+        base <= 36 ?: _ ?_ .Error("Radix ToString supports bases through 36; use Expansion for larger bases");
+        expansion = RadixExpansion(value, base, options);
+        negative = expansion[:sign] < 0 ?: "-" ?_ " ".Slice(1,1);
+        whole = RadixDigitText(expansion[:integerDigits]);
+        prefix = RadixDigitText(expansion[:nonRepeatingDigits]);
+        expansion[:repeatingDigits] != _
+          ?: @"@{negative}@{whole}.@{prefix}(@{RadixDigitText(expansion[:repeatingDigits])})"
+          ?_ (expansion[:terminating]
+              ?: (prefix.Len() > 0 ?: @"@{negative}@{whole}.@{prefix}" ?_ @"@{negative}@{whole}")
+              ?_ @"@{negative}@{whole}.@{prefix}…");
+    }
+};
+
+.Host.RegisterValue("radix", radixNamespace, "Bounded exact positional expansions and period analysis", ["Exact", "Radix"]);
+
+.Host.RegisterMethod("Integer", "Expansion", RadixExpansion, "radix", "radix");
+.Host.RegisterMethod("Integer", "Digits", RadixDigits, "radix", "radix");
+.Host.RegisterMethod("Integer", "PeriodLength", RadixPeriodLength, "radix", "radix");
+.Host.RegisterMethod("Integer", "PeriodInfo", RadixPeriodInfo, "radix", "radix");
+.Host.RegisterMethod("Integer", "RadixString", (value,base ?= 10,options ?= _)->.radix.ToString(value,base,options), "radix", "radix");
+.Host.RegisterMethod("Rational", "Expansion", RadixExpansion, "radix", "radix");
+.Host.RegisterMethod("Rational", "Digits", RadixDigits, "radix", "radix");
+.Host.RegisterMethod("Rational", "PeriodLength", RadixPeriodLength, "radix", "radix");
+.Host.RegisterMethod("Rational", "PeriodInfo", RadixPeriodInfo, "radix", "radix");
+.Host.RegisterMethod("Rational", "RadixString", (value,base ?= 10,options ?= _)->.radix.ToString(value,base,options), "radix", "radix");

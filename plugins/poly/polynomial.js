@@ -81,12 +81,42 @@ function isExactZero(value) {
     return value === 0;
 }
 
+function extensionValue(value, name) {
+    const candidate = value?._ext instanceof Map ? value._ext.get(String(name).toLowerCase()) : null;
+    return candidate?.type === "string" ? candidate.value : candidate;
+}
+
+function purePolynomialMetadata(value) {
+    if (extensionValue(value, "__type") !== "Polynomial"
+        || extensionValue(value, "schema") !== POLYNOMIAL_SCHEMA) return null;
+    return {
+        schema: POLYNOMIAL_SCHEMA,
+        variable: extensionValue(value, "variable") || "x",
+        coefficientFunction: extensionValue(value, "coefficientfunction"),
+        source: extensionValue(value, "source"),
+        pureRix: true,
+    };
+}
+
+function attachInteropProperties(value, metadata = purePolynomialMetadata(value)) {
+    if (!metadata?.pureRix) return value;
+    if (!Object.hasOwn(value, "schema")) value.schema = metadata.schema;
+    if (!Object.hasOwn(value, "variable")) value.variable = metadata.variable;
+    if (!Object.hasOwn(value, "canonical")) value.canonical = true;
+    if (!Object.hasOwn(value, "equalityPolicy")) value.equalityPolicy = "current-canonical-coefficients";
+    if (metadata.source?.type === "symbolic_spec" && !value._spec) value._spec = metadata.source;
+    return value;
+}
+
 function polynomialMetadata(value) {
-    return value?._polynomial?.schema === POLYNOMIAL_SCHEMA ? value._polynomial : null;
+    const legacy = value?._polynomial?.schema === POLYNOMIAL_SCHEMA ? value._polynomial : null;
+    return legacy || purePolynomialMetadata(value);
 }
 
 export function isPolynomial(value) {
-    return Boolean(polynomialMetadata(value));
+    const metadata = polynomialMetadata(value);
+    if (metadata?.pureRix) attachInteropProperties(value, metadata);
+    return Boolean(metadata);
 }
 
 export function requirePolynomial(value, label = "value") {
@@ -172,7 +202,40 @@ function structuralToPolynomial(value, requestedVariable, context, provenance = 
     return fromSpec(source, variable, context, provenance);
 }
 
-export function createPolynomial(args, context = null) {
+function activePolyEntry(context) {
+    const visible = context?.getEnv?.("__system_context__", null);
+    const host = visible?._hostContext || visible;
+    return visible?.get?.("poly") || host?.get?.("poly") || null;
+}
+
+function attachCanonicalSpec(value, context, evaluate) {
+    const metadata = purePolynomialMetadata(value);
+    if (!metadata) return value;
+    const coefficients = polynomialCoefficients(value, context, evaluate);
+    const polynomial = new Map();
+    const degree = coefficients.length - 1;
+    coefficients.forEach((coefficient, index) => {
+        if (!isExactZero(coefficient)) polynomial.set(BigInt(degree - index), exactToIr(coefficient));
+    });
+    const spec = canonicalSpec(null, metadata.variable, polynomial, context);
+    // Keep the pure value's own RiX metadata untouched; this JS-side property
+    // is only a compatibility view for plugins that still consume symbolic IR.
+    value._spec = spec;
+    return value;
+}
+
+export function createPolynomial(args, context = null, evaluate = null) {
+    const active = activePolyEntry(context);
+    if (active?.impl) {
+        const value = active.impl(args, context, evaluate);
+        attachInteropProperties(value);
+        return attachCanonicalSpec(value, context, evaluate);
+    }
+    throw new Error("Polynomial construction requires the loaded pure-RiX .poly plugin");
+}
+
+/** Historical JavaScript constructor used only by poly.reference.js. */
+export function createLegacyPolynomial(args, context = null) {
     const [source, second = null] = args;
     if (isPolynomial(source)) return source;
     const sourceEntries = entries(source);
@@ -210,6 +273,14 @@ function evaluateCoefficient(polynomial, coefficient, context, evaluate) {
 export function polynomialCoefficients(polynomial, context, evaluate, { trim = true } = {}) {
     requirePolynomial(polynomial);
     const metadata = polynomialMetadata(polynomial);
+    if (metadata.pureRix) {
+        if (!metadata.coefficientFunction) throw new Error("Pure-RiX Polynomial is missing its coefficient provider");
+        if (typeof evaluate !== "function") throw new Error("Reading pure-RiX Polynomial coefficients requires an active evaluator");
+        const ascending = callWithConcreteArgs(metadata.coefficientFunction, [int(0)], context, evaluate);
+        const result = [...values(ascending, "Polynomial coefficients")].reverse();
+        if (trim) while (result.length > 1 && isExactZero(result[0])) result.shift();
+        return result;
+    }
     const declaredDegree = polynomialDegree(metadata.coefficients);
     const result = [];
     if (declaredDegree === null) return [new Rational(0n, 1n)];
@@ -249,6 +320,7 @@ export function polynomialsEqual(left, right) {
     if (!isPolynomial(left) || !isPolynomial(right) || left.variable !== right.variable) return false;
     const a = polynomialMetadata(left).coefficients;
     const b = polynomialMetadata(right).coefficients;
+    if (!(a instanceof Map) || !(b instanceof Map)) return left === right;
     if (a.size !== b.size) return false;
     for (const [power, coefficient] of a) if (!b.has(power) || !sameIr(coefficient, b.get(power))) return false;
     const leftCells = closureCells(getAttachedSpec(left));
@@ -329,7 +401,7 @@ function method(name, impl) {
 }
 
 function conversionMethod(args, context) {
-    return createPolynomial(args, context);
+    return createLegacyPolynomial(args, context);
 }
 
 export function registerPolynomialMethods(systemContext, owner = {}) {
@@ -379,7 +451,7 @@ function parsePolynomial(args, context, evaluate) {
 }
 
 export function createPolyPluginValue() {
-    const constructor = (args, context) => createPolynomial(args, context);
+    const constructor = (args, context) => createLegacyPolynomial(args, context);
     const parse = method("Parse", parsePolynomial);
     const modifier = (name) => method(name, () => {
         throw new Error(`.${name} is a backtick parser modifier, not a callable method`);
@@ -398,7 +470,7 @@ export function createPolyPluginValue() {
             ["Var", modifier("Var")],
             ["FUN", modifier("Fun")],
             ["Fun", modifier("Fun")],
-            ["POLYNOMIAL", method("Polynomial", ([, ...args], context) => createPolynomial(args, context))],
+            ["POLYNOMIAL", method("Polynomial", ([, ...args], context) => createLegacyPolynomial(args, context))],
             ["immutable", int(1)],
         ]),
     };

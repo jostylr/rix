@@ -1,4 +1,7 @@
 /**
+ * JavaScript host installer retained for comparison with the executable
+ * pure-RiX plugin in ratfun.plugin.rix.
+ *
 id: ratfun
 description: Canonical callable univariate rational functions with exact cancellation and Polynomial interoperability.
 kind: host

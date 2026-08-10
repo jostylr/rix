@@ -26,13 +26,26 @@ describe("semantic Polynomial plugin", () => {
         expect(strings(result)).toEqual(["16", "12", "24", "0", "2", "t", "rix.polynomial@1"]);
     });
 
+    test("symbolic specs retain surrounding coefficient cells", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("poly");
+            y := 2;
+            P := {#x# x^2 + y*x}.P();
+            before := P(2);
+            y ~= 3;
+            [before, P(2)];
+        `);
+        expect(strings(result)).toEqual(["8", "10"]);
+    });
+
     test("keeps Polynomial identity while remaining an ordinary callable", () => {
         const polynomial = parseAndEvaluate('.Plugin.Load("poly"); .p`x^2-1`');
-        expect(polynomial).toMatchObject({
-            type: "lambda", schema: "rix.polynomial@1", variable: "x", degree: 2, canonical: true,
-        });
+        expect(polynomial.type).toBe("lambda");
         expect(polynomial._ext.get("__type").value).toBe("Polynomial");
-        expect(polynomial._polynomial.coefficients).toBeInstanceOf(Map);
+        expect(polynomial._ext.get("schema").value).toBe("rix.polynomial@1");
+        expect(polynomial._ext.get("variable").value).toBe("x");
+        expect(polynomial._ext.get("degreebound").value).toBe(2n);
+        expect(polynomial._ext.get("coefficientfunction").type).toBe("lambda");
     });
 
     test("closes polynomial arithmetic under composition and exact scalar operations", () => {
@@ -81,12 +94,12 @@ describe("semantic Polynomial plugin", () => {
 
     test("rejects non-polynomial and ambiguous multivariate forms", () => {
         expect(() => parseAndEvaluate('.Plugin.Load("poly"); .p`x^-1`'))
-            .toThrow("requires a polynomial");
+            .toThrow("nonnegative exact Integer");
         expect(() => parseAndEvaluate('.Plugin.Load("poly"); .p`x^2+y*x`'))
             .toThrow("multiple symbols");
         expect(() => parseAndEvaluate('.Plugin.Load("poly"); P:=.p`x^2-1`; F:=.p`x-1`; P/F'))
-            .toThrow("rational-function operation");
+            .toThrow("creates a RationalFunction");
         expect(() => parseAndEvaluate('.Plugin.Load("poly"); P:=.p`x+1`; P^-1'))
-            .toThrow("nonnegative exact integer");
+            .toThrow("nonnegative exact Integer");
     });
 });

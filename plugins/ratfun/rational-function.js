@@ -4,6 +4,7 @@ import { Integer, Rational } from "@ratmath/core";
 import { parse } from "../../src/parser/parser.js";
 import { lower } from "../../src/eval/lower.js";
 import { callWithConcreteArgs } from "../../src/eval/functions/functions.js";
+import { resolveMethod } from "../../src/runtime/methods.js";
 import {
     cloneSymbolicIr,
     createSymbolicSpec,
@@ -169,16 +170,73 @@ function canonicalPair(numerator, denominator) {
     };
 }
 
-function polynomialValue(coefficients, variable, context) {
-    return createPolynomial([seq(normalize(coefficients)), str(variable)], context);
+function polynomialValue(coefficients, variable, context, evaluate) {
+    return createPolynomial([seq(normalize(coefficients)), str(variable)], context, evaluate);
+}
+
+function extensionValue(value, name) {
+    const requested = String(name).toLowerCase();
+    if (!(value?._ext instanceof Map)) return null;
+    for (const [key, candidate] of value._ext) {
+        if (String(key).toLowerCase() !== requested) continue;
+        return candidate?.type === "string" ? candidate.value : candidate;
+    }
+    return null;
+}
+
+function pureRationalFunctionMetadata(value) {
+    if (extensionValue(value, "__type") !== "RationalFunction"
+        || extensionValue(value, "schema") !== RATIONAL_FUNCTION_SCHEMA) return null;
+    return {
+        schema: RATIONAL_FUNCTION_SCHEMA,
+        numerator: extensionValue(value, "numerator"),
+        denominator: extensionValue(value, "denominator"),
+        pureRix: true,
+    };
+}
+
+function attachInteropProperties(value, metadata = pureRationalFunctionMetadata(value)) {
+    if (!metadata?.pureRix) return value;
+    if (!Object.hasOwn(value, "schema")) value.schema = metadata.schema;
+    if (!Object.hasOwn(value, "variable")) value.variable = extensionValue(value, "variable") || "x";
+    if (!Object.hasOwn(value, "numerator")) value.numerator = metadata.numerator;
+    if (!Object.hasOwn(value, "denominator")) value.denominator = metadata.denominator;
+    if (!Object.hasOwn(value, "canonical")) value.canonical = true;
+    return value;
+}
+
+function attachCanonicalSpec(value, context, evaluate) {
+    const metadata = pureRationalFunctionMetadata(value);
+    if (!metadata || value._spec) return value;
+    const numeratorSpec = getAttachedSpec(createPolynomial([metadata.numerator], context, evaluate));
+    const denominatorSpec = getAttachedSpec(createPolynomial([metadata.denominator], context, evaluate));
+    if (!numeratorSpec || !denominatorSpec) return value;
+    value._spec = createSymbolicSpec({
+        inputs: [value.variable || "x"],
+        outputMode: "expression",
+        expression: symbolicIr(
+            "DIV",
+            cloneSymbolicIr(expressionOf(numeratorSpec)),
+            cloneSymbolicIr(expressionOf(denominatorSpec)),
+        ),
+        origin: ".ratfun compatibility view",
+        __closureScopes: [
+            ...(numeratorSpec.__closureScopes || []),
+            ...(denominatorSpec.__closureScopes || []),
+        ],
+    }, context);
+    return value;
 }
 
 function rationalFunctionMetadata(value) {
-    return value?._rationalFunction?.schema === RATIONAL_FUNCTION_SCHEMA ? value._rationalFunction : null;
+    const legacy = value?._rationalFunction?.schema === RATIONAL_FUNCTION_SCHEMA ? value._rationalFunction : null;
+    return legacy || pureRationalFunctionMetadata(value);
 }
 
 export function isRationalFunction(value) {
-    return Boolean(rationalFunctionMetadata(value));
+    const metadata = rationalFunctionMetadata(value);
+    if (metadata?.pureRix) attachInteropProperties(value, metadata);
+    return Boolean(metadata);
 }
 
 export function requireRationalFunction(value, label = "value") {
@@ -223,10 +281,10 @@ function decorateRationalFunction(numerator, denominator, variable, normalizatio
     return callable;
 }
 
-function fromCoefficientPair(numerator, denominator, variable, context, provenance = []) {
+function fromCoefficientPair(numerator, denominator, variable, context, evaluate, provenance = []) {
     const canonical = canonicalPair(numerator, denominator);
-    const n = polynomialValue(canonical.numerator, variable, context);
-    const d = polynomialValue(canonical.denominator, variable, context);
+    const n = polynomialValue(canonical.numerator, variable, context, evaluate);
+    const d = polynomialValue(canonical.denominator, variable, context, evaluate);
     return decorateRationalFunction(n, d, variable, canonical, context, provenance);
 }
 
@@ -234,14 +292,14 @@ function exactPolynomialCoefficients(polynomial, context, evaluate, label) {
     return normalize(polynomialCoefficients(requirePolynomial(polynomial, label), context, evaluate), `${label} coefficients`);
 }
 
-function polynomialFromValue(value, variable, context) {
+function polynomialFromValue(value, variable, context, evaluate) {
     if (isPolynomial(value)) {
         if (variable && value.variable !== variable) {
             throw new Error(`Rational-function operands require the same variable, received '${variable}' and '${value.variable}'`);
         }
         return value;
     }
-    if (isExactScalar(value)) return polynomialValue([rational(value, "Rational-function scalar")], variable || "x", context);
+    if (isExactScalar(value)) return polynomialValue([rational(value, "Rational-function scalar")], variable || "x", context, evaluate);
     throw new Error("RationalFunction operands must be Polynomials or exact integer/rational scalars");
 }
 
@@ -250,13 +308,14 @@ function fromPolynomialPair(numeratorValue, denominatorValue, requestedVariable,
         || (isPolynomial(numeratorValue) ? numeratorValue.variable : null)
         || (isPolynomial(denominatorValue) ? denominatorValue.variable : null)
         || "x";
-    const numerator = polynomialFromValue(numeratorValue, variable, context);
-    const denominator = polynomialFromValue(denominatorValue, variable, context);
+    const numerator = polynomialFromValue(numeratorValue, variable, context, evaluate);
+    const denominator = polynomialFromValue(denominatorValue, variable, context, evaluate);
     return fromCoefficientPair(
         exactPolynomialCoefficients(numerator, context, evaluate, "Rational-function numerator"),
         exactPolynomialCoefficients(denominator, context, evaluate, "Rational-function denominator"),
         variable,
         context,
+        evaluate,
         provenance,
     );
 }
@@ -325,8 +384,8 @@ function fromSpec(spec, requestedVariable, context, evaluate, provenance = []) {
         inputs: [variable], outputMode: "expression", imports: spec.imports,
         __closureScopes: spec.__closureScopes, origin: spec.origin,
     };
-    const numerator = createPolynomial([createSymbolicSpec({ ...common, expression: parts.numerator }, context)], context);
-    const denominator = createPolynomial([createSymbolicSpec({ ...common, expression: parts.denominator }, context)], context);
+    const numerator = createPolynomial([createSymbolicSpec({ ...common, expression: parts.numerator }, context)], context, evaluate);
+    const denominator = createPolynomial([createSymbolicSpec({ ...common, expression: parts.denominator }, context)], context, evaluate);
     return fromPolynomialPair(numerator, denominator, variable, context, evaluate, provenance);
 }
 
@@ -342,7 +401,30 @@ function structuralToRationalFunction(value, requestedVariable, context, evaluat
     return fromSpec(spec, variable, context, evaluate, provenance);
 }
 
+function activeRatfunEntry(context) {
+    const visible = context?.getEnv?.("__system_context__", null);
+    const host = visible?._hostContext || visible;
+    return visible?.get?.("ratfun") || host?.get?.("ratfun") || null;
+}
+
 export function createRationalFunction(args, context = null, evaluate = null) {
+    const active = activeRatfunEntry(context);
+    if (!active?.impl) throw new Error("RationalFunction construction requires the loaded pure-RiX .ratfun plugin");
+    let value;
+    if (args.length === 1 && args[0]?.type === "symbolic_spec") {
+        const conversion = resolveMethod(args[0], "R", context);
+        value = conversion?.type === "method_builtin"
+            ? conversion.impl([args[0]], context, evaluate, callWithConcreteArgs)
+            : callWithConcreteArgs(conversion, [args[0]], context, evaluate);
+    } else {
+        value = active.impl(args, context, evaluate);
+    }
+    attachInteropProperties(value);
+    return attachCanonicalSpec(value, context, evaluate);
+}
+
+/** Historical JavaScript constructor retained for ratfun.reference.js. */
+export function createLegacyRationalFunction(args, context = null, evaluate = null) {
     const [source, second = null] = args;
     if (isRationalFunction(source) && second === null) return source;
     const sourceEntries = entries(source);
@@ -352,10 +434,10 @@ export function createRationalFunction(args, context = null, evaluate = null) {
         const denominator = field(sourceEntries, "denominator");
         if (numerator === null || denominator === null) throw new Error("RationalFunction record requires numerator and denominator");
         const numeratorValue = Array.isArray(numerator) || Array.isArray(numerator?.values)
-            ? createPolynomial([seq(values(numerator, "RationalFunction numerator")), str(variable || "x")], context)
+            ? createPolynomial([seq(values(numerator, "RationalFunction numerator")), str(variable || "x")], context, evaluate)
             : numerator;
         const denominatorValue = Array.isArray(denominator) || Array.isArray(denominator?.values)
-            ? createPolynomial([seq(values(denominator, "RationalFunction denominator")), str(variable || "x")], context)
+            ? createPolynomial([seq(values(denominator, "RationalFunction denominator")), str(variable || "x")], context, evaluate)
             : denominator;
         return fromPolynomialPair(numeratorValue, denominatorValue, variable, context, evaluate, [{ operation: "Record" }]);
     }
@@ -384,7 +466,7 @@ function operandParts(value, variable, context, evaluate) {
         if (value.variable !== variable) throw new Error(`Rational-function operands require the same variable, received '${variable}' and '${value.variable}'`);
         return metadataCoefficients(value, context, evaluate);
     }
-    const polynomial = polynomialFromValue(value, variable, context);
+    const polynomial = polynomialFromValue(value, variable, context, evaluate);
     return { numerator: exactPolynomialCoefficients(polynomial, context, evaluate, "Rational-function operand"), denominator: [one()] };
 }
 
@@ -412,7 +494,7 @@ function rationalOperation(operator, left, right, context, evaluate) {
     } else {
         throw new Error(`Unsupported RationalFunction operation ${operator}`);
     }
-    return fromCoefficientPair(numerator, denominator, variable, context, [{ operation: operator, inputs: [left, right] }]);
+    return fromCoefficientPair(numerator, denominator, variable, context, evaluate, [{ operation: operator, inputs: [left, right] }]);
 }
 
 function integerExponent(value) {
@@ -447,6 +529,7 @@ function rationalPower(value, exponentValue, context, evaluate) {
         exponent < 0n ? numerator : denominator,
         value.variable,
         context,
+        evaluate,
         [{ operation: "POW", inputs: [value, exponentValue] }],
     );
 }
@@ -615,7 +698,7 @@ function parseRationalFunction(args, context, evaluate) {
 }
 
 export function createRatfunPluginValue() {
-    const constructor = (args, context, evaluate) => createRationalFunction(args, context, evaluate);
+    const constructor = (args, context, evaluate) => createLegacyRationalFunction(args, context, evaluate);
     const parseMethod = method("Parse", parseRationalFunction);
     const modifier = (name) => method(name, () => {
         throw new Error(`.${name} is a backtick parser modifier, not a callable method`);
@@ -634,7 +717,7 @@ export function createRatfunPluginValue() {
             ["Var", modifier("Var")],
             ["FUN", modifier("Fun")],
             ["Fun", modifier("Fun")],
-            ["RATIONALFUNCTION", method("RationalFunction", ([, ...args], context, evaluate) => createRationalFunction(args, context, evaluate))],
+            ["RATIONALFUNCTION", method("RationalFunction", ([, ...args], context, evaluate) => createLegacyRationalFunction(args, context, evaluate))],
             ["immutable", int(1)],
         ]),
     };

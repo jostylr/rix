@@ -34,8 +34,8 @@ numeric type or one universal rendering engine.
 | `.ball` | Implemented Phase 1 plugin | Pure RiX exact midpoint-radius snapshots, outward dyadic rounding, finite arithmetic, and nested square-root refinement. |
 | `.cauchy` | Implemented Phase 1 plugin | Pure RiX rational sequences with explicit tail bounds/moduli and certified geometric refinement. |
 | `.continuedFraction` | Implemented Phase 1 plugin | Pure RiX finite and lazy simple continued fractions, exact convergent cylinders, and bounded refinement. |
-| `.radix` | Implemented plugin | Bounded exact positional expansions, finite digit requests, and repeating-period analysis; extends Integer and Rational methods. |
-| `.exactAlgebras` | Implemented plugin | Exact rational quaternion and octonion values with Cayley-Dickson arithmetic. |
+| `.radix` | Implemented pure-RiX plugin | Bounded exact positional expansions, finite digit requests, and repeating-period analysis; extends Integer and Rational methods. |
+| `.exactAlgebras` | Implemented pure-RiX plugin | Exact rational quaternion and octonion values with Cayley-Dickson arithmetic. |
 | Plugin catalog | Implemented runtime service | Discovery, metadata, explicit loading, host approval for JavaScript, capability groups, and remounting. |
 | Core symbolic specs | Implemented in RiX core | `{#}` preserves expression IR, definitions, constraints, all symbols, and advisory input/output roles without choosing a solver. |
 | Renderer registry | Implemented runtime service | `.Renderer.List`/`.Info`, generic `.Render`, MIME/extension aliases, explicit fallback negotiation, structured results/assets/diagnostics, and `.Out` target selection. |
@@ -49,7 +49,13 @@ numeric type or one universal rendering engine.
 | `.csv` | Implemented Phase 1 renderer | Deterministic CSV/TSV export for core Tables and Data relations with exact scalar formatting and explicit dialect options. |
 | `.document` | Implemented Phase 1 plugin | Numbered core Fragment reports with deterministic section/figure/table labels, resolved forward references, captions, and small semantic themes. |
 | `.terminalAscii` | Implemented Phase 1 renderer | Strict-ASCII Tables, Grids, Fragments, and simple Graphic snapshots with deterministic width truncation and diagnostics. |
-| `.algebra` | Implemented Phase 1 plugin | Canonical exact univariate polynomials, portable coefficient records, exact evaluation and division, factor/equality metadata, and synthetic-division Grids. |
+| `.poly` | Implemented pure-RiX plugin | Canonical callable univariate Polynomial identity, reactive exact coefficients, arithmetic/composition, division, derivatives, Sturm chains, root counts, and root bounds. |
+| `.algebra` | Implemented pure-RiX Phase 1 façade | Polynomial construction/presentation over `.poly`, verified division/factor metadata, RationalFunction integration, and synthetic-division Grids. |
+| `.algebraicReal` | Implemented pure-RiX Phase 1 plugin | Root isolation, exact comparison, and bounded refinement over the canonical `.poly` Polynomial service. |
+| `.fraction` | Implemented pure-RiX plugin | Unreduced Fraction arithmetic, classroom denominator policies, mediants, and Farey/Stern–Brocot operations over the core Fraction pair. |
+| `.ratfun` | Implemented pure-RiX plugin | Canonical callable univariate RationalFunctions over `.poly`, including field operators, composition, and reactive reconstruction. |
+| `.symbolic` | Implemented pure-RiX meta-plugin | One loading surface for `.fraction`, `.fracfun`, `.poly`, and `.ratfun` while preserving focused ownership. |
+| `.fracfun` | Implemented host plugin; migration blocked on a stable symbolic-expression builder | Form- and source-domain-preserving callable expressions. Its canonical projections already use pure-RiX `.poly` and `.ratfun`. |
 | HTML/SVG/terminal display | Implemented compatibility hosts | Existing direct host display remains available without loading an exporter; explicit artifacts use the renderer registry when a matching plugin is loaded. |
 
 ### Proposed first-party packages
@@ -71,6 +77,13 @@ numeric type or one universal rendering engine.
 
 Plugin IDs and mount names remain lowercase or lower camel case. Core portable
 constructors retain their existing PascalCase system names.
+
+Pure-RiX plugins may extend existing receiver types through
+`.Host.RegisterMethod(type, method, callable, pluginId?, mount?)`. Registration
+uses the same `PLUGINS` permission boundary as other host/plugin registrations,
+rejects built-in collisions, and can bind visibility to the owning mount. This
+allows focused plugins such as `.poly` to provide concise postfix conversions
+without modifying core runtime prototypes.
 
 ## 2. Layering and dependency direction
 
@@ -322,7 +335,7 @@ providers when installed.
 | `.oracle` | Procedure answering precision requests | Ask directly for a proven rational interval. | Computable reals and lazy exactness. |
 | `.cauchy` | Pure RiX rational sequence plus exact tail-bound function and modulus | Use the modulus to select a term, verify its exact tail inequality, and return the corresponding rational enclosure. A bare sequence remains explicitly non-certifying. | Constructive analysis, visible geometric-series refinement, and sequence-defined constants. |
 | `.continuedFraction` | Pure RiX finite/rule-generated simple continued fraction | Consecutive convergents form exact certified cylinders for positive tails; finite rationals terminate exactly. | Diophantine approximation, quadratic-irrational exploration, and exact rational recovery. |
-| `.algebraicReal` | Polynomial plus rational isolating interval | Refine using exact sign/root-count evidence. | Exact roots, geometry intersections, certified comparisons. |
+| `.algebraicReal` | Pure RiX square-free integer polynomial plus rational isolating interval and certified real-root index | Sturm isolation and exact sign bisection; Phase 1 implemented. | Exact roots, geometry intersections, certified comparisons. |
 
 Each backend registers implementations for the common operations it can
 honestly support:
@@ -769,15 +782,15 @@ rix/plugins/
   poly/                    # callable semantic Polynomial values
   float/
   algebra/                 # exact Polynomial transformations
-  numerics/                # proposed orchestration
+  numerics/                # pure RiX Phase 1 orchestration
   ball/                    # pure RiX Phase 1 real backend
-  oracle/                  # specification; proposed real backend
+  oracle/                  # pure RiX Phase 1 real backend
   cauchy/                  # pure RiX Phase 1 real backend
   continued-fraction/      # pure RiX Phase 1 real backend
-  real-algebraic/          # proposed real backend
-  geometry/                # proposed
-  scene3d/                 # proposed
-  nd/                      # proposed
+  algebraic-real/          # pure RiX Phase 1 real backend
+  geometry/                # exact Phase 1 geometry
+  scene3d/                 # exact retained Phase 1 scenes
+  nd/                      # exact retained Phase 1 ND geometry
   complex-visualization/   # proposed
   render-svg/              # proposed extraction from hosts
   render-canvas/

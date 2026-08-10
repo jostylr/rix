@@ -376,7 +376,7 @@ Note
 <p>This page is generated from the current RiX implementation by <code>documentation/scripts/generate-reference.js</code>. Do not edit it by hand. Descriptions come from registry documentation strings; the narrative <a href="../eval/syntax-guide.html">syntax guide</a> and <a href="../eval/methods-guide.html">methods guide</a> provide signatures and examples.</p>
 </div>
 </div>
-<p>At this revision RiX exposes <strong>231 named entries</strong> on the default system context and registers <strong>224 internal IR operations</strong>. Aliases with different spelling are listed separately because they are separately addressable names.</p>
+<p>At this revision RiX exposes <strong>234 named entries</strong> on the default system context and registers <strong>224 internal IR operations</strong>. Aliases with different spelling are listed separately because they are separately addressable names.</p>
 <section id="public-system-context" class="level2">
 <h2 class="anchored" data-anchor-id="public-system-context">Public system context</h2>
 <p>These names are available through the leading-dot system object, such as <code>.Len(value)</code>. Uppercase names are also used by explicit system/operator forms where applicable.</p>
@@ -1084,7 +1084,7 @@ Note
 <td><code>.POLY</code></td>
 <td>function</td>
 <td>Symbolic</td>
-<td>Compile a single-output symbolic spec into an exact callable; exposes .Parse for backtick polynomial forms</td>
+<td>Compile a symbolic spec or structural arithmetic form into an exact callable; exposes .Parse for backtick polynomial forms</td>
 </tr>
 <tr class="even">
 <td><code>.POW</code></td>
@@ -1333,450 +1333,468 @@ Note
 <td>Report whether a pure function can be represented by the exact symbolic subset</td>
 </tr>
 <tr class="odd">
+<td><code>.SPECFRACTIONPARTS</code></td>
+<td>function</td>
+<td>Symbolic</td>
+<td>Split a symbolic top-level fraction into numerator and denominator specs</td>
+</tr>
+<tr class="even">
 <td><code>.SPECROLES</code></td>
 <td>function</td>
 <td>Symbolic</td>
 <td>Resolve all symbols and input/output roles, with optional role overrides</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.SPLIT</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Split a collection by a delimiter or predicate</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.SQRT</code></td>
 <td>function</td>
 <td>—</td>
 <td>Square root (approximate rational)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.STOP</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Conditional abort: .Stop(label, condition, dataMap ?= {=})</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.STREAM</code></td>
 <td>function</td>
 <td>—</td>
 <td>Create a cold, pull-based async stream from a finite collection</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.STRONG</code></td>
 <td>function</td>
 <td>—</td>
 <td>Create semantic inline strong content</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.SUB</code></td>
 <td>function</td>
 <td>Arith</td>
 <td>Subtraction</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.SUBSTR</code></td>
 <td>function</td>
 <td>Strings</td>
 <td>Get substring</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.SYMMETRICDIFFERENCE</code></td>
 <td>function</td>
 <td>—</td>
 <td>Core operation SET_SYMDIFF</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.TABLE</code></td>
 <td>function</td>
 <td>Output</td>
 <td>Create a structured output table</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.TEMPLATE_TEXT</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Create interpolated text with <span class="citation" data-cites="expression">@expression</span> insertions</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.TEST</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Run tests: .Test(label, setup, [tests] | {= tests })</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.TESTERROR</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Abort test: .TestError(label, setup, expr) — passes if expr aborts with .Error() or a runtime error</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.TESTSTOP</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Abort test: .TestStop(label, setup, expr) — passes if expr aborts via .Stop()</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.TEXT</code></td>
 <td>function</td>
 <td>Output</td>
 <td>Create a portable text output node</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.TGEN</code></td>
 <td>lazy function</td>
 <td>Core, Collections, Arrays</td>
 <td>Generate a tensor from a shape and index callback</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.TIMELINE</code></td>
 <td>value</td>
 <td>—</td>
 <td>Portable exact timeline constructors</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.TRACE</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Trace execution: .Trace(label, depth, trackedVars?, thunkOrCallable)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.TRAITREGISTER</code></td>
 <td>function</td>
 <td>—</td>
 <td>Register an immutable semantic trait from a RiX map spec</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.TRANSFORM</code></td>
 <td>function</td>
 <td>Symbolic</td>
 <td>Apply ordered exact symbolic transformations</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.TUPLE</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Create a tuple</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.TYPEEXPORT</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Export a semantically typed value through its registered type exporter</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.TYPEIMPORT</code></td>
 <td>lazy function</td>
 <td>—</td>
 <td>Import a value from a tagged type export map</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.TYPEINSTALL</code></td>
 <td>function</td>
 <td>—</td>
 <td>Install a registered semantic type into system multifunctions</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.TYPEKNOWN</code></td>
 <td>function</td>
 <td>—</td>
 <td>Return 1 when a semantic type or alias is already registered, otherwise null</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.TYPEREGISTER</code></td>
 <td>function</td>
 <td>—</td>
 <td>Register an immutable semantic type from a RiX map spec</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.UNDECIDED</code></td>
 <td>function</td>
 <td>—</td>
 <td>Construct an undecided decision carrying a reason and optional evidence</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.UNION</code></td>
 <td>function</td>
 <td>—</td>
 <td>Join/Union of two collections (set union or interval hull)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.UNITS</code></td>
 <td>value</td>
 <td>Units</td>
 <td>Canonical RiX unit collection</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.UPPER</code></td>
 <td>function</td>
 <td>Strings</td>
 <td>Convert string to uppercase</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.VALUES</code></td>
 <td>function</td>
 <td>Core, Maps</td>
 <td>Get the values of a map as a set (obj|.)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.VIDEO</code></td>
 <td>function</td>
 <td>—</td>
 <td>Create a portable video asset</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.WARN</code></td>
 <td>function</td>
 <td>—</td>
 <td>Emit a warning event: .Warn(label, dataMap ?= {=})</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.algebra</code></td>
 <td>function</td>
 <td>—</td>
-<td>Canonical exact univariate polynomials with verified division and portable synthetic-division Grids.</td>
+<td>Polynomial algebra façade backed by the canonical pure-RiX poly service.</td>
+</tr>
+<tr class="even">
+<td><code>.algebraicreal</code></td>
+<td>function</td>
+<td>—</td>
+<td>Exact real algebraic roots certified by canonical Polynomial values and Sturm isolating intervals.</td>
 </tr>
 <tr class="odd">
+<td><code>.ar</code></td>
+<td>function</td>
+<td>—</td>
+<td>Exact real algebraic roots certified by canonical Polynomial values and Sturm isolating intervals.</td>
+</tr>
+<tr class="even">
 <td><code>.ball</code></td>
 <td>function</td>
 <td>—</td>
 <td>Certified rational midpoint-radius balls and nested square-root refinement.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.canvas</code></td>
 <td>function</td>
 <td>—</td>
 <td>Serializable Canvas 2D drawing plans for core Graphics scenes.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.cauchy</code></td>
 <td>function</td>
 <td>—</td>
 <td>Rational Cauchy sequences with explicit certified tail bounds and moduli.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.cf</code></td>
 <td>function</td>
 <td>—</td>
 <td>Finite and lazy simple continued fractions with exact convergents and certified enclosures.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.continuedfraction</code></td>
 <td>function</td>
 <td>—</td>
 <td>Finite and lazy simple continued fractions with exact convergents and certified enclosures.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.csv</code></td>
 <td>function</td>
 <td>—</td>
 <td>Deterministic CSV and TSV export for portable Tables and typed data Relations.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.data</code></td>
 <td>function</td>
 <td>—</td>
 <td>Immutable typed relations with deterministic projection, filtering, sorting, and Table views.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.document</code></td>
 <td>function</td>
 <td>—</td>
 <td>Numbered portable reports with labels, forward references, captions, and small semantic themes.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.draw</code></td>
 <td>function</td>
 <td>Draw</td>
 <td>Convenient 2D drawing helpers that produce core Graphics nodes.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.exactalgebras</code></td>
 <td>function</td>
 <td>Exact</td>
 <td>Exact rational quaternion and octonion values.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.f</code></td>
 <td>function</td>
 <td>—</td>
 <td>Representation-sensitive unreduced integer fractions with mediant and classroom addition policies.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.ff</code></td>
 <td>function</td>
 <td>—</td>
 <td>Form-preserving callable polynomial and rational expressions with explicit transformations and canonical projections.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.frac</code></td>
 <td>function</td>
 <td>—</td>
 <td>Representation-sensitive unreduced integer fractions with mediant and classroom addition policies.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.fracfun</code></td>
 <td>function</td>
 <td>—</td>
 <td>Form-preserving callable polynomial and rational expressions with explicit transformations and canonical projections.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.fraction</code></td>
 <td>function</td>
 <td>—</td>
 <td>Representation-sensitive unreduced integer fractions with mediant and classroom addition policies.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.fractionfunction</code></td>
 <td>function</td>
 <td>—</td>
 <td>Form-preserving callable polynomial and rational expressions with explicit transformations and canonical projections.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.geometry</code></td>
 <td>function</td>
 <td>—</td>
 <td>Exact ruler-and-compass geometry with explicit intersections and portable Graphics snapshots.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.gltf</code></td>
 <td>function</td>
 <td>—</td>
 <td>Browser-safe glTF 2.0 JSON exporter for retained Scene3D values.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.html</code></td>
 <td>function</td>
 <td>—</td>
 <td>Standalone semantic HTML renderer for portable RiX output trees.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.latex</code></td>
 <td>function</td>
 <td>—</td>
 <td>Standalone LaTeX renderer for portable RiX documents and figures.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.markdown</code></td>
 <td>function</td>
 <td>—</td>
 <td>CommonMark-oriented renderer for portable RiX documents.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.nd</code></td>
 <td>function</td>
 <td>—</td>
 <td>Exact n-dimensional geometry with explicit affine and Cayley projection records.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.numerics</code></td>
 <td>function</td>
 <td>—</td>
 <td>Backend-neutral bounded enclosure and refinement orchestration.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.oracle</code></td>
 <td>function</td>
 <td>—</td>
 <td>Exact rational-betweenness oracle demonstrations and bounded refinement.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.p</code></td>
 <td>function</td>
 <td>—</td>
 <td>Semantic callable univariate polynomials with structural and symbolic entry forms.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.pdf</code></td>
 <td>function</td>
 <td>—</td>
 <td>PDF document and figure renderer orchestrated through LaTeX.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.plot</code></td>
 <td>function</td>
 <td>Plot</td>
 <td>Portable plotting helpers that produce core Graphics scenes.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.png</code></td>
 <td>function</td>
 <td>—</td>
 <td>PNG snapshot renderer for core Graphics through a host rasterizer.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.poly</code></td>
 <td>function</td>
 <td>—</td>
 <td>Semantic callable univariate polynomials with structural and symbolic entry forms.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.polynomial</code></td>
 <td>function</td>
 <td>—</td>
 <td>Semantic callable univariate polynomials with structural and symbolic entry forms.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.quarto</code></td>
 <td>function</td>
 <td>—</td>
 <td>Quarto Markdown renderer with front matter and portable figure lowering.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.radix</code></td>
 <td>function</td>
 <td>—</td>
 <td>Bounded exact positional expansions and repeating-period analysis for rational values.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.ratfun</code></td>
 <td>function</td>
 <td>—</td>
 <td>Canonical callable univariate rational functions with exact cancellation and Polynomial interoperability.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.rationalfunction</code></td>
 <td>function</td>
 <td>—</td>
 <td>Canonical callable univariate rational functions with exact cancellation and Polynomial interoperability.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.rf</code></td>
 <td>function</td>
 <td>—</td>
 <td>Canonical callable univariate rational functions with exact cancellation and Polynomial interoperability.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.scene3d</code></td>
 <td>function</td>
 <td>—</td>
 <td>Exact retained 3D scenes with deterministic wireframe and lit Graphics snapshots.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.sternbrocot</code></td>
 <td>function</td>
 <td>—</td>
 <td>Pure RiX Stern-Brocot node descriptions, visible tree records, and exact formula evaluation.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.svg</code></td>
 <td>function</td>
 <td>—</td>
 <td>Portable SVG renderer for core Graphics scenes.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.symbolic</code></td>
 <td>function</td>
 <td>—</td>
 <td>Meta-plugin loading RiX representation-sensitive Fraction and FractionFunction workspaces.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>.terminalascii</code></td>
 <td>function</td>
 <td>—</td>
 <td>Deterministic strict-ASCII fallback for tables, grids, fragments, and simple Graphics.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>.tikz</code></td>
 <td>function</td>
 <td>—</td>
@@ -2244,7 +2262,7 @@ Note
 </tr>
 <tr class="even">
 <td><code>Symbolic</code></td>
-<td><code>POLY</code>, <code>DERIV</code>, <code>INTEGRATE</code>, <code>TRANSFORM</code>, <code>SIMPLIFY</code>, <code>SPEC</code>, <code>SPECCABILITY</code>, <code>INSPECTSPEC</code>, <code>SPECROLES</code>, <code>SArith</code></td>
+<td><code>POLY</code>, <code>DERIV</code>, <code>INTEGRATE</code>, <code>TRANSFORM</code>, <code>SIMPLIFY</code>, <code>SPEC</code>, <code>SPECCABILITY</code>, <code>INSPECTSPEC</code>, <code>SPECROLES</code>, <code>SPECFRACTIONPARTS</code>, <code>SArith</code></td>
 </tr>
 <tr class="odd">
 <td><code>Notation</code></td>

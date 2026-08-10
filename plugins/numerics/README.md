@@ -47,8 +47,8 @@ value.NumericsCapabilities()
 
 The request schema is `rix.numerics.refinement-request@1`; the result schema is
 `rix.numerics.enclosure@1`. That small value protocol is the extension point
-for future `.ball`, `.cauchy`, `.continuedFraction`, and `.algebraicReal`
-implementations. Providers may use pure RiX or an approved host implementation
+used by the implemented `.ball`, `.cauchy`, `.continuedFraction`, and
+`.algebraicReal` providers. Providers may use pure RiX or an approved host implementation
 without changing Numerics algorithms.
 
 Core owns request normalization, limit intersection, capability negotiation,
@@ -57,9 +57,10 @@ same contract without requiring the Numerics plugin to be loaded. Numerics is
 the user-facing orchestration surface: `.Enclose`, `.Refine`, and `.Sample`
 force their corresponding operation even when handed an existing request.
 
-Phase 1 includes a certified Oracle adapter and an approximate Float adapter.
-For Float, the returned point interval exactly describes the stored IEEE-754
-value, but `certified` and `goalMet` are null because there is no error bound
-from that stored value to the intended real computation.
+Phase 1 includes certified Oracle, Ball, Cauchy, continued-fraction, and
+algebraic-real adapters plus an approximate Float adapter. For Float, the
+returned point interval exactly describes the stored IEEE-754 value, but
+`certified` and `goalMet` are null because there is no error bound from that
+stored value to the intended real computation.
 
 See [tutorial.md](tutorial.md).

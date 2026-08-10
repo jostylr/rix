@@ -222,6 +222,19 @@ Plugins can add a receiver-first method to an existing semantic/runtime type wit
 (3/7).Twice() ##@ == 6/7;
 ```
 
+A pure-RiX plugin should use the permission-checked host namespace and attach
+ownership metadata:
+
+```rix
+.Host.RegisterMethod("Rational", "Twice", (self) -> self * 2, "example", "example");
+```
+
+The optional final two arguments are the plugin ID and active mount. Supplying
+the mount makes the method unavailable when that mount is absent from a
+restricted system context. The plugin form is permitted only when its import
+frame has `PLUGINS` permission. `.RegisterMethod` remains the concise trusted
+startup/script form.
+
 A plugin registration cannot replace a built-in method, and a second extension with the same type/name pair is an error. Plugin-owned extensions remain usable only while their owning mount is visible in the active system context.
 
 The bundled `.radix` plugin adds `Expansion`, `Digits`, `PeriodLength`, `PeriodInfo`, and `RadixString` to exact numeric values. The `.float` plugin adds the explicit `Float()` conversion to Integers and Rationals. Plugin methods are listed on their plugin pages rather than in the built-in lists above.

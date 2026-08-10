@@ -1,4 +1,7 @@
 /**
+ * Historical JavaScript host implementation retained as a porting reference.
+ * The active plugin is poly.plugin.rix.
+ *
 id: poly
 description: Semantic callable univariate polynomials with structural and symbolic entry forms.
 kind: host
@@ -16,7 +19,7 @@ defaultEnabled: false
 
 import {
     createPolyPluginValue,
-    createPolynomial,
+    createLegacyPolynomial,
     installPolynomialOperators,
     registerPolynomialMethods,
 } from "./polynomial.js";
@@ -25,7 +28,7 @@ export function install({ systemContext, registry, metadata = {}, options = {} }
     const value = createPolyPluginValue();
     const mount = options.as || metadata.mount || "poly";
     systemContext.registerHostCallableValue(mount, value, {
-        impl: (args, context) => createPolynomial(args, context),
+        impl: (args, context) => createLegacyPolynomial(args, context),
         pure: true,
         doc: "Construct a semantic callable Polynomial from coefficients, structural arithmetic, or a symbolic spec",
     }, {

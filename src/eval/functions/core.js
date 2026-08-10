@@ -40,7 +40,7 @@ import {
     installRegisteredTypes,
     registerTraitFromRixSpec,
     registerTypeFromRixSpec,
-    typeRegistry,
+    typeKnownInContext,
 } from "../../runtime/type-system.js";
 import { callWithConcreteArgs } from "./functions.js";
 import { HaloNeighborhood } from "../../runtime/halo.js";
@@ -1760,9 +1760,9 @@ export const coreFunctions = {
     },
 
     TYPE_KNOWN: {
-        impl(args) {
+        impl(args, context) {
             const name = args[0]?.type === "string" ? args[0].value : String(args[0] ?? "");
-            return typeRegistry.has(name) ? new Integer(1n) : null;
+            return typeKnownInContext(name, context) ? new Integer(1n) : null;
         },
         doc: "Return 1 when a semantic type or alias is already registered, otherwise null",
     },

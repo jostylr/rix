@@ -5,16 +5,18 @@ import numericsSource from "./numerics/numerics.plugin.rix" with { type: "text" 
 import cauchySource from "./cauchy/cauchy.plugin.rix" with { type: "text" };
 import ballSource from "./ball/ball.plugin.rix" with { type: "text" };
 import continuedFractionSource from "./continued-fraction/continued-fraction.plugin.rix" with { type: "text" };
+import algebraicRealSource from "./algebraic-real/algebraic-real.plugin.rix" with { type: "text" };
+import polySource from "./poly/poly.plugin.rix" with { type: "text" };
+import algebraSource from "./algebra/algebra.plugin.rix" with { type: "text" };
 import sternBrocotSource from "./stern-brocot/stern-brocot.plugin.rix" with { type: "text" };
+import radixSource from "./radix/radix.plugin.rix" with { type: "text" };
+import exactAlgebrasSource from "./exact-algebras/exact-algebras.plugin.rix" with { type: "text" };
+import fractionSource from "./fraction/fraction.plugin.rix" with { type: "text" };
+import ratfunSource from "./ratfun/ratfun.plugin.rix" with { type: "text" };
+import symbolicSource from "./symbolic/symbolic.plugin.rix" with { type: "text" };
 import { readPluginHeader } from "../src/runtime/plugin-catalog.js";
 import { install as installDrawPlugin } from "./draw/draw.plugin.rix.js";
-import { install as installFractionPlugin } from "./fraction/fraction.plugin.rix.js";
 import { install as installFracfunPlugin } from "./fracfun/fracfun.plugin.rix.js";
-import { install as installPolyPlugin } from "./poly/poly.plugin.rix.js";
-import { install as installRatfunPlugin } from "./ratfun/ratfun.plugin.rix.js";
-import { install as installSymbolicPlugin } from "./symbolic/symbolic.plugin.rix.js";
-import { install as installAlgebraPlugin } from "./algebra/algebra.plugin.rix.js";
-import { install as installExactAlgebrasPlugin } from "./exact-algebras/exact-algebras.plugin.rix.js";
 import { install as installPlotPlugin } from "./plot/plot.plugin.rix.js";
 import { install as installScene3DPlugin } from "./scene3d/scene3d.plugin.rix.js";
 import { install as installNdPlugin } from "./nd/nd.plugin.rix.js";
@@ -22,7 +24,6 @@ import { install as installGeometryPlugin } from "./geometry/geometry.plugin.rix
 import { install as installDataPlugin } from "./data/data.plugin.rix.js";
 import { install as installDocumentPlugin } from "./document/document.plugin.rix.js";
 import { install as installTerminalAsciiPlugin } from "./render-terminal-ascii/terminal-ascii.plugin.rix.js";
-import { install as installRadixPlugin } from "./radix/radix.plugin.rix.js";
 import { install as installSvgPlugin } from "./render-svg/svg.plugin.rix.js";
 import { install as installCanvasPlugin } from "./render-canvas/canvas.plugin.rix.js";
 import { install as installTikzPlugin } from "./render-tikz/tikz.plugin.rix.js";
@@ -67,80 +68,19 @@ const BUNDLED_PLUGINS = [
         sourcePath: "bundled:continued-fraction.plugin.rix",
     },
     {
-        metadata: {
-            id: "radix",
-            description: "Bounded exact positional expansions and repeating-period analysis for rational values.",
-            kind: "host",
-            mount: "radix",
-            exports: ["Expansion", "Digits", "PeriodLength", "PeriodInfo", "ToString"],
-            groups: ["Exact", "Radix"],
-            permissions: [],
-            deterministic: true,
-            defaultEnabled: false,
-        },
-        install: installRadixPlugin,
+        metadata: readPluginHeader(algebraicRealSource, "algebraic-real.plugin.rix"),
+        source: algebraicRealSource,
+        sourcePath: "bundled:algebraic-real.plugin.rix",
     },
+    { metadata: readPluginHeader(radixSource, "radix.plugin.rix"), source: radixSource, sourcePath: "bundled:radix.plugin.rix" },
+    { metadata: readPluginHeader(exactAlgebrasSource, "exact-algebras.plugin.rix"), source: exactAlgebrasSource, sourcePath: "bundled:exact-algebras.plugin.rix" },
+    { metadata: readPluginHeader(fractionSource, "fraction.plugin.rix"), source: fractionSource, sourcePath: "bundled:fraction.plugin.rix" },
     {
-        metadata: {
-            id: "exact-algebras",
-            description: "Exact rational quaternion and octonion values.",
-            kind: "host",
-            mount: "exactAlgebras",
-            exports: ["Quaternion", "Octonion", "Components", "Conjugate", "NormSquared", "Inverse"],
-            groups: ["Exact"],
-            permissions: [],
-            defaultEnabled: false,
-        },
-        install: ({ systemContext, registry }) => installExactAlgebrasPlugin({ systemContext, registry }),
+        metadata: readPluginHeader(polySource, "poly.plugin.rix"),
+        source: polySource,
+        sourcePath: "bundled:poly.plugin.rix",
     },
-    {
-        metadata: {
-            id: "fraction",
-            description: "Representation-sensitive unreduced integer fractions with mediant and classroom addition policies.",
-            kind: "host", mount: "fraction", aliases: ["frac", "f"],
-            exports: ["Fraction", "Parse", "FromSternBrocotPath"], groups: ["Algebra", "Exact", "Symbolic"], permissions: [],
-            provides: ["rix.fraction@1"], schemas: ["rix.fraction@1"],
-            snapshot: true, deterministic: true, defaultEnabled: false,
-        },
-        install: installFractionPlugin,
-    },
-    {
-        metadata: {
-            id: "poly",
-            description: "Semantic callable univariate polynomials with structural and symbolic entry forms.",
-            kind: "host",
-            mount: "poly",
-            aliases: ["polynomial", "p"],
-            exports: ["Polynomial", "Parse", "Var", "Fun"],
-            groups: ["Algebra", "Exact", "Symbolic"],
-            permissions: [],
-            provides: ["rix.polynomial@1"],
-            schemas: ["rix.polynomial@1"],
-            snapshot: false,
-            deterministic: true,
-            defaultEnabled: false,
-        },
-        install: installPolyPlugin,
-    },
-    {
-        metadata: {
-            id: "ratfun",
-            description: "Canonical callable univariate rational functions with exact cancellation and Polynomial interoperability.",
-            kind: "host",
-            mount: "ratfun",
-            aliases: ["rationalFunction", "rf"],
-            exports: ["RationalFunction", "Parse", "Var", "Fun"],
-            groups: ["Algebra", "Exact", "Symbolic"],
-            permissions: [],
-            requires: ["rix.polynomial@1"],
-            provides: ["rix.rational-function@1"],
-            schemas: ["rix.rational-function@1"],
-            snapshot: false,
-            deterministic: true,
-            defaultEnabled: false,
-        },
-        install: installRatfunPlugin,
-    },
+    { metadata: readPluginHeader(ratfunSource, "ratfun.plugin.rix"), source: ratfunSource, sourcePath: "bundled:ratfun.plugin.rix" },
     {
         metadata: {
             id: "fracfun",
@@ -153,28 +93,11 @@ const BUNDLED_PLUGINS = [
         },
         install: installFracfunPlugin,
     },
+    { metadata: readPluginHeader(symbolicSource, "symbolic.plugin.rix"), source: symbolicSource, sourcePath: "bundled:symbolic.plugin.rix" },
     {
-        metadata: {
-            id: "symbolic",
-            description: "Meta-plugin loading RiX representation-sensitive Fraction and FractionFunction workspaces.",
-            kind: "host", mount: "symbolic",
-            exports: ["Fraction", "FractionFunction", "Services"], groups: ["Algebra", "Exact", "Symbolic"], permissions: [],
-            requires: ["rix.fraction-function@1"], provides: ["rix.symbolic.formal@1"],
-            snapshot: false, deterministic: true, defaultEnabled: false,
-        },
-        install: installSymbolicPlugin,
-    },
-    {
-        metadata: {
-            id: "algebra", description: "Canonical exact univariate polynomials with verified division and portable synthetic-division Grids.",
-            kind: "host", mount: "algebra",
-            exports: ["Polynomial", "Coefficients", "Record", "Evaluate", "Equal", "Divide", "SyntheticDivide", "Quotient", "Remainder", "IsFactor", "Grid"],
-            groups: ["Algebra", "Exact"], permissions: [],
-            requires: ["rix.rational-function@1"],
-            provides: ["rix.algebra.division@1"], schemas: ["rix.algebra.division@1"],
-            snapshot: false, deterministic: true, defaultEnabled: false,
-        },
-        install: installAlgebraPlugin,
+        metadata: readPluginHeader(algebraSource, "algebra.plugin.rix"),
+        source: algebraSource,
+        sourcePath: "bundled:algebra.plugin.rix",
     },
     {
         metadata: {

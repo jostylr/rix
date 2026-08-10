@@ -8,7 +8,7 @@ toc-depth: 2
 This page is generated from the current RiX implementation by `documentation/scripts/generate-reference.js`. Do not edit it by hand. Descriptions come from registry documentation strings; the narrative [syntax guide](../eval/syntax-guide.md) and [methods guide](../eval/methods-guide.md) provide signatures and examples.
 :::
 
-At this revision RiX exposes **231 named entries** on the default system context and registers **224 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
+At this revision RiX exposes **234 named entries** on the default system context and registers **224 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
 
 ## Public system context
 
@@ -130,7 +130,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.PIPEEXPLICIT` | lazy function | — | Explicit pipe operator — placeholders \_1, \_2, … map tuple elements to specific argument positions |
 | `.PLUGIN` | function | — | Discover and load host-approved RiX plugins |
 | `.PMAP` | lazy function | — | Map a function over a collection — callback receives (val, locator, src) |
-| `.POLY` | function | Symbolic | Compile a single-output symbolic spec into an exact callable; exposes .Parse for backtick polynomial forms |
+| `.POLY` | function | Symbolic | Compile a symbolic spec or structural arithmetic form into an exact callable; exposes .Parse for backtick polynomial forms |
 | `.POW` | function | Arith | Exponentiation |
 | `.POWPROD` | function | — | Exponentiation/product power (currently same implementation as POW) |
 | `.PRINT` | function | Core, Strings | Print each argument through the replaceable \_\_io\_\_ hook |
@@ -172,6 +172,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.SORT` | lazy function | — | Sort a collection with comparator function (returns new copy) |
 | `.SPEC` | function | Symbolic | Analyze a pure function and attach/return its symbolic spec |
 | `.SPECCABILITY` | function | Symbolic | Report whether a pure function can be represented by the exact symbolic subset |
+| `.SPECFRACTIONPARTS` | function | Symbolic | Split a symbolic top-level fraction into numerator and denominator specs |
 | `.SPECROLES` | function | Symbolic | Resolve all symbols and input/output roles, with optional role overrides |
 | `.SPLIT` | lazy function | — | Split a collection by a delimiter or predicate |
 | `.SQRT` | function | — | Square root (approximate rational) |
@@ -205,7 +206,9 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.VALUES` | function | Core, Maps | Get the values of a map as a set (obj\|.) |
 | `.VIDEO` | function | — | Create a portable video asset |
 | `.WARN` | function | — | Emit a warning event: .Warn(label, dataMap ?= {=}) |
-| `.algebra` | function | — | Canonical exact univariate polynomials with verified division and portable synthetic-division Grids. |
+| `.algebra` | function | — | Polynomial algebra façade backed by the canonical pure-RiX poly service. |
+| `.algebraicreal` | function | — | Exact real algebraic roots certified by canonical Polynomial values and Sturm isolating intervals. |
+| `.ar` | function | — | Exact real algebraic roots certified by canonical Polynomial values and Sturm isolating intervals. |
 | `.ball` | function | — | Certified rational midpoint-radius balls and nested square-root refinement. |
 | `.canvas` | function | — | Serializable Canvas 2D drawing plans for core Graphics scenes. |
 | `.cauchy` | function | — | Rational Cauchy sequences with explicit certified tail bounds and moduli. |
@@ -353,7 +356,7 @@ Imported scripts can add or withhold named groups. Permission-like names are int
 | `Files` | `FILES` |
 | `Units` | `UNITS`, `Units`, `CONVERTUNIT`, `ConvertUnit`, `DEFINEUNIT`, `DefineUnit` |
 | `Exact` | `EXACT`, `Exact`, `COMPLEX`, `Complex`, `DEFINEEXACTGENERATOR`, `DefineExactGenerator`, `exactalgebras` |
-| `Symbolic` | `POLY`, `DERIV`, `INTEGRATE`, `TRANSFORM`, `SIMPLIFY`, `SPEC`, `SPECCABILITY`, `INSPECTSPEC`, `SPECROLES`, `SArith` |
+| `Symbolic` | `POLY`, `DERIV`, `INTEGRATE`, `TRANSFORM`, `SIMPLIFY`, `SPEC`, `SPECCABILITY`, `INSPECTSPEC`, `SPECROLES`, `SPECFRACTIONPARTS`, `SArith` |
 | `Notation` | `SArith`, `Poly`, `NotationParser` |
 | `Random` | `RNG`, `RANDOMSEED`, `RandomSeed`, `RAND_NAME` |
 | `RiXCel` | `FORMULASHEET`, `REACTIVEGRAPH`, `RIXCELEXPORT`, `RIXCELIMPORT`, `RIXCELIMPORTCSV`, `RIXCELIMPORTTSV`, `RIXCELEXPORTCSV`, `RIXCELEXPORTTSV` |

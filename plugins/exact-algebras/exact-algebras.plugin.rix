@@ -1,0 +1,216 @@
+/**
+id: exact-algebras
+description: Exact rational quaternion and octonion values.
+kind: rix
+mount: exactAlgebras
+exports: [Quaternion, Octonion, Components, Conjugate, NormSquared, Inverse]
+groups: [Exact]
+permissions: []
+provides: [rix.exact-algebras@1]
+schemas: [rix.exact-cayley-dickson@1]
+snapshot: true
+deterministic: true
+defaultEnabled: false
+**/
+
+ExactAlgebraRational(value, label ?= "component") -> {;
+    exact = value ~!: :Rational;
+    exact == _ ?: .Error(@"Exact algebra @{label} must be an Integer or Rational") ?_ exact;
+};
+
+ExactAlgebraZeroes(count) -> {;
+    result := [];
+    {@ index = 1; index <= @count; {; @result ~= @result.Push(0); }; index += 1 };
+    result;
+};
+
+ExactAlgebraConcat(left, right) -> {;
+    result := left.Map((value) -> value);
+    {@ index = 1; index <= @right.Len(); {; @result ~= @result.Push(@right[index]); }; index += 1 };
+    result;
+};
+
+ExactAlgebraValue(components) -> {;
+    dimension = components.Len();
+    dimension == 4 || dimension == 8
+      ?: _
+      ?_ .Error("Exact Cayley-Dickson values require 4 or 8 components");
+    value = {=
+        valueKind = dimension == 4 ?: :exactQuaternion ?_ :exactOctonion,
+        schema = "rix.exact-cayley-dickson@1",
+        type = dimension == 4 ?: :exact_quaternion ?_ :exact_octonion,
+        dimension = dimension,
+        components = components.Map((component) -> ExactAlgebraRational(component))
+    };
+    value.__type = "ExactAlgebra";
+    value._type = dimension == 4 ?: "exact_quaternion" ?_ "exact_octonion";
+    value._proto = {=
+        Components = (self) -> self[:components],
+        Conjugate = (self) -> ExactAlgebraConjugate(self),
+        NormSquared = (self) -> ExactAlgebraNormSquared(self),
+        Inverse = (self) -> ExactAlgebraInverse(self),
+        Record = (self) -> self
+    };
+    .ImmutableValue(value);
+};
+
+ExactAlgebraConstruct(dimension, name, values) -> {;
+    values.Len() <= dimension ?: _ ?_ .Error(@"@{name} accepts at most @{dimension} components");
+    ExactAlgebraValue(ExactAlgebraConcat(values, ExactAlgebraZeroes(dimension - values.Len())));
+};
+
+ExactQuaternion(a ?= 0, b ?= 0, c ?= 0, d ?= 0) -> ExactAlgebraConstruct(4, "Quaternion", [a,b,c,d]);
+ExactOctonion(a ?= 0, b ?= 0, c ?= 0, d ?= 0, e ?= 0, f ?= 0, g ?= 0, h ?= 0) ->
+    ExactAlgebraConstruct(8, "Octonion", [a,b,c,d,e,f,g,h]);
+
+ExactAlgebraIs(value) -> value ? :ExactAlgebra;
+ExactAlgebraRequire(value, label ?= "value") -> ExactAlgebraIs(value) ?: value ?_ .Error(@"@{label} must be a quaternion or octonion");
+ExactAlgebraScalar(value) -> (value ? :Integer) || (value ? :Rational);
+ExactAlgebraOperand(value) -> ExactAlgebraIs(value) || ExactAlgebraScalar(value);
+
+ExactAlgebraConjugateSplit(components) -> {;
+    half = components.Len() // 2;
+    ExactAlgebraConcat(ExactAlgebraConjugateComponents(components.Slice(1,half+1)), components.Slice(half+1).Map((value) -> -value));
+};
+
+ExactAlgebraConjugateComponents(components) ->
+    components.Len() == 1 ?: components ?_ ExactAlgebraConjugateSplit(components);
+
+ExactAlgebraAddComponents(left, right) -> {;
+    result := [];
+    {@ index = 1; index <= @left.Len(); {;
+        @result ~= @result.Push(@left[index] + @right[index]);
+    }; index += 1 };
+    result;
+};
+
+ExactAlgebraSubtractComponents(left, right) -> {;
+    result := [];
+    {@ index = 1; index <= @left.Len(); {;
+        @result ~= @result.Push(@left[index] - @right[index]);
+    }; index += 1 };
+    result;
+};
+
+ExactAlgebraMultiplySplit(left, right) -> {;
+    half = left.Len() // 2;
+    a = left.Slice(1,half+1);
+    b = left.Slice(half+1);
+    c = right.Slice(1,half+1);
+    d = right.Slice(half+1);
+    ExactAlgebraConcat(ExactAlgebraSubtractComponents(
+        ExactAlgebraMultiplyComponents(a, c),
+        ExactAlgebraMultiplyComponents(ExactAlgebraConjugateComponents(d), b)
+    ), ExactAlgebraAddComponents(
+        ExactAlgebraMultiplyComponents(d, a),
+        ExactAlgebraMultiplyComponents(b, ExactAlgebraConjugateComponents(c))
+    ));
+};
+
+ExactAlgebraMultiplyComponents(left, right) ->
+    left.Len() == 1 ?: [left[1] * right[1]] ?_ ExactAlgebraMultiplySplit(left, right);
+
+ExactAlgebraDimensionBoth(left, right) ->
+    left[:dimension] == right[:dimension]
+      ?: left[:dimension]
+      ?_ .Error("Quaternion and octonion operands must have the same dimension");
+ExactAlgebraDimensionLeft(left, right) ->
+    ExactAlgebraIs(right) ?: ExactAlgebraDimensionBoth(left, right) ?_ left[:dimension];
+ExactAlgebraDimensionRight(right) -> ExactAlgebraIs(right) ?: right[:dimension] ?_ _;
+ExactAlgebraDimension(left, right) ->
+    ExactAlgebraIs(left) ?: ExactAlgebraDimensionLeft(left, right) ?_ ExactAlgebraDimensionRight(right);
+
+ExactAlgebraPromote(value, dimension) -> {;
+    ExactAlgebraIs(value)
+      ?: (value[:dimension] == dimension ?: value ?_ .Error("Quaternion and octonion operands must have the same dimension"))
+      ?_ ExactAlgebraValue(ExactAlgebraConcat([ExactAlgebraRational(value, "scalar operand")], ExactAlgebraZeroes(dimension - 1)));
+};
+
+ExactAlgebraPair(left, right) -> {;
+    dimension = ExactAlgebraDimension(left, right);
+    dimension == _ ?: .Error("Exact algebra operation requires a quaternion or octonion") ?_ _;
+    a = ExactAlgebraPromote(left, dimension);
+    b = ExactAlgebraPromote(right, dimension);
+    {= left=a[:components], right=b[:components] };
+};
+
+ExactAlgebraAdd(left, right) -> {; pair=ExactAlgebraPair(left,right); ExactAlgebraValue(ExactAlgebraAddComponents(pair[:left],pair[:right])); };
+ExactAlgebraSubtract(left, right) -> {; pair=ExactAlgebraPair(left,right); ExactAlgebraValue(ExactAlgebraSubtractComponents(pair[:left],pair[:right])); };
+ExactAlgebraMultiply(left, right) -> {; pair=ExactAlgebraPair(left,right); ExactAlgebraValue(ExactAlgebraMultiplyComponents(pair[:left],pair[:right])); };
+ExactAlgebraNegate(value) -> ExactAlgebraValue(ExactAlgebraRequire(value)[:components].Map((component) -> -component));
+ExactAlgebraConjugate(value) -> ExactAlgebraValue(ExactAlgebraConjugateComponents(ExactAlgebraRequire(value)[:components]));
+
+ExactAlgebraNormSquared(value) -> {;
+    exact = ExactAlgebraRequire(value);
+    total := 0;
+    {@ index = 1; index <= @exact[:components].Len(); {;
+        component = @exact[:components][index];
+        @total += component * component;
+    }; index += 1 };
+    total;
+};
+
+ExactAlgebraInverse(value) -> {;
+    exact = ExactAlgebraRequire(value);
+    norm = ExactAlgebraNormSquared(exact);
+    norm != 0 ?: _ ?_ .Error("Zero has no multiplicative inverse");
+    ExactAlgebraValue(ExactAlgebraConjugateComponents(exact[:components]).Map((component) -> component / norm));
+};
+
+ExactAlgebraDivideScalar(left, right) -> {;
+    divisor = ExactAlgebraRational(right, "divisor");
+    divisor != 0 ?: _ ?_ .Error("Division by zero");
+    value = ExactAlgebraPromote(left, ExactAlgebraDimension(left, right));
+    ExactAlgebraValue(value[:components].Map((component) -> component / divisor));
+};
+
+ExactAlgebraDivide(left, right) ->
+    ExactAlgebraIs(right)
+      ?: ExactAlgebraMultiply(left, ExactAlgebraInverse(right))
+      ?_ ExactAlgebraDivideScalar(left, right);
+
+ExactAlgebraEqualDimension(left, right, dimension) -> {;
+    a = ExactAlgebraPromote(left, dimension)[:components];
+    b = ExactAlgebraPromote(right, dimension)[:components];
+    equal := 1;
+    {@ index = 1; index <= @a.Len() && @equal == 1; {;
+        @a[index] == @b[index] ?: _ ?_ {; @equal ~= 0; };
+    }; index += 1 };
+    equal;
+};
+
+ExactAlgebraEqual(left, right) -> {;
+    dimension = ExactAlgebraDimension(left, right);
+    dimension == _ ?: 0 ?_ ExactAlgebraEqualDimension(left, right, dimension);
+};
+
+.TypeKnown(:ExactAlgebra) ?: _ ?_ .TypeRegister({=
+    name = :ExactAlgebra,
+    nativeType = :map,
+    defaultTraits = [:number],
+    validate = (value) -> value[:schema] == "rix.exact-cayley-dickson@1",
+    proto = {= },
+    installs = {=
+        ADD = [{= name=:ExactAlgebraAdd, prep=(left,right)->ExactAlgebraOperand(left)&&ExactAlgebraOperand(right)&&(ExactAlgebraIs(left)||ExactAlgebraIs(right)), impl=ExactAlgebraAdd }],
+        SUB = [{= name=:ExactAlgebraSub, prep=(left,right)->ExactAlgebraOperand(left)&&ExactAlgebraOperand(right)&&(ExactAlgebraIs(left)||ExactAlgebraIs(right)), impl=ExactAlgebraSubtract }],
+        MUL = [{= name=:ExactAlgebraMul, prep=(left,right)->ExactAlgebraOperand(left)&&ExactAlgebraOperand(right)&&(ExactAlgebraIs(left)||ExactAlgebraIs(right)), impl=ExactAlgebraMultiply }],
+        DIV = [{= name=:ExactAlgebraDiv, prep=(left,right)->ExactAlgebraIs(left)&&ExactAlgebraOperand(right), impl=ExactAlgebraDivide }],
+        NEG = [{= name=:ExactAlgebraNeg, prep=(value)->ExactAlgebraIs(value), impl=ExactAlgebraNegate }],
+        EQ = [{= name=:ExactAlgebraEq, prep=(left,right)->ExactAlgebraOperand(left)&&ExactAlgebraOperand(right)&&(ExactAlgebraIs(left)||ExactAlgebraIs(right)), impl=(left,right)->ExactAlgebraEqual(left,right) ?: 1 ?_ _ }],
+        NEQ = [{= name=:ExactAlgebraNeq, prep=(left,right)->ExactAlgebraOperand(left)&&ExactAlgebraOperand(right)&&(ExactAlgebraIs(left)||ExactAlgebraIs(right)), impl=(left,right)->ExactAlgebraEqual(left,right) ?: _ ?_ 1 }]
+    }
+});
+
+.TypeInstall(:ExactAlgebra);
+
+exactAlgebrasNamespace = {= };
+exactAlgebrasNamespace._proto = {=
+    Quaternion = (self, a ?= 0, b ?= 0, c ?= 0, d ?= 0) -> ExactQuaternion(a,b,c,d),
+    Octonion = (self, a ?= 0, b ?= 0, c ?= 0, d ?= 0, e ?= 0, f ?= 0, g ?= 0, h ?= 0) -> ExactOctonion(a,b,c,d,e,f,g,h),
+    Components = (self, value) -> ExactAlgebraRequire(value)[:components],
+    Conjugate = (self, value) -> ExactAlgebraConjugate(value),
+    NormSquared = (self, value) -> ExactAlgebraNormSquared(value),
+    Inverse = (self, value) -> ExactAlgebraInverse(value)
+};
+
+.Host.RegisterValue("exactAlgebras", exactAlgebrasNamespace, "Exact rational quaternion and octonion constructors and operations", ["Exact"]);

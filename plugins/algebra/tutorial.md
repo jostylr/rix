@@ -35,7 +35,7 @@ metadata. Its Grid is the same portable layout family as intrinsic
 .Plugin.Load("algebra");
 P := .p`x^3 - 6x^2 + 11x - 6`;
 Factor := .p`x - 2`;
-division := P.SyntheticDiv(2);
+division := .algebra.SyntheticDivide(P, 2);
 quotient := division.Quotient().Coefficients();
 remainder := division.Remainder().Coefficients();
 isFactor := P.IsFactor(Factor);

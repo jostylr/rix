@@ -5,6 +5,11 @@ exact rational coefficients. It is also available as `.rationalFunction` and
 `.rf`; all three names refer to the same loaded plugin value. Loading it
 automatically loads `.poly`. Loading `.algebra` automatically loads both.
 
+Canonicalization, arithmetic, composition, symbolic conversion, and receiver
+methods are implemented in RiX over the single pure-RiX Polynomial identity.
+`ratfun.reference.js` and `rational-function.js` are retained only as comparison
+and compatibility sources for the still-host-backed `.fracfun` package.
+
 ```rix
 .Plugin.Load("ratfun");
 R := .rf`(x^2 - 1)/(x - 1)`;

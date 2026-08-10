@@ -1,4 +1,4 @@
-import { Integer } from "@ratmath/core";
+import { Fraction, Integer, Rational } from "@ratmath/core";
 import { parse } from "../../parser/parser.js";
 import { resolveMethod } from "../../runtime/methods.js";
 import { lower } from "../lower.js";
@@ -181,6 +181,27 @@ function scopeSArith(args) {
     );
 }
 
+function exactFractionInteger(value, label) {
+    if (value instanceof Integer) return value.value;
+    if (value instanceof Rational && value.denominator === 1n) return value.numerator;
+    throw new Error(`${label} must be an exact integer`);
+}
+
+function structuralFraction(args) {
+    const numerator = exactFractionInteger(args[1], ".SArith.Fraction numerator");
+    const denominator = exactFractionInteger(args[2], ".SArith.Fraction denominator");
+    return new Fraction(numerator, denominator, { allowInfinite: denominator === 0n });
+}
+
+function structuralFractionParts(args) {
+    const value = args[1];
+    if (!(value instanceof Fraction)) throw new Error(".SArith.FractionParts expects a Fraction");
+    return {
+        type: "tuple",
+        values: [new Integer(value.numerator), new Integer(value.denominator)],
+    };
+}
+
 export function createSArithSystemValue(operators = null, algebraProfile = null) {
     const parseMethod = {
         type: "method_builtin",
@@ -197,6 +218,16 @@ export function createSArithSystemValue(operators = null, algebraProfile = null)
         name: "Scope",
         impl: scopeSArith,
     };
+    const fractionMethod = {
+        type: "method_builtin",
+        name: "Fraction",
+        impl: structuralFraction,
+    };
+    const fractionPartsMethod = {
+        type: "method_builtin",
+        name: "FractionParts",
+        impl: structuralFractionParts,
+    };
     return {
         type: "structural_parser",
         name: "SArith",
@@ -209,6 +240,10 @@ export function createSArithSystemValue(operators = null, algebraProfile = null)
             ["CONFIGURE", configureMethod],
             ["Scope", scopeMethod],
             ["SCOPE", scopeMethod],
+            ["Fraction", fractionMethod],
+            ["FRACTION", fractionMethod],
+            ["FractionParts", fractionPartsMethod],
+            ["FRACTIONPARTS", fractionPartsMethod],
         ]),
     };
 }
@@ -250,7 +285,13 @@ export function createPolySystemValue() {
 
 function callRegisteredParser(parserName, body, modifiers, meta, context, evaluate, systemContext) {
     if (!systemContext) throw new Error("No system context is available for embedded parsing");
-    const entry = systemContext.get(parserName);
+    const visibleEntry = systemContext.get(parserName);
+    // A RiX plugin loaded earlier in the same source updates the shared host
+    // registry after parsing has already captured this visible capability
+    // frame. Prefer that live entry when the visible one is still the
+    // catalog's disabled placeholder.
+    const hostEntry = systemContext._hostContext?.get?.(parserName);
+    const entry = hostEntry && !hostEntry.pluginDisabled ? hostEntry : visibleEntry;
     if (!entry) {
         throw new Error(`Unknown backtick parser '.${parserName}'`);
     }
@@ -278,15 +319,30 @@ function callRegisteredParser(parserName, body, modifiers, meta, context, evalua
         },
         parseInfoValue(meta),
     ];
-    if (parseMethod?.type === "method_builtin") {
-        return parseMethod.impl(
-            [parserObject, ...callArgs],
-            context,
-            evaluate,
-            callWithConcreteArgs,
-        );
+    const envKey = "__embedded_caller_scopes__";
+    const hadCallerScopes = context.env.has(envKey);
+    const priorCallerScopes = context.getEnv(envKey, null);
+    context.setEnv(envKey, [{
+        bindings: context.globalScope,
+        scopedEnv: context.globalScopedEnv,
+        isolated: false,
+        readThrough: true,
+        callableBoundary: false,
+    }, ...context.captureClosureScopes()]);
+    try {
+        if (parseMethod?.type === "method_builtin") {
+            return parseMethod.impl(
+                [parserObject, ...callArgs],
+                context,
+                evaluate,
+                callWithConcreteArgs,
+            );
+        }
+        return callWithConcreteArgs(parseMethod, [parserObject, ...callArgs], context, evaluate);
+    } finally {
+        if (hadCallerScopes) context.setEnv(envKey, priorCallerScopes);
+        else context.env.delete(envKey);
     }
-    return callWithConcreteArgs(parseMethod, [parserObject, ...callArgs], context, evaluate);
 }
 
 function notationParserCapability(args) {

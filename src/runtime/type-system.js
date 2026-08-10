@@ -124,6 +124,18 @@ class ImmutableSemanticRegistry {
         return entry;
     }
 
+    replace(spec) {
+        const name = colonName(spec?.name);
+        if (!name) throw new Error(`${this.kind} registration requires a name`);
+        const previous = this.entries.get(name);
+        if (!previous) return this.register(spec);
+        for (const [alias, target] of this.aliases) {
+            if (target === name) this.aliases.delete(alias);
+        }
+        this.entries.delete(name);
+        return this.register(spec);
+    }
+
     get(name) {
         const key = colonName(name);
         if (!key) return null;
@@ -141,6 +153,7 @@ class ImmutableSemanticRegistry {
 
 export const traitRegistry = new ImmutableSemanticRegistry("trait");
 export const typeRegistry = new ImmutableSemanticRegistry("type");
+const builtinTypeNames = new Set();
 
 export function registerTrait(spec) {
     return traitRegistry.register(spec);
@@ -148,6 +161,19 @@ export function registerTrait(spec) {
 
 export function registerType(spec) {
     return typeRegistry.register(spec);
+}
+
+export function replaceRegisteredType(spec) {
+    const name = colonName(spec?.name);
+    if (builtinTypeNames.has(name)) throw new Error(`Cannot replace built-in type: ${name}`);
+    return typeRegistry.replace(spec);
+}
+
+export function typeKnownInContext(name, context = null) {
+    const entry = typeRegistry.get(name);
+    if (!entry) return false;
+    if (builtinTypeNames.has(entry.name)) return true;
+    return context?.getEnv?.("__rix_registered_types__", null)?.has(entry.name) === true;
 }
 
 export function resolveTraitNames(names) {
@@ -641,6 +667,7 @@ export function registerBuiltinSemanticTypes() {
     registerType({ name: "Matrix", nativeType: "Matrix", parent: "Tensor", defaultTraits: ["tensor"], convert: (value) => value, proto: () => makeProto([["Describe", valueMethod("Describe", () => stringObj("type:matrix"))]]) });
     registerType({ name: "Vector", nativeType: "Vector", defaultTraits: [], convert: (value) => value, proto: () => makeProto([["Describe", valueMethod("Describe", () => stringObj("type:vector"))], ["KIND", valueMethod("KIND", () => stringObj("type:vector"))]]) });
 
+    for (const name of typeRegistry.list()) builtinTypeNames.add(name);
     builtinsRegistered = true;
 }
 
@@ -805,10 +832,17 @@ function variantsFromRixList(value, context = null) {
             throw new Error("Type install variants must be map specs");
         }
         const name = colonName(mapGet(item, "name")) || `Variant${index + 1}`;
+        const priorityValue = mapGet(item, "priority");
+        const priority = priorityValue instanceof Integer
+            ? Number(priorityValue.value)
+            : priorityValue instanceof Rational && priorityValue.denominator === 1n
+                ? Number(priorityValue.numerator)
+                : undefined;
         return {
             name,
             prep: callableVariantHook(captureHook(mapGet(item, "prep"), context), "prep"),
             impl: callableVariantHook(captureHook(mapGet(item, "impl"), context), "impl"),
+            ...(Number.isFinite(priority) ? { priority } : {}),
         };
     });
 }
@@ -840,7 +874,7 @@ export function registerTypeFromRixSpec(spec, context = null) {
         throw new Error("TypeRegister expects a map spec");
     }
     const proto = protoFromRixMap(mapGet(spec, "proto"), context) || makeProto();
-    return registerType({
+    const registration = {
         name: colonName(mapGet(spec, "name")),
         aliases: listNames(mapGet(spec, "aliases")),
         nativeType: colonName(mapGet(spec, "nativeType")),
@@ -856,7 +890,16 @@ export function registerTypeFromRixSpec(spec, context = null) {
         proto: () => proto,
         installs: installsFromRixMap(mapGet(spec, "installs"), context),
         display: captureHook(mapGet(spec, "display") || null, context),
-    });
+    };
+    const entry = typeRegistry.has(registration.name)
+        ? replaceRegisteredType(registration)
+        : registerType(registration);
+    if (context?.getEnv && context?.setEnv) {
+        const registered = context.getEnv("__rix_registered_types__", new Set());
+        registered.add(entry.name);
+        context.setEnv("__rix_registered_types__", registered);
+    }
+    return entry;
 }
 
 registerBuiltinSemanticTypes();

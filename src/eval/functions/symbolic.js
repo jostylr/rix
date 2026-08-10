@@ -1,5 +1,9 @@
 import { Integer, Rational } from "@ratmath/core";
 import { runtimeDefaults } from "../../runtime/runtime-config.js";
+import {
+    sortedStructuralFreeSymbols,
+    structuralValueToIr,
+} from "../../runtime/structural-arithmetic.js";
 
 const BINARY_TEXT = new Map([
     ["ADD", "+"], ["SUB", "-"], ["MUL", "*"], ["DIV", "/"],
@@ -209,7 +213,14 @@ export function formatSymbolicSpec(spec) {
 
 function serializeIr(node) {
     if (!node?.fn) return rixString(String(node));
-    if (node.fn === "LITERAL") return rixMap([["kind", rixString("number")], ["value", rixString(node.args[0])]]);
+    if (node.fn === "LITERAL") {
+        const text = String(node.args[0]);
+        return rixMap([
+            ["kind", rixString("number")],
+            ["value", rixString(text)],
+            ...(/^-?\d+$/.test(text) ? [["integer", new Integer(BigInt(text))]] : []),
+        ]);
+    }
     if (node.fn === "RETRIEVE") return rixMap([["kind", rixString("identifier")], ["name", rixString(node.args[0])]]);
     if (node.fn === "OUTER_RETRIEVE") return rixMap([["kind", rixString("outer")], ["name", rixString(node.args[0])]]);
     if (node.fn === "NEG") return rixMap([["kind", rixString("unary")], ["op", rixString("-")], ["expr", serializeIr(node.args[0])]]);
@@ -1074,8 +1085,78 @@ export function installSymbolicVariants(registry) {
     });
 }
 
+function polynomialVariableValue(value) {
+    if (value === null || value === undefined) return null;
+    if (typeof value === "string") return value;
+    if (value?.type === "string") return value.value;
+    throw new Error("Poly structural variable must be a colon-string or string");
+}
+
+function polynomialCallerScopes(context) {
+    const embedded = context?.getEnv?.("__embedded_caller_scopes__", null);
+    if (embedded) return embedded;
+    const global = context?.globalScope instanceof Map ? [{
+        bindings: context.globalScope,
+        scopedEnv: context.globalScopedEnv,
+        isolated: false,
+        readThrough: true,
+        callableBoundary: false,
+    }] : [];
+    return [...global, ...(context?.captureClosureScopes?.() || [])];
+}
+
+function compilePolynomialValue(args, context) {
+    const [value, variableValue = null] = args;
+    if (value?.type?.startsWith?.("structural_") || value?.constructor?.name === "Fraction") {
+        const symbols = sortedStructuralFreeSymbols(value);
+        const requested = polynomialVariableValue(variableValue);
+        const variable = requested ?? (symbols.length === 1 ? symbols[0] : symbols.length === 0 ? "x" : null);
+        if (!variable) {
+            throw new Error(`Poly structural form has multiple symbols (${symbols.join(", ")}); select one explicitly`);
+        }
+        return polyFromSpec(createSymbolicSpec({
+            inputs: [variable],
+            outputMode: "expression",
+            expression: structuralValueToIr(value),
+            origin: ".Poly structural compiler",
+            __closureScopes: polynomialCallerScopes(context),
+        }, context));
+    }
+    const source = getAttachedSpec(value) || value;
+    if (!isSymbolicSpec(source)) return polyFromSpec(source);
+    const expression = expressionOf(source);
+    const referencedNames = retrieveNames(expression);
+    for (const input of source.inputs || []) referencedNames.delete(input);
+    return polyFromSpec(specWithExpression(source, expression, {
+        __closureScopes: unionScopes([
+            source.__closureScopes || [],
+            polynomialCallerScopes(context),
+        ], referencedNames),
+    }));
+}
+
+function symbolicFractionParts(value, context) {
+    const source = getAttachedSpec(value) || value;
+    if (!isSymbolicSpec(source)) throw new Error("SpecFractionParts expects a symbolic specification");
+    const expression = expressionOf(source);
+    const wrap = (part) => createSymbolicSpec({
+        inputs: source.inputs,
+        outputMode: "expression",
+        expression: part,
+        imports: source.imports,
+        __closureScopes: source.__closureScopes,
+        origin: source.origin || ".SpecFractionParts",
+    }, context);
+    return {
+        type: "tuple",
+        values: expression?.fn === "DIV"
+            ? [wrap(expression.args[0]), wrap(expression.args[1])]
+            : [source, null],
+    };
+}
+
 export const symbolicCapabilities = {
-    POLY: { impl: ([value]) => polyFromSpec(getAttachedSpec(value) || value), pure: true, doc: "Compile a single-output symbolic spec into an exact callable" },
+    POLY: { impl: (args, context) => compilePolynomialValue(args, context), pure: true, doc: "Compile a symbolic spec or structural arithmetic form into an exact callable" },
     DERIV: { impl: ([value, variable]) => calculus(value, variable, "Deriv"), pure: true, doc: "Differentiate a symbolic spec or spec-backed function exactly" },
     INTEGRATE: { impl: ([value, variable]) => calculus(value, variable, "Integrate"), pure: true, doc: "Integrate a supported symbolic spec or spec-backed function exactly" },
     TRANSFORM: { impl: (args) => transformValue(args), pure: true, doc: "Apply ordered exact symbolic transformations" },
@@ -1084,6 +1165,7 @@ export const symbolicCapabilities = {
     SPECCABILITY: { impl: ([value]) => speccabilityValue(value), pure: true, doc: "Report whether a pure function can be represented by the exact symbolic subset" },
     INSPECTSPEC: { impl: ([value]) => inspectSymbolicSpec(getAttachedSpec(value) || value), pure: true, doc: "Return the structural inspection map for a symbolic spec" },
     SPECROLES: { impl: ([value, overrides = null]) => symbolicRolesValue(value, overrides), pure: true, doc: "Resolve all symbols and input/output roles, with optional role overrides" },
+    SPECFRACTIONPARTS: { impl: ([value], context) => symbolicFractionParts(value, context), pure: true, doc: "Split a symbolic top-level fraction into numerator and denominator specs" },
 };
 
 export const symbolicFunctions = {

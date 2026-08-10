@@ -101,10 +101,10 @@ the same case-insensitive name.
 
 ## Bundled exact algebras
 
-The opt-in `exact-algebras` host plugin is the initial exact quaternion and
+The opt-in `exact-algebras` pure-RiX plugin is the initial exact quaternion and
 octonion extension. Its coefficients remain core `Integer` or `Rational`
 values, and loading it installs exact variants for ordinary arithmetic and
-equality operators.
+equality operators through `.TypeRegister`/`.TypeInstall`.
 
 ```rix
 .Plugin.Load("exact-algebras");

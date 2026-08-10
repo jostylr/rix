@@ -1,0 +1,82 @@
+/**
+id: algebra
+description: Polynomial algebra façade backed by the canonical pure-RiX poly service.
+kind: rix
+mount: algebra
+exports: [Polynomial, Coefficients, Record, Evaluate, Equal, Divide, SyntheticDivide, Quotient, Remainder, IsFactor, Grid]
+groups: [Algebra, Exact]
+permissions: []
+requires: [rix.polynomial.algorithms@1, rix.rational-function@1]
+provides: [rix.algebra.division@1]
+schemas: [rix.algebra.division@1, rix.polynomial.division@1]
+snapshot: false
+deterministic: true
+defaultEnabled: false
+**/
+
+AlgebraDivision(core, method, grid ?= _) -> {;
+    division = {=
+        valueKind = :algebraDivision,
+        schema = "rix.algebra.division@1",
+        method = method,
+        exact = 1,
+        core = core,
+        identity = {=
+            relation = "dividend = divisor * quotient + remainder",
+            verified = core[:verified]
+        },
+        factor = {=
+            divisorIsFactor = core[:divisorIsFactor] ?: 1 ?_ 0,
+            status = core[:divisorIsFactor] ?: :exactFactor ?_ :nonzeroRemainder
+        },
+        grid = grid
+    };
+    division.__type = "PolynomialDivision";
+    division._proto = {=
+        Quotient = (self) -> self[:core][:quotient],
+        Remainder = (self) -> self[:core][:remainder],
+        IsFactor = (self) -> self[:core][:divisorIsFactor],
+        Grid = (self) -> AlgebraGrid(self),
+        Record = (self) -> self
+    };
+    .ImmutableValue(division);
+};
+
+AlgebraRequireDivision(value) -> {;
+    valid = value ? :Map ?: value[:schema] == "rix.algebra.division@1" ?_ _;
+    valid ?: value ?_ .Error("Expected an algebra division result");
+};
+AlgebraDivide(dividend, divisor) -> AlgebraDivision(.poly.Divide(dividend, divisor), :long);
+AlgebraSyntheticDivide(polynomial, root) -> {;
+    core = .poly.SyntheticDivide(polynomial, root);
+    grid = .Algebra.SyntheticDivision(root, polynomial.Coefficients());
+    AlgebraDivision(core, :synthetic, grid);
+};
+AlgebraGrid(division) -> {;
+    value = AlgebraRequireDivision(division);
+    (value[:method] == :synthetic && value[:grid] != _)
+      ?: value[:grid]
+      ?_ .Error("algebra.Grid requires a SyntheticDivide result");
+};
+
+algebraNamespace = {= };
+algebraNamespace._proto = {=
+    Polynomial = (self, source, second ?= _) -> .poly(source, second),
+    Coefficients = (self, polynomial, order ?= :descending) -> polynomial.Coefficients(order),
+    Record = (self, polynomial) -> polynomial.Record(),
+    Evaluate = (self, polynomial, value) -> polynomial.Evaluate(value),
+    Equal = (self, left, right) -> left == right,
+    Divide = (self, dividend, divisor) -> AlgebraDivide(dividend, divisor),
+    SyntheticDivide = (self, polynomial, root) -> AlgebraSyntheticDivide(polynomial, root),
+    Quotient = (self, division) -> division.Quotient(),
+    Remainder = (self, division) -> division.Remainder(),
+    IsFactor = (self, dividend, candidate) -> dividend.IsFactor(candidate) ?: 1 ?_ 0,
+    Grid = (self, division) -> AlgebraGrid(division)
+};
+
+.Host.RegisterValue(
+    "algebra",
+    algebraNamespace,
+    "Polynomial algebra façade backed by .poly",
+    ["Algebra", "Exact"]
+);

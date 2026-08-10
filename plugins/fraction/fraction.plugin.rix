@@ -1,0 +1,352 @@
+/**
+id: fraction
+description: Representation-sensitive unreduced integer fractions with mediant and classroom addition policies.
+kind: rix
+mount: fraction
+aliases: [frac, f]
+exports: [Fraction, Parse, FromSternBrocotPath]
+groups: [Algebra, Exact, Symbolic]
+permissions: []
+provides: [rix.fraction@1]
+schemas: [rix.fraction@1]
+snapshot: true
+deterministic: true
+defaultEnabled: false
+**/
+
+FractionInteger(value, label) -> {;
+    exact = value ~!: :Integer;
+    exact == _ ?: .Error(@"@{label} must be an exact integer") ?_ exact;
+};
+
+FractionParts(value) -> .SArith.FractionParts(value);
+FractionNumerator(value) -> FractionParts(value)[1];
+FractionDenominator(value) -> FractionParts(value)[2];
+FractionIsInfinite(value) -> FractionDenominator(value) == 0;
+
+FractionRaw(numerator, denominator ?= 1) ->
+    .SArith.Fraction(FractionInteger(numerator, "Fraction numerator"), FractionInteger(denominator, "Fraction denominator"));
+
+FractionPromote(value, label ?= "value") -> {;
+    value ? :Fraction
+      ?: value
+      ?_ (value ? :Integer
+          ?: FractionRaw(value, 1)
+          ?_ (value ? :Rational
+              ?: FractionRaw(value.Numerator(), value.Denominator())
+              ?_ .Error(@"@{label} must be a Fraction, Rational, or exact integer")));
+};
+
+FractionFinite(value, label ?= "Fraction") -> {;
+    exact = FractionPromote(value, label);
+    FractionIsInfinite(exact) ?: .Error(@"@{label} must be finite") ?_ exact;
+};
+
+FractionNormalize(value) -> {;
+    exact = FractionFinite(value);
+    numerator = FractionNumerator(exact);
+    denominator = FractionDenominator(exact);
+    denominator < 0
+      ?: {= numerator=-numerator, denominator=-denominator }
+      ?_ {= numerator=numerator, denominator=denominator };
+};
+
+FractionGcd(left, right) -> {;
+    a := left.Abs();
+    b := right.Abs();
+    {@ step = 1; @b != 0; {;
+        remainder = @a % @b;
+        @a ~= @b;
+        @b ~= remainder;
+    }; step += 1 };
+    a;
+};
+
+FractionLcm(left, right) -> left == 0 || right == 0 ?: 0 ?_ (left // FractionGcd(left, right)) * right;
+
+FractionCrossAdd(leftValue, rightValue, subtract ?= _) -> {;
+    left = FractionFinite(leftValue, "left Fraction operand");
+    right = FractionFinite(rightValue, "right Fraction operand");
+    incoming = subtract ?: -FractionNumerator(right) ?_ FractionNumerator(right);
+    FractionRaw(
+        FractionNumerator(left) * FractionDenominator(right) + incoming * FractionDenominator(left),
+        FractionDenominator(left) * FractionDenominator(right)
+    );
+};
+
+FractionMultiply(leftValue, rightValue) -> {;
+    left = FractionPromote(leftValue, "left Fraction operand");
+    right = FractionPromote(rightValue, "right Fraction operand");
+    FractionRaw(FractionNumerator(left) * FractionNumerator(right), FractionDenominator(left) * FractionDenominator(right));
+};
+
+FractionDivide(leftValue, rightValue) -> {;
+    left = FractionPromote(leftValue, "left Fraction operand");
+    right = FractionPromote(rightValue, "right Fraction operand");
+    FractionNumerator(right) != 0 ?: _ ?_ .Error("Division by zero Fraction");
+    FractionRaw(FractionNumerator(left) * FractionDenominator(right), FractionDenominator(left) * FractionNumerator(right));
+};
+
+FractionPower(value, exponent) -> {;
+    exact = FractionPromote(value);
+    power = FractionInteger(exponent, "Fraction exponent");
+    power == 0
+      ?: FractionRaw(1,1)
+      ?_ power > 0
+      ?: FractionRaw(FractionNumerator(exact)^power, FractionDenominator(exact)^power)
+      ?_ {;
+          FractionNumerator(exact) != 0 ?: _ ?_ .Error("Zero Fraction cannot have a negative exponent");
+          magnitude = -power;
+          FractionRaw(FractionDenominator(exact)^magnitude, FractionNumerator(exact)^magnitude);
+      };
+};
+
+FractionCompare(leftValue, rightValue) -> {;
+    left = FractionNormalize(leftValue);
+    right = FractionNormalize(rightValue);
+    a = left[:numerator] * right[:denominator];
+    b = right[:numerator] * left[:denominator];
+    a < b ?: -1 ?_ a > b ?: 1 ?_ 0;
+};
+
+FractionSamePair(leftValue, rightValue) -> {;
+    left = FractionPromote(leftValue);
+    right = FractionPromote(rightValue);
+    FractionNumerator(left) == FractionNumerator(right) && FractionDenominator(left) == FractionDenominator(right);
+};
+
+FractionReduce(value) -> {;
+    exact = FractionPromote(value);
+    numerator = FractionNumerator(exact);
+    denominator = FractionDenominator(exact);
+    denominator == 0
+      ?: FractionRaw(numerator < 0 ?: -1 ?_ 1, 0)
+      ?_ {;
+          common = FractionGcd(@numerator, @denominator);
+          sign = @denominator < 0 ?: -1 ?_ 1;
+          FractionRaw(sign * (@numerator // common), sign * (@denominator // common));
+      };
+};
+
+FractionMediant(leftValue, rightValue) -> {;
+    left = FractionPromote(leftValue);
+    right = FractionPromote(rightValue);
+    FractionRaw(FractionNumerator(left) + FractionNumerator(right), FractionDenominator(left) + FractionDenominator(right));
+};
+
+FractionCommonAdd(leftValue, rightValue, policy) -> {;
+    left = FractionNormalize(leftValue);
+    right = FractionNormalize(rightValue);
+    policy == :like && left[:denominator] != right[:denominator]
+      ?: .Error("AddLikeDenominator requires equal denominators")
+      ?_ _;
+    denominator = policy == :like ?: left[:denominator] ?_ FractionLcm(left[:denominator], right[:denominator]);
+    FractionRaw(
+        left[:numerator] * (denominator // left[:denominator]) + right[:numerator] * (denominator // right[:denominator]),
+        denominator
+    );
+};
+
+FractionExtendedGcd(a, b) -> {;
+    oldR := a;
+    r := b;
+    oldS := 1;
+    s := 0;
+    {@ step = 1; @r != 0; {;
+        quotient = @oldR // @r;
+        nextR = @oldR - quotient * @r;
+        @oldR ~= @r;
+        @r ~= nextR;
+        nextS = @oldS - quotient * @s;
+        @oldS ~= @s;
+        @s ~= nextS;
+    }; step += 1 };
+    {= gcd=oldR, coefficient=oldS };
+};
+
+FractionModInverse(value, modulus) -> {;
+    result = FractionExtendedGcd(value, modulus);
+    result[:gcd].Abs() == 1 ?: _ ?_ .Error("Farey parent modular inverse does not exist");
+    ((result[:coefficient] % modulus) + modulus) % modulus;
+};
+
+FractionBaseParents(numerator, denominator) -> {;
+    denominator == 1
+      ?: (numerator > 0
+          ?: {= leftNumerator=numerator-1, leftDenominator=1, rightNumerator=1, rightDenominator=0 }
+          ?_ {= leftNumerator=-1, leftDenominator=0, rightNumerator=numerator+1, rightDenominator=1 })
+      ?_ {;
+          leftDenominator = FractionModInverse(@numerator, @denominator);
+          leftNumerator = (@numerator * leftDenominator - 1) // @denominator;
+          {=
+              leftNumerator = leftNumerator,
+              leftDenominator = leftDenominator,
+              rightNumerator = @numerator - leftNumerator,
+              rightDenominator = @denominator - leftDenominator
+          };
+      };
+};
+
+FractionFareyParents(value) -> {;
+    normalized = FractionNormalize(value);
+    numerator = normalized[:numerator];
+    denominator = normalized[:denominator];
+    scale = FractionGcd(numerator, denominator);
+    reducedNumerator = numerator // scale;
+    reducedDenominator = denominator // scale;
+    reducedNumerator == 0
+      ?: (scale == 1
+          ?: {: FractionRaw(-1,0), FractionRaw(1,0) }
+          ?_ {;
+              leftDenominator = scale // 2;
+              {: FractionRaw(-1,leftDenominator), FractionRaw(1,scale-leftDenominator) };
+          })
+      ?_ {;
+          parents = FractionBaseParents(@reducedNumerator, @reducedDenominator);
+          leftCopies := (@scale * @reducedDenominator - 2 * parents[:leftDenominator] + @reducedDenominator) // (2 * @reducedDenominator);
+          leftCopies < 0 ?: {; @leftCopies ~= 0; } ?_ (leftCopies > @scale - 1 ?: {; @leftCopies ~= @scale - 1; } ?_ _);
+          rightCopies = @scale - 1 - leftCopies;
+          {:
+              FractionRaw(parents[:leftNumerator] + leftCopies * @reducedNumerator, parents[:leftDenominator] + leftCopies * @reducedDenominator),
+              FractionRaw(parents[:rightNumerator] + rightCopies * @reducedNumerator, parents[:rightDenominator] + rightCopies * @reducedDenominator)
+          };
+      };
+};
+
+FractionFromPath(path) -> {;
+    left := FractionRaw(-1,0);
+    right := FractionRaw(1,0);
+    current := FractionRaw(0,1);
+    {@ index = 1; index <= @path.Len(); {;
+        direction = @path[index];
+        direction == "L"
+          ?: {; @right ~= @current; @current ~= FractionMediant(@left, @current); }
+          ?_ (direction == "R"
+              ?: {; @left ~= @current; @current ~= FractionMediant(@current, @right); }
+              ?_ .Error("Stern-Brocot path directions must be L or R"));
+    }; index += 1 };
+    current;
+};
+
+FractionPath(value, maximum ?= 10000) -> {;
+    exact = FractionReduce(FractionFinite(value));
+    limit = FractionInteger(maximum, "Stern-Brocot path limit");
+    limit >= 0 ?: _ ?_ .Error("Stern-Brocot path limit must be a nonnegative safe integer");
+    left := FractionRaw(-1,0);
+    right := FractionRaw(1,0);
+    current := FractionRaw(0,1);
+    path := [];
+    {@ step = 1; !FractionSamePair(@current, @exact); {;
+        FractionCompare(@exact, @current) < 0
+          ?: {; @path ~= @path.Push("L"); @right ~= @current; @current ~= FractionMediant(@left, @current); }
+          ?_ {; @path ~= @path.Push("R"); @left ~= @current; @current ~= FractionMediant(@current, @right); };
+        @path.Len() <= @limit ?: _ ?_ .Error("Stern-Brocot path too long - this may indicate a bug in the algorithm");
+    }; step += 1 };
+    path;
+};
+
+FractionParent(value) -> {;
+    path = FractionPath(value);
+    path.Len() == 0 ?: _ ?_ FractionFromPath(path.DropLast());
+};
+
+FractionChildren(value) -> {;
+    path = FractionPath(value);
+    {: FractionFromPath(path.Push("L")), FractionFromPath(path.Push("R")) };
+};
+
+FractionAncestors(value) -> {;
+    path = FractionPath(value);
+    ancestors := [];
+    {@ count = 0; count < @path.Len(); {;
+        @ancestors ~= @ancestors.Push(FractionFromPath(@path.Slice(1, count + 1)));
+    }; count += 1 };
+    ancestors.Reverse();
+};
+
+FractionRecord(value) -> {;
+    exact = FractionPromote(value);
+    {=
+        schema = "rix.fraction@1",
+        numerator = FractionNumerator(exact),
+        denominator = FractionDenominator(exact),
+        reduced = FractionSamePair(exact, FractionReduce(exact)) ?: 1 ?_ _
+    };
+};
+
+FractionString(value) -> {;
+    numerator = FractionNumerator(value);
+    denominator = FractionDenominator(value);
+    denominator == 0 || denominator == 1 ?: @"@{numerator}" ?_ @"@{numerator}/@{denominator}";
+};
+
+.TypeKnown(:Fraction) ?: _ ?_ .TypeRegister({=
+    name = :Fraction,
+    nativeType = :Fraction,
+    defaultTraits = [:number, :ordered],
+    validate = (value) -> 1,
+    proto = {= },
+    installs = {=
+        ADD = [{= name=:FractionAdd, prep=(left,right)->((left ? :Fraction)||(right ? :Fraction))&&((left ? :Fraction)||(left ? :Integer)||(left ? :Rational))&&((right ? :Fraction)||(right ? :Integer)||(right ? :Rational)), impl=(left,right)->FractionCrossAdd(left,right) }],
+        SUB = [{= name=:FractionSub, prep=(left,right)->((left ? :Fraction)||(right ? :Fraction))&&((left ? :Fraction)||(left ? :Integer)||(left ? :Rational))&&((right ? :Fraction)||(right ? :Integer)||(right ? :Rational)), impl=(left,right)->FractionCrossAdd(left,right,1) }],
+        MUL = [{= name=:FractionMul, prep=(left,right)->((left ? :Fraction)||(right ? :Fraction))&&((left ? :Fraction)||(left ? :Integer)||(left ? :Rational))&&((right ? :Fraction)||(right ? :Integer)||(right ? :Rational)), impl=FractionMultiply }],
+        DIV = [{= name=:FractionDiv, prep=(left,right)->((left ? :Fraction)||(right ? :Fraction))&&((left ? :Fraction)||(left ? :Integer)||(left ? :Rational))&&((right ? :Fraction)||(right ? :Integer)||(right ? :Rational)), impl=FractionDivide }],
+        POW = [{= name=:FractionPow, prep=(left,right)->(left ? :Fraction)&&(right ? :Integer), impl=FractionPower }],
+        NEG = [{= name=:FractionNeg, prep=(value)->value ? :Fraction, impl=(value)->FractionRaw(-FractionNumerator(value),FractionDenominator(value)) }],
+        EQ = [{= name=:FractionEq, prep=(left,right)->((left ? :Fraction)||(right ? :Fraction))&&((left ? :Fraction)||(left ? :Integer)||(left ? :Rational))&&((right ? :Fraction)||(right ? :Integer)||(right ? :Rational)), impl=(left,right)->FractionSamePair(left,right) ?: 1 ?_ _ }],
+        NEQ = [{= name=:FractionNeq, prep=(left,right)->((left ? :Fraction)||(right ? :Fraction))&&((left ? :Fraction)||(left ? :Integer)||(left ? :Rational))&&((right ? :Fraction)||(right ? :Integer)||(right ? :Rational)), impl=(left,right)->FractionSamePair(left,right) ?: _ ?_ 1 }],
+        LT = [{= name=:FractionLt, prep=(left,right)->((left ? :Fraction)||(right ? :Fraction)), impl=(left,right)->FractionCompare(left,right)<0 ?: 1 ?_ _ }],
+        LTE = [{= name=:FractionLte, prep=(left,right)->((left ? :Fraction)||(right ? :Fraction)), impl=(left,right)->FractionCompare(left,right)<=0 ?: 1 ?_ _ }],
+        GT = [{= name=:FractionGt, prep=(left,right)->((left ? :Fraction)||(right ? :Fraction)), impl=(left,right)->FractionCompare(left,right)>0 ?: 1 ?_ _ }],
+        GTE = [{= name=:FractionGte, prep=(left,right)->((left ? :Fraction)||(right ? :Fraction)), impl=(left,right)->FractionCompare(left,right)>=0 ?: 1 ?_ _ }],
+        COMPARE = [{= name=:FractionCompare, prep=(left,right)->((left ? :Fraction)||(right ? :Fraction)), impl=FractionCompare }]
+    }
+});
+
+.TypeInstall(:Fraction);
+
+FractionF = (value) -> FractionPromote(value);
+.Host.RegisterMethod("Integer", "F", FractionF, "fraction", "fraction");
+.Host.RegisterMethod("Rational", "F", FractionF, "fraction", "fraction");
+.Host.RegisterMethod("Fraction", "F", FractionF, "fraction", "fraction");
+.Host.RegisterMethod("Fraction", "Fraction", (value)->value, "fraction", "fraction");
+.Host.RegisterMethod("Fraction", "Numerator", FractionNumerator, "fraction", "fraction");
+.Host.RegisterMethod("Fraction", "Denominator", FractionDenominator, "fraction", "fraction");
+.Host.RegisterMethod("Fraction", "Rational", (value)->FractionNumerator(value)/FractionDenominator(value), "fraction", "fraction");
+.Host.RegisterMethod("Fraction", "Reduce", FractionReduce, "fraction", "fraction");
+.Host.RegisterMethod("Fraction", "Scale", (value,factor)->FractionRaw(FractionNumerator(value)*FractionInteger(factor,"Fraction scale"),FractionDenominator(value)*FractionInteger(factor,"Fraction scale")), "fraction", "fraction");
+.Host.RegisterMethod("Fraction", "Negate", (value)->FractionRaw(-FractionNumerator(value),FractionDenominator(value)), "fraction", "fraction");
+.Host.RegisterMethod("Fraction", "Reciprocal", (value)->FractionNumerator(value)==0 ?: .Error("Zero Fraction has no reciprocal") ?_ FractionRaw(FractionDenominator(value),FractionNumerator(value)), "fraction", "fraction");
+.Host.RegisterMethod("Fraction", "Mediant", FractionMediant, "fraction", "fraction");
+.Host.RegisterMethod("Fraction", "AddLikeDenominator", (value,other)->FractionCommonAdd(value,other,:like), "fraction", "fraction");
+.Host.RegisterMethod("Fraction", "AddLCMDenominator", (value,other)->FractionCommonAdd(value,other,:lcm), "fraction", "fraction");
+.Host.RegisterMethod("Fraction", "SamePair", (value,other)->FractionSamePair(value,other) ?: 1 ?_ _, "fraction", "fraction");
+.Host.RegisterMethod("Fraction", "Equivalent", (value,other)->FractionCompare(value,other)==0 ?: 1 ?_ _, "fraction", "fraction");
+.Host.RegisterMethod("Fraction", "FareyParents", FractionFareyParents, "fraction", "fraction");
+.Host.RegisterMethod("Fraction", "SternBrocotPath", FractionPath, "fraction", "fraction");
+.Host.RegisterMethod("Fraction", "SternBrocotParent", FractionParent, "fraction", "fraction");
+.Host.RegisterMethod("Fraction", "SternBrocotChildren", FractionChildren, "fraction", "fraction");
+.Host.RegisterMethod("Fraction", "SternBrocotAncestors", FractionAncestors, "fraction", "fraction");
+.Host.RegisterMethod("Fraction", "SternBrocotDepth", (value)->FractionPath(value).Len(), "fraction", "fraction");
+.Host.RegisterMethod("Fraction", "IsSternBrocotValid", (value)->FractionSamePair(FractionFromPath(FractionPath(value)),FractionReduce(value)) ?: 1 ?_ _, "fraction", "fraction");
+.Host.RegisterMethod("Fraction", "IsInfinite", (value)->FractionIsInfinite(value) ?: 1 ?_ _, "fraction", "fraction");
+.Host.RegisterMethod("Fraction", "ToString", FractionString, "fraction", "fraction");
+.Host.RegisterMethod("Fraction", "Record", FractionRecord, "fraction", "fraction");
+
+FractionParse(self, body, modifiers, info) -> {;
+    value = .SArith.Parse(body, [], {= });
+    value ? :Fraction
+      ?: value
+      ?_ (((value ? :Integer)||(value ? :Rational))
+          ?: FractionPromote(value)
+          ?_ .Error(".fraction backticks require one concrete fraction; use .fracfun for symbolic or compound forms"));
+};
+
+fractionNamespace = (first, second ?= _) -> second == _ ?: FractionPromote(first,"fraction value") ?_ FractionRaw(first,second);
+fractionNamespace._proto = {=
+    Parse = FractionParse,
+    Fraction = (self, first, second ?= _) -> second == _ ?: FractionPromote(first) ?_ FractionRaw(first,second),
+    FromSternBrocotPath = (self, path) -> FractionFromPath(path)
+};
+
+.Host.RegisterCallableValue("fraction", fractionNamespace, "Representation-sensitive unreduced fractions", ["Algebra", "Exact", "Symbolic"]);

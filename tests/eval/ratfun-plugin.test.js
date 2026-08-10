@@ -38,14 +38,12 @@ describe("semantic RationalFunction plugin", () => {
             R := .rf\`(2x^3 - 2x)/(4x^2 - 4)\`;
             R;
         `);
-        expect(rationalFunction).toMatchObject({
-            type: "lambda",
-            schema: "rix.rational-function@1",
-            variable: "x",
-            canonical: true,
-            equalityPolicy: "canonical-reduced-fraction-field",
-            domainPolicy: "reduced-denominator-nonzero",
-        });
+        expect(rationalFunction.type).toBe("lambda");
+        expect(rationalFunction._ext.get("schema").value).toBe("rix.rational-function@1");
+        expect(rationalFunction._ext.get("variable").value).toBe("x");
+        expect(rationalFunction._ext.get("canonical").value).toBe(1n);
+        expect(rationalFunction._ext.get("equalitypolicy").value).toBe("canonicalReducedFractionField");
+        expect(rationalFunction._ext.get("domainpolicy").value).toBe("reducedDenominatorNonzero");
         expect(rationalFunction._ext.get("__type").value).toBe("RationalFunction");
         const result = parseAndEvaluate(`
             .Plugin.Load("ratfun");

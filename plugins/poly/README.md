@@ -3,6 +3,12 @@
 Provides semantic, callable univariate polynomials. The plugin is mounted as
 `.poly` with `.polynomial` and `.p` aliases. All three names refer to the same
 callable plugin object; portable source uses `.poly` as the canonical spelling.
+The active implementation is [`poly.plugin.rix`](poly.plugin.rix): coefficient
+normalization, arithmetic, division, derivatives, Sturm sequences, root counts,
+root bounds, and primitive-integer normalization are all written in RiX.
+[`poly.reference.js`](poly.reference.js) retains the former JavaScript plugin as
+a comparison, while [`polynomial.js`](polynomial.js) is only an interoperability
+adapter for host plugins that have not yet been ported.
 
 ```rix
 .Plugin.Load("poly");
@@ -39,8 +45,18 @@ P(2);                                  ## 12
 Leading-dot casing identifies ownership, not value shape: `.poly` is a
 host/plugin capability and is both callable and method-bearing. The older core
 `.Poly` capability remains the general exact symbolic-spec compiler; it does
-not attach the semantic `rix.polynomial@1` identity supplied here.
+not attach the semantic `rix.polynomial@1` identity supplied here. The RiX
+plugin uses that compiler as a syntax/IR bridge and owns the actual Polynomial
+value and algorithms.
 
-`.ratfun` declares `requires: [rix.polynomial@1]`, and `.algebra` requires the
-rational-function service, so loading either higher-level plugin loads this
-plugin first. Repeated `.Plugin.Load("poly")` calls are harmless.
+The plugin also demonstrates pure-RiX receiver extension. It registers `P()`
+and `Polynomial()` on structural and symbolic values with
+`.Host.RegisterMethod(type, name, callable, pluginId, mount)`. The extension is
+visible only while the owning `.poly` mount is visible and cannot replace a
+built-in method.
+
+`.ratfun` declares `requires: [rix.polynomial@1]`; `.algebra` requires both the
+polynomial algorithms and rational-function service; and `.algebraicReal`
+requires `rix.polynomial.algorithms@1`. Loading any of those higher-level
+plugins therefore loads this one first. Repeated `.Plugin.Load("poly")` calls
+are harmless.

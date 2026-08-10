@@ -15,7 +15,8 @@ function runtime() {
 }
 
 function entry(value, key) {
-    return value.entries.get(key);
+    const wanted = key.toLowerCase();
+    return [...value.entries].find(([candidate]) => String(candidate).toLowerCase() === wanted)?.[1];
 }
 
 function ints(value) {

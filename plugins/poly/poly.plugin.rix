@@ -1,0 +1,605 @@
+/**
+id: poly
+description: Semantic callable univariate polynomials with structural and symbolic entry forms.
+kind: rix
+mount: poly
+aliases: [polynomial, p]
+exports: [Polynomial, Parse, Var, Fun, Divide, SyntheticDivide, SturmSequence, RootCount]
+groups: [Algebra, Exact, Symbolic]
+permissions: []
+provides: [rix.polynomial@1, rix.polynomial.algorithms@1]
+schemas: [rix.polynomial@1, rix.polynomial.division@1]
+snapshot: false
+deterministic: true
+defaultEnabled: false
+**/
+
+PolyOption(options, key, fallback) -> options.Has(key) ?: options[key] ?_ fallback;
+
+PolyIsZero(value) -> (value ~!: :Rational).Numerator() == 0;
+
+PolyExact(value, label) -> {;
+    exact = value ~!: :Rational;
+    exact == _ ?: .Error(@"@{label} must be an exact Integer or Rational") ?_ exact;
+};
+
+PolyCopy(values) -> values.Map((value) -> value);
+
+PolyTrimAscending(coefficients) -> {;
+    result := PolyCopy(coefficients);
+    result.Len() >= 1 ?: _ ?_ .Error("Polynomial coefficients cannot be empty");
+    trimming := 1;
+    {@ step = 1; (@result.Len() > 1) && (@trimming == 1); {;
+        PolyIsZero(@result.Last())
+          ?: {; @result ~= @result.DropLast(); }
+          ?_ {; @trimming ~= 0; };
+    }; step += 1 };
+    result;
+};
+
+PolyExactAscending(coefficients, order ?= :ascending) -> {;
+    coefficients ? :Array ?: _ ?_ .Error("Polynomial coefficients must be an Array");
+    coefficients.Len() >= 1 ?: _ ?_ .Error("Polynomial coefficients cannot be empty");
+    exact = coefficients.Map((coefficient) -> PolyExact(coefficient, "Polynomial coefficient"));
+    ascending = order == :descending ?: exact.Reverse() ?_ order == :ascending ?: exact ?_ .Error("Polynomial coefficient order must be :ascending or :descending");
+    PolyTrimAscending(ascending);
+};
+
+PolyZeroArray(length) -> {;
+    result := [];
+    {@ index = 1; index <= @length; {; @result ~= @result.Push(0); }; index += 1 };
+    result;
+};
+
+PolyArrayAdd(left, right) -> {;
+    length = left.Len() > right.Len() ?: left.Len() ?_ right.Len();
+    result := [];
+    {@ index = 1; index <= @length; {;
+        a = index <= @left.Len() ?: @left[index] ?_ 0;
+        b = index <= @right.Len() ?: @right[index] ?_ 0;
+        @result ~= @result.Push(a + b);
+    }; index += 1 };
+    PolyTrimAscending(result);
+};
+
+PolyArrayNegate(coefficients) -> coefficients.Map((coefficient) -> -coefficient);
+PolyArraySubtract(left, right) -> PolyArrayAdd(left, PolyArrayNegate(right));
+
+PolyArrayScale(coefficients, scalar) -> {;
+    exact = PolyExact(scalar, "Polynomial scalar");
+    PolyTrimAscending(coefficients.Map((coefficient) -> coefficient * exact));
+};
+
+PolyArrayMultiply(left, right) -> {;
+    result := PolyZeroArray(left.Len() + right.Len() - 1);
+    {@ a = 1; a <= @left.Len(); {;
+        {@ b = 1; b <= @right.Len(); {;
+            index = @a + b - 1;
+            @result ~= @result.Set(index, @result[index] + @left[@a] * @right[b]);
+        }; b += 1 };
+    }; a += 1 };
+    PolyTrimAscending(result);
+};
+
+PolyArrayPower(coefficients, exponent) -> {;
+    power = exponent ~!: :Integer;
+    power >= 0 ?: _ ?_ .Error("Polynomial powers require a nonnegative exact Integer exponent");
+    result := [1];
+    base := coefficients;
+    remaining := power;
+    {@ step = 1; @remaining > 0; {;
+        @remaining % 2 == 1 ?: {; @result ~= PolyArrayMultiply(@result, @base); } ?_ _;
+        @remaining ~= @remaining // 2;
+        @remaining > 0 ?: {; @base ~= PolyArrayMultiply(@base, @base); } ?_ _;
+    }; step += 1 };
+    result;
+};
+
+PolyEvaluateStep(coefficients, index, point, accumulator) ->
+    index < 1 ?: accumulator ?_ PolyEvaluateStep(coefficients, index - 1, point, accumulator * point + coefficients[index]);
+
+PolyEvaluateAscending(coefficients, point) -> PolyEvaluateStep(coefficients, coefficients.Len(), point, 0);
+
+PolyDerivativeAscending(coefficients) -> {;
+    coefficients.Len() == 1
+      ?: [0]
+      ?_ {;
+          result := [];
+          {@ power = 1; power < @coefficients.Len(); {;
+              @result ~= @result.Push(@coefficients[power + 1] * power);
+          }; power += 1 };
+          PolyTrimAscending(result);
+      };
+};
+
+PolyVariable(value) -> value.type == "string" ?: value ?_ value;
+
+PolyRequire(value, label ?= "value") -> value ? :Polynomial ?: value ?_ .Error(@"@{label} must be a Polynomial");
+PolyScalar(value) -> (value ? :Integer) || (value ? :Rational);
+PolyOperand(value) -> (value ? :Polynomial) || PolyScalar(value);
+
+PolyCurrentAscending(polynomial) -> {;
+    exact = 0 |> polynomial.coefficientFunction;
+    PolyExactAscending(exact, :ascending);
+};
+
+PolyCurrentCoefficients(polynomial, order ?= :descending) -> {;
+    ascending = PolyCurrentAscending(PolyRequire(polynomial));
+    order == :ascending ?: ascending ?_ order == :descending ?: ascending.Reverse() ?_ .Error("Coefficient order must be :ascending or :descending");
+};
+
+PolyDegree(polynomial) -> {;
+    coefficients = PolyCurrentAscending(PolyRequire(polynomial));
+    (coefficients.Len() == 1 && PolyIsZero(coefficients[1])) ?: -1 ?_ coefficients.Len() - 1;
+};
+
+PolySameVariable(left, right) -> {;
+    left.variable == right.variable ?: 1 ?_ .Error(@"Polynomial variables must match: @{left.variable} and @{right.variable}");
+};
+
+PolyPromote(value, variable) -> value ? :Polynomial ?: value ?_ PolyFromAscending([PolyExact(value, "Polynomial operand")], variable, 0, _, [:scalar]);
+
+PolyRecord(polynomial) -> {;
+    value = PolyRequire(polynomial);
+    {=
+        valueKind = :polynomial,
+        schema = "rix.polynomial@1",
+        variable = value.variable,
+        coefficients = PolyCurrentCoefficients(value),
+        canonical = 1,
+        equalityPolicy = :currentCanonicalCoefficients,
+        reactive = value.reactive,
+        provenance = value.provenance
+    };
+};
+
+PolyArraysEqual(left, right) -> {;
+    left.Len() == right.Len()
+      ?: {;
+          equal := 1;
+          {@ index = 1; index <= @left.Len() && @equal == 1; {;
+              @left[index] == @right[index] ?: _ ?_ {; @equal ~= 0; };
+          }; index += 1 };
+          equal;
+      }
+      ?_ 0;
+};
+
+PolyEqual(left, right) -> {;
+    (left ? :Polynomial) && (right ? :Polynomial)
+      ?: (left.variable == right.variable && PolyArraysEqual(PolyCurrentAscending(left), PolyCurrentAscending(right)))
+      ?_ 0;
+};
+
+PolyFromAscending(coefficients, variable ?= :x, degreeBound ?= _, source ?= _, provenance ?= []) -> {;
+    canonical = PolyExactAscending(coefficients, :ascending);
+    provider = (unused) -> canonical;
+    PolyBuild(provider, variable, degreeBound == _ ?: canonical.Len() - 1 ?_ degreeBound, source, provenance, 0);
+};
+
+PolyBuild(coefficientFunction, variable, degreeBound, source, provenance, reactive ?= 1) -> {;
+    PolynomialValue = (argument) -> PolyEvaluateAscending(0 |> coefficientFunction, argument);
+    PolynomialValue.schema = "rix.polynomial@1";
+    PolynomialValue.variable = variable;
+    PolynomialValue.degreeBound = degreeBound;
+    PolynomialValue.canonical = 1;
+    PolynomialValue.reactive = reactive;
+    PolynomialValue.equalityPolicy = :currentCanonicalCoefficients;
+    PolynomialValue.provenance = provenance;
+    PolynomialValue.source = source;
+    PolynomialValue.coefficientFunction = coefficientFunction;
+    PolynomialValue.__type = "Polynomial";
+    PolynomialValue._type = "polynomial";
+    PolynomialValue._symbolicKind = "Polynomial";
+    PolynomialValue._proto = {=
+        P = (self) -> self,
+        Polynomial = (self) -> self,
+        Coefficients = (self, order ?= :descending) -> PolyCurrentCoefficients(self, order),
+        AscendingCoefficients = (self) -> PolyCurrentCoefficients(self, :ascending),
+        Record = (self) -> PolyRecord(self),
+        Degree = (self) -> PolyDegree(self),
+        Variable = (self) -> self.variable,
+        Source = (self) -> self.source,
+        Evaluate = (self, argument) -> PolyEvaluateAscending(PolyCurrentAscending(self), argument),
+        Derivative = (self) -> PolyDerivative(self),
+        Divide = (self, divisor) -> PolyDivide(self, divisor),
+        DivMod = (self, divisor) -> PolyDivide(self, divisor),
+        SyntheticDiv = (self, root) -> PolySyntheticDivide(self, root),
+        SyntheticDivide = (self, root) -> PolySyntheticDivide(self, root),
+        IsFactor = (self, candidate) -> PolyDivide(self, candidate)[:divisorIsFactor],
+        SturmSequence = (self) -> PolySturmSequence(self),
+        RootCount = (self, interval) -> PolyRootCount(self, interval),
+        IsSquareFree = (self) -> PolyIsSquareFree(self),
+        RootBound = (self) -> PolyRootBound(self),
+        PrimitiveInteger = (self) -> PolyPrimitiveInteger(self)
+    };
+    .ImmutableValue(PolynomialValue);
+};
+
+PolyInterpolate(sourceFunction, degree) -> {;
+    result := PolyZeroArray(degree + 1);
+    {@ i = 0; i <= @degree; {;
+        basis := [1];
+        denominator := 1;
+        {@ j = 0; j <= @degree; {;
+            @i == j
+              ?: _
+              ?_ {;
+                  @basis ~= PolyArrayMultiply(@basis, [-@j, 1]);
+                  @denominator *= @i - @j;
+              };
+        }; j += 1 };
+        factor = i |> @sourceFunction;
+        @result ~= PolyArrayAdd(@result, PolyArrayScale(basis, factor));
+    }; i += 1 };
+    PolyTrimAscending(result);
+};
+
+PolyCoefficientsFromSource(sourceFunction, variable, degree) -> {;
+    current := sourceFunction;
+    factorial := 1;
+    coefficients := [];
+    {@ power = 0; power <= @degree; {;
+        coefficient = (0 |> @current) / @factorial;
+        @coefficients ~= @coefficients.Push(coefficient);
+        power < @degree
+          ?: {;
+              @current ~= .Deriv(@current, @variable);
+              @factorial *= @power + 1;
+          }
+          ?_ _;
+    }; power += 1 };
+    PolyTrimAscending(coefficients);
+};
+
+PolyDegreePower(node, leftDegree) -> {;
+    exponentNode = node[:right];
+    valid = exponentNode[:kind] == "number" ?: exponentNode.Has("integer") ?_ _;
+    valid ?: _ ?_ .Error("Polynomial powers require a nonnegative exact Integer literal exponent");
+    exponent = exponentNode[:integer];
+    exponent >= 0 ?: leftDegree * exponent ?_ .Error("Polynomial powers require a nonnegative exact Integer exponent");
+};
+
+PolyDegreeMaximum(leftDegree, rightDegree) -> leftDegree > rightDegree ?: leftDegree ?_ rightDegree;
+PolyDegreeQuotient(leftDegree, rightDegree) -> rightDegree == 0 ?: leftDegree ?_ .Error("Polynomial source has a variable-dependent denominator");
+
+PolyDegreeBinary(node, variable) -> {;
+    operation = node[:op];
+    leftDegree = PolyDegreeFromNode(node[:left], variable);
+    rightDegree = PolyDegreeFromNode(node[:right], variable);
+    (operation == "+" || operation == "-")
+      ?: PolyDegreeMaximum(leftDegree, rightDegree)
+      ?_ (operation == "*"
+           ?: leftDegree + rightDegree
+           ?_ (operation == "/"
+                ?: PolyDegreeQuotient(leftDegree, rightDegree)
+                ?_ (operation == "^"
+                     ?: PolyDegreePower(node, leftDegree)
+                     ?_ .Error(@"Polynomial source uses unsupported operator @{operation}"))));
+};
+
+PolyDegreeFromNode(node, variable) -> {;
+    kind = node[:kind];
+    (kind == "number" || kind == "outer") ?: 0 ?_
+    (kind == "identifier" ?: (node[:name] == variable ?: 1 ?_ 0) ?_
+    (kind == "unary"
+      ?: (node[:op] == "-" ?: PolyDegreeFromNode(node[:expr], variable) ?_ .Error("Polynomial source uses an unsupported unary operator"))
+      ?_ (kind == "binary"
+           ?: PolyDegreeBinary(node, variable)
+           ?_ .Error(@"Polynomial source contains unsupported symbolic node @{kind}"))));
+};
+
+PolySymbolic(source, requestedVariable ?= _) -> {;
+    compiled = requestedVariable == _ ?: .Poly(source) ?_ .Poly(source, requestedVariable);
+    inspection = .InspectSpec(compiled);
+    inputs = inspection[:inputs];
+    inputs.Len() == 1 ?: _ ?_ .Error("Polynomial conversion requires exactly one selected input");
+    variable = inputs[1];
+    degree = PolyDegreeFromNode(inspection[:expression], variable);
+    initial = PolyCoefficientsFromSource(compiled, variable, degree);
+    provider = (unused) -> PolyCoefficientsFromSource(compiled, variable, degree);
+    PolyBuild(provider, variable, degree, compiled, [:symbolicSource], 1);
+};
+
+PolyFromRecord(source, second) -> {;
+    source.Has("coefficients") ?: _ ?_ .Error("Polynomial record requires coefficients");
+    order = PolyOption(source, "order", :descending);
+    variable = PolyOption(source, "variable", second == _ ?: :x ?_ second);
+    PolyFromAscending(PolyExactAscending(source[:coefficients], order), variable, _, _, [:record]);
+};
+
+PolyConstruct(source, second ?= _) -> {;
+    isPolynomial = source ? :Polynomial;
+    isArray = source ? :Array;
+    isMap = source ? :Map;
+    isScalar = PolyScalar(source);
+    isPolynomial
+      ?: source
+      ?_ (isArray
+           ?: PolyFromAscending(PolyExactAscending(source, :descending), second == _ ?: :x ?_ second, _, _, [:coefficients])
+           ?_ (isScalar
+               ?: PolyFromAscending([PolyExact(source,"Polynomial coefficient")], second == _ ?: :x ?_ second, _, _, [:scalar])
+               ?_ (isMap ?: PolyFromRecord(source, second) ?_ PolySymbolic(source, second))));
+};
+
+PolyBinary(left, right, operation) -> {;
+    variable = (right ? :Polynomial) ?: right.variable ?_ left.variable;
+    a = PolyPromote(left, variable);
+    b = PolyPromote(right, variable);
+    PolySameVariable(a, b);
+    provider = (unused) -> operation == :add
+      ?: PolyArrayAdd(PolyCurrentAscending(a), PolyCurrentAscending(b))
+      ?_ operation == :subtract
+           ?: PolyArraySubtract(PolyCurrentAscending(a), PolyCurrentAscending(b))
+           ?_ PolyArrayMultiply(PolyCurrentAscending(a), PolyCurrentAscending(b));
+    bound = operation == :multiply ?: a.degreeBound + b.degreeBound ?_ a.degreeBound > b.degreeBound ?: a.degreeBound ?_ b.degreeBound;
+    PolyBuild(provider, variable, bound, _, [operation, a, b], 1);
+};
+
+PolyAdd(left, right) -> PolyBinary(left, right, :add);
+PolySubtract(left, right) -> PolyBinary(left, right, :subtract);
+PolyMultiply(left, right) -> PolyBinary(left, right, :multiply);
+PolyNegate(polynomial) -> {;
+    value = PolyRequire(polynomial);
+    provider = (unused) -> PolyArrayNegate(PolyCurrentAscending(value));
+    PolyBuild(provider, value.variable, value.degreeBound, _, [:negate, value], 1);
+};
+PolyScale(polynomial, scalar) -> {;
+    value = PolyRequire(polynomial);
+    exact = PolyExact(scalar, "Polynomial divisor");
+    PolyIsZero(exact) ?: .Error("Polynomial division by zero") ?_ _;
+    provider = (unused) -> PolyArrayScale(PolyCurrentAscending(value), 1 / exact);
+    PolyBuild(provider, value.variable, value.degreeBound, _, [:scale, value, exact], 1);
+};
+PolyPower(polynomial, exponent) -> {;
+    value = PolyRequire(polynomial);
+    power = exponent ~!: :Integer;
+    power >= 0 ?: _ ?_ .Error("Polynomial powers require a nonnegative exact Integer exponent");
+    provider = (unused) -> PolyArrayPower(PolyCurrentAscending(value), power);
+    PolyBuild(provider, value.variable, value.degreeBound * power, _, [:power, value, power], 1);
+};
+
+PolyReductionStep(remainder, denominator) -> {;
+    offset = remainder.Len() - denominator.Len();
+    factor = remainder.Last() / denominator.Last();
+    updated := PolyCopy(remainder);
+    {@ index = 1; index <= @denominator.Len(); {;
+        target = index + @offset;
+        @updated ~= @updated.Set(target, @updated[target] - @factor * @denominator[index]);
+    }; index += 1 };
+    {= remainder=PolyTrimAscending(updated), factor=factor, offset=offset };
+};
+
+PolyDivideArrays(dividend, divisor) -> {;
+    numerator = PolyTrimAscending(dividend);
+    denominator = PolyTrimAscending(divisor);
+    (denominator.Len() == 1 && PolyIsZero(denominator[1])) ?: .Error("Polynomial division by zero") ?_ _;
+    quotient := PolyZeroArray(numerator.Len() >= denominator.Len() ?: numerator.Len() - denominator.Len() + 1 ?_ 1);
+    remainder := numerator;
+    {@ step = 1; !(@remainder.Len() == 1 && PolyIsZero(@remainder[1])) && @remainder.Len() >= @denominator.Len(); {;
+        reduction = PolyReductionStep(@remainder, @denominator);
+        @quotient ~= @quotient.Set(reduction[:offset] + 1, @quotient[reduction[:offset] + 1] + reduction[:factor]);
+        @remainder ~= reduction[:remainder];
+    }; step += 1 };
+    {= quotient=PolyTrimAscending(quotient), remainder=PolyTrimAscending(remainder) };
+};
+
+PolyDivisionRecord(dividend, divisor, quotient, remainder, method ?= :longDivision) -> {;
+    factor = PolyDegree(remainder) == -1;
+    record = {=
+        valueKind = :polynomialDivision,
+        schema = "rix.polynomial.division@1",
+        dividend = dividend,
+        divisor = divisor,
+        quotient = quotient,
+        remainder = remainder,
+        method = method,
+        divisorIsFactor = factor,
+        verified = quotient * divisor + remainder == dividend
+    };
+    record._proto = {=
+        Quotient = (self) -> self[:quotient],
+        Remainder = (self) -> self[:remainder],
+        IsFactor = (self) -> self[:divisorIsFactor],
+        Record = (self) -> self
+    };
+    .ImmutableValue(record);
+};
+
+PolyDivide(dividend, divisor) -> {;
+    left = PolyRequire(dividend, "Polynomial dividend");
+    right = PolyRequire(divisor, "Polynomial divisor");
+    PolySameVariable(left, right);
+    arrays = PolyDivideArrays(PolyCurrentAscending(left), PolyCurrentAscending(right));
+    quotient = PolyFromAscending(arrays[:quotient], left.variable, _, _, [:quotient]);
+    remainder = PolyFromAscending(arrays[:remainder], left.variable, _, _, [:remainder]);
+    PolyDivisionRecord(left, right, quotient, remainder);
+};
+
+PolySyntheticDivide(polynomial, root) -> {;
+    value = PolyRequire(polynomial);
+    divisor = PolyFromAscending([-PolyExact(root, "Synthetic-division root"), 1], value.variable, 1, _, [:syntheticDivisor]);
+    result = PolyDivide(value, divisor);
+    PolyDivisionRecord(value, divisor, result[:quotient], result[:remainder], :synthetic);
+};
+
+PolyRemainderArrays(dividend, divisor) -> PolyDivideArrays(dividend, divisor)[:remainder];
+
+PolySturmArrays(coefficients) -> {;
+    first = PolyTrimAscending(coefficients);
+    second = PolyDerivativeAscending(first);
+    sequence := [first, second];
+    previous := first;
+    current := second;
+    {@ step = 1; !(@current.Len() == 1 && PolyIsZero(@current[1])); {;
+        remainder = PolyRemainderArrays(@previous, @current);
+        remainder.Len() == 1 && PolyIsZero(remainder[1])
+          ?: {; @current ~= [0]; }
+          ?_ {;
+              next = PolyArrayNegate(@remainder);
+              @sequence ~= @sequence.Push(next);
+              @previous ~= @current;
+              @current ~= next;
+          };
+    }; step += 1 };
+    sequence;
+};
+
+PolySturmSequence(polynomial) -> PolySturmArrays(PolyCurrentAscending(PolyRequire(polynomial)));
+PolySign(value) -> value < 0 ?: -1 ?_ value > 0 ?: 1 ?_ 0;
+
+PolyVariationsAt(sequence, point) -> {;
+    previous := 0;
+    variations := 0;
+    {@ index = 1; index <= @sequence.Len(); {;
+        sign = PolySign(PolyEvaluateAscending(@sequence[index], @point));
+        sign != 0
+          ?: {;
+              @previous != 0 && @previous != @sign ?: {; @variations += 1; } ?_ _;
+              @previous ~= @sign;
+          }
+          ?_ _;
+    }; index += 1 };
+    variations;
+};
+
+PolyRootCount(polynomial, interval) -> {;
+    value = PolyRequire(polynomial);
+    exact = interval ~!: :RationalInterval;
+    sequence = PolySturmSequence(value);
+    PolyVariationsAt(sequence, exact.Low()) - PolyVariationsAt(sequence, exact.High());
+};
+
+PolyIsSquareFree(polynomial) -> {;
+    sequence = PolySturmSequence(polynomial);
+    sequence.Last().Len() == 1;
+};
+
+PolyRootBound(polynomial) -> {;
+    coefficients = PolyCurrentAscending(PolyRequire(polynomial));
+    leading = coefficients.Last().Abs();
+    PolyIsZero(leading) ?: .Error("Zero polynomial has no finite root bound") ?_ _;
+    maximum := 0;
+    {@ index = 1; index < @coefficients.Len(); {;
+        ratio = @coefficients[index].Abs() / @leading;
+        ratio > @maximum ?: {; @maximum ~= @ratio; } ?_ _;
+    }; index += 1 };
+    1 + maximum;
+};
+
+PolyIntegerGcd(left, right) -> {;
+    a := (left ~!: :Integer).Abs();
+    b := (right ~!: :Integer).Abs();
+    {@ step = 1; @b != 0; {; remainder = @a % @b; @a ~= @b; @b ~= remainder; }; step += 1 };
+    a;
+};
+
+PolyIntegerCoefficient(value) -> {;
+    rational = value ~!: :Rational;
+    rational.Denominator() == 1
+      ?: rational.Numerator()
+      ?_ .Error("PrimitiveInteger requires integer polynomial coefficients");
+};
+
+PolyPrimitiveInteger(polynomial) -> {;
+    coefficients = PolyCurrentAscending(PolyRequire(polynomial));
+    integers = coefficients.Map((coefficient) -> PolyIntegerCoefficient(coefficient));
+    content := 0;
+    {@ index = 1; index <= @integers.Len(); {; @content ~= PolyIntegerGcd(@content, @integers[index]); }; index += 1 };
+    PolyIsZero(content)
+      ?: [0]
+      ?_ {;
+          primitive = @integers.Map((coefficient) -> coefficient // @content);
+          primitive.Last() < 0 ?: primitive.Map((coefficient) -> -coefficient) ?_ primitive;
+      };
+};
+
+PolyDerivative(polynomial) -> {;
+    value = PolyRequire(polynomial);
+    provider = (unused) -> PolyDerivativeAscending(PolyCurrentAscending(value));
+    bound = value.degreeBound > 0 ?: value.degreeBound - 1 ?_ 0;
+    PolyBuild(provider, value.variable, bound, _, [:derivative, value], 1);
+};
+
+PolyParseVariable(modifiers) -> {;
+    selected := _;
+    {@ index = 1; index <= @modifiers.Len(); {;
+        modifier = @modifiers[index];
+        upper = modifier.Upper();
+        isFun = upper == "FUN";
+        isVar = upper.StartsWith("VAR(");
+        isFun || isVar ?: _ ?_ .Error(@"Unknown .poly modifier @{modifier}");
+        isVar
+          ?: {;
+              @selected == _ ?: _ ?_ .Error(".poly accepts only one Var(name) modifier");
+              @selected ~= @modifier.Slice(5, @modifier.Len());
+          }
+          ?_ _;
+    }; index += 1 };
+    selected;
+};
+
+PolyParse(self, body, modifiers, info) -> {;
+    variable = PolyParseVariable(modifiers);
+    structural = .SArith.Parse(body, [], {= });
+    PolyConstruct(structural, variable);
+};
+
+.TypeKnown(:Polynomial) ?: _ ?_ .TypeRegister({=
+    name = :Polynomial,
+    nativeType = :function,
+    defaultTraits = [:number],
+    validate = (value) -> value.schema == "rix.polynomial@1",
+    proto = {= },
+    installs = {=
+        ADD = [{= name=:PolynomialAdd, prep=(left, right)->PolyOperand(left) && PolyOperand(right) && ((left ? :Polynomial) || (right ? :Polynomial)), impl=(left, right)->PolyAdd(left, right) }],
+        SUB = [{= name=:PolynomialSub, prep=(left, right)->PolyOperand(left) && PolyOperand(right) && ((left ? :Polynomial) || (right ? :Polynomial)), impl=(left, right)->PolySubtract(left, right) }],
+        MUL = [{= name=:PolynomialMul, prep=(left, right)->PolyOperand(left) && PolyOperand(right) && ((left ? :Polynomial) || (right ? :Polynomial)), impl=(left, right)->PolyMultiply(left, right) }],
+        DIV = [
+            {= name=:PolynomialScalarDiv, prep=(left, right)->(left ? :Polynomial) && PolyScalar(right), impl=(left, right)->PolyScale(left, right) },
+            {= name=:PolynomialDivNeedsRatfun, prep=(left, right)->(left ? :Polynomial) && (right ? :Polynomial), impl=(left, right)->.Error("Division by a Polynomial creates a RationalFunction; load .ratfun or use //, %, or /%") }
+        ],
+        POW = [{= name=:PolynomialPow, prep=(left, right)->(left ? :Polynomial) && (right ? :Integer), impl=(left, right)->PolyPower(left, right) }],
+        NEG = [{= name=:PolynomialNeg, prep=(value)->value ? :Polynomial, impl=(value)->PolyNegate(value) }],
+        EQ = [{= name=:PolynomialEq, prep=(left, right)->(left ? :Polynomial) && (right ? :Polynomial), impl=(left, right)->PolyEqual(left, right) }],
+        NEQ = [{= name=:PolynomialNeq, prep=(left, right)->(left ? :Polynomial) && (right ? :Polynomial), impl=(left, right)->!PolyEqual(left, right) }],
+        INTDIV = [{= name=:PolynomialIntDiv, prep=(left, right)->(left ? :Polynomial) && (right ? :Polynomial), impl=(left, right)->PolyDivide(left, right)[:quotient] }],
+        MOD = [{= name=:PolynomialMod, prep=(left, right)->(left ? :Polynomial) && (right ? :Polynomial), impl=(left, right)->PolyDivide(left, right)[:remainder] }],
+        DIVMOD = [{= name=:PolynomialDivMod, prep=(left, right)->(left ? :Polynomial) && (right ? :Polynomial), impl=(left, right)->{; result=PolyDivide(left,right); {: result[:quotient], result[:remainder] }; } }]
+    }
+});
+
+.TypeInstall(:Polynomial);
+
+polyNamespace = (source, second ?= _) -> PolyConstruct(source, second);
+polyNamespace._proto = {=
+    Parse = (self, body, modifiers, info) -> PolyParse(self, body, modifiers, info),
+    Polynomial = (self, source, second ?= _) -> PolyConstruct(source, second),
+    Divide = (self, dividend, divisor) -> PolyDivide(dividend, divisor),
+    SyntheticDivide = (self, polynomial, root) -> PolySyntheticDivide(polynomial, root),
+    Derivative = (self, polynomial) -> PolyDerivative(polynomial),
+    SturmSequence = (self, polynomial) -> PolySturmSequence(polynomial),
+    RootCount = (self, polynomial, interval) -> PolyRootCount(polynomial, interval),
+    IsSquareFree = (self, polynomial) -> PolyIsSquareFree(polynomial),
+    RootBound = (self, polynomial) -> PolyRootBound(polynomial),
+    PrimitiveInteger = (self, polynomial) -> PolyPrimitiveInteger(polynomial),
+    Var = (self) -> .Error(".poly.Var(name) is a backtick parser modifier"),
+    Fun = (self) -> .Error(".poly.Fun is a backtick parser modifier")
+};
+
+.Host.RegisterCallableValue(
+    "poly",
+    polyNamespace,
+    "Semantic callable univariate polynomials and exact coefficient algorithms",
+    ["Algebra", "Exact", "Symbolic"]
+);
+
+PolyConversion = (value, variable ?= _) -> PolyConstruct(value, variable);
+.Host.RegisterMethod("structural_form", "P", PolyConversion, "poly", "poly");
+.Host.RegisterMethod("structural_form", "Polynomial", PolyConversion, "poly", "poly");
+.Host.RegisterMethod("structural_symbol", "P", PolyConversion, "poly", "poly");
+.Host.RegisterMethod("structural_symbol", "Polynomial", PolyConversion, "poly", "poly");
+.Host.RegisterMethod("structural_literal", "P", PolyConversion, "poly", "poly");
+.Host.RegisterMethod("structural_literal", "Polynomial", PolyConversion, "poly", "poly");
+.Host.RegisterMethod("symbolic_spec", "P", PolyConversion, "poly", "poly");
+.Host.RegisterMethod("symbolic_spec", "Polynomial", PolyConversion, "poly", "poly");

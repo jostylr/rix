@@ -2,7 +2,10 @@
 
 `exact-algebras` is an opt-in foundation for finite-dimensional exact normed
 division algebras over the rationals. The initial surface provides quaternion
-and octonion values with exact `Integer`/`Rational` coefficients.
+and octonion values with exact `Integer`/`Rational` coefficients. Its
+Cayley–Dickson construction and operator variants are implemented entirely in
+RiX; `exact-algebras.reference.js` retains the former JavaScript version only
+as a comparison source.
 
 ```rix
 .Plugin.Load("exact-algebras");

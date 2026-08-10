@@ -5,6 +5,10 @@
 is an integer numerator/denominator pair: `1/2` and `2/4` can be mathematically
 equivalent without being the same Fraction.
 
+The plugin algorithms and receiver/operator registrations are pure RiX. Two
+narrow core bridges construct a `Fraction` and expose its stored pair; the old
+host installer remains only in `fraction.reference.js` for comparison.
+
 ```rix
 .Plugin.Load("fraction");
 a := .frac(6,8);

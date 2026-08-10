@@ -306,6 +306,13 @@ newline normalization.
      construction.
    - [x] Preserve Polynomial identity through arithmetic, composition, reactive
      dependency chains, receiver methods, and quotient/remainder operators.
+   - [x] Move the canonical Polynomial implementation and exact algorithms to
+     pure RiX; retain the old JavaScript implementation only as a reference and
+     route remaining host consumers through a single-identity adapter.
+   - [x] Add `.Host.RegisterMethod` so pure-RiX plugins can add guarded,
+     mount-owned receiver methods to existing semantic/runtime types.
+   - [x] Make `.algebra` a pure-RiX presentation façade over `.poly`, including
+     verified division metadata and portable synthetic-division Grids.
    - [x] Provide README documentation and a tutorial connecting exact
      polynomial work to the existing synthetic-division layout.
    - [x] Add exact round-trip and plugin-loading tests.
@@ -314,6 +321,13 @@ newline normalization.
      canonical gcd cancellation, Polynomial `/` promotion, ordinary field
      operators, composition, reactive rebuilds, records, docs, and a tutorial.
 2. **Phase 2 — Polynomial and rational-function algorithms**
+   - [x] Port `.ratfun` to pure RiX over the single pure-RiX Polynomial
+     identity; retain its JavaScript implementation only as a comparison and
+     temporary `.fracfun` compatibility source.
+   - [ ] Port `.fracfun` after RiX has a versioned public symbolic-expression
+     builder for cloning/combining expression trees, preserving evaluation
+     closures, and recording source-domain restrictions. Do not expose private
+     evaluator IR directly as the plugin ABI merely to remove this host edge.
    - [ ] Expose public polynomial gcd/lcm (the exact Euclidean gcd currently
      used internally for RationalFunction cancellation is not yet an API),
      square-free decomposition, rational roots, factor evidence, and
@@ -459,14 +473,18 @@ newline normalization.
 ### `.algebraicReal`
 
 1. **Phase 1 — Isolating-interval algebraic real**
-   - [ ] Represent a square-free integer polynomial plus a rational isolating
+   - [x] Represent a square-free integer polynomial plus a rational isolating
      interval and root index/evidence.
-   - [ ] Demonstrate exact `sqrt(2)` comparison and refinement.
-   - [ ] Add README, tutorial, serialization, and root-isolation tests.
-   - [ ] Register exact sign and enclosure capabilities.
+   - [x] Demonstrate exact `sqrt(2)` comparison and refinement.
+   - [x] Add README, tutorial, serialization, and root-isolation tests.
+   - [x] Register exact sign and enclosure capabilities.
+   - [x] Reuse the canonical `.poly` Polynomial value and algorithm service for
+     primitive normalization, derivatives, Sturm chains, root counts, and root
+     bounds; remove the private duplicate polynomial implementation.
 2. **Phase 2 — Field operations**
    - [ ] Add comparison and arithmetic using resultants/root isolation.
-   - [ ] Exchange polynomial evidence with `.algebra`.
+   - [x] Exchange canonical Polynomial values and evidence with `.poly` and
+     `.algebra` through `rix.polynomial@1`.
 3. **Phase 3 — Certified functions and geometry**
    - [ ] Support exact coordinates from conic intersections and selected
      algebraic transformations.

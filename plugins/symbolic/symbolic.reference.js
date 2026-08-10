@@ -1,4 +1,7 @@
 /**
+ * JavaScript host installer retained for comparison with the executable
+ * pure-RiX plugin in symbolic.plugin.rix.
+ *
 id: symbolic
 description: Meta-plugin loading RiX representation-sensitive Fraction and FractionFunction workspaces.
 kind: host

@@ -238,7 +238,7 @@ function canonicalCaches(displaySpec, context, evaluate) {
     try {
         rationalFunction = createRationalFunction([displaySpec], context, evaluate);
         try {
-            polynomial = createPolynomial([displaySpec], context);
+            polynomial = createPolynomial([displaySpec], context, evaluate);
         } catch {
             // A proper fraction has no Polynomial projection.
         }
@@ -413,12 +413,12 @@ function canonical(value, context, evaluate) {
     }
 }
 
-function polynomial(value, context) {
+function polynomial(value, context, evaluate) {
     const source = requireFractionFunction(value);
     const cached = metadata(source).canonicalPolynomial;
     if (cached) return cached;
     try {
-        return createPolynomial([metadata(source).displaySpec], context);
+        return createPolynomial([metadata(source).displaySpec], context, evaluate);
     } catch (error) {
         throw new Error(`FractionFunction form is not a Polynomial: ${error.message}`);
     }
@@ -505,9 +505,9 @@ export function registerFractionFunctionMethods(systemContext, owner = {}) {
     register("FractionFunction", "Cancel", ([value], context, evaluate) => cancelled(value, context, evaluate));
     register("FractionFunction", "Canonical", ([value], context, evaluate) => canonical(value, context, evaluate));
     register("FractionFunction", "R", ([value], context, evaluate) => canonical(value, context, evaluate));
-    register("FractionFunction", "Polynomial", ([value], context) => polynomial(value, context));
-    register("FractionFunction", "P", ([value], context) => polynomial(value, context));
-    register("FractionFunction", "CanonicalPolynomial", ([value], context) => polynomial(value, context));
+    register("FractionFunction", "Polynomial", ([value], context, evaluate) => polynomial(value, context, evaluate));
+    register("FractionFunction", "P", ([value], context, evaluate) => polynomial(value, context, evaluate));
+    register("FractionFunction", "CanonicalPolynomial", ([value], context, evaluate) => polynomial(value, context, evaluate));
     register("FractionFunction", "IsPolynomial", ([value]) => metadata(requireFractionFunction(value)).canonicalPolynomial ? int(1) : null);
     register("FractionFunction", "SameForm", ([value, other]) => {
         requireFractionFunction(other, "SameForm operand");

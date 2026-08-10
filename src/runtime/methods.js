@@ -1920,7 +1920,8 @@ export function getBuiltinProto(target) {
 
 export function resolveMethod(target, name, context = null) {
     const ext = target?._ext;
-    const candidates = [name, `__${name}`, `_${name}`];
+    const upperName = String(name).toUpperCase();
+    const candidates = [...new Set([name, upperName, `__${name}`, `_${name}`, `__${upperName}`, `_${upperName}`])];
     const special = checkTraitsMethod(name);
     if (special) {
         return special;

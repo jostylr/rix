@@ -11,8 +11,9 @@ describe("exact-algebras plugin", () => {
             .Plugin.Load("exact-algebras");
             .exactAlgebras.Quaternion(1/2, 2);
         `);
-        expect(value.type).toBe("exact_quaternion");
-        expect(value.components.map(String)).toEqual(["1/2", "2", "0", "0"]);
+        expect(value.type).toBe("map");
+        expect(value.entries.get("type").value).toBe("exact_quaternion");
+        expect(value.entries.get("components").values.map(String)).toEqual(["1/2", "2", "0", "0"]);
     });
 
     test("quaternion basis multiplication is exact", () => {

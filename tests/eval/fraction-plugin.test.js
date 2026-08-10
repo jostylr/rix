@@ -120,6 +120,6 @@ describe("representation-sensitive Fraction plugin", () => {
         expect(() => parseAndEvaluate(`
             .Plugin.Load("fraction");
             .fraction.FromSternBrocotPath(["left"]);
-        `)).toThrow('directions must be "L" or "R"');
+        `)).toThrow("directions must be L or R");
     });
 });

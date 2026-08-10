@@ -642,6 +642,9 @@ $count ##@ == 2;</code></pre>
 <p>Plugins can add a receiver-first method to an existing semantic/runtime type without patching individual values or RatMath JavaScript classes:</p>
 <pre id="register-method-example" class="rix" data-exec="true"><code>.RegisterMethod(:Rational, :Twice, (self) -&gt; self * 2);
 (3/7).Twice() ##@ == 6/7;</code></pre>
+<p>A pure-RiX plugin should use the permission-checked host namespace and attach ownership metadata:</p>
+<pre class="rix"><code>.Host.RegisterMethod("Rational", "Twice", (self) -&gt; self * 2, "example", "example");</code></pre>
+<p>The optional final two arguments are the plugin ID and active mount. Supplying the mount makes the method unavailable when that mount is absent from a restricted system context. The plugin form is permitted only when its import frame has <code>PLUGINS</code> permission. <code>.RegisterMethod</code> remains the concise trusted startup/script form.</p>
 <p>A plugin registration cannot replace a built-in method, and a second extension with the same type/name pair is an error. Plugin-owned extensions remain usable only while their owning mount is visible in the active system context.</p>
 <p>The bundled <code>.radix</code> plugin adds <code>Expansion</code>, <code>Digits</code>, <code>PeriodLength</code>, <code>PeriodInfo</code>, and <code>RadixString</code> to exact numeric values. The <code>.float</code> plugin adds the explicit <code>Float()</code> conversion to Integers and Rationals. Plugin methods are listed on their plugin pages rather than in the built-in lists above.</p>
 
