@@ -48,6 +48,34 @@ protocols must remain host-neutral.
 - Rich output does not permit unsanitized plugin HTML or workspace scripts to
   execute in the extension host or webview.
 
+## Resolved implementation decisions
+
+The initial design review established these defaults:
+
+- The extension begins in `rix/editors/vscode`, not a separate repository. It
+  retains its own package, version, build, tests, and release workflow.
+- Desktop is the first complete target. The portable language-service core and
+  extension client should avoid unnecessary Node-only coupling so static web
+  support can follow, but web execution is not a first-release requirement.
+- Desktop execution supports both a bundled Node-compatible RiX worker and an
+  explicitly selected Bun worker. Bundled Node is the default so the extension
+  works without a separately installed runtime.
+- Inline checks participate in Check File and display source feedback by
+  default. Discovery, source decorations, and Test Explorer publication are
+  independently configurable.
+- Formatting uses a Prettier-style document model with readable and compact
+  profiles. It borrows the settled principles of JavaScript formatters without
+  pretending RiX is JavaScript.
+- Static plugin discovery may read and validate declarative headers and RiX
+  operator declarations, but must not import or evaluate plugin modules.
+- Portable output is the preferred preview boundary. Complete HTML renderer
+  output is untrusted input to a webview and is never inserted directly.
+- `rix.json` follows nearest-package configuration discovery. Parent
+  configuration is inherited only through an explicit `extends` field.
+- The editor's standard execution profile permits sandboxed RiX imports and
+  approved permissionless plugins while denying network access, general file
+  access, workspace JavaScript installers, and unrestricted background work.
+
 ## Existing foundation
 
 The first implementation should reuse these current components rather than
@@ -365,11 +393,29 @@ The server must not evaluate receiver expressions to discover members.
 
 ## Formatting
 
-Formatting should be conservative until RiX style is settled. It must:
+Formatting should be conservative until RiX style is settled. The
+implementation should use a Prettier-style document algebra—groups, indentation,
+soft lines, and a print width—so the same syntax can choose a compact or
+expanded layout deterministically.
+
+The initial profiles are:
+
+| Profile | Purpose | Initial behavior |
+|---|---|---|
+| `readable` | Default source and documentation style | Four-space indentation, `printWidth: 100`, spaces around infix operators and after separators, multiline blocks/containers when structure or comments benefit from it |
+| `compact` | Dense formulas, examples, and small containers | Retain or choose single-line groups more aggressively, while respecting the configured print width and mandatory sigil spacing |
+
+Both profiles share the same semantics and only differ in line-breaking
+preferences. The first stable formatter contract is intentionally narrow:
 
 - preserve comments, tagged comments, documentation markers, and embedded
   notation contents;
 - preserve the meaning and line-scoped behavior of `##@`, `##:`, and `##!`;
+- keep a postfix check or diagnostic tap on the same logical line as its value;
+- normalize unambiguous whitespace around operators, separators, assignments,
+  arrows, and brace sigils;
+- preserve statement separators in the first version rather than inserting or
+  removing semicolons globally;
 - be idempotent;
 - avoid changing custom operator precedence through parenthesis removal;
 - format only successfully parsed regions when a document contains errors;
@@ -401,9 +447,13 @@ Proposed initial shape:
     "profiles": ["default"]
   },
   "format": {
-    "enabled": true
+    "enabled": true,
+    "profile": "readable",
+    "printWidth": 100,
+    "indentWidth": 4
   },
   "execution": {
+    "runtime": "node",
     "mode": "isolated",
     "timeoutMs": 10000,
     "capabilityGroups": ["standard"],
@@ -412,8 +462,20 @@ Proposed initial shape:
 }
 ```
 
-The exact fields and group names require a separate compatibility review
-against runtime configuration before implementation. The schema must reject
+`execution.runtime` accepts `node` or `bun`. `node` uses the version-matched
+worker bundled with the extension. `bun` launches the same worker protocol with
+a configured or discovered Bun executable and must negotiate compatible RiX
+and protocol versions before running source.
+
+Configuration discovery starts at the document directory and selects the
+nearest `rix.json`, stopping at the active workspace-folder boundary. There is
+no implicit merge with more distant files. A configuration may declare
+`extends`, resolved relative to that file with cycle detection and the same
+workspace/trust boundaries. Source headers add file-local plugins and operator
+files but cannot widen execution permissions.
+
+The remaining exact fields and capability group membership require a
+compatibility review against runtime configuration. The schema must reject
 unknown security-sensitive keys and provide descriptions/defaults to editors.
 
 The language server watches resolved configuration, operator files, plugin
@@ -483,7 +545,22 @@ must not claim that generated artifacts came from the saved file.
 ### Rich preview
 
 The preview consumes portable RiX output or an approved renderer result. It
-does not call evaluator functions directly. Requirements include:
+does not call evaluator functions directly. Preview inputs fall into three
+classes:
+
+| Input | Initial policy |
+|---|---|
+| Validated portable output such as Text, Fragment, Graphic, Table, Sheet, Figure, and Slides | Render through a VS Code-owned structural adapter |
+| Validated assets such as PNG or bounded renderer SVG | Serve through webview resource URIs after MIME, size, URL, and SVG policy checks |
+| Complete HTML, Markdown-converted HTML, plugin CSS/JS, or unknown renderer markup | Never insert directly; sanitize through a dedicated adapter or expose as an artifact opened by an explicit user action |
+
+The existing structured-output HTML traversal escapes text and filters URLs,
+so it is a useful implementation reference. It is not itself the webview trust
+boundary. In particular, the standalone HTML renderer accepts caller-provided
+CSS and returns a complete document; its output must be treated as untrusted
+markup.
+
+Requirements include:
 
 - strict Content Security Policy and per-load nonces;
 - no arbitrary network access;
@@ -531,14 +608,48 @@ must identify that dependency in the run record.
 ### Plugins and capabilities
 
 Static plugin metadata may be inspected without installing or executing plugin
-JavaScript. Execution resolves plugins through the normal catalog and approval
-rules. Workspace-provided JavaScript installers require a trusted workspace and
+JavaScript. The current catalog's deliberately small YAML header format is the
+allowed discovery surface. Static tooling may consume validated fields such as
+`id`, `description`, `kind`, `mount`, `aliases`, `exports`, `groups`,
+`permissions`, `requires`, `optional`, `provides`, `schemas`, `targets`,
+`snapshot`, `deterministic`, and `operator-files`.
+
+For `.plugin.rix`, tooling may tokenize source to extract static custom-operator
+declarations without evaluation. For `.plugin.rix.js`, tooling reads only the
+leading manifest and must not import the module or infer behavior from its
+JavaScript body. Referenced operator files must be bounded text files resolved
+inside the plugin/workspace root unless they belong to the trusted bundled
+installation. Dependency resolution may construct a proposed load graph from
+`requires` and `provides`, but it does not activate that graph.
+
+Execution resolves plugins through the normal catalog and approval rules.
+Workspace-provided JavaScript installers require a trusted workspace and
 explicit host approval.
 
 The worker receives a capability allowlist, not an unrestricted system
 context. A file cannot broaden that allowlist through a source header or
-workspace-owned setting. Artifact writes are constrained to a resolved output
-root and retain the CLI's path-escape checks.
+workspace-owned setting. The initial `standard` profile is defined by policy,
+not merely by exposing every registered function:
+
+- allow core arithmetic, logic, exact values, collections, strings, units,
+  symbolic operations, portable output construction, and bounded internal
+  async operations;
+- allow `.rix` imports whose resolved paths remain inside the workspace or the
+  bundled standard library;
+- allow host-preloaded first-party plugins and workspace `.plugin.rix` plugins
+  that request no denied permissions and stay inside the workspace;
+- deny `NET`, general `FILES`, unrestricted `BACKGROUND`, and workspace
+  `.plugin.rix.js` installers by default;
+- do not grant source code an unrestricted `.Plugin.Load`; the host resolves
+  the configured plugin allowlist before the run;
+- allow `.Out` only as a host-mediated artifact declaration inside the selected
+  output root, not as general file access;
+- deny renderers that invoke external tools unless the user selects a broader
+  trusted profile or approves the operation.
+
+Artifact writes retain the CLI's path-escape checks. The exact function/group
+expansion of `standard` must be generated and tested so new capabilities do not
+enter the sandbox accidentally.
 
 ## Checks, tests, and reports
 
@@ -556,13 +667,26 @@ The static service discovers source locations and provisional identities for:
 
 Dynamic test labels remain executable but may appear only after a run.
 
+Inline check settings are independent:
+
+```text
+rix.checks.inline.enabled = true
+rix.checks.inline.decorations = true
+rix.checks.inline.showInTestExplorer = true
+```
+
+Disabling Test Explorer publication does not disable Check File or source
+decorations. Disabling inline checks prevents their execution while leaving
+ordinary `.Test` discovery intact.
+
 ### Result presentation
 
 - Failed and errored checks create source diagnostics.
 - Passed checks receive a subtle gutter state and optional CodeLens summary.
 - Unresolved exact decisions are distinct from failures.
 - Test Explorer represents `.Test` groups and cases; inline checks may appear
-  under a per-file “Inline checks” group when enabled.
+  under a per-file “Inline checks” group by default and can be hidden through
+  configuration.
 - Selecting a result navigates to its precise source range.
 - Re-running one discovered item is allowed only when the worker can preserve
   its setup and source semantics; otherwise the containing file/group runs.
@@ -698,17 +822,30 @@ that bypass earlier ones.
 
 ### 0. Confirm design and public contracts
 
-- [ ] Review and accept the three-process boundary.
-- [ ] Choose the initial VS Code extension location, publisher ID, and release
-  repository strategy.
-- [ ] Choose the Node/Bun distribution strategy for desktop and whether a web
-  extension is an initial requirement.
+- [x] Review and accept the three-process boundary.
+- [x] Keep the initial extension in `rix/editors/vscode` with independent
+  packaging and versioning rather than creating a separate repository.
+- [ ] Choose and reserve the VS Code Marketplace publisher and extension ID.
+- [x] Support a bundled Node-compatible worker and an explicitly selected Bun
+  worker, with bundled Node as the desktop default.
+- [x] Make desktop the first complete target and keep the portable static core
+  suitable for later web-worker packaging.
 - [ ] Confirm internal byte/code-unit offsets and LSP UTF-16 conversion rules.
 - [ ] Approve the static diagnostic schema.
 - [ ] Approve `rix.execution/1` envelopes and event kinds.
 - [ ] Approve check/test status semantics, including `unresolved`.
 - [ ] Define protocol and configuration compatibility policy.
-- [ ] Decide whether inline checks appear in Test Explorer by default.
+- [x] Enable inline checks, source feedback, and Test Explorer publication by
+  default with independent settings to disable each presentation.
+- [x] Adopt nearest-ancestor `rix.json` discovery with explicit `extends` and no
+  implicit parent composition.
+- [x] Limit static plugin discovery to declarative manifests, bounded operator
+  sources, and no module execution.
+- [x] Define the high-level sandbox policy for the `standard` profile.
+- [ ] Audit and freeze the exact capability/plugin membership of `standard`.
+- [ ] Approve representative readable/compact formatter fixtures before
+  declaring either profile stable.
+- [ ] Audit and approve the first rich-preview renderer/asset allowlist.
 
 ### 1. Source spans and structured runtime events
 
@@ -780,6 +917,8 @@ that bypass earlier ones.
 - [ ] Add Explain Scope at Cursor.
 - [ ] Declare limited untrusted-workspace support and restricted settings.
 - [ ] Test trusted, untrusted, virtual, and multi-root workspace behavior.
+- [ ] Keep extension-host/LSP transport behind interfaces that have browser
+  worker equivalents, without delaying the desktop release.
 
 ### 5. Execution worker and CLI protocol
 
@@ -848,7 +987,9 @@ that bypass earlier ones.
 
 - [ ] Validate the LSP with at least one non-VS Code client.
 - [ ] Publish generic LSP installation instructions.
-- [ ] Decide whether browser/worker LSP support is worth the bundle constraints.
+- [ ] Package the static language service and LSP for VS Code for the Web.
+- [ ] Define the smaller web execution/plugin/renderer subset before enabling
+  Run commands in a web extension.
 - [ ] Evaluate a notebook/Jupyter kernel after session and rich-output protocols
   stabilize.
 - [ ] Design a Debug Adapter Protocol mapping from evaluator frames and trace
@@ -856,25 +997,26 @@ that bypass earlier ones.
 - [ ] Evaluate Tree-sitter only for a concrete consumer that cannot use LSP,
   Lezer, or TextMate.
 
-## Open decisions
+## Remaining validation questions
 
-These choices should be resolved during Phase 0:
+The broad policy choices are resolved. Phase 0 still needs concrete audits and
+fixtures for these narrower implementation questions:
 
-1. Should the published extension bundle a Node-compatible RiX runtime, require
-   Bun, or support both with a selected runtime setting?
-2. Is VS Code for the Web an initial target, or should the first release be a
-   desktop extension with a later worker-based web server?
-3. Should inline checks be first-class Test Explorer items by default, or stay
-   in a dedicated Checks tree unless enabled?
-4. What is the minimal formatter style that can be declared stable while RiX
-   syntax continues to evolve?
-5. Which plugin metadata can be read safely without executing plugin code?
-6. Which existing portable renderer outputs are safe to send directly to a
-   webview, and which require a dedicated sanitizer or adapter?
-7. Should `rix.json` live at the RiX package root, workspace root, or nearest
-   ancestor, and how are nested configurations composed?
-8. Which runtime capability groups constitute the editor's proposed
-   `standard` execution profile?
+1. How does Bun executable discovery work, and which RiX/runtime version
+   mismatches are warnings versus hard protocol failures?
+2. Which static features ship in the first web follow-up, and which evaluator,
+   plugin, import, and renderer features can run safely in a browser worker?
+3. Which representative source fixtures define the exact readable/compact
+   formatter output, especially short mathematical containers, long pipelines,
+   comments, and postfix checks?
+4. What size, path, symlink, and workspace-boundary limits apply when static
+   discovery follows `operator-files`?
+5. Which portable output kinds and asset MIME types form the first preview
+   allowlist, and which SVG/CSS sanitizer is used?
+6. Which exact current capability entries and first-party plugins expand from
+   the `standard` profile, and how does CI detect an accidental expansion?
+7. Which external-tool renderers receive individual approval commands, and how
+   are their executable paths and outputs reported?
 
-The first implementation should answer these explicitly rather than allowing
-extension-specific defaults to become accidental language policy.
+These answers should become tests or generated policy data rather than remain
+extension-specific conventions.
