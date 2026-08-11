@@ -6,8 +6,9 @@ mount: cauchy
 exports: [Sequence, Certified, Geometric, Term, TailBound, Modulus, Enclosure, Record]
 groups: [Numerics, Exact]
 permissions: []
+requires: [rix.oracle@1]
 provides: [rix.cauchy@1, rix.refinable@1, rix.enclosable-real@1]
-schemas: [rix.cauchy.sequence@1, rix.cauchy.real@1]
+schemas: [rix.cauchy.sequence@1, rix.cauchy.real@1, rix.cauchy.arithmetic-real@1]
 snapshot: false
 deterministic: true
 defaultEnabled: false
@@ -105,6 +106,7 @@ CauchyCapabilities(real) -> {;
         schema = "rix.numerics.capabilities@1",
         backend = :cauchy,
         representation = certified ?: :rationalSequenceWithTailModulus ?_ :bareRationalSequence,
+        denotation = certified ?: :singleton ?_ :sequence,
         operations = certified ?: [:enclose, :refine] ?_ [],
         evidenceLevels = evidenceLevels,
         certified = certified,
@@ -340,6 +342,74 @@ CauchyProtocolEnclosure(real, request, operation) -> {;
         source = real[:provenance]
     };
 };
+
+CauchyFamily(value) -> (value ? :Map) &&
+  (value[:valueKind] == :cauchyReal || value[:valueKind] == :cauchyArithmeticReal);
+CauchyExact(value) -> (value ? :Integer) || (value ? :Rational);
+CauchyArithmeticPair(left, right) ->
+  (CauchyFamily(left) || CauchyFamily(right)) &&
+  (CauchyFamily(left) || CauchyExact(left)) &&
+  (CauchyFamily(right) || CauchyExact(right));
+
+CauchyArithmeticCapabilities(real) -> {=
+    valueKind=:numericsCapabilities,
+    schema="rix.numerics.capabilities@1",
+    backend=:cauchy,
+    representation=:oracleBackedCauchyArithmetic,
+    denotation=:singleton,
+    operations=[:enclose, :refine],
+    evidenceLevels=[:constructorGuarantee, :proof],
+    certified=1,
+    arbitraryRefinement=1,
+    deterministic=1,
+    minimumWidth=0,
+    maxCalls=100000,
+    maxIterations=100000
+};
+
+CauchyArithmetic(operation, left, right ?= _) -> {;
+    unary = operation == :neg || operation == :abs;
+    recipe = unary ?: .oracle.Operation(operation, left) ?_ .oracle.Operation(operation, left, right);
+    real = {=
+        valueKind=:cauchyArithmeticReal,
+        schema="rix.cauchy.arithmetic-real@1",
+        kind=:arithmetic,
+        operation=operation,
+        recipe=recipe,
+        provenance={= plugin=:cauchy, version=2, source=:arithmeticRecipe }
+    };
+    real._proto = {=
+        Enclose=(self, request ?= {= })->self[:recipe].Enclose(request),
+        Refine=(self, request ?= {= })->self[:recipe].Refine(request),
+        NumericsCapabilities=(self)->CauchyArithmeticCapabilities(self),
+        Record=(self)->{= valueKind=self[:valueKind], schema=self[:schema], operation=self[:operation], certified=1 }
+    };
+    .ImmutableValue(real ~!: :CauchyReal);
+};
+
+.TypeKnown(:CauchyReal) ?: _ ?_ .TypeRegister({=
+    name=:CauchyReal,
+    nativeType=:map,
+    defaultTraits=[:number, :ordered],
+    convertFrom={= map=(x) ?- [CauchyFamily(x)] -> x },
+    validate=(x)->CauchyFamily(x),
+    proto={=
+        Enclose=(self,request ?= {= })->self[:kind] == :arithmetic ?: self[:recipe].Enclose(request) ?_ CauchyProtocolEnclosure(self,request,:enclose),
+        Refine=(self,request ?= {= })->self[:kind] == :arithmetic ?: self[:recipe].Refine(request) ?_ CauchyProtocolEnclosure(self,request,:refine),
+        NumericsCapabilities=(self)->self[:kind] == :arithmetic ?: CauchyArithmeticCapabilities(self) ?_ CauchyCapabilities(self)
+    },
+    installs={=
+        ADD=[{= name=:CauchyAdd, priority=300, prep=(x,y)->CauchyArithmeticPair(x,y), impl=(x,y)->CauchyArithmetic(:add,x,y) }],
+        SUB=[{= name=:CauchySub, priority=300, prep=(x,y)->CauchyArithmeticPair(x,y), impl=(x,y)->CauchyArithmetic(:sub,x,y) }],
+        MUL=[{= name=:CauchyMul, priority=300, prep=(x,y)->CauchyArithmeticPair(x,y), impl=(x,y)->CauchyArithmetic(:mul,x,y) }],
+        DIV=[{= name=:CauchyDiv, priority=300, prep=(x,y)->CauchyArithmeticPair(x,y), impl=(x,y)->CauchyArithmetic(:div,x,y) }],
+        POW=[{= name=:CauchyPow, priority=300, prep=(x,y)->CauchyFamily(x)&&(y ? :Integer), impl=(x,y)->CauchyArithmetic(:pow,x,y) }],
+        NEG=[{= name=:CauchyNeg, priority=300, prep=(x)->CauchyFamily(x), impl=(x)->CauchyArithmetic(:neg,x) }],
+        ABS=[{= name=:CauchyAbs, priority=300, prep=(x)->CauchyFamily(x), impl=(x)->CauchyArithmetic(:abs,x) }]
+    }
+});
+
+.TypeInstall(:CauchyReal);
 
 cauchyNamespace = {= };
 cauchyNamespace._proto = {=

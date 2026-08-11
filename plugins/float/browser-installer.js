@@ -75,7 +75,8 @@ function decimalRounded(value, places, mode) {
 function numericVariant(name, fn, arity = 2) {
     return {
         name,
-        prep(args) { return args.length >= arity && args.some(isFloat); },
+        priority: 500,
+        prep(args) { return args.length >= arity && args.slice(0, arity).every(isFloat); },
         impl(args) { return float(fn(...args.map(numberFrom))); },
     };
 }
@@ -83,18 +84,14 @@ function numericVariant(name, fn, arity = 2) {
 function compareVariant(name, relation) {
     return {
         name,
-        prep(args) { return args.length === 2 && args.some(isFloat); },
+        priority: 500,
+        prep(args) { return args.length === 2 && args.every(isFloat); },
         impl(args) { return relation(numberFrom(args[0]), numberFrom(args[1])) ? new Integer(1n) : null; },
     };
 }
 
-function prepareFloatComparison(args, _context, evaluate) {
-    if (args.length !== 2 || !args.some(isFloat)) return false;
-    try {
-        return { args: args.map((value) => requireFloat(value, evaluate)) };
-    } catch {
-        return false;
-    }
+function prepareFloatComparison(args) {
+    return args.length === 2 && args.every(isFloat) ? { args } : false;
 }
 
 function registerFloatType() {
@@ -109,6 +106,7 @@ function registerFloatType() {
         ["NEG", [numericVariant("FloatIEEE754Neg", (value) => -value, 1)]],
         ["COMPARE", [{
             name: "FloatIEEE754Compare",
+            priority: 500,
             prepare: prepareFloatComparison,
             impl(args) {
                 const [left, right] = args.map(numberFrom);

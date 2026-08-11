@@ -19,6 +19,18 @@ conversion. The method appears on integers and rationals only while the plugin
 is loaded; neither spelling permits exact arithmetic to become approximate
 silently.
 
+Mixed expressions are deliberately rejected:
+
+```rix
+.float(1/2) + .float(1/3); ## Float + Float is valid
+.float(1/2 + 1/3);         ## or do exact work first, then convert
+```
+
+By contrast, `1/2 + .float(1/3)` is an error: choose an explicit conversion.
+The same rule covers comparisons, `Min`/`Max`, and certified-real arithmetic.
+No real backend silently turns itself into Float, and Float never enters the
+automatic Oracle bridge.
+
 The package owns the `Float` semantic type and the `.float` command namespace.
 This keeps other future numerical plugins—interval oracles, Cauchy sequences,
 continued fractions—from competing for a single global approximate type.

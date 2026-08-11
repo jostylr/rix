@@ -7,8 +7,9 @@ aliases: [cf]
 exports: [Finite, Lazy, Periodic, Sqrt2, FromRational, Coefficient, Coefficients, Convergent, Convergents, Enclosure, ErrorInterval, Record]
 groups: [Numerics, Exact]
 permissions: []
+requires: [rix.oracle@1]
 provides: [rix.continued-fraction@1, rix.refinable@1, rix.enclosable-real@1]
-schemas: [rix.continued-fraction.finite@1, rix.continued-fraction.lazy@1]
+schemas: [rix.continued-fraction.finite@1, rix.continued-fraction.lazy@1, rix.continued-fraction.arithmetic-real@1]
 snapshot: false
 deterministic: true
 defaultEnabled: false
@@ -158,6 +159,7 @@ CFCapabilities(real) -> {;
         schema = "rix.numerics.capabilities@1",
         backend = :continuedFraction,
         representation = lazy ?: :lazySimpleContinuedFraction ?_ :finiteSimpleContinuedFraction,
+        denotation = :singleton,
         operations = [:enclose, :refine],
         evidenceLevels = [lazy ?: real[:evidenceLevel] ?_ :proof],
         certified = 1,
@@ -366,6 +368,74 @@ CFProtocolEnclosure(real, request, operation) -> {;
         source = {= plugin=:continuedFraction, schema=real[:schema], kind=real[:kind] }
     };
 };
+
+CFFamily(value) -> (value ? :Map) &&
+  (value[:valueKind] == :continuedFraction || value[:valueKind] == :continuedFractionArithmeticReal);
+CFExact(value) -> (value ? :Integer) || (value ? :Rational);
+CFArithmeticPair(left, right) ->
+  (CFFamily(left) || CFFamily(right)) &&
+  (CFFamily(left) || CFExact(left)) &&
+  (CFFamily(right) || CFExact(right));
+
+CFArithmeticCapabilities(real) -> {=
+    valueKind=:numericsCapabilities,
+    schema="rix.numerics.capabilities@1",
+    backend=:continuedFraction,
+    representation=:oracleBackedContinuedFractionArithmetic,
+    denotation=:singleton,
+    operations=[:enclose, :refine],
+    evidenceLevels=[:constructorGuarantee, :proof],
+    certified=1,
+    arbitraryRefinement=1,
+    deterministic=1,
+    minimumWidth=0,
+    maxCalls=100000,
+    maxIterations=100000
+};
+
+CFArithmetic(operation, left, right ?= _) -> {;
+    unary = operation == :neg || operation == :abs;
+    recipe = unary ?: .oracle.Operation(operation, left) ?_ .oracle.Operation(operation, left, right);
+    real = {=
+        valueKind=:continuedFractionArithmeticReal,
+        schema="rix.continued-fraction.arithmetic-real@1",
+        kind=:arithmetic,
+        operation=operation,
+        recipe=recipe,
+        provenance={= plugin=:continuedFraction, version=2, source=:arithmeticRecipe }
+    };
+    real._proto = {=
+        Enclose=(self, request ?= {= })->self[:recipe].Enclose(request),
+        Refine=(self, request ?= {= })->self[:recipe].Refine(request),
+        NumericsCapabilities=(self)->CFArithmeticCapabilities(self),
+        Record=(self)->{= valueKind=self[:valueKind], schema=self[:schema], operation=self[:operation], certified=1 }
+    };
+    .ImmutableValue(real ~!: :ContinuedFractionReal);
+};
+
+.TypeKnown(:ContinuedFractionReal) ?: _ ?_ .TypeRegister({=
+    name=:ContinuedFractionReal,
+    nativeType=:map,
+    defaultTraits=[:number, :ordered],
+    convertFrom={= map=(x) ?- [CFFamily(x)] -> x },
+    validate=(x)->CFFamily(x),
+    proto={=
+        Enclose=(self,request ?= {= })->self[:kind] == :arithmetic ?: self[:recipe].Enclose(request) ?_ CFProtocolEnclosure(self,request,:enclose),
+        Refine=(self,request ?= {= })->self[:kind] == :arithmetic ?: self[:recipe].Refine(request) ?_ CFProtocolEnclosure(self,request,:refine),
+        NumericsCapabilities=(self)->self[:kind] == :arithmetic ?: CFArithmeticCapabilities(self) ?_ CFCapabilities(self)
+    },
+    installs={=
+        ADD=[{= name=:CFAdd, priority=300, prep=(x,y)->CFArithmeticPair(x,y), impl=(x,y)->CFArithmetic(:add,x,y) }],
+        SUB=[{= name=:CFSub, priority=300, prep=(x,y)->CFArithmeticPair(x,y), impl=(x,y)->CFArithmetic(:sub,x,y) }],
+        MUL=[{= name=:CFMul, priority=300, prep=(x,y)->CFArithmeticPair(x,y), impl=(x,y)->CFArithmetic(:mul,x,y) }],
+        DIV=[{= name=:CFDiv, priority=300, prep=(x,y)->CFArithmeticPair(x,y), impl=(x,y)->CFArithmetic(:div,x,y) }],
+        POW=[{= name=:CFPow, priority=300, prep=(x,y)->CFFamily(x)&&(y ? :Integer), impl=(x,y)->CFArithmetic(:pow,x,y) }],
+        NEG=[{= name=:CFNeg, priority=300, prep=(x)->CFFamily(x), impl=(x)->CFArithmetic(:neg,x) }],
+        ABS=[{= name=:CFAbs, priority=300, prep=(x)->CFFamily(x), impl=(x)->CFArithmetic(:abs,x) }]
+    }
+});
+
+.TypeInstall(:ContinuedFractionReal);
 
 continuedFractionNamespace = (value, options ?= {= }) -> CFConstruct(value, options);
 continuedFractionNamespace._proto = {=

@@ -121,6 +121,24 @@ alternatives := .oracle.AskAll(
 alternatives.Map((item) -> item[:status]);
 ```
 
-Newton funnels, Cauchy adapters, arithmetic, and epsilon-trichotomy are later
-phases. Their absence is explicit rather than replaced with floating-point
-guesses.
+## Arithmetic and certified adapters
+
+Oracle arithmetic keeps an immutable recipe and materializes exact rational
+intervals only when a width is requested:
+
+```rix
+.Plugin.Load("oracle");
+.Plugin.Load("numerics");
+x := .oracle.Rational(3/2);
+values := [x+x, x-x, x*x, x/x, -x, .Abs(x), x^3];
+values.Map((value) -> .numerics.Refine(value, {=
+  absoluteWidth=1/1000,
+  maxWork=40,
+  trace=1
+})[:interval]);
+```
+
+Exact Rationals become exact point leaves. `.oracle.From(value)` also accepts
+any certified, arbitrarily refinable singleton provider. It rejects finite
+non-point Balls, RationalIntervals, and Floats because those inputs do not
+carry the missing singleton/refinement meaning.

@@ -15,9 +15,11 @@ y := (1 / 3).Float()
 .float.Round(.float.Float(2.675), 2)
 ```
 
-The plugin registers overloads for arithmetic, comparison, and standard math
-operations, allowing Float values to participate in ordinary expressions once
-loaded.
+The plugin registers Float-to-Float overloads for arithmetic, comparison, and
+standard math operations. It never silently converts an Integer, Rational, or
+certified real. Write both conversions explicitly, for example
+`.float(1/2) + .float(1/3)`, or perform exact arithmetic first and convert the
+result with `.float(1/2 + 1/3)`.
 
 ## Commands
 

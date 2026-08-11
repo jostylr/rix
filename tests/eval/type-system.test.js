@@ -137,14 +137,14 @@ describe("RiX type and trait registry", () => {
         expect(tensor.values[1].values.map((v) => Number(v.value))).toEqual([1, 2, 3, 4]);
     });
 
-    test("Oracle is not a built-in type by default", () => {
-        expect(typeRegistry.has("Oracle")).toBe(false);
-        expect(() => evalRiX("7 ~!: :Oracle")).toThrow(/Unknown semantic type: Oracle/);
+    test("an unregistered semantic type is rejected", () => {
+        expect(typeRegistry.has("DefinitelyMissingType")).toBe(false);
+        expect(() => evalRiX("7 ~!: :DefinitelyMissingType")).toThrow(/Unknown semantic type: DefinitelyMissingType/);
     });
 
-    test("example user startup can register minimal Oracle export/import", () => {
+    test("example user startup can register a minimal distinct Oracle-like export/import", () => {
         const result = evalRiX(
-            "o = 7 ~: :Oracle; e = .TypeExport(o); o2 = .TypeImport(e); o2.Mid();",
+            "o = 7 ~: :ExampleOracle; e = .TypeExport(o); o2 = .TypeImport(e); o2.Mid();",
             new Context(),
             { startupLoaders: [loadOracleExampleStartup] },
         ).result;
@@ -180,12 +180,12 @@ describe("RiX type and trait registry", () => {
         })).toBe("3");
     });
 
-    test("Float plugin installs conversion and mixed numeric promotion", () => {
+    test("Float plugin requires explicit conversion for mixed arithmetic", () => {
         const context = new Context();
         const registry = createDefaultRegistry();
         const systemContext = createDefaultSystemContext();
         loadFloatPlugin(systemContext, registry);
-        const ir = lower(parse(tokenize("{; a = .float.Float(0.5); {: 7 + .float.Sin(a), .float.Sin(a) + 7, 1/2 + a, a < 1, 1 > a } }"), () => ({ type: "identifier" })));
+        const ir = lower(parse(tokenize("{; a = .float.Float(0.5); {: .float(7) + .float.Sin(a), .float.Sin(a) + .float(7), .float(1/2) + a, a < .float(1), .float(1) > a } }"), () => ({ type: "identifier" })));
         let result = null;
         for (const node of ir) {
             result = evaluate(node, context, registry, systemContext);
@@ -204,6 +204,7 @@ describe("RiX type and trait registry", () => {
         })).toBe("1");
         expect(asBool(result.values[3])).toBe(true);
         expect(asBool(result.values[4])).toBe(true);
+        expect(() => parseAndEvaluate("1/2 + .float(1/2)", { context, registry, systemContext })).toThrow();
     });
 
     test("built-in registries expose the expected built-ins", () => {

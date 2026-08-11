@@ -125,3 +125,28 @@ restored := .ar.Import(encoded);
 
 Import recomputes normalization, square-freeness, isolation, and root index.
 The serialized evidence is provenance, not an unchecked authority.
+
+## Arithmetic of algebraic reals
+
+The arithmetic surface is available before a result is canonicalized to a new
+minimal polynomial. Results retain the `AlgebraicReal` semantic family and a
+certified Oracle-backed recipe:
+
+```rix
+.Plugin.Load("algebraic-real");
+.Plugin.Load("numerics");
+x := .ar.Sqrt2();
+values := [x+x, x-x, x*x, x/x, -x, .Abs(x), x^2, x+1/3];
+.Table({=
+  columns=["type", "interval"],
+  rows=values.Map((value) -> [
+    value.__type,
+    .numerics.Refine(value, {= absoluteWidth=1/1000, maxWork=120 })[:interval]
+  ])
+});
+```
+
+The Rational is embedded exactly. Algebraic–Cauchy or algebraic–continued-
+fraction operations automatically produce an Oracle because neither backend
+is privileged over the other. Resultant-based minimal-polynomial recovery can
+later canonicalize these recipes without changing their certified meaning.

@@ -101,3 +101,27 @@ root < {~ 3/2, 1/1000 };
 
 Try changing `maxWork` to `0`, `1`, and `2`. The comparison remains undecided
 until the available convergent cylinder separates the two neighborhoods.
+
+## Arithmetic of continued-fraction reals
+
+Coefficient transducers remain available for future specialized algorithms.
+The complete field surface works now through a certified recipe while keeping
+the `ContinuedFractionReal` semantic family:
+
+```rix
+.Plugin.Load("continued-fraction");
+.Plugin.Load("numerics");
+x := .cf.Sqrt2();
+values := [x+x, x-x, x*x, x/x, -x, .Abs(x), x^2, x+1/3];
+.Table({=
+  columns=["type", "interval"],
+  rows=values.Map((value) -> [
+    value.__type,
+    .numerics.Refine(value, {= absoluteWidth=1/1000, maxWork=120 })[:interval]
+  ])
+});
+```
+
+`x+1/3` stays in the continued-fraction family because the Rational is an
+exact embeddable value. Combining `x` with a Cauchy or algebraic real instead
+chooses their common certified Oracle target.

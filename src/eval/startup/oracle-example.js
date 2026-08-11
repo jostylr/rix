@@ -8,8 +8,8 @@ import { installRegisteredTypes, typeRegistry } from "../../runtime/type-system.
 const STARTUP_PATH = path.join(path.dirname(fileURLToPath(import.meta.url)), "oracle-example.rix");
 
 export function loadOracleExampleStartup(registry) {
-    if (typeRegistry.has("Oracle")) {
-        if (registry) installRegisteredTypes(registry, ["Oracle"]);
+    if (typeRegistry.has("ExampleOracle")) {
+        if (registry) installRegisteredTypes(registry, ["ExampleOracle"]);
         return registry;
     }
 

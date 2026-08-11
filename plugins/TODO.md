@@ -242,12 +242,18 @@ newline normalization.
    - [ ] Implement refinement funnels and the paper's funnel-to-oracle adapter.
    - [ ] Implement the rational Newton nth-root funnel and Cauchy adapter.
    - [x] Register the shared `EnclosableReal` provider used by `.numerics`.
+   - [x] Add the certified-singleton provider adapter used as the common
+     arithmetic target for balls, Cauchy, continued fractions, algebraic reals,
+     and Numerics algorithm reals.
    - [ ] Implement coarse oracles and distinguish `eta` resolution from host
      resource exhaustion.
 3. **Phase 3 — Ordering, arithmetic, and evidence**
    - [ ] Implement epsilon-trichotomy, compatibility, and bounded comparison.
    - [ ] Implement funnel negation, addition, multiplication, reciprocal, and
      division.
+   - [x] Implement bounded immutable Oracle enclosure recipes for negation,
+     absolute value, addition, subtraction, multiplication, division, and
+     integer powers, with actualized trace steps.
    - [ ] Add testing/nth-root oracles under explicit uniqueness evidence.
    - [ ] Represent equivalence, Yes/No, root, and property evidence without
      promoting finite sampling to proof.
@@ -271,6 +277,10 @@ newline normalization.
    - [x] Move request normalization, capability negotiation, limit
      intersection, and result validation into the shared Core contract.
 2. **Phase 2 — Core algorithms**
+   - [x] Add universal weighted n-th-root algorithm reals whose guesses and
+     partners form exact certified intervals.
+   - [x] Add a checked Kantorovich constructor and nested interval-Newton
+     refinement with actualized steps and bounded work.
    - [ ] Add generic `Enclose`, `Refine`, `Compare`, `Sign`, root isolation,
      adaptive sampling, integration, and optimization.
    - [ ] Define absolute/relative error budgets and propagation rules.
@@ -425,8 +435,9 @@ newline normalization.
    - [x] Register `EnclosableReal`.
    - [x] Add documentation, tutorial, and containment tests.
 2. **Phase 2 — Elementary functions and precision escalation**
-   - [ ] Lift arithmetic to nested-real recipes and add further roots, exp/log,
-     trigonometry, and complex balls.
+   - [x] Lift main field arithmetic and Rational embedding to nested-real
+     recipes, using Oracle as the cross-family target.
+   - [ ] Add further native roots, exp/log, trigonometry, and complex balls.
    - [ ] Negotiate internal working precision through Numerics requests beyond
      the Phase 1 exact-bisection recipe.
 3. **Phase 3 — Validated algorithms**
@@ -445,7 +456,9 @@ newline normalization.
    - [x] Register `Refinable`/`EnclosableReal`.
 2. **Phase 2 — Constructions and oracle adapter**
    - [ ] Add arithmetic with computed moduli.
-   - [ ] Implement the paper-compatible funnel and Oracle adapter.
+   - [x] Add same-family arithmetic recipes, exact Rational embedding, and the
+     certified-singleton Oracle adapter.
+   - [ ] Implement the paper-compatible funnel adapter.
    - [ ] Preserve lazy terms and bounded work.
 3. **Phase 3 — Limits of generated sequences**
    - [ ] Add convergence transformations and proof-carrying limit constructors.
@@ -465,7 +478,8 @@ newline normalization.
 2. **Phase 2 — Arithmetic and recognition**
    - [ ] Add periodic quadratic forms, best-approximation queries, and selected
      arithmetic transformations.
-   - [ ] Convert to funnels/oracles with evidence.
+   - [x] Add same-family arithmetic recipes, exact Rational embedding, and
+     conversion to Oracle through certified enclosure evidence.
 3. **Phase 3 — Generalized continued fractions**
    - [ ] Add generalized forms, homographic algorithms, and adaptive term
      generation.
@@ -486,6 +500,9 @@ newline normalization.
      bounds; remove the private duplicate polynomial implementation.
 2. **Phase 2 — Field operations**
    - [ ] Add comparison and arithmetic using resultants/root isolation.
+   - [x] Add the general arithmetic surface through immutable enclosure
+     recipes, preserving the semantic family for algebraic/Rational operands
+     and using Oracle across real families.
    - [x] Exchange canonical Polynomial values and evidence with `.poly` and
      `.algebra` through `rix.polynomial@1`.
 3. **Phase 3 — Certified functions and geometry**

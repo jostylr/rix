@@ -59,14 +59,20 @@ describe("approximate math plugin", () => {
         expect(parseAndEvaluate(".float.Ceiling(.float(1.25), 1)", { systemContext, registry }).toString()).toBe("13/10");
     });
 
-    test("generic Min and Max promote mixed exact and Float values through the plugin comparison variant", () => {
+    test("mixed exact and Float arithmetic and ordering require explicit conversion", () => {
         const systemContext = createDefaultSystemContext();
         const registry = createDefaultRegistry();
         loadFloatPlugin(systemContext, registry);
 
-        expect(parseAndEvaluate(".Min(2/3, .float(3/4)).Value()", { systemContext, registry }))
+        expect(() => parseAndEvaluate("2/3 + .float(3/4)", { systemContext, registry }))
+            .toThrow();
+        expect(() => parseAndEvaluate(".Min(2/3, .float(3/4))", { systemContext, registry }))
+            .toThrow();
+        expect(parseAndEvaluate(".Min(.float(2/3), .float(3/4)).Value()", { systemContext, registry }))
             .toEqual({ type: "string", value: String(2 / 3) });
-        expect(parseAndEvaluate(".Max(2/3, .float(3/4)).Value()", { systemContext, registry }))
+        expect(parseAndEvaluate("(.float(2/3) + .float(3/4)).Value()", { systemContext, registry }))
+            .toEqual({ type: "string", value: String(2 / 3 + 3 / 4) });
+        expect(parseAndEvaluate(".Max(.float(2/3), .float(3/4)).Value()", { systemContext, registry }))
             .toEqual({ type: "string", value: String(3 / 4) });
     });
 });

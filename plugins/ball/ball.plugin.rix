@@ -6,8 +6,9 @@ mount: ball
 exports: [Ball, Interval, Sqrt, Midpoint, Radius, Lower, Upper, Contains, RoundOut, Record]
 groups: [Numerics, Exact]
 permissions: []
+requires: [rix.oracle@1]
 provides: [rix.ball@1, rix.enclosable-real@1]
-schemas: [rix.ball@1, rix.ball.nested-real@1]
+schemas: [rix.ball@1, rix.ball.nested-real@1, rix.ball.arithmetic-real@1]
 snapshot: false
 deterministic: true
 defaultEnabled: false
@@ -120,6 +121,7 @@ BallCapabilities(real) -> {;
         schema = "rix.numerics.capabilities@1",
         backend = :ball,
         representation = nested ?: :nestedRationalBalls ?_ :rationalMidpointRadius,
+        denotation = nested ?: :singleton ?_ :set,
         operations = [:enclose, :refine],
         evidenceLevels = [:proof],
         certified = 1,
@@ -231,6 +233,74 @@ BallSqrt(value) -> {;
     .ImmutableValue(real);
 };
 
+NestedBallFamily(value) -> (value ? :Map) &&
+  (value[:valueKind] == :nestedBallReal || value[:valueKind] == :nestedBallArithmeticReal);
+NestedBallExact(value) -> (value ? :Integer) || (value ? :Rational);
+NestedBallArithmeticPair(left, right) ->
+  (NestedBallFamily(left) || NestedBallFamily(right)) &&
+  (NestedBallFamily(left) || NestedBallExact(left)) &&
+  (NestedBallFamily(right) || NestedBallExact(right));
+
+NestedBallArithmeticCapabilities(real) -> {=
+    valueKind=:numericsCapabilities,
+    schema="rix.numerics.capabilities@1",
+    backend=:ball,
+    representation=:oracleBackedNestedBallArithmetic,
+    denotation=:singleton,
+    operations=[:enclose, :refine],
+    evidenceLevels=[:constructorGuarantee, :proof],
+    certified=1,
+    arbitraryRefinement=1,
+    deterministic=1,
+    minimumWidth=0,
+    maxCalls=100000,
+    maxIterations=100000
+};
+
+NestedBallArithmetic(operation, left, right ?= _) -> {;
+    unary = operation == :neg || operation == :abs;
+    recipe = unary ?: .oracle.Operation(operation, left) ?_ .oracle.Operation(operation, left, right);
+    real = {=
+        valueKind=:nestedBallArithmeticReal,
+        schema="rix.ball.arithmetic-real@1",
+        kind=:arithmetic,
+        operation=operation,
+        recipe=recipe,
+        provenance={= plugin=:ball, version=2, source=:arithmeticRecipe }
+    };
+    real._proto = {=
+        Enclose=(self, request ?= {= })->self[:recipe].Enclose(request),
+        Refine=(self, request ?= {= })->self[:recipe].Refine(request),
+        NumericsCapabilities=(self)->NestedBallArithmeticCapabilities(self),
+        Record=(self)->{= valueKind=self[:valueKind], schema=self[:schema], operation=self[:operation], certified=1 }
+    };
+    .ImmutableValue(real ~!: :NestedBallReal);
+};
+
+.TypeKnown(:NestedBallReal) ?: _ ?_ .TypeRegister({=
+    name=:NestedBallReal,
+    nativeType=:map,
+    defaultTraits=[:number, :ordered],
+    convertFrom={= map=(x) ?- [NestedBallFamily(x)] -> x },
+    validate=(x)->NestedBallFamily(x),
+    proto={=
+        Enclose=(self,request ?= {= })->self[:kind] == :arithmetic ?: self[:recipe].Enclose(request) ?_ BallProtocolEnclosure(self,request,:enclose),
+        Refine=(self,request ?= {= })->self[:kind] == :arithmetic ?: self[:recipe].Refine(request) ?_ BallProtocolEnclosure(self,request,:refine),
+        NumericsCapabilities=(self)->self[:kind] == :arithmetic ?: NestedBallArithmeticCapabilities(self) ?_ BallCapabilities(self)
+    },
+    installs={=
+        ADD=[{= name=:NestedBallAdd, priority=300, prep=(x,y)->NestedBallArithmeticPair(x,y), impl=(x,y)->NestedBallArithmetic(:add,x,y) }],
+        SUB=[{= name=:NestedBallSub, priority=300, prep=(x,y)->NestedBallArithmeticPair(x,y), impl=(x,y)->NestedBallArithmetic(:sub,x,y) }],
+        MUL=[{= name=:NestedBallMul, priority=300, prep=(x,y)->NestedBallArithmeticPair(x,y), impl=(x,y)->NestedBallArithmetic(:mul,x,y) }],
+        DIV=[{= name=:NestedBallDiv, priority=300, prep=(x,y)->NestedBallArithmeticPair(x,y), impl=(x,y)->NestedBallArithmetic(:div,x,y) }],
+        POW=[{= name=:NestedBallPow, priority=300, prep=(x,y)->NestedBallFamily(x)&&(y ? :Integer), impl=(x,y)->NestedBallArithmetic(:pow,x,y) }],
+        NEG=[{= name=:NestedBallNeg, priority=300, prep=(x)->NestedBallFamily(x), impl=(x)->NestedBallArithmetic(:neg,x) }],
+        ABS=[{= name=:NestedBallAbs, priority=300, prep=(x)->NestedBallFamily(x), impl=(x)->NestedBallArithmetic(:abs,x) }]
+    }
+});
+
+.TypeInstall(:NestedBallReal);
+
 BallAdd(left, right) -> BallFromInterval(BallPromote(left)[:interval] + BallPromote(right)[:interval]);
 BallSub(left, right) -> BallFromInterval(BallPromote(left)[:interval] - BallPromote(right)[:interval]);
 BallMul(left, right) -> BallFromInterval(BallPromote(left)[:interval] * BallPromote(right)[:interval]);
@@ -268,13 +338,13 @@ BallEq(left, right) -> {;
         NumericsCapabilities = (self) -> BallCapabilities(self)
     },
     installs = {=
-        ADD = [{= name=:BallAdd, prep=(x, y) -> (x ? :Ball) || (y ? :Ball), impl=(x, y) -> BallAdd(x, y) }],
-        SUB = [{= name=:BallSub, prep=(x, y) -> (x ? :Ball) || (y ? :Ball), impl=(x, y) -> BallSub(x, y) }],
-        MUL = [{= name=:BallMul, prep=(x, y) -> (x ? :Ball) || (y ? :Ball), impl=(x, y) -> BallMul(x, y) }],
-        DIV = [{= name=:BallDiv, prep=(x, y) -> (x ? :Ball) || (y ? :Ball), impl=(x, y) -> BallDiv(x, y) }],
-        NEG = [{= name=:BallNeg, prep=(x) -> x ? :Ball, impl=(x) -> BallNeg(x) }],
-        EQ = [{= name=:BallEq, prep=(x, y) -> (x ? :Ball) || (y ? :Ball), impl=(x, y) -> BallEq(x, y) }],
-        NEQ = [{= name=:BallNeq, prep=(x, y) -> (x ? :Ball) || (y ? :Ball), impl=(x, y) -> !BallEq(x, y) }]
+        ADD = [{= name=:BallAdd, priority=400, prep=(x, y) -> (x ? :Ball) || (y ? :Ball), impl=(x, y) -> BallAdd(x, y) }],
+        SUB = [{= name=:BallSub, priority=400, prep=(x, y) -> (x ? :Ball) || (y ? :Ball), impl=(x, y) -> BallSub(x, y) }],
+        MUL = [{= name=:BallMul, priority=400, prep=(x, y) -> (x ? :Ball) || (y ? :Ball), impl=(x, y) -> BallMul(x, y) }],
+        DIV = [{= name=:BallDiv, priority=400, prep=(x, y) -> (x ? :Ball) || (y ? :Ball), impl=(x, y) -> BallDiv(x, y) }],
+        NEG = [{= name=:BallNeg, priority=400, prep=(x) -> x ? :Ball, impl=(x) -> BallNeg(x) }],
+        EQ = [{= name=:BallEq, priority=400, prep=(x, y) -> (x ? :Ball) || (y ? :Ball), impl=(x, y) -> BallEq(x, y) }],
+        NEQ = [{= name=:BallNeq, priority=400, prep=(x, y) -> (x ? :Ball) || (y ? :Ball), impl=(x, y) -> !BallEq(x, y) }]
     }
 });
 

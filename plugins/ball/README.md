@@ -62,12 +62,18 @@ budget reports `:budgetExhausted`; a finite ball requested below its existing
 width reports `:resolutionFloor`. Both retain the best certified enclosure.
 Overlap never proves equality or ordering.
 
-## Phase 1 boundary
+## Nested arithmetic
 
-Phase 1 intentionally keeps arithmetic on finite snapshots. Arithmetic and
-elementary functions that preserve lazy nested-real recipes, automatic
-precision escalation, complex balls, and validated algorithms such as
-interval Newton belong to later phases.
+Nested ball recipes support `+`, `-`, `*`, `/`, integer powers, unary `-`, and
+absolute value while retaining the `NestedBallReal` family. A Rational operand
+is embedded as an exact point recipe. Arithmetic with another certified real
+family instead produces an Oracle recipe; finite Balls remain set-valued
+snapshots and keep their native outward-rounded interval arithmetic.
+
+Further elementary functions, complex balls, and a high-performance ball
+backend remain later work. Universal weighted roots and validated interval
+Newton are available through `.numerics` without adding algorithm state to the
+ball representation.
 
 See [tutorial.md](tutorial.md).
 

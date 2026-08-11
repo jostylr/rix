@@ -3,13 +3,387 @@ id: numerics
 description: Backend-neutral bounded enclosure and refinement orchestration.
 kind: rix
 mount: numerics
-exports: [Request, WorkPolicy, EffectiveLimits, Enclose, Refine, Sample, Capabilities, CheckResult]
+exports: [Request, WorkPolicy, EffectiveLimits, Enclose, Refine, Sample, Capabilities, CheckResult, NthRoot, Sqrt, Kantorovich]
 groups: [Numerics]
 permissions: []
+requires: [rix.oracle@1]
 provides: [rix.numerics@1, rix.enclosable-real-consumer@1]
-schemas: [rix.numerics.refinement-request@1, rix.numerics.enclosure@1]
+schemas: [rix.numerics.refinement-request@1, rix.numerics.enclosure@1, rix.numerics.algorithm-real@1]
 defaultEnabled: false
 **/
+
+NumericsOption(options, key, fallback) -> options.Has(key) ?: options[key] ?_ fallback;
+
+NumericsNonnegativeInteger(value, label) -> {;
+    exact = value ~!: :Integer;
+    exact >= 0 ?: exact ?_ .Error(@"@{label} must be a nonnegative Integer");
+};
+
+NumericsPositive(value, label) -> {;
+    exact = value ~!: :Rational;
+    exact > 0 ?: exact ?_ .Error(@"@{label} must be positive");
+};
+
+NumericsNonnegative(value, label) -> {;
+    exact = value ~!: :Rational;
+    exact >= 0 ?: exact ?_ .Error(@"@{label} must be nonnegative");
+};
+
+NumericsCalls(result) -> result[:work].Has("calls") ?: result[:work][:calls] ?_ 0;
+
+NumericsAsInterval(value) -> (value ? :RationalInterval)
+  ?: value
+  ?_ {; exact = @value ~!: :Rational; exact:exact; };
+
+NumericsAlgorithmCapabilities(real) -> {=
+    valueKind=:numericsCapabilities,
+    schema="rix.numerics.capabilities@1",
+    backend=:numerics,
+    representation=real[:kind],
+    denotation=:singleton,
+    operations=[:enclose, :refine],
+    evidenceLevels=[real[:evidenceLevel]],
+    certified=1,
+    arbitraryRefinement=1,
+    deterministic=1,
+    minimumWidth=0,
+    maxCalls=100000,
+    maxIterations=100000
+};
+
+NumericsExactOracle(real) -> real[:constructor] == :rational;
+
+NumericsSourceResult(real, requestedWidth, maxCalls, trace) ->
+    NumericsExactOracle(real)
+      ?: {;
+          exact = @real[:parameters][:value] ~!: :Rational;
+          interval = exact:exact;
+          {=
+              status=:enclosed,
+              interval=interval,
+              achievedWidth=0,
+              approximation=.CertifiedApproximation(exact, interval, {= provider=:numerics, reason=:exactSource }),
+              evidenceLevel=:proof,
+              evidence={= kind=:exactScalar, property=:containment },
+              work={= calls=0, iterations=0, exhausted=_ },
+              trace=[]
+          };
+      }
+      ?_ real.Refine(.RefinementRequest({=
+          absoluteWidth=requestedWidth,
+          maxWork=maxCalls,
+          maxCalls=maxCalls,
+          maxIterations=maxCalls,
+          trace=trace
+      }, :refine, real.NumericsCapabilities()));
+
+NumericsUnknownAlgorithm(real, request, interval, work, reason) -> {=
+    valueKind=:enclosure,
+    schema="rix.numerics.enclosure@1",
+    status=:unknown,
+    interval=interval,
+    certified=_,
+    goalMet=_,
+    requestedWidth=request[:absoluteWidth],
+    achievedWidth=interval.Width(),
+    approximation=_,
+    evidenceLevel=real[:evidenceLevel],
+    backend=:numerics,
+    operation=request[:operation],
+    trace=[],
+    work=work,
+    diagnostics=[reason],
+    evidence={= kind=:unresolvedDomain, reason=reason },
+    source=real[:provenance]
+};
+
+NumericsNthRootRefine(real, rawRequest, operation) -> {;
+    capabilities = NumericsAlgorithmCapabilities(real);
+    request = .RefinementRequest(rawRequest, operation, capabilities);
+    requestedWidth = request[:absoluteWidth];
+    maxCalls = request[:work][:maxCalls];
+    maxIterations = request[:work][:maxIterations];
+    degree = real[:degree];
+    sourceWidth = requestedWidth < 1 ?: requestedWidth^degree / 4 ?_ requestedWidth / 4;
+    sourceBudget = maxCalls // 2;
+    sourceResult = NumericsSourceResult(real[:radicand], sourceWidth, sourceBudget, request[:trace]);
+    sourceCalls = NumericsCalls(sourceResult);
+    qInterval = sourceResult[:interval];
+    exactZero = qInterval.Low() == 0 && qInterval.High() == 0;
+    positive = qInterval.Low() >= 0;
+    negative = qInterval.High() <= 0;
+    odd = .Mod(degree, 2) == 1;
+    domainResolved = exactZero || positive || (negative && odd);
+    domainResolved ?: {;
+        sign = @negative ?: -1 ?_ 1;
+        workingLow = @negative ?: 0 - @qInterval.High() ?_ @qInterval.Low();
+        workingHigh = @negative ?: 0 - @qInterval.Low() ?_ @qInterval.High();
+        upper := @exactZero ?: 0 ?_ .Max(1, workingHigh);
+        lower := @exactZero ?: 0 ?_ workingLow / (upper^(@degree - 1));
+        trace := [];
+        iterations := 0;
+        remainingCalls = @maxCalls - @sourceCalls;
+        iterationLimit = .Min(@maxIterations, remainingCalls);
+        {@ step=1;
+           !@exactZero && (@upper - @lower) > @requestedWidth && @iterations < @iterationLimit;
+           {;
+               partner = @workingHigh / (@upper^(@degree - 1));
+               nextUpper = ((@degree - 1) * @upper + partner) / @degree;
+               nextLower = @workingLow / (nextUpper^(@degree - 1));
+               @upper ~= nextUpper;
+               @lower ~= nextLower;
+               @iterations += 1;
+               @trace ~= @request[:trace] ?: @trace.Push({=
+                   iteration=@iterations,
+                   guess=@sign * @upper,
+                   partner=@sign * @lower,
+                   interval=@sign == 1 ?: @lower:@upper ?_ (-@upper):(-@lower),
+                   actualized=1
+               }) ?_ @trace;
+           };
+           step += 1
+        };
+        interval = sign == 1 ?: lower:upper ?_ (-upper):(-lower);
+        achievedWidth = interval.Width();
+        goalMet = achievedWidth <= @requestedWidth;
+        calls = @sourceCalls + iterations;
+        status = goalMet ?: :enclosed ?_ :budgetExhausted;
+        candidate = interval.Midpoint();
+        approximation = .CertifiedApproximation(candidate, interval, {=
+            provider=:numerics,
+            algorithm=:weightedNthRoot,
+            degree=@degree,
+            reason=status,
+            actualized=1
+        });
+        {=
+            valueKind=:enclosure,
+            schema="rix.numerics.enclosure@1",
+            status=status,
+            interval=interval,
+            certified=1,
+            goalMet=goalMet,
+            requestedWidth=@requestedWidth,
+            achievedWidth=achievedWidth,
+            approximation=approximation,
+            evidenceLevel=@real[:evidenceLevel],
+            backend=:numerics,
+            operation=@request[:operation],
+            trace=trace,
+            work={=
+                calls=calls,
+                iterations=iterations,
+                maxCalls=@maxCalls,
+                maxIterations=@maxIterations,
+                sourceCalls=@sourceCalls,
+                exhausted=!goalMet
+            },
+            diagnostics=goalMet ?: [] ?_ [:workBudgetReached],
+            evidence={=
+                kind=:weightedArithmeticGeometricMean,
+                property=:containment,
+                degree=@degree,
+                source=@sourceResult[:evidence]
+            },
+            source=@real[:provenance]
+        };
+    } ?_ NumericsUnknownAlgorithm(
+        real,
+        request,
+        qInterval,
+        {= calls=sourceCalls, iterations=0, maxCalls=maxCalls, exhausted=sourceCalls>=maxCalls },
+        :radicandSignNotCertified
+    );
+};
+
+NumericsNthRoot(value, degree ?= 2, options ?= {= }) -> {;
+    n = degree ~!: :Integer;
+    n >= 2 ?: _ ?_ .Error("NthRoot degree must be an Integer at least two");
+    source = .oracle.From(value);
+    real = {=
+        valueKind=:numericsAlgorithmReal,
+        schema="rix.numerics.algorithm-real@1",
+        kind=:weightedNthRoot,
+        degree=n,
+        radicand=source,
+        evidenceLevel=:proof,
+        provenance={= plugin=:numerics, version=2, algorithm=:weightedNthRoot, source=value }
+    };
+    real._proto = {=
+        Enclose=(self, request ?= {= })->NumericsNthRootRefine(self, request, :enclose),
+        Refine=(self, request ?= {= })->NumericsNthRootRefine(self, request, :refine),
+        NumericsCapabilities=(self)->NumericsAlgorithmCapabilities(self)
+    };
+    .ImmutableValue(real);
+};
+
+NumericsIntervalMinAbs(interval) ->
+    interval.ContainsZero() ?: 0 ?_ .Min(interval.Low().Abs(), interval.High().Abs());
+
+NumericsIntervalMaxAbs(interval) -> .Max(interval.Low().Abs(), interval.High().Abs());
+
+NumericsKantorovichRefine(real, rawRequest, operation) -> {;
+    capabilities = NumericsAlgorithmCapabilities(real);
+    request = .RefinementRequest(rawRequest, operation, capabilities);
+    requestedWidth = request[:absoluteWidth];
+    maxCalls = request[:work][:maxCalls];
+    maxIterations = request[:work][:maxIterations];
+    current := real[:initialEnclosure];
+    guess := real[:initial];
+    trace := [];
+    calls := 0;
+    iterations := 0;
+    stalled := _;
+    {@ step=1;
+       @current.Width() > @requestedWidth && @iterations < @maxIterations && @calls + 3 <= @maxCalls && !@stalled;
+       {;
+           fValue = @real[:function](@guess) ~!: :Rational;
+           derivativeValue = @real[:derivative](@guess) ~!: :Rational;
+           derivativeValue != 0 ?: _ ?_ .Error("Kantorovich Newton step encountered a zero point derivative");
+           derivativeRange = @real[:derivative](@current) ~!: :RationalInterval;
+           @calls += 3;
+           @iterations += 1;
+           derivativeRange.ContainsZero()
+             ?: {; @stalled ~= 1; }
+             ?_ {;
+                 newtonGuess = @guess - @fValue / @derivativeValue;
+                 newtonImage = (@guess:@guess) - (@fValue:@fValue) / @derivativeRange;
+                 overlaps = @current.Overlaps(newtonImage);
+                 overlaps ?: _ ?_ .Error("Interval Newton contradicted the Kantorovich enclosure");
+                 next = @current.Intersection(newtonImage);
+                 contracted = next.Width() < @current.Width();
+                 selectedGuess = next.ContainsValue(newtonGuess) ?: newtonGuess ?_ next.Midpoint();
+                 @trace ~= @request[:trace] ?: @trace.Push({=
+                     iteration=@iterations,
+                     guess=newtonGuess,
+                     candidate=selectedGuess,
+                     derivative=@derivativeValue,
+                     derivativeInterval=@derivativeRange,
+                     interval=next,
+                     errorRadius=next.Width()/2,
+                     actualized=1
+                 }) ?_ @trace;
+                 @current ~= next;
+                 @guess ~= selectedGuess;
+                 contracted ?: _ ?_ {; @stalled ~= 1; };
+             };
+       };
+       step += 1
+    };
+    achievedWidth = current.Width();
+    goalMet = achievedWidth <= requestedWidth;
+    budgetReached = iterations >= maxIterations || calls + 3 > maxCalls;
+    status = goalMet ?: :enclosed ?_ (budgetReached ?: :budgetExhausted ?_ :resolutionFloor);
+    candidate = current.ContainsValue(guess) ?: guess ?_ current.Midpoint();
+    approximation = .CertifiedApproximation(candidate, current, {=
+        provider=:numerics,
+        algorithm=:kantorovichIntervalNewton,
+        reason=status,
+        actualized=1
+    });
+    {=
+        valueKind=:enclosure,
+        schema="rix.numerics.enclosure@1",
+        status=status,
+        interval=current,
+        certified=1,
+        goalMet=goalMet,
+        requestedWidth=requestedWidth,
+        achievedWidth=achievedWidth,
+        approximation=approximation,
+        evidenceLevel=real[:evidenceLevel],
+        backend=:numerics,
+        operation=request[:operation],
+        trace=trace,
+        work={=
+            calls=calls,
+            iterations=iterations,
+            maxCalls=maxCalls,
+            maxIterations=maxIterations,
+            exhausted=!goalMet && budgetReached
+        },
+        diagnostics=goalMet ?: [] ?_ [stalled ?: :intervalNewtonResolutionFloor ?_ :workBudgetReached],
+        evidence={=
+            kind=:kantorovichWithIntervalNewton,
+            property=:existenceUniquenessAndContainment,
+            condition=real[:condition],
+            derivativeLower=real[:derivativeLower],
+            secondDerivativeUpper=real[:secondDerivativeUpper],
+            assumptions=real[:assumptions]
+        },
+        source=real[:provenance]
+    };
+};
+
+NumericsKantorovich(function, derivative, options ?= {= }) -> {;
+    domain = NumericsOption(options, "interval", _) ~!: :RationalInterval;
+    initial = NumericsOption(options, "initial", domain.Midpoint()) ~!: :Rational;
+    domain.ContainsValue(initial) ?: _ ?_ .Error("Kantorovich initial point must lie in its interval");
+    derivativeLower = NumericsPositive(
+        NumericsOption(options, "derivativelower", _),
+        "Kantorovich derivativeLower"
+    );
+    secondDerivativeUpper = NumericsNonnegative(
+        NumericsOption(options, "secondderivativeupper", _),
+        "Kantorovich secondDerivativeUpper"
+    );
+    fInitial = (initial |> function) ~!: :Rational;
+    derivativeInitial = (initial |> derivative) ~!: :Rational;
+    derivativeInitial != 0 ?: _ ?_ .Error("Kantorovich initial derivative must be nonzero");
+    derivativeRange = NumericsAsInterval(domain |> derivative);
+    derivativeRange.ContainsZero() ?: .Error("Kantorovich derivative interval must exclude zero") ?_ _;
+    observedDerivativeLower = NumericsIntervalMinAbs(derivativeRange);
+    observedDerivativeLower >= derivativeLower
+      ?: _
+      ?_ .Error("Kantorovich derivativeLower exceeds the certified interval bound");
+    secondDerivativeFunction = NumericsOption(options, "secondderivative", _);
+    secondDerivativeChecked = secondDerivativeFunction != _;
+    secondDerivativeRange = secondDerivativeChecked
+      ?: NumericsAsInterval(domain |> secondDerivativeFunction)
+      ?_ _;
+    secondDerivativeChecked
+      ?: (NumericsIntervalMaxAbs(secondDerivativeRange) <= secondDerivativeUpper
+           ?: _
+           ?_ .Error("Kantorovich secondDerivativeUpper is smaller than the certified interval bound"))
+      ?_ _;
+    beta = (fInitial / derivativeInitial).Abs();
+    condition = beta * secondDerivativeUpper / (2 * derivativeLower);
+    condition <= 1/4
+      ?: _
+      ?_ .Error("Kantorovich condition requires beta*M/(2*m) <= 1/4");
+    radius = 2 * beta;
+    initialEnclosure = (initial - radius):(initial + radius);
+    domain.Contains(initialEnclosure)
+      ?: _
+      ?_ .Error("Kantorovich certified initial ball must remain inside the supplied interval");
+    evidenceLevel = NumericsOption(options, "evidencelevel", :constructorGuarantee);
+    real = {=
+        valueKind=:numericsAlgorithmReal,
+        schema="rix.numerics.algorithm-real@1",
+        kind=:kantorovichIntervalNewton,
+        function=function,
+        derivative=derivative,
+        initial=initial,
+        domain=domain,
+        initialEnclosure=initialEnclosure,
+        derivativeLower=derivativeLower,
+        secondDerivativeUpper=secondDerivativeUpper,
+        condition=condition,
+        evidenceLevel=evidenceLevel,
+        assumptions={=
+            derivativeMatchesFunction=1,
+            twiceDifferentiableOnDomain=1,
+            secondDerivativeBound=secondDerivativeChecked ?: :intervalChecked ?_ :callerGuarantee
+        },
+        provenance={= plugin=:numerics, version=2, algorithm=:kantorovichIntervalNewton }
+    };
+    real._proto = {=
+        Enclose=(self, request ?= {= })->NumericsKantorovichRefine(self, request, :enclose),
+        Refine=(self, request ?= {= })->NumericsKantorovichRefine(self, request, :refine),
+        NumericsCapabilities=(self)->NumericsAlgorithmCapabilities(self)
+    };
+    .ImmutableValue(real);
+};
 
 NumericsRequest(options ?= {= }, operation ?= _, capabilities ?= _) ->
     .RefinementRequest(options, operation, capabilities);
@@ -50,6 +424,9 @@ numericsNamespace._proto = {=
     Enclose = (self, value, options ?= {= }) -> ProviderOperation(value, options, :enclose),
     Refine = (self, value, options ?= {= }) -> ProviderOperation(value, options, :refine),
     Sample = (self, value, options ?= {= }) -> ProviderOperation(value, options, :sample),
+    NthRoot = (self, value, degree ?= 2, options ?= {= }) -> NumericsNthRoot(value, degree, options),
+    Sqrt = (self, value, options ?= {= }) -> NumericsNthRoot(value, 2, options),
+    Kantorovich = (self, function, derivative, options ?= {= }) -> NumericsKantorovich(function, derivative, options),
     Approximation = (self, result) -> result.Has("approximation") ?: result[:approximation] ?_ _,
     Capabilities = (self, value) -> value.NumericsCapabilities(),
     CheckResult = (self, result, options ?= {= }, capabilities ?= _) ->

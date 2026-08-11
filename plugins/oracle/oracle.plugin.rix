@@ -3,7 +3,7 @@ id: oracle
 description: Exact rational-betweenness oracle demonstrations and bounded refinement.
 kind: rix
 mount: oracle
-exports: [Rational, Query, Answer, Decision, Prophecy, WorkPolicy, Evidence, Ask, AskAll, CheckRange, Refine]
+exports: [Rational, From, Operation, Query, Answer, Decision, Prophecy, WorkPolicy, Evidence, Ask, AskAll, CheckRange, Refine]
 groups: [Numerics, Exact]
 permissions: []
 provides: [rix.oracle@1, rix.enclosable-real@1]
@@ -28,6 +28,37 @@ AsInterval(value) -> value ~!: :RationalInterval;
 IntervalLow(interval) -> AsInterval(interval).Low();
 IntervalHigh(interval) -> AsInterval(interval).High();
 IntervalWidth(interval) -> AsInterval(interval).Width();
+
+OracleExactScalar(value) -> (value ? :Integer) || (value ? :Rational);
+OracleValue(value) -> (value ? :Map) && value[:valueKind] == :oracle;
+
+OracleRefinableSingleton(value) -> {;
+    exact = OracleExactScalar(value);
+    exact ?: 1 ?_ {;
+        mapValue = @value ? :Map;
+        mapValue ?: {;
+            capabilities = @value.NumericsCapabilities();
+            capabilities[:certified] &&
+              capabilities[:arbitraryRefinement] &&
+              capabilities[:denotation] == :singleton;
+        } ?_ _;
+    };
+};
+
+OracleBridgePair(left, right) ->
+    OracleRefinableSingleton(left) && OracleRefinableSingleton(right) &&
+    (!OracleExactScalar(left) || !OracleExactScalar(right));
+
+OracleEvidenceRank(level) -> {?
+    level == :proof ? 4;
+    level == :constructorGuarantee ? 3;
+    level == :assumed ? 2;
+    level == :observed ? 1;
+    0
+};
+
+OracleWeakerEvidence(left, right) ->
+    OracleEvidenceRank(left) <= OracleEvidenceRank(right) ?: left ?_ right;
 
 OracleWorkPolicy(options ?= {= }) -> {=
     valueKind = :oracleWorkPolicy,
@@ -125,7 +156,7 @@ BuildRationalOracle(exactValue, selectedProcedure, options) -> {;
         Refine = (self, request) -> OracleProtocolEnclose(self, request),
         NumericsCapabilities = (self) -> OracleNumericsCapabilities(self)
     };
-    real;
+    real ~!: :Oracle;
 };
 
 RationalOracle(value, options ?= {= }) -> {;
@@ -134,6 +165,79 @@ RationalOracle(value, options ?= {= }) -> {;
     allowed = {| :singular, :reflexive, :halo, :randomHalo, :bisection |};
     allowed.Has(procedure) ?: BuildRationalOracle(exactValue, procedure, options)
                            ?_ .Error("Unknown rational oracle procedure");
+};
+
+BuildSourceOracle(source) -> {;
+    capabilities = source.NumericsCapabilities();
+    valid = capabilities[:certified] &&
+      capabilities[:arbitraryRefinement] &&
+      capabilities[:denotation] == :singleton;
+    valid ?: _ ?_ .Error("Oracle conversion requires one certified arbitrarily refinable singleton real");
+    real = {=
+        valueKind = :oracle,
+        schema = "rix.oracle@1",
+        kind = :adapter,
+        constructor = :refinableAdapter,
+        procedure = :delegatedRefinement,
+        source = source,
+        parameters = {= source=source },
+        declaredProperties = [:range, :existence, :separation, :consistency, :singularity, :closure],
+        provenance = {=
+            plugin=:oracle,
+            version=2,
+            source=:certifiedSingletonAdapter,
+            backend=capabilities[:backend]
+        }
+    };
+    real._proto = {=
+        Enclose = (self, request) -> OracleProtocolEnclose(self, request),
+        Refine = (self, request) -> OracleProtocolEnclose(self, request),
+        NumericsCapabilities = (self) -> OracleNumericsCapabilities(self)
+    };
+    .ImmutableValue(real ~!: :Oracle);
+};
+
+OracleFrom(value) -> {?
+    OracleValue(value) ? value;
+    OracleExactScalar(value) ? RationalOracle(value);
+    OracleRefinableSingleton(value) ? BuildSourceOracle(value);
+    .Error("Oracle conversion requires an exact scalar or certified refinable singleton; Float and finite set enclosures require explicit interpretation")
+};
+
+BuildArithmeticOracle(operation, left, right ?= _) -> {;
+    unary = right == _;
+    a = OracleFrom(left);
+    b = unary ?: _ ?_ OracleFrom(right);
+    real = {=
+        valueKind = :oracle,
+        schema = "rix.oracle@1",
+        kind = :arithmetic,
+        constructor = :arithmetic,
+        procedure = :intervalRefinement,
+        operation = operation,
+        left = a,
+        right = b,
+        parameters = {= operation=operation, left=a, right=b },
+        declaredProperties = [:range, :existence, :separation, :consistency, :singularity, :closure],
+        provenance = {= plugin=:oracle, version=2, source=:arithmeticRecipe, operation=operation }
+    };
+    real._proto = {=
+        Enclose = (self, request) -> OracleProtocolEnclose(self, request),
+        Refine = (self, request) -> OracleProtocolEnclose(self, request),
+        NumericsCapabilities = (self) -> OracleNumericsCapabilities(self)
+    };
+    .ImmutableValue(real ~!: :Oracle);
+};
+
+OracleOperation(operation, left, right ?= _) -> {?
+    operation == :neg ? BuildArithmeticOracle(:neg, left);
+    operation == :abs ? BuildArithmeticOracle(:abs, left);
+    operation == :add ? BuildArithmeticOracle(:add, left, right);
+    operation == :sub ? BuildArithmeticOracle(:sub, left, right);
+    operation == :mul ? BuildArithmeticOracle(:mul, left, right);
+    operation == :div ? BuildArithmeticOracle(:div, left, right);
+    operation == :pow ? BuildArithmeticOracle(:pow, left, right);
+    .Error("Unsupported Oracle arithmetic operation")
 };
 
 PointProphecy(real, query, branch) -> {;
@@ -259,7 +363,7 @@ OracleAskAll(real, interval, delta, options ?= {= }) -> {;
     );
 };
 
-OracleRefine(real, options ?= {= }) -> {;
+OracleRefineRational(real, options ?= {= }) -> {;
     real[:constructor] == :rational ?: _ ?_ .Error("Phase 1 Refine supports rational oracle constructors");
     requestedWidth = RequirePositive(Option(options, "width", 1 / 1000), "width");
     maxCalls = RequireNonnegativeInteger(Option(options, "maxcalls", 100), "maxCalls");
@@ -305,9 +409,11 @@ OracleRefine(real, options ?= {= }) -> {;
         schema = "rix.oracle.refinement@1",
         status = enclosed ?: :enclosed ?_ :budgetExhausted,
         interval = low:high,
+        certified = 1,
         requestedWidth = requestedWidth,
         achievedWidth = achievedWidth,
         approximation = approximation,
+        evidenceLevel = :constructorGuarantee,
         trace = trace,
         work = {= calls = calls, maxCalls = maxCalls, exhausted = !enclosed },
         assumptions = [:rationalConstructor, :range, :existence, :separation],
@@ -315,18 +421,226 @@ OracleRefine(real, options ?= {= }) -> {;
     };
 };
 
-OracleNumericsCapabilities(real) -> {=
-    valueKind = :numericsCapabilities,
-    schema = "rix.numerics.capabilities@1",
-    backend = :oracle,
-    representation = :rationalBetweennessOracle,
-    operations = [:enclose, :refine],
-    evidenceLevels = [:constructorGuarantee],
-    certified = 1,
-    arbitraryRefinement = 1,
-    deterministic = 1,
-    minimumWidth = 0,
-    provider = real[:provenance]
+OraclePointRefinement(value, requestedWidth) -> {;
+    exact = value ~!: :Rational;
+    interval = exact:exact;
+    {=
+        valueKind=:oracleRefinement,
+        schema="rix.oracle.refinement@1",
+        status=:enclosed,
+        interval=interval,
+        certified=1,
+        requestedWidth=requestedWidth,
+        achievedWidth=0,
+        approximation=.CertifiedApproximation(exact, interval, {= provider=:oracle, reason=:exactScalar }),
+        evidenceLevel=:proof,
+        trace=[],
+        work={= calls=0, iterations=0, exhausted=_ },
+        evidence=OracleEvidence(:enclosure, :proof, value, interval),
+        source={= plugin=:oracle, source=:exactScalar }
+    };
+};
+
+OracleRefineSource(real, options) -> {;
+    source = real[:source];
+    capabilities = source.NumericsCapabilities();
+    requestedWidth = RequirePositive(Option(options, "width", 1/1000), "width");
+    maxCalls = RequireNonnegativeInteger(Option(options, "maxcalls", 100), "maxCalls");
+    maxIterations = RequireNonnegativeInteger(Option(options, "maxiterations", maxCalls), "maxIterations");
+    request = .RefinementRequest({=
+        absoluteWidth=requestedWidth,
+        maxWork=maxCalls,
+        maxCalls=maxCalls,
+        maxIterations=maxIterations,
+        trace=Option(options, "trace", 1)
+    }, :refine, capabilities);
+    result = source.Refine(request);
+    check = .RefinementCheck(result, request, capabilities);
+    check[:valid] ?: _ ?_ .Error("Oracle adapter received an invalid certified refinement result");
+    {=
+        valueKind=:oracleRefinement,
+        schema="rix.oracle.refinement@1",
+        status=result[:status],
+        interval=result[:interval],
+        certified=result[:certified],
+        requestedWidth=requestedWidth,
+        achievedWidth=result[:achievedWidth],
+        approximation=result[:approximation],
+        evidenceLevel=result[:evidenceLevel],
+        trace=result[:trace],
+        work=result[:work],
+        evidence=result[:evidence],
+        source={= plugin=:oracle, source=:adapter, provider=result[:source] }
+    };
+};
+
+OracleOperandExact(real) -> real[:constructor] == :rational;
+
+OracleOperandRefinement(real, requestedWidth, maxCalls, trace) ->
+    OracleOperandExact(real)
+      ?: OraclePointRefinement(real[:parameters][:value], requestedWidth)
+      ?_ OracleRefine(real, {=
+          width=requestedWidth,
+          maxcalls=maxCalls,
+          maxiterations=maxCalls,
+          trace=trace
+      });
+
+OracleAbsInterval(interval) -> {;
+    exact = AsInterval(interval);
+    exact.ContainsZero()
+      ?: 0:(.Max((-exact.Low()), exact.High()))
+      ?_ (.Min(exact.Low().Abs(), exact.High().Abs())):(.Max(exact.Low().Abs(), exact.High().Abs()));
+};
+
+OracleCombineIntervals(operation, left, right, exponent ?= _) -> {?
+    operation == :neg ? -left;
+    operation == :abs ? OracleAbsInterval(left);
+    operation == :add ? left + right;
+    operation == :sub ? left - right;
+    operation == :mul ? left * right;
+    operation == :div ? left / right;
+    operation == :pow ? left^exponent;
+    .Error("Unsupported Oracle interval arithmetic operation")
+};
+
+OracleUnresolvedArithmetic(real, requestedWidth, maxCalls, calls, leftResult, rightResult, reason) -> {=
+    valueKind=:oracleRefinement,
+    schema="rix.oracle.refinement@1",
+    status=:unknown,
+    interval=0:0,
+    certified=_,
+    requestedWidth=requestedWidth,
+    achievedWidth=0,
+    approximation=_,
+    evidenceLevel=:constructorGuarantee,
+    trace=[{= operation=real[:operation], left=leftResult[:interval], right=rightResult[:interval] }],
+    work={= calls=calls, iterations=1, maxCalls=maxCalls, exhausted=calls>=maxCalls },
+    diagnostics=[reason],
+    evidence={= kind=:unresolvedDomain, operation=real[:operation], reason=reason },
+    source=real[:provenance]
+};
+
+OracleRefineArithmetic(real, options) -> {;
+    requestedWidth = RequirePositive(Option(options, "width", 1/1000), "width");
+    maxCalls = RequireNonnegativeInteger(Option(options, "maxcalls", 100), "maxCalls");
+    keepTrace = Option(options, "trace", 1);
+    operation = real[:operation];
+    unary = operation == :neg || operation == :abs;
+    leftExact = OracleOperandExact(real[:left]);
+    rightExact = unary ?: 1 ?_ OracleOperandExact(real[:right]);
+    leftBudget = unary ?: maxCalls
+      ?_ leftExact ?: 0
+      ?_ rightExact ?: maxCalls
+      ?_ maxCalls // 2;
+    rightBudget = unary ?: 0 ?_ maxCalls - leftBudget;
+    childWidth = (operation == :add || operation == :sub || operation == :neg || operation == :abs)
+      ?: requestedWidth / 2
+      ?_ (requestedWidth < 1 ?: requestedWidth^2 / 8 ?_ requestedWidth / 8);
+    leftResult = OracleOperandRefinement(real[:left], childWidth, leftBudget, keepTrace);
+    rightResult = unary ?: _ ?_ OracleOperandRefinement(real[:right], childWidth, rightBudget, keepTrace);
+    leftCalls = Option(leftResult[:work], "calls", 0);
+    rightCalls = unary ?: 0 ?_ Option(rightResult[:work], "calls", 0);
+    calls = leftCalls + rightCalls;
+    exponentValue = operation == :pow && real[:right][:constructor] == :rational
+      ?: real[:right][:parameters][:value] ~!: :Rational
+      ?_ _;
+    exponent = operation == :pow
+      ?: (exponentValue.Denominator() == 1
+           ?: exponentValue.Numerator()
+           ?_ .Error("Oracle powers currently require an exact Integer exponent"))
+      ?_ _;
+    domainResolved = operation != :div || !(rightResult[:interval].ContainsZero());
+    resultInterval = domainResolved ?: OracleCombineIntervals(
+        operation,
+        leftResult[:interval],
+        unary ?: _ ?_ rightResult[:interval],
+        exponent
+    ) ?_ _;
+    domainResolved
+      ?: {;
+          achievedWidth = @resultInterval.Width();
+          goalMet = achievedWidth <= @requestedWidth;
+          childExhausted = @leftResult[:status] == :budgetExhausted ||
+            (!@unary && @rightResult[:status] == :budgetExhausted);
+          status = goalMet ?: :enclosed ?_ (childExhausted ?: :budgetExhausted ?_ :goalNotMet);
+          evidenceLevel = @unary
+            ?: @leftResult[:evidenceLevel]
+            ?_ OracleWeakerEvidence(@leftResult[:evidenceLevel], @rightResult[:evidenceLevel]);
+          candidate = @resultInterval.Midpoint();
+          approximation = .CertifiedApproximation(candidate, @resultInterval, {=
+              provider=:oracle,
+              reason=status,
+              operation=@operation,
+              actualized=1
+          });
+          {=
+              valueKind=:oracleRefinement,
+              schema="rix.oracle.refinement@1",
+              status=status,
+              interval=@resultInterval,
+              certified=1,
+              requestedWidth=@requestedWidth,
+              achievedWidth=achievedWidth,
+              approximation=approximation,
+              evidenceLevel=evidenceLevel,
+              trace=@keepTrace ?: [{=
+                  operation=@operation,
+                  left=@leftResult[:interval],
+                  right=@unary ?: _ ?_ @rightResult[:interval],
+                  interval=@resultInterval,
+                  candidate=candidate,
+                  actualized=1
+              }] ?_ [],
+              work={=
+                  calls=@calls,
+                  iterations=1,
+                  maxCalls=@maxCalls,
+                  exhausted=!goalMet && (childExhausted || @calls>=@maxCalls)
+              },
+              diagnostics=goalMet ?: [] ?_ [:requestedWidthNotReached],
+              evidence={=
+                  kind=:exactRationalIntervalArithmetic,
+                  property=:containment,
+                  operation=@operation,
+                  operandEvidence=[@leftResult[:evidence], @unary ?: _ ?_ @rightResult[:evidence]]
+              },
+              source=@real[:provenance]
+          };
+      }
+      ?_ OracleUnresolvedArithmetic(real, requestedWidth, maxCalls, calls, leftResult, rightResult, :divisorNotSeparatedFromZero);
+};
+
+OracleRefine(real, options ?= {= }) -> {?
+    real[:kind] == :adapter ? OracleRefineSource(real, options);
+    real[:kind] == :arithmetic ? OracleRefineArithmetic(real, options);
+    OracleRefineRational(real, options)
+};
+
+OracleNumericsCapabilities(real) -> {;
+    sourceCapabilities = real[:kind] == :adapter ?: real[:source].NumericsCapabilities() ?_ _;
+    selectedRepresentation = real[:kind] == :adapter
+      ?: :certifiedSingletonAdapter
+      ?_ (real[:kind] == :arithmetic ?: :exactIntervalArithmeticRecipe ?_ :rationalBetweennessOracle);
+    selectedEvidenceLevels = real[:kind] == :adapter
+      ?: sourceCapabilities[:evidenceLevels]
+      ?_ (real[:kind] == :arithmetic ?: [:constructorGuarantee, :proof] ?_ [:constructorGuarantee]);
+    {=
+        valueKind = :numericsCapabilities,
+        schema = "rix.numerics.capabilities@1",
+        backend = :oracle,
+        representation = selectedRepresentation,
+        denotation = :singleton,
+        operations = [:enclose, :refine],
+        evidenceLevels = selectedEvidenceLevels,
+        certified = 1,
+        arbitraryRefinement = 1,
+        deterministic = 1,
+        minimumWidth = 0,
+        maxCalls = 100000,
+        maxIterations = 100000,
+        provider = real[:provenance]
+    };
 };
 
 OracleProtocolEnclose(real, request) -> {;
@@ -337,7 +651,7 @@ OracleProtocolEnclose(real, request) -> {;
         trace = request[:trace]
     });
     goalMet = refined[:status] == :enclosed;
-    diagnostics = [];
+    diagnostics = refined.Has("diagnostics") ?: refined[:diagnostics] ?_ [];
     diagnostics = workRequest.Has("timeout") ?: diagnostics.Push(:timeoutNotCooperativelyEnforced) ?_ diagnostics;
     diagnostics = workRequest.Has("memory") ?: diagnostics.Push(:memoryNotCooperativelyEnforced) ?_ diagnostics;
     {=
@@ -345,12 +659,12 @@ OracleProtocolEnclose(real, request) -> {;
         schema = "rix.numerics.enclosure@1",
         status = refined[:status],
         interval = refined[:interval],
-        certified = 1,
+        certified = refined[:certified],
         goalMet = goalMet,
         requestedWidth = request[:absoluteWidth],
         achievedWidth = refined[:achievedWidth],
         approximation = refined[:approximation],
-        evidenceLevel = :constructorGuarantee,
+        evidenceLevel = refined[:evidenceLevel],
         backend = :oracle,
         operation = request[:operation],
         trace = refined[:trace],
@@ -361,9 +675,42 @@ OracleProtocolEnclose(real, request) -> {;
     };
 };
 
+.TypeKnown(:Oracle) ?: _ ?_ .TypeRegister({=
+    name=:Oracle,
+    nativeType=:map,
+    defaultTraits=[:number, :ordered],
+    convertFrom={=
+        map=(x) ?- [x[:valueKind] == :oracle] -> x
+    },
+    validate=(x)->x[:valueKind] == :oracle,
+    proto={=
+        Enclose=(self, request)->OracleProtocolEnclose(self, request),
+        Refine=(self, request)->OracleProtocolEnclose(self, request),
+        NumericsCapabilities=(self)->OracleNumericsCapabilities(self)
+    },
+    installs={=
+        ADD=[{= name=:CertifiedRealOracleAdd, priority=100, prep=(x,y)->OracleBridgePair(x,y), impl=(x,y)->OracleOperation(:add,x,y) }],
+        SUB=[{= name=:CertifiedRealOracleSub, priority=100, prep=(x,y)->OracleBridgePair(x,y), impl=(x,y)->OracleOperation(:sub,x,y) }],
+        MUL=[{= name=:CertifiedRealOracleMul, priority=100, prep=(x,y)->OracleBridgePair(x,y), impl=(x,y)->OracleOperation(:mul,x,y) }],
+        DIV=[{= name=:CertifiedRealOracleDiv, priority=100, prep=(x,y)->OracleBridgePair(x,y), impl=(x,y)->OracleOperation(:div,x,y) }],
+        POW=[{=
+            name=:CertifiedRealOraclePow,
+            priority=100,
+            prep=(x,y)->OracleRefinableSingleton(x) && !OracleExactScalar(x) && (y ? :Integer),
+            impl=(x,y)->OracleOperation(:pow,x,y)
+        }],
+        NEG=[{= name=:CertifiedRealOracleNeg, priority=100, prep=(x)->OracleRefinableSingleton(x) && !OracleExactScalar(x), impl=(x)->OracleOperation(:neg,x) }],
+        ABS=[{= name=:CertifiedRealOracleAbs, priority=100, prep=(x)->OracleRefinableSingleton(x) && !OracleExactScalar(x), impl=(x)->OracleOperation(:abs,x) }]
+    }
+});
+
+.TypeInstall(:Oracle);
+
 oracleNamespace = {= };
 oracleNamespace._proto = {=
     Rational = (self, value, options ?= {= }) -> RationalOracle(value, options),
+    From = (self, value) -> OracleFrom(value),
+    Operation = (self, operation, left, right ?= _) -> OracleOperation(operation, left, right),
     Query = (self, interval, delta, auxiliary ?= _) -> OracleQuery(interval, delta, auxiliary),
     Answer = (self, status, query, prophecy ?= _, reason ?= _) -> OracleAnswer(status, query, prophecy, reason),
     Decision = (self, answer) -> OracleDecision(answer),
@@ -376,4 +723,4 @@ oracleNamespace._proto = {=
     Refine = (self, real, options ?= {= }) -> OracleRefine(real, options)
 };
 
-.Host.RegisterValue("oracle", oracleNamespace, "Exact rational-betweenness oracle demonstrations and bounded refinement", ["Numerics", "Exact"]);
+.Host.RegisterValue("oracle", oracleNamespace, "Certified singleton-real adapters, exact interval arithmetic, and rational-betweenness demonstrations", ["Numerics", "Exact"]);

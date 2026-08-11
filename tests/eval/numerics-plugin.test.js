@@ -39,11 +39,11 @@ describe("pure RiX Numerics plugin", () => {
         expect(entry(limits, "maxDepth").value).toBe(4n);
     });
 
-    test("is bundled as RiX and has no concrete backend dependency", () => {
+    test("is bundled as RiX and depends only on the universal Oracle target", () => {
         const options = runtime();
         const info = parseAndEvaluate('.Plugin.Info("numerics")', options);
         expect(textValue(entry(info, "kind"))).toBe("rix");
-        expect(entry(info, "requires").values).toHaveLength(0);
+        expect(entry(info, "requires").values.map(textValue)).toEqual(["rix.oracle@1"]);
 
         const result = parseAndEvaluate(`
             .Plugin.Load("numerics");

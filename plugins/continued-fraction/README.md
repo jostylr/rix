@@ -67,8 +67,13 @@ Finite values return an exact point enclosure immediately. Lazy values consume
 at most one new coefficient per refinement call and retain the best certified
 cylinder when the budget is exhausted.
 
-Phase 2 is reserved for periodic quadratic forms, recognition, selected
-arithmetic transformations, best-approximation helpers, and adapters to other
-exact-real backends.
+Continued-fraction reals support `+`, `-`, `*`, `/`, integer powers, unary `-`,
+and absolute value. Same-family and Rational operations retain
+`ContinuedFractionReal` through an immutable enclosure recipe; unlike certified
+families meet at Oracle. This does not pretend that general arithmetic has
+already produced a new canonical coefficient stream.
+
+Periodic quadratic recognition, best-approximation helpers, and native
+continued-fraction transducers remain later work.
 
 See [tutorial.md](tutorial.md).

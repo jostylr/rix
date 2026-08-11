@@ -16,8 +16,8 @@
 });
 
 .TypeRegister({=
-  name = :Oracle,
-  aliases = [:oracle],
+  name = :ExampleOracle,
+  aliases = [:exampleOracle],
   nativeType = :map,
   defaultTraits = [:oracle, :refinable, :approximate, :number],
 
@@ -32,7 +32,7 @@
   validate = (x) -> x[:kind] == :oracle,
 
   export = (x) -> {=
-    type = :Oracle,
+    type = :ExampleOracle,
     data = {=
       seed = x[:seed],
       bounds = x[:bounds]
@@ -58,4 +58,4 @@
   installs = {= }
 });
 
-.TypeInstall(:Oracle);
+.TypeInstall(:ExampleOracle);

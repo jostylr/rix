@@ -78,11 +78,18 @@ selected sequence index, tail witness, evidence, and bounded work record.
 Insufficient work returns `:budgetExhausted` with the best certified enclosure.
 Language Halo comparisons use the same protocol.
 
-## Phase 1 boundary
+## Arithmetic and boundary
 
-Phase 1 does not infer a modulus for a bare sequence. Arithmetic with computed
-moduli, lazy stream policies, convergence transformations, and the
-paper-compatible funnel/Oracle adapter remain later phases.
+Certified Cauchy reals support `+`, `-`, `*`, `/`, integer powers, unary `-`,
+and absolute value. The result retains `CauchyReal` when both operands are
+Cauchy values or one operand is Rational; its immutable arithmetic recipe
+uses the shared Oracle enclosure engine. Different certified real families
+automatically meet at Oracle. A bare sequence still cannot participate because
+it has no effective modulus or certified singleton enclosure.
+
+Native computed-modulus constructions, lazy stream policies, convergence
+transformations, and the paper-specific funnel construction remain later
+work.
 
 The directory also retains [`cauchy.js`](cauchy.js), the earlier host-side
 implementation, as a point of comparison. It is not a plugin manifest, is not

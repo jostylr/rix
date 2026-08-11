@@ -27,16 +27,10 @@ function requireFloat(value, evaluate) {
 function installFloatCompareVariant(registry) {
     registry.installVariant("COMPARE", {
         name: "ApproxMathFloatCompare",
-        // The generic Min/Max reducer retains these prepared arguments, so
-        // mixed exact/Float inputs return their common Float representation.
-        priority: 100,
-        prepare(args, _context, evaluate) {
-            if (args.length !== 2 || !args.some((value) => value?.type === "float")) return false;
-            try {
-                return { args: args.map((value) => requireFloat(value, evaluate)) };
-            } catch {
-                return false;
-            }
+        priority: 500,
+        prepare(args) {
+            if (args.length !== 2 || !args.every((value) => value?.type === "float")) return false;
+            return { args };
         },
         impl(args) {
             const [left, right] = args.map((value) => value.value);

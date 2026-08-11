@@ -103,3 +103,27 @@ g < {~ 3, 1/1000 };
 
 With `maxCalls=0`, a relation not already proved by the initial enclosure
 remains undecided with `:budgetExhausted` evidence.
+
+## Arithmetic of certified Cauchy reals
+
+Arithmetic results remain `CauchyReal` values. Their implementation is a
+certified arithmetic recipe, so no linked sequence of previous approximations
+is retained:
+
+```rix
+.Plugin.Load("cauchy");
+.Plugin.Load("numerics");
+x := .cauchy.Geometric(1, 1/2); ## limit 2
+values := [x+x, x-x, x*x, x/x, -x, .Abs(x), x^3, x+1/3];
+.Table({=
+  columns=["type", "interval"],
+  rows=values.Map((value) -> [
+    value.__type,
+    .numerics.Refine(value, {= absoluteWidth=1/1000, maxWork=120 })[:interval]
+  ])
+});
+```
+
+The Rational operand becomes an exact Cauchy-family leaf. Division refines
+its denominator until zero is excluded; failure to separate zero is a
+structured `:unknown` result.

@@ -55,6 +55,7 @@ export function NumericsCapabilities() {
         ["schema", text("rix.numerics.capabilities@1")],
         ["backend", text("float")],
         ["representation", text("ieee754Binary64")],
+        ["denotation", text("storedScalar")],
         ["operations", sequence([text("sample"), text("enclose")])],
         ["evidencelevels", sequence([text("approximate")])],
         ["certified", null],

@@ -101,3 +101,27 @@ With `maxCalls=0`, that last comparison is an undecided value carrying
 `:budgetExhausted` evidence. Asking an already finite ball for a narrower
 enclosure similarly produces `:resolutionFloor`; neither outcome discards its
 best certified interval.
+
+## Arithmetic on nested Ball reals
+
+Finite Balls retain their exact interval-hull arithmetic. Nested Ball recipes
+retain the `NestedBallReal` family while an Oracle recipe coordinates later
+refinement:
+
+```rix
+.Plugin.Load("ball");
+.Plugin.Load("numerics");
+x := .ball.Sqrt(2);
+values := [x+x, x-x, x*x, x/x, -x, .Abs(x), x^2, x+1/3];
+.Table({=
+  columns=["type", "interval"],
+  rows=values.Map((value) -> [
+    value.__type,
+    .numerics.Refine(value, {= absoluteWidth=1/1000, maxWork=100 })[:interval]
+  ])
+});
+```
+
+The Rational `1/3` is embedded exactly in the nested-Ball family. A Float is
+not eligible for that promotion; write an explicit Float conversion only when
+binary64 arithmetic is actually intended.

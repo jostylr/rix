@@ -38,50 +38,39 @@
 
   installs = {=
     ADD = [
-      {= name = :FloatFloat, prep = (x, y) -> (x ? :float) && (y ? :float), impl = (x, y) -> .JSCall("floats.js", :Add, x, y) },
-      {= name = :PromoteFloat, prep = (x, y) -> (x ? :float) || (y ? :float), impl = (x, y) -> .JSCall("floats.js", :Add, x ~!: :Float, y ~!: :Float) }
+      {= name = :FloatFloat, priority = 500, prep = (x, y) -> (x ? :float) && (y ? :float), impl = (x, y) -> .JSCall("floats.js", :Add, x, y) }
     ],
     SUB = [
-      {= name = :FloatFloat, prep = (x, y) -> (x ? :float) && (y ? :float), impl = (x, y) -> .JSCall("floats.js", :Sub, x, y) },
-      {= name = :PromoteFloat, prep = (x, y) -> (x ? :float) || (y ? :float), impl = (x, y) -> .JSCall("floats.js", :Sub, x ~!: :Float, y ~!: :Float) }
+      {= name = :FloatFloat, priority = 500, prep = (x, y) -> (x ? :float) && (y ? :float), impl = (x, y) -> .JSCall("floats.js", :Sub, x, y) }
     ],
     MUL = [
-      {= name = :FloatFloat, prep = (x, y) -> (x ? :float) && (y ? :float), impl = (x, y) -> .JSCall("floats.js", :Mul, x, y) },
-      {= name = :PromoteFloat, prep = (x, y) -> (x ? :float) || (y ? :float), impl = (x, y) -> .JSCall("floats.js", :Mul, x ~!: :Float, y ~!: :Float) }
+      {= name = :FloatFloat, priority = 500, prep = (x, y) -> (x ? :float) && (y ? :float), impl = (x, y) -> .JSCall("floats.js", :Mul, x, y) }
     ],
     DIV = [
-      {= name = :FloatFloat, prep = (x, y) -> (x ? :float) && (y ? :float), impl = (x, y) -> .JSCall("floats.js", :Div, x, y) },
-      {= name = :PromoteFloat, prep = (x, y) -> (x ? :float) || (y ? :float), impl = (x, y) -> .JSCall("floats.js", :Div, x ~!: :Float, y ~!: :Float) }
+      {= name = :FloatFloat, priority = 500, prep = (x, y) -> (x ? :float) && (y ? :float), impl = (x, y) -> .JSCall("floats.js", :Div, x, y) }
     ],
     POW = [
-      {= name = :FloatFloat, prep = (x, y) -> (x ? :float) && (y ? :float), impl = (x, y) -> .JSCall("floats.js", :Pow, x, y) },
-      {= name = :PromoteFloat, prep = (x, y) -> (x ? :float) || (y ? :float), impl = (x, y) -> .JSCall("floats.js", :Pow, x ~!: :Float, y ~!: :Float) }
+      {= name = :FloatFloat, priority = 500, prep = (x, y) -> (x ? :float) && (y ? :float), impl = (x, y) -> .JSCall("floats.js", :Pow, x, y) }
     ],
     POWPROD = [
-      {= name = :FloatFloat, prep = (x, y) -> (x ? :float) && (y ? :float), impl = (x, y) -> .JSCall("floats.js", :Pow, x, y) },
-      {= name = :PromoteFloat, prep = (x, y) -> (x ? :float) || (y ? :float), impl = (x, y) -> .JSCall("floats.js", :Pow, x ~!: :Float, y ~!: :Float) }
+      {= name = :FloatFloat, priority = 500, prep = (x, y) -> (x ? :float) && (y ? :float), impl = (x, y) -> .JSCall("floats.js", :Pow, x, y) }
     ],
-    NEG = [{= name = :Float, prep = (x) -> x ? :float, impl = (x) -> .JSCall("floats.js", :Neg, x) }],
+    NEG = [{= name = :Float, priority = 500, prep = (x) -> x ? :float, impl = (x) -> .JSCall("floats.js", :Neg, x) }],
 
     EQ = [
-      {= name = :FloatFloat, prep = (x, y) -> (x ? :float) && (y ? :float), impl = (x, y) -> .JSCall("floats.js", :Eq, x, y) },
-      {= name = :PromoteFloat, prep = (x, y) -> (x ? :float) || (y ? :float), impl = (x, y) -> .JSCall("floats.js", :Eq, x ~!: :Float, y ~!: :Float) }
+      {= name = :FloatFloat, priority = 500, prep = (x, y) -> (x ? :float) && (y ? :float), impl = (x, y) -> .JSCall("floats.js", :Eq, x, y) }
     ],
     LT = [
-      {= name = :FloatFloat, prep = (x, y) -> (x ? :float) && (y ? :float), impl = (x, y) -> .JSCall("floats.js", :Lt, x, y) },
-      {= name = :PromoteFloat, prep = (x, y) -> (x ? :float) || (y ? :float), impl = (x, y) -> .JSCall("floats.js", :Lt, x ~!: :Float, y ~!: :Float) }
+      {= name = :FloatFloat, priority = 500, prep = (x, y) -> (x ? :float) && (y ? :float), impl = (x, y) -> .JSCall("floats.js", :Lt, x, y) }
     ],
     GT = [
-      {= name = :FloatFloat, prep = (x, y) -> (x ? :float) && (y ? :float), impl = (x, y) -> .JSCall("floats.js", :Gt, x, y) },
-      {= name = :PromoteFloat, prep = (x, y) -> (x ? :float) || (y ? :float), impl = (x, y) -> .JSCall("floats.js", :Gt, x ~!: :Float, y ~!: :Float) }
+      {= name = :FloatFloat, priority = 500, prep = (x, y) -> (x ? :float) && (y ? :float), impl = (x, y) -> .JSCall("floats.js", :Gt, x, y) }
     ],
     LTE = [
-      {= name = :FloatFloat, prep = (x, y) -> (x ? :float) && (y ? :float), impl = (x, y) -> .JSCall("floats.js", :Lte, x, y) },
-      {= name = :PromoteFloat, prep = (x, y) -> (x ? :float) || (y ? :float), impl = (x, y) -> .JSCall("floats.js", :Lte, x ~!: :Float, y ~!: :Float) }
+      {= name = :FloatFloat, priority = 500, prep = (x, y) -> (x ? :float) && (y ? :float), impl = (x, y) -> .JSCall("floats.js", :Lte, x, y) }
     ],
     GTE = [
-      {= name = :FloatFloat, prep = (x, y) -> (x ? :float) && (y ? :float), impl = (x, y) -> .JSCall("floats.js", :Gte, x, y) },
-      {= name = :PromoteFloat, prep = (x, y) -> (x ? :float) || (y ? :float), impl = (x, y) -> .JSCall("floats.js", :Gte, x ~!: :Float, y ~!: :Float) }
+      {= name = :FloatFloat, priority = 500, prep = (x, y) -> (x ? :float) && (y ? :float), impl = (x, y) -> .JSCall("floats.js", :Gte, x, y) }
     ],
 
     ABS = [{= name = :Float, prep = (x) -> x ? :float, impl = (x) -> .JSCall("floats.js", :Abs, x) }],

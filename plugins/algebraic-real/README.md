@@ -71,13 +71,18 @@ canonical coefficients, original isolating interval, root index, name, and
 evidence. `.ar.Import(record)` reconstructs the value and reruns every
 certificate check; it does not trust serialized proof claims blindly.
 
-## Phase boundary
+## Arithmetic and canonicalization boundary
 
-Phase 1 does not install arithmetic operators between algebraic reals.
-Addition, multiplication, division, powers, and algebraic-to-algebraic
-comparison require resultant/minimal-polynomial construction, factor
-selection, and fresh root isolation. Those field operations belong to Phase 2;
-the Phase 1 value already exchanges its defining Polynomial with `.poly` and
-`.algebra`.
+Algebraic reals support `+`, `-`, `*`, `/`, integer powers, unary `-`, and
+absolute value. Operations with another algebraic real or a Rational retain
+the semantic `AlgebraicReal` family while an immutable Oracle-backed recipe
+supplies certified enclosures. Operations with a different certified family
+produce an Oracle.
+
+These results are arithmetic reals, not yet newly canonicalized algebraic
+numbers. Resultant/minimal-polynomial construction, factor selection, fresh
+root isolation, and algebraic-to-algebraic exact comparison remain later
+work. Isolated input values continue to exchange their canonical Polynomial
+with `.poly` and `.algebra`.
 
 See [tutorial.md](tutorial.md).

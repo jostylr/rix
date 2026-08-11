@@ -7,9 +7,9 @@ aliases: [ar]
 exports: [Root, Sqrt2, Polynomial, Evaluate, Derivative, SturmSequence, RootCount, IsSquareFree, Refine, Sign, CompareRational, Export, Import]
 groups: [Numerics, Exact, Algebra]
 permissions: []
-requires: [rix.polynomial.algorithms@1]
+requires: [rix.polynomial.algorithms@1, rix.oracle@1]
 provides: [rix.algebraic-real@1, rix.exact-sign@1, rix.refinable@1, rix.enclosable-real@1]
-schemas: [rix.algebraic-real@1, rix.algebraic-real.export@1, rix.polynomial@1]
+schemas: [rix.algebraic-real@1, rix.algebraic-real.export@1, rix.algebraic-real.arithmetic-real@1, rix.polynomial@1]
 snapshot: false
 deterministic: true
 defaultEnabled: false
@@ -54,6 +54,7 @@ ARCapabilities(real) -> {=
     schema = "rix.numerics.capabilities@1",
     backend = :algebraicReal,
     representation = :squareFreeIntegerPolynomialIsolatingInterval,
+    denotation = :singleton,
     operations = [:enclose, :refine],
     evidenceLevels = [:proof],
     certified = 1,
@@ -325,6 +326,74 @@ ARImport(record) -> {;
         evidence=record[:evidence]
     });
 };
+
+ARFamily(value) -> (value ? :Map) &&
+  (value[:valueKind] == :algebraicReal || value[:valueKind] == :algebraicRealArithmeticReal);
+ARExact(value) -> (value ? :Integer) || (value ? :Rational);
+ARArithmeticPair(left, right) ->
+  (ARFamily(left) || ARFamily(right)) &&
+  (ARFamily(left) || ARExact(left)) &&
+  (ARFamily(right) || ARExact(right));
+
+ARArithmeticCapabilities(real) -> {=
+    valueKind=:numericsCapabilities,
+    schema="rix.numerics.capabilities@1",
+    backend=:algebraicReal,
+    representation=:oracleBackedAlgebraicArithmetic,
+    denotation=:singleton,
+    operations=[:enclose, :refine],
+    evidenceLevels=[:constructorGuarantee, :proof],
+    certified=1,
+    arbitraryRefinement=1,
+    deterministic=1,
+    minimumWidth=0,
+    maxCalls=100000,
+    maxIterations=100000
+};
+
+ARArithmetic(operation, left, right ?= _) -> {;
+    unary = operation == :neg || operation == :abs;
+    recipe = unary ?: .oracle.Operation(operation, left) ?_ .oracle.Operation(operation, left, right);
+    real = {=
+        valueKind=:algebraicRealArithmeticReal,
+        schema="rix.algebraic-real.arithmetic-real@1",
+        kind=:arithmetic,
+        operation=operation,
+        recipe=recipe,
+        provenance={= plugin=:algebraicReal, version=2, source=:arithmeticRecipe }
+    };
+    real._proto = {=
+        Enclose=(self, request ?= {= })->self[:recipe].Enclose(request),
+        Refine=(self, request ?= {= })->self[:recipe].Refine(request),
+        NumericsCapabilities=(self)->ARArithmeticCapabilities(self),
+        Record=(self)->{= valueKind=self[:valueKind], schema=self[:schema], operation=self[:operation], certified=1 }
+    };
+    .ImmutableValue(real ~!: :AlgebraicReal);
+};
+
+.TypeKnown(:AlgebraicReal) ?: _ ?_ .TypeRegister({=
+    name=:AlgebraicReal,
+    nativeType=:map,
+    defaultTraits=[:number, :ordered],
+    convertFrom={= map=(x) ?- [ARFamily(x)] -> x },
+    validate=(x)->ARFamily(x),
+    proto={=
+        Enclose=(self,request ?= {= })->self[:kind] == :arithmetic ?: self[:recipe].Enclose(request) ?_ ARProtocolEnclosure(self,request,:enclose),
+        Refine=(self,request ?= {= })->self[:kind] == :arithmetic ?: self[:recipe].Refine(request) ?_ ARProtocolEnclosure(self,request,:refine),
+        NumericsCapabilities=(self)->self[:kind] == :arithmetic ?: ARArithmeticCapabilities(self) ?_ ARCapabilities(self)
+    },
+    installs={=
+        ADD=[{= name=:ARAdd, priority=300, prep=(x,y)->ARArithmeticPair(x,y), impl=(x,y)->ARArithmetic(:add,x,y) }],
+        SUB=[{= name=:ARSub, priority=300, prep=(x,y)->ARArithmeticPair(x,y), impl=(x,y)->ARArithmetic(:sub,x,y) }],
+        MUL=[{= name=:ARMul, priority=300, prep=(x,y)->ARArithmeticPair(x,y), impl=(x,y)->ARArithmetic(:mul,x,y) }],
+        DIV=[{= name=:ARDiv, priority=300, prep=(x,y)->ARArithmeticPair(x,y), impl=(x,y)->ARArithmetic(:div,x,y) }],
+        POW=[{= name=:ARPow, priority=300, prep=(x,y)->ARFamily(x)&&(y ? :Integer), impl=(x,y)->ARArithmetic(:pow,x,y) }],
+        NEG=[{= name=:ARNeg, priority=300, prep=(x)->ARFamily(x), impl=(x)->ARArithmetic(:neg,x) }],
+        ABS=[{= name=:ARAbs, priority=300, prep=(x)->ARFamily(x), impl=(x)->ARArithmetic(:abs,x) }]
+    }
+});
+
+.TypeInstall(:AlgebraicReal);
 
 ARConstruct(coefficients, interval, rootIndex ?= 1, options ?= {= }) ->
     ARRoot(coefficients, interval, rootIndex, options);
