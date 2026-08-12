@@ -26,6 +26,9 @@ The implementation order and per-plugin phased work are tracked in
 | `algebraic-real/` | RiX | `algebraic-real` | Square-free integer polynomials with Sturm-certified isolating intervals; callable aliases `.algebraicReal` and `.ar`. |
 | `oracle/` | RiX | `oracle` | Phase 1 rational-betweenness oracle values, procedures, validation, and bounded refinement. |
 | `numerics/` | RiX | `numerics` | Backend-neutral bounded enclosure, refinement, and sampling protocol orchestration. |
+| `linalg/` | host | `linalg` | Exact dense linear algebra, vector spaces, coordinate systems, and coordinate-aware tensor transformations. |
+| `optimize/` | host | `optimize` | Exact standard-form linear programs and deterministic simplex solving. |
+| `solve/` | host | `solve` | Exact affine matrix and symbolic-system solving over the linear-algebra service. |
 | `radix/` | RiX | `radix` | Pure-RiX bounded exact positional expansions and repeating-period analysis. |
 | `fraction/` | RiX | `fraction` | Pure-RiX unreduced Fraction arithmetic and classroom/Farey operations; aliases `.frac` and `.f`. |
 | `ratfun/` | RiX | `ratfun` | Pure-RiX canonical callable RationalFunctions; aliases `.rationalFunction` and `.rf`. |
@@ -34,8 +37,11 @@ The implementation order and per-plugin phased work are tracked in
 | `geometry/` | host | `geometry` | Exact ruler-and-compass constructions, intersections, and Graphics snapshots. |
 | `data/` | host | `data` | Immutable typed relations, deterministic transformations, and portable Table views. |
 | `stats/` | RiX | `stats` | Exact descriptive statistics, summary Tables, histograms, and box plots; alias `.statistics`. |
+| `stern-brocot/` | RiX | `stern-brocot` | Exact Stern–Brocot navigation, visible-tree records, and rational evaluation helpers. |
 | `document/` | host | `document` | Numbered portable reports, cross-references, captions, and small themes. |
 | `complex-visualization/` | RiX | `complex-viz` | Exact phase/magnitude domain coloring to portable Graphics; mount `.complexViz`. |
+| `scene3d/` | host | `scene3d` | Retained exact 3D scenes and deterministic wireframe snapshots. |
+| `nd/` | host | `nd` | Exact N-dimensional geometry and projection into retained 3D scenes. |
 | `render-terminal-ascii/` | host | `terminal-ascii` | Strict-ASCII fallback for tables, grids, fragments, and simple Graphics. |
 | `render-svg/` | host | `svg` | Core Graphics to accessible SVG. |
 | `render-canvas/` | host | `canvas` | Core Graphics to a serializable Canvas 2D plan. |
@@ -47,6 +53,7 @@ The implementation order and per-plugin phased work are tracked in
 | `render-latex/` | host | `latex` | Portable documents and figures to LaTeX/TikZ. |
 | `render-pdf/` | host | `pdf` | LaTeX-orchestrated PDF output. |
 | `render-gif/` | host | `gif` | PNG-frame orchestration and host-encoded animated GIF output. |
+| `render-gltf/` | host | `gltf` | Browser-safe glTF 2.0 JSON export for retained Scene3D values. |
 | `render-csv/` | host | `csv` | Exact scalar Table/relation export to CSV and TSV dialects. |
 
 The shared renderer contract, format matrix, toolchain boundary, and future 3D
@@ -68,9 +75,12 @@ packages live separately in [`rix/examples/plugins/`](../examples/plugins/README
 
 ## RiX/host implementation boundary
 
-All currently implemented computational exact-number and algebra plugins are
-written in RiX except `.fracfun`; `.float` remains JavaScript intentionally so
-that IEEE-754 behavior is an explicit host boundary. The old JavaScript
+Most currently implemented computational exact-number and algebra plugins are
+written in RiX. `.fracfun` remains host-backed for private symbolic-tree work;
+the Phase 1 `.linalg`, `.optimize`, and `.solve` plugins are host-backed while
+their coordinate-value, model, certificate, and symbolic-consumer protocols
+settle. `.float` remains JavaScript intentionally so that IEEE-754 behavior is
+an explicit host boundary. The old JavaScript
 installers for converted packages are retained as non-discoverable
 `*.reference.js` comparison sources and are not loaded by the catalog.
 

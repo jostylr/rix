@@ -364,6 +364,124 @@ newline normalization.
    - [ ] Add certificate import/export and optional external CAS adapters.
    - [ ] Explore verified algorithms and proof-assistant exchange.
 
+### `.linalg`
+
+1. **Phase 1 — Exact dense systems and coordinate-aware tensors**
+   - [x] Canonicalize rectangular `[a,b; c,d]` and higher-rank repeated-semicolon
+     literals into the shaped Tensor runtime used by `{:2x2: ...}`.
+   - [x] Add exact `Rref`, `Rank`, `Determinant`, `Inverse`, and `Solve` over
+     Integer/Rational rank-2 tensors, with unique, underdetermined, and
+     inconsistent result states.
+   - [x] Add `VectorSpace`, named `Coordinates`, coordinate vectors, and
+     coordinate-aware tensors with explicit per-axis covariant/contravariant
+     variance.
+   - [x] Transform every tensor axis between bases. Non-bang `Transform`
+     returns a new representation sharing tensor identity and linking to the
+     previous object through `equivalentTo`; `Transform!` retains a snapshot
+     link while updating the receiver.
+   - [x] Register the `LinearAlgebra` and `Exact` groups, versioned services and
+     schemas, reference documentation, tutorial, and focused tests.
+2. **Phase 2 — Exact decompositions and coordinate maps**
+   - [ ] Add fraction-free elimination, LU/LDU, exact QR where supported,
+     row/column spaces, nullspaces, determinant certificates, and reusable
+     factorization objects.
+   - [ ] Add linear maps between distinct vector spaces, composition, inverses,
+     dual spaces, tensor products, contractions, and explicit pushforward and
+     pullback operations.
+   - [ ] Make coordinate lineage serializable and bounded, with stable identity
+     records instead of relying only on in-memory links.
+   - [ ] Define elementwise tensor arithmetic and broadcasting separately from
+     contraction and matrix multiplication.
+3. **Phase 3 — Spectral, geometric, and validated linear algebra**
+   - [ ] Add characteristic/minimal polynomials, eigenspaces, rational/Jordan
+     canonical forms where exact, and approximate Eigen/SVD/QR providers with
+     residual and conditioning reports.
+   - [ ] Add metric tensors, musical isomorphisms, raising/lowering indices,
+     orthogonal/orthonormal coordinates, and change-of-basis checks that retain
+     variance semantics.
+   - [ ] Add coordinate charts and Jacobian-driven transformations for
+     coordinate-dependent tensor fields, clearly separated from linear basis
+     changes.
+   - [ ] Integrate Ball/interval providers for validated linear solves,
+     enclosures, and singular/ill-conditioned diagnostics.
+4. **Phase 4 — Sparse, accelerated, and certified backends**
+   - [ ] Add sparse matrix/tensor formats and iterative solvers with explicit
+     convergence and reproducibility policies.
+   - [ ] Add typed-array, SIMD/WebAssembly, GPU, and optional native providers
+     behind `rix.linear-algebra@1` without changing exact/evidence semantics.
+   - [ ] Add replayable elimination/decomposition certificates and optional
+     proof-assistant verification.
+
+### `.optimize`
+
+1. **Phase 1 — Exact standard-form linear programming**
+   - [x] Add exact `LinearProgram` values for `A*x <= b`, `x >= 0`, and
+     maximize/minimize objectives, with explicit Phase 1 validation.
+   - [x] Implement deterministic primal simplex from a nonnegative right-hand
+     side, exact Rational tableaux, and optimal/unbounded/iteration-limit
+     results.
+   - [x] Return the exact solution, objective, slacks, basis, work count,
+     tableau, and diagnostics through versioned portable result schemas.
+   - [x] Register `Optimization`/`Exact` groups, depend on the linear-algebra
+     service, and add documentation, tutorial, and focused tests.
+2. **Phase 2 — General LP forms and certificates**
+   - [ ] Add Phase I feasibility, equality and greater-than constraints,
+     arbitrary variable bounds, free variables, presolve, and degeneracy/cycle
+     policies.
+   - [ ] Return exact primal/dual solutions and checkable certificates for
+     optimality, infeasibility, and unboundedness; expose sensitivity ranges.
+   - [ ] Add revised/simplex factorization reuse and a stable model interchange
+     schema.
+3. **Phase 3 — Broader mathematical optimization**
+   - [ ] Add branch-and-bound integer/mixed-integer LP with bounded work and
+     incumbent/gap results.
+   - [ ] Add exact convex quadratic cases plus nonlinear constrained
+     optimization dispatch through Numerics, including gradients, Hessians,
+     KKT residuals, and certified unresolved regions where available.
+   - [ ] Consume symbolic `{#}` constraints and objectives through `.solve`
+     without silently weakening exact constraints.
+4. **Phase 4 — Provider ecosystem and large-scale optimization**
+   - [ ] Negotiate sparse, parallel, WebAssembly/native, and external solver
+     providers with reproducible model snapshots and honest evidence levels.
+   - [ ] Add decomposition/column-generation hooks and proof/certificate import
+     and export without making a vendor model format the RiX value model.
+
+### `.solve`
+
+1. **Phase 1 — Exact affine equality systems**
+   - [x] Consume `{#}` specs through public symbolic-role helpers and preserve
+     the spec as inert source/provenance.
+   - [x] Classify and linearize exact affine definitions/equalities with caller
+     supplied exact input values, rejecting inequalities and nonlinear terms
+     explicitly.
+   - [x] Delegate the resulting matrix problem to `rix.linear-algebra@1` and
+     return named exact solutions plus the underlying rank/RREF evidence.
+   - [x] Add direct matrix `Linear`, symbolic `System`, and `Classify` entry
+     points, the `Solve`/`Symbolic`/`Exact` groups, docs, tutorial, and tests.
+2. **Phase 2 — Domain dispatch and solution sets**
+   - [ ] Dispatch linear inequalities/objectives to `.optimize`, univariate
+     polynomial equations to `.poly`/`.algebraicReal`, and supported scalar
+     numerical equations to `.numerics`.
+   - [ ] Define finite, parametric, empty, unbounded, and branch-valued Solution
+     objects with substitution, residual checking, assumptions, and provenance.
+   - [ ] Support role overrides, parameter declarations, and mixed
+     definition/constraint normalization without inferring direction from
+     statement order.
+3. **Phase 3 — Polynomial and nonlinear systems**
+   - [ ] Consume multivariate polynomial/Groebner/elimination services from
+     `.algebra`, returning exact components and isolating boxes when possible.
+   - [ ] Add multidimensional interval Newton, continuation, implicit-function
+     refinement, branch policy, singular-Jacobian diagnostics, and partial
+     certified results through `.numerics`.
+   - [ ] Dispatch constrained nonlinear systems jointly with `.optimize` while
+     keeping feasibility, root finding, and objective optimization distinct.
+4. **Phase 4 — Constraint and proof ecosystem**
+   - [ ] Add pluggable SMT/CAS/constraint-programming providers, units/domain
+     reasoning, and mixed discrete/continuous systems behind versioned service
+     capabilities.
+   - [ ] Import/export replayable certificates and proof obligations, retaining
+     exact assumptions and never promoting heuristic output to proof.
+
 ### `.fraction`
 
 1. **Phase 1 — Representation-sensitive exact fractions**

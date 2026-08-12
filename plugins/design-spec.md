@@ -31,6 +31,9 @@ numeric type or one universal rendering engine.
 | `.float` | Implemented plugin | IEEE-754 Float conversion, arithmetic integration, rounding, intervals of stored values, and approximate elementary functions. |
 | `.oracle` | Implemented Phase 1 plugin | Pure RiX rational-betweenness values, five rational procedure demonstrations, Range validation, finite alternatives, and bounded exact refinement. |
 | `.numerics` | Implemented Phase 1 plugin | Pure RiX request normalization and backend-neutral dispatch for certified Oracle refinement and explicitly approximate Float sampling. |
+| `.linalg` | Implemented Phase 1 plugin | Exact dense RREF/rank/determinant/inverse/solve plus vector spaces, named coordinates, variance-aware tensor basis changes, and representation lineage. |
+| `.optimize` | Implemented Phase 1 plugin | Exact standard-form LinearProgram values and deterministic Rational primal simplex. |
+| `.solve` | Implemented Phase 1 plugin | Exact affine `{#}` equality classification and named solving through the linear-algebra service. |
 | `.ball` | Implemented Phase 1 plugin | Pure RiX exact midpoint-radius snapshots, outward dyadic rounding, finite arithmetic, and nested square-root refinement. |
 | `.cauchy` | Implemented Phase 1 plugin | Pure RiX rational sequences with explicit tail bounds/moduli and certified geometric refinement. |
 | `.continuedFraction` | Implemented Phase 1 plugin | Pure RiX finite and lazy simple continued fractions, exact convergent cylinders, and bounded refinement. |
