@@ -281,25 +281,46 @@ function formatViaSemanticDisplay(value, options) {
     return null;
 }
 
+const FORMAT_ACTIVE_VALUES = Symbol("formatActiveValues");
+const FORMAT_CYCLE_MARKER = "<cycle>";
+
+function formatWithCycleGuard(value, activeValues, format) {
+    if (activeValues.has(value)) return FORMAT_CYCLE_MARKER;
+    activeValues.add(value);
+    try {
+        return format();
+    } finally {
+        activeValues.delete(value);
+    }
+}
+
 export function formatValue(val, options = {}) {
-    const formatChild = (child) => formatValue(child, options);
+    const activeValues = options[FORMAT_ACTIVE_VALUES] || new WeakSet();
+    const childOptions = options[FORMAT_ACTIVE_VALUES]
+        ? options
+        : { ...options, [FORMAT_ACTIVE_VALUES]: activeValues };
+    const formatChild = (child) => formatValue(child, childOptions);
     if (isHole(val)) return "undefined";
     if (isUndecided(val)) return "?";
     if (val === null) return "_";
     if (val === undefined) return "undefined";
 
     if (typeof val === "object" && val !== null) {
-        if (isOutputValue(val)) return formatOutputText(val, formatChild);
+        if (isOutputValue(val)) {
+            return formatWithCycleGuard(val, activeValues, () => formatOutputText(val, formatChild));
+        }
         if (isSymbolicSpec(val)) return formatSymbolicSpec(val);
         if (isStructuralAlgebra(val) || isStructuralForm(val) || isStructuralLiteral(val) || isStructuralSymbol(val) || val.type === "structural_value") {
-            return formatStructuralValue(val, formatChild);
+            return formatWithCycleGuard(val, activeValues, () => formatStructuralValue(val, formatChild));
         }
         if (isLazySequence(val)) {
-            const cached = val._lazy.cache.slice(0, 8).map(formatChild).join(", ");
-            const more = val._lazy.cache.length > 8 || !val._lazy.done ? (cached ? ", …" : "…") : "";
-            const length = lazyKnownLength(val);
-            const suffix = length === null ? "" : `; length ${length}`;
-            return `[LazySequence${suffix}: ${cached}${more}]`;
+            return formatWithCycleGuard(val, activeValues, () => {
+                const cached = val._lazy.cache.slice(0, 8).map(formatChild).join(", ");
+                const more = val._lazy.cache.length > 8 || !val._lazy.done ? (cached ? ", …" : "…") : "";
+                const length = lazyKnownLength(val);
+                const suffix = length === null ? "" : `; length ${length}`;
+                return `[LazySequence${suffix}: ${cached}${more}]`;
+            });
         }
         if (isAsyncStream(val)) {
             const root = val._stream.root;
@@ -314,14 +335,22 @@ export function formatValue(val, options = {}) {
         if (val.type === "string") return val.value;
         if (isCayleyInfinity(val)) return "Infinity";
         if (isCayleyValue(val)) {
-            return `Cayley(${formatChild(val.magnitude)}, ${formatChild(val.direction)})`;
+            return formatWithCycleGuard(
+                val,
+                activeValues,
+                () => `Cayley(${formatChild(val.magnitude)}, ${formatChild(val.direction)})`,
+            );
         }
-        if (isQuantity(val)) return formatQuantity(val, formatChild);
+        if (isQuantity(val)) {
+            return formatWithCycleGuard(val, activeValues, () => formatQuantity(val, formatChild));
+        }
         if (isUnitValue(val)) return `~[${formatUnit(val)}]`;
         if (val.type === "exact_generator" || val.type === "exact_expression") {
-            return formatExact(val, formatChild);
+            return formatWithCycleGuard(val, activeValues, () => formatExact(val, formatChild));
         }
-        if (isTensor(val)) return formatTensor(val, formatChild);
+        if (isTensor(val)) {
+            return formatWithCycleGuard(val, activeValues, () => formatTensor(val, formatChild));
+        }
         if (val.type === "sequence" && val._ext instanceof Map && val._ext.get("_type")?.value === "multifunction") {
             return formatMultifunctionPreview(val);
         }
@@ -329,28 +358,40 @@ export function formatValue(val, options = {}) {
             const open = val.kind === "set" ? "{| " : val.kind === "tuple" ? "( " : "[";
             const close = val.kind === "set" ? " |}" : val.kind === "tuple" ? " )" : "]";
             const items = val.values || val.elements || [];
-            return open + items.map(formatChild).join(", ") + close;
+            return formatWithCycleGuard(
+                val,
+                activeValues,
+                () => open + items.map(formatChild).join(", ") + close,
+            );
         }
         if (val.type === "set" || val.type === "tuple") {
             const open = val.type === "set" ? "{| " : "( ";
             const close = val.type === "set" ? " |}" : " )";
-            return open + val.values.map(formatChild).join(", ") + close;
+            return formatWithCycleGuard(
+                val,
+                activeValues,
+                () => open + val.values.map(formatChild).join(", ") + close,
+            );
         }
         if (val.type === "map") {
-            const entries = [];
-            const mapObj = val.entries || val.elements || new Map();
-            mapObj.forEach((entryValue, key) => {
-                entries.push(`${key}=${formatChild(entryValue)}`);
+            return formatWithCycleGuard(val, activeValues, () => {
+                const entries = [];
+                const mapObj = val.entries || val.elements || new Map();
+                mapObj.forEach((entryValue, key) => {
+                    entries.push(`${key}=${formatChild(entryValue)}`);
+                });
+                return `{= ${entries.join(", ")} }`;
             });
-            return `{= ${entries.join(", ")} }`;
         }
         if (val.type === "export_bundle") {
-            const entries = [];
-            const mapObj = val.entries || new Map();
-            mapObj.forEach((cell, key) => {
-                entries.push(`${key}=${formatChild(cell?.value)}`);
+            return formatWithCycleGuard(val, activeValues, () => {
+                const entries = [];
+                const mapObj = val.entries || new Map();
+                mapObj.forEach((cell, key) => {
+                    entries.push(`${key}=${formatChild(cell?.value)}`);
+                });
+                return `{= ${entries.join(", ")} }`;
             });
-            return `{= ${entries.join(", ")} }`;
         }
         if (val.type === "function" || val.type === "lambda") {
             return formatCallablePreview(val, val.type === "lambda" ? "Lambda" : "Function");
@@ -380,7 +421,11 @@ export function formatValue(val, options = {}) {
             return `${val.start || val.lo}:${val.end || val.hi}`;
         }
         if (options.semanticDisplay !== false) {
-            const semanticDisplay = formatViaSemanticDisplay(val, options);
+            const semanticDisplay = formatWithCycleGuard(
+                val,
+                activeValues,
+                () => formatViaSemanticDisplay(val, childOptions),
+            );
             if (semanticDisplay !== null) return semanticDisplay;
         }
         if (val.fn === "DEFER") {

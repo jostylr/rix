@@ -1,5 +1,5 @@
-<"rix/examples/newton/nth-root" ; NthRoot=NthRoot>;
-<"rix/examples/newton/pretty" ; NthRootPretty=NthRootPretty>;
+<"examples/newton/nth-root" ; NthRoot=NthRoot>;
+<"examples/newton/pretty" ; NthRootPretty=NthRootPretty>;
 
 .PRINT([
     NthRootPretty("sqrt 2", 2, 2, NthRoot(2, 2, 5, 10^-12)),

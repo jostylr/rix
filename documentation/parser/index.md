@@ -125,16 +125,18 @@ BadFact := n -> n > 1 ?: n * $(n - 1) ?_ 1
 
 ## Installation
 
-```bash
-npm install rix-language-parser
-```
+RiX is currently an alpha source release. The historical
+`rix-language-parser` package name is not a published installation path. In a
+RiX checkout, install dependencies with `bun install` and import the parser's
+narrow entry point as shown below. The final registry package name is still a
+release decision.
 
 ## Usage
 
 ### Basic Parsing
 
 ```javascript
-import { tokenize, parse } from 'rix-language-parser';
+import { tokenize, parse } from 'rix/parser';
 
 // Tokenize input
 const tokens = tokenize('x := 2 + 3 * y');
@@ -152,7 +154,7 @@ console.log(ast2);
 ### Advanced Features
 
 ```javascript
-import { parse } from 'rix-language-parser';
+import { parse } from 'rix/parser';
 
 // Function definitions
 const funcDef = parse('power(x, n := 2) :-> x^n');

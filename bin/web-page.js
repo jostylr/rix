@@ -84,7 +84,13 @@ function createCatalog() {
 
 function showError(error) {
     const root = document.querySelector("#rix-app");
-    root.textContent = error instanceof Error ? error.stack || error.message : String(error);
+    if (error instanceof Error) {
+        const message = error.message || error.name || "RiX page error";
+        const stack = error.stack || "";
+        root.textContent = stack.includes(message) ? stack : [message, stack].filter(Boolean).join("\n\n");
+    } else {
+        root.textContent = String(error);
+    }
     root.classList.add("rix-page-error");
 }
 

@@ -1,12 +1,8 @@
-## Factorial — Terse Syntax ##
-## Uses {? } for IF and PRINT for output ##
+## Factorial using a case container.
 
-Fact(n) -> {? n <= 1 ? 1; n * Fact(n - 1) }
+Factorial(n) -> {?
+    n <= 1 ? 1;
+    n * Factorial(n - 1)
+};
 
-val5 = Fact(5)
-val10 = Fact(10)
-
-PRINT(
-  "Factorial of 5: " + val5,
-  "Factorial of 10: " + val10
-)
+{: Factorial(5), Factorial(10) }

@@ -8,7 +8,7 @@
 import { isOutputValue, renderOutputHtml } from "../runtime/output.js";
 import { enhanceSheetViews } from "./sheet-view.js";
 import { enhanceGraphicViews } from "./graphic-view.js";
-import { enhanceControlPanelViews } from "./control-panel-view.js";
+import { enhanceControlPanelViews, enhanceControlShortcuts } from "./control-panel-view.js";
 import { createWidgetSession } from "./widget-session.js";
 
 function childOutputs(value) {
@@ -82,8 +82,11 @@ export function restoreGraphicFocus(root, request) {
     if (!request) return false;
     const graphicRoot = renderedGraphicRoots(root)[request.graphicIndex];
     if (!graphicRoot) return false;
-    const handle = [...graphicRoot.querySelectorAll("[data-rix-drag-target]")]
-        .find((candidate) => candidate.dataset.rixDragTarget === request.targetId);
+    const selector = request.actionId ? "[data-rix-graphic-action]" : "[data-rix-drag-target]";
+    const handle = [...graphicRoot.querySelectorAll(selector)]
+        .find((candidate) => request.actionId
+            ? candidate.dataset.rixGraphicAction === request.actionId
+            : candidate.dataset.rixDragTarget === request.targetId);
     if (!handle) return false;
     handle.focus();
     return true;
@@ -128,6 +131,7 @@ export function mountOutputWidgets(root, value, options = {}) {
     let pendingFocusRequest = null;
     let disposed = false;
     let currentValue = value;
+    disposers.push(enhanceControlShortcuts(root));
 
     function disposeWidgets() {
         for (const dispose of widgetDisposers.splice(0)) dispose();
@@ -295,6 +299,32 @@ export function mountOutputWidgets(root, value, options = {}) {
                     }
                 },
                 onPositionCommitted: options.onGraphicPosition,
+                onAction(detail) {
+                    const focusRequest = {
+                        kind: "graphic",
+                        graphicIndex: index,
+                        actionId: detail.actionId,
+                        targetId: detail.targetId,
+                    };
+                    pendingFocusRequest = focusRequest;
+                    try {
+                        const valueResult = widgetSession.dispatch(detail);
+                        return {
+                            type: "result",
+                            value: valueResult,
+                            revision: widgetSession.revision,
+                        };
+                    } catch (error) {
+                        return {
+                            type: "error",
+                            text: error instanceof Error ? error.message : String(error),
+                            revision: widgetSession.revision,
+                        };
+                    } finally {
+                        if (pendingFocusRequest === focusRequest) pendingFocusRequest = null;
+                    }
+                },
+                onActionCommitted: options.onGraphicAction,
             });
         }
         const panelValues = collectControlPanels(outputValue);
@@ -320,7 +350,12 @@ export function mountOutputWidgets(root, value, options = {}) {
                     pendingFocusRequest = focusRequest;
                     try {
                         let event = detail;
-                        if (typeof detail.sourceText === "string") {
+                        if (typeof detail.rawText === "string") {
+                            event = {
+                                ...detail,
+                                value: { type: "string", value: detail.rawText },
+                            };
+                        } else if (typeof detail.sourceText === "string") {
                             const evaluate = options.evaluateControl || options.evaluateEdit;
                             if (typeof evaluate !== "function") {
                                 throw new Error("This host cannot evaluate RiX control input");

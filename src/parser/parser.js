@@ -717,6 +717,9 @@ class Parser {
   // Parse expression with given minimum precedence
   parseExpression(minPrec = 0) {
     const left = this.parsePrefix();
+    if (!left) {
+      this.error("Expected an expression");
+    }
     return this.parseExpressionRec(left, minPrec, false);
   }
 
@@ -1305,46 +1308,7 @@ class Parser {
       if (operator.value === "=>" || operator.value === "^=>") {
         this.error("Append/prepend syntax requires a named function signature like F(x) => body");
       }
-    } else if (operator.value === "->") {
-      // Function arrow - handle ParameterList nodes specially
-      right = this.parseExpression(rightPrec);
-
-      // Check if left side is a ParameterList (from grouping with semicolons)
-      if (
-        left.type === "Grouping" &&
-        left.expression &&
-        left.expression.type === "ParameterList"
-      ) {
-        return this.createNode("FunctionLambda", {
-          parameters: left.expression.parameters,
-          prep: null,
-          prepStrict: false,
-          body: right,
-          pos: left.pos,
-          original: left.original + operator.original,
-        });
-      }
-
-      const lambdaParameters = this.extractLambdaParameters(left);
-      if (lambdaParameters) {
-        return this.createNode("FunctionLambda", {
-          parameters: lambdaParameters,
-          prep: null,
-          prepStrict: false,
-          body: right,
-          pos: left.pos,
-          original: left.original + operator.original,
-        });
-      }
-
-      // Regular binary operation
-      return this.createNode("BinaryOperation", {
-        operator: operator.value,
-        left: left,
-        right: right,
-        pos: left.pos,
-        original: left.original + operator.original,
-      });
+      this.error("Function arrow requires a named function signature or lambda parameters");
     } else if (operator.value === "|>_") {
       right = this.parseExpression(rightPrec);
       return this.createNode("ForEachPipe", {

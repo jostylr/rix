@@ -7,34 +7,34 @@ RiX uses familiar expression syntax, then adds notation for ideas that mathemati
 
 ## Exact values first
 
-```rix
-1/3 + 1/6       ## 1/2
-1..3/4          ## mixed number: 7/4
-0.#3            ## repeating decimal: 1/3
-2:5             ## rational interval
-1.23[56:67]     ## appended bounds: 1.2356:1.2367
-1.23[+5:-6]     ## last-place offsets: 1.17:1.28
-1.2[+-0.1]      ## symmetric offset: 1.19:1.21
+```{.rix parse=true}
+1/3 + 1/6;       ## 1/2
+1..3/4;          ## mixed number: 7/4
+0.#3;            ## repeating decimal: 1/3
+2:5;             ## rational interval
+1.23[56:67];     ## appended bounds: 1.2356:1.2367
+1.23[+5:-6];     ## last-place offsets: 1.17:1.28
+1.2[+-0.1];      ## symmetric offset: 1.19:1.21
 ```
 
 RiX delegates its foundational exact arithmetic to RatMath core types. Approximation is an explicit extension boundary rather than the default numeric model.
 
 ## Certified uncertainty stays exact
 
-```rix
-23.456?          ## certified prefix; enclosure 23.456:23.457
-23.456?789       ## 789 is provisional, not part of the guarantee
-3.~7~15?         ## a continued-fraction cylinder, not an exact finite CF
-(1/7).ToDecimalApproximation(5)  ## 0.14285?
-(1/97) ~> ".12"                 ## certified bounded conversion
+```{.rix parse=true}
+23.456?;          ## certified prefix; enclosure 23.456:23.457
+23.456?789;       ## 789 is provisional, not part of the guarantee
+3.~7~15?;         ## a continued-fraction cylinder, not an exact finite CF
+(1/7).ToDecimalApproximation(5); ## 0.14285?
+(1/97) ~> ".12";                ## certified bounded conversion
 ```
 
 Every such value carries exact rational endpoints. Arithmetic propagates the
 enclosure, while comparisons may produce the undecided decision `?`:
 
-```rix
-decision := 23.456? < 23.4565
-decision ?: "yes" ?_ "no" ?? "needs refinement"
+```{.rix parse=true}
+decision := 23.456? < 23.4565;
+decision ?: "yes" ?_ "no" ?? "needs refinement";
 ```
 
 Here `1` is truth, `_` is a decided negative/null result, and `?` means the
@@ -51,72 +51,72 @@ When a bracket contains two values, colon is the required separator.
 
 Lowercase-leading names are user values. Uppercase-leading names are callable/system-facing values. Adjacency can therefore read mathematically:
 
-```rix
-x := 7
-Sq(x) -> x^2
+```{.rix parse=true}
+x := 7;
+Sq(x) -> x^2;
 
-3x^2            ## 3 * x^2
-Sq 3x           ## Sq(3*x)
+3x^2;            ## 3 * x^2
+Sq 3x;           ## Sq(3*x)
 ```
 
 Explicit calls are always available. The case convention helps the parser distinguish mathematical multiplication from application.
 
 ## Functions can prepare their inputs
 
-```rix
-Positive(x) ?- [x > 0] -> x
-Nonzero(x) ?!- [x != 0] -> x
+```{.rix parse=true}
+Positive(x) ?- [x > 0] -> x;
+Nonzero(x) ?!- [x != 0] -> x;
 ```
 
 `?-` is a soft preparation gate: failure means “this function does not accept that candidate.” `?!-` is strict and propagates failure. `??-` additionally lets undecided fall through; `??!-` throws unless the guard is decided and successful. Ordered variants combine into multifunctions, letting dispatch be written in RiX rather than hidden in host code.
 
 ## Containers announce what they are
 
-```rix
-[1, 2, 3]               ## array
-{| 1, 2, 3 |}           ## set
-{= name = "Ada" }       ## map
-{: 2, 3 }                ## tuple
-{:2x2: 1, 2; 3, 4 }     ## tensor
-{; x := 2; x^3 }         ## execution block
-{? x > 0 ? x; -x }       ## case
+```{.rix parse=true}
+[1, 2, 3];               ## array
+{| 1, 2, 3 |};           ## set
+{= name = "Ada" };       ## map
+{: 2, 3 };                ## tuple
+{:2x2: 1, 2; 3, 4 };     ## tensor
+{; x := 2; x^3 };         ## execution block
+{? x > 0 ? x; -x };       ## case
 ```
 
 The brace sigil is a compact type marker. A reader can tell a block, map, set, tuple, tensor, loop, case, mutation, or symbolic specification apart at its opening delimiter.
 
 ## Pipes make traversal visible
 
-```rix
-Double(x) -> 2x
-Positive(x) -> x > 0
+```{.rix parse=true}
+Double(x) -> 2x;
+Positive(x) -> x > 0;
 
-[1, -2, 3] |>> Double        ## map
-[1, -2, 3] |>? Positive      ## filter
-[1, 2, 3] |>: @+[2]          ## reduce
+[1, -2, 3] |>> Double;        ## map
+[1, -2, 3] |>? Positive;      ## filter
+[1, 2, 3] |>: @+[2];          ## reduce
 ```
 
 Traversal callbacks can receive `(value, locator, source)`. The locator is a one-based index for sequences, a key for maps, and an index tuple for tensors.
 
 ## Generators can stay lazy
 
-```rix
-finite := [1, |+ 2, |; 6]
-lazy := [1, |+ 2, |^ 6]
-firstFive := [1, |+ 1, |^ _][1:5]
+```{.rix parse=true}
+finite := [1, |+ 2, |; 6];
+lazy := [1, |+ 2, |^ 6];
+firstFive := [1, |+ 1, |^ _][1:5];
 ```
 
 Generator clauses describe seeds, recurrence/history, transforms, filters, and stopping. Lazy sequences compute and cache only what a consumer asks for.
 
 ## Units and exact generators compose
 
-```rix
-distance := 120~[m]
-elapsed := 30~[s] + 2~[min]
-speed := .ConvertUnit(distance / elapsed, "m/s")
+```{.rix parse=true}
+distance := 120~[m];
+elapsed := 30~[s] + 2~[min];
+speed := .ConvertUnit(distance / elapsed, "m/s");
 
-z := 1 + 1~{i}
-c := .Complex.Cayley(z)
-c.Cartesian()
+z := 1 + 1~{i};
+c := .Complex.Cayley(z);
+c.Cartesian();
 ```
 
 Scientific unit sugar (`~[...]`) resolves through the configurable `.Units` collection. Mathematical/exact generator sugar (`~{...}`) resolves through `.Exact`. Both participate in ordinary arithmetic dispatch.
@@ -137,10 +137,10 @@ That distinction matters for mutable structures, metadata, closures, and semanti
 
 ## The system object is explicit
 
-```rix
-.Len([10, 20, 30])
-.Warn("large interval", {= width = 12 })
-.Units[:degC](20)
+```{.rix parse=true}
+.Len([10, 20, 30]);
+.Warn("large interval", {= width = 12 });
+.Units[:degC](20);
 ```
 
 The leading dot is the system capability object. Hosts can construct and freeze it, add capabilities, or withhold groups for imported scripts. Operator functions are first-class too: `@+` names addition, and `@+[2]` caps it to two incoming arguments.

@@ -191,6 +191,15 @@ function invokeControlCallable(callable, args, runtime, label) {
     throw new Error(`${label} must be a RiX callable`);
 }
 
+function shortcutKey(value, label) {
+    if (value === null || value === undefined) return null;
+    const key = asString(value);
+    if (key === null || !/^(?:Arrow(?:Up|Left|Right|Down)|Enter|Escape|Home|End|PageUp|PageDown|[A-Za-z0-9])$/.test(key)) {
+        throw new Error(`${label} must be a supported KeyboardEvent key`);
+    }
+    return key.length === 1 ? key.toLowerCase() : key;
+}
+
 function controlDisplay(entry, fields, name, runtime, allowed = Object.keys(fields)) {
     const formatValue = get(entry, "format");
     if (formatValue === null) return Object.freeze({ ...fields });
@@ -445,8 +454,12 @@ export function createHeading(args) {
 }
 
 export function createFragment(args) {
-    const entry = spec(args, ["children", "metadata"], "Fragment");
-    return output("fragment", { children: sequence(get(entry, "children"), "Fragment children"), metadata: optionalMap(get(entry, "metadata"), "Fragment metadata") });
+    const entry = spec(args, ["children", "metadata", "style"], "Fragment");
+    return output("fragment", {
+        children: sequence(get(entry, "children"), "Fragment children"),
+        metadata: optionalMap(get(entry, "metadata"), "Fragment metadata"),
+        style: optionalMap(get(entry, "style"), "Fragment style"),
+    });
 }
 
 export function createEmphasis(args) {
@@ -507,6 +520,7 @@ export function createSection(args) {
         children: blockChildren(get(entry, "children"), "Section children"),
         id: asString(get(entry, "id")),
         metadata: optionalMap(get(entry, "metadata"), "Section metadata"),
+        style: optionalMap(get(entry, "style"), "Section style"),
     });
 }
 
@@ -710,6 +724,10 @@ export function createInputControl(args, runtime = null) {
     const entry = spec(args, ["target", "label", "help", "placeholder"], "Controls.Input");
     const target = reactiveTarget(entry, "Controls.Input");
     const value = target.get();
+    const inputMode = (asString(get(entry, "inputMode")) || "expression").toLowerCase();
+    if (!["expression", "text"].includes(inputMode)) {
+        throw new Error("Controls.Input inputMode must be :expression or :text");
+    }
     return output("control_input", {
         id: asString(get(entry, "id")) || `${target.id}:input`,
         label: asString(get(entry, "label")) || target.name,
@@ -718,6 +736,7 @@ export function createInputControl(args, runtime = null) {
         target,
         targetId: target.id,
         value,
+        inputMode,
         ...controlBehavior(entry, { value }, "Controls.Input", runtime),
         replacesDependencies: Object.freeze([...target.dependencies]),
     });
@@ -851,8 +870,45 @@ export function createActionControl(args, runtime = null) {
         targetId: target.id,
         value,
         action,
+        shortcut: shortcutKey(get(entry, "shortcut"), "Controls.Action shortcut"),
         run: () => invokeControlCallable(action, [target.get()], runtime, "Controls.Action action"),
         ...controlBehavior(entry, { value }, "Controls.Action", runtime),
+        replacesDependencies: Object.freeze([...target.dependencies]),
+    });
+}
+
+/**
+ * A temporary keyboard state backed by a reactive identity. The host commits
+ * `pressed` on keydown and `released` on keyup, making momentary display modes
+ * portable without embedding document listeners in RiX programs.
+ */
+export function createHoldControl(args, runtime = null) {
+    const entry = spec(args, ["target", "key", "pressed", "released", "label"], "Controls.Hold");
+    const target = reactiveTarget(entry, "Controls.Hold");
+    if (!has(entry, "pressed") || !has(entry, "released")) {
+        throw new Error("Controls.Hold requires explicit pressed and released values");
+    }
+    const pressed = get(entry, "pressed");
+    const released = get(entry, "released");
+    if (controlValuesEqual(pressed, released)) {
+        throw new Error("Controls.Hold pressed and released values must differ");
+    }
+    const key = shortcutKey(get(entry, "key"), "Controls.Hold key");
+    if (key === null) throw new Error("Controls.Hold requires a key");
+    const value = target.get();
+    const index = controlValuesEqual(value, released) ? 0 : controlValuesEqual(value, pressed) ? 1 : -1;
+    if (index === -1) throw new Error("Controls.Hold target value must match its pressed or released value");
+    return output("control_hold", {
+        id: asString(get(entry, "id")) || `${target.id}:hold`,
+        label: asString(get(entry, "label")) || `Hold ${asString(get(entry, "key")) || "key"}`,
+        help: asString(get(entry, "help")),
+        target,
+        targetId: target.id,
+        value,
+        values: Object.freeze([released, pressed]),
+        key,
+        index,
+        ...controlBehavior(entry, { value, released, pressed }, "Controls.Hold", runtime),
         replacesDependencies: Object.freeze([...target.dependencies]),
     });
 }
@@ -952,6 +1008,38 @@ function controlStyleAttributes(control) {
     if (width && ["auto", "compact", "full"].includes(width)) {
         attributes.push(` data-rix-control-width="${escapeHtml(width)}"`);
     }
+    for (const name of ["row", "column"]) {
+        const raw = styleValue(style, name);
+        if (raw === null || raw === undefined) continue;
+        const value = exactInteger(raw, `Control style ${name}`);
+        if (value < 1 || value > 4) throw new Error(`Control style ${name} must be between 1 and 4`);
+        attributes.push(` data-rix-control-${name}="${value}"`);
+    }
+    return attributes.join("");
+}
+
+const PORTABLE_BLOCK_STYLE_VALUES = Object.freeze({
+    layout: new Set(["stack", "cluster", "grid", "split"]),
+    gap: new Set(["compact", "normal", "spacious"]),
+    variant: new Set(["plain", "card", "hero", "muted"]),
+    width: new Set(["narrow", "content", "full"]),
+    align: new Set(["start", "center", "stretch"]),
+    density: new Set(["compact", "comfortable"]),
+});
+
+/** Render only the small, renderer-neutral block style vocabulary. */
+function portableBlockStyleAttributes(style) {
+    const attributes = [];
+    for (const [name, allowed] of Object.entries(PORTABLE_BLOCK_STYLE_VALUES)) {
+        const value = asString(styleValue(style, name));
+        if (value && allowed.has(value)) attributes.push(` data-rix-${name}="${escapeHtml(value)}"`);
+    }
+    const rawColumns = styleValue(style, "columns");
+    if (rawColumns !== null && rawColumns !== undefined) {
+        const columns = exactInteger(rawColumns, "Portable block style columns");
+        if (columns < 1 || columns > 4) throw new Error("Portable block style columns must be between 1 and 4");
+        attributes.push(` data-rix-columns="${columns}"`);
+    }
     return attributes.join("");
 }
 
@@ -968,6 +1056,7 @@ export function createControlPanelSnapshot(panel) {
         submitLabel: panel.submitLabel,
         discardLabel: panel.discardLabel,
         interactive: false,
+        style: panel.style,
         metadata: panel.metadata,
     });
 }
@@ -1532,6 +1621,25 @@ export function createDragPoint(args) {
     });
 }
 
+/** A focusable scene subtree whose RiX callback replaces a reactive target. */
+export function createGraphicAction(args, runtime = null) {
+    const entry = spec(args, ["target", "action", "children", "label"], "Graphics.Action");
+    const target = reactiveTarget(entry, "Graphics.Action");
+    const action = get(entry, "action");
+    if (action === null || action === undefined) throw new Error("Graphics.Action requires an action callable");
+    return output("graphic_action", {
+        id: asString(get(entry, "id")) || `${target.id}:graphic-action`,
+        label: asString(get(entry, "label")) || "Graphic action",
+        children: sequence(get(entry, "children"), "Graphics.Action children"),
+        style: optionalMap(get(entry, "style"), "Graphics.Action style"),
+        target,
+        targetId: target.id,
+        action,
+        run: () => invokeControlCallable(action, [target.get()], runtime, "Graphics.Action action"),
+        replacesDependencies: Object.freeze([...target.dependencies]),
+    });
+}
+
 export function createClip(args) {
     const entry = spec(args, ["children", "bounds", "style"], "Clip");
     const bounds = sequence(get(entry, "bounds"), "Clip bounds");
@@ -1550,7 +1658,13 @@ export function createFigure(args) {
     const entry = spec(args, ["content", "caption", "label", "alt"], "Figure");
     const content = get(entry, "content");
     if (content === null) throw new Error("Figure requires content");
-    return output("figure", { content, caption: asString(get(entry, "caption")), label: asString(get(entry, "label")), alt: asString(get(entry, "alt")) });
+    return output("figure", {
+        content,
+        caption: asString(get(entry, "caption")),
+        label: asString(get(entry, "label")),
+        alt: asString(get(entry, "alt")),
+        style: optionalMap(get(entry, "style"), "Figure style"),
+    });
 }
 
 export function createSlide(args) {
@@ -1922,6 +2036,13 @@ function renderSvgNode(node, format, defs) {
             : "";
         return `<circle class="rix-output-drag-point" cx="${cx}" cy="${cy}" r="${svgNumber(node.radius, "DragPoint radius")}" ${svgStyle(node.style, "#7c3aed")} tabindex="0" role="button" aria-label="${escapeHtml(node.label)}" data-rix-drag-target="${escapeHtml(node.targetId)}" data-rix-position="${cx},${cy}"${replaced}/>`;
     }
+    if (node.kind === "graphic_action") {
+        const replaced = node.replacesDependencies?.length
+            ? ` data-rix-replaces-dependencies="${escapeHtml(node.replacesDependencies.join(","))}"`
+            : "";
+        const style = svgStyle(node.style);
+        return `<g class="rix-output-graphic-action"${style ? ` ${style}` : ""} tabindex="0" role="button" aria-label="${escapeHtml(node.label)}" data-rix-graphic-action="${escapeHtml(node.id)}" data-rix-graphic-target="${escapeHtml(node.targetId)}"${replaced}>${node.children.map((child) => renderSvgNode(child, format, defs)).join("")}</g>`;
+    }
     if (node.kind === "text_mark") return renderSvgText(node, format);
     if (node.kind === "group") return `<g ${svgStyle(node.style)}>${node.children.map((child) => renderSvgNode(child, format, defs)).join("")}</g>`;
     if (node.kind === "transform") {
@@ -1948,7 +2069,7 @@ export function renderGraphicSvg(graphic, format = (item) => String(item ?? ""))
 function graphicIsInteractive(graphic) {
     const visit = (node) => {
         if (!isOutputValue(node)) return false;
-        if (node.kind === "drag_point") return true;
+        if (node.kind === "drag_point" || node.kind === "graphic_action") return true;
         return Array.isArray(node.children) && node.children.some(visit);
     };
     return graphic.children.some(visit);
@@ -2064,6 +2185,7 @@ export function formatOutputText(value, format) {
         return `${value.label}: ${cellText(controlField(value, "value"), format)} → ${cellText(controlField(value, "initial"), format)}`;
     }
     if (value.kind === "control_action") return `[Action: ${value.label}]`;
+    if (value.kind === "control_hold") return `${value.label}: ${value.index === 1 ? "held" : "released"}`;
     if (value.kind === "control_panel") {
         return [value.title, value.description, ...value.controls.map((control) => formatOutputText(control, format))]
             .filter(Boolean)
@@ -2155,7 +2277,7 @@ export function renderOutputHtml(value, format = (item) => String(item ?? "")) {
     if (isInlineOutput(value)) return renderInlineHtml(value, format);
     if (value.kind === "paragraph") return `<p class="rix-output-paragraph">${renderInlineSequence(value.children, format)}</p>`;
     if (value.kind === "heading") return `<h${value.level} class="rix-output-heading"${value.id ? ` id="${escapeHtml(value.id)}"` : ""}>${Array.isArray(value.content) ? renderInlineSequence(value.content, format) : renderInlineHtml(value.content, format)}</h${value.level}>`;
-    if (value.kind === "section") return `<section class="rix-output-section" data-rix-section-level="${value.level}"${value.id ? ` id="${escapeHtml(value.id)}"` : ""}><h${value.level}>${renderInlineSequence(value.title, format)}</h${value.level}>${value.children.map((child) => renderOutputHtml(child, format)).join("")}</section>`;
+    if (value.kind === "section") return `<section class="rix-output-section" data-rix-section-level="${value.level}"${portableBlockStyleAttributes(value.style)}${value.id ? ` id="${escapeHtml(value.id)}"` : ""}><h${value.level}>${renderInlineSequence(value.title, format)}</h${value.level}>${value.children.map((child) => renderOutputHtml(child, format)).join("")}</section>`;
     if (value.kind === "list") {
         const tag = value.ordered ? "ol" : "ul";
         return `<${tag} class="rix-output-list"${value.ordered && value.start !== null ? ` start="${value.start}"` : ""}${value.tight ? ' data-rix-list-tight="true"' : ""}>${value.items.map((item) => renderOutputHtml(item, format)).join("")}</${tag}>`;
@@ -2190,7 +2312,7 @@ export function renderOutputHtml(value, format = (item) => String(item ?? "")) {
         const content = `${value.title ? `<h3>${escapeHtml(value.title)}</h3>` : ""}${media}${transcript}${mediaCaption(value, format)}`;
         return value.caption ? `<figure class="rix-output-${tag}-figure"${value.id ? ` id="${escapeHtml(value.id)}"` : ""}>${content}</figure>` : `<section class="rix-output-${tag}-asset"${value.id ? ` id="${escapeHtml(value.id)}"` : ""}>${content}</section>`;
     }
-    if (value.kind === "fragment") return `<section class="rix-output-fragment">${value.children.map((child) => renderOutputHtml(child, format)).join("")}</section>`;
+    if (value.kind === "fragment") return `<section class="rix-output-fragment"${portableBlockStyleAttributes(value.style)}>${value.children.map((child) => renderOutputHtml(child, format)).join("")}</section>`;
     if (value.kind === "snapshots") {
         return `<section class="rix-output-snapshots">${value.title ? `<h2>${escapeHtml(value.title)}</h2>` : ""}<div class="rix-output-snapshot-list">${value.snapshots.map((snapshot) => {
             const origin = snapshot.origin.entries;
@@ -2209,7 +2331,7 @@ export function renderOutputHtml(value, format = (item) => String(item ?? "")) {
         const dependencies = value.replacesDependencies.length > 0
             ? ` data-rix-replaces-dependencies="${escapeHtml(value.replacesDependencies.join(","))}"`
             : "";
-        return `<label class="rix-output-control rix-output-control-input" data-rix-control-kind="input" data-rix-control-id="${escapeHtml(value.id)}" data-rix-control-target="${escapeHtml(value.targetId)}"${controlStyleAttributes(value)}${controlStateAttributes(value)}${dependencies}><span class="rix-output-control-label">${escapeHtml(value.label)}</span><span class="rix-output-control-input-row"><input type="text" value="${text(controlField(value, "value"))}" placeholder="${escapeHtml(value.placeholder)}" data-rix-control-input aria-label="${escapeHtml(value.label)}"${controlInputAttributes(value, { text: true })}><button type="button" data-rix-control-commit${controlInputAttributes(value)}>Set</button></span><output data-rix-control-value>${text(controlField(value, "value"))}</output>${controlMessages(value)}</label>`;
+        return `<label class="rix-output-control rix-output-control-input" data-rix-control-kind="input" data-rix-control-input-mode="${escapeHtml(value.inputMode || "expression")}" data-rix-control-id="${escapeHtml(value.id)}" data-rix-control-target="${escapeHtml(value.targetId)}"${controlStyleAttributes(value)}${controlStateAttributes(value)}${dependencies}><span class="rix-output-control-label">${escapeHtml(value.label)}</span><span class="rix-output-control-input-row"><input type="text" value="${text(controlField(value, "value"))}" placeholder="${escapeHtml(value.placeholder)}" data-rix-control-input aria-label="${escapeHtml(value.label)}"${controlInputAttributes(value, { text: true })}><button type="button" data-rix-control-commit${controlInputAttributes(value)}>Set</button></span><output data-rix-control-value>${text(controlField(value, "value"))}</output>${controlMessages(value)}</label>`;
     }
     if (value.kind === "control_choice") {
         const dependencies = value.replacesDependencies.length > 0
@@ -2243,15 +2365,24 @@ export function renderOutputHtml(value, format = (item) => String(item ?? "")) {
         const dependencies = value.replacesDependencies.length > 0
             ? ` data-rix-replaces-dependencies="${escapeHtml(value.replacesDependencies.join(","))}"`
             : "";
-        return `<div class="rix-output-control rix-output-control-action" data-rix-control-kind="action" data-rix-control-id="${escapeHtml(value.id)}" data-rix-control-target="${escapeHtml(value.targetId)}"${controlStyleAttributes(value)}${controlStateAttributes(value)}${dependencies}><span class="rix-output-control-label">${escapeHtml(value.label)}</span><button type="button" data-rix-control-input aria-label="${escapeHtml(value.label)}"${controlInputAttributes(value)}>${escapeHtml(value.label)}</button>${controlMessages(value)}</div>`;
+        const shortcut = value.shortcut
+            ? ` data-rix-control-shortcut="${escapeHtml(value.shortcut)}"`
+            : "";
+        return `<div class="rix-output-control rix-output-control-action" data-rix-control-kind="action" data-rix-control-id="${escapeHtml(value.id)}" data-rix-control-target="${escapeHtml(value.targetId)}"${shortcut}${controlStyleAttributes(value)}${controlStateAttributes(value)}${dependencies}><span class="rix-output-control-label">${escapeHtml(value.label)}</span><button type="button" data-rix-control-input aria-label="${escapeHtml(value.label)}"${value.shortcut ? ` aria-keyshortcuts="${escapeHtml(value.shortcut)}"` : ""}${controlInputAttributes(value)}>${escapeHtml(value.label)}</button>${controlMessages(value)}</div>`;
+    }
+    if (value.kind === "control_hold") {
+        const dependencies = value.replacesDependencies.length > 0
+            ? ` data-rix-replaces-dependencies="${escapeHtml(value.replacesDependencies.join(","))}"`
+            : "";
+        return `<div class="rix-output-control rix-output-control-hold" data-rix-control-kind="hold" data-rix-control-id="${escapeHtml(value.id)}" data-rix-control-target="${escapeHtml(value.targetId)}" data-rix-control-hold="${escapeHtml(value.key)}" data-rix-control-hold-state="${value.index === 1 ? "held" : "released"}" aria-keyshortcuts="${escapeHtml(value.key)}"${controlStyleAttributes(value)}${controlStateAttributes(value)}${dependencies}><span class="rix-output-control-label">${escapeHtml(value.label)}</span><kbd>${escapeHtml(value.key)}</kbd><output data-rix-control-value>${value.index === 1 ? "Held" : "Released"}</output><button type="button" hidden data-rix-control-input data-rix-control-hold-press aria-label="Press ${escapeHtml(value.label)}"${controlInputAttributes(value)}>Press</button><button type="button" hidden data-rix-control-hold-release aria-label="Release ${escapeHtml(value.label)}"${controlInputAttributes(value)}>Release</button>${controlMessages(value)}</div>`;
     }
     if (value.kind === "control_panel") {
         const actions = value.mode === "staged"
             ? `<div class="rix-output-control-actions"><button type="button" data-rix-control-submit disabled>${escapeHtml(value.submitLabel)}</button><button type="button" data-rix-control-discard disabled>${escapeHtml(value.discardLabel)}</button></div>`
             : "";
-        return `<section class="rix-output-control-panel" data-rix-interactive="${value.interactive === false ? "false" : "true"}" data-rix-control-mode="${escapeHtml(value.mode || "immediate")}">${value.title ? `<h3>${escapeHtml(value.title)}</h3>` : ""}${value.description ? `<p>${escapeHtml(value.description)}</p>` : ""}<div class="rix-output-control-list">${value.controls.map((control) => renderOutputHtml({ ...control, style: resolvedControlStyle(value.style, control) }, format)).join("")}</div>${actions}<output class="rix-output-control-status" aria-live="polite"></output></section>`;
+        return `<section class="rix-output-control-panel" data-rix-interactive="${value.interactive === false ? "false" : "true"}" data-rix-control-mode="${escapeHtml(value.mode || "immediate")}"${portableBlockStyleAttributes(value.style)}>${value.title ? `<h3>${escapeHtml(value.title)}</h3>` : ""}${value.description ? `<p>${escapeHtml(value.description)}</p>` : ""}<div class="rix-output-control-list">${value.controls.map((control) => renderOutputHtml({ ...control, style: resolvedControlStyle(value.style, control) }, format)).join("")}</div>${actions}<output class="rix-output-control-status" aria-live="polite"></output></section>`;
     }
-    if (value.kind === "table") return `<table class="rix-output-table"${value.label ? ` id="${escapeHtml(value.label)}"` : ""}>${value.caption ? `<caption>${escapeHtml(value.caption)}</caption>` : ""}<thead><tr>${value.columns.map((column) => `<th>${escapeHtml(column.label)}</th>`).join("")}</tr></thead><tbody>${value.rows.map((row) => `<tr>${row.map((cell) => `<td>${text(cell)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+    if (value.kind === "table") return `<table class="rix-output-table"${portableBlockStyleAttributes(value.options)}${value.label ? ` id="${escapeHtml(value.label)}"` : ""}>${value.caption ? `<caption>${escapeHtml(value.caption)}</caption>` : ""}<thead><tr>${value.columns.map((column) => `<th>${escapeHtml(column.label)}</th>`).join("")}</tr></thead><tbody>${value.rows.map((row) => `<tr>${row.map((cell) => `<td>${text(cell)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
     if (value.kind === "grid") return `<table class="rix-output-grid"><tbody>${value.rows.map((row, rowIndex) => `<tr${hasRule(value, "horizontal", rowIndex + 1) ? " class=\"rix-grid-rule-top\"" : ""}>${row.map((cell, column) => `<td${hasRule(value, "vertical", column + 1) ? " class=\"rix-grid-rule-left\"" : ""}>${text(cell)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
     if (value.kind === "sheet") {
         const summary = `${value.addressBase} · shape ${value.shape.join("×")}`;
@@ -2299,18 +2430,25 @@ export function renderOutputHtml(value, format = (item) => String(item ?? "")) {
             return `<th scope="col" data-rix-column="${column + 1}"${value.columnAxis ? headerAttributes(value.columnAxis.axis, columnCoordinate, sheetColumnLabel(columnCoordinate, value.columnLabelMode)) : ""}${value.columnAxis && value.axisLabels[value.columnAxis.axis - 1] ? ` title="${escapeHtml(value.columnAxis.name)} ${columnCoordinate}"` : ""}>${escapeHtml(header)}</th>`;
         }).join("")}</tr></thead>${bodies}</table></section>`;
     }
-    if (value.kind === "figure") return `<figure class="rix-output-figure"${value.label ? ` id="${escapeHtml(value.label)}"` : ""}>${renderOutputHtml(value.content, format)}${value.caption ? `<figcaption>${escapeHtml(value.caption)}</figcaption>` : ""}</figure>`;
+    if (value.kind === "figure") return `<figure class="rix-output-figure"${portableBlockStyleAttributes(value.style)}${value.label ? ` id="${escapeHtml(value.label)}"` : ""}>${renderOutputHtml(value.content, format)}${value.caption ? `<figcaption>${escapeHtml(value.caption)}</figcaption>` : ""}</figure>`;
     if (value.kind === "graphic") {
         const interactive = graphicIsInteractive(value);
         const replacesDependencies = interactive && value.children.some(function hasReplacement(node) {
             return isOutputValue(node) && (
-                (node.kind === "drag_point" && node.replacesDependencies?.length > 0)
+                ((node.kind === "drag_point" || node.kind === "graphic_action") && node.replacesDependencies?.length > 0)
                 || (node.children || []).some(hasReplacement)
             );
         });
+        const hasDragPoint = value.children.some(function containsDragPoint(node) {
+            return isOutputValue(node) && (node.kind === "drag_point" || (node.children || []).some(containsDragPoint));
+        });
         const interactionStatus = replacesDependencies
-            ? "Dragging will replace this point’s current reactive dependencies."
-            : "Drag the highlighted point or use its arrow keys.";
+            ? hasDragPoint
+                ? "Dragging will replace this point’s current reactive dependencies."
+                : "Using this scene action will replace its target’s current reactive dependencies."
+            : hasDragPoint
+                ? "Drag the highlighted point or use its arrow keys."
+                : "Choose a highlighted scene node to navigate.";
         return `<div class="rix-output-graphic"${interactive ? ' data-rix-interactive="true"' : ""}>${renderGraphicSvg(value, format)}${interactive ? `<output class="rix-output-graphic-status" aria-live="polite">${interactionStatus}</output>` : ""}</div>`;
     }
     if (value.kind === "slide") return `<section class="rix-output-slide">${value.title ? `<h2>${escapeHtml(value.title)}</h2>` : ""}${renderOutputHtml(value.content, format)}</section>`;
@@ -2349,6 +2487,7 @@ export function createGraphicsOutputCollection() {
         ["Rectangle", createRectangle],
         ["Circle", createCircle],
         ["DragPoint", createDragPoint],
+        ["Action", createGraphicAction],
         ["Clip", createClip],
         ["Snapshots", createSnapshots],
     ]);
@@ -2402,6 +2541,7 @@ export function createControlsOutputCollection() {
         ["Range", createRangeControl],
         ["Reset", createResetControl],
         ["Action", createActionControl],
+        ["Hold", createHoldControl],
     ]);
     const entries = new Map();
     const extension = new Map([["immutable", int(1)]]);

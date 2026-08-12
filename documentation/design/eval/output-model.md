@@ -174,6 +174,8 @@ protocols.
 | `.Controls.Toggle` | A checkbox-like control with explicit off and on RiX values. |
 | `.Controls.Range` | A two-endpoint control backed by one exact interval-valued `$$name` identity. |
 | `.Controls.Reset` | A button that restores an explicitly supplied RiX value snapshot. |
+| `.Controls.Action` | A button whose RiX callback computes the target's next value, optionally carrying a declarative shortcut. |
+| `.Controls.Hold` | A momentary key binding with explicit pressed and released RiX target values. |
 | `.Render` / `value.Render(...)` | Resolve a renderer for a target or host context. |
 | `.Snapshot` / `value.Snapshot(...)` | Produce a static representation where possible. |
 | `.Serialize` / `value.Serialize()` | Preserve the portable value for notebooks, reports, and transfer. |
@@ -281,6 +283,8 @@ The proposed initial shapes are:
 .Controls.Toggle({= target = $$name, off = value, on = value, label = _, help = _, id = _ })
 .Controls.Range({= target = $$name, interval = 0:10, step = 1, label = _, help = _, id = _ })
 .Controls.Reset({= target = $$name, initial = value, label = _, help = _, id = _ })
+.Controls.Action({= target = $$name, action = callable, label = _, shortcut = _, id = _ })
+.Controls.Hold({= target = $$name, key = "ArrowDown", pressed = 1, released = _, label = _, id = _ })
 ```
 
 Every control map may also include `format`, `validate`, `disabled`, and

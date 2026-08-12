@@ -1,25 +1,18 @@
-## Statistics — Terse Syntax ##
-## Uses {; } for MULTI and PRINT for output ##
+## The same statistics expressed with collection pipe operators.
 
-Sum(acc, val) -> acc + val
+Sum(accumulator, value) -> accumulator + value;
+Mean(items) -> (items |:> 0 >: Sum) / .LEN(items);
 
-Mean(list) -> (list |:> 0 >: Sum) / LEN(list)
+Variance(items) -> {;
+    average := Mean(items);
+    squaredDifferences := items |>> ((x) -> (x - average) ^ 2);
+    (squaredDifferences |:> 0 >: Sum) / .LEN(items)
+};
 
-Variance(list) -> {;
-  avg := Mean(list);
-  sqDiffs := list |>> (x) -> (x - avg) ^ 2;
-  (sqDiffs |:> 0 >: Sum) / LEN(list)
+data := [10, 20, 30, 40, 50, 60];
+
+{=
+    data = data,
+    mean = Mean(data),
+    variance = Variance(data)
 }
-
-data = [10, 20, 30, 40, 50, 60]
-
-m = Mean(data);
-v = Variance(data);
-s = SQRT(v);
-
-PRINT(
-  "Data: " + data,
-  "Mean: " + m,
-  "Variance: " + v,
-  "StdDev: " + s
-)

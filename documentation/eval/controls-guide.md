@@ -36,6 +36,7 @@ conveniences.
 | Range | `.Controls.Range($$window, interval, step?, label?)` | interval-valued `target`, `interval` |
 | Reset | `.Controls.Reset($$x, initial, label?)` | `target`, `initial` |
 | Action | map form recommended | `target`, `action`, `label` |
+| Hold | map form recommended | `target`, `key`, `pressed`, `released` |
 
 Choice options can be raw values or `{= value=..., label="..." }` maps. An
 Action receives the current target value and returns its replacement:
@@ -47,6 +48,20 @@ $$history := [];
     target=$$history,
     action=items -> items ++ [$a],
     label="Save a"
+})
+```
+
+Input controls normally evaluate committed text as a RiX expression before
+replacing their target. Set `inputMode=:text` when the target itself is source
+text, a search query, a label, or another literal string. The host then commits
+the typed characters without evaluating them:
+
+```rix
+$$formulaSource := "x^2 - 1/2";
+.Controls.Input({=
+    target=$$formulaSource,
+    label="Formula in x",
+    inputMode=:text
 })
 ```
 
@@ -66,6 +81,7 @@ Common optional fields on every control are:
 | `format` | Map of formatter callables for displayed fields, without changing exact values. |
 | `validate` | Callable returning `_` for valid or an error string. |
 | `disabled`, `readOnly` | Block local edits. |
+| `shortcut` | Action-only `KeyboardEvent.key` shorthand such as `"ArrowLeft"`. |
 | `style` | Renderer-neutral presentation hints. |
 | `metadata` | Opaque renderer/plugin data. |
 
@@ -73,19 +89,66 @@ Common optional fields on every control are:
 
 The bundled HTML renderer understands `style` values `variant` (`"primary"`,
 `"danger"`, `"quiet"`), `density` (`"compact"`, `"comfortable"`), and
-`width` (`"auto"`, `"compact"`, `"full"`). Panel styles apply in this order:
+`width` (`"auto"`, `"compact"`, `"full"`). Controls in a grid panel may also
+use integer `row` and `column` positions from 1 through 4. Panel styles apply in this order:
 `all`, `kinds`, `ids`, then the individual control’s style.
 
 ```rix
 .ControlPanel({=
     style={=
+        layout="grid",
+        columns=3,
         all={= density="compact" },
         kinds={= action={= variant="primary" } },
-        ids={= ("delete")={= variant="danger" } }
+        ids={=
+            parent={= row=1, column=2 },
+            left={= row=2, column=1 },
+            right={= row=2, column=3 }
+        }
     },
     controls=[...]
 })
 ```
+
+An Action opts into root-scoped keyboard navigation by naming `shortcut`:
+
+```rix
+.Controls.Action({=
+    id="left",
+    target=$$current,
+    action=value -> LeftChild(value),
+    label="Left child",
+    shortcut="ArrowLeft"
+})
+```
+
+The generated-page host routes shortcuts through the rendered button, so the
+same validation, widget event, reactive update, and focus-restoration path is
+used. Shortcuts are ignored while the user is editing an input, select,
+textarea, or content-editable region. The root containing the mounted output
+is the shortcut scope; a host using the low-level helpers can install the same
+behavior once with `enhanceControlShortcuts(root)`.
+
+For a temporary state that lasts only while a key is down, use a Hold control:
+
+```rix
+$$decimalPreview := _;
+.Controls.Hold({=
+    id="decimal-preview",
+    target=$$decimalPreview,
+    key="ArrowDown",
+    pressed=1,
+    released=_,
+    label="Hold ↓ for decimals"
+})
+```
+
+The browser host commits `pressed` once on keydown and `released` on keyup,
+even when the pressed-state update rerenders the panel. Key-repeat events do
+not produce repeated commits. Like Action shortcuts, Hold keys are ignored
+while the event target is an input, select, textarea, or content-editable
+region. The key is declarative `KeyboardEvent.key` data; other hosts can map
+the same two exact values to touch, pointer, controller, or assistive input.
 
 Unknown style and metadata fields remain on the portable control output for
 other hosts/plugins to interpret.

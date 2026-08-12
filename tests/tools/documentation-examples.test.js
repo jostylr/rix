@@ -1,8 +1,20 @@
 import { describe, expect, test } from "bun:test";
 
-import { extractFences, runDocuments, runDocumentsAsync } from "../../documentation/scripts/check-examples.js";
+import {
+  documentPathsFromArgs,
+  extractFences,
+  runDocuments,
+  runDocumentsAsync,
+} from "../../documentation/scripts/check-examples.js";
 
 describe("documentation RiX examples", () => {
+  test("preserves every positional documentation path when --write is absent", () => {
+    expect(documentPathsFromArgs(["first.md", "second.qmd"]))
+      .toEqual(["first.md", "second.qmd"]);
+    expect(documentPathsFromArgs(["first.md", "--write", "results.json", "second.qmd"]))
+      .toEqual(["first.md", "second.qmd"]);
+  });
+
   test("extracts Quarto attributes and checks an asserted/displayed result", () => {
     const source = [
       "```{.rix exec=true id=rational-example}",

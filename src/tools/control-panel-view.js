@@ -105,11 +105,17 @@ function enhancePanel(panel, options) {
         };
 
         if (kind === "input") {
-            const submit = () => commit({
-                ...identity(),
-                sourceText: input.value,
-                source: "text",
-            });
+            const submit = () => commit(control.dataset.rixControlInputMode === "text"
+                ? {
+                    ...identity(),
+                    rawText: input.value,
+                    source: "text",
+                }
+                : {
+                    ...identity(),
+                    sourceText: input.value,
+                    source: "expression",
+                });
             control.querySelector("[data-rix-control-commit]")?.addEventListener("click", submit);
             input.addEventListener("keydown", (event) => {
                 if (event.key !== "Enter") return;
@@ -132,6 +138,20 @@ function enhancePanel(panel, options) {
                 ...identity(),
                 type: "control:action",
                 source: "action",
+            }));
+            continue;
+        }
+
+        if (kind === "hold") {
+            input.addEventListener("click", () => commit({
+                ...identity(),
+                index: 1,
+                source: "hold-keydown",
+            }));
+            control.querySelector("[data-rix-control-hold-release]")?.addEventListener("click", () => commit({
+                ...identity(),
+                index: 0,
+                source: "hold-keyup",
             }));
             continue;
         }
@@ -221,4 +241,108 @@ function enhancePanel(panel, options) {
 export function enhanceControlPanelViews(root, options = {}) {
     for (const panel of panelRoots(root)) enhancePanel(panel, options);
     return root;
+}
+
+function editableTarget(target) {
+    const tag = String(target?.tagName || "").toLowerCase();
+    return Boolean(target?.isContentEditable || ["input", "select", "textarea"].includes(tag));
+}
+
+const shortcutRouters = new WeakMap();
+
+function shortcutCandidates(root, key) {
+    return [...(root.querySelectorAll?.("[data-rix-control-shortcut]") || [])]
+        .filter((control) => control.dataset.rixControlShortcut === key
+            && control.dataset.rixControlDisabled !== "true"
+            && control.dataset.rixControlReadOnly !== "true");
+}
+
+function holdCandidates(root, key, { interactive = true } = {}) {
+    return [...(root.querySelectorAll?.("[data-rix-control-hold]") || [])]
+        .filter((control) => control.dataset.rixControlHold === key
+            && (!interactive || (control.dataset.rixControlDisabled !== "true"
+                && control.dataset.rixControlReadOnly !== "true")));
+}
+
+function scopedChoices(router, document, event, candidates) {
+    const scopes = [...router.scopes].filter((scope) => scope.isConnected !== false);
+    const focused = scopes.find((scope) => scope.contains?.(event.target) || scope.contains?.(document.activeElement));
+    return focused
+        ? [{ root: focused, candidates: candidates(focused) }]
+        : scopes.map((scope) => ({ root: scope, candidates: candidates(scope) }))
+            .filter((choice) => choice.candidates.length > 0);
+}
+
+function preferredControl(document, candidates) {
+    const activePanel = document.activeElement?.closest?.(".rix-output-control-panel");
+    return candidates.find((candidate) => activePanel && candidate.closest?.(".rix-output-control-panel") === activePanel)
+        || candidates[0];
+}
+
+/**
+ * Install one root-scoped declarative shortcut router.
+ *
+ * Rendered action controls opt in with data-rix-control-shortcut. The router
+ * clicks the current rendered button, so ordinary ControlPanel dispatch and
+ * live-view focus restoration remain the single mutation path.
+ */
+export function enhanceControlShortcuts(root) {
+    const document = root?.ownerDocument;
+    if (!document?.addEventListener) return () => {};
+    let router = shortcutRouters.get(document);
+    if (!router) {
+        router = { scopes: new Set(), activeHolds: new Map(), onKeydown: null, onKeyup: null };
+        router.onKeydown = (event) => {
+            if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || editableTarget(event.target)) return;
+            const key = event.key?.length === 1 ? event.key.toLowerCase() : event.key;
+            if (!key) return;
+            const holdChoices = scopedChoices(router, document, event, (scope) => holdCandidates(scope, key));
+            if (holdChoices.length === 1 && holdChoices[0].candidates.length > 0) {
+                event.preventDefault?.();
+                if (router.activeHolds.has(key)) return;
+                const control = preferredControl(document, holdChoices[0].candidates);
+                const button = control.querySelector?.("[data-rix-control-hold-press]");
+                if (!button || button.disabled) return;
+                router.activeHolds.set(key, {
+                    root: holdChoices[0].root,
+                    controlId: control.dataset.rixControlId,
+                    targetId: control.dataset.rixControlTarget,
+                });
+                button.click?.();
+                return;
+            }
+            const choices = scopedChoices(router, document, event, (scope) => shortcutCandidates(scope, key));
+            if (choices.length !== 1 || choices[0].candidates.length === 0) return;
+            const { candidates } = choices[0];
+            const control = preferredControl(document, candidates);
+            const button = control.querySelector?.("[data-rix-control-input]");
+            if (!button || button.disabled) return;
+            event.preventDefault?.();
+            button.click?.();
+        };
+        router.onKeyup = (event) => {
+            const key = event.key?.length === 1 ? event.key.toLowerCase() : event.key;
+            const active = router.activeHolds.get(key);
+            if (!active) return;
+            router.activeHolds.delete(key);
+            const control = holdCandidates(active.root, key, { interactive: false })
+                .find((candidate) => candidate.dataset.rixControlId === active.controlId
+                    && candidate.dataset.rixControlTarget === active.targetId);
+            const button = control?.querySelector?.("[data-rix-control-hold-release]");
+            if (!button || button.disabled) return;
+            event.preventDefault?.();
+            button.click?.();
+        };
+        shortcutRouters.set(document, router);
+        document.addEventListener("keydown", router.onKeydown);
+        document.addEventListener("keyup", router.onKeyup);
+    }
+    router.scopes.add(root);
+    return () => {
+        router.scopes.delete(root);
+        if (router.scopes.size > 0) return;
+        document.removeEventListener?.("keydown", router.onKeydown);
+        document.removeEventListener?.("keyup", router.onKeyup);
+        shortcutRouters.delete(document);
+    };
 }

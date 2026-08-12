@@ -238,7 +238,7 @@ function namespaceEntry(context, namespace) {
 
 function pluginNamespaceEntry(context, catalog) {
     const hostContext = context._hostContext;
-    const load = (args, evaluationContext) => {
+    const load = (args, evaluationContext, promiseAware = false) => {
         const runtime = evaluationContext?.getEnv?.("__script_runtime__", null);
         const frame = runtime?.frameStack?.[runtime.frameStack.length - 1];
         if (frame && !frame.permissions?.has("PLUGINS")) {
@@ -247,7 +247,10 @@ function pluginNamespaceEntry(context, catalog) {
         const id = rixString(args[1], ".Plugin.Load name");
         const loader = evaluationContext?.getEnv?.("__plugin_load_rix__", null);
         const registry = evaluationContext?.getEnv?.("__registry__", null);
-        return catalog.load(id, {
+        const activate = promiseAware && typeof catalog.loadAsync === "function"
+            ? catalog.loadAsync.bind(catalog)
+            : catalog.load.bind(catalog);
+        return activate(id, {
             options: args[2],
             context: evaluationContext,
             registry,
@@ -260,7 +263,9 @@ function pluginNamespaceEntry(context, catalog) {
     value._ext.set("LOAD", {
         type: "method_builtin",
         name: "Load",
-        impl(args, evaluationContext) { return load(args, evaluationContext); },
+        impl(args, evaluationContext, _evaluate, _invoke, execution) {
+            return load(args, evaluationContext, execution?.promiseAware === true);
+        },
     });
     value._ext.set("LIST", {
         type: "method_builtin",
@@ -643,7 +648,9 @@ export class SystemContext {
         catalog.declareInto(this);
         const plugin = pluginNamespaceEntry(this, catalog);
         this.registerCallableValue("Plugin", plugin.value, {
-            impl(args, evaluationContext) { return plugin.load([null, ...args], evaluationContext); },
+            impl(args, evaluationContext, _evaluate, execution) {
+                return plugin.load([null, ...args], evaluationContext, execution?.promiseAware === true);
+            },
         }, {
             doc: "Discover and load host-approved RiX plugins",
             pluginManager: true,
@@ -699,7 +706,9 @@ export class SystemContext {
             this._capabilities.set(normalizeCapabilityName("Plugin"), {
                 ...pluginEntry,
                 value: plugin.value,
-                impl(args, evaluationContext) { return plugin.load([null, ...args], evaluationContext); },
+                impl(args, evaluationContext, _evaluate, execution) {
+                    return plugin.load([null, ...args], evaluationContext, execution?.promiseAware === true);
+                },
             });
         }
         return this;

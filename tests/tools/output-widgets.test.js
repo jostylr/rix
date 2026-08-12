@@ -89,6 +89,23 @@ test("reactive Graphic remount focus follows the drag target identity", () => {
     })).toBe(false);
 });
 
+test("reactive Graphic remount focus follows a scene action identity", () => {
+    const action = {
+        dataset: { rixGraphicAction: "scene-left" },
+        focused: false,
+        focus() { this.focused = true; },
+    };
+    const graphic = {
+        querySelectorAll(selector) { return selector === "[data-rix-graphic-action]" ? [action] : []; },
+    };
+    const root = {
+        matches() { return false; },
+        querySelectorAll(selector) { return selector === ".rix-output-graphic" ? [graphic] : []; },
+    };
+    expect(restoreGraphicFocus(root, { graphicIndex: 0, actionId: "scene-left" })).toBe(true);
+    expect(action.focused).toBe(true);
+});
+
 test("reactive ControlPanel remount focus follows the target identity", () => {
     const inputs = ["graph:x", "graph:y"].map(() => ({
         focused: false,
@@ -276,6 +293,67 @@ test("ControlPanel input uses host RiX evaluation before replacing the reactive 
     expect(evaluation.context.mode).toBe("control");
     expect(formatValue(controlValue.target.get())).toBe("7/9");
     expect(displayed.textContent).toBe("7/9");
+    dispose();
+});
+
+test("ControlPanel text input commits source text without evaluating it", () => {
+    const panelValue = parseAndEvaluate(`
+        $$formula := "x^2";
+        .ControlPanel([.Controls.Input({=
+            target=$$formula,
+            label="formula",
+            inputMode=:text
+        })])
+    `);
+    const inputListeners = new Map();
+    const buttonListeners = new Map();
+    const input = {
+        value: "x^3 - 1/2",
+        checked: false,
+        addEventListener(name, listener) { inputListeners.set(name, listener); },
+        getAttribute(name) { return name === "aria-label" ? "formula" : null; },
+        focus() {},
+    };
+    const button = { addEventListener(name, listener) { buttonListeners.set(name, listener); } };
+    const displayed = { textContent: "x^2" };
+    const controlValue = panelValue.controls[0];
+    const control = {
+        dataset: {
+            rixControlKind: "input",
+            rixControlInputMode: "text",
+            rixControlId: controlValue.id,
+            rixControlTarget: controlValue.targetId,
+        },
+        querySelector(selector) {
+            if (selector === "[data-rix-control-input]") return input;
+            if (selector === "[data-rix-control-commit]") return button;
+            if (selector === "[data-rix-control-value]") return displayed;
+            return null;
+        },
+        querySelectorAll() { return []; },
+    };
+    const root = {
+        dataset: {},
+        matches(selector) { return selector === ".rix-output-control-panel"; },
+        querySelector(selector) {
+            if (selector === ".rix-output-control-status") return { textContent: "" };
+            return null;
+        },
+        querySelectorAll(selector) {
+            if (selector === "[data-rix-control-target]") return [control];
+            return [];
+        },
+        dispatchEvent() {},
+    };
+    let evaluated = false;
+    const dispose = mountOutputWidgets(root, panelValue, {
+        format: formatValue,
+        evaluateEdit() { evaluated = true; },
+    });
+
+    buttonListeners.get("click")();
+    expect(evaluated).toBe(false);
+    expect(controlValue.target.get()).toMatchObject({ type: "string", value: "x^3 - 1/2" });
     dispose();
 });
 

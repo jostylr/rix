@@ -33,6 +33,35 @@ Snapshots, or another Fragment.
 ])
 ```
 
+### Portable block layout
+
+Fragment, Section, Figure, Table `options`, and ControlPanel accept a small
+renderer-neutral presentation vocabulary. It is intentionally semantic and
+enumerated; RiX documents do not inject arbitrary HTML classes or CSS.
+
+| Hint | Values |
+| --- | --- |
+| `layout` | `"stack"`, `"cluster"`, `"grid"`, `"split"` |
+| `columns` | Exact integer from 1 through 4 |
+| `gap` | `"compact"`, `"normal"`, `"spacious"` |
+| `variant` | `"plain"`, `"card"`, `"hero"`, `"muted"` |
+| `width` | `"narrow"`, `"content"`, `"full"` |
+| `align` | `"start"`, `"center"`, `"stretch"` |
+
+```rix
+.Fragment({=
+    style={= layout="grid", columns=2, gap="spacious", align="start" },
+    children=[
+        .Section({= level=2, title="Controls", style={= variant="card" }, children=[panel] }),
+        .Figure({= content=graphic, caption="Exact scene", style={= variant="card" } })
+    ]
+})
+```
+
+Text and print renderers preserve content order when a layout has no useful
+equivalent. HTML renderers lower supported hints to safe `data-rix-*`
+attributes and supply responsive defaults.
+
 ## Tables, grids, sheets, and media
 
 | Constructor | Required fields / shorthand | Notes |
@@ -61,6 +90,7 @@ table of unrelated HTML.
 | `.Graphics.Rectangle` / `.Graphics.Circle` | geometry and optional style |
 | `.Graphics.Clip` | `children`, rectangular bounds |
 | `.Graphics.DragPoint` | reactive `$$` target, radius, style, label |
+| `.Graphics.Action` | reactive `$$` target, action callable, child scene nodes, label |
 | `.Graphics.Snapshots` | `[scene, states]` entries materialized as an ordered snapshot list |
 
 ```rix
@@ -72,6 +102,26 @@ table of unrelated HTML.
     ]
 })
 ```
+
+`.Graphics.Action` makes a scene subtree focusable and clickable without
+putting JavaScript in the scene. Its callable receives the target’s current
+value and returns its replacement:
+
+```rix
+$$current := 1;
+.Graphics.Action({=
+    id="next",
+    target=$$current,
+    action=value -> value + 1,
+    label="Choose next node",
+    children=[.Graphics.Circle([180, 110], 40, {= fill="#0c7b7f" })]
+})
+```
+
+An interactive host dispatches a semantic `graphic:action` record. Browser
+renderers activate the wrapper by click, Enter, or Space, then the widget
+session runs the RiX callable and replaces the target identity. Static hosts
+retain the visible subtree and accessible label without executing it.
 
 The Plot plugin returns a compatible Graphic. Load it with `.Plugin.Load("plot")`
 and use `.plot.Polynomial(coefficients, domain, options)`.

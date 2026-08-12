@@ -1,33 +1,15 @@
-## Fibonacci Sequence in RiX ##
-## Demonstrates multiple implementation strategies ##
+## Fibonacci with ordinary recursion and a stack-safe tail-recursive form.
 
-## 1. Recursive Implementation (Simple but slow)
-FibRec(n) -> IF(n <= 1, n, FibRec(n - 1) + FibRec(n - 2))
+FibonacciRecursive(n) ->
+    n <= 1 ?: n ?_ FibonacciRecursive(n - 1) + FibonacciRecursive(n - 2);
 
-## 2. Iterative Implementation using LOOP {@ init; cond; body; update }
-FibIter(n) -> MULTI(
-  fA := 0,
-  fB := 1,
-  fI := 1,
-  {@ 
-     _ ; 
-     fI < n ; 
-     MULTI(
-       fTemp := fA + fB,
-       fA := fB,
-       fB := fTemp
-     ) ; 
-     fI := fI + 1 
-  },
-  IF(n <= 0, 0, fB)
-)
+FibonacciTail(n, current, next) ->
+    n <= 0 ?: current ?_ $(n - 1, next, current + next);
 
-## Test Results
-f10Rec = FibRec(10)  ## 55
-f10Iter = FibIter(10) ## 55
+Fibonacci(n) -> FibonacciTail(n, 0, 1);
 
-PRINT(
-  "Fib(10) Recursive: " + f10Rec,
-  "Fib(10) Iterative: " + f10Iter,
-  "Match: " + EQ(f10Rec, f10Iter)
-)
+{=
+    recursive10 = FibonacciRecursive(10),
+    tailRecursive10 = Fibonacci(10),
+    agree = FibonacciRecursive(10) == Fibonacci(10)
+}

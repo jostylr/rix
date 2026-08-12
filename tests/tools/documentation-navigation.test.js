@@ -34,7 +34,10 @@ test("the published documentation manifest omits build-only source paths", () =>
 
 test("the renderer reference covers every first-party target and host boundary", async () => {
   const guide = await Bun.file(resolve(rixRoot, "documentation/eval/renderer-guide.md")).text();
-  for (const target of ["svg", "canvas", "tikz", "png", "markdown", "html", "quarto", "latex", "pdf"]) {
+  for (const target of [
+    "terminal-ascii", "svg", "canvas", "tikz", "png", "markdown", "html",
+    "quarto", "latex", "pdf", "gif", "gltf", "csv",
+  ]) {
     expect(guide, target).toContain(`| \`${target}\` |`);
     expect(guide, target).toContain(`/plugin-${target}.html`);
   }

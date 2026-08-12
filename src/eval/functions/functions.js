@@ -90,11 +90,11 @@ function resolvePartial(partial, callArgs) {
 
 const TAIL_SELF_MARKER = Symbol("tailSelfCall");
 
-function createTailSelfCall(args) {
+export function createTailSelfCall(args) {
     return { marker: TAIL_SELF_MARKER, args };
 }
 
-function isTailSelfCall(value) {
+export function isTailSelfCall(value) {
     return value && value.marker === TAIL_SELF_MARKER;
 }
 

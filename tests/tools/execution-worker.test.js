@@ -23,6 +23,21 @@ describe("RiX editor execution worker", () => {
         expect(events.at(-1).payload.state).toBe("failed");
     });
 
+    test("attributes a runtime check failure to the failing source check", async () => {
+        const events = [];
+        const session = createExecutionSession({ emit: (event) => events.push(event) });
+        await session.run({
+            command: "run",
+            requestId: "second-check",
+            uri: "file:///checks.rix",
+            source: "1 ##@ == 1;\n2 ##@ == 3;",
+        });
+
+        const failed = events.find(({ kind }) => kind === "check");
+        expect(failed.payload.id).toBe("predicate:2:2");
+        expect(failed.range).toEqual({ start: 12, end: 23 });
+    });
+
     test("session mode retains bindings while isolated mode starts clean", async () => {
         const events = [];
         const session = createExecutionSession({ emit: (event) => events.push(event) });
@@ -33,14 +48,31 @@ describe("RiX editor execution worker", () => {
         expect(events.find(({ requestId, kind }) => requestId === "three" && kind === "run-end")?.payload.state).toBe("failed");
     });
 
+    test("comments that resemble async syntax cannot change evaluation semantics", async () => {
+        const sessionEvents = [];
+        const session = createExecutionSession({ emit: (event) => sessionEvents.push(event) });
+        await session.run({
+            command: "run",
+            requestId: "comment-parity",
+            uri: "file:///comment-parity.rix",
+            source: "/* {$ */ F := x -> x ?| 7; F()",
+        });
+
+        expect(sessionEvents.find(({ kind }) => kind === "result")?.payload.text).toBe("7");
+        expect(sessionEvents.at(-1)?.payload.state).toBe("passed");
+    });
+
     test("standard profile is explicit and denies host, I/O, and dynamic loading roots", () => {
         const standard = createStandardSystemContext(createDefaultSystemContext);
         expect(standard.getAllEntries()).toHaveLength(STANDARD_CAPABILITY_NAMES.length);
-        for (const name of ["NET", "FILES", "BACKGROUND", "ImportJS", "JSCall", "Plugin", "Core", "Host", "Render", "Renderer", "Out"]) {
+        for (const name of [
+            "NET", "FILES", "BACKGROUND", "ImportJS", "JSCall", "Plugin", "Core", "Host",
+            "Render", "Renderer", "Out", "TraitRegister", "TypeRegister", "TypeInstall",
+            "CapabilityRegister",
+        ]) {
             expect(standard.has(name)).toBe(false);
         }
         expect(standard.has("Add")).toBe(true);
         expect(standard.has("Exact")).toBe(true);
     });
 });
-

@@ -24,7 +24,7 @@ svg := .Renderer.Info("image/svg+xml");
 
 ```rix
 /**
-plugins: [svg, canvas, tikz, png, markdown, html, quarto, latex, pdf, gif, gltf, csv]
+plugins: [terminal-ascii, svg, canvas, tikz, png, markdown, html, quarto, latex, pdf, gif, gltf, csv]
 **/
 ```
 
@@ -81,6 +81,7 @@ diagnostics accumulated while negotiating earlier candidates.
 
 | Plugin | Inputs | Extension and MIME | Browser | CLI requirement |
 | --- | --- | --- | --- | --- |
+| `terminal-ascii` | Table, Grid, Fragment, simple Graphic | `.txt`, `text/plain` | Full | None |
 | `svg` | Graphic, graphic Figure | `.svg`, `image/svg+xml` | Full | None |
 | `canvas` | Graphic, graphic Figure | `.canvas.json`, `application/vnd.rix.canvas+json` | Full | None |
 | `tikz` | Graphic, graphic Figure | `.tikz`, `text/x-tikz` | Source generation | None |
@@ -92,6 +93,7 @@ diagnostics accumulated while negotiating earlier candidates.
 | `pdf` | Documents, figures, static slides | `.pdf`, `application/pdf` | Contract only | `pdflatex` |
 | `gif` | Slides, Timeline, Snapshots | `.gif`, `image/gif` | Contract only | PNG rasterizer plus ImageMagick |
 | `gltf` | retained Scene3D | `.gltf`, `model/gltf+json` | Full | None |
+| `csv` | Table, data Relation | `.csv`/`.tsv`, `text/csv`/`text/tab-separated-values` | Full | None |
 
 “Full” means the browser can produce the target content. Source targets do not
 compile or open their downstream application. Contract-only targets can be
@@ -99,6 +101,15 @@ loaded and inspected in a browser, but rendering reports a toolchain error
 because browsers do not spawn rasterizers or TeX.
 
 ## Graphics targets
+
+### Terminal ASCII
+
+Terminal ASCII provides a strict seven-bit fallback for tables, grids,
+fragments, and simple Graphics. It is useful in logs, terminals, diffs, and
+hosts that cannot display richer output; unsupported scene detail is reported
+rather than silently invented.
+
+Learn interactively in the [Terminal ASCII tutorial](https://rix.ratmath.com/tutorial/plugin-terminal-ascii.html).
 
 ### SVG
 
@@ -176,6 +187,15 @@ Exact positions become Float32 at this explicit export boundary. Cameras,
 lights, textures, animation, and GLB remain follow-up work.
 
 Learn interactively in the [glTF renderer tutorial](https://rix.ratmath.com/tutorial/plugin-gltf.html).
+
+### CSV and TSV
+
+CSV exports portable Tables and `.data` Relations with exact scalar text.
+Choose TSV through the `.tsv` extension or target alias. Nested output and
+presentation layout are rejected because delimited data is a data interchange
+format, not a document renderer.
+
+Learn interactively in the [CSV renderer tutorial](https://rix.ratmath.com/tutorial/plugin-csv.html).
 
 ## Document targets
 

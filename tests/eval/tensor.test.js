@@ -55,6 +55,28 @@ function tensorSnapshot(tensor) {
 }
 
 describe("Tensor literals and indexing", () => {
+    test("semicolon array notation canonicalizes matrices and higher-rank tensors", () => {
+        const matrix = evalRiX("[1, 2; 3, 4]");
+        expect(tensorSnapshot(matrix)).toEqual({ shape: [2, 2], flat: [1, 2, 3, 4] });
+
+        const rank3 = evalRiX("[1, 2; 3, 4 ;; 5, 6; 7, 8]");
+        expect(tensorSnapshot(rank3)).toEqual({
+            shape: [2, 2, 2],
+            flat: [1, 5, 2, 6, 3, 7, 4, 8],
+        });
+
+        const rank4 = evalRiX("[1; 2 ;; 3; 4 ;;; 5; 6 ;; 7; 8]");
+        expect(tensorSnapshot(rank4)).toEqual({
+            shape: [2, 1, 2, 2],
+            flat: [1, 5, 3, 7, 2, 6, 4, 8],
+        });
+    });
+
+    test("semicolon tensor inference rejects ragged dimensions", () => {
+        expect(() => evalRiX("[1, 2; 3]")).toThrow("ragged along columns");
+        expect(() => evalRiX("[1; 2 ;; 3]")).toThrow("ragged along rows");
+    });
+
     test("tensor literal stores row-major flat data", () => {
         const result = evalRiX("m := {:2x3: 1, 2, 3; 4, 5, 6}; m");
         expect(tensorSnapshot(result)).toEqual({

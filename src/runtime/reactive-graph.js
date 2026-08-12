@@ -76,6 +76,55 @@ export function isReactiveNode(value) {
     return Boolean(value && value.type === "reactive_node" && isReactiveGraph(value.graph));
 }
 
+function isPromiseLike(value) {
+    return value !== null
+        && (typeof value === "object" || typeof value === "function")
+        && typeof value.then === "function";
+}
+
+/**
+ * ReactiveGraph epochs are synchronous. Reject suspended values before they
+ * can be staged as clean formula results or published to subscribers.
+ *
+ * Walk enumerable value graphs rather than only the top level: a promise
+ * nested in a RiX collection is just as capable of escaping the evaluator as
+ * a promise returned directly. Descriptor reads avoid invoking getters while
+ * the WeakSet keeps ordinary cyclic RiX values safe to inspect.
+ */
+function assertSynchronousFormulaValue(value, seen = new WeakSet()) {
+    if (isPromiseLike(value)) {
+        // The synchronous graph cannot observe the eventual result, but it
+        // still owns rejecting a value that reached this boundary. Mark a
+        // native/promise-like rejection handled before reporting the RiX error.
+        if (typeof value.catch === "function") value.catch(() => {});
+        throw new Error(
+            "Reactive formulas cannot suspend; resolve async work before publishing a literal value",
+        );
+    }
+    if (value === null || (typeof value !== "object" && typeof value !== "function")) return;
+    if (seen.has(value)) return;
+    seen.add(value);
+
+    if (value instanceof Map) {
+        for (const [key, entry] of value) {
+            assertSynchronousFormulaValue(key, seen);
+            assertSynchronousFormulaValue(entry, seen);
+        }
+        return;
+    }
+    if (value instanceof Set) {
+        for (const entry of value) assertSynchronousFormulaValue(entry, seen);
+        return;
+    }
+
+    for (const key of Reflect.ownKeys(value)) {
+        const descriptor = Object.getOwnPropertyDescriptor(value, key);
+        if (descriptor && Object.hasOwn(descriptor, "value")) {
+            assertSynchronousFormulaValue(descriptor.value, seen);
+        }
+    }
+}
+
 export function createReactiveGraph(options = {}) {
     if (typeof options.evaluateFormula !== "function") {
         throw new Error("ReactiveGraph requires a deferred formula evaluator");
@@ -251,6 +300,7 @@ export function createReactiveGraph(options = {}) {
                     const value = node.evaluator
                         ? node.evaluator(node.formula, graph)
                         : options.evaluateFormula(node.formula, graph);
+                    assertSynchronousFormulaValue(value);
                     stagedValues.set(name, value);
                     states.set(name, "clean");
                     return value;

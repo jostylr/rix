@@ -3,6 +3,25 @@
   "version": "0.1.0",
   "description": "RiX, the Rational Interval Expression Language",
   "type": "module",
+  "files": [
+    "README.md",
+    "bin/",
+    "examples/algebra/",
+    "examples/complex/",
+    "examples/documents/",
+    "examples/eval/",
+    "examples/geometry/",
+    "examples/newton/",
+    "examples/plugins/",
+    "examples/quadratic/*.rix",
+    "examples/quadratic/README.md",
+    "examples/renderers/",
+    "examples/rixcel/",
+    "examples/stern-brocot/",
+    "plugins/",
+    "schemas/",
+    "src/"
+  ],
   "exports": {
     ".": "./src/index.js",
     "./parser": "./src/parser/index.js",
@@ -21,10 +40,17 @@
   },
   "scripts": {
     "test": "bun test",
+    "test:coverage": "bun test --coverage --coverage-reporter=lcov && bun ./scripts/check-coverage.js",
+    "test:rix": "bun ./bin/rix.js test",
+    "test:examples": "bun test tests/cli/examples.test.js",
+    "test:plugin-tutorials": "bun test tests/tools/plugin-tutorials.test.js",
     "test:parser": "bun test tests/parser",
     "test:eval": "bun test tests/eval",
     "test:tools": "bun test tests/tools",
     "test:docs": "bun test tests/tools/documentation-examples.test.js",
+    "test:package": "bun test tests/tools/package-smoke.test.js",
+    "test:pack": "npm pack --dry-run --cache=tmp/npm-cache",
+    "smoke:package": "bun ./scripts/package-consumer-smoke.js",
     "build:lezer": "lezer-generator src/tools/lezer/rix.grammar -o src/tools/lezer/parser.js",
     "check:editor-policy": "bun ./scripts/generate-editor-policy.js --check",
     "test:codemirror": "bun test tests/tools/codemirror.test.js",
@@ -38,22 +64,48 @@
     "build:docs:static": "bun run build:demo && bun run docs:reference && bun ./documentation/scripts/run-quarto.js render --profile static",
     "preview:docs": "bun run build:demo && bun run docs:reference && bun ./documentation/scripts/run-quarto.js preview",
     "preview:docs:static": "bun run build:demo && bun run docs:reference && bun ./documentation/scripts/run-quarto.js preview --profile static",
-    "build:all": "bun run build:docs"
+    "build:all": "bun run build:docs",
+    "check:ci": "bun run test:coverage && bun run test:rix && bun run test:examples && bun run test:plugin-tutorials && bun run docs:examples && bun run check:editor-policy && bun run test:package && bun run test:pack",
+    "check:release": "bun run check:ci && bun run smoke:package",
+    "prepublishOnly": "bun run check:release"
   },
   "dependencies": {
     "@codemirror/language": "^6.12.4",
     "@lezer/common": "^1.5.2",
     "@lezer/highlight": "^1.2.3",
     "@lezer/lr": "^1.4.10",
-    "@ratmath/core": "workspace:*"
+    "@ratmath/core": "^0.3.0"
   },
   "devDependencies": {
     "@lezer/generator": "^1.8.0",
     "marked": "^15.0.12"
   },
   "engines": {
-    "bun": ">=1.2.0",
-    "node": ">=18.0.0"
+    "bun": ">=1.2.0"
+  },
+  "keywords": [
+    "rix",
+    "programming-language",
+    "mathematics",
+    "exact-arithmetic",
+    "rational",
+    "interval-arithmetic",
+    "symbolic-math",
+    "computer-algebra",
+    "calculator",
+    "bun"
+  ],
+  "author": "James Taylor",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jostylr/rix.git"
+  },
+  "homepage": "https://docs.rix.ratmath.com/",
+  "bugs": {
+    "url": "https://github.com/jostylr/rix/issues"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "license": "MIT"
 }

@@ -1,23 +1,14 @@
-## Primes — Terse Syntax ##
-## Uses operator syntax: %, ==, OR, !, //, {? }, sequence generators ##
+## The lazy divisor source stops as soon as Find discovers a factor.
 
-timesHDcalled = 0;
+FirstDivisor(n) ->
+    [2 |+ 1] |>|| ((divisor) -> divisor * divisor > n ?: 1 ?_ n % divisor == 0);
 
-## Predicate: Does 'n' have any divisor in list 'divs'?
-## This terseness has if n/d has no remainder, then d is a diviso and n % d == 0. This should then return d. 
-HasDivisor(n, divs) -> divs |>|| d -> {; @timesHDcalled += 1;   n % d == 0 && d; }
-
-## Predicate: Is 'n' prime?
 IsPrime(n) -> {?
-  n < 2 ? _;
-  n == 2 ? 1;
-  !(HasDivisor(n, [2, |+ 1, |^ (SQRT(n) // 1)]))
-}
+    n < 2 ? _;
+    n == 2 ? 1;
+    FirstDivisor(n) * FirstDivisor(n) > n
+};
 
-primes = [1, |+1, |; 50] |>? IsPrime;
+primes := .IRANGE(1, 50) |>? IsPrime;
 
-PRINT(
-  "Primes up to 50: " + primes,
-  "Count: " + LEN(primes),
-  "HD Called: " + timesHDcalled
-)
+{= primes=primes, count=.LEN(primes) }

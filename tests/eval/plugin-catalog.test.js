@@ -6,6 +6,7 @@ import {
     createDefaultRegistry,
     createDefaultSystemContext,
     parseAndEvaluate,
+    parseAndEvaluateAsync,
     readSourceHeader,
 } from "../../src/index.js";
 import { NodePluginCatalog } from "../../src/runtime/plugin-catalog-node.js";
@@ -89,6 +90,28 @@ operator-files:
         expect(options.systemContext.getCapabilityGroups().Examples).toContain("echo");
     });
 
+    test("awaits pure RiX plugin activation and its dependencies during async evaluation", async () => {
+        const context = new Context();
+        const registry = createDefaultRegistry();
+        const systemContext = createDefaultSystemContext();
+        const options = { context, registry, systemContext };
+
+        const fraction = await parseAndEvaluateAsync(`
+            .Plugin.Load("fraction");
+            .fraction(6, 8);
+        `, options);
+        expect(String(fraction)).toBe("6/8");
+
+        const loaded = await parseAndEvaluateAsync(`
+            .Plugin.Load("stern-brocot");
+            [
+                .Plugin.Info("fraction").Get("loaded"),
+                .Plugin.Info("stern-brocot").Get("loaded")
+            ];
+        `, options);
+        expect(loaded.values.map((value) => value.value)).toEqual([1n, 1n]);
+    });
+
     test("host plugins are listed but require an explicitly host-approved installer", () => {
         const catalog = new NodePluginCatalog({ roots: [fixtureRoot] }).scan();
         const options = runtime(catalog);
@@ -99,6 +122,39 @@ operator-files:
             systemContext.registerHost("hostSample", { impl: () => 42n }, { groups: ["Examples"] });
         });
         expect(evaluate('.Plugin.Load("host-sample"); .hostSample()', options)).toBe(42n);
+    });
+
+    test("publishes loaded state only after async activation and coalesces concurrent loads", async () => {
+        const catalog = new NodePluginCatalog();
+        catalog.addMetadata({
+            id: "async-host", description: "Exercises delayed host activation.", kind: "host",
+            mount: "asyncHost", exports: [], groups: [], permissions: [],
+        }, { kind: "host" });
+
+        let signalStarted;
+        const started = new Promise((resolve) => { signalStarted = resolve; });
+        let finishActivation;
+        const activationGate = new Promise((resolve) => { finishActivation = resolve; });
+        let installs = 0;
+        catalog.registerInstaller("async-host", async ({ systemContext }) => {
+            installs += 1;
+            signalStarted();
+            await activationGate;
+            systemContext.registerHost("asyncHost", { impl: () => 42n });
+        });
+        const options = runtime(catalog);
+
+        const evaluation = parseAndEvaluateAsync('.Plugin.Load("async-host"); .asyncHost()', options);
+        await started;
+        expect(catalog.loaded.has("async-host")).toBe(false);
+        const duplicate = catalog.loadAsync("async-host", options);
+        expect(installs).toBe(1);
+
+        finishActivation();
+        const [value] = await Promise.all([evaluation, duplicate]);
+        expect(value).toBe(42n);
+        expect(catalog.loaded.has("async-host")).toBe(true);
+        expect(installs).toBe(1);
     });
 
     test("an activation can remount a host plugin under a distinct camelCase name", () => {

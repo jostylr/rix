@@ -52,8 +52,8 @@ export {
     createControlPanelSnapshot, serializeControlPanel, renderControlPanelStaticHtml, renderControlPanelMarkdown,
     createAlgebraOutputCollection, createGraphicsOutputCollection, createTimelineOutputCollection, createControlsOutputCollection, createSyntheticDivision, createPlotOutputCollection,
     createPolynomialPlot, createGroup, createTransform, createTextMark,
-    createRectangle, createCircle, createDragPoint, createClip, createSliderControl, createInputControl,
-    createChoiceControl, createToggleControl, createRangeControl, createResetControl, createActionControl, createControlPanel, createSnapshots, createTimelineSequence, createTimelineRender,
+    createRectangle, createCircle, createDragPoint, createGraphicAction, createClip, createSliderControl, createInputControl,
+    createChoiceControl, createToggleControl, createRangeControl, createResetControl, createActionControl, createHoldControl, createControlPanel, createSnapshots, createTimelineSequence, createTimelineRender,
 } from "./runtime/index.js";
 export { createDrawPluginCollection, installDrawPlugin } from "../plugins/draw/draw.plugin.rix.js";
 export { installPlotPlugin } from "../plugins/plot/plot.plugin.rix.js";
@@ -68,7 +68,7 @@ export {
 } from "./tools/sheet-view.js";
 export { WidgetSession, GraphicWidgetSession, ControlPanelWidgetSession, createWidgetSession } from "./tools/widget-session.js";
 export { enhanceGraphicViews, graphicPointFromClient } from "./tools/graphic-view.js";
-export { enhanceControlPanelViews } from "./tools/control-panel-view.js";
+export { enhanceControlPanelViews, enhanceControlShortcuts } from "./tools/control-panel-view.js";
 export { mountOutputWidgets, restoreGraphicFocus, restoreControlPanelFocus } from "./tools/output-widgets.js";
 export {
     RIX_LANGUAGE_SERVICE_VERSION,

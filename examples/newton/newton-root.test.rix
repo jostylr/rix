@@ -1,4 +1,4 @@
-<"rix/examples/newton/nth-root" ; NthRoot=NthRoot>;
+<"examples/newton/nth-root" ; NthRoot=NthRoot>;
 
 CrossesPower(n, q, step) -> {;
     left := step[2] ^ n;

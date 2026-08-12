@@ -1,4 +1,4 @@
-/** Host-side interaction for portable Graphic drag handles. */
+/** Host-side interaction for portable Graphic drag handles and actions. */
 
 export function graphicPointFromClient(rect, viewBox, client) {
     const width = Number(rect?.width);
@@ -47,7 +47,45 @@ function enhanceGraphic(graphic, options) {
     const svg = graphic.querySelector("svg.rix-output-svg");
     const status = graphic.querySelector(".rix-output-graphic-status");
     const handles = [...graphic.querySelectorAll("[data-rix-drag-target]")];
-    if (!svg || handles.length === 0 || typeof options.onPosition !== "function") return;
+    const actions = [...graphic.querySelectorAll("[data-rix-graphic-action]")];
+    if (!svg || (handles.length === 0 && actions.length === 0)) return;
+
+    for (const action of actions) {
+        if (typeof options.onAction !== "function") continue;
+        const activate = (source) => {
+            const detail = Object.freeze({
+                type: "graphic:action",
+                actionId: action.dataset.rixGraphicAction,
+                targetId: action.dataset.rixGraphicTarget,
+                source,
+            });
+            try {
+                const result = options.onAction(detail, action, graphic);
+                if (result?.type === "error") throw new Error(result.text);
+                if (status) status.textContent = `${action.getAttribute("aria-label") || "Scene action"} selected`;
+                dispatchGraphicEvent(graphic, "rix-graphic-action", {
+                    ...detail,
+                    revision: result?.revision ?? null,
+                });
+                options.onActionCommitted?.(detail, result, action, graphic);
+            } catch (error) {
+                if (status) status.textContent = error instanceof Error ? error.message : String(error);
+            }
+        };
+        action.addEventListener("click", (event) => {
+            event.preventDefault?.();
+            event.stopPropagation?.();
+            activate("pointer");
+        });
+        action.addEventListener("keydown", (event) => {
+            if (event.key !== "Enter" && event.key !== " ") return;
+            event.preventDefault?.();
+            event.stopPropagation?.();
+            activate("keyboard");
+        });
+    }
+
+    if (handles.length === 0 || typeof options.onPosition !== "function") return;
 
     const setPreview = (handle, position) => {
         handle.setAttribute("cx", String(position[0]));

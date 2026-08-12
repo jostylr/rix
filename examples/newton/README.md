@@ -5,7 +5,7 @@
 RiX treats uppercase identifiers as callables, so the exported name is uppercase:
 
 ```rix
-<"rix/examples/newton/nth-root" ; NthRoot=NthRoot>;
+<"examples/newton/nth-root" ; NthRoot=NthRoot>;
 NthRoot(2, 2)
 ```
 
@@ -45,8 +45,8 @@ short decimal strings, a representative center point, interval width, and
 `widthPower10`.
 
 ```rix
-<"rix/examples/newton/nth-root" ; NthRoot=NthRoot>;
-<"rix/examples/newton/pretty" ; NthRootPretty=NthRootPretty>;
+<"examples/newton/nth-root" ; NthRoot=NthRoot>;
+<"examples/newton/pretty" ; NthRootPretty=NthRootPretty>;
 
 .PRINT(NthRootPretty("sqrt 2", 2, 2, NthRoot(2, 2, 5)))
 ```

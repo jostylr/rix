@@ -130,13 +130,17 @@ export class WidgetSession {
     }
 }
 
-function graphicTargets(node, targets = new Map()) {
-    if (!isOutputValue(node)) return targets;
+function graphicBindings(node, bindings = { targets: new Map(), actions: new Map() }) {
+    if (!isOutputValue(node)) return bindings;
     if (node.kind === "drag_point" && isReactiveNode(node.target)) {
-        targets.set(node.targetId, node.target);
+        bindings.targets.set(node.targetId, node.target);
     }
-    for (const child of node.children || []) graphicTargets(child, targets);
-    return targets;
+    if (node.kind === "graphic_action" && isReactiveNode(node.target)) {
+        bindings.targets.set(node.targetId, node.target);
+        bindings.actions.set(node.id, node);
+    }
+    for (const child of node.children || []) graphicBindings(child, bindings);
+    return bindings;
 }
 
 function exactGraphicCoordinate(value) {
@@ -166,9 +170,11 @@ export class GraphicWidgetSession {
         }
         this.widget = widget;
         this.editMode = "position";
-        this.targets = graphicTargets(widget);
+        const bindings = graphicBindings(widget);
+        this.targets = bindings.targets;
+        this.actions = bindings.actions;
         if (this.targets.size === 0) {
-            throw new Error("A Graphic WidgetSession requires at least one DragPoint");
+            throw new Error("A Graphic WidgetSession requires at least one DragPoint or Action");
         }
         this.revision = 0;
         this.onChange = typeof options.onChange === "function" ? options.onChange : null;
@@ -189,6 +195,25 @@ export class GraphicWidgetSession {
 
     dispatch(event) {
         if (this.disposed) throw new Error("Cannot dispatch to a disposed GraphicWidgetSession");
+        if (event?.type === "graphic:action") {
+            const action = this.actions.get(String(event.actionId || ""));
+            if (!action) throw new Error(`Unknown Graphic action: ${event.actionId || "missing action"}`);
+            if (event.targetId && String(event.targetId) !== action.targetId) {
+                throw new Error("Graphic action and target IDs do not match");
+            }
+            const value = action.run();
+            const replacedDependencies = Object.freeze([...action.target.dependencies]);
+            action.target.replaceValue(value, {
+                source: "widget",
+                widgetKind: "graphic",
+                eventType: "graphic:action",
+                actionId: action.id,
+                targetId: action.targetId,
+                inputSource: event.source ?? null,
+                replacedDependencies,
+            });
+            return value;
+        }
         if (event?.type !== "graphic:position") {
             throw new Error(`Unsupported Graphic widget event: ${event?.type || "missing type"}`);
         }
@@ -272,6 +297,9 @@ function controlValue(control, event) {
     if (control.kind === "control_range") return rangeValue(control, event.indices);
     if (control.kind === "control_reset") return control.initial;
     if (control.kind === "control_action") return control.run();
+    if (control.kind === "control_hold") {
+        return indexedValue(control, event.index, control.values, "Control hold");
+    }
     if (control.kind === "control_input") {
         if (!("value" in event)) throw new Error("Control input requires an evaluated RiX value");
         return event.value;

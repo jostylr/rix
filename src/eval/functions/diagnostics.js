@@ -597,6 +597,250 @@ function makeIsolatedEntry(passed, value, error, unresolved = false) {
     return { type: "map", entries };
 }
 
+async function runSequentialTestsAsync(label, setupNode, testArgs, filePath, context, evaluate, diag) {
+    const results = [];
+    let passedAll = true;
+    let totalPassed = 0;
+    let totalFailed = 0;
+    let totalErrored = 0;
+    let totalSkipped = 0;
+    let totalUnresolved = 0;
+    let stopped = false;
+    let setupResult = { type: "map", entries: new Map([["passed", toRixInt(1)]]) };
+
+    context.push(undefined, { isolated: true });
+    try {
+        try {
+            await context.withSharedBodyAsync(setupNode, () => evaluate(setupNode));
+        } catch (err) {
+            setupResult = { type: "map", entries: new Map([
+                ["passed", null],
+                ["error", toRixString(err.message)],
+            ]) };
+            passedAll = false;
+            stopped = true;
+        }
+
+        if (!stopped) {
+            for (let i = 0; i < testArgs.length; i++) {
+                if (stopped) {
+                    results.push(makeTestEntry(i + 1, null, null, null, true));
+                    totalSkipped++;
+                    continue;
+                }
+                try {
+                    const testNode = testArgs[i];
+                    if (testNode && testNode.fn === "HOLE") {
+                        results.push(makeTestEntry(i + 1, null, null, null, true));
+                        totalSkipped++;
+                        continue;
+                    }
+                    const value = testNode && testNode.fn === "BLOCK"
+                        ? await context.withSharedBodyAsync(testNode, () => evaluate(testNode))
+                        : await evaluate(testNode);
+                    const state = decisionState(value);
+                    if (state === "undecided") {
+                        results.push(makeTestEntry(i + 1, null, value, null, false, true));
+                        totalUnresolved++;
+                        passedAll = false;
+                    } else if (state === "truth") {
+                        results.push(makeTestEntry(i + 1, true, value, null, false));
+                        totalPassed++;
+                    } else {
+                        results.push(makeTestEntry(i + 1, false, value, null, false));
+                        totalFailed++;
+                        passedAll = false;
+                        stopped = true;
+                    }
+                } catch (err) {
+                    results.push(makeTestEntry(i + 1, false, null, err.message, false));
+                    totalErrored++;
+                    passedAll = false;
+                    stopped = true;
+                }
+            }
+
+            if (stopped) {
+                for (let i = results.length; i < testArgs.length; i++) {
+                    results.push(makeTestEntry(i + 1, null, null, null, true));
+                    totalSkipped++;
+                }
+            }
+        }
+    } finally {
+        context.pop();
+    }
+
+    const summaryEntries = new Map([
+        ["total", toRixInt(testArgs.length)],
+        ["passed", toRixInt(totalPassed)],
+        ["failed", toRixInt(totalFailed)],
+        ["errored", toRixInt(totalErrored)],
+        ["skipped", toRixInt(totalSkipped)],
+        ["unresolved", toRixInt(totalUnresolved)],
+    ]);
+    const resultObj = { type: "map", entries: new Map([
+        ["kind", toRixString("test")],
+        ["label", toRixString(label)],
+        ["mode", toRixString("sequential")],
+        ["file", toRixString(filePath)],
+        ["passed", passedAll ? toRixInt(1) : null],
+        ["setup", setupResult],
+        ["results", { type: "sequence", values: results }],
+        ["summary", { type: "map", entries: summaryEntries }],
+    ]) };
+    diag.addEvent(resultObj);
+    diag.registerTestResult(filePath, label, resultObj);
+    return resultObj;
+}
+
+async function runSequentialTestsFromValuesAsync(label, setupNode, testValues, filePath, context, evaluate, diag) {
+    const results = [];
+    let passedAll = true;
+    let totalPassed = 0;
+    let totalFailed = 0;
+    let totalUnresolved = 0;
+
+    context.push(undefined, { isolated: true });
+    try {
+        try {
+            await context.withSharedBodyAsync(setupNode, () => evaluate(setupNode));
+        } catch {
+            // Preserve the established already-evaluated-array behavior.
+        }
+        for (let i = 0; i < testValues.length; i++) {
+            const value = testValues[i];
+            const state = decisionState(value);
+            if (state === "undecided") {
+                results.push(makeTestEntry(i + 1, null, value, null, false, true));
+                totalUnresolved++;
+                passedAll = false;
+            } else if (state === "truth") {
+                results.push(makeTestEntry(i + 1, true, value, null, false));
+                totalPassed++;
+            } else {
+                results.push(makeTestEntry(i + 1, false, value, null, false));
+                totalFailed++;
+                passedAll = false;
+            }
+        }
+    } finally {
+        context.pop();
+    }
+
+    const summaryEntries = new Map([
+        ["total", toRixInt(testValues.length)],
+        ["passed", toRixInt(totalPassed)],
+        ["failed", toRixInt(totalFailed)],
+        ["errored", toRixInt(0)],
+        ["skipped", toRixInt(0)],
+        ["unresolved", toRixInt(totalUnresolved)],
+    ]);
+    const resultObj = { type: "map", entries: new Map([
+        ["kind", toRixString("test")],
+        ["label", toRixString(label)],
+        ["mode", toRixString("sequential")],
+        ["file", toRixString(filePath)],
+        ["passed", passedAll ? toRixInt(1) : null],
+        ["results", { type: "sequence", values: results }],
+        ["summary", { type: "map", entries: summaryEntries }],
+    ]) };
+    diag.addEvent(resultObj);
+    diag.registerTestResult(filePath, label, resultObj);
+    return resultObj;
+}
+
+async function runIsolatedTestEntriesAsync(label, setupNode, testEntries, filePath, context, evaluate, diag) {
+    const resultMap = new Map();
+    let passedAll = true;
+    let totalPassed = 0;
+    let totalFailed = 0;
+    let totalErrored = 0;
+    let totalUnresolved = 0;
+
+    for (const { key, valNode } of testEntries) {
+        context.push(undefined, { isolated: true });
+        try {
+            await context.withSharedBodyAsync(setupNode, () => evaluate(setupNode));
+            const value = valNode && valNode.fn === "BLOCK"
+                ? await context.withSharedBodyAsync(valNode, () => evaluate(valNode))
+                : await evaluate(valNode);
+            const state = decisionState(value);
+            if (state === "undecided") {
+                resultMap.set(key, makeIsolatedEntry(null, value, null, true));
+                totalUnresolved++;
+                passedAll = false;
+            } else if (state === "truth") {
+                resultMap.set(key, makeIsolatedEntry(true, value, null));
+                totalPassed++;
+            } else {
+                resultMap.set(key, makeIsolatedEntry(false, value, null));
+                totalFailed++;
+                passedAll = false;
+            }
+        } catch (err) {
+            resultMap.set(key, makeIsolatedEntry(false, null, err.message));
+            totalErrored++;
+            passedAll = false;
+        } finally {
+            context.pop();
+        }
+    }
+
+    return buildIsolatedResult(
+        label,
+        filePath,
+        passedAll,
+        resultMap,
+        testEntries.length,
+        totalPassed,
+        totalFailed,
+        totalErrored,
+        diag,
+        totalUnresolved,
+    );
+}
+
+/** Promise-aware implementation of .Test's raw setup/test control flow. */
+export async function runTestAsync(args, context, evaluate) {
+    const label = requireString(await evaluate(args[0]), ".Test label");
+    const setupNode = args[1];
+    const testsNode = args[2];
+    const filePath = getCurrentFilePath(context);
+    const diag = getDiagnostics(context);
+
+    if (testsNode && testsNode.fn === "ARRAY") {
+        return runSequentialTestsAsync(
+            label, setupNode, testsNode.args, filePath, context, evaluate, diag,
+        );
+    }
+    if (testsNode && (testsNode.fn === "MAP" || testsNode.fn === "MAP_OBJ")) {
+        const testEntries = [];
+        for (const arg of testsNode.args) {
+            if (!arg || arg.fn !== "MAP_PAIR") {
+                throw new Error(".Test map mode requires {= label = expr, ... } map literal");
+            }
+            testEntries.push({ key: String(arg.args[1]), valNode: arg.args[2] });
+        }
+        return runIsolatedTestEntriesAsync(
+            label, setupNode, testEntries, filePath, context, evaluate, diag,
+        );
+    }
+
+    const testsValue = await evaluate(testsNode);
+    if (isRixArray(testsValue)) {
+        return runSequentialTestsFromValuesAsync(
+            label, setupNode, testsValue.values, filePath, context, evaluate, diag,
+        );
+    }
+    if (isRixMap(testsValue)) {
+        return runIsolatedTestsFromValues(
+            label, setupNode, testsValue, filePath, context, evaluate, diag,
+        );
+    }
+    throw new Error(".Test third argument must be an array or map of tests");
+}
+
 // --- .Debug ---
 
 export const DEBUG = {
@@ -893,6 +1137,82 @@ function runAbortTest(testKind, args, context, evaluate) {
         exprOutcome, exprValue, exprAbort, exprError, passed: overallPassed,
     });
 
+    diag.addEvent(result);
+    diag.registerTestResult(filePath, label, result);
+    return result;
+}
+
+/** Promise-aware implementation shared by .TestError and .TestStop. */
+export async function runAbortTestAsync(testKind, args, context, evaluate) {
+    const capName = testKind === "error" ? ".TestError" : ".TestStop";
+    const label = requireString(await evaluate(args[0]), `${capName} label`);
+    const setupNode = args[1];
+    const exprNode = args[2];
+    const filePath = getCurrentFilePath(context);
+    const diag = getDiagnostics(context);
+
+    let setupPassed = true;
+    let setupOutcome = "returned";
+    let setupValue;
+    let setupAbort;
+    let setupError = null;
+    let exprOutcome = "returned";
+    let exprValue;
+    let exprAbort;
+    let exprError = null;
+    let passed = false;
+
+    context.push(undefined, { isolated: true });
+    try {
+        try {
+            setupValue = await context.withSharedBodyAsync(
+                setupNode,
+                () => evaluate(setupNode),
+            );
+        } catch (err) {
+            setupPassed = false;
+            const classified = classifyError(err);
+            setupOutcome = classified.outcome;
+            setupAbort = classified.abort;
+            setupError = classified.error;
+        }
+
+        if (setupPassed) {
+            try {
+                exprValue = exprNode && exprNode.fn === "BLOCK"
+                    ? await context.withSharedBodyAsync(exprNode, () => evaluate(exprNode))
+                    : await evaluate(exprNode);
+            } catch (err) {
+                const classified = classifyError(err);
+                exprOutcome = classified.outcome;
+                exprAbort = classified.abort;
+                exprError = classified.error;
+                passed = testKind === "error"
+                    ? exprOutcome === "error" || exprOutcome === "runtimeError"
+                    : exprOutcome === "stop";
+            }
+        }
+    } finally {
+        context.pop();
+    }
+
+    const overallPassed = setupPassed && passed;
+    const result = buildAbortTestResult({
+        label,
+        testKind,
+        filePath,
+        expected: testKind === "error" ? "error" : "stop",
+        setupPassed,
+        setupOutcome,
+        setupValue,
+        setupAbort,
+        setupError,
+        exprOutcome,
+        exprValue,
+        exprAbort,
+        exprError,
+        passed: overallPassed,
+    });
     diag.addEvent(result);
     diag.registerTestResult(filePath, label, result);
     return result;

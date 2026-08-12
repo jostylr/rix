@@ -1,8 +1,8 @@
 # RiX renderer plugins
 
 RiX renderers are target adapters over portable output values. Mathematical
-and authoring plugins produce `.Graphics`, document, table, or—once its schema
-exists—`Scene3D` values. They never emit SVG, TeX, or pixels as their primary
+and authoring plugins produce `.Graphics`, document, table, or retained
+`Scene3D` values. They never emit SVG, TeX, or pixels as their primary
 semantic result.
 
 ## Implemented contract
@@ -56,13 +56,15 @@ plugins: [svg, png, markdown, quarto, latex, pdf, gif]
 ```
 
 [`examples/renderers/all-formats.rix`](../../examples/renderers/all-formats.rix)
-is a runnable CLI example that emits every currently implemented target from
-one Graphic and one document tree.
+is a runnable CLI example covering the common 2D and document targets from one
+Graphic and one document tree. Specialized terminal, data, animation, and 3D
+fixtures live beside it.
 
 ## Current targets
 
 | Target plugin | Inputs | Result | Host requirements |
 | --- | --- | --- | --- |
+| `.terminalAscii` | Tables, Grids, Fragments, simple `Graphic` values | Strict seven-bit plain text | None |
 | `.svg` | `Graphic`, graphic `Figure` | Standalone accessible SVG | None |
 | `.canvas` | `Graphic`, graphic `Figure` | Versioned JSON `CanvasRenderingContext2D` plan | None; painting needs a browser Canvas |
 | `.tikz` | `Graphic`, graphic `Figure` | TikZ/PGF source | None; TeX is only needed to compile it |

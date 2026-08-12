@@ -976,6 +976,7 @@ For map traversal, callbacks receive `(value, key, sourceMap)`. The key is the c
 #### Tensor-specific behavior
 
 - **Tensor literal**: `{:d1xd2x...: elems }` creates a dense tensor in row-major order. `{:d1xd2x...:}` creates an empty mutable tensor filled with holes.
+- **Inferred semicolon literal**: `[1, 2; 3, 4]` is the same shaped `2x2` tensor value as `{:2x2: 1, 2; 3, 4}`. One `;` separates rows, `;;` separates axis-3 slices, `;;;` separates axis-4 groups, and additional consecutive semicolons continue the pattern. For example, `[1,2;3,4 ;; 5,6;7,8]` infers shape `2x2x2`. The semicolons forming a higher separator are consecutive (no spaces), and every inferred dimension must be rectangular.
 - **Tensor indexing**: `A[i, j]`, `A[::, 2]`, `A[-1:1, ::]`. Indices are 1-based; negative indices count from the end; `0` is invalid.
 - **Tensor slices**: bracket slices are strict, closed, and directed. `::` is sugar for the full forward slice.
 - **Transpose**: `A^^` swaps the two axes of a rank-2 tensor as a view.
@@ -1562,7 +1563,7 @@ general systems. The former `:=:` solve operator has been removed.
 | `SET(elems...)` | Create set | `{\| a, b, c \|}` |
 | `TUPLE(elems...)` | Create tuple | `{: a, b, c }` |
 | `MAP(pairs...)` | Create map/object | `{= k=v, ... }` |
-| `TENSOR_LITERAL(shape, elems...)` | Create tensor with explicit shape | `{:2x3: 1, 2, 3; 4, 5, 6 }` |
+| `TENSOR_LITERAL(shape, elems...)` | Create a shaped tensor explicitly or by rectangular semicolon inference | `{:2x3: 1, 2, 3; 4, 5, 6 }`, `[1, 2; 3, 4]`, `[1,2;3,4 ;; 5,6;7,8]` |
 | `ARRAY_CAPTURE(elems...)` | Create array with brace-form constructor capture controls | `{.. 1, 2, 3 }`, `{.. /:=/ x, y }` |
 | `INTERVAL(args...)` | Create interval or check n-ary betweenness (unpacks nested intervals/sets) | `a:b` or `a:b:c...` |
 | `UNION(a, b)` | Binary set union / interval hull | `A \/ B` |

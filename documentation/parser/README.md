@@ -1,6 +1,10 @@
 # RiX Parser & Tokenizer Documentation
 
-This directory contains comprehensive documentation for the RiX Language Parser & Tokenizer library.
+This directory contains historical implementation notes for the RiX parser and
+tokenizer. Some feature sketches predate the current language. For supported
+syntax and embedding APIs, start with
+[`../eval/syntax-guide.md`](../eval/syntax-guide.md) and
+[`../developer-guide.qmd`](../developer-guide.qmd).
 
 ## Documentation Index
 
@@ -19,7 +23,7 @@ This directory contains comprehensive documentation for the RiX Language Parser 
 
 ### Getting Started
 ```javascript
-import { tokenize, parse } from 'rix-language-parser';
+import { tokenize, parse } from 'rix/parser';
 
 // Basic usage
 const tokens = tokenize('x := 2 + 3');

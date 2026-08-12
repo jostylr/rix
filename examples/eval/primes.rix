@@ -1,24 +1,15 @@
-## Prime Number Discovery in RiX ##
-## Demonstrates functional programming patterns (IRANGE, FILTER, REDUCE) ##
+## Prime discovery with stack-safe recursive trial division.
 
-## Predicate: Is 'n' divisible by any number in list 'divs'?
-HasDivisor(n, divs) -> REDUCE(
-  MAP(divs, (d) -> EQ(MOD(n, d), 0)),
-  (acc, val) -> acc OR val,
-  _
-)
+HasDivisorFrom(n, divisor) ->
+    divisor * divisor > n
+        ?: _
+        ?_ n % divisor == 0
+            ?: 1
+            ?_ $(n, divisor + 1);
 
-## Predicate: Is 'n' prime?
-IsPrime(n) -> IF(n < 2, _, 
-  IF(n == 2, 1,
-    NOT(HasDivisor(n, IRANGE(2, SQRT(n) // 1)))
-  )
-)
+IsPrime(n) ->
+    n < 2 ?: _ ?_ n == 2 ?: 1 ?_ !HasDivisorFrom(n, 2);
 
-## Find all primes up to 50
-primes = FILTER(IRANGE(1, 50), IsPrime)
+primes := .IRANGE(1, 50) |>? IsPrime;
 
-PRINT(
-  "Primes up to 50: " + primes,
-  "Count: " + LEN(primes)
-)
+{= primes=primes, count=.LEN(primes) }

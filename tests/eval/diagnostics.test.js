@@ -650,6 +650,7 @@ describe("CLI rix test", () => {
             cwd: path.resolve(import.meta.dir, "../.."),
             encoding: "utf-8",
         });
+        expect(result.status).toBe(0);
         expect(result.stdout).toContain("Discovered");
         expect(result.stdout).toContain("sample.test.rix");
     });

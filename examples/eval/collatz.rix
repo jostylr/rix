@@ -1,19 +1,19 @@
-## Collatz Conjecture (3n + 1) in RiX ##
-## Demonstrates recursion and arithmetic properties ##
+## Collatz sequence with direct conditional expressions and tail recursion.
 
-## Calculate the next number in the sequence
-NextCollatz(n) -> IF(MOD(n, 2) == 0, n / 2, 3 * n + 1)
+NextCollatz(n) -> n % 2 == 0 ?: n / 2 ?_ 3 * n + 1;
 
-## Recursively count steps to reach 1
-CollatzLen(n, count) -> IF(n == 1, count, CollatzLen(NextCollatz(n), count + 1))
+CollatzLength(n, count) ->
+    n == 1 ?: count ?_ $(NextCollatz(n), count + 1);
 
-## Public interface
-StepsToOne(n) -> CollatzLen(n, 0)
+StepsToOne(n) -> CollatzLength(n, 0);
 
-## Test with the infamous 27
-len27 = StepsToOne(27)
+n1 := NextCollatz(27);
+n2 := NextCollatz(n1);
+n3 := NextCollatz(n2);
+n4 := NextCollatz(n3);
 
-PRINT(
-  "Collatz steps for 27: " + len27,
-  "Sequence (first 5): " + [27, NextCollatz(27), NextCollatz(NextCollatz(27)), NextCollatz(NextCollatz(NextCollatz(27))), NextCollatz(NextCollatz(NextCollatz(NextCollatz(27))))]
-)
+{=
+    start = 27,
+    steps = StepsToOne(27),
+    firstFive = [27, n1, n2, n3, n4]
+}

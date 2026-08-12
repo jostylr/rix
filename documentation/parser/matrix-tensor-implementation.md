@@ -147,9 +147,14 @@ Three example files demonstrate usage:
 - Existing functionality is fully preserved
 - Only affects bracket expressions containing semicolons
 
-### Post-Processing
+### Lowering and evaluation
 
-The parser creates the structural representation. Actual dimensional analysis and tensor operations are intended for post-processing stages.
+The parser retains the separator structure in `Matrix`/`Tensor` AST nodes.
+Lowering infers a rectangular shape, reorders higher-axis display slices into
+the runtime's row-major axis order, and emits the same `TENSOR_LITERAL` IR used
+by an explicit `{:d1xd2x...: ...}` constructor. Consequently
+`[1,2;3,4]` evaluates as a shaped `2x2` tensor rather than a separate matrix
+record. Ragged rows or higher-axis groups are rejected during lowering.
 
 ### Performance
 
@@ -163,7 +168,6 @@ The parser creates the structural representation. Actual dimensional analysis an
 
 Potential areas for extension:
 
-1. **Tensor algebra operations**: Matrix multiplication, element-wise operations
-2. **Dimension validation**: Ensure consistent shapes within slices
-3. **Sparse matrix support**: Special handling for sparse structures
-4. **Broadcasting rules**: Define behavior for operations between different-sized tensors
+1. **Element-wise operations**: Define explicit tensor arithmetic separately from contraction
+2. **Sparse matrix support**: Special handling for sparse structures
+3. **Broadcasting rules**: Define behavior for operations between different-sized tensors

@@ -366,6 +366,12 @@ newline normalization.
 
 ### `.linalg`
 
+The cross-cutting `Shaped`/`Matrix`/`Vector`/mathematical-`Tensor` migration is
+intentionally deferred while other parser and evaluator work is active. Its
+design gates, compatibility strategy, syntax proposal, and detailed checklist
+are tracked in
+[Shaped values, matrices, vectors, and mathematical tensors](../documentation/design/eval/shaped-array-matrix-tensor-plan.md).
+
 1. **Phase 1 — Exact dense systems and coordinate-aware tensors**
    - [x] Canonicalize rectangular `[a,b; c,d]` and higher-rank repeated-semicolon
      literals into the shaped Tensor runtime used by `{:2x2: ...}`.

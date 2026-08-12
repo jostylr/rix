@@ -349,11 +349,18 @@ export async function runDocumentsAsync(documents) {
   return results;
 }
 
+export function documentPathsFromArgs(args) {
+  const outputIndex = args.indexOf("--write");
+  return args.filter((arg, index) => (
+    arg !== "--write" && (outputIndex === -1 || index !== outputIndex + 1)
+  ));
+}
+
 async function main() {
   const args = process.argv.slice(2);
   const outputIndex = args.indexOf("--write");
   const outputPath = outputIndex === -1 ? null : resolve(args[outputIndex + 1]);
-  const paths = args.filter((arg, index) => arg !== "--write" && index !== outputIndex + 1);
+  const paths = documentPathsFromArgs(args);
   const files = paths.length > 0 ? paths : ["documentation", "development-instructions.md"];
   const documents = [];
 

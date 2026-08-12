@@ -20,14 +20,35 @@ RiX is the Rational Interval Expression Language: a mathematical language with e
 
 ## Local development
 
-RiX uses Bun and depends on `@ratmath/core`. In the RatMath umbrella checkout, Bun resolves that dependency through the parent workspace:
+RiX uses Bun and declares the released `@ratmath/core` 0.3 line. The current
+registry build of Core does not yet export every API used by this RiX revision,
+so the RatMath umbrella workspace is the supported development setup until a
+compatible Core release is published:
 
 ```sh
+git clone https://github.com/jostylr/ratmath.git
+cd ratmath
 bun install
 bun --cwd rix test
 ```
 
-For a standalone clone, provide `@ratmath/core` through a Bun workspace until it is published. Once `@ratmath/core` is published, the `workspace:*` dependency can be replaced with a released version without changing RiX source code.
+A standalone checkout is laid out for `bun install` followed by `bun test`, but
+that path is currently a release-readiness check rather than a working install
+path. Publish a compatible Core release and raise RiX's minimum Core version
+before advertising standalone registry installation.
+
+Before publishing or cutting a release candidate, run:
+
+```sh
+bun run check:release
+```
+
+That gate runs the Bun suite with coverage, all native `.test.rix` programs,
+shipped-example and plugin-tutorial smoke tests, authored documentation examples,
+the generated editor-policy consistency check, package-content assertions, and
+an npm package dry run. Its final isolated-consumer smoke intentionally remains
+red against the incompatible current Core release. Publication is also blocked
+because the public npm name `rix` is owned by an unrelated package.
 
 ## API
 

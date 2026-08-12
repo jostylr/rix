@@ -57,5 +57,12 @@ describe("agent-facing RiX editor CLI", () => {
         expect(report).toMatchObject({ protocol: "rix.verify/1", summary: { state: "passed", checks: { passed: 1 } } });
         expect(report.events.map(({ kind }) => kind)).toEqual(["run-start", "check", "result", "run-end"]);
     });
-});
 
+    test("--all-built-plugins loads every plugin shipped by this repository", () => {
+        const filename = fixture("1\n");
+        const result = cli("--all-built-plugins", "--no-config", filename);
+        expect(result.status).toBe(0);
+        expect(result.stderr).toBe("");
+        expect(result.stdout.trim()).toBe("1");
+    });
+});

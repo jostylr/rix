@@ -53,6 +53,9 @@ contract: `.draw.Line(...)` and `.draw.Circle(...)` simply return core
 | Retained 3D and ND | Implemented initial versions | `.scene3d` retains exact realized geometry/cameras and snapshots wireframes to Graphics; `.nd` retains exact affine projection records and polytopes. |
 | glTF renderer | Implemented initial version | `.gltf` exports retained Scene3D as glTF 2.0 JSON with an embedded buffer and explicit Float32 diagnostics. |
 | Symbolic system carrier | Implemented | `{#}` retains definitions, constraints, all symbols, and advisory input/output roles; `.InspectSpec` and `.SpecRoles` expose them to plugins. |
+| `.linalg` | Implemented Phase 1 | Exact dense matrix systems and coordinate-aware tensor basis transformations with identity-preserving lineage. |
+| `.optimize` | Implemented Phase 1 | Exact standard-form linear programs and deterministic primal simplex. |
+| `.solve` | Implemented Phase 1 | Exact affine symbolic equality systems delegated to `.linalg`; broader dispatch remains future work. |
 
 First-party plugins may live in the main RiX repository and be installed
 selectively by the CLI, notebook, or web host. Independently developed plugins
@@ -112,8 +115,8 @@ The first two build directly on the current graphics work.
 | Later | `.data` / tables | Relations, schemas, sorting, filtering, joins, calculated columns, table views and formatters. | A `TableView` lowers to core `Table`; CSV is an exporter of data, not a replacement for a presentation table. |
 | Next | `.stats` expansion | Distributions, regression, confidence objects, and model diagnostics. | Builds on implemented exact summaries, linear quantiles, histograms, and box plots written in RiX. |
 | Later | `.graph` | Nodes, edges, layouts, paths, graph algorithms. | Layout output becomes `.Graphics`; graph semantics stay available for computation. |
-| Later | `.numerics` | Root isolation, integration, ODEs, optimization, certified-real adapters. | Supplies certified or explicitly approximate values to `.geometry` and `.plot`; it should surface error bounds. |
-| Later | `.solve` | Polynomial systems, constraints, symbolic/numeric solving. | Returns solution objects and isolating boxes; `.geometry` can visualize them. |
+| Later | `.numerics` expansion | Root isolation, integration, ODEs, nonlinear optimization, certified-real adapters. | Supplies certified or explicitly approximate values to `.geometry`, `.plot`, `.optimize`, and `.solve`; it should surface error bounds. |
+| Later | `.solve` expansion | Polynomial systems, inequalities, constraints, and nonlinear symbolic/numeric solving beyond the implemented affine slice. | Returns solution objects and isolating boxes; `.geometry` can visualize them. |
 | Later | `.document` extras | Citation, bibliography, cross-references, themes, code/output inclusion. | Produces core `Fragment`, `Figure`, `Table`, and `Slides` values; renderers own HTML/Quarto/PDF specifics. |
 | Host-dependent | `.widgets` | Sliders, selection, animation, browser events. | Requires runtime-specific JavaScript; must declare capability needs and provide a portable static snapshot. |
 | Host-dependent | Remaining exporters | Video, GLB, OBJ, STL, PLY, and USD/USDZ. | GIF, CSV/TSV, terminal ASCII, and glTF JSON have Phase 1 implementations; remaining targets use the same registry. |

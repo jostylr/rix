@@ -364,6 +364,43 @@ describe("Cell Assignment Semantics", () => {
             expect(result.values[0].value).toBe("C");
             expect(result.values[1].value).toBe("test");
         });
+
+        test("::= deep copies a self-referential sequence", () => {
+            const { result, context } = evalRixWithContext(`
+                source := [];
+                source.Push!(source);
+                copy ::= source;
+                copy;
+            `);
+
+            expect(result).not.toBe(context.get("source"));
+            expect(result.values[0]).toBe(result);
+        });
+
+        test("::= deep copies a self-referential map", () => {
+            const { result, context } = evalRixWithContext(`
+                source := {= };
+                source.Set!("self", source);
+                copy ::= source;
+                copy;
+            `);
+
+            expect(result).not.toBe(context.get("source"));
+            expect(result.entries.get("self")).toBe(result);
+        });
+
+        test("::= preserves shared-reference topology", () => {
+            const { result, context } = evalRixWithContext(`
+                shared := [1];
+                source := [];
+                source.Push!(shared, shared);
+                copy ::= source;
+                copy;
+            `);
+
+            expect(result.values[0]).toBe(result.values[1]);
+            expect(result.values[0]).not.toBe(context.get("shared"));
+        });
     });
 
     // ─── I. Combo operators desugar to cell-preserving update ────────

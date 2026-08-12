@@ -1,4 +1,4 @@
-import { createDefaultRegistry, createDefaultSystemContext, parseAndEvaluate, parseAndEvaluateAsync } from "../../eval/evaluator.js";
+import { createDefaultRegistry, createDefaultSystemContext, parseAndEvaluateAsync } from "../../eval/evaluator.js";
 import { formatValue } from "../../eval/format.js";
 import { Context } from "../../runtime/context.js";
 import { getDiagnostics } from "../../runtime/diagnostics.js";
@@ -6,11 +6,6 @@ import { analyzeRixDocument } from "../language-service/index.js";
 import { createStandardSystemContext } from "./standard-policy.js";
 
 export const RIX_EXECUTION_PROTOCOL = "rix.execution/1";
-
-function sourceUsesAsyncEvaluation(source) {
-    return /\{\$\$?|\|>_|\|>!/u.test(source)
-        || /\.(?:ForEach|Reduce|Collect|First|Find|Count|Close|Retry)\s*\(/iu.test(source);
-}
 
 function safeValue(value, depth = 0, seen = new Set()) {
     if (value === null || value === undefined || typeof value === "string" || typeof value === "number" || typeof value === "boolean") return value ?? null;
@@ -32,6 +27,21 @@ function eventMap(event) {
     return event?.entries instanceof Map
         ? Object.fromEntries([...event.entries].map(([key, value]) => [key, safeValue(value)]))
         : safeValue(event);
+}
+
+function runtimeCheckForError(checks, error) {
+    const checkKind = error?.message?.includes("##@")
+        ? "predicate"
+        : error?.message?.includes("##:") ? "type" : null;
+    if (!checkKind) return null;
+    const lineMatch = String(error?.rixLocation || error?.message || "")
+        .match(/\bline\s+(\d+)\b/i);
+    if (lineMatch) {
+        const idPrefix = `${checkKind}:${lineMatch[1]}:`;
+        const exact = checks.find((candidate) => candidate.id?.startsWith(idPrefix));
+        if (exact) return exact;
+    }
+    return checks.find((candidate) => candidate.checkKind === checkKind) || null;
 }
 
 export function createExecutionSession(options = {}) {
@@ -82,9 +92,7 @@ export function createExecutionSession(options = {}) {
         }
 
         try {
-            const evaluate = sourceUsesAsyncEvaluation(request.source)
-                ? parseAndEvaluateAsync : async (source, evaluationOptions) => parseAndEvaluate(source, evaluationOptions);
-            const result = await evaluate(request.source, {
+            const result = await parseAndEvaluateAsync(request.source, {
                 ...state,
                 file: request.filePath || request.uri || "<editor>",
             });
@@ -97,7 +105,7 @@ export function createExecutionSession(options = {}) {
             emit("result", { text: formatValue(result), value: safeValue(result) });
             emit("run-end", { state: "passed", checks: { total: analysis.checks.length, passed: analysis.checks.length, failed: 0, skipped: 0 } });
         } catch (error) {
-            const check = analysis.checks.find((candidate) => error?.message?.includes(candidate.checkKind === "predicate" ? "##@" : "##:"));
+            const check = runtimeCheckForError(analysis.checks, error);
             if (check) emit("check", {
                 id: check.id, checkKind: check.checkKind, status: "failed", label: check.label, message: error.message,
             }, check.range);

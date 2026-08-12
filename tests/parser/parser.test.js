@@ -1,5 +1,5 @@
 import { tokenize } from "../../src/parser/tokenizer.js";
-import { parse } from "../../src/parser/parser.js";
+import { parse, RixParseError } from "../../src/parser/parser.js";
 
 // Test system lookup function
 function testSystemLookup(name) {
@@ -79,6 +79,19 @@ const negativeNode = (value) => ({
 });
 
 describe("RiX Parser", () => {
+  test("invalid legacy arrow expressions report a structured parse error", () => {
+    let error;
+    try {
+      parseCode("1 -> 2");
+    } catch (caught) {
+      error = caught;
+    }
+
+    expect(error).toBeInstanceOf(RixParseError);
+    expect(error).not.toBeInstanceOf(TypeError);
+    expect(error.reason).toMatch(/Function arrow requires/);
+  });
+
   describe("Function definitions", () => {
     test("standard function definition with :->", () => {
       const ast = parseCode("f(x) :-> x + 1;");

@@ -25,6 +25,12 @@ report := .Fragment([
 `.Out("report.html", report)` selects this renderer unless the artifact is the
 final reactive page.
 
+The renderer also preserves declarative action metadata: ControlPanel grid
+placement and shortcuts, plus accessible `.Graphics.Action` SVG groups. This
+plugin is intentionally static, so it reports those interactions as needing a
+host widget runtime. A final reactive `.Out` page supplies that runtime and
+activates the same portable values without embedding browser callbacks in RiX.
+
 - Browser: complete static HTML generation.
 - CLI: no external tools.
 - Options: `title` and `style`.

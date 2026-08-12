@@ -14,8 +14,16 @@ import { SystemContext } from "../runtime/system-context.js";
 import { PluginCatalog } from "../runtime/plugin-catalog.js";
 import { createSystemLookup } from "../runtime/system-manifest.js";
 import { Context } from "../runtime/context.js";
+import {
+    createEvent,
+    getCurrentFilePath,
+    getDiagnostics,
+    isRixArray,
+    rixIntValue,
+    rixStringValue,
+} from "../runtime/diagnostics.js";
 import { Cell, copyAllMeta, deepCopyValue, shallowCopyValue } from "../runtime/cell.js";
-import { isHole } from "../runtime/hole.js";
+import { HOLE, isHole } from "../runtime/hole.js";
 import { UNDECIDED, decisionState } from "../runtime/decision.js";
 import { runtimeDefaults } from "../runtime/runtime-config.js";
 import { isReactiveNode } from "../runtime/reactive-graph.js";
@@ -48,8 +56,18 @@ import { methodFunctions } from "./functions/methods.js";
 import { propertyFunctions } from "./functions/properties.js";
 import { advancedFunctions } from "./functions/advanced.js";
 import { stdlibFunctions } from "./functions/stdlib.js";
-import { diagnosticFunctions } from "./functions/diagnostics.js";
-import { installSymbolicVariants, symbolicCapabilities, symbolicFunctions } from "./functions/symbolic.js";
+import {
+    diagnosticFunctions,
+    runAbortTestAsync,
+    runTestAsync,
+} from "./functions/diagnostics.js";
+import {
+    applySymbolicSpec,
+    installSymbolicVariants,
+    isSymbolicSpec,
+    symbolicCapabilities,
+    symbolicFunctions,
+} from "./functions/symbolic.js";
 import { outputFunctions } from "./functions/output.js";
 import { formulaSheetFunctions } from "./functions/formula-sheet.js";
 import { reactiveGraphFunctions } from "./functions/reactive-graph.js";
@@ -66,16 +84,32 @@ import {
     sArithCapability,
 } from "./functions/embedded.js";
 import { installRegisteredTypes, registerBuiltinSemanticTypes } from "../runtime/type-system.js";
-import { createDefaultComplexCollection, createDefaultExactCollection } from "../runtime/exact-values.js";
+import {
+    createDefaultComplexCollection,
+    createDefaultExactCollection,
+    isExactValue,
+    multiplyScalars,
+} from "../runtime/exact-values.js";
 import { createAlgebraOutputCollection, createControlsOutputCollection, createGraphicsOutputCollection, createTimelineOutputCollection } from "../runtime/output.js";
 import { createRendererCollection, RendererRegistry, renderResultValue } from "../runtime/renderer-registry.js";
 import { installBundledPlugins } from "../../plugins/bundled.js";
-import { createDefaultUnitCollection } from "../runtime/quantities.js";
+import {
+    constructQuantity,
+    createDefaultUnitCollection,
+    isUnitValue,
+} from "../runtime/quantities.js";
+import {
+    emitNoPrepWarning,
+    isMultifunctionValue,
+    rebuildMultifunctionState,
+    shouldWarnNoPrep,
+} from "../runtime/multifunction.js";
 import { installUnitExactVariants, unitExactFunctions } from "./functions/units.js";
 import { parse } from "../parser/parser.js";
-import { posToLineCol } from "../parser/tokenizer.js";
+import { posToLineCol, tokenize } from "../parser/tokenizer.js";
 import { mergeOperatorDefinitions } from "../parser/custom-operators.js";
 import { lower } from "./lower.js";
+import { irToText } from "./ir-to-text.js";
 import { ensureLazyIndex, isLazySequence, materializeLazySequence } from "../runtime/lazy-sequence.js";
 import {
     expectedErrorArgs,
@@ -83,10 +117,14 @@ import {
     materializePipeSkip,
     PIPE_SKIP,
 } from "../runtime/expected-error.js";
-import { createTensor, forEachTensorCell, isTensor, tensorIndexTuple } from "../runtime/tensor.js";
+import { coerceShapeValue, createTensor, forEachTensorCell, isTensor, tensorIndexTuple } from "../runtime/tensor.js";
 import { formatValue } from "./format.js";
 import { Integer } from "@ratmath/core";
-import { callWithConcreteArgs } from "./functions/functions.js";
+import {
+    callWithConcreteArgs,
+    createTailSelfCall,
+    isTailSelfCall,
+} from "./functions/functions.js";
 import {
     AsyncScheduler,
     BACKGROUND_ERRORS_ENV,
@@ -113,6 +151,18 @@ function withPostfixCheckValue(context, value, callback) {
     context.setEnv(POSTFIX_CHECK_VALUE_ENV, value);
     try {
         return callback();
+    } finally {
+        if (hadPrevious) context.setEnv(POSTFIX_CHECK_VALUE_ENV, previous);
+        else context.env?.delete(POSTFIX_CHECK_VALUE_ENV);
+    }
+}
+
+async function withPostfixCheckValueAsync(context, value, callback) {
+    const hadPrevious = context.env?.has(POSTFIX_CHECK_VALUE_ENV) === true;
+    const previous = context.getEnv(POSTFIX_CHECK_VALUE_ENV, undefined);
+    context.setEnv(POSTFIX_CHECK_VALUE_ENV, value);
+    try {
+        return await callback();
     } finally {
         if (hadPrevious) context.setEnv(POSTFIX_CHECK_VALUE_ENV, previous);
         else context.env?.delete(POSTFIX_CHECK_VALUE_ENV);
@@ -1183,6 +1233,13 @@ const ASYNC_COLLECTION_FNS = new Set([
 ]);
 const ASYNC_PIPE_FNS = new Set(["PMAP", "PFILTER", "PEXPECT", "PFOREACH", "PANY", "PALL"]);
 const ASYNC_RESOLVED_BARRIER_FNS = new Set(["PSLICE_STRICT", "PSLICE_CLAMP"]);
+const SYNC_REACTIVE_FORMULA_CAPABILITY_IMPLS = new Set([
+    reactiveGraphFunctions.REACTIVEGRAPH.impl,
+    formulaSheetFunctions.FORMULASHEET.impl,
+    formulaSheetFunctions.RIXCELIMPORT.impl,
+    formulaSheetFunctions.RIXCELIMPORTCSV.impl,
+    formulaSheetFunctions.RIXCELIMPORTTSV.impl,
+]);
 
 function splitAsyncBlockArgs(args) {
     const first = args[0];
@@ -1268,7 +1325,7 @@ function markLexicalAsyncCallable(value, state) {
     if (value && (value.type === "function" || value.type === "lambda")) {
         value.__parallelCollections = enabled;
     }
-    if (value?.type === "multifunction" && Array.isArray(value.values)) {
+    if (isMultifunctionValue(value)) {
         for (const variant of value.values) variant.__parallelCollections = enabled;
     }
     return value;
@@ -1291,6 +1348,27 @@ function resolvePartialAsync(partial, callArgs) {
     return { fn: partial.fn, args: [...filled, ...callArgs.slice(maxIndex)] };
 }
 
+function isPlaceholderNodeAsync(node) {
+    return node && typeof node === "object" && node.fn === "PLACEHOLDER";
+}
+
+async function evaluateCallArgsAsync(argNodes, context, registry, systemContext, state) {
+    const values = [];
+    for (const arg of argNodes) {
+        if (arg?.fn !== "SPREAD") {
+            values.push(await evaluateAsyncInternal(arg, context, registry, systemContext, state));
+            continue;
+        }
+        let spread = await evaluateAsyncInternal(arg.args[0], context, registry, systemContext, state);
+        if (isLazySequence(spread)) spread = materializeLazySequence(spread);
+        if (!spread || !["tuple", "sequence", "array", "set"].includes(spread.type)) {
+            throw new Error("Spread operator requires an iterable collection (array, tuple, sequence, set)");
+        }
+        values.push(...(spread.values || spread.elements || []));
+    }
+    return values;
+}
+
 async function bindAsyncCallScope(params, callArgs, context, registry, systemContext, state) {
     const scope = new Map();
     const positional = params?.positional || [];
@@ -1301,7 +1379,7 @@ async function bindAsyncCallScope(params, callArgs, context, registry, systemCon
         const missing = index >= callArgs.length || isHole(callArgs[index]);
         const value = missing && param.holeDefault
             ? await evaluateAsyncInternal(param.holeDefault, context, registry, systemContext, state)
-            : missing ? null : callArgs[index];
+            : missing ? HOLE : callArgs[index];
         scope.set(param.name, value);
     }
     if (hasRest) {
@@ -1311,6 +1389,63 @@ async function bindAsyncCallScope(params, callArgs, context, registry, systemCon
         });
     }
     return scope;
+}
+
+function asyncPrepFailureError(fn, entryIndex) {
+    const label = fn?.name || "<lambda>";
+    return new Error(`${label} prep failed at entry ${entryIndex + 1}`);
+}
+
+function asyncPrepUndecidedError(fn, entryIndex, undecided = UNDECIDED) {
+    const label = fn?.name || "<lambda>";
+    const error = new Error(`${label} prep remained undecided at entry ${entryIndex + 1}`);
+    error.undecided = undecided;
+    return error;
+}
+
+async function runCallablePrepAsync(fn, context, registry, systemContext, state) {
+    const conditionals = Array.isArray(fn?.params?.conditionals) ? fn.params.conditionals : [];
+    const prep = Array.isArray(fn?.params?.prep) ? fn.params.prep : [];
+    const entries = [...conditionals, ...prep];
+    if (entries.length === 0) return { ok: true };
+
+    const strict = fn?.params?.prepStrict === true;
+    const undecidedMode = fn?.params?.prepUndecided || "stop";
+    for (let index = 0; index < entries.length; index++) {
+        try {
+            const value = await evaluateAsyncInternal(
+                entries[index],
+                context,
+                registry,
+                systemContext,
+                state,
+            );
+            const prepState = decisionState(value);
+            if (prepState === "undecided") {
+                if (undecidedMode === "throw") throw asyncPrepUndecidedError(fn, index, value);
+                return {
+                    ok: false,
+                    undecided: true,
+                    value,
+                    fallthrough: undecidedMode === "fallthrough",
+                };
+            }
+            if (prepState === "null") {
+                if (strict) throw asyncPrepFailureError(fn, index);
+                return { ok: false };
+            }
+        } catch (error) {
+            if (error?.message?.includes("prep remained undecided")) throw error;
+            if (strict) throw error;
+            return { ok: false };
+        }
+    }
+    return { ok: true };
+}
+
+function traceAsyncCallEvent(context, entry) {
+    const trace = context.getEnv("__trace_context__");
+    if (trace?.active) trace.log.push(entry);
 }
 
 function createCallableAsyncState(fn, callerState, context) {
@@ -1346,71 +1481,224 @@ function createCallableAsyncState(fn, callerState, context) {
     };
 }
 
-async function invokeUserCallableAsync(fn, callArgs, context, registry, systemContext, state) {
+async function invokeUserCallableAsync(fn, callArgs, context, registry, systemContext, state, options = {}) {
     const callableAsync = createCallableAsyncState(fn, state, context);
     const callableState = callableAsync.state;
+    const callName = options.callName ?? fn.name ?? null;
+    const shareBody = options.shareBody !== false;
+    const parentCallable = options.parentCallable ?? fn.__parentMultifunction ?? null;
+    const returnPrepStatus = options.returnPrepStatus === true;
     const closureScopes = Array.isArray(fn.__closureScopes) ? fn.__closureScopes : [];
+    const trace = context.getEnv("__trace_context__");
+    const restoredEnv = new Map();
     let pushed = 0;
-    for (const closure of closureScopes) {
-        context.push(closure instanceof Map ? closure : closure.bindings, {
-            scopedEnv: closure.scopedEnv,
-            isolated: closure.isolated === true,
-            readThrough: closure.readThrough === true,
-            callableBoundary: closure.callableBoundary === true,
-            snapshot: !!state?.admission,
-            readOnly: !!state?.admission,
-        });
-        pushed++;
-    }
-    context.push(await bindAsyncCallScope(fn.params, callArgs, context, registry, systemContext, callableState));
-    if (fn.name) context.pushCall(fn.name);
-    context.pushCurrentCallable(fn, fn.__parentMultifunction ?? null);
+    let scopeActive = false;
+    let callActive = false;
+    let traceActive = false;
+    let primaryError = null;
+    let schedulerCleanupError = null;
+
+    const traceEnter = (args) => {
+        if (!trace?.active || trace.currentDepth >= trace.depth) return false;
+        trace.log.push({ event: "enter", fn: callName || "<lambda>", depth: trace.currentDepth, args });
+        trace.currentDepth += 1;
+        return true;
+    };
+    const traceExit = (value, threw = false) => {
+        if (!traceActive || !trace) return;
+        trace.currentDepth -= 1;
+        if (!threw) trace.log.push({ event: "exit", fn: callName || "<lambda>", depth: trace.currentDepth, value });
+    };
+
     try {
-        const prepEntries = [
-            ...(fn.params?.conditionals || []),
-            ...(fn.params?.prep || []),
-        ];
-        for (let prepIndex = 0; prepIndex < prepEntries.length; prepIndex++) {
-            const prep = prepEntries[prepIndex];
-            try {
-                const passed = await evaluateAsyncInternal(prep, context, registry, systemContext, callableState);
-                const state = decisionState(passed);
-                if (state === "undecided") {
-                    if (fn.params?.prepUndecided === "throw") {
-                        const error = new Error(`${fn.name || "<lambda>"} prep remained undecided at entry ${prepIndex + 1}`);
-                        error.undecided = passed;
-                        throw error;
-                    }
-                    return passed;
-                }
-                if (state === "null") return null;
-            } catch (error) {
-                if (error?.message?.includes("prep remained undecided")) throw error;
-                if (fn.params?.prepStrict === true) throw error;
-                return null;
+        if (fn.__rixCapturedEnv && context?.setEnv) {
+            for (const [key, value] of fn.__rixCapturedEnv) {
+                restoredEnv.set(key, {
+                    has: context.env?.has(key) === true,
+                    value: context.getEnv(key, undefined),
+                });
+                context.setEnv(key, value);
             }
         }
-        return await context.withSharedBodyAsync(fn.body, () =>
-            evaluateAsyncInternal(fn.body, context, registry, systemContext, callableState));
+        traceActive = traceEnter(callArgs);
+        for (const closure of closureScopes) {
+            context.push(closure instanceof Map ? closure : closure.bindings, {
+                scopedEnv: closure.scopedEnv,
+                isolated: closure.isolated === true,
+                readThrough: closure.readThrough === true,
+                callableBoundary: closure.callableBoundary === true,
+                snapshot: !!state?.admission,
+                readOnly: !!state?.admission,
+            });
+            pushed++;
+        }
+        context.push(await bindAsyncCallScope(fn.params, callArgs, context, registry, systemContext, callableState));
+        scopeActive = true;
+        if (callName) {
+            context.pushCall(callName);
+            callActive = true;
+        }
+
+        while (true) {
+            const prepResult = await runCallablePrepAsync(
+                fn,
+                context,
+                registry,
+                systemContext,
+                callableState,
+            );
+            if (!prepResult.ok) {
+                const value = prepResult.undecided ? prepResult.value ?? UNDECIDED : null;
+                traceExit(value);
+                traceActive = false;
+                return returnPrepStatus
+                    ? {
+                        matched: prepResult.undecided === true && prepResult.fallthrough !== true,
+                        value,
+                        unresolved: prepResult.undecided === true,
+                    }
+                    : value;
+            }
+
+            let result;
+            context.pushCurrentCallable(fn, parentCallable);
+            try {
+                result = shareBody
+                    ? await context.withSharedBodyAsync(fn.body, () =>
+                        evaluateAsyncInternal(fn.body, context, registry, systemContext, callableState))
+                    : await evaluateAsyncInternal(fn.body, context, registry, systemContext, callableState);
+            } finally {
+                context.popCurrentCallable();
+            }
+            if (!isTailSelfCall(result)) {
+                traceExit(result);
+                traceActive = false;
+                return returnPrepStatus ? { matched: true, value: result } : result;
+            }
+
+            traceExit(result.args);
+            traceActive = traceEnter(result.args);
+
+            context.pop();
+            scopeActive = false;
+            context.push(await bindAsyncCallScope(
+                fn.params,
+                result.args,
+                context,
+                registry,
+                systemContext,
+                callableState,
+            ));
+            scopeActive = true;
+        }
     } catch (error) {
+        primaryError = error;
         if (callableAsync.ownsScheduler) {
             callableState.scheduler.cancelGroup(callableState.group, error);
         }
         throw error;
     } finally {
         if (callableAsync.ownsScheduler) {
-            await callableState.scheduler.waitForIdle(callableState.group);
-            callableState.scheduler.closeGroup(callableState.group);
+            try {
+                await callableState.scheduler.waitForIdle(callableState.group);
+            } catch (error) {
+                schedulerCleanupError = error;
+            } finally {
+                callableState.scheduler.closeGroup(callableState.group);
+            }
         }
-        context.popCurrentCallable();
-        if (fn.name) context.popCall();
-        context.pop();
+        for (const [key, entry] of restoredEnv) {
+            if (entry.has) context.setEnv(key, entry.value);
+            else context.env?.delete(key);
+        }
+        if (traceActive && trace) trace.currentDepth -= 1;
+        if (callActive) context.popCall();
+        if (scopeActive) context.pop();
         while (pushed-- > 0) context.pop();
+        if (schedulerCleanupError) {
+            if (primaryError) {
+                const existing = Array.isArray(primaryError.suppressed) ? primaryError.suppressed : [];
+                primaryError.suppressed = [...existing, schedulerCleanupError];
+            } else {
+                throw schedulerCleanupError;
+            }
+        }
     }
+}
+
+async function invokeMultifunctionAsync(multifunction, callArgs, context, registry, systemContext, state, options = {}) {
+    const ownerName = options.callName ?? multifunction.__name ?? null;
+    const namedOnly = options.namedOnly ?? null;
+    rebuildMultifunctionState(multifunction);
+
+    const variants = namedOnly ? [namedOnly] : multifunction.values;
+    let unresolved = null;
+    for (let index = 0; index < variants.length; index++) {
+        const variant = variants[index];
+        if (!variant || (variant.type !== "function" && variant.type !== "lambda")) {
+            const displayIndex = namedOnly ? variant?.__name || "named" : `${index + 1}`;
+            throw new Error(`Multifunction variant ${displayIndex} is not a function`);
+        }
+
+        const actualIndex = namedOnly ? multifunction.values.indexOf(variant) : index;
+        const variantName = variant.__name ?? null;
+        traceAsyncCallEvent(context, {
+            event: "variant",
+            fn: ownerName || "<multifunction>",
+            depth: context.getEnv("__trace_context__")?.currentDepth ?? 0,
+            variantIndex: actualIndex + 1,
+            variantName,
+        });
+
+        const prepEntries =
+            (Array.isArray(variant?.params?.conditionals) ? variant.params.conditionals.length : 0) +
+            (Array.isArray(variant?.params?.prep) ? variant.params.prep.length : 0);
+        if (!namedOnly && prepEntries === 0 && actualIndex < multifunction.values.length - 1 && shouldWarnNoPrep(context)) {
+            emitNoPrepWarning(context, ownerName, actualIndex, variantName);
+        }
+
+        const result = await invokeUserCallableAsync(
+            variant,
+            callArgs,
+            context,
+            registry,
+            systemContext,
+            state,
+            {
+                callName: ownerName,
+                parentCallable: multifunction,
+                returnPrepStatus: true,
+            },
+        );
+        if (!result.matched) {
+            if (result.unresolved) unresolved = result.value;
+            traceAsyncCallEvent(context, {
+                event: "prep_fail",
+                fn: ownerName || "<multifunction>",
+                depth: context.getEnv("__trace_context__")?.currentDepth ?? 0,
+                variantIndex: actualIndex + 1,
+                variantName,
+            });
+            continue;
+        }
+
+        traceAsyncCallEvent(context, {
+            event: "variant_selected",
+            fn: ownerName || "<multifunction>",
+            depth: context.getEnv("__trace_context__")?.currentDepth ?? 0,
+            variantIndex: actualIndex + 1,
+            variantName,
+        });
+        return result.value;
+    }
+    return unresolved ?? null;
 }
 
 async function invokeCallableAsync(fn, callArgs, context, registry, systemContext, state) {
     if (!fn) throw new Error("Cannot call null/undefined");
+    if (isReactiveNode(fn)) {
+        return invokeCallableAsync(fn.peek(), callArgs, context, registry, systemContext, state);
+    }
     if (fn.type === "arityCap") {
         return invokeCallableAsync(fn.fn, callArgs.slice(0, fn.cap), context, registry, systemContext, state);
     }
@@ -1433,25 +1721,407 @@ async function invokeCallableAsync(fn, callArgs, context, registry, systemContex
     if (fn.type === "function" || fn.type === "lambda") {
         return invokeUserCallableAsync(fn, callArgs, context, registry, systemContext, state);
     }
+    if (isSymbolicSpec(fn)) return applySymbolicSpec(fn, callArgs);
+    if (isUnitValue(fn)) {
+        if (callArgs.length !== 1) throw new Error("A unit constructor expects exactly one scalar argument");
+        return constructQuantity(callArgs[0], fn);
+    }
+    if (isExactValue(fn)) {
+        if (callArgs.length !== 1) throw new Error("An exact generator expects exactly one scalar argument");
+        return multiplyScalars(callArgs[0], fn);
+    }
+    if (isMultifunctionValue(fn)) {
+        return invokeMultifunctionAsync(fn, callArgs, context, registry, systemContext, state, {
+            callName: fn.__name,
+        });
+    }
     if (fn.type === "sysref") {
         if (systemContext?.has(fn.name)) {
             const capability = systemContext.get(fn.name);
             if (capability.kind !== "function") throw new Error(`System ${capability.kind} .${capability.displayName} is not callable`);
             return await capability.impl(callArgs, context, (node) =>
-                evaluateAsyncInternal(node, context, registry, systemContext, state), { signal: state?.signal ?? null });
+                evaluateAsyncInternal(node, context, registry, systemContext, state), {
+                promiseAware: true,
+                signal: state?.signal ?? null,
+            });
         }
         return evaluateAsyncInternal({ fn: fn.name, args: callArgs }, context, registry, systemContext, state);
     }
     if (typeof fn === "function") return await fn(...callArgs);
 
-    // Unit/exact constructors, symbolic specs, and multifunctions retain their
-    // existing concrete-call semantics. Their result may itself be awaitable.
+    // Remaining host callables retain their concrete-call semantics. Their
+    // result may itself be awaitable.
     return await callWithConcreteArgs(
         fn,
         callArgs,
         context,
         (node) => evaluate(node, context, registry, systemContext),
     );
+}
+
+/** Preserve the locator-aware callback contract used by the synchronous pipes.
+ * Partials consume only arguments addressed by placeholders so implicit
+ * locator/source values do not leak into variadic system functions.
+ */
+async function invokeTraversalCallbackAsync(fn, callArgs, context, registry, systemContext, state) {
+    if (fn && fn.type === "arityCap") {
+        return invokeTraversalCallbackAsync(
+            fn.fn,
+            callArgs.slice(0, fn.cap),
+            context,
+            registry,
+            systemContext,
+            state,
+        );
+    }
+    if (fn && fn.type === "partial") {
+        const maxIndex = fn.template.reduce(
+            (maximum, entry) => entry?.type === "placeholder"
+                ? Math.max(maximum, entry.index)
+                : maximum,
+            0,
+        );
+        return invokeCallableAsync(
+            fn,
+            callArgs.slice(0, maxIndex),
+            context,
+            registry,
+            systemContext,
+            state,
+        );
+    }
+    if (fn && fn.type === "method_lift") {
+        return invokeCallableAsync(fn, [callArgs[0]], context, registry, systemContext, state);
+    }
+    return invokeCallableAsync(fn, callArgs, context, registry, systemContext, state);
+}
+
+function asyncCapabilityString(value, label) {
+    const text = rixStringValue(value);
+    if (text === null) throw new Error(`${label} must be a string`);
+    return text;
+}
+
+function asyncDiagnosticString(value) {
+    return { type: "string", value: String(value) };
+}
+
+function asyncDiagnosticInteger(value) {
+    return new Integer(BigInt(value));
+}
+
+async function evaluateConcreteLazyCapabilityAsync(
+    capability,
+    args,
+    context,
+    registry,
+    systemContext,
+    state,
+) {
+    // Preserve the synchronous handlers' validation-before-evaluation order.
+    if (capability.impl === diagnosticFunctions.DUMP.impl && args.length !== 2) {
+        return capability.impl(args, context, (value) => value);
+    }
+    if (
+        capability.impl === diagnosticFunctions.INFOVALUE.impl
+        && args.length !== 2
+        && args.length !== 3
+    ) {
+        return capability.impl(args, context, (value) => value);
+    }
+    const values = [];
+    for (const arg of args) {
+        values.push(await evaluateAsyncInternal(arg, context, registry, systemContext, state));
+    }
+    return await capability.impl(values, context, (value) => value);
+}
+
+async function evaluateDefineCapabilityAsync(args, context, registry, systemContext, state) {
+    const name = coreString(
+        await evaluateAsyncInternal(args[0], context, registry, systemContext, state),
+        ".Define name",
+    );
+    const params = await evaluateAsyncInternal(args[1], context, registry, systemContext, state);
+    return await evaluateAsyncInternal(
+        { fn: "FUNCDEF", args: [name, params, args[2]] },
+        context,
+        registry,
+        systemContext,
+        state,
+    );
+}
+
+async function evaluateTensorGeneratorCapabilityAsync(
+    args,
+    context,
+    registry,
+    systemContext,
+    state,
+) {
+    const shape = coerceShapeValue(
+        await evaluateAsyncInternal(args[0], context, registry, systemContext, state),
+    );
+    const callable = await evaluateAsyncInternal(
+        args[1], context, registry, systemContext, state,
+    );
+    const tensor = createTensor(shape);
+    const tuples = [];
+    forEachTensorCell(tensor, (_value, tuple) => tuples.push(tuple));
+    const filled = [];
+    for (const tuple of tuples) {
+        filled.push(await invokeCallableAsync(
+            callable,
+            [tensorIndexTuple(tuple)],
+            context,
+            registry,
+            systemContext,
+            state,
+        ));
+    }
+    return createTensor(shape, filled);
+}
+
+async function evaluateStopCapabilityAsync(args, context, registry, systemContext, state) {
+    const label = await evaluateAsyncInternal(args[0], context, registry, systemContext, state);
+    const condition = await evaluateAsyncInternal(args[1], context, registry, systemContext, state);
+    const values = [label, condition];
+    if (decisionState(condition) === "truth" && args.length >= 3) {
+        values.push(await evaluateAsyncInternal(
+            args[2], context, registry, systemContext, state,
+        ));
+    }
+    return diagnosticFunctions.STOP.impl(values, context, (value) => value);
+}
+
+async function evaluateMultiCapabilityAsync(args, context, registry, systemContext, state) {
+    let result = null;
+    for (const arg of args) {
+        result = await evaluateAsyncInternal(arg, context, registry, systemContext, state);
+    }
+    return result;
+}
+
+async function evaluateDebugCapabilityAsync(args, context, registry, systemContext, state) {
+    const label = asyncCapabilityString(
+        await evaluateAsyncInternal(args[0], context, registry, systemContext, state),
+        ".Debug label",
+    );
+    const exprNode = args[1];
+    const filePath = getCurrentFilePath(context);
+    const exprSource = irToText(exprNode);
+    const astRepr = irToText(exprNode, { pretty: true });
+
+    let finalValue;
+    try {
+        finalValue = await evaluateAsyncInternal(exprNode, context, registry, systemContext, state);
+    } catch (error) {
+        getDiagnostics(context).addEvent(createEvent({
+            kind: "debug",
+            label,
+            file: filePath,
+            data: {
+                type: "map",
+                entries: new Map([
+                    ["exprSource", asyncDiagnosticString(exprSource)],
+                    ["ast", asyncDiagnosticString(astRepr)],
+                    ["error", asyncDiagnosticString(error?.message ?? error)],
+                ]),
+            },
+        }));
+        throw error;
+    }
+
+    getDiagnostics(context).addEvent(createEvent({
+        kind: "debug",
+        label,
+        file: filePath,
+        data: {
+            type: "map",
+            entries: new Map([
+                ["exprSource", asyncDiagnosticString(exprSource)],
+                ["ast", asyncDiagnosticString(astRepr)],
+                ["final", finalValue],
+            ]),
+        },
+    }));
+    return finalValue;
+}
+
+function recordAsyncTraceEvent(context, label, filePath, depth, trackedVars, traceLog, finalValue) {
+    const calls = traceLog.map((entry) => {
+        const values = new Map([["event", asyncDiagnosticString(entry.event)]]);
+        if (entry.fn) values.set("fn", asyncDiagnosticString(entry.fn));
+        if (entry.scope) values.set("scope", asyncDiagnosticString(entry.scope));
+        if (entry.depth !== undefined) values.set("depth", asyncDiagnosticInteger(entry.depth));
+        if (entry.args) values.set("args", { type: "sequence", values: entry.args });
+        if (entry.value !== undefined) values.set("value", entry.value);
+        if (entry.var) values.set("var", asyncDiagnosticString(entry.var));
+        if (entry.old !== undefined) values.set("old", entry.old);
+        if (entry.new !== undefined) values.set("new", entry.new);
+        if (entry.variantIndex !== undefined) {
+            values.set("variantIndex", asyncDiagnosticInteger(entry.variantIndex));
+        }
+        if (entry.variantName) values.set("variantName", asyncDiagnosticString(entry.variantName));
+        return { type: "map", entries: values };
+    });
+    getDiagnostics(context).addEvent(createEvent({
+        kind: "trace",
+        label,
+        file: filePath,
+        data: {
+            type: "map",
+            entries: new Map([
+                ["depth", asyncDiagnosticInteger(depth)],
+                ["trackedVars", {
+                    type: "sequence",
+                    values: trackedVars.map(asyncDiagnosticString),
+                }],
+                ["calls", { type: "sequence", values: calls }],
+                ["final", finalValue],
+            ]),
+        },
+    }));
+}
+
+async function evaluateTraceCapabilityAsync(args, context, registry, systemContext, state) {
+    const label = asyncCapabilityString(
+        await evaluateAsyncInternal(args[0], context, registry, systemContext, state),
+        ".Trace label",
+    );
+    const depth = rixIntValue(
+        await evaluateAsyncInternal(args[1], context, registry, systemContext, state),
+    );
+    if (depth === null || depth < 0 || !Number.isInteger(depth)) {
+        throw new Error(".Trace depth must be a non-negative integer");
+    }
+
+    let trackedVars = [];
+    let callableNode;
+    if (args.length >= 4) {
+        const varsValue = await evaluateAsyncInternal(args[2], context, registry, systemContext, state);
+        if (isRixArray(varsValue)) {
+            trackedVars = varsValue.values.map((value) => {
+                const text = rixStringValue(value);
+                if (text === null) throw new Error(".Trace trackedVars must be an array of strings");
+                return text;
+            });
+        } else if (varsValue !== null) {
+            throw new Error(".Trace trackedVars must be an array of strings");
+        }
+        callableNode = args[3];
+    } else {
+        callableNode = args[2];
+    }
+
+    const filePath = getCurrentFilePath(context);
+    const traceLog = [];
+    const traceContext = {
+        depth,
+        trackedVars: new Set(trackedVars),
+        currentDepth: 0,
+        log: traceLog,
+        active: true,
+    };
+    const previousTrace = context.getEnv("__trace_context__");
+    context.setEnv("__trace_context__", traceContext);
+
+    let finalValue;
+    try {
+        const callable = await evaluateAsyncInternal(
+            callableNode,
+            context,
+            registry,
+            systemContext,
+            state,
+        );
+        if (callable && (callable.type === "function" || callable.type === "lambda")) {
+            finalValue = await invokeCallableAsync(
+                callable,
+                [],
+                context,
+                registry,
+                systemContext,
+                state,
+            );
+        } else if (typeof callable === "function") {
+            finalValue = await callable();
+        } else {
+            finalValue = callable;
+        }
+    } finally {
+        traceContext.active = false;
+        context.setEnv("__trace_context__", previousTrace || null);
+    }
+
+    recordAsyncTraceEvent(context, label, filePath, depth, trackedVars, traceLog, finalValue);
+    return finalValue;
+}
+
+async function evaluateEvalCapabilityAsync(args, context, registry, systemContext, state) {
+    if (args.length === 0) throw new Error("Eval expects at least 1 argument");
+
+    const astValue = await evaluateAsyncInternal(args[0], context, registry, systemContext, state);
+    let evalNodes;
+    if (astValue && typeof astValue === "object" && astValue.fn === "DEFER") {
+        evalNodes = [astValue.args[0]];
+    } else if (astValue && typeof astValue === "object" && astValue.type === "string") {
+        const runtime = context.getEnv("__script_runtime__");
+        try {
+            evalNodes = lower(parse(tokenize(astValue.value), runtime?.systemLookup));
+        } catch (error) {
+            throw new Error(`Eval string parse error: ${error.message}`);
+        }
+    } else {
+        throw new Error("Eval expects a deferred AST value or a string of RiX code");
+    }
+
+    const bindings = args.length >= 2
+        ? await evaluateAsyncInternal(args[1], context, registry, systemContext, state)
+        : null;
+    const modeValue = args.length >= 3
+        ? await evaluateAsyncInternal(args[2], context, registry, systemContext, state)
+        : null;
+    let mode = "inherit";
+    if (modeValue?.type === "string") mode = modeValue.value;
+    else if (modeValue !== null && modeValue !== undefined) {
+        throw new Error("Eval mode must be a string or colon-string like :fresh or :inherit");
+    }
+    if (mode !== "inherit" && mode !== "fresh") {
+        throw new Error(`Eval mode must be 'inherit' or 'fresh', got '${mode}'`);
+    }
+    if (bindings !== null && bindings !== undefined && bindings.type !== "map") {
+        throw new Error("Eval bindings must be a map or null");
+    }
+
+    const runBody = async () => {
+        let result = null;
+        for (const node of evalNodes) {
+            result = await evaluateAsyncInternal(node, context, registry, systemContext, state);
+        }
+        return result;
+    };
+    const runSharedBody = () => evalNodes.length === 1
+        ? context.withSharedBodyAsync(evalNodes[0], runBody)
+        : runBody();
+
+    if (mode === "inherit" && (!bindings || bindings.entries.size === 0)) {
+        return await runSharedBody();
+    }
+
+    context.push(undefined, { isolated: mode === "fresh" });
+    try {
+        if (bindings?.entries) {
+            for (const [key, value] of bindings.entries) {
+                if (typeof key !== "string") {
+                    throw new Error(`Eval binding key must be string, got ${String(key)}`);
+                }
+                context.setFresh(key, value);
+            }
+        }
+        return await runSharedBody();
+    } finally {
+        context.pop();
+    }
 }
 
 function withAsyncItemFinalizers(context, callback) {
@@ -1581,7 +2251,7 @@ async function consumeAsyncStreamStructured(stream, terminal, context, registry,
             if (raw.done) return { done: true, index };
             const processed = await processAsyncStreamItem(stream, raw, {
                 signal: group.signal,
-                invoke: (callable, args) => invokeCallableAsync(
+                invoke: (callable, args) => invokeTraversalCallbackAsync(
                     callable,
                     args,
                     itemContext,
@@ -1597,7 +2267,7 @@ async function consumeAsyncStreamStructured(stream, terminal, context, registry,
             for (const value of processed.values) {
                 let terminalValue = null;
                 if (terminal.kind === "forEach") {
-                    terminalValue = await invokeCallableAsync(
+                    terminalValue = await invokeTraversalCallbackAsync(
                         terminal.callable,
                         [value, new Integer(BigInt(raw.sourceIndex)), stream._stream.callbackSource ?? stream],
                         itemContext,
@@ -1606,7 +2276,7 @@ async function consumeAsyncStreamStructured(stream, terminal, context, registry,
                         itemState,
                     );
                 } else if (terminal.kind === "find" || terminal.kind === "all") {
-                    terminalValue = await invokeCallableAsync(
+                    terminalValue = await invokeTraversalCallbackAsync(
                         terminal.callable,
                         [value, new Integer(BigInt(raw.sourceIndex)), stream._stream.callbackSource ?? stream],
                         itemContext,
@@ -1659,7 +2329,7 @@ async function consumeAsyncStreamStructured(stream, terminal, context, registry,
                 outputIndex++;
                 if (terminal.kind === "collect") collected.push(entry.value);
                 else if (terminal.kind === "reduce") {
-                    accumulator = await invokeCallableAsync(
+                    accumulator = await invokeTraversalCallbackAsync(
                         terminal.callable,
                         [accumulator, entry.value, new Integer(BigInt(outputIndex)), stream._stream.callbackSource ?? stream],
                         context,
@@ -1729,6 +2399,7 @@ async function consumeAsyncStreamStructured(stream, terminal, context, registry,
 
 function createAsyncMethodExecution(context, registry, systemContext, state) {
     return {
+        promiseAware: true,
         signal: state?.signal ?? null,
         invoke: (callable, args) => invokeCallableAsync(
             callable,
@@ -1745,7 +2416,7 @@ function createAsyncMethodExecution(context, registry, systemContext, state) {
                 }
                 return await consumeAsyncStreamSequential(stream, terminal, {
                     signal: state?.signal ?? null,
-                    invoke: (callable, args) => invokeCallableAsync(
+                    invoke: (callable, args) => invokeTraversalCallbackAsync(
                         callable,
                         args,
                         context,
@@ -1876,7 +2547,7 @@ async function evaluateAsyncCollectionBody(irNode, context, registry, systemCont
                 };
                 // Nested constructors are structural: their leaves acquire the
                 // permits, not this map-entry wrapper.
-                return containsNestedAsyncCollection(value)
+                return state.parallelCollections === false || containsNestedAsyncCollection(value)
                     ? resolveEntry()
                     : state.scheduler.run((admission) =>
                         withAsyncItemFinalizers(itemContext, () => resolveEntry(admission)), state.group, {
@@ -2047,7 +2718,7 @@ async function runAsyncPipeStages(value, index, key, collection, stages, callabl
             current = result;
             continue;
         }
-        const result = await invokeCallableAsync(
+        const result = await invokeTraversalCallbackAsync(
             callables[stageIndex],
             [current, locator, collection],
             context,
@@ -2384,7 +3055,7 @@ async function evaluateAsyncReduce(args, context, registry, systemContext, state
     const start = initProvided ? 0 : 1;
     for (let index = start; index < items.length; index++) {
         const item = items[index];
-        accumulator = await invokeCallableAsync(
+        accumulator = await invokeTraversalCallbackAsync(
             callable,
             [accumulator, item.value, item.locator, collection],
             context,
@@ -2562,7 +3233,7 @@ async function evaluateAsyncSplit(args, context, registry, systemContext, state)
     let inSeparator = false;
     for (let index = 0; index < items.length; index++) {
         const locator = new Integer(BigInt(index + 1));
-        const separatorValue = await invokeCallableAsync(
+        const separatorValue = await invokeTraversalCallbackAsync(
             separator,
             [items[index], locator, collection],
             context,
@@ -2605,7 +3276,7 @@ async function evaluateAsyncChunk(args, context, registry, systemContext, state)
     for (let index = 0; index < items.length; index++) {
         const item = items[index];
         const locator = new Integer(BigInt(index + 1));
-        const boundaryValue = await invokeCallableAsync(
+        const boundaryValue = await invokeTraversalCallbackAsync(
             boundary,
             [item, locator, collection],
             context,
@@ -2719,6 +3390,154 @@ async function evaluateAsyncScope(args, context, registry, systemContext, parent
         : parentState;
     return withReleasedAsyncAdmission(releaseState, () =>
         evaluateAsyncScopeBody(args, context, registry, systemContext, parentState));
+}
+
+function readAsyncTemplateHole(source, start) {
+    if (!source.startsWith("@{", start)) return null;
+    let depth = 1;
+    let quote = null;
+    let index = start + 2;
+    for (; index < source.length && depth > 0; index += 1) {
+        const character = source[index];
+        if (quote) {
+            if (character === "\\") index += 1;
+            else if (character === quote) quote = null;
+            continue;
+        }
+        if (character === '"' || character === "'" || character === "`") quote = character;
+        else if (character === "{") depth += 1;
+        else if (character === "}") depth -= 1;
+    }
+    if (depth !== 0) throw new Error("Unclosed @{...} interpolation in template");
+    return { end: index, source: source.slice(start + 2, index - 1) };
+}
+
+async function evaluateOutputTemplateAsync(
+    definition,
+    args,
+    context,
+    registry,
+    systemContext,
+    state,
+) {
+    const body = args[0];
+    const resolved = new Map();
+    let rewritten = "";
+    for (let index = 0; index < body.length;) {
+        if (body.startsWith("@@{", index)) {
+            rewritten += "@@{";
+            index += 3;
+            continue;
+        }
+        if (!body.startsWith("@{", index)) {
+            rewritten += body[index];
+            index += 1;
+            continue;
+        }
+        const hole = readAsyncTemplateHole(body, index);
+        let value = null;
+        for (const node of lower(parse(hole.source))) {
+            value = await evaluateAsyncInternal(node, context, registry, systemContext, state);
+        }
+        const name = `rixasynctemplatevalue${resolved.size}`;
+        resolved.set(name, value);
+        rewritten += `@{${name}}`;
+        index = hole.end;
+    }
+
+    const evaluateResolved = (node) => {
+        if (node?.fn === "RETRIEVE" && resolved.has(node.args?.[0])) {
+            return resolved.get(node.args[0]);
+        }
+        return evaluate(node, context, registry, systemContext);
+    };
+    return definition.impl([rewritten], context, evaluateResolved, systemContext);
+}
+
+function isRawBasePrefixNode(node) {
+    return node?.fn === "LITERAL"
+        && typeof node.args?.[0] === "string"
+        && /^0[A-Za-z]$/.test(node.args[0]);
+}
+
+async function evaluateBaseLazyAsync(
+    fn,
+    definition,
+    args,
+    context,
+    registry,
+    systemContext,
+    state,
+) {
+    const resolved = new Map();
+    const resolve = async (node) => {
+        if (node === undefined || isRawBasePrefixNode(node)) return;
+        resolved.set(
+            node,
+            await evaluateAsyncInternal(node, context, registry, systemContext, state),
+        );
+    };
+
+    if (fn === "DEFINEBASE") {
+        await resolve(args[1]);
+    } else if (fn === "TOBASE") {
+        await resolve(args[0]);
+        await resolve(args[1]);
+        await resolve(args[2]);
+    } else if (fn === "CERTIFY_FORMAT") {
+        await resolve(args[0]);
+        await resolve(args[1]);
+    } else if (fn === "FROMBASE") {
+        await resolve(args[0]);
+        await resolve(args[1]);
+    }
+
+    return definition.impl(
+        args,
+        context,
+        (node) => resolved.has(node)
+            ? resolved.get(node)
+            : evaluate(node, context, registry, systemContext),
+        systemContext,
+    );
+}
+
+async function evaluateSelectedLazyOperandsAsync(
+    definition,
+    args,
+    operands,
+    context,
+    registry,
+    systemContext,
+    state,
+) {
+    const resolved = new Map();
+    for (const operand of operands) {
+        resolved.set(
+            operand,
+            await evaluateAsyncInternal(operand, context, registry, systemContext, state),
+        );
+    }
+    return await definition.impl(
+        args,
+        context,
+        (node) => resolved.has(node)
+            ? resolved.get(node)
+            : evaluate(node, context, registry, systemContext),
+        systemContext,
+    );
+}
+
+function bracketLazyOperands(args, { assignment = false } = {}) {
+    const specCount = args[1];
+    const operands = [args[0]];
+    if (assignment) operands.push(args[2 + specCount]);
+    for (const spec of args.slice(2, 2 + specCount)) {
+        if (spec?.fn === "FULL_SLICE") continue;
+        if (spec?.fn === "SLICE_SPEC") operands.push(spec.args[0], spec.args[1]);
+        else operands.push(spec);
+    }
+    return operands;
 }
 
 function startDetachedBlock(args, context, registry, systemContext, parentState) {
@@ -2983,6 +3802,29 @@ async function evaluateAsyncInternal(irNode, context, registry, systemContext, s
                 ? evaluateAsyncInternal(args[1], context, registry, systemContext, state)
                 : left;
         }
+        if (fn === "POSTFIX_CHECK_VALUE") {
+            return context.getEnv(POSTFIX_CHECK_VALUE_ENV, null);
+        }
+        if (fn === "POSTFIX_PREDICATE_CHECK") {
+            const value = await evaluateAsyncInternal(args[0], context, registry, systemContext, state);
+            const passed = await withPostfixCheckValueAsync(context, value, () =>
+                evaluateAsyncInternal(args[1], context, registry, systemContext, state));
+            if (passed === null || passed === undefined) {
+                throw new Error(`##@ check failed for ${formatCheckValue(value)}`);
+            }
+            return value;
+        }
+        if (fn === "POSTFIX_TYPE_CHECK") {
+            const value = await evaluateAsyncInternal(args[0], context, registry, systemContext, state);
+            checkPostfixType(
+                value,
+                args[1],
+                context,
+                registry,
+                (node) => evaluate(node, context, registry, systemContext),
+            );
+            return value;
+        }
         if (fn === "POSTFIX_FINALIZER") {
             const value = await evaluateAsyncInternal(args[0], context, registry, systemContext, state);
             const cleanup = await evaluateAsyncInternal(args[1], context, registry, systemContext, state);
@@ -3036,27 +3878,38 @@ async function evaluateAsyncInternal(irNode, context, registry, systemContext, s
         }
         if (fn === "ASYNC_SCOPE") return await evaluateAsyncScope(args, context, registry, systemContext, state);
         if (fn === "DETACH") return startDetachedBlock(args, context, registry, systemContext, state);
-        if (state && ASYNC_COLLECTION_FNS.has(fn)) {
-            return await evaluateAsyncCollection(irNode, context, registry, systemContext, state);
+        if (ASYNC_COLLECTION_FNS.has(fn)) {
+            const collectionState = state || {
+                scheduler: null,
+                group: null,
+                signal: null,
+                limit: 1,
+                name: null,
+                parallelCollections: false,
+            };
+            return await evaluateAsyncCollection(irNode, context, registry, systemContext, collectionState);
         }
         if (ASYNC_PIPE_FNS.has(fn)) {
             return state
                 ? await evaluateAsyncPipe(irNode, context, registry, systemContext, state)
                 : await evaluateSequentialAsyncPipe(irNode, context, registry, systemContext, null);
         }
-        if (state && fn === "PREDUCE") {
+        if (fn === "PREDUCE" && registry.get(fn)?.impl === functionFunctions.PREDUCE.impl) {
             return await evaluateAsyncReduce(args, context, registry, systemContext, state);
         }
-        if (state && fn === "PSORT") {
+        if (fn === "PSORT" && registry.get(fn)?.impl === functionFunctions.PSORT.impl) {
             return await evaluateAsyncSort(args, context, registry, systemContext, state);
         }
-        if (state && ASYNC_RESOLVED_BARRIER_FNS.has(fn)) {
+        if (
+            ASYNC_RESOLVED_BARRIER_FNS.has(fn)
+            && registry.get(fn)?.impl === functionFunctions[fn]?.impl
+        ) {
             return await evaluateAsyncResolvedBarrier(irNode, context, registry, systemContext, state);
         }
-        if (state && fn === "PSPLIT") {
+        if (fn === "PSPLIT" && registry.get(fn)?.impl === functionFunctions.PSPLIT.impl) {
             return await evaluateAsyncSplit(args, context, registry, systemContext, state);
         }
-        if (state && fn === "PCHUNK") {
+        if (fn === "PCHUNK" && registry.get(fn)?.impl === functionFunctions.PCHUNK.impl) {
             return await evaluateAsyncChunk(args, context, registry, systemContext, state);
         }
 
@@ -3067,11 +3920,114 @@ async function evaluateAsyncInternal(irNode, context, registry, systemContext, s
             const capability = systemContext?.get(name);
             if (!capability) throw new Error(`Unknown system capability: ${name}`);
             if (capability.kind !== "function") throw new Error(`System ${capability.kind} .${capability.displayName} is not callable`);
-            if (capability.lazy) return await capability.impl(args.slice(1), context, evalAsync, { signal: state?.signal ?? null });
+            const callArgNodes = args.slice(1);
+            if (callArgNodes.some(isPlaceholderNodeAsync)) {
+                const template = await evaluateCallArgsAsync(
+                    callArgNodes,
+                    context,
+                    registry,
+                    systemContext,
+                    state,
+                );
+                return { type: "partial", fn: { type: "sysref", name }, template };
+            }
+            if (capability.lazy && capability.impl === diagnosticFunctions.DEBUG.impl) {
+                return await evaluateDebugCapabilityAsync(
+                    callArgNodes, context, registry, systemContext, state,
+                );
+            }
+            if (capability.lazy && capability.impl === diagnosticFunctions.TRACE.impl) {
+                return await evaluateTraceCapabilityAsync(
+                    callArgNodes, context, registry, systemContext, state,
+                );
+            }
+            if (capability.lazy && capability.impl === coreFunctions.EVAL.impl) {
+                return await evaluateEvalCapabilityAsync(
+                    callArgNodes, context, registry, systemContext, state,
+                );
+            }
+            if (
+                capability.lazy
+                && [coreFunctions.TYPE_EXPORT.impl, coreFunctions.TYPE_IMPORT.impl]
+                    .includes(capability.impl)
+            ) {
+                return await evaluateSelectedLazyOperandsAsync(
+                    capability,
+                    callArgNodes,
+                    [callArgNodes[0]],
+                    context,
+                    registry,
+                    systemContext,
+                    state,
+                );
+            }
+            if (capability.lazy && capability.impl === defineCapability) {
+                return await evaluateDefineCapabilityAsync(
+                    callArgNodes, context, registry, systemContext, state,
+                );
+            }
+            if (capability.lazy && capability.impl === stdlibFunctions.TGEN.impl) {
+                return await evaluateTensorGeneratorCapabilityAsync(
+                    callArgNodes, context, registry, systemContext, state,
+                );
+            }
+            if (
+                capability.lazy
+                && (
+                    capability.impl === diagnosticFunctions.DUMP.impl
+                    || capability.impl === diagnosticFunctions.INFOVALUE.impl
+                )
+            ) {
+                return await evaluateConcreteLazyCapabilityAsync(
+                    capability, callArgNodes, context, registry, systemContext, state,
+                );
+            }
+            if (capability.lazy && capability.impl === diagnosticFunctions.STOP.impl) {
+                return await evaluateStopCapabilityAsync(
+                    callArgNodes, context, registry, systemContext, state,
+                );
+            }
+            if (capability.lazy && capability.impl === diagnosticFunctions.TEST.impl) {
+                return await runTestAsync(callArgNodes, context, evalAsync);
+            }
+            if (
+                capability.lazy
+                && (
+                    capability.impl === diagnosticFunctions.TESTERROR.impl
+                    || capability.impl === diagnosticFunctions.TESTSTOP.impl
+                )
+            ) {
+                return await runAbortTestAsync(
+                    capability.impl === diagnosticFunctions.TESTERROR.impl ? "error" : "stop",
+                    callArgNodes,
+                    context,
+                    evalAsync,
+                );
+            }
+            if (capability.lazy && capability.impl === stdlibFunctions.MULTI.impl) {
+                return await evaluateMultiCapabilityAsync(
+                    callArgNodes, context, registry, systemContext, state,
+                );
+            }
+            if (capability.lazy) return await capability.impl(callArgNodes, context, evalAsync, {
+                promiseAware: true,
+                signal: state?.signal ?? null,
+            });
             const values = [];
-            for (const arg of args.slice(1)) values.push(await evalAsync(arg));
+            for (const arg of callArgNodes) values.push(await evalAsync(arg));
             if (state?.signal?.aborted) throw state.signal.reason;
-            return await capability.impl(values, context, evalAsync, { signal: state?.signal ?? null });
+            // ReactiveGraph epochs are deliberately synchronous. The async
+            // entry point still awaits capability arguments, but constructors
+            // that retain a formula evaluator must not capture `evalAsync`:
+            // it would return a promise and unwind the graph's lexical scope
+            // before the formula body executes.
+            const capabilityEvaluate = SYNC_REACTIVE_FORMULA_CAPABILITY_IMPLS.has(capability.impl)
+                ? (node) => evaluate(node, context, registry, systemContext)
+                : evalAsync;
+            return await capability.impl(values, context, capabilityEvaluate, {
+                promiseAware: true,
+                signal: state?.signal ?? null,
+            });
         }
         if (["SYS_GET", "SYS_OBJ"].includes(fn)) return evaluate(irNode, context, registry, systemContext);
 
@@ -3158,23 +4114,60 @@ async function evaluateAsyncInternal(irNode, context, registry, systemContext, s
             return definition.impl([args[0], value, ...args.slice(2)], context, (node) => node);
         }
 
-        if (fn === "LAMBDA" || fn === "FUNCDEF" || fn === "MULTIFUNCDEF") {
-            return markLexicalAsyncCallable(
-                evaluate(irNode, context, registry, systemContext),
-                state,
-            );
+        if (fn === "LAMBDA" || fn === "FUNCDEF") {
+            return markLexicalAsyncCallable(evaluate(irNode, context, registry, systemContext), state);
+        }
+        if (fn === "MULTIFUNCDEF") {
+            const multifunction = evaluate(irNode, context, registry, systemContext);
+            const enabled = !!state?.scheduler && state.parallelCollections !== false;
+            const variant = multifunction.values.at(args[1] === "prepend" ? 0 : -1);
+            if (variant) variant.__parallelCollections = enabled;
+            return multifunction;
         }
         if (fn === "SYSREF") {
             return evaluate(irNode, context, registry, systemContext);
+        }
+        if (fn === "SELF" || fn === "PARENT_SELF") {
+            return registry.get(fn).impl(args, context, (node) => node);
+        }
+        if (fn === "TAIL_SELF") {
+            const currentCallable = context.getCurrentCallable();
+            if (currentCallable === undefined) {
+                throw new Error("Self reference '$' is only valid within a function body");
+            }
+            if (args.some(isPlaceholderNodeAsync)) {
+                const template = await evaluateCallArgsAsync(args, context, registry, systemContext, state);
+                return { type: "partial", fn: currentCallable, template };
+            }
+            return createTailSelfCall(
+                await evaluateCallArgsAsync(args, context, registry, systemContext, state),
+            );
         }
         if (fn === "CALL" || fn === "CALL_EXPR") {
             const callable = fn === "CALL"
                 ? context.getCallable(args[0])
                 : await evalAsync(args[0]);
+            const argNodes = args.slice(1);
+            if (argNodes.some(isPlaceholderNodeAsync)) {
+                const template = await evaluateCallArgsAsync(
+                    argNodes,
+                    context,
+                    registry,
+                    systemContext,
+                    state,
+                );
+                const partialCallable = callable || (fn === "CALL" ? { type: "sysref", name: args[0] } : null);
+                if (!partialCallable) throw new Error("Expression is not callable");
+                return { type: "partial", fn: partialCallable, template };
+            }
             if (!callable) throw new Error(`Undefined callable: ${args[0]}`);
-            const start = fn === "CALL" ? 1 : 1;
-            const callArgs = [];
-            for (const arg of args.slice(start)) callArgs.push(await evalAsync(arg));
+            const callArgs = await evaluateCallArgsAsync(
+                argNodes,
+                context,
+                registry,
+                systemContext,
+                state,
+            );
             return invokeCallableAsync(callable, callArgs, context, registry, systemContext, state);
         }
         if (fn === "PIPE") {
@@ -3204,9 +4197,95 @@ async function evaluateAsyncInternal(irNode, context, registry, systemContext, s
         const definition = registry.get(fn);
         if (!definition) return await evaluate(irNode, context, registry, systemContext);
         if (definition.lazy) {
+            if (definition.impl === propertyFunctions[fn]?.impl) {
+                let operands = null;
+                if (fn === "META_SET") operands = [args[0], args[2]];
+                else if (fn === "META_MERGE") operands = [args[0], args[1]];
+                else if (fn === "INDEX_SET") operands = [args[0], args[1], args[2]];
+                else if (fn === "BRACKET_GET") operands = bracketLazyOperands(args);
+                else if (fn === "BRACKET_SET") operands = bracketLazyOperands(args, { assignment: true });
+                if (operands) {
+                    return await evaluateSelectedLazyOperandsAsync(
+                        definition,
+                        args,
+                        operands,
+                        context,
+                        registry,
+                        systemContext,
+                        state,
+                    );
+                }
+            }
+            if (
+                [
+                    "VALUE_OUTFIT",
+                    "SEMANTIC_HAS",
+                    "SEMANTIC_CONVERT_SOFT",
+                    "SEMANTIC_CONVERT_STRICT",
+                    "TYPE_EXPORT",
+                    "TYPE_IMPORT",
+                ].includes(fn)
+                && definition.impl === coreFunctions[fn]?.impl
+            ) {
+                const operand = fn === "VALUE_OUTFIT" ? args[1] : args[0];
+                return await evaluateSelectedLazyOperandsAsync(
+                    definition,
+                    args,
+                    [operand],
+                    context,
+                    registry,
+                    systemContext,
+                    state,
+                );
+            }
+            if (fn === "MULTIFUNCTION" && definition.impl === functionFunctions.MULTIFUNCTION.impl) {
+                const result = await evaluateSelectedLazyOperandsAsync(
+                    definition,
+                    args,
+                    args,
+                    context,
+                    registry,
+                    systemContext,
+                    state,
+                );
+                return markLexicalAsyncCallable(result, state);
+            }
+            if (
+                (fn === "TEMPLATE_TEXT" || fn === "DOCUMENT_TEMPLATE")
+                && definition.impl === outputFunctions[fn]?.impl
+            ) {
+                return await evaluateOutputTemplateAsync(
+                    definition,
+                    args,
+                    context,
+                    registry,
+                    systemContext,
+                    state,
+                );
+            }
+            if (
+                ["DEFINEBASE", "TOBASE", "CERTIFY_FORMAT", "FROMBASE"].includes(fn)
+                && definition.impl === coreFunctions[fn]?.impl
+            ) {
+                return await evaluateBaseLazyAsync(
+                    fn,
+                    definition,
+                    args,
+                    context,
+                    registry,
+                    systemContext,
+                    state,
+                );
+            }
             // Lazy operations not requiring promise-aware control flow retain
             // their established evaluator. Async-specific forms are handled above.
-            return await definition.impl(args, context, (node) => evaluate(node, context, registry, systemContext), systemContext);
+            const result = await definition.impl(
+                args,
+                context,
+                (node) => evaluate(node, context, registry, systemContext),
+                systemContext,
+            );
+            return fn === "MULTIFUNCTION" ? markLexicalAsyncCallable(result, state) : result;
         }
 
         const evaluatedArgs = [];

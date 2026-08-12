@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { enhanceControlPanelViews } from "../../src/tools/control-panel-view.js";
+import { enhanceControlPanelViews, enhanceControlShortcuts } from "../../src/tools/control-panel-view.js";
 
 test("ControlPanel range changes emit semantic control:set records", () => {
     const listeners = new Map();
@@ -100,7 +100,7 @@ test("ControlPanel expression input emits source text only when committed", () =
         type: "control:set",
         targetId: "reactive:amount",
         sourceText: "7/9",
-        source: "text",
+        source: "expression",
     });
     expect(value.textContent).toBe("7/9");
     expect(status.textContent).toContain("amount set to 7/9");
@@ -147,6 +147,172 @@ test("ControlPanel Action button emits a semantic control:action record", () => 
         source: "action",
     });
     expect(status.textContent).toContain("Freeze quadratic set to 1 frozen curve");
+});
+
+test("ControlPanel Hold buttons emit pressed and released indices", () => {
+    const pressListeners = new Map();
+    const releaseListeners = new Map();
+    const press = {
+        value: "",
+        checked: false,
+        addEventListener(name, listener) { pressListeners.set(name, listener); },
+        getAttribute(name) { return name === "aria-label" ? "Decimal preview" : null; },
+    };
+    const release = {
+        addEventListener(name, listener) { releaseListeners.set(name, listener); },
+    };
+    const control = {
+        dataset: {
+            rixControlTarget: "reactive:preview",
+            rixControlKind: "hold",
+            rixControlId: "decimal-preview",
+        },
+        querySelector(selector) {
+            if (selector === "[data-rix-control-input]") return press;
+            if (selector === "[data-rix-control-hold-release]") return release;
+            return null;
+        },
+    };
+    const panel = {
+        dataset: {},
+        matches: (selector) => selector === ".rix-output-control-panel",
+        querySelector: () => null,
+        querySelectorAll: (selector) => selector === "[data-rix-control-target]" ? [control] : [],
+        dispatchEvent() {},
+    };
+    const received = [];
+    enhanceControlPanelViews(panel, {
+        onSet(detail) {
+            received.push(detail);
+            return { type: "result", text: detail.index === 1 ? "1" : "_", revision: received.length };
+        },
+    });
+
+    pressListeners.get("click")();
+    releaseListeners.get("click")();
+    expect(received).toEqual([
+        {
+            type: "control:set",
+            controlId: "decimal-preview",
+            targetId: "reactive:preview",
+            index: 1,
+            source: "hold-keydown",
+        },
+        {
+            type: "control:set",
+            controlId: "decimal-preview",
+            targetId: "reactive:preview",
+            index: 0,
+            source: "hold-keyup",
+        },
+    ]);
+});
+
+test("declarative holds commit once on keydown and release after rerender", () => {
+    const listeners = new Map();
+    let presses = 0;
+    let releases = 0;
+    const makeControl = () => ({
+        dataset: {
+            rixControlHold: "ArrowDown",
+            rixControlDisabled: "false",
+            rixControlReadOnly: "false",
+            rixControlId: "decimal-preview",
+            rixControlTarget: "reactive:preview",
+        },
+        closest() { return null; },
+        querySelector(selector) {
+            if (selector === "[data-rix-control-hold-press]") {
+                return { disabled: false, click() { presses += 1; } };
+            }
+            if (selector === "[data-rix-control-hold-release]") {
+                return { disabled: false, click() { releases += 1; } };
+            }
+            return null;
+        },
+    });
+    let currentControl = makeControl();
+    const document = {
+        activeElement: null,
+        addEventListener(name, listener) { listeners.set(name, listener); },
+        removeEventListener(name) { listeners.delete(name); },
+    };
+    const root = {
+        ownerDocument: document,
+        querySelectorAll(selector) {
+            return selector === "[data-rix-control-hold]" ? [currentControl] : [];
+        },
+    };
+    const dispose = enhanceControlShortcuts(root);
+    const event = {
+        key: "ArrowDown",
+        target: { tagName: "BODY" },
+        preventDefault() {},
+    };
+
+    listeners.get("keydown")(event);
+    listeners.get("keydown")({ ...event, repeat: true });
+    expect(presses).toBe(1);
+    currentControl = makeControl();
+    listeners.get("keyup")(event);
+    expect(releases).toBe(1);
+
+    listeners.get("keydown")({ ...event, target: { tagName: "INPUT" } });
+    expect(presses).toBe(1);
+    dispose();
+    expect(listeners.has("keyup")).toBe(false);
+});
+
+test("declarative shortcuts click matching actions but leave editable fields alone", () => {
+    const listeners = new Map();
+    let clicks = 0;
+    const button = { disabled: false, click() { clicks += 1; } };
+    const control = {
+        dataset: {
+            rixControlShortcut: "ArrowLeft",
+            rixControlDisabled: "false",
+            rixControlReadOnly: "false",
+        },
+        closest() { return null; },
+        querySelector(selector) { return selector === "[data-rix-control-input]" ? button : null; },
+    };
+    const document = {
+        activeElement: null,
+        addEventListener(name, listener) { listeners.set(name, listener); },
+        removeEventListener(name) { listeners.delete(name); },
+    };
+    const root = {
+        ownerDocument: document,
+        querySelectorAll(selector) { return selector === "[data-rix-control-shortcut]" ? [control] : []; },
+    };
+    const dispose = enhanceControlShortcuts(root);
+    let prevented = false;
+    listeners.get("keydown")({
+        key: "ArrowLeft",
+        target: { tagName: "BODY" },
+        preventDefault() { prevented = true; },
+    });
+    expect(clicks).toBe(1);
+    expect(prevented).toBe(true);
+
+    listeners.get("keydown")({ key: "ArrowLeft", target: { tagName: "INPUT" } });
+    listeners.get("keydown")({ key: "ArrowDown", target: { tagName: "BODY" } });
+    expect(clicks).toBe(1);
+
+    const secondControl = {
+        ...control,
+        querySelector() { return { disabled: false, click() { clicks += 10; } }; },
+    };
+    const secondRoot = {
+        ownerDocument: document,
+        querySelectorAll() { return [secondControl]; },
+    };
+    const disposeSecond = enhanceControlShortcuts(secondRoot);
+    listeners.get("keydown")({ key: "ArrowLeft", target: { tagName: "BODY" } });
+    expect(clicks).toBe(1);
+    disposeSecond();
+    dispose();
+    expect(listeners.has("keydown")).toBe(false);
 });
 
 test("ControlPanel interval range commits both exact-grid indices", () => {

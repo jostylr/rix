@@ -3,7 +3,10 @@ title: "Getting started"
 description: "Install RiX in the RatMath workspace, run the REPL, execute scripts, and embed the evaluator."
 ---
 
-RiX currently lives in the RatMath workspace and uses Bun. The package is an active alpha and is not yet presented as a stable registry release; the workspace is the supported way to run it today.
+RiX uses Bun. The package is an active alpha and is not yet presented as a
+stable registry release: the public npm name `rix` belongs to an unrelated
+project, and the current registry build of `@ratmath/core` does not export every
+API used by this RiX revision.
 
 ## Requirements
 
@@ -19,6 +22,10 @@ cd ratmath
 bun install
 bun --cwd rix test
 ```
+
+The standalone repository is laid out for `bun install` and `bun test`, but that
+path remains blocked until a compatible Core version is published and RiX raises
+its minimum dependency accordingly.
 
 The RiX test suite exercises tokenizer, parser, lowering, evaluator, runtime, CLI, examples, exact values, types, methods, tensors, generators, and diagnostics.
 
@@ -74,13 +81,13 @@ rix setup --plugins=float,renderers
 ```
 
 Plugin names and plugin groups are case-insensitive. `full` selects the
-standard first-party plugin set; `renderers` selects the SVG, Canvas-plan,
-TikZ, PNG, Markdown, HTML, Quarto, LaTeX, PDF, and glTF target plugins. `.draw`,
-`.plot`, `.scene3d`, and `.nd` are producers and remain in their own groups.
-RiX stores the selectors rather than expanding groups permanently, so
-new standard plugins or group members can join later releases. The proposed
-`oracle` package remains specification-only and cannot be selected until it has
-an executable plugin manifest.
+standard first-party plugin set; `renderers` selects Terminal ASCII, SVG,
+Canvas-plan, TikZ, PNG, Markdown, HTML, Quarto, LaTeX, PDF, GIF, glTF, and CSV.
+`.draw`, `.plot`, `.scene3d`, and `.nd` are producers and remain in their own
+groups. RiX stores the selectors rather than expanding groups permanently, so
+new standard plugins or group members can join later releases. Specialist
+plugins outside `full` remain available by ID; for example, `--plugin=oracle`
+loads the implemented exact Oracle plugin.
 
 `rix setup` also creates `cli-preamble.rix` in the configuration directory. Its
 leading YAML comment can request more plugins or operator files, and its RiX

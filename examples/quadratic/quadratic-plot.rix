@@ -2,7 +2,7 @@
 ## Run this file directly after the exact arithmetic example has been moved to
 ## a host with the Plot capability enabled.
 
-report := <"rix/examples/quadratic/quadratic">;
+report := <"examples/quadratic/quadratic">;
 .Plugin.Load("plot");
 
 center := report["center"];

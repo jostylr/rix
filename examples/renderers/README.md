@@ -25,8 +25,9 @@ external programs. PNG requires `rsvg-convert` or ImageMagick's `magick`.
 PDF requires `pdflatex`. Quarto itself is only needed if you later build the
 emitted `.qmd` into another format.
 
-The source deliberately sends one `.Graphics.Graphic` to every implemented 2D
-renderer and embeds that same value in one portable document tree. It is also
+The source deliberately sends one `.Graphics.Graphic` to the common 2D
+renderers and embeds that same value in one portable document tree. It is also
 executed by `tests/cli/renderer-export.test.js` when the binary toolchains are
-installed. There is no pretend 3D export in this example: glTF/GLB and related
-targets will follow the retained `Scene3D` value model.
+installed. The sibling terminal, CSV/TSV, GIF, and tesseract examples cover the
+specialized input contracts; the tesseract fixture exports retained Scene3D as
+glTF.

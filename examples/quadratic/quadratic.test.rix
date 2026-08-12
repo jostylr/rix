@@ -1,4 +1,4 @@
-report := <"rix/examples/quadratic/quadratic">;
+report := <"examples/quadratic/quadratic">;
 
 .Test("quadratic rebasing", {; }, {=
     centered_value = {;

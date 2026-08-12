@@ -988,7 +988,7 @@ describe("RiX Evaluator", () => {
             expect(result.value).toBe(120n);
         });
 
-        test.skip("deep tail self recursion can run without proportional stack growth", () => {
+        test("deep tail self recursion can run without proportional stack growth", () => {
             const result = evalRix("Loop = (n, acc ?= 0) -> n > 0 ?: $(n - 1, acc + 1) ?_ acc; Loop(20000);");
             expect(result).toBeInstanceOf(Integer);
             expect(result.value).toBe(20000n);

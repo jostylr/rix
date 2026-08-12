@@ -176,132 +176,205 @@ export function shallowCopyValue(value) {
 }
 
 /**
- * Deep-copy a RiX value. Recursively copies nested collections.
+ * Deep-copy a RiX value. Recursively copies nested collections while
+ * preserving shared references and cycles within the copied value graph.
+ *
+ * @param {*} value
+ * @param {WeakMap<object, *>} [memo]
  */
-export function deepCopyValue(value) {
+export function deepCopyValue(value, memo = new WeakMap()) {
+    if (!(memo instanceof WeakMap)) memo = new WeakMap();
     if (value == null) return value;
     if (typeof value !== "object") return value;
-    if (value instanceof UndecidedDiagnostic) return value.copy();
+    if (memo.has(value)) return memo.get(value);
+    if (value instanceof UndecidedDiagnostic) {
+        const copy = value.copy();
+        memo.set(value, copy);
+        return copy;
+    }
     if (isUndecided(value)) return value;
-    if (value instanceof CertifiedApproximation) return value.copy();
-    if (value instanceof Integer) return new Integer(value.value);
-    if (value instanceof Rational) return new Rational(value.numerator, value.denominator);
+    if (value instanceof CertifiedApproximation) {
+        const copy = value.copy();
+        memo.set(value, copy);
+        return copy;
+    }
+    if (value instanceof Integer) {
+        const copy = new Integer(value.value);
+        memo.set(value, copy);
+        return copy;
+    }
+    if (value instanceof Rational) {
+        const copy = new Rational(value.numerator, value.denominator);
+        memo.set(value, copy);
+        return copy;
+    }
     if (value instanceof RationalInterval) {
-        return new RationalInterval(
+        const copy = new RationalInterval(
             new Rational(value.low.numerator, value.low.denominator),
             new Rational(value.high.numerator, value.high.denominator),
         );
+        memo.set(value, copy);
+        return copy;
     }
 
-    if (value.type === "string") return { type: "string", value: value.value };
+    if (value.type === "string") {
+        const copy = { type: "string", value: value.value };
+        memo.set(value, copy);
+        return copy;
+    }
     if (isLazySequence(value)) {
-        return cloneLazySequence(value, { restart: true, cloneValue: deepCopyValue });
+        const copy = cloneLazySequence(value, {
+            restart: true,
+            cloneValue: (child) => deepCopyValue(child, memo),
+        });
+        memo.set(value, copy);
+        return copy;
     }
     if (value.type === "iterator") {
-        return {
+        const copy = {
             type: "iterator",
-            source: deepCopyValue(value.source),
+            source: undefined,
             cursor: value.cursor,
-            _ext: value._ext ? deepCopyMeta(value._ext) : undefined,
+            _ext: undefined,
         };
+        memo.set(value, copy);
+        copy.source = deepCopyValue(value.source, memo);
+        copy._ext = value._ext ? deepCopyMeta(value._ext, memo) : undefined;
+        return copy;
     }
 
     if (value.type === "sequence") {
-        return {
+        const copy = {
             type: "sequence",
-            values: value.values.map(deepCopyValue),
-            _ext: value._ext ? deepCopyMeta(value._ext) : undefined,
+            values: [],
+            _ext: undefined,
         };
+        memo.set(value, copy);
+        copy.values = value.values.map((child) => deepCopyValue(child, memo));
+        copy._ext = value._ext ? deepCopyMeta(value._ext, memo) : undefined;
+        return copy;
     }
 
     if (value.type === "tuple") {
-        return {
+        const copy = {
             type: "tuple",
-            values: value.values.map(deepCopyValue),
-            _ext: value._ext ? deepCopyMeta(value._ext) : undefined,
+            values: [],
+            _ext: undefined,
         };
+        memo.set(value, copy);
+        copy.values = value.values.map((child) => deepCopyValue(child, memo));
+        copy._ext = value._ext ? deepCopyMeta(value._ext, memo) : undefined;
+        return copy;
     }
 
     if (value.type === "map" && value.entries instanceof Map) {
-        const newEntries = new Map();
-        for (const [k, v] of value.entries) {
-            newEntries.set(k, deepCopyValue(v));
-        }
-        return {
+        const copy = {
             type: "map",
-            entries: newEntries,
-            _ext: value._ext ? deepCopyMeta(value._ext) : undefined,
+            entries: new Map(),
+            _ext: undefined,
         };
+        memo.set(value, copy);
+        for (const [k, v] of value.entries) {
+            copy.entries.set(k, deepCopyValue(v, memo));
+        }
+        copy._ext = value._ext ? deepCopyMeta(value._ext, memo) : undefined;
+        return copy;
     }
 
     if (value.type === "export_bundle" && value.entries instanceof Map) {
-        const newEntries = new Map();
-        for (const [k, v] of value.entries) {
-            newEntries.set(k, new Cell(deepCopyValue(v.value)));
-        }
-        return {
+        const copy = {
             type: "export_bundle",
-            entries: newEntries,
-            _ext: value._ext ? deepCopyMeta(value._ext) : undefined,
+            entries: new Map(),
+            _ext: undefined,
         };
+        memo.set(value, copy);
+        for (const [k, v] of value.entries) {
+            copy.entries.set(k, deepCopyCell(v, memo));
+        }
+        copy._ext = value._ext ? deepCopyMeta(value._ext, memo) : undefined;
+        return copy;
     }
 
     if (value.type === "set") {
-        return {
+        const copy = {
             type: "set",
-            values: value.values.map(deepCopyValue),
-            _ext: value._ext ? deepCopyMeta(value._ext) : undefined,
+            values: [],
+            _ext: undefined,
         };
+        memo.set(value, copy);
+        copy.values = value.values.map((child) => deepCopyValue(child, memo));
+        copy._ext = value._ext ? deepCopyMeta(value._ext, memo) : undefined;
+        return copy;
     }
 
     if (isTensor(value)) {
-        return {
+        const copy = {
             type: "tensor",
-            data: value.data.map(deepCopyValue),
+            data: [],
             shape: [...value.shape],
             strides: [...value.strides],
             offset: value.offset,
-            _ext: value._ext ? deepCopyMeta(value._ext) : undefined,
+            _ext: undefined,
         };
+        memo.set(value, copy);
+        copy.data = value.data.map((child) => deepCopyValue(child, memo));
+        copy._ext = value._ext ? deepCopyMeta(value._ext, memo) : undefined;
+        return copy;
     }
 
     if (value.type === "quantity") {
-        return {
+        const copy = {
             ...value,
-            baseMagnitude: deepCopyValue(value.baseMagnitude),
-            displayUnit: deepCopyValue(value.displayUnit),
-            _ext: value._ext ? deepCopyMeta(value._ext) : undefined,
+            baseMagnitude: undefined,
+            displayUnit: undefined,
+            _ext: undefined,
         };
+        memo.set(value, copy);
+        copy.baseMagnitude = deepCopyValue(value.baseMagnitude, memo);
+        copy.displayUnit = deepCopyValue(value.displayUnit, memo);
+        copy._ext = value._ext ? deepCopyMeta(value._ext, memo) : undefined;
+        return copy;
     }
 
     if (value.type === "unit_expr") {
-        return {
+        const copy = {
             ...value,
             factors: new Map(value.factors),
-            _ext: value._ext ? deepCopyMeta(value._ext) : undefined,
+            _ext: undefined,
         };
+        memo.set(value, copy);
+        copy._ext = value._ext ? deepCopyMeta(value._ext, memo) : undefined;
+        return copy;
     }
 
     if (value.type === "exact_expression") {
-        const terms = new Map();
+        const copy = { ...value, terms: new Map(), _ext: undefined };
+        memo.set(value, copy);
         for (const [key, term] of value.terms) {
-            terms.set(key, {
+            copy.terms.set(key, {
                 powers: new Map(term.powers),
-                coefficient: deepCopyValue(term.coefficient),
+                coefficient: deepCopyValue(term.coefficient, memo),
             });
         }
-        return { ...value, terms, _ext: value._ext ? deepCopyMeta(value._ext) : undefined };
+        copy._ext = value._ext ? deepCopyMeta(value._ext, memo) : undefined;
+        return copy;
     }
 
     if (value.type === "cayley") {
-        return {
+        const copy = {
             ...value,
-            magnitude: deepCopyValue(value.magnitude),
-            direction: deepCopyValue(value.direction),
-            _ext: value._ext ? deepCopyMeta(value._ext) : undefined,
+            magnitude: undefined,
+            direction: undefined,
+            _ext: undefined,
         };
+        memo.set(value, copy);
+        copy.magnitude = deepCopyValue(value.magnitude, memo);
+        copy.direction = deepCopyValue(value.direction, memo);
+        copy._ext = value._ext ? deepCopyMeta(value._ext, memo) : undefined;
+        return copy;
     }
 
+    memo.set(value, value);
     return value;
 }
 
@@ -310,11 +383,21 @@ export function deepCopyValue(value) {
 /**
  * Deep-copy a meta Map, recursively deep-copying each meta value.
  */
-function deepCopyMeta(meta) {
+function deepCopyMeta(meta, memo) {
+    if (memo.has(meta)) return memo.get(meta);
     const result = new Map();
+    memo.set(meta, result);
     for (const [key, val] of meta) {
-        result.set(key, deepCopyValue(val));
+        result.set(key, deepCopyValue(val, memo));
     }
+    return result;
+}
+
+function deepCopyCell(cell, memo) {
+    if (memo.has(cell)) return memo.get(cell);
+    const result = new Cell(undefined);
+    memo.set(cell, result);
+    result.value = deepCopyValue(cell.value, memo);
     return result;
 }
 

@@ -137,6 +137,106 @@ const COMBO_ASSIGN_OP_MAP = {
   "\\=": "\\",
 };
 
+function uniformDimension(values, label) {
+  if (values.length === 0) return 0;
+  const expected = values[0];
+  if (!values.every((value) => value === expected)) {
+    throw new Error(`Semicolon tensor is ragged along ${label}`);
+  }
+  return expected;
+}
+
+function implicitTensorLayout(structure, rank) {
+  const rows = structure || [];
+  if (rank < 2 || rows.length === 0) {
+    throw new Error("Semicolon tensor requires at least one row");
+  }
+
+  const columns = uniformDimension(rows.map((item) => item.row.length), "columns");
+  const shape = new Array(rank).fill(1);
+  shape[1] = columns;
+
+  if (rank === 2) {
+    shape[0] = rows.length;
+  } else {
+    const rowCounts = [];
+    let rowCount = 0;
+    for (const item of rows) {
+      rowCount += 1;
+      if (item.separatorLevel >= 2 || item === rows[rows.length - 1]) {
+        rowCounts.push(rowCount);
+        rowCount = 0;
+      }
+    }
+    shape[0] = uniformDimension(rowCounts, "rows");
+
+    for (let axis = 2; axis < rank; axis++) {
+      const groupCounts = [];
+      let groupCount = 1;
+      for (const item of rows) {
+        if (item.separatorLevel === axis) groupCount += 1;
+        if (item.separatorLevel >= axis + 1 || item === rows[rows.length - 1]) {
+          groupCounts.push(groupCount);
+          groupCount = 1;
+        }
+      }
+      shape[axis] = uniformDimension(groupCounts, `axis ${axis + 1}`);
+    }
+  }
+
+  const expectedRows = shape[0] * shape.slice(2).reduce((product, size) => product * size, 1);
+  if (rows.length !== expectedRows) {
+    throw new Error(`Semicolon tensor shape inference expected ${expectedRows} rows, received ${rows.length}`);
+  }
+
+  let completedBlock = shape[0];
+  for (let index = 0; index < rows.length; index++) {
+    let expectedSeparator = 0;
+    if (index < rows.length - 1) {
+      expectedSeparator = 1;
+      completedBlock = shape[0];
+      while ((index + 1) % completedBlock === 0 && expectedSeparator < rank - 1) {
+        expectedSeparator += 1;
+        completedBlock *= shape[expectedSeparator];
+      }
+    }
+    if (rows[index].separatorLevel !== expectedSeparator) {
+      throw new Error(
+        `Malformed semicolon tensor boundary after row ${index + 1}: expected '${";".repeat(expectedSeparator)}'`,
+      );
+    }
+  }
+
+  const displayElements = rows.flatMap((item) => item.row);
+  if (rank === 2 || displayElements.length === 0) return { shape, elements: displayElements };
+
+  const displayShape = [...shape.slice(2).reverse(), shape[0], shape[1]];
+  const externalStrides = shape.map((_, axis) =>
+    shape.slice(axis + 1).reduce((product, size) => product * size, 1));
+  const elements = new Array(displayElements.length);
+  for (let linear = 0; linear < displayElements.length; linear++) {
+    let remainder = linear;
+    const displayCoordinates = displayShape.map((size, axis) => {
+      const stride = displayShape.slice(axis + 1).reduce((product, value) => product * value, 1);
+      const coordinate = stride === 0 ? 0 : Math.floor(remainder / stride);
+      remainder = stride === 0 ? 0 : remainder % stride;
+      return coordinate;
+    });
+    const higher = displayCoordinates.slice(0, -2).reverse();
+    const externalCoordinates = [
+      displayCoordinates[displayCoordinates.length - 2],
+      displayCoordinates[displayCoordinates.length - 1],
+      ...higher,
+    ];
+    const externalIndex = externalCoordinates.reduce(
+      (sum, coordinate, axis) => sum + coordinate * externalStrides[axis],
+      0,
+    );
+    elements[externalIndex] = displayElements[linear];
+  }
+  return { shape, elements };
+}
+
 // Per-node-type lowering functions
 const LOWERERS = {
   // === Literals & Identifiers ===
@@ -666,12 +766,17 @@ const LOWERERS = {
   },
 
   Matrix(node) {
-    const rows = node.rows.map((row) => ir("ARRAY", ...row.map(lowerNode)));
-    return ir("MATRIX", ...rows);
+    const structure = node.rows.map((row, index) => ({
+      row,
+      separatorLevel: index === node.rows.length - 1 ? 0 : 1,
+    }));
+    const layout = implicitTensorLayout(structure, 2);
+    return ir("TENSOR_LITERAL", layout.shape, ...layout.elements.map(lowerNode));
   },
 
   Tensor(node) {
-    return ir("TENSOR", ...node.elements.map(lowerNode));
+    const layout = implicitTensorLayout(node.structure, node.maxDimension);
+    return ir("TENSOR_LITERAL", layout.shape, ...layout.elements.map(lowerNode));
   },
 
   TensorLiteral(node) {

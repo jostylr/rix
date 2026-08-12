@@ -29,7 +29,7 @@ export const STANDARD_CAPABILITY_NAMES = Object.freeze([
     "SNAPSHOTS", "Sort", "SPEC", "SPECCABILITY", "SPECFRACTIONPARTS", "SPECROLES", "Split",
     "Sqrt", "STOP", "Stream", "STRONG", "Sub", "SUBSTR", "SymmetricDifference", "TABLE",
     "TEMPLATE_TEXT", "TEST", "TESTERROR", "TESTSTOP", "TEXT", "TGEN", "Timeline", "TRACE",
-    "TraitRegister", "TRANSFORM", "Tuple", "TypeExport", "TypeImport", "TypeKnown", "TypeRegister",
+    "TRANSFORM", "Tuple", "TypeExport", "TypeImport", "TypeKnown",
     "Undecided", "Union", "Units", "UPPER", "VALUES", "VIDEO", "WARN",
 ]);
 
@@ -37,7 +37,7 @@ export const STANDARD_PLUGIN_SNAPSHOT = Object.freeze([]);
 
 export const STANDARD_DENIED_NAMES = Object.freeze([
     "BACKGROUND", "CapabilityRegister", "Core", "FILES", "Host", "ImportJS", "JSCall",
-    "NET", "Out", "Plugin", "Render", "Renderer", "TypeInstall",
+    "NET", "Out", "Plugin", "Render", "Renderer", "TraitRegister", "TypeInstall", "TypeRegister",
 ]);
 
 export function createStandardSystemContext(createDefaultSystemContext) {
@@ -48,4 +48,3 @@ export function createStandardSystemContext(createDefaultSystemContext) {
         .map((entry) => entry.displayName);
     return full.withhold(...withheld);
 }
-

@@ -251,6 +251,38 @@ describe("WidgetSession", () => {
         widget.dispose();
     });
 
+    test("routes semantic graphic:action events through a RiX callback", () => {
+        const state = session();
+        const graphic = parseAndEvaluate(`
+            $$current := 2;
+            $$double := $current * 2;
+            .Graphics.Graphic([100,80], [
+                .Graphics.Action({=
+                    id="increment",
+                    target=$$current,
+                    action=value -> value + 1,
+                    label="Increment",
+                    children=[.Graphics.Circle([50,40], 20)]
+                })
+            ])
+        `, state);
+        const widget = createWidgetSession(graphic);
+        const action = graphic.children[0];
+        const result = widget.dispatch({
+            type: "graphic:action",
+            actionId: action.id,
+            targetId: action.targetId,
+            source: "pointer",
+        });
+
+        expect(formatValue(result)).toBe("3");
+        expect(formatValue(state.context.get("current").peek())).toBe("3");
+        expect(formatValue(state.context.get("double").peek())).toBe("6");
+        expect(() => widget.dispatch({ type: "graphic:action", actionId: "missing" }))
+            .toThrow("Unknown Graphic action");
+        widget.dispose();
+    });
+
     test("routes semantic control:set events like $name := an exact value", () => {
         const state = session();
         const panel = parseAndEvaluate(`
@@ -526,6 +558,47 @@ describe("WidgetSession", () => {
             targetId: byKind.get("control_range").targetId,
             indices: [8, 2],
         })).toThrow("lower endpoint");
+        widget.dispose();
+    });
+
+    test("Hold controls commit pressed and released values through exact indices", () => {
+        const state = session();
+        const panel = parseAndEvaluate(`
+            $$preview := _;
+            .ControlPanel([.Controls.Hold({=
+                target=$$preview,
+                key="ArrowDown",
+                pressed=1,
+                released=_,
+                label="Decimal preview"
+            })])
+        `, state);
+        const control = panel.controls[0];
+        const widget = createWidgetSession(panel);
+
+        widget.dispatch({
+            type: "control:set",
+            controlId: control.id,
+            targetId: control.targetId,
+            index: 1,
+            source: "hold-keydown",
+        });
+        expect(formatValue(state.context.get("preview").peek())).toBe("1");
+
+        widget.dispatch({
+            type: "control:set",
+            controlId: control.id,
+            targetId: control.targetId,
+            index: 0,
+            source: "hold-keyup",
+        });
+        expect(state.context.get("preview").peek()).toBeNull();
+        expect(() => widget.dispatch({
+            type: "control:set",
+            controlId: control.id,
+            targetId: control.targetId,
+            index: 2,
+        })).toThrow("between 0 and 1");
         widget.dispose();
     });
 

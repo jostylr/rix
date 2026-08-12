@@ -79,3 +79,23 @@ describe("formatValue callable previews", () => {
         expect(text.startsWith("[Multifunction")).toBe(true);
     });
 });
+
+describe("formatValue cycle handling", () => {
+    test("marks a self-referential sequence instead of recursing forever", () => {
+        const value = evalRix("value := []; value.Push!(value); value;");
+
+        expect(formatValue(value)).toBe("[<cycle>]");
+    });
+
+    test("marks a self-referential map instead of recursing forever", () => {
+        const value = evalRix('value := {= }; value.Set!("self", value); value;');
+
+        expect(formatValue(value)).toBe("{= self=<cycle> }");
+    });
+
+    test("does not mark repeated non-cyclic aliases as cycles", () => {
+        const value = evalRix("shared := [1]; value := []; value.Push!(shared, shared); value;");
+
+        expect(formatValue(value)).toBe("[[1], [1]]");
+    });
+});

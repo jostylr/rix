@@ -101,6 +101,48 @@ describe("portable structured output", () => {
         expect(html).toContain('data-rix-control-endpoint="low"');
     });
 
+    test("ControlPanel input can request raw text instead of a RiX expression", () => {
+        const panel = parseAndEvaluate(`
+            $$formula := "x^2 - 1/2";
+            .ControlPanel([.Controls.Input({=
+                target=$$formula,
+                label="Formula",
+                inputMode=:text
+            })])
+        `);
+        expect(panel.controls[0].inputMode).toBe("text");
+        expect(renderOutputHtml(panel, formatValue)).toContain(
+            'data-rix-control-input-mode="text"',
+        );
+        expect(() => parseAndEvaluate(`
+            $$formula := "x^2";
+            .Controls.Input({= target=$$formula, inputMode=:source })
+        `)).toThrow("inputMode must be :expression or :text");
+    });
+
+    test("portable block styles lower to enumerated HTML layout attributes", () => {
+        const document = parseAndEvaluate(`
+            .Fragment({=
+                style={= layout="grid", columns=2, gap="spacious", align="start" },
+                children=[
+                    .Section({=
+                        level=2,
+                        title="Exact values",
+                        style={= variant="card", width="full" },
+                        children=[.Paragraph("Portable layout")]
+                    })
+                ]
+            })
+        `);
+        const html = renderOutputHtml(document, formatValue);
+        expect(html).toContain('data-rix-layout="grid"');
+        expect(html).toContain('data-rix-columns="2"');
+        expect(html).toContain('data-rix-gap="spacious"');
+        expect(html).toContain('data-rix-align="start"');
+        expect(html).toContain('data-rix-variant="card"');
+        expect(html).toContain('data-rix-width="full"');
+    });
+
     test("ControlPanel styling applies panel rules and lets the control override them", () => {
         const panel = parseAndEvaluate(`
             $$x := 1;
@@ -137,6 +179,8 @@ describe("portable structured output", () => {
                 target=$$history,
                 id="freeze",
                 label="Freeze quadratic",
+                shortcut="ArrowLeft",
+                style={= row=2, column=1 },
                 action=items -> items
             })])
         `);
@@ -144,7 +188,52 @@ describe("portable structured output", () => {
         expect(html).toContain('data-rix-control-kind="action"');
         expect(html).toContain('data-rix-control-id="freeze"');
         expect(html).toContain('data-rix-control-input aria-label="Freeze quadratic"');
+        expect(html).toContain('data-rix-control-shortcut="ArrowLeft"');
+        expect(html).toContain('aria-keyshortcuts="ArrowLeft"');
+        expect(html).toContain('data-rix-control-row="2"');
+        expect(html).toContain('data-rix-control-column="1"');
         expect(html).toContain('>Freeze quadratic</button>');
+        expect(() => parseAndEvaluate(`
+            $$x := 0;
+            .Controls.Action({= target=$$x, action=x -> x, shortcut="ArrowDiagonal" })
+        `)).toThrow("supported KeyboardEvent key");
+    });
+
+    test("ControlPanel Hold renders portable press and release state", () => {
+        const panel = parseAndEvaluate(`
+            $$preview := _;
+            .ControlPanel([.Controls.Hold({=
+                target=$$preview,
+                id="decimal-preview",
+                key="ArrowDown",
+                pressed=1,
+                released=_,
+                label="Hold for decimals"
+            })])
+        `);
+        const control = panel.controls[0];
+        expect(control).toMatchObject({
+            kind: "control_hold",
+            id: "decimal-preview",
+            key: "ArrowDown",
+            index: 0,
+        });
+        const html = renderOutputHtml(panel, formatValue);
+        expect(html).toContain('data-rix-control-kind="hold"');
+        expect(html).toContain('data-rix-control-hold="ArrowDown"');
+        expect(html).toContain('data-rix-control-hold-state="released"');
+        expect(html).toContain("data-rix-control-hold-press");
+        expect(html).toContain("data-rix-control-hold-release");
+        expect(formatValue(control)).toContain("released");
+
+        expect(() => parseAndEvaluate(`
+            $$x := _;
+            .Controls.Hold({= target=$$x, pressed=1, released=_ })
+        `)).toThrow("requires a key");
+        expect(() => parseAndEvaluate(`
+            $$x := 1;
+            .Controls.Hold({= target=$$x, key="ArrowDown", pressed=1, released=1 })
+        `)).toThrow("must differ");
     });
 
     test("Snapshots materializes a linear provenance-carrying scene list", () => {
@@ -623,7 +712,7 @@ describe("portable structured output", () => {
 
     test("Sheet adapts matrices and rank-1 sequences", () => {
         const matrix = parseAndEvaluate(".Sheet([1, 2; 3, 4])");
-        expect(matrix.sourceKind).toBe("matrix");
+        expect(matrix.sourceKind).toBe("tensor");
         expect(matrix.shape).toEqual([2, 2]);
         expect(formatValue(matrix.cells[1][0].value)).toBe("3");
 
@@ -817,6 +906,30 @@ describe("portable structured output", () => {
         expect(() => parseAndEvaluate(`
             .Graphics.DragPoint({: 1,2})
         `)).toThrow("must be a ReactiveGraph node");
+    });
+
+    test("Graphics.Action wraps a focusable scene subtree with reactive action metadata", () => {
+        const graphic = parseAndEvaluate(`
+            $$current := 1;
+            .Graphics.Graphic([160,100], [
+                .Graphics.Action({=
+                    id="next-node",
+                    target=$$current,
+                    action=value -> value + 1,
+                    label="Go to next node",
+                    children=[.Graphics.Circle([80,50], 24, {= fill="#ddd6fe" })]
+                })
+            ])
+        `);
+        const action = graphic.children[0];
+        expect(action.kind).toBe("graphic_action");
+        expect(action.children[0].kind).toBe("circle");
+        const html = renderOutputHtml(graphic, formatValue);
+        expect(html).toContain('class="rix-output-graphic-action"');
+        expect(html).toContain('data-rix-graphic-action="next-node"');
+        expect(html).toContain(`data-rix-graphic-target="${action.targetId}"`);
+        expect(html).toContain('tabindex="0" role="button" aria-label="Go to next node"');
+        expect(html).toContain("Choose a highlighted scene node to navigate.");
     });
 
     test("Graphics.Transform accepts an explicit map specification", () => {
