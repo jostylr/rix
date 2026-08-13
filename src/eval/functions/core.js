@@ -299,6 +299,7 @@ function baseFromInteger(n) {
 }
 
 function ensureSafeDigits(baseSystem) {
+    if (baseSystem.allowsReservedDigits) return;
     for (const ch of baseSystem.characters) {
         if (BASE_RESERVED_CHARS.has(ch)) {
             throw new Error(`Base digit '${ch}' is reserved and cannot be used in a digit alphabet`);
@@ -362,6 +363,9 @@ function parseSimpleBaseNumeral(str, baseSystem) {
     if (dotParts.length > 2) throw new Error("Too many radix points");
     const intPart = dotParts[0] === "" ? "0" : dotParts[0];
     const fracPart = dotParts.length === 2 ? dotParts[1] : "";
+    if (fracPart.length && !baseSystem.supportsPositionalFractions) {
+        throw new Error(`${baseSystem.name} requires a fraction or mixed fraction; radix-point input is not defined`);
+    }
     const intVal = parseBaseInteger(intPart, baseSystem, false);
     let result = new Rational(intVal, 1n);
     if (fracPart.length) {
@@ -440,6 +444,9 @@ function fromBaseString(baseStr, baseSystem) {
         value = new Rational(num, den);
         value._explicitFraction = true;
     } else if (s.includes("#")) {
+        if (!baseSystem.supportsPositionalFractions) {
+            throw new Error(`${baseSystem.name} does not define repeating fractional-place notation`);
+        }
         const parts = s.split("#");
         if (parts.length !== 2) throw new Error("Repeating form must have exactly one '#'");
         const prefix = parts[0];
@@ -501,6 +508,9 @@ function toBaseDigitsInt(value, baseSystem) {
 }
 
 function boundedBaseApproximation(value, baseSystem, digitLimit) {
+    if (!baseSystem.supportsPositionalFractions) {
+        throw new Error(`${baseSystem.name} does not support bounded radix-point approximations`);
+    }
     if (value instanceof CertifiedApproximation) return value;
     const limit = digitLimit ?? DEFAULT_BASE_EXPANSION_LIMIT;
     if (!Number.isSafeInteger(limit) || limit < 0) throw new Error("Certified radix digit limit must be nonnegative");
@@ -534,6 +544,9 @@ function toBaseString(value, baseSystem, modeSpec = { mode: 1 }) {
     const limit = typeof modeSpec === "number" ? undefined : modeSpec?.limit;
     const rat = toRationalValue(value);
     if (mode === 2) {
+        if (!baseSystem.supportsPositionalFractions) {
+            throw new Error(`${baseSystem.name} does not define repeating fractional-place notation; use mixed or fraction mode`);
+        }
         const raw = rat.toRepeatingBase(baseSystem);
         const shortened = shortenRepeatingExpansion(raw, limit ?? DEFAULT_BASE_EXPANSION_LIMIT);
         return groupRadixExpansion(shortened, baseSystem);
@@ -546,6 +559,9 @@ function toBaseString(value, baseSystem, modeSpec = { mode: 1 }) {
         return `${prefix}${groupDigits(terms[0])}.~${terms.slice(1).map(groupDigits).join("~")}`;
     }
     if (mode === 5) {
+        if (!baseSystem.supportsPositionalFractions) {
+            throw new Error(`${baseSystem.name} does not define shifted fractional-place notation`);
+        }
         const raw = shortenRepeatingExpansion(rat.toRepeatingBase(baseSystem), limit ?? DEFAULT_BASE_EXPANSION_LIMIT);
         const sign = raw.startsWith("-") ? "-" : "";
         const body = sign ? raw.slice(1) : raw;
@@ -577,6 +593,15 @@ function toBaseString(value, baseSystem, modeSpec = { mode: 1 }) {
 }
 
 function resolveBaseSpecFromValue(value) {
+    if (value && value.type === "string") {
+        const shorthand = value.value.trim();
+        if (/^[A-Za-z]$/.test(shorthand) && BaseSystem.getSystemForPrefix(shorthand)) {
+            return BaseSystem.getSystemForPrefix(shorthand);
+        }
+        if (/^z\[\d+\]$/.test(shorthand)) {
+            return baseFromInteger(Number(shorthand.slice(2, -1)));
+        }
+    }
     if (typeof value === "string" && /^0([A-Za-z])$/.test(value)) {
         const letter = value[1];
         const base = BaseSystem.getSystemForPrefix(letter);
@@ -601,22 +626,91 @@ function resolveBaseSpecFromValue(value) {
     if (value instanceof Rational && value.denominator === 1n) {
         return baseFromInteger(Number(value.numerator));
     }
-    if (value && value.type === "tuple" && Array.isArray(value.values) && value.values.length === 2) {
+    if (value && value.type === "tuple" && Array.isArray(value.values) && [2, 3].includes(value.values.length)) {
         const radix = value.values[0];
         const digits = value.values[1];
-        const baseFromDigits = resolveBaseSpecFromValue(digits);
+        const digitText = digits?.type === "string" ? digits.value : typeof digits === "string" ? digits : null;
+        if (digitText === null) throw new Error("Tuple digits must be a string alphabet");
+        const characters = Array.from(digitText);
         const radixNum = radix instanceof Integer
             ? Number(radix.value)
             : radix instanceof Rational && radix.denominator === 1n
                 ? Number(radix.numerator)
                 : null;
         if (!Number.isInteger(radixNum)) throw new Error("Tuple radix must be an integer");
-        if (radixNum !== baseFromDigits.base) {
-            throw new Error(`Tuple base mismatch: radix ${radixNum} does not match digits length ${baseFromDigits.base}`);
+        if (Math.abs(radixNum) !== characters.length) {
+            throw new Error(`Tuple base mismatch: radix ${radixNum} does not match digits length ${characters.length}`);
         }
-        return baseFromDigits;
+        let digitOffset = 0;
+        if (value.values.length === 3) {
+            const offset = value.values[2];
+            digitOffset = offset instanceof Integer
+                ? Number(offset.value)
+                : offset instanceof Rational && offset.denominator === 1n
+                    ? Number(offset.numerator)
+                    : NaN;
+            if (!Number.isSafeInteger(digitOffset)) throw new Error("Tuple digit offset must be an integer");
+        }
+        return new BaseSystem(characters, `Radix ${radixNum}`, {
+            radix: radixNum,
+            digitOffset,
+            allowReserved: true,
+        });
     }
     throw new Error("Invalid base specification");
+}
+
+function baseSpecLabel(value, baseSystem) {
+    const raw = value?.type === "string" ? value.value.trim() : typeof value === "string" ? value.trim() : "";
+    if (/^0[A-Za-z]$/.test(raw)) return raw.slice(1);
+    if (/^[A-Za-z]$/.test(raw)) return raw;
+    if (/^(?:0)?z\[\d+\]$/.test(raw)) return raw.replace(/^0/, "");
+    const prefix = BaseSystem.getPrefixForSystem(baseSystem);
+    return prefix || `z[${baseSystem.base}]`;
+}
+
+function activeBaseBody(raw, quoted) {
+    if (quoted) return raw;
+    return raw
+        .replace(/^#/, "")
+        .replace(/\.\.#/g, "..")
+        .replace(/\/#/g, "/");
+}
+
+function validateNumberDisplayProfile(profile) {
+    const entries = profile.split(",").map((entry) => entry.replace(/\s+/g, "")).filter(Boolean);
+    if (!entries.length) throw new Error("Number display profile cannot be empty");
+    for (const entry of entries) {
+        if (/^(?:\.\[\d+\]|\.\.|mixed|\/|fraction|\.)$/.test(entry)) continue;
+        const match = entry.match(/^([A-Za-z]|z\[(\d+)\])(?:\.\.|\/|\.|\.\[\d+\])?$/);
+        if (!match) throw new Error(`Unknown number display token '${entry}'`);
+        if (match[1].length === 1 && !BaseSystem.getSystemForPrefix(match[1])) {
+            throw new Error(`Unknown base prefix '${match[1]}' in number display profile`);
+        }
+        if (match[2] && (Number(match[2]) < 2 || Number(match[2]) > 64)) {
+            throw new Error("Display base z[n] must be between 2 and 64");
+        }
+    }
+}
+
+function exactPrefixedText(text, prefix, quoted = false) {
+    const marker = `0${prefix}`;
+    const prefixed = (component) => {
+        const negative = component.startsWith("-");
+        const digits = negative ? component.slice(1) : component;
+        const body = quoted ? JSON.stringify(digits) : digits;
+        return `${negative ? "-" : ""}${marker}${body}`;
+    };
+    if (text.includes("..")) {
+        const [whole, fraction] = text.split("..");
+        const [num, den] = fraction.split("/");
+        return `${prefixed(whole)}..${prefixed(num)}/${prefixed(den)}`;
+    }
+    if (text.includes("/") && !text.includes(".~")) {
+        const [num, den] = text.split("/");
+        return `${prefixed(num)}/${prefixed(den)}`;
+    }
+    return prefixed(text);
 }
 
 /**
@@ -730,6 +824,10 @@ function parseLiteral(str) {
         const baseSystem = BaseSystem.getSystemForPrefix(prefix);
         if (!baseSystem) throw new Error(`Unknown base prefix 0${prefix}`);
         const stream = unescapeQuotedString(quotedPrefix[3]);
+        if (baseSystem.requiresQuoting) {
+            const magnitude = parseBaseInteger(stream, baseSystem, false);
+            return new Integer(sign ? -magnitude : magnitude);
+        }
         return fromBaseString(sign + stream, baseSystem);
     }
 
@@ -767,7 +865,7 @@ function parseLiteral(str) {
     }
 
     // Repeating decimals: digits.digits#digits, .digits#digits, digits#digits
-    if (posStr.includes("#")) {
+    if (posStr.includes("#") && !/^(?:0z\[\d+\]|0[a-zA-Z])/.test(posStr)) {
         return parseRepeatingDecimalLiteral(str);
     }
 
@@ -1815,6 +1913,56 @@ export const coreFunctions = {
         doc: "Call a named export from a local JavaScript module",
     },
 
+    NUM_INPUT: {
+        impl(args, context) {
+            const requested = args[0];
+            const baseSystem = resolveBaseSpecFromValue(requested);
+            ensureSafeDigits(baseSystem);
+            const label = baseSpecLabel(requested, baseSystem);
+            context.setEnv("numInput", label);
+            context.setEnv("numInputBase", baseSystem);
+            // Input-base selection implies matching output until the user has
+            // deliberately installed an output profile.
+            if (context.getEnv("numDisplayExplicit", false) !== true) {
+                context.setEnv("numDisplay", label);
+            }
+            return { type: "string", value: label };
+        },
+        doc: "Set the session's strict # numeral input base",
+    },
+
+    NUM_DISPLAY: {
+        impl(args, context) {
+            const value = args[0];
+            if (!value || value.type !== "string") {
+                throw new Error("Number display profile must be a string");
+            }
+            const profile = value.value.trim();
+            if (!profile) throw new Error("Number display profile cannot be empty");
+            validateNumberDisplayProfile(profile);
+            context.setEnv("numDisplay", profile);
+            context.setEnv("numDisplayExplicit", true);
+            return { type: "string", value: profile };
+        },
+        doc: "Set the session's comma-separated number display profile",
+    },
+
+    ACTIVE_BASE_LITERAL: {
+        impl(args, context) {
+            const raw = String(args[0] ?? "");
+            const quoted = args[1] === true;
+            const baseSystem = context.getEnv("numInputBase", BaseSystem.DECIMAL);
+            try {
+                if (quoted) return new Integer(parseBaseInteger(raw, baseSystem, false));
+                return fromBaseString(activeBaseBody(raw, quoted), baseSystem);
+            } catch (error) {
+                throw new Error(`Invalid # numeral for ${baseSystem.name}: ${error.message}`);
+            }
+        },
+        pure: false,
+        doc: "Parse a strict numeral using the session's active input base",
+    },
+
     DEFINEBASE: {
         lazy: true,
         impl(args, context, evaluate) {
@@ -1880,6 +2028,36 @@ export const coreFunctions = {
             return { type: "string", value: text };
         },
         doc: "Format number to base string: expr _> baseSpec",
+    },
+
+    TOBASE_EXACT: {
+        lazy: true,
+        impl(args, context, evaluate) {
+            const value = evaluate(args[0]);
+            let specValue = evaluate(args[1]);
+            let modeSpec = { mode: 6 };
+            if (specValue?.type === "tuple" && Array.isArray(specValue.values) && specValue.values.length === 2) {
+                modeSpec = resolveModeSpec(specValue.values[1]);
+                specValue = specValue.values[0];
+            }
+            const baseSystem = resolveBaseSpecFromValue(specValue);
+            const prefix = BaseSystem.getPrefixForSystem(baseSystem);
+            if (!prefix) {
+                throw new Error("_>! requires a registered base prefix so its result can be parsed by RiX");
+            }
+            if (modeSpec.limit !== undefined) {
+                throw new Error("_>! does not permit a digit limit because truncation is not lossless");
+            }
+            const text = toBaseString(value, baseSystem, modeSpec);
+            if (text.includes("...")) {
+                throw new Error("_>! could not produce a lossless finite RiX numeral");
+            }
+            if (baseSystem.requiresQuoting && modeSpec.mode !== 6) {
+                throw new Error("_>! punctuation-digit systems require fraction mode so every component can be quoted");
+            }
+            return { type: "string", value: exactPrefixedText(text, prefix, baseSystem.requiresQuoting) };
+        },
+        doc: "Format a number as lossless RiX source, or fail",
     },
 
     CERTIFY_FORMAT: {

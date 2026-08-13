@@ -8,7 +8,7 @@ toc-depth: 2
 This page is generated from the current RiX implementation by `documentation/scripts/generate-reference.js`. Do not edit it by hand. Descriptions come from registry documentation strings; the narrative [syntax guide](../eval/syntax-guide.md) and [methods guide](../eval/methods-guide.md) provide signatures and examples.
 :::
 
-At this revision RiX exposes **242 named entries** on the default system context and registers **222 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
+At this revision RiX exposes **243 named entries** on the default system context and registers **226 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
 
 ## Public system context
 
@@ -41,6 +41,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.CODEBLOCK` | function | — | Create a literal source-code block |
 | `.COMPLEX` | value | Exact | Exact complex-number operations |
 | `.CONCAT` | function | — | Core operation CONCAT |
+| `.CONFIG` | value | — | Session-scoped RiX configuration, including numeric input and display |
 | `.CONTROLPANEL` | function | Output, Controls | Group reactive controls in a portable output panel |
 | `.CONTROLS` | value | — | Reactive control constructors |
 | `.CONVERTUNIT` | function | Units | Convert a quantity to a compatible display unit |
@@ -380,6 +381,7 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | IR function | Dispatch | Implementation description |
 | --- | --- | --- |
 | `ABS` | eager, pure, multifunction | Absolute value |
+| `ACTIVE_BASE_LITERAL` | eager, effectful/unspecified | Parse a strict numeral using the session's active input base |
 | `ADD` | eager, pure, multifunction | Addition or string concatenation |
 | `AND` | lazy, pure | Logical AND (short-circuits on first falsy, returns deciding value) |
 | `ARRAY` | lazy, pure | Create an array/sequence (supports sequence generators) |
@@ -502,6 +504,8 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `NOT` | eager, pure | Logical NOT — returns Integer(1) for null input, null otherwise |
 | `NOT_MEMBER` | eager, effectful/unspecified | Check non-membership (1 if not present, null otherwise) |
 | `NULL` | eager, pure | Null value |
+| `NUM_DISPLAY` | eager, effectful/unspecified | Set the session's comma-separated number display profile |
+| `NUM_INPUT` | eager, effectful/unspecified | Set the session's strict # numeral input base |
 | `OR` | lazy, pure | Logical OR (short-circuits on first truthy, returns deciding value) |
 | `OUT` | eager, effectful/unspecified | Declare an output artifact for the active host output sink |
 | `OUTER_ASSIGN` | lazy, effectful/unspecified | Assign a value to an existing outer scope variable |
@@ -587,6 +591,7 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `TERNARY` | lazy, effectful/unspecified | Decision conditional: condition ?: truthExpr ?\_ nullExpr ?? undecidedExpr |
 | `TEXT` | eager, pure | Create a portable text output node |
 | `TOBASE` | lazy, effectful/unspecified | Format number to base string: expr \_> baseSpec |
+| `TOBASE_EXACT` | lazy, effectful/unspecified | Format a number as lossless RiX source, or fail |
 | `TRAIT_REGISTER` | eager, effectful/unspecified | Register an immutable semantic trait from a RiX map spec |
 | `TUPLE` | lazy, pure | Create a tuple |
 | `TYPE_EXPORT` | lazy, effectful/unspecified | Export a semantically typed value through its registered type exporter |

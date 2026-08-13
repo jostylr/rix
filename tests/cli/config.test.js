@@ -70,10 +70,14 @@ describe("RiX CLI configuration", () => {
 
     test("round-trips plugin selectors and creates an editable preamble", () => {
         const directory = temporaryDirectory();
-        const configPath = writeRixCliConfig(directory, { plugins: ["full", "renderers"] });
+        const configPath = writeRixCliConfig(directory, {
+            plugins: ["full", "renderers"],
+            numbers: { input: "b", display: ".[12],b,.." },
+        });
         expect(readRixCliConfig(directory)).toEqual({
             version: 1,
             plugins: ["full", "renderers"],
+            numbers: { input: "b", display: ".[12],b,.." },
         });
         expect(JSON.parse(readFileSync(configPath, "utf8")).version).toBe(1);
 

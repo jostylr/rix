@@ -8,7 +8,7 @@ export { complete, REPL_COMMANDS } from "./repl/completion.js";
 export {
     lower, lowerNode, ir, IR, Registry, evaluate, evaluateAsync,
     createDefaultRegistry, createDefaultSystemContext, parseAndEvaluate, parseAndEvaluateAsync,
-    drainBackgroundTasks, irToText, irListToText, formatValue,
+    drainBackgroundTasks, irToText, irListToText, formatValue, formatValueSource, formatNumberWithProfile,
     RIX_LINT_LEVELS, RIX_LINT_PROFILES, RIX_LINT_RULES,
     analyzeRix, lintRix, explainRixScopes, formatLintDiagnostic,
     applyRixLintFixes, lintDiagnosticsToSarif,

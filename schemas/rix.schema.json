@@ -27,6 +27,13 @@
         "indentWidth": { "type": "integer", "minimum": 1, "maximum": 8, "default": 4 }
       }
     },
+    "numbers": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "input": { "type": "string", "minLength": 1, "default": "z[10]" },
+        "display": { "type": "string", "minLength": 1, "default": ".." }
+      }
+    },
     "execution": {
       "type": "object", "additionalProperties": false,
       "properties": {
@@ -38,4 +45,3 @@
     }
   }
 }
-

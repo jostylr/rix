@@ -42,9 +42,22 @@ function validateConfig(value, filename) {
     if (value.plugins !== undefined && (!Array.isArray(value.plugins) || value.plugins.some((item) => typeof item !== "string"))) {
         throw new Error(`${filename}: plugins must be an array of plugin or group names`);
     }
+    if (value.numbers !== undefined && (!value.numbers || typeof value.numbers !== "object" || Array.isArray(value.numbers))) {
+        throw new Error(`${filename}: numbers must be an object`);
+    }
+    for (const key of Object.keys(value.numbers || {})) {
+        if (!new Set(["input", "display"]).has(key)) throw new Error(`${filename}: numbers contains unknown key '${key}'`);
+        if (typeof value.numbers[key] !== "string" || !value.numbers[key].trim()) {
+            throw new Error(`${filename}: numbers.${key} must be a non-empty string`);
+        }
+    }
     return {
         version: RIX_CLI_CONFIG_VERSION,
         plugins: [...new Set((value.plugins || []).map(String).map((item) => item.trim()).filter(Boolean))],
+        numbers: {
+            input: value.numbers?.input?.trim() || "z[10]",
+            display: value.numbers?.display?.trim() || "..",
+        },
     };
 }
 

@@ -38,6 +38,12 @@
 | `[a, b] = rhs` | `DESTRUCTURE_ASSIGN` | Destructure with outer `=` as the default per-entry binding mode |
 | `{= a, b[:x] } := rhs` | `DESTRUCTURE_ASSIGN` | Map destructuring with outer `:=` as the default per-entry binding mode |
 | `-` (unary) | `NEG` | `-x` |
+| `<* "b"` | `NUM_INPUT` | Set the strict `#` input base for the session |
+| `*> ".[12],b,.."` | `NUM_DISPLAY` | Install one or more numeric display views |
+| `value _>! 0b` | `TOBASE_EXACT` | Return lossless, parseable RiX source or fail |
+
+See [Number input and display](number-notation.md) for strict `#` literals,
+display-profile grammar, generalized positional systems, and JSON/host setup.
 
 ### Implicit Multiplication & Callable Application
 
@@ -1289,6 +1295,8 @@ Custom uppercase prefixes can be defined at runtime:
 
 Base conversion operators:
 - `_>`: `value _> baseSpec` returns a string in that base.
+- `_>!`: `value _>! baseSpec` returns explicitly prefixed, lossless RiX source
+  and fails rather than truncate.
 - `<_`: `string <_ baseSpec` parses into an exact rational/integer.
 
 Quoted prefixed literals are also valid:

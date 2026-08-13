@@ -26,6 +26,7 @@ project:
     - eval/scene3d-guide.md
     - eval/controls-guide.md
     - eval/syntax-guide.md
+    - eval/number-notation.md
     - eval/linting.md
     - eval/methods-guide.md
     - eval/objects/integer.md

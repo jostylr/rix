@@ -253,6 +253,14 @@ const LOWERERS = {
     return ir("LITERAL", node.value);
   },
 
+  ActiveBaseNumber(node) {
+    return ir("ACTIVE_BASE_LITERAL", node.value, node.quoted === true);
+  },
+
+  NumberConfigDirective(node) {
+    return ir(node.setting === "input" ? "NUM_INPUT" : "NUM_DISPLAY", lowerNode(node.value));
+  },
+
   String(node) {
     return ir("STRING", node.value);
   },
@@ -491,6 +499,9 @@ const LOWERERS = {
     // Base conversion operators
     if (op === "_>") {
       return ir("TOBASE", lowerNode(node.left), lowerNode(node.right));
+    }
+    if (op === "_>!") {
+      return ir("TOBASE_EXACT", lowerNode(node.left), lowerNode(node.right));
     }
     if (op === "~>") {
       return ir("CERTIFY_FORMAT", lowerNode(node.left), lowerNode(node.right));

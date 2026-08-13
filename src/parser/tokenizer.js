@@ -32,9 +32,12 @@ const symbols = [
   "<<",
   ">>",
   "<>",
+  "_>!",
   "_>",
   "~>",
   "<_",
+  "*>",
+  "<*",
   "||>",
   "~~=",
   "::=",
@@ -199,6 +202,11 @@ function tokenize(input) {
     if (!token) {
       // Try comments FIRST (before numbers, to avoid # conflicts)
       token = tryMatchComment(input, position);
+    }
+    if (!token) {
+      // A single leading # introduces a numeral in the session's active
+      // input base. ## remains comment/check syntax and is consumed above.
+      token = tryMatchActiveBaseNumber(input, position);
     }
     if (!token) {
       // Try to match numbers first (before strings/identifiers)
@@ -612,6 +620,17 @@ function tryMatchNumber(input, position) {
     };
   }
 
+  // Prefixed repeating radix expansion: 0b0.#01, 0xA.B#C.
+  match = remaining.match(/^-?(?:0z\[\d+\]|0[a-zA-Z])[0-9a-zA-Z]+(?:\.[0-9a-zA-Z]*)?#[0-9a-zA-Z]+/);
+  if (match) {
+    return {
+      type: "Number",
+      original: match[0],
+      value: match[0],
+      pos: [position, position, position + match[0].length],
+    };
+  }
+
   // Uppercase-prefix quoted literal: 0A"..."
   match = remaining.match(/^-?0[A-Z]"(?:[^"\\]|\\.)*"/);
   if (match) {
@@ -786,6 +805,50 @@ function tryMatchNumber(input, position) {
   }
 
   return null;
+}
+
+/**
+ * Match a strict numeral in the active input base.
+ *
+ * The tokenizer intentionally does not know which digits the active base
+ * accepts. It captures one non-operator payload and leaves validation to the
+ * evaluator, where mid-script `<*` directives are available. A mixed number
+ * is one token (`#101..#11/#1110`); an ordinary fraction remains three tokens
+ * (`#101 / #10`). Consuming the radix point here also makes `#face.Method` a
+ * malformed numeral, so literal method access requires `(#face).Method()`.
+ */
+function tryMatchActiveBaseNumber(input, position) {
+  if (input[position] !== "#" || input[position + 1] === "#") return null;
+  const remaining = input.slice(position);
+
+  // Escape hatch for alphabets containing punctuation.
+  const quoted = remaining.match(/^#`((?:[^`\\]|\\.)+)`/u);
+  if (quoted) {
+    return {
+      type: "ActiveBaseNumber",
+      original: quoted[0],
+      value: quoted[1].replace(/\\`/g, "`").replace(/\\\\/g, "\\"),
+      quoted: true,
+      pos: [position, position, position + quoted[0].length],
+    };
+  }
+
+  const digit = "[\\p{L}\\p{N}_@&]";
+  const digits = `${digit}+`;
+  const active = `#${digits}`;
+  const component = `${digits}(?:\\.${digit}*)?(?:#${digits})?`;
+  const mixed = new RegExp(`^#${digits}\\.\\.${active}\\/${active}`, "u");
+  const ordinary = new RegExp(`^#${component}`, "u");
+  const match = remaining.match(mixed) || remaining.match(ordinary);
+  if (!match) return null;
+
+  return {
+    type: "ActiveBaseNumber",
+    original: match[0],
+    value: match[0],
+    quoted: false,
+    pos: [position, position, position + match[0].length],
+  };
 }
 
 /**

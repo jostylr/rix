@@ -1587,12 +1587,11 @@ describe("Math Oracle Tokenizer", () => {
       );
     });
 
-    test("number with hash prefix", () => {
+    test("number with hash prefix is one active-base token", () => {
       const tokens = tokenize("#123");
       expect(tokens).toEqual(
         withEnd([
-          { type: "Symbol", original: "#", value: "#", pos: [0, 0, 1] },
-          { type: "Number", original: "123", value: "123", pos: [1, 1, 4] },
+          { type: "ActiveBaseNumber", original: "#123", value: "#123", quoted: false, pos: [0, 0, 4] },
         ]),
       );
     });

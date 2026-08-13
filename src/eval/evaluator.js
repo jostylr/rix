@@ -362,6 +362,49 @@ const SOURCE_ENV_KEY = "__source__";
 const CUSTOM_OPERATOR_ENV_KEY = "__custom_operator_definitions__";
 const CURRENT_FILE_ENV_KEY = "__current_file__";
 
+function createNumberConfigValue() {
+    const value = { type: "system_namespace", namespace: "number_config", _ext: new Map() };
+    value._ext.set("NUMINPUT", {
+        type: "method_builtin",
+        name: "NumInput",
+        impl(args, context) {
+            return coreFunctions.NUM_INPUT.impl([args[1]], context);
+        },
+    });
+    value._ext.set("NUMDISPLAY", {
+        type: "method_builtin",
+        name: "NumDisplay",
+        impl(args, context) {
+            return coreFunctions.NUM_DISPLAY.impl([args[1]], context);
+        },
+    });
+    value._ext.set("NUMBER", {
+        type: "method_builtin",
+        name: "Number",
+        impl(args, context) {
+            const map = args[1]?.type === "map" ? args[1].entries : null;
+            if (!map) throw new Error(".Config.Number expects a map with input and/or display");
+            if (map.has("input")) coreFunctions.NUM_INPUT.impl([map.get("input")], context);
+            if (map.has("display")) coreFunctions.NUM_DISPLAY.impl([map.get("display")], context);
+            return args[1];
+        },
+    });
+    value._ext.set("CURRENT", {
+        type: "method_builtin",
+        name: "Current",
+        impl(_args, context) {
+            return {
+                type: "map",
+                entries: new Map([
+                    ["input", { type: "string", value: context.getEnv("numInput", "z[10]") }],
+                    ["display", { type: "string", value: context.getEnv("numDisplay", "..") }],
+                ]),
+            };
+        },
+    });
+    return value;
+}
+
 /**
  * Create a default SystemContext with all stdlib capabilities, frozen by default.
  * Syntax-equivalent core operations are also exposed in PascalCase, so
@@ -380,6 +423,10 @@ export function createDefaultSystemContext(options = {}) {
     ctx.registerValue("Units", units, { doc: "Canonical RiX unit collection" });
     ctx.registerValue("Exact", exact, { doc: "Canonical RiX exact-generator collection" });
     ctx.registerValue("Complex", complex, { doc: "Exact complex-number operations" });
+    ctx.registerValue("Config", createNumberConfigValue(), {
+        doc: "Session-scoped RiX configuration, including numeric input and display",
+        groups: ["Core", "Numerics"],
+    });
     ctx.registerValue("Shaped", createShapedSystemValue(), {
         doc: "Shaped-storage constructors and explicit generation helpers",
         groups: ["Core", "Collections", "Arrays"],
@@ -3491,7 +3538,7 @@ async function evaluateBaseLazyAsync(
 
     if (fn === "DEFINEBASE") {
         await resolve(args[1]);
-    } else if (fn === "TOBASE") {
+    } else if (fn === "TOBASE" || fn === "TOBASE_EXACT") {
         await resolve(args[0]);
         await resolve(args[1]);
         await resolve(args[2]);
@@ -4273,7 +4320,7 @@ async function evaluateAsyncInternal(irNode, context, registry, systemContext, s
                 );
             }
             if (
-                ["DEFINEBASE", "TOBASE", "CERTIFY_FORMAT", "FROMBASE"].includes(fn)
+                ["DEFINEBASE", "TOBASE", "TOBASE_EXACT", "CERTIFY_FORMAT", "FROMBASE"].includes(fn)
                 && definition.impl === coreFunctions[fn]?.impl
             ) {
                 return await evaluateBaseLazyAsync(
@@ -4332,6 +4379,12 @@ export function parseAndEvaluate(code, options = {}) {
     const registry = options.registry || createDefaultRegistry();
     const systemContext = options.systemContext || createDefaultSystemContext();
     context.setEnv("__system_context__", systemContext);
+    if (options.numberConfig?.input !== undefined) {
+        coreFunctions.NUM_INPUT.impl([{ type: "string", value: String(options.numberConfig.input) }], context);
+    }
+    if (options.numberConfig?.display !== undefined) {
+        coreFunctions.NUM_DISPLAY.impl([{ type: "string", value: String(options.numberConfig.display) }], context);
+    }
     const systemLookup = createSystemLookup(systemContext, options.systemLookup || defaultSystemLookup);
     const runtime = getScriptRuntime(context, { systemLookup });
     runtime.operatorDefinitions = mergeOperatorDefinitions(
@@ -4412,6 +4465,12 @@ export async function parseAndEvaluateAsync(code, options = {}) {
     const registry = options.registry || createDefaultRegistry();
     const systemContext = options.systemContext || createDefaultSystemContext();
     context.setEnv("__system_context__", systemContext);
+    if (options.numberConfig?.input !== undefined) {
+        coreFunctions.NUM_INPUT.impl([{ type: "string", value: String(options.numberConfig.input) }], context);
+    }
+    if (options.numberConfig?.display !== undefined) {
+        coreFunctions.NUM_DISPLAY.impl([{ type: "string", value: String(options.numberConfig.display) }], context);
+    }
     const systemLookup = createSystemLookup(systemContext, options.systemLookup || defaultSystemLookup);
     const runtime = getScriptRuntime(context, { systemLookup });
     runtime.operatorDefinitions = mergeOperatorDefinitions(

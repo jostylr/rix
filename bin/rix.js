@@ -1401,6 +1401,10 @@ async function main() {
         // Install the plugin loader first; plugin-provided syntax is then
         // available while parsing the preamble and all later submissions.
         parseAndEvaluate("", { context, registry, systemContext });
+        parseAndEvaluate(
+            `<* ${JSON.stringify(cliConfig.numbers?.input || "z[10]")}; *> ${JSON.stringify(cliConfig.numbers?.display || "..")}`,
+            { context, registry, systemContext, file: "<cli-config>" },
+        );
         for (const id of pluginIds) {
             pluginCatalog.load(id, {
                 context,

@@ -11,7 +11,7 @@ export {
     drainBackgroundTasks,
 } from "./evaluator.js";
 export { irToText, irListToText } from "./ir-to-text.js";
-export { formatValue } from "./format.js";
+export { formatNumberWithProfile, formatValue, formatValueSource } from "./format.js";
 export {
     RIX_LINT_LEVELS,
     RIX_LINT_PROFILES,

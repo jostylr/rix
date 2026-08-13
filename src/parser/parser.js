@@ -285,6 +285,11 @@ const SYMBOL_TABLE = {
     associativity: "left",
     type: "infix",
   },
+  "_>!": {
+    precedence: PRECEDENCE.CONVERSION,
+    associativity: "left",
+    type: "infix",
+  },
   "~>": {
     precedence: PRECEDENCE.CONVERSION,
     associativity: "left",
@@ -697,7 +702,7 @@ class Parser {
   canStartImplicitOperand() {
     const t = this.current;
     if (t.type === "End") return false;
-    if (t.type === "Number") return true;
+    if (t.type === "Number" || t.type === "ActiveBaseNumber") return true;
     if (t.type === "Identifier") {
       // System identifiers that are operators (AND, OR, NOT) cannot start an implicit operand
       if (t.kind === "System") {
@@ -776,6 +781,14 @@ class Parser {
           original: token.original,
         });
 
+      case "ActiveBaseNumber":
+        this.advance();
+        return this.createNode("ActiveBaseNumber", {
+          value: token.value,
+          quoted: token.quoted === true,
+          original: token.original,
+        });
+
       case "String":
         this.advance();
         if (token.kind === "backtick") {
@@ -833,6 +846,15 @@ class Parser {
         });
 
       case "Symbol":
+        if (token.value === "<*" || token.value === "*>") {
+          this.advance();
+          const value = this.parseExpression(PRECEDENCE.ASSIGNMENT + 1);
+          return this.createNode("NumberConfigDirective", {
+            setting: token.value === "<*" ? "input" : "display",
+            value,
+            original: token.original + (value.original || ""),
+          });
+        }
         if (token.value === "?") {
           this.advance();
           return this.createNode("UndecidedLiteral", {
@@ -3101,6 +3123,16 @@ class Parser {
           this.error("Header may only specify one name");
         }
         name = this.parseHeaderDirectiveName();
+        continue;
+      }
+
+      // A sticky semantic name and an active-base numeral intentionally share
+      // the leading #. Inside a delimited /.../ header the role is known, so
+      // accept the tokenizer's single strict token as the existing #name form.
+      if (this.current.type === "ActiveBaseNumber" && /^#[A-Za-z][A-Za-z0-9_]*$/.test(this.current.original)) {
+        if (name !== null) this.error("Header may only specify one name");
+        name = this.current.original.slice(1);
+        this.advance();
         continue;
       }
 

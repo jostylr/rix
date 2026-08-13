@@ -13,6 +13,7 @@
     "preamble": { "type": ["string", "null"], "default": null },
     "lint": { "type": "object", "additionalProperties": false, "properties": { "level": { "enum": ["essential", "standard", "thorough", "pedantic"], "default": "standard" }, "profiles": { "type": "array", "items": { "type": "string" }, "uniqueItems": true, "default": ["default"] } } },
     "format": { "type": "object", "additionalProperties": false, "properties": { "enabled": { "type": "boolean", "default": true }, "profile": { "enum": ["readable", "compact"], "default": "readable" }, "printWidth": { "type": "integer", "minimum": 40, "default": 100 }, "indentWidth": { "type": "integer", "minimum": 1, "maximum": 8, "default": 4 } } },
+    "numbers": { "type": "object", "additionalProperties": false, "properties": { "input": { "type": "string", "minLength": 1, "default": "z[10]" }, "display": { "type": "string", "minLength": 1, "default": ".." } } },
     "execution": { "type": "object", "additionalProperties": false, "properties": { "mode": { "enum": ["isolated", "session"], "default": "isolated" }, "timeoutMs": { "type": "integer", "minimum": 100, "maximum": 120000, "default": 10000 }, "capabilityGroups": { "type": "array", "items": { "type": "string" }, "uniqueItems": true, "default": ["standard"] }, "artifactDirectory": { "type": "string", "default": ".rix-output" } } }
   }
 }

@@ -18,6 +18,7 @@ describe("rix.json workspace configuration", () => {
             version: 1,
             lint: { level: "thorough", profiles: ["default", "math"] },
             format: { profile: "compact", printWidth: 88, indentWidth: 4 },
+            numbers: { input: "z[10]", display: ".." },
             execution: { mode: "isolated", timeoutMs: 5000 },
         });
     });
@@ -33,6 +34,6 @@ describe("rix.json workspace configuration", () => {
         expect(() => validateRixWorkspaceConfig({ version: 1, network: true })).toThrow("unknown key 'network'");
         expect(() => validateRixWorkspaceConfig({ version: 1, execution: { shell: true } })).toThrow("unknown key 'shell'");
         expect(() => validateRixWorkspaceConfig({ version: 2 })).toThrow("unsupported version");
+        expect(() => validateRixWorkspaceConfig({ version: 1, numbers: { input: "" } })).toThrow("numbers.input");
     });
 });
-

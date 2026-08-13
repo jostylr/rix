@@ -1,4 +1,4 @@
-import { CertifiedApproximation, Rational, RationalInterval } from "@ratmath/core";
+import { BaseSystem, CertifiedApproximation, Integer, Rational, RationalInterval } from "@ratmath/core";
 import { HaloNeighborhood } from "../runtime/halo.js";
 import { isHole } from "../runtime/hole.js";
 import { isUndecided } from "../runtime/decision.js";
@@ -284,6 +284,80 @@ function formatViaSemanticDisplay(value, options) {
 const FORMAT_ACTIVE_VALUES = Symbol("formatActiveValues");
 const FORMAT_CYCLE_MARKER = "<cycle>";
 
+function numericRational(value) {
+    return value instanceof Integer ? value.toRational() : value;
+}
+
+function decimalPresentation(value, places) {
+    const rational = numericRational(value);
+    const negative = rational.numerator < 0n;
+    const numerator = negative ? -rational.numerator : rational.numerator;
+    const whole = numerator / rational.denominator;
+    let remainder = numerator % rational.denominator;
+    if (remainder === 0n || places === 0) return `${negative ? "-" : ""}${whole}${remainder ? "…" : ""}`;
+    let digits = "";
+    for (let index = 0; index < places && remainder !== 0n; index++) {
+        remainder *= 10n;
+        digits += String(remainder / rational.denominator);
+        remainder %= rational.denominator;
+    }
+    return `${negative ? "-" : ""}${whole}.${digits}${remainder ? "…" : ""}`;
+}
+
+function displayBase(token, context) {
+    const active = context?.getEnv?.("numInputBase", BaseSystem.DECIMAL) || BaseSystem.DECIMAL;
+    if (!token) return active;
+    const short = token.match(/^([A-Za-z])(?:\.|\/|$)/)?.[1];
+    if (short) return BaseSystem.getSystemForPrefix(short) || active;
+    const custom = token.match(/^z\[(\d+)\]/);
+    return custom ? BaseSystem.fromBase(Number(custom[1])) : active;
+}
+
+function profileNumber(value, profile, context) {
+    const token = profile.replace(/\s+/g, "");
+    const rational = numericRational(value);
+    if (token === ".." || token === "mixed") return rational.toMixedString();
+    if (token === "/" || token === "fraction") return `${rational.numerator}/${rational.denominator}`;
+    const decimal = token.match(/^\.\[(\d+)\]$/);
+    if (decimal) return decimalPresentation(rational, Number(decimal[1]));
+
+    const base = displayBase(token, context);
+    const prefix = token.match(/^(?:[A-Za-z]|z\[\d+\])/)?.[0];
+    const suffix = prefix ? token.slice(prefix.length) : token;
+    if (!prefix && token !== ".") throw new Error(`Unknown number display token '${profile}'`);
+    if (suffix === "..") {
+        const sign = rational.numerator < 0n ? -1n : 1n;
+        const absolute = rational.numerator < 0n ? -rational.numerator : rational.numerator;
+        const whole = absolute / rational.denominator;
+        const remainder = absolute % rational.denominator;
+        if (remainder === 0n) return base.fromDecimal(sign * whole);
+        return `${base.fromDecimal(sign * whole)}..${base.fromDecimal(remainder)}/${base.fromDecimal(rational.denominator)}`;
+    }
+    if (suffix === "/") return `${base.fromDecimal(rational.numerator)}/${base.fromDecimal(rational.denominator)}`;
+    const limited = suffix.match(/^\.\[(\d+)\]$/);
+    if (limited && base.base === 10) return decimalPresentation(rational, Number(limited[1]));
+    if (!base.supportsPositionalFractions && rational.denominator !== 1n) {
+        return `${base.fromDecimal(rational.numerator)}/${base.fromDecimal(rational.denominator)}`;
+    }
+    return rational.toRepeatingBase(base).replace(/#0$/, "");
+}
+
+/** Format only the numeric leaf according to a validated session profile. */
+export function formatNumberWithProfile(value, profile, context = null) {
+    const pieces = String(profile || "..").split(",").map((part) => part.trim()).filter(Boolean);
+    return pieces.map((part) => profileNumber(value, part, context)).join(" · ");
+}
+
+/** Lossless RiX source used by copy/injection controls. */
+export function formatValueSource(value) {
+    if (value instanceof Integer) return value.toString();
+    if (value instanceof Rational) {
+        return value.denominator === 1n ? value.numerator.toString() : `${value.numerator}/${value.denominator}`;
+    }
+    if (value?.type === "string") return JSON.stringify(value.value);
+    return formatValue(value, { numberDisplay: ".." });
+}
+
 function formatWithCycleGuard(value, activeValues, format) {
     if (activeValues.has(value)) return FORMAT_CYCLE_MARKER;
     activeValues.add(value);
@@ -435,7 +509,13 @@ export function formatValue(val, options = {}) {
         }
     }
 
-    if (val instanceof Rational) return val.toMixedString();
+    if (val instanceof Integer || val instanceof Rational) {
+        const profile = options.numberDisplay
+            ?? options.context?.getEnv?.("numDisplay", null);
+        return profile
+            ? formatNumberWithProfile(val, profile, options.context)
+            : val instanceof Rational ? val.toMixedString() : val.toString();
+    }
     if (val instanceof RationalInterval) return val.toMixedString();
     if (val instanceof CertifiedApproximation) return val.toString();
     if (val instanceof HaloNeighborhood) return val.toString();

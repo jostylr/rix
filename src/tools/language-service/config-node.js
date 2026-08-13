@@ -11,13 +11,15 @@ export const DEFAULT_RIX_WORKSPACE_CONFIG = Object.freeze({
     preamble: null,
     lint: Object.freeze({ level: "standard", profiles: ["default"] }),
     format: Object.freeze({ enabled: true, profile: "readable", printWidth: 100, indentWidth: 4 }),
+    numbers: Object.freeze({ input: "z[10]", display: ".." }),
     execution: Object.freeze({ mode: "isolated", timeoutMs: 10000, capabilityGroups: ["standard"], artifactDirectory: ".rix-output" }),
 });
 
-const ROOT_KEYS = new Set(["$schema", "version", "extends", "plugins", "operatorFiles", "preamble", "lint", "format", "execution"]);
+const ROOT_KEYS = new Set(["$schema", "version", "extends", "plugins", "operatorFiles", "preamble", "lint", "format", "numbers", "execution"]);
 const NESTED_KEYS = Object.freeze({
     lint: new Set(["level", "profiles"]),
     format: new Set(["enabled", "profile", "printWidth", "indentWidth"]),
+    numbers: new Set(["input", "display"]),
     execution: new Set(["mode", "timeoutMs", "capabilityGroups", "artifactDirectory"]),
 });
 
@@ -55,6 +57,9 @@ export function validateRixWorkspaceConfig(value, filename = RIX_WORKSPACE_CONFI
     if (value.format?.profile && !["readable", "compact"].includes(value.format.profile)) throw new Error(`${filename}: invalid format.profile`);
     if (value.format?.printWidth !== undefined && (!Number.isInteger(value.format.printWidth) || value.format.printWidth < 40)) throw new Error(`${filename}: format.printWidth must be an integer of at least 40`);
     if (value.format?.indentWidth !== undefined && (!Number.isInteger(value.format.indentWidth) || value.format.indentWidth < 1 || value.format.indentWidth > 8)) throw new Error(`${filename}: format.indentWidth must be between 1 and 8`);
+    for (const key of ["input", "display"]) {
+        if (value.numbers?.[key] !== undefined && (typeof value.numbers[key] !== "string" || !value.numbers[key].trim())) throw new Error(`${filename}: numbers.${key} must be a non-empty string`);
+    }
     if (value.execution?.mode && !["isolated", "session"].includes(value.execution.mode)) throw new Error(`${filename}: invalid execution.mode`);
     if (value.execution?.timeoutMs !== undefined && (!Number.isInteger(value.execution.timeoutMs) || value.execution.timeoutMs < 100 || value.execution.timeoutMs > 120000)) throw new Error(`${filename}: execution.timeoutMs must be between 100 and 120000`);
     if (value.execution?.capabilityGroups !== undefined) stringArray(value.execution.capabilityGroups, `${filename}:execution.capabilityGroups`);
@@ -67,6 +72,7 @@ function mergeConfig(base, local) {
         ...local,
         lint: { ...base.lint, ...local.lint },
         format: { ...base.format, ...local.format },
+        numbers: { ...base.numbers, ...local.numbers },
         execution: { ...base.execution, ...local.execution },
     };
 }
@@ -153,4 +159,3 @@ export function resolveContainedOperatorFiles(configResult, workspaceRoot, limit
     }
     return paths;
 }
-
