@@ -394,6 +394,9 @@ are tracked in
    - [ ] Add linear maps between distinct vector spaces, composition, inverses,
      dual spaces, tensor products, contractions, and explicit pushforward and
      pullback operations.
+   - [ ] Add a versioned linear-realization protocol so domain objects retain
+     their own identity and operations while exposing linked Vector views;
+     use degree-at-most-`n` polynomial spaces as the first finite adapter.
    - [ ] Make coordinate lineage serializable and bounded, with stable identity
      records instead of relying only on in-memory links.
    - [ ] Define elementwise tensor arithmetic and broadcasting separately from
@@ -413,6 +416,10 @@ are tracked in
 4. **Phase 4 — Sparse, accelerated, and certified backends**
    - [ ] Add sparse matrix/tensor formats and iterative solvers with explicit
      convergence and reproducibility policies.
+   - [ ] Add countably infinite frames with exact finite-support sparse vectors;
+     use the space of all finite polynomials as the first implementation, then
+     design separate lazy/oracular and topological contracts for genuinely
+     infinite coordinate expansions.
    - [ ] Add typed-array, SIMD/WebAssembly, GPU, and optional native providers
      behind `rix.linear-algebra@1` without changing exact/evidence semantics.
    - [ ] Add replayable elimination/decomposition certificates and optional

@@ -24,8 +24,9 @@ Start implementation only when all of the following are true:
 
 # Decision summary
 
-RiX should distinguish three semantic interpretations that can share one dense,
-strided, shaped-storage implementation:
+RiX should distinguish mathematical interpretations from their component
+storage. Finite values can use one dense, strided shaped-storage implementation,
+but vector and tensor semantics must not require that representation:
 
 | Semantic type | Meaning | Intrinsic operations |
 |---|---|---|
@@ -39,12 +40,13 @@ tensor must not inherit coordinate-dependent shaped-array operations merely
 because its components use shaped storage. Each type exposes its components
 through an explicit operation when storage-level work is wanted.
 
-`Shaped` is both the default semantic type for uninterpreted shaped storage and
-the natural name of the shared storage trait/protocol. Type and trait registries
-are separate namespaces: `##::Shaped` checks the semantic type, while
-`? :shaped` checks the shared trait. `Matrix`, `Vector`, and `Tensor` carry the
-trait but are not required to inherit the `Shaped` semantic type or its entire
-operator surface.
+`Shaped` is the default semantic type for uninterpreted finite shaped storage.
+It is component storage, not the base type of every mathematical object.
+`Matrix` requires finite rank-2 shaped components. A finite `Vector` or `Tensor`
+may contain `Shaped` components, while an infinite-dimensional representation
+may instead contain finite-support sparse coordinates or a later lazy/oracular
+coordinate provider. The mathematical wrapper exposes its storage explicitly;
+it does not inherit the storage object's entire operator surface.
 
 A bare shaped literal makes the weakest claim and therefore defaults to
 `:Shaped`:
@@ -132,6 +134,299 @@ the canonical registered `Matrix` type.
 
 # Proposed shaped-literal header syntax
 
+## Specifying vector spaces and frames
+
+Keep the abstract vector space separate from any component coordinate system.
+The preferred explicit construction is:
+
+```rix
+vspace := .linalg.VectorSpace({=
+  name = "V",
+  dimension = 3,
+  over = :Rational
+});
+
+e := .linalg.Frame(vspace, {=
+  name = "e",
+  basis = :defining
+});
+```
+
+`VectorSpace` creates a basis-free mathematical space. Its essential immutable
+properties are:
+
+- a stable abstract space identity;
+- a human-readable name, which is descriptive rather than identity-defining;
+- a positive finite dimension in the first implementation; and
+- a scalar field/domain implementing the required exact field protocol.
+
+Two calls with the same name, dimension, and scalar field create two distinct
+spaces. Structural coincidence must not make their vectors addable. Space
+equivalence or an isomorphism is always explicit.
+
+`Frame` creates an ordered basis on a space. It is the coordinatized-space value
+referenced by component-bearing `Vector` and `Tensor` literals. The first frame
+may use `basis=:defining`: this nominates the basis that initially identifies
+the otherwise abstract finite-dimensional space with coordinate tuples. It is
+a chosen defining frame, not an intrinsic canonical basis of every abstract
+vector space.
+
+Another frame must state how its basis is expressed relative to an existing
+frame:
+
+```rix
+f := .linalg.Frame(vspace, {=
+  name = "f",
+  relativeTo = e,
+  basis = [1, 1, 0; 0, 1, 0; 0, 0, 1]
+});
+```
+
+The basis matrix columns are the new basis vectors expressed in `e`. The
+constructor validates that the reference frame belongs to the same abstract
+space, that the matrix has the correct dimensions and scalar domain, and that
+it is invertible.
+
+The existing Phase 1 `.linalg.Coordinates(space, name, basis?)` object already
+contains a space and an ordered basis matrix. Prefer `Frame` as the eventual
+canonical name because coordinates are the dual coordinate functions induced
+by a basis. Retain `Coordinates` as a compatibility constructor/alias during
+migration.
+
+A convenience constructor can cover the common coordinate-space case without
+collapsing the underlying model:
+
+```rix
+v := .linalg.FramedSpace({=
+  name = "V",
+  dimension = 3,
+  over = :Rational
+});
+```
+
+`FramedSpace` returns a defining `Frame`; `v.space` exposes the newly created
+abstract space. It is sugar for `VectorSpace` followed by `Frame`, not a fourth
+mathematical concept. Whether this convenience earns a public API should be
+decided from usage examples rather than required for the core model.
+
+The `over` value may initially be a registered semantic scalar type such as
+`:Rational`. The lasting contract should accept a field/domain value satisfying
+a versioned scalar-field protocol, allowing constructed finite fields or
+extension fields later. A mere display string is insufficient. Modules over a
+ring are a separate future type and must not weaken `VectorSpace` field
+requirements silently.
+
+In compact shaped headers, the annotation factor names a `Frame`, not a bare
+`VectorSpace`:
+
+```rix
+x := {:3: /Vector: E/ 1, 2, 3};
+```
+
+Here display-style `E` resolves the user binding `e`. If it resolves to an
+abstract vector space instead, evaluation diagnoses that coordinates must be
+chosen. This makes the components unambiguous: a vector belongs to
+`e.space`, while the numbers shown are its representation in frame `e`.
+
+The dual frame is derived canonically from the selected frame:
+
+```rix
+p := {:3: /Covector: E/ 4, 5, 6};
+t := {:3x3: /Tensor: E@E*/ components};
+```
+
+`E*` means the frame canonically dual to `e`, not an inner-product
+identification of the space with its dual. An independently chosen or
+noncanonical dual frame is constructed explicitly and referenced by its own
+binding.
+
+### Vector-space API decision checklist
+
+- [ ] Confirm `VectorSpace` as the basis-free value and `Frame` as the value
+  referenced by component annotations.
+- [ ] Confirm `Coordinates` as a temporary compatibility alias for `Frame`.
+- [ ] Confirm the options-map fields `name`, `dimension`, and `over`.
+- [ ] Define the versioned scalar-field protocol and verify that `:Rational`
+  supplies it.
+- [ ] Confirm that separately constructed structurally identical spaces remain
+  distinct.
+- [ ] Confirm `basis=:defining` for nominating the first frame without calling
+  it mathematically canonical.
+- [ ] Specify basis-matrix orientation as new-frame basis vectors in columns of
+  `relativeTo` coordinates.
+- [ ] Decide whether `FramedSpace` convenience sugar is worth exposing.
+- [ ] Define stable export identities for spaces and frames and reject dangling
+  frame references during import.
+- [ ] Reserve separate future constructors for modules, affine spaces,
+  subspaces, quotient spaces, direct sums, and infinite-dimensional spaces.
+
+## Domain objects with linear realizations
+
+Objects such as polynomials should keep their own semantic type, identity, and
+domain operations while admitting a linked vector-space view. Do not convert a
+`Polynomial` permanently into `Vector` merely because polynomial addition and
+scalar multiplication form a vector space.
+
+The reusable abstraction is a **linear realization** (or linear model):
+
+- a family/domain predicate identifying admissible source objects;
+- an abstract vector space;
+- one or more frames;
+- an encoding from a source object to coordinates;
+- a decoding from valid coordinates to a domain object;
+- evidence or tests that encoding respects addition and scalar multiplication;
+- provenance connecting a vector representation to its source object.
+
+For polynomials, “degree exactly `n`” is not a vector space: it excludes zero
+and cancellation can lower the degree. The finite vector space is polynomials
+of degree **at most** `n`, conventionally `P_<=n`, with dimension `n + 1`.
+
+```rix
+p4 := .poly.PolynomialSpace({=
+  variable = :x,
+  maxDegree = 4,
+  over = :Rational
+});
+
+monomial := p4.Frame(:monomial);
+p := .poly([1, 2, 0, 3]);
+pv := p4.AsVector(p, monomial);
+```
+
+`p` remains a `Polynomial`; `pv` is a vector representation linked by
+`viewOf=p` and by the `p4` realization. Polynomial multiplication, degree,
+evaluation, factorization, and variable metadata remain polynomial behavior.
+Coordinate changes on `pv` do not mutate or retype `p`.
+
+One polynomial can belong to several ambient spaces, for example both
+`P_<=3` and `P_<=7`. Those vector views have distinct ambient vector-space
+identities even though they refer to the same polynomial source. Consequently:
+
+- source identity and vector-space element identity are recorded separately;
+- `SameSource` may hold when `SameVector` does not;
+- decoding a computed vector returns a new polynomial value unless an explicit
+  identity-preserving view operation applies;
+- vector arithmetic returns a vector by default, while the realization can
+  provide an explicit `AsPolynomial`/`Decode` operation;
+- domain plugins may offer convenience operations that calculate linearly and
+  return their domain type, but generic vector dispatch does not assume this.
+
+Other natural realizations include fixed-size homogeneous polynomials,
+truncated power series, functions on a finite set, finite-dimensional function
+subspaces, matrices viewed as vectors under a selected entry frame, and finite
+algebra extensions. Each domain owns its adapters; `.linalg` owns only the
+generic realization protocol.
+
+### Linear-realization checklist
+
+- [ ] Define a versioned `rix.linear-realization@1` protocol with membership,
+  space, frame, encode, decode, scalar-domain, and provenance operations.
+- [ ] Distinguish `viewOf`/`SameSource` from abstract vector identity and
+  coordinate-representation identity.
+- [ ] Decide whether `AsVector` is a generic method, realization method, or
+  both with one canonical dispatch path.
+- [ ] Require an explicit ambient realization when a source belongs to several
+  vector spaces.
+- [ ] Ensure coordinate transformation of a view preserves its source link
+  without mutating the source.
+- [ ] Make vector arithmetic return `Vector` unless an explicit domain adapter
+  requests decoded results.
+- [ ] Add `.poly.PolynomialSpace(maxDegree=n)` for `P_<=n` with monomial and
+  selected alternative frames.
+- [ ] Test cancellation, zero, degree bounds, variable mismatch, scalar-field
+  mismatch, encode/decode round trips, and the same polynomial viewed in two
+  ambient spaces.
+
+## Infinite-dimensional spaces
+
+Support infinite-dimensional spaces in tiers; “infinite coordinates” describes
+several different mathematical and computational contracts.
+
+### Tier 1: infinite basis, finite-support elements
+
+This is the tractable exact starting point. A countably infinite frame supplies
+`BasisAt(index)` and basis-key validation, while every individual vector stores
+only finitely many nonzero coordinates in a sparse map.
+
+All ordinary finite polynomials over a field form such a vector space. Their
+monomial frame is indexed by nonnegative integers, and each polynomial has
+finite support even though no global degree bound exists:
+
+```rix
+px := .poly.PolynomialSpace({=
+  variable = :x,
+  maxDegree = :unbounded,
+  over = :Rational
+});
+
+monomial := px.Frame(:monomial);
+pv := px.AsVector(.poly([1, 0, 0, 5]), monomial);
+```
+
+Here `:unbounded` means every element still has finite degree; it does not mean
+a formal power series. Vector addition and scalar multiplication remain finite
+and exact. The dimension descriptor is countably infinite, and `Components()`
+returns `SparseCoordinates`, not `Shaped`.
+
+The same model handles free vector spaces on other countable or symbolically
+keyed bases. Tensor products remain feasible when every operand has finite
+support, although support growth must obey explicit work budgets.
+
+### Tier 2: genuinely infinite coordinate expansions
+
+Formal power series, infinite sequences, and basis expansions of functions can
+have infinitely many nonzero coordinates. These are not obtained by simply
+allowing a sparse vector to run forever. They need a coordinate provider such
+as a lazy sequence or oracle, bounded observation APIs, and honest equality
+that may be undecidable.
+
+Moreover, an infinite sum is not part of a bare algebraic vector-space
+contract. Formal power series use a completion/product construction; Banach,
+Hilbert, and general function spaces require topology, norms, convergence, or
+other analytic structure. A countable Schauder/orthonormal basis is not the
+same thing as a Hamel basis.
+
+Therefore Tier 2 must introduce explicit space kinds and evidence-bearing
+operations rather than treating every lazy sequence as a vector. Summation,
+inner products, transforms, equality, and coordinate changes require work or
+precision budgets and can return unresolved/certified-approximation results.
+
+### Tier 3: symbolic and non-countably-presented spaces
+
+Some function spaces have no useful enumerable coordinate basis. They may
+still support symbolic vectors, linear maps, subspaces, evaluation functionals,
+and finite projections. Model these through operations and finite observations,
+not a fictitious dense coordinate array. General cardinal arithmetic and
+arbitrary Hamel bases are research-level capabilities rather than prerequisites
+for useful infinite-dimensional work.
+
+### Infinite-dimensional checklist
+
+- [ ] Add dimension descriptors distinguishing finite `n`, countably infinite,
+  and symbolic/unknown dimension.
+- [ ] Define `SparseCoordinates` with canonical zero removal, basis keys,
+  scalar-domain validation, deterministic traversal, and work-bounded tensor
+  products.
+- [ ] Permit `Vector` and `Tensor` component storage through a coordinate-
+  storage protocol rather than requiring `Shaped`.
+- [ ] Implement countable frames with `BasisAt`, optional key enumeration, and
+  finite-support encode/decode.
+- [ ] Use all finite polynomials as the first countably infinite-dimensional
+  exact realization.
+- [ ] Keep bounded `P_<=n` as a finite subspace with dense `Shaped` components.
+- [ ] Define inclusion maps and projections between `P_<=n`, `P_<=m`, and the
+  unbounded finite-polynomial space.
+- [ ] Specify support-growth budgets and diagnostics for tensor products and
+  linear maps.
+- [ ] Design a separate lazy/oracular coordinate protocol before formal power
+  series or infinite-support sequences are called vectors.
+- [ ] Require topology/completion metadata for convergent infinite sums and
+  distinguish Hamel, Schauder, and orthonormal basis claims.
+- [ ] Integrate undecided equality and certified approximation rather than
+  forcing termination.
+- [ ] Defer arbitrary uncountable bases and general cardinal arithmetic until
+  concrete use cases justify them.
+
 The compact goal is:
 
 ```rix
@@ -180,11 +475,10 @@ binding `v`, and `Wa` as `wa`. This exception is deliberately local to the
 annotation grammar. Diagnostics should show both the written label and the
 binding that was attempted.
 
-Every resolved factor must be a coordinatized-space value. In the current
-`.linalg` vocabulary, that is closest to `Coordinates`, which already contains
-an abstract `VectorSpace` and a basis. The migration should settle on one
-public term—preferably `Frame` or `Coordinates`—rather than introduce another
-nearly identical object.
+Every resolved factor must be a `Frame`. In the current `.linalg` vocabulary,
+that is the existing `Coordinates` value, which already contains an abstract
+`VectorSpace` and a basis. Migrate it to the canonical `Frame` vocabulary
+rather than introduce another overlapping runtime object.
 
 For `V*`, RiX constructs the dual slot and the basis canonically dual to `V`'s
 selected basis. A noncanonical pairing or independently selected dual basis is
@@ -276,12 +570,14 @@ but there should be one canonical printed spelling.
 - A dot product, length, angle, normalization, or identification of `V` with
   `V*` requires a metric or another explicit isomorphism. Coordinates alone do
   not provide an inner product.
-- `Vector.Components()` returns `Shaped`.
+- `Vector.Components()` returns its coordinate-storage value: `Shaped` for a
+  finite dense representation and `SparseCoordinates` or a later provider for
+  other representations.
 
 The runtime already registers a placeholder semantic `Vector` type, but it
-currently neither validates rank-1 shaped storage nor requires coordinate
-metadata. That placeholder must be migrated rather than treated as the final
-contract.
+currently neither validates a one-slot coordinate representation nor requires
+space/frame metadata. That placeholder must be migrated rather than treated as
+the final contract.
 
 ## Tensor
 
@@ -311,9 +607,10 @@ available only through `Components()`:
 componentSum := t.Components().Sum();
 ```
 
-`Components()` returns `Shaped`, not a `Matrix`, even for rank 2. An
-explicit conversion may request a matrix view when that interpretation is
-intended.
+For finite dense components, `Components()` returns `Shaped`, not a `Matrix`,
+even for two slots. Infinite-dimensional representations return their declared
+coordinate-storage value instead. An explicit conversion may request a matrix
+view when that interpretation is intended.
 
 # Identity and provenance
 
@@ -344,7 +641,7 @@ Preferred target names:
 | Current name | Target name | Compatibility policy |
 |---|---|---|
 | Tensor runtime method group | Shaped method group | Move generic methods; document semantic dispatch |
-| generic `tensor` semantic trait | `shaped` semantic trait | Matrix, Vector, and Tensor share storage capabilities without nominal type inheritance |
+| generic `tensor` semantic trait | storage-specific traits | Reserve `tensor` for mathematics; use `shaped`, `sparseCoordinates`, or later coordinate-provider traits on component storage |
 | `tensor.js` helpers | `shaped-array.js` helpers | Add new exports first; keep deprecated forwarding exports temporarily |
 | `isTensor` / `createTensor` | `isShapedArray` / `createShapedArray` | Mechanical migration after behavior is covered |
 | `TENSOR_LITERAL` | `SHAPED_ARRAY_LITERAL` | IR-version migration with reader compatibility |
@@ -395,7 +692,8 @@ group; semantic correctness does not require an immediate storage-tag rename.
 - [ ] Add a `Shaped` semantic registration with validation,
   normalization, export/import, traits, and generic methods.
 - [ ] Add the shared `shaped` trait and migrate the current generic `tensor`
-  trait without implying mathematical-tensor semantics.
+  trait without implying that every Vector or Tensor representation is dense
+  and finite.
 - [ ] Keep existing literals behavior-compatible behind an explicit feature
   flag or migration branch until Stage 3.
 - [ ] Prove Node, worker, browser, sheet, output, and plugin consumers accept
@@ -426,11 +724,15 @@ group; semantic correctness does not require an immediate storage-tag rename.
 
 ## Stage 4 — Implement coordinate-aware Vector and complete Tensor slots
 
-- [ ] Replace the placeholder `Vector` semantic type with rank-1 shaped-storage
-  validation and one required coordinatized-space slot.
+- [ ] Replace the placeholder `Vector` semantic type with one-slot coordinate-
+  storage validation and one required frame; finite shaped literals require a
+  rank-1 `Shaped` component value.
 - [ ] Decide and implement canonical covector source syntax.
 - [ ] Share identity, representation, coordinate transformation, and
   serialization machinery between Vector, Covector, and Tensor.
+- [ ] Accept component storage through a versioned coordinate-storage protocol;
+  use `Shaped` for finite dense coordinates and `SparseCoordinates` for
+  finite-support infinite-dimensional coordinates.
 - [ ] Implement vector/covector pairing without inventing a metric.
 - [ ] Require an explicit metric for dot products, norms, angles, and
   raising/lowering between a space and its dual.
@@ -501,8 +803,9 @@ Implementation is not complete until tests cover at least these cases:
   abstract vector-space and coordinate identities.
 - [ ] A rank-1 bare literal remains `Shaped` rather than silently becoming a
   Vector.
-- [ ] Matrix, Vector, and Tensor satisfy `? :shaped` without being reported as
-  semantic type `Shaped`.
+- [ ] Matrix components are shaped; Vector and Tensor values report their
+  component-storage capability without falsely satisfying `? :shaped` when
+  their coordinates are sparse or lazy.
 - [ ] Vector coordinate changes preserve abstract identity and create new
   representation identity.
 - [ ] Vector/covector pairing works without a metric, while dot product, norm,
@@ -530,8 +833,8 @@ Implementation is not complete until tests cover at least these cases:
 
 # Open decisions
 
-- [ ] Select `Coordinates` versus `Frame` as the canonical public name for a
-  coordinatized vector space.
+- [ ] Confirm `Frame` as the canonical public name for an ordered basis and
+  keep `Coordinates` only for the declared compatibility window.
 - [ ] Select the long-form replacement and optional short alias for `.TGEN`.
 - [ ] Decide whether runtime `type: "tensor"` ever needs a breaking rename or
   may remain a private storage tag indefinitely.
