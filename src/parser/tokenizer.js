@@ -812,18 +812,64 @@ function tryMatchNumber(input, position) {
  *
  * The tokenizer intentionally does not know which digits the active base
  * accepts. It captures one non-operator payload and leaves validation to the
- * evaluator, where mid-script `<*` directives are available. A mixed number
- * is one token (`#101..#11/#1110`); an ordinary fraction remains three tokens
+ * evaluator, where mid-script `<*` directives are available. Dedicated mixed
+ * and continued-fraction syntax propagates the initial marker
+ * (`#101..11/1100`, `#101.~11~10`); ordinary division remains three tokens
  * (`#101 / #10`). Consuming the radix point here also makes `#face.Method` a
  * malformed numeral, so literal method access requires `(#face).Method()`.
  */
 function tryMatchActiveBaseNumber(input, position) {
   if (input[position] !== "#" || input[position + 1] === "#") return null;
   const remaining = input.slice(position);
+  const consumeMethodLikeSuffix = (spelling) => {
+    const suffix = remaining.slice(spelling.length).match(/^\.[\p{L}\p{N}_@&]+/u)?.[0] || "";
+    return spelling + suffix;
+  };
 
-  // Escape hatch for alphabets containing punctuation.
+  // Escape hatch for alphabets containing punctuation. Composite forms keep
+  // every component separately quoted because punctuation may itself be a
+  // structural character such as '/', '~', or '.'.
+  const quotedComponent = "#`(?:[^`\\\\]|\\\\.)+`";
+  const quotedMixed = new RegExp(`^(${quotedComponent})\\.\\.(${quotedComponent})\\/(${quotedComponent})`, "u");
+  const quotedContinued = new RegExp(`^(${quotedComponent})\\.~(${quotedComponent}(?:~${quotedComponent})*)`, "u");
+  const composite = remaining.match(quotedMixed) || remaining.match(quotedContinued);
+  if (composite) {
+    const original = consumeMethodLikeSuffix(composite[0]);
+    if (original !== composite[0]) {
+      return {
+        type: "ActiveBaseNumber",
+        original,
+        value: original,
+        quoted: false,
+        pos: [position, position, position + original.length],
+      };
+    }
+    const components = [...composite[0].matchAll(/#`((?:[^`\\]|\\.)+)`/gu)]
+      .map((part) => part[1].replace(/\\`/g, "`").replace(/\\\\/g, "\\"));
+    return {
+      type: "ActiveBaseNumber",
+      original: composite[0],
+      value: {
+        form: composite[0].includes("..") ? "mixed" : "continued",
+        components,
+      },
+      quoted: true,
+      pos: [position, position, position + composite[0].length],
+    };
+  }
+
   const quoted = remaining.match(/^#`((?:[^`\\]|\\.)+)`/u);
   if (quoted) {
+    const original = consumeMethodLikeSuffix(quoted[0]);
+    if (original !== quoted[0]) {
+      return {
+        type: "ActiveBaseNumber",
+        original,
+        value: original,
+        quoted: false,
+        pos: [position, position, position + original.length],
+      };
+    }
     return {
       type: "ActiveBaseNumber",
       original: quoted[0],
@@ -837,17 +883,20 @@ function tryMatchActiveBaseNumber(input, position) {
   const digits = `${digit}+`;
   const active = `#${digits}`;
   const component = `${digits}(?:\\.${digit}*)?(?:#${digits})?`;
-  const mixed = new RegExp(`^#${digits}\\.\\.${active}\\/${active}`, "u");
+  const mixed = new RegExp(`^#${digits}\\.\\.#?${digits}\\/#?${digits}`, "u");
+  const explicitContinued = new RegExp(`^#~-?${digits}\\.~#?${digits}(?:~#?${digits})*`, "u");
+  const continued = new RegExp(`^#${digits}\\.~#?${digits}(?:~#?${digits})*`, "u");
   const ordinary = new RegExp(`^#${component}`, "u");
-  const match = remaining.match(mixed) || remaining.match(ordinary);
+  const match = remaining.match(mixed) || remaining.match(explicitContinued) || remaining.match(continued) || remaining.match(ordinary);
   if (!match) return null;
 
+  const original = consumeMethodLikeSuffix(match[0]);
   return {
     type: "ActiveBaseNumber",
-    original: match[0],
-    value: match[0],
+    original,
+    value: original,
     quoted: false,
-    pos: [position, position, position + match[0].length],
+    pos: [position, position, position + original.length],
   };
 }
 

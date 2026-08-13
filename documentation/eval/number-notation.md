@@ -64,16 +64,29 @@ text.
 
 A single leading `#` begins one strict active-base token. Space, an operator, a
 separator, or the end of input terminates it. The tokenizer keeps radix points,
-repeat markers, and the three components of a mixed number together:
+repeat markers, mixed numbers, and continued fractions together:
 
 ```rix
 <* "b";
-{: #101, #101.1#10, #101..#11/#1110 }
+{: #101, #101.1#10, #101..11/1100, #101.~11~10 }
 ```
 
 The first `#` opens the numeral. In `#101.1#10`, the second `#` starts the
-repeating period. In a mixed number, each component is visibly marked. An
-ordinary fraction can use the division operator: `#101 / #10`.
+repeating period; it does not select a base. Dedicated `..` and `.~` syntax
+propagates the active base through every following component. Thus the binary
+continued fraction `#101.~11~10` has coefficients 5, 3, and 2. An ordinary
+fraction is division rather than one dedicated literal, so both operands must
+select the active base: `#101/#10`.
+
+As with ordinary continued fractions, a leading `~` makes a signed first
+coefficient explicit. It follows the base selector: in a binary session,
+`#~-1.~10` represents the coefficients −1 and 2, and therefore the value
+`-1/2`. Unary negation of the entire continued fraction remains
+`-(#1.~10)`.
+
+The linter reports a likely accidental mixture such as `#101/11`. It also
+reports redundant or inconsistent inner markers such as `#101..#11/#1100`;
+the canonical unquoted spelling has just one leading marker.
 
 The whole payload is validated against the active base. Consequently,
 `#face.ToString()` is not property access—it is an invalid hexadecimal numeral.
@@ -93,6 +106,19 @@ Here `+` is a digit rather than an addition operator, so the final expression
 is three. Quoting is required for such a custom alphabet. Lossless `_>!`
 output quotes every explicitly prefixed component automatically; for example,
 `(3/2) _>! 0P` returns `"0P\"++\"/0P\"+0\""`.
+
+Backticks delimit only one integer component. Consequently every component of
+a composite punctuation-alphabet literal is separately quoted and marked:
+
+```rix
+mixed := #`++`..#`+`/#`+0`;
+continued := #`++`.~#`+0`;
+{: mixed, continued }
+```
+
+Both expressions are `7/2`. The deliberately repetitive spelling makes the
+boundaries unambiguous even when `.`, `/`, `~`, or an operator is itself a
+digit.
 
 `##` remains comment/check syntax, `{#...}` remains a symbolic system spec, and
 `#name` inside a `/.../` semantic header remains a sticky semantic name. Those

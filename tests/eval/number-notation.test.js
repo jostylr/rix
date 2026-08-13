@@ -31,8 +31,10 @@ describe("session number notation", () => {
         const state = session();
         const repeating = parseAndEvaluate(`<* "b"; #101.1#10`, state);
         expect(repeating).toEqual(new Rational(35n, 6n));
-        const mixed = parseAndEvaluate(`#101..#11/#1110`, state);
-        expect(mixed).toEqual(new Rational(73n, 14n));
+        const mixed = parseAndEvaluate(`#101..11/1100`, state);
+        expect(mixed).toEqual(new Rational(21n, 4n));
+        expect(parseAndEvaluate(`#101.~11~10`, state)).toEqual(new Rational(37n, 7n));
+        expect(parseAndEvaluate(`#~-1.~10`, state)).toEqual(new Rational(-1n, 2n));
         expect(parseAndEvaluate(`<* "x"; #b.d#face`, state))
             .toEqual(parseAndEvaluate(`0xb.d#face`, state));
     });
@@ -41,6 +43,10 @@ describe("session number notation", () => {
         expect(() => parseAndEvaluate(`<* "x"; #face.ToString()`, session()))
             .toThrow("Invalid # numeral");
         expect(parseAndEvaluate(`<* "x"; (#face).ToString()`, session()).value).toBe("64206");
+        expect(() => parseAndEvaluate(`<* "b"; #101..1/10.ToString()`, session()))
+            .toThrow("Invalid # numeral");
+        expect(() => parseAndEvaluate(`0P = {: 2, "0+", 0 }; <* "P"; #\`++\`.ToString()`, session()))
+            .toThrow("Invalid # numeral");
     });
 
     test("supports compact, long, and map configuration forms", () => {
@@ -105,6 +111,8 @@ describe("generalized positional systems", () => {
     test("quoted # streams safely support punctuation digits", () => {
         const state = session();
         expect(parseAndEvaluate(`0P = {: 2, "0+", 0 }; <* "P"; #\`++\``, state).value).toBe(3n);
+        expect(parseAndEvaluate("#`++`..#`+`/#`+0`", state)).toEqual(new Rational(7n, 2n));
+        expect(parseAndEvaluate("#`++`.~#`+0`", state)).toEqual(new Rational(7n, 2n));
         const source = parseAndEvaluate(`(3/2) _>! 0P`, state);
         expect(source.value).toBe(`0P"++"/0P"+0"`);
         expect(parseAndEvaluate(source.value, state)).toEqual(new Rational(3n, 2n));

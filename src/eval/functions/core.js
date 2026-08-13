@@ -674,7 +674,19 @@ function activeBaseBody(raw, quoted) {
     return raw
         .replace(/^#/, "")
         .replace(/\.\.#/g, "..")
-        .replace(/\/#/g, "/");
+        .replace(/\/#/g, "/")
+        .replace(/\.~#/g, ".~")
+        .replace(/~#/g, "~");
+}
+
+function parseQuotedActiveComposite(spec, baseSystem) {
+    const terms = spec.components.map((component) => parseBaseInteger(component, baseSystem, false));
+    if (spec.form === "continued") return continuedFractionFromTerms(terms);
+    if (spec.form !== "mixed" || terms.length !== 3) throw new Error("Invalid quoted active-base composite");
+    const [whole, numerator, denominator] = terms;
+    if (denominator === 0n) throw new Error("Denominator cannot be zero");
+    const fraction = new Rational(whole < 0n ? -numerator : numerator, denominator);
+    return new Rational(whole, 1n).add(fraction);
 }
 
 function validateNumberDisplayProfile(profile) {
@@ -1949,10 +1961,14 @@ export const coreFunctions = {
 
     ACTIVE_BASE_LITERAL: {
         impl(args, context) {
-            const raw = String(args[0] ?? "");
+            const rawValue = args[0];
+            const raw = typeof rawValue === "string" ? rawValue : "";
             const quoted = args[1] === true;
             const baseSystem = context.getEnv("numInputBase", BaseSystem.DECIMAL);
             try {
+                if (rawValue && typeof rawValue === "object") {
+                    return parseQuotedActiveComposite(rawValue, baseSystem);
+                }
                 if (quoted) return new Integer(parseBaseInteger(raw, baseSystem, false));
                 return fromBaseString(activeBaseBody(raw, quoted), baseSystem);
             } catch (error) {

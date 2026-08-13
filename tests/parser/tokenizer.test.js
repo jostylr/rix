@@ -1596,6 +1596,20 @@ describe("Math Oracle Tokenizer", () => {
       );
     });
 
+    test("active-base mixed and continued forms propagate one marker", () => {
+      const tokens = tokenize("#101..11/1100 #101.~11~10").filter(({ type }) => type === "ActiveBaseNumber");
+      expect(tokens.map(({ original }) => original.trim())).toEqual(["#101..11/1100", "#101.~11~10"]);
+    });
+
+    test("quoted active-base composites isolate every component", () => {
+      const tokens = tokenize("#`110`..#`11`/#`1101` #`110`.~#`11`~#`10`")
+        .filter(({ type }) => type === "ActiveBaseNumber");
+      expect(tokens.map(({ value }) => value)).toEqual([
+        { form: "mixed", components: ["110", "11", "1101"] },
+        { form: "continued", components: ["110", "11", "10"] },
+      ]);
+    });
+
     test("mixed tokens with comments", () => {
       const tokens = tokenize("x = 5; ## set x to 5\ny = 10; ## set y to 10");
       expect(tokens).toEqual(

@@ -43,6 +43,7 @@ export const RIX_LINT_RULES = Object.freeze({
     RX1704: { level: 3, profiles: ["style"], title: "Dense nested conditional" },
     RX1705: { level: 3, profiles: ["teaching", "style"], title: "Block introduces capture boundary" },
     RX1706: { level: 4, profiles: ["teaching", "style"], title: "Function value reference" },
+    RX1707: { level: 2, profiles: ["syntax", "teaching"], title: "Mixed numeric notation systems" },
     RX1801: { level: 2, profiles: ["math", "teaching"], title: "Exact division versus truncation" },
     RX1802: { level: 3, profiles: ["math", "teaching"], title: "Fraction equality policy" },
     RX1803: { level: 3, profiles: ["math"], title: "Exactness discarded" },
@@ -793,6 +794,20 @@ export function analyzeRix(source, options = {}) {
         const node = statementExpression(rawNode);
         if (!node || typeof node !== "object") return;
 
+        if (node.type === "ActiveBaseNumber") {
+            const spelling = String(node.original || "");
+            if (!spelling.includes("`") && /(?:\.\.|\.~|~|\/).*#/.test(spelling)) {
+                emit(
+                    "RX1707",
+                    "warning",
+                    node,
+                    "This dedicated active-base literal mixes propagated digits with repeated '#' markers.",
+                    "Use one leading '#', as in '#101..11/1100' or '#101.~11~10'. Quote and mark every component only when the digit alphabet requires backticks.",
+                );
+            }
+            return;
+        }
+
         if (node.type === "UserIdentifier") {
             recordScope(node, scope, state.role || "value");
             if (state.role === "declaration" || state.role === "mapKey" || state.role === "callee") return;
@@ -1259,6 +1274,19 @@ export function analyzeRix(source, options = {}) {
                 warnCollectionDecision(node.right, scope, "a logical operand");
             }
             if (DIVISION_OPERATORS.has(node.operator)) {
+                const leftActive = node.left?.type === "ActiveBaseNumber";
+                const rightActive = node.right?.type === "ActiveBaseNumber";
+                if (node.operator === "/" && leftActive !== rightActive &&
+                    (leftActive || rightActive) &&
+                    (node.left?.type === "Number" || node.right?.type === "Number")) {
+                    emit(
+                        "RX1707",
+                        "warning",
+                        node,
+                        "This division mixes an active-base '#' literal with an ordinary decimal literal.",
+                        "Mark both standalone fraction components (for example '#101/#11'), or remove '#' from both when decimal input is intended.",
+                    );
+                }
                 const denominatorName = node.right?.name || null;
                 const denominatorBinding = denominatorName ? scope.resolve(denominatorName)?.binding : null;
                 if (isZeroLiteral(node.right)) {

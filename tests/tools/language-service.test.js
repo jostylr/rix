@@ -48,6 +48,19 @@ describe("portable RiX language service", () => {
         expect(actions[0].edits[0]).toMatchObject({ text: "@" });
     });
 
+    test("warns when active-base and decimal components are mixed", () => {
+        const division = analyzeRixDocument("<* \"b\"; #101/11;");
+        expect(division.diagnostics.find(({ code }) => code === "RX1707")?.message)
+            .toContain("mixes an active-base");
+
+        const redundant = analyzeRixDocument("<* \"b\"; #101..#11/#1100;");
+        expect(redundant.diagnostics.find(({ code }) => code === "RX1707")?.message)
+            .toContain("repeated '#' markers");
+
+        expect(analyzeRixDocument("<* \"b\"; #101..11/1100; #101/#11;").diagnostics
+            .filter(({ code }) => code === "RX1707")).toHaveLength(0);
+    });
+
     test("indexes symbols, definitions, references, rename, hover, and completion", () => {
         const analysis = analyzeRixDocument(SOURCE, { uri: "file:///sample.rix", version: 1 });
         expect(analysis.symbols.find(({ name }) => name === "settings")).toMatchObject({ kind: "variable" });
