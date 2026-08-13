@@ -942,7 +942,7 @@ describe("RiX Parser", () => {
         {
           type: "Statement",
           expression: {
-            type: "Matrix",
+            type: "Shaped",
             rows: [
               [
                 { type: "Number", value: "1" },
@@ -964,7 +964,7 @@ describe("RiX Parser", () => {
         {
           type: "Statement",
           expression: {
-            type: "Matrix",
+            type: "Shaped",
             rows: [
               [
                 { type: "Number", value: "1" },
@@ -990,7 +990,7 @@ describe("RiX Parser", () => {
         {
           type: "Statement",
           expression: {
-            type: "Tensor",
+            type: "Shaped",
             structure: [
               {
                 row: [
@@ -1033,7 +1033,7 @@ describe("RiX Parser", () => {
         {
           type: "Statement",
           expression: {
-            type: "Matrix",
+            type: "Shaped",
             rows: [
               [
                 { type: "Number", value: "1" },
@@ -1053,7 +1053,7 @@ describe("RiX Parser", () => {
         {
           type: "Statement",
           expression: {
-            type: "Matrix",
+            type: "Shaped",
             rows: [
               [
                 { type: "UserIdentifier", name: "x" },
@@ -1075,7 +1075,7 @@ describe("RiX Parser", () => {
         {
           type: "Statement",
           expression: {
-            type: "Matrix",
+            type: "Shaped",
             rows: [
               [],
               [
@@ -1094,7 +1094,7 @@ describe("RiX Parser", () => {
         {
           type: "Statement",
           expression: {
-            type: "Matrix",
+            type: "Shaped",
             rows: [
               [{ type: "Number", value: "1" }],
               [{ type: "Number", value: "2" }],
@@ -1112,7 +1112,7 @@ describe("RiX Parser", () => {
         {
           type: "Statement",
           expression: {
-            type: "Tensor",
+            type: "Shaped",
             structure: [
               {
                 row: [],
@@ -1135,7 +1135,7 @@ describe("RiX Parser", () => {
         {
           type: "Statement",
           expression: {
-            type: "Tensor",
+            type: "Shaped",
             structure: [
               {
                 row: [{ type: "Number", value: "1" }],
@@ -1162,7 +1162,7 @@ describe("RiX Parser", () => {
         {
           type: "Statement",
           expression: {
-            type: "TensorLiteral",
+            type: "ShapedLiteral",
             shape: [2, 3],
             elements: [
               { type: "UserIdentifier", name: "a" },
@@ -1183,7 +1183,7 @@ describe("RiX Parser", () => {
         {
           type: "Statement",
           expression: {
-            type: "TensorLiteral",
+            type: "ShapedLiteral",
             shape: [2, 3, 2],
             elements: [
               { type: "UserIdentifier", name: "a" },
@@ -1215,7 +1215,7 @@ describe("RiX Parser", () => {
         {
           type: "Statement",
           expression: {
-            type: "TensorLiteral",
+            type: "ShapedLiteral",
             shape: [2, 3],
             elements: [],
           },
@@ -1280,7 +1280,7 @@ describe("RiX Parser", () => {
         {
           type: "Statement",
           expression: {
-            type: "Matrix",
+            type: "Shaped",
             rows: [
               [
                 {
@@ -3213,13 +3213,13 @@ describe("RiX Parser", () => {
 
       test("matrix with metadata throws error", () => {
         expect(() => parseCode('[matrix, type := "sparse"; 1, 2];')).toThrow(
-          /Cannot mix matrix\/tensor syntax with metadata/,
+          /Cannot mix Shaped syntax with metadata/,
         );
       });
 
       test("tensor with metadata throws error", () => {
         expect(() => parseCode("[1, 2; 3, 4, key := value];")).toThrow(
-          /Cannot mix matrix\/tensor syntax with metadata/,
+          /Cannot mix Shaped syntax with metadata/,
         );
       });
 
@@ -4047,9 +4047,9 @@ describe("RiX Parser", () => {
       });
     });
 
-    test("{:2x2: /::=/ a, b; c, d } parses as TensorLiteral with capture mode", () => {
+    test("{:2x2: /::=/ a, b; c, d } parses as ShapedLiteral with capture mode", () => {
       const ast = stripMetadata(parseCode("{:2x2: /::=/ a, b; c, d };"))[0].expression;
-      expect(ast.type).toBe("TensorLiteral");
+      expect(ast.type).toBe("ShapedLiteral");
       expect(ast.header.captureMode).toBe("deep_copy");
       expect(ast.shape).toEqual([2, 2]);
     });
@@ -4178,7 +4178,7 @@ describe("RiX Parser", () => {
     test("tensor destructuring accepts nested row arrays", () => {
       const ast = stripMetadata(parseCode("{:2x2: [a, b], [c, d]} = m;"))[0].expression;
       expect(ast.left).toEqual({
-        type: "DestructureTensorPattern",
+        type: "DestructureShapedPattern",
         shape: [2, 2],
         rows: [
           [

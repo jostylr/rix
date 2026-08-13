@@ -120,7 +120,7 @@ describe("semantic outfitting headers", () => {
     });
 
     test("changing semantic type while keeping traits emits a warning", () => {
-        const { diagnostics } = evalRiXWithContext("x = {^ /::Length :meters/ 7}; y = {^ /::Vector/ x}; y");
+        const { diagnostics } = evalRiXWithContext("x = {^ /::Length :meters/ 7}; y = {^ /::Rational/ x}; y");
         expect(diagnostics.getEventsByKind("warning").length).toBeGreaterThan(0);
     });
 

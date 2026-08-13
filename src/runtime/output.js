@@ -2,7 +2,7 @@
 
 import { CertifiedApproximation, Integer, Rational, RationalInterval } from "@ratmath/core";
 import { isUndecided } from "./decision.js";
-import { isTensor, tensorGetBySelectors } from "./tensor.js";
+import { isShaped, shapedGetBySelectors } from "./shaped.js";
 import { isBinding } from "./binding.js";
 import { FORMULA_SHEET_ASSIGNMENT_MODES, isFormulaSheet } from "./formula-sheet.js";
 import { coordinateTuple, resolveLabeledCoordinate } from "./sheet-labels.js";
@@ -1167,13 +1167,13 @@ function sheetData(value) {
         };
     }
 
-    if (isTensor(value)) {
+    if (isShaped(value)) {
         if (value.shape.length === 0) throw new Error("Sheet data must have rank 1 or greater");
         return {
-            kind: "tensor",
+            kind: "shaped",
             binding,
             shape: [...value.shape],
-            at: (index) => tensorGetBySelectors(
+            at: (index) => shapedGetBySelectors(
                 value,
                 index.map((item) => ({ kind: "index", value: item })),
             ),
@@ -1214,7 +1214,7 @@ function sheetData(value) {
         };
     }
 
-    throw new Error("Sheet data must be a tensor, matrix, array, tuple, or sequence");
+    throw new Error("Sheet data must be a shaped, matrix, array, tuple, or sequence");
 }
 
 function normalizedSheetIndex(value, length, label) {
@@ -2389,7 +2389,7 @@ export function renderOutputHtml(value, format = (item) => String(item ?? "")) {
         const axisSummary = value.columnAxis
             ? `Rows: ${value.rowAxis.name} · Columns: ${value.columnAxis.name}`
             : `Rows: ${value.rowAxis.name}`;
-        const controls = value.hiddenAxes.length === 0 ? "" : `<div class="rix-output-sheet-plane-controls" aria-label="Tensor plane">${value.hiddenAxes.map(({ axis, name, length, selected, labels }) => `<label><span>${escapeHtml(name)} · axis ${axis}</span><select data-rix-sheet-axis="${axis}" aria-label="${escapeHtml(name)} axis ${axis}">${Array.from({ length }, (_item, index) => `<option value="${index + 1}"${selected === index + 1 ? " selected" : ""}>${escapeHtml(labels?.[index] ?? String(index + 1))}</option>`).join("")}</select></label>`).join("")}</div>`;
+        const controls = value.hiddenAxes.length === 0 ? "" : `<div class="rix-output-sheet-plane-controls" aria-label="Shaped plane">${value.hiddenAxes.map(({ axis, name, length, selected, labels }) => `<label><span>${escapeHtml(name)} · axis ${axis}</span><select data-rix-sheet-axis="${axis}" aria-label="${escapeHtml(name)} axis ${axis}">${Array.from({ length }, (_item, index) => `<option value="${index + 1}"${selected === index + 1 ? " selected" : ""}>${escapeHtml(labels?.[index] ?? String(index + 1))}</option>`).join("")}</select></label>`).join("")}</div>`;
         const headerAttributes = (axis, coordinate, fallback) => value.formulaBacked
             ? ` class="rix-sheet-header-editable" tabindex="0" data-rix-header-axis="${axis}" data-rix-header-coordinate="${coordinate}" data-rix-header-label="${escapeHtml(value.axisLabels[axis - 1]?.[coordinate - 1] ?? "")}" data-rix-header-fallback="${escapeHtml(fallback)}"`
             : "";

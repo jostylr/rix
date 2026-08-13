@@ -71,7 +71,7 @@ const KNOWN_IMMUTABLE_METHODS = new Set(["P", "Polynomial", "R", "RationalFuncti
 const KNOWN_IMMUTABLE_SYSTEM_CALLS = new Set([
     "IMMUTABLEVALUE", "poly", "polynomial", "p", "ratfun", "rationalFunction",
 ]);
-const KNOWN_MUTABLE_NODE_TYPES = new Set(["Array", "ArrayContainer", "MapContainer", "SetContainer", "TensorContainer"]);
+const KNOWN_MUTABLE_NODE_TYPES = new Set(["Array", "ArrayContainer", "MapContainer", "SetContainer", "ShapedContainer"]);
 const KNOWN_PURE_COLLECTION_METHODS = new Set([
     "ADD", "APPEND", "CONCAT", "DROP", "DROPLAST", "FILTER", "FLATMAP", "MAP", "PREPEND",
     "PUSH", "REVERSE", "SET", "SLICE", "SORT", "TAKE", "UNIQUE", "WITH",

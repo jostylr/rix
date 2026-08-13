@@ -128,13 +128,14 @@ describe("RiX type and trait registry", () => {
         expect(values[3].name).toBe("POWPROD");
     });
 
-    test("Rational and Tensor export/import round trip through system helpers", () => {
+    test("Rational and Shaped export/import round trip through system helpers", () => {
         const rational = evalRiX("r = 7 ~: :Rational; e = .TypeExport(r); r2 = .TypeImport(e); r == r2;").result;
         expect(asBool(rational)).toBe(true);
 
-        const tensor = evalRiX("t = {:2x2: 1, 2; 3, 4}; e = .TypeExport(t); t2 = .TypeImport(e); {: t2.Shape(), t2.Flatten() };").result;
-        expect(tensor.values[0].values.map((v) => Number(v.value))).toEqual([2, 2]);
-        expect(tensor.values[1].values.map((v) => Number(v.value))).toEqual([1, 2, 3, 4]);
+        const shaped = evalRiX("t = {:2x2: 1, 2; 3, 4}; e = .TypeExport(t); t2 = .TypeImport(e); {: t2.Shape(), t2.Flatten() };").result;
+        expect(shaped.values[0].values.map((v) => Number(v.value))).toEqual([2, 2]);
+        expect(shaped.values[1].shape).toEqual([4]);
+        expect(shaped.values[1].data.map((v) => Number(v.value))).toEqual([1, 2, 3, 4]);
     });
 
     test("an unregistered semantic type is rejected", () => {
@@ -212,8 +213,32 @@ describe("RiX type and trait registry", () => {
         expect(typeRegistry.has("rational")).toBe(true);
         expect(typeRegistry.has("Integer")).toBe(true);
         expect(typeRegistry.has("RationalInterval")).toBe(true);
-        expect(typeRegistry.has("Tensor")).toBe(true);
+        expect(typeRegistry.has("Shaped")).toBe(true);
         expect(traitRegistry.has("field")).toBe(true);
         expect(traitRegistry.has("shapeAware")).toBe(true);
+    });
+
+    test("semantic type and trait names are case-insensitive with canonical metadata", () => {
+        expect(typeRegistry.get("rAtIoNaL")?.name).toBe("Rational");
+        expect(traitRegistry.get("OrDeReD")?.name).toBe("ordered");
+
+        const result = evalRiX(`
+            x = {^ /::rAtIoNaL :OrDeReD/ 7};
+            {: x.__type, x ? :RATIONAL, x ? :oRdErEd, .TypeKnown(:rAtIoNaL) }
+        `).result;
+        expect(result.values[0].value).toBe("Rational");
+        expect(result.values.slice(1).map((value) => value?.value ?? null)).toEqual([1n, 1n, 1n]);
+    });
+
+    test("semantic registry rejects names and aliases that differ only by case", () => {
+        const suffix = `${Date.now()}CaseFold`;
+        registerType({ name: suffix, aliases: [`${suffix}Alias`], convert: (value) => value });
+        expect(() => registerType({ name: suffix.toUpperCase(), convert: (value) => value }))
+            .toThrow(/Duplicate type registration/);
+        expect(() => registerType({
+            name: `${suffix}Other`,
+            aliases: [`${suffix}alias`.toLowerCase()],
+            convert: (value) => value,
+        })).toThrow(/Duplicate type alias/);
     });
 });

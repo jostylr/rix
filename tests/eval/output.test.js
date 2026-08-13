@@ -542,14 +542,14 @@ describe("portable structured output", () => {
         expect(captioned.caption).toBe("Values");
     });
 
-    test("Sheet creates a portable tensor view with canonical RiX addresses", () => {
+    test("Sheet creates a portable Shaped view with canonical RiX addresses", () => {
         const sheet = parseAndEvaluate(`
             m := {:2x3: 1, 2, 3; 4, 5, 6};
             .Sheet(m, {= title="Matrix view" })
         `);
         expect(sheet.type).toBe("output");
         expect(sheet.kind).toBe("sheet");
-        expect(sheet.sourceKind).toBe("tensor");
+        expect(sheet.sourceKind).toBe("shaped");
         expect(sheet.shape).toEqual([2, 3]);
         expect(sheet.viewAxes).toEqual([1, 2]);
         expect(sheet.columnHeaders).toEqual(["A · 1", "B · 2", "C · 3"]);
@@ -712,7 +712,7 @@ describe("portable structured output", () => {
 
     test("Sheet adapts matrices and rank-1 sequences", () => {
         const matrix = parseAndEvaluate(".Sheet([1, 2; 3, 4])");
-        expect(matrix.sourceKind).toBe("tensor");
+        expect(matrix.sourceKind).toBe("shaped");
         expect(matrix.shape).toEqual([2, 2]);
         expect(formatValue(matrix.cells[1][0].value)).toBe("3");
 

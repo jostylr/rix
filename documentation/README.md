@@ -75,7 +75,7 @@ values.Join() ##@ == "1,2,3";
 ```
 
 Use native `##: kind` for a checked structural annotation. Optional brackets
-check the size: `array[5]`, `set[3]`, `map[2]`, `tuple[2]`, or `tensor[2x2]`.
+check the size: `array[5]`, `set[3]`, `map[2]`, `tuple[2]`, or `shaped[2x2]`.
 `##! Debug(...)`, `Trace(...)`, `Info(...)`, and `Dump(...)` are native,
 value-preserving diagnostic taps. `Log(...)` is a concise alias for `Dump(...)`.
 

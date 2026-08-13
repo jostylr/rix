@@ -141,15 +141,15 @@ function uniformDimension(values, label) {
   if (values.length === 0) return 0;
   const expected = values[0];
   if (!values.every((value) => value === expected)) {
-    throw new Error(`Semicolon tensor is ragged along ${label}`);
+    throw new Error(`Semicolon Shaped literal is ragged along ${label}`);
   }
   return expected;
 }
 
-function implicitTensorLayout(structure, rank) {
+function implicitShapedLayout(structure, rank) {
   const rows = structure || [];
   if (rank < 2 || rows.length === 0) {
-    throw new Error("Semicolon tensor requires at least one row");
+    throw new Error("Semicolon Shaped literal requires at least one row");
   }
 
   const columns = uniformDimension(rows.map((item) => item.row.length), "columns");
@@ -186,7 +186,7 @@ function implicitTensorLayout(structure, rank) {
 
   const expectedRows = shape[0] * shape.slice(2).reduce((product, size) => product * size, 1);
   if (rows.length !== expectedRows) {
-    throw new Error(`Semicolon tensor shape inference expected ${expectedRows} rows, received ${rows.length}`);
+    throw new Error(`Semicolon Shaped literal shape inference expected ${expectedRows} rows, received ${rows.length}`);
   }
 
   let completedBlock = shape[0];
@@ -202,7 +202,7 @@ function implicitTensorLayout(structure, rank) {
     }
     if (rows[index].separatorLevel !== expectedSeparator) {
       throw new Error(
-        `Malformed semicolon tensor boundary after row ${index + 1}: expected '${";".repeat(expectedSeparator)}'`,
+        `Malformed semicolon shaped boundary after row ${index + 1}: expected '${";".repeat(expectedSeparator)}'`,
       );
     }
   }
@@ -744,6 +744,7 @@ const LOWERERS = {
       captureMode: node.captureMode || null,
       name: node.name || null,
       typeName: node.typeName || null,
+      ...(Array.isArray(node.slots) ? { slots: node.slots.map((slot) => ({ ...slot })) } : {}),
       traits: (node.traits || []).map((trait) => ({
         name: trait.name,
         checkMode: trait.checkMode || null,
@@ -765,25 +766,22 @@ const LOWERERS = {
     return ir("ARRAY", ...node.elements.map(lowerNode));
   },
 
-  Matrix(node) {
-    const structure = node.rows.map((row, index) => ({
-      row,
-      separatorLevel: index === node.rows.length - 1 ? 0 : 1,
-    }));
-    const layout = implicitTensorLayout(structure, 2);
-    return ir("TENSOR_LITERAL", layout.shape, ...layout.elements.map(lowerNode));
+  Shaped(node) {
+    const structure = node.rows
+      ? node.rows.map((row, index) => ({
+          row,
+          separatorLevel: index === node.rows.length - 1 ? 0 : 1,
+        }))
+      : node.structure;
+    const layout = implicitShapedLayout(structure, node.rows ? 2 : node.maxDimension);
+    return ir("SHAPED_LITERAL", layout.shape, ...layout.elements.map(lowerNode));
   },
 
-  Tensor(node) {
-    const layout = implicitTensorLayout(node.structure, node.maxDimension);
-    return ir("TENSOR_LITERAL", layout.shape, ...layout.elements.map(lowerNode));
-  },
-
-  TensorLiteral(node) {
+  ShapedLiteral(node) {
     const meta = node.header ? { header: lowerNode(node.header) } : null;
     return meta
-      ? ir("TENSOR_LITERAL", meta, node.shape, ...node.elements.map(lowerNode))
-      : ir("TENSOR_LITERAL", node.shape, ...node.elements.map(lowerNode));
+      ? ir("SHAPED_LITERAL", meta, node.shape, ...node.elements.map(lowerNode))
+      : ir("SHAPED_LITERAL", node.shape, ...node.elements.map(lowerNode));
   },
 
   ValueOutfit(node) {
@@ -1114,7 +1112,7 @@ const LOWERERS = {
   },
 
   Transpose(node) {
-    return ir("TENSOR_TRANSPOSE", lowerNode(node.expression));
+    return ir("SHAPED_TRANSPOSE", lowerNode(node.expression));
   },
 
   // === Calculus ===
@@ -1464,7 +1462,7 @@ function lowerDestructureTarget(node) {
           nestedTarget: node.nestedTarget ? lowerDestructureTarget(node.nestedTarget) : null,
         };
       }
-    case "DestructureTensorPattern":
+    case "DestructureShapedPattern":
       return {
         type: node.type,
         shape: [...(node.shape || [])],

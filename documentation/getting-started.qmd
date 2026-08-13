@@ -27,7 +27,7 @@ The standalone repository is laid out for `bun install` and `bun test`, but that
 path remains blocked until a compatible Core version is published and RiX raises
 its minimum dependency accordingly.
 
-The RiX test suite exercises tokenizer, parser, lowering, evaluator, runtime, CLI, examples, exact values, types, methods, tensors, generators, and diagnostics.
+The RiX test suite exercises tokenizer, parser, lowering, evaluator, runtime, CLI, examples, exact values, types, methods, Shaped storage, mathematical tensors, generators, and diagnostics.
 
 ## Open the REPL
 

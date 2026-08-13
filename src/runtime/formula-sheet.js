@@ -8,7 +8,7 @@
 
 import { Integer, Rational } from "@ratmath/core";
 import { createReactiveGraph } from "./reactive-graph.js";
-import { forEachTensorCell, isTensor } from "./tensor.js";
+import { forEachShapedCell, isShaped } from "./shaped.js";
 import { coordinateTuple, labelSchema, resolveLabeledCoordinate } from "./sheet-labels.js";
 
 let nextFormulaSheetId = 1;
@@ -105,13 +105,13 @@ function normalizeFormulaGrid(value) {
         };
     }
 
-    if (isTensor(value)) {
+    if (isShaped(value)) {
         const shape = [...value.shape];
         if (shape.length === 0 || shape.some((length) => length === 0)) {
-            throw new Error("FormulaSheet requires a non-empty tensor of rank 1 or greater");
+            throw new Error("FormulaSheet requires a non-empty shaped of rank 1 or greater");
         }
         const entries = [];
-        forEachTensorCell(value, (formula, index) => {
+        forEachShapedCell(value, (formula, index) => {
             entries.push({
                 index: Object.freeze([...index]),
                 formula: requireFormula(formula, index),
@@ -259,7 +259,7 @@ export function isFormulaSheet(value) {
 }
 
 /**
- * Create a formula sheet from a tensor or a rank-2 nested array.
+ * Create a formula sheet from a shaped or a rank-2 nested array.
  *
  * options.runFormula(formula, bindings) evaluates one deferred formula inside
  * the caller-provided isolated RiX context.

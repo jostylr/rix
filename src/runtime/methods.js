@@ -17,17 +17,20 @@ import { shallowCopyValue } from "./cell.js";
 import { arithmeticFunctions } from "../eval/functions/arithmetic.js";
 import { collectionFunctions } from "../eval/functions/collections.js";
 import {
-    createTensor,
-    createTensorView,
-    forEachTensorCell,
-    isTensor,
-    tensorAssignBySelectors,
-    tensorGetBySelectors,
-    tensorIndexTuple,
-    tensorRank,
-    tensorShape,
-    tensorSize,
-} from "./tensor.js";
+    createShaped,
+    createShapedView,
+    forEachShapedCell,
+    isShaped,
+    shapedAssignBySelectors,
+    shapedGetBySelectors,
+    shapedIndexTuple,
+    shapedRank,
+    shapedScalarDomain,
+    shapedShape,
+    shapedSize,
+    validateShapedScalarDomain,
+    valueBelongsToScalarDomain,
+} from "./shaped.js";
 import { checkTraits, refreshRuntimeMetadata } from "./semantic.js";
 import {
     cayleyCartesian,
@@ -212,8 +215,8 @@ function createEmptyTupleLike(tuple) {
     };
 }
 
-function createEmptyTensorLike(tensor) {
-    return createTensor(tensor.shape, null, { ext: mutableExt() });
+function createEmptyShapedLike(shaped) {
+    return createShaped(shaped.shape, null, { ext: mutableExt() });
 }
 
 function defaultAccumulator(target) {
@@ -222,7 +225,7 @@ function defaultAccumulator(target) {
     if (target?.type === "set") return createEmptySet();
     if (target?.type === "tuple") return createEmptyTupleLike(target);
     if (target?.type === "string") return stringObj("");
-    if (isTensor(target)) return createEmptyTensorLike(target);
+    if (isShaped(target)) return createEmptyShapedLike(target);
     throw new Error("Reduce does not know how to build a default accumulator for this value");
 }
 
@@ -237,8 +240,8 @@ function valueKey(value) {
     if (value?.type === "map") {
         return `map{${Array.from(value.entries.entries()).map(([k, v]) => `${k}:${valueKey(v)}`).join(",")}}`;
     }
-    if (isTensor(value)) {
-        return `tensor(${value.shape.join("x")})[${value.data.map(valueKey).join(",")}]`;
+    if (isShaped(value)) {
+        return `shaped(${value.shape.join("x")})[${value.data.map(valueKey).join(",")}]`;
     }
     if (typeof value?.toString === "function" && value.toString !== Object.prototype.toString) {
         return value.toString();
@@ -382,12 +385,12 @@ function stringEntries(target) {
     }));
 }
 
-function tensorEntries(target) {
+function shapedEntries(target) {
     const entries = [];
-    forEachTensorCell(target, (value, tuple) => {
+    forEachShapedCell(target, (value, tuple) => {
         entries.push({
             value,
-            key: tensorIndexTuple(tuple),
+            key: shapedIndexTuple(tuple),
         });
     });
     return entries;
@@ -398,7 +401,7 @@ function isIndexedIteratorSource(target) {
         target?.type === "lazy_sequence" ||
         target?.type === "tuple" ||
         target?.type === "string" ||
-        isTensor(target);
+        isShaped(target);
 }
 
 function iteratorStep(value, label) {
@@ -441,7 +444,7 @@ function iterateEntries(target) {
     if (target?.type === "map") return mapEntries(target);
     if (target?.type === "set") return setEntries(target);
     if (target?.type === "string") return stringEntries(target);
-    if (isTensor(target)) return tensorEntries(target);
+    if (isShaped(target)) return shapedEntries(target);
     throw new Error("Value is not iterable for this method");
 }
 
@@ -506,8 +509,8 @@ function ensureString(target, name) {
     if (!target || target.type !== "string") throw new Error(`${name} is only defined for strings`);
 }
 
-function ensureTensor(target, name) {
-    if (!isTensor(target)) throw new Error(`${name} is only defined for tensors`);
+function ensureShaped(target, name) {
+    if (!isShaped(target)) throw new Error(`${name} is only defined for Shaped values`);
 }
 
 function mutableSetValue(target, rawIndex, value) {
@@ -601,10 +604,6 @@ function findEntry(target, iterator, context, evaluate, invoke, wantKey = false)
 
 function arithmeticAdd(a, b) {
     return arithmeticFunctions.ADD.impl([a, b]);
-}
-
-function arithmeticMul(a, b) {
-    return arithmeticFunctions.MUL.impl([a, b]);
 }
 
 function arithmeticDiv(a, b) {
@@ -1401,140 +1400,122 @@ const tupleMethods = {
         reduceEntries(target, iterator, initial, context, evaluate, invoke)),
 };
 
-function tensorSelectorsFromArgs(args) {
+function shapedSelectorsFromArgs(args) {
     if (args.length === 1 && args[0]?.type === "tuple") {
         return args[0].values.map((value) => ({ kind: "index", value }));
     }
     return args.map((value) => ({ kind: "index", value }));
 }
 
-const tensorMethods = {
+const shapedMethods = {
+    SCALARDOMAIN: method("SCALARDOMAIN", ([target]) => {
+        ensureShaped(target, "ScalarDomain");
+        return stringObj(shapedScalarDomain(target));
+    }),
+    WITHSCALARDOMAIN: method("WITHSCALARDOMAIN", ([target, domain]) => {
+        ensureShaped(target, "WithScalarDomain");
+        const copy = shallowCopyValue(target);
+        return validateShapedScalarDomain(copy, stringValue(domain));
+    }),
+    "SETSCALARDOMAIN!": method("SETSCALARDOMAIN!", ([target, domain]) => {
+        ensureShaped(target, "SetScalarDomain!");
+        return validateShapedScalarDomain(target, stringValue(domain));
+    }),
     SHAPE: method("SHAPE", ([target]) => {
-        ensureTensor(target, "Shape");
-        return { type: "tuple", values: tensorShape(target).map((dim) => int(dim)) };
+        ensureShaped(target, "Shape");
+        return { type: "tuple", values: shapedShape(target).map((dim) => int(dim)) };
     }),
     RANK: method("RANK", ([target]) => {
-        ensureTensor(target, "Rank");
-        return int(tensorRank(target));
+        ensureShaped(target, "Rank");
+        return int(shapedRank(target));
     }),
     SIZE: method("SIZE", ([target]) => {
-        ensureTensor(target, "Size");
-        return int(tensorSize(target));
+        ensureShaped(target, "Size");
+        return int(shapedSize(target));
     }),
     GET: method("GET", ([target, ...selectors]) => {
-        ensureTensor(target, "Get");
-        return tensorGetBySelectors(target, tensorSelectorsFromArgs(selectors));
+        ensureShaped(target, "Get");
+        return shapedGetBySelectors(target, shapedSelectorsFromArgs(selectors));
     }),
     SET: method("SET", ([target, ...selectorsAndValue]) => {
-        ensureTensor(target, "Set");
+        ensureShaped(target, "Set");
         const value = selectorsAndValue[selectorsAndValue.length - 1];
         const selectors = selectorsAndValue.slice(0, -1);
         const copy = shallowCopyValue(target);
-        tensorAssignBySelectors(copy, tensorSelectorsFromArgs(selectors), value);
+        shapedAssignBySelectors(copy, shapedSelectorsFromArgs(selectors), value);
         return copy;
     }),
     "SET!": method("SET!", ([target, ...selectorsAndValue]) => {
-        ensureTensor(target, "Set!");
+        ensureShaped(target, "Set!");
         const value = selectorsAndValue[selectorsAndValue.length - 1];
         const selectors = selectorsAndValue.slice(0, -1);
-        tensorAssignBySelectors(target, tensorSelectorsFromArgs(selectors), value);
+        shapedAssignBySelectors(target, shapedSelectorsFromArgs(selectors), value);
         return target;
     }),
     RESHAPE: method("RESHAPE", ([target, shape]) => {
-        ensureTensor(target, "Reshape");
+        ensureShaped(target, "Reshape");
         const nextShape = shape?.type === "tuple" ? shape.values.map((value) => numericIndex(value)) : null;
         if (!nextShape) throw new Error("Reshape expects a shape tuple");
         const expected = nextShape.reduce((product, dim) => product * dim, 1);
-        if (expected !== tensorSize(target)) throw new Error("Reshape size mismatch");
-        return createTensor(nextShape, target.data);
+        if (expected !== shapedSize(target)) throw new Error("Reshape size mismatch");
+        return createShaped(nextShape, target.data);
     }),
     FLATTEN: method("FLATTEN", ([target]) => {
-        ensureTensor(target, "Flatten");
-        return createTensor([tensorSize(target)], [...target.data]);
+        ensureShaped(target, "Flatten");
+        return createShaped([shapedSize(target)], [...target.data]);
     }),
     TRANSPOSE: method("TRANSPOSE", ([target]) => {
-        ensureTensor(target, "Transpose");
-        if (tensorRank(target) !== 2) throw new Error("Transpose currently expects a rank-2 tensor");
-        return createTensorView(target, {
+        ensureShaped(target, "Transpose");
+        if (shapedRank(target) !== 2) throw new Error("Transpose currently expects a rank-2 Shaped value");
+        return createShapedView(target, {
             shape: [target.shape[1], target.shape[0]],
             strides: [target.strides[1], target.strides[0]],
             offset: target.offset,
         });
     }),
     PERMUTE: method("PERMUTE", ([target, order]) => {
-        ensureTensor(target, "Permute");
+        ensureShaped(target, "Permute");
         if (order?.type !== "tuple") throw new Error("Permute expects a tuple of axis numbers");
         const axes = order.values.map((value) => numericIndex(value) - 1);
         if (axes.length !== target.shape.length) throw new Error("Permute rank mismatch");
-        return createTensorView(target, {
+        return createShapedView(target, {
             shape: axes.map((axis) => target.shape[axis]),
             strides: axes.map((axis) => target.strides[axis]),
             offset: target.offset,
         });
     }),
     MAP: method("MAP", ([target, iterator], context, evaluate, invoke) => {
-        ensureTensor(target, "Map");
+        ensureShaped(target, "Map");
         const data = [];
-        forEachTensorCell(target, (value, tuple) => {
-            data.push(invoke(iterator, [value, tensorIndexTuple(tuple), target], context, evaluate));
+        forEachShapedCell(target, (value, tuple) => {
+            data.push(invoke(iterator, [value, shapedIndexTuple(tuple), target], context, evaluate));
         });
-        return createTensor(target.shape, data);
+        return createShaped(target.shape, data);
     }),
     "FILL!": method("FILL!", ([target, value]) => {
-        ensureTensor(target, "Fill!");
-        forEachTensorCell(target, (_entry, _tuple, offset) => {
+        ensureShaped(target, "Fill!");
+        const domain = shapedScalarDomain(target);
+        if (!valueBelongsToScalarDomain(value, domain)) {
+            throw new Error(`Shaped Fill! scalar does not satisfy declared domain ${domain}`);
+        }
+        forEachShapedCell(target, (_entry, _tuple, offset) => {
             target.data[offset] = value;
         });
         return target;
     }),
     SUM: method("SUM", ([target]) => {
-        ensureTensor(target, "Sum");
+        ensureShaped(target, "Sum");
         let acc = int(0);
-        forEachTensorCell(target, (value) => {
+        forEachShapedCell(target, (value) => {
             if (!isHole(value)) acc = arithmeticAdd(acc, value);
         });
         return acc;
     }),
     MEAN: method("MEAN", ([target]) => {
-        ensureTensor(target, "Mean");
-        const size = tensorSize(target);
+        ensureShaped(target, "Mean");
+        const size = shapedSize(target);
         if (size === 0) return null;
-        return arithmeticDiv(tensorMethods.SUM.impl([target]), int(size));
-    }),
-    DOT: method("DOT", ([target, other]) => {
-        ensureTensor(target, "Dot");
-        ensureTensor(other, "Dot");
-        if (tensorRank(target) !== 1 || tensorRank(other) !== 1 || tensorSize(target) !== tensorSize(other)) {
-            throw new Error("Dot expects rank-1 tensors of equal size");
-        }
-        let acc = int(0);
-        for (let i = 0; i < target.data.length; i++) {
-            acc = arithmeticAdd(acc, arithmeticMul(target.data[i], other.data[i]));
-        }
-        return acc;
-    }),
-    MATMUL: method("MATMUL", ([target, other]) => {
-        ensureTensor(target, "MatMul");
-        ensureTensor(other, "MatMul");
-        if (tensorRank(target) !== 2 || tensorRank(other) !== 2) {
-            throw new Error("MatMul expects rank-2 tensors");
-        }
-        const [rows, inner] = target.shape;
-        const [otherInner, cols] = other.shape;
-        if (inner !== otherInner) throw new Error("MatMul inner dimensions must agree");
-        const data = [];
-        for (let r = 1; r <= rows; r++) {
-            for (let c = 1; c <= cols; c++) {
-                let acc = int(0);
-                for (let k = 1; k <= inner; k++) {
-                    const a = tensorGetBySelectors(target, [{ kind: "index", value: int(r) }, { kind: "index", value: int(k) }]);
-                    const b = tensorGetBySelectors(other, [{ kind: "index", value: int(k) }, { kind: "index", value: int(c) }]);
-                    acc = arithmeticAdd(acc, arithmeticMul(a, b));
-                }
-                data.push(acc);
-            }
-        }
-        return createTensor([rows, cols], data);
+        return arithmeticDiv(shapedMethods.SUM.impl([target]), int(size));
     }),
     REDUCE: method("REDUCE", ([target, iterator, initial], context, evaluate, invoke) =>
         reduceEntries(target, iterator, initial, context, evaluate, invoke)),
@@ -1803,7 +1784,7 @@ const PROTOS = new Map([
     ["set", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(iterableMethods), ...Object.entries(setMethods)])],
     ["string", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(iterableMethods), ...Object.entries(stringMethods)])],
     ["tuple", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(iterableMethods), ...Object.entries(tupleMethods)])],
-    ["tensor", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(iterableMethods), ...Object.entries(tensorMethods)])],
+    ["shaped", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(iterableMethods), ...Object.entries(shapedMethods)])],
     ["iterator", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(iteratorMethods)])],
     ["deferred", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(deferredMethods)])],
     ["exact_generator", createBuiltinProto([
@@ -1871,7 +1852,7 @@ function builtinProtoFor(target) {
     if (target instanceof RationalInterval) return PROTOS.get("rational_interval");
     if (target instanceof CertifiedApproximation) return PROTOS.get("certified_approximation");
     if (target instanceof Fraction) return PROTOS.get("structural_value");
-    if (isTensor(target)) return PROTOS.get("tensor");
+    if (isShaped(target)) return PROTOS.get("shaped");
     if (target && typeof target === "object" && target.fn === "DEFER") return PROTOS.get("deferred");
     return PROTOS.get(target?.type) ?? null;
 }
@@ -1886,7 +1867,7 @@ function extensionTypeNames(target) {
     else if (target instanceof CertifiedApproximation) names.push("CertifiedApproximation");
     else if (isUndecided(target)) names.push("Undecided");
     else if (target instanceof Fraction) names.push("Fraction");
-    else if (isTensor(target)) names.push("Tensor");
+    else if (isShaped(target)) names.push("Shaped");
     else if (target?.type === "sequence" || target?.type === "lazy_sequence") names.push("Array");
     else if (target?.type) names.push(target.type);
     return [...new Set(names)];
@@ -1971,7 +1952,7 @@ export function builtinMethodNamesForType(typeName) {
         ["set", "set"],
         ["string", "string"],
         ["tuple", "tuple"],
-        ["tensor", "tensor"],
+        ["shaped", "shaped"],
         ["iterator", "iterator"],
         ["asyncstream", "async_stream"],
     ]);

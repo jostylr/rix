@@ -52,7 +52,7 @@ describe("documentation RiX examples", () => {
       "{| 1, 2, 3 |} ##: set[3]",
       "{= name = \"Ada\", age = 37 } ##: map[2]",
       "{: 2, 3 } ##: tuple[2]",
-      "{:2x2: 1, 2; 3, 4 } ##: tensor[2x2]",
+      "{:2x2: 1, 2; 3, 4 } ##: shaped[2x2]",
       "```",
     ].join("\n");
 

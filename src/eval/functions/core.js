@@ -21,7 +21,7 @@ import {
     shallowCopyValue, deepCopyValue,
     copyAllMeta, transferMetaForUpdate,
 } from "../../runtime/cell.js";
-import { isTensor } from "../../runtime/tensor.js";
+import { isShaped } from "../../runtime/shaped.js";
 import { applySemanticHeader, applyUpdateSemantics, convertSemanticType, mergeStickyHeader, readStickyHeader, rebuildSemanticMetadata, refreshRuntimeMetadata, valueHasSemanticMembership, valueSatisfiesTrait } from "../../runtime/semantic.js";
 import { attachBuiltinProto } from "../../runtime/methods.js";
 import { captureIrValue, constructorDefaultCaptureMode } from "../../runtime/constructor-capture.js";
@@ -1401,14 +1401,14 @@ function destructureInto(pattern, sourceRef, outerMode, context, evaluate) {
         return;
     }
 
-    if (base?.type === "DestructureTensorPattern") {
+    if (base?.type === "DestructureShapedPattern") {
         const value = sourceRef.value;
-        if (!isTensor(value)) {
-            throw new Error("Wrong rhs kind for tensor destructuring pattern");
+        if (!isShaped(value)) {
+            throw new Error("Wrong rhs kind for shaped destructuring pattern");
         }
         const shape = base.shape || [];
         if (shape.length !== value.shape.length || shape.some((dim, idx) => dim !== value.shape[idx])) {
-            throw new Error("Tensor destructuring shape mismatch");
+            throw new Error("Shaped destructuring shape mismatch");
         }
         for (let row = 0; row < base.rows.length; row++) {
             for (let col = 0; col < base.rows[row].length; col++) {
@@ -1507,7 +1507,7 @@ function evaluatePreparedTrial(args, context, evaluate, preserveFailure) {
  * Exported so stdlib can use it for DeepMutable.
  *
  * Types that receive `._mutable` and are traversed:
- *   sequence (array), tuple, map, set, tensor
+ *   sequence (array), tuple, map, set, shaped
  *
  * Sets currently have no INDEX_SET but may gain mutation ops (e.g. add/remove)
  * in the future, so ._mutable is set on them too for forward compatibility.
@@ -1527,7 +1527,7 @@ export function deepSetMutable(value, flag, visited = new Set()) {
         value.type === "tuple" ||
         value.type === "map" ||
         value.type === "set" ||
-        isTensor(value);
+        isShaped(value);
 
     const hasChildren = supportsMutable;
 
@@ -1549,7 +1549,7 @@ export function deepSetMutable(value, flag, visited = new Set()) {
     } else if (value.type === "map" && value.entries instanceof Map) {
         for (const v of value.entries.values()) deepSetMutable(v, flag, visited);
     }
-    // Tensor data is flat scalars — no composite children to recurse into
+    // Shaped data is flat scalars — no composite children to recurse into
 
     return value;
 }

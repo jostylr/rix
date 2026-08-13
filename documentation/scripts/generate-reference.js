@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { createDefaultRegistry, createDefaultSystemContext } from "../../src/eval/evaluator.js";
 import { runtimeDefaults } from "../../src/runtime/runtime-config.js";
 import { getBuiltinProto } from "../../src/runtime/methods.js";
-import { createTensor } from "../../src/runtime/tensor.js";
+import { createShaped } from "../../src/runtime/shaped.js";
 import { Integer, Rational, RationalInterval } from "@ratmath/core";
 import { traitRegistry, typeRegistry } from "../../src/runtime/type-system.js";
 
@@ -77,7 +77,7 @@ const receiverSamples = [
   ["Set", { type: "set", values: [] }],
   ["String", { type: "string", value: "" }],
   ["Tuple", { type: "tuple", values: [] }],
-  ["Tensor", createTensor([1], [null])],
+  ["Shaped", createShaped([1], [null])],
   ["Deferred expression", { fn: "DEFER", args: [] }],
   ["Structural value", { type: "structural_form" }],
   ["Exact generator", { type: "exact_generator" }],

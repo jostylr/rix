@@ -4,7 +4,7 @@
  */
 
 import { Integer } from "@ratmath/core";
-import { coerceShapeValue, createTensor, forEachTensorCell, tensorIndexTuple, tensorSize, isTensor } from "../../runtime/tensor.js";
+import { shapedSize, isShaped } from "../../runtime/shaped.js";
 import { callWithConcreteArgs } from "./functions.js";
 import { formatValue } from "../format.js";
 import { deepSetMutable } from "./core.js";
@@ -96,8 +96,8 @@ export const stdlibFunctions = {
             if (coll && coll.type === "export_bundle" && coll.entries instanceof Map) {
                 return new Integer(coll.entries.size);
             }
-            if (isTensor(coll)) {
-                return new Integer(BigInt(tensorSize(coll)));
+            if (isShaped(coll)) {
+                return new Integer(BigInt(shapedSize(coll)));
             }
             if (coll && typeof coll.value === "string") {
                 return new Integer(coll.value.length);
@@ -115,10 +115,10 @@ export const stdlibFunctions = {
             if (coll && (coll.type === "sequence" || coll.type === "tuple" || coll.type === "set")) {
                 return coll.values[0];
             }
-            if (isTensor(coll)) {
+            if (isShaped(coll)) {
                 let first = null;
                 let found = false;
-                forEachTensorCell(coll, (value) => {
+                forEachShapedCell(coll, (value) => {
                     if (!found) {
                         first = value;
                         found = true;
@@ -142,10 +142,10 @@ export const stdlibFunctions = {
             if (coll && (coll.type === "sequence" || coll.type === "tuple" || coll.type === "set")) {
                 return coll.values[coll.values.length - 1];
             }
-            if (isTensor(coll)) {
+            if (isShaped(coll)) {
                 let last = null;
                 let found = false;
-                forEachTensorCell(coll, (value) => {
+                forEachShapedCell(coll, (value) => {
                     last = value;
                     found = true;
                 });
@@ -175,11 +175,11 @@ export const stdlibFunctions = {
             if (coll && (coll.type === "sequence" || coll.type === "tuple" || coll.type === "set")) {
                 return coll.values[index - 1]; // 1-based index
             }
-            if (isTensor(coll)) {
+            if (isShaped(coll)) {
                 const target = idx instanceof Integer ? Number(idx.value) : Number(idx);
                 let found = null;
                 let seen = 0;
-                forEachTensorCell(coll, (value) => {
+                forEachShapedCell(coll, (value) => {
                     seen += 1;
                     if (seen === target) {
                         found = value;
@@ -233,23 +233,6 @@ export const stdlibFunctions = {
             return evaluate({ fn: "PREDUCE", args: [args[0], args[1], args[2]] });
         },
         doc: "Reduce a collection",
-    },
-
-    TGEN: {
-        lazy: true,
-        impl(args, context, evaluate) {
-            const shape = coerceShapeValue(evaluate(args[0]));
-            const fn = evaluate(args[1]);
-            const tensor = createTensor(shape);
-            const filled = [];
-
-            forEachTensorCell(tensor, (_value, tuple) => {
-                filled.push(callWithConcreteArgs(fn, [tensorIndexTuple(tuple)], context, evaluate));
-            });
-
-            return createTensor(shape, filled);
-        },
-        doc: "Generate a tensor from a shape and index callback",
     },
 
     // --- Control Flow ---

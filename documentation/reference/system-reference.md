@@ -8,7 +8,7 @@ toc-depth: 2
 This page is generated from the current RiX implementation by `documentation/scripts/generate-reference.js`. Do not edit it by hand. Descriptions come from registry documentation strings; the narrative [syntax guide](../eval/syntax-guide.md) and [methods guide](../eval/methods-guide.md) provide signatures and examples.
 :::
 
-At this revision RiX exposes **239 named entries** on the default system context and registers **224 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
+At this revision RiX exposes **242 named entries** on the default system context and registers **222 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
 
 ## Public system context
 
@@ -69,7 +69,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.FIGURE` | function | Output | Wrap output with figure metadata |
 | `.FILTER` | lazy function | Collections, Arrays | Filter a collection with a predicate — callback receives (val, locator, src) |
 | `.FIRST` | function | Core, Collections, Arrays | First element of a collection |
-| `.FORMULASHEET` | function | RiXCel | Create a formula-backed sheet from a tensor or rectangular array of deferred RiX formulas |
+| `.FORMULASHEET` | function | RiXCel | Create a formula-backed sheet from a shaped or rectangular array of deferred RiX formulas |
 | `.FRAGMENT` | function | Output | Compose portable output values |
 | `.GETEL` | function | Core, Collections, Arrays | Get element at index (1-based) |
 | `.GRAPHICS` | value | — | Intrinsic portable 2D scene language |
@@ -162,6 +162,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.SARITH` | function | — | Parse structural arithmetic; backticks use this parser by default, with optional Complex/Quaternion/Octonion/Algebra scopes |
 | `.SECTION` | function | — | Create a structural document section |
 | `.SET` | lazy function | — | Create a set (unique values) |
+| `.SHAPED` | value | — | Shaped-storage constructors and explicit generation helpers |
 | `.SHEET` | function | Output | Create a portable sheet view of indexable data |
 | `.SIMPLIFY` | function | Symbolic | Compatibility alias for Transform |
 | `.SLICE` | lazy function | — | Strict slice operator \|>/ |
@@ -188,7 +189,6 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.TESTERROR` | lazy function | — | Abort test: .TestError(label, setup, expr) — passes if expr aborts with .Error() or a runtime error |
 | `.TESTSTOP` | lazy function | — | Abort test: .TestStop(label, setup, expr) — passes if expr aborts via .Stop() |
 | `.TEXT` | function | Output | Create a portable text output node |
-| `.TGEN` | lazy function | Core, Collections, Arrays | Generate a tensor from a shape and index callback |
 | `.TIMELINE` | value | — | Portable exact timeline constructors |
 | `.TRACE` | lazy function | — | Trace execution: .Trace(label, depth, trackedVars?, thunkOrCallable) |
 | `.TRAITREGISTER` | function | — | Register an immutable semantic trait from a RiX map spec |
@@ -232,9 +232,11 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.gltf` | function | — | Browser-safe glTF 2.0 JSON exporter for retained Scene3D values. |
 | `.html` | function | — | Standalone semantic HTML renderer for portable RiX output trees. |
 | `.latex` | function | — | Standalone LaTeX renderer for portable RiX documents and figures. |
+| `.linalg` | function | — | Exact dense linear algebra and coordinate-aware tensor transformations. |
 | `.markdown` | function | — | CommonMark-oriented renderer for portable RiX documents. |
 | `.nd` | function | — | Exact n-dimensional geometry with explicit affine and Cayley projection records. |
 | `.numerics` | function | — | Backend-neutral bounded enclosure and refinement orchestration. |
+| `.optimize` | function | — | Exact linear-program models and deterministic Phase 1 simplex optimization. |
 | `.oracle` | function | — | Exact rational-betweenness oracle demonstrations and bounded refinement. |
 | `.p` | function | — | Semantic callable univariate polynomials with structural and symbolic entry forms. |
 | `.pdf` | function | — | PDF document and figure renderer orchestrated through LaTeX. |
@@ -248,6 +250,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.rationalfunction` | function | — | Canonical callable univariate rational functions with exact cancellation and Polynomial interoperability. |
 | `.rf` | function | — | Canonical callable univariate rational functions with exact cancellation and Polynomial interoperability. |
 | `.scene3d` | function | — | Exact retained 3D scenes with deterministic wireframe and lit Graphics snapshots. |
+| `.solve` | function | — | Exact Phase 1 linear-system classification and symbolic-spec solving. |
 | `.statistics` | function | — | Exact descriptive statistics with portable summary tables, histograms, and box plots. |
 | `.stats` | function | — | Exact descriptive statistics with portable summary tables, histograms, and box plots. |
 | `.sternbrocot` | function | — | Pure RiX Stern-Brocot node descriptions, visible tree records, and exact formula evaluation. |
@@ -273,7 +276,7 @@ Method lookup is case-flexible at the language boundary. The table uses the regi
 | Set | `ADD`, `ADD!`, `ALL`, `ANY`, `COUNT`, `DIFF`, `DIFF!`, `DISJOINT`, `FILTER`, `HAS`, `INTERSECT`, `INTERSECT!`, `ISEMPTY`, `ITERATOR`, `LEN`, `REDUCE`, `REMOVE`, `REMOVE!`, `SUBSETOF`, `SUPERSETOF`, `SYMDIFF`, `SYMDIFF!`, `UNION`, `UNION!`, `VALUES` |
 | String | `CONCAT`, `ENDSWITH`, `FIRST`, `GET`, `INCLUDES`, `INDEXOF`, `ISEMPTY`, `ITERATOR`, `LAST`, `LASTINDEXOF`, `LEN`, `LOWER`, `PADLEFT`, `PADRIGHT`, `REDUCE`, `REPEAT`, `REPLACE`, `REPLACEALL`, `SLICE`, `SPLIT`, `STARTSWITH`, `TRIM`, `TRIMEND`, `TRIMSTART`, `UPPER` |
 | Tuple | `FIRST`, `GET`, `ITERATOR`, `LAST`, `LEN`, `REDUCE`, `SET`, `SLICE`, `TOARRAY` |
-| Tensor | `DOT`, `FILL!`, `FLATTEN`, `GET`, `ITERATOR`, `MAP`, `MATMUL`, `MEAN`, `PERMUTE`, `RANK`, `REDUCE`, `RESHAPE`, `SET`, `SET!`, `SHAPE`, `SIZE`, `SUM`, `TRANSPOSE` |
+| Shaped | `FILL!`, `FLATTEN`, `GET`, `ITERATOR`, `MAP`, `MEAN`, `PERMUTE`, `RANK`, `REDUCE`, `RESHAPE`, `SCALARDOMAIN`, `SET`, `SET!`, `SETSCALARDOMAIN!`, `SHAPE`, `SIZE`, `SUM`, `TRANSPOSE`, `WITHSCALARDOMAIN` |
 | Deferred expression | `DESUGAR`, `EVAL`, `INSPECT` |
 | Structural value | `ARGUMENTS`, `COLLAPSE`, `HEAD`, `INSPECT`, `MAPARGUMENTS`, `RENDER`, `SIMPLIFY`, `SOURCESPAN`, `TOEXACT` |
 | Exact generator | `CAYLEY`, `CONJUGATE`, `IM`, `NORMSQUARED`, `RE` |
@@ -302,11 +305,13 @@ Every built-in receiver also supports `CheckTraits` / `CHECKTRAITS`.
 | `Integer` | integer | `integer` | `integer`, `rational`, `number`, `ordered` |
 | `CertifiedApproximation` | approximation | `approximation`, `approximate` | `number`, `approximate`, `enclosed`, `orderInquiry` |
 | `RationalInterval` | interval | `Interval`, `interval` | `ordered` |
-| `Tensor` | tensor | `tensor` | `tensor`, `indexable`, `shapeAware`, `collection` |
+| `Shaped` | shaped | — | `shaped`, `indexable`, `shapeAware`, `collection` |
 | `Length` | Length | — | — |
 | `Point` | Point | — | — |
-| `Matrix` | Matrix | — | `tensor` |
-| `Vector` | Vector | — | — |
+| `Matrix` | shaped | — | `shaped`, `indexable`, `shapeAware`, `collection` |
+| `Vector` | vector | — | — |
+| `Covector` | covector | — | — |
+| `Tensor` | tensor | — | — |
 
 ## Semantic traits
 
@@ -327,7 +332,7 @@ Every built-in receiver also supports `CheckTraits` / `CHECKTRAITS`.
 | `collection` | — | collection semantic trait |
 | `sequence` | `collection`, `indexable` | sequence semantic trait |
 | `maplike` | `collection`, `indexable` | maplike semantic trait |
-| `tensor` | `indexable`, `shapeAware`, `collection` | tensor semantic trait |
+| `shaped` | `indexable`, `shapeAware`, `collection` | shaped semantic trait |
 | `meters` | — | meters semantic trait |
 | `cartesian` | — | cartesian semantic trait |
 | `square` | — | square semantic trait |
@@ -345,15 +350,15 @@ Imported scripts can add or withhold named groups. Permission-like names are int
 | `Graphics` | `Graphics` |
 | `Draw` | `draw` |
 | `Plot` | `plot` |
-| `Core` | `LEN`, `FIRST`, `LAST`, `GETEL`, `IRANGE`, `IF`, `LOOP`, `MULTI`, `RAND_NAME`, `PRINT`, `TGEN`, `KEYOF`, `KEYS`, `VALUES`, `REGISTERMETHOD`, `CertifiedApproximation`, `Undecided`, `RefinementRequest`, `RefinementEffectiveLimits`, `RefinementSupports`, `RefinementCheck`, `RefinementUnsupported`, `TypeKnown`, `ImmutableValue` |
+| `Core` | `LEN`, `FIRST`, `LAST`, `GETEL`, `IRANGE`, `IF`, `LOOP`, `MULTI`, `RAND_NAME`, `PRINT`, `Shaped`, `KEYOF`, `KEYS`, `VALUES`, `REGISTERMETHOD`, `CertifiedApproximation`, `Undecided`, `RefinementRequest`, `RefinementEffectiveLimits`, `RefinementSupports`, `RefinementCheck`, `RefinementUnsupported`, `TypeKnown`, `ImmutableValue` |
 | `Methods` | `REGISTERMETHOD` |
 | `Arith` | `ADD`, `SUB`, `MUL`, `DIV`, `INTDIV`, `DIVMOD`, `MOD`, `POW`, `FACTORIAL`, `DOUBLEFACTORIAL` |
 | `Logic` | `EQ`, `NEQ`, `LT`, `GT`, `LTE`, `GTE`, `AND`, `OR`, `NOT` |
-| `Collections` | `LEN`, `FIRST`, `LAST`, `GETEL`, `IRANGE`, `MAP`, `FILTER`, `REDUCE`, `TGEN`, `Stream` |
+| `Collections` | `LEN`, `FIRST`, `LAST`, `GETEL`, `IRANGE`, `MAP`, `FILTER`, `REDUCE`, `Shaped`, `Stream` |
 | `Async` | `Stream`, `Retry` |
 | `Background` | `BACKGROUND` |
 | `Maps` | `MAP`, `KEYOF`, `KEYS`, `VALUES` |
-| `Arrays` | `LEN`, `FIRST`, `LAST`, `GETEL`, `IRANGE`, `MAP`, `FILTER`, `REDUCE`, `TGEN` |
+| `Arrays` | `LEN`, `FIRST`, `LAST`, `GETEL`, `IRANGE`, `MAP`, `FILTER`, `REDUCE`, `Shaped` |
 | `Strings` | `UPPER`, `SUBSTR`, `PRINT` |
 | `Imports` | `IMPORTS` |
 | `Plugins` | `PLUGINS` |
@@ -394,8 +399,8 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `BIND` | lazy, effectful/unspecified | Capture a live Binding to a RiX variable |
 | `BINOP` | eager, pure | Fallback for unrecognized binary operators |
 | `BLOCK` | lazy, effectful/unspecified | Sequential block execution, returns last value |
-| `BRACKET_GET` | lazy, effectful/unspecified | Tensor-aware bracket indexing and slicing |
-| `BRACKET_SET` | lazy, effectful/unspecified | Tensor-aware bracket assignment |
+| `BRACKET_GET` | lazy, effectful/unspecified | Shaped-aware bracket indexing and slicing |
+| `BRACKET_SET` | lazy, effectful/unspecified | Shaped-aware bracket assignment |
 | `BREAK` | lazy, effectful/unspecified | Structured break block that exits the nearest matching breakable construct |
 | `CALL` | lazy, effectful/unspecified | Call a user-defined or built-in function |
 | `CALLOUT` | eager, pure | Create a semantic document callout |
@@ -430,7 +435,7 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `EVAL` | lazy, effectful/unspecified | Evaluate a deferred AST node or expression: .Eval(ast, bindings ?= \_, mode ?= :inherit) |
 | `FACTORIAL` | eager, pure | Factorial of a non-negative integer |
 | `FIGURE` | eager, pure | Wrap output with figure metadata |
-| `FORMULASHEET` | eager, effectful/unspecified | Create a formula-backed sheet from a tensor or rectangular array of deferred RiX formulas |
+| `FORMULASHEET` | eager, effectful/unspecified | Create a formula-backed sheet from a shaped or rectangular array of deferred RiX formulas |
 | `FRAGMENT` | eager, pure | Compose portable output values |
 | `FROMBASE` | lazy, effectful/unspecified | Parse base string to number: str <\_ baseSpec |
 | `FUNCDEF` | lazy, effectful/unspecified | Define a named function |
@@ -472,7 +477,6 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `MATH` | eager, pure | Create portable inline TeX math |
 | `MATHBLOCK` | eager, pure | Create a display TeX math block |
 | `MATHUNIT` | eager, pure | Resolve exact-generator sugar through the active Exact RiX collection |
-| `MATRIX` | eager, pure | Matrix literal |
 | `MAX` | eager, pure, multifunction | Maximum over n arguments (ignores nulls) |
 | `MEDIANTS` | eager, pure | Return nested levels of exact mediants |
 | `MEDIANT_PARTITION` | eager, pure | Partition an interval using exact mediant boundaries |
@@ -563,6 +567,8 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `SET_DIFF` | eager, pure | — |
 | `SET_PROD` | eager, pure | — |
 | `SET_SYMDIFF` | eager, pure | — |
+| `SHAPED_LITERAL` | lazy, pure | Shaped literal with explicit shape |
+| `SHAPED_TRANSPOSE` | eager, pure | Transpose a rank-2 Shaped or Matrix view |
 | `SHEET` | eager, pure | Create a portable sheet view of indexable data |
 | `SLIDE` | eager, pure | Create a presentation slide |
 | `SLIDES` | eager, pure | Create a sequential presentation deck |
@@ -578,9 +584,6 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `TABLE` | eager, pure | Create a structured output table |
 | `TAIL_SELF` | lazy, effectful/unspecified | Tail-position self call that reuses the current function frame |
 | `TEMPLATE_TEXT` | lazy, effectful/unspecified | Create interpolated text with @{expression} insertions |
-| `TENSOR` | lazy, pure | Tensor literal |
-| `TENSOR_LITERAL` | lazy, pure | Tensor literal with explicit shape |
-| `TENSOR_TRANSPOSE` | eager, pure | Transpose a rank-2 tensor view |
 | `TERNARY` | lazy, effectful/unspecified | Decision conditional: condition ?: truthExpr ?\_ nullExpr ?? undecidedExpr |
 | `TEXT` | eager, pure | Create a portable text output node |
 | `TOBASE` | lazy, effectful/unspecified | Format number to base string: expr \_> baseSpec |

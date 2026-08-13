@@ -5,7 +5,7 @@
 import { Integer, Rational } from "@ratmath/core";
 import { keyOf } from "./keyof.js";
 import { HOLE, isHole } from "../../runtime/hole.js";
-import { createTensor, forEachTensorCell, isTensor, tensorIndexTuple } from "../../runtime/tensor.js";
+import { createShaped, forEachShapedCell, isShaped, shapedIndexTuple } from "../../runtime/shaped.js";
 import { isExactValue, multiplyScalars } from "../../runtime/exact-values.js";
 import { constructQuantity, isUnitValue } from "../../runtime/quantities.js";
 import {
@@ -1276,9 +1276,9 @@ export const functionFunctions = {
                 }
                 return null;
             }
-            if (isTensor(collection)) {
-                forEachTensorCell(collection, (item, tuple) => {
-                    invokeTraversalCallback(func, [item, tensorIndexTuple(tuple), collection], context, evaluate);
+            if (isShaped(collection)) {
+                forEachShapedCell(collection, (item, tuple) => {
+                    invokeTraversalCallback(func, [item, shapedIndexTuple(tuple), collection], context, evaluate);
                 });
                 return null;
             }
@@ -1340,15 +1340,15 @@ export const functionFunctions = {
                 const recovered = mapLazySequence(source, recover);
                 return filterLazySequence(recovered, (value) => !isPipeSkip(value));
             }
-            if (isTensor(source)) {
+            if (isShaped(source)) {
                 const records = [];
                 let skipped = false;
-                forEachTensorCell(source, (value, tuple) => {
+                forEachShapedCell(source, (value, tuple) => {
                     const result = recover(value);
                     if (isPipeSkip(result)) skipped = true;
-                    else records.push({ value: result, locator: tensorIndexTuple(tuple) });
+                    else records.push({ value: result, locator: shapedIndexTuple(tuple) });
                 });
-                if (!skipped) return createTensor(source.shape, records.map((record) => record.value));
+                if (!skipped) return createShaped(source.shape, records.map((record) => record.value));
                 return {
                     type: "sequence",
                     values: records.map((record) => ({ type: "tuple", values: [record.value, record.locator] })),
@@ -1396,19 +1396,19 @@ export const functionFunctions = {
                     invokeTraversalCallback(func, [item, new Integer(BigInt(index)), source], context, evaluate));
             }
 
-            if (isTensor(collection)) {
+            if (isShaped(collection)) {
                 const results = [];
-                forEachTensorCell(collection, (item, tuple) => {
+                forEachShapedCell(collection, (item, tuple) => {
                     results.push(
                         invokeTraversalCallback(
                             func,
-                            [item, tensorIndexTuple(tuple), collection],
+                            [item, shapedIndexTuple(tuple), collection],
                             context,
                             evaluate,
                         ),
                     );
                 });
-                return createTensor(collection.shape, results);
+                return createShaped(collection.shape, results);
             }
 
             // Map support: transform values, preserve original keys.
@@ -1494,13 +1494,13 @@ export const functionFunctions = {
                 }, { isUnresolved: (value) => value === UNDECIDED });
             }
 
-            if (isTensor(collection)) {
+            if (isShaped(collection)) {
                 const results = [];
                 let uncertain = false;
-                forEachTensorCell(collection, (item, tuple) => {
+                forEachShapedCell(collection, (item, tuple) => {
                     const state = decisionState(invokeTraversalCallback(
                                 func,
-                                [item, tensorIndexTuple(tuple), collection],
+                                [item, shapedIndexTuple(tuple), collection],
                                 context,
                                 evaluate,
                             ));
@@ -1509,7 +1509,7 @@ export const functionFunctions = {
                     } else if (state === "truth") {
                         results.push({
                             type: "tuple",
-                            values: [item, tensorIndexTuple(tuple)],
+                            values: [item, shapedIndexTuple(tuple)],
                         });
                     }
                 });
@@ -1581,10 +1581,10 @@ export const functionFunctions = {
 
             const func = evaluate(funcNode);
 
-            if (isTensor(collection)) {
+            if (isShaped(collection)) {
                 const visited = [];
-                forEachTensorCell(collection, (item, tuple) => {
-                    visited.push([item, tensorIndexTuple(tuple)]);
+                forEachShapedCell(collection, (item, tuple) => {
+                    visited.push([item, shapedIndexTuple(tuple)]);
                 });
 
                 if (visited.length === 0) {
@@ -1792,18 +1792,18 @@ export const functionFunctions = {
                 }
             }
 
-            if (isTensor(collection)) {
+            if (isShaped(collection)) {
                 let sawAny = false;
                 let lastItem = null;
                 let failed = false;
                 let uncertain = false;
-                forEachTensorCell(collection, (item, tuple) => {
+                forEachShapedCell(collection, (item, tuple) => {
                     if (!sawAny) {
                         sawAny = true;
                     }
                     const state = decisionState(invokeTraversalCallback(
                                 func,
-                                [item, tensorIndexTuple(tuple), collection],
+                                [item, shapedIndexTuple(tuple), collection],
                                 context,
                                 evaluate,
                             ));
@@ -1897,15 +1897,15 @@ export const functionFunctions = {
                 }
             }
 
-            if (isTensor(collection)) {
+            if (isShaped(collection)) {
                 let found = null;
                 let foundAny = false;
                 let uncertain = false;
-                forEachTensorCell(collection, (item, tuple) => {
+                forEachShapedCell(collection, (item, tuple) => {
                     if (!foundAny) {
                         const state = decisionState(invokeTraversalCallback(
                                 func,
-                                [item, tensorIndexTuple(tuple), collection],
+                                [item, shapedIndexTuple(tuple), collection],
                                 context,
                                 evaluate,
                             ));

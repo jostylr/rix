@@ -30,7 +30,7 @@ flowchart LR
 | `src/eval/evaluator.js` | recursive evaluation, imports, capability frames, defaults |
 | `src/eval/registry.js` | internal operation registry and multifunction variants |
 | `src/eval/functions/` | core, arithmetic, collections, control, methods, diagnostics, units, symbolic work |
-| `src/runtime/` | contexts, cells, metadata, types, tensors, methods, exact values, diagnostics |
+| `src/runtime/` | contexts, cells, metadata, semantic types, Shaped storage, methods, exact values, diagnostics |
 | `bin/` | REPL/runner and IR conversion CLI |
 | `tests/` | parser, evaluator, runtime, and tool behavior |
 

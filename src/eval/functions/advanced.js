@@ -7,7 +7,7 @@
 
 import { CertifiedApproximation, Integer, Rational, RationalInterval, Relation, possibleRelations } from "@ratmath/core";
 import { UNDECIDED } from "../../runtime/decision.js";
-import { createTensor, createTensorView, isTensor, tensorRank } from "../../runtime/tensor.js";
+import { createShaped, createShapedView, isShaped, shapedRank } from "../../runtime/shaped.js";
 import { captureIrValue, constructorDefaultCaptureMode } from "../../runtime/constructor-capture.js";
 import { applySemanticHeader } from "../../runtime/semantic.js";
 import { attachBuiltinProto } from "../../runtime/methods.js";
@@ -373,53 +373,51 @@ export const advancedFunctions = {
         doc: "Lazy unbounded exact arithmetic sequence",
     },
 
-    MATRIX: {
-        impl(args) {
-            // Basic matrix as nested array
-            return { type: "matrix", rows: args };
-        },
-        pure: true,
-        doc: "Matrix literal",
-    },
-
-    TENSOR: {
-        lazy: true,
-        impl(args, context, evaluate) {
-            const defaultMode = constructorDefaultCaptureMode(context);
-            return createTensor([args.length], args.map((arg) => captureIrValue(arg, defaultMode, context, evaluate)));
-        },
-        pure: true,
-        doc: "Tensor literal",
-    },
-
-    TENSOR_LITERAL: {
+    SHAPED_LITERAL: {
         lazy: true,
         impl(args, context, evaluate) {
             const hasMeta = args[0] && typeof args[0] === "object" && !Array.isArray(args[0]) && args[0].header;
-            const header = hasMeta ? args[0].header : null;
+            const header = {
+                ...(hasMeta ? args[0].header : null),
+                typeName: hasMeta && args[0].header?.typeName ? args[0].header.typeName : "Shaped",
+                traits: hasMeta ? (args[0].header?.traits || []) : [],
+            };
             const defaultMode = header?.captureMode || constructorDefaultCaptureMode(context);
             const shape = hasMeta ? args[1] : args[0];
             const values = (hasMeta ? args.slice(2) : args.slice(1)).map((arg) => captureIrValue(arg, defaultMode, context, evaluate));
-            return applySemanticHeader(attachBuiltinProto(createTensor(shape, values.length === 0 ? null : values)), header, context);
+            const shaped = attachBuiltinProto(createShaped(shape, values.length === 0 ? null : values));
+            if (Array.isArray(header.slots)) {
+                const constructTyped = context?.getEnv?.("__linalg_typed_shaped__", null);
+                if (typeof constructTyped !== "function") {
+                    throw new Error(`/${header.typeName}: .../ requires the linalg plugin; call .Plugin.Load("linalg") first`);
+                }
+                const resolvedSlots = header.slots.map((slot) => {
+                    const frame = context.get(slot.bindingName);
+                    if (frame === undefined) throw new Error(`Unknown frame binding '${slot.bindingName}' in /${header.typeName}: .../`);
+                    return { ...slot, frame };
+                });
+                return constructTyped(shaped, header, resolvedSlots, context);
+            }
+            return applySemanticHeader(shaped, header, context);
         },
         pure: true,
-        doc: "Tensor literal with explicit shape",
+        doc: "Shaped literal with explicit shape",
     },
 
-    TENSOR_TRANSPOSE: {
+    SHAPED_TRANSPOSE: {
         impl(args) {
-            const tensor = args[0];
-            if (!isTensor(tensor) || tensorRank(tensor) !== 2) {
-                throw new Error("^^ expects rank-2 tensor (matrix)");
+            const shaped = args[0];
+            if (!isShaped(shaped) || shapedRank(shaped) !== 2) {
+                throw new Error("^^ expects a rank-2 Shaped or Matrix value");
             }
-            return createTensorView(tensor, {
-                shape: [tensor.shape[1], tensor.shape[0]],
-                strides: [tensor.strides[1], tensor.strides[0]],
-                offset: tensor.offset,
+            return createShapedView(shaped, {
+                shape: [shaped.shape[1], shaped.shape[0]],
+                strides: [shaped.strides[1], shaped.strides[0]],
+                offset: shaped.offset,
             });
         },
         pure: true,
-        doc: "Transpose a rank-2 tensor view",
+        doc: "Transpose a rank-2 Shaped or Matrix view",
     },
 
 };

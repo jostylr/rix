@@ -45,7 +45,7 @@ export class Cell {
 
 import { CertifiedApproximation, Integer, Rational, RationalInterval } from "@ratmath/core";
 import { UndecidedDiagnostic, isUndecided } from "./decision.js";
-import { isTensor, computeDefaultStrides } from "./tensor.js";
+import { isShaped, computeDefaultStrides } from "./shaped.js";
 import { cloneLazySequence, isLazySequence } from "./lazy-sequence.js";
 
 // ─── Meta key classification ─────────────────────────────────────────
@@ -143,10 +143,10 @@ export function shallowCopyValue(value) {
         };
     }
 
-    // Tensor
-    if (isTensor(value)) {
+    // Shaped
+    if (isShaped(value)) {
         return {
-            type: "tensor",
+            type: "shaped",
             data: [...value.data],
             shape: [...value.shape],
             strides: [...value.strides],
@@ -307,9 +307,9 @@ export function deepCopyValue(value, memo = new WeakMap()) {
         return copy;
     }
 
-    if (isTensor(value)) {
+    if (isShaped(value)) {
         const copy = {
-            type: "tensor",
+            type: "shaped",
             data: [],
             shape: [...value.shape],
             strides: [...value.strides],

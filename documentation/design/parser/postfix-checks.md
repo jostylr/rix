@@ -75,7 +75,7 @@ brackets check collection size or tensor shape.
 {| 1, 2 |} ##: set[2]
 {= name = "Ada" } ##: map[1]
 {: 2, 3 } ##: tuple[2]
-{:2x2: 1, 2; 3, 4 } ##: tensor[2x2]
+{:2x2: 1, 2; 3, 4 } ##: shaped[2x2]
 value ##: number
 value ##: :rational
 ```

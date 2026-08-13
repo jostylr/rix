@@ -13,7 +13,7 @@ Welcome to the RiX Language Parser documentation. This comprehensive guide cover
 - [Custom Operators](./custom-operators.html) - Statically declared infix notation
 - [Array Generators](./array-generators-implementation.html) - Array and set comprehensions
 - [Functions](./function-definitions-summary.html) - Function definitions and calls
-- [Matrix & Tensor](./matrix-tensor-implementation.html) - Matrix and tensor support
+- [Shaped literals](./matrix-tensor-implementation.html) - rectangular semicolon notation
 - [Brace Containers](./brace-containers-README.html) - Container syntax
 - [Embedded Parsing](./embedded-parsing.html) - Embedded expression parsing
 - [Ternary Operator](./ternary-operator.html) - Conditional expressions

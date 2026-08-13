@@ -956,7 +956,7 @@ For sort (`|<>`), the comparator receives only:
 The **locator** is the native indexing/key form for the source collection kind:
 - **sequences and strings**: 1-based integer position
 - **maps**: the map key (as a canonical string, consistent with `KEYOF` and `INDEX_GET`)
-- **tensors**: 1-based index tuple
+- **Shaped values**: 1-based index tuple
 
 Callbacks that declare fewer parameters simply ignore the extra arguments — existing one-arg and two-arg callbacks continue to work without modification.
 
@@ -973,16 +973,16 @@ For map traversal, callbacks receive `(value, key, sourceMap)`. The key is the c
 - **`map |>:`** — implicit-init: first traversed value as accumulator; order is unspecified.
 - **`map |:> init >: fn`** — explicit init; order is unspecified.
 
-#### Tensor-specific behavior
+#### Shaped-specific behavior
 
-- **Tensor literal**: `{:d1xd2x...: elems }` creates a dense tensor in row-major order. `{:d1xd2x...:}` creates an empty mutable tensor filled with holes.
-- **Inferred semicolon literal**: `[1, 2; 3, 4]` is the same shaped `2x2` tensor value as `{:2x2: 1, 2; 3, 4}`. One `;` separates rows, `;;` separates axis-3 slices, `;;;` separates axis-4 groups, and additional consecutive semicolons continue the pattern. For example, `[1,2;3,4 ;; 5,6;7,8]` infers shape `2x2x2`. The semicolons forming a higher separator are consecutive (no spaces), and every inferred dimension must be rectangular.
-- **Tensor indexing**: `A[i, j]`, `A[::, 2]`, `A[-1:1, ::]`. Indices are 1-based; negative indices count from the end; `0` is invalid.
-- **Tensor slices**: bracket slices are strict, closed, and directed. `::` is sugar for the full forward slice.
-- **Transpose**: `A^^` swaps the two axes of a rank-2 tensor as a view.
-- **`tensor |>>`** — callback receives `(value, indexTuple, tensor)` and returns a new tensor with the same shape.
-- **`tensor |>?`** — callback receives `(value, indexTuple, tensor)` and returns a sequence of `{: value, indexTuple }` pairs for matches.
-- **`tensor |>:` / `tensor |:> init >: fn`** — reducer receives `(acc, value, indexTuple, tensor)`.
+- **Shaped literal**: `{:d1xd2x...: elems }` creates dense component storage in row-major order. A bare shaped literal has semantic type `Shaped`.
+- **Typed header**: `/Matrix/` gives rank-2 storage matrix arithmetic. With `.linalg` loaded, `/Vector: E/`, `/Covector: E/`, and `/Tensor: E@E*/` attach ordered `Frame` slots; `*` marks the canonical dual slot.
+- **Inferred semicolon literal**: `[1, 2; 3, 4]` is the same bare `2x2` Shaped value as `{:2x2: 1, 2; 3, 4}`. One `;` separates rows, `;;` separates axis-3 slices, `;;;` separates axis-4 groups, and further consecutive semicolons continue the pattern. The dimensions must be rectangular.
+- **Indexing and slices**: `A[i, j]`, `A[::, 2]`, `A[-1:1, ::]`. Indices are 1-based; negative indices count from the end; `::` is the full strict forward slice.
+- **Transpose**: `A^^` swaps two axes of rank-2 Shaped or Matrix storage as a view.
+- **`shaped |>>`** — callback receives `(value, indexTuple, shaped)` and returns Shaped storage with the same shape.
+- **`shaped |>?`** — returns a sequence of `{: value, indexTuple }` pairs for matches.
+- **`shaped |>:` / `shaped |:> init >: fn`** — reducer receives `(acc, value, indexTuple, shaped)`.
 
 Maps do **not** support `|>/|` (split), `|>#|` (chunk), or `|<>` (sort) — these require ordered sequences.
 
@@ -1563,7 +1563,7 @@ general systems. The former `:=:` solve operator has been removed.
 | `SET(elems...)` | Create set | `{\| a, b, c \|}` |
 | `TUPLE(elems...)` | Create tuple | `{: a, b, c }` |
 | `MAP(pairs...)` | Create map/object | `{= k=v, ... }` |
-| `TENSOR_LITERAL(shape, elems...)` | Create a shaped tensor explicitly or by rectangular semicolon inference | `{:2x3: 1, 2, 3; 4, 5, 6 }`, `[1, 2; 3, 4]`, `[1,2;3,4 ;; 5,6;7,8]` |
+| `SHAPED_LITERAL(shape, elems...)` | Create Shaped storage explicitly or by rectangular semicolon inference | `{:2x3: 1, 2, 3; 4, 5, 6 }`, `[1, 2; 3, 4]`, `[1,2;3,4 ;; 5,6;7,8]` |
 | `ARRAY_CAPTURE(elems...)` | Create array with brace-form constructor capture controls | `{.. 1, 2, 3 }`, `{.. /:=/ x, y }` |
 | `INTERVAL(args...)` | Create interval or check n-ary betweenness (unpacks nested intervals/sets) | `a:b` or `a:b:c...` |
 | `UNION(a, b)` | Binary set union / interval hull | `A \/ B` |
@@ -1578,7 +1578,7 @@ general systems. The former `:=:` solve operator has been removed.
 | `GETEL(coll, i)` | Get element at 1-based index | — |
 | `IRANGE(start, end)` | Integer range `[start, end]` | — |
 | `.RAND_NAME(len?, alphabet?)` | Random string generator | `.RAND_NAME()`, `.RAND_NAME(8, "abc")` |
-| `.TGEN(shape, fn)` | Generate tensor by index tuple | `.TGEN({: 2, 3 }, idx -> idx[1] * 10 + idx[2])` |
+| `.Shaped.Generate(shape, fn)` | Generate Shaped storage by index tuple | `.Shaped.Generate({: 2, 3 }, idx -> idx[1] * 10 + idx[2])` |
 
 ### Functional / Pipes
 
@@ -1799,10 +1799,8 @@ Scope note:
 | `RANDOM(interval, params)` | Rational samples; params are count, optional denominator, optional tolerance |
 | `RANDOM_PARTITION(interval, params)` | Distinct rational interior partition points |
 | `INFSEQ(start, step)` | Lazy unbounded arithmetic sequence (`start::+step`) |
-| `MATRIX(rows...)` | Matrix literal |
-| `TENSOR(data...)` | Legacy tensor constructor |
-| `TENSOR_LITERAL(shape, elems...)` | Explicit-shape tensor literal |
-| `TENSOR_TRANSPOSE(t)` | Rank-2 tensor transpose view |
+| `SHAPED_LITERAL(shape, elems...)` | Explicit-shape or inferred Shaped literal |
+| `SHAPED_TRANSPOSE(t)` | Rank-2 Shaped/Matrix transpose view |
 | `UNIT(val, unit)` | Resolve `unit` through active `Units` map and multiply |
 | `MATHUNIT(val, exact)` | Resolve `exact` through active `Exact` map and multiply |
 | `.ConvertUnit(val, target)` | Select a compatible display unit |

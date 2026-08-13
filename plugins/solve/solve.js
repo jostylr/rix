@@ -2,7 +2,7 @@
 
 import { Integer, Rational } from "@ratmath/core";
 import { getAttachedSpec, resolveSymbolicRoles } from "../../src/eval/functions/symbolic.js";
-import { createTensor, forEachTensorCell } from "../../src/runtime/tensor.js";
+import { createShaped, forEachShapedCell } from "../../src/runtime/shaped.js";
 import { entriesFor, field } from "../scene3d/scene3d.js";
 import { solveLinearValues } from "../linalg/linalg.js";
 
@@ -102,7 +102,7 @@ function valuesMap(value) {
 
 function tensorVectorValues(value) {
     const result = [];
-    forEachTensorCell(value, (entry) => result.push(entry));
+    forEachShapedCell(value, (entry) => result.push(entry));
     return result;
 }
 
@@ -205,8 +205,8 @@ export function solveSystem(args) {
     if (equations.length === 0) throw new Error("solve.System found no equations");
     const matrixRows = equations.map((equation) => outputs.map((name) => equation.coefficients.get(name) || zero()));
     const bounds = equations.map((equation) => equation.constant.negate());
-    const matrixValue = createTensor([matrixRows.length, outputs.length], matrixRows.flat());
-    const vectorValue = createTensor([bounds.length], bounds);
+    const matrixValue = createShaped([matrixRows.length, outputs.length], matrixRows.flat());
+    const vectorValue = createShaped([bounds.length], bounds);
     return systemResult(spec, roles, equations.length, solveLinearValues(matrixValue, vectorValue));
 }
 

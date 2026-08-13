@@ -1084,7 +1084,7 @@ function tryMatchBrace(input, position) {
       const after = input[cursor + 1];
       if (!isWhitespace(after) && after !== "/" && after !== "}") {
         const { line, col } = posToLineCol(input, position);
-        throw new Error(`Brace tensor alias '{=:${name}:' must be followed by a space, header, or '}' at line ${line}:${col}`);
+        throw new Error(`Brace shaped alias '{=:${name}:' must be followed by a space, header, or '}' at line ${line}:${col}`);
       }
       return makeAdvancedConstructorToken("{:", position, cursor + 1, {
         containerName: name.toLowerCase(),

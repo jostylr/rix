@@ -105,7 +105,7 @@ describe("promise-aware evaluator parity", () => {
             { context },
         );
         const generated = await parseAndEvaluateAsync(
-            ".TGEN({: 2 }, (i) -> i[1])",
+            ".Shaped.Generate({: 2 }, (i) -> i[1])",
             { context },
         );
         const dumped = await parseAndEvaluateAsync('.Dump("x", 1)', { context });

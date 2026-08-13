@@ -2,17 +2,17 @@
 
 import { Integer, Rational } from "@ratmath/core";
 import {
-    createTensor,
-    forEachTensorCell,
-    isTensor,
-    tensorRank,
-} from "../../src/runtime/tensor.js";
+    createShaped,
+    forEachShapedCell,
+    isShaped,
+    shapedRank,
+} from "../../src/runtime/shaped.js";
 import { entriesFor, field, sequence } from "../scene3d/scene3d.js";
 
 export const LINALG_RESULT_SCHEMA = "rix.linalg.result@1";
 export const VECTOR_SPACE_SCHEMA = "rix.linalg.vector-space@1";
-export const COORDINATES_SCHEMA = "rix.linalg.coordinates@1";
-export const COORDINATE_TENSOR_SCHEMA = "rix.linalg.coordinate-tensor@1";
+export const FRAME_SCHEMA = "rix.linalg.frame@1";
+export const TENSOR_SCHEMA = "rix.linalg.tensor@1";
 
 const int = (value) => new Integer(BigInt(value));
 const str = (value) => ({ type: "string", value: String(value) });
@@ -62,14 +62,14 @@ function copyRows(rows) {
 
 function flatTensorValues(value) {
     const values = [];
-    forEachTensorCell(value, (entry) => values.push(entry));
+    forEachShapedCell(value, (entry) => values.push(entry));
     return values;
 }
 
 export function exactMatrix(value, label = "matrix") {
     let rows;
-    if (isTensor(value)) {
-        if (tensorRank(value) !== 2) throw new Error(`${label} must be a rank-2 tensor`);
+    if (isShaped(value)) {
+        if (shapedRank(value) !== 2) throw new Error(`${label} must be a rank-2 tensor`);
         const flat = flatTensorValues(value);
         rows = Array.from({ length: value.shape[0] }, (_, row) =>
             flat.slice(row * value.shape[1], (row + 1) * value.shape[1]));
@@ -87,8 +87,8 @@ export function exactMatrix(value, label = "matrix") {
 
 export function exactVector(value, label = "vector") {
     let values;
-    if (isTensor(value)) {
-        if (tensorRank(value) !== 1) throw new Error(`${label} must be a rank-1 tensor`);
+    if (isShaped(value)) {
+        if (shapedRank(value) !== 1) throw new Error(`${label} must be a rank-1 tensor`);
         values = flatTensorValues(value);
     } else {
         values = sequence(value, label);
@@ -98,11 +98,13 @@ export function exactVector(value, label = "vector") {
 
 export function matrixTensor(rows) {
     if (rows.length === 0 || rows[0].length === 0) throw new Error("Matrix cannot be empty");
-    return createTensor([rows.length, rows[0].length], rows.flat());
+    const value = createShaped([rows.length, rows[0].length], rows.flat());
+    value._ext.set("__type", str("Matrix"));
+    return value;
 }
 
 export function vectorTensor(values) {
-    return createTensor([values.length], values);
+    return createShaped([values.length], values);
 }
 
 export function identityRows(size) {
@@ -262,15 +264,34 @@ export function solveLinear(args) {
     return solveLinearValues(args[0], args[1]);
 }
 
-function spaceValue(name, dimension, metadata = null) {
-    return Object.freeze({
+let spaceIdentitySerial = 0;
+let tensorIdentitySerial = 0;
+let tensorRepresentationSerial = 0;
+
+function scalarFieldName(value) {
+    const name = text(value, value?.value ?? (value === null ? "Rational" : null));
+    if (!name || name.toLowerCase() !== "rational") {
+        throw new Error("Phase 1 VectorSpace currently requires over=:Rational");
+    }
+    return "Rational";
+}
+
+function spaceValue(name, dimension, over, metadata = null) {
+    const value = {
         type: "vector_space",
         schema: VECTOR_SPACE_SCHEMA,
+        identity: Object.freeze({ type: "vector_space_identity", serial: ++spaceIdentitySerial }),
         name,
         dimension,
+        over,
         metadata,
-        _ext: new Map([["_type", str("VectorSpace")], ["immutable", int(1)], ["name", str(name)], ["dimension", int(dimension)], ["metadata", metadata]]),
-    });
+        definingFrame: null,
+        _ext: new Map([
+            ["_type", str("VectorSpace")], ["immutable", int(1)], ["name", str(name)],
+            ["dimension", int(dimension)], ["over", str(over)], ["metadata", metadata],
+        ]),
+    };
+    return value;
 }
 
 export function vectorSpace(args) {
@@ -278,7 +299,7 @@ export function vectorSpace(args) {
     const name = text(field(entries, "name"), "V");
     const dimension = integer(field(entries, "dimension"), "Vector-space dimension");
     if (dimension < 1) throw new Error("Vector-space dimension must be positive");
-    return spaceValue(name, dimension, field(entries, "metadata"));
+    return spaceValue(name, dimension, scalarFieldName(field(entries, "over")), field(entries, "metadata"));
 }
 
 function requireSpace(value) {
@@ -288,42 +309,70 @@ function requireSpace(value) {
     return value;
 }
 
-function requireCoordinates(value) {
-    if (value?.type !== "coordinate_system" || value.schema !== COORDINATES_SCHEMA) {
-        throw new Error("Expected linalg Coordinates");
+function requireFrame(value) {
+    if (value?.type !== "frame" || value.schema !== FRAME_SCHEMA) {
+        if (value?.type === "vector_space") throw new Error("Tensor components require a Frame, not a bare VectorSpace");
+        throw new Error("Expected a linalg Frame");
     }
     return value;
 }
 
-export function coordinates(args) {
-    const entries = entriesFor(args, ["space", "name", "basis", "options"], "linalg.Coordinates");
+export function frame(args) {
+    const entries = args.length === 2 && args[1]?.type === "map" && args[1].entries instanceof Map
+        ? new Map([["space", args[0]], ...args[1].entries])
+        : entriesFor(args, ["space", "name", "basis", "options"], "linalg.Frame");
     const space = requireSpace(field(entries, "space"));
-    const name = text(field(entries, "name"), "standard");
+    const name = text(field(entries, "name"), space.definingFrame ? "frame" : "defining");
     const basisValue = field(entries, "basis");
-    const basis = basisValue === null ? identityRows(space.dimension) : exactMatrix(basisValue, "Coordinate basis");
-    if (basis.length !== space.dimension || basis[0].length !== space.dimension) {
-        throw new Error(`Coordinate basis must be ${space.dimension}x${space.dimension}`);
+    const defining = text(basisValue) === "defining" || (basisValue === null && space.definingFrame === null);
+    if (defining && space.definingFrame) throw new Error("VectorSpace already has a defining Frame");
+
+    let relativeTo = field(entries, "relativeTo");
+    let localBasis;
+    let absoluteBasis;
+    if (defining) {
+        relativeTo = null;
+        localBasis = identityRows(space.dimension);
+        absoluteBasis = localBasis;
+    } else {
+        relativeTo = requireFrame(relativeTo || space.definingFrame);
+        if (relativeTo.space !== space) throw new Error("relativeTo Frame must belong to the same VectorSpace");
+        localBasis = exactMatrix(basisValue, "Frame basis");
+        if (localBasis.length !== space.dimension || localBasis[0].length !== space.dimension) {
+            throw new Error(`Frame basis must be ${space.dimension}x${space.dimension}`);
+        }
+        inverseRows(localBasis);
+        absoluteBasis = multiplyRows(exactMatrix(relativeTo.basis), localBasis);
     }
-    const inverse = inverseRows(basis);
-    return Object.freeze({
-        type: "coordinate_system",
-        schema: COORDINATES_SCHEMA,
+    const inverse = inverseRows(absoluteBasis);
+    const value = Object.freeze({
+        type: "frame",
+        schema: FRAME_SCHEMA,
         name,
         space,
-        basis: matrixTensor(basis),
+        relativeTo,
+        localBasis: matrixTensor(localBasis),
+        basis: matrixTensor(absoluteBasis),
         inverseBasis: matrixTensor(inverse),
+        defining,
         metadata: field(entries, "metadata"),
         _ext: new Map([
-            ["_type", str("Coordinates")], ["immutable", int(1)], ["name", str(name)],
-            ["space", space], ["basis", matrixTensor(basis)], ["inverseBasis", matrixTensor(inverse)],
+            ["_type", str("Frame")], ["immutable", int(1)], ["name", str(name)], ["space", space],
+            ["relativeTo", relativeTo], ["basis", matrixTensor(absoluteBasis)], ["inverseBasis", matrixTensor(inverse)],
+            ["defining", defining ? int(1) : null],
         ]),
     });
+    if (defining) {
+        space.definingFrame = value;
+        space._ext.set("definingFrame", value);
+    }
+    return value;
 }
 
 export function changeMatrixValues(sourceValue, targetValue) {
-    const source = requireCoordinates(sourceValue);
-    const target = requireCoordinates(targetValue);
-    if (source.space !== target.space) throw new Error("Coordinate systems must belong to the same VectorSpace");
+    const source = requireFrame(sourceValue);
+    const target = requireFrame(targetValue);
+    if (source.space !== target.space) throw new Error("Frames must belong to the same VectorSpace");
     return multiplyRows(exactMatrix(target.inverseBasis), exactMatrix(source.basis));
 }
 
@@ -333,77 +382,122 @@ export function changeMatrix(args) {
 
 function varianceName(value) {
     const name = text(value, value?.value);
-    if (["up", "contravariant"].includes(name)) return "up";
-    if (["down", "covariant"].includes(name)) return "down";
+    if (["up", "contravariant"].includes(name)) return false;
+    if (["down", "covariant"].includes(name)) return true;
     throw new Error("Tensor variance entries must be :up/:contravariant or :down/:covariant");
 }
 
-function normalizeVariance(value, rankValue) {
+function normalizeDuals(value, rankValue) {
     const values = value === null || value === undefined
-        ? Array.from({ length: rankValue }, () => "up")
+        ? Array.from({ length: rankValue }, () => false)
         : sequence(value, "Tensor variance").map(varianceName);
     if (values.length !== rankValue) throw new Error(`Tensor variance must contain ${rankValue} entries`);
     return values;
 }
 
-let tensorIdentitySerial = 0;
+function tensorTypeName(slots) {
+    if (slots.length === 1) return slots[0].dual ? "Covector" : "Vector";
+    return "Tensor";
+}
 
-function coordinateTensorMethods() {
+function tensorMethods(typeName) {
     return new Map([
-        ["_type", str("CoordinateTensor")],
+        ["_type", str(typeName)], ["__type", str(typeName)], ["_mutable", int(1)],
         ["COMPONENTS", { type: "method_builtin", name: "Components", impl: ([self]) => self.components }],
-        ["COORDINATES", { type: "method_builtin", name: "Coordinates", impl: ([self]) => self.coordinates }],
-        ["TRANSFORM", { type: "method_builtin", name: "Transform", impl: ([self, target]) => transformCoordinateTensor([self, target]) }],
-        ["TRANSFORM!", { type: "method_builtin", name: "Transform!", impl: ([self, target]) => transformCoordinateTensorBang([self, target]) }],
+        ["FRAME", { type: "method_builtin", name: "Frame", impl: ([self]) => self.slots.length === 1 ? self.slots[0].frame : null }],
+        ["FRAMES", { type: "method_builtin", name: "Frames", impl: ([self]) => seq(self.slots.map((slot) => slot.frame)) }],
+        ["TRANSFORM", { type: "method_builtin", name: "Transform", impl: ([self, target], context) => transformTensor([self, target], { context }) }],
+        ["TRANSFORM!", { type: "method_builtin", name: "Transform!", impl: ([self, target], context) => transformTensorBang([self, target], { context }) }],
+        ["PAIR", { type: "method_builtin", name: "Pair", impl: ([self, other], context) => pair([self, other], { context }) }],
         ["SAMETENSOR", { type: "method_builtin", name: "SameTensor", impl: ([self, other]) => sameTensor([self, other]) }],
     ]);
 }
 
-function syncCoordinateTensorExtension(value) {
+function syncTensorExtension(value) {
     value._ext.set("components", value.components);
-    value._ext.set("coordinates", value.coordinates);
-    value._ext.set("variance", seq(value.variance.map(str)));
+    value._ext.set("slots", seq(value.slots.map((slot) => ({
+        type: "map", entries: new Map([["frame", slot.frame], ["dual", slot.dual ? int(1) : null]]),
+    }))));
+    value._ext.set("frame", value.slots.length === 1 ? value.slots[0].frame : null);
     value._ext.set("identity", value.identity);
+    value._ext.set("representationIdentity", value.representationIdentity);
+    value._ext.set("representationidentity", value.representationIdentity);
     value._ext.set("equivalentTo", value.equivalentTo);
     value._ext.set("equivalentto", value.equivalentTo);
     value._ext.set("origin", value.origin);
     value._ext.set("transform", value.transform);
+    value._ext.set("derivedFrom", seq(value.derivedFrom));
+    value._ext.set("derivedfrom", seq(value.derivedFrom));
     return value;
 }
 
-function makeCoordinateTensor(components, coordinateSystem, variance, lineage = {}) {
-    return syncCoordinateTensorExtension({
-        type: "coordinate_tensor",
-        schema: COORDINATE_TENSOR_SCHEMA,
-        components,
-        coordinates: coordinateSystem,
-        variance,
-        identity: lineage.identity || Object.freeze({ type: "tensor_identity", serial: ++tensorIdentitySerial }),
-        equivalentTo: lineage.equivalentTo || null,
-        origin: lineage.origin || null,
-        transform: lineage.transform || null,
-        _ext: coordinateTensorMethods(),
+function validateComponents(components, slots) {
+    if (!isShaped(components)) throw new Error("Vector/Tensor components must be Shaped");
+    if (shapedRank(components) !== slots.length || slots.length < 1) {
+        throw new Error(`Tensor components rank ${shapedRank(components)} does not match ${slots.length} slots`);
+    }
+    slots.forEach((slot, axis) => {
+        requireFrame(slot.frame);
+        if (components.shape[axis] !== slot.frame.space.dimension) {
+            throw new Error(`Tensor axis ${axis + 1} has size ${components.shape[axis]} but Frame ${slot.frame.name} has dimension ${slot.frame.space.dimension}`);
+        }
     });
 }
 
-function requireCoordinateTensor(value) {
-    if (value?.type !== "coordinate_tensor" || value.schema !== COORDINATE_TENSOR_SCHEMA) {
-        throw new Error("Expected a coordinate-aware tensor");
+function recordRepresentation(identity, value, context) {
+    const configured = context?.getEnv?.("tensorLineageLimit", 30) ?? 30;
+    const limit = Math.max(1, integer(configured, "tensorLineageLimit"));
+    if (!identity.origin) identity.origin = value;
+    if (!identity.representations.includes(value)) identity.representations.push(value);
+    while (identity.representations.length > limit + 1) {
+        const evicted = identity.representations.splice(1, 1)[0];
+        if (evicted && evicted !== identity.origin) evicted.equivalentTo = null;
+    }
+}
+
+function makeTensor(components, slots, lineage = {}, context = null) {
+    const normalizedSlots = slots.map((slot) => Object.freeze({ frame: requireFrame(slot.frame), dual: slot.dual === true }));
+    validateComponents(components, normalizedSlots);
+    const typeName = tensorTypeName(normalizedSlots);
+    const identity = lineage.identity || { type: "tensor_identity", serial: ++tensorIdentitySerial, origin: null, representations: [] };
+    const value = {
+        type: typeName.toLowerCase(),
+        schema: TENSOR_SCHEMA,
+        components,
+        slots: Object.freeze(normalizedSlots),
+        identity,
+        representationIdentity: Object.freeze({ type: "tensor_representation_identity", serial: ++tensorRepresentationSerial }),
+        equivalentTo: lineage.equivalentTo || null,
+        origin: lineage.origin || identity.origin || null,
+        transform: lineage.transform || null,
+        viewOf: lineage.viewOf || null,
+        derivedFrom: Object.freeze([...(lineage.derivedFrom || [])]),
+        _ext: tensorMethods(typeName),
+    };
+    if (!identity.origin) {
+        identity.origin = value;
+        value.origin = value;
+    } else if (!value.origin) value.origin = identity.origin;
+    recordRepresentation(identity, value, context);
+    return syncTensorExtension(value);
+}
+
+function requireTensor(value) {
+    if (!["vector", "covector", "tensor"].includes(value?.type) || value.schema !== TENSOR_SCHEMA) {
+        throw new Error("Expected a coordinate-aware Vector, Covector, or Tensor");
     }
     return value;
 }
 
-export function coordinateTensor(args) {
-    const entries = entriesFor(args, ["components", "coordinates", "variance", "options"], "linalg.CoordinateTensor");
+export function tensor(args, runtime = {}) {
+    const entries = entriesFor(args, ["components", "frames", "variance", "options"], "linalg.Tensor");
     const components = field(entries, "components");
-    if (!isTensor(components)) throw new Error("CoordinateTensor components must be a tensor");
-    const coordinateSystem = requireCoordinates(field(entries, "coordinates"));
-    const rankValue = tensorRank(components);
-    if (rankValue < 1 || components.shape.some((size) => size !== coordinateSystem.space.dimension)) {
-        throw new Error("Every coordinate-tensor axis must match the VectorSpace dimension");
-    }
-    return makeCoordinateTensor(components, coordinateSystem,
-        normalizeVariance(field(entries, "variance"), rankValue));
+    const framesValue = field(entries, "frames");
+    const frames = framesValue?.type === "frame"
+        ? Array.from({ length: shapedRank(components) }, () => framesValue)
+        : sequence(framesValue, "Tensor frames").map(requireFrame);
+    const duals = normalizeDuals(field(entries, "variance"), frames.length);
+    return makeTensor(components, frames.map((frameValue, index) => ({ frame: frameValue, dual: duals[index] })), {}, runtime.context);
 }
 
 function strides(shape) {
@@ -437,77 +531,216 @@ function transformAxis(tensor, axis, matrix) {
         }
         output[linear] = sum;
     }
-    return createTensor(shape, output);
+    return createShaped(shape, output);
 }
 
-function transformedComponents(value, target) {
-    const change = changeMatrixValues(value.coordinates, target);
-    const covariantChange = inverseRows(transposeRows(change));
+function targetFrames(value, targetValue) {
+    if (targetValue?.type === "frame") return value.slots.map(() => requireFrame(targetValue));
+    const targets = sequence(targetValue, "Transform target Frames").map(requireFrame);
+    if (targets.length !== value.slots.length) {
+        throw new Error(`Transform requires ${value.slots.length} target Frames`);
+    }
+    return targets;
+}
+
+function transformedComponents(value, targets) {
     let components = value.components;
-    value.variance.forEach((variance, axis) => {
-        components = transformAxis(components, axis, variance === "up" ? change : covariantChange);
+    const changes = [];
+    value.slots.forEach((slot, axis) => {
+        const target = targets[axis];
+        if (slot.frame.space !== target.space) {
+            throw new Error(`Target Frame ${target.name} does not belong to tensor slot ${axis + 1}'s VectorSpace`);
+        }
+        const change = changeMatrixValues(slot.frame, target);
+        const applied = slot.dual ? inverseRows(transposeRows(change)) : change;
+        components = transformAxis(components, axis, applied);
+        changes.push(matrixTensor(applied));
     });
-    return { components, change };
+    return { components, changes };
 }
 
-export function transformCoordinateTensor(args) {
-    const value = requireCoordinateTensor(args[0]);
-    const target = requireCoordinates(args[1]);
-    if (value.coordinates === target) return makeCoordinateTensor(value.components, target, [...value.variance], {
+export function transformTensor(args, runtime = {}) {
+    const value = requireTensor(args[0]);
+    const targets = targetFrames(value, args[1]);
+    const transformed = transformedComponents(value, targets);
+    return makeTensor(transformed.components, value.slots.map((slot, axis) => ({
+        frame: targets[axis], dual: slot.dual,
+    })), {
         identity: value.identity,
         equivalentTo: value,
-        origin: value.origin || value,
-        transform: { kind: "coordinateChange", source: value.coordinates, target, matrix: matrixTensor(identityRows(target.space.dimension)) },
-    });
-    const transformed = transformedComponents(value, target);
-    return makeCoordinateTensor(transformed.components, target, [...value.variance], {
-        identity: value.identity,
-        equivalentTo: value,
-        origin: value.origin || value,
-        transform: { kind: "coordinateChange", source: value.coordinates, target, matrix: matrixTensor(transformed.change) },
-    });
+        origin: value.identity.origin,
+        transform: {
+            kind: "coordinateChange",
+            sources: value.slots.map((slot) => slot.frame),
+            targets,
+            matrices: transformed.changes,
+        },
+        viewOf: value.viewOf,
+    }, runtime.context);
 }
 
-function snapshotCoordinateTensor(value) {
-    return makeCoordinateTensor(value.components, value.coordinates, [...value.variance], {
-        identity: value.identity,
-        equivalentTo: value.equivalentTo,
-        origin: value.origin,
-        transform: value.transform,
-    });
+function snapshotTensor(value) {
+    const snapshot = {
+        ...value,
+        slots: Object.freeze(value.slots.map((slot) => Object.freeze({ ...slot }))),
+        _ext: tensorMethods(tensorTypeName(value.slots)),
+    };
+    return syncTensorExtension(snapshot);
 }
 
-export function transformCoordinateTensorBang(args) {
-    const value = requireCoordinateTensor(args[0]);
-    const target = requireCoordinates(args[1]);
-    const previous = snapshotCoordinateTensor(value);
-    const transformed = transformedComponents(value, target);
+export function transformTensorBang(args, runtime = {}) {
+    const value = requireTensor(args[0]);
+    const targets = targetFrames(value, args[1]);
+    const previous = snapshotTensor(value);
+    if (value.identity.origin === value) {
+        value.identity.origin = previous;
+        const originIndex = value.identity.representations.indexOf(value);
+        if (originIndex >= 0) value.identity.representations[originIndex] = previous;
+    }
+    const transformed = transformedComponents(value, targets);
     value.components = transformed.components;
-    value.coordinates = target;
+    value.representationIdentity = Object.freeze({ type: "tensor_representation_identity", serial: ++tensorRepresentationSerial });
+    value.slots = Object.freeze(value.slots.map((slot, axis) => Object.freeze({ frame: targets[axis], dual: slot.dual })));
     value.equivalentTo = previous;
-    value.origin = value.origin || previous;
-    value.transform = { kind: "coordinateChange", source: previous.coordinates, target, matrix: matrixTensor(transformed.change) };
-    return syncCoordinateTensorExtension(value);
+    value.origin = value.identity.origin;
+    value.transform = {
+        kind: "coordinateChange",
+        sources: previous.slots.map((slot) => slot.frame),
+        targets,
+        matrices: transformed.changes,
+    };
+    recordRepresentation(value.identity, value, runtime.context);
+    return syncTensorExtension(value);
 }
 
 export function components(args) {
-    return requireCoordinateTensor(args[0]).components;
+    return requireTensor(args[0]).components;
 }
 
 export function sameTensor(args) {
-    return requireCoordinateTensor(args[0]).identity === requireCoordinateTensor(args[1]).identity ? int(1) : null;
+    return requireTensor(args[0]).identity === requireTensor(args[1]).identity ? int(1) : null;
 }
 
-export function vectorCoordinates(args) {
-    const coordinateSystem = requireCoordinates(args[1]);
-    const vector = exactVector(args[0], "Vector components");
-    if (vector.length !== coordinateSystem.space.dimension) throw new Error("Vector dimension does not match its coordinate system");
-    return makeCoordinateTensor(vectorTensor(vector), coordinateSystem, ["up"]);
+export function pair(args, runtime = {}) {
+    const first = requireTensor(args[0]);
+    const second = requireTensor(args[1]);
+    const covectorValue = first.type === "covector" ? first : second.type === "covector" ? second : null;
+    const vectorValue = first.type === "vector" ? first : second.type === "vector" ? second : null;
+    if (!covectorValue || !vectorValue || first.slots.length !== 1 || second.slots.length !== 1) {
+        throw new Error("Pair requires one Vector and one Covector");
+    }
+    if (covectorValue.slots[0].frame.space !== vectorValue.slots[0].frame.space) {
+        throw new Error("Vector and Covector must belong to the same VectorSpace");
+    }
+    const alignedVector = vectorValue.slots[0].frame === covectorValue.slots[0].frame
+        ? vectorValue
+        : transformTensor([vectorValue, covectorValue.slots[0].frame], runtime);
+    const covectorEntries = flatTensorValues(covectorValue.components).map(exactRational);
+    const vectorEntries = flatTensorValues(alignedVector.components).map(exactRational);
+    return covectorEntries.reduce((sum, entry, index) =>
+        sum.add(entry.multiply(vectorEntries[index])), zero());
+}
+
+export function vector(args, runtime = {}) {
+    const entries = entriesFor(args, ["components", "frame", "options"], "linalg.Vector");
+    const frameValue = requireFrame(field(entries, "frame"));
+    const values = exactVector(field(entries, "components"), "Vector components");
+    if (values.length !== frameValue.space.dimension) throw new Error("Vector dimension does not match its Frame");
+    return makeTensor(vectorTensor(values), [{ frame: frameValue, dual: false }], {}, runtime.context);
+}
+
+export function covector(args, runtime = {}) {
+    const entries = entriesFor(args, ["components", "frame", "options"], "linalg.Covector");
+    const frameValue = requireFrame(field(entries, "frame"));
+    const values = exactVector(field(entries, "components"), "Covector components");
+    if (values.length !== frameValue.space.dimension) throw new Error("Covector dimension does not match its Frame");
+    return makeTensor(vectorTensor(values), [{ frame: frameValue, dual: true }], {}, runtime.context);
+}
+
+export function typedShaped(componentsValue, header, resolvedSlots, context = null) {
+    const requested = String(header.typeName || "").toLowerCase();
+    if (!["vector", "covector", "tensor"].includes(requested)) {
+        throw new Error(`Compact slot annotation is only valid for Vector, Covector, or Tensor, not ${header.typeName}`);
+    }
+    if ((requested === "vector" || requested === "covector") && resolvedSlots.length !== 1) {
+        throw new Error(`${header.typeName} requires exactly one Frame annotation`);
+    }
+    const slots = resolvedSlots.map((slot) => ({
+        frame: requireFrame(slot.frame),
+        dual: requested === "covector" ? true : slot.dual === true,
+    }));
+    if (requested === "vector" && slots[0].dual) {
+        return makeTensor(componentsValue, slots, {}, context);
+    }
+    if (requested === "tensor" && slots.length !== shapedRank(componentsValue)) {
+        throw new Error(`Tensor header declares ${slots.length} slots for rank-${shapedRank(componentsValue)} components`);
+    }
+    return makeTensor(componentsValue, slots, {}, context);
+}
+
+function compatibleSlots(left, right) {
+    return left.slots.length === right.slots.length && left.slots.every((slot, axis) =>
+        slot.frame.space === right.slots[axis]?.frame.space && slot.dual === right.slots[axis]?.dual);
+}
+
+function combineTensorValues(name, leftValue, rightValue, runtime = {}) {
+    const left = requireTensor(leftValue);
+    const right = requireTensor(rightValue);
+    if (!compatibleSlots(left, right)) throw new Error(`${name} requires tensors with the same ordered VectorSpace slots and variance`);
+    const aligned = left.slots.every((slot, axis) => slot.frame === right.slots[axis].frame)
+        ? right
+        : transformTensor([right, seq(left.slots.map((slot) => slot.frame))], runtime);
+    const a = flatTensorValues(left.components).map(exactRational);
+    const b = flatTensorValues(aligned.components).map(exactRational);
+    const values = a.map((entry, index) => name === "ADD" ? entry.add(b[index]) : entry.subtract(b[index]));
+    return makeTensor(createShaped(left.components.shape, values), left.slots, {
+        derivedFrom: [left, right],
+    }, runtime.context);
+}
+
+function scaleTensorValue(name, value, scalarValue, scalarFirst, runtime = {}) {
+    const tensorValue = requireTensor(value);
+    const scalar = exactRational(scalarValue, "Tensor scalar");
+    const values = flatTensorValues(tensorValue.components).map((entry) => {
+        const exactEntry = exactRational(entry);
+        if (name === "MUL") return exactEntry.multiply(scalar);
+        return scalarFirst ? scalar.divide(exactEntry) : exactEntry.divide(scalar);
+    });
+    return makeTensor(createShaped(tensorValue.components.shape, values), tensorValue.slots, {
+        derivedFrom: [tensorValue],
+    }, runtime.context);
+}
+
+export function installTensorOperators(registry) {
+    if (!registry || registry.get("ADD")?.variants?.some((variant) => variant.name === "LinalgTensorAddition")) return;
+    const isTensor = (value) => ["vector", "covector", "tensor"].includes(value?.type) && value.schema === TENSOR_SCHEMA;
+    registry.installVariant("ADD", {
+        name: "LinalgTensorAddition", priority: 400,
+        prep: (args) => args.length === 2 && isTensor(args[0]) && isTensor(args[1]),
+        impl: ([left, right], context) => combineTensorValues("ADD", left, right, { context }),
+    });
+    registry.installVariant("SUB", {
+        name: "LinalgTensorSubtraction", priority: 400,
+        prep: (args) => args.length === 2 && isTensor(args[0]) && isTensor(args[1]),
+        impl: ([left, right], context) => combineTensorValues("SUB", left, right, { context }),
+    });
+    registry.installVariant("MUL", {
+        name: "LinalgTensorScaling", priority: 400,
+        prep: (args) => args.length === 2 && (isTensor(args[0]) !== isTensor(args[1])),
+        impl: ([left, right], context) => isTensor(left)
+            ? scaleTensorValue("MUL", left, right, false, { context })
+            : scaleTensorValue("MUL", right, left, true, { context }),
+    });
+    registry.installVariant("DIV", {
+        name: "LinalgTensorDivision", priority: 400,
+        prep: (args) => args.length === 2 && isTensor(args[0]) && !isTensor(args[1]),
+        impl: ([left, right], context) => scaleTensorValue("DIV", left, right, false, { context }),
+    });
 }
 
 export const helpers = new Map([
     ["Rref", rref], ["Rank", rank], ["Determinant", determinant], ["Inverse", inverse], ["Solve", solveLinear],
-    ["VectorSpace", vectorSpace], ["Coordinates", coordinates], ["CoordinateTensor", coordinateTensor],
-    ["Vector", vectorCoordinates], ["ChangeMatrix", changeMatrix], ["Transform", transformCoordinateTensor],
-    ["Transform!", transformCoordinateTensorBang], ["Components", components], ["SameTensor", sameTensor],
+    ["VectorSpace", vectorSpace], ["Frame", frame], ["Tensor", tensor], ["Vector", vector], ["Covector", covector],
+    ["ChangeMatrix", changeMatrix], ["Transform", transformTensor], ["Transform!", transformTensorBang],
+    ["Components", components], ["Pair", pair], ["SameTensor", sameTensor],
 ]);

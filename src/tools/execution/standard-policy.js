@@ -28,7 +28,7 @@ export const STANDARD_CAPABILITY_NAMES = Object.freeze([
     "SArith", "SECTION", "Set", "SHEET", "SIMPLIFY", "Slice", "SliceClamp", "SLIDE", "SLIDES",
     "SNAPSHOTS", "Sort", "SPEC", "SPECCABILITY", "SPECFRACTIONPARTS", "SPECROLES", "Split",
     "Sqrt", "STOP", "Stream", "STRONG", "Sub", "SUBSTR", "SymmetricDifference", "TABLE",
-    "TEMPLATE_TEXT", "TEST", "TESTERROR", "TESTSTOP", "TEXT", "TGEN", "Timeline", "TRACE",
+    "TEMPLATE_TEXT", "TEST", "TESTERROR", "TESTSTOP", "TEXT", "Shaped", "Timeline", "TRACE",
     "TRANSFORM", "Tuple", "TypeExport", "TypeImport", "TypeKnown",
     "Undecided", "Union", "Units", "UPPER", "VALUES", "VIDEO", "WARN",
 ]);

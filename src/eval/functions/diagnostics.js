@@ -48,7 +48,7 @@ function inspectValue(value, depth) {
         const entries = Array.from(value.entries || []).map(([key, entry]) => `${key} = ${inspectValue(entry, depth - 1)}`);
         return `{= ${entries.join(", ")} }`;
     }
-    if (value?.type === "tensor") return `tensor[${(value.shape || []).join("x")}] ${formatValue(value)}`;
+    if (value?.type === "shaped") return `shaped[${(value.shape || []).join("x")}] ${formatValue(value)}`;
     return formatValue(value);
 }
 

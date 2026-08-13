@@ -367,20 +367,18 @@ newline normalization.
 ### `.linalg`
 
 The cross-cutting `Shaped`/`Matrix`/`Vector`/mathematical-`Tensor` migration is
-intentionally deferred while other parser and evaluator work is active. Its
-design gates, compatibility strategy, syntax proposal, and detailed checklist
-are tracked in
+in progress. Its design contract and detailed implementation checklist are
+tracked in
 [Shaped values, matrices, vectors, and mathematical tensors](../documentation/design/eval/shaped-array-matrix-tensor-plan.md).
 
 1. **Phase 1 — Exact dense systems and coordinate-aware tensors**
    - [x] Canonicalize rectangular `[a,b; c,d]` and higher-rank repeated-semicolon
-     literals into the shaped Tensor runtime used by `{:2x2: ...}`.
+     literals into the Shaped runtime used by `{:2x2: ...}`.
    - [x] Add exact `Rref`, `Rank`, `Determinant`, `Inverse`, and `Solve` over
      Integer/Rational rank-2 tensors, with unique, underdetermined, and
      inconsistent result states.
-   - [x] Add `VectorSpace`, named `Coordinates`, coordinate vectors, and
-     coordinate-aware tensors with explicit per-axis covariant/contravariant
-     variance.
+   - [x] Add basis-free `VectorSpace`, ordered `Frame`, `Vector`, `Covector`,
+     and coordinate-aware tensors with explicit dual/primal slots.
    - [x] Transform every tensor axis between bases. Non-bang `Transform`
      returns a new representation sharing tensor identity and linking to the
      previous object through `equivalentTo`; `Transform!` retains a snapshot
@@ -397,10 +395,11 @@ are tracked in
    - [ ] Add a versioned linear-realization protocol so domain objects retain
      their own identity and operations while exposing linked Vector views;
      use degree-at-most-`n` polynomial spaces as the first finite adapter.
-   - [ ] Make coordinate lineage serializable and bounded, with stable identity
-     records instead of relying only on in-memory links.
-   - [ ] Define elementwise tensor arithmetic and broadcasting separately from
-     contraction and matrix multiplication.
+   - [ ] Make coordinate lineage serializable with stable identity records;
+     in-memory lineage is already bounded and retains its origin.
+   - [x] Define Shaped arithmetic as exact-shape elementwise operations or
+     scalar application only, with no implicit broadcasting; keep Matrix
+     multiplication separate and provide explicit `Hadamard`.
 3. **Phase 3 — Spectral, geometric, and validated linear algebra**
    - [ ] Add characteristic/minimal polynomials, eigenspaces, rational/Jordan
      canonical forms where exact, and approximate Eigen/SVD/QR providers with

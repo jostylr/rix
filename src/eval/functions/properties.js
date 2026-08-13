@@ -10,7 +10,7 @@
 import { Integer, RationalInterval, Rational } from "@ratmath/core";
 import { keyOf, canonicalizeMetaKey } from "./keyof.js";
 import { Cell } from "../../runtime/cell.js";
-import { isTensor, tensorAssignBySelectors, tensorGetBySelectors } from "../../runtime/tensor.js";
+import { isShaped, shapedAssignBySelectors, shapedGetBySelectors } from "../../runtime/shaped.js";
 import { isFormulaSheet } from "../../runtime/formula-sheet.js";
 import { getBuiltinProto } from "../../runtime/methods.js";
 import { createTraitSet, rebuildSemanticMetadata } from "../../runtime/semantic.js";
@@ -192,8 +192,8 @@ export function indexGetResolved(obj, key) {
     if (isFormulaSheet(obj)) {
         return obj.get(key);
     }
-    if (isTensor(obj)) {
-        return tensorGetBySelectors(obj, [{ kind: "index", value: key }]);
+    if (isShaped(obj)) {
+        return shapedGetBySelectors(obj, [{ kind: "index", value: key }]);
     }
 
     if (isMultifunctionValue(obj)) {
@@ -295,8 +295,8 @@ export function bracketGetResolved(obj, specs) {
         const index = specs.length === 1 ? specs[0].value : specs.map((spec) => spec.value);
         return obj.get(index);
     }
-    if (isTensor(obj)) {
-        return tensorGetBySelectors(obj, specs);
+    if (isShaped(obj)) {
+        return shapedGetBySelectors(obj, specs);
     }
 
     if (specs.length === 1 && specs[0].kind === "index") {
@@ -313,8 +313,8 @@ export function bracketGetResolved(obj, specs) {
 function indexSetResolved(obj, key, value) {
     assertMutableIndexTarget(obj);
 
-    if (isTensor(obj)) {
-        return tensorAssignBySelectors(obj, [{ kind: "index", value: key }], value);
+    if (isShaped(obj)) {
+        return shapedAssignBySelectors(obj, [{ kind: "index", value: key }], value);
     }
 
     if (obj && (obj.type === "sequence" || obj.type === "tuple")) {
@@ -512,7 +512,7 @@ export const propertyFunctions = {
             const specs = specNodes.map((specNode) => decodeBracketSpec(specNode, evaluate));
             return bracketGetResolved(obj, specs);
         },
-        doc: "Tensor-aware bracket indexing and slicing",
+        doc: "Shaped-aware bracket indexing and slicing",
     },
 
     BRACKET_SET: {
@@ -524,9 +524,9 @@ export const propertyFunctions = {
             const value = evaluate(args[2 + specCount]);
             const specs = specNodes.map((specNode) => decodeBracketSpec(specNode, evaluate));
 
-            if (isTensor(obj)) {
+            if (isShaped(obj)) {
                 assertMutableIndexTarget(obj);
-                return tensorAssignBySelectors(obj, specs, value);
+                return shapedAssignBySelectors(obj, specs, value);
             }
 
             if (specs.length === 1 && specs[0].kind === "index") {
@@ -535,7 +535,7 @@ export const propertyFunctions = {
 
             throw new Error("Bracket slice assignment is only supported for tensors");
         },
-        doc: "Tensor-aware bracket assignment",
+        doc: "Shaped-aware bracket assignment",
     },
 
     KEYOF: {

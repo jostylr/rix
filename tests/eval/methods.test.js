@@ -6,7 +6,7 @@ import { lower } from "../../src/eval/lower.js";
 import { evaluate, createDefaultRegistry, createDefaultSystemContext, parseAndEvaluate } from "../../src/eval/evaluator.js";
 import { Context } from "../../src/runtime/context.js";
 import { isHole } from "../../src/runtime/hole.js";
-import { forEachTensorCell, isTensor } from "../../src/runtime/tensor.js";
+import { forEachShapedCell, isShaped } from "../../src/runtime/shaped.js";
 
 const defaultSystemContext = createDefaultSystemContext();
 
@@ -39,13 +39,13 @@ function unbox(value) {
     return value;
 }
 
-function tensorSnapshot(tensor) {
-    if (!isTensor(tensor)) {
+function shapedSnapshot(tensor) {
+    if (!isShaped(tensor)) {
         throw new Error("Expected a tensor");
     }
 
     const flat = [];
-    forEachTensorCell(tensor, (value) => {
+    forEachShapedCell(tensor, (value) => {
         flat.push(unbox(value));
     });
 
@@ -301,8 +301,8 @@ describe("Built-in string and tuple methods", () => {
     });
 });
 
-describe("Built-in tensor methods", () => {
-    test("tensor shape and mapping methods work through method dispatch", () => {
+describe("Built-in Shaped methods", () => {
+    test("Shaped dimension and mapping methods work through method dispatch", () => {
         const result = evalRiX(`
             m := {:2x2: 1, 2; 3, 4 };
             {:
@@ -322,14 +322,14 @@ describe("Built-in tensor methods", () => {
         expect(unbox(values[1])).toBe(2);
         expect(unbox(values[2])).toBe(4);
         expect(unbox(values[3])).toBe(3);
-        expect(tensorSnapshot(values[4])).toEqual({ shape: [2, 2], flat: [1, 2, 6, 8] });
-        expect(tensorSnapshot(values[5])).toEqual({ shape: [4], flat: [1, 2, 3, 4] });
-        expect(tensorSnapshot(values[6])).toEqual({ shape: [2, 2], flat: [1, 3, 2, 4] });
-        expect(tensorSnapshot(values[7])).toEqual({ shape: [2, 2], flat: [1, 3, 2, 4] });
-        expect(tensorSnapshot(values[8])).toEqual({ shape: [2, 2], flat: [10, 20, 30, 40] });
+        expect(shapedSnapshot(values[4])).toEqual({ shape: [2, 2], flat: [1, 2, 6, 8] });
+        expect(shapedSnapshot(values[5])).toEqual({ shape: [4], flat: [1, 2, 3, 4] });
+        expect(shapedSnapshot(values[6])).toEqual({ shape: [2, 2], flat: [1, 3, 2, 4] });
+        expect(shapedSnapshot(values[7])).toEqual({ shape: [2, 2], flat: [1, 3, 2, 4] });
+        expect(shapedSnapshot(values[8])).toEqual({ shape: [2, 2], flat: [10, 20, 30, 40] });
     });
 
-    test("tensor mutation and numeric methods cover Set!, Fill!, Sum, Mean, Dot, and MatMul", () => {
+    test("Shaped mutation and reductions cover Set!, Fill!, Sum, and Mean", () => {
         const ctx = new Context();
         const result = evalRiX(`
             a := {:2x2: 1, 2; 3, 4 };
@@ -338,16 +338,15 @@ describe("Built-in tensor methods", () => {
             {:
                 a,
                 a.Sum(),
-                a.Mean(),
-                {:3: 1, 2, 3 }.Dot({:3: 4, 5, 6 }),
-                {:2x3: 1, 2, 3; 4, 5, 6 }.MatMul({:3x2: 7, 8; 9, 10; 11, 12 })
+                a.Mean()
             }
         `, ctx);
         const values = result.values;
-        expect(tensorSnapshot(values[0])).toEqual({ shape: [2, 2], flat: [5, 5, 5, 5] });
+        expect(shapedSnapshot(values[0])).toEqual({ shape: [2, 2], flat: [5, 5, 5, 5] });
         expect(unbox(values[1])).toBe(20);
         expect(unbox(values[2])).toBe(5);
-        expect(unbox(values[3])).toBe(32);
-        expect(tensorSnapshot(values[4])).toEqual({ shape: [2, 2], flat: [58, 64, 139, 154] });
+        expect(() => evalRiX("{:3: 1, 2, 3 }.Dot({:3: 4, 5, 6 })")).toThrow("Method not found: DOT");
+        expect(() => evalRiX("{:2x2: 1, 2; 3, 4 }.MatMul({:2x2: 5, 6; 7, 8 })"))
+            .toThrow("Method not found: MATMUL");
     });
 });

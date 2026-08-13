@@ -9,7 +9,7 @@ import { lower } from "../lower.js";
 import { isReactiveNode, REACTIVE_READ_ENV } from "../../runtime/reactive-graph.js";
 import { createSystemLookup } from "../../runtime/system-manifest.js";
 import { Integer, Rational } from "@ratmath/core";
-import { createTensor } from "../../runtime/tensor.js";
+import { createShaped } from "../../runtime/shaped.js";
 import { formatValue } from "../format.js";
 
 export function containsOuterRead(node) {
@@ -286,7 +286,7 @@ function importDelimitedCapability(args, context, evaluate, systemContext, delim
             });
         }
     }
-    return createFormulaSheet(createTensor(shape, formulas), {
+    return createFormulaSheet(createShaped(shape, formulas), {
         ...runtime,
         id: imported.id,
         slotMetadata,
@@ -331,7 +331,7 @@ export const formulaSheetFunctions = {
     FORMULASHEET: {
         pure: false,
         impl: formulaSheetCapability,
-        doc: "Create a formula-backed sheet from a tensor or rectangular array of deferred RiX formulas",
+        doc: "Create a formula-backed sheet from a shaped or rectangular array of deferred RiX formulas",
     },
     RIXCELEXPORT: {
         pure: false,

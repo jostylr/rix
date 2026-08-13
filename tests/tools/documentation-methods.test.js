@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { Integer, Rational, RationalInterval } from "@ratmath/core";
 
 import { getBuiltinProto } from "../../src/runtime/methods.js";
-import { createTensor } from "../../src/runtime/tensor.js";
+import { createShaped } from "../../src/runtime/shaped.js";
 
 const rixRoot = resolve(import.meta.dir, "../..");
 
@@ -19,7 +19,7 @@ const documentedReceivers = [
   ["Set", "eval/objects/set.md", { type: "set", values: [] }],
   ["String", "eval/objects/string.md", { type: "string", value: "" }],
   ["Tuple", "eval/objects/tuple.md", { type: "tuple", values: [] }],
-  ["Tensor", "eval/objects/tensor.md", createTensor([1], [null])],
+  ["Shaped", "eval/objects/shaped.md", createShaped([1], [null])],
   ["Deferred", "eval/objects/deferred.md", { fn: "DEFER", args: [] }],
   ["Structural values", "eval/objects/structural-values.md", { type: "structural_form" }],
   ["Exact generator", "eval/objects/exact-cartesian.md", { type: "exact_generator" }],

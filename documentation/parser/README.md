@@ -17,7 +17,7 @@ syntax and embedding APIs, start with
 ### Language Features
 - **[brace-containers-README.md](brace-containers-README.md)** - Code blocks and container parsing
 - **[embedded-parsing.md](embedded-parsing.md)** - Embedded language support
-- **[matrix-tensor-implementation.md](matrix-tensor-implementation.md)** - Matrix and tensor parsing
+- **[matrix-tensor-implementation.md](matrix-tensor-implementation.md)** - Shaped semicolon-literal parsing
 
 ## Quick Reference
 

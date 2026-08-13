@@ -1,8 +1,10 @@
-# Matrix and Tensor Implementation
+# Shaped Literal Implementation
 
 ## Overview
 
-This document describes the implementation of matrix and tensor parsing in the RiX language parser. The feature extends the existing array syntax with semicolon separators to support multi-dimensional data structures.
+This document describes rectangular Shaped parsing in RiX. Semicolon separators
+extend array notation to rank-N component storage. Bare results have semantic
+type `Shaped`; explicit `/Matrix/` and linalg slot headers add stronger meaning.
 
 ## Syntax
 
@@ -17,13 +19,13 @@ This document describes the implementation of matrix and tensor parsing in the R
 ### Examples
 
 ```javascript
-// 2D Matrix
-[1, 2; 3, 4]           // 2x2 matrix
+// Rank-2 Shaped
+[1, 2; 3, 4]           // shape 2x2
 [1, 2, 3; 4, 5, 6]     // 2x3 matrix
 [1; 2; 3]              // 3x1 column vector
 
-// 3D Tensor  
-[1, 2; 3, 4 ;; 5, 6; 7, 8]    // 2x2x2 tensor
+// Rank-3 Shaped
+[1, 2; 3, 4 ;; 5, 6; 7, 8]    // shape 2x2x2
 
 // 4D Tensor
 [1; 2 ;; 3; 4 ;;; 5; 6 ;; 7; 8]   // 4D structure
@@ -57,36 +59,23 @@ Modified `src/parser.js` with several key changes:
    - Breaks on both `Symbol` semicolons and `SemicolonSequence` tokens
    - Treats separators like statement terminators
 
-3. **New `parseMatrixOrArray()` method**:
-   - Detects semicolon usage to determine if structure is matrix/tensor
-   - Builds `matrixStructure` array with separator levels
+3. **`parseMatrixOrArray()` method**:
+   - Detects semicolon usage to determine whether the result is Array or Shaped
+   - Builds a structure array with separator levels
    - Handles empty rows and edge cases
    - Supports both single semicolons and semicolon sequences
 
-4. **New `buildMatrixTensor()` method**:
-   - Determines if result should be Matrix (2D) or Tensor (3D+)
-   - Creates appropriate AST nodes
-
-5. **New `consumeSemicolonSequence()` method**:
+4. **`consumeSemicolonSequence()` method**:
    - Handles both `Symbol` (single `;`) and `SemicolonSequence` (multiple `;;+`) tokens
    - Returns the correct count for dimension detection
 
-### AST Node Types
+### AST node
 
-#### Matrix Node
+Both rank-2 and higher inferred literals use `Shaped`:
+
 ```javascript
 {
-    type: "Matrix",
-    rows: [[ASTNode]],      // Array of rows, each row is array of elements
-    pos: [start, delim, end],
-    original: string
-}
-```
-
-#### Tensor Node
-```javascript
-{
-    type: "Tensor", 
+    type: "Shaped",
     structure: [{
         row: [ASTNode],         // Array of elements in this row
         separatorLevel: number  // Number of semicolons that follow this row
@@ -101,13 +90,13 @@ Modified `src/parser.js` with several key changes:
 
 ### Dimension Detection
 
-- **Matrix**: When `maxSeparatorLevel === 1`
-- **Tensor**: When `maxSeparatorLevel > 1`
+- **Rank-2 Shaped**: When `maxSeparatorLevel === 1`
+- **Rank-N Shaped**: When `maxSeparatorLevel > 1`
 - **Array**: When no semicolons are present
 
 ### Error Handling
 
-- **Metadata conflicts**: Matrix/tensor syntax cannot be mixed with `:=` metadata annotations
+- **Metadata conflicts**: Shaped semicolon syntax cannot be mixed with `:=` metadata annotations
 - **Proper error messages**: Clear error messages for invalid combinations
 
 ### Edge Case Handling
@@ -121,9 +110,9 @@ Modified `src/parser.js` with several key changes:
 
 Comprehensive test suite in `tests/parser.test.js` covers:
 
-- Basic 2D matrices
-- 3D tensors with double semicolons
-- 4D+ tensors with multiple semicolon levels
+- Basic rank-2 Shaped values
+- Rank-3 Shaped values with double semicolons
+- Rank-4+ Shaped values with multiple semicolon levels
 - Edge cases (empty rows, leading/trailing semicolons)
 - Error conditions (metadata mixing)
 - Complex expressions within matrices
@@ -151,7 +140,7 @@ Three example files demonstrate usage:
 
 The parser retains the separator structure in `Matrix`/`Tensor` AST nodes.
 Lowering infers a rectangular shape, reorders higher-axis display slices into
-the runtime's row-major axis order, and emits the same `TENSOR_LITERAL` IR used
+the runtime's row-major axis order, and emits the same `SHAPED_LITERAL` IR used
 by an explicit `{:d1xd2x...: ...}` constructor. Consequently
 `[1,2;3,4]` evaluates as a shaped `2x2` tensor rather than a separate matrix
 record. Ragged rows or higher-axis groups are rejected during lowering.

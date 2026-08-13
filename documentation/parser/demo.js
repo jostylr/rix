@@ -3443,14 +3443,14 @@ class Parser {
     const metadataMap = {};
     let nonMetadataCount = 0;
     let hasSemicolons = false;
-    let matrixStructure = [];
+    let shapedStructure = [];
     let currentRow = [];
     if (this.current.value !== "]") {
       do {
         if (this.current.value === ";" || this.current.type === "SemicolonSequence") {
           hasSemicolons = true;
           const semicolonCount = this.consumeSemicolonSequence();
-          matrixStructure.push({
+          shapedStructure.push({
             row: [],
             separatorLevel: semicolonCount
           });
@@ -3508,7 +3508,7 @@ class Parser {
           }
           hasSemicolons = true;
           const semicolonCount = this.consumeSemicolonSequence();
-          matrixStructure.push({
+          shapedStructure.push({
             row: [...currentRow],
             separatorLevel: semicolonCount
           });
@@ -3519,7 +3519,7 @@ class Parser {
       } while (this.current.value !== "]" && this.current.type !== "End");
     }
     if (currentRow.length > 0 || hasSemicolons) {
-      matrixStructure.push({
+      shapedStructure.push({
         row: currentRow,
         separatorLevel: 0
       });
@@ -3540,7 +3540,7 @@ class Parser {
       });
     }
     if (hasSemicolons) {
-      return this.buildMatrixTensor(matrixStructure, startToken);
+      return this.buildShaped(shapedStructure, startToken);
     }
     return this.createNode("Array", {
       elements,
@@ -3548,26 +3548,21 @@ class Parser {
       original: startToken.original
     });
   }
-  buildMatrixTensor(matrixStructure, startToken) {
-    const maxSeparatorLevel = Math.max(...matrixStructure.map((item) => item.separatorLevel));
+  buildShaped(shapedStructure, startToken) {
+    const maxSeparatorLevel = Math.max(...shapedStructure.map((item) => item.separatorLevel));
     if (maxSeparatorLevel === 1) {
-      const rows = [];
-      for (const item of matrixStructure) {
-        rows.push(item.row);
-      }
-      return this.createNode("Matrix", {
-        rows,
-        pos: startToken.pos,
-        original: startToken.original
-      });
-    } else {
-      return this.createNode("Tensor", {
-        structure: matrixStructure,
-        maxDimension: maxSeparatorLevel + 1,
+      return this.createNode("Shaped", {
+        rows: shapedStructure.map((item) => item.row),
         pos: startToken.pos,
         original: startToken.original
       });
     }
+    return this.createNode("Shaped", {
+      structure: shapedStructure,
+      maxDimension: maxSeparatorLevel + 1,
+      pos: startToken.pos,
+      original: startToken.original
+    });
   }
   isDirectAssignmentOperator(value) {
     return value === "=" || value === ":=" || value === "~=" || value === "::=" || value === "~~=";
@@ -3755,7 +3750,7 @@ class Parser {
         entries,
         rest
       }, current);
-    } else if (current?.type === "TensorLiteral") {
+    } else if (current?.type === "ShapedLiteral") {
       if (current.shape.length !== 2) {
         this.error("Tensor destructuring currently supports rank-2 patterns only");
       }
@@ -3771,7 +3766,7 @@ class Parser {
         }
         rowTargets.push(rowEntries);
       }
-      target = this.createDestructureTargetNode("DestructureTensorPattern", {
+      target = this.createDestructureTargetNode("DestructureShapedPattern", {
         shape: [...current.shape],
         rows: rowTargets
       }, current);
@@ -4131,11 +4126,11 @@ class Parser {
   parseBraceSigil(sigil, containerName = null, options = {}) {
     const startToken = this.current;
     this.advance();
-    const isTensorShapeSigil = sigil === "{:" && containerName && /^\d+(?:x\d+)*$/.test(containerName);
-    if (isTensorShapeSigil && !options.destructureAlias) {
-      return this.parseTensorLiteral(startToken, containerName);
+    const isShapedShapeSigil = sigil === "{:" && containerName && /^\d+(?:x\d+)*$/.test(containerName);
+    if (isShapedShapeSigil && !options.destructureAlias) {
+      return this.parseShapedLiteral(startToken, containerName);
     }
-    const effectiveSigil = isTensorShapeSigil && options.destructureAlias ? "{.." : sigil;
+    const effectiveSigil = isShapedShapeSigil && options.destructureAlias ? "{.." : sigil;
     const sigilTypeMap = {
       "{..": "ArrayContainer",
       "{=": "MapContainer",
@@ -4242,7 +4237,7 @@ class Parser {
     return this.createNode(nodeType, {
       sigil,
       ...containerName && !options.destructureAlias ? { name: containerName } : {},
-      ...isTensorShapeSigil && options.destructureAlias ? { tensorShape: containerName.split("x").map((part) => Number(part)) } : {},
+      ...isShapedShapeSigil && options.destructureAlias ? { shapedShape: containerName.split("x").map((part) => Number(part)) } : {},
       ...effectiveSigil === "{@" && options.loopMax !== undefined ? { maxIterations: options.loopMax } : {},
       ...effectiveSigil === "{@" && options.loopUnlimited ? { unlimited: true } : {},
       ...effectiveSigil === "{$" && options.asyncLimit !== undefined ? { concurrencyLimit: options.asyncLimit } : {},
@@ -4454,7 +4449,7 @@ class Parser {
       original: startToken.original
     });
   }
-  parseTensorLiteral(startToken, headerText) {
+  parseShapedLiteral(startToken, headerText) {
     const shape = headerText.split("x").map((part) => {
       const dim = Number(part);
       if (!Number.isInteger(dim) || dim < 0) {
@@ -4471,17 +4466,17 @@ class Parser {
       }
     } else if (this.current.value !== "}") {
       if (shape.length === 2 && this.current.value === "[") {
-        elements = this.parseTensorRowArrayPattern(shape);
+        elements = this.parseShapedRowArrayPattern(shape);
       } else {
-        const displayTree = this.parseTensorDisplayLevel(this.getTensorDisplayLevels(shape), 0, shape);
-        elements = this.flattenTensorDisplayTree(displayTree, shape);
+        const displayTree = this.parseShapedDisplayLevel(this.getShapedDisplayLevels(shape), 0, shape);
+        elements = this.flattenShapedDisplayTree(displayTree, shape);
       }
     }
     if (this.current.value !== "}") {
       this.error("Expected closing brace for tensor literal");
     }
     this.advance();
-    return this.createNode("TensorLiteral", {
+    return this.createNode("ShapedLiteral", {
       shape,
       ...header ? { header } : {},
       elements,
@@ -4489,7 +4484,7 @@ class Parser {
       original: startToken.original
     });
   }
-  parseTensorRowArrayPattern(shape) {
+  parseShapedRowArrayPattern(shape) {
     const [rows, cols] = shape;
     const elements = [];
     for (let row = 0;row < rows; row++) {
@@ -4507,7 +4502,7 @@ class Parser {
     }
     return elements;
   }
-  getTensorDisplayLevels(shape) {
+  getShapedDisplayLevels(shape) {
     if (shape.length === 0) {
       return [];
     }
@@ -4526,7 +4521,7 @@ class Parser {
     levels.push({ size: shape[1], separatorCount: 0, label: "column" });
     return levels;
   }
-  parseTensorDisplayLevel(levels, levelIndex, shape) {
+  parseShapedDisplayLevel(levels, levelIndex, shape) {
     const level = levels[levelIndex];
     if (!level) {
       return null;
@@ -4546,7 +4541,7 @@ class Parser {
     }
     const groups = [];
     for (let i = 0;i < level.size; i++) {
-      groups.push(this.parseTensorDisplayLevel(levels, levelIndex + 1, shape));
+      groups.push(this.parseShapedDisplayLevel(levels, levelIndex + 1, shape));
       if (i < level.size - 1) {
         const consumed = this.consumeSemicolonSequence();
         if (consumed !== level.separatorCount) {
@@ -4557,7 +4552,7 @@ class Parser {
     }
     return groups;
   }
-  flattenTensorDisplayTree(tree, shape) {
+  flattenShapedDisplayTree(tree, shape) {
     if (shape.length === 1) {
       return tree;
     }

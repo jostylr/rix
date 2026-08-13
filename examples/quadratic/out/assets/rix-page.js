@@ -3835,11 +3835,11 @@
         this.error("The '{$ ... }' sigil is reserved for future async/concurrency syntax");
       }
       this.advance();
-      const isTensorShapeSigil = sigil === "{:" && containerName && /^\d+(?:x\d+)*$/.test(containerName);
-      if (isTensorShapeSigil && !options.destructureAlias) {
+      const isShapedShapeSigil = sigil === "{:" && containerName && /^\d+(?:x\d+)*$/.test(containerName);
+      if (isShapedShapeSigil && !options.destructureAlias) {
         return this.parseTensorLiteral(startToken, containerName);
       }
-      const effectiveSigil = isTensorShapeSigil && options.destructureAlias ? "{.." : sigil;
+      const effectiveSigil = isShapedShapeSigil && options.destructureAlias ? "{.." : sigil;
       const sigilTypeMap = {
         "{..": "ArrayContainer",
         "{=": "MapContainer",
@@ -3940,7 +3940,7 @@
       return this.createNode(nodeType, {
         sigil,
         ...containerName && !options.destructureAlias ? { name: containerName } : {},
-        ...isTensorShapeSigil && options.destructureAlias ? { tensorShape: containerName.split("x").map((part) => Number(part)) } : {},
+        ...isShapedShapeSigil && options.destructureAlias ? { shapedShape: containerName.split("x").map((part) => Number(part)) } : {},
         ...effectiveSigil === "{@" && options.loopMax !== undefined ? { maxIterations: options.loopMax } : {},
         ...effectiveSigil === "{@" && options.loopUnlimited ? { unlimited: true } : {},
         ...header ? { header } : {},
@@ -8911,7 +8911,7 @@
     return normalized;
   }
 
-  // src/runtime/tensor.js
+  // src/runtime/shaped.js
   function exactInteger(value, label = "Index") {
     if (value instanceof Integer) {
       return Number(value.value);
@@ -8978,16 +8978,16 @@
       value
     };
   }
-  function isTensor(value) {
+  function isShaped(value) {
     return !!value && value.type === "tensor" && Array.isArray(value.data) && Array.isArray(value.shape) && Array.isArray(value.strides);
   }
-  function tensorRank(tensor) {
+  function shapedRank(tensor) {
     return tensor.shape.length;
   }
-  function tensorShape(tensor) {
+  function shapedShape(tensor) {
     return [...tensor.shape];
   }
-  function tensorSize(tensor) {
+  function shapedSize(tensor) {
     return tensor.shape.reduce((product, dim) => product * dim, 1);
   }
   function computeDefaultStrides(shape) {
@@ -8999,7 +8999,7 @@
     }
     return strides;
   }
-  function createTensor(shape, data = null, options = {}) {
+  function createShaped(shape, data = null, options = {}) {
     if (!Array.isArray(shape)) {
       throw new Error("Tensor shape must be an array");
     }
@@ -9024,8 +9024,8 @@
       _ext: options.ext ?? new Map([["_mutable", new Integer(1n)]])
     };
   }
-  function createTensorView(tensor, view) {
-    if (!isTensor(tensor)) {
+  function createShapedView(tensor, view) {
+    if (!isShaped(tensor)) {
       throw new Error("Cannot create a tensor view from a non-tensor value");
     }
     return {
@@ -9037,7 +9037,7 @@
       _ext: tensor._ext
     };
   }
-  function tensorIndexTuple(indices) {
+  function shapedIndexTuple(indices) {
     return {
       type: "tuple",
       values: indices.map((index) => new Integer(BigInt(index)))
@@ -9061,26 +9061,26 @@
     }
     return tuple;
   }
-  function tensorOffsetForTuple(tensor, tuple) {
+  function shapedOffsetForTuple(tensor, tuple) {
     let offset = tensor.offset;
     for (let axis = 0;axis < tensor.shape.length; axis++) {
       offset += (tuple[axis] - 1) * tensor.strides[axis];
     }
     return offset;
   }
-  function forEachTensorCell(tensor, callback) {
-    const size = tensorSize(tensor);
+  function forEachShapedCell(tensor, callback) {
+    const size = shapedSize(tensor);
     if (tensor.shape.length === 0) {
       callback(tensor.data[tensor.offset], [], tensor.offset);
       return;
     }
     for (let linear = 0;linear < size; linear++) {
       const tuple = linearIndexToTuple(linear, tensor.shape);
-      const offset = tensorOffsetForTuple(tensor, tuple);
+      const offset = shapedOffsetForTuple(tensor, tuple);
       callback(tensor.data[offset], tuple, offset);
     }
   }
-  function normalizeTensorSelectors(tensor, selectorSpecs) {
+  function normalizeShapedSelectors(tensor, selectorSpecs) {
     let specs = selectorSpecs;
     if (specs.length === 1 && specs[0]?.kind === "index" && specs[0].value && specs[0].value.type === "tuple") {
       specs = specs[0].value.values.map((value) => valueToSelectorSpec(value));
@@ -9125,8 +9125,8 @@
       };
     });
   }
-  function tensorGetBySelectors(tensor, selectorSpecs) {
-    const selectors = normalizeTensorSelectors(tensor, selectorSpecs);
+  function shapedGetBySelectors(tensor, selectorSpecs) {
+    const selectors = normalizeShapedSelectors(tensor, selectorSpecs);
     let offset = tensor.offset;
     const shape = [];
     const strides = [];
@@ -9145,10 +9145,10 @@
       const value = tensor.data[offset];
       return isHole(value) ? null : value;
     }
-    return createTensorView(tensor, { shape, strides, offset });
+    return createShapedView(tensor, { shape, strides, offset });
   }
-  function tensorAssignBySelectors(tensor, selectorSpecs, value) {
-    const selectors = normalizeTensorSelectors(tensor, selectorSpecs);
+  function shapedAssignBySelectors(tensor, selectorSpecs, value) {
+    const selectors = normalizeShapedSelectors(tensor, selectorSpecs);
     let offset = tensor.offset;
     const shape = [];
     const strides = [];
@@ -9167,15 +9167,15 @@
       tensor.data[offset] = value;
       return value;
     }
-    const view = createTensorView(tensor, { shape, strides, offset });
-    forEachTensorCell(view, (_cellValue, _tuple, cellOffset) => {
+    const view = createShapedView(tensor, { shape, strides, offset });
+    forEachShapedCell(view, (_cellValue, _tuple, cellOffset) => {
       tensor.data[cellOffset] = value;
     });
     return value;
   }
   function coerceShapeValue(shapeValue) {
-    if (isTensor(shapeValue)) {
-      return tensorShape(shapeValue);
+    if (isShaped(shapeValue)) {
+      return shapedShape(shapeValue);
     }
     if (shapeValue && shapeValue.type === "tuple") {
       return shapeValue.values.map((value, axis) => exactInteger(value, `Tensor shape axis ${axis + 1}`));
@@ -13812,12 +13812,12 @@ ${indentStr})`;
         if (isLazySequence(collection)) {
           return mapLazySequence(collection, (item, index, source) => invokeTraversalCallback(func, [item, new Integer(BigInt(index)), source], context, evaluate));
         }
-        if (isTensor(collection)) {
+        if (isShaped(collection)) {
           const results2 = [];
-          forEachTensorCell(collection, (item, tuple) => {
-            results2.push(invokeTraversalCallback(func, [item, tensorIndexTuple(tuple), collection], context, evaluate));
+          forEachShapedCell(collection, (item, tuple) => {
+            results2.push(invokeTraversalCallback(func, [item, shapedIndexTuple(tuple), collection], context, evaluate));
           });
-          return createTensor(collection.shape, results2);
+          return createShaped(collection.shape, results2);
         }
         if (collection.type === "map") {
           const entries = collection.entries;
@@ -13878,13 +13878,13 @@ ${indentStr})`;
         if (isLazySequence(collection)) {
           return filterLazySequence(collection, (item, index, source) => isTruthy(invokeTraversalCallback(func, [item, new Integer(BigInt(index)), source], context, evaluate)));
         }
-        if (isTensor(collection)) {
+        if (isShaped(collection)) {
           const results2 = [];
-          forEachTensorCell(collection, (item, tuple) => {
-            if (isTruthy(invokeTraversalCallback(func, [item, tensorIndexTuple(tuple), collection], context, evaluate))) {
+          forEachShapedCell(collection, (item, tuple) => {
+            if (isTruthy(invokeTraversalCallback(func, [item, shapedIndexTuple(tuple), collection], context, evaluate))) {
               results2.push({
                 type: "tuple",
-                values: [item, tensorIndexTuple(tuple)]
+                values: [item, shapedIndexTuple(tuple)]
               });
             }
           });
@@ -13937,10 +13937,10 @@ ${indentStr})`;
         if (isLazySequence(collection))
           collection = materializeLazySequence(collection);
         const func = evaluate(funcNode);
-        if (isTensor(collection)) {
+        if (isShaped(collection)) {
           const visited = [];
-          forEachTensorCell(collection, (item, tuple) => {
-            visited.push([item, tensorIndexTuple(tuple)]);
+          forEachShapedCell(collection, (item, tuple) => {
+            visited.push([item, shapedIndexTuple(tuple)]);
           });
           if (visited.length === 0) {
             return initProvided ? explicitInit : null;
@@ -14121,15 +14121,15 @@ ${indentStr})`;
             index++;
           }
         }
-        if (isTensor(collection)) {
+        if (isShaped(collection)) {
           let sawAny = false;
           let lastItem2 = null;
           let failed = false;
-          forEachTensorCell(collection, (item, tuple) => {
+          forEachShapedCell(collection, (item, tuple) => {
             if (!sawAny) {
               sawAny = true;
             }
-            if (failed || !isTruthy(invokeTraversalCallback(func, [item, tensorIndexTuple(tuple), collection], context, evaluate))) {
+            if (failed || !isTruthy(invokeTraversalCallback(func, [item, shapedIndexTuple(tuple), collection], context, evaluate))) {
               failed = true;
               return;
             }
@@ -14202,11 +14202,11 @@ ${indentStr})`;
             index++;
           }
         }
-        if (isTensor(collection)) {
+        if (isShaped(collection)) {
           let found = null;
           let foundAny = false;
-          forEachTensorCell(collection, (item, tuple) => {
-            if (!foundAny && isTruthy(invokeTraversalCallback(func, [item, tensorIndexTuple(tuple), collection], context, evaluate))) {
+          forEachShapedCell(collection, (item, tuple) => {
+            if (!foundAny && isTruthy(invokeTraversalCallback(func, [item, shapedIndexTuple(tuple), collection], context, evaluate))) {
               found = item;
               foundAny = true;
             }
@@ -14295,8 +14295,8 @@ ${indentStr})`;
   function indexInto(value, selectors) {
     if (selectors.length === 0)
       return value;
-    if (isTensor(value))
-      return tensorGetBySelectors(value, selectors);
+    if (isShaped(value))
+      return shapedGetBySelectors(value, selectors);
     let current = value;
     for (const item of selectors) {
       if (item.kind !== "index") {
@@ -14318,8 +14318,8 @@ ${indentStr})`;
   function setInto(root, selectors, value) {
     if (selectors.length === 0)
       return value;
-    if (isTensor(root)) {
-      tensorAssignBySelectors(root, selectors, value);
+    if (isShaped(root)) {
+      shapedAssignBySelectors(root, selectors, value);
       return root;
     }
     const parent = indexInto(root, selectors.slice(0, -1));
@@ -14607,13 +14607,13 @@ ${indentStr})`;
     return formula;
   }
   function normalizeFormulaGrid(value) {
-    if (isTensor(value)) {
+    if (isShaped(value)) {
       const shape = [...value.shape];
       if (shape.length === 0 || shape.some((length) => length === 0)) {
         throw new Error("FormulaSheet requires a non-empty tensor of rank 1 or greater");
       }
       const entries3 = [];
-      forEachTensorCell(value, (formula, index) => {
+      forEachShapedCell(value, (formula, index) => {
         entries3.push({
           index: Object.freeze([...index]),
           formula: requireFormula(formula, index)
@@ -15962,14 +15962,14 @@ ${indentStr})`;
         }
       };
     }
-    if (isTensor(value)) {
+    if (isShaped(value)) {
       if (value.shape.length === 0)
         throw new Error("Sheet data must have rank 1 or greater");
       return {
         kind: "tensor",
         binding,
         shape: [...value.shape],
-        at: (index) => tensorGetBySelectors(value, index.map((item) => ({ kind: "index", value: item })))
+        at: (index) => shapedGetBySelectors(value, index.map((item) => ({ kind: "index", value: item })))
       };
     }
     if (value?.type === "matrix" && Array.isArray(value.rows)) {
@@ -18528,7 +18528,7 @@ ${formatOutputText(slide, format)}`).join(`
 
   // src/eval/format.js
   function tensorValueAtTuple(tensor, tuple) {
-    const value = tensor.data[tensorOffsetForTuple(tensor, tuple)];
+    const value = tensor.data[shapedOffsetForTuple(tensor, tuple)];
     return value;
   }
   function tensorDisplayLevels(shape) {
@@ -18577,7 +18577,7 @@ ${formatOutputText(slide, format)}`).join(`
   }
   function formatTensor(tensor, formatValue) {
     const shapeText = tensor.shape.join("x");
-    if (tensorSize(tensor) === 0) {
+    if (shapedSize(tensor) === 0) {
       return `{:${shapeText}:}`;
     }
     const levels = tensorDisplayLevels(tensor.shape);
@@ -18801,7 +18801,7 @@ ${formatOutputText(slide, format)}`).join(`
       if (val.type === "exact_generator" || val.type === "exact_expression") {
         return formatExact(val, formatChild);
       }
-      if (isTensor(val))
+      if (isShaped(val))
         return formatTensor(val, formatChild);
       if (val.type === "sequence" && val._ext instanceof Map && val._ext.get("_type")?.value === "multifunction") {
         return formatMultifunctionPreview(val);
@@ -19176,7 +19176,7 @@ ${indented.join(`,
         _ext: value._ext ? new Map(value._ext) : undefined
       };
     }
-    if (isTensor(value)) {
+    if (isShaped(value)) {
       return {
         type: "tensor",
         data: [...value.data],
@@ -19268,7 +19268,7 @@ ${indented.join(`,
         _ext: value._ext ? deepCopyMeta(value._ext) : undefined
       };
     }
-    if (isTensor(value)) {
+    if (isShaped(value)) {
       return {
         type: "tensor",
         data: value.data.map(deepCopyValue),
@@ -19884,7 +19884,7 @@ ${indented.join(`,
       return "Rational";
     if (value instanceof RationalInterval)
       return "RationalInterval";
-    if (isTensor(value))
+    if (isShaped(value))
       return "tensor";
     if (value?.type === "sequence")
       return "array";
@@ -20230,17 +20230,17 @@ ${indented.join(`,
       defaultTraits: ["tensor", "indexable", "shapeAware", "collection"],
       convertFrom: {
         tensor: (value) => value,
-        array: (value) => createTensor([value.values.length], value.values),
-        tuple: (value) => createTensor([value.values.length], value.values)
+        array: (value) => createShaped([value.values.length], value.values),
+        tuple: (value) => createShaped([value.values.length], value.values)
       },
       convert(value) {
-        if (isTensor(value))
+        if (isShaped(value))
           return value;
         if (value?.type === "sequence" || value?.type === "tuple")
-          return createTensor([value.values.length], value.values);
+          return createShaped([value.values.length], value.values);
         return null;
       },
-      validate: isTensor,
+      validate: isShaped,
       export(value) {
         return {
           type: "map",
@@ -20259,7 +20259,7 @@ ${indented.join(`,
         const data = value?.entries?.get("data");
         const shape = data?.entries?.get("shape")?.values.map((n) => Number(n.value)) || [];
         const elems = data?.entries?.get("elems")?.values || [];
-        return createTensor(shape, elems);
+        return createShaped(shape, elems);
       },
       proto: () => makeProto([
         ["Shape", valueMethod("Shape", (self) => ({ type: "sequence", values: self.shape.map((n) => new Integer(BigInt(n))) }))],
@@ -21520,7 +21520,7 @@ ${indented.join(`,
     };
   }
   function createEmptyTensorLike(tensor) {
-    return createTensor(tensor.shape, null, { ext: mutableExt2() });
+    return createShaped(tensor.shape, null, { ext: mutableExt2() });
   }
   function defaultAccumulator(target) {
     if (target?.type === "sequence")
@@ -21533,7 +21533,7 @@ ${indented.join(`,
       return createEmptyTupleLike(target);
     if (target?.type === "string")
       return stringObj3("");
-    if (isTensor(target))
+    if (isShaped(target))
       return createEmptyTensorLike(target);
     throw new Error("Reduce does not know how to build a default accumulator for this value");
   }
@@ -21552,7 +21552,7 @@ ${indented.join(`,
     if (value?.type === "map") {
       return `map{${Array.from(value.entries.entries()).map(([k, v]) => `${k}:${valueKey2(v)}`).join(",")}}`;
     }
-    if (isTensor(value)) {
+    if (isShaped(value)) {
       return `tensor(${value.shape.join("x")})[${value.data.map(valueKey2).join(",")}]`;
     }
     if (typeof value?.toString === "function" && value.toString !== Object.prototype.toString) {
@@ -21703,16 +21703,16 @@ ${indented.join(`,
   }
   function tensorEntries(target) {
     const entries2 = [];
-    forEachTensorCell(target, (value, tuple) => {
+    forEachShapedCell(target, (value, tuple) => {
       entries2.push({
         value,
-        key: tensorIndexTuple(tuple)
+        key: shapedIndexTuple(tuple)
       });
     });
     return entries2;
   }
   function isIndexedIteratorSource(target) {
-    return target?.type === "sequence" || target?.type === "lazy_sequence" || target?.type === "tuple" || target?.type === "string" || isTensor(target);
+    return target?.type === "sequence" || target?.type === "lazy_sequence" || target?.type === "tuple" || target?.type === "string" || isShaped(target);
   }
   function iteratorStep(value, label) {
     const step = numericIndex(value, label);
@@ -21759,7 +21759,7 @@ ${indented.join(`,
       return setEntries(target);
     if (target?.type === "string")
       return stringEntries(target);
-    if (isTensor(target))
+    if (isShaped(target))
       return tensorEntries(target);
     throw new Error("Value is not iterable for this method");
   }
@@ -21820,7 +21820,7 @@ ${indented.join(`,
       throw new Error(`${name} is only defined for strings`);
   }
   function ensureTensor(target, name) {
-    if (!isTensor(target))
+    if (!isShaped(target))
       throw new Error(`${name} is only defined for tensors`);
   }
   function mutableSetValue(target, rawIndex, value) {
@@ -22658,36 +22658,36 @@ ${indented.join(`,
     }
     return args.map((value) => ({ kind: "index", value }));
   }
-  var tensorMethods = {
+  var shapedMethods = {
     SHAPE: method4("SHAPE", ([target]) => {
       ensureTensor(target, "Shape");
-      return { type: "tuple", values: tensorShape(target).map((dim) => int6(dim)) };
+      return { type: "tuple", values: shapedShape(target).map((dim) => int6(dim)) };
     }),
     RANK: method4("RANK", ([target]) => {
       ensureTensor(target, "Rank");
-      return int6(tensorRank(target));
+      return int6(shapedRank(target));
     }),
     SIZE: method4("SIZE", ([target]) => {
       ensureTensor(target, "Size");
-      return int6(tensorSize(target));
+      return int6(shapedSize(target));
     }),
     GET: method4("GET", ([target, ...selectors]) => {
       ensureTensor(target, "Get");
-      return tensorGetBySelectors(target, tensorSelectorsFromArgs(selectors));
+      return shapedGetBySelectors(target, tensorSelectorsFromArgs(selectors));
     }),
     SET: method4("SET", ([target, ...selectorsAndValue]) => {
       ensureTensor(target, "Set");
       const value = selectorsAndValue[selectorsAndValue.length - 1];
       const selectors = selectorsAndValue.slice(0, -1);
       const copy = shallowCopyValue(target);
-      tensorAssignBySelectors(copy, tensorSelectorsFromArgs(selectors), value);
+      shapedAssignBySelectors(copy, tensorSelectorsFromArgs(selectors), value);
       return copy;
     }),
     "SET!": method4("SET!", ([target, ...selectorsAndValue]) => {
       ensureTensor(target, "Set!");
       const value = selectorsAndValue[selectorsAndValue.length - 1];
       const selectors = selectorsAndValue.slice(0, -1);
-      tensorAssignBySelectors(target, tensorSelectorsFromArgs(selectors), value);
+      shapedAssignBySelectors(target, tensorSelectorsFromArgs(selectors), value);
       return target;
     }),
     RESHAPE: method4("RESHAPE", ([target, shape]) => {
@@ -22696,19 +22696,19 @@ ${indented.join(`,
       if (!nextShape)
         throw new Error("Reshape expects a shape tuple");
       const expected = nextShape.reduce((product, dim) => product * dim, 1);
-      if (expected !== tensorSize(target))
+      if (expected !== shapedSize(target))
         throw new Error("Reshape size mismatch");
-      return createTensor(nextShape, target.data);
+      return createShaped(nextShape, target.data);
     }),
     FLATTEN: method4("FLATTEN", ([target]) => {
       ensureTensor(target, "Flatten");
-      return createTensor([tensorSize(target)], [...target.data]);
+      return createShaped([shapedSize(target)], [...target.data]);
     }),
     TRANSPOSE: method4("TRANSPOSE", ([target]) => {
       ensureTensor(target, "Transpose");
-      if (tensorRank(target) !== 2)
+      if (shapedRank(target) !== 2)
         throw new Error("Transpose currently expects a rank-2 tensor");
-      return createTensorView(target, {
+      return createShapedView(target, {
         shape: [target.shape[1], target.shape[0]],
         strides: [target.strides[1], target.strides[0]],
         offset: target.offset
@@ -22721,7 +22721,7 @@ ${indented.join(`,
       const axes = order.values.map((value) => numericIndex(value) - 1);
       if (axes.length !== target.shape.length)
         throw new Error("Permute rank mismatch");
-      return createTensorView(target, {
+      return createShapedView(target, {
         shape: axes.map((axis) => target.shape[axis]),
         strides: axes.map((axis) => target.strides[axis]),
         offset: target.offset
@@ -22730,14 +22730,14 @@ ${indented.join(`,
     MAP: method4("MAP", ([target, iterator], context, evaluate, invoke) => {
       ensureTensor(target, "Map");
       const data = [];
-      forEachTensorCell(target, (value, tuple) => {
-        data.push(invoke(iterator, [value, tensorIndexTuple(tuple), target], context, evaluate));
+      forEachShapedCell(target, (value, tuple) => {
+        data.push(invoke(iterator, [value, shapedIndexTuple(tuple), target], context, evaluate));
       });
-      return createTensor(target.shape, data);
+      return createShaped(target.shape, data);
     }),
     "FILL!": method4("FILL!", ([target, value]) => {
       ensureTensor(target, "Fill!");
-      forEachTensorCell(target, (_entry, _tuple, offset) => {
+      forEachShapedCell(target, (_entry, _tuple, offset) => {
         target.data[offset] = value;
       });
       return target;
@@ -22745,7 +22745,7 @@ ${indented.join(`,
     SUM: method4("SUM", ([target]) => {
       ensureTensor(target, "Sum");
       let acc = int6(0);
-      forEachTensorCell(target, (value) => {
+      forEachShapedCell(target, (value) => {
         if (!isHole(value))
           acc = arithmeticAdd(acc, value);
       });
@@ -22753,15 +22753,15 @@ ${indented.join(`,
     }),
     MEAN: method4("MEAN", ([target]) => {
       ensureTensor(target, "Mean");
-      const size = tensorSize(target);
+      const size = shapedSize(target);
       if (size === 0)
         return null;
-      return arithmeticDiv(tensorMethods.SUM.impl([target]), int6(size));
+      return arithmeticDiv(shapedMethods.SUM.impl([target]), int6(size));
     }),
     DOT: method4("DOT", ([target, other]) => {
       ensureTensor(target, "Dot");
       ensureTensor(other, "Dot");
-      if (tensorRank(target) !== 1 || tensorRank(other) !== 1 || tensorSize(target) !== tensorSize(other)) {
+      if (shapedRank(target) !== 1 || shapedRank(other) !== 1 || shapedSize(target) !== shapedSize(other)) {
         throw new Error("Dot expects rank-1 tensors of equal size");
       }
       let acc = int6(0);
@@ -22773,7 +22773,7 @@ ${indented.join(`,
     MATMUL: method4("MATMUL", ([target, other]) => {
       ensureTensor(target, "MatMul");
       ensureTensor(other, "MatMul");
-      if (tensorRank(target) !== 2 || tensorRank(other) !== 2) {
+      if (shapedRank(target) !== 2 || shapedRank(other) !== 2) {
         throw new Error("MatMul expects rank-2 tensors");
       }
       const [rows, inner] = target.shape;
@@ -22785,14 +22785,14 @@ ${indented.join(`,
         for (let c = 1;c <= cols; c++) {
           let acc = int6(0);
           for (let k = 1;k <= inner; k++) {
-            const a = tensorGetBySelectors(target, [{ kind: "index", value: int6(r) }, { kind: "index", value: int6(k) }]);
-            const b = tensorGetBySelectors(other, [{ kind: "index", value: int6(k) }, { kind: "index", value: int6(c) }]);
+            const a = shapedGetBySelectors(target, [{ kind: "index", value: int6(r) }, { kind: "index", value: int6(k) }]);
+            const b = shapedGetBySelectors(other, [{ kind: "index", value: int6(k) }, { kind: "index", value: int6(c) }]);
             acc = arithmeticAdd(acc, arithmeticMul(a, b));
           }
           data.push(acc);
         }
       }
-      return createTensor([rows, cols], data);
+      return createShaped([rows, cols], data);
     }),
     REDUCE: method4("REDUCE", ([target, iterator, initial], context, evaluate, invoke) => reduceEntries(target, iterator, initial, context, evaluate, invoke))
   };
@@ -22884,7 +22884,7 @@ ${indented.join(`,
     ["set", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(iterableMethods), ...Object.entries(setMethods)])],
     ["string", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(iterableMethods), ...Object.entries(stringMethods)])],
     ["tuple", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(iterableMethods), ...Object.entries(tupleMethods)])],
-    ["tensor", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(iterableMethods), ...Object.entries(tensorMethods)])],
+    ["tensor", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(iterableMethods), ...Object.entries(shapedMethods)])],
     ["iterator", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(iteratorMethods)])],
     ["deferred", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(deferredMethods)])],
     ["exact_generator", createBuiltinProto([
@@ -22933,7 +22933,7 @@ ${indented.join(`,
   function builtinProtoFor(target) {
     if (target instanceof Fraction)
       return PROTOS.get("structural_value");
-    if (isTensor(target))
+    if (isShaped(target))
       return PROTOS.get("tensor");
     if (target && typeof target === "object" && target.fn === "DEFER")
       return PROTOS.get("deferred");
@@ -23573,7 +23573,7 @@ ${indented.join(`,
     },
     TensorLiteral(node) {
       const meta = node.header ? { header: lowerNode(node.header) } : null;
-      return meta ? ir2("TENSOR_LITERAL", meta, node.shape, ...node.elements.map(lowerNode)) : ir2("TENSOR_LITERAL", node.shape, ...node.elements.map(lowerNode));
+      return meta ? ir2("SHAPED_LITERAL", meta, node.shape, ...node.elements.map(lowerNode)) : ir2("SHAPED_LITERAL", node.shape, ...node.elements.map(lowerNode));
     },
     ValueOutfit(node) {
       const header = node.header ? lowerNode(node.header) : null;
@@ -23798,7 +23798,7 @@ ${indented.join(`,
       return ir2("ASK", lowerNode(node.target), lowerNode(node.arg));
     },
     Transpose(node) {
-      return ir2("TENSOR_TRANSPOSE", lowerNode(node.expression));
+      return ir2("SHAPED_TRANSPOSE", lowerNode(node.expression));
     },
     Derivative(node) {
       if (node.operations?.length) {
@@ -24973,8 +24973,8 @@ ${indented.join(`,
     if (isFormulaSheet(obj)) {
       return obj.get(key);
     }
-    if (isTensor(obj)) {
-      return tensorGetBySelectors(obj, [{ kind: "index", value: key }]);
+    if (isShaped(obj)) {
+      return shapedGetBySelectors(obj, [{ kind: "index", value: key }]);
     }
     if (isMultifunctionValue(obj)) {
       const keyName = typeof key === "string" ? key : key && key.type === "string" ? key.value : null;
@@ -25064,8 +25064,8 @@ ${indented.join(`,
       const index = specs.length === 1 ? specs[0].value : specs.map((spec2) => spec2.value);
       return obj.get(index);
     }
-    if (isTensor(obj)) {
-      return tensorGetBySelectors(obj, specs);
+    if (isShaped(obj)) {
+      return shapedGetBySelectors(obj, specs);
     }
     if (specs.length === 1 && specs[0].kind === "index") {
       return indexGetResolved(obj, specs[0].value);
@@ -25077,8 +25077,8 @@ ${indented.join(`,
   }
   function indexSetResolved(obj, key, value) {
     assertMutableIndexTarget(obj);
-    if (isTensor(obj)) {
-      return tensorAssignBySelectors(obj, [{ kind: "index", value: key }], value);
+    if (isShaped(obj)) {
+      return shapedAssignBySelectors(obj, [{ kind: "index", value: key }], value);
     }
     if (obj && (obj.type === "sequence" || obj.type === "tuple")) {
       const idx = toInteger(key);
@@ -25263,9 +25263,9 @@ ${indented.join(`,
         const specNodes = args.slice(2, 2 + specCount);
         const value = evaluate(args[2 + specCount]);
         const specs = specNodes.map((specNode) => decodeBracketSpec(specNode, evaluate));
-        if (isTensor(obj)) {
+        if (isShaped(obj)) {
           assertMutableIndexTarget(obj);
-          return tensorAssignBySelectors(obj, specs, value);
+          return shapedAssignBySelectors(obj, specs, value);
         }
         if (specs.length === 1 && specs[0].kind === "index") {
           return indexSetResolved(obj, specs[0].value, value);
@@ -26450,7 +26450,7 @@ ${indented.join(`,
     }
     if (base?.type === "DestructureTensorPattern") {
       const value = sourceRef.value;
-      if (!isTensor(value)) {
+      if (!isShaped(value)) {
         throw new Error("Wrong rhs kind for tensor destructuring pattern");
       }
       const shape = base.shape || [];
@@ -26523,7 +26523,7 @@ ${indented.join(`,
     if (visited.has(value))
       return value;
     visited.add(value);
-    const supportsMutable = value.type === "sequence" || value.type === "tuple" || value.type === "map" || value.type === "set" || isTensor(value);
+    const supportsMutable = value.type === "sequence" || value.type === "tuple" || value.type === "map" || value.type === "set" || isShaped(value);
     const hasChildren = supportsMutable;
     if (!hasChildren)
       return value;
@@ -28200,12 +28200,12 @@ ${indented.join(`,
       lazy: true,
       impl(args, context, evaluate) {
         const defaultMode = constructorDefaultCaptureMode(context);
-        return createTensor([args.length], args.map((arg) => captureIrValue(arg, defaultMode, context, evaluate)));
+        return createShaped([args.length], args.map((arg) => captureIrValue(arg, defaultMode, context, evaluate)));
       },
       pure: true,
       doc: "Tensor literal"
     },
-    TENSOR_LITERAL: {
+    SHAPED_LITERAL: {
       lazy: true,
       impl(args, context, evaluate) {
         const hasMeta = args[0] && typeof args[0] === "object" && !Array.isArray(args[0]) && args[0].header;
@@ -28213,18 +28213,18 @@ ${indented.join(`,
         const defaultMode = header?.captureMode || constructorDefaultCaptureMode(context);
         const shape = hasMeta ? args[1] : args[0];
         const values = (hasMeta ? args.slice(2) : args.slice(1)).map((arg) => captureIrValue(arg, defaultMode, context, evaluate));
-        return applySemanticHeader(attachBuiltinProto(createTensor(shape, values.length === 0 ? null : values)), header, context);
+        return applySemanticHeader(attachBuiltinProto(createShaped(shape, values.length === 0 ? null : values)), header, context);
       },
       pure: true,
       doc: "Tensor literal with explicit shape"
     },
-    TENSOR_TRANSPOSE: {
+    SHAPED_TRANSPOSE: {
       impl(args) {
         const tensor = args[0];
-        if (!isTensor(tensor) || tensorRank(tensor) !== 2) {
+        if (!isShaped(tensor) || shapedRank(tensor) !== 2) {
           throw new Error("^^ expects rank-2 tensor (matrix)");
         }
-        return createTensorView(tensor, {
+        return createShapedView(tensor, {
           shape: [tensor.shape[1], tensor.shape[0]],
           strides: [tensor.strides[1], tensor.strides[0]],
           offset: tensor.offset
@@ -28303,8 +28303,8 @@ ${pad}}`;
         if (coll && coll.type === "export_bundle" && coll.entries instanceof Map) {
           return new Integer(coll.entries.size);
         }
-        if (isTensor(coll)) {
-          return new Integer(BigInt(tensorSize(coll)));
+        if (isShaped(coll)) {
+          return new Integer(BigInt(shapedSize(coll)));
         }
         if (coll && typeof coll.value === "string") {
           return new Integer(coll.value.length);
@@ -28322,10 +28322,10 @@ ${pad}}`;
         if (coll && (coll.type === "sequence" || coll.type === "tuple" || coll.type === "set")) {
           return coll.values[0];
         }
-        if (isTensor(coll)) {
+        if (isShaped(coll)) {
           let first = null;
           let found = false;
-          forEachTensorCell(coll, (value) => {
+          forEachShapedCell(coll, (value) => {
             if (!found) {
               first = value;
               found = true;
@@ -28348,10 +28348,10 @@ ${pad}}`;
         if (coll && (coll.type === "sequence" || coll.type === "tuple" || coll.type === "set")) {
           return coll.values[coll.values.length - 1];
         }
-        if (isTensor(coll)) {
+        if (isShaped(coll)) {
           let last = null;
           let found = false;
-          forEachTensorCell(coll, (value) => {
+          forEachShapedCell(coll, (value) => {
             last = value;
             found = true;
           });
@@ -28381,11 +28381,11 @@ ${pad}}`;
         if (coll && (coll.type === "sequence" || coll.type === "tuple" || coll.type === "set")) {
           return coll.values[index - 1];
         }
-        if (isTensor(coll)) {
+        if (isShaped(coll)) {
           const target = idx instanceof Integer ? Number(idx.value) : Number(idx);
           let found = null;
           let seen = 0;
-          forEachTensorCell(coll, (value) => {
+          forEachShapedCell(coll, (value) => {
             seen += 1;
             if (seen === target) {
               found = value;
@@ -28437,12 +28437,12 @@ ${pad}}`;
       impl(args, context, evaluate) {
         const shape = coerceShapeValue(evaluate(args[0]));
         const fn = evaluate(args[1]);
-        const tensor = createTensor(shape);
+        const tensor = createShaped(shape);
         const filled = [];
-        forEachTensorCell(tensor, (_value, tuple) => {
-          filled.push(callWithConcreteArgs(fn, [tensorIndexTuple(tuple)], context, evaluate));
+        forEachShapedCell(tensor, (_value, tuple) => {
+          filled.push(callWithConcreteArgs(fn, [shapedIndexTuple(tuple)], context, evaluate));
         });
-        return createTensor(shape, filled);
+        return createShaped(shape, filled);
       },
       doc: "Generate a tensor from a shape and index callback"
     },
@@ -30411,7 +30411,7 @@ ${pad}}`;
         view: slot.view
       }
     ]));
-    return createFormulaSheet(createTensor(document2.shape, formulas), {
+    return createFormulaSheet(createShaped(document2.shape, formulas), {
       ...options,
       id: document2.id,
       documentView: document2.view,
@@ -30699,7 +30699,7 @@ ${pad}}`;
         });
       }
     }
-    return createFormulaSheet(createTensor(shape, formulas), {
+    return createFormulaSheet(createShaped(shape, formulas), {
       ...runtime,
       id: imported.id,
       slotMetadata,

@@ -43,7 +43,7 @@ const BRACE_HELP = Object.freeze({
     "{?": "Case/conditional container",
     "{;": "Lexical code block and capture boundary",
     "{|": "Set container",
-    "{:": "Tuple or tensor container",
+    "{:": "Tuple or shaped container",
     "{@": "Loop container",
     "{!": "Mutation container",
     "{#": "Symbolic constraint container",

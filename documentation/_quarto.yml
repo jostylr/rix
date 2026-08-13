@@ -40,7 +40,7 @@ project:
     - eval/objects/set.md
     - eval/objects/string.md
     - eval/objects/tuple.md
-    - eval/objects/tensor.md
+    - eval/objects/shaped.md
     - eval/objects/deferred.md
     - eval/objects/structural-values.md
     - eval/objects/exact-cartesian.md

@@ -4,13 +4,13 @@ RiX separates concrete runtime facts from sticky semantic interpretation.
 
 Runtime metadata is ephemeral:
 
-- `._type` names the current concrete runtime shape, such as `Integer`, `Rational`, `RationalInterval`, `array`, or `tensor`.
+- `._type` names the current concrete runtime shape, such as `Integer`, `Rational`, `RationalInterval`, `array`, or `shaped`.
 - `._proto` is the built-in/runtime method layer.
 
 Semantic metadata is sticky:
 
 - `.__name` is an optional semantic name.
-- `.__type` is the requested semantic type, such as `:Rational`, `:RationalInterval`, or `:Tensor`.
+- `.__type` is the requested semantic type, such as `:Rational`, `:Shaped`, `:Matrix`, or mathematical `:Tensor`.
 - `.__traits` is the materialized set of semantic traits.
 - `.__proto` contains semantic method layers.
 
@@ -54,6 +54,10 @@ Built-in registered types include:
 - `:Array`
 - `:Tuple`
 - `:Map`
+- `:Shaped`
+- `:Matrix`
+- `:Vector`
+- `:Covector`
 - `:Tensor`
 - `:Set`
 - `:Function`
@@ -67,7 +71,10 @@ Built-in registered types include:
 Type export/import preserves both values; copies of an approximation retain
 source identity so `x == x` remains certifiably true.
 
-Lowercase aliases such as `:rational`, `:interval`, and `:tensor` remain supported for compatibility. New code should prefer registered semantic names such as `:Rational`.
+All semantic type and trait names are case-insensitive. Registrations retain one
+canonical spelling, which is stored in `.__type`, used in diagnostics, and
+written by export. Thus `:matrix`, `:MATRIX`, and `:Matrix` all resolve to the
+canonical `Matrix` type; this is the language rule, not a compatibility alias.
 
 ## Conversion
 

@@ -38,7 +38,7 @@ Built-in prototypes are frozen and do not chain. Lookup checks direct value meta
 | Set | [Set methods](./objects/set.md) | Insertion-ordered distinct collections |
 | String | [String methods](./objects/string.md) | Immutable Unicode text |
 | Tuple | [Tuple methods](./objects/tuple.md) | Fixed-arity ordered values |
-| Tensor | [Tensor methods](./objects/tensor.md) | Rectangular rank-N collections |
+| Shaped | [Shaped methods](./objects/shaped.md) | Rectangular rank-N component storage |
 | Deferred | [Deferred methods](./objects/deferred.md) | Stored lowered RiX code |
 | Structural values | [Structural value methods](./objects/structural-values.md) | Structural symbols, literals, forms, and algebras |
 | Exact generator / expression | [Exact Cartesian methods](./objects/exact-cartesian.md) | Exact Cartesian complex expressions |
@@ -101,7 +101,7 @@ An AsyncStream is a linear handle, not a cached LazySequence. A terminal claims 
 
 `Next`, `Peek`, `Done`, `Index`, `Reset`, `CheckTraits`
 
-Arrays, LazySequences, Tuples, Strings, Tensors, Maps, and Sets provide `Iterator()`. A new cursor starts at index `0`, before the first one-based item.
+Arrays, LazySequences, Tuples, Strings, Shaped values, Maps, and Sets provide `Iterator()`. A new cursor starts at index `0`, before the first one-based item.
 
 ### Map
 
@@ -135,15 +135,15 @@ Strings are immutable. String Reduce callbacks receive `(acc, char, index, strin
 
 Tuple methods do not mutate the receiver. `Set` returns a new tuple.
 
-### Tensor
+### Shaped
 
 Read-only and copying:
-`Shape`, `Rank`, `Size`, `Get`, `Set`, `Reshape`, `Flatten`, `Transpose`, `Permute`, `Map`, `Sum`, `Mean`, `Dot`, `MatMul`, `Reduce`, `Iterator`, `CheckTraits`
+`Shape`, `Rank`, `Size`, `ScalarDomain`, `WithScalarDomain`, `Get`, `Set`, `Reshape`, `Flatten`, `Transpose`, `Permute`, `Map`, `Sum`, `Mean`, `Reduce`, `Iterator`, `CheckTraits`
 
 Mutating:
-`Set!`, `Fill!`
+`Set!`, `Fill!`, `SetScalarDomain!`
 
-Tensor callbacks receive `(value, indexTuple, tensor)`. `Transpose` is rank-2 only; `Permute` accepts a tuple containing every one-based axis exactly once.
+Shaped callbacks receive `(value, indexTuple, shaped)`. `Transpose` is rank-2 only; `Permute` accepts a tuple containing every one-based axis exactly once.
 
 ### Deferred
 

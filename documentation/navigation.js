@@ -38,7 +38,7 @@ export const documentationNavigation = [
           page("eval/objects/set.md", "Set"),
           page("eval/objects/string.md", "String"),
           page("eval/objects/tuple.md", "Tuple"),
-          page("eval/objects/tensor.md", "Tensor"),
+          page("eval/objects/shaped.md", "Shaped"),
           page("eval/objects/deferred.md", "Deferred"),
           page("eval/objects/structural-values.md", "Structural values"),
           page("eval/objects/exact-cartesian.md", "Exact Cartesian values"),
@@ -67,7 +67,7 @@ export const documentationNavigation = [
       page("design/eval/ir-format.md", "IR design snapshot"),
       page("parser/array-generators-implementation.md", "Array generators"),
       page("parser/embedded-parsing.md", "Embedded parsing"),
-      page("parser/matrix-tensor-implementation.md", "Matrices and tensors"),
+      page("parser/matrix-tensor-implementation.md", "Shaped literals"),
     ],
   },
   {

@@ -6,6 +6,7 @@ import {
     makeProto,
     resolveTraitNames,
     runtimeTypeName,
+    semanticNameKey,
     stringObj,
     traitRegistry,
     typeRegistry,
@@ -91,6 +92,7 @@ function cloneHeader(header) {
         captureMode: header?.captureMode || null,
         name: header?.name || null,
         typeName: header?.typeName || null,
+        slots: Array.isArray(header?.slots) ? header.slots.map((slot) => ({ ...slot })) : null,
         traits: Array.isArray(header?.traits) ? header.traits.map((trait) => ({ ...trait })) : [],
     };
 }
@@ -178,13 +180,15 @@ export function valueHasSemanticMembership(value, name) {
         return false;
     }
 
-    if (ext.get("__type")?.value === name) {
+    const requestedKey = semanticNameKey(name);
+    if (semanticNameKey(ext.get("__type")?.value) === requestedKey) {
         return true;
     }
-    if (ext.get("_type")?.value === name) {
+    if (semanticNameKey(ext.get("_type")?.value) === requestedKey) {
         return true;
     }
-    return traitNamesFromSet(ext.get("__traits")).includes(name);
+    return traitNamesFromSet(ext.get("__traits"))
+        .some((traitName) => semanticNameKey(traitName) === requestedKey);
 }
 
 export function convertSemanticType(value, typeName, context, { strict = true, warnOnFailure = false, evaluate = null } = {}) {
@@ -281,7 +285,7 @@ export function applySemanticHeader(value, header, context, options = {}) {
 
     const nextTypeName = effectiveHeader.typeName ?? (options.inheritMissing ? previous.typeName : null);
     if (nextTypeName) {
-        ext.set("__type", stringObj(nextTypeName));
+        ext.set("__type", stringObj(typeRegistry.get(nextTypeName)?.name ?? nextTypeName));
     }
 
     const explicitTraits = effectiveHeader.traits.length > 0
@@ -297,7 +301,7 @@ export function applySemanticHeader(value, header, context, options = {}) {
         options.warnOnTypeChange &&
         previous.typeName &&
         nextTypeName &&
-        previous.typeName !== nextTypeName &&
+        semanticNameKey(previous.typeName) !== semanticNameKey(nextTypeName) &&
         nextTraits.length > 0
     ) {
         emitWarning(context, "Semantic type changed while traits were preserved", new Map([

@@ -2,7 +2,7 @@ import { CertifiedApproximation, Rational, RationalInterval } from "@ratmath/cor
 import { HaloNeighborhood } from "../runtime/halo.js";
 import { isHole } from "../runtime/hole.js";
 import { isUndecided } from "../runtime/decision.js";
-import { isTensor, tensorOffsetForTuple, tensorSize } from "../runtime/tensor.js";
+import { isShaped, shapedOffsetForTuple, shapedSize } from "../runtime/shaped.js";
 import { irToText } from "./ir-to-text.js";
 import { resolveMethod } from "../runtime/methods.js";
 import { callWithConcreteArgs } from "./functions/functions.js";
@@ -20,12 +20,12 @@ import {
     isStructuralSymbol,
 } from "../runtime/structural-arithmetic.js";
 
-function tensorValueAtTuple(tensor, tuple) {
-    const value = tensor.data[tensorOffsetForTuple(tensor, tuple)];
+function shapedValueAtTuple(shaped, tuple) {
+    const value = shaped.data[shapedOffsetForTuple(shaped, tuple)];
     return value;
 }
 
-function tensorDisplayLevels(shape) {
+function shapedDisplayLevels(shape) {
     if (shape.length === 0) return [];
     if (shape.length === 1) {
         return [{ size: shape[0], separatorCount: 0 }];
@@ -49,38 +49,38 @@ function displayPathToExternalTuple(displayPath) {
     return [displayPath[displayPath.length - 2], displayPath[displayPath.length - 1], ...higher];
 }
 
-function tensorSeparator(separatorCount) {
+function shapedSeparator(separatorCount) {
     if (separatorCount <= 0) return ", ";
     if (separatorCount === 1) return "; ";
     return ` ${";".repeat(separatorCount)} `;
 }
 
-function formatTensorBody(tensor, formatValue, levels, levelIndex = 0, displayPath = []) {
+function formatShapedBody(shaped, formatValue, levels, levelIndex = 0, displayPath = []) {
     const level = levels[levelIndex];
 
     if (level.separatorCount === 0) {
         const values = [];
         for (let i = 1; i <= level.size; i++) {
             const tuple = displayPathToExternalTuple([...displayPath, i]);
-            values.push(formatValue(tensorValueAtTuple(tensor, tuple)));
+            values.push(formatValue(shapedValueAtTuple(shaped, tuple)));
         }
         return values.join(", ");
     }
 
     const parts = [];
     for (let i = 1; i <= level.size; i++) {
-        parts.push(formatTensorBody(tensor, formatValue, levels, levelIndex + 1, [...displayPath, i]));
+        parts.push(formatShapedBody(shaped, formatValue, levels, levelIndex + 1, [...displayPath, i]));
     }
-    return parts.join(tensorSeparator(level.separatorCount));
+    return parts.join(shapedSeparator(level.separatorCount));
 }
 
-function formatTensor(tensor, formatValue) {
-    const shapeText = tensor.shape.join("x");
-    if (tensorSize(tensor) === 0) {
+function formatShaped(shaped, formatValue) {
+    const shapeText = shaped.shape.join("x");
+    if (shapedSize(shaped) === 0) {
         return `{:${shapeText}:}`;
     }
-    const levels = tensorDisplayLevels(tensor.shape);
-    return `{:${shapeText}: ${formatTensorBody(tensor, formatValue, levels)} }`;
+    const levels = shapedDisplayLevels(shaped.shape);
+    return `{:${shapeText}: ${formatShapedBody(shaped, formatValue, levels)} }`;
 }
 
 function truncate(text, limit = 40) {
@@ -348,8 +348,8 @@ export function formatValue(val, options = {}) {
         if (val.type === "exact_generator" || val.type === "exact_expression") {
             return formatWithCycleGuard(val, activeValues, () => formatExact(val, formatChild));
         }
-        if (isTensor(val)) {
-            return formatWithCycleGuard(val, activeValues, () => formatTensor(val, formatChild));
+        if (isShaped(val)) {
+            return formatWithCycleGuard(val, activeValues, () => formatShaped(val, formatChild));
         }
         if (val.type === "sequence" && val._ext instanceof Map && val._ext.get("_type")?.value === "multifunction") {
             return formatMultifunctionPreview(val);

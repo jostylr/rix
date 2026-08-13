@@ -117,7 +117,7 @@ import {
     materializePipeSkip,
     PIPE_SKIP,
 } from "../runtime/expected-error.js";
-import { coerceShapeValue, createTensor, forEachTensorCell, isTensor, tensorIndexTuple } from "../runtime/tensor.js";
+import { coerceShapeValue, createShaped, forEachShapedCell, isShaped, shapedIndexTuple } from "../runtime/shaped.js";
 import { formatValue } from "./format.js";
 import { Integer } from "@ratmath/core";
 import {
@@ -171,7 +171,7 @@ async function withPostfixCheckValueAsync(context, value, callback) {
 
 function checkPostfixType(value, spec, context, registry, evaluateValue) {
     const name = String(spec?.name || "").toLowerCase();
-    const structuralKinds = { array: "sequence", set: "set", map: "map", tuple: "tuple", tensor: "tensor" };
+    const structuralKinds = { array: "sequence", set: "set", map: "map", tuple: "tuple", shaped: "shaped" };
     const expectedType = spec?.semantic ? null : structuralKinds[name];
 
     if (!expectedType) {
@@ -193,10 +193,10 @@ function checkPostfixType(value, spec, context, registry, evaluateValue) {
 
     const shape = spec?.shape;
     if (!shape) return;
-    if (name === "tensor") {
+    if (name === "shaped") {
         const actual = Array.from(value.shape || []);
         if (actual.length !== shape.length || actual.some((dimension, index) => dimension !== shape[index])) {
-            throw new Error(`##: check failed: expected tensor[${shape.join("x")}], received tensor[${actual.join("x")}]`);
+            throw new Error(`##: check failed: expected shaped[${shape.join("x")}], received shaped[${actual.join("x")}]`);
         }
         return;
     }
@@ -318,6 +318,34 @@ function mapPairCapability(args) {
     return { type: "map_pair", key: args[0], value: args[1] };
 }
 
+function createShapedSystemValue() {
+    return {
+        type: "system_namespace",
+        namespace: "shaped",
+        _ext: new Map([["GENERATE", {
+            type: "method_builtin",
+            name: "Generate",
+            impl(args, context, evaluate, invoke, execution = null) {
+                const shape = coerceShapeValue(args[1]);
+                const callable = args[2];
+                const empty = createShaped(shape);
+                const tuples = [];
+                forEachShapedCell(empty, (_value, tuple) => tuples.push(tuple));
+                if (execution?.promiseAware === true) {
+                    return tuples.reduce(async (pending, tuple) => {
+                        const values = await pending;
+                        values.push(await invoke(callable, [shapedIndexTuple(tuple)]));
+                        return values;
+                    }, Promise.resolve([])).then((values) => createShaped(shape, values));
+                }
+                const generated = tuples.map((tuple) =>
+                    invoke(callable, [shapedIndexTuple(tuple)], context, evaluate));
+                return createShaped(shape, generated);
+            },
+        }]]),
+    };
+}
+
 function coreMapCapability(args, _context, evaluate) {
     // MAP_OBJ is lazy because literal entries preserve capture metadata. Public
     // Pair values are already concrete, which MAP_OBJ also accepts.
@@ -352,6 +380,10 @@ export function createDefaultSystemContext(options = {}) {
     ctx.registerValue("Units", units, { doc: "Canonical RiX unit collection" });
     ctx.registerValue("Exact", exact, { doc: "Canonical RiX exact-generator collection" });
     ctx.registerValue("Complex", complex, { doc: "Exact complex-number operations" });
+    ctx.registerValue("Shaped", createShapedSystemValue(), {
+        doc: "Shaped-storage constructors and explicit generation helpers",
+        groups: ["Core", "Collections", "Arrays"],
+    });
     const algebra = createAlgebraOutputCollection();
     ctx.registerValue("Algebra", algebra, { doc: "Algebra presentation helpers" });
     const graphics = createGraphicsOutputCollection();
@@ -1035,6 +1067,15 @@ async function evaluateScriptImportAsync(spec, context, registry, systemContext,
  * @returns {*} The evaluated result
  */
 export function evaluate(irNode, context, registry, systemContext) {
+    // Runtime semantic operator variants occasionally need to dispatch a
+    // scalar operation through the same registry (for example, elementwise
+    // Shaped arithmetic). Keep that service available to nested dispatches,
+    // including callers that invoke evaluate() directly rather than through
+    // parseAndEvaluate().
+    if (context?.getEnv?.("__registry__", null) !== registry) {
+        context?.setEnv?.("__registry__", registry);
+    }
+
     // Null / undefined pass through
     if (irNode === null || irNode === undefined) {
         return null;
@@ -1229,7 +1270,7 @@ export function evaluate(irNode, context, registry, systemContext) {
 
 const ASYNC_COLLECTION_FNS = new Set([
     "ARRAY", "ARRAY_CAPTURE", "TUPLE", "SET", "MAP_OBJ",
-    "MATRIX", "TENSOR", "TENSOR_LITERAL",
+    "SHAPED_LITERAL",
 ]);
 const ASYNC_PIPE_FNS = new Set(["PMAP", "PFILTER", "PEXPECT", "PFOREACH", "PANY", "PALL"]);
 const ASYNC_RESOLVED_BARRIER_FNS = new Set(["PSLICE_STRICT", "PSLICE_CLAMP"]);
@@ -1849,36 +1890,6 @@ async function evaluateDefineCapabilityAsync(args, context, registry, systemCont
         systemContext,
         state,
     );
-}
-
-async function evaluateTensorGeneratorCapabilityAsync(
-    args,
-    context,
-    registry,
-    systemContext,
-    state,
-) {
-    const shape = coerceShapeValue(
-        await evaluateAsyncInternal(args[0], context, registry, systemContext, state),
-    );
-    const callable = await evaluateAsyncInternal(
-        args[1], context, registry, systemContext, state,
-    );
-    const tensor = createTensor(shape);
-    const tuples = [];
-    forEachTensorCell(tensor, (_value, tuple) => tuples.push(tuple));
-    const filled = [];
-    for (const tuple of tuples) {
-        filled.push(await invokeCallableAsync(
-            callable,
-            [tensorIndexTuple(tuple)],
-            context,
-            registry,
-            systemContext,
-            state,
-        ));
-    }
-    return createTensor(shape, filled);
 }
 
 async function evaluateStopCapabilityAsync(args, context, registry, systemContext, state) {
@@ -2564,7 +2575,7 @@ async function evaluateAsyncCollectionBody(irNode, context, registry, systemCont
         } else {
             resolved.push(...await orderedAsyncMap(args.slice(start), state, resolveMapEntry));
         }
-    } else if (irNode.fn === "TENSOR_LITERAL") {
+    } else if (irNode.fn === "SHAPED_LITERAL") {
         const shapeIndex = hasHeader ? 1 : 0;
         resolved.push(args[shapeIndex]);
         const entries = args.slice(shapeIndex + 1);
@@ -2598,10 +2609,10 @@ async function evaluateAsyncCollection(irNode, context, registry, systemContext,
 }
 
 function collectionItems(collection) {
-    if (isTensor(collection)) {
+    if (isShaped(collection)) {
         const items = [];
-        forEachTensorCell(collection, (value, tuple) => {
-            items.push({ value, locator: tensorIndexTuple(tuple) });
+        forEachShapedCell(collection, (value, tuple) => {
+            items.push({ value, locator: shapedIndexTuple(tuple) });
         });
         return items;
     }
@@ -2625,7 +2636,7 @@ function collectionItems(collection) {
 
 function assembleAsyncPipeResult(collection, items, records, stages = []) {
     if (records.some((record) => record.unresolved === true)) return UNDECIDED;
-    if (isTensor(collection)) {
+    if (isShaped(collection)) {
         const kept = records.filter((record) => record.keep);
         if (stages.some((stage) => stage.fn === "PFILTER")) {
             return {
@@ -2636,7 +2647,7 @@ function assembleAsyncPipeResult(collection, items, records, stages = []) {
                 })),
             };
         }
-        return createTensor(collection.shape, kept.map((record) => record.value));
+        return createShaped(collection.shape, kept.map((record) => record.value));
     }
     if (collection?.type === "map") {
         return { type: "map", entries: new Map(records.filter((r) => r.keep).map((r) => [items[r.index].key, r.value])) };
@@ -2812,7 +2823,7 @@ function lazySequenceAsyncStream(source) {
 function expectedPipeScalarSource(source, stages) {
     if (stages[0]?.fn !== "PEXPECT") return false;
     if (expectedErrorArgs(source) !== null || source?.type === "tuple") return true;
-    if (isAsyncStream(source) || isLazySequence(source) || isTensor(source) || source?.type === "map") return false;
+    if (isAsyncStream(source) || isLazySequence(source) || isShaped(source) || source?.type === "map") return false;
     return !Array.isArray(source?.values);
 }
 
@@ -3007,10 +3018,10 @@ async function evaluateAsyncPipe(irNode, context, registry, systemContext, state
 }
 
 function asyncReductionItems(collection) {
-    if (isTensor(collection)) {
+    if (isShaped(collection)) {
         const items = [];
-        forEachTensorCell(collection, (value, tuple) => {
-            items.push({ value, locator: tensorIndexTuple(tuple) });
+        forEachShapedCell(collection, (value, tuple) => {
+            items.push({ value, locator: shapedIndexTuple(tuple) });
         });
         return items;
     }
@@ -3774,6 +3785,9 @@ async function evaluateAsyncLoop(args, context, registry, systemContext, state) 
 }
 
 async function evaluateAsyncInternal(irNode, context, registry, systemContext, state = null) {
+    if (context?.getEnv?.("__registry__", null) !== registry) {
+        context?.setEnv?.("__registry__", registry);
+    }
     if (irNode === null || irNode === undefined) return null;
     if (typeof irNode !== "object" || Array.isArray(irNode) || !irNode.fn) return irNode;
     const { fn, args } = irNode;
@@ -3963,11 +3977,6 @@ async function evaluateAsyncInternal(irNode, context, registry, systemContext, s
             }
             if (capability.lazy && capability.impl === defineCapability) {
                 return await evaluateDefineCapabilityAsync(
-                    callArgNodes, context, registry, systemContext, state,
-                );
-            }
-            if (capability.lazy && capability.impl === stdlibFunctions.TGEN.impl) {
-                return await evaluateTensorGeneratorCapabilityAsync(
                     callArgNodes, context, registry, systemContext, state,
                 );
             }

@@ -6,7 +6,7 @@ import { evaluate, createDefaultRegistry, createDefaultSystemContext } from "../
 import { Context } from "../../src/runtime/context.js";
 import { Integer, Rational } from "@ratmath/core";
 import { isHole } from "../../src/runtime/hole.js";
-import { forEachTensorCell, isTensor } from "../../src/runtime/tensor.js";
+import { forEachShapedCell, isShaped } from "../../src/runtime/shaped.js";
 
 const defaultSystemContext = createDefaultSystemContext();
 
@@ -36,12 +36,12 @@ function unbox(value) {
     return value;
 }
 
-function tensorFlat(value) {
-    if (!isTensor(value)) {
+function shapedFlat(value) {
+    if (!isShaped(value)) {
         throw new Error("Expected tensor");
     }
     const flat = [];
-    forEachTensorCell(value, (entry) => flat.push(unbox(entry)));
+    forEachShapedCell(value, (entry) => flat.push(unbox(entry)));
     return flat;
 }
 
@@ -148,14 +148,14 @@ describe("RiX destructuring assignment", () => {
 
     test("indexed tensor destructuring reuses ordinary tensor slicing rules", () => {
         const { context } = evalRiX("{.. row2[2, 1:3], block[1:2, 1:2] } = {:3x3: 1, 2, 3; 4, 5, 6; 7, 8, 9};");
-        expect(tensorFlat(context.get("row2"))).toEqual([4, 5, 6]);
-        expect(context.get("row2")?.type).toBe("tensor");
-        expect(context.get("block")?.type).toBe("tensor");
+        expect(shapedFlat(context.get("row2"))).toEqual([4, 5, 6]);
+        expect(context.get("row2")?.type).toBe("shaped");
+        expect(context.get("block")?.type).toBe("shaped");
     });
 
     test("tensor alias syntax {=:shape: ...} works", () => {
         const { context } = evalRiX("{=:2x3: row2[2,1:3]} = {:2x3: 1,2,3; 4,5,6};");
-        expect(tensorFlat(context.get("row2"))).toEqual([4, 5, 6]);
+        expect(shapedFlat(context.get("row2"))).toEqual([4, 5, 6]);
     });
 
     test("indexed binding overrides still use ordinary assignment modes", () => {

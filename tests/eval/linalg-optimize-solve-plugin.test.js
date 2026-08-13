@@ -1,11 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import { Rational } from "@ratmath/core";
 import { formatValue, parseAndEvaluate } from "../../src/index.js";
-import { forEachTensorCell } from "../../src/runtime/tensor.js";
+import { forEachShapedCell } from "../../src/runtime/shaped.js";
+import { Context } from "../../src/runtime/context.js";
 
 function flat(value) {
     const result = [];
-    forEachTensorCell(value, (entry) => result.push(String(entry)));
+    forEachShapedCell(value, (entry) => result.push(String(entry)));
     return result;
 }
 
@@ -27,15 +28,15 @@ describe("linalg Phase 1 plugin", () => {
         expect(flat(result.values[4])).toEqual(["-5", "2", "3", "-1"]);
     });
 
-    test("changes vector and tensor coordinates while retaining representation lineage", () => {
+    test("changes vector and tensor Frames while retaining representation lineage", () => {
         const result = parseAndEvaluate(`
             .Plugin.Load("linalg");
-            V := .linalg.VectorSpace("plane", 2);
-            standard := .linalg.Coordinates(V, "standard");
-            skew := .linalg.Coordinates(V, "skew", [1, 1; 0, 1]);
-            vector := .linalg.Vector([2, 3], standard);
-            covector := .linalg.CoordinateTensor({:2: 2, 3}, standard, [:down]);
-            operator := .linalg.CoordinateTensor([1, 2; 3, 4], standard, [:up, :down]);
+            vspace := .linalg.VectorSpace({= name="plane", dimension=2, over=:Rational });
+            standard := .linalg.Frame(vspace, {= name="standard", basis=:defining });
+            skew := .linalg.Frame(vspace, {= name="skew", relativeTo=standard, basis=[1, 1; 0, 1] });
+            vector := {:2: /Vector: Standard/ 2, 3};
+            covector := {:2: /Covector: Standard/ 2, 3};
+            operator := {:2x2: /Tensor: Standard@Standard*/ 1, 2; 3, 4};
             vectorSkew := .linalg.Transform(vector, skew);
             covectorSkew := .linalg.Transform(covector, skew);
             operatorRoundTrip := .linalg.Transform(.linalg.Transform(operator, skew), standard);
@@ -49,13 +50,74 @@ describe("linalg Phase 1 plugin", () => {
         expect(flat(operatorRoundTrip.components)).toEqual(["1", "2", "3", "4"]);
         expect(formatValue(parseAndEvaluate(`
             .Plugin.Load("linalg");
-            V := .linalg.VectorSpace("plane", 2);
-            a := .linalg.Coordinates(V, "a");
-            b := .linalg.Coordinates(V, "b", [1, 1; 0, 1]);
+            vspace := .linalg.VectorSpace("plane", 2);
+            a := .linalg.Frame(vspace, "a", :defining);
+            b := .linalg.Frame(vspace, {= name="b", relativeTo=a, basis=[1, 1; 0, 1] });
             v := .linalg.Vector([2, 3], a);
             .linalg.Transform!(v, b);
             [v.components, v.equivalentTo.components, .linalg.SameTensor(v, v.equivalentTo)];
         `))).toBe("[{:2: -1, 3 }, {:2: 2, 3 }, 1]");
+    });
+
+    test("typed headers require Frames and vector arithmetic converts the right representation to the left", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("linalg");
+            vspace := .linalg.VectorSpace("V", 2);
+            e := .linalg.Frame(vspace, "e", :defining);
+            f := .linalg.Frame(vspace, {= relativeTo=e, basis=[1, 1; 0, 1] });
+            x := {:2: /Vector: E/ 2, 3};
+            y := x.Transform(f);
+            p := {:2: /Vector: E*/ 4, 5};
+            [x.__type, p.__type, (x + y).components, .linalg.SameTensor(x, y), p.Pair(y)];
+        `);
+        expect(result.values[0].value).toBe("Vector");
+        expect(result.values[1].value).toBe("Covector");
+        expect(flat(result.values[2])).toEqual(["4", "6"]);
+        expect(result.values[3]).not.toBeNull();
+        expect(String(result.values[4])).toBe("23");
+        expect(() => parseAndEvaluate(`
+            .Plugin.Load("linalg");
+            vspace := .linalg.VectorSpace("V", 2);
+            {:2: /Vector: Vspace/ 1, 2};
+        `)).toThrow("a Frame");
+    });
+
+    test("independent tensor slots may use differently sized spaces and independent target Frames", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("linalg");
+            v := .linalg.VectorSpace("V", 2);
+            w := .linalg.VectorSpace("W", 3);
+            e := .linalg.Frame(v, "e", :defining);
+            f := .linalg.Frame(v, {= relativeTo=e, basis=[1, 1; 0, 1] });
+            g := .linalg.Frame(w, "g", :defining);
+            h := .linalg.Frame(w, {= relativeTo=g, basis=[1,0,1; 0,1,0; 0,0,1] });
+            t := {:2x3: /Tensor: E@G*/ 1,2,3; 4,5,6};
+            changed := t.Transform([f, h]);
+            roundTrip := changed.Transform([e, g]);
+            [changed.Frames(), roundTrip.components, .linalg.SameTensor(t, roundTrip)];
+        `);
+        expect(result.values[0].values.map((frame) => frame.name)).toEqual(["frame", "frame"]);
+        expect(flat(result.values[1])).toEqual(["1", "2", "3", "4", "5", "6"]);
+        expect(result.values[2]).not.toBeNull();
+    });
+
+    test("lineage retains the origin plus the configured recent representation limit", () => {
+        const context = new Context();
+        context.setEnv("tensorLineageLimit", 2);
+        const result = parseAndEvaluate(`
+            .Plugin.Load("linalg");
+            vspace := .linalg.VectorSpace("V", 2);
+            e := .linalg.Frame(vspace, "e", :defining);
+            f := .linalg.Frame(vspace, {= relativeTo=e, basis=[1,1;0,1] });
+            x0 := {:2: /Vector: E/ 1, 2};
+            x1 := x0.Transform(f);
+            x2 := x1.Transform(e);
+            x3 := x2.Transform(f);
+            x3;
+        `, { context });
+        expect(result.identity.origin).not.toBeNull();
+        expect(result.identity.representations).toHaveLength(3);
+        expect(result.identity.representations[0]).toBe(result.identity.origin);
     });
 });
 

@@ -29,12 +29,12 @@ describe("postfix checks and diagnostic taps", () => {
     expect(() => parseAndEvaluate("2 ##@ == 3")).toThrow("##@ check failed");
   });
 
-  test("checks structural kinds, counts, tensor shapes, and semantic types", () => {
+  test("checks structural kinds, counts, shaped dimensions, and semantic types", () => {
     expect(parseAndEvaluate("[1, 2, 3] ##: array[3]").type).toBe("sequence");
     expect(parseAndEvaluate("{| 1, 2 |} ##: set[2]").type).toBe("set");
     expect(parseAndEvaluate("{= a = 1 } ##: map[1]").type).toBe("map");
     expect(parseAndEvaluate("{: 1, 2 } ##: tuple[2]").type).toBe("tuple");
-    expect(parseAndEvaluate("{:2x2: 1, 2; 3, 4 } ##: tensor[2x2]").type).toBe("tensor");
+    expect(parseAndEvaluate("{:2x2: 1, 2; 3, 4 } ##: shaped[2x2]").type).toBe("shaped");
     expect(parseAndEvaluate("5 ##: number").value).toBe(5n);
     expect(parseAndEvaluate("5 ##: :integer").value).toBe(5n);
     expect(() => parseAndEvaluate("[1, 2] ##: array[3]")).toThrow("expected array[3]");

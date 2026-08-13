@@ -6,7 +6,7 @@
  */
 
 import { Integer, Rational, RationalInterval } from "@ratmath/core";
-import { isTensor, tensorAssignBySelectors, tensorGetBySelectors } from "./tensor.js";
+import { isShaped, shapedAssignBySelectors, shapedGetBySelectors } from "./shaped.js";
 
 const cellIds = new WeakMap();
 let nextCellId = 1;
@@ -45,12 +45,12 @@ function selectorLabel(item) {
 
 function indexInto(value, selectors) {
     if (selectors.length === 0) return value;
-    if (isTensor(value)) return tensorGetBySelectors(value, selectors);
+    if (isShaped(value)) return shapedGetBySelectors(value, selectors);
 
     let current = value;
     for (const item of selectors) {
         if (item.kind !== "index") {
-            throw new Error("Slice bindings currently require tensor data");
+            throw new Error("Slice bindings currently require shaped data");
         }
         const index = integer(item.value);
         if (current?.type === "matrix" && Array.isArray(current.rows)) {
@@ -68,14 +68,14 @@ function indexInto(value, selectors) {
 
 function setInto(root, selectors, value) {
     if (selectors.length === 0) return value;
-    if (isTensor(root)) {
-        tensorAssignBySelectors(root, selectors, value);
+    if (isShaped(root)) {
+        shapedAssignBySelectors(root, selectors, value);
         return root;
     }
 
     const parent = indexInto(root, selectors.slice(0, -1));
     const final = selectors.at(-1);
-    if (final.kind !== "index") throw new Error("Slice assignment currently requires tensor data");
+    if (final.kind !== "index") throw new Error("Slice assignment currently requires shaped data");
     const index = integer(final.value);
     if (parent?.type === "matrix" && Array.isArray(parent.rows)) {
         parent.rows[index - 1] = value;

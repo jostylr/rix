@@ -1,5 +1,12 @@
 import { CertifiedApproximation, Integer, Rational, RationalInterval, parseCertifiedApproximation } from "@ratmath/core";
-import { createTensor, isTensor } from "./tensor.js";
+import {
+    createShaped,
+    forEachShapedCell,
+    isShaped,
+    shapedRank,
+    shapedScalarDomain,
+    valueBelongsToScalarDomain,
+} from "./shaped.js";
 import { callWithConcreteArgs } from "../eval/functions/functions.js";
 import { UNDECIDED, UndecidedDiagnostic, isUndecided } from "./decision.js";
 
@@ -16,6 +23,11 @@ export function colonName(value) {
     if (typeof value === "string") return value;
     if (value?.type === "string") return value.value;
     return String(value);
+}
+
+export function semanticNameKey(value) {
+    const name = colonName(value);
+    return name === null ? null : name.normalize("NFKC").toLocaleLowerCase("en-US");
 }
 
 export function makeProto(entries = []) {
@@ -108,18 +120,22 @@ class ImmutableSemanticRegistry {
     register(spec) {
         const name = colonName(spec?.name);
         if (!name) throw new Error(`${this.kind} registration requires a name`);
-        if (this.entries.has(name) || this.aliases.has(name)) {
+        const key = semanticNameKey(name);
+        if (this.entries.has(key) || this.aliases.has(key)) {
             throw new Error(`Duplicate ${this.kind} registration: ${name}`);
         }
         const entry = immutableCloneSpec({ ...spec, name });
-        this.entries.set(name, entry);
+        this.entries.set(key, entry);
         for (const alias of entry.aliases || []) {
             const aliasName = colonName(alias);
             if (!aliasName) continue;
-            if (this.entries.has(aliasName) || this.aliases.has(aliasName)) {
+            const aliasKey = semanticNameKey(aliasName);
+            if (aliasKey === key) continue;
+            if (this.aliases.get(aliasKey) === key) continue;
+            if (this.entries.has(aliasKey) || this.aliases.has(aliasKey)) {
                 throw new Error(`Duplicate ${this.kind} alias: ${aliasName}`);
             }
-            this.aliases.set(aliasName, name);
+            this.aliases.set(aliasKey, key);
         }
         return entry;
     }
@@ -127,17 +143,18 @@ class ImmutableSemanticRegistry {
     replace(spec) {
         const name = colonName(spec?.name);
         if (!name) throw new Error(`${this.kind} registration requires a name`);
-        const previous = this.entries.get(name);
+        const key = semanticNameKey(name);
+        const previous = this.entries.get(key);
         if (!previous) return this.register(spec);
         for (const [alias, target] of this.aliases) {
-            if (target === name) this.aliases.delete(alias);
+            if (target === key) this.aliases.delete(alias);
         }
-        this.entries.delete(name);
+        this.entries.delete(key);
         return this.register(spec);
     }
 
     get(name) {
-        const key = colonName(name);
+        const key = semanticNameKey(name);
         if (!key) return null;
         return this.entries.get(key) ?? this.entries.get(this.aliases.get(key)) ?? null;
     }
@@ -147,7 +164,7 @@ class ImmutableSemanticRegistry {
     }
 
     list() {
-        return Array.from(this.entries.keys());
+        return Array.from(this.entries.values(), (entry) => entry.name);
     }
 }
 
@@ -165,14 +182,14 @@ export function registerType(spec) {
 
 export function replaceRegisteredType(spec) {
     const name = colonName(spec?.name);
-    if (builtinTypeNames.has(name)) throw new Error(`Cannot replace built-in type: ${name}`);
+    if (builtinTypeNames.has(semanticNameKey(name))) throw new Error(`Cannot replace built-in type: ${name}`);
     return typeRegistry.replace(spec);
 }
 
 export function typeKnownInContext(name, context = null) {
     const entry = typeRegistry.get(name);
     if (!entry) return false;
-    if (builtinTypeNames.has(entry.name)) return true;
+    if (builtinTypeNames.has(semanticNameKey(entry.name))) return true;
     return context?.getEnv?.("__rix_registered_types__", null)?.has(entry.name) === true;
 }
 
@@ -182,17 +199,19 @@ export function resolveTraitNames(names) {
     const visiting = new Set();
 
     function visit(name) {
-        const traitName = colonName(name);
-        if (!traitName || seen.has(traitName)) return;
-        if (visiting.has(traitName)) throw new Error(`Cyclic trait implication involving ${traitName}`);
-        const entry = traitRegistry.get(traitName);
-        if (!entry) throw new Error(`Unknown semantic trait: ${traitName}`);
-        visiting.add(traitName);
+        const requestedName = colonName(name);
+        const entry = traitRegistry.get(requestedName);
+        if (!entry) throw new Error(`Unknown semantic trait: ${requestedName}`);
+        const traitName = entry.name;
+        const traitKey = semanticNameKey(traitName);
+        if (seen.has(traitKey)) return;
+        if (visiting.has(traitKey)) throw new Error(`Cyclic trait implication involving ${traitName}`);
+        visiting.add(traitKey);
         for (const implied of entry.implies || []) {
             visit(implied);
         }
-        visiting.delete(traitName);
-        seen.add(traitName);
+        visiting.delete(traitKey);
+        seen.add(traitKey);
         result.push(traitName);
     }
 
@@ -207,7 +226,7 @@ export function runtimeTypeName(value) {
     if (value instanceof RationalInterval) return "RationalInterval";
     if (value instanceof CertifiedApproximation) return "CertifiedApproximation";
     if (isUndecided(value)) return "Undecided";
-    if (isTensor(value)) return "tensor";
+    if (isShaped(value)) return "shaped";
     if (value?.type === "sequence") return "array";
     if (value?.type) return value.type;
     if (value?.constructor?.name) return value.constructor.name;
@@ -235,7 +254,11 @@ export function convertToRegisteredType(value, requestedTypeName, context = null
 
     if (converter) {
         next = invokeMaybeCallable(converter, [value], context, evaluate);
-    } else if (entry.name === sourceType || typeName === sourceType || entry.nativeType === sourceType) {
+    } else if (
+        semanticNameKey(entry.name) === semanticNameKey(sourceType) ||
+        semanticNameKey(typeName) === semanticNameKey(sourceType) ||
+        semanticNameKey(entry.nativeType) === semanticNameKey(sourceType)
+    ) {
         next = value;
     } else if (entry.convert) {
         next = invokeMaybeCallable(entry.convert, [value, stringObj(sourceType)], context, evaluate);
@@ -251,7 +274,7 @@ export function convertToRegisteredType(value, requestedTypeName, context = null
     if (entry.validate && !truthy(invokeMaybeCallable(entry.validate, [next], context, evaluate))) {
         return null;
     }
-    return { value: next, entry, requestedTypeName: typeName };
+    return { value: next, entry, requestedTypeName: entry.name };
 }
 
 function isStringObject(value) {
@@ -297,6 +320,173 @@ function compareNumeric(a, b) {
     return 0;
 }
 
+function isPlainShaped(value) {
+    if (!isShaped(value)) return false;
+    const semanticType = value?._ext instanceof Map ? value._ext.get("__type")?.value : null;
+    return semanticType === null || semanticType === undefined || semanticNameKey(semanticType) === "shaped";
+}
+
+function shapedValues(value) {
+    const result = [];
+    forEachShapedCell(value, (entry) => result.push(entry));
+    return result;
+}
+
+function shapesEqual(left, right) {
+    return left.shape.length === right.shape.length &&
+        left.shape.every((dimension, axis) => dimension === right.shape[axis]);
+}
+
+function invokeScalarOperator(name, args, context, evaluate) {
+    const registry = context?.getEnv?.("__registry__", null);
+    const operation = registry?.get?.(name);
+    if (!operation) throw new Error(`Shaped arithmetic requires scalar operator ${name}`);
+    return operation.impl(args, context, evaluate);
+}
+
+function shapedBinary(name, left, right, context, evaluate) {
+    const leftShaped = isPlainShaped(left);
+    const rightShaped = isPlainShaped(right);
+    if (!leftShaped && !rightShaped) throw new Error(`${name} Shaped variant requires a Shaped operand`);
+
+    const source = leftShaped ? left : right;
+    const domain = shapedScalarDomain(source);
+    if (leftShaped && rightShaped) {
+        if (!shapesEqual(left, right)) {
+            throw new Error(`Shaped ${name} requires identical shapes; received ${left.shape.join("x")} and ${right.shape.join("x")}`);
+        }
+        const rightDomain = shapedScalarDomain(right);
+        if (semanticNameKey(domain) !== semanticNameKey(rightDomain)) {
+            throw new Error(`Shaped ${name} requires one declared scalar domain; received ${domain} and ${rightDomain}`);
+        }
+        const leftValues = shapedValues(left);
+        const rightValues = shapedValues(right);
+        return createShaped(left.shape, leftValues.map((entry, index) =>
+            invokeScalarOperator(name, [entry, rightValues[index]], context, evaluate)));
+    }
+
+    const scalar = leftShaped ? right : left;
+    if (!valueBelongsToScalarDomain(scalar, domain)) {
+        throw new Error(`Shaped ${name} scalar does not satisfy declared domain ${domain}; convert it explicitly`);
+    }
+    const values = shapedValues(source).map((entry) => invokeScalarOperator(
+        name,
+        leftShaped ? [entry, scalar] : [scalar, entry],
+        context,
+        evaluate,
+    ));
+    return createShaped(source.shape, values);
+}
+
+function shapedEquality(left, right, context, evaluate) {
+    if (!isPlainShaped(left) || !isPlainShaped(right) || !shapesEqual(left, right)) return false;
+    if (semanticNameKey(shapedScalarDomain(left)) !== semanticNameKey(shapedScalarDomain(right))) return false;
+    const a = shapedValues(left);
+    const b = shapedValues(right);
+    return a.every((entry, index) => truthy(invokeScalarOperator("EQ", [entry, b[index]], context, evaluate)));
+}
+
+function isMatrixValue(value) {
+    return isShaped(value) && semanticNameKey(value?._ext?.get("__type")?.value) === "matrix";
+}
+
+function requireSameMatrixDomain(left, right, operation) {
+    const leftDomain = shapedScalarDomain(left);
+    const rightDomain = shapedScalarDomain(right);
+    if (semanticNameKey(leftDomain) !== semanticNameKey(rightDomain)) {
+        throw new Error(`Matrix ${operation} requires one declared scalar domain; received ${leftDomain} and ${rightDomain}`);
+    }
+}
+
+function matrixElementwise(name, left, right, context, evaluate) {
+    if (!isMatrixValue(left) || !isMatrixValue(right)) {
+        throw new Error(`Matrix ${name} requires two Matrix values`);
+    }
+    if (!shapesEqual(left, right)) {
+        throw new Error(`Matrix ${name} requires identical shapes; received ${left.shape.join("x")} and ${right.shape.join("x")}`);
+    }
+    requireSameMatrixDomain(left, right, name);
+    const rightValues = shapedValues(right);
+    return createShaped(left.shape, shapedValues(left).map((entry, index) =>
+        invokeScalarOperator(name, [entry, rightValues[index]], context, evaluate)));
+}
+
+function matrixScalar(name, matrix, scalar, scalarFirst, context, evaluate) {
+    const domain = shapedScalarDomain(matrix);
+    if (!valueBelongsToScalarDomain(scalar, domain)) {
+        throw new Error(`Matrix ${name} scalar does not satisfy declared domain ${domain}; convert it explicitly`);
+    }
+    return createShaped(matrix.shape, shapedValues(matrix).map((entry) => invokeScalarOperator(
+        name,
+        scalarFirst ? [scalar, entry] : [entry, scalar],
+        context,
+        evaluate,
+    )));
+}
+
+function matrixProduct(left, right, context, evaluate) {
+    requireSameMatrixDomain(left, right, "multiplication");
+    const [rows, inner] = left.shape;
+    const [rightRows, columns] = right.shape;
+    if (inner !== rightRows) {
+        throw new Error(`Matrix multiplication dimensions must agree; received ${rows}x${inner} and ${rightRows}x${columns}`);
+    }
+    if (inner === 0) {
+        throw new Error("Matrix multiplication with an empty contracted dimension requires an explicit scalar zero");
+    }
+    const a = shapedValues(left);
+    const b = shapedValues(right);
+    const values = [];
+    for (let row = 0; row < rows; row++) {
+        for (let column = 0; column < columns; column++) {
+            let sum = null;
+            for (let index = 0; index < inner; index++) {
+                const product = invokeScalarOperator("MUL", [a[row * inner + index], b[index * columns + column]], context, evaluate);
+                sum = sum === null ? product : invokeScalarOperator("ADD", [sum, product], context, evaluate);
+            }
+            values.push(sum);
+        }
+    }
+    return createShaped([rows, columns], values);
+}
+
+function matrixMultiply(left, right, context, evaluate) {
+    if (isMatrixValue(left) && isMatrixValue(right)) return matrixProduct(left, right, context, evaluate);
+    if (isMatrixValue(left)) return matrixScalar("MUL", left, right, false, context, evaluate);
+    if (isMatrixValue(right)) return matrixScalar("MUL", right, left, true, context, evaluate);
+    throw new Error("Matrix multiplication requires a Matrix operand");
+}
+
+function matrixPower(matrix, exponent, context, evaluate) {
+    if (!(exponent instanceof Integer) || exponent.value < 0n) {
+        throw new Error("Matrix power requires a nonnegative Integer exponent");
+    }
+    if (matrix.shape[0] !== matrix.shape[1]) throw new Error("Matrix power requires a square Matrix");
+    const entries = shapedValues(matrix);
+    if (entries.length === 0) throw new Error("Matrix power requires a nonempty Matrix");
+    const zeroValue = invokeScalarOperator("SUB", [entries[0], entries[0]], context, evaluate);
+    const oneValue = invokeScalarOperator("POW", [entries[0], new Integer(0n)], context, evaluate);
+    const size = matrix.shape[0];
+    let result = createShaped([size, size], Array.from({ length: size * size }, (_, index) =>
+        Math.floor(index / size) === index % size ? oneValue : zeroValue));
+    let base = matrix;
+    let remaining = exponent.value;
+    while (remaining > 0n) {
+        if ((remaining & 1n) === 1n) result = matrixProduct(result, base, context, evaluate);
+        remaining >>= 1n;
+        if (remaining > 0n) base = matrixProduct(base, base, context, evaluate);
+    }
+    return result;
+}
+
+function matrixEquality(left, right, context, evaluate) {
+    if (!shapesEqual(left, right)) return false;
+    if (semanticNameKey(shapedScalarDomain(left)) !== semanticNameKey(shapedScalarDomain(right))) return false;
+    const a = shapedValues(left);
+    const b = shapedValues(right);
+    return a.every((entry, index) => truthy(invokeScalarOperator("EQ", [entry, b[index]], context, evaluate)));
+}
+
 export const TYPE_INSTALL_FUNCTIONS = [
     "ADD", "SUB", "MUL", "DIV", "INTDIV", "MOD", "POW", "POWPROD", "NEG",
     "COMPARE", "EQ", "NEQ", "LT", "GT", "LTE", "GTE", "MIN", "MAX",
@@ -325,7 +515,7 @@ export function registerBuiltinSemanticTypes() {
         ["collection"],
         ["sequence", ["collection", "indexable"]],
         ["maplike", ["collection", "indexable"]],
-        ["tensor", ["indexable", "shapeAware", "collection"]],
+        ["shaped", ["indexable", "shapeAware", "collection"]],
         ["meters"],
         ["cartesian"],
         ["square"],
@@ -609,29 +799,29 @@ export function registerBuiltinSemanticTypes() {
     });
 
     registerType({
-        name: "Tensor",
-        aliases: ["tensor"],
-        nativeType: "tensor",
-        defaultTraits: ["tensor", "indexable", "shapeAware", "collection"],
+        name: "Shaped",
+        nativeType: "shaped",
+        defaultTraits: ["shaped", "indexable", "shapeAware", "collection"],
         convertFrom: {
-            tensor: (value) => value,
-            array: (value) => createTensor([value.values.length], value.values),
-            tuple: (value) => createTensor([value.values.length], value.values),
+            shaped: (value) => value,
+            array: (value) => createShaped([value.values.length], value.values),
+            tuple: (value) => createShaped([value.values.length], value.values),
         },
         convert(value) {
-            if (isTensor(value)) return value;
-            if (value?.type === "sequence" || value?.type === "tuple") return createTensor([value.values.length], value.values);
+            if (isShaped(value)) return value;
+            if (value?.type === "sequence" || value?.type === "tuple") return createShaped([value.values.length], value.values);
             return null;
         },
-        validate: isTensor,
+        validate: isShaped,
         export(value) {
             return {
                 type: "map",
                 entries: new Map([
-                    ["type", stringObj("Tensor")],
+                    ["type", stringObj("Shaped")],
                     ["data", { type: "map", entries: new Map([
                         ["shape", { type: "sequence", values: value.shape.map((n) => new Integer(BigInt(n))) }],
                         ["elems", { type: "sequence", values: [...value.data] }],
+                        ["scalarDomain", stringObj(shapedScalarDomain(value))],
                     ]) }],
                     ["cache", null],
                     ["version", new Integer(1n)],
@@ -642,15 +832,65 @@ export function registerBuiltinSemanticTypes() {
             const data = value?.entries?.get("data");
             const shape = data?.entries?.get("shape")?.values.map((n) => Number(n.value)) || [];
             const elems = data?.entries?.get("elems")?.values || [];
-            return createTensor(shape, elems);
+            const scalarDomain = data?.entries?.get("scalarDomain")?.value ?? null;
+            return createShaped(shape, elems, { scalarDomain });
         },
         proto: () => makeProto([
-            ["Shape", valueMethod("Shape", (self) => ({ type: "sequence", values: self.shape.map((n) => new Integer(BigInt(n))) }))],
-            ["Rank", valueMethod("Rank", (self) => new Integer(BigInt(self.shape.length)))],
-            ["Flatten", valueMethod("Flatten", (self) => ({ type: "sequence", values: [...self.data] }))],
-            ["Describe", valueMethod("Describe", () => stringObj("type:Tensor"))],
+            ["Describe", valueMethod("Describe", () => stringObj("type:Shaped"))],
         ]),
-        installs: {},
+        installs: {
+            ADD: [{
+                name: "ShapedElementwise",
+                priority: 200,
+                prep: (args) => args.length === 2 && (isPlainShaped(args[0]) || isPlainShaped(args[1])),
+                impl: ([left, right], context, evaluate) => shapedBinary("ADD", left, right, context, evaluate),
+            }],
+            SUB: [{
+                name: "ShapedElementwise",
+                priority: 200,
+                prep: (args) => args.length === 2 && (isPlainShaped(args[0]) || isPlainShaped(args[1])),
+                impl: ([left, right], context, evaluate) => shapedBinary("SUB", left, right, context, evaluate),
+            }],
+            MUL: [{
+                name: "ShapedElementwise",
+                priority: 200,
+                prep: (args) => args.length === 2 && (isPlainShaped(args[0]) || isPlainShaped(args[1])),
+                impl: ([left, right], context, evaluate) => shapedBinary("MUL", left, right, context, evaluate),
+            }],
+            DIV: [{
+                name: "ShapedElementwise",
+                priority: 200,
+                prep: (args) => args.length === 2 && (isPlainShaped(args[0]) || isPlainShaped(args[1])),
+                impl: ([left, right], context, evaluate) => shapedBinary("DIV", left, right, context, evaluate),
+            }],
+            POW: [{
+                name: "ShapedElementwise",
+                priority: 200,
+                prep: (args) => args.length === 2 && (isPlainShaped(args[0]) || isPlainShaped(args[1])),
+                impl: ([left, right], context, evaluate) => shapedBinary("POW", left, right, context, evaluate),
+            }],
+            NEG: [{
+                name: "ShapedElementwise",
+                priority: 200,
+                prep: (args) => args.length === 1 && isPlainShaped(args[0]),
+                impl: ([value], context, evaluate) => createShaped(
+                    value.shape,
+                    shapedValues(value).map((entry) => invokeScalarOperator("NEG", [entry], context, evaluate)),
+                ),
+            }],
+            EQ: [{
+                name: "ShapedEquality",
+                priority: 200,
+                prep: (args) => args.length === 2 && isPlainShaped(args[0]) && isPlainShaped(args[1]),
+                impl: ([left, right], context, evaluate) => boolResult(shapedEquality(left, right, context, evaluate)),
+            }],
+            NEQ: [{
+                name: "ShapedInequality",
+                priority: 200,
+                prep: (args) => args.length === 2 && isPlainShaped(args[0]) && isPlainShaped(args[1]),
+                impl: ([left, right], context, evaluate) => boolResult(!shapedEquality(left, right, context, evaluate)),
+            }],
+        },
     });
 
     registerType({
@@ -664,10 +904,84 @@ export function registerBuiltinSemanticTypes() {
         ]),
     });
     registerType({ name: "Point", nativeType: "Point", defaultTraits: [], convert: (value) => value, proto: () => makeProto([["Describe", valueMethod("Describe", () => stringObj("type:point"))]]) });
-    registerType({ name: "Matrix", nativeType: "Matrix", parent: "Tensor", defaultTraits: ["tensor"], convert: (value) => value, proto: () => makeProto([["Describe", valueMethod("Describe", () => stringObj("type:matrix"))]]) });
-    registerType({ name: "Vector", nativeType: "Vector", defaultTraits: [], convert: (value) => value, proto: () => makeProto([["Describe", valueMethod("Describe", () => stringObj("type:vector"))], ["KIND", valueMethod("KIND", () => stringObj("type:vector"))]]) });
+    registerType({
+        name: "Matrix",
+        nativeType: "shaped",
+        defaultTraits: ["shaped", "indexable", "shapeAware", "collection"],
+        convert: (value) => isShaped(value) && shapedRank(value) === 2 ? value : null,
+        validate: (value) => isShaped(value) && shapedRank(value) === 2,
+        export(value) {
+            const exported = typeRegistry.get("Shaped").export(value);
+            exported.entries.set("type", stringObj("Matrix"));
+            return exported;
+        },
+        import(value) {
+            return typeRegistry.get("Shaped").import(value);
+        },
+        proto: () => makeProto([
+            ["Describe", valueMethod("Describe", () => stringObj("type:Matrix"))],
+            ["Transpose", valueMethod("Transpose", (self) => finalizeImportedRegisteredValue(createShaped(
+                [self.shape[1], self.shape[0]],
+                Array.from({ length: self.shape[0] * self.shape[1] }, (_, index) => {
+                    const row = Math.floor(index / self.shape[0]);
+                    const column = index % self.shape[0];
+                    return shapedValues(self)[column * self.shape[1] + row];
+                }),
+            ), "Matrix", typeRegistry.get("Matrix")))],
+            ["Hadamard", valueMethod("Hadamard", (self, [other], context, evaluate) =>
+                finalizeImportedRegisteredValue(matrixElementwise("MUL", self, other, context, evaluate), "Matrix", typeRegistry.get("Matrix")))],
+        ]),
+        installs: {
+            ADD: [{
+                name: "MatrixAddition", priority: 300,
+                prep: (args) => args.length === 2 && isMatrixValue(args[0]) && isMatrixValue(args[1]),
+                impl: ([left, right], context, evaluate) => matrixElementwise("ADD", left, right, context, evaluate),
+            }],
+            SUB: [{
+                name: "MatrixSubtraction", priority: 300,
+                prep: (args) => args.length === 2 && isMatrixValue(args[0]) && isMatrixValue(args[1]),
+                impl: ([left, right], context, evaluate) => matrixElementwise("SUB", left, right, context, evaluate),
+            }],
+            MUL: [{
+                name: "MatrixMultiplication", priority: 300,
+                prep: (args) => args.length === 2 && (isMatrixValue(args[0]) || isMatrixValue(args[1])),
+                impl: ([left, right], context, evaluate) => matrixMultiply(left, right, context, evaluate),
+            }],
+            DIV: [{
+                name: "MatrixScalarDivision", priority: 300,
+                prep: (args) => args.length === 2 && isMatrixValue(args[0]) && !isMatrixValue(args[1]),
+                impl: ([matrix, scalar], context, evaluate) => matrixScalar("DIV", matrix, scalar, false, context, evaluate),
+            }],
+            POW: [{
+                name: "MatrixPower", priority: 300,
+                prep: (args) => args.length === 2 && isMatrixValue(args[0]),
+                impl: ([matrix, exponent], context, evaluate) => matrixPower(matrix, exponent, context, evaluate),
+            }],
+            NEG: [{
+                name: "MatrixNegation", priority: 300,
+                prep: (args) => args.length === 1 && isMatrixValue(args[0]),
+                impl: ([matrix], context, evaluate) => createShaped(
+                    matrix.shape,
+                    shapedValues(matrix).map((entry) => invokeScalarOperator("NEG", [entry], context, evaluate)),
+                ),
+            }],
+            EQ: [{
+                name: "MatrixEquality", priority: 300,
+                prep: (args) => args.length === 2 && isMatrixValue(args[0]) && isMatrixValue(args[1]),
+                impl: ([left, right], context, evaluate) => boolResult(matrixEquality(left, right, context, evaluate)),
+            }],
+            NEQ: [{
+                name: "MatrixInequality", priority: 300,
+                prep: (args) => args.length === 2 && isMatrixValue(args[0]) && isMatrixValue(args[1]),
+                impl: ([left, right], context, evaluate) => boolResult(!matrixEquality(left, right, context, evaluate)),
+            }],
+        },
+    });
+    registerType({ name: "Vector", nativeType: "vector", defaultTraits: [], convert: (value) => value?.type === "vector" ? value : null, validate: (value) => value?.type === "vector", proto: () => makeProto([["Describe", valueMethod("Describe", () => stringObj("type:Vector"))]]) });
+    registerType({ name: "Covector", nativeType: "covector", defaultTraits: [], convert: (value) => value?.type === "covector" ? value : null, validate: (value) => value?.type === "covector", proto: () => makeProto([["Describe", valueMethod("Describe", () => stringObj("type:Covector"))]]) });
+    registerType({ name: "Tensor", nativeType: "tensor", defaultTraits: [], convert: (value) => value?.type === "tensor" ? value : null, validate: (value) => value?.type === "tensor", proto: () => makeProto([["Describe", valueMethod("Describe", () => stringObj("type:Tensor"))]]) });
 
-    for (const name of typeRegistry.list()) builtinTypeNames.add(name);
+    for (const name of typeRegistry.list()) builtinTypeNames.add(semanticNameKey(name));
     builtinsRegistered = true;
 }
 
@@ -701,7 +1015,7 @@ function finalizeImportedRegisteredValue(imported, typeName, entry) {
     if (isUndecided(imported)) return imported;
     if (imported && typeof imported === "object") {
         if (!(imported._ext instanceof Map)) imported._ext = new Map();
-        imported._ext.set("__type", stringObj(typeName));
+        imported._ext.set("__type", stringObj(entry?.name ?? typeName));
         const traits = resolveTraitNames(entry.defaultTraits || []);
         if (traits.length > 0) {
             imported._ext.set("__traits", {
@@ -730,7 +1044,7 @@ export function importByRegisteredTypeRuntime(value, context = null, evaluate = 
     return finalizeImportedRegisteredValue(invokeMaybeCallable(entry.import, [value], context, evaluate), typeName, entry);
 }
 
-export function installRegisteredTypes(registry, typeNames = ["Integer", "Rational", "CertifiedApproximation", "RationalInterval", "Tensor"], options = {}) {
+export function installRegisteredTypes(registry, typeNames = ["Integer", "Rational", "CertifiedApproximation", "RationalInterval", "Shaped", "Matrix"], options = {}) {
     let order = 0;
     for (const typeName of typeNames) {
         const entry = typeRegistry.get(typeName);

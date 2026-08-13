@@ -179,13 +179,13 @@ const BUNDLED_PLUGINS = [
         metadata: {
             id: "linalg", description: "Exact dense linear algebra and coordinate-aware tensor transformations.",
             kind: "host", mount: "linalg",
-            exports: ["Rref", "Rank", "Determinant", "Inverse", "Solve", "VectorSpace", "Coordinates", "CoordinateTensor", "Vector", "ChangeMatrix", "Transform", "Transform!", "Components", "SameTensor"],
+            exports: ["Rref", "Rank", "Determinant", "Inverse", "Solve", "VectorSpace", "Frame", "Tensor", "Vector", "Covector", "ChangeMatrix", "Transform", "Transform!", "Components", "Pair", "SameTensor"],
             groups: ["LinearAlgebra", "Exact"], permissions: [],
-            provides: ["rix.linear-algebra@1", "rix.coordinate-tensor@1"],
-            schemas: ["rix.linalg.result@1", "rix.linalg.vector-space@1", "rix.linalg.coordinates@1", "rix.linalg.coordinate-tensor@1"],
+            provides: ["rix.linear-algebra@1", "rix.tensor@1"],
+            schemas: ["rix.linalg.result@1", "rix.linalg.vector-space@1", "rix.linalg.frame@1", "rix.linalg.tensor@1"],
             snapshot: false, deterministic: true, defaultEnabled: false,
         },
-        install: ({ systemContext }) => installLinalgPlugin({ systemContext }),
+        install: (api) => installLinalgPlugin(api),
     },
     {
         metadata: {
