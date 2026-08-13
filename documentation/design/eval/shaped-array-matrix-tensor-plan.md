@@ -18,9 +18,10 @@ Start implementation only when all of the following are true:
 - [ ] The `rix/` worktree has a known baseline and the complete test suite is
   green.
 - [ ] A dedicated migration branch is created.
-- [ ] The syntax and compatibility decisions marked **decision gate** below
+- [ ] The syntax and migration decisions marked **decision gate** below
   have been approved.
-- [ ] Export/import versioning and deprecation policy have named owners.
+- [ ] Export/import versioning and the coordinated pre-release rename have
+  named owners.
 
 # Decision summary
 
@@ -126,7 +127,8 @@ the canonical registered `Matrix` type.
   lookup rather than retaining caller spelling.
 - [ ] Audit `convertFrom`, installed operator variants, method-extension lookup,
   export tags, and import tags for mixed semantic/runtime-name assumptions.
-- [ ] Accept historical export tags in any case but emit only canonical tags.
+- [ ] Update every repository-owned export tag to the canonical spelling;
+  pre-release historical spellings need not remain importable.
 - [ ] Add tests for mixed-case registration, lookup, conversion, membership,
   method dispatch, duplicate rejection, export/import, and diagnostics.
 - [ ] Update the types-and-traits guide to state the global rule; remove prose
@@ -187,11 +189,12 @@ constructor validates that the reference frame belongs to the same abstract
 space, that the matrix has the correct dimensions and scalar domain, and that
 it is invertible.
 
-The existing Phase 1 `.linalg.Coordinates(space, name, basis?)` object already
-contains a space and an ordered basis matrix. Prefer `Frame` as the eventual
-canonical name because coordinates are the dual coordinate functions induced
-by a basis. Retain `Coordinates` as a compatibility constructor/alias during
-migration.
+The existing experimental Phase 1 `.linalg.Coordinates(space, name, basis?)`
+object already contains a space and an ordered basis matrix. Replace it with
+`Frame` throughout the repository when this migration begins. RiX has not been
+released, so no `Coordinates` constructor or alias needs to remain in the
+resulting code. `Frame` is also mathematically clearer: coordinates are the
+dual coordinate functions induced by an ordered basis.
 
 A convenience constructor can cover the common coordinate-space case without
 collapsing the underlying model:
@@ -242,9 +245,10 @@ binding.
 
 ### Vector-space API decision checklist
 
-- [ ] Confirm `VectorSpace` as the basis-free value and `Frame` as the value
+- [x] Confirm `VectorSpace` as the basis-free value and `Frame` as the value
   referenced by component annotations.
-- [ ] Confirm `Coordinates` as a temporary compatibility alias for `Frame`.
+- [x] Remove the experimental `Coordinates` name directly; do not retain a
+  compatibility constructor or alias in this unreleased language.
 - [ ] Confirm the options-map fields `name`, `dimension`, and `over`.
 - [ ] Define the versioned scalar-field protocol and verify that `:Rational`
   supplies it.
@@ -475,10 +479,10 @@ binding `v`, and `Wa` as `wa`. This exception is deliberately local to the
 annotation grammar. Diagnostics should show both the written label and the
 binding that was attempted.
 
-Every resolved factor must be a `Frame`. In the current `.linalg` vocabulary,
-that is the existing `Coordinates` value, which already contains an abstract
-`VectorSpace` and a basis. Migrate it to the canonical `Frame` vocabulary
-rather than introduce another overlapping runtime object.
+Every resolved factor must be a `Frame`. The experimental `.linalg.Coordinates`
+value already contains an abstract `VectorSpace` and a basis; rename and migrate
+that implementation directly rather than retain two overlapping runtime
+objects.
 
 For `V*`, RiX constructs the dual slot and the basis canonically dual to `V`'s
 selected basis. A noncanonical pairing or independently selected dual basis is
@@ -486,7 +490,7 @@ never inferred from `*`; it must be constructed explicitly and referenced by
 its own name:
 
 ```rix
-vd := .linalg.DualCoordinates(v, "chosen dual", basisData);
+vd := .linalg.DualFrame(v, "chosen dual", basisData);
 t := {:2x2: /Tensor: V@vd/ components};
 ```
 
@@ -496,8 +500,8 @@ t := {:2x2: /Tensor: V@vd/ components};
   shaped-literal-only sugar.
 - [ ] Confirm that existing `/::Matrix/` remains supported and canonical in
   general semantic headers.
-- [ ] Confirm whether documentation prints compact shaped headers or the
-  general `::Type` form when both are valid.
+- [x] Use compact shaped headers as the canonical documentation, formatter, and
+  export spelling when they can express the complete value.
 - [ ] Confirm `@` and postfix `*` as annotation tokens with no ordinary
   operator evaluation inside the clause.
 - [ ] Confirm display-case resolution (`V` -> user binding `v`) is limited to
@@ -514,15 +518,53 @@ t := {:2x2: /Tensor: V@vd/ components};
 ## Shaped
 
 `Shaped` owns the dense/strided storage protocol. A value records shape,
-strides, offset, backing storage, mutability, scalar-domain information when
-known, and view provenance. It carries no vector-space meaning.
+strides, offset, backing storage, mutability, a declared scalar domain, and view
+provenance. Construction verifies that every entry belongs to or is canonically
+embedded in that declared domain. It carries no vector-space meaning.
 
-- Elementwise `+`, `-`, `*`, and `/` require compatible shapes or an explicit
-  documented scalar/broadcasting rule.
+- For `+`, `-`, `*`, and `/`, two Shaped operands must have exactly the same
+  shape and combine elementwise. A scalar operand applies to every entry. No
+  other shape reconciliation is implicit.
 - `Sum`, `Mean`, `Map`, `Reduce`, reshape, and axis permutation are valid.
 - `Dot`, `MatMul`, determinant, inverse, and contraction are absent.
 - A view remains `Shaped` unless a higher semantic layer explicitly
   proves that its invariants survive the view.
+
+RiX does not implicitly **broadcast** Shaped values. Broadcasting would repeat
+lower-dimensional or singleton-axis data to make shapes agree—for example,
+silently reusing a length-`3` row across a `2x3` value. This is intentionally
+absent because axis alignment and repetition should remain visible in source.
+Scalar arithmetic is a distinct, unambiguous rule rather than broadcasting.
+
+Creating one shape from another is explicit. The core tools should be:
+
+- `Map` or `|>>` when the output keeps the source shape;
+- `Generate(shape, fn)` when each output entry is computed from its index tuple
+  and may read one or more source values;
+- `Reshape` when the element count is unchanged and only the dimensions change;
+- `Permute`/transpose when axes are reordered;
+- named operations such as `Tile`, `Repeat`, `Expand`, or `Pad` only where their
+  repetition/fill policy is fully specified.
+
+For example, repeating a row is expressed as generation rather than hidden in
+arithmetic:
+
+```rix
+row := {:3: 10, 20, 30};
+grid := .Shaped.Generate({: 2, 3 }, idx -> row[idx[2]]);
+```
+
+The generated callback receives the complete one-based destination index tuple,
+so arbitrary explicit remapping can be written without adding implicit
+arithmetic rules. A pipe convenience may desugar to the same generation
+primitive, but it must display the destination shape and index mapping.
+
+There is no implicit cross-domain promotion in the initial design. A `Shaped`
+or `Matrix` value declares one scalar domain and validates all current entries
+on construction and update. Binary operations require the same declared domain
+unless the caller explicitly converts one operand. Canonical embeddings inside
+one declared domain remain valid—for example, integer literals may inhabit a
+`:Rational`-over value—but the result stays declared over that domain.
 
 ## Matrix
 
@@ -536,8 +578,11 @@ representation of a particular linear map.
 - Elementwise multiplication is explicit (`Hadamard`), not `*`.
 - Integer powers are defined for square matrices.
 - Division by a matrix is not introduced; use `Solve` or `Inverse` explicitly.
-- A transpose remains `Matrix`; a slice remains `Matrix` only when the result
-  is rank 2 and the slicing contract explicitly preserves matrix semantics.
+- A transpose remains `Matrix`. A slice remains `Matrix` exactly when its
+  result has two axes, so ordinary matrix methods remain mathematically
+  meaningful. Selecting one entry returns a scalar; selecting a row or column
+  returns `Shaped` because this space-free Matrix type cannot claim it is a
+  coordinate-aware Vector. A two-axis rectangular submatrix remains `Matrix`.
 
 ## Vector and covector
 
@@ -549,22 +594,26 @@ representation. A rank-1 `Shaped` value does not silently become a `Vector`.
 x := {:3: /Vector: V/ 1, 2, 3};
 ```
 
-The design should also expose covectors clearly. Two compatible surface
-choices remain at the decision gate:
+The design exposes covectors with one canonical spelling and one equivalent
+sugar spelling:
 
 ```rix
 p := {:3: /Covector: V/ 4, 5, 6};
 q := {:3: /Vector: V*/ 4, 5, 6};
 ```
 
-The first is clearer to readers; the second makes the rank-1 tensor model more
-uniform. Both may desugar to a one-slot Tensor whose slot is the dual of `V`,
-but there should be one canonical printed spelling.
+`/Covector: V/` is the canonical source and formatter spelling.
+`/Vector: V*/` is accepted sugar. Both desugar to a one-slot Tensor whose slot
+is the dual of `V`.
 
 - Vector addition/subtraction requires the same abstract vector space.
-- Coordinate representations must either agree or undergo an explicit,
-  provenance-recorded coordinate transformation; silent basis changes require
-  a separate decision.
+- For compatible vector addition, subtraction, and comparison, the left
+  operand's frame is the default result frame. If the right operand represents
+  the same abstract vector space in another frame, RiX transforms it into the
+  left frame automatically and records that conversion in provenance. This
+  mirrors unit arithmetic: operand order can select presentation while the
+  abstract mathematical result remains the same. Explicit `Transform` remains
+  available when the caller wants to control the result frame directly.
 - Scalar arithmetic preserves vector identity rules and coordinate metadata.
 - A covector may pair canonically with a vector from its primal space.
 - A dot product, length, angle, normalization, or identification of `V` with
@@ -612,6 +661,24 @@ even for two slots. Infinite-dimensional representations return their declared
 coordinate-storage value instead. An explicit conversion may request a matrix
 view when that interpretation is intended.
 
+A tensor view preserves semantic `Tensor` only when its view operation is
+natural with respect to coordinate change:
+
+```text
+View(Transform(T, targetFrames))
+    == Transform(View(T), correspondingTargetFrames)
+```
+
+and both sides describe the same remaining abstract slots. This is the
+slice/transform commutation rule. Whole-slot permutation and a full-extent view
+can satisfy it when their slot metadata is permuted or retained. Selecting a
+component index or a strict coordinate range generally does not: a basis change
+mixes the selected components with omitted ones. Such a view returns component
+storage (`Shaped` or another coordinate-storage value), unless it is expressed
+as a genuine tensor operation such as contraction with a covector. Each
+candidate view operation must prove this law rather than infer Tensor status
+from output rank alone.
+
 # Identity and provenance
 
 Coordinate transformation changes a representation, not the abstract tensor:
@@ -626,8 +693,13 @@ Coordinate transformation changes a representation, not the abstract tensor:
   abstract identity and records `derivedFrom` provenance instead of
   `equivalentTo` equivalence.
 
-Serialization must use stable IDs and bounded records rather than recursively
-embedding an unbounded in-memory object chain.
+Lineage retention is configurable per runtime, with an initial default of the
+origin record plus the 30 most recent transformation records for each abstract
+tensor. The origin is never evicted. Once the recent-record limit is exceeded,
+the oldest intermediate record is evicted as each new transformation is added.
+An optional per-value override may lower or raise the recent-record limit while
+still preserving the origin. Serialization uses stable IDs and this bounded
+record collection rather than recursively embedding object chains.
 
 # Runtime and system-method naming
 
@@ -636,24 +708,32 @@ The current implementation uses “tensor” for all rank-N shaped storage:
 `TENSOR_TRANSPOSE`, `.TGEN`, and the public Tensor method group. Once `Tensor`
 means only a mathematical tensor, those public names are misleading.
 
-Preferred target names:
+Preferred target names for the coordinated pre-release rename:
 
-| Current name | Target name | Compatibility policy |
+| Current experimental name | Target name | Migration rule |
 |---|---|---|
-| Tensor runtime method group | Shaped method group | Move generic methods; document semantic dispatch |
+| Tensor runtime method group | Shaped method group | Move generic methods; remove the old group |
 | generic `tensor` semantic trait | storage-specific traits | Reserve `tensor` for mathematics; use `shaped`, `sparseCoordinates`, or later coordinate-provider traits on component storage |
-| `tensor.js` helpers | `shaped-array.js` helpers | Add new exports first; keep deprecated forwarding exports temporarily |
-| `isTensor` / `createTensor` | `isShapedArray` / `createShapedArray` | Mechanical migration after behavior is covered |
-| `TENSOR_LITERAL` | `SHAPED_ARRAY_LITERAL` | IR-version migration with reader compatibility |
+| `tensor.js` helpers | `shaped.js` helpers | Rename all imports and remove the old module |
+| `isTensor` / `createTensor` | `isShaped` / `createShaped` | Rename all callers; retain no forwarding exports |
+| `TENSOR_LITERAL` | `SHAPED_LITERAL` | Update parser/lowering/evaluator/tests together |
 | `TENSOR_TRANSPOSE` | semantic transpose/axis permutation dispatch | `Matrix` and `Tensor` preserve their own invariants |
-| `.TGEN` | `.Shaped.Generate` or a settled short alias | Keep `.TGEN` deprecated for one compatibility window |
-| runtime `._type = tensor` | `._type = shapedArray` | Change only with import/export and host compatibility support |
+| `.TGEN` | `.Shaped.Generate` or another selected long form | Replace it directly; no legacy short alias is required |
+| runtime `._type = tensor` | `._type = shaped` | Rename repository-owned values, schemas, formatters, and tests together |
 | semantic `:Tensor` on generic storage | `:Shaped` | Reserve `:Tensor` for complete slot metadata |
 
-Do not perform all renames in one commit. Introduce target names and adapters,
-migrate internal consumers, then deprecate old public names. The runtime tag may
-remain `tensor` as a private compatibility detail longer than the public method
-group; semantic correctness does not require an immediate storage-tag rename.
+RiX is unreleased, so the completed migration retains no deprecated aliases,
+forwarding modules, compatibility mode, old IR reader, or old serialized tag.
+The work may still be split into reviewable commits on one migration branch,
+but the branch is not considered complete or mergeable until every repository
+consumer uses the new contract.
+
+`.TGEN(shape, fn)` currently generates shaped storage by calling `fn` once for
+each one-based index tuple. For example, `.TGEN({: 2, 3 }, idx -> ...)` builds a
+`2x3` value. The `T` meant “tensor” under the old generic-storage terminology.
+Its long replacement should say `Shaped` and `Generate`; whether any short
+convenience name is desirable remains a naming decision, not a compatibility
+requirement.
 
 # Staged implementation checklist
 
@@ -666,9 +746,9 @@ group; semantic correctness does not require an immediate storage-tag rename.
 - [ ] Add characterization tests for current literals, views, mutation,
   destructuring, pipes, async collections, formatting, sheets, workers, and
   plugin inputs before renaming anything.
-- [ ] Record which current APIs are public compatibility promises versus
-  internal implementation details.
-- [ ] Choose the IR and interchange version transition policy.
+- [ ] Inventory every current name that must be removed; none is a released
+  compatibility promise.
+- [ ] Choose one coordinated IR and interchange cutover with no legacy reader.
 - [ ] Publish the approved syntax examples and operator table as the migration
   contract.
 
@@ -681,12 +761,12 @@ group; semantic correctness does not require an immediate storage-tag rename.
 - [ ] Land this stage independently before `Shaped` semantics so failures
   have one clear cause.
 
-## Stage 2 — Introduce shaped-storage vocabulary without behavior changes
+## Stage 2 — Rename the shaped-storage implementation without semantic changes
 
-- [ ] Add `shaped-array.js` names as forwarding or canonical helpers while
-  retaining compatibility exports from `tensor.js`.
-- [ ] Add `isShapedArray`, `createShapedArray`, view, indexing, traversal, and
-  shape helpers.
+- [ ] Rename `tensor.js` to `shaped.js` and update every import; do not retain a
+  forwarding module.
+- [ ] Rename helpers to `isShaped`, `createShaped`, and the corresponding view,
+  indexing, traversal, and shape vocabulary.
 - [ ] Rename internal local variables and documentation categories where the
   value is only shaped storage.
 - [ ] Add a `Shaped` semantic registration with validation,
@@ -694,17 +774,18 @@ group; semantic correctness does not require an immediate storage-tag rename.
 - [ ] Add the shared `shaped` trait and migrate the current generic `tensor`
   trait without implying that every Vector or Tensor representation is dense
   and finite.
-- [ ] Keep existing literals behavior-compatible behind an explicit feature
-  flag or migration branch until Stage 3.
-- [ ] Prove Node, worker, browser, sheet, output, and plugin consumers accept
-  the compatibility layer.
+- [ ] Keep this work isolated on the migration branch until Stage 3 supplies
+  the new public semantics.
+- [ ] Prove Node, worker, browser, sheet, output, and plugin consumers use the
+  renamed implementation with no old-name adapters.
 
 ## Stage 3 — Make literals default to Shaped and isolate Matrix
 
 - [ ] Parse and lower shaped-literal interpretation headers.
 - [ ] Make inferred-semicolon and explicit-shape literals default to
   `Shaped`.
-- [ ] Implement `/Shaped/`, `/Matrix/`, and legacy `/::Matrix/` handling.
+- [ ] Implement `/Shaped/`, `/Matrix/`, and the general `/::Matrix/` semantic
+  header form.
 - [ ] Require `Matrix` rank 2 and a supported scalar domain.
 - [ ] Remove the current placeholder `Matrix` parent relationship to semantic
   `Tensor`; use the shared `shaped` protocol instead.
@@ -712,22 +793,33 @@ group; semantic correctness does not require an immediate storage-tag rename.
   powers out of the generic shaped-array method surface.
 - [ ] Install type-specific arithmetic variants: elementwise shaped-array
   arithmetic versus conventional matrix arithmetic.
+- [ ] Require exact shape equality for Shaped-to-Shaped arithmetic, support
+  scalar application entrywise, and reject every other implicit shape
+  combination with diagnostics naming both shapes.
+- [ ] Provide explicit shape construction through `Generate`, `Map`, `Reshape`,
+  and `Permute`; add `Tile`/`Repeat`/`Expand`/`Pad` only with fully specified
+  policies and no participation in implicit arithmetic.
 - [ ] Add explicit `Hadamard` for matrices.
-- [ ] Define result-type rules for reshape, transpose, indexing, slicing,
-  concatenation, mapping, and reductions.
+- [ ] Implement the agreed slice rule: every two-axis matrix slice remains
+  Matrix; scalar selections return scalars and one-axis selections return
+  Shaped. Define corresponding rules for reshape, concatenation, mapping, and
+  reductions.
+- [ ] Store a declared scalar domain on Shaped and Matrix values, validate all
+  entries on construction/update, and reject cross-domain operations until an
+  explicit conversion is requested.
 - [ ] Update `.linalg`, `.optimize`, `.solve`, `.Sheet`, formatters, and examples
   to request `Matrix` where matrix semantics are required.
 - [ ] Add clear diagnostics suggesting `~!: :Matrix` when a shaped array is
   passed to a matrix-only operation.
-- [ ] Keep a compatibility mode for old untyped rank-2 plugin inputs, with one
-  documented removal window rather than silent permanent coercion.
+- [ ] Update all untyped rank-2 plugin inputs to request Matrix or explicitly
+  convert Shaped values; provide no compatibility mode.
 
 ## Stage 4 — Implement coordinate-aware Vector and complete Tensor slots
 
 - [ ] Replace the placeholder `Vector` semantic type with one-slot coordinate-
   storage validation and one required frame; finite shaped literals require a
   rank-1 `Shaped` component value.
-- [ ] Decide and implement canonical covector source syntax.
+- [ ] Implement canonical `/Covector: V/` syntax and `/Vector: V*/` sugar.
 - [ ] Share identity, representation, coordinate transformation, and
   serialization machinery between Vector, Covector, and Tensor.
 - [ ] Accept component storage through a versioned coordinate-storage protocol;
@@ -738,8 +830,8 @@ group; semantic correctness does not require an immediate storage-tag rename.
   raising/lowering between a space and its dual.
 - [ ] Replace the one-space `CoordinateTensor` assumption with ordered slot
   descriptors supporting distinct vector spaces and dimensions.
-- [ ] Decide whether the public coordinatized-space value is named
-  `Coordinates`, `Frame`, or another single canonical term.
+- [x] Name the public ordered-basis/coordinatized-space value `Frame`; remove
+  the experimental `Coordinates` name during the migration.
 - [ ] Implement canonical dual spaces and dual coordinate bases.
 - [ ] Implement explicit noncanonical dual-coordinate construction.
 - [ ] Parse, lower, resolve, and validate `/Tensor: V@V*@Wa/`.
@@ -752,32 +844,34 @@ group; semantic correctness does not require an immediate storage-tag rename.
   frame.
 - [ ] Implement tensor product, valid contraction, compatible addition, scalar
   arithmetic, and slot permutation.
-- [ ] Return shaped arrays from `Components()` and representation-bound partial
-  component slices.
+- [ ] Return the declared coordinate-storage value from `Components()` and
+  apply the slice/transform commutation rule to every proposed Tensor view.
 - [ ] Define tensor equality, `SameTensor`, structural equality of independent
   tensors, and equality across coordinate representations.
 - [ ] Add stable serialization for spaces, frames, slots, abstract IDs,
   representation IDs, and bounded provenance.
+- [ ] Implement configurable lineage retention with a permanent origin and a
+  default ring of the 30 most recent transformation records.
 
-## Stage 5 — Migrate names, hosts, and documentation
+## Stage 5 — Complete the coordinated rename across hosts and documentation
 
-- [ ] Introduce the target IR names and support reading the previous IR version.
-- [ ] Migrate parser AST names only if doing so materially improves public AST
-  clarity; otherwise document legacy node names as syntax-level artifacts.
+- [ ] Replace the old IR names directly and regenerate all repository-owned IR
+  fixtures; do not retain the experimental IR reader.
+- [ ] Rename parser AST nodes wherever they still call shaped storage a tensor;
+  no legacy syntax-level artifacts should remain in the unreleased API.
 - [ ] Migrate runtime methods, standard functions, destructuring diagnostics,
   formatter labels, reference generation, editor tooling, and completions.
 - [ ] Migrate all bundled plugins and examples from generic tensor assumptions.
 - [ ] Update RiX Web and RiX Notebook consumers in coordinated changes.
-- [ ] Add deprecation diagnostics for `.TGEN` and any other superseded public
-  capability only after replacements work in every host.
+- [ ] Replace `.TGEN` and every other superseded capability after its selected
+  replacement works in every host; remove rather than deprecate the old name.
 - [ ] Regenerate the system reference and search the repository for stale uses
   of “tensor” that actually mean shaped storage.
-- [ ] Retain “tensor” where it refers to mathematical tensors, tensor products,
-  tensor slots, or deliberate compatibility names.
+- [ ] Retain “tensor” only where it refers to mathematical tensors, tensor
+  products, or tensor slots.
 
-## Stage 6 — Removal and advanced tensor algebra
+## Stage 6 — Advanced tensor algebra
 
-- [ ] Remove compatibility aliases only in a declared breaking release.
 - [ ] Add metrics and validated raising/lowering of indices; never identify a
   space with its dual without a metric or explicit isomorphism.
 - [ ] Add symmetrization, antisymmetrization, traces, tensor powers, and named
@@ -796,6 +890,10 @@ Implementation is not complete until tests cover at least these cases:
 - [ ] `[1,2;3,4]` and `{:2x2: ...}` produce `Shaped` by default.
 - [ ] `/Matrix/` accepts rank 2 and rejects every other rank.
 - [ ] Shaped-array `*` is elementwise while matrix `*` is matrix product.
+- [ ] All Shaped binary arithmetic accepts identical shapes and scalars but
+  rejects mismatched Shaped operands without broadcasting.
+- [ ] `Generate` can explicitly construct a destination shape by indexing one
+  or more source Shaped values.
 - [ ] Matrix `Hadamard` remains available explicitly.
 - [ ] Generic shaped arrays have no `MatMul`, determinant, inverse, or tensor
   contraction methods.
@@ -820,35 +918,48 @@ Implementation is not complete until tests cover at least these cases:
   same abstract tensor.
 - [ ] Bang transformation retains bounded history without changing abstract
   identity.
+- [ ] Lineage always retains the origin plus the configured number of recent
+  transformations (default 30), evicting the oldest intermediate record first.
+- [ ] Tensor-preserving views satisfy the slice/transform commutation law;
+  coordinate component slices that fail it return component storage.
 - [ ] Tensor arithmetic creates a new abstract identity with derivation
   provenance rather than an equivalence link.
 - [ ] Invalid contractions report the incompatible slots and spaces.
 - [ ] Mixed-case type and trait spellings resolve identically and export with
   canonical spelling.
-- [ ] Old serialized shaped values and supported IR versions still import.
+- [ ] Repository-owned serialized fixtures and IR use only the new names; old
+  experimental tags and IR functions are rejected or unknown.
 - [ ] CLI, workers, RiX Web, RiX Notebook, sheets, renderers, and bundled
   plugins pass their targeted suites.
-- [ ] The complete RiX suite passes with no compatibility mode enabled before
-  old names are removed.
+- [ ] The complete RiX suite passes after old names and compatibility adapters
+  have been removed.
 
 # Open decisions
 
-- [ ] Confirm `Frame` as the canonical public name for an ordered basis and
-  keep `Coordinates` only for the declared compatibility window.
-- [ ] Select the long-form replacement and optional short alias for `.TGEN`.
-- [ ] Decide whether runtime `type: "tensor"` ever needs a breaking rename or
-  may remain a private storage tag indefinitely.
-- [ ] Define broadcasting, if any, before making shaped-array arithmetic
-  public; do not inherit a NumPy policy accidentally.
-- [ ] Define scalar-domain promotion for Shaped and Matrix results.
-- [ ] Decide which matrix slices preserve `Matrix` and which deliberately
-  degrade to `Shaped`.
-- [ ] Choose `/Covector: V/` versus `/Vector: V*/` as the canonical covector
-  spelling and decide whether the other is accepted as sugar.
-- [ ] Decide whether compatible vector arithmetic automatically transforms one
-  representation or requires an explicit coordinate change.
-- [ ] Decide whether a tensor's full-slot-preserving component view can remain
-  a Tensor representation or whether all direct slicing returns shaped data.
-- [ ] Specify memory bounds and retention policy for representation lineage.
-- [ ] Decide whether the compact shaped header is exported verbatim or
-  normalized to a canonical long form by formatters.
+- [x] Use `Frame` as the canonical public name for an ordered basis and remove
+  the experimental `Coordinates` name with no compatibility alias.
+- [ ] Select the long-form replacement for `.TGEN`, which currently generates
+  shaped storage from a shape and index callback. `.Shaped.Generate` is the
+  current candidate; no legacy short alias is required.
+- [x] Rename runtime `type: "tensor"` to `type: "shaped"` and remove the old
+  tag throughout the repository during the coordinated pre-release migration.
+- [x] Do not broadcast Shaped values. Require identical shapes for elementwise
+  Shaped-to-Shaped arithmetic, allow scalar application to every entry, and use
+  explicit generation/mapping/reshape/axis/repetition operations for every
+  other shape conversion.
+- [x] Give every Shaped and Matrix value a declared scalar domain, validate all
+  entries against it, and require explicit conversion for cross-domain binary
+  operations rather than implicit promotion.
+- [x] Preserve Matrix for every two-axis matrix slice; scalar selection returns
+  a scalar, while one-axis row/column selection returns Shaped.
+- [x] Print `/Covector: V/` canonically and accept `/Vector: V*/` as equivalent
+  sugar.
+- [x] For compatible vector arithmetic, transform the right operand into the
+  left operand's frame and return the result in the left frame, recording the
+  automatic conversion in provenance.
+- [x] Preserve Tensor through a view exactly when the view commutes with every
+  applicable coordinate transformation and preserves valid slot metadata;
+  otherwise return coordinate storage.
+- [x] Retain a non-evictable origin plus a configurable recent lineage, with a
+  default of 30 recent transformations per abstract tensor.
+- [x] Use the compact shaped header as the canonical formatter/export spelling.
