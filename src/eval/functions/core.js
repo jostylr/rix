@@ -693,7 +693,15 @@ function validateNumberDisplayProfile(profile) {
     const entries = profile.split(",").map((entry) => entry.replace(/\s+/g, "")).filter(Boolean);
     if (!entries.length) throw new Error("Number display profile cannot be empty");
     for (const entry of entries) {
-        if (/^(?:\.\[\d+\]|\.\.|mixed|\/|fraction|\.)$/.test(entry)) continue;
+        if (/^(?:\.\[\d+\]|\.\.|mixed|\/|fraction|\.|\.~|cf)$/.test(entry)) continue;
+        const scientific = entry.match(/^(?:sci|scientific|sci-period|scientific-period)(?:\[(\d+)\])?$/);
+        if (scientific) {
+            const precision = scientific[1] ? Number(scientific[1]) : 10;
+            if (!Number.isSafeInteger(precision) || precision < 1) {
+                throw new Error("Scientific display precision must be a positive safe integer");
+            }
+            continue;
+        }
         const match = entry.match(/^([A-Za-z]|z\[(\d+)\])(?:\.\.|\/|\.|\.\[\d+\])?$/);
         if (!match) throw new Error(`Unknown number display token '${entry}'`);
         if (match[1].length === 1 && !BaseSystem.getSystemForPrefix(match[1])) {

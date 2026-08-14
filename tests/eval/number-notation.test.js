@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { BaseSystem, Integer, Rational } from "@ratmath/core";
+import { BaseSystem, Integer, Rational, RationalInterval } from "@ratmath/core";
 import {
     createDefaultSystemContext,
     parseAndEvaluate,
@@ -70,6 +70,21 @@ describe("session number notation", () => {
         expect(formatValue(result, { context: state.context })).toBe("5 · 101");
         expect(() => parseAndEvaluate("1", { ...state, numberConfig: { display: "not-a-profile" } }))
             .toThrow("Unknown number display token");
+    });
+
+    test("formats continued fractions and scientific views from session profiles", () => {
+        const state = session();
+        parseAndEvaluate(`*> "cf,sci[6]"`, state);
+        expect(formatValue(parseAndEvaluate(`7/4`, state), { context: state.context }))
+            .toBe("1.~1~3 · 1.75E0");
+        expect(formatValue(new RationalInterval(new Rational(7n, 4n), new Rational(1n, 3n)), {
+            context: state.context,
+        })).toBe("1.~1~3:0.~3 · 1.75E0:3.#3E-1");
+    });
+
+    test("validates scientific display precision", () => {
+        expect(() => parseAndEvaluate(`*> "sci[0]"`, session()))
+            .toThrow("precision must be a positive safe integer");
     });
 
     test("_>! returns lossless, explicitly based RiX source", () => {

@@ -318,6 +318,17 @@ function profileNumber(value, profile, context) {
     const rational = numericRational(value);
     if (token === ".." || token === "mixed") return rational.toMixedString();
     if (token === "/" || token === "fraction") return `${rational.numerator}/${rational.denominator}`;
+    if (token === ".~" || token === "cf") return rational.toContinuedFractionString();
+    const scientific = token.match(/^(?:sci|scientific)(?:\[(\d+)\])?$/);
+    if (scientific) {
+        const precision = scientific[1] ? Number(scientific[1]) : 10;
+        return rational.toScientificNotation(true, precision, false);
+    }
+    const scientificWithPeriod = token.match(/^(?:sci-period|scientific-period)(?:\[(\d+)\])?$/);
+    if (scientificWithPeriod) {
+        const precision = scientificWithPeriod[1] ? Number(scientificWithPeriod[1]) : 10;
+        return rational.toScientificNotation(true, precision, true);
+    }
     const decimal = token.match(/^\.\[(\d+)\]$/);
     if (decimal) return decimalPresentation(rational, Number(decimal[1]));
 
@@ -346,6 +357,13 @@ function profileNumber(value, profile, context) {
 export function formatNumberWithProfile(value, profile, context = null) {
     const pieces = String(profile || "..").split(",").map((part) => part.trim()).filter(Boolean);
     return pieces.map((part) => profileNumber(value, part, context)).join(" · ");
+}
+
+function formatIntervalWithProfile(value, profile, context = null) {
+    const pieces = String(profile || "..").split(",").map((part) => part.trim()).filter(Boolean);
+    return pieces.map((part) =>
+        `${profileNumber(value.start, part, context)}:${profileNumber(value.end, part, context)}`
+    ).join(" · ");
 }
 
 /** Lossless RiX source used by copy/injection controls. */
@@ -516,7 +534,13 @@ export function formatValue(val, options = {}) {
             ? formatNumberWithProfile(val, profile, options.context)
             : val instanceof Rational ? val.toMixedString() : val.toString();
     }
-    if (val instanceof RationalInterval) return val.toMixedString();
+    if (val instanceof RationalInterval) {
+        const profile = options.numberDisplay
+            ?? options.context?.getEnv?.("numDisplay", null);
+        return profile
+            ? formatIntervalWithProfile(val, profile, options.context)
+            : val.toMixedString();
+    }
     if (val instanceof CertifiedApproximation) return val.toString();
     if (val instanceof HaloNeighborhood) return val.toString();
     return val.toString();

@@ -50,6 +50,9 @@ A profile is a comma-separated list. Whitespace around entries is ignored.
 | `.[n]` | decimal with at most `n` fractional places; `…` marks truncation |
 | `..` or `mixed` | decimal mixed fraction |
 | `/` or `fraction` | decimal improper fraction |
+| `cf` or `.~` | continued fraction |
+| `sci[n]` | scientific notation with `n` significant digits |
+| `sci-period[n]` | scientific notation with repeating-period information |
 | `b`, `o`, `x`, `u` | registered base prefix, without the leading `0` |
 | `z[n]` | built-in positional base `n` |
 | `b..`, `x..` | mixed fraction in that base |
