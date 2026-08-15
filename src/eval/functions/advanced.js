@@ -387,7 +387,9 @@ export const advancedFunctions = {
             const values = (hasMeta ? args.slice(2) : args.slice(1)).map((arg) => captureIrValue(arg, defaultMode, context, evaluate));
             const shaped = attachBuiltinProto(createShaped(shape, values.length === 0 ? null : values));
             if (Array.isArray(header.slots)) {
-                const constructTyped = context?.getEnv?.("__linalg_typed_shaped__", null);
+                const constructors = context?.getEnv?.("__typed_shaped_constructors__", null);
+                const registered = constructors?.get?.(String(header.typeName || "").toLowerCase()) || null;
+                const constructTyped = registered || context?.getEnv?.("__linalg_typed_shaped__", null);
                 if (typeof constructTyped !== "function") {
                     throw new Error(`/${header.typeName}: .../ requires the linalg plugin; call .Plugin.Load("linalg") first`);
                 }
@@ -396,7 +398,17 @@ export const advancedFunctions = {
                     if (frame === undefined) throw new Error(`Unknown frame binding '${slot.bindingName}' in /${header.typeName}: .../`);
                     return { ...slot, frame };
                 });
-                return constructTyped(shaped, header, resolvedSlots, context);
+                if (!registered) return constructTyped(shaped, header, resolvedSlots, context);
+                return constructTyped(shaped, {
+                    type: "sequence",
+                    values: resolvedSlots.map((slot) => ({
+                        type: "map",
+                        entries: new Map([
+                            ["frame", slot.frame],
+                            ["dual", slot.dual ? new Integer(1n) : null],
+                        ]),
+                    })),
+                }, context, evaluate);
             }
             return applySemanticHeader(shaped, header, context);
         },

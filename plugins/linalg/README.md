@@ -19,8 +19,10 @@ result := .linalg.Solve(A, [5, 1]);
 result.solution;
 ```
 
-Phase 1 is a deterministic host implementation while the coordinate-value and
-algorithm protocols settle. It requests no external permissions.
+Phase 1 is implemented in pure RiX and requests no external permissions. The
+host supplies only the public shaped-constructor registration hook used by
+typed `/Vector/`, `/Covector/`, and `/Tensor/` headers; all exact algorithms,
+coordinate transformations, identities, and bounded lineage are RiX code.
 
 ```rix
 vspace := .linalg.VectorSpace({= name="V", dimension=2, over=:Rational });

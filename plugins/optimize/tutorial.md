@@ -1,6 +1,6 @@
 ---
 title: Exact linear programming
-description: Solve a bounded standard-form linear program with exact Rational simplex arithmetic.
+description: Solve a bounded standard-form linear program with pure-RiX exact Rational simplex arithmetic.
 theme: Algebra and analysis
 plugin: optimize
 status: implemented

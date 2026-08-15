@@ -385,6 +385,9 @@ tracked in
      link while updating the receiver.
    - [x] Register the `LinearAlgebra` and `Exact` groups, versioned services and
      schemas, reference documentation, tutorial, and focused tests.
+   - [x] Port the dense algorithms, typed coordinate values, transformations,
+     tensor operators, and bounded lineage to pure RiX; retain the former host
+     implementation only as a non-discoverable comparison source.
 2. **Phase 2 — Exact decompositions and coordinate maps**
    - [ ] Add fraction-free elimination, LU/LDU, exact QR where supported,
      row/column spaces, nullspaces, determinant certificates, and reusable
@@ -436,6 +439,9 @@ tracked in
      tableau, and diagnostics through versioned portable result schemas.
    - [x] Register `Optimization`/`Exact` groups, depend on the linear-algebra
      service, and add documentation, tutorial, and focused tests.
+   - [x] Port the Phase 1 model, evaluator, and deterministic exact simplex
+     implementation to pure RiX; retain the JavaScript algorithm only as a
+     non-discoverable reference source.
 2. **Phase 2 — General LP forms and certificates**
    - [ ] Add Phase I feasibility, equality and greater-than constraints,
      arbitrary variable bounds, free variables, presolve, and degeneracy/cycle
@@ -470,6 +476,9 @@ tracked in
      return named exact solutions plus the underlying rank/RREF evidence.
    - [x] Add direct matrix `Linear`, symbolic `System`, and `Classify` entry
      points, the `Solve`/`Symbolic`/`Exact` groups, docs, tutorial, and tests.
+   - [x] Port the symbolic consumer to pure RiX over `.InspectSpec`,
+     `.SpecRoles`, and the pure `rix.linear-algebra@1` service; retain the host
+     implementation only as a non-discoverable comparison source.
 2. **Phase 2 — Domain dispatch and solution sets**
    - [ ] Dispatch linear inequalities/objectives to `.optimize`, univariate
      polynomial equations to `.poly`/`.algebraicReal`, and supported scalar

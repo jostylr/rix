@@ -1,4 +1,4 @@
-/** Exact Phase 1 linear-program models and deterministic simplex solving. */
+/** Historical JavaScript Phase 1 optimizer retained only for parity reference. */
 
 import { Integer, Rational } from "@ratmath/core";
 import { entriesFor, field } from "../scene3d/scene3d.js";

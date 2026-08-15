@@ -52,9 +52,6 @@ import { install as installScene3DPlugin } from "../plugins/scene3d/scene3d.plug
 import { install as installNdPlugin } from "../plugins/nd/nd.plugin.rix.js";
 import { install as installGeometryPlugin } from "../plugins/geometry/geometry.plugin.rix.js";
 import { install as installDataPlugin } from "../plugins/data/data.plugin.rix.js";
-import { install as installLinalgPlugin } from "../plugins/linalg/linalg.plugin.rix.js";
-import { install as installOptimizePlugin } from "../plugins/optimize/optimize.plugin.rix.js";
-import { install as installSolvePlugin } from "../plugins/solve/solve.plugin.rix.js";
 import { install as installDocumentPlugin } from "../plugins/document/document.plugin.rix.js";
 import { install as installTerminalAsciiPlugin } from "../plugins/render-terminal-ascii/terminal-ascii.plugin.rix.js";
 import { install as installSvgPlugin } from "../plugins/render-svg/svg.plugin.rix.js";
@@ -647,9 +644,6 @@ function registerBuiltPluginInstallers(pluginCatalog) {
     pluginCatalog.registerInstaller("nd", ({ systemContext }) => installNdPlugin({ systemContext }));
     pluginCatalog.registerInstaller("geometry", ({ systemContext }) => installGeometryPlugin({ systemContext }));
     pluginCatalog.registerInstaller("data", ({ systemContext }) => installDataPlugin({ systemContext }));
-    pluginCatalog.registerInstaller("linalg", ({ systemContext }) => installLinalgPlugin({ systemContext }));
-    pluginCatalog.registerInstaller("optimize", ({ systemContext }) => installOptimizePlugin({ systemContext }));
-    pluginCatalog.registerInstaller("solve", ({ systemContext }) => installSolvePlugin({ systemContext }));
     pluginCatalog.registerInstaller("document", ({ systemContext }) => installDocumentPlugin({ systemContext }));
     pluginCatalog.registerInstaller("terminal-ascii", installTerminalAsciiPlugin);
     pluginCatalog.registerInstaller("svg", installSvgPlugin);

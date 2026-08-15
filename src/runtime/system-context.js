@@ -203,6 +203,32 @@ function namespaceEntry(context, namespace) {
         },
     });
 
+    value._ext.set("REGISTERSHAPEDCONSTRUCTOR", {
+        type: "method_builtin",
+        name: "RegisterShapedConstructor",
+        impl(args, evaluationContext, _evaluate, invoke) {
+            if (!canRegister(evaluationContext)) {
+                throw new Error(`.${title}.RegisterShapedConstructor is not permitted in this execution context`);
+            }
+            if (namespace !== "host") {
+                throw new Error(".Core.RegisterShapedConstructor is not supported");
+            }
+            const typeName = rixString(args[1], ".Host.RegisterShapedConstructor type");
+            const callable = args[2];
+            if (!isCallableValue(callable)) {
+                throw new Error(".Host.RegisterShapedConstructor requires a receiver-free callable");
+            }
+            const key = typeName.trim().toLowerCase();
+            if (!key) throw new Error("Shaped constructor type must be non-empty");
+            const registry = evaluationContext.getEnv("__typed_shaped_constructors__", new Map());
+            if (registry.has(key)) throw new Error(`Shaped constructor ${typeName} is already registered`);
+            registry.set(key, (components, slots, callContext, callEvaluate) =>
+                invoke(callable, [components, slots], callContext, callEvaluate));
+            evaluationContext.setEnv("__typed_shaped_constructors__", registry);
+            return stringValue(typeName);
+        },
+    });
+
     value._ext.set("FIND", {
         type: "method_builtin",
         name: "Find",

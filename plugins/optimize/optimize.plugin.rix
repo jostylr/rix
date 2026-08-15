@@ -1,0 +1,357 @@
+/**
+id: optimize
+description: Pure-RiX exact linear-program models and deterministic Phase 1 simplex optimization.
+kind: rix
+mount: optimize
+exports: [LinearProgram, Solve, Evaluate, Maximize, Minimize]
+groups: [Optimization, Exact]
+permissions: []
+requires: [rix.linear-algebra@1]
+provides: [rix.optimization@1, rix.linear-program@1]
+schemas: [rix.optimize.linear-program@1, rix.optimize.result@1]
+snapshot: false
+deterministic: true
+defaultEnabled: false
+**/
+
+OptimizeOption(options, key, fallback) -> options.Has(key) ?: options[key] ?_ fallback;
+
+OptimizeExact(value, label) -> {;
+    exact = value ~!: :Rational;
+    exact == _ ?: .Error(@"@{label} must contain only exact Integers or Rationals") ?_ exact;
+};
+
+OptimizeVector(value, label ?= "Vector") -> {;
+    isArray = value ? :Array;
+    isShapedVector = value ? :Shaped ?: value.Rank() == 1 ?_ _;
+    (isArray || isShapedVector) ?: _ ?_ .Error(@"@{label} must be an Array or rank-1 Shaped value");
+    length = isArray ?: value.Len() ?_ value.Size();
+    result := [];
+    {@ index = 1; index <= @length; {;
+        @result ~= @result.Push(OptimizeExact(@value[index], @label));
+    }; index += 1 };
+    result;
+};
+
+OptimizeMatrix(value, label ?= "Matrix") -> {;
+    (value ? :Shaped) ?: _ ?_ .Error(@"@{label} must be a rank-2 Shaped or Matrix value");
+    value.Rank() == 2 ?: _ ?_ .Error(@"@{label} must have rank 2");
+    shape = value.Shape();
+    rowCount = shape[1];
+    columnCount = shape[2];
+    rowCount >= 1 && columnCount >= 1 ?: _ ?_ .Error(@"@{label} cannot be empty");
+    rows := [];
+    {@ row = 1; row <= @rowCount; {;
+        entries := [];
+        {@ column = 1; column <= @columnCount; {;
+            @entries ~= @entries.Push(OptimizeExact(@value[@row,column], @label));
+        }; column += 1 };
+        @rows ~= @rows.Push(entries);
+    }; row += 1 };
+    rows;
+};
+
+OptimizeVectorTensor(values) -> values ~!: :Shaped;
+
+OptimizeMatrixTensor(rows) -> {;
+    rowCount = rows.Len();
+    columnCount = rows[1].Len();
+    flat := [];
+    {@ row = 1; row <= @rowCount; {;
+        {@ column = 1; column <= @columnCount; {;
+            @flat ~= @flat.Push(@rows[@row][column]);
+        }; column += 1 };
+    }; row += 1 };
+    (flat ~!: :Shaped).Reshape({: rowCount, columnCount });
+};
+
+OptimizeZeros(count) -> {;
+    result := [];
+    {@ index = 1; index <= @count; {; @result ~= @result.Push(0); }; index += 1 };
+    result;
+};
+
+OptimizeIdentityRow(length, oneAt) -> {;
+    result := [];
+    {@ index = 1; index <= @length; {;
+        @result ~= @result.Push(index == @oneAt ?: 1 ?_ 0);
+    }; index += 1 };
+    result;
+};
+
+OptimizeConcat(left, right) -> {;
+    result := left.Map((value) -> value);
+    {@ index = 1; index <= @right.Len(); {; @result ~= @result.Push(@right[index]); }; index += 1 };
+    result;
+};
+
+OptimizeDot(left, right) -> {;
+    sum := 0;
+    {@ index = 1; index <= @left.Len(); {; @sum += @left[index] * @right[index]; }; index += 1 };
+    sum;
+};
+
+OptimizeSense(value) -> {;
+    isMinimum = value == :min || value == :minimize || value == "min" || value == "minimize";
+    isMaximum = value == :max || value == :maximize || value == "max" || value == "maximize";
+    (isMinimum || isMaximum) ?: _ ?_ .Error("Linear-program sense must be :max or :min");
+    isMinimum ?: :min ?_ :max;
+};
+
+OptimizeProgram(objective, matrix, bounds, options ?= {= }) -> {;
+    exactObjective = OptimizeVector(objective, "Linear-program objective");
+    exactMatrix = OptimizeMatrix(matrix, "Linear-program constraint matrix");
+    exactBounds = OptimizeVector(bounds, "Linear-program bounds");
+    exactMatrix[1].Len() == exactObjective.Len()
+      ?: _
+      ?_ .Error("Linear-program objective length must equal the matrix column count");
+    exactMatrix.Len() == exactBounds.Len()
+      ?: _
+      ?_ .Error("Linear-program bounds length must equal the matrix row count");
+    relation = OptimizeOption(options, "relation", "<=");
+    relation == "<=" ?: _ ?_ .Error("Phase 1 linear programs require A*x <= b");
+    program = {=
+        valueKind = :linearProgram,
+        schema = "rix.optimize.linear-program@1",
+        objective = OptimizeVectorTensor(exactObjective),
+        A = OptimizeMatrixTensor(exactMatrix),
+        b = OptimizeVectorTensor(exactBounds),
+        sense = OptimizeSense(OptimizeOption(options, "sense", :max)),
+        variableCount = exactObjective.Len(),
+        constraintCount = exactMatrix.Len(),
+        relation = "<=",
+        nonnegative = 1,
+        name = OptimizeOption(options, "name", _),
+        exact = 1
+    };
+    program.__type = "LinearProgram";
+    program.objective = program[:objective];
+    program.A = program[:A];
+    program.b = program[:b];
+    program.sense = program[:sense];
+    program.variableCount = program[:variableCount];
+    program.constraintCount = program[:constraintCount];
+    program.relation = program[:relation];
+    program.nonnegative = program[:nonnegative];
+    program.name = program[:name];
+    program.exact = program[:exact];
+    program._proto = {=
+        Solve = (self, solveOptions ?= {= }) -> OptimizeSolve(self, solveOptions),
+        Evaluate = (self, point) -> OptimizeEvaluate(self, point),
+        Record = (self) -> self
+    };
+    .ImmutableValue(program);
+};
+
+OptimizeRequireProgram(value) -> {;
+    valid = value ? :Map ?: value[:schema] == "rix.optimize.linear-program@1" ?_ _;
+    valid ?: value ?_ .Error("Expected an optimize LinearProgram");
+};
+
+OptimizeResult(program, fields) -> {;
+    result = {=
+        valueKind = :optimizationResult,
+        schema = "rix.optimize.result@1",
+        program = program,
+        method = :exactPrimalSimplex,
+        exact = 1
+    }.Merge(fields);
+    result.__type = "OptimizationResult";
+    result.schema = result[:schema];
+    result.program = result[:program];
+    result.method = result[:method];
+    result.exact = result[:exact];
+    result.status = result[:status];
+    result.solution = result[:solution];
+    result.objectiveValue = result[:objectiveValue];
+    result.iterations = result[:iterations];
+    result.enteringVariable = result[:enteringVariable];
+    result.tableau = result[:tableau];
+    result.diagnostics = result[:diagnostics];
+    result.slacks = result[:slacks];
+    result.feasible = result[:feasible];
+    result.basis = result[:basis];
+    result._proto = {= Record=(self)->self };
+    .ImmutableValue(result);
+};
+
+OptimizePivot(tableau, pivotRow, pivotColumn) -> {;
+    pivotValue = tableau[pivotRow][pivotColumn];
+    normalized = tableau[pivotRow].Map((value) -> value / pivotValue);
+    result := tableau.Set(pivotRow, normalized);
+    {@ row = 1; row <= @result.Len(); {;
+        row != @pivotRow && @result[row][@pivotColumn] != 0
+          ?: {;
+              factor = @result[@row][@pivotColumn];
+              replacement = @result[@row].Map((value, column) -> value - @factor * @normalized[column]);
+              @result ~= @result.Set(@row, replacement);
+          }
+          ?_ _;
+    }; row += 1 };
+    result;
+};
+
+OptimizeInitialTableau(program) -> {;
+    matrix = OptimizeMatrix(program[:A]);
+    bounds = OptimizeVector(program[:b]);
+    objective = OptimizeVector(program[:objective]);
+    constraintCount = matrix.Len();
+    rows := [];
+    {@ row = 1; row <= @constraintCount; {;
+        withSlack = OptimizeConcat(@matrix[row], OptimizeIdentityRow(@constraintCount, row));
+        @rows ~= @rows.Push(OptimizeConcat(withSlack, [@bounds[row]]));
+    }; row += 1 };
+    effective = program[:sense] == :min ?: objective.Map((value) -> -value) ?_ objective;
+    rows ~= rows.Push(OptimizeConcat(effective.Map((value) -> -value), OptimizeConcat(OptimizeZeros(constraintCount), [0])));
+    rows;
+};
+
+OptimizeFirstNegative(row, lastColumn) -> {;
+    found := 0;
+    {@ column = 1; column <= @lastColumn && @found == 0; {;
+        @row[column] < 0 ?: {; @found ~= @column; } ?_ _;
+    }; column += 1 };
+    found;
+};
+
+OptimizeLeavingRow(tableau, basis, entering, constraintCount, rhsColumn) -> {;
+    leaving := 0;
+    bestRatio := _;
+    {@ row = 1; row <= @constraintCount; {;
+        coefficient = @tableau[row][@entering];
+        coefficient > 0
+          ?: {;
+              ratio = @tableau[@row][@rhsColumn] / @coefficient;
+              better = @bestRatio == _ || ratio < @bestRatio || (ratio == @bestRatio && @basis[@row] < @basis[@leaving]);
+              better ?: {; @bestRatio ~= @ratio; @leaving ~= @row; } ?_ _;
+          }
+          ?_ _;
+    }; row += 1 };
+    leaving;
+};
+
+OptimizeSolve(value, options ?= {= }) -> {;
+    program = OptimizeRequireProgram(value);
+    maxIterations = OptimizeOption(options, "maxiterations", 10000) ~!: :Integer;
+    maxIterations >= 1 ?: _ ?_ .Error("Simplex maxIterations must be positive");
+    objective = OptimizeVector(program[:objective]);
+    matrix = OptimizeMatrix(program[:A]);
+    bounds = OptimizeVector(program[:b]);
+    bounds.All((bound) -> bound >= 0)
+      ?: _
+      ?_ .Error("Phase 1 simplex requires nonnegative b so x=0 is an initial feasible point");
+    variableCount = objective.Len();
+    constraintCount = matrix.Len();
+    totalColumns = variableCount + constraintCount;
+    rhsColumn = totalColumns + 1;
+    tableau := OptimizeInitialTableau(program);
+    basis := [];
+    {@ index = 1; index <= @constraintCount; {;
+        @basis ~= @basis.Push(@variableCount + index);
+    }; index += 1 };
+    iterations := 0;
+    status := :running;
+    entering := 0;
+    {@ step = 1; @status == :running && @iterations < @maxIterations; {;
+        objectiveRow = @tableau[@constraintCount + 1];
+        @entering ~= OptimizeFirstNegative(objectiveRow, @totalColumns);
+        @entering == 0
+          ?: {; @status ~= :optimal; }
+          ?_ {;
+              leaving = OptimizeLeavingRow(@tableau, @basis, @entering, @constraintCount, @rhsColumn);
+              leaving == 0
+                ?: {; @status ~= :unbounded; }
+                ?_ {;
+                    @tableau ~= OptimizePivot(@tableau, @leaving, @entering);
+                    @basis ~= @basis.Set(@leaving, @entering);
+                    @iterations += 1;
+                };
+          };
+    }; step += 1 };
+    status == :running ?: {; @status ~= :iterationLimit; } ?_ _;
+
+    status == :unbounded
+      ?: OptimizeResult(program, {=
+          status="unbounded",
+          solution=_,
+          objectiveValue=_,
+          iterations=iterations,
+          enteringVariable=entering,
+          tableau=OptimizeMatrixTensor(tableau),
+          diagnostics=["No leaving row exists for the selected improving direction"]
+      })
+      ?_ status == :iterationLimit
+           ?: OptimizeResult(program, {=
+               status="iterationLimit",
+               solution=_,
+               objectiveValue=_,
+               iterations=iterations,
+               tableau=OptimizeMatrixTensor(tableau),
+               diagnostics=["Simplex iteration limit reached"]
+           })
+           ?_ {;
+               solution := OptimizeZeros(@variableCount);
+               {@ row = 1; row <= @constraintCount; {;
+                   column = @basis[row];
+                   column <= @variableCount
+                     ?: {; @solution ~= @solution.Set(@column, @tableau[@row][@rhsColumn]); }
+                     ?_ _;
+               }; row += 1 };
+               slacks := [];
+               {@ row = 1; row <= @constraintCount; {;
+                   @slacks ~= @slacks.Push(@bounds[row] - OptimizeDot(@matrix[row], @solution));
+               }; row += 1 };
+               OptimizeResult(@program, {=
+                   status="optimal",
+                   solution=OptimizeVectorTensor(solution),
+                   objectiveValue=OptimizeDot(@objective, solution),
+                   slacks=OptimizeVectorTensor(slacks),
+                   feasible=slacks.All((slack)->slack >= 0),
+                   iterations=@iterations,
+                   basis=@basis,
+                   tableau=OptimizeMatrixTensor(@tableau),
+                   diagnostics=[]
+               });
+           };
+};
+
+OptimizeEvaluate(value, point) -> {;
+    program = OptimizeRequireProgram(value);
+    exactPoint = OptimizeVector(point, "Linear-program point");
+    exactPoint.Len() == program[:variableCount]
+      ?: _
+      ?_ .Error("Point dimension does not match the LinearProgram");
+    matrix = OptimizeMatrix(program[:A]);
+    bounds = OptimizeVector(program[:b]);
+    lhs = matrix.Map((row) -> OptimizeDot(row, exactPoint));
+    slacks = bounds.Map((bound, row) -> bound - lhs[row]);
+    result = {=
+        valueKind=:optimizationEvaluation,
+        objectiveValue=OptimizeDot(OptimizeVector(program[:objective]), exactPoint),
+        feasible=exactPoint.All((entry)->entry >= 0) && slacks.All((slack)->slack >= 0),
+        lhs=OptimizeVectorTensor(lhs),
+        slacks=OptimizeVectorTensor(slacks)
+    };
+    result.__type = "OptimizationEvaluation";
+    result.objectiveValue = result[:objectiveValue];
+    result.feasible = result[:feasible];
+    result.lhs = result[:lhs];
+    result.slacks = result[:slacks];
+    .ImmutableValue(result);
+};
+
+OptimizeConvenience(objective, matrix, bounds, options, sense) -> {;
+    configured = options.Merge({= sense=sense });
+    OptimizeSolve(OptimizeProgram(objective, matrix, bounds, configured), options);
+};
+
+optimizeNamespace = {= };
+optimizeNamespace._proto = {=
+    LinearProgram=(self, objective, matrix, bounds, options ?= {= })->OptimizeProgram(objective, matrix, bounds, options),
+    Solve=(self, program, options ?= {= })->OptimizeSolve(program, options),
+    Evaluate=(self, program, point)->OptimizeEvaluate(program, point),
+    Maximize=(self, objective, matrix, bounds, options ?= {= })->OptimizeConvenience(objective, matrix, bounds, options, :max),
+    Minimize=(self, objective, matrix, bounds, options ?= {= })->OptimizeConvenience(objective, matrix, bounds, options, :min)
+};
+
+.Host.RegisterValue("optimize", optimizeNamespace, "Pure-RiX exact linear programs and deterministic simplex optimization", ["Optimization", "Exact"]);

@@ -26,9 +26,9 @@ The implementation order and per-plugin phased work are tracked in
 | `algebraic-real/` | RiX | `algebraic-real` | Square-free integer polynomials with Sturm-certified isolating intervals; callable aliases `.algebraicReal` and `.ar`. |
 | `oracle/` | RiX | `oracle` | Phase 1 rational-betweenness oracle values, procedures, validation, and bounded refinement. |
 | `numerics/` | RiX | `numerics` | Backend-neutral bounded enclosure, refinement, and sampling protocol orchestration. |
-| `linalg/` | host | `linalg` | Exact dense linear algebra, vector spaces, coordinate systems, and coordinate-aware tensor transformations. |
-| `optimize/` | host | `optimize` | Exact standard-form linear programs and deterministic simplex solving. |
-| `solve/` | host | `solve` | Exact affine matrix and symbolic-system solving over the linear-algebra service. |
+| `linalg/` | RiX | `linalg` | Pure-RiX exact dense linear algebra, vector spaces, coordinate systems, and coordinate-aware tensor transformations. |
+| `optimize/` | RiX | `optimize` | Pure-RiX exact standard-form linear programs and deterministic simplex solving. |
+| `solve/` | RiX | `solve` | Pure-RiX exact affine matrix and symbolic-system solving over the linear-algebra service. |
 | `radix/` | RiX | `radix` | Pure-RiX bounded exact positional expansions and repeating-period analysis. |
 | `fraction/` | RiX | `fraction` | Pure-RiX unreduced Fraction arithmetic and classroom/Farey operations; aliases `.frac` and `.f`. |
 | `ratfun/` | RiX | `ratfun` | Pure-RiX canonical callable RationalFunctions; aliases `.rationalFunction` and `.rf`. |
@@ -76,12 +76,12 @@ packages live separately in [`rix/examples/plugins/`](../examples/plugins/README
 ## RiX/host implementation boundary
 
 Most currently implemented computational exact-number and algebra plugins are
-written in RiX. `.fracfun` remains host-backed for private symbolic-tree work;
-the Phase 1 `.linalg`, `.optimize`, and `.solve` plugins are host-backed while
-their coordinate-value, model, certificate, and symbolic-consumer protocols
-settle. `.float` remains JavaScript intentionally so that IEEE-754 behavior is
-an explicit host boundary. The old JavaScript
-installers for converted packages are retained as non-discoverable
+written in RiX. `.linalg`, `.optimize`, and `.solve` now form a pure-RiX exact
+stack: coordinate-aware dense linear algebra, primal-simplex optimization, and
+affine symbolic solving through the public `.InspectSpec`/`.SpecRoles` boundary.
+`.fracfun` remains host-backed for private symbolic-tree work. `.float` remains JavaScript
+intentionally so that IEEE-754 behavior is an explicit host boundary. The old
+JavaScript implementations for converted packages are retained as non-discoverable
 `*.reference.js` comparison sources and are not loaded by the catalog.
 
 `.fracfun` is the remaining computational exception. It preserves two symbolic
@@ -92,9 +92,13 @@ implementation therefore remains until a versioned symbolic-expression builder
 can expose those operations without making evaluator IR a plugin ABI. Its
 canonical projections already use the pure-RiX `.poly` and `.ratfun` values.
 
-Authoring, snapshot, retained-scene, data, document, and renderer plugins remain
-host adapters where their principal job is constructing branded portable output
-objects, converting to finite host coordinates, or invoking host facilities.
-This includes `.draw`, `.plot`, `.geometry`, `.scene3d`, and `.nd`; their future
-exact computational kernels can move to RiX independently of their output
-adapters once the corresponding public value-builder protocols are stable.
+Visualization packages are split conceptually into mathematical kernels and
+output adapters. Geometry constructions/intersections, plot sampling and
+refinement, N-dimensional projections, and Scene3D transforms/projections are
+domain mathematics and should move to RiX. Lowering those finite results to
+core `.Graphics` or portable Scene3D records can also be RiX once the public
+value builders are stable. Only target encoding, browser/GPU interaction,
+rasterization, and external tool invocation must remain host adapters. Thus
+`.geometry`, `.plot`, `.scene3d`, and `.nd` are conversion candidates even
+though their current Phase 1 implementations are host plugins; renderer
+plugins remain downstream consumers and do not perform domain mathematics.

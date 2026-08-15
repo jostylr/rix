@@ -197,6 +197,20 @@ exports: [Missing]
         expect(diagnostics.map(({ code }) => code)).toContain("RX1902");
     });
 
+    test("recognizes implemented plugin exports that end in punctuation", () => {
+        const source = `.Host.RegisterValue("demo", {= }, "demo", []); demo._proto["Transform!"]=(self,value)->value;`;
+        const diagnostics = lintRix(source, {
+            ast: [],
+            profile: "plugin",
+            level: "thorough",
+            pluginMetadata: {
+                id: "demo", kind: "rix", mount: "demo", aliases: [], exports: ["Transform!"],
+                groups: [], permissions: [], provides: ["rix.demo@1"], schemas: [], requires: [],
+            },
+        });
+        expect(diagnostics.map(({ code }) => code)).not.toContain("RX1902");
+    });
+
     test("accepts one explicit request argument for receiver refinement", () => {
         const all = (source) => lintRix(source, { profile: "all", level: "pedantic" }).map(({ code }) => code);
         expect(all("RefineWithin=(real, request)->real.Refine(request);")).not.toContain("RX1806");

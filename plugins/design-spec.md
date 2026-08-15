@@ -31,9 +31,9 @@ numeric type or one universal rendering engine.
 | `.float` | Implemented plugin | IEEE-754 Float conversion, arithmetic integration, rounding, intervals of stored values, and approximate elementary functions. |
 | `.oracle` | Implemented Phase 1 plugin | Pure RiX rational-betweenness values, five rational procedure demonstrations, Range validation, finite alternatives, and bounded exact refinement. |
 | `.numerics` | Implemented Phase 1 plugin | Pure RiX request normalization and backend-neutral dispatch for certified Oracle refinement and explicitly approximate Float sampling. |
-| `.linalg` | Implemented Phase 1 plugin | Exact dense RREF/rank/determinant/inverse/solve plus vector spaces, named coordinates, variance-aware tensor basis changes, and representation lineage. |
+| `.linalg` | Implemented pure-RiX Phase 1 plugin | Exact dense RREF/rank/determinant/inverse/solve plus vector spaces, named coordinates, variance-aware tensor basis changes, and representation lineage. |
 | `.optimize` | Implemented Phase 1 plugin | Exact standard-form LinearProgram values and deterministic Rational primal simplex. |
-| `.solve` | Implemented Phase 1 plugin | Exact affine `{#}` equality classification and named solving through the linear-algebra service. |
+| `.solve` | Implemented pure-RiX Phase 1 plugin | Exact affine `{#}` equality classification and named solving through the linear-algebra service via public structural spec inspection. |
 | `.ball` | Implemented Phase 1 plugin | Pure RiX exact midpoint-radius snapshots, outward dyadic rounding, finite arithmetic, and nested square-root refinement. |
 | `.cauchy` | Implemented Phase 1 plugin | Pure RiX rational sequences with explicit tail bounds/moduli and certified geometric refinement. |
 | `.continuedFraction` | Implemented Phase 1 plugin | Pure RiX finite and lazy simple continued fractions, exact convergent cylinders, and bounded refinement. |
@@ -133,6 +133,18 @@ Renderers depend on portable output schemas. An SVG renderer must not need to
 understand polynomial factorization, implicit geometry, or an oracle real. A
 domain plugin resolves those semantics into a finite scene before target
 encoding.
+
+The mathematical-kernel boundary cuts through several current plugin packages;
+it is not synonymous with the package boundary. Exact Geometry constructions
+and intersections feed Draw/Graphics. Plot sampling, fitting, and refinement
+feed Graphics. N-dimensional projection and slicing feed Scene3D, while
+Scene3D transforms, cameras, clipping, and deterministic projection feed
+Graphics or retained portable scene records. Those kernels can be pure RiX,
+and their finite record construction can be pure RiX where public builders
+exist. Target encoders and interactive host integrations—SVG/Canvas/TikZ/glTF
+serialization, rasterization, browser/GPU control, files, and external
+toolchains—remain downstream host adapters. This preserves the invariant that
+renderers consume resolved scenes and never solve domain mathematics.
 
 ### Symbolic specifications as plugin input
 

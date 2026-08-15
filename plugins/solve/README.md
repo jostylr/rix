@@ -3,6 +3,8 @@
 Phase 1 consumes the existing inert `{# ... }` system carrier. It resolves
 declared output roles, accepts exact input values, recognizes affine equality
 expressions, and delegates the resulting matrix system to `.linalg`.
+The implementation is pure RiX: it consumes the public `.InspectSpec` and
+`.SpecRoles` structural records rather than importing or rewriting evaluator IR.
 
 Supported expression operations are exact literals, identifiers, unary minus,
 addition, subtraction, multiplication or division by exact scalars, and powers
@@ -15,4 +17,3 @@ S := {#a,b:x,y# x + y == a; x - y == b };
 answer := .solve.System(S, {= values={= a=3, b=1 } });
 answer.solution;
 ```
-

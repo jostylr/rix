@@ -16,6 +16,9 @@ import ratfunSource from "./ratfun/ratfun.plugin.rix" with { type: "text" };
 import symbolicSource from "./symbolic/symbolic.plugin.rix" with { type: "text" };
 import statsSource from "./stats/stats.plugin.rix" with { type: "text" };
 import complexVizSource from "./complex-visualization/complex-viz.plugin.rix" with { type: "text" };
+import optimizeSource from "./optimize/optimize.plugin.rix" with { type: "text" };
+import linalgSource from "./linalg/linalg.plugin.rix" with { type: "text" };
+import solveSource from "./solve/solve.plugin.rix" with { type: "text" };
 import { readPluginHeader } from "../src/runtime/plugin-catalog.js";
 import { install as installDrawPlugin } from "./draw/draw.plugin.rix.js";
 import { install as installFracfunPlugin } from "./fracfun/fracfun.plugin.rix.js";
@@ -25,9 +28,6 @@ import { install as installNdPlugin } from "./nd/nd.plugin.rix.js";
 import { install as installGeometryPlugin } from "./geometry/geometry.plugin.rix.js";
 import { install as installDataPlugin } from "./data/data.plugin.rix.js";
 import { install as installDocumentPlugin } from "./document/document.plugin.rix.js";
-import { install as installLinalgPlugin } from "./linalg/linalg.plugin.rix.js";
-import { install as installOptimizePlugin } from "./optimize/optimize.plugin.rix.js";
-import { install as installSolvePlugin } from "./solve/solve.plugin.rix.js";
 import { install as installTerminalAsciiPlugin } from "./render-terminal-ascii/terminal-ascii.plugin.rix.js";
 import { install as installSvgPlugin } from "./render-svg/svg.plugin.rix.js";
 import { install as installCanvasPlugin } from "./render-canvas/canvas.plugin.rix.js";
@@ -175,38 +175,9 @@ const BUNDLED_PLUGINS = [
         },
         install: ({ systemContext }) => installDataPlugin({ systemContext }),
     },
-    {
-        metadata: {
-            id: "linalg", description: "Exact dense linear algebra and coordinate-aware tensor transformations.",
-            kind: "host", mount: "linalg",
-            exports: ["Rref", "Rank", "Determinant", "Inverse", "Solve", "VectorSpace", "Frame", "Tensor", "Vector", "Covector", "ChangeMatrix", "Transform", "Transform!", "Components", "Pair", "SameTensor"],
-            groups: ["LinearAlgebra", "Exact"], permissions: [],
-            provides: ["rix.linear-algebra@1", "rix.tensor@1"],
-            schemas: ["rix.linalg.result@1", "rix.linalg.vector-space@1", "rix.linalg.frame@1", "rix.linalg.tensor@1"],
-            snapshot: false, deterministic: true, defaultEnabled: false,
-        },
-        install: (api) => installLinalgPlugin(api),
-    },
-    {
-        metadata: {
-            id: "optimize", description: "Exact linear-program models and deterministic Phase 1 simplex optimization.",
-            kind: "host", mount: "optimize", exports: ["LinearProgram", "Solve", "Evaluate", "Maximize", "Minimize"],
-            groups: ["Optimization", "Exact"], permissions: [], requires: ["rix.linear-algebra@1"],
-            provides: ["rix.optimization@1", "rix.linear-program@1"], schemas: ["rix.optimize.linear-program@1", "rix.optimize.result@1"],
-            snapshot: false, deterministic: true, defaultEnabled: false,
-        },
-        install: ({ systemContext }) => installOptimizePlugin({ systemContext }),
-    },
-    {
-        metadata: {
-            id: "solve", description: "Exact Phase 1 linear-system classification and symbolic-spec solving.",
-            kind: "host", mount: "solve", exports: ["Classify", "Linear", "System"],
-            groups: ["Solve", "Symbolic", "Exact"], permissions: [], requires: ["rix.linear-algebra@1"],
-            provides: ["rix.system-solver@1"], schemas: ["rix.solve.system-result@1"],
-            snapshot: false, deterministic: true, defaultEnabled: false,
-        },
-        install: ({ systemContext }) => installSolvePlugin({ systemContext }),
-    },
+    { metadata: readPluginHeader(linalgSource, "linalg.plugin.rix"), source: linalgSource, sourcePath: "bundled:linalg.plugin.rix" },
+    { metadata: readPluginHeader(optimizeSource, "optimize.plugin.rix"), source: optimizeSource, sourcePath: "bundled:optimize.plugin.rix" },
+    { metadata: readPluginHeader(solveSource, "solve.plugin.rix"), source: solveSource, sourcePath: "bundled:solve.plugin.rix" },
     {
         metadata: {
             id: "document", description: "Numbered portable reports with labels, forward references, captions, and small semantic themes.",

@@ -546,7 +546,12 @@ export function analyzeRix(source, options = {}) {
             );
         }
         for (const exported of metadata.exports || []) {
-            if (!new RegExp(`\\b${String(exported).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`).test(pluginBody)) {
+            const escapedExport = String(exported).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+            // Word boundaries do not work for callable names that end in RiX
+            // punctuation (for example, Transform!), because both the final
+            // punctuation and its following delimiter are non-word characters.
+            const exportPattern = new RegExp(`(?<![A-Za-z0-9_])${escapedExport}(?![A-Za-z0-9_])`);
+            if (!exportPattern.test(pluginBody)) {
                 emit(
                     "RX1902",
                     "warning",

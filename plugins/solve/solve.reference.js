@@ -4,7 +4,7 @@ import { Integer, Rational } from "@ratmath/core";
 import { getAttachedSpec, resolveSymbolicRoles } from "../../src/eval/functions/symbolic.js";
 import { createShaped, forEachShapedCell } from "../../src/runtime/shaped.js";
 import { entriesFor, field } from "../scene3d/scene3d.js";
-import { solveLinearValues } from "../linalg/linalg.js";
+import { solveLinearValues } from "../linalg/linalg.reference.js";
 
 export const SYSTEM_SOLUTION_SCHEMA = "rix.solve.system-result@1";
 

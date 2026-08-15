@@ -1,0 +1,236 @@
+/**
+id: solve
+description: Pure-RiX exact Phase 1 linear-system classification and symbolic-spec solving.
+kind: rix
+mount: solve
+exports: [Classify, Linear, System]
+groups: [Solve, Symbolic, Exact]
+permissions: []
+requires: [rix.linear-algebra@1]
+provides: [rix.system-solver@1]
+schemas: [rix.solve.system-result@1]
+snapshot: false
+deterministic: true
+defaultEnabled: false
+**/
+
+SolveOption(options,key,fallback ?= _) -> (options ? :Map) && options.Has(key) ?: options[key] ?_ fallback;
+SolveExact(value,label ?= "solve value") -> {;
+    exact=value ~!: :Rational;
+    exact==_ ?: .Error(@"@{label} must be an exact Integer or Rational") ?_ exact;
+};
+SolveIsZero(value)->(value ~!: :Rational).Numerator()==0;
+SolveZeros(count)->{;
+    result:=[];
+    {@ index=1; index<=@count; {; @result ~= @result.Push(0); }; index+=1 };
+    result;
+};
+SolveArray(values)->{;
+    result:=[];
+    {@ index=1; index<=@values.Len(); {; @result ~= @result.Push(@values[index]); }; index+=1 };
+    result;
+};
+SolveIndexOf(values,requested)->{;
+    found:=_;
+    {@ index=1; index<=@values.Len() && @found==_; {;
+        @values[index]==@requested ?: {; @found ~= @index; } ?_ _;
+    }; index+=1 };
+    found;
+};
+SolveIncludes(values,requested)->SolveIndexOf(values,requested)!=_;
+
+SolveForm(coefficients,constant)->{= coefficients=coefficients, constant=constant };
+SolveScalar(form)->form[:coefficients].All((value)->SolveIsZero(value));
+SolveAddForms(left,right,sign ?= 1)->SolveForm(
+    left[:coefficients].Map((value,index)->value+sign*right[:coefficients][index]),
+    left[:constant]+sign*right[:constant]
+);
+SolveScaleForm(form,scalar)->SolveForm(form[:coefficients].Map((value)->value*scalar),form[:constant]*scalar);
+
+SolveLiteral(node)->{;
+    node[:kind]=="number" ?: _ ?_ .Error("Expected a symbolic number node");
+    node.Has("integer") ?: SolveExact(node[:integer],"symbolic literal") ?_ SolveExact(node[:value],"symbolic literal");
+};
+
+SolveLinearForm(node,unknowns,constants)->{;
+    kind=node[:kind];
+    kind=="number"
+      ?: SolveForm(SolveZeros(unknowns.Len()),SolveLiteral(node))
+      ?_ ((kind=="identifier" || kind=="outer")
+          ?: {;
+              name=@node[:name]; index=SolveIndexOf(@unknowns,name);
+              index!=_
+                ?: SolveForm(SolveZeros(@unknowns.Len()).Set(index,1),0)
+                ?_ (@constants.Has(name)
+                    ?: SolveForm(SolveZeros(@unknowns.Len()),@constants[name])
+                    ?_ .Error(@"Linear system needs an exact value for '@{name}'"));
+          }
+          ?_ (kind=="unary"
+              ?: (node[:op]=="-"
+                  ?: SolveScaleForm(SolveLinearForm(node[:expr],unknowns,constants),-1)
+                  ?_ .Error("Unsupported unary operation in a Phase 1 linear system"))
+              ?_ (kind=="binary"
+                  ?: {;
+                      operation=@node[:op];
+                      left=SolveLinearForm(@node[:left],@unknowns,@constants);
+                      right=SolveLinearForm(@node[:right],@unknowns,@constants);
+                      operation=="+" ?: SolveAddForms(left,right) ?_
+                      operation=="-" ?: SolveAddForms(left,right,-1) ?_
+                      operation=="*" ?: (SolveScalar(left)
+                          ?: SolveScaleForm(right,left[:constant])
+                          ?_ (SolveScalar(right)
+                              ?: SolveScaleForm(left,right[:constant])
+                              ?_ .Error("Nonlinear product found in a Phase 1 linear system"))) ?_
+                      operation=="/" ?: (SolveScalar(right) && !SolveIsZero(right[:constant])
+                          ?: SolveScaleForm(left,1/right[:constant])
+                          ?_ .Error("Linear-system division requires a nonzero exact scalar denominator")) ?_
+                      operation=="^" ?: {;
+                          exponent=SolveLiteral(@node[:right]);
+                          exponent.Denominator()==1 && exponent.Numerator()==1 ?: @left ?_
+                          (exponent.Denominator()==1 && exponent.Numerator()==0
+                              ?: SolveForm(SolveZeros(@unknowns.Len()),1)
+                              ?_ .Error("Nonlinear power found in a Phase 1 linear system"));
+                      }
+                      ?_ .Error(@"Unsupported symbolic operation '@{operation}' in a Phase 1 linear system");
+                  }
+                  ?_ .Error("Unsupported symbolic node in a Phase 1 linear system"))));
+};
+
+SolveDependencies(node)->{;
+    kind=node[:kind];
+    (kind=="identifier" || kind=="outer")
+      ?: [node[:name]]
+      ?_ (kind=="unary"
+          ?: SolveDependencies(node[:expr])
+          ?_ (kind=="binary"
+              ?: SolveDependencies(node[:left]).Concat(SolveDependencies(node[:right])).Unique()
+              ?_ []));
+};
+
+SolveValues(options)->{;
+    incoming=SolveOption(options,"values",{= });
+    incoming ? :Map ?: _ ?_ .Error("solve values must be a map");
+    incoming.ReduceKeys((result,name,value)->result.Set(name,SolveExact(value,@"solve value '@{name}'")),{= });
+};
+
+SolveRoles(spec,options)->{;
+    roles=.SpecRoles(spec,SolveOption(options,"roles",{= }));
+    outputs=SolveArray(roles[:outputs].Len()>0 ?: roles[:outputs] ?_ roles[:unassigned]);
+    outputs.Len()>0 ?: _ ?_ .Error("solve.System needs output roles or unassigned symbols to solve for");
+    {= roles=roles, outputs=outputs };
+};
+
+SolveConstants(statements,unknowns,initial)->{;
+    constants:=initial;
+    pending:=[];
+    {@ index=1; index<=@statements.Len(); {;
+        statement=@statements[index];
+        statement[:kind]=="define" && !SolveIncludes(@unknowns,statement[:target])
+          ?: {; @pending ~= @pending.Push(@statement); } ?_ _;
+    }; index+=1 };
+    {@ pass=1; pass<=@statements.Len() && @pending.Len()>0; {;
+        next:=[];
+        {@ index=1; index<=@pending.Len(); {;
+            statement=@pending[index];
+            dependencies=SolveDependencies(statement[:expr]);
+            ready=dependencies.All((name)->@constants.Has(name) && !SolveIncludes(@unknowns,name));
+            ready
+              ?: {;
+                  form=SolveLinearForm(@statement[:expr],@unknowns,@constants);
+                  SolveScalar(form) ?: _ ?_ .Error("Symbolic constant definition is not scalar");
+                  @constants[@statement[:target]]=form[:constant];
+              }
+              ?_ {; @next ~= @next.Push(@statement); };
+        }; index+=1 };
+        @pending ~= next;
+    }; pass+=1 };
+    pending.Len()==0
+      ?: constants
+      ?_ .Error(@"Unresolved symbolic definitions: @{pending.Map((statement)->statement[:target]).Join(", ")}");
+};
+
+SolveSystemResult(spec,roles,outputs,equationCount,linear)->{;
+    particular=linear[:particular];
+    solution=particular==_
+      ?: _
+      ?_ {;
+          values=@particular.Flatten(); namedSolution={= };
+          {@ index=1; index<=@outputs.Len(); {; @namedSolution[@outputs[index]]=@values[index]; }; index+=1 };
+          namedSolution;
+      };
+    result={=
+        valueKind=:systemSolution, schema="rix.solve.system-result@1",
+        status=linear[:status], classification="linearEqualities", exact=1,
+        spec=spec, unknowns=outputs, solution=solution, solutionVector=particular,
+        equations=equationCount, linearResult=linear, roles=roles
+    };
+    result.__type="SystemSolution";
+    result;
+};
+
+SolveClassify(spec)->{;
+    inspected=.InspectSpec(spec);
+    statements=SolveArray(inspected[:statements]); operations:=[];
+    {@ index=1; index<=@statements.Len(); {;
+        statement=@statements[index];
+        @operations ~= @operations.Push(statement[:kind]=="define" ?: "define" ?_ statement[:expr][:op]);
+    }; index+=1 };
+    hasInequality=operations.Any((operation)->operation=="<" || operation=="<=" || operation==">" || operation==">=");
+    hasEquality=operations.Includes("==") || operations.Includes("define");
+    {= kind=hasInequality ?: "constrainedSystem" ?_ (hasEquality ?: "equalitySystem" ?_ "expression"),
+       linearCandidate=hasInequality ?: _ ?_ 1, operations=operations };
+};
+
+SolveDefinitionEquation(statement,outputs,constants)->SolveAddForms(
+    SolveLinearForm({= kind="identifier", name=statement[:target] },outputs,constants),
+    SolveLinearForm(statement[:expr],outputs,constants),-1
+);
+SolveConstraintEquation(statement,outputs,constants)->{;
+    expression=statement[:expr];
+    expression[:op]=="=="
+      ?: SolveAddForms(
+          SolveLinearForm(expression[:left],outputs,constants),
+          SolveLinearForm(expression[:right],outputs,constants),-1
+      )
+      ?_ .Error(@"Phase 1 solve.System supports exact equalities, not '@{expression[:op]}'");
+};
+SolveEquation(statement,outputs,constants)->
+    (statement[:kind]=="define" && SolveIncludes(outputs,statement[:target]))
+      ?: SolveDefinitionEquation(statement,outputs,constants)
+      ?_ ((statement[:kind]=="constraint") ?: SolveConstraintEquation(statement,outputs,constants) ?_ _);
+
+SolveSystem(spec,options ?= {= })->{;
+    inspected=.InspectSpec(spec);
+    inspected[:kind]=="systemSpec" ?: _ ?_ .Error("solve.System expects a symbolic specification");
+    roleInfo=SolveRoles(spec,options); outputs=roleInfo[:outputs]; statements=SolveArray(inspected[:statements]);
+    constants=SolveConstants(statements,outputs,SolveValues(options));
+    equations:=[];
+    {@ index=1; index<=@statements.Len(); {;
+        candidate=SolveEquation(@statements[index],@outputs,@constants);
+        candidate ? :Map ?: {; @equations ~= @equations.Push(@candidate); } ?_ _;
+    }; index+=1 };
+    equations.Len()>0 ?: _ ?_ .Error("solve.System found no equations");
+    matrix=equations.Map((equation)->equation[:coefficients]);
+    bounds=equations.Map((equation)->-equation[:constant]);
+    linear=.linalg.Solve(matrix,bounds);
+    SolveSystemResult(spec,roleInfo[:roles],outputs,equations.Len(),linear);
+};
+
+SolveLinear(matrix,bounds)->{;
+    linear=.linalg.Solve(matrix,bounds);
+    result={=
+        valueKind=:systemSolution, schema="rix.solve.system-result@1",
+        status=linear[:status], classification="linearMatrix", exact=1,
+        solution=linear[:particular], linearResult=linear
+    };
+    result.__type="SystemSolution";
+    result;
+};
+
+solveNamespace={= };
+solveNamespace._proto={=
+    Classify=(self,spec)->SolveClassify(spec),
+    Linear=(self,matrix,bounds)->SolveLinear(matrix,bounds),
+    System=(self,spec,options ?= {= })->SolveSystem(spec,options)
+};
+.Host.RegisterValue("solve",solveNamespace,"Pure-RiX exact linear-system classification and symbolic-spec solving",["Solve","Symbolic","Exact"]);

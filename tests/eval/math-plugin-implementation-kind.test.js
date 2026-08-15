@@ -8,7 +8,7 @@ describe("math plugin implementation boundary", () => {
         for (const id of [
             "algebra", "algebraic-real", "ball", "cauchy", "continued-fraction",
             "complex-viz", "exact-algebras", "fraction", "numerics", "oracle", "poly", "radix",
-            "ratfun", "stats", "stern-brocot", "symbolic",
+            "ratfun", "stats", "stern-brocot", "symbolic", "linalg", "optimize", "solve",
         ]) {
             expect(pluginKind(id), id).toBe("rix");
         }
