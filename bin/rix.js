@@ -47,10 +47,8 @@ import { install as installFloatPlugin } from "../plugins/float/float.plugin.rix
 import { install as installArrayJsExample } from "../examples/plugins/example-array-js/array-js.plugin.rix.js";
 import { install as installDrawPlugin } from "../plugins/draw/draw.plugin.rix.js";
 import { install as installFracfunPlugin } from "../plugins/fracfun/fracfun.plugin.rix.js";
-import { install as installPlotPlugin } from "../plugins/plot/plot.plugin.rix.js";
 import { install as installScene3DPlugin } from "../plugins/scene3d/scene3d.plugin.rix.js";
 import { install as installNdPlugin } from "../plugins/nd/nd.plugin.rix.js";
-import { install as installGeometryPlugin } from "../plugins/geometry/geometry.plugin.rix.js";
 import { install as installDataPlugin } from "../plugins/data/data.plugin.rix.js";
 import { install as installDocumentPlugin } from "../plugins/document/document.plugin.rix.js";
 import { install as installTerminalAsciiPlugin } from "../plugins/render-terminal-ascii/terminal-ascii.plugin.rix.js";
@@ -639,10 +637,8 @@ function registerBuiltPluginInstallers(pluginCatalog) {
     pluginCatalog.registerInstaller("example-array-js", installArrayJsExample);
     pluginCatalog.registerInstaller("draw", ({ systemContext }) => installDrawPlugin({ systemContext }));
     pluginCatalog.registerInstaller("fracfun", installFracfunPlugin);
-    pluginCatalog.registerInstaller("plot", ({ systemContext }) => installPlotPlugin({ systemContext }));
     pluginCatalog.registerInstaller("scene3d", ({ systemContext }) => installScene3DPlugin({ systemContext }));
     pluginCatalog.registerInstaller("nd", ({ systemContext }) => installNdPlugin({ systemContext }));
-    pluginCatalog.registerInstaller("geometry", ({ systemContext }) => installGeometryPlugin({ systemContext }));
     pluginCatalog.registerInstaller("data", ({ systemContext }) => installDataPlugin({ systemContext }));
     pluginCatalog.registerInstaller("document", ({ systemContext }) => installDocumentPlugin({ systemContext }));
     pluginCatalog.registerInstaller("terminal-ascii", installTerminalAsciiPlugin);

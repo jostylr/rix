@@ -27,7 +27,7 @@ numeric type or one universal rendering engine.
 | Core output values | Implemented in RiX core | `Text`, `Paragraph`, `Heading`, `Fragment`, `Table`, `Grid`, `Figure`, `Slide`, and `Slides`. |
 | Core `.Algebra` | Partly implemented in RiX core | Exact presentation helpers, currently including synthetic division as a portable `Grid`. |
 | `.draw` | Implemented plugin | Convenient 2D authoring helpers that return core `.Graphics` nodes. |
-| `.plot` | Implemented initial plugin | Polynomial plotting with automatic vertical fitting; returns core `.Graphics`. |
+| `.plot` | Implemented pure-RiX initial plugin | Exact polynomial sampling with automatic vertical fitting; returns core `.Graphics`. |
 | `.float` | Implemented plugin | IEEE-754 Float conversion, arithmetic integration, rounding, intervals of stored values, and approximate elementary functions. |
 | `.oracle` | Implemented Phase 1 plugin | Pure RiX rational-betweenness values, five rational procedure demonstrations, Range validation, finite alternatives, and bounded exact refinement. |
 | `.numerics` | Implemented Phase 1 plugin | Pure RiX request normalization and backend-neutral dispatch for certified Oracle refinement and explicitly approximate Float sampling. |
@@ -46,7 +46,7 @@ numeric type or one universal rendering engine.
 | `.markdown`, `.html`, `.quarto`, `.latex`, `.pdf` | Implemented plugins | Portable document/output trees to standalone text/document formats. PDF delegates through LaTeX and an approved CLI compiler adapter. |
 | `.scene3d` | Implemented initial plugin | Retained exact mesh/polyline/point scenes, transforms, cameras and lights, plus deterministic wireframe and flat-lit snapshots to core Graphics. |
 | `.nd` | Implemented initial plugin | Exact points, polylines, polytopes/hypercubes, affine projection records, rational Cayley rotations, composition, and explicit conversion of 3D results to Scene3D. |
-| `.geometry` | Implemented Phase 1 plugin | Exact rational points, lines, circles, line intersections, ruler-and-compass constructions with provenance, and deterministic lowering to core Graphics. |
+| `.geometry` | Implemented pure-RiX Phase 1 plugin | Exact rational points, lines, circles, line intersections, ruler-and-compass constructions with provenance, and deterministic lowering to core Graphics. |
 | `.gltf` | Implemented initial renderer | Retained Scene3D to embedded-buffer glTF 2.0 JSON with explicit Z-up to Y-up and Float32 conversion diagnostics. |
 | `.data` | Implemented Phase 1 plugin | Immutable typed in-memory relations, exact-value-preserving projection/filter/sort, and portable Table views. |
 | `.csv` | Implemented Phase 1 renderer | Deterministic CSV/TSV export for core Tables and Data relations with exact scalar formatting and explicit dialect options. |
@@ -430,7 +430,7 @@ view := ellipse.Refine({=
 
 ## 6. Plot plugin
 
-The current `.plot.Polynomial(coefficients, domain, options?)` is the first
+The pure-RiX `.plot.Polynomial(coefficients, domain, options?)` is the first
 member of a broader plotting package.
 
 ### Proposed plot constructors
@@ -477,6 +477,11 @@ always provide SVG/PNG snapshot lowering.
 WebGL state as the value. The initial `rix.scene3d@1` mesh/polyline/point,
 transform, camera/light, wireframe/flat-lit Snapshot, and glTF JSON slice is implemented;
 the broader surface and volume list below remains a design target.
+
+Migration of this retained model is staged: pure RiX owns schema construction,
+exact hierarchy transforms, realization, and portable projection records;
+renderer plugins own target encoding and host surfaces. See
+[`scene3d/rix-split-plan.md`](scene3d/rix-split-plan.md).
 
 ### Scene values
 
@@ -836,9 +841,10 @@ Teaching-only plugins belong under `rix/examples/plugins/`, not this directory.
    [paper-based specification](oracle/specification.md), and use its exact
    enclosures to prove that Numerics is not coupled to IEEE floats. Ball or
    algebraic-real arithmetic can be the next independent backend.
-4. Implement `.geometry` points, lines, circles, conics, intersections, and an
-   implicit-curve refiner with visible unresolved-cell reporting.
-5. Expand `.plot` with `Function`, `FitView`, discontinuity handling, contours,
+4. **Implemented pure-RiX Phase 1:** `.geometry` points, lines, circles, exact
+   line intersections, constructions, and visible unresolved results. Expand
+   next with conics and an implicit-curve refiner.
+5. **Implemented pure-RiX polynomial slice:** expand `.plot` with `Function`, `FitView`, discontinuity handling, contours,
    and heat maps using Numerics.
 6. Extract the existing SVG/terminal behavior into renderer registrations, add
    Canvas over the same `Graphic` traversal contract, then add PNG and TikZ.

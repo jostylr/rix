@@ -18,7 +18,7 @@ The implementation order and per-plugin phased work are tracked in
 | `poly/` | RiX | `poly` | Pure-RiX callable semantic polynomials and exact algorithms; aliases `.polynomial` and `.p`. |
 | `algebra/` | RiX | `algebra` | Pure-RiX presentation façade for Polynomial division metadata and synthetic Grids; auto-loads `poly` and `ratfun`. |
 | `exact-algebras/` | RiX | `exact-algebras` | Pure-RiX exact rational quaternion and octonion values. |
-| `plot/` | host | `plot` | Portable plot constructors that lower to core graphics. |
+| `plot/` | RiX | `plot` | Pure-RiX exact polynomial sampling and portable core Graphics lowering. |
 | `float/` | host | `float` | IEEE-754 Float conversion and approximate math. |
 | `ball/` | RiX | `ball` | Pure RiX certified rational midpoint-radius balls and nested square-root refinement. |
 | `cauchy/` | RiX | `cauchy` | Pure RiX rational sequences with explicit certified tail bounds and moduli. |
@@ -34,7 +34,7 @@ The implementation order and per-plugin phased work are tracked in
 | `ratfun/` | RiX | `ratfun` | Pure-RiX canonical callable RationalFunctions; aliases `.rationalFunction` and `.rf`. |
 | `fracfun/` | host | `fracfun` | Form-preserving FractionFunctions; aliases `.fractionFunction` and `.ff`. See the migration boundary below. |
 | `symbolic/` | RiX | `symbolic` | Pure-RiX meta-plugin loading the formal fraction/function workspace. |
-| `geometry/` | host | `geometry` | Exact ruler-and-compass constructions, intersections, and Graphics snapshots. |
+| `geometry/` | RiX | `geometry` | Pure-RiX exact ruler-and-compass constructions, intersections, and Graphics snapshots. |
 | `data/` | host | `data` | Immutable typed relations, deterministic transformations, and portable Table views. |
 | `stats/` | RiX | `stats` | Exact descriptive statistics, summary Tables, histograms, and box plots; alias `.statistics`. |
 | `stern-brocot/` | RiX | `stern-brocot` | Exact Stern–Brocot navigation, visible-tree records, and rational evaluation helpers. |
@@ -75,10 +75,12 @@ packages live separately in [`rix/examples/plugins/`](../examples/plugins/README
 
 ## RiX/host implementation boundary
 
-Most currently implemented computational exact-number and algebra plugins are
-written in RiX. `.linalg`, `.optimize`, and `.solve` now form a pure-RiX exact
+Most currently implemented computational exact-number, algebra, and 2D
+mathematical-graphics plugins are written in RiX. `.linalg`, `.optimize`, and `.solve` form a pure-RiX exact
 stack: coordinate-aware dense linear algebra, primal-simplex optimization, and
 affine symbolic solving through the public `.InspectSpec`/`.SpecRoles` boundary.
+`.geometry` and `.plot` also run their exact construction, sampling, fitting,
+and core-Graphics lowering entirely in RiX.
 `.fracfun` remains host-backed for private symbolic-tree work. `.float` remains JavaScript
 intentionally so that IEEE-754 behavior is an explicit host boundary. The old
 JavaScript implementations for converted packages are retained as non-discoverable
@@ -92,13 +94,10 @@ implementation therefore remains until a versioned symbolic-expression builder
 can expose those operations without making evaluator IR a plugin ABI. Its
 canonical projections already use the pure-RiX `.poly` and `.ratfun` values.
 
-Visualization packages are split conceptually into mathematical kernels and
-output adapters. Geometry constructions/intersections, plot sampling and
-refinement, N-dimensional projections, and Scene3D transforms/projections are
-domain mathematics and should move to RiX. Lowering those finite results to
-core `.Graphics` or portable Scene3D records can also be RiX once the public
-value builders are stable. Only target encoding, browser/GPU interaction,
-rasterization, and external tool invocation must remain host adapters. Thus
-`.geometry`, `.plot`, `.scene3d`, and `.nd` are conversion candidates even
-though their current Phase 1 implementations are host plugins; renderer
-plugins remain downstream consumers and do not perform domain mathematics.
+Visualization packages are split into mathematical kernels and output
+adapters. Geometry constructions/intersections and polynomial plot sampling,
+fitting, and Graphics lowering have now moved to pure RiX. N-dimensional
+projections and Scene3D retained values/transforms are the next mathematical
+kernels to move. Only target encoding, browser/GPU interaction, rasterization,
+and external tool invocation must remain host adapters. The staged boundary is
+documented in [`scene3d/rix-split-plan.md`](scene3d/rix-split-plan.md).

@@ -2,6 +2,9 @@ import { describe, expect, test } from "bun:test";
 import { Rational } from "@ratmath/core";
 import { parseAndEvaluate } from "../../src/eval/evaluator.js";
 
+const field = (value, name) => value.entries.get(String(name).toLowerCase());
+const text = (value) => value?.value;
+
 describe("geometry Phase 1 plugin", () => {
     test("constructs an exact perpendicular bisector and circumcircle with provenance", () => {
         const result = parseAndEvaluate(`
@@ -14,18 +17,23 @@ describe("geometry Phase 1 plugin", () => {
             [a, bisector, circle, .geometry.Draw([bisector, circle, a, b, c], {= view=[-1,-2,7,6], size=[560,560] })];
         `);
         const [point, bisector, circle, graphic] = result.values;
-        expect(point).toMatchObject({ type: "geometry", kind: "point", schema: "rix.geometry@1" });
-        expect(point.x).toBeInstanceOf(Rational);
-        expect(bisector).toMatchObject({ type: "geometry", kind: "line", schema: "rix.geometry@1" });
-        expect(String(bisector.a)).toBe("6");
-        expect(String(bisector.b)).toBe("0");
-        expect(String(bisector.c)).toBe("-18");
-        expect(String(circle.center.x)).toBe("3");
-        expect(String(circle.center.y)).toBe("1");
-        expect(String(circle.radiusSquared)).toBe("10");
-        expect(circle.provenance[0].operation).toBe("Circumcircle");
-        expect(circle.provenance[0].inputs).toHaveLength(6);
-        expect(graphic).toMatchObject({ type: "output", kind: "graphic", size: [560, 560] });
+        expect([text(field(point, "type")), text(field(point, "kind")), text(field(point, "schema"))])
+            .toEqual(["geometry", "point", "rix.geometry@1"]);
+        expect(field(point, "x")).toBeInstanceOf(Rational);
+        expect([text(field(bisector, "type")), text(field(bisector, "kind")), text(field(bisector, "schema"))])
+            .toEqual(["geometry", "line", "rix.geometry@1"]);
+        expect(String(field(bisector, "a"))).toBe("6");
+        expect(String(field(bisector, "b"))).toBe("0");
+        expect(String(field(bisector, "c"))).toBe("-18");
+        const center = field(circle, "center");
+        expect(String(field(center, "x"))).toBe("3");
+        expect(String(field(center, "y"))).toBe("1");
+        expect(String(field(circle, "radiusSquared"))).toBe("10");
+        const provenance = field(circle, "provenance").values[0];
+        expect(text(field(provenance, "operation"))).toBe("Circumcircle");
+        expect(field(provenance, "inputs").values).toHaveLength(6);
+        expect(graphic).toMatchObject({ type: "output", kind: "graphic" });
+        expect(graphic.size.map((value) => value.toNumber())).toEqual([560, 560]);
         expect(graphic.children.map(({ kind }) => kind)).toEqual(["path", "circle", "circle", "circle", "circle"]);
     });
 
@@ -45,17 +53,15 @@ describe("geometry Phase 1 plugin", () => {
         `);
         const [points, status, parallel, graphic] = result.values;
         expect(points.values).toHaveLength(1);
-        expect(String(points.values[0].x)).toBe("1");
-        expect(String(points.values[0].y)).toBe("1");
+        expect(String(field(points.values[0], "x"))).toBe("1");
+        expect(String(field(points.values[0], "y"))).toBe("1");
         expect(status.value).toBe("parallel");
-        expect(parallel).toMatchObject({
-            type: "geometry_intersection",
-            schema: "rix.geometry.intersection@1",
-            status: "parallel",
-            points: [],
-            exact: true,
-        });
-        expect(parallel.diagnostic).toContain("do not intersect");
+        expect(text(field(parallel, "type"))).toBe("geometry_intersection");
+        expect(text(field(parallel, "schema"))).toBe("rix.geometry.intersection@1");
+        expect(text(field(parallel, "status"))).toBe("parallel");
+        expect(field(parallel, "points").values).toEqual([]);
+        expect(field(parallel, "exact").value).toBe(1n);
+        expect(text(field(parallel, "diagnostic"))).toContain("do not intersect");
         expect(graphic.children[0]).toMatchObject({ kind: "text_mark" });
     });
 
@@ -87,7 +93,9 @@ describe("geometry Phase 1 plugin", () => {
             center := .geometry.Point(0,0);
             .geometry.Intersect(.geometry.Circle(center, 1), .geometry.Circle(center, 2));
         `);
-        expect(unsupported).toMatchObject({ status: "unsupported", exact: false, points: [] });
-        expect(unsupported.diagnostic).toContain("line-line intersections");
+        expect(text(field(unsupported, "status"))).toBe("unsupported");
+        expect(field(unsupported, "exact").value).toBe(0n);
+        expect(field(unsupported, "points").values).toEqual([]);
+        expect(text(field(unsupported, "diagnostic"))).toContain("line-line intersections");
     });
 });

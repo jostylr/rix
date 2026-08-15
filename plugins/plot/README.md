@@ -1,6 +1,7 @@
 # `plot`
 
-`plot` is an optional package for creating portable function plots. It lowers
+`plot` is a pure-RiX optional package for creating portable function plots. It
+samples exact polynomial coefficients at exact rational positions and lowers
 its work to a core `.Graphics` scene rather than an opaque chart widget.
 
 ## Load and use
@@ -21,8 +22,10 @@ to SVG by a web or notebook host.
 | `.plot.Polynomial(coefficients, xDomain, options?)` | A `.Graphics` scene containing axes and the sampled curve. |
 
 Coefficients are in descending-power order. The options map controls output
-size, sample count, margin, and curve styling; the second positional argument
-is the visible x domain.
+size, sample count, margin, fixed or fitted vertical domain, additional series,
+ticks, marks, labels, and styling; the second positional argument is the
+visible x domain. Sampling and fitted coordinates stay exact until a renderer
+chooses its target representation.
 
 ## Dependencies
 

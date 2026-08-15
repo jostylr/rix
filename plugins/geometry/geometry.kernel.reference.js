@@ -1,4 +1,4 @@
-/** Exact ruler-and-compass values with deterministic lowering to core Graphics. */
+/** Historical JavaScript reference for the pure-RiX geometry plugin. */
 
 import { Integer, Rational } from "@ratmath/core";
 import { createCircle, createGraphic, createPath, createTextMark } from "../../src/runtime/output.js";

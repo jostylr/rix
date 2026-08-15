@@ -171,6 +171,8 @@ newline normalization.
 ### `.plot`
 
 1. **Phase 1 — Polynomial plot with fitted view**
+   - [x] Migrate sampling, exact fitting, and core Graphics lowering from the
+     historical host implementation to a discoverable pure-RiX plugin.
    - [x] Plot exact polynomial coefficients over an explicit horizontal range.
    - [x] Compute a useful fitted vertical range and return core `Graphics`.
    - [x] Provide README documentation and a polynomial tutorial.
@@ -654,6 +656,8 @@ tracked in
 ### `.geometry`
 
 1. **Phase 1 — Exact ruler-and-compass construction**
+   - [x] Migrate geometry values, constructions, intersections, provenance,
+     and core Graphics lowering to a discoverable pure-RiX plugin.
    - [x] Implement semantic Point, Line, Circle, and intersection result values.
    - [x] Demonstrate a perpendicular bisector/circumcircle construction that
      lowers to core `Graphics`.
@@ -741,6 +745,9 @@ tracked in
 
 ### `.scene3d`
 
+The RiX/host extraction sequence is specified in
+[`scene3d/rix-split-plan.md`](scene3d/rix-split-plan.md).
+
 1. **Phase 1 — Retained mesh scene**
    - [x] Define versioned Scene, perspective/orthographic Camera, Mesh,
      Polyline, PointCloud, Material, Group, and Transform values.
@@ -766,6 +773,8 @@ tracked in
    - [x] Represent N-dimensional points/polytopes and explicit exact affine projections.
    - [x] Demonstrate a Cayley-rotated 4D hypercube projected to 3D.
    - [x] Add reference documentation, tutorial, projection provenance, and deterministic tests.
+   - [ ] Migrate the exact ND value/projection kernel to RiX, then keep
+     `ToScene3D` as a pure schema adapter over the RiX Scene3D model.
 2. **Phase 2 — Fields, slices, and fibers**
    - [ ] Add N-dimensional fields, affine slices, sections, fibers, and
      parameterized projection families.

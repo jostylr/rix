@@ -980,8 +980,10 @@ describe("portable structured output", () => {
             .plot.Polynomial([1, 0, 0], [-2, 2], {= size = [400, 240], margin = 20, samples = 9 });
         `);
         const fittedCurve = fitted.children.at(-1);
-        const fittedY = fittedCurve.points.map(([, y]) => y);
-        expect(fitted.size.map((value) => value.value)).toEqual([400n, 240n]);
+        const pointValues = (point) => point?.values || point;
+        const numeric = (value) => value?.toNumber?.() ?? Number(value?.value ?? String(value));
+        const fittedY = fittedCurve.points.map((point) => numeric(pointValues(point)[1]));
+        expect(fitted.size.map(numeric)).toEqual([400, 240]);
         expect(fittedCurve.points).toHaveLength(9);
         expect(Math.min(...fittedY)).toBeGreaterThanOrEqual(20);
         expect(Math.max(...fittedY)).toBeLessThanOrEqual(220);
@@ -991,7 +993,7 @@ describe("portable structured output", () => {
             .Plugin.Load("plot");
             .plot.Polynomial([0, 5], [-1, 1], {= samples = 3 });
         `);
-        const constantY = constant.children.at(-1).points.map(([, y]) => y);
+        const constantY = constant.children.at(-1).points.map((point) => numeric(pointValues(point)[1]));
         expect(constantY.every(Number.isFinite)).toBe(true);
         expect(new Set(constantY).size).toBe(1);
 
@@ -1027,8 +1029,10 @@ describe("portable structured output", () => {
             .plot.Polynomial([5, 8, 8], [-6, 6], {= size=[400, 240], margin=20, yDomain=[-256, 256] })
         `);
         const [horizontalAxis, verticalAxis] = plot.children;
-        expect(horizontalAxis.points.map(([, y]) => y)).toEqual([120, 120]);
-        expect(verticalAxis.points.map(([x]) => x)).toEqual([200, 200]);
+        const pointValues = (point) => point?.values || point;
+        const numeric = (value) => value?.toNumber?.() ?? Number(value?.value ?? String(value));
+        expect(horizontalAxis.points.map((point) => numeric(pointValues(point)[1]))).toEqual([120, 120]);
+        expect(verticalAxis.points.map((point) => numeric(pointValues(point)[0]))).toEqual([200, 200]);
         expect(() => parseAndEvaluate('.Plugin.Load("plot"); .plot.Polynomial([1, 0], [-1, 1], {= yDomain=[1, 1] })'))
             .toThrow("yDomain must increase");
     });

@@ -19,13 +19,13 @@ import complexVizSource from "./complex-visualization/complex-viz.plugin.rix" wi
 import optimizeSource from "./optimize/optimize.plugin.rix" with { type: "text" };
 import linalgSource from "./linalg/linalg.plugin.rix" with { type: "text" };
 import solveSource from "./solve/solve.plugin.rix" with { type: "text" };
+import geometrySource from "./geometry/geometry.plugin.rix" with { type: "text" };
+import plotSource from "./plot/plot.plugin.rix" with { type: "text" };
 import { readPluginHeader } from "../src/runtime/plugin-catalog.js";
 import { install as installDrawPlugin } from "./draw/draw.plugin.rix.js";
 import { install as installFracfunPlugin } from "./fracfun/fracfun.plugin.rix.js";
-import { install as installPlotPlugin } from "./plot/plot.plugin.rix.js";
 import { install as installScene3DPlugin } from "./scene3d/scene3d.plugin.rix.js";
 import { install as installNdPlugin } from "./nd/nd.plugin.rix.js";
-import { install as installGeometryPlugin } from "./geometry/geometry.plugin.rix.js";
 import { install as installDataPlugin } from "./data/data.plugin.rix.js";
 import { install as installDocumentPlugin } from "./document/document.plugin.rix.js";
 import { install as installTerminalAsciiPlugin } from "./render-terminal-ascii/terminal-ascii.plugin.rix.js";
@@ -120,19 +120,7 @@ const BUNDLED_PLUGINS = [
         },
         install: ({ systemContext }) => installDrawPlugin({ systemContext }),
     },
-    {
-        metadata: {
-            id: "plot",
-            description: "Portable plotting helpers that produce core Graphics scenes.",
-            kind: "host",
-            mount: "plot",
-            exports: ["Polynomial"],
-            groups: ["Plot"],
-            permissions: [],
-            defaultEnabled: false,
-        },
-        install: ({ systemContext }) => installPlotPlugin({ systemContext }),
-    },
+    { metadata: readPluginHeader(plotSource, "plot.plugin.rix"), source: plotSource, sourcePath: "bundled:plot.plugin.rix" },
     {
         metadata: {
             id: "scene3d", description: "Exact retained 3D scenes with deterministic wireframe and lit Graphics snapshots.",
@@ -154,17 +142,7 @@ const BUNDLED_PLUGINS = [
         },
         install: ({ systemContext }) => installNdPlugin({ systemContext }),
     },
-    {
-        metadata: {
-            id: "geometry", description: "Exact ruler-and-compass geometry with explicit intersections and portable Graphics snapshots.",
-            kind: "host", mount: "geometry",
-            exports: ["Point", "Line", "Circle", "Midpoint", "PerpendicularBisector", "Circumcircle", "Intersect", "Points", "Status", "Draw"],
-            groups: ["Geometry", "Graphics", "Exact"], permissions: [],
-            provides: ["rix.geometry@1", "rix.geometry.intersection@1"], schemas: ["rix.geometry@1", "rix.geometry.intersection@1"],
-            snapshot: true, deterministic: true, defaultEnabled: false,
-        },
-        install: ({ systemContext }) => installGeometryPlugin({ systemContext }),
-    },
+    { metadata: readPluginHeader(geometrySource, "geometry.plugin.rix"), source: geometrySource, sourcePath: "bundled:geometry.plugin.rix" },
     {
         metadata: {
             id: "data", description: "Immutable typed relations with deterministic projection, filtering, sorting, and Table views.",

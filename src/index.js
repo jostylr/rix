@@ -56,7 +56,6 @@ export {
     createChoiceControl, createToggleControl, createRangeControl, createResetControl, createActionControl, createHoldControl, createControlPanel, createSnapshots, createTimelineSequence, createTimelineRender,
 } from "./runtime/index.js";
 export { createDrawPluginCollection, installDrawPlugin } from "../plugins/draw/draw.plugin.rix.js";
-export { installPlotPlugin } from "../plugins/plot/plot.plugin.rix.js";
 export { installBundledPlugins } from "../plugins/bundled.js";
 export {
     RIXCEL_FORMULA_CLIPBOARD_TYPE,

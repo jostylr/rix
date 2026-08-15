@@ -25,7 +25,7 @@ import {
     intersectionStatus,
     midpoint,
     perpendicularBisector,
-} from "./geometry.js";
+} from "./geometry.kernel.reference.js";
 
 const HELPERS = new Map([
     ["Point", createPoint],

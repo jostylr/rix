@@ -1,0 +1,211 @@
+/**
+id: plot
+description: Pure-RiX exact polynomial sampling that lowers to portable core Graphics scenes.
+kind: rix
+mount: plot
+exports: [Polynomial]
+groups: [Plot, Graphics, Exact]
+permissions: []
+provides: [rix.plot@1]
+snapshot: true
+deterministic: true
+defaultEnabled: false
+**/
+
+PlotOption(options, key, fallback ?= _) -> options.Has(key) ?: options[key] ?_ fallback;
+
+PlotExact(value, label) -> {;
+    exact = value ~!: :Rational;
+    exact == _ ?: .Error(@"@{label} must be an exact Integer or Rational") ?_ exact;
+};
+
+PlotExactArray(values, label) -> {;
+    values ? :Array ?: _ ?_ .Error(@"@{label} must be an Array");
+    values.Map((value) -> PlotExact(value, @label));
+};
+
+PlotPositiveSamples(value) -> {;
+    samples = value ~!: :Integer;
+    (samples >= 2 && samples <= 10000)
+      ?: samples
+      ?_ .Error("Polynomial plot samples must be between 2 and 10000");
+};
+
+PlotStyle(settings, fallbackStroke, fallbackWidth) -> {;
+    supplied = PlotOption(settings, "style", {= });
+    supplied ? :Map ?: _ ?_ .Error("Polynomial plot style must be a map");
+    style = {= stroke=fallbackStroke, width=fallbackWidth, fill="none" }.Merge(supplied);
+    style = settings.Has("stroke") ?: style.Merge({= stroke=settings[:stroke] }) ?_ style;
+    style = settings.Has("width") ?: style.Merge({= width=settings[:width] }) ?_ style;
+    style;
+};
+
+PlotEvaluate(coefficients, x) -> coefficients.Reduce((total, coefficient) -> total * @x + coefficient, 0);
+
+PlotReadSeries(coefficientsValue, settings, index, samples, xMin, xMax, primary) -> {;
+    coefficients = PlotExactArray(coefficientsValue, @"Polynomial plot series @{index} coefficients");
+    coefficients.Len() >= 2 ?: _ ?_ .Error(@"Polynomial plot series @{index} requires at least two coefficients");
+    data := [];
+    {@ sampleIndex = 1; sampleIndex <= @samples; {;
+        x = @xMin + (@xMax - @xMin) * (sampleIndex - 1) / (@samples - 1);
+        @data ~= @data.Push([x, PlotEvaluate(@coefficients, x)]);
+    }; sampleIndex += 1 };
+    {=
+        data=data,
+        style=PlotStyle(settings, primary ?: "#2563eb" ?_ "#b45309", primary ?: 3 ?_ 2),
+        label=PlotOption(settings, "label")
+    };
+};
+
+PlotReadMark(entry, index) -> {;
+    entry ? :Map ?: _ ?_ .Error(@"Polynomial plot mark @{index} must be a map");
+    point = PlotOption(entry, "point");
+    point ? :Array ?: _ ?_ .Error(@"Polynomial plot mark @{index} point must be an Array");
+    point.Len() == 2 ?: _ ?_ .Error(@"Polynomial plot mark @{index} point must contain x and y coordinates");
+    {=
+        point=[PlotExact(point[1], @"Polynomial plot mark @{index} x"), PlotExact(point[2], @"Polynomial plot mark @{index} y")],
+        label=PlotOption(entry, "label"),
+        style=PlotOption(entry, "style", {= fill="#be123c", stroke="#fff", width=2 }),
+        labelStyle=PlotOption(entry, "labelstyle", {= size=13 }),
+        radius=PlotExact(PlotOption(entry, "radius", 5), @"Polynomial plot mark @{index} radius")
+    };
+};
+
+PlotReadTick(entry, index) -> {;
+    entry ? :Map ?: _ ?_ .Error(@"Polynomial plot tick @{index} must be a map");
+    {=
+        x=PlotExact(PlotOption(entry, "x"), @"Polynomial plot tick @{index} x"),
+        label=PlotOption(entry, "label"),
+        style=PlotOption(entry, "style", {= stroke="#334155", width=2 }),
+        labelStyle=PlotOption(entry, "labelstyle", {= size=13, anchor="middle" })
+    };
+};
+
+PlotFixedYBounds(value) -> {;
+    value ? :Array ?: _ ?_ .Error("Polynomial plot yDomain must be an Array");
+    value.Len() == 2 ?: _ ?_ .Error("Polynomial plot yDomain must have a lower and upper bound");
+    lower = PlotExact(value[1], "Polynomial plot yDomain lower bound");
+    upper = PlotExact(value[2], "Polynomial plot yDomain upper bound");
+    lower < upper ?: [lower, upper] ?_ .Error("Polynomial plot yDomain must increase");
+};
+
+PlotAutomaticYBounds(series, marks) -> {;
+    values := [0];
+    {@ seriesIndex = 1; seriesIndex <= @series.Len(); {;
+        points = @series[seriesIndex][:data];
+        {@ pointIndex = 1; pointIndex <= @points.Len(); {;
+            @values ~= @values.Push(@points[pointIndex][2]);
+        }; pointIndex += 1 };
+    }; seriesIndex += 1 };
+    {@ markIndex = 1; markIndex <= @marks.Len(); {;
+        @values ~= @values.Push(@marks[markIndex][:point][2]);
+    }; markIndex += 1 };
+    lower := values[1];
+    upper := values[1];
+    {@ valueIndex = 2; valueIndex <= @values.Len(); {;
+        @lower ~= @values[valueIndex] < @lower ?: @values[valueIndex] ?_ @lower;
+        @upper ~= @values[valueIndex] > @upper ?: @values[valueIndex] ?_ @upper;
+    }; valueIndex += 1 };
+    equal = lower == upper;
+    lower = equal ?: lower - 1 ?_ lower;
+    upper = equal ?: upper + 1 ?_ upper;
+    padding = (upper - lower) * 2/25;
+    [lower - padding, upper + padding];
+};
+
+PlotPolynomial(coefficientsValue, domain, options ?= {= }) -> {;
+    coefficients = PlotExactArray(coefficientsValue, "Polynomial coefficients");
+    coefficients.Len() >= 2 ?: _ ?_ .Error("Plot.Polynomial requires at least two coefficients");
+    domain ? :Array ?: _ ?_ .Error("Polynomial plot domain must be an Array");
+    domain.Len() == 2 ?: _ ?_ .Error("Polynomial plot domain must have a lower and upper bound");
+    xMin = PlotExact(domain[1], "Polynomial plot lower bound");
+    xMax = PlotExact(domain[2], "Polynomial plot upper bound");
+    xMin < xMax ?: _ ?_ .Error("Polynomial plot domain must increase");
+    options ? :Map ?: _ ?_ .Error("Polynomial plot options must be a map");
+
+    size = PlotOption(options, "size", [640, 360]);
+    size ? :Array ?: _ ?_ .Error("Polynomial plot size must be an Array");
+    size.Len() == 2 ?: _ ?_ .Error("Polynomial plot size must contain positive width and height");
+    width = PlotExact(size[1], "Polynomial plot size 1");
+    height = PlotExact(size[2], "Polynomial plot size 2");
+    (width > 0 && height > 0) ?: _ ?_ .Error("Polynomial plot size must contain positive width and height");
+    samples = PlotPositiveSamples(PlotOption(options, "samples", 161));
+    margin = PlotExact(PlotOption(options, "margin", 36), "Polynomial plot margin");
+    (margin >= 0 && margin * 2 < .Min(width, height)) ?: _ ?_ .Error("Polynomial plot margin is too large for its size");
+
+    series := [PlotReadSeries(coefficients, options, 1, samples, xMin, xMax, 1)];
+    extraSeries = PlotOption(options, "series", []);
+    extraSeries ? :Array ?: _ ?_ .Error("Polynomial plot series must be an Array");
+    {@ index = 1; index <= @extraSeries.Len(); {;
+        entry = @extraSeries[index];
+        entry ? :Map ?: _ ?_ .Error(@"Polynomial plot series @{index + 1} must be a map");
+        entry.Has("coefficients") ?: _ ?_ .Error(@"Polynomial plot series @{index + 1} requires coefficients");
+        @series ~= @series.Push(PlotReadSeries(entry[:coefficients], entry, index + 1, @samples, @xMin, @xMax, 0));
+    }; index += 1 };
+
+    marks := [];
+    markEntries = PlotOption(options, "marks", []);
+    markEntries ? :Array ?: _ ?_ .Error("Polynomial plot marks must be an Array");
+    {@ index = 1; index <= @markEntries.Len(); {;
+        @marks ~= @marks.Push(PlotReadMark(@markEntries[index], index));
+    }; index += 1 };
+
+    ticks := [];
+    tickEntries = PlotOption(options, "ticks", []);
+    tickEntries ? :Array ?: _ ?_ .Error("Polynomial plot ticks must be an Array");
+    {@ index = 1; index <= @tickEntries.Len(); {;
+        @ticks ~= @ticks.Push(PlotReadTick(@tickEntries[index], index));
+    }; index += 1 };
+
+    yBounds = options.Has("ydomain") ?: PlotFixedYBounds(options[:ydomain]) ?_ PlotAutomaticYBounds(series, marks);
+    yMin = yBounds[1];
+    yMax = yBounds[2];
+    toPoint = (point) -> [
+        @margin + (point[1] - @xMin) / (@xMax - @xMin) * (@width - @margin * 2),
+        @height - @margin - (point[2] - @yMin) / (@yMax - @yMin) * (@height - @margin * 2)
+    ];
+    axisStyle = {= stroke="#64748b", width=1, dash="3 3", fill="none" };
+    children := [];
+    (yMin <= 0 && yMax >= 0)
+      ?: {; @children ~= @children.Push(.Graphics.Path([[@xMin, 0] |> @toPoint, [@xMax, 0] |> @toPoint], @axisStyle)); }
+      ?_ _;
+    (xMin <= 0 && xMax >= 0)
+      ?: {; @children ~= @children.Push(.Graphics.Path([[0, @yMin] |> @toPoint, [0, @yMax] |> @toPoint], @axisStyle)); }
+      ?_ _;
+
+    {@ index = 1; index <= @series.Len(); {;
+        @children ~= @children.Push(.Graphics.Path(@series[index][:data].Map(@toPoint), @series[index][:style]));
+    }; index += 1 };
+    {@ index = 1; index <= @ticks.Len(); {;
+        tick = @ticks[index];
+        position = [tick[:x], 0] |> @toPoint;
+        @children ~= @children.Push(.Graphics.Path([[position[1], position[2] - 5], [position[1], position[2] + 5]], tick[:style]));
+        tick[:label] != _
+          ?: {; @children ~= @children.Push(.Graphics.Text([@position[1], @position[2] + 20], @tick[:label], @tick[:labelstyle])); }
+          ?_ _;
+    }; index += 1 };
+    {@ index = 1; index <= @marks.Len(); {;
+        mark = @marks[index];
+        position = mark[:point] |> @toPoint;
+        @children ~= @children.Push(.Graphics.Circle(position, mark[:radius], mark[:style]));
+        mark[:label] != _
+          ?: {; @children ~= @children.Push(.Graphics.Text([@position[1] + 9, @position[2] - 9], @mark[:label], @mark[:labelstyle])); }
+          ?_ _;
+    }; index += 1 };
+
+    labeled := series.Filter((entry) -> entry[:label] != _);
+    {@ index = 1; index <= @labeled.Len(); {;
+        entry = @labeled[index];
+        y = @margin + 16 + (index - 1) * 18;
+        @children ~= @children.Push(.Graphics.Path([[@margin + 2, y - 5], [@margin + 18, y - 5]], entry[:style]));
+        @children ~= @children.Push(.Graphics.Text([@margin + 24, y], entry[:label], {= size=13 }));
+    }; index += 1 };
+
+    .Graphics.Graphic([width, height], children, {= kind="polynomial_plot", schema="rix.plot@1" });
+};
+
+plotNamespace = {= };
+plotNamespace._proto = {=
+    Polynomial=(self, coefficients, domain, options ?= {= })->PlotPolynomial(coefficients, domain, options)
+};
+.Host.RegisterValue("plot", plotNamespace, "Pure exact polynomial sampling into portable Graphics", ["Plot", "Graphics", "Exact"]);

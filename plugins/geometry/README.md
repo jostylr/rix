@@ -1,7 +1,7 @@
 # `.geometry`
 
-Creates immutable exact 2D geometry without coupling mathematical objects to a
-renderer. Phase 1 provides rational points, lines, circles, midpoint and
+The implementation is pure RiX and creates immutable exact 2D geometry without
+coupling mathematical objects to a renderer. Phase 1 provides rational points, lines, circles, midpoint and
 perpendicular-bisector constructions, circumcircles, and exact line-line
 intersection results.
 
@@ -35,8 +35,9 @@ intersection in that provenance.
 
 `Draw(objects, options?)` lowers geometry to an ordinary core `Graphic` using a
 uniform fit. Options are `view=[xmin,ymin,xmax,ymax]` and `size=[width,height]`.
-The exact geometry remains unchanged; only this explicit snapshot adapter
-converts exact coordinates and square roots to finite JavaScript numbers.
+The exact geometry remains unchanged. Projection arithmetic remains exact in
+RiX; the explicit snapshot computes only a display-radius approximation through
+the core square-root operation while retaining `radiusSquared` in the geometry.
 Unresolved intersection results appear as red diagnostic text in the graphic.
 The resulting Graphic works unchanged with the SVG and Canvas renderer plugins.
 

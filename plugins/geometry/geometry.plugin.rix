@@ -1,0 +1,322 @@
+/**
+id: geometry
+description: Pure-RiX exact ruler-and-compass geometry with explicit intersections and portable Graphics snapshots.
+kind: rix
+mount: geometry
+exports: [Point, Line, Circle, Midpoint, PerpendicularBisector, Circumcircle, Intersect, Points, Status, Draw]
+groups: [Geometry, Graphics, Exact]
+permissions: []
+provides: [rix.geometry@1, rix.geometry.intersection@1]
+schemas: [rix.geometry@1, rix.geometry.intersection@1]
+snapshot: true
+deterministic: true
+defaultEnabled: false
+**/
+
+GeometryOption(options, key, fallback ?= _) -> options.Has(key) ?: options[key] ?_ fallback;
+
+GeometryExact(value, label) -> {;
+    exact = value ~!: :Rational;
+    exact == _ ?: .Error(@"@{label} must be an exact integer or rational") ?_ exact;
+};
+
+GeometryIsZero(value) -> (value ~!: :Rational).Numerator()==0;
+
+GeometryRequire(value, kind ?= _, label ?= "geometry value") -> {;
+    valid = (value ? :Map) && value.Has("schema") && value[:schema] == "rix.geometry@1";
+    valid && (kind == _ || value[:kind] == kind)
+      ?: value
+      ?_ .Error(@"@{label} must be a geometry @{kind == _ ?: "value" ?_ kind}");
+};
+
+GeometryProvenance(operation, inputs, details ?= _) -> {=
+    operation=operation,
+    inputs=inputs,
+    details=details
+};
+
+GeometryValue(kind, fields) -> .DeepMutable({=
+    type="geometry",
+    kind=kind,
+    schema="rix.geometry@1"
+}.Merge(fields), _);
+
+GeometryPointValue(x, y, operation, inputs, metadata ?= _, style ?= _) -> GeometryValue(:point, {=
+    x=x,
+    y=y,
+    coordinates=[x, y],
+    metadata=metadata,
+    style=style,
+    provenance=[GeometryProvenance(operation, inputs)]
+});
+
+GeometryPoint(first, second ?= _, options ?= {= }) -> {;
+    settings = ((first ? :Map) && second == _) ?: first ?_ options;
+    coordinates = ((first ? :Array) && second == _)
+      ?: first
+      ?_ ((first ? :Map) && second == _)
+           ?: [GeometryOption(settings, "x"), GeometryOption(settings, "y")]
+           ?_ [first, second];
+    coordinates.Len() == 2 ?: _ ?_ .Error("geometry.Point coordinates must contain x and y");
+    x = GeometryExact(coordinates[1], "geometry.Point x");
+    y = GeometryExact(coordinates[2], "geometry.Point y");
+    GeometryPointValue(x, y, "Point", [x, y], GeometryOption(settings, "metadata"), GeometryOption(settings, "style"));
+};
+
+GeometrySamePoint(left, right) -> left[:x] == right[:x] && left[:y] == right[:y];
+
+GeometryLineValue(a, b, c, through, operation, inputs, metadata ?= _, style ?= _) -> {;
+    (GeometryIsZero(a) && GeometryIsZero(b))
+      ?: .Error(@"@{operation} cannot produce a degenerate line")
+      ?_ GeometryValue(:line, {=
+          a=a,
+          b=b,
+          c=c,
+          through=through,
+          metadata=metadata,
+          style=style,
+          provenance=[GeometryProvenance(operation, inputs)]
+      });
+};
+
+GeometryLine(first, second ?= _, options ?= {= }) -> {;
+    settings = ((first ? :Map) && second == _) ?: first ?_ options;
+    firstPoint = GeometryRequire(GeometryOption(settings, "first", first), :point, "geometry.Line first point");
+    secondPoint = GeometryRequire(GeometryOption(settings, "second", second), :point, "geometry.Line second point");
+    GeometrySamePoint(firstPoint, secondPoint) ?: .Error("geometry.Line requires two distinct points") ?_ _;
+    a = firstPoint[:y] - secondPoint[:y];
+    b = secondPoint[:x] - firstPoint[:x];
+    c = firstPoint[:x] * secondPoint[:y] - secondPoint[:x] * firstPoint[:y];
+    GeometryLineValue(a, b, c, [firstPoint, secondPoint], "Line", [firstPoint, secondPoint],
+        GeometryOption(settings, "metadata"), GeometryOption(settings, "style"));
+};
+
+GeometrySquaredDistance(first, second) -> (second[:x] - first[:x])^2 + (second[:y] - first[:y])^2;
+
+GeometryCircleValue(center, radiusSquared, through, operation, inputs, metadata ?= _, style ?= _) -> {;
+    radiusSquared > 0 ?: _ ?_ .Error(@"@{operation} requires a positive radius");
+    GeometryValue(:circle, {=
+        center=center,
+        radiusSquared=radiusSquared,
+        through=through,
+        metadata=metadata,
+        style=style,
+        provenance=[GeometryProvenance(operation, inputs)]
+    });
+};
+
+GeometryCircle(first, second ?= _, options ?= {= }) -> {;
+    settings = ((first ? :Map) && second == _) ?: first ?_ options;
+    center = GeometryRequire(GeometryOption(settings, "center", first), :point, "geometry.Circle center");
+    candidate = GeometryOption(settings, "through", second);
+    explicitRadius = GeometryOption(settings, "radius");
+    explicitSquared = GeometryOption(settings, "radiussquared");
+    specificationCount = (candidate != _ ?: 1 ?_ 0) + (explicitRadius != _ ?: 1 ?_ 0) + (explicitSquared != _ ?: 1 ?_ 0);
+    specificationCount == 1 ?: _ ?_ .Error("geometry.Circle requires exactly one through point, radius, or radiusSquared");
+    through = ((candidate ? :Map) && candidate.Has("schema"))
+      ?: GeometryRequire(candidate, :point, "geometry.Circle through point")
+      ?_ _;
+    radiusSquared = through != _
+      ?: GeometrySquaredDistance(center, through)
+      ?_ explicitSquared != _
+           ?: GeometryExact(explicitSquared, "geometry.Circle radiusSquared")
+           ?_ GeometryExact(explicitRadius != _ ?: explicitRadius ?_ candidate, "geometry.Circle radius")^2;
+    GeometryCircleValue(center, radiusSquared, through, "Circle",
+        through != _ ?: [center, through] ?_ [center, radiusSquared],
+        GeometryOption(settings, "metadata"), GeometryOption(settings, "style"));
+};
+
+GeometryMidpoint(first, second ?= _) -> {;
+    settings = ((first ? :Map) && second == _) ?: first ?_ {= first=first, second=second };
+    firstPoint = GeometryRequire(settings[:first], :point, "geometry.Midpoint first point");
+    secondPoint = GeometryRequire(settings[:second], :point, "geometry.Midpoint second point");
+    GeometryPointValue((firstPoint[:x] + secondPoint[:x]) / 2, (firstPoint[:y] + secondPoint[:y]) / 2,
+        "Midpoint", [firstPoint, secondPoint]);
+};
+
+GeometryPerpendicularBisector(first, second ?= _, options ?= {= }) -> {;
+    settings = ((first ? :Map) && second == _) ?: first ?_ options.Merge({= first=first, second=second });
+    firstPoint = GeometryRequire(settings[:first], :point, "geometry.PerpendicularBisector first point");
+    secondPoint = GeometryRequire(settings[:second], :point, "geometry.PerpendicularBisector second point");
+    GeometrySamePoint(firstPoint, secondPoint) ?: .Error("geometry.PerpendicularBisector requires two distinct points") ?_ _;
+    middle = GeometryMidpoint(firstPoint, secondPoint);
+    a = secondPoint[:x] - firstPoint[:x];
+    b = secondPoint[:y] - firstPoint[:y];
+    c = -(a * middle[:x] + b * middle[:y]);
+    GeometryLineValue(a, b, c, [middle], "PerpendicularBisector", [firstPoint, secondPoint],
+        GeometryOption(settings, "metadata"), GeometryOption(settings, "style"));
+};
+
+GeometryIntersectionValue(status, points, left, right, diagnostic ?= _) -> .DeepMutable({=
+    type="geometry_intersection",
+    kind="intersection",
+    schema="rix.geometry.intersection@1",
+    status=status,
+    points=points,
+    exact=status == "unsupported" ?: 0 ?_ 1,
+    diagnostic=diagnostic,
+    provenance=[GeometryProvenance("Intersect", [left, right], diagnostic)]
+}, _);
+
+GeometryIntersectLines(left, right) -> {;
+    determinant = left[:a] * right[:b] - right[:a] * left[:b];
+    GeometryIsZero(determinant)
+      ?: {;
+          ac = @left[:a] * @right[:c] - @right[:a] * @left[:c];
+          bc = @left[:b] * @right[:c] - @right[:b] * @left[:c];
+          (GeometryIsZero(ac) && GeometryIsZero(bc))
+            ?: GeometryIntersectionValue("coincident", [], @left, @right, "Coincident lines have infinitely many intersections")
+            ?_ GeometryIntersectionValue("parallel", [], @left, @right, "Parallel lines do not intersect");
+      }
+      ?_ {;
+          x = (@left[:b] * @right[:c] - @right[:b] * @left[:c]) / @determinant;
+          y = (@left[:c] * @right[:a] - @right[:c] * @left[:a]) / @determinant;
+          point = GeometryPointValue(x, y, "LineIntersection", [@left, @right]);
+          GeometryIntersectionValue("one", [point], @left, @right);
+      };
+};
+
+GeometryIntersect(first, second ?= _) -> {;
+    settings = ((first ? :Map) && first.Has("left") && second == _) ?: first ?_ {= left=first, right=second };
+    left = GeometryRequire(settings[:left], _, "geometry.Intersect left value");
+    right = GeometryRequire(settings[:right], _, "geometry.Intersect right value");
+    (left[:kind] == :line && right[:kind] == :line)
+      ?: GeometryIntersectLines(left, right)
+      ?_ GeometryIntersectionValue("unsupported", [], left, right,
+          @"Phase 1 geometry.Intersect supports line-line intersections, not @{left[:kind]}-@{right[:kind]}");
+};
+
+GeometryRequireIntersection(value, label) -> ((value ? :Map) && value.Has("schema") && value[:schema] == "rix.geometry.intersection@1")
+  ?: value
+  ?_ .Error(@"@{label} requires a geometry intersection result");
+
+GeometryPoints(intersection) -> GeometryRequireIntersection(intersection, "geometry.Points")[:points];
+GeometryStatus(intersection) -> GeometryRequireIntersection(intersection, "geometry.Status")[:status];
+
+GeometryCircumcircle(first, second ?= _, third ?= _, options ?= {= }) -> {;
+    settings = ((first ? :Map) && second == _)
+      ?: first
+      ?_ options.Merge({= first=first, second=second, third=third });
+    firstPoint = GeometryRequire(settings[:first], :point, "geometry.Circumcircle first point");
+    secondPoint = GeometryRequire(settings[:second], :point, "geometry.Circumcircle second point");
+    thirdPoint = GeometryRequire(settings[:third], :point, "geometry.Circumcircle third point");
+    firstBisector = GeometryPerpendicularBisector(firstPoint, secondPoint);
+    secondBisector = GeometryPerpendicularBisector(firstPoint, thirdPoint);
+    centerResult = GeometryIntersect(firstBisector, secondBisector);
+    centerResult[:status] == "one"
+      ?: _
+      ?_ .Error(@"geometry.Circumcircle requires three non-collinear points: @{centerResult[:diagnostic]}");
+    center = centerResult[:points][1];
+    GeometryCircleValue(center, GeometrySquaredDistance(center, firstPoint), firstPoint, "Circumcircle",
+        [firstPoint, secondPoint, thirdPoint, firstBisector, secondBisector, centerResult],
+        GeometryOption(settings, "metadata"), GeometryOption(settings, "style"));
+};
+
+GeometryNumericSequence(value, length, label) -> {;
+    value ? :Array ?: _ ?_ .Error(@"@{label} must be a sequence");
+    value.Len() == length ?: _ ?_ .Error(@"@{label} must contain @{length} values");
+    value.Map((item) -> GeometryExact(item, label));
+};
+
+GeometryStyle(supplied, defaults) -> supplied == _
+  ?: defaults
+  ?_ (supplied ? :Map) ?: defaults.Merge(supplied) ?_ .Error("geometry style must be a map");
+
+GeometryLineEndpoints(line, view) -> {;
+    xmin = view[1]; ymin = view[2]; xmax = view[3]; ymax = view[4];
+    a = line[:a]; b = line[:b]; c = line[:c];
+    points := [];
+    addPoint = (x, y) -> {;
+        inside = x >= @xmin && x <= @xmax && y >= @ymin && y <= @ymax;
+        duplicate = @points.Filter((point) -> point[1] == @x && point[2] == @y).Len() > 0;
+        (inside && !duplicate) ?: {; @points ~= @points.Push([@x, @y]); } ?_ _;
+    };
+    !GeometryIsZero(b) ?: {; @addPoint(@xmin, -(@a*@xmin+@c)/@b); @addPoint(@xmax, -(@a*@xmax+@c)/@b); } ?_ _;
+    !GeometryIsZero(a) ?: {; @addPoint(-(@b*@ymin+@c)/@a, @ymin); @addPoint(-(@b*@ymax+@c)/@a, @ymax); } ?_ _;
+    points.Slice(1, 3);
+};
+
+GeometryDrawableItems(value) -> {;
+    source = value ? :Array ?: value ?_ [value];
+    items := [];
+    {@ index = 1; index <= @source.Len(); {;
+        item = @source[index];
+        isIntersection = (item ? :Map) && item.Has("schema") && item[:schema] == "rix.geometry.intersection@1";
+        isGeometry = (item ? :Map) && item.Has("schema") && item[:schema] == "rix.geometry@1";
+        (isIntersection || isGeometry)
+          ?: _
+          ?_ .Error(@"geometry.Draw object @{index} must be geometry or an intersection result");
+        (isIntersection && item[:status] == "one")
+          ?: {; @items ~= @items.Concat(@item[:points]); }
+          ?_ {; @items ~= @items.Push(@item); };
+    }; index += 1 };
+    items;
+};
+
+GeometryDraw(objects, options ?= {= }) -> {;
+    settings = ((objects ? :Map) && objects.Has("objects")) ?: objects ?_ options.Merge({= objects=objects });
+    items = GeometryDrawableItems(settings[:objects]);
+    size = GeometryNumericSequence(GeometryOption(settings, "size", [640, 480]), 2, "geometry.Draw size");
+    view = GeometryNumericSequence(GeometryOption(settings, "view", [-10, -10, 10, 10]), 4, "geometry.Draw view");
+    xmin = view[1]; ymin = view[2]; xmax = view[3]; ymax = view[4];
+    (xmax > xmin && ymax > ymin) ?: _ ?_ .Error("geometry.Draw view must satisfy xmin < xmax and ymin < ymax");
+    (size[1] > 0 && size[2] > 0) ?: _ ?_ .Error("geometry.Draw size must be positive");
+    scale = .Min(size[1] / (xmax - xmin), size[2] / (ymax - ymin));
+    offsetX = (size[1] - (xmax - xmin) * scale) / 2;
+    offsetY = (size[2] - (ymax - ymin) * scale) / 2;
+    project = (point) -> [@offsetX + (point[1] - @xmin) * @scale, @size[2] - @offsetY - (point[2] - @ymin) * @scale];
+    children := [];
+    unresolved := 0;
+    {@ index = 1; index <= @items.Len(); {;
+        item = @items[index];
+        isIntersection = item[:schema] == "rix.geometry.intersection@1";
+        isIntersection
+          ?: {;
+              @unresolved += 1;
+              @children ~= @children.Push(.Graphics.Text([12, 20 + @unresolved * 18], @item[:diagnostic],
+                  {= fill="#b91c1c", size=13 }));
+          }
+          ?_ item[:kind] == :point
+               ?: {;
+                   center = [@item[:x], @item[:y]] |> @project;
+                   @children ~= @children.Push(.Graphics.Circle(center, 5,
+                       GeometryStyle(@item[:style], {= fill="#6d28d9", stroke="#ffffff", width=2 })));
+               }
+               ?_ item[:kind] == :line
+                    ?: {;
+                        endpoints = GeometryLineEndpoints(@item, @view);
+                        endpoints.Len() == 2
+                          ?: {; @children ~= @children.Push(.Graphics.Path(@endpoints.Map(@project),
+                              GeometryStyle(@item[:style], {= stroke="#2563eb", width=2, fill="none" }))); }
+                          ?_ _;
+                    }
+                    ?_ item[:kind] == :circle
+                         ?: {;
+                             center = [@item[:center][:x], @item[:center][:y]] |> @project;
+                             radius = .Sqrt(@item[:radiusSquared]) * @scale;
+                             @children ~= @children.Push(.Graphics.Circle(center, radius,
+                                 GeometryStyle(@item[:style], {= fill="none", stroke="#d97706", width=2 })));
+                         }
+                         ?_ .Error(@"geometry.Draw does not support geometry kind '@{item[:kind]}'");
+    }; index += 1 };
+    .Graphics.Graphic(size, children, {=
+        source="rix.geometry@1",
+        projection="uniform-fit",
+        unresolved=unresolved
+    });
+};
+
+geometryNamespace = {= };
+geometryNamespace._proto = {=
+    Point=(self, first, second ?= _, options ?= {= })->GeometryPoint(first, second, options),
+    Line=(self, first, second ?= _, options ?= {= })->GeometryLine(first, second, options),
+    Circle=(self, first, second ?= _, options ?= {= })->GeometryCircle(first, second, options),
+    Midpoint=(self, first, second ?= _)->GeometryMidpoint(first, second),
+    PerpendicularBisector=(self, first, second ?= _, options ?= {= })->GeometryPerpendicularBisector(first, second, options),
+    Circumcircle=(self, first, second ?= _, third ?= _, options ?= {= })->GeometryCircumcircle(first, second, third, options),
+    Intersect=(self, first, second ?= _)->GeometryIntersect(first, second),
+    Points=(self, intersection)->GeometryPoints(intersection),
+    Status=(self, intersection)->GeometryStatus(intersection),
+    Draw=(self, objects, options ?= {= })->GeometryDraw(objects, options)
+};
+.Host.RegisterValue("geometry", geometryNamespace, "Pure exact ruler-and-compass geometry and portable Graphics snapshots", ["Geometry", "Graphics", "Exact"]);

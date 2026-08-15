@@ -9,7 +9,7 @@ permissions: []
 defaultEnabled: false
 **/
 
-/** Bundled first-party plot plugin that lowers plots into core Graphics. */
+/** Historical JavaScript reference for the pure-RiX plot plugin. */
 
 import { createPlotOutputCollection } from "../../src/runtime/output.js";
 
