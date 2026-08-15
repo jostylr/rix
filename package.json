@@ -74,7 +74,7 @@
     "@lezer/common": "^1.5.2",
     "@lezer/highlight": "^1.2.3",
     "@lezer/lr": "^1.4.10",
-    "@ratmath/core": "^0.3.0"
+    "@ratmath/core": "^0.4.0"
   },
   "devDependencies": {
     "@lezer/generator": "^1.8.0",

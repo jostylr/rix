@@ -5,8 +5,8 @@ description: "Install RiX in the RatMath workspace, run the REPL, execute script
 
 RiX uses Bun. The package is an active alpha and is not yet presented as a
 stable registry release: the public npm name `rix` belongs to an unrelated
-project, and the current registry build of `@ratmath/core` does not export every
-API used by this RiX revision.
+project. Standalone development installs the compatible `@ratmath/core` 0.4
+release.
 
 ## Requirements
 
@@ -23,9 +23,8 @@ bun install
 bun --cwd rix test
 ```
 
-The standalone repository is laid out for `bun install` and `bun test`, but that
-path remains blocked until a compatible Core version is published and RiX raises
-its minimum dependency accordingly.
+The standalone repository supports `bun install` and `bun test`; the RatMath
+umbrella workspace instead links its local Core checkout.
 
 The RiX test suite exercises tokenizer, parser, lowering, evaluator, runtime, CLI, examples, exact values, types, methods, Shaped storage, mathematical tensors, generators, and diagnostics.
 

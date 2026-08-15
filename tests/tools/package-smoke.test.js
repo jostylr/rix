@@ -6,7 +6,7 @@ const rixRoot = path.resolve(import.meta.dir, "../..");
 describe("standalone package", () => {
   test("uses released dependencies and Bun for the package worker", async () => {
     const manifest = await Bun.file(path.join(rixRoot, "package.json")).json();
-    expect(manifest.dependencies["@ratmath/core"]).toBe("^0.3.0");
+    expect(manifest.dependencies["@ratmath/core"]).toBe("^0.4.0");
     expect(manifest.engines).toEqual({ bun: ">=1.2.0" });
 
     const worker = await Bun.file(path.join(rixRoot, "bin/rix-worker.js")).text();
