@@ -8,8 +8,10 @@ plugin: scene3d
 
 ## Keep the scene, choose a view
 
-The retained scene is right-handed and Z-up. Its coordinates remain exact;
-`Snapshot` owns the numeric camera boundary and returns an adaptive-result map.
+The retained scene is right-handed and Z-up. Its coordinates and composed
+transforms remain exact. `Realize` exposes that exact primitive stream,
+`Project` records the camera approximation policy, and `Snapshot` lowers the
+projected records to core Graphics.
 
 ```rix
 .Plugin.Load("scene3d");
@@ -26,6 +28,14 @@ scene := .scene3d.Scene([mesh], {= camera=camera });
 The browser renders the returned core Graphic. The initial mode is
 deliberately called `wireframe`: hidden-line removal is not silently
 approximated.
+
+You can inspect either intermediate contract directly:
+
+```rix
+realized := .scene3d.Realize(scene);
+projected := .scene3d.Project(scene);
+[realized["schema"], projected["approximation"]];
+```
 
 ## Add retained lights and request a lit view
 

@@ -1,4 +1,4 @@
-/** Host-neutral retained 3D scene values and deterministic wireframe snapshots. */
+/** Historical host implementation retained as a migration reference. Not loaded. */
 
 import { Integer, Rational } from "@ratmath/core";
 import { createCircle, createGraphic, createPath } from "../../src/runtime/output.js";

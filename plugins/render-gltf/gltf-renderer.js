@@ -1,7 +1,49 @@
 /** Browser-safe glTF 2.0 JSON exporter for retained Scene3D values. */
 
-import { flattenScene3D, isScene3D, SCENE3D_SCHEMA } from "../scene3d/scene3d.js";
-import { diagnostic } from "../renderers/common.js";
+import { diagnostic, field, numberValue, rixString, sequence } from "../renderers/common.js";
+
+const SCENE3D_SCHEMA = "rix.scene3d@1";
+const REALIZED_SCHEMA = "rix.scene3d.realized@1";
+
+function text(value, fallback = null) {
+    return rixString(value) ?? (typeof value === "string" ? value : fallback);
+}
+
+function portableScene(scene) {
+    return text(field(scene, "type")) === "output"
+        && text(field(scene, "kind")) === "scene3d"
+        && text(field(scene, "schema")) === SCENE3D_SCHEMA;
+}
+
+function primitiveRecord(value, index) {
+    const points = sequence(field(value, "points"), `Scene3D primitive ${index + 1} points`)
+        .map((point, pointIndex) => sequence(point, `Scene3D primitive ${index + 1} point ${pointIndex + 1}`)
+            .map((coordinate, coordinateIndex) => numberValue(coordinate, `Scene3D coordinate ${coordinateIndex + 1}`)));
+    const indices = (name) => sequence(field(value, name, { type: "sequence", values: [] }), `Scene3D primitive ${index + 1} ${name}`)
+        .map((entry) => sequence(entry, `Scene3D primitive ${index + 1} ${name} entry`)
+            .map((item) => numberValue(item, `Scene3D ${name} index`) - 1));
+    const styleValue = field(value, "style");
+    return {
+        kind: text(field(value, "kind")),
+        points,
+        segments: indices("segments"),
+        triangles: indices("triangles"),
+        radius: field(value, "radius"),
+        style: {
+            color: text(field(styleValue, "color"), "#275dad"),
+            opacity: field(styleValue, "opacity", 1),
+            width: field(styleValue, "width", 1),
+        },
+    };
+}
+
+function realizedPrimitives(scene) {
+    const realized = field(scene, "realized");
+    if (text(field(realized, "schema")) !== REALIZED_SCHEMA) {
+        throw new Error(`gltf requires the public ${REALIZED_SCHEMA} realization on a Scene3D scene`);
+    }
+    return sequence(field(realized, "primitives"), "Scene3D realized primitives").map(primitiveRecord);
+}
 
 function rgba(color, opacity = 1) {
     const match = /^#([0-9a-f]{6}|[0-9a-f]{3})$/i.exec(color || "");
@@ -57,8 +99,8 @@ function uintBytes(values) {
 }
 
 export function exportSceneGltf(scene, { pretty = true } = {}) {
-    if (!isScene3D(scene)) throw new Error("gltf accepts a Scene3D scene");
-    const primitives = flattenScene3D(scene);
+    if (!portableScene(scene)) throw new Error("gltf accepts a Scene3D scene");
+    const primitives = realizedPrimitives(scene);
     const chunks = [];
     const records = [];
     let approximated = false;
@@ -99,8 +141,7 @@ export function exportSceneGltf(scene, { pretty = true } = {}) {
     };
     records.forEach((record, index) => {
         const style = record.primitive.style;
-        const opacity = Number(style?.opacity?.value ?? style?.opacity?.numerator ?? style?.opacity ?? 1)
-            / Number(style?.opacity?.denominator ?? 1);
+        const opacity = numberValue(style?.opacity ?? 1, "Scene3D material opacity");
         const material = gltf.materials.push({
             name: `RiX material ${index + 1}`,
             pbrMetallicRoughness: { baseColorFactor: rgba(style?.color, opacity), metallicFactor: 0, roughnessFactor: 1 },
@@ -141,11 +182,10 @@ export function exportSceneGltf(scene, { pretty = true } = {}) {
         "glTF line primitives do not portably preserve Scene3D line widths.",
         "info",
     ));
-    if (scene.lights.length) diagnostics.push(diagnostic(
+    if (sequence(field(scene, "lights"), "Scene3D lights").length) diagnostics.push(diagnostic(
         "gltf-lights-not-exported",
         "Scene3D lights are retained by the scene but are not exported in glTF phase 1.",
         "info",
     ));
     return { content: `${JSON.stringify(gltf, null, pretty ? 2 : 0)}\n`, diagnostics, metadata: { schema: "model/gltf+json", primitives: records.length } };
 }
-

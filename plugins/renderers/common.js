@@ -7,7 +7,9 @@ import {
 } from "../../src/runtime/renderer-registry.js";
 
 export function outputKind(value) {
-    return value?.type === "output" ? value.kind : value?.type || typeof value;
+    const type = rixString(field(value, "type"));
+    const kind = rixString(field(value, "kind"));
+    return type === "output" ? kind : type || value?.type || typeof value;
 }
 
 export function unwrapFigure(value) {

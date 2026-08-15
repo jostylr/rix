@@ -30,3 +30,10 @@ scene := .nd.ToScene3D(projected, {=
 Calling `ToScene3D` on the original 4D value fails and asks for an explicit
 projection. Slicing and projection are kept as separate concepts; phase 1
 implements the affine projection path.
+
+The projective endpoint of a Cayley parameter is also ordinary RiX code:
+
+```rix
+halfTurn := .nd.CayleyRotation(4, 1, 4, .Complex[:infinity]);
+halfTurn["matrix"][1];
+```

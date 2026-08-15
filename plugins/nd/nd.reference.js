@@ -1,4 +1,4 @@
-/** Exact n-dimensional geometry and explicit affine projection records. */
+/** Historical host implementation retained as a migration reference. Not loaded. */
 
 import { Integer, Rational } from "@ratmath/core";
 import { isCayleyInfinity } from "../../src/runtime/exact-values.js";
@@ -11,7 +11,7 @@ import {
     exact,
     field,
     sequence,
-} from "../scene3d/scene3d.js";
+} from "../scene3d/scene3d.reference.js";
 
 export const ND_SCHEMA = "rix.nd@1";
 export const PROJECTION_SCHEMA = "rix.nd.projection@1";

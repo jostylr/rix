@@ -7,7 +7,7 @@ import {
     isShaped,
     shapedRank,
 } from "../../src/runtime/shaped.js";
-import { entriesFor, field, sequence } from "../scene3d/scene3d.js";
+import { entriesFor, field, sequence } from "../scene3d/scene3d.reference.js";
 
 export const LINALG_RESULT_SCHEMA = "rix.linalg.result@1";
 export const VECTOR_SPACE_SCHEMA = "rix.linalg.vector-space@1";

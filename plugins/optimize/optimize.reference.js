@@ -1,7 +1,7 @@
 /** Historical JavaScript Phase 1 optimizer retained only for parity reference. */
 
 import { Integer, Rational } from "@ratmath/core";
-import { entriesFor, field } from "../scene3d/scene3d.js";
+import { entriesFor, field } from "../scene3d/scene3d.reference.js";
 import {
     exactMatrix,
     exactRational,

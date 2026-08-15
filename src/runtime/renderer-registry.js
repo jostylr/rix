@@ -85,6 +85,11 @@ export class UnsupportedRenderError extends Error {
 
 function inputKind(value) {
     if (value?.type === "output" && value.kind) return value.kind;
+    if (value?.type === "map" && value.entries instanceof Map) {
+        const portableType = value.entries.get("type")?.value ?? value.entries.get("type");
+        const portableKind = value.entries.get("kind")?.value ?? value.entries.get("kind");
+        if (portableType === "output" && typeof portableKind === "string") return portableKind;
+    }
     if (value?.type) return value.type;
     return typeof value;
 }

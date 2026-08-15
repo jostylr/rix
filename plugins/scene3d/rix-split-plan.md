@@ -1,4 +1,8 @@
-# ND and Scene3D RiX/host split plan
+# ND and Scene3D RiX/host split migration
+
+Status: **implemented**. All five stages now run in pure RiX. The only host
+boundary left in this path is target encoding: glTF consumes the public
+realized primitive stream and converts coordinates to Float32 and bytes.
 
 The retained values and mathematical transformations belong in RiX. A host is
 needed only when an operation touches a target API, external encoder, binary
@@ -33,9 +37,10 @@ small pure adapter that requires `rix.scene3d@1` and constructs retained
 `Polyline`/`PointCloud`/`Group` values. It does not project to pixels or call a
 renderer.
 
-The one existing private dependency—JavaScript recognition of Cayley projective
-infinity—must be replaced by a public RiX value/protocol check before the old
-installer is removed.
+The former private JavaScript recognition of Cayley projective infinity is now
+the RiX expression `value == .Complex[:infinity]`. No new core value was
+needed; the projection provenance records whether the projective endpoint was
+used.
 
 Acceptance criteria:
 
@@ -46,7 +51,7 @@ Acceptance criteria:
 
 ## Stage 3 — Pure exact realization
 
-Split the current `flattenScene3D` work into a public
+The former `flattenScene3D` work is now the public
 `rix.scene3d.realized@1` value. RiX recursively composes exact transform
 matrices, realizes vertices, derives unique mesh edges, and expands polylines
 and point clouds. No camera normalization, trigonometry, Float32 conversion, or
@@ -57,15 +62,15 @@ of making each renderer traverse retained nodes independently.
 
 ## Stage 4 — Camera projection as a bounded mathematical service
 
-Separate camera math from snapshot construction:
+Camera math is separated from snapshot construction:
 
 - an exact view-matrix camera path remains pure rational/algebraic RiX;
 - look-at normalization and perspective `fov` convenience use an explicit
   Numerics/Float policy and return diagnostics describing approximation;
 - near/far segment clipping, orthographic fitting, perspective division, and
   depth ordering return `rix.scene3d.projected@1` portable records;
-- unresolved normalization or projection is data, not a silently dropped
-  primitive.
+- invalid or degenerate camera frames are rejected explicitly; clipping only
+  removes primitives that are provably outside the requested near/far range.
 
 The existing `.scene3d.Snapshot` name can remain as the convenience composition
 of `Realize → Project → Graphics`.
@@ -84,10 +89,16 @@ Host-backed packages remain responsible for:
 - glTF/GLB binary buffers and Float32 conversion diagnostics;
 - filesystem export, native 3D APIs, AR, and device-specific rendering.
 
-## Delivery order
+## Delivered architecture
 
-Implement Stage 1 and Stage 2 as separately reviewable conversions. Stage 3
-then establishes the renderer-facing primitive contract. Stage 4 should land
-only after its exact-versus-approximate camera policy is tested. Stage 5 can
-reuse the current snapshot fixtures while deleting the last domain-math code
-from the host installer.
+`Scene/Group/Transform/... → rix.scene3d@1 → Realize →
+rix.scene3d.realized@1 → Project → rix.scene3d.projected@1 → Snapshot →
+Graphics → renderer`.
+
+`nd.Project` stays entirely before this pipeline, and `nd.ToScene3D` is only an
+explicit three-dimensional adapter. Perspective tangent uses a fixed 24-term
+rational continued fraction and records that policy, while camera-frame square
+roots record the core rational-square-root policy. Continued-fraction steps
+are rounded deterministically to 12 decimal places so the eventual Graphics
+number conversion cannot become `Infinity/Infinity`. The historical JavaScript
+implementations remain as `*.reference.js` files and are not loaded.

@@ -1,0 +1,536 @@
+/**
+id: scene3d
+description: Pure-RiX exact retained 3D scenes, explicit realization and projection, and portable Graphics snapshots.
+kind: rix
+mount: scene3d
+exports: [Scene, Group, Transform, Mesh, Polyline, PointCloud, Material, AmbientLight, DirectionalLight, PointLight, PerspectiveCamera, OrthographicCamera, Realize, Project, Snapshot]
+groups: [Scene3D, Graphics, Exact]
+permissions: []
+provides: [rix.scene3d@1, rix.scene3d.realized@1, rix.scene3d.projected@1]
+schemas: [rix.scene3d@1, rix.scene3d.realized@1, rix.scene3d.projected@1]
+snapshot: true
+deterministic: true
+defaultEnabled: false
+**/
+
+S3Option(options, key, fallback ?= _) -> options.Has(key) ?: options[key] ?_ fallback;
+
+S3Exact(value, label) -> {;
+    exact = value ~!: :Rational;
+    exact == _ ?: .Error(@"@{label} must be an exact Integer or Rational") ?_ exact;
+};
+
+S3Integer(value, label) -> {;
+    integer = value ~!: :Integer;
+    integer == _ ?: .Error(@"@{label} must be an Integer") ?_ integer;
+};
+
+S3Vector(value, dimension, label) -> {;
+    value ? :Array ?: _ ?_ .Error(@"@{label} must be an Array");
+    value.Len() == dimension ?: _ ?_ .Error(@"@{label} must contain @{dimension} coordinates");
+    value.Map((coordinate) -> S3Exact(coordinate, @label));
+};
+
+S3Value(kind, fields) -> .DeepMutable({=
+    type=kind == :scene ?: "output" ?_ "scene3d_node",
+    kind=kind == :scene ?: "scene3d" ?_ kind,
+    schema="rix.scene3d@1"
+}.Merge(fields), _);
+
+S3IsNode(value) -> (value ? :Map) && value.Has("schema") && value[:schema] == "rix.scene3d@1" && value[:type] == "scene3d_node";
+S3RequireNode(value, label) -> S3IsNode(value) ?: value ?_ .Error(@"@{label} must be a Scene3D node");
+S3IsScene(value) -> (value ? :Map) && value.Has("schema") && value[:schema] == "rix.scene3d@1" && value[:kind] == "scene3d";
+
+S3Children(value, label) -> {;
+    value ? :Array ?: _ ?_ .Error(@"@{label} must be an Array");
+    value.Map((child) -> S3RequireNode(child, @label));
+};
+
+S3MaterialValues(material) -> ((material ? :Map) && S3IsNode(material) && material[:kind] == :material)
+  ?: material[:values]
+  ?_ {= };
+
+S3Style(settings) -> {;
+    material = S3Option(settings, "material");
+    values = S3MaterialValues(material);
+    .DeepMutable({=
+        color=S3Option(settings, "color", S3Option(values, "color", "#275dad")),
+        width=S3Exact(S3Option(settings, "width", S3Option(values, "width", 1)), "Scene3D style width"),
+        opacity=S3Exact(S3Option(settings, "opacity", S3Option(values, "opacity", 1)), "Scene3D style opacity"),
+        material=material
+    }, _);
+};
+
+S3Material(color ?= "#275dad", opacity ?= 1, width ?= 1) -> {;
+    settings = color ? :Map ?: color ?_ {= color=color, opacity=opacity, width=width };
+    S3Value(:material, {= values=.DeepMutable({=
+        color=S3Option(settings, "color", "#275dad"),
+        opacity=S3Exact(S3Option(settings, "opacity", 1), "scene3d.Material opacity"),
+        width=S3Exact(S3Option(settings, "width", 1), "scene3d.Material width")
+    }, _) });
+};
+
+S3LightColor(settings, fallback ?= "#ffffff") -> S3Option(settings, "color", fallback);
+S3LightIntensity(settings, label) -> {;
+    intensity = S3Exact(S3Option(settings, "intensity", 1), @"@{label} intensity");
+    intensity >= 0 ?: intensity ?_ .Error(@"@{label} intensity must be nonnegative");
+};
+
+S3AmbientLight(color ?= "#ffffff", intensity ?= 1) -> {;
+    settings = color ? :Map ?: color ?_ {= color=color, intensity=intensity };
+    S3Value(:ambient_light, {=
+        color=S3LightColor(settings),
+        intensity=S3LightIntensity(settings, "scene3d.AmbientLight")
+    });
+};
+
+S3DirectionalLight(direction, options ?= {= }) -> {;
+    settings = direction ? :Map ?: direction ?_ options.Merge({= direction=direction });
+    vector = S3Vector(settings[:direction], 3, "scene3d.DirectionalLight direction");
+    S3Dot(vector, vector) > 0 ?: _ ?_ .Error("scene3d.DirectionalLight direction must not be zero");
+    S3Value(:directional_light, {=
+        direction=vector,
+        color=S3LightColor(settings),
+        intensity=S3LightIntensity(settings, "scene3d.DirectionalLight")
+    });
+};
+
+S3PointLight(position, options ?= {= }) -> {;
+    settings = position ? :Map ?: position ?_ options.Merge({= position=position });
+    S3Value(:point_light, {=
+        position=S3Vector(settings[:position], 3, "scene3d.PointLight position"),
+        color=S3LightColor(settings),
+        intensity=S3LightIntensity(settings, "scene3d.PointLight")
+    });
+};
+
+S3Triangles(value, vertexCount) -> {;
+    value ? :Array ?: _ ?_ .Error("scene3d.Mesh triangles must be an Array");
+    value.Map((triangle) -> {;
+        triangle ? :Array ?: _ ?_ .Error("scene3d.Mesh triangle must be an Array");
+        triangle.Len() == 3 ?: _ ?_ .Error("scene3d.Mesh triangle must contain three indices");
+        result = triangle.Map((entry) -> S3Integer(entry, "scene3d.Mesh triangle index"));
+        result.Filter((entry) -> entry < 1 || entry > @vertexCount).Len() == 0
+          ?: result
+          ?_ .Error(@"scene3d.Mesh triangle indices must be between 1 and @{vertexCount}");
+    });
+};
+
+S3Mesh(vertices, triangles, options ?= {= }) -> {;
+    settings = vertices ? :Map ?: vertices ?_ options.Merge({= vertices=vertices, triangles=triangles });
+    points = settings[:vertices].Map((vertex) -> S3Vector(vertex, 3, "scene3d.Mesh vertex"));
+    points.Len() > 0 ?: _ ?_ .Error("scene3d.Mesh requires at least one vertex");
+    S3Value(:mesh, {=
+        vertices=points,
+        triangles=S3Triangles(settings[:triangles], points.Len()),
+        style=S3Style(settings),
+        metadata=S3Option(settings, "metadata")
+    });
+};
+
+S3Polyline(points, options ?= {= }) -> {;
+    settings = points ? :Map ?: points ?_ options.Merge({= points=points });
+    normalized = settings[:points].Map((point) -> S3Vector(point, 3, "scene3d.Polyline point"));
+    normalized.Len() >= 2 ?: _ ?_ .Error("scene3d.Polyline requires at least two points");
+    S3Value(:polyline, {=
+        points=normalized,
+        closed=S3Option(settings, "closed", 0) ?: 1 ?_ 0,
+        style=S3Style(settings),
+        metadata=S3Option(settings, "metadata")
+    });
+};
+
+S3PointCloud(points, options ?= {= }) -> {;
+    settings = points ? :Map ?: points ?_ options.Merge({= points=points });
+    normalized = settings[:points].Map((point) -> S3Vector(point, 3, "scene3d.PointCloud point"));
+    normalized.Len() > 0 ?: _ ?_ .Error("scene3d.PointCloud requires at least one point");
+    S3Value(:point_cloud, {=
+        points=normalized,
+        radius=S3Exact(S3Option(settings, "radius", 3), "scene3d.PointCloud radius"),
+        style=S3Style(settings),
+        metadata=S3Option(settings, "metadata")
+    });
+};
+
+S3Group(children, options ?= {= }) -> {;
+    settings = children ? :Map ?: children ?_ options.Merge({= children=children });
+    S3Value(:group, {= children=S3Children(settings[:children], "scene3d.Group children"), metadata=S3Option(settings, "metadata") });
+};
+
+S3Identity() -> [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1];
+
+S3Transform(children, options ?= {= }) -> {;
+    settings = children ? :Map ?: children ?_ options.Merge({= children=children });
+    matrix := S3Option(settings, "matrix", S3Identity());
+    matrix ? :Array ?: _ ?_ .Error("scene3d.Transform matrix must be an Array");
+    matrix.Len() == 16 ?: _ ?_ .Error("scene3d.Transform matrix must contain 16 row-major values");
+    matrix ~= matrix.Map((value) -> S3Exact(value, "scene3d.Transform matrix value"));
+    translate = S3Option(settings, "translate");
+    translate != _ ?: {;
+        vector = S3Vector(@translate, 3, "scene3d.Transform translate");
+        @matrix ~= @matrix.Set(4, vector[1]).Set(8, vector[2]).Set(12, vector[3]);
+    } ?_ _;
+    scale = S3Option(settings, "scale");
+    scale != _ ?: {;
+        values = @scale ? :Array ?: S3Vector(@scale, 3, "scene3d.Transform scale") ?_ [S3Exact(@scale, "scene3d.Transform scale"), S3Exact(@scale, "scene3d.Transform scale"), S3Exact(@scale, "scene3d.Transform scale")];
+        @matrix ~= @matrix.Set(1, values[1]).Set(6, values[2]).Set(11, values[3]);
+    } ?_ _;
+    S3Value(:transform, {= children=S3Children(settings[:children], "scene3d.Transform children"), matrix=matrix, metadata=S3Option(settings, "metadata") });
+};
+
+S3Camera(projection, position, target ?= _, options ?= {= }) -> {;
+    settings = position ? :Map ?: position ?_ options.Merge({= position=position, target=target });
+    near = S3Exact(S3Option(settings, "near", 1/100), "Scene3D camera near");
+    far = S3Exact(S3Option(settings, "far", 1000), "Scene3D camera far");
+    (near > 0 && far > near) ?: _ ?_ .Error("Scene3D camera requires 0 < near < far");
+    S3Value(:camera, {=
+        projection=projection,
+        position=S3Vector(settings[:position], 3, "Scene3D camera position"),
+        target=S3Vector(settings[:target], 3, "Scene3D camera target"),
+        up=S3Vector(S3Option(settings, "up", [0,0,1]), 3, "Scene3D camera up"),
+        fov=S3Exact(S3Option(settings, "fov", 50), "Scene3D camera fov"),
+        near=near,
+        far=far,
+        scale=S3Option(settings, "scale")
+    });
+};
+
+S3PerspectiveCamera(position, target ?= _, options ?= {= }) -> S3Camera("perspective", position, target, options);
+S3OrthographicCamera(position, target ?= _, options ?= {= }) -> S3Camera("orthographic", position, target, options);
+S3DefaultCamera() -> S3PerspectiveCamera([4,4,3], [0,0,0]);
+
+S3Multiply4(left, right) -> {;
+    result := [];
+    {@ row = 1; row <= 4; {;
+        {@ column = 1; column <= 4; {;
+            value := 0;
+            {@ index = 1; index <= 4; {;
+                @value += @left[(@row-1)*4+index] * @right[(index-1)*4+@column];
+            }; index += 1 };
+            @result ~= @result.Push(value);
+        }; column += 1 };
+    }; row += 1 };
+    result;
+};
+
+S3TransformPoint(matrix, point) -> [
+    matrix[1]*point[1] + matrix[2]*point[2] + matrix[3]*point[3] + matrix[4],
+    matrix[5]*point[1] + matrix[6]*point[2] + matrix[7]*point[3] + matrix[8],
+    matrix[9]*point[1] + matrix[10]*point[2] + matrix[11]*point[3] + matrix[12]
+];
+
+S3MeshSegments(triangles) -> {;
+    segments := [];
+    seen := {= };
+    {@ index = 1; index <= @triangles.Len(); {;
+        triangle = @triangles[index];
+        pairs = [[triangle[1],triangle[2]],[triangle[2],triangle[3]],[triangle[3],triangle[1]]];
+        {@ pairIndex = 1; pairIndex <= @pairs.Len(); {;
+            pair = @pairs[pairIndex];
+            ordered = pair[1] < pair[2] ?: pair ?_ [pair[2],pair[1]];
+            key = @"@{ordered[1]}:@{ordered[2]}";
+            !(@seen.Has(key)) ?: {; @seen ~= @seen.Set(@key, 1); @segments ~= @segments.Push(@ordered); } ?_ _;
+        }; pairIndex += 1 };
+    }; index += 1 };
+    segments;
+};
+
+S3Collect(children, parent) -> {;
+    result := [];
+    {@ index = 1; index <= @children.Len(); {;
+        child = @children[index];
+        kind = child[:kind];
+        kind == :group
+          ?: {; @result ~= @result.Concat(S3Collect(@child[:children], @parent)); }
+          ?_ kind == :transform
+               ?: {; @result ~= @result.Concat(S3Collect(@child[:children], S3Multiply4(@parent, @child[:matrix]))); }
+               ?_ kind == :mesh
+                    ?: {;
+                        points = @child[:vertices].Map((point) -> S3TransformPoint(@parent, point));
+                        @result ~= @result.Push(.DeepMutable({=
+                            kind=:mesh, points=points, segments=S3MeshSegments(@child[:triangles]),
+                            triangles=@child[:triangles], style=@child[:style]
+                        }, _));
+                    }
+                    ?_ kind == :polyline
+                         ?: {;
+                             points = @child[:points].Map((point) -> S3TransformPoint(@parent, point));
+                             segments := [];
+                             {@ pointIndex = 1; pointIndex < @points.Len(); {;
+                                 @segments ~= @segments.Push([pointIndex, pointIndex+1]);
+                             }; pointIndex += 1 };
+                             (@child[:closed] && points.Len() > 2) ?: {; @segments ~= @segments.Push([@points.Len(),1]); } ?_ _;
+                             @result ~= @result.Push(.DeepMutable({= kind=:lines, points=points, segments=segments, style=@child[:style] }, _));
+                         }
+                         ?_ kind == :point_cloud
+                              ?: {; @result ~= @result.Push(.DeepMutable({=
+                                  kind=:points, points=@child[:points].Map((point) -> S3TransformPoint(@parent, point)),
+                                  radius=@child[:radius], style=@child[:style]
+                              }, _)); }
+                              ?_ ((kind == :material || kind == :camera)
+                                  ?: _
+                                  ?_ .Error(@"Unsupported Scene3D node '@{kind}'"));
+    }; index += 1 };
+    result;
+};
+
+S3Realized(children) -> .DeepMutable({=
+    type="scene3d_realized",
+    schema="rix.scene3d.realized@1",
+    coordinateSystem={= handedness="right", up="z", units="unspecified" },
+    primitives=S3Collect(children, S3Identity())
+}, _);
+
+S3Scene(children, options ?= {= }) -> {;
+    settings = children ? :Map ?: children ?_ options.Merge({= children=children });
+    normalized = S3Children(settings[:children], "scene3d.Scene children");
+    camera = S3Option(settings, "camera", S3DefaultCamera());
+    (S3IsNode(camera) && camera[:kind] == :camera) ?: _ ?_ .Error("scene3d.Scene camera must be a Scene3D camera");
+    lights = S3Option(settings, "lights", []);
+    lights ? :Array ?: _ ?_ .Error("scene3d.Scene lights must be an Array");
+    lights.Filter((light) -> !(S3IsNode(light) && [:ambient_light,:directional_light,:point_light].Filter((kind)->kind==light[:kind]).Len()>0)).Len() == 0
+      ?: _
+      ?_ .Error("scene3d.Scene lights must contain Scene3D lights");
+    S3Value(:scene, {=
+        children=normalized,
+        camera=camera,
+        lights=lights,
+        metadata=S3Option(settings, "metadata"),
+        coordinateSystem={= handedness="right", up="z", units="unspecified" },
+        realized=S3Realized(normalized)
+    });
+};
+
+S3Realize(scene) -> S3IsScene(scene) ?: scene[:realized] ?_ .Error("scene3d.Realize requires a Scene3D scene");
+
+S3Subtract(left, right) -> [left[1]-right[1],left[2]-right[2],left[3]-right[3]];
+S3Dot(left, right) -> left[1]*right[1]+left[2]*right[2]+left[3]*right[3];
+S3Cross(left, right) -> [
+    left[2]*right[3]-left[3]*right[2],
+    left[3]*right[1]-left[1]*right[3],
+    left[1]*right[2]-left[2]*right[1]
+];
+
+S3Normalize(vector, label) -> {;
+    squared = S3Dot(vector, vector);
+    squared > 0 ?: _ ?_ .Error(@"@{label} must not be zero or collinear with the view direction");
+    length = .Sqrt(squared);
+    vector.Map((coordinate) -> coordinate / @length);
+};
+
+S3Frame(camera) -> {;
+    forward = S3Normalize(S3Subtract(camera[:target],camera[:position]), "Camera view direction");
+    right = S3Normalize(S3Cross(forward,camera[:up]), "Camera up vector");
+    .DeepMutable({= position=camera[:position], forward=forward, right=right, up=S3Cross(right,forward) }, _);
+};
+
+S3CameraPoint(point, frame) -> {;
+    delta = S3Subtract(point,frame[:position]);
+    [S3Dot(delta,frame[:right]),S3Dot(delta,frame[:up]),S3Dot(delta,frame[:forward])];
+};
+
+S3ClipDepth(first, second, near, far) -> {;
+    rejected = (first[3] < near && second[3] < near) || (first[3] > far && second[3] > far);
+    rejected ?: _ ?_ {;
+        start := @first;
+        finish := @second;
+        {@ planeIndex = 1; planeIndex <= 2; {;
+            plane = planeIndex == 1 ?: @near ?_ @far;
+            startOutside = planeIndex == 1 ?: @start[3] < plane ?_ @start[3] > plane;
+            finishOutside = planeIndex == 1 ?: @finish[3] < plane ?_ @finish[3] > plane;
+            startOutside != finishOutside ?: {;
+                ratio = (@plane-@start[3])/(@finish[3]-@start[3]);
+                cut = [1,2,3].Map((coordinate) -> @start[coordinate]+(@finish[coordinate]-@start[coordinate])*@ratio);
+                @startOutside ?: {; @start ~= @cut; } ?_ {; @finish ~= @cut; };
+            } ?_ _;
+        }; planeIndex += 1 };
+        [start,finish];
+    };
+};
+
+S3BoundedApprox(value) -> (value*1000000000000).Round()/1000000000000;
+
+S3Tan(value) -> {;
+    square = value^2;
+    denominator := 47;
+    {@ index = 23; index >= 1; {;
+        @denominator ~= S3BoundedApprox((2*index-1)-@square/@denominator);
+    }; index -= 1 };
+    S3BoundedApprox(value/denominator);
+};
+
+S3StyleMap(style, fill ?= _) -> fill != _
+  ?: {= fill=color == _ ?: style[:color] ?_ color, stroke=color == _ ?: style[:color] ?_ color, width=style[:width], opacity=style[:opacity] }
+  ?_ {= stroke=style[:color], fill="none", width=style[:width], opacity=style[:opacity] };
+
+S3HexDigit(character) -> {;
+    digits = {= ("0")=0,("1")=1,("2")=2,("3")=3,("4")=4,("5")=5,("6")=6,("7")=7,("8")=8,("9")=9,("a")=10,("b")=11,("c")=12,("d")=13,("e")=14,("f")=15 };
+    lower = character.Lower();
+    digits.Has(lower) ?: digits[lower] ?_ .Error("Scene3D lit snapshots require hexadecimal material colors");
+};
+
+S3Rgb(color) -> {;
+    valid = color ? :String && (color.Len()==4 || color.Len()==7) && color[1]=="#";
+    valid ?: _ ?_ .Error("Scene3D lit snapshots require hexadecimal material colors");
+    source = color.Len()==4 ?: @"#@{color[2]}@{color[2]}@{color[3]}@{color[3]}@{color[4]}@{color[4]}" ?_ color;
+    [2,4,6].Map((index) -> 16*S3HexDigit(@source[index])+S3HexDigit(@source[index+1]));
+};
+
+S3HexByte(value) -> {;
+    clamped = .Max(0,.Min(255,value.Round()));
+    digits = "0123456789abcdef";
+    @"@{digits[clamped//16+1]}@{digits[clamped%16+1]}";
+};
+
+S3LitColor(style, triangle, lights) -> {;
+    normal = S3Normalize(S3Cross(S3Subtract(triangle[2],triangle[1]),S3Subtract(triangle[3],triangle[1])), "Scene3D triangle");
+    center = [1,2,3].Map((coordinate) -> (triangle[1][coordinate]+triangle[2][coordinate]+triangle[3][coordinate])/3);
+    illumination := [0,0,0];
+    active = lights.Len()>0 ?: lights ?_ [S3AmbientLight()];
+    {@ lightIndex = 1; lightIndex <= @active.Len(); {;
+        light = @active[lightIndex];
+        factor := light[:intensity];
+        light[:kind] == :directional_light
+          ?: {; direction=S3Normalize(@light[:direction].Map((entry)->-entry),"Directional light direction"); @factor *= .Abs(S3Dot(@normal,direction)); }
+          ?_ light[:kind] == :point_light
+               ?: {; direction=S3Normalize(S3Subtract(@light[:position],@center),"Point light position"); @factor *= .Abs(S3Dot(@normal,direction)); }
+               ?_ _;
+        lightRgb = S3Rgb(light[:color]);
+        @illumination ~= [1,2,3].Map((channel)->@illumination[channel]+@factor*@lightRgb[channel]/255);
+    }; lightIndex += 1 };
+    base = S3Rgb(style[:color]);
+    values = [1,2,3].Map((channel)->@base[channel]*.Min(1,@illumination[channel]));
+    @"#@{S3HexByte(values[1])}@{S3HexByte(values[2])}@{S3HexByte(values[3])}";
+};
+
+S3Project(scene, options ?= {= }) -> {;
+    S3IsScene(scene) ?: _ ?_ .Error("scene3d.Project requires a Scene3D scene");
+    mode = S3Option(options,"mode","wireframe");
+    (mode=="wireframe" || mode=="lit") ?: _ ?_ .Error("scene3d.Project mode must be 'wireframe' or 'lit'");
+    size = S3Vector(S3Option(options,"size",[640,480]),2,"scene3d.Project size");
+    width=size[1]; height=size[2];
+    (width>0 && height>0) ?: _ ?_ .Error("scene3d.Project size must be positive");
+    camera=S3Option(options,"camera",scene[:camera]);
+    (S3IsNode(camera)&&camera[:kind]==:camera) ?: _ ?_ .Error("scene3d.Project camera must be a Scene3D camera");
+    frame=S3Frame(camera);
+    near=camera[:near]; far=camera[:far]; aspect=width/height;
+    realized=scene[:realized];
+    primitives=realized[:primitives].Map((primitive)->primitive.Merge({=
+        worldPoints=primitive[:points], points=primitive[:points].Map((point)->S3CameraPoint(point,@frame))
+    }));
+    allPoints := [];
+    {@ primitiveIndex=1; primitiveIndex<=@primitives.Len(); {; @allPoints ~= @allPoints.Concat(@primitives[primitiveIndex][:points]); }; primitiveIndex+=1 };
+    project := _;
+    approximation := {= viewNormalization="core-rational-sqrt" };
+    camera[:projection]=="perspective"
+      ?: {;
+          fov=@camera[:fov]; (fov>0&&fov<180) ?: _ ?_ .Error("Perspective camera fov must be between 0 and 180 degrees");
+          halfRadians=fov*3141592653589793/1000000000000000/360;
+          focal=1/S3Tan(halfRadians);
+          @project ~= (point)->[(1+point[1]*@focal/(point[3]*@aspect))*@width/2,(1-point[2]*@focal/point[3])*@height/2];
+          @approximation ~= @approximation.Merge({= perspectiveTangent={= method="rational-continued-fraction", terms=24, decimalPlaces=12, pi="3141592653589793/1000000000000000" } });
+      }
+      ?_ {;
+          bounds := @allPoints.Len()>0 ?: [@allPoints[1][1],@allPoints[1][1],@allPoints[1][2],@allPoints[1][2]] ?_ [0,0,0,0];
+          {@ pointIndex=2; pointIndex<=@allPoints.Len(); {;
+              point=@allPoints[pointIndex];
+              @bounds ~= [.Min(@bounds[1],point[1]),.Max(@bounds[2],point[1]),.Min(@bounds[3],point[2]),.Max(@bounds[4],point[2])];
+          }; pointIndex+=1 };
+          centerX=(bounds[1]+bounds[2])/2; centerY=(bounds[3]+bounds[4])/2;
+          spanX=bounds[2]-bounds[1]; spanY=bounds[4]-bounds[3];
+          requested=@camera[:scale];
+          vertical=requested!=_ ?: S3Exact(requested,"Orthographic camera scale") ?_ .Max(spanY,spanX/@aspect,1)*28/25;
+          @project ~= (point)->[@width/2+(point[1]-@centerX)*@height/@vertical,@height/2-(point[2]-@centerY)*@height/@vertical];
+      };
+    projected := [];
+    segments:=0; faces:=0; pointCount:=0;
+    mode=="lit" ?: {;
+        faceValues := [];
+        {@ primitiveIndex=1; primitiveIndex<=@primitives.Len(); {;
+            primitive=@primitives[primitiveIndex];
+            primitive[:kind]==:mesh ?: {;
+                {@ triangleIndex=1; triangleIndex<=@primitive[:triangles].Len(); {;
+                    indices=@primitive[:triangles][triangleIndex];
+                    cameraPoints=indices.Map((index)->@primitive[:points][index]);
+                    visible=cameraPoints.Filter((point)->point[3]<@near||point[3]>@far).Len()==0;
+                    visible ?: {;
+                        worldPoints=@indices.Map((index)->@primitive[:worldPoints][index]);
+                        depth=(@cameraPoints[1][3]+@cameraPoints[2][3]+@cameraPoints[3][3])/3;
+                        @faceValues ~= @faceValues.Push({= kind=:face, points=@cameraPoints.Map(@project), worldPoints=worldPoints, style=@primitive[:style], depth=depth });
+                    } ?_ _;
+                }; triangleIndex+=1 };
+            } ?_ _;
+        }; primitiveIndex+=1 };
+        {@ index=2; index<=@faceValues.Len(); {;
+            cursor:=index;
+            {@ step=@index; @cursor>1 && @faceValues[@cursor-1][:depth]<@faceValues[@cursor][:depth]; {;
+                previous=@faceValues[@cursor-1]; current=@faceValues[@cursor];
+                @faceValues ~= @faceValues.Set(@cursor-1,current).Set(@cursor,previous); @cursor-=1;
+            }; step+=1 };
+        }; index+=1 };
+        @projected ~= @projected.Concat(faceValues); @faces ~= faceValues.Len();
+    } ?_ _;
+    {@ primitiveIndex=1; primitiveIndex<=@primitives.Len(); {;
+        primitive=@primitives[primitiveIndex];
+        ((primitive[:kind]==:lines)||(primitive[:kind]==:mesh&&@mode=="wireframe")) ?: {;
+            {@ segmentIndex=1; segmentIndex<=@primitive[:segments].Len(); {;
+                indices=@primitive[:segments][segmentIndex]; clipped=S3ClipDepth(@primitive[:points][indices[1]],@primitive[:points][indices[2]],@near,@far);
+                clipped!=_ ?: {; @projected ~= @projected.Push({= kind=:segment, points=@clipped.Map(@project), style=@primitive[:style] }); @segments+=1; } ?_ _;
+            }; segmentIndex+=1 };
+        } ?_ primitive[:kind]==:points ?: {;
+            {@ pointIndex=1; pointIndex<=@primitive[:points].Len(); {;
+                point=@primitive[:points][pointIndex];
+                (point[3]>=@near&&point[3]<=@far) ?: {; @projected ~= @projected.Push({= kind=:point, point=@project(@point), radius=@primitive[:radius], style=@primitive[:style] }); @pointCount+=1; } ?_ _;
+            }; pointIndex+=1 };
+        } ?_ _;
+    }; primitiveIndex+=1 };
+    .DeepMutable({=
+        type="scene3d_projected", schema="rix.scene3d.projected@1", mode=mode, size=size,
+        camera=camera, frame=frame, primitives=projected, approximation=approximation,
+        work={= primitives=realized[:primitives].Len(), segments=segments, faces=faces, points=pointCount }
+    }, _);
+};
+
+S3Snapshot(scene, options ?= {= }) -> {;
+    projected=S3Project(scene,options);
+    children := [];
+    {@ index=1; index<=@projected[:primitives].Len(); {;
+        primitive=@projected[:primitives][index];
+        primitive[:kind]==:face
+          ?: {; color=S3LitColor(@primitive[:style],@primitive[:worldPoints],@scene[:lights]); @children ~= @children.Push(.Graphics.Path(@primitive[:points],S3StyleMap(@primitive[:style],1,color))); }
+          ?_ primitive[:kind]==:segment
+               ?: {; @children ~= @children.Push(.Graphics.Path(@primitive[:points],S3StyleMap(@primitive[:style]))); }
+               ?_ primitive[:kind]==:point
+                    ?: {; @children ~= @children.Push(.Graphics.Circle(@primitive[:point],@primitive[:radius],S3StyleMap(@primitive[:style],1))); }
+                    ?_ _;
+    }; index+=1 };
+    diagnostic=(projected[:mode]=="wireframe"&&scene[:lights].Len()>0)
+      ?: [{= level="info",code="scene3d-wireframe-ignores-lights",message="Wireframe snapshots do not evaluate Scene3D lights." }]
+      ?_ [];
+    {=
+        value=.Graphics.Graphic(projected[:size],children,{= schema="rix.graphics@1",source="rix.scene3d@1",mode=projected[:mode] }),
+        resolved=1, uncertainty=[], work=projected[:work],
+        source={= schema="rix.scene3d@1",projection=projected[:camera][:projection],mode=projected[:mode],approximation=projected[:approximation] },
+        diagnostics=diagnostic, projected=projected
+    };
+};
+
+scene3dNamespace={= };
+scene3dNamespace._proto={=
+    Scene=(self,children,options ?= {= })->S3Scene(children,options),
+    Group=(self,children,options ?= {= })->S3Group(children,options),
+    Transform=(self,children,options ?= {= })->S3Transform(children,options),
+    Mesh=(self,vertices,triangles ?= _,options ?= {= })->S3Mesh(vertices,triangles,options),
+    Polyline=(self,points,options ?= {= })->S3Polyline(points,options),
+    PointCloud=(self,points,options ?= {= })->S3PointCloud(points,options),
+    Material=(self,color ?= "#275dad",opacity ?= 1,width ?= 1)->S3Material(color,opacity,width),
+    AmbientLight=(self,color ?= "#ffffff",intensity ?= 1)->S3AmbientLight(color,intensity),
+    DirectionalLight=(self,direction,options ?= {= })->S3DirectionalLight(direction,options),
+    PointLight=(self,position,options ?= {= })->S3PointLight(position,options),
+    PerspectiveCamera=(self,position,target ?= _,options ?= {= })->S3PerspectiveCamera(position,target,options),
+    OrthographicCamera=(self,position,target ?= _,options ?= {= })->S3OrthographicCamera(position,target,options),
+    Realize=(self,scene)->S3Realize(scene),
+    Project=(self,scene,options ?= {= })->S3Project(scene,options),
+    Snapshot=(self,scene,options ?= {= })->S3Snapshot(scene,options)
+};
+.Host.RegisterValue("scene3d",scene3dNamespace,"Pure-RiX exact retained 3D scenes with explicit realization and projection",["Scene3D","Graphics","Exact"]);

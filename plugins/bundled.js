@@ -21,11 +21,11 @@ import linalgSource from "./linalg/linalg.plugin.rix" with { type: "text" };
 import solveSource from "./solve/solve.plugin.rix" with { type: "text" };
 import geometrySource from "./geometry/geometry.plugin.rix" with { type: "text" };
 import plotSource from "./plot/plot.plugin.rix" with { type: "text" };
+import scene3dSource from "./scene3d/scene3d.plugin.rix" with { type: "text" };
+import ndSource from "./nd/nd.plugin.rix" with { type: "text" };
 import { readPluginHeader } from "../src/runtime/plugin-catalog.js";
 import { install as installDrawPlugin } from "./draw/draw.plugin.rix.js";
 import { install as installFracfunPlugin } from "./fracfun/fracfun.plugin.rix.js";
-import { install as installScene3DPlugin } from "./scene3d/scene3d.plugin.rix.js";
-import { install as installNdPlugin } from "./nd/nd.plugin.rix.js";
 import { install as installDataPlugin } from "./data/data.plugin.rix.js";
 import { install as installDocumentPlugin } from "./document/document.plugin.rix.js";
 import { install as installTerminalAsciiPlugin } from "./render-terminal-ascii/terminal-ascii.plugin.rix.js";
@@ -121,27 +121,8 @@ const BUNDLED_PLUGINS = [
         install: ({ systemContext }) => installDrawPlugin({ systemContext }),
     },
     { metadata: readPluginHeader(plotSource, "plot.plugin.rix"), source: plotSource, sourcePath: "bundled:plot.plugin.rix" },
-    {
-        metadata: {
-            id: "scene3d", description: "Exact retained 3D scenes with deterministic wireframe and lit Graphics snapshots.",
-            kind: "host", mount: "scene3d",
-            exports: ["Scene", "Group", "Transform", "Mesh", "Polyline", "PointCloud", "Material", "AmbientLight", "DirectionalLight", "PointLight", "PerspectiveCamera", "OrthographicCamera", "Snapshot"],
-            groups: ["Scene3D", "Graphics"], permissions: [], provides: ["rix.scene3d@1"], schemas: ["rix.scene3d@1"],
-            snapshot: true, deterministic: true, defaultEnabled: false,
-        },
-        install: ({ systemContext }) => installScene3DPlugin({ systemContext }),
-    },
-    {
-        metadata: {
-            id: "nd", description: "Exact n-dimensional geometry with explicit affine and Cayley projection records.",
-            kind: "host", mount: "nd",
-            exports: ["Point", "Polyline", "Polytope", "Hypercube", "Projection", "CoordinateProjection", "CayleyRotation", "Compose", "Project", "ToScene3D"],
-            groups: ["Geometry", "Scene3D", "Exact"], permissions: [], requires: ["rix.scene3d@1"],
-            provides: ["rix.nd@1", "rix.nd.projection@1"], schemas: ["rix.nd@1", "rix.nd.projection@1"],
-            snapshot: true, deterministic: true, defaultEnabled: false,
-        },
-        install: ({ systemContext }) => installNdPlugin({ systemContext }),
-    },
+    { metadata: readPluginHeader(scene3dSource, "scene3d.plugin.rix"), source: scene3dSource, sourcePath: "bundled:scene3d.plugin.rix" },
+    { metadata: readPluginHeader(ndSource, "nd.plugin.rix"), source: ndSource, sourcePath: "bundled:nd.plugin.rix" },
     { metadata: readPluginHeader(geometrySource, "geometry.plugin.rix"), source: geometrySource, sourcePath: "bundled:geometry.plugin.rix" },
     {
         metadata: {

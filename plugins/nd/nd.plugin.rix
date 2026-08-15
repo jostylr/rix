@@ -1,0 +1,203 @@
+/**
+id: nd
+description: Pure-RiX exact n-dimensional geometry with affine and Cayley projection records and explicit Scene3D adaptation.
+kind: rix
+mount: nd
+exports: [Point, Polyline, Polytope, Hypercube, Projection, CoordinateProjection, CayleyRotation, Compose, Project, ToScene3D]
+groups: [Geometry, Scene3D, Exact]
+permissions: []
+requires: [rix.scene3d@1]
+provides: [rix.nd@1, rix.nd.projection@1]
+schemas: [rix.nd@1, rix.nd.projection@1]
+snapshot: true
+deterministic: true
+defaultEnabled: false
+**/
+
+NDOption(options,key,fallback ?= _)->options.Has(key) ?: options[key] ?_ fallback;
+NDExact(value,label)->{; exact=value ~!: :Rational; exact==_ ?: .Error(@"@{label} must be an exact Integer or Rational") ?_ exact; };
+NDInteger(value,label)->{; integer=value ~!: :Integer; integer==_ ?: .Error(@"@{label} must be an Integer") ?_ integer; };
+
+NDValue(kind,fields)->.DeepMutable({= type="nd_geometry",kind=kind,schema="rix.nd@1" }.Merge(fields),_);
+NDIsGeometry(value)->(value ? :Map)&&value.Has("schema")&&value[:schema]=="rix.nd@1"&&value[:type]=="nd_geometry";
+NDIsProjection(value)->(value ? :Map)&&value.Has("schema")&&value[:schema]=="rix.nd.projection@1"&&value[:type]=="nd_projection";
+
+NDProvenance(settings)->NDOption(settings,"provenance",[]);
+NDPoints(value,label,dimension ?= _)->{;
+    value ? :Array ?: _ ?_ .Error(@"@{label} must be an Array");
+    selected:=dimension;
+    result:=[];
+    {@ index=1;index<=@value.Len();{;
+        point=@value[index]; point ? :Array ?: _ ?_ .Error(@"@{label} @{index} must be an Array");
+        @selected==_ ?: {; @selected ~= @point.Len(); } ?_ _;
+        point.Len()==@selected ?: _ ?_ .Error(@"@{label} @{index} must have dimension @{@selected}");
+        @selected>=1 ?: _ ?_ .Error(@"@{label} points cannot be empty");
+        @result ~= @result.Push(point.Map((coordinate)->NDExact(coordinate,@label)));
+    };index+=1};
+    {= dimension=selected==_ ?: 0 ?_ selected, values=result };
+};
+
+NDEdges(value,vertexCount,label)->{;
+    value ? :Array ?: _ ?_ .Error(@"@{label} must be an Array");
+    value.Map((edge)->{;
+        edge ? :Array ?: _ ?_ .Error(@"@{label} edge must be an Array");
+        edge.Len()==2 ?: _ ?_ .Error(@"@{label} edge must contain two indices");
+        pair=edge.Map((entry)->NDInteger(entry,@"@{label} index"));
+        pair.Filter((entry)->entry<1||entry>@vertexCount).Len()==0 ?: pair ?_ .Error(@"@{label} indices must be between 1 and @{vertexCount}");
+    });
+};
+
+NDPoint(coordinates,options ?= {= })->{;
+    settings=coordinates ? :Map ?: coordinates ?_ options.Merge({= coordinates=coordinates });
+    values=settings[:coordinates]; values ? :Array ?: _ ?_ .Error("nd.Point coordinates must be an Array");
+    values.Len()>0 ?: _ ?_ .Error("nd.Point requires at least one coordinate");
+    NDValue(:point,{= dimension=values.Len(),coordinates=values.Map((coordinate)->NDExact(coordinate,"nd.Point coordinate")),provenance=NDProvenance(settings),metadata=NDOption(settings,"metadata") });
+};
+
+NDPolyline(points,options ?= {= })->{;
+    settings=points ? :Map ?: points ?_ options.Merge({= points=points }); normalized=NDPoints(settings[:points],"nd.Polyline point");
+    normalized[:values].Len()>=2 ?: _ ?_ .Error("nd.Polyline requires at least two points");
+    NDValue(:polyline,{= dimension=normalized[:dimension],points=normalized[:values],closed=NDOption(settings,"closed",0) ?: 1 ?_ 0,provenance=NDProvenance(settings),metadata=NDOption(settings,"metadata"),style=NDOption(settings,"style") });
+};
+
+NDPolytope(vertices,edges ?= _,options ?= {= })->{;
+    settings=vertices ? :Map ?: vertices ?_ options.Merge({= vertices=vertices,edges=edges }); normalized=NDPoints(settings[:vertices],"nd.Polytope vertex");
+    normalized[:values].Len()>0 ?: _ ?_ .Error("nd.Polytope requires vertices");
+    NDValue(:polytope,{= dimension=normalized[:dimension],vertices=normalized[:values],edges=NDEdges(settings[:edges],normalized[:values].Len(),"nd.Polytope edge"),provenance=NDProvenance(settings),metadata=NDOption(settings,"metadata"),style=NDOption(settings,"style") });
+};
+
+NDProjectionValue(matrix,offset,method,provenance ?= [])->{;
+    matrix ? :Array ?: _ ?_ .Error("nd.Projection matrix must be an Array");
+    matrix.Len()>0 ?: _ ?_ .Error("nd.Projection matrix cannot be empty");
+    rows=matrix.Map((row)->{; row ? :Array ?: _ ?_ .Error("nd.Projection matrix rows must be Arrays"); row.Map((value)->NDExact(value,"nd.Projection matrix coordinate")); });
+    source=rows[1].Len(); source>0 ?: _ ?_ .Error("nd.Projection matrix cannot be empty");
+    rows.Filter((row)->row.Len()!=@source).Len()==0 ?: _ ?_ .Error("nd.Projection matrix rows must have equal lengths");
+    offset ? :Array ?: _ ?_ .Error("nd.Projection offset must be an Array");
+    offset.Len()==rows.Len() ?: _ ?_ .Error(@"nd.Projection offset must have @{rows.Len()} coordinates");
+    .DeepMutable({= type="nd_projection",kind=:affine,schema="rix.nd.projection@1",sourceDimension=source,targetDimension=rows.Len(),matrix=rows,offset=offset.Map((value)->NDExact(value,"nd.Projection offset")),method=method,provenance=provenance },_);
+};
+
+NDProjection(matrix,offset ?= _,options ?= {= })->{;
+    settings=matrix ? :Map ?: matrix ?_ options.Merge({= matrix=matrix,offset=offset });
+    rows=settings[:matrix]; zeroOffset=rows.Map((row)->0);
+    NDProjectionValue(rows,NDOption(settings,"offset",zeroOffset),NDOption(settings,"method","affine"),NDProvenance(settings));
+};
+
+NDCoordinateProjection(sourceDimension,axes ?= _)->{;
+    settings=sourceDimension ? :Map ?: sourceDimension ?_ {= sourceDimension=sourceDimension,axes=axes };
+    source=NDInteger(settings[:sourceDimension],"nd.CoordinateProjection source dimension"); selected=settings[:axes];
+    selected ? :Array ?: _ ?_ .Error("nd.CoordinateProjection axes must be an Array");
+    normalized=selected.Map((axis)->NDInteger(axis,"nd.CoordinateProjection axis"));
+    unique=normalized.Reduce((result,axis)->result.Has(axis) ?: result ?_ result.Set(axis,1),{= });
+    (source>=1&&normalized.Len()>=1&&unique.Len()==normalized.Len()&&normalized.Filter((axis)->axis<1||axis>@source).Len()==0)
+      ?: _ ?_ .Error("nd.CoordinateProjection axes must be unique indices in the source dimension");
+    rows=normalized.Map((axis)->{; row:=[]; {@ index=1;index<=@source;{; @row ~= @row.Push(index==@axis ?: 1 ?_ 0); };index+=1}; row; });
+    NDProjectionValue(rows,normalized.Map((axis)->0),"coordinate",[{= axes=normalized }]);
+};
+
+NDIsCayleyInfinity(value)->value==.Complex[:infinity];
+
+NDCayleyRotation(dimension,axis1 ?= _,axis2 ?= _,t ?= _)->{;
+    settings=dimension ? :Map ?: dimension ?_ {= dimension=dimension,axis1=axis1,axis2=axis2,t=t };
+    size=NDInteger(settings[:dimension],"nd.CayleyRotation dimension"); first=NDInteger(settings[:axis1],"nd.CayleyRotation axis1"); second=NDInteger(settings[:axis2],"nd.CayleyRotation axis2");
+    (size>=2&&first>=1&&second>=1&&first<=size&&second<=size&&first!=second) ?: _ ?_ .Error("nd.CayleyRotation axes must be distinct indices in the dimension");
+    parameter=settings[:t];
+    infinity=NDIsCayleyInfinity(parameter);
+    cosine=infinity ?: -1 ?_ {; exact=NDExact(@parameter,"nd.CayleyRotation t"); (1-exact^2)/(1+exact^2); };
+    sine=infinity ?: 0 ?_ {; exact=NDExact(@parameter,"nd.CayleyRotation t"); 2*exact/(1+exact^2); };
+    matrix:=[];
+    {@ row=1;row<=@size;{; values:=[]; {@ column=1;column<=@size;{; @values ~= @values.Push(@row==column ?: 1 ?_ 0); };column+=1}; @matrix ~= @matrix.Push(values); };row+=1};
+    matrix ~= matrix.Set(first,matrix[first].Set(first,cosine).Set(second,-sine));
+    matrix ~= matrix.Set(second,matrix[second].Set(first,sine).Set(second,cosine));
+    offset:=[]; {@ index=1;index<=@size;{; @offset ~= @offset.Push(0); };index+=1};
+    NDProjectionValue(matrix,offset,"cayley-rotation",[{= axes=[first,second],parameter=parameter,projectiveInfinity=infinity ?: 1 ?_ 0 }]);
+};
+
+NDApply(matrix,vector,offset)->{;
+    result:=[];
+    {@ row=1;row<=@matrix.Len();{; value:=@offset[row]; {@ column=1;column<=@vector.Len();{; @value += @matrix[@row][column]*@vector[column]; };column+=1}; @result ~= @result.Push(value); };row+=1};
+    result;
+};
+
+NDMultiply(left,right)->{;
+    left[1].Len()==right.Len() ?: _ ?_ .Error("nd.Compose projection dimensions do not match");
+    result:=[];
+    {@ row=1;row<=@left.Len();{; values:=[]; {@ column=1;column<=@right[1].Len();{; value:=0; {@ index=1;index<=@right.Len();{; @value += @left[@row][index]*@right[index][@column]; };index+=1}; @values ~= @values.Push(value); };column+=1}; @result ~= @result.Push(values); };row+=1};
+    result;
+};
+
+NDCompose(after,before ?= _)->{;
+    settings=((after ? :Map)&&after.Has("after")&&before==_) ?: after ?_ {= after=after,before=before };
+    next=settings[:after]; previous=settings[:before];
+    (NDIsProjection(next)&&NDIsProjection(previous)) ?: _ ?_ .Error("nd.Compose requires two projections");
+    previous[:targetDimension]==next[:sourceDimension] ?: _ ?_ .Error("nd.Compose projection dimensions do not match");
+    NDProjectionValue(NDMultiply(next[:matrix],previous[:matrix]),NDApply(next[:matrix],previous[:offset],next[:offset]),"composition",previous[:provenance].Concat(next[:provenance]));
+};
+
+NDCoordinates(coordinates,projection,label)->{;
+    coordinates.Len()==projection[:sourceDimension] ?: _ ?_ .Error(@"@{label} dimension @{coordinates.Len()} does not match projection source dimension @{projection[:sourceDimension]}");
+    NDApply(projection[:matrix],coordinates,projection[:offset]);
+};
+
+NDProject(geometry,projection ?= _)->{;
+    settings=((geometry ? :Map)&&geometry.Has("geometry")&&projection==_) ?: geometry ?_ {= geometry=geometry,projection=projection };
+    source=settings[:geometry]; transform=settings[:projection];
+    NDIsGeometry(source) ?: _ ?_ .Error("nd.Project geometry must be n-dimensional geometry"); NDIsProjection(transform) ?: _ ?_ .Error("nd.Project requires an nd.Projection");
+    trace=source[:provenance].Push(transform);
+    source[:kind]==:point
+      ?: NDValue(:point,source.Merge({= dimension=transform[:targetDimension],coordinates=NDCoordinates(source[:coordinates],transform,"nd.Point"),provenance=trace }))
+      ?_ source[:kind]==:polyline
+           ?: NDValue(:polyline,source.Merge({= dimension=transform[:targetDimension],points=source[:points].Map((point)->NDCoordinates(point,@transform,"nd.Polyline")),provenance=trace }))
+           ?_ source[:kind]==:polytope
+                ?: NDValue(:polytope,source.Merge({= dimension=transform[:targetDimension],vertices=source[:vertices].Map((point)->NDCoordinates(point,@transform,"nd.Polytope")),provenance=trace }))
+                ?_ .Error(@"nd.Project does not support geometry kind '@{source[:kind]}'");
+};
+
+NDHypercube(dimension,size ?= 2)->{;
+    settings=dimension ? :Map ?: dimension ?_ {= dimension=dimension,size=size };
+    dimensions=NDInteger(settings[:dimension],"nd.Hypercube dimension"); (dimensions>=1&&dimensions<=10) ?: _ ?_ .Error("nd.Hypercube dimension must be between 1 and 10");
+    half=NDExact(NDOption(settings,"size",2),"nd.Hypercube size")/2;
+    vertices:=[[]]; edges:=[];
+    {@ axis=1;axis<=@dimensions;{;
+        count=@vertices.Len(); next:=[];
+        {@ index=1;index<=@count;{; @next ~= @next.Push(@vertices[index].Push(-@half)); };index+=1};
+        {@ index=1;index<=@count;{; @next ~= @next.Push(@vertices[index].Push(@half)); };index+=1};
+        copied=@edges.Map((edge)->[edge[1]+@count,edge[2]+@count]); connecting:=[];
+        {@ index=1;index<=@count;{; @connecting ~= @connecting.Push([index,index+@count]); };index+=1};
+        @edges ~= @edges.Concat(copied).Concat(connecting); @vertices ~= next;
+    };axis+=1};
+    NDPolytope(vertices,edges);
+};
+
+NDToScene3D(geometry,options ?= {= })->{;
+    settings=((geometry ? :Map)&&geometry.Has("geometry")) ?: geometry ?_ options.Merge({= geometry=geometry }); source=settings[:geometry];
+    NDIsGeometry(source) ?: _ ?_ .Error("nd.ToScene3D requires n-dimensional geometry");
+    source[:dimension]==3 ?: _ ?_ .Error(@"nd.ToScene3D requires dimension 3; explicitly project dimension @{source[:dimension]} first");
+    style=NDOption(settings,"style",NDOption(source,"style",{= })); style=style==_ ?: {= } ?_ style;
+    children:=[];
+    source[:kind]==:point
+      ?: {; @children ~= [.scene3d.PointCloud([@source[:coordinates]],@style)]; }
+      ?_ source[:kind]==:polyline
+           ?: {; @children ~= [.scene3d.Polyline(@source[:points],@style.Merge({= closed=@source[:closed] }))]; }
+           ?_ source[:kind]==:polytope
+                ?: {; @children ~= @source[:edges].Map((edge)->.scene3d.Polyline([@source[:vertices][edge[1]],@source[:vertices][edge[2]]],@style)); }
+                ?_ .Error(@"nd.ToScene3D does not support geometry kind '@{source[:kind]}'");
+    sceneOptions={= metadata={= source="rix.nd@1",projectionCount=source[:provenance].Len() } };
+    camera=NDOption(settings,"camera"); sceneOptions=camera==_ ?: sceneOptions ?_ sceneOptions.Set("camera",camera);
+    .scene3d.Scene([.scene3d.Group(children)],sceneOptions);
+};
+
+ndNamespace={= };
+ndNamespace._proto={=
+    Point=(self,coordinates,options ?= {= })->NDPoint(coordinates,options),
+    Polyline=(self,points,options ?= {= })->NDPolyline(points,options),
+    Polytope=(self,vertices,edges ?= _,options ?= {= })->NDPolytope(vertices,edges,options),
+    Hypercube=(self,dimension,size ?= 2)->NDHypercube(dimension,size),
+    Projection=(self,matrix,offset ?= _,options ?= {= })->NDProjection(matrix,offset,options),
+    CoordinateProjection=(self,sourceDimension,axes ?= _)->NDCoordinateProjection(sourceDimension,axes),
+    CayleyRotation=(self,dimension,axis1 ?= _,axis2 ?= _,t ?= _)->NDCayleyRotation(dimension,axis1,axis2,t),
+    Compose=(self,after,before ?= _)->NDCompose(after,before),
+    Project=(self,geometry,projection ?= _)->NDProject(geometry,projection),
+    ToScene3D=(self,geometry,options ?= {= })->NDToScene3D(geometry,options)
+};
+.Host.RegisterValue("nd",ndNamespace,"Pure-RiX exact n-dimensional geometry and explicit projections",["Geometry","Scene3D","Exact"]);

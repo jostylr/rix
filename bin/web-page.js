@@ -24,8 +24,8 @@ import { install as installQuarto } from "../plugins/render-quarto/quarto.plugin
 import { install as installLatex } from "../plugins/render-latex/latex.plugin.rix.js";
 import { install as installPng } from "../plugins/render-png/png.plugin.rix.js";
 import { install as installPdf } from "../plugins/render-pdf/pdf.plugin.rix.js";
-import { install as installScene3D } from "../plugins/scene3d/scene3d.plugin.rix.js";
-import { install as installNd } from "../plugins/nd/nd.plugin.rix.js";
+import scene3dSource from "../plugins/scene3d/scene3d.plugin.rix" with { type: "text" };
+import ndSource from "../plugins/nd/nd.plugin.rix" with { type: "text" };
 import { install as installGltf } from "../plugins/render-gltf/gltf.plugin.rix.js";
 
 const page = globalThis.__RIX_PAGE__;
@@ -54,14 +54,14 @@ function createCatalog() {
     }, null, arrayRixSource);
     addPlugin(catalog, {
         id: "scene3d", description: "Exact retained 3D scenes with deterministic wireframe and lit Graphics snapshots.",
-        kind: "host", mount: "scene3d", exports: ["Scene", "Group", "Transform", "Mesh", "Polyline", "PointCloud", "Material", "AmbientLight", "DirectionalLight", "PointLight", "PerspectiveCamera", "OrthographicCamera", "Snapshot"],
-        groups: ["Scene3D", "Graphics"], permissions: [], provides: ["rix.scene3d@1"], defaultEnabled: false,
-    }, installScene3D);
+        kind: "rix", mount: "scene3d", exports: ["Scene", "Group", "Transform", "Mesh", "Polyline", "PointCloud", "Material", "AmbientLight", "DirectionalLight", "PointLight", "PerspectiveCamera", "OrthographicCamera", "Realize", "Project", "Snapshot"],
+        groups: ["Scene3D", "Graphics", "Exact"], permissions: [], provides: ["rix.scene3d@1", "rix.scene3d.realized@1", "rix.scene3d.projected@1"], defaultEnabled: false,
+    }, null, scene3dSource);
     addPlugin(catalog, {
         id: "nd", description: "Exact n-dimensional geometry with explicit affine and Cayley projection records.",
-        kind: "host", mount: "nd", exports: ["Point", "Polyline", "Polytope", "Hypercube", "Projection", "CoordinateProjection", "CayleyRotation", "Compose", "Project", "ToScene3D"],
+        kind: "rix", mount: "nd", exports: ["Point", "Polyline", "Polytope", "Hypercube", "Projection", "CoordinateProjection", "CayleyRotation", "Compose", "Project", "ToScene3D"],
         groups: ["Geometry", "Scene3D", "Exact"], permissions: [], requires: ["rix.scene3d@1"], defaultEnabled: false,
-    }, installNd);
+    }, null, ndSource);
     for (const [id, description, installer, permissions = []] of [
         ["svg", "Portable SVG renderer for core Graphics scenes.", installSvg],
         ["canvas", "Serializable Canvas 2D drawing plans for core Graphics scenes.", installCanvas],
