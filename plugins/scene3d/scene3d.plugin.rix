@@ -348,7 +348,10 @@ S3ClipDepth(first, second, near, far) -> {;
     };
 };
 
-S3BoundedApprox(value) -> (value*1000000000000).Round()/1000000000000;
+S3BoundedApprox(value) -> {;
+    exact = value ~!: :Rational;
+    (exact*1000000000000).Round()/1000000000000;
+};
 
 S3Tan(value) -> {;
     square = value^2;
@@ -359,7 +362,7 @@ S3Tan(value) -> {;
     S3BoundedApprox(value/denominator);
 };
 
-S3StyleMap(style, fill ?= _) -> fill != _
+S3StyleMap(style, fill ?= _, color ?= _) -> fill != _
   ?: {= fill=color == _ ?: style[:color] ?_ color, stroke=color == _ ?: style[:color] ?_ color, width=style[:width], opacity=style[:opacity] }
   ?_ {= stroke=style[:color], fill="none", width=style[:width], opacity=style[:opacity] };
 
@@ -377,7 +380,8 @@ S3Rgb(color) -> {;
 };
 
 S3HexByte(value) -> {;
-    clamped = .Max(0,.Min(255,value.Round()));
+    exact = value ~!: :Rational;
+    clamped = .Max(0,.Min(255,exact.Round()));
     digits = "0123456789abcdef";
     @"@{digits[clamped//16+1]}@{digits[clamped%16+1]}";
 };

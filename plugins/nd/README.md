@@ -21,5 +21,6 @@ future work.
 
 See the [3D/ND guide](../../documentation/eval/scene3d-guide.md), the
 [browser tutorial](tutorial.md), and the runnable
-[`tesseract.rix`](../../examples/geometry/tesseract.rix) example.
-
+[`nd-dimension-lab.rix`](../../examples/geometry/nd-dimension-lab.rix),
+[`nd-slice-lab.rix`](../../examples/geometry/nd-slice-lab.rix), and
+[`tesseract.rix`](../../examples/geometry/tesseract.rix) examples.

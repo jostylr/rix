@@ -1,0 +1,89 @@
+/**
+plugins: [scene3d, nd]
+**/
+
+## Browser showcase: an exact edge/plane section of a rotated tesseract.
+## nd phase 1 deliberately distinguishes affine projection from slicing, so
+## this example implements one transparent slice producer in ordinary RiX.
+
+SliceEdgePoints(polytope, level) -> {;
+    points := [];
+    {@ edgeIndex=1; edgeIndex<=@polytope[:edges].Len(); {;
+        edge := @polytope[:edges][edgeIndex];
+        first := @polytope[:vertices][edge[1]];
+        second := @polytope[:vertices][edge[2]];
+        crosses := (first[4] < @level && second[4] > @level)
+            || (second[4] < @level && first[4] > @level);
+        crosses ?: {;
+            amount := (@level-@first[4])/(@second[4]-@first[4]);
+            point := [1,2,3].Map(axis -> @first[axis] + @amount*(@second[axis]-@first[axis]));
+            @points ~= @points.Push(point);
+        } ?_ _;
+    }; edgeIndex+=1 };
+    points
+};
+
+tesseract := .nd.Hypercube(4, 2);
+rotation14 := .nd.CayleyRotation(4, 1, 4, 1/2);
+rotation24 := .nd.CayleyRotation(4, 2, 4, -1/3);
+rotated := .nd.Project(tesseract, .nd.Compose(rotation24, rotation14));
+xyz := .nd.CoordinateProjection(4, [1,2,3]);
+wireProjection := .nd.Project(rotated, xyz);
+sliceLevels := [-6/5,-1,-4/5,-3/5,-2/5,0,2/5,3/5,4/5,1,6/5];
+
+SliceScene(level) -> {;
+    points := SliceEdgePoints(rotated, level);
+    wire := .nd.ToScene3D(wireProjection, {= style={= color="#94a3b8", width=1, opacity=1/3 } });
+    .scene3d.Scene([
+        wire[:children][1],
+        .scene3d.PointCloud(points, {= color="#e11d48", radius=6, opacity=9/10 })
+    ], {=
+        camera=.scene3d.OrthographicCamera([5,5,4], [0,0,0], {= scale=5 }),
+        metadata={= sliceAxis=4, sliceLevel=level, pointCount=points.Len() }
+    })
+};
+
+SliceGraphic(level) -> .scene3d.Snapshot(
+    SliceScene(level), {= size=[680,460], mode="wireframe" }
+)[:value];
+
+SliceFrame(level, origin) -> .Figure(
+    SliceGraphic(level),
+    @"w = @{level}; exact edge/plane intersections (frame @{origin[:ordinal]} of @{sliceLevels.Len()})"
+);
+
+sliceTimeline := .Timeline.Sequence({=
+    title="Exact tesseract slice sweep",
+    duration=22/5,
+    entries=[{: SliceFrame, sliceLevels}]
+});
+
+$$sliceLevel := 0;
+$$view := {;
+    points := SliceEdgePoints(@rotated, $sliceLevel);
+    .Fragment([
+        .Heading(1, "Exact tesseract slice sweep"),
+        .Paragraph("The grey wireframe is an affine 4D → 3D projection. The red points are different: they are exact intersections of tesseract edges with the hyperplane w = level before the fourth coordinate is removed."),
+        .ControlPanel({=
+            title="Slice hyperplane",
+            controls=[.Controls.Slider($$sliceLevel, -6/5:6/5, 1/5, "w level")]
+        }),
+        .Figure(SliceGraphic($sliceLevel), @"Current section w = @{$sliceLevel}; @{points.Len()} edge intersections."),
+        .Heading(2, "Portable animation"),
+        .Paragraph("The program also materializes an eleven-frame Timeline.Sequence. RiX-Web can inspect individual frames; the CLI GIF renderer rasterizes and encodes the same exact sequence."),
+        .Timeline.Render(@sliceTimeline, 6),
+        .Table(
+            ["Property", "Value"],
+            [
+                ["Slice axis", 4],
+                ["Current exact level", $sliceLevel],
+                ["Current intersections", points.Len()],
+                ["Timeline frames", @sliceLevels.Len()],
+                ["Timeline duration", 22/5],
+                ["Rotated nD schema", @rotated[:schema]]
+            ]
+        )
+    ])
+};
+
+$view

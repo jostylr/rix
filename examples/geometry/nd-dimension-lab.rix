@@ -1,0 +1,92 @@
+/**
+plugins: [scene3d, nd]
+**/
+
+## Browser showcase: explore exact hypercubes in four, five, and six dimensions.
+## Every hidden axis is mixed into x/y/z before the explicit 3D projection.
+
+CayleyPair(t) -> {= c=(1-t^2)/(1+t^2), s=2*t/(1+t^2) };
+
+HiddenRotation(dimension, turn) -> {;
+    combined := .nd.CayleyRotation(dimension, 1, 2, 0);
+    {@ hidden=4; hidden<=@dimension; {;
+        visible := hidden-3;
+        parameter := hidden%2 == 0 ?: @turn ?_ 0-@turn;
+        next := .nd.CayleyRotation(@dimension, visible, hidden, parameter);
+        @combined ~= .nd.Compose(next, @combined);
+    }; hidden+=1 };
+    combined
+};
+
+$$dimension := 4;
+$$hiddenTurn := 1/3;
+$$visibleTurn := 1/4;
+$$cameraTurn := 1/4;
+$$edgeColor := "#7c3aed";
+
+$$ndState := {;
+    source := .nd.Hypercube($dimension, 2);
+    hiddenRotation := HiddenRotation($dimension, $hiddenTurn);
+    visibleRotation := .nd.CayleyRotation($dimension, 1, 2, $visibleTurn);
+    rotation := .nd.Compose(visibleRotation, hiddenRotation);
+    xyz := .nd.CoordinateProjection($dimension, [1,2,3]);
+    projected := .nd.Project(source, .nd.Compose(xyz, rotation));
+    orbit := CayleyPair($cameraTurn);
+    camera := .scene3d.OrthographicCamera(
+        [6*orbit[:c], 6*orbit[:s], 4], [0,0,0], {= scale=6 }
+    );
+    scene := .nd.ToScene3D(projected, {=
+        camera=camera,
+        style={= color=$edgeColor, width=2, opacity=4/5 }
+    });
+    snapshot := .scene3d.Snapshot(scene, {= size=[720,500], mode="wireframe" });
+    {=
+        source=source,
+        rotation=rotation,
+        projection=xyz,
+        projected=projected,
+        scene=scene,
+        snapshot=snapshot,
+        graphic=snapshot[:value]
+    }
+};
+
+$$view := {;
+    state := $ndState;
+    .Fragment([
+        .Heading(1, "Exact nD hypercube projection lab"),
+        .Paragraph("Move from 4D to 6D, rotate every hidden coordinate plane with rational Cayley parameters, and explicitly select x/y/z. Coincident projected edges reveal information lost by the affine projection."),
+        .ControlPanel({=
+            title="nD projection",
+            controls=[
+                .Controls.Choice($$dimension, [4,5,6], "dimension"),
+                .Controls.Slider($$hiddenTurn, -1:1, 1/12, "hidden-plane turn"),
+                .Controls.Slider($$visibleTurn, -1:1, 1/12, "visible-plane turn"),
+                .Controls.Slider($$cameraTurn, -2:2, 1/12, "3D camera orbit"),
+                .Controls.Choice($$edgeColor, [
+                    {= value="#7c3aed", label="violet" },
+                    {= value="#0891b2", label="cyan" },
+                    {= value="#be123c", label="crimson" }
+                ], "edge color")
+            ]
+        }),
+        .Figure(state[:graphic], "An exact n-dimensional hypercube after exact rotations and an explicit nD → 3D coordinate projection."),
+        .Table(
+            ["Quantity", "Exact/current value"],
+            [
+                ["Dimension", state[:source][:dimension]],
+                ["Vertices", state[:source][:vertices].Len()],
+                ["Edges", state[:source][:edges].Len()],
+                ["nD schema", state[:source][:schema]],
+                ["Projection schema", state[:projection][:schema]],
+                ["Selected axes", state[:projection][:provenance][1][:axes]],
+                ["Projection provenance steps", state[:projected][:provenance].Len()],
+                ["Scene3D source", state[:scene][:metadata][:source]],
+                ["Snapshot work", state[:snapshot][:work]]
+            ],
+            {= caption="The retained data grows from 16/32 edges in 4D to 64/192 in 6D" }
+        )
+    ])
+};
+
+$view

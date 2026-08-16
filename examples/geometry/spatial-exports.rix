@@ -1,0 +1,83 @@
+/**
+plugins: [scene3d, nd, png, gif, gltf]
+**/
+
+## CLI companion for the RiX-Web Scene3D and nD labs. Run with --out=DIR.
+## It writes two PNG snapshots, one animated slice GIF, and one glTF scene.
+
+SliceEdgePoints(polytope, level) -> {;
+    points := [];
+    {@ edgeIndex=1; edgeIndex<=@polytope[:edges].Len(); {;
+        edge := @polytope[:edges][edgeIndex];
+        first := @polytope[:vertices][edge[1]];
+        second := @polytope[:vertices][edge[2]];
+        crosses := (first[4] < @level && second[4] > @level)
+            || (second[4] < @level && first[4] > @level);
+        crosses ?: {;
+            amount := (@level-@first[4])/(@second[4]-@first[4]);
+            point := [1,2,3].Map(axis -> @first[axis] + @amount*(@second[axis]-@first[axis]));
+            @points ~= @points.Push(point);
+        } ?_ _;
+    }; edgeIndex+=1 };
+    points
+};
+
+## A lit retained mesh for the static Scene3D raster path.
+cube := .scene3d.Mesh(
+    [
+        [-1,-1,0], [1,-1,0], [1,1,0], [-1,1,0],
+        [-1,-1,2], [1,-1,2], [1,1,2], [-1,1,2]
+    ],
+    [
+        [1,3,2], [1,4,3], [5,6,7], [5,7,8],
+        [1,2,6], [1,6,5], [2,3,7], [2,7,6],
+        [3,4,8], [3,8,7], [4,1,5], [4,5,8]
+    ],
+    {= color="#2563eb", width=2 }
+);
+litScene := .scene3d.Scene([cube], {=
+    camera=.scene3d.PerspectiveCamera([5,4,7/2], [0,0,1]),
+    lights=[
+        .scene3d.AmbientLight("#ffffff", 1/4),
+        .scene3d.DirectionalLight([2,-3,-4], {= intensity=3/4 })
+    ]
+});
+litGraphic := .scene3d.Snapshot(litScene, {= size=[720,480], mode="lit" })[:value];
+
+## A retained tesseract, exact through two 4D rotations and the explicit 3D
+## coordinate projection.
+tesseract := .nd.Hypercube(4, 2);
+rotation14 := .nd.CayleyRotation(4, 1, 4, 1/2);
+rotation24 := .nd.CayleyRotation(4, 2, 4, -1/3);
+rotated := .nd.Project(tesseract, .nd.Compose(rotation24, rotation14));
+xyz := .nd.CoordinateProjection(4, [1,2,3]);
+wireProjection := .nd.Project(rotated, xyz);
+wireCamera := .scene3d.OrthographicCamera([5,5,4], [0,0,0], {= scale=5 });
+wireScene := .nd.ToScene3D(wireProjection, {=
+    camera=wireCamera,
+    style={= color="#7c3aed", width=2, opacity=4/5 }
+});
+wireGraphic := .scene3d.Snapshot(wireScene, {= size=[720,480], mode="wireframe" })[:value];
+
+## The animated red points are exact intersections with w=level before w is
+## discarded. The faint tesseract is only a spatial reference projection.
+SliceGraphic(level) -> {;
+    points := SliceEdgePoints(rotated, level);
+    scene := .scene3d.Scene([
+        wireScene[:children][1],
+        .scene3d.PointCloud(points, {= color="#e11d48", radius=7, opacity=9/10 })
+    ], {= camera=wireCamera, metadata={= sliceAxis=4, sliceLevel=level } });
+    .scene3d.Snapshot(scene, {= size=[720,480], mode="wireframe" })[:value]
+};
+
+sliceLevels := [-6/5,-1,-4/5,-3/5,-2/5,0,2/5,3/5,4/5,1,6/5];
+sliceTimeline := .Timeline.Sequence({=
+    title="Exact tesseract slice sweep",
+    duration=22/5,
+    entries=[{: SliceGraphic, sliceLevels}]
+});
+
+.Out("scene3d-lit.png", litGraphic);
+.Out("nd-tesseract.png", wireGraphic);
+.Out("nd-slice-sweep.gif", sliceTimeline);
+.Out("nd-tesseract.gltf", wireScene)

@@ -59,6 +59,36 @@ describe("Scene3D and n-dimensional geometry plugins", () => {
         expect(snapshot.get("value").children[0]).toMatchObject({ kind: "path" });
     });
 
+    test("lit snapshots normalize integer and rational shading intermediates across many faces", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("scene3d");
+            mesh := .scene3d.Mesh(
+                [
+                    [-1,-1,0], [1,-1,0], [1,1,0], [-1,1,0],
+                    [-1,-1,2], [1,-1,2], [1,1,2], [-1,1,2]
+                ],
+                [
+                    [1,3,2], [1,4,3], [5,6,7], [5,7,8],
+                    [1,2,6], [1,6,5], [2,3,7], [2,7,6],
+                    [3,4,8], [3,8,7], [4,1,5], [4,5,8]
+                ],
+                {= color="#2563eb" }
+            );
+            scene := .scene3d.Scene([mesh], {=
+                camera=.scene3d.PerspectiveCamera([5,4,7/2], [0,0,1]),
+                lights=[
+                    .scene3d.AmbientLight("#ffffff", 1/4),
+                    .scene3d.DirectionalLight([2,-3,-4], {= intensity=3/4 })
+                ]
+            });
+            .scene3d.Snapshot(scene, {= size=[320,240], mode="lit" });
+        `);
+        const snapshot = result.entries;
+        expect(snapshot.get("work").entries.get("faces").value).toBe(12n);
+        expect(snapshot.get("value").children).toHaveLength(12);
+        expect(snapshot.get("value").children.every(({ style }) => /^#[0-9a-f]{6}$/.test(style.get("fill").value))).toBe(true);
+    });
+
     test("realizes exact transforms before the camera projection boundary", () => {
         const result = parseAndEvaluate(`
             .Plugin.Load("scene3d");

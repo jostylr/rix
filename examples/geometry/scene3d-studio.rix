@@ -1,0 +1,124 @@
+/**
+plugins: [scene3d]
+**/
+
+## Browser showcase: an exact retained 3D scene with live camera, projection,
+## shading, and object-rotation controls. Load this file directly in RiX-Web.
+
+CayleyPair(t) -> {= c=(1-t^2)/(1+t^2), s=2*t/(1+t^2) };
+
+cubeVertices := [
+    [-1,-1,0], [1,-1,0], [1,1,0], [-1,1,0],
+    [-1,-1,2], [1,-1,2], [1,1,2], [-1,1,2]
+];
+cubeTriangles := [
+    [1,3,2], [1,4,3], [5,6,7], [5,7,8],
+    [1,2,6], [1,6,5], [2,3,7], [2,7,6],
+    [3,4,8], [3,8,7], [4,1,5], [4,5,8]
+];
+
+cube := .scene3d.Mesh(cubeVertices, cubeTriangles, {=
+    color="#2563eb", width=2, metadata={= name="exact cube" }
+});
+pyramid := .scene3d.Mesh(
+    [[-3/4,-3/4,0], [3/4,-3/4,0], [3/4,3/4,0], [-3/4,3/4,0], [0,0,3/2]],
+    [[1,3,2], [1,4,3], [1,2,5], [2,3,5], [3,4,5], [4,1,5]],
+    {= color="#db2777", width=2, opacity=9/10 }
+);
+
+gridCoordinates := [-3,-2,-1,0,1,2,3];
+grid := gridCoordinates.Map(value -> .scene3d.Group([
+    .scene3d.Polyline([[-3,value,0], [3,value,0]], {= color="#cbd5e1", width=1 }),
+    .scene3d.Polyline([[value,-3,0], [value,3,0]], {= color="#cbd5e1", width=1 })
+]));
+
+axes := .scene3d.Group([
+    .scene3d.Polyline([[-3,0,0], [3,0,0]], {= color="#dc2626", width=3 }),
+    .scene3d.Polyline([[0,-3,0], [0,3,0]], {= color="#16a34a", width=3 }),
+    .scene3d.Polyline([[0,0,0], [0,0,3]], {= color="#2563eb", width=3 }),
+    .scene3d.PointCloud([[0,0,0], [3,0,0], [0,3,0], [0,0,3]], {=
+        color="#111827", radius=4
+    })
+]);
+
+$$cameraTurn := 1/3;
+$$objectTurn := 1/4;
+$$cameraHeight := 7/2;
+$$projectionKind := "perspective";
+$$snapshotMode := "lit";
+$$fieldOfView := 50;
+
+$$studioState := {;
+    orbit := CayleyPair($cameraTurn);
+    spin := CayleyPair($objectTurn);
+    cameraPosition := [6*orbit[:c], 6*orbit[:s], $cameraHeight];
+    camera := $projectionKind == "perspective"
+      ?: .scene3d.PerspectiveCamera(cameraPosition, [0,0,1], {= fov=$fieldOfView })
+      ?_ .scene3d.OrthographicCamera(cameraPosition, [0,0,1], {= scale=7 });
+    spinMatrix := [
+        spin[:c], -spin[:s], 0, 0,
+        spin[:s], spin[:c], 0, 0,
+        0, 0, 1, 0,
+        0, 0, 0, 1
+    ];
+    scene := .scene3d.Scene([
+        .scene3d.Group(@grid),
+        @axes,
+        .scene3d.Transform([@cube], {= matrix=spinMatrix, translate=[-5/4,0,0] }),
+        .scene3d.Transform([@pyramid], {= translate=[7/4,0,0] })
+    ], {=
+        camera=camera,
+        lights=[
+            .scene3d.AmbientLight("#ffffff", 1/4),
+            .scene3d.DirectionalLight([2,-3,-4], {= color="#ffffff", intensity=3/4 }),
+            .scene3d.PointLight([0,0,6], {= color="#dbeafe", intensity=1/3 })
+        ],
+        metadata={= title="RiX exact Scene3D studio" }
+    });
+    snapshot := .scene3d.Snapshot(scene, {= size=[720,480], mode=$snapshotMode });
+    {=
+        scene=scene,
+        graphic=snapshot[:value],
+        camera=camera,
+        realized=.scene3d.Realize(scene),
+        projected=snapshot[:projected],
+        work=snapshot[:work],
+        approximation=snapshot[:source][:approximation]
+    }
+};
+
+$$view := {;
+    state := $studioState;
+    .Fragment([
+        .Heading(1, "Exact retained Scene3D studio"),
+        .Paragraph("Orbit the camera and rotate the cube with rational Cayley parameters. Switch projection and snapshot mode; every retained coordinate and transform stays exact until the camera snapshot."),
+        .ControlPanel({=
+            title="Camera and scene",
+            description="All controls commit exact RiX values.",
+            controls=[
+                .Controls.Slider($$cameraTurn, -2:2, 1/12, "camera orbit (Cayley t)"),
+                .Controls.Slider($$cameraHeight, 2:7, 1/4, "camera height"),
+                .Controls.Slider($$objectTurn, -2:2, 1/12, "cube rotation (Cayley t)"),
+                .Controls.Slider($$fieldOfView, 30:80, 5, "perspective field of view"),
+                .Controls.Choice($$projectionKind, ["perspective", "orthographic"], "projection"),
+                .Controls.Choice($$snapshotMode, ["lit", "wireframe"], "snapshot mode")
+            ]
+        }),
+        .Figure(state[:graphic], "A mesh, transformed mesh, grid, axes, point cloud, three retained lights, and a live exact camera."),
+        .Table(
+            ["Contract", "Current value"],
+            [
+                ["Scene schema", state[:scene][:schema]],
+                ["Realized schema", state[:realized][:schema]],
+                ["Projected schema", state[:projected][:schema]],
+                ["Camera position", state[:camera][:position]],
+                ["Projection", state[:camera][:projection]],
+                ["Snapshot work", state[:work]],
+                ["Approximation boundary", state[:approximation]]
+            ],
+            {= caption="Inspect the retained → realized → projected pipeline" }
+        )
+    ])
+};
+
+$view

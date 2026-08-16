@@ -31,4 +31,5 @@ modes or producers.
 
 See the [3D/ND guide](../../documentation/eval/scene3d-guide.md), the
 [browser tutorial](tutorial.md), and the runnable
-[`tesseract.rix`](../../examples/geometry/tesseract.rix) example.
+[`scene3d-studio.rix`](../../examples/geometry/scene3d-studio.rix) and
+[`tesseract.rix`](../../examples/geometry/tesseract.rix) examples.
