@@ -893,9 +893,20 @@ describe("Lowering Pass", () => {
         fn: "PLUGIN_IMPORT",
         args: [
           { fn: "SYS_GET", args: ["numerics"] },
-          ["Exp", "Log"],
+          [
+            { local: "Exp", source: "Exp" },
+            { local: "Log", source: "Log" },
+          ],
         ],
       });
+    });
+
+    test("plugin selections use local=source aliases", () => {
+      const ir = L(".numerics[:E=:Exp, :NaturalLog=:Log];");
+      expect(ir.args[1]).toEqual([
+        { local: "E", source: "Exp" },
+        { local: "NaturalLog", source: "Log" },
+      ]);
     });
 
     test("obj.. → META_ALL", () => {

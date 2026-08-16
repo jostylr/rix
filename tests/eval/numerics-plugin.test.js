@@ -4,6 +4,8 @@ import {
     Context,
     createDefaultRegistry,
     createDefaultSystemContext,
+    formatValue,
+    formatValueSource,
     parseAndEvaluate,
 } from "../../src/index.js";
 import { loadFloatPlugin } from "../../plugins/float/node-installer.js";
@@ -76,6 +78,8 @@ describe("pure RiX Numerics plugin", () => {
         `, options);
         expect(textValue(entry(result, "backend"))).toBe("testProvider");
         expect(entry(result, "interval")).toBeInstanceOf(RationalInterval);
+        expect(formatValue(result)).toBe("2:2");
+        expect(formatValueSource(result)).toContain("schema=rix.numerics.enclosure@1");
     });
 
     test("refines an Oracle through only the value protocol", () => {
@@ -111,6 +115,7 @@ describe("pure RiX Numerics plugin", () => {
         expect(entry(result, "goalMet")).toBeNull();
         expect(entry(result, "interval").low.equals(entry(result, "interval").high)).toBe(true);
         expect(entry(result, "diagnostics").values.map(textValue)).toContain("noErrorBoundForIntendedReal");
+        expect(formatValue(result)).toContain("schema=rix.numerics.enclosure@1");
     });
 
     test("preserves bounded exhaustion as a normal structured result", () => {

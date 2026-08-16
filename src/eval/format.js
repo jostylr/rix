@@ -373,7 +373,7 @@ export function formatValueSource(value) {
         return value.denominator === 1n ? value.numerator.toString() : `${value.numerator}/${value.denominator}`;
     }
     if (value?.type === "string") return JSON.stringify(value.value);
-    return formatValue(value, { numberDisplay: ".." });
+    return formatValue(value, { numberDisplay: "..", certifiedEnclosureDisplay: false });
 }
 
 function formatWithCycleGuard(value, activeValues, format) {
@@ -384,6 +384,18 @@ function formatWithCycleGuard(value, activeValues, format) {
     } finally {
         activeValues.delete(value);
     }
+}
+
+function certifiedEnclosureInterval(value) {
+    if (value?.type !== "map") return null;
+    const entries = value.entries || value.elements;
+    if (!(entries instanceof Map)) return null;
+    const schema = entries.get("schema");
+    const certified = entries.get("certified");
+    const interval = entries.get("interval");
+    if (schema?.type !== "string" || schema.value !== "rix.numerics.enclosure@1") return null;
+    if (certified?.value !== 1n) return null;
+    return interval || null;
 }
 
 export function formatValue(val, options = {}) {
@@ -465,6 +477,10 @@ export function formatValue(val, options = {}) {
                 () => open + val.values.map(formatChild).join(", ") + close,
             );
         }
+        if (options.certifiedEnclosureDisplay !== false) {
+            const interval = certifiedEnclosureInterval(val);
+            if (interval !== null) return formatChild(interval);
+        }
         if (val.type === "map") {
             return formatWithCycleGuard(val, activeValues, () => {
                 const entries = [];
@@ -513,7 +529,7 @@ export function formatValue(val, options = {}) {
             return `[PluginFunction: ${val.pluginId}.${val.methodName}]`;
         }
         if (val.type === "interval") {
-            return `${val.start || val.lo}:${val.end || val.hi}`;
+            return `${formatChild(val.start ?? val.lo)}:${formatChild(val.end ?? val.hi)}`;
         }
         if (options.semanticDisplay !== false) {
             const semanticDisplay = formatWithCycleGuard(

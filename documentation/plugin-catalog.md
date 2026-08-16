@@ -98,15 +98,18 @@ ordinary lexical callables:
 
 ```rix
 .Plugin.Load("numerics");
-.numerics[:Pow, :Exp, :Log];
+.numerics[:Pow, :E=:Exp, :Log];
 
-value := Exp(3, 4);       ## 64
+value := E(3, 4);         ## 64
 ```
 
 The colon names must appear in the plugin manifest's `exports` list. Selection
-is atomic and refuses to replace a binding already present in the immediate
-scope. At script top level the bare names remain available for that script or
-REPL session. Selection inside a block is local to that block:
+aliases use `:local=:export`, following the scoped-import convention that the
+local name is on the left. Thus `:E=:Exp` binds exported `Exp` as `E`, while
+`:Exp` is shorthand for `:Exp=:Exp`. Selection is atomic and refuses to replace
+a binding already present in the immediate scope. At script top level the bare
+names remain available for that script or REPL session. Selection inside a
+block is local to that block:
 
 ```rix
 .Plugin.Load("numerics");

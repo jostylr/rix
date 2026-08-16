@@ -2716,15 +2716,29 @@ class Parser {
         original: left.original + operator.original
       });
     } else if (operator.value === "[" && symbolInfo.type === "postfix") {
-      if (left.type === "SystemAccess" && this.current.value === ":" && this.peek().type === "Identifier") {
-        const names = [];
+      if (left.type === "SystemAccess" && /^[a-z]/.test(left.property) && this.current.value === ":" && this.peek().type === "Identifier") {
+        const selections = [];
         do {
           this.advance();
           if (this.current.type !== "Identifier") {
             this.error("Plugin import selectors must be colon-prefixed identifiers");
           }
-          names.push(this.current.original);
+          const local = this.current.original;
           this.advance();
+          let source = local;
+          if (this.current.value === "=") {
+            this.advance();
+            if (this.current.value !== ":") {
+              this.error("Plugin import aliases must name their source with a colon-prefixed identifier");
+            }
+            this.advance();
+            if (this.current.type !== "Identifier") {
+              this.error("Plugin import alias sources must be colon-prefixed identifiers");
+            }
+            source = this.current.original;
+            this.advance();
+          }
+          selections.push({ local, source });
           if (this.current.value !== ",")
             break;
           this.advance();
@@ -2738,7 +2752,7 @@ class Parser {
         this.advance();
         return this.createNode("PluginImportSelection", {
           object: left,
-          names,
+          selections,
           pos: left.pos,
           original: left.original + operator.original
         });

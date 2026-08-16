@@ -252,6 +252,8 @@ describe("universal Numerics algorithm reals", () => {
         expect(result.values[1].value).toBe(64n);
         expect(entry(result.values[2], "kind").value).toBe("arithmetic");
         expect(options.systemContext.has("Exp")).toBe(false);
+        expect(() => parseAndEvaluate(".numerics[:E=:Exp, :E=:Log]", options))
+            .toThrow("duplicate local name");
     });
 
     test("elementary algorithms consume unrelated certified real providers", () => {

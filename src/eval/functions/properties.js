@@ -376,7 +376,9 @@ export const propertyFunctions = {
             const info = pluginNamespaceInfo(target);
             if (!info) {
                 if (Array.isArray(requested) && requested.length === 1) {
-                    return indexGetResolved(target, normalizeCapabilityName(requested[0]));
+                    const selection = requested[0];
+                    const sourceName = typeof selection === "string" ? selection : selection?.source;
+                    return indexGetResolved(target, normalizeCapabilityName(sourceName));
                 }
                 throw new Error("Lexical plugin selection requires a dotted plugin namespace");
             }
@@ -388,7 +390,12 @@ export const propertyFunctions = {
             }
 
             const available = new Map(info.exports.map((name) => [String(name).toUpperCase(), String(name)]));
-            const selected = requested.map((sourceName) => {
+            const selected = requested.map((selection) => {
+                const sourceName = typeof selection === "string" ? selection : selection?.source;
+                const requestedLocal = typeof selection === "string" ? selection : selection?.local;
+                if (!sourceName || !requestedLocal) {
+                    throw new Error("Plugin import selections require local and source names");
+                }
                 const exportedName = available.get(String(sourceName).toUpperCase());
                 if (!exportedName) {
                     throw new Error(
@@ -397,17 +404,21 @@ export const propertyFunctions = {
                 }
                 return {
                     exportedName,
-                    localName: normalizeCapabilityName(sourceName),
+                    localName: normalizeCapabilityName(requestedLocal),
+                    localDisplayName: String(requestedLocal),
                 };
             });
             if (new Set(selected.map(({ exportedName }) => exportedName.toUpperCase())).size !== selected.length) {
                 throw new Error(`Plugin '${info.pluginId}' lexical selection contains a duplicate export`);
             }
+            if (new Set(selected.map(({ localName }) => localName)).size !== selected.length) {
+                throw new Error(`Plugin '${info.pluginId}' lexical selection contains a duplicate local name`);
+            }
 
             const systemContext = context.getEnv?.("__system_context__", null);
-            const bindings = selected.map(({ exportedName: name, localName }) => {
+            const bindings = selected.map(({ exportedName: name, localName, localDisplayName }) => {
                 if (context.getImmediateCell(localName)) {
-                    throw new Error(`Cannot import plugin export '${name}': the current scope already defines '${name}'`);
+                    throw new Error(`Cannot import plugin export '${name}' as '${localDisplayName}': the current scope already defines '${localDisplayName}'`);
                 }
                 let method = null;
                 if (info.namespaceAvailable && target?.type !== "sysref") {

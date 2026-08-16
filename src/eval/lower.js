@@ -1010,7 +1010,7 @@ const LOWERERS = {
   },
 
   PluginImportSelection(node) {
-    return ir("PLUGIN_IMPORT", lowerNode(node.object), node.names);
+    return ir("PLUGIN_IMPORT", lowerNode(node.object), node.selections);
   },
 
   ExternalAccess(node) {

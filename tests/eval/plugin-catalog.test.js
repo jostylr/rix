@@ -101,6 +101,13 @@ operator-files:
         expect(() => evaluate("Echo(10)", localOptions)).toThrow("Undefined identifier: ECHO");
     });
 
+    test("aliases selected plugin exports with local=source spelling", () => {
+        const options = runtime(new NodePluginCatalog({ roots: [fixtureRoot] }).scan());
+
+        expect(evaluate('.Plugin.Load("echo"); .echo[:Say=:Echo]; Say(7)', options).value).toBe(7n);
+        expect(() => evaluate("Echo(8)", options)).toThrow("Undefined identifier: ECHO");
+    });
+
     test("plugin export selection is explicit, collision-safe, and atomic", () => {
         const unloaded = runtime(new NodePluginCatalog({ roots: [fixtureRoot] }).scan());
         expect(() => evaluate(".echo[:Echo]", unloaded)).toThrow("available but not loaded");
@@ -108,8 +115,10 @@ operator-files:
         const options = runtime(new NodePluginCatalog({ roots: [fixtureRoot] }).scan());
         evaluate('.Plugin.Load("echo")', options);
         expect(() => evaluate(".echo[:Missing]", options)).toThrow("does not export 'Missing'");
+        expect(() => evaluate(".echo[:Say=:Missing]", options)).toThrow("does not export 'Missing'");
         expect(() => evaluate(".echo[:Echo, :Echo]", options)).toThrow("duplicate export");
         expect(() => evaluate("Echo = x -> x + 1; .echo[:Echo]", options)).toThrow("already defines 'Echo'");
+        expect(() => evaluate("Say = x -> x + 1; .echo[:Say=:Echo]", options)).toThrow("already defines 'Say'");
         expect(evaluate("Echo(2)", options).value).toBe(3n);
     });
 
@@ -135,8 +144,8 @@ operator-files:
         expect(loaded.values.map((value) => value.value)).toEqual([1n, 1n]);
 
         const selected = await parseAndEvaluateAsync(`
-            .fraction[:Fraction];
-            Fraction(6, 8)
+            .fraction[:MakeFraction=:Fraction];
+            MakeFraction(6, 8)
         `, options);
         expect(String(selected)).toBe("6/8");
     });

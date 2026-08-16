@@ -789,15 +789,19 @@ namespace with colon names:
 
 ```rix
 .Plugin.Load("numerics");
-.numerics[:Exp, :Log, :Pow];
-Exp(3, 4)
+.numerics[:E=:Exp, :Log, :Pow];
+E(3, 4)
 ```
 
 This creates ordinary bare callable bindings in the immediate lexical scope.
+As in scoped import headers, the left side of `=` is the new local name and the
+right side is the source name: `:E=:Exp` imports exported `Exp` as local `E`.
+An unaliased `:Exp` is shorthand for `:Exp=:Exp`.
 At top level they last for the script or REPL session. Inside `{; ... }`, a
 function body, or another scope, they disappear when that scope exits. Existing
 immediate bindings are never overwritten, the whole selection fails if any
-name is invalid, and required-plugin exports are not imported automatically.
+local or exported name is invalid, and required-plugin exports are not imported
+automatically.
 
 ### Script Import Expressions
 

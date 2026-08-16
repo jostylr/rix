@@ -929,8 +929,8 @@ export function analyzeRix(source, options = {}) {
 
         if (node.type === "PluginImportSelection") {
             visit(node.object, scope, { ...state, role: "value", tail: false, discarded: false });
-            for (const name of node.names || []) {
-                scope.declare(normalizePluginImportName(name), {
+            for (const selection of node.selections || []) {
+                scope.declare(normalizePluginImportName(selection.local), {
                     node,
                     imported: true,
                     valueKind: "function",

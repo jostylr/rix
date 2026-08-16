@@ -33,6 +33,13 @@ result := .numerics.Refine(real, {=
 - `approximation`: for certified providers, a scalar `CertifiedApproximation`
   carrying the candidate, exact enclosure, and precision provenance.
 
+When a certified enclosure record is displayed, RiX presents its current exact
+interval rather than dumping the orchestration record. The record itself is
+unchanged: assign it and use keys such as `result[:status]`,
+`result[:evidence]`, or `result[:work]` to inspect the full computation.
+Uncertified and unresolved results retain their structured display so their
+limitations are not hidden.
+
 Exhaustion is a normal result. Certified providers preserve it as a certified
 approximation rather than a guessed answer or an exception; uncertified
 providers must not populate that field as though they had an error bound.
@@ -106,13 +113,15 @@ Select the functions a script wants to call without a namespace prefix:
 
 ```rix
 .Plugin.Load("numerics");
-.numerics[:Pow, :Exp, :Log, :Log2];
+.numerics[:Pow, :E=:Exp, :Log, :Log2];
 
-Exp(3, 4);  ## 64
+E(3, 4);  ## 64
 Log2(8);
 ```
 
 The selected names are ordinary bindings in the immediate lexical scope. A
+selector of the form `:local=:export` aliases an export; an unaliased name is
+shorthand for importing it under the same spelling. A
 top-level selection lasts for the script or REPL session; a selection inside a
 block disappears when that block exits. The `.numerics` mount remains available
 in either case. Remounting with `.Plugin.Load("numerics", {= as="n" })` is still

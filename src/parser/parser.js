@@ -1302,14 +1302,28 @@ class Parser {
         this.current.value === ":" &&
         this.peek().type === "Identifier"
       ) {
-        const names = [];
+        const selections = [];
         do {
           this.advance(); // consume ':'
           if (this.current.type !== "Identifier") {
             this.error("Plugin import selectors must be colon-prefixed identifiers");
           }
-          names.push(this.current.original);
+          const local = this.current.original;
           this.advance();
+          let source = local;
+          if (this.current.value === "=") {
+            this.advance();
+            if (this.current.value !== ":") {
+              this.error("Plugin import aliases must name their source with a colon-prefixed identifier");
+            }
+            this.advance();
+            if (this.current.type !== "Identifier") {
+              this.error("Plugin import alias sources must be colon-prefixed identifiers");
+            }
+            source = this.current.original;
+            this.advance();
+          }
+          selections.push({ local, source });
           if (this.current.value !== ",") break;
           this.advance();
           if (this.current.value !== ":") {
@@ -1322,7 +1336,7 @@ class Parser {
         this.advance();
         return this.createNode("PluginImportSelection", {
           object: left,
-          names,
+          selections,
           pos: left.pos,
           original: left.original + operator.original,
         });

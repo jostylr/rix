@@ -117,6 +117,7 @@ function declarationKind(tokens, index) {
 
 function isPluginImportSelector(tokens, index) {
     if (tokens[index - 1]?.value !== ":") return false;
+    if (tokens[index - 2]?.value === "=") return false;
     for (let cursor = index - 2; cursor >= 0; cursor--) {
         if (tokens[cursor]?.value === "]") return false;
         if (tokens[cursor]?.value !== "[") continue;

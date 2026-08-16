@@ -74,13 +74,14 @@ describe("portable RiX language service", () => {
     });
 
     test("indexes lexical plugin selections as local function declarations", () => {
-        const source = '.Plugin.Load("numerics"); .numerics[:Exp, :Log]; Exp(1);';
+        const source = '.Plugin.Load("numerics"); .numerics[:E=:Exp, :Log]; E(1);';
         const analysis = analyzeRixDocument(source);
-        expect(analysis.symbols.find(({ name }) => name === "EXP")).toMatchObject({
+        expect(analysis.symbols.find(({ name }) => name === "E")).toMatchObject({
             kind: "function",
             detail: "lexically imported plugin function",
         });
-        const useOffset = source.lastIndexOf("Exp") + 1;
+        expect(analysis.symbols.find(({ name }) => name === "EXP")).toBeUndefined();
+        const useOffset = source.lastIndexOf("E(") + 1;
         expect(definitionsAt(analysis, useOffset)).toHaveLength(1);
     });
 
