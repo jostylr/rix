@@ -273,7 +273,7 @@ describe("universal Numerics algorithm reals", () => {
         for (const [index, enclosure] of result.values.entries()) {
             expect(text(entry(enclosure, "status")), `trig result ${index + 1}`).toBe("enclosed");
             expect(entry(enclosure, "certified").value).toBe(1n);
-            expect(contains(entry(enclosure, "interval"), parseAndEvaluate(expected[index], options))).toBe(true);
+            expect(contains(entry(enclosure, "interval"), parseAndEvaluate(expected[index], options)), `unary witness ${index + 1}`).toBe(true);
         }
     });
 
@@ -286,6 +286,74 @@ describe("universal Numerics algorithm reals", () => {
         expect(text(entry(result, "status"))).toBe("unknown");
         expect(entry(result, "certified")).toBeNull();
         expect(entry(result, "diagnostics").values.map(text)).toContain("inverseTrigDomainNotCertified");
+    });
+
+    test("common unary calculator functions compose through universal certified reals", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("numerics");
+            Refined = (value, work ?= 600) -> .numerics.Refine(value, {=
+                absoluteWidth=1/1000, maxWork=work
+            });
+            {:
+                Refined(.numerics.Cbrt(-8)),
+                Refined(.numerics.Sinh(0)),
+                Refined(.numerics.Cosh(0)),
+                Refined(.numerics.Tanh(0)),
+                Refined(.numerics.Asinh(0)),
+                Refined(.numerics.Acosh(1)),
+                Refined(.numerics.Atanh(0)),
+                Refined(.numerics.Expm1(0)),
+                Refined(.numerics.Log1p(0)),
+                Refined(.numerics.Sinc(0)),
+                Refined(.numerics.Radians(180)),
+                Refined(.numerics.Degrees(.numerics.Pi()))
+            }
+        `, options);
+        const expected = ["-2", "0", "1", "0", "0", "0", "0", "0", "0", "1", "314159265358979323/100000000000000000", "180"];
+        for (const [index, enclosure] of result.values.entries()) {
+            expect(text(entry(enclosure, "status")), `unary result ${index + 1}`).toBe("enclosed");
+            expect(entry(enclosure, "certified").value).toBe(1n);
+            expect(contains(entry(enclosure, "interval"), parseAndEvaluate(expected[index], options)), `unary witness ${index + 1}`).toBe(true);
+        }
+    });
+
+    test("certified special functions expose values, branches, and honest real domains", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("numerics");
+            {:
+                .numerics.Refine(.numerics.EulerGamma(), {= absoluteWidth=1/1000, maxWork=250 }),
+                .numerics.Refine(.numerics.Erf(0), {= absoluteWidth=1/1000, maxWork=400 }),
+                .numerics.Refine(.numerics.Erfc(0), {= absoluteWidth=1/1000, maxWork=400 }),
+                .numerics.Refine(.numerics.J0(0), {= absoluteWidth=1/1000, maxWork=200 }),
+                .numerics.Refine(.numerics.J1(0), {= absoluteWidth=1/1000, maxWork=200 }),
+                .numerics.Refine(.numerics.Y0(1), {= absoluteWidth=1/1000, maxWork=1200 }),
+                .numerics.Refine(.numerics.Y1(1), {= absoluteWidth=1/1000, maxWork=1200 }),
+                .numerics.Refine(.numerics.Gamma(1), {= absoluteWidth=1/1000, maxWork=800 }),
+                .numerics.Refine(.numerics.LogGamma(1), {= absoluteWidth=1/1000, maxWork=800 }),
+                .numerics.Refine(.numerics.LambertW(1), {= absoluteWidth=1/1000, maxWork=500 }),
+                .numerics.Refine(.numerics.LambertW(-1/10, -1), {= absoluteWidth=1/1000, maxWork=800 }),
+                .numerics.Refine(.numerics.Zeta(2), {= absoluteWidth=1/1000, maxWork=1200 })
+            }
+        `, options);
+        const expected = [
+            "57721/100000", "0", "1", "1", "0", "8826/100000", "-7812128/10000000",
+            "1", "0", "56714/100000", "-35772/10000", "1644935/1000000",
+        ];
+        for (const [index, enclosure] of result.values.entries()) {
+            expect(text(entry(enclosure, "status")), `special result ${index + 1}`).toBe("enclosed");
+            expect(entry(enclosure, "certified").value).toBe(1n);
+            expect(contains(entry(enclosure, "interval"), parseAndEvaluate(expected[index], options)), `special witness ${index + 1}`).toBe(true);
+        }
+
+        const domains = parseAndEvaluate(`{:
+            .numerics.Refine(.numerics.Gamma(-1), {= absoluteWidth=1/100, maxWork=50 })[:status],
+            .numerics.Refine(.numerics.Y0(-1), {= absoluteWidth=1/100, maxWork=50 })[:status],
+            .numerics.Refine(.numerics.Zeta(1), {= absoluteWidth=1/100, maxWork=50 })[:status],
+            .numerics.Refine(.numerics.LambertW(-1), {= absoluteWidth=1/100, maxWork=50 })[:status]
+        }`, options);
+        expect(domains.values.map(text)).toEqual(["unknown", "unknown", "unknown", "unknown"]);
     });
 
     test("Numerics exports can be opened lexically without entering the system namespace", () => {

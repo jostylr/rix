@@ -79,7 +79,8 @@ stored value to the intended real computation.
 `.numerics.Sqrt(value)` and `.numerics.NthRoot(value, degree)` apply the
 weighted averaging step using exact rational endpoint arithmetic. The current
 guess and its partner `q/x^(n-1)` form the enclosing interval. The radicand may
-be any certified refinable singleton real.
+be any certified refinable singleton real. `.Cbrt(value)` is the degree-three
+convenience form and retains the real cube root for negative values.
 
 `.numerics.Pow(value, exponent)` accepts an exact Rational exponent. It reduces
 `value^(p/q)` to the universal q-th root followed by an integer power, retaining
@@ -90,7 +91,9 @@ exponential and logarithm algorithm reals. Exact rational Taylor/atanh bounds
 and rational range reduction produce their enclosures. A second argument
 changes the base: `.numerics.Exp(3, 4)` is `4^3`, while
 `.numerics.Log(3, 4)` is `log_4(3)`. `.numerics.Ln` aliases natural `Log`;
-`.Log2` and `.Log10` select bases two and ten.
+`.Log2` and `.Log10` select bases two and ten. `.Expm1(x)` and `.Log1p(x)`
+provide the conventional near-zero spellings while retaining certified real
+arithmetic rather than binary64 subtraction.
 
 `.numerics.Pi()` is a certified algorithm real using Machin's identity with
 alternating rational arctangent bounds. Angles are measured in radians.
@@ -104,6 +107,26 @@ cosine combine it with the universal square-root algorithm. The synonymous
 spellings `.Arcsin`, `.Arccos`, and `.Arctan` are also exported. Inverse sine
 and cosine return structured `:unknown` evidence when the input cannot be
 certified inside `-1:1`; reciprocal functions retain their ordinary poles.
+
+Hyperbolic `Sinh`, `Cosh`, `Tanh`, `Sech`, `Csch`, and `Coth` compose the
+certified exponential and arithmetic protocols. `Asinh`, `Acosh`, and `Atanh`
+use the standard logarithm/root identities; `Arsinh`, `Arcosh`, and `Artanh`
+are aliases. `Sinc` has its own Taylor refiner, so its removable value at zero
+is certified as `1`. `Radians` and `Degrees` convert using certified pi.
+
+The same plugin supplies certified special-function algorithms:
+
+- `EulerGamma()`, `Gamma`, and `LogGamma` use harmonic and
+  Stirling–Robbins bounds; Gamma currently has a positive-real domain.
+- `Erf`/`Erfc` use an alternating entire series.
+- `LambertW(x)` selects the principal real branch and `LambertW(x,-1)` the
+  lower branch, both by certified monotone bisection.
+- `J0`, `J1`, `Y0`, and `Y1` implement order-zero/order-one Bessel functions;
+  the Y functions currently require positive real arguments.
+- `Zeta` uses Euler–Maclaurin bounds for real arguments greater than one.
+
+When a restricted domain cannot be certified, refinement returns structured
+`:unknown` evidence rather than sampling a Float or claiming a real value.
 
 These functions accept any certified refinable singleton real. They do not
 convert Float values into claimed certificates.

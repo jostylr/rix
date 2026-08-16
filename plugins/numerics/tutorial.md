@@ -324,6 +324,35 @@ An inverse-sine or inverse-cosine input that is not certified inside `-1:1`
 returns `:unknown` with `:inverseTrigDomainNotCertified`. Numerics never
 silently selects a complex branch or a Float approximation.
 
+## Hyperbolic and special functions
+
+The remaining scientific-calculator functions use the same refinement
+contract. They can be selected lexically and called without a plugin prefix:
+
+```rix
+.Plugin.Load("numerics");
+.numerics[:Refine, :Sinh, :Asinh, :Sinc, :Erf, :Gamma, :LambertW, :J0, :Zeta];
+
+values := [
+  Sinh(1), Asinh(1), Sinc(0), Erf(1), Gamma(5),
+  LambertW(1), J0(1), Zeta(2)
+];
+values |>> ((value) -> Refine(value, {=
+  absoluteWidth=1/1000, maxWork=1200
+}));
+```
+
+`Cbrt`, `Expm1`, `Log1p`, `Radians`, and `Degrees` provide the familiar
+calculator conveniences. Hyperbolic reciprocal functions preserve their
+ordinary poles, while inverse hyperbolic functions inherit the certified root
+and logarithm domain checks.
+
+Special functions publish their real-domain policy rather than silently
+crossing a branch: `Gamma`/`LogGamma` and `Y0`/`Y1` currently require positive
+arguments, and `Zeta` currently requires an argument greater than one.
+`LambertW(x)` is branch zero; `LambertW(x,-1)` is the lower real branch.
+Uncertified domains return structured `:unknown` results.
+
 ## Kantorovich certification and interval Newton
 
 `.numerics.Kantorovich` first checks the supplied initial interval and rational
