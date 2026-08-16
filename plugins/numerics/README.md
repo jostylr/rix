@@ -125,10 +125,13 @@ The same plugin supplies certified special-function algorithms:
 - `Erf`/`Erfc` use an alternating entire series.
 - `LambertW(x)` selects the principal real branch and `LambertW(x,-1)` the
   lower branch, both by certified monotone bisection.
-- `BesselJ0`, `BesselJ1`, `BesselY0`, and `BesselY1` implement
-  order-zero/order-one Bessel functions; the Y functions currently require
-  positive real arguments. Calculator-facing code should load the `bessel`
-  plugin and use `.bessel.J0`, `.bessel.J1`, `.bessel.Y0`, and `.bessel.Y1`.
+- `BesselJ(n,x)` and `BesselY(n,x)` implement every exact integer order using
+  certified recurrence bounds; the order-zero/order-one convenience names
+  remain available. The Y family currently requires positive real arguments.
+  Calculator-facing code should load the `bessel` plugin and use `.bessel.J`
+  and `.bessel.Y`.
+- `NormalPDF`, `NormalCDF`, and `NormalQuantile` provide the universal standard
+  normal algorithms used by the calculator-facing `.stats` functions.
 - `Zeta` uses Euler–Maclaurin bounds for real arguments greater than one.
 
 `Hypot(x,y)` composes the universal root and arithmetic protocols.
@@ -177,4 +180,6 @@ available when a shorter namespace is preferable.
 
 See [tutorial.md](tutorial.md) for worked examples and
 [unary-functions.md](unary-functions.md) for the maintained calculator-function
-inventory and implementation priorities.
+inventory and implementation priorities. See
+[accuracy-and-performance.md](accuracy-and-performance.md) for the reference
+corpus, benchmark command, and interpretation of certified precision.

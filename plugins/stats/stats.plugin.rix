@@ -1,12 +1,13 @@
 /**
 id: stats
-description: Exact descriptive statistics with portable summary tables, histograms, and box plots.
+description: Exact descriptive statistics plus certified normal-distribution functions and portable plots.
 kind: rix
 mount: stats
 aliases: [statistics]
-exports: [Count, Mean, Quantile, Median, Variance, SampleVariance, Summary, SummaryTable, Histogram, HistogramGraphic, BoxPlot]
+exports: [Count, Mean, Quantile, Median, Variance, SampleVariance, NormalPDF, NormalCDF, NormalQuantile, Summary, SummaryTable, Histogram, HistogramGraphic, BoxPlot]
 groups: [Statistics, Exact, Graphics]
 permissions: []
+requires: [rix.numerics@1]
 provides: [rix.statistics@1]
 schemas: [rix.stats.summary@1, rix.stats.histogram@1]
 snapshot: true
@@ -56,6 +57,38 @@ StatsVariance(values, sample ?= 0) -> {;
     mean = StatsSum(exact) / exact.Len();
     squared = exact.Reduce((sum, value) -> sum + (value - mean)^2, 0);
     squared / (sample == 1 ?: exact.Len() - 1 ?_ exact.Len());
+};
+
+StatsNormalScale(standardDeviation) -> {;
+    scale = standardDeviation ~!: :Rational;
+    scale > 0 ?: scale ?_ .Error("Normal standard deviation must be a positive exact Rational");
+};
+
+StatsNormalPDF(value, mean ?= _, standardDeviation ?= _) -> {;
+    defaults = mean == _ && standardDeviation == _;
+    location = mean == _ ?: 0 ?_ mean;
+    scale = StatsNormalScale(standardDeviation == _ ?: 1 ?_ standardDeviation);
+    defaults
+      ?: .numerics.NormalPDF(value)
+      ?_ .numerics.NormalPDF((value-location)/scale) / scale;
+};
+
+StatsNormalCDF(value, mean ?= _, standardDeviation ?= _) -> {;
+    defaults = mean == _ && standardDeviation == _;
+    location = mean == _ ?: 0 ?_ mean;
+    scale = StatsNormalScale(standardDeviation == _ ?: 1 ?_ standardDeviation);
+    defaults
+      ?: .numerics.NormalCDF(value)
+      ?_ .numerics.NormalCDF((value-location)/scale);
+};
+
+StatsNormalQuantile(probability, mean ?= _, standardDeviation ?= _) -> {;
+    defaults = mean == _ && standardDeviation == _;
+    location = mean == _ ?: 0 ?_ mean;
+    scale = StatsNormalScale(standardDeviation == _ ?: 1 ?_ standardDeviation);
+    defaults
+      ?: .numerics.NormalQuantile(probability)
+      ?_ location + scale*.numerics.NormalQuantile(probability);
 };
 
 StatsSummary(values) -> {;
@@ -207,6 +240,9 @@ statsNamespace._proto = {=
     Median=(self, values)->StatsMedian(values),
     Variance=(self, values)->StatsVariance(values),
     SampleVariance=(self, values)->StatsVariance(values, 1),
+    NormalPDF=(self, value, mean ?= _, standardDeviation ?= _)->StatsNormalPDF(value, mean, standardDeviation),
+    NormalCDF=(self, value, mean ?= _, standardDeviation ?= _)->StatsNormalCDF(value, mean, standardDeviation),
+    NormalQuantile=(self, probability, mean ?= _, standardDeviation ?= _)->StatsNormalQuantile(probability, mean, standardDeviation),
     Summary=(self, values)->StatsSummary(values),
     SummaryTable=(self, values, options ?= {= })->StatsSummaryTable(values, options),
     Histogram=(self, values, binCount ?= 5)->StatsHistogram(values, binCount),

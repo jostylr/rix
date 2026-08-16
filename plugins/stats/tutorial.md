@@ -36,3 +36,24 @@ values := [1, 2, 2, 3, 5, 8];
 
 `Variance` is the population statistic. Use `SampleVariance` when the values
 are a sample; it reports a clear error for fewer than two observations.
+
+## Use a certified normal distribution
+
+The distribution functions return refinable reals. `NormalQuantile` is kept
+distinct from the exact sample `Quantile` operation.
+
+```rix
+.Plugin.Load("stats");
+values := [
+  .stats.NormalPDF(0),
+  .stats.NormalCDF(1),
+  .stats.NormalQuantile(975/1000)
+];
+values.Map((value) -> .numerics.Refine(value, {=
+  absoluteWidth=1/1000,
+  maxWork=12000
+}));
+```
+
+Pass optional mean and exact positive Rational standard deviation arguments
+for another normal distribution, for example `.stats.NormalCDF(12,10,2)`.

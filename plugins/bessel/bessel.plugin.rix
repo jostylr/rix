@@ -3,7 +3,7 @@ id: bessel
 description: Clearly named Bessel-function namespace backed by certified universal Numerics algorithms.
 kind: rix
 mount: bessel
-exports: [J0, J1, Y0, Y1]
+exports: [J, J0, J1, Y, Y0, Y1]
 groups: [Numerics, SpecialFunctions]
 permissions: []
 requires: [rix.numerics@1]
@@ -16,8 +16,10 @@ defaultEnabled: false
 
 besselNamespace = {= };
 besselNamespace._proto = {=
+    J = (self, order, value) -> .numerics.BesselJ(order, value),
     J0 = (self, value) -> .numerics.BesselJ0(value),
     J1 = (self, value) -> .numerics.BesselJ1(value),
+    Y = (self, order, value) -> .numerics.BesselY(order, value),
     Y0 = (self, value) -> .numerics.BesselY0(value),
     Y1 = (self, value) -> .numerics.BesselY1(value)
 };

@@ -348,7 +348,7 @@ ordinary poles, while inverse hyperbolic functions inherit the certified root
 and logarithm domain checks.
 
 Special functions publish their real-domain policy rather than silently
-crossing a branch: `Gamma`/`LogGamma` and `Y0`/`Y1` currently require positive
+crossing a branch: `Gamma`/`LogGamma` and the Bessel Y family currently require positive
 arguments, and `Zeta` currently requires an argument greater than one.
 `LambertW(x)` is branch zero; `LambertW(x,-1)` is the lower real branch.
 Uncertified domains return structured `:unknown` results.

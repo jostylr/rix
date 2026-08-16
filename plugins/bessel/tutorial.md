@@ -29,8 +29,8 @@ values |>> ((value) -> .numerics.Refine(value, {=
 ```
 
 Loading `bessel` automatically loads its Numerics and Oracle dependencies.
-The four functions return certified refinable real values rather than Float
-samples. `Y0` and `Y1` currently accept positive real arguments only; an
+All functions return certified refinable real values rather than Float
+samples. The Y family currently accepts positive real arguments only; an
 unresolved or invalid real domain produces structured `:unknown` evidence.
 
 ## Use the universal implementation directly when needed
@@ -50,3 +50,20 @@ result := .numerics.Refine(.numerics.BesselJ0(1), {=
 For ordinary calculator code, prefer `.bessel.J0(1)`. The longer Numerics
 names are mainly useful to code that deliberately works with the universal
 algorithm layer.
+
+## Select any integer order
+
+`J(n,x)` and `Y(n,x)` keep the family letter in the Bessel namespace while
+making the order explicit:
+
+```rix
+.Plugin.Load("bessel");
+results := [.bessel.J(2, 1), .bessel.J(-3, 1), .bessel.Y(2, 1)];
+results.Map((value) -> .numerics.Refine(value, {=
+  absoluteWidth=1/1000,
+  maxWork=7000
+}));
+```
+
+Negative orders use `J_-n=(-1)^n J_n` and `Y_-n=(-1)^n Y_n`. The Y family
+requires a certifiably positive argument.

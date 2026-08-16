@@ -20,7 +20,8 @@ operations can remain in Core or a more specific plugin.
 | Inverse hyperbolic | `Asinh`, `Acosh`, `Atanh` and `Ar…` aliases | Numerics |
 | Angle and normalized trig | `Radians`, `Degrees`, `Sinc` | Numerics |
 | Special functions | `Gamma`, `LogGamma`, `Beta`, `LogBeta`, `Digamma`, `Trigamma`, `Erf`, `Erfc`, `LambertW`, `Zeta` | Numerics |
-| Bessel functions | `.bessel.J0`, `.bessel.J1`, `.bessel.Y0`, `.bessel.Y1` | Bessel façade over Numerics |
+| Bessel functions | `.bessel.J(n,x)`, `.bessel.Y(n,x)` plus `J0`, `J1`, `Y0`, `Y1` | Bessel façade over Numerics |
+| Normal distribution | `.stats.NormalPDF`, `.stats.NormalCDF`, `.stats.NormalQuantile` | Statistics façade over Numerics |
 | Certified constants used by unary functions | `Pi()`, `EulerGamma()` | Numerics |
 
 ## Implemented domain notes
@@ -33,7 +34,8 @@ operations can remain in Core or a more specific plugin.
   identities before the general bounded algorithm.
 - `Atan2(y,x)` returns angles in `-pi < angle <= pi`, chooses `pi` on the
   negative horizontal axis, and returns `:unknown` at `(0,0)`.
-- `.bessel.Y0` and `.bessel.Y1` currently certify positive real arguments.
+- `.bessel.Y(n,x)` currently certifies positive real arguments and exact
+  integer orders. `J` accepts every real argument.
 - `Zeta` currently certifies the defining real branch for arguments greater
   than one.
 - `LambertW(x)` is the principal real branch; `LambertW(x,-1)` selects the
@@ -57,8 +59,9 @@ them without real approximation:
 - [x] Calculator geometry: `Hypot` and quadrant-aware `Atan2`.
 - [x] Gamma family: `Beta`, `LogBeta`, `Digamma`, and `Trigamma` on the
   positive-real domain.
-- [ ] Normal PDF, CDF, and inverse CDF under the statistics/probability surface.
-- [ ] Higher-order Bessel `J(n,x)`/`Y(n,x)`, then modified Bessel `I`/`K`.
+- [x] Normal PDF, CDF, and inverse CDF under the statistics/probability surface.
+- [x] Integer-order Bessel `J(n,x)` and `Y(n,x)`.
+- [ ] Modified Bessel `I`/`K`.
 - [ ] Reusable certified quadrature.
 - [ ] Incomplete/regularized gamma and beta functions, followed by Airy and
   elliptic-integral families.

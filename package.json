@@ -5,6 +5,7 @@
   "type": "module",
   "files": [
     "README.md",
+    "benchmarks/",
     "bin/",
     "examples/algebra/",
     "examples/complex/",
@@ -50,6 +51,7 @@
     "test:docs": "bun test tests/tools/documentation-examples.test.js",
     "test:package": "bun test tests/tools/package-smoke.test.js",
     "test:pack": "npm pack --dry-run --cache=tmp/npm-cache",
+    "bench:numerics": "bun ./benchmarks/numerics-precision.js",
     "smoke:package": "bun ./scripts/package-consumer-smoke.js",
     "build:lezer": "lezer-generator src/tools/lezer/rix.grammar -o src/tools/lezer/parser.js",
     "check:editor-policy": "bun ./scripts/generate-editor-policy.js --check",

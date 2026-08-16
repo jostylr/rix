@@ -298,9 +298,11 @@ newline normalization.
      undefined-origin handling, plus universal `Hypot(x,y)`.
    - [x] Add positive-real `Beta`, `LogBeta`, `Digamma`, and `Trigamma`, using
      exact/common identities where available and bounded algorithms otherwise.
-   - [ ] Add normal PDF/CDF/quantile functions under the statistics/probability
+   - [x] Add normal PDF/CDF/quantile functions under the statistics/probability
      surface, reusing certified `Erf` and root isolation.
-   - [ ] Add higher-order and modified Bessel families under `.bessel`.
+   - [x] Add arbitrary integer-order Bessel `J(n,x)` and `Y(n,x)` under
+     `.bessel`, retaining the explicit letter-family namespace.
+   - [ ] Add modified Bessel `I`/`K` families under `.bessel`.
    - [ ] Add reusable certified quadrature before incomplete gamma/beta, Airy,
      and elliptic-integral families.
    - [ ] Extend Gamma and Zeta across their remaining real domains with

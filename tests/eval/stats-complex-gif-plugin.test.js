@@ -59,6 +59,7 @@ describe("Phase 1 statistics plugin", () => {
         expect(() => parseAndEvaluate('.Plugin.Load("stats"); .stats.SampleVariance([1])', runtime())).toThrow("at least two values");
         expect(() => parseAndEvaluate('.Plugin.Load("stats"); .stats.Quantile([1,2], 3/2)', runtime())).toThrow("between 0 and 1");
         expect(formatValue(parseAndEvaluate('.Plugin.Load("stats"); .stats.Variance([5])', runtime()))).toBe("0");
+        expect(() => parseAndEvaluate('.Plugin.Load("stats"); .stats.NormalCDF(0, 0, 0)', runtime())).toThrow("positive exact Rational");
     });
 });
 

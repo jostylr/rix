@@ -3,7 +3,7 @@ id: numerics
 description: Backend-neutral bounded enclosure and refinement orchestration.
 kind: rix
 mount: numerics
-exports: [Request, WorkPolicy, EffectiveLimits, Enclose, Refine, Sample, Capabilities, CheckResult, NthRoot, Sqrt, Cbrt, Hypot, Pow, Exp, Expm1, Log, Log1p, Ln, Log2, Log10, Pi, EulerGamma, Sin, Cos, Tan, Sec, Csc, Cot, Sinc, Asin, Acos, Atan, Atan2, Arcsin, Arccos, Arctan, Sinh, Cosh, Tanh, Sech, Csch, Coth, Asinh, Acosh, Atanh, Arsinh, Arcosh, Artanh, Radians, Degrees, Gamma, LogGamma, Beta, LogBeta, Digamma, Trigamma, Erf, Erfc, LambertW, BesselJ0, BesselJ1, BesselY0, BesselY1, Zeta, Kantorovich]
+exports: [Request, WorkPolicy, EffectiveLimits, Enclose, Refine, Sample, Capabilities, CheckResult, NthRoot, Sqrt, Cbrt, Hypot, Pow, Exp, Expm1, Log, Log1p, Ln, Log2, Log10, Pi, EulerGamma, Sin, Cos, Tan, Sec, Csc, Cot, Sinc, Asin, Acos, Atan, Atan2, Arcsin, Arccos, Arctan, Sinh, Cosh, Tanh, Sech, Csch, Coth, Asinh, Acosh, Atanh, Arsinh, Arcosh, Artanh, Radians, Degrees, Gamma, LogGamma, Beta, LogBeta, Digamma, Trigamma, Erf, Erfc, NormalPDF, NormalCDF, NormalQuantile, LambertW, BesselJ, BesselJ0, BesselJ1, BesselY, BesselY0, BesselY1, Zeta, Kantorovich]
 groups: [Numerics]
 permissions: []
 requires: [rix.oracle@1]
@@ -211,6 +211,9 @@ NumericsLogRationalBounds(value, tolerance, maxIterations) -> {;
 
 NumericsClampUnitInterval(interval) ->
     .Max(-1, interval.Low()):.Min(1, interval.High());
+
+NumericsClampProbabilityInterval(interval) ->
+    .Max(0, interval.Low()):.Min(1, interval.High());
 
 NumericsTrigTaylorBounds(value, tolerance, maxIterations, kind) -> {;
     exact = value ~!: :Rational;
@@ -486,6 +489,53 @@ NumericsBesselYRationalBounds(value, tolerance, maxIterations, kind) -> {;
         goalMet=ready && interval.Width() <= tolerance,
         iterations=iterations
     };
+};
+
+NumericsBesselIntegerRationalBounds(order, value, tolerance, maxIterations, family) -> {;
+    exactOrder = order ~!: :Integer;
+    degree = exactOrder.Abs();
+    exact = value ~!: :Rational;
+    (family == :besselJ || exact > 0)
+      ?: _
+      ?_ .Error("Integer-order Bessel Y requires a positive real value");
+    zeroAtOrigin = family == :besselJ && exact == 0 && degree > 0;
+    zeroAtOrigin
+      ?: {= interval=0:0, ready=1, goalMet=1, iterations=0 }
+      ?_ {;
+          ## The final interval is checked directly, so this allocation need
+          ## not predict the often very pessimistic forward-recurrence norm.
+          partTolerance = @tolerance/(2*(@degree+1));
+          halfBudget = .Max(0, @maxIterations//2);
+          first = @family == :besselJ
+            ?: NumericsSpecialSeriesBounds(@exact, partTolerance, halfBudget, :besselJ0)
+            ?_ NumericsBesselYRationalBounds(@exact, partTolerance, halfBudget, :besselY0);
+          second = @family == :besselJ
+            ?: NumericsSpecialSeriesBounds(@exact, partTolerance, @maxIterations-halfBudget, :besselJ1)
+            ?_ NumericsBesselYRationalBounds(@exact, partTolerance, @maxIterations-halfBudget, :besselY1);
+          previous := first[:interval];
+          current := second[:interval];
+          {@ index=1; index < @degree;
+             {;
+                 next = (2*index/(@exact:@exact))*@current - @previous;
+                 @previous = @current;
+                 @current = next;
+             };
+             index += 1
+          };
+          interval = @degree == 0 ?: first[:interval]
+            ?_ (@degree == 1 ?: second[:interval] ?_ current);
+          interval = (@exactOrder < 0 && @degree % 2 == 1)
+            ?: 0-interval
+            ?_ interval;
+          iterations = first[:iterations] + second[:iterations] + .Max(0, @degree-1);
+          ready = first[:ready] && second[:ready];
+          {=
+              interval=interval,
+              ready=ready,
+              goalMet=ready && interval.Width() <= @tolerance,
+              iterations=iterations
+          };
+      };
 };
 
 NumericsLogGammaRationalBounds(value, tolerance, maxIterations) -> {;
@@ -845,6 +895,139 @@ NumericsZetaRationalBounds(value, tolerance, maxIterations) -> {;
         ready=ready,
         goalMet=ready && interval.Width() <= tolerance,
         iterations=iterations
+    };
+};
+
+NumericsPositiveSqrtRationalBounds(value, tolerance, maxIterations) -> {;
+    exact = value ~!: :Rational;
+    exact >= 0 ?: _ ?_ .Error("Square-root bounds require a nonnegative Rational");
+    low := 0;
+    high := .Max(1, exact);
+    iterations := 0;
+    {@ step=1;
+       @high-@low > @tolerance && @iterations < @maxIterations;
+       {;
+           midpoint = (@low+@high)/2;
+           midpoint^2 <= @exact
+             ?: {; @low = @midpoint; }
+             ?_ {; @high = @midpoint; };
+           @iterations += 1;
+       };
+       step += 1
+    };
+    interval = low:high;
+    {=
+        interval=interval,
+        ready=1,
+        goalMet=interval.Width() <= tolerance,
+        iterations=iterations
+    };
+};
+
+## Phi(x) = 1/2 + S(x)/sqrt(2*pi), where
+## S(x)=sum (-1)^k*x^(2k+1)/(2^k*k!*(2k+1)).
+NumericsNormalCDFRationalBounds(value, tolerance, maxIterations) -> {;
+    exact = value ~!: :Rational;
+    partBudget = .Max(1, maxIterations//3);
+    partTolerance = tolerance/16;
+    pi = NumericsPiRationalBounds(partTolerance, partBudget);
+    lowerRoot = NumericsPositiveSqrtRationalBounds(
+        2*pi[:interval].Low(), partTolerance, partBudget
+    );
+    upperRoot = NumericsPositiveSqrtRationalBounds(
+        2*pi[:interval].High(), partTolerance, partBudget
+    );
+    rootInterval = lowerRoot[:interval].Low():upperRoot[:interval].High();
+    term := exact;
+    sum := exact;
+    index := 0;
+    next := -exact^3/6;
+    decreasing := next.Abs() <= term.Abs();
+    seriesInterval := decreasing
+      ?: NumericsAlternatingSeriesInterval(sum, next)
+      ?_ ((-2):2);
+    interval := NumericsClampProbabilityInterval(1/2 + seriesInterval/rootInterval);
+    seriesIterations := 0;
+    remaining = .Max(0, maxIterations-pi[:iterations]
+      -lowerRoot[:iterations]-upperRoot[:iterations]);
+    {@ step=1;
+       @interval.Width() > @tolerance && @seriesIterations < @remaining;
+       {;
+           @term = @next;
+           @sum += @term;
+           @index += 1;
+           @next = -@term * @exact^2 * (2*@index+1)
+             / (2*(@index+1)*(2*@index+3));
+           @decreasing = @next.Abs() <= @term.Abs();
+           @seriesInterval = @decreasing
+             ?: NumericsAlternatingSeriesInterval(@sum, @next)
+             ?_ ((-2):2);
+           @interval = NumericsClampProbabilityInterval(
+               1/2 + @seriesInterval/@rootInterval
+           );
+           @seriesIterations += 1;
+       };
+       step += 1
+    };
+    iterations = pi[:iterations] + lowerRoot[:iterations]
+      + upperRoot[:iterations] + seriesIterations;
+    ready = pi[:ready] && lowerRoot[:ready] && upperRoot[:ready] && decreasing;
+    {=
+        interval=interval,
+        ready=ready,
+        goalMet=ready && interval.Width() <= tolerance,
+        iterations=iterations
+    };
+};
+
+## Chebyshev's inequality gives a finite certified starting bracket for every
+## exact 0 < p < 1: P(|Z| >= r) <= 1/r^2 for a standard normal Z.
+NumericsNormalQuantilePointBounds(probability, tolerance, maxCalls, maxIterations) -> {;
+    p = probability ~!: :Rational;
+    (p > 0 && p < 1) ?: _ ?_ .Error("Normal quantile requires 0 < p < 1");
+    tail = .Min(p, 1-p);
+    radius := 1;
+    setupIterations := 0;
+    {@ step=1;
+       1/(@radius^2) >= @tail && @setupIterations < @maxIterations;
+       {; @radius *= 2; @setupIterations += 1; };
+       step += 1
+    };
+    low := -radius;
+    high := radius;
+    calls := 0;
+    iterations := setupIterations;
+    certified := 1/(radius^2) < tail;
+    {@ step=1;
+       @high-@low > @tolerance && @iterations < @maxIterations
+         && @calls < @maxCalls && @certified;
+       {;
+           midpoint = (@low+@high)/2;
+           remaining = .Max(1, .Min(@maxIterations-@iterations, @maxCalls-@calls));
+           evaluationBudget = .Min(500, remaining);
+           evaluationTolerance = 1/(2^(@iterations+8));
+           cdf = NumericsNormalCDFRationalBounds(
+               midpoint, evaluationTolerance, evaluationBudget
+           );
+           @calls += cdf[:iterations];
+           @certified = cdf[:ready];
+           (@certified && cdf[:interval].High() < @p)
+             ?: {; @low = @midpoint; }
+             ?_ ((@certified && cdf[:interval].Low() > @p)
+                 ?: {; @high = @midpoint; }
+                 ?_ _);
+           @iterations += 1;
+       };
+       step += 1
+    };
+    interval = low:high;
+    {=
+        interval=interval,
+        ready=certified,
+        goalMet=certified && interval.Width() <= tolerance,
+        calls=calls,
+        iterations=iterations,
+        setupIterations=setupIterations
     };
 };
 
@@ -1547,6 +1730,119 @@ NumericsBesselYRefine(real, rawRequest, operation) -> {;
     );
 };
 
+NumericsBesselIntegerRefine(real, rawRequest, operation) -> {;
+    capabilities = NumericsAlgorithmCapabilities(real);
+    request = .RefinementRequest(rawRequest, operation, capabilities);
+    requestedWidth = request[:absoluteWidth];
+    maxCalls = request[:work][:maxCalls];
+    maxIterations = request[:work][:maxIterations];
+    sourceWidth = requestedWidth^2/256;
+    sourceBudget = .Max(0, maxCalls//3);
+    sourceResult = NumericsSourceResult(real[:input], sourceWidth, sourceBudget, request[:trace]);
+    sourceCalls = NumericsCalls(sourceResult);
+    sourceInterval = sourceResult[:interval];
+    domainResolved = NumericsExactOracle(real[:input])
+      && (real[:family] == :besselJ || sourceInterval.Low() > 0);
+    domainResolved ?: {;
+        midpoint = @sourceInterval.Midpoint();
+        radius = @sourceInterval.Width()/2;
+        remaining = .Max(0, .Min(@maxIterations, @maxCalls-@sourceCalls));
+        pointBounds = NumericsBesselIntegerRationalBounds(
+            @real[:order], midpoint, @requestedWidth/2, remaining, @real[:family]
+        );
+        derivativeBound = @real[:family] == :besselJ
+          ?: 1
+          ?_ 3^(@sourceInterval.High().Abs().Ceil()+@real[:order].Abs()+2)
+              * (@sourceInterval.High().Abs()+@real[:order].Abs()+1)^3
+              * (1 + 1/@sourceInterval.Low());
+        interval = (pointBounds[:interval].Low()-derivativeBound*radius)
+          :(pointBounds[:interval].High()+derivativeBound*radius);
+        iterations = pointBounds[:iterations];
+        calls = @sourceCalls + iterations;
+        goalMet = pointBounds[:ready] && interval.Width() <= @requestedWidth;
+        NumericsElementaryResult(@real, @request, interval, {=
+            calls=calls,
+            iterations=iterations,
+            maxCalls=@maxCalls,
+            maxIterations=@maxIterations,
+            sourceCalls=@sourceCalls,
+            exhausted=!goalMet
+        }, goalMet, {=
+            kind=:besselIntegerRecurrenceBounds,
+            property=:containment,
+            family=@real[:family],
+            order=@real[:order],
+            source=@sourceResult[:evidence]
+        });
+    } ?_ NumericsUnknownAlgorithm(
+        real,
+        request,
+        (-maxCalls):maxCalls,
+        {= calls=sourceCalls, iterations=0, maxCalls=maxCalls, exhausted=1 },
+        :besselYPositiveDomainNotCertified
+    );
+};
+
+NumericsNormalQuantileRefine(real, rawRequest, operation) -> {;
+    capabilities = NumericsAlgorithmCapabilities(real);
+    request = .RefinementRequest(rawRequest, operation, capabilities);
+    requestedWidth = request[:absoluteWidth];
+    maxCalls = request[:work][:maxCalls];
+    maxIterations = request[:work][:maxIterations];
+    sourceWidth = requestedWidth^2/64;
+    sourceBudget = .Max(0, maxCalls//5);
+    sourceResult = NumericsSourceResult(
+        real[:input], sourceWidth, sourceBudget, request[:trace]
+    );
+    sourceCalls = NumericsCalls(sourceResult);
+    sourceInterval = sourceResult[:interval];
+    domainResolved = sourceInterval.Low() > 0 && sourceInterval.High() < 1;
+    domainResolved ?: {;
+        remainingCalls = .Max(0, @maxCalls-@sourceCalls);
+        remainingIterations = .Max(0, @maxIterations-@sourceCalls);
+        endpointCalls = .Max(0, remainingCalls//2);
+        endpointIterations = .Max(0, remainingIterations//2);
+        lower = NumericsNormalQuantilePointBounds(
+            @sourceInterval.Low(), @requestedWidth/2,
+            endpointCalls, endpointIterations
+        );
+        sameEndpoint = @sourceInterval.Low() == @sourceInterval.High();
+        upper = sameEndpoint
+          ?: lower
+          ?_ NumericsNormalQuantilePointBounds(
+              @sourceInterval.High(), @requestedWidth/2,
+              remainingCalls-endpointCalls,
+              remainingIterations-endpointIterations
+          );
+        interval = lower[:interval].Low():upper[:interval].High();
+        nestedCalls = lower[:calls] + (sameEndpoint ?: 0 ?_ upper[:calls]);
+        iterations = lower[:iterations] + (sameEndpoint ?: 0 ?_ upper[:iterations]);
+        calls = @sourceCalls + nestedCalls;
+        goalMet = lower[:ready] && upper[:ready]
+          && interval.Width() <= @requestedWidth;
+        NumericsElementaryResult(@real, @request, interval, {=
+            calls=calls,
+            iterations=iterations,
+            maxCalls=@maxCalls,
+            maxIterations=@maxIterations,
+            sourceCalls=@sourceCalls,
+            exhausted=!goalMet
+        }, goalMet, {=
+            kind=:certifiedMonotoneBisection,
+            property=:containment,
+            algorithm=:normalQuantile,
+            initialBracket=:chebyshev,
+            source=@sourceResult[:evidence]
+        });
+    } ?_ NumericsUnknownAlgorithm(
+        real,
+        request,
+        (-maxCalls):maxCalls,
+        {= calls=sourceCalls, iterations=0, maxCalls=maxCalls, exhausted=1 },
+        :normalProbabilityDomainNotCertified
+    );
+};
+
 NumericsAsinRationalBounds(value, tolerance, maxIterations) -> {;
     exact = value ~!: :Rational;
     exact >= -1 && exact <= 1 ?: _ ?_ .Error("Inverse sine requires a value from -1 through 1");
@@ -1907,6 +2203,57 @@ NumericsBesselYAlgorithm(value, kind) -> {;
     .ImmutableValue(real);
 };
 
+NumericsBesselIntegerAlgorithm(order, value, family) -> {;
+    exactOrder = order ~!: :Integer;
+    source = .oracle.From(value);
+    real = {=
+        valueKind=:numericsAlgorithmReal,
+        schema="rix.numerics.algorithm-real@1",
+        kind=family,
+        family=family,
+        order=exactOrder,
+        input=source,
+        evidenceLevel=:proof,
+        provenance={=
+            plugin=:numerics,
+            version=7,
+            algorithm=:besselIntegerRecurrence,
+            family=family,
+            order=exactOrder,
+            source=value
+        }
+    };
+    real._proto = {=
+        Enclose=(self, request ?= {= })->NumericsBesselIntegerRefine(self, request, :enclose),
+        Refine=(self, request ?= {= })->NumericsBesselIntegerRefine(self, request, :refine),
+        NumericsCapabilities=(self)->NumericsAlgorithmCapabilities(self)
+    };
+    .ImmutableValue(real);
+};
+
+NumericsNormalQuantileAlgorithm(probability) -> {;
+    source = .oracle.From(probability);
+    real = {=
+        valueKind=:numericsAlgorithmReal,
+        schema="rix.numerics.algorithm-real@1",
+        kind=:normalQuantile,
+        input=source,
+        evidenceLevel=:proof,
+        provenance={=
+            plugin=:numerics,
+            version=7,
+            algorithm=:normalQuantileBisection,
+            source=probability
+        }
+    };
+    real._proto = {=
+        Enclose=(self, request ?= {= })->NumericsNormalQuantileRefine(self, request, :enclose),
+        Refine=(self, request ?= {= })->NumericsNormalQuantileRefine(self, request, :refine),
+        NumericsCapabilities=(self)->NumericsAlgorithmCapabilities(self)
+    };
+    .ImmutableValue(real);
+};
+
 NumericsNaturalAlgorithm(value, kind) -> {;
     source = .oracle.From(value);
     real = {=
@@ -2011,13 +2358,68 @@ NumericsDegrees(value) -> value * 180 / NumericsPiAlgorithm();
 NumericsErf(value) -> 2 * NumericsSpecialSeriesAlgorithm(value, :erfCore)
   / NumericsNthRoot(NumericsPiAlgorithm(), 2);
 
+NumericsNormalPDF(value) -> NumericsNaturalExp(-(value^2)/2)
+  / NumericsNthRoot(2*NumericsPiAlgorithm(), 2);
+
+NumericsNormalCDF(value) -> (1 + NumericsErf(
+    value / NumericsNthRoot(2, 2)
+)) / 2;
+
+NumericsNormalQuantile(probability) -> {;
+    exact = probability ~: :Rational;
+    exact == 1/2
+      ?: .oracle.Rational(0)
+      ?_ NumericsNormalQuantileAlgorithm(probability);
+};
+
 NumericsBesselJ0(value) -> NumericsSpecialSeriesAlgorithm(value, :besselJ0);
 
 NumericsBesselJ1(value) -> NumericsSpecialSeriesAlgorithm(value, :besselJ1);
 
+NumericsBesselRecurrence(degree, value, previous, current, index ?= 1) ->
+    index >= degree
+      ?: current
+      ?_ NumericsBesselRecurrence(
+          degree, value, current, 2*index/value*current-previous, index+1
+      );
+
+NumericsBesselJ(order, value) -> {;
+    exactOrder = order ~!: :Integer;
+    negative = exactOrder < 0;
+    degree = exactOrder.Abs();
+    exactValue = value ~: :Rational;
+    result = degree == 0
+      ?: NumericsBesselJ0(value)
+      ?_ (degree == 1
+          ?: NumericsBesselJ1(value)
+          ?_ (exactValue != _
+              ?: NumericsBesselIntegerAlgorithm(degree, exactValue, :besselJ)
+              ?_ NumericsBesselRecurrence(
+                  degree, value, NumericsBesselJ0(value), NumericsBesselJ1(value)
+              )));
+    (negative && degree % 2 == 1) ?: -result ?_ result;
+};
+
 NumericsBesselY0(value) -> NumericsBesselYAlgorithm(value, :besselY0);
 
 NumericsBesselY1(value) -> NumericsBesselYAlgorithm(value, :besselY1);
+
+NumericsBesselY(order, value) -> {;
+    exactOrder = order ~!: :Integer;
+    negative = exactOrder < 0;
+    degree = exactOrder.Abs();
+    exactValue = value ~: :Rational;
+    result = degree == 0
+      ?: NumericsBesselY0(value)
+      ?_ (degree == 1
+          ?: NumericsBesselY1(value)
+          ?_ (exactValue != _
+              ?: NumericsBesselIntegerAlgorithm(degree, exactValue, :besselY)
+              ?_ NumericsBesselRecurrence(
+                  degree, value, NumericsBesselY0(value), NumericsBesselY1(value)
+              )));
+    (negative && degree % 2 == 1) ?: -result ?_ result;
+};
 
 NumericsLogGamma(value) -> NumericsLogGammaAlgorithm(value);
 
@@ -2476,9 +2878,14 @@ numericsNamespace._proto = {=
     Trigamma = (self, value) -> NumericsTrigamma(value),
     Erf = (self, value) -> NumericsErf(value),
     Erfc = (self, value) -> 1 - NumericsErf(value),
+    NormalPDF = (self, value) -> NumericsNormalPDF(value),
+    NormalCDF = (self, value) -> NumericsNormalCDF(value),
+    NormalQuantile = (self, probability) -> NumericsNormalQuantile(probability),
     LambertW = (self, value, branch ?= 0) -> NumericsLambertW(value, branch),
+    BesselJ = (self, order, value) -> NumericsBesselJ(order, value),
     BesselJ0 = (self, value) -> NumericsBesselJ0(value),
     BesselJ1 = (self, value) -> NumericsBesselJ1(value),
+    BesselY = (self, order, value) -> NumericsBesselY(order, value),
     BesselY0 = (self, value) -> NumericsBesselY0(value),
     BesselY1 = (self, value) -> NumericsBesselY1(value),
     Zeta = (self, value) -> NumericsZeta(value),
