@@ -321,15 +321,15 @@ describe("universal Numerics algorithm reals", () => {
     test("certified special functions expose values, branches, and honest real domains", () => {
         const options = runtime();
         const result = parseAndEvaluate(`
-            .Plugin.Load("numerics");
+            .Plugin.Load("bessel");
             {:
                 .numerics.Refine(.numerics.EulerGamma(), {= absoluteWidth=1/1000, maxWork=250 }),
                 .numerics.Refine(.numerics.Erf(0), {= absoluteWidth=1/1000, maxWork=400 }),
                 .numerics.Refine(.numerics.Erfc(0), {= absoluteWidth=1/1000, maxWork=400 }),
-                .numerics.Refine(.numerics.J0(0), {= absoluteWidth=1/1000, maxWork=200 }),
-                .numerics.Refine(.numerics.J1(0), {= absoluteWidth=1/1000, maxWork=200 }),
-                .numerics.Refine(.numerics.Y0(1), {= absoluteWidth=1/1000, maxWork=1200 }),
-                .numerics.Refine(.numerics.Y1(1), {= absoluteWidth=1/1000, maxWork=1200 }),
+                .numerics.Refine(.bessel.J0(0), {= absoluteWidth=1/1000, maxWork=200 }),
+                .numerics.Refine(.bessel.J1(0), {= absoluteWidth=1/1000, maxWork=200 }),
+                .numerics.Refine(.bessel.Y0(1), {= absoluteWidth=1/1000, maxWork=1200 }),
+                .numerics.Refine(.bessel.Y1(1), {= absoluteWidth=1/1000, maxWork=1200 }),
                 .numerics.Refine(.numerics.Gamma(1), {= absoluteWidth=1/1000, maxWork=800 }),
                 .numerics.Refine(.numerics.LogGamma(1), {= absoluteWidth=1/1000, maxWork=800 }),
                 .numerics.Refine(.numerics.LambertW(1), {= absoluteWidth=1/1000, maxWork=500 }),
@@ -349,7 +349,7 @@ describe("universal Numerics algorithm reals", () => {
 
         const domains = parseAndEvaluate(`{:
             .numerics.Refine(.numerics.Gamma(-1), {= absoluteWidth=1/100, maxWork=50 })[:status],
-            .numerics.Refine(.numerics.Y0(-1), {= absoluteWidth=1/100, maxWork=50 })[:status],
+            .numerics.Refine(.bessel.Y0(-1), {= absoluteWidth=1/100, maxWork=50 })[:status],
             .numerics.Refine(.numerics.Zeta(1), {= absoluteWidth=1/100, maxWork=50 })[:status],
             .numerics.Refine(.numerics.LambertW(-1), {= absoluteWidth=1/100, maxWork=50 })[:status]
         }`, options);

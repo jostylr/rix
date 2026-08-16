@@ -18,7 +18,8 @@ operations can remain in Core or a more specific plugin.
 | Hyperbolic trig | `Sinh`, `Cosh`, `Tanh`, `Sech`, `Csch`, `Coth` | Numerics |
 | Inverse hyperbolic | `Asinh`, `Acosh`, `Atanh` and `Ar…` aliases | Numerics |
 | Angle and normalized trig | `Radians`, `Degrees`, `Sinc` | Numerics |
-| Special functions | `Gamma`, `LogGamma`, `Erf`, `Erfc`, `LambertW`, `J0`, `J1`, `Y0`, `Y1`, `Zeta` | Numerics |
+| Special functions | `Gamma`, `LogGamma`, `Erf`, `Erfc`, `LambertW`, `Zeta` | Numerics |
+| Bessel functions | `.bessel.J0`, `.bessel.J1`, `.bessel.Y0`, `.bessel.Y1` | Bessel façade over Numerics |
 | Certified constants used by unary functions | `Pi()`, `EulerGamma()` | Numerics |
 
 ## Implemented domain notes
@@ -26,7 +27,7 @@ operations can remain in Core or a more specific plugin.
 - `Sinc(0)` is certified as its removable value `1`, including when zero arrives
   through another refinable-real provider.
 - `Gamma` and `LogGamma` currently certify the positive-real branch.
-- `Y0` and `Y1` currently certify positive real arguments.
+- `.bessel.Y0` and `.bessel.Y1` currently certify positive real arguments.
 - `Zeta` currently certifies the defining real branch for arguments greater
   than one.
 - `LambertW(x)` is the principal real branch; `LambertW(x,-1)` selects the

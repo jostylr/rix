@@ -121,8 +121,10 @@ The same plugin supplies certified special-function algorithms:
 - `Erf`/`Erfc` use an alternating entire series.
 - `LambertW(x)` selects the principal real branch and `LambertW(x,-1)` the
   lower branch, both by certified monotone bisection.
-- `J0`, `J1`, `Y0`, and `Y1` implement order-zero/order-one Bessel functions;
-  the Y functions currently require positive real arguments.
+- `BesselJ0`, `BesselJ1`, `BesselY0`, and `BesselY1` implement
+  order-zero/order-one Bessel functions; the Y functions currently require
+  positive real arguments. Calculator-facing code should load the `bessel`
+  plugin and use `.bessel.J0`, `.bessel.J1`, `.bessel.Y0`, and `.bessel.Y1`.
 - `Zeta` uses Euler–Maclaurin bounds for real arguments greater than one.
 
 When a restricted domain cannot be certified, refinement returns structured

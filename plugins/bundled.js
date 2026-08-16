@@ -2,6 +2,7 @@
 
 import oracleSource from "./oracle/oracle.plugin.rix" with { type: "text" };
 import numericsSource from "./numerics/numerics.plugin.rix" with { type: "text" };
+import besselSource from "./bessel/bessel.plugin.rix" with { type: "text" };
 import cauchySource from "./cauchy/cauchy.plugin.rix" with { type: "text" };
 import ballSource from "./ball/ball.plugin.rix" with { type: "text" };
 import continuedFractionSource from "./continued-fraction/continued-fraction.plugin.rix" with { type: "text" };
@@ -52,6 +53,11 @@ const BUNDLED_PLUGINS = [
         metadata: readPluginHeader(numericsSource, "numerics.plugin.rix"),
         source: numericsSource,
         sourcePath: "bundled:numerics.plugin.rix",
+    },
+    {
+        metadata: readPluginHeader(besselSource, "bessel.plugin.rix"),
+        source: besselSource,
+        sourcePath: "bundled:bessel.plugin.rix",
     },
     {
         metadata: readPluginHeader(oracleSource, "oracle.plugin.rix"),

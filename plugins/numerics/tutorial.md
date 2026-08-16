@@ -330,12 +330,12 @@ The remaining scientific-calculator functions use the same refinement
 contract. They can be selected lexically and called without a plugin prefix:
 
 ```rix
-.Plugin.Load("numerics");
-.numerics[:Refine, :Sinh, :Asinh, :Sinc, :Erf, :Gamma, :LambertW, :J0, :Zeta];
+.Plugin.Load("bessel");
+.numerics[:Refine, :Sinh, :Asinh, :Sinc, :Erf, :Gamma, :LambertW, :Zeta];
 
 values := [
   Sinh(1), Asinh(1), Sinc(0), Erf(1), Gamma(5),
-  LambertW(1), J0(1), Zeta(2)
+  LambertW(1), .bessel.J0(1), Zeta(2)
 ];
 values |>> ((value) -> Refine(value, {=
   absoluteWidth=1/1000, maxWork=1200

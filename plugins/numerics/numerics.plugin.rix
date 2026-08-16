@@ -3,7 +3,7 @@ id: numerics
 description: Backend-neutral bounded enclosure and refinement orchestration.
 kind: rix
 mount: numerics
-exports: [Request, WorkPolicy, EffectiveLimits, Enclose, Refine, Sample, Capabilities, CheckResult, NthRoot, Sqrt, Cbrt, Pow, Exp, Expm1, Log, Log1p, Ln, Log2, Log10, Pi, EulerGamma, Sin, Cos, Tan, Sec, Csc, Cot, Sinc, Asin, Acos, Atan, Arcsin, Arccos, Arctan, Sinh, Cosh, Tanh, Sech, Csch, Coth, Asinh, Acosh, Atanh, Arsinh, Arcosh, Artanh, Radians, Degrees, Gamma, LogGamma, Erf, Erfc, LambertW, J0, J1, Y0, Y1, BesselJ0, BesselJ1, BesselY0, BesselY1, Zeta, Kantorovich]
+exports: [Request, WorkPolicy, EffectiveLimits, Enclose, Refine, Sample, Capabilities, CheckResult, NthRoot, Sqrt, Cbrt, Pow, Exp, Expm1, Log, Log1p, Ln, Log2, Log10, Pi, EulerGamma, Sin, Cos, Tan, Sec, Csc, Cot, Sinc, Asin, Acos, Atan, Arcsin, Arccos, Arctan, Sinh, Cosh, Tanh, Sech, Csch, Coth, Asinh, Acosh, Atanh, Arsinh, Arcosh, Artanh, Radians, Degrees, Gamma, LogGamma, Erf, Erfc, LambertW, BesselJ0, BesselJ1, BesselY0, BesselY1, Zeta, Kantorovich]
 groups: [Numerics]
 permissions: []
 requires: [rix.oracle@1]
@@ -2005,12 +2005,8 @@ numericsNamespace._proto = {=
     Erf = (self, value) -> NumericsErf(value),
     Erfc = (self, value) -> 1 - NumericsErf(value),
     LambertW = (self, value, branch ?= 0) -> NumericsLambertW(value, branch),
-    J0 = (self, value) -> NumericsBesselJ0(value),
-    J1 = (self, value) -> NumericsBesselJ1(value),
     BesselJ0 = (self, value) -> NumericsBesselJ0(value),
     BesselJ1 = (self, value) -> NumericsBesselJ1(value),
-    Y0 = (self, value) -> NumericsBesselY0(value),
-    Y1 = (self, value) -> NumericsBesselY1(value),
     BesselY0 = (self, value) -> NumericsBesselY0(value),
     BesselY1 = (self, value) -> NumericsBesselY1(value),
     Zeta = (self, value) -> NumericsZeta(value),
