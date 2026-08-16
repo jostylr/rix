@@ -3,9 +3,10 @@
 These examples are designed to be pasted or opened as source in RiX-Web. They
 use only browser-approved plugins and portable output values:
 
-- `scene3d-studio.rix` — retained meshes, groups, transforms, polylines, point
-  clouds, three light types, exact Cayley camera/object motion, perspective and
-  orthographic cameras, lit/wireframe snapshots, and pipeline diagnostics.
+- `scene3d-studio.rix` — retained meshes, groups, transforms, a bounded exact
+  parametric curve, axes, annotations, stable picking IDs, point clouds, three
+  light types, exact Cayley orbit-camera/object motion, lit/wireframe snapshots,
+  and pipeline diagnostics.
 - `nd-dimension-lab.rix` — 4D, 5D, and 6D hypercubes; exact hidden-plane Cayley
   rotations; explicit nD → 3D coordinate projection; live camera and styling.
 - `nd-slice-lab.rix` — an exact rotated-tesseract edge/hyperplane section with

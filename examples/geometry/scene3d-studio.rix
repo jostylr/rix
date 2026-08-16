@@ -18,12 +18,12 @@ cubeTriangles := [
 ];
 
 cube := .scene3d.Mesh(cubeVertices, cubeTriangles, {=
-    color="#2563eb", width=2, metadata={= name="exact cube" }
+    color="#2563eb", width=2, id="cube", label="exact cube", metadata={= name="exact cube" }
 });
 pyramid := .scene3d.Mesh(
     [[-3/4,-3/4,0], [3/4,-3/4,0], [3/4,3/4,0], [-3/4,3/4,0], [0,0,3/2]],
     [[1,3,2], [1,4,3], [1,2,5], [2,3,5], [3,4,5], [4,1,5]],
-    {= color="#db2777", width=2, opacity=9/10 }
+    {= color="#db2777", width=2, opacity=9/10, id="pyramid", label="exact pyramid" }
 );
 
 gridCoordinates := [-3,-2,-1,0,1,2,3];
@@ -32,14 +32,18 @@ grid := gridCoordinates.Map(value -> .scene3d.Group([
     .scene3d.Polyline([[value,-3,0], [value,3,0]], {= color="#cbd5e1", width=1 })
 ]));
 
-axes := .scene3d.Group([
-    .scene3d.Polyline([[-3,0,0], [3,0,0]], {= color="#dc2626", width=3 }),
-    .scene3d.Polyline([[0,-3,0], [0,3,0]], {= color="#16a34a", width=3 }),
-    .scene3d.Polyline([[0,0,0], [0,0,3]], {= color="#2563eb", width=3 }),
-    .scene3d.PointCloud([[0,0,0], [3,0,0], [0,3,0], [0,0,3]], {=
-        color="#111827", radius=4
-    })
-]);
+axes := .scene3d.Axes({= length=3, width=3, id="basis" });
+axisPoints := .scene3d.PointCloud([[0,0,0], [3,0,0], [0,3,0], [0,0,3]], {=
+    color="#111827", radius=4, id="basis.points", label="axis endpoints"
+});
+trajectory := .scene3d.ParametricCurve(
+    t -> [2*t, t^2-1, 1+t/2],
+    -1:1,
+    {= samples=25, color="#7c3aed", width=3, id="trajectory", label="exact sampled trajectory" }
+);
+trajectoryNote := .scene3d.Annotation([2,0,3/2], "t = 1", {=
+    color="#7c3aed", size=14, id="trajectory.endpoint", label="trajectory endpoint"
+});
 
 $$cameraTurn := 1/3;
 $$objectTurn := 1/4;
@@ -49,12 +53,11 @@ $$snapshotMode := "lit";
 $$fieldOfView := 50;
 
 $$studioState := {;
-    orbit := CayleyPair($cameraTurn);
     spin := CayleyPair($objectTurn);
-    cameraPosition := [6*orbit[:c], 6*orbit[:s], $cameraHeight];
-    camera := $projectionKind == "perspective"
-      ?: .scene3d.PerspectiveCamera(cameraPosition, [0,0,1], {= fov=$fieldOfView })
-      ?_ .scene3d.OrthographicCamera(cameraPosition, [0,0,1], {= scale=7 });
+    camera := .scene3d.OrbitCamera([0,0,1], {=
+        radius=6, height=$cameraHeight-1, turn=$cameraTurn,
+        projection=$projectionKind, fov=$fieldOfView, scale=7
+    });
     spinMatrix := [
         spin[:c], -spin[:s], 0, 0,
         spin[:s], spin[:c], 0, 0,
@@ -64,6 +67,9 @@ $$studioState := {;
     scene := .scene3d.Scene([
         .scene3d.Group(@grid),
         @axes,
+        @axisPoints,
+        @trajectory,
+        @trajectoryNote,
         .scene3d.Transform([@cube], {= matrix=spinMatrix, translate=[-5/4,0,0] }),
         .scene3d.Transform([@pyramid], {= translate=[7/4,0,0] })
     ], {=
@@ -82,6 +88,7 @@ $$studioState := {;
         camera=camera,
         realized=.scene3d.Realize(scene),
         projected=snapshot[:projected],
+        picking=snapshot[:picking],
         work=snapshot[:work],
         approximation=snapshot[:source][:approximation]
     }
@@ -91,7 +98,7 @@ $$view := {;
     state := $studioState;
     .Fragment([
         .Heading(1, "Exact retained Scene3D studio"),
-        .Paragraph("Orbit the camera and rotate the cube with rational Cayley parameters. Switch projection and snapshot mode; every retained coordinate and transform stays exact until the camera snapshot."),
+        .Paragraph("Orbit the camera and rotate the cube with rational Cayley parameters. The axes, exact sampled curve, annotation, and stable picking IDs exercise the first Scene3D Phase 2 slice."),
         .ControlPanel({=
             title="Camera and scene",
             description="All controls commit exact RiX values.",
@@ -104,7 +111,7 @@ $$view := {;
                 .Controls.Choice($$snapshotMode, ["lit", "wireframe"], "snapshot mode")
             ]
         }),
-        .Figure(state[:graphic], "A mesh, transformed mesh, grid, axes, point cloud, three retained lights, and a live exact camera."),
+        .Figure(state[:graphic], "Meshes, grid, Phase 2 axes/annotation/parametric curve, picking identities, three retained lights, and an exact orbit camera."),
         .Table(
             ["Contract", "Current value"],
             [
@@ -112,7 +119,9 @@ $$view := {;
                 ["Realized schema", state[:realized][:schema]],
                 ["Projected schema", state[:projected][:schema]],
                 ["Camera position", state[:camera][:position]],
+                ["Orbit schema", state[:camera][:orbit][:schema]],
                 ["Projection", state[:camera][:projection]],
+                ["Trajectory projected records", state[:picking][:trajectory][:indices]],
                 ["Snapshot work", state[:work]],
                 ["Approximation boundary", state[:approximation]]
             ],

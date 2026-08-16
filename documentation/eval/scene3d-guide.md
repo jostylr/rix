@@ -31,7 +31,7 @@ camera := .scene3d.PerspectiveCamera([4,4,3], [0,0,0], {=
 scene := .scene3d.Scene([mesh], {= camera=camera });
 ```
 
-Initial constructors are:
+Available constructors are:
 
 | Constructor | Contract |
 | --- | --- |
@@ -41,16 +41,58 @@ Initial constructors are:
 | `Mesh(vertices, triangles, options?)` | Exact 3-vectors and 1-based triangle indices. |
 | `Polyline(points, options?)` | Exact 3-vectors; `closed=1` optionally closes it. |
 | `PointCloud(points, options?)` | Exact 3-vectors with display `radius`. |
+| `ParametricCurve(curve, domain, options?)` | Bounded exact sampling to a retained polyline; `samples` defaults to 33. |
+| `Axes(options?)` | Reusable X/Y/Z polylines with optional projected labels and prefixed picking IDs. |
+| `Annotation(position, text, options?)` | Retained 3D text lowered to a projected core Graphics text mark. |
 | `Material(options)` | `color`, `opacity`, and wire width hints. A material may be passed in node options. |
 | `AmbientLight(color?, intensity?)` | Retained uniform light contribution. |
 | `DirectionalLight(direction, options?)` | Retained exact direction with hexadecimal `color` and exact `intensity`. |
 | `PointLight(position, options?)` | Retained exact position with hexadecimal `color` and exact `intensity`. |
 | `PerspectiveCamera(position, target, options?)` | `up`, degree `fov`, `near`, and `far`. |
 | `OrthographicCamera(position, target, options?)` | Automatic fit, or explicit vertical `scale`. |
+| `OrbitCamera(target, options?)` | Perspective or orthographic camera with exact Cayley `turn` and reusable `rix.scene3d.orbit@1` metadata. |
 
-The initial schema intentionally contains realized geometry. Parametric and
-implicit surfaces will be adaptive producers of meshes rather than adding
+The schema intentionally contains realized geometry. `ParametricCurve`
+therefore evaluates its function at construction and records the domain,
+sample count, and exact policy as metadata. Parametric and implicit surfaces
+will likewise be bounded/adaptive producers of meshes rather than adding
 unevaluated functions to interchange files.
+
+## Orbit descriptions, annotations, and picking
+
+Every mesh, polyline, point cloud, curve, or annotation accepts optional
+`id`, `label`, and `metadata` fields. IDs must be unique among realized leaves.
+They survive exact hierarchy realization and camera projection:
+
+```rix
+curve := .scene3d.ParametricCurve(
+    t -> [t, t^2, 0],
+    0:1,
+    {= samples=9, id="parabola", label="y = x²" }
+);
+note := .scene3d.Annotation([1,1,0], "endpoint", {= id="endpoint" });
+camera := .scene3d.OrbitCamera([0,0,0], {=
+    radius=5, height=2, turn=1/3, projection="orthographic", scale=4
+});
+scene := .scene3d.Scene([.scene3d.Axes({= id="basis" }), curve, note], {=
+    camera=camera
+});
+realizedPicking := .scene3d.Realize(scene)["picking"];
+snapshot := .scene3d.Snapshot(scene, {= size=[640,480] });
+projectedPicking := snapshot["picking"];
+```
+
+`realizedPicking["parabola"]` identifies the exact retained primitive.
+`projectedPicking["parabola"]["indices"]` lists its visible projected segment
+records, which a browser host can associate with its own hit-testing layer.
+The picking map is also returned by `Project`. It deliberately describes
+identity without embedding DOM, Canvas, or WebGL event state in the scene.
+
+`OrbitCamera` places the camera around the Z axis. Its `turn` is the rational
+Cayley parameter, with `.Complex[:infinity]` denoting the half-turn. The
+resulting camera retains an `orbit` field with schema `rix.scene3d.orbit@1`, so
+an interactive host can update the parameter without guessing how the camera
+was constructed.
 
 ## Deterministic snapshots
 
@@ -120,9 +162,12 @@ result := .gltf.Render(scene);
 .Out("scene.gltf", scene);
 ```
 
-Phase 1 does not export retained lights, camera nodes, textures, animation, or
-GLB. glTF line width is not portable and is reported as an informational
-diagnostic.
+glTF exports Scene3D picking IDs into node `extras.rix.pickid`. It does not
+export annotations because core glTF 2.0 has no portable text primitive, and
+reports `gltf-annotations-not-exported` instead of silently turning text into
+a point. Retained lights, camera nodes, textures, animation, and GLB also remain
+future work. glTF line width is not portable and is reported as an
+informational diagnostic.
 
 ## Runnable 4D example
 

@@ -106,6 +106,62 @@ describe("Scene3D and n-dimensional geometry plugins", () => {
         expect(text(result.values[3])).toBe("core-rational-sqrt");
     });
 
+    test("Phase 2 curves, axes, annotations, orbit cameras, and picking stay portable", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("scene3d");
+            curve := .scene3d.ParametricCurve(
+                t -> [t, t^2, 0],
+                0:1,
+                {= samples=5, color="#7c3aed", id="curve", label="parabola" }
+            );
+            axes := .scene3d.Axes({= length=2, id="basis" });
+            note := .scene3d.Annotation([1,1,1], "P", {= id="point.p", label="point P" });
+            camera := .scene3d.OrbitCamera([1,2,3], {=
+                radius=5, height=2, turn=1/3, projection="orthographic", scale=6
+            });
+            scene := .scene3d.Scene([curve, axes, note], {= camera=camera });
+            realized := .scene3d.Realize(scene);
+            snapshot := .scene3d.Snapshot(scene, {= size=[360,240] });
+            [
+                curve, camera, realized["picking"], snapshot["picking"],
+                snapshot["work"]["annotations"], snapshot["value"]
+            ];
+        `);
+        const [curve, camera, realizedPicking, projectedPicking, annotations, graphic] = result.values;
+        expect(text(field(curve, "kind"))).toBe("polyline");
+        expect(sequence(field(curve, "points")).map((point) => sequence(point).map(String))).toEqual([
+            ["0", "0", "0"],
+            ["1/4", "1/16", "0"],
+            ["1/2", "1/4", "0"],
+            ["3/4", "9/16", "0"],
+            ["1", "1", "0"],
+        ]);
+        expect(text(field(field(curve, "metadata"), "producer"))).toBe("parametric_curve");
+        expect(sequence(field(camera, "position")).map(String)).toEqual(["5", "5", "5"]);
+        expect(text(field(field(camera, "orbit"), "schema"))).toBe("rix.scene3d.orbit@1");
+        expect(field(realizedPicking, "curve")).not.toBeNull();
+        expect(sequence(field(field(projectedPicking, "curve"), "indices"))).toHaveLength(4);
+        expect(annotations.value).toBe(4n);
+        expect(graphic.children.filter(({ kind }) => kind === "text_mark")).toHaveLength(4);
+    });
+
+    test("picking IDs are unique and Cayley infinity gives the orbit half-turn", () => {
+        const orbit = parseAndEvaluate(`
+            .Plugin.Load("scene3d");
+            camera := .scene3d.OrbitCamera([0,0,0], {= radius=4, height=1, turn=.Complex[:infinity] });
+            [camera["position"], camera["orbit"]["projectiveinfinity"]];
+        `);
+        expect(sequence(orbit.values[0]).map(String)).toEqual(["-4", "0", "1"]);
+        expect(orbit.values[1].value).toBe(1n);
+
+        expect(() => parseAndEvaluate(`
+            .Plugin.Load("scene3d");
+            first := .scene3d.Polyline([[0,0,0],[1,0,0]], {= id="duplicate" });
+            second := .scene3d.PointCloud([[0,0,0]], {= id="duplicate" });
+            .scene3d.Scene([first,second]);
+        `)).toThrow("Duplicate Scene3D picking id 'duplicate'");
+    });
+
     test("projects a tesseract exactly and records the projection chain", () => {
         const result = parseAndEvaluate(`
             .Plugin.Load("scene3d"); .Plugin.Load("nd");
@@ -152,8 +208,13 @@ describe("Scene3D and n-dimensional geometry plugins", () => {
     test("exports valid embedded glTF with an explicit Z-up to Y-up convention", () => {
         const rendered = parseAndEvaluate(`
             .Plugin.Load("scene3d"); .Plugin.Load("gltf");
-            mesh := .scene3d.Mesh([[0,0,0], [1,0,0], [0,1,0]], [[1,2,3]]);
-            .gltf.Render(.scene3d.Scene([mesh]));
+            mesh := .scene3d.Mesh(
+                [[0,0,0], [1,0,0], [0,1,0]],
+                [[1,2,3]],
+                {= id="triangle", label="Exact triangle" }
+            );
+            note := .scene3d.Annotation([0,0,0], "origin", {= id="origin" });
+            .gltf.Render(.scene3d.Scene([mesh, note]));
         `);
         const gltf = JSON.parse(rendered.entries.get("content").value);
         expect(gltf.asset.version).toBe("2.0");
@@ -164,5 +225,12 @@ describe("Scene3D and n-dimensional geometry plugins", () => {
             sourceCoordinates: "right-handed Z-up",
             exportedCoordinates: "right-handed Y-up",
         });
+        expect(gltf.nodes[0]).toMatchObject({
+            name: "Exact triangle",
+            extras: { rix: { pickid: "triangle" } },
+        });
+        expect(gltf.nodes).toHaveLength(1);
+        const diagnostics = sequence(rendered.entries.get("diagnostics"));
+        expect(diagnostics.map((entry) => text(field(entry, "code")))).toContain("gltf-annotations-not-exported");
     });
 });

@@ -25,6 +25,8 @@ function primitiveRecord(value, index) {
     const styleValue = field(value, "style");
     return {
         kind: text(field(value, "kind")),
+        pickid: text(field(value, "pickid")),
+        label: text(field(value, "label")),
         points,
         segments: indices("segments"),
         triangles: indices("triangles"),
@@ -101,10 +103,12 @@ function uintBytes(values) {
 export function exportSceneGltf(scene, { pretty = true } = {}) {
     if (!portableScene(scene)) throw new Error("gltf accepts a Scene3D scene");
     const primitives = realizedPrimitives(scene);
+    const annotations = primitives.filter((primitive) => primitive.kind === "annotation");
+    const exportedPrimitives = primitives.filter((primitive) => primitive.kind !== "annotation");
     const chunks = [];
     const records = [];
     let approximated = false;
-    for (const primitive of primitives) {
+    for (const primitive of exportedPrimitives) {
         const positions = primitive.points.map(zUpToYUp);
         if (positions.some((point) => point.some((value) => Math.fround(value) !== value))) approximated = true;
         const flatPositions = positions.flat();
@@ -129,7 +133,11 @@ export function exportSceneGltf(scene, { pretty = true } = {}) {
         asset: { version: "2.0", generator: "RiX glTF renderer" },
         scene: 0,
         scenes: [{ name: "RiX Scene3D", nodes: records.map((_, index) => index) }],
-        nodes: records.map((_, index) => ({ name: `RiX primitive ${index + 1}`, mesh: index })),
+        nodes: records.map((record, index) => ({
+            name: record.primitive.label || record.primitive.pickid || `RiX primitive ${index + 1}`,
+            mesh: index,
+            ...(record.primitive.pickid ? { extras: { rix: { pickid: record.primitive.pickid } } } : {}),
+        })),
         meshes: [],
         materials: [],
         accessors: [],
@@ -185,6 +193,11 @@ export function exportSceneGltf(scene, { pretty = true } = {}) {
     if (sequence(field(scene, "lights"), "Scene3D lights").length) diagnostics.push(diagnostic(
         "gltf-lights-not-exported",
         "Scene3D lights are retained by the scene but are not exported in glTF phase 1.",
+        "info",
+    ));
+    if (annotations.length) diagnostics.push(diagnostic(
+        "gltf-annotations-not-exported",
+        `${annotations.length} Scene3D annotation${annotations.length === 1 ? " was" : "s were"} retained but not exported because core glTF 2.0 has no portable text primitive.`,
         "info",
     ));
     return { content: `${JSON.stringify(gltf, null, pretty ? 2 : 0)}\n`, diagnostics, metadata: { schema: "model/gltf+json", primitives: records.length } };

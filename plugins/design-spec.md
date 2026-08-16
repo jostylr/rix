@@ -44,7 +44,7 @@ numeric type or one universal rendering engine.
 | Renderer registry | Implemented runtime service | `.Renderer.List`/`.Info`, generic `.Render`, MIME/extension aliases, explicit fallback negotiation, structured results/assets/diagnostics, and `.Out` target selection. |
 | `.svg`, `.canvas`, `.tikz`, `.png` | Implemented plugins | Core Graphics to SVG, Canvas 2D plans, TikZ, and host-rasterized PNG. PNG uses an approved CLI toolchain adapter. |
 | `.markdown`, `.html`, `.quarto`, `.latex`, `.pdf` | Implemented plugins | Portable document/output trees to standalone text/document formats. PDF delegates through LaTeX and an approved CLI compiler adapter. |
-| `.scene3d` | Implemented initial plugin | Retained exact mesh/polyline/point scenes, transforms, cameras and lights, plus deterministic wireframe and flat-lit snapshots to core Graphics. |
+| `.scene3d` | Phase 2 in progress | Retained exact mesh/polyline/point scenes, bounded parametric curves, axes, annotations, picking IDs, transforms, cameras/lights, orbit descriptions, and deterministic wireframe/flat-lit snapshots to core Graphics. |
 | `.nd` | Implemented initial plugin | Exact points, polylines, polytopes/hypercubes, affine projection records, rational Cayley rotations, composition, and explicit conversion of 3D results to Scene3D. |
 | `.geometry` | Implemented pure-RiX Phase 1 plugin | Exact rational points, lines, circles, line intersections, ruler-and-compass constructions with provenance, and deterministic lowering to core Graphics. |
 | `.gltf` | Implemented initial renderer | Retained Scene3D to embedded-buffer glTF 2.0 JSON with explicit Z-up to Y-up and Float32 conversion diagnostics. |
@@ -474,9 +474,11 @@ always provide SVG/PNG snapshot lowering.
 ## 7. Scene3D plugin
 
 `.scene3d` defines a retained three-dimensional scene. It must not expose
-WebGL state as the value. The initial `rix.scene3d@1` mesh/polyline/point,
-transform, camera/light, wireframe/flat-lit Snapshot, and glTF JSON slice is implemented;
-the broader surface and volume list below remains a design target.
+WebGL state as the value. The `rix.scene3d@1` mesh/polyline/point, bounded
+parametric-curve, axes/annotation, stable picking-ID, transform, camera/light,
+rational orbit-description, wireframe/flat-lit Snapshot, and glTF JSON slices
+are implemented; adaptive surfaces, direct WebGL/raster lowering, and the
+broader volume list below remain design targets.
 
 Migration of this retained model is staged: pure RiX owns schema construction,
 exact hierarchy transforms, realization, and portable projection records;

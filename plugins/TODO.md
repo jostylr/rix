@@ -756,8 +756,10 @@ The RiX/host extraction sequence is specified in
      and a CLI fixture.
    - [x] Add retained Light constructors and a lit snapshot mode.
 2. **Phase 2 — Curves, surfaces, and interaction metadata**
-   - [ ] Add parametric curves/surfaces, axes, annotations, picking IDs, and
-     orbit-camera descriptions.
+   - [x] Add bounded exact parametric curves, axes, projected annotations,
+     stable leaf picking IDs, and rational Cayley orbit-camera descriptions.
+   - [ ] Add adaptive parametric surfaces and richer annotation/interaction
+     policies over the retained contracts.
    - [ ] Provide Canvas/WebGL and raster snapshot lowering.
 3. **Phase 3 — Volumes and certified surfaces**
    - [ ] Add implicit surfaces, volume data, adaptive meshes, slicing planes,
