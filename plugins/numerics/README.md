@@ -3,7 +3,8 @@
 `numerics` is a pure RiX orchestration plugin for bounded numerical work. It
 creates portable refinement requests, dispatches them through methods on the
 supplied value, and provides certified algorithm reals for weighted n-th roots,
-rational powers, exponential/logarithmic functions, and
+rational powers, exponential/logarithmic functions, trigonometric functions,
+the constant pi, and
 Kantorovich/interval-Newton refinement. It depends on the generic Oracle
 arithmetic target but does not inspect concrete Float, ball, Cauchy,
 continued-fraction, or algebraic-real implementations.
@@ -91,6 +92,19 @@ changes the base: `.numerics.Exp(3, 4)` is `4^3`, while
 `.numerics.Log(3, 4)` is `log_4(3)`. `.numerics.Ln` aliases natural `Log`;
 `.Log2` and `.Log10` select bases two and ten.
 
+`.numerics.Pi()` is a certified algorithm real using Machin's identity with
+alternating rational arctangent bounds. Angles are measured in radians.
+`.Sin` and `.Cos` use rational Taylor enclosures lifted across a refined input
+interval with their global Lipschitz bound. `.Tan`, `.Sec`, `.Csc`, and `.Cot`
+are universal arithmetic compositions of those certified reals.
+
+`.Asin`, `.Acos`, and `.Atan` use monotone endpoint enclosures. Arctangent uses
+rational range reduction and the same certified pi value; inverse sine and
+cosine combine it with the universal square-root algorithm. The synonymous
+spellings `.Arcsin`, `.Arccos`, and `.Arctan` are also exported. Inverse sine
+and cosine return structured `:unknown` evidence when the input cannot be
+certified inside `-1:1`; reciprocal functions retain their ordinary poles.
+
 These functions accept any certified refinable singleton real. They do not
 convert Float values into claimed certificates.
 
@@ -113,7 +127,7 @@ Select the functions a script wants to call without a namespace prefix:
 
 ```rix
 .Plugin.Load("numerics");
-.numerics[:Pow, :E=:Exp, :Log, :Log2];
+.numerics[:Pow, :E=:Exp, :Log, :Log2, :Sin, :Cos, :Atan];
 
 E(3, 4);  ## 64
 Log2(8);
@@ -127,4 +141,6 @@ block disappears when that block exits. The `.numerics` mount remains available
 in either case. Remounting with `.Plugin.Load("numerics", {= as="n" })` is still
 available when a shorter namespace is preferable.
 
-See [tutorial.md](tutorial.md).
+See [tutorial.md](tutorial.md) for worked examples and
+[unary-functions.md](unary-functions.md) for the maintained calculator-function
+inventory and implementation priorities.

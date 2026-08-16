@@ -279,6 +279,51 @@ exact := .numerics.Exp(3, 4);  ## 64
 Every non-exact result remains an algorithm real: callers choose precision and
 work limits only when they ask to enclose or refine it.
 
+## Certified trigonometry in radians
+
+Trigonometric functions are universal Numerics algorithms, not Float
+conversions. `Pi()` uses a certified Machin-formula enclosure. `Sin` and `Cos`
+use exact rational Taylor bounds, while the input may come from any certified
+real provider:
+
+```rix
+.Plugin.Load("numerics");
+
+pi := .numerics.Pi();
+sine := .numerics.Refine(.numerics.Sin(pi/6), {=
+  absoluteWidth=1/10000, maxWork=400
+});
+cosine := .numerics.Refine(.numerics.Cos(pi/3), {=
+  absoluteWidth=1/10000, maxWork=400
+});
+
+{: sine[:interval], cosine[:interval] };
+```
+
+`Tan`, `Sec`, `Csc`, and `Cot` are arithmetic compositions of those universal
+reals. Their usual poles remain domain boundaries rather than being assigned a
+finite value.
+
+The inverse functions use monotone endpoint bounds and return radians.
+`Asin`/`Arcsin`, `Acos`/`Arccos`, and `Atan`/`Arctan` are synonymous spellings:
+
+```rix
+.Plugin.Load("numerics");
+
+angle := .numerics.Refine(.numerics.Asin(1/2), {=
+  absoluteWidth=1/10000, maxWork=500
+});
+quarterTurn := .numerics.Refine(.numerics.Atan(1), {=
+  absoluteWidth=1/10000, maxWork=300
+});
+
+{: angle[:interval], quarterTurn[:interval] };
+```
+
+An inverse-sine or inverse-cosine input that is not certified inside `-1:1`
+returns `:unknown` with `:inverseTrigDomainNotCertified`. Numerics never
+silently selects a complex branch or a Float approximation.
+
 ## Kantorovich certification and interval Newton
 
 `.numerics.Kantorovich` first checks the supplied initial interval and rational

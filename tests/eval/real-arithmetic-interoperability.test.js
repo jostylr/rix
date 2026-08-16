@@ -241,6 +241,53 @@ describe("universal Numerics algorithm reals", () => {
         }
     });
 
+    test("certified trigonometric functions refine universally in radians", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("numerics");
+            pi = .numerics.Pi();
+            piResult = .numerics.Refine(pi, {= absoluteWidth=1/100000, maxWork=200 });
+            sine = .numerics.Refine(.numerics.Sin(pi/6), {= absoluteWidth=1/10000, maxWork=400 });
+            cosine = .numerics.Refine(.numerics.Cos(pi/3), {= absoluteWidth=1/10000, maxWork=400 });
+            tangent = .numerics.Refine(.numerics.Tan(1), {= absoluteWidth=1/10000, maxWork=500 });
+            atan = .numerics.Refine(.numerics.Atan(1), {= absoluteWidth=1/10000, maxWork=300 });
+            asin = .numerics.Refine(.numerics.Asin(1/2), {= absoluteWidth=1/10000, maxWork=500 });
+            acos = .numerics.Refine(.numerics.Acos(1/2), {= absoluteWidth=1/10000, maxWork=700 });
+            sec = .numerics.Refine(.numerics.Sec(0), {= absoluteWidth=1/10000, maxWork=300 });
+            csc = .numerics.Refine(.numerics.Csc(pi/2), {= absoluteWidth=1/10000, maxWork=500 });
+            cot = .numerics.Refine(.numerics.Cot(pi/4), {= absoluteWidth=1/10000, maxWork=500 });
+            {: piResult, sine, cosine, tangent, atan, asin, acos, sec, csc, cot }
+        `, options);
+        const expected = [
+            "31415926/10000000",
+            "1/2",
+            "1/2",
+            "15574077245/10000000000",
+            "78539816/100000000",
+            "52359878/100000000",
+            "104719755/100000000",
+            "1",
+            "1",
+            "1",
+        ];
+        for (const [index, enclosure] of result.values.entries()) {
+            expect(text(entry(enclosure, "status")), `trig result ${index + 1}`).toBe("enclosed");
+            expect(entry(enclosure, "certified").value).toBe(1n);
+            expect(contains(entry(enclosure, "interval"), parseAndEvaluate(expected[index], options))).toBe(true);
+        }
+    });
+
+    test("inverse trigonometric functions preserve unresolved real domains", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("numerics");
+            .numerics.Refine(.numerics.Asin(2), {= absoluteWidth=1/1000, maxWork=80 })
+        `, options);
+        expect(text(entry(result, "status"))).toBe("unknown");
+        expect(entry(result, "certified")).toBeNull();
+        expect(entry(result, "diagnostics").values.map(text)).toContain("inverseTrigDomainNotCertified");
+    });
+
     test("Numerics exports can be opened lexically without entering the system namespace", () => {
         const options = runtime();
         const result = parseAndEvaluate(`

@@ -3,7 +3,7 @@ id: numerics
 description: Backend-neutral bounded enclosure and refinement orchestration.
 kind: rix
 mount: numerics
-exports: [Request, WorkPolicy, EffectiveLimits, Enclose, Refine, Sample, Capabilities, CheckResult, NthRoot, Sqrt, Pow, Exp, Log, Ln, Log2, Log10, Kantorovich]
+exports: [Request, WorkPolicy, EffectiveLimits, Enclose, Refine, Sample, Capabilities, CheckResult, NthRoot, Sqrt, Pow, Exp, Log, Ln, Log2, Log10, Pi, Sin, Cos, Tan, Sec, Csc, Cot, Asin, Acos, Atan, Arcsin, Arccos, Arctan, Kantorovich]
 groups: [Numerics]
 permissions: []
 requires: [rix.oracle@1]
@@ -209,6 +209,118 @@ NumericsLogRationalBounds(value, tolerance, maxIterations) -> {;
     };
 };
 
+NumericsClampUnitInterval(interval) ->
+    .Max(-1, interval.Low()):.Min(1, interval.High());
+
+NumericsTrigTaylorBounds(value, tolerance, maxIterations, kind) -> {;
+    exact = value ~!: :Rational;
+    absolute = exact.Abs();
+    cosine = kind == :cosine;
+    degree := cosine ?: 0 ?_ 1;
+    term := cosine ?: 1 ?_ exact;
+    sum := term;
+    remainder := cosine ?: absolute ?_ absolute^2 / 2;
+    interval := NumericsClampUnitInterval((sum - remainder):(sum + remainder));
+    iterations := 0;
+    {@ step=1;
+       @interval.Width() > @tolerance && @iterations < @maxIterations;
+       {;
+           @term *= -(@exact^2) / ((@degree + 1) * (@degree + 2));
+           @sum += @term;
+           @remainder *= @absolute^2 / ((@degree + 2) * (@degree + 3));
+           @degree += 2;
+           @interval = NumericsClampUnitInterval(
+               (@sum - @remainder):(@sum + @remainder)
+           );
+           @iterations += 1;
+       };
+       step += 1
+    };
+    {=
+        interval=interval,
+        ready=1,
+        goalMet=interval.Width() <= tolerance,
+        iterations=iterations
+    };
+};
+
+NumericsAtanSmallBounds(value, tolerance, maxIterations) -> {;
+    exact = value ~!: :Rational;
+    exact.Abs() <= 1/2 ?: _ ?_ .Error("Internal arctangent series argument exceeds 1/2");
+    term := exact;
+    sum := exact;
+    degree := 1;
+    next := -exact^3 / 3;
+    interval := .Min(sum, sum + next):.Max(sum, sum + next);
+    iterations := 0;
+    {@ step=1;
+       @interval.Width() > @tolerance && @iterations < @maxIterations;
+       {;
+           @term = @next;
+           @sum += @term;
+           @degree += 2;
+           @next = -@term * @exact^2 * @degree / (@degree + 2);
+           @interval = .Min(@sum, @sum + @next):.Max(@sum, @sum + @next);
+           @iterations += 1;
+       };
+       step += 1
+    };
+    {=
+        interval=interval,
+        ready=1,
+        goalMet=interval.Width() <= tolerance,
+        iterations=iterations
+    };
+};
+
+## Machin's identity: pi = 16 atan(1/5) - 4 atan(1/239).
+NumericsPiRationalBounds(tolerance, maxIterations) -> {;
+    perSeries = .Max(0, maxIterations // 2);
+    first = NumericsAtanSmallBounds(1/5, tolerance/32, perSeries);
+    second = NumericsAtanSmallBounds(1/239, tolerance/8, maxIterations - perSeries);
+    interval = 16 * first[:interval] - 4 * second[:interval];
+    {=
+        interval=interval,
+        ready=first[:ready] && second[:ready],
+        goalMet=interval.Width() <= tolerance,
+        iterations=first[:iterations] + second[:iterations]
+    };
+};
+
+NumericsAtanRationalBounds(value, tolerance, maxIterations) -> {;
+    exact = value ~!: :Rational;
+    negative = exact < 0;
+    absolute = exact.Abs();
+    halfBudget = .Max(0, maxIterations // 2);
+    absoluteResult = absolute <= 1/2
+      ?: NumericsAtanSmallBounds(absolute, tolerance, maxIterations)
+      ?_ {;
+          pi = NumericsPiRationalBounds(@tolerance, @halfBudget);
+          reduced = @absolute > 1
+            ?: 1 / @absolute
+            ?_ (@absolute - 1) / (@absolute + 1);
+          residual = NumericsAtanSmallBounds(reduced, @tolerance/2, @maxIterations - @halfBudget);
+          interval = @absolute > 1
+            ?: pi[:interval] / 2 - residual[:interval]
+            ?_ pi[:interval] / 4 + residual[:interval];
+          {=
+              interval=interval,
+              ready=pi[:ready] && residual[:ready],
+              goalMet=interval.Width() <= @tolerance,
+              iterations=pi[:iterations] + residual[:iterations]
+          };
+      };
+    resultInterval = negative
+      ?: (-absoluteResult[:interval].High()):(-absoluteResult[:interval].Low())
+      ?_ absoluteResult[:interval];
+    {=
+        interval=resultInterval,
+        ready=absoluteResult[:ready],
+        goalMet=resultInterval.Width() <= tolerance,
+        iterations=absoluteResult[:iterations]
+    };
+};
+
 NumericsElementaryResult(real, request, interval, work, goalMet, evidence) -> {;
     status = goalMet ?: :enclosed ?_ :budgetExhausted;
     approximation = .CertifiedApproximation(interval.Midpoint(), interval, {=
@@ -300,6 +412,240 @@ NumericsElementaryRefine(real, rawRequest, operation) -> {;
     );
 };
 
+NumericsPiRefine(real, rawRequest, operation) -> {;
+    capabilities = NumericsAlgorithmCapabilities(real);
+    request = .RefinementRequest(rawRequest, operation, capabilities);
+    maxCalls = request[:work][:maxCalls];
+    maxIterations = request[:work][:maxIterations];
+    limit = .Min(maxCalls, maxIterations);
+    bounds = NumericsPiRationalBounds(request[:absoluteWidth], limit);
+    goalMet = bounds[:goalMet];
+    NumericsElementaryResult(real, request, bounds[:interval], {=
+        calls=bounds[:iterations],
+        iterations=bounds[:iterations],
+        maxCalls=maxCalls,
+        maxIterations=maxIterations,
+        exhausted=!goalMet
+    }, goalMet, {=
+        kind=:machinFormula,
+        property=:containment,
+        identity="pi=16*atan(1/5)-4*atan(1/239)"
+    });
+};
+
+NumericsTrigRefine(real, rawRequest, operation) -> {;
+    capabilities = NumericsAlgorithmCapabilities(real);
+    request = .RefinementRequest(rawRequest, operation, capabilities);
+    requestedWidth = request[:absoluteWidth];
+    maxCalls = request[:work][:maxCalls];
+    maxIterations = request[:work][:maxIterations];
+    sourceWidth = requestedWidth / 4;
+    sourceBudget = .Max(0, maxCalls // 2);
+    sourceResult = NumericsSourceResult(real[:input], sourceWidth, sourceBudget, request[:trace]);
+    sourceCalls = NumericsCalls(sourceResult);
+    sourceInterval = sourceResult[:interval];
+    midpoint = sourceInterval.Midpoint();
+    radius = sourceInterval.Width() / 2;
+    remaining = .Max(0, .Min(maxIterations, maxCalls - sourceCalls));
+    pointBounds = NumericsTrigTaylorBounds(midpoint, requestedWidth/2, remaining, real[:kind]);
+    interval = NumericsClampUnitInterval(
+        (pointBounds[:interval].Low() - radius):(pointBounds[:interval].High() + radius)
+    );
+    iterations = pointBounds[:iterations];
+    calls = sourceCalls + iterations;
+    goalMet = interval.Width() <= requestedWidth;
+    NumericsElementaryResult(real, request, interval, {=
+        calls=calls,
+        iterations=iterations,
+        maxCalls=maxCalls,
+        maxIterations=maxIterations,
+        sourceCalls=sourceCalls,
+        exhausted=!goalMet
+    }, goalMet, {=
+        kind=:rationalTaylorWithLipschitzLift,
+        property=:containment,
+        algorithm=real[:kind],
+        source=sourceResult[:evidence]
+    });
+};
+
+NumericsAsinRationalBounds(value, tolerance, maxIterations) -> {;
+    exact = value ~!: :Rational;
+    exact >= -1 && exact <= 1 ?: _ ?_ .Error("Inverse sine requires a value from -1 through 1");
+    exact == 0
+      ?: {= interval=0:0, ready=1, goalMet=1, iterations=0 }
+      ?_ (exact.Abs() == 1
+          ?: {;
+              pi = NumericsPiRationalBounds(2*@tolerance, @maxIterations);
+              interval = @exact > 0
+                ?: pi[:interval] / 2
+                ?_ (-pi[:interval].High()/2):(-pi[:interval].Low()/2);
+              {=
+                  interval=interval,
+                  ready=pi[:ready],
+                  goalMet=interval.Width() <= @tolerance,
+                  iterations=pi[:iterations]
+              };
+          }
+          ?_ {;
+              rootBudget = .Max(0, @maxIterations // 3);
+              root = NumericsNthRoot(1 - @exact^2, 2);
+              rootResult = root.Refine({=
+                  absoluteWidth=@tolerance/8,
+                  maxWork=rootBudget,
+                  maxCalls=rootBudget,
+                  maxIterations=rootBudget
+              });
+              rootInterval = rootResult[:interval];
+              quotient = (@exact:@exact) / rootInterval;
+              remaining = .Max(0, @maxIterations - NumericsCalls(rootResult));
+              endpointBudget = .Max(0, remaining // 2);
+              lower = NumericsAtanRationalBounds(quotient.Low(), @tolerance/4, endpointBudget);
+              upper = quotient.Low() == quotient.High()
+                ?: lower
+                ?_ NumericsAtanRationalBounds(quotient.High(), @tolerance/4, remaining - endpointBudget);
+              interval = lower[:interval].Low():upper[:interval].High();
+              iterations = NumericsCalls(rootResult) + lower[:iterations]
+                + (quotient.Low() == quotient.High() ?: 0 ?_ upper[:iterations]);
+              {=
+                  interval=interval,
+                  ready=lower[:ready] && upper[:ready],
+                  goalMet=interval.Width() <= @tolerance,
+                  iterations=iterations
+              };
+          });
+};
+
+NumericsAcosRationalBounds(value, tolerance, maxIterations) -> {;
+    halfBudget = .Max(0, maxIterations // 2);
+    pi = NumericsPiRationalBounds(tolerance, halfBudget);
+    asin = NumericsAsinRationalBounds(value, tolerance/2, maxIterations - halfBudget);
+    interval = pi[:interval] / 2 - asin[:interval];
+    {=
+        interval=interval,
+        ready=pi[:ready] && asin[:ready],
+        goalMet=interval.Width() <= tolerance,
+        iterations=pi[:iterations] + asin[:iterations]
+    };
+};
+
+NumericsInversePointBounds(value, tolerance, maxIterations, kind) -> {?
+    kind == :arctangent ? NumericsAtanRationalBounds(value, tolerance, maxIterations);
+    kind == :arcsine ? NumericsAsinRationalBounds(value, tolerance, maxIterations);
+    kind == :arccosine ? NumericsAcosRationalBounds(value, tolerance, maxIterations);
+    .Error("Unknown inverse trigonometric algorithm")
+};
+
+NumericsInverseTrigRefine(real, rawRequest, operation) -> {;
+    capabilities = NumericsAlgorithmCapabilities(real);
+    request = .RefinementRequest(rawRequest, operation, capabilities);
+    requestedWidth = request[:absoluteWidth];
+    maxCalls = request[:work][:maxCalls];
+    maxIterations = request[:work][:maxIterations];
+    restricted = real[:kind] != :arctangent;
+    sourceWidth = restricted
+      ?: (requestedWidth < 1 ?: requestedWidth^2 / 16 ?_ requestedWidth / 16)
+      ?_ requestedWidth / 4;
+    sourceBudget = .Max(0, maxCalls // 3);
+    sourceResult = NumericsSourceResult(real[:input], sourceWidth, sourceBudget, request[:trace]);
+    sourceCalls = NumericsCalls(sourceResult);
+    sourceInterval = sourceResult[:interval];
+    domainResolved = restricted
+      ?: (sourceInterval.Low() >= -1 && sourceInterval.High() <= 1)
+      ?_ 1;
+    domainResolved ?: {;
+        remaining = .Max(0, .Min(@maxIterations, @maxCalls - @sourceCalls));
+        endpointBudget = .Max(0, remaining // 2);
+        decreasing = @real[:kind] == :arccosine;
+        lowerSource = decreasing ?: @sourceInterval.High() ?_ @sourceInterval.Low();
+        upperSource = decreasing ?: @sourceInterval.Low() ?_ @sourceInterval.High();
+        lower = NumericsInversePointBounds(
+            lowerSource, @requestedWidth/4, endpointBudget, @real[:kind]
+        );
+        sameEndpoint = lowerSource == upperSource;
+        upper = sameEndpoint
+          ?: lower
+          ?_ NumericsInversePointBounds(
+              upperSource, @requestedWidth/4, remaining - endpointBudget, @real[:kind]
+          );
+        interval = lower[:interval].Low():upper[:interval].High();
+        endpointIterations = lower[:iterations] + (sameEndpoint ?: 0 ?_ upper[:iterations]);
+        calls = @sourceCalls + endpointIterations;
+        goalMet = interval.Width() <= @requestedWidth;
+        NumericsElementaryResult(@real, @request, interval, {=
+            calls=calls,
+            iterations=endpointIterations,
+            maxCalls=@maxCalls,
+            maxIterations=@maxIterations,
+            sourceCalls=@sourceCalls,
+            exhausted=!goalMet
+        }, goalMet, {=
+            kind=:monotoneEndpointBounds,
+            property=:containment,
+            algorithm=@real[:kind],
+            source=@sourceResult[:evidence]
+        });
+    } ?_ NumericsUnknownAlgorithm(
+        real,
+        request,
+        real[:kind] == :arccosine ?: (0:4) ?_ ((-2):2),
+        {= calls=sourceCalls, iterations=0, maxCalls=maxCalls, exhausted=sourceCalls>=maxCalls },
+        :inverseTrigDomainNotCertified
+    );
+};
+
+NumericsPiAlgorithm() -> {;
+    real = {=
+        valueKind=:numericsAlgorithmReal,
+        schema="rix.numerics.algorithm-real@1",
+        kind=:pi,
+        evidenceLevel=:proof,
+        provenance={= plugin=:numerics, version=4, algorithm=:machinPi }
+    };
+    real._proto = {=
+        Enclose=(self, request ?= {= })->NumericsPiRefine(self, request, :enclose),
+        Refine=(self, request ?= {= })->NumericsPiRefine(self, request, :refine),
+        NumericsCapabilities=(self)->NumericsAlgorithmCapabilities(self)
+    };
+    .ImmutableValue(real);
+};
+
+NumericsTrigAlgorithm(value, kind) -> {;
+    source = .oracle.From(value);
+    real = {=
+        valueKind=:numericsAlgorithmReal,
+        schema="rix.numerics.algorithm-real@1",
+        kind=kind,
+        input=source,
+        evidenceLevel=:proof,
+        provenance={= plugin=:numerics, version=4, algorithm=kind, source=value }
+    };
+    real._proto = {=
+        Enclose=(self, request ?= {= })->NumericsTrigRefine(self, request, :enclose),
+        Refine=(self, request ?= {= })->NumericsTrigRefine(self, request, :refine),
+        NumericsCapabilities=(self)->NumericsAlgorithmCapabilities(self)
+    };
+    .ImmutableValue(real);
+};
+
+NumericsInverseTrigAlgorithm(value, kind) -> {;
+    source = .oracle.From(value);
+    real = {=
+        valueKind=:numericsAlgorithmReal,
+        schema="rix.numerics.algorithm-real@1",
+        kind=kind,
+        input=source,
+        evidenceLevel=:proof,
+        provenance={= plugin=:numerics, version=4, algorithm=kind, source=value }
+    };
+    real._proto = {=
+        Enclose=(self, request ?= {= })->NumericsInverseTrigRefine(self, request, :enclose),
+        Refine=(self, request ?= {= })->NumericsInverseTrigRefine(self, request, :refine),
+        NumericsCapabilities=(self)->NumericsAlgorithmCapabilities(self)
+    };
+    .ImmutableValue(real);
+};
+
 NumericsNaturalAlgorithm(value, kind) -> {;
     source = .oracle.From(value);
     real = {=
@@ -347,6 +693,24 @@ NumericsLog(value, base ?= _) ->
     base == _
       ?: NumericsNaturalLog(value)
       ?_ NumericsNaturalLog(value) / NumericsNaturalLog(base);
+
+NumericsSin(value) -> NumericsTrigAlgorithm(value, :sine);
+
+NumericsCos(value) -> NumericsTrigAlgorithm(value, :cosine);
+
+NumericsTan(value) -> NumericsSin(value) / NumericsCos(value);
+
+NumericsSec(value) -> 1 / NumericsCos(value);
+
+NumericsCsc(value) -> 1 / NumericsSin(value);
+
+NumericsCot(value) -> NumericsCos(value) / NumericsSin(value);
+
+NumericsAsin(value) -> NumericsInverseTrigAlgorithm(value, :arcsine);
+
+NumericsAcos(value) -> NumericsInverseTrigAlgorithm(value, :arccosine);
+
+NumericsAtan(value) -> NumericsInverseTrigAlgorithm(value, :arctangent);
 
 NumericsUnknownAlgorithm(real, request, interval, work, reason) -> {=
     valueKind=:enclosure,
@@ -703,6 +1067,19 @@ numericsNamespace._proto = {=
     Ln = (self, value) -> NumericsLog(value),
     Log2 = (self, value) -> NumericsLog(value, 2),
     Log10 = (self, value) -> NumericsLog(value, 10),
+    Pi = (self) -> NumericsPiAlgorithm(),
+    Sin = (self, value) -> NumericsSin(value),
+    Cos = (self, value) -> NumericsCos(value),
+    Tan = (self, value) -> NumericsTan(value),
+    Sec = (self, value) -> NumericsSec(value),
+    Csc = (self, value) -> NumericsCsc(value),
+    Cot = (self, value) -> NumericsCot(value),
+    Asin = (self, value) -> NumericsAsin(value),
+    Acos = (self, value) -> NumericsAcos(value),
+    Atan = (self, value) -> NumericsAtan(value),
+    Arcsin = (self, value) -> NumericsAsin(value),
+    Arccos = (self, value) -> NumericsAcos(value),
+    Arctan = (self, value) -> NumericsAtan(value),
     Kantorovich = (self, function, derivative, options ?= {= }) -> NumericsKantorovich(function, derivative, options),
     Approximation = (self, result) -> result.Has("approximation") ?: result[:approximation] ?_ _,
     Capabilities = (self, value) -> value.NumericsCapabilities(),
