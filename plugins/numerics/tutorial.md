@@ -242,6 +242,43 @@ An even root of an enclosure that cannot certify a nonnegative radicand returns
 `:unknown` with `:radicandSignNotCertified`; it never chooses a complex or
 absolute-value interpretation silently.
 
+## Rational powers, exponential, and logarithm
+
+Rational powers reuse the same universal root real:
+
+```rix
+.Plugin.Load("numerics");
+
+power := .numerics.Refine(.numerics.Pow(27/8, 2/3), {=
+  absoluteWidth=1/1000, maxWork=120
+});
+{: power[:status], power[:interval] };
+```
+
+Natural exponential and logarithm use certified rational series bounds. The
+optional second argument changes the base:
+
+```rix
+.Plugin.Load("numerics");
+
+e := .numerics.Refine(.numerics.Exp(1), {=
+  absoluteWidth=1/10000, maxWork=160
+});
+ln2 := .numerics.Refine(.numerics.Ln(2), {=
+  absoluteWidth=1/10000, maxWork=160
+});
+log4of3 := .numerics.Refine(.numerics.Log(3, 4), {=
+  absoluteWidth=1/10000, maxWork=320
+});
+exact := .numerics.Exp(3, 4);  ## 64
+
+{: e[:interval], ln2[:interval], log4of3[:interval], exact };
+```
+
+`.Log2(x)` and `.Log10(x)` are the corresponding base-selected conveniences.
+Every non-exact result remains an algorithm real: callers choose precision and
+work limits only when they ask to enclose or refine it.
+
 ## Kantorovich certification and interval Newton
 
 `.numerics.Kantorovich` first checks the supplied initial interval and rational

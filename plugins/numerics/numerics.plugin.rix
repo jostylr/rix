@@ -3,7 +3,7 @@ id: numerics
 description: Backend-neutral bounded enclosure and refinement orchestration.
 kind: rix
 mount: numerics
-exports: [Request, WorkPolicy, EffectiveLimits, Enclose, Refine, Sample, Capabilities, CheckResult, NthRoot, Sqrt, Kantorovich]
+exports: [Request, WorkPolicy, EffectiveLimits, Enclose, Refine, Sample, Capabilities, CheckResult, NthRoot, Sqrt, Pow, Exp, Log, Ln, Log2, Log10, Kantorovich]
 groups: [Numerics]
 permissions: []
 requires: [rix.oracle@1]
@@ -76,6 +76,277 @@ NumericsSourceResult(real, requestedWidth, maxCalls, trace) ->
           maxIterations=maxCalls,
           trace=trace
       }, :refine, real.NumericsCapabilities()));
+
+NumericsExpSeriesInterval(sum, tail, scale, negative) -> {;
+    lowerPositive = sum^scale;
+    upperPositive = (sum + tail)^scale;
+    negative
+      ?: (1 / upperPositive):(1 / lowerPositive)
+      ?_ lowerPositive:upperPositive;
+};
+
+NumericsExpRationalBounds(value, tolerance, maxIterations) -> {;
+    exact = value ~!: :Rational;
+    negative = exact < 0;
+    reduced := negative ?: -exact ?_ exact;
+    scale := 1;
+    rangeIterations := 0;
+    {@ step=1;
+       @reduced > 1/2 && @rangeIterations < @maxIterations;
+       {;
+           @reduced /= 2;
+           @scale *= 2;
+           @rangeIterations += 1;
+       };
+       step += 1
+    };
+    ready = reduced <= 1/2;
+    n := 0;
+    term := 1;
+    sum := 1;
+    nextTerm := reduced;
+    tail := reduced == 0 ?: 0 ?_ nextTerm / (1 - reduced / 2);
+    interval := NumericsExpSeriesInterval(sum, tail, scale, negative);
+    seriesIterations := 0;
+    {@ step=1;
+       @ready && @interval.Width() > @tolerance
+         && @rangeIterations + @seriesIterations < @maxIterations;
+       {;
+           @n += 1;
+           @term *= @reduced / @n;
+           @sum += @term;
+           @nextTerm = @term * @reduced / (@n + 1);
+           @tail = @reduced == 0
+             ?: 0
+             ?_ @nextTerm / (1 - @reduced / (@n + 2));
+           @interval = NumericsExpSeriesInterval(@sum, @tail, @scale, @negative);
+           @seriesIterations += 1;
+       };
+       step += 1
+    };
+    {=
+        interval=interval,
+        ready=ready,
+        goalMet=ready && interval.Width() <= tolerance,
+        iterations=rangeIterations + seriesIterations,
+        rangeIterations=rangeIterations,
+        seriesIterations=seriesIterations
+    };
+};
+
+NumericsLogSeriesInterval(sum, tail, log2Sum, log2Tail, binaryPower) -> {;
+    reducedLow = 2 * sum;
+    reducedHigh = 2 * (sum + tail);
+    log2Low = 2 * log2Sum;
+    log2High = 2 * (log2Sum + log2Tail);
+    binaryPower >= 0
+      ?: (reducedLow + binaryPower * log2Low):(reducedHigh + binaryPower * log2High)
+      ?_ (reducedLow + binaryPower * log2High):(reducedHigh + binaryPower * log2Low);
+};
+
+NumericsLogTail(argument, nextDegree) ->
+    argument == 0
+      ?: 0
+      ?_ argument^nextDegree / (nextDegree * (1 - argument^2));
+
+NumericsLogRationalBounds(value, tolerance, maxIterations) -> {;
+    exact = value ~!: :Rational;
+    exact > 0 ?: _ ?_ .Error("Natural logarithm requires a positive value");
+    reduced := exact;
+    binaryPower := 0;
+    rangeIterations := 0;
+    {@ step=1;
+       (@reduced < 1 || @reduced >= 2) && @rangeIterations < @maxIterations;
+       {;
+           @reduced >= 2
+             ?: {; @reduced /= 2; @binaryPower += 1; }
+             ?_ {; @reduced *= 2; @binaryPower -= 1; };
+           @rangeIterations += 1;
+       };
+       step += 1
+    };
+    ready = reduced >= 1 && reduced < 2;
+    argument = (reduced - 1) / (reduced + 1);
+    log2Argument = 1/3;
+    degree := 1;
+    term := argument;
+    log2Term := log2Argument;
+    sum := argument;
+    log2Sum := log2Argument;
+    nextDegree := 3;
+    tail := NumericsLogTail(argument, nextDegree);
+    log2Tail := binaryPower == 0 ?: 0 ?_ NumericsLogTail(log2Argument, nextDegree);
+    interval := NumericsLogSeriesInterval(sum, tail, log2Sum, log2Tail, binaryPower);
+    seriesIterations := 0;
+    {@ step=1;
+       @ready && @interval.Width() > @tolerance
+         && @rangeIterations + @seriesIterations < @maxIterations;
+       {;
+           @nextDegree = @degree + 2;
+           @term *= @argument^2 * @degree / @nextDegree;
+           @log2Term *= @log2Argument^2 * @degree / @nextDegree;
+           @sum += @term;
+           @log2Sum += @log2Term;
+           @degree = @nextDegree;
+           @tail = NumericsLogTail(@argument, @degree + 2);
+           @log2Tail = @binaryPower == 0
+             ?: 0
+             ?_ NumericsLogTail(@log2Argument, @degree + 2);
+           @interval = NumericsLogSeriesInterval(
+               @sum, @tail, @log2Sum, @log2Tail, @binaryPower
+           );
+           @seriesIterations += 1;
+       };
+       step += 1
+    };
+    {=
+        interval=interval,
+        ready=ready,
+        goalMet=ready && interval.Width() <= tolerance,
+        iterations=rangeIterations + seriesIterations,
+        rangeIterations=rangeIterations,
+        seriesIterations=seriesIterations
+    };
+};
+
+NumericsElementaryResult(real, request, interval, work, goalMet, evidence) -> {;
+    status = goalMet ?: :enclosed ?_ :budgetExhausted;
+    approximation = .CertifiedApproximation(interval.Midpoint(), interval, {=
+        provider=:numerics,
+        algorithm=real[:kind],
+        reason=status,
+        actualized=1
+    });
+    {=
+        valueKind=:enclosure,
+        schema="rix.numerics.enclosure@1",
+        status=status,
+        interval=interval,
+        certified=1,
+        goalMet=goalMet,
+        requestedWidth=request[:absoluteWidth],
+        achievedWidth=interval.Width(),
+        approximation=approximation,
+        evidenceLevel=real[:evidenceLevel],
+        backend=:numerics,
+        operation=request[:operation],
+        trace=[],
+        work=work,
+        diagnostics=goalMet ?: [] ?_ [:workBudgetReached],
+        evidence=evidence,
+        source=real[:provenance]
+    };
+};
+
+NumericsElementaryRefine(real, rawRequest, operation) -> {;
+    capabilities = NumericsAlgorithmCapabilities(real);
+    request = .RefinementRequest(rawRequest, operation, capabilities);
+    requestedWidth = request[:absoluteWidth];
+    maxCalls = request[:work][:maxCalls];
+    maxIterations = request[:work][:maxIterations];
+    sourceWidth = requestedWidth < 1 ?: requestedWidth^2 / 16 ?_ requestedWidth / 16;
+    sourceBudget = .Max(0, maxCalls // 3);
+    sourceResult = NumericsSourceResult(real[:input], sourceWidth, sourceBudget, request[:trace]);
+    sourceCalls = NumericsCalls(sourceResult);
+    sourceInterval = sourceResult[:interval];
+    logDomain = real[:kind] == :naturalLog;
+    domainResolved = logDomain ?: sourceInterval.Low() > 0 ?_ 1;
+    domainResolved ?: {;
+        remaining = .Max(0, .Min(@maxIterations, @maxCalls - @sourceCalls));
+        endpointBudget = .Max(0, remaining // 2);
+        tolerance = @requestedWidth / 4;
+        lowerBounds = @logDomain
+          ?: NumericsLogRationalBounds(@sourceInterval.Low(), tolerance, endpointBudget)
+          ?_ NumericsExpRationalBounds(@sourceInterval.Low(), tolerance, endpointBudget);
+        sameEndpoint = @sourceInterval.Low() == @sourceInterval.High();
+        upperBounds = sameEndpoint
+          ?: lowerBounds
+          ?_ (@logDomain
+              ?: NumericsLogRationalBounds(@sourceInterval.High(), tolerance, endpointBudget)
+              ?_ NumericsExpRationalBounds(@sourceInterval.High(), tolerance, endpointBudget));
+        ready = lowerBounds[:ready] && upperBounds[:ready];
+        ready ?: {;
+            interval = @lowerBounds[:interval].Low():@upperBounds[:interval].High();
+            endpointIterations = @lowerBounds[:iterations]
+              + (@sameEndpoint ?: 0 ?_ @upperBounds[:iterations]);
+            calls = @sourceCalls + endpointIterations;
+            goalMet = interval.Width() <= @requestedWidth;
+            NumericsElementaryResult(@real, @request, interval, {=
+                calls=calls,
+                iterations=endpointIterations,
+                maxCalls=@maxCalls,
+                maxIterations=@maxIterations,
+                sourceCalls=@sourceCalls,
+                exhausted=!goalMet
+            }, goalMet, {=
+                kind=:rationalSeriesBounds,
+                property=:containment,
+                algorithm=@real[:kind],
+                source=@sourceResult[:evidence]
+            });
+        } ?_ NumericsUnknownAlgorithm(
+            @real,
+            @request,
+            @sourceInterval,
+            {= calls=@sourceCalls, iterations=0, maxCalls=@maxCalls, exhausted=1 },
+            :rangeReductionBudgetExhausted
+        );
+    } ?_ NumericsUnknownAlgorithm(
+        real,
+        request,
+        sourceInterval,
+        {= calls=sourceCalls, iterations=0, maxCalls=maxCalls, exhausted=sourceCalls>=maxCalls },
+        :logDomainNotCertified
+    );
+};
+
+NumericsNaturalAlgorithm(value, kind) -> {;
+    source = .oracle.From(value);
+    real = {=
+        valueKind=:numericsAlgorithmReal,
+        schema="rix.numerics.algorithm-real@1",
+        kind=kind,
+        input=source,
+        evidenceLevel=:proof,
+        provenance={= plugin=:numerics, version=3, algorithm=kind, source=value }
+    };
+    real._proto = {=
+        Enclose=(self, request ?= {= })->NumericsElementaryRefine(self, request, :enclose),
+        Refine=(self, request ?= {= })->NumericsElementaryRefine(self, request, :refine),
+        NumericsCapabilities=(self)->NumericsAlgorithmCapabilities(self)
+    };
+    .ImmutableValue(real);
+};
+
+NumericsPow(value, exponent) -> {;
+    rational = exponent ~!: :Rational;
+    numerator = rational.Numerator();
+    denominator = rational.Denominator();
+    denominator == 1
+      ?: value^numerator
+      ?_ {;
+          root = NumericsNthRoot(@value, @denominator);
+          @numerator == 1 ?: root ?_ root^@numerator;
+      };
+};
+
+NumericsNaturalExp(value) -> NumericsNaturalAlgorithm(value, :naturalExp);
+
+NumericsNaturalLog(value) -> NumericsNaturalAlgorithm(value, :naturalLog);
+
+NumericsExp(value, base ?= _) -> {;
+    exactExponent = value ~: :Rational;
+    base == _
+      ?: NumericsNaturalExp(value)
+      ?_ (exactExponent != _
+          ?: NumericsPow(base, exactExponent)
+          ?_ NumericsNaturalExp(value * NumericsNaturalLog(base)));
+};
+
+NumericsLog(value, base ?= _) ->
+    base == _
+      ?: NumericsNaturalLog(value)
+      ?_ NumericsNaturalLog(value) / NumericsNaturalLog(base);
 
 NumericsUnknownAlgorithm(real, request, interval, work, reason) -> {=
     valueKind=:enclosure,
@@ -426,6 +697,12 @@ numericsNamespace._proto = {=
     Sample = (self, value, options ?= {= }) -> ProviderOperation(value, options, :sample),
     NthRoot = (self, value, degree ?= 2, options ?= {= }) -> NumericsNthRoot(value, degree, options),
     Sqrt = (self, value, options ?= {= }) -> NumericsNthRoot(value, 2, options),
+    Pow = (self, value, exponent) -> NumericsPow(value, exponent),
+    Exp = (self, value, base ?= _) -> NumericsExp(value, base),
+    Log = (self, value, base ?= _) -> NumericsLog(value, base),
+    Ln = (self, value) -> NumericsLog(value),
+    Log2 = (self, value) -> NumericsLog(value, 2),
+    Log10 = (self, value) -> NumericsLog(value, 10),
     Kantorovich = (self, function, derivative, options ?= {= }) -> NumericsKantorovich(function, derivative, options),
     Approximation = (self, result) -> result.Has("approximation") ?: result[:approximation] ?_ _,
     Capabilities = (self, value) -> value.NumericsCapabilities(),

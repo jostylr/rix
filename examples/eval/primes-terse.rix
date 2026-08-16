@@ -1,7 +1,7 @@
 ## Prime discovery with collection pipes.
 
 HasDivisor(n) ->
-    .IRANGE(2, .Sqrt(n) // 1) |>|| ((divisor) -> n % divisor == 0);
+    .IRANGE(2, n - 1) |>|| ((divisor) -> divisor^2 <= n && n % divisor == 0);
 
 IsPrime(n) -> n < 2 ?: _ ?_ n == 2 ?: 1 ?_ !HasDivisor(n);
 

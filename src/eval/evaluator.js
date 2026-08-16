@@ -260,7 +260,7 @@ export function createDefaultRegistry(options = {}) {
 const CORE_SYNTAX_CAPABILITIES = {
     Add: "ADD", Sub: "SUB", Mul: "MUL", Div: "DIV", IntDiv: "INTDIV",
     DivUp: "DIVUP", DivRound: "DIVROUND", DivMod: "DIVMOD", Mod: "MOD", Pow: "POW",
-    PowProd: "POWPROD", Neg: "NEG", Abs: "ABS", Sqrt: "SQRT",
+    PowProd: "POWPROD", Neg: "NEG", Abs: "ABS",
     Factorial: "FACTORIAL", DoubleFactorial: "DOUBLE_FACTORIAL",
     Equal: "EQ", NotEqual: "NEQ", Less: "LT", Greater: "GT",
     LessEqual: "LTE", GreaterEqual: "GTE", SameCell: "SAME_CELL",

@@ -133,7 +133,11 @@ First-wave operators include:
 - `POW`, `POWPROD`
 - `NEG`
 - `EQ`, `LT`, `GT`, `LTE`, `GTE`
-- `ABS`, `SQRT`
+- `ABS`
+
+Approximate or certified real-valued functions are plugin-owned. For example,
+`.float.Sqrt` is approximate and `.numerics.Sqrt` is a certified algorithm
+real; core does not expose `.Sqrt` for exact Rationals.
 
 Built-in type installation currently installs Rational arithmetic/comparison variants before native fallback. Type install order is dispatch order; fallback remains last.
 

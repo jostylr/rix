@@ -6,6 +6,7 @@ mount: scene3d
 exports: [Scene, Group, Transform, Mesh, Polyline, PointCloud, ParametricCurve, Axes, Annotation, Material, AmbientLight, DirectionalLight, PointLight, PerspectiveCamera, OrthographicCamera, OrbitCamera, Realize, Project, Snapshot]
 groups: [Scene3D, Graphics, Exact]
 permissions: []
+requires: [rix.numerics@1]
 provides: [rix.scene3d@1, rix.scene3d.realized@1, rix.scene3d.projected@1, rix.scene3d.orbit@1]
 schemas: [rix.scene3d@1, rix.scene3d.realized@1, rix.scene3d.projected@1, rix.scene3d.orbit@1]
 snapshot: true
@@ -441,10 +442,16 @@ S3Cross(left, right) -> [
     left[1]*right[2]-left[2]*right[1]
 ];
 
+S3ApproximateSqrt(value) ->
+    .numerics.Refine(.numerics.Sqrt(value), {=
+        absoluteWidth=1/1000000,
+        maxWork=30
+    })[:approximation].Candidate();
+
 S3Normalize(vector, label) -> {;
     squared = S3Dot(vector, vector);
     squared > 0 ?: _ ?_ .Error(@"@{label} must not be zero or collinear with the view direction");
-    length = .Sqrt(squared);
+    length = S3ApproximateSqrt(squared);
     vector.Map((coordinate) -> coordinate / @length);
 };
 
@@ -572,7 +579,7 @@ S3Project(scene, options ?= {= }) -> {;
     allPoints := [];
     {@ primitiveIndex=1; primitiveIndex<=@primitives.Len(); {; @allPoints ~= @allPoints.Concat(@primitives[primitiveIndex][:points]); }; primitiveIndex+=1 };
     project := _;
-    approximation := {= viewNormalization="core-rational-sqrt" };
+    approximation := {= viewNormalization="numerics-certified-sqrt" };
     camera[:projection]=="perspective"
       ?: {;
           fov=@camera[:fov]; (fov>0&&fov<180) ?: _ ?_ .Error("Perspective camera fov must be between 0 and 180 degrees");

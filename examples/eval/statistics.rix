@@ -1,5 +1,7 @@
 ## Exact mean and population variance with public collection capabilities.
 
+.Plugin.Load("numerics");
+
 Sum(accumulator, value) -> accumulator + value;
 
 Mean(items) -> .Reduce(items, Sum, 0) / .LEN(items);
@@ -18,5 +20,5 @@ variance := Variance(data);
     data = data,
     mean = mean,
     variance = variance,
-    standardDeviation = .Sqrt(variance)
+    standardDeviation = .numerics.Sqrt(variance)
 }

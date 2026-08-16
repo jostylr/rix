@@ -283,28 +283,4 @@ export const arithmeticFunctions = {
         pure: true,
         doc: "Absolute value",
     },
-
-    SQRT: {
-        impl(args) {
-            const a = ensureNumeric(args[0]);
-            // Convert to number for Math.sqrt
-            const val = a instanceof Rational
-                ? Number(a.numerator) / Number(a.denominator)
-                : Number(a.toString());
-            const root = Math.sqrt(val);
-            // Convert back to Integer/Rational
-            if (Number.isInteger(root)) return new Integer(BigInt(root));
-            // Approximate rational
-            const str = root.toString();
-            const parts = str.split(".");
-            if (parts.length === 2) {
-                const den = 10n ** BigInt(parts[1].length);
-                const num = BigInt(parts[0]) * den + BigInt(parts[1]);
-                return new Rational(num, den);
-            }
-            return new Integer(BigInt(Math.floor(root)));
-        },
-        pure: true,
-        doc: "Square root (approximate rational)",
-    },
 };

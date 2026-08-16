@@ -28,11 +28,13 @@ function binary(fn) {
 }
 
 export const MATH_FUNCTION_NAMES = [
+    "SQRT",
     "SIN", "COS", "TAN", "ASIN", "ACOS", "ATAN", "ATAN2",
     "LOG", "LN", "LOG10", "EXP",
 ];
 
 export const mathFunctions = {
+    SQRT: { impl: unary(Math.sqrt), pure: true, doc: "Float square root" },
     SIN: { impl: unary(Math.sin), pure: true, doc: "Float sine" },
     COS: { impl: unary(Math.cos), pure: true, doc: "Float cosine" },
     TAN: { impl: unary(Math.tan), pure: true, doc: "Float tangent" },

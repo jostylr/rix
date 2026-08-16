@@ -1415,7 +1415,6 @@ Map literals reject duplicate keys after canonicalization:
 | `POW(a, b)` | Exponentiation | `a ^ b`, `a ** b` |
 | `NEG(a)` | Negation | `-a` |
 | `ABS(a)` | Absolute value | — |
-| `SQRT(a)` | Square root | — |
 
 ### Comparison
 

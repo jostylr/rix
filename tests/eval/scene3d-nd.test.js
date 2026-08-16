@@ -103,7 +103,7 @@ describe("Scene3D and n-dimensional geometry plugins", () => {
         expect(sequence(result.values[0]).map(String)).toEqual(["8/15", "2/7", "3/11"]);
         expect(text(result.values[1])).toBe("rix.scene3d.realized@1");
         expect(text(result.values[2])).toBe("rix.scene3d.projected@1");
-        expect(text(result.values[3])).toBe("core-rational-sqrt");
+        expect(text(result.values[3])).toBe("numerics-certified-sqrt");
     });
 
     test("Phase 2 curves, axes, annotations, orbit cameras, and picking stay portable", () => {

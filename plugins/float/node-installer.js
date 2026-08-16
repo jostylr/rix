@@ -11,7 +11,7 @@ import { loadFloatPluginStartup } from "./float-loader.js";
 import { Integer, Rational, RationalInterval } from "@ratmath/core";
 import { exactFloatRational } from "./protocol.js";
 
-const FLOAT_METHOD_NAMES = ["ABS", "SQRT", ...MATH_FUNCTION_NAMES];
+const FLOAT_METHOD_NAMES = ["ABS", ...MATH_FUNCTION_NAMES];
 
 function displayName(name) {
     return name[0] + name.slice(1).toLowerCase();

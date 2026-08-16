@@ -281,6 +281,9 @@ newline normalization.
 2. **Phase 2 — Core algorithms**
    - [x] Add universal weighted n-th-root algorithm reals whose guesses and
      partners form exact certified intervals.
+   - [x] Add rational powers plus universal certified natural/base-selected
+     exponential and logarithm algorithm reals, including `Ln`, `Log2`, and
+     `Log10` conveniences.
    - [x] Add a checked Kantorovich constructor and nested interval-Newton
      refinement with actualized steps and bounded work.
    - [ ] Add generic `Enclose`, `Refine`, `Compare`, `Sign`, root isolation,
@@ -291,8 +294,9 @@ newline normalization.
      must be compatible with and nested inside the applicable earlier
      enclosure; cache hits must retain evidence, provenance, requested
      precision, achieved precision, and work accounting.
-   - [ ] Define backend-neutral certified-constant requests for at least `pi`
-     and `e`. Results must provide exact rational bounds, evidence/provenance,
+   - [ ] Define backend-neutral certified-constant requests for at least `pi`.
+     Natural `Exp(1)` now provides certified `e` bounds; named constants must
+     provide exact rational bounds, evidence/provenance,
      and a finite verification path independent of trusting a displayed decimal
      or an unbounded computation.
    - [ ] Add capability negotiation and explain why an algorithm/backend pair

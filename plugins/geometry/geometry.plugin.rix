@@ -6,6 +6,7 @@ mount: geometry
 exports: [Point, Line, Circle, Midpoint, PerpendicularBisector, Circumcircle, Intersect, Points, Status, Draw]
 groups: [Geometry, Graphics, Exact]
 permissions: []
+requires: [rix.numerics@1]
 provides: [rix.geometry@1, rix.geometry.intersection@1]
 schemas: [rix.geometry@1, rix.geometry.intersection@1]
 snapshot: true
@@ -21,6 +22,12 @@ GeometryExact(value, label) -> {;
 };
 
 GeometryIsZero(value) -> (value ~!: :Rational).Numerator()==0;
+
+GeometryApproximateSqrt(value) ->
+    .numerics.Refine(.numerics.Sqrt(value), {=
+        absoluteWidth=1/1000000000000,
+        maxWork=80
+    })[:approximation].Candidate();
 
 GeometryRequire(value, kind ?= _, label ?= "geometry value") -> {;
     valid = (value ? :Map) && value.Has("schema") && value[:schema] == "rix.geometry@1";
@@ -293,7 +300,7 @@ GeometryDraw(objects, options ?= {= }) -> {;
                     ?_ item[:kind] == :circle
                          ?: {;
                              center = [@item[:center][:x], @item[:center][:y]] |> @project;
-                             radius = .Sqrt(@item[:radiusSquared]) * @scale;
+                             radius = GeometryApproximateSqrt(@item[:radiusSquared]) * @scale;
                              @children ~= @children.Push(.Graphics.Circle(center, radius,
                                  GeometryStyle(@item[:style], {= fill="none", stroke="#d97706", width=2 })));
                          }

@@ -8,7 +8,7 @@ toc-depth: 2
 This page is generated from the current RiX implementation by `documentation/scripts/generate-reference.js`. Do not edit it by hand. Descriptions come from registry documentation strings; the narrative [syntax guide](../eval/syntax-guide.md) and [methods guide](../eval/methods-guide.md) provide signatures and examples.
 :::
 
-At this revision RiX exposes **243 named entries** on the default system context and registers **226 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
+At this revision RiX exposes **242 named entries** on the default system context and registers **225 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
 
 ## Public system context
 
@@ -177,7 +177,6 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.SPECFRACTIONPARTS` | function | Symbolic | Split a symbolic top-level fraction into numerator and denominator specs |
 | `.SPECROLES` | function | Symbolic | Resolve all symbols and input/output roles, with optional role overrides |
 | `.SPLIT` | lazy function | — | Split a collection by a delimiter or predicate |
-| `.SQRT` | function | — | Square root (approximate rational) |
 | `.STOP` | lazy function | — | Conditional abort: .Stop(label, condition, dataMap ?= {=}) |
 | `.STREAM` | function | — | Create a cold, pull-based async stream from a finite collection |
 | `.STRONG` | function | — | Create semantic inline strong content |
@@ -228,20 +227,20 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.fracfun` | function | — | Form-preserving callable polynomial and rational expressions with explicit transformations and canonical projections. |
 | `.fraction` | function | — | Representation-sensitive unreduced integer fractions with mediant and classroom addition policies. |
 | `.fractionfunction` | function | — | Form-preserving callable polynomial and rational expressions with explicit transformations and canonical projections. |
-| `.geometry` | function | — | Exact ruler-and-compass geometry with explicit intersections and portable Graphics snapshots. |
+| `.geometry` | function | — | Pure-RiX exact ruler-and-compass geometry with explicit intersections and portable Graphics snapshots. |
 | `.gif` | function | — | Deterministic animated GIF rendering from Slides, Timelines, or Snapshots through PNG frames. |
 | `.gltf` | function | — | Browser-safe glTF 2.0 JSON exporter for retained Scene3D values. |
 | `.html` | function | — | Standalone semantic HTML renderer for portable RiX output trees. |
 | `.latex` | function | — | Standalone LaTeX renderer for portable RiX documents and figures. |
-| `.linalg` | function | — | Exact dense linear algebra and coordinate-aware tensor transformations. |
+| `.linalg` | function | — | Pure-RiX exact dense linear algebra and coordinate-aware tensor transformations. |
 | `.markdown` | function | — | CommonMark-oriented renderer for portable RiX documents. |
-| `.nd` | function | — | Exact n-dimensional geometry with explicit affine and Cayley projection records. |
+| `.nd` | function | — | Pure-RiX exact n-dimensional geometry with affine and Cayley projection records and explicit Scene3D adaptation. |
 | `.numerics` | function | — | Backend-neutral bounded enclosure and refinement orchestration. |
-| `.optimize` | function | — | Exact linear-program models and deterministic Phase 1 simplex optimization. |
+| `.optimize` | function | — | Pure-RiX exact linear-program models and deterministic Phase 1 simplex optimization. |
 | `.oracle` | function | — | Exact rational-betweenness oracle demonstrations and bounded refinement. |
 | `.p` | function | — | Semantic callable univariate polynomials with structural and symbolic entry forms. |
 | `.pdf` | function | — | PDF document and figure renderer orchestrated through LaTeX. |
-| `.plot` | function | Plot | Portable plotting helpers that produce core Graphics scenes. |
+| `.plot` | function | Plot | Pure-RiX exact polynomial sampling that lowers to portable core Graphics scenes. |
 | `.png` | function | — | PNG snapshot renderer for core Graphics through a host rasterizer. |
 | `.poly` | function | — | Semantic callable univariate polynomials with structural and symbolic entry forms. |
 | `.polynomial` | function | — | Semantic callable univariate polynomials with structural and symbolic entry forms. |
@@ -250,8 +249,8 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.ratfun` | function | — | Canonical callable univariate rational functions with exact cancellation and Polynomial interoperability. |
 | `.rationalfunction` | function | — | Canonical callable univariate rational functions with exact cancellation and Polynomial interoperability. |
 | `.rf` | function | — | Canonical callable univariate rational functions with exact cancellation and Polynomial interoperability. |
-| `.scene3d` | function | — | Exact retained 3D scenes with deterministic wireframe and lit Graphics snapshots. |
-| `.solve` | function | — | Exact Phase 1 linear-system classification and symbolic-spec solving. |
+| `.scene3d` | function | — | Pure-RiX exact retained 3D scenes, explicit realization and projection, and portable Graphics snapshots. |
+| `.solve` | function | — | Pure-RiX exact Phase 1 linear-system classification and symbolic-spec solving. |
 | `.statistics` | function | — | Exact descriptive statistics with portable summary tables, histograms, and box plots. |
 | `.stats` | function | — | Exact descriptive statistics with portable summary tables, histograms, and box plots. |
 | `.sternbrocot` | function | — | Pure RiX Stern-Brocot node descriptions, visible tree records, and exact formula evaluation. |
@@ -577,7 +576,6 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `SLIDE` | eager, pure | Create a presentation slide |
 | `SLIDES` | eager, pure | Create a sequential presentation deck |
 | `SNAPSHOTS` | eager, pure | Materialize [scene, states] tuples into a portable ordered snapshot list |
-| `SQRT` | eager, pure, multifunction | Square root (approximate rational) |
 | `STEP` | eager, pure | Lazy exact stepped range over a rational interval |
 | `STRING` | eager, pure | Create a string value |
 | `STRONG` | eager, pure | Create semantic inline strong content |

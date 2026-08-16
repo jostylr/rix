@@ -189,6 +189,83 @@ describe("universal Numerics algorithm reals", () => {
         expect(interval.high.lessThan(parseAndEvaluate("3/2", options))).toBe(true);
     });
 
+    test("rational powers use universal roots and integer powers", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("numerics");
+            twoThirds = .numerics.Refine(.numerics.Pow(27/8, 2/3), {=
+                absoluteWidth=1/1000, maxWork=120
+            });
+            reciprocalRoot = .numerics.Refine(.numerics.Pow(4, -1/2), {=
+                absoluteWidth=1/1000, maxWork=120
+            });
+            exact = .numerics.Pow(4, 3);
+            {: twoThirds, reciprocalRoot, exact }
+        `, options);
+        expect(contains(entry(result.values[0], "interval"), parseAndEvaluate("9/4", options))).toBe(true);
+        expect(contains(entry(result.values[1], "interval"), parseAndEvaluate("1/2", options))).toBe(true);
+        expect(result.values[2].value).toBe(64n);
+    });
+
+    test("certified exp and logarithms support natural and changed bases", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("numerics");
+            naturalExp = .numerics.Refine(.numerics.Exp(1), {=
+                absoluteWidth=1/10000, maxWork=160
+            });
+            naturalLog = .numerics.Refine(.numerics.Ln(2), {=
+                absoluteWidth=1/10000, maxWork=160
+            });
+            binary = .numerics.Refine(.numerics.Log2(8), {=
+                absoluteWidth=1/10000, maxWork=320
+            });
+            decimal = .numerics.Refine(.numerics.Log10(1000), {=
+                absoluteWidth=1/10000, maxWork=320
+            });
+            changed = .numerics.Refine(.numerics.Log(3, 4), {=
+                absoluteWidth=1/10000, maxWork=320
+            });
+            {: naturalExp, naturalLog, binary, decimal, changed, .numerics.Exp(3, 4) }
+        `, options);
+        expect(contains(entry(result.values[0], "interval"), parseAndEvaluate("271828/100000", options))).toBe(true);
+        expect(contains(entry(result.values[1], "interval"), parseAndEvaluate("693147/1000000", options))).toBe(true);
+        expect(contains(entry(result.values[2], "interval"), parseAndEvaluate("3", options))).toBe(true);
+        expect(contains(entry(result.values[3], "interval"), parseAndEvaluate("3", options))).toBe(true);
+        expect(entry(result.values[4], "interval").low.greaterThan(parseAndEvaluate("79/100", options))).toBe(true);
+        expect(entry(result.values[4], "interval").high.lessThan(parseAndEvaluate("4/5", options))).toBe(true);
+        expect(result.values[5].value).toBe(64n);
+        for (const enclosure of result.values.slice(0, 5)) {
+            expect(text(entry(enclosure, "status"))).toBe("enclosed");
+            expect(entry(enclosure, "certified").value).toBe(1n);
+        }
+    });
+
+    test("elementary algorithms consume unrelated certified real providers", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("numerics");
+            .Plugin.Load("algebraic-real");
+            .numerics.Refine(.numerics.Exp(.ar.Sqrt2()), {=
+                absoluteWidth=1/1000, maxWork=300
+            })
+        `, options);
+        expect(text(entry(result, "status"))).toBe("enclosed");
+        expect(entry(result, "interval").low.greaterThan(parseAndEvaluate("4", options).toRational())).toBe(true);
+        expect(entry(result, "interval").high.lessThan(parseAndEvaluate("5", options).toRational())).toBe(true);
+    });
+
+    test("logarithms preserve an unresolved domain as structured evidence", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("numerics");
+            .numerics.Refine(.numerics.Log(-1), {= absoluteWidth=1/1000, maxWork=40 })
+        `, options);
+        expect(text(entry(result, "status"))).toBe("unknown");
+        expect(entry(result, "certified")).toBeNull();
+        expect(entry(result, "diagnostics").values.map(text)).toContain("logDomainNotCertified");
+    });
+
     test("even roots do not guess when the radicand sign is invalid", () => {
         const options = runtime();
         const result = parseAndEvaluate(`

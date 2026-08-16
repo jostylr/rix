@@ -30,7 +30,7 @@ numeric type or one universal rendering engine.
 | `.plot` | Implemented pure-RiX initial plugin | Exact polynomial sampling with automatic vertical fitting; returns core `.Graphics`. |
 | `.float` | Implemented plugin | IEEE-754 Float conversion, arithmetic integration, rounding, intervals of stored values, and approximate elementary functions. |
 | `.oracle` | Implemented Phase 1 plugin | Pure RiX rational-betweenness values, five rational procedure demonstrations, Range validation, finite alternatives, and bounded exact refinement. |
-| `.numerics` | Implemented Phase 1 plugin | Pure RiX request normalization and backend-neutral dispatch for certified Oracle refinement and explicitly approximate Float sampling. |
+| `.numerics` | Implemented through initial Phase 2 algorithms | Pure RiX request normalization, backend-neutral refinement, universal roots/rational powers, certified exponential/logarithmic algorithm reals, and explicitly approximate Float sampling. |
 | `.linalg` | Implemented pure-RiX Phase 1 plugin | Exact dense RREF/rank/determinant/inverse/solve plus vector spaces, named coordinates, variance-aware tensor basis changes, and representation lineage. |
 | `.optimize` | Implemented Phase 1 plugin | Exact standard-form LinearProgram values and deterministic Rational primal simplex. |
 | `.solve` | Implemented pure-RiX Phase 1 plugin | Exact affine `{#}` equality classification and named solving through the linear-algebra service via public structural spec inspection. |

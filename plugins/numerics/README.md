@@ -2,8 +2,9 @@
 
 `numerics` is a pure RiX orchestration plugin for bounded numerical work. It
 creates portable refinement requests, dispatches them through methods on the
-supplied value, and provides certified algorithm reals for weighted n-th roots
-and Kantorovich/interval-Newton refinement. It depends on the generic Oracle
+supplied value, and provides certified algorithm reals for weighted n-th roots,
+rational powers, exponential/logarithmic functions, and
+Kantorovich/interval-Newton refinement. It depends on the generic Oracle
 arithmetic target but does not inspect concrete Float, ball, Cauchy,
 continued-fraction, or algebraic-real implementations.
 
@@ -72,12 +73,26 @@ weighted averaging step using exact rational endpoint arithmetic. The current
 guess and its partner `q/x^(n-1)` form the enclosing interval. The radicand may
 be any certified refinable singleton real.
 
+`.numerics.Pow(value, exponent)` accepts an exact Rational exponent. It reduces
+`value^(p/q)` to the universal q-th root followed by an integer power, retaining
+the real-domain behavior of odd and even roots.
+
+`.numerics.Exp(value)` and `.numerics.Log(value)` are certified natural
+exponential and logarithm algorithm reals. Exact rational Taylor/atanh bounds
+and rational range reduction produce their enclosures. A second argument
+changes the base: `.numerics.Exp(3, 4)` is `4^3`, while
+`.numerics.Log(3, 4)` is `log_4(3)`. `.numerics.Ln` aliases natural `Log`;
+`.Log2` and `.Log10` select bases two and ten.
+
+These functions accept any certified refinable singleton real. They do not
+convert Float values into claimed certificates.
+
 `.numerics.Kantorovich(function, derivative, options)` checks a supplied
 initial interval, derivative lower bound, second-derivative upper bound, and
 the Kantorovich condition before creating a real. Subsequent requests use
 interval Newton and retain nested certified enclosures.
 
-Both algorithms actualize each iteration into exact rational data. With
+The universal algorithms actualize each iteration into exact rational data. With
 `trace=1`, every step reports `actualized=1`, so refinement never builds an
 unbounded linked arithmetic-expression trail.
 
@@ -86,5 +101,15 @@ negation, and absolute value. Same-family operations preserve that family;
 Rationals become exact leaves of the family. Operations between different
 families produce Oracle recipes. Float never participates in this implicit
 promotion and must be constructed explicitly on every operand.
+
+For a shorter interactive prefix, remount when loading:
+
+```rix
+.Plugin.Load("numerics", {= as="n" });
+.n.Log2(8);
+```
+
+RiX does not yet have a lexical `use`/open-import form that would make selected
+plugin members available without a mount prefix.
 
 See [tutorial.md](tutorial.md).

@@ -9,7 +9,16 @@ import { NodePluginCatalog } from "../../src/runtime/plugin-catalog-node.js";
 const approximatePluginRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "../../plugins/float");
 
 describe("approximate math plugin", () => {
-    test("transcendental functions and .Log are absent from the default system", () => {
+    test("real-valued math functions are absent from the default system", () => {
+        const systemContext = createDefaultSystemContext();
+        for (const name of [
+            "Sqrt", "Sin", "Cos", "Tan", "Asin", "Acos", "Atan", "Atan2",
+            "Exp", "Log", "Ln", "Log2", "Log10",
+        ]) {
+            expect(systemContext.has(name)).toBe(false);
+        }
+        expect(() => parseAndEvaluate(".Sqrt(2)"))
+            .toThrow("Unknown system capability: SQRT");
         expect(() => parseAndEvaluate(".Sin(1)"))
             .toThrow("Unknown system capability: SIN");
         expect(() => parseAndEvaluate(".Log(1)"))
@@ -34,6 +43,8 @@ describe("approximate math plugin", () => {
 
         expect(parseAndEvaluate(".float.Sin(1).Value()", { systemContext, registry }))
             .toEqual({ type: "string", value: String(Math.sin(1)) });
+        expect(parseAndEvaluate(".float.Sqrt(2).Value()", { systemContext, registry }))
+            .toEqual({ type: "string", value: String(Math.sqrt(2)) });
         expect(parseAndEvaluate(".float.Float(1/3).Value()", { systemContext, registry }))
             .toEqual({ type: "string", value: String(1 / 3) });
         expect(parseAndEvaluate(".float(1/3).Value()", { systemContext, registry }))

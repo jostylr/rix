@@ -2157,7 +2157,8 @@ square(x) :-> x^2
 add(x, y) :-> x + y
 
 // Function with system calls
-hypotenuse(a, b) :-> SQRT(a^2 + b^2)
+.Plugin.Load("numerics")
+hypotenuse(a, b) :-> .numerics.Sqrt(a^2 + b^2)
 ```
 
 #### Default Parameters
@@ -2244,7 +2245,8 @@ polynomial := (x, coeffs; degree := 2) -> coeffs[0] + coeffs[1]*x + coeffs[2]*x^
 
 ```javascript
 // Distance function
-distance(p1, p2; metric := "euclidean") :-> SQRT((p1[0] - p2[0])^2 + (p1[1] - p2[1])^2)
+.Plugin.Load("numerics")
+distance(p1, p2; metric := "euclidean") :-> .numerics.Sqrt((p1[0] - p2[0])^2 + (p1[1] - p2[1])^2)
 
 // Newton method step
 newtonStep(f, df, x; tolerance := 1e-6 ? df(x) != 0) :-> x - f(x) / df(x)
