@@ -28,7 +28,8 @@ operations can remain in Core or a more specific plugin.
 
 - `Sinc(0)` is certified as its removable value `1`, including when zero arrives
   through another refinable-real provider.
-- `Gamma` and `LogGamma` currently certify the positive-real branch.
+- `Gamma` and `LogGamma` currently certify the positive-real branch. Gamma
+  uses exact positive-integer and direct positive-half-integer identities.
 - `Beta`, `LogBeta`, `Digamma`, and `Trigamma` currently certify positive-real
   arguments. Positive integer Beta values and `Beta(1/2,1/2)` use exact/common
   identities before the general bounded algorithm.

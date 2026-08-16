@@ -116,8 +116,10 @@ is certified as `1`. `Radians` and `Degrees` convert using certified pi.
 
 The same plugin supplies certified special-function algorithms:
 
-- `EulerGamma()`, `Gamma`, and `LogGamma` use harmonic and
-  Stirling–Robbins bounds; Gamma currently has a positive-real domain.
+- `EulerGamma()`, `Gamma`, and `LogGamma` use Euler–Maclaurin and
+  Stirling–Robbins bounds. Gamma returns exact positive-integer identities and
+  uses a direct certified `(1/2)_k*sqrt(pi)` refiner for positive
+  half-integers; its current general domain is positive real.
 - `Beta`, `LogBeta`, `Digamma`, and `Trigamma` certify positive-real inputs.
   Beta uses exact positive-integer values and the `Beta(1/2,1/2)=Pi()` identity
   when available; the general path uses Euler's rational product with a
@@ -130,8 +132,10 @@ The same plugin supplies certified special-function algorithms:
   remain available. The Y family currently requires positive real arguments.
   Calculator-facing code should load the `bessel` plugin and use `.bessel.J`
   and `.bessel.Y`.
-- `NormalPDF`, `NormalCDF`, and `NormalQuantile` provide the universal standard
-  normal algorithms used by the calculator-facing `.stats` functions.
+- `NormalPDF` and `NormalCDF` use direct request-sized Rational bounds.
+  `NormalQuantile` uses certified monotone bisection with a shared normalizing
+  constant and a Chebyshev-certified outer bracket. These universal algorithms
+  are used by the calculator-facing `.stats` functions.
 - `Zeta` uses Euler–Maclaurin bounds for real arguments greater than one.
 
 `Hypot(x,y)` composes the universal root and arithmetic protocols.

@@ -65,15 +65,21 @@ describe("certified numerics reference corpus", () => {
                 .numerics.Refine(.stats.NormalCDF(0), {= absoluteWidth=1/1000, maxWork=800 })[:interval],
                 .numerics.Refine(.stats.NormalQuantile(1/2), {= absoluteWidth=1/1000, maxWork=800 })[:interval],
                 .numerics.Refine(.bessel.J(-2, 1)-.bessel.J(2, 1), {= absoluteWidth=1/100000, maxWork=3000 })[:interval],
-                .numerics.Refine(.bessel.J(-3, 1)+.bessel.J(3, 1), {= absoluteWidth=1/100000, maxWork=4000 })[:interval]
+                .numerics.Refine(.bessel.J(-3, 1)+.bessel.J(3, 1), {= absoluteWidth=1/100000, maxWork=4000 })[:interval],
+                .numerics.Refine(.numerics.Gamma(5), {= absoluteWidth=1/1000, maxWork=100 })[:interval],
+                .numerics.Refine(.numerics.Gamma(5/2)-3/4*.numerics.Gamma(1/2), {=
+                    absoluteWidth=1/100000, maxWork=2000
+                })[:interval]
             }
         `, options);
         const half = asRational(parseAndEvaluate("1/2", options));
         const zero = asRational(parseAndEvaluate("0", options));
         expect(result.values[0].containsValue(half)).toBe(true);
-        for (const interval of result.values.slice(1)) {
+        for (const interval of result.values.slice(1, 4)) {
             expect(interval.containsValue(zero)).toBe(true);
         }
+        expect(result.values[4].containsValue(asRational(parseAndEvaluate("24", options)))).toBe(true);
+        expect(result.values[5].containsValue(zero)).toBe(true);
         expect(parseAndEvaluate(`
             .numerics.Refine(.stats.NormalQuantile(0), {=
                 absoluteWidth=1/1000, maxWork=100

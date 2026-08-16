@@ -299,9 +299,15 @@ newline normalization.
    - [x] Add positive-real `Beta`, `LogBeta`, `Digamma`, and `Trigamma`, using
      exact/common identities where available and bounded algorithms otherwise.
    - [x] Add normal PDF/CDF/quantile functions under the statistics/probability
-     surface, reusing certified `Erf` and root isolation.
+     surface with direct request-sized forward bounds and certified root
+     isolation.
    - [x] Add arbitrary integer-order Bessel `J(n,x)` and `Y(n,x)` under
      `.bessel`, retaining the explicit letter-family namespace.
+   - [x] Add a reference-corpus benchmark and a warm-runtime precision sweep
+     reporting work, median time, and exact-Rational endpoint growth.
+   - [x] Eliminate the first major composition hot spots with direct normal
+     PDF/CDF refiners, shared quantile constants, Gamma integer/half-integer
+     identities, and Euler–Maclaurin Bessel-Y constants.
    - [ ] Add modified Bessel `I`/`K` families under `.bessel`.
    - [ ] Add reusable certified quadrature before incomplete gamma/beta, Airy,
      and elliptic-integral families.

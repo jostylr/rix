@@ -31,3 +31,7 @@ The forward recurrence is efficient for modest orders. For order much larger
 than the argument magnitude it can be numerically ill-conditioned; the result
 remains honest, but may report `:budgetExhausted` with a wide certified
 interval. A future Miller/backward recurrence will improve that region.
+
+The Y-family constants use a higher-order alternating Euler–Maclaurin
+enclosure for Euler's constant. This keeps exact-Rational work practical at
+deep requested widths without changing the outward-certification contract.

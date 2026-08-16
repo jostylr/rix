@@ -52,6 +52,7 @@
     "test:package": "bun test tests/tools/package-smoke.test.js",
     "test:pack": "npm pack --dry-run --cache=tmp/npm-cache",
     "bench:numerics": "bun ./benchmarks/numerics-precision.js",
+    "bench:numerics:sweep": "bun ./benchmarks/numerics-precision-sweep.js",
     "smoke:package": "bun ./scripts/package-consumer-smoke.js",
     "build:lezer": "lezer-generator src/tools/lezer/rix.grammar -o src/tools/lezer/parser.js",
     "check:editor-policy": "bun ./scripts/generate-editor-policy.js --check",

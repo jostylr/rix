@@ -434,22 +434,27 @@ NumericsEulerGammaRationalBounds(tolerance, maxIterations) -> {;
     n := 1;
     harmonic := 1;
     iterations := 0;
-    remainderWidth := 1/2 - 1/4;
+    ## Euler-Maclaurin terms alternate with a remainder bounded by the first
+    ## omitted term (DLMF 2.10.8). Retaining terms through n^-8 leaves an
+    ## enclosure width at most 1/(132n^10), which also scales well at deep
+    ## precision.
+    remainderWidth := 1/132;
     {@ step=1;
        @remainderWidth > @tolerance/2 && @iterations < @maxIterations;
        {;
            @n += 1;
            @harmonic += 1/@n;
-           @remainderWidth = 1/(2*@n) - 1/(2*(@n+1));
+           @remainderWidth = 1/(132*@n^10);
            @iterations += 1;
        };
        step += 1
     };
     logBounds = NumericsLogRationalBounds(
-        n, tolerance/4, .Max(0, maxIterations-iterations)
+        n, tolerance/2, .Max(0, maxIterations-iterations)
     );
-    remainder = (1/(2*(n+1))):(1/(2*n));
-    interval = harmonic - logBounds[:interval] - remainder;
+    center = harmonic - logBounds[:interval] - 1/(2*n) + 1/(12*n^2)
+      - 1/(120*n^4) + 1/(252*n^6) - 1/(240*n^8);
+    interval = center.Low():(center.High()+remainderWidth);
     iterations += logBounds[:iterations];
     {=
         interval=interval,
@@ -463,7 +468,7 @@ NumericsBesselYRationalBounds(value, tolerance, maxIterations, kind) -> {;
     exact = value ~!: :Rational;
     exact > 0 ?: _ ?_ .Error("Bessel Y0 and Y1 currently require a positive real value");
     perPart = .Max(1, maxIterations//6);
-    partTolerance = tolerance/(8*(exact.Abs()+1));
+    partTolerance = tolerance/(4*(exact.Abs()+1));
     pi = NumericsPiRationalBounds(partTolerance, perPart);
     gamma = NumericsEulerGammaRationalBounds(partTolerance, perPart);
     logarithm = NumericsLogRationalBounds(exact/2, partTolerance, perPart);
@@ -504,7 +509,7 @@ NumericsBesselIntegerRationalBounds(order, value, tolerance, maxIterations, fami
       ?_ {;
           ## The final interval is checked directly, so this allocation need
           ## not predict the often very pessimistic forward-recurrence norm.
-          partTolerance = @tolerance/(2*(@degree+1));
+          partTolerance = @tolerance/(@degree+1);
           halfBudget = .Max(0, @maxIterations//2);
           first = @family == :besselJ
             ?: NumericsSpecialSeriesBounds(@exact, partTolerance, halfBudget, :besselJ0)
@@ -924,12 +929,13 @@ NumericsPositiveSqrtRationalBounds(value, tolerance, maxIterations) -> {;
     };
 };
 
-## Phi(x) = 1/2 + S(x)/sqrt(2*pi), where
-## S(x)=sum (-1)^k*x^(2k+1)/(2^k*k!*(2k+1)).
-NumericsNormalCDFRationalBounds(value, tolerance, maxIterations) -> {;
+## phi(x)=exp(-x^2/2)/sqrt(2*pi). All component bounds are outward
+## Rational intervals, and the final interval is checked against the caller's
+## tolerance instead of relying on generic expression-tree precision routing.
+NumericsNormalPDFRationalBounds(value, tolerance, maxIterations) -> {;
     exact = value ~!: :Rational;
-    partBudget = .Max(1, maxIterations//3);
-    partTolerance = tolerance/16;
+    partBudget = .Max(0, maxIterations//4);
+    partTolerance = tolerance/8;
     pi = NumericsPiRationalBounds(partTolerance, partBudget);
     lowerRoot = NumericsPositiveSqrtRationalBounds(
         2*pi[:interval].Low(), partTolerance, partBudget
@@ -938,6 +944,69 @@ NumericsNormalCDFRationalBounds(value, tolerance, maxIterations) -> {;
         2*pi[:interval].High(), partTolerance, partBudget
     );
     rootInterval = lowerRoot[:interval].Low():upperRoot[:interval].High();
+    exponential = NumericsExpRationalBounds(
+        -(exact^2)/2, tolerance/4, .Max(0, maxIterations
+          - pi[:iterations] - lowerRoot[:iterations] - upperRoot[:iterations])
+    );
+    interval = exponential[:interval]/rootInterval;
+    iterations = pi[:iterations] + lowerRoot[:iterations]
+      + upperRoot[:iterations] + exponential[:iterations];
+    ready = pi[:ready] && lowerRoot[:ready] && upperRoot[:ready]
+      && exponential[:ready];
+    {=
+        interval=interval,
+        ready=ready,
+        goalMet=ready && interval.Width() <= tolerance,
+        iterations=iterations
+    };
+};
+
+NumericsNormalRootRationalBounds(tolerance, maxIterations) -> {;
+    partBudget = .Max(0, maxIterations//3);
+    pi = NumericsPiRationalBounds(tolerance/2, partBudget);
+    lowerRoot = NumericsPositiveSqrtRationalBounds(
+        2*pi[:interval].Low(), tolerance, partBudget
+    );
+    upperRoot = NumericsPositiveSqrtRationalBounds(
+        2*pi[:interval].High(), tolerance, partBudget
+    );
+    interval = lowerRoot[:interval].Low():upperRoot[:interval].High();
+    iterations = pi[:iterations] + lowerRoot[:iterations] + upperRoot[:iterations];
+    ready = pi[:ready] && lowerRoot[:ready] && upperRoot[:ready];
+    {=
+        interval=interval,
+        ready=ready,
+        goalMet=ready && interval.Width() <= 2*tolerance,
+        iterations=iterations
+    };
+};
+
+NumericsSqrtPiRationalBounds(tolerance, maxIterations) -> {;
+    partBudget = .Max(0, maxIterations//3);
+    pi = NumericsPiRationalBounds(tolerance/2, partBudget);
+    lowerRoot = NumericsPositiveSqrtRationalBounds(
+        pi[:interval].Low(), tolerance/2, partBudget
+    );
+    upperRoot = NumericsPositiveSqrtRationalBounds(
+        pi[:interval].High(), tolerance/2, partBudget
+    );
+    interval = lowerRoot[:interval].Low():upperRoot[:interval].High();
+    iterations = pi[:iterations] + lowerRoot[:iterations] + upperRoot[:iterations];
+    ready = pi[:ready] && lowerRoot[:ready] && upperRoot[:ready];
+    {=
+        interval=interval,
+        ready=ready,
+        goalMet=ready && interval.Width() <= tolerance,
+        iterations=iterations
+    };
+};
+
+## Phi(x) = 1/2 + S(x)/sqrt(2*pi), where
+## S(x)=sum (-1)^k*x^(2k+1)/(2^k*k!*(2k+1)).
+NumericsNormalCDFWithRootRationalBounds(
+    value, tolerance, maxIterations, rootInterval
+) -> {;
+    exact = value ~!: :Rational;
     term := exact;
     sum := exact;
     index := 0;
@@ -948,8 +1017,7 @@ NumericsNormalCDFRationalBounds(value, tolerance, maxIterations) -> {;
       ?_ ((-2):2);
     interval := NumericsClampProbabilityInterval(1/2 + seriesInterval/rootInterval);
     seriesIterations := 0;
-    remaining = .Max(0, maxIterations-pi[:iterations]
-      -lowerRoot[:iterations]-upperRoot[:iterations]);
+    remaining = .Max(0, maxIterations);
     {@ step=1;
        @interval.Width() > @tolerance && @seriesIterations < @remaining;
        {;
@@ -969,14 +1037,28 @@ NumericsNormalCDFRationalBounds(value, tolerance, maxIterations) -> {;
        };
        step += 1
     };
-    iterations = pi[:iterations] + lowerRoot[:iterations]
-      + upperRoot[:iterations] + seriesIterations;
-    ready = pi[:ready] && lowerRoot[:ready] && upperRoot[:ready] && decreasing;
+    iterations = seriesIterations;
+    ready = decreasing;
     {=
         interval=interval,
         ready=ready,
         goalMet=ready && interval.Width() <= tolerance,
         iterations=iterations
+    };
+};
+
+NumericsNormalCDFRationalBounds(value, tolerance, maxIterations) -> {;
+    rootBudget = .Max(0, maxIterations//2);
+    root = NumericsNormalRootRationalBounds(tolerance/8, rootBudget);
+    series = NumericsNormalCDFWithRootRationalBounds(
+        value, tolerance, .Max(0, maxIterations-root[:iterations]), root[:interval]
+    );
+    {=
+        interval=series[:interval],
+        ready=root[:ready] && series[:ready],
+        goalMet=root[:ready] && series[:ready]
+          && series[:interval].Width() <= tolerance,
+        iterations=root[:iterations] + series[:iterations]
     };
 };
 
@@ -993,11 +1075,62 @@ NumericsNormalQuantilePointBounds(probability, tolerance, maxCalls, maxIteration
        {; @radius *= 2; @setupIterations += 1; };
        step += 1
     };
-    low := -radius;
-    high := radius;
-    calls := 0;
+    upperHalf = p > 1/2;
+    low := upperHalf ?: 0 ?_ -radius;
+    high := upperHalf ?: radius ?_ 0;
+    root = NumericsNormalRootRationalBounds(
+        .Min(tail/4, tolerance/16)/8, .Max(0, maxIterations//4)
+    );
+    rootInterval := root[:interval];
+    calls := root[:iterations];
     iterations := setupIterations;
-    certified := 1/(radius^2) < tail;
+    certified := 1/(radius^2) < tail && root[:ready];
+    cdfTolerance := .Min(tail/4, tolerance/16);
+    ## Probe small powers of two before ordinary bisection. Chebyshev still
+    ## supplies the certified outer endpoint, while these inexpensive CDF
+    ## comparisons avoid evaluating the alternating series first at a large
+    ## midpoint such as 4 or 8.
+    probe := upperHalf ?: 1 ?_ -1;
+    probing := probe.Abs() < radius;
+    {@ step=1;
+       @probing && @iterations < @maxIterations && @calls < @maxCalls
+         && @certified;
+       {;
+           remaining = .Max(1, .Min(@maxIterations-@iterations, @maxCalls-@calls));
+           cdf = NumericsNormalCDFWithRootRationalBounds(
+               @probe, @cdfTolerance, .Min(500, remaining), @rootInterval
+           );
+           @calls += cdf[:iterations];
+           @certified = cdf[:ready];
+           below = @certified && cdf[:interval].High() < @p;
+           above = @certified && cdf[:interval].Low() > @p;
+           @upperHalf
+             ?: (below
+                 ?: {;
+                     @low = @probe;
+                     nextProbe = 2*@probe;
+                     nextProbe < @high
+                       ?: {; @probe = @nextProbe; }
+                       ?_ {; @probing = _; };
+                 }
+                 ?_ (above
+                     ?: {; @high = @probe; @probing = _; }
+                     ?_ {; @probing = _; }))
+             ?_ (above
+                 ?: {;
+                     @high = @probe;
+                     nextProbe = 2*@probe;
+                     nextProbe > @low
+                       ?: {; @probe = @nextProbe; }
+                       ?_ {; @probing = _; };
+                 }
+                 ?_ (below
+                     ?: {; @low = @probe; @probing = _; }
+                     ?_ {; @probing = _; }));
+           @iterations += 1;
+       };
+       step += 1
+    };
     {@ step=1;
        @high-@low > @tolerance && @iterations < @maxIterations
          && @calls < @maxCalls && @certified;
@@ -1005,17 +1138,29 @@ NumericsNormalQuantilePointBounds(probability, tolerance, maxCalls, maxIteration
            midpoint = (@low+@high)/2;
            remaining = .Max(1, .Min(@maxIterations-@iterations, @maxCalls-@calls));
            evaluationBudget = .Min(500, remaining);
-           evaluationTolerance = 1/(2^(@iterations+8));
-           cdf = NumericsNormalCDFRationalBounds(
-               midpoint, evaluationTolerance, evaluationBudget
+           cdf = NumericsNormalCDFWithRootRationalBounds(
+               midpoint, @cdfTolerance, evaluationBudget, @rootInterval
            );
            @calls += cdf[:iterations];
            @certified = cdf[:ready];
-           (@certified && cdf[:interval].High() < @p)
-             ?: {; @low = @midpoint; }
-             ?_ ((@certified && cdf[:interval].Low() > @p)
-                 ?: {; @high = @midpoint; }
-                 ?_ _);
+           decidedLow = @certified && cdf[:interval].High() < @p;
+           decidedHigh = @certified && cdf[:interval].Low() > @p;
+           decidedLow
+             ?: {; @low = @midpoint; @cdfTolerance = .Min(@tail/4, @tolerance/16); }
+             ?_ (decidedHigh
+                 ?: {; @high = @midpoint; @cdfTolerance = .Min(@tail/4, @tolerance/16); }
+                 ?_ {;
+                     @cdfTolerance /= 4;
+                     rootBudget = .Max(0, .Min(
+                         @maxIterations-@iterations, @maxCalls-@calls
+                     ));
+                     tighterRoot = NumericsNormalRootRationalBounds(
+                         @cdfTolerance/8, rootBudget
+                     );
+                     @rootInterval = tighterRoot[:interval];
+                     @calls += tighterRoot[:iterations];
+                     @certified = @certified && tighterRoot[:ready];
+                 });
            @iterations += 1;
        };
        step += 1
@@ -1337,6 +1482,33 @@ NumericsGammaRefine(real, rawRequest, operation) -> {;
         {= calls=sourceCalls, iterations=0, maxCalls=maxCalls, exhausted=1 },
         :gammaPositiveDomainNotCertified
     );
+};
+
+NumericsGammaPositiveHalfRefine(real, rawRequest, operation) -> {;
+    capabilities = NumericsAlgorithmCapabilities(real);
+    request = .RefinementRequest(rawRequest, operation, capabilities);
+    requestedWidth = request[:absoluteWidth];
+    maxCalls = request[:work][:maxCalls];
+    maxIterations = request[:work][:maxIterations];
+    coefficient = real[:coefficient];
+    scale = .Max(1, coefficient.Abs());
+    bounds = NumericsSqrtPiRationalBounds(
+        requestedWidth/scale, .Min(maxCalls, maxIterations)
+    );
+    interval = coefficient*bounds[:interval];
+    goalMet = bounds[:ready] && interval.Width() <= requestedWidth;
+    NumericsElementaryResult(real, request, interval, {=
+        calls=bounds[:iterations],
+        iterations=bounds[:iterations],
+        maxCalls=maxCalls,
+        maxIterations=maxIterations,
+        exhausted=!goalMet
+    }, goalMet, {=
+        kind=:gammaPositiveHalfIdentity,
+        property=:containment,
+        identity="Gamma(k+1/2)=(1/2)_k*sqrt(pi)",
+        coefficient=coefficient
+    });
 };
 
 NumericsPolygammaRefine(real, rawRequest, operation) -> {;
@@ -1698,8 +1870,11 @@ NumericsBesselYRefine(real, rawRequest, operation) -> {;
         midpoint = @sourceInterval.Midpoint();
         radius = @sourceInterval.Width()/2;
         remaining = .Max(0, .Min(@maxIterations, @maxCalls-@sourceCalls));
+        pointTolerance = NumericsExactOracle(@real[:input])
+          ?: @requestedWidth
+          ?_ @requestedWidth/2;
         pointBounds = NumericsBesselYRationalBounds(
-            midpoint, @requestedWidth/2, remaining, @real[:kind]
+            midpoint, pointTolerance, remaining, @real[:kind]
         );
         derivativeBound = 3^(@sourceInterval.High().Abs().Ceil()+2)
           * (@sourceInterval.High().Abs()+1)^3 * (1 + 1/@sourceInterval.Low());
@@ -1748,7 +1923,7 @@ NumericsBesselIntegerRefine(real, rawRequest, operation) -> {;
         radius = @sourceInterval.Width()/2;
         remaining = .Max(0, .Min(@maxIterations, @maxCalls-@sourceCalls));
         pointBounds = NumericsBesselIntegerRationalBounds(
-            @real[:order], midpoint, @requestedWidth/2, remaining, @real[:family]
+            @real[:order], midpoint, @requestedWidth, remaining, @real[:family]
         );
         derivativeBound = @real[:family] == :besselJ
           ?: 1
@@ -1781,6 +1956,50 @@ NumericsBesselIntegerRefine(real, rawRequest, operation) -> {;
         {= calls=sourceCalls, iterations=0, maxCalls=maxCalls, exhausted=1 },
         :besselYPositiveDomainNotCertified
     );
+};
+
+NumericsNormalFunctionRefine(real, rawRequest, operation) -> {;
+    capabilities = NumericsAlgorithmCapabilities(real);
+    request = .RefinementRequest(rawRequest, operation, capabilities);
+    requestedWidth = request[:absoluteWidth];
+    maxCalls = request[:work][:maxCalls];
+    maxIterations = request[:work][:maxIterations];
+    sourceWidth = requestedWidth/4;
+    sourceBudget = .Max(0, maxCalls//3);
+    sourceResult = NumericsSourceResult(
+        real[:input], sourceWidth, sourceBudget, request[:trace]
+    );
+    sourceCalls = NumericsCalls(sourceResult);
+    sourceInterval = sourceResult[:interval];
+    midpoint = sourceInterval.Midpoint();
+    radius = sourceInterval.Width()/2;
+    remaining = .Max(0, .Min(maxIterations, maxCalls-sourceCalls));
+    pointBounds = real[:kind] == :normalPDF
+      ?: NumericsNormalPDFRationalBounds(midpoint, requestedWidth/2, remaining)
+      ?_ NumericsNormalCDFRationalBounds(midpoint, requestedWidth/2, remaining);
+    ## Both phi and Phi are globally 1-Lipschitz. This deliberately loose
+    ## bound keeps source refinement proportional to the outward request.
+    interval = NumericsClampProbabilityInterval(
+        (pointBounds[:interval].Low()-radius)
+          :(pointBounds[:interval].High()+radius)
+    );
+    iterations = pointBounds[:iterations];
+    calls = sourceCalls + iterations;
+    goalMet = pointBounds[:ready] && interval.Width() <= requestedWidth;
+    NumericsElementaryResult(real, request, interval, {=
+        calls=calls,
+        iterations=iterations,
+        maxCalls=maxCalls,
+        maxIterations=maxIterations,
+        sourceCalls=sourceCalls,
+        exhausted=!goalMet
+    }, goalMet, {=
+        kind=:directNormalRationalBounds,
+        property=:containment,
+        algorithm=real[:kind],
+        lipschitzBound=1,
+        source=sourceResult[:evidence]
+    });
 };
 
 NumericsNormalQuantileRefine(real, rawRequest, operation) -> {;
@@ -2090,6 +2309,30 @@ NumericsGammaAlgorithm(value) -> {;
     .ImmutableValue(real);
 };
 
+NumericsGammaPositiveHalfAlgorithm(coefficient, index) -> {;
+    real = {=
+        valueKind=:numericsAlgorithmReal,
+        schema="rix.numerics.algorithm-real@1",
+        kind=:gammaPositiveHalf,
+        coefficient=coefficient,
+        index=index,
+        evidenceLevel=:proof,
+        provenance={=
+            plugin=:numerics,
+            version=8,
+            algorithm=:gammaPositiveHalfIdentity,
+            coefficient=coefficient,
+            index=index
+        }
+    };
+    real._proto = {=
+        Enclose=(self, request ?= {= })->NumericsGammaPositiveHalfRefine(self, request, :enclose),
+        Refine=(self, request ?= {= })->NumericsGammaPositiveHalfRefine(self, request, :refine),
+        NumericsCapabilities=(self)->NumericsAlgorithmCapabilities(self)
+    };
+    .ImmutableValue(real);
+};
+
 NumericsPolygammaAlgorithm(value, kind) -> {;
     source = .oracle.From(value);
     real = {=
@@ -2231,6 +2474,30 @@ NumericsBesselIntegerAlgorithm(order, value, family) -> {;
     .ImmutableValue(real);
 };
 
+NumericsNormalFunctionAlgorithm(value, kind) -> {;
+    source = .oracle.From(value);
+    real = {=
+        valueKind=:numericsAlgorithmReal,
+        schema="rix.numerics.algorithm-real@1",
+        kind=kind,
+        input=source,
+        evidenceLevel=:proof,
+        provenance={=
+            plugin=:numerics,
+            version=8,
+            algorithm=:directNormalRationalBounds,
+            function=kind,
+            source=value
+        }
+    };
+    real._proto = {=
+        Enclose=(self, request ?= {= })->NumericsNormalFunctionRefine(self, request, :enclose),
+        Refine=(self, request ?= {= })->NumericsNormalFunctionRefine(self, request, :refine),
+        NumericsCapabilities=(self)->NumericsAlgorithmCapabilities(self)
+    };
+    .ImmutableValue(real);
+};
+
 NumericsNormalQuantileAlgorithm(probability) -> {;
     source = .oracle.From(probability);
     real = {=
@@ -2358,12 +2625,9 @@ NumericsDegrees(value) -> value * 180 / NumericsPiAlgorithm();
 NumericsErf(value) -> 2 * NumericsSpecialSeriesAlgorithm(value, :erfCore)
   / NumericsNthRoot(NumericsPiAlgorithm(), 2);
 
-NumericsNormalPDF(value) -> NumericsNaturalExp(-(value^2)/2)
-  / NumericsNthRoot(2*NumericsPiAlgorithm(), 2);
+NumericsNormalPDF(value) -> NumericsNormalFunctionAlgorithm(value, :normalPDF);
 
-NumericsNormalCDF(value) -> (1 + NumericsErf(
-    value / NumericsNthRoot(2, 2)
-)) / 2;
+NumericsNormalCDF(value) -> NumericsNormalFunctionAlgorithm(value, :normalCDF);
 
 NumericsNormalQuantile(probability) -> {;
     exact = probability ~: :Rational;
@@ -2423,7 +2687,42 @@ NumericsBesselY(order, value) -> {;
 
 NumericsLogGamma(value) -> NumericsLogGammaAlgorithm(value);
 
-NumericsGamma(value) -> NumericsGammaAlgorithm(value);
+NumericsGammaPositiveIntegerIdentity(value) -> {;
+    integer = value ~!: :Integer;
+    result := 1;
+    {@ factor=2; factor < @integer;
+       {; @result *= factor; };
+       factor += 1
+    };
+    .oracle.Rational(result);
+};
+
+NumericsGammaPositiveHalfIdentity(index) -> {;
+    count = index ~!: :Integer;
+    coefficient := 1;
+    {@ term=0; term < @count;
+       {; @coefficient *= term + 1/2; };
+       term += 1
+    };
+    NumericsGammaPositiveHalfAlgorithm(coefficient, count);
+};
+
+NumericsGamma(value) -> {;
+    exactScalar = (value ? :Integer) || (value ? :Rational);
+    exact = exactScalar ?: value ~!: :Rational ?_ _;
+    exact == _
+      ?: NumericsGammaAlgorithm(value)
+      ?_ {;
+          integer = @exact.Denominator() == 1 ?: @exact.Numerator() ?_ _;
+          halfOffset = @exact-1/2;
+          halfIndex = halfOffset.Denominator() == 1 ?: halfOffset.Numerator() ?_ _;
+          (integer != _ && integer > 0)
+            ?: NumericsGammaPositiveIntegerIdentity(integer)
+            ?_ ((halfIndex != _ && halfIndex >= 0)
+                ?: NumericsGammaPositiveHalfIdentity(halfIndex)
+                ?_ NumericsGammaAlgorithm(@value));
+      };
+};
 
 NumericsExactBeta(x, y) -> {;
     left = x ~: :Integer;

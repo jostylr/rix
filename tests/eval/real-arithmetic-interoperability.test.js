@@ -422,13 +422,24 @@ describe("universal Numerics algorithm reals", () => {
         const result = parseAndEvaluate(`
             .Plugin.Load("numerics");
             .Plugin.Load("algebraic-real");
-            .numerics.Refine(.numerics.Exp(.ar.Sqrt2()), {=
-                absoluteWidth=1/1000, maxWork=300
-            })
+            {:
+                .numerics.Refine(.numerics.Exp(.ar.Sqrt2()), {=
+                    absoluteWidth=1/1000, maxWork=300
+                }),
+                .numerics.Refine(.numerics.NormalPDF(.ar.Sqrt2()), {=
+                    absoluteWidth=1/1000, maxWork=600
+                }),
+                .numerics.Refine(.numerics.NormalCDF(.ar.Sqrt2()), {=
+                    absoluteWidth=1/1000, maxWork=600
+                })
+            }
         `, options);
-        expect(text(entry(result, "status"))).toBe("enclosed");
-        expect(entry(result, "interval").low.greaterThan(parseAndEvaluate("4", options).toRational())).toBe(true);
-        expect(entry(result, "interval").high.lessThan(parseAndEvaluate("5", options).toRational())).toBe(true);
+        expect(result.values.map((value) => text(entry(value, "status"))))
+            .toEqual(["enclosed", "enclosed", "enclosed"]);
+        expect(entry(result.values[0], "interval").low.greaterThan(parseAndEvaluate("4", options).toRational())).toBe(true);
+        expect(entry(result.values[0], "interval").high.lessThan(parseAndEvaluate("5", options).toRational())).toBe(true);
+        expect(contains(entry(result.values[1], "interval"), parseAndEvaluate("1467/10000", options))).toBe(true);
+        expect(contains(entry(result.values[2], "interval"), parseAndEvaluate("9213/10000", options))).toBe(true);
     });
 
     test("geometry and polygamma algorithms consume unrelated certified real providers", () => {
