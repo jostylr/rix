@@ -73,6 +73,17 @@ describe("portable RiX language service", () => {
         expect(completionAt(analysis, SOURCE.length).map(({ label }) => label)).toContain("total");
     });
 
+    test("indexes lexical plugin selections as local function declarations", () => {
+        const source = '.Plugin.Load("numerics"); .numerics[:Exp, :Log]; Exp(1);';
+        const analysis = analyzeRixDocument(source);
+        expect(analysis.symbols.find(({ name }) => name === "EXP")).toMatchObject({
+            kind: "function",
+            detail: "lexically imported plugin function",
+        });
+        const useOffset = source.lastIndexOf("Exp") + 1;
+        expect(definitionsAt(analysis, useOffset)).toHaveLength(1);
+    });
+
     test("discovers inline checks with stable source ranges", () => {
         const analysis = analyzeRixDocument(SOURCE);
         expect(analysis.checks).toHaveLength(1);

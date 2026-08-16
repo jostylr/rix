@@ -12,10 +12,15 @@ import { keyOf, canonicalizeMetaKey } from "./keyof.js";
 import { Cell } from "../../runtime/cell.js";
 import { isShaped, shapedAssignBySelectors, shapedGetBySelectors } from "../../runtime/shaped.js";
 import { isFormulaSheet } from "../../runtime/formula-sheet.js";
-import { getBuiltinProto } from "../../runtime/methods.js";
+import { getBuiltinProto, resolveMethod } from "../../runtime/methods.js";
+import {
+    createBoundPluginMethod,
+    pluginNamespaceInfo,
+} from "../../runtime/plugin-imports.js";
 import { createTraitSet, rebuildSemanticMetadata } from "../../runtime/semantic.js";
 import { getNamedMultifunctionVariant, isMultifunctionValue } from "../../runtime/multifunction.js";
 import { ensureLazyIndex, isLazySequence, lazyKnownLength, materializeLazySequence } from "../../runtime/lazy-sequence.js";
+import { normalizeCapabilityName } from "../../runtime/system-context.js";
 
 /**
  * Convert a key value to a numeric index.
@@ -267,7 +272,8 @@ export function indexGetResolved(obj, key) {
 
     // Callable types — arity-cap syntax: fn[n]
     if (obj && (obj.type === "function" || obj.type === "lambda" ||
-                obj.type === "sysref" || obj.type === "partial" || obj.type === "arityCap")) {
+                obj.type === "sysref" || obj.type === "partial" || obj.type === "arityCap" ||
+                obj.type === "bound_method")) {
         let n;
         try { n = toInteger(key); } catch (_) {
             throw new Error("Arity cap must be a non-negative integer");
@@ -363,6 +369,77 @@ function decodeBracketSpec(specNode, evaluate) {
 }
 
 export const propertyFunctions = {
+    PLUGIN_IMPORT: {
+        impl(args, context) {
+            const target = args[0];
+            const requested = args[1];
+            const info = pluginNamespaceInfo(target);
+            if (!info) {
+                if (Array.isArray(requested) && requested.length === 1) {
+                    return indexGetResolved(target, normalizeCapabilityName(requested[0]));
+                }
+                throw new Error("Lexical plugin selection requires a dotted plugin namespace");
+            }
+            if (!info.loaded) {
+                throw new Error(`Plugin '${info.pluginId}' is available but not loaded; call .Plugin.Load("${info.pluginId}") first`);
+            }
+            if (!Array.isArray(requested) || requested.length === 0) {
+                throw new Error("A lexical plugin selection requires at least one export");
+            }
+
+            const available = new Map(info.exports.map((name) => [String(name).toUpperCase(), String(name)]));
+            const selected = requested.map((sourceName) => {
+                const exportedName = available.get(String(sourceName).toUpperCase());
+                if (!exportedName) {
+                    throw new Error(
+                        `Plugin '${info.pluginId}' does not export '${sourceName}'; available exports: ${info.exports.join(", ")}`,
+                    );
+                }
+                return {
+                    exportedName,
+                    localName: normalizeCapabilityName(sourceName),
+                };
+            });
+            if (new Set(selected.map(({ exportedName }) => exportedName.toUpperCase())).size !== selected.length) {
+                throw new Error(`Plugin '${info.pluginId}' lexical selection contains a duplicate export`);
+            }
+
+            const systemContext = context.getEnv?.("__system_context__", null);
+            const bindings = selected.map(({ exportedName: name, localName }) => {
+                if (context.getImmediateCell(localName)) {
+                    throw new Error(`Cannot import plugin export '${name}': the current scope already defines '${name}'`);
+                }
+                let method = null;
+                if (info.namespaceAvailable && target?.type !== "sysref") {
+                    try {
+                        method = resolveMethod(target, name, context);
+                    } catch (_error) {
+                        method = null;
+                    }
+                }
+                if (method) {
+                    return {
+                        localName,
+                        value: createBoundPluginMethod(target, name, info.pluginId),
+                    };
+                }
+                const capability = systemContext?.get?.(name);
+                if (capability?.kind === "function" && capability.pluginDisabled !== true) {
+                    return { localName, value: { type: "sysref", name } };
+                }
+                if (target?.type === "sysref" && selected.length === 1) {
+                    return { localName, value: target };
+                }
+                throw new Error(`Plugin '${info.pluginId}' declares export '${name}' but does not implement it`);
+            });
+            for (const binding of bindings) {
+                context.setFresh(binding.localName, binding.value);
+            }
+            return target;
+        },
+        doc: "Import selected plugin exports as bare callables in the current lexical scope",
+    },
+
     META_GET: {
         impl(args) {
             const obj = args[0];

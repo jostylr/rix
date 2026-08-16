@@ -1827,6 +1827,7 @@ export function isCallableValue(value) {
                 value.type === "partial" ||
                 value.type === "arityCap" ||
                 value.type === "method_lift" ||
+                value.type === "bound_method" ||
                 value.type === "method_builtin")) ||
         isUnitValue(value) ||
         isExactValue(value)

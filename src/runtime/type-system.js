@@ -75,7 +75,8 @@ function isCallable(value) {
         value.type === "function" ||
         value.type === "lambda" ||
         value.type === "sysref" ||
-        value.type === "partial"
+        value.type === "partial" ||
+        value.type === "bound_method"
     );
 }
 

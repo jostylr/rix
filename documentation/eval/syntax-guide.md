@@ -782,6 +782,23 @@ Errors:
 - Malformed specs such as `< a~~x >`, `< a==x >`, or `< a~x, >` are errors
 - A header only has meaning in the top-of-block position for supported scoped blocks
 
+### Lexical Plugin Export Selection
+
+After a plugin is loaded, select manifest-declared exports from its dotted
+namespace with colon names:
+
+```rix
+.Plugin.Load("numerics");
+.numerics[:Exp, :Log, :Pow];
+Exp(3, 4)
+```
+
+This creates ordinary bare callable bindings in the immediate lexical scope.
+At top level they last for the script or REPL session. Inside `{; ... }`, a
+function body, or another scope, they disappear when that scope exits. Existing
+immediate bindings are never overwritten, the whole selection fails if any
+name is invalid, and required-plugin exports are not imported automatically.
+
 ### Script Import Expressions
 
 Script execution uses the angle-call form:

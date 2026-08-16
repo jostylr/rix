@@ -1806,6 +1806,17 @@ async function invokeCallableAsync(fn, callArgs, context, registry, systemContex
             state,
         );
     }
+    if (fn.type === "bound_method") {
+        return invokeMethodAsync(
+            fn.target,
+            fn.methodName,
+            callArgs,
+            context,
+            registry,
+            systemContext,
+            state,
+        );
+    }
     if (fn.type === "function" || fn.type === "lambda") {
         return invokeUserCallableAsync(fn, callArgs, context, registry, systemContext, state);
     }
@@ -3229,7 +3240,7 @@ async function evaluateAsyncResolvedBarrier(irNode, context, registry, systemCon
 
 function isAsyncCallableValue(value) {
     return typeof value === "function" || [
-        "function", "lambda", "partial", "sysref", "arityCap", "multifunction",
+        "function", "lambda", "partial", "sysref", "arityCap", "multifunction", "bound_method",
     ].includes(value?.type);
 }
 

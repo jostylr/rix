@@ -887,6 +887,17 @@ describe("Lowering Pass", () => {
       expect(ir.args[1]).toBe("1");
     });
 
+    test(".plugin[:One, :Two] → lexical plugin import selection", () => {
+      const ir = L(".numerics[:Exp, :Log];");
+      expect(ir).toEqual({
+        fn: "PLUGIN_IMPORT",
+        args: [
+          { fn: "SYS_GET", args: ["numerics"] },
+          ["Exp", "Log"],
+        ],
+      });
+    });
+
     test("obj.. → META_ALL", () => {
       const ir = L("obj..;");
       expect(ir.fn).toBe("META_ALL");

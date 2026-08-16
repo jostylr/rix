@@ -12,6 +12,7 @@ import {
     extractOperatorDeclarationsFromSource,
     mergeOperatorDefinitions,
 } from "../parser/custom-operators.js";
+import { registerPluginNamespace } from "./plugin-imports.js";
 
 const CUSTOM_OPERATOR_ENV_KEY = "__custom_operator_definitions__";
 
@@ -201,7 +202,35 @@ function descriptorValue(metadata) {
         entries.set(displayName, method);
         extension.set(displayName.toUpperCase(), method);
     }
-    return { type: "map", entries, _ext: extension };
+    return registerPluginNamespace(
+        { type: "map", entries, _ext: extension },
+        {
+            pluginId: metadata.id,
+            mount: metadata.mount,
+            exports: metadata.exports,
+            loaded: false,
+            namespaceAvailable: false,
+        },
+    );
+}
+
+function capabilityValue(systemContext, name) {
+    const entry = name ? systemContext?.get?.(name) : null;
+    if (!entry) return null;
+    return Object.prototype.hasOwnProperty.call(entry, "value") ? entry.value : entry;
+}
+
+function registerLoadedNamespace(systemContext, metadata, mount) {
+    const entry = mount ? systemContext?.get?.(mount) : null;
+    const value = capabilityValue(systemContext, mount);
+    if (!value) return;
+    registerPluginNamespace(value, {
+        pluginId: metadata.id,
+        mount,
+        exports: metadata.exports,
+        loaded: true,
+        namespaceAvailable: entry?.pluginDisabled !== true,
+    });
 }
 
 function optionMap(value) {
@@ -404,6 +433,7 @@ export class PluginCatalog {
                 }
             }
             installOperatorDefinitions(runtime.context, metadata.operatorDefinitions, metadata, mount);
+            registerLoadedNamespace(runtime.systemContext, metadata, mount);
             this.loaded.set(metadata.id, { metadata, mount, aliases });
             return this.infoValue(metadata);
         } finally {
@@ -529,6 +559,7 @@ export class PluginCatalog {
             }
         }
         installOperatorDefinitions(runtime.context, metadata.operatorDefinitions, metadata, mount);
+        registerLoadedNamespace(runtime.systemContext, metadata, mount);
         this.loaded.set(metadata.id, { metadata, mount, aliases });
         return this.infoValue(metadata);
     }

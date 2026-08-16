@@ -102,14 +102,20 @@ Rationals become exact leaves of the family. Operations between different
 families produce Oracle recipes. Float never participates in this implicit
 promotion and must be constructed explicitly on every operand.
 
-For a shorter interactive prefix, remount when loading:
+Select the functions a script wants to call without a namespace prefix:
 
 ```rix
-.Plugin.Load("numerics", {= as="n" });
-.n.Log2(8);
+.Plugin.Load("numerics");
+.numerics[:Pow, :Exp, :Log, :Log2];
+
+Exp(3, 4);  ## 64
+Log2(8);
 ```
 
-RiX does not yet have a lexical `use`/open-import form that would make selected
-plugin members available without a mount prefix.
+The selected names are ordinary bindings in the immediate lexical scope. A
+top-level selection lasts for the script or REPL session; a selection inside a
+block disappears when that block exits. The `.numerics` mount remains available
+in either case. Remounting with `.Plugin.Load("numerics", {= as="n" })` is still
+available when a shorter namespace is preferable.
 
 See [tutorial.md](tutorial.md).

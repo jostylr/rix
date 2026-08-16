@@ -383,6 +383,14 @@ function importLocalName(spec) {
     return spec?.local || spec?.name || spec?.target || null;
 }
 
+function normalizePluginImportName(name) {
+    const source = String(name || "");
+    const firstLetter = Array.from(source).find((character) => /\p{L}/u.test(character));
+    return firstLetter && firstLetter === firstLetter.toUpperCase()
+        ? source.toUpperCase()
+        : source.toLowerCase();
+}
+
 function assignmentDetails(node) {
     const expression = statementExpression(node);
     if (expression?.type !== "BinaryOperation") return null;
@@ -915,6 +923,18 @@ export function analyzeRix(source, options = {}) {
                     `'@${node.name}' explicitly requests an enclosing binding, but none is visible.`,
                     `Declare or import '${node.name}' in an enclosing scope, or remove the reference.`,
                 );
+            }
+            return;
+        }
+
+        if (node.type === "PluginImportSelection") {
+            visit(node.object, scope, { ...state, role: "value", tail: false, discarded: false });
+            for (const name of node.names || []) {
+                scope.declare(normalizePluginImportName(name), {
+                    node,
+                    imported: true,
+                    valueKind: "function",
+                });
             }
             return;
         }

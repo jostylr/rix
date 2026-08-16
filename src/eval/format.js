@@ -509,6 +509,9 @@ export function formatValue(val, options = {}) {
         if (val.type === "method_lift") {
             return `[..${val.methodName}]`;
         }
+        if (val.type === "bound_method") {
+            return `[PluginFunction: ${val.pluginId}.${val.methodName}]`;
+        }
         if (val.type === "interval") {
             return `${val.start || val.lo}:${val.end || val.hi}`;
         }

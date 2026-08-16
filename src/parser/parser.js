@@ -1292,6 +1292,42 @@ class Parser {
         original: left.original + operator.original,
       });
     } else if (operator.value === "[" && symbolInfo.type === "postfix") {
+      // A dotted plugin namespace may select exports for lexical import:
+      // `.numerics[:Exp, :Log]`. Runtime metadata decides whether the dotted
+      // value is actually a loaded plugin; parsing only retains the explicit
+      // colon-name selector and its source spelling.
+      if (
+        left.type === "SystemAccess" &&
+        /^[a-z]/.test(left.property) &&
+        this.current.value === ":" &&
+        this.peek().type === "Identifier"
+      ) {
+        const names = [];
+        do {
+          this.advance(); // consume ':'
+          if (this.current.type !== "Identifier") {
+            this.error("Plugin import selectors must be colon-prefixed identifiers");
+          }
+          names.push(this.current.original);
+          this.advance();
+          if (this.current.value !== ",") break;
+          this.advance();
+          if (this.current.value !== ":") {
+            this.error("Plugin import selectors must each begin with ':'");
+          }
+        } while (this.current.type !== "End");
+        if (this.current.value !== "]") {
+          this.error("Expected ] after plugin import selectors");
+        }
+        this.advance();
+        return this.createNode("PluginImportSelection", {
+          object: left,
+          names,
+          pos: left.pos,
+          original: left.original + operator.original,
+        });
+      }
+
       // Check for key literal syntax: obj[:name], obj[:1], obj[:"1"]
       if (
         this.current.value === ":" &&

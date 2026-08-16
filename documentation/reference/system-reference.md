@@ -8,7 +8,7 @@ toc-depth: 2
 This page is generated from the current RiX implementation by `documentation/scripts/generate-reference.js`. Do not edit it by hand. Descriptions come from registry documentation strings; the narrative [syntax guide](../eval/syntax-guide.md) and [methods guide](../eval/methods-guide.md) provide signatures and examples.
 :::
 
-At this revision RiX exposes **242 named entries** on the default system context and registers **225 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
+At this revision RiX exposes **242 named entries** on the default system context and registers **226 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
 
 ## Public system context
 
@@ -522,6 +522,7 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `PIPE` | lazy, effectful/unspecified | Pipe a value into a function |
 | `PIPE_EXPLICIT` | lazy, effectful/unspecified | Explicit pipe operator — placeholders \_1, \_2, … map tuple elements to specific argument positions |
 | `PLACEHOLDER` | eager, pure | Numbered placeholder for partial application and explicit pipes |
+| `PLUGIN_IMPORT` | eager, effectful/unspecified | Import selected plugin exports as bare callables in the current lexical scope |
 | `PMAP` | lazy, effectful/unspecified | Map a function over a collection — callback receives (val, locator, src) |
 | `POW` | eager, pure, multifunction | Exponentiation |
 | `POWPROD` | eager, pure, multifunction | Exponentiation/product power (currently same implementation as POW) |

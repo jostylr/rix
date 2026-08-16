@@ -93,6 +93,34 @@ A rename is principally intended for a REPL or a
 plugin-selection prelude because a complete script is statically checked before
 its first expression executes.
 
+After loading, a plugin namespace can selectively open declared exports as
+ordinary lexical callables:
+
+```rix
+.Plugin.Load("numerics");
+.numerics[:Pow, :Exp, :Log];
+
+value := Exp(3, 4);       ## 64
+```
+
+The colon names must appear in the plugin manifest's `exports` list. Selection
+is atomic and refuses to replace a binding already present in the immediate
+scope. At script top level the bare names remain available for that script or
+REPL session. Selection inside a block is local to that block:
+
+```rix
+.Plugin.Load("numerics");
+answer := {;
+    .numerics[:Pow];
+    Pow(27/8, 2/3)
+};
+## Pow is not defined here.
+```
+
+Plugin activation and namespace mounting remain host-level and idempotent; only
+the selected bare bindings are lexical. Dependencies are not opened
+implicitly.
+
 The CLI also resolves manifest `groups` as selectors. For example,
 `rix --plugins=renderers` loads every discovered member of the `Renderers`
 group, while `rix setup --plugins=renderers` makes that selection the default

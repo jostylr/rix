@@ -90,6 +90,29 @@ operator-files:
         expect(options.systemContext.getCapabilityGroups().Examples).toContain("echo");
     });
 
+    test("selects plugin exports into the immediate lexical scope", () => {
+        const options = runtime(new NodePluginCatalog({ roots: [fixtureRoot] }).scan());
+
+        expect(evaluate('.Plugin.Load("echo"); .echo[:Echo]; Echo(7)', options).value).toBe(7n);
+        expect(evaluate("Echo(8)", options).value).toBe(8n);
+
+        const localOptions = runtime(new NodePluginCatalog({ roots: [fixtureRoot] }).scan());
+        expect(evaluate('.Plugin.Load("echo"); {; .echo[:Echo]; Echo(9) }', localOptions).value).toBe(9n);
+        expect(() => evaluate("Echo(10)", localOptions)).toThrow("Undefined identifier: ECHO");
+    });
+
+    test("plugin export selection is explicit, collision-safe, and atomic", () => {
+        const unloaded = runtime(new NodePluginCatalog({ roots: [fixtureRoot] }).scan());
+        expect(() => evaluate(".echo[:Echo]", unloaded)).toThrow("available but not loaded");
+
+        const options = runtime(new NodePluginCatalog({ roots: [fixtureRoot] }).scan());
+        evaluate('.Plugin.Load("echo")', options);
+        expect(() => evaluate(".echo[:Missing]", options)).toThrow("does not export 'Missing'");
+        expect(() => evaluate(".echo[:Echo, :Echo]", options)).toThrow("duplicate export");
+        expect(() => evaluate("Echo = x -> x + 1; .echo[:Echo]", options)).toThrow("already defines 'Echo'");
+        expect(evaluate("Echo(2)", options).value).toBe(3n);
+    });
+
     test("awaits pure RiX plugin activation and its dependencies during async evaluation", async () => {
         const context = new Context();
         const registry = createDefaultRegistry();
@@ -110,6 +133,12 @@ operator-files:
             ];
         `, options);
         expect(loaded.values.map((value) => value.value)).toEqual([1n, 1n]);
+
+        const selected = await parseAndEvaluateAsync(`
+            .fraction[:Fraction];
+            Fraction(6, 8)
+        `, options);
+        expect(String(selected)).toBe("6/8");
     });
 
     test("host plugins are listed but require an explicitly host-approved installer", () => {
@@ -164,6 +193,7 @@ operator-files:
         expect(options.systemContext.has("echo")).toBe(false);
         expect(options.systemContext.has("echoAlt")).toBe(true);
         expect(evaluate('.Plugin.Info("echo").Get("mount")', options).value).toBe("echoAlt");
+        expect(evaluate('.echoAlt[:Echo]; Echo(9)', options).value).toBe(9n);
     });
 
     test("loads required services once and mounts manifest aliases on the same capability", () => {
@@ -217,8 +247,12 @@ operator-files:
         expect(evaluate('.arrayJs.Describe([2, 3, 5])', options)).toEqual({ type: "string", value: "count 3; sum 10" });
         expect(evaluate('.arrayJs.Reverse([2, 3, 5])', options).values.map((value) => value.value)).toEqual([5n, 3n, 2n]);
 
+        expect(evaluate('.arrayJs[:Sum, :Reverse]; Sum([2, 3, 5])', options).value).toBe(10n);
+        expect(evaluate('Reverse([2, 3, 5])', options).values.map((value) => value.value)).toEqual([5n, 3n, 2n]);
+
         expect(evaluate('.Plugin.Load("example-array-rix"); .arrayRixSum([2, 3, 5])', options).value).toBe(10n);
         expect(evaluate('.arrayRixDescribe([2, 3, 5])', options)).toEqual({ type: "string", value: "count 3; sum 10" });
         expect(evaluate('.arrayRixReverse([2, 3, 5])', options).values.map((value) => value.value)).toEqual([5n, 3n, 2n]);
+        expect(evaluate('.arrayRix[:ArrayRixSum]; ArrayRixSum([2, 3, 5])', options).value).toBe(10n);
     });
 });

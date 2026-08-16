@@ -1009,6 +1009,10 @@ const LOWERERS = {
     );
   },
 
+  PluginImportSelection(node) {
+    return ir("PLUGIN_IMPORT", lowerNode(node.object), node.names);
+  },
+
   ExternalAccess(node) {
     // node.property === null always now (a..name is parse error)
     return ir("META_ALL", lowerNode(node.object));

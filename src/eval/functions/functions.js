@@ -37,6 +37,7 @@ import {
     PIPE_SKIP,
 } from "../../runtime/expected-error.js";
 import { UNDECIDED, decisionState } from "../../runtime/decision.js";
+import { resolveMethod } from "../../runtime/methods.js";
 
 const isTruthy = (val) => decisionState(val) === "truth";
 
@@ -381,6 +382,16 @@ export function callWithConcreteArgs(fn, callArgs, context, evaluate) {
         return fn.invokeSync(callArgs, context, evaluate);
     }
 
+    if (fn.type === "bound_method") {
+        const method = resolveMethod(fn.target, fn.methodName, context);
+        if (!method) {
+            throw new Error(`Plugin export '${fn.methodName}' is no longer available`);
+        }
+        return method.type === "method_builtin"
+            ? method.impl([fn.target, ...callArgs], context, evaluate, callWithConcreteArgs)
+            : callWithConcreteArgs(method, [fn.target, ...callArgs], context, evaluate);
+    }
+
     if (isSymbolicSpec(fn)) {
         return applySymbolicSpec(fn, callArgs);
     }
@@ -457,6 +468,9 @@ function invokeTraversalCallback(func, callArgs, context, evaluate) {
     if (func && func.type === "method_lift") {
         return callWithConcreteArgs(func, [callArgs[0]], context, evaluate);
     }
+    if (func && func.type === "bound_method") {
+        return callWithConcreteArgs(func, callArgs, context, evaluate);
+    }
     if (func && func.type === "sysref") {
         return callWithConcreteArgs(func, callArgs, context, evaluate);
     }
@@ -510,6 +524,10 @@ export const functionFunctions = {
                 return callWithConcreteArgs(funcDef, callArgs, context, evaluate);
             }
 
+            if (funcDef.type === "bound_method") {
+                return callWithConcreteArgs(funcDef, evaluateArgs(argNodes, evaluate), context, evaluate);
+            }
+
             // If it's a user-defined function (FUNCDEF or LAMBDA result)
             if (funcDef.type === "function" || funcDef.type === "lambda") {
                 // Evaluate arguments (user functions are NOT lazy by default for now)
@@ -524,8 +542,7 @@ export const functionFunctions = {
 
             // If it's a sysref (system function reference)
             if (funcDef.type === "sysref") {
-                // Evaluate as system function
-                return evaluate({ fn: funcDef.name, args: argNodes });
+                return callWithConcreteArgs(funcDef, evaluateArgs(argNodes, evaluate), context, evaluate);
             }
 
             // If it's a native JS function (from packages)

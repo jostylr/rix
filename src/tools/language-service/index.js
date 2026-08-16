@@ -103,6 +103,7 @@ function matchingClose(tokens, openIndex, open = "(", close = ")") {
 function declarationKind(tokens, index) {
     const token = tokens[index];
     if (!isIdentifier(token)) return null;
+    if (isPluginImportSelector(tokens, index)) return "function";
     if (tokens[index + 1]?.value === "(") {
         const close = matchingClose(tokens, index + 1);
         if (close > 0 && ["->", "=>", "^=>"].includes(tokens[close + 1]?.value)) return "function";
@@ -112,6 +113,16 @@ function declarationKind(tokens, index) {
         return token.kind === "System" ? "function" : "variable";
     }
     return null;
+}
+
+function isPluginImportSelector(tokens, index) {
+    if (tokens[index - 1]?.value !== ":") return false;
+    for (let cursor = index - 2; cursor >= 0; cursor--) {
+        if (tokens[cursor]?.value === "]") return false;
+        if (tokens[cursor]?.value !== "[") continue;
+        return tokens[cursor - 2]?.value === "." && tokens[cursor - 1]?.type === "Identifier";
+    }
+    return false;
 }
 
 function buildSymbolIndex(source, tokens) {
@@ -125,12 +136,15 @@ function buildSymbolIndex(source, tokens) {
         const range = tokenRange(token);
         const kind = declarationKind(tokens, index);
         if (kind) {
+            const pluginImport = isPluginImportSelector(tokens, index);
             const symbol = {
                 name: identifierName(token),
                 kind,
                 range,
                 selectionRange: range,
-                detail: kind === "reactive" ? "reactive cell" : `RiX ${kind}`,
+                detail: pluginImport
+                    ? "lexically imported plugin function"
+                    : kind === "reactive" ? "reactive cell" : `RiX ${kind}`,
             };
             declarations.push(symbol);
             declarationOffsets.add(range.start);

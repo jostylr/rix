@@ -241,6 +241,19 @@ describe("universal Numerics algorithm reals", () => {
         }
     });
 
+    test("Numerics exports can be opened lexically without entering the system namespace", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("numerics");
+            .numerics[:Pow, :Exp, :Log2];
+            {: Pow(4, 3), Exp(3, 4), Log2(8) }
+        `, options);
+        expect(result.values[0].value).toBe(64n);
+        expect(result.values[1].value).toBe(64n);
+        expect(entry(result.values[2], "kind").value).toBe("arithmetic");
+        expect(options.systemContext.has("Exp")).toBe(false);
+    });
+
     test("elementary algorithms consume unrelated certified real providers", () => {
         const options = runtime();
         const result = parseAndEvaluate(`
