@@ -118,6 +118,10 @@ The same plugin supplies certified special-function algorithms:
 
 - `EulerGamma()`, `Gamma`, and `LogGamma` use harmonic and
   Stirling–Robbins bounds; Gamma currently has a positive-real domain.
+- `Beta`, `LogBeta`, `Digamma`, and `Trigamma` certify positive-real inputs.
+  Beta uses exact positive-integer values and the `Beta(1/2,1/2)=Pi()` identity
+  when available; the general path uses Euler's rational product with a
+  certified omitted-product tail bound.
 - `Erf`/`Erfc` use an alternating entire series.
 - `LambertW(x)` selects the principal real branch and `LambertW(x,-1)` the
   lower branch, both by certified monotone bisection.
@@ -126,6 +130,11 @@ The same plugin supplies certified special-function algorithms:
   positive real arguments. Calculator-facing code should load the `bessel`
   plugin and use `.bessel.J0`, `.bessel.J1`, `.bessel.Y0`, and `.bessel.Y1`.
 - `Zeta` uses Euler–Maclaurin bounds for real arguments greater than one.
+
+`Hypot(x,y)` composes the universal root and arithmetic protocols.
+`Atan2(y,x)` certifies the quadrant without converting either input to Float;
+its range is `-pi < angle <= pi`, with `pi` on the negative horizontal axis
+and a structured `:unknown` result at the undefined origin.
 
 When a restricted domain cannot be certified, refinement returns structured
 `:unknown` evidence rather than sampling a Float or claiming a real value.

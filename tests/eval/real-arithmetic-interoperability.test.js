@@ -318,6 +318,52 @@ describe("universal Numerics algorithm reals", () => {
         }
     });
 
+    test("certified calculator geometry and Gamma-family functions expose values and domains", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("numerics");
+            Refined = (value, work ?= 600) -> .numerics.Refine(value, {=
+                absoluteWidth=1/1000, maxWork=work
+            });
+            {:
+                Refined(.numerics.Hypot(3, 4)),
+                Refined(.numerics.Atan2(1, 0)),
+                Refined(.numerics.Atan2(0, -1)),
+                Refined(.numerics.Atan2(-1, 0)),
+                Refined(.numerics.Atan2(1, 1)),
+                Refined(.numerics.Beta(2, 3)),
+                Refined(.numerics.Beta(1/2, 1/2)),
+                Refined(.numerics.Beta(1/3, 2/3), 1200),
+                Refined(.numerics.LogBeta(2, 3)),
+                Refined(.numerics.Digamma(1)),
+                Refined(.numerics.Digamma(2)),
+                Refined(.numerics.Trigamma(1))
+            }
+        `, options);
+        const expected = [
+            "5", "1570796/1000000", "3141592/1000000", "-1570796/1000000",
+            "785398/1000000", "1/12", "3141592/1000000", "36276/10000", "-24849/10000",
+            "-57721/100000", "42278/100000", "1644934/1000000",
+        ];
+        for (const [index, enclosure] of result.values.entries()) {
+            expect(text(entry(enclosure, "status")), `geometry/Gamma result ${index + 1}`).toBe("enclosed");
+            expect(entry(enclosure, "certified").value).toBe(1n);
+            expect(
+                contains(entry(enclosure, "interval"), parseAndEvaluate(expected[index], options)),
+                `geometry/Gamma witness ${index + 1}`,
+            ).toBe(true);
+        }
+
+        const domains = parseAndEvaluate(`{:
+            .numerics.Refine(.numerics.Atan2(0, 0), {= absoluteWidth=1/100, maxWork=50 })[:status],
+            .numerics.Refine(.numerics.Beta(-1, 2), {= absoluteWidth=1/100, maxWork=50 })[:status],
+            .numerics.Refine(.numerics.LogBeta(1, 0), {= absoluteWidth=1/100, maxWork=50 })[:status],
+            .numerics.Refine(.numerics.Digamma(0), {= absoluteWidth=1/100, maxWork=50 })[:status],
+            .numerics.Refine(.numerics.Trigamma(-1), {= absoluteWidth=1/100, maxWork=50 })[:status]
+        }`, options);
+        expect(domains.values.map(text)).toEqual(["unknown", "unknown", "unknown", "unknown", "unknown"]);
+    });
+
     test("certified special functions expose values, branches, and honest real domains", () => {
         const options = runtime();
         const result = parseAndEvaluate(`
@@ -383,6 +429,29 @@ describe("universal Numerics algorithm reals", () => {
         expect(text(entry(result, "status"))).toBe("enclosed");
         expect(entry(result, "interval").low.greaterThan(parseAndEvaluate("4", options).toRational())).toBe(true);
         expect(entry(result, "interval").high.lessThan(parseAndEvaluate("5", options).toRational())).toBe(true);
+    });
+
+    test("geometry and polygamma algorithms consume unrelated certified real providers", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("numerics");
+            .Plugin.Load("algebraic-real");
+            {:
+                .numerics.Refine(.numerics.Hypot(.ar.Sqrt2(), .ar.Sqrt2()), {=
+                    absoluteWidth=1/1000, maxWork=500
+                }),
+                .numerics.Refine(.numerics.Atan2(.ar.Sqrt2(), .ar.Sqrt2()), {=
+                    absoluteWidth=1/1000, maxWork=500
+                }),
+                .numerics.Refine(.numerics.Digamma(.ar.Sqrt2()), {=
+                    absoluteWidth=1/1000, maxWork=600
+                })
+            }
+        `, options);
+        expect(result.values.map((value) => text(entry(value, "status"))))
+            .toEqual(["enclosed", "enclosed", "enclosed"]);
+        expect(contains(entry(result.values[0], "interval"), parseAndEvaluate("2", options))).toBe(true);
+        expect(contains(entry(result.values[1], "interval"), parseAndEvaluate("785398/1000000", options))).toBe(true);
     });
 
     test("logarithms preserve an unresolved domain as structured evidence", () => {

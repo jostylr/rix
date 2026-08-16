@@ -286,6 +286,25 @@ newline normalization.
      `Log10` conveniences.
    - [x] Add a checked Kantorovich constructor and nested interval-Newton
      refinement with actualized steps and bounded work.
+   - [x] Add the universal scientific-calculator baseline: roots and rational
+     powers; exponential/logarithmic functions; circular, inverse,
+     hyperbolic, and inverse-hyperbolic functions; angle conversion and
+     normalized sinc.
+   - [x] Add certified `Gamma`, `LogGamma`, `Erf`, `Erfc`, `LambertW`, and
+     defining-branch `Zeta`, with structured unresolved-domain results.
+   - [x] Add the `.bessel.J0`/`J1`/`Y0`/`Y1` façade over universal Numerics
+     implementations without installing cryptic bare names.
+   - [x] Add certified `Atan2(y,x)` with explicit branch convention and
+     undefined-origin handling, plus universal `Hypot(x,y)`.
+   - [x] Add positive-real `Beta`, `LogBeta`, `Digamma`, and `Trigamma`, using
+     exact/common identities where available and bounded algorithms otherwise.
+   - [ ] Add normal PDF/CDF/quantile functions under the statistics/probability
+     surface, reusing certified `Erf` and root isolation.
+   - [ ] Add higher-order and modified Bessel families under `.bessel`.
+   - [ ] Add reusable certified quadrature before incomplete gamma/beta, Airy,
+     and elliptic-integral families.
+   - [ ] Extend Gamma and Zeta across their remaining real domains with
+     explicit pole, sign, and continuation policies.
    - [ ] Add generic `Enclose`, `Refine`, `Compare`, `Sign`, root isolation,
      adaptive sampling, integration, and optimization.
    - [ ] Define absolute/relative error budgets and propagation rules.

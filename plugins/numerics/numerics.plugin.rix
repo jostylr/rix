@@ -3,7 +3,7 @@ id: numerics
 description: Backend-neutral bounded enclosure and refinement orchestration.
 kind: rix
 mount: numerics
-exports: [Request, WorkPolicy, EffectiveLimits, Enclose, Refine, Sample, Capabilities, CheckResult, NthRoot, Sqrt, Cbrt, Pow, Exp, Expm1, Log, Log1p, Ln, Log2, Log10, Pi, EulerGamma, Sin, Cos, Tan, Sec, Csc, Cot, Sinc, Asin, Acos, Atan, Arcsin, Arccos, Arctan, Sinh, Cosh, Tanh, Sech, Csch, Coth, Asinh, Acosh, Atanh, Arsinh, Arcosh, Artanh, Radians, Degrees, Gamma, LogGamma, Erf, Erfc, LambertW, BesselJ0, BesselJ1, BesselY0, BesselY1, Zeta, Kantorovich]
+exports: [Request, WorkPolicy, EffectiveLimits, Enclose, Refine, Sample, Capabilities, CheckResult, NthRoot, Sqrt, Cbrt, Hypot, Pow, Exp, Expm1, Log, Log1p, Ln, Log2, Log10, Pi, EulerGamma, Sin, Cos, Tan, Sec, Csc, Cot, Sinc, Asin, Acos, Atan, Atan2, Arcsin, Arccos, Arctan, Sinh, Cosh, Tanh, Sech, Csch, Coth, Asinh, Acosh, Atanh, Arsinh, Arcosh, Artanh, Radians, Degrees, Gamma, LogGamma, Beta, LogBeta, Digamma, Trigamma, Erf, Erfc, LambertW, BesselJ0, BesselJ1, BesselY0, BesselY1, Zeta, Kantorovich]
 groups: [Numerics]
 permissions: []
 requires: [rix.oracle@1]
@@ -305,11 +305,11 @@ NumericsAtanRationalBounds(value, tolerance, maxIterations) -> {;
       ?: NumericsAtanSmallBounds(absolute, tolerance, maxIterations)
       ?_ {;
           pi = NumericsPiRationalBounds(@tolerance, @halfBudget);
-          reduced = @absolute > 1
+          reduced = @absolute > 2
             ?: 1 / @absolute
             ?_ (@absolute - 1) / (@absolute + 1);
           residual = NumericsAtanSmallBounds(reduced, @tolerance/2, @maxIterations - @halfBudget);
-          interval = @absolute > 1
+          interval = @absolute > 2
             ?: pi[:interval] / 2 - residual[:interval]
             ?_ pi[:interval] / 4 + residual[:interval];
           {=
@@ -320,7 +320,7 @@ NumericsAtanRationalBounds(value, tolerance, maxIterations) -> {;
           };
       };
     resultInterval = negative
-      ?: (-absoluteResult[:interval].High()):(-absoluteResult[:interval].Low())
+      ?: 0 - absoluteResult[:interval]
       ?_ absoluteResult[:interval];
     {=
         interval=resultInterval,
@@ -568,6 +568,127 @@ NumericsGammaRationalBounds(value, tolerance, maxIterations) -> {;
           && interval.Width() <= tolerance,
         iterations=logarithm[:iterations] + low[:iterations]
           + (logarithm[:interval].Low() == logarithm[:interval].High() ?: 0 ?_ high[:iterations])
+    };
+};
+
+## For x > 0, log(x)-1/(2x)-1/(12x^2) < digamma(x)
+## and digamma(x) < log(x)-1/(2x). Recurrence shifts x right until
+## this elementary certified bracket reaches the requested width.
+NumericsDigammaRationalBounds(value, tolerance, maxIterations) -> {;
+    exact = value ~!: :Rational;
+    exact > 0 ?: _ ?_ .Error("Digamma currently requires a positive real value");
+    shifted := exact;
+    correction := 0;
+    shifts := 0;
+    asymptoticWidth := 1/(12*shifted^2);
+    {@ step=1;
+       @asymptoticWidth > @tolerance/2 && @shifts < @maxIterations;
+       {;
+           @correction += 1/@shifted;
+           @shifted += 1;
+           @shifts += 1;
+           @asymptoticWidth = 1/(12*@shifted^2);
+       };
+       step += 1
+    };
+    logarithm = NumericsLogRationalBounds(
+        shifted, tolerance/4, .Max(0, maxIterations-shifts)
+    );
+    interval =
+      (logarithm[:interval].Low() - 1/(2*shifted) - 1/(12*shifted^2) - correction)
+      :(logarithm[:interval].High() - 1/(2*shifted) - correction);
+    iterations = shifts + logarithm[:iterations];
+    ready = logarithm[:ready];
+    {=
+        interval=interval,
+        ready=ready,
+        goalMet=ready && interval.Width() <= tolerance,
+        iterations=iterations
+    };
+};
+
+## trigamma(x)=sum(k=0..infinity, 1/(x+k)^2). For the tail beginning
+## at n, the integral test brackets it between 1/(x+n) and that value
+## plus 1/(x+n)^2.
+NumericsTrigammaRationalBounds(value, tolerance, maxIterations) -> {;
+    exact = value ~!: :Rational;
+    exact > 0 ?: _ ?_ .Error("Trigamma currently requires a positive real value");
+    sum := 0;
+    index := 0;
+    tailBase := exact;
+    interval := (sum + 1/tailBase):(sum + 1/tailBase + 1/tailBase^2);
+    {@ step=1;
+       @interval.Width() > @tolerance && @index < @maxIterations;
+       {;
+           @sum += 1/(@exact + @index)^2;
+           @index += 1;
+           @tailBase = @exact + @index;
+           @interval = (@sum + 1/@tailBase)
+             :(@sum + 1/@tailBase + 1/@tailBase^2);
+       };
+       step += 1
+    };
+    {=
+        interval=interval,
+        ready=1,
+        goalMet=interval.Width() <= tolerance,
+        iterations=index
+    };
+};
+
+NumericsLogBetaRationalBounds(x, y, tolerance, maxIterations) -> {;
+    left = x ~!: :Rational;
+    right = y ~!: :Rational;
+    left > 0 && right > 0
+      ?: _
+      ?_ .Error("LogBeta currently requires two positive real values");
+    perTerm = .Max(0, maxIterations//3);
+    leftGamma = NumericsLogGammaRationalBounds(left, tolerance/8, perTerm);
+    rightGamma = NumericsLogGammaRationalBounds(right, tolerance/8, perTerm);
+    sumGamma = NumericsLogGammaRationalBounds(
+        left+right, tolerance/8, maxIterations-2*perTerm
+    );
+    interval = leftGamma[:interval] + rightGamma[:interval] - sumGamma[:interval];
+    ready = leftGamma[:ready] && rightGamma[:ready] && sumGamma[:ready];
+    {=
+        interval=interval,
+        ready=ready,
+        goalMet=ready && interval.Width() <= tolerance,
+        iterations=leftGamma[:iterations] + rightGamma[:iterations] + sumGamma[:iterations]
+    };
+};
+
+## Euler's product
+## B(x,y)=(x+y)/(xy) product(n>=1, n(n+x+y)/((n+x)(n+y))).
+## Every omitted factor is 1-a_n with a_n>=0, and after n terms
+## sum(a_k, k>n) <= xy/n. Hence the remaining product lies in
+## [max(0,1-xy/n),1], giving an entirely rational certified bracket.
+NumericsBetaRationalBounds(x, y, tolerance, maxIterations) -> {;
+    left = x ~!: :Rational;
+    right = y ~!: :Rational;
+    left > 0 && right > 0
+      ?: _
+      ?_ .Error("Beta currently requires two positive real values");
+    product := (left+right)/(left*right);
+    index := 0;
+    interval := 0:product;
+    {@ step=1;
+       @interval.Width() > @tolerance && @index < @maxIterations;
+       {;
+           @index += 1;
+           @product *= @index*(@index+@left+@right)
+             / ((@index+@left)*(@index+@right));
+           tail = @left*@right/@index;
+           tailLower = .Max(0, 1-tail);
+           @interval = (@product*tailLower):@product;
+       };
+       step += 1
+    };
+    {=
+        interval=interval,
+        ready=1,
+        goalMet=interval.Width() <= tolerance,
+        iterations=index
     };
 };
 
@@ -1035,6 +1156,242 @@ NumericsGammaRefine(real, rawRequest, operation) -> {;
     );
 };
 
+NumericsPolygammaRefine(real, rawRequest, operation) -> {;
+    capabilities = NumericsAlgorithmCapabilities(real);
+    request = .RefinementRequest(rawRequest, operation, capabilities);
+    requestedWidth = request[:absoluteWidth];
+    maxCalls = request[:work][:maxCalls];
+    maxIterations = request[:work][:maxIterations];
+    sourceWidth = requestedWidth^2/256;
+    sourceBudget = .Max(0, maxCalls//3);
+    sourceResult = NumericsSourceResult(real[:input], sourceWidth, sourceBudget, request[:trace]);
+    sourceCalls = NumericsCalls(sourceResult);
+    sourceInterval = sourceResult[:interval];
+    domainResolved = sourceInterval.Low() > 0;
+    domainResolved ?: {;
+        midpoint = @sourceInterval.Midpoint();
+        radius = @sourceInterval.Width()/2;
+        remaining = .Max(0, .Min(@maxIterations, @maxCalls-@sourceCalls));
+        digamma = @real[:kind] == :digamma;
+        pointBounds = digamma
+          ?: NumericsDigammaRationalBounds(midpoint, @requestedWidth/2, remaining)
+          ?_ NumericsTrigammaRationalBounds(midpoint, @requestedWidth/2, remaining);
+        low = @sourceInterval.Low();
+        derivativeBound = digamma
+          ?: 1/low + 1/low^2
+          ?_ 1/low^2 + 2/low^3;
+        lift = derivativeBound*radius;
+        interval = (pointBounds[:interval].Low()-lift)
+          :(pointBounds[:interval].High()+lift);
+        iterations = pointBounds[:iterations];
+        calls = @sourceCalls + iterations;
+        goalMet = pointBounds[:ready] && interval.Width() <= @requestedWidth;
+        NumericsElementaryResult(@real, @request, interval, {=
+            calls=calls,
+            iterations=iterations,
+            maxCalls=@maxCalls,
+            maxIterations=@maxIterations,
+            sourceCalls=@sourceCalls,
+            exhausted=!goalMet
+        }, goalMet, {=
+            kind=digamma ?: :recurrenceWithElementaryBounds ?_ :positiveSeriesIntegralTail,
+            property=:containment,
+            algorithm=@real[:kind],
+            source=@sourceResult[:evidence]
+        });
+    } ?_ NumericsUnknownAlgorithm(
+        real,
+        request,
+        sourceInterval,
+        {= calls=sourceCalls, iterations=0, maxCalls=maxCalls, exhausted=sourceCalls>=maxCalls },
+        :polygammaPositiveDomainNotCertified
+    );
+};
+
+NumericsBetaRefine(real, rawRequest, operation) -> {;
+    capabilities = NumericsAlgorithmCapabilities(real);
+    request = .RefinementRequest(rawRequest, operation, capabilities);
+    requestedWidth = request[:absoluteWidth];
+    maxCalls = request[:work][:maxCalls];
+    maxIterations = request[:work][:maxIterations];
+    sourceWidth = requestedWidth^2/1024;
+    sourceBudget = .Max(0, maxCalls//4);
+    xResult = NumericsSourceResult(real[:x], sourceWidth, sourceBudget, request[:trace]);
+    yResult = NumericsSourceResult(real[:y], sourceWidth, sourceBudget, request[:trace]);
+    sourceCalls = NumericsCalls(xResult) + NumericsCalls(yResult);
+    xInterval = xResult[:interval];
+    yInterval = yResult[:interval];
+    domainResolved = xInterval.Low() > 0 && yInterval.Low() > 0;
+    domainResolved ?: {;
+        xMidpoint = @xInterval.Midpoint();
+        yMidpoint = @yInterval.Midpoint();
+        xRadius = @xInterval.Width()/2;
+        yRadius = @yInterval.Width()/2;
+        remaining = .Max(0, .Min(@maxIterations, @maxCalls-@sourceCalls));
+        logarithmic = @real[:kind] == :logBeta;
+        pointBounds = logarithmic
+          ?: NumericsLogBetaRationalBounds(
+              xMidpoint, yMidpoint, @requestedWidth/2, remaining
+          )
+          ?_ NumericsBetaRationalBounds(
+              xMidpoint, yMidpoint, @requestedWidth/2, remaining
+          );
+        sumLow = @xInterval.Low() + @yInterval.Low();
+        sumHigh = @xInterval.High() + @yInterval.High();
+        xPsiBound = 1/@xInterval.Low() + @xInterval.High().Abs() + 2;
+        yPsiBound = 1/@yInterval.Low() + @yInterval.High().Abs() + 2;
+        sumPsiBound = 1/sumLow + sumHigh.Abs() + 2;
+        xLogDerivative = xPsiBound + sumPsiBound;
+        yLogDerivative = yPsiBound + sumPsiBound;
+        betaBound = 1/@xInterval.Low() + 1/@yInterval.Low();
+        derivativeScale = logarithmic ?: 1 ?_ betaBound;
+        lift = derivativeScale
+          * (xLogDerivative*xRadius + yLogDerivative*yRadius);
+        interval = (pointBounds[:interval].Low()-lift)
+          :(pointBounds[:interval].High()+lift);
+        iterations = pointBounds[:iterations];
+        calls = @sourceCalls + iterations;
+        goalMet = pointBounds[:ready] && interval.Width() <= @requestedWidth;
+        NumericsElementaryResult(@real, @request, interval, {=
+            calls=calls,
+            iterations=iterations,
+            maxCalls=@maxCalls,
+            maxIterations=@maxIterations,
+            sourceCalls=@sourceCalls,
+            exhausted=!goalMet
+        }, goalMet, {=
+            kind=logarithmic ?: :logGammaIdentity ?_ :eulerBetaProductTail,
+            property=:containment,
+            algorithm=@real[:kind],
+            x=@xResult[:evidence],
+            y=@yResult[:evidence]
+        });
+    } ?_ NumericsUnknownAlgorithm(
+        real,
+        request,
+        (-maxCalls):maxCalls,
+        {= calls=sourceCalls, iterations=0, maxCalls=maxCalls, exhausted=sourceCalls>=maxCalls },
+        :betaPositiveDomainNotCertified
+    );
+};
+
+NumericsAtanIntervalBounds(interval, tolerance, maxIterations) -> {;
+    endpointBudget = .Max(0, maxIterations//2);
+    low = NumericsAtanRationalBounds(
+        interval.Low(), tolerance/2, endpointBudget
+    );
+    sameEndpoint = interval.Low() == interval.High();
+    high = sameEndpoint
+      ?: low
+      ?_ NumericsAtanRationalBounds(
+          interval.High(), tolerance/2, maxIterations-endpointBudget
+      );
+    result = low[:interval].Low():high[:interval].High();
+    {=
+        interval=result,
+        ready=low[:ready] && high[:ready],
+        goalMet=low[:ready] && high[:ready] && result.Width() <= tolerance,
+        iterations=low[:iterations] + (sameEndpoint ?: 0 ?_ high[:iterations])
+    };
+};
+
+NumericsAtan2RationalIntervalBounds(yInterval, xInterval, tolerance, maxIterations) -> {;
+    yPositive = yInterval.Low() > 0;
+    yNegative = yInterval.High() < 0;
+    yZero = yInterval.Low() >= 0 && yInterval.High() <= 0;
+    xPositive = xInterval.Low() > 0;
+    xNegative = xInterval.High() < 0;
+    quadrantResolved = (yPositive || yNegative) || (xPositive || (yZero && xNegative));
+    quadrantResolved
+      ?: {;
+          needsPi = (@yPositive || @yNegative) || (@yZero && @xNegative);
+          functionBudget = needsPi ?: .Max(0, @maxIterations//2) ?_ @maxIterations;
+          angle = (@yPositive || @yNegative)
+            ?: NumericsAtanIntervalBounds(
+                @xInterval/@yInterval, @tolerance/2, functionBudget
+            )
+            ?_ (@xPositive
+                ?: NumericsAtanIntervalBounds(
+                    @yInterval/@xInterval, @tolerance, functionBudget
+                )
+                ?_ {= interval=0:0, ready=1, goalMet=1, iterations=0 });
+          pi = needsPi
+            ?: NumericsPiRationalBounds(
+                @tolerance/2, @maxIterations-functionBudget
+            )
+            ?_ {= interval=0:0, ready=1, goalMet=1, iterations=0 };
+          selected := angle[:interval];
+          @yPositive
+            ?: {; @selected ~= @pi[:interval]/2 - @angle[:interval]; }
+            ?_ _;
+          @yNegative
+            ?: {; @selected ~= -@pi[:interval]/2 - @angle[:interval]; }
+            ?_ _;
+          (@yZero && @xNegative)
+            ?: {; @selected ~= @pi[:interval]; }
+            ?_ _;
+          interval = selected;
+          ready = angle[:ready] && pi[:ready];
+          {=
+              interval=interval,
+              ready=ready,
+              domainResolved=1,
+              goalMet=ready && interval.Width() <= @tolerance,
+              iterations=angle[:iterations] + pi[:iterations]
+          };
+      }
+      ?_ {=
+          interval=(-4):4,
+          ready=_,
+          domainResolved=_,
+          goalMet=_,
+          iterations=0
+      };
+};
+
+NumericsAtan2Refine(real, rawRequest, operation) -> {;
+    capabilities = NumericsAlgorithmCapabilities(real);
+    request = .RefinementRequest(rawRequest, operation, capabilities);
+    requestedWidth = request[:absoluteWidth];
+    maxCalls = request[:work][:maxCalls];
+    maxIterations = request[:work][:maxIterations];
+    sourceWidth = requestedWidth^2/64;
+    sourceBudget = .Max(0, maxCalls//4);
+    yResult = NumericsSourceResult(real[:y], sourceWidth, sourceBudget, request[:trace]);
+    xResult = NumericsSourceResult(real[:x], sourceWidth, sourceBudget, request[:trace]);
+    sourceCalls = NumericsCalls(yResult) + NumericsCalls(xResult);
+    remaining = .Max(0, .Min(maxIterations, maxCalls-sourceCalls));
+    bounds = NumericsAtan2RationalIntervalBounds(
+        yResult[:interval], xResult[:interval], requestedWidth, remaining
+    );
+    bounds[:domainResolved]
+      ?: {;
+          calls = @sourceCalls + @bounds[:iterations];
+          goalMet = @bounds[:ready] && @bounds[:interval].Width() <= @requestedWidth;
+          NumericsElementaryResult(@real, @request, @bounds[:interval], {=
+              calls=calls,
+              iterations=@bounds[:iterations],
+              maxCalls=@maxCalls,
+              maxIterations=@maxIterations,
+              sourceCalls=@sourceCalls,
+              exhausted=!goalMet
+          }, goalMet, {=
+              kind=:quadrantCertifiedAtan,
+              property=:containment,
+              branchRange="-pi < angle <= pi",
+              y=@yResult[:evidence],
+              x=@xResult[:evidence]
+          });
+      }
+      ?_ NumericsUnknownAlgorithm(
+          real,
+          request,
+          bounds[:interval],
+          {= calls=sourceCalls, iterations=0, maxCalls=maxCalls, exhausted=sourceCalls>=maxCalls },
+          :atan2DirectionNotCertified
+      );
+};
+
 NumericsLambertWRefine(real, rawRequest, operation) -> {;
     capabilities = NumericsAlgorithmCapabilities(real);
     request = .RefinementRequest(rawRequest, operation, capabilities);
@@ -1437,6 +1794,64 @@ NumericsGammaAlgorithm(value) -> {;
     .ImmutableValue(real);
 };
 
+NumericsPolygammaAlgorithm(value, kind) -> {;
+    source = .oracle.From(value);
+    real = {=
+        valueKind=:numericsAlgorithmReal,
+        schema="rix.numerics.algorithm-real@1",
+        kind=kind,
+        input=source,
+        evidenceLevel=:proof,
+        provenance={= plugin=:numerics, version=6, algorithm=kind, source=value }
+    };
+    real._proto = {=
+        Enclose=(self, request ?= {= })->NumericsPolygammaRefine(self, request, :enclose),
+        Refine=(self, request ?= {= })->NumericsPolygammaRefine(self, request, :refine),
+        NumericsCapabilities=(self)->NumericsAlgorithmCapabilities(self)
+    };
+    .ImmutableValue(real);
+};
+
+NumericsBetaAlgorithm(x, y, kind) -> {;
+    xSource = .oracle.From(x);
+    ySource = .oracle.From(y);
+    real = {=
+        valueKind=:numericsAlgorithmReal,
+        schema="rix.numerics.algorithm-real@1",
+        kind=kind,
+        x=xSource,
+        y=ySource,
+        evidenceLevel=:proof,
+        provenance={= plugin=:numerics, version=6, algorithm=kind, x=x, y=y }
+    };
+    real._proto = {=
+        Enclose=(self, request ?= {= })->NumericsBetaRefine(self, request, :enclose),
+        Refine=(self, request ?= {= })->NumericsBetaRefine(self, request, :refine),
+        NumericsCapabilities=(self)->NumericsAlgorithmCapabilities(self)
+    };
+    .ImmutableValue(real);
+};
+
+NumericsAtan2Algorithm(y, x) -> {;
+    ySource = .oracle.From(y);
+    xSource = .oracle.From(x);
+    real = {=
+        valueKind=:numericsAlgorithmReal,
+        schema="rix.numerics.algorithm-real@1",
+        kind=:atan2,
+        y=ySource,
+        x=xSource,
+        evidenceLevel=:proof,
+        provenance={= plugin=:numerics, version=6, algorithm=:atan2, y=y, x=x }
+    };
+    real._proto = {=
+        Enclose=(self, request ?= {= })->NumericsAtan2Refine(self, request, :enclose),
+        Refine=(self, request ?= {= })->NumericsAtan2Refine(self, request, :refine),
+        NumericsCapabilities=(self)->NumericsAlgorithmCapabilities(self)
+    };
+    .ImmutableValue(real);
+};
+
 NumericsLambertWAlgorithm(value, branch) -> {;
     source = .oracle.From(value);
     real = {=
@@ -1558,6 +1973,10 @@ NumericsAcos(value) -> NumericsInverseTrigAlgorithm(value, :arccosine);
 
 NumericsAtan(value) -> NumericsInverseTrigAlgorithm(value, :arctangent);
 
+NumericsAtan2(y, x) -> NumericsAtan2Algorithm(y, x);
+
+NumericsHypot(x, y) -> NumericsNthRoot(x^2 + y^2, 2);
+
 NumericsSinh(value) -> (NumericsNaturalExp(value) - NumericsNaturalExp(-value)) / 2;
 
 NumericsCosh(value) -> (NumericsNaturalExp(value) + NumericsNaturalExp(-value)) / 2;
@@ -1603,6 +2022,53 @@ NumericsBesselY1(value) -> NumericsBesselYAlgorithm(value, :besselY1);
 NumericsLogGamma(value) -> NumericsLogGammaAlgorithm(value);
 
 NumericsGamma(value) -> NumericsGammaAlgorithm(value);
+
+NumericsExactBeta(x, y) -> {;
+    left = x ~: :Integer;
+    right = y ~: :Integer;
+    exact = left != _ && right != _ && left > 0 && right > 0;
+    exact
+      ?: {;
+          result := 1/@left;
+          {@ index=1; index < @right;
+             {; @result *= index/(@left+index); };
+             index += 1
+          };
+          result;
+      }
+      ?_ _;
+};
+
+NumericsIsHalf(value) -> {;
+    rational = value ~: :Rational;
+    rational != _
+      && rational.Numerator() >= 1 && rational.Numerator() <= 1
+      && rational.Denominator() >= 2 && rational.Denominator() <= 2;
+};
+
+NumericsLogBeta(x, y) -> {;
+    exact = NumericsExactBeta(x, y);
+    halfPair = NumericsIsHalf(x) && NumericsIsHalf(y);
+    exact != _
+      ?: NumericsNaturalLog(exact)
+      ?_ halfPair
+           ?: NumericsNaturalLog(NumericsPiAlgorithm())
+           ?_ NumericsBetaAlgorithm(x, y, :logBeta);
+};
+
+NumericsBeta(x, y) -> {;
+    exact = NumericsExactBeta(x, y);
+    halfPair = NumericsIsHalf(x) && NumericsIsHalf(y);
+    exact != _
+      ?: .oracle.Rational(exact)
+      ?_ halfPair
+           ?: NumericsPiAlgorithm()
+           ?_ NumericsBetaAlgorithm(x, y, :beta);
+};
+
+NumericsDigamma(value) -> NumericsPolygammaAlgorithm(value, :digamma);
+
+NumericsTrigamma(value) -> NumericsPolygammaAlgorithm(value, :trigamma);
 
 NumericsLambertW(value, branch ?= 0) -> {;
     exactBranch = branch ~!: :Integer;
@@ -1963,6 +2429,7 @@ numericsNamespace._proto = {=
     NthRoot = (self, value, degree ?= 2, options ?= {= }) -> NumericsNthRoot(value, degree, options),
     Sqrt = (self, value, options ?= {= }) -> NumericsNthRoot(value, 2, options),
     Cbrt = (self, value, options ?= {= }) -> NumericsNthRoot(value, 3, options),
+    Hypot = (self, x, y) -> NumericsHypot(x, y),
     Pow = (self, value, exponent) -> NumericsPow(value, exponent),
     Exp = (self, value, base ?= _) -> NumericsExp(value, base),
     Expm1 = (self, value) -> NumericsNaturalExp(value) - 1,
@@ -1983,6 +2450,7 @@ numericsNamespace._proto = {=
     Asin = (self, value) -> NumericsAsin(value),
     Acos = (self, value) -> NumericsAcos(value),
     Atan = (self, value) -> NumericsAtan(value),
+    Atan2 = (self, y, x) -> NumericsAtan2(y, x),
     Arcsin = (self, value) -> NumericsAsin(value),
     Arccos = (self, value) -> NumericsAcos(value),
     Arctan = (self, value) -> NumericsAtan(value),
@@ -2002,6 +2470,10 @@ numericsNamespace._proto = {=
     Degrees = (self, value) -> NumericsDegrees(value),
     Gamma = (self, value) -> NumericsGamma(value),
     LogGamma = (self, value) -> NumericsLogGamma(value),
+    Beta = (self, x, y) -> NumericsBeta(x, y),
+    LogBeta = (self, x, y) -> NumericsLogBeta(x, y),
+    Digamma = (self, value) -> NumericsDigamma(value),
+    Trigamma = (self, value) -> NumericsTrigamma(value),
     Erf = (self, value) -> NumericsErf(value),
     Erfc = (self, value) -> 1 - NumericsErf(value),
     LambertW = (self, value, branch ?= 0) -> NumericsLambertW(value, branch),

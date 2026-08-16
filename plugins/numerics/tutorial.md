@@ -353,6 +353,33 @@ arguments, and `Zeta` currently requires an argument greater than one.
 `LambertW(x)` is branch zero; `LambertW(x,-1)` is the lower real branch.
 Uncertified domains return structured `:unknown` results.
 
+## Geometry and the Gamma family
+
+`Hypot` reuses universal arithmetic and roots. `Atan2` accepts `(y,x)`, keeps
+the quadrant decision certified, and uses the branch `-Pi() < angle <= Pi()`.
+The positive-real Gamma family shares the same bounded refinement contract:
+
+```rix
+.Plugin.Load("numerics");
+.numerics[:Refine, :Hypot, :Atan2, :Beta, :LogBeta, :Digamma, :Trigamma];
+values := [
+  Hypot(3, 4),
+  Atan2(1, -1),
+  Beta(2, 3),
+  LogBeta(2, 3),
+  Digamma(1),
+  Trigamma(1)
+];
+values |>> ((value) -> Refine(value, {=
+  absoluteWidth=1/1000,
+  maxWork=1200
+}));
+```
+
+`Atan2(0,0)` is undefined and therefore refines to structured `:unknown`
+evidence. Beta and the polygamma functions likewise report `:unknown` when
+their positive-real domains cannot be certified.
+
 ## Kantorovich certification and interval Newton
 
 `.numerics.Kantorovich` first checks the supplied initial interval and rational
