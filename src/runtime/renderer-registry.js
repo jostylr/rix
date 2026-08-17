@@ -258,6 +258,27 @@ function assetValue(asset) {
     };
 }
 
+function metadataValue(value, seen = new WeakSet()) {
+    if (value === null || value === undefined) return null;
+    if (value instanceof Integer || value?.type) return value;
+    if (typeof value === "string") return stringValue(value);
+    if (typeof value === "boolean") return value ? new Integer(1n) : null;
+    if (typeof value === "bigint") return new Integer(value);
+    if (typeof value === "number") {
+        return Number.isSafeInteger(value) ? new Integer(BigInt(value)) : stringValue(value);
+    }
+    if (Array.isArray(value)) return sequenceValue(value.map((entry) => metadataValue(entry, seen)));
+    if (typeof value === "object") {
+        if (seen.has(value)) return stringValue("[circular]");
+        seen.add(value);
+        return {
+            type: "map",
+            entries: new Map(Object.entries(value).map(([key, entry]) => [key, metadataValue(entry, seen)])),
+        };
+    }
+    return stringValue(value);
+}
+
 /** Convert a host RenderResult into an inspectable RiX map without losing bytes. */
 export function renderResultValue(result) {
     if (!isRenderResult(result)) throw new Error("Expected a RenderResult");
@@ -274,6 +295,7 @@ export function renderResultValue(result) {
             ["diagnostics", sequenceValue(result.diagnostics.map(diagnosticValue))],
             ["deterministic", result.deterministic ? new Integer(1n) : null],
             ["toolchain", result.toolchain ? stringValue(result.toolchain) : null],
+            ["metadata", metadataValue(result.metadata)],
         ]),
         _ext: new Map([["immutable", new Integer(1n)]]),
     };

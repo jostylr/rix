@@ -972,11 +972,11 @@ The RiX/host extraction sequence is specified in
 2. **Phase 2 — Complete 2D scene fidelity**
    - [ ] Add reusable definitions, markers, gradients, patterns, masks, style
      inheritance, font policy, and stable IDs.
-   - [ ] Define an exact-coordinate lowering result that retains the original
+   - [x] Define an exact-coordinate lowering result that retains the original
      exact value and records when SVG text rounds or approximates it. Make the
      precision/rounding policy selectable and expose approximation diagnostics
      or metadata instead of silently applying a fixed decimal cutoff.
-   - [ ] Add conformance fixtures for huge numerators, sub-pixel and extremely
+   - [x] Add conformance fixtures for huge numerators, sub-pixel and extremely
      narrow intervals, reversed interval presentation, overlapping labels, and
      coordinates that collide only after decimal lowering.
    - [ ] Report unsupported scene features.

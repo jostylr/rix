@@ -171,6 +171,16 @@ const BUNDLED_PLUGINS = [
     },
     {
         metadata: {
+            id: "svg", description: "Portable SVG renderer with outward-safe exact-coordinate lowering.",
+            kind: "host", mount: "svg", exports: ["Render"], groups: ["Renderers"], permissions: [],
+            provides: ["rix.renderer.svg@1", "rix.svg.coordinate-lowering@1"],
+            schemas: ["rix.svg.coordinate-lowering@1"], targets: ["svg", "image/svg+xml"],
+            snapshot: true, deterministic: true, defaultEnabled: false,
+        },
+        install: installSvgPlugin,
+    },
+    {
+        metadata: {
             id: "webgl", description: "Executable WebGL drawing plans for retained Scene3D values.",
             kind: "host", mount: "webgl", exports: ["Render"], groups: ["Renderers", "Scene3D"], permissions: [],
             requires: ["rix.scene3d@1"], provides: ["rix.renderer.webgl@1", "rix.webgl-plan@1"],
@@ -180,7 +190,6 @@ const BUNDLED_PLUGINS = [
         install: installWebglPlugin,
     },
     ...[
-        ["svg", "Portable SVG renderer for core Graphics scenes.", "svg", ["Render"], [], installSvgPlugin, "image/svg+xml", true],
         ["canvas", "Serializable Canvas 2D drawing plans for core Graphics scenes.", "canvas", ["Render"], [], installCanvasPlugin, "application/vnd.rix.canvas+json", true],
         ["tikz", "Editable TikZ/PGF source renderer for core Graphics scenes.", "tikz", ["Render"], [], installTikzPlugin, "text/x-tikz", true],
         ["markdown", "CommonMark-oriented renderer for portable RiX documents.", "markdown", ["Render"], [], installMarkdownPlugin, "text/markdown", true],

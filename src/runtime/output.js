@@ -1902,22 +1902,151 @@ function styleEntry(style, name) {
     return style.get(String(name).toLowerCase()) ?? null;
 }
 
-function svgNumber(value, label) {
-    const number = numericValue(value, label);
-    if (!Number.isFinite(number)) throw new Error(`${label} must be finite`);
-    return Number(number.toFixed(6)).toString();
+function svgPolicy(options = {}) {
+    const precision = options.precision ?? 6;
+    const rounding = options.rounding ?? "nearest";
+    if (!Number.isSafeInteger(precision) || precision < 0 || precision > 30) {
+        throw new Error("SVG coordinate precision must be an integer between 0 and 30");
+    }
+    if (!["nearest", "floor", "ceil", "truncate"].includes(rounding)) {
+        throw new Error("SVG coordinate rounding must be nearest, floor, ceil, or truncate");
+    }
+    return { precision, rounding, entries: [], collisions: new Map(), gain: 1 };
 }
 
-function svgPoint(value, index) {
+function finiteSvgDecimal(text, label) {
+    if (!Number.isFinite(Number(text))) {
+        throw new Error(`${label} is outside the finite SVG coordinate range`);
+    }
+    return text;
+}
+
+function certifiedMagnitude(numerator, denominator, label) {
+    if (numerator === 0n) return 0;
+    const magnitude = numericValue(new Rational(numerator, denominator), label);
+    if (!Number.isFinite(magnitude)) {
+        throw new Error(`${label} is outside the finite SVG coordinate range`);
+    }
+    if (magnitude === 0) return Number.MIN_VALUE;
+    return magnitude * (1 + Number.EPSILON * 8) + Number.MIN_VALUE;
+}
+
+function decimalText(scaled, precision) {
+    const negative = scaled < 0n;
+    let digits = (negative ? -scaled : scaled).toString();
+    if (precision === 0) return `${negative && scaled !== 0n ? "-" : ""}${digits}`;
+    digits = digits.padStart(precision + 1, "0");
+    const integer = digits.slice(0, -precision);
+    const fraction = digits.slice(-precision).replace(/0+$/, "");
+    return `${negative && scaled !== 0n ? "-" : ""}${integer}${fraction ? `.${fraction}` : ""}`;
+}
+
+function roundedRational(value, policy) {
+    const negative = value.numerator < 0n;
+    const numerator = negative ? -value.numerator : value.numerator;
+    const scale = 10n ** BigInt(policy.precision);
+    const quotient = (numerator * scale) / value.denominator;
+    const remainder = (numerator * scale) % value.denominator;
+    const floor = negative ? -(quotient + (remainder === 0n ? 0n : 1n)) : quotient;
+    const ceil = negative ? -quotient : quotient + (remainder === 0n ? 0n : 1n);
+    let signed = negative ? -quotient : quotient;
+    if (policy.rounding === "floor") signed = floor;
+    else if (policy.rounding === "ceil") signed = ceil;
+    else if (policy.rounding === "nearest" && remainder * 2n >= value.denominator) signed += negative ? -1n : 1n;
+    const errorNumerator = (signed * value.denominator - value.numerator * scale);
+    const absoluteError = errorNumerator < 0n ? -errorNumerator : errorNumerator;
+    return {
+        text: decimalText(signed, policy.precision),
+        approximated: remainder !== 0n,
+        lower: decimalText(floor, policy.precision),
+        upper: decimalText(ceil, policy.precision),
+        error: certifiedMagnitude(absoluteError, value.denominator * scale, "SVG exact rounding error"),
+        scaled: signed,
+        scale,
+    };
+}
+
+function intervalMidpoint(interval) {
+    return new Rational(
+        interval.low.numerator * interval.high.denominator + interval.high.numerator * interval.low.denominator,
+        2n * interval.low.denominator * interval.high.denominator,
+    );
+}
+
+function scaledDistance(scaled, scale, value) {
+    const difference = scaled * value.denominator - value.numerator * scale;
+    const absolute = difference < 0n ? -difference : difference;
+    return certifiedMagnitude(absolute, scale * value.denominator, "SVG certified enclosure radius");
+}
+
+function svgNumber(value, label, policy, role = "scalar") {
+    let lowered;
+    let exact;
+    let approximated = false;
+    if (value instanceof RationalInterval || value instanceof CertifiedApproximation) {
+        const interval = value instanceof CertifiedApproximation ? value.enclosure : value;
+        const candidateValue = value instanceof CertifiedApproximation ? value.candidate : intervalMidpoint(interval);
+        const candidate = candidateValue instanceof Integer ? new Rational(candidateValue.value, 1n) : candidateValue;
+        const result = roundedRational(candidate, policy);
+        const lower = roundedRational(interval.low, { ...policy, rounding: "floor" });
+        const upper = roundedRational(interval.high, { ...policy, rounding: "ceil" });
+        exact = String(value);
+        lowered = result.text;
+        approximated = true;
+        const error = Math.max(
+            scaledDistance(result.scaled, result.scale, interval.low),
+            scaledDistance(result.scaled, result.scale, interval.high),
+        );
+        policy.entries.push({
+            path: label, role, exact, lowered, lower: lower.text, upper: upper.text,
+            approximated, certified: true, error, gain: policy.gain,
+            source: value instanceof CertifiedApproximation ? "certified-approximation" : "rational-interval",
+            presentation: value instanceof RationalInterval && !value.isAscending ? "reversed" : "ascending",
+        });
+    } else if (value instanceof Integer) {
+        exact = value.toString();
+        lowered = exact;
+        policy.entries.push({ path: label, role, exact, lowered, lower: lowered, upper: lowered, approximated: false, certified: true, error: 0, gain: policy.gain });
+    } else if (value instanceof Rational) {
+        exact = value.toString();
+        const result = roundedRational(value, policy);
+        lowered = result.text;
+        approximated = result.approximated;
+        policy.entries.push({ path: label, role, exact, lowered, lower: result.lower, upper: result.upper, approximated, certified: true, error: result.error, gain: policy.gain });
+    } else {
+        const number = numericValue(value, label);
+        if (!Number.isFinite(number)) throw new Error(`${label} must be finite`);
+        exact = String(number);
+        lowered = Number(number.toFixed(policy.precision)).toString();
+        approximated = Number(lowered) !== number;
+        policy.entries.push({ path: label, role, exact, lowered, lower: null, upper: null, approximated, certified: false, error: null, gain: policy.gain });
+    }
+    finiteSvgDecimal(lowered, label);
+    const recorded = policy.entries.at(-1);
+    if (recorded?.certified) {
+        finiteSvgDecimal(recorded.lower, `${label} lower enclosure`);
+        finiteSvgDecimal(recorded.upper, `${label} upper enclosure`);
+    }
+    const collisionKey = `${role}:${lowered}`;
+    const exactValues = policy.collisions.get(collisionKey) || new Set();
+    exactValues.add(exact);
+    policy.collisions.set(collisionKey, exactValues);
+    return lowered;
+}
+
+function svgPoint(value, index, policy) {
     const point = sequence(value, `Path point ${index + 1}`);
     if (point.length !== 2) throw new Error(`Path point ${index + 1} must contain x and y coordinates`);
-    return [svgNumber(point[0], `Path point ${index + 1} x`), svgNumber(point[1], `Path point ${index + 1} y`)];
+    return [
+        svgNumber(point[0], `Path point ${index + 1} x`, policy, "x"),
+        svgNumber(point[1], `Path point ${index + 1} y`, policy, "y"),
+    ];
 }
 
-function svgPair(value, label) {
+function svgPair(value, label, policy, roles = ["x", "y"]) {
     const pair = sequence(value, label);
     if (pair.length !== 2) throw new Error(`${label} must contain two coordinates`);
-    return [svgNumber(pair[0], `${label} x`), svgNumber(pair[1], `${label} y`)];
+    return [svgNumber(pair[0], `${label} x`, policy, roles[0]), svgNumber(pair[1], `${label} y`, policy, roles[1])];
 }
 
 function sceneField(value, name) {
@@ -1931,16 +2060,16 @@ function svgFlag(value, label) {
     return numericValue(value, label) === 0 ? "0" : "1";
 }
 
-function svgPathData(path) {
+function svgPathData(path, policy) {
     if (!path.commands) {
         if (path.points.length === 0) return "";
-        const points = path.points.map(svgPoint);
+        const points = path.points.map((point, index) => svgPoint(point, index, policy));
         const closed = styleEntry(path.style, "closed")?.value === 1n || styleEntry(path.style, "closed") === true;
         return points.map(([x, y], index) => `${index === 0 ? "M" : "L"}${x} ${y}`).join(" ") + (closed ? " Z" : "");
     }
     return path.commands.map((command, index) => {
         const op = (asString(sceneField(command, "op")) ?? sceneField(command, "op") ?? "").toLowerCase();
-        const destination = () => svgPair(sceneField(command, "to"), `Path command ${index + 1} destination`);
+        const destination = () => svgPair(sceneField(command, "to"), `Path command ${index + 1} destination`, policy);
         if (op === "move" || op === "m") {
             const [x, y] = destination();
             return `M${x} ${y}`;
@@ -1950,19 +2079,19 @@ function svgPathData(path) {
             return `L${x} ${y}`;
         }
         if (op === "quadratic" || op === "quad" || op === "q") {
-            const [cx, cy] = svgPair(sceneField(command, "control"), `Path command ${index + 1} control`);
+            const [cx, cy] = svgPair(sceneField(command, "control"), `Path command ${index + 1} control`, policy);
             const [x, y] = destination();
             return `Q${cx} ${cy} ${x} ${y}`;
         }
         if (op === "cubic" || op === "curve" || op === "c") {
-            const [c1x, c1y] = svgPair(sceneField(command, "control1"), `Path command ${index + 1} control1`);
-            const [c2x, c2y] = svgPair(sceneField(command, "control2"), `Path command ${index + 1} control2`);
+            const [c1x, c1y] = svgPair(sceneField(command, "control1"), `Path command ${index + 1} control1`, policy);
+            const [c2x, c2y] = svgPair(sceneField(command, "control2"), `Path command ${index + 1} control2`, policy);
             const [x, y] = destination();
             return `C${c1x} ${c1y} ${c2x} ${c2y} ${x} ${y}`;
         }
         if (op === "arc" || op === "a") {
-            const [rx, ry] = svgPair(sceneField(command, "radius"), `Path command ${index + 1} radius`);
-            const rotation = svgNumber(sceneField(command, "rotation") ?? int(0), `Path command ${index + 1} rotation`);
+            const [rx, ry] = svgPair(sceneField(command, "radius"), `Path command ${index + 1} radius`, policy);
+            const rotation = svgNumber(sceneField(command, "rotation") ?? int(0), `Path command ${index + 1} rotation`, policy, "angle");
             const large = svgFlag(sceneField(command, "large"), `Path command ${index + 1} large flag`);
             const sweep = svgFlag(sceneField(command, "sweep"), `Path command ${index + 1} sweep flag`);
             const [x, y] = destination();
@@ -1973,7 +2102,7 @@ function svgPathData(path) {
     }).join(" ");
 }
 
-function svgStyle(style, defaultFill = null) {
+function svgStyle(style, defaultFill = null, policy) {
     const attrs = [];
     const stroke = asString(styleEntry(style, "stroke"));
     const fill = asString(styleEntry(style, "fill"));
@@ -1982,97 +2111,200 @@ function svgStyle(style, defaultFill = null) {
     const width = styleEntry(style, "width") ?? styleEntry(style, "strokeWidth");
     if (fill || defaultFill !== null) attrs.push(`fill="${escapeHtml(fill || defaultFill)}"`);
     if (stroke) attrs.push(`stroke="${escapeHtml(stroke)}"`);
-    if (width !== null && width !== undefined) attrs.push(`stroke-width="${svgNumber(width, "Path stroke width")}"`);
+    if (width !== null && width !== undefined) attrs.push(`stroke-width="${svgNumber(width, "Path stroke width", policy, "width")}"`);
     if (dash) attrs.push(`stroke-dasharray="${escapeHtml(dash)}"`);
-    if (opacity !== null && opacity !== undefined) attrs.push(`opacity="${svgNumber(opacity, "Path opacity")}"`);
+    if (opacity !== null && opacity !== undefined) attrs.push(`opacity="${svgNumber(opacity, "Path opacity", policy, "opacity")}"`);
     return attrs.join(" ");
 }
 
-function svgTransform(node) {
+function svgTransform(node, policy) {
     const transforms = [];
+    const entryStart = policy.entries.length;
     if (node.translate !== null && node.translate !== undefined) {
-        const [x, y] = svgPair(node.translate, "Transform translate");
+        const [x, y] = svgPair(node.translate, "Transform translate", policy);
         transforms.push(`translate(${x} ${y})`);
     }
     if (node.rotate !== null && node.rotate !== undefined) {
-        const angle = svgNumber(node.rotate, "Transform rotate");
-        const origin = node.origin === null || node.origin === undefined ? null : svgPair(node.origin, "Transform origin");
+        const angle = svgNumber(node.rotate, "Transform rotate", policy, "angle");
+        const origin = node.origin === null || node.origin === undefined ? null : svgPair(node.origin, "Transform origin", policy);
         transforms.push(origin ? `rotate(${angle} ${origin[0]} ${origin[1]})` : `rotate(${angle})`);
     }
     if (node.scale !== null && node.scale !== undefined) {
         const scale = isSequence(node.scale) || Array.isArray(node.scale)
-            ? svgPair(node.scale, "Transform scale")
-            : [svgNumber(node.scale, "Transform scale"), svgNumber(node.scale, "Transform scale")];
+            ? svgPair(node.scale, "Transform scale", policy, ["scale", "scale"])
+            : [svgNumber(node.scale, "Transform scale", policy, "scale"), svgNumber(node.scale, "Transform scale", policy, "scale")];
         transforms.push(`scale(${scale[0]} ${scale[1]})`);
     }
-    return transforms.join(" ");
+    const transformEntries = policy.entries.slice(entryStart);
+    const scaleGain = Math.max(1, ...transformEntries
+        .filter(({ role }) => role === "scale")
+        .flatMap(({ exact, lowered, lower, upper }) => [exact, lowered, lower, upper])
+        .map(Number)
+        .filter(Number.isFinite)
+        .map(Math.abs));
+    for (const entry of transformEntries) {
+        if (entry.role !== "scale") entry.gain *= scaleGain;
+    }
+    return { text: transforms.join(" "), childGain: policy.gain * scaleGain };
 }
 
-function renderSvgText(node, format) {
-    const [x, y] = svgPair(node.position, "TextMark position");
+function renderSvgText(node, format, policy) {
+    const [x, y] = svgPair(node.position, "TextMark position", policy);
     const anchor = asString(styleEntry(node.style, "anchor"));
     const size = styleEntry(node.style, "size") ?? styleEntry(node.style, "fontSize");
     const font = asString(styleEntry(node.style, "font"));
     const weight = asString(styleEntry(node.style, "weight"));
-    const attrs = [svgStyle(node.style, "currentColor")];
+    const attrs = [svgStyle(node.style, "currentColor", policy)];
     if (anchor) attrs.push(`text-anchor="${escapeHtml(anchor)}"`);
-    if (size !== null && size !== undefined) attrs.push(`font-size="${svgNumber(size, "TextMark size")}"`);
+    if (size !== null && size !== undefined) attrs.push(`font-size="${svgNumber(size, "TextMark size", policy, "font-size")}"`);
     if (font) attrs.push(`font-family="${escapeHtml(font)}"`);
     if (weight) attrs.push(`font-weight="${escapeHtml(weight)}"`);
     return `<text x="${x}" y="${y}" ${attrs.filter(Boolean).join(" ")}>${escapeHtml(cellText(node.text, format))}</text>`;
 }
 
-function renderSvgNode(node, format, defs) {
+function renderSvgNode(node, format, defs, policy) {
     if (!isOutputValue(node)) return "";
     if (node.kind === "path") {
-        const d = svgPathData(node);
+        const d = svgPathData(node, policy);
         if (!d) return "";
-        return `<path d="${d}" ${svgStyle(node.style, "none")}/>`;
+        return `<path d="${d}" ${svgStyle(node.style, "none", policy)}/>`;
     }
     if (node.kind === "rectangle") {
-        const [x, y] = svgPair(node.origin, "Rectangle origin");
-        const [width, height] = svgPair(node.size, "Rectangle size");
-        return `<rect x="${x}" y="${y}" width="${width}" height="${height}" ${svgStyle(node.style, "none")}/>`;
+        const [x, y] = svgPair(node.origin, "Rectangle origin", policy);
+        const [width, height] = svgPair(node.size, "Rectangle size", policy, ["width", "height"]);
+        return `<rect x="${x}" y="${y}" width="${width}" height="${height}" ${svgStyle(node.style, "none", policy)}/>`;
     }
     if (node.kind === "circle") {
-        const [cx, cy] = svgPair(node.center, "Circle center");
-        return `<circle cx="${cx}" cy="${cy}" r="${svgNumber(node.radius, "Circle radius")}" ${svgStyle(node.style, "none")}/>`;
+        const [cx, cy] = svgPair(node.center, "Circle center", policy);
+        return `<circle cx="${cx}" cy="${cy}" r="${svgNumber(node.radius, "Circle radius", policy, "radius")}" ${svgStyle(node.style, "none", policy)}/>`;
     }
     if (node.kind === "drag_point") {
-        const [cx, cy] = svgPair(node.center, "DragPoint center");
+        const [cx, cy] = svgPair(node.center, "DragPoint center", policy);
         const replaced = node.replacesDependencies?.length
             ? ` data-rix-replaces-dependencies="${escapeHtml(node.replacesDependencies.join(","))}"`
             : "";
-        return `<circle class="rix-output-drag-point" cx="${cx}" cy="${cy}" r="${svgNumber(node.radius, "DragPoint radius")}" ${svgStyle(node.style, "#7c3aed")} tabindex="0" role="button" aria-label="${escapeHtml(node.label)}" data-rix-drag-target="${escapeHtml(node.targetId)}" data-rix-position="${cx},${cy}"${replaced}/>`;
+        return `<circle class="rix-output-drag-point" cx="${cx}" cy="${cy}" r="${svgNumber(node.radius, "DragPoint radius", policy, "radius")}" ${svgStyle(node.style, "#7c3aed", policy)} tabindex="0" role="button" aria-label="${escapeHtml(node.label)}" data-rix-drag-target="${escapeHtml(node.targetId)}" data-rix-position="${cx},${cy}"${replaced}/>`;
     }
     if (node.kind === "graphic_action") {
         const replaced = node.replacesDependencies?.length
             ? ` data-rix-replaces-dependencies="${escapeHtml(node.replacesDependencies.join(","))}"`
             : "";
-        const style = svgStyle(node.style);
-        return `<g class="rix-output-graphic-action"${style ? ` ${style}` : ""} tabindex="0" role="button" aria-label="${escapeHtml(node.label)}" data-rix-graphic-action="${escapeHtml(node.id)}" data-rix-graphic-target="${escapeHtml(node.targetId)}"${replaced}>${node.children.map((child) => renderSvgNode(child, format, defs)).join("")}</g>`;
+        const style = svgStyle(node.style, null, policy);
+        return `<g class="rix-output-graphic-action"${style ? ` ${style}` : ""} tabindex="0" role="button" aria-label="${escapeHtml(node.label)}" data-rix-graphic-action="${escapeHtml(node.id)}" data-rix-graphic-target="${escapeHtml(node.targetId)}"${replaced}>${node.children.map((child) => renderSvgNode(child, format, defs, policy)).join("")}</g>`;
     }
-    if (node.kind === "text_mark") return renderSvgText(node, format);
-    if (node.kind === "group") return `<g ${svgStyle(node.style)}>${node.children.map((child) => renderSvgNode(child, format, defs)).join("")}</g>`;
+    if (node.kind === "text_mark") return renderSvgText(node, format, policy);
+    if (node.kind === "group") return `<g ${svgStyle(node.style, null, policy)}>${node.children.map((child) => renderSvgNode(child, format, defs, policy)).join("")}</g>`;
     if (node.kind === "transform") {
-        const transform = svgTransform(node);
-        return `<g${transform ? ` transform="${transform}"` : ""}${svgStyle(node.style) ? ` ${svgStyle(node.style)}` : ""}>${node.children.map((child) => renderSvgNode(child, format, defs)).join("")}</g>`;
+        const transform = svgTransform(node, policy);
+        const parentGain = policy.gain;
+        policy.gain = transform.childGain;
+        const style = svgStyle(node.style, null, policy);
+        const children = node.children.map((child) => renderSvgNode(child, format, defs, policy)).join("");
+        policy.gain = parentGain;
+        return `<g${transform.text ? ` transform="${transform.text}"` : ""}${style ? ` ${style}` : ""}>${children}</g>`;
     }
     if (node.kind === "clip") {
-        const [x, y, width, height] = node.bounds.map((value, index) => svgNumber(value, `Clip bounds ${index + 1}`));
+        const clipRoles = ["x", "y", "width", "height"];
+        const [x, y, width, height] = node.bounds.map((value, index) => svgNumber(value, `Clip bounds ${index + 1}`, policy, clipRoles[index]));
         const id = `rix-clip-${defs.length + 1}`;
         defs.push(`<clipPath id="${id}"><rect x="${x}" y="${y}" width="${width}" height="${height}"/></clipPath>`);
-        return `<g clip-path="url(#${id})"${svgStyle(node.style) ? ` ${svgStyle(node.style)}` : ""}>${node.children.map((child) => renderSvgNode(child, format, defs)).join("")}</g>`;
+        const style = svgStyle(node.style, null, policy);
+        return `<g clip-path="url(#${id})"${style ? ` ${style}` : ""}>${node.children.map((child) => renderSvgNode(child, format, defs, policy)).join("")}</g>`;
     }
     return "";
 }
 
-export function renderGraphicSvg(graphic, format = (item) => String(item ?? "")) {
+export function lowerGraphicSvg(graphic, format = (item) => String(item ?? ""), options = {}) {
     if (!isOutputValue(graphic) || graphic.kind !== "graphic") throw new Error("Expected a Graphic output value");
-    const size = graphic.size.map((value, index) => svgNumber(value, `Graphic size ${index + 1}`));
+    const policy = svgPolicy(options);
+    const size = graphic.size.map((value, index) => svgNumber(value, `Graphic size ${index + 1}`, policy, index === 0 ? "width" : "height"));
     const defs = [];
-    const children = graphic.children.map((child) => renderSvgNode(child, format, defs)).join("");
-    return `<svg class="rix-output-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size[0]} ${size[1]}" width="${size[0]}" height="${size[1]}" role="img">${defs.length ? `<defs>${defs.join("")}</defs>` : ""}${children}</svg>`;
+    const children = graphic.children.map((child) => renderSvgNode(child, format, defs, policy)).join("");
+    const collisions = [...policy.collisions.entries()]
+        .filter(([, exactValues]) => exactValues.size > 1)
+        .map(([key, exactValues]) => ({ lowered: key.slice(key.indexOf(":") + 1), role: key.slice(0, key.indexOf(":")), exact: [...exactValues] }));
+    const approximated = policy.entries.filter((entry) => entry.approximated);
+    const exactErrors = policy.entries.filter((entry) => entry.certified && entry.error > 0);
+    const viewportEntries = policy.entries.filter(({ path }) => path.startsWith("Graphic size "));
+    const viewportExtent = Math.hypot(...viewportEntries.map(({ lower, upper }) => Math.max(Math.abs(Number(lower)), Math.abs(Number(upper)))));
+    const coordinateExtent = Math.max(0, ...policy.entries
+        .filter(({ role }) => ["x", "y", "width", "height", "radius"].includes(role))
+        .flatMap(({ lower, upper }) => [lower, upper].map((bound) => Math.abs(Number(bound))).filter(Number.isFinite)));
+    const extent = Math.max(viewportExtent, coordinateExtent);
+    const coordinateError = Math.SQRT2 * Math.max(0, ...exactErrors
+        .filter(({ role, path }) => ["x", "y"].includes(role) && !path.startsWith("Transform translate"))
+        .map(({ error, gain }) => error * gain));
+    const translationError = Math.SQRT2 * exactErrors
+        .filter(({ path }) => path.startsWith("Transform translate"))
+        .reduce((sum, { error, gain }) => sum + error * gain, 0);
+    const extentError = Math.SQRT2 * Math.max(0, ...exactErrors
+        .filter(({ role }) => ["width", "height"].includes(role))
+        .map(({ error, gain }) => error * gain));
+    const radialError = Math.max(0, ...exactErrors
+        .filter(({ role }) => role === "radius")
+        .map(({ error, gain }) => error * gain));
+    const directError = coordinateError + translationError + extentError + radialError;
+    const transformError = exactErrors.reduce((sum, { role, error, gain }) => (
+        role === "angle" ? sum + extent * error * gain * Math.PI / 180
+            : role === "scale" ? sum + extent * error * gain
+                : sum
+    ), 0);
+    const rawRadius = directError + transformError;
+    const enclosureRadius = rawRadius === 0
+        ? 0
+        : rawRadius * (1 + Number.EPSILON * 8) + Number.MIN_VALUE;
+    const diagnostics = [];
+    if (approximated.length) diagnostics.push({
+        level: "warning",
+        code: "svg-coordinate-approximation",
+        message: `${approximated.length} SVG numeric value${approximated.length === 1 ? " was" : "s were"} rounded with ${policy.rounding} at ${policy.precision} decimal places.`,
+    });
+    if (collisions.length) diagnostics.push({
+        level: "warning",
+        code: "svg-coordinate-collision",
+        message: `${collisions.length} distinct exact coordinate set${collisions.length === 1 ? "" : "s"} collided after SVG decimal lowering.`,
+    });
+    if (enclosureRadius > 0) diagnostics.push({
+        level: "info",
+        code: "svg-certified-outward-enclosure",
+        message: `Exact geometry was expanded outward by at most ${enclosureRadius} SVG user units to contain its decimal lowering.`,
+    });
+    if (enclosureRadius > 0) {
+        const maxGain = Math.max(1, ...policy.entries.map(({ gain }) => gain || 1));
+        const translationExtent = policy.entries
+            .filter(({ path }) => path.startsWith("Transform translate"))
+            .reduce((sum, { lowered, lower, upper, gain }) => sum + Math.max(
+                Math.abs(Number(lowered)), Math.abs(Number(lower)), Math.abs(Number(upper)),
+            ) * (gain || 1), 0);
+        const filterExtent = (Math.SQRT2 * Math.max(extent, coordinateExtent) * maxGain) + translationExtent + enclosureRadius;
+        if (!Number.isFinite(filterExtent) || !Number.isFinite(filterExtent * 2)) {
+            throw new Error("Certified SVG enclosure exceeds the finite SVG filter range");
+        }
+        const filterOrigin = -filterExtent;
+        const filterSize = filterExtent * 2;
+        defs.unshift(`<filter id="rix-exact-enclosure" filterUnits="userSpaceOnUse" x="${filterOrigin}" y="${filterOrigin}" width="${filterSize}" height="${filterSize}" color-interpolation-filters="sRGB"><feMorphology operator="dilate" radius="${enclosureRadius}"/></filter>`);
+    }
+    const renderedChildren = enclosureRadius > 0
+        ? `<g class="rix-exact-enclosure" filter="url(#rix-exact-enclosure)">${children}</g>`
+        : children;
+    return {
+        content: `<svg class="rix-output-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size[0]} ${size[1]}" width="${size[0]}" height="${size[1]}" overflow="visible" role="img">${defs.length ? `<defs>${defs.join("")}</defs>` : ""}${renderedChildren}</svg>`,
+        diagnostics,
+        metadata: {
+            schema: "rix.svg.coordinate-lowering@1",
+            precision: policy.precision,
+            rounding: policy.rounding,
+            guarantee: "outward-exact-enclosure",
+            enclosureRadius,
+            approximated: approximated.length,
+            entries: policy.entries,
+            collisions,
+        },
+    };
+}
+
+export function renderGraphicSvg(graphic, format = (item) => String(item ?? ""), options = {}) {
+    return lowerGraphicSvg(graphic, format, options).content;
 }
 
 function graphicIsInteractive(graphic) {

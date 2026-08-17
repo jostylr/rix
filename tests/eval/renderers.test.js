@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { Rational, RationalInterval } from "@ratmath/core";
 import {
     Context,
     RendererRegistry,
@@ -11,6 +12,7 @@ import { createDefinition as createPngDefinition } from "../../plugins/render-pn
 import { definition as quartoDefinition } from "../../plugins/render-quarto/quarto.plugin.rix.js";
 import { definition as svgDefinition } from "../../plugins/render-svg/svg.plugin.rix.js";
 import { createWebGLPlan, paintWebGLPlan } from "../../plugins/render-webgl/webgl-plan.js";
+import { lowerGraphicSvg } from "../../src/runtime/output.js";
 
 function runtime() {
     return {
@@ -85,6 +87,103 @@ describe("renderer registry", () => {
         expect(plan.commands.map(([command]) => command)).toEqual(["path2d", "rectangle", "circle", "text"]);
         expect(result.values[2].value).toContain("\\begin{tikzpicture}");
         expect(result.values[2].value).toContain("rectangle");
+    });
+
+    test("SVG Phase 2 lowers exact and certified coordinates with outward enclosures", () => {
+        const graphic = parseAndEvaluate(`
+            .Graphics.Graphic([10,10], [
+                .Graphics.Path([
+                    [1000000000000000000000000000001/1000000000000000000000000000000, 1/3],
+                    [3334/10000, 2/3],
+                    [1/3, 3/4]
+                ], {= stroke="#2563eb", width=1/3 }),
+                .Graphics.Circle([(5:4),2], 1/3, {= fill="#0f766e" })
+            ])
+        `, runtime());
+        const registry = new RendererRegistry();
+        registry.register(svgDefinition);
+        const result = registry.render(graphic, "svg", { precision: 3, rounding: "nearest" }, { format: String });
+        const lowering = result.metadata.coordinateLowering;
+        expect(lowering).toMatchObject({
+            schema: "rix.svg.coordinate-lowering@1",
+            precision: 3,
+            rounding: "nearest",
+            guarantee: "outward-exact-enclosure",
+        });
+        expect(lowering.enclosureRadius).toBeGreaterThanOrEqual(0.5);
+        expect(result.content).toContain('<feMorphology operator="dilate"');
+        expect(result.content).toContain('overflow="visible"');
+        expect(result.diagnostics.map(({ code }) => code)).toEqual(expect.arrayContaining([
+            "svg-coordinate-approximation",
+            "svg-coordinate-collision",
+            "svg-certified-outward-enclosure",
+        ]));
+        expect(lowering.entries).toContainEqual(expect.objectContaining({
+            path: "Circle center x",
+            exact: "4:5",
+            lower: "4",
+            upper: "5",
+            source: "rational-interval",
+            presentation: "ascending",
+        }));
+        expect(lowering.entries).toContainEqual(expect.objectContaining({
+            exact: "1000000000000000000000000000001/1000000000000000000000000000000",
+            lowered: "1",
+            certified: true,
+        }));
+
+        const floor = registry.render(graphic, "svg", { precision: 3, rounding: "floor" }, { format: String });
+        const ceil = registry.render(graphic, "svg", { precision: 3, rounding: "ceil" }, { format: String });
+        expect(floor.metadata.coordinateLowering.entries.find(({ exact }) => exact === "1/3").lowered).toBe("0.333");
+        expect(ceil.metadata.coordinateLowering.entries.find(({ exact }) => exact === "1/3").lowered).toBe("0.334");
+
+        const floatGraphic = {
+            type: "output", kind: "graphic", size: [10, 10], metadata: null,
+            children: [{ type: "output", kind: "circle", center: [1.23456, 2], radius: 1, style: new Map() }],
+        };
+        const floatLowering = lowerGraphicSvg(floatGraphic, String, { precision: 3 });
+        expect(floatLowering.metadata.entries.find(({ path }) => path === "Circle center x"))
+            .toMatchObject({ lowered: "1.235", certified: false, lower: null, upper: null });
+        expect(floatLowering.metadata.enclosureRadius).toBe(0);
+    });
+
+    test("SVG Phase 2 conformance keeps difficult exact scenes outward-safe", () => {
+        const scaled = parseAndEvaluate(`
+            .Graphics.Graphic([10,10], [
+                .Graphics.Transform([
+                    .Graphics.Circle([1/3,1/3], 1/3, {= fill="#2563eb" })
+                ], {= scale=1000 })
+            ])
+        `, runtime());
+        const scaledLowering = lowerGraphicSvg(scaled, String, { precision: 3 });
+        expect(scaledLowering.metadata.enclosureRadius).toBeGreaterThan(0.8);
+        expect(scaledLowering.content).toContain('filterUnits="userSpaceOnUse"');
+
+        const tinyDenominator = 10n ** 400n;
+        const narrow = new RationalInterval(
+            new Rational(1n, tinyDenominator),
+            new Rational(2n, tinyDenominator),
+        );
+        const reversed = new RationalInterval(new Rational(5n), new Rational(4n));
+        const difficult = {
+            type: "output", kind: "graphic", size: [10, 10], metadata: null,
+            children: [
+                { type: "output", kind: "circle", center: [narrow, reversed], radius: new Rational(1n, 3n), style: new Map() },
+                { type: "output", kind: "text_mark", position: [new Rational(1n, 3n), 2], text: "first", style: new Map() },
+                { type: "output", kind: "text_mark", position: [new Rational(3334n, 10000n), 2], text: "second", style: new Map() },
+            ],
+        };
+        const lowered = lowerGraphicSvg(difficult, String, { precision: 3 });
+        expect(lowered.metadata.enclosureRadius).toBeGreaterThan(0);
+        expect(lowered.metadata.entries).toContainEqual(expect.objectContaining({
+            exact: reversed.toString(),
+            presentation: "reversed",
+            lower: "4",
+            upper: "5",
+        }));
+        expect(lowered.content).toContain(">first</text>");
+        expect(lowered.content).toContain(">second</text>");
+        expect(lowered.metadata.collisions.length).toBeGreaterThan(0);
     });
 
     test("document renderers preserve structure and report static fallbacks", () => {

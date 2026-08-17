@@ -42,7 +42,7 @@ numeric type or one universal rendering engine.
 | Plugin catalog | Implemented runtime service | Discovery, metadata, explicit loading, host approval for JavaScript, capability groups, and remounting. |
 | Core symbolic specs | Implemented in RiX core | `{#}` preserves expression IR, definitions, constraints, all symbols, and advisory input/output roles without choosing a solver. |
 | Renderer registry | Implemented runtime service | `.Renderer.List`/`.Info`, generic `.Render`, MIME/extension aliases, explicit fallback negotiation, structured results/assets/diagnostics, and `.Out` target selection. |
-| `.svg`, `.canvas`, `.webgl`, `.tikz`, `.png` | Implemented plugins | Core Graphics and versioned Scene3D snapshots to SVG, Canvas 2D plans, TikZ, and host-rasterized PNG; retained Scene3D to executable WebGL plans. PNG uses an approved CLI toolchain adapter. |
+| `.svg`, `.canvas`, `.webgl`, `.tikz`, `.png` | Implemented plugins | Core Graphics and versioned Scene3D snapshots to outward-safe SVG, Canvas 2D plans, TikZ, and host-rasterized PNG; retained Scene3D to executable WebGL plans. SVG-backed rasterization encloses exact/certified coordinate truth while leaving Float lowering approximate. |
 | `.markdown`, `.html`, `.quarto`, `.latex`, `.pdf` | Implemented plugins | Portable document/output trees to standalone text/document formats. PDF delegates through LaTeX and an approved CLI compiler adapter. |
 | `.scene3d` | Implemented through Phase 2 | Retained exact mesh/polyline/point scenes, bounded curves and adaptive parametric surfaces, annotation/interaction policies, picking IDs, transforms, cameras/lights, orbit descriptions, deterministic wireframe/flat-lit snapshots, and Canvas/WebGL/PNG lowering. |
 | `.nd` | Implemented initial plugin | Exact points, polylines, polytopes/hypercubes, affine projection records, rational Cayley rotations, composition, and explicit conversion of 3D results to Scene3D. |
@@ -690,7 +690,7 @@ not silently discarded.
 
 | Plugin | Primary inputs | Output and responsibilities |
 | --- | --- | --- |
-| `.svg` | `Graphic`, standalone `Figure`; projected `Scene3D` | SVG text/bytes, clipping, paths, exact-to-decimal coordinate policy, metadata, accessibility. |
+| `.svg` | `Graphic`, standalone `Figure`; projected `Scene3D` | SVG text/bytes, clipping, paths, selectable exact-to-decimal policy, outward certified enclosures, approximation/collision metadata, and accessibility. |
 | `.canvas` | `Graphic`, including a `Scene3D` Snapshot result; rapidly changing plot frames | Browser `CanvasRenderingContext2D` drawing plan and host-owned surface. Optimized for repainting, large sample counts, hit-test metadata, and interactive views; provides PNG snapshots because a canvas is not itself a portable serialized result. |
 | `.webgl` | Retained `Scene3D` | Versioned executable GPU plan with camera, light, draw-call, picking, interaction, and annotation-overlay descriptors. The host owns WebGL state. |
 | `.png` | `Graphic`, rendered document region, `Scene3D` Snapshot, slide frame | Raster image; delegates scene construction to SVG/Scene3D and owns resolution, antialiasing, color profile, and transparency. |

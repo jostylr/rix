@@ -65,7 +65,7 @@ fixtures live beside it.
 | Target plugin | Inputs | Result | Host requirements |
 | --- | --- | --- | --- |
 | `.terminalAscii` | Tables, Grids, Fragments, simple `Graphic` values | Strict seven-bit plain text | None |
-| `.svg` | `Graphic`, graphic `Figure` | Standalone accessible SVG | None |
+| `.svg` | `Graphic`, graphic `Figure` | Standalone accessible SVG with outward-safe exact-coordinate metadata | None |
 | `.canvas` | `Graphic`, graphic `Figure`, versioned `Scene3D` Snapshot | Versioned JSON `CanvasRenderingContext2D` plan | None; painting needs a browser Canvas |
 | `.webgl` | Retained `Scene3D` | Versioned JSON GPU plan with picking and annotation overlays | None; painting needs browser WebGL |
 | `.tikz` | `Graphic`, graphic `Figure` | TikZ/PGF source | None; TeX is only needed to compile it |
@@ -104,6 +104,13 @@ domain value -> bounded refinement -> portable scene/document -> renderer -> art
 For 2D, `.Graphics` is the portable retained scene. SVG, Canvas, TikZ, and PNG
 all consume it. PDF consumes it either as a standalone TikZ figure or inside a
 document.
+
+SVG and SVG-backed PNG preserve certified truth during decimal lowering.
+Every exact rational, exact interval, or certified approximation records an
+outward decimal enclosure. When a chosen decimal coordinate alone would not
+contain the exact geometry, the target minimally dilates the rendered geometry
+and reports `svg-certified-outward-enclosure`. Native Float coordinates remain
+ordinary approximate target values.
 
 For 3D, RiX has the retained `rix.scene3d@1` schema described in
 [`../design-spec.md`](../design-spec.md). Renderer plugins do not encode

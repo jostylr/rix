@@ -26,4 +26,30 @@ from data, or `.Out("diagram.svg", scene)` in a CLI script.
 
 - Browser: complete source generation.
 - CLI: no external tools.
-- Option: `alt` for the accessible description.
+- Options: `alt`, decimal `precision`, and `rounding` policy.
+
+## Keep exact coordinates enclosed
+
+Exact and certified coordinates are never silently replaced by an
+unqualified decimal point. The renderer retains outward decimal bounds and,
+when necessary, minimally expands the rendered geometry to contain them.
+
+```rix
+.Plugin.Load("svg");
+exactScene := .Graphics.Graphic([120, 80], [
+    .Graphics.Path([[1/3,1/3],[2/3,2/3]], {=
+        stroke="#2563eb",
+        width=1/3
+    }),
+    .Graphics.Circle([(4:5),2], 1/3, {= fill="#0f766e" })
+]);
+lowered := .svg.Render(exactScene, {= precision=3, rounding="nearest" });
+[
+    lowered.Get("metadata")["coordinateLowering"]["guarantee"],
+    lowered.Get("diagnostics")
+];
+```
+
+The guarantee is `outward-exact-enclosure`. Float-originated coordinates may
+still round messily, but are marked non-certified and never presented as an
+exact enclosure.

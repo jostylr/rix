@@ -13,7 +13,7 @@ deterministic: true
 defaultEnabled: false
 **/
 
-import { renderGraphicSvg } from "../../src/runtime/output.js";
+import { lowerGraphicSvg } from "../../src/runtime/output.js";
 import { UnsupportedRenderError } from "../../src/runtime/renderer-registry.js";
 import { field, installRendererPlugin, numberValue, option, plainValue, requireOutput, rixString, unwrapGraphic } from "../renderers/common.js";
 
@@ -38,7 +38,11 @@ export function createDefinition(rasterizeSvg = null) {
             const scale = option(options, "scale", 1);
             const width = option(options, "width");
             const height = option(options, "height");
-            const rendered = rasterizeSvg(renderGraphicSvg(graphic, format), {
+            const coordinateLowering = lowerGraphicSvg(graphic, format, {
+                precision: numberValue(option(options, "precision", 6), "PNG/SVG coordinate precision"),
+                rounding: rixString(option(options, "rounding", "nearest")) || option(options, "rounding", "nearest"),
+            });
+            const rendered = rasterizeSvg(coordinateLowering.content, {
                 width: width === null ? Math.round(numberValue(graphic.size[0], "Graphic width") * numberValue(scale, "PNG scale")) : numberValue(width, "PNG width"),
                 height: height === null ? Math.round(numberValue(graphic.size[1], "Graphic height") * numberValue(scale, "PNG scale")) : numberValue(height, "PNG height"),
                 background: rixString(option(options, "background")),
@@ -46,10 +50,11 @@ export function createDefinition(rasterizeSvg = null) {
             return {
                 content: rendered.content,
                 toolchain: rendered.toolchain,
-                diagnostics: rendered.diagnostics || [],
+                diagnostics: [...coordinateLowering.diagnostics, ...(rendered.diagnostics || [])],
                 metadata: {
                     width: rendered.width,
                     height: rendered.height,
+                    coordinateLowering: coordinateLowering.metadata,
                     ...(snapshot ? {
                         scene3d: {
                             schema: "rix.scene3d.snapshot@1",
