@@ -27,7 +27,10 @@ line-conic, and circle-circle intersections report statuses such as `one`,
 `two`, `none`, `parallel`, or `coincident`. The substituted quadratic is a
 canonical `.poly` value. Perfect-square roots remain exact; irrational roots
 carry a certified Numerics enclosure and work record with their rational
-display candidate. `Points(result)` and `Status(result)` expose the result.
+display candidate. Every line-conic result also retains the exact discriminant
+sign witness and a Sturm certificate counting all distinct real parameter
+roots; even a `none` result therefore carries positive proof rather than only a
+status label. `Points(result)` and `Status(result)` expose the result.
 
 Every derived object records its construction operation and inputs in
 `provenance`. `Circumcircle` retains both perpendicular bisectors and their

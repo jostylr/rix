@@ -3,12 +3,12 @@ id: numerics
 description: Backend-neutral bounded enclosure and refinement orchestration.
 kind: rix
 mount: numerics
-exports: [Request, WorkPolicy, EffectiveLimits, Enclose, Refine, Sample, Capabilities, CheckResult, NthRoot, Sqrt, Cbrt, Hypot, Pow, Exp, Expm1, Log, Log1p, Ln, Log2, Log10, Pi, EulerGamma, Sin, Cos, Tan, Sec, Csc, Cot, Sinc, Asin, Acos, Atan, Atan2, Arcsin, Arccos, Arctan, Sinh, Cosh, Tanh, Sech, Csch, Coth, Asinh, Acosh, Atanh, Arsinh, Arcosh, Artanh, Radians, Degrees, Gamma, LogGamma, Beta, LogBeta, Digamma, Trigamma, Erf, Erfc, NormalPDF, NormalCDF, NormalQuantile, LambertW, BesselJ, BesselJ0, BesselJ1, BesselY, BesselY0, BesselY1, BesselI, BesselI0, BesselI1, BesselK, BesselK0, BesselK1, Zeta, Quadrature, Kantorovich]
+exports: [Request, WorkPolicy, EffectiveLimits, Enclose, Refine, Sample, Sign, RootCount, Capabilities, CheckResult, NthRoot, Sqrt, Cbrt, Hypot, Pow, Exp, Expm1, Log, Log1p, Ln, Log2, Log10, Pi, EulerGamma, Sin, Cos, Tan, Sec, Csc, Cot, Sinc, Asin, Acos, Atan, Atan2, Arcsin, Arccos, Arctan, Sinh, Cosh, Tanh, Sech, Csch, Coth, Asinh, Acosh, Atanh, Arsinh, Arcosh, Artanh, Radians, Degrees, Gamma, LogGamma, Beta, LogBeta, Digamma, Trigamma, Erf, Erfc, NormalPDF, NormalCDF, NormalQuantile, LambertW, BesselJ, BesselJ0, BesselJ1, BesselY, BesselY0, BesselY1, BesselI, BesselI0, BesselI1, BesselK, BesselK0, BesselK1, Zeta, Quadrature, Kantorovich]
 groups: [Numerics]
 permissions: []
 requires: [rix.oracle@1]
-provides: [rix.numerics@1, rix.enclosable-real-consumer@1]
-schemas: [rix.numerics.refinement-request@1, rix.numerics.enclosure@1, rix.numerics.algorithm-real@1]
+provides: [rix.numerics@1, rix.enclosable-real-consumer@1, rix.exact-sign-consumer@1, rix.root-count-consumer@1]
+schemas: [rix.numerics.refinement-request@1, rix.numerics.enclosure@1, rix.numerics.algorithm-real@1, rix.exact.sign-witness@1, rix.exact.root-count@1]
 defaultEnabled: false
 **/
 
@@ -3978,6 +3978,79 @@ ProviderOperation(value, options, operation) -> {;
     supported ?: CheckedEnclosure(result, request, capabilities) ?_ result;
 };
 
+NumericsSignLabel(value) -> value < 0 ?: :negative ?_ value > 0 ?: :positive ?_ :zero;
+
+NumericsRationalSignEvidence(value) -> {;
+    exact = value ~!: :Rational;
+    witness = {=
+        valueKind=:exactSignWitness,
+        schema="rix.exact.sign-witness@1",
+        property=:sign,
+        subjectType=:rational,
+        subject=exact,
+        at=_,
+        value=exact,
+        sign=NumericsSignLabel(exact),
+        exact=1,
+        certified=1,
+        method=:exactRationalComparison,
+        evidence={= relation="sign compared exactly with zero" }
+    };
+    witness._proto = {= Sign=(self)->self[:sign], Record=(self)->self };
+    .ImmutableValue(witness);
+};
+
+NumericsEnclosureSignEvidence(value, options) -> {;
+    result = ProviderOperation(value, options, :refine);
+    hasInterval = (result ? :Map) && result.Has("interval");
+    certified = hasInterval && result.Has("certified") && result[:certified];
+    interval = hasInterval ?: result[:interval] ?_ _;
+    sign = !certified
+      ?: :undecided
+      ?_ interval.High() < 0
+           ?: :negative
+           ?_ interval.Low() > 0
+                ?: :positive
+                ?_ (interval.Low() == 0 && interval.High() == 0) ?: :zero ?_ :undecided;
+    decided = sign != :undecided;
+    witness = {=
+        valueKind=:exactSignWitness,
+        schema="rix.exact.sign-witness@1",
+        property=:sign,
+        subjectType=:enclosableReal,
+        subject=value,
+        at=_,
+        value=_,
+        sign=sign,
+        exact=decided ?: 1 ?_ 0,
+        certified=decided ?: 1 ?_ 0,
+        status=decided ?: :decided ?_ :undecided,
+        method=:certifiedEnclosure,
+        evidence=result
+    };
+    witness._proto = {= Sign=(self)->self[:sign], Record=(self)->self };
+    .ImmutableValue(witness);
+};
+
+NumericsSign(value, options ?= {= }) -> {;
+    exact = value ~: :Rational;
+    exact != _
+      ?: NumericsRationalSignEvidence(exact)
+      ?_ (value ? :Polynomial)
+           ?: {;
+               point = NumericsOption(@options, "at", _);
+               point != _ ?: @value.SignEvidence(point) ?_ .Error("numerics.Sign needs an exact 'at' point for a Polynomial");
+           }
+           ?_ NumericsEnclosureSignEvidence(value, options);
+};
+
+NumericsRootCount(value, interval) -> {;
+    exactInterval = interval ~!: :RationalInterval;
+    (value ? :Polynomial)
+      ?: value.RootCountEvidence(exactInterval)
+      ?_ .Error("numerics.RootCount needs an exact RootCountProvider");
+};
+
 numericsNamespace = {= };
 numericsNamespace._proto = {=
     Request = (self, options ?= {= }) -> NumericsRequest(options),
@@ -3986,6 +4059,8 @@ numericsNamespace._proto = {=
     Enclose = (self, value, options ?= {= }) -> ProviderOperation(value, options, :enclose),
     Refine = (self, value, options ?= {= }) -> ProviderOperation(value, options, :refine),
     Sample = (self, value, options ?= {= }) -> ProviderOperation(value, options, :sample),
+    Sign = (self, value, options ?= {= }) -> NumericsSign(value, options),
+    RootCount = (self, value, interval) -> NumericsRootCount(value, interval),
     NthRoot = (self, value, degree ?= 2, options ?= {= }) -> NumericsNthRoot(value, degree, options),
     Sqrt = (self, value, options ?= {= }) -> NumericsNthRoot(value, 2, options),
     Cbrt = (self, value, options ?= {= }) -> NumericsNthRoot(value, 3, options),

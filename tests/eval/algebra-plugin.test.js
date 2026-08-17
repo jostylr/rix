@@ -2,6 +2,8 @@ import { describe, expect, test } from "bun:test";
 import { Integer } from "@ratmath/core";
 import { parseAndEvaluate } from "../../src/eval/evaluator.js";
 
+const text = (value) => value?.value;
+
 describe("algebra Phase 1 plugin", () => {
     test("normalizes and round-trips canonical exact polynomials", () => {
         expect(() => parseAndEvaluate(".algebra.Polynomial([1,2])")).toThrow("available but not loaded");
@@ -143,5 +145,44 @@ describe("algebra Phase 1 plugin", () => {
             .Plugin.Load("algebra");
             .algebra.Resultant(.poly([0]), .poly([1,1]));
         `)).toThrow("undefined for the zero polynomial");
+    });
+
+    test("Phase 2 exposes versioned exact sign and distinct-root-count witnesses", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("algebra");
+            polynomial := .p\`(x-1)^2*(x+2)^3\`;
+            negative := .algebra.SignEvidence(polynomial, -3);
+            roots := .algebra.RootCountEvidence(polynomial, -10:10);
+            endpoint := .algebra.RootCountEvidence(.p\`x*(x-1)\`, 0:1);
+            [
+                negative[:schema], negative[:sign], negative[:value], negative[:certified],
+                polynomial.SignAt(-2), polynomial.SignAt(2),
+                roots[:schema], roots[:property], roots[:count], roots[:endpointPolicy],
+                roots[:variations][:low], roots[:variations][:high], roots[:verified],
+                endpoint[:count], endpoint[:endpointValues][:low], endpoint[:endpointValues][:high],
+                polynomial.IsSquareFree(), roots[:countingPolynomial].IsSquareFree(),
+                polynomial.SturmSequence().Len()
+            ];
+        `);
+        const values = result.values;
+        expect(text(values[0])).toBe("rix.exact.sign-witness@1");
+        expect(text(values[1])).toBe("negative");
+        expect(String(values[2])).toBe("-16");
+        expect(values[3].value).toBe(1n);
+        expect([text(values[4]), text(values[5])]).toEqual(["zero", "positive"]);
+        expect(text(values[6])).toBe("rix.exact.root-count@1");
+        expect(text(values[7])).toBe("distinctRealRoots");
+        expect(String(values[8])).toBe("2");
+        expect(text(values[9])).toBe("leftOpenRightClosed");
+        expect(Number(values[10])).toBeGreaterThan(Number(values[11]));
+        expect(values[12].value).toBe(1n);
+        expect([String(values[13]), String(values[14]), String(values[15])]).toEqual(["1", "0", "0"]);
+        expect(values[16]).toBeNull();
+        expect([String(values[17]), String(values[18])]).toEqual(["1", "3"]);
+
+        expect(() => parseAndEvaluate(`
+            .Plugin.Load("algebra");
+            .algebra.RootCountEvidence(.poly([0]), -1:1);
+        `)).toThrow("infinitely many roots");
     });
 });

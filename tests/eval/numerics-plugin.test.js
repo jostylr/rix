@@ -100,6 +100,40 @@ describe("pure RiX Numerics plugin", () => {
         expect(entry(result, "approximation")).toBeInstanceOf(CertifiedApproximation);
     });
 
+    test("publishes backend-neutral exact sign and root-count witnesses", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("numerics");
+            .Plugin.Load("algebraic-real");
+            polynomial := .p\`x^2-2\`;
+            rationalSign := .numerics.Sign(-3/5);
+            polynomialSign := .numerics.Sign(polynomial, {= at=2 });
+            algebraicSign := .numerics.Sign(.ar.Sqrt2());
+            refinedSign := .numerics.Sign(.numerics.Sqrt(2), {= absoluteWidth=1/100, maxWork=30 });
+            rootCount := .numerics.RootCount(polynomial, -2:2);
+            [
+                rationalSign[:schema], rationalSign[:sign], rationalSign[:certified],
+                polynomialSign[:sign], polynomialSign[:method],
+                algebraicSign[:sign], algebraicSign[:method],
+                refinedSign[:sign], refinedSign[:method], refinedSign[:certified],
+                rootCount[:schema], rootCount[:count], rootCount[:endpointPolicy]
+            ];
+        `, runtime());
+        const values = result.values;
+        expect(textValue(values[0])).toBe("rix.exact.sign-witness@1");
+        expect([textValue(values[1]), String(values[2])]).toEqual(["negative", "1"]);
+        expect([textValue(values[3]), textValue(values[4])]).toEqual(["positive", "exactPolynomialEvaluation"]);
+        expect([textValue(values[5]), textValue(values[6])]).toEqual(["positive", "certifiedEnclosure"]);
+        expect([textValue(values[7]), textValue(values[8]), String(values[9])])
+            .toEqual(["positive", "certifiedEnclosure", "1"]);
+        expect([textValue(values[10]), String(values[11]), textValue(values[12])])
+            .toEqual(["rix.exact.root-count@1", "2", "leftOpenRightClosed"]);
+
+        expect(() => parseAndEvaluate(`
+            .Plugin.Load("numerics"); .Plugin.Load("poly");
+            .numerics.Sign(.p\`x+1\`);
+        `, runtime())).toThrow("needs an exact 'at' point");
+    });
+
     test("reports Float sampling as approximate rather than certified", () => {
         const options = runtime();
         loadFloatPlugin(options.systemContext, options.registry);

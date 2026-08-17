@@ -88,3 +88,12 @@ factor over the coefficient field without floating-point approximation. The
 zero polynomial is rejected for rational-root, factor-evidence, square-free,
 and resultant requests because those outputs would not have a finite canonical
 interpretation.
+
+`P.SignEvidence(q)` returns a `rix.exact.sign-witness@1` record from exact
+evaluation at rational `q`; `P.SignAt(q)` returns its sign label directly.
+`P.RootCountEvidence(interval)` returns a `rix.exact.root-count@1` Sturm
+certificate for the distinct real roots. It first computes the exact
+square-free part, so multiplicities cannot make the chain cycle or alter the
+count. The interval convention is explicitly `(low, high]`, with endpoint
+values and both sign-variation totals retained. `P.RootCount(interval)` is the
+count-only convenience.

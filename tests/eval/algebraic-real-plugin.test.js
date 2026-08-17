@@ -86,7 +86,11 @@ describe("Algebraic Real plugin", () => {
                 positive.CompareRational(7/5),
                 positive.CompareRational(3/2),
                 zero.CompareRational(0),
-                positive.EvaluatePolynomial(3/2)
+                positive.EvaluatePolynomial(3/2),
+                positive.SignEvidence()[:schema],
+                positive.SignEvidence()[:sign],
+                positive.RootCountEvidence(-2:2)[:schema],
+                positive.RootCountEvidence(-2:2)[:count]
             }
         `, options);
 
@@ -94,6 +98,10 @@ describe("Algebraic Real plugin", () => {
             "positive", "negative", "zero", "greater", "less", "equal",
         ]);
         expect(result.values[6].toString()).toBe("1/4");
+        expect(result.values.slice(7, 10).map(textValue)).toEqual([
+            "rix.exact.sign-witness@1", "positive", "rix.exact.root-count@1",
+        ]);
+        expect(String(result.values[10])).toBe("2");
     });
 
     test("refines by exact bisection and participates in Numerics and Halo", () => {

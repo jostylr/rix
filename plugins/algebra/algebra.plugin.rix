@@ -3,12 +3,12 @@ id: algebra
 description: Polynomial algebra façade backed by the canonical pure-RiX poly service.
 kind: rix
 mount: algebra
-exports: [Polynomial, Coefficients, Record, Evaluate, Equal, Divide, SyntheticDivide, Quotient, Remainder, IsFactor, Gcd, Lcm, SquareFreeDecomposition, RationalRoots, FactorEvidence, Resultant, Grid]
+exports: [Polynomial, Coefficients, Record, Evaluate, Equal, Divide, SyntheticDivide, Quotient, Remainder, IsFactor, Gcd, Lcm, SquareFreeDecomposition, RationalRoots, FactorEvidence, Resultant, SignAt, SignEvidence, RootCount, RootCountEvidence, Grid]
 groups: [Algebra, Exact]
 permissions: []
 requires: [rix.polynomial.algorithms@1, rix.rational-function@1]
 provides: [rix.algebra.division@1]
-schemas: [rix.algebra.division@1, rix.polynomial.division@1, rix.polynomial.square-free@1, rix.polynomial.factor-evidence@1]
+schemas: [rix.algebra.division@1, rix.polynomial.division@1, rix.polynomial.square-free@1, rix.polynomial.factor-evidence@1, rix.exact.sign-witness@1, rix.exact.root-count@1]
 snapshot: false
 deterministic: true
 defaultEnabled: false
@@ -77,6 +77,10 @@ algebraNamespace._proto = {=
     RationalRoots = (self, polynomial) -> .poly.RationalRoots(polynomial),
     FactorEvidence = (self, polynomial) -> .poly.FactorEvidence(polynomial),
     Resultant = (self, left, right) -> .poly.Resultant(left, right),
+    SignAt = (self, polynomial, point) -> .poly.SignAt(polynomial, point),
+    SignEvidence = (self, polynomial, point) -> .poly.SignEvidence(polynomial, point),
+    RootCount = (self, polynomial, interval) -> .poly.RootCount(polynomial, interval),
+    RootCountEvidence = (self, polynomial, interval) -> .poly.RootCountEvidence(polynomial, interval),
     Grid = (self, division) -> AlgebraGrid(division)
 };
 

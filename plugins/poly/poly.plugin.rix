@@ -4,11 +4,11 @@ description: Semantic callable univariate polynomials with structural and symbol
 kind: rix
 mount: poly
 aliases: [polynomial, p]
-exports: [Polynomial, Parse, Var, Fun, Divide, SyntheticDivide, Gcd, Lcm, SquareFreeDecomposition, RationalRoots, FactorEvidence, Resultant, SturmSequence, RootCount]
+exports: [Polynomial, Parse, Var, Fun, Divide, SyntheticDivide, Gcd, Lcm, SquareFreeDecomposition, RationalRoots, FactorEvidence, Resultant, SignAt, SignEvidence, SturmSequence, RootCount, RootCountEvidence]
 groups: [Algebra, Exact, Symbolic]
 permissions: []
-provides: [rix.polynomial@1, rix.polynomial.algorithms@1]
-schemas: [rix.polynomial@1, rix.polynomial.division@1, rix.polynomial.square-free@1, rix.polynomial.factor-evidence@1]
+provides: [rix.polynomial@1, rix.polynomial.algorithms@1, rix.exact-sign@1, rix.root-count@1]
+schemas: [rix.polynomial@1, rix.polynomial.division@1, rix.polynomial.square-free@1, rix.polynomial.factor-evidence@1, rix.exact.sign-witness@1, rix.exact.root-count@1]
 snapshot: false
 deterministic: true
 defaultEnabled: false
@@ -213,8 +213,11 @@ PolyBuild(coefficientFunction, variable, degreeBound, source, provenance, reacti
         RationalRoots = (self) -> PolyRationalRoots(self),
         FactorEvidence = (self) -> PolyFactorEvidence(self),
         Resultant = (self, other) -> PolyResultant(self, other),
+        SignAt = (self, point) -> PolySignAt(self, point),
+        SignEvidence = (self, point) -> PolySignEvidence(self, point),
         SturmSequence = (self) -> PolySturmSequence(self),
         RootCount = (self, interval) -> PolyRootCount(self, interval),
+        RootCountEvidence = (self, interval) -> PolyRootCountEvidence(self, interval),
         IsSquareFree = (self) -> PolyIsSquareFree(self),
         RootBound = (self) -> PolyRootBound(self),
         PrimitiveInteger = (self) -> PolyPrimitiveInteger(self)
@@ -455,8 +458,44 @@ PolySturmArrays(coefficients) -> {;
     sequence;
 };
 
-PolySturmSequence(polynomial) -> PolySturmArrays(PolyCurrentAscending(PolyRequire(polynomial)));
+PolySturmSequence(polynomial) -> {;
+    value = PolyRequire(polynomial);
+    value.Degree() == -1 ?: .Error("Zero polynomial has no finite Sturm sequence") ?_ _;
+    countingPolynomial = value.Degree() <= 0
+      ?: value
+      ?_ PolyMonic(value // PolyGcd(value, value.Derivative()));
+    PolySturmArrays(PolyCurrentAscending(countingPolynomial));
+};
 PolySign(value) -> value < 0 ?: -1 ?_ value > 0 ?: 1 ?_ 0;
+PolySignLabel(value) -> value < 0 ?: :negative ?_ value > 0 ?: :positive ?_ :zero;
+
+PolySignEvidence(polynomial, point) -> {;
+    value = PolyRequire(polynomial, "Polynomial sign subject");
+    exactPoint = PolyExact(point, "Polynomial sign point");
+    evaluated = value.Evaluate(exactPoint);
+    witness = {=
+        valueKind=:exactSignWitness,
+        schema="rix.exact.sign-witness@1",
+        property=:sign,
+        subjectType=:polynomial,
+        subject=value,
+        at=exactPoint,
+        value=evaluated,
+        sign=PolySignLabel(evaluated),
+        exact=1,
+        certified=1,
+        method=:exactPolynomialEvaluation,
+        evidence={=
+            relation="value = polynomial(at)",
+            coefficients=value.Coefficients(),
+            variable=value.Variable()
+        }
+    };
+    witness._proto = {= Sign=(self)->self[:sign], Record=(self)->self };
+    .ImmutableValue(witness);
+};
+
+PolySignAt(polynomial, point) -> PolySignEvidence(polynomial, point)[:sign];
 
 PolyVariationsAt(sequence, point) -> {;
     previous := 0;
@@ -473,16 +512,51 @@ PolyVariationsAt(sequence, point) -> {;
     variations;
 };
 
-PolyRootCount(polynomial, interval) -> {;
+PolyRootCountEvidence(polynomial, interval) -> {;
     value = PolyRequire(polynomial);
+    value.Degree() == -1 ?: .Error("Zero polynomial has infinitely many roots") ?_ _;
     exact = interval ~!: :RationalInterval;
-    sequence = PolySturmSequence(value);
-    PolyVariationsAt(sequence, exact.Low()) - PolyVariationsAt(sequence, exact.High());
+    countingPolynomial = value.Degree() <= 0
+      ?: value
+      ?_ PolyMonic(value // PolyGcd(value, value.Derivative()));
+    sequence = PolySturmArrays(PolyCurrentAscending(countingPolynomial));
+    low = exact.Low();
+    high = exact.High();
+    lowVariations = PolyVariationsAt(sequence, low);
+    highVariations = PolyVariationsAt(sequence, high);
+    count = lowVariations - highVariations;
+    dividesOriginal = PolyDivide(value, countingPolynomial)[:divisorIsFactor];
+    squareFree = PolyIsSquareFree(countingPolynomial);
+    evidence = {=
+        valueKind=:exactRootCount,
+        schema="rix.exact.root-count@1",
+        property=:distinctRealRoots,
+        polynomial=value,
+        countingPolynomial=countingPolynomial,
+        interval=exact,
+        endpointPolicy=:leftOpenRightClosed,
+        multiplicityPolicy=:distinct,
+        count=count,
+        exact=1,
+        certified=1,
+        method=:sturmSequence,
+        sturmSequence=sequence,
+        variations={= low=lowVariations, high=highVariations },
+        endpointValues={= low=value.Evaluate(low), high=value.Evaluate(high) },
+        verification={= dividesOriginal=dividesOriginal ?: 1 ?_ 0, squareFree=squareFree ?: 1 ?_ 0 },
+        verified=(count >= 0 && dividesOriginal && squareFree) ?: 1 ?_ 0
+    };
+    evidence._proto = {= Count=(self)->self[:count], Record=(self)->self };
+    .ImmutableValue(evidence);
 };
 
+PolyRootCount(polynomial, interval) -> PolyRootCountEvidence(polynomial, interval)[:count];
+
 PolyIsSquareFree(polynomial) -> {;
-    sequence = PolySturmSequence(polynomial);
-    sequence.Last().Len() == 1;
+    value = PolyRequire(polynomial);
+    value.Degree() == -1
+      ?: _
+      ?_ value.Degree() <= 0 ?: 1 ?_ PolyGcd(value, value.Derivative()).Degree() == 0;
 };
 
 PolyRootBound(polynomial) -> {;
@@ -833,9 +907,12 @@ polyNamespace._proto = {=
     RationalRoots = (self, polynomial) -> PolyRationalRoots(polynomial),
     FactorEvidence = (self, polynomial) -> PolyFactorEvidence(polynomial),
     Resultant = (self, left, right) -> PolyResultant(left, right),
+    SignAt = (self, polynomial, point) -> PolySignAt(polynomial, point),
+    SignEvidence = (self, polynomial, point) -> PolySignEvidence(polynomial, point),
     Derivative = (self, polynomial) -> PolyDerivative(polynomial),
     SturmSequence = (self, polynomial) -> PolySturmSequence(polynomial),
     RootCount = (self, polynomial, interval) -> PolyRootCount(polynomial, interval),
+    RootCountEvidence = (self, polynomial, interval) -> PolyRootCountEvidence(polynomial, interval),
     IsSquareFree = (self, polynomial) -> PolyIsSquareFree(polynomial),
     RootBound = (self, polynomial) -> PolyRootBound(polynomial),
     PrimitiveInteger = (self, polynomial) -> PolyPrimitiveInteger(polynomial),

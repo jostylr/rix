@@ -68,6 +68,20 @@ same contract without requiring the Numerics plugin to be loaded. Numerics is
 the user-facing orchestration surface: `.Enclose`, `.Refine`, and `.Sample`
 force their corresponding operation even when handed an existing request.
 
+## Exact decision evidence
+
+`.numerics.Sign(value, request?)` returns a
+`rix.exact.sign-witness@1` record. Exact rationals and polynomial evaluations
+are decided directly; other refinable singleton reals are decided only when a
+certified enclosure excludes zero or proves the singleton zero. Otherwise the
+normal result is `sign=:undecided`, never a guessed sign. Polynomial requests
+provide the exact evaluation point as `{= at=q }`.
+
+`.numerics.RootCount(polynomial, interval)` consumes the polynomial
+`RootCountProvider` and returns its `rix.exact.root-count@1` record, including
+the square-free counting polynomial, Sturm chain, variations, endpoint values,
+and `(low, high]` policy.
+
 Phase 1 includes certified Oracle, Ball, Cauchy, continued-fraction, and
 algebraic-real adapters plus an approximate Float adapter. For Float, the
 returned point interval exactly describes the stored IEEE-754 value, but

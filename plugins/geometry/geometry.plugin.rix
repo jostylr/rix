@@ -6,7 +6,7 @@ mount: geometry
 exports: [Point, Line, Segment, Ray, Polygon, Circle, Conic, Ellipse, Parabola, Hyperbola, Locus, Implicit, Affine, Projective, Transform, Constraint, Constraints, Midpoint, PerpendicularBisector, Circumcircle, Intersect, Points, Status, Refine, Draw]
 groups: [Geometry, Graphics, Exact]
 permissions: []
-requires: [rix.numerics@1, rix.polynomial@1]
+requires: [rix.numerics@1, rix.polynomial.algorithms@1]
 provides: [rix.geometry@1, rix.geometry.intersection@1, rix.geometry.constraint@1, rix.geometry.refinement@1]
 schemas: [rix.geometry@1, rix.geometry.intersection@1, rix.geometry.constraint@1, rix.geometry.refinement@1]
 snapshot: true
@@ -477,6 +477,11 @@ GeometryQuadraticSqrt(value) -> {;
       };
 };
 
+GeometryPolynomialRootEvidence(polynomial) -> {;
+    bound = polynomial.RootBound();
+    polynomial.RootCountEvidence((-bound):bound);
+};
+
 GeometryIntersectLineConic(line,conic,left,right) -> {;
     points=GeometryLinePoints(line); origin=points[1]; other=points[2];
     x=origin[:x]; y=origin[:y]; dx=other[:x]-x; dy=other[:y]-y;
@@ -491,24 +496,27 @@ GeometryIntersectLineConic(line,conic,left,right) -> {;
            ?_ {;
                parameter=-@qc/@qb;
                point=GeometryPointValue(@x+parameter*@dx,@y+parameter*@dy,"LineConicIntersection",[@left,@right]);
-               GeometryIntersectionValue("one",[point],@left,@right,_,{= polynomial=@equation },1);
+               rootCount=GeometryPolynomialRootEvidence(@equation);
+               GeometryIntersectionValue("one",[point],@left,@right,_,{= polynomial=@equation,rootCount=rootCount },1);
            })
       ?_ {;
           discriminant=@qb^2-4*@qa*@qc;
-          discriminant<0
-            ?: GeometryIntersectionValue("none",[],@left,@right,"The line does not meet the conic")
-            ?_ (GeometryIsZero(discriminant)
+          discriminantSign=.numerics.Sign(discriminant);
+          rootCount=GeometryPolynomialRootEvidence(@equation);
+          discriminantSign[:sign]==:negative
+            ?: GeometryIntersectionValue("none",[],@left,@right,"The line does not meet the conic",{= polynomial=@equation,discriminant=discriminant,discriminantSign=discriminantSign,rootCount=rootCount },1)
+            ?_ (discriminantSign[:sign]==:zero
                  ?: {;
                      parameter=-@qb/(2*@qa);
                      point=GeometryPointValue(@x+parameter*@dx,@y+parameter*@dy,"TangentIntersection",[@left,@right]);
-                     GeometryIntersectionValue("one",[point],@left,@right,_,{= discriminant=@discriminant,polynomial=@equation },1);
+                     GeometryIntersectionValue("one",[point],@left,@right,_,{= discriminant=@discriminant,discriminantSign=@discriminantSign,polynomial=@equation,rootCount=@rootCount },1);
                  }
                  ?_ {;
                      root=GeometryQuadraticSqrt(@discriminant);
                      first=(-@qb-root[:value])/(2*@qa); second=(-@qb+root[:value])/(2*@qa);
                      firstPoint=GeometryPointValue(@x+first*@dx,@y+first*@dy,"LineConicIntersection",[@left,@right],{= enclosure=root[:enclosure] });
                      secondPoint=GeometryPointValue(@x+second*@dx,@y+second*@dy,"LineConicIntersection",[@left,@right],{= enclosure=root[:enclosure] });
-                     GeometryIntersectionValue("two",[firstPoint,secondPoint],@left,@right,_,root.Merge({= polynomial=@equation }),root[:exact]);
+                     GeometryIntersectionValue("two",[firstPoint,secondPoint],@left,@right,_,root.Merge({= polynomial=@equation,discriminant=@discriminant,discriminantSign=@discriminantSign,rootCount=@rootCount }),root[:exact]);
                  });
       };
 };

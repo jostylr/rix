@@ -41,6 +41,9 @@ division.Quotient().Coefficients();
   multiplicity, residual, completeness, and reconstruction evidence.
 - `Resultant(left, right)` returns the exact Sylvester resultant; zero
   certifies that the polynomials share a factor.
+- `SignEvidence(polynomial, point)` and `RootCountEvidence(polynomial,
+  interval)` return versioned exact witnesses; `SignAt` and `RootCount` are
+  their concise value-only forms.
 - Polynomial receiver methods such as `P.Divide(F)` and
   `P.SyntheticDiv(root)` come from `.poly`; `.algebra.Divide(P, F)` and
   `.algebra.SyntheticDivide(P, root)` add presentation wrappers with

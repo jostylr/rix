@@ -394,7 +394,9 @@ newline normalization.
    - [x] Add `.fracfun` as the separate form/domain-preserving value for
      inherited exclusions and removable holes. Canonical RationalFunction
      domain continues to use only the reduced denominator intentionally.
-   - [ ] Expose exact sign/root-count protocols to Numerics and Geometry.
+   - [x] Expose versioned exact sign/root-count protocols to Numerics and
+     Geometry, including certified enclosure fallback, explicit endpoint
+     policy, square-free distinct-root counting, and retained Sturm evidence.
    - [ ] Keep transformations explicit and provenance-preserving.
 3. **Phase 3 — Algebraic systems**
    - [ ] Add Gröbner/elimination services, multivariate polynomial structures,

@@ -139,9 +139,13 @@ describe("geometry plugin", () => {
                 .geometry.Line(.geometry.Point(-2,-2),.geometry.Point(2,2)),
                 circle
             );
-            [ellipse,crossing,oblique];
+            miss := .geometry.Intersect(
+                .geometry.Line(.geometry.Point(-2,2),.geometry.Point(2,2)),
+                circle
+            );
+            [ellipse,crossing,oblique,miss];
         `);
-        const [ellipse, crossing, oblique] = result.values;
+        const [ellipse, crossing, oblique, miss] = result.values;
         expect(text(field(ellipse, "kind"))).toBe("conic");
         expect(text(field(ellipse, "conicKind"))).toBe("ellipse");
         expect(field(ellipse, "coefficients").values.map(String)).toEqual(["1", "0", "4", "0", "0", "-4"]);
@@ -150,6 +154,13 @@ describe("geometry plugin", () => {
         expect(field(crossing, "exact").value).toBe(1n);
         expect(text(field(oblique, "status"))).toBe("two");
         expect(field(oblique, "evidence")).not.toBeNull();
+        const crossingEvidence = field(crossing, "evidence");
+        expect(text(field(field(crossingEvidence, "rootCount"), "schema"))).toBe("rix.exact.root-count@1");
+        expect(String(field(field(crossingEvidence, "rootCount"), "count"))).toBe("2");
+        expect(text(field(field(crossingEvidence, "discriminantSign"), "sign"))).toBe("positive");
+        expect(text(field(miss, "status"))).toBe("none");
+        expect(String(field(field(field(miss, "evidence"), "rootCount"), "count"))).toBe("0");
+        expect(text(field(field(field(miss, "evidence"), "discriminantSign"), "sign"))).toBe("negative");
     });
 
     test("Phase 2 bounded implicit and locus refinement returns portable Graphics plus uncertainty", () => {

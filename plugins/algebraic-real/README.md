@@ -36,7 +36,8 @@ root index, root bound, and Sturm-chain length. Values are immutable.
 
 `Polynomial(coefficients)` returns the same canonical callable Polynomial type
 as `.poly`, after primitive-integer normalization and square-free validation.
-`Evaluate`, `Derivative`, `SturmSequence`, `RootCount`, and `IsSquareFree`
+`Evaluate`, `Derivative`, `SturmSequence`, `RootCount`, `RootCountEvidence`,
+and `IsSquareFree`
 delegate to that Polynomial service. Algebraic-real owns only root-facing
 policy: isolating intervals, root indices, evidence, exact comparisons, and
 refinement. There is no second algebraic-real polynomial object.
@@ -54,7 +55,8 @@ root.CompareRational(7/5);   ## :greater
 root < {~ 3/2, 1/1000 };
 ```
 
-`Sign()` and `CompareRational(q)` are exact. If zero or `q` lies inside the
+`Sign()` and `CompareRational(q)` are exact. `SignEvidence()` exposes the same
+decision as a portable `rix.exact.sign-witness@1` certificate. If zero or `q` lies inside the
 stored interval, Sturm counts decide which side contains the isolated root;
 overlap is not treated as equality. A rational is equal only when exact
 polynomial evaluation proves it is the isolated root.

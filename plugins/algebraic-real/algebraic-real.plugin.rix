@@ -4,12 +4,12 @@ description: Exact real algebraic roots certified by canonical Polynomial values
 kind: rix
 mount: algebraicReal
 aliases: [ar]
-exports: [Root, Sqrt2, Polynomial, Evaluate, Derivative, SturmSequence, RootCount, IsSquareFree, Refine, Sign, CompareRational, Export, Import]
+exports: [Root, Sqrt2, Polynomial, Evaluate, Derivative, SturmSequence, RootCount, RootCountEvidence, IsSquareFree, Refine, Sign, SignEvidence, CompareRational, Export, Import]
 groups: [Numerics, Exact, Algebra]
 permissions: []
 requires: [rix.polynomial.algorithms@1, rix.oracle@1]
-provides: [rix.algebraic-real@1, rix.exact-sign@1, rix.refinable@1, rix.enclosable-real@1]
-schemas: [rix.algebraic-real@1, rix.algebraic-real.export@1, rix.algebraic-real.arithmetic-real@1, rix.polynomial@1]
+provides: [rix.algebraic-real@1, rix.exact-sign@1, rix.root-count@1, rix.refinable@1, rix.enclosable-real@1]
+schemas: [rix.algebraic-real@1, rix.algebraic-real.export@1, rix.algebraic-real.arithmetic-real@1, rix.polynomial@1, rix.exact.sign-witness@1, rix.exact.root-count@1]
 snapshot: false
 deterministic: true
 defaultEnabled: false
@@ -182,6 +182,30 @@ ARExactSign(real) -> {;
            };
 };
 
+ARSignEvidence(real) -> {;
+    exactReal = ARRequireReal(real);
+    witness = {=
+        valueKind=:exactSignWitness,
+        schema="rix.exact.sign-witness@1",
+        property=:sign,
+        subjectType=:algebraicReal,
+        subject=exactReal,
+        at=_,
+        value=_,
+        sign=ARExactSign(exactReal),
+        exact=1,
+        certified=1,
+        method=:sturmIsolation,
+        evidence={=
+            polynomial=exactReal[:polynomial],
+            interval=exactReal[:interval],
+            rootIndex=exactReal[:rootIndex]
+        }
+    };
+    witness._proto = {= Sign=(self)->self[:sign], Record=(self)->self };
+    .ImmutableValue(witness);
+};
+
 ARCompareRational(real, value) -> {;
     exactReal = ARRequireReal(real);
     rational = value ~!: :Rational;
@@ -238,7 +262,9 @@ ARAttachProtocol(real) -> {;
         RootIndex = (self) -> self[:rootIndex],
         EvaluatePolynomial = (self, point) -> self[:polynomial].Evaluate(point),
         RootCount = (self, interval) -> self[:polynomial].RootCount(interval),
+        RootCountEvidence = (self, interval) -> self[:polynomial].RootCountEvidence(interval),
         Sign = (self) -> ARExactSign(self),
+        SignEvidence = (self) -> ARSignEvidence(self),
         CompareRational = (self, value) -> ARCompareRational(self, value),
         Record = (self) -> ARRecord(self),
         Export = (self) -> ARExport(self),
@@ -408,9 +434,11 @@ algebraicRealNamespace._proto = {=
     Derivative = (self, coefficients) -> ARPolynomial(coefficients).Derivative(),
     SturmSequence = (self, coefficients) -> ARPolynomial(coefficients).SturmSequence(),
     RootCount = (self, coefficients, interval) -> ARPolynomial(coefficients).RootCount(interval),
+    RootCountEvidence = (self, coefficients, interval) -> ARPolynomial(coefficients).RootCountEvidence(interval),
     IsSquareFree = (self, coefficients) -> {; candidate=.poly({= coefficients=coefficients, order=:ascending, variable=:x }); candidate.IsSquareFree(); },
     Refine = (self, real, request ?= {= }) -> ARProtocolEnclosure(real, request, :refine),
     Sign = (self, real) -> ARExactSign(real),
+    SignEvidence = (self, real) -> ARSignEvidence(real),
     CompareRational = (self, real, value) -> ARCompareRational(real, value),
     Export = (self, real) -> ARExport(real),
     Import = (self, record) -> ARImport(record)

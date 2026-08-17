@@ -96,6 +96,8 @@ evidence := P.FactorEvidence();
     squareFree=P.SquareFreeDecomposition(),
     roots=evidence.Roots(),
     verified=evidence[:verified],
-    resultant=P.Resultant(.p`x+3`)
+    resultant=P.Resultant(.p`x+3`),
+    sign=P.SignEvidence(0),
+    rootCount=P.RootCountEvidence(-10:10)
 };
 ```

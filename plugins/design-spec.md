@@ -52,8 +52,8 @@ numeric type or one universal rendering engine.
 | `.csv` | Implemented Phase 1 renderer | Deterministic CSV/TSV export for core Tables and Data relations with exact scalar formatting and explicit dialect options. |
 | `.document` | Implemented Phase 1 plugin | Numbered core Fragment reports with deterministic section/figure/table labels, resolved forward references, captions, and small semantic themes. |
 | `.terminalAscii` | Implemented Phase 1 renderer | Strict-ASCII Tables, Grids, Fragments, and simple Graphic snapshots with deterministic width truncation and diagnostics. |
-| `.poly` | Implemented pure-RiX plugin | Canonical callable univariate Polynomial identity, reactive exact coefficients, arithmetic/composition, division, derivatives, Sturm chains, root counts, and root bounds. |
-| `.algebra` | Implemented pure-RiX Phase 1 plus exact Phase 2 algorithms | Polynomial construction/presentation over `.poly`, verified division/factor metadata, monic gcd/lcm, square-free and rational-factor evidence, exact resultants, RationalFunction integration, and synthetic-division Grids. |
+| `.poly` | Implemented pure-RiX plugin | Canonical callable univariate Polynomial identity, reactive exact coefficients, arithmetic/composition, division, derivatives, Sturm chains, versioned sign/root-count witnesses, and root bounds. |
+| `.algebra` | Implemented pure-RiX Phase 1 plus exact Phase 2 algorithms | Polynomial construction/presentation over `.poly`, verified division/factor metadata, monic gcd/lcm, square-free and rational-factor evidence, exact resultants and sign/root-count protocols, RationalFunction integration, and synthetic-division Grids. |
 | `.algebraicReal` | Implemented pure-RiX Phase 1 plugin | Root isolation, exact comparison, and bounded refinement over the canonical `.poly` Polynomial service. |
 | `.fraction` | Implemented pure-RiX plugin | Unreduced Fraction arithmetic, classroom denominator policies, mediants, and Farey/Stern–Brocot operations over the core Fraction pair. |
 | `.ratfun` | Implemented pure-RiX plugin | Canonical callable univariate RationalFunctions over `.poly`, including field operators, composition, and reactive reconstruction. |
@@ -225,6 +225,16 @@ EliminationProvider
 An exact object preserves its coefficients, variables, defining equations,
 field extensions, and proof/evidence data. Decimal sampling is never its
 canonical representation.
+
+`ExactSignWitness` and `RootCountProvider` are implemented through
+`rix.exact.sign-witness@1` and `rix.exact.root-count@1`. A sign witness records
+the subject, evaluation point when applicable, sign, method, and whether the
+conclusion is certified. A root-count witness records the original and
+square-free counting polynomials, exact interval, Sturm variations and chain,
+endpoint values, and the explicit `(low, high]` endpoint policy. Counts are of
+distinct real roots; the zero polynomial is rejected rather than assigned a
+finite count. Numerics consumes both records, and Geometry retains them on
+line-conic intersections.
 
 ### 3.2 Real and refinement protocols
 

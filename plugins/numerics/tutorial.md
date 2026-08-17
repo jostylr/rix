@@ -422,3 +422,22 @@ which makes interval evaluation visible and inspectable. Every Newton trace
 step contains the materialized guess, derivative enclosure, new certified
 interval, error radius, and `actualized=1`; there is no retained trail of lazy
 arithmetic expressions between iterations.
+
+## Request exact sign and root-count witnesses
+
+The same witness schema covers exact scalars, polynomial evaluations, and
+bounded certified refinement. Root counts retain their complete Sturm evidence.
+
+```rix
+.Plugin.Load("numerics");
+.Plugin.Load("poly");
+P := .p`(x-1)^2*(x+2)^3`;
+.Table({=
+  columns=["question","answer","method"],
+  rows=[
+    ["sign of P(0)",.numerics.Sign(P,{= at=0 })[:sign],:exactPolynomialEvaluation],
+    ["sign of sqrt(2)",.numerics.Sign(.numerics.Sqrt(2),{= absoluteWidth=1/100,maxWork=30 })[:sign],:certifiedEnclosure],
+    ["distinct roots",.numerics.RootCount(P,-10:10)[:count],:sturmSequence]
+  ]
+});
+```

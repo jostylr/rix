@@ -59,6 +59,23 @@ onBase := .geometry.Constraint(:onLine,[.geometry.Point(2,0),base]);
 .geometry.Draw([triangle,moved],{= view=[-1,-1,8,8],size=[560,560] });
 ```
 
+## Inspect certified intersection decisions
+
+Line-conic intersections retain both the exact discriminant sign and the Sturm
+root-count certificate used to classify the result.
+
+```rix
+.Plugin.Load("geometry");
+circle := .geometry.Circle(.geometry.Point(0,0),1);
+line := .geometry.Line(.geometry.Point(-2,2),.geometry.Point(2,2));
+intersection := .geometry.Intersect(line,circle);
+{=
+  status=intersection[:status],
+  discriminantSign=intersection[:evidence][:discriminantSign],
+  rootCount=intersection[:evidence][:rootCount]
+};
+```
+
 ## Refine an implicit conic with bounded work
 
 The implicit value stays mathematical and serializable. `Refine` creates one
