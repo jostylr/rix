@@ -1,12 +1,12 @@
 /**
 id: symbolic
-description: Meta-plugin loading RiX representation-sensitive Fraction and FractionFunction workspaces.
+description: Meta-plugin joining representation-sensitive FractionFunction work with portable abstract Calculus expressions.
 kind: rix
 mount: symbolic
-exports: [Fraction, FractionFunction, Services]
-groups: [Algebra, Exact, Symbolic]
+exports: [Fraction, FractionFunction, CalculusExpression, Differentiate, DifferentiateResult, Obligations, Services]
+groups: [Algebra, Calculus, Analysis, Exact, Symbolic]
 permissions: []
-requires: [rix.fraction-function@1]
+requires: [rix.fraction-function@1, rix.calculus@1]
 provides: [rix.symbolic.formal@1]
 schemas: []
 snapshot: false
@@ -14,11 +14,37 @@ deterministic: true
 defaultEnabled: false
 **/
 
+SymbolicNonFractionCalculusExpression(value) ->
+    .calculus.IsExpression(value) ?: value ?_ .calculus.FromSpec(value);
+SymbolicCalculusExpression(value) ->
+    value ? :FractionFunction
+      ?: value.CalculusExpression()
+      ?_ SymbolicNonFractionCalculusExpression(value);
+SymbolicFractionObligations(value) ->
+    value.RestrictionExpressions().Reduce((result,expression)->
+        result.Push(.calculus.Obligation(:domain,:nonzero,expression,{= reason=:fractionFunctionSourceDomain })),
+        []
+    );
+SymbolicTransformationObligations(value) ->
+    (value ? :Map) && value.Has("schema") && value[:schema] == "rix.calculus.transformation@1"
+      ?: value[:obligations]
+      ?_ [];
+SymbolicObligations(value) ->
+    value ? :FractionFunction
+      ?: SymbolicFractionObligations(value)
+      ?_ SymbolicTransformationObligations(value);
+
 symbolicNamespace = {= };
 symbolicNamespace._proto = {=
     Fraction = (self, first, second ?= _) -> second == _ ?: .fraction(first) ?_ .fraction(first,second),
     FractionFunction = (self, value, variable ?= _) -> variable == _ ?: .fracfun(value) ?_ .fracfun(value,variable),
-    Services = (self) -> ["fraction","fracfun","poly","ratfun"]
+    CalculusExpression = (self, value) -> SymbolicCalculusExpression(value),
+    Differentiate = (self, value, variable) ->
+        .calculus.Differentiate(self.CalculusExpression(value),variable),
+    DifferentiateResult = (self, value, variable) ->
+        .calculus.DifferentiateResult(self.CalculusExpression(value),variable),
+    Obligations = (self, value) -> SymbolicObligations(value),
+    Services = (self) -> ["fraction","fracfun","poly","ratfun","calculus"]
 };
 
-.Host.RegisterValue("symbolic",symbolicNamespace,"Representation-sensitive symbolic workspace",["Algebra","Exact","Symbolic"]);
+.Host.RegisterValue("symbolic",symbolicNamespace,"Representation-sensitive symbolic and abstract Calculus workspace",["Algebra","Calculus","Analysis","Exact","Symbolic"]);

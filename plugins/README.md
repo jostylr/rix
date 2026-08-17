@@ -82,7 +82,7 @@ stack: coordinate-aware dense linear algebra, primal-simplex optimization, and
 affine symbolic solving through the public `.InspectSpec`/`.SpecRoles` boundary.
 `.geometry` and `.plot` also run their exact construction, sampling, fitting,
 and core-Graphics lowering entirely in RiX.
-`.fracfun` remains host-backed for private symbolic-tree work. `.float` remains JavaScript
+`.fracfun` remains host-backed for closure rewriting and paired-form construction. `.float` remains JavaScript
 intentionally so that IEEE-754 behavior is an explicit host boundary. The old
 JavaScript implementations for converted packages are retained as non-discoverable
 `*.reference.js` comparison sources and are not loaded by the catalog.
@@ -91,12 +91,14 @@ JavaScript implementations for converted packages are retained as non-discoverab
 expression trees (display form and source-domain evaluation form), clones and
 combines private symbolic IR, rewrites closures, and records denominator
 restrictions. Calculus now provides a versioned portable expression builder,
-bidirectional `{#}` bridge, semantic registry, and initial exact
-differentiator. The host implementation
-remains until that bridge covers its closure rewriting, paired
-display/evaluation forms, and domain-restriction needs; raw evaluator-IR
-mutation is deliberately not a public API. Its canonical projections already
-use the pure-RiX `.poly` and `.ratfun` values.
+bidirectional `{#}` bridge, semantic registry, exact differentiation, and
+obligation-bearing transformation results. FractionFunction exports both forms
+and its denominator restrictions through that public contract; `.symbolic`
+turns them into shared Calculus expressions and nonzero obligations. The host
+implementation remains until public facilities cover its closure rewriting and
+paired display/evaluation construction; raw evaluator-IR mutation is
+deliberately not a public API. Its canonical projections already use the
+pure-RiX `.poly` and `.ratfun` values.
 
 Visualization packages are split into mathematical kernels and output
 adapters. Geometry constructions/intersections and polynomial plot sampling,

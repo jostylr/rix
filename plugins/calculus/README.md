@@ -78,6 +78,33 @@ semantic chain rules. `Exp` registers the identity `D Exp = Exp` with evidence
 from its initial-value characterization. An unknown semantic application or a
 non-Integer power is rejected rather than assigned an unjustified rule.
 
+## Domain and branch obligations
+
+Conditional transformations return `rix.calculus.transformation@1` records:
+
+```rix
+.Plugin.Load("calculus");
+x := .calculus.Variable(:x);
+result := .calculus.DifferentiateResult(.calculus.Log()(x^2), :x);
+{: .calculus.ToSpec(result[:expression]), result[:obligations], result[:evidence] };
+```
+
+The derivative is `2*x/x^2`, accompanied by the requirement `x^2 > 0`.
+Quotients retain a nonzero-denominator obligation, as do negative Integer
+powers. Named rules currently cover:
+
+- real-principal `Log`, requiring a positive argument;
+- real-principal `Sqrt`, requiring a positive argument for its derivative;
+- real-principal `Asin`, requiring an argument in the open unit interval; and
+- principal `ComplexLog`, retaining its branch-cut obligation.
+
+`.calculus.Differentiate` remains the convenience form for transformations
+with no obligations. If obligations exist, it reports an error directing the
+caller to `.DifferentiateResult`; it never returns the expression while
+silently discarding its conditions. Custom semantic rules can pair
+`derivative` with `derivativeObligations`, whose callable returns explicit
+values built by `.calculus.Obligation(...)`.
+
 ## Explicit implementations
 
 An implementation can be supplied without changing the semantic identity:
@@ -100,8 +127,11 @@ responsible for refinement and evidence.
 
 The public schemas deliberately contain semantic nodes—variables, exact
 constants, applications, and operators—rather than private evaluator opcodes.
-The bidirectional `{#}` bridge, semantic registry, and initial exact
-differentiator are implemented. Domain and branch obligations, non-Integer
-powers, higher and multivariate derivatives, definite integration, and
-equation problems remain later phases. See
+The bidirectional `{#}` bridge, semantic registry, obligation-bearing
+transformation results, representative real/complex branch-aware rules, and
+initial exact differentiator are implemented. Non-Integer powers, higher and
+multivariate derivatives, definite integration, and equation problems remain
+later phases. `.fracfun` now projects its display/evaluation forms and source
+denominator restrictions through the same public Calculus expression schema;
+its closure rewriting and paired-form construction remain host-owned. See
 [the plugin roadmap](../TODO.md) and [design.md](design.md).

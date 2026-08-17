@@ -74,6 +74,37 @@ R := RForm.R();
 {: P(3), R(3), PForm.Record(), RForm.Record() };
 ```
 
+## Export forms and restrictions to Calculus
+
+`.symbolic` loads FractionFunction and Calculus together. Displayed and
+source-domain evaluation forms cross the public expression boundary
+separately, so cancellation cannot hide a removable hole:
+
+```rix
+.Plugin.Load("symbolic");
+F := .ff`(x^2-1)/(x-1)`;
+C := F.Cancel();
+{: .calculus.ToSpec(C.CalculusExpression()),
+   .calculus.ToSpec(C.EvaluationCalculusExpression()),
+   C.RestrictionExpressions(),
+   .symbolic.Obligations(C) };
+```
+
+Differentiate the exported form with the obligation-bearing Calculus result:
+
+```rix
+.Plugin.Load("symbolic");
+F := .ff`(x^2-1)/(x-1)`;
+result := .symbolic.DifferentiateResult(F, :x);
+{: .calculus.ToSpec(result[:expression]),
+   result[:obligations],
+   F.Domain().Get("calculusRestrictions") };
+```
+
+The derivative result retains the quotient's nonzero denominator condition.
+`.symbolic.Obligations(F)` exposes the same source-domain restriction directly
+from FractionFunction metadata.
+
 ## Reactive forms
 
 ```rix

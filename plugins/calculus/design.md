@@ -69,15 +69,46 @@ evaluation algorithm.
 
 ## Exact derivative contract
 
-`.calculus.Differentiate(expression, variable)` returns another
-`rix.calculus.expression@1` graph. The initial rule set covers constants,
-variables, negation, linearity, products, quotients, and Integer powers.
-Registered unary application rules return the outer derivative, after which
-Calculus multiplies by the recursively computed inner derivative. `Exp`'s
-outer rule returns the original application, implementing `D Exp = Exp`.
+`.calculus.DifferentiateResult(expression, variable)` returns a
+`rix.calculus.transformation@1` record containing the source, transformed
+expression, selected variable, obligations, and a rule/evidence trace.
+`.calculus.Differentiate` extracts the expression only when the obligation list
+is empty; otherwise it refuses to erase the conditions.
 
-General powers, logarithms, roots, inverse functions, and complex
-continuations require explicit domain or branch obligations and therefore do
-not receive unconditional rules. Broader nodes and transformation operations
-are also needed before representation-heavy plugins such as `.fracfun` can
-leave their private symbolic builders.
+The rule set covers constants, variables, negation, linearity, products,
+quotients, and Integer powers. Registered unary application rules return the
+outer derivative, after which Calculus multiplies by the recursively computed
+inner derivative. `Exp`'s outer rule returns the original application,
+implementing `D Exp = Exp`.
+
+## `rix.calculus.obligation@1`
+
+An obligation records:
+
+- `kind`: `domain` or `branch`;
+- `relation`: the condition to discharge, such as `positive`, `nonzero`,
+  `insideOpenUnitInterval`, or `offPrincipalLogBranchCut`;
+- `expression`: the portable expression to which the condition applies;
+- optional semantic function ID and branch; and
+- reason and evidence fields identifying why the transformation requires it.
+
+Division and negative Integer powers create nonzero obligations directly.
+Semantic rules may register a separate `derivativeObligations` callable, so
+the executable rule, its preconditions, and its evidence remain distinct
+registry data. Real-principal `Log`, `Sqrt`, and `Asin`, plus principal
+`ComplexLog`, exercise positive-domain, inverse-branch, and complex branch-cut
+conditions without treating them as unconditional rewrites.
+
+## `rix.calculus.transformation@1`
+
+The transformation record keeps `operation`, `variable`, `source`,
+`expression`, `obligations`, and `evidence` together. The public spec bridge
+accepts an expression, not a whole transformation, so a caller must visibly
+select `result[:expression]` and separately decide how to preserve or
+discharge `result[:obligations]`.
+
+General non-Integer powers and broader expression nodes remain blocked until
+their real/complex branch policies are designed. `.fracfun` now exports its
+display and evaluation specifications plus denominator restrictions as public
+Calculus expressions; its closure rewriting and paired-form construction
+still justify a host implementation.

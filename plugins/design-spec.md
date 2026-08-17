@@ -57,9 +57,9 @@ numeric type or one universal rendering engine.
 | `.algebraicReal` | Implemented pure-RiX Phase 1 plugin | Root isolation, exact comparison, and bounded refinement over the canonical `.poly` Polynomial service. |
 | `.fraction` | Implemented pure-RiX plugin | Unreduced Fraction arithmetic, classroom denominator policies, mediants, and Farey/Stern–Brocot operations over the core Fraction pair. |
 | `.ratfun` | Implemented pure-RiX plugin | Canonical callable univariate RationalFunctions over `.poly`, including field operators, composition, and reactive reconstruction. |
-| `.symbolic` | Implemented pure-RiX meta-plugin | One loading surface for `.fraction`, `.fracfun`, `.poly`, and `.ratfun` while preserving focused ownership. |
-| `.calculus` | Implemented pure-RiX Phase 1 plus initial exact Phase 2 calculus | Portable abstract functions and expression graphs, public bidirectional `{#}` conversion, a semantic-ID registry, and exact arithmetic/unary-chain differentiation including `D Exp = Exp`. |
-| `.fracfun` | Implemented host plugin; migration needs broader public expression transformations | Form- and source-domain-preserving callable expressions. Its canonical projections already use pure-RiX `.poly` and `.ratfun`; closure rewriting and domain restrictions still exceed the initial Calculus bridge. |
+| `.symbolic` | Implemented pure-RiX meta-plugin | One loading surface for `.fraction`, `.fracfun`, `.poly`, `.ratfun`, and `.calculus`, with portable expression conversion, exact differentiation façades, and visible FractionFunction/Calculus obligations while preserving focused ownership. |
+| `.calculus` | Implemented pure-RiX Phase 1 plus initial exact Phase 2 calculus | Portable abstract functions and expression graphs, public bidirectional `{#}` conversion, a semantic-ID registry, exact arithmetic/unary-chain differentiation, and obligation-bearing real/complex branch-aware transformations. |
+| `.fracfun` | Implemented host plugin; migration still needs public closure/paired-form construction | Form- and source-domain-preserving callable expressions. Canonical projections use pure-RiX `.poly`/`.ratfun`; display/evaluation forms and denominator restrictions now export through Calculus, while closure rewriting and paired-form construction remain host-owned. |
 | HTML/SVG/terminal display | Implemented compatibility hosts | Existing direct host display remains available without loading an exporter; explicit artifacts use the renderer registry when a matching plugin is loaded. |
 
 ### Proposed first-party packages
@@ -68,7 +68,7 @@ numeric type or one universal rendering engine.
 | --- | --- | --- |
 | Exact mathematics expansion | `.algebra` | Polynomial gcd/factorization, rational functions, elimination, exact root evidence, and algebraic-number support beyond the implemented univariate transformation slice. |
 | Numeric orchestration expansion | `.numerics` | Root finding, integration, optimization, ODE/PDE helpers, adaptive sampling, error propagation, and broader algorithm dispatch beyond the implemented neutral Phase 1 enclosure/refinement protocol. |
-| Exact calculus expansion | `.calculus` | Domain/branch obligations, higher and multivariate derivatives, integration, and differential/integral-equation specifications beyond the implemented registry and initial exact differentiator. |
+| Exact calculus expansion | `.calculus` | Higher and multivariate derivatives, general-power branch policies, integration, and differential/integral-equation specifications beyond the implemented registry, obligation records, and initial exact differentiator. |
 | Mathematical analysis | `.analysis` | Function sequences, explicit modes of convergence, limits/series, justified exchanges, and function spaces over Calculus functions and effective sequence evidence. |
 | Real backends | `.algebraicReal`; later expansion of implemented `.ball`, `.cauchy`, `.continuedFraction`, and `.oracle` | Alternative representations that satisfy shared real-number and enclosure protocols. `.float`, `.oracle`, nested `.ball`, modulus-backed `.cauchy`, and convergent-backed `.continuedFraction` now have initial implementations. |
 | Geometry expansion | `.geometry` | Transformations, constraints, conics, implicit loci, and certified intersections/drawing refinement beyond the implemented ruler-and-compass slice. |

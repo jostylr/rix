@@ -13,6 +13,7 @@ import {
     getAttachedSpec,
     polyFromSpec,
     sameIr,
+    symbolicSpecToCalculusExpression,
     symbolicCapabilities,
     symbolicIr,
     symbolicLiteral,
@@ -461,6 +462,10 @@ function restrictionSpecs(value) {
     }));
 }
 
+function restrictionCalculusExpressions(value) {
+    return restrictionSpecs(value).map((spec) => symbolicSpecToCalculusExpression(spec));
+}
+
 function method(name, impl) {
     return { type: "method_builtin", name, impl };
 }
@@ -493,6 +498,12 @@ export function registerFractionFunctionMethods(systemContext, owner = {}) {
     register("FractionFunction", "Form", ([value]) => metadata(requireFractionFunction(value)).displaySpec);
     register("FractionFunction", "Spec", ([value]) => metadata(requireFractionFunction(value)).displaySpec);
     register("FractionFunction", "EvaluationSpec", ([value]) => metadata(requireFractionFunction(value)).evaluationSpec);
+    register("FractionFunction", "CalculusExpression", ([value]) =>
+        symbolicSpecToCalculusExpression(metadata(requireFractionFunction(value)).displaySpec));
+    register("FractionFunction", "EvaluationCalculusExpression", ([value]) =>
+        symbolicSpecToCalculusExpression(metadata(requireFractionFunction(value)).evaluationSpec));
+    register("FractionFunction", "RestrictionExpressions", ([value]) =>
+        seq(restrictionCalculusExpressions(value)));
     register("FractionFunction", "Variable", ([value]) => str(requireFractionFunction(value).variable));
     register("FractionFunction", "Evaluate", ([value, argument], context, evaluate) => callWithConcreteArgs(value, [argument], context, evaluate));
     register("FractionFunction", "Compose", ([value, argument], context, evaluate) => callWithConcreteArgs(value, [argument], context, evaluate));
@@ -526,6 +537,7 @@ export function registerFractionFunctionMethods(systemContext, owner = {}) {
     register("FractionFunction", "Domain", ([value]) => rixMap([
         ["policy", str("original denominators != 0")],
         ["restrictions", seq(restrictionSpecs(value))],
+        ["calculusRestrictions", seq(restrictionCalculusExpressions(value))],
         ["cancelledRestrictionsPreserved", int(1)],
     ]));
     register("FractionFunction", "ForgetRestrictions", ([value], context, evaluate) => {
@@ -540,6 +552,8 @@ export function registerFractionFunctionMethods(systemContext, owner = {}) {
         return rixMap([
             ["schema", str(FRACTION_FUNCTION_SCHEMA)], ["variable", str(source.variable)],
             ["form", info.displaySpec], ["evaluation", info.evaluationSpec],
+            ["restrictions", seq(restrictionSpecs(source))],
+            ["calculusRestrictions", seq(restrictionCalculusExpressions(source))],
             ["canonicalAvailable", info.canonicalRationalFunction ? int(1) : null],
             ["polynomialAvailable", info.canonicalPolynomial ? int(1) : null],
             ["canonicalError", info.canonicalError ? str(info.canonicalError) : null],

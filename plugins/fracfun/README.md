@@ -43,7 +43,8 @@ RationalFunction links. `P()`/`Polynomial()` retrieves the Polynomial projection
 - `Equivalent()` compares canonical rational-function values; and
 - `SameFunction()` additionally compares source denominator restrictions.
 
-`Record()` reports whether each canonical cache is available.
+`Record()` reports whether each canonical cache is available and includes both
+symbolic-spec and portable Calculus forms of the source restrictions.
 
 ## Domains
 
@@ -51,5 +52,22 @@ The callable body retains the original evaluation expression independently of
 the displayed transformed spec. Therefore cancelling `(x^2-1)/(x-1)` does not
 make the result callable at `x=1`; `.Canonical()` is the explicit boundary that
 forgets the removable hole. `Domain()` exposes the source denominator specs.
+
+## Calculus bridge
+
+FractionFunction now exports its paired forms through the public
+`rix.calculus.expression@1` schema:
+
+- `CalculusExpression()` exports the displayed form;
+- `EvaluationCalculusExpression()` exports the source-domain evaluation form;
+- `RestrictionExpressions()` exports every original denominator; and
+- `Domain()` and `Record()` include those expressions under
+  `calculusRestrictions`.
+
+Load `.symbolic` to activate FractionFunction and Calculus together. Its
+`DifferentiateResult` façade uses Calculus's exact rules, while
+`.symbolic.Obligations(F)` converts source denominators into explicit nonzero
+obligations. This is a public interchange boundary; the host plugin still owns
+closure rewriting and construction of its paired display/evaluation forms.
 
 See [tutorial.md](tutorial.md) and [design.md](design.md).

@@ -40,6 +40,8 @@ describe("pure RiX Calculus plugin", () => {
             "rix.calculus.function@1",
             "rix.calculus.expression@1",
             "rix.calculus.registry-entry@1",
+            "rix.calculus.obligation@1",
+            "rix.calculus.transformation@1",
         ]);
     });
 
@@ -142,18 +144,65 @@ describe("pure RiX Calculus plugin", () => {
             .Plugin.Load("calculus");
             x := .calculus.Variable(:x);
             Exp := .calculus.Exp();
+            quotient := .calculus.DifferentiateResult((x+1)/(x-1),:x);
             {: .calculus.ToSpec(.calculus.Differentiate(x^3,:x)),
                .calculus.ToSpec(.calculus.Differentiate((x+1)*(x-1),x)),
-               .calculus.ToSpec(.calculus.Differentiate((x+1)/(x-1),:x)),
+               .calculus.ToSpec(quotient[:expression]),
+               quotient[:obligations],
                .calculus.ToSpec(.calculus.Differentiate(Exp(x^2+1),:x)) };
         `, options);
 
-        expect(result.values.map(formatValue)).toEqual([
+        expect(result.values.slice(0, 3).map(formatValue)).toEqual([
             "{#x# 3 * x ^ 2 }",
             "{#x# x - 1 + x + 1 }",
             "{#x# (x - 1 - (x + 1)) / (x - 1) ^ 2 }",
-            "{#x# Exp(x ^ 2 + 1) * 2 * x }",
         ]);
+        const quotientObligations = result.values[3].values;
+        expect(quotientObligations).toHaveLength(1);
+        expect(text(entry(quotientObligations[0], "relation"))).toBe("nonzero");
+        expect(text(entry(quotientObligations[0], "reason"))).toBe("divisionDomain");
+        expect(formatValue(result.values[4])).toBe("{#x# Exp(x ^ 2 + 1) * 2 * x }");
+        expect(() => parseAndEvaluate(
+            ".calculus.Differentiate((x+1)/(x-1),:x)",
+            options,
+        )).toThrow("use .calculus.DifferentiateResult");
+    });
+
+    test("preserves real domains and complex branches in differentiation results", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("calculus");
+            x := .calculus.Variable(:x);
+            logResult := .calculus.DifferentiateResult(.calculus.Log()(x^2),:x);
+            sqrtResult := .calculus.DifferentiateResult(.calculus.Sqrt()(x),:x);
+            asinResult := .calculus.DifferentiateResult(.calculus.Asin()(x),:x);
+            complexResult := .calculus.DifferentiateResult(.calculus.ComplexLog()(x),:x);
+            constantLogResult := .calculus.DifferentiateResult(
+                .calculus.Log()(.calculus.Constant(1)),
+                :x
+            );
+            {: logResult, sqrtResult, asinResult, complexResult, constantLogResult };
+        `, options);
+
+        const [logResult, sqrtResult, asinResult, complexResult, constantLogResult] = result.values;
+        expect(text(entry(logResult, "schema"))).toBe("rix.calculus.transformation@1");
+        expect(formatValue(parseAndEvaluate(
+            ".calculus.ToSpec(logResult[:expression])",
+            options,
+        ))).toBe("{#x# 1 / x ^ 2 * 2 * x }");
+        expect(text(entry(entry(logResult, "obligations").values[0], "relation"))).toBe("positive");
+        expect(text(entry(entry(sqrtResult, "obligations").values[0], "relation"))).toBe("positive");
+        expect(text(entry(entry(asinResult, "obligations").values[0], "relation")))
+            .toBe("insideOpenUnitInterval");
+        const branch = entry(complexResult, "obligations").values[0];
+        expect(text(entry(branch, "kind"))).toBe("branch");
+        expect(text(entry(branch, "relation"))).toBe("offPrincipalLogBranchCut");
+        expect(entry(entry(constantLogResult, "expression"), "value").value).toBe(0n);
+        expect(entry(constantLogResult, "obligations").values).toHaveLength(1);
+        expect(() => parseAndEvaluate(
+            ".calculus.Differentiate(.calculus.Log()(x),:x)",
+            options,
+        )).toThrow("use .calculus.DifferentiateResult");
     });
 
     test("uses custom exact rules by semantic ID and rejects unjustified rules", () => {
@@ -187,6 +236,36 @@ describe("pure RiX Calculus plugin", () => {
             ".calculus.Differentiate(x^(1/2),:x)",
             options,
         )).toThrow("requires an Integer constant exponent");
+    });
+
+    test("lets custom semantic rules declare obligations separately", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("calculus");
+            PositiveOnly := .calculus.Function("example.positive-only@1", {=
+                name=:PositiveOnly,
+                domain=:positiveReal,
+                codomain=:real
+            });
+            .calculus.Register(PositiveOnly, {=
+                derivative=(application)->1,
+                derivativeObligations=(application)->[
+                    .calculus.Obligation(:domain,:positive,application[:arguments][1],{=
+                        reason=:customPositiveDomain
+                    })
+                ],
+                derivativeEvidence=:definition
+            });
+            x := .calculus.Variable(:x);
+            .calculus.DifferentiateResult(PositiveOnly(x^2),:x);
+        `, options);
+
+        expect(formatValue(calculusExpressionToSpec(entry(result, "expression"))))
+            .toBe("{#x# 2 * x }");
+        const obligation = entry(result, "obligations").values[0];
+        expect(text(entry(obligation, "relation"))).toBe("positive");
+        expect(text(entry(obligation, "reason"))).toBe("customPositiveDomain");
+        expect(text(entry(entry(result, "evidence").values.at(-1), "rule"))).toBe("semanticChain");
     });
 
     test("round-trips semantic applications through core symbolic specs", () => {

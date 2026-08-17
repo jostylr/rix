@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { Fraction, Integer } from "@ratmath/core";
 import { parseAndEvaluate } from "../../src/eval/evaluator.js";
+import { formatValue } from "../../src/eval/format.js";
 import { expressionOf, renderSymbolicIr } from "../../src/eval/functions/symbolic.js";
 
 const strings = (value) => value.values.map(String);
@@ -120,6 +121,35 @@ describe("form-preserving FractionFunction plugin", () => {
             [before, after, .symbolic.Services()];
         `);
         expect(result.values.slice(0, 2).map(strings)).toEqual([["5/2", "3"], ["7/2", "4"]]);
-        expect(result.values[2].values.map((item) => item.value)).toEqual(["fraction", "fracfun", "poly", "ratfun"]);
+        expect(result.values[2].values.map((item) => item.value)).toEqual([
+            "fraction", "fracfun", "poly", "ratfun", "calculus",
+        ]);
+    });
+
+    test("exports preserved forms and source-domain restrictions to Calculus", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("symbolic");
+            F := .ff\`(x^2-1)/(x-1)\`;
+            C := F.Cancel();
+            derivative := .symbolic.DifferentiateResult(F,:x);
+            sourceObligations := .symbolic.Obligations(F);
+            {: .calculus.ToSpec(F.CalculusExpression()),
+               .calculus.ToSpec(C.CalculusExpression()),
+               .calculus.ToSpec(C.EvaluationCalculusExpression()),
+               .calculus.ToSpec(derivative[:expression]),
+               derivative[:obligations].Len(),
+               sourceObligations[1][:reason],
+               F.Record().Get("calculusRestrictions").Len(),
+               F.Domain().Get("calculusRestrictions").Len() };
+        `);
+
+        expect(formatValue(result.values[0])).toBe("{#x# (x ^ 2 - 1) / (x - 1) }");
+        expect(formatValue(result.values[1])).toBe("{#x# (x + 1) / 1 }");
+        expect(formatValue(result.values[2])).toBe("{#x# (x ^ 2 - 1) / (x - 1) }");
+        expect(formatValue(result.values[3])).toBe("{#x# (2 * x * (x - 1) - (x ^ 2 - 1)) / (x - 1) ^ 2 }");
+        expect(String(result.values[4])).toBe("1");
+        expect(result.values[5].value).toBe("fractionFunctionSourceDomain");
+        expect(String(result.values[6])).toBe("1");
+        expect(String(result.values[7])).toBe("1");
     });
 });

@@ -1,13 +1,13 @@
 /**
 id: calculus
-description: Portable abstract functions, semantic-ID rules, exact differentiation, and explicit implementation links.
+description: Portable abstract functions, semantic-ID rules, obligation-bearing exact differentiation, and explicit implementation links.
 kind: rix
 mount: calculus
-exports: [Function, Exp, Variable, Constant, Apply, Register, Resolve, Differentiate, ToSpec, FromSpec, IsFunction, IsExpression]
+exports: [Function, Exp, Log, Sqrt, Asin, ComplexLog, Variable, Constant, Apply, Obligation, Register, Resolve, Differentiate, DifferentiateResult, ToSpec, FromSpec, IsFunction, IsExpression]
 groups: [Calculus, Analysis, Symbolic, Exact]
 permissions: []
 provides: [rix.calculus@1, rix.abstract-function@1]
-schemas: [rix.calculus.function@1, rix.calculus.expression@1, rix.calculus.registry-entry@1]
+schemas: [rix.calculus.function@1, rix.calculus.expression@1, rix.calculus.registry-entry@1, rix.calculus.obligation@1, rix.calculus.transformation@1]
 snapshot: false
 deterministic: true
 defaultEnabled: false
@@ -172,13 +172,25 @@ CalculusRegister(function, options ?= {= }) -> {;
     semanticId = exact.semanticId;
 
     derivative = CalculusOption(options,"derivative",_);
+    derivativeObligations = CalculusOption(options,"derivativeobligations",_);
+    derivativeObligations == _
+      ?: _
+      ?_ (derivative == _
+           ?: .Error("Calculus derivative obligations require an exact derivative rule")
+           ?_ _);
     derivative == _
       ?: _
       ?_ {;
           rules = CalculusRegistryGet(:exactrules,@semanticId,{= });
           rules.Has("derivative")
             ?: .Error(@"An exact derivative rule is already registered for semantic ID @{@semanticId}")
-            ?_ CalculusRegistrySet(:exactrules,@semanticId,.ImmutableValue(rules.Set("derivative",@derivative)));
+            ?_ {;
+                installedRules = @rules.Set("derivative",@derivative);
+                installedRules = @derivativeObligations == _
+                  ?: installedRules
+                  ?_ installedRules.Set("derivativeobligations",@derivativeObligations);
+                CalculusRegistrySet(:exactrules,@semanticId,.ImmutableValue(installedRules));
+            };
           CalculusRegistryEvidence(
               @semanticId,
               :derivative,
@@ -286,6 +298,63 @@ CalculusExp(implementation ?= _) -> CalculusBuildFunction("rix.function.exp@1", 
     implementationEvidence=implementation == _ ?: :none ?_ :declaredByCaller
 });
 
+CalculusLog(implementation ?= _) -> CalculusBuildFunction("rix.function.log.real-principal@1", {=
+    name=:Log,
+    arity=1,
+    domain=:positiveReal,
+    codomain=:real,
+    facts=[{= kind=:inverseIdentity, inverseOf="rix.function.exp@1", branch=:realPrincipal }],
+    implementation=implementation,
+    implementationEvidence=implementation == _ ?: :none ?_ :declaredByCaller
+});
+
+CalculusSqrt(implementation ?= _) -> CalculusBuildFunction("rix.function.sqrt.real-principal@1", {=
+    name=:Sqrt,
+    arity=1,
+    domain=:nonnegativeReal,
+    codomain=:nonnegativeReal,
+    facts=[{= kind=:algebraicIdentity, identity=:squareEqualsArgument, branch=:nonnegativeRoot }],
+    implementation=implementation,
+    implementationEvidence=implementation == _ ?: :none ?_ :declaredByCaller
+});
+
+CalculusAsin(implementation ?= _) -> CalculusBuildFunction("rix.function.asin.real-principal@1", {=
+    name=:Asin,
+    arity=1,
+    domain=:closedUnitInterval,
+    codomain=:principalAsinRange,
+    facts=[{= kind=:inverseIdentity, inverseOf=:Sin, branch=:realPrincipal }],
+    implementation=implementation,
+    implementationEvidence=implementation == _ ?: :none ?_ :declaredByCaller
+});
+
+CalculusComplexLog(implementation ?= _) -> CalculusBuildFunction("rix.function.log.complex-principal@1", {=
+    name=:ComplexLog,
+    arity=1,
+    domain=:complexOffNonpositiveRealAxis,
+    codomain=:complex,
+    facts=[{= kind=:complexContinuation, continuationOf="rix.function.log.real-principal@1", branch=:principal }],
+    implementation=implementation,
+    implementationEvidence=implementation == _ ?: :none ?_ :declaredByCaller
+});
+
+CalculusObligation(kind, relation, expression, options ?= {= }) -> {;
+    (kind == :domain || kind == :branch)
+      ?: _
+      ?_ .Error("Calculus obligation kind must be :domain or :branch");
+    .ImmutableValue({=
+        valueKind=:calculusObligation,
+        schema="rix.calculus.obligation@1",
+        kind=kind,
+        relation=relation,
+        expression=CalculusPromote(expression),
+        semanticId=CalculusOption(options,"semanticid",_),
+        reason=CalculusOption(options,"reason",:unspecified),
+        branch=CalculusOption(options,"branch",_),
+        evidence=CalculusOption(options,"evidence",:declaredRule)
+    });
+};
+
 CalculusConstantValue(expression) ->
     CalculusIsExpression(expression) && expression[:kind] == :constant ?: expression[:value] ?_ _;
 CalculusIsExactValue(expression, value) -> {;
@@ -316,6 +385,23 @@ CalculusDerivativeVariable(variable) ->
       ?_ (CalculusIsExpression(variable) && variable[:kind] == :variable
            ?: variable[:name]
            ?_ .Error("Calculus differentiation variable must be a string or variable expression"));
+
+CalculusAppend(left, right) -> right.Reduce((result,value)->result.Push(value),left);
+CalculusRuleEvidence(rule, fields ?= {= }) -> .ImmutableValue({=
+    kind=:calculusRuleApplication,
+    rule=rule
+}.Merge(fields));
+CalculusDerivativeState(expression, obligations ?= [], evidence ?= []) -> {=
+    expression=expression,
+    obligations=obligations,
+    evidence=evidence
+};
+CalculusStateWithRule(expression, obligations, evidence, rule, fields ?= {= }) ->
+    CalculusDerivativeState(
+        expression,
+        obligations,
+        evidence.Push(CalculusRuleEvidence(rule,fields))
+    );
 
 CalculusDifferentiatePower(base, exponentExpression, baseDerivative) -> {;
     exponent = CalculusConstantValue(exponentExpression);
@@ -359,13 +445,37 @@ CalculusDifferentiateOperator(expression, variable) -> {;
     operation = expression[:operation];
     operands = expression[:operands];
     operation == :negate
-      ?: CalculusNegate(CalculusDifferentiateNode(operands[1],variable))
+      ?: {;
+          inner = CalculusDifferentiateNode(@operands[1],@variable);
+          CalculusStateWithRule(
+              CalculusNegate(inner[:expression]),
+              inner[:obligations],
+              inner[:evidence],
+              :negation
+          );
+      }
       ?_ {;
           left = @operands[1];
           right = @operands[2];
           leftDerivative = CalculusDifferentiateNode(left,@variable);
           rightDerivative = CalculusDifferentiateNode(right,@variable);
-          CalculusDifferentiateBinary(@operation,left,right,leftDerivative,rightDerivative);
+          derivative = CalculusDifferentiateBinary(
+              @operation,
+              left,
+              right,
+              leftDerivative[:expression],
+              rightDerivative[:expression]
+          );
+          obligations = CalculusAppend(leftDerivative[:obligations],rightDerivative[:obligations]);
+          obligations = @operation == :divide
+            ?: obligations.Push(CalculusObligation(:domain,:nonzero,right,{= reason=:divisionDomain }))
+            ?_ obligations;
+          exponent = @operation == :power ?: CalculusConstantValue(right) ?_ _;
+          obligations = (@operation == :power && exponent != _ && (exponent ? :Integer) && exponent < 0)
+            ?: obligations.Push(CalculusObligation(:domain,:nonzero,left,{= reason=:negativeIntegerPower }))
+            ?_ obligations;
+          evidence = CalculusAppend(leftDerivative[:evidence],rightDerivative[:evidence]);
+          CalculusStateWithRule(derivative,obligations,evidence,@operation);
       };
 };
 
@@ -375,25 +485,47 @@ CalculusDifferentiateApplication(expression, variable) -> {;
       ?: _
       ?_ .Error("Exact Calculus chain rules currently require unary semantic applications");
     innerDerivative = CalculusDifferentiateNode(arguments[1],variable);
-    CalculusIsExactValue(innerDerivative,0)
-      ?: innerDerivative
+    registry = CalculusResolve(expression[:semanticId]);
+    rules = registry[:exactrules];
+    obligations = innerDerivative[:obligations];
+    rules.Has("derivativeobligations")
+      ?: {;
+          declared = @expression |> @rules[:derivativeObligations];
+          declared ? :Array
+            ?: _
+            ?_ .Error("Calculus derivative obligation rules must return an Array");
+          @obligations = CalculusAppend(@obligations,declared);
+      }
+      ?_ _;
+    innerExpression = innerDerivative[:expression];
+    derivative = CalculusIsExactValue(innerExpression,0)
+      ?: innerExpression
       ?_ {;
-          registry = CalculusResolve(@expression[:semanticId]);
-          rules = registry[:exactrules];
-          rules.Has("derivative")
+          @rules.Has("derivative")
             ?: _
             ?_ .Error(@"No exact derivative rule is registered for semantic ID @{@expression[:semanticId]}");
-          outerDerivative = @expression |> rules[:derivative];
-          CalculusMultiplyExact(CalculusPromote(outerDerivative),@innerDerivative);
+          outerDerivative = @expression |> @rules[:derivative];
+          CalculusMultiplyExact(CalculusPromote(outerDerivative),@innerExpression);
       };
+    evidence = innerDerivative[:evidence].Push(CalculusRuleEvidence(:semanticChain,{=
+        semanticId=expression[:semanticId],
+        declaration=registry[:evidence]
+    }));
+    CalculusDerivativeState(derivative,obligations,evidence);
 };
 
 CalculusDifferentiateNode(expression, variable) -> {;
     exact = CalculusRequireExpression(expression,"differentiate expression");
     kind = exact[:kind];
-    kind == :constant ?: CalculusConstant(0)
+    kind == :constant ?: CalculusStateWithRule(CalculusConstant(0),[],[],:constant)
       ?_ (kind == :variable
-           ?: CalculusConstant(exact[:name] == variable ?: 1 ?_ 0)
+           ?: CalculusStateWithRule(
+                CalculusConstant(exact[:name] == variable ?: 1 ?_ 0),
+                [],
+                [],
+                :variable,
+                {= name=exact[:name], differentiatedBy=variable }
+              )
            ?_ (kind == :operator
                 ?: CalculusDifferentiateOperator(exact,variable)
                 ?_ (kind == :apply
@@ -401,10 +533,61 @@ CalculusDifferentiateNode(expression, variable) -> {;
                      ?_ .Error(@"Unsupported Calculus expression kind @{kind}"))));
 };
 
-CalculusDifferentiate(expression, variable) ->
-    CalculusDifferentiateNode(expression,CalculusDerivativeVariable(variable));
+CalculusDifferentiateResult(expression, variable) -> {;
+    exact = CalculusRequireExpression(expression,"differentiate expression");
+    differentiatedBy = CalculusDerivativeVariable(variable);
+    result = CalculusDifferentiateNode(exact,differentiatedBy);
+    .ImmutableValue({=
+        valueKind=:calculusTransformation,
+        schema="rix.calculus.transformation@1",
+        operation=:differentiate,
+        variable=differentiatedBy,
+        source=exact,
+        expression=result[:expression],
+        obligations=result[:obligations],
+        evidence=result[:evidence]
+    });
+};
+
+CalculusDifferentiate(expression, variable) -> {;
+    result = CalculusDifferentiateResult(expression,variable);
+    result[:obligations].Len() == 0
+      ?: result[:expression]
+      ?_ .Error("Exact derivative has domain or branch obligations; use .calculus.DifferentiateResult");
+};
 
 CalculusExpDerivative(application) -> application;
+CalculusReciprocalDerivative(application) -> CalculusDivideExact(CalculusConstant(1),application[:arguments][1]);
+CalculusSqrtDerivative(application) -> CalculusDivideExact(
+    CalculusConstant(1),
+    CalculusMultiplyExact(CalculusConstant(2),application)
+);
+CalculusAsinDerivative(application) -> {;
+    argument = application[:arguments][1];
+    radicand = CalculusSubtractExact(CalculusConstant(1),CalculusPowerExact(argument,2));
+    root = CalculusApplication("rix.function.sqrt.real-principal@1",:Sqrt,[radicand]);
+    CalculusDivideExact(CalculusConstant(1),root);
+};
+
+CalculusPositiveArgumentObligations(application) -> [
+    CalculusObligation(:domain,:positive,application[:arguments][1],{=
+        semanticId=application[:semanticId],
+        reason=:realDerivativeDomain
+    })
+];
+CalculusOpenUnitIntervalObligations(application) -> [
+    CalculusObligation(:domain,:insideOpenUnitInterval,application[:arguments][1],{=
+        semanticId=application[:semanticId],
+        reason=:inverseDerivativeDomain
+    })
+];
+CalculusPrincipalLogBranchObligations(application) -> [
+    CalculusObligation(:branch,:offPrincipalLogBranchCut,application[:arguments][1],{=
+        semanticId=application[:semanticId],
+        reason=:complexPrincipalBranch,
+        branch=:principal
+    })
+];
 
 calculusBuiltinExp = CalculusExp();
 CalculusRegister(calculusBuiltinExp,{=
@@ -416,6 +599,46 @@ CalculusRegister(calculusBuiltinExp,{=
     },
     branches=[],
     domainEvidence=:declaredRealDomain
+});
+
+calculusBuiltinLog = CalculusLog();
+CalculusRegister(calculusBuiltinLog,{=
+    derivative=CalculusReciprocalDerivative,
+    derivativeObligations=CalculusPositiveArgumentObligations,
+    derivativeEvidence={= kind=:exactIdentity, identity=:logDerivative, result=:reciprocal },
+    branches=[{= kind=:realBranch, name=:principal, domain=:positiveReal }],
+    domainEvidence=:realLogDomain,
+    branchEvidence=:inverseOfRealExp
+});
+
+calculusBuiltinSqrt = CalculusSqrt();
+CalculusRegister(calculusBuiltinSqrt,{=
+    derivative=CalculusSqrtDerivative,
+    derivativeObligations=CalculusPositiveArgumentObligations,
+    derivativeEvidence={= kind=:exactIdentity, identity=:principalSquareRootDerivative },
+    branches=[{= kind=:realAlgebraicBranch, name=:nonnegativeRoot }],
+    domainEvidence=:principalRealSquareRootDomain,
+    branchEvidence=:nonnegativeRootDeclaration
+});
+
+calculusBuiltinAsin = CalculusAsin();
+CalculusRegister(calculusBuiltinAsin,{=
+    derivative=CalculusAsinDerivative,
+    derivativeObligations=CalculusOpenUnitIntervalObligations,
+    derivativeEvidence={= kind=:exactIdentity, identity=:principalAsinDerivative },
+    branches=[{= kind=:realInverseBranch, name=:principal, range=:principalAsinRange }],
+    domainEvidence=:closedUnitInterval,
+    branchEvidence=:principalInverseOfSin
+});
+
+calculusBuiltinComplexLog = CalculusComplexLog();
+CalculusRegister(calculusBuiltinComplexLog,{=
+    derivative=CalculusReciprocalDerivative,
+    derivativeObligations=CalculusPrincipalLogBranchObligations,
+    derivativeEvidence={= kind=:analyticIdentity, identity=:complexLogDerivative },
+    branches=[{= kind=:complexBranch, name=:principal, branchCut=:nonpositiveRealAxis }],
+    domainEvidence=:complexPlaneWithBranchCut,
+    branchEvidence=:principalArgumentRange
 });
 
 .TypeKnown(:CalculusExpression) ?: _ ?_ .TypeRegister({=
@@ -449,12 +672,18 @@ calculusNamespace = {= };
 calculusNamespace._proto = {=
     Function=(self, semanticId, options ?= {= })->CalculusBuildFunction(semanticId,options),
     Exp=(self, implementation ?= _)->CalculusExp(implementation),
+    Log=(self, implementation ?= _)->CalculusLog(implementation),
+    Sqrt=(self, implementation ?= _)->CalculusSqrt(implementation),
+    Asin=(self, implementation ?= _)->CalculusAsin(implementation),
+    ComplexLog=(self, implementation ?= _)->CalculusComplexLog(implementation),
     Variable=(self, name)->CalculusVariable(name),
     Constant=(self, value)->CalculusConstant(value),
     Apply=(self, function, argument)->CalculusApply(function,argument),
+    Obligation=(self, kind, relation, expression, options ?= {= })->CalculusObligation(kind,relation,expression,options),
     Register=(self, function, options ?= {= })->CalculusRegister(function,options),
     Resolve=(self, value)->CalculusResolve(value),
     Differentiate=(self, expression, variable)->CalculusDifferentiate(expression,variable),
+    DifferentiateResult=(self, expression, variable)->CalculusDifferentiateResult(expression,variable),
     ToSpec=(self, expression, inputs ?= _)->.SpecFromExpression(expression,inputs),
     FromSpec=(self, value)->.ExpressionFromSpec(value),
     IsFunction=(self, value)->CalculusIsFunction(value) ?: 1 ?_ _,

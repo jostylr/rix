@@ -19,7 +19,7 @@ Except where a dependency is called out below, finish most Phase 1 milestones
 before beginning broad Phase 2 work.
 
 All Phase 1 milestones catalogued before the Calculus/Analysis work are
-implemented. Calculus Phase 1 and the first four Phase 2 items are implemented;
+implemented. Calculus Phase 1 and the first five Phase 2 items are implemented;
 Analysis Phase 1 remains a planned dependency-aware slice. Unchecked work below is Phase 2 or later unless
 a section explicitly says otherwise.
 
@@ -636,9 +636,14 @@ tracked in
    - [x] Implement exact linearity, product, quotient, Integer-power, and unary
      semantic chain rules over expression graphs, including `D Exp = Exp`.
      Non-Integer powers remain blocked on the domain/branch work below.
-   - [ ] Preserve domain and branch obligations for `Log`, roots, inverse
-     functions, and complex continuations instead of applying unconditional
-     rewrites.
+   - [x] Preserve domain and branch obligations instead of applying
+     unconditional rewrites. `rix.calculus.transformation@1` keeps the exact
+     derivative, obligations, and rule evidence together;
+     `rix.calculus.obligation@1` covers quotient/negative-power singularities,
+     real-principal `Log`, `Sqrt`, and `Asin`, and principal `ComplexLog`.
+     `.fracfun` exports its paired forms and denominator restrictions through
+     the same public expression contract, and `.symbolic` provides the
+     cross-plugin façade.
    - [ ] Add higher derivatives, partial derivatives, gradients, Jacobians,
      and Hessians with explicit variable selection.
 3. **Phase 3 — Integration and equation specifications**
