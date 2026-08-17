@@ -121,7 +121,10 @@ const BUNDLED_PLUGINS = [
             description: "Convenient 2D drawing helpers that produce core Graphics nodes.",
             kind: "host",
             mount: "draw",
-            exports: ["Line", "Polygon", "Label", "Box", "Circle"],
+            exports: [
+                "Line", "Polyline", "Polygon", "Arrow", "Arc", "Ellipse", "Dimension", "Grid",
+                "Label", "Box", "Circle", "Style", "Viewport", "ViewportPoint", "Bounds", "Anchor",
+            ],
             groups: ["Draw"],
             permissions: [],
             defaultEnabled: false,

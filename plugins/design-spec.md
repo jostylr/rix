@@ -26,8 +26,8 @@ numeric type or one universal rendering engine.
 | Core `.Graphics` | Implemented in RiX core | Portable 2D scene values: graphics, paths, groups, transforms, text, rectangles, circles, and clips. |
 | Core output values | Implemented in RiX core | `Text`, `Paragraph`, `Heading`, `Fragment`, `Table`, `Grid`, `Figure`, `Slide`, and `Slides`. |
 | Core `.Algebra` | Partly implemented in RiX core | Exact presentation helpers, currently including synthetic division as a portable `Grid`. |
-| `.draw` | Implemented plugin | Convenient 2D authoring helpers that return core `.Graphics` nodes. |
-| `.plot` | Implemented pure-RiX initial plugin | Exact polynomial sampling with automatic vertical fitting; returns core `.Graphics`. |
+| `.draw` | Implemented through Phase 2 | Portable drafting helpers, reusable styles, viewports, bounds, and anchors that return core `.Graphics` nodes. |
+| `.plot` | Implemented pure-RiX through Phase 2 | Polynomial, function, parametric, scatter, line, bar, and step plots with Numerics refinement, scales, fitted/fixed views, labels, and discontinuity metadata. |
 | `.float` | Implemented plugin | IEEE-754 Float conversion, arithmetic integration, rounding, intervals of stored values, and approximate elementary functions. |
 | `.oracle` | Implemented Phase 1 plugin | Pure RiX rational-betweenness values, five rational procedure demonstrations, Range validation, finite alternatives, and bounded exact refinement. |
 | `.numerics` | Implemented through initial Phase 2 algorithms | Pure RiX request normalization, backend-neutral refinement, universal roots/rational powers, certified exponential/logarithmic algorithm reals, and explicitly approximate Float sampling. |
@@ -46,7 +46,7 @@ numeric type or one universal rendering engine.
 | `.markdown`, `.html`, `.quarto`, `.latex`, `.pdf` | Implemented plugins | Portable document/output trees to standalone text/document formats. PDF delegates through LaTeX and an approved CLI compiler adapter. |
 | `.scene3d` | Phase 2 in progress | Retained exact mesh/polyline/point scenes, bounded parametric curves, axes, annotations, picking IDs, transforms, cameras/lights, orbit descriptions, and deterministic wireframe/flat-lit snapshots to core Graphics. |
 | `.nd` | Implemented initial plugin | Exact points, polylines, polytopes/hypercubes, affine projection records, rational Cayley rotations, composition, and explicit conversion of 3D results to Scene3D. |
-| `.geometry` | Implemented pure-RiX Phase 1 plugin | Exact rational points, lines, circles, line intersections, ruler-and-compass constructions with provenance, and deterministic lowering to core Graphics. |
+| `.geometry` | Implemented pure-RiX through Phase 2 | Exact constructions, segments/rays/polygons, affine/projective transforms, conics, constraints, polynomial/Numerics intersections, and bounded implicit/locus refinement to core Graphics. |
 | `.gltf` | Implemented initial renderer | Retained Scene3D to embedded-buffer glTF 2.0 JSON with explicit Z-up to Y-up and Float32 conversion diagnostics. |
 | `.data` | Implemented Phase 1 plugin | Immutable typed in-memory relations, exact-value-preserving projection/filter/sort, and portable Table views. |
 | `.csv` | Implemented Phase 1 renderer | Deterministic CSV/TSV export for core Tables and Data relations with exact scalar formatting and explicit dialect options. |

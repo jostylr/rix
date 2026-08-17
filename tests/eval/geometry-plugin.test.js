@@ -5,7 +5,7 @@ import { parseAndEvaluate } from "../../src/eval/evaluator.js";
 const field = (value, name) => value.entries.get(String(name).toLowerCase());
 const text = (value) => value?.value;
 
-describe("geometry Phase 1 plugin", () => {
+describe("geometry plugin", () => {
     test("constructs an exact perpendicular bisector and circumcircle with provenance", () => {
         const result = parseAndEvaluate(`
             .Plugin.Load("geometry");
@@ -88,14 +88,89 @@ describe("geometry Phase 1 plugin", () => {
             .Plugin.Load("geometry");
             .geometry.Circumcircle(.geometry.Point(0,0), .geometry.Point(1,0), .geometry.Point(2,0));
         `)).toThrow("three non-collinear points");
-        const unsupported = parseAndEvaluate(`
+        const concentric = parseAndEvaluate(`
             .Plugin.Load("geometry");
             center := .geometry.Point(0,0);
             .geometry.Intersect(.geometry.Circle(center, 1), .geometry.Circle(center, 2));
         `);
-        expect(text(field(unsupported, "status"))).toBe("unsupported");
-        expect(field(unsupported, "exact").value).toBe(0n);
-        expect(field(unsupported, "points").values).toEqual([]);
-        expect(text(field(unsupported, "diagnostic"))).toContain("line-line intersections");
+        expect(text(field(concentric, "status"))).toBe("none");
+        expect(field(concentric, "exact").value).toBe(1n);
+        expect(field(concentric, "points").values).toEqual([]);
+        expect(text(field(concentric, "diagnostic"))).toContain("Concentric circles");
+    });
+
+    test("Phase 2 adds segments, rays, polygons, exact transforms, and constraints", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("geometry");
+            a := .geometry.Point(0,0);
+            b := .geometry.Point(2,0);
+            c := .geometry.Point(1,2);
+            line := .geometry.Line(a,b);
+            transform := .geometry.Affine([[2,0,3],[0,2,4]]);
+            {:
+                .geometry.Segment(a,b),
+                .geometry.Ray(a,c),
+                .geometry.Polygon([a,b,c]),
+                .geometry.Transform(c,transform),
+                .geometry.Constraint(:onLine,[.geometry.Point(1,0),line]),
+                .geometry.Constraints([
+                    .geometry.Constraint(:parallel,[line,.geometry.Line(.geometry.Point(0,1),.geometry.Point(2,1))])
+                ])
+            };
+        `);
+        const [segment, ray, polygon, point, constraint, constraints] = result.values;
+        expect(text(field(segment, "kind"))).toBe("segment");
+        expect(text(field(ray, "kind"))).toBe("ray");
+        expect(field(polygon, "points").values).toHaveLength(3);
+        expect([String(field(point, "x")), String(field(point, "y"))]).toEqual(["5", "8"]);
+        expect(field(constraint, "satisfied").value).toBe(1n);
+        expect(field(constraints, "satisfied").value).toBe(1n);
+    });
+
+    test("Phase 2 constructs conics and returns exact or certified intersections", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("geometry");
+            center := .geometry.Point(0,0);
+            axis := .geometry.Line(.geometry.Point(-2,0),.geometry.Point(2,0));
+            circle := .geometry.Circle(center,1);
+            ellipse := .geometry.Ellipse(center,[2,1]);
+            crossing := .geometry.Intersect(axis,circle);
+            oblique := .geometry.Intersect(
+                .geometry.Line(.geometry.Point(-2,-2),.geometry.Point(2,2)),
+                circle
+            );
+            [ellipse,crossing,oblique];
+        `);
+        const [ellipse, crossing, oblique] = result.values;
+        expect(text(field(ellipse, "kind"))).toBe("conic");
+        expect(text(field(ellipse, "conicKind"))).toBe("ellipse");
+        expect(field(ellipse, "coefficients").values.map(String)).toEqual(["1", "0", "4", "0", "0", "-4"]);
+        expect(text(field(crossing, "status"))).toBe("two");
+        expect(field(crossing, "points").values.map((point) => String(field(point, "x")))).toEqual(["-1", "1"]);
+        expect(field(crossing, "exact").value).toBe(1n);
+        expect(text(field(oblique, "status"))).toBe("two");
+        expect(field(oblique, "evidence")).not.toBeNull();
+    });
+
+    test("Phase 2 bounded implicit and locus refinement returns portable Graphics plus uncertainty", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("geometry");
+            implicit := .geometry.Implicit({=
+                coefficients=[1,0,1,0,0,-1],
+                domain=[-2,-2,2,2]
+            });
+            locus := .geometry.Locus(t -> [t,t^2],[-2,2],{= samples=9 });
+            [
+                .geometry.Refine(implicit,{= size=[200,200],tolerance=1/2,maxWork=100 }),
+                .geometry.Refine(locus,{= view=[-2,-1,2,5],size=[200,200] })
+            ];
+        `);
+        const [implicit, locus] = result.values;
+        expect(text(field(implicit, "schema"))).toBe("rix.geometry.refinement@1");
+        expect(field(implicit, "graphic")).toMatchObject({ kind: "graphic" });
+        expect(field(implicit, "graphic").children.length).toBeGreaterThan(0);
+        expect(field(implicit, "uncertainty").values.length).toBeGreaterThan(0);
+        expect(field(locus, "graphic")).toMatchObject({ kind: "graphic" });
+        expect(field(locus, "graphic").children).toHaveLength(1);
     });
 });

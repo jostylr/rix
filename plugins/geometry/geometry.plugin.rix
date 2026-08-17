@@ -1,14 +1,14 @@
 /**
 id: geometry
-description: Pure-RiX exact ruler-and-compass geometry with explicit intersections and portable Graphics snapshots.
+description: Pure-RiX exact geometry, transformations, conics, constraints, and bounded portable Graphics refinement.
 kind: rix
 mount: geometry
-exports: [Point, Line, Circle, Midpoint, PerpendicularBisector, Circumcircle, Intersect, Points, Status, Draw]
+exports: [Point, Line, Segment, Ray, Polygon, Circle, Conic, Ellipse, Parabola, Hyperbola, Locus, Implicit, Affine, Projective, Transform, Constraint, Constraints, Midpoint, PerpendicularBisector, Circumcircle, Intersect, Points, Status, Refine, Draw]
 groups: [Geometry, Graphics, Exact]
 permissions: []
-requires: [rix.numerics@1]
-provides: [rix.geometry@1, rix.geometry.intersection@1]
-schemas: [rix.geometry@1, rix.geometry.intersection@1]
+requires: [rix.numerics@1, rix.polynomial@1]
+provides: [rix.geometry@1, rix.geometry.intersection@1, rix.geometry.constraint@1, rix.geometry.refinement@1]
+schemas: [rix.geometry@1, rix.geometry.intersection@1, rix.geometry.constraint@1, rix.geometry.refinement@1]
 snapshot: true
 deterministic: true
 defaultEnabled: false
@@ -22,6 +22,22 @@ GeometryExact(value, label) -> {;
 };
 
 GeometryIsZero(value) -> (value ~!: :Rational).Numerator()==0;
+
+GeometryIntegerSqrtFloor(value) -> {;
+    n=value ~!: :Integer;
+    n>=0 ?: _ ?_ .Error("geometry square root requires a nonnegative integer");
+    n<2 ?: n ?_ {;
+        x:=@n; next:=(x+1)//2;
+        {@ step=1; @next<@x; {; @x~=@next; @next~=(@x+(@n//@x))//2; }; step+=1 };
+        x;
+    };
+};
+
+GeometryExactSqrt(value) -> {;
+    exact=value ~!: :Rational;
+    numerator=GeometryIntegerSqrtFloor(exact.Numerator()); denominator=GeometryIntegerSqrtFloor(exact.Denominator());
+    numerator^2==exact.Numerator()&&denominator^2==exact.Denominator() ?: numerator/denominator ?_ _;
+};
 
 GeometryApproximateSqrt(value) ->
     .numerics.Refine(.numerics.Sqrt(value), {=
@@ -98,6 +114,43 @@ GeometryLine(first, second ?= _, options ?= {= }) -> {;
         GeometryOption(settings, "metadata"), GeometryOption(settings, "style"));
 };
 
+GeometrySegment(first, second ?= _, options ?= {= }) -> {;
+    settings = ((first ? :Map) && second == _) ?: first ?_ options.Merge({= first=first, second=second });
+    firstPoint = GeometryRequire(settings[:first], :point, "geometry.Segment first point");
+    secondPoint = GeometryRequire(settings[:second], :point, "geometry.Segment second point");
+    GeometrySamePoint(firstPoint, secondPoint) ?: .Error("geometry.Segment requires distinct endpoints") ?_ _;
+    GeometryValue(:segment, {=
+        first=firstPoint, second=secondPoint, endpoints=[firstPoint,secondPoint],
+        metadata=GeometryOption(settings,"metadata"), style=GeometryOption(settings,"style"),
+        provenance=[GeometryProvenance("Segment",[firstPoint,secondPoint])]
+    });
+};
+
+GeometryRay(first, second ?= _, options ?= {= }) -> {;
+    settings = ((first ? :Map) && second == _) ?: first ?_ options.Merge({= first=first, second=second });
+    origin = GeometryRequire(GeometryOption(settings,"origin",settings[:first]), :point, "geometry.Ray origin");
+    through = GeometryRequire(GeometryOption(settings,"through",settings[:second]), :point, "geometry.Ray through point");
+    GeometrySamePoint(origin, through) ?: .Error("geometry.Ray requires distinct points") ?_ _;
+    GeometryValue(:ray, {=
+        origin=origin, through=through,
+        metadata=GeometryOption(settings,"metadata"), style=GeometryOption(settings,"style"),
+        provenance=[GeometryProvenance("Ray",[origin,through])]
+    });
+};
+
+GeometryPolygon(points, options ?= {= }) -> {;
+    settings = ((points ? :Map) && points.Has("points")) ?: points ?_ options.Merge({= points=points });
+    values = settings[:points];
+    values ? :Array ?: _ ?_ .Error("geometry.Polygon points must be an Array");
+    values.Len() >= 3 ?: _ ?_ .Error("geometry.Polygon requires at least three points");
+    vertices = values.Map((point) -> GeometryRequire(point,:point,"geometry.Polygon vertex"));
+    GeometryValue(:polygon, {=
+        points=vertices,
+        metadata=GeometryOption(settings,"metadata"), style=GeometryOption(settings,"style"),
+        provenance=[GeometryProvenance("Polygon",vertices)]
+    });
+};
+
 GeometrySquaredDistance(first, second) -> (second[:x] - first[:x])^2 + (second[:y] - first[:y])^2;
 
 GeometryCircleValue(center, radiusSquared, through, operation, inputs, metadata ?= _, style ?= _) -> {;
@@ -133,6 +186,224 @@ GeometryCircle(first, second ?= _, options ?= {= }) -> {;
         GeometryOption(settings, "metadata"), GeometryOption(settings, "style"));
 };
 
+GeometryConic(coefficients, options ?= {= }) -> {;
+    settings = ((coefficients ? :Map) && coefficients.Has("coefficients"))
+      ?: coefficients
+      ?_ options.Merge({= coefficients=coefficients });
+    values = settings[:coefficients];
+    values ? :Array ?: _ ?_ .Error("geometry.Conic coefficients must be an Array");
+    values.Len() == 6 ?: _ ?_ .Error("geometry.Conic requires [A,B,C,D,E,F]");
+    exact = values.Map((value) -> GeometryExact(value,"geometry.Conic coefficient"));
+    (GeometryIsZero(exact[1]) && GeometryIsZero(exact[2]) && GeometryIsZero(exact[3]))
+      ?: .Error("geometry.Conic requires a nonzero quadratic coefficient") ?_ _;
+    GeometryValue(:conic, {=
+        coefficients=exact,
+        conicKind=GeometryOption(settings,"kind",:general),
+        domain=GeometryOption(settings,"domain"),
+        metadata=GeometryOption(settings,"metadata"), style=GeometryOption(settings,"style"),
+        provenance=[GeometryProvenance("Conic",exact)]
+    });
+};
+
+GeometryEllipse(center, radii ?= _, options ?= {= }) -> {;
+    settings = ((center ? :Map) && radii == _) ?: center ?_ options.Merge({= center=center, radii=radii });
+    point = GeometryRequire(settings[:center],:point,"geometry.Ellipse center");
+    axes = settings[:radii];
+    axes ? :Array ?: _ ?_ .Error("geometry.Ellipse radii must be an Array");
+    axes.Len() == 2 ?: _ ?_ .Error("geometry.Ellipse radii must contain x and y radii");
+    rx=GeometryExact(axes[1],"geometry.Ellipse x radius"); ry=GeometryExact(axes[2],"geometry.Ellipse y radius");
+    (rx>0 && ry>0) ?: _ ?_ .Error("geometry.Ellipse radii must be positive");
+    a=ry^2; c=rx^2; h=point[:x]; k=point[:y];
+    conic=GeometryConic([a,0,c,-2*a*h,-2*c*k,a*h^2+c*k^2-rx^2*ry^2],
+        settings.Merge({= kind=:ellipse }));
+    conic.Merge({= center=point, radii=[rx,ry], provenance=[GeometryProvenance("Ellipse",[point,rx,ry])] });
+};
+
+GeometryParabola(vertex, parameter ?= _, options ?= {= }) -> {;
+    settings = ((vertex ? :Map) && parameter == _) ?: vertex ?_ options.Merge({= vertex=vertex, parameter=parameter });
+    point=GeometryRequire(settings[:vertex],:point,"geometry.Parabola vertex");
+    p=GeometryExact(settings[:parameter],"geometry.Parabola parameter");
+    GeometryIsZero(p) ?: .Error("geometry.Parabola parameter must be nonzero") ?_ _;
+    axis=GeometryOption(settings,"axis",:x); h=point[:x]; k=point[:y];
+    coefficients = axis == :x
+      ?: [0,0,1,-4*p,-2*k,k^2+4*p*h]
+      ?_ axis == :y
+           ?: [1,0,0,-2*h,-4*p,h^2+4*p*k]
+           ?_ .Error("geometry.Parabola axis must be :x or :y");
+    GeometryConic(coefficients,settings.Merge({= kind=:parabola, vertex=point, parameter=p, axis=axis }));
+};
+
+GeometryHyperbola(center, axes ?= _, options ?= {= }) -> {;
+    settings = ((center ? :Map) && axes == _) ?: center ?_ options.Merge({= center=center, axes=axes });
+    point=GeometryRequire(settings[:center],:point,"geometry.Hyperbola center");
+    values=settings[:axes];
+    values ? :Array ?: _ ?_ .Error("geometry.Hyperbola axes must be an Array");
+    values.Len()==2 ?: _ ?_ .Error("geometry.Hyperbola axes must contain two values");
+    rx=GeometryExact(values[1],"geometry.Hyperbola first axis"); ry=GeometryExact(values[2],"geometry.Hyperbola second axis");
+    (rx>0 && ry>0) ?: _ ?_ .Error("geometry.Hyperbola axes must be positive");
+    h=point[:x]; k=point[:y]; orientation=GeometryOption(settings,"axis",:x);
+    sign=orientation==:x ?: 1 ?_ orientation==:y ?: -1 ?_ .Error("geometry.Hyperbola axis must be :x or :y");
+    a=sign*ry^2; c=-sign*rx^2;
+    GeometryConic([a,0,c,-2*a*h,-2*c*k,a*h^2+c*k^2-rx^2*ry^2],settings.Merge({= kind=:hyperbola, center=point, axes=[rx,ry] }));
+};
+
+GeometryMatrix(value, rows, columns, label) -> {;
+    value ? :Array ?: _ ?_ .Error(@"@{label} must be an Array");
+    value.Len()==rows ?: _ ?_ .Error(@"@{label} must contain @{rows} rows");
+    value.Map((row) -> {;
+        row ? :Array ?: _ ?_ .Error(@"@{label} rows must be Arrays");
+        row.Len()==columns ?: _ ?_ .Error(@"@{label} rows must contain @{columns} values");
+        row.Map((entry)->GeometryExact(entry,label));
+    });
+};
+
+GeometryDeterminant3(matrix) ->
+    matrix[1][1]*(matrix[2][2]*matrix[3][3]-matrix[2][3]*matrix[3][2])
+    -matrix[1][2]*(matrix[2][1]*matrix[3][3]-matrix[2][3]*matrix[3][1])
+    +matrix[1][3]*(matrix[2][1]*matrix[3][2]-matrix[2][2]*matrix[3][1]);
+
+GeometryInverse3(matrix,label) -> {;
+    determinant=GeometryDeterminant3(matrix);
+    GeometryIsZero(determinant) ?: .Error(@"@{label} must be invertible") ?_ _;
+    [
+      [(matrix[2][2]*matrix[3][3]-matrix[2][3]*matrix[3][2])/determinant,(matrix[1][3]*matrix[3][2]-matrix[1][2]*matrix[3][3])/determinant,(matrix[1][2]*matrix[2][3]-matrix[1][3]*matrix[2][2])/determinant],
+      [(matrix[2][3]*matrix[3][1]-matrix[2][1]*matrix[3][3])/determinant,(matrix[1][1]*matrix[3][3]-matrix[1][3]*matrix[3][1])/determinant,(matrix[1][3]*matrix[2][1]-matrix[1][1]*matrix[2][3])/determinant],
+      [(matrix[2][1]*matrix[3][2]-matrix[2][2]*matrix[3][1])/determinant,(matrix[1][2]*matrix[3][1]-matrix[1][1]*matrix[3][2])/determinant,(matrix[1][1]*matrix[2][2]-matrix[1][2]*matrix[2][1])/determinant]
+    ];
+};
+
+GeometryTransformValue(kind,matrix,operation) -> GeometryValue(:transform,{=
+    transformKind=kind,
+    matrix=matrix,
+    inverse=GeometryInverse3(matrix,@"geometry.@{operation} matrix"),
+    provenance=[GeometryProvenance(operation,[matrix])]
+});
+
+GeometryAffine(matrix) -> {;
+    matrix ? :Array ?: _ ?_ .Error("geometry.Affine matrix must be an Array");
+    normalized = matrix.Len()==2
+      ?: GeometryMatrix(matrix,2,3,"geometry.Affine matrix").Push([0,0,1])
+      ?_ GeometryMatrix(matrix,3,3,"geometry.Affine matrix");
+    (normalized[3][1]==0 && normalized[3][2]==0 && normalized[3][3]==1)
+      ?: _ ?_ .Error("geometry.Affine last row must be [0,0,1]");
+    GeometryTransformValue(:affine,normalized,"Affine");
+};
+
+GeometryProjective(matrix) -> GeometryTransformValue(:projective,
+    GeometryMatrix(matrix,3,3,"geometry.Projective matrix"),"Projective");
+
+GeometryTransformPoint(point,transform,operation ?= "Transform") -> {;
+    value=GeometryRequire(point,:point,"geometry.Transform point"); matrix=transform[:matrix];
+    x=value[:x]; y=value[:y];
+    w=matrix[3][1]*x+matrix[3][2]*y+matrix[3][3];
+    GeometryIsZero(w) ?: .Error("geometry.Transform maps the point to projective infinity") ?_ _;
+    GeometryPointValue((matrix[1][1]*x+matrix[1][2]*y+matrix[1][3])/w,
+        (matrix[2][1]*x+matrix[2][2]*y+matrix[2][3])/w,operation,[value,transform],value[:metadata],value[:style]);
+};
+
+GeometryLinePoints(line) -> line[:through].Len()>=2
+  ?: line[:through].Slice(1,3)
+  ?_ !GeometryIsZero(line[:b])
+       ?: [GeometryPoint(0,-line[:c]/line[:b]),GeometryPoint(1,-(line[:a]+line[:c])/line[:b])]
+       ?_ [GeometryPoint(-line[:c]/line[:a],0),GeometryPoint(-(line[:b]+line[:c])/line[:a],1)];
+
+GeometryTransformConicAffine(conic,transform) -> {;
+    inverse=transform[:inverse];
+    p=inverse[1]; q=inverse[2]; coefficients=conic[:coefficients];
+    a=coefficients[1]; b=coefficients[2]; c=coefficients[3]; d=coefficients[4]; e=coefficients[5]; f=coefficients[6];
+    px=p[1]; py=p[2]; p0=p[3]; qx=q[1]; qy=q[2]; q0=q[3];
+    GeometryConic([
+        a*px^2+b*px*qx+c*qx^2,
+        2*a*px*py+b*(px*qy+py*qx)+2*c*qx*qy,
+        a*py^2+b*py*qy+c*qy^2,
+        2*a*px*p0+b*(px*q0+p0*qx)+2*c*qx*q0+d*px+e*qx,
+        2*a*py*p0+b*(py*q0+p0*qy)+2*c*qy*q0+d*py+e*qy,
+        a*p0^2+b*p0*q0+c*q0^2+d*p0+e*q0+f
+    ],{= kind=conic[:conicKind], style=conic[:style], metadata=conic[:metadata] });
+};
+
+GeometryTransform(value,transform) -> {;
+    object=GeometryRequire(value,_,"geometry.Transform value");
+    map=GeometryRequire(transform,:transform,"geometry.Transform transform");
+    kind=object[:kind];
+    kind==:point
+      ?: GeometryTransformPoint(object,map)
+      ?_ kind==:segment
+           ?: GeometrySegment(GeometryTransformPoint(object[:first],map),GeometryTransformPoint(object[:second],map),{= style=object[:style], metadata=object[:metadata] })
+           ?_ kind==:ray
+                ?: GeometryRay(GeometryTransformPoint(object[:origin],map),GeometryTransformPoint(object[:through],map),{= style=object[:style], metadata=object[:metadata] })
+                ?_ kind==:polygon
+                     ?: GeometryPolygon(object[:points].Map((point)->GeometryTransformPoint(point,@map)),{= style=object[:style], metadata=object[:metadata] })
+                     ?_ kind==:line
+                          ?: {;
+                              points=GeometryLinePoints(@object).Map((point)->GeometryTransformPoint(point,@map));
+                              GeometryLine(points[1],points[2],{= style=@object[:style], metadata=@object[:metadata] });
+                          }
+                          ?_ (kind==:circle || kind==:conic)
+                               ?: {;
+                                   @map[:transformKind]==:affine ?: _ ?_ .Error("projective conic transforms are not yet supported");
+                                   source=@kind==:circle
+                                     ?: GeometryConic([1,0,1,-2*@object[:center][:x],-2*@object[:center][:y],@object[:center][:x]^2+@object[:center][:y]^2-@object[:radiusSquared]],{= kind=:circle,style=@object[:style],metadata=@object[:metadata] })
+                                     ?_ @object;
+                                   GeometryTransformConicAffine(source,@map);
+                               }
+                               ?_ .Error(@"geometry.Transform does not support geometry kind '@{kind}'");
+};
+
+GeometryLocus(function,domain ?= _,options ?= {= }) -> {;
+    settings=((function ? :Map) && domain==_) ?: function ?_ options.Merge({= function=function,domain=domain });
+    range=settings[:domain];
+    range ? :Array ?: _ ?_ .Error("geometry.Locus domain must be an Array");
+    range.Len()==2 ?: _ ?_ .Error("geometry.Locus domain must have two bounds");
+    GeometryValue(:locus,{=
+        function=settings[:function], domain=[GeometryExact(range[1],"geometry.Locus domain"),GeometryExact(range[2],"geometry.Locus domain")],
+        samples=GeometryOption(settings,"samples",129), style=GeometryOption(settings,"style"), metadata=GeometryOption(settings,"metadata"),
+        provenance=[GeometryProvenance("Locus",[range])]
+    });
+};
+
+GeometryImplicit(specification) -> {;
+    specification ? :Map ?: _ ?_ .Error("geometry.Implicit requires a map");
+    coefficients=GeometryOption(specification,"coefficients");
+    function=GeometryOption(specification,"function",GeometryOption(specification,"fn"));
+    (coefficients!=_ || function!=_) ?: _ ?_ .Error("geometry.Implicit requires coefficients or a function");
+    exactCoefficients=coefficients==_ ?: _ ?_ GeometryConic(coefficients)[:coefficients];
+    domain=GeometryOption(specification,"domain",[-10,-10,10,10]);
+    GeometryNumericSequence(domain,4,"geometry.Implicit domain");
+    GeometryValue(:implicit,{=
+        coefficients=exactCoefficients, function=function, equation=GeometryOption(specification,"equation"), domain=domain,
+        style=GeometryOption(specification,"style"), metadata=GeometryOption(specification,"metadata"),
+        serializable=function==_, provenance=[GeometryProvenance("Implicit",[coefficients,GeometryOption(specification,"equation")])]
+    });
+};
+
+GeometryConstraint(kind,objects ?= _,options ?= {= }) -> {;
+    settings=((kind ? :Map) && objects==_) ?: kind ?_ options.Merge({= kind=kind,objects=objects });
+    name=settings[:kind]; values=settings[:objects];
+    values ? :Array ?: _ ?_ .Error("geometry.Constraint objects must be an Array");
+    residual = name==:onLine
+      ?: {; point=GeometryRequire(@values[1],:point,"onLine point"); line=GeometryRequire(@values[2],:line,"onLine line"); line[:a]*point[:x]+line[:b]*point[:y]+line[:c]; }
+      ?_ name==:equidistant
+           ?: GeometrySquaredDistance(GeometryRequire(values[1],:point),GeometryRequire(values[2],:point))-GeometrySquaredDistance(GeometryRequire(values[1],:point),GeometryRequire(values[3],:point))
+           ?_ name==:parallel
+                ?: {; first=GeometryRequire(@values[1],:line); second=GeometryRequire(@values[2],:line); first[:a]*second[:b]-second[:a]*first[:b]; }
+                ?_ name==:perpendicular
+                     ?: {; first=GeometryRequire(@values[1],:line); second=GeometryRequire(@values[2],:line); first[:a]*second[:a]+first[:b]*second[:b]; }
+                     ?_ .Error("geometry.Constraint supports :onLine, :equidistant, :parallel, and :perpendicular");
+    .DeepMutable({=
+        type="geometry_constraint",kind=name,schema="rix.geometry.constraint@1",objects=values,residual=residual,
+        satisfied=GeometryIsZero(residual),provenance=[GeometryProvenance("Constraint",values,name)]
+    },_);
+};
+
+GeometryConstraints(values) -> {;
+    values ? :Array ?: _ ?_ .Error("geometry.Constraints requires an Array");
+    {=
+        type="geometry_constraint_set",schema="rix.geometry.constraint@1",constraints=values,
+        satisfied=values.All((value)->value[:schema]=="rix.geometry.constraint@1" && value[:satisfied])
+    };
+};
+
 GeometryMidpoint(first, second ?= _) -> {;
     settings = ((first ? :Map) && second == _) ?: first ?_ {= first=first, second=second };
     firstPoint = GeometryRequire(settings[:first], :point, "geometry.Midpoint first point");
@@ -154,14 +425,15 @@ GeometryPerpendicularBisector(first, second ?= _, options ?= {= }) -> {;
         GeometryOption(settings, "metadata"), GeometryOption(settings, "style"));
 };
 
-GeometryIntersectionValue(status, points, left, right, diagnostic ?= _) -> .DeepMutable({=
+GeometryIntersectionValue(status, points, left, right, diagnostic ?= _, evidence ?= _, exactValue ?= _) -> .DeepMutable({=
     type="geometry_intersection",
     kind="intersection",
     schema="rix.geometry.intersection@1",
     status=status,
     points=points,
-    exact=status == "unsupported" ?: 0 ?_ 1,
+    exact=exactValue != _ ?: exactValue ?_ status == "unsupported" ?: 0 ?_ 1,
     diagnostic=diagnostic,
+    evidence=evidence,
     provenance=[GeometryProvenance("Intersect", [left, right], diagnostic)]
 }, _);
 
@@ -183,14 +455,93 @@ GeometryIntersectLines(left, right) -> {;
       };
 };
 
+GeometryConicFromCircle(circle) -> GeometryConic([
+    1,0,1,-2*circle[:center][:x],-2*circle[:center][:y],
+    circle[:center][:x]^2+circle[:center][:y]^2-circle[:radiusSquared]
+],{= kind=:circle });
+
+GeometryQuadraticSqrt(value) -> {;
+    exact=GeometryExactSqrt(value);
+    exact!=_
+      ?: {= value=exact,exact=1,enclosure=exact:exact,status=:enclosed,evidenceLevel=:proof,work={= calls=0 } }
+      ?_ {;
+          result=.numerics.Refine(.numerics.Sqrt(@value),{= absoluteWidth=1/1000000000000,maxWork=96 });
+          {=
+              value=result[:approximation].Candidate(),
+              exact=_,
+              enclosure=result[:interval],
+              status=result[:status],
+              evidenceLevel=result[:evidenceLevel],
+              work=result[:work]
+          };
+      };
+};
+
+GeometryIntersectLineConic(line,conic,left,right) -> {;
+    points=GeometryLinePoints(line); origin=points[1]; other=points[2];
+    x=origin[:x]; y=origin[:y]; dx=other[:x]-x; dy=other[:y]-y;
+    coefficients=conic[:coefficients]; a=coefficients[1]; b=coefficients[2]; c=coefficients[3]; d=coefficients[4]; e=coefficients[5]; f=coefficients[6];
+    qa=a*dx^2+b*dx*dy+c*dy^2;
+    qb=2*a*x*dx+b*(x*dy+y*dx)+2*c*y*dy+d*dx+e*dy;
+    qc=a*x^2+b*x*y+c*y^2+d*x+e*y+f;
+    equation=.poly([qa,qb,qc]);
+    GeometryIsZero(qa)
+      ?: (GeometryIsZero(qb)
+           ?: GeometryIntersectionValue("coincident",[],left,right,"The line is contained in the degenerate conic")
+           ?_ {;
+               parameter=-@qc/@qb;
+               point=GeometryPointValue(@x+parameter*@dx,@y+parameter*@dy,"LineConicIntersection",[@left,@right]);
+               GeometryIntersectionValue("one",[point],@left,@right,_,{= polynomial=@equation },1);
+           })
+      ?_ {;
+          discriminant=@qb^2-4*@qa*@qc;
+          discriminant<0
+            ?: GeometryIntersectionValue("none",[],@left,@right,"The line does not meet the conic")
+            ?_ (GeometryIsZero(discriminant)
+                 ?: {;
+                     parameter=-@qb/(2*@qa);
+                     point=GeometryPointValue(@x+parameter*@dx,@y+parameter*@dy,"TangentIntersection",[@left,@right]);
+                     GeometryIntersectionValue("one",[point],@left,@right,_,{= discriminant=@discriminant,polynomial=@equation },1);
+                 }
+                 ?_ {;
+                     root=GeometryQuadraticSqrt(@discriminant);
+                     first=(-@qb-root[:value])/(2*@qa); second=(-@qb+root[:value])/(2*@qa);
+                     firstPoint=GeometryPointValue(@x+first*@dx,@y+first*@dy,"LineConicIntersection",[@left,@right],{= enclosure=root[:enclosure] });
+                     secondPoint=GeometryPointValue(@x+second*@dx,@y+second*@dy,"LineConicIntersection",[@left,@right],{= enclosure=root[:enclosure] });
+                     GeometryIntersectionValue("two",[firstPoint,secondPoint],@left,@right,_,root.Merge({= polynomial=@equation }),root[:exact]);
+                 });
+      };
+};
+
+GeometryIntersectCircles(left,right) -> {;
+    first=left[:center]; second=right[:center];
+    GeometrySamePoint(first,second)
+      ?: (left[:radiusSquared]==right[:radiusSquared]
+           ?: GeometryIntersectionValue("coincident",[],left,right,"Coincident circles have infinitely many intersections")
+           ?_ GeometryIntersectionValue("none",[],left,right,"Concentric circles do not intersect"))
+      ?_ {;
+          a=2*(@second[:x]-@first[:x]); b=2*(@second[:y]-@first[:y]);
+          c=@first[:x]^2+@first[:y]^2-@left[:radiusSquared]-@second[:x]^2-@second[:y]^2+@right[:radiusSquared];
+          radical=GeometryLineValue(a,b,c,[@first,@second],"RadicalAxis",[@left,@right]);
+          result=GeometryIntersectLineConic(radical,GeometryConicFromCircle(@left),@left,@right);
+          result;
+      };
+};
+
 GeometryIntersect(first, second ?= _) -> {;
     settings = ((first ? :Map) && first.Has("left") && second == _) ?: first ?_ {= left=first, right=second };
     left = GeometryRequire(settings[:left], _, "geometry.Intersect left value");
     right = GeometryRequire(settings[:right], _, "geometry.Intersect right value");
     (left[:kind] == :line && right[:kind] == :line)
       ?: GeometryIntersectLines(left, right)
-      ?_ GeometryIntersectionValue("unsupported", [], left, right,
-          @"Phase 1 geometry.Intersect supports line-line intersections, not @{left[:kind]}-@{right[:kind]}");
+      ?_ (left[:kind]==:line && (right[:kind]==:circle || right[:kind]==:conic))
+           ?: GeometryIntersectLineConic(left,right[:kind]==:circle ?: GeometryConicFromCircle(right) ?_ right,left,right)
+           ?_ (right[:kind]==:line && (left[:kind]==:circle || left[:kind]==:conic))
+                ?: GeometryIntersectLineConic(right,left[:kind]==:circle ?: GeometryConicFromCircle(left) ?_ left,left,right)
+                ?_ (left[:kind]==:circle && right[:kind]==:circle)
+                     ?: GeometryIntersectCircles(left,right)
+                     ?_ GeometryIntersectionValue("unsupported", [], left, right,
+                         @"geometry.Intersect does not yet support @{left[:kind]}-@{right[:kind]}");
 };
 
 GeometryRequireIntersection(value, label) -> ((value ? :Map) && value.Has("schema") && value[:schema] == "rix.geometry.intersection@1")
@@ -225,6 +576,192 @@ GeometryNumericSequence(value, length, label) -> {;
     value.Map((item) -> GeometryExact(item, label));
 };
 
+GeometryViewRequest(source,request) -> {;
+    viewport=GeometryOption(request,"viewport");
+    sourceDomain=GeometryOption(source,"domain");
+    fallback=sourceDomain==_ ?: [-10,-10,10,10] ?_ sourceDomain;
+    requestedView=GeometryOption(request,"view");
+    view=viewport==_
+      ?: (requestedView==_ ?: fallback ?_ requestedView)
+      ?_ (viewport ? :Map
+           ?: {;
+               x=@viewport[:x]; y=@viewport[:y];
+               [x[1],y[1],x[2],y[2]];
+           }
+           ?_ viewport);
+    exact=GeometryNumericSequence(view,4,"geometry refinement viewport");
+    (exact[3]>exact[1] && exact[4]>exact[2]) ?: _ ?_ .Error("geometry refinement viewport must increase");
+    exact;
+};
+
+GeometryResolveScalar(value,request) -> {;
+    exact=value ~: :Rational;
+    exact!=_
+      ?: {= value=exact,resolved=1,evidenceLevel=:proof,status=:exact }
+      ?_ {;
+          result=.numerics.Refine(@value,{=
+              absoluteWidth=GeometryOption(@request,"tolerance",1/1000),
+              maxWork=GeometryOption(@request,"numericwork",64)
+          });
+          usable=result[:status]==:enclosed || result[:status]==:budgetExhausted || result[:status]==:approximate;
+          usable
+            ?: {= value=result[:approximation].Candidate(),resolved=result[:status]==:enclosed && result[:goalMet],evidenceLevel=result[:evidenceLevel],status=result[:status],enclosure=result[:interval] }
+            ?_ {= value=_,resolved=_,evidenceLevel=:none,status=result[:status] };
+      };
+};
+
+GeometryImplicitEvaluation(implicit,x,y,request) -> {;
+    coefficients=implicit[:coefficients];
+    raw=(coefficients ? :Array)
+      ?: coefficients[1]*x^2+coefficients[2]*x*y+coefficients[3]*y^2+coefficients[4]*x+coefficients[5]*y+coefficients[6]
+      ?_ {; F=@implicit[:function]; F(@x,@y); };
+    GeometryResolveScalar(raw,request);
+};
+
+GeometrySign(value) -> value<0 ?: -1 ?_ value>0 ?: 1 ?_ 0;
+
+GeometryCellEvidence(implicit,cell,request) -> {;
+    xmin=cell[1];ymin=cell[2];xmax=cell[3];ymax=cell[4];
+    xmid=(xmin+xmax)/2; ymid=(ymin+ymax)/2;
+    points=[
+        [xmin,ymin],[xmid,ymin],[xmax,ymin],[xmax,ymid],
+        [xmax,ymax],[xmid,ymax],[xmin,ymax],[xmin,ymid],[xmid,ymid]
+    ];
+    evaluations=points.Map((point)->GeometryImplicitEvaluation(implicit,point[1],point[2],request));
+    usable=evaluations.All((entry)->entry[:value]!=_);
+    signs=usable ?: evaluations.Map((entry)->GeometrySign(entry[:value])) ?_ [];
+    {= points=points,evaluations=evaluations,signs=signs,usable=usable };
+};
+
+GeometryEdgeCrossing(first,firstValue,second,secondValue) -> {;
+    firstValue==0
+      ?: first
+      ?_ secondValue==0
+           ?: second
+           ?_ GeometrySign(firstValue)==GeometrySign(secondValue)
+                ?: _
+                ?_ {;
+                    ratio=@firstValue/(@firstValue-@secondValue);
+                    [@first[1]+ratio*(@second[1]-@first[1]),@first[2]+ratio*(@second[2]-@first[2])];
+                };
+};
+
+GeometryCellSegments(evidence) -> {;
+    points=evidence[:points]; values=evidence[:evaluations].Map((entry)->entry[:value]);
+    crossings:=[];
+    {@ index=1; index<=8; {;
+        next=index==8 ?: 1 ?_ index+1;
+        crossing=GeometryEdgeCrossing(@points[index],@values[index],@points[next],@values[next]);
+        crossing!=_ ?: {; @crossings ~= @crossings.Push(@crossing); } ?_ _;
+    }; index+=1 };
+    crossings~=crossings.Distinct();
+    crossings.Len()<2 ?: [] ?_
+    crossings.Len()==2 ?: [[crossings[1],crossings[2]]] ?_
+    [[crossings[1],crossings[2]],[crossings[3],crossings[4]]];
+};
+
+GeometryProjectSegments(segments,view,size) -> {;
+    xmin=view[1];ymin=view[2];xmax=view[3];ymax=view[4];
+    Project=(point)->[
+        (point[1]-@xmin)/(@xmax-@xmin)*@size[1],
+        @size[2]-(point[2]-@ymin)/(@ymax-@ymin)*@size[2]
+    ];
+    segments.Map((segment)->segment.Map(Project));
+};
+
+GeometryRefineImplicit(implicit,request) -> {;
+    view=GeometryViewRequest(implicit,request);
+    size=GeometryNumericSequence(GeometryOption(request,"size",[640,480]),2,"geometry refinement size");
+    tolerance=GeometryExact(GeometryOption(request,"tolerance",(view[3]-view[1])/32),"geometry refinement tolerance");
+    tolerance>0 ?: _ ?_ .Error("geometry refinement tolerance must be positive");
+    maxWork=GeometryOption(request,"maxwork",GeometryOption(request,"maxcells",1024)) ~!: :Integer;
+    maxDepth=GeometryOption(request,"maxdepth",20) ~!: :Integer;
+    (maxWork>0 && maxDepth>=0) ?: _ ?_ .Error("geometry refinement work and depth limits must be positive");
+    xCells:=1; yCells:=1;
+    {@ step=1; (@view[3]-@view[1])/@xCells>@tolerance && @xCells<1048576; {; @xCells*=2; }; step+=1 };
+    {@ step=1; (@view[4]-@view[2])/@yCells>@tolerance && @yCells<1048576; {; @yCells*=2; }; step+=1 };
+    requestedXCells=xCells; requestedYCells=yCells;
+    {@ step=1; @xCells*@yCells>@maxWork && (@xCells>1||@yCells>1); {;
+        @xCells>=@yCells ?: {; @xCells=@xCells//2; } ?_ {; @yCells=@yCells//2; };
+    }; step+=1 };
+    cellWidth=(view[3]-view[1])/xCells; cellHeight=(view[4]-view[2])/yCells;
+    queue:=[];
+    {@ ix=0; ix<@xCells; {;
+        {@ iy=0; iy<@yCells; {;
+            xmin=@view[1]+@ix*@cellWidth; ymin=@view[2]+iy*@cellHeight;
+            @queue ~= @queue.Push([xmin,ymin,xmin+@cellWidth,ymin+@cellHeight,0]);
+        }; iy+=1 };
+    }; ix+=1 };
+    segments := []; uncertainty := []; work := 0; evaluations := 0; candidateCells := 0; leafCells := 0;
+    {@ step=1; @queue.Len()>0 && @work<@maxWork; {;
+        cell=@queue.First(); @queue=@queue.DropFirst(); @work+=1;
+        evidence=GeometryCellEvidence(@implicit,cell,@request); @evaluations+=9;
+        !evidence[:usable]
+          ?: {; @uncertainty ~= @uncertainty.Push({= cell=@cell,reason=:unresolvedEvaluation,evidence=@evidence[:evaluations] }); }
+          ?_ {;
+              signs=@evidence[:signs];
+              allPositive=signs.All((sign)->sign>0); allNegative=signs.All((sign)->sign<0);
+              empty=allPositive||allNegative;
+              !empty
+                ?: {;
+                    @candidateCells+=1; @leafCells+=1;
+                    found=GeometryCellSegments(@evidence);
+                    found.Len()>0
+                      ?: {; @segments ~= @segments.Concat(@found); }
+                      ?_ {; @uncertainty ~= @uncertainty.Push({= cell=@cell,reason=:ambiguousCell }); };
+                }
+                ?_ _;
+          };
+    }; step+=1 };
+    exhausted=queue.Len()>0;
+    exhausted ?: {; @uncertainty ~= @uncertainty.Push({= reason=:workBudget,cells=@queue }); } ?_ _;
+    resolutionMet=xCells==requestedXCells&&yCells==requestedYCells;
+    resolutionMet ?: _ ?_ {; @uncertainty ~= @uncertainty.Push({= reason=:workResolution,cellSize=[@cellWidth,@cellHeight] }); };
+    projected=GeometryProjectSegments(segments,view,size);
+    style=GeometryStyle(implicit[:style],{= stroke="#0f766e",width=2,fill="none" });
+    children=projected.Map((segment)->.Graphics.Path(segment,@style));
+    graphic=.Graphics.Graphic(size,children,{= source="rix.geometry@1",kind="implicit",resolved=!exhausted&&uncertainty.Len()==0 });
+    .DeepMutable({=
+        type="geometry_refinement",schema="rix.geometry.refinement@1",graphic=graphic,children=children,
+        resolved=!exhausted&&uncertainty.Len()==0,uncertainty=uncertainty,
+        work={= cells=work,evaluations=evaluations,candidateCells=candidateCells,leafCells=leafCells,xCells=xCells,yCells=yCells,remaining=queue.Len(),exhausted=exhausted },
+        request={= viewport=view,size=size,tolerance=tolerance,maxWork=maxWork,maxDepth=maxDepth },source=implicit
+    },_);
+};
+
+GeometryRefineLocus(locus,request) -> {;
+    view=GeometryViewRequest(locus,request); size=GeometryNumericSequence(GeometryOption(request,"size",[640,480]),2,"geometry refinement size");
+    samples=GeometryOption(request,"samples",locus[:samples]) ~!: :Integer;
+    (samples>=2 && samples<=10000) ?: _ ?_ .Error("geometry locus samples must be between 2 and 10000");
+    lower=locus[:domain][1];upper=locus[:domain][2]; F=locus[:function]; points:=[]; uncertainty:=[];
+    {@ index=1; index<=@samples; {;
+        parameter=@lower+(@upper-@lower)*(index-1)/(@samples-1); value=@F(parameter);
+        value ? :Array
+          ?: {;
+              x=GeometryResolveScalar(@value[1],@request); y=GeometryResolveScalar(@value[2],@request);
+              (x[:value]!=_&&y[:value]!=_) ?: {; @points ~= @points.Push([@x[:value],@y[:value]]); } ?_ {; @uncertainty ~= @uncertainty.Push({= parameter=@parameter,reason=:unresolvedEvaluation }); };
+          }
+          ?_ .Error("geometry.Locus function must return [x,y]");
+    }; index+=1 };
+    projected=GeometryProjectSegments([points],view,size)[1];
+    graphic=.Graphics.Graphic(size,[.Graphics.Path(projected,GeometryStyle(locus[:style],{= stroke="#7c3aed",width=2,fill="none" }))],{= source="rix.geometry@1",kind="locus" });
+    .DeepMutable({= type="geometry_refinement",schema="rix.geometry.refinement@1",graphic=graphic,children=[.Graphics.Path(projected,GeometryStyle(locus[:style],{= stroke="#7c3aed",width=2,fill="none" }))],resolved=uncertainty.Len()==0,uncertainty=uncertainty,work={= samples=samples,exhausted=_ },source=locus },_);
+};
+
+GeometryRefine(value,request ?= {= }) -> {;
+    object=GeometryRequire(value,_,"geometry.Refine value");
+    conicDomain=GeometryOption(object,"domain");
+    requestView=GeometryOption(request,"view");
+    defaultDomain=conicDomain!=_ ?: conicDomain ?_ (requestView!=_ ?: requestView ?_ [-10,-10,10,10]);
+    object[:kind]==:implicit
+      ?: GeometryRefineImplicit(object,request)
+      ?_ object[:kind]==:conic
+           ?: GeometryRefineImplicit(GeometryImplicit({= coefficients=object[:coefficients],domain=defaultDomain,style=object[:style],metadata=object[:metadata] }),request)
+           ?_ object[:kind]==:locus
+                ?: GeometryRefineLocus(object,request)
+                ?_ .Error("geometry.Refine requires an implicit, conic, or locus value");
+};
+
 GeometryStyle(supplied, defaults) -> supplied == _
   ?: defaults
   ?_ (supplied ? :Map) ?: defaults.Merge(supplied) ?_ .Error("geometry style must be a map");
@@ -241,6 +778,14 @@ GeometryLineEndpoints(line, view) -> {;
     !GeometryIsZero(b) ?: {; @addPoint(@xmin, -(@a*@xmin+@c)/@b); @addPoint(@xmax, -(@a*@xmax+@c)/@b); } ?_ _;
     !GeometryIsZero(a) ?: {; @addPoint(-(@b*@ymin+@c)/@a, @ymin); @addPoint(-(@b*@ymax+@c)/@a, @ymax); } ?_ _;
     points.Slice(1, 3);
+};
+
+GeometryRayEndpoints(ray,view) -> {;
+    line=GeometryLine(ray[:origin],ray[:through]); candidates=GeometryLineEndpoints(line,view);
+    dx=ray[:through][:x]-ray[:origin][:x];dy=ray[:through][:y]-ray[:origin][:y];
+    forward=candidates.Filter((point)->(point[1]-ray[:origin][:x])*dx+(point[2]-ray[:origin][:y])*dy>=0);
+    inside=ray[:origin][:x]>=view[1]&&ray[:origin][:x]<=view[3]&&ray[:origin][:y]>=view[2]&&ray[:origin][:y]<=view[4];
+    inside ?: [ray[:origin][:coordinates],forward.Last()] ?_ forward.Slice(1,3);
 };
 
 GeometryDrawableItems(value) -> {;
@@ -289,7 +834,7 @@ GeometryDraw(objects, options ?= {= }) -> {;
                    @children ~= @children.Push(.Graphics.Circle(center, 5,
                        GeometryStyle(@item[:style], {= fill="#6d28d9", stroke="#ffffff", width=2 })));
                }
-               ?_ item[:kind] == :line
+              ?_ item[:kind] == :line
                     ?: {;
                         endpoints = GeometryLineEndpoints(@item, @view);
                         endpoints.Len() == 2
@@ -297,14 +842,35 @@ GeometryDraw(objects, options ?= {= }) -> {;
                               GeometryStyle(@item[:style], {= stroke="#2563eb", width=2, fill="none" }))); }
                           ?_ _;
                     }
-                    ?_ item[:kind] == :circle
+                    ?_ item[:kind] == :segment
+                         ?: {;
+                             @children ~= @children.Push(.Graphics.Path([@item[:first][:coordinates],@item[:second][:coordinates]].Map(@project),
+                                 GeometryStyle(@item[:style],{= stroke="#2563eb",width=2,fill="none" })));
+                         }
+                         ?_ item[:kind] == :ray
+                              ?: {;
+                                  endpoints=GeometryRayEndpoints(@item,@view);
+                                  endpoints.Len()==2 ?: {; @children ~= @children.Push(.Graphics.Path(@endpoints.Map(@project),GeometryStyle(@item[:style],{= stroke="#2563eb",width=2,fill="none" }))); } ?_ _;
+                              }
+                              ?_ item[:kind] == :polygon
+                                   ?: {;
+                                       @children ~= @children.Push(.Graphics.Path(@item[:points].Map((point)->point[:coordinates]).Map(@project),
+                                           GeometryStyle(@item[:style],{= stroke="#2563eb",width=2,fill="none",closed=1 })));
+                                   }
+                                   ?_ item[:kind] == :circle
                          ?: {;
                              center = [@item[:center][:x], @item[:center][:y]] |> @project;
                              radius = GeometryApproximateSqrt(@item[:radiusSquared]) * @scale;
                              @children ~= @children.Push(.Graphics.Circle(center, radius,
                                  GeometryStyle(@item[:style], {= fill="none", stroke="#d97706", width=2 })));
                          }
-                         ?_ .Error(@"geometry.Draw does not support geometry kind '@{item[:kind]}'");
+                         ?_ (item[:kind]==:conic||item[:kind]==:implicit||item[:kind]==:locus)
+                              ?: {;
+                                  refined=GeometryRefine(@item,{= view=@view,size=@size,tolerance=(@xmax-@xmin)/16,maxWork=256 });
+                                  @children ~= @children.Concat(refined[:children]);
+                                  refined[:resolved] ?: _ ?_ {; @unresolved += @refined[:uncertainty].Len(); };
+                              }
+                              ?_ .Error(@"geometry.Draw does not support geometry kind '@{item[:kind]}'");
     }; index += 1 };
     .Graphics.Graphic(size, children, {=
         source="rix.geometry@1",
@@ -317,13 +883,28 @@ geometryNamespace = {= };
 geometryNamespace._proto = {=
     Point=(self, first, second ?= _, options ?= {= })->GeometryPoint(first, second, options),
     Line=(self, first, second ?= _, options ?= {= })->GeometryLine(first, second, options),
+    Segment=(self, first, second ?= _, options ?= {= })->GeometrySegment(first, second, options),
+    Ray=(self, first, second ?= _, options ?= {= })->GeometryRay(first, second, options),
+    Polygon=(self, points, options ?= {= })->GeometryPolygon(points, options),
     Circle=(self, first, second ?= _, options ?= {= })->GeometryCircle(first, second, options),
+    Conic=(self, coefficients, options ?= {= })->GeometryConic(coefficients, options),
+    Ellipse=(self, center, radii ?= _, options ?= {= })->GeometryEllipse(center, radii, options),
+    Parabola=(self, vertex, parameter ?= _, options ?= {= })->GeometryParabola(vertex, parameter, options),
+    Hyperbola=(self, center, axes ?= _, options ?= {= })->GeometryHyperbola(center, axes, options),
+    Locus=(self, function, domain ?= _, options ?= {= })->GeometryLocus(function, domain, options),
+    Implicit=(self, specification)->GeometryImplicit(specification),
+    Affine=(self, matrix)->GeometryAffine(matrix),
+    Projective=(self, matrix)->GeometryProjective(matrix),
+    Transform=(self, value, transform)->GeometryTransform(value, transform),
+    Constraint=(self, kind, objects ?= _, options ?= {= })->GeometryConstraint(kind, objects, options),
+    Constraints=(self, values)->GeometryConstraints(values),
     Midpoint=(self, first, second ?= _)->GeometryMidpoint(first, second),
     PerpendicularBisector=(self, first, second ?= _, options ?= {= })->GeometryPerpendicularBisector(first, second, options),
     Circumcircle=(self, first, second ?= _, third ?= _, options ?= {= })->GeometryCircumcircle(first, second, third, options),
     Intersect=(self, first, second ?= _)->GeometryIntersect(first, second),
     Points=(self, intersection)->GeometryPoints(intersection),
     Status=(self, intersection)->GeometryStatus(intersection),
+    Refine=(self, value, request ?= {= })->GeometryRefine(value, request),
     Draw=(self, objects, options ?= {= })->GeometryDraw(objects, options)
 };
-.Host.RegisterValue("geometry", geometryNamespace, "Pure exact ruler-and-compass geometry and portable Graphics snapshots", ["Geometry", "Graphics", "Exact"]);
+.Host.RegisterValue("geometry", geometryNamespace, "Exact geometry, transformations, conics, constraints, and bounded Graphics refinement", ["Geometry", "Graphics", "Exact"]);

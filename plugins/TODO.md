@@ -159,11 +159,11 @@ newline normalization.
    - [x] Provide a portable drawing tutorial.
    - [x] Add focused plugin-loading and malformed-style tests.
 2. **Phase 2 — Common drafting conveniences**
-   - [ ] Add polylines, arrows, arcs, ellipses, dimension marks, grids, and
+   - [x] Add polylines, arrows, arcs, ellipses, dimension marks, grids, and
      reusable style maps.
-   - [ ] Add data-coordinate to viewport-coordinate transforms.
-   - [ ] Provide bounding boxes and anchors for composed labels.
-   - [ ] Extend the tutorial with a labeled construction.
+   - [x] Add data-coordinate to viewport-coordinate transforms.
+   - [x] Provide bounding boxes and anchors for composed labels.
+   - [x] Extend the tutorial with a labeled construction.
 3. **Phase 3 — Constraint-aware authoring**
    - [ ] Accept geometry objects through a protocol without importing
      `.geometry`.
@@ -187,11 +187,11 @@ newline normalization.
      ranges.
    - [x] Make the tutorial pass in both RiX Web and RiX Notebook.
 2. **Phase 2 — General 2D functions and data**
-   - [ ] Add `.plot.Function`, `.plot.Parametric`, scatter, line, bar, and
+   - [x] Add `.plot.Function`, `.plot.Parametric`, scatter, line, bar, and
      step plots.
-   - [ ] Route evaluation and enclosure through `.numerics`.
-   - [ ] Detect likely discontinuities and expose unresolved samples.
-   - [ ] Add scales, legends, ticks, labels, and explicit/fitted view policies.
+   - [x] Route evaluation and enclosure through `.numerics`.
+   - [x] Detect likely discontinuities and expose unresolved samples.
+   - [x] Add scales, legends, ticks, labels, and explicit/fitted view policies.
 3. **Phase 3 — Fields and adaptive plots**
    - [ ] Add implicit curves, contours, heat maps, vector fields, error bands,
      and interval-valued plots.
@@ -814,11 +814,11 @@ tracked in
    - [x] Add README, runnable tutorial, exact tests, and SVG/Canvas snapshots.
    - [x] Preserve construction provenance and unresolved intersections.
 2. **Phase 2 — Transformations, conics, and constraints**
-   - [ ] Add segments, rays, polygons, affine/projective transforms, conics,
+   - [x] Add segments, rays, polygons, affine/projective transforms, conics,
      loci, and simple constraints.
-   - [ ] Consume Algebra and Numerics protocols for exact/certified
+   - [x] Consume Algebra and Numerics protocols for exact/certified
      intersections.
-   - [ ] Add implicit-equation values with adaptive rendering requests.
+   - [x] Add implicit-equation values with adaptive rendering requests.
 3. **Phase 3 — Certified implicit geometry**
    - [ ] Add interval subdivision, topology-aware curve tracing, tangency and
      multiplicity evidence, and boundary-refinement callbacks.

@@ -1,11 +1,12 @@
 /**
 id: plot
-description: Pure-RiX exact polynomial sampling that lowers to portable core Graphics scenes.
+description: Pure-RiX exact and numerics-backed 2D plotting that lowers to portable core Graphics scenes.
 kind: rix
 mount: plot
-exports: [Polynomial]
+exports: [Polynomial, Function, Parametric, Scatter, Line, Bar, Step]
 groups: [Plot, Graphics, Exact]
 permissions: []
+requires: [rix.numerics@1]
 provides: [rix.plot@1]
 snapshot: true
 deterministic: true
@@ -204,8 +205,238 @@ PlotPolynomial(coefficientsValue, domain, options ?= {= }) -> {;
     .Graphics.Graphic([width, height], children, {= kind="polynomial_plot", schema="rix.plot@1" });
 };
 
+PlotResolveNumber(value, label, settings) -> {;
+    exact = value ~: :Rational;
+    exact != _
+      ?: {= value=exact, resolved=1, status=:exact, evidenceLevel=:proof }
+      ?_ {;
+          request = {=
+              absoluteWidth=PlotOption(@settings, "tolerance", 1/1000000),
+              maxWork=PlotOption(@settings, "maxwork", 80)
+          };
+          result = .numerics.Refine(@value, request);
+          usable = result[:status] == :enclosed || result[:status] == :budgetExhausted || result[:status] == :approximate;
+          candidate = usable ?: result[:approximation].Candidate() ~: :Rational ?_ _;
+          candidate != _
+            ?: {=
+                value=candidate,
+                resolved=result[:status] == :enclosed && result[:goalMet],
+                status=result[:status],
+                evidenceLevel=result[:evidenceLevel]
+            }
+            ?_ {= value=_, resolved=_, status=result[:status], evidenceLevel=:none };
+      };
+};
+
+PlotScaleName(settings, axis) -> {;
+    name = PlotOption(settings, @"@{axis}scale", :linear);
+    (name == :linear || name == :log || name == :log10)
+      ?: name
+      ?_ .Error(@"plot @{axis}Scale must be :linear or :log10");
+};
+
+PlotScaleValue(value, scale, label, settings) -> scale == :linear
+  ?: PlotResolveNumber(value, label, settings)
+  ?_ {;
+      exact = @value ~: :Rational;
+      (exact != _ && exact <= 0) ?: .Error("plot values must be positive for a logarithmic scale") ?_ _;
+      PlotResolveNumber(.numerics.Log10(@value), @label, @settings);
+  };
+
+PlotReadPoint(value, index, settings, xScale, yScale, label) -> {;
+    value ? :Array ?: _ ?_ .Error(@"@{label} point @{index} must be an Array");
+    value.Len() == 2 ?: _ ?_ .Error(@"@{label} point @{index} must contain x and y");
+    x = PlotScaleValue(value[1], xScale, @"@{label} point @{index} x", settings);
+    y = PlotScaleValue(value[2], yScale, @"@{label} point @{index} y", settings);
+    {=
+        point=(x[:value] != _ && y[:value] != _) ?: [x[:value], y[:value]] ?_ _,
+        original=value,
+        resolved=x[:resolved] && y[:resolved],
+        status=(x[:value] != _ && y[:value] != _) ?: :sampled ?_ :unresolved
+    };
+};
+
+PlotReadData(values, settings, label) -> {;
+    values ? :Array ?: _ ?_ .Error(@"@{label} data must be an Array");
+    xScale = PlotScaleName(settings, "x");
+    yScale = PlotScaleName(settings, "y");
+    samples := [];
+    unresolved := 0;
+    {@ index=1; index <= @values.Len(); {;
+        sample = PlotReadPoint(@values[index], index, @settings, @xScale, @yScale, @label);
+        sample[:point] == _ ?: {; @unresolved += 1; } ?_ {; @samples ~= @samples.Push(@sample); };
+    }; index += 1 };
+    {= samples=samples, unresolved=unresolved, xScale=xScale, yScale=yScale };
+};
+
+PlotFunctionSamples(fn, domain, settings, parametric ?= _) -> {;
+    domain ? :Array ?: _ ?_ .Error("plot function domain must be an Array");
+    domain.Len() == 2 ?: _ ?_ .Error("plot function domain must have a lower and upper bound");
+    lower = PlotExact(domain[1], "plot function domain lower bound");
+    upper = PlotExact(domain[2], "plot function domain upper bound");
+    lower < upper ?: _ ?_ .Error("plot function domain must increase");
+    samples = PlotPositiveSamples(PlotOption(settings, "samples", 161));
+    values := [];
+    {@ index=1; index <= @samples; {;
+        parameter = @lower + (@upper - @lower) * (index - 1) / (@samples - 1);
+        result = @fn(parameter);
+        point = @parametric
+          ?: result
+          ?_ [parameter, result];
+        @values ~= @values.Push(point);
+    }; index += 1 };
+    values;
+};
+
+PlotBounds(samples, settings, kind, xScale, yScale) -> {;
+    samples.Len() > 0 ?: _ ?_ .Error("plot has no resolved samples");
+    xs = samples.Map((sample) -> sample[:point][1]);
+    ys = samples.Map((sample) -> sample[:point][2]);
+    kind == :bar ?: {; @ys ~= @ys.Push(0); } ?_ _;
+    xmin := xs[1]; xmax := xs[1]; ymin := ys[1]; ymax := ys[1];
+    {@ index=2; index <= @xs.Len(); {;
+        @xmin ~= @xs[index] < @xmin ?: @xs[index] ?_ @xmin;
+        @xmax ~= @xs[index] > @xmax ?: @xs[index] ?_ @xmax;
+    }; index += 1 };
+    {@ index=2; index <= @ys.Len(); {;
+        @ymin ~= @ys[index] < @ymin ?: @ys[index] ?_ @ymin;
+        @ymax ~= @ys[index] > @ymax ?: @ys[index] ?_ @ymax;
+    }; index += 1 };
+    xDomain = PlotOption(settings, "xdomain");
+    yDomain = PlotOption(settings, "ydomain");
+    xDomain != _ ?: {;
+        fixed = PlotFixedYBounds(@xDomain);
+        @xmin = PlotScaleValue(fixed[1], @xScale, "plot xDomain lower bound", @settings)[:value];
+        @xmax = PlotScaleValue(fixed[2], @xScale, "plot xDomain upper bound", @settings)[:value];
+    } ?_ _;
+    yDomain != _ ?: {;
+        fixed = PlotFixedYBounds(@yDomain);
+        @ymin = PlotScaleValue(fixed[1], @yScale, "plot yDomain lower bound", @settings)[:value];
+        @ymax = PlotScaleValue(fixed[2], @yScale, "plot yDomain upper bound", @settings)[:value];
+    } ?_ _;
+    xmin == xmax ?: {; @xmin -= 1; @xmax += 1; } ?_ _;
+    ymin == ymax ?: {; @ymin -= 1; @ymax += 1; } ?_ _;
+    xDomain == _ ?: {; padding=(@xmax-@xmin)/20; @xmin-=padding; @xmax+=padding; } ?_ _;
+    yDomain == _ ?: {; padding=(@ymax-@ymin)*2/25; @ymin-=padding; @ymax+=padding; } ?_ _;
+    {= xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax };
+};
+
+PlotGeneral(data, settings, kind) -> {;
+    settings ? :Map ?: _ ?_ .Error("plot options must be a map");
+    read = PlotReadData(data, settings, "plot");
+    samples = read[:samples];
+    unresolved := read[:unresolved];
+    bounds = PlotBounds(samples, settings, kind, read[:xScale], read[:yScale]);
+    size = PlotOption(settings, "size", [640,360]);
+    size ? :Array ?: _ ?_ .Error("plot size must be an Array");
+    size.Len() == 2 ?: _ ?_ .Error("plot size must contain width and height");
+    width = PlotExact(size[1], "plot width"); height = PlotExact(size[2], "plot height");
+    margin = PlotExact(PlotOption(settings, "margin", 42), "plot margin");
+    (width > 0 && height > 0 && margin >= 0 && margin*2 < .Min(width,height))
+      ?: _ ?_ .Error("plot size and margin do not leave a positive viewport");
+    xmin=bounds[:xmin]; xmax=bounds[:xmax]; ymin=bounds[:ymin]; ymax=bounds[:ymax];
+    toPoint = (point) -> [
+        @margin + (point[1]-@xmin)/(@xmax-@xmin)*(@width-@margin*2),
+        @height-@margin-(point[2]-@ymin)/(@ymax-@ymin)*(@height-@margin*2)
+    ];
+    children := [];
+    axisStyle = PlotOption(settings, "axisstyle", {= stroke="#64748b", width=1, fill="none" });
+    zeroX = bounds[:xmin] <= 0 && bounds[:xmax] >= 0;
+    zeroY = bounds[:ymin] <= 0 && bounds[:ymax] >= 0;
+    zeroY ?: {; @children ~= @children.Push(.Graphics.Path([[@bounds[:xmin],0]|>@toPoint, [@bounds[:xmax],0]|>@toPoint], @axisStyle)); } ?_ _;
+    zeroX ?: {; @children ~= @children.Push(.Graphics.Path([[0,@bounds[:ymin]]|>@toPoint, [0,@bounds[:ymax]]|>@toPoint], @axisStyle)); } ?_ _;
+    style = PlotStyle(settings, kind == :scatter ?: "#be123c" ?_ "#2563eb", kind == :scatter ?: 1 ?_ 2);
+    screen = samples.Map((sample) -> sample[:point]).Map(toPoint);
+    kind == :scatter
+      ?: {;
+          radius = PlotExact(PlotOption(@settings, "radius", 4), "plot scatter radius");
+          {@ index=1; index <= @screen.Len(); {;
+              @children ~= @children.Push(.Graphics.Circle(@screen[index], @radius, @style));
+          }; index += 1 };
+      }
+      ?_ kind == :bar
+           ?: {;
+               barWidth = PlotOption(@settings, "barwidth");
+               inferred = @screen.Len() > 1 ?: (@screen[2][1]-@screen[1][1]).Abs()*4/5 ?_ (@width-@margin*2)/2;
+               pixelWidth = barWidth == _ ?: inferred ?_ PlotExact(barWidth, "plot bar width");
+               baselineY = ([@bounds[:xmin], 0] |> @toPoint)[2];
+               {@ index=1; index <= @screen.Len(); {;
+                   point = @screen[index];
+                   top = .Min(point[2], @baselineY);
+                   @children ~= @children.Push(.Graphics.Rectangle([point[1]-@pixelWidth/2,top], [@pixelWidth,(point[2]-@baselineY).Abs()], @style));
+               }; index += 1 };
+           }
+           ?_ {;
+               pathPoints = @kind == :step
+                 ?: {;
+                     points := [@screen[1]];
+                     {@ index=2; index <= @screen.Len(); {;
+                         previous=@screen[index-1]; currentPoint=@screen[index];
+                         @points ~= @points.Push([currentPoint[1],previous[2]]).Push(currentPoint);
+                     }; index += 1 };
+                     points;
+                 }
+                 ?_ @screen;
+               jumpOption=PlotOption(@settings,"discontinuity");
+               jump=jumpOption!=_
+                 ?: jumpOption
+                 ?_ ((@kind==:function||@kind==:parametric) ?: (@height-@margin*2)*3/4 ?_ @height*2);
+               segments := []; current := [];
+               {@ index=1; index <= @pathPoints.Len(); {;
+                   point=@pathPoints[index];
+                   discontinuous = @current.Len()>0 && (point[2]-@current.Last()[2]).Abs() > @jump;
+                   discontinuous
+                     ?: {; @current.Len()>1 ?: {; @segments ~= @segments.Push(@current); } ?_ _; @current=[@point]; }
+                     ?_ {; @current ~= @current.Push(@point); };
+               }; index += 1 };
+               current.Len()>1 ?: {; @segments ~= @segments.Push(@current); } ?_ _;
+               {@ index=1; index <= @segments.Len(); {;
+                   @children ~= @children.Push(.Graphics.Path(@segments[index], @style));
+               }; index += 1 };
+               @unresolved += segments.Len() > 1 ?: segments.Len()-1 ?_ 0;
+           };
+    tickCount = PlotOption(settings, "tickcount", 5) ~!: :Integer;
+    (tickCount >= 2 && tickCount <= 20) ?: _ ?_ .Error("plot tickCount must be between 2 and 20");
+    tickStyle = PlotOption(settings, "tickstyle", {= fill="#334155", size=11, anchor="middle" });
+    {@ index=1; index <= @tickCount; {;
+        x = @bounds[:xmin]+(@bounds[:xmax]-@bounds[:xmin])*(index-1)/(@tickCount-1);
+        position=[x,@bounds[:ymin]]|>@toPoint;
+        @children ~= @children.Push(.Graphics.Text([position[1],@height-@margin+17], @"@{x}", @tickStyle));
+    }; index += 1 };
+    labelStyle = {= fill="#0f172a", size=13, anchor="middle" };
+    PlotOption(settings,"xlabel") != _ ?: {; @children ~= @children.Push(.Graphics.Text([@width/2,@height-5],PlotOption(@settings,"xlabel"),@labelStyle)); } ?_ _;
+    PlotOption(settings,"ylabel") != _ ?: {; @children ~= @children.Push(.Graphics.Text([12,@height/2],PlotOption(@settings,"ylabel"),@labelStyle)); } ?_ _;
+    PlotOption(settings,"title") != _ ?: {; @children ~= @children.Push(.Graphics.Text([@width/2,18],PlotOption(@settings,"title"),@labelStyle.Merge({= size=15, weight="bold" }))); } ?_ _;
+    PlotOption(settings,"label") != _ ?: {;
+        @children ~= @children.Push(.Graphics.Path([[@margin+2,@margin+8],[@margin+20,@margin+8]],@style));
+        @children ~= @children.Push(.Graphics.Text([@margin+26,@margin+13],PlotOption(@settings,"label"),{= size=13 }));
+    } ?_ _;
+    .Graphics.Graphic([width,height], children, {=
+        kind=kind,
+        schema="rix.plot@1",
+        unresolved=unresolved,
+        xScale=read[:xScale],
+        yScale=read[:yScale],
+        view={= xmin=bounds[:xmin], xmax=bounds[:xmax], ymin=bounds[:ymin], ymax=bounds[:ymax] }
+    });
+};
+
+PlotFunction(fn, domain, options ?= {= }) ->
+    PlotGeneral(PlotFunctionSamples(fn, domain, options), options.Merge({= xdomain=domain }), :function);
+
+PlotParametric(fn, domain, options ?= {= }) ->
+    PlotGeneral(PlotFunctionSamples(fn, domain, options, 1), options, :parametric);
+
+PlotDataCall(data, options, kind) -> PlotGeneral(data, options, kind);
+
 plotNamespace = {= };
 plotNamespace._proto = {=
-    Polynomial=(self, coefficients, domain, options ?= {= })->PlotPolynomial(coefficients, domain, options)
+    Polynomial=(self, coefficients, domain, options ?= {= })->PlotPolynomial(coefficients, domain, options),
+    Function=(self, fn, domain, options ?= {= })->PlotFunction(fn, domain, options),
+    Parametric=(self, fn, domain, options ?= {= })->PlotParametric(fn, domain, options),
+    Scatter=(self, data, options ?= {= })->PlotDataCall(data, options, :scatter),
+    Line=(self, data, options ?= {= })->PlotDataCall(data, options, :line),
+    Bar=(self, data, options ?= {= })->PlotDataCall(data, options, :bar),
+    Step=(self, data, options ?= {= })->PlotDataCall(data, options, :step)
 };
-.Host.RegisterValue("plot", plotNamespace, "Pure exact polynomial sampling into portable Graphics", ["Plot", "Graphics", "Exact"]);
+.Host.RegisterValue("plot", plotNamespace, "Exact and numerics-backed 2D plots lowered into portable Graphics", ["Plot", "Graphics", "Exact"]);

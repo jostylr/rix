@@ -974,6 +974,34 @@ describe("portable structured output", () => {
             .toThrow("draw.Line received too many arguments");
     });
 
+    test("draw Phase 2 adds drafting helpers, reusable styles, viewports, bounds, and anchors", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("draw");
+            ink := .draw.Style({= stroke="#1d4ed8", width=2 }, {= fill="none" });
+            viewport := .draw.Viewport([-2,-1,2,3], [240,160], {= margin=20 });
+            ellipse := .draw.Ellipse([80,60], [30,15], ink, 24);
+            box := .draw.Bounds(ellipse);
+            {:
+                viewport.Point([0,1]),
+                box,
+                .draw.Anchor(box, "southeast", [4,5]),
+                .draw.Arrow([10,20],[90,40],ink),
+                .draw.Dimension([10,100],[110,100],"100",ink),
+                .draw.Grid([0,0],[20,20],10,ink),
+                .draw.Arc([50,50],20,0,180,ink,12)
+            };
+        `);
+        const [projected, bounds, anchor, arrow, dimension, grid, arc] = result.values;
+        expect(projected.values.map(String)).toEqual(["120", "80"]);
+        expect(String(bounds.entries.get("width"))).toBe("60");
+        expect(anchor.values.map(String)).toEqual(["114", "80"]);
+        expect(arrow).toMatchObject({ kind: "group" });
+        expect(arrow.children.map(({ kind }) => kind)).toEqual(["path", "path"]);
+        expect(dimension.children.some(({ kind }) => kind === "text_mark")).toBe(true);
+        expect(grid.children).toHaveLength(6);
+        expect(arc.points).toHaveLength(13);
+    });
+
     test("the plot plugin fits polynomial values, handles constants, and validates ranges", () => {
         const fitted = parseAndEvaluate(`
             .Plugin.Load("plot");
@@ -1035,6 +1063,42 @@ describe("portable structured output", () => {
         expect(verticalAxis.points.map((point) => numeric(pointValues(point)[0]))).toEqual([200, 200]);
         expect(() => parseAndEvaluate('.Plugin.Load("plot"); .plot.Polynomial([1, 0], [-1, 1], {= yDomain=[1, 1] })'))
             .toThrow("yDomain must increase");
+    });
+
+    test("plot Phase 2 renders functions, parametric curves, and common data plots", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("plot");
+            [
+                .plot.Function(x -> x^2, [-2,2], {= samples=9, title="Square", xLabel="x", yLabel="y" }),
+                .plot.Parametric(t -> [t,t^2], [-2,2], {= samples=9 }),
+                .plot.Scatter([[1,2],[2,3],[3,1]], {= label="observations" }),
+                .plot.Line([[1,2],[2,3],[3,1]]),
+                .plot.Bar([[1,2],[2,3],[3,1]]),
+                .plot.Step([[1,2],[2,3],[3,1]])
+            ];
+        `);
+        const [fn, parametric, scatter, line, bar, step] = result.values;
+        expect(fn.children.some(({ kind }) => kind === "text_mark")).toBe(true);
+        expect(parametric.children.some(({ kind }) => kind === "path")).toBe(true);
+        expect(scatter.children.filter(({ kind }) => kind === "circle")).toHaveLength(3);
+        expect(line.children.some(({ kind }) => kind === "path")).toBe(true);
+        expect(bar.children.filter(({ kind }) => kind === "rectangle")).toHaveLength(3);
+        expect(step.children.find(({ kind, points }) => kind === "path" && points?.length === 5)).toBeTruthy();
+    });
+
+    test("plot Phase 2 routes algorithm reals through Numerics and supports log scales", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("plot");
+            [
+                .plot.Function(x -> .numerics.Sin(x), [-1,1], {= samples=5, tolerance=1/1000, maxWork=40 }),
+                .plot.Line([[1,1],[10,100],[100,10000]], {= xScale=:log10, yScale=:log10 })
+            ];
+        `);
+        expect(result.values.every(({ kind }) => kind === "graphic")).toBe(true);
+        expect(() => parseAndEvaluate(`
+            .Plugin.Load("plot");
+            .plot.Line([[-1,1],[10,2]], {= xScale=:log10 });
+        `)).toThrow("positive for a logarithmic scale");
     });
 
     test("Graphics.Path preserves renderer-independent curve and arc commands", () => {
