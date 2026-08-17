@@ -24,6 +24,25 @@ The characterization is mathematical knowledge, not an executable algorithm.
 Calling an abstract function with a concrete value therefore reports that no
 implementation is attached.
 
+## Core specification bridge
+
+Portable expressions can cross the public `{#}` boundary in either direction:
+
+```rix
+.Plugin.Load("calculus");
+x := .calculus.Variable(:x);
+Exp := .calculus.Exp();
+expression := 3 * Exp(x^2 + 1);
+specification := .calculus.ToSpec(expression, [:x]);
+restored := .calculus.FromSpec(specification);
+```
+
+The bridge preserves free variables, exact constants, arithmetic structure,
+and semantic application IDs. Inputs may be supplied explicitly or inferred.
+An omitted free variable or an unsupported core node is diagnosed instead of
+being silently approximated or discarded. The same import/export helpers are
+available to JavaScript plugins from `rix/eval`.
+
 ## Explicit implementations
 
 An implementation can be supplied without changing the semantic identity:
@@ -42,10 +61,11 @@ It does not turn a Float approximation into an exact function. Phase 1 merely
 dispatches concrete arguments to the attached callable; Numerics remains
 responsible for refinement and evidence.
 
-## Phase 1 boundary
+## Current boundary
 
 The public schemas deliberately contain semantic nodes—variables, exact
 constants, applications, and operators—rather than private evaluator opcodes.
-Exact differentiation, conversion to and from `{#}` specifications, domain and
-branch obligations, definite integration, and equation problems are later
-phases. See [the plugin roadmap](../TODO.md) and [design.md](design.md).
+The initial bidirectional `{#}` bridge is implemented. Exact differentiation,
+semantic rule resolution, domain and branch obligations, definite integration,
+and equation problems remain later phases. See
+[the plugin roadmap](../TODO.md) and [design.md](design.md).

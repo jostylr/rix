@@ -23,4 +23,15 @@ export {
     applyRixLintFixes,
     lintDiagnosticsToSarif,
 } from "./lint.js";
-export { getAttachedSpec, inspectSymbolicSpec, isSymbolicSpec, resolveSymbolicRoles, symbolicNames } from "./functions/symbolic.js";
+export {
+    CALCULUS_EXPRESSION_SCHEMA,
+    calculusExpressionToSpec,
+    calculusExpressionToSymbolicIr,
+    getAttachedSpec,
+    inspectSymbolicSpec,
+    isSymbolicSpec,
+    resolveSymbolicRoles,
+    symbolicIrToCalculusExpression,
+    symbolicNames,
+    symbolicSpecToCalculusExpression,
+} from "./functions/symbolic.js";

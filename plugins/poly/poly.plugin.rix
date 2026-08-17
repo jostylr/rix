@@ -253,49 +253,53 @@ PolyCoefficientsFromSource(sourceFunction, variable, degree) -> {;
 };
 
 PolyDegreePower(node, leftDegree) -> {;
-    exponentNode = node[:right];
-    valid = exponentNode[:kind] == "number" ?: exponentNode.Has("integer") ?_ _;
+    exponentNode = node[:operands][2];
+    valid = exponentNode[:kind] == "constant" && (exponentNode[:value] ? :Integer);
     valid ?: _ ?_ .Error("Polynomial powers require a nonnegative exact Integer literal exponent");
-    exponent = exponentNode[:integer];
+    exponent = exponentNode[:value];
     exponent >= 0 ?: leftDegree * exponent ?_ .Error("Polynomial powers require a nonnegative exact Integer exponent");
 };
 
 PolyDegreeMaximum(leftDegree, rightDegree) -> leftDegree > rightDegree ?: leftDegree ?_ rightDegree;
 PolyDegreeQuotient(leftDegree, rightDegree) -> rightDegree == 0 ?: leftDegree ?_ .Error("Polynomial source has a variable-dependent denominator");
 
-PolyDegreeBinary(node, variable) -> {;
-    operation = node[:op];
-    leftDegree = PolyDegreeFromNode(node[:left], variable);
-    rightDegree = PolyDegreeFromNode(node[:right], variable);
-    (operation == "+" || operation == "-")
-      ?: PolyDegreeMaximum(leftDegree, rightDegree)
-      ?_ (operation == "*"
-           ?: leftDegree + rightDegree
-           ?_ (operation == "/"
-                ?: PolyDegreeQuotient(leftDegree, rightDegree)
-                ?_ (operation == "^"
-                     ?: PolyDegreePower(node, leftDegree)
-                     ?_ .Error(@"Polynomial source uses unsupported operator @{operation}"))));
+PolyDegreeOperator(node, variable) -> {;
+    operation = node[:operation];
+    operands = node[:operands];
+    operation == "negate"
+      ?: PolyDegreeFromNode(operands[1], variable)
+      ?_ {;
+          leftDegree = PolyDegreeFromNode(@operands[1], @variable);
+          rightDegree = PolyDegreeFromNode(@operands[2], @variable);
+          (@operation == "add" || @operation == "subtract")
+            ?: PolyDegreeMaximum(leftDegree, rightDegree)
+            ?_ (@operation == "multiply"
+                 ?: leftDegree + rightDegree
+                 ?_ (@operation == "divide"
+                      ?: PolyDegreeQuotient(leftDegree, rightDegree)
+                      ?_ (@operation == "power"
+                           ?: PolyDegreePower(@node, leftDegree)
+                           ?_ .Error(@"Polynomial source uses unsupported operator @{@operation}"))));
+      };
 };
 
 PolyDegreeFromNode(node, variable) -> {;
     kind = node[:kind];
-    (kind == "number" || kind == "outer") ?: 0 ?_
-    (kind == "identifier" ?: (node[:name] == variable ?: 1 ?_ 0) ?_
-    (kind == "unary"
-      ?: (node[:op] == "-" ?: PolyDegreeFromNode(node[:expr], variable) ?_ .Error("Polynomial source uses an unsupported unary operator"))
-      ?_ (kind == "binary"
-           ?: PolyDegreeBinary(node, variable)
-           ?_ .Error(@"Polynomial source contains unsupported symbolic node @{kind}"))));
+    kind == "constant" ?: 0 ?_
+    (kind == "variable" ?: (node[:name] == variable ?: 1 ?_ 0) ?_
+    (kind == "operator"
+      ?: PolyDegreeOperator(node, variable)
+      ?_ .Error(@"Polynomial source contains unsupported symbolic node @{kind}")));
 };
 
 PolySymbolic(source, requestedVariable ?= _) -> {;
     compiled = requestedVariable == _ ?: .Poly(source) ?_ .Poly(source, requestedVariable);
-    inspection = .InspectSpec(compiled);
-    inputs = inspection[:inputs];
+    roles = .SpecRoles(compiled);
+    inputs = roles[:inputs];
     inputs.Len() == 1 ?: _ ?_ .Error("Polynomial conversion requires exactly one selected input");
     variable = inputs[1];
-    degree = PolyDegreeFromNode(inspection[:expression], variable);
+    expression = .ExpressionFromSpec(compiled);
+    degree = PolyDegreeFromNode(expression, variable);
     initial = PolyCoefficientsFromSource(compiled, variable, degree);
     provider = (unused) -> PolyCoefficientsFromSource(compiled, variable, degree);
     PolyBuild(provider, variable, degree, compiled, [:symbolicSource], 1);

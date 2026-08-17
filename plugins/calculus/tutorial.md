@@ -28,6 +28,32 @@ expression := 3 * Exp(x^2 + 1);
 Inspect `Exp.Record()`. Its `facts` field records both `y' = y` and the initial
 condition `y(0) = 1`; its `hasImplementation` field is null.
 
+## Cross the public specification boundary
+
+The portable graph can become a core symbolic specification and return without
+losing the exponential's semantic ID:
+
+```rix
+.Plugin.Load("calculus");
+x := .calculus.Variable(:x);
+Exp := .calculus.Exp();
+expression := 3 * Exp(x^2 + 1);
+specification := .calculus.ToSpec(expression, [:x]);
+restored := .calculus.FromSpec(specification);
+.Table({=
+  columns=["specification", "restored kind", "semantic function"],
+  rows=[[
+    specification,
+    restored[:kind],
+    restored[:operands][1][:semanticId]
+  ]]
+});
+```
+
+The specification is inert for semantic applications in this phase. A later
+rule registry will decide how a stable ID such as `rix.function.exp@1`
+differentiates or evaluates.
+
 ## Attach a certified realization
 
 Numerics supplies an algorithm without becoming the owner of the abstract

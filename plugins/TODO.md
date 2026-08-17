@@ -620,13 +620,15 @@ tracked in
    - [x] Bundle the plugin and add reference documentation, a design record, a
      runnable tutorial, and focused contract/Numerics-link tests.
 2. **Phase 2 — Exact differential calculus and the public spec bridge**
-   - [ ] Add a versioned bidirectional bridge between Calculus expression
+   - [x] Add a versioned bidirectional bridge between Calculus expression
      records and core `{#}` specifications. It must use public constructors,
-     preserve free variables and assumptions, reject unsupported nodes, and
-     never require plugins to mutate evaluator IR.
-   - [ ] Export the same expression import/build helpers through `rix/eval` for
+     preserve free variables and semantic application IDs, reject unsupported
+     nodes, and never require plugins to mutate evaluator IR. Assumption and
+     branch records remain part of the registry/domain work below.
+   - [x] Export the same expression import/build helpers through `rix/eval` for
      JavaScript plugins; migrate a small existing consumer to prove that pure
-     RiX and host plugins share one contract.
+     RiX and host plugins share one contract. `.poly` now performs symbolic
+     degree analysis through this public expression representation.
    - [ ] Add a semantic-function registry keyed by stable IDs rather than
      binding spellings or object identity. Keep exact rules, implementations,
      domains, branches, and evidence as separate registry entries.

@@ -91,10 +91,11 @@ JavaScript implementations for converted packages are retained as non-discoverab
 expression trees (display form and source-domain evaluation form), clones and
 combines private symbolic IR, rewrites closures, and records denominator
 restrictions. Calculus Phase 1 now provides a versioned portable expression
-builder, but RiX deliberately still has no public raw-IR mutation API or
-bidirectional `{#}` bridge. The host implementation therefore remains until
-that public bridge covers its closure and domain-restriction needs. Its
-canonical projections already use the pure-RiX `.poly` and `.ratfun` values.
+builder and an initial bidirectional `{#}` bridge. The host implementation
+remains until that bridge covers its closure rewriting, paired
+display/evaluation forms, and domain-restriction needs; raw evaluator-IR
+mutation is deliberately not a public API. Its canonical projections already
+use the pure-RiX `.poly` and `.ratfun` values.
 
 Visualization packages are split into mathematical kernels and output
 adapters. Geometry constructions/intersections and polynomial plot sampling,

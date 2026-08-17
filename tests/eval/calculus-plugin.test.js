@@ -1,10 +1,15 @@
 import { describe, expect, test } from "bun:test";
 import {
     Context,
+    formatValue,
     createDefaultRegistry,
     createDefaultSystemContext,
     parseAndEvaluate,
 } from "../../src/index.js";
+import {
+    calculusExpressionToSpec,
+    symbolicSpecToCalculusExpression,
+} from "../../src/eval/index.js";
 
 function runtime() {
     return {
@@ -99,5 +104,43 @@ describe("pure RiX Calculus plugin", () => {
         expect(text(entry(result, "status"))).toBe("enclosed");
         expect(entry(result, "certified").value).toBe(1n);
         expect(entry(result, "interval").toString()).toBe("1:1");
+    });
+
+    test("round-trips semantic applications through core symbolic specs", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("calculus");
+            x := .calculus.Variable(:x);
+            Exp := .calculus.Exp();
+            expression := 3 * Exp(x^2 + 1);
+            spec := .calculus.ToSpec(expression);
+            restored := .calculus.FromSpec(spec);
+            {: spec, restored, .calculus.ToSpec(restored),
+               .calculus.IsExpression(restored), .calculus.ToSpec(restored + 1) };
+        `, options);
+
+        expect(formatValue(result.values[0])).toBe("{#x# 3 * Exp(x ^ 2 + 1) }");
+        expect(text(entry(result.values[1], "schema"))).toBe("rix.calculus.expression@1");
+        expect(formatValue(result.values[2])).toBe("{#x# 3 * Exp(x ^ 2 + 1) }");
+        expect(result.values[3].value).toBe(1n);
+        expect(formatValue(result.values[4])).toBe("{#x# 3 * Exp(x ^ 2 + 1) + 1 }");
+        expect(() => parseAndEvaluate(".calculus.ToSpec(expression, [])", options))
+            .toThrow("inputs omit free variable(s): x");
+        expect(() => parseAndEvaluate(".calculus.FromSpec({#x# .Abs(x) })", options))
+            .toThrow("unsupported symbolic operation 'SYS_CALL'");
+    });
+
+    test("exports the same bridge for JavaScript plugin consumers", () => {
+        const options = runtime();
+        const expression = parseAndEvaluate(`
+            .Plugin.Load("calculus");
+            x := .calculus.Variable(:x);
+            2*x + 1;
+        `, options);
+        const spec = calculusExpressionToSpec(expression);
+        expect(formatValue(spec)).toBe("{#x# 2 * x + 1 }");
+        const restored = symbolicSpecToCalculusExpression(spec);
+        expect(text(entry(restored, "schema"))).toBe("rix.calculus.expression@1");
+        expect(text(entry(restored, "operation"))).toBe("add");
     });
 });

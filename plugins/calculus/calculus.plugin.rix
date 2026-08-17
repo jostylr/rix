@@ -3,7 +3,7 @@ id: calculus
 description: Portable abstract mathematical functions and composable expression graphs with explicit implementation links.
 kind: rix
 mount: calculus
-exports: [Function, Exp, Variable, Constant, Apply, IsFunction, IsExpression]
+exports: [Function, Exp, Variable, Constant, Apply, ToSpec, FromSpec, IsFunction, IsExpression]
 groups: [Calculus, Analysis, Symbolic, Exact]
 permissions: []
 provides: [rix.calculus@1, rix.abstract-function@1]
@@ -188,6 +188,8 @@ calculusNamespace._proto = {=
     Variable=(self, name)->CalculusVariable(name),
     Constant=(self, value)->CalculusConstant(value),
     Apply=(self, function, argument)->CalculusApply(function,argument),
+    ToSpec=(self, expression, inputs ?= _)->.SpecFromExpression(expression,inputs),
+    FromSpec=(self, value)->.ExpressionFromSpec(value),
     IsFunction=(self, value)->CalculusIsFunction(value) ?: 1 ?_ _,
     IsExpression=(self, value)->CalculusIsExpression(value) ?: 1 ?_ _
 };

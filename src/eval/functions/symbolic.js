@@ -17,6 +17,13 @@ const DISPLAY_BINARY_TEXT = new Map([
     ["MEMBER", "?"], ["NOT_MEMBER", "!?"], ["INTERSECTS", "?&"],
 ]);
 const TEXT_BINARY = new Map(Array.from(BINARY_TEXT, ([name, text]) => [text, name]));
+const CALCULUS_OPERATOR_TO_IR = new Map([
+    ["add", "ADD"], ["subtract", "SUB"], ["multiply", "MUL"],
+    ["divide", "DIV"], ["power", "POW"], ["negate", "NEG"],
+]);
+const IR_TO_CALCULUS_OPERATOR = new Map(Array.from(CALCULUS_OPERATOR_TO_IR, ([name, fn]) => [fn, name]));
+
+export const CALCULUS_EXPRESSION_SCHEMA = "rix.calculus.expression@1";
 
 export const symbolicIr = (fn, ...args) => ({ fn, args });
 const ir = symbolicIr;
@@ -158,6 +165,10 @@ export function renderSymbolicIr(node, parentPrecedence = 0, side = null) {
     if (node.fn === "SYS_CALL") {
         return `.${node.args[0]}(${node.args.slice(1).map((arg) => renderSymbolicIr(arg)).join(", ")})`;
     }
+    if (node.fn === "SEMANTIC_APPLY") {
+        const [, name, ...args] = node.args;
+        return `${name}(${args.map((arg) => renderSymbolicIr(arg)).join(", ")})`;
+    }
     if (node.fn === "ABS") return `|${renderSymbolicIr(node.args[0])}|`;
     if (node.fn === "INTERVAL") return node.args.map((arg) => renderSymbolicIr(arg)).join(":");
     if (node.fn === "ARRAY") return `[${node.args.map((arg) => renderSymbolicIr(arg)).join(", ")}]`;
@@ -225,6 +236,12 @@ function serializeIr(node) {
     if (node.fn === "OUTER_RETRIEVE") return rixMap([["kind", rixString("outer")], ["name", rixString(node.args[0])]]);
     if (node.fn === "NEG") return rixMap([["kind", rixString("unary")], ["op", rixString("-")], ["expr", serializeIr(node.args[0])]]);
     if (node.fn === "NOT") return rixMap([["kind", rixString("unary")], ["op", rixString("NOT")], ["expr", serializeIr(node.args[0])]]);
+    if (node.fn === "SEMANTIC_APPLY") return rixMap([
+        ["kind", rixString("semanticApply")],
+        ["semanticId", rixString(node.args[0])],
+        ["name", rixString(node.args[1])],
+        ["arguments", { type: "sequence", values: node.args.slice(2).map(serializeIr) }],
+    ]);
     const op = DISPLAY_BINARY_TEXT.get(node.fn);
     if (op) return rixMap([["kind", rixString("binary")], ["op", rixString(op)], ["left", serializeIr(node.args[0])], ["right", serializeIr(node.args[1])]]);
     return rixMap([["kind", rixString("ir")], ["fn", rixString(node.fn)], ["args", rixTuple(node.args.map(serializeIr))]]);
@@ -258,6 +275,145 @@ export function inspectSymbolicSpec(spec) {
         ])))],
         ["expression", inspectExpression],
     ]);
+}
+
+function calculusRecordEntry(value, key) {
+    if (value?.type !== "map" || !(value.entries instanceof Map)) return undefined;
+    return value.entries.get(key) ?? value.entries.get(key.toLowerCase());
+}
+
+function calculusRecordText(value, key, label) {
+    const entry = calculusRecordEntry(value, key);
+    if (entry?.type !== "string" || !entry.value.length) throw new Error(`${label} must be a nonempty string or colon-string`);
+    return entry.value;
+}
+
+function calculusRecordValues(value, key, label) {
+    const entry = calculusRecordEntry(value, key);
+    if (!entry || !["array", "sequence", "tuple"].includes(entry.type)) throw new Error(`${label} must be an Array or sequence`);
+    return entry.values;
+}
+
+function requireCalculusExpression(value, path = "expression") {
+    if (value?.type !== "map" || !(value.entries instanceof Map)) {
+        throw new Error(`${path} must be a ${CALCULUS_EXPRESSION_SCHEMA} map`);
+    }
+    const schema = calculusRecordEntry(value, "schema");
+    if (schema?.type !== "string" || schema.value !== CALCULUS_EXPRESSION_SCHEMA) {
+        throw new Error(`${path} must declare schema ${CALCULUS_EXPRESSION_SCHEMA}`);
+    }
+    return value;
+}
+
+/** Import a public Calculus expression record into private symbolic IR. */
+export function calculusExpressionToSymbolicIr(value, path = "expression") {
+    const expression = requireCalculusExpression(value, path);
+    const kind = calculusRecordText(expression, "kind", `${path}.kind`);
+    if (kind === "variable") {
+        const name = calculusRecordText(expression, "name", `${path}.name`);
+        const scopeValue = calculusRecordEntry(expression, "scope");
+        const scope = scopeValue?.type === "string" ? scopeValue.value : "local";
+        if (scope !== "local" && scope !== "outer") throw new Error(`${path}.scope must be :local or :outer`);
+        return scope === "outer" ? ir("OUTER_RETRIEVE", name) : retrieve(name);
+    }
+    if (kind === "constant") {
+        const constant = calculusRecordEntry(expression, "value");
+        if (!isExactScalar(constant)) throw new Error(`${path}.value must be an exact Integer or Rational`);
+        return exactToIr(constant);
+    }
+    if (kind === "operator") {
+        const operation = calculusRecordText(expression, "operation", `${path}.operation`);
+        const fn = CALCULUS_OPERATOR_TO_IR.get(operation);
+        if (!fn) throw new Error(`${path}.operation '${operation}' is not supported by the exact symbolic bridge`);
+        const operands = calculusRecordValues(expression, "operands", `${path}.operands`);
+        const arity = fn === "NEG" ? 1 : 2;
+        if (operands.length !== arity) throw new Error(`${path}.${operation} expects ${arity} operand(s)`);
+        return ir(fn, ...operands.map((operand, index) => calculusExpressionToSymbolicIr(operand, `${path}.operands[${index + 1}]`)));
+    }
+    if (kind === "apply") {
+        const semanticId = calculusRecordText(expression, "semanticId", `${path}.semanticId`);
+        const name = calculusRecordText(expression, "name", `${path}.name`);
+        const args = calculusRecordValues(expression, "arguments", `${path}.arguments`);
+        return ir("SEMANTIC_APPLY", semanticId, name,
+            ...args.map((arg, index) => calculusExpressionToSymbolicIr(arg, `${path}.arguments[${index + 1}]`)));
+    }
+    throw new Error(`${path}.kind '${kind}' is not supported by the exact symbolic bridge`);
+}
+
+function calculusExpressionRecord(kind, entries) {
+    const record = rixMap([
+        ["valuekind", rixString("calculusExpression")],
+        ["schema", rixString(CALCULUS_EXPRESSION_SCHEMA)],
+        ["kind", rixString(kind)],
+        ...entries,
+    ]);
+    record._ext = new Map([
+        ["__type", rixString("CalculusExpression")],
+        ["_type", rixString("map")],
+        ["immutable", new Integer(1n)],
+    ]);
+    return record;
+}
+
+/** Export supported private symbolic IR as a public Calculus expression record. */
+export function symbolicIrToCalculusExpression(node, path = "expression") {
+    if (!node?.fn) throw new Error(`${path} is not symbolic expression IR`);
+    if (node.fn === "LITERAL") {
+        const text = String(node.args[0]);
+        if (!/^-?\d+$/.test(text)) throw new Error(`${path} contains unsupported literal '${text}'`);
+        return calculusExpressionRecord("constant", [["value", new Integer(BigInt(text))]]);
+    }
+    if (node.fn === "RETRIEVE" || node.fn === "OUTER_RETRIEVE") {
+        return calculusExpressionRecord("variable", [
+            ["name", rixString(node.args[0])],
+            ["scope", rixString(node.fn === "OUTER_RETRIEVE" ? "outer" : "local")],
+        ]);
+    }
+    if (IR_TO_CALCULUS_OPERATOR.has(node.fn)) {
+        const operation = IR_TO_CALCULUS_OPERATOR.get(node.fn);
+        return calculusExpressionRecord("operator", [
+            ["operation", rixString(operation)],
+            ["operands", { type: "sequence", values: node.args.map((operand, index) =>
+                symbolicIrToCalculusExpression(operand, `${path}.${operation}[${index + 1}]`)) }],
+        ]);
+    }
+    if (node.fn === "SEMANTIC_APPLY") {
+        return calculusExpressionRecord("apply", [
+            ["semanticid", rixString(node.args[0])],
+            ["name", rixString(node.args[1])],
+            ["arguments", { type: "sequence", values: node.args.slice(2).map((arg, index) =>
+                symbolicIrToCalculusExpression(arg, `${path}.arguments[${index + 1}]`)) }],
+        ]);
+    }
+    throw new Error(`${path} contains unsupported symbolic operation '${node.fn}'`);
+}
+
+function calculusSpecInputs(value, expression) {
+    const referenced = Array.from(retrieveNames(expression)).sort();
+    if (value === null || value === undefined) return referenced;
+    const inputs = roleList(value, "input");
+    const declared = new Set(inputs);
+    const missing = referenced.filter((name) => !declared.has(name));
+    if (missing.length) throw new Error(`Calculus expression inputs omit free variable(s): ${missing.join(", ")}`);
+    return inputs;
+}
+
+/** Build a core symbolic spec from a public Calculus expression record. */
+export function calculusExpressionToSpec(value, inputs = null, context = null) {
+    const expression = calculusExpressionToSymbolicIr(value);
+    return createSymbolicSpec({
+        inputs: calculusSpecInputs(inputs, expression),
+        outputMode: "expression",
+        expression,
+        origin: ".SpecFromExpression",
+    }, context);
+}
+
+/** Export a spec or spec-backed function through the public Calculus expression schema. */
+export function symbolicSpecToCalculusExpression(value) {
+    const spec = getAttachedSpec(value);
+    if (!isSymbolicSpec(spec)) throw new Error("ExpressionFromSpec expects a symbolic spec or spec-backed function");
+    return symbolicIrToCalculusExpression(expressionOf(spec));
 }
 
 function supportedExpression(node) {
@@ -1166,6 +1322,8 @@ export const symbolicCapabilities = {
     INSPECTSPEC: { impl: ([value]) => inspectSymbolicSpec(getAttachedSpec(value) || value), pure: true, doc: "Return the structural inspection map for a symbolic spec" },
     SPECROLES: { impl: ([value, overrides = null]) => symbolicRolesValue(value, overrides), pure: true, doc: "Resolve all symbols and input/output roles, with optional role overrides" },
     SPECFRACTIONPARTS: { impl: ([value], context) => symbolicFractionParts(value, context), pure: true, doc: "Split a symbolic top-level fraction into numerator and denominator specs" },
+    SPECFROMEXPRESSION: { impl: ([value, inputs = null], context) => calculusExpressionToSpec(value, inputs, context), pure: true, doc: "Import a public Calculus expression record as a core symbolic specification" },
+    EXPRESSIONFROMSPEC: { impl: ([value]) => symbolicSpecToCalculusExpression(value), pure: true, doc: "Export a symbolic specification through the public Calculus expression schema" },
 };
 
 export const symbolicFunctions = {

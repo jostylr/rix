@@ -58,8 +58,8 @@ numeric type or one universal rendering engine.
 | `.fraction` | Implemented pure-RiX plugin | Unreduced Fraction arithmetic, classroom denominator policies, mediants, and Farey/Stern–Brocot operations over the core Fraction pair. |
 | `.ratfun` | Implemented pure-RiX plugin | Canonical callable univariate RationalFunctions over `.poly`, including field operators, composition, and reactive reconstruction. |
 | `.symbolic` | Implemented pure-RiX meta-plugin | One loading surface for `.fraction`, `.fracfun`, `.poly`, and `.ratfun` while preserving focused ownership. |
-| `.calculus` | Implemented pure-RiX Phase 1 plugin | Portable abstract mathematical functions and exact expression graphs with semantic IDs, mathematical facts, and explicit implementation links. |
-| `.fracfun` | Implemented host plugin; migration blocked on the public expression-to-`{#}` bridge | Form- and source-domain-preserving callable expressions. Its canonical projections already use pure-RiX `.poly` and `.ratfun`. |
+| `.calculus` | Implemented pure-RiX Phase 1 plus initial Phase 2 bridge | Portable abstract mathematical functions and exact expression graphs with semantic IDs, mathematical facts, explicit implementation links, and public bidirectional `{#}` conversion. |
+| `.fracfun` | Implemented host plugin; migration needs broader public expression transformations | Form- and source-domain-preserving callable expressions. Its canonical projections already use pure-RiX `.poly` and `.ratfun`; closure rewriting and domain restrictions still exceed the initial Calculus bridge. |
 | HTML/SVG/terminal display | Implemented compatibility hosts | Existing direct host display remains available without loading an exporter; explicit artifacts use the renderer registry when a matching plugin is loaded. |
 
 ### Proposed first-party packages

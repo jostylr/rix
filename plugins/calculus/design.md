@@ -30,19 +30,25 @@ All child values are expressions; exact scalar operands are promoted to
 constant nodes. Application nodes retain semantic IDs rather than depending on
 the spelling or object identity of the function that produced them.
 
-## Required bridge work
+## Public specification bridge
 
-The next exact-calculus phase needs a versioned bridge between these records
-and core `{#}` specifications. That bridge must:
+The initial versioned bridge between these records and core `{#}`
+specifications is implemented. It:
 
-1. expose public import and export functions rather than private IR mutation;
-2. resolve application semantic IDs through a calculus rule/implementation
-   registry;
-3. preserve free variables, domains, assumptions, and branch obligations;
-4. diagnose unsupported nodes without dropping them;
-5. let pure-RiX plugins construct and transform expressions; and
-6. give JavaScript plugins the same contract through the public `rix/eval`
-   exports.
+1. exposes `.calculus.ToSpec` and `.calculus.FromSpec` without permitting raw
+   IR mutation;
+2. preserves free-variable order when supplied and otherwise infers a stable
+   order;
+3. preserves exact constants, arithmetic nodes, and application semantic IDs;
+4. diagnoses unsupported nodes and incomplete explicit input lists;
+5. lets pure-RiX plugins consume the portable expression records; and
+6. exports the same conversion helpers through the public `rix/eval` module
+   for JavaScript plugins.
 
-This bridge is also the missing primitive needed to move representation-heavy
-plugins such as `.fracfun` away from private symbolic builders.
+Semantic applications remain inert inside a core specification: the bridge
+retains identity but does not yet resolve it to an evaluation or rewrite rule.
+The next step is a registry keyed by semantic function ID, with exact rules,
+implementations, domains, branch obligations, and evidence kept as distinct
+entries. Broader nodes and transformation operations are also needed before
+representation-heavy plugins such as `.fracfun` can leave their private
+symbolic builders.
