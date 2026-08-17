@@ -122,3 +122,38 @@ gradient := .symbolic.Gradient({#x,y# x^2+x*y },[:x,:y]);
 
 `Jacobian`, `Hessian`, and each corresponding `...Result` form follow the
 same variable ordering and obligation rules as the focused Calculus API.
+
+## Use the shared derivative graph and integral façades
+
+Symbolic exposes Calculus reuse rather than introducing a second
+differentiator:
+
+```rix
+.Plugin.Load("symbolic");
+x := .calculus.Variable(:x);
+Exp := .calculus.Exp((value)->value+1);
+derivative := .symbolic.DifferentiateResult(Exp(x)^2,:x);
+evaluation := .symbolic.EvaluateResult(derivative,{= x=2 });
+{: .calculus.ToSpec(derivative[:expression]),
+   derivative[:evidence], evaluation[:semanticEvaluations] };
+```
+
+The result uses the exact differential identity `D Exp = Exp` to retain
+`2*Exp(x)^2`; general exponential-product normalization remains a distinct
+symbolic transformation.
+
+The integral façades accept Calculus expressions, core specifications, and
+FractionFunctions:
+
+```rix
+.Plugin.Load("symbolic");
+F := .ff`1/x`;
+x := .calculus.Variable(:x);
+family := .symbolic.AntiderivativeFamily(F,:x,.calculus.Log()(x),:C);
+definite := .symbolic.DefiniteIntegral(F,:x,1,2);
+{: family, definite };
+```
+
+FractionFunction's original nonzero-denominator obligation is copied into both
+integral records. These are formulation records, not automatic integration or
+proof results.

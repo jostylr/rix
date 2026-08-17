@@ -171,4 +171,24 @@ describe("form-preserving FractionFunction plugin", () => {
             "{#x# x }",
         ]);
     });
+
+    test("carries FractionFunction restrictions into symbolic integral records", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("symbolic");
+            F := .ff\`1/x\`;
+            x := .calculus.Variable(:x);
+            family := .symbolic.AntiderivativeFamily(F,:x,.calculus.Log()(x),:C);
+            definite := .symbolic.DefiniteIntegral(F,:x,1,2);
+            {: family, definite };
+        `);
+
+        const family = result.values[0];
+        const definite = result.values[1];
+        expect(family.entries.get("kind").value).toBe("antiderivativeFamily");
+        expect(family.entries.get("constant").value).toBe("C");
+        expect(family.entries.get("obligations").values).toHaveLength(1);
+        expect(family.entries.get("obligations").values[0].entries.get("relation").value)
+            .toBe("nonzero");
+        expect(definite.entries.get("obligations").values).toHaveLength(1);
+    });
 });

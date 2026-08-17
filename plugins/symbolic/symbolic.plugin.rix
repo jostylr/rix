@@ -3,7 +3,7 @@ id: symbolic
 description: Meta-plugin joining representation-sensitive FractionFunction work with portable abstract Calculus expressions.
 kind: rix
 mount: symbolic
-exports: [Fraction, FractionFunction, CalculusExpression, Evaluate, EvaluateResult, Differentiate, DifferentiateResult, DifferentiateN, DifferentiateNResult, Partial, PartialResult, Gradient, GradientResult, Jacobian, JacobianResult, Hessian, HessianResult, Obligations, Services]
+exports: [Fraction, FractionFunction, CalculusExpression, Evaluate, EvaluateResult, Differentiate, DifferentiateResult, DifferentiateN, DifferentiateNResult, Partial, PartialResult, Gradient, GradientResult, Jacobian, JacobianResult, Hessian, HessianResult, SelectedPrimitive, AntiderivativeFamily, DefiniteIntegral, Obligations, Services]
 groups: [Algebra, Calculus, Analysis, Exact, Symbolic]
 permissions: []
 requires: [rix.fraction-function@1, rix.calculus@1]
@@ -37,16 +37,23 @@ SymbolicEvaluationTarget(value) ->
     .calculus.IsTransformation(value) ?: value ?_ SymbolicCalculusExpression(value);
 SymbolicCalculusExpressions(values) ->
     values.Map((value)->SymbolicCalculusExpression(value));
+SymbolicAppend(left, right) -> right.Reduce((result,value)->result.Push(value),left);
+SymbolicIntegralOptions(value, options) -> {;
+    options ? :Map ?: _ ?_ .Error("Symbolic integral options must be a Map");
+    inherited = SymbolicObligations(value);
+    supplied = options.Has("obligations") ?: options[:obligations] ?_ [];
+    options.Set("obligations",SymbolicAppend(inherited,supplied));
+};
 
 symbolicNamespace = {= };
 symbolicNamespace._proto = {=
     Fraction = (self, first, second ?= _) -> second == _ ?: .fraction(first) ?_ .fraction(first,second),
     FractionFunction = (self, value, variable ?= _) -> variable == _ ?: .fracfun(value) ?_ .fracfun(value,variable),
     CalculusExpression = (self, value) -> SymbolicCalculusExpression(value),
-    Evaluate = (self, value, bindings ?= {= }) ->
-        .calculus.Evaluate(SymbolicEvaluationTarget(value),bindings),
-    EvaluateResult = (self, value, bindings ?= {= }) ->
-        .calculus.EvaluateResult(SymbolicEvaluationTarget(value),bindings),
+    Evaluate = (self, value, bindings ?= {= }, options ?= {= }) ->
+        .calculus.Evaluate(SymbolicEvaluationTarget(value),bindings,options),
+    EvaluateResult = (self, value, bindings ?= {= }, options ?= {= }) ->
+        .calculus.EvaluateResult(SymbolicEvaluationTarget(value),bindings,options),
     Differentiate = (self, value, variable) ->
         .calculus.Differentiate(self.CalculusExpression(value),variable),
     DifferentiateResult = (self, value, variable) ->
@@ -71,6 +78,29 @@ symbolicNamespace._proto = {=
         .calculus.Hessian(self.CalculusExpression(value),variables),
     HessianResult = (self, value, variables) ->
         .calculus.HessianResult(self.CalculusExpression(value),variables),
+    SelectedPrimitive = (self, integrand, variable, primitive, options ?= {= }) ->
+        .calculus.SelectedPrimitive(
+            self.CalculusExpression(integrand),
+            variable,
+            self.CalculusExpression(primitive),
+            SymbolicIntegralOptions(integrand,options)
+        ),
+    AntiderivativeFamily = (self, integrand, variable, primitive, constant ?= :C, options ?= {= }) ->
+        .calculus.AntiderivativeFamily(
+            self.CalculusExpression(integrand),
+            variable,
+            self.CalculusExpression(primitive),
+            constant,
+            SymbolicIntegralOptions(integrand,options)
+        ),
+    DefiniteIntegral = (self, integrand, variable, lower, upper, options ?= {= }) ->
+        .calculus.DefiniteIntegral(
+            self.CalculusExpression(integrand),
+            variable,
+            lower,
+            upper,
+            SymbolicIntegralOptions(integrand,options)
+        ),
     Obligations = (self, value) -> SymbolicObligations(value),
     Services = (self) -> ["fraction","fracfun","poly","ratfun","calculus"]
 };

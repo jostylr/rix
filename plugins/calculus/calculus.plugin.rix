@@ -3,11 +3,11 @@ id: calculus
 description: Portable abstract functions, obligation-bearing higher differentiation, and provenance-recording evaluation through semantic-ID implementation links.
 kind: rix
 mount: calculus
-exports: [Function, Exp, Log, Sqrt, Asin, ComplexLog, Variable, Constant, Apply, Obligation, Register, Resolve, Evaluate, EvaluateResult, Differentiate, DifferentiateResult, DifferentiateN, DifferentiateNResult, Partial, PartialResult, Gradient, GradientResult, Jacobian, JacobianResult, Hessian, HessianResult, ToSpec, FromSpec, IsFunction, IsExpression, IsTransformation]
+exports: [Function, Exp, Log, Sqrt, Asin, ComplexLog, Variable, Constant, Apply, Obligation, Register, Resolve, StructuralKey, Evaluate, EvaluateResult, Differentiate, DifferentiateResult, DifferentiateN, DifferentiateNResult, Partial, PartialResult, Gradient, GradientResult, Jacobian, JacobianResult, Hessian, HessianResult, SelectedPrimitive, AntiderivativeFamily, DefiniteIntegral, ToSpec, FromSpec, IsFunction, IsExpression, IsTransformation, IsIntegral]
 groups: [Calculus, Analysis, Symbolic, Exact]
 permissions: []
 provides: [rix.calculus@1, rix.abstract-function@1]
-schemas: [rix.calculus.function@1, rix.calculus.expression@1, rix.calculus.registry-entry@1, rix.calculus.obligation@1, rix.calculus.transformation@1, rix.calculus.evaluation@1, rix.calculus.derivative-collection@1]
+schemas: [rix.calculus.function@1, rix.calculus.expression@1, rix.calculus.registry-entry@1, rix.calculus.obligation@1, rix.calculus.transformation@1, rix.calculus.evaluation@1, rix.calculus.derivative-collection@1, rix.calculus.integral@1]
 snapshot: false
 deterministic: true
 defaultEnabled: false
@@ -355,13 +355,60 @@ CalculusObligation(kind, relation, expression, options ?= {= }) -> {;
     });
 };
 
+CalculusIntegralRecord(kind, integrand, variable, fields, options) -> {;
+    options ? :Map ?: _ ?_ .Error("Calculus integral options must be a Map");
+    exactVariable = CalculusDerivativeVariable(variable);
+    .ImmutableValue({=
+        valueKind=:calculusIntegral,
+        schema="rix.calculus.integral@1",
+        kind=kind,
+        integrand=CalculusPromote(integrand),
+        variable=exactVariable,
+        obligations=CalculusOption(options,"obligations",[]),
+        evidence=CalculusOption(options,"evidence",[])
+    }.Merge(fields));
+};
+
+CalculusSelectedPrimitive(integrand, variable, primitive, options ?= {= }) ->
+    CalculusIntegralRecord(:selectedPrimitive,integrand,variable,{=
+        primitive=CalculusPromote(primitive),
+        verification=CalculusOption(options,"verification",:unverified)
+    },options);
+
+CalculusAntiderivativeFamily(integrand, variable, primitive, constant ?= :C, options ?= {= }) -> {;
+    constant ? :String
+      ?: _
+      ?_ .Error("Calculus antiderivative-family constant must be a string or colon-string");
+    CalculusIntegralRecord(:antiderivativeFamily,integrand,variable,{=
+        representative=CalculusPromote(primitive),
+        constant=constant,
+        verification=CalculusOption(options,"verification",:unverified)
+    },options);
+};
+
+CalculusDefiniteIntegral(integrand, variable, lower, upper, options ?= {= }) ->
+    CalculusIntegralRecord(:definiteIntegral,integrand,variable,{=
+        lower=CalculusPromote(lower),
+        upper=CalculusPromote(upper)
+    },options);
+
+CalculusIsIntegral(value) ->
+    value ? :Map
+      ?: value[:schema] == "rix.calculus.integral@1"
+      ?_ _;
+
 CalculusIsTransformation(value) ->
     CalculusIsExpression(value)
       ?: _
       ?_ (value ? :Map
            ?: value[:schema] == "rix.calculus.transformation@1"
            ?_ _);
-CalculusEvaluationState(value, links ?= []) -> {= value=value, links=links };
+CalculusEvaluationState(value, links ?= [], cache ?= {= }, reused ?= []) -> {=
+    value=value,
+    links=links,
+    cache=cache,
+    reused=reused
+};
 CalculusEvaluateBinary(operation, left, right) ->
     operation == :add ?: left+right
       ?_ operation == :subtract ?: left-right
@@ -370,12 +417,22 @@ CalculusEvaluateBinary(operation, left, right) ->
       ?_ operation == :power ?: left^right
       ?_ .Error(@"Unsupported Calculus evaluation operator @{operation}");
 
-CalculusEvaluateNode(expression, bindings) -> {;
+CalculusEvaluateNode(expression, bindings, cache, reuseCommon) -> {;
     exact = CalculusRequireExpression(expression,"evaluate expression");
     kind = exact[:kind];
-    kind == :constant
-      ?: CalculusEvaluationState(exact[:value])
-      ?_ kind == :variable
+    key = kind == :apply ?: CalculusExpressionKey(exact) ?_ _;
+    cached = (reuseCommon && key != _ && cache.Has(key)) ?: 1 ?_ _;
+    cached
+      ?: CalculusEvaluationState(
+          cache[key],
+          [],
+          cache,
+          [.ImmutableValue({= kind=:commonSubexpressionReuse, key=key })]
+      )
+      ?_ {;
+    evaluated = @kind == :constant
+      ?: CalculusEvaluationState(@exact[:value],[],@cache,[])
+      ?_ @kind == :variable
       ?: {;
           name = @exact[:name];
           @bindings.Has(name)
@@ -384,33 +441,35 @@ CalculusEvaluateNode(expression, bindings) -> {;
           value = @bindings[name];
           CalculusIsExpression(value)
             ?: .Error(@"Calculus evaluation binding @{@name} must be concrete")
-            ?_ CalculusEvaluationState(value);
+            ?_ CalculusEvaluationState(value,[],@cache,[]);
       }
-      ?_ kind == :operator
+      ?_ @kind == :operator
       ?: {;
           operation = @exact[:operation];
           operands = @exact[:operands];
           operation == :negate
             ?: {;
-                inner = CalculusEvaluateNode(@operands[1],@bindings);
-                CalculusEvaluationState(-inner[:value],inner[:links]);
+                inner = CalculusEvaluateNode(@operands[1],@bindings,@cache,@reuseCommon);
+                CalculusEvaluationState(-inner[:value],inner[:links],inner[:cache],inner[:reused]);
             }
             ?_ {;
-                left = CalculusEvaluateNode(@operands[1],@bindings);
-                right = CalculusEvaluateNode(@operands[2],@bindings);
+                left = CalculusEvaluateNode(@operands[1],@bindings,@cache,@reuseCommon);
+                right = CalculusEvaluateNode(@operands[2],@bindings,left[:cache],@reuseCommon);
                 CalculusEvaluationState(
                     CalculusEvaluateBinary(@operation,left[:value],right[:value]),
-                    CalculusAppend(left[:links],right[:links])
+                    CalculusAppend(left[:links],right[:links]),
+                    right[:cache],
+                    CalculusAppend(left[:reused],right[:reused])
                 );
             };
       }
-      ?_ kind == :apply
+      ?_ @kind == :apply
       ?: {;
           arguments = @exact[:arguments];
           arguments.Len() == 1
             ?: _
             ?_ .Error("Calculus evaluation currently requires unary semantic applications");
-          argument = CalculusEvaluateNode(arguments[1],@bindings);
+          argument = CalculusEvaluateNode(arguments[1],@bindings,@cache,@reuseCommon);
           registry = CalculusResolve(@exact[:semanticId]);
           implementation = registry[:implementation];
           implementation == _
@@ -424,13 +483,23 @@ CalculusEvaluateNode(expression, bindings) -> {;
               branches=registry[:branches],
               evidence=registry[:evidence][:implementation]
           });
-          CalculusEvaluationState(value,argument[:links].Push(link));
+          CalculusEvaluationState(value,argument[:links].Push(link),argument[:cache],argument[:reused]);
       }
       ?_ .Error(@"Unsupported Calculus expression kind @{kind}");
+    finalCache = (@reuseCommon && @key != _)
+      ?: evaluated[:cache].Set(@key,evaluated[:value])
+      ?_ evaluated[:cache];
+    CalculusEvaluationState(
+        evaluated[:value],
+        evaluated[:links],
+        finalCache,
+        evaluated[:reused]
+    );
+    };
 };
 
-CalculusEvaluateObligation(obligation, bindings) -> {;
-    evaluated = CalculusEvaluateNode(obligation[:expression],bindings);
+CalculusEvaluateObligation(obligation, bindings, reuseCommon) -> {;
+    evaluated = CalculusEvaluateNode(obligation[:expression],bindings,{= },reuseCommon);
     .ImmutableValue({=
         obligation=obligation,
         subject=evaluated[:value],
@@ -441,13 +510,15 @@ CalculusEvaluateObligation(obligation, bindings) -> {;
     });
 };
 
-CalculusEvaluateResult(value, bindings ?= {= }) -> {;
+CalculusEvaluateResult(value, bindings ?= {= }, options ?= {= }) -> {;
     bindings ? :Map ?: _ ?_ .Error("Calculus evaluation bindings must be a Map");
+    options ? :Map ?: _ ?_ .Error("Calculus evaluation options must be a Map");
+    reuseCommon = CalculusOption(options,"reusecommonsubexpressions",1) ?: 1 ?_ _;
     transformation = CalculusIsTransformation(value) ?: value ?_ _;
     expression = transformation == _ ?: value ?_ transformation[:expression];
     obligations = transformation == _ ?: [] ?_ transformation[:obligations];
-    evaluated = CalculusEvaluateNode(expression,bindings);
-    obligationValues = obligations.Map((obligation)->CalculusEvaluateObligation(obligation,@bindings));
+    evaluated = CalculusEvaluateNode(expression,bindings,{= },reuseCommon);
+    obligationValues = obligations.Map((obligation)->CalculusEvaluateObligation(obligation,@bindings,@reuseCommon));
     .ImmutableValue({=
         valueKind=:calculusEvaluation,
         schema="rix.calculus.evaluation@1",
@@ -456,14 +527,17 @@ CalculusEvaluateResult(value, bindings ?= {= }) -> {;
         bindings=bindings,
         value=evaluated[:value],
         links=evaluated[:links],
+        reused=evaluated[:reused],
+        semanticEvaluations=evaluated[:links].Len(),
+        reuseCount=evaluated[:reused].Len(),
         obligations=obligations,
         obligationValues=obligationValues,
         obligationsDischarged=obligations.Len() == 0 ?: 1 ?_ _
     });
 };
 
-CalculusEvaluate(value, bindings ?= {= }) -> {;
-    result = CalculusEvaluateResult(value,bindings);
+CalculusEvaluate(value, bindings ?= {= }, options ?= {= }) -> {;
+    result = CalculusEvaluateResult(value,bindings,options);
     result[:obligations].Len() == 0
       ?: result[:value]
       ?_ .Error("Calculus evaluation has unresolved domain or branch obligations; use .calculus.EvaluateResult");
@@ -492,6 +566,48 @@ CalculusDivideExact(left, right) ->
 CalculusPowerExact(base, exponent) ->
     exponent == 0 ?: CalculusConstant(1)
       ?_ (exponent == 1 ?: base ?_ CalculusBinary(:power,base,CalculusConstant(exponent)));
+
+CalculusExpressionKeys(expressions) ->
+    expressions.Map((expression)->CalculusExpressionKey(expression)).Join(";");
+CalculusOperatorKey(expression) -> {;
+    children = CalculusExpressionKeys(expression[:operands]);
+    @"operator(@{expression[:operation]};@{children})";
+};
+CalculusApplicationKey(expression) -> {;
+    children = CalculusExpressionKeys(expression[:arguments]);
+    @"apply(@{expression[:semanticId]};@{children})";
+};
+CalculusExpressionKey(expression) -> {;
+    exact = CalculusRequireExpression(expression,"expression key");
+    kind = exact[:kind];
+    kind == :constant
+      ?: @"constant(@{exact[:value]})"
+      ?_ kind == :variable
+      ?: @"variable(@{exact[:name]})"
+      ?_ kind == :operator
+      ?: CalculusOperatorKey(exact)
+      ?_ kind == :apply
+      ?: CalculusApplicationKey(exact)
+      ?_ .Error(@"Unsupported Calculus expression kind @{kind}");
+};
+CalculusSameExpression(left, right) ->
+    CalculusExpressionKey(left) == CalculusExpressionKey(right);
+CalculusScaledSelfFactor(base, derivative) -> {;
+    CalculusSameExpression(base,derivative)
+      ?: CalculusConstant(1)
+      ?_ (derivative[:kind] == :operator && derivative[:operation] == :multiply
+           ?: {;
+               operands = @derivative[:operands];
+               left = operands[1];
+               right = operands[2];
+               leftScalar = CalculusConstantValue(left);
+               rightScalar = CalculusConstantValue(right);
+               (leftScalar != _ && CalculusSameExpression(@base,right))
+                 ?: left
+                 ?_ ((rightScalar != _ && CalculusSameExpression(@base,left)) ?: right ?_ _);
+           }
+           ?_ _);
+};
 
 CalculusDerivativeVariable(variable) ->
     variable ? :String
@@ -522,15 +638,21 @@ CalculusDifferentiatePower(base, exponentExpression, baseDerivative) -> {;
     (exponent != _ && (exponent ? :Integer))
       ?: _
       ?_ .Error("Exact Calculus power differentiation currently requires an Integer constant exponent");
+    selfFactor = CalculusScaledSelfFactor(base,baseDerivative);
     exponent == 0
       ?: CalculusConstant(0)
-      ?_ CalculusMultiplyExact(
-          CalculusMultiplyExact(
-              CalculusConstant(exponent),
-              CalculusPowerExact(base,exponent-1)
-          ),
-          baseDerivative
-      );
+      ?_ (selfFactor == _
+           ?: CalculusMultiplyExact(
+                CalculusMultiplyExact(
+                    CalculusConstant(exponent),
+                    CalculusPowerExact(base,exponent-1)
+                ),
+                baseDerivative
+              )
+           ?_ CalculusMultiplyExact(
+                CalculusMultiplyExact(CalculusConstant(exponent),selfFactor),
+                CalculusPowerExact(base,exponent)
+              ));
 };
 
 CalculusDifferentiateBinary(operation, left, right, leftDerivative, rightDerivative) ->
@@ -589,7 +711,17 @@ CalculusDifferentiateOperator(expression, variable) -> {;
             ?: obligations.Push(CalculusObligation(:domain,:nonzero,left,{= reason=:negativeIntegerPower }))
             ?_ obligations;
           evidence = CalculusAppend(leftDerivative[:evidence],rightDerivative[:evidence]);
-          CalculusStateWithRule(derivative,obligations,evidence,@operation);
+          reuseFactor = (@operation == :power && exponent != _ && exponent != 0)
+            ?: CalculusScaledSelfFactor(left,leftDerivative[:expression])
+            ?_ _;
+          ruleFields = reuseFactor == _
+            ?: {= }
+            ?_ {=
+                optimization=:differentialIdentityReuse,
+                relation=:scaledSelfDerivative,
+                scale=reuseFactor
+            };
+          CalculusStateWithRule(derivative,obligations,evidence,@operation,ruleFields);
       };
 };
 
@@ -910,8 +1042,9 @@ calculusNamespace._proto = {=
     Obligation=(self, kind, relation, expression, options ?= {= })->CalculusObligation(kind,relation,expression,options),
     Register=(self, function, options ?= {= })->CalculusRegister(function,options),
     Resolve=(self, value)->CalculusResolve(value),
-    Evaluate=(self, value, bindings ?= {= })->CalculusEvaluate(value,bindings),
-    EvaluateResult=(self, value, bindings ?= {= })->CalculusEvaluateResult(value,bindings),
+    StructuralKey=(self, expression)->CalculusExpressionKey(expression),
+    Evaluate=(self, value, bindings ?= {= }, options ?= {= })->CalculusEvaluate(value,bindings,options),
+    EvaluateResult=(self, value, bindings ?= {= }, options ?= {= })->CalculusEvaluateResult(value,bindings,options),
     Differentiate=(self, expression, variable)->CalculusDifferentiate(expression,variable),
     DifferentiateResult=(self, expression, variable)->CalculusDifferentiateResult(expression,variable),
     DifferentiateN=(self, expression, variable, order)->CalculusDifferentiateN(expression,variable,order),
@@ -924,11 +1057,18 @@ calculusNamespace._proto = {=
     JacobianResult=(self, expressions, variables)->CalculusJacobianResult(expressions,variables),
     Hessian=(self, expression, variables)->CalculusHessian(expression,variables),
     HessianResult=(self, expression, variables)->CalculusHessianResult(expression,variables),
+    SelectedPrimitive=(self, integrand, variable, primitive, options ?= {= })->
+        CalculusSelectedPrimitive(integrand,variable,primitive,options),
+    AntiderivativeFamily=(self, integrand, variable, primitive, constant ?= :C, options ?= {= })->
+        CalculusAntiderivativeFamily(integrand,variable,primitive,constant,options),
+    DefiniteIntegral=(self, integrand, variable, lower, upper, options ?= {= })->
+        CalculusDefiniteIntegral(integrand,variable,lower,upper,options),
     ToSpec=(self, expression, inputs ?= _)->.SpecFromExpression(expression,inputs),
     FromSpec=(self, value)->.ExpressionFromSpec(value),
     IsFunction=(self, value)->CalculusIsFunction(value) ?: 1 ?_ _,
     IsExpression=(self, value)->CalculusIsExpression(value) ?: 1 ?_ _,
-    IsTransformation=(self, value)->CalculusIsTransformation(value) ?: 1 ?_ _
+    IsTransformation=(self, value)->CalculusIsTransformation(value) ?: 1 ?_ _,
+    IsIntegral=(self, value)->CalculusIsIntegral(value) ?: 1 ?_ _
 };
 
 .Host.RegisterValue("calculus",calculusNamespace,"Portable abstract functions, exact derivative graphs, obligations, and linked evaluation",["Calculus","Analysis","Symbolic","Exact"]);

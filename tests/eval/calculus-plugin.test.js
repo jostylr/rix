@@ -44,6 +44,7 @@ describe("pure RiX Calculus plugin", () => {
             "rix.calculus.transformation@1",
             "rix.calculus.evaluation@1",
             "rix.calculus.derivative-collection@1",
+            "rix.calculus.integral@1",
         ]);
     });
 
@@ -225,6 +226,92 @@ describe("pure RiX Calculus plugin", () => {
             ".calculus.Differentiate((x+1)/(x-1),:x)",
             options,
         )).toThrow("use .calculus.DifferentiateResult");
+    });
+
+    test("uses differential identities to retain reusable derivative graphs", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("calculus");
+            x := .calculus.Variable(:x);
+            Exp := .calculus.Exp((value)->value+1);
+            derivative := .calculus.DifferentiateResult(Exp(x)^2,:x);
+            evaluation := .calculus.EvaluateResult(derivative,{= x=2 });
+            {: .calculus.ToSpec(derivative[:expression]),
+               derivative[:evidence],
+               evaluation };
+        `, options);
+
+        expect(formatValue(result.values[0])).toBe("{#x# 2 * Exp(x) ^ 2 }");
+        const optimization = result.values[1].values.at(-1);
+        expect(text(entry(optimization, "optimization"))).toBe("differentialIdentityReuse");
+        expect(text(entry(optimization, "relation"))).toBe("scaledSelfDerivative");
+        expect(entry(result.values[2], "value").value).toBe(18n);
+        expect(entry(result.values[2], "semanticEvaluations").value).toBe(1n);
+    });
+
+    test("shares repeated semantic applications during linked evaluation", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("calculus");
+            x := .calculus.Variable(:x);
+            Shift := .calculus.Function("example.shift.reuse@1", {=
+                name=:Shift,
+                implementation=(value)->value+1,
+                implementationEvidence=:definition
+            });
+            expression := Shift(x)+Shift(x);
+            shared := .calculus.EvaluateResult(expression,{= x=2 });
+            repeated := .calculus.EvaluateResult(expression,{= x=2 },{=
+                reuseCommonSubexpressions=_
+            });
+            {: shared, repeated,
+               .calculus.StructuralKey(expression[:operands][1]),
+               .calculus.StructuralKey(expression[:operands][2]) };
+        `, options);
+
+        const shared = result.values[0];
+        const repeated = result.values[1];
+        expect(entry(shared, "value").value).toBe(6n);
+        expect(entry(shared, "semanticEvaluations").value).toBe(1n);
+        expect(entry(shared, "reuseCount").value).toBe(1n);
+        expect(entry(shared, "links").values).toHaveLength(1);
+        expect(text(entry(entry(shared, "reused").values[0], "kind")))
+            .toBe("commonSubexpressionReuse");
+        expect(entry(repeated, "semanticEvaluations").value).toBe(2n);
+        expect(entry(repeated, "reuseCount").value).toBe(0n);
+        expect(text(result.values[2])).toBe(text(result.values[3]));
+    });
+
+    test("distinguishes selected primitives, families, and definite integrals", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("calculus");
+            x := .calculus.Variable(:x);
+            integrand := 2*x;
+            primitive := x^2;
+            selected := .calculus.SelectedPrimitive(integrand,:x,primitive,{=
+                verification=:declaredIdentity,
+                evidence=[:powerRule]
+            });
+            family := .calculus.AntiderivativeFamily(integrand,:x,primitive,:K);
+            definite := .calculus.DefiniteIntegral(integrand,:x,0,3);
+            {: selected, family, definite,
+               .calculus.IsIntegral(selected), .calculus.IsIntegral(integrand) };
+        `, options);
+
+        const [selected, family, definite] = result.values;
+        expect(text(entry(selected, "schema"))).toBe("rix.calculus.integral@1");
+        expect(text(entry(selected, "kind"))).toBe("selectedPrimitive");
+        expect(text(entry(selected, "verification"))).toBe("declaredIdentity");
+        expect(formatValue(calculusExpressionToSpec(entry(selected, "primitive"))))
+            .toBe("{#x# x ^ 2 }");
+        expect(text(entry(family, "kind"))).toBe("antiderivativeFamily");
+        expect(text(entry(family, "constant"))).toBe("K");
+        expect(text(entry(definite, "kind"))).toBe("definiteIntegral");
+        expect(entry(entry(definite, "lower"), "value").value).toBe(0n);
+        expect(entry(entry(definite, "upper"), "value").value).toBe(3n);
+        expect(result.values[3].value).toBe(1n);
+        expect(result.values[4]).toBeNull();
     });
 
     test("preserves real domains and complex branches in differentiation results", () => {

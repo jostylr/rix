@@ -25,6 +25,8 @@ The façade delegates construction and transformation to focused owners:
 - `Evaluate` / `EvaluateResult` follow linked Calculus implementations;
 - repeated, partial, gradient, Jacobian, and Hessian façades accept
   FractionFunctions, Calculus expressions, or public specs; and
+- selected-primitive, antiderivative-family, and definite-integral façades
+  retain FractionFunction source-domain restrictions; and
 - `Obligations(value)` exposes either a Calculus transformation's conditions
   or a FractionFunction's original denominator restrictions.
 

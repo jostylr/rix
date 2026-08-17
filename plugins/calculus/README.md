@@ -78,6 +78,12 @@ semantic chain rules. `Exp` registers the identity `D Exp = Exp` with evidence
 from its initial-value characterization. An unknown semantic application or a
 non-Integer power is rejected rather than assigned an unjustified rule.
 
+Deterministic structural keys let the power rule recognize the conservative
+case `f' = c*f`. Thus `D(Exp(x)^2)` remains `2*Exp(x)^2`, with the optimization
+recorded in the rule trace. This does not enable unrelated algebraic identities
+such as exponential product combination; those belong to explicit Symbolic
+transformations.
+
 ## Domain and branch obligations
 
 Conditional transformations return `rix.calculus.transformation@1` records:
@@ -147,6 +153,11 @@ semantic applications surviving in that graph retain their IDs and therefore
 find the same linked implementations. `rix.calculus.evaluation@1` records the
 links actually invoked. Missing implementations are explicit errors.
 
+Evaluation shares structurally identical semantic applications by default and
+reports `semanticEvaluations`, `reuseCount`, and reuse records. Pass
+`{=reuseCommonSubexpressions=_}` to disable sharing. The default assumes linked
+mathematical implementations are referentially transparent.
+
 Evaluating a conditional transformation does not prove its conditions.
 `EvaluateResult` evaluates each obligation's subject and reports status
 `unresolved`; `.Evaluate` refuses to return a bare value while obligations
@@ -170,6 +181,21 @@ unconditional. Detailed forms return transformation records under
 accumulates the earlier obligations and evidence instead of restarting from a
 bare derivative expression.
 
+## Integral specifications
+
+`rix.calculus.integral@1` distinguishes three inert mathematical records:
+
+- `SelectedPrimitive(integrand, variable, primitive, options)` chooses one
+  representative and retains its declared verification/evidence;
+- `AntiderivativeFamily(...)` keeps a representative and a named integration
+  constant as separate fields; and
+- `DefiniteIntegral(integrand, variable, lower, upper, options)` keeps ordered
+  endpoints.
+
+These constructors preserve obligations and do not imply that a primitive was
+checked or a definite integral evaluated. `.symbolic` supplies matching
+façades and imports FractionFunction source restrictions.
+
 ## Current boundary
 
 The public schemas deliberately contain semantic nodes—variables, exact
@@ -177,8 +203,10 @@ constants, applications, and operators—rather than private evaluator opcodes.
 The bidirectional `{#}` bridge, semantic registry, obligation-bearing
 transformation results, representative real/complex branch-aware rules, and
 exact higher/multivariate differentiation are implemented. Registry-driven
-evaluation preserves linked implementation provenance. Non-Integer powers,
-definite integration, and equation problems remain later phases. `.fracfun`
+evaluation preserves linked implementation and common-subexpression reuse
+provenance. Integral formulation records are implemented; exact integration,
+certified quadrature, non-Integer powers, and equation problems remain later
+phases. `.fracfun`
 now projects its display/evaluation forms and source
 denominator restrictions through the same public Calculus expression schema;
 its closure rewriting and paired-form construction remain host-owned. See

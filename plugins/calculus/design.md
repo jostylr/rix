@@ -81,6 +81,19 @@ outer derivative, after which Calculus multiplies by the recursively computed
 inner derivative. `Exp`'s outer rule returns the original application,
 implementing `D Exp = Exp`.
 
+### Differential-identity reuse
+
+Expression nodes have deterministic structural keys. After differentiating an
+Integer-power base, Calculus checks the narrow structural relations `f' = f`
+and `f' = c*f` for an exact scalar `c`. It can then retain `n*c*f^n` instead
+of constructing `n*f^(n-1)*(c*f)`. The power-rule evidence records the
+optimization, relation, and scale.
+
+This is graph optimization justified by derivative knowledge, not a general
+algebraic simplifier. In particular, Calculus does not infer
+`Exp(a)*Exp(b)=Exp(a+b)` from `D Exp=Exp`; an explicit Symbolic identity and
+its assumptions would be required for that transformation.
+
 ## `rix.calculus.obligation@1`
 
 An obligation records:
@@ -124,6 +137,14 @@ declared domain/branches, and implementation evidence. Thus a composition and
 its exact derivative can reuse linked Numerics providers without serializing
 closures or differentiating their algorithms.
 
+Evaluation caches semantic application nodes by structural key. Cache hits are
+reported separately from implementation links, so callers can distinguish an
+actual provider invocation from a reused result. The cache deliberately does
+not assign algebraic equivalence to differently shaped nodes. Sharing is
+enabled by default because mathematical implementations are expected to be
+referentially transparent, with an explicit option to disable it for tracing
+or stateful experimental callables.
+
 When the input is a transformation, evaluation retains its obligations and
 evaluates each obligation expression at the same bindings. Those subjects are
 reported as `unresolved`: evaluation is not assumption proving. The short
@@ -138,6 +159,25 @@ flattened obligation list. Convenience forms return only the expression array
 when the flattened list is empty. `DifferentiateNResult` and mixed Hessian
 entries reuse transformation continuation, so conditions from every derivative
 stage survive.
+
+## `rix.calculus.integral@1`
+
+The initial integration contract represents mathematical intent before any
+integration engine is selected:
+
+- `selectedPrimitive` records an integrand, variable, chosen primitive,
+  verification status, obligations, and evidence;
+- `antiderivativeFamily` records a representative and a separately named
+  integration constant; and
+- `definiteIntegral` records an integrand, variable, and exact expression
+  endpoints.
+
+The constructors do not manufacture verification evidence. A declaration may
+remain `unverified`, and no definite record implies a computed value. This
+keeps later exact-identity, certified-quadrature, and approximate providers
+free to return their own work/evidence while consuming one stable problem
+shape. Symbolic imports FractionFunction source-domain restrictions into the
+integral obligation list.
 
 General non-Integer powers and broader expression nodes remain blocked until
 their real/complex branch policies are designed. `.fracfun` now exports its

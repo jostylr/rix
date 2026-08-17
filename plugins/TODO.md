@@ -654,8 +654,12 @@ tracked in
      derivatives accumulate prior obligations/evidence, while
      `rix.calculus.derivative-collection@1` keeps multivariate results and
      their component transformations together.
+   - [x] Give expression graphs deterministic structural keys, use registered
+     differential identities for conservative power-rule reuse (`f' = c f`),
+     and share repeated semantic applications during linked evaluation with
+     visible reuse provenance and an explicit opt-out.
 3. **Phase 3 — Integration and equation specifications**
-   - [ ] Distinguish a selected primitive, an antiderivative family with its
+   - [x] Distinguish a selected primitive, an antiderivative family with its
      integration constant, and a definite integral with endpoints.
    - [ ] Apply exact integration identities when justified, then negotiate
      certified Numerics quadrature or explicitly approximate fallback while

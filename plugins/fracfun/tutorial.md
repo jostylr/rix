@@ -115,6 +115,22 @@ second := .symbolic.DifferentiateN(P,:x,2);
 {: .calculus.ToSpec(second), .symbolic.Evaluate(second,{= x=3 }) };
 ```
 
+They can also formulate integral records without erasing source-domain holes:
+
+```rix
+.Plugin.Load("symbolic");
+F := .ff`1/x`;
+x := .calculus.Variable(:x);
+family := .symbolic.AntiderivativeFamily(F,:x,.calculus.Log()(x),:C);
+definite := .symbolic.DefiniteIntegral(F,:x,1,2);
+{: family[:representative], family[:constant], family[:obligations],
+   definite[:lower], definite[:upper], definite[:obligations] };
+```
+
+Both records inherit `x != 0` from the FractionFunction. The family merely
+selects `Log(x)` as a representative plus an explicit constant; it does not
+silently certify the identity or discharge the restriction.
+
 ## Reactive forms
 
 ```rix

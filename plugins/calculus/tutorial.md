@@ -240,6 +240,52 @@ If an exact rule eliminates a semantic application—for example the outer
 Conversely, an unknown semantic function cannot be differentiated merely
 because it has a numerical algorithm.
 
+## Reuse differential identities without broad algebraic rewriting
+
+The differentiator uses exact identities already registered for a semantic
+function to retain a smaller evaluation graph. For a base satisfying
+`f' = c*f`, the Integer power rule can keep the base as one structural node:
+
+```rix
+.Plugin.Load("calculus");
+x := .calculus.Variable(:x);
+Exp := .calculus.Exp((value)->value+1);
+result := .calculus.DifferentiateResult(Exp(x)^2,:x);
+evaluation := .calculus.EvaluateResult(result,{= x=2 });
+{: .calculus.ToSpec(result[:expression]),
+   result[:evidence],
+   evaluation[:semanticEvaluations] };
+```
+
+The exact derivative is represented as `2 * Exp(x)^2`, and its power-rule
+evidence records `differentialIdentityReuse`. This is deliberately local: it
+uses `D Exp = Exp`, but does not invoke the separate algebraic identity
+`Exp(a)*Exp(b) = Exp(a+b)`.
+
+Linked evaluation also caches structurally identical semantic applications:
+
+```rix
+.Plugin.Load("calculus");
+x := .calculus.Variable(:x);
+Shift := .calculus.Function("tutorial.shift@1", {=
+  name=:Shift,
+  implementation=(value)->value+1,
+  implementationEvidence=:definition
+});
+expression := Shift(x)+Shift(x);
+shared := .calculus.EvaluateResult(expression,{= x=2 });
+repeated := .calculus.EvaluateResult(expression,{= x=2 },{=
+  reuseCommonSubexpressions=_
+});
+{: shared[:value], shared[:semanticEvaluations], shared[:reuseCount],
+   repeated[:semanticEvaluations] };
+```
+
+The default result invokes `Shift` once and records one
+`commonSubexpressionReuse`; the opt-out invokes it twice. Sharing assumes that
+linked mathematical implementations are referentially transparent. Disable it
+for diagnostic or intentionally stateful callables.
+
 ## Compute higher and multivariate derivatives
 
 Repeated and mixed derivatives retain the variable path and accumulate prior
@@ -266,7 +312,35 @@ higher := .calculus.DifferentiateNResult(.calculus.Log()(x),:x,2);
 transformation plus their flattened obligations. The shorter forms used above
 return expression arrays only when all components are unconditional.
 
+## Keep the three meanings of an integral distinct
+
+Phase 3 begins with inert records rather than prematurely choosing an
+integration algorithm:
+
+```rix
+.Plugin.Load("calculus");
+x := .calculus.Variable(:x);
+integrand := 2*x;
+primitive := x^2;
+selected := .calculus.SelectedPrimitive(integrand,:x,primitive,{=
+  verification=:declaredIdentity,
+  evidence=[:powerRule]
+});
+family := .calculus.AntiderivativeFamily(integrand,:x,primitive,:C);
+definite := .calculus.DefiniteIntegral(integrand,:x,0,3);
+{: selected, family, definite };
+```
+
+A selected primitive names one representative. An antiderivative family keeps
+that representative and the integration-constant symbol in separate fields.
+A definite integral retains its lower and upper endpoints. All three use
+`rix.calculus.integral@1` and carry explicit obligations and evidence. They do
+not yet claim that a primitive has been checked or that a definite integral
+has been evaluated; later exact and Numerics providers will consume these
+records without changing their mathematical meaning.
+
 The Calculus record and registry say which mathematical function and exact
 rule are meant. The Numerics result says how a value was computed and what
-evidence the finite work supports. Integration and equation specifications
-extend this same boundary in later phases.
+evidence the finite work supports. Integral records now extend this same
+boundary; exact integration, certified quadrature, and equation specifications
+remain later steps.
