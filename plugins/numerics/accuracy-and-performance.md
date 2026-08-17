@@ -38,11 +38,11 @@ Current limitations matter:
 
 - elementary series near their range-reduced centers scale well;
 - general Gamma-family bounds still combine several bounded constants and
-  series, although exact positive integers and half-integers use direct
-  identities;
-- normal PDF/CDF now use direct request-sized refiners. Normal quantile shares
-  its certified `sqrt(2*pi)` interval across comparisons, but exact-rational
-  bisection is still noticeably more expensive than a single forward call;
+  series, although integers and half-integers use direct identities and
+  negative inputs reuse the positive algorithm through recurrence;
+- normal PDF/CDF use direct request-sized refiners. Normal quantile shares its
+  certified `sqrt(2*pi)` interval and contracts with interval Newton; outward
+  request-grid snapping prevents unusable exact-Rational denominator growth;
 - Bessel Y uses the alternating Euler-Maclaurin remainder for Euler's constant
   rather than the former quadratic-width harmonic bound;
 - generic arithmetic composition can still request much tighter internal
@@ -104,7 +104,8 @@ bun ./benchmarks/numerics-precision-sweep.js --quick
 
 A representative full sweep reached `1e-24` with `:enclosed` status in every
 case. Median times at that width were approximately 16 ms for `Exp(1)`, 51 ms
-for `Gamma(1/2)`, 299 ms for `Y(2,1)`, 69 ms for `NormalCDF(1)`, and 5.75 s
-for `NormalQuantile(0.975)`. The first four paths therefore scale credibly to
-deep precision; inverse-normal bisection remains the clear high-precision
-optimization target.
+for `Gamma(1/2)`, 261 ms for `Y(2,1)`, 60 ms for `NormalCDF(1)`, and 2.88 s
+for `NormalQuantile(0.975)`. The inverse-normal path used 721 inner calls and
+11 outer iterations, down from 2,595 calls and 86 iterations before interval
+Newton. Exact-Rational endpoint arithmetic remains its dominant deep-precision
+cost.

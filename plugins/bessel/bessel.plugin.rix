@@ -3,7 +3,7 @@ id: bessel
 description: Clearly named Bessel-function namespace backed by certified universal Numerics algorithms.
 kind: rix
 mount: bessel
-exports: [J, J0, J1, Y, Y0, Y1]
+exports: [J, J0, J1, Y, Y0, Y1, I, I0, I1, K, K0, K1]
 groups: [Numerics, SpecialFunctions]
 permissions: []
 requires: [rix.numerics@1]
@@ -21,7 +21,13 @@ besselNamespace._proto = {=
     J1 = (self, value) -> .numerics.BesselJ1(value),
     Y = (self, order, value) -> .numerics.BesselY(order, value),
     Y0 = (self, value) -> .numerics.BesselY0(value),
-    Y1 = (self, value) -> .numerics.BesselY1(value)
+    Y1 = (self, value) -> .numerics.BesselY1(value),
+    I = (self, order, value) -> .numerics.BesselI(order, value),
+    I0 = (self, value) -> .numerics.BesselI0(value),
+    I1 = (self, value) -> .numerics.BesselI1(value),
+    K = (self, order, value) -> .numerics.BesselK(order, value),
+    K0 = (self, value) -> .numerics.BesselK0(value),
+    K1 = (self, value) -> .numerics.BesselK1(value)
 };
 
 .Host.RegisterValue(

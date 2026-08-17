@@ -39,8 +39,8 @@ deviation selects a location-scale distribution:
 ```
 
 `NormalPDF` and `NormalCDF` use direct request-sized Rational bounds rather
-than generic arithmetic-expression precision routing. `NormalQuantile` uses
-certified monotone bisection, shares one certified `sqrt(2*pi)` interval across
-its comparisons, and tightens the Chebyshev starting bracket with small
-powers-of-two probes. Probabilities must be certifiably inside `0:1`;
+than generic arithmetic-expression precision routing. `NormalQuantile` shares
+one certified `sqrt(2*pi)` interval, tightens its Chebyshev starting bracket
+with small powers-of-two probes, and then contracts by certified interval
+Newton with bisection fallback. Probabilities must be certifiably inside `0:1`;
 unresolved endpoints produce structured `:unknown` evidence.

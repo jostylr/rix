@@ -10,6 +10,8 @@ The pure-RiX Bessel plugin gives the letter-and-order functions a clear home:
 .bessel.Y0(1);
 .bessel.Y1(1);
 .bessel.Y(6, 1);
+.bessel.I(6, 1);
+.bessel.K(6, 1);
 ```
 
 Loading the plugin automatically loads Numerics and Oracle. The returned values
@@ -35,3 +37,9 @@ interval. A future Miller/backward recurrence will improve that region.
 The Y-family constants use a higher-order alternating Euler–Maclaurin
 enclosure for Euler's constant. This keeps exact-Rational work practical at
 deep requested widths without changing the outward-certification contract.
+
+`I(n,x)` and `K(n,x)` provide the modified Bessel families for every integer
+order, with `I0`, `I1`, `K0`, and `K1` conveniences. `I` uses a positive-term
+series with a geometric tail certificate and the integer parity identities.
+`K` uses the logarithmic/harmonic series for orders zero and one followed by
+forward recurrence. `K(-n,x)=K(n,x)` and its real domain is `x>0`.

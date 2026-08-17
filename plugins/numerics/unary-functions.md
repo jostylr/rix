@@ -20,7 +20,7 @@ operations can remain in Core or a more specific plugin.
 | Inverse hyperbolic | `Asinh`, `Acosh`, `Atanh` and `Ar…` aliases | Numerics |
 | Angle and normalized trig | `Radians`, `Degrees`, `Sinc` | Numerics |
 | Special functions | `Gamma`, `LogGamma`, `Beta`, `LogBeta`, `Digamma`, `Trigamma`, `Erf`, `Erfc`, `LambertW`, `Zeta` | Numerics |
-| Bessel functions | `.bessel.J(n,x)`, `.bessel.Y(n,x)` plus `J0`, `J1`, `Y0`, `Y1` | Bessel façade over Numerics |
+| Bessel functions | `.bessel.J(n,x)`, `.bessel.Y(n,x)`, `.bessel.I(n,x)`, `.bessel.K(n,x)` plus order-zero/one conveniences | Bessel façade over Numerics |
 | Normal distribution | `.stats.NormalPDF`, `.stats.NormalCDF`, `.stats.NormalQuantile` | Statistics façade over Numerics |
 | Certified constants used by unary functions | `Pi()`, `EulerGamma()` | Numerics |
 
@@ -28,17 +28,17 @@ operations can remain in Core or a more specific plugin.
 
 - `Sinc(0)` is certified as its removable value `1`, including when zero arrives
   through another refinable-real provider.
-- `Gamma` and `LogGamma` currently certify the positive-real branch. Gamma
-  uses exact positive-integer and direct positive-half-integer identities.
+- `Gamma` certifies every pole-free real interval and records the alternating
+  sign between poles; `0,-1,-2,...` are explicit unresolved poles. `LogGamma`
+  remains restricted to positive real values.
 - `Beta`, `LogBeta`, `Digamma`, and `Trigamma` currently certify positive-real
   arguments. Positive integer Beta values and `Beta(1/2,1/2)` use exact/common
   identities before the general bounded algorithm.
 - `Atan2(y,x)` returns angles in `-pi < angle <= pi`, chooses `pi` on the
   negative horizontal axis, and returns `:unknown` at `(0,0)`.
-- `.bessel.Y(n,x)` currently certifies positive real arguments and exact
-  integer orders. `J` accepts every real argument.
-- `Zeta` currently certifies the defining real branch for arguments greater
-  than one.
+- `.bessel.Y(n,x)` and `.bessel.K(n,x)` certify positive real arguments and
+  exact integer orders. `J` and `I` accept every real argument.
+- `Zeta` certifies every real argument except its explicit pole at `1`.
 - `LambertW(x)` is the principal real branch; `LambertW(x,-1)` selects the
   lower real branch. Domain uncertainty returns a structured `:unknown` result.
 
@@ -62,10 +62,10 @@ them without real approximation:
   positive-real domain.
 - [x] Normal PDF, CDF, and inverse CDF under the statistics/probability surface.
 - [x] Integer-order Bessel `J(n,x)` and `Y(n,x)`.
-- [ ] Modified Bessel `I`/`K`.
-- [ ] Reusable certified quadrature.
+- [x] Modified Bessel `I`/`K`.
+- [x] Reusable certified quadrature.
 - [ ] Incomplete/regularized gamma and beta functions, followed by Airy and
   elliptic-integral families.
-- [ ] Analytic continuation and explicit pole/sign policy for Gamma and Zeta.
+- [x] Analytic continuation and explicit pole/sign policy for Gamma and Zeta.
 - [ ] Degree-specific trig names such as `SinD` only if angle conversion proves
   too cumbersome in calculator use.

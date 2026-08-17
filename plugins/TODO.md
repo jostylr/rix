@@ -308,10 +308,10 @@ newline normalization.
    - [x] Eliminate the first major composition hot spots with direct normal
      PDF/CDF refiners, shared quantile constants, Gamma integer/half-integer
      identities, and Euler–Maclaurin Bessel-Y constants.
-   - [ ] Add modified Bessel `I`/`K` families under `.bessel`.
-   - [ ] Add reusable certified quadrature before incomplete gamma/beta, Airy,
+   - [x] Add modified Bessel `I`/`K` families under `.bessel`.
+   - [x] Add reusable certified quadrature before incomplete gamma/beta, Airy,
      and elliptic-integral families.
-   - [ ] Extend Gamma and Zeta across their remaining real domains with
+   - [x] Extend Gamma and Zeta across their remaining real domains with
      explicit pole, sign, and continuation policies.
    - [ ] Add generic `Enclose`, `Refine`, `Compare`, `Sign`, root isolation,
      adaptive sampling, integration, and optimization.

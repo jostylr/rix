@@ -117,9 +117,11 @@ is certified as `1`. `Radians` and `Degrees` convert using certified pi.
 The same plugin supplies certified special-function algorithms:
 
 - `EulerGamma()`, `Gamma`, and `LogGamma` use Euler–Maclaurin and
-  Stirling–Robbins bounds. Gamma returns exact positive-integer identities and
-  uses a direct certified `(1/2)_k*sqrt(pi)` refiner for positive
-  half-integers; its current general domain is positive real.
+  Stirling–Robbins bounds. Gamma returns exact positive-integer identities,
+  uses direct certified half-integer identities on both sides of zero, and
+  continues by recurrence on every real interval separated from its poles at
+  `0,-1,-2,...`. Its evidence records the resulting sign. `LogGamma` remains
+  the real positive-Gamma logarithm and currently requires a positive input.
 - `Beta`, `LogBeta`, `Digamma`, and `Trigamma` certify positive-real inputs.
   Beta uses exact positive-integer values and the `Beta(1/2,1/2)=Pi()` identity
   when available; the general path uses Euler's rational product with a
@@ -132,11 +134,23 @@ The same plugin supplies certified special-function algorithms:
   remain available. The Y family currently requires positive real arguments.
   Calculator-facing code should load the `bessel` plugin and use `.bessel.J`
   and `.bessel.Y`.
+- `BesselI(n,x)` and `BesselK(n,x)` implement the modified families at every
+  integer order. `I` accepts real arguments and uses parity; `K` requires a
+  positive argument and uses its monotonicity to lift certified input
+  intervals. Calculator-facing code should use `.bessel.I` and `.bessel.K`.
 - `NormalPDF` and `NormalCDF` use direct request-sized Rational bounds.
-  `NormalQuantile` uses certified monotone bisection with a shared normalizing
-  constant and a Chebyshev-certified outer bracket. These universal algorithms
-  are used by the calculator-facing `.stats` functions.
-- `Zeta` uses Euler–Maclaurin bounds for real arguments greater than one.
+  `NormalQuantile` uses a Chebyshev-certified outer bracket followed by
+  certified interval Newton, with bisection as a fallback. These universal
+  algorithms are used by the calculator-facing `.stats` functions.
+- `Zeta` uses Euler–Maclaurin above one, Euler-transformed eta on `(0,1)`,
+  exact Bernoulli values at nonpositive integers, and the Riemann functional
+  equation below zero. `1` is reported as an explicit pole.
+
+`.numerics.Quadrature(function,a,b,{= secondDerivativeBound=M })` constructs
+a reusable certified composite-midpoint integral. The integrand may return any
+certified refinable real. The caller must supply a valid nonnegative bound
+`|f''| <= M` on the complete interval; the result records that assumption and
+adds the rigorous `M*|b-a|^3/(24*n^2)` remainder outward.
 
 `Hypot(x,y)` composes the universal root and arithmetic protocols.
 `Atan2(y,x)` certifies the quadrant without converting either input to Float;

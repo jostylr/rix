@@ -67,3 +67,18 @@ results.Map((value) -> .numerics.Refine(value, {=
 
 Negative orders use `J_-n=(-1)^n J_n` and `Y_-n=(-1)^n Y_n`. The Y family
 requires a certifiably positive argument.
+
+## Modified families
+
+The same namespace provides integer-order `I` and `K`:
+
+```rix
+modified := [.bessel.I(2, 1), .bessel.K(2, 1)];
+modified.Map((value) -> .numerics.Refine(value, {=
+  absoluteWidth=1/1000,
+  maxWork=12000
+}));
+```
+
+`I` accepts real arguments and follows integer parity. `K(-n,x)=K(n,x)` and
+requires `x>0` on the real branch.
