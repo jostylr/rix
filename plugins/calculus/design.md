@@ -1,6 +1,6 @@
 # Calculus function and expression contract
 
-Phase 1 establishes two portable schemas.
+The base layer establishes two portable schemas.
 
 ## `rix.calculus.function@1`
 
@@ -45,10 +45,39 @@ specifications is implemented. It:
 6. exports the same conversion helpers through the public `rix/eval` module
    for JavaScript plugins.
 
-Semantic applications remain inert inside a core specification: the bridge
-retains identity but does not yet resolve it to an evaluation or rewrite rule.
-The next step is a registry keyed by semantic function ID, with exact rules,
-implementations, domains, branch obligations, and evidence kept as distinct
-entries. Broader nodes and transformation operations are also needed before
-representation-heavy plugins such as `.fracfun` can leave their private
-symbolic builders.
+Semantic applications remain inert when a core specification is evaluated on
+its own. The bridge retains their identity, allowing Calculus to resolve them
+through its semantic registry.
+
+## `rix.calculus.registry-entry@1`
+
+The live registry is keyed only by stable semantic function ID. A resolved
+entry exposes separate slots for:
+
+- canonical function metadata;
+- exact symbolic rules;
+- an optional concrete implementation;
+- domain and codomain declarations;
+- branch declarations; and
+- evidence indexed by the slot or rule it justifies.
+
+Rules and implementations are intentionally live callables and are not part of
+the portable function record. A second mathematical-function object with the
+same semantic ID resolves the same registry entry. This makes spelling and
+object identity irrelevant while keeping exact knowledge distinct from an
+evaluation algorithm.
+
+## Exact derivative contract
+
+`.calculus.Differentiate(expression, variable)` returns another
+`rix.calculus.expression@1` graph. The initial rule set covers constants,
+variables, negation, linearity, products, quotients, and Integer powers.
+Registered unary application rules return the outer derivative, after which
+Calculus multiplies by the recursively computed inner derivative. `Exp`'s
+outer rule returns the original application, implementing `D Exp = Exp`.
+
+General powers, logarithms, roots, inverse functions, and complex
+continuations require explicit domain or branch obligations and therefore do
+not receive unconditional rules. Broader nodes and transformation operations
+are also needed before representation-heavy plugins such as `.fracfun` can
+leave their private symbolic builders.

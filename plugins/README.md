@@ -34,7 +34,7 @@ The implementation order and per-plugin phased work are tracked in
 | `ratfun/` | RiX | `ratfun` | Pure-RiX canonical callable RationalFunctions; aliases `.rationalFunction` and `.rf`. |
 | `fracfun/` | host | `fracfun` | Form-preserving FractionFunctions; aliases `.fractionFunction` and `.ff`. See the migration boundary below. |
 | `symbolic/` | RiX | `symbolic` | Pure-RiX meta-plugin loading the formal fraction/function workspace. |
-| `calculus/` | RiX | `calculus` | Portable abstract mathematical functions, exact expression graphs, and explicit implementation links. |
+| `calculus/` | RiX | `calculus` | Portable abstract functions, semantic-ID rules, exact differentiation, expression/spec bridging, and explicit implementation links. |
 | `geometry/` | RiX | `geometry` | Pure-RiX exact ruler-and-compass constructions, intersections, and Graphics snapshots. |
 | `data/` | host | `data` | Immutable typed relations, deterministic transformations, and portable Table views. |
 | `stats/` | RiX | `stats` | Exact descriptive statistics, summary Tables, histograms, and box plots; alias `.statistics`. |
@@ -90,8 +90,9 @@ JavaScript implementations for converted packages are retained as non-discoverab
 `.fracfun` is the remaining computational exception. It preserves two symbolic
 expression trees (display form and source-domain evaluation form), clones and
 combines private symbolic IR, rewrites closures, and records denominator
-restrictions. Calculus Phase 1 now provides a versioned portable expression
-builder and an initial bidirectional `{#}` bridge. The host implementation
+restrictions. Calculus now provides a versioned portable expression builder,
+bidirectional `{#}` bridge, semantic registry, and initial exact
+differentiator. The host implementation
 remains until that bridge covers its closure rewriting, paired
 display/evaluation forms, and domain-restriction needs; raw evaluator-IR
 mutation is deliberately not a public API. Its canonical projections already

@@ -39,6 +39,7 @@ describe("pure RiX Calculus plugin", () => {
         expect(entry(info, "schemas").values.map(text)).toEqual([
             "rix.calculus.function@1",
             "rix.calculus.expression@1",
+            "rix.calculus.registry-entry@1",
         ]);
     });
 
@@ -104,6 +105,88 @@ describe("pure RiX Calculus plugin", () => {
         expect(text(entry(result, "status"))).toBe("enclosed");
         expect(entry(result, "certified").value).toBe(1n);
         expect(entry(result, "interval").toString()).toBe("1:1");
+    });
+
+    test("resolves semantic functions through separate registry slots", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("calculus");
+            expEntry := .calculus.Resolve("rix.function.exp@1");
+            First := .calculus.Function("example.shift@1", {=
+                name=:Shift,
+                implementation=(x)->x+1,
+                implementationEvidence=:definition
+            });
+            Second := .calculus.Function("example.shift@1", {= name=:Shift });
+            {: expEntry, Second(2), .calculus.Resolve(Second) };
+        `, options);
+
+        const expEntry = result.values[0];
+        expect(text(entry(expEntry, "schema"))).toBe("rix.calculus.registry-entry@1");
+        expect(text(entry(expEntry, "semanticId"))).toBe("rix.function.exp@1");
+        expect(entry(entry(expEntry, "exactRules"), "derivative")).toBeTruthy();
+        expect(entry(expEntry, "implementation")).toBeNull();
+        expect(text(entry(entry(expEntry, "domain"), "domain"))).toBe("real");
+        expect(entry(expEntry, "branches").values).toEqual([]);
+        expect(text(entry(entry(entry(expEntry, "evidence"), "derivative"), "identity")))
+            .toBe("derivativeEqualsSelf");
+
+        expect(result.values[1].value).toBe(3n);
+        expect(text(entry(entry(result.values[2], "evidence"), "implementation")))
+            .toBe("definition");
+    });
+
+    test("differentiates arithmetic and Exp compositions exactly", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("calculus");
+            x := .calculus.Variable(:x);
+            Exp := .calculus.Exp();
+            {: .calculus.ToSpec(.calculus.Differentiate(x^3,:x)),
+               .calculus.ToSpec(.calculus.Differentiate((x+1)*(x-1),x)),
+               .calculus.ToSpec(.calculus.Differentiate((x+1)/(x-1),:x)),
+               .calculus.ToSpec(.calculus.Differentiate(Exp(x^2+1),:x)) };
+        `, options);
+
+        expect(result.values.map(formatValue)).toEqual([
+            "{#x# 3 * x ^ 2 }",
+            "{#x# x - 1 + x + 1 }",
+            "{#x# (x - 1 - (x + 1)) / (x - 1) ^ 2 }",
+            "{#x# Exp(x ^ 2 + 1) * 2 * x }",
+        ]);
+    });
+
+    test("uses custom exact rules by semantic ID and rejects unjustified rules", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("calculus");
+            SquareA := .calculus.Function("example.square@1", {=
+                name=:Square,
+                domain=:real,
+                codomain=:nonnegativeReal
+            });
+            .calculus.Register(SquareA, {=
+                derivative=(application)->2*application[:arguments][1],
+                derivativeEvidence=:definition
+            });
+            SquareB := .calculus.Function("example.square@1", {=
+                name=:Square,
+                domain=:real,
+                codomain=:nonnegativeReal
+            });
+            x := .calculus.Variable(:x);
+            .calculus.ToSpec(.calculus.Differentiate(SquareB(x+1),:x));
+        `, options);
+        expect(formatValue(result)).toBe("{#x# 2 * (x + 1) }");
+
+        expect(() => parseAndEvaluate(`
+            Unknown := .calculus.Function("example.unknown@1", {= name=:Unknown });
+            .calculus.Differentiate(Unknown(x),:x);
+        `, options)).toThrow("No exact derivative rule is registered");
+        expect(() => parseAndEvaluate(
+            ".calculus.Differentiate(x^(1/2),:x)",
+            options,
+        )).toThrow("requires an Integer constant exponent");
     });
 
     test("round-trips semantic applications through core symbolic specs", () => {

@@ -1,19 +1,44 @@
 /**
 id: calculus
-description: Portable abstract mathematical functions and composable expression graphs with explicit implementation links.
+description: Portable abstract functions, semantic-ID rules, exact differentiation, and explicit implementation links.
 kind: rix
 mount: calculus
-exports: [Function, Exp, Variable, Constant, Apply, ToSpec, FromSpec, IsFunction, IsExpression]
+exports: [Function, Exp, Variable, Constant, Apply, Register, Resolve, Differentiate, ToSpec, FromSpec, IsFunction, IsExpression]
 groups: [Calculus, Analysis, Symbolic, Exact]
 permissions: []
 provides: [rix.calculus@1, rix.abstract-function@1]
-schemas: [rix.calculus.function@1, rix.calculus.expression@1]
+schemas: [rix.calculus.function@1, rix.calculus.expression@1, rix.calculus.registry-entry@1]
 snapshot: false
 deterministic: true
 defaultEnabled: false
 **/
 
 CalculusOption(options, key, fallback) -> options.Has(key) ?: options[key] ?_ fallback;
+
+calculusRegistryState = {=
+    functions={= },
+    exactRules={= },
+    implementations={= },
+    domains={= },
+    branches={= },
+    evidence={= }
+};
+
+CalculusRegistryGet(section, semanticId, fallback ?= _) -> {;
+    values = @calculusRegistryState[section];
+    values.Has(semanticId) ?: values[semanticId] ?_ fallback;
+};
+
+CalculusRegistrySet(section, semanticId, value) -> {;
+    values = @calculusRegistryState[section];
+    @calculusRegistryState[section] = values.Set(semanticId,value);
+    value;
+};
+
+CalculusRegistryEvidence(semanticId, key, value) -> {;
+    evidence = CalculusRegistryGet(:evidence,semanticId,{= });
+    CalculusRegistrySet(:evidence,semanticId,evidence.Set(key,value));
+};
 
 CalculusIsExpression(value) -> value ? :CalculusExpression;
 CalculusIsFunction(value) -> value ? :MathematicalFunction;
@@ -73,6 +98,109 @@ CalculusApply(function, argument) -> {;
     CalculusApplication(exact.semanticId, exact.name, [argument]);
 };
 
+CalculusSemanticId(value) ->
+    value ? :String
+      ?: value
+      ?_ (CalculusIsFunction(value)
+           ?: value.semanticId
+           ?_ (CalculusIsExpression(value) && value[:kind] == :apply
+                ?: value[:semanticId]
+                ?_ .Error("Calculus registry lookup expects a semantic ID, MathematicalFunction, or application expression")));
+
+CalculusFunctionMetadata(function) -> .ImmutableValue({=
+    valueKind=:calculusFunctionMetadata,
+    semanticId=function.semanticId,
+    name=function.name,
+    arity=function.arity,
+    facts=function.facts
+});
+
+CalculusRememberFunction(function) -> {;
+    semanticId = function.semanticId;
+    existing = CalculusRegistryGet(:functions,semanticId,_);
+    compatible = existing == _
+      ?: 1
+      ?_ (existing[:name] == function.name && existing[:arity] == function.arity);
+    compatible ?: _ ?_ .Error(@"Conflicting Calculus function metadata for semantic ID @{semanticId}");
+    existing == _ ?: CalculusRegistrySet(:functions,semanticId,CalculusFunctionMetadata(function)) ?_ _;
+
+    domain = {= domain=function.domain, codomain=function.codomain };
+    existingDomain = CalculusRegistryGet(:domains,semanticId,_);
+    domainCompatible = existingDomain == _
+      ?: 1
+      ?_ (existingDomain[:domain] == function.domain && existingDomain[:codomain] == function.codomain);
+    domainCompatible
+      ?: _
+      ?_ .Error(@"Conflicting Calculus domain declaration for semantic ID @{semanticId}");
+    existingDomain == _ ?: CalculusRegistrySet(:domains,semanticId,.ImmutableValue(domain)) ?_ _;
+    CalculusRegistryGet(:branches,semanticId,_) == _
+      ?: CalculusRegistrySet(:branches,semanticId,.ImmutableValue([]))
+      ?_ _;
+
+    function.implementation == _
+      ?: _
+      ?_ {;
+          CalculusRegistrySet(:implementations,@semanticId,@function.implementation);
+          CalculusRegistryEvidence(@semanticId,:implementation,@function.implementationEvidence);
+      };
+    function;
+};
+
+CalculusResolve(value) -> {;
+    semanticId = CalculusSemanticId(value);
+    metadata = CalculusRegistryGet(:functions,semanticId,_);
+    metadata == _
+      ?: .Error(@"No Calculus registry entry for semantic ID @{semanticId}")
+      ?_ .ImmutableValue({=
+          valueKind=:calculusRegistryEntry,
+          schema="rix.calculus.registry-entry@1",
+          semanticId=semanticId,
+          function=metadata,
+          exactRules=CalculusRegistryGet(:exactrules,semanticId,{= }),
+          implementation=CalculusRegistryGet(:implementations,semanticId,_),
+          domain=CalculusRegistryGet(:domains,semanticId,_),
+          branches=CalculusRegistryGet(:branches,semanticId,[]),
+          evidence=CalculusRegistryGet(:evidence,semanticId,{= })
+      });
+};
+
+CalculusRegister(function, options ?= {= }) -> {;
+    exact = function ? :MathematicalFunction
+      ?: function
+      ?_ .Error("Calculus Register expects a MathematicalFunction");
+    CalculusRememberFunction(exact);
+    semanticId = exact.semanticId;
+
+    derivative = CalculusOption(options,"derivative",_);
+    derivative == _
+      ?: _
+      ?_ {;
+          rules = CalculusRegistryGet(:exactrules,@semanticId,{= });
+          rules.Has("derivative")
+            ?: .Error(@"An exact derivative rule is already registered for semantic ID @{@semanticId}")
+            ?_ CalculusRegistrySet(:exactrules,@semanticId,.ImmutableValue(rules.Set("derivative",@derivative)));
+          CalculusRegistryEvidence(
+              @semanticId,
+              :derivative,
+              CalculusOption(@options,"derivativeevidence",:declaredByCaller)
+          );
+      };
+
+    branches = CalculusOption(options,"branches",_);
+    branches == _
+      ?: _
+      ?_ ((branches ? :Array)
+           ?: CalculusRegistrySet(:branches,semanticId,.ImmutableValue(branches))
+           ?_ .Error("Calculus registry branches must be an Array"));
+    options.Has("domainevidence")
+      ?: CalculusRegistryEvidence(semanticId,:domain,options[:domainEvidence])
+      ?_ _;
+    options.Has("branchevidence")
+      ?: CalculusRegistryEvidence(semanticId,:branches,options[:branchEvidence])
+      ?_ _;
+    CalculusResolve(semanticId);
+};
+
 CalculusFunctionRecord(function) -> {=
     valueKind=:mathematicalFunction,
     schema="rix.calculus.function@1",
@@ -86,12 +214,16 @@ CalculusFunctionRecord(function) -> {=
     implementationEvidence=function.implementationEvidence
 };
 
-CalculusDispatch(semanticId, name, implementation, argument) ->
+CalculusDispatch(semanticId, name, implementation, argument) -> {;
+    resolvedImplementation = implementation == _
+      ?: CalculusRegistryGet(:implementations,semanticId,_)
+      ?_ implementation;
     CalculusIsExpression(argument)
       ?: CalculusApplication(semanticId, name, [argument])
-      ?_ (implementation == _
+      ?_ (resolvedImplementation == _
           ?: .Error(@"Abstract function @{name} has no attached implementation for concrete evaluation")
-          ?_ argument |> implementation);
+          ?_ argument |> resolvedImplementation);
+};
 
 CalculusBuildFunction(semanticId, options ?= {= }) -> {;
     semanticId ? :String ?: _ ?_ .Error("Calculus semantic function ID must be a string or colon-string");
@@ -134,7 +266,7 @@ CalculusBuildFunction(semanticId, options ?= {= }) -> {;
             implementationEvidence=evidence
         })
     };
-    .ImmutableValue(MathematicalFunctionValue);
+    CalculusRememberFunction(.ImmutableValue(MathematicalFunctionValue));
 };
 
 CalculusExp(implementation ?= _) -> CalculusBuildFunction("rix.function.exp@1", {=
@@ -152,6 +284,138 @@ CalculusExp(implementation ?= _) -> CalculusBuildFunction("rix.function.exp@1", 
     }],
     implementation=implementation,
     implementationEvidence=implementation == _ ?: :none ?_ :declaredByCaller
+});
+
+CalculusConstantValue(expression) ->
+    CalculusIsExpression(expression) && expression[:kind] == :constant ?: expression[:value] ?_ _;
+CalculusIsExactValue(expression, value) -> {;
+    exact = CalculusConstantValue(expression);
+    exact == _ ?: _ ?_ exact == value;
+};
+
+CalculusAddExact(left, right) ->
+    CalculusIsExactValue(left,0) ?: right
+      ?_ (CalculusIsExactValue(right,0) ?: left ?_ CalculusBinary(:add,left,right));
+CalculusSubtractExact(left, right) ->
+    CalculusIsExactValue(right,0) ?: left
+      ?_ (CalculusIsExactValue(left,0) ?: CalculusNegate(right) ?_ CalculusBinary(:subtract,left,right));
+CalculusMultiplyExact(left, right) ->
+    (CalculusIsExactValue(left,0) || CalculusIsExactValue(right,0)) ?: CalculusConstant(0)
+      ?_ (CalculusIsExactValue(left,1) ?: right
+           ?_ (CalculusIsExactValue(right,1) ?: left ?_ CalculusBinary(:multiply,left,right)));
+CalculusDivideExact(left, right) ->
+    CalculusIsExactValue(left,0) ?: CalculusConstant(0)
+      ?_ (CalculusIsExactValue(right,1) ?: left ?_ CalculusBinary(:divide,left,right));
+CalculusPowerExact(base, exponent) ->
+    exponent == 0 ?: CalculusConstant(1)
+      ?_ (exponent == 1 ?: base ?_ CalculusBinary(:power,base,CalculusConstant(exponent)));
+
+CalculusDerivativeVariable(variable) ->
+    variable ? :String
+      ?: variable
+      ?_ (CalculusIsExpression(variable) && variable[:kind] == :variable
+           ?: variable[:name]
+           ?_ .Error("Calculus differentiation variable must be a string or variable expression"));
+
+CalculusDifferentiatePower(base, exponentExpression, baseDerivative) -> {;
+    exponent = CalculusConstantValue(exponentExpression);
+    (exponent != _ && (exponent ? :Integer))
+      ?: _
+      ?_ .Error("Exact Calculus power differentiation currently requires an Integer constant exponent");
+    exponent == 0
+      ?: CalculusConstant(0)
+      ?_ CalculusMultiplyExact(
+          CalculusMultiplyExact(
+              CalculusConstant(exponent),
+              CalculusPowerExact(base,exponent-1)
+          ),
+          baseDerivative
+      );
+};
+
+CalculusDifferentiateBinary(operation, left, right, leftDerivative, rightDerivative) ->
+    operation == :add
+      ?: CalculusAddExact(leftDerivative,rightDerivative)
+      ?_ operation == :subtract
+      ?: CalculusSubtractExact(leftDerivative,rightDerivative)
+      ?_ operation == :multiply
+      ?: CalculusAddExact(
+          CalculusMultiplyExact(leftDerivative,right),
+          CalculusMultiplyExact(left,rightDerivative)
+      )
+      ?_ operation == :divide
+      ?: CalculusDivideExact(
+          CalculusSubtractExact(
+              CalculusMultiplyExact(leftDerivative,right),
+              CalculusMultiplyExact(left,rightDerivative)
+          ),
+          CalculusPowerExact(right,2)
+      )
+      ?_ operation == :power
+      ?: CalculusDifferentiatePower(left,right,leftDerivative)
+      ?_ .Error(@"Unsupported Calculus operator @{operation}");
+
+CalculusDifferentiateOperator(expression, variable) -> {;
+    operation = expression[:operation];
+    operands = expression[:operands];
+    operation == :negate
+      ?: CalculusNegate(CalculusDifferentiateNode(operands[1],variable))
+      ?_ {;
+          left = @operands[1];
+          right = @operands[2];
+          leftDerivative = CalculusDifferentiateNode(left,@variable);
+          rightDerivative = CalculusDifferentiateNode(right,@variable);
+          CalculusDifferentiateBinary(@operation,left,right,leftDerivative,rightDerivative);
+      };
+};
+
+CalculusDifferentiateApplication(expression, variable) -> {;
+    arguments = expression[:arguments];
+    arguments.Len() == 1
+      ?: _
+      ?_ .Error("Exact Calculus chain rules currently require unary semantic applications");
+    innerDerivative = CalculusDifferentiateNode(arguments[1],variable);
+    CalculusIsExactValue(innerDerivative,0)
+      ?: innerDerivative
+      ?_ {;
+          registry = CalculusResolve(@expression[:semanticId]);
+          rules = registry[:exactrules];
+          rules.Has("derivative")
+            ?: _
+            ?_ .Error(@"No exact derivative rule is registered for semantic ID @{@expression[:semanticId]}");
+          outerDerivative = @expression |> rules[:derivative];
+          CalculusMultiplyExact(CalculusPromote(outerDerivative),@innerDerivative);
+      };
+};
+
+CalculusDifferentiateNode(expression, variable) -> {;
+    exact = CalculusRequireExpression(expression,"differentiate expression");
+    kind = exact[:kind];
+    kind == :constant ?: CalculusConstant(0)
+      ?_ (kind == :variable
+           ?: CalculusConstant(exact[:name] == variable ?: 1 ?_ 0)
+           ?_ (kind == :operator
+                ?: CalculusDifferentiateOperator(exact,variable)
+                ?_ (kind == :apply
+                     ?: CalculusDifferentiateApplication(exact,variable)
+                     ?_ .Error(@"Unsupported Calculus expression kind @{kind}"))));
+};
+
+CalculusDifferentiate(expression, variable) ->
+    CalculusDifferentiateNode(expression,CalculusDerivativeVariable(variable));
+
+CalculusExpDerivative(application) -> application;
+
+calculusBuiltinExp = CalculusExp();
+CalculusRegister(calculusBuiltinExp,{=
+    derivative=CalculusExpDerivative,
+    derivativeEvidence={=
+        kind=:exactIdentity,
+        identity=:derivativeEqualsSelf,
+        source=:initialValueCharacterization
+    },
+    branches=[],
+    domainEvidence=:declaredRealDomain
 });
 
 .TypeKnown(:CalculusExpression) ?: _ ?_ .TypeRegister({=
@@ -188,6 +452,9 @@ calculusNamespace._proto = {=
     Variable=(self, name)->CalculusVariable(name),
     Constant=(self, value)->CalculusConstant(value),
     Apply=(self, function, argument)->CalculusApply(function,argument),
+    Register=(self, function, options ?= {= })->CalculusRegister(function,options),
+    Resolve=(self, value)->CalculusResolve(value),
+    Differentiate=(self, expression, variable)->CalculusDifferentiate(expression,variable),
     ToSpec=(self, expression, inputs ?= _)->.SpecFromExpression(expression,inputs),
     FromSpec=(self, value)->.ExpressionFromSpec(value),
     IsFunction=(self, value)->CalculusIsFunction(value) ?: 1 ?_ _,

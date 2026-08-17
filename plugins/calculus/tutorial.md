@@ -1,6 +1,6 @@
 ---
-title: Link an abstract exponential to certified numerics
-description: Build portable function expressions and explicitly attach a certified numerical realization.
+title: Differentiate an abstract exponential and refine its values
+description: Build portable function expressions, differentiate by semantic identity, and attach a certified numerical realization.
 theme: Algebra and analysis
 status: implemented
 ---
@@ -50,9 +50,34 @@ restored := .calculus.FromSpec(specification);
 });
 ```
 
-The specification is inert for semantic applications in this phase. A later
-rule registry will decide how a stable ID such as `rix.function.exp@1`
-differentiates or evaluates.
+The core specification remains inert for semantic applications. Calculus can
+nevertheless resolve the retained semantic ID through its rule registry.
+
+## Differentiate by semantic identity
+
+`Exp` registers its exact outer derivative separately from any numerical
+implementation. Arithmetic and chain rules build another portable graph:
+
+```rix
+.Plugin.Load("calculus");
+x := .calculus.Variable(:x);
+Exp := .calculus.Exp();
+expression := 3 * Exp(x^2 + 1);
+derivative := .calculus.Differentiate(expression, :x);
+entry := .calculus.Resolve(Exp);
+.Table({=
+  columns=["derivative", "semantic ID", "rule evidence"],
+  rows=[[
+    .calculus.ToSpec(derivative),
+    entry[:semanticId],
+    entry[:evidence][:derivative][:identity]
+  ]]
+});
+```
+
+The derivative is exact because the registry contains `D Exp = Exp` and the
+ordinary product, power, and chain rules apply. Finite differences or sampled
+values never become exact derivative evidence.
 
 ## Attach a certified realization
 
@@ -79,7 +104,8 @@ result := .numerics.Refine(Exp(1/2), {=
 });
 ```
 
-The calculus record says which mathematical function is meant. The Numerics
-result says how its value was computed and what evidence the finite work
-supports. Later Calculus phases will use the exact facts to differentiate
-compositions while retaining this same implementation boundary.
+The calculus record and registry say which mathematical function and exact
+rule are meant. The Numerics result says how a value was computed and what
+evidence the finite work supports. Domain obligations, higher derivatives,
+integration, and equation specifications extend this same boundary in later
+phases.

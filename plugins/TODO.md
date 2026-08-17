@@ -19,8 +19,8 @@ Except where a dependency is called out below, finish most Phase 1 milestones
 before beginning broad Phase 2 work.
 
 All Phase 1 milestones catalogued before the Calculus/Analysis work are
-implemented. Calculus Phase 1 is now implemented; Analysis Phase 1 remains a
-planned dependency-aware slice. Unchecked work below is Phase 2 or later unless
+implemented. Calculus Phase 1 and the first four Phase 2 items are implemented;
+Analysis Phase 1 remains a planned dependency-aware slice. Unchecked work below is Phase 2 or later unless
 a section explicitly says otherwise.
 
 ## Basic order of implementation
@@ -42,8 +42,9 @@ contracts.
 6. **Broaden analysis and visualization:** `.stats`, `.scene3d`, `.nd`, and
    `.complexViz` Phase 1.
 7. **Complete publication pipelines:** `.quarto`, `.pdf`, and `.gif` Phase 1.
-8. **Establish abstract mathematical functions:** `.calculus` Phase 1 provides
-   portable function/expression contracts before exact transformation rules.
+8. **Establish abstract mathematical functions:** `.calculus` provides
+   portable function/expression contracts, semantic rules, and initial exact
+   differentiation.
 9. **Begin Analysis over explicit evidence:** `.analysis` Phase 1 follows the
    Calculus expression contract and the effective-sequence protocols.
 10. **Begin Phase 2 in dependency order:** shared Numerics and renderer
@@ -629,11 +630,12 @@ tracked in
      JavaScript plugins; migrate a small existing consumer to prove that pure
      RiX and host plugins share one contract. `.poly` now performs symbolic
      degree analysis through this public expression representation.
-   - [ ] Add a semantic-function registry keyed by stable IDs rather than
+   - [x] Add a semantic-function registry keyed by stable IDs rather than
      binding spellings or object identity. Keep exact rules, implementations,
      domains, branches, and evidence as separate registry entries.
-   - [ ] Implement exact linearity, product, quotient, power, and chain rules
-     over expression graphs, including named rules such as `D Exp = Exp`.
+   - [x] Implement exact linearity, product, quotient, Integer-power, and unary
+     semantic chain rules over expression graphs, including `D Exp = Exp`.
+     Non-Integer powers remain blocked on the domain/branch work below.
    - [ ] Preserve domain and branch obligations for `Log`, roots, inverse
      functions, and complex continuations instead of applying unconditional
      rewrites.
