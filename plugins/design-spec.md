@@ -690,7 +690,7 @@ not silently discarded.
 
 | Plugin | Primary inputs | Output and responsibilities |
 | --- | --- | --- |
-| `.svg` | `Graphic`, standalone `Figure`; projected `Scene3D` | SVG text/bytes, clipping, paths, selectable exact-to-decimal policy, outward certified enclosures, approximation/collision metadata, and accessibility. |
+| `.svg` | `Graphic`, standalone `Figure`; projected `Scene3D` | SVG text/bytes, clipping, paths, selectable exact-to-decimal policy, outward certified enclosures, approximation/collision metadata, stable-path unsupported-feature reporting, and accessibility. |
 | `.canvas` | `Graphic`, including a `Scene3D` Snapshot result; rapidly changing plot frames | Browser `CanvasRenderingContext2D` drawing plan and host-owned surface. Optimized for repainting, large sample counts, hit-test metadata, and interactive views; provides PNG snapshots because a canvas is not itself a portable serialized result. |
 | `.webgl` | Retained `Scene3D` | Versioned executable GPU plan with camera, light, draw-call, picking, interaction, and annotation-overlay descriptors. The host owns WebGL state. |
 | `.png` | `Graphic`, rendered document region, `Scene3D` Snapshot, slide frame | Raster image; delegates scene construction to SVG/Scene3D and owns resolution, antialiasing, color profile, and transparency. |

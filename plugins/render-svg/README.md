@@ -21,3 +21,11 @@ geometry, the SVG adds the smallest computed `feMorphology` dilation covering
 coordinate, extent, radius, and transform error, and records that radius.
 Native JavaScript Float coordinates use ordinary target rounding and do not
 claim a certified enclosure.
+
+Unsupported scene features are never dropped. Unknown Graphics node kinds,
+unknown Path commands, and style properties outside the documented Graphics
+style contract raise an `UnsupportedRenderError` with a stable scene path and
+an `svg-unsupported-*` code. The renderer registry can use that failure to try
+an explicitly requested fallback; a successful fallback retains the SVG
+failure as a structured diagnostic. SVG-backed PNG uses the same validation
+before invoking its rasterizer.

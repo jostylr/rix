@@ -336,6 +336,74 @@ describe("renderer registry", () => {
         expect([...png.assets[0].content]).toEqual([137, 80, 78, 71]);
     });
 
+    test("SVG Phase 2 reports unsupported scene features with stable paths", () => {
+        const unsupported = {
+            type: "output", kind: "graphic", size: [10, 10], metadata: null,
+            children: [{
+                type: "output", kind: "group", style: new Map(),
+                children: [{ type: "output", kind: "paragraph", children: [], style: new Map() }],
+            }],
+        };
+        try {
+            lowerGraphicSvg(unsupported, String);
+            throw new Error("Expected unsupported SVG node failure");
+        } catch (error) {
+            expect(error).toBeInstanceOf(UnsupportedRenderError);
+            expect(error).toMatchObject({
+                code: "svg-unsupported-node",
+                target: "svg",
+                path: "graphic[1].group[1]",
+            });
+        }
+
+        const unsupportedStyle = {
+            type: "output", kind: "graphic", size: [10, 10], metadata: null,
+            children: [{
+                type: "output", kind: "circle", center: [5, 5], radius: 2,
+                style: new Map([["pattern", { type: "string", value: "dots" }]]),
+            }],
+        };
+        expect(() => lowerGraphicSvg(unsupportedStyle, String))
+            .toThrow("graphic[1].style.pattern: SVG does not support Graphics style property 'pattern'");
+
+        const registry = new RendererRegistry();
+        registry.register(svgDefinition);
+        registry.register({
+            target: "graphic-fixture", mime: "text/x-graphic-fixture", extension: "fixture",
+            inputKinds: ["graphic"], render: () => ({ content: "fallback" }),
+        });
+        const fallback = registry.render(unsupported, "svg", { fallback: "graphic-fixture" });
+        expect(fallback.content).toBe("fallback");
+        expect(fallback.diagnostics).toContainEqual(expect.objectContaining({
+            code: "svg-unsupported-node",
+            path: "graphic[1].group[1]",
+        }));
+
+        let rasterized = false;
+        const pngRegistry = new RendererRegistry();
+        pngRegistry.register(createPngDefinition(() => {
+            rasterized = true;
+            return { content: new Uint8Array([1]), width: 10, height: 10, toolchain: "fixture" };
+        }));
+        expect(() => pngRegistry.render(unsupported, "png")).toThrow("graphic[1].group[1]");
+        expect(rasterized).toBe(false);
+
+        const unsupportedCommand = parseAndEvaluate(`
+            .Graphics.Graphic([10,10], [.Graphics.Path({= commands=[
+                {= op="teleport", to=[2,3] }
+            ] })])
+        `, runtime());
+        try {
+            lowerGraphicSvg(unsupportedCommand, String);
+            throw new Error("Expected unsupported SVG Path command failure");
+        } catch (error) {
+            expect(error).toMatchObject({
+                code: "svg-unsupported-path-command",
+                path: "graphic[1].commands[1]",
+            });
+        }
+    });
+
     test("unsupported target features fail visibly instead of disappearing", () => {
         const options = runtime();
         expect(() => parseAndEvaluate(`

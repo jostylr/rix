@@ -75,11 +75,12 @@ export function isRenderResult(value) {
 }
 
 export class UnsupportedRenderError extends Error {
-    constructor(message, { code = "unsupported-input", target = null } = {}) {
+    constructor(message, { code = "unsupported-input", target = null, path = null } = {}) {
         super(message);
         this.name = "UnsupportedRenderError";
         this.code = code;
         this.target = target;
+        this.path = path;
     }
 }
 
@@ -222,13 +223,19 @@ export class RendererRegistry {
                 return result;
             } catch (error) {
                 if (!(error instanceof UnsupportedRenderError)) throw error;
-                failures.push({ level: "warning", code: error.code, message: error.message });
+                failures.push({
+                    level: "warning",
+                    code: error.code,
+                    message: error.message,
+                    ...(error.path ? { path: error.path } : {}),
+                });
             }
         }
         const detail = failures.map(({ code, message }) => `[${code}] ${message}`).join("; ");
         throw new UnsupportedRenderError(`Cannot render ${inputKind(value)} as '${requested}'${detail ? `: ${detail}` : ""}`, {
             code: "render-negotiation-failed",
             target: requested,
+            path: failures.find(({ path }) => path)?.path || null,
         });
     }
 }

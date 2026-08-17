@@ -53,3 +53,9 @@ lowered := .svg.Render(exactScene, {= precision=3, rounding="nearest" });
 The guarantee is `outward-exact-enclosure`. Float-originated coordinates may
 still round messily, but are marked non-certified and never presented as an
 exact enclosure.
+
+SVG also validates the complete nested Graphics tree. Unsupported nodes, Path
+commands, and style properties fail with a stable path such as
+`graphic[2].group[1]`; they are never silently omitted. Generic `.Render` can
+use an explicitly requested fallback target, which retains the SVG failure in
+its diagnostics.

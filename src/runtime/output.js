@@ -7,6 +7,7 @@ import { isBinding } from "./binding.js";
 import { FORMULA_SHEET_ASSIGNMENT_MODES, isFormulaSheet } from "./formula-sheet.js";
 import { coordinateTuple, resolveLabeledCoordinate } from "./sheet-labels.js";
 import { isReactiveNode } from "./reactive-graph.js";
+import { UnsupportedRenderError } from "./renderer-registry.js";
 
 const int = (value) => new Integer(BigInt(value));
 const isSequence = (value) => value && ["sequence", "tuple", "set", "array"].includes(value.type);
@@ -1914,6 +1915,25 @@ function svgPolicy(options = {}) {
     return { precision, rounding, entries: [], collisions: new Map(), gain: 1 };
 }
 
+const SVG_SHAPE_STYLE_KEYS = new Set(["stroke", "fill", "width", "strokewidth", "dash", "opacity"]);
+const SVG_PATH_STYLE_KEYS = new Set([...SVG_SHAPE_STYLE_KEYS, "closed"]);
+const SVG_TEXT_STYLE_KEYS = new Set([...SVG_SHAPE_STYLE_KEYS, "anchor", "size", "fontsize", "font", "weight"]);
+
+function unsupportedSvg(message, path, code = "svg-unsupported-scene-feature") {
+    throw new UnsupportedRenderError(`${path}: ${message}`, { code, target: "svg", path });
+}
+
+function validateSvgStyle(style, allowed, path) {
+    if (style === null || style === undefined) return;
+    if (!(style instanceof Map)) unsupportedSvg("style must be a Graphics style map", `${path}.style`, "svg-invalid-style");
+    for (const key of style.keys()) {
+        const canonical = String(key).toLowerCase();
+        if (!allowed.has(canonical)) {
+            unsupportedSvg(`SVG does not support Graphics style property '${key}'`, `${path}.style.${key}`, "svg-unsupported-style");
+        }
+    }
+}
+
 function finiteSvgDecimal(text, label) {
     if (!Number.isFinite(Number(text))) {
         throw new Error(`${label} is outside the finite SVG coordinate range`);
@@ -2060,7 +2080,7 @@ function svgFlag(value, label) {
     return numericValue(value, label) === 0 ? "0" : "1";
 }
 
-function svgPathData(path, policy) {
+function svgPathData(path, policy, scenePath) {
     if (!path.commands) {
         if (path.points.length === 0) return "";
         const points = path.points.map((point, index) => svgPoint(point, index, policy));
@@ -2098,7 +2118,8 @@ function svgPathData(path, policy) {
             return `A${rx} ${ry} ${rotation} ${large} ${sweep} ${x} ${y}`;
         }
         if (op === "close" || op === "z") return "Z";
-        throw new Error(`Unsupported Path command '${op || "(missing op)"}'`);
+        const commandPath = `${scenePath}.commands[${index + 1}]`;
+        unsupportedSvg(`SVG does not support Path command '${op || "(missing op)"}'`, commandPath, "svg-unsupported-path-command");
     }).join(" ");
 }
 
@@ -2162,23 +2183,27 @@ function renderSvgText(node, format, policy) {
     return `<text x="${x}" y="${y}" ${attrs.filter(Boolean).join(" ")}>${escapeHtml(cellText(node.text, format))}</text>`;
 }
 
-function renderSvgNode(node, format, defs, policy) {
-    if (!isOutputValue(node)) return "";
+function renderSvgNode(node, format, defs, policy, path) {
+    if (!isOutputValue(node)) unsupportedSvg("expected a Graphics output node", path, "svg-invalid-scene-node");
     if (node.kind === "path") {
-        const d = svgPathData(node, policy);
+        validateSvgStyle(node.style, SVG_PATH_STYLE_KEYS, path);
+        const d = svgPathData(node, policy, path);
         if (!d) return "";
         return `<path d="${d}" ${svgStyle(node.style, "none", policy)}/>`;
     }
     if (node.kind === "rectangle") {
+        validateSvgStyle(node.style, SVG_SHAPE_STYLE_KEYS, path);
         const [x, y] = svgPair(node.origin, "Rectangle origin", policy);
         const [width, height] = svgPair(node.size, "Rectangle size", policy, ["width", "height"]);
         return `<rect x="${x}" y="${y}" width="${width}" height="${height}" ${svgStyle(node.style, "none", policy)}/>`;
     }
     if (node.kind === "circle") {
+        validateSvgStyle(node.style, SVG_SHAPE_STYLE_KEYS, path);
         const [cx, cy] = svgPair(node.center, "Circle center", policy);
         return `<circle cx="${cx}" cy="${cy}" r="${svgNumber(node.radius, "Circle radius", policy, "radius")}" ${svgStyle(node.style, "none", policy)}/>`;
     }
     if (node.kind === "drag_point") {
+        validateSvgStyle(node.style, SVG_SHAPE_STYLE_KEYS, path);
         const [cx, cy] = svgPair(node.center, "DragPoint center", policy);
         const replaced = node.replacesDependencies?.length
             ? ` data-rix-replaces-dependencies="${escapeHtml(node.replacesDependencies.join(","))}"`
@@ -2186,32 +2211,41 @@ function renderSvgNode(node, format, defs, policy) {
         return `<circle class="rix-output-drag-point" cx="${cx}" cy="${cy}" r="${svgNumber(node.radius, "DragPoint radius", policy, "radius")}" ${svgStyle(node.style, "#7c3aed", policy)} tabindex="0" role="button" aria-label="${escapeHtml(node.label)}" data-rix-drag-target="${escapeHtml(node.targetId)}" data-rix-position="${cx},${cy}"${replaced}/>`;
     }
     if (node.kind === "graphic_action") {
+        validateSvgStyle(node.style, SVG_SHAPE_STYLE_KEYS, path);
         const replaced = node.replacesDependencies?.length
             ? ` data-rix-replaces-dependencies="${escapeHtml(node.replacesDependencies.join(","))}"`
             : "";
         const style = svgStyle(node.style, null, policy);
-        return `<g class="rix-output-graphic-action"${style ? ` ${style}` : ""} tabindex="0" role="button" aria-label="${escapeHtml(node.label)}" data-rix-graphic-action="${escapeHtml(node.id)}" data-rix-graphic-target="${escapeHtml(node.targetId)}"${replaced}>${node.children.map((child) => renderSvgNode(child, format, defs, policy)).join("")}</g>`;
+        return `<g class="rix-output-graphic-action"${style ? ` ${style}` : ""} tabindex="0" role="button" aria-label="${escapeHtml(node.label)}" data-rix-graphic-action="${escapeHtml(node.id)}" data-rix-graphic-target="${escapeHtml(node.targetId)}"${replaced}>${node.children.map((child, index) => renderSvgNode(child, format, defs, policy, `${path}.graphic_action[${index + 1}]`)).join("")}</g>`;
     }
-    if (node.kind === "text_mark") return renderSvgText(node, format, policy);
-    if (node.kind === "group") return `<g ${svgStyle(node.style, null, policy)}>${node.children.map((child) => renderSvgNode(child, format, defs, policy)).join("")}</g>`;
+    if (node.kind === "text_mark") {
+        validateSvgStyle(node.style, SVG_TEXT_STYLE_KEYS, path);
+        return renderSvgText(node, format, policy);
+    }
+    if (node.kind === "group") {
+        validateSvgStyle(node.style, SVG_SHAPE_STYLE_KEYS, path);
+        return `<g ${svgStyle(node.style, null, policy)}>${node.children.map((child, index) => renderSvgNode(child, format, defs, policy, `${path}.group[${index + 1}]`)).join("")}</g>`;
+    }
     if (node.kind === "transform") {
+        validateSvgStyle(node.style, SVG_SHAPE_STYLE_KEYS, path);
         const transform = svgTransform(node, policy);
         const parentGain = policy.gain;
         policy.gain = transform.childGain;
         const style = svgStyle(node.style, null, policy);
-        const children = node.children.map((child) => renderSvgNode(child, format, defs, policy)).join("");
+        const children = node.children.map((child, index) => renderSvgNode(child, format, defs, policy, `${path}.transform[${index + 1}]`)).join("");
         policy.gain = parentGain;
         return `<g${transform.text ? ` transform="${transform.text}"` : ""}${style ? ` ${style}` : ""}>${children}</g>`;
     }
     if (node.kind === "clip") {
+        validateSvgStyle(node.style, SVG_SHAPE_STYLE_KEYS, path);
         const clipRoles = ["x", "y", "width", "height"];
         const [x, y, width, height] = node.bounds.map((value, index) => svgNumber(value, `Clip bounds ${index + 1}`, policy, clipRoles[index]));
         const id = `rix-clip-${defs.length + 1}`;
         defs.push(`<clipPath id="${id}"><rect x="${x}" y="${y}" width="${width}" height="${height}"/></clipPath>`);
         const style = svgStyle(node.style, null, policy);
-        return `<g clip-path="url(#${id})"${style ? ` ${style}` : ""}>${node.children.map((child) => renderSvgNode(child, format, defs, policy)).join("")}</g>`;
+        return `<g clip-path="url(#${id})"${style ? ` ${style}` : ""}>${node.children.map((child, index) => renderSvgNode(child, format, defs, policy, `${path}.clip[${index + 1}]`)).join("")}</g>`;
     }
-    return "";
+    unsupportedSvg(`SVG does not support Graphics node '${node.kind}'`, path, "svg-unsupported-node");
 }
 
 export function lowerGraphicSvg(graphic, format = (item) => String(item ?? ""), options = {}) {
@@ -2219,7 +2253,7 @@ export function lowerGraphicSvg(graphic, format = (item) => String(item ?? ""), 
     const policy = svgPolicy(options);
     const size = graphic.size.map((value, index) => svgNumber(value, `Graphic size ${index + 1}`, policy, index === 0 ? "width" : "height"));
     const defs = [];
-    const children = graphic.children.map((child) => renderSvgNode(child, format, defs, policy)).join("");
+    const children = graphic.children.map((child, index) => renderSvgNode(child, format, defs, policy, `graphic[${index + 1}]`)).join("");
     const collisions = [...policy.collisions.entries()]
         .filter(([, exactValues]) => exactValues.size > 1)
         .map(([key, exactValues]) => ({ lowered: key.slice(key.indexOf(":") + 1), role: key.slice(0, key.indexOf(":")), exact: [...exactValues] }));

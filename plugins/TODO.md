@@ -979,7 +979,7 @@ The RiX/host extraction sequence is specified in
    - [x] Add conformance fixtures for huge numerators, sub-pixel and extremely
      narrow intervals, reversed interval presentation, overlapping labels, and
      coordinates that collide only after decimal lowering.
-   - [ ] Report unsupported scene features.
+   - [x] Report unsupported scene features.
 3. **Phase 3 — Optimization and interactivity**
    - [ ] Add deterministic optimization, metadata/hit targets, animation
      lowering, and incremental scene updates.
