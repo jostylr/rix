@@ -33,6 +33,7 @@ import { install as installDocumentPlugin } from "./document/document.plugin.rix
 import { install as installTerminalAsciiPlugin } from "./render-terminal-ascii/terminal-ascii.plugin.rix.js";
 import { install as installSvgPlugin } from "./render-svg/svg.plugin.rix.js";
 import { install as installCanvasPlugin } from "./render-canvas/canvas.plugin.rix.js";
+import { install as installWebglPlugin } from "./render-webgl/webgl.plugin.rix.js";
 import { install as installTikzPlugin } from "./render-tikz/tikz.plugin.rix.js";
 import { install as installMarkdownPlugin } from "./render-markdown/markdown.plugin.rix.js";
 import { install as installHtmlPlugin } from "./render-html/html.plugin.rix.js";
@@ -167,6 +168,16 @@ const BUNDLED_PLUGINS = [
             snapshot: true, deterministic: true, defaultEnabled: false,
         },
         install: installTerminalAsciiPlugin,
+    },
+    {
+        metadata: {
+            id: "webgl", description: "Executable WebGL drawing plans for retained Scene3D values.",
+            kind: "host", mount: "webgl", exports: ["Render"], groups: ["Renderers", "Scene3D"], permissions: [],
+            requires: ["rix.scene3d@1"], provides: ["rix.renderer.webgl@1", "rix.webgl-plan@1"],
+            schemas: ["rix.webgl-plan@1"], targets: ["webgl", "application/vnd.rix.webgl+json"],
+            snapshot: true, deterministic: true, defaultEnabled: false,
+        },
+        install: installWebglPlugin,
     },
     ...[
         ["svg", "Portable SVG renderer for core Graphics scenes.", "svg", ["Render"], [], installSvgPlugin, "image/svg+xml", true],

@@ -18,6 +18,28 @@ export function unwrapFigure(value) {
         : { value, figure: null };
 }
 
+export function unwrapGraphic(value) {
+    const { value: unwrapped, figure } = unwrapFigure(value);
+    if (outputKind(unwrapped) !== "scene3d_snapshot") {
+        return { value: unwrapped, figure, snapshot: null };
+    }
+    const graphic = field(unwrapped, "value");
+    requireOutput(graphic, ["graphic"], "Scene3D snapshot");
+    return { value: graphic, figure, snapshot: unwrapped };
+}
+
+export function plainValue(value) {
+    if (value === null || value === undefined) return null;
+    if (value instanceof Integer || value instanceof Rational) return String(value);
+    if (value?.type === "string") return value.value;
+    if (Array.isArray(value)) return value.map(plainValue);
+    if (Array.isArray(value?.values)) return value.values.map(plainValue);
+    const entries = mapEntries(value);
+    if (entries) return Object.fromEntries([...entries].map(([key, entry]) => [String(key), plainValue(entry)]));
+    if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return value;
+    return null;
+}
+
 export function requireOutput(value, kinds, target) {
     const kind = outputKind(value);
     if (!kinds.includes(kind)) {
@@ -65,7 +87,21 @@ export function option(options, name, fallback = null) {
 export function numberValue(value, label) {
     let result;
     if (value instanceof Integer) result = Number(value.value);
-    else if (value instanceof Rational) result = Number(value.numerator) / Number(value.denominator);
+    else if (value instanceof Rational) {
+        const numerator = value.numerator;
+        if (numerator === 0n) result = 0;
+        else {
+            const sign = numerator < 0n ? -1 : 1;
+            const absolute = numerator < 0n ? -numerator : numerator;
+            const numeratorBits = absolute.toString(2).length;
+            const denominatorBits = value.denominator.toString(2).length;
+            const numeratorShift = Math.max(0, numeratorBits - 53);
+            const denominatorShift = Math.max(0, denominatorBits - 53);
+            result = sign
+                * (Number(absolute >> BigInt(numeratorShift)) / Number(value.denominator >> BigInt(denominatorShift)))
+                * (2 ** (numeratorShift - denominatorShift));
+        }
+    }
     else if (typeof value === "number") result = value;
     else if (typeof value === "bigint") result = Number(value);
     else throw new Error(`${label} must be numeric`);

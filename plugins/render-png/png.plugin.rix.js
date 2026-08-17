@@ -1,6 +1,6 @@
 /**
 id: png
-description: PNG snapshot renderer for core Graphics through a host rasterizer.
+description: PNG renderer for Graphics and projected Scene3D snapshots through a host rasterizer.
 kind: host
 mount: png
 exports: [Render]
@@ -15,7 +15,7 @@ defaultEnabled: false
 
 import { renderGraphicSvg } from "../../src/runtime/output.js";
 import { UnsupportedRenderError } from "../../src/runtime/renderer-registry.js";
-import { installRendererPlugin, numberValue, option, requireOutput, rixString, unwrapFigure } from "../renderers/common.js";
+import { field, installRendererPlugin, numberValue, option, plainValue, requireOutput, rixString, unwrapGraphic } from "../renderers/common.js";
 
 export function createDefinition(rasterizeSvg = null) {
     return {
@@ -23,7 +23,7 @@ export function createDefinition(rasterizeSvg = null) {
         mime: "image/png",
         extension: "png",
         aliases: ["image/png"],
-        inputKinds: ["graphic", "figure"],
+        inputKinds: ["graphic", "figure", "scene3d_snapshot"],
         deterministic: true,
         description: "PNG snapshot renderer for core Graphics through a host rasterizer",
         render({ value, options, format }) {
@@ -33,7 +33,7 @@ export function createDefinition(rasterizeSvg = null) {
                     target: "png",
                 });
             }
-            const { value: graphic } = unwrapFigure(value);
+            const { value: graphic, snapshot } = unwrapGraphic(value);
             requireOutput(graphic, ["graphic"], "png");
             const scale = option(options, "scale", 1);
             const width = option(options, "width");
@@ -47,7 +47,16 @@ export function createDefinition(rasterizeSvg = null) {
                 content: rendered.content,
                 toolchain: rendered.toolchain,
                 diagnostics: rendered.diagnostics || [],
-                metadata: { width: rendered.width, height: rendered.height },
+                metadata: {
+                    width: rendered.width,
+                    height: rendered.height,
+                    ...(snapshot ? {
+                        scene3d: {
+                            schema: "rix.scene3d.snapshot@1",
+                            source: plainValue(field(snapshot, "source")),
+                        },
+                    } : {}),
+                },
             };
         },
     };

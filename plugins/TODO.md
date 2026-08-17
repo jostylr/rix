@@ -910,7 +910,7 @@ The RiX/host extraction sequence is specified in
      stable leaf picking IDs, and rational Cayley orbit-camera descriptions.
    - [x] Add adaptive parametric surfaces and richer annotation/interaction
      policies over the retained contracts.
-   - [ ] Provide Canvas/WebGL and raster snapshot lowering.
+   - [x] Provide Canvas/WebGL and raster snapshot lowering.
 3. **Phase 3 — Volumes and certified surfaces**
    - [ ] Add implicit surfaces, volume data, adaptive meshes, slicing planes,
      uncertainty masks, and level-of-detail policies.

@@ -37,7 +37,7 @@ triangle clipping, certified hidden-surface removal, implicit surfaces/volumes,
 texture, and pointer event handling are not silently approximated; they remain
 future modes or host behavior.
 
-Phase 2 has begun with exact bounded parametric-curve sampling, reusable axes,
+Phase 2 includes exact bounded parametric-curve sampling, reusable axes,
 projected text annotations, rational Cayley orbit-camera descriptions, and
 stable leaf picking IDs. Add `id="object.name"` to a mesh, polyline, point
 cloud, curve, or annotation. `Realize(scene)["picking"]` maps IDs to retained
@@ -63,8 +63,15 @@ snapshots do not claim collision or occlusion resolution.
 `OrbitCamera` stores the reusable `rix.scene3d.orbit@1` description on the
 camera. `turn` is the Cayley parameter, so rational values produce an exact
 camera position; `.Complex[:infinity]` denotes the half-turn. Parametric
-surface meshes are now retained and snapshot through the same pipeline. Direct
-Canvas/WebGL and raster snapshot lowering remains later Phase 2 work.
+surface meshes are retained and snapshot through the same pipeline.
+
+`Snapshot` is a versioned `rix.scene3d.snapshot@1` value. Pass it directly to
+`.canvas.Render(snapshot)` for a `rix.canvas-plan@1` with picking provenance or
+to `.png.Render(snapshot)` in a raster-capable host. For retained interactive
+display, `.webgl.Render(scene)` creates an executable `rix.webgl-plan@1` with
+draw calls, camera/light descriptors, stable picking and interaction data, and
+accessible host annotation overlays. Exact coordinates remain retained until
+the WebGL executor's explicit Float32 boundary.
 
 See the [3D/ND guide](../../documentation/eval/scene3d-guide.md), the
 [browser tutorial](tutorial.md), and the runnable

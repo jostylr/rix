@@ -52,6 +52,7 @@ import { install as installDocumentPlugin } from "../plugins/document/document.p
 import { install as installTerminalAsciiPlugin } from "../plugins/render-terminal-ascii/terminal-ascii.plugin.rix.js";
 import { install as installSvgPlugin } from "../plugins/render-svg/svg.plugin.rix.js";
 import { install as installCanvasPlugin } from "../plugins/render-canvas/canvas.plugin.rix.js";
+import { install as installWebglPlugin } from "../plugins/render-webgl/webgl.plugin.rix.js";
 import { install as installTikzPlugin } from "../plugins/render-tikz/tikz.plugin.rix.js";
 import { install as installMarkdownPlugin } from "../plugins/render-markdown/markdown.plugin.rix.js";
 import { install as installHtmlPlugin } from "../plugins/render-html/html.plugin.rix.js";
@@ -80,7 +81,7 @@ const FIRST_PARTY_PLUGINS_DIR = path.resolve(TOOL_DIR, "../plugins");
 const EXAMPLE_PLUGINS_DIR = path.resolve(EXAMPLES_DIR, "plugins");
 const WEB_PAGE_ENTRY = path.resolve(TOOL_DIR, "web-page.js");
 const WEB_PAGE_STYLE = path.resolve(TOOL_DIR, "web-page.css");
-const RENDERER_PLUGIN_IDS = ["svg", "canvas", "terminal-ascii", "tikz", "markdown", "html", "quarto", "latex", "png", "pdf", "gif", "gltf", "csv"];
+const RENDERER_PLUGIN_IDS = ["svg", "canvas", "webgl", "terminal-ascii", "tikz", "markdown", "html", "quarto", "latex", "png", "pdf", "gif", "gltf", "csv"];
 const STANDARD_PLUGIN_IDS = new Set(["exact-algebras", "algebra", "draw", "plot", "scene3d", "nd", "geometry", "data", "document", "float", ...RENDERER_PLUGIN_IDS]);
 
 function pathIsWithin(root, candidate) {
@@ -640,6 +641,7 @@ function registerBuiltPluginInstallers(pluginCatalog) {
     pluginCatalog.registerInstaller("terminal-ascii", installTerminalAsciiPlugin);
     pluginCatalog.registerInstaller("svg", installSvgPlugin);
     pluginCatalog.registerInstaller("canvas", installCanvasPlugin);
+    pluginCatalog.registerInstaller("webgl", installWebglPlugin);
     pluginCatalog.registerInstaller("tikz", installTikzPlugin);
     pluginCatalog.registerInstaller("markdown", installMarkdownPlugin);
     pluginCatalog.registerInstaller("html", installHtmlPlugin);

@@ -10,6 +10,7 @@ import {
 import { createDefinition as createPngDefinition } from "../../plugins/render-png/png.plugin.rix.js";
 import { definition as quartoDefinition } from "../../plugins/render-quarto/quarto.plugin.rix.js";
 import { definition as svgDefinition } from "../../plugins/render-svg/svg.plugin.rix.js";
+import { createWebGLPlan, paintWebGLPlan } from "../../plugins/render-webgl/webgl-plan.js";
 
 function runtime() {
     return {
@@ -127,6 +128,92 @@ describe("renderer registry", () => {
         expect([...result.content]).toEqual([137, 80, 78, 71]);
         expect(result.toolchain).toBe("test-rasterizer");
         expect(result.metadata).toMatchObject({ width: 320, height: 200 });
+    });
+
+    test("Scene3D snapshots lower directly to Canvas and PNG raster contracts", () => {
+        const options = runtime();
+        const values = parseAndEvaluate(`
+            .Plugin.Load("scene3d"); .Plugin.Load("canvas");
+            scene := .scene3d.Scene([
+                .scene3d.Polyline([[0,0,0],[1,0,0]], {= id="axis" }),
+                .scene3d.Annotation([1,0,0], "x", {= id="label" })
+            ]);
+            snapshot := .scene3d.Snapshot(scene, {= size=[200,120] });
+            [snapshot, .canvas.Render(snapshot)];
+        `, options).values;
+        const canvas = JSON.parse(values[1].entries.get("content").value);
+        expect(canvas.schema).toBe("rix.canvas-plan@1");
+        expect(canvas.scene3d).toMatchObject({ schema: "rix.scene3d.snapshot@1" });
+        expect(canvas.scene3d.picking.axis.indices).toHaveLength(1);
+        expect(values[1].entries.get("diagnostics").values
+            .map((entry) => entry.entries.get("code").value)).toContain("scene3d-canvas-snapshot");
+
+        const registry = new RendererRegistry();
+        registry.register(createPngDefinition((_svg, { width, height }) => ({
+            content: new Uint8Array([137, 80, 78, 71]), toolchain: "fixture", width, height,
+        })));
+        const png = registry.render(values[0], "png", {}, { format: String });
+        expect([...png.content]).toEqual([137, 80, 78, 71]);
+        expect(png.metadata).toMatchObject({
+            width: 200,
+            height: 120,
+            scene3d: { schema: "rix.scene3d.snapshot@1", source: { schema: "rix.scene3d@1" } },
+        });
+    });
+
+    test("WebGL lowers retained Scene3D data and executes its GPU plan", () => {
+        const scene = parseAndEvaluate(`
+            .Plugin.Load("scene3d");
+            interaction := .scene3d.Interaction({= events=["hover","select"], tooltip="surface" });
+            .scene3d.Scene([
+                .scene3d.Mesh([[0,0,0],[1/3,0,0],[0,1,0]], [[1,2,3]], {=
+                    color="#2563eb", id="surface", interaction=interaction
+                }),
+                .scene3d.Polyline([[0,0,0],[0,0,1]], {= width=3 }),
+                .scene3d.PointCloud([[0,0,0]], {= radius=5 }),
+                .scene3d.Annotation([0,1,0], "y", {= id="label" })
+            ], {=
+                camera=.scene3d.OrbitCamera([0,0,0], {= radius=4, height=2, turn=1/3 }),
+                lights=[.scene3d.AmbientLight("#ffffff", 1/2)]
+            });
+        `, runtime());
+        const plan = createWebGLPlan(scene, new Map([["width", 320], ["height", 240]]));
+        expect(plan).toMatchObject({
+            schema: "rix.webgl-plan@1",
+            sourceSchema: "rix.scene3d@1",
+            viewport: { width: 320, height: 240 },
+            mode: "solid",
+        });
+        expect(plan.drawCalls.map(({ mode }) => mode)).toEqual(["triangles", "lines", "points"]);
+        expect(plan.camera.orbit.schema).toBe("rix.scene3d.orbit@1");
+        expect(plan.lights).toHaveLength(1);
+        expect(plan.picking.surface.interaction.events).toEqual(["hover", "select"]);
+        expect(plan.annotations).toHaveLength(1);
+        expect(plan.diagnostics.map(({ code }) => code)).toContain("webgl-float32-approximation");
+
+        const calls = [];
+        let resource = 0;
+        const gl = {
+            VERTEX_SHADER: 1, FRAGMENT_SHADER: 2, COMPILE_STATUS: 3, LINK_STATUS: 4,
+            ARRAY_BUFFER: 5, STATIC_DRAW: 6, FLOAT: 7, TRIANGLES: 8, LINES: 9, POINTS: 10,
+            DEPTH_TEST: 11, BLEND: 12, SRC_ALPHA: 13, ONE_MINUS_SRC_ALPHA: 14,
+            COLOR_BUFFER_BIT: 16, DEPTH_BUFFER_BIT: 32,
+            createShader: () => ({ id: resource += 1 }), shaderSource: () => {}, compileShader: () => {},
+            getShaderParameter: () => true, getShaderInfoLog: () => "",
+            createProgram: () => ({ id: resource += 1 }), attachShader: () => {}, linkProgram: () => {},
+            getProgramParameter: () => true, getProgramInfoLog: () => "", useProgram: () => {},
+            getAttribLocation: () => 0, getUniformLocation: (_program, name) => name,
+            viewport: (...args) => calls.push(["viewport", ...args]), enable: () => {}, blendFunc: () => {},
+            clearColor: () => {}, clear: () => {}, uniformMatrix4fv: () => {},
+            createBuffer: () => ({ id: resource += 1 }), bindBuffer: () => {}, bufferData: () => {},
+            enableVertexAttribArray: () => {}, vertexAttribPointer: () => {}, uniform4fv: () => {}, uniform1f: () => {},
+            lineWidth: () => {}, drawArrays: (...args) => calls.push(["drawArrays", ...args]), deleteBuffer: () => {},
+        };
+        const painted = paintWebGLPlan(gl, plan);
+        expect(painted.context).toBe(gl);
+        expect(painted.picking.surface.kind).toBe("drawCall");
+        expect(painted.annotations[0].screen).toHaveLength(2);
+        expect(calls.filter(([name]) => name === "drawArrays").map(([, mode]) => mode)).toEqual([8, 9, 10]);
     });
 
     test("Quarto can return stable external SVG or PNG assets", () => {

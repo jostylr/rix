@@ -66,9 +66,10 @@ fixtures live beside it.
 | --- | --- | --- | --- |
 | `.terminalAscii` | Tables, Grids, Fragments, simple `Graphic` values | Strict seven-bit plain text | None |
 | `.svg` | `Graphic`, graphic `Figure` | Standalone accessible SVG | None |
-| `.canvas` | `Graphic`, graphic `Figure` | Versioned JSON `CanvasRenderingContext2D` plan | None; painting needs a browser Canvas |
+| `.canvas` | `Graphic`, graphic `Figure`, versioned `Scene3D` Snapshot | Versioned JSON `CanvasRenderingContext2D` plan | None; painting needs a browser Canvas |
+| `.webgl` | Retained `Scene3D` | Versioned JSON GPU plan with picking and annotation overlays | None; painting needs browser WebGL |
 | `.tikz` | `Graphic`, graphic `Figure` | TikZ/PGF source | None; TeX is only needed to compile it |
-| `.png` | `Graphic`, graphic `Figure` | PNG bytes at explicit size/scale | CLI uses `rsvg-convert`, then ImageMagick as fallback |
+| `.png` | `Graphic`, graphic `Figure`, versioned `Scene3D` Snapshot | PNG bytes at explicit size/scale | CLI uses `rsvg-convert`, then ImageMagick as fallback |
 | `.markdown` | Portable document/output trees | CommonMark-oriented `.md` with inline SVG | None |
 | `.html` | Any portable output value | Standalone semantic HTML with inline SVG | None |
 | `.quarto` | Portable documents and slides | `.qmd` with front matter | None; Quarto is only needed for a final build |
@@ -81,6 +82,11 @@ fixtures live beside it.
 Canvas is an execution target, not another scene model. Its plan traverses the
 same `.Graphics` tree as SVG and TikZ and can be repainted with
 `paintCanvasPlan(context, plan)` from `render-canvas/canvas-plan.js`.
+
+WebGL follows the same host boundary without flattening the retained scene to
+Graphics. `.webgl.Render(scene)` emits `rix.webgl-plan@1`; the browser executes
+it with `paintWebGLPlan(gl, plan)`. The plan retains camera/light descriptors,
+picking identities, interaction payloads, and annotation-overlay policies.
 
 PNG, PDF, and GIF separate portable lowering from host execution. Browser hosts can
 load their contracts but receive `png-rasterizer-unavailable` or
@@ -99,7 +105,7 @@ For 2D, `.Graphics` is the portable retained scene. SVG, Canvas, TikZ, and PNG
 all consume it. PDF consumes it either as a standalone TikZ figure or inside a
 document.
 
-For 3D, RiX has the initial retained `rix.scene3d@1` schema described in
+For 3D, RiX has the retained `rix.scene3d@1` schema described in
 [`../design-spec.md`](../design-spec.md). Renderer plugins do not encode
 meshes, cameras, materials, lights, or uncertainty as ad-hoc `.Graphics`
 metadata. The first glTF JSON target is implemented; the broader target family
@@ -107,6 +113,7 @@ is:
 
 | 3D target | Role |
 | --- | --- |
+| WebGL | Implemented executable plan for retained camera views, mesh/line/point draw calls, picking, and annotation overlays. |
 | glTF | Implemented JSON interchange for realized mesh/line/point geometry and basic material color/opacity. |
 | GLB | Planned binary scene interchange including broader hierarchy, cameras, textures, and animation. |
 | OBJ + MTL | Simple editable mesh interchange with explicit loss diagnostics. |
@@ -115,10 +122,11 @@ is:
 | USD / USDZ | Rich scene/AR exchange when a suitable host toolchain is available. |
 
 Static 3D publication does not wait for every interchange target. The
-implemented `Scene3D` wireframe snapshot owns camera projection and returns a
-`.Graphics` scene for SVG/TikZ/PDF or raster lowering. Hidden-surface decisions
-remain a later snapshot mode. The 2D renderer never performs those 3D
-decisions.
+implemented `Scene3D` snapshot owns camera projection and returns a versioned
+`rix.scene3d.snapshot@1` around `.Graphics` for Canvas/SVG/TikZ/PDF or PNG
+lowering. The retained scene can instead lower directly to WebGL. Hidden-surface
+decisions beyond the flat-lit snapshot remain later modes; 2D renderers never
+perform those 3D decisions.
 
 ## Design rules
 

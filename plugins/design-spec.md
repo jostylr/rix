@@ -42,9 +42,9 @@ numeric type or one universal rendering engine.
 | Plugin catalog | Implemented runtime service | Discovery, metadata, explicit loading, host approval for JavaScript, capability groups, and remounting. |
 | Core symbolic specs | Implemented in RiX core | `{#}` preserves expression IR, definitions, constraints, all symbols, and advisory input/output roles without choosing a solver. |
 | Renderer registry | Implemented runtime service | `.Renderer.List`/`.Info`, generic `.Render`, MIME/extension aliases, explicit fallback negotiation, structured results/assets/diagnostics, and `.Out` target selection. |
-| `.svg`, `.canvas`, `.tikz`, `.png` | Implemented plugins | Core Graphics to SVG, Canvas 2D plans, TikZ, and host-rasterized PNG. PNG uses an approved CLI toolchain adapter. |
+| `.svg`, `.canvas`, `.webgl`, `.tikz`, `.png` | Implemented plugins | Core Graphics and versioned Scene3D snapshots to SVG, Canvas 2D plans, TikZ, and host-rasterized PNG; retained Scene3D to executable WebGL plans. PNG uses an approved CLI toolchain adapter. |
 | `.markdown`, `.html`, `.quarto`, `.latex`, `.pdf` | Implemented plugins | Portable document/output trees to standalone text/document formats. PDF delegates through LaTeX and an approved CLI compiler adapter. |
-| `.scene3d` | Phase 2 in progress | Retained exact mesh/polyline/point scenes, bounded parametric curves, axes, annotations, picking IDs, transforms, cameras/lights, orbit descriptions, and deterministic wireframe/flat-lit snapshots to core Graphics. |
+| `.scene3d` | Implemented through Phase 2 | Retained exact mesh/polyline/point scenes, bounded curves and adaptive parametric surfaces, annotation/interaction policies, picking IDs, transforms, cameras/lights, orbit descriptions, deterministic wireframe/flat-lit snapshots, and Canvas/WebGL/PNG lowering. |
 | `.nd` | Implemented initial plugin | Exact points, polylines, polytopes/hypercubes, affine projection records, rational Cayley rotations, composition, and explicit conversion of 3D results to Scene3D. |
 | `.geometry` | Implemented pure-RiX through Phase 2 | Exact constructions, segments/rays/polygons, affine/projective transforms, conics, constraints, polynomial/Numerics intersections, and bounded implicit/locus refinement to core Graphics. |
 | `.gltf` | Implemented initial renderer | Retained Scene3D to embedded-buffer glTF 2.0 JSON with explicit Z-up to Y-up and Float32 conversion diagnostics. |
@@ -480,9 +480,9 @@ always provide SVG/PNG snapshot lowering.
 WebGL state as the value. The `rix.scene3d@1` mesh/polyline/point, bounded
 parametric-curve and adaptive parametric-surface, axes/annotation, portable
 interaction policy, stable picking-ID, transform, camera/light, rational
-orbit-description, wireframe/flat-lit Snapshot, and glTF JSON slices are
-implemented; direct WebGL/raster lowering and the broader implicit-surface and
-volume list below remain design targets.
+orbit-description, wireframe/flat-lit Snapshot, Canvas/PNG snapshot lowering,
+executable WebGL plans, and glTF JSON slices are implemented. The broader
+implicit-surface and volume list below remains a design target.
 
 Migration of this retained model is staged: pure RiX owns schema construction,
 exact hierarchy transforms, realization, and portable projection records;
@@ -692,7 +692,8 @@ not silently discarded.
 | --- | --- | --- |
 | `.svg` | `Graphic`, standalone `Figure`; projected `Scene3D` | SVG text/bytes, clipping, paths, exact-to-decimal coordinate policy, metadata, accessibility. |
 | `.canvas` | `Graphic`, including a `Scene3D` Snapshot result; rapidly changing plot frames | Browser `CanvasRenderingContext2D` drawing plan and host-owned surface. Optimized for repainting, large sample counts, hit-test metadata, and interactive views; provides PNG snapshots because a canvas is not itself a portable serialized result. |
-| `.png` | `Graphic`, rendered document region, `Scene3D`, slide frame | Raster image; delegates scene construction to SVG/Scene3D and owns resolution, antialiasing, color profile, and transparency. |
+| `.webgl` | Retained `Scene3D` | Versioned executable GPU plan with camera, light, draw-call, picking, interaction, and annotation-overlay descriptors. The host owns WebGL state. |
+| `.png` | `Graphic`, rendered document region, `Scene3D` Snapshot, slide frame | Raster image; delegates scene construction to SVG/Scene3D and owns resolution, antialiasing, color profile, and transparency. |
 | `.terminalAscii` | Scalars, tables, grids, fragments, graphics, slides | Strict ASCII output with widths, pagination, line styles, plot approximation, and no Unicode dependency. A future terminal-Unicode renderer may offer richer glyphs. |
 | `.tikz` | `Graphic`, geometry diagrams, plot snapshots | TikZ/PGF source, coordinates, paths, labels, styles, and optional PGFPlots lowering. Reports unsupported raster/3D effects. |
 | `.markdown` | `Fragment`, document blocks, tables, figures, slides | CommonMark-oriented Markdown, native semantic constructs where possible, inline/delegated graphics, and visible static fallbacks. |
@@ -714,7 +715,8 @@ which exact implementation is installed.
 Document -> Quarto -> QMD + SVG/PNG assets
 Document -> LaTeX -> TEX + TikZ/PDF/PNG assets -> PDF
 Geometry -> AdaptiveRenderResult.Graphic -> SVG / TikZ / terminal ASCII
-Scene3D -> camera snapshot -> Graphic or raster -> SVG / PNG / PDF
+Scene3D -> retained realization -> WebGL plan
+Scene3D -> versioned camera snapshot -> Graphic -> Canvas / SVG / PNG / PDF
 Slides -> timeline -> frame renderer -> PNG frames -> GIF
 Table / Relation -> scalar formatting policy -> CSV / TSV
 ```
@@ -827,6 +829,7 @@ rix/plugins/
   render-quarto/
   render-pdf/
   render-gif/              # host PNG/GIF orchestration
+  render-webgl/            # retained Scene3D GPU plans and browser executor
   export-csv/
 ```
 

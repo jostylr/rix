@@ -20,7 +20,7 @@ describe("Scene3D and n-dimensional geometry plugins", () => {
                 camera=.scene3d.OrthographicCamera([3,3,2], [0,0,0])
             });
             snapshot := .scene3d.Snapshot(scene, {= size=[320,240] });
-            [mesh, snapshot["value"], snapshot["work"]["segments"], snapshot["source"]["mode"]];
+            [mesh, snapshot["value"], snapshot["work"]["segments"], snapshot["source"]["mode"], snapshot["type"], snapshot["schema"]];
         `);
         const vertices = sequence(field(result.values[0], "vertices"));
         expect(sequence(vertices[1])[0]).toBeInstanceOf(Rational);
@@ -30,6 +30,8 @@ describe("Scene3D and n-dimensional geometry plugins", () => {
         expect(result.values[1].children).toHaveLength(3);
         expect(result.values[2].value).toBe(3n);
         expect(result.values[3].value).toBe("wireframe");
+        expect(result.values[4].value).toBe("scene3d_snapshot");
+        expect(result.values[5].value).toBe("rix.scene3d.snapshot@1");
     });
 
     test("retains lights and produces a deterministic lit mesh snapshot", () => {

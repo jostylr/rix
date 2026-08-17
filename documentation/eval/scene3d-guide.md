@@ -131,9 +131,36 @@ Lights remain retained scene nodes and affect only an explicitly requested lit
 snapshot. A wireframe snapshot reports that it ignored present lights instead
 of silently changing its line rendering.
 
-The result is an adaptive-result map with `value`, `resolved`, `uncertainty`,
-`work`, `source`, and `diagnostics`. `value` is a normal Graphic and therefore
-works unchanged with SVG, Canvas, TikZ, and PNG.
+The result has `type="scene3d_snapshot"`, schema
+`rix.scene3d.snapshot@1`, and the adaptive-result fields `value`, `resolved`,
+`uncertainty`, `work`, `source`, and `diagnostics`. `value` is a normal Graphic.
+Canvas and PNG also accept the whole snapshot directly so its source and
+picking provenance survive target lowering.
+
+```rix
+.Plugin.Load("canvas");
+canvasPlan := .canvas.Render(snapshot);
+
+.Plugin.Load("png");
+pngBytes := .png.Render(snapshot); # requires a host rasterizer
+```
+
+## WebGL display
+
+The browser-safe `webgl` renderer consumes the retained Scene3D value rather
+than the projected Graphic. It emits deterministic `rix.webgl-plan@1` JSON
+containing camera and light descriptors, triangle/line/point draw calls,
+picking IDs, interaction policies, and annotation overlays.
+
+```rix
+.Plugin.Load("webgl");
+plan := .webgl.Render(scene, {= width=640, height=480 });
+```
+
+A JavaScript host executes the parsed plan with `paintWebGLPlan(gl, plan)`.
+The return value includes screen coordinates for accessible DOM or Canvas text
+overlays. Exact Scene3D coordinates cross to Float32 only during GPU execution,
+and the plan reports that approximation as a diagnostic.
 
 ## Exact n-dimensional projections
 

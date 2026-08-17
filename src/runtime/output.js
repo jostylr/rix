@@ -245,7 +245,16 @@ function controlBehavior(entry, fields, name, runtime, allowed = Object.keys(fie
 
 function numericValue(value, label) {
     if (value instanceof Integer) return Number(value.value);
-    if (value instanceof Rational) return Number(value.numerator) / Number(value.denominator);
+    if (value instanceof Rational) {
+        if (value.numerator === 0n) return 0;
+        const sign = value.numerator < 0n ? -1 : 1;
+        const numerator = value.numerator < 0n ? -value.numerator : value.numerator;
+        const numeratorShift = Math.max(0, numerator.toString(2).length - 53);
+        const denominatorShift = Math.max(0, value.denominator.toString(2).length - 53);
+        return sign
+            * (Number(numerator >> BigInt(numeratorShift)) / Number(value.denominator >> BigInt(denominatorShift)))
+            * (2 ** (numeratorShift - denominatorShift));
+    }
     if (typeof value === "number" && Number.isFinite(value)) return value;
     throw new Error(`${label} must be a finite number`);
 }
