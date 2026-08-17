@@ -53,7 +53,7 @@ numeric type or one universal rendering engine.
 | `.document` | Implemented Phase 1 plugin | Numbered core Fragment reports with deterministic section/figure/table labels, resolved forward references, captions, and small semantic themes. |
 | `.terminalAscii` | Implemented Phase 1 renderer | Strict-ASCII Tables, Grids, Fragments, and simple Graphic snapshots with deterministic width truncation and diagnostics. |
 | `.poly` | Implemented pure-RiX plugin | Canonical callable univariate Polynomial identity, reactive exact coefficients, arithmetic/composition, division, derivatives, Sturm chains, root counts, and root bounds. |
-| `.algebra` | Implemented pure-RiX Phase 1 façade | Polynomial construction/presentation over `.poly`, verified division/factor metadata, RationalFunction integration, and synthetic-division Grids. |
+| `.algebra` | Implemented pure-RiX Phase 1 plus exact Phase 2 algorithms | Polynomial construction/presentation over `.poly`, verified division/factor metadata, monic gcd/lcm, square-free and rational-factor evidence, exact resultants, RationalFunction integration, and synthetic-division Grids. |
 | `.algebraicReal` | Implemented pure-RiX Phase 1 plugin | Root isolation, exact comparison, and bounded refinement over the canonical `.poly` Polynomial service. |
 | `.fraction` | Implemented pure-RiX plugin | Unreduced Fraction arithmetic, classroom denominator policies, mediants, and Farey/Stern–Brocot operations over the core Fraction pair. |
 | `.ratfun` | Implemented pure-RiX plugin | Canonical callable univariate RationalFunctions over `.poly`, including field operators, composition, and reactive reconstruction. |

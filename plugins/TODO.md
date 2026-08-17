@@ -381,8 +381,8 @@ newline normalization.
      builder for cloning/combining expression trees, preserving evaluation
      closures, and recording source-domain restrictions. Do not expose private
      evaluator IR directly as the plugin ABI merely to remove this host edge.
-   - [ ] Expose public polynomial gcd/lcm (the exact Euclidean gcd currently
-     used internally for RationalFunction cancellation is not yet an API),
+   - [x] Expose public polynomial gcd/lcm (and route RationalFunction
+     cancellation through that shared API),
      square-free decomposition, rational roots, factor evidence, and
      resultants.
    - [ ] Add explicit centered-expansion and factorization presentation values;

@@ -41,3 +41,27 @@ remainder := division.Remainder().Coefficients();
 isFactor := P.IsFactor(Factor);
 division.Grid();
 ```
+
+## Inspect exact factor evidence
+
+The evidence distinguishes discovered rational factors from the residual and
+verifies exact reconstruction rather than relying on approximate roots.
+
+```rix
+.Plugin.Load("algebra");
+P := .p`(x-1)^2*(x+2)^3`;
+evidence := .algebra.FactorEvidence(P);
+.Table(
+    ["property", "exact value"],
+    [
+        ["rational roots", evidence[:rationalRoots]],
+        ["factor records", evidence[:factors]],
+        ["residual", evidence[:residual].Coefficients()],
+        ["verified", evidence[:verified]]
+    ]
+);
+```
+
+Use `.algebra.SquareFreeDecomposition(P)` when multiplicity groups matter,
+`.algebra.Gcd(P, Q)` or `.algebra.Lcm(P, Q)` for canonical combinations, and
+`.algebra.Resultant(P, Q)` for an exact shared-factor test.

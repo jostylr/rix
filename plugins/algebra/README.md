@@ -32,6 +32,15 @@ division.Quotient().Coefficients();
 - `Quotient`, `Remainder`, and `Grid` inspect a division result.
 - `IsFactor(polynomial, candidate)` is true exactly when the verified remainder
   is zero.
+- `Gcd(left, right)` and `Lcm(left, right)` return monic exact polynomials over
+  the rational coefficient field.
+- `SquareFreeDecomposition(polynomial)` returns verified factors with their
+  multiplicities and the polynomial's leading unit.
+- `RationalRoots(polynomial)` returns the distinct exact rational roots.
+- `FactorEvidence(polynomial)` returns versioned linear-factor,
+  multiplicity, residual, completeness, and reconstruction evidence.
+- `Resultant(left, right)` returns the exact Sylvester resultant; zero
+  certifies that the polynomials share a factor.
 - Polynomial receiver methods such as `P.Divide(F)` and
   `P.SyntheticDiv(root)` come from `.poly`; `.algebra.Divide(P, F)` and
   `.algebra.SyntheticDivide(P, root)` add presentation wrappers with
@@ -46,8 +55,10 @@ their `factor` metadata distinguishes an exact factor from a nonzero remainder.
 Polynomial records use `rix.polynomial@1` and compare their current canonical
 coefficient arrays. `.algebra` requires `.ratfun`, so `/` promotes two
 Polynomials to a canonical `rix.rational-function@1` value while `//`, `%`, and
-`/%` retain quotient/remainder meaning. Public factor search, gcd, and root
-isolation remain later algebra work; RationalFunction cancellation currently
-uses a private exact Euclidean gcd.
+`/%` retain quotient/remainder meaning. Phase 2 gcd/lcm, square-free,
+rational-root, factor-evidence, and resultant operations are public through
+both `.poly` receiver methods and this façade. RationalFunction cancellation
+uses that same public exact gcd. General exact root isolation remains the
+separate `.algebraicReal` service.
 
 See [tutorial.md](tutorial.md).

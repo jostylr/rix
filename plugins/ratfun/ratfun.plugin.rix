@@ -26,12 +26,7 @@ RatfunZero(polynomial) -> polynomial.Degree() == -1;
 RatfunOne(variable) -> .poly([1], variable);
 
 RatfunGcd(left, right) -> {;
-    state := [left, right];
-    {@ step = 1; @state[2].Degree() >= 0; {;
-        remainder = @state[1] % @state[2];
-        @state ~= [@state[2], remainder];
-    }; step += 1 };
-    state[1];
+    .poly.Gcd(left, right);
 };
 
 RatfunCanonical(numeratorValue, denominatorValue, variable ?= :x) -> {;

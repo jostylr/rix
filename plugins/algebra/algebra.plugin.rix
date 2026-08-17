@@ -3,12 +3,12 @@ id: algebra
 description: Polynomial algebra façade backed by the canonical pure-RiX poly service.
 kind: rix
 mount: algebra
-exports: [Polynomial, Coefficients, Record, Evaluate, Equal, Divide, SyntheticDivide, Quotient, Remainder, IsFactor, Grid]
+exports: [Polynomial, Coefficients, Record, Evaluate, Equal, Divide, SyntheticDivide, Quotient, Remainder, IsFactor, Gcd, Lcm, SquareFreeDecomposition, RationalRoots, FactorEvidence, Resultant, Grid]
 groups: [Algebra, Exact]
 permissions: []
 requires: [rix.polynomial.algorithms@1, rix.rational-function@1]
 provides: [rix.algebra.division@1]
-schemas: [rix.algebra.division@1, rix.polynomial.division@1]
+schemas: [rix.algebra.division@1, rix.polynomial.division@1, rix.polynomial.square-free@1, rix.polynomial.factor-evidence@1]
 snapshot: false
 deterministic: true
 defaultEnabled: false
@@ -71,6 +71,12 @@ algebraNamespace._proto = {=
     Quotient = (self, division) -> division.Quotient(),
     Remainder = (self, division) -> division.Remainder(),
     IsFactor = (self, dividend, candidate) -> dividend.IsFactor(candidate) ?: 1 ?_ 0,
+    Gcd = (self, left, right) -> .poly.Gcd(left, right),
+    Lcm = (self, left, right) -> .poly.Lcm(left, right),
+    SquareFreeDecomposition = (self, polynomial) -> .poly.SquareFreeDecomposition(polynomial),
+    RationalRoots = (self, polynomial) -> .poly.RationalRoots(polynomial),
+    FactorEvidence = (self, polynomial) -> .poly.FactorEvidence(polynomial),
+    Resultant = (self, left, right) -> .poly.Resultant(left, right),
     Grid = (self, division) -> AlgebraGrid(division)
 };
 

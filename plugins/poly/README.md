@@ -4,8 +4,9 @@ Provides semantic, callable univariate polynomials. The plugin is mounted as
 `.poly` with `.polynomial` and `.p` aliases. All three names refer to the same
 callable plugin object; portable source uses `.poly` as the canonical spelling.
 The active implementation is [`poly.plugin.rix`](poly.plugin.rix): coefficient
-normalization, arithmetic, division, derivatives, Sturm sequences, root counts,
-root bounds, and primitive-integer normalization are all written in RiX.
+normalization, arithmetic, division, derivatives, gcd/lcm, square-free and
+rational-factor evidence, exact resultants, Sturm sequences, root counts, root
+bounds, and primitive-integer normalization are all written in RiX.
 [`poly.reference.js`](poly.reference.js) retains the former JavaScript plugin as
 a comparison, while [`polynomial.js`](polynomial.js) is only an interoperability
 adapter for host plugins that have not yet been ported.
@@ -60,3 +61,30 @@ polynomial algorithms and rational-function service; and `.algebraicReal`
 requires `rix.polynomial.algorithms@1`. Loading any of those higher-level
 plugins therefore loads this one first. Repeated `.Plugin.Load("poly")` calls
 are harmless.
+
+## Exact Phase 2 algorithms
+
+`P.Gcd(Q)` and `P.Lcm(Q)` compute the monic result over exact rational
+coefficients. The gcd of two zero polynomials is zero; an lcm involving zero is
+zero. `.ratfun` uses this same public gcd when it canonically cancels a
+RationalFunction.
+
+`P.SquareFreeDecomposition()` returns a
+`rix.polynomial.square-free@1` record containing the leading unit and monic
+factors paired with their positive multiplicities. Its `verified` field is set
+only after exact reconstruction equals the input polynomial.
+
+`P.RationalRoots()` applies the rational-root theorem after clearing rational
+denominators and making the resulting integer coefficients primitive.
+`P.FactorEvidence()` returns a `rix.polynomial.factor-evidence@1` record with
+distinct rational roots, exact linear factors and multiplicities, the residual
+polynomial, and exact reconstruction verification. `complete` means that the
+residual is constant; it does not claim that a nonconstant residual is
+irreducible over the rationals.
+
+`P.Resultant(Q)` constructs the Sylvester matrix and evaluates its exact
+fraction-free Bareiss determinant. A zero result therefore certifies a shared
+factor over the coefficient field without floating-point approximation. The
+zero polynomial is rejected for rational-root, factor-evidence, square-free,
+and resultant requests because those outputs would not have a finite canonical
+interpretation.

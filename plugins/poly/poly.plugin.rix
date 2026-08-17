@@ -4,11 +4,11 @@ description: Semantic callable univariate polynomials with structural and symbol
 kind: rix
 mount: poly
 aliases: [polynomial, p]
-exports: [Polynomial, Parse, Var, Fun, Divide, SyntheticDivide, SturmSequence, RootCount]
+exports: [Polynomial, Parse, Var, Fun, Divide, SyntheticDivide, Gcd, Lcm, SquareFreeDecomposition, RationalRoots, FactorEvidence, Resultant, SturmSequence, RootCount]
 groups: [Algebra, Exact, Symbolic]
 permissions: []
 provides: [rix.polynomial@1, rix.polynomial.algorithms@1]
-schemas: [rix.polynomial@1, rix.polynomial.division@1]
+schemas: [rix.polynomial@1, rix.polynomial.division@1, rix.polynomial.square-free@1, rix.polynomial.factor-evidence@1]
 snapshot: false
 deterministic: true
 defaultEnabled: false
@@ -207,6 +207,12 @@ PolyBuild(coefficientFunction, variable, degreeBound, source, provenance, reacti
         SyntheticDiv = (self, root) -> PolySyntheticDivide(self, root),
         SyntheticDivide = (self, root) -> PolySyntheticDivide(self, root),
         IsFactor = (self, candidate) -> PolyDivide(self, candidate)[:divisorIsFactor],
+        Gcd = (self, other) -> PolyGcd(self, other),
+        Lcm = (self, other) -> PolyLcm(self, other),
+        SquareFreeDecomposition = (self) -> PolySquareFreeDecomposition(self),
+        RationalRoots = (self) -> PolyRationalRoots(self),
+        FactorEvidence = (self) -> PolyFactorEvidence(self),
+        Resultant = (self, other) -> PolyResultant(self, other),
         SturmSequence = (self) -> PolySturmSequence(self),
         RootCount = (self, interval) -> PolyRootCount(self, interval),
         IsSquareFree = (self) -> PolyIsSquareFree(self),
@@ -518,6 +524,246 @@ PolyPrimitiveInteger(polynomial) -> {;
       };
 };
 
+PolyMonic(polynomial) -> {;
+    value = PolyRequire(polynomial);
+    value.Degree() == -1
+      ?: PolyFromAscending([0], value.variable, 0, _, [:monicZero])
+      ?_ PolyScale(value, PolyCurrentAscending(value).Last());
+};
+
+PolyGcd(leftValue, rightValue) -> {;
+    left = PolyRequire(leftValue, "Polynomial gcd left operand");
+    right = PolyRequire(rightValue, "Polynomial gcd right operand");
+    PolySameVariable(left, right);
+    state := [left, right];
+    {@ step = 1; @state[2].Degree() >= 0; {;
+        remainder = PolyDivide(@state[1], @state[2])[:remainder];
+        @state ~= [@state[2], remainder];
+    }; step += 1 };
+    PolyMonic(state[1]);
+};
+
+PolyLcm(leftValue, rightValue) -> {;
+    left = PolyRequire(leftValue, "Polynomial lcm left operand");
+    right = PolyRequire(rightValue, "Polynomial lcm right operand");
+    PolySameVariable(left, right);
+    ((left.Degree() == -1) || (right.Degree() == -1))
+      ?: PolyFromAscending([0], left.variable, 0, _, [:lcmZero])
+      ?_ PolyMonic((left // PolyGcd(left, right)) * right);
+};
+
+PolyIntegerLcm(left, right) -> {;
+    a = (left ~!: :Integer).Abs();
+    b = (right ~!: :Integer).Abs();
+    a == 0 || b == 0 ?: 0 ?_ (a // PolyIntegerGcd(a, b)) * b;
+};
+
+PolyIntegerDivisors(value) -> {;
+    number = (value ~!: :Integer).Abs();
+    number > 0 ?: _ ?_ .Error("Polynomial divisor enumeration requires a nonzero Integer");
+    lower := [];
+    upper := [];
+    {@ candidate = 1; candidate * candidate <= @number; {;
+        @number % candidate == 0
+          ?: {;
+              @lower ~= @lower.Push(@candidate);
+              pair = @number // @candidate;
+              pair == @candidate ?: _ ?_ {; @upper ~= @upper.Push(@pair); };
+          }
+          ?_ _;
+    }; candidate += 1 };
+    lower.Concat(upper.Reverse());
+};
+
+PolyPrimitiveScaledIntegers(polynomial) -> {;
+    coefficients = PolyCurrentAscending(PolyRequire(polynomial));
+    denominatorLcm := 1;
+    {@ index = 1; index <= @coefficients.Len(); {;
+        @denominatorLcm ~= PolyIntegerLcm(@denominatorLcm, @coefficients[index].Denominator());
+    }; index += 1 };
+    integers = coefficients.Map((coefficient) -> coefficient.Numerator() * (@denominatorLcm // coefficient.Denominator()));
+    content := 0;
+    {@ index = 1; index <= @integers.Len(); {; @content ~= PolyIntegerGcd(@content, @integers[index]); }; index += 1 };
+    content == 0 ?: integers ?_ integers.Map((coefficient) -> coefficient // content);
+};
+
+PolyRationalRoots(polynomial) -> {;
+    value = PolyRequire(polynomial);
+    degree = value.Degree();
+    degree == -1 ?: .Error("Zero polynomial has infinitely many roots") ?_ _;
+    degree == 0
+      ?: []
+      ?_ {;
+          integers = PolyPrimitiveScaledIntegers(@value);
+          firstNonzero := 1;
+          zeroRoot := 0;
+          {@ index = 1; index <= @integers.Len() && PolyIsZero(@integers[@firstNonzero]); {;
+              @zeroRoot ~= 1;
+              @firstNonzero += 1;
+          }; index += 1 };
+          constant = integers[firstNonzero].Abs();
+          leading = integers.Last().Abs();
+          numerators = PolyIntegerDivisors(constant);
+          denominators = PolyIntegerDivisors(leading);
+          candidates := zeroRoot == 1 ?: [0] ?_ [];
+          {@ numeratorIndex = 1; numeratorIndex <= @numerators.Len(); {;
+              {@ denominatorIndex = 1; denominatorIndex <= @denominators.Len(); {;
+                  candidate = @numerators[@numeratorIndex] / @denominators[denominatorIndex];
+                  @candidates ~= @candidates.Push(candidate).Push(-candidate);
+              }; denominatorIndex += 1 };
+          }; numeratorIndex += 1 };
+          candidates.Distinct().Sort().Filter((candidate) -> PolyIsZero(@value.Evaluate(candidate)));
+      };
+};
+
+PolyFactorEvidence(polynomial) -> {;
+    value = PolyRequire(polynomial);
+    value.Degree() == -1 ?: .Error("Zero polynomial has infinitely many factorizations") ?_ _;
+    roots = PolyRationalRoots(value);
+    residualState := [value];
+    factors := [];
+    {@ rootIndex = 1; rootIndex <= @roots.Len(); {;
+        root = @roots[rootIndex];
+        factor = PolyFromAscending([-root, 1], @value.variable, 1, _, [:rationalRoot]);
+        multiplicity := 0;
+        dividing := 1;
+        {@ step = 1; @dividing == 1 && @residualState[1].Degree() >= 1; {;
+            division = PolyDivide(@residualState[1], @factor);
+            division[:divisorIsFactor]
+              ?: {; @residualState ~= @residualState.Set(1, @division[:quotient]); @multiplicity += 1; }
+              ?_ {; @dividing ~= 0; };
+        }; step += 1 };
+        multiplicity > 0
+          ?: {; @factors ~= @factors.Push(.ImmutableValue({= root=@root, factor=@factor, multiplicity=@multiplicity })); }
+          ?_ _;
+    }; rootIndex += 1 };
+    reconstructionState := [residualState[1]];
+    {@ factorIndex = 1; factorIndex <= @factors.Len(); {;
+        @reconstructionState ~= @reconstructionState.Set(1, @reconstructionState[1] * (@factors[factorIndex][:factor] ^ @factors[factorIndex][:multiplicity]));
+    }; factorIndex += 1 };
+    evidence = {=
+        valueKind=:polynomialFactorEvidence,
+        schema="rix.polynomial.factor-evidence@1",
+        polynomial=value,
+        rationalRoots=roots,
+        factors=factors,
+        residual=residualState[1],
+        complete=residualState[1].Degree() <= 0 ?: 1 ?_ 0,
+        verified=reconstructionState[1] == value ?: 1 ?_ 0
+    };
+    evidence._proto = {=
+        Roots=(self)->self[:rationalRoots],
+        Factors=(self)->self[:factors],
+        Residual=(self)->self[:residual],
+        Record=(self)->self
+    };
+    .ImmutableValue(evidence);
+};
+
+PolySquareFreeDecomposition(polynomial) -> {;
+    value = PolyRequire(polynomial);
+    value.Degree() == -1 ?: .Error("Zero polynomial has no finite square-free decomposition") ?_ _;
+    coefficients = PolyCurrentAscending(value);
+    unit = coefficients.Last();
+    monic = PolyMonic(value);
+    factors := [];
+    monic.Degree() > 0
+      ?: {;
+          common = PolyGcd(@monic, @monic.Derivative());
+          squareState := [common, @monic // common];
+          multiplicity := 1;
+          {@ step = 1; @squareState[2].Degree() > 0; {;
+              shared = PolyGcd(@squareState[2], @squareState[1]);
+              factor = @squareState[2] // shared;
+              factor.Degree() > 0
+                ?: {; @factors ~= @factors.Push(.ImmutableValue({= factor=@factor, multiplicity=@multiplicity })); }
+                ?_ _;
+              @squareState ~= [@squareState[1] // shared, shared];
+              @multiplicity += 1;
+          }; step += 1 };
+      }
+      ?_ _;
+    reconstructionState := [PolyFromAscending([unit], value.variable, 0, _, [:squareFreeUnit])];
+    {@ factorIndex = 1; factorIndex <= @factors.Len(); {;
+        @reconstructionState ~= @reconstructionState.Set(1, @reconstructionState[1] * (@factors[factorIndex][:factor] ^ @factors[factorIndex][:multiplicity]));
+    }; factorIndex += 1 };
+    result = {=
+        valueKind=:polynomialSquareFreeDecomposition,
+        schema="rix.polynomial.square-free@1",
+        polynomial=value,
+        unit=unit,
+        factors=factors,
+        verified=reconstructionState[1] == value ?: 1 ?_ 0
+    };
+    result._proto = {= Factors=(self)->self[:factors], Record=(self)->self };
+    .ImmutableValue(result);
+};
+
+PolyShiftedRow(coefficients, shift, size) -> {;
+    row := PolyZeroArray(size);
+    {@ index = 1; index <= @coefficients.Len(); {;
+        @row ~= @row.Set(index + @shift, @coefficients[index]);
+    }; index += 1 };
+    row;
+};
+
+PolyBareissDeterminant(rows) -> {;
+    size = rows.Len();
+    size == 0
+      ?: 1
+      ?_ {;
+          matrix := @rows.Map((row) -> row.Map((entry) -> entry));
+          sign := 1;
+          previous := 1;
+          singular := 0;
+          {@ column = 1; column < @size && @singular == 0; {;
+              pivotRow := column;
+              {@ search = @column; @pivotRow <= @size && PolyIsZero(@matrix[@pivotRow][@column]); {;
+                  @pivotRow += 1;
+              }; search += 1 };
+              pivotRow > @size
+                ?: {; @singular ~= 1; }
+                ?_ {;
+                    @pivotRow != @column
+                      ?: {;
+                          pivotValues = @matrix[@column];
+                          @matrix ~= @matrix.Set(@column, @matrix[@pivotRow]).Set(@pivotRow, pivotValues);
+                          @sign ~= -@sign;
+                      }
+                      ?_ _;
+                    pivot = @matrix[@column][@column];
+                    {@ row = @column + 1; row <= @size; {;
+                        updated := @matrix[row];
+                        {@ target = @column + 1; target <= @size; {;
+                            next = (@pivot * @matrix[@row][target] - @matrix[@row][@column] * @matrix[@column][target]) / @previous;
+                            @updated ~= @updated.Set(target, next);
+                        }; target += 1 };
+                        updated ~= updated.Set(@column, 0);
+                        @matrix ~= @matrix.Set(row, updated);
+                    }; row += 1 };
+                    @previous ~= pivot;
+                };
+          }; column += 1 };
+          singular == 1 ?: 0 ?_ sign * matrix[@size][@size];
+      };
+};
+
+PolyResultant(leftValue, rightValue) -> {;
+    left = PolyRequire(leftValue, "Polynomial resultant left operand");
+    right = PolyRequire(rightValue, "Polynomial resultant right operand");
+    PolySameVariable(left, right);
+    ((left.Degree() == -1) || (right.Degree() == -1)) ?: .Error("Resultant is undefined for the zero polynomial") ?_ _;
+    leftCoefficients = left.Coefficients(:descending);
+    rightCoefficients = right.Coefficients(:descending);
+    leftDegree = left.Degree();
+    rightDegree = right.Degree();
+    size = leftDegree + rightDegree;
+    rows := [];
+    {@ row = 0; row < @rightDegree; {; @rows ~= @rows.Push(PolyShiftedRow(@leftCoefficients, row, @size)); }; row += 1 };
+    {@ row = 0; row < @leftDegree; {; @rows ~= @rows.Push(PolyShiftedRow(@rightCoefficients, row, @size)); }; row += 1 };
+    PolyBareissDeterminant(rows);
+};
+
 PolyDerivative(polynomial) -> {;
     value = PolyRequire(polynomial);
     provider = (unused) -> PolyDerivativeAscending(PolyCurrentAscending(value));
@@ -581,6 +827,12 @@ polyNamespace._proto = {=
     Polynomial = (self, source, second ?= _) -> PolyConstruct(source, second),
     Divide = (self, dividend, divisor) -> PolyDivide(dividend, divisor),
     SyntheticDivide = (self, polynomial, root) -> PolySyntheticDivide(polynomial, root),
+    Gcd = (self, left, right) -> PolyGcd(left, right),
+    Lcm = (self, left, right) -> PolyLcm(left, right),
+    SquareFreeDecomposition = (self, polynomial) -> PolySquareFreeDecomposition(polynomial),
+    RationalRoots = (self, polynomial) -> PolyRationalRoots(polynomial),
+    FactorEvidence = (self, polynomial) -> PolyFactorEvidence(polynomial),
+    Resultant = (self, left, right) -> PolyResultant(left, right),
     Derivative = (self, polynomial) -> PolyDerivative(polynomial),
     SturmSequence = (self, polynomial) -> PolySturmSequence(polynomial),
     RootCount = (self, polynomial, interval) -> PolyRootCount(polynomial, interval),

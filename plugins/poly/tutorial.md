@@ -80,3 +80,22 @@ fraction := P/F;               ## canonical RationalFunction from .ratfun
 Only reactive definitions recompute. `Q := $P*$P + 1` takes the current value
 of `$P`; `$$Q := $P*$P + 1` records a dependency and rebuilds when `$P`
 changes. The same rule applies to every other RiX value.
+
+## Verify exact factors and multiplicities
+
+Phase 2 algorithms return canonical polynomials or versioned evidence records.
+The checks are performed with exact rational arithmetic.
+
+```rix
+.Plugin.Load("poly");
+P := .p`(x-1)^2*(x+2)^3`;
+support := .p`(x-1)*(x+2)`;
+evidence := P.FactorEvidence();
+{=
+    gcd=P.Gcd(support).Coefficients(),
+    squareFree=P.SquareFreeDecomposition(),
+    roots=evidence.Roots(),
+    verified=evidence[:verified],
+    resultant=P.Resultant(.p`x+3`)
+};
+```

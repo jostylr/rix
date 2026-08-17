@@ -79,4 +79,69 @@ describe("algebra Phase 1 plugin", () => {
             .algebra.Grid(.algebra.Divide(.algebra.Polynomial([1,2]), .algebra.Polynomial([1])));
         `)).toThrow("SyntheticDivide result");
     });
+
+    test("Phase 2 exposes exact gcd, square-free, factor, and resultant evidence", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("algebra");
+            p := .p\`(x-1)^2*(x+2)^3\`;
+            support := .p\`(x-1)*(x+2)\`;
+            squareFree := .algebra.SquareFreeDecomposition(p);
+            factors := .algebra.FactorEvidence(p);
+            rational := .p\`x*(2x-1)*(3x+2)\`;
+            zero := .poly([0]);
+            [
+                .algebra.Gcd(p, support).Coefficients(),
+                .algebra.Lcm(p, support).Coefficients(),
+                squareFree[:schema], squareFree[:verified],
+                squareFree[:factors].Map((entry)->[entry[:factor].Coefficients(), entry[:multiplicity]]),
+                .algebra.RationalRoots(rational),
+                factors[:schema], factors[:verified], factors[:complete],
+                factors[:factors].Map((entry)->[entry[:root],entry[:multiplicity]]),
+                factors[:residual].Coefficients(),
+                .algebra.Resultant(.p\`x^2-2\`, .p\`x-1\`),
+                .algebra.Resultant(.poly([1/2,1/3]), .poly([2/3,-1/5])),
+                .algebra.Resultant(.poly([2]), .p\`x^2+1\`),
+                .algebra.Resultant(p, support),
+                .algebra.Gcd(p, zero).Coefficients(),
+                .algebra.Lcm(p, zero).Coefficients()
+            ];
+        `);
+        const [gcd, lcm, squareSchema, squareVerified, squareFactors, roots,
+            factorSchema, factorVerified, complete, factorRoots, residual,
+            separatedResultant, rationalResultant, constantResultant,
+            sharedResultant, gcdZero, lcmZero] = result.values;
+
+        expect(gcd.values.map(String)).toEqual(["1", "1", "-2"]);
+        expect(lcm.values.map(String)).toEqual(["1", "4", "1", "-10", "-4", "8"]);
+        expect(squareSchema.value).toBe("rix.polynomial.square-free@1");
+        expect(squareVerified.value).toBe(1n);
+        expect(squareFactors.values.map((entry) => ({
+            coefficients: entry.values[0].values.map(String),
+            multiplicity: String(entry.values[1]),
+        }))).toEqual([
+            { coefficients: ["1", "-1"], multiplicity: "2" },
+            { coefficients: ["1", "2"], multiplicity: "3" },
+        ]);
+        expect(roots.values.map(String)).toEqual(["-2/3", "0", "1/2"]);
+        expect(factorSchema.value).toBe("rix.polynomial.factor-evidence@1");
+        expect(factorVerified.value).toBe(1n);
+        expect(complete.value).toBe(1n);
+        expect(factorRoots.values.map((entry) => entry.values.map(String))).toEqual([["-2", "3"], ["1", "2"]]);
+        expect(residual.values.map(String)).toEqual(["1"]);
+        expect(String(separatedResultant)).toBe("-1");
+        expect(String(rationalResultant)).toBe("-29/90");
+        expect(String(constantResultant)).toBe("4");
+        expect(String(sharedResultant)).toBe("0");
+        expect(gcdZero.values.map(String)).toEqual(lcm.values.map(String));
+        expect(lcmZero.values.map(String)).toEqual(["0"]);
+
+        expect(() => parseAndEvaluate(`
+            .Plugin.Load("algebra");
+            .algebra.RationalRoots(.poly([0]));
+        `)).toThrow("infinitely many roots");
+        expect(() => parseAndEvaluate(`
+            .Plugin.Load("algebra");
+            .algebra.Resultant(.poly([0]), .poly([1,1]));
+        `)).toThrow("undefined for the zero polynomial");
+    });
 });
