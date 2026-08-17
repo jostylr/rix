@@ -65,3 +65,33 @@ evidence := .algebra.FactorEvidence(P);
 Use `.algebra.SquareFreeDecomposition(P)` when multiplicity groups matter,
 `.algebra.Gcd(P, Q)` or `.algebra.Lcm(P, Q)` for canonical combinations, and
 `.algebra.Resultant(P, Q)` for an exact shared-factor test.
+
+## Keep centered and factored forms explicit
+
+Presentation values preserve a useful form without creating a second notion
+of Polynomial equality. Expanding either value reconstructs from its displayed
+fields and verifies the exact result against the retained canonical source.
+
+```rix
+.Plugin.Load("algebra");
+P := .poly([2, -3, 5, -7]);
+centered := .algebra.CenteredExpansion(P, 2);
+factored := .algebra.Factorization(.p`6*(x-1)^2*(x+2)^3*(x^2+1)`);
+.Table(
+    ["property", "exact value"],
+    [
+        ["powers of (x-2), ascending", centered.Coefficients()],
+        ["centered round trip", centered.Expand().Coefficients()],
+        ["factorization unit", factored.Unit()],
+        ["rational factors", factored.Factors()],
+        ["monic residual", factored.Residual().Coefficients()],
+        ["all factors rational", factored[:complete]],
+        ["factorization round trip", factored.Polynomial().Coefficients()]
+    ]
+);
+```
+
+`Record()` produces a portable form accepted by `.algebra.Expand(record)`.
+Changing a coefficient, root, factor, multiplicity, unit, residual, basis, or
+completeness claim causes conversion to fail rather than silently returning
+the stored source.

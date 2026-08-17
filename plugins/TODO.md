@@ -385,7 +385,7 @@ newline normalization.
      cancellation through that shared API),
      square-free decomposition, rational roots, factor evidence, and
      resultants.
-   - [ ] Add explicit centered-expansion and factorization presentation values;
+   - [x] Add explicit centered-expansion and factorization presentation values;
      keep canonical Polynomial equality on expanded coefficients and verify
      every presentation when converting back.
    - [ ] Add RationalFunction partial fractions, factored/together presentation

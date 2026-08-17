@@ -3,12 +3,12 @@ id: algebra
 description: Polynomial algebra façade backed by the canonical pure-RiX poly service.
 kind: rix
 mount: algebra
-exports: [Polynomial, Coefficients, Record, Evaluate, Equal, Divide, SyntheticDivide, Quotient, Remainder, IsFactor, Gcd, Lcm, SquareFreeDecomposition, RationalRoots, FactorEvidence, Resultant, SignAt, SignEvidence, RootCount, RootCountEvidence, Grid]
+exports: [Polynomial, Coefficients, Record, Evaluate, Equal, Divide, SyntheticDivide, Quotient, Remainder, IsFactor, Gcd, Lcm, SquareFreeDecomposition, RationalRoots, FactorEvidence, CenteredExpansion, Factorization, Expand, Resultant, SignAt, SignEvidence, RootCount, RootCountEvidence, Grid]
 groups: [Algebra, Exact]
 permissions: []
 requires: [rix.polynomial.algorithms@1, rix.rational-function@1]
-provides: [rix.algebra.division@1]
-schemas: [rix.algebra.division@1, rix.polynomial.division@1, rix.polynomial.square-free@1, rix.polynomial.factor-evidence@1, rix.exact.sign-witness@1, rix.exact.root-count@1]
+provides: [rix.algebra.division@1, rix.algebra.centered-expansion@1, rix.algebra.factorization@1]
+schemas: [rix.algebra.division@1, rix.algebra.centered-expansion@1, rix.algebra.factorization@1, rix.polynomial.division@1, rix.polynomial.square-free@1, rix.polynomial.factor-evidence@1, rix.exact.sign-witness@1, rix.exact.root-count@1]
 snapshot: false
 deterministic: true
 defaultEnabled: false
@@ -59,6 +59,209 @@ AlgebraGrid(division) -> {;
       ?_ .Error("algebra.Grid requires a SyntheticDivide result");
 };
 
+AlgebraPresentationPolynomial(source, variable, label) -> {;
+    polynomial = source ? :Polynomial ?: source ?_ .poly(source);
+    polynomial.Variable() == variable
+      ?: polynomial
+      ?_ .Error(@"@{label} variable does not match its canonical Polynomial");
+};
+
+AlgebraRequirePresentation(value, schema, label) -> {;
+    valid = value ? :Map ?: value[:schema] == schema ?_ _;
+    valid == 1 ?: value ?_ .Error(@"Expected a @{label} presentation with schema @{schema}");
+};
+
+AlgebraCenteredRecord(value) -> {=
+    valueKind=:algebraCenteredExpansion,
+    schema="rix.algebra.centered-expansion@1",
+    exact=1,
+    polynomial=value[:polynomial].Record(),
+    variable=value[:variable],
+    center=value[:center],
+    basis=:powersOfXMinusCenter,
+    coefficientOrder=:ascending,
+    coefficients=value[:coefficients],
+    verified=value[:verified],
+    provenance=value[:provenance]
+};
+
+AlgebraExpandCentered(presentation) -> {;
+    value = AlgebraRequirePresentation(presentation, "rix.algebra.centered-expansion@1", "centered-expansion");
+    (value[:exact] == 1 && value[:verified] == 1)
+      ?: _
+      ?_ .Error("Centered-expansion presentation must claim exact verified data");
+    value[:basis] == :powersOfXMinusCenter
+      ?: _
+      ?_ .Error("Centered-expansion presentation has an unsupported basis");
+    value[:coefficientOrder] == :ascending
+      ?: _
+      ?_ .Error("Centered-expansion presentation requires ascending coefficients");
+    variable = value[:variable];
+    center = .poly([value[:center]], variable).Coefficients()[1];
+    coefficients = value[:coefficients];
+    coefficients ? :Array ?: _ ?_ .Error("Centered-expansion coefficients must be an Array");
+    coefficientPolynomial = .poly(coefficients.Reverse(), variable);
+    basisPolynomial = .poly([1, -center], variable);
+    expanded = coefficientPolynomial.Evaluate(basisPolynomial);
+    source = AlgebraPresentationPolynomial(value[:polynomial], variable, "Centered-expansion");
+    (expanded == source) == 1
+      ?: expanded
+      ?_ .Error("Centered-expansion presentation failed exact reconstruction verification");
+};
+
+AlgebraCenteredExpansion(polynomial, center) -> {;
+    source = polynomial ? :Polynomial ?: polynomial ?_ .poly(polynomial);
+    variable = source.Variable();
+    exactCenter = .poly([center], variable).Coefficients()[1];
+    shift = .poly([1, exactCenter], variable);
+    shifted = source.Evaluate(shift);
+    value = {=
+        valueKind=:algebraCenteredExpansion,
+        schema="rix.algebra.centered-expansion@1",
+        exact=1,
+        polynomial=source,
+        variable=variable,
+        center=exactCenter,
+        basis=:powersOfXMinusCenter,
+        coefficientOrder=:ascending,
+        coefficients=shifted.Coefficients(:ascending),
+        verified=1,
+        provenance={=
+            operation=:centeredExpansion,
+            source=source.Record(),
+            center=exactCenter
+        }
+    };
+    AlgebraExpandCentered(value);
+    value.__type = "CenteredExpansion";
+    value._proto = {=
+        Center=(self)->self[:center],
+        Coefficients=(self)->self[:coefficients],
+        Expand=(self)->AlgebraExpandCentered(self),
+        Polynomial=(self)->AlgebraExpandCentered(self),
+        Record=(self)->AlgebraCenteredRecord(self)
+    };
+    .ImmutableValue(value);
+};
+
+AlgebraFactorRecord(entry) -> {=
+    root=entry[:root],
+    factor=entry[:factor].Record(),
+    multiplicity=entry[:multiplicity]
+};
+
+AlgebraFactorizationRecord(value) -> {=
+    valueKind=:algebraFactorization,
+    schema="rix.algebra.factorization@1",
+    exact=1,
+    polynomial=value[:polynomial].Record(),
+    variable=value[:variable],
+    coefficientDomain=:rational,
+    unit=value[:unit],
+    factors=value[:factors].Map((entry)->AlgebraFactorRecord(entry)),
+    residual=value[:residual].Record(),
+    complete=value[:complete],
+    verified=value[:verified],
+    provenance=value[:provenance]
+};
+
+AlgebraExpandFactorization(presentation) -> {;
+    value = AlgebraRequirePresentation(presentation, "rix.algebra.factorization@1", "factorization");
+    (value[:exact] == 1 && value[:verified] == 1)
+      ?: _
+      ?_ .Error("Factorization presentation must claim exact verified data");
+    value[:coefficientDomain] == :rational
+      ?: _
+      ?_ .Error("Factorization presentation requires the exact rational coefficient domain");
+    variable = value[:variable];
+    unit = .poly([value[:unit]], variable).Coefficients()[1];
+    unit.Numerator() == 0 ?: .Error("Factorization presentation unit must be nonzero") ?_ _;
+    residual = AlgebraPresentationPolynomial(value[:residual], variable, "Factorization residual");
+    residual.Degree() == -1
+      ?: .Error("Factorization presentation residual must be nonzero")
+      ?_ _;
+    residual.Coefficients()[1].Numerator() == residual.Coefficients()[1].Denominator()
+      ?: _
+      ?_ .Error("Factorization presentation residual must be monic");
+    factors = value[:factors];
+    factors ? :Array ?: _ ?_ .Error("Factorization presentation factors must be an Array");
+    reconstruction := [.poly([unit], variable) * residual];
+    {@ index = 1; index <= @factors.Len(); {;
+        entry = @factors[index];
+        entry ? :Map ?: _ ?_ .Error("Factorization presentation entries must be Maps");
+        root = .poly([entry[:root]], @variable).Coefficients()[1];
+        multiplicity = entry[:multiplicity];
+        ((multiplicity ? :Integer) && multiplicity > 0)
+          ?: _
+          ?_ .Error("Factorization multiplicities must be positive exact Integers");
+        factor = AlgebraPresentationPolynomial(entry[:factor], @variable, "Factorization factor");
+        canonicalFactor = .poly([1, -root], @variable);
+        (factor == canonicalFactor) == 1
+          ?: _
+          ?_ .Error("Factorization factor does not match its claimed exact root");
+        @reconstruction ~= @reconstruction.Set(1, @reconstruction[1] * (factor ^ multiplicity));
+    }; index += 1 };
+    expectedComplete = residual.Degree() <= 0 ?: 1 ?_ 0;
+    value[:complete] == expectedComplete
+      ?: _
+      ?_ .Error("Factorization completeness claim does not match its residual");
+    source = AlgebraPresentationPolynomial(value[:polynomial], variable, "Factorization");
+    (reconstruction[1] == source) == 1
+      ?: reconstruction[1]
+      ?_ .Error("Factorization presentation failed exact reconstruction verification");
+};
+
+AlgebraFactorization(polynomial) -> {;
+    source = polynomial ? :Polynomial ?: polynomial ?_ .poly(polynomial);
+    evidence = .poly.FactorEvidence(source);
+    residual = evidence[:residual];
+    unit = residual.Coefficients()[1];
+    monicResidual = residual / unit;
+    factors = evidence[:factors].Map((entry)->.ImmutableValue({=
+        root=entry[:root],
+        factor=entry[:factor],
+        multiplicity=entry[:multiplicity]
+    }));
+    value = {=
+        valueKind=:algebraFactorization,
+        schema="rix.algebra.factorization@1",
+        exact=1,
+        polynomial=source,
+        variable=source.Variable(),
+        coefficientDomain=:rational,
+        unit=unit,
+        factors=factors,
+        residual=monicResidual,
+        complete=evidence[:complete],
+        verified=1,
+        provenance={=
+            operation=:rationalRootFactorization,
+            source=source.Record(),
+            evidenceSchema=evidence[:schema]
+        }
+    };
+    AlgebraExpandFactorization(value);
+    value.__type = "Factorization";
+    value._proto = {=
+        Unit=(self)->self[:unit],
+        Factors=(self)->self[:factors],
+        Residual=(self)->self[:residual],
+        Expand=(self)->AlgebraExpandFactorization(self),
+        Polynomial=(self)->AlgebraExpandFactorization(self),
+        Record=(self)->AlgebraFactorizationRecord(self)
+    };
+    .ImmutableValue(value);
+};
+
+AlgebraExpand(presentation) -> {;
+    schema = presentation ? :Map ?: presentation[:schema] ?_ _;
+    schema == "rix.algebra.centered-expansion@1"
+      ?: AlgebraExpandCentered(presentation)
+      ?_ schema == "rix.algebra.factorization@1"
+           ?: AlgebraExpandFactorization(presentation)
+           ?_ .Error("algebra.Expand expects a centered-expansion or factorization presentation");
+};
+
 algebraNamespace = {= };
 algebraNamespace._proto = {=
     Polynomial = (self, source, second ?= _) -> .poly(source, second),
@@ -76,6 +279,9 @@ algebraNamespace._proto = {=
     SquareFreeDecomposition = (self, polynomial) -> .poly.SquareFreeDecomposition(polynomial),
     RationalRoots = (self, polynomial) -> .poly.RationalRoots(polynomial),
     FactorEvidence = (self, polynomial) -> .poly.FactorEvidence(polynomial),
+    CenteredExpansion = (self, polynomial, center) -> AlgebraCenteredExpansion(polynomial, center),
+    Factorization = (self, polynomial) -> AlgebraFactorization(polynomial),
+    Expand = (self, presentation) -> AlgebraExpand(presentation),
     Resultant = (self, left, right) -> .poly.Resultant(left, right),
     SignAt = (self, polynomial, point) -> .poly.SignAt(polynomial, point),
     SignEvidence = (self, polynomial, point) -> .poly.SignEvidence(polynomial, point),

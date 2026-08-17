@@ -147,6 +147,83 @@ describe("algebra Phase 1 plugin", () => {
         `)).toThrow("undefined for the zero polynomial");
     });
 
+    test("Phase 2 centered and factorization presentations verify exact reconstruction", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("algebra");
+            polynomial := .poly([2, -3, 5, -7]);
+            centered := .algebra.CenteredExpansion(polynomial, 2);
+            factoredSource := .p\`6*(x-1)^2*(x+2)*(x^2+1)\`;
+            factorization := .algebra.Factorization(factoredSource);
+            complete := .algebra.Factorization(.p\`6*(x-1)^2\`);
+            constant := .algebra.Factorization(.poly([-5]));
+            [
+                centered[:schema], centered[:center], centered[:basis],
+                centered[:coefficientOrder], centered.Coefficients(), centered[:verified],
+                centered ? :Polynomial,
+                centered.Expand().Coefficients(),
+                .algebra.Equal(.algebra.Expand(centered.Record()), polynomial),
+                factorization[:schema], factorization.Unit(), factorization[:complete],
+                factorization.Residual().Coefficients(),
+                factorization.Factors().Map((entry)->[entry[:root], entry[:multiplicity], entry[:factor].Coefficients()]),
+                factorization[:verified],
+                .algebra.Equal(factorization.Polynomial(), factoredSource),
+                .algebra.Equal(.algebra.Expand(factorization.Record()), factoredSource),
+                factorization[:provenance][:operation],
+                complete[:complete], complete[:residual].Coefficients(),
+                constant[:unit], constant[:residual].Coefficients(), constant.Expand().Coefficients()
+            ];
+        `);
+        const values = result.values;
+        expect(text(values[0])).toBe("rix.algebra.centered-expansion@1");
+        expect(String(values[1])).toBe("2");
+        expect(text(values[2])).toBe("powersOfXMinusCenter");
+        expect(text(values[3])).toBe("ascending");
+        expect(values[4].values.map(String)).toEqual(["7", "17", "9", "2"]);
+        expect(values[5].value).toBe(1n);
+        expect(values[6]).toBeNull();
+        expect(values[7].values.map(String)).toEqual(["2", "-3", "5", "-7"]);
+        expect(values[8].value).toBe(1n);
+
+        expect(text(values[9])).toBe("rix.algebra.factorization@1");
+        expect(String(values[10])).toBe("6");
+        expect(values[11].value).toBe(0n);
+        expect(values[12].values.map(String)).toEqual(["1", "0", "1"]);
+        expect(values[13].values.map((entry) => ({
+            root: String(entry.values[0]),
+            multiplicity: String(entry.values[1]),
+            factor: entry.values[2].values.map(String),
+        }))).toEqual([
+            { root: "-2", multiplicity: "1", factor: ["1", "2"] },
+            { root: "1", multiplicity: "2", factor: ["1", "-1"] },
+        ]);
+        expect(values[14].value).toBe(1n);
+        expect(values[15].value).toBe(1n);
+        expect(values[16].value).toBe(1n);
+        expect(text(values[17])).toBe("rationalRootFactorization");
+        expect(values[18].value).toBe(1n);
+        expect(values[19].values.map(String)).toEqual(["1"]);
+        expect(String(values[20])).toBe("-5");
+        expect(values[21].values.map(String)).toEqual(["1"]);
+        expect(values[22].values.map(String)).toEqual(["-5"]);
+
+        expect(() => parseAndEvaluate(`
+            .Plugin.Load("algebra");
+            centered := .algebra.CenteredExpansion(.poly([2,-3,5,-7]), 2);
+            .algebra.Expand(centered.Record().Set("coefficients", [0]));
+        `)).toThrow("failed exact reconstruction verification");
+        expect(() => parseAndEvaluate(`
+            .Plugin.Load("algebra");
+            factorization := .algebra.Factorization(.p\`(x-1)^2\`);
+            record := factorization.Record();
+            entry := record[:factors][1].Set("multiplicity", 0);
+            .algebra.Expand(record.Set("factors", record[:factors].Set(1, entry)));
+        `)).toThrow("positive exact Integers");
+        expect(() => parseAndEvaluate(`
+            .Plugin.Load("algebra");
+            .algebra.Factorization(.poly([0]));
+        `)).toThrow("infinitely many factorizations");
+    });
+
     test("Phase 2 exposes versioned exact sign and distinct-root-count witnesses", () => {
         const result = parseAndEvaluate(`
             .Plugin.Load("algebra");

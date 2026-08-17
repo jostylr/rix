@@ -39,6 +39,15 @@ division.Quotient().Coefficients();
 - `RationalRoots(polynomial)` returns the distinct exact rational roots.
 - `FactorEvidence(polynomial)` returns versioned linear-factor,
   multiplicity, residual, completeness, and reconstruction evidence.
+- `CenteredExpansion(polynomial, center)` returns the exact coefficients of
+  ascending powers of `(x-center)` as a versioned presentation value.
+- `Factorization(polynomial)` separates a nonzero exact unit, rational linear
+  factors with multiplicities, and a monic residual. `complete` is true only
+  when that residual is constant.
+- `Expand(presentation)`, `presentation.Expand()`, and
+  `presentation.Polynomial()` rebuild the canonical Polynomial from the
+  presentation fields and reject inconsistent records. They never use the
+  retained source Polynomial as a shortcut.
 - `Resultant(left, right)` returns the exact Sylvester resultant; zero
   certifies that the polynomials share a factor.
 - `SignEvidence(polynomial, point)` and `RootCountEvidence(polynomial,
@@ -63,5 +72,13 @@ rational-root, factor-evidence, and resultant operations are public through
 both `.poly` receiver methods and this façade. RationalFunction cancellation
 uses that same public exact gcd. General exact root isolation remains the
 separate `.algebraicReal` service.
+
+Centered and factorization values use schemas
+`rix.algebra.centered-expansion@1` and `rix.algebra.factorization@1`. They are
+explicit presentation values, not alternate Polynomial identities: equality
+remains canonical on expanded Polynomial coefficients and the variable name.
+Their portable `Record()` forms retain provenance and the claimed source, and
+every conversion back validates the basis or factors, reconstructs from the
+presentation data, and checks exact equality with that source.
 
 See [tutorial.md](tutorial.md).
