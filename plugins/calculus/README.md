@@ -123,15 +123,63 @@ It does not turn a Float approximation into an exact function. Concrete calls
 resolve an attached or semantic-ID-registered implementation; Numerics remains
 responsible for refinement and evidence.
 
+## Symbolic/numerical propagation
+
+`.calculus.EvaluateResult(expression, bindings)` walks a composite exact graph.
+Exact operators apply to the concrete values supplied by the bindings, while
+each semantic application resolves its implementation through the registry:
+
+```rix
+.Plugin.Load("calculus");
+.Plugin.Load("numerics");
+x := .calculus.Variable(:x);
+Exp := .calculus.Exp((value)->.numerics.Exp(value));
+Log := .calculus.Log((value)->.numerics.Ln(value));
+derivative := .calculus.DifferentiateResult(Exp(Log(x)),:x);
+evaluation := .calculus.EvaluateResult(derivative,{= x=2 });
+{: .calculus.ToSpec(derivative[:expression]),
+   evaluation[:links], evaluation[:obligations], evaluation[:value] };
+```
+
+The exact differentiator never differentiates the numerical algorithm. It
+uses registered mathematical identities to build a new exact graph; any
+semantic applications surviving in that graph retain their IDs and therefore
+find the same linked implementations. `rix.calculus.evaluation@1` records the
+links actually invoked. Missing implementations are explicit errors.
+
+Evaluating a conditional transformation does not prove its conditions.
+`EvaluateResult` evaluates each obligation's subject and reports status
+`unresolved`; `.Evaluate` refuses to return a bare value while obligations
+remain. The linked provider retains its own evidence class, so a Float result
+does not become certified and a Numerics enclosure does not become an exact
+identity.
+
+## Higher and multivariate derivatives
+
+The same obligation-preserving machinery supports:
+
+- `DifferentiateN` / `DifferentiateNResult` for repeated derivatives;
+- `Partial` / `PartialResult` for explicit partial differentiation;
+- `Gradient` / `GradientResult`;
+- `Jacobian` / `JacobianResult`; and
+- `Hessian` / `HessianResult`.
+
+Convenience forms return expressions only when every component is
+unconditional. Detailed forms return transformation records under
+`rix.calculus.derivative-collection@1`; repeated and mixed differentiation
+accumulates the earlier obligations and evidence instead of restarting from a
+bare derivative expression.
+
 ## Current boundary
 
 The public schemas deliberately contain semantic nodes—variables, exact
 constants, applications, and operators—rather than private evaluator opcodes.
 The bidirectional `{#}` bridge, semantic registry, obligation-bearing
 transformation results, representative real/complex branch-aware rules, and
-initial exact differentiator are implemented. Non-Integer powers, higher and
-multivariate derivatives, definite integration, and equation problems remain
-later phases. `.fracfun` now projects its display/evaluation forms and source
+exact higher/multivariate differentiation are implemented. Registry-driven
+evaluation preserves linked implementation provenance. Non-Integer powers,
+definite integration, and equation problems remain later phases. `.fracfun`
+now projects its display/evaluation forms and source
 denominator restrictions through the same public Calculus expression schema;
 its closure rewriting and paired-form construction remain host-owned. See
 [the plugin roadmap](../TODO.md) and [design.md](design.md).

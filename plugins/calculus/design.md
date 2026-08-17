@@ -101,11 +101,43 @@ conditions without treating them as unconditional rewrites.
 
 ## `rix.calculus.transformation@1`
 
-The transformation record keeps `operation`, `variable`, `source`,
-`expression`, `obligations`, and `evidence` together. The public spec bridge
+The transformation record keeps `operation`, last `variable`, complete
+`variables` path, derivative `order`, `source`, `expression`, `obligations`,
+and `evidence` together. Passing a transformation back to
+`DifferentiateResult` continues from its expression while accumulating its
+earlier obligations and evidence. The public spec bridge
 accepts an expression, not a whole transformation, so a caller must visibly
 select `result[:expression]` and separately decide how to preserve or
 discharge `result[:obligations]`.
+
+## `rix.calculus.evaluation@1`
+
+Registry-driven evaluation recursively interprets a public Calculus graph:
+
+- constants return their exact values;
+- variables use an explicit binding map;
+- arithmetic applies to the resulting concrete values; and
+- semantic applications resolve the implementation slot of their stable ID.
+
+Each invoked implementation contributes a link record containing semantic ID,
+declared domain/branches, and implementation evidence. Thus a composition and
+its exact derivative can reuse linked Numerics providers without serializing
+closures or differentiating their algorithms.
+
+When the input is a transformation, evaluation retains its obligations and
+evaluates each obligation expression at the same bindings. Those subjects are
+reported as `unresolved`: evaluation is not assumption proving. The short
+`.Evaluate` form refuses conditional transformations; `.EvaluateResult` is the
+explicit boundary for callers that will discharge or propagate conditions.
+
+## `rix.calculus.derivative-collection@1`
+
+Gradients, Jacobians, and Hessians return component transformation records plus
+a parallel expression shape, explicit variable ordering, sources, and a
+flattened obligation list. Convenience forms return only the expression array
+when the flattened list is empty. `DifferentiateNResult` and mixed Hessian
+entries reuse transformation continuation, so conditions from every derivative
+stage survive.
 
 General non-Integer powers and broader expression nodes remain blocked until
 their real/complex branch policies are designed. `.fracfun` now exports its

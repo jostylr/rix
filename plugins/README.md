@@ -91,8 +91,9 @@ JavaScript implementations for converted packages are retained as non-discoverab
 expression trees (display form and source-domain evaluation form), clones and
 combines private symbolic IR, rewrites closures, and records denominator
 restrictions. Calculus now provides a versioned portable expression builder,
-bidirectional `{#}` bridge, semantic registry, exact differentiation, and
-obligation-bearing transformation results. FractionFunction exports both forms
+bidirectional `{#}` bridge, semantic registry, higher/multivariate exact
+differentiation, registry-driven linked evaluation, and obligation-bearing
+transformation results. FractionFunction exports both forms
 and its denominator restrictions through that public contract; `.symbolic`
 turns them into shared Calculus expressions and nonzero obligations. The host
 implementation remains until public facilities cover its closure rewriting and

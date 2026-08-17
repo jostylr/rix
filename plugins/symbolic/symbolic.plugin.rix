@@ -3,7 +3,7 @@ id: symbolic
 description: Meta-plugin joining representation-sensitive FractionFunction work with portable abstract Calculus expressions.
 kind: rix
 mount: symbolic
-exports: [Fraction, FractionFunction, CalculusExpression, Differentiate, DifferentiateResult, Obligations, Services]
+exports: [Fraction, FractionFunction, CalculusExpression, Evaluate, EvaluateResult, Differentiate, DifferentiateResult, DifferentiateN, DifferentiateNResult, Partial, PartialResult, Gradient, GradientResult, Jacobian, JacobianResult, Hessian, HessianResult, Obligations, Services]
 groups: [Algebra, Calculus, Analysis, Exact, Symbolic]
 permissions: []
 requires: [rix.fraction-function@1, rix.calculus@1]
@@ -26,23 +26,51 @@ SymbolicFractionObligations(value) ->
         []
     );
 SymbolicTransformationObligations(value) ->
-    (value ? :Map) && value.Has("schema") && value[:schema] == "rix.calculus.transformation@1"
+    .calculus.IsTransformation(value)
       ?: value[:obligations]
       ?_ [];
 SymbolicObligations(value) ->
     value ? :FractionFunction
       ?: SymbolicFractionObligations(value)
       ?_ SymbolicTransformationObligations(value);
+SymbolicEvaluationTarget(value) ->
+    .calculus.IsTransformation(value) ?: value ?_ SymbolicCalculusExpression(value);
+SymbolicCalculusExpressions(values) ->
+    values.Map((value)->SymbolicCalculusExpression(value));
 
 symbolicNamespace = {= };
 symbolicNamespace._proto = {=
     Fraction = (self, first, second ?= _) -> second == _ ?: .fraction(first) ?_ .fraction(first,second),
     FractionFunction = (self, value, variable ?= _) -> variable == _ ?: .fracfun(value) ?_ .fracfun(value,variable),
     CalculusExpression = (self, value) -> SymbolicCalculusExpression(value),
+    Evaluate = (self, value, bindings ?= {= }) ->
+        .calculus.Evaluate(SymbolicEvaluationTarget(value),bindings),
+    EvaluateResult = (self, value, bindings ?= {= }) ->
+        .calculus.EvaluateResult(SymbolicEvaluationTarget(value),bindings),
     Differentiate = (self, value, variable) ->
         .calculus.Differentiate(self.CalculusExpression(value),variable),
     DifferentiateResult = (self, value, variable) ->
         .calculus.DifferentiateResult(self.CalculusExpression(value),variable),
+    DifferentiateN = (self, value, variable, order) ->
+        .calculus.DifferentiateN(self.CalculusExpression(value),variable,order),
+    DifferentiateNResult = (self, value, variable, order) ->
+        .calculus.DifferentiateNResult(self.CalculusExpression(value),variable,order),
+    Partial = (self, value, variable) ->
+        .calculus.Partial(self.CalculusExpression(value),variable),
+    PartialResult = (self, value, variable) ->
+        .calculus.PartialResult(self.CalculusExpression(value),variable),
+    Gradient = (self, value, variables) ->
+        .calculus.Gradient(self.CalculusExpression(value),variables),
+    GradientResult = (self, value, variables) ->
+        .calculus.GradientResult(self.CalculusExpression(value),variables),
+    Jacobian = (self, values, variables) ->
+        .calculus.Jacobian(SymbolicCalculusExpressions(values),variables),
+    JacobianResult = (self, values, variables) ->
+        .calculus.JacobianResult(SymbolicCalculusExpressions(values),variables),
+    Hessian = (self, value, variables) ->
+        .calculus.Hessian(self.CalculusExpression(value),variables),
+    HessianResult = (self, value, variables) ->
+        .calculus.HessianResult(self.CalculusExpression(value),variables),
     Obligations = (self, value) -> SymbolicObligations(value),
     Services = (self) -> ["fraction","fracfun","poly","ratfun","calculus"]
 };

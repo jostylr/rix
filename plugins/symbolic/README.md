@@ -22,6 +22,9 @@ The façade delegates construction and transformation to focused owners:
   to the public Calculus expression schema;
 - `Differentiate` is the obligation-free convenience form;
 - `DifferentiateResult` preserves derivative obligations and evidence; and
+- `Evaluate` / `EvaluateResult` follow linked Calculus implementations;
+- repeated, partial, gradient, Jacobian, and Hessian façades accept
+  FractionFunctions, Calculus expressions, or public specs; and
 - `Obligations(value)` exposes either a Calculus transformation's conditions
   or a FractionFunction's original denominator restrictions.
 

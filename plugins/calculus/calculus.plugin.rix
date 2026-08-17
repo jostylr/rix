@@ -1,13 +1,13 @@
 /**
 id: calculus
-description: Portable abstract functions, semantic-ID rules, obligation-bearing exact differentiation, and explicit implementation links.
+description: Portable abstract functions, obligation-bearing higher differentiation, and provenance-recording evaluation through semantic-ID implementation links.
 kind: rix
 mount: calculus
-exports: [Function, Exp, Log, Sqrt, Asin, ComplexLog, Variable, Constant, Apply, Obligation, Register, Resolve, Differentiate, DifferentiateResult, ToSpec, FromSpec, IsFunction, IsExpression]
+exports: [Function, Exp, Log, Sqrt, Asin, ComplexLog, Variable, Constant, Apply, Obligation, Register, Resolve, Evaluate, EvaluateResult, Differentiate, DifferentiateResult, DifferentiateN, DifferentiateNResult, Partial, PartialResult, Gradient, GradientResult, Jacobian, JacobianResult, Hessian, HessianResult, ToSpec, FromSpec, IsFunction, IsExpression, IsTransformation]
 groups: [Calculus, Analysis, Symbolic, Exact]
 permissions: []
 provides: [rix.calculus@1, rix.abstract-function@1]
-schemas: [rix.calculus.function@1, rix.calculus.expression@1, rix.calculus.registry-entry@1, rix.calculus.obligation@1, rix.calculus.transformation@1]
+schemas: [rix.calculus.function@1, rix.calculus.expression@1, rix.calculus.registry-entry@1, rix.calculus.obligation@1, rix.calculus.transformation@1, rix.calculus.evaluation@1, rix.calculus.derivative-collection@1]
 snapshot: false
 deterministic: true
 defaultEnabled: false
@@ -355,6 +355,120 @@ CalculusObligation(kind, relation, expression, options ?= {= }) -> {;
     });
 };
 
+CalculusIsTransformation(value) ->
+    CalculusIsExpression(value)
+      ?: _
+      ?_ (value ? :Map
+           ?: value[:schema] == "rix.calculus.transformation@1"
+           ?_ _);
+CalculusEvaluationState(value, links ?= []) -> {= value=value, links=links };
+CalculusEvaluateBinary(operation, left, right) ->
+    operation == :add ?: left+right
+      ?_ operation == :subtract ?: left-right
+      ?_ operation == :multiply ?: left*right
+      ?_ operation == :divide ?: left/right
+      ?_ operation == :power ?: left^right
+      ?_ .Error(@"Unsupported Calculus evaluation operator @{operation}");
+
+CalculusEvaluateNode(expression, bindings) -> {;
+    exact = CalculusRequireExpression(expression,"evaluate expression");
+    kind = exact[:kind];
+    kind == :constant
+      ?: CalculusEvaluationState(exact[:value])
+      ?_ kind == :variable
+      ?: {;
+          name = @exact[:name];
+          @bindings.Has(name)
+            ?: _
+            ?_ .Error(@"Calculus evaluation has no binding for variable @{@name}");
+          value = @bindings[name];
+          CalculusIsExpression(value)
+            ?: .Error(@"Calculus evaluation binding @{@name} must be concrete")
+            ?_ CalculusEvaluationState(value);
+      }
+      ?_ kind == :operator
+      ?: {;
+          operation = @exact[:operation];
+          operands = @exact[:operands];
+          operation == :negate
+            ?: {;
+                inner = CalculusEvaluateNode(@operands[1],@bindings);
+                CalculusEvaluationState(-inner[:value],inner[:links]);
+            }
+            ?_ {;
+                left = CalculusEvaluateNode(@operands[1],@bindings);
+                right = CalculusEvaluateNode(@operands[2],@bindings);
+                CalculusEvaluationState(
+                    CalculusEvaluateBinary(@operation,left[:value],right[:value]),
+                    CalculusAppend(left[:links],right[:links])
+                );
+            };
+      }
+      ?_ kind == :apply
+      ?: {;
+          arguments = @exact[:arguments];
+          arguments.Len() == 1
+            ?: _
+            ?_ .Error("Calculus evaluation currently requires unary semantic applications");
+          argument = CalculusEvaluateNode(arguments[1],@bindings);
+          registry = CalculusResolve(@exact[:semanticId]);
+          implementation = registry[:implementation];
+          implementation == _
+            ?: .Error(@"No numerical implementation is linked for semantic ID @{@exact[:semanticId]}")
+            ?_ _;
+          value = argument[:value] |> implementation;
+          link = .ImmutableValue({=
+              kind=:calculusImplementationLink,
+              semanticId=@exact[:semanticId],
+              domain=registry[:domain],
+              branches=registry[:branches],
+              evidence=registry[:evidence][:implementation]
+          });
+          CalculusEvaluationState(value,argument[:links].Push(link));
+      }
+      ?_ .Error(@"Unsupported Calculus expression kind @{kind}");
+};
+
+CalculusEvaluateObligation(obligation, bindings) -> {;
+    evaluated = CalculusEvaluateNode(obligation[:expression],bindings);
+    .ImmutableValue({=
+        obligation=obligation,
+        subject=evaluated[:value],
+        relation=obligation[:relation],
+        kind=obligation[:kind],
+        links=evaluated[:links],
+        status=:unresolved
+    });
+};
+
+CalculusEvaluateResult(value, bindings ?= {= }) -> {;
+    bindings ? :Map ?: _ ?_ .Error("Calculus evaluation bindings must be a Map");
+    transformation = CalculusIsTransformation(value) ?: value ?_ _;
+    expression = transformation == _ ?: value ?_ transformation[:expression];
+    obligations = transformation == _ ?: [] ?_ transformation[:obligations];
+    evaluated = CalculusEvaluateNode(expression,bindings);
+    obligationValues = obligations.Map((obligation)->CalculusEvaluateObligation(obligation,@bindings));
+    .ImmutableValue({=
+        valueKind=:calculusEvaluation,
+        schema="rix.calculus.evaluation@1",
+        expression=expression,
+        transformation=transformation,
+        bindings=bindings,
+        value=evaluated[:value],
+        links=evaluated[:links],
+        obligations=obligations,
+        obligationValues=obligationValues,
+        obligationsDischarged=obligations.Len() == 0 ?: 1 ?_ _
+    });
+};
+
+CalculusEvaluate(value, bindings ?= {= }) -> {;
+    result = CalculusEvaluateResult(value,bindings);
+    result[:obligations].Len() == 0
+      ?: result[:value]
+      ?_ .Error("Calculus evaluation has unresolved domain or branch obligations; use .calculus.EvaluateResult");
+};
+
 CalculusConstantValue(expression) ->
     CalculusIsExpression(expression) && expression[:kind] == :constant ?: expression[:value] ?_ _;
 CalculusIsExactValue(expression, value) -> {;
@@ -533,19 +647,31 @@ CalculusDifferentiateNode(expression, variable) -> {;
                      ?_ .Error(@"Unsupported Calculus expression kind @{kind}"))));
 };
 
-CalculusDifferentiateResult(expression, variable) -> {;
-    exact = CalculusRequireExpression(expression,"differentiate expression");
+CalculusDifferentiateResult(value, variable) -> {;
     differentiatedBy = CalculusDerivativeVariable(variable);
+    previous = CalculusIsTransformation(value) ?: value ?_ _;
+    exact = previous == _
+      ?: CalculusRequireExpression(value,"differentiate expression")
+      ?_ previous[:expression];
+    source = previous == _ ?: exact ?_ previous[:source];
+    priorVariables = previous == _
+      ?: []
+      ?_ (previous.Has("variables") ?: previous[:variables] ?_ [previous[:variable]]);
+    priorObligations = previous == _ ?: [] ?_ previous[:obligations];
+    priorEvidence = previous == _ ?: [] ?_ previous[:evidence];
     result = CalculusDifferentiateNode(exact,differentiatedBy);
+    variables = priorVariables.Push(differentiatedBy);
     .ImmutableValue({=
         valueKind=:calculusTransformation,
         schema="rix.calculus.transformation@1",
         operation=:differentiate,
         variable=differentiatedBy,
-        source=exact,
+        variables=variables,
+        order=variables.Len(),
+        source=source,
         expression=result[:expression],
-        obligations=result[:obligations],
-        evidence=result[:evidence]
+        obligations=CalculusAppend(priorObligations,result[:obligations]),
+        evidence=CalculusAppend(priorEvidence,result[:evidence])
     });
 };
 
@@ -555,6 +681,108 @@ CalculusDifferentiate(expression, variable) -> {;
       ?: result[:expression]
       ?_ .Error("Exact derivative has domain or branch obligations; use .calculus.DifferentiateResult");
 };
+
+CalculusIdentityTransformation(expression) -> .ImmutableValue({=
+    valueKind=:calculusTransformation,
+    schema="rix.calculus.transformation@1",
+    operation=:differentiate,
+    variable=_,
+    variables=[],
+    order=0,
+    source=expression,
+    expression=expression,
+    obligations=[],
+    evidence=[]
+});
+CalculusDifferentiateTimes(value, variable, remaining) ->
+    remaining == 0
+      ?: value
+      ?_ CalculusDifferentiateTimes(CalculusDifferentiateResult(value,variable),variable,remaining-1);
+CalculusDifferentiateNResult(expression, variable, order) -> {;
+    exactOrder = order ~!: :Integer;
+    exactOrder >= 0 ?: _ ?_ .Error("Calculus derivative order must be nonnegative");
+    initial = CalculusIsTransformation(expression)
+      ?: expression
+      ?_ CalculusIdentityTransformation(CalculusRequireExpression(expression,"differentiate expression"));
+    CalculusDifferentiateTimes(initial,CalculusDerivativeVariable(variable),exactOrder);
+};
+CalculusDifferentiateN(expression, variable, order) -> {;
+    result = CalculusDifferentiateNResult(expression,variable,order);
+    result[:obligations].Len() == 0
+      ?: result[:expression]
+      ?_ .Error("Exact higher derivative has domain or branch obligations; use .calculus.DifferentiateNResult");
+};
+
+CalculusDerivativeVariables(variables) -> {;
+    variables ? :Array ?: _ ?_ .Error("Calculus derivative variables must be an Array");
+    variables.Len() > 0 ?: _ ?_ .Error("Calculus derivative variables must not be empty");
+    variables.Map((variable)->CalculusDerivativeVariable(variable));
+};
+CalculusFlattenTransformations(values) -> values.Reduce((result,value)->
+    value ? :Array
+      ?: CalculusAppend(result,CalculusFlattenTransformations(value))
+      ?_ result.Push(value),
+    []
+);
+CalculusTransformationExpressions(values) -> values.Map((value)->
+    value ? :Array ?: CalculusTransformationExpressions(value) ?_ value[:expression]
+);
+CalculusDerivativeCollection(kind, variables, sources, results) -> {;
+    flat = CalculusFlattenTransformations(results);
+    obligations = flat.Reduce((all,result)->CalculusAppend(all,result[:obligations]),[]);
+    .ImmutableValue({=
+        valueKind=:calculusDerivativeCollection,
+        schema="rix.calculus.derivative-collection@1",
+        kind=kind,
+        variables=variables,
+        sources=sources,
+        results=results,
+        expressions=CalculusTransformationExpressions(results),
+        obligations=obligations
+    });
+};
+CalculusUnconditionalCollection(collection, detailedName) ->
+    collection[:obligations].Len() == 0
+      ?: collection[:expressions]
+      ?_ .Error(@"Exact derivative collection has domain or branch obligations; use .calculus.@{detailedName}");
+
+CalculusGradientResult(expression, variables) -> {;
+    exact = CalculusRequireExpression(expression,"gradient expression");
+    names = CalculusDerivativeVariables(variables);
+    results = names.Map((variable)->CalculusDifferentiateResult(@exact,variable));
+    CalculusDerivativeCollection(:gradient,names,[exact],results);
+};
+CalculusGradient(expression, variables) ->
+    CalculusUnconditionalCollection(CalculusGradientResult(expression,variables),"GradientResult");
+
+CalculusJacobianRow(expression, variables) ->
+    variables.Map((variable)->CalculusDifferentiateResult(@expression,variable));
+CalculusJacobianResult(expressions, variables) -> {;
+    expressions ? :Array ?: _ ?_ .Error("Calculus Jacobian expressions must be an Array");
+    expressions.Len() > 0 ?: _ ?_ .Error("Calculus Jacobian expressions must not be empty");
+    exact = expressions.Map((expression)->CalculusRequireExpression(expression,"Jacobian expression"));
+    names = CalculusDerivativeVariables(variables);
+    results = exact.Map((expression)->CalculusJacobianRow(expression,@names));
+    CalculusDerivativeCollection(:jacobian,names,exact,results);
+};
+CalculusJacobian(expressions, variables) ->
+    CalculusUnconditionalCollection(CalculusJacobianResult(expressions,variables),"JacobianResult");
+
+CalculusHessianEntry(expression, firstVariable, secondVariable) ->
+    CalculusDifferentiateResult(
+        CalculusDifferentiateResult(expression,firstVariable),
+        secondVariable
+    );
+CalculusHessianRow(expression, firstVariable, variables) ->
+    variables.Map((secondVariable)->CalculusHessianEntry(@expression,@firstVariable,secondVariable));
+CalculusHessianResult(expression, variables) -> {;
+    exact = CalculusRequireExpression(expression,"Hessian expression");
+    names = CalculusDerivativeVariables(variables);
+    results = names.Map((firstVariable)->CalculusHessianRow(@exact,firstVariable,@names));
+    CalculusDerivativeCollection(:hessian,names,[exact],results);
+};
+CalculusHessian(expression, variables) ->
+    CalculusUnconditionalCollection(CalculusHessianResult(expression,variables),"HessianResult");
 
 CalculusExpDerivative(application) -> application;
 CalculusReciprocalDerivative(application) -> CalculusDivideExact(CalculusConstant(1),application[:arguments][1]);
@@ -682,12 +910,25 @@ calculusNamespace._proto = {=
     Obligation=(self, kind, relation, expression, options ?= {= })->CalculusObligation(kind,relation,expression,options),
     Register=(self, function, options ?= {= })->CalculusRegister(function,options),
     Resolve=(self, value)->CalculusResolve(value),
+    Evaluate=(self, value, bindings ?= {= })->CalculusEvaluate(value,bindings),
+    EvaluateResult=(self, value, bindings ?= {= })->CalculusEvaluateResult(value,bindings),
     Differentiate=(self, expression, variable)->CalculusDifferentiate(expression,variable),
     DifferentiateResult=(self, expression, variable)->CalculusDifferentiateResult(expression,variable),
+    DifferentiateN=(self, expression, variable, order)->CalculusDifferentiateN(expression,variable,order),
+    DifferentiateNResult=(self, expression, variable, order)->CalculusDifferentiateNResult(expression,variable,order),
+    Partial=(self, expression, variable)->CalculusDifferentiate(expression,variable),
+    PartialResult=(self, expression, variable)->CalculusDifferentiateResult(expression,variable),
+    Gradient=(self, expression, variables)->CalculusGradient(expression,variables),
+    GradientResult=(self, expression, variables)->CalculusGradientResult(expression,variables),
+    Jacobian=(self, expressions, variables)->CalculusJacobian(expressions,variables),
+    JacobianResult=(self, expressions, variables)->CalculusJacobianResult(expressions,variables),
+    Hessian=(self, expression, variables)->CalculusHessian(expression,variables),
+    HessianResult=(self, expression, variables)->CalculusHessianResult(expression,variables),
     ToSpec=(self, expression, inputs ?= _)->.SpecFromExpression(expression,inputs),
     FromSpec=(self, value)->.ExpressionFromSpec(value),
     IsFunction=(self, value)->CalculusIsFunction(value) ?: 1 ?_ _,
-    IsExpression=(self, value)->CalculusIsExpression(value) ?: 1 ?_ _
+    IsExpression=(self, value)->CalculusIsExpression(value) ?: 1 ?_ _,
+    IsTransformation=(self, value)->CalculusIsTransformation(value) ?: 1 ?_ _
 };
 
-.Host.RegisterValue("calculus",calculusNamespace,"Portable abstract mathematical functions and composable expression graphs",["Calculus","Analysis","Symbolic","Exact"]);
+.Host.RegisterValue("calculus",calculusNamespace,"Portable abstract functions, exact derivative graphs, obligations, and linked evaluation",["Calculus","Analysis","Symbolic","Exact"]);

@@ -105,6 +105,16 @@ The derivative result retains the quotient's nonzero denominator condition.
 `.symbolic.Obligations(F)` exposes the same source-domain restriction directly
 from FractionFunction metadata.
 
+Polynomial FractionFunctions also use the higher-derivative and evaluation
+façades without leaving the public Calculus representation:
+
+```rix
+.Plugin.Load("symbolic");
+P := .ff`x^3+x`;
+second := .symbolic.DifferentiateN(P,:x,2);
+{: .calculus.ToSpec(second), .symbolic.Evaluate(second,{= x=3 }) };
+```
+
 ## Reactive forms
 
 ```rix

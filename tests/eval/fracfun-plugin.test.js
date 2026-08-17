@@ -152,4 +152,23 @@ describe("form-preserving FractionFunction plugin", () => {
         expect(String(result.values[6])).toBe("1");
         expect(String(result.values[7])).toBe("1");
     });
+
+    test("uses Symbolic facades for higher derivatives and concrete evaluation", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("symbolic");
+            P := .ff\`x^3+x\`;
+            second := .symbolic.DifferentiateN(P,:x,2);
+            gradient := .symbolic.Gradient({#x,y# x^2+x*y },[:x,:y]);
+            {: .calculus.ToSpec(second),
+               .symbolic.Evaluate(second,{= x=3 }),
+               gradient.Map((expression)->.calculus.ToSpec(expression)) };
+        `);
+
+        expect(formatValue(result.values[0])).toBe("{#x# 3 * 2 * x }");
+        expect(String(result.values[1])).toBe("18");
+        expect(result.values[2].values.map(formatValue)).toEqual([
+            "{#x,y# 2 * x + y }",
+            "{#x# x }",
+        ]);
+    });
 });

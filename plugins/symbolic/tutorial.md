@@ -85,3 +85,40 @@ C := F.Cancel();
    .symbolic.Obligations(C),
    C.Domain().Get("calculusRestrictions") };
 ```
+
+## Evaluate through linked numerical implementations
+
+The Symbolic façade can evaluate a Calculus expression or transformation while
+retaining the implementation links and unresolved conditions:
+
+```rix
+.Plugin.Load("symbolic");
+.Plugin.Load("numerics");
+x := .calculus.Variable(:x);
+Exp := .calculus.Exp((value)->.numerics.Exp(value));
+Log := .calculus.Log((value)->.numerics.Ln(value));
+derivative := .symbolic.DifferentiateResult(Exp(Log(x)),:x);
+evaluation := .symbolic.EvaluateResult(derivative,{= x=2 });
+{: .calculus.ToSpec(derivative[:expression]),
+   evaluation[:links].Map((link)->link[:semanticId]),
+   evaluation[:obligationValues] };
+```
+
+Differentiation uses exact semantic rules. Evaluation separately follows the
+linked providers. Seeing that an obligation's subject is `2` does not by itself
+mark the positivity obligation proved.
+
+## Use higher and multivariate façades
+
+```rix
+.Plugin.Load("symbolic");
+P := .ff`x^3+x`;
+second := .symbolic.DifferentiateN(P,:x,2);
+gradient := .symbolic.Gradient({#x,y# x^2+x*y },[:x,:y]);
+{: .calculus.ToSpec(second),
+   .symbolic.Evaluate(second,{= x=3 }),
+   gradient.Map((expression)->.calculus.ToSpec(expression)) };
+```
+
+`Jacobian`, `Hessian`, and each corresponding `...Result` form follow the
+same variable ordering and obligation rules as the focused Calculus API.

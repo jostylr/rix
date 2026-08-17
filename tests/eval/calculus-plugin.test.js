@@ -42,6 +42,8 @@ describe("pure RiX Calculus plugin", () => {
             "rix.calculus.registry-entry@1",
             "rix.calculus.obligation@1",
             "rix.calculus.transformation@1",
+            "rix.calculus.evaluation@1",
+            "rix.calculus.derivative-collection@1",
         ]);
     });
 
@@ -107,6 +109,63 @@ describe("pure RiX Calculus plugin", () => {
         expect(text(entry(result, "status"))).toBe("enclosed");
         expect(entry(result, "certified").value).toBe(1n);
         expect(entry(result, "interval").toString()).toBe("1:1");
+    });
+
+    test("propagates linked implementations through composition and exact differentiation", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("calculus");
+            .Plugin.Load("numerics");
+            x := .calculus.Variable(:x);
+            Exp := .calculus.Exp((value)->.numerics.Exp(value));
+            Log := .calculus.Log((value)->.numerics.Ln(value));
+            expression := Exp(x^2);
+            derivative := .calculus.Differentiate(expression,:x);
+            evaluation := .calculus.EvaluateResult(derivative,{= x=1 });
+            composedDerivative := .calculus.DifferentiateResult(Exp(Log(x)),:x);
+            composedEvaluation := .calculus.EvaluateResult(composedDerivative,{= x=2 });
+            refined := .numerics.Refine(evaluation[:value],{=
+                absoluteWidth=1/100,
+                maxWork=30
+            });
+            {: .calculus.Evaluate(x^2+1,{= x=2 }),
+               .calculus.ToSpec(derivative), evaluation, composedEvaluation, refined };
+        `, options);
+
+        expect(result.values[0].value).toBe(5n);
+        expect(formatValue(result.values[1])).toBe("{#x# Exp(x ^ 2) * 2 * x }");
+        const evaluation = result.values[2];
+        expect(text(entry(evaluation, "schema"))).toBe("rix.calculus.evaluation@1");
+        const link = entry(evaluation, "links").values[0];
+        expect(text(entry(link, "semanticId"))).toBe("rix.function.exp@1");
+        expect(text(entry(link, "evidence"))).toBe("declaredByCaller");
+        const composed = result.values[3];
+        expect(entry(composed, "links").values.map((item) => text(entry(item, "semanticId"))))
+            .toEqual(["rix.function.log.real-principal@1", "rix.function.exp@1"]);
+        expect(entry(composed, "obligations").values).toHaveLength(1);
+        expect(entry(composed, "obligationValues").values[0].entries.get("subject").value).toBe(2n);
+        expect(text(entry(result.values[4], "status"))).toBe("enclosed");
+        expect(entry(result.values[4], "certified").value).toBe(1n);
+    });
+
+    test("evaluates conditional transformations without pretending to discharge obligations", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("calculus");
+            x := .calculus.Variable(:x);
+            derivative := .calculus.DifferentiateResult(.calculus.Log()(x),:x);
+            .calculus.EvaluateResult(derivative,{= x=2 });
+        `, options);
+
+        expect(entry(result, "value").toString()).toBe("1/2");
+        expect(entry(result, "obligationsDischarged")).toBeNull();
+        const evaluated = entry(result, "obligationValues").values[0];
+        expect(entry(evaluated, "subject").value).toBe(2n);
+        expect(text(entry(evaluated, "status"))).toBe("unresolved");
+        expect(() => parseAndEvaluate(
+            ".calculus.Evaluate(derivative,{= x=2 })",
+            options,
+        )).toThrow("use .calculus.EvaluateResult");
     });
 
     test("resolves semantic functions through separate registry slots", () => {
@@ -266,6 +325,46 @@ describe("pure RiX Calculus plugin", () => {
         expect(text(entry(obligation, "relation"))).toBe("positive");
         expect(text(entry(obligation, "reason"))).toBe("customPositiveDomain");
         expect(text(entry(entry(result, "evidence").values.at(-1), "rule"))).toBe("semanticChain");
+    });
+
+    test("builds higher, partial, gradient, Jacobian, and Hessian derivatives", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("calculus");
+            x := .calculus.Variable(:x);
+            y := .calculus.Variable(:y);
+            scalar := x^2+x*y+y^2;
+            gradient := .calculus.Gradient(scalar,[:x,:y]);
+            jacobian := .calculus.Jacobian([x*y,x+y],[:x,:y]);
+            hessian := .calculus.Hessian(scalar,[:x,:y]);
+            higher := .calculus.DifferentiateNResult(.calculus.Log()(x),:x,2);
+            {: .calculus.ToSpec(.calculus.DifferentiateN(x^4,:x,3)),
+               gradient.Map((expression)->.calculus.ToSpec(expression)),
+               jacobian.Map((row)->row.Map((expression)->.calculus.ToSpec(expression))),
+               hessian.Map((row)->row.Map((expression)->.calculus.ToSpec(expression))),
+               higher };
+        `, options);
+
+        expect(formatValue(result.values[0])).toBe("{#x# 4 * 3 * 2 * x }");
+        expect(result.values[1].values.map(formatValue)).toEqual([
+            "{#x,y# 2 * x + y }",
+            "{#x,y# x + 2 * y }",
+        ]);
+        expect(result.values[2].values.map((row) => row.values.map(formatValue))).toEqual([
+            ["{#y# y }", "{#x# x }"],
+            ["{# 1 }", "{# 1 }"],
+        ]);
+        expect(result.values[3].values.map((row) => row.values.map(formatValue))).toEqual([
+            ["{# 2 }", "{# 1 }"],
+            ["{# 1 }", "{# 2 }"],
+        ]);
+        const higher = result.values[4];
+        expect(entry(higher, "order").value).toBe(2n);
+        expect(entry(higher, "variables").values.map(text)).toEqual(["x", "x"]);
+        expect(formatValue(calculusExpressionToSpec(entry(higher, "expression"))))
+            .toBe("{#x# -1 / x ^ 2 }");
+        expect(entry(higher, "obligations").values.map((item) => text(entry(item, "relation"))))
+            .toEqual(["positive", "nonzero"]);
     });
 
     test("round-trips semantic applications through core symbolic specs", () => {

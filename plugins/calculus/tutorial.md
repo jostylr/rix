@@ -199,7 +199,74 @@ result := .numerics.Refine(Exp(1/2), {=
 });
 ```
 
+## Propagate links through composition and differentiation
+
+A composite Calculus graph does not copy numerical closures into its portable
+records. Instead, evaluation resolves every semantic application by ID. Exact
+differentiation builds a new graph first; surviving semantic applications then
+find the same linked providers:
+
+```rix
+.Plugin.Load("calculus");
+.Plugin.Load("numerics");
+x := .calculus.Variable(:x);
+Exp := .calculus.Exp((value)->.numerics.Exp(value));
+Log := .calculus.Log((value)->.numerics.Ln(value));
+expression := Exp(Log(x));
+derivative := .calculus.DifferentiateResult(expression,:x);
+evaluation := .calculus.EvaluateResult(derivative,{= x=2 });
+refined := .numerics.Refine(evaluation[:value],{=
+  absoluteWidth=1/1000,
+  maxWork=40
+});
+.Table({=
+  columns=["exact derivative", "implementation IDs", "obligations", "refined value"],
+  rows=[[
+    .calculus.ToSpec(derivative[:expression]),
+    evaluation[:links].Map((link)->link[:semanticId]),
+    evaluation[:obligationValues],
+    refined[:interval]
+  ]]
+});
+```
+
+Both `Log` and `Exp` are resolved during evaluation, and their implementation
+evidence appears in `evaluation[:links]`. The exact rule for `Log` still leaves
+the positive-argument obligation. Its subject is evaluated at `2`, but its
+status remains `unresolved`: numerical evaluation is not a proof engine.
+
+If an exact rule eliminates a semantic application—for example the outer
+`Log` in `D Log(x)=1/x`—the derivative no longer needs that implementation.
+Conversely, an unknown semantic function cannot be differentiated merely
+because it has a numerical algorithm.
+
+## Compute higher and multivariate derivatives
+
+Repeated and mixed derivatives retain the variable path and accumulate prior
+conditions:
+
+```rix
+.Plugin.Load("calculus");
+x := .calculus.Variable(:x);
+y := .calculus.Variable(:y);
+f := x^2+x*y+y^2;
+gradient := .calculus.Gradient(f,[:x,:y]);
+jacobian := .calculus.Jacobian([x*y,x+y],[:x,:y]);
+hessian := .calculus.Hessian(f,[:x,:y]);
+higher := .calculus.DifferentiateNResult(.calculus.Log()(x),:x,2);
+{: gradient.Map((entry)->.calculus.ToSpec(entry)),
+   jacobian.Map((row)->row.Map((entry)->.calculus.ToSpec(entry))),
+   hessian.Map((row)->row.Map((entry)->.calculus.ToSpec(entry))),
+   .calculus.ToSpec(higher[:expression]),
+   higher[:variables],
+   higher[:obligations] };
+```
+
+`GradientResult`, `JacobianResult`, and `HessianResult` expose every component
+transformation plus their flattened obligations. The shorter forms used above
+return expression arrays only when all components are unconditional.
+
 The Calculus record and registry say which mathematical function and exact
 rule are meant. The Numerics result says how a value was computed and what
-evidence the finite work supports. Higher derivatives, integration, and
-equation specifications extend this same boundary in later phases.
+evidence the finite work supports. Integration and equation specifications
+extend this same boundary in later phases.

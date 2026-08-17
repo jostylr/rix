@@ -19,7 +19,7 @@ Except where a dependency is called out below, finish most Phase 1 milestones
 before beginning broad Phase 2 work.
 
 All Phase 1 milestones catalogued before the Calculus/Analysis work are
-implemented. Calculus Phase 1 and the first five Phase 2 items are implemented;
+implemented. Calculus Phase 1 and its listed Phase 2 milestones are implemented;
 Analysis Phase 1 remains a planned dependency-aware slice. Unchecked work below is Phase 2 or later unless
 a section explicitly says otherwise.
 
@@ -43,8 +43,8 @@ contracts.
    `.complexViz` Phase 1.
 7. **Complete publication pipelines:** `.quarto`, `.pdf`, and `.gif` Phase 1.
 8. **Establish abstract mathematical functions:** `.calculus` provides
-   portable function/expression contracts, semantic rules, and initial exact
-   differentiation.
+   portable function/expression contracts, semantic rules, exact
+   higher/multivariate differentiation, and linked evaluation provenance.
 9. **Begin Analysis over explicit evidence:** `.analysis` Phase 1 follows the
    Calculus expression contract and the effective-sequence protocols.
 10. **Begin Phase 2 in dependency order:** shared Numerics and renderer
@@ -644,8 +644,16 @@ tracked in
      `.fracfun` exports its paired forms and denominator restrictions through
      the same public expression contract, and `.symbolic` provides the
      cross-plugin façade.
-   - [ ] Add higher derivatives, partial derivatives, gradients, Jacobians,
-     and Hessians with explicit variable selection.
+   - [x] Evaluate exact expression or transformation graphs by resolving
+     concrete implementations through stable semantic IDs. Evaluation results
+     record every implementation link and retain unresolved transformation
+     obligations; no numerical implementation becomes an exact derivative
+     rule or proof that its domain conditions hold.
+   - [x] Add higher derivatives, partial derivatives, gradients, Jacobians,
+     and Hessians with explicit variable selection. Repeated and mixed
+     derivatives accumulate prior obligations/evidence, while
+     `rix.calculus.derivative-collection@1` keeps multivariate results and
+     their component transformations together.
 3. **Phase 3 — Integration and equation specifications**
    - [ ] Distinguish a selected primitive, an antiderivative family with its
      integration constant, and a definite integral with endpoints.

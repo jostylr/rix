@@ -67,7 +67,8 @@ FractionFunction now exports its paired forms through the public
 Load `.symbolic` to activate FractionFunction and Calculus together. Its
 `DifferentiateResult` façade uses Calculus's exact rules, while
 `.symbolic.Obligations(F)` converts source denominators into explicit nonzero
-obligations. This is a public interchange boundary; the host plugin still owns
+obligations. Higher derivatives and concrete evaluation are available through
+the corresponding Symbolic façades. This is a public interchange boundary; the host plugin still owns
 closure rewriting and construction of its paired display/evaluation forms.
 
 See [tutorial.md](tutorial.md) and [design.md](design.md).
