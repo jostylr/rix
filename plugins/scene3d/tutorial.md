@@ -70,6 +70,64 @@ metadata, while the third is the reusable `rix.scene3d.orbit@1` description.
 Pointer events themselves belong to the browser host rather than the retained
 scene.
 
+## Refine an exact surface within an explicit budget
+
+`ParametricSurface` begins with one cell and doubles a conforming grid while
+its exact midpoint-deviation test exceeds `tolerance`. The sampling record says
+whether the requested tolerance was met or which bound stopped the work.
+Interaction values remain data: a browser may interpret them without changing
+the retained mesh.
+
+```rix
+.Plugin.Load("scene3d");
+surfaceInteraction := .scene3d.Interaction({=
+    events=["hover","select"],
+    cursor="pointer",
+    tooltip="quadratic surface",
+    selection="toggle",
+    payload={= series="quadratic" }
+});
+surface := .scene3d.ParametricSurface(
+    (u,v) -> [2*u-1,2*v-1,u^2+v^2],
+    0:1,
+    0:1,
+    {=
+        tolerance=1/16,
+        maxDepth=4,
+        maxCells=256,
+        color="#0f766e",
+        id="surface",
+        label="quadratic surface",
+        interaction=surfaceInteraction
+    }
+);
+labelPolicy := .scene3d.AnnotationPolicy({=
+    offset=[14,-10],
+    leader=1,
+    priority=10,
+    collision="hide-lower-priority",
+    occlusion="fade"
+});
+peak := .scene3d.Annotation([1,1,2], "peak", {=
+    id="peak",
+    policy=labelPolicy,
+    color="#0f766e"
+});
+camera := .scene3d.OrbitCamera([0,0,3/4], {=
+    radius=5,
+    height=2,
+    turn=1/3,
+    projection="orthographic",
+    scale=4
+});
+scene := .scene3d.Scene([surface,peak], {= camera=camera });
+snapshot := .scene3d.Snapshot(scene, {= size=[520,360] });
+[snapshot["value"],surface["metadata"]["sampling"],snapshot["picking"]];
+```
+
+The leader and offset lower to core Graphics. Collision and occlusion remain
+declared policies in the projected record until a renderer implements them.
+
 ## Add retained lights and request a lit view
 
 Ambient, directional, and point lights remain part of the Scene3D value. The

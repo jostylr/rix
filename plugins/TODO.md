@@ -908,7 +908,7 @@ The RiX/host extraction sequence is specified in
 2. **Phase 2 — Curves, surfaces, and interaction metadata**
    - [x] Add bounded exact parametric curves, axes, projected annotations,
      stable leaf picking IDs, and rational Cayley orbit-camera descriptions.
-   - [ ] Add adaptive parametric surfaces and richer annotation/interaction
+   - [x] Add adaptive parametric surfaces and richer annotation/interaction
      policies over the retained contracts.
    - [ ] Provide Canvas/WebGL and raster snapshot lowering.
 3. **Phase 3 — Volumes and certified surfaces**

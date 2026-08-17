@@ -162,6 +162,95 @@ describe("Scene3D and n-dimensional geometry plugins", () => {
         `)).toThrow("Duplicate Scene3D picking id 'duplicate'");
     });
 
+    test("Phase 2 adaptively meshes exact parametric surfaces and retains interaction policies", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("scene3d");
+            interaction := .scene3d.Interaction({=
+                events=["hover","select"], cursor="pointer", tooltip="quadratic surface",
+                selection="toggle", payload={= series="quadratic" }
+            });
+            surface := .scene3d.ParametricSurface(
+                (u,v) -> [u,v,u^2+v^2],
+                0:1,
+                0:1,
+                {=
+                    tolerance=1/16, maxDepth=3, maxCells=64,
+                    color="#0f766e", id="surface", label="quadratic",
+                    interaction=interaction
+                }
+            );
+            annotationPolicy := .scene3d.AnnotationPolicy({=
+                offset=[12,-8], leader=1, priority=3,
+                collision="hide-lower-priority", occlusion="fade"
+            });
+            note := .scene3d.Annotation([1,1,2], "peak", {=
+                id="peak", policy=annotationPolicy
+            });
+            scene := .scene3d.Scene([surface,note], {=
+                camera=.scene3d.OrthographicCamera([4,4,4],[1/2,1/2,1])
+            });
+            snapshot := .scene3d.Snapshot(scene, {= size=[320,240] });
+            realized := .scene3d.Realize(scene);
+            annotation := snapshot["projected"]["primitives"].Filter(
+                (primitive) -> primitive["kind"] == "annotation"
+            )[1];
+            [surface, realized["picking"]["surface"], snapshot["picking"]["surface"], annotation, snapshot["value"]];
+        `);
+        const [surface, realizedPicking, surfacePicking, annotation, graphic] = result.values;
+        const sampling = field(field(surface, "metadata"), "sampling");
+        expect(text(field(sampling, "schema"))).toBe("rix.scene3d.surface-sampling@1");
+        expect(text(field(sampling, "method"))).toBe("uniform-adaptive-midpoint");
+        expect(integer(field(sampling, "resolved"))).toBe(1);
+        expect(integer(field(sampling, "depth"))).toBe(2);
+        expect(integer(field(sampling, "cells"))).toBe(16);
+        expect(String(field(sampling, "maxerror"))).toBe("1/32");
+        expect(sequence(field(surface, "vertices"))).toHaveLength(25);
+        expect(sequence(field(surface, "triangles"))).toHaveLength(32);
+
+        const interaction = field(surfacePicking, "interaction");
+        expect(text(field(interaction, "schema"))).toBe("rix.scene3d.interaction@1");
+        expect(sequence(field(interaction, "events")).map(text)).toEqual(["hover", "select"]);
+        expect(text(field(field(interaction, "payload"), "series"))).toBe("quadratic");
+        expect(text(field(field(realizedPicking, "interaction"), "tooltip"))).toBe("quadratic surface");
+
+        const policy = field(annotation, "annotationpolicy");
+        expect(text(field(policy, "collision"))).toBe("hide-lower-priority");
+        expect(text(field(policy, "occlusion"))).toBe("fade");
+        const point = sequence(field(annotation, "point"));
+        const anchor = sequence(field(annotation, "anchorpoint"));
+        expect(String(point[0].subtract(anchor[0]))).toBe("12");
+        expect(String(point[1].subtract(anchor[1]))).toBe("-8");
+        expect(graphic.children).toHaveLength(58);
+    });
+
+    test("Phase 2 surface refinement reports bounded exhaustion and validates interaction targets", () => {
+        const surface = parseAndEvaluate(`
+            .Plugin.Load("scene3d");
+            .scene3d.ParametricSurface(
+                (u,v) -> [u,v,u^2+v^2], 0:1, 0:1,
+                {= tolerance=1/1000, maxDepth=5, maxCells=4 }
+            );
+        `);
+        const sampling = field(field(surface, "metadata"), "sampling");
+        expect(integer(field(sampling, "resolved"))).toBe(0);
+        expect(integer(field(sampling, "depth"))).toBe(1);
+        expect(integer(field(sampling, "cells"))).toBe(4);
+        expect(text(field(sampling, "limitedby"))).toBe("maxCells");
+        expect(sequence(field(surface, "vertices"))).toHaveLength(9);
+        expect(sequence(field(surface, "triangles"))).toHaveLength(8);
+
+        expect(() => parseAndEvaluate(`
+            .Plugin.Load("scene3d");
+            .scene3d.Polyline([[0,0,0],[1,0,0]], {=
+                interaction=.scene3d.Interaction({= events=["select"] })
+            });
+        `)).toThrow("requires an id when interaction is present");
+        expect(() => parseAndEvaluate(`
+            .Plugin.Load("scene3d");
+            .scene3d.Interaction({= events=["teleport"] });
+        `)).toThrow("events must be hover, select, activate, or drag");
+    });
+
     test("projects a tesseract exactly and records the projection chain", () => {
         const result = parseAndEvaluate(`
             .Plugin.Load("scene3d"); .Plugin.Load("nd");

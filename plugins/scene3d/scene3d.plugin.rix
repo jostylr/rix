@@ -3,12 +3,12 @@ id: scene3d
 description: Pure-RiX exact retained 3D scenes, explicit realization and projection, and portable Graphics snapshots.
 kind: rix
 mount: scene3d
-exports: [Scene, Group, Transform, Mesh, Polyline, PointCloud, ParametricCurve, Axes, Annotation, Material, AmbientLight, DirectionalLight, PointLight, PerspectiveCamera, OrthographicCamera, OrbitCamera, Realize, Project, Snapshot]
+exports: [Scene, Group, Transform, Mesh, Polyline, PointCloud, ParametricCurve, ParametricSurface, Axes, Annotation, AnnotationPolicy, Interaction, Material, AmbientLight, DirectionalLight, PointLight, PerspectiveCamera, OrthographicCamera, OrbitCamera, Realize, Project, Snapshot]
 groups: [Scene3D, Graphics, Exact]
 permissions: []
 requires: [rix.numerics@1]
-provides: [rix.scene3d@1, rix.scene3d.realized@1, rix.scene3d.projected@1, rix.scene3d.orbit@1]
-schemas: [rix.scene3d@1, rix.scene3d.realized@1, rix.scene3d.projected@1, rix.scene3d.orbit@1]
+provides: [rix.scene3d@1, rix.scene3d.realized@1, rix.scene3d.projected@1, rix.scene3d.orbit@1, rix.scene3d.interaction@1, rix.scene3d.annotation-policy@1, rix.scene3d.surface-sampling@1]
+schemas: [rix.scene3d@1, rix.scene3d.realized@1, rix.scene3d.projected@1, rix.scene3d.orbit@1, rix.scene3d.interaction@1, rix.scene3d.annotation-policy@1, rix.scene3d.surface-sampling@1]
 snapshot: true
 deterministic: true
 defaultEnabled: false
@@ -69,12 +69,62 @@ S3OptionalString(settings, key, label) -> {;
       ?_ .Error(@"@{label} must be a nonempty String"));
 };
 
-S3Interaction(settings, label) -> {=
-    pickid=S3OptionalString(settings, "id", @"@{label} id"),
-    label=S3OptionalString(settings, "label", @"@{label} label")
+S3OneOf(value, choices, label) -> choices.Filter((choice) -> choice == @value).Len() > 0
+  ?: value
+  ?_ .Error(@"@{label} must be one of @{choices}");
+
+S3InteractionPolicy(options ?= {= }) -> {;
+    options ? :Map ?: _ ?_ .Error("scene3d.Interaction options must be a Map");
+    events = S3Option(options, "events", []);
+    events ? :Array ?: _ ?_ .Error("scene3d.Interaction events must be an Array");
+    events.Filter((event) -> !(event ? :String)).Len() == 0
+      ?: _
+      ?_ .Error("scene3d.Interaction events must contain Strings");
+    allowed = ["hover", "select", "activate", "drag"];
+    events.Filter((event) -> @allowed.Filter((candidate) -> candidate == @event).Len() == 0).Len() == 0
+      ?: _
+      ?_ .Error("scene3d.Interaction events must be hover, select, activate, or drag");
+    payload = S3Option(options, "payload", {= });
+    payload ? :Map ?: _ ?_ .Error("scene3d.Interaction payload must be a Map");
+    .DeepMutable({=
+        schema="rix.scene3d.interaction@1",
+        events=events,
+        cursor=S3OptionalString(options, "cursor", "scene3d.Interaction cursor"),
+        tooltip=S3OptionalString(options, "tooltip", "scene3d.Interaction tooltip"),
+        selection=S3OneOf(S3Option(options, "selection", "none"), ["none", "single", "toggle"], "scene3d.Interaction selection"),
+        payload=payload
+    }, _);
 };
 
-S3LeafFields(settings, label) -> S3Interaction(settings, label).Merge({=
+S3AnnotationPolicy(options ?= {= }) -> {;
+    options ? :Map ?: _ ?_ .Error("scene3d.AnnotationPolicy options must be a Map");
+    .DeepMutable({=
+        schema="rix.scene3d.annotation-policy@1",
+        offset=S3Vector(S3Option(options, "offset", [0,0]), 2, "scene3d.AnnotationPolicy offset"),
+        leader=S3Option(options, "leader", 0) == 1 ?: 1 ?_ 0,
+        priority=S3Integer(S3Option(options, "priority", 0), "scene3d.AnnotationPolicy priority"),
+        collision=S3OneOf(S3Option(options, "collision", "allow"), ["allow", "hide-lower-priority"], "scene3d.AnnotationPolicy collision"),
+        occlusion=S3OneOf(S3Option(options, "occlusion", "show"), ["show", "hide", "fade"], "scene3d.AnnotationPolicy occlusion")
+    }, _);
+};
+
+S3LeafInteraction(settings, label) -> {;
+    pickid = S3OptionalString(settings, "id", @"@{label} id");
+    policy = S3Option(settings, "interaction");
+    policy != _ ?: {;
+        ((@policy ? :Map) && @policy.Has("schema") && @policy[:schema] == "rix.scene3d.interaction@1")
+          ?: _
+          ?_ .Error(@"@{@label} interaction must come from scene3d.Interaction");
+        @pickid != _ ?: _ ?_ .Error(@"@{@label} requires an id when interaction is present");
+    } ?_ _;
+    {=
+        pickid=pickid,
+        label=S3OptionalString(settings, "label", @"@{label} label"),
+        interaction=policy
+    };
+};
+
+S3LeafFields(settings, label) -> S3LeafInteraction(settings, label).Merge({=
     metadata=S3Option(settings, "metadata")
 });
 
@@ -190,15 +240,143 @@ S3ParametricCurve(curve, domain, options ?= {= }) -> {;
     }));
 };
 
+S3SurfacePoint(settings, u, v) -> S3Vector(settings[:surface](u, v), 3, "scene3d.ParametricSurface point");
+S3PointAverage(first, second) -> [1,2,3].Map((coordinate) -> (first[coordinate] + second[coordinate]) / 2);
+S3PointAverage4(first, second, third, fourth) -> [1,2,3].Map((coordinate) ->
+    (first[coordinate] + second[coordinate] + third[coordinate] + fourth[coordinate]) / 4
+);
+S3PointError(actual, expected) -> .Max(
+    .Abs(actual[1]-expected[1]),
+    .Max(.Abs(actual[2]-expected[2]), .Abs(actual[3]-expected[3]))
+);
+
+S3SurfaceCellError(surface, u0, u1, v0, v1) -> {;
+    um = (u0+u1)/2;
+    vm = (v0+v1)/2;
+    p00 = S3SurfacePoint(surface,u0,v0);
+    p10 = S3SurfacePoint(surface,u1,v0);
+    p01 = S3SurfacePoint(surface,u0,v1);
+    p11 = S3SurfacePoint(surface,u1,v1);
+    bottom = S3PointError(S3SurfacePoint(surface,um,v0), S3PointAverage(p00,p10));
+    top = S3PointError(S3SurfacePoint(surface,um,v1), S3PointAverage(p01,p11));
+    left = S3PointError(S3SurfacePoint(surface,u0,vm), S3PointAverage(p00,p01));
+    right = S3PointError(S3SurfacePoint(surface,u1,vm), S3PointAverage(p10,p11));
+    center = S3PointError(S3SurfacePoint(surface,um,vm), S3PointAverage4(p00,p10,p01,p11));
+    .Max(.Max(bottom,top), .Max(.Max(left,right),center));
+};
+
+S3ParametricSurface(surface, uDomain, vDomain ?= _, options ?= {= }) -> {;
+    settings = surface ? :Map ?: surface ?_ options.Merge({= surface=surface, uDomain=uDomain, vDomain=vDomain });
+    uInterval = settings[:udomain];
+    vInterval = settings[:vdomain];
+    uLow = S3Exact(uInterval.Low(), "scene3d.ParametricSurface u domain low");
+    uHigh = S3Exact(uInterval.High(), "scene3d.ParametricSurface u domain high");
+    vLow = S3Exact(vInterval.Low(), "scene3d.ParametricSurface v domain low");
+    vHigh = S3Exact(vInterval.High(), "scene3d.ParametricSurface v domain high");
+    (uHigh > uLow && vHigh > vLow) ?: _ ?_ .Error("scene3d.ParametricSurface domains must have increasing endpoints");
+    tolerance = S3Exact(S3Option(settings, "tolerance", 1/100), "scene3d.ParametricSurface tolerance");
+    tolerance > 0 ?: _ ?_ .Error("scene3d.ParametricSurface tolerance must be positive");
+    maxDepth = S3Integer(S3Option(settings, "maxdepth", 5), "scene3d.ParametricSurface maxDepth");
+    (maxDepth >= 0 && maxDepth <= 8) ?: _ ?_ .Error("scene3d.ParametricSurface maxDepth must be between 0 and 8");
+    maxCells = S3Integer(S3Option(settings, "maxcells", 4096), "scene3d.ParametricSurface maxCells");
+    (maxCells >= 1 && maxCells <= 65536) ?: _ ?_ .Error("scene3d.ParametricSurface maxCells must be between 1 and 65536");
+
+    divisions := 1;
+    depth := 0;
+    evaluations := 0;
+    maxError := 0;
+    resolved := 0;
+    finished := 0;
+    {@ pass=0; pass<=@maxDepth && @finished==0; {;
+        passUStep = (@uHigh-@uLow)/@divisions;
+        passVStep = (@vHigh-@vLow)/@divisions;
+        currentMax := 0;
+        {@ vCell=0; vCell<@divisions; {;
+            {@ uCell=0; uCell<@divisions; {;
+                error = S3SurfaceCellError(
+                    @settings,
+                    @uLow+uCell*@passUStep,
+                    @uLow+(uCell+1)*@passUStep,
+                    @vLow+@vCell*@passVStep,
+                    @vLow+(@vCell+1)*@passVStep
+                );
+                @currentMax ~= .Max(@currentMax,error);
+                @evaluations += 9;
+            }; uCell+=1 };
+        }; vCell+=1 };
+        @maxError ~= currentMax;
+        @resolved ~= currentMax <= @tolerance ?: 1 ?_ 0;
+        canRefine = @resolved==0 && @depth<@maxDepth && 4*@divisions*@divisions<=@maxCells;
+        canRefine
+          ?: {; @divisions *= 2; @depth += 1; }
+          ?_ {; @finished ~= 1; };
+    }; pass+=1 };
+
+    vertices := [];
+    uStep = (uHigh-uLow)/divisions;
+    vStep = (vHigh-vLow)/divisions;
+    {@ vIndex=0; vIndex<=@divisions; {;
+        {@ uIndex=0; uIndex<=@divisions; {;
+            @vertices ~= @vertices.Push(S3SurfacePoint(
+                @settings,
+                @uLow+uIndex*@uStep,
+                @vLow+@vIndex*@vStep
+            ));
+            @evaluations += 1;
+        }; uIndex+=1 };
+    }; vIndex+=1 };
+    triangles := [];
+    rowSize = divisions+1;
+    {@ vCell=0; vCell<@divisions; {;
+        {@ uCell=0; uCell<@divisions; {;
+            lowerLeft = @vCell*@rowSize+uCell+1;
+            lowerRight = lowerLeft+1;
+            upperLeft = lowerLeft+@rowSize;
+            upperRight = upperLeft+1;
+            @triangles ~= @triangles.Push([lowerLeft,lowerRight,upperRight]);
+            @triangles ~= @triangles.Push([lowerLeft,upperRight,upperLeft]);
+        }; uCell+=1 };
+    }; vCell+=1 };
+    sourceMetadata = S3Option(settings, "metadata", {= });
+    sourceMetadata == _ ?: {; @sourceMetadata ~= {= }; } ?_ _;
+    sourceMetadata ? :Map ?: _ ?_ .Error("scene3d.ParametricSurface metadata must be a Map");
+    limitedBy = resolved==1 ?: _ ?_ depth>=maxDepth ?: "maxDepth" ?_ "maxCells";
+    sampling = .DeepMutable({=
+        schema="rix.scene3d.surface-sampling@1",
+        method="uniform-adaptive-midpoint",
+        uDomain=uLow:uHigh,
+        vDomain=vLow:vHigh,
+        tolerance=tolerance,
+        maxDepth=maxDepth,
+        maxCells=maxCells,
+        depth=depth,
+        divisions=divisions,
+        cells=divisions*divisions,
+        evaluations=evaluations,
+        maxError=maxError,
+        resolved=resolved,
+        limitedBy=limitedBy,
+        exact=1
+    }, _);
+    S3Mesh(vertices,triangles,settings.Merge({=
+        metadata=sourceMetadata.Merge({= producer="parametric_surface", sampling=sampling })
+    }));
+};
+
 S3Annotation(position, text, options ?= {= }) -> {;
     settings = position ? :Map ?: position ?_ options.Merge({= position=position, text=text });
     content = settings[:text];
     content ? :String ?: _ ?_ .Error("scene3d.Annotation text must be a String");
     size = S3Exact(S3Option(settings, "size", 14), "scene3d.Annotation size");
     size > 0 ?: _ ?_ .Error("scene3d.Annotation size must be positive");
+    policy = S3Option(settings, "policy", S3AnnotationPolicy());
+    ((policy ? :Map) && policy.Has("schema") && policy[:schema] == "rix.scene3d.annotation-policy@1")
+      ?: _
+      ?_ .Error("scene3d.Annotation policy must come from scene3d.AnnotationPolicy");
     S3Value(:annotation, {=
         position=S3Vector(settings[:position], 3, "scene3d.Annotation position"),
         text=content,
+        annotationPolicy=policy,
         style={=
             color=S3Option(settings, "color", "#111827"),
             size=size,
@@ -341,7 +519,9 @@ S3MeshSegments(triangles) -> {;
 S3PrimitiveFields(child) -> {=
     pickid=S3Option(child,"pickid"),
     label=S3Option(child,"label"),
-    metadata=S3Option(child,"metadata")
+    metadata=S3Option(child,"metadata"),
+    interaction=S3Option(child,"interaction"),
+    annotationPolicy=S3Option(child,"annotationpolicy")
 };
 
 S3Collect(children, parent) -> {;
@@ -395,7 +575,9 @@ S3Picking(primitives) -> {;
         id = primitive[:pickid];
         id != _ ?: {;
             @result.Has(@id) ?: .Error(@"Duplicate Scene3D picking id '@{@id}'") ?_ _;
-            @result ~= @result.Set(@id,{= primitive=@index,kind=@primitive[:kind],label=@primitive[:label] });
+            @result ~= @result.Set(@id,{=
+                primitive=@index,kind=@primitive[:kind],label=@primitive[:label],interaction=@primitive[:interaction]
+            });
         } ?_ _;
     }; index+=1 };
     result;
@@ -545,7 +727,8 @@ S3LitColor(style, triangle, lights) -> {;
 };
 
 S3ProjectedFields(primitive, sourcePrimitive) -> {=
-    pickid=primitive[:pickid],label=primitive[:label],sourcePrimitive=sourcePrimitive
+    pickid=primitive[:pickid],label=primitive[:label],sourcePrimitive=sourcePrimitive,
+    metadata=primitive[:metadata],interaction=primitive[:interaction],annotationPolicy=primitive[:annotationPolicy]
 };
 
 S3ProjectedPicking(primitives) -> {;
@@ -555,7 +738,10 @@ S3ProjectedPicking(primitives) -> {;
         id = primitive[:pickid];
         id != _ ?: {;
             existing = @result.Has(@id) ?: @result[@id] ?_ {= indices=[],kind=@primitive[:kind],label=@primitive[:label] };
-            @result ~= @result.Set(@id,existing.Set("indices",existing[:indices].Push(@index)));
+            @result ~= @result.Set(@id,existing.Merge({=
+                indices=existing[:indices].Push(@index),
+                interaction=@primitive[:interaction]
+            }));
         } ?_ _;
     }; index+=1 };
     result;
@@ -643,7 +829,11 @@ S3Project(scene, options ?= {= }) -> {;
         } ?_ primitive[:kind]==:annotation ?: {;
             point=@primitive[:points][1];
             (point[3]>=@near&&point[3]<=@far) ?: {;
-                @projected ~= @projected.Push({= kind=:annotation,point=@project(@point),text=@primitive[:text],style=@primitive[:style] }.Merge(S3ProjectedFields(@primitive,@primitiveIndex)));
+                anchorPoint=@project(@point);
+                policy=@primitive[:annotationpolicy];
+                offset=policy[:offset];
+                displayPoint=[anchorPoint[1]+offset[1],anchorPoint[2]+offset[2]];
+                @projected ~= @projected.Push({= kind=:annotation,point=displayPoint,anchorPoint=anchorPoint,text=@primitive[:text],style=@primitive[:style] }.Merge(S3ProjectedFields(@primitive,@primitiveIndex)));
                 @annotationCount+=1;
             } ?_ _;
         } ?_ _;
@@ -668,9 +858,17 @@ S3Snapshot(scene, options ?= {= }) -> {;
                ?_ primitive[:kind]==:point
                     ?: {; @children ~= @children.Push(.Graphics.Circle(@primitive[:point],@primitive[:radius],S3StyleMap(@primitive[:style],1))); }
                     ?_ primitive[:kind]==:annotation
-                         ?: {; @children ~= @children.Push(.Graphics.Text(@primitive[:point],@primitive[:text],{=
-                             fill=@primitive[:style][:color],size=@primitive[:style][:size],anchor=@primitive[:style][:anchor],weight=@primitive[:style][:weight]
-                         })); }
+                         ?: {;
+                             policy=@primitive[:annotationpolicy];
+                             (policy[:leader]==1 && policy[:offset]!=[0,0]) ?: {;
+                                 @children ~= @children.Push(.Graphics.Path([@primitive[:anchorpoint],@primitive[:point]],{=
+                                     stroke=@primitive[:style][:color],width=1,fill="none"
+                                 }));
+                             } ?_ _;
+                             @children ~= @children.Push(.Graphics.Text(@primitive[:point],@primitive[:text],{=
+                                 fill=@primitive[:style][:color],size=@primitive[:style][:size],anchor=@primitive[:style][:anchor],weight=@primitive[:style][:weight]
+                             }));
+                         }
                     ?_ _;
     }; index+=1 };
     diagnostic=(projected[:mode]=="wireframe"&&scene[:lights].Len()>0)
@@ -693,8 +891,11 @@ scene3dNamespace._proto={=
     Polyline=(self,points,options ?= {= })->S3Polyline(points,options),
     PointCloud=(self,points,options ?= {= })->S3PointCloud(points,options),
     ParametricCurve=(self,curve,domain ?= _,options ?= {= })->S3ParametricCurve(curve,domain,options),
+    ParametricSurface=(self,surface,uDomain ?= _,vDomain ?= _,options ?= {= })->S3ParametricSurface(surface,uDomain,vDomain,options),
     Axes=(self,options ?= {= })->S3Axes(options),
     Annotation=(self,position,text ?= _,options ?= {= })->S3Annotation(position,text,options),
+    AnnotationPolicy=(self,options ?= {= })->S3AnnotationPolicy(options),
+    Interaction=(self,options ?= {= })->S3InteractionPolicy(options),
     Material=(self,color ?= "#275dad",opacity ?= 1,width ?= 1)->S3Material(color,opacity,width),
     AmbientLight=(self,color ?= "#ffffff",intensity ?= 1)->S3AmbientLight(color,intensity),
     DirectionalLight=(self,direction,options ?= {= })->S3DirectionalLight(direction,options),

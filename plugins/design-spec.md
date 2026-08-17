@@ -478,10 +478,11 @@ always provide SVG/PNG snapshot lowering.
 
 `.scene3d` defines a retained three-dimensional scene. It must not expose
 WebGL state as the value. The `rix.scene3d@1` mesh/polyline/point, bounded
-parametric-curve, axes/annotation, stable picking-ID, transform, camera/light,
-rational orbit-description, wireframe/flat-lit Snapshot, and glTF JSON slices
-are implemented; adaptive surfaces, direct WebGL/raster lowering, and the
-broader volume list below remain design targets.
+parametric-curve and adaptive parametric-surface, axes/annotation, portable
+interaction policy, stable picking-ID, transform, camera/light, rational
+orbit-description, wireframe/flat-lit Snapshot, and glTF JSON slices are
+implemented; direct WebGL/raster lowering and the broader implicit-surface and
+volume list below remain design targets.
 
 Migration of this retained model is staged: pure RiX owns schema construction,
 exact hierarchy transforms, realization, and portable projection records;

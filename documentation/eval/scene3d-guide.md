@@ -42,8 +42,11 @@ Available constructors are:
 | `Polyline(points, options?)` | Exact 3-vectors; `closed=1` optionally closes it. |
 | `PointCloud(points, options?)` | Exact 3-vectors with display `radius`. |
 | `ParametricCurve(curve, domain, options?)` | Bounded exact sampling to a retained polyline; `samples` defaults to 33. |
+| `ParametricSurface(surface, uDomain, vDomain, options?)` | Exact midpoint-tested refinement to a conforming triangle mesh, bounded by `maxDepth` and `maxCells`. |
 | `Axes(options?)` | Reusable X/Y/Z polylines with optional projected labels and prefixed picking IDs. |
 | `Annotation(position, text, options?)` | Retained 3D text lowered to a projected core Graphics text mark. |
+| `AnnotationPolicy(options?)` | Screen offset/leader behavior plus retained collision, priority, and occlusion requests. |
+| `Interaction(options?)` | Portable event, cursor, tooltip, selection, and payload intent for an identified leaf. |
 | `Material(options)` | `color`, `opacity`, and wire width hints. A material may be passed in node options. |
 | `AmbientLight(color?, intensity?)` | Retained uniform light contribution. |
 | `DirectionalLight(direction, options?)` | Retained exact direction with hexadecimal `color` and exact `intensity`. |
@@ -54,9 +57,14 @@ Available constructors are:
 
 The schema intentionally contains realized geometry. `ParametricCurve`
 therefore evaluates its function at construction and records the domain,
-sample count, and exact policy as metadata. Parametric and implicit surfaces
-will likewise be bounded/adaptive producers of meshes rather than adding
-unevaluated functions to interchange files.
+sample count, and exact policy as metadata. `ParametricSurface` likewise
+evaluates its two-argument function at construction. It doubles a conforming
+grid until its exact midpoint-deviation test meets `tolerance` or a bound
+stops refinement, then records `rix.scene3d.surface-sampling@1` metadata with
+the chosen depth, work, `resolved`, and `limitedBy`. The midpoint test is a
+deterministic sampling policy, not a certificate over unsampled points.
+Implicit surfaces remain a future bounded producer rather than adding an
+unevaluated function to interchange files.
 
 ## Orbit descriptions, annotations, and picking
 
@@ -87,6 +95,14 @@ projectedPicking := snapshot["picking"];
 records, which a browser host can associate with its own hit-testing layer.
 The picking map is also returned by `Project`. It deliberately describes
 identity without embedding DOM, Canvas, or WebGL event state in the scene.
+An identified leaf may attach a `.scene3d.Interaction(...)` value. Its portable
+events and presentation hints survive both picking maps for a host to
+interpret; callbacks and browser objects never enter the scene.
+
+Annotations may attach `.scene3d.AnnotationPolicy(...)`. Exact screen offsets
+and leader lines lower to core Graphics. Priority, collision, and occlusion
+requests remain in the projected record so capable hosts can implement them;
+the portable snapshot does not falsely claim collision or occlusion handling.
 
 `OrbitCamera` places the camera around the Z axis. Its `turn` is the rational
 Cayley parameter, with `.Complex[:infinity]` denoting the half-turn. The
@@ -101,7 +117,7 @@ implements explicitly named `wireframe` and `lit` modes. Wireframe clips
 perspective segments against the camera's near/far planes. Lit mode uses
 deterministic flat Lambert shading and painter's ordering for mesh triangles;
 it does not claim certified hidden-surface removal, shadows, triangle clipping,
-or tessellation.
+or certified tessellation.
 
 ```rix
 snapshot := .scene3d.Snapshot(scene, {=
