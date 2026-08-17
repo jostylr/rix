@@ -34,9 +34,10 @@ surface, but a disabled mount errors when called.
 Plugins can additionally declare array-valued `aliases`, `requires`, `optional`,
 `provides`, `schemas`, and `targets` fields plus Boolean `snapshot`
 and `deterministic` claims. Discovery exposes `aliases`, `requires`, `provides`,
-`targets`, `snapshot`, and `deterministic` through `.Plugin.Info` without executing the
-plugin. Every alias is a camelCase name for the same mounted capability—not a
-copy or a second activation—and `.Plugin.Info` reports the alias list.
+`schemas`, `targets`, `snapshot`, and `deterministic` through `.Plugin.Info`
+without executing the plugin. Every alias is a camelCase name for the same
+mounted capability—not a copy or a second activation—and `.Plugin.Info`
+reports the alias list.
 
 Loading resolves each `requires` entry first. A requirement may name an exact
 plugin ID or a service in another plugin's `provides` list. A unique provider

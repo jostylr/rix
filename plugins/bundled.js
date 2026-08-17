@@ -15,6 +15,7 @@ import exactAlgebrasSource from "./exact-algebras/exact-algebras.plugin.rix" wit
 import fractionSource from "./fraction/fraction.plugin.rix" with { type: "text" };
 import ratfunSource from "./ratfun/ratfun.plugin.rix" with { type: "text" };
 import symbolicSource from "./symbolic/symbolic.plugin.rix" with { type: "text" };
+import calculusSource from "./calculus/calculus.plugin.rix" with { type: "text" };
 import statsSource from "./stats/stats.plugin.rix" with { type: "text" };
 import complexVizSource from "./complex-visualization/complex-viz.plugin.rix" with { type: "text" };
 import optimizeSource from "./optimize/optimize.plugin.rix" with { type: "text" };
@@ -106,6 +107,7 @@ const BUNDLED_PLUGINS = [
         install: installFracfunPlugin,
     },
     { metadata: readPluginHeader(symbolicSource, "symbolic.plugin.rix"), source: symbolicSource, sourcePath: "bundled:symbolic.plugin.rix" },
+    { metadata: readPluginHeader(calculusSource, "calculus.plugin.rix"), source: calculusSource, sourcePath: "bundled:calculus.plugin.rix" },
     { metadata: readPluginHeader(statsSource, "stats.plugin.rix"), source: statsSource, sourcePath: "bundled:stats.plugin.rix" },
     { metadata: readPluginHeader(complexVizSource, "complex-viz.plugin.rix"), source: complexVizSource, sourcePath: "bundled:complex-viz.plugin.rix" },
     {

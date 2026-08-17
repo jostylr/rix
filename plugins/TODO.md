@@ -18,8 +18,10 @@ Later phases deliberately become broader, harder, and easier to postpone.
 Except where a dependency is called out below, finish most Phase 1 milestones
 before beginning broad Phase 2 work.
 
-All catalogued Phase 1 milestones are now implemented. Unchecked work below is
-Phase 2 or later unless a section explicitly says otherwise.
+All Phase 1 milestones catalogued before the Calculus/Analysis work are
+implemented. Calculus Phase 1 is now implemented; Analysis Phase 1 remains a
+planned dependency-aware slice. Unchecked work below is Phase 2 or later unless
+a section explicitly says otherwise.
 
 ## Basic order of implementation
 
@@ -40,12 +42,16 @@ contracts.
 6. **Broaden analysis and visualization:** `.stats`, `.scene3d`, `.nd`, and
    `.complexViz` Phase 1.
 7. **Complete publication pipelines:** `.quarto`, `.pdf`, and `.gif` Phase 1.
-8. **Begin Phase 2 in dependency order:** shared Numerics and renderer
+8. **Establish abstract mathematical functions:** `.calculus` Phase 1 provides
+   portable function/expression contracts before exact transformation rules.
+9. **Begin Analysis over explicit evidence:** `.analysis` Phase 1 follows the
+   Calculus expression contract and the effective-sequence protocols.
+10. **Begin Phase 2 in dependency order:** shared Numerics and renderer
    contracts first; mathematical/scene producers second; document
    orchestrators last.
-9. **Treat Phase 3 as advanced work:** certification, adaptive algorithms,
+11. **Treat Phase 3 as advanced work:** certification, adaptive algorithms,
    interactivity, layout, and equivalence/proof integration.
-10. **Treat Phase 4 as research or ecosystem work:** native acceleration,
+12. **Treat Phase 4 as research or ecosystem work:** native acceleration,
     formal proof exchange, distributed computation, high-dimensional
     exploration, and production publishing toolchains.
 
@@ -597,6 +603,98 @@ tracked in
      formal symbolic plugins.
 4. **Phase 4 — External symbolic providers**
    - [ ] Negotiate optional CAS and proof backends through capability services.
+
+### `.calculus`
+
+1. **Phase 1 — Portable abstract functions and expression graphs**
+   - [x] Add a pure-RiX `.calculus` plugin with the stable
+     `rix.calculus.function@1` and `rix.calculus.expression@1` schemas.
+   - [x] Separate semantic function identity, domain/codomain declarations,
+     and mathematical facts from optional executable implementations.
+   - [x] Add immutable builders for exact constants, variables, semantic
+     applications, and arithmetic operation graphs without exposing private
+     evaluator IR.
+   - [x] Provide `Exp` as the first named abstract function, characterized by
+     `y' = y` together with `y(0) = 1`, and allow an explicitly supplied
+     Numerics callable to realize concrete evaluations.
+   - [x] Bundle the plugin and add reference documentation, a design record, a
+     runnable tutorial, and focused contract/Numerics-link tests.
+2. **Phase 2 — Exact differential calculus and the public spec bridge**
+   - [ ] Add a versioned bidirectional bridge between Calculus expression
+     records and core `{#}` specifications. It must use public constructors,
+     preserve free variables and assumptions, reject unsupported nodes, and
+     never require plugins to mutate evaluator IR.
+   - [ ] Export the same expression import/build helpers through `rix/eval` for
+     JavaScript plugins; migrate a small existing consumer to prove that pure
+     RiX and host plugins share one contract.
+   - [ ] Add a semantic-function registry keyed by stable IDs rather than
+     binding spellings or object identity. Keep exact rules, implementations,
+     domains, branches, and evidence as separate registry entries.
+   - [ ] Implement exact linearity, product, quotient, power, and chain rules
+     over expression graphs, including named rules such as `D Exp = Exp`.
+   - [ ] Preserve domain and branch obligations for `Log`, roots, inverse
+     functions, and complex continuations instead of applying unconditional
+     rewrites.
+   - [ ] Add higher derivatives, partial derivatives, gradients, Jacobians,
+     and Hessians with explicit variable selection.
+3. **Phase 3 — Integration and equation specifications**
+   - [ ] Distinguish a selected primitive, an antiderivative family with its
+     integration constant, and a definite integral with endpoints.
+   - [ ] Apply exact integration identities when justified, then negotiate
+     certified Numerics quadrature or explicitly approximate fallback while
+     retaining assumptions, work, and evidence.
+   - [ ] Represent differential, boundary-value, and integral equations as
+     inert portable problem specifications, including initial/boundary data
+     and uniqueness assumptions.
+   - [ ] Let `.solve` and `.numerics` consume those problems through protocols;
+     keep symbolic formulation separate from solver ownership.
+   - [ ] Allow opaque numerical functions to advertise derivative
+     implementations or certified derivative bounds without treating finite
+     differences as exact identities.
+4. **Phase 4 — Theorem evidence and external calculus providers**
+   - [ ] Record replayable rule applications, assumptions, and proof/evidence
+     provenance for calculus transformations.
+   - [ ] Negotiate optional CAS, automatic-differentiation, interval, and proof
+     backends by semantic function ID and declared capability.
+   - [ ] Explore verified special-function identities, analytic continuation,
+     distributions, and generalized derivatives without weakening the base
+     exactness contract.
+
+### `.analysis`
+
+1. **Phase 1 — Function sequences and explicit convergence claims**
+   - [ ] Depend on `rix.abstract-function@1` and a cloneable/effective sequence
+     protocol rather than inventing a second function representation.
+   - [ ] Add first-class function-sequence values with an index domain,
+     function domain/codomain, term constructor, and optional effective tail
+     evidence.
+   - [ ] Distinguish pointwise, uniform, almost-everywhere, in-measure, and
+     norm convergence in versioned claim/result records.
+   - [ ] Implement one end-to-end geometric function-series example with an
+     exact or certified uniform tail bound; return `unknown` for an unsupported
+     convergence claim rather than sampling it into a theorem.
+   - [ ] Add README documentation, a runnable tutorial, and focused tests that
+     prevent exchanging limits with evaluation solely from finite samples.
+2. **Phase 2 — Limits, series, and justified exchanges**
+   - [ ] Add scalar/function limits, limsup/liminf, infinite series, Cauchy
+     criteria, and effective moduli where available.
+   - [ ] Encode hypotheses for exchanging limits with continuity, integration,
+     differentiation, summation, and expectation; unresolved hypotheses remain
+     visible obligations.
+   - [ ] Interoperate with `.cauchy`, `.numerics`, and Calculus definite
+     integrals without making any one real-number representation mandatory.
+3. **Phase 3 — Function spaces and operator analysis**
+   - [ ] Add explicit metric, normed, Banach, Hilbert, and selected `L^p`
+     function-space records with domains and measures.
+   - [ ] Represent continuity, compactness, bounded operators, weak/strong
+     convergence, and approximation error under stated topologies.
+   - [ ] Add Fourier/power-series and orthogonal-expansion examples with
+     convergence regions and truncation evidence.
+4. **Phase 4 — Advanced and proof-connected analysis**
+   - [ ] Exchange theorem obligations and certificates with external proof
+     systems while retaining a portable RiX claim format.
+   - [ ] Explore distributions, Sobolev spaces, spectral methods, semigroups,
+     and PDE convergence only after the topology/evidence contracts stabilize.
 
 ### `.ball`
 

@@ -1,0 +1,195 @@
+/**
+id: calculus
+description: Portable abstract mathematical functions and composable expression graphs with explicit implementation links.
+kind: rix
+mount: calculus
+exports: [Function, Exp, Variable, Constant, Apply, IsFunction, IsExpression]
+groups: [Calculus, Analysis, Symbolic, Exact]
+permissions: []
+provides: [rix.calculus@1, rix.abstract-function@1]
+schemas: [rix.calculus.function@1, rix.calculus.expression@1]
+snapshot: false
+deterministic: true
+defaultEnabled: false
+**/
+
+CalculusOption(options, key, fallback) -> options.Has(key) ?: options[key] ?_ fallback;
+
+CalculusIsExpression(value) -> value ? :CalculusExpression;
+CalculusIsFunction(value) -> value ? :MathematicalFunction;
+
+CalculusRequireExpression(value, label ?= "value") ->
+    CalculusIsExpression(value) ?: value ?_ .Error(@"@{label} must be a Calculus expression");
+
+CalculusExactScalar(value) -> (value ? :Integer) || (value ? :Rational);
+CalculusOperand(value) -> CalculusIsExpression(value) || CalculusExactScalar(value);
+
+CalculusExpression(kind, fields) -> {;
+    value = {=
+        valueKind=:calculusExpression,
+        schema="rix.calculus.expression@1",
+        kind=kind
+    }.Merge(fields);
+    value.__type = "CalculusExpression";
+    value._type = "calculus_expression";
+    value._proto = {=
+        Record=(self)->self,
+        Kind=(self)->self[:kind],
+        Operands=(self)->self.Has("operands") ?: self[:operands] ?_ [],
+        SemanticId=(self)->self.Has("semanticId") ?: self[:semanticId] ?_ _
+    };
+    .ImmutableValue(value);
+};
+
+CalculusVariable(name) -> {;
+    name ? :String ?: _ ?_ .Error("Calculus variable name must be a string or colon-string");
+    CalculusExpression(:variable, {= name=name });
+};
+
+CalculusConstant(value) -> CalculusExactScalar(value)
+    ?: CalculusExpression(:constant, {= value=value })
+    ?_ .Error("Calculus constants currently require an exact Integer or Rational");
+
+CalculusPromote(value) -> CalculusIsExpression(value) ?: value ?_ CalculusConstant(value);
+
+CalculusOperator(operation, operands) -> CalculusExpression(:operator, {=
+    operation=operation,
+    operands=operands.Map((value)->CalculusPromote(value))
+});
+
+CalculusBinary(operation, left, right) -> CalculusOperator(operation, [left,right]);
+CalculusNegate(value) -> CalculusOperator(:negate, [value]);
+
+CalculusApplication(semanticId, name, arguments) -> CalculusExpression(:apply, {=
+    semanticId=semanticId,
+    name=name,
+    arguments=arguments.Map((value)->CalculusPromote(value))
+});
+
+CalculusApply(function, argument) -> {;
+    exact = function ? :MathematicalFunction
+        ?: function
+        ?_ .Error("Calculus Apply expects a MathematicalFunction");
+    CalculusApplication(exact.semanticId, exact.name, [argument]);
+};
+
+CalculusFunctionRecord(function) -> {=
+    valueKind=:mathematicalFunction,
+    schema="rix.calculus.function@1",
+    semanticId=function.semanticId,
+    name=function.name,
+    arity=function.arity,
+    domain=function.domain,
+    codomain=function.codomain,
+    facts=function.facts,
+    hasImplementation=function.implementation == _ ?: _ ?_ 1,
+    implementationEvidence=function.implementationEvidence
+};
+
+CalculusDispatch(semanticId, name, implementation, argument) ->
+    CalculusIsExpression(argument)
+      ?: CalculusApplication(semanticId, name, [argument])
+      ?_ (implementation == _
+          ?: .Error(@"Abstract function @{name} has no attached implementation for concrete evaluation")
+          ?_ argument |> implementation);
+
+CalculusBuildFunction(semanticId, options ?= {= }) -> {;
+    semanticId ? :String ?: _ ?_ .Error("Calculus semantic function ID must be a string or colon-string");
+    name = CalculusOption(options, "name", semanticId);
+    name ? :String ?: _ ?_ .Error("Calculus function name must be a string or colon-string");
+    arity = CalculusOption(options, "arity", 1) ~!: :Integer;
+    arity == 1 ?: _ ?_ .Error("Calculus Phase 1 supports unary mathematical functions");
+    domain = CalculusOption(options, "domain", :unspecified);
+    codomain = CalculusOption(options, "codomain", :unspecified);
+    facts = CalculusOption(options, "facts", []);
+    facts ? :Array ?: _ ?_ .Error("Calculus function facts must be an Array");
+    implementation = CalculusOption(options, "implementation", _);
+    implementationEvidence = CalculusOption(options, "implementationevidence", :unspecified);
+
+    MathematicalFunctionValue = (argument) ->
+        CalculusDispatch(semanticId, name, implementation, argument);
+    MathematicalFunctionValue.schema = "rix.calculus.function@1";
+    MathematicalFunctionValue.semanticId = semanticId;
+    MathematicalFunctionValue.name = name;
+    MathematicalFunctionValue.arity = arity;
+    MathematicalFunctionValue.domain = domain;
+    MathematicalFunctionValue.codomain = codomain;
+    MathematicalFunctionValue.facts = facts;
+    MathematicalFunctionValue.implementation = implementation;
+    MathematicalFunctionValue.implementationEvidence = implementationEvidence;
+    MathematicalFunctionValue.__type = "MathematicalFunction";
+    MathematicalFunctionValue._type = "mathematical_function";
+    MathematicalFunctionValue._proto = {=
+        Record=(self)->CalculusFunctionRecord(self),
+        SemanticId=(self)->self.semanticId,
+        Facts=(self)->self.facts,
+        Expression=(self, argument)->CalculusApplication(self.semanticId,self.name,[argument]),
+        WithImplementation=(self, attached, evidence ?= :unspecified)->CalculusBuildFunction(self.semanticId,{=
+            name=self.name,
+            arity=self.arity,
+            domain=self.domain,
+            codomain=self.codomain,
+            facts=self.facts,
+            implementation=attached,
+            implementationEvidence=evidence
+        })
+    };
+    .ImmutableValue(MathematicalFunctionValue);
+};
+
+CalculusExp(implementation ?= _) -> CalculusBuildFunction("rix.function.exp@1", {=
+    name=:Exp,
+    arity=1,
+    domain=:real,
+    codomain=:positiveReal,
+    facts=[{=
+        kind=:initialValueDifferentialEquation,
+        variable=:x,
+        dependent=:y,
+        equation=:derivativeEqualsSelf,
+        initialPoint=0,
+        initialValue=1
+    }],
+    implementation=implementation,
+    implementationEvidence=implementation == _ ?: :none ?_ :declaredByCaller
+});
+
+.TypeKnown(:CalculusExpression) ?: _ ?_ .TypeRegister({=
+    name=:CalculusExpression,
+    nativeType=:map,
+    defaultTraits=[],
+    validate=(value)->value.Has("schema") && value[:schema] == "rix.calculus.expression@1",
+    proto={= },
+    installs={=
+        ADD=[{= name=:CalculusAdd, priority=250, prep=(left,right)->CalculusOperand(left)&&CalculusOperand(right)&&(CalculusIsExpression(left)||CalculusIsExpression(right)), impl=(left,right)->CalculusBinary(:add,left,right) }],
+        SUB=[{= name=:CalculusSub, priority=250, prep=(left,right)->CalculusOperand(left)&&CalculusOperand(right)&&(CalculusIsExpression(left)||CalculusIsExpression(right)), impl=(left,right)->CalculusBinary(:subtract,left,right) }],
+        MUL=[{= name=:CalculusMul, priority=250, prep=(left,right)->CalculusOperand(left)&&CalculusOperand(right)&&(CalculusIsExpression(left)||CalculusIsExpression(right)), impl=(left,right)->CalculusBinary(:multiply,left,right) }],
+        DIV=[{= name=:CalculusDiv, priority=250, prep=(left,right)->CalculusOperand(left)&&CalculusOperand(right)&&(CalculusIsExpression(left)||CalculusIsExpression(right)), impl=(left,right)->CalculusBinary(:divide,left,right) }],
+        POW=[{= name=:CalculusPow, priority=250, prep=(left,right)->CalculusOperand(left)&&CalculusOperand(right)&&(CalculusIsExpression(left)||CalculusIsExpression(right)), impl=(left,right)->CalculusBinary(:power,left,right) }],
+        NEG=[{= name=:CalculusNeg, priority=250, prep=(value)->CalculusIsExpression(value), impl=CalculusNegate }]
+    }
+});
+.TypeInstall(:CalculusExpression);
+
+.TypeKnown(:MathematicalFunction) ?: _ ?_ .TypeRegister({=
+    name=:MathematicalFunction,
+    nativeType=:function,
+    defaultTraits=[],
+    validate=(value)->value.schema == "rix.calculus.function@1",
+    proto={= },
+    installs={= }
+});
+.TypeInstall(:MathematicalFunction);
+
+calculusNamespace = {= };
+calculusNamespace._proto = {=
+    Function=(self, semanticId, options ?= {= })->CalculusBuildFunction(semanticId,options),
+    Exp=(self, implementation ?= _)->CalculusExp(implementation),
+    Variable=(self, name)->CalculusVariable(name),
+    Constant=(self, value)->CalculusConstant(value),
+    Apply=(self, function, argument)->CalculusApply(function,argument),
+    IsFunction=(self, value)->CalculusIsFunction(value) ?: 1 ?_ _,
+    IsExpression=(self, value)->CalculusIsExpression(value) ?: 1 ?_ _
+};
+
+.Host.RegisterValue("calculus",calculusNamespace,"Portable abstract mathematical functions and composable expression graphs",["Calculus","Analysis","Symbolic","Exact"]);

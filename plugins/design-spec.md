@@ -58,7 +58,8 @@ numeric type or one universal rendering engine.
 | `.fraction` | Implemented pure-RiX plugin | Unreduced Fraction arithmetic, classroom denominator policies, mediants, and Farey/Stern–Brocot operations over the core Fraction pair. |
 | `.ratfun` | Implemented pure-RiX plugin | Canonical callable univariate RationalFunctions over `.poly`, including field operators, composition, and reactive reconstruction. |
 | `.symbolic` | Implemented pure-RiX meta-plugin | One loading surface for `.fraction`, `.fracfun`, `.poly`, and `.ratfun` while preserving focused ownership. |
-| `.fracfun` | Implemented host plugin; migration blocked on a stable symbolic-expression builder | Form- and source-domain-preserving callable expressions. Its canonical projections already use pure-RiX `.poly` and `.ratfun`. |
+| `.calculus` | Implemented pure-RiX Phase 1 plugin | Portable abstract mathematical functions and exact expression graphs with semantic IDs, mathematical facts, and explicit implementation links. |
+| `.fracfun` | Implemented host plugin; migration blocked on the public expression-to-`{#}` bridge | Form- and source-domain-preserving callable expressions. Its canonical projections already use pure-RiX `.poly` and `.ratfun`. |
 | HTML/SVG/terminal display | Implemented compatibility hosts | Existing direct host display remains available without loading an exporter; explicit artifacts use the renderer registry when a matching plugin is loaded. |
 
 ### Proposed first-party packages
@@ -67,6 +68,8 @@ numeric type or one universal rendering engine.
 | --- | --- | --- |
 | Exact mathematics expansion | `.algebra` | Polynomial gcd/factorization, rational functions, elimination, exact root evidence, and algebraic-number support beyond the implemented univariate transformation slice. |
 | Numeric orchestration expansion | `.numerics` | Root finding, integration, optimization, ODE/PDE helpers, adaptive sampling, error propagation, and broader algorithm dispatch beyond the implemented neutral Phase 1 enclosure/refinement protocol. |
+| Exact calculus expansion | `.calculus` | Public `{#}` bridging, semantic derivative rules, domains/branches, integration, and differential/integral-equation specifications beyond the implemented abstract-function slice. |
+| Mathematical analysis | `.analysis` | Function sequences, explicit modes of convergence, limits/series, justified exchanges, and function spaces over Calculus functions and effective sequence evidence. |
 | Real backends | `.algebraicReal`; later expansion of implemented `.ball`, `.cauchy`, `.continuedFraction`, and `.oracle` | Alternative representations that satisfy shared real-number and enclosure protocols. `.float`, `.oracle`, nested `.ball`, modulus-backed `.cauchy`, and convergent-backed `.continuedFraction` now have initial implementations. |
 | Geometry expansion | `.geometry` | Transformations, constraints, conics, implicit loci, and certified intersections/drawing refinement beyond the implemented ruler-and-compass slice. |
 | Plotting | `.plot` | Function, parametric, implicit, data, statistical, vector, contour, and heat-map plots. |

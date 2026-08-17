@@ -348,6 +348,7 @@ export class PluginCatalog {
                 ["permissions", { type: "sequence", values: metadata.permissions.map(rixString) }],
                 ["requires", { type: "sequence", values: metadata.requires.map(rixString) }],
                 ["provides", { type: "sequence", values: metadata.provides.map(rixString) }],
+                ["schemas", { type: "sequence", values: metadata.schemas.map(rixString) }],
                 ["targets", { type: "sequence", values: metadata.targets.map(rixString) }],
                 ["snapshot", metadata.snapshot ? { type: "integer", value: 1n } : null],
                 ["deterministic", metadata.deterministic ? { type: "integer", value: 1n } : null],
