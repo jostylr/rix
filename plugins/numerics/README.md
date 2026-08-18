@@ -93,6 +93,13 @@ Generic subdivided functions may return an exact scalar, `RationalInterval`, or
 one supported Numerics interval image. Arithmetic that combines several
 interval images is not yet a general expression-graph range engine.
 
+Range results now also expose `result[:range]` as a `RationalIntervalSet`.
+`result[:interval]` remains the compatibility projection when that set is one
+closed bounded component. RiX interval operators preserve disconnected sets:
+`\/` is genuine union, `/\` is genuine intersection, and `|\/|` is the
+explicit hull. `?/\`/`?&` test overlap, `!/\` tests disjointness, and
+`.Split()` returns connected components.
+
 See [interval-ranges-tutorial.md](interval-ranges-tutorial.md) for a full
 measurement tutorial, [range-certification.md](range-certification.md) for the
 proof knowledge useful to general functions, and
@@ -101,6 +108,27 @@ unary coverage. The cross-component implementation plan is tracked in
 [general-range-development-checklist.md](general-range-development-checklist.md).
 
 ## Provider protocol
+
+For general set-valued functions, `.numerics.WithRangeKnowledge(Function,
+knowledge)` returns a new callable with an attached
+`rix.numerics.range-provider@1` descriptor. The implemented first slice accepts
+`directRange(input, request)` and validates its
+`rix.numerics.range-provider-result@1` record through
+`.numerics.CheckRangeResult`. Function identity, exact covered input, range
+type, status/domain consistency, endpoint goal, and bounded work are checked.
+
+Scoped wrappers are always `evidenceLevel=:heuristic` and
+`trust=:scopedUntrusted`, regardless of a caller-supplied trust label. Their
+ranges may guide a computation but never produce `certified=1`; a callback
+that tries to self-certify is rejected. Checked theorem evidence and
+capability-gated trusted provider registration remain later stages in the
+general-range checklist.
+
+The schemas are documented in
+[`range-provider.schema.json`](../../schemas/range-provider.schema.json) and
+[`range-provider-result.schema.json`](../../schemas/range-provider-result.schema.json).
+
+The existing singleton-real provider protocol is separate:
 
 A provider value supplies receiver methods:
 

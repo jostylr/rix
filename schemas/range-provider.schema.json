@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/range-provider.schema.json",
+  "title": "RiX Numerics range provider descriptor",
+  "description": "Portable descriptor for rix.numerics.range-provider@1. Runtime callables are attached under the named operations and are intentionally not serialized by this schema.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "functionId", "operations", "evidenceLevel", "provenance"],
+  "properties": {
+    "schema": { "const": "rix.numerics.range-provider@1" },
+    "functionId": { "type": "string", "minLength": 1 },
+    "operations": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "domain",
+          "directRange",
+          "derivativeRange",
+          "criticalPoints",
+          "monotonicity",
+          "globalRange",
+          "period",
+          "symmetry"
+        ]
+      }
+    },
+    "evidenceLevel": {
+      "enum": ["heuristic", "checkedEvidence", "trustedCapability"]
+    },
+    "provenance": { "type": "object" }
+  }
+}

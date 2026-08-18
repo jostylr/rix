@@ -3,12 +3,12 @@ id: numerics
 description: Backend-neutral bounded enclosure and refinement orchestration.
 kind: rix
 mount: numerics
-exports: [Request, WorkPolicy, EffectiveLimits, Enclose, Refine, Sample, Range, Sign, RootCount, Capabilities, CheckResult, NthRoot, Sqrt, Cbrt, Hypot, Pow, Exp, Expm1, Log, Log1p, Ln, Log2, Log10, Pi, EulerGamma, Sin, Cos, Tan, Sec, Csc, Cot, Sinc, Asin, Acos, Atan, Atan2, Arcsin, Arccos, Arctan, Sinh, Cosh, Tanh, Sech, Csch, Coth, Asinh, Acosh, Atanh, Arsinh, Arcosh, Artanh, Radians, Degrees, Gamma, LogGamma, Beta, LogBeta, Digamma, Trigamma, Erf, Erfc, NormalPDF, NormalCDF, NormalQuantile, LambertW, BesselJ, BesselJ0, BesselJ1, BesselY, BesselY0, BesselY1, BesselI, BesselI0, BesselI1, BesselK, BesselK0, BesselK1, Zeta, Quadrature, Kantorovich]
+exports: [Request, WorkPolicy, EffectiveLimits, Enclose, Refine, Sample, Range, WithRangeKnowledge, CheckRangeResult, Sign, RootCount, Capabilities, CheckResult, NthRoot, Sqrt, Cbrt, Hypot, Pow, Exp, Expm1, Log, Log1p, Ln, Log2, Log10, Pi, EulerGamma, Sin, Cos, Tan, Sec, Csc, Cot, Sinc, Asin, Acos, Atan, Atan2, Arcsin, Arccos, Arctan, Sinh, Cosh, Tanh, Sech, Csch, Coth, Asinh, Acosh, Atanh, Arsinh, Arcosh, Artanh, Radians, Degrees, Gamma, LogGamma, Beta, LogBeta, Digamma, Trigamma, Erf, Erfc, NormalPDF, NormalCDF, NormalQuantile, LambertW, BesselJ, BesselJ0, BesselJ1, BesselY, BesselY0, BesselY1, BesselI, BesselI0, BesselI1, BesselK, BesselK0, BesselK1, Zeta, Quadrature, Kantorovich]
 groups: [Numerics]
 permissions: []
 requires: [rix.oracle@1]
 provides: [rix.numerics@1, rix.enclosable-real-consumer@1, rix.exact-sign-consumer@1, rix.root-count-consumer@1]
-schemas: [rix.numerics.refinement-request@1, rix.numerics.enclosure@1, rix.numerics.algorithm-real@1, rix.numerics.interval-image@1, rix.numerics.range-enclosure@1, rix.exact.sign-witness@1, rix.exact.root-count@1]
+schemas: [rix.numerics.refinement-request@1, rix.numerics.enclosure@1, rix.numerics.algorithm-real@1, rix.numerics.interval-image@1, rix.numerics.range-enclosure@1, rix.numerics.range-provider@1, rix.numerics.range-provider-result@1, rix.exact.sign-witness@1, rix.exact.root-count@1]
 defaultEnabled: false
 **/
 
@@ -3270,6 +3270,7 @@ NumericsRangeBoundsGoal(bounds, tolerance) ->
 
 NumericsRangeResult(image, request, interval, achievedTolerance, goalMet, iterations, evidence) -> {;
     status = goalMet ?: :enclosed ?_ :budgetExhausted;
+    range = interval ~!: :RangeSet;
     {=
         valueKind=:rangeEnclosure,
         schema="rix.numerics.range-enclosure@1",
@@ -3277,6 +3278,7 @@ NumericsRangeResult(image, request, interval, achievedTolerance, goalMet, iterat
         denotation=:set,
         function=image[:kind],
         input=image[:input],
+        range=range,
         interval=interval,
         certified=1,
         domainStatus=:allDefined,
@@ -3309,6 +3311,7 @@ NumericsRangeUnknown(
     denotation=:set,
     function=image[:kind],
     input=image[:input],
+    range=_,
     interval=_,
     certified=_,
     domainStatus=domainStatus,
@@ -3881,6 +3884,213 @@ NumericsRangePiece(value, request, maxWork) -> {;
     };
 };
 
+## Attach caller-local range knowledge without changing the original callable.
+## This surface is intentionally heuristic-only: a user callback cannot grant
+## itself certification authority.  Checked witnesses and capability-approved
+## providers will use separate trust-bearing paths as those checkers land.
+NumericsWithRangeKnowledge(function, knowledge) -> {;
+    (knowledge ? :Map)
+      ?: _
+      ?_ .Error("numerics.WithRangeKnowledge expects a knowledge map");
+    functionId = NumericsOption(knowledge, "functionid", _);
+    functionId != _
+      ?: _
+      ?_ .Error("Range knowledge requires a stable functionId");
+    directRange = NumericsOption(knowledge, "directrange", _);
+    directRange != _
+      ?: _
+      ?_ .Error("Range knowledge currently requires directRange(input, request)");
+    provenance = NumericsOption(knowledge, "provenance", {=
+        provider=:scopedUserKnowledge,
+        functionId=functionId
+    });
+    normalized = {=
+        valueKind=:rangeProvider,
+        schema="rix.numerics.range-provider@1",
+        functionId=functionId,
+        operations=[:directRange],
+        directRange=directRange,
+        evidenceLevel=:heuristic,
+        declaredEvidenceLevel=NumericsOption(knowledge, "evidencelevel", :heuristic),
+        trust=:scopedUntrusted,
+        provenance=provenance
+    };
+    wrapper = (input) -> input |> function;
+    wrapper.rangeknowledge = .ImmutableValue(normalized);
+    wrapper.sourcefunction = function;
+    .ImmutableValue(wrapper);
+};
+
+NumericsRangeProviderValidation(result, knowledge, input, request) -> {;
+    resultMap = result ? :Map;
+    knowledgeMap = knowledge ? :Map;
+    schemaValid = resultMap
+      && result[:schema] == "rix.numerics.range-provider-result@1";
+    identityValid = schemaValid
+      && result[:functionId] == knowledge[:functionId];
+    resultInput = schemaValid ?: result[:input] ?_ _;
+    resultInputValid = resultInput ? :RationalInterval
+      ?: 1
+      ?_ (resultInput ? :RationalIntervalSet);
+    resultInputSet = resultInputValid ?: resultInput ~!: :RangeSet ?_ _;
+    inputSet = input ~!: :RangeSet;
+    inputValid = resultInputValid
+      && resultInputSet.Contains(inputSet)
+      && inputSet.Contains(resultInputSet);
+    range = schemaValid ?: result[:range] ?_ _;
+    rangeValid = (range ? :RationalInterval) || (range ? :RationalIntervalSet);
+    status = schemaValid ?: result[:status] ?_ _;
+    statusValid = status ? [:enclosed, :budgetExhausted, :approximate, :unknown, :domainViolation];
+    domainStatus = schemaValid ?: result[:domainStatus] ?_ _;
+    domainValid = domainStatus ? [:allDefined, :definedImage, :domainViolation, :notCertified];
+    statusDomainConsistent = status == :domainViolation
+      ?: domainStatus == :domainViolation
+      ?_ (domainStatus == :domainViolation ?: _ ?_ 1);
+    work = schemaValid ?: result[:work] ?_ _;
+    workValid = work ? :Map;
+    calls = workValid && work.Has("calls") ?: work[:calls] ~: :Integer ?_ 0;
+    iterations = workValid && work.Has("iterations") ?: work[:iterations] ~: :Integer ?_ 0;
+    boundedWork = calls != _ && iterations != _
+      && calls >= 0 && iterations >= 0
+      && calls <= request[:work][:maxCalls]
+      && iterations <= request[:work][:maxIterations];
+    achieved = schemaValid ?: result[:achievedEndpointTolerance] ~: :Rational ?_ _;
+    toleranceValid = achieved != _ && achieved >= 0;
+    goal = schemaValid ?: result[:goalMet] ?_ _;
+    goalMetClaim = goal == 1;
+    goalConsistent = status == :enclosed
+      ?: (goalMetClaim && achieved <= request[:endpointTolerance])
+      ?_ (status == :budgetExhausted ?: !goalMetClaim ?_ 1);
+    certifiedClaim = schemaValid && result[:certified] == 1;
+    trust = knowledgeMap ?: knowledge[:trust] ?_ _;
+    certificationAllowed = trust ? [:checkedEvidence, :trustedCapability];
+    certificationConsistent = !certifiedClaim
+      || (certificationAllowed
+          && rangeValid
+          && domainStatus == :allDefined
+          && status ? [:enclosed, :budgetExhausted]);
+    structuralValid = knowledgeMap && schemaValid && identityValid && inputValid
+      && rangeValid && statusValid && domainValid && statusDomainConsistent
+      && workValid && boundedWork
+      && toleranceValid && goalConsistent;
+    valid = structuralValid && certificationConsistent;
+    reason = !knowledgeMap
+      ?: :missingRangeProvider
+      ?_ !schemaValid
+           ?: :invalidRangeProviderSchema
+           ?_ !identityValid
+                ?: :rangeProviderIdentityMismatch
+                ?_ !inputValid
+                     ?: :rangeProviderInputMismatch
+                     ?_ !rangeValid
+                          ?: :invalidRangeProviderRange
+                          ?_ !statusValid
+                               ?: :invalidRangeProviderStatus
+                               ?_ !domainValid
+                                    ?: :invalidRangeProviderDomainStatus
+                                    ?_ !statusDomainConsistent
+                                         ?: :rangeProviderStatusDomainConflict
+                                         ?_ !workValid || !boundedWork
+                                              ?: :rangeProviderWorkInvalid
+                                              ?_ !toleranceValid || !goalConsistent
+                                                   ?: :rangeProviderGoalInvalid
+                                                   ?_ !certificationConsistent
+                                                        ?: :untrustedCertificationClaim
+                                                        ?_ :valid;
+    {=
+        valueKind=:rangeProviderValidation,
+        schema="rix.numerics.range-provider-validation@1",
+        valid=valid,
+        certifying=valid && certifiedClaim && certificationAllowed,
+        reason=reason,
+        diagnostics=valid ?: [] ?_ [reason],
+        functionId=knowledgeMap ?: knowledge[:functionId] ?_ _,
+        input=input,
+        range=range,
+        work={= calls=calls, iterations=iterations },
+        checks={=
+            knowledge=knowledgeMap,
+            schema=schemaValid,
+            identity=identityValid,
+            input=inputValid,
+            range=rangeValid,
+            status=statusValid,
+            domain=domainValid,
+            statusDomain=statusDomainConsistent,
+            work=workValid,
+            boundedWork=boundedWork,
+            tolerance=toleranceValid,
+            goal=goalConsistent,
+            certification=certificationConsistent
+        },
+        evidenceLevel=certificationAllowed ?: :trusted ?_ :heuristic
+    };
+};
+
+NumericsCheckRangeResult(result, function, input, options ?= {= }) -> {;
+    rangeInput = input ~!: :RangeSet;
+    knowledge = function.rangeknowledge;
+    NumericsRangeProviderValidation(
+        result, knowledge, rangeInput, NumericsRangeRequest(options)
+    );
+};
+
+NumericsDirectProviderRange(function, input, options ?= {= }) -> {;
+    rangeInput = input ~!: :RangeSet;
+    request = NumericsRangeRequest(options);
+    knowledge = function.rangeknowledge;
+    raw = knowledge[:directRange](rangeInput, request);
+    validation = NumericsRangeProviderValidation(raw, knowledge, rangeInput, request);
+    descriptor = {=
+        kind=knowledge[:functionId],
+        input=rangeInput,
+        provenance=knowledge[:provenance]
+    };
+    !validation[:valid]
+      ?: NumericsRangeUnknown(
+          descriptor, request, validation[:reason], :notCertified,
+          validation[:work][:iterations], validation
+      )
+      ?_ {;
+          range = @raw[:range] ~!: :RangeSet;
+          portableInterval = range.ToRationalInterval();
+          certified = @validation[:certifying] && @raw[:certified];
+          {=
+              valueKind=:rangeEnclosure,
+              schema="rix.numerics.range-enclosure@1",
+              status=@raw[:status],
+              denotation=:set,
+              function=@knowledge[:functionId],
+              input=@rangeInput,
+              range=range,
+              interval=portableInterval,
+              certified=certified,
+              domainStatus=@raw[:domainStatus],
+              goalMet=@raw[:goalMet],
+              requestedEndpointTolerance=@request[:endpointTolerance],
+              achievedEndpointTolerance=@raw[:achievedEndpointTolerance],
+              rangeWidth=portableInterval ? :RationalInterval
+                ?: portableInterval.Width()
+                ?_ _,
+              evidenceLevel=certified ?: @raw[:evidenceLevel] ?_ :heuristic,
+              backend=:numerics,
+              work={=
+                  calls=@validation[:work][:calls],
+                  iterations=@validation[:work][:iterations],
+                  maxCalls=@request[:work][:maxCalls],
+                  maxIterations=@request[:work][:maxIterations],
+                  exhausted=@raw[:status] == :budgetExhausted
+              },
+              diagnostics=NumericsOption(@raw, "diagnostics", []),
+              evidence=NumericsOption(@raw, "evidence", {=
+                  kind=:untrustedDirectRange,
+                  property=:candidateRangeContainment
+              }),
+              source=@knowledge[:provenance]
+          };
+      };
+};
+
 NumericsFunctionRange(function, input, options ?= {= }) -> {;
     interval = input ~!: :RationalInterval;
     request = NumericsRangeRequest(options);
@@ -3953,10 +4163,19 @@ NumericsFunctionRange(function, input, options ?= {= }) -> {;
       );
 };
 
+NumericsRangeInputDispatch(value, input, options) ->
+    value.rangeknowledge == _
+      ?: (input ? :RationalInterval
+            ?: NumericsFunctionRange(value, input, options)
+            ?_ .Error("Generic function Range currently needs one closed RationalInterval; call Split() and range the components, or attach a direct range provider for a RationalIntervalSet"))
+      ?_ NumericsDirectProviderRange(value, input, options);
+
 NumericsRangeDispatch(value, intervalOrOptions ?= _, options ?= {= }) ->
     intervalOrOptions ? :RationalInterval
-      ?: NumericsFunctionRange(value, intervalOrOptions, options)
-      ?_ NumericsRange(value, intervalOrOptions == _ ?: {= } ?_ intervalOrOptions);
+      ?: NumericsRangeInputDispatch(value, intervalOrOptions, options)
+      ?_ (intervalOrOptions ? :RationalIntervalSet
+            ?: NumericsRangeInputDispatch(value, intervalOrOptions, options)
+            ?_ NumericsRange(value, intervalOrOptions == _ ?: {= } ?_ intervalOrOptions));
 
 NumericsRange(image, options ?= {= }) -> {;
     valid = (image ? :Map) && image[:valueKind] == :numericsIntervalImage;
@@ -4730,7 +4949,11 @@ NumericsKantorovichRefine(real, rawRequest, operation) -> {;
                  newtonImage = (@guess:@guess) - (@fValue:@fValue) / @derivativeRange;
                  overlaps = @current.Overlaps(newtonImage);
                  overlaps ?: _ ?_ .Error("Interval Newton contradicted the Kantorovich enclosure");
-                 next = @current.Intersection(newtonImage);
+                 nextRange = @current.Intersection(newtonImage);
+                 next = nextRange.ToRationalInterval();
+                 next ? :RationalInterval
+                   ?: 1
+                   ?_ .Error("Interval Newton intersection was not one closed interval");
                  contracted = next.Width() < @current.Width();
                  selectedGuess = next.ContainsValue(newtonGuess) ?: newtonGuess ?_ next.Midpoint();
                  @trace ~= @request[:trace] ?: @trace.Push({=
@@ -5024,6 +5247,10 @@ numericsNamespace._proto = {=
     Sample = (self, value, options ?= {= }) -> ProviderOperation(value, options, :sample),
     Range = (self, value, intervalOrOptions ?= _, options ?= {= }) ->
         NumericsRangeDispatch(value, intervalOrOptions, options),
+    WithRangeKnowledge = (self, function, knowledge) ->
+        NumericsWithRangeKnowledge(function, knowledge),
+    CheckRangeResult = (self, result, function, input, options ?= {= }) ->
+        NumericsCheckRangeResult(result, function, input, options),
     Sign = (self, value, options ?= {= }) -> NumericsSign(value, options),
     RootCount = (self, value, interval) -> NumericsRootCount(value, interval),
     NthRoot = (self, value, degree ?= 2, options ?= {= }) -> NumericsNthRootDispatch(value, degree, options),

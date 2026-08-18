@@ -20,8 +20,10 @@
 | `interval.Contains(other)` | `1 \| null` | Test whether the whole other interval is contained. |
 | `interval.ContainsValue(value)` | `1 \| null` | Test exact rational membership. |
 | `interval.ContainsZero()` | `1 \| null` | Test whether zero lies in the interval. |
-| `interval.Intersection(other)` | `RationalInterval \| null` | Return the shared interval. |
-| `interval.Union(other)` | `RationalInterval` | Return the covering interval. |
+| `interval.Intersection(other)` | `RationalIntervalSet` | Return the exact shared set, possibly empty. |
+| `interval.Union(other)` | `RationalIntervalSet` | Return the exact normalized union, preserving gaps. |
+| `interval.Hull(other?)` | `RationalInterval \| RationalIntervalSet` | Return the smallest exact covering range. Closed bounded inputs return a `RationalInterval`. |
+| `interval.Split()` | `Array<RationalIntervalSet>` | Return the interval as its single connected component. Split specifications are reserved for a future extension. |
 | `interval.ShortestDecimal(base?)` | `Rational \| null` | Find the contained rational with the smallest power-of-base denominator. |
 | `interval.DenominatorInterval(denominator?, onEmpty?)` | `RationalInterval \| null` | Restrict to a fixed denominator grid. `onEmpty` is `error`, `null`, or `mid`. |
 | `interval.Random(parameters?)` | `Rational \| Array` | Sample exact points using the current `.RNG`; parameters are `{: count, denominator?, tolerance? }`. |
@@ -55,8 +57,9 @@ i.Overlaps(j) ##@ == 1;
 (0:1).Contains(i) ##@ == 1;
 i.ContainsValue(1/2) ##@ == 1;
 (-1:2).ContainsZero() ##@ == 1;
-i.Intersection(j) ##@ == 1/2:3/4;
-i.Union(j) ##@ == 1/4:1;
+i.Intersection(j).ToRationalInterval() ##@ == 1/2:3/4;
+i.Union(j).ToRationalInterval() ##@ == 1/4:1;
+i.Hull(j) ##@ == 1/4:1;
 ```
 
 ## Grids, random sampling, and formatting

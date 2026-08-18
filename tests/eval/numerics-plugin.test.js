@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { CertifiedApproximation, Rational, RationalInterval } from "@ratmath/core";
+import {
+    CertifiedApproximation,
+    Rational,
+    RationalInterval,
+    RationalIntervalSet,
+} from "@ratmath/core";
 import {
     Context,
     createDefaultRegistry,
@@ -359,6 +364,79 @@ describe("pure RiX Numerics plugin", () => {
         expect(entry(result.values[2], "certified").value).toBe(1n);
         expect(nested.low.toNumber()).toBeLessThanOrEqual(Math.sin(1));
         expect(nested.high.toString()).toBe("1");
+    });
+
+    test("scoped direct range knowledge remains heuristic and rejects self-certification", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("numerics");
+            HeuristicResult = (input, request) -> {=
+                valueKind=:rangeProviderResult,
+                schema="rix.numerics.range-provider-result@1",
+                functionId=:calibration,
+                input=input,
+                status=:approximate,
+                range=input,
+                certified=_,
+                domainStatus=:allDefined,
+                goalMet=_,
+                achievedEndpointTolerance=0,
+                evidenceLevel=:heuristic,
+                work={= calls=1, iterations=1 },
+                evidence={= kind=:userSuppliedRangeHint }
+            };
+            Calibration = (x)->x;
+            hinted = .numerics.WithRangeKnowledge(Calibration, {=
+                functionId=:calibration,
+                directRange=HeuristicResult,
+                evidenceLevel=:trusted,
+                provenance={= provider=:tutorialCalibration }
+            });
+            rangeInput = (0:1) \\/ (3:4);
+            candidate = .numerics.Range(hinted, rangeInput);
+            checked = .numerics.CheckRangeResult(
+                HeuristicResult(rangeInput, {= }), hinted, rangeInput
+            );
+
+            FalseClaim = (input, request) -> {=
+                valueKind=:rangeProviderResult,
+                schema="rix.numerics.range-provider-result@1",
+                functionId=:falseClaim,
+                input=input,
+                status=:enclosed,
+                range=0:4,
+                certified=1,
+                domainStatus=:allDefined,
+                goalMet=1,
+                achievedEndpointTolerance=0,
+                evidenceLevel=:proof,
+                work={= calls=0, iterations=0 }
+            };
+            Square = (x)->x;
+            untrusted = .numerics.WithRangeKnowledge(Square, {=
+                functionId=:falseClaim,
+                directRange=FalseClaim
+            });
+            rejected = .numerics.Range(untrusted, 1:2);
+            rejection = .numerics.CheckRangeResult(
+                FalseClaim((1:2) ~!: :RangeSet, {= }), untrusted, 1:2
+            );
+            {: candidate, checked, rejected, rejection }
+        `, runtime());
+
+        const candidate = result.values[0];
+        expect(entry(candidate, "range")).toBeInstanceOf(RationalIntervalSet);
+        expect(entry(candidate, "range").toString()).toBe("[0,1] U [3,4]");
+        expect(entry(candidate, "interval")).toBeNull();
+        expect(entry(candidate, "certified")).toBeNull();
+        expect(textValue(entry(candidate, "status"))).toBe("approximate");
+        expect(entry(result.values[1], "valid").value).toBe(1n);
+        expect(entry(result.values[1], "certifying")).toBeNull();
+
+        expect(textValue(entry(result.values[2], "status"))).toBe("unknown");
+        expect(entry(result.values[2], "certified")).toBeNull();
+        expect(entry(result.values[3], "valid")).toBeNull();
+        expect(textValue(entry(result.values[3], "reason")))
+            .toBe("untrustedCertificationClaim");
     });
 
     test("base changes, stable forms, and inverse trig preserve range semantics", () => {

@@ -2,7 +2,7 @@
  * Collection system functions: ARRAY, SET, MAP, TUPLE, INTERVAL
  */
 
-import { Integer, Rational, RationalInterval } from "@ratmath/core";
+import { Integer, Rational, RationalInterval, RationalIntervalSet } from "@ratmath/core";
 import { keyOf } from "./keyof.js";
 import { HOLE } from "../../runtime/hole.js";
 import { attachBuiltinProto } from "../../runtime/methods.js";
@@ -101,9 +101,33 @@ const compare = (a, b) => {
 const classifyUnionIntersectDomain = (val) => {
     if (val && typeof val === "object") {
         if (val.type === "set") return "set";
-        if (val instanceof RationalInterval || val.type === "interval") return "interval";
+        if (val instanceof RationalInterval || val instanceof RationalIntervalSet || val.type === "interval") return "interval";
     }
     return null;
+};
+
+const isRationalRange = (value) =>
+    value instanceof RationalInterval || value instanceof RationalIntervalSet || value?.type === "interval";
+
+const asRationalRangeSet = (value) => {
+    if (value instanceof RationalIntervalSet) return value;
+    if (value instanceof RationalInterval) return RationalIntervalSet.fromInterval(value);
+    if (value?.type === "interval") {
+        return RationalIntervalSet.fromInterval(new RationalInterval(
+            value.start ?? value.lo,
+            value.end ?? value.hi,
+        ));
+    }
+    throw new Error("Expected an exact rational interval or interval set");
+};
+
+const attachedRangeSet = (value) => attachBuiltinProto(value);
+
+const intersectionIsNonempty = (value) => {
+    if (value === null || value === undefined) return false;
+    if (value instanceof RationalIntervalSet) return !value.isEmpty;
+    if (value?.type === "set") return value.values.length > 0;
+    return isTruthy(value);
 };
 
 const generatorCount = (value) => {
@@ -536,12 +560,16 @@ export const collectionFunctions = {
                 for (const v of values) {
                     if (valueKey(v) === xKey) return new Integer(1);
                 }
-            } else if (coll instanceof RationalInterval || coll.type === "interval") {
-                // Interval membership check using compare logic from INTERVAL
-                // Actually INTERVAL already has logic for this if we pass x:lo:hi
-                // But let's implement it directly for simplicity/performance
-                const lo = coll instanceof RationalInterval ? coll.start : coll.lo;
-                const hi = coll instanceof RationalInterval ? coll.end : coll.hi;
+            } else if (isRationalRange(coll)) {
+                const set = asRationalRangeSet(coll);
+                if (isRationalRange(x)) {
+                    return set.contains(asRationalRangeSet(x)) ? new Integer(1) : null;
+                }
+                const rational = toRationalOrNull(x);
+                if (rational && set.containsValue(rational)) return new Integer(1);
+            } else if (coll.type === "interval") {
+                const lo = coll.lo;
+                const hi = coll.hi;
 
                 const cmpLo = compare(lo, x);
                 const cmpHi = compare(x, hi);
@@ -572,10 +600,18 @@ export const collectionFunctions = {
         impl(args) {
             const [a, b] = args;
             const intersect = collectionFunctions.INTERSECT.impl([a, b]);
-            return isTruthy(intersect) ? new Integer(1) : null;
+            return intersectionIsNonempty(intersect) ? new Integer(1) : null;
         },
         pure: true,
         doc: "Check if two collections intersect (1 if true, null otherwise)",
+    },
+
+    DISJOINT: {
+        impl(args) {
+            return collectionFunctions.INTERSECTS.impl(args) === null ? new Integer(1) : null;
+        },
+        pure: true,
+        doc: "Check if two collections are disjoint (1 if true, null otherwise)",
     },
 
     UNION: {
@@ -596,18 +632,8 @@ export const collectionFunctions = {
                 return { type: "set", values };
             }
 
-            if ((a instanceof RationalInterval || a.type === "interval") &&
-                (b instanceof RationalInterval || b.type === "interval")) {
-                // Interval hull
-                const alo = a instanceof RationalInterval ? a.start : a.lo;
-                const ahi = a instanceof RationalInterval ? a.end : a.hi;
-                const blo = b instanceof RationalInterval ? b.start : b.lo;
-                const bhi = b instanceof RationalInterval ? b.end : b.hi;
-
-                const lo = compare(alo, blo) <= 0 ? alo : blo;
-                const hi = compare(ahi, bhi) >= 0 ? ahi : bhi;
-
-                return collectionFunctions.INTERVAL.impl([lo, hi]);
+            if (isRationalRange(a) && isRationalRange(b)) {
+                return attachedRangeSet(asRationalRangeSet(a).union(asRationalRangeSet(b)));
             }
 
             throw new Error(`UNION not defined for these types: ${a.type || a.constructor?.name || typeof a} and ${b.type || b.constructor?.name || typeof b}`);
@@ -627,26 +653,27 @@ export const collectionFunctions = {
                 return { type: "set", values };
             }
 
-            if ((a instanceof RationalInterval || a.type === "interval") &&
-                (b instanceof RationalInterval || b.type === "interval")) {
-                const alo = a instanceof RationalInterval ? a.start : a.lo;
-                const ahi = a instanceof RationalInterval ? a.end : a.hi;
-                const blo = b instanceof RationalInterval ? b.start : b.lo;
-                const bhi = b instanceof RationalInterval ? b.end : b.hi;
-
-                const lo = compare(alo, blo) >= 0 ? alo : blo;
-                const hi = compare(ahi, bhi) <= 0 ? ahi : bhi;
-
-                if (compare(lo, hi) <= 0) {
-                    return collectionFunctions.INTERVAL.impl([lo, hi]);
-                }
-                return null;
+            if (isRationalRange(a) && isRationalRange(b)) {
+                return attachedRangeSet(asRationalRangeSet(a).intersection(asRationalRangeSet(b)));
             }
 
             return null;
         },
         pure: true,
         doc: "Intersection of two collections (set intersection or interval overlap)",
+    },
+
+    HULL: {
+        impl(args) {
+            const [a, b] = args;
+            if (!isRationalRange(a) || !isRationalRange(b)) {
+                throw new Error("HULL expects exact rational intervals or interval sets");
+            }
+            const hull = asRationalRangeSet(a).union(asRationalRangeSet(b)).hull();
+            return hull.toRationalInterval() ?? attachedRangeSet(hull);
+        },
+        pure: true,
+        doc: "Smallest exact interval containing both rational ranges",
     },
 
     NARY_UNION: {
@@ -671,7 +698,7 @@ export const collectionFunctions = {
             return acc;
         },
         pure: true,
-        doc: "N-ary union/hull fold for sets or intervals",
+        doc: "N-ary true union fold for sets or rational interval sets",
     },
 
     NARY_INTERSECT: {
@@ -692,7 +719,7 @@ export const collectionFunctions = {
             let acc = args[0];
             for (let i = 1; i < args.length; i++) {
                 acc = collectionFunctions.INTERSECT.impl([acc, args[i]]);
-                if (acc === null) return null;
+                if (acc === null || (acc instanceof RationalIntervalSet && acc.isEmpty)) return acc;
             }
             return acc;
         },

@@ -237,7 +237,8 @@ are:
 | Field | Meaning |
 | --- | --- |
 | `status` | `:enclosed`, `:budgetExhausted`, `:unknown`, or `:domainViolation` |
-| `interval` | Certified outer `RationalInterval`, or null when unresolved |
+| `range` | Outer `RationalIntervalSet`, or null when unresolved |
+| `interval` | Compatibility projection for one closed connected bounded range; otherwise null |
 | `certified` | `1` only when the interval has a containment proof |
 | `domainStatus` | Whether the function is defined over the whole input |
 | `requestedEndpointTolerance` | Requested numerical boundary tolerance |
@@ -292,3 +293,78 @@ This is the representation layer, not yet a claim that every Numerics range
 provider returns disconnected or unbounded results. Provider migration and
 proof validation are tracked in
 [general-range-development-checklist.md](general-range-development-checklist.md).
+
+### Union, hull, containment, and components
+
+The language operators distinguish a real set union from its hull:
+
+```{.rix exec=true}
+left := 1:2;
+right := 4:5;
+pieces := left \/ right;
+
+{=
+  union=pieces,
+  hull=left |\/| right,
+  twoComponents=pieces.Split().Len() == 2,
+  scalarContained=(3/2 ? pieces),
+  wholeRangeContained=((1:2) ? pieces),
+  overlaps=((1:3) ?/\ (3:4)),
+  disjoint=((1:2) !/\ (3:4))
+};
+```
+
+`\/` and `/\` return exact normalized range sets for interval operands.
+`|\/|` is the explicit hull. `x ? range` checks a point; `subrange ? range`
+checks that every point of the left range is contained. `?/\` (also spelled
+`?&`) tests overlap and `!/\` tests disjointness. Calling `.Split()` with no
+argument returns the connected components.
+
+## Scoped knowledge for a general function
+
+The first general-provider surface can attach local direct range knowledge to
+a callable. It is useful for orchestration and for developing provider
+contracts, but it is deliberately **not** a certification authority:
+
+```{.rix exec=true}
+.Plugin.Load("numerics");
+
+Identity = (x)->x;
+IdentityHint = (input, request)->{=
+  valueKind=:rangeProviderResult,
+  schema="rix.numerics.range-provider-result@1",
+  functionId=:identityTutorial,
+  input=input,
+  status=:approximate,
+  range=input ~!: :RangeSet,
+  certified=_,
+  domainStatus=:allDefined,
+  goalMet=_,
+  achievedEndpointTolerance=0,
+  evidenceLevel=:heuristic,
+  work={= calls=0, iterations=0 },
+  evidence={= kind=:tutorialAssertion }
+};
+
+HintedIdentity := .numerics.WithRangeKnowledge(Identity, {=
+  functionId=:identityTutorial,
+  directRange=IdentityHint,
+  provenance={= provider=:measurementTutorial }
+});
+
+candidate := .numerics.Range(HintedIdentity, 99/100:101/100);
+checked := .numerics.CheckRangeResult(
+  IdentityHint((99/100:101/100) ~!: :RangeSet, {= }),
+  HintedIdentity,
+  99/100:101/100
+);
+
+{: candidate[:range], candidate[:certified], checked[:valid], checked[:certifying] };
+```
+
+The result is structurally valid but remains heuristic: `certified` and
+`checked[:certifying]` are null. Even if `IdentityHint` writes
+`certified=1` or declares itself trusted, validation rejects the claim with
+`:untrustedCertificationClaim`. Certification requires either evidence
+accepted by a small independent checker or a provider registered through a
+future capability-gated trusted path.

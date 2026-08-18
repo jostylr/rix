@@ -160,6 +160,16 @@ const SYMBOL_TABLE = {
     associativity: "left",
     type: "infix",
   },
+  "?/\\": {
+    precedence: PRECEDENCE.COMPARISON,
+    associativity: "left",
+    type: "infix",
+  },
+  "!/\\": {
+    precedence: PRECEDENCE.COMPARISON,
+    associativity: "left",
+    type: "infix",
+  },
   "!?": {
     precedence: PRECEDENCE.COMPARISON,
     associativity: "left",
@@ -264,6 +274,11 @@ const SYMBOL_TABLE = {
     type: "infix",
   },
   "\\/": {
+    precedence: PRECEDENCE.ADDITION,
+    associativity: "left",
+    type: "infix",
+  },
+  "|\\/|": {
     precedence: PRECEDENCE.ADDITION,
     associativity: "left",
     type: "infix",

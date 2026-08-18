@@ -266,7 +266,7 @@ const CORE_SYNTAX_CAPABILITIES = {
     LessEqual: "LTE", GreaterEqual: "GTE", SameCell: "SAME_CELL",
     Min: "MIN", Max: "MAX", And: "AND", Or: "OR", Not: "NOT",
     Array: "ARRAY", Tuple: "TUPLE", Set: "SET", Interval: "INTERVAL",
-    Union: "UNION", Intersect: "INTERSECT", Difference: "SET_DIFF",
+    Union: "UNION", Intersect: "INTERSECT", Hull: "HULL", Intersects: "INTERSECTS", Disjoint: "DISJOINT", Difference: "SET_DIFF",
     SymmetricDifference: "SET_SYMDIFF", Product: "SET_PROD", Concat: "CONCAT",
     Block: "BLOCK", Case: "CASE", Loop: "LOOP", If: "TERNARY",
     Pipe: "PIPE", PipeExplicit: "PIPE_EXPLICIT", Slice: "PSLICE_STRICT",

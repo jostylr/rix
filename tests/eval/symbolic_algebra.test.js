@@ -1,6 +1,6 @@
 import { test, expect } from "bun:test";
 import { parseAndEvaluate } from "../../src/eval/evaluator.js";
-import { Integer, Rational, RationalInterval } from "@ratmath/core";
+import { Integer, Rational, RationalInterval, RationalIntervalSet } from "@ratmath/core";
 
 function evalRiX(code) {
     return parseAndEvaluate(code);
@@ -30,21 +30,32 @@ test("Symbolic Algebra: Set Operations", () => {
 });
 
 test("Symbolic Algebra: Interval Operations", () => {
-    // Hull
-    const h = evalRiX("(1:5) \\/ (3:10)");
+    // True union
+    const u = evalRiX("(1:5) \\/ (7:10)");
+    expect(u instanceof RationalIntervalSet).toBe(true);
+    expect(u.toString()).toBe("[1,5] U [7,10]");
+
+    // Explicit hull
+    const h = evalRiX("(1:5) |\\/| (7:10)");
     expect(h instanceof RationalInterval).toBe(true);
     expect(h.start.toString()).toBe("1");
     expect(h.end.toString()).toBe("10");
 
     // Intersect
     const i = evalRiX("(1:5) /\\ (3:10)");
-    expect(i instanceof RationalInterval).toBe(true);
-    expect(i.start.toString()).toBe("3");
-    expect(i.end.toString()).toBe("5");
+    expect(i instanceof RationalIntervalSet).toBe(true);
+    expect(i.toString()).toBe("[3,5]");
 
     // Non-intersect
     const ni = evalRiX("(1:5) /\\ (6:10)");
-    expect(ni).toBe(null);
+    expect(ni instanceof RationalIntervalSet).toBe(true);
+    expect(ni.isEmpty).toBe(true);
+
+    const split = evalRiX("((1:2) \\/ (4:5)).Split()");
+    expect(split.values.map((component) => component.toString()))
+        .toEqual(["[1,2]", "[4,5]"]);
+    expect(evalRiX("(1:2).Split()").values.map((component) => component.toString()))
+        .toEqual(["[1,2]"]);
 });
 
 test("Symbolic Algebra: Membership", () => {
@@ -56,11 +67,19 @@ test("Symbolic Algebra: Membership", () => {
 
     expect(evalRiX("5 !? 1:10")).toBe(null);
     expect(evalRiX("15 !? 1:10")).not.toBe(null);
+
+    expect(evalRiX("1:2 ? 0:4")).not.toBe(null);
+    expect(evalRiX("1:5 ? 0:4")).toBe(null);
+    expect(evalRiX("((1:2) \\/ (4:5)) ? 0:6")).not.toBe(null);
 });
 
 test("Symbolic Algebra: Intersects", () => {
     expect(evalRiX("1:5 ?& 3:10")).not.toBe(null);
     expect(evalRiX("1:5 ?& 6:10")).toBe(null);
+    expect(evalRiX("1:2 ?/\\ 3/2:4")).not.toBe(null);
+    expect(evalRiX("1:2 ?/\\ 5/2:4")).toBe(null);
+    expect(evalRiX("1:2 !/\\ 5/2:4")).not.toBe(null);
+    expect(evalRiX("1:2 !/\\ 3/2:4")).toBe(null);
 });
 
 test("Symbolic Algebra: Distinct ** dispatch name currently matches exponentiation", () => {
@@ -110,17 +129,16 @@ test("N-ary brace union/intersection", () => {
     expect(si.values.map((v) => v.toString())).toEqual(["3"]);
 
     const iu = evalRiX("{\\/ 2:3, 10:12, 4:5 }");
-    expect(iu instanceof RationalInterval).toBe(true);
-    expect(iu.start.toString()).toBe("2");
-    expect(iu.end.toString()).toBe("12");
+    expect(iu instanceof RationalIntervalSet).toBe(true);
+    expect(iu.toString()).toBe("[2,3] U [4,5] U [10,12]");
 
     const ii = evalRiX("{/\\ 2:8, 4:10, 1:5 }");
-    expect(ii instanceof RationalInterval).toBe(true);
-    expect(ii.start.toString()).toBe("4");
-    expect(ii.end.toString()).toBe("5");
+    expect(ii instanceof RationalIntervalSet).toBe(true);
+    expect(ii.toString()).toBe("[4,5]");
 
     const inull = evalRiX("{/\\ 2:3, 10:12, 4:5 }");
-    expect(inull).toBe(null);
+    expect(inull instanceof RationalIntervalSet).toBe(true);
+    expect(inull.isEmpty).toBe(true);
 });
 
 test("N-ary brace concat", () => {

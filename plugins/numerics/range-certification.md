@@ -102,6 +102,13 @@ A future general range result should contain at least:
 Returning a hull remains useful as an explicit presentation or compatibility
 operation, but it must not silently replace a disconnected result.
 
+The language now reflects that distinction directly. For exact interval-like
+operands, `A \/ B` is a genuine normalized union, `A /\ B` is a genuine
+intersection, and `A |\/| B` is the explicit hull. `x ? S` means point
+membership for a scalar and whole-set containment for a range. `A ?/\ B`
+(also `A ?& B`) tests nonempty intersection, `A !/\ B` tests disjointness,
+and `S.Split()` returns connected components.
+
 ## Ownership
 
 The implementation is split by mathematical ownership. Numerics coordinates
@@ -188,6 +195,27 @@ A direct special-function provider is often preferable to forcing a function
 through generic interval arithmetic. It may use recurrence relations,
 published inequalities, monotonicity tables, or integral bounds internally,
 provided its outward enclosure invariant is trusted or its witness is checked.
+
+### Implemented first protocol slice
+
+`.numerics.WithRangeKnowledge(Function, knowledge)` now creates a scoped
+callable wrapper carrying `rix.numerics.range-provider@1`. The current
+knowledge operation is `directRange(input, request)`. Its output must use
+`rix.numerics.range-provider-result@1`; Numerics checks function identity,
+covered input, exact range type, status/domain coherence, endpoint goal, and
+work use. `.numerics.CheckRangeResult` exposes the same validation record.
+
+This scoped surface has no authority to certify. Numerics overwrites its trust
+class with `:scopedUntrusted` and its evidence level with `:heuristic`. A
+callback that returns `certified=1` is rejected with
+`:untrustedCertificationClaim`, even if its knowledge map asks to be called
+trusted. This makes the surface useful for protocol development and candidate
+ranges without confusing self-assertion with proof.
+
+Two certifying paths remain to be implemented: checker-accepted theorem
+evidence and capability-gated trusted provider registration. The portable
+descriptor and result shapes live in `rix/schemas/range-provider.schema.json`
+and `rix/schemas/range-provider-result.schema.json`.
 
 ## Knowledge forms and how they help
 

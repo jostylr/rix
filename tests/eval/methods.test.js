@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { Integer, Rational, RationalInterval } from "@ratmath/core";
+import { Integer, Rational, RationalIntervalSet } from "@ratmath/core";
 import { tokenize } from "../../src/parser/tokenizer.js";
 import { parse } from "../../src/parser/parser.js";
 import { lower } from "../../src/eval/lower.js";
@@ -92,12 +92,12 @@ describe("Built-in exact-number methods", () => {
                 i.ContainsValue(1/2), i.Overlaps(j), i.Intersection(j)
             }
         `);
-        expect(result.values[10]).toBeInstanceOf(RationalInterval);
+        expect(result.values[10]).toBeInstanceOf(RationalIntervalSet);
         expect(unbox({ type: "tuple", values: result.values.slice(0, 10) })).toEqual([
             "1/4", "3/4", "1/4", "3/4", "1/2",
             1, "1/2", "1/2", 1, 1,
         ]);
-        expect(result.values[10].toString()).toBe("1/2:3/4");
+        expect(result.values[10].toString()).toBe("[1/2,3/4]");
     });
 });
 

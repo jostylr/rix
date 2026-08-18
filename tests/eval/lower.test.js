@@ -199,6 +199,12 @@ describe("Lowering Pass", () => {
       expect(ir.args[1].args[1]).toEqual({ fn: "RETRIEVE", args: ["y"] });
     });
 
+    test("interval-set hull, overlap, and disjoint aliases lower explicitly", () => {
+      expect(L("a |\\/| b;").fn).toBe("HULL");
+      expect(L("a ?/\\ b;").fn).toBe("INTERSECTS");
+      expect(L("a !/\\ b;").fn).toBe("DISJOINT");
+    });
+
     test("outer combo assignment @x ++= y lowers through OUTER_UPDATE", () => {
       const ir = L("@x ++= y;");
       expect(ir.fn).toBe("OUTER_UPDATE");

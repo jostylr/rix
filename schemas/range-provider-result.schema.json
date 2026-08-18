@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/range-provider-result.schema.json",
+  "title": "RiX Numerics direct range-provider result",
+  "description": "Portable structural contract for rix.numerics.range-provider-result@1. Passing this schema is necessary but not sufficient for certification; Numerics must also validate identity, work bounds, evidence, and provider authority.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema",
+    "functionId",
+    "input",
+    "status",
+    "range",
+    "domainStatus",
+    "goalMet",
+    "achievedEndpointTolerance",
+    "evidenceLevel",
+    "work"
+  ],
+  "properties": {
+    "schema": { "const": "rix.numerics.range-provider-result@1" },
+    "functionId": { "type": "string", "minLength": 1 },
+    "input": { "$ref": "range-set.schema.json" },
+    "status": {
+      "enum": ["enclosed", "budgetExhausted", "approximate", "unknown", "domainViolation"]
+    },
+    "range": { "$ref": "range-set.schema.json" },
+    "certified": { "type": ["boolean", "null"] },
+    "domainStatus": {
+      "enum": ["allDefined", "definedImage", "domainViolation", "notCertified"]
+    },
+    "goalMet": { "type": ["boolean", "null"] },
+    "achievedEndpointTolerance": {
+      "description": "An exact nonnegative rational in the RiX runtime; its tagged JSON form is accepted here as an object.",
+      "type": "object"
+    },
+    "evidenceLevel": {
+      "enum": ["heuristic", "checkedEvidence", "trustedCapability", "proof"]
+    },
+    "work": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["calls", "iterations"],
+      "properties": {
+        "calls": { "type": "integer", "minimum": 0 },
+        "iterations": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "evidence": {},
+    "diagnostics": { "type": "array" }
+  }
+}

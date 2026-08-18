@@ -29,6 +29,7 @@ Built-in prototypes are frozen and do not chain. Lookup checks direct value meta
 | Integer | [Integer methods](./objects/integer.md) | Exact whole numbers |
 | Rational | [Rational methods](./objects/rational.md) | Reduced exact fractions |
 | RationalInterval | [RationalInterval methods](./objects/rational-interval.md) | Exact bounded rational intervals |
+| RationalIntervalSet | [RationalIntervalSet methods](./objects/rational-interval-set.md) | Exact normalized finite unions of rational intervals |
 | CertifiedApproximation | [Certified approximation methods](./objects/certified-approximation.md) | Uncertain scalars with exact rational enclosures |
 | Array | [Array methods](./objects/array.md) | Mutable eager sequences |
 | LazySequence | [LazySequence methods](./objects/lazy-sequence.md) | Cached on-demand sequences |
@@ -58,9 +59,13 @@ The lists below include inherited `Iterator` and `CheckTraits` methods where the
 
 ### RationalInterval
 
-`Start`, `End`, `Low`, `High`, `Width`, `IsAscending`, `Midpoint`, `Mediant`, `Negate`, `Reciprocal`, `Overlaps`, `Contains`, `ContainsValue`, `ContainsZero`, `Intersection`, `Union`, `ShortestDecimal`, `DenominatorInterval`, `Random`, `RandomPartition`, `E`, `BitLength`, `ToMixedString`, `ToRepeatingDecimal`, `ToCompactDecimal`, `ToRelativeMidDecimal`, `ToRelativeDecimal`, `ToString`, `CheckTraits`
+`Start`, `End`, `Low`, `High`, `Width`, `IsAscending`, `Midpoint`, `Mediant`, `Negate`, `Reciprocal`, `Overlaps`, `Contains`, `ContainsValue`, `ContainsZero`, `Intersection`, `Union`, `Hull`, `Split`, `ShortestDecimal`, `DenominatorInterval`, `Random`, `RandomPartition`, `E`, `BitLength`, `ToMixedString`, `ToRepeatingDecimal`, `ToCompactDecimal`, `ToRelativeMidDecimal`, `ToRelativeDecimal`, `ToString`, `CheckTraits`
 
 `Random(parameters)` and `RandomPartition(parameters)` consume the RNG selected by `.RNG`. Their parameter tuple matches the interval `:%` and `:/%` operators: count, optional fixed denominator, and optional tolerance.
+
+### RationalIntervalSet
+
+`Components`, `Split`, `Union`, `Intersection`, `Contains`, `ContainsValue`, `Hull`, `ToRationalInterval`, `ToString`, `CheckTraits`
 
 ### CertifiedApproximation
 

@@ -158,6 +158,12 @@ function exactInterval(value, label) {
     throw new Error(`${label} must be a rational interval`);
 }
 
+function exactRangeSet(value, label) {
+    if (value instanceof RationalIntervalSet) return value;
+    if (value instanceof RationalInterval) return RationalIntervalSet.fromInterval(value);
+    throw new Error(`${label} must be a rational interval or interval set`);
+}
+
 function exactSequence(values) {
     return { type: "sequence", values, _ext: mutableExt() };
 }
@@ -1632,10 +1638,24 @@ const rationalIntervalMethods = {
     CONTAINSVALUE: method("ContainsValue", ([target, value]) =>
         bool(target.containsValue(exactRational(value, "Contained value")))),
     CONTAINSZERO: method("ContainsZero", ([target]) => bool(target.containsZero())),
-    INTERSECTION: method("Intersection", ([target, other]) =>
-        target.intersection(exactInterval(other, "Other interval"))),
-    UNION: method("Union", ([target, other]) =>
-        target.union(exactInterval(other, "Other interval"))),
+    INTERSECTION: method("Intersection", ([target, other]) => attachBuiltinProto(
+        RationalIntervalSet.fromInterval(target).intersection(exactRangeSet(other, "Other range")),
+    )),
+    UNION: method("Union", ([target, other]) => attachBuiltinProto(
+        RationalIntervalSet.fromInterval(target).union(exactRangeSet(other, "Other range")),
+    )),
+    HULL: method("Hull", ([target, other]) => {
+        const hull = other === undefined
+            ? RationalIntervalSet.fromInterval(target)
+            : RationalIntervalSet.fromInterval(target).union(exactRangeSet(other, "Other range")).hull();
+        return hull.toRationalInterval() ?? attachBuiltinProto(hull);
+    }),
+    SPLIT: method("Split", ([target, specification]) => {
+        if (specification !== undefined) {
+            throw new Error("RationalInterval.Split currently accepts no specification; omit it to split into components");
+        }
+        return exactSequence([attachBuiltinProto(RationalIntervalSet.fromInterval(target))]);
+    }),
     SHORTESTDECIMAL: method("ShortestDecimal", ([target, base]) => target.shortestDecimal(
         base === undefined ? undefined : exactBigInt(base, "Base"),
     )),
@@ -1665,6 +1685,39 @@ const rationalIntervalMethods = {
     TOCOMPACTDECIMAL: method("ToCompactDecimal", ([target]) => stringObj(target.compactedDecimalInterval())),
     TORELATIVEMIDDECIMAL: method("ToRelativeMidDecimal", ([target]) => stringObj(target.relativeMidDecimalInterval())),
     TORELATIVEDECIMAL: method("ToRelativeDecimal", ([target]) => stringObj(target.relativeDecimalInterval())),
+    TOSTRING: method("ToString", ([target]) => stringObj(target.toString())),
+};
+
+const rationalIntervalSetMethods = {
+    COMPONENTS: method("Components", ([target]) => exactSequence(
+        target.components.map((component) => ({
+            type: "map",
+            entries: new Map([
+                ["low", component.low],
+                ["high", component.high],
+                ["lowClosed", bool(component.lowClosed)],
+                ["highClosed", bool(component.highClosed)],
+            ]),
+            _ext: mutableExt(),
+        })),
+    )),
+    SPLIT: method("Split", ([target, specification]) => {
+        if (specification !== undefined) {
+            throw new Error("RationalIntervalSet.Split currently accepts no specification; omit it to split into components");
+        }
+        return exactSequence(target.components.map((component) =>
+            attachBuiltinProto(new RationalIntervalSet(component))));
+    }),
+    UNION: method("Union", ([target, other]) =>
+        attachBuiltinProto(target.union(exactRangeSet(other, "Other range")))),
+    INTERSECTION: method("Intersection", ([target, other]) =>
+        attachBuiltinProto(target.intersection(exactRangeSet(other, "Other range")))),
+    CONTAINS: method("Contains", ([target, other]) =>
+        bool(target.contains(exactRangeSet(other, "Contained range")))),
+    CONTAINSVALUE: method("ContainsValue", ([target, value]) =>
+        bool(target.containsValue(exactRational(value, "Contained value")))),
+    HULL: method("Hull", ([target]) => attachBuiltinProto(target.hull())),
+    TORATIONALINTERVAL: method("ToRationalInterval", ([target]) => target.toRationalInterval()),
     TOSTRING: method("ToString", ([target]) => stringObj(target.toString())),
 };
 
@@ -1771,6 +1824,7 @@ const PROTOS = new Map([
     ["integer", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(integerExactMethods)])],
     ["rational", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(rationalExactMethods)])],
     ["rational_interval", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(rationalIntervalMethods)])],
+    ["rational_interval_set", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(rationalIntervalSetMethods)])],
     ["certified_approximation", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(certifiedApproximationMethods)])],
     ["undecided", createBuiltinProto([...Object.entries(commonMethods)])],
     ["structural_algebra", createBuiltinProto([...Object.entries(commonMethods), ...Object.entries(structuralMethods)])],
@@ -1852,6 +1906,7 @@ function builtinProtoFor(target) {
     if (target instanceof Integer) return PROTOS.get("integer");
     if (target instanceof Rational) return PROTOS.get("rational");
     if (target instanceof RationalInterval) return PROTOS.get("rational_interval");
+    if (target instanceof RationalIntervalSet) return PROTOS.get("rational_interval_set");
     if (target instanceof CertifiedApproximation) return PROTOS.get("certified_approximation");
     if (target instanceof Fraction) return PROTOS.get("structural_value");
     if (isShaped(target)) return PROTOS.get("shaped");
@@ -1946,6 +2001,8 @@ export function builtinMethodNamesForType(typeName) {
         ["rational", "rational"],
         ["rationalinterval", "rational_interval"],
         ["interval", "rational_interval"],
+        ["rationalintervalset", "rational_interval_set"],
+        ["rangeset", "rational_interval_set"],
         ["certifiedapproximation", "certified_approximation"],
         ["approximation", "certified_approximation"],
         ["undecided", "undecided"],

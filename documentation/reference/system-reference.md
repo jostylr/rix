@@ -8,7 +8,7 @@ toc-depth: 2
 This page is generated from the current RiX implementation by `documentation/scripts/generate-reference.js`. Do not edit it by hand. Descriptions come from registry documentation strings; the narrative [syntax guide](../eval/syntax-guide.md) and [methods guide](../eval/methods-guide.md) provide signatures and examples.
 :::
 
-At this revision RiX exposes **242 named entries** on the default system context and registers **226 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
+At this revision RiX exposes **251 named entries** on the default system context and registers **228 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
 
 ## Public system context
 
@@ -53,6 +53,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.DEFINEUNIT` | function | Units | Create a linear Unit value from a name and Unit/Quantity definition |
 | `.DERIV` | function | Symbolic | Differentiate a symbolic spec or spec-backed function exactly |
 | `.DIFFERENCE` | function | — | Core operation SET\_DIFF |
+| `.DISJOINT` | function | — | Check if two collections are disjoint (1 if true, null otherwise) |
 | `.DIV` | function | Arith | Division |
 | `.DIVMOD` | function | Arith | Floor quotient and exact remainder for a positive divisor |
 | `.DIVROUND` | function | — | Rounded division |
@@ -66,6 +67,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.ERROR` | function | — | Emit an error event and abort: .Error(label, dataMap ?= {=}) |
 | `.EVAL` | lazy function | — | Evaluate a deferred AST node or expression: .Eval(ast, bindings ?= \_, mode ?= :inherit) |
 | `.EXACT` | value | Exact | Canonical RiX exact-generator collection |
+| `.EXPRESSIONFROMSPEC` | function | — | Export a symbolic specification through the public Calculus expression schema |
 | `.FACTORIAL` | function | Arith | Factorial of a non-negative integer |
 | `.FIGURE` | function | Output | Wrap output with figure metadata |
 | `.FILTER` | lazy function | Collections, Arrays | Filter a collection with a predicate — callback receives (val, locator, src) |
@@ -81,6 +83,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.GTE` | function | Logic | Greater than or equal — returns 1 or null |
 | `.HEADING` | function | Output | Create a portable document heading |
 | `.HOST` | function | — | Host/plugin capability registration and discovery |
+| `.HULL` | function | — | Smallest exact interval containing both rational ranges |
 | `.IF` | lazy function | Core | Decision conditional: condition ?: truthExpr ?\_ nullExpr ?? undecidedExpr |
 | `.IMAGE` | function | — | Create a portable image asset |
 | `.IMMUTABLEVALUE` | function | — | Mark a newly constructed structured value immutable and return it |
@@ -91,6 +94,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.INTDIV` | function | Arith | Integer division (floor) |
 | `.INTEGRATE` | function | Symbolic | Integrate a supported symbolic spec or spec-backed function exactly |
 | `.INTERSECT` | function | — | Intersection of two collections (set intersection or interval overlap) |
+| `.INTERSECTS` | function | — | Check if two collections intersect (1 if true, null otherwise) |
 | `.INTERVAL` | function | — | Create an interval [lo, hi] or test betweenness like a:b:c |
 | `.IRANGE` | function | Core, Collections, Arrays | Create an integer range [start, end] |
 | `.JSCALL` | function | — | Call a named export from a local JavaScript module |
@@ -175,6 +179,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.SPEC` | function | Symbolic | Analyze a pure function and attach/return its symbolic spec |
 | `.SPECCABILITY` | function | Symbolic | Report whether a pure function can be represented by the exact symbolic subset |
 | `.SPECFRACTIONPARTS` | function | Symbolic | Split a symbolic top-level fraction into numerator and denominator specs |
+| `.SPECFROMEXPRESSION` | function | — | Import a public Calculus expression record as a core symbolic specification |
 | `.SPECROLES` | function | Symbolic | Resolve all symbols and input/output roles, with optional role overrides |
 | `.SPLIT` | lazy function | — | Split a collection by a delimiter or predicate |
 | `.STOP` | lazy function | — | Conditional abort: .Stop(label, condition, dataMap ?= {=}) |
@@ -206,10 +211,12 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.VALUES` | function | Core, Maps | Get the values of a map as a set (obj\|.) |
 | `.VIDEO` | function | — | Create a portable video asset |
 | `.WARN` | function | — | Emit a warning event: .Warn(label, dataMap ?= {=}) |
-| `.algebra` | function | — | Polynomial algebra façade backed by the canonical pure-RiX poly service. |
+| `.algebra` | function | — | Exact Polynomial and RationalFunction algorithms with checked presentations. |
 | `.algebraicreal` | function | — | Exact real algebraic roots certified by canonical Polynomial values and Sturm isolating intervals. |
 | `.ar` | function | — | Exact real algebraic roots certified by canonical Polynomial values and Sturm isolating intervals. |
 | `.ball` | function | — | Certified rational midpoint-radius balls and nested square-root refinement. |
+| `.bessel` | function | — | Clearly named Bessel-function namespace backed by certified universal Numerics algorithms. |
+| `.calculus` | function | — | Portable abstract functions, obligation-bearing higher differentiation, and provenance-recording evaluation through semantic-ID implementation links. |
 | `.canvas` | function | — | Serializable Canvas 2D drawing plans for core Graphics scenes. |
 | `.cauchy` | function | — | Rational Cauchy sequences with explicit certified tail bounds and moduli. |
 | `.cf` | function | — | Finite and lazy simple continued fractions with exact convergents and certified enclosures. |
@@ -225,9 +232,10 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.ff` | function | — | Form-preserving callable polynomial and rational expressions with explicit transformations and canonical projections. |
 | `.frac` | function | — | Representation-sensitive unreduced integer fractions with mediant and classroom addition policies. |
 | `.fracfun` | function | — | Form-preserving callable polynomial and rational expressions with explicit transformations and canonical projections. |
+| `.fractals` | function | — | Pure-RiX iteration, bifurcation, cobweb, and escape-time mathematics with portable Graphics lowering. |
 | `.fraction` | function | — | Representation-sensitive unreduced integer fractions with mediant and classroom addition policies. |
 | `.fractionfunction` | function | — | Form-preserving callable polynomial and rational expressions with explicit transformations and canonical projections. |
-| `.geometry` | function | — | Pure-RiX exact ruler-and-compass geometry with explicit intersections and portable Graphics snapshots. |
+| `.geometry` | function | — | Pure-RiX exact geometry, transformations, conics, constraints, and bounded portable Graphics refinement. |
 | `.gif` | function | — | Deterministic animated GIF rendering from Slides, Timelines, or Snapshots through PNG frames. |
 | `.gltf` | function | — | Browser-safe glTF 2.0 JSON exporter for retained Scene3D values. |
 | `.html` | function | — | Standalone semantic HTML renderer for portable RiX output trees. |
@@ -240,7 +248,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.oracle` | function | — | Exact rational-betweenness oracle demonstrations and bounded refinement. |
 | `.p` | function | — | Semantic callable univariate polynomials with structural and symbolic entry forms. |
 | `.pdf` | function | — | PDF document and figure renderer orchestrated through LaTeX. |
-| `.plot` | function | Plot | Pure-RiX exact polynomial sampling that lowers to portable core Graphics scenes. |
+| `.plot` | function | Plot | Pure-RiX exact and numerics-backed 2D plotting that lowers to portable core Graphics scenes. |
 | `.png` | function | — | PNG snapshot renderer for core Graphics through a host rasterizer. |
 | `.poly` | function | — | Semantic callable univariate polynomials with structural and symbolic entry forms. |
 | `.polynomial` | function | — | Semantic callable univariate polynomials with structural and symbolic entry forms. |
@@ -251,13 +259,14 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.rf` | function | — | Canonical callable univariate rational functions with exact cancellation and Polynomial interoperability. |
 | `.scene3d` | function | — | Pure-RiX exact retained 3D scenes, explicit realization and projection, and portable Graphics snapshots. |
 | `.solve` | function | — | Pure-RiX exact Phase 1 linear-system classification and symbolic-spec solving. |
-| `.statistics` | function | — | Exact descriptive statistics with portable summary tables, histograms, and box plots. |
-| `.stats` | function | — | Exact descriptive statistics with portable summary tables, histograms, and box plots. |
+| `.statistics` | function | — | Exact descriptive statistics plus certified normal-distribution functions and portable plots. |
+| `.stats` | function | — | Exact descriptive statistics plus certified normal-distribution functions and portable plots. |
 | `.sternbrocot` | function | — | Pure RiX Stern-Brocot node descriptions, visible tree records, and exact formula evaluation. |
-| `.svg` | function | — | Portable SVG renderer for core Graphics scenes. |
-| `.symbolic` | function | — | Meta-plugin loading RiX representation-sensitive Fraction and FractionFunction workspaces. |
+| `.svg` | function | — | Portable SVG renderer with outward-safe exact-coordinate lowering. |
+| `.symbolic` | function | — | Meta-plugin joining representation-sensitive FractionFunction work with portable abstract Calculus expressions. |
 | `.terminalascii` | function | — | Deterministic strict-ASCII fallback for tables, grids, fragments, and simple Graphics. |
 | `.tikz` | function | — | Editable TikZ/PGF source renderer for core Graphics scenes. |
+| `.webgl` | function | — | Executable WebGL drawing plans for retained Scene3D values. |
 
 ## Built-in receiver methods
 
@@ -267,7 +276,7 @@ Method lookup is case-flexible at the language boundary. The table uses the regi
 | --- | --- |
 | Integer | `ABS`, `BITLENGTH`, `E`, `NEGATE`, `TOSTRING` |
 | Rational | `ABS`, `APPROXIMATIONERROR`, `BESTAPPROXIMATION`, `BESTCONVERGENT`, `BITLENGTH`, `CEIL`, `CONVERGENT`, `CONVERGENTS`, `DENOMINATOR`, `E`, `FLOOR`, `NEGATE`, `NUMERATOR`, `RECIPROCAL`, `ROUND`, `ROUNDTO`, `TOCONTINUEDFRACTION`, `TOCONTINUEDFRACTIONAPPROXIMATION`, `TOCONTINUEDFRACTIONSTRING`, `TODECIMAL`, `TODECIMALAPPROXIMATION`, `TOLOCALESTRING`, `TOMIXEDSTRING`, `TOREPEATINGDECIMAL`, `TOREPEATINGDECIMALINFO`, `TOSTRING`, `TRUNC` |
-| Rational interval | `BITLENGTH`, `CONTAINS`, `CONTAINSVALUE`, `CONTAINSZERO`, `DENOMINATORINTERVAL`, `E`, `END`, `HIGH`, `INTERSECTION`, `ISASCENDING`, `LOW`, `MEDIANT`, `MIDPOINT`, `NEGATE`, `OVERLAPS`, `RANDOM`, `RANDOMPARTITION`, `RECIPROCAL`, `SHORTESTDECIMAL`, `START`, `TOCOMPACTDECIMAL`, `TOMIXEDSTRING`, `TORELATIVEDECIMAL`, `TORELATIVEMIDDECIMAL`, `TOREPEATINGDECIMAL`, `TOSTRING`, `UNION`, `WIDTH` |
+| Rational interval | `BITLENGTH`, `CONTAINS`, `CONTAINSVALUE`, `CONTAINSZERO`, `DENOMINATORINTERVAL`, `E`, `END`, `HIGH`, `HULL`, `INTERSECTION`, `ISASCENDING`, `LOW`, `MEDIANT`, `MIDPOINT`, `NEGATE`, `OVERLAPS`, `RANDOM`, `RANDOMPARTITION`, `RECIPROCAL`, `SHORTESTDECIMAL`, `SPLIT`, `START`, `TOCOMPACTDECIMAL`, `TOMIXEDSTRING`, `TORELATIVEDECIMAL`, `TORELATIVEMIDDECIMAL`, `TOREPEATINGDECIMAL`, `TOSTRING`, `UNION`, `WIDTH` |
 | Array | `ALL`, `ANY`, `CONCAT`, `CONCAT!`, `COUNT`, `DISTINCT`, `DISTINCT!`, `DROPFIRST`, `DROPLAST`, `FILTER`, `FIND`, `FINDINDEX`, `FIRST`, `FLATTEN`, `FLATTEN!`, `GET`, `HASAT`, `INCLUDES`, `INDEXOF`, `INSERT`, `INSERT!`, `ISEMPTY`, `ITERATOR`, `JOIN`, `LAST`, `LASTINDEXOF`, `LEN`, `MAP`, `MOVE`, `MOVE!`, `POP!`, `PUSH`, `PUSH!`, `REDUCE`, `REMOVEAT`, `REMOVEAT!`, `REVERSE`, `REVERSE!`, `SET`, `SET!`, `SHIFT!`, `SLICE`, `SORT`, `SORT!`, `SWAP`, `SWAP!`, `UNSHIFT`, `UNSHIFT!` |
 | Lazy sequence | `FIRST`, `GET`, `ISEMPTY`, `ITERATOR`, `LAST`, `LEN`, `MATERIALIZE` |
 | Async stream | `CHUNK`, `CLOSE`, `COLLECT`, `COUNT`, `DONE`, `DROP`, `FILTER`, `FIND`, `FIRST`, `FOREACH`, `MAP`, `REDUCE`, `STATUS`, `TAKE`, `WINDOW` |
@@ -305,6 +314,7 @@ Every built-in receiver also supports `CheckTraits` / `CHECKTRAITS`.
 | `Integer` | integer | `integer` | `integer`, `rational`, `number`, `ordered` |
 | `CertifiedApproximation` | approximation | `approximation`, `approximate` | `number`, `approximate`, `enclosed`, `orderInquiry` |
 | `RationalInterval` | interval | `Interval`, `interval` | `ordered` |
+| `RationalIntervalSet` | intervalSet | `RangeSet`, `rangeSet` | `collection` |
 | `Shaped` | shaped | — | `shaped`, `indexable`, `shapeAware`, `collection` |
 | `Length` | Length | — | — |
 | `Point` | Point | — | — |
@@ -423,6 +433,7 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `DEFINEUNIT` | eager, pure | Create a linear Unit value from a name and Unit/Quantity definition |
 | `DERIVATIVE` | eager, pure | Postfix exact symbolic derivative |
 | `DESTRUCTURE_ASSIGN` | lazy, effectful/unspecified | General lhs destructuring assignment |
+| `DISJOINT` | eager, pure | Check if two collections are disjoint (1 if true, null otherwise) |
 | `DIV` | eager, pure, multifunction | Division |
 | `DIVIDE` | eager, pure | Return n lazy equally spaced points including interval endpoints |
 | `DIVMOD` | eager, pure | Floor quotient and exact remainder for a positive divisor |
@@ -449,6 +460,7 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `HEADING` | eager, pure | Create a portable document heading |
 | `HOLE` | eager, pure | Internal hole/undefined sentinel — represents an explicitly omitted value |
 | `HOLE_COALESCE` | lazy, effectful/unspecified | Hole-coalescing: x ?\| y returns x if x is not a hole, else y |
+| `HULL` | eager, pure | Smallest exact interval containing both rational ranges |
 | `IMAGE` | eager, pure | Create a portable image asset |
 | `IMMUTABLE_VALUE` | eager, effectful/unspecified | Mark a newly constructed structured value immutable and return it |
 | `IMPORT_JS` | eager, effectful/unspecified | Import a local JavaScript module for use from a .js.rix startup file |
@@ -496,7 +508,7 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `MUTINPLACE` | eager, effectful/unspecified | Mutate a map in-place (obj{! +a=3, -.b }) |
 | `NARY_CONCAT` | eager, pure | N-ary concatenation fold |
 | `NARY_INTERSECT` | eager, pure | N-ary intersection/overlap fold for sets or intervals |
-| `NARY_UNION` | eager, pure | N-ary union/hull fold for sets or intervals |
+| `NARY_UNION` | eager, pure | N-ary true union fold for sets or rational interval sets |
 | `NEG` | eager, pure, multifunction | Negation |
 | `NEQ` | eager, effectful/unspecified, multifunction | Inequality check — returns 1 or null |
 | `NOP` | eager, pure | No operation |

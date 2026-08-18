@@ -1157,8 +1157,8 @@ There are also N-ary operation braces for applying operations across arbitrary e
 - `{* 2, 3, 4}` -> N-ary Multiplication.
 - `{&& a, b, c}` -> N-ary Logical AND (short-circuits to `null` on falsy).
 - `{|| a, b, c}` -> N-ary Logical OR (short-circuits to the first truthy value or null).
-- `{\/ A, B, C}` -> N-ary set union / interval hull.
-- `{/\ A, B, C}` -> N-ary set intersection / interval overlap.
+- `{\/ A, B, C}` -> N-ary set or exact interval-set union.
+- `{/\ A, B, C}` -> N-ary set or exact interval-set intersection.
 - `{++ A, B, C}` -> N-ary concatenation.
 - `{<< a, b, c}` -> N-ary minimum (ignores `null` arguments).
 - `{>> a, b, c}` -> N-ary maximum (ignores `null` arguments).
@@ -1736,13 +1736,15 @@ Prefixed literals also support quoted digit streams:
 ## Set and Collection Algebra
 RiX provides a concise symbolic algebra for sets, intervals, and collections:
 
-- `A \/ B`: Union (sets) or Hull (intervals).
-- `A /\ B`: Intersection (sets) or Overlap (intervals).
+- `A \/ B`: Genuine union. Interval operands produce a normalized `RationalIntervalSet`, preserving gaps.
+- `A |\/| B`: Hull: the smallest closed interval covering both exact ranges.
+- `A /\ B`: Genuine intersection. Interval operands produce a `RationalIntervalSet`, including the empty set.
 - `A \ B`: Set difference (or key removal from maps).
 - `A <> B`: Symmetric difference.
-- `x ? S`: Membership test for sets/intervals; for maps, key existence test using `.KEYOF(x)`.
+- `x ? S`: Scalar membership or whole-range containment; for maps, key existence using `.KEYOF(x)`.
 - `x !? S`: Non-membership test (for maps: key does not exist).
-- `A ?& B`: Intersects predicate.
+- `A ?& B` or `A ?/\ B`: Nonempty-intersection predicate.
+- `A !/\ B`: Disjointness predicate.
 - `A ** B`: Cartesian product of sets.
 - `A ++ B`: Concatenation of ordered collections (arrays, tuples, strings, maps).
 

@@ -553,8 +553,8 @@ u \= {| 2 |}
 | `{* a, b, c }` | `MUL` | N-ary multiplication |
 | `{&& a, b, c }` | `AND` | N-ary logical AND (short-circuits on falsy) |
 | `{\|\| a, b, c }` | `OR` | N-ary logical OR (short-circuits on truthy) |
-| `{\/ a, b, c }` | `NARY_UNION` | N-ary set union / interval hull |
-| `{/\ a, b, c }` | `NARY_INTERSECT` | N-ary set intersection / interval overlap |
+| `{\/ a, b, c }` | `NARY_UNION` | N-ary set or exact interval-set union |
+| `{/\ a, b, c }` | `NARY_INTERSECT` | N-ary set or exact interval-set intersection |
 | `{++ a, b, c }` | `NARY_CONCAT` | N-ary concatenation |
 | `{<< a, b, c }` | `MIN` | N-ary minimum (`null` args ignored) |
 | `{>> a, b, c }` | `MAX` | N-ary maximum (`null` args ignored) |
@@ -919,13 +919,15 @@ y = <"square" x ; z=result>
 
 | Syntax | System Function | Example | Description |
 |--------|----------------|---------|-------------|
-| `A \/ B` | `UNION` | `S1 \/ S2` | Set union or interval hull |
-| `A /\ B` | `INTERSECT` | `S1 /\ S2` | Set intersection or interval overlap |
+| `A \/ B` | `UNION` | `(1:2) \/ (4:5)` | Genuine set union; intervals produce a normalized `RationalIntervalSet` |
+| `A |\/| B` | `HULL` | `(1:2) |\/| (4:5)` | Smallest closed interval covering both ranges |
+| `A /\ B` | `INTERSECT` | `(1:3) /\ (2:4)` | Genuine set intersection; intervals produce a `RationalIntervalSet` (possibly empty) |
 | `A \ B` | `SET_DIFF` | `S1 \ S2` | Set/Map difference |
 | `A <> B` | `SET_SYMDIFF` | `S1 <> S2` | Symmetric difference |
-| `x ? S` | `MEMBER` | `5 ? 1:10`, `"a" ? m` | Membership test (sets/intervals) or map key existence test |
+| `x ? S` | `MEMBER` | `5 ? 1:10`, `(1:2) ? (0:4)` | Scalar membership or whole-range containment; for maps, key existence |
 | `x !? S` | `NOT_MEMBER` | `x !? S` | Non-membership / key absence test |
-| `A ?& B` | `INTERSECTS` | `A ?& B` | Intersects predicate |
+| `A ?& B`, `A ?/\ B` | `INTERSECTS` | `(1:2) ?/\ (2:3)` | Nonempty-intersection predicate |
+| `A !/\ B` | `DISJOINT` | `(1:2) !/\ (3:4)` | Disjointness predicate |
 | `A ** B` | `SET_PROD` | `S1 ** S2` | Cartesian product |
 | `A ++ B` | `CONCAT` | `[1,2] ++ [3,4]` | Concatenation (ordered collections/strings) |
 
@@ -1594,11 +1596,14 @@ general systems. The former `:=:` solve operator has been removed.
 | `SHAPED_LITERAL(shape, elems...)` | Create Shaped storage explicitly or by rectangular semicolon inference | `{:2x3: 1, 2, 3; 4, 5, 6 }`, `[1, 2; 3, 4]`, `[1,2;3,4 ;; 5,6;7,8]` |
 | `ARRAY_CAPTURE(elems...)` | Create array with brace-form constructor capture controls | `{.. 1, 2, 3 }`, `{.. /:=/ x, y }` |
 | `INTERVAL(args...)` | Create interval or check n-ary betweenness (unpacks nested intervals/sets) | `a:b` or `a:b:c...` |
-| `UNION(a, b)` | Binary set union / interval hull | `A \/ B` |
-| `INTERSECT(a, b)` | Binary set intersection / interval overlap | `A /\ B` |
+| `UNION(a, b)` | Binary set or exact interval-set union | `A \/ B` |
+| `HULL(a, b)` | Smallest covering closed interval for exact ranges | `A |\/| B` |
+| `INTERSECT(a, b)` | Binary set or exact interval-set intersection | `A /\ B` |
+| `INTERSECTS(a, b)` | Test for a nonempty intersection | `A ?& B`, `A ?/\ B` |
+| `DISJOINT(a, b)` | Test for disjoint ranges/sets | `A !/\ B` |
 | `CONCAT(a, b)` | Binary concatenation | `A ++ B` |
-| `NARY_UNION(args...)` | N-ary set union / interval hull | `{\/ A, B, C }` |
-| `NARY_INTERSECT(args...)` | N-ary set intersection / interval overlap | `{/\ A, B, C }` |
+| `NARY_UNION(args...)` | N-ary set or exact interval-set union | `{\/ A, B, C }` |
+| `NARY_INTERSECT(args...)` | N-ary set or exact interval-set intersection | `{/\ A, B, C }` |
 | `NARY_CONCAT(args...)` | N-ary concatenation | `{++ A, B, C }` |
 | `LEN(coll)` | Length of collection/string | — |
 | `FIRST(coll)` | First element | — |

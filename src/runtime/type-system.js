@@ -888,6 +888,17 @@ export function registerBuiltinSemanticTypes() {
             ["Contains", valueMethod("Contains", (self, [other]) => boolResult(self.contains(other)))],
             ["ContainsValue", valueMethod("ContainsValue", (self, [value]) => boolResult(self.containsValue(value)))],
             ["Hull", valueMethod("Hull", (self) => rangeSetResult(self, self.hull()))],
+            ["Split", valueMethod("Split", (self, [specification]) => {
+                if (specification !== undefined) {
+                    throw new Error("RationalIntervalSet.Split currently accepts no specification; omit it to split into components");
+                }
+                return {
+                    type: "sequence",
+                    values: self.components.map((component) =>
+                        rangeSetResult(self, new RationalIntervalSet(component))),
+                };
+            })],
+            ["ToRationalInterval", valueMethod("ToRationalInterval", (self) => self.toRationalInterval())],
             ["ToString", valueMethod("ToString", (self) => stringObj(self.toString()))],
             ["Describe", valueMethod("Describe", () => stringObj("type:RationalIntervalSet"))],
         ]),

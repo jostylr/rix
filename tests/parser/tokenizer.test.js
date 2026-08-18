@@ -1360,6 +1360,14 @@ describe("Math Oracle Tokenizer", () => {
           ]),
         );
       });
+
+      test("interval-set hull and overlap predicates", () => {
+        expect(
+          tokenize("|\\/| ?/\\ !/\\")
+            .filter(({ type }) => type === "Symbol")
+            .map(({ value }) => value),
+        ).toEqual(["|\\/|", "?/\\", "!/\\"]);
+      });
     });
 
     describe("combo assignment operators", () => {

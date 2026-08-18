@@ -35,8 +35,12 @@ focused tests exist; design-only work remains unchecked.
 ## 2. RiX value adapter
 
 - [x] Register `RationalIntervalSet` as a semantic runtime type.
-- [x] Add `Components`, `Union`, `Intersection`, `Contains`, `Hull`, and
-  `ToString` methods.
+- [x] Add `Components`, `Split`, `Union`, `Intersection`, `Contains`, `Hull`,
+  `ToRationalInterval`, and `ToString` methods.
+- [x] Make `\/` and `/\` genuine interval-set operations and reserve
+  `|\/|` for the explicit hull.
+- [x] Extend `?` to whole-range containment and add `?/\`/`?&` overlap plus
+  `!/\` disjointness predicates.
 - [x] Define a versioned portable RiX interchange map.
 - [x] Format empty, disconnected, open/closed, and unbounded sets unambiguously.
 - [x] Add runtime import/export, formatting, copy handling, and focused tests.
@@ -46,15 +50,16 @@ focused tests exist; design-only work remains unchecked.
 
 ## 3. Direct RangeProvider protocol
 
-- [ ] Define `rix.numerics.range-provider@1` capability schema.
-- [ ] Define a general range request and set-valued result schema.
-- [ ] Require stable function identity, covered input, domain status, bounded
+- [x] Define `rix.numerics.range-provider@1` capability schema.
+- [x] Define a general range request and set-valued result schema.
+- [x] Require stable function identity, covered input, domain status, bounded
   work, evidence level, and provenance.
-- [ ] Implement a structural result validator in Numerics.
-- [ ] Reject contradictory statuses and reject `certified=1` for heuristic-only
+- [x] Implement a structural result validator in Numerics.
+- [x] Reject contradictory statuses and reject `certified=1` for heuristic-only
   chains.
 - [ ] Accept trusted direct providers through multifunction dispatch.
-- [ ] Add `WithRangeKnowledge` scoped wrappers.
+- [x] Add `WithRangeKnowledge` scoped wrappers, forced to heuristic/untrusted
+  until a checked or capability-bearing path is available.
 - [ ] Add capability-gated `RegisterRangeProvider` for plugin/session use.
 - [ ] Adapt existing unary Numerics implementations to publish the common
   protocol without regressing their current range API.
@@ -129,20 +134,24 @@ focused tests exist; design-only work remains unchecked.
 - [x] Document the ownership architecture and normative boundaries.
 - [x] Document useful certified knowledge for arbitrary functions.
 - [x] Document the proposed user-function knowledge surfaces.
-- [ ] Add a runnable custom direct-provider tutorial.
+- [x] Add a runnable scoped direct-provider tutorial with explicit heuristic
+  trust behavior.
 - [ ] Add a runnable derivative-witness tutorial.
 - [x] Add a runnable disconnected closed-range-set tutorial for the RiX adapter.
 - [ ] Extend that tutorial with open and unbounded construction when the public
   RiX constructor surface lands.
-- [ ] Add adversarial examples showing why samples and bare monotonicity labels
+- [x] Add adversarial examples showing why self-certification and bare trust
+  labels do not certify.
+- [ ] Add further adversarial examples showing why samples and bare monotonicity labels
   do not certify.
-- [ ] Run Core and complete RiX suites at every integration milestone.
+- [x] Run Core and complete RiX suites at this integration milestone.
 
 ### Verification note — 2026-08-18
 
 - Core: 537 tests passed, including the new interval-set tests.
-- Focused RiX type/adapter tests: 18 passed.
-- Full RiX run: 2,538 passed; one unrelated RationalFunction presentation test
-  exceeded its 5-second default timeout at about 5.2 seconds. The same test
-  completed successfully with a 10-second limit. Keep the full-suite gate open
-  until it passes under the repository default timeout.
+- RiX documentation examples: 74 examples passed; both Numerics tutorials
+  passed.
+- Complete RiX suite with a 10-second per-test ceiling: 2,542 tests passed
+  across 127 files with zero failures. The higher ceiling accommodates existing
+  slow reference-corpus and RationalFunction presentation cases; all new range
+  tests also pass under their focused default-timeout runs.
