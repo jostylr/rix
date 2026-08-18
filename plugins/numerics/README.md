@@ -97,7 +97,8 @@ See [interval-ranges-tutorial.md](interval-ranges-tutorial.md) for a full
 measurement tutorial, [range-certification.md](range-certification.md) for the
 proof knowledge useful to general functions, and
 [interval-ranges-checklist.md](interval-ranges-checklist.md) for implemented
-coverage and follow-up work.
+unary coverage. The cross-component implementation plan is tracked in
+[general-range-development-checklist.md](general-range-development-checklist.md).
 
 ## Provider protocol
 

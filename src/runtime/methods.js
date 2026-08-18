@@ -3,6 +3,7 @@ import {
     Fraction,
     Integer,
     RationalInterval,
+    RationalIntervalSet,
     Rational,
     Relation,
     boundedContinuedFractionApproximation,
@@ -1865,6 +1866,7 @@ function extensionTypeNames(target) {
     if (target instanceof Integer) names.push("Integer");
     else if (target instanceof Rational) names.push("Rational");
     else if (target instanceof RationalInterval) names.push("RationalInterval");
+    else if (target instanceof RationalIntervalSet) names.push("RationalIntervalSet");
     else if (target instanceof CertifiedApproximation) names.push("CertifiedApproximation");
     else if (isUndecided(target)) names.push("Undecided");
     else if (target instanceof Fraction) names.push("Fraction");

@@ -1,4 +1,4 @@
-import { CertifiedApproximation, Integer, Rational, RationalInterval, parseCertifiedApproximation } from "@ratmath/core";
+import { CertifiedApproximation, Integer, Rational, RationalInterval, RationalIntervalSet, parseCertifiedApproximation } from "@ratmath/core";
 import {
     createShaped,
     forEachShapedCell,
@@ -225,6 +225,7 @@ export function runtimeTypeName(value) {
     if (value instanceof Integer) return "Integer";
     if (value instanceof Rational) return "Rational";
     if (value instanceof RationalInterval) return "RationalInterval";
+    if (value instanceof RationalIntervalSet) return "RationalIntervalSet";
     if (value instanceof CertifiedApproximation) return "CertifiedApproximation";
     if (isUndecided(value)) return "Undecided";
     if (isShaped(value)) return "shaped";
@@ -799,6 +800,100 @@ export function registerBuiltinSemanticTypes() {
         installs: {},
     });
 
+    const rangeSetComponentMap = (component) => ({
+        type: "map",
+        entries: new Map([
+            ["low", component.low],
+            ["high", component.high],
+            ["lowClosed", boolResult(component.lowClosed)],
+            ["highClosed", boolResult(component.highClosed)],
+        ]),
+    });
+    const rangeSetComponents = (value) => ({
+        type: "sequence",
+        values: value.components.map(rangeSetComponentMap),
+    });
+    const rangeSetResult = (source, result) => {
+        if (source?._ext instanceof Map) result._ext = new Map(source._ext);
+        return result;
+    };
+    const importRangeSetComponent = (value) => {
+        if (!value || value.type !== "map" || !(value.entries instanceof Map)) {
+            throw new Error("RationalIntervalSet components must be maps");
+        }
+        for (const key of ["low", "high", "lowClosed", "highClosed"]) {
+            if (!value.entries.has(key)) {
+                throw new Error(`RationalIntervalSet component requires ${key}`);
+            }
+        }
+        const readClosure = (key) => {
+            const flag = value.entries.get(key);
+            if (flag === null) return false;
+            if (flag instanceof Integer && flag.value === 1n) return true;
+            throw new Error(`RationalIntervalSet ${key} must be a RiX boolean`);
+        };
+        return {
+            low: value.entries.get("low"),
+            high: value.entries.get("high"),
+            lowClosed: readClosure("lowClosed"),
+            highClosed: readClosure("highClosed"),
+        };
+    };
+
+    registerType({
+        name: "RationalIntervalSet",
+        aliases: ["RangeSet", "rangeSet"],
+        nativeType: "intervalSet",
+        defaultTraits: ["collection"],
+        convertFrom: {
+            RationalIntervalSet: (value) => value,
+            intervalSet: (value) => value,
+            RationalInterval: (value) => RationalIntervalSet.fromInterval(value),
+            interval: (value) => RationalIntervalSet.fromInterval(value),
+        },
+        convert(value) {
+            if (value instanceof RationalIntervalSet) return value;
+            if (value instanceof RationalInterval) return RationalIntervalSet.fromInterval(value);
+            return null;
+        },
+        validate: (value) => value instanceof RationalIntervalSet,
+        export(value) {
+            return {
+                type: "map",
+                entries: new Map([
+                    ["type", stringObj("RationalIntervalSet")],
+                    ["data", { type: "map", entries: new Map([
+                        ["components", rangeSetComponents(value)],
+                    ]) }],
+                    ["cache", null],
+                    ["version", new Integer(1n)],
+                ]),
+            };
+        },
+        import(value) {
+            const version = value?.entries?.get("version")?.value;
+            if (version !== 1n) {
+                throw new Error("Unsupported RationalIntervalSet interchange version");
+            }
+            const components = value?.entries?.get("data")?.entries?.get("components");
+            if (!components || components.type !== "sequence") {
+                throw new Error("RationalIntervalSet interchange requires components");
+            }
+            return new RationalIntervalSet(components.values.map(importRangeSetComponent));
+        },
+        proto: () => makeProto([
+            ["Components", valueMethod("Components", (self) => rangeSetComponents(self))],
+            ["Union", valueMethod("Union", (self, [other]) => rangeSetResult(self, self.union(other)))],
+            ["Intersection", valueMethod("Intersection", (self, [other]) => rangeSetResult(self, self.intersection(other)))],
+            ["Contains", valueMethod("Contains", (self, [other]) => boolResult(self.contains(other)))],
+            ["ContainsValue", valueMethod("ContainsValue", (self, [value]) => boolResult(self.containsValue(value)))],
+            ["Hull", valueMethod("Hull", (self) => rangeSetResult(self, self.hull()))],
+            ["ToString", valueMethod("ToString", (self) => stringObj(self.toString()))],
+            ["Describe", valueMethod("Describe", () => stringObj("type:RationalIntervalSet"))],
+        ]),
+        installs: {},
+    });
+
     registerType({
         name: "Shaped",
         nativeType: "shaped",
@@ -1045,7 +1140,7 @@ export function importByRegisteredTypeRuntime(value, context = null, evaluate = 
     return finalizeImportedRegisteredValue(invokeMaybeCallable(entry.import, [value], context, evaluate), typeName, entry);
 }
 
-export function installRegisteredTypes(registry, typeNames = ["Integer", "Rational", "CertifiedApproximation", "RationalInterval", "Shaped", "Matrix"], options = {}) {
+export function installRegisteredTypes(registry, typeNames = ["Integer", "Rational", "CertifiedApproximation", "RationalInterval", "RationalIntervalSet", "Shaped", "Matrix"], options = {}) {
     let order = 0;
     for (const typeName of typeNames) {
         const entry = typeRegistry.get(typeName);

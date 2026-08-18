@@ -60,8 +60,10 @@ endpoints; it does not try to shrink uncertainty inherent in the measurement.
   relying only on subdivision.
 - [x] Distinguish a proven pole crossing from the conservative
   `:poleNotExcluded` result.
-- [ ] Add interval unions or extended endpoints for genuinely disconnected or
-  unbounded ranges.
+- [x] Add the Core `RationalIntervalSet` foundation for interval unions, open
+  boundaries, and extended endpoints.
+- [ ] Adapt `RationalIntervalSet` into RiX and use it for genuinely disconnected
+  or unbounded Numerics results.
 - [x] Allow generic subdivided functions to return one nested Numerics interval
   image directly.
 - [ ] Add a certified expression-graph range engine for arithmetic that

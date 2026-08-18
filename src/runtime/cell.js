@@ -43,7 +43,7 @@ export class Cell {
     }
 }
 
-import { CertifiedApproximation, Integer, Rational, RationalInterval } from "@ratmath/core";
+import { CertifiedApproximation, Integer, Rational, RationalInterval, RationalIntervalSet } from "@ratmath/core";
 import { UndecidedDiagnostic, isUndecided } from "./decision.js";
 import { isShaped, computeDefaultStrides } from "./shaped.js";
 import { cloneLazySequence, isLazySequence } from "./lazy-sequence.js";
@@ -86,6 +86,7 @@ export function shallowCopyValue(value) {
             new Rational(value.high.numerator, value.high.denominator),
         );
     }
+    if (value instanceof RationalIntervalSet) return new RationalIntervalSet(value);
 
     // String object — always creates a new plain object
     if (value.type === "string") return { type: "string", value: value.value };
@@ -213,6 +214,11 @@ export function deepCopyValue(value, memo = new WeakMap()) {
             new Rational(value.low.numerator, value.low.denominator),
             new Rational(value.high.numerator, value.high.denominator),
         );
+        memo.set(value, copy);
+        return copy;
+    }
+    if (value instanceof RationalIntervalSet) {
+        const copy = new RationalIntervalSet(value);
         memo.set(value, copy);
         return copy;
     }

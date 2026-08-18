@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/range-set.schema.json",
+  "title": "Exact rational interval set",
+  "description": "Tagged JSON form of a normalized finite union. A null low endpoint means -Infinity and a null high endpoint means +Infinity.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$ratmath", "components"],
+  "properties": {
+    "$ratmath": { "const": "RationalIntervalSet" },
+    "components": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/component" }
+    }
+  },
+  "$defs": {
+    "rational": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["$ratmath", "numerator", "denominator"],
+      "properties": {
+        "$ratmath": { "const": "Rational" },
+        "numerator": { "type": "string", "pattern": "^-?[0-9]+$" },
+        "denominator": { "type": "string", "pattern": "^[1-9][0-9]*$" }
+      }
+    },
+    "component": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["low", "high", "lowClosed", "highClosed"],
+      "properties": {
+        "low": {
+          "description": "Exact rational endpoint, or null for -Infinity.",
+          "oneOf": [{ "$ref": "#/$defs/rational" }, { "type": "null" }]
+        },
+        "high": {
+          "description": "Exact rational endpoint, or null for +Infinity.",
+          "oneOf": [{ "$ref": "#/$defs/rational" }, { "type": "null" }]
+        },
+        "lowClosed": { "type": "boolean" },
+        "highClosed": { "type": "boolean" }
+      }
+    }
+  }
+}

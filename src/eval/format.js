@@ -1,4 +1,4 @@
-import { BaseSystem, CertifiedApproximation, Integer, Rational, RationalInterval } from "@ratmath/core";
+import { BaseSystem, CertifiedApproximation, Integer, Rational, RationalInterval, RationalIntervalSet } from "@ratmath/core";
 import { HaloNeighborhood } from "../runtime/halo.js";
 import { isHole } from "../runtime/hole.js";
 import { isUndecided } from "../runtime/decision.js";
@@ -563,6 +563,7 @@ export function formatValue(val, options = {}) {
             ? formatIntervalWithProfile(val, profile, options.context)
             : val.toMixedString();
     }
+    if (val instanceof RationalIntervalSet) return val.toString();
     if (val instanceof CertifiedApproximation) return val.toString();
     if (val instanceof HaloNeighborhood) return val.toString();
     return val.toString();

@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { Integer, Rational } from "@ratmath/core";
+import { Integer, Rational, RationalInterval, RationalIntervalSet } from "@ratmath/core";
 import { tokenize } from "../../src/parser/tokenizer.js";
 import { parse } from "../../src/parser/parser.js";
 import { lower } from "../../src/eval/lower.js";
@@ -8,6 +8,8 @@ import { formatValue } from "../../src/eval/format.js";
 import { Context } from "../../src/runtime/context.js";
 import {
     makeProto,
+    exportByRegisteredTypeRuntime,
+    importByRegisteredTypeRuntime,
     registerTrait,
     registerType,
     traitRegistry,
@@ -213,9 +215,44 @@ describe("RiX type and trait registry", () => {
         expect(typeRegistry.has("rational")).toBe(true);
         expect(typeRegistry.has("Integer")).toBe(true);
         expect(typeRegistry.has("RationalInterval")).toBe(true);
+        expect(typeRegistry.has("RationalIntervalSet")).toBe(true);
         expect(typeRegistry.has("Shaped")).toBe(true);
         expect(traitRegistry.has("field")).toBe(true);
         expect(traitRegistry.has("shapeAware")).toBe(true);
+    });
+
+    test("RationalIntervalSet has portable runtime interchange and exact methods", () => {
+        const original = new RationalIntervalSet([
+            { low: null, high: -1, lowClosed: false, highClosed: true },
+            new RationalInterval(1, 2),
+        ]);
+        const exported = exportByRegisteredTypeRuntime(original);
+        const imported = importByRegisteredTypeRuntime(exported);
+        expect(imported).toBeInstanceOf(RationalIntervalSet);
+        expect(imported.equals(original)).toBe(true);
+        expect(formatValue(imported)).toBe("(-inf,-1] U [1,2]");
+
+        const proto = typeRegistry.get("RationalIntervalSet").proto();
+        const union = proto.entries.get("Union").impl([
+            imported,
+            new RationalIntervalSet({ low: -1, high: 1 }),
+        ]);
+        expect(union.toString()).toBe("(-inf,2]");
+        expect(proto.entries.get("ContainsValue").impl([imported, 0])).toBeNull();
+        expect(proto.entries.get("ContainsValue").impl([imported, 1])).toBeInstanceOf(Integer);
+        expect(proto.entries.get("Components").impl([imported]).values).toHaveLength(2);
+
+        const malformed = exportByRegisteredTypeRuntime(original);
+        malformed.entries.get("data").entries.get("components").values[0]
+            .entries.set("lowClosed", new Integer(0n));
+        expect(() => importByRegisteredTypeRuntime(malformed)).toThrow("must be a RiX boolean");
+
+        const chained = evalRiX(`
+            a := (0:1) ~: :RangeSet;
+            b := (2:3) ~: :RangeSet;
+            a.Union(b).Hull().ToString();
+        `).result;
+        expect(chained.value).toBe("[0,3]");
     });
 
     test("semantic type and trait names are case-insensitive with canonical metadata", () => {

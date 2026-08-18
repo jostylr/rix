@@ -266,3 +266,29 @@ For the certification strategies useful to arbitrary user functions, see
 [range-certification.md](range-certification.md).  For the current coverage and
 remaining representation work, see
 [interval-ranges-checklist.md](interval-ranges-checklist.md).
+
+## Disconnected range-set foundation
+
+The runtime now has an exact `RationalIntervalSet` value for results that one
+closed interval cannot represent. A closed interval converts to a range set;
+unions, intersections, containment, and hulls remain exact:
+
+```{.rix exec=true}
+left := ((-3):(-1)) ~: :RangeSet;
+right := (1:3) ~: :RangeSet;
+outside := left.Union(right);
+window := ((-2):2) ~: :RangeSet;
+
+{:
+  outside.ToString(),
+  outside.Intersection(window).ToString(),
+  outside.ContainsValue(0),
+  outside.ContainsValue(2),
+  outside.Hull().ToString()
+};
+```
+
+This is the representation layer, not yet a claim that every Numerics range
+provider returns disconnected or unbounded results. Provider migration and
+proof validation are tracked in
+[general-range-development-checklist.md](general-range-development-checklist.md).
