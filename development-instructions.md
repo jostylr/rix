@@ -51,14 +51,19 @@ Examples can also use these Quarto attributes:
 Run the checker directly from the `rix/` directory:
 
 ```sh
-bun run docs:examples
-bun run test:docs
+bun run docs:verify
 ```
 
-Build or preview the Quarto site with:
+Documentation builds run the same verification before rendering:
 
 ```sh
 bun run build:docs
+```
+
+For iterative work, preview the Quarto site without rerunning verification on
+every launch:
+
+```sh
 bun run preview:docs
 ```
 

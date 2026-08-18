@@ -79,8 +79,11 @@ check the size: `array[5]`, `set[3]`, `map[2]`, `tuple[2]`, or `shaped[2x2]`.
 `##! Debug(...)`, `Trace(...)`, `Info(...)`, and `Dump(...)` are native,
 value-preserving diagnostic taps. `Log(...)` is a concise alias for `Dump(...)`.
 
-Run the checker directly with:
+Run all documentation tests and runnable-example checks directly with:
 
 ```sh
-bun run docs:examples
+bun run docs:verify
 ```
+
+`bun run build:docs` and `bun run build:docs:static` run this verification
+before rendering.
