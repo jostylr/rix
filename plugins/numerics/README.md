@@ -45,6 +45,48 @@ Exhaustion is a normal result. Certified providers preserve it as a certified
 approximation rather than a guessed answer or an exception; uncertified
 providers must not populate that field as though they had an error bound.
 
+## Measurement intervals and certified ranges
+
+A `RationalInterval` passed to the supported elementary functions denotes the
+whole closed set of possible inputs. The function returns an immutable interval
+image rather than treating the interval as an enclosure of one hidden real.
+Use `.numerics.Range` (or the image's `.Range` method) to request certified
+rational bounds:
+
+```rix
+.Plugin.Load("numerics");
+
+measurement := 99/100:101/100;
+image := .numerics.Sin(measurement);
+answer := .numerics.Range(image, {=
+  endpointTolerance=1/1000000,
+  maxWork=200,
+  maxSubintervals=8
+});
+
+{: answer[:interval], answer[:certified], answer[:domainStatus] };
+```
+
+The result schema is `rix.numerics.range-enclosure@1`. Its
+`endpointTolerance` controls computation of the outer range boundaries; the
+physical width caused by the input measurement is intentionally retained.
+`Sin` and `Cos` use rational Taylor bounds and a global Lipschitz proof, with
+bounded rational subdivision for tightness. Reciprocal trigonometric functions
+return `:unknown` when their pole cannot be excluded. Restricted functions
+return `:domainViolation` if any possible input is outside their real domain.
+
+For an exact interval expression, generic subdivision can reduce dependency
+overestimation while retaining the same input occurrence in each piece:
+
+```rix
+.numerics.Range((x)->x-x, 1:2, {= maxSubintervals=8 });  ## -1/8:1/8
+```
+
+Generic subdivided functions currently return an exact scalar or
+`RationalInterval`; use the direct interval-image form for transcendental
+functions. See [interval-ranges-checklist.md](interval-ranges-checklist.md) for
+implemented coverage and follow-up work.
+
 ## Provider protocol
 
 A provider value supplies receiver methods:

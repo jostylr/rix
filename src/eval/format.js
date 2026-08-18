@@ -393,7 +393,10 @@ function certifiedEnclosureInterval(value) {
     const schema = entries.get("schema");
     const certified = entries.get("certified");
     const interval = entries.get("interval");
-    if (schema?.type !== "string" || schema.value !== "rix.numerics.enclosure@1") return null;
+    if (
+        schema?.type !== "string" ||
+        !["rix.numerics.enclosure@1", "rix.numerics.range-enclosure@1"].includes(schema.value)
+    ) return null;
     if (certified?.value !== 1n) return null;
     return interval || null;
 }

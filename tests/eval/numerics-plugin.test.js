@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { CertifiedApproximation, RationalInterval } from "@ratmath/core";
+import { CertifiedApproximation, Rational, RationalInterval } from "@ratmath/core";
 import {
     Context,
     createDefaultRegistry,
@@ -219,5 +219,134 @@ describe("pure RiX Numerics plugin", () => {
         const decision = parseAndEvaluate(".float(1/3) < {~ 1/2, 1/1000 }", options);
         expect(decision.__rix_undecided__).toBe(true);
         expect(decision.reason).toBe("providerUncertified");
+    });
+
+    test("transcendental multifunctions create certified set-valued interval images", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("numerics");
+            expImage = .numerics.Exp(1:2);
+            logImage = .numerics.Log(1:2);
+            rootImage = .numerics.Sqrt(1:2);
+            {:
+                expImage.NumericsCapabilities()[:denotation],
+                expImage.NumericsCapabilities()[:boundaryRefinement],
+                .numerics.Range(expImage, {= endpointTolerance=1/10000, maxWork=100 }),
+                .numerics.Range(logImage, {= endpointTolerance=1/10000, maxWork=100 }),
+                rootImage.Range({= endpointTolerance=1/10000, maxWork=100 })
+            }
+        `, runtime());
+
+        expect(textValue(result.values[0])).toBe("set");
+        expect(result.values[1].value).toBe(1n);
+        for (const range of result.values.slice(2)) {
+            expect(textValue(entry(range, "schema"))).toBe("rix.numerics.range-enclosure@1");
+            expect(textValue(entry(range, "status"))).toBe("enclosed");
+            expect(entry(range, "certified").value).toBe(1n);
+            expect(entry(range, "interval")).toBeInstanceOf(RationalInterval);
+        }
+
+        const expInterval = entry(result.values[2], "interval");
+        expect(expInterval.low.toNumber()).toBeLessThanOrEqual(Math.exp(1));
+        expect(expInterval.high.toNumber()).toBeGreaterThanOrEqual(Math.exp(2));
+        const logInterval = entry(result.values[3], "interval");
+        expect(logInterval.low.toNumber()).toBeLessThanOrEqual(0);
+        expect(logInterval.high.toNumber()).toBeGreaterThanOrEqual(Math.log(2));
+        const rootInterval = entry(result.values[4], "interval");
+        expect(rootInterval.containsValue(new Rational(1n))).toBe(true);
+        expect(rootInterval.high.toNumber()).toBeGreaterThanOrEqual(Math.sqrt(2));
+    });
+
+    test("circular ranges use bounded subdivision and reject unexcluded poles", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("numerics");
+            sine = .numerics.Range(.numerics.Sin(1:2), {=
+                endpointTolerance=1/1000, maxWork=160, maxSubintervals=8
+            });
+            cosine = .numerics.Range(.numerics.Cos(1:2), {=
+                endpointTolerance=1/1000, maxWork=160, maxSubintervals=8
+            });
+            safeTan = .numerics.Range(.numerics.Tan(0:1), {=
+                endpointTolerance=1/1000, maxWork=160, maxSubintervals=8
+            });
+            crossingTan = .numerics.Range(.numerics.Tan(1:2), {=
+                endpointTolerance=1/1000, maxWork=160, maxSubintervals=8
+            });
+            {: sine, cosine, safeTan, crossingTan }
+        `, runtime());
+
+        for (const range of result.values.slice(0, 3)) {
+            expect(entry(range, "certified").value).toBe(1n);
+            expect(entry(range, "work").entries.get("calls").value).toBeLessThanOrEqual(160n);
+        }
+        const sine = entry(result.values[0], "interval");
+        expect(sine.low.toNumber()).toBeLessThanOrEqual(Math.sin(1));
+        expect(sine.high.toNumber()).toBeGreaterThanOrEqual(1);
+        const cosine = entry(result.values[1], "interval");
+        expect(cosine.low.toNumber()).toBeLessThanOrEqual(Math.cos(2));
+        expect(cosine.high.toNumber()).toBeGreaterThanOrEqual(Math.cos(1));
+        const tangent = entry(result.values[2], "interval");
+        expect(tangent.low.toNumber()).toBeLessThanOrEqual(0);
+        expect(tangent.high.toNumber()).toBeGreaterThanOrEqual(Math.tan(1));
+        expect(textValue(entry(result.values[3], "status"))).toBe("unknown");
+        expect(entry(result.values[3], "certified")).toBeNull();
+        expect(entry(result.values[3], "diagnostics").values.map(textValue)).toContain("poleNotExcluded");
+    });
+
+    test("range evaluation reports whole-input domain violations", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("numerics");
+            {:
+                .numerics.Range(.numerics.Log((-1):2)),
+                .numerics.Range(.numerics.Sqrt((-1):2)),
+                .numerics.Range(.numerics.Asin(0:2))
+            }
+        `, runtime());
+
+        expect(result.values.map((range) => textValue(entry(range, "status"))))
+            .toEqual(["domainViolation", "domainViolation", "domainViolation"]);
+        expect(result.values.every((range) => entry(range, "certified") === null)).toBe(true);
+        expect(() => parseAndEvaluate(`
+            .Plugin.Load("numerics"); .numerics.Range(1:2)
+        `, runtime())).toThrow("expects an interval image");
+    });
+
+    test("generic Range preserves repeated-input correlation through subdivision", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("numerics");
+            coarse = .numerics.Range((x)->x-x, 1:2, {= maxSubintervals=1, maxWork=20 });
+            subdivided = .numerics.Range((x)->x-x, 1:2, {= maxSubintervals=8, maxWork=80 });
+            {: coarse, subdivided }
+        `, runtime());
+        const coarse = entry(result.values[0], "interval");
+        const subdivided = entry(result.values[1], "interval");
+        expect(coarse.toString()).toBe("-1:1");
+        expect(subdivided.toString()).toBe("-1/8:1/8");
+        expect(subdivided.containsValue(new Rational(0n))).toBe(true);
+        expect(subdivided.high.subtract(subdivided.low)
+            .lessThan(coarse.high.subtract(coarse.low))).toBe(true);
+    });
+
+    test("base changes, stable forms, and inverse trig preserve range semantics", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("numerics");
+            {:
+                .numerics.Range(.numerics.Exp(1:2, 10), {= endpointTolerance=1/1000, maxWork=200 }),
+                .numerics.Range(.numerics.Log(1:100, 10), {= endpointTolerance=1/1000, maxWork=200 }),
+                .numerics.Range(.numerics.Expm1(0:1), {= endpointTolerance=1/1000, maxWork=100 }),
+                .numerics.Range(.numerics.Log1p(0:1), {= endpointTolerance=1/1000, maxWork=100 }),
+                .numerics.Range(.numerics.Acos((-1/2):(1/2)), {= endpointTolerance=1/1000, maxWork=160 })
+            }
+        `, runtime());
+
+        expect(result.values.every((range) => entry(range, "certified")?.value === 1n)).toBe(true);
+        const power = entry(result.values[0], "interval");
+        expect(power.low.lessThanOrEqual(new Rational(10n))).toBe(true);
+        expect(power.high.greaterThanOrEqual(new Rational(100n))).toBe(true);
+        const logarithm = entry(result.values[1], "interval");
+        expect(logarithm.low.toNumber()).toBeLessThanOrEqual(0);
+        expect(logarithm.high.toNumber()).toBeGreaterThanOrEqual(2);
+        const acoshaped = entry(result.values[4], "interval");
+        expect(acoshaped.low.toNumber()).toBeLessThanOrEqual(Math.acos(0.5));
+        expect(acoshaped.high.toNumber()).toBeGreaterThanOrEqual(Math.acos(-0.5));
     });
 });
