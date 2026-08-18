@@ -1,0 +1,412 @@
+/**
+id: fractals
+description: Pure-RiX iteration, bifurcation, cobweb, and escape-time mathematics with portable Graphics lowering.
+kind: rix
+mount: fractals
+exports: [Orbit, Iterate, DetectPeriod, Multiplier, Stability, Logistic, Tent, Quadratic, Bifurcation, LogisticBifurcation, BifurcationGraphic, Cobweb, CobwebGraphic, Escape, EscapeGrid, Mandelbrot, Julia, EscapeGraphic, MandelbrotGraphic, JuliaGraphic]
+groups: [Chaos, Fractals, Graphics, Exact]
+permissions: []
+provides: [rix.chaos@1, rix.fractals@1]
+schemas: [rix.fractals.orbit@1, rix.fractals.period@1, rix.fractals.multiplier@1, rix.fractals.bifurcation@1, rix.fractals.bifurcation-graphic@1, rix.fractals.cobweb@1, rix.fractals.cobweb-graphic@1, rix.fractals.escape@1, rix.fractals.escape-grid@1, rix.fractals.escape-graphic@1]
+snapshot: true
+deterministic: true
+defaultEnabled: false
+**/
+
+FrOption(options, key, fallback ?= _) -> options.Has(key) ?: options[key] ?_ fallback;
+FrAbs(value) -> value < 0 ?: -value ?_ value;
+
+FrIntegerIn(value, label, minimum, maximum) -> {;
+    integer = value ~!: :Integer;
+    (integer >= minimum && integer <= maximum)
+      ?: integer
+      ?_ .Error(@"@{label} must be an Integer from @{minimum} through @{maximum}");
+};
+
+FrExact(value, label) -> {;
+    exact = value ~!: :Rational;
+    exact == _ ?: .Error(@"@{label} must be an exact Integer or Rational") ?_ exact;
+};
+
+FrInterval(value, label) -> {;
+    value ? :Array ?: _ ?_ .Error(@"@{label} must be an Array");
+    value.Len() == 2 ?: _ ?_ .Error(@"@{label} must contain a lower and upper bound");
+    lower = FrExact(value[1], @"@{label} lower bound");
+    upper = FrExact(value[2], @"@{label} upper bound");
+    lower < upper ?: [lower, upper] ?_ .Error(@"@{label} must increase");
+};
+
+FrSize(options, fallback ?= [640, 420]) -> {;
+    size = FrOption(options, "size", fallback);
+    size ? :Array ?: _ ?_ .Error("Fractal graphic size must be an Array");
+    size.Len() == 2 ?: _ ?_ .Error("Fractal graphic size must contain width and height");
+    width = FrExact(size[1], "Fractal graphic width");
+    height = FrExact(size[2], "Fractal graphic height");
+    (width > 0 && height > 0) ?: [width, height] ?_ .Error("Fractal graphic dimensions must be positive");
+};
+
+FrOrbit(fn, seed, steps, options ?= {= }) -> {;
+    count = FrIntegerIn(steps, "Orbit steps", 0, 100000);
+    retain = FrOption(options, "retain", 1);
+    values := retain == 1 ?: [seed] ?_ [];
+    current := seed;
+    {@ index = 1; index <= @count; {;
+        @current ~= @current |> @fn;
+        @retain == 1 ?: {; @values ~= @values.Push(@current); } ?_ _;
+    }; index += 1 };
+    {=
+        valueKind=:fractalOrbit,
+        schema="rix.fractals.orbit@1",
+        seed=seed,
+        steps=count,
+        final=current,
+        values=values,
+        retained=retain == 1,
+        deterministic=1
+    };
+};
+
+FrIterate(fn, seed, steps) -> FrOrbit(fn, seed, steps, {= retain=0 })[:final];
+
+FrDetectPeriod(orbitValue, maxPeriod ?= 64) -> {;
+    values = ((orbitValue ? :Map) && orbitValue.Has("values")) ?: orbitValue[:values] ?_ orbitValue;
+    values ? :Array ?: _ ?_ .Error("DetectPeriod expects an Orbit or an Array");
+    values.Len() >= 2 ?: _ ?_ .Error("DetectPeriod requires at least two retained values");
+    maximum = FrIntegerIn(maxPeriod, "Maximum period", 1, 10000);
+    usable = .Min(maximum, (values.Len() - (values.Len() % 2)) / 2);
+    found := _;
+    {@ period = 1; period <= @usable; {;
+        matches := 1;
+        {@ offset = 0; offset < @period; {;
+            @values[@values.Len() - offset] == @values[@values.Len() - @period - offset]
+              ?: _
+              ?_ {; @matches ~= 0; };
+        }; offset += 1 };
+        (@found == _ && matches == 1) ?: {; @found ~= @period; } ?_ _;
+    }; period += 1 };
+    {=
+        valueKind=:fractalPeriod,
+        schema="rix.fractals.period@1",
+        status=found == _ ?: :notDetected ?_ :detected,
+        period=found,
+        comparedTail=usable,
+        exactEquality=1
+    };
+};
+
+FrMultiplier(derivative, orbitValue, skip ?= 0) -> {;
+    values = ((orbitValue ? :Map) && orbitValue.Has("values")) ?: orbitValue[:values] ?_ orbitValue;
+    values ? :Array ?: _ ?_ .Error("Multiplier expects an Orbit or an Array");
+    omitted = FrIntegerIn(skip, "Multiplier skip", 0, values.Len());
+    product := 1;
+    {@ index = @omitted + 1; index <= @values.Len(); {;
+        @product ~= @product * (@values[index] |> @derivative);
+    }; index += 1 };
+    {=
+        valueKind=:fractalMultiplier,
+        schema="rix.fractals.multiplier@1",
+        multiplier=product,
+        factors=values.Len() - omitted,
+        stability=FrStability(product)
+    };
+};
+
+FrStability(multiplier) -> {;
+    magnitude = FrAbs(multiplier);
+    magnitude < 1 ?: :attracting ?_ magnitude == 1 ?: :neutral ?_ :repelling;
+};
+
+FrLogistic(parameter) -> (state) -> @parameter * state * (1 - state);
+FrTent(slope ?= 2) -> (state) -> state <= 1/2 ?: @slope * state ?_ @slope * (1 - state);
+FrQuadratic(parameter) -> (state) -> state^2 + @parameter;
+
+FrBifurcation(family, parameterDomain, options ?= {= }) -> {;
+    domain = FrInterval(parameterDomain, "Bifurcation parameter domain");
+    samples = FrIntegerIn(FrOption(options, "parametersamples", 201), "Bifurcation parameter samples", 2, 4000);
+    discard = FrIntegerIn(FrOption(options, "discard", 100), "Bifurcation discarded iterations", 0, 10000);
+    keep = FrIntegerIn(FrOption(options, "keep", 64), "Bifurcation retained iterations", 1, 10000);
+    seed = FrOption(options, "seed", 1/2);
+    points := [];
+    {@ sample = 1; sample <= @samples; {;
+        parameter = @domain[1] + (sample - 1) * (@domain[2] - @domain[1]) / (@samples - 1);
+        fn = parameter |> @family;
+        state := FrIterate(fn, @seed, @discard);
+        {@ index = 1; index <= @keep; {;
+            @state ~= @state |> @fn;
+            @points ~= @points.Push([@parameter, @state]);
+        }; index += 1 };
+    }; sample += 1 };
+    {=
+        valueKind=:fractalBifurcation,
+        schema="rix.fractals.bifurcation@1",
+        parameterDomain=domain,
+        parameterSamples=samples,
+        seed=seed,
+        discard=discard,
+        keep=keep,
+        points=points,
+        deterministic=1
+    };
+};
+
+FrLogisticBifurcation(parameterDomain ?= [5/2, 4], options ?= {= }) ->
+    FrBifurcation((parameter) -> FrLogistic(parameter), parameterDomain, options);
+
+FrBifurcationGraphic(result, options ?= {= }) -> {;
+    ((result ? :Map) && result[:schema] == "rix.fractals.bifurcation@1")
+      ?: _
+      ?_ .Error("BifurcationGraphic expects a Bifurcation result");
+    size = FrSize(options);
+    width = size[1];
+    height = size[2];
+    margin = FrExact(FrOption(options, "margin", 32), "Bifurcation margin");
+    (margin >= 0 && margin * 2 < .Min(width, height)) ?: _ ?_ .Error("Bifurcation margin is too large");
+    xDomain = result[:parameterDomain];
+    yDomain = FrInterval(FrOption(options, "statedomain", [0, 1]), "Bifurcation state domain");
+    radius = FrExact(FrOption(options, "radius", 1), "Bifurcation point radius");
+    style = FrOption(options, "style", {= fill="#111827", stroke="none", width=0 });
+    toPoint = (point) -> [
+        @margin + (point[1] - @xDomain[1]) / (@xDomain[2] - @xDomain[1]) * (@width - 2 * @margin),
+        @height - @margin - (point[2] - @yDomain[1]) / (@yDomain[2] - @yDomain[1]) * (@height - 2 * @margin)
+    ];
+    children = result[:points].Filter((point) -> point[2] >= @yDomain[1] && point[2] <= @yDomain[2]).Map(
+        (point) -> .Graphics.Circle(point |> @toPoint, @radius, @style)
+    );
+    .Graphics.Graphic(size, children, {=
+        kind="bifurcation_diagram",
+        schema="rix.fractals.bifurcation-graphic@1",
+        sourceSchema=result[:schema],
+        parameterDomain=xDomain,
+        stateDomain=yDomain,
+        samples=result[:parameterSamples],
+        points=children.Len(),
+        alt="Bifurcation diagram"
+    });
+};
+
+FrCobweb(fn, domainValue, seed, steps, options ?= {= }) -> {;
+    domain = FrInterval(domainValue, "Cobweb domain");
+    count = FrIntegerIn(steps, "Cobweb steps", 0, 10000);
+    samples = FrIntegerIn(FrOption(options, "samples", 129), "Cobweb function samples", 2, 10000);
+    functionPoints := [];
+    {@ sample = 1; sample <= @samples; {;
+        x = @domain[1] + (sample - 1) * (@domain[2] - @domain[1]) / (@samples - 1);
+        @functionPoints ~= @functionPoints.Push([x, x |> @fn]);
+    }; sample += 1 };
+    orbit = FrOrbit(fn, seed, count);
+    path := [[seed, 0]];
+    {@ index = 1; index <= @count; {;
+        previous = @orbit[:values][index];
+        next = @orbit[:values][index + 1];
+        @path ~= @path.Push([previous, next]);
+        @path ~= @path.Push([next, next]);
+    }; index += 1 };
+    {=
+        valueKind=:fractalCobweb,
+        schema="rix.fractals.cobweb@1",
+        domain=domain,
+        seed=seed,
+        steps=count,
+        orbit=orbit,
+        functionPoints=functionPoints,
+        cobwebPoints=path
+    };
+};
+
+FrCobwebGraphic(result, options ?= {= }) -> {;
+    ((result ? :Map) && result[:schema] == "rix.fractals.cobweb@1")
+      ?: _
+      ?_ .Error("CobwebGraphic expects a Cobweb result");
+    size = FrSize(options, [520, 520]);
+    width = size[1];
+    height = size[2];
+    margin = FrExact(FrOption(options, "margin", 28), "Cobweb margin");
+    domain = result[:domain];
+    toPoint = (point) -> [
+        @margin + (point[1] - @domain[1]) / (@domain[2] - @domain[1]) * (@width - 2 * @margin),
+        @height - @margin - (point[2] - @domain[1]) / (@domain[2] - @domain[1]) * (@height - 2 * @margin)
+    ];
+    diagonal = [[domain[1], domain[1]], [domain[2], domain[2]]].Map(toPoint);
+    functionPath = result[:functionPoints].Map(toPoint);
+    cobwebPath = result[:cobwebPoints].Map(toPoint);
+    .Graphics.Graphic(size, [
+        .Graphics.Path(diagonal, FrOption(options, "diagonalstyle", {= stroke="#94a3b8", width=1, dash="4 4", fill="none" })),
+        .Graphics.Path(functionPath, FrOption(options, "functionstyle", {= stroke="#2563eb", width=2, fill="none" })),
+        .Graphics.Path(cobwebPath, FrOption(options, "orbitstyle", {= stroke="#dc2626", width=1, fill="none" }))
+    ], {=
+        kind="cobweb_plot",
+        schema="rix.fractals.cobweb-graphic@1",
+        sourceSchema=result[:schema],
+        domain=domain,
+        steps=result[:steps],
+        alt="Cobweb plot"
+    });
+};
+
+FrEscape(step, seed, options ?= {= }) -> {;
+    maximum = FrIntegerIn(FrOption(options, "maxiterations", 100), "Maximum escape iterations", 1, 100000);
+    radius = FrExact(FrOption(options, "escaperadius", 2), "Escape radius");
+    radius > 0 ?: _ ?_ .Error("Escape radius must be positive");
+    radiusSquared = radius^2;
+    current := seed;
+    escapedAt := _;
+    {@ iteration = 1; iteration <= @maximum && @escapedAt == _; {;
+        @current ~= @current |> @step;
+        (@escapedAt == _ && .Complex.NormSquared(@current) > @radiusSquared)
+          ?: {; @escapedAt ~= @iteration; }
+          ?_ _;
+    }; iteration += 1 };
+    {=
+        valueKind=:fractalEscape,
+        schema="rix.fractals.escape@1",
+        seed=seed,
+        status=escapedAt == _ ?: :boundedByBudget ?_ :escaped,
+        iterations=escapedAt == _ ?: maximum ?_ escapedAt,
+        maxIterations=maximum,
+        escapeRadius=radius,
+        final=current,
+        certifiedEscape=escapedAt == _ ?: 0 ?_ 1
+    };
+};
+
+FrComplexDomain(value) -> {;
+    value ? :Map ?: _ ?_ .Error("Escape-grid domain must be a map");
+    {=
+        re=FrInterval(value[:re], "Escape-grid real domain"),
+        im=FrInterval(value[:im], "Escape-grid imaginary domain")
+    };
+};
+
+FrResolution(value) -> {;
+    value ? :Array ?: _ ?_ .Error("Escape-grid resolution must be an Array");
+    value.Len() == 2 ?: _ ?_ .Error("Escape-grid resolution must contain columns and rows");
+    columns = FrIntegerIn(value[1], "Escape-grid columns", 1, 1000);
+    rows = FrIntegerIn(value[2], "Escape-grid rows", 1, 1000);
+    columns * rows <= 250000 ?: [columns, rows] ?_ .Error("Escape-grid resolution may contain at most 250000 cells");
+};
+
+FrEscapeGrid(family, spec ?= {= }) -> {;
+    domain = FrComplexDomain(FrOption(spec, "domain", {= re=[-2, 1], im=[-3/2, 3/2] }));
+    resolution = FrResolution(FrOption(spec, "resolution", [160, 160]));
+    columns = resolution[1];
+    rows = resolution[2];
+    reStep = (domain[:re][2] - domain[:re][1]) / columns;
+    imStep = (domain[:im][2] - domain[:im][1]) / rows;
+    cells := [];
+    escaped := 0;
+    bounded := 0;
+    {@ row = 1; row <= @rows; {;
+        {@ column = 1; column <= @columns; {;
+            real = @domain[:re][1] + (column - 1/2) * @reStep;
+            imaginary = @domain[:im][2] - (@row - 1/2) * @imStep;
+            point = .Complex.FromParts(real, imaginary);
+            problem = point |> @family;
+            ((problem ? :Map) && problem.Has("step") && problem.Has("seed"))
+              ?: _
+              ?_ .Error("Escape-grid family must return {= seed=..., step=... }");
+            result = FrEscape(problem[:step], problem[:seed], @spec);
+            result[:status] == :escaped ?: {; @escaped += 1; } ?_ {; @bounded += 1; };
+            @cells ~= @cells.Push({=
+                row=@row,
+                column=column,
+                point=point,
+                status=result[:status],
+                iterations=result[:iterations],
+                final=result[:final],
+                certifiedEscape=result[:certifiedEscape]
+            });
+        }; column += 1 };
+    }; row += 1 };
+    {=
+        valueKind=:fractalEscapeGrid,
+        schema="rix.fractals.escape-grid@1",
+        domain=domain,
+        resolution=resolution,
+        cells=cells,
+        maxIterations=FrOption(spec, "maxiterations", 100),
+        escapeRadius=FrOption(spec, "escaperadius", 2),
+        escaped=escaped,
+        boundedByBudget=bounded,
+        sampling=:cellCenters,
+        deterministic=1
+    };
+};
+
+FrMandelbrot(spec ?= {= }) -> FrEscapeGrid(
+    (parameter) -> {= seed=.Complex.FromParts(0, 0), step=(state) -> state^2 + @parameter },
+    spec
+);
+
+FrJulia(parameter, spec ?= {= }) -> FrEscapeGrid(
+    (point) -> {= seed=point, step=(state) -> state^2 + @parameter },
+    spec
+);
+
+FrEscapeColor(cell, palette) -> {;
+    cell[:status] == :escaped
+      ?: palette[((cell[:iterations] - 1) % palette.Len()) + 1]
+      ?_ "#050816";
+};
+
+FrEscapeGraphic(result, options ?= {= }) -> {;
+    ((result ? :Map) && result[:schema] == "rix.fractals.escape-grid@1")
+      ?: _
+      ?_ .Error("EscapeGraphic expects an EscapeGrid result");
+    size = FrSize(options, [560, 560]);
+    columns = result[:resolution][1];
+    rows = result[:resolution][2];
+    cellWidth = size[1] / columns;
+    cellHeight = size[2] / rows;
+    palette = FrOption(options, "palette", ["#172554", "#1d4ed8", "#0891b2", "#22c55e", "#facc15", "#f97316", "#dc2626", "#7e22ce"]);
+    (palette ? :Array && palette.Len() > 0) ?: _ ?_ .Error("EscapeGraphic palette must be a nonempty Array");
+    children = result[:cells].Map((cell) -> {;
+        color = FrEscapeColor(cell, @palette);
+        .Graphics.Rectangle(
+            [(cell[:column] - 1) * @cellWidth, (cell[:row] - 1) * @cellHeight],
+            [@cellWidth, @cellHeight],
+            {= fill=color, stroke=color, width=0 }
+        );
+    });
+    .Graphics.Graphic(size, children, {=
+        kind="escape_time_fractal",
+        schema="rix.fractals.escape-graphic@1",
+        sourceSchema=result[:schema],
+        domain=result[:domain],
+        resolution=result[:resolution],
+        maxIterations=result[:maxIterations],
+        escapeRadius=result[:escapeRadius],
+        escaped=result[:escaped],
+        boundedByBudget=result[:boundedByBudget],
+        palette=palette,
+        interiorColor="#050816",
+        alt="Escape-time fractal"
+    });
+};
+
+FrMandelbrotGraphic(spec ?= {= }, graphicOptions ?= {= }) -> FrEscapeGraphic(FrMandelbrot(spec), graphicOptions);
+FrJuliaGraphic(parameter, spec ?= {= }, graphicOptions ?= {= }) -> FrEscapeGraphic(FrJulia(parameter, spec), graphicOptions);
+
+fractalsNamespace = {= };
+fractalsNamespace._proto = {=
+    Orbit=(self, fn, seed, steps, options ?= {= })->FrOrbit(fn, seed, steps, options),
+    Iterate=(self, fn, seed, steps)->FrIterate(fn, seed, steps),
+    DetectPeriod=(self, orbit, maxPeriod ?= 64)->FrDetectPeriod(orbit, maxPeriod),
+    Multiplier=(self, derivative, orbit, skip ?= 0)->FrMultiplier(derivative, orbit, skip),
+    Stability=(self, multiplier)->FrStability(multiplier),
+    Logistic=(self, parameter)->FrLogistic(parameter),
+    Tent=(self, slope ?= 2)->FrTent(slope),
+    Quadratic=(self, parameter)->FrQuadratic(parameter),
+    Bifurcation=(self, family, parameterDomain, options ?= {= })->FrBifurcation(family, parameterDomain, options),
+    LogisticBifurcation=(self, parameterDomain ?= [5/2, 4], options ?= {= })->FrLogisticBifurcation(parameterDomain, options),
+    BifurcationGraphic=(self, result, options ?= {= })->FrBifurcationGraphic(result, options),
+    Cobweb=(self, fn, domain, seed, steps, options ?= {= })->FrCobweb(fn, domain, seed, steps, options),
+    CobwebGraphic=(self, result, options ?= {= })->FrCobwebGraphic(result, options),
+    Escape=(self, step, seed, options ?= {= })->FrEscape(step, seed, options),
+    EscapeGrid=(self, family, spec ?= {= })->FrEscapeGrid(family, spec),
+    Mandelbrot=(self, spec ?= {= })->FrMandelbrot(spec),
+    Julia=(self, parameter, spec ?= {= })->FrJulia(parameter, spec),
+    EscapeGraphic=(self, result, options ?= {= })->FrEscapeGraphic(result, options),
+    MandelbrotGraphic=(self, spec ?= {= }, graphicOptions ?= {= })->FrMandelbrotGraphic(spec, graphicOptions),
+    JuliaGraphic=(self, parameter, spec ?= {= }, graphicOptions ?= {= })->FrJuliaGraphic(parameter, spec, graphicOptions)
+};
+.Host.RegisterValue("fractals", fractalsNamespace, "Pure-RiX chaos and fractal mathematics with portable Graphics lowering", ["Chaos", "Fractals", "Graphics", "Exact"]);
