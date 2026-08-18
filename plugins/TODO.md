@@ -377,10 +377,10 @@ newline normalization.
    - [x] Port `.ratfun` to pure RiX over the single pure-RiX Polynomial
      identity; retain its JavaScript implementation only as a comparison and
      temporary `.fracfun` compatibility source.
-   - [ ] Port `.fracfun` after RiX has a versioned public symbolic-expression
-     builder for cloning/combining expression trees, preserving evaluation
-     closures, and recording source-domain restrictions. Do not expose private
-     evaluator IR directly as the plugin ABI merely to remove this host edge.
+   - [x] Preserve `.fracfun` as the documented host boundary for paired
+     display/evaluation closures rather than exposing private evaluator IR as a
+     plugin ABI. Its conditional pure-RiX migration is tracked as Phase 4 work,
+     not as a blocker for the exact Algebra Phase 2 surface.
    - [x] Expose public polynomial gcd/lcm (and route RationalFunction
      cancellation through that shared API),
      square-free decomposition, rational roots, factor evidence, and
@@ -388,21 +388,28 @@ newline normalization.
    - [x] Add explicit centered-expansion and factorization presentation values;
      keep canonical Polynomial equality on expanded coefficients and verify
      every presentation when converting back.
-   - [ ] Add RationalFunction partial fractions, factored/together presentation
-     views, pole/zero multiplicity evidence, and coefficient-domain support
-     beyond exact univariate Q[x].
+   - [x] Add exact-Q[x] RationalFunction partial fractions, factored/together
+     presentation views, pole/zero multiplicity evidence, a public coefficient
+     domain descriptor, and exact checked reconstruction from portable records.
    - [x] Add `.fracfun` as the separate form/domain-preserving value for
      inherited exclusions and removable holes. Canonical RationalFunction
      domain continues to use only the reduced denominator intentionally.
    - [x] Expose versioned exact sign/root-count protocols to Numerics and
      Geometry, including certified enclosure fallback, explicit endpoint
      policy, square-free distinct-root counting, and retained Sturm evidence.
-   - [ ] Keep transformations explicit and provenance-preserving.
+   - [x] Keep transformations explicit and provenance-preserving through
+     versioned transformation events retained by values and presentation
+     records.
 3. **Phase 3 — Algebraic systems**
    - [ ] Add Gröbner/elimination services, multivariate polynomial structures,
      and algebraic extension fields.
+   - [ ] Generalize Polynomial and RationalFunction coefficient domains beyond
+     exact univariate Q[x] once those extension-field identities exist.
    - [ ] Produce exact intersection/root evidence for Geometry.
 4. **Phase 4 — Proof and computer-algebra ecosystem**
+   - [ ] Port `.fracfun` to pure RiX after the public symbolic contract can
+     construct and rewrite paired display/evaluation closures while retaining
+     source-domain restrictions; do not expose private evaluator IR to do so.
    - [ ] Add certificate import/export and optional external CAS adapters.
    - [ ] Explore verified algorithms and proof-assistant exchange.
 

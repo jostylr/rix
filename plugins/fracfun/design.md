@@ -21,7 +21,8 @@ This makes three relations explicit:
 2. canonical rational-function equivalence; and
 3. equivalence together with inherited source-domain restrictions.
 
-Future factorization and partial-fraction work should continue this pattern.
-They should return new FractionFunction presentations plus separate evidence
-records where algorithms make nontrivial claims. They must not silently change
-canonical value or inherited domain.
+Canonical factorization and partial fractions now live on `.ratfun` as checked
+Q[x] presentations. A future FractionFunction form-preserving layer should
+continue this paired-form pattern: return new display/evaluation presentations
+plus separate evidence records, without silently changing the canonical value
+or inherited domain.

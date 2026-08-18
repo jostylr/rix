@@ -2,21 +2,23 @@
 
 ## Current status
 
-`Polynomial` currently has one semantic representation: a callable function
+`Polynomial` has one semantic representation: a callable function
 with an attached `rix.polynomial@1` identity and an expanded, sparse
 coefficient map in one indeterminate. Arithmetic and composition normalize
 back to that representation. Exact coefficient records round-trip. The core
 symbolic system can explicitly recenter a polynomial with
 `.Transform(spec, :center, point)`, but that produces a transformed symbolic
 specification rather than a persistent alternate Polynomial representation.
-Factorization, square-free form, rational-root search, public gcd, and a
-factorization evidence object are not implemented yet.
+Centered and rational-root factorization presentations, square-free
+decomposition, rational-root search, public gcd/lcm, resultants, and versioned
+factor evidence are implemented without changing that identity.
 
 `RationalFunction` similarly has one semantic representation: a callable
 `rix.rational-function@1` value containing two canonical Polynomials over the
 exact rationals. They are coprime and the denominator is monic. Operations,
-composition, records, and Polynomial promotion are implemented. Partial
-fractions, factorized display, and root/pole evidence are future work. The
+composition, portable records, Polynomial promotion, exact partial fractions,
+together/factored presentations, and zero/pole multiplicity evidence are
+implemented over Q[x]. The
 `.fracfun` plugin now supplies form-preserving expressions with inherited
 source-domain restrictions and explicit canonical projection.
 
@@ -62,10 +64,18 @@ that retain parameters and evidence:
 - `FractionFunction` when original exclusions and removable holes must survive
   cancellation (implemented by `.fracfun`).
 
-Each presentation should convert back to its canonical semantic value, and
+Each implemented presentation converts back to its canonical semantic value, and
 formatters may select a presentation without changing arithmetic or `==`.
 Algorithms may use a presentation internally for efficiency, but must leave
 canonical equality independent of display and source history.
+
+Together, factored, and partial-fraction values use versioned schemas and
+retain explicit `rix.algebra.transformation@1` events. Conversion reconstructs
+from the presentation fields and verifies exact equality with the retained
+canonical source. Partial fractions split every rational linear factor,
+including repetitions, and retain one proper residual for factors not split
+over Q. A false completeness claim therefore cannot silently discard an
+irreducible factor. Broader coefficient fields remain a Phase 3 concern.
 
 This separation makes the domain rule explicit. As fraction-field values,
 `(x^2-1)/(x-1)` and `x+1` are equal and both are defined at `1`; their reduced

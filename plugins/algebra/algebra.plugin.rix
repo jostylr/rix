@@ -1,18 +1,27 @@
 /**
 id: algebra
-description: Polynomial algebra façade backed by the canonical pure-RiX poly service.
+description: Exact Polynomial and RationalFunction algorithms with checked presentations.
 kind: rix
 mount: algebra
-exports: [Polynomial, Coefficients, Record, Evaluate, Equal, Divide, SyntheticDivide, Quotient, Remainder, IsFactor, Gcd, Lcm, SquareFreeDecomposition, RationalRoots, FactorEvidence, CenteredExpansion, Factorization, Expand, Resultant, SignAt, SignEvidence, RootCount, RootCountEvidence, Grid]
+exports: [Polynomial, RationalFunction, CoefficientDomain, Coefficients, Record, Evaluate, Equal, Divide, SyntheticDivide, Quotient, Remainder, IsFactor, Gcd, Lcm, SquareFreeDecomposition, RationalRoots, FactorEvidence, CenteredExpansion, Factorization, Together, Factored, PartialFractions, PoleZeroEvidence, Expand, Resultant, SignAt, SignEvidence, RootCount, RootCountEvidence, Grid]
 groups: [Algebra, Exact]
 permissions: []
 requires: [rix.polynomial.algorithms@1, rix.rational-function@1]
 provides: [rix.algebra.division@1, rix.algebra.centered-expansion@1, rix.algebra.factorization@1]
-schemas: [rix.algebra.division@1, rix.algebra.centered-expansion@1, rix.algebra.factorization@1, rix.polynomial.division@1, rix.polynomial.square-free@1, rix.polynomial.factor-evidence@1, rix.exact.sign-witness@1, rix.exact.root-count@1]
+schemas: [rix.algebra.division@1, rix.algebra.centered-expansion@1, rix.algebra.factorization@1, rix.algebra.transformation@1, rix.polynomial.division@1, rix.polynomial.square-free@1, rix.polynomial.factor-evidence@1, rix.rational-function.together@1, rix.rational-function.factored@1, rix.rational-function.partial-fractions@1, rix.rational-function.divisor-evidence@1, rix.exact.sign-witness@1, rix.exact.root-count@1]
 snapshot: false
 deterministic: true
 defaultEnabled: false
 **/
+
+AlgebraEvent(operation, inputs ?= [], details ?= {= }) -> .ImmutableValue({=
+    schema="rix.algebra.transformation@1",
+    plugin=:algebra,
+    version=1,
+    operation=operation,
+    inputs=inputs,
+    details=details
+});
 
 AlgebraDivision(core, method, grid ?= _) -> {;
     division = {=
@@ -126,11 +135,7 @@ AlgebraCenteredExpansion(polynomial, center) -> {;
         coefficientOrder=:ascending,
         coefficients=shifted.Coefficients(:ascending),
         verified=1,
-        provenance={=
-            operation=:centeredExpansion,
-            source=source.Record(),
-            center=exactCenter
-        }
+        provenance=AlgebraEvent(:centeredExpansion,[source.Record()],{= center=exactCenter })
     };
     AlgebraExpandCentered(value);
     value.__type = "CenteredExpansion";
@@ -234,11 +239,7 @@ AlgebraFactorization(polynomial) -> {;
         residual=monicResidual,
         complete=evidence[:complete],
         verified=1,
-        provenance={=
-            operation=:rationalRootFactorization,
-            source=source.Record(),
-            evidenceSchema=evidence[:schema]
-        }
+        provenance=AlgebraEvent(:rationalRootFactorization,[source.Record()],{= evidenceSchema=evidence[:schema] })
     };
     AlgebraExpandFactorization(value);
     value.__type = "Factorization";
@@ -259,12 +260,16 @@ AlgebraExpand(presentation) -> {;
       ?: AlgebraExpandCentered(presentation)
       ?_ schema == "rix.algebra.factorization@1"
            ?: AlgebraExpandFactorization(presentation)
-           ?_ .Error("algebra.Expand expects a centered-expansion or factorization presentation");
+           ?_ (schema == "rix.rational-function.together@1" || schema == "rix.rational-function.factored@1" || schema == "rix.rational-function.partial-fractions@1")
+                ?: .ratfun.Expand(presentation)
+                ?_ .Error("algebra.Expand expects a centered, factorized, together, factored, or partial-fraction presentation");
 };
 
 algebraNamespace = {= };
 algebraNamespace._proto = {=
     Polynomial = (self, source, second ?= _) -> .poly(source, second),
+    RationalFunction = (self, first, second ?= _) -> .ratfun.RationalFunction(first, second),
+    CoefficientDomain = (self, value ?= _) -> .ratfun.CoefficientDomain(value),
     Coefficients = (self, polynomial, order ?= :descending) -> polynomial.Coefficients(order),
     Record = (self, polynomial) -> polynomial.Record(),
     Evaluate = (self, polynomial, value) -> polynomial.Evaluate(value),
@@ -281,6 +286,10 @@ algebraNamespace._proto = {=
     FactorEvidence = (self, polynomial) -> .poly.FactorEvidence(polynomial),
     CenteredExpansion = (self, polynomial, center) -> AlgebraCenteredExpansion(polynomial, center),
     Factorization = (self, polynomial) -> AlgebraFactorization(polynomial),
+    Together = (self, rationalFunction) -> .ratfun.Together(rationalFunction),
+    Factored = (self, rationalFunction) -> .ratfun.Factored(rationalFunction),
+    PartialFractions = (self, rationalFunction) -> .ratfun.PartialFractions(rationalFunction),
+    PoleZeroEvidence = (self, rationalFunction) -> .ratfun.PoleZeroEvidence(rationalFunction),
     Expand = (self, presentation) -> AlgebraExpand(presentation),
     Resultant = (self, left, right) -> .poly.Resultant(left, right),
     SignAt = (self, polynomial, point) -> .poly.SignAt(polynomial, point),
@@ -293,6 +302,6 @@ algebraNamespace._proto = {=
 .Host.RegisterValue(
     "algebra",
     algebraNamespace,
-    "Polynomial algebra façade backed by .poly",
+    "Exact Polynomial and RationalFunction algorithms with checked presentations",
     ["Algebra", "Exact"]
 );

@@ -170,7 +170,8 @@ describe("algebra Phase 1 plugin", () => {
                 .algebra.Equal(.algebra.Expand(factorization.Record()), factoredSource),
                 factorization[:provenance][:operation],
                 complete[:complete], complete[:residual].Coefficients(),
-                constant[:unit], constant[:residual].Coefficients(), constant.Expand().Coefficients()
+                constant[:unit], constant[:residual].Coefficients(), constant.Expand().Coefficients(),
+                centered[:provenance][:schema], factorization[:provenance][:schema]
             ];
         `);
         const values = result.values;
@@ -205,6 +206,9 @@ describe("algebra Phase 1 plugin", () => {
         expect(String(values[20])).toBe("-5");
         expect(values[21].values.map(String)).toEqual(["1"]);
         expect(values[22].values.map(String)).toEqual(["-5"]);
+        expect([text(values[23]), text(values[24])]).toEqual([
+            "rix.algebra.transformation@1", "rix.algebra.transformation@1",
+        ]);
 
         expect(() => parseAndEvaluate(`
             .Plugin.Load("algebra");
@@ -223,6 +227,38 @@ describe("algebra Phase 1 plugin", () => {
             .algebra.Factorization(.poly([0]));
         `)).toThrow("infinitely many factorizations");
     });
+
+    test("Phase 2 exposes canonical rational presentations and divisor evidence", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("algebra");
+            R := .algebra.RationalFunction(.p\`2*x+3\`, .p\`x^2-1\`);
+            together := .algebra.Together(R);
+            factored := .algebra.Factored(R);
+            partial := .algebra.PartialFractions(R);
+            divisor := .algebra.PoleZeroEvidence(R);
+            [
+                .algebra.CoefficientDomain(R)[:id],
+                together[:schema], .algebra.Expand(together.Record()) == R,
+                factored[:schema], .algebra.Expand(factored.Record()) == R,
+                partial[:schema], partial[:terms].Map((term)->[term[:root],term[:coefficient]]),
+                .algebra.Expand(partial.Record()) == R,
+                divisor[:schema], divisor[:poles][:entries].Map((entry)->[entry[:point],entry[:multiplicity]]),
+                divisor[:verified]
+            ];
+        `);
+        const values = result.values;
+        expect(text(values[0])).toBe("Q");
+        expect(text(values[1])).toBe("rix.rational-function.together@1");
+        expect(String(values[2])).toBe("1");
+        expect(text(values[3])).toBe("rix.rational-function.factored@1");
+        expect(String(values[4])).toBe("1");
+        expect(text(values[5])).toBe("rix.rational-function.partial-fractions@1");
+        expect(values[6].values.map((entry) => entry.values.map(String))).toEqual([["-1", "-1/2"], ["1", "5/2"]]);
+        expect(String(values[7])).toBe("1");
+        expect(text(values[8])).toBe("rix.rational-function.divisor-evidence@1");
+        expect(values[9].values.map((entry) => entry.values.map(String))).toEqual([["-1", "1"], ["1", "1"]]);
+        expect(String(values[10])).toBe("1");
+    }, 10000);
 
     test("Phase 2 exposes versioned exact sign and distinct-root-count witnesses", () => {
         const result = parseAndEvaluate(`

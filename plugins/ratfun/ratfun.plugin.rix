@@ -4,12 +4,12 @@ description: Canonical callable univariate rational functions with exact cancell
 kind: rix
 mount: ratfun
 aliases: [rationalFunction, rf]
-exports: [RationalFunction, Parse, Var, Fun]
+exports: [RationalFunction, Parse, Var, Fun, CoefficientDomain, Together, Factored, PartialFractions, PoleZeroEvidence, Expand]
 groups: [Algebra, Exact, Symbolic]
 permissions: []
 requires: [rix.polynomial@1]
-provides: [rix.rational-function@1]
-schemas: [rix.rational-function@1]
+provides: [rix.rational-function@1, rix.rational-function.presentation@1, rix.rational-function.divisor-evidence@1]
+schemas: [rix.rational-function@1, rix.coefficient-domain@1, rix.algebra.transformation@1, rix.rational-function.polynomial-factor@1, rix.rational-function.together@1, rix.rational-function.factored@1, rix.rational-function.partial-fractions@1, rix.rational-function.divisor-evidence@1]
 snapshot: false
 deterministic: true
 defaultEnabled: false
@@ -24,6 +24,40 @@ RatfunVariable(value) -> value == _ ?: :x ?_ value;
 RatfunPolynomial(value, variable) -> value ? :Polynomial ?: value ?_ .poly(value, variable);
 RatfunZero(polynomial) -> polynomial.Degree() == -1;
 RatfunOne(variable) -> .poly([1], variable);
+
+RatfunCoefficientDomain(variable ?= :x) -> .ImmutableValue({=
+    valueKind=:coefficientDomain,
+    schema="rix.coefficient-domain@1",
+    id=:Q,
+    name="exact rational field",
+    exact=1,
+    field=1,
+    characteristic=0,
+    variables=[variable],
+    polynomialArity=1,
+    canonical=1
+});
+
+RatfunSourceRecord(value) -> {;
+    exact = RatfunRequire(value);
+    {=
+        schema="rix.rational-function@1",
+        variable=exact.variable,
+        numerator=exact.numerator.Record(),
+        denominator=exact.denominator.Record(),
+        coefficientDomain=:Q,
+        provenance=exact.provenance
+    };
+};
+
+RatfunEvent(operation, inputs ?= [], details ?= {= }) -> .ImmutableValue({=
+    schema="rix.algebra.transformation@1",
+    plugin=:ratfun,
+    version=1,
+    operation=operation,
+    inputs=inputs,
+    details=details
+});
 
 RatfunGcd(left, right) -> {;
     .poly.Gcd(left, right);
@@ -64,7 +98,8 @@ RatfunPolynomialAt(polynomial, argument) -> {;
 RatfunCompose(value, argument) -> {;
     exact = RatfunRequire(value);
     promoted = RatfunPromote(argument, exact.variable);
-    RatfunPolynomialAt(exact.numerator, promoted) / RatfunPolynomialAt(exact.denominator, promoted);
+    composed = RatfunPolynomialAt(exact.numerator, promoted) / RatfunPolynomialAt(exact.denominator, promoted);
+    RatfunBuild(composed.numerator,composed.denominator,composed.variable,[RatfunEvent(:compose,[RatfunSourceRecord(exact),RatfunSourceRecord(promoted)])]);
 };
 
 RatfunEvaluate(value, argument) -> {;
@@ -74,10 +109,7 @@ RatfunEvaluate(value, argument) -> {;
       ?_ exact.numerator.Evaluate(argument) / exact.denominator.Evaluate(argument);
 };
 
-RatfunComposeParts(numerator, denominator, argument) -> {;
-    promoted=RatfunPromote(argument,numerator.Variable());
-    RatfunPolynomialAt(numerator,promoted)/RatfunPolynomialAt(denominator,promoted);
-};
+RatfunComposeParts(numerator, denominator, argument) -> RatfunCompose(RatfunBuild(numerator,denominator,numerator.Variable()),argument);
 
 RatfunApply(numerator, denominator, argument) -> {;
     RatfunIs(argument) || (argument ? :Polynomial)
@@ -91,11 +123,12 @@ RatfunRecord(value) -> {;
         valueKind = :rationalFunction,
         schema = "rix.rational-function@1",
         variable = exact.variable,
-        numerator = exact.numerator,
-        denominator = exact.denominator,
+        numerator = exact.numerator.Record(),
+        denominator = exact.denominator.Record(),
         canonical = 1,
         equalityPolicy = :canonicalReducedFractionField,
         domainPolicy = :reducedDenominatorNonzero,
+        coefficientDomain = RatfunCoefficientDomain(exact.variable),
         reactive = exact.reactive,
         provenance = exact.provenance
     };
@@ -113,6 +146,7 @@ RatfunBuild(numeratorValue, denominatorValue ?= 1, variable ?= :x, provenance ?=
     RationalFunctionValue.canonical = 1;
     RationalFunctionValue.equalityPolicy = :canonicalReducedFractionField;
     RationalFunctionValue.domainPolicy = :reducedDenominatorNonzero;
+    RationalFunctionValue.coefficientDomain = RatfunCoefficientDomain(numerator.Variable());
     RationalFunctionValue.reactive = numerator.reactive || denominator.reactive;
     RationalFunctionValue.provenance = provenance;
     RationalFunctionValue.__type = "RationalFunction";
@@ -123,6 +157,7 @@ RatfunBuild(numeratorValue, denominatorValue ?= 1, variable ?= :x, provenance ?=
         Numerator = (self) -> self.numerator,
         Denominator = (self) -> self.denominator,
         Variable = (self) -> self.variable,
+        CoefficientDomain = (self) -> self.coefficientDomain,
         Record = (self) -> RatfunRecord(self),
         Evaluate = (self, argument) -> RatfunEvaluate(self, argument),
         Compose = (self, argument) -> RatfunCompose(self, argument),
@@ -134,7 +169,11 @@ RatfunBuild(numeratorValue, denominatorValue ?= 1, variable ?= :x, provenance ?=
         IsPolynomial = (self) -> self.denominator.Degree() == 0 ?: 1 ?_ _,
         ToPolynomial = (self) -> self.denominator.Degree() == 0
             ?: self.numerator / self.denominator.Coefficients()[1]
-            ?_ .Error("ToPolynomial requires canonical denominator 1")
+            ?_ .Error("ToPolynomial requires canonical denominator 1"),
+        Together = (self) -> RatfunTogether(self),
+        Factored = (self) -> RatfunFactored(self),
+        PartialFractions = (self) -> RatfunPartialFractions(self),
+        PoleZeroEvidence = (self) -> RatfunPoleZeroEvidence(self)
     };
     .ImmutableValue(RationalFunctionValue);
 };
@@ -143,31 +182,35 @@ RatfunPromote(value, variable ?= :x) -> {;
     RatfunIs(value)
       ?: value
       ?_ (((value ? :Polynomial) || RatfunScalar(value))
-          ?: RatfunBuild(value, 1, (value ? :Polynomial ?: value.Variable() ?_ variable), [:promotion])
+          ?: RatfunBuild(value, 1, (value ? :Polynomial ?: value.Variable() ?_ variable), [RatfunEvent(:promotion,[],{= sourceType=(value ? :Polynomial) ?: :polynomial ?_ :exactScalar })])
           ?_ .Error("RationalFunction operand must be exact, Polynomial, or RationalFunction"));
 };
 
 RatfunSameVariable(left, right) -> left.variable == right.variable ?: 1 ?_ .Error("RationalFunction variables must match");
-RatfunAdd(leftValue, rightValue) -> {; left=RatfunPromote(leftValue); right=RatfunPromote(rightValue,left.variable); RatfunSameVariable(left,right); RatfunBuild(left.numerator*right.denominator+right.numerator*left.denominator,left.denominator*right.denominator,left.variable,[:add]); };
-RatfunSubtract(leftValue, rightValue) -> RatfunAdd(leftValue, -RatfunPromote(rightValue));
-RatfunMultiply(leftValue, rightValue) -> {; left=RatfunPromote(leftValue); right=RatfunPromote(rightValue,left.variable); RatfunSameVariable(left,right); RatfunBuild(left.numerator*right.numerator,left.denominator*right.denominator,left.variable,[:multiply]); };
-RatfunDivide(leftValue, rightValue) -> {; left=RatfunPromote(leftValue); right=RatfunPromote(rightValue,left.variable); RatfunSameVariable(left,right); RatfunZero(right.numerator) ?: .Error("RationalFunction division by zero") ?_ RatfunBuild(left.numerator*right.denominator,left.denominator*right.numerator,left.variable,[:divide]); };
-RatfunNegate(value) -> {; exact=RatfunPromote(value); RatfunBuild(-exact.numerator,exact.denominator,exact.variable,[:negate]); };
+RatfunAdd(leftValue, rightValue) -> {; left=RatfunPromote(leftValue); right=RatfunPromote(rightValue,left.variable); RatfunSameVariable(left,right); RatfunBuild(left.numerator*right.denominator+right.numerator*left.denominator,left.denominator*right.denominator,left.variable,[RatfunEvent(:add,[RatfunSourceRecord(left),RatfunSourceRecord(right)])]); };
+RatfunSubtract(leftValue, rightValue) -> {; left=RatfunPromote(leftValue); right=RatfunPromote(rightValue,left.variable); RatfunSameVariable(left,right); RatfunBuild(left.numerator*right.denominator-right.numerator*left.denominator,left.denominator*right.denominator,left.variable,[RatfunEvent(:subtract,[RatfunSourceRecord(left),RatfunSourceRecord(right)])]); };
+RatfunMultiply(leftValue, rightValue) -> {; left=RatfunPromote(leftValue); right=RatfunPromote(rightValue,left.variable); RatfunSameVariable(left,right); RatfunBuild(left.numerator*right.numerator,left.denominator*right.denominator,left.variable,[RatfunEvent(:multiply,[RatfunSourceRecord(left),RatfunSourceRecord(right)])]); };
+RatfunDivide(leftValue, rightValue) -> {; left=RatfunPromote(leftValue); right=RatfunPromote(rightValue,left.variable); RatfunSameVariable(left,right); RatfunZero(right.numerator) ?: .Error("RationalFunction division by zero") ?_ RatfunBuild(left.numerator*right.denominator,left.denominator*right.numerator,left.variable,[RatfunEvent(:divide,[RatfunSourceRecord(left),RatfunSourceRecord(right)])]); };
+RatfunNegate(value) -> {; exact=RatfunPromote(value); RatfunBuild(-exact.numerator,exact.denominator,exact.variable,[RatfunEvent(:negate,[RatfunSourceRecord(exact)])]); };
 RatfunPower(value, exponent) -> {;
     exact = RatfunPromote(value);
     power = exponent ~!: :Integer;
     power == 0
-      ?: RatfunBuild(1,1,exact.variable,[:power])
+      ?: RatfunBuild(1,1,exact.variable,[RatfunEvent(:power,[RatfunSourceRecord(exact)],{= exponent=power })])
       ?_ (power > 0
-          ?: RatfunBuild(exact.numerator^power,exact.denominator^power,exact.variable,[:power])
-          ?_ RatfunBuild(exact.denominator^(-power),exact.numerator^(-power),exact.variable,[:power]));
+          ?: RatfunBuild(exact.numerator^power,exact.denominator^power,exact.variable,[RatfunEvent(:power,[RatfunSourceRecord(exact)],{= exponent=power })])
+          ?_ RatfunBuild(exact.denominator^(-power),exact.numerator^(-power),exact.variable,[RatfunEvent(:power,[RatfunSourceRecord(exact)],{= exponent=power })]));
 };
-RatfunEqual(leftValue, rightValue) -> {; left=RatfunPromote(leftValue); right=RatfunPromote(rightValue,left.variable); left.variable==right.variable && left.numerator==right.numerator && left.denominator==right.denominator; };
+RatfunEqual(leftValue, rightValue) -> {;
+    left=RatfunPromote(leftValue);
+    right=RatfunPromote(rightValue,left.variable);
+    left.variable==right.variable && (left.numerator==right.numerator)==1 && (left.denominator==right.denominator)==1;
+};
 
 RatfunFromStructural(structural, variable ?= :x) -> {;
     structural.Head() == "Fraction"
-      ?: {; args=@structural.Arguments(); RatfunBuild(.poly(args[1],@variable),.poly(args[2],@variable),@variable,[:structural]); }
-      ?_ RatfunBuild(.poly(structural,variable),1,variable,[:structural]);
+      ?: {; args=@structural.Arguments(); RatfunBuild(.poly(args[1],@variable),.poly(args[2],@variable),@variable,[RatfunEvent(:constructFromStructural)]); }
+      ?_ RatfunBuild(.poly(structural,variable),1,variable,[RatfunEvent(:constructFromStructural)]);
 };
 
 RatfunPolyFromInspect(node, variable) -> {;
@@ -197,20 +240,664 @@ RatfunFromSpec(spec, variable ?= _) -> {;
     selected = variable == _ ?: inspected[:inputs][1] ?_ variable;
     parts = .SpecFractionParts(spec);
     parts[2] == _
-      ?: RatfunBuild(.poly(parts[1],selected),1,selected,[:symbolicSpec])
-      ?_ RatfunBuild(.poly(parts[1],selected),.poly(parts[2],selected),selected,[:symbolicSpec]);
+      ?: RatfunBuild(.poly(parts[1],selected),1,selected,[RatfunEvent(:constructFromSymbolicSpec)])
+      ?_ RatfunBuild(.poly(parts[1],selected),.poly(parts[2],selected),selected,[RatfunEvent(:constructFromSymbolicSpec)]);
 };
 
 RatfunConstruct(first, second ?= _, variable ?= :x) -> {;
     RatfunIs(first)
       ?: first
       ?_ (((first ? :Map) && first[:schema] == "rix.rational-function@1")
-          ?: RatfunBuild(first[:numerator],first[:denominator],first[:variable],[:record])
+          ?: {;
+              claimedDomain = @first[:coefficientDomain];
+              claimedDomain == _
+                ?: _
+                ?_ {;
+                    domainId = @claimedDomain ? :Map ?: @claimedDomain[:id] ?_ @claimedDomain;
+                    (domainId == :Q) == 1
+                      ?: _
+                      ?_ .Error("RationalFunction records require coefficient domain :Q");
+                };
+              RatfunBuild(@first[:numerator],@first[:denominator],@first[:variable],[RatfunEvent(:constructFromRecord,[],{= sourceProvenance=@first[:provenance] })]);
+          }
           ?_ (second == _
               ?: (((first ? :Polynomial) || RatfunScalar(first))
                   ?: RatfunBuild(first,1,variable)
                   ?_ RatfunFromStructural(first,variable))
               ?_ RatfunBuild(first,second,variable)));
+};
+
+RatfunExact(value, label) -> {;
+    value == _ ?: .Error(@"@{label} is missing") ?_ _;
+    exact = value ~!: :Rational;
+    exact == _ ?: .Error(@"@{label} must be an exact Integer or Rational") ?_ exact;
+};
+RatfunExactZero(value, label ?= "RationalFunction coefficient") -> RatfunExact(value, label).Numerator() == 0;
+
+RatfunPresentationSource(source, variable, label) -> {;
+    value = RatfunIs(source) ?: source ?_ RatfunConstruct(source);
+    value.variable == variable
+      ?: value
+      ?_ .Error(@"@{label} variable does not match its canonical RationalFunction");
+};
+
+RatfunRequirePresentation(value, schema, label) -> {;
+    valid = value ? :Map ?: value[:schema] == schema ?_ _;
+    valid == 1 ?: value ?_ .Error(@"Expected a @{label} presentation with schema @{schema}");
+};
+
+RatfunRequireQ(value, label) -> {;
+    (value[:coefficientDomain] == :Q) == 1
+      ?: _
+      ?_ .Error(@"@{label} requires coefficient domain :Q; broader coefficient fields belong to the algebraic-extension service");
+};
+
+RatfunPolynomialFactorRecord(value) -> {=
+    schema="rix.rational-function.polynomial-factor@1",
+    variable=value[:variable],
+    coefficientDomain=:Q,
+    source=value[:source].Record(),
+    zero=value[:zero],
+    unit=value[:unit],
+    factors=value[:factors].Map((entry)->{=
+        root=entry[:root],
+        multiplicity=entry[:multiplicity],
+        factor=entry[:factor].Record()
+    }),
+    residual=value[:residual].Record(),
+    complete=value[:complete],
+    verified=value[:verified]
+};
+
+RatfunExpandPolynomialFactor(presentation) -> {;
+    value = RatfunRequirePresentation(presentation, "rix.rational-function.polynomial-factor@1", "factored Polynomial");
+    RatfunRequireQ(value, "Factored Polynomial presentation");
+    value[:verified] == 1 ?: _ ?_ .Error("Factored Polynomial presentation must claim verified exact data");
+    variable = value[:variable];
+    sourceValue = value[:source];
+    source = sourceValue ? :Polynomial ?: sourceValue ?_ .poly(sourceValue);
+    source.Variable() == variable ?: _ ?_ .Error("Factored Polynomial source variable mismatch");
+    factors = value[:factors];
+    factors ? :Array ?: _ ?_ .Error("Factored Polynomial factors must be an Array");
+    zero = value[:zero] == 1;
+    unit = RatfunExact(value[:unit], "Factored Polynomial unit");
+    residualValue = value[:residual];
+    residual = residualValue ? :Polynomial ?: residualValue ?_ .poly(residualValue);
+    residual.Variable() == variable ?: _ ?_ .Error("Factored Polynomial residual variable mismatch");
+    zero
+      ?: {;
+          RatfunExactZero(@unit) ?: _ ?_ .Error("Zero Polynomial factor presentation requires unit zero");
+          @factors.Len() == 0 ?: _ ?_ .Error("Zero Polynomial factor presentation cannot have factors");
+          @residual.Degree() == 0 ?: _ ?_ .Error("Zero Polynomial factor presentation requires residual one");
+          @value[:complete] == 0 ?: _ ?_ .Error("Zero Polynomial factor presentation cannot claim complete factorization");
+          rebuilt := .poly([0], @variable);
+          (rebuilt == @source) == 1
+            ?: rebuilt
+            ?_ .Error("Factored Polynomial presentation failed exact reconstruction verification");
+      }
+      ?_ {;
+          RatfunExactZero(@unit) ?: .Error("Factored Polynomial unit must be nonzero") ?_ _;
+          @residual.Degree() == -1 ?: .Error("Factored Polynomial residual must be nonzero") ?_ _;
+          leading = @residual.Coefficients()[1];
+          leading.Numerator() == leading.Denominator()
+            ?: _
+            ?_ .Error("Factored Polynomial residual must be monic");
+          rebuiltState := [.poly([@unit], @variable) * @residual];
+          {@ index = 1; index <= @factors.Len(); {;
+              entry = @factors[index];
+              entry ? :Map ?: _ ?_ .Error("Factored Polynomial entries must be Maps");
+              root = RatfunExact(entry[:root], "Factored Polynomial root");
+              multiplicity = entry[:multiplicity];
+              ((multiplicity ? :Integer) && multiplicity > 0)
+                ?: _
+                ?_ .Error("Factored Polynomial multiplicities must be positive exact Integers");
+              factorValue = entry[:factor];
+              factor = factorValue ? :Polynomial ?: factorValue ?_ .poly(factorValue);
+              canonicalFactor = .poly([1, -root], @variable);
+              (factor == canonicalFactor) == 1
+                ?: _
+                ?_ .Error("Factored Polynomial factor does not match its claimed root");
+              @rebuiltState ~= [@rebuiltState[1] * (factor ^ multiplicity)];
+          }; index += 1 };
+          expectedComplete = @residual.Degree() <= 0 ?: 1 ?_ 0;
+          @value[:complete] == expectedComplete
+            ?: _
+            ?_ .Error("Factored Polynomial completeness claim does not match its residual");
+          (rebuiltState[1] == @source) == 1
+            ?: rebuiltState[1]
+            ?_ .Error("Factored Polynomial presentation failed exact reconstruction verification");
+      };
+};
+
+RatfunPolynomialFactor(polynomial) -> {;
+    source = polynomial ? :Polynomial ?: polynomial ?_ .poly(polynomial);
+    source.Degree() == -1
+      ?: {;
+          zeroValue = {=
+              schema="rix.rational-function.polynomial-factor@1",
+              variable=@source.Variable(),
+              coefficientDomain=:Q,
+              source=@source,
+              zero=1,
+              unit=0,
+              factors=[],
+              residual=.poly([1],@source.Variable()),
+              complete=0,
+              verified=1
+          };
+          .ImmutableValue(zeroValue);
+      }
+      ?_ {;
+          evidence = .poly.FactorEvidence(@source);
+          rawResidual = evidence[:residual];
+          unit = rawResidual.Coefficients()[1];
+          value = {=
+              schema="rix.rational-function.polynomial-factor@1",
+              variable=@source.Variable(),
+              coefficientDomain=:Q,
+              source=@source,
+              zero=0,
+              unit=unit,
+              factors=evidence[:factors].Map((entry)->.ImmutableValue({=
+                  root=entry[:root],
+                  multiplicity=entry[:multiplicity],
+                  factor=entry[:factor]
+              })),
+              residual=rawResidual / unit,
+              complete=evidence[:complete],
+              verified=evidence[:verified]
+          };
+          RatfunExpandPolynomialFactor(value);
+          .ImmutableValue(value);
+      };
+};
+
+RatfunTogetherRecord(value) -> {=
+    valueKind=:rationalTogetherPresentation,
+    schema="rix.rational-function.together@1",
+    exact=1,
+    coefficientDomain=:Q,
+    variable=value[:variable],
+    rationalFunction=RatfunSourceRecord(value[:rationalFunction]),
+    numerator=value[:numerator].Record(),
+    denominator=value[:denominator].Record(),
+    verified=value[:verified],
+    provenance=value[:provenance]
+};
+
+RatfunExpandTogether(presentation) -> {;
+    value = RatfunRequirePresentation(presentation, "rix.rational-function.together@1", "together");
+    RatfunRequireQ(value, "Together presentation");
+    (value[:exact] == 1 && value[:verified] == 1)
+      ?: _
+      ?_ .Error("Together presentation must claim exact verified data");
+    variable = value[:variable];
+    numeratorValue = value[:numerator];
+    denominatorValue = value[:denominator];
+    rebuilt = RatfunBuild(numeratorValue, denominatorValue, variable, [RatfunEvent(:expandTogether)]);
+    source = RatfunPresentationSource(value[:rationalFunction], variable, "Together presentation");
+    (rebuilt == source) == 1
+      ?: rebuilt
+      ?_ .Error("Together presentation failed exact reconstruction verification");
+};
+
+RatfunTogether(rationalFunction) -> {;
+    source = RatfunPromote(rationalFunction);
+    value = {=
+        valueKind=:rationalTogetherPresentation,
+        schema="rix.rational-function.together@1",
+        exact=1,
+        coefficientDomain=:Q,
+        variable=source.variable,
+        rationalFunction=source,
+        numerator=source.numerator,
+        denominator=source.denominator,
+        verified=1,
+        provenance=[RatfunEvent(:together,[RatfunSourceRecord(source)])]
+    };
+    RatfunExpandTogether(value);
+    value.__type="RationalTogetherPresentation";
+    value._proto={=
+        Numerator=(self)->self[:numerator],
+        Denominator=(self)->self[:denominator],
+        Expand=(self)->RatfunExpandTogether(self),
+        RationalFunction=(self)->RatfunExpandTogether(self),
+        Record=(self)->RatfunTogetherRecord(self)
+    };
+    .ImmutableValue(value);
+};
+
+RatfunFactoredRecord(value) -> {=
+    valueKind=:rationalFactoredPresentation,
+    schema="rix.rational-function.factored@1",
+    exact=1,
+    coefficientDomain=:Q,
+    variable=value[:variable],
+    rationalFunction=RatfunSourceRecord(value[:rationalFunction]),
+    numerator=RatfunPolynomialFactorRecord(value[:numerator]),
+    denominator=RatfunPolynomialFactorRecord(value[:denominator]),
+    complete=value[:complete],
+    verified=value[:verified],
+    provenance=value[:provenance]
+};
+
+RatfunExpandFactored(presentation) -> {;
+    value = RatfunRequirePresentation(presentation, "rix.rational-function.factored@1", "factored RationalFunction");
+    RatfunRequireQ(value, "Factored RationalFunction presentation");
+    (value[:exact] == 1 && value[:verified] == 1)
+      ?: _
+      ?_ .Error("Factored RationalFunction presentation must claim exact verified data");
+    variable = value[:variable];
+    numerator = RatfunExpandPolynomialFactor(value[:numerator]);
+    denominator = RatfunExpandPolynomialFactor(value[:denominator]);
+    rebuilt = RatfunBuild(numerator,denominator,variable,[RatfunEvent(:expandFactored)]);
+    source = RatfunPresentationSource(value[:rationalFunction],variable,"Factored RationalFunction presentation");
+    expectedComplete = (value[:numerator][:complete] == 1 && value[:denominator][:complete] == 1) ?: 1 ?_ 0;
+    value[:complete] == expectedComplete
+      ?: _
+      ?_ .Error("Factored RationalFunction completeness claim does not match its factors");
+    (rebuilt == source) == 1
+      ?: rebuilt
+      ?_ .Error("Factored RationalFunction presentation failed exact reconstruction verification");
+};
+
+RatfunFactored(rationalFunction) -> {;
+    source = RatfunPromote(rationalFunction);
+    numerator = RatfunPolynomialFactor(source.numerator);
+    denominator = RatfunPolynomialFactor(source.denominator);
+    value = {=
+        valueKind=:rationalFactoredPresentation,
+        schema="rix.rational-function.factored@1",
+        exact=1,
+        coefficientDomain=:Q,
+        variable=source.variable,
+        rationalFunction=source,
+        numerator=numerator,
+        denominator=denominator,
+        complete=(numerator[:complete] == 1 && denominator[:complete] == 1) ?: 1 ?_ 0,
+        verified=1,
+        provenance=[RatfunEvent(:factor,[RatfunSourceRecord(source)],{= algorithm=:rationalRootTheorem })]
+    };
+    RatfunExpandFactored(value);
+    value.__type="RationalFactoredPresentation";
+    value._proto={=
+        Numerator=(self)->self[:numerator],
+        Denominator=(self)->self[:denominator],
+        Expand=(self)->RatfunExpandFactored(self),
+        RationalFunction=(self)->RatfunExpandFactored(self),
+        Record=(self)->RatfunFactoredRecord(self)
+    };
+    .ImmutableValue(value);
+};
+
+RatfunZeros(length) -> {;
+    values := [];
+    {@ index = 1; index <= @length; {; @values ~= @values.Push(0); }; index += 1 };
+    values;
+};
+
+RatfunCoefficient(coefficients,index) -> index <= coefficients.Len() ?: coefficients[index] ?_ 0;
+RatfunMonomial(power,variable) -> .poly(RatfunZeros(power).Push(1).Reverse(),variable);
+
+RatfunMatrixCopy(rows) -> rows.Map((row)->row.Map((value)->RatfunExact(value,"Partial-fraction matrix entry")));
+
+RatfunFindPivot(rows,startRow,column) -> {;
+    selected := 0;
+    {@ row = @startRow; row <= @rows.Len() && @selected == 0; {;
+        RatfunExactZero(@rows[row][@column],"Partial-fraction pivot candidate") ?: _ ?_ {; @selected ~= @row; };
+    }; row += 1 };
+    selected;
+};
+
+RatfunRrefRows(source,coefficientColumns) -> {;
+    rows := RatfunMatrixCopy(source);
+    pivots := [];
+    pivotRow := 1;
+    {@ column = 1; column <= @coefficientColumns && @pivotRow <= @rows.Len(); {;
+        selected = RatfunFindPivot(@rows,@pivotRow,column);
+        selected != 0
+          ?: {;
+              @selected != @pivotRow
+                ?: {;
+                    swap = @rows[@pivotRow];
+                    @rows ~= @rows.Set(@pivotRow,@rows[@selected]).Set(@selected,swap);
+                }
+                ?_ _;
+              pivot = @rows[@pivotRow][@column];
+              RatfunExactZero(pivot,"Partial-fraction pivot") == _
+                ?: {;
+                    normalized = @rows[@pivotRow].Map((value)->value/@pivot);
+                    @rows ~= @rows.Set(@pivotRow,normalized);
+                    {@ row = 1; row <= @rows.Len(); {;
+                        row != @pivotRow && RatfunExactZero(@rows[row][@column],"Partial-fraction elimination entry") == _
+                          ?: {;
+                              factor = @rows[@row][@column];
+                              replacement = @rows[@row].Map((value,index)->value-@factor*@normalized[index]);
+                              @rows ~= @rows.Set(@row,replacement);
+                          }
+                          ?_ _;
+                    }; row += 1 };
+                    @pivots ~= @pivots.Push(@column);
+                    @pivotRow += 1;
+                }
+                ?_ _;
+          }
+          ?_ _;
+    }; column += 1 };
+    {= rows=rows, pivots=pivots };
+};
+
+RatfunSolveColumns(columns, rightHandSide) -> {;
+    size = columns.Len();
+    size == 0
+      ?: []
+      ?_ {;
+          coefficientArrays = @columns.Map((polynomial)->polynomial.Coefficients(:ascending));
+          matrix := [];
+          {@ matrixRow = 1; matrixRow <= @size; {;
+              values := [];
+              {@ basisIndex = 1; basisIndex <= @size; {;
+                  @values ~= @values.Push(RatfunCoefficient(@coefficientArrays[basisIndex],@matrixRow));
+              }; basisIndex += 1 };
+              @matrix ~= @matrix.Push(values);
+          }; matrixRow += 1 };
+          right = RatfunZeros(@size).Map((unused,index)->RatfunCoefficient(@rightHandSide,index));
+          augmented = matrix.Map((row,index)->row.Concat([@right[index]]));
+          reduced = RatfunRrefRows(augmented,@size);
+          reduced[:pivots].Len() == @size
+            ?: reduced[:rows].Map((row)->row[@size+1])
+            ?_ .Error("Partial-fraction coefficient system must have a unique exact solution");
+      };
+};
+
+RatfunPartialRecord(value) -> {=
+    valueKind=:rationalPartialFractions,
+    schema="rix.rational-function.partial-fractions@1",
+    exact=1,
+    coefficientDomain=:Q,
+    variable=value[:variable],
+    rationalFunction=RatfunSourceRecord(value[:rationalFunction]),
+    polynomialPart=value[:polynomialPart].Record(),
+    terms=value[:terms].Map((term)->{=
+        root=term[:root],
+        power=term[:power],
+        coefficient=term[:coefficient],
+        factor=term[:factor].Record(),
+        denominator=term[:denominator].Record()
+    }),
+    residual={=
+        numerator=value[:residual][:numerator].Record(),
+        denominator=value[:residual][:denominator].Record()
+    },
+    linearComplete=value[:linearComplete],
+    verified=value[:verified],
+    provenance=value[:provenance]
+};
+
+RatfunExpandPartial(presentation) -> {;
+    value = RatfunRequirePresentation(presentation,"rix.rational-function.partial-fractions@1","partial-fraction");
+    RatfunRequireQ(value,"Partial-fraction presentation");
+    (value[:exact] == 1 && value[:verified] == 1)
+      ?: _
+      ?_ .Error("Partial-fraction presentation must claim exact verified data");
+    variable = value[:variable];
+    source = RatfunPresentationSource(value[:rationalFunction],variable,"Partial-fraction presentation");
+    polynomialValue = value[:polynomialPart];
+    polynomialPart = polynomialValue ? :Polynomial ?: polynomialValue ?_ .poly(polynomialValue);
+    polynomialPart.Variable() == variable ?: _ ?_ .Error("Partial-fraction polynomial part variable mismatch");
+    rebuiltState := [RatfunBuild(polynomialPart,1,variable,[RatfunEvent(:expandPartialFractions)])];
+    terms = value[:terms];
+    terms ? :Array ?: _ ?_ .Error("Partial-fraction terms must be an Array");
+    {@ index = 1; index <= @terms.Len(); {;
+        term = @terms[index];
+        term ? :Map ?: _ ?_ .Error("Partial-fraction terms must be Maps");
+        root = RatfunExact(term[:root],"Partial-fraction root");
+        power = term[:power];
+        ((power ? :Integer) && power > 0)
+          ?: _
+          ?_ .Error("Partial-fraction powers must be positive exact Integers");
+        coefficient = RatfunExact(term[:coefficient],"Partial-fraction coefficient");
+        RatfunExactZero(coefficient)
+          ?: .Error("Partial-fraction terms omit zero coefficients")
+          ?_ _;
+        factorValue = term[:factor];
+        denominatorValue = term[:denominator];
+        factor = factorValue ? :Polynomial ?: factorValue ?_ .poly(factorValue);
+        denominator = denominatorValue ? :Polynomial ?: denominatorValue ?_ .poly(denominatorValue);
+        canonicalFactor = .poly([1,-root],@variable);
+        (factor == canonicalFactor) == 1
+          ?: _
+          ?_ .Error("Partial-fraction factor does not match its claimed root");
+        (denominator == (factor^power)) == 1
+          ?: _
+          ?_ .Error("Partial-fraction denominator does not match factor power");
+        @source.denominator.IsFactor(denominator) == 1
+          ?: _
+          ?_ .Error("Partial-fraction denominator is not a factor of the canonical denominator");
+        @rebuiltState ~= [@rebuiltState[1] + RatfunBuild(coefficient,denominator,@variable,[RatfunEvent(:partialFractionTerm)])];
+    }; index += 1 };
+    residual = value[:residual];
+    residual ? :Map ?: _ ?_ .Error("Partial-fraction residual must be a Map");
+    residualNumeratorValue = residual[:numerator];
+    residualDenominatorValue = residual[:denominator];
+    residualNumerator = residualNumeratorValue ? :Polynomial ?: residualNumeratorValue ?_ .poly(residualNumeratorValue);
+    residualDenominator = residualDenominatorValue ? :Polynomial ?: residualDenominatorValue ?_ .poly(residualDenominatorValue);
+    (residualNumerator.Variable() == variable && residualDenominator.Variable() == variable)
+      ?: _
+      ?_ .Error("Partial-fraction residual variable mismatch");
+    residualDenominator.Degree() == -1 ?: .Error("Partial-fraction residual denominator cannot be zero") ?_ _;
+    residualNumerator.Degree() < residualDenominator.Degree()
+      ?: _
+      ?_ .Error("Partial-fraction residual must be proper");
+    denominatorEvidence = .poly.FactorEvidence(source.denominator);
+    expectedResidual = denominatorEvidence[:residual];
+    expectedUnit = expectedResidual.Coefficients()[1];
+    expectedMonicResidual = expectedResidual / expectedUnit;
+    (residualDenominator == expectedMonicResidual) == 1
+      ?: _
+      ?_ .Error("Partial-fraction residual denominator does not match the unfactored canonical residual");
+    RatfunZero(residualNumerator)
+      ?: _
+      ?_ {; @rebuiltState ~= [@rebuiltState[1] + RatfunBuild(@residualNumerator,@residualDenominator,@variable,[RatfunEvent(:partialFractionResidual)])]; };
+    expectedLinearComplete = residualDenominator.Degree() <= 0 ?: 1 ?_ 0;
+    value[:linearComplete] == expectedLinearComplete
+      ?: _
+      ?_ .Error("Partial-fraction linear-completeness claim does not match its residual");
+    (rebuiltState[1] == source) == 1
+      ?: rebuiltState[1]
+      ?_ .Error("Partial-fraction presentation failed exact reconstruction verification");
+};
+
+RatfunPartialFractions(rationalFunction) -> {;
+    source = RatfunPromote(rationalFunction);
+    division = .poly.Divide(source.numerator,source.denominator);
+    polynomialPart = division[:quotient];
+    remainder = division[:remainder];
+    denominatorEvidence = .poly.FactorEvidence(source.denominator);
+    descriptors := [];
+    columns := [];
+    factors = denominatorEvidence[:factors];
+    {@ factorIndex = 1; factorIndex <= @factors.Len(); {;
+        entry = @factors[factorIndex];
+        {@ power = 1; power <= @entry[:multiplicity]; {;
+            powered = @entry[:factor]^power;
+            @columns ~= @columns.Push(@source.denominator // powered);
+            @descriptors ~= @descriptors.Push({=
+                kind=:linear,
+                root=@entry[:root],
+                power=power,
+                factor=@entry[:factor],
+                denominator=powered
+            });
+        }; power += 1 };
+    }; factorIndex += 1 };
+    rawResidual = denominatorEvidence[:residual];
+    residualUnit = rawResidual.Coefficients()[1];
+    residualDenominator = rawResidual / residualUnit;
+    residualDegree = residualDenominator.Degree();
+    residualDegree > 0
+      ?: {;
+          linearProduct = @source.denominator // @rawResidual;
+          {@ power = 0; power < @residualDegree; {;
+              @columns ~= @columns.Push(@linearProduct*RatfunMonomial(power,@source.variable));
+              @descriptors ~= @descriptors.Push({= kind=:residual, power=power });
+          }; power += 1 };
+      }
+      ?_ _;
+    source.denominator.Degree() == columns.Len()
+      ?: _
+      ?_ .Error("Partial-fraction basis does not span the canonical denominator degree");
+    solutions = RatfunSolveColumns(columns,remainder.Coefficients(:ascending));
+    terms := [];
+    residualCoefficients := RatfunZeros(residualDegree > 0 ?: residualDegree ?_ 1);
+    {@ index = 1; index <= @descriptors.Len(); {;
+        descriptor = @descriptors[index];
+        coefficient = @solutions[index];
+        descriptor[:kind] == :linear
+          ?: {;
+              RatfunExactZero(@coefficient)
+                ?: _
+                ?_ {;
+                    @terms ~= @terms.Push(.ImmutableValue({=
+                        root=@descriptor[:root],
+                        power=@descriptor[:power],
+                        coefficient=@coefficient,
+                        factor=@descriptor[:factor],
+                        denominator=@descriptor[:denominator]
+                    }));
+                };
+          }
+          ?_ {; @residualCoefficients ~= @residualCoefficients.Set(@descriptor[:power]+1,@coefficient); };
+    }; index += 1 };
+    residualNumerator = residualDegree > 0
+      ?: .poly(residualCoefficients.Reverse(),source.variable)
+      ?_ .poly([0],source.variable);
+    value = {=
+        valueKind=:rationalPartialFractions,
+        schema="rix.rational-function.partial-fractions@1",
+        exact=1,
+        coefficientDomain=:Q,
+        variable=source.variable,
+        rationalFunction=source,
+        polynomialPart=polynomialPart,
+        terms=terms,
+        residual={= numerator=residualNumerator, denominator=residualDenominator },
+        linearComplete=residualDegree <= 0 ?: 1 ?_ 0,
+        verified=1,
+        provenance=[RatfunEvent(:partialFractions,[RatfunSourceRecord(source)],{=
+            algorithm=:exactCoefficientSystem,
+            basisSize=columns.Len(),
+            rationalLinearFactorCount=factors.Len()
+        })]
+    };
+    RatfunExpandPartial(value);
+    value.__type="RationalPartialFractions";
+    value._proto={=
+        PolynomialPart=(self)->self[:polynomialPart],
+        Terms=(self)->self[:terms],
+        Residual=(self)->self[:residual],
+        Expand=(self)->RatfunExpandPartial(self),
+        RationalFunction=(self)->RatfunExpandPartial(self),
+        Record=(self)->RatfunPartialRecord(self)
+    };
+    .ImmutableValue(value);
+};
+
+RatfunDivisorPart(polynomial, role) -> {;
+    value = polynomial ? :Polynomial ?: polynomial ?_ .poly(polynomial);
+    value.Degree() == -1
+      ?: .ImmutableValue({=
+          role=role,
+          status=:identicallyZero,
+          entries=[],
+          residual=value,
+          complete=0,
+          verified=1
+      })
+      ?_ {;
+          evidence = .poly.FactorEvidence(@value);
+          .ImmutableValue({=
+              role=@role,
+              status=:finiteRationalFactors,
+              entries=evidence[:factors].Map((entry)->.ImmutableValue({=
+                  point=entry[:root],
+                  multiplicity=entry[:multiplicity],
+                  factor=entry[:factor]
+              })),
+              residual=evidence[:residual],
+              complete=evidence[:complete],
+              verified=evidence[:verified]
+          });
+      };
+};
+
+RatfunDivisorPartRecord(part) -> {=
+    role=part[:role],
+    status=part[:status],
+    entries=part[:entries].Map((entry)->{=
+        point=entry[:point],
+        multiplicity=entry[:multiplicity],
+        factor=entry[:factor].Record()
+    }),
+    residual=part[:residual].Record(),
+    complete=part[:complete],
+    verified=part[:verified]
+};
+
+RatfunPoleZeroRecord(value) -> {=
+    valueKind=:rationalDivisorEvidence,
+    schema="rix.rational-function.divisor-evidence@1",
+    exact=1,
+    coefficientDomain=:Q,
+    variable=value[:variable],
+    rationalFunction=RatfunSourceRecord(value[:rationalFunction]),
+    zeros=RatfunDivisorPartRecord(value[:zeros]),
+    poles=RatfunDivisorPartRecord(value[:poles]),
+    coprime=value[:coprime],
+    cancelledSourceRestrictionsPreserved=0,
+    verified=value[:verified],
+    provenance=value[:provenance]
+};
+
+RatfunPoleZeroEvidence(rationalFunction) -> {;
+    source = RatfunPromote(rationalFunction);
+    zeros = RatfunDivisorPart(source.numerator,:zero);
+    poles = RatfunDivisorPart(source.denominator,:pole);
+    common = .poly.Gcd(source.numerator,source.denominator);
+    coprime = common.Degree() == 0 ?: 1 ?_ 0;
+    verified = (zeros[:verified] == 1 && poles[:verified] == 1 && coprime == 1) ?: 1 ?_ 0;
+    value = {=
+        valueKind=:rationalDivisorEvidence,
+        schema="rix.rational-function.divisor-evidence@1",
+        exact=1,
+        coefficientDomain=:Q,
+        variable=source.variable,
+        rationalFunction=source,
+        zeros=zeros,
+        poles=poles,
+        coprime=coprime,
+        cancelledSourceRestrictionsPreserved=0,
+        verified=verified,
+        provenance=[RatfunEvent(:poleZeroEvidence,[RatfunSourceRecord(source)],{= policy=:reducedCanonicalPair })]
+    };
+    value.__type="RationalDivisorEvidence";
+    value._proto={=
+        Zeros=(self)->self[:zeros],
+        Poles=(self)->self[:poles],
+        Record=(self)->RatfunPoleZeroRecord(self)
+    };
+    .ImmutableValue(value);
+};
+
+RatfunExpand(presentation) -> {;
+    schema = presentation ? :Map ?: presentation[:schema] ?_ _;
+    schema == "rix.rational-function.together@1"
+      ?: RatfunExpandTogether(presentation)
+      ?_ schema == "rix.rational-function.factored@1"
+           ?: RatfunExpandFactored(presentation)
+           ?_ schema == "rix.rational-function.partial-fractions@1"
+                ?: RatfunExpandPartial(presentation)
+                ?_ .Error("ratfun.Expand expects a together, factored, or partial-fraction presentation");
 };
 
 RatfunModifierVariable(modifiers) -> {;
@@ -253,6 +940,12 @@ ratfunNamespace = (first, second ?= _) -> RatfunConstruct(first,second);
 ratfunNamespace._proto = {=
     Parse=RatfunParse,
     RationalFunction=(self,first,second ?= _)->RatfunConstruct(first,second),
+    CoefficientDomain=(self,value ?= _)->value == _ ?: RatfunCoefficientDomain() ?_ RatfunPromote(value).coefficientDomain,
+    Together=(self,value)->RatfunTogether(value),
+    Factored=(self,value)->RatfunFactored(value),
+    PartialFractions=(self,value)->RatfunPartialFractions(value),
+    PoleZeroEvidence=(self,value)->RatfunPoleZeroEvidence(value),
+    Expand=(self,presentation)->RatfunExpand(presentation),
     Var=(self)->.Error(".ratfun.Var(name) is a backtick parser modifier"),
     Fun=(self)->.Error(".ratfun.Fun is a backtick parser modifier")
 };

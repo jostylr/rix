@@ -30,8 +30,10 @@ or coefficient reduction. The following methods return new FractionFunctions:
   original evaluation domain; and
 - `ForgetRestrictions()` deliberately adopts the displayed form's domain.
 
-Factorization, partial fractions, and verified presentation evidence remain
-later algebra phases rather than implicit construction behavior.
+Canonical factorization, partial fractions, and verified divisor evidence are
+available through `.ratfun`/`.algebra`. Source-domain-preserving versions for
+FractionFunction remain explicit future work rather than implicit construction
+behavior.
 
 ## Canonical projections and equality
 

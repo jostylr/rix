@@ -1,11 +1,12 @@
 # `.algebra`
 
 Provides the presentation and cross-plugin façade for canonical callable
-Polynomials. The pure-RiX `.poly` plugin owns Polynomial identity and all exact
-coefficient algorithms. `.algebra` delegates to those methods, wraps division
-results with verification/factor metadata, and connects synthetic division to
-the portable core Grid. Loading `.algebra` automatically loads both `.poly`
-and `.ratfun`.
+Polynomials and RationalFunctions. The pure-RiX `.poly` and `.ratfun` plugins
+own those identities and their exact algorithms. `.algebra` delegates to those
+methods, wraps division results with verification/factor metadata, connects
+synthetic division to the portable core Grid, and exposes explicit rational
+presentations. Loading `.algebra` automatically loads the exact dependency
+stack.
 Coefficients are ordered from highest degree to the constant term and normalized
 by removing leading zeros. The zero polynomial has coefficients `[0]` and
 degree `-1`.
@@ -44,10 +45,21 @@ division.Quotient().Coefficients();
 - `Factorization(polynomial)` separates a nonzero exact unit, rational linear
   factors with multiplicities, and a monic residual. `complete` is true only
   when that residual is constant.
+- `RationalFunction(numerator, denominator)` constructs the canonical exact
+  Q[x] fraction-field value; `CoefficientDomain(value)` returns its versioned
+  exact-domain descriptor.
+- `Together(rationalFunction)` and `Factored(rationalFunction)` expose checked
+  canonical-pair and rational-factor presentations.
+- `PartialFractions(rationalFunction)` returns the exact polynomial part,
+  repeated rational-linear-pole terms, and a proper residual for denominator
+  factors not split over Q.
+- `PoleZeroEvidence(rationalFunction)` reports exact rational zeros and poles,
+  their multiplicities, residual factors, completeness, and reduced-domain
+  policy.
 - `Expand(presentation)`, `presentation.Expand()`, and
-  `presentation.Polynomial()` rebuild the canonical Polynomial from the
-  presentation fields and reject inconsistent records. They never use the
-  retained source Polynomial as a shortcut.
+  the type-specific `Polynomial()`/`RationalFunction()` methods rebuild the
+  canonical semantic value from presentation fields and reject inconsistent
+  records. They never use the retained source as a shortcut.
 - `Resultant(left, right)` returns the exact Sylvester resultant; zero
   certifies that the polynomials share a factor.
 - `SignEvidence(polynomial, point)` and `RootCountEvidence(polynomial,
@@ -80,5 +92,14 @@ remains canonical on expanded Polynomial coefficients and the variable name.
 Their portable `Record()` forms retain provenance and the claimed source, and
 every conversion back validates the basis or factors, reconstructs from the
 presentation data, and checks exact equality with that source.
+
+Rational views use `rix.rational-function.together@1`,
+`rix.rational-function.factored@1`, and
+`rix.rational-function.partial-fractions@1`; divisor evidence uses
+`rix.rational-function.divisor-evidence@1`. Their portable records carry
+`rix.algebra.transformation@1` provenance. Together/factored/partial expansion
+is accepted through either `.ratfun.Expand` or `.algebra.Expand` and requires
+exact reconstruction. The declared coefficient domain is Q[x]; extension-field
+and multivariate identities are Phase 3 work rather than an implicit fallback.
 
 See [tutorial.md](tutorial.md).

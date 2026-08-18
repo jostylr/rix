@@ -41,6 +41,7 @@ The implementation order and per-plugin phased work are tracked in
 | `stern-brocot/` | RiX | `stern-brocot` | Exact Stern–Brocot navigation, visible-tree records, and rational evaluation helpers. |
 | `document/` | host | `document` | Numbered portable reports, cross-references, captions, and small themes. |
 | `complex-visualization/` | RiX | `complex-viz` | Exact phase/magnitude domain coloring to portable Graphics; mount `.complexViz`. |
+| `fractals/` | RiX | `fractals` | Exact finite orbits, bifurcation/cobweb samples, and escape-time fractals with portable Graphics lowering. |
 | `scene3d/` | host | `scene3d` | Retained exact 3D scenes and deterministic wireframe snapshots. |
 | `nd/` | host | `nd` | Exact N-dimensional geometry and projection into retained 3D scenes. |
 | `render-terminal-ascii/` | host | `terminal-ascii` | Strict-ASCII fallback for tables, grids, fragments, and simple Graphics. |

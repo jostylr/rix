@@ -18,6 +18,7 @@ import symbolicSource from "./symbolic/symbolic.plugin.rix" with { type: "text" 
 import calculusSource from "./calculus/calculus.plugin.rix" with { type: "text" };
 import statsSource from "./stats/stats.plugin.rix" with { type: "text" };
 import complexVizSource from "./complex-visualization/complex-viz.plugin.rix" with { type: "text" };
+import fractalsSource from "./fractals/fractals.plugin.rix" with { type: "text" };
 import optimizeSource from "./optimize/optimize.plugin.rix" with { type: "text" };
 import linalgSource from "./linalg/linalg.plugin.rix" with { type: "text" };
 import solveSource from "./solve/solve.plugin.rix" with { type: "text" };
@@ -111,6 +112,7 @@ const BUNDLED_PLUGINS = [
     { metadata: readPluginHeader(calculusSource, "calculus.plugin.rix"), source: calculusSource, sourcePath: "bundled:calculus.plugin.rix" },
     { metadata: readPluginHeader(statsSource, "stats.plugin.rix"), source: statsSource, sourcePath: "bundled:stats.plugin.rix" },
     { metadata: readPluginHeader(complexVizSource, "complex-viz.plugin.rix"), source: complexVizSource, sourcePath: "bundled:complex-viz.plugin.rix" },
+    { metadata: readPluginHeader(fractalsSource, "fractals.plugin.rix"), source: fractalsSource, sourcePath: "bundled:fractals.plugin.rix" },
     {
         metadata: readPluginHeader(algebraSource, "algebra.plugin.rix"),
         source: algebraSource,

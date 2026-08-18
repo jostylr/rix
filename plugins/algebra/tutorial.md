@@ -95,3 +95,27 @@ factored := .algebra.Factorization(.p`6*(x-1)^2*(x+2)^3*(x^2+1)`);
 Changing a coefficient, root, factor, multiplicity, unit, residual, basis, or
 completeness claim causes conversion to fail rather than silently returning
 the stored source.
+
+## Decompose a rational function exactly
+
+The Algebra façade also exposes `.ratfun` Phase 2 transformations. Repeated
+rational poles become individual exact terms; factors not split over Q remain
+visible in one proper residual rather than being approximated.
+
+```rix
+.Plugin.Load("algebra");
+R := .rf`(x^5+x^3+2*x+1)/((x-1)^2*(x^2+1))`;
+partial := .algebra.PartialFractions(R);
+divisor := .algebra.PoleZeroEvidence(R);
+.Table(
+    ["property", "exact value"],
+    [
+        ["coefficient domain", .algebra.CoefficientDomain(R)[:id]],
+        ["polynomial part", partial.PolynomialPart().Coefficients()],
+        ["linear-pole terms", partial.Terms()],
+        ["proper residual", partial.Residual()],
+        ["verified round trip", .algebra.Expand(partial.Record()) == R],
+        ["pole evidence", divisor.Poles()]
+    ]
+);
+```

@@ -57,6 +57,18 @@ describe("semantic RationalFunction plugin", () => {
         expect(result.values[3].value).toBe(1n);
     });
 
+    test("does not confuse unequal canonical rational functions", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("ratfun");
+            A := .rf\`(2*x+3)/(x^2-1)\`;
+            B := .rf\`(2*x+4)/(x^2-1)\`;
+            [A == B, A != B, A == .rf\`(2*x+3)/(x^2-1)\`];
+        `);
+        expect(result.values[0]).toBeNull();
+        expect(String(result.values[1])).toBe("1");
+        expect(String(result.values[2])).toBe("1");
+    });
+
     test("promotes Polynomial division and closes ordinary field operations", () => {
         const result = parseAndEvaluate(`
             .Plugin.Load("ratfun");
@@ -115,5 +127,144 @@ describe("semantic RationalFunction plugin", () => {
             [before, after];
         `);
         expect(result.values.map(strings)).toEqual([["5/2", "3"], ["7/2", "4"]]);
+    });
+
+    test("builds verified together and factored presentation round trips", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("ratfun");
+            R := .rf\`6*(x-2)^3*(x+1)/((x-3)^2*(x^2+1))\`;
+            together := R.Together();
+            factored := R.Factored();
+            [
+                R.CoefficientDomain()[:id], R.CoefficientDomain()[:exact],
+                together[:schema], together.Expand() == R,
+                .ratfun.Expand(together.Record()) == R,
+                factored[:schema], factored[:complete], factored[:verified],
+                factored[:numerator][:factors].Map((entry)->[entry[:root],entry[:multiplicity]]),
+                factored[:denominator][:factors].Map((entry)->[entry[:root],entry[:multiplicity]]),
+                factored[:denominator][:residual].Coefficients(),
+                .ratfun.Expand(factored.Record()) == R
+            ];
+        `);
+        expect(result.values.slice(0, 8).map((value) => String(value?.value ?? value))).toEqual([
+            "Q", "1", "rix.rational-function.together@1", "1", "1",
+            "rix.rational-function.factored@1", "0", "1",
+        ]);
+        expect(result.values[8].values.map((entry) => entry.values.map(String))).toEqual([["-1", "1"], ["2", "3"]]);
+        expect(result.values[9].values.map((entry) => entry.values.map(String))).toEqual([["3", "2"]]);
+        expect(result.values[10].values.map(String)).toEqual(["1", "0", "1"]);
+        expect(String(result.values[11])).toBe("1");
+
+        expect(() => parseAndEvaluate(`
+            .Plugin.Load("ratfun");
+            view := (.rf\`(x+1)/(x-1)\`).Together().Record();
+            .ratfun.Expand(view.Set("numerator", .poly([1,2]).Record()));
+        `)).toThrow("failed exact reconstruction verification");
+        expect(() => parseAndEvaluate(`
+            .Plugin.Load("ratfun");
+            view := (.rf\`(x+1)/(x-1)\`).Factored().Record();
+            .ratfun.Expand(view.Set("coefficientdomain", :R));
+        `)).toThrow("requires coefficient domain :Q");
+        expect(() => parseAndEvaluate(`
+            .Plugin.Load("ratfun");
+            record := (.rf\`(x+1)/(x-1)\`).Record().Set("coefficientdomain", :R);
+            .ratfun(record);
+        `)).toThrow("records require coefficient domain :Q");
+    });
+
+    test("computes exact partial fractions with polynomial, repeated, and residual parts", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("ratfun");
+            simple := (.rf\`(2*x+3)/(x^2-1)\`).PartialFractions();
+            repeated := (.rf\`(x+2)/((x-1)^2)\`).PartialFractions();
+            mixedSource := .rf\`(x^5+x^3+2*x+1)/((x-1)^2*(x^2+1))\`;
+            mixed := mixedSource.PartialFractions();
+            irreducible := (.rf\`(x+1)/(x^2+1)\`).PartialFractions();
+            polynomial := (.rf\`x^2+1\`).PartialFractions();
+            [
+                simple[:terms].Map((term)->[term[:root],term[:power],term[:coefficient]]),
+                simple.Expand() == .rf\`(2*x+3)/(x^2-1)\`,
+                repeated[:terms].Map((term)->[term[:root],term[:power],term[:coefficient]]),
+                mixed[:polynomialPart].Coefficients(),
+                mixed[:terms].Map((term)->[term[:root],term[:power],term[:coefficient]]),
+                mixed[:residual][:numerator].Coefficients(), mixed[:residual][:denominator].Coefficients(),
+                mixed[:linearComplete], .ratfun.Expand(mixed.Record()) == mixedSource,
+                irreducible[:terms].Len(), irreducible[:residual][:numerator].Coefficients(),
+                irreducible[:residual][:denominator].Coefficients(), irreducible[:linearComplete],
+                polynomial[:polynomialPart].Coefficients(), polynomial[:terms].Len(), polynomial.Expand() == .rf\`x^2+1\`
+            ];
+        `);
+        expect(result.values[0].values.map((entry) => entry.values.map(String))).toEqual([
+            ["-1", "1", "-1/2"], ["1", "1", "5/2"],
+        ]);
+        expect(String(result.values[1])).toBe("1");
+        expect(result.values[2].values.map((entry) => entry.values.map(String))).toEqual([
+            ["1", "1", "1"], ["1", "2", "3"],
+        ]);
+        expect(result.values[3].values.map(String)).toEqual(["1", "2"]);
+        expect(result.values[4].values.map((entry) => entry.values.map(String))).toEqual([
+            ["1", "1", "5/2"], ["1", "2", "5/2"],
+        ]);
+        expect(result.values[5].values.map(String)).toEqual(["1/2", "-1"]);
+        expect(result.values[6].values.map(String)).toEqual(["1", "0", "1"]);
+        expect(result.values.slice(7, 10).map(String)).toEqual(["0", "1", "0"]);
+        expect(result.values[10].values.map(String)).toEqual(["1", "1"]);
+        expect(result.values[11].values.map(String)).toEqual(["1", "0", "1"]);
+        expect(String(result.values[12])).toBe("0");
+        expect(result.values[13].values.map(String)).toEqual(["1", "0", "1"]);
+        expect([String(result.values[14]), String(result.values[15])]).toEqual(["0", "1"]);
+
+        expect(() => parseAndEvaluate(`
+            .Plugin.Load("ratfun");
+            view := (.rf\`(2*x+3)/(x^2-1)\`).PartialFractions().Record();
+            term := view[:terms][1].Set("coefficient", -1);
+            .ratfun.Expand(view.Set("terms", view[:terms].Set(1,term)));
+        `)).toThrow("failed exact reconstruction verification");
+    }, 20000);
+
+    test("returns exact reduced pole and zero multiplicity evidence", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("ratfun");
+            source := .rf\`6*(x-2)^3*(x+1)/((x-3)^2*(x^2+1))\`;
+            evidence := source.PoleZeroEvidence();
+            cancelled := (.rf\`(x^2-1)/(x-1)\`).PoleZeroEvidence();
+            zero := (.rf\`0\`).PoleZeroEvidence();
+            [
+                evidence[:schema], evidence[:verified], evidence[:coprime],
+                evidence[:zeros][:entries].Map((entry)->[entry[:point],entry[:multiplicity]]),
+                evidence[:zeros][:complete], evidence[:poles][:entries].Map((entry)->[entry[:point],entry[:multiplicity]]),
+                evidence[:poles][:complete], evidence[:poles][:residual].Coefficients(),
+                evidence[:cancelledSourceRestrictionsPreserved],
+                cancelled[:zeros][:entries].Map((entry)->entry[:point]), cancelled[:poles][:entries].Len(),
+                zero[:zeros][:status], zero[:zeros][:complete], zero[:poles][:complete]
+            ];
+        `);
+        expect(result.values.slice(0, 3).map((value) => String(value?.value ?? value))).toEqual(["rix.rational-function.divisor-evidence@1", "1", "1"]);
+        expect(result.values[3].values.map((entry) => entry.values.map(String))).toEqual([["-1", "1"], ["2", "3"]]);
+        expect(String(result.values[4])).toBe("1");
+        expect(result.values[5].values.map((entry) => entry.values.map(String))).toEqual([["3", "2"]]);
+        expect(String(result.values[6])).toBe("0");
+        expect(result.values[7].values.map(String)).toEqual(["1", "0", "1"]);
+        expect(String(result.values[8])).toBe("0");
+        expect(result.values[9].values.map(String)).toEqual(["-1"]);
+        expect(String(result.values[10])).toBe("0");
+        expect(result.values[11].value).toBe("identicallyZero");
+        expect([String(result.values[12]), String(result.values[13])]).toEqual(["0", "1"]);
+    });
+
+    test("records explicit transformation provenance", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("ratfun");
+            R := .rf\`(x+1)/(x-1)\`;
+            S := R - 1;
+            C := R.Compose(.rf\`1/x\`);
+            P := R.PartialFractions();
+            [S.provenance[1][:schema], S.provenance[1][:operation],
+             C.provenance[1][:operation], P[:provenance][1][:operation],
+             P.Record()[:provenance][1][:operation]];
+        `);
+        expect(result.values.map((value) => value.value)).toEqual([
+            "rix.algebra.transformation@1", "subtract", "compose", "partialFractions", "partialFractions",
+        ]);
     });
 });

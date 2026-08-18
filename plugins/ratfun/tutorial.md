@@ -7,7 +7,7 @@ plugin: ratfun
 ---
 
 Load the focused plugin. Its `.rf` and `.rationalFunction` aliases are the same
-callable value, and `.poly` is loaded as a dependency.
+callable value, and `.poly` loads as its exact dependency.
 
 ```rix
 .Plugin.Load("ratfun");
@@ -96,5 +96,46 @@ R := .rf`(x^2 - 1)/(x - 1)`;
 {: R(1), R.Domain(), R == .rf`x + 1` };
 ```
 
-Here `R(1)` is `2`. A future restricted-expression wrapper can represent the
-same formula with a removable hole at `1` when source-domain fidelity matters.
+Here `R(1)` is `2`. Use `.fracfun` when the removable hole at `1` must remain
+part of the source-domain meaning.
+
+## Choose and verify an explicit rational form
+
+Canonical equality remains independent of display. These presentations retain
+their exact transformation data and reconstruct the source before reporting a
+verified result.
+
+```rix
+.Plugin.Load("ratfun");
+R := .rf`(x^5+x^3+2*x+1)/((x-1)^2*(x^2+1))`;
+partial := R.PartialFractions();
+factored := R.Factored();
+.Table(
+    ["property", "exact value"],
+    [
+        ["polynomial part", partial.PolynomialPart().Coefficients()],
+        ["rational linear terms", partial.Terms()],
+        ["proper residual", partial.Residual()],
+        ["all denominator factors linear over Q", partial[:linearComplete]],
+        ["partial round trip", partial.Expand() == R],
+        ["factored round trip", factored.Expand() == R]
+    ]
+);
+```
+
+## Inspect reduced zeros and poles
+
+```rix
+.Plugin.Load("ratfun");
+R := .rf`6*(x-2)^3*(x+1)/((x-3)^2*(x^2+1))`;
+evidence := R.PoleZeroEvidence();
+.Table(
+    ["property", "exact evidence"],
+    [
+        ["rational zeros", evidence.Zeros()[:entries]],
+        ["rational poles", evidence.Poles()[:entries]],
+        ["unfactored pole residual", evidence.Poles()[:residual].Coefficients()],
+        ["verified coprime pair", evidence[:coprime]]
+    ]
+);
+```
