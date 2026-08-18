@@ -71,9 +71,16 @@ The result schema is `rix.numerics.range-enclosure@1`. Its
 `endpointTolerance` controls computation of the outer range boundaries; the
 physical width caused by the input measurement is intentionally retained.
 `Sin` and `Cos` use rational Taylor bounds and a global Lipschitz proof, with
-bounded rational subdivision for tightness. Reciprocal trigonometric functions
-return `:unknown` when their pole cannot be excluded. Restricted functions
-return `:domainViolation` if any possible input is outside their real domain.
+bounded rational subdivision for tightness. Certified pi landmarks add exact
+`-1`/`1` extrema when they occur in the input. Reciprocal trigonometric
+functions distinguish a proved `:poleInInput` domain violation from an
+unresolved `:poleNotExcluded` result. Restricted functions return
+`:domainViolation` if any possible input is outside their real domain.
+
+The same set-valued protocol covers hyperbolic functions, inverse hyperbolic
+functions, `Erf`, `Erfc`, normal PDF, and normal CDF. Their range providers use
+monotonicity, even symmetry, or exact pole/domain boundaries rather than
+sampling.
 
 For an exact interval expression, generic subdivision can reduce dependency
 overestimation while retaining the same input occurrence in each piece:
@@ -82,10 +89,15 @@ overestimation while retaining the same input occurrence in each piece:
 .numerics.Range((x)->x-x, 1:2, {= maxSubintervals=8 });  ## -1/8:1/8
 ```
 
-Generic subdivided functions currently return an exact scalar or
-`RationalInterval`; use the direct interval-image form for transcendental
-functions. See [interval-ranges-checklist.md](interval-ranges-checklist.md) for
-implemented coverage and follow-up work.
+Generic subdivided functions may return an exact scalar, `RationalInterval`, or
+one supported Numerics interval image. Arithmetic that combines several
+interval images is not yet a general expression-graph range engine.
+
+See [interval-ranges-tutorial.md](interval-ranges-tutorial.md) for a full
+measurement tutorial, [range-certification.md](range-certification.md) for the
+proof knowledge useful to general functions, and
+[interval-ranges-checklist.md](interval-ranges-checklist.md) for implemented
+coverage and follow-up work.
 
 ## Provider protocol
 

@@ -1,0 +1,72 @@
+## Certified propagation of exact rational measurement uncertainty.
+
+.Plugin.Load("numerics");
+
+rangeOptions := {=
+    endpointTolerance = 1/100000,
+    maxWork = 320,
+    maxSubintervals = 8
+};
+
+## A small-angle pendulum with L = 1.00 +/- 0.01 m and exact g = 9.81 m/s^2.
+length := 99/100:101/100;
+gravity := 981/100;
+root := .numerics.Range(.numerics.Sqrt(length/gravity), rangeOptions);
+pi := .numerics.Refine(.numerics.Pi(), {=
+    absoluteWidth = 1/100000,
+    maxWork = 160
+});
+period := 2*pi[:interval]*root[:interval];
+
+## A standardized reading known only to lie between -1 and 1.
+reading := (-1):1;
+probability := .numerics.Range(.numerics.NormalCDF(reading), {=
+    endpointTolerance = 1/10000,
+    maxWork = 500
+});
+density := .numerics.Range(.numerics.NormalPDF(reading), {=
+    endpointTolerance = 1/10000,
+    maxWork = 500
+});
+
+## Subdivision reduces repeated-variable dependency without sampling.
+dependentCoarse := .numerics.Range((x)->x-x, 1:2, {=
+    maxSubintervals = 1,
+    maxWork = 20
+});
+dependentSplit := .numerics.Range((x)->x-x, 1:2, {=
+    maxSubintervals = 16,
+    maxWork = 160
+});
+
+## A nested interval image and a certified trigonometric extremum.
+wave := .numerics.Range((x)->.numerics.Sin(x), 1:2, rangeOptions);
+
+## Pole handling distinguishes a proof from insufficient work.
+pole := .numerics.Range(.numerics.Tan(1:2), {=
+    endpointTolerance = 1/1000,
+    maxWork = 80
+});
+
+{=
+    pendulum = {=
+        measuredLength = length,
+        certifiedPeriodSeconds = period
+    },
+    standardNormal = {=
+        probabilityRange = probability[:interval],
+        densityRange = density[:interval]
+    },
+    dependency = {=
+        onePiece = dependentCoarse[:interval],
+        sixteenPieces = dependentSplit[:interval]
+    },
+    wave = {=
+        range = wave[:interval],
+        certified = wave[:certified]
+    },
+    tangentPole = {=
+        status = pole[:status],
+        diagnostics = pole[:diagnostics]
+    }
+};

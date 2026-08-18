@@ -24,6 +24,24 @@ operations can remain in Core or a more specific plugin.
 | Normal distribution | `.stats.NormalPDF`, `.stats.NormalCDF`, `.stats.NormalQuantile` | Statistics façade over Numerics |
 | Certified constants used by unary functions | `Pi()`, `EulerGamma()` | Numerics |
 
+## Certified `RationalInterval` coverage
+
+The following unary families also accept a set-valued `RationalInterval` and
+produce a range image consumable by `.numerics.Range`:
+
+- roots, exponentials, logarithms, and stable exponential/log forms;
+- circular and inverse-circular trigonometric functions;
+- hyperbolic and inverse-hyperbolic functions;
+- `Erf` and `Erfc`; and
+- normal PDF and normal CDF through the Numerics namespace.
+
+`Hypot`, `Atan2`, angle conversion, `Sinc`, normal quantile, Gamma/Beta,
+Lambert W, Zeta, and Bessel functions remain singleton-real APIs unless a
+specialized range proof is documented.  See
+[interval-ranges-tutorial.md](interval-ranges-tutorial.md) for usage and
+[interval-ranges-checklist.md](interval-ranges-checklist.md) for the maintained
+roadmap.
+
 ## Implemented domain notes
 
 - `Sinc(0)` is certified as its removable value `1`, including when zero arrives

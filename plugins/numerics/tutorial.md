@@ -108,6 +108,52 @@ Here epsilon requests enclosure width; it does not enlarge the target. An
 uncertified provider, including Float when interpreted as an intended real,
 produces a diagnostic undecided result rather than proving a relation.
 
+## Certified ranges for uncertain measurements
+
+A `RationalInterval` supplied to a supported elementary function denotes every
+input in that closed interval.  The multifunction returns a set-valued image;
+`Range` then proves one rational interval containing every output:
+
+```rix
+.Plugin.Load("numerics");
+
+image := .numerics.Sin(99/100:101/100);
+result := image.Range({=
+  endpointTolerance=1/1000000,
+  maxWork=240,
+  maxSubintervals=8
+});
+
+{: result[:status], result[:interval], result[:domainStatus] };
+```
+
+The endpoint tolerance controls numerical uncertainty in the outer bounds; it
+does not shrink the uncertainty in the measurement.  Monotonicity, symmetry,
+Taylor/Lipschitz bounds, and certified trigonometric landmarks provide the
+proofs.  Generic exact interval callbacks can use subdivision, including a
+callback that directly returns another supported interval image:
+
+```rix
+.Plugin.Load("numerics");
+
+dependent := .numerics.Range((x)->x-x, 1:2, {=
+  maxSubintervals=16,
+  maxWork=160
+});
+wave := .numerics.Range((x)->.numerics.Sin(x), 1:2, {=
+  endpointTolerance=1/10000,
+  maxSubintervals=8,
+  maxWork=320
+});
+
+{: dependent[:interval], wave[:interval] };
+```
+
+See [interval-ranges-tutorial.md](interval-ranges-tutorial.md) for measurement
+examples, pole/domain handling, hyperbolic and statistical ranges, and result
+interpretation.  [range-certification.md](range-certification.md) describes
+the certified knowledge most useful for arbitrary user functions.
+
 ## Arithmetic across real representations
 
 Every refinable singleton-real provider advertises the same semantic contract:

@@ -35,8 +35,14 @@ endpoints; it does not try to shrink uncertainty inherent in the measurement.
   `Log10`.
 - [x] `Sin` and `Cos` using exact rational Taylor bounds plus the global
   Lipschitz bound.
+- [x] Certified pi landmarks that tighten `Sin`/`Cos` to exact `-1` or `1`
+  when an extremum is proved inside the input.
 - [x] `Tan`, `Sec`, `Csc`, and `Cot` when their denominator range is certified
   away from zero.
+- [x] Hyperbolic and inverse-hyperbolic interval variants using monotonicity,
+  even symmetry, and exact real-domain boundaries.
+- [x] Monotone/even range variants for `Erf`, `Erfc`, normal PDF, and normal
+  CDF.
 - [x] Strict whole-input domain violations for logarithms, even roots, and
   inverse sine/cosine.
 - [x] Conservative `:unknown` results when a trigonometric pole cannot be
@@ -50,20 +56,25 @@ endpoints; it does not try to shrink uncertainty inherent in the measurement.
   policy.
 - [x] Preserve repeated-input correlation better through
   `.numerics.Range((x)->expression, interval, options)` subdivision.
-- [ ] Add critical-point detection for tighter `Sin`/`Cos` hulls without
-  subdivision.
-- [ ] Distinguish a proven pole crossing from the conservative
+- [x] Add critical-point detection for tighter `Sin`/`Cos` hulls without
+  relying only on subdivision.
+- [x] Distinguish a proven pole crossing from the conservative
   `:poleNotExcluded` result.
 - [ ] Add interval unions or extended endpoints for genuinely disconnected or
   unbounded ranges.
-- [ ] Allow generic subdivided functions to return nested Numerics interval
-  images; currently they must return an exact scalar or `RationalInterval`.
+- [x] Allow generic subdivided functions to return one nested Numerics interval
+  image directly.
+- [ ] Add a certified expression-graph range engine for arithmetic that
+  combines multiple interval images.
 
 ## Later function families
 
-- [ ] Add specialized hyperbolic and inverse-hyperbolic range variants.
-- [ ] Add certified range variants for special functions only where a
-  monotonicity, critical-point, or derivative-bound proof is available.
+- [x] Add specialized hyperbolic and inverse-hyperbolic range variants.
+- [x] Add an initial set of certified special/statistical range variants where
+  a monotonicity or symmetry proof is available (`Erf`, `Erfc`, normal PDF,
+  and normal CDF).
+- [ ] Extend special-function coverage only when a monotonicity,
+  critical-point, or derivative-bound proof is available.
 - [ ] Add multivariate box subdivision for correlated measurements.
 - [ ] Investigate affine arithmetic or Taylor models when ordinary interval
   subdivision remains too wide.
@@ -74,6 +85,17 @@ endpoints; it does not try to shrink uncertainty inherent in the measurement.
 - [x] Test exponential, logarithmic, root, circular, and inverse-circular
   containment.
 - [x] Test base changes and stable `Expm1`/`Log1p` forms.
+- [x] Test hyperbolic, error-function, and normal-distribution ranges.
+- [x] Test certified extrema, proved poles, and conservative unresolved poles.
+- [x] Test generic callbacks returning nested interval images.
 - [x] Test domain violations and pole uncertainty.
 - [x] Test subdivision tightening and bounded work.
 - [x] Keep existing singleton Numerics tests green.
+
+## Documentation
+
+- [x] Add a measurement-focused interval range tutorial.
+- [x] Add a runnable end-to-end measurement example.
+- [x] Document certified knowledge useful to arbitrary functions.
+- [x] Document the distinction between physical input uncertainty and
+  numerical endpoint tolerance.

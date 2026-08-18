@@ -280,16 +280,44 @@ describe("pure RiX Numerics plugin", () => {
         }
         const sine = entry(result.values[0], "interval");
         expect(sine.low.toNumber()).toBeLessThanOrEqual(Math.sin(1));
-        expect(sine.high.toNumber()).toBeGreaterThanOrEqual(1);
+        expect(sine.high.toString()).toBe("1");
         const cosine = entry(result.values[1], "interval");
         expect(cosine.low.toNumber()).toBeLessThanOrEqual(Math.cos(2));
         expect(cosine.high.toNumber()).toBeGreaterThanOrEqual(Math.cos(1));
         const tangent = entry(result.values[2], "interval");
         expect(tangent.low.toNumber()).toBeLessThanOrEqual(0);
         expect(tangent.high.toNumber()).toBeGreaterThanOrEqual(Math.tan(1));
-        expect(textValue(entry(result.values[3], "status"))).toBe("unknown");
+        expect(textValue(entry(result.values[3], "status"))).toBe("domainViolation");
         expect(entry(result.values[3], "certified")).toBeNull();
-        expect(entry(result.values[3], "diagnostics").values.map(textValue)).toContain("poleNotExcluded");
+        expect(entry(result.values[3], "diagnostics").values.map(textValue)).toContain("poleInInput");
+    });
+
+    test("trigonometric landmarks distinguish proven poles from unresolved ones", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("numerics");
+            extremum = .numerics.Range(.numerics.Cos((-1):1), {=
+                endpointTolerance=1/1000, maxWork=80, maxSubintervals=2
+            });
+            proven = .numerics.Range(.numerics.Tan(1:2), {=
+                endpointTolerance=1/100, maxWork=20, maxSubintervals=2
+            });
+            unresolved = .numerics.Range(.numerics.Tan(15707/10000:15708/10000), {=
+                endpointTolerance=1/100, maxWork=20, maxSubintervals=2
+            });
+            farExtremum = .numerics.Range(.numerics.Sin(102:103), {=
+                endpointTolerance=1/1000, maxWork=80, maxSubintervals=2
+            });
+            {: extremum, proven, unresolved, farExtremum }
+        `, runtime());
+
+        expect(entry(result.values[0], "interval").high.toString()).toBe("1");
+        expect(entry(entry(result.values[0], "evidence"), "landmarks").entries
+            .get("hasmaximum").value).toBe(1n);
+        expect(textValue(entry(result.values[1], "status"))).toBe("domainViolation");
+        expect(entry(result.values[1], "diagnostics").values.map(textValue)).toEqual(["poleInInput"]);
+        expect(textValue(entry(result.values[2], "status"))).toBe("unknown");
+        expect(entry(result.values[2], "diagnostics").values.map(textValue)).toEqual(["poleNotExcluded"]);
+        expect(entry(result.values[3], "interval").high.toString()).toBe("1");
     });
 
     test("range evaluation reports whole-input domain violations", () => {
@@ -315,7 +343,10 @@ describe("pure RiX Numerics plugin", () => {
             .Plugin.Load("numerics");
             coarse = .numerics.Range((x)->x-x, 1:2, {= maxSubintervals=1, maxWork=20 });
             subdivided = .numerics.Range((x)->x-x, 1:2, {= maxSubintervals=8, maxWork=80 });
-            {: coarse, subdivided }
+            nested = .numerics.Range((x)->.numerics.Sin(x), 1:2, {=
+                endpointTolerance=1/1000, maxSubintervals=4, maxWork=160
+            });
+            {: coarse, subdivided, nested }
         `, runtime());
         const coarse = entry(result.values[0], "interval");
         const subdivided = entry(result.values[1], "interval");
@@ -324,6 +355,10 @@ describe("pure RiX Numerics plugin", () => {
         expect(subdivided.containsValue(new Rational(0n))).toBe(true);
         expect(subdivided.high.subtract(subdivided.low)
             .lessThan(coarse.high.subtract(coarse.low))).toBe(true);
+        const nested = entry(result.values[2], "interval");
+        expect(entry(result.values[2], "certified").value).toBe(1n);
+        expect(nested.low.toNumber()).toBeLessThanOrEqual(Math.sin(1));
+        expect(nested.high.toString()).toBe("1");
     });
 
     test("base changes, stable forms, and inverse trig preserve range semantics", () => {
@@ -348,5 +383,76 @@ describe("pure RiX Numerics plugin", () => {
         const acoshaped = entry(result.values[4], "interval");
         expect(acoshaped.low.toNumber()).toBeLessThanOrEqual(Math.acos(0.5));
         expect(acoshaped.high.toNumber()).toBeGreaterThanOrEqual(Math.acos(-0.5));
+    });
+
+    test("hyperbolic interval variants use monotonicity, symmetry, and strict poles", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("numerics");
+            {:
+                .numerics.Range(.numerics.Sinh((-1):1), {= endpointTolerance=1/1000, maxWork=300 }),
+                .numerics.Range(.numerics.Cosh((-1):1), {= endpointTolerance=1/1000, maxWork=300 }),
+                .numerics.Range(.numerics.Tanh((-1):1), {= endpointTolerance=1/1000, maxWork=300 }),
+                .numerics.Range(.numerics.Sech((-1):1), {= endpointTolerance=1/1000, maxWork=300 }),
+                .numerics.Range(.numerics.Csch((-1):1)),
+                .numerics.Range(.numerics.Asinh((-1):1), {= endpointTolerance=1/1000, maxWork=300 }),
+                .numerics.Range(.numerics.Acosh(1:2), {= endpointTolerance=1/1000, maxWork=300 }),
+                .numerics.Range(.numerics.Atanh((-1/2):(1/2)), {= endpointTolerance=1/1000, maxWork=300 })
+            }
+        `, runtime());
+
+        for (const range of [...result.values.slice(0, 4), ...result.values.slice(5)]) {
+            expect(entry(range, "certified").value).toBe(1n);
+        }
+        expect(entry(result.values[0], "interval").low.toNumber()).toBeLessThanOrEqual(Math.sinh(-1));
+        expect(entry(result.values[0], "interval").high.toNumber()).toBeGreaterThanOrEqual(Math.sinh(1));
+        expect(entry(result.values[1], "interval").low.lessThanOrEqual(new Rational(1n))).toBe(true);
+        expect(entry(result.values[1], "interval").high.toNumber()).toBeGreaterThanOrEqual(Math.cosh(1));
+        expect(entry(result.values[3], "interval").high.greaterThanOrEqual(new Rational(1n))).toBe(true);
+        expect(textValue(entry(result.values[4], "status"))).toBe("domainViolation");
+        expect(entry(result.values[4], "diagnostics").values.map(textValue)).toEqual(["poleInInput"]);
+    });
+
+    test("monotone and even statistical functions have certified interval variants", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("numerics");
+            {:
+                .numerics.Range(.numerics.Erf((-1):1), {= endpointTolerance=1/1000, maxWork=400 }),
+                .numerics.Range(.numerics.Erfc((-1):1), {= endpointTolerance=1/1000, maxWork=400 }),
+                .numerics.Range(.numerics.NormalPDF((-1):1), {= endpointTolerance=1/1000, maxWork=400 }),
+                .numerics.Range(.numerics.NormalCDF((-1):1), {= endpointTolerance=1/1000, maxWork=400 })
+            }
+        `, runtime());
+
+        expect(result.values.every((range) => entry(range, "certified")?.value === 1n)).toBe(true);
+        const erf = entry(result.values[0], "interval");
+        expect(erf.low.lessThanOrEqual(new Rational(-84n, 100n))).toBe(true);
+        expect(erf.high.greaterThanOrEqual(new Rational(84n, 100n))).toBe(true);
+        const density = entry(result.values[2], "interval");
+        expect(density.high.greaterThanOrEqual(new Rational(39n, 100n))).toBe(true);
+        const distribution = entry(result.values[3], "interval");
+        expect(distribution.low.lessThanOrEqual(new Rational(16n, 100n))).toBe(true);
+        expect(distribution.high.greaterThanOrEqual(new Rational(84n, 100n))).toBe(true);
+    });
+
+    test("composite range endpoints never certify before minimum refinement work", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("numerics");
+            {:
+                .numerics.Range(.numerics.Exp(1:2), {= maxWork=0 }),
+                .numerics.Range(.numerics.Log(1:2), {= maxWork=0 }),
+                .numerics.Range(.numerics.Sinh((-1):1), {= maxWork=0 }),
+                .numerics.Range(.numerics.Cosh((-1):1), {= maxWork=0 }),
+                .numerics.Range(.numerics.Erf((-1):1), {= maxWork=0 }),
+                .numerics.Range(.numerics.NormalCDF((-1):1), {= maxWork=0 })
+            }
+        `, runtime());
+
+        for (const range of result.values) {
+            expect(textValue(entry(range, "status"))).toBe("unknown");
+            expect(entry(range, "certified")).toBeNull();
+            expect(entry(range, "interval")).toBeNull();
+            expect(entry(range, "diagnostics").values.map(textValue))
+                .toEqual(["rangeReductionBudgetExhausted"]);
+        }
     });
 });

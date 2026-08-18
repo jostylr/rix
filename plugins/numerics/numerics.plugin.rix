@@ -3299,7 +3299,10 @@ NumericsRangeResult(image, request, interval, achievedTolerance, goalMet, iterat
     };
 };
 
-NumericsRangeUnknown(image, request, reason, domainStatus ?= :notCertified) -> {=
+NumericsRangeUnknown(
+    image, request, reason, domainStatus ?= :notCertified,
+    iterations ?= 0, evidence ?= _
+) -> {=
     valueKind=:rangeEnclosure,
     schema="rix.numerics.range-enclosure@1",
     status=domainStatus == :domainViolation ?: :domainViolation ?_ :unknown,
@@ -3315,11 +3318,38 @@ NumericsRangeUnknown(image, request, reason, domainStatus ?= :notCertified) -> {
     rangeWidth=_,
     evidenceLevel=:proof,
     backend=:numerics,
-    work={= calls=0, iterations=0, maxCalls=request[:work][:maxCalls], exhausted=_ },
+    work={=
+        calls=iterations,
+        iterations=iterations,
+        maxCalls=request[:work][:maxCalls],
+        maxIterations=request[:work][:maxIterations],
+        exhausted=_
+    },
     diagnostics=[reason],
-    evidence={= kind=:unresolvedRange, reason=reason },
+    evidence=evidence == _ ?: {= kind=:unresolvedRange, reason=reason } ?_ evidence,
     source=image[:provenance]
 };
+
+NumericsRangeRefinablePointBounds(value, tolerance, maxIterations) ->
+    maxIterations >= 4
+      ?: {;
+          capabilities = @value.NumericsCapabilities();
+          result = @value.Refine(.RefinementRequest({=
+              absoluteWidth=@tolerance,
+              maxWork=@maxIterations,
+              maxCalls=@maxIterations,
+              maxIterations=@maxIterations,
+              trace=_
+          }, :refine, capabilities));
+          certified = result[:certified] && (result[:interval] ? :RationalInterval);
+          {=
+              interval=result[:interval],
+              ready=certified,
+              goalMet=certified && result[:goalMet],
+              iterations=NumericsCalls(result)
+          };
+      }
+      ?_ {= interval=_, ready=_, goalMet=_, iterations=0 };
 
 NumericsRangePointBounds(kind, value, tolerance, maxIterations, parameters) -> {?
     kind == :naturalExp ? NumericsExpRationalBounds(value, tolerance, maxIterations);
@@ -3334,6 +3364,45 @@ NumericsRangePointBounds(kind, value, tolerance, maxIterations, parameters) -> {
     kind == :arctangent ? NumericsAtanRationalBounds(value, tolerance, maxIterations);
     kind == :positivePower ? NumericsPositivePowerRationalBounds(
         parameters[:base], value, tolerance, maxIterations
+    );
+    kind == :hyperbolicSine ? NumericsRangeRefinablePointBounds(
+        NumericsSinhScalar(value), tolerance, maxIterations
+    );
+    kind == :hyperbolicCosine ? NumericsRangeRefinablePointBounds(
+        NumericsCoshScalar(value), tolerance, maxIterations
+    );
+    kind == :hyperbolicTangent ? NumericsRangeRefinablePointBounds(
+        NumericsTanhScalar(value), tolerance, maxIterations
+    );
+    kind == :hyperbolicSecant ? NumericsRangeRefinablePointBounds(
+        NumericsSechScalar(value), tolerance, maxIterations
+    );
+    kind == :hyperbolicCosecant ? NumericsRangeRefinablePointBounds(
+        NumericsCschScalar(value), tolerance, maxIterations
+    );
+    kind == :hyperbolicCotangent ? NumericsRangeRefinablePointBounds(
+        NumericsCothScalar(value), tolerance, maxIterations
+    );
+    kind == :inverseHyperbolicSine ? NumericsRangeRefinablePointBounds(
+        NumericsAsinhScalar(value), tolerance, maxIterations
+    );
+    kind == :inverseHyperbolicCosine ? NumericsRangeRefinablePointBounds(
+        NumericsAcoshScalar(value), tolerance, maxIterations
+    );
+    kind == :inverseHyperbolicTangent ? NumericsRangeRefinablePointBounds(
+        NumericsAtanhScalar(value), tolerance, maxIterations
+    );
+    kind == :errorFunction ? NumericsRangeRefinablePointBounds(
+        NumericsErfScalar(value), tolerance, maxIterations
+    );
+    kind == :complementaryErrorFunction ? NumericsRangeRefinablePointBounds(
+        NumericsErfcScalar(value), tolerance, maxIterations
+    );
+    kind == :normalPDF ? NumericsRangeRefinablePointBounds(
+        NumericsNormalPDFScalar(value), tolerance, maxIterations
+    );
+    kind == :normalCDF ? NumericsRangeRefinablePointBounds(
+        NumericsNormalCDFScalar(value), tolerance, maxIterations
     );
     .Error("Unsupported certified interval endpoint function")
 };
@@ -3358,8 +3427,7 @@ NumericsLog1pRationalBounds(value, tolerance, maxIterations) -> {;
     };
 };
 
-NumericsRangeMonotone(image, request, decreasing ?= _) -> {;
-    input = image[:input];
+NumericsRangeMonotoneOnReady(image, request, input, decreasing ?= _) -> {;
     tolerance = request[:endpointTolerance];
     maxIterations = request[:work][:maxIterations];
     halfBudget = maxIterations // 2;
@@ -3375,20 +3443,45 @@ NumericsRangeMonotone(image, request, decreasing ?= _) -> {;
           image[:kind], highInput, tolerance/2,
           maxIterations-halfBudget, image[:parameters]
       );
-    interval = lowBounds[:interval].Low():highBounds[:interval].High();
-    lowGoal = NumericsRangeBoundsGoal(lowBounds, tolerance/2);
-    highGoal = NumericsRangeBoundsGoal(highBounds, tolerance/2);
-    achieved = .Max(lowBounds[:interval].Width(), highBounds[:interval].Width());
     iterations = lowBounds[:iterations]
       + (sameEndpoint ?: 0 ?_ highBounds[:iterations]);
     ready = lowBounds[:ready] && highBounds[:ready];
     ready
-      ?: NumericsRangeResult(image, request, interval, achieved, lowGoal && highGoal, iterations, {=
-          kind=:monotoneEndpointBounds,
-          property=:rangeContainment,
-          direction=decreasing ?: :decreasing ?_ :increasing
-      })
-      ?_ NumericsRangeUnknown(image, request, :rangeReductionBudgetExhausted);
+      ?: {;
+          interval = @lowBounds[:interval].Low():@highBounds[:interval].High();
+          lowGoal = NumericsRangeBoundsGoal(@lowBounds, @tolerance/2);
+          highGoal = NumericsRangeBoundsGoal(@highBounds, @tolerance/2);
+          achieved = .Max(
+              @lowBounds[:interval].Width(), @highBounds[:interval].Width()
+          );
+          NumericsRangeResult(
+              @image, @request, interval, achieved, lowGoal && highGoal,
+              @iterations, {=
+                  kind=:monotoneEndpointBounds,
+                  property=:rangeContainment,
+                  direction=@decreasing ?: :decreasing ?_ :increasing
+              }
+          );
+      }
+      ?_ NumericsRangeUnknown(
+          image, request, :rangeReductionBudgetExhausted, :notCertified, iterations
+      );
+};
+
+NumericsRangeMonotoneOn(image, request, input, decreasing ?= _) ->
+    request[:work][:maxIterations] >= 2
+      ?: NumericsRangeMonotoneOnReady(image, request, input, decreasing)
+      ?_ NumericsRangeUnknown(
+          image, request, :rangeReductionBudgetExhausted, :notCertified, 0
+      );
+
+NumericsRangeMonotone(image, request, decreasing ?= _) ->
+    NumericsRangeMonotoneOn(image, request, image[:input], decreasing);
+
+NumericsRangeEven(image, request, decreasing ?= _) -> {;
+    input = image[:input];
+    absoluteInput = NumericsIntervalMinAbs(input):NumericsIntervalMaxAbs(input);
+    NumericsRangeMonotoneOn(image, request, absoluteInput, decreasing);
 };
 
 NumericsRangeTrigBounds(input, tolerance, maxIterations, kind) -> {;
@@ -3443,35 +3536,126 @@ NumericsRangeTrigPartitionBounds(input, tolerance, maxIterations, kind, subinter
     };
 };
 
+NumericsRangeContainsEnclosedPoint(input, point) ->
+    point.Low() >= input.Low() && point.High() <= input.High();
+
+## Locate certified sine/cosine extrema and zeros.  Machin bounds enclose pi;
+## a landmark is claimed only when its complete rational enclosure lies in the
+## input.  Wide intervals use pi<4 to prove that a complete period/zero spacing
+## must occur without enumerating a large number of candidates.
+NumericsRangeTrigLandmarks(input, tolerance, maxIterations, kind) -> {;
+    width = input.Width();
+    hasMinimum := width >= 8;
+    hasMaximum := width >= 8;
+    hasZero := width >= 4;
+    piInterval := _;
+    iterations := 0;
+    !(hasMinimum && hasMaximum && hasZero)
+      ?: {;
+          pi = NumericsPiRationalBounds(@tolerance, @maxIterations);
+          @piInterval = pi[:interval];
+          @iterations = pi[:iterations];
+          lowerExtremum = .Min(@input.Low()/6, @input.Low()/8).Floor()-2;
+          upperExtremum = .Max(@input.High()/6, @input.High()/8).Ceil()+2;
+          {@ index=@lowerExtremum; index <= @upperExtremum;
+             {;
+                 sine = @kind == :sine;
+                 maximumCoefficient = sine ?: 1/2+2*index ?_ 2*index;
+                 minimumCoefficient = sine ?: -1/2+2*index ?_ 1+2*index;
+                 maximumPoint = @piInterval*maximumCoefficient;
+                 minimumPoint = @piInterval*minimumCoefficient;
+                 @hasMaximum = @hasMaximum
+                   || NumericsRangeContainsEnclosedPoint(@input, maximumPoint);
+                 @hasMinimum = @hasMinimum
+                   || NumericsRangeContainsEnclosedPoint(@input, minimumPoint);
+             };
+             index += 1
+          };
+          !@hasZero
+            ?: {;
+                lowerZero = .Min(@input.Low()/3, @input.Low()/4).Floor()-2;
+                upperZero = .Max(@input.High()/3, @input.High()/4).Ceil()+2;
+                {@ index=@lowerZero; index <= @upperZero;
+                   {;
+                       sine = @kind == :sine;
+                       zeroCoefficient = sine ?: index ?_ 1/2+index;
+                       zeroPoint = @piInterval*zeroCoefficient;
+                       @hasZero = @hasZero
+                         || NumericsRangeContainsEnclosedPoint(@input, zeroPoint);
+                   };
+                   index += 1
+                };
+            };
+      };
+    {=
+        hasMinimum=hasMinimum,
+        hasMaximum=hasMaximum,
+        hasZero=hasZero,
+        piInterval=piInterval,
+        iterations=iterations,
+        method=:certifiedPiLandmarks
+    };
+};
+
 NumericsRangeTrig(image, request) -> {;
+    maxIterations = request[:work][:maxIterations];
+    landmarkBudget = maxIterations//4;
+    landmarks = NumericsRangeTrigLandmarks(
+        image[:input], request[:endpointTolerance], landmarkBudget, image[:kind]
+    );
     bounds = NumericsRangeTrigPartitionBounds(
         image[:input], request[:endpointTolerance],
-        request[:work][:maxIterations], image[:kind], NumericsRangeSubdivisionCount(request)
+        maxIterations-landmarkBudget, image[:kind], NumericsRangeSubdivisionCount(request)
     );
+    interval = (landmarks[:hasMinimum] ?: -1 ?_ bounds[:interval].Low())
+      :(landmarks[:hasMaximum] ?: 1 ?_ bounds[:interval].High());
     NumericsRangeResult(
-        image, request, bounds[:interval], bounds[:achievedTolerance],
-        bounds[:goalMet], bounds[:iterations], {=
+        image, request, interval, bounds[:achievedTolerance],
+        bounds[:goalMet], bounds[:iterations]+landmarks[:iterations], {=
             kind=:rationalTaylorWithGlobalLipschitzLift,
             property=:rangeContainment,
             lipschitzConstant=1,
-            subintervals=bounds[:subintervals]
+            subintervals=bounds[:subintervals],
+            landmarks=landmarks
         }
     );
 };
 
 NumericsRangeQuotientTrig(image, request, numeratorKind, denominatorKind) -> {;
     maxIterations = request[:work][:maxIterations];
-    halfBudget = maxIterations//2;
+    landmarkBudget = maxIterations//5;
+    remaining = maxIterations-landmarkBudget;
+    halfBudget = remaining//2;
+    landmarks = NumericsRangeTrigLandmarks(
+        image[:input], request[:endpointTolerance], landmarkBudget, denominatorKind
+    );
     numerator = NumericsRangeTrigPartitionBounds(
         image[:input], request[:endpointTolerance]/2, halfBudget, numeratorKind,
         NumericsRangeSubdivisionCount(request)
     );
     denominator = NumericsRangeTrigPartitionBounds(
         image[:input], request[:endpointTolerance]/2,
-        maxIterations-halfBudget, denominatorKind, NumericsRangeSubdivisionCount(request)
+        remaining-halfBudget, denominatorKind, NumericsRangeSubdivisionCount(request)
     );
-    denominator[:interval].ContainsZero()
-      ?: NumericsRangeUnknown(image, request, :poleNotExcluded, :notCertified)
+    landmarks[:hasZero]
+      ?: NumericsRangeUnknown(
+          image, request, :poleInInput, :domainViolation,
+          landmarks[:iterations]+numerator[:iterations]+denominator[:iterations], {=
+              kind=:certifiedTrigPole,
+              property=:undefinedPointInInput,
+              denominator=denominatorKind,
+              landmarks=landmarks
+          }
+      )
+      ?_ denominator[:interval].ContainsZero()
+      ?: NumericsRangeUnknown(
+          image, request, :poleNotExcluded, :notCertified,
+          landmarks[:iterations]+numerator[:iterations]+denominator[:iterations], {=
+              kind=:unresolvedTrigPole,
+              denominator=denominatorKind,
+              landmarks=landmarks
+          }
+      )
       ?_ {;
           interval = @numerator[:interval]/@denominator[:interval];
           achieved = .Max(
@@ -3480,29 +3664,54 @@ NumericsRangeQuotientTrig(image, request, numeratorKind, denominatorKind) -> {;
           NumericsRangeResult(
               @image, @request, interval, achieved,
               @numerator[:goalMet] && @denominator[:goalMet],
-              @numerator[:iterations]+@denominator[:iterations], {=
+              @landmarks[:iterations]
+                + @numerator[:iterations]+@denominator[:iterations], {=
                   kind=:certifiedTrigQuotient,
                   property=:rangeContainment,
-                  denominatorSeparatedFromZero=1
+                  denominatorSeparatedFromZero=1,
+                  landmarks=@landmarks
               }
           );
       };
 };
 
 NumericsRangeReciprocalTrig(image, request, denominatorKind) -> {;
+    maxIterations = request[:work][:maxIterations];
+    landmarkBudget = maxIterations//5;
+    landmarks = NumericsRangeTrigLandmarks(
+        image[:input], request[:endpointTolerance], landmarkBudget, denominatorKind
+    );
     denominator = NumericsRangeTrigPartitionBounds(
         image[:input], request[:endpointTolerance],
-        request[:work][:maxIterations], denominatorKind, NumericsRangeSubdivisionCount(request)
+        maxIterations-landmarkBudget, denominatorKind, NumericsRangeSubdivisionCount(request)
     );
-    denominator[:interval].ContainsZero()
-      ?: NumericsRangeUnknown(image, request, :poleNotExcluded, :notCertified)
+    landmarks[:hasZero]
+      ?: NumericsRangeUnknown(
+          image, request, :poleInInput, :domainViolation,
+          landmarks[:iterations]+denominator[:iterations], {=
+              kind=:certifiedTrigPole,
+              property=:undefinedPointInInput,
+              denominator=denominatorKind,
+              landmarks=landmarks
+          }
+      )
+      ?_ denominator[:interval].ContainsZero()
+      ?: NumericsRangeUnknown(
+          image, request, :poleNotExcluded, :notCertified,
+          landmarks[:iterations]+denominator[:iterations], {=
+              kind=:unresolvedTrigPole,
+              denominator=denominatorKind,
+              landmarks=landmarks
+          }
+      )
       ?_ NumericsRangeResult(
           image, request, (1:1)/denominator[:interval],
           denominator[:achievedTolerance], denominator[:goalMet],
-          denominator[:iterations], {=
+          landmarks[:iterations]+denominator[:iterations], {=
               kind=:certifiedReciprocalTrig,
               property=:rangeContainment,
-              denominatorSeparatedFromZero=1
+              denominatorSeparatedFromZero=1,
+              landmarks=landmarks
           }
       );
 };
@@ -3613,16 +3822,51 @@ NumericsRangeInverse(image, request, decreasing ?= _) ->
           image, request, :inverseTrigDomainViolation, :domainViolation
       );
 
-NumericsRangePiece(value, request, maxWork) -> {?
-    value ? :RationalInterval ? {=
+NumericsRangeZeroPole(image, request) ->
+    image[:input].ContainsZero()
+      ?: NumericsRangeUnknown(image, request, :poleInInput, :domainViolation, 0, {=
+          kind=:exactRationalPole,
+          property=:undefinedPointInInput,
+          point=0
+      })
+      ?_ NumericsRangeMonotone(image, request, 1);
+
+NumericsRangeInverseHyperbolicCosine(image, request) ->
+    image[:input].Low() >= 1
+      ?: NumericsRangeMonotone(image, request)
+      ?_ NumericsRangeUnknown(
+          image, request, :inverseHyperbolicDomainViolation, :domainViolation
+      );
+
+NumericsRangeInverseHyperbolicTangent(image, request) ->
+    image[:input].Low() > -1 && image[:input].High() < 1
+      ?: NumericsRangeMonotone(image, request)
+      ?_ NumericsRangeUnknown(
+          image, request, :inverseHyperbolicDomainViolation, :domainViolation
+      );
+
+NumericsRangePiece(value, request, maxWork) -> {;
+    intervalImage = (value ? :Map)
+      ?: value[:valueKind] == :numericsIntervalImage
+      ?_ _;
+    {?
+      intervalImage ? NumericsRange(value, {=
+            endpointTolerance=request[:endpointTolerance],
+            maxWork=maxWork,
+            maxCalls=maxWork,
+            maxIterations=maxWork,
+            maxSubintervals=1,
+            trace=request[:trace]
+        });
+      value ? :RationalInterval ? {=
         interval=value,
         certified=1,
         goalMet=1,
         achievedEndpointTolerance=0,
         iterations=0,
         domainStatus=:allDefined
-    };
-    (value ~: :Rational) != _ ? {;
+      };
+      (value ~: :Rational) != _ ? {;
         exact = @value ~!: :Rational;
         {=
             interval=exact:exact,
@@ -3632,8 +3876,9 @@ NumericsRangePiece(value, request, maxWork) -> {?
             iterations=0,
             domainStatus=:allDefined
         };
+      };
+      .Error("Subdivided Range functions must currently return an exact scalar, RationalInterval, or Numerics interval image")
     };
-    .Error("Subdivided Range functions must currently return an exact scalar or RationalInterval")
 };
 
 NumericsFunctionRange(function, input, options ?= {= }) -> {;
@@ -3699,7 +3944,11 @@ NumericsFunctionRange(function, input, options ?= {= }) -> {;
       )
       ?_ NumericsRangeUnknown(
           descriptor, request,
-          failure[:diagnostics] == _ ?: :rangePieceUnresolved ?_ failure[:diagnostics],
+          failure[:diagnostics] == _
+            ?: :rangePieceUnresolved
+            ?_ ((failure[:diagnostics] ? :Array)
+                ?: failure[:diagnostics][1]
+                ?_ failure[:diagnostics]),
           failure[:domainStatus] == _ ?: :notCertified ?_ failure[:domainStatus]
       );
 };
@@ -3737,6 +3986,21 @@ NumericsRange(image, options ?= {= }) -> {;
       kind == :arcsine ? NumericsRangeInverse(image, request);
       kind == :arccosine ? NumericsRangeInverse(image, request, 1);
       kind == :arctangent ? NumericsRangeMonotone(image, request);
+      kind == :hyperbolicSine ? NumericsRangeMonotone(image, request);
+      kind == :hyperbolicCosine ? NumericsRangeEven(image, request);
+      kind == :hyperbolicTangent ? NumericsRangeMonotone(image, request);
+      kind == :hyperbolicSecant ? NumericsRangeEven(image, request, 1);
+      kind == :hyperbolicCosecant ? NumericsRangeZeroPole(image, request);
+      kind == :hyperbolicCotangent ? NumericsRangeZeroPole(image, request);
+      kind == :inverseHyperbolicSine ? NumericsRangeMonotone(image, request);
+      kind == :inverseHyperbolicCosine ?
+        NumericsRangeInverseHyperbolicCosine(image, request);
+      kind == :inverseHyperbolicTangent ?
+        NumericsRangeInverseHyperbolicTangent(image, request);
+      kind == :errorFunction ? NumericsRangeMonotone(image, request);
+      kind == :complementaryErrorFunction ? NumericsRangeMonotone(image, request, 1);
+      kind == :normalPDF ? NumericsRangeEven(image, request, 1);
+      kind == :normalCDF ? NumericsRangeMonotone(image, request);
       NumericsRangeUnknown(image, request, :rangeFunctionUnsupported)
     };
 };
@@ -3860,30 +4124,86 @@ NumericsAtan2(y, x) -> NumericsAtan2Algorithm(y, x);
 
 NumericsHypot(x, y) -> NumericsNthRoot(x^2 + y^2, 2);
 
-NumericsSinh(value) -> (NumericsNaturalExp(value) - NumericsNaturalExp(-value)) / 2;
+NumericsSinhScalar(value) ->
+    (NumericsNaturalExp(value) - NumericsNaturalExp(-value)) / 2;
 
-NumericsCosh(value) -> (NumericsNaturalExp(value) + NumericsNaturalExp(-value)) / 2;
+NumericsCoshScalar(value) ->
+    (NumericsNaturalExp(value) + NumericsNaturalExp(-value)) / 2;
 
-NumericsTanh(value) -> {;
+NumericsTanhScalar(value) -> {;
     doubled = NumericsNaturalExp(2*value);
     (doubled - 1) / (doubled + 1);
 };
 
-NumericsSech(value) -> 1 / NumericsCosh(value);
+NumericsSechScalar(value) -> 1 / NumericsCoshScalar(value);
 
-NumericsCsch(value) -> 1 / NumericsSinh(value);
+NumericsCschScalar(value) -> 1 / NumericsSinhScalar(value);
 
-NumericsCoth(value) -> 1 / NumericsTanh(value);
+NumericsCothScalar(value) -> 1 / NumericsTanhScalar(value);
 
-NumericsAsinh(value) -> NumericsNaturalLog(
+NumericsAsinhScalar(value) -> NumericsNaturalLog(
     value + NumericsNthRoot(value^2 + 1, 2)
 );
 
-NumericsAcosh(value) -> NumericsNaturalLog(
+NumericsAcoshScalar(value) -> NumericsNaturalLog(
     value + NumericsNthRoot(value^2 - 1, 2)
 );
 
-NumericsAtanh(value) -> NumericsNaturalLog((1 + value) / (1 - value)) / 2;
+NumericsAtanhScalar(value) -> NumericsNaturalLog((1 + value) / (1 - value)) / 2;
+
+NumericsSinh = {>
+    (value) ?- [value ? :RationalInterval] /IntervalRange/ ->
+        NumericsIntervalImage(value, :hyperbolicSine),
+    (value) /CertifiedSingleton/ -> NumericsSinhScalar(value)
+};
+
+NumericsCosh = {>
+    (value) ?- [value ? :RationalInterval] /IntervalRange/ ->
+        NumericsIntervalImage(value, :hyperbolicCosine),
+    (value) /CertifiedSingleton/ -> NumericsCoshScalar(value)
+};
+
+NumericsTanh = {>
+    (value) ?- [value ? :RationalInterval] /IntervalRange/ ->
+        NumericsIntervalImage(value, :hyperbolicTangent),
+    (value) /CertifiedSingleton/ -> NumericsTanhScalar(value)
+};
+
+NumericsSech = {>
+    (value) ?- [value ? :RationalInterval] /IntervalRange/ ->
+        NumericsIntervalImage(value, :hyperbolicSecant),
+    (value) /CertifiedSingleton/ -> NumericsSechScalar(value)
+};
+
+NumericsCsch = {>
+    (value) ?- [value ? :RationalInterval] /IntervalRange/ ->
+        NumericsIntervalImage(value, :hyperbolicCosecant),
+    (value) /CertifiedSingleton/ -> NumericsCschScalar(value)
+};
+
+NumericsCoth = {>
+    (value) ?- [value ? :RationalInterval] /IntervalRange/ ->
+        NumericsIntervalImage(value, :hyperbolicCotangent),
+    (value) /CertifiedSingleton/ -> NumericsCothScalar(value)
+};
+
+NumericsAsinh = {>
+    (value) ?- [value ? :RationalInterval] /IntervalRange/ ->
+        NumericsIntervalImage(value, :inverseHyperbolicSine),
+    (value) /CertifiedSingleton/ -> NumericsAsinhScalar(value)
+};
+
+NumericsAcosh = {>
+    (value) ?- [value ? :RationalInterval] /IntervalRange/ ->
+        NumericsIntervalImage(value, :inverseHyperbolicCosine),
+    (value) /CertifiedSingleton/ -> NumericsAcoshScalar(value)
+};
+
+NumericsAtanh = {>
+    (value) ?- [value ? :RationalInterval] /IntervalRange/ ->
+        NumericsIntervalImage(value, :inverseHyperbolicTangent),
+    (value) /CertifiedSingleton/ -> NumericsAtanhScalar(value)
+};
 
 NumericsSinc(value) -> NumericsTrigAlgorithm(value, :sinc);
 
@@ -3891,12 +4211,38 @@ NumericsRadians(value) -> value * NumericsPiAlgorithm() / 180;
 
 NumericsDegrees(value) -> value * 180 / NumericsPiAlgorithm();
 
-NumericsErf(value) -> 2 * NumericsSpecialSeriesAlgorithm(value, :erfCore)
+NumericsErfScalar(value) -> 2 * NumericsSpecialSeriesAlgorithm(value, :erfCore)
   / NumericsNthRoot(NumericsPiAlgorithm(), 2);
 
-NumericsNormalPDF(value) -> NumericsNormalFunctionAlgorithm(value, :normalPDF);
+NumericsErfcScalar(value) -> 1-NumericsErfScalar(value);
 
-NumericsNormalCDF(value) -> NumericsNormalFunctionAlgorithm(value, :normalCDF);
+NumericsNormalPDFScalar(value) -> NumericsNormalFunctionAlgorithm(value, :normalPDF);
+
+NumericsNormalCDFScalar(value) -> NumericsNormalFunctionAlgorithm(value, :normalCDF);
+
+NumericsErf = {>
+    (value) ?- [value ? :RationalInterval] /IntervalRange/ ->
+        NumericsIntervalImage(value, :errorFunction),
+    (value) /CertifiedSingleton/ -> NumericsErfScalar(value)
+};
+
+NumericsErfc = {>
+    (value) ?- [value ? :RationalInterval] /IntervalRange/ ->
+        NumericsIntervalImage(value, :complementaryErrorFunction),
+    (value) /CertifiedSingleton/ -> NumericsErfcScalar(value)
+};
+
+NumericsNormalPDF = {>
+    (value) ?- [value ? :RationalInterval] /IntervalRange/ ->
+        NumericsIntervalImage(value, :normalPDF),
+    (value) /CertifiedSingleton/ -> NumericsNormalPDFScalar(value)
+};
+
+NumericsNormalCDF = {>
+    (value) ?- [value ? :RationalInterval] /IntervalRange/ ->
+        NumericsIntervalImage(value, :normalCDF),
+    (value) /CertifiedSingleton/ -> NumericsNormalCDFScalar(value)
+};
 
 NumericsNormalQuantile(probability) -> {;
     exact = probability ~: :Rational;
@@ -4729,7 +5075,7 @@ numericsNamespace._proto = {=
     Digamma = (self, value) -> NumericsDigamma(value),
     Trigamma = (self, value) -> NumericsTrigamma(value),
     Erf = (self, value) -> NumericsErf(value),
-    Erfc = (self, value) -> 1 - NumericsErf(value),
+    Erfc = (self, value) -> NumericsErfc(value),
     NormalPDF = (self, value) -> NumericsNormalPDF(value),
     NormalCDF = (self, value) -> NumericsNormalCDF(value),
     NormalQuantile = (self, probability) -> NumericsNormalQuantile(probability),

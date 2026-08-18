@@ -30,3 +30,8 @@ The JavaScript files under `parser/` are archived pre-1.0 parser design
 sketches. They use obsolete syntax and AST contracts and are not supported
 runnable examples. Current parser usage is covered by `documentation/parser/`
 and `tests/parser/`.
+
+`eval/measurement-ranges.rix` is the compact end-to-end example for certified
+propagation of rational measurement uncertainty. It covers a pendulum period,
+normal probability/density ranges, dependency-reducing subdivision, nested
+transcendental images, and proved pole handling.

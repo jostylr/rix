@@ -34,6 +34,40 @@ running time, and growth of Rational numerators and denominators. A
 `:budgetExhausted` result can still carry a valid certified interval; it means
 only that the requested width was not attained.
 
+## Range requests for set-valued inputs
+
+For `rix.numerics.range-enclosure@1`, the analogous guarantee is set
+containment:
+
+```text
+for every x in input, F(x) is in result.interval
+```
+
+when `certified=1` and `domainStatus=:allDefined`. `rangeWidth` includes the
+variation caused by the input measurement. `achievedEndpointTolerance`
+measures only the remaining numerical uncertainty in the computed outer
+boundaries, so it is neither expected nor desirable for the complete range
+width to approach `endpointTolerance`.
+
+Range performance has two largely independent controls:
+
+- `maxWork` bounds endpoint refinement, pi-landmark proofs, and other
+  proof-producing algorithms; and
+- `maxSubintervals` bounds exact rational subdivision used for dependency and
+  local tightness.
+
+More subdivision can reduce overestimation in expressions such as `x-x` or in
+Lipschitz lifts, but increases the number of endpoint problems. Specialized
+monotonicity, symmetry, critical-point, and pole knowledge is normally both
+tighter and cheaper than blind subdivision. A proved pole produces
+`:domainViolation`; insufficient work to prove or exclude one produces
+`:unknown`, never a finite guessed range.
+
+Composite singleton algorithms require a small amount of refinement before
+their endpoint enclosures are usable as range evidence. If the request budget
+is below that threshold, the range adapter returns `:unknown` with
+`:rangeReductionBudgetExhausted` rather than certifying an initial candidate.
+
 Current limitations matter:
 
 - elementary series near their range-reduced centers scale well;
