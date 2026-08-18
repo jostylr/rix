@@ -1092,8 +1092,8 @@ Tensor literals use an explicit shape header and row-major order:
 ```rix
 m := {:2x3: 1, 2, 3; 4, 5, 6 };
 m[2, 3]            ##@ == 6
-m[1, ::]           ##: tensor[3]
-m^^                ##: tensor[3x2]
+m[1, ::]           ##: shaped[3]
+m^^                ##: shaped[3x2]
 ##
 ```
 

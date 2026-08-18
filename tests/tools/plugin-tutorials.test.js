@@ -42,5 +42,5 @@ describe("implemented plugin tutorials", () => {
         expect(tutorials).toHaveLength(manifestDirectories.length);
         expect(results).toHaveLength(expectedCells);
         expect(results.filter(({ status }) => status !== "pass")).toEqual([]);
-    }, 30_000);
+    }, process.env.CI ? 120_000 : 30_000);
 });

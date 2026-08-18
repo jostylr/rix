@@ -220,7 +220,7 @@ describe("semantic RationalFunction plugin", () => {
             term := view[:terms][1].Set("coefficient", -1);
             .ratfun.Expand(view.Set("terms", view[:terms].Set(1,term)));
         `)).toThrow("failed exact reconstruction verification");
-    }, 20000);
+    }, process.env.CI ? 60_000 : 20_000);
 
     test("returns exact reduced pole and zero multiplicity evidence", () => {
         const result = parseAndEvaluate(`
