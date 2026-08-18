@@ -3,7 +3,7 @@ id: numerics
 description: Backend-neutral bounded enclosure and refinement orchestration.
 kind: rix
 mount: numerics
-exports: [Request, WorkPolicy, EffectiveLimits, Enclose, Refine, Sample, Range, WithRangeKnowledge, CheckRangeResult, Sign, RootCount, Capabilities, CheckResult, NthRoot, Sqrt, Cbrt, Hypot, Pow, Exp, Expm1, Log, Log1p, Ln, Log2, Log10, Pi, EulerGamma, Sin, Cos, Tan, Sec, Csc, Cot, Sinc, Asin, Acos, Atan, Atan2, Arcsin, Arccos, Arctan, Sinh, Cosh, Tanh, Sech, Csch, Coth, Asinh, Acosh, Atanh, Arsinh, Arcosh, Artanh, Radians, Degrees, Gamma, LogGamma, Beta, LogBeta, Digamma, Trigamma, Erf, Erfc, NormalPDF, NormalCDF, NormalQuantile, LambertW, BesselJ, BesselJ0, BesselJ1, BesselY, BesselY0, BesselY1, BesselI, BesselI0, BesselI1, BesselK, BesselK0, BesselK1, Zeta, Quadrature, Kantorovich]
+exports: [Request, WorkPolicy, EffectiveLimits, Enclose, Refine, Sample, Range, WithRangeKnowledge, RegisterRangeProvider, CheckRangeResult, Sign, RootCount, Capabilities, CheckResult, NthRoot, Sqrt, Cbrt, Hypot, Pow, Exp, Expm1, Log, Log1p, Ln, Log2, Log10, Pi, EulerGamma, Sin, Cos, Tan, Sec, Csc, Cot, Sinc, Asin, Acos, Atan, Atan2, Arcsin, Arccos, Arctan, Sinh, Cosh, Tanh, Sech, Csch, Coth, Asinh, Acosh, Atanh, Arsinh, Arcosh, Artanh, Radians, Degrees, Gamma, LogGamma, Beta, LogBeta, Digamma, Trigamma, Erf, Erfc, NormalPDF, NormalCDF, NormalQuantile, LambertW, BesselJ, BesselJ0, BesselJ1, BesselY, BesselY0, BesselY1, BesselI, BesselI0, BesselI1, BesselK, BesselK0, BesselK1, Zeta, Quadrature, Kantorovich]
 groups: [Numerics]
 permissions: []
 requires: [rix.oracle@1]
@@ -3921,7 +3921,51 @@ NumericsWithRangeKnowledge(function, knowledge) -> {;
     .ImmutableValue(wrapper);
 };
 
-NumericsRangeProviderValidation(result, knowledge, input, request) -> {;
+## Register trust-bearing direct range knowledge at the host capability
+## boundary. The host seals the normalized descriptor to this exact callable;
+## visible trust fields alone never satisfy validation. directRange may itself
+## be a RiX multifunction and therefore dispatch over supported input forms.
+NumericsRegisterRangeProvider(function, knowledge) -> {;
+    (knowledge ? :Map)
+      ?: _
+      ?_ .Error("numerics.RegisterRangeProvider expects a knowledge map");
+    functionId = NumericsOption(knowledge, "functionid", _);
+    functionId != _
+      ?: _
+      ?_ .Error("Trusted range registration requires a stable functionId");
+    directRange = NumericsOption(knowledge, "directrange", _);
+    directRange != _
+      ?: _
+      ?_ .Error("Trusted range registration currently requires directRange(input, request)");
+    provenance = NumericsOption(knowledge, "provenance", {=
+        provider=:trustedSessionRangeProvider,
+        functionId=functionId
+    });
+    normalized = {=
+        valueKind=:rangeProvider,
+        schema="rix.numerics.range-provider@1",
+        functionId=functionId,
+        operations=[:directRange],
+        directRange=directRange,
+        evidenceLevel=:trustedCapability,
+        declaredEvidenceLevel=NumericsOption(knowledge, "evidencelevel", :trustedCapability),
+        trust=:trustedCapability,
+        provenance=provenance
+    };
+    .Host.RegisterRangeProvider(function, normalized);
+    function;
+};
+
+NumericsRangeSourceFunction(function) ->
+    function.sourcefunction == _ ?: function ?_ function.sourcefunction;
+
+NumericsRangeKnowledge(function) -> {;
+    sourceFunction = NumericsRangeSourceFunction(function);
+    registered = .Host.FindRangeProvider(sourceFunction);
+    registered != _ ?: registered ?_ function.rangeknowledge;
+};
+
+NumericsRangeProviderValidation(result, knowledge, sourceFunction, input, request) -> {;
     resultMap = result ? :Map;
     knowledgeMap = knowledge ? :Map;
     schemaValid = resultMap
@@ -3962,8 +4006,10 @@ NumericsRangeProviderValidation(result, knowledge, input, request) -> {;
       ?: (goalMetClaim && achieved <= request[:endpointTolerance])
       ?_ (status == :budgetExhausted ?: !goalMetClaim ?_ 1);
     certifiedClaim = schemaValid && result[:certified] == 1;
-    trust = knowledgeMap ?: knowledge[:trust] ?_ _;
-    certificationAllowed = trust ? [:checkedEvidence, :trustedCapability];
+    trustedDescriptor = knowledgeMap
+      ?: .Host.RangeProviderTrusted(knowledge, sourceFunction)
+      ?_ _;
+    certificationAllowed = trustedDescriptor != _;
     certificationConsistent = !certifiedClaim
       || (certificationAllowed
           && rangeValid
@@ -4023,24 +4069,27 @@ NumericsRangeProviderValidation(result, knowledge, input, request) -> {;
             goal=goalConsistent,
             certification=certificationConsistent
         },
-        evidenceLevel=certificationAllowed ?: :trusted ?_ :heuristic
+        evidenceLevel=certificationAllowed ?: :trustedCapability ?_ :heuristic
     };
 };
 
 NumericsCheckRangeResult(result, function, input, options ?= {= }) -> {;
     rangeInput = input ~!: :RangeSet;
-    knowledge = function.rangeknowledge;
+    sourceFunction = NumericsRangeSourceFunction(function);
+    knowledge = NumericsRangeKnowledge(function);
     NumericsRangeProviderValidation(
-        result, knowledge, rangeInput, NumericsRangeRequest(options)
+        result, knowledge, sourceFunction, rangeInput, NumericsRangeRequest(options)
     );
 };
 
-NumericsDirectProviderRange(function, input, options ?= {= }) -> {;
+NumericsDirectProviderRange(function, knowledge, input, options ?= {= }) -> {;
     rangeInput = input ~!: :RangeSet;
     request = NumericsRangeRequest(options);
-    knowledge = function.rangeknowledge;
+    sourceFunction = NumericsRangeSourceFunction(function);
     raw = knowledge[:directRange](rangeInput, request);
-    validation = NumericsRangeProviderValidation(raw, knowledge, rangeInput, request);
+    validation = NumericsRangeProviderValidation(
+        raw, knowledge, sourceFunction, rangeInput, request
+    );
     descriptor = {=
         kind=knowledge[:functionId],
         input=rangeInput,
@@ -4163,12 +4212,14 @@ NumericsFunctionRange(function, input, options ?= {= }) -> {;
       );
 };
 
-NumericsRangeInputDispatch(value, input, options) ->
-    value.rangeknowledge == _
+NumericsRangeInputDispatch(value, input, options) -> {;
+    knowledge = NumericsRangeKnowledge(value);
+    knowledge == _
       ?: (input ? :RationalInterval
             ?: NumericsFunctionRange(value, input, options)
             ?_ .Error("Generic function Range currently needs one closed RationalInterval; call Split() and range the components, or attach a direct range provider for a RationalIntervalSet"))
-      ?_ NumericsDirectProviderRange(value, input, options);
+      ?_ NumericsDirectProviderRange(value, knowledge, input, options);
+};
 
 NumericsRangeDispatch(value, intervalOrOptions ?= _, options ?= {= }) ->
     intervalOrOptions ? :RationalInterval
@@ -5249,6 +5300,8 @@ numericsNamespace._proto = {=
         NumericsRangeDispatch(value, intervalOrOptions, options),
     WithRangeKnowledge = (self, function, knowledge) ->
         NumericsWithRangeKnowledge(function, knowledge),
+    RegisterRangeProvider = (self, function, knowledge) ->
+        NumericsRegisterRangeProvider(function, knowledge),
     CheckRangeResult = (self, result, function, input, options ?= {= }) ->
         NumericsCheckRangeResult(result, function, input, options),
     Sign = (self, value, options ?= {= }) -> NumericsSign(value, options),

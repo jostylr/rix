@@ -10,7 +10,18 @@
  * separate concern: a host capability may belong to any import/sandbox group.
  */
 
+import { Integer } from "@ratmath/core";
 import { builtinMethodNamesForType, isCallableValue } from "./methods.js";
+import { isMultifunctionValue } from "./multifunction.js";
+
+// Trust is attached to the descriptor object by the host boundary, never to a
+// caller-controlled field.  The WeakMap also binds the descriptor to the exact
+// callable whose mathematical identity the provider claims to implement.
+const trustedRangeProviderDescriptors = new WeakMap();
+
+function isRangeProviderCallable(value) {
+    return isCallableValue(value) || isMultifunctionValue(value);
+}
 
 function firstLetterIsUppercase(name) {
     for (const character of String(name)) {
@@ -46,6 +57,81 @@ function rixStringList(value, label) {
     const items = value?.values;
     if (!Array.isArray(items)) throw new Error(`${label} must be a sequence of strings`);
     return items.map((item) => rixString(item, label));
+}
+
+function mapEntry(value, key) {
+    if (value?.type !== "map" || !(value.entries instanceof Map)) return undefined;
+    const wanted = String(key).toLowerCase();
+    for (const [candidate, item] of value.entries) {
+        if (String(candidate).toLowerCase() === wanted) return item;
+    }
+    return undefined;
+}
+
+function rangeProviderIdentityKey(value, label = "Range provider functionId") {
+    if (value?.type !== "string" || !value.value.trim()) {
+        throw new Error(`${label} must be a non-empty symbol or string`);
+    }
+    return value.value;
+}
+
+function trustedRangeProviderDescriptor(functionValue, provider, registryContext, evaluationContext) {
+    if (!isRangeProviderCallable(functionValue)) {
+        throw new Error(".Host.RegisterRangeProvider requires a callable function or multifunction");
+    }
+    if (provider?.type !== "map" || !(provider.entries instanceof Map)) {
+        throw new Error(".Host.RegisterRangeProvider requires a provider map");
+    }
+    const schema = mapEntry(provider, "schema");
+    if (schema?.type !== "string" || schema.value !== "rix.numerics.range-provider@1") {
+        throw new Error(".Host.RegisterRangeProvider requires schema rix.numerics.range-provider@1");
+    }
+    const functionId = mapEntry(provider, "functionId");
+    const identityKey = rangeProviderIdentityKey(functionId);
+    const directRange = mapEntry(provider, "directRange");
+    if (!isRangeProviderCallable(directRange)) {
+        throw new Error(".Host.RegisterRangeProvider requires callable directRange knowledge");
+    }
+    const provenance = mapEntry(provider, "provenance");
+    if (provenance?.type !== "map" || !(provenance.entries instanceof Map)) {
+        throw new Error(".Host.RegisterRangeProvider requires a provenance map");
+    }
+    if (registryContext._rangeProvidersById.has(identityKey)) {
+        throw new Error(`Range provider functionId '${identityKey}' is already registered`);
+    }
+    if (registryContext._rangeProvidersByFunction.has(functionValue)) {
+        throw new Error("A range provider is already registered for this callable");
+    }
+
+    const owner = evaluationContext?.getEnv?.("__plugin_owner__", null);
+    const registration = {
+        type: "map",
+        entries: new Map([
+            ["authority", stringValue(owner?.pluginId ? "pluginCapability" : "trustedSession")],
+            ...(owner?.pluginId ? [["pluginid", stringValue(owner.pluginId)]] : []),
+            ...(owner?.mount ? [["mount", stringValue(owner.mount)]] : []),
+        ]),
+    };
+    const entries = new Map(provider.entries);
+    entries.set("schema", stringValue("rix.numerics.range-provider@1"));
+    entries.set("functionid", functionId);
+    entries.set("directrange", directRange);
+    entries.set("evidencelevel", stringValue("trustedCapability"));
+    entries.set("trust", stringValue("trustedCapability"));
+    entries.set("provenance", provenance);
+    entries.set("registration", registration);
+    const descriptor = {
+        type: "map",
+        entries,
+        _ext: new Map([["immutable", new Integer(1n)]]),
+    };
+    registryContext._rangeProvidersById.set(identityKey, descriptor);
+    registryContext._rangeProvidersByFunction.set(functionValue, descriptor);
+    trustedRangeProviderDescriptors.set(descriptor, {
+        functionValue,
+        registryContext,
+    });
+    return descriptor;
 }
 
 function namespaceEntry(context, namespace) {
@@ -229,6 +315,47 @@ function namespaceEntry(context, namespace) {
         },
     });
 
+    if (namespace === "host") {
+        value._ext.set("REGISTERRANGEPROVIDER", {
+            type: "method_builtin",
+            name: "RegisterRangeProvider",
+            impl(args, evaluationContext) {
+                if (!canRegister(evaluationContext)) {
+                    throw new Error(".Host.RegisterRangeProvider is not permitted in this execution context");
+                }
+                return trustedRangeProviderDescriptor(
+                    args[1], args[2], registryContext, evaluationContext,
+                );
+            },
+        });
+        value._ext.set("FINDRANGEPROVIDER", {
+            type: "method_builtin",
+            name: "FindRangeProvider",
+            impl(args) {
+                const target = args[1];
+                if (isRangeProviderCallable(target)) {
+                    return registryContext._rangeProvidersByFunction.get(target) ?? null;
+                }
+                const identityKey = rangeProviderIdentityKey(target, ".Host.FindRangeProvider identity");
+                return registryContext._rangeProvidersById.get(identityKey) ?? null;
+            },
+        });
+        value._ext.set("RANGEPROVIDERTRUSTED", {
+            type: "method_builtin",
+            name: "RangeProviderTrusted",
+            impl(args) {
+                const descriptor = args[1];
+                const functionValue = args[2];
+                const seal = descriptor && trustedRangeProviderDescriptors.get(descriptor);
+                return seal
+                    && seal.functionValue === functionValue
+                    && registryContext._rangeProvidersByFunction.get(functionValue) === descriptor
+                    ? descriptor
+                    : null;
+            },
+        });
+    }
+
     value._ext.set("FIND", {
         type: "method_builtin",
         name: "Find",
@@ -310,7 +437,7 @@ export class SystemContext {
     /**
      * @param {Map<string, object>} capabilities
      * @param {boolean} frozen
-     * @param {{groups?: Map<string, Iterable<string>>|object, hostContext?: SystemContext, pluginCatalog?: object, rendererRegistry?: object}} options
+     * @param {{groups?: Map<string, Iterable<string>>|object, hostContext?: SystemContext, pluginCatalog?: object, rendererRegistry?: object, rangeProvidersByFunction?: Map<object, object>, rangeProvidersById?: Map<string, object>}} options
      */
     constructor(capabilities = new Map(), frozen = false, options = {}) {
         this._capabilities = new Map();
@@ -322,6 +449,8 @@ export class SystemContext {
         this._pluginCatalog = options.pluginCatalog || null;
         this._rendererRegistry = options.rendererRegistry || null;
         this._methodExtensions = options.methodExtensions || new Map();
+        this._rangeProvidersByFunction = options.rangeProvidersByFunction || new Map();
+        this._rangeProvidersById = options.rangeProvidersById || new Map();
 
         for (const [name, entry] of capabilities) {
             const normalised = normalizeCapabilityName(name);
@@ -755,6 +884,12 @@ export class SystemContext {
             pluginCatalog: this._pluginCatalog,
             rendererRegistry: this._rendererRegistry,
             methodExtensions: this._methodExtensions,
+            rangeProvidersByFunction: hostContext
+                ? hostContext._rangeProvidersByFunction
+                : new Map(this._rangeProvidersByFunction),
+            rangeProvidersById: hostContext
+                ? hostContext._rangeProvidersById
+                : new Map(this._rangeProvidersById),
         })._rebindManagementNamespaces();
     }
 

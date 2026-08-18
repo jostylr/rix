@@ -439,6 +439,98 @@ describe("pure RiX Numerics plugin", () => {
             .toBe("untrustedCertificationClaim");
     });
 
+    test("capability-registered direct providers certify through multifunction dispatch", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("numerics");
+            TrustedIdentityRange = {>
+                (input, request) ?- [input ? :RationalIntervalSet] /RangeSet/ -> {=
+                    valueKind=:rangeProviderResult,
+                    schema="rix.numerics.range-provider-result@1",
+                    functionId=:trustedIdentity,
+                    input=input,
+                    status=:enclosed,
+                    range=input,
+                    certified=1,
+                    domainStatus=:allDefined,
+                    goalMet=1,
+                    achievedEndpointTolerance=0,
+                    evidenceLevel=:trustedCapability,
+                    work={= calls=1, iterations=0 },
+                    evidence={= kind=:trustedIdentityInvariant }
+                },
+                (input, request) /Unsupported/ -> .Error("unexpected range-provider input")
+            };
+            Identity = (x)->x;
+            registered = .numerics.RegisterRangeProvider(Identity, {=
+                functionId=:trustedIdentity,
+                directRange=TrustedIdentityRange,
+                provenance={= plugin=:testTrustedProvider, invariant=:identityImage }
+            });
+            rangeInput = (0:1) \\/ (3:4);
+            answer = .numerics.Range(Identity, rangeInput);
+            raw = TrustedIdentityRange(rangeInput, {= });
+            checked = .numerics.CheckRangeResult(raw, Identity, rangeInput);
+
+            Other = (x)->x*x;
+            Other.rangeknowledge = .Host.FindRangeProvider(Identity);
+            forged = .numerics.Range(Other, 1:2);
+            {: registered == Identity, TrustedIdentityRange ? :Multifunction,
+               answer, checked, forged }
+        `, runtime());
+
+        expect(result.values[0].value).toBe(1n);
+        expect(result.values[1].value).toBe(1n);
+        const answer = result.values[2];
+        expect(entry(answer, "range")).toBeInstanceOf(RationalIntervalSet);
+        expect(entry(answer, "range").toString()).toBe("[0,1] U [3,4]");
+        expect(entry(answer, "interval")).toBeNull();
+        expect(entry(answer, "certified").value).toBe(1n);
+        expect(textValue(entry(answer, "evidenceLevel"))).toBe("trustedCapability");
+        expect(entry(result.values[3], "valid").value).toBe(1n);
+        expect(entry(result.values[3], "certifying").value).toBe(1n);
+        expect(textValue(entry(result.values[4], "status"))).toBe("unknown");
+        expect(entry(result.values[4], "certified")).toBeNull();
+        expect(entry(result.values[4], "diagnostics").values.map(textValue))
+            .toContain("untrustedCertificationClaim");
+    });
+
+    test("trusted range registrations reject duplicate callable and identity bindings", () => {
+        const duplicateIdentity = runtime();
+        expect(() => parseAndEvaluate(`
+            .Plugin.Load("numerics");
+            Provider = (input, request)->_;
+            F = (x)->x;
+            G = (x)->x+1;
+            .numerics.RegisterRangeProvider(F, {=
+                functionId=:oneIdentity,
+                directRange=Provider,
+                provenance={= plugin=:test }
+            });
+            .numerics.RegisterRangeProvider(G, {=
+                functionId=:oneIdentity,
+                directRange=Provider,
+                provenance={= plugin=:test }
+            });
+        `, duplicateIdentity)).toThrow("already registered");
+
+        const duplicateCallable = runtime();
+        expect(() => parseAndEvaluate(`
+            .Plugin.Load("numerics");
+            Provider = (input, request)->_;
+            F = (x)->x;
+            .numerics.RegisterRangeProvider(F, {=
+                functionId=:firstIdentity,
+                directRange=Provider,
+                provenance={= plugin=:test }
+            });
+            .numerics.RegisterRangeProvider(F, {=
+                functionId=:secondIdentity,
+                directRange=Provider,
+                provenance={= plugin=:test }
+            });
+        `, duplicateCallable)).toThrow("already registered for this callable");
+    });
+
     test("base changes, stable forms, and inverse trig preserve range semantics", () => {
         const result = parseAndEvaluate(`
             .Plugin.Load("numerics");

@@ -1,8 +1,8 @@
 # Certified ranges for general functions
 
-Status: design and implementation plan. The existing unary range functions are
-implemented; the general provider, proof-checking, and expression-graph parts
-described here are staged work.
+Status: active staged implementation. Unary range functions, exact range sets,
+scoped heuristic providers, and capability-gated trusted direct providers are
+implemented. Proof checking and expression-graph stages remain planned work.
 
 ## Need and intended use
 
@@ -212,10 +212,27 @@ callback that returns `certified=1` is rejected with
 trusted. This makes the surface useful for protocol development and candidate
 ranges without confusing self-assertion with proof.
 
-Two certifying paths remain to be implemented: checker-accepted theorem
-evidence and capability-gated trusted provider registration. The portable
-descriptor and result shapes live in `rix/schemas/range-provider.schema.json`
-and `rix/schemas/range-provider-result.schema.json`.
+`.numerics.RegisterRangeProvider(Function, knowledge)` implements the trusted
+direct-provider path for plugins and explicitly trusted sessions. It crosses
+`.Host.RegisterRangeProvider`, which requires the `Plugins` permission inside
+an imported script. The host normalizes and freezes the descriptor, binds it
+to the exact callable object, and records a non-portable trust seal. Numerics
+finds the provider automatically when that callable is ranged. A provider's
+`directRange` may be a RiX multifunction, so guarded variants can handle
+different exact input representations under one registered identity.
+
+The seal is intentionally not JSON and cannot be reconstructed from fields.
+Copying `trust=:trustedCapability`, reusing a sealed descriptor with a
+different callable, or repeating its stable `functionId` does not confer
+authority. Registration is rejected for duplicate callable or identity
+bindings. This establishes trusted provenance, not mathematical truth: the
+host or user granting `Plugins` authority is responsible for the provider's
+documented enclosure invariant.
+
+The remaining certifying path is checker-accepted theorem evidence. The
+portable descriptor and result shapes live in
+`rix/schemas/range-provider.schema.json` and
+`rix/schemas/range-provider-result.schema.json`.
 
 ## Knowledge forms and how they help
 
@@ -280,11 +297,12 @@ Two surfaces are useful and should eventually share the same validator:
 1. `WithRangeKnowledge(function, knowledge)` returns a scoped callable wrapper.
    This is the safe default because knowledge travels with the value and does
    not mutate global dispatch.
-2. `RegisterRangeProvider(functionIdentity, provider)` installs reusable
-   knowledge. This is capability-gated and intended for plugins or explicitly
-   trusted sessions.
+2. `RegisterRangeProvider(function, provider)` installs reusable knowledge for
+   that exact callable. This is capability-gated and intended for plugins or
+   explicitly trusted sessions.
 
-Illustrative RiX, not yet public API:
+The scoped API can carry several future knowledge operations; currently its
+implemented operation is `directRange`:
 
 ```rix
 safeF := .numerics.WithRangeKnowledge(F, {=

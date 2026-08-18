@@ -57,10 +57,14 @@ focused tests exist; design-only work remains unchecked.
 - [x] Implement a structural result validator in Numerics.
 - [x] Reject contradictory statuses and reject `certified=1` for heuristic-only
   chains.
-- [ ] Accept trusted direct providers through multifunction dispatch.
+- [x] Accept trusted direct providers through multifunction dispatch.
 - [x] Add `WithRangeKnowledge` scoped wrappers, forced to heuristic/untrusted
   until a checked or capability-bearing path is available.
-- [ ] Add capability-gated `RegisterRangeProvider` for plugin/session use.
+- [x] Add capability-gated `RegisterRangeProvider` for plugin/session use.
+- [x] Bind trusted descriptors to the exact callable with an unforgeable host
+  seal; never accept a visible trust field as authority.
+- [x] Reject duplicate stable identities, duplicate callable registrations, and
+  reuse of a trusted descriptor with a different callable.
 - [ ] Adapt existing unary Numerics implementations to publish the common
   protocol without regressing their current range API.
 
@@ -151,7 +155,10 @@ focused tests exist; design-only work remains unchecked.
 - Core: 537 tests passed, including the new interval-set tests.
 - RiX documentation examples: 74 examples passed; both Numerics tutorials
   passed.
-- Complete RiX suite with a 10-second per-test ceiling: 2,542 tests passed
-  across 127 files with zero failures. The higher ceiling accommodates existing
-  slow reference-corpus and RationalFunction presentation cases; all new range
-  tests also pass under their focused default-timeout runs.
+- Trusted-provider milestone: permission-boundary, exact-callable seal,
+  multifunction dispatch, disconnected certified result, duplicate
+  registration, and descriptor-forgery tests passed.
+- Complete RiX suite with a 10-second per-test ceiling: 2,545 tests passed
+  across 127 files with zero failures. Existing slow RationalFunction cases
+  completed successfully; all new range-provider tests also pass under their
+  focused default-timeout runs.

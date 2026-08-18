@@ -366,6 +366,28 @@ describe("script import execution", () => {
         expect(evalRix('.plug(9)', { systemContext }).result.value).toBe(10n);
     });
 
+    test("trusted range-provider registration from imports requires Plugins", () => {
+        const dir = writeScripts({
+            provider: `
+                F = (x)->x;
+                Direct = (input, request)->_;
+                descriptor = .Host.RegisterRangeProvider(F, {=
+                    schema="rix.numerics.range-provider@1",
+                    functionId=:importedIdentity,
+                    directRange=Direct,
+                    provenance={= plugin=:importTest }
+                });
+                {: descriptor[:trust], .Host.RangeProviderTrusted(descriptor, F) != _ }
+            `,
+        });
+
+        expect(() => evalRix('<"provider">', { scriptBaseDir: dir }))
+            .toThrow(".Host.RegisterRangeProvider is not permitted");
+        const allowed = evalRix('<"provider" /+Plugins/>', { scriptBaseDir: dir }).result;
+        expect(allowed.values[0].value).toBe("trustedCapability");
+        expect(allowed.values[1].value).toBe(1n);
+    });
+
     test("imported scripts cannot register core capabilities", () => {
         const dir = writeScripts({
             core: '.Core.Register("Leaked", (x) -> x)',

@@ -365,6 +365,60 @@ checked := .numerics.CheckRangeResult(
 The result is structurally valid but remains heuristic: `certified` and
 `checked[:certifying]` are null. Even if `IdentityHint` writes
 `certified=1` or declares itself trusted, validation rejects the claim with
-`:untrustedCertificationClaim`. Certification requires either evidence
-accepted by a small independent checker or a provider registered through a
-future capability-gated trusted path.
+`:untrustedCertificationClaim`.
+
+## A trusted direct provider
+
+A plugin or explicitly trusted session can cross the host registration
+boundary. Here the provider's invariant is especially easy to audit: the
+identity function maps every input set to itself. The direct provider is a RiX
+multifunction; additional guarded variants could support later input forms.
+
+```{.rix exec=true}
+.Plugin.Load("numerics");
+
+TrustedIdentityRange = {>
+  (input, request) ?- [input ? :RationalIntervalSet] /RangeSet/ -> {=
+    valueKind=:rangeProviderResult,
+    schema="rix.numerics.range-provider-result@1",
+    functionId=:trustedIdentityTutorial,
+    input=input,
+    status=:enclosed,
+    range=input,
+    certified=1,
+    domainStatus=:allDefined,
+    goalMet=1,
+    achievedEndpointTolerance=0,
+    evidenceLevel=:trustedCapability,
+    work={= calls=1, iterations=0 },
+    evidence={= kind=:identityRangeInvariant }
+  },
+  (input, request) /Unsupported/ ->
+    .Error("TrustedIdentityRange needs a RationalIntervalSet")
+};
+
+TrustedIdentity = (x)->x;
+.numerics.RegisterRangeProvider(TrustedIdentity, {=
+  functionId=:trustedIdentityTutorial,
+  directRange=TrustedIdentityRange,
+  provenance={=
+    provider=:measurementTutorial,
+    invariant=:identityMapsEverySetToItself
+  }
+});
+
+possibleInputs := (99/100:101/100) \/ (2:201/100);
+answer := .numerics.Range(TrustedIdentity, possibleInputs);
+
+{: answer[:range], answer[:certified], answer[:evidenceLevel] };
+```
+
+This yields the same disconnected set with `certified=1`. The certification
+chain ends in a trusted-provider invariant, so whoever grants registration
+authority is responsible for reviewing that invariant. Inside an imported
+script, registration requires the explicit `Plugins` permission. A copied
+`trust=:trustedCapability` field is not a seal, and a descriptor registered for
+one callable cannot be reused with another.
+
+The other future certifying path is a theorem witness accepted by the small
+independent checker; that path does not require trusting an arbitrary callback.

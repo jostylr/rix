@@ -120,8 +120,21 @@ type, status/domain consistency, endpoint goal, and bounded work are checked.
 Scoped wrappers are always `evidenceLevel=:heuristic` and
 `trust=:scopedUntrusted`, regardless of a caller-supplied trust label. Their
 ranges may guide a computation but never produce `certified=1`; a callback
-that tries to self-certify is rejected. Checked theorem evidence and
-capability-gated trusted provider registration remain later stages in the
+that tries to self-certify is rejected.
+
+`.numerics.RegisterRangeProvider(Function, knowledge)` is the separate trusted
+surface for a host-approved plugin or explicitly trusted session. Registration
+crosses the `.Host` capability boundary, requires `Plugins` permission from an
+imported script, and binds an immutable, non-forgeable seal to the exact
+callable. Numerics then discovers the registered provider automatically when
+that function is passed to `.Range`. `directRange` may be a RiX multifunction,
+allowing guarded variants for supported input representations. Duplicate
+function identities and callable registrations are rejected.
+
+The seal cannot be serialized or recreated by writing
+`trust=:trustedCapability`; that field is audit metadata only. Grant this
+registration authority only when the provider's outward-enclosure invariant
+has been reviewed. Checked theorem evidence remains a later stage in the
 general-range checklist.
 
 The schemas are documented in
