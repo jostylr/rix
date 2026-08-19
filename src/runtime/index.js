@@ -90,6 +90,13 @@ export {
     calculusGraphRangeCheckValue,
     recognizeCalculusGraph,
     calculusGraphRecognitionValue,
+    differentiateCalculusPrimitiveGraph,
+    checkCalculusDerivativeTransformation,
+    calculusDerivativeCheckValue,
+    CALCULUS_DERIVATIVE_SIGN_SCHEMA,
+    evaluateCalculusDerivativeSign,
+    calculusDerivativeSignValue,
+    substituteCalculusGraphVariable,
 } from "./calculus-range.js";
 export {
     RANGE_SET_INTERCHANGE_VERSION,

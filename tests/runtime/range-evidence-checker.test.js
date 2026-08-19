@@ -5,6 +5,12 @@ import {
     RANGE_EVIDENCE_SCHEMA,
     checkRangeEvidence,
 } from "../../src/runtime/range-evidence-checker.js";
+import {
+    calculusGraphStructuralKey,
+    checkCalculusDerivativeTransformation,
+    differentiateCalculusPrimitiveGraph,
+    substituteCalculusGraphVariable,
+} from "../../src/runtime/calculus-range.js";
 
 const set = (components) => new RationalIntervalSet(components);
 const fact = (value) => ({ type: "exactSet", set: value });
@@ -355,6 +361,199 @@ describe("range evidence checker v1 exact kernel", () => {
             .toMatchObject({ accepted: false, diagnostics: ["monotonicityRequiresConnectedInput"] });
     });
 
+    test("checks primitive derivative identity before using its range", () => {
+        const variable = {
+            schema: "rix.calculus.expression@1",
+            kind: "variable",
+            name: "x",
+        };
+        const source = {
+            schema: "rix.calculus.expression@1",
+            kind: "operator",
+            operation: "power",
+            operands: [
+                variable,
+                { schema: "rix.calculus.expression@1", kind: "constant", value: 2 },
+            ],
+        };
+        const derived = differentiateCalculusPrimitiveGraph(source, "x");
+        const transformation = {
+            schema: "rix.calculus.transformation@1",
+            operation: "differentiate",
+            variable: "x",
+            source,
+            expression: derived.expression,
+            obligations: [],
+        };
+        const checked = checkCalculusDerivativeTransformation(transformation);
+        expect(checked.accepted).toBe(true);
+        const input = set({ low: 1, high: 2 });
+        const nodes = [
+            {
+                id: "identity",
+                rule: "derivative.graph",
+                premises: [],
+                parameters: { transformation },
+                conclusion: {
+                    type: "derivativeIdentity",
+                    functionGraph: checked.functionGraph,
+                    derivativeGraph: checked.derivativeGraph,
+                    variable: "x",
+                    obligations: checked.obligationDescriptors,
+                },
+            },
+            {
+                id: "derivative-range",
+                rule: "trusted.derivativeRange",
+                premises: [],
+                conclusion: {
+                    type: "derivativeRange",
+                    functionGraph: checked.functionGraph,
+                    derivativeGraph: checked.derivativeGraph,
+                    variable: "x",
+                    input,
+                    range: set({ low: 2, high: 4 }),
+                    domainCoverage: "allDefined",
+                },
+            },
+            {
+                id: "monotone",
+                rule: "monotone.derivativeSign",
+                premises: ["identity", "derivative-range"],
+                conclusion: {
+                    type: "monotonicity",
+                    functionGraph: checked.functionGraph,
+                    input,
+                    direction: "nondecreasing",
+                },
+            },
+        ];
+        expect(checkRangeEvidence(document(nodes), { resolveTrusted: () => true }))
+            .toMatchObject({ accepted: true, certified: true });
+
+        const changedIdentity = structuredClone(nodes[0]);
+        changedIdentity.parameters.transformation.expression = source;
+        expect(checkRangeEvidence(document([changedIdentity])))
+            .toMatchObject({ accepted: false, diagnostics: ["derivativeGraphMismatch"] });
+
+        const mismatchedRange = [...nodes];
+        mismatchedRange[1] = {
+            ...nodes[1],
+            conclusion: { ...nodes[1].conclusion, derivativeGraph: "graph.wrong@1" },
+        };
+        expect(checkRangeEvidence(document(mismatchedRange), { resolveTrusted: () => true }))
+            .toMatchObject({ accepted: false, diagnostics: ["derivativeRangeIdentityMismatch"] });
+    });
+
+    test("checks monotone composition identities, covered images, and direction", () => {
+        const constant = (value) => ({
+            schema: "rix.calculus.expression@1", kind: "constant", value,
+        });
+        const variable = (name) => ({
+            schema: "rix.calculus.expression@1", kind: "variable", name,
+        });
+        const operator = (operation, ...operands) => ({
+            schema: "rix.calculus.expression@1", kind: "operator", operation, operands,
+        });
+        const x = variable("x");
+        const y = variable("y");
+        const innerExpression = operator("add", x, constant(1));
+        const outerExpression = operator("power", y, constant(2));
+        const composedExpression = substituteCalculusGraphVariable(
+            outerExpression, "y", innerExpression,
+        );
+        const innerGraph = calculusGraphStructuralKey(innerExpression);
+        const outerGraph = calculusGraphStructuralKey(outerExpression);
+        const composedGraph = calculusGraphStructuralKey(composedExpression);
+        const input = set({ low: 1, high: 2 });
+        const outerInput = set({ low: 2, high: 4 });
+        const innerRange = set({ low: 2, high: 3 });
+        const nodes = [
+            {
+                id: "inner-derivative", rule: "trusted.derivativeRange", premises: [],
+                conclusion: {
+                    type: "derivativeRange", functionGraph: innerGraph,
+                    derivativeGraph: "derivative.inner@1", variable: "x",
+                    input, range: RationalIntervalSet.point(1), domainCoverage: "allDefined",
+                },
+            },
+            {
+                id: "inner-monotone", rule: "monotone.derivativeSign",
+                premises: ["inner-derivative"],
+                conclusion: {
+                    type: "monotonicity", functionGraph: innerGraph,
+                    input, direction: "nondecreasing",
+                },
+            },
+            {
+                id: "outer-derivative", rule: "trusted.derivativeRange", premises: [],
+                conclusion: {
+                    type: "derivativeRange", functionGraph: outerGraph,
+                    derivativeGraph: "derivative.outer@1", variable: "y",
+                    input: outerInput, range: set({ low: 4, high: 8 }),
+                    domainCoverage: "allDefined",
+                },
+            },
+            {
+                id: "outer-monotone", rule: "monotone.derivativeSign",
+                premises: ["outer-derivative"],
+                conclusion: {
+                    type: "monotonicity", functionGraph: outerGraph,
+                    input: outerInput, direction: "nondecreasing",
+                },
+            },
+            {
+                id: "inner-image", rule: "trusted.range", premises: [],
+                conclusion: {
+                    type: "rangeEnclosure", subject: innerGraph, input,
+                    range: innerRange, domainCoverage: "allDefined", exclusions: [],
+                },
+            },
+            {
+                id: "composition", rule: "monotone.compose",
+                premises: ["inner-monotone", "outer-monotone", "inner-image"],
+                parameters: {
+                    innerExpression, outerExpression, outerVariable: "y", composedExpression,
+                },
+                conclusion: {
+                    type: "monotonicity", functionGraph: composedGraph,
+                    input, direction: "nondecreasing",
+                },
+            },
+        ];
+        const options = { resolveTrusted: () => true };
+        expect(checkRangeEvidence(document(nodes), options))
+            .toMatchObject({ accepted: true, certified: true });
+
+        const wrongDirection = [...nodes];
+        wrongDirection[5] = {
+            ...nodes[5],
+            conclusion: { ...nodes[5].conclusion, direction: "nonincreasing" },
+        };
+        expect(checkRangeEvidence(document(wrongDirection), options)).toMatchObject({
+            accepted: false, diagnostics: ["monotoneCompositionDirectionMismatch"],
+        });
+
+        const wrongGraph = [...nodes];
+        wrongGraph[5] = {
+            ...nodes[5],
+            parameters: { ...nodes[5].parameters, composedExpression: outerExpression },
+            conclusion: { ...nodes[5].conclusion, functionGraph: outerGraph },
+        };
+        expect(checkRangeEvidence(document(wrongGraph), options)).toMatchObject({
+            accepted: false, diagnostics: ["monotoneCompositionIdentityMismatch"],
+        });
+
+        const uncovered = [...nodes];
+        uncovered[4] = {
+            ...nodes[4],
+            conclusion: { ...nodes[4].conclusion, range: set({ low: 2, high: 5 }) },
+        };
+        expect(checkRangeEvidence(document(uncovered), options)).toMatchObject({
+            accepted: false, diagnostics: ["monotoneCompositionDomainMismatch"],
+        });
+    });
+
     test("recomputes Sturm sequences, root counts, and complete isolations", () => {
         const polynomial = [0, -1, 0, 1]; // x^3 - x
         const sequence = [
@@ -459,5 +658,93 @@ describe("range evidence checker v1 exact kernel", () => {
             .toMatchObject({ accepted: true, conclusion: { count: 1 } });
         expect(checkRangeEvidence(document([sturm]), { limits: { maxPolynomialDegree: 2 } }))
             .toMatchObject({ accepted: false, diagnostics: ["polynomialDegreeLimit"] });
+    });
+
+    test("binds complete polynomial derivative roots to the checked source graph", () => {
+        const constant = (value) => ({
+            schema: "rix.calculus.expression@1", kind: "constant", value,
+        });
+        const variable = {
+            schema: "rix.calculus.expression@1", kind: "variable", name: "x",
+        };
+        const operator = (operation, ...operands) => ({
+            schema: "rix.calculus.expression@1", kind: "operator", operation, operands,
+        });
+        const source = operator(
+            "subtract",
+            operator("power", variable, constant(3)),
+            variable,
+        );
+        const derived = differentiateCalculusPrimitiveGraph(source, "x");
+        const transformation = {
+            schema: "rix.calculus.transformation@1",
+            operation: "differentiate",
+            variable: "x",
+            source,
+            expression: derived.expression,
+            obligations: [],
+        };
+        const checked = checkCalculusDerivativeTransformation(transformation);
+        expect(checked.accepted).toBe(true);
+        const polynomial = [-1, 0, 3];
+        const searchSet = set({ low: -2, high: 2 });
+        const isolatingComponents = [
+            set({ low: -1, high: "-1/2" }),
+            set({ low: "1/2", high: 1 }),
+        ];
+        const nodes = [
+            {
+                id: "identity", rule: "derivative.graph", premises: [],
+                parameters: { transformation },
+                conclusion: {
+                    type: "derivativeIdentity",
+                    functionGraph: checked.functionGraph,
+                    derivativeGraph: checked.derivativeGraph,
+                    variable: "x",
+                    obligations: [],
+                },
+            },
+            {
+                id: "sturm", rule: "polynomial.sturmSequence", premises: [],
+                conclusion: {
+                    type: "sturmSequence", polynomial,
+                    sequence: [polynomial, [0, 6], [1]],
+                },
+            },
+            {
+                id: "roots", rule: "polynomial.isolateRoots", premises: ["sturm"],
+                conclusion: {
+                    type: "isolatedRoots", polynomial, searchSet, isolatingComponents,
+                    endpointPolicy: "endpointsNotRoots", complete: true,
+                },
+            },
+            {
+                id: "critical", rule: "polynomial.completeCriticalPoints",
+                premises: ["identity", "roots"],
+                conclusion: {
+                    type: "criticalPoints",
+                    functionGraph: checked.functionGraph,
+                    derivativeGraph: checked.derivativeGraph,
+                    searchSet,
+                    isolatingComponents,
+                    endpointPolicy: "endpointsNotRoots",
+                    complete: true,
+                },
+            },
+        ];
+        expect(checkRangeEvidence(document(nodes))).toMatchObject({
+            accepted: true,
+            certified: true,
+            conclusion: { complete: true, polynomial: expect.any(Array) },
+        });
+
+        const changed = [...nodes];
+        changed[3] = {
+            ...nodes[3],
+            conclusion: { ...nodes[3].conclusion, derivativeGraph: "graph.other@1" },
+        };
+        expect(checkRangeEvidence(document(changed))).toMatchObject({
+            accepted: false, diagnostics: ["criticalPointIdentityMismatch"],
+        });
     });
 });

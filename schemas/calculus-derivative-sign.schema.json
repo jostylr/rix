@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/calculus-derivative-sign/v1.schema.json",
+  "title": "RiX checked Calculus derivative-sign result v1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema", "status", "certified", "monotonicityCertified", "direction", "diagnostics"],
+  "properties": {
+    "schema": { "const": "rix.numerics.calculus-derivative-sign@1" },
+    "status": { "enum": ["proved", "inconclusive", "unknown"] },
+    "certified": { "type": "boolean" },
+    "monotonicityCertified": { "type": "boolean" },
+    "direction": { "enum": ["nondecreasing", "nonincreasing", "constant", "unknown"] },
+    "functionGraph": { "type": "string", "minLength": 1 },
+    "derivativeGraph": { "type": "string", "minLength": 1 },
+    "variable": { "type": "string", "minLength": 1 },
+    "derivativeRange": { "$ref": "range-set.schema.json" },
+    "domainStatus": { "enum": ["allDefined", "unresolved"] },
+    "identity": { "type": "object" },
+    "graphRange": { "type": "object" },
+    "obligationChecks": { "type": "array", "items": { "type": "object" } },
+    "conventions": {
+      "type": "object",
+      "required": ["zeroPowerZero"],
+      "properties": { "zeroPowerZero": { "enum": ["undefined", "one"] } }
+    },
+    "diagnostics": { "type": "array", "items": { "type": "string" } }
+  }
+}

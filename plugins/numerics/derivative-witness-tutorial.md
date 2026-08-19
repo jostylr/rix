@@ -12,8 +12,10 @@ explicit about the current boundary: exact set/arithmetic graph evidence,
 authority-bound derivative-sign reasoning, and closed monotone endpoint
 formation are checked today. Rational-polynomial Sturm sequences, root counts,
 and complete isolations with non-root rational endpoints are checked as well.
-Exact `derivative.graph`, monotone composition, and the final binding from
-isolated derivative roots to source critical points remain staged.
+Primitive `derivative.graph`, structurally checked monotone composition, and
+binding an obligation-free polynomial derivative isolation back to its source
+graph are checked. Semantic derivative rules and one-sided critical-point
+partition endpoints remain staged.
 
 ## The shape of a derivative-range witness
 

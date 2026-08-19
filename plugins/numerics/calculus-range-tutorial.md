@@ -136,10 +136,74 @@ to its trusted Numerics `RangeProvider`. It returns `status=:unknown`,
 diagnostic. This is intentional: the callable implementation link used for
 point evaluation is not automatically a range proof.
 
-The next stage binds semantic IDs to checked domain and range providers, then
-adds derivative-sign and monotone-endpoint proof rules. Until that authority
-link exists, exact arithmetic composition is certified and semantic
-applications fail closed.
+The next semantic stage binds those IDs to checked domain and range providers.
+Primitive derivative-sign and monotone-endpoint rules already work without
+that authority link; semantic applications continue to fail closed.
+
+## Check a derivative before using its sign
+
+`DifferentiateResult` exposes a rule trace, but a trace is not a certificate by
+itself. `CheckDerivativeGraph` independently repeats primitive differentiation
+and checks the exact structural derivative plus every ordered domain
+obligation:
+
+```{.rix exec=true}
+.Plugin.Load("calculus");
+.Plugin.Load("numerics");
+
+x := .calculus.Variable(:x);
+squareDerivative := .calculus.DifferentiateResult(x^2,:x);
+quotientDerivative := .calculus.DifferentiateResult((x+1)/(x-1),:x);
+
+{:
+  .numerics.CheckDerivativeGraph(squareDerivative)[:accepted],
+  .numerics.CheckDerivativeGraph(quotientDerivative)[:obligationDescriptors]
+};
+```
+
+The primitive whitelist covers constants, variables, arithmetic, division,
+and Integer powers. Division and negative powers retain nonzero obligations.
+With the default `0^0` convention, differentiating `x^0` retains the source
+obligation `x != 0`; producing the constant derivative zero must not silently
+fill the original hole.
+
+## Prove monotonicity from the checked derivative
+
+`DerivativeSign` combines the identity check, a certified derivative graph
+range, and exact discharge of the carried obligations:
+
+```{.rix exec=true}
+.Plugin.Load("calculus");
+.Plugin.Load("numerics");
+
+x := .calculus.Variable(:x);
+squareDerivative := .calculus.DifferentiateResult(x^2,:x);
+quotientDerivative := .calculus.DifferentiateResult((x+1)/(x-1),:x);
+
+increasing := .numerics.DerivativeSign(squareDerivative,{= x=1:2 });
+decreasing := .numerics.DerivativeSign(squareDerivative,{= x=(-2):(-1) });
+crossing := .numerics.DerivativeSign(squareDerivative,{= x=(-1):1 });
+safeQuotient := .numerics.DerivativeSign(quotientDerivative,{= x=2:3 });
+crossingPole := .numerics.DerivativeSign(quotientDerivative,{= x=0:2 });
+
+{:
+  increasing[:direction], decreasing[:direction],
+  crossing[:status], safeQuotient[:direction],
+  crossingPole[:domainStatus]
+};
+```
+
+The derivative of `x^2` spans both signs on `[-1,1]`, so this strategy is
+inconclusive there; it does not claim that a sign-changing enclosure proves
+non-monotonicity. On `[2,3]`, the quotient denominator `x-1` is proved
+nonzero and its derivative is nonpositive. On `[0,2]`, the same obligation
+cannot be discharged, so the result remains unresolved rather than deleting
+the pole.
+
+The `x^0` obligation is discharged over inputs containing zero only inside a
+`RangePolicy({= zeroPowerZero=:one }, ...)` scope. The active convention is
+copied into the result, so later review does not silently inherit a different
+ambient convention.
 
 ## Recognize specialized exact structure
 
@@ -165,9 +229,10 @@ uncancelled := .numerics.RecognizeGraph(x/x,:x);
 Coefficients are exact and ordered from constant term upward. Recognition does
 not cancel `x/x`: the denominator and its source restriction remain visible.
 An identically zero denominator is rejected instead of being converted to an
-empty or constant polynomial. The hook recognizes structure; a future Sturm
-module must still prove complete derivative roots before it can certify a
-polynomial extremum range.
+empty or constant polynomial. The hook recognizes structure. The checker can
+now verify canonical Sturm sequences and complete rational root isolations;
+binding those roots to the checked derivative graph and forming the final
+extremum range remains the next polynomial stage.
 
 See [Calculus graphs as certified-range subjects](calculus-range-bridge.md)
 for the boundary design and

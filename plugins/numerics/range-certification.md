@@ -6,8 +6,11 @@ direct providers, versioned evidence schemas, the exact set/arithmetic
 checker kernel, exact-primitive Calculus graph evaluation, authority-bound
 derivative-sign checking, closed monotone endpoint formation, and exact
 rational-polynomial Sturm/root-isolation rules are implemented.
-Semantic-application links, exact derivative-graph checking, monotone
-composition, and critical-point binding strategies remain staged work.
+Primitive derivative-graph checking, generic derivative-sign reasoning,
+structurally checked monotone composition, and obligation-free polynomial
+critical-point binding are implemented too. Semantic-application links,
+semantic derivative rules, and one-sided critical-point partitions remain
+staged work.
 
 The following accepted pre-1.0 contracts describe the implemented foundation
 and the remaining v1 checker vocabulary:
@@ -383,10 +386,11 @@ proof-safe arithmetic images, derivative signs, closed monotone endpoint
 formation, canonical Sturm sequences, exact root counts, complete isolations
 with non-root rational endpoints, and host-resolved trusted leaves. It rejects
 cycles, dangling premises, unknown rules, mismatched claims, and configured
-resource-limit overruns. Monotone composition, exact derivative-graph
-identities, one-sided root endpoint policies, and final critical-point binding
-remain reserved in the v1 schema and fail closed until their checker modules
-land.
+resource-limit overruns. Primitive derivative identities, monotone composition,
+and obligation-free polynomial critical-point binding are now checked.
+Semantic derivative identities, one-sided root endpoint policies, and final
+monotonicity partition formation remain reserved in the v1 schema and fail
+closed until their checker modules land.
 
 Keep the checker independent of the main strategy engine. Strategy may become
 large and heuristic; the certifying kernel should remain auditable.

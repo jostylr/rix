@@ -15,7 +15,7 @@
       "items": { "$ref": "range-set.schema.json" }
     },
     "complete": { "const": true },
-    "endpointPolicy": { "enum": ["open", "closed", "leftClosed", "rightClosed"] },
+    "endpointPolicy": { "enum": ["endpointsNotRoots", "open", "closed", "leftClosed", "rightClosed"] },
     "evidence": {}
   }
 }

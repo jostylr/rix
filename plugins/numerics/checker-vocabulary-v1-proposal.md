@@ -2,11 +2,11 @@
 
 Status: accepted pre-1.0 contract with staged implementation. The versioned
 schema and the independent exact set, partition, arithmetic, trusted-leaf,
-derivative-sign, closed monotone-endpoint, and polynomial Sturm/root-isolation
-checker kernel are implemented. Exact derivative-graph construction, monotone
-composition, and final critical-point binding remain reserved and fail closed
-until their checker modules land. Every detail remains changeable until RiX
-1.0.
+primitive derivative-graph, derivative-sign, closed monotone-endpoint, and
+polynomial Sturm/root-isolation checker kernel are implemented. Semantic
+derivative rules and one-sided critical-point partition endpoints remain
+reserved and fail closed until their checker modules land. Every detail remains
+changeable until RiX 1.0.
 
 ## Recommended decisions
 
@@ -225,9 +225,24 @@ domain unresolved. It cannot be converted into an exclusion.
 | `monotone.compose` | Combines checked monotonicity facts with the usual direction table and checks that the inner image lies in the outer fact's covered domain. |
 | `range.monotoneEndpoints` | On one closed bounded connected input piece, checks endpoint enclosures and forms the output enclosure using the monotonicity direction. |
 
+The implemented `derivative.graph` whitelist independently differentiates
+exact constants, variables, negation, addition, subtraction, multiplication,
+division, and Integer powers. It compares structural source and derivative
+identities and exact ordered obligation descriptors; the visible Calculus rule
+trace is audit information, not authority. Division, negative powers, and
+`x^0` under the default undefined-`0^0` convention retain nonzero obligations.
+Semantic `apply` nodes remain unsupported until their versioned derivative
+declarations can be resolved through authority or another checked rule.
+
+`monotone.compose` structurally substitutes the checked inner graph into the
+outer graph, requires the checked inner image to lie in the outer
+monotonicity fact's covered input, and recomputes the increasing/decreasing
+direction table. A claimed composite identity string alone is insufficient.
+
 The implemented derivative-sign rule accepts a derivative-range premise only
-when it is already checked or resolved through `trusted.derivativeRange`; it
-does not treat a portable derivative label as authority. The endpoint rule
+when it is paired with a checked derivative identity or resolved through
+`trusted.derivativeRange`; it does not treat a portable derivative label as
+authority. The endpoint rule
 requires matching function identities, exact singleton endpoint bindings,
 all-defined endpoint results, and a closed bounded connected input. Wrong-sign
 ranges, disconnected inputs, stale identities, and open/unbounded endpoint
@@ -257,8 +272,13 @@ that is itself a root, counts distinct roots by exact sign variation, and
 checks that every proposed isolating component contains exactly one root while
 their total count equals the search-set count. This is sufficient for ordinary
 rational isolating intervals. One-sided endpoint conventions and
-`polynomial.completeCriticalPoints`, which binds the polynomial to a checked
-derivative graph, remain fail-closed work.
+monotonicity partition formation remain fail-closed work.
+
+`polynomial.completeCriticalPoints` now binds an obligation-free checked
+primitive derivative graph to its recognized exact polynomial and the complete
+isolation fact. It rejects a polynomial belonging to a different derivative
+graph. Derivatives with unresolved source-domain obligations require a checked
+domain partition before this rule can apply.
 
 ## Certification result
 

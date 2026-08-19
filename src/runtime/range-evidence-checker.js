@@ -11,6 +11,12 @@ import {
     rangeReciprocal,
     rangeSubtract,
 } from "@ratmath/core";
+import {
+    calculusGraphStructuralKey,
+    checkCalculusDerivativeTransformation,
+    recognizeCalculusGraph,
+    substituteCalculusGraphVariable,
+} from "./calculus-range.js";
 
 export const RANGE_EVIDENCE_SCHEMA = "rix.numerics.range-evidence@1";
 export const RANGE_CHECKER_VOCABULARY = "rix.numerics.range-checker@1";
@@ -168,6 +174,17 @@ function derivativeRangeFact(value) {
     if (range.isEmpty) throw new Error("emptyDerivativeRange");
     if (domainCoverage !== "allDefined") throw new Error("derivativeDomainNotCovered");
     return { ...value, input, range, domainCoverage };
+}
+
+function derivativeIdentityFact(value) {
+    if (value?.type !== "derivativeIdentity" ||
+        typeof value.functionGraph !== "string" ||
+        typeof value.derivativeGraph !== "string" ||
+        typeof value.variable !== "string" ||
+        !Array.isArray(value.obligations)) {
+        throw new Error("wrongDerivativeIdentityFact");
+    }
+    return value;
 }
 
 function monotonicityFact(value) {
@@ -421,10 +438,83 @@ function checkNode(node, premises, options) {
                 trusted: false,
             };
         }
+        case "polynomial.completeCriticalPoints": {
+            if (premises.length !== 2) throw new Error("wrongPremiseCount");
+            const identity = derivativeIdentityFact(premises[0].fact);
+            const isolated = premises[1].fact;
+            if (isolated?.type !== "isolatedRoots" || isolated.complete !== true ||
+                !Array.isArray(isolated.isolatingComponents)) {
+                throw new Error("expectedIsolatedRootsFact");
+            }
+            if (identity.obligations.length !== 0) {
+                throw new Error("criticalPointDomainObligationsNotDischarged");
+            }
+            const recognition = recognizeCalculusGraph(
+                identity.derivativeExpression,
+                identity.variable,
+            );
+            if (!recognition.recognized || recognition.kind !== "polynomial" ||
+                !sameIdentity(recognition.graphIdentity, identity.derivativeGraph) ||
+                !samePolynomial(recognition.numerator, isolated.polynomial)) {
+                throw new Error("criticalPointPolynomialMismatch");
+            }
+            if (conclusion?.type !== "criticalPoints" || conclusion.complete !== true ||
+                !sameIdentity(conclusion.functionGraph, identity.functionGraph) ||
+                !sameIdentity(conclusion.derivativeGraph, identity.derivativeGraph) ||
+                conclusion.endpointPolicy !== isolated.endpointPolicy ||
+                !sameSet(conclusion.searchSet, isolated.searchSet) ||
+                !Array.isArray(conclusion.isolatingComponents) ||
+                conclusion.isolatingComponents.length !== isolated.isolatingComponents.length ||
+                conclusion.isolatingComponents.some((component, index) =>
+                    !sameSet(component, isolated.isolatingComponents[index]))) {
+                throw new Error("criticalPointIdentityMismatch");
+            }
+            return {
+                fact: {
+                    ...conclusion,
+                    searchSet: asSet(isolated.searchSet),
+                    isolatingComponents: isolated.isolatingComponents.map(asSet),
+                    polynomial: recognition.numerator,
+                },
+                trusted: false,
+            };
+        }
+        case "derivative.graph": {
+            if (premises.length !== 0) throw new Error("wrongPremiseCount");
+            const claimed = derivativeIdentityFact(conclusion);
+            const checked = checkCalculusDerivativeTransformation(node.parameters?.transformation);
+            if (!checked.accepted) throw new Error(checked.reason);
+            if (!sameIdentity(claimed.functionGraph, checked.functionGraph) ||
+                !sameIdentity(claimed.derivativeGraph, checked.derivativeGraph) ||
+                claimed.variable.toLowerCase() !== checked.variable ||
+                claimed.obligations.length !== checked.obligationDescriptors.length ||
+                claimed.obligations.some((value, index) =>
+                    value !== checked.obligationDescriptors[index])) {
+                throw new Error("derivativeIdentityMismatch");
+            }
+            return {
+                fact: {
+                    ...claimed,
+                    variable: checked.variable,
+                    obligations: checked.obligationDescriptors,
+                    sourceExpression: checked.source,
+                    derivativeExpression: checked.expression,
+                },
+                trusted: false,
+            };
+        }
         case "monotone.derivativeSign": {
-            if (premises.length !== 1) throw new Error("wrongPremiseCount");
-            const derivative = derivativeRangeFact(premises[0].fact);
+            if (premises.length !== 1 && premises.length !== 2) throw new Error("wrongPremiseCount");
+            const identity = premises.length === 2
+                ? derivativeIdentityFact(premises[0].fact)
+                : null;
+            const derivative = derivativeRangeFact(premises.at(-1).fact);
             const claimed = monotonicityFact(conclusion);
+            if (identity && (!sameIdentity(identity.functionGraph, derivative.functionGraph) ||
+                !sameIdentity(identity.derivativeGraph, derivative.derivativeGraph) ||
+                identity.variable.toLowerCase() !== derivative.variable.toLowerCase())) {
+                throw new Error("derivativeRangeIdentityMismatch");
+            }
             if (!sameIdentity(claimed.functionGraph, derivative.functionGraph) ||
                 !claimed.input.equals(derivative.input)) {
                 throw new Error("monotonicityIdentityMismatch");
@@ -447,6 +537,63 @@ function checkNode(node, premises, options) {
                     ...claimed,
                     derivativeGraph: derivative.derivativeGraph,
                     variable: derivative.variable,
+                },
+                trusted: false,
+            };
+        }
+        case "monotone.compose": {
+            if (premises.length !== 3) throw new Error("wrongPremiseCount");
+            const inner = monotonicityFact(premises[0].fact);
+            const outer = monotonicityFact(premises[1].fact);
+            const innerImage = rangeEnclosureFact(premises[2].fact);
+            const claimed = monotonicityFact(conclusion);
+            const innerExpression = node.parameters?.innerExpression;
+            const outerExpression = node.parameters?.outerExpression;
+            const composedExpression = node.parameters?.composedExpression;
+            const outerVariable = node.parameters?.outerVariable;
+            let actualComposition;
+            try {
+                actualComposition = substituteCalculusGraphVariable(
+                    outerExpression,
+                    outerVariable,
+                    innerExpression,
+                );
+            } catch {
+                throw new Error("invalidMonotoneCompositionGraph");
+            }
+            const innerGraph = calculusGraphStructuralKey(innerExpression);
+            const outerGraph = calculusGraphStructuralKey(outerExpression);
+            const composedGraph = calculusGraphStructuralKey(composedExpression);
+            if (calculusGraphStructuralKey(actualComposition) !== composedGraph ||
+                !sameIdentity(inner.functionGraph, innerGraph) ||
+                !sameIdentity(outer.functionGraph, outerGraph) ||
+                !sameIdentity(innerImage.subject, innerGraph) ||
+                !sameIdentity(claimed.functionGraph, composedGraph) ||
+                !inner.input.equals(innerImage.input) ||
+                !claimed.input.equals(inner.input)) {
+                throw new Error("monotoneCompositionIdentityMismatch");
+            }
+            if (innerImage.domainCoverage !== "allDefined" ||
+                innerImage.exclusions.length !== 0 || innerImage.range.isEmpty ||
+                !outer.input.contains(innerImage.range)) {
+                throw new Error("monotoneCompositionDomainMismatch");
+            }
+            let direction;
+            if (inner.direction === "constant" || outer.direction === "constant") {
+                direction = "constant";
+            } else if (outer.direction === "nondecreasing") {
+                direction = inner.direction;
+            } else {
+                direction = inner.direction === "nondecreasing"
+                    ? "nonincreasing"
+                    : "nondecreasing";
+            }
+            if (claimed.direction !== direction) throw new Error("monotoneCompositionDirectionMismatch");
+            return {
+                fact: {
+                    ...claimed,
+                    innerFunctionGraph: innerGraph,
+                    outerFunctionGraph: outerGraph,
                 },
                 trusted: false,
             };

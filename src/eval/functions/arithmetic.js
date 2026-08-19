@@ -11,6 +11,8 @@ import {
     calculusGraphRangeValue,
     calculusGraphRangeCheckValue,
     calculusGraphRecognitionValue,
+    calculusDerivativeCheckValue,
+    calculusDerivativeSignValue,
 } from "../../runtime/calculus-range.js";
 import {
     RANGE_MATH_POLICY_KEY,
@@ -145,6 +147,28 @@ export const arithmeticFunctions = {
         },
         pure: true,
         doc: "Recognize an exact polynomial or source-domain-preserving rational graph",
+    },
+
+    CALCULUS_DERIVATIVE_CHECK: {
+        impl(args) {
+            if (args.length !== 1) {
+                throw new Error("CalculusDerivativeCheck expects one transformation");
+            }
+            return calculusDerivativeCheckValue(args[0]);
+        },
+        pure: true,
+        doc: "Independently recompute and check a primitive Calculus derivative transformation",
+    },
+
+    CALCULUS_DERIVATIVE_SIGN: {
+        impl(args, context) {
+            if (args.length < 2 || args.length > 3) {
+                throw new Error("CalculusDerivativeSign expects a transformation, bindings, and optional options");
+            }
+            return calculusDerivativeSignValue(args[0], args[1], args[2], context);
+        },
+        pure: true,
+        doc: "Certify a uniform derivative sign for a checked primitive Calculus transformation",
     },
 
     RANGE_POLICY: {

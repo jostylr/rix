@@ -707,8 +707,10 @@ CalculusDifferentiateOperator(expression, variable) -> {;
             ?: obligations.Push(CalculusObligation(:domain,:nonzero,right,{= reason=:divisionDomain }))
             ?_ obligations;
           exponent = @operation == :power ?: CalculusConstantValue(right) ?_ _;
-          obligations = (@operation == :power && exponent != _ && (exponent ? :Integer) && exponent < 0)
-            ?: obligations.Push(CalculusObligation(:domain,:nonzero,left,{= reason=:negativeIntegerPower }))
+          obligations = (@operation == :power && exponent != _ && (exponent ? :Integer) && exponent <= 0)
+            ?: obligations.Push(CalculusObligation(:domain,:nonzero,left,{=
+                reason=exponent == 0 ?: :zeroPowerZeroDomain ?_ :negativeIntegerPower
+            }))
             ?_ obligations;
           evidence = CalculusAppend(leftDerivative[:evidence],rightDerivative[:evidence]);
           reuseFactor = (@operation == :power && exponent != _ && exponent != 0)

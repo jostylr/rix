@@ -3,6 +3,7 @@ import { RationalIntervalSet } from "@ratmath/core";
 import {
     Context,
     calculusGraphRangeCheckValue,
+    checkCalculusDerivativeTransformation,
     createDefaultRegistry,
     createDefaultSystemContext,
     parseAndEvaluate,
@@ -180,5 +181,88 @@ describe("checked Calculus graph ranges", () => {
         const rejected = calculusGraphRangeCheckValue(rangeValue);
         expect(entry(rejected, "accepted")).toBeNull();
         expect(text(entry(rejected, "reason"))).toBe("graphRangeClaimMismatch");
+    });
+
+    test("independently checks primitive derivative graphs and domain obligations", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("calculus");
+            .Plugin.Load("numerics");
+            x := .calculus.Variable(:x);
+            quotient := .calculus.DifferentiateResult((x+1)/(x-1),:x);
+            zeroPower := .calculus.DifferentiateResult(x^0,:x);
+            {:
+              .numerics.CheckDerivativeGraph(quotient),
+              .numerics.CheckDerivativeGraph(zeroPower),
+              quotient,
+              zeroPower
+            };
+        `, options);
+        const [quotientCheck, zeroCheck] = result.values;
+        expect(entry(quotientCheck, "accepted").value).toBe(1n);
+        expect(entry(quotientCheck, "obligationDescriptors").values).toHaveLength(1);
+        expect(entry(zeroCheck, "accepted").value).toBe(1n);
+        expect(text(entry(zeroCheck, "obligationDescriptors").values[0]))
+            .toContain("zeroPowerZeroDomain");
+
+        const transformation = result.values[2];
+        const changedGraph = { ...transformation, entries: new Map(transformation.entries) };
+        changedGraph.entries.set("expression", entry(transformation, "source"));
+        expect(checkCalculusDerivativeTransformation(changedGraph)).toMatchObject({
+            accepted: false,
+            reason: "derivativeGraphMismatch",
+        });
+
+        const zeroPower = result.values[3];
+        const erasedDomain = { ...zeroPower, entries: new Map(zeroPower.entries) };
+        erasedDomain.entries.set("obligations", { type: "sequence", values: [] });
+        expect(checkCalculusDerivativeTransformation(erasedDomain)).toMatchObject({
+            accepted: false,
+            reason: "derivativeObligationMismatch",
+        });
+    });
+
+    test("certifies a generic derivative sign only after discharging obligations", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("calculus");
+            .Plugin.Load("numerics");
+            x := .calculus.Variable(:x);
+            square := .calculus.DifferentiateResult(x^2,:x);
+            quotient := .calculus.DifferentiateResult((x+1)/(x-1),:x);
+            zeroPower := .calculus.DifferentiateResult(x^0,:x);
+            {:
+              .numerics.DerivativeSign(square,{= x=1:2 }),
+              .numerics.DerivativeSign(square,{= x=(-2):(-1) }),
+              .numerics.DerivativeSign(square,{= x=(-1):1 }),
+              .numerics.DerivativeSign(quotient,{= x=2:3 }),
+              .numerics.DerivativeSign(quotient,{= x=0:2 }),
+              .numerics.DerivativeSign(zeroPower,{= x=1:2 }),
+              .numerics.DerivativeSign(zeroPower,{= x=0:1 }),
+              .RangePolicy(
+                {= zeroPowerZero=:one },
+                .numerics.DerivativeSign(zeroPower,{= x=0:1 })
+              )
+            };
+        `, runtime());
+        const [
+            increasing, decreasing, crossing, quotient, pole, constant,
+            defaultZeroPower, conventionalZeroPower,
+        ] = result.values;
+        expect(text(entry(increasing, "direction"))).toBe("nondecreasing");
+        expect(entry(increasing, "monotonicityCertified").value).toBe(1n);
+        expect(text(entry(decreasing, "direction"))).toBe("nonincreasing");
+        expect(text(entry(crossing, "direction"))).toBe("unknown");
+        expect(entry(crossing, "certified").value).toBe(1n);
+        expect(entry(crossing, "monotonicityCertified")).toBeNull();
+        expect(text(entry(quotient, "direction"))).toBe("nonincreasing");
+        expect(entry(entry(quotient, "obligationChecks").values[0], "discharged").value)
+            .toBe(1n);
+        expect(entry(pole, "certified")).toBeNull();
+        expect(text(entry(pole, "domainStatus"))).toBe("unresolved");
+        expect(text(entry(constant, "direction"))).toBe("constant");
+        expect(entry(defaultZeroPower, "monotonicityCertified")).toBeNull();
+        expect(text(entry(conventionalZeroPower, "direction"))).toBe("constant");
+        expect(text(entry(entry(conventionalZeroPower, "conventions"), "zeroPowerZero")))
+            .toBe("one");
     });
 });

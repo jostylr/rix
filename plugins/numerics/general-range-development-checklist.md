@@ -108,26 +108,35 @@ focused tests exist; design-only work remains unchecked.
 
 - [x] Implement an independent checker for exact set and partition steps.
 - [x] Check primitive interval arithmetic derivations and domain coverage.
+- [x] Independently recompute primitive Calculus derivative graphs and their
+  quotient, negative-power, and default `0^0` domain obligations.
 - [x] Check monotonicity from a certified derivative range excluding the wrong
   sign.
-- [ ] Check monotone composition across compatible graph identities and
+- [x] Check monotone composition across compatible graph identities and
   domains.
 - [x] Check closed bounded monotone endpoint range formation with matching
   function and endpoint identities.
 - [x] Recompute canonical rational-polynomial Sturm sequences, exact distinct
   root counts, and complete disjoint isolations with non-root rational
   endpoints.
-- [ ] Relate complete derivative-root isolation to source-graph critical points,
-  including roots at partition endpoints.
-- [ ] Add generic derivative-sign range strategy.
+- [x] Relate complete non-root-endpoint derivative isolation to its checked
+  obligation-free polynomial source graph.
+- [ ] Add one-sided root counting and form monotonicity partitions when a
+  critical point lies at a partition endpoint.
+- [x] Add a generic primitive derivative-sign range strategy that checks graph
+  identity, encloses the derivative, and discharges every carried obligation.
 - [ ] Add generic Lipschitz midpoint strategy with bounded subdivision.
 - [ ] Add second-derivative convexity/Taylor remainder strategy.
 - [x] Ensure unsupported theorem tags cannot be promoted to Checked.
 
 ## 7. Symbolic proof preservation
 
-- [ ] Define transformation evidence relating source and target graph identity.
-- [ ] Require rewrites to report newly introduced domain obligations.
+- [x] Define checked primitive derivative-transformation evidence relating
+  source and target graph identity.
+- [x] Require checked derivative transformations to retain newly introduced
+  domain obligations, including division, negative powers, and default `0^0`.
+- [ ] Generalize transformation checking to semantic derivative rules and
+  arbitrary Symbolic rewrites.
 - [ ] Add proof-preserving simplification hooks consumed by Numerics.
 - [ ] Test unsafe cancellation (`x/x`) and safe identity rewrites.
 
@@ -205,5 +214,8 @@ focused tests exist; design-only work remains unchecked.
   and complete non-root-endpoint isolations, including adversarial claims.
 - Open/unbounded tagged construction and all supplemental tutorial cells pass
   the documentation harness.
-- Complete RiX suite after this stage: 2,578 tests passed across 132 files with
-  zero failures (8,600 assertions).
+- Primitive derivative transformation, generic derivative-sign, monotone
+  composition, and polynomial critical-point binding integration: 46 focused
+  tests passed with zero failures (247 assertions).
+- Complete RiX suite after this stage: 2,583 tests passed across 132 files with
+  zero failures (8,636 assertions).

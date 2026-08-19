@@ -58,5 +58,9 @@ describe("versioned certified-range schemas", () => {
         expect(recognition.$id).toEndWith("/calculus-graph-recognition/v1.schema.json");
         expect(recognition.properties.kind.enum).toEqual(["polynomial", "rationalFunction"]);
         expect(recognition.properties.cancellationPerformed.const).toBe(false);
+        const derivativeSign = schema("calculus-derivative-sign.schema.json");
+        expect(derivativeSign.$id).toEndWith("/calculus-derivative-sign/v1.schema.json");
+        expect(derivativeSign.properties.direction.enum).toContain("unknown");
+        expect(derivativeSign.required).toContain("monotonicityCertified");
     });
 });

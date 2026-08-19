@@ -93,6 +93,15 @@ independently recomputes the portable claim. Semantic `apply` nodes remain
 explicitly unresolved until their semantic ID is bound to checked or trusted
 domain and range providers.
 
+`.numerics.CheckDerivativeGraph(transformation)` independently recomputes
+primitive Calculus differentiation rather than trusting the transformation's
+visible evidence labels. `.numerics.DerivativeSign(transformation, bindings,
+options?)` then encloses that derivative and proves `nondecreasing`,
+`nonincreasing`, or `constant` only after every carried nonzero obligation is
+discharged over the complete input. A derivative spanning both signs is an
+honest inconclusive result; an input that may hit a quotient or power hole is
+unresolved.
+
 For an exact interval expression, generic subdivision can reduce dependency
 overestimation while retaining the same input occurrence in each piece:
 

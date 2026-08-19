@@ -16,6 +16,7 @@ import { rangeDiagnosticAction, rangeMathPolicy } from "./range-policy.js";
 
 export const CALCULUS_GRAPH_RANGE_SCHEMA = "rix.numerics.calculus-graph-range@1";
 export const CALCULUS_GRAPH_RANGE_CHECKER = "rix.runtime.calculus-graph-range-checker@1";
+export const CALCULUS_DERIVATIVE_SIGN_SCHEMA = "rix.numerics.calculus-derivative-sign@1";
 
 const text = (value) => ({ type: "string", value: String(value) });
 const sequence = (values) => ({ type: "sequence", values });
@@ -25,6 +26,13 @@ const map = (entries) => ({
 });
 
 function mapValue(value, key) {
+    if (value && typeof value === "object" && value.type !== "map" && !Array.isArray(value)) {
+        if (Object.hasOwn(value, key)) return value[key];
+        const lower = String(key).toLowerCase();
+        for (const [candidate, entry] of Object.entries(value)) {
+            if (candidate.toLowerCase() === lower) return entry;
+        }
+    }
     if (value?.type !== "map" || !(value.entries instanceof Map)) return undefined;
     const wanted = String(key);
     if (value.entries.has(wanted)) return value.entries.get(wanted);
@@ -51,7 +59,7 @@ function integerValue(value, fallback) {
 }
 
 function isExpression(value) {
-    return value?.type === "map" &&
+    return (value?.type === "map" || (value && typeof value === "object")) &&
         textValue(mapValue(value, "schema")) === "rix.calculus.expression@1";
 }
 
@@ -61,6 +69,7 @@ function expressionKind(value) {
 
 function expressionChildren(value, key) {
     const children = mapValue(value, key);
+    if (Array.isArray(children)) return children;
     if (!children || children.type !== "sequence" || !Array.isArray(children.values)) {
         throw new Error(`Calculus ${key} must be an Array`);
     }
@@ -91,7 +100,352 @@ export function calculusGraphStructuralKey(expression) {
 function exactRational(value) {
     if (value instanceof Rational) return value;
     if (value instanceof Integer) return new Rational(value.value);
+    if (typeof value === "bigint" || typeof value === "string" ||
+        (typeof value === "number" && Number.isSafeInteger(value))) return new Rational(value);
     return null;
+}
+
+function graphConstant(value) {
+    const rational = exactRational(value);
+    if (!rational) throw new Error("nonRationalGraphConstant");
+    const exact = rational.denominator === 1n ? new Integer(rational.numerator) : rational;
+    return map([
+        ["valueKind", text("calculusExpression")],
+        ["schema", text("rix.calculus.expression@1")],
+        ["kind", text("constant")],
+        ["value", exact],
+    ]);
+}
+
+function graphOperator(operation, operands) {
+    return map([
+        ["valueKind", text("calculusExpression")],
+        ["schema", text("rix.calculus.expression@1")],
+        ["kind", text("operator")],
+        ["operation", text(operation)],
+        ["operands", sequence(operands)],
+    ]);
+}
+
+function graphApplication(semanticId, name, argumentsValue) {
+    return map([
+        ["valueKind", text("calculusExpression")],
+        ["schema", text("rix.calculus.expression@1")],
+        ["kind", text("apply")],
+        ["semanticId", text(semanticId)],
+        ["name", text(name ?? semanticId)],
+        ["arguments", sequence(argumentsValue)],
+    ]);
+}
+
+/** Structurally substitute one Calculus variable without algebraic rewriting. */
+export function substituteCalculusGraphVariable(expression, variableValue, replacement) {
+    if (!isExpression(expression) || !isExpression(replacement)) {
+        throw new Error("Calculus composition requires expression graphs");
+    }
+    const variable = textValue(variableValue)?.toLowerCase();
+    if (!variable) throw new Error("invalidCompositionVariable");
+    const visit = (node) => {
+        const kind = expressionKind(node);
+        if (kind === "constant") return node;
+        if (kind === "variable") {
+            const name = textValue(mapValue(node, "name"))?.toLowerCase();
+            return name === variable ? replacement : node;
+        }
+        if (kind === "operator") {
+            return graphOperator(
+                textValue(mapValue(node, "operation")),
+                expressionChildren(node, "operands").map(visit),
+            );
+        }
+        if (kind === "apply") {
+            return graphApplication(
+                textValue(mapValue(node, "semanticid")),
+                textValue(mapValue(node, "name")),
+                expressionChildren(node, "arguments").map(visit),
+            );
+        }
+        throw new Error(`unsupportedCompositionGraphKind:${String(kind)}`);
+    };
+    return visit(expression);
+}
+
+function exactGraphValue(expression, value) {
+    if (!isExpression(expression) || expressionKind(expression) !== "constant") return false;
+    const actual = exactRational(mapValue(expression, "value"));
+    return actual?.equals(new Rational(value)) === true;
+}
+
+function graphNegate(value) {
+    return graphOperator("negate", [value]);
+}
+
+function graphAdd(left, right) {
+    if (exactGraphValue(left, 0)) return right;
+    if (exactGraphValue(right, 0)) return left;
+    return graphOperator("add", [left, right]);
+}
+
+function graphSubtract(left, right) {
+    if (exactGraphValue(right, 0)) return left;
+    if (exactGraphValue(left, 0)) return graphNegate(right);
+    return graphOperator("subtract", [left, right]);
+}
+
+function graphMultiply(left, right) {
+    if (exactGraphValue(left, 0) || exactGraphValue(right, 0)) return graphConstant(0);
+    if (exactGraphValue(left, 1)) return right;
+    if (exactGraphValue(right, 1)) return left;
+    return graphOperator("multiply", [left, right]);
+}
+
+function graphDivide(left, right) {
+    if (exactGraphValue(left, 0)) return graphConstant(0);
+    if (exactGraphValue(right, 1)) return left;
+    return graphOperator("divide", [left, right]);
+}
+
+function graphPower(base, exponent) {
+    if (exponent === 0n) return graphConstant(1);
+    if (exponent === 1n) return base;
+    return graphOperator("power", [base, graphConstant(exponent)]);
+}
+
+function graphObligation(expression, reason) {
+    return Object.freeze({
+        kind: "domain",
+        relation: "nonzero",
+        expression,
+        reason,
+    });
+}
+
+function differentiatePrimitiveNode(expression, variable) {
+    const kind = expressionKind(expression);
+    if (kind === "constant") return { expression: graphConstant(0), obligations: [] };
+    if (kind === "variable") {
+        const name = textValue(mapValue(expression, "name"))?.toLowerCase();
+        return { expression: graphConstant(name === variable ? 1 : 0), obligations: [] };
+    }
+    if (kind !== "operator") throw new Error(`unsupportedDerivativeGraphKind:${String(kind)}`);
+    const operation = textValue(mapValue(expression, "operation"));
+    const operands = expressionChildren(expression, "operands");
+    if (operation === "negate") {
+        if (operands.length !== 1) throw new Error("graphOperatorArity");
+        const inner = differentiatePrimitiveNode(operands[0], variable);
+        return { expression: graphNegate(inner.expression), obligations: inner.obligations };
+    }
+    if (operands.length !== 2) throw new Error("graphOperatorArity");
+    const [left, right] = operands;
+    const leftResult = differentiatePrimitiveNode(left, variable);
+    const rightResult = differentiatePrimitiveNode(right, variable);
+    const obligations = [...leftResult.obligations, ...rightResult.obligations];
+    let derivative;
+    if (operation === "add") derivative = graphAdd(leftResult.expression, rightResult.expression);
+    else if (operation === "subtract") derivative = graphSubtract(leftResult.expression, rightResult.expression);
+    else if (operation === "multiply") derivative = graphAdd(
+        graphMultiply(leftResult.expression, right),
+        graphMultiply(left, rightResult.expression),
+    );
+    else if (operation === "divide") {
+        derivative = graphDivide(
+            graphSubtract(
+                graphMultiply(leftResult.expression, right),
+                graphMultiply(left, rightResult.expression),
+            ),
+            graphPower(right, 2n),
+        );
+        obligations.push(graphObligation(right, "divisionDomain"));
+    } else if (operation === "power") {
+        const exponent = exactIntegerConstant(right);
+        if (exponent === null) throw new Error("graphPowerRequiresIntegerConstant");
+        derivative = exponent === 0n
+            ? graphConstant(0)
+            : graphMultiply(
+                graphMultiply(graphConstant(exponent), graphPower(left, exponent - 1n)),
+                leftResult.expression,
+            );
+        if (exponent < 0n) obligations.push(graphObligation(left, "negativeIntegerPower"));
+        if (exponent === 0n) obligations.push(graphObligation(left, "zeroPowerZeroDomain"));
+    } else throw new Error(`unsupportedDerivativeGraphOperator:${String(operation)}`);
+    return { expression: derivative, obligations };
+}
+
+function collectionValues(value) {
+    if (Array.isArray(value)) return value;
+    if (value?.type === "sequence" && Array.isArray(value.values)) return value.values;
+    return null;
+}
+
+function obligationFingerprint(value) {
+    const expression = mapValue(value, "expression");
+    return [
+        textValue(mapValue(value, "kind")),
+        textValue(mapValue(value, "relation")),
+        calculusGraphStructuralKey(expression),
+        textValue(mapValue(value, "reason")),
+    ].join("|");
+}
+
+/** Independently derive the exact primitive derivative graph and obligations. */
+export function differentiateCalculusPrimitiveGraph(expression, variableValue) {
+    if (!isExpression(expression)) throw new Error("Expected a Calculus expression graph");
+    const variable = textValue(variableValue)?.toLowerCase();
+    if (!variable) throw new Error("invalidDerivativeVariable");
+    const result = differentiatePrimitiveNode(expression, variable);
+    return Object.freeze({
+        source: expression,
+        expression: result.expression,
+        variable,
+        functionGraph: calculusGraphStructuralKey(expression),
+        derivativeGraph: calculusGraphStructuralKey(result.expression),
+        obligations: Object.freeze(result.obligations),
+    });
+}
+
+/** Check a Calculus transformation without trusting its visible rule trace. */
+export function checkCalculusDerivativeTransformation(transformation) {
+    try {
+        if (textValue(mapValue(transformation, "schema")) !== "rix.calculus.transformation@1" ||
+            textValue(mapValue(transformation, "operation")) !== "differentiate") {
+            throw new Error("notCalculusDerivativeTransformation");
+        }
+        const source = mapValue(transformation, "source");
+        const expression = mapValue(transformation, "expression");
+        const variable = textValue(mapValue(transformation, "variable"));
+        const order = integerValue(mapValue(transformation, "order"), 1n);
+        if (order !== 1n) throw new Error("unsupportedDerivativeOrder");
+        const claimedObligations = collectionValues(mapValue(transformation, "obligations"));
+        if (!isExpression(source) || !isExpression(expression) || !claimedObligations) {
+            throw new Error("malformedDerivativeTransformation");
+        }
+        const actual = differentiateCalculusPrimitiveGraph(source, variable);
+        if (calculusGraphStructuralKey(expression) !== actual.derivativeGraph) {
+            throw new Error("derivativeGraphMismatch");
+        }
+        const claimedFingerprints = claimedObligations.map(obligationFingerprint);
+        const actualFingerprints = actual.obligations.map(obligationFingerprint);
+        if (claimedFingerprints.length !== actualFingerprints.length ||
+            claimedFingerprints.some((value, index) => value !== actualFingerprints[index])) {
+            throw new Error("derivativeObligationMismatch");
+        }
+        return Object.freeze({
+            accepted: true,
+            certified: true,
+            functionGraph: actual.functionGraph,
+            derivativeGraph: actual.derivativeGraph,
+            variable: actual.variable,
+            obligations: actual.obligations,
+            obligationDescriptors: Object.freeze(actualFingerprints),
+            source,
+            expression,
+        });
+    } catch (error) {
+        return Object.freeze({ accepted: false, certified: false, reason: error.message });
+    }
+}
+
+/**
+ * Check a primitive derivative transformation, enclose its derivative on the
+ * requested bindings, discharge carried nonzero obligations, and derive a
+ * monotonicity direction when the sign is uniform.
+ */
+export function evaluateCalculusDerivativeSign(
+    transformation,
+    bindings,
+    options,
+    conventions = { zeroPowerZero: "undefined" },
+) {
+    const identity = checkCalculusDerivativeTransformation(transformation);
+    if (!identity.accepted) {
+        return Object.freeze({
+            schema: CALCULUS_DERIVATIVE_SIGN_SCHEMA,
+            status: "unknown",
+            certified: false,
+            monotonicityCertified: false,
+            direction: "unknown",
+            identity,
+            diagnostics: Object.freeze([identity.reason]),
+        });
+    }
+    const derivativeExpression = mapValue(transformation, "expression");
+    const derivativeRange = evaluateCalculusGraphRange(
+        derivativeExpression,
+        bindings,
+        options,
+        conventions,
+    );
+    const obligationChecks = identity.obligations.map((obligation) => {
+        if (obligation.reason === "zeroPowerZeroDomain" &&
+            conventions.zeroPowerZero === "one") {
+            return Object.freeze({
+                descriptor: obligationFingerprint(obligation),
+                discharged: true,
+                reason: "dischargedByZeroPowerZeroConvention",
+                convention: "one",
+            });
+        }
+        if (obligation.relation !== "nonzero") {
+            return Object.freeze({
+                descriptor: obligationFingerprint(obligation),
+                discharged: false,
+                reason: "unsupportedDerivativeObligation",
+            });
+        }
+        const result = evaluateCalculusGraphRange(
+            obligation.expression,
+            bindings,
+            options,
+            conventions,
+        );
+        const discharged = result.certified && result.domainStatus === "allDefined" &&
+            !result.range.containsValue(Rational.zero);
+        return Object.freeze({
+            descriptor: obligationFingerprint(obligation),
+            discharged,
+            reason: discharged ? null : "derivativeObligationNotDischarged",
+            range: result.range,
+            domainStatus: result.domainStatus,
+        });
+    });
+    const obligationsDischarged = obligationChecks.every((check) => check.discharged);
+    const rangeCertified = derivativeRange.certified &&
+        derivativeRange.domainStatus === "allDefined" && obligationsDischarged;
+    const nonnegative = new RationalIntervalSet({
+        low: 0, high: null, lowClosed: true, highClosed: false,
+    });
+    const nonpositive = new RationalIntervalSet({
+        low: null, high: 0, lowClosed: false, highClosed: true,
+    });
+    const zero = RationalIntervalSet.point(0);
+    let direction = "unknown";
+    if (rangeCertified && derivativeRange.range.equals(zero)) direction = "constant";
+    else if (rangeCertified && nonnegative.contains(derivativeRange.range)) direction = "nondecreasing";
+    else if (rangeCertified && nonpositive.contains(derivativeRange.range)) direction = "nonincreasing";
+    const monotonicityCertified = direction !== "unknown";
+    const diagnostics = [];
+    if (!derivativeRange.certified || derivativeRange.domainStatus !== "allDefined") {
+        diagnostics.push("derivativeRangeNotTotal");
+    }
+    if (!obligationsDischarged) diagnostics.push("derivativeObligationNotDischarged");
+    if (rangeCertified && !monotonicityCertified) diagnostics.push("derivativeSignNotUniform");
+    return Object.freeze({
+        schema: CALCULUS_DERIVATIVE_SIGN_SCHEMA,
+        status: monotonicityCertified ? "proved" : "inconclusive",
+        certified: rangeCertified,
+        monotonicityCertified,
+        direction,
+        functionGraph: identity.functionGraph,
+        derivativeGraph: identity.derivativeGraph,
+        variable: identity.variable,
+        derivativeRange: derivativeRange.range,
+        domainStatus: rangeCertified ? "allDefined" : "unresolved",
+        identity,
+        graphRange: derivativeRange,
+        obligationChecks: Object.freeze(obligationChecks),
+        conventions: Object.freeze({ zeroPowerZero: conventions.zeroPowerZero }),
+        diagnostics: Object.freeze(diagnostics),
+    });
 }
 
 function trimPolynomial(coefficients) {
@@ -844,4 +1198,21 @@ export function calculusGraphRangeCheckValue(value) {
 
 export function calculusGraphRecognitionValue(expression, variable) {
     return portable(recognizeCalculusGraph(expression, variable));
+}
+
+/** RiX adapter for the independently recomputed primitive derivative check. */
+export function calculusDerivativeCheckValue(transformation) {
+    return portable(checkCalculusDerivativeTransformation(transformation));
+}
+
+/** RiX adapter for generic checked derivative-sign reasoning. */
+export function calculusDerivativeSignValue(transformation, bindings, options, context) {
+    const conventions = rangeMathPolicy(context);
+    const result = evaluateCalculusDerivativeSign(
+        transformation,
+        bindings,
+        options,
+        { zeroPowerZero: conventions.zeroPowerZero },
+    );
+    return portable(result);
 }
