@@ -21,6 +21,8 @@ endpoints; it does not try to shrink uncertainty inherent in the measurement.
 - [x] Add `.numerics.Range(image, options)` and `image.Range(options)`.
 - [x] Add `.numerics.Range(function, interval, options)` for exact
   scalar/interval expressions.
+- [x] Publish the unary interval-image functions through the trusted
+  `RangeProvider` protocol as `.numerics.Range(function, range, options)`.
 - [x] Preserve a certified best enclosure when an endpoint work budget is
   exhausted.
 - [x] Never promote Float computations into certified range results.
@@ -62,8 +64,9 @@ endpoints; it does not try to shrink uncertainty inherent in the measurement.
   `:poleNotExcluded` result.
 - [x] Add the Core `RationalIntervalSet` foundation for interval unions, open
   boundaries, and extended endpoints.
-- [ ] Adapt `RationalIntervalSet` into RiX and use it for genuinely disconnected
-  or unbounded Numerics results.
+- [x] Adapt `RationalIntervalSet` into RiX and use it for genuinely disconnected
+  Numerics results.
+- [ ] Extend certified providers to open and unbounded input/output components.
 - [x] Allow generic subdivided functions to return one nested Numerics interval
   image directly.
 - [ ] Add a certified expression-graph range engine for arithmetic that
@@ -84,6 +87,8 @@ endpoints; it does not try to shrink uncertainty inherent in the measurement.
 ## Verification
 
 - [x] Test set-valued capability metadata and result schemas.
+- [x] Test unary provider identity, legacy parity, disconnected inputs, aliases,
+  partial domain failure, and bounded exhaustion.
 - [x] Test exponential, logarithmic, root, circular, and inverse-circular
   containment.
 - [x] Test base changes and stable `Expm1`/`Log1p` forms.

@@ -4275,6 +4275,183 @@ NumericsRange(image, options ?= {= }) -> {;
     };
 };
 
+## Adapt one existing unary interval-image implementation to the common direct
+## RangeProvider result. Each closed bounded input component uses the existing
+## range algorithm with a disjoint share of the caller's work budget; results
+## are joined as a genuine RationalIntervalSet rather than silently hulled.
+NumericsUnaryProviderResult(functionId, functionKind, input, request) -> {;
+    rangeInput = input ~!: :RangeSet;
+    components = rangeInput.Split();
+    count = components.Len();
+    emptyRange = (0:0) /\ (1:1);
+    divisor = .Max(1, count);
+    maxCalls = request[:work][:maxCalls]//divisor;
+    maxIterations = request[:work][:maxIterations]//divisor;
+    perWork = .Min(maxCalls, maxIterations);
+    combined := _;
+    status := :enclosed;
+    domainStatus := :allDefined;
+    certified := 1;
+    goalMet := 1;
+    achieved := 0;
+    calls := 0;
+    iterations := 0;
+    diagnostic := _;
+    {@ index=1; index <= @count;
+       {;
+           component = @components[index];
+           interval = component.ToRationalInterval();
+           (interval ? :RationalInterval) == _
+             ?: {;
+                 @status = @status == :domainViolation ?: @status ?_ :unknown;
+                 @domainStatus = @domainStatus == :domainViolation
+                   ?: @domainStatus
+                   ?_ :notCertified;
+                 @certified = _;
+                 @goalMet = _;
+                 @diagnostic = @diagnostic == _
+                   ?: :unsupportedInputTopology
+                   ?_ @diagnostic;
+             }
+             ?_ {;
+                 image = NumericsUnaryCall(@functionKind, @interval);
+                 piece = NumericsRange(image, {=
+                     endpointTolerance=@request[:endpointTolerance],
+                     maxSubintervals=@request[:maxSubintervals],
+                     maxWork=@perWork,
+                     maxCalls=@maxCalls,
+                     maxIterations=@maxIterations,
+                     trace=@request[:trace]
+                 });
+                 @calls += piece[:work][:calls];
+                 @iterations += piece[:work][:iterations];
+                 pieceRange = piece[:range];
+                 pieceRange ? :RationalIntervalSet
+                   ?: {;
+                       @combined = @combined == _
+                         ?: @pieceRange
+                         ?_ @combined \/ @pieceRange;
+                       @achieved = .Max(
+                           @achieved,
+                           @piece[:achievedEndpointTolerance] == _
+                             ?: 0
+                             ?_ @piece[:achievedEndpointTolerance]
+                       );
+                   };
+                 {?
+                   piece[:domainStatus] == :domainViolation ? {;
+                       @status = :domainViolation;
+                       @domainStatus = :domainViolation;
+                       @certified = _;
+                       @goalMet = _;
+                       @diagnostic = @diagnostic == _
+                         ?: @piece[:diagnostics][1]
+                         ?_ @diagnostic;
+                   };
+                   !piece[:certified] ? {;
+                       @status = @status == :domainViolation ?: @status ?_ :unknown;
+                       @domainStatus = @domainStatus == :domainViolation
+                         ?: @domainStatus
+                         ?_ :notCertified;
+                       @certified = _;
+                       @goalMet = _;
+                       @diagnostic = @diagnostic == _
+                         ?: @piece[:diagnostics][1]
+                         ?_ @diagnostic;
+                   };
+                   piece[:status] == :budgetExhausted && @status == :enclosed ? {;
+                       @status = :budgetExhausted;
+                       @goalMet = _;
+                   };
+                   @goalMet ? @goalMet = @goalMet && piece[:goalMet];
+                 };
+             };
+       };
+       index += 1
+    };
+    outputRange = combined == _ ?: emptyRange ?_ combined;
+    {=
+        valueKind=:rangeProviderResult,
+        schema="rix.numerics.range-provider-result@1",
+        functionId=functionId,
+        input=rangeInput,
+        status=status,
+        range=outputRange,
+        certified=certified,
+        domainStatus=domainStatus,
+        goalMet=goalMet,
+        achievedEndpointTolerance=achieved,
+        evidenceLevel=:trustedCapability,
+        work={= calls=calls, iterations=iterations },
+        diagnostics=diagnostic == _ ?: [] ?_ [diagnostic],
+        evidence={=
+            kind=:builtinUnaryRangeAdapter,
+            property=:componentwiseRangeContainment,
+            functionId=functionId,
+            components=count
+        }
+    };
+};
+
+NumericsUnaryExpCall(value, base) ->
+    base == _ ?: NumericsExp(value) ?_ NumericsExp(value, base);
+
+NumericsUnaryLogCall(value, base) ->
+    base == _ ?: NumericsLog(value) ?_ NumericsLog(value, base);
+
+NumericsUnaryRootCall(value, degree, options) ->
+    NumericsNthRootDispatch(value, degree, options == _ ?: {= } ?_ options);
+
+NumericsUnaryCall(kind, value, extra ?= _) -> {?
+    kind == :exp ? NumericsUnaryExpCall(value, extra);
+    kind == :expm1 ? NumericsExpm1(value);
+    kind == :log ? NumericsUnaryLogCall(value, extra);
+    kind == :ln ? NumericsNaturalLog(value);
+    kind == :log1p ? NumericsLog1p(value);
+    kind == :log2 ? NumericsLog(value, 2);
+    kind == :log10 ? NumericsLog(value, 10);
+    kind == :sqrt ? NumericsUnaryRootCall(value, 2, extra);
+    kind == :cbrt ? NumericsUnaryRootCall(value, 3, extra);
+    kind == :sin ? NumericsSin(value);
+    kind == :cos ? NumericsCos(value);
+    kind == :tan ? NumericsTan(value);
+    kind == :sec ? NumericsSec(value);
+    kind == :csc ? NumericsCsc(value);
+    kind == :cot ? NumericsCot(value);
+    kind == :asin ? NumericsAsin(value);
+    kind == :acos ? NumericsAcos(value);
+    kind == :atan ? NumericsAtan(value);
+    kind == :sinh ? NumericsSinh(value);
+    kind == :cosh ? NumericsCosh(value);
+    kind == :tanh ? NumericsTanh(value);
+    kind == :sech ? NumericsSech(value);
+    kind == :csch ? NumericsCsch(value);
+    kind == :coth ? NumericsCoth(value);
+    kind == :asinh ? NumericsAsinh(value);
+    kind == :acosh ? NumericsAcosh(value);
+    kind == :atanh ? NumericsAtanh(value);
+    kind == :erf ? NumericsErf(value);
+    kind == :erfc ? NumericsErfc(value);
+    kind == :normalPDF ? NumericsNormalPDF(value);
+    kind == :normalCDF ? NumericsNormalCDF(value);
+    .Error(@"Unsupported unary Numerics range function '@{kind}'")
+};
+
+NumericsPublishUnaryRangeFunction(surface, functionId, functionKind) -> {;
+    directRange = (input, request) ->
+        NumericsUnaryProviderResult(functionId, functionKind, input, request);
+    NumericsRegisterRangeProvider(surface, {=
+        functionId=functionId,
+        directRange=directRange,
+        provenance={=
+            plugin=:numerics,
+            version=1,
+            adapter=:builtinUnaryIntervalImage,
+            invariant=:componentwiseExistingCertifiedRange
+        }
+    });
+};
+
 NumericsPow(value, exponent) -> {;
     rational = exponent ~!: :Rational;
     numerator = rational.Numerator();
@@ -5381,5 +5558,139 @@ numericsNamespace._proto = {=
     CheckResult = (self, result, options ?= {= }, capabilities ?= _) ->
         CheckEnclosure(result, NumericsRequest(options), capabilities)
 };
+
+## Register each existing unary interval-image method as a trusted
+## RangeProvider. Each explicit method keeps the existing namespace-call
+## behavior and supplies a stable first-class callable identity.
+ExpRangeFunction = (self, value, base ?= _) -> NumericsExp(value, base);
+NumericsPublishUnaryRangeFunction(ExpRangeFunction, "rix.numerics.unary.exp@1", :exp);
+numericsNamespace.Exp = ExpRangeFunction;
+
+Expm1RangeFunction = (self, value) -> NumericsExpm1(value);
+NumericsPublishUnaryRangeFunction(Expm1RangeFunction, "rix.numerics.unary.expm1@1", :expm1);
+numericsNamespace.Expm1 = Expm1RangeFunction;
+
+LogRangeFunction = (self, value, base ?= _) -> NumericsLog(value, base);
+NumericsPublishUnaryRangeFunction(LogRangeFunction, "rix.numerics.unary.log@1", :log);
+numericsNamespace.Log = LogRangeFunction;
+
+LnRangeFunction = (self, value) -> NumericsNaturalLog(value);
+NumericsPublishUnaryRangeFunction(LnRangeFunction, "rix.numerics.unary.ln@1", :ln);
+numericsNamespace.Ln = LnRangeFunction;
+
+Log1pRangeFunction = (self, value) -> NumericsLog1p(value);
+NumericsPublishUnaryRangeFunction(Log1pRangeFunction, "rix.numerics.unary.log1p@1", :log1p);
+numericsNamespace.Log1p = Log1pRangeFunction;
+
+Log2RangeFunction = (self, value) -> NumericsLog(value, 2);
+NumericsPublishUnaryRangeFunction(Log2RangeFunction, "rix.numerics.unary.log2@1", :log2);
+numericsNamespace.Log2 = Log2RangeFunction;
+
+Log10RangeFunction = (self, value) -> NumericsLog(value, 10);
+NumericsPublishUnaryRangeFunction(Log10RangeFunction, "rix.numerics.unary.log10@1", :log10);
+numericsNamespace.Log10 = Log10RangeFunction;
+
+SqrtRangeFunction = (self, value, options ?= {= }) -> NumericsNthRootDispatch(value, 2, options);
+NumericsPublishUnaryRangeFunction(SqrtRangeFunction, "rix.numerics.unary.sqrt@1", :sqrt);
+numericsNamespace.Sqrt = SqrtRangeFunction;
+
+CbrtRangeFunction = (self, value, options ?= {= }) -> NumericsNthRootDispatch(value, 3, options);
+NumericsPublishUnaryRangeFunction(CbrtRangeFunction, "rix.numerics.unary.cbrt@1", :cbrt);
+numericsNamespace.Cbrt = CbrtRangeFunction;
+
+SinRangeFunction = (self, value) -> NumericsSin(value);
+NumericsPublishUnaryRangeFunction(SinRangeFunction, "rix.numerics.unary.sin@1", :sin);
+numericsNamespace.Sin = SinRangeFunction;
+
+CosRangeFunction = (self, value) -> NumericsCos(value);
+NumericsPublishUnaryRangeFunction(CosRangeFunction, "rix.numerics.unary.cos@1", :cos);
+numericsNamespace.Cos = CosRangeFunction;
+
+TanRangeFunction = (self, value) -> NumericsTan(value);
+NumericsPublishUnaryRangeFunction(TanRangeFunction, "rix.numerics.unary.tan@1", :tan);
+numericsNamespace.Tan = TanRangeFunction;
+
+SecRangeFunction = (self, value) -> NumericsSec(value);
+NumericsPublishUnaryRangeFunction(SecRangeFunction, "rix.numerics.unary.sec@1", :sec);
+numericsNamespace.Sec = SecRangeFunction;
+
+CscRangeFunction = (self, value) -> NumericsCsc(value);
+NumericsPublishUnaryRangeFunction(CscRangeFunction, "rix.numerics.unary.csc@1", :csc);
+numericsNamespace.Csc = CscRangeFunction;
+
+CotRangeFunction = (self, value) -> NumericsCot(value);
+NumericsPublishUnaryRangeFunction(CotRangeFunction, "rix.numerics.unary.cot@1", :cot);
+numericsNamespace.Cot = CotRangeFunction;
+
+AsinRangeFunction = (self, value) -> NumericsAsin(value);
+NumericsPublishUnaryRangeFunction(AsinRangeFunction, "rix.numerics.unary.asin@1", :asin);
+numericsNamespace.Asin = AsinRangeFunction;
+
+AcosRangeFunction = (self, value) -> NumericsAcos(value);
+NumericsPublishUnaryRangeFunction(AcosRangeFunction, "rix.numerics.unary.acos@1", :acos);
+numericsNamespace.Acos = AcosRangeFunction;
+
+AtanRangeFunction = (self, value) -> NumericsAtan(value);
+NumericsPublishUnaryRangeFunction(AtanRangeFunction, "rix.numerics.unary.atan@1", :atan);
+numericsNamespace.Atan = AtanRangeFunction;
+
+SinhRangeFunction = (self, value) -> NumericsSinh(value);
+NumericsPublishUnaryRangeFunction(SinhRangeFunction, "rix.numerics.unary.sinh@1", :sinh);
+numericsNamespace.Sinh = SinhRangeFunction;
+
+CoshRangeFunction = (self, value) -> NumericsCosh(value);
+NumericsPublishUnaryRangeFunction(CoshRangeFunction, "rix.numerics.unary.cosh@1", :cosh);
+numericsNamespace.Cosh = CoshRangeFunction;
+
+TanhRangeFunction = (self, value) -> NumericsTanh(value);
+NumericsPublishUnaryRangeFunction(TanhRangeFunction, "rix.numerics.unary.tanh@1", :tanh);
+numericsNamespace.Tanh = TanhRangeFunction;
+
+SechRangeFunction = (self, value) -> NumericsSech(value);
+NumericsPublishUnaryRangeFunction(SechRangeFunction, "rix.numerics.unary.sech@1", :sech);
+numericsNamespace.Sech = SechRangeFunction;
+
+CschRangeFunction = (self, value) -> NumericsCsch(value);
+NumericsPublishUnaryRangeFunction(CschRangeFunction, "rix.numerics.unary.csch@1", :csch);
+numericsNamespace.Csch = CschRangeFunction;
+
+CothRangeFunction = (self, value) -> NumericsCoth(value);
+NumericsPublishUnaryRangeFunction(CothRangeFunction, "rix.numerics.unary.coth@1", :coth);
+numericsNamespace.Coth = CothRangeFunction;
+
+AsinhRangeFunction = (self, value) -> NumericsAsinh(value);
+NumericsPublishUnaryRangeFunction(AsinhRangeFunction, "rix.numerics.unary.asinh@1", :asinh);
+numericsNamespace.Asinh = AsinhRangeFunction;
+
+AcoshRangeFunction = (self, value) -> NumericsAcosh(value);
+NumericsPublishUnaryRangeFunction(AcoshRangeFunction, "rix.numerics.unary.acosh@1", :acosh);
+numericsNamespace.Acosh = AcoshRangeFunction;
+
+AtanhRangeFunction = (self, value) -> NumericsAtanh(value);
+NumericsPublishUnaryRangeFunction(AtanhRangeFunction, "rix.numerics.unary.atanh@1", :atanh);
+numericsNamespace.Atanh = AtanhRangeFunction;
+
+ErfRangeFunction = (self, value) -> NumericsErf(value);
+NumericsPublishUnaryRangeFunction(ErfRangeFunction, "rix.numerics.unary.erf@1", :erf);
+numericsNamespace.Erf = ErfRangeFunction;
+
+ErfcRangeFunction = (self, value) -> NumericsErfc(value);
+NumericsPublishUnaryRangeFunction(ErfcRangeFunction, "rix.numerics.unary.erfc@1", :erfc);
+numericsNamespace.Erfc = ErfcRangeFunction;
+
+NormalPDFRangeFunction = (self, value) -> NumericsNormalPDF(value);
+NumericsPublishUnaryRangeFunction(NormalPDFRangeFunction, "rix.numerics.unary.normal-pdf@1", :normalPDF);
+numericsNamespace.NormalPDF = NormalPDFRangeFunction;
+
+NormalCDFRangeFunction = (self, value) -> NumericsNormalCDF(value);
+NumericsPublishUnaryRangeFunction(NormalCDFRangeFunction, "rix.numerics.unary.normal-cdf@1", :normalCDF);
+numericsNamespace.NormalCDF = NormalCDFRangeFunction;
+
+numericsNamespace.Arcsin = AsinRangeFunction;
+numericsNamespace.Arccos = AcosRangeFunction;
+numericsNamespace.Arctan = AtanRangeFunction;
+numericsNamespace.Arsinh = AsinhRangeFunction;
+numericsNamespace.Arcosh = AcoshRangeFunction;
+numericsNamespace.Artanh = AtanhRangeFunction;
 
 .Host.RegisterValue("numerics", numericsNamespace, "Backend-neutral bounded enclosure and refinement orchestration", ["Numerics"]);

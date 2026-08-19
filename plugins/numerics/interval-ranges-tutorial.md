@@ -41,6 +41,59 @@ The certificate says
 for every x in 99/100:101/100, sin(x) is in answer[:interval].
 ```
 
+## Range the function directly
+
+Unary functions with an existing certified interval algorithm also publish a
+trusted `RangeProvider`. This avoids constructing the intermediate image and,
+more importantly, accepts an exact union of possible input intervals:
+
+```{.rix exec=true}
+.Plugin.Load("numerics");
+
+possibleInputs := (0:1) \/ (3:4);
+answer := .numerics.Range(.numerics.Exp, possibleInputs, {=
+  endpointTolerance=1/1000,
+  maxWork=200
+});
+
+{=
+  input=answer[:input],
+  output=answer[:range],
+  components=answer[:range].Split().Len(),
+  connectedProjection=answer[:interval],
+  certified=answer[:certified],
+  evidence=answer[:evidence][:kind]
+};
+```
+
+The exponential images remain separated, so `answer[:range]` has two
+components and `answer[:interval]` is null. RiX does not silently fill the gap.
+Use `answer[:range].Hull()` (or `left |\/| right` when combining ranges) only
+when a connected over-approximation is intentionally required.
+
+The image-first API remains equivalent on one interval:
+
+```{.rix exec=true}
+.Plugin.Load("numerics");
+
+sine := .numerics.Sin;
+legacy := .numerics.Range(.numerics.Sin(0:1), {= maxWork=120 });
+direct := .numerics.Range(sine, 0:1, {= maxWork=120 });
+
+{=
+  sameEnclosure=legacy[:interval] == direct[:interval],
+  provider=direct[:function],
+  trusted=direct[:evidenceLevel]
+};
+```
+
+A saved function value retains its provider identity; so does a function
+selected lexically with `.numerics[:Sin]`. `Arcsin`, `Arccos`, `Arctan`,
+`Arsinh`, `Arcosh`, and `Artanh` share the corresponding canonical provider.
+The adapter divides `maxWork` among components. Open or unbounded components
+currently return `:unknown` with `:unsupportedInputTopology` rather than making
+an unsupported certification claim.
+
 ## Measurement width and numerical tolerance are different
 
 The physical input uncertainty should normally remain visible in the output.
@@ -289,9 +342,9 @@ window := ((-2):2) ~: :RangeSet;
 };
 ```
 
-This is the representation layer, not yet a claim that every Numerics range
-provider returns disconnected or unbounded results. Provider migration and
-proof validation are tracked in
+Unary Numerics providers now return genuinely disconnected finite results.
+Open and unbounded components remain representation support awaiting provider
+algorithms. Further provider migration and proof validation are tracked in
 [general-range-development-checklist.md](general-range-development-checklist.md).
 
 ### Union, hull, containment, and components

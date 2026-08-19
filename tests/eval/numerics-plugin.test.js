@@ -261,6 +261,112 @@ describe("pure RiX Numerics plugin", () => {
         expect(rootInterval.high.toNumber()).toBeGreaterThanOrEqual(Math.sqrt(2));
     });
 
+    test("unary Numerics methods publish trusted RangeProvider identities", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("numerics");
+            {:
+                .Host.FindRangeProvider(.numerics.Exp)[:functionId],
+                .Host.FindRangeProvider(.numerics.Expm1)[:functionId],
+                .Host.FindRangeProvider(.numerics.Log)[:functionId],
+                .Host.FindRangeProvider(.numerics.Ln)[:functionId],
+                .Host.FindRangeProvider(.numerics.Log1p)[:functionId],
+                .Host.FindRangeProvider(.numerics.Log2)[:functionId],
+                .Host.FindRangeProvider(.numerics.Log10)[:functionId],
+                .Host.FindRangeProvider(.numerics.Sqrt)[:functionId],
+                .Host.FindRangeProvider(.numerics.Cbrt)[:functionId],
+                .Host.FindRangeProvider(.numerics.Sin)[:functionId],
+                .Host.FindRangeProvider(.numerics.Cos)[:functionId],
+                .Host.FindRangeProvider(.numerics.Tan)[:functionId],
+                .Host.FindRangeProvider(.numerics.Sec)[:functionId],
+                .Host.FindRangeProvider(.numerics.Csc)[:functionId],
+                .Host.FindRangeProvider(.numerics.Cot)[:functionId],
+                .Host.FindRangeProvider(.numerics.Asin)[:functionId],
+                .Host.FindRangeProvider(.numerics.Acos)[:functionId],
+                .Host.FindRangeProvider(.numerics.Atan)[:functionId],
+                .Host.FindRangeProvider(.numerics.Sinh)[:functionId],
+                .Host.FindRangeProvider(.numerics.Cosh)[:functionId],
+                .Host.FindRangeProvider(.numerics.Tanh)[:functionId],
+                .Host.FindRangeProvider(.numerics.Sech)[:functionId],
+                .Host.FindRangeProvider(.numerics.Csch)[:functionId],
+                .Host.FindRangeProvider(.numerics.Coth)[:functionId],
+                .Host.FindRangeProvider(.numerics.Asinh)[:functionId],
+                .Host.FindRangeProvider(.numerics.Acosh)[:functionId],
+                .Host.FindRangeProvider(.numerics.Atanh)[:functionId],
+                .Host.FindRangeProvider(.numerics.Erf)[:functionId],
+                .Host.FindRangeProvider(.numerics.Erfc)[:functionId],
+                .Host.FindRangeProvider(.numerics.NormalPDF)[:functionId],
+                .Host.FindRangeProvider(.numerics.NormalCDF)[:functionId],
+                .Host.FindRangeProvider(.numerics.Arcsin)[:functionId],
+                .Host.FindRangeProvider(.numerics.Arccos)[:functionId],
+                .Host.FindRangeProvider(.numerics.Arctan)[:functionId],
+                .Host.FindRangeProvider(.numerics.Arsinh)[:functionId],
+                .Host.FindRangeProvider(.numerics.Arcosh)[:functionId],
+                .Host.FindRangeProvider(.numerics.Artanh)[:functionId]
+            }
+        `, runtime());
+
+        expect(result.values).toHaveLength(37);
+        expect(result.values.every((value) => textValue(value)?.startsWith("rix.numerics.unary.")))
+            .toBe(true);
+        expect(textValue(result.values[31])).toBe("rix.numerics.unary.asin@1");
+        expect(textValue(result.values[36])).toBe("rix.numerics.unary.atanh@1");
+    });
+
+    test("unary providers preserve legacy ranges and handle sets, domains, aliases, and budgets", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("numerics");
+            .numerics[:Sin];
+            sine = .numerics.Sin;
+            legacy = .numerics.Range(.numerics.Sin(0:1), {=
+                endpointTolerance=1/1000, maxWork=120
+            });
+            protocol = .numerics.Range(sine, 0:1, {=
+                endpointTolerance=1/1000, maxWork=120
+            });
+            selected = .numerics.Range(Sin, 0:1, {=
+                endpointTolerance=1/1000, maxWork=120
+            });
+            disconnected = .numerics.Range(
+                .numerics.Exp, (0:1) \\/ (3:4),
+                {= endpointTolerance=1/1000, maxWork=200 }
+            );
+            partialDomain = .numerics.Range(
+                .numerics.Log, ((-1):0) \\/ (1:2), {= maxWork=100 }
+            );
+            alias = .numerics.Range(.numerics.Arcsin, 0:1/2, {= maxWork=100 });
+            exhausted = .numerics.Range(.numerics.Exp, 0:1, {= maxWork=0 });
+            {: legacy, protocol, selected, disconnected, partialDomain, alias, exhausted }
+        `, runtime());
+
+        const [legacy, protocol, selected, disconnected, partialDomain, alias, exhausted] = result.values;
+        expect(entry(protocol, "interval").toString()).toBe(entry(legacy, "interval").toString());
+        expect(entry(selected, "interval").toString()).toBe(entry(legacy, "interval").toString());
+        expect(textValue(entry(selected, "function"))).toBe("rix.numerics.unary.sin@1");
+        expect(entry(protocol, "certified").value).toBe(1n);
+        expect(textValue(entry(protocol, "evidenceLevel"))).toBe("trustedCapability");
+        expect(textValue(entry(protocol, "function"))).toBe("rix.numerics.unary.sin@1");
+
+        const disconnectedRange = entry(disconnected, "range");
+        expect(disconnectedRange).toBeInstanceOf(RationalIntervalSet);
+        expect(disconnectedRange.components).toHaveLength(2);
+        expect(entry(disconnected, "interval")).toBeNull();
+        expect(entry(disconnected, "certified").value).toBe(1n);
+        expect(entry(entry(disconnected, "evidence"), "components").value).toBe(2n);
+
+        expect(textValue(entry(partialDomain, "status"))).toBe("domainViolation");
+        expect(entry(partialDomain, "certified")).toBeNull();
+        expect(entry(partialDomain, "range")).toBeInstanceOf(RationalIntervalSet);
+        expect(entry(partialDomain, "diagnostics").values.map(textValue))
+            .toContain("logDomainViolation");
+
+        expect(textValue(entry(alias, "function"))).toBe("rix.numerics.unary.asin@1");
+        expect(entry(alias, "certified").value).toBe(1n);
+        expect(textValue(entry(exhausted, "status"))).toBe("unknown");
+        expect(entry(exhausted, "certified")).toBeNull();
+        expect(entry(exhausted, "diagnostics").values.map(textValue))
+            .toContain("rangeReductionBudgetExhausted");
+    });
+
     test("circular ranges use bounded subdivision and reject unexcluded poles", () => {
         const result = parseAndEvaluate(`
             .Plugin.Load("numerics");

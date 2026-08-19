@@ -27,7 +27,9 @@ operations can remain in Core or a more specific plugin.
 ## Certified `RationalInterval` coverage
 
 The following unary families also accept a set-valued `RationalInterval` and
-produce a range image consumable by `.numerics.Range`:
+produce a range image consumable by `.numerics.Range`. They also publish a
+trusted first-class provider, so `.numerics.Range(.numerics.Sin, input)` accepts
+a closed bounded `RationalIntervalSet` and preserves disconnected output:
 
 - roots, exponentials, logarithms, and stable exponential/log forms;
 - circular and inverse-circular trigonometric functions;

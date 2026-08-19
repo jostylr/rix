@@ -65,7 +65,7 @@ focused tests exist; design-only work remains unchecked.
   seal; never accept a visible trust field as authority.
 - [x] Reject duplicate stable identities, duplicate callable registrations, and
   reuse of a trusted descriptor with a different callable.
-- [ ] Adapt existing unary Numerics implementations to publish the common
+- [x] Adapt existing unary Numerics implementations to publish the common
   protocol without regressing their current range API.
 
 ## 4. Domain and evidence schemas

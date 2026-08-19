@@ -11,7 +11,7 @@
  */
 
 import { Integer } from "@ratmath/core";
-import { builtinMethodNamesForType, isCallableValue } from "./methods.js";
+import { builtinMethodNamesForType, isCallableValue, resolveMethod } from "./methods.js";
 import { isMultifunctionValue } from "./multifunction.js";
 
 // Trust is attached to the descriptor object by the host boundary, never to a
@@ -21,6 +21,15 @@ const trustedRangeProviderDescriptors = new WeakMap();
 
 function isRangeProviderCallable(value) {
     return isCallableValue(value) || isMultifunctionValue(value);
+}
+
+function canonicalRangeProviderCallable(value, evaluationContext) {
+    if (value?.type !== "bound_method") return value;
+    try {
+        return resolveMethod(value.target, value.methodName, evaluationContext);
+    } catch (_error) {
+        return value;
+    }
 }
 
 function firstLetterIsUppercase(name) {
@@ -76,6 +85,7 @@ function rangeProviderIdentityKey(value, label = "Range provider functionId") {
 }
 
 function trustedRangeProviderDescriptor(functionValue, provider, registryContext, evaluationContext) {
+    functionValue = canonicalRangeProviderCallable(functionValue, evaluationContext);
     if (!isRangeProviderCallable(functionValue)) {
         throw new Error(".Host.RegisterRangeProvider requires a callable function or multifunction");
     }
@@ -331,8 +341,8 @@ function namespaceEntry(context, namespace) {
         value._ext.set("FINDRANGEPROVIDER", {
             type: "method_builtin",
             name: "FindRangeProvider",
-            impl(args) {
-                const target = args[1];
+            impl(args, evaluationContext) {
+                const target = canonicalRangeProviderCallable(args[1], evaluationContext);
                 if (isRangeProviderCallable(target)) {
                     return registryContext._rangeProvidersByFunction.get(target) ?? null;
                 }
@@ -343,9 +353,9 @@ function namespaceEntry(context, namespace) {
         value._ext.set("RANGEPROVIDERTRUSTED", {
             type: "method_builtin",
             name: "RangeProviderTrusted",
-            impl(args) {
+            impl(args, evaluationContext) {
                 const descriptor = args[1];
-                const functionValue = args[2];
+                const functionValue = canonicalRangeProviderCallable(args[2], evaluationContext);
                 const seal = descriptor && trustedRangeProviderDescriptors.get(descriptor);
                 return seal
                     && seal.functionValue === functionValue

@@ -229,6 +229,27 @@ bindings. This establishes trusted provenance, not mathematical truth: the
 host or user granting `Plugins` authority is responsible for the provider's
 documented enclosure invariant.
 
+The existing certified unary interval-image implementations now publish this
+same protocol. Both spellings remain valid:
+
+```rix
+legacy := .numerics.Range(.numerics.Sin(0:1), {= maxWork=120 });
+direct := .numerics.Range(.numerics.Sin, 0:1, {= maxWork=120 });
+```
+
+The first spelling constructs an interval-image value and ranges it. The
+second selects the trusted provider registered for the first-class `Sin`
+method. Its adapter splits a `RationalIntervalSet` into closed bounded
+components, runs the existing certified algorithm on each component under a
+partitioned work budget, and unions the output components without taking a
+hull. A saved method value such as `sine = .numerics.Sin` keeps the same
+identity, as does a lexical `.numerics[:Sin]` selection. Inverse-function
+`Arc...` aliases share their canonical provider.
+
+This adapter currently reports `:unsupportedInputTopology` rather than
+certifying open or unbounded components. Callers can split large finite sets;
+the request work limit remains global and is divided across components.
+
 The remaining certifying path is checker-accepted theorem evidence. The
 portable descriptor and result shapes live in
 `rix/schemas/range-provider.schema.json` and
@@ -361,7 +382,8 @@ later representations consumed by Numerics; they do not replace the exact
 4. Bridge the existing Calculus expression graph and exact derivative support.
 5. Add checked derivative-sign and Lipschitz range strategies.
 6. Add Symbolic proof-preserving transformation hooks.
-7. Move built-in function facts behind the shared provider protocol.
+7. Move built-in unary direct ranges behind the shared provider protocol
+   (implemented); richer shared fact providers remain future work.
 8. Add multivariate boxes, then affine arithmetic and Taylor models where
    dependency makes ordinary subdivision inadequate.
 
