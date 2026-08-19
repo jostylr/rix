@@ -8,6 +8,11 @@ import { Integer, Rational } from "@ratmath/core";
 import { formatValue } from "../format.js";
 import { executeRangeOperation, rangeEvidence } from "../../runtime/range-arithmetic.js";
 import {
+    calculusGraphRangeValue,
+    calculusGraphRangeCheckValue,
+    calculusGraphRecognitionValue,
+} from "../../runtime/calculus-range.js";
+import {
     RANGE_MATH_POLICY_KEY,
     mergeRangeMathPolicy,
     rangeMathPolicy,
@@ -111,6 +116,37 @@ function requireNonNegativeInteger(value, operation) {
 }
 
 export const arithmeticFunctions = {
+    CALCULUS_RANGE: {
+        impl(args, context) {
+            if (args.length < 2 || args.length > 3) {
+                throw new Error("CalculusRange expects an expression, bindings, and optional options");
+            }
+            return calculusGraphRangeValue(args[0], args[1], args[2], context);
+        },
+        pure: true,
+        doc: "Evaluate a supported immutable Calculus graph over exact rational ranges",
+    },
+
+    CALCULUS_RANGE_CHECK: {
+        impl(args) {
+            if (args.length !== 1) throw new Error("CalculusRangeCheck expects one graph-range result");
+            return calculusGraphRangeCheckValue(args[0]);
+        },
+        pure: true,
+        doc: "Return the checker record attached to a Calculus graph-range result",
+    },
+
+    CALCULUS_RANGE_RECOGNIZE: {
+        impl(args) {
+            if (args.length !== 2) {
+                throw new Error("CalculusRangeRecognize expects an expression and variable");
+            }
+            return calculusGraphRecognitionValue(args[0], args[1]);
+        },
+        pure: true,
+        doc: "Recognize an exact polynomial or source-domain-preserving rational graph",
+    },
+
     RANGE_POLICY: {
         lazy: true,
         impl(args, context, evaluate) {

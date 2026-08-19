@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/calculus-graph-range/v1.schema.json",
+  "title": "Checked range of an immutable Calculus graph",
+  "description": "Portable result contract for the initial exact-primitive Calculus graph range evaluator. Semantic applications and unresolved domain correlation remain non-certifying.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema", "functionId", "expression", "bindings", "status", "range",
+    "certified", "domainStatus", "exactImage", "goalMet", "evidenceLevel",
+    "work", "diagnostics", "evidence", "checker"
+  ],
+  "properties": {
+    "schema": { "const": "rix.numerics.calculus-graph-range@1" },
+    "functionId": { "type": "string", "minLength": 1 },
+    "expression": {
+      "type": "object",
+      "description": "An immutable rix.calculus.expression@1 record. Semantic validation is performed by the checker."
+    },
+    "bindings": {
+      "type": "object",
+      "additionalProperties": { "$ref": "range-set.schema.json" }
+    },
+    "status": { "enum": ["enclosed", "unknown"] },
+    "range": { "$ref": "range-set.schema.json" },
+    "certified": { "type": ["boolean", "null"] },
+    "domainStatus": {
+      "enum": ["allDefined", "partiallyDefined", "noDefinedInputs", "unresolved"]
+    },
+    "exactImage": { "type": ["boolean", "null"] },
+    "goalMet": { "type": ["boolean", "null"] },
+    "evidenceLevel": { "enum": ["checkedEvidence", "heuristic"] },
+    "work": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["nodes", "reuses", "subintervals"],
+      "properties": {
+        "nodes": { "type": "integer", "minimum": 0 },
+        "reuses": { "type": "integer", "minimum": 0 },
+        "subintervals": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "diagnostics": { "type": "array" },
+    "exclusions": { "type": "array" },
+    "evidence": { "type": "object" },
+    "checker": { "type": "object" }
+  }
+}

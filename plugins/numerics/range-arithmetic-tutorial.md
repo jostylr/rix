@@ -10,6 +10,42 @@ Cartesian image: every left value is combined with every right value. The
 result is exact when rational endpoints suffice, and every result carries a
 checked `rangeEvidence` record.
 
+## Construct open and unbounded sets exactly
+
+Closed bounded intervals have the short conversion syntax used below. For
+open endpoints, disconnected pieces, or infinity, import the versioned public
+range-set record. A false closure flag excludes a finite endpoint; `_` in a
+low or high endpoint means negative or positive infinity according to its
+position. Infinite endpoints must be open.
+
+```{.rix exec=true}
+false := 0 == 1;
+openUnit := .TypeImport({=
+  type="RationalIntervalSet", version=1, cache=_,
+  data={= components=[{=
+    low=0, high=1, lowClosed=false, highClosed=false
+  }] }
+});
+outside := .TypeImport({=
+  type="RationalIntervalSet", version=1, cache=_,
+  data={= components=[
+    {= low=_, high=(-1), lowClosed=false, highClosed=1 },
+    {= low=1, high=_, lowClosed=1, highClosed=false }
+  ] }
+});
+
+{:
+  openUnit.ToString(),
+  outside.ToString(),
+  openUnit.ContainsValue(0),
+  outside.ContainsValue(0)
+};
+```
+
+The component array may arrive out of order or with overlaps; v1 import
+normalizes it. Export with `.TypeExport(value)` to obtain the same portable
+shape. Merely importing an older supported record never rewrites its source.
+
 ## A calibration with rational uncertainty
 
 Suppose a sensor reports between `99/100` and `101/100`, and calibration is
@@ -142,21 +178,21 @@ Range arithmetic treats operands as independent choices:
 
 ```{.rix exec=true}
 .Plugin.Load("numerics");
+.Plugin.Load("calculus");
 
 a := (1:2) ~!: :RangeSet;
 independent := a-a;
-dependent := .numerics.Range((x)->x-x, 1:2, {=
-  maxSubintervals=16,
-  maxWork=160
-});
+graphX := .calculus.Variable(:x);
+dependent := .numerics.GraphRange(graphX-graphX,{= x=1:2 });
 
-{: independent, dependent[:interval] };
+{: independent, dependent[:range] };
 ```
 
 The first result is `[-1,1]`: it includes `1-2` and `2-1`. The callback uses
-one repeated input occurrence, so Numerics subdivision preserves that
-correlation and can tighten the enclosure. Expression-graph knowledge will
-eventually prove the exact `{0}` result without subdivision.
+one repeated graph input occurrence, so the graph checker proves the exact
+`{0}` result without subdivision. See
+[Certified ranges of Calculus expression graphs](calculus-range-tutorial.md)
+for subdivision and domain-sensitive cancellation.
 
 ## Operators, named primitives, and methods
 

@@ -835,20 +835,23 @@ export function registerBuiltinSemanticTypes() {
         if (!value || value.type !== "map" || !(value.entries instanceof Map)) {
             throw new Error("RationalIntervalSet components must be maps");
         }
+        const componentEntry = (key) => value.entries.has(key)
+            ? value.entries.get(key)
+            : value.entries.get(key.toLowerCase());
         for (const key of ["low", "high", "lowClosed", "highClosed"]) {
-            if (!value.entries.has(key)) {
+            if (!value.entries.has(key) && !value.entries.has(key.toLowerCase())) {
                 throw new Error(`RationalIntervalSet component requires ${key}`);
             }
         }
         const readClosure = (key) => {
-            const flag = value.entries.get(key);
+            const flag = componentEntry(key);
             if (flag === null) return false;
             if (flag instanceof Integer && flag.value === 1n) return true;
             throw new Error(`RationalIntervalSet ${key} must be a RiX boolean`);
         };
         return {
-            low: value.entries.get("low"),
-            high: value.entries.get("high"),
+            low: componentEntry("low"),
+            high: componentEntry("high"),
             lowClosed: readClosure("lowClosed"),
             highClosed: readClosure("highClosed"),
         };

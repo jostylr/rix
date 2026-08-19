@@ -349,8 +349,11 @@ window := ((-2):2) ~: :RangeSet;
 ```
 
 Unary Numerics providers now return genuinely disconnected finite results.
-Open and unbounded components remain representation support awaiting provider
-algorithms. Further provider migration and proof validation are tracked in
+Open and unbounded values can be constructed through the versioned
+`.TypeImport` form demonstrated in the
+[range arithmetic tutorial](range-arithmetic-tutorial.md); individual
+providers still advertise whether their algorithms accept them. Further
+provider migration and proof validation are tracked in
 [general-range-development-checklist.md](general-range-development-checklist.md).
 
 ### Union, hull, containment, and components

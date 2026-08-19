@@ -1,10 +1,12 @@
 # Range evidence checker vocabulary v1
 
 Status: accepted pre-1.0 contract with staged implementation. The versioned
-schema and the independent exact set, partition, arithmetic, and trusted-leaf
-checker kernel are implemented. Derivative, composition, and Sturm rules are
-reserved here and fail closed until their checker modules land. Every detail
-remains changeable until RiX 1.0.
+schema and the independent exact set, partition, arithmetic, trusted-leaf,
+derivative-sign, closed monotone-endpoint, and polynomial Sturm/root-isolation
+checker kernel are implemented. Exact derivative-graph construction, monotone
+composition, and final critical-point binding remain reserved and fail closed
+until their checker modules land. Every detail remains changeable until RiX
+1.0.
 
 ## Recommended decisions
 
@@ -223,6 +225,14 @@ domain unresolved. It cannot be converted into an exclusion.
 | `monotone.compose` | Combines checked monotonicity facts with the usual direction table and checks that the inner image lies in the outer fact's covered domain. |
 | `range.monotoneEndpoints` | On one closed bounded connected input piece, checks endpoint enclosures and forms the output enclosure using the monotonicity direction. |
 
+The implemented derivative-sign rule accepts a derivative-range premise only
+when it is already checked or resolved through `trusted.derivativeRange`; it
+does not treat a portable derivative label as authority. The endpoint rule
+requires matching function identities, exact singleton endpoint bindings,
+all-defined endpoint results, and a closed bounded connected input. Wrong-sign
+ranges, disconnected inputs, stale identities, and open/unbounded endpoint
+claims fail closed.
+
 The initial v1 rule is deliberately restricted to closed bounded pieces. An
 open or unbounded piece must use primitive arithmetic, a global enclosure, or
 a trusted provider until a versioned one-sided-limit vocabulary is specified.
@@ -240,6 +250,15 @@ value.
 
 Repeated roots and roots at rational partition endpoints must use an explicit
 half-open counting convention so that no root is missed or counted twice.
+
+The implemented first slice uses `endpointPolicy="endpointsNotRoots"`: it
+recomputes a canonical signed-remainder sequence, rejects a counting endpoint
+that is itself a root, counts distinct roots by exact sign variation, and
+checks that every proposed isolating component contains exactly one root while
+their total count equals the search-set count. This is sufficient for ordinary
+rational isolating intervals. One-sided endpoint conventions and
+`polynomial.completeCriticalPoints`, which binds the polynomial to a checked
+derivative graph, remain fail-closed work.
 
 ## Certification result
 

@@ -84,6 +84,15 @@ functions, `Erf`, `Erfc`, normal PDF, and normal CDF. Their range providers use
 monotonicity, even symmetry, or exact pole/domain boundaries rather than
 sampling.
 
+Immutable Calculus expression graphs have a separate checked entry point:
+`.numerics.GraphRange(expression, bindings, options?)`. The initial bridge
+evaluates exact constants, variables, arithmetic composition, and Integer
+powers; memoizes structural identities; preserves correlated `g-g` and `g/g`;
+and can subdivide one exact rational binding. `.numerics.CheckGraphRange`
+independently recomputes the portable claim. Semantic `apply` nodes remain
+explicitly unresolved until their semantic ID is bound to checked or trusted
+domain and range providers.
+
 For an exact interval expression, generic subdivision can reduce dependency
 overestimation while retaining the same input occurrence in each piece:
 
@@ -92,8 +101,9 @@ overestimation while retaining the same input occurrence in each piece:
 ```
 
 Generic subdivided functions may return an exact scalar, `RationalInterval`, or
-one supported Numerics interval image. Arithmetic that combines several
-interval images is not yet a general expression-graph range engine.
+one supported Numerics interval image. That callback path does not infer a
+graph from arbitrary code; use `GraphRange` when dependency and graph identity
+must be explicit.
 
 Range results now also expose `result[:range]` as a `RationalIntervalSet`.
 `result[:interval]` remains the compatibility projection when that set is one
@@ -110,6 +120,8 @@ transcendental measurement tutorial; and
 general-function evidence and adversarial examples. The underlying designs
 are [range-certification.md](range-certification.md) and
 [calculus-range-bridge.md](calculus-range-bridge.md). See
+[calculus-range-tutorial.md](calculus-range-tutorial.md) for the worked graph
+range examples, and
 [interval-ranges-checklist.md](interval-ranges-checklist.md) for implemented
 unary coverage. The cross-component implementation plan is tracked in
 [general-range-development-checklist.md](general-range-development-checklist.md).

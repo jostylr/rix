@@ -8,9 +8,12 @@ status: implemented
 General functions need more than endpoint evaluation. RiX must know which
 mathematical function is meant, where it is defined, and why all interior
 extrema have been covered. This tutorial builds the useful records while being
-explicit about the current boundary: exact set/arithmetic evidence is checked
-today; derivative and expression-graph rules are reserved in checker v1 but do
-not certify until their checker modules land.
+explicit about the current boundary: exact set/arithmetic graph evidence,
+authority-bound derivative-sign reasoning, and closed monotone endpoint
+formation are checked today. Rational-polynomial Sturm sequences, root counts,
+and complete isolations with non-root rational endpoints are checked as well.
+Exact `derivative.graph`, monotone composition, and the final binding from
+isolated derivative roots to source critical points remain staged.
 
 ## The shape of a derivative-range witness
 
@@ -38,10 +41,12 @@ witness := {=
 };
 ```
 
-The arithmetic evidence proves the range of `2*x`. A future
-`derivative.graph` checker step must additionally prove that `graphTwoXV1`
-really is the derivative of `graphSquareV1`, including domain obligations.
-Matching names or source text is not enough.
+The arithmetic evidence proves the range of `2*x`. The implemented
+`monotone.derivativeSign` checker can consume this only after a checked or
+authority-resolved derivative-range premise binds `graphTwoXV1` to
+`graphSquareV1`. The future `derivative.graph` module will establish that
+relationship directly from the immutable expression graphs and their domain
+obligations. Matching names or source text is not enough.
 
 ## From derivative sign to monotonicity
 
@@ -76,6 +81,26 @@ For a decreasing proof the derivative enclosure must lie in
 `(-inf,0]`; a range containing both signs proves neither direction. A critical
 point partition can split such an input, but its completeness needs checked
 root isolation—Sturm evidence for polynomials—not a list found by sampling.
+
+For example, the coefficient array `[0,-1,0,1]` means `x^3-x`, in increasing
+degree order. The checker independently derives the canonical sequence
+
+```text
+[x^3-x, 3*x^2-1, (2/3)*x, 1]
+```
+
+and counts three distinct roots in `[-2,2]`. Three pairwise-disjoint rational
+intervals around `-1`, `0`, and `1` are complete only when each has root count
+one and their counts sum to the search-set count. Changing the final constant,
+omitting an interval, overlapping two intervals, or placing a root exactly at
+a counting endpoint is rejected. The current `endpointsNotRoots` policy keeps
+this slice simple and exact; one-sided endpoint policies are still required
+before these roots can form arbitrary half-open monotonicity partitions.
+
+Once monotonicity is checked, `range.monotoneEndpoints` verifies exact
+singleton endpoint bindings for the same function identity and forms their
+outer hull on a closed bounded connected input. It rejects open or unbounded
+pieces until a one-sided-limit vocabulary exists.
 
 ## Samples are search hints, not enclosures
 

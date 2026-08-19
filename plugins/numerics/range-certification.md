@@ -2,10 +2,12 @@
 
 Status: active staged implementation. Unary range functions, exact range sets,
 proof-safe exact arithmetic, scoped domain policy, capability-gated trusted
-direct providers, versioned evidence schemas, and the exact set/arithmetic
-checker kernel are implemented. Expression-graph and calculus strategies
-have an implemented Calculus foundation; the range evaluator and proof
-strategies that consume it remain staged work.
+direct providers, versioned evidence schemas, the exact set/arithmetic
+checker kernel, exact-primitive Calculus graph evaluation, authority-bound
+derivative-sign checking, closed monotone endpoint formation, and exact
+rational-polynomial Sturm/root-isolation rules are implemented.
+Semantic-application links, exact derivative-graph checking, monotone
+composition, and critical-point binding strategies remain staged work.
 
 The following accepted pre-1.0 contracts describe the implemented foundation
 and the remaining v1 checker vocabulary:
@@ -377,11 +379,14 @@ Versioned portable schemas now live under `rix/schemas` for:
 
 Schema validation checks shape, not mathematical truth. The first deliberately
 small checker module validates exact set operations, exact partitions,
-proof-safe arithmetic images, and host-resolved trusted leaves; it rejects
+proof-safe arithmetic images, derivative signs, closed monotone endpoint
+formation, canonical Sturm sequences, exact root counts, complete isolations
+with non-root rational endpoints, and host-resolved trusted leaves. It rejects
 cycles, dangling premises, unknown rules, mismatched claims, and configured
-resource-limit overruns. Derivative-sign monotonicity, monotone composition,
-and complete Sturm critical-point checking remain reserved in the v1 schema
-but fail closed until their checker modules land.
+resource-limit overruns. Monotone composition, exact derivative-graph
+identities, one-sided root endpoint policies, and final critical-point binding
+remain reserved in the v1 schema and fail closed until their checker modules
+land.
 
 Keep the checker independent of the main strategy engine. Strategy may become
 large and heuristic; the certifying kernel should remain auditable.

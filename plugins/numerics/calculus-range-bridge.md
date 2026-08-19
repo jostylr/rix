@@ -1,9 +1,9 @@
 # Calculus graphs as certified-range subjects
 
-Status: implemented bridge foundation, with range evaluation still staged.
-The existing Calculus expression and transformation records provide the
-identity, immutability, derivative, and obligation boundary needed by the
-general range engine. They do not by themselves certify a range.
+Status: exact-primitive graph evaluation implemented; semantic application
+and derivative strategies staged. The Calculus expression and transformation
+records provide the identity, immutability, derivative, and obligation
+boundary needed by the general range engine.
 
 ## Why a graph is necessary
 
@@ -93,29 +93,38 @@ unresolved even when it can compute their subject at a sample point. Numerics
 must attach a checked `domain-witness` before the derivative can support a
 certified monotonicity conclusion.
 
-## Adapter that remains to be implemented
+## Implemented exact-primitive adapter
 
-The next bridge module should consume a portable Calculus expression and an
-exact variable-to-`RationalIntervalSet` binding, then return a range enclosure
-plus evidence nodes. Its first whitelist should be deliberately small:
+`.numerics.GraphRange(expression, bindings, options)` now consumes a portable
+Calculus expression and exact variable-to-`RationalIntervalSet` bindings. Its
+first whitelist is deliberately small:
 
 - exact constants and shared variables;
-- negate, absolute value, add, subtract, multiply, divide, and Integer power
+- negate, add, subtract, multiply, divide, and Integer power
   through the Core checked primitives;
-- semantic applications only through a matching checked/trusted
-  `RangeProvider`; and
-- composition only after the inner range is proved to lie in the outer
-  function's checked domain.
+- arithmetic composition through those same nodes.
 
-Every graph node should be memoized by structural identity and input binding,
-which preserves repeated-input correlation where an exact graph rule knows
-it and avoids re-running shared applications. Unsupported nodes return an
-explicit unresolved result; they are never sampled and relabeled as checked.
+Every graph node is memoized by structural identity and input binding. The
+initial correlation rules prove `g-g={0}` and preserve the zero-domain hole in
+`g/g`. Exact rational subdivision rebinds the same variable identity on every
+piece. The independent checker recomputes the graph, bindings, active `0^0`
+convention, partition, range, and domain coverage before accepting the public
+result. Unsupported semantic applications return an explicit unresolved
+result; they are never sampled and relabeled as checked.
 
-Polynomial and rational recognizers should be hooks on this portable graph,
-not alternate parsers. A recognized polynomial can use complete Sturm
-critical-point evidence. A recognized rational function carries its reduced
-denominator zeros as source-domain exclusions before any cancellation.
+Semantic applications are the next adapter layer. They will be admitted only
+through a matching checked or authority-resolved `RangeProvider`, and
+composition must prove that the inner image lies in the outer function's
+domain.
+
+`.numerics.RecognizeGraph` is the initial polynomial/rational hook on this
+portable graph rather than an alternate parser. It emits exact coefficient
+arrays and retains source denominator restrictions without cancellation. The
+checker can now recompute a polynomial's canonical Sturm sequence, count its
+distinct roots, and validate a complete family of rational isolating
+intervals. Binding those roots to a checked derivative graph is still a
+separate proof step. A recognized rational function must discharge every
+retained denominator restriction.
 
 ## What is ready and what is not
 
@@ -124,16 +133,21 @@ Ready now:
 - immutable portable graph nodes and stable semantic IDs;
 - public RiX and JavaScript bridge APIs;
 - exact derivative graphs with obligation-preserving transformations;
-- deterministic structural keys and tested common-subexpression reuse; and
-- exact Core range primitives plus evidence checking for their local steps.
+- deterministic structural keys and tested common-subexpression reuse;
+- exact Core range primitives plus evidence checking for their local steps;
+- checked exact-primitive graph evaluation and one-variable subdivision; and
+- domain-sensitive correlated `g-g` and `g/g` identities; and
+- conservative univariate polynomial/rational recognition with source-domain
+  restrictions.
 
 Still required for general graph certification:
 
-- the interval graph evaluator and its identity-bound evidence assembly;
 - checked discharge of Calculus obligations over exact sets;
-- derivative-identity and derivative-sign checker modules;
-- monotone endpoint and composition checker modules; and
-- complete polynomial/Sturm critical-point checking.
+- trusted/checked RangeProvider links for semantic `apply` nodes;
+- exact derivative-identity checking from graph rules;
+- monotone composition checking; and
+- derivative-root isolation to source critical-point binding, including
+  partition-endpoint roots.
 
 See the [Calculus design](../calculus/design.md), the
 [checker vocabulary](checker-vocabulary-v1-proposal.md), and the

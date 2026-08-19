@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/calculus-graph-recognition/v1.schema.json",
+  "title": "Calculus polynomial/rational graph recognition",
+  "description": "A structural recognition result. Rational-function recognition preserves source denominator restrictions and never implies cancellation.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "recognized"],
+  "properties": {
+    "schema": { "const": "rix.numerics.calculus-graph-recognition@1" },
+    "recognized": { "type": ["boolean", "null"] },
+    "reason": { "type": "string" },
+    "kind": { "enum": ["polynomial", "rationalFunction"] },
+    "variable": { "type": "string" },
+    "graphIdentity": { "type": "string" },
+    "numerator": { "type": "array", "items": { "type": "object" } },
+    "denominator": { "type": "array", "items": { "type": "object" } },
+    "sourceDomainRestrictions": { "type": "array", "items": { "type": "string" } },
+    "cancellationPerformed": { "const": false }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "recognized": { "const": true } } },
+      "then": {
+        "required": [
+          "kind", "variable", "graphIdentity", "numerator", "denominator",
+          "sourceDomainRestrictions", "cancellationPerformed"
+        ]
+      },
+      "else": { "required": ["reason"] }
+    }
+  ]
+}

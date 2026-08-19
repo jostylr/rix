@@ -1,4 +1,6 @@
 import {
+    Integer,
+    Rational,
     RationalIntervalSet,
     rangeAbsoluteValue,
     rangeAdd,
@@ -13,7 +15,123 @@ import {
 export const RANGE_EVIDENCE_SCHEMA = "rix.numerics.range-evidence@1";
 export const RANGE_CHECKER_VOCABULARY = "rix.numerics.range-checker@1";
 
-const DEFAULT_LIMITS = Object.freeze({ maxNodes: 10_000, maxComponents: 10_000 });
+const DEFAULT_LIMITS = Object.freeze({
+    maxNodes: 10_000,
+    maxComponents: 10_000,
+    maxPolynomialDegree: 256,
+});
+
+function exactRational(value) {
+    if (value instanceof Rational) return value;
+    if (value instanceof Integer) return new Rational(value.value);
+    if (typeof value === "bigint" || typeof value === "string" ||
+        (typeof value === "number" && Number.isSafeInteger(value))) return new Rational(value);
+    throw new Error("polynomialCoefficientNotExactRational");
+}
+
+function normalizePolynomial(value) {
+    if (!Array.isArray(value) || value.length === 0) throw new Error("invalidPolynomial");
+    const polynomial = value.map(exactRational);
+    while (polynomial.length > 1 && polynomial.at(-1).equals(Rational.zero)) polynomial.pop();
+    return polynomial;
+}
+
+function samePolynomial(left, right) {
+    try {
+        const a = normalizePolynomial(left);
+        const b = normalizePolynomial(right);
+        return a.length === b.length && a.every((coefficient, index) => coefficient.equals(b[index]));
+    } catch {
+        return false;
+    }
+}
+
+function zeroPolynomial(value) {
+    return value.length === 1 && value[0].equals(Rational.zero);
+}
+
+function polynomialDerivative(value) {
+    if (value.length === 1) return [Rational.zero];
+    return value.slice(1).map((coefficient, index) =>
+        coefficient.multiply(new Rational(BigInt(index + 1))));
+}
+
+function polynomialNegatedRemainder(dividend, divisor) {
+    if (zeroPolynomial(divisor)) throw new Error("polynomialDivisionByZero");
+    const remainder = normalizePolynomial(dividend);
+    const divisorDegree = divisor.length - 1;
+    while (!zeroPolynomial(remainder) && remainder.length - 1 >= divisorDegree) {
+        const offset = remainder.length - divisor.length;
+        const scale = remainder.at(-1).divide(divisor.at(-1));
+        for (let index = 0; index < divisor.length; index += 1) {
+            remainder[index + offset] = remainder[index + offset]
+                .subtract(divisor[index].multiply(scale));
+        }
+        while (remainder.length > 1 && remainder.at(-1).equals(Rational.zero)) remainder.pop();
+    }
+    return remainder.map((coefficient) => coefficient.negate());
+}
+
+function sturmSequence(polynomial, maxDegree) {
+    const source = normalizePolynomial(polynomial);
+    if (zeroPolynomial(source)) throw new Error("identicallyZeroPolynomial");
+    if (source.length - 1 > maxDegree) throw new Error("polynomialDegreeLimit");
+    if (source.length === 1) return [source];
+    const sequence = [source, normalizePolynomial(polynomialDerivative(source))];
+    while (!zeroPolynomial(sequence.at(-1))) {
+        const remainder = normalizePolynomial(polynomialNegatedRemainder(
+            sequence.at(-2), sequence.at(-1),
+        ));
+        if (zeroPolynomial(remainder)) break;
+        sequence.push(remainder);
+    }
+    return sequence;
+}
+
+function samePolynomialSequence(left, right) {
+    return Array.isArray(left) && left.length === right.length &&
+        left.every((polynomial, index) => samePolynomial(polynomial, right[index]));
+}
+
+function polynomialSignAt(polynomial, point) {
+    const x = exactRational(point);
+    let value = Rational.zero;
+    for (let index = polynomial.length - 1; index >= 0; index -= 1) {
+        value = value.multiply(x).add(polynomial[index]);
+    }
+    return value.numerator < 0n ? -1 : value.numerator > 0n ? 1 : 0;
+}
+
+function signVariations(sequence, point) {
+    const signs = sequence.map((polynomial) => polynomialSignAt(polynomial, point))
+        .filter((sign) => sign !== 0);
+    let variations = 0;
+    for (let index = 1; index < signs.length; index += 1) {
+        if (signs[index] !== signs[index - 1]) variations += 1;
+    }
+    return variations;
+}
+
+function rootCountOnSet(sequence, input, endpointPolicy) {
+    const set = asSet(input);
+    if (set.isEmpty || set.componentCount !== 1) throw new Error("rootCountRequiresConnectedInput");
+    const component = set.components[0];
+    if (component.low === null || component.high === null) throw new Error("rootCountRequiresBoundedInput");
+    if (endpointPolicy !== "endpointsNotRoots") throw new Error("unsupportedRootEndpointPolicy");
+    if (polynomialSignAt(sequence[0], component.low) === 0 ||
+        polynomialSignAt(sequence[0], component.high) === 0) {
+        throw new Error("rootAtCountEndpoint");
+    }
+    return signVariations(sequence, component.low) - signVariations(sequence, component.high);
+}
+
+function sturmSequenceFact(value, maxDegree) {
+    if (value?.type !== "sturmSequence") throw new Error("expectedSturmSequenceFact");
+    const polynomial = normalizePolynomial(value.polynomial);
+    const sequence = sturmSequence(polynomial, maxDegree);
+    if (!samePolynomialSequence(value.sequence, sequence)) throw new Error("sturmSequenceMismatch");
+    return { ...value, polynomial, sequence };
+}
 
 function asSet(value) {
     return value instanceof RationalIntervalSet ? value : new RationalIntervalSet(value);
@@ -30,6 +148,66 @@ function sameSet(left, right) {
 function exactSetFact(value) {
     if (value?.type !== "exactSet") throw new Error("expectedExactSetFact");
     return asSet(value.set);
+}
+
+function sameIdentity(left, right) {
+    return typeof left === "string" && left.length > 0 && left === right;
+}
+
+function derivativeRangeFact(value) {
+    if (value?.type !== "derivativeRange" ||
+        typeof value.functionGraph !== "string" ||
+        typeof value.derivativeGraph !== "string" ||
+        typeof value.variable !== "string") {
+        throw new Error("wrongDerivativeRangeFact");
+    }
+    const input = asSet(value.input);
+    const range = asSet(value.range);
+    const domainCoverage = value.domainCoverage ?? value.domainWitness?.coverage;
+    if (input.isEmpty || input.componentCount !== 1) throw new Error("monotonicityRequiresConnectedInput");
+    if (range.isEmpty) throw new Error("emptyDerivativeRange");
+    if (domainCoverage !== "allDefined") throw new Error("derivativeDomainNotCovered");
+    return { ...value, input, range, domainCoverage };
+}
+
+function monotonicityFact(value) {
+    if (value?.type !== "monotonicity" ||
+        typeof value.functionGraph !== "string" ||
+        !["nondecreasing", "nonincreasing", "constant"].includes(value.direction)) {
+        throw new Error("wrongMonotonicityFact");
+    }
+    return { ...value, input: asSet(value.input) };
+}
+
+function rangeEnclosureFact(value) {
+    if (value?.type !== "rangeEnclosure" || typeof value.subject !== "string") {
+        throw new Error("wrongRangeEnclosureFact");
+    }
+    return {
+        ...value,
+        input: asSet(value.input),
+        range: asSet(value.range),
+        exclusions: value.exclusions || [],
+    };
+}
+
+function partitionFact(value) {
+    if (value?.type !== "partition") throw new Error("expectedPartitionFact");
+    return {
+        ...value,
+        parent: asSet(value.parent),
+        pieces: (value.pieces || []).map(asSet),
+    };
+}
+
+function aggregateDomainCoverage(values) {
+    const coverages = values.map((value) => value.domainCoverage);
+    if (coverages.includes("unresolved")) return "unresolved";
+    if (coverages.every((coverage) => coverage === "noDefinedInputs")) {
+        return "noDefinedInputs";
+    }
+    if (coverages.every((coverage) => coverage === "allDefined")) return "allDefined";
+    return "partiallyDefined";
 }
 
 function countComponents(value) {
@@ -135,6 +313,186 @@ function checkNode(node, premises, options) {
             if (!union.equals(parent)) throw new Error("incompletePartition");
             return { fact: { ...conclusion, parent, pieces }, trusted: false };
         }
+        case "range.assembleUnion":
+        case "range.assembleHull": {
+            if (premises.length < 2) throw new Error("missingPremise");
+            const partition = partitionFact(premises[0].fact);
+            const pieces = premises.slice(1).map((premise) => rangeEnclosureFact(premise.fact));
+            const claimed = rangeEnclosureFact(conclusion);
+            if (pieces.length !== partition.pieces.length) throw new Error("rangePartitionCountMismatch");
+            if (!claimed.input.equals(partition.parent) || pieces.some((piece, index) =>
+                !sameIdentity(piece.subject, claimed.subject) ||
+                !piece.input.equals(partition.pieces[index]))) {
+                throw new Error("rangePartitionIdentityMismatch");
+            }
+            const union = pieces.reduce(
+                (value, piece) => value.union(piece.range),
+                RationalIntervalSet.empty,
+            );
+            const hull = union.hull();
+            const actual = node.rule === "range.assembleUnion"
+                ? union
+                : hull === null ? RationalIntervalSet.empty : new RationalIntervalSet(hull);
+            const coverage = aggregateDomainCoverage(pieces);
+            const exclusions = pieces.flatMap((piece) => piece.exclusions);
+            if (!claimed.range.equals(actual) || claimed.domainCoverage !== coverage ||
+                !sameExclusions(claimed.exclusions, exclusions)) {
+                throw new Error("assembledRangeMismatch");
+            }
+            return {
+                fact: { ...claimed, range: actual, domainCoverage: coverage, exclusions },
+                trusted: false,
+            };
+        }
+        case "polynomial.sturmSequence": {
+            if (premises.length !== 0) throw new Error("wrongPremiseCount");
+            const fact = sturmSequenceFact(conclusion, options.limits.maxPolynomialDegree);
+            return { fact, trusted: false };
+        }
+        case "polynomial.rootCount": {
+            if (premises.length !== 1) throw new Error("wrongPremiseCount");
+            const sturm = sturmSequenceFact(
+                premises[0].fact,
+                options.limits.maxPolynomialDegree,
+            );
+            if (conclusion?.type !== "rootCount" ||
+                !samePolynomial(conclusion.polynomial, sturm.polynomial) ||
+                !Number.isSafeInteger(conclusion.count) || conclusion.count < 0) {
+                throw new Error("wrongRootCountFact");
+            }
+            const input = asSet(conclusion.input);
+            const actual = rootCountOnSet(sturm.sequence, input, conclusion.endpointPolicy);
+            if (conclusion.count !== actual) throw new Error("rootCountMismatch");
+            return {
+                fact: { ...conclusion, polynomial: sturm.polynomial, input, count: actual },
+                trusted: false,
+            };
+        }
+        case "polynomial.isolateRoots": {
+            if (premises.length !== 1) throw new Error("wrongPremiseCount");
+            const sturm = sturmSequenceFact(
+                premises[0].fact,
+                options.limits.maxPolynomialDegree,
+            );
+            if (conclusion?.type !== "isolatedRoots" || conclusion.complete !== true ||
+                !samePolynomial(conclusion.polynomial, sturm.polynomial) ||
+                !Array.isArray(conclusion.isolatingComponents)) {
+                throw new Error("wrongIsolatedRootsFact");
+            }
+            if (conclusion.isolatingComponents.length > options.limits.maxComponents) {
+                throw new Error("resourceLimit");
+            }
+            const searchSet = asSet(conclusion.searchSet);
+            const isolatingComponents = conclusion.isolatingComponents.map(asSet);
+            if (isolatingComponents.some((component) => component.isEmpty ||
+                component.componentCount !== 1 || !searchSet.contains(component))) {
+                throw new Error("invalidRootIsolationComponent");
+            }
+            for (let left = 0; left < isolatingComponents.length; left += 1) {
+                for (let right = left + 1; right < isolatingComponents.length; right += 1) {
+                    if (!isolatingComponents[left].intersection(isolatingComponents[right]).isEmpty) {
+                        throw new Error("overlappingRootIsolation");
+                    }
+                }
+            }
+            const endpointPolicy = conclusion.endpointPolicy;
+            const isolatedCount = isolatingComponents.reduce((sum, component) => {
+                const count = rootCountOnSet(sturm.sequence, component, endpointPolicy);
+                if (count !== 1) throw new Error("rootIsolationCountMismatch");
+                return sum + count;
+            }, 0);
+            let totalCount = 0;
+            for (const component of searchSet.components) {
+                totalCount += rootCountOnSet(
+                    sturm.sequence,
+                    new RationalIntervalSet(component),
+                    endpointPolicy,
+                );
+            }
+            if (isolatedCount !== totalCount) throw new Error("incompleteRootIsolation");
+            return {
+                fact: {
+                    ...conclusion,
+                    polynomial: sturm.polynomial,
+                    searchSet,
+                    isolatingComponents,
+                    rootCount: totalCount,
+                },
+                trusted: false,
+            };
+        }
+        case "monotone.derivativeSign": {
+            if (premises.length !== 1) throw new Error("wrongPremiseCount");
+            const derivative = derivativeRangeFact(premises[0].fact);
+            const claimed = monotonicityFact(conclusion);
+            if (!sameIdentity(claimed.functionGraph, derivative.functionGraph) ||
+                !claimed.input.equals(derivative.input)) {
+                throw new Error("monotonicityIdentityMismatch");
+            }
+            const nonnegative = new RationalIntervalSet({
+                low: 0, high: null, lowClosed: true, highClosed: false,
+            });
+            const nonpositive = new RationalIntervalSet({
+                low: null, high: 0, lowClosed: false, highClosed: true,
+            });
+            const zero = RationalIntervalSet.point(0);
+            const signValid = claimed.direction === "constant"
+                ? derivative.range.equals(zero)
+                : claimed.direction === "nondecreasing"
+                    ? nonnegative.contains(derivative.range)
+                    : nonpositive.contains(derivative.range);
+            if (!signValid) throw new Error("derivativeSignMismatch");
+            return {
+                fact: {
+                    ...claimed,
+                    derivativeGraph: derivative.derivativeGraph,
+                    variable: derivative.variable,
+                },
+                trusted: false,
+            };
+        }
+        case "range.monotoneEndpoints": {
+            if (premises.length !== 3) throw new Error("wrongPremiseCount");
+            const monotonicity = monotonicityFact(premises[0].fact);
+            const lowEndpoint = rangeEnclosureFact(premises[1].fact);
+            const highEndpoint = rangeEnclosureFact(premises[2].fact);
+            const claimed = rangeEnclosureFact(conclusion);
+            if (monotonicity.input.componentCount !== 1 || monotonicity.input.isEmpty) {
+                throw new Error("monotonicityRequiresConnectedInput");
+            }
+            const component = monotonicity.input.components[0];
+            if (component.low === null || component.high === null ||
+                !component.lowClosed || !component.highClosed) {
+                throw new Error("monotoneEndpointsRequireClosedBoundedInput");
+            }
+            const lowInput = RationalIntervalSet.point(component.low);
+            const highInput = RationalIntervalSet.point(component.high);
+            if (!sameIdentity(monotonicity.functionGraph, lowEndpoint.subject) ||
+                !sameIdentity(monotonicity.functionGraph, highEndpoint.subject) ||
+                !sameIdentity(monotonicity.functionGraph, claimed.subject) ||
+                !lowEndpoint.input.equals(lowInput) ||
+                !highEndpoint.input.equals(highInput) ||
+                !claimed.input.equals(monotonicity.input)) {
+                throw new Error("monotoneEndpointIdentityMismatch");
+            }
+            if (lowEndpoint.domainCoverage !== "allDefined" ||
+                highEndpoint.domainCoverage !== "allDefined" ||
+                claimed.domainCoverage !== "allDefined") {
+                throw new Error("monotoneEndpointDomainMismatch");
+            }
+            if (lowEndpoint.range.isEmpty || highEndpoint.range.isEmpty) {
+                throw new Error("emptyEndpointRange");
+            }
+            const endpointUnion = lowEndpoint.range.union(highEndpoint.range);
+            const hull = endpointUnion.hull();
+            const actual = hull === null
+                ? RationalIntervalSet.empty
+                : new RationalIntervalSet(hull);
+            if (!claimed.range.equals(actual) || claimed.exclusions.length !== 0) {
+                throw new Error("monotoneEndpointRangeMismatch");
+            }
+            return { fact: { ...claimed, range: actual }, trusted: false };
+        }
         default: {
             const record = arithmeticRecord(node.rule, node.parameters);
             if (!record) throw new Error("unsupportedRule");
@@ -157,9 +515,10 @@ function checkNode(node, premises, options) {
 }
 
 /**
- * Check the exact-set, partition, arithmetic, and authority-bound leaf subset
- * of the range-checker v1 vocabulary. Unsupported v1 rules fail closed until
- * their checker modules land.
+ * Check the implemented exact-set, partition, arithmetic, derivative-sign,
+ * monotone-endpoint, polynomial Sturm/root-isolation, and authority-bound leaf
+ * subset of the range-checker v1 vocabulary. Unsupported v1 rules fail closed
+ * until their checker modules land.
  */
 export function checkRangeEvidence(document, options = {}) {
     const limits = { ...DEFAULT_LIMITS, ...(options.limits || {}) };
@@ -199,7 +558,7 @@ export function checkRangeEvidence(document, options = {}) {
         const node = byId.get(id);
         if (!Array.isArray(node.premises)) throw new Error("invalidPremises");
         const premises = node.premises.map(visit);
-        const result = checkNode(node, premises, options);
+        const result = checkNode(node, premises, { ...options, limits });
         exactOperations += 1;
         if (countComponents(result.fact) > limits.maxComponents) throw new Error("resourceLimit");
         if (result.trusted) trustedDependencies.push(node.id);

@@ -267,6 +267,8 @@ const CORE_SYNTAX_CAPABILITIES = {
     RangeMultiply: "RANGE_MULTIPLY", RangeDivide: "RANGE_DIVIDE",
     RangeNegate: "RANGE_NEGATE", RangeAbsoluteValue: "RANGE_ABSOLUTE_VALUE",
     RangeReciprocal: "RANGE_RECIPROCAL", RangeIntegerPower: "RANGE_INTEGER_POWER",
+    CalculusRange: "CALCULUS_RANGE", CalculusRangeCheck: "CALCULUS_RANGE_CHECK",
+    CalculusRangeRecognize: "CALCULUS_RANGE_RECOGNIZE",
     Equal: "EQ", NotEqual: "NEQ", Less: "LT", Greater: "GT",
     LessEqual: "LTE", GreaterEqual: "GTE", SameCell: "SAME_CELL",
     Min: "MIN", Max: "MAX", And: "AND", Or: "OR", Not: "NOT",

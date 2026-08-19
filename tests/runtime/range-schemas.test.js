@@ -44,4 +44,19 @@ describe("versioned certified-range schemas", () => {
             expect(value.required).toContain("functionGraph");
         }
     });
+
+    test("the Calculus graph-range result separates enclosure from exact image", () => {
+        const value = schema("calculus-graph-range.schema.json");
+        expect(value.$id).toEndWith("/calculus-graph-range/v1.schema.json");
+        expect(value.properties.schema.const).toBe("rix.numerics.calculus-graph-range@1");
+        expect(value.required).toContain("certified");
+        expect(value.required).toContain("exactImage");
+        expect(value.properties.domainStatus.enum).toEqual([
+            "allDefined", "partiallyDefined", "noDefinedInputs", "unresolved",
+        ]);
+        const recognition = schema("calculus-graph-recognition.schema.json");
+        expect(recognition.$id).toEndWith("/calculus-graph-recognition/v1.schema.json");
+        expect(recognition.properties.kind.enum).toEqual(["polynomial", "rationalFunction"]);
+        expect(recognition.properties.cancellationPerformed.const).toBe(false);
+    });
 });

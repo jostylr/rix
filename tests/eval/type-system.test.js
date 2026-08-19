@@ -253,6 +253,27 @@ describe("RiX type and trait registry", () => {
             a.Union(b).Hull().ToString();
         `).result;
         expect(chained.value).toBe("[0,3]");
+
+        const constructed = evalRiX(`
+            false := 0 == 1;
+            open := .TypeImport({=
+              type="RationalIntervalSet", version=1, cache=_,
+              data={= components=[{=
+                low=0, high=1, lowClosed=false, highClosed=false
+              }] }
+            });
+            rays := .TypeImport({=
+              type="RationalIntervalSet", version=1, cache=_,
+              data={= components=[
+                {= low=_, high=(-1), lowClosed=false, highClosed=1 },
+                {= low=1, high=_, lowClosed=1, highClosed=false }
+              ] }
+            });
+            {: open.ToString(), rays.ToString(), open.ContainsValue(0), open.ContainsValue(1) };
+        `).result;
+        expect(constructed.values.map((value) => value?.value ?? null)).toEqual([
+            "(0,1)", "(-inf,-1] U [1,inf)", null, null,
+        ]);
     });
 
     test("semantic type and trait names are case-insensitive with canonical metadata", () => {

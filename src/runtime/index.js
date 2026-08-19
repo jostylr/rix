@@ -81,6 +81,17 @@ export {
     checkRangeEvidence,
 } from "./range-evidence-checker.js";
 export {
+    CALCULUS_GRAPH_RANGE_SCHEMA,
+    CALCULUS_GRAPH_RANGE_CHECKER,
+    calculusGraphStructuralKey,
+    evaluateCalculusGraphRange,
+    checkCalculusGraphRangeResult,
+    calculusGraphRangeValue,
+    calculusGraphRangeCheckValue,
+    recognizeCalculusGraph,
+    calculusGraphRecognitionValue,
+} from "./calculus-range.js";
+export {
     RANGE_SET_INTERCHANGE_VERSION,
     RANGE_SET_STABLE_VERSIONS,
     RangeSetInterchangeVersionError,

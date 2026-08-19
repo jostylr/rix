@@ -93,20 +93,32 @@ focused tests exist; design-only work remains unchecked.
   range certification.
 - [x] Export immutable graph nodes through a stable plugin boundary.
 - [x] Carry domain obligations with graph nodes and exact derivatives.
-- [ ] Preserve repeated-input identity across evaluation and subdivision.
-- [ ] Implement interval evaluation for supported exact primitive graph nodes.
-- [ ] Add polynomial/rational recognition hooks for specialized strategies.
-- [ ] Test composition, shared subexpressions, and domain-sensitive identities.
+- [x] Preserve repeated-input identity across evaluation and exact rational
+  subdivision, including correlated subtraction and division identities.
+- [x] Implement interval evaluation for supported exact primitive graph nodes,
+  with independent recomputation and fail-closed semantic applications.
+- [x] Add polynomial/rational recognition hooks for specialized strategies,
+  preserving source denominator and zero-power restrictions without
+  cancellation.
+- [x] Test arithmetic composition, shared subexpressions, exact subdivision,
+  scoped `0^0`, and domain-sensitive identities such as `x/x` and
+  `1/(x-x)`.
 
 ## 6. Small checker and generic strategies
 
 - [x] Implement an independent checker for exact set and partition steps.
 - [x] Check primitive interval arithmetic derivations and domain coverage.
-- [ ] Check monotonicity from a certified derivative range excluding the wrong
+- [x] Check monotonicity from a certified derivative range excluding the wrong
   sign.
-- [ ] Check monotone composition and endpoint range formation.
-- [ ] Check exhaustive polynomial critical points through Sturm/root-count
-  witnesses.
+- [ ] Check monotone composition across compatible graph identities and
+  domains.
+- [x] Check closed bounded monotone endpoint range formation with matching
+  function and endpoint identities.
+- [x] Recompute canonical rational-polynomial Sturm sequences, exact distinct
+  root counts, and complete disjoint isolations with non-root rational
+  endpoints.
+- [ ] Relate complete derivative-root isolation to source-graph critical points,
+  including roots at partition endpoints.
 - [ ] Add generic derivative-sign range strategy.
 - [ ] Add generic Lipschitz midpoint strategy with bounded subdivision.
 - [ ] Add second-derivative convexity/Taylor remainder strategy.
@@ -152,8 +164,8 @@ focused tests exist; design-only work remains unchecked.
 - [x] Add a runnable disconnected closed-range-set tutorial for the RiX adapter.
 - [x] Add a runnable exact range-arithmetic and scoped domain-policy tutorial
   with measurement, pole, empty-image, `0^0`, dependency, and evidence examples.
-- [ ] Extend that tutorial with open and unbounded construction when the public
-  RiX constructor surface lands.
+- [x] Extend that tutorial with open and unbounded construction through the
+  public RiX tagged-import surface.
 - [x] Add adversarial examples showing why self-certification and bare trust
   labels do not certify.
 - [x] Add further adversarial examples showing why samples and bare
@@ -185,3 +197,13 @@ focused tests exist; design-only work remains unchecked.
 - Documentation verification: 16 documentation/tooling tests passed and all
   74 runnable documentation blocks passed. Both supplemental range tutorials
   parse, and the shipped exact range-arithmetic example executes successfully.
+- Calculus graph-range, checker, schema, interchange, type-system, Numerics,
+  Calculus, and plugin-lint integration: 86 focused tests passed with zero
+  failures.
+- The checker now covers partition reassembly, derivative-sign monotonicity,
+  closed monotone endpoints, canonical Sturm sequences, distinct-root counts,
+  and complete non-root-endpoint isolations, including adversarial claims.
+- Open/unbounded tagged construction and all supplemental tutorial cells pass
+  the documentation harness.
+- Complete RiX suite after this stage: 2,578 tests passed across 132 files with
+  zero failures (8,600 assertions).
