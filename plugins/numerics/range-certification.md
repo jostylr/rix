@@ -10,8 +10,10 @@ Primitive derivative-graph checking, generic derivative-sign reasoning,
 structurally checked monotone composition, and obligation-free polynomial
 critical-point binding are implemented too. Exact one-sided root counting and
 closed monotonicity partitions at certified rational critical points are now
-checked. Semantic-application links and semantic derivative rules remain
-staged work.
+checked. Bounded Lipschitz-midpoint and signed second-derivative Taylor
+strategies are implemented with independently recomputed primitive derivative
+identities and public result checking. Semantic-application links and semantic
+derivative rules remain staged work.
 
 The following accepted pre-1.0 contracts describe the implemented foundation
 and the remaining v1 checker vocabulary:
@@ -379,7 +381,8 @@ Versioned portable schemas now live under `rix/schemas` for:
 - `derivative-range-witness`;
 - `monotonicity-witness`;
 - `critical-points-witness`;
-- `monotonicity-partition-witness`; and
+- `monotonicity-partition-witness`;
+- `calculus-lipschitz-range` and `calculus-taylor-range`; and
 - the aggregate general range result/evidence DAG.
 
 Schema validation checks shape, not mathematical truth. The first deliberately
@@ -412,7 +415,8 @@ later representations consumed by Numerics; they do not replace the exact
 2. Add RiX registration, methods, serialization, and formatting for that value.
 3. Define and validate the direct `RangeProvider` protocol in Numerics.
 4. Bridge the existing Calculus expression graph and exact derivative support.
-5. Add checked derivative-sign and Lipschitz range strategies.
+5. Add checked derivative-sign, Lipschitz-midpoint, and second-derivative
+   Taylor range strategies (implemented for exact primitive graphs).
 6. Add Symbolic proof-preserving transformation hooks.
 7. Move built-in unary direct ranges behind the shared provider protocol
    (implemented); richer shared fact providers remain future work.

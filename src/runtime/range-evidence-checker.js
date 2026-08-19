@@ -640,6 +640,7 @@ function checkNode(node, premises, options) {
             const claimed = derivativeIdentityFact(conclusion);
             const checked = checkCalculusDerivativeTransformation(node.parameters?.transformation);
             if (!checked.accepted) throw new Error(checked.reason);
+            if (checked.order !== 1) throw new Error("derivativeGraphRuleRequiresFirstDerivative");
             if (!sameIdentity(claimed.functionGraph, checked.functionGraph) ||
                 !sameIdentity(claimed.derivativeGraph, checked.derivativeGraph) ||
                 claimed.variable.toLowerCase() !== checked.variable ||

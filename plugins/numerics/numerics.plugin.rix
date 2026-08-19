@@ -3,7 +3,7 @@ id: numerics
 description: Backend-neutral bounded enclosure and refinement orchestration.
 kind: rix
 mount: numerics
-exports: [Request, WorkPolicy, EffectiveLimits, Enclose, Refine, Sample, Range, GraphRange, CheckGraphRange, CheckDerivativeGraph, DerivativeSign, RecognizeGraph, WithRangeKnowledge, RegisterRangeProvider, CheckRangeResult, Sign, RootCount, Capabilities, CheckResult, NthRoot, Sqrt, Cbrt, Hypot, Pow, Exp, Expm1, Log, Log1p, Ln, Log2, Log10, Pi, EulerGamma, Sin, Cos, Tan, Sec, Csc, Cot, Sinc, Asin, Acos, Atan, Atan2, Arcsin, Arccos, Arctan, Sinh, Cosh, Tanh, Sech, Csch, Coth, Asinh, Acosh, Atanh, Arsinh, Arcosh, Artanh, Radians, Degrees, Gamma, LogGamma, Beta, LogBeta, Digamma, Trigamma, Erf, Erfc, NormalPDF, NormalCDF, NormalQuantile, LambertW, BesselJ, BesselJ0, BesselJ1, BesselY, BesselY0, BesselY1, BesselI, BesselI0, BesselI1, BesselK, BesselK0, BesselK1, Zeta, Quadrature, Kantorovich]
+exports: [Request, WorkPolicy, EffectiveLimits, Enclose, Refine, Sample, Range, GraphRange, CheckGraphRange, CheckDerivativeGraph, DerivativeSign, LipschitzRange, TaylorRange, RecognizeGraph, WithRangeKnowledge, RegisterRangeProvider, CheckRangeResult, Sign, RootCount, Capabilities, CheckResult, NthRoot, Sqrt, Cbrt, Hypot, Pow, Exp, Expm1, Log, Log1p, Ln, Log2, Log10, Pi, EulerGamma, Sin, Cos, Tan, Sec, Csc, Cot, Sinc, Asin, Acos, Atan, Atan2, Arcsin, Arccos, Arctan, Sinh, Cosh, Tanh, Sech, Csch, Coth, Asinh, Acosh, Atanh, Arsinh, Arcosh, Artanh, Radians, Degrees, Gamma, LogGamma, Beta, LogBeta, Digamma, Trigamma, Erf, Erfc, NormalPDF, NormalCDF, NormalQuantile, LambertW, BesselJ, BesselJ0, BesselJ1, BesselY, BesselY0, BesselY1, BesselI, BesselI0, BesselI1, BesselK, BesselK0, BesselK1, Zeta, Quadrature, Kantorovich]
 groups: [Numerics]
 permissions: []
 requires: [rix.oracle@1]
@@ -5520,6 +5520,10 @@ numericsNamespace._proto = {=
     CheckDerivativeGraph = (self, transformation) -> .CalculusDerivativeCheck(transformation),
     DerivativeSign = (self, transformation, bindings, options ?= {= }) ->
         .CalculusDerivativeSign(transformation,bindings,options),
+    LipschitzRange = (self, transformation, bindings, options ?= {= }) ->
+        .CalculusLipschitzRange(transformation,bindings,options),
+    TaylorRange = (self, transformation, bindings, options ?= {= }) ->
+        .CalculusTaylorRange(transformation,bindings,options),
     RecognizeGraph = (self, expression, variable) ->
         .CalculusRangeRecognize(expression, variable),
     WithRangeKnowledge = (self, function, knowledge) ->

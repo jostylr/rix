@@ -2,10 +2,11 @@
 
 Status: exact-primitive graph evaluation, primitive derivative checking, and
 generic derivative-sign reasoning implemented, together with exact-rational
-polynomial monotonicity partitions; semantic applications and semantic
-derivative rules staged. The Calculus expression and transformation records
-provide the identity, immutability, derivative, and obligation boundary needed
-by the general range engine.
+polynomial monotonicity partitions, Lipschitz midpoint bounds, and
+second-derivative Taylor bounds; semantic applications and semantic derivative
+rules staged. The Calculus expression and transformation records provide the
+identity, immutability, derivative, and obligation boundary needed by the
+general range engine.
 
 ## Why a graph is necessary
 
@@ -150,7 +151,10 @@ Ready now:
 - checked binding from complete polynomial derivative isolation to the source
   graph when no domain obligations remain; and
 - one-sided Sturm root counts plus closed monotonicity partitions at exact
-  rational critical points.
+  rational critical points;
+- checked higher primitive derivative stages through order 16; and
+- bounded closed subdivision for Lipschitz-midpoint and signed
+  second-derivative Taylor enclosures.
 
 Still required for general graph certification:
 

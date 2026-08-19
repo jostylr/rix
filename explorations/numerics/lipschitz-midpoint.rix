@@ -1,0 +1,63 @@
+## Explanatory Exploration: certified Lipschitz midpoint enclosures.
+## Browser-safe: the final value is a portable Fragment.
+
+.Plugin.Load("calculus");
+.Plugin.Load("numerics");
+.Plugin.Load("plot");
+
+$$center := 0;
+$$radius := 1;
+$$pieceCount := 4;
+
+$$view := {;
+    c := $center;
+    r := $radius;
+    n := $pieceCount;
+    input := (c-r):(c+r);
+    x := .calculus.Variable(:x);
+    f := x^3-x;
+    firstDerivative := .calculus.DifferentiateResult(f,:x);
+    result := .numerics.LipschitzRange(
+        firstDerivative,
+        {= x=input },
+        {= maxSubintervals=n }
+    );
+    rows := result[:partitions].Map((part,index)->[
+        index,
+        part[:input],
+        part[:midpoint],
+        part[:derivativeRange],
+        part[:lipschitzBound],
+        part[:errorRadius],
+        part[:enclosure]
+    ]);
+    plotDomain := [c-r-1,c+r+1];
+    graph := .plot.Polynomial([0,-1,0,1],plotDomain,{=
+        size=[700,320],
+        label="f(x) = x³ - x",
+        stroke="#0c7b7f"
+    });
+    .Fragment([
+        .Heading(1,"Lipschitz midpoint enclosure"),
+        .Paragraph(@"The exact input is @{input}. The certified union enclosure is @{result[:range]}."),
+        .ControlPanel({=
+            title="Exact measurement and work budget",
+            description="Every control value is an exact RiX rational or Integer.",
+            controls=[
+                .Controls.Slider($$center,-2:2,1/4,"centre"),
+                .Controls.Slider($$radius,1/4:2,1/4,"half-width"),
+                .Controls.Slider($$pieceCount,1:12,1,"subintervals")
+            ]
+        }),
+        .Figure(graph,"The graphic is explanatory; certification comes from derivative enclosures, not plotted samples."),
+        .Table(
+            ["piece","input","midpoint","f' range","L","L*r","output enclosure"],
+            rows,
+            {= caption="One checked mean-value-theorem enclosure per closed piece" }
+        ),
+        .Paragraph(@"status=@{result[:status]}, domain=@{result[:domainStatus]}, checker accepted=@{result[:checker][:accepted]}")
+    ])
+};
+
+$view
+

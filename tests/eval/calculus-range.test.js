@@ -4,9 +4,12 @@ import {
     Context,
     calculusGraphRangeCheckValue,
     checkCalculusDerivativeTransformation,
+    checkCalculusStrategyRangeResult,
     createDefaultRegistry,
     createDefaultSystemContext,
     parseAndEvaluate,
+    evaluateCalculusLipschitzRange,
+    evaluateCalculusTaylorRange,
 } from "../../src/index.js";
 
 function runtime() {
@@ -264,5 +267,97 @@ describe("checked Calculus graph ranges", () => {
         expect(text(entry(conventionalZeroPower, "direction"))).toBe("constant");
         expect(text(entry(entry(conventionalZeroPower, "conventions"), "zeroPowerZero")))
             .toBe("one");
+    });
+
+    test("certifies midpoint Lipschitz ranges and tightens them by subdivision", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("calculus");
+            .Plugin.Load("numerics");
+            x := .calculus.Variable(:x);
+            squareDerivative := .calculus.DifferentiateResult(x^2,:x);
+            quotientDerivative := .calculus.DifferentiateResult((x+1)/(x-1),:x);
+            {:
+              .numerics.LipschitzRange(squareDerivative,{= x=(-1):1 }),
+              .numerics.LipschitzRange(
+                squareDerivative,{= x=(-1):1 },{= maxSubintervals=2 }
+              ),
+              .numerics.LipschitzRange(quotientDerivative,{= x=0:2 })
+            };
+        `, runtime());
+        const [broad, split, pole] = result.values;
+        expect(entry(broad, "range").toString()).toBe("[-2,2]");
+        expect(entry(broad, "certified").value).toBe(1n);
+        expect(entry(entry(broad, "checker"), "accepted").value).toBe(1n);
+        expect(entry(split, "range").toString()).toBe("[-3/4,5/4]");
+        expect(entry(entry(split, "work"), "subintervals").value).toBe(2n);
+        expect(entry(entry(split, "partitions").values[0], "lipschitzBound").toString())
+            .toBe("2");
+        expect(entry(pole, "certified")).toBeNull();
+        expect(text(entry(pole, "domainStatus"))).toBe("unresolved");
+        expect(text(entry(pole, "diagnostics").values[0])).toBe("lipschitzPremiseNotCertified");
+    });
+
+    test("certifies second-derivative Taylor ranges and curvature", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("calculus");
+            .Plugin.Load("numerics");
+            x := .calculus.Variable(:x);
+            squareSecond := .calculus.DifferentiateNResult(x^2,:x,2);
+            cubeSecond := .calculus.DifferentiateNResult(x^3,:x,2);
+            {:
+              .numerics.CheckDerivativeGraph(squareSecond),
+              .numerics.DerivativeSign(squareSecond,{= x=(-1):1 }),
+              .numerics.TaylorRange(squareSecond,{= x=(-1):1 }),
+              .numerics.TaylorRange(cubeSecond,{= x=(-1):1 }),
+              .numerics.TaylorRange(
+                cubeSecond,{= x=(-1):1 },{= maxSubintervals=2 }
+              )
+            };
+        `, runtime());
+        const [identity, wrongOrderSign, square, cube, splitCube] = result.values;
+        expect(entry(identity, "accepted").value).toBe(1n);
+        expect(entry(identity, "order").value).toBe(2n);
+        expect(entry(wrongOrderSign, "certified")).toBeNull();
+        expect(text(entry(wrongOrderSign, "diagnostics").values[0]))
+            .toBe("derivativeSignRequiresFirstDerivative");
+        expect(entry(square, "range").toString()).toBe("[0,1]");
+        expect(text(entry(square, "curvature"))).toBe("convex");
+        expect(text(entry(entry(square, "partitions").values[0], "curvature")))
+            .toBe("convex");
+        expect(entry(entry(square, "checker"), "certified").value).toBe(1n);
+        expect(entry(cube, "range").toString()).toBe("[-3,3]");
+        expect(text(entry(cube, "curvature"))).toBe("unknown");
+        expect(entry(splitCube, "range").toString()).toBe("[-5/4,5/4]");
+        expect(text(entry(splitCube, "curvature"))).toBe("mixed");
+    });
+
+    test("strategy checkers recompute claims and reject changed enclosures", () => {
+        const options = runtime();
+        const values = parseAndEvaluate(`
+            .Plugin.Load("calculus");
+            x := .calculus.Variable(:x);
+            {:
+              .calculus.DifferentiateResult(x^2,:x),
+              .calculus.DifferentiateNResult(x^2,:x,2),
+              {= x=(-1):1 },
+              {= maxSubintervals=2 }
+            };
+        `, options).values;
+        const lipschitz = evaluateCalculusLipschitzRange(values[0], values[2], values[3]);
+        const taylor = evaluateCalculusTaylorRange(values[1], values[2], values[3]);
+        expect(checkCalculusStrategyRangeResult(lipschitz)).toMatchObject({
+            accepted: true, certified: true, strategy: "lipschitzMidpoint",
+        });
+        expect(checkCalculusStrategyRangeResult(taylor)).toMatchObject({
+            accepted: true, certified: true, strategy: "secondDerivativeTaylor",
+        });
+        expect(checkCalculusStrategyRangeResult({
+            ...lipschitz, range: RationalIntervalSet.point(99),
+        })).toMatchObject({ accepted: false, reason: "strategyRangeClaimMismatch" });
+        expect(checkCalculusStrategyRangeResult({
+            ...taylor,
+            strategy: "futureTaylorRule",
+            evidence: { ...taylor.evidence, strategy: "futureTaylorRule" },
+        })).toMatchObject({ accepted: false, reason: "unsupportedRangeStrategy" });
     });
 });

@@ -271,6 +271,8 @@ const CORE_SYNTAX_CAPABILITIES = {
     CalculusRangeRecognize: "CALCULUS_RANGE_RECOGNIZE",
     CalculusDerivativeCheck: "CALCULUS_DERIVATIVE_CHECK",
     CalculusDerivativeSign: "CALCULUS_DERIVATIVE_SIGN",
+    CalculusLipschitzRange: "CALCULUS_LIPSCHITZ_RANGE",
+    CalculusTaylorRange: "CALCULUS_TAYLOR_RANGE",
     Equal: "EQ", NotEqual: "NEQ", Less: "LT", Greater: "GT",
     LessEqual: "LTE", GreaterEqual: "GTE", SameCell: "SAME_CELL",
     Min: "MIN", Max: "MAX", And: "AND", Or: "OR", Not: "NOT",

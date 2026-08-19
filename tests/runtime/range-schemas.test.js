@@ -66,5 +66,11 @@ describe("versioned certified-range schemas", () => {
         expect(derivativeSign.$id).toEndWith("/calculus-derivative-sign/v1.schema.json");
         expect(derivativeSign.properties.direction.enum).toContain("unknown");
         expect(derivativeSign.required).toContain("monotonicityCertified");
+        const lipschitz = schema("calculus-lipschitz-range.schema.json");
+        expect(lipschitz.properties.strategy.const).toBe("lipschitzMidpoint");
+        expect(lipschitz.required).toContain("partitions");
+        const taylor = schema("calculus-taylor-range.schema.json");
+        expect(taylor.properties.strategy.const).toBe("secondDerivativeTaylor");
+        expect(taylor.properties.curvature.enum).toContain("mixed");
     });
 });

@@ -17,6 +17,9 @@ import { rangeDiagnosticAction, rangeMathPolicy } from "./range-policy.js";
 export const CALCULUS_GRAPH_RANGE_SCHEMA = "rix.numerics.calculus-graph-range@1";
 export const CALCULUS_GRAPH_RANGE_CHECKER = "rix.runtime.calculus-graph-range-checker@1";
 export const CALCULUS_DERIVATIVE_SIGN_SCHEMA = "rix.numerics.calculus-derivative-sign@1";
+export const CALCULUS_LIPSCHITZ_RANGE_SCHEMA = "rix.numerics.calculus-lipschitz-range@1";
+export const CALCULUS_TAYLOR_RANGE_SCHEMA = "rix.numerics.calculus-taylor-range@1";
+export const CALCULUS_STRATEGY_RANGE_CHECKER = "rix.runtime.calculus-strategy-range-checker@1";
 
 const text = (value) => ({ type: "string", value: String(value) });
 const sequence = (values) => ({ type: "sequence", values });
@@ -287,20 +290,39 @@ function obligationFingerprint(value) {
     ].join("|");
 }
 
-/** Independently derive the exact primitive derivative graph and obligations. */
-export function differentiateCalculusPrimitiveGraph(expression, variableValue) {
+/** Independently derive exact primitive derivative stages and obligations. */
+export function differentiateCalculusPrimitiveGraphN(expression, variableValues) {
     if (!isExpression(expression)) throw new Error("Expected a Calculus expression graph");
-    const variable = textValue(variableValue)?.toLowerCase();
-    if (!variable) throw new Error("invalidDerivativeVariable");
-    const result = differentiatePrimitiveNode(expression, variable);
+    const rawVariables = Array.isArray(variableValues) ? variableValues : [variableValues];
+    const variables = rawVariables.map((value) => textValue(value)?.toLowerCase());
+    if (variables.length < 1 || variables.length > 16 || variables.some((value) => !value)) {
+        throw new Error("invalidDerivativeVariables");
+    }
+    let current = expression;
+    const obligations = [];
+    const derivativeExpressions = [];
+    for (const variable of variables) {
+        const result = differentiatePrimitiveNode(current, variable);
+        current = result.expression;
+        obligations.push(...result.obligations);
+        derivativeExpressions.push(current);
+    }
     return Object.freeze({
         source: expression,
-        expression: result.expression,
-        variable,
+        expression: current,
+        variable: variables.at(-1),
+        variables: Object.freeze(variables),
+        order: variables.length,
         functionGraph: calculusGraphStructuralKey(expression),
-        derivativeGraph: calculusGraphStructuralKey(result.expression),
-        obligations: Object.freeze(result.obligations),
+        derivativeGraph: calculusGraphStructuralKey(current),
+        derivativeExpressions: Object.freeze(derivativeExpressions),
+        obligations: Object.freeze(obligations),
     });
+}
+
+/** Independently derive one exact primitive derivative graph and obligations. */
+export function differentiateCalculusPrimitiveGraph(expression, variableValue) {
+    return differentiateCalculusPrimitiveGraphN(expression, [variableValue]);
 }
 
 /** Check a Calculus transformation without trusting its visible rule trace. */
@@ -314,12 +336,19 @@ export function checkCalculusDerivativeTransformation(transformation) {
         const expression = mapValue(transformation, "expression");
         const variable = textValue(mapValue(transformation, "variable"));
         const order = integerValue(mapValue(transformation, "order"), 1n);
-        if (order !== 1n) throw new Error("unsupportedDerivativeOrder");
+        if (order < 1n || order > 16n) throw new Error("unsupportedDerivativeOrder");
         const claimedObligations = collectionValues(mapValue(transformation, "obligations"));
         if (!isExpression(source) || !isExpression(expression) || !claimedObligations) {
             throw new Error("malformedDerivativeTransformation");
         }
-        const actual = differentiateCalculusPrimitiveGraph(source, variable);
+        const claimedVariables = collectionValues(mapValue(transformation, "variables"));
+        const variables = claimedVariables
+            ? claimedVariables.map((value) => textValue(value))
+            : Array.from({ length: Number(order) }, () => variable);
+        if (variables.length !== Number(order) || variables.some((value) => !value)) {
+            throw new Error("derivativeOrderVariableMismatch");
+        }
+        const actual = differentiateCalculusPrimitiveGraphN(source, variables);
         if (calculusGraphStructuralKey(expression) !== actual.derivativeGraph) {
             throw new Error("derivativeGraphMismatch");
         }
@@ -335,8 +364,11 @@ export function checkCalculusDerivativeTransformation(transformation) {
             functionGraph: actual.functionGraph,
             derivativeGraph: actual.derivativeGraph,
             variable: actual.variable,
+            variables: actual.variables,
+            order: actual.order,
             obligations: actual.obligations,
             obligationDescriptors: Object.freeze(actualFingerprints),
+            derivativeExpressions: actual.derivativeExpressions,
             source,
             expression,
         });
@@ -345,37 +377,8 @@ export function checkCalculusDerivativeTransformation(transformation) {
     }
 }
 
-/**
- * Check a primitive derivative transformation, enclose its derivative on the
- * requested bindings, discharge carried nonzero obligations, and derive a
- * monotonicity direction when the sign is uniform.
- */
-export function evaluateCalculusDerivativeSign(
-    transformation,
-    bindings,
-    options,
-    conventions = { zeroPowerZero: "undefined" },
-) {
-    const identity = checkCalculusDerivativeTransformation(transformation);
-    if (!identity.accepted) {
-        return Object.freeze({
-            schema: CALCULUS_DERIVATIVE_SIGN_SCHEMA,
-            status: "unknown",
-            certified: false,
-            monotonicityCertified: false,
-            direction: "unknown",
-            identity,
-            diagnostics: Object.freeze([identity.reason]),
-        });
-    }
-    const derivativeExpression = mapValue(transformation, "expression");
-    const derivativeRange = evaluateCalculusGraphRange(
-        derivativeExpression,
-        bindings,
-        options,
-        conventions,
-    );
-    const obligationChecks = identity.obligations.map((obligation) => {
+function derivativeObligationChecks(identity, bindings, options, conventions) {
+    return identity.obligations.map((obligation) => {
         if (obligation.reason === "zeroPowerZeroDomain" &&
             conventions.zeroPowerZero === "one") {
             return Object.freeze({
@@ -408,6 +411,52 @@ export function evaluateCalculusDerivativeSign(
             domainStatus: result.domainStatus,
         });
     });
+}
+
+/**
+ * Check a primitive derivative transformation, enclose its derivative on the
+ * requested bindings, discharge carried nonzero obligations, and derive a
+ * monotonicity direction when the sign is uniform.
+ */
+export function evaluateCalculusDerivativeSign(
+    transformation,
+    bindings,
+    options,
+    conventions = { zeroPowerZero: "undefined" },
+) {
+    const identity = checkCalculusDerivativeTransformation(transformation);
+    if (!identity.accepted) {
+        return Object.freeze({
+            schema: CALCULUS_DERIVATIVE_SIGN_SCHEMA,
+            status: "unknown",
+            certified: false,
+            monotonicityCertified: false,
+            direction: "unknown",
+            identity,
+            diagnostics: Object.freeze([identity.reason]),
+        });
+    }
+    if (identity.order !== 1) {
+        return Object.freeze({
+            schema: CALCULUS_DERIVATIVE_SIGN_SCHEMA,
+            status: "unknown",
+            certified: false,
+            monotonicityCertified: false,
+            direction: "unknown",
+            identity,
+            diagnostics: Object.freeze(["derivativeSignRequiresFirstDerivative"]),
+        });
+    }
+    const derivativeExpression = mapValue(transformation, "expression");
+    const derivativeRange = evaluateCalculusGraphRange(
+        derivativeExpression,
+        bindings,
+        options,
+        conventions,
+    );
+    const obligationChecks = derivativeObligationChecks(
+        identity, bindings, options, conventions,
+    );
     const obligationsDischarged = obligationChecks.every((check) => check.discharged);
     const rangeCertified = derivativeRange.certified &&
         derivativeRange.domainStatus === "allDefined" && obligationsDischarged;
@@ -445,6 +494,357 @@ export function evaluateCalculusDerivativeSign(
         obligationChecks: Object.freeze(obligationChecks),
         conventions: Object.freeze({ zeroPowerZero: conventions.zeroPowerZero }),
         diagnostics: Object.freeze(diagnostics),
+    });
+}
+
+function exactSymmetricRange(radius) {
+    return new RationalIntervalSet({ low: radius.negate(), high: radius });
+}
+
+function finiteAbsoluteBound(range) {
+    if (range.isEmpty) throw new Error("emptyDerivativeRange");
+    const absolute = rangeAbsoluteValue(range).range;
+    const hull = absolute.hull();
+    const component = hull.components[0];
+    if (!component || component.high === null) throw new Error("unboundedDerivativeRange");
+    return component.high;
+}
+
+function closedStrategyPieces(input, maximum) {
+    if (input.isEmpty) return [];
+    if (input.components.length > maximum) throw new Error("maxSubintervalsBelowComponentCount");
+    if (input.components.some((component) => component.low === null || component.high === null ||
+        !component.lowClosed || !component.highClosed)) {
+        throw new Error("strategyRequiresClosedBoundedInput");
+    }
+    const perComponent = Math.max(1, Math.floor(maximum / input.components.length));
+    const pieces = [];
+    for (const component of input.components) {
+        if (perComponent === 1 || component.low.equals(component.high)) {
+            pieces.push(new RationalIntervalSet(component));
+            continue;
+        }
+        const width = component.high.subtract(component.low);
+        for (let index = 0; index < perComponent; index += 1) {
+            const low = component.low.add(width.multiply(
+                new Rational(BigInt(index), BigInt(perComponent)),
+            ));
+            const high = component.low.add(width.multiply(
+                new Rational(BigInt(index + 1), BigInt(perComponent)),
+            ));
+            pieces.push(new RationalIntervalSet({ low, high }));
+        }
+    }
+    return pieces;
+}
+
+function strategySetup(transformation, bindings, options, requiredOrder) {
+    const identity = checkCalculusDerivativeTransformation(transformation);
+    if (!identity.accepted) throw new Error(identity.reason);
+    if (identity.order !== requiredOrder) throw new Error(`strategyRequiresDerivativeOrder${requiredOrder}`);
+    if (identity.variables.some((variable) => variable !== identity.variables[0])) {
+        throw new Error("strategyRequiresOneDifferentiationVariable");
+    }
+    const normalized = normalizeBindings(bindings);
+    if (normalized.size !== 1 || !normalized.has(identity.variable)) {
+        throw new Error("strategyRequiresOneMatchingBinding");
+    }
+    const input = normalized.get(identity.variable);
+    const pieces = closedStrategyPieces(input, subdivisionCount(options));
+    let optionEntries = [];
+    if (options?.type === "map" && options.entries instanceof Map) {
+        optionEntries = [...options.entries];
+    } else if (options && typeof options === "object") {
+        optionEntries = Object.entries(options);
+    }
+    optionEntries = optionEntries.filter(([key]) =>
+        String(key).toLowerCase() !== "maxsubintervals");
+    optionEntries.push(["maxSubintervals", new Integer(1n)]);
+    return { identity, input, pieces, pieceOptions: map(optionEntries) };
+}
+
+function pieceBindings(variable, piece) {
+    return map([[variable, piece]]);
+}
+
+function strategyFailure(schema, strategy, transformation, bindings, options, conventions, reason) {
+    return Object.freeze({
+        schema,
+        strategy,
+        status: "unknown",
+        certified: false,
+        domainStatus: "unresolved",
+        range: RationalIntervalSet.empty,
+        diagnostics: Object.freeze([reason]),
+        partitions: Object.freeze([]),
+        evidence: Object.freeze({
+            kind: "calculusStrategyRange",
+            checker: CALCULUS_STRATEGY_RANGE_CHECKER,
+            strategy,
+            transformation,
+            bindings,
+            options,
+            conventions,
+        }),
+    });
+}
+
+/** Certified midpoint-value plus first-derivative Lipschitz enclosure. */
+export function evaluateCalculusLipschitzRange(
+    transformation,
+    bindings,
+    options = map([]),
+    conventions = { zeroPowerZero: "undefined" },
+) {
+    try {
+        const { identity, input, pieces, pieceOptions } = strategySetup(
+            transformation, bindings, options, 1,
+        );
+        const partitions = [];
+        for (const piece of pieces) {
+            const component = piece.components[0];
+            const midpoint = component.low.add(component.high).divide(new Rational(2));
+            const radius = component.high.subtract(component.low).divide(new Rational(2));
+            const pieceMap = pieceBindings(identity.variable, piece);
+            const midpointMap = pieceBindings(identity.variable, RationalIntervalSet.point(midpoint));
+            const midpointValue = evaluateCalculusGraphRange(
+                identity.source, midpointMap, pieceOptions, conventions,
+            );
+            const derivativeRange = evaluateCalculusGraphRange(
+                identity.expression, pieceMap, pieceOptions, conventions,
+            );
+            const obligationChecks = derivativeObligationChecks(
+                identity, pieceMap, pieceOptions, conventions,
+            );
+            if (!midpointValue.certified || midpointValue.domainStatus !== "allDefined" ||
+                !derivativeRange.certified || derivativeRange.domainStatus !== "allDefined" ||
+                obligationChecks.some((check) => !check.discharged)) {
+                throw new Error("lipschitzPremiseNotCertified");
+            }
+            const lipschitzBound = finiteAbsoluteBound(derivativeRange.range);
+            const errorRadius = lipschitzBound.multiply(radius);
+            const enclosure = rangeAdd(
+                midpointValue.range,
+                exactSymmetricRange(errorRadius),
+            ).range;
+            partitions.push(Object.freeze({
+                input: piece,
+                midpoint,
+                radius,
+                midpointRange: midpointValue.range,
+                derivativeRange: derivativeRange.range,
+                lipschitzBound,
+                errorRadius,
+                enclosure,
+                obligationChecks: Object.freeze(obligationChecks),
+                work: Object.freeze({
+                    midpointNodes: midpointValue.work.nodes,
+                    derivativeNodes: derivativeRange.work.nodes,
+                }),
+            }));
+        }
+        const range = partitions.reduce(
+            (combined, partition) => combined.union(partition.enclosure),
+            RationalIntervalSet.empty,
+        );
+        return Object.freeze({
+            schema: CALCULUS_LIPSCHITZ_RANGE_SCHEMA,
+            strategy: "lipschitzMidpoint",
+            status: "enclosed",
+            certified: true,
+            domainStatus: "allDefined",
+            functionGraph: identity.functionGraph,
+            derivativeGraph: identity.derivativeGraph,
+            variable: identity.variable,
+            input,
+            range,
+            partitions: Object.freeze(partitions),
+            diagnostics: Object.freeze([]),
+            work: Object.freeze({
+                subintervals: partitions.length,
+                nodes: partitions.reduce((sum, partition) => sum +
+                    partition.work.midpointNodes + partition.work.derivativeNodes, 0),
+            }),
+            evidence: Object.freeze({
+                kind: "calculusStrategyRange",
+                checker: CALCULUS_STRATEGY_RANGE_CHECKER,
+                strategy: "lipschitzMidpoint",
+                transformation,
+                bindings,
+                options,
+                conventions,
+            }),
+        });
+    } catch (error) {
+        return strategyFailure(
+            CALCULUS_LIPSCHITZ_RANGE_SCHEMA, "lipschitzMidpoint",
+            transformation, bindings, options, conventions, error.message,
+        );
+    }
+}
+
+function curvatureFromRange(range) {
+    const zero = RationalIntervalSet.point(0);
+    if (range.equals(zero)) return "affine";
+    const nonnegative = new RationalIntervalSet({
+        low: 0, high: null, lowClosed: true, highClosed: false,
+    });
+    if (nonnegative.contains(range)) return "convex";
+    const nonpositive = new RationalIntervalSet({
+        low: null, high: 0, lowClosed: false, highClosed: true,
+    });
+    if (nonpositive.contains(range)) return "concave";
+    return "unknown";
+}
+
+/** Certified first-order midpoint Taylor enclosure with a second-derivative remainder. */
+export function evaluateCalculusTaylorRange(
+    transformation,
+    bindings,
+    options = map([]),
+    conventions = { zeroPowerZero: "undefined" },
+) {
+    try {
+        const { identity, input, pieces, pieceOptions } = strategySetup(
+            transformation, bindings, options, 2,
+        );
+        const firstDerivative = identity.derivativeExpressions[0];
+        const partitions = [];
+        for (const piece of pieces) {
+            const component = piece.components[0];
+            const midpoint = component.low.add(component.high).divide(new Rational(2));
+            const radius = component.high.subtract(component.low).divide(new Rational(2));
+            const pieceMap = pieceBindings(identity.variable, piece);
+            const midpointMap = pieceBindings(identity.variable, RationalIntervalSet.point(midpoint));
+            const midpointValue = evaluateCalculusGraphRange(
+                identity.source, midpointMap, pieceOptions, conventions,
+            );
+            const midpointDerivative = evaluateCalculusGraphRange(
+                firstDerivative, midpointMap, pieceOptions, conventions,
+            );
+            const secondDerivativeRange = evaluateCalculusGraphRange(
+                identity.expression, pieceMap, pieceOptions, conventions,
+            );
+            const obligationChecks = derivativeObligationChecks(
+                identity, pieceMap, pieceOptions, conventions,
+            );
+            if (!midpointValue.certified || midpointValue.domainStatus !== "allDefined" ||
+                !midpointDerivative.certified || midpointDerivative.domainStatus !== "allDefined" ||
+                !secondDerivativeRange.certified ||
+                secondDerivativeRange.domainStatus !== "allDefined" ||
+                obligationChecks.some((check) => !check.discharged)) {
+                throw new Error("taylorPremiseNotCertified");
+            }
+            const secondDerivativeBound = finiteAbsoluteBound(secondDerivativeRange.range);
+            const delta = exactSymmetricRange(radius);
+            const linearRange = rangeMultiply(midpointDerivative.range, delta).range;
+            const halfRadiusSquared = radius.pow(2n).divide(new Rational(2));
+            const remainderRange = rangeMultiply(
+                secondDerivativeRange.range,
+                new RationalIntervalSet({ low: Rational.zero, high: halfRadiusSquared }),
+            ).range;
+            const remainderRadius = secondDerivativeBound.multiply(halfRadiusSquared);
+            const enclosure = rangeAdd(
+                rangeAdd(midpointValue.range, linearRange).range,
+                remainderRange,
+            ).range;
+            partitions.push(Object.freeze({
+                input: piece,
+                midpoint,
+                radius,
+                midpointRange: midpointValue.range,
+                midpointDerivativeRange: midpointDerivative.range,
+                secondDerivativeRange: secondDerivativeRange.range,
+                secondDerivativeBound,
+                linearRange,
+                remainderRange,
+                remainderRadius,
+                curvature: curvatureFromRange(secondDerivativeRange.range),
+                enclosure,
+                obligationChecks: Object.freeze(obligationChecks),
+                work: Object.freeze({
+                    midpointNodes: midpointValue.work.nodes,
+                    firstDerivativeNodes: midpointDerivative.work.nodes,
+                    secondDerivativeNodes: secondDerivativeRange.work.nodes,
+                }),
+            }));
+        }
+        const range = partitions.reduce(
+            (combined, partition) => combined.union(partition.enclosure),
+            RationalIntervalSet.empty,
+        );
+        const curvatures = [...new Set(partitions.map((partition) => partition.curvature))];
+        return Object.freeze({
+            schema: CALCULUS_TAYLOR_RANGE_SCHEMA,
+            strategy: "secondDerivativeTaylor",
+            status: "enclosed",
+            certified: true,
+            domainStatus: "allDefined",
+            functionGraph: identity.functionGraph,
+            firstDerivativeGraph: calculusGraphStructuralKey(firstDerivative),
+            secondDerivativeGraph: identity.derivativeGraph,
+            variable: identity.variable,
+            input,
+            range,
+            curvature: curvatures.length === 1 ? curvatures[0] : "mixed",
+            partitions: Object.freeze(partitions),
+            diagnostics: Object.freeze([]),
+            work: Object.freeze({
+                subintervals: partitions.length,
+                nodes: partitions.reduce((sum, partition) => sum +
+                    partition.work.midpointNodes + partition.work.firstDerivativeNodes +
+                    partition.work.secondDerivativeNodes, 0),
+            }),
+            evidence: Object.freeze({
+                kind: "calculusStrategyRange",
+                checker: CALCULUS_STRATEGY_RANGE_CHECKER,
+                strategy: "secondDerivativeTaylor",
+                transformation,
+                bindings,
+                options,
+                conventions,
+            }),
+        });
+    } catch (error) {
+        return strategyFailure(
+            CALCULUS_TAYLOR_RANGE_SCHEMA, "secondDerivativeTaylor",
+            transformation, bindings, options, conventions, error.message,
+        );
+    }
+}
+
+export function checkCalculusStrategyRangeResult(candidate) {
+    const evidence = candidate?.evidence;
+    if (evidence?.kind !== "calculusStrategyRange" ||
+        evidence?.checker !== CALCULUS_STRATEGY_RANGE_CHECKER) {
+        return Object.freeze({ accepted: false, certified: false, reason: "unsupportedStrategyEvidence" });
+    }
+    const evaluate = evidence.strategy === "lipschitzMidpoint"
+        ? evaluateCalculusLipschitzRange
+        : evidence.strategy === "secondDerivativeTaylor"
+            ? evaluateCalculusTaylorRange
+            : null;
+    if (!evaluate) {
+        return Object.freeze({ accepted: false, certified: false, reason: "unsupportedRangeStrategy" });
+    }
+    const recomputed = evaluate(
+        evidence.transformation,
+        evidence.bindings,
+        evidence.options,
+        evidence.conventions,
+    );
+    const accepted = candidate.range instanceof RationalIntervalSet &&
+        candidate.schema === recomputed.schema &&
+        candidate.strategy === recomputed.strategy &&
+        candidate.certified === recomputed.certified &&
+        candidate.domainStatus === recomputed.domainStatus &&
+        candidate.range.equals(recomputed.range);
+    return Object.freeze({
+        accepted,
+        certified: accepted && recomputed.certified,
+        reason: accepted ? null : "strategyRangeClaimMismatch",
+        checkedBy: CALCULUS_STRATEGY_RANGE_CHECKER,
+        strategy: recomputed.strategy,
     });
 }
 
@@ -1215,4 +1615,36 @@ export function calculusDerivativeSignValue(transformation, bindings, options, c
         { zeroPowerZero: conventions.zeroPowerZero },
     );
     return portable(result);
+}
+
+function calculusStrategyValue(evaluate, transformation, bindings, options, context) {
+    const policy = rangeMathPolicy(context);
+    const conventions = Object.freeze({ zeroPowerZero: policy.zeroPowerZero });
+    const result = evaluate(transformation, bindings, options, conventions);
+    const check = checkCalculusStrategyRangeResult(result);
+    const value = portable({ ...result, checker: check });
+    if (check.certified && result.range instanceof RationalIntervalSet) {
+        result.range._ext = new Map([["rangeEvidence", portable({
+            schema: result.schema,
+            strategy: result.strategy,
+            domainStatus: result.domainStatus,
+            evidence: result.evidence,
+            checker: check,
+        })]]);
+    }
+    return value;
+}
+
+/** RiX adapter for the checked Lipschitz midpoint strategy. */
+export function calculusLipschitzRangeValue(transformation, bindings, options, context) {
+    return calculusStrategyValue(
+        evaluateCalculusLipschitzRange, transformation, bindings, options, context,
+    );
+}
+
+/** RiX adapter for the checked second-derivative Taylor strategy. */
+export function calculusTaylorRangeValue(transformation, bindings, options, context) {
+    return calculusStrategyValue(
+        evaluateCalculusTaylorRange, transformation, bindings, options, context,
+    );
 }

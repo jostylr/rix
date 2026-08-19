@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/calculus-lipschitz-range/v1.schema.json",
+  "title": "RiX checked Lipschitz midpoint range v1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema", "strategy", "status", "certified", "domainStatus", "range", "partitions", "evidence"],
+  "properties": {
+    "schema": { "const": "rix.numerics.calculus-lipschitz-range@1" },
+    "strategy": { "const": "lipschitzMidpoint" },
+    "status": { "enum": ["enclosed", "unknown"] },
+    "certified": { "type": "boolean" },
+    "domainStatus": { "enum": ["allDefined", "unresolved"] },
+    "range": { "$ref": "range-set.schema.json" },
+    "partitions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["input", "midpoint", "radius", "midpointRange", "derivativeRange", "lipschitzBound", "errorRadius", "enclosure"]
+      }
+    },
+    "evidence": {}
+  }
+}

@@ -13,6 +13,8 @@ import {
     calculusGraphRecognitionValue,
     calculusDerivativeCheckValue,
     calculusDerivativeSignValue,
+    calculusLipschitzRangeValue,
+    calculusTaylorRangeValue,
 } from "../../runtime/calculus-range.js";
 import {
     RANGE_MATH_POLICY_KEY,
@@ -169,6 +171,28 @@ export const arithmeticFunctions = {
         },
         pure: true,
         doc: "Certify a uniform derivative sign for a checked primitive Calculus transformation",
+    },
+
+    CALCULUS_LIPSCHITZ_RANGE: {
+        impl(args, context) {
+            if (args.length < 2 || args.length > 3) {
+                throw new Error("CalculusLipschitzRange expects a derivative transformation, bindings, and optional options");
+            }
+            return calculusLipschitzRangeValue(args[0], args[1], args[2], context);
+        },
+        pure: true,
+        doc: "Certify a range by midpoint values and bounded first derivatives",
+    },
+
+    CALCULUS_TAYLOR_RANGE: {
+        impl(args, context) {
+            if (args.length < 2 || args.length > 3) {
+                throw new Error("CalculusTaylorRange expects a second-derivative transformation, bindings, and optional options");
+            }
+            return calculusTaylorRangeValue(args[0], args[1], args[2], context);
+        },
+        pure: true,
+        doc: "Certify a first-order midpoint Taylor range with second-derivative remainder",
     },
 
     RANGE_POLICY: {

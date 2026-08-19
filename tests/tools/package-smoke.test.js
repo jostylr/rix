@@ -52,6 +52,8 @@ describe("standalone package", () => {
       "bin/rix-language-server.js",
       "bin/rix-worker.js",
       "examples/plugins/example-array-js/array-js.plugin.rix.js",
+      "explorations/numerics/lipschitz-midpoint.rix",
+      "explorations/numerics/second-derivative-taylor.rix",
       "plugins/bundled.js",
       "schemas/rix.schema.json",
       "src/index.js",

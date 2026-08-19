@@ -127,8 +127,12 @@ focused tests exist; design-only work remains unchecked.
   whose adjacent pieces share only certified rational critical endpoints.
 - [x] Add a generic primitive derivative-sign range strategy that checks graph
   identity, encloses the derivative, and discharges every carried obligation.
-- [ ] Add generic Lipschitz midpoint strategy with bounded subdivision.
-- [ ] Add second-derivative convexity/Taylor remainder strategy.
+- [x] Add a checked generic Lipschitz midpoint strategy with exact midpoint
+  values, first-derivative bounds, domain-obligation discharge, and bounded
+  closed subdivision.
+- [x] Add a checked second-derivative strategy with first-order midpoint Taylor
+  models, signed remainder ranges, curvature classification, and bounded
+  closed subdivision.
 - [x] Ensure unsupported theorem tags cannot be promoted to Checked.
 
 ## 7. Symbolic proof preservation
@@ -181,6 +185,9 @@ focused tests exist; design-only work remains unchecked.
   labels do not certify.
 - [x] Add further adversarial examples showing why samples and bare
   monotonicity labels do not certify.
+- [x] Establish the browser-safe Explanatory Exploration format and add
+  interactive Lipschitz-midpoint and second-derivative Taylor investigations,
+  each ending with guided further work.
 - [x] Run Core and complete RiX suites at this integration milestone.
 
 ### Verification note — 2026-08-18
@@ -222,7 +229,11 @@ focused tests exist; design-only work remains unchecked.
 - One-sided root topology, repeated endpoint roots, exact critical-point
   partitions, and schema integration: 18 focused tests passed with zero
   failures (84 assertions).
-- Complete RiX suite after this stage: 2,585 tests passed across 132 files with
-  zero failures (8,653 assertions).
+- Complete RiX suite after this stage: 2,590 tests passed across 133 files with
+  zero failures (8,700 assertions).
 - The derivative-witness tutorial now has five runnable RiX blocks; all five
   execute successfully in the documentation checker.
+- Lipschitz, Taylor, higher-derivative, adversarial strategy-checker,
+  exploration, schema, plugin-lint, and package integration: 37 focused tests
+  passed with zero failures (225 assertions). Both Explanatory Exploration
+  companions evaluate to portable browser-renderable output.

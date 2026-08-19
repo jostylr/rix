@@ -1,0 +1,65 @@
+## Explanatory Exploration: certified second-derivative Taylor enclosures.
+## Browser-safe: the final value is a portable Fragment.
+
+.Plugin.Load("calculus");
+.Plugin.Load("numerics");
+.Plugin.Load("plot");
+
+$$center := 0;
+$$radius := 1;
+$$pieceCount := 4;
+
+$$view := {;
+    c := $center;
+    r := $radius;
+    n := $pieceCount;
+    input := (c-r):(c+r);
+    x := .calculus.Variable(:x);
+    f := x^4-2*x^2;
+    secondDerivative := .calculus.DifferentiateNResult(f,:x,2);
+    result := .numerics.TaylorRange(
+        secondDerivative,
+        {= x=input },
+        {= maxSubintervals=n }
+    );
+    rows := result[:partitions].Map((part,index)->[
+        index,
+        part[:input],
+        part[:midpoint],
+        part[:midpointDerivativeRange],
+        part[:secondDerivativeRange],
+        part[:linearRange],
+        part[:remainderRange],
+        part[:curvature],
+        part[:enclosure]
+    ]);
+    plotDomain := [c-r-1,c+r+1];
+    graph := .plot.Polynomial([0,0,-2,0,1],plotDomain,{=
+        size=[700,320],
+        label="f(x) = x⁴ - 2x²",
+        stroke="#7c3aed"
+    });
+    .Fragment([
+        .Heading(1,"Second-derivative Taylor enclosure"),
+        .Paragraph(@"The exact input is @{input}. The certified union enclosure is @{result[:range]}."),
+        .ControlPanel({=
+            title="Exact measurement and work budget",
+            description="Subdivision changes both the local slope and curvature bounds.",
+            controls=[
+                .Controls.Slider($$center,-2:2,1/4,"centre"),
+                .Controls.Slider($$radius,1/4:2,1/4,"half-width"),
+                .Controls.Slider($$pieceCount,1:12,1,"subintervals")
+            ]
+        }),
+        .Figure(graph,"The curve suggests curvature; the table records the checked second-derivative evidence."),
+        .Table(
+            ["piece","input","midpoint","f'(m)","f'' range","linear","remainder","curvature","output enclosure"],
+            rows,
+            {= caption="First-order midpoint Taylor models with checked remainder ranges" }
+        ),
+        .Paragraph(@"curvature=@{result[:curvature]}, status=@{result[:status]}, checker accepted=@{result[:checker][:accepted]}")
+    ])
+};
+
+$view
+

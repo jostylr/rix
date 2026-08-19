@@ -102,6 +102,17 @@ discharged over the complete input. A derivative spanning both signs is an
 honest inconclusive result; an input that may hit a quotient or power hole is
 unresolved.
 
+Two general smooth-function strategies build on the same checked graph
+boundary. `.numerics.LipschitzRange(firstDerivative, bindings, options?)`
+encloses each closed piece from its midpoint value and a certified bound on
+`|f'|`. `.numerics.TaylorRange(secondDerivative, bindings, options?)` retains
+`f'(midpoint)` and uses the signed second-derivative range for a first-order
+Taylor remainder. Both accept `maxSubintervals`, expose every piece and bound,
+discharge derivative obligations, and include a recomputation checker result.
+The Taylor result also reports per-piece convex, concave, affine, or unknown
+curvature. See the browser-safe [Explanatory
+Explorations](../../explorations/README.md) for interactive investigations.
+
 For an exact interval expression, generic subdivision can reduce dependency
 overestimation while retaining the same input occurrence in each piece:
 

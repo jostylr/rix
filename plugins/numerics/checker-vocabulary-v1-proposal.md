@@ -257,6 +257,25 @@ a trusted provider until a versioned one-sided-limit vocabulary is specified.
 The checker must never treat an excluded endpoint as an attained function
 value.
 
+### Checked smooth range strategies
+
+The public Calculus bridge also supplies two bounded strategies whose result
+checker recomputes the primitive derivative identity, domain obligations,
+subdivision, and exact range arithmetic from the evidence payload:
+
+| Strategy | Checked enclosure on `I=[m-r,m+r]` |
+| --- | --- |
+| `lipschitzMidpoint` | `f(m) + [-L*r,L*r]`, where a total derivative range proves `|f'| <= L` on `I`. |
+| `secondDerivativeTaylor` | `f(m) + f'(m)*[-r,r] + f''(I)*[0,r^2/2]`. |
+
+Both require closed bounded rational input components, accept an explicit
+`maxSubintervals` work bound, and union the checked piece enclosures. The
+second strategy retains the sign of `f''(I)`, so its remainder and reported
+convexity are stronger than an absolute second-derivative bound when the sign
+is uniform. A second-order transformation may not be passed to
+`monotone.derivativeSign`: the ordinary monotonicity rule deliberately accepts
+only a first derivative.
+
 ### Polynomial completeness rules
 
 | Rule | Checker action |

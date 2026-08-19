@@ -24,7 +24,7 @@ export const runtimeDefaults = Object.freeze({
     Plot: Object.freeze(["plot"]),
     Core: Object.freeze(["LEN", "FIRST", "LAST", "GETEL", "IRANGE", "IF", "LOOP", "MULTI", "RAND_NAME", "PRINT", "Shaped", "KEYOF", "KEYS", "VALUES", "REGISTERMETHOD", "CertifiedApproximation", "Undecided", "RefinementRequest", "RefinementEffectiveLimits", "RefinementSupports", "RefinementCheck", "RefinementUnsupported", "TypeKnown", "ImmutableValue"]),
     Methods: Object.freeze(["REGISTERMETHOD"]),
-    Arith: Object.freeze(["ADD", "SUB", "MUL", "DIV", "INTDIV", "DIVMOD", "MOD", "POW", "FACTORIAL", "DOUBLEFACTORIAL", "RANGE_POLICY", "RANGE_EVIDENCE", "RANGE_ADD", "RANGE_SUBTRACT", "RANGE_MULTIPLY", "RANGE_DIVIDE", "RANGE_NEGATE", "RANGE_ABSOLUTE_VALUE", "RANGE_RECIPROCAL", "RANGE_INTEGER_POWER", "CALCULUS_RANGE", "CALCULUS_RANGE_CHECK", "CALCULUS_RANGE_RECOGNIZE", "CALCULUS_DERIVATIVE_CHECK", "CALCULUS_DERIVATIVE_SIGN"]),
+    Arith: Object.freeze(["ADD", "SUB", "MUL", "DIV", "INTDIV", "DIVMOD", "MOD", "POW", "FACTORIAL", "DOUBLEFACTORIAL", "RANGE_POLICY", "RANGE_EVIDENCE", "RANGE_ADD", "RANGE_SUBTRACT", "RANGE_MULTIPLY", "RANGE_DIVIDE", "RANGE_NEGATE", "RANGE_ABSOLUTE_VALUE", "RANGE_RECIPROCAL", "RANGE_INTEGER_POWER", "CALCULUS_RANGE", "CALCULUS_RANGE_CHECK", "CALCULUS_RANGE_RECOGNIZE", "CALCULUS_DERIVATIVE_CHECK", "CALCULUS_DERIVATIVE_SIGN", "CALCULUS_LIPSCHITZ_RANGE", "CALCULUS_TAYLOR_RANGE"]),
     Logic: Object.freeze(["EQ", "NEQ", "LT", "GT", "LTE", "GTE", "AND", "OR", "NOT"]),
     Collections: Object.freeze(["LEN", "FIRST", "LAST", "GETEL", "IRANGE", "MAP", "FILTER", "REDUCE", "Shaped", "Stream"]),
     Async: Object.freeze(["Stream", "Retry"]),

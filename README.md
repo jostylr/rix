@@ -17,6 +17,8 @@ RiX is the Rational Interval Expression Language: a mathematical language with e
 - `development-instructions.md`: developer workflow and runnable documentation conventions.
 - `docs/`: generated GitHub Pages site; do not edit it by hand.
 - `examples/`: runnable RiX and JavaScript examples.
+- `explorations/`: explanatory mathematical investigations with browser-safe
+  interactive RiX companions.
 
 ## Local development
 

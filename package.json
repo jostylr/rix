@@ -19,6 +19,7 @@
     "examples/renderers/",
     "examples/rixcel/",
     "examples/stern-brocot/",
+    "explorations/",
     "plugins/",
     "schemas/",
     "src/"
