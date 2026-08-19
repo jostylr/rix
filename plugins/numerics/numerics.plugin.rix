@@ -3,12 +3,12 @@ id: numerics
 description: Backend-neutral bounded enclosure and refinement orchestration.
 kind: rix
 mount: numerics
-exports: [Request, WorkPolicy, EffectiveLimits, Enclose, Refine, Sample, Range, GraphRange, CheckGraphRange, CheckDerivativeGraph, DerivativeSign, LipschitzRange, TaylorRange, RecognizeGraph, WithRangeKnowledge, RegisterRangeProvider, CheckRangeResult, Sign, RootCount, Capabilities, CheckResult, NthRoot, Sqrt, Cbrt, Hypot, Pow, Exp, Expm1, Log, Log1p, Ln, Log2, Log10, Pi, EulerGamma, Sin, Cos, Tan, Sec, Csc, Cot, Sinc, Asin, Acos, Atan, Atan2, Arcsin, Arccos, Arctan, Sinh, Cosh, Tanh, Sech, Csch, Coth, Asinh, Acosh, Atanh, Arsinh, Arcosh, Artanh, Radians, Degrees, Gamma, LogGamma, Beta, LogBeta, Digamma, Trigamma, Erf, Erfc, NormalPDF, NormalCDF, NormalQuantile, LambertW, BesselJ, BesselJ0, BesselJ1, BesselY, BesselY0, BesselY1, BesselI, BesselI0, BesselI1, BesselK, BesselK0, BesselK1, Zeta, Quadrature, Kantorovich]
+exports: [Request, WorkPolicy, EffectiveLimits, Enclose, Refine, Sample, Range, GraphRange, CheckGraphRange, SimplifyGraph, CheckGraphSimplification, CheckDerivativeGraph, DerivativeSign, LipschitzRange, TaylorRange, RecognizeGraph, FunctionFacts, WithRangeKnowledge, RegisterRangeProvider, CheckRangeResult, Sign, RootCount, Capabilities, CheckResult, NthRoot, Sqrt, Cbrt, Hypot, Pow, Exp, Expm1, Log, Log1p, Ln, Log2, Log10, Pi, EulerGamma, Sin, Cos, Tan, Sec, Csc, Cot, Sinc, Asin, Acos, Atan, Atan2, Arcsin, Arccos, Arctan, Sinh, Cosh, Tanh, Sech, Csch, Coth, Asinh, Acosh, Atanh, Arsinh, Arcosh, Artanh, Radians, Degrees, Gamma, LogGamma, Beta, LogBeta, Digamma, Trigamma, Erf, Erfc, NormalPDF, NormalCDF, NormalQuantile, LambertW, BesselJ, BesselJ0, BesselJ1, BesselY, BesselY0, BesselY1, BesselI, BesselI0, BesselI1, BesselK, BesselK0, BesselK1, Zeta, Quadrature, Kantorovich]
 groups: [Numerics]
 permissions: []
 requires: [rix.oracle@1]
 provides: [rix.numerics@1, rix.enclosable-real-consumer@1, rix.exact-sign-consumer@1, rix.root-count-consumer@1, rix.calculus-range-consumer@1]
-schemas: [rix.numerics.refinement-request@1, rix.numerics.enclosure@1, rix.numerics.algorithm-real@1, rix.numerics.interval-image@1, rix.numerics.range-enclosure@1, rix.numerics.range-provider@1, rix.numerics.range-provider-result@1, rix.numerics.calculus-graph-range@1, rix.numerics.calculus-graph-recognition@1, rix.numerics.calculus-derivative-sign@1, rix.exact.sign-witness@1, rix.exact.root-count@1]
+schemas: [rix.numerics.refinement-request@1, rix.numerics.enclosure@1, rix.numerics.algorithm-real@1, rix.numerics.interval-image@1, rix.numerics.range-enclosure@1, rix.numerics.range-provider@1, rix.numerics.range-provider-result@1, rix.numerics.function-facts@1, rix.numerics.calculus-graph-range@1, rix.calculus.graph-simplification@1, rix.numerics.calculus-graph-recognition@1, rix.numerics.calculus-derivative-sign@1, rix.exact.sign-witness@1, rix.exact.root-count@1]
 defaultEnabled: false
 **/
 
@@ -3966,12 +3966,17 @@ NumericsRegisterRangeProvider(function, knowledge) -> {;
         provider=:trustedSessionRangeProvider,
         functionId=functionId
     });
+    facts = NumericsOption(knowledge, "facts", _);
+    operations = facts == _
+      ?: [:directRange]
+      ?_ facts[:operations].Reduce((result,operation)->result.Push(operation),[:directRange]);
     normalized = {=
         valueKind=:rangeProvider,
         schema="rix.numerics.range-provider@1",
         functionId=functionId,
-        operations=[:directRange],
+        operations=operations,
         directRange=directRange,
+        facts=facts,
         evidenceLevel=:trustedCapability,
         declaredEvidenceLevel=NumericsOption(knowledge, "evidencelevel", :trustedCapability),
         trust=:trustedCapability,
@@ -3988,6 +3993,18 @@ NumericsRangeKnowledge(function) -> {;
     sourceFunction = NumericsRangeSourceFunction(function);
     registered = .Host.FindRangeProvider(sourceFunction);
     registered != _ ?: registered ?_ function.rangeknowledge;
+};
+
+NumericsFunctionFacts(function) -> {;
+    sourceFunction = NumericsRangeSourceFunction(function);
+    knowledge = NumericsRangeKnowledge(function);
+    trusted = knowledge == _ ?: _ ?_ .Host.RangeProviderTrusted(knowledge,sourceFunction);
+    facts = knowledge == _ ?: _ ?_ knowledge[:facts];
+    trusted == _
+      ?: .Error("The callable has no trusted published function facts")
+      ?_ (facts == _
+           ?: .Error("The callable has no trusted published function facts")
+           ?_ facts);
 };
 
 NumericsRangeProviderValidation(result, knowledge, sourceFunction, input, request) -> {;
@@ -4476,12 +4493,195 @@ NumericsUnaryCall(kind, value, extra ?= _) -> {?
     .Error(@"Unsupported unary Numerics range function '@{kind}'")
 };
 
+NumericsCircularFunctionFacts(functionId, kind) -> {;
+    circular = kind ? [:sin,:cos,:tan,:sec,:csc,:cot];
+    circular
+      ?: {;
+          polesAtHalfPi = @kind ? [:tan,:sec];
+          polesAtZeroPi = @kind ? [:csc,:cot];
+          boundedUnit = @kind ? [:sin,:cos];
+          fullRealImage = @kind ? [:tan,:cot];
+          odd = @kind ? [:sin,:tan,:csc,:cot];
+          periodMultiplier = @kind ? [:tan,:cot] ?: 1 ?_ 2;
+          domain = polesAtHalfPi
+            ?: {=
+                kind=:realExceptLattice,
+                lattice={= offset={= constant=:pi, multiplier=1/2 }, step={= constant=:pi, multiplier=1 } }
+            }
+            ?_ (polesAtZeroPi
+                 ?: {=
+                     kind=:realExceptLattice,
+                     lattice={= offset=0, step={= constant=:pi, multiplier=1 } }
+                 }
+                 ?_ {= kind=:allReal });
+          globalRange = boundedUnit
+            ?: {= kind=:exactRangeSet, range=((-1):1) ~!: :RangeSet }
+            ?_ (fullRealImage
+                 ?: {= kind=:allReal }
+                 ?_ {= kind=:absoluteValueAtLeast, lower=1, endpointsIncluded=1 });
+          monotonicity = @kind == :sin
+            ?: {= kind=:periodicAlternating, increasingCenter={= constant=:pi, multiplier=0 }, switchSpacing={= constant=:pi, multiplier=1 } }
+            ?_ (@kind == :cos
+                 ?: {= kind=:periodicAlternating, maximumLattice={= constant=:pi, multiplier=2 }, switchSpacing={= constant=:pi, multiplier=1 } }
+                 ?_ (@kind ? [:tan]
+                      ?: {= kind=:increasingOnDomainComponents }
+                      ?_ (@kind == :cot
+                           ?: {= kind=:decreasingOnDomainComponents }
+                           ?_ {= kind=:betweenCriticalPointsAndPoles })));
+          singularities = polesAtHalfPi
+            ?: {= kind=:simplePoleLattice, offset={= constant=:pi, multiplier=1/2 }, step={= constant=:pi, multiplier=1 } }
+            ?_ (polesAtZeroPi
+                 ?: {= kind=:simplePoleLattice, offset=0, step={= constant=:pi, multiplier=1 } }
+                 ?_ {= kind=:none });
+          {=
+              valueKind=:functionFacts,
+              schema="rix.numerics.function-facts@1",
+              version=1,
+              functionId=@functionId,
+              operations=[:domain,:globalRange,:period,:symmetry,:monotonicity,:singularities],
+              domain=domain,
+              globalRange=globalRange,
+              period={= kind=:constantMultiple, constant=:pi, multiplier=periodMultiplier },
+              symmetry={= kind=odd ?: :odd ?_ :even, center=0 },
+              monotonicity=monotonicity,
+              singularities=singularities,
+              certified=1,
+              evidenceLevel=:trustedCapability,
+              evidence={=
+                  kind=:trustedFunctionFactLeaf,
+                  theoremFamily=:classicalCircularFunctions,
+                  provider=:numerics,
+                  version=1
+              }
+          };
+      }
+      ?_ _;
+};
+
+NumericsElementaryFunctionFacts(functionId, kind) -> {;
+    elementary = kind ? [
+        :exp,:expm1,:log,:ln,:log1p,:log2,:log10,:sqrt,:cbrt,
+        :asin,:acos,:atan,:sinh,:cosh,:tanh,:sech,:csch,:coth,
+        :asinh,:acosh,:atanh
+    ];
+    elementary
+      ?: {;
+          logarithm = @kind ? [:log,:ln,:log2,:log10];
+          odd = @kind ? [:cbrt,:asin,:atan,:sinh,:tanh,:csch,:coth,:asinh,:atanh];
+          even = @kind ? [:cosh,:sech];
+          domain = logarithm
+            ?: {= kind=:positiveReal, boundary=0, boundaryIncluded=_ }
+            ?_ (@kind == :log1p
+                 ?: {= kind=:greaterThan, boundary=-1, boundaryIncluded=_ }
+                 ?_ (@kind == :sqrt
+                      ?: {= kind=:nonnegativeReal, boundary=0, boundaryIncluded=1 }
+                      ?_ (@kind ? [:asin,:acos]
+                           ?: {= kind=:closedUnitInterval }
+                           ?_ (@kind == :acosh
+                                ?: {= kind=:atLeast, boundary=1, boundaryIncluded=1 }
+                                ?_ (@kind == :atanh
+                                     ?: {= kind=:openUnitInterval }
+                                     ?_ (@kind ? [:csch,:coth]
+                                          ?: {= kind=:realExceptPoint, point=0 }
+                                          ?_ {= kind=:allReal }))))));
+          globalRange = @kind == :exp
+            ?: {= kind=:positiveReal }
+            ?_ (@kind == :expm1
+                 ?: {= kind=:greaterThan, boundary=-1 }
+                 ?_ (logarithm || @kind == :log1p
+                      ?: {= kind=:allReal }
+                      ?_ (@kind == :sqrt
+                           ?: {= kind=:nonnegativeReal }
+                           ?_ (@kind == :asin
+                                ?: {= kind=:symbolicClosedInterval, low={= constant=:pi, multiplier=-1/2 }, high={= constant=:pi, multiplier=1/2 } }
+                                ?_ (@kind == :acos
+                                     ?: {= kind=:symbolicClosedInterval, low=0, high={= constant=:pi, multiplier=1 } }
+                                     ?_ (@kind == :atan
+                                          ?: {= kind=:symbolicOpenInterval, low={= constant=:pi, multiplier=-1/2 }, high={= constant=:pi, multiplier=1/2 } }
+                                          ?_ (@kind == :cosh
+                                               ?: {= kind=:atLeast, boundary=1, boundaryIncluded=1 }
+                                               ?_ (@kind == :tanh
+                                                    ?: {= kind=:openUnitInterval }
+                                                    ?_ (@kind == :sech
+                                                         ?: {= kind=:positiveAtMost, upper=1, upperIncluded=1 }
+                                                         ?_ (@kind == :csch
+                                                              ?: {= kind=:allRealExceptPoint, point=0 }
+                                                              ?_ (@kind == :coth
+                                                                   ?: {= kind=:absoluteValueGreaterThan, lower=1 }
+                                                                   ?_ (@kind == :acosh
+                                                                        ?: {= kind=:nonnegativeReal }
+                                                                        ?_ {= kind=:allReal }))))))))))));
+          symmetry = odd
+            ?: {= kind=:odd, center=0 }
+            ?_ (even
+                 ?: {= kind=:even, center=0 }
+                 ?_ (@kind == :acos
+                      ?: {= kind=:complementary, center=0, sum={= constant=:pi, multiplier=1 } }
+                      ?_ {= kind=:none }));
+          monotonicity = @kind == :log
+            ?: {= kind=:baseDependent, increasingWhen=:baseGreaterThanOne, decreasingWhen=:baseBetweenZeroAndOne }
+            ?_ (@kind ? [:cosh]
+                 ?: {= kind=:decreasingLeftIncreasingRight, switchPoint=0 }
+                 ?_ (@kind ? [:sech]
+                      ?: {= kind=:increasingLeftDecreasingRight, switchPoint=0 }
+                      ?_ (@kind ? [:acos]
+                           ?: {= kind=:decreasingOnDomain }
+                           ?_ (@kind ? [:csch,:coth]
+                                ?: {= kind=:decreasingOnDomainComponents }
+                                ?_ {= kind=:increasingOnDomain }))));
+          singularities = logarithm
+            ?: {= kind=:domainBoundary, points=[0], side=:right }
+            ?_ (@kind == :log1p
+                 ?: {= kind=:domainBoundary, points=[-1], side=:right }
+                 ?_ (@kind == :sqrt
+                      ?: {= kind=:domainBoundary, points=[0], included=1 }
+                      ?_ (@kind ? [:asin,:acos]
+                           ?: {= kind=:domainBoundaries, points=[-1,1], included=1 }
+                           ?_ (@kind == :acosh
+                                ?: {= kind=:domainBoundary, points=[1], included=1, side=:right }
+                                ?_ (@kind == :atanh
+                                     ?: {= kind=:logarithmicBoundaryPoles, points=[-1,1] }
+                                     ?_ (@kind ? [:csch,:coth]
+                                          ?: {= kind=:simplePole, point=0 }
+                                          ?_ {= kind=:none }))))));
+          {=
+              valueKind=:functionFacts,
+              schema="rix.numerics.function-facts@1",
+              version=1,
+              functionId=@functionId,
+              operations=[:domain,:globalRange,:symmetry,:monotonicity,:singularities],
+              domain=domain,
+              globalRange=globalRange,
+              period={= kind=:none },
+              symmetry=symmetry,
+              monotonicity=monotonicity,
+              singularities=singularities,
+              certified=1,
+              evidenceLevel=:trustedCapability,
+              evidence={=
+                  kind=:trustedFunctionFactLeaf,
+                  theoremFamily=:elementaryRealFunctions,
+                  provider=:numerics,
+                  version=1
+              }
+          };
+      }
+      ?_ _;
+};
+
+NumericsBuiltinFunctionFacts(functionId, kind) -> {;
+    circular = NumericsCircularFunctionFacts(functionId,kind);
+    circular == _ ?: NumericsElementaryFunctionFacts(functionId,kind) ?_ circular;
+};
+
 NumericsPublishUnaryRangeFunction(surface, functionId, functionKind) -> {;
     directRange = (input, request) ->
         NumericsUnaryProviderResult(functionId, functionKind, input, request);
+    facts = NumericsBuiltinFunctionFacts(functionId,functionKind);
     NumericsRegisterRangeProvider(surface, {=
         functionId=functionId,
         directRange=directRange,
+        facts=facts,
         provenance={=
             plugin=:numerics,
             version=1,
@@ -5517,6 +5717,9 @@ numericsNamespace._proto = {=
     GraphRange = (self, expression, bindings, options ?= {= }) ->
         .CalculusRange(expression, bindings, options),
     CheckGraphRange = (self, result) -> .CalculusRangeCheck(result),
+    SimplifyGraph = (self, expression) -> .CalculusGraphSimplify(expression),
+    CheckGraphSimplification = (self, result) ->
+        .CalculusGraphSimplificationCheck(result),
     CheckDerivativeGraph = (self, transformation) -> .CalculusDerivativeCheck(transformation),
     DerivativeSign = (self, transformation, bindings, options ?= {= }) ->
         .CalculusDerivativeSign(transformation,bindings,options),
@@ -5526,6 +5729,7 @@ numericsNamespace._proto = {=
         .CalculusTaylorRange(transformation,bindings,options),
     RecognizeGraph = (self, expression, variable) ->
         .CalculusRangeRecognize(expression, variable),
+    FunctionFacts = (self, function) -> NumericsFunctionFacts(function),
     WithRangeKnowledge = (self, function, knowledge) ->
         NumericsWithRangeKnowledge(function, knowledge),
     RegisterRangeProvider = (self, function, knowledge) ->

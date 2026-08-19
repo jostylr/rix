@@ -140,6 +140,33 @@ The next semantic stage binds those IDs to checked domain and range providers.
 Primitive derivative-sign and monotone-endpoint rules already work without
 that authority link; semantic applications continue to fail closed.
 
+## Use only checked simplification
+
+Neutral identities can be removed before evaluation with
+`{= checkedSimplify=1 }`. The transformation is recorded and rechecked, while
+the original graph remains the public function identity:
+
+```{.rix exec=true}
+.Plugin.Load("calculus");
+.Plugin.Load("numerics");
+
+x := .calculus.Variable(:x);
+safe := .numerics.GraphRange(-(-(x+0)),{= x=(-2):3 },{= checkedSimplify=1 });
+hole := .numerics.GraphRange(x/x,{= x=(-1):1 },{= checkedSimplify=1 });
+
+{:
+  safe[:simplification][:targetGraph],
+  safe[:checker][:accepted],
+  hole[:simplification][:changed],
+  hole[:domainStatus]
+};
+```
+
+The canonical simplifier refuses cancellation, annihilating-zero, and
+zero-power rewrites because they can stop evaluating a partial operand. The
+full rule contract and extension criteria are documented in
+[Proof-preserving simplification](proof-preserving-simplification.md).
+
 ## Check a derivative before using its sign
 
 `DifferentiateResult` exposes a rule trace, but a trace is not a certificate by

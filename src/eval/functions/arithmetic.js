@@ -11,6 +11,8 @@ import {
     calculusGraphRangeValue,
     calculusGraphRangeCheckValue,
     calculusGraphRecognitionValue,
+    calculusGraphSimplificationValue,
+    calculusGraphSimplificationCheckValue,
     calculusDerivativeCheckValue,
     calculusDerivativeSignValue,
     calculusLipschitzRangeValue,
@@ -149,6 +151,28 @@ export const arithmeticFunctions = {
         },
         pure: true,
         doc: "Recognize an exact polynomial or source-domain-preserving rational graph",
+    },
+
+    CALCULUS_GRAPH_SIMPLIFY: {
+        impl(args) {
+            if (args.length !== 1) {
+                throw new Error("CalculusGraphSimplify expects one expression");
+            }
+            return calculusGraphSimplificationValue(args[0]);
+        },
+        pure: true,
+        doc: "Apply and check the canonical domain-preserving Calculus graph simplifier",
+    },
+
+    CALCULUS_GRAPH_SIMPLIFICATION_CHECK: {
+        impl(args) {
+            if (args.length !== 1) {
+                throw new Error("CalculusGraphSimplificationCheck expects one simplification record");
+            }
+            return calculusGraphSimplificationCheckValue(args[0]);
+        },
+        pure: true,
+        doc: "Independently recompute a canonical Calculus graph simplification",
     },
 
     CALCULUS_DERIVATIVE_CHECK: {

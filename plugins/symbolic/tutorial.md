@@ -20,6 +20,24 @@ canonical := form.R();
 Use `.fraction`, `.fracfun`, or `.calculus` directly when only one focused
 surface is needed.
 
+## Simplify without filling domain holes
+
+The shared checked simplifier handles unconditional neutral identities and
+returns its complete transformation record:
+
+```rix
+.Plugin.Load("symbolic");
+x := .calculus.Variable(:x);
+safe := .symbolic.SimplifyResult(-(-(x+0)));
+unsafe := .symbolic.SimplifyResult(x/x);
+{: safe[:targetGraph], safe[:checker][:accepted],
+   unsafe[:changed], .symbolic.CheckSimplification(unsafe)[:accepted] };
+```
+
+`x/x` stays unchanged because replacing it by one would fill the hole at zero.
+Conditional identities will require explicit, checkable assumptions; a bare
+Symbolic request is not authority to change a partial function's domain.
+
 ## Cross into a portable Calculus expression
 
 FractionFunction's displayed form crosses the same public schema as a core

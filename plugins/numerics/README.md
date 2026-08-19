@@ -79,10 +79,28 @@ Domain coverage is independent of range status: a provider may certify a
 partial defined image, certify that the defined image is empty, or report that
 the remaining domain obligation is unresolved.
 
+`.numerics.FunctionFacts(.numerics.Sin)` (and the other five circular
+functions) exposes the trusted provider's reusable domain, global range,
+symbolic pi period, symmetry, monotonicity family, and complete pole lattice.
+The fact record is a trusted leaf; a copied map is not authority. See
+[Reusable certified facts for circular functions](function-facts.md).
+
+The same `FunctionFacts` surface publishes real domains, global-range shapes,
+symmetry, monotonicity, and domain-boundary or pole families for exponentials,
+logs, roots, inverse circular functions, and hyperbolic functions. A
+parameterized logarithm truthfully reports base-dependent monotonicity.
+
 The same set-valued protocol covers hyperbolic functions, inverse hyperbolic
 functions, `Erf`, `Erfc`, normal PDF, and normal CDF. Their range providers use
 monotonicity, even symmetry, or exact pole/domain boundaries rather than
 sampling.
+
+Special-function direct providers are deliberately limited to implementations
+with the host-sealed built-in invariant and certified endpoint algorithms:
+currently `Erf`, `Erfc`, normal PDF, and normal CDF. Other special-function
+point APIs do not acquire certified range status merely by existing; they stay
+on the generic unresolved/unsupported path until a trusted invariant or a
+checkable witness is available.
 
 Immutable Calculus expression graphs have a separate checked entry point:
 `.numerics.GraphRange(expression, bindings, options?)`. The initial bridge
@@ -92,6 +110,15 @@ and can subdivide one exact rational binding. `.numerics.CheckGraphRange`
 independently recomputes the portable claim. Semantic `apply` nodes remain
 explicitly unresolved until their semantic ID is bound to checked or trusted
 domain and range providers.
+
+`.numerics.SimplifyGraph(expression)` applies a small independently checked
+identity whitelist, while `.numerics.CheckGraphSimplification(result)` repeats
+the derivation without trusting its trace. `GraphRange` consumes that target
+only with `{= checkedSimplify=1 }`. The whitelist includes neutral identities
+such as `x+0`, `x*1`, and double negation, but deliberately refuses `x/x`,
+`x-x`, `0*x`, and `x^0` because those rewrites can erase partial-function
+domain holes. See [Proof-preserving
+simplification](proof-preserving-simplification.md).
 
 `.numerics.CheckDerivativeGraph(transformation)` independently recomputes
 primitive Calculus differentiation rather than trusting the transformation's

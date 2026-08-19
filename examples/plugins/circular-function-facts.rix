@@ -1,0 +1,16 @@
+.Plugin.Load("numerics");
+
+functions := [
+  [:sin,.numerics.Sin], [:cos,.numerics.Cos],
+  [:tan,.numerics.Tan], [:sec,.numerics.Sec],
+  [:csc,.numerics.Csc], [:cot,.numerics.Cot]
+];
+
+.Table({=
+  columns=["function","domain","global range","period","symmetry","singularities"],
+  rows=functions.Map((item)->{;
+    facts = .numerics.FunctionFacts(item[2]);
+    [item[1], facts[:domain], facts[:globalRange], facts[:period],
+     facts[:symmetry], facts[:singularities]];
+  })
+});

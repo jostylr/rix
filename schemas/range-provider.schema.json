@@ -21,7 +21,8 @@
           "monotonicity",
           "globalRange",
           "period",
-          "symmetry"
+          "symmetry",
+          "singularities"
         ]
       }
     },
@@ -36,6 +37,10 @@
       "enum": ["scopedUntrusted", "checkedEvidence", "trustedCapability"]
     },
     "provenance": { "type": "object" },
+    "facts": {
+      "description": "Optional trusted static fact family published beside the direct provider.",
+      "$ref": "function-facts.schema.json"
+    },
     "registration": {
       "description": "Portable audit metadata for the host registration boundary, when present.",
       "type": "object"

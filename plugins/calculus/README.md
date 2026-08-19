@@ -111,6 +111,26 @@ silently discarding its conditions. Custom semantic rules can pair
 `derivative` with `derivativeObligations`, whose callable returns explicit
 values built by `.calculus.Obligation(...)`.
 
+## Checked simplification
+
+`.calculus.SimplifyResult(expression)` returns the shared
+`rix.calculus.graph-simplification@1` record. Its canonical v1 whitelist
+removes exact neutral elements and double negation while preserving the
+defined-input set. `.calculus.CheckSimplification(result)` independently
+recomputes the target and visible rule sequence.
+
+```rix
+.Plugin.Load("calculus");
+x := .calculus.Variable(:x);
+safe := .calculus.SimplifyResult(-(-(x+0)));
+unsafe := .calculus.SimplifyResult(x/x);
+{: safe[:targetGraph], safe[:checker][:accepted], unsafe[:changed] };
+```
+
+The second transformation deliberately does nothing: cancellation would make
+the target defined at zero. Conditional rewrites will require checked domain
+witnesses rather than bare assumptions.
+
 ## Explicit implementations
 
 An implementation can be supplied without changing the semantic identity:

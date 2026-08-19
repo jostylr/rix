@@ -153,6 +153,22 @@ describe("form-preserving FractionFunction plugin", () => {
         expect(String(result.values[7])).toBe("1");
     });
 
+    test("uses the shared checked simplifier without authorizing cancellation", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("symbolic");
+            x := .calculus.Variable(:x);
+            safe := .symbolic.SimplifyResult(-(-(x+0)));
+            quotient := .symbolic.SimplifyResult(x/x);
+            {: safe[:targetGraph], safe[:checker][:accepted],
+               quotient[:changed],
+               .symbolic.CheckSimplification(quotient)[:accepted] };
+        `);
+        expect(result.values[0].value).toBe("variable(x)");
+        expect(String(result.values[1])).toBe("1");
+        expect(result.values[2]).toBeNull();
+        expect(String(result.values[3])).toBe("1");
+    });
+
     test("uses Symbolic facades for higher derivatives and concrete evaluation", () => {
         const result = parseAndEvaluate(`
             .Plugin.Load("symbolic");

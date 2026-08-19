@@ -42,6 +42,7 @@ describe("pure RiX Calculus plugin", () => {
             "rix.calculus.registry-entry@1",
             "rix.calculus.obligation@1",
             "rix.calculus.transformation@1",
+            "rix.calculus.graph-simplification@1",
             "rix.calculus.evaluation@1",
             "rix.calculus.derivative-collection@1",
             "rix.calculus.integral@1",

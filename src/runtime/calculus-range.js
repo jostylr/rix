@@ -16,6 +16,8 @@ import { rangeDiagnosticAction, rangeMathPolicy } from "./range-policy.js";
 
 export const CALCULUS_GRAPH_RANGE_SCHEMA = "rix.numerics.calculus-graph-range@1";
 export const CALCULUS_GRAPH_RANGE_CHECKER = "rix.runtime.calculus-graph-range-checker@1";
+export const CALCULUS_GRAPH_SIMPLIFICATION_SCHEMA = "rix.calculus.graph-simplification@1";
+export const CALCULUS_GRAPH_SIMPLIFICATION_CHECKER = "rix.runtime.calculus-graph-simplification-checker@1";
 export const CALCULUS_DERIVATIVE_SIGN_SCHEMA = "rix.numerics.calculus-derivative-sign@1";
 export const CALCULUS_LIPSCHITZ_RANGE_SCHEMA = "rix.numerics.calculus-lipschitz-range@1";
 export const CALCULUS_TAYLOR_RANGE_SCHEMA = "rix.numerics.calculus-taylor-range@1";
@@ -139,6 +141,155 @@ function graphApplication(semanticId, name, argumentsValue) {
         ["name", text(name ?? semanticId)],
         ["arguments", sequence(argumentsValue)],
     ]);
+}
+
+function simplificationRule(rule, path, source, expression) {
+    return Object.freeze({
+        rule,
+        path: path.length === 0 ? "$" : `$.${path.join(".")}`,
+        sourceGraph: calculusGraphStructuralKey(source),
+        targetGraph: calculusGraphStructuralKey(expression),
+    });
+}
+
+/**
+ * Canonically simplify a Calculus graph using only identities that preserve
+ * the defined-input set without assumptions.  In particular, this routine
+ * never performs cancellation or replaces an evaluated operand with a
+ * constant merely because the value would agree where that operand is
+ * defined.
+ */
+export function simplifyCalculusGraph(expression) {
+    if (!isExpression(expression)) throw new Error("Expected a Calculus expression graph");
+    const rules = [];
+    const visit = (node, path) => {
+        const kind = expressionKind(node);
+        if (kind === "constant" || kind === "variable") return node;
+        if (kind === "apply") {
+            return graphApplication(
+                textValue(mapValue(node, "semanticid")),
+                textValue(mapValue(node, "name")),
+                expressionChildren(node, "arguments").map((child, index) =>
+                    visit(child, [...path, `argument${index}`])),
+            );
+        }
+        if (kind !== "operator") throw new Error(`unsupportedSimplificationGraphKind:${String(kind)}`);
+        const operation = textValue(mapValue(node, "operation"));
+        const originalOperands = expressionChildren(node, "operands");
+        const operands = originalOperands.map((child, index) =>
+            visit(child, [...path, `operand${index}`]));
+        const rebuilt = graphOperator(operation, operands);
+        let target = rebuilt;
+        let rule = null;
+        if (operation === "negate" && operands.length === 1 &&
+            expressionKind(operands[0]) === "operator" &&
+            textValue(mapValue(operands[0], "operation")) === "negate") {
+            const inner = expressionChildren(operands[0], "operands");
+            if (inner.length === 1) {
+                target = inner[0];
+                rule = "doubleNegation";
+            }
+        } else if (operands.length === 2) {
+            const [left, right] = operands;
+            if (operation === "add" && exactGraphValue(left, 0)) {
+                target = right;
+                rule = "additiveIdentityLeft";
+            } else if (operation === "add" && exactGraphValue(right, 0)) {
+                target = left;
+                rule = "additiveIdentityRight";
+            } else if (operation === "subtract" && exactGraphValue(right, 0)) {
+                target = left;
+                rule = "subtractiveIdentity";
+            } else if (operation === "multiply" && exactGraphValue(left, 1)) {
+                target = right;
+                rule = "multiplicativeIdentityLeft";
+            } else if (operation === "multiply" && exactGraphValue(right, 1)) {
+                target = left;
+                rule = "multiplicativeIdentityRight";
+            } else if (operation === "divide" && exactGraphValue(right, 1)) {
+                target = left;
+                rule = "divisionIdentity";
+            } else if (operation === "power" && exactGraphValue(right, 1)) {
+                target = left;
+                rule = "powerIdentity";
+            }
+        }
+        if (rule) rules.push(simplificationRule(rule, path, rebuilt, target));
+        return target;
+    };
+    const simplified = visit(expression, []);
+    const sourceGraph = calculusGraphStructuralKey(expression);
+    const targetGraph = calculusGraphStructuralKey(simplified);
+    const frozenRules = Object.freeze(rules);
+    return Object.freeze({
+        schema: CALCULUS_GRAPH_SIMPLIFICATION_SCHEMA,
+        operation: "simplify",
+        source: expression,
+        expression: simplified,
+        sourceGraph,
+        targetGraph,
+        changed: sourceGraph !== targetGraph,
+        certified: true,
+        rules: frozenRules,
+        evidence: Object.freeze({
+            kind: "canonicalDomainPreservingSimplification",
+            checker: CALCULUS_GRAPH_SIMPLIFICATION_CHECKER,
+            rules: frozenRules,
+        }),
+    });
+}
+
+function simplificationRuleFingerprint(value) {
+    return [
+        textValue(mapValue(value, "rule")),
+        textValue(mapValue(value, "path")),
+        textValue(mapValue(value, "sourcegraph")),
+        textValue(mapValue(value, "targetgraph")),
+    ].join("|");
+}
+
+/** Recompute a canonical graph simplification without trusting its rule trace. */
+export function checkCalculusGraphSimplification(candidate) {
+    try {
+        const evidence = mapValue(candidate, "evidence");
+        if (textValue(mapValue(candidate, "schema")) !== CALCULUS_GRAPH_SIMPLIFICATION_SCHEMA ||
+            textValue(mapValue(candidate, "operation")) !== "simplify" ||
+            textValue(mapValue(evidence, "kind")) !== "canonicalDomainPreservingSimplification" ||
+            textValue(mapValue(evidence, "checker")) !== CALCULUS_GRAPH_SIMPLIFICATION_CHECKER) {
+            throw new Error("unsupportedGraphSimplificationEvidence");
+        }
+        const source = mapValue(candidate, "source");
+        const expression = mapValue(candidate, "expression");
+        if (!isExpression(source) || !isExpression(expression)) {
+            throw new Error("malformedGraphSimplification");
+        }
+        const actual = simplifyCalculusGraph(source);
+        if (calculusGraphStructuralKey(expression) !== actual.targetGraph ||
+            textValue(mapValue(candidate, "sourcegraph")) !== actual.sourceGraph ||
+            textValue(mapValue(candidate, "targetgraph")) !== actual.targetGraph) {
+            throw new Error("graphSimplificationMismatch");
+        }
+        const claimedRules = collectionValues(mapValue(evidence, "rules"));
+        if (!claimedRules) throw new Error("malformedGraphSimplificationRules");
+        const claimedFingerprints = claimedRules.map(simplificationRuleFingerprint);
+        const actualFingerprints = actual.rules.map(simplificationRuleFingerprint);
+        if (claimedFingerprints.length !== actualFingerprints.length ||
+            claimedFingerprints.some((value, index) => value !== actualFingerprints[index])) {
+            throw new Error("graphSimplificationRuleMismatch");
+        }
+        return Object.freeze({
+            accepted: true,
+            certified: true,
+            checkedBy: CALCULUS_GRAPH_SIMPLIFICATION_CHECKER,
+            sourceGraph: actual.sourceGraph,
+            targetGraph: actual.targetGraph,
+            changed: actual.changed,
+            rules: actual.rules,
+            expression: actual.expression,
+        });
+    } catch (error) {
+        return Object.freeze({ accepted: false, certified: false, reason: error.message });
+    }
 }
 
 /** Structurally substitute one Calculus variable without algebraic rewriting. */
@@ -1372,8 +1523,19 @@ function evaluateWithBindings(expression, bindings, options, conventions) {
     return { result, state };
 }
 
+function checkedSimplificationRequested(options) {
+    const value = mapValue(options, "checkedsimplify");
+    if (value === true) return true;
+    if (integerValue(value, 0n) !== 0n) return true;
+    return ["checked", "true", "yes"].includes(textValue(value)?.toLowerCase());
+}
+
 function rangeResult(expression, sourceBindings, options, conventions = { zeroPowerZero: "undefined" }) {
     const bindings = normalizeBindings(sourceBindings);
+    const simplification = checkedSimplificationRequested(options)
+        ? simplifyCalculusGraph(expression)
+        : null;
+    const evaluationExpression = simplification?.expression ?? expression;
     const maximumPieces = subdivisionCount(options);
     let partitions = [bindings];
     if (bindings.size === 1 && maximumPieces > 1) {
@@ -1387,7 +1549,7 @@ function rangeResult(expression, sourceBindings, options, conventions = { zeroPo
     const trace = [];
     for (const partition of partitions) {
         try {
-            const piece = evaluateWithBindings(expression, partition, options, conventions);
+            const piece = evaluateWithBindings(evaluationExpression, partition, options, conventions);
             evaluated.push(piece.result);
             totalNodes += piece.state.nodes;
             totalReuses += piece.state.reuses;
@@ -1401,6 +1563,8 @@ function rangeResult(expression, sourceBindings, options, conventions = { zeroPo
                 schema: CALCULUS_GRAPH_RANGE_SCHEMA,
                 functionId: calculusGraphStructuralKey(expression),
                 expression,
+                evaluationExpression,
+                simplification,
                 bindings,
                 range: RationalIntervalSet.empty,
                 status: "unknown",
@@ -1414,6 +1578,8 @@ function rangeResult(expression, sourceBindings, options, conventions = { zeroPo
                     kind: "calculusGraphEvaluation",
                     checker: CALCULUS_GRAPH_RANGE_CHECKER,
                     expression,
+                    evaluationExpression,
+                    simplification,
                     bindings,
                     options,
                     conventions,
@@ -1434,6 +1600,8 @@ function rangeResult(expression, sourceBindings, options, conventions = { zeroPo
         schema: CALCULUS_GRAPH_RANGE_SCHEMA,
         functionId: calculusGraphStructuralKey(expression),
         expression,
+        evaluationExpression,
+        simplification,
         bindings,
         range,
         status: certified ? "enclosed" : "unknown",
@@ -1448,6 +1616,8 @@ function rangeResult(expression, sourceBindings, options, conventions = { zeroPo
             kind: "calculusGraphEvaluation",
             checker: CALCULUS_GRAPH_RANGE_CHECKER,
             expression,
+            evaluationExpression,
+            simplification,
             bindings,
             options,
             conventions,
@@ -1519,6 +1689,8 @@ export function calculusGraphRangeValue(expression, bindings, options, context) 
         ["schema", text(result.schema)],
         ["functionId", text(result.functionId)],
         ["expression", expression],
+        ["evaluationExpression", result.evaluationExpression],
+        ["simplification", portable(result.simplification)],
         ["bindings", bindings],
         ["status", text(result.status)],
         ["range", result.range],
@@ -1598,6 +1770,17 @@ export function calculusGraphRangeCheckValue(value) {
 
 export function calculusGraphRecognitionValue(expression, variable) {
     return portable(recognizeCalculusGraph(expression, variable));
+}
+
+/** RiX adapter for canonical, domain-preserving graph simplification. */
+export function calculusGraphSimplificationValue(expression) {
+    const result = simplifyCalculusGraph(expression);
+    return portable({ ...result, checker: checkCalculusGraphSimplification(result) });
+}
+
+/** RiX adapter for independent graph-simplification checking. */
+export function calculusGraphSimplificationCheckValue(value) {
+    return portable(checkCalculusGraphSimplification(value));
 }
 
 /** RiX adapter for the independently recomputed primitive derivative check. */

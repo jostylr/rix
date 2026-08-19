@@ -407,6 +407,60 @@ describe("pure RiX Numerics plugin", () => {
         expect(entry(result.values[3], "diagnostics").values.map(textValue)).toContain("poleInInput");
     });
 
+    test("publishes reusable trusted circular-function fact families", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("numerics");
+            {: .numerics.FunctionFacts(.numerics.Sin),
+               .numerics.FunctionFacts(.numerics.Cos),
+               .numerics.FunctionFacts(.numerics.Tan),
+               .numerics.FunctionFacts(.numerics.Csc) };
+        `, runtime());
+        const [sin, cos, tan, csc] = result.values;
+        for (const facts of result.values) {
+            expect(textValue(entry(facts, "schema"))).toBe("rix.numerics.function-facts@1");
+            expect(entry(facts, "certified").value).toBe(1n);
+            expect(textValue(entry(facts, "evidenceLevel"))).toBe("trustedCapability");
+            expect(entry(facts, "operations").values.map(textValue))
+                .toContain("singularities");
+        }
+        expect(entry(entry(sin, "globalRange"), "range").toString()).toBe("[-1,1]");
+        expect(textValue(entry(entry(sin, "symmetry"), "kind"))).toBe("odd");
+        expect(textValue(entry(entry(cos, "symmetry"), "kind"))).toBe("even");
+        expect(entry(entry(tan, "period"), "multiplier").value).toBe(1n);
+        expect(textValue(entry(entry(tan, "singularities"), "kind")))
+            .toBe("simplePoleLattice");
+        expect(textValue(entry(entry(csc, "domain"), "kind")))
+            .toBe("realExceptLattice");
+    });
+
+    test("publishes elementary monotonicity, domain boundaries, and poles", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("numerics");
+            {: .numerics.FunctionFacts(.numerics.Exp),
+               .numerics.FunctionFacts(.numerics.Ln),
+               .numerics.FunctionFacts(.numerics.Sqrt),
+               .numerics.FunctionFacts(.numerics.Cosh),
+               .numerics.FunctionFacts(.numerics.Csch),
+               .numerics.FunctionFacts(.numerics.Atanh),
+               .numerics.FunctionFacts(.numerics.Log) };
+        `, runtime());
+        const [exp, ln, sqrt, cosh, csch, atanh, log] = result.values;
+        expect(textValue(entry(entry(exp, "monotonicity"), "kind")))
+            .toBe("increasingOnDomain");
+        expect(textValue(entry(entry(ln, "domain"), "kind"))).toBe("positiveReal");
+        expect(textValue(entry(entry(ln, "singularities"), "kind")))
+            .toBe("domainBoundary");
+        expect(entry(entry(sqrt, "domain"), "boundaryIncluded").value).toBe(1n);
+        expect(textValue(entry(entry(cosh, "symmetry"), "kind"))).toBe("even");
+        expect(textValue(entry(entry(csch, "singularities"), "kind"))).toBe("simplePole");
+        expect(textValue(entry(entry(atanh, "domain"), "kind"))).toBe("openUnitInterval");
+        expect(textValue(entry(entry(log, "monotonicity"), "kind"))).toBe("baseDependent");
+        expect(() => parseAndEvaluate(`
+            .Plugin.Load("numerics");
+            .numerics.FunctionFacts((x)->x)
+        `, runtime())).toThrow("no trusted published function facts");
+    });
+
     test("trigonometric landmarks distinguish proven poles from unresolved ones", () => {
         const result = parseAndEvaluate(`
             .Plugin.Load("numerics");

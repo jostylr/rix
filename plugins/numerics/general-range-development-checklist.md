@@ -141,21 +141,22 @@ focused tests exist; design-only work remains unchecked.
   source and target graph identity.
 - [x] Require checked derivative transformations to retain newly introduced
   domain obligations, including division, negative powers, and default `0^0`.
-- [ ] Generalize transformation checking to semantic derivative rules and
-  arbitrary Symbolic rewrites.
-- [ ] Add proof-preserving simplification hooks consumed by Numerics.
-- [ ] Test unsafe cancellation (`x/x`) and safe identity rewrites.
+- [ ] Generalize derivative-transformation checking to trusted semantic rules.
+- [ ] Add checked arbitrary Symbolic rewrite proposals beyond the canonical
+  domain-preserving identity whitelist.
+- [x] Add proof-preserving simplification hooks consumed by Numerics.
+- [x] Test unsafe cancellation (`x/x`) and safe identity rewrites.
 
 ## 8. Function facts and coverage
 
-- [ ] Publish shared domain/global-range/period/symmetry providers for circular
+- [x] Publish shared domain/global-range/period/symmetry providers for circular
   functions.
-- [ ] Publish monotonicity and singularity providers for elementary functions.
-- [ ] Publish direct providers for special functions only with trusted
+- [x] Publish monotonicity and singularity providers for elementary functions.
+- [x] Publish direct providers for special functions only with trusted
   invariants or checkable witnesses.
-- [ ] Add large-period, many-critical-point, disconnected-domain, and
+- [x] Add large-period, many-critical-point, disconnected-domain, and
   pole-crossing examples.
-- [ ] Extend coverage only when a proof path exists; leave unsupported cases
+- [x] Extend coverage only when a proof path exists; leave unsupported cases
   explicitly uncertified.
 
 ## 9. Later dependency-aware representations
@@ -164,7 +165,7 @@ focused tests exist; design-only work remains unchecked.
 - [ ] Add Jacobian-bound box subdivision.
 - [ ] Evaluate affine arithmetic for linear correlation.
 - [ ] Evaluate Taylor models for smooth narrow measurement boxes.
-- [ ] Keep `RationalIntervalSet` as the exact public result boundary.
+- [x] Keep `RationalIntervalSet` as the exact public result boundary.
 
 ## 10. Documentation and release gates
 
@@ -237,3 +238,19 @@ focused tests exist; design-only work remains unchecked.
   exploration, schema, plugin-lint, and package integration: 37 focused tests
   passed with zero failures (225 assertions). Both Explanatory Exploration
   companions evaluate to portable browser-renderable output.
+
+### Verification note — 2026-08-19, rewrites and function facts
+
+- Added canonical checked graph simplification shared by Calculus, Symbolic,
+  and Numerics, with explicit refusal of cancellation and other domain-erasing
+  identities. Numerics consumes it only through `checkedSimplify=1`.
+- Added sealed `rix.numerics.function-facts@1` leaves for circular and
+  elementary unary providers, including exact or symbolic domains,
+  global-range shapes, periods, symmetry, monotonicity, boundaries, and poles.
+- Added two packaged runnable examples and two explanatory documents; plugin
+  lint, schemas, package contents, and all tutorial cells pass.
+- Full default-timeout suite: 2,594 passed out of 2,595. The sole failure was
+  the known slow RationalFunction presentation test at 5.13 seconds against
+  Bun's 5-second default; it passed independently under the established
+  10-second integration ceiling (5.00 seconds). Every range and Numerics test
+  passed in the full run.

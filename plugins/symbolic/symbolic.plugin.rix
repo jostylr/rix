@@ -3,7 +3,7 @@ id: symbolic
 description: Meta-plugin joining representation-sensitive FractionFunction work with portable abstract Calculus expressions.
 kind: rix
 mount: symbolic
-exports: [Fraction, FractionFunction, CalculusExpression, Evaluate, EvaluateResult, Differentiate, DifferentiateResult, DifferentiateN, DifferentiateNResult, Partial, PartialResult, Gradient, GradientResult, Jacobian, JacobianResult, Hessian, HessianResult, SelectedPrimitive, AntiderivativeFamily, DefiniteIntegral, Obligations, Services]
+exports: [Fraction, FractionFunction, CalculusExpression, Evaluate, EvaluateResult, SimplifyResult, CheckSimplification, Differentiate, DifferentiateResult, DifferentiateN, DifferentiateNResult, Partial, PartialResult, Gradient, GradientResult, Jacobian, JacobianResult, Hessian, HessianResult, SelectedPrimitive, AntiderivativeFamily, DefiniteIntegral, Obligations, Services]
 groups: [Algebra, Calculus, Analysis, Exact, Symbolic]
 permissions: []
 requires: [rix.fraction-function@1, rix.calculus@1]
@@ -54,6 +54,10 @@ symbolicNamespace._proto = {=
         .calculus.Evaluate(SymbolicEvaluationTarget(value),bindings,options),
     EvaluateResult = (self, value, bindings ?= {= }, options ?= {= }) ->
         .calculus.EvaluateResult(SymbolicEvaluationTarget(value),bindings,options),
+    SimplifyResult = (self, value) ->
+        .CalculusGraphSimplify(self.CalculusExpression(value)),
+    CheckSimplification = (self, result) ->
+        .CalculusGraphSimplificationCheck(result),
     Differentiate = (self, value, variable) ->
         .calculus.Differentiate(self.CalculusExpression(value),variable),
     DifferentiateResult = (self, value, variable) ->

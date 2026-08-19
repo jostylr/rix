@@ -23,6 +23,8 @@ The façade delegates construction and transformation to focused owners:
 - `Differentiate` is the obligation-free convenience form;
 - `DifferentiateResult` preserves derivative obligations and evidence; and
 - `Evaluate` / `EvaluateResult` follow linked Calculus implementations;
+- `SimplifyResult` returns the shared checked, domain-preserving graph rewrite
+  and `CheckSimplification` independently repeats it;
 - repeated, partial, gradient, Jacobian, and Hessian façades accept
   FractionFunctions, Calculus expressions, or public specs; and
 - selected-primitive, antiderivative-family, and definite-integral façades

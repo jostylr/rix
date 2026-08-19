@@ -3,6 +3,7 @@ import { RationalIntervalSet } from "@ratmath/core";
 import {
     Context,
     calculusGraphRangeCheckValue,
+    checkCalculusGraphSimplification,
     checkCalculusDerivativeTransformation,
     checkCalculusStrategyRangeResult,
     createDefaultRegistry,
@@ -44,6 +45,67 @@ function graphRange(source, bindings = "{= x=(-1):1 }", options = "{= }") {
 }
 
 describe("checked Calculus graph ranges", () => {
+    test("checks safe identities without erasing partial-function domains", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("calculus");
+            .Plugin.Load("numerics");
+            x := .calculus.Variable(:x);
+            safe := .numerics.SimplifyGraph(-(-(0 + ((x*1)/1))));
+            quotient := .numerics.SimplifyGraph(x/x);
+            difference := .numerics.SimplifyGraph(x-x);
+            zeroProduct := .numerics.SimplifyGraph(0*(1/x));
+            zeroPower := .numerics.SimplifyGraph(x^0);
+            {: safe, quotient, difference, zeroProduct, zeroPower };
+        `, options);
+        const [safe, quotient, difference, zeroProduct, zeroPower] = result.values;
+        expect(entry(safe, "changed").value).toBe(1n);
+        expect(text(entry(safe, "targetGraph"))).toBe("variable(x)");
+        expect(entry(safe, "rules").values.map((rule) => text(entry(rule, "rule"))))
+            .toEqual([
+                "multiplicativeIdentityRight",
+                "divisionIdentity",
+                "additiveIdentityLeft",
+                "doubleNegation",
+            ]);
+        expect(entry(entry(safe, "checker"), "accepted").value).toBe(1n);
+        for (const unsafe of [quotient, difference, zeroProduct, zeroPower]) {
+            expect(entry(unsafe, "changed")).toBeNull();
+            expect(text(entry(unsafe, "sourceGraph"))).toBe(text(entry(unsafe, "targetGraph")));
+            expect(entry(entry(unsafe, "checker"), "accepted").value).toBe(1n);
+        }
+
+        const changed = { ...safe, entries: new Map(safe.entries) };
+        changed.entries.set("expression", entry(safe, "source"));
+        expect(checkCalculusGraphSimplification(changed)).toMatchObject({
+            accepted: false,
+            reason: "graphSimplificationMismatch",
+        });
+    });
+
+    test("lets graph-range evaluation consume only the checked simplification", () => {
+        const simplified = graphRange(
+            "-(-(x+0))",
+            "{= x=(-2):3 }",
+            "{= checkedSimplify=1 }",
+        );
+        expect(entry(simplified, "range").toString()).toBe("[-2,3]");
+        expect(entry(simplified, "certified").value).toBe(1n);
+        expect(entry(entry(simplified, "simplification"), "changed").value).toBe(1n);
+        expect(text(entry(entry(simplified, "simplification"), "targetGraph")))
+            .toBe("variable(x)");
+
+        const quotient = graphRange(
+            "x/x",
+            "{= x=(-1):1 }",
+            "{= checkedSimplify=1 }",
+        );
+        expect(entry(quotient, "range").toString()).toBe("[1,1]");
+        expect(text(entry(quotient, "domainStatus"))).toBe("partiallyDefined");
+        expect(entry(entry(quotient, "simplification"), "changed")).toBeNull();
+        expect(entry(entry(quotient, "checker"), "accepted").value).toBe(1n);
+    });
+
     test("evaluates exact primitive graph nodes and nested composition", () => {
         const square = graphRange("x^2", "{= x=(-2):1 }");
         expect(entry(square, "range").toString()).toBe("[0,4]");

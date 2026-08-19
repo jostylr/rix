@@ -3,11 +3,11 @@ id: calculus
 description: Portable abstract functions, obligation-bearing higher differentiation, and provenance-recording evaluation through semantic-ID implementation links.
 kind: rix
 mount: calculus
-exports: [Function, Exp, Log, Sqrt, Asin, ComplexLog, Variable, Constant, Apply, Obligation, Register, Resolve, StructuralKey, Evaluate, EvaluateResult, Differentiate, DifferentiateResult, DifferentiateN, DifferentiateNResult, Partial, PartialResult, Gradient, GradientResult, Jacobian, JacobianResult, Hessian, HessianResult, SelectedPrimitive, AntiderivativeFamily, DefiniteIntegral, ToSpec, FromSpec, IsFunction, IsExpression, IsTransformation, IsIntegral]
+exports: [Function, Exp, Log, Sqrt, Asin, ComplexLog, Variable, Constant, Apply, Obligation, Register, Resolve, StructuralKey, Evaluate, EvaluateResult, SimplifyResult, CheckSimplification, Differentiate, DifferentiateResult, DifferentiateN, DifferentiateNResult, Partial, PartialResult, Gradient, GradientResult, Jacobian, JacobianResult, Hessian, HessianResult, SelectedPrimitive, AntiderivativeFamily, DefiniteIntegral, ToSpec, FromSpec, IsFunction, IsExpression, IsTransformation, IsIntegral]
 groups: [Calculus, Analysis, Symbolic, Exact]
 permissions: []
 provides: [rix.calculus@1, rix.abstract-function@1]
-schemas: [rix.calculus.function@1, rix.calculus.expression@1, rix.calculus.registry-entry@1, rix.calculus.obligation@1, rix.calculus.transformation@1, rix.calculus.evaluation@1, rix.calculus.derivative-collection@1, rix.calculus.integral@1]
+schemas: [rix.calculus.function@1, rix.calculus.expression@1, rix.calculus.registry-entry@1, rix.calculus.obligation@1, rix.calculus.transformation@1, rix.calculus.graph-simplification@1, rix.calculus.evaluation@1, rix.calculus.derivative-collection@1, rix.calculus.integral@1]
 snapshot: false
 deterministic: true
 defaultEnabled: false
@@ -1047,6 +1047,8 @@ calculusNamespace._proto = {=
     StructuralKey=(self, expression)->CalculusExpressionKey(expression),
     Evaluate=(self, value, bindings ?= {= }, options ?= {= })->CalculusEvaluate(value,bindings,options),
     EvaluateResult=(self, value, bindings ?= {= }, options ?= {= })->CalculusEvaluateResult(value,bindings,options),
+    SimplifyResult=(self, expression)->.CalculusGraphSimplify(expression),
+    CheckSimplification=(self, result)->.CalculusGraphSimplificationCheck(result),
     Differentiate=(self, expression, variable)->CalculusDifferentiate(expression,variable),
     DifferentiateResult=(self, expression, variable)->CalculusDifferentiateResult(expression,variable),
     DifferentiateN=(self, expression, variable, order)->CalculusDifferentiateN(expression,variable,order),

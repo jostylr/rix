@@ -72,5 +72,14 @@ describe("versioned certified-range schemas", () => {
         const taylor = schema("calculus-taylor-range.schema.json");
         expect(taylor.properties.strategy.const).toBe("secondDerivativeTaylor");
         expect(taylor.properties.curvature.enum).toContain("mixed");
+        const simplification = schema("calculus-graph-simplification.schema.json");
+        expect(simplification.properties.schema.const).toBe("rix.calculus.graph-simplification@1");
+        expect(simplification.properties.rules.items.properties.rule.enum)
+            .toContain("divisionIdentity");
+        const facts = schema("function-facts.schema.json");
+        expect(facts.properties.schema.const).toBe("rix.numerics.function-facts@1");
+        expect(facts.properties.operations.items.enum).toContain("singularities");
+        expect(schema("range-provider.schema.json").properties.facts.$ref)
+            .toBe("function-facts.schema.json");
     });
 });

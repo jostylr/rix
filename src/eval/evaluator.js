@@ -269,6 +269,8 @@ const CORE_SYNTAX_CAPABILITIES = {
     RangeReciprocal: "RANGE_RECIPROCAL", RangeIntegerPower: "RANGE_INTEGER_POWER",
     CalculusRange: "CALCULUS_RANGE", CalculusRangeCheck: "CALCULUS_RANGE_CHECK",
     CalculusRangeRecognize: "CALCULUS_RANGE_RECOGNIZE",
+    CalculusGraphSimplify: "CALCULUS_GRAPH_SIMPLIFY",
+    CalculusGraphSimplificationCheck: "CALCULUS_GRAPH_SIMPLIFICATION_CHECK",
     CalculusDerivativeCheck: "CALCULUS_DERIVATIVE_CHECK",
     CalculusDerivativeSign: "CALCULUS_DERIVATIVE_SIGN",
     CalculusLipschitzRange: "CALCULUS_LIPSCHITZ_RANGE",

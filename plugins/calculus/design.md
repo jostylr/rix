@@ -94,6 +94,17 @@ algebraic simplifier. In particular, Calculus does not infer
 `Exp(a)*Exp(b)=Exp(a+b)` from `D Exp=Exp`; an explicit Symbolic identity and
 its assumptions would be required for that transformation.
 
+### Checked domain-preserving simplification
+
+`SimplifyResult` is the deliberately narrow exception to the lack of a general
+algebraic simplifier. It returns `rix.calculus.graph-simplification@1` after
+applying a canonical whitelist of neutral identities. The independent checker
+recomputes the target and rule sequence from the source. Every v1 rule retains
+the evaluation of each possibly partial subexpression; cancellation,
+annihilating-zero, and zero-power rewrites are excluded. Numerics may consume
+the target with `checkedSimplify=1`, but retains the source graph as the public
+function identity and in its evidence.
+
 ## `rix.calculus.obligation@1`
 
 An obligation records:

@@ -207,6 +207,12 @@ may handle exact rationals, rational interval sets, semantic graphs, or a
 special domain. Dispatch makes knowledge extensible; validation determines
 whether its result is certifying.
 
+The built-in circular providers publish all six static fact families through
+`.numerics.FunctionFacts(callable)`. The host first resolves the exact sealed
+provider/callable pair. Pi periods and pole locations are represented as exact
+symbolic constant multiples rather than mislabeled rational approximations;
+input-specific use must still produce a checked rational landmark reduction.
+
 The provider contract must specify:
 
 - a stable schema and version;
@@ -382,6 +388,7 @@ Versioned portable schemas now live under `rix/schemas` for:
 - `monotonicity-witness`;
 - `critical-points-witness`;
 - `monotonicity-partition-witness`;
+- `calculus-graph-simplification`;
 - `calculus-lipschitz-range` and `calculus-taylor-range`; and
 - the aggregate general range result/evidence DAG.
 
@@ -396,6 +403,13 @@ obligation-free polynomial critical-point binding, one-sided Sturm counts, and
 exact-rational critical-point monotonicity partitions are now checked.
 Semantic derivative identities remain reserved in the v1 schema and fail
 closed until their checker modules land.
+
+Coverage follows the same fail-closed rule. Built-in direct special-function
+providers currently cover `Erf`, `Erfc`, normal PDF, and normal CDF through
+host-sealed invariants and certified endpoint algorithms. Merely having a
+point evaluator does not create range authority. The executable examples now
+cover a far-period sine interval, a three-critical-point Sturm example,
+disconnected range sets, and both proved and unresolved tangent-pole cases.
 
 Keep the checker independent of the main strategy engine. Strategy may become
 large and heuristic; the certifying kernel should remain auditable.

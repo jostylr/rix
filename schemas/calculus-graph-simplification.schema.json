@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/calculus-graph-simplification/v1.schema.json",
+  "title": "RiX checked Calculus graph simplification v1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema", "operation", "source", "expression", "sourceGraph", "targetGraph", "changed", "certified", "rules", "evidence"],
+  "properties": {
+    "schema": { "const": "rix.calculus.graph-simplification@1" },
+    "operation": { "const": "simplify" },
+    "source": {},
+    "expression": {},
+    "sourceGraph": { "type": "string" },
+    "targetGraph": { "type": "string" },
+    "changed": { "type": "boolean" },
+    "certified": { "type": "boolean" },
+    "rules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["rule", "path", "sourceGraph", "targetGraph"],
+        "properties": {
+          "rule": {
+            "enum": [
+              "doubleNegation",
+              "additiveIdentityLeft",
+              "additiveIdentityRight",
+              "subtractiveIdentity",
+              "multiplicativeIdentityLeft",
+              "multiplicativeIdentityRight",
+              "divisionIdentity",
+              "powerIdentity"
+            ]
+          },
+          "path": { "type": "string" },
+          "sourceGraph": { "type": "string" },
+          "targetGraph": { "type": "string" }
+        }
+      }
+    },
+    "evidence": {}
+  }
+}

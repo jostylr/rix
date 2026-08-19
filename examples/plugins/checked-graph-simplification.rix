@@ -1,0 +1,29 @@
+.Plugin.Load("calculus");
+.Plugin.Load("numerics");
+
+x := .calculus.Variable(:x);
+
+safe := .numerics.SimplifyGraph(-(-(0+((x*1)/1))));
+cancelledHole := .numerics.SimplifyGraph(x/x);
+
+safeRange := .numerics.GraphRange(
+  safe[:source],
+  {= x=(-2):3 },
+  {= checkedSimplify=1 }
+);
+
+holeRange := .numerics.GraphRange(
+  cancelledHole[:source],
+  {= x=(-1):1 },
+  {= checkedSimplify=1 }
+);
+
+{=
+  safeRules=safe[:rules].Map((step)->step[:rule]),
+  safeTarget=safe[:targetGraph],
+  safeRange=safeRange[:range],
+  cancellationApplied=cancelledHole[:changed],
+  quotientRange=holeRange[:range],
+  quotientDomain=holeRange[:domainStatus],
+  rechecked=holeRange[:checker][:accepted]
+};

@@ -54,7 +54,11 @@ describe("standalone package", () => {
       "examples/plugins/example-array-js/array-js.plugin.rix.js",
       "explorations/numerics/lipschitz-midpoint.rix",
       "explorations/numerics/second-derivative-taylor.rix",
+      "examples/plugins/checked-graph-simplification.rix",
+      "examples/plugins/circular-function-facts.rix",
       "plugins/bundled.js",
+      "schemas/calculus-graph-simplification.schema.json",
+      "schemas/function-facts.schema.json",
       "schemas/rix.schema.json",
       "src/index.js",
     ]) {
