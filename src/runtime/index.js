@@ -76,6 +76,17 @@ export {
     refinementOutcome,
 } from "./refinement.js";
 export {
+    RANGE_EVIDENCE_SCHEMA,
+    RANGE_CHECKER_VOCABULARY,
+    checkRangeEvidence,
+} from "./range-evidence-checker.js";
+export {
+    RANGE_SET_INTERCHANGE_VERSION,
+    RANGE_SET_STABLE_VERSIONS,
+    RangeSetInterchangeVersionError,
+    rangeSetMigrationPlan,
+} from "./range-set-interchange.js";
+export {
     isOutputValue,
     isInlineOutput,
     isBlockOutput,

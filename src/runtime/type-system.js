@@ -9,6 +9,15 @@ import {
 } from "./shaped.js";
 import { callWithConcreteArgs } from "../eval/functions/functions.js";
 import { UNDECIDED, UndecidedDiagnostic, isUndecided } from "./decision.js";
+import {
+    executeRangeOperation,
+    isRangeArithmeticOperand,
+    rangeEvidence,
+} from "./range-arithmetic.js";
+import {
+    RANGE_SET_INTERCHANGE_VERSION,
+    rangeSetMigrationPlan,
+} from "./range-set-interchange.js";
 
 function int(value) {
     return new Integer(BigInt(value));
@@ -581,7 +590,7 @@ export function registerBuiltinSemanticTypes() {
                         ]),
                     } : null],
                     ["cache", null],
-                    ["version", new Integer(1n)],
+                    ["version", new Integer(BigInt(RANGE_SET_INTERCHANGE_VERSION))],
                 ]),
             };
         },
@@ -814,7 +823,12 @@ export function registerBuiltinSemanticTypes() {
         values: value.components.map(rangeSetComponentMap),
     });
     const rangeSetResult = (source, result) => {
-        if (source?._ext instanceof Map) result._ext = new Map(source._ext);
+        if (source?._ext instanceof Map) {
+            result._ext = new Map(source._ext);
+            // Set operations need their own evidence; an operand's arithmetic
+            // record does not prove a newly formed union/intersection/hull.
+            result._ext.delete("rangeEvidence");
+        }
         return result;
     };
     const importRangeSetComponent = (value) => {
@@ -872,9 +886,7 @@ export function registerBuiltinSemanticTypes() {
         },
         import(value) {
             const version = value?.entries?.get("version")?.value;
-            if (version !== 1n) {
-                throw new Error("Unsupported RationalIntervalSet interchange version");
-            }
+            rangeSetMigrationPlan(Number(version));
             const components = value?.entries?.get("data")?.entries?.get("components");
             if (!components || components.type !== "sequence") {
                 throw new Error("RationalIntervalSet interchange requires components");
@@ -888,6 +900,15 @@ export function registerBuiltinSemanticTypes() {
             ["Contains", valueMethod("Contains", (self, [other]) => boolResult(self.contains(other)))],
             ["ContainsValue", valueMethod("ContainsValue", (self, [value]) => boolResult(self.containsValue(value)))],
             ["Hull", valueMethod("Hull", (self) => rangeSetResult(self, self.hull()))],
+            ["Add", valueMethod("Add", (self, [other], context) => executeRangeOperation("add", [self, other], context))],
+            ["Subtract", valueMethod("Subtract", (self, [other], context) => executeRangeOperation("subtract", [self, other], context))],
+            ["Multiply", valueMethod("Multiply", (self, [other], context) => executeRangeOperation("multiply", [self, other], context))],
+            ["Divide", valueMethod("Divide", (self, [other], context) => executeRangeOperation("divide", [self, other], context))],
+            ["Negate", valueMethod("Negate", (self, _args, context) => executeRangeOperation("negate", [self], context))],
+            ["AbsoluteValue", valueMethod("AbsoluteValue", (self, _args, context) => executeRangeOperation("absoluteValue", [self], context))],
+            ["Reciprocal", valueMethod("Reciprocal", (self, _args, context) => executeRangeOperation("reciprocal", [self], context))],
+            ["IntegerPower", valueMethod("IntegerPower", (self, [exponent], context) => executeRangeOperation("integerPower", [self, exponent], context))],
+            ["RangeEvidence", valueMethod("RangeEvidence", (self) => rangeEvidence(self))],
             ["Split", valueMethod("Split", (self, [specification]) => {
                 if (specification !== undefined) {
                     throw new Error("RationalIntervalSet.Split currently accepts no specification; omit it to split into components");
@@ -902,7 +923,44 @@ export function registerBuiltinSemanticTypes() {
             ["ToString", valueMethod("ToString", (self) => stringObj(self.toString()))],
             ["Describe", valueMethod("Describe", () => stringObj("type:RationalIntervalSet"))],
         ]),
-        installs: {},
+        installs: {
+            ADD: [{
+                name: "RangeSetCartesianAdd", priority: 500,
+                prep: (args) => args.length === 2 && args.some((value) => value instanceof RationalIntervalSet) && args.every(isRangeArithmeticOperand),
+                impl: (args, context) => executeRangeOperation("add", args, context),
+            }],
+            SUB: [{
+                name: "RangeSetCartesianSubtract", priority: 500,
+                prep: (args) => args.length === 2 && args.some((value) => value instanceof RationalIntervalSet) && args.every(isRangeArithmeticOperand),
+                impl: (args, context) => executeRangeOperation("subtract", args, context),
+            }],
+            MUL: [{
+                name: "RangeSetCartesianMultiply", priority: 500,
+                prep: (args) => args.length === 2 && args.some((value) => value instanceof RationalIntervalSet) && args.every(isRangeArithmeticOperand),
+                impl: (args, context) => executeRangeOperation("multiply", args, context),
+            }],
+            DIV: [{
+                name: "RangeSetDefinedDivide", priority: 500,
+                prep: (args) => args.length === 2 && args.some((value) => value instanceof RationalIntervalSet) && args.every(isRangeArithmeticOperand),
+                impl: (args, context) => executeRangeOperation("divide", args, context),
+            }],
+            POW: [{
+                name: "RangeSetIntegerPower", priority: 500,
+                prep: (args) => args.length === 2 && args[0] instanceof RationalIntervalSet &&
+                    (args[1] instanceof Integer || (args[1] instanceof Rational && args[1].denominator === 1n)),
+                impl: (args, context) => executeRangeOperation("integerPower", args, context),
+            }],
+            NEG: [{
+                name: "RangeSetNegation", priority: 500,
+                prep: (args) => args.length === 1 && args[0] instanceof RationalIntervalSet,
+                impl: (args, context) => executeRangeOperation("negate", args, context),
+            }],
+            ABS: [{
+                name: "RangeSetAbsoluteValue", priority: 500,
+                prep: (args) => args.length === 1 && args[0] instanceof RationalIntervalSet,
+                impl: (args, context) => executeRangeOperation("absoluteValue", args, context),
+            }],
+        },
     });
 
     registerType({

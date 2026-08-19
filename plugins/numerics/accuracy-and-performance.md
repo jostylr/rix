@@ -40,10 +40,13 @@ For `rix.numerics.range-enclosure@1`, the analogous guarantee is set
 containment:
 
 ```text
-for every x in input, F(x) is in result.interval
+for every x in input intersect Domain(F), F(x) is in result.range
 ```
 
-when `certified=1` and `domainStatus=:allDefined`. `rangeWidth` includes the
+when `certified=1`. `domainStatus=:allDefined` additionally proves that the
+intersection did not exclude any requested input;
+`:partiallyDefined` and `:noDefinedInputs` are also certifiable when the
+exclusion is proved. `rangeWidth` includes the
 variation caused by the input measurement. `achievedEndpointTolerance`
 measures only the remaining numerical uncertainty in the computed outer
 boundaries, so it is neither expected nor desirable for the complete range
@@ -60,8 +63,10 @@ More subdivision can reduce overestimation in expressions such as `x-x` or in
 Lipschitz lifts, but increases the number of endpoint problems. Specialized
 monotonicity, symmetry, critical-point, and pole knowledge is normally both
 tighter and cheaper than blind subdivision. A proved pole produces
-`:domainViolation`; insufficient work to prove or exclude one produces
-`:unknown`, never a finite guessed range.
+`domainStatus=:partiallyDefined`; the current connected-pole providers return
+`status=:unknown` until they can enclose every defined side. Insufficient work
+to prove or exclude a suspected pole produces `domainStatus=:unresolved`,
+never a finite guessed range.
 
 Composite singleton algorithms require a small amount of refinement before
 their endpoint enclosures are usable as range evidence. If the request budget

@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/range-evidence/v1.schema.json",
+  "title": "RiX certified range evidence DAG v1",
+  "description": "Structural schema for the v1 evidence vocabulary. Acceptance additionally requires semantic checking, identity binding, authority resolution, acyclicity, and resource limits.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "vocabulary", "codomain", "root", "nodes"],
+  "properties": {
+    "schema": { "const": "rix.numerics.range-evidence@1" },
+    "vocabulary": { "const": "rix.numerics.range-checker@1" },
+    "codomain": { "const": "real" },
+    "root": { "type": "string", "minLength": 1 },
+    "nodes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/node" }
+    },
+    "resources": { "type": "object", "additionalProperties": true }
+  },
+  "$defs": {
+    "node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "rule", "premises", "conclusion"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "rule": {
+          "enum": [
+            "given.input", "given.constant", "trusted.range", "trusted.domain", "trusted.derivativeRange",
+            "set.normalize", "set.union", "set.intersection", "set.hull", "set.include", "partition.cover",
+            "range.assembleUnion", "range.assembleHull",
+            "arith.negate", "arith.absoluteValue", "arith.add", "arith.subtract", "arith.multiply", "arith.reciprocal", "arith.divide", "arith.integerPower",
+            "domain.primitive", "domain.partition", "domain.compose", "range.compose", "range.global",
+            "derivative.graph", "monotone.derivativeSign", "monotone.compose", "range.monotoneEndpoints",
+            "polynomial.sturmSequence", "polynomial.rootCount", "polynomial.isolateRoots", "polynomial.completeCriticalPoints"
+          ]
+        },
+        "premises": { "type": "array", "items": { "type": "string" } },
+        "conclusion": { "type": "object" },
+        "parameters": { "type": "object" },
+        "provenance": { "type": "object" }
+      }
+    }
+  }
+}

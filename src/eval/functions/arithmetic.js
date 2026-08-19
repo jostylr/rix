@@ -6,6 +6,12 @@
 
 import { Integer, Rational } from "@ratmath/core";
 import { formatValue } from "../format.js";
+import { executeRangeOperation, rangeEvidence } from "../../runtime/range-arithmetic.js";
+import {
+    RANGE_MATH_POLICY_KEY,
+    mergeRangeMathPolicy,
+    rangeMathPolicy,
+} from "../../runtime/range-policy.js";
 
 /**
  * Ensure a value is a ratmath numeric type.
@@ -105,6 +111,73 @@ function requireNonNegativeInteger(value, operation) {
 }
 
 export const arithmeticFunctions = {
+    RANGE_POLICY: {
+        lazy: true,
+        impl(args, context, evaluate) {
+            if (args.length !== 2) throw new Error("RangePolicy expects options and one expression");
+            const options = evaluate(args[0]);
+            const policy = mergeRangeMathPolicy(rangeMathPolicy(context), options);
+            context.push(undefined);
+            context.setScopedEnv(RANGE_MATH_POLICY_KEY, policy);
+            try {
+                return evaluate(args[1]);
+            } finally {
+                context.pop();
+            }
+        },
+        pure: false,
+        doc: "Evaluate an expression under an inherited range-domain policy",
+    },
+
+    RANGE_EVIDENCE: {
+        impl(args) {
+            return rangeEvidence(args[0]);
+        },
+        pure: true,
+        doc: "Return the checked rangeEvidence metadata attached to a range result",
+    },
+
+    RANGE_ADD: {
+        impl(args, context) { return executeRangeOperation("add", args, context); },
+        pure: true,
+        doc: "Exact Cartesian image of range-set addition",
+    },
+    RANGE_SUBTRACT: {
+        impl(args, context) { return executeRangeOperation("subtract", args, context); },
+        pure: true,
+        doc: "Exact Cartesian image of range-set subtraction",
+    },
+    RANGE_MULTIPLY: {
+        impl(args, context) { return executeRangeOperation("multiply", args, context); },
+        pure: true,
+        doc: "Exact Cartesian image of range-set multiplication",
+    },
+    RANGE_DIVIDE: {
+        impl(args, context) { return executeRangeOperation("divide", args, context); },
+        pure: true,
+        doc: "Exact defined image of range-set division",
+    },
+    RANGE_NEGATE: {
+        impl(args, context) { return executeRangeOperation("negate", args, context); },
+        pure: true,
+        doc: "Exact image of range-set negation",
+    },
+    RANGE_ABSOLUTE_VALUE: {
+        impl(args, context) { return executeRangeOperation("absoluteValue", args, context); },
+        pure: true,
+        doc: "Exact image of range-set absolute value",
+    },
+    RANGE_RECIPROCAL: {
+        impl(args, context) { return executeRangeOperation("reciprocal", args, context); },
+        pure: true,
+        doc: "Exact defined image of range-set reciprocal",
+    },
+    RANGE_INTEGER_POWER: {
+        impl(args, context) { return executeRangeOperation("integerPower", args, context); },
+        pure: true,
+        doc: "Exact defined image of a range set raised to an integer power",
+    },
+
     ADD: {
         impl(args) {
             if (args.length === 0) return new Integer(0n);

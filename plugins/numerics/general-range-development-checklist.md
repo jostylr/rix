@@ -13,10 +13,8 @@ focused tests exist; design-only work remains unchecked.
   ownership.
 - [x] Specify the domain-sensitive, proof-producing range pipeline.
 - [x] Specify scoped and capability-gated surfaces for user function knowledge.
-- [ ] Record the accepted theorem vocabulary in a versioned checker spec.
-  The accepted pre-1.0 design is in the [checker vocabulary v1
-  proposal](checker-vocabulary-v1-proposal.md); implementation and focused
-  tests remain.
+- [x] Record the accepted theorem vocabulary in a versioned checker spec and
+  schema, with focused fail-closed checker tests for the implemented kernel.
 
 ## 1. Core exact range-set values
 
@@ -31,11 +29,10 @@ focused tests exist; design-only work remains unchecked.
 - [x] Keep range sets outside scalar `CoreNumber` promotion.
 - [x] Add focused normalization, topology, infinity, set-operation, and revival
   tests.
-- [ ] Decide and implement proof-safe component-wise arithmetic primitives; do
-  not add scalar-looking operations until undefined results are specified.
-  The accepted pre-1.0 design is in the [range arithmetic and domain policy
-  proposal](range-arithmetic-policy-proposal.md); implementation and focused
-  tests remain.
+- [x] Decide and implement proof-safe component-wise arithmetic primitives,
+  including exact domain records, disconnected reciprocal/division, integer
+  powers, checker recomputation, sampled containment tests, and RiX operator
+  integration.
 - [x] Add package API documentation and release notes.
 
 ## 2. RiX value adapter
@@ -51,11 +48,9 @@ focused tests exist; design-only work remains unchecked.
 - [x] Format empty, disconnected, open/closed, and unbounded sets unambiguously.
 - [x] Add runtime import/export, formatting, copy handling, and focused tests.
 - [x] Add an exact range-set JSON schema.
-- [ ] Document the version migration policy before an interchange version is
-  superseded.
-  The accepted pre-1.0 design is in the [range-set interchange versioning
-  proposal](range-interchange-versioning-proposal.md); implementation and
-  focused tests remain.
+- [x] Document the version migration policy before an interchange version is
+  superseded; add explicit v1 schemas, normalizing import, structured future
+  version errors, and a pure migration-plan API with focused tests.
 
 ## 3. Direct RangeProvider protocol
 
@@ -76,25 +71,28 @@ focused tests exist; design-only work remains unchecked.
   reuse of a trusted descriptor with a different callable.
 - [x] Adapt existing unary Numerics implementations to publish the common
   protocol without regressing their current range API.
+- [x] Adopt independent range status and four-way domain coverage throughout
+  the provider validator and unary adapter; certify partial and empty defined
+  images when their exclusions are proved.
 
 ## 4. Domain and evidence schemas
 
-- [ ] Add versioned `domain-witness` schema with all-defined, partitioned,
-  violation, and unresolved outcomes.
-- [ ] Add `derivative-range-witness` schema tied to graph identity and input.
-- [ ] Add `monotonicity-witness` schema with direction and derivative evidence.
-- [ ] Add complete `critical-points-witness` schema with isolation intervals.
-- [ ] Add evidence-DAG schema with premise and provider references.
-- [ ] Preserve `:poleInInput` versus `:poleNotExcluded` in set-valued results.
-- [ ] Test malformed, mismatched-identity, incomplete-partition, and stale
+- [x] Add versioned `domain-witness` schema with all-defined, partial,
+  no-defined-input, and unresolved outcomes.
+- [x] Add `derivative-range-witness` schema tied to graph identity and input.
+- [x] Add `monotonicity-witness` schema with direction and derivative evidence.
+- [x] Add complete `critical-points-witness` schema with isolation intervals.
+- [x] Add evidence-DAG schema with premise and provider references.
+- [x] Preserve `:poleInInput` versus `:poleNotExcluded` in set-valued results.
+- [x] Test malformed, mismatched-identity, incomplete-partition, and stale
   evidence rejection.
 
 ## 5. Calculus graph bridge
 
-- [ ] Document the existing graph identity and purity requirements used by
+- [x] Document the existing graph identity and purity requirements used by
   range certification.
-- [ ] Export immutable graph nodes through a stable plugin boundary.
-- [ ] Carry domain obligations with graph nodes and exact derivatives.
+- [x] Export immutable graph nodes through a stable plugin boundary.
+- [x] Carry domain obligations with graph nodes and exact derivatives.
 - [ ] Preserve repeated-input identity across evaluation and subdivision.
 - [ ] Implement interval evaluation for supported exact primitive graph nodes.
 - [ ] Add polynomial/rational recognition hooks for specialized strategies.
@@ -102,8 +100,8 @@ focused tests exist; design-only work remains unchecked.
 
 ## 6. Small checker and generic strategies
 
-- [ ] Implement an independent checker for exact set and partition steps.
-- [ ] Check primitive interval arithmetic derivations.
+- [x] Implement an independent checker for exact set and partition steps.
+- [x] Check primitive interval arithmetic derivations and domain coverage.
 - [ ] Check monotonicity from a certified derivative range excluding the wrong
   sign.
 - [ ] Check monotone composition and endpoint range formation.
@@ -112,7 +110,7 @@ focused tests exist; design-only work remains unchecked.
 - [ ] Add generic derivative-sign range strategy.
 - [ ] Add generic Lipschitz midpoint strategy with bounded subdivision.
 - [ ] Add second-derivative convexity/Taylor remainder strategy.
-- [ ] Ensure unsupported theorem tags cannot be promoted to Checked.
+- [x] Ensure unsupported theorem tags cannot be promoted to Checked.
 
 ## 7. Symbolic proof preservation
 
@@ -149,14 +147,17 @@ focused tests exist; design-only work remains unchecked.
 - [x] Document the proposed user-function knowledge surfaces.
 - [x] Add a runnable scoped direct-provider tutorial with explicit heuristic
   trust behavior.
-- [ ] Add a runnable derivative-witness tutorial.
+- [x] Add a runnable derivative-witness tutorial that demonstrates the
+  portable record, sign reasoning, and the current fail-closed checker boundary.
 - [x] Add a runnable disconnected closed-range-set tutorial for the RiX adapter.
+- [x] Add a runnable exact range-arithmetic and scoped domain-policy tutorial
+  with measurement, pole, empty-image, `0^0`, dependency, and evidence examples.
 - [ ] Extend that tutorial with open and unbounded construction when the public
   RiX constructor surface lands.
 - [x] Add adversarial examples showing why self-certification and bare trust
   labels do not certify.
-- [ ] Add further adversarial examples showing why samples and bare monotonicity labels
-  do not certify.
+- [x] Add further adversarial examples showing why samples and bare
+  monotonicity labels do not certify.
 - [x] Run Core and complete RiX suites at this integration milestone.
 
 ### Verification note — 2026-08-18
@@ -171,3 +172,16 @@ focused tests exist; design-only work remains unchecked.
   across 127 files with zero failures. Existing slow RationalFunction cases
   completed successfully; all new range-provider tests also pass under their
   focused default-timeout runs.
+
+### Verification note — 2026-08-19
+
+- Core: 544 tests passed, including exact range arithmetic, disconnected
+  division/reciprocal, domain records, `0^0` policy, and claim recomputation.
+- RiX range integration: 18 focused arithmetic, evidence-checker, schema, and
+  interchange tests passed; the Numerics provider plus plugin lint passed all
+  24 focused tests.
+- Complete RiX suite with a 10-second per-test ceiling: 2,565 tests passed
+  across 131 files with zero failures.
+- Documentation verification: 16 documentation/tooling tests passed and all
+  74 runnable documentation blocks passed. Both supplemental range tutorials
+  parse, and the shipped exact range-arithmetic example executes successfully.

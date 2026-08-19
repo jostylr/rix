@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/derivative-range-witness/v1.schema.json",
+  "title": "RiX derivative range witness v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "functionGraph", "derivativeGraph", "variable", "input", "range", "evidence"],
+  "properties": {
+    "schema": { "const": "rix.calculus.derivative-range-witness@1" },
+    "functionGraph": { "type": "string", "minLength": 1 },
+    "derivativeGraph": { "type": "string", "minLength": 1 },
+    "variable": { "type": "string", "minLength": 1 },
+    "input": { "$ref": "range-set.schema.json" },
+    "range": { "$ref": "range-set.schema.json" },
+    "domainWitness": { "$ref": "domain-witness.schema.json" },
+    "evidence": {}
+  }
+}

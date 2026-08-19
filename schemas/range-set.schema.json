@@ -1,13 +1,14 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://rix.ratmath.com/schema/range-set.schema.json",
+  "$id": "https://rix.ratmath.com/schema/range-set/v1.schema.json",
   "title": "Exact rational interval set",
-  "description": "Tagged JSON form of a normalized finite union. A null low endpoint means -Infinity and a null high endpoint means +Infinity.",
+  "description": "Tagged JSON form of a finite union. Readers accept valid noncanonical component arrays and normalize them in memory; writers emit canonical order and merging. A null low endpoint means -Infinity and a null high endpoint means +Infinity.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["$ratmath", "components"],
+  "required": ["$ratmath", "version", "components"],
   "properties": {
     "$ratmath": { "const": "RationalIntervalSet" },
+    "version": { "const": 1 },
     "components": {
       "type": "array",
       "items": { "$ref": "#/$defs/component" }

@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/domain-witness/v1.schema.json",
+  "title": "RiX certified real-domain witness v1",
+  "description": "A coverage claim for the mathematically defined part of a requested exact rational range. Set equalities and partition completeness are checked semantically, not by JSON Schema alone.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "subject", "input", "coverage", "evidence"],
+  "properties": {
+    "schema": { "const": "rix.numerics.domain-witness@1" },
+    "subject": { "type": "string", "minLength": 1 },
+    "input": { "$ref": "range-set.schema.json" },
+    "coverage": {
+      "enum": ["allDefined", "partiallyDefined", "noDefinedInputs", "unresolved"]
+    },
+    "definedInput": { "$ref": "range-set.schema.json" },
+    "excludedInput": { "$ref": "range-set.schema.json" },
+    "obligations": { "type": "array", "items": { "type": "string" } },
+    "evidence": {}
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "coverage": { "const": "partiallyDefined" } } },
+      "then": { "required": ["definedInput", "excludedInput"] }
+    },
+    {
+      "if": { "properties": { "coverage": { "const": "noDefinedInputs" } } },
+      "then": { "required": ["excludedInput"] }
+    },
+    {
+      "if": { "properties": { "coverage": { "const": "unresolved" } } },
+      "then": { "required": ["obligations"] }
+    }
+  ]
+}

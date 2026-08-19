@@ -3302,35 +3302,43 @@ NumericsRangeResult(image, request, interval, achievedTolerance, goalMet, iterat
 };
 
 NumericsRangeUnknown(
-    image, request, reason, domainStatus ?= :notCertified,
+    image, request, reason, domainStatus ?= :unresolved,
     iterations ?= 0, evidence ?= _
-) -> {=
-    valueKind=:rangeEnclosure,
-    schema="rix.numerics.range-enclosure@1",
-    status=domainStatus == :domainViolation ?: :domainViolation ?_ :unknown,
-    denotation=:set,
-    function=image[:kind],
-    input=image[:input],
-    range=_,
-    interval=_,
-    certified=_,
-    domainStatus=domainStatus,
-    goalMet=_,
-    requestedEndpointTolerance=request[:endpointTolerance],
-    achievedEndpointTolerance=_,
-    rangeWidth=_,
-    evidenceLevel=:proof,
-    backend=:numerics,
-    work={=
-        calls=iterations,
-        iterations=iterations,
-        maxCalls=request[:work][:maxCalls],
-        maxIterations=request[:work][:maxIterations],
-        exhausted=_
-    },
-    diagnostics=[reason],
-    evidence=evidence == _ ?: {= kind=:unresolvedRange, reason=reason } ?_ evidence,
-    source=image[:provenance]
+) -> {;
+    knownEmpty = domainStatus == :noDefinedInputs;
+    emptyRange = (0:0) /\ (1:1);
+    {=
+        valueKind=:rangeEnclosure,
+        schema="rix.numerics.range-enclosure@1",
+        status=knownEmpty ?: :enclosed ?_ :unknown,
+        denotation=:set,
+        function=image[:kind],
+        input=image[:input],
+        range=knownEmpty ?: emptyRange ?_ _,
+        interval=_,
+        certified=knownEmpty ?: 1 ?_ _,
+        domainStatus=domainStatus,
+        goalMet=knownEmpty ?: 1 ?_ _,
+        requestedEndpointTolerance=request[:endpointTolerance],
+        achievedEndpointTolerance=knownEmpty ?: 0 ?_ _,
+        rangeWidth=knownEmpty ?: 0 ?_ _,
+        evidenceLevel=:proof,
+        backend=:numerics,
+        work={=
+            calls=iterations,
+            iterations=iterations,
+            maxCalls=request[:work][:maxCalls],
+            maxIterations=request[:work][:maxIterations],
+            exhausted=_
+        },
+        diagnostics=[reason],
+        evidence=evidence == _ ?: {=
+            kind=knownEmpty ?: :certifiedEmptyDefinedImage ?_ :unresolvedRange,
+            property=knownEmpty ?: :definedImageIsEmpty ?_ _,
+            reason=reason
+        } ?_ evidence,
+        source=image[:provenance]
+    };
 };
 
 NumericsRangeRefinablePointBounds(value, tolerance, maxIterations) ->
@@ -3467,7 +3475,7 @@ NumericsRangeMonotoneOnReady(image, request, input, decreasing ?= _) -> {;
           );
       }
       ?_ NumericsRangeUnknown(
-          image, request, :rangeReductionBudgetExhausted, :notCertified, iterations
+          image, request, :rangeReductionBudgetExhausted, :unresolved, iterations
       );
 };
 
@@ -3475,7 +3483,7 @@ NumericsRangeMonotoneOn(image, request, input, decreasing ?= _) ->
     request[:work][:maxIterations] >= 2
       ?: NumericsRangeMonotoneOnReady(image, request, input, decreasing)
       ?_ NumericsRangeUnknown(
-          image, request, :rangeReductionBudgetExhausted, :notCertified, 0
+          image, request, :rangeReductionBudgetExhausted, :unresolved, 0
       );
 
 NumericsRangeMonotone(image, request, decreasing ?= _) ->
@@ -3642,7 +3650,7 @@ NumericsRangeQuotientTrig(image, request, numeratorKind, denominatorKind) -> {;
     );
     landmarks[:hasZero]
       ?: NumericsRangeUnknown(
-          image, request, :poleInInput, :domainViolation,
+          image, request, :poleInInput, :partiallyDefined,
           landmarks[:iterations]+numerator[:iterations]+denominator[:iterations], {=
               kind=:certifiedTrigPole,
               property=:undefinedPointInInput,
@@ -3652,7 +3660,7 @@ NumericsRangeQuotientTrig(image, request, numeratorKind, denominatorKind) -> {;
       )
       ?_ denominator[:interval].ContainsZero()
       ?: NumericsRangeUnknown(
-          image, request, :poleNotExcluded, :notCertified,
+          image, request, :poleNotExcluded, :unresolved,
           landmarks[:iterations]+numerator[:iterations]+denominator[:iterations], {=
               kind=:unresolvedTrigPole,
               denominator=denominatorKind,
@@ -3690,7 +3698,7 @@ NumericsRangeReciprocalTrig(image, request, denominatorKind) -> {;
     );
     landmarks[:hasZero]
       ?: NumericsRangeUnknown(
-          image, request, :poleInInput, :domainViolation,
+          image, request, :poleInInput, :partiallyDefined,
           landmarks[:iterations]+denominator[:iterations], {=
               kind=:certifiedTrigPole,
               property=:undefinedPointInInput,
@@ -3700,7 +3708,7 @@ NumericsRangeReciprocalTrig(image, request, denominatorKind) -> {;
       )
       ?_ denominator[:interval].ContainsZero()
       ?: NumericsRangeUnknown(
-          image, request, :poleNotExcluded, :notCertified,
+          image, request, :poleNotExcluded, :unresolved,
           landmarks[:iterations]+denominator[:iterations], {=
               kind=:unresolvedTrigPole,
               denominator=denominatorKind,
@@ -3764,7 +3772,10 @@ NumericsRangeLogBase(image, request) -> {;
                 );
             };
       }
-      ?_ NumericsRangeUnknown(image, request, :logDomainViolation, :domainViolation);
+      ?_ NumericsRangeUnknown(
+          image, request, :logDomainViolation,
+          input.High() <= 0 ?: :noDefinedInputs ?_ :partiallyDefined
+      );
 };
 
 NumericsRangeNthRoot(image, request) -> {;
@@ -3805,29 +3816,40 @@ NumericsRangeNthRoot(image, request) -> {;
               }
           );
       }
-      ?_ NumericsRangeUnknown(image, request, :rootDomainViolation, :domainViolation);
+      ?_ NumericsRangeUnknown(
+          image, request, :rootDomainViolation,
+          input.High() < 0 ?: :noDefinedInputs ?_ :partiallyDefined
+      );
 };
 
 NumericsRangeNaturalLog(image, request) ->
     image[:input].Low() > 0
       ?: NumericsRangeMonotone(image, request)
-      ?_ NumericsRangeUnknown(image, request, :logDomainViolation, :domainViolation);
+      ?_ NumericsRangeUnknown(
+          image, request, :logDomainViolation,
+          image[:input].High() <= 0 ?: :noDefinedInputs ?_ :partiallyDefined
+      );
 
 NumericsRangeLog1p(image, request) ->
     image[:input].Low() > -1
       ?: NumericsRangeMonotone(image, request)
-      ?_ NumericsRangeUnknown(image, request, :log1pDomainViolation, :domainViolation);
+      ?_ NumericsRangeUnknown(
+          image, request, :log1pDomainViolation,
+          image[:input].High() <= -1 ?: :noDefinedInputs ?_ :partiallyDefined
+      );
 
 NumericsRangeInverse(image, request, decreasing ?= _) ->
     image[:input].Low() >= -1 && image[:input].High() <= 1
       ?: NumericsRangeMonotone(image, request, decreasing)
       ?_ NumericsRangeUnknown(
-          image, request, :inverseTrigDomainViolation, :domainViolation
+          image, request, :inverseTrigDomainViolation,
+          (image[:input].High() < -1 || image[:input].Low() > 1)
+            ?: :noDefinedInputs ?_ :partiallyDefined
       );
 
 NumericsRangeZeroPole(image, request) ->
     image[:input].ContainsZero()
-      ?: NumericsRangeUnknown(image, request, :poleInInput, :domainViolation, 0, {=
+      ?: NumericsRangeUnknown(image, request, :poleInInput, :partiallyDefined, 0, {=
           kind=:exactRationalPole,
           property=:undefinedPointInInput,
           point=0
@@ -3838,14 +3860,17 @@ NumericsRangeInverseHyperbolicCosine(image, request) ->
     image[:input].Low() >= 1
       ?: NumericsRangeMonotone(image, request)
       ?_ NumericsRangeUnknown(
-          image, request, :inverseHyperbolicDomainViolation, :domainViolation
+          image, request, :inverseHyperbolicDomainViolation,
+          image[:input].High() < 1 ?: :noDefinedInputs ?_ :partiallyDefined
       );
 
 NumericsRangeInverseHyperbolicTangent(image, request) ->
     image[:input].Low() > -1 && image[:input].High() < 1
       ?: NumericsRangeMonotone(image, request)
       ?_ NumericsRangeUnknown(
-          image, request, :inverseHyperbolicDomainViolation, :domainViolation
+          image, request, :inverseHyperbolicDomainViolation,
+          (image[:input].High() <= -1 || image[:input].Low() >= 1)
+            ?: :noDefinedInputs ?_ :partiallyDefined
       );
 
 NumericsRangePiece(value, request, maxWork) -> {;
@@ -3984,12 +4009,10 @@ NumericsRangeProviderValidation(result, knowledge, sourceFunction, input, reques
     range = schemaValid ?: result[:range] ?_ _;
     rangeValid = (range ? :RationalInterval) || (range ? :RationalIntervalSet);
     status = schemaValid ?: result[:status] ?_ _;
-    statusValid = status ? [:enclosed, :budgetExhausted, :approximate, :unknown, :domainViolation];
+    statusValid = status ? [:enclosed, :budgetExhausted, :approximate, :unknown];
     domainStatus = schemaValid ?: result[:domainStatus] ?_ _;
-    domainValid = domainStatus ? [:allDefined, :definedImage, :domainViolation, :notCertified];
-    statusDomainConsistent = status == :domainViolation
-      ?: domainStatus == :domainViolation
-      ?_ (domainStatus == :domainViolation ?: _ ?_ 1);
+    domainValid = domainStatus
+      ? [:allDefined, :partiallyDefined, :noDefinedInputs, :unresolved];
     work = schemaValid ?: result[:work] ?_ _;
     workValid = work ? :Map;
     calls = workValid && work.Has("calls") ?: work[:calls] ~: :Integer ?_ 0;
@@ -4013,10 +4036,10 @@ NumericsRangeProviderValidation(result, knowledge, sourceFunction, input, reques
     certificationConsistent = !certifiedClaim
       || (certificationAllowed
           && rangeValid
-          && domainStatus == :allDefined
+          && domainStatus != :unresolved
           && status ? [:enclosed, :budgetExhausted]);
     structuralValid = knowledgeMap && schemaValid && identityValid && inputValid
-      && rangeValid && statusValid && domainValid && statusDomainConsistent
+      && rangeValid && statusValid && domainValid
       && workValid && boundedWork
       && toleranceValid && goalConsistent;
     valid = structuralValid && certificationConsistent;
@@ -4034,9 +4057,7 @@ NumericsRangeProviderValidation(result, knowledge, sourceFunction, input, reques
                                ?: :invalidRangeProviderStatus
                                ?_ !domainValid
                                     ?: :invalidRangeProviderDomainStatus
-                                    ?_ !statusDomainConsistent
-                                         ?: :rangeProviderStatusDomainConflict
-                                         ?_ !workValid || !boundedWork
+                                    ?_ !workValid || !boundedWork
                                               ?: :rangeProviderWorkInvalid
                                               ?_ !toleranceValid || !goalConsistent
                                                    ?: :rangeProviderGoalInvalid
@@ -4062,7 +4083,7 @@ NumericsRangeProviderValidation(result, knowledge, sourceFunction, input, reques
             range=rangeValid,
             status=statusValid,
             domain=domainValid,
-            statusDomain=statusDomainConsistent,
+            statusDomain=1,
             work=workValid,
             boundedWork=boundedWork,
             tolerance=toleranceValid,
@@ -4097,7 +4118,7 @@ NumericsDirectProviderRange(function, knowledge, input, options ?= {= }) -> {;
     };
     !validation[:valid]
       ?: NumericsRangeUnknown(
-          descriptor, request, validation[:reason], :notCertified,
+          descriptor, request, validation[:reason], :unresolved,
           validation[:work][:iterations], validation
       )
       ?_ {;
@@ -4182,7 +4203,7 @@ NumericsFunctionRange(function, input, options ?= {= }) -> {;
                    ?: @result
                    ?_ {=
                        diagnostics=[:rangePieceDidNotReturnPortableValue],
-                       domainStatus=:notCertified
+                       domainStatus=:unresolved
                    };
              };
        };
@@ -4208,7 +4229,7 @@ NumericsFunctionRange(function, input, options ?= {= }) -> {;
             ?_ ((failure[:diagnostics] ? :Array)
                 ?: failure[:diagnostics][1]
                 ?_ failure[:diagnostics]),
-          failure[:domainStatus] == _ ?: :notCertified ?_ failure[:domainStatus]
+          failure[:domainStatus] == _ ?: :unresolved ?_ failure[:domainStatus]
       );
 };
 
@@ -4241,7 +4262,9 @@ NumericsRange(image, options ?= {= }) -> {;
           base = @image[:parameters][:base] ~!: :Rational;
           base > 0
             ?: NumericsRangeMonotone(@image, @request, base < 1)
-            ?_ NumericsRangeUnknown(@image, @request, :positiveBaseRequired, :domainViolation);
+            ?_ NumericsRangeUnknown(
+                @image, @request, :positiveBaseRequired, :noDefinedInputs
+            );
       };
       kind == :naturalLog ? NumericsRangeNaturalLog(image, request);
       kind == :log1p ? NumericsRangeLog1p(image, request);
@@ -4297,16 +4320,17 @@ NumericsUnaryProviderResult(functionId, functionKind, input, request) -> {;
     calls := 0;
     iterations := 0;
     diagnostic := _;
+    definedComponents := 0;
+    excludedComponents := 0;
+    partialComponents := 0;
     {@ index=1; index <= @count;
        {;
            component = @components[index];
            interval = component.ToRationalInterval();
            (interval ? :RationalInterval) == _
              ?: {;
-                 @status = @status == :domainViolation ?: @status ?_ :unknown;
-                 @domainStatus = @domainStatus == :domainViolation
-                   ?: @domainStatus
-                   ?_ :notCertified;
+                 @status = :unknown;
+                 @domainStatus = :unresolved;
                  @certified = _;
                  @goalMet = _;
                  @diagnostic = @diagnostic == _
@@ -4326,7 +4350,7 @@ NumericsUnaryProviderResult(functionId, functionKind, input, request) -> {;
                  @calls += piece[:work][:calls];
                  @iterations += piece[:work][:iterations];
                  pieceRange = piece[:range];
-                 pieceRange ? :RationalIntervalSet
+                 (piece[:certified] && (pieceRange ? :RationalIntervalSet))
                    ?: {;
                        @combined = @combined == _
                          ?: @pieceRange
@@ -4337,39 +4361,54 @@ NumericsUnaryProviderResult(functionId, functionKind, input, request) -> {;
                              ?: 0
                              ?_ @piece[:achievedEndpointTolerance]
                        );
-                   };
+                 };
                  {?
-                   piece[:domainStatus] == :domainViolation ? {;
-                       @status = :domainViolation;
-                       @domainStatus = :domainViolation;
-                       @certified = _;
-                       @goalMet = _;
+                   piece[:domainStatus] == :noDefinedInputs ? {;
+                       @excludedComponents += 1;
                        @diagnostic = @diagnostic == _
                          ?: @piece[:diagnostics][1]
                          ?_ @diagnostic;
                    };
                    !piece[:certified] ? {;
-                       @status = @status == :domainViolation ?: @status ?_ :unknown;
-                       @domainStatus = @domainStatus == :domainViolation
-                         ?: @domainStatus
-                         ?_ :notCertified;
+                       @status = :unknown;
+                       @domainStatus = @piece[:domainStatus] == :partiallyDefined
+                         ?: :partiallyDefined
+                         ?_ :unresolved;
                        @certified = _;
                        @goalMet = _;
                        @diagnostic = @diagnostic == _
                          ?: @piece[:diagnostics][1]
                          ?_ @diagnostic;
                    };
-                   piece[:status] == :budgetExhausted && @status == :enclosed ? {;
-                       @status = :budgetExhausted;
-                       @goalMet = _;
+                   piece[:certified] == 1 ? {;
+                       @definedComponents += 1;
+                       @partialComponents += (
+                         @piece[:domainStatus] == :partiallyDefined ?: 1 ?_ 0
+                       );
+                       @status = (
+                         (@piece[:status] == :budgetExhausted && @status == :enclosed)
+                           ?: :budgetExhausted
+                           ?_ @status
+                       );
+                       @goalMet = @goalMet && @piece[:goalMet];
                    };
-                   @goalMet ? @goalMet = @goalMet && piece[:goalMet];
                  };
              };
        };
        index += 1
     };
     outputRange = combined == _ ?: emptyRange ?_ combined;
+    {?
+      !certified ? _;
+      (partialComponents > 0
+        || (excludedComponents > 0 && definedComponents > 0)) ? {;
+          @domainStatus = :partiallyDefined;
+      };
+      (excludedComponents > 0 && definedComponents == 0) ? {;
+          @domainStatus = :noDefinedInputs;
+      };
+      domainStatus == :allDefined ? {; @domainStatus = :allDefined; };
+    };
     {=
         valueKind=:rangeProviderResult,
         schema="rix.numerics.range-provider-result@1",

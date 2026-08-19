@@ -1,0 +1,27 @@
+## Exact range arithmetic for a sensor calibration.
+measurement := (99/100:101/100) ~!: :RangeSet;
+calibrated := 3*measurement - 1/10;
+calibrated.ToString() ##@ == "[287/100,293/100]";
+
+## Undefined tuples are excluded without losing the defined image.
+crossingZero := ((-1):1) ~!: :RangeSet;
+reciprocal := crossingZero.Reciprocal();
+reciprocal.Split().Len() ##@ == 2;
+reciprocal.RangeEvidence()[:domain][:coverage] ##@ == "partiallyDefined";
+
+## A wholly undefined request has a certified empty defined image.
+emptyImage := ((0:0) ~!: :RangeSet).Reciprocal();
+emptyImage.Split().Len() ##@ == 0;
+emptyImage.RangeEvidence()[:domain][:coverage] ##@ == "noDefinedInputs";
+
+## The combinatorial convention is local and recorded in evidence.
+base := (0:2) ~!: :RangeSet;
+usual := base^0;
+combinatorial := .RangePolicy({= zeroPowerZero=:one }, base^0);
+usual.RangeEvidence()[:domain][:coverage] ##@ == "partiallyDefined";
+combinatorial.RangeEvidence()[:domain][:coverage] ##@ == "allDefined";
+
+## Union retains a gap; hull removes it explicitly.
+pieces := (1:2) \/ (4:5);
+pieces.Split().Len() ##@ == 2;
+((1:2) |\/| (4:5)).ToString() ##@ == "1:5";

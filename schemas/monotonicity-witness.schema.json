@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/monotonicity-witness/v1.schema.json",
+  "title": "RiX monotonicity witness v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "functionGraph", "input", "direction", "derivativeRange"],
+  "properties": {
+    "schema": { "const": "rix.calculus.monotonicity-witness@1" },
+    "functionGraph": { "type": "string", "minLength": 1 },
+    "input": { "$ref": "range-set.schema.json" },
+    "direction": { "enum": ["nondecreasing", "nonincreasing", "constant"] },
+    "derivativeRange": { "$ref": "derivative-range-witness.schema.json" },
+    "evidence": {}
+  }
+}

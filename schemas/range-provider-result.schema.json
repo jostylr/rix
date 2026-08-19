@@ -22,12 +22,14 @@
     "functionId": { "type": "string", "minLength": 1 },
     "input": { "$ref": "range-set.schema.json" },
     "status": {
-      "enum": ["enclosed", "budgetExhausted", "approximate", "unknown", "domainViolation"]
+      "description": "Whether a range claim was produced and whether its requested refinement goal was met. Domain coverage is reported separately.",
+      "enum": ["enclosed", "budgetExhausted", "approximate", "unknown"]
     },
     "range": { "$ref": "range-set.schema.json" },
     "certified": { "type": ["boolean", "null"] },
     "domainStatus": {
-      "enum": ["allDefined", "definedImage", "domainViolation", "notCertified"]
+      "description": "Certified coverage of the requested input by the real domain, independent of range status.",
+      "enum": ["allDefined", "partiallyDefined", "noDefinedInputs", "unresolved"]
     },
     "goalMet": { "type": ["boolean", "null"] },
     "achievedEndpointTolerance": {

@@ -1,7 +1,10 @@
-# Rational interval-set interchange versioning — proposal
+# Rational interval-set interchange versioning
 
-Status: accepted pre-1.0 design draft. The current version-1 records remain
-changeable until the RiX 1.0 release freezes them.
+Status: accepted and implemented for the current v1 lifecycle. V1 export,
+normalizing import, structured future-version rejection, versioned schemas,
+and the no-op migration-plan API have focused tests. A conversion CLI becomes
+a release gate when a later stable odd version first creates a real migration.
+The current version-1 records remain changeable until RiX 1.0 freezes them.
 
 ## Recommended decisions
 

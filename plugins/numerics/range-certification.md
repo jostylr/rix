@@ -1,20 +1,26 @@
 # Certified ranges for general functions
 
 Status: active staged implementation. Unary range functions, exact range sets,
-scoped heuristic providers, and capability-gated trusted direct providers are
-implemented. Proof checking and expression-graph stages remain planned work.
+proof-safe exact arithmetic, scoped domain policy, capability-gated trusted
+direct providers, versioned evidence schemas, and the exact set/arithmetic
+checker kernel are implemented. Expression-graph and calculus strategies
+have an implemented Calculus foundation; the range evaluator and proof
+strategies that consume it remain staged work.
 
-The following pre-1.0 design drafts have completed their first policy review:
+The following accepted pre-1.0 contracts describe the implemented foundation
+and the remaining v1 checker vocabulary:
 
 - [range evidence checker vocabulary v1](checker-vocabulary-v1-proposal.md);
 - [proof-safe range arithmetic and domain
   policy](range-arithmetic-policy-proposal.md); and
 - [range-set interchange versioning](range-interchange-versioning-proposal.md).
 
-They remain proposals rather than normative implemented behavior and may
-change until RiX 1.0. In particular, they adopt a distinction between partial
-and empty defined images and unresolved domain knowledge that is more precise
-than the current first protocol slice.
+The existing graph boundary and its remaining adapter work are detailed in
+[Calculus graphs as certified-range subjects](calculus-range-bridge.md).
+
+Their version-1 spellings remain changeable until RiX 1.0 freezes them. The
+provider protocol now uses their four-way distinction between partial, empty,
+all-defined, and unresolved domain knowledge.
 
 ## Need and intended use
 
@@ -100,7 +106,7 @@ Core stores infinity structurally rather than as an IEEE-754 value. A closed
 bounded component can be converted losslessly to the existing
 `RationalInterval`; other sets cannot.
 
-A future general range result should contain at least:
+A general range result contains, or is being extended to contain:
 
 - the normalized `RationalIntervalSet` enclosure;
 - `certified`, `goalMet`, `status`, and `domainStatus`;
@@ -272,9 +278,11 @@ portable descriptor and result shapes live in
 ### Domain and singularities
 
 A domain provider should prove whole-input inclusion, return excluded pieces,
-or report unresolved obligations. It must distinguish `:domainViolation` or
-`:poleInInput` from `:unknown` or `:poleNotExcluded`. Domain partitions feed
-directly into `RationalIntervalSet`, so a valid image can remain disconnected.
+or report unresolved obligations. It must distinguish the coverage values
+`:allDefined`, `:partiallyDefined`, `:noDefinedInputs`, and `:unresolved`, and
+preserve diagnostics such as `:poleInInput` versus `:poleNotExcluded`. Domain
+partitions feed directly into `RationalIntervalSet`, so a certified valid image
+can remain disconnected or be empty.
 
 ### Monotonicity and critical points
 
@@ -357,7 +365,7 @@ approved provider supplies a valid witness or a checker proves it.
 
 ## Schemas and the small checker
 
-Versioned portable schemas should live under `rix/schemas` for:
+Versioned portable schemas now live under `rix/schemas` for:
 
 - `range-set`;
 - `range-provider` and provider capabilities;
@@ -367,12 +375,13 @@ Versioned portable schemas should live under `rix/schemas` for:
 - `critical-points-witness`; and
 - the aggregate general range result/evidence DAG.
 
-Schema validation checks shape, not mathematical truth. A deliberately small
-checker should validate a limited theorem vocabulary: exact set operations,
-primitive interval arithmetic, derivative-sign monotonicity, monotone
-composition, exhaustive polynomial root counts, partition coverage, and hull
-or union formation. Unsupported theorem tags remain trusted-provider or
-uncertified evidence; the checker must never guess.
+Schema validation checks shape, not mathematical truth. The first deliberately
+small checker module validates exact set operations, exact partitions,
+proof-safe arithmetic images, and host-resolved trusted leaves; it rejects
+cycles, dangling premises, unknown rules, mismatched claims, and configured
+resource-limit overruns. Derivative-sign monotonicity, monotone composition,
+and complete Sturm critical-point checking remain reserved in the v1 schema
+but fail closed until their checker modules land.
 
 Keep the checker independent of the main strategy engine. Strategy may become
 large and heuristic; the certifying kernel should remain auditable.

@@ -353,8 +353,10 @@ describe("pure RiX Numerics plugin", () => {
         expect(entry(disconnected, "certified").value).toBe(1n);
         expect(entry(entry(disconnected, "evidence"), "components").value).toBe(2n);
 
-        expect(textValue(entry(partialDomain, "status"))).toBe("domainViolation");
-        expect(entry(partialDomain, "certified")).toBeNull();
+        expect(textValue(entry(partialDomain, "status"))).toBe("enclosed");
+        expect(entry(partialDomain, "certified").value).toBe(1n);
+        expect(textValue(entry(partialDomain, "domainStatus")))
+            .toBe("partiallyDefined");
         expect(entry(partialDomain, "range")).toBeInstanceOf(RationalIntervalSet);
         expect(entry(partialDomain, "diagnostics").values.map(textValue))
             .toContain("logDomainViolation");
@@ -398,7 +400,9 @@ describe("pure RiX Numerics plugin", () => {
         const tangent = entry(result.values[2], "interval");
         expect(tangent.low.toNumber()).toBeLessThanOrEqual(0);
         expect(tangent.high.toNumber()).toBeGreaterThanOrEqual(Math.tan(1));
-        expect(textValue(entry(result.values[3], "status"))).toBe("domainViolation");
+        expect(textValue(entry(result.values[3], "status"))).toBe("unknown");
+        expect(textValue(entry(result.values[3], "domainStatus")))
+            .toBe("partiallyDefined");
         expect(entry(result.values[3], "certified")).toBeNull();
         expect(entry(result.values[3], "diagnostics").values.map(textValue)).toContain("poleInInput");
     });
@@ -424,26 +428,36 @@ describe("pure RiX Numerics plugin", () => {
         expect(entry(result.values[0], "interval").high.toString()).toBe("1");
         expect(entry(entry(result.values[0], "evidence"), "landmarks").entries
             .get("hasmaximum").value).toBe(1n);
-        expect(textValue(entry(result.values[1], "status"))).toBe("domainViolation");
+        expect(textValue(entry(result.values[1], "status"))).toBe("unknown");
+        expect(textValue(entry(result.values[1], "domainStatus")))
+            .toBe("partiallyDefined");
         expect(entry(result.values[1], "diagnostics").values.map(textValue)).toEqual(["poleInInput"]);
         expect(textValue(entry(result.values[2], "status"))).toBe("unknown");
         expect(entry(result.values[2], "diagnostics").values.map(textValue)).toEqual(["poleNotExcluded"]);
         expect(entry(result.values[3], "interval").high.toString()).toBe("1");
     });
 
-    test("range evaluation reports whole-input domain violations", () => {
+    test("range evaluation separates partial domains from wholly empty defined images", () => {
         const result = parseAndEvaluate(`
             .Plugin.Load("numerics");
             {:
                 .numerics.Range(.numerics.Log((-1):2)),
                 .numerics.Range(.numerics.Sqrt((-1):2)),
-                .numerics.Range(.numerics.Asin(0:2))
+                .numerics.Range(.numerics.Asin(0:2)),
+                .numerics.Range(.numerics.Log((-2):(-1)))
             }
         `, runtime());
 
-        expect(result.values.map((range) => textValue(entry(range, "status"))))
-            .toEqual(["domainViolation", "domainViolation", "domainViolation"]);
-        expect(result.values.every((range) => entry(range, "certified") === null)).toBe(true);
+        expect(result.values.slice(0, 3).map((range) => textValue(entry(range, "status"))))
+            .toEqual(["unknown", "unknown", "unknown"]);
+        expect(result.values.slice(0, 3).map((range) => textValue(entry(range, "domainStatus"))))
+            .toEqual(["partiallyDefined", "partiallyDefined", "partiallyDefined"]);
+        expect(result.values.slice(0, 3)
+            .every((range) => entry(range, "certified") === null)).toBe(true);
+        expect(textValue(entry(result.values[3], "status"))).toBe("enclosed");
+        expect(textValue(entry(result.values[3], "domainStatus"))).toBe("noDefinedInputs");
+        expect(entry(result.values[3], "certified").value).toBe(1n);
+        expect(entry(result.values[3], "range").isEmpty).toBe(true);
         expect(() => parseAndEvaluate(`
             .Plugin.Load("numerics"); .numerics.Range(1:2)
         `, runtime())).toThrow("expects an interval image");
@@ -684,7 +698,9 @@ describe("pure RiX Numerics plugin", () => {
         expect(entry(result.values[1], "interval").low.lessThanOrEqual(new Rational(1n))).toBe(true);
         expect(entry(result.values[1], "interval").high.toNumber()).toBeGreaterThanOrEqual(Math.cosh(1));
         expect(entry(result.values[3], "interval").high.greaterThanOrEqual(new Rational(1n))).toBe(true);
-        expect(textValue(entry(result.values[4], "status"))).toBe("domainViolation");
+        expect(textValue(entry(result.values[4], "status"))).toBe("unknown");
+        expect(textValue(entry(result.values[4], "domainStatus")))
+            .toBe("partiallyDefined");
         expect(entry(result.values[4], "diagnostics").values.map(textValue)).toEqual(["poleInInput"]);
     });
 

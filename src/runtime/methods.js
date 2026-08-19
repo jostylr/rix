@@ -33,6 +33,7 @@ import {
     valueBelongsToScalarDomain,
 } from "./shaped.js";
 import { checkTraits, refreshRuntimeMetadata } from "./semantic.js";
+import { executeRangeOperation, rangeEvidence } from "./range-arithmetic.js";
 import {
     cayleyCartesian,
     cayleyFromCartesian,
@@ -1717,6 +1718,23 @@ const rationalIntervalSetMethods = {
     CONTAINSVALUE: method("ContainsValue", ([target, value]) =>
         bool(target.containsValue(exactRational(value, "Contained value")))),
     HULL: method("Hull", ([target]) => attachBuiltinProto(target.hull())),
+    ADD: method("Add", ([target, other], context) =>
+        attachBuiltinProto(executeRangeOperation("add", [target, other], context))),
+    SUBTRACT: method("Subtract", ([target, other], context) =>
+        attachBuiltinProto(executeRangeOperation("subtract", [target, other], context))),
+    MULTIPLY: method("Multiply", ([target, other], context) =>
+        attachBuiltinProto(executeRangeOperation("multiply", [target, other], context))),
+    DIVIDE: method("Divide", ([target, other], context) =>
+        attachBuiltinProto(executeRangeOperation("divide", [target, other], context))),
+    NEGATE: method("Negate", ([target], context) =>
+        attachBuiltinProto(executeRangeOperation("negate", [target], context))),
+    ABSOLUTEVALUE: method("AbsoluteValue", ([target], context) =>
+        attachBuiltinProto(executeRangeOperation("absoluteValue", [target], context))),
+    RECIPROCAL: method("Reciprocal", ([target], context) =>
+        attachBuiltinProto(executeRangeOperation("reciprocal", [target], context))),
+    INTEGERPOWER: method("IntegerPower", ([target, exponent], context) =>
+        attachBuiltinProto(executeRangeOperation("integerPower", [target, exponent], context))),
+    RANGEEVIDENCE: method("RangeEvidence", ([target]) => rangeEvidence(target)),
     TORATIONALINTERVAL: method("ToRationalInterval", ([target]) => target.toRationalInterval()),
     TOSTRING: method("ToString", ([target]) => stringObj(target.toString())),
 };

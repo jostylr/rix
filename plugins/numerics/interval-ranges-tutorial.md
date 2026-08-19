@@ -226,28 +226,34 @@ unresolved := .numerics.Range(
 };
 ```
 
-The second result proves `:poleInInput` and reports `:domainViolation`.  The
-third has too little landmark precision to prove or exclude the pole, so it
-reports `:unknown` with `:poleNotExcluded`.  Increasing work may resolve it.
+The second result proves `:poleInInput`, reports
+`domainStatus=:partiallyDefined`, and leaves the range `:unknown` because this
+provider has not yet enclosed both sides of the pole. The third has too little
+landmark precision even to prove or exclude the pole, so its domain status is
+`:unresolved` with `:poleNotExcluded`. Increasing work may resolve it.
 
-## Strict real domains
+## Partial, empty, and unresolved real domains
 
-If even one possible input is outside the supported real domain, the whole
-closed-input request reports a domain violation:
+Domain coverage is separate from range status. A single connected interval
+that crosses a domain boundary is currently unresolved because its valid open
+piece may require an unbounded endpoint algorithm. A union whose components
+separate valid from invalid inputs can already produce a certified partial
+image. A wholly invalid request has a certified empty defined image:
 
 ```{.rix exec=true}
 .Plugin.Load("numerics");
 
 {:
   .numerics.Range(.numerics.Log((-1):2)),
-  .numerics.Range(.numerics.Sqrt((-1):2)),
-  .numerics.Range(.numerics.Asin(0:2)),
-  .numerics.Range(.numerics.Acosh(1/2:2)),
-  .numerics.Range(.numerics.Atanh((-1):1))
+  .numerics.Range(.numerics.Log, ((-2):0) \/ (1:2)),
+  .numerics.Range(.numerics.Log((-2):0))
 };
 ```
 
-RiX does not silently discard invalid inputs or select a complex branch.
+The results respectively have `:partiallyDefined`/`:unknown`,
+`:partiallyDefined`/certified, and `:noDefinedInputs`/certified-empty behavior.
+RiX never labels an implementation failure as a mathematical exclusion and
+does not select a complex branch in real mode.
 
 ## Hyperbolic and statistical examples
 
@@ -279,8 +285,8 @@ coshBand := .numerics.Range(.numerics.Cosh(temperature), {=
 
 `Cosh` and normal PDF are even, so an interval crossing zero includes their
 known extremum at zero.  `Sinh`, `Tanh`, `Asinh`, `Acosh`, `Atanh`, `Erf`,
-`Erfc`, and normal CDF use certified endpoint monotonicity.  `Csch` and `Coth`
-report a domain violation when the input contains zero.
+`Erfc`, and normal CDF use certified endpoint monotonicity. `Csch` and `Coth`
+report `:partiallyDefined` with `:poleInInput` when the input contains zero.
 
 ## Reading a range result
 
@@ -289,11 +295,11 @@ are:
 
 | Field | Meaning |
 | --- | --- |
-| `status` | `:enclosed`, `:budgetExhausted`, `:unknown`, or `:domainViolation` |
+| `status` | `:enclosed`, `:budgetExhausted`, `:approximate`, or `:unknown` |
 | `range` | Outer `RationalIntervalSet`, or null when unresolved |
 | `interval` | Compatibility projection for one closed connected bounded range; otherwise null |
 | `certified` | `1` only when the interval has a containment proof |
-| `domainStatus` | Whether the function is defined over the whole input |
+| `domainStatus` | `:allDefined`, `:partiallyDefined`, `:noDefinedInputs`, or `:unresolved` |
 | `requestedEndpointTolerance` | Requested numerical boundary tolerance |
 | `achievedEndpointTolerance` | Boundary tolerance actually achieved |
 | `rangeWidth` | Total output range width, including measurement uncertainty |

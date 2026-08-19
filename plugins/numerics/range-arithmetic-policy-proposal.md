@@ -1,8 +1,8 @@
-# Proof-safe range arithmetic and domain policy — proposal
+# Proof-safe range arithmetic and domain policy
 
-Status: accepted pre-1.0 design draft. No scalar-looking
-`RationalIntervalSet` operators should be added until this policy is
-implemented and tested. Details remain changeable until RiX 1.0.
+Status: implemented pre-1.0 contract. Core named primitives, RiX operators and
+methods, common `rangeEvidence` metadata, report/throw policy, and the scoped
+`0^0` convention have focused tests. Details remain changeable until RiX 1.0.
 
 ## Recommended decisions
 

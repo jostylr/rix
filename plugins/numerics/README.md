@@ -73,9 +73,11 @@ physical width caused by the input measurement is intentionally retained.
 `Sin` and `Cos` use rational Taylor bounds and a global Lipschitz proof, with
 bounded rational subdivision for tightness. Certified pi landmarks add exact
 `-1`/`1` extrema when they occur in the input. Reciprocal trigonometric
-functions distinguish a proved `:poleInInput` domain violation from an
-unresolved `:poleNotExcluded` result. Restricted functions return
-`:domainViolation` if any possible input is outside their real domain.
+functions distinguish a proved `:poleInInput` with
+`domainStatus=:partiallyDefined` from an unresolved `:poleNotExcluded` result.
+Domain coverage is independent of range status: a provider may certify a
+partial defined image, certify that the defined image is empty, or report that
+the remaining domain obligation is unresolved.
 
 The same set-valued protocol covers hyperbolic functions, inverse hyperbolic
 functions, `Erf`, `Erfc`, normal PDF, and normal CDF. Their range providers use
@@ -100,9 +102,14 @@ closed bounded component. RiX interval operators preserve disconnected sets:
 explicit hull. `?/\`/`?&` test overlap, `!/\` tests disjointness, and
 `.Split()` returns connected components.
 
-See [interval-ranges-tutorial.md](interval-ranges-tutorial.md) for a full
-measurement tutorial, [range-certification.md](range-certification.md) for the
-proof knowledge useful to general functions, and
+See [range-arithmetic-tutorial.md](range-arithmetic-tutorial.md) for exact
+arithmetic and scoped domain policy;
+[interval-ranges-tutorial.md](interval-ranges-tutorial.md) for a full
+transcendental measurement tutorial; and
+[derivative-witness-tutorial.md](derivative-witness-tutorial.md) for runnable
+general-function evidence and adversarial examples. The underlying designs
+are [range-certification.md](range-certification.md) and
+[calculus-range-bridge.md](calculus-range-bridge.md). See
 [interval-ranges-checklist.md](interval-ranges-checklist.md) for implemented
 unary coverage. The cross-component implementation plan is tracked in
 [general-range-development-checklist.md](general-range-development-checklist.md).
@@ -134,8 +141,9 @@ function identities and callable registrations are rejected.
 The seal cannot be serialized or recreated by writing
 `trust=:trustedCapability`; that field is audit metadata only. Grant this
 registration authority only when the provider's outward-enclosure invariant
-has been reviewed. Checked theorem evidence remains a later stage in the
-general-range checklist.
+has been reviewed. Exact set, partition, and range-arithmetic evidence can now
+be independently checked; derivative, composition, and Sturm checker modules
+remain later stages in the general-range checklist.
 
 The schemas are documented in
 [`range-provider.schema.json`](../../schemas/range-provider.schema.json) and

@@ -1,8 +1,10 @@
-# Range evidence checker vocabulary v1 — proposal
+# Range evidence checker vocabulary v1
 
-Status: accepted pre-1.0 design draft. This document reserves the target
-vocabulary for `rix.numerics.range-evidence@1`; it is not yet an implemented
-checker contract and remains changeable until RiX 1.0.
+Status: accepted pre-1.0 contract with staged implementation. The versioned
+schema and the independent exact set, partition, arithmetic, and trusted-leaf
+checker kernel are implemented. Derivative, composition, and Sturm rules are
+reserved here and fail closed until their checker modules land. Every detail
+remains changeable until RiX 1.0.
 
 ## Recommended decisions
 
