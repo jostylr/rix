@@ -14,6 +14,9 @@ focused tests exist; design-only work remains unchecked.
 - [x] Specify the domain-sensitive, proof-producing range pipeline.
 - [x] Specify scoped and capability-gated surfaces for user function knowledge.
 - [ ] Record the accepted theorem vocabulary in a versioned checker spec.
+  The accepted pre-1.0 design is in the [checker vocabulary v1
+  proposal](checker-vocabulary-v1-proposal.md); implementation and focused
+  tests remain.
 
 ## 1. Core exact range-set values
 
@@ -30,6 +33,9 @@ focused tests exist; design-only work remains unchecked.
   tests.
 - [ ] Decide and implement proof-safe component-wise arithmetic primitives; do
   not add scalar-looking operations until undefined results are specified.
+  The accepted pre-1.0 design is in the [range arithmetic and domain policy
+  proposal](range-arithmetic-policy-proposal.md); implementation and focused
+  tests remain.
 - [x] Add package API documentation and release notes.
 
 ## 2. RiX value adapter
@@ -47,6 +53,9 @@ focused tests exist; design-only work remains unchecked.
 - [x] Add an exact range-set JSON schema.
 - [ ] Document the version migration policy before an interchange version is
   superseded.
+  The accepted pre-1.0 design is in the [range-set interchange versioning
+  proposal](range-interchange-versioning-proposal.md); implementation and
+  focused tests remain.
 
 ## 3. Direct RangeProvider protocol
 

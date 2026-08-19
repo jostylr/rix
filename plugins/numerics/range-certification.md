@@ -4,6 +4,18 @@ Status: active staged implementation. Unary range functions, exact range sets,
 scoped heuristic providers, and capability-gated trusted direct providers are
 implemented. Proof checking and expression-graph stages remain planned work.
 
+The following pre-1.0 design drafts have completed their first policy review:
+
+- [range evidence checker vocabulary v1](checker-vocabulary-v1-proposal.md);
+- [proof-safe range arithmetic and domain
+  policy](range-arithmetic-policy-proposal.md); and
+- [range-set interchange versioning](range-interchange-versioning-proposal.md).
+
+They remain proposals rather than normative implemented behavior and may
+change until RiX 1.0. In particular, they adopt a distinction between partial
+and empty defined images and unresolved domain knowledge that is more precise
+than the current first protocol slice.
+
 ## Need and intended use
 
 A measurement such as `1 ± 1/100` denotes every real value in the exact
