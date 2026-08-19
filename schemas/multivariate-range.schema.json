@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/multivariate-range/v1.schema.json",
+  "title": "RiX checked multivariate rational-box range v1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema", "strategy", "status", "certified", "domainStatus", "range", "box", "partitions", "evidence"],
+  "properties": {
+    "schema": {
+      "enum": [
+        "rix.numerics.jacobian-box-range@1",
+        "rix.numerics.affine-box-range@1",
+        "rix.numerics.taylor-model-box-range@1"
+      ]
+    },
+    "strategy": {
+      "enum": ["jacobianSubdivision", "affineArithmetic", "multivariateTaylorModel"]
+    },
+    "status": { "enum": ["enclosed", "unknown"] },
+    "certified": { "type": "boolean" },
+    "domainStatus": { "enum": ["allDefined", "unresolved"] },
+    "range": { "$ref": "range-set.schema.json" },
+    "box": { "$ref": "rational-box.schema.json" },
+    "partitions": { "type": "array" },
+    "evidence": {}
+  }
+}

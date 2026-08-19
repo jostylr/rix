@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/calculus-graph-rewrite/v1.schema.json",
+  "title": "RiX checked Calculus graph rewrite v1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema", "operation", "theorem", "source", "expression", "sourceGraph", "targetGraph", "obligations", "evidence"],
+  "properties": {
+    "schema": { "const": "rix.calculus.graph-rewrite@1" },
+    "operation": { "const": "rewrite" },
+    "theorem": {
+      "enum": [
+        "add.commute", "multiply.commute", "add.associate", "multiply.associate",
+        "multiply.distributeleft", "multiply.distributeright",
+        "divide.cancelself", "subtract.cancelself", "multiply.zero"
+      ]
+    },
+    "source": {},
+    "expression": {},
+    "sourceGraph": { "type": "string" },
+    "targetGraph": { "type": "string" },
+    "obligations": { "type": "array" },
+    "evidence": {}
+  }
+}

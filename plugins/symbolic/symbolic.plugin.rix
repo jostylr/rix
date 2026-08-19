@@ -3,7 +3,7 @@ id: symbolic
 description: Meta-plugin joining representation-sensitive FractionFunction work with portable abstract Calculus expressions.
 kind: rix
 mount: symbolic
-exports: [Fraction, FractionFunction, CalculusExpression, Evaluate, EvaluateResult, SimplifyResult, CheckSimplification, Differentiate, DifferentiateResult, DifferentiateN, DifferentiateNResult, Partial, PartialResult, Gradient, GradientResult, Jacobian, JacobianResult, Hessian, HessianResult, SelectedPrimitive, AntiderivativeFamily, DefiniteIntegral, Obligations, Services]
+exports: [Fraction, FractionFunction, CalculusExpression, Evaluate, EvaluateResult, SimplifyResult, CheckSimplification, RewriteResult, CheckRewrite, Differentiate, DifferentiateResult, DifferentiateN, DifferentiateNResult, Partial, PartialResult, Gradient, GradientResult, Jacobian, JacobianResult, Hessian, HessianResult, SelectedPrimitive, AntiderivativeFamily, DefiniteIntegral, Obligations, Services]
 groups: [Algebra, Calculus, Analysis, Exact, Symbolic]
 permissions: []
 requires: [rix.fraction-function@1, rix.calculus@1]
@@ -15,7 +15,11 @@ defaultEnabled: false
 **/
 
 SymbolicNonFractionCalculusExpression(value) ->
-    .calculus.IsExpression(value) ?: value ?_ .calculus.FromSpec(value);
+    .calculus.IsExpression(value)
+      ?: value
+      ?_ ((value ? :Integer) || (value ? :Rational))
+           ?: .calculus.Constant(value)
+           ?_ .calculus.FromSpec(value);
 SymbolicCalculusExpression(value) ->
     value ? :FractionFunction
       ?: value.CalculusExpression()
@@ -58,6 +62,13 @@ symbolicNamespace._proto = {=
         .CalculusGraphSimplify(self.CalculusExpression(value)),
     CheckSimplification = (self, result) ->
         .CalculusGraphSimplificationCheck(result),
+    RewriteResult = (self, source, target, theorem) ->
+        .CalculusGraphRewrite(
+            self.CalculusExpression(source),
+            self.CalculusExpression(target),
+            theorem
+        ),
+    CheckRewrite = (self, result) -> .CalculusGraphRewriteCheck(result),
     Differentiate = (self, value, variable) ->
         .calculus.Differentiate(self.CalculusExpression(value),variable),
     DifferentiateResult = (self, value, variable) ->

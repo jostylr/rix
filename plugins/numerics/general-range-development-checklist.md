@@ -141,8 +141,8 @@ focused tests exist; design-only work remains unchecked.
   source and target graph identity.
 - [x] Require checked derivative transformations to retain newly introduced
   domain obligations, including division, negative powers, and default `0^0`.
-- [ ] Generalize derivative-transformation checking to trusted semantic rules.
-- [ ] Add checked arbitrary Symbolic rewrite proposals beyond the canonical
+- [x] Generalize derivative-transformation checking to trusted semantic rules.
+- [x] Add checked arbitrary Symbolic rewrite proposals beyond the canonical
   domain-preserving identity whitelist.
 - [x] Add proof-preserving simplification hooks consumed by Numerics.
 - [x] Test unsafe cancellation (`x/x`) and safe identity rewrites.
@@ -159,12 +159,12 @@ focused tests exist; design-only work remains unchecked.
 - [x] Extend coverage only when a proof path exists; leave unsupported cases
   explicitly uncertified.
 
-## 9. Later dependency-aware representations
+## 9. Dependency-aware representations
 
-- [ ] Add rational boxes and multivariate provider requests.
-- [ ] Add Jacobian-bound box subdivision.
-- [ ] Evaluate affine arithmetic for linear correlation.
-- [ ] Evaluate Taylor models for smooth narrow measurement boxes.
+- [x] Add rational boxes and multivariate provider requests.
+- [x] Add Jacobian-bound box subdivision.
+- [x] Evaluate affine arithmetic for linear correlation.
+- [x] Evaluate Taylor models for smooth narrow measurement boxes.
 - [x] Keep `RationalIntervalSet` as the exact public result boundary.
 
 ## 10. Documentation and release gates
@@ -254,3 +254,23 @@ focused tests exist; design-only work remains unchecked.
   Bun's 5-second default; it passed independently under the established
   10-second integration ceiling (5.00 seconds). Every range and Numerics test
   passed in the full run.
+
+### Verification note — 2026-08-19, semantic rules and multivariate ranges
+
+- The independent derivative checker now reproduces chain rules and exact
+  obligations for the fixed versioned `Exp`, real `Log`, real `Sqrt`, real
+  `Asin`, and principal complex `Log` semantic IDs; unknown semantic IDs remain
+  fail-closed.
+- Symbolic and Numerics expose theorem-named checked ring rewrites. Conditional
+  cancellation and zero-product proposals retain independently checked domain
+  obligations.
+- Added exact named rational boxes, portable multivariate requests, bounded
+  widest-axis Jacobian subdivision, affine correlation forms, and checked
+  gradient/Hessian Taylor models. All public outputs remain normalized
+  `RationalIntervalSet` values and all three strategies support full
+  recomputation.
+- Added three versioned JSON schemas, a runnable tutorial, a design reference,
+  and a shipped comparison example. Focused runtime, schema, plugin-lint,
+  tutorial, and example verification passed 31 tests with zero failures.
+- Complete RiX suite under the integration ceiling: 2,601 tests passed across
+  134 files with zero failures (8,812 assertions).

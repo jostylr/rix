@@ -1,10 +1,10 @@
 # Calculus graphs as certified-range subjects
 
-Status: exact-primitive graph evaluation, primitive derivative checking, and
+Status: exact-primitive graph evaluation, trusted semantic derivative checking, and
 generic derivative-sign reasoning implemented, together with exact-rational
 polynomial monotonicity partitions, Lipschitz midpoint bounds, and
-second-derivative Taylor bounds; semantic applications and semantic derivative
-rules staged. The Calculus expression and transformation records provide the
+second-derivative Taylor bounds; general semantic application range evaluation
+remains staged. The Calculus expression and transformation records provide the
 identity, immutability, derivative, and obligation boundary needed by the
 general range engine.
 
@@ -115,7 +115,7 @@ convention, partition, range, and domain coverage before accepting the public
 result. Unsupported semantic applications return an explicit unresolved
 result; they are never sampled and relabeled as checked.
 
-Semantic applications are the next adapter layer. They will be admitted only
+Semantic applications in range evaluation are the next adapter layer. They will be admitted only
 through a matching checked or authority-resolved `RangeProvider`, and
 composition must prove that the inner image lies in the outer function's
 domain.
@@ -144,7 +144,8 @@ Ready now:
 - domain-sensitive correlated `g-g` and `g/g` identities; and
 - conservative univariate polynomial/rational recognition with source-domain
   restrictions;
-- independent primitive derivative-graph and obligation recomputation; and
+- independent primitive and trusted semantic derivative-graph and obligation
+  recomputation; and
 - generic derivative-sign certification after total derivative range checking
   and obligation discharge;
 - structurally checked monotone composition; and
@@ -152,7 +153,7 @@ Ready now:
   graph when no domain obligations remain; and
 - one-sided Sturm root counts plus closed monotonicity partitions at exact
   rational critical points;
-- checked higher primitive derivative stages through order 16; and
+- checked higher derivative stages through order 16; and
 - bounded closed subdivision for Lipschitz-midpoint and signed
   second-derivative Taylor enclosures.
 
@@ -160,7 +161,8 @@ Still required for general graph certification:
 
 - checked discharge of Calculus obligations over exact sets;
 - trusted/checked RangeProvider links for semantic `apply` nodes;
-- semantic derivative-identity checking from registered graph rules; and
+- extensible semantic derivative-identity checking beyond the fixed trusted
+  built-in vocabulary; and
 - a certified fallback for irrational critical isolating bands when a tight
   endpoint-only partition is not available.
 

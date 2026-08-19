@@ -13,11 +13,21 @@ import {
     calculusGraphRecognitionValue,
     calculusGraphSimplificationValue,
     calculusGraphSimplificationCheckValue,
+    calculusGraphRewriteValue,
+    calculusGraphRewriteCheckValue,
     calculusDerivativeCheckValue,
     calculusDerivativeSignValue,
     calculusLipschitzRangeValue,
     calculusTaylorRangeValue,
 } from "../../runtime/calculus-range.js";
+import {
+    rationalBoxValue,
+    multivariateRangeRequestValue,
+    jacobianBoxRangeValue,
+    affineBoxRangeValue,
+    taylorModelBoxRangeValue,
+    multivariateRangeCheckValue,
+} from "../../runtime/multivariate-range.js";
 import {
     RANGE_MATH_POLICY_KEY,
     mergeRangeMathPolicy,
@@ -122,6 +132,70 @@ function requireNonNegativeInteger(value, operation) {
 }
 
 export const arithmeticFunctions = {
+    RATIONAL_BOX: {
+        impl(args) {
+            if (args.length !== 1) throw new Error("RationalBox expects one bindings map");
+            return rationalBoxValue(args[0]);
+        },
+        pure: true,
+        doc: "Construct a checked Cartesian box of closed bounded rational intervals",
+    },
+
+    MULTIVARIATE_RANGE_REQUEST: {
+        impl(args) {
+            if (args.length < 2 || args.length > 3) {
+                throw new Error("MultivariateRangeRequest expects expression, box bindings, and optional options");
+            }
+            return multivariateRangeRequestValue(args[0], args[1], args[2]);
+        },
+        pure: true,
+        doc: "Construct a portable multivariate range request",
+    },
+
+    JACOBIAN_BOX_RANGE: {
+        impl(args, context) {
+            if (args.length < 3 || args.length > 4) {
+                throw new Error("JacobianBoxRange expects expression, gradient/Jacobian, box, and optional options");
+            }
+            return jacobianBoxRangeValue(args[0], args[1], args[2], args[3], context);
+        },
+        pure: true,
+        doc: "Certify a scalar range on a rational box using checked Jacobian bounds",
+    },
+
+    AFFINE_BOX_RANGE: {
+        impl(args, context) {
+            if (args.length < 2 || args.length > 3) {
+                throw new Error("AffineBoxRange expects expression, box, and optional options");
+            }
+            return affineBoxRangeValue(args[0], args[1], args[2], context);
+        },
+        pure: true,
+        doc: "Certify a rational-box range with correlation-preserving affine arithmetic",
+    },
+
+    TAYLOR_MODEL_BOX_RANGE: {
+        impl(args, context) {
+            if (args.length < 4 || args.length > 5) {
+                throw new Error("TaylorModelBoxRange expects expression, gradient, Hessian, box, and optional options");
+            }
+            return taylorModelBoxRangeValue(
+                args[0], args[1], args[2], args[3], args[4], context,
+            );
+        },
+        pure: true,
+        doc: "Certify a rational-box range with a multivariate Taylor model and Hessian remainder",
+    },
+
+    MULTIVARIATE_RANGE_CHECK: {
+        impl(args) {
+            if (args.length !== 1) throw new Error("MultivariateRangeCheck expects one result");
+            return multivariateRangeCheckValue(args[0]);
+        },
+        pure: true,
+        doc: "Independently recompute a Jacobian, affine, or Taylor-model enclosure",
+    },
+
     CALCULUS_RANGE: {
         impl(args, context) {
             if (args.length < 2 || args.length > 3) {
@@ -173,6 +247,26 @@ export const arithmeticFunctions = {
         },
         pure: true,
         doc: "Independently recompute a canonical Calculus graph simplification",
+    },
+
+    CALCULUS_GRAPH_REWRITE: {
+        impl(args) {
+            if (args.length !== 3) {
+                throw new Error("CalculusGraphRewrite expects source, target, and theorem");
+            }
+            return calculusGraphRewriteValue(args[0], args[1], args[2]);
+        },
+        pure: true,
+        doc: "Create and independently check a theorem-named Calculus graph rewrite",
+    },
+
+    CALCULUS_GRAPH_REWRITE_CHECK: {
+        impl(args) {
+            if (args.length !== 1) throw new Error("CalculusGraphRewriteCheck expects one rewrite record");
+            return calculusGraphRewriteCheckValue(args[0]);
+        },
+        pure: true,
+        doc: "Check a Calculus graph rewrite theorem and retained domain obligations",
     },
 
     CALCULUS_DERIVATIVE_CHECK: {

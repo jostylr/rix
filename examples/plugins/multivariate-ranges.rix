@@ -1,0 +1,25 @@
+.Plugin.Load("calculus");
+.Plugin.Load("numerics");
+
+x := .calculus.Variable(:x);
+y := .calculus.Variable(:y);
+f := x*y+x^2;
+box := .numerics.Box({= x=0:1, y=0:1 });
+gradient := .calculus.GradientResult(f,[:x,:y]);
+hessian := .calculus.HessianResult(f,[:x,:y]);
+
+jacobian := .numerics.JacobianRange(f,gradient,box,{= maxSubboxes=4 });
+affine := .numerics.AffineRange(f,box,{= maxSubboxes=4 });
+taylor := .numerics.TaylorModelRange(f,gradient,hessian,box,{= maxSubboxes=4 });
+
+{=
+  input=box,
+  jacobian=jacobian[:range],
+  affine=affine[:range],
+  taylor=taylor[:range],
+  checks=[
+    jacobian[:checker][:accepted],
+    affine[:checker][:accepted],
+    taylor[:checker][:accepted]
+  ]
+};

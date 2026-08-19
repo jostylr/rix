@@ -11,9 +11,11 @@ structurally checked monotone composition, and obligation-free polynomial
 critical-point binding are implemented too. Exact one-sided root counting and
 closed monotonicity partitions at certified rational critical points are now
 checked. Bounded Lipschitz-midpoint and signed second-derivative Taylor
-strategies are implemented with independently recomputed primitive derivative
-identities and public result checking. Semantic-application links and semantic
-derivative rules remain staged work.
+strategies are implemented with independently recomputed derivative identities
+and public result checking. Trusted v1 semantic derivative rules, checked
+algebraic rewrite proposals, rational boxes, Jacobian subdivision, affine
+arithmetic, and multivariate Taylor models are implemented. General semantic
+application range-provider links remain staged work.
 
 The following accepted pre-1.0 contracts describe the implemented foundation
 and the remaining v1 checker vocabulary:
@@ -401,8 +403,9 @@ cycles, dangling premises, unknown rules, mismatched claims, and configured
 resource-limit overruns. Primitive derivative identities, monotone composition,
 obligation-free polynomial critical-point binding, one-sided Sturm counts, and
 exact-rational critical-point monotonicity partitions are now checked.
-Semantic derivative identities remain reserved in the v1 schema and fail
-closed until their checker modules land.
+The v1 checker recognizes only the built-in versioned semantic derivative IDs
+for exponential, real log, real square root, real arcsine, and principal
+complex log. Unknown semantic IDs still fail closed.
 
 Coverage follows the same fail-closed rule. Built-in direct special-function
 providers currently cover `Erf`, `Erfc`, normal PDF, and normal CDF through
@@ -416,12 +419,12 @@ large and heuristic; the certifying kernel should remain auditable.
 
 ## Beyond unary intervals
 
-Multivariate functions need rational boxes and must preserve variable identity.
-Jacobian bounds with box subdivision are the first general extension. Affine
-arithmetic can retain linear correlations, while Taylor models combine a
-polynomial with a rigorous remainder for smoother tight enclosures. These are
-later representations consumed by Numerics; they do not replace the exact
-`RationalIntervalSet` result boundary.
+Multivariate functions use rational boxes and preserve ordered variable
+identity. Jacobian bounds with widest-axis subdivision, affine forms retaining
+linear correlations, and checked gradient/Hessian Taylor models are now
+implemented. These are internal representations consumed by Numerics; they do
+not replace the exact `RationalIntervalSet` result boundary. See
+[multivariate-ranges.md](multivariate-ranges.md).
 
 ## Development sequence
 
@@ -435,7 +438,8 @@ later representations consumed by Numerics; they do not replace the exact
 7. Move built-in unary direct ranges behind the shared provider protocol
    (implemented); richer shared fact providers remain future work.
 8. Add multivariate boxes, then affine arithmetic and Taylor models where
-   dependency makes ordinary subdivision inadequate.
+   dependency makes ordinary subdivision inadequate (implemented for the
+   checked rational-graph kernel).
 
 See [general-range-development-checklist.md](general-range-development-checklist.md)
 for implementation status and [interval-ranges-tutorial.md](interval-ranges-tutorial.md)

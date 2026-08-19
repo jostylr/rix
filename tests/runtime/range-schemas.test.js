@@ -81,5 +81,14 @@ describe("versioned certified-range schemas", () => {
         expect(facts.properties.operations.items.enum).toContain("singularities");
         expect(schema("range-provider.schema.json").properties.facts.$ref)
             .toBe("function-facts.schema.json");
+        const rewrite = schema("calculus-graph-rewrite.schema.json");
+        expect(rewrite.properties.theorem.enum).toContain("divide.cancelself");
+        const box = schema("rational-box.schema.json");
+        expect(box.properties.schema.const).toBe("rix.numerics.rational-box@1");
+        expect(box.properties.dimension.maximum).toBe(16);
+        const multivariate = schema("multivariate-range.schema.json");
+        expect(multivariate.properties.strategy.enum).toEqual([
+            "jacobianSubdivision", "affineArithmetic", "multivariateTaylorModel",
+        ]);
     });
 });

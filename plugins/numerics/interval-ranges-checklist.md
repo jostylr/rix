@@ -69,7 +69,7 @@ endpoints; it does not try to shrink uncertainty inherent in the measurement.
 - [ ] Extend certified providers to open and unbounded input/output components.
 - [x] Allow generic subdivided functions to return one nested Numerics interval
   image directly.
-- [ ] Add a certified expression-graph range engine for arithmetic that
+- [x] Add a certified expression-graph range engine for arithmetic that
   combines multiple interval images.
 
 ## Later function families
@@ -80,8 +80,8 @@ endpoints; it does not try to shrink uncertainty inherent in the measurement.
   and normal CDF).
 - [ ] Extend special-function coverage only when a monotonicity,
   critical-point, or derivative-bound proof is available.
-- [ ] Add multivariate box subdivision for correlated measurements.
-- [ ] Investigate affine arithmetic or Taylor models when ordinary interval
+- [x] Add multivariate box subdivision for correlated measurements.
+- [x] Investigate affine arithmetic or Taylor models when ordinary interval
   subdivision remains too wide.
 
 ## Verification

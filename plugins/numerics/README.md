@@ -120,9 +120,15 @@ such as `x+0`, `x*1`, and double negation, but deliberately refuses `x/x`,
 domain holes. See [Proof-preserving
 simplification](proof-preserving-simplification.md).
 
+For explicit algebraic proposals, `.numerics.RewriteGraph(source,target,
+theorem)` checks a fixed ring-rewrite vocabulary. Guarded cancellation and
+zero-product rules retain `nonzero` or `defined` obligations; they do not
+silently become unconditional simplifications.
+
 `.numerics.CheckDerivativeGraph(transformation)` independently recomputes
-primitive Calculus differentiation rather than trusting the transformation's
-visible evidence labels. `.numerics.DerivativeSign(transformation, bindings,
+Calculus differentiation from a fixed arithmetic and versioned built-in
+semantic vocabulary rather than trusting the transformation's visible
+evidence labels. `.numerics.DerivativeSign(transformation, bindings,
 options?)` then encloses that derivative and proves `nondecreasing`,
 `nonincreasing`, or `constant` only after every carried nonzero obligation is
 discharged over the complete input. A derivative spanning both signs is an
@@ -139,6 +145,15 @@ discharge derivative obligations, and include a recomputation checker result.
 The Taylor result also reports per-piece convex, concave, affine, or unknown
 curvature. See the browser-safe [Explanatory
 Explorations](../../explorations/README.md) for interactive investigations.
+
+Multivariate measurements use `.numerics.Box({= ... })` and three checked
+dependency-aware strategies. `.JacobianRange` applies certified gradient
+bounds with widest-axis subdivision, `.AffineRange` reuses noise symbols for
+repeated coordinates, and `.TaylorModelRange` uses checked gradient and
+Hessian collections with a second-order remainder. All return
+`RationalIntervalSet`, accept bounded `maxSubboxes`, and can be recomputed by
+`.CheckMultivariateRange`. See [the design](multivariate-ranges.md) and the
+[runnable tutorial](multivariate-ranges-tutorial.md).
 
 For an exact interval expression, generic subdivision can reduce dependency
 overestimation while retaining the same input occurrence in each piece:

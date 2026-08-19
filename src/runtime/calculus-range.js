@@ -18,6 +18,8 @@ export const CALCULUS_GRAPH_RANGE_SCHEMA = "rix.numerics.calculus-graph-range@1"
 export const CALCULUS_GRAPH_RANGE_CHECKER = "rix.runtime.calculus-graph-range-checker@1";
 export const CALCULUS_GRAPH_SIMPLIFICATION_SCHEMA = "rix.calculus.graph-simplification@1";
 export const CALCULUS_GRAPH_SIMPLIFICATION_CHECKER = "rix.runtime.calculus-graph-simplification-checker@1";
+export const CALCULUS_GRAPH_REWRITE_SCHEMA = "rix.calculus.graph-rewrite@1";
+export const CALCULUS_GRAPH_REWRITE_CHECKER = "rix.runtime.calculus-graph-rewrite-checker@1";
 export const CALCULUS_DERIVATIVE_SIGN_SCHEMA = "rix.numerics.calculus-derivative-sign@1";
 export const CALCULUS_LIPSCHITZ_RANGE_SCHEMA = "rix.numerics.calculus-lipschitz-range@1";
 export const CALCULUS_TAYLOR_RANGE_SCHEMA = "rix.numerics.calculus-taylor-range@1";
@@ -292,6 +294,141 @@ export function checkCalculusGraphSimplification(candidate) {
     }
 }
 
+function operatorMatch(expression, operation, arity = 2) {
+    if (!isExpression(expression) || expressionKind(expression) !== "operator" ||
+        textValue(mapValue(expression, "operation")) !== operation) return null;
+    const operands = expressionChildren(expression, "operands");
+    return operands.length === arity ? operands : null;
+}
+
+function sameGraph(left, right) {
+    return calculusGraphStructuralKey(left) === calculusGraphStructuralKey(right);
+}
+
+function expectedRewrite(source, theoremValue) {
+    const theorem = textValue(theoremValue)?.toLowerCase();
+    if (!theorem) throw new Error("missingGraphRewriteTheorem");
+    const binary = (operation) => {
+        const parts = operatorMatch(source, operation);
+        if (!parts) throw new Error("graphRewriteSourceShapeMismatch");
+        return parts;
+    };
+    let expression;
+    let obligations = [];
+    if (theorem === "add.commute" || theorem === "multiply.commute") {
+        const operation = theorem.split(".")[0];
+        const [left, right] = binary(operation);
+        expression = graphOperator(operation, [right, left]);
+    } else if (theorem === "add.associate" || theorem === "multiply.associate") {
+        const operation = theorem.split(".")[0];
+        const [leftPair, right] = binary(operation);
+        const inner = operatorMatch(leftPair, operation);
+        if (!inner) throw new Error("graphRewriteSourceShapeMismatch");
+        expression = graphOperator(operation, [inner[0], graphOperator(operation, [inner[1], right])]);
+    } else if (theorem === "multiply.distributeleft") {
+        const [factor, sum] = binary("multiply");
+        const terms = operatorMatch(sum, "add");
+        if (!terms) throw new Error("graphRewriteSourceShapeMismatch");
+        expression = graphOperator("add", [
+            graphOperator("multiply", [factor, terms[0]]),
+            graphOperator("multiply", [factor, terms[1]]),
+        ]);
+    } else if (theorem === "multiply.distributeright") {
+        const [sum, factor] = binary("multiply");
+        const terms = operatorMatch(sum, "add");
+        if (!terms) throw new Error("graphRewriteSourceShapeMismatch");
+        expression = graphOperator("add", [
+            graphOperator("multiply", [terms[0], factor]),
+            graphOperator("multiply", [terms[1], factor]),
+        ]);
+    } else if (theorem === "divide.cancelself") {
+        const [left, right] = binary("divide");
+        if (!sameGraph(left, right)) throw new Error("graphRewriteSourceShapeMismatch");
+        expression = graphConstant(1);
+        obligations = [graphObligation(left, "rewriteCancellationDomain")];
+    } else if (theorem === "subtract.cancelself") {
+        const [left, right] = binary("subtract");
+        if (!sameGraph(left, right)) throw new Error("graphRewriteSourceShapeMismatch");
+        expression = graphConstant(0);
+        obligations = [Object.freeze({
+            kind: "domain", relation: "defined", expression: left,
+            reason: "rewriteCancellationDomain",
+        })];
+    } else if (theorem === "multiply.zero") {
+        const [left, right] = binary("multiply");
+        const payload = exactGraphValue(left, 0) ? right : exactGraphValue(right, 0) ? left : null;
+        if (!payload) throw new Error("graphRewriteSourceShapeMismatch");
+        expression = graphConstant(0);
+        obligations = [Object.freeze({
+            kind: "domain", relation: "defined", expression: payload,
+            reason: "discardedOperandMustBeDefined",
+        })];
+    } else throw new Error(`unsupportedGraphRewriteTheorem:${String(theorem)}`);
+    return Object.freeze({ theorem, expression, obligations: Object.freeze(obligations) });
+}
+
+/** Build a proposal whose theorem and side conditions can be checked independently. */
+export function proposeCalculusGraphRewrite(source, expression, theorem) {
+    if (!isExpression(source) || !isExpression(expression)) {
+        throw new Error("graphRewriteRequiresExpressionGraphs");
+    }
+    const expected = expectedRewrite(source, theorem);
+    if (!sameGraph(expression, expected.expression)) throw new Error("graphRewriteTargetMismatch");
+    const proposal = Object.freeze({
+        schema: CALCULUS_GRAPH_REWRITE_SCHEMA,
+        operation: "rewrite",
+        theorem: expected.theorem,
+        source,
+        expression,
+        sourceGraph: calculusGraphStructuralKey(source),
+        targetGraph: calculusGraphStructuralKey(expression),
+        obligations: expected.obligations,
+        evidence: Object.freeze({
+            kind: "checkedAlgebraicRewrite",
+            checker: CALCULUS_GRAPH_REWRITE_CHECKER,
+            theorem: expected.theorem,
+        }),
+    });
+    return Object.freeze({ ...proposal, checker: checkCalculusGraphRewrite(proposal) });
+}
+
+/** Check theorem shape, target graph, and every retained domain side condition. */
+export function checkCalculusGraphRewrite(candidate) {
+    try {
+        const evidence = mapValue(candidate, "evidence");
+        if (textValue(mapValue(candidate, "schema")) !== CALCULUS_GRAPH_REWRITE_SCHEMA ||
+            textValue(mapValue(candidate, "operation")) !== "rewrite" ||
+            textValue(mapValue(evidence, "kind")) !== "checkedAlgebraicRewrite" ||
+            textValue(mapValue(evidence, "checker")) !== CALCULUS_GRAPH_REWRITE_CHECKER) {
+            throw new Error("unsupportedGraphRewriteEvidence");
+        }
+        const source = mapValue(candidate, "source");
+        const expression = mapValue(candidate, "expression");
+        const theorem = textValue(mapValue(candidate, "theorem"));
+        if (!isExpression(source) || !isExpression(expression)) throw new Error("malformedGraphRewrite");
+        const expected = expectedRewrite(source, theorem);
+        if (!sameGraph(expression, expected.expression)) throw new Error("graphRewriteTargetMismatch");
+        const claimed = collectionValues(mapValue(candidate, "obligations"));
+        if (!claimed || claimed.length !== expected.obligations.length ||
+            claimed.some((value, index) =>
+                obligationFingerprint(value) !== obligationFingerprint(expected.obligations[index]))) {
+            throw new Error("graphRewriteObligationMismatch");
+        }
+        return Object.freeze({
+            accepted: true,
+            certified: true,
+            checkedBy: CALCULUS_GRAPH_REWRITE_CHECKER,
+            theorem: expected.theorem,
+            sourceGraph: calculusGraphStructuralKey(source),
+            targetGraph: calculusGraphStructuralKey(expression),
+            obligations: expected.obligations,
+            expression,
+        });
+    } catch (error) {
+        return Object.freeze({ accepted: false, certified: false, reason: error.message });
+    }
+}
+
 /** Structurally substitute one Calculus variable without algebraic rewriting. */
 export function substituteCalculusGraphVariable(expression, variableValue, replacement) {
     if (!isExpression(expression) || !isExpression(replacement)) {
@@ -365,6 +502,22 @@ function graphPower(base, exponent) {
     return graphOperator("power", [base, graphConstant(exponent)]);
 }
 
+function graphScaledSelfFactor(base, derivative) {
+    if (calculusGraphStructuralKey(base) === calculusGraphStructuralKey(derivative)) {
+        return graphConstant(1);
+    }
+    const operands = expressionKind(derivative) === "operator" &&
+        textValue(mapValue(derivative, "operation")) === "multiply"
+        ? expressionChildren(derivative, "operands")
+        : [];
+    if (operands.length !== 2) return null;
+    const leftScalar = expressionKind(operands[0]) === "constant" ? operands[0] : null;
+    const rightScalar = expressionKind(operands[1]) === "constant" ? operands[1] : null;
+    if (leftScalar && sameGraph(base, operands[1])) return leftScalar;
+    if (rightScalar && sameGraph(base, operands[0])) return rightScalar;
+    return null;
+}
+
 function graphObligation(expression, reason) {
     return Object.freeze({
         kind: "domain",
@@ -374,6 +527,70 @@ function graphObligation(expression, reason) {
     });
 }
 
+const TRUSTED_SEMANTIC_DERIVATIVES = Object.freeze({
+    "rix.function.exp@1": "exp",
+    "rix.function.log.real-principal@1": "reciprocal",
+    "rix.function.sqrt.real-principal@1": "sqrt",
+    "rix.function.asin.real-principal@1": "asin",
+    "rix.function.log.complex-principal@1": "reciprocal",
+});
+
+function graphSemanticObligation(kind, relation, expression, semanticId, reason, fields = {}) {
+    return Object.freeze({ kind, relation, expression, semanticId, reason, ...fields });
+}
+
+function semanticDerivativeObligations(semanticId, argument) {
+    if (semanticId === "rix.function.log.real-principal@1" ||
+        semanticId === "rix.function.sqrt.real-principal@1") {
+        return [graphSemanticObligation(
+            "domain", "positive", argument, semanticId, "realDerivativeDomain",
+        )];
+    }
+    if (semanticId === "rix.function.asin.real-principal@1") {
+        return [graphSemanticObligation(
+            "domain", "insideOpenUnitInterval", argument, semanticId,
+            "inverseDerivativeDomain",
+        )];
+    }
+    if (semanticId === "rix.function.log.complex-principal@1") {
+        return [graphSemanticObligation(
+            "branch", "offPrincipalLogBranchCut", argument, semanticId,
+            "complexPrincipalBranch", { branch: "principal" },
+        )];
+    }
+    return [];
+}
+
+function differentiateTrustedSemanticApplication(expression, variable) {
+    const semanticId = textValue(mapValue(expression, "semanticid"));
+    const rule = TRUSTED_SEMANTIC_DERIVATIVES[semanticId];
+    if (!rule) throw new Error(`untrustedSemanticDerivative:${String(semanticId)}`);
+    const argumentsValue = expressionChildren(expression, "arguments");
+    if (argumentsValue.length !== 1) throw new Error("semanticDerivativeRequiresUnaryApplication");
+    const argument = argumentsValue[0];
+    const inner = differentiatePrimitiveNode(argument, variable);
+    const obligations = [
+        ...inner.obligations,
+        ...semanticDerivativeObligations(semanticId, argument),
+    ];
+    if (exactGraphValue(inner.expression, 0)) {
+        return { expression: inner.expression, obligations };
+    }
+    let outer;
+    if (rule === "exp") outer = expression;
+    else if (rule === "reciprocal") outer = graphDivide(graphConstant(1), argument);
+    else if (rule === "sqrt") {
+        outer = graphDivide(graphConstant(1), graphMultiply(graphConstant(2), expression));
+    } else {
+        const radicand = graphSubtract(graphConstant(1), graphPower(argument, 2n));
+        const root = graphApplication(
+            "rix.function.sqrt.real-principal@1", "Sqrt", [radicand],
+        );
+        outer = graphDivide(graphConstant(1), root);
+    }
+    return { expression: graphMultiply(outer, inner.expression), obligations };
+}
+
 function differentiatePrimitiveNode(expression, variable) {
     const kind = expressionKind(expression);
     if (kind === "constant") return { expression: graphConstant(0), obligations: [] };
@@ -381,6 +598,7 @@ function differentiatePrimitiveNode(expression, variable) {
         const name = textValue(mapValue(expression, "name"))?.toLowerCase();
         return { expression: graphConstant(name === variable ? 1 : 0), obligations: [] };
     }
+    if (kind === "apply") return differentiateTrustedSemanticApplication(expression, variable);
     if (kind !== "operator") throw new Error(`unsupportedDerivativeGraphKind:${String(kind)}`);
     const operation = textValue(mapValue(expression, "operation"));
     const operands = expressionChildren(expression, "operands");
@@ -413,12 +631,20 @@ function differentiatePrimitiveNode(expression, variable) {
     } else if (operation === "power") {
         const exponent = exactIntegerConstant(right);
         if (exponent === null) throw new Error("graphPowerRequiresIntegerConstant");
+        const selfFactor = exponent === 0n
+            ? null
+            : graphScaledSelfFactor(left, leftResult.expression);
         derivative = exponent === 0n
             ? graphConstant(0)
-            : graphMultiply(
-                graphMultiply(graphConstant(exponent), graphPower(left, exponent - 1n)),
-                leftResult.expression,
-            );
+            : selfFactor
+                ? graphMultiply(
+                    graphMultiply(graphConstant(exponent), selfFactor),
+                    graphPower(left, exponent),
+                )
+                : graphMultiply(
+                    graphMultiply(graphConstant(exponent), graphPower(left, exponent - 1n)),
+                    leftResult.expression,
+                );
         if (exponent < 0n) obligations.push(graphObligation(left, "negativeIntegerPower"));
         if (exponent === 0n) obligations.push(graphObligation(left, "zeroPowerZeroDomain"));
     } else throw new Error(`unsupportedDerivativeGraphOperator:${String(operation)}`);
@@ -528,7 +754,13 @@ export function checkCalculusDerivativeTransformation(transformation) {
     }
 }
 
-function derivativeObligationChecks(identity, bindings, options, conventions) {
+function rangeStrictlyBetween(range, low, high) {
+    if (range.isEmpty || !range.isBounded) return false;
+    return range.components.every((component) =>
+        component.low.greaterThan(low) && component.high.lessThan(high));
+}
+
+export function derivativeObligationChecks(identity, bindings, options, conventions) {
     return identity.obligations.map((obligation) => {
         if (obligation.reason === "zeroPowerZeroDomain" &&
             conventions.zeroPowerZero === "one") {
@@ -539,11 +771,11 @@ function derivativeObligationChecks(identity, bindings, options, conventions) {
                 convention: "one",
             });
         }
-        if (obligation.relation !== "nonzero") {
+        if (obligation.relation === "offPrincipalLogBranchCut") {
             return Object.freeze({
                 descriptor: obligationFingerprint(obligation),
                 discharged: false,
-                reason: "unsupportedDerivativeObligation",
+                reason: "complexBranchObligationRequiresComplexChecker",
             });
         }
         const result = evaluateCalculusGraphRange(
@@ -552,12 +784,27 @@ function derivativeObligationChecks(identity, bindings, options, conventions) {
             options,
             conventions,
         );
-        const discharged = result.certified && result.domainStatus === "allDefined" &&
-            !result.range.containsValue(Rational.zero);
+        let discharged = false;
+        if (result.certified && result.domainStatus === "allDefined") {
+            if (obligation.relation === "nonzero") {
+                discharged = !result.range.containsValue(Rational.zero);
+            } else if (obligation.relation === "positive") {
+                discharged = !result.range.isEmpty && result.range.components.every((component) =>
+                    component.low !== null && component.low.greaterThan(Rational.zero));
+            } else if (obligation.relation === "insideOpenUnitInterval") {
+                discharged = rangeStrictlyBetween(
+                    result.range, new Rational(-1), Rational.one,
+                );
+            }
+        }
         return Object.freeze({
             descriptor: obligationFingerprint(obligation),
             discharged,
-            reason: discharged ? null : "derivativeObligationNotDischarged",
+            reason: discharged ? null : (
+                ["nonzero", "positive", "insideOpenUnitInterval"].includes(obligation.relation)
+                    ? "derivativeObligationNotDischarged"
+                    : "unsupportedDerivativeObligation"
+            ),
             range: result.range,
             domainStatus: result.domainStatus,
         });
@@ -1781,6 +2028,16 @@ export function calculusGraphSimplificationValue(expression) {
 /** RiX adapter for independent graph-simplification checking. */
 export function calculusGraphSimplificationCheckValue(value) {
     return portable(checkCalculusGraphSimplification(value));
+}
+
+/** RiX adapter for a theorem-named Symbolic rewrite proposal. */
+export function calculusGraphRewriteValue(source, expression, theorem) {
+    return portable(proposeCalculusGraphRewrite(source, expression, theorem));
+}
+
+/** RiX adapter for independent theorem and side-condition checking. */
+export function calculusGraphRewriteCheckValue(value) {
+    return portable(checkCalculusGraphRewrite(value));
 }
 
 /** RiX adapter for the independently recomputed primitive derivative check. */

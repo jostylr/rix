@@ -170,7 +170,7 @@ full rule contract and extension criteria are documented in
 ## Check a derivative before using its sign
 
 `DifferentiateResult` exposes a rule trace, but a trace is not a certificate by
-itself. `CheckDerivativeGraph` independently repeats primitive differentiation
+itself. `CheckDerivativeGraph` independently repeats differentiation
 and checks the exact structural derivative plus every ordered domain
 obligation:
 
@@ -188,8 +188,12 @@ quotientDerivative := .calculus.DifferentiateResult((x+1)/(x-1),:x);
 };
 ```
 
-The primitive whitelist covers constants, variables, arithmetic, division,
-and Integer powers. Division and negative powers retain nonzero obligations.
+The whitelist covers constants, variables, arithmetic, division, Integer
+powers, and the versioned built-in semantic rules for `Exp`, real `Log`, real
+`Sqrt`, real `Asin`, and principal complex `Log`. Semantic rules reproduce
+their chain rule and retain positive-domain, open-unit-interval, or branch
+obligations. Unknown semantic IDs fail closed. Division and negative powers
+retain nonzero obligations.
 With the default `0^0` convention, differentiating `x^0` retains the source
 obligation `x != 0`; producing the constant derivative zero must not silently
 fill the original hole.

@@ -3,12 +3,12 @@ id: numerics
 description: Backend-neutral bounded enclosure and refinement orchestration.
 kind: rix
 mount: numerics
-exports: [Request, WorkPolicy, EffectiveLimits, Enclose, Refine, Sample, Range, GraphRange, CheckGraphRange, SimplifyGraph, CheckGraphSimplification, CheckDerivativeGraph, DerivativeSign, LipschitzRange, TaylorRange, RecognizeGraph, FunctionFacts, WithRangeKnowledge, RegisterRangeProvider, CheckRangeResult, Sign, RootCount, Capabilities, CheckResult, NthRoot, Sqrt, Cbrt, Hypot, Pow, Exp, Expm1, Log, Log1p, Ln, Log2, Log10, Pi, EulerGamma, Sin, Cos, Tan, Sec, Csc, Cot, Sinc, Asin, Acos, Atan, Atan2, Arcsin, Arccos, Arctan, Sinh, Cosh, Tanh, Sech, Csch, Coth, Asinh, Acosh, Atanh, Arsinh, Arcosh, Artanh, Radians, Degrees, Gamma, LogGamma, Beta, LogBeta, Digamma, Trigamma, Erf, Erfc, NormalPDF, NormalCDF, NormalQuantile, LambertW, BesselJ, BesselJ0, BesselJ1, BesselY, BesselY0, BesselY1, BesselI, BesselI0, BesselI1, BesselK, BesselK0, BesselK1, Zeta, Quadrature, Kantorovich]
+exports: [Request, WorkPolicy, EffectiveLimits, Enclose, Refine, Sample, Range, GraphRange, CheckGraphRange, SimplifyGraph, CheckGraphSimplification, RewriteGraph, CheckGraphRewrite, CheckDerivativeGraph, DerivativeSign, LipschitzRange, TaylorRange, Box, MultivariateRequest, JacobianRange, AffineRange, TaylorModelRange, CheckMultivariateRange, RecognizeGraph, FunctionFacts, WithRangeKnowledge, RegisterRangeProvider, CheckRangeResult, Sign, RootCount, Capabilities, CheckResult, NthRoot, Sqrt, Cbrt, Hypot, Pow, Exp, Expm1, Log, Log1p, Ln, Log2, Log10, Pi, EulerGamma, Sin, Cos, Tan, Sec, Csc, Cot, Sinc, Asin, Acos, Atan, Atan2, Arcsin, Arccos, Arctan, Sinh, Cosh, Tanh, Sech, Csch, Coth, Asinh, Acosh, Atanh, Arsinh, Arcosh, Artanh, Radians, Degrees, Gamma, LogGamma, Beta, LogBeta, Digamma, Trigamma, Erf, Erfc, NormalPDF, NormalCDF, NormalQuantile, LambertW, BesselJ, BesselJ0, BesselJ1, BesselY, BesselY0, BesselY1, BesselI, BesselI0, BesselI1, BesselK, BesselK0, BesselK1, Zeta, Quadrature, Kantorovich]
 groups: [Numerics]
 permissions: []
 requires: [rix.oracle@1]
 provides: [rix.numerics@1, rix.enclosable-real-consumer@1, rix.exact-sign-consumer@1, rix.root-count-consumer@1, rix.calculus-range-consumer@1]
-schemas: [rix.numerics.refinement-request@1, rix.numerics.enclosure@1, rix.numerics.algorithm-real@1, rix.numerics.interval-image@1, rix.numerics.range-enclosure@1, rix.numerics.range-provider@1, rix.numerics.range-provider-result@1, rix.numerics.function-facts@1, rix.numerics.calculus-graph-range@1, rix.calculus.graph-simplification@1, rix.numerics.calculus-graph-recognition@1, rix.numerics.calculus-derivative-sign@1, rix.exact.sign-witness@1, rix.exact.root-count@1]
+schemas: [rix.numerics.refinement-request@1, rix.numerics.enclosure@1, rix.numerics.algorithm-real@1, rix.numerics.interval-image@1, rix.numerics.range-enclosure@1, rix.numerics.range-provider@1, rix.numerics.range-provider-result@1, rix.numerics.function-facts@1, rix.numerics.calculus-graph-range@1, rix.calculus.graph-simplification@1, rix.calculus.graph-rewrite@1, rix.numerics.rational-box@1, rix.numerics.multivariate-range-request@1, rix.numerics.jacobian-box-range@1, rix.numerics.affine-box-range@1, rix.numerics.taylor-model-box-range@1, rix.numerics.calculus-graph-recognition@1, rix.numerics.calculus-derivative-sign@1, rix.exact.sign-witness@1, rix.exact.root-count@1]
 defaultEnabled: false
 **/
 
@@ -5720,6 +5720,9 @@ numericsNamespace._proto = {=
     SimplifyGraph = (self, expression) -> .CalculusGraphSimplify(expression),
     CheckGraphSimplification = (self, result) ->
         .CalculusGraphSimplificationCheck(result),
+    RewriteGraph = (self, source, target, theorem) ->
+        .CalculusGraphRewrite(source,target,theorem),
+    CheckGraphRewrite = (self, result) -> .CalculusGraphRewriteCheck(result),
     CheckDerivativeGraph = (self, transformation) -> .CalculusDerivativeCheck(transformation),
     DerivativeSign = (self, transformation, bindings, options ?= {= }) ->
         .CalculusDerivativeSign(transformation,bindings,options),
@@ -5727,6 +5730,16 @@ numericsNamespace._proto = {=
         .CalculusLipschitzRange(transformation,bindings,options),
     TaylorRange = (self, transformation, bindings, options ?= {= }) ->
         .CalculusTaylorRange(transformation,bindings,options),
+    Box = (self, bindings) -> .RationalBox(bindings),
+    MultivariateRequest = (self, expression, bindings, options ?= {= }) ->
+        .MultivariateRangeRequest(expression,bindings,options),
+    JacobianRange = (self, expression, derivatives, bindings, options ?= {= }) ->
+        .JacobianBoxRange(expression,derivatives,bindings,options),
+    AffineRange = (self, expression, bindings, options ?= {= }) ->
+        .AffineBoxRange(expression,bindings,options),
+    TaylorModelRange = (self, expression, gradient, hessian, bindings, options ?= {= }) ->
+        .TaylorModelBoxRange(expression,gradient,hessian,bindings,options),
+    CheckMultivariateRange = (self, result) -> .MultivariateRangeCheck(result),
     RecognizeGraph = (self, expression, variable) ->
         .CalculusRangeRecognize(expression, variable),
     FunctionFacts = (self, function) -> NumericsFunctionFacts(function),
