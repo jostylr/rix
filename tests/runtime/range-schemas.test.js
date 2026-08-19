@@ -26,8 +26,10 @@ describe("versioned certified-range schemas", () => {
         const rules = schema("range-evidence.schema.json").$defs.node.properties.rule.enum;
         expect(rules).toContain("arith.divide");
         expect(rules).toContain("monotone.derivativeSign");
+        expect(rules).toContain("monotone.polynomialPiece");
         expect(rules).toContain("polynomial.sturmSequence");
         expect(rules).toContain("polynomial.completeCriticalPoints");
+        expect(rules).toContain("polynomial.monotonicityPartition");
     });
 
     test("domain and calculus witnesses bind exact subject identities and inputs", () => {
@@ -39,10 +41,12 @@ describe("versioned certified-range schemas", () => {
             "derivative-range-witness.schema.json",
             "monotonicity-witness.schema.json",
             "critical-points-witness.schema.json",
+            "monotonicity-partition-witness.schema.json",
         ]) {
             const value = schema(name);
             expect(value.required).toContain("functionGraph");
         }
+        expect(schema("critical-points-witness.schema.json").required).toContain("variable");
     });
 
     test("the Calculus graph-range result separates enclosure from exact image", () => {

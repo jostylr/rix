@@ -8,8 +8,9 @@ derivative-sign checking, closed monotone endpoint formation, and exact
 rational-polynomial Sturm/root-isolation rules are implemented.
 Primitive derivative-graph checking, generic derivative-sign reasoning,
 structurally checked monotone composition, and obligation-free polynomial
-critical-point binding are implemented too. Semantic-application links,
-semantic derivative rules, and one-sided critical-point partitions remain
+critical-point binding are implemented too. Exact one-sided root counting and
+closed monotonicity partitions at certified rational critical points are now
+checked. Semantic-application links and semantic derivative rules remain
 staged work.
 
 The following accepted pre-1.0 contracts describe the implemented foundation
@@ -377,19 +378,20 @@ Versioned portable schemas now live under `rix/schemas` for:
 - `domain-witness`;
 - `derivative-range-witness`;
 - `monotonicity-witness`;
-- `critical-points-witness`; and
+- `critical-points-witness`;
+- `monotonicity-partition-witness`; and
 - the aggregate general range result/evidence DAG.
 
 Schema validation checks shape, not mathematical truth. The first deliberately
 small checker module validates exact set operations, exact partitions,
 proof-safe arithmetic images, derivative signs, closed monotone endpoint
 formation, canonical Sturm sequences, exact root counts, complete isolations
-with non-root rational endpoints, and host-resolved trusted leaves. It rejects
+with exact endpoint topology, and host-resolved trusted leaves. It rejects
 cycles, dangling premises, unknown rules, mismatched claims, and configured
 resource-limit overruns. Primitive derivative identities, monotone composition,
-and obligation-free polynomial critical-point binding are now checked.
-Semantic derivative identities, one-sided root endpoint policies, and final
-monotonicity partition formation remain reserved in the v1 schema and fail
+obligation-free polynomial critical-point binding, one-sided Sturm counts, and
+exact-rational critical-point monotonicity partitions are now checked.
+Semantic derivative identities remain reserved in the v1 schema and fail
 closed until their checker modules land.
 
 Keep the checker independent of the main strategy engine. Strategy may become

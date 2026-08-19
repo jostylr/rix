@@ -725,6 +725,7 @@ describe("range evidence checker v1 exact kernel", () => {
                     type: "criticalPoints",
                     functionGraph: checked.functionGraph,
                     derivativeGraph: checked.derivativeGraph,
+                    variable: "x",
                     searchSet,
                     isolatingComponents,
                     endpointPolicy: "endpointsNotRoots",
@@ -745,6 +746,191 @@ describe("range evidence checker v1 exact kernel", () => {
         };
         expect(checkRangeEvidence(document(changed))).toMatchObject({
             accepted: false, diagnostics: ["criticalPointIdentityMismatch"],
+        });
+        const changedVariable = [...nodes];
+        changedVariable[3] = {
+            ...nodes[3], conclusion: { ...nodes[3].conclusion, variable: "y" },
+        };
+        expect(checkRangeEvidence(document(changedVariable))).toMatchObject({
+            accepted: false, diagnostics: ["criticalPointIdentityMismatch"],
+        });
+    });
+
+    test("counts endpoint roots with explicit one-sided topology", () => {
+        const polynomial = [0, 1];
+        const sturm = {
+            id: "sturm", rule: "polynomial.sturmSequence", premises: [],
+            conclusion: {
+                type: "sturmSequence", polynomial,
+                sequence: [polynomial, [1]],
+            },
+        };
+        const count = (input, endpointPolicy, expected) => ({
+            id: "count", rule: "polynomial.rootCount", premises: ["sturm"],
+            conclusion: {
+                type: "rootCount", polynomial, input, endpointPolicy, count: expected,
+            },
+        });
+        const cases = [
+            [set({ low: 0, high: 1 }), "closed", 1],
+            [set({ low: 0, high: 1, highClosed: false }), "leftClosed", 1],
+            [set({ low: 0, high: 1, lowClosed: false }), "rightClosed", 0],
+            [set({ low: -1, high: 1, lowClosed: false, highClosed: false }), "open", 1],
+            [RationalIntervalSet.point(0), "closed", 1],
+        ];
+        for (const [input, endpointPolicy, expected] of cases) {
+            expect(checkRangeEvidence(document([sturm, count(input, endpointPolicy, expected)])))
+                .toMatchObject({ accepted: true, conclusion: { count: expected } });
+        }
+
+        expect(checkRangeEvidence(document([
+            sturm, count(set({ low: 0, high: 1 }), "endpointsNotRoots", 1),
+        ]))).toMatchObject({ accepted: false, diagnostics: ["rootAtCountEndpoint"] });
+        expect(checkRangeEvidence(document([
+            sturm, count(set({ low: 0, high: 1, highClosed: false }), "closed", 1),
+        ]))).toMatchObject({
+            accepted: false, diagnostics: ["rootEndpointPolicyTopologyMismatch"],
+        });
+
+        const repeatedPolynomial = [1, -2, 1];
+        const repeatedSturm = {
+            id: "repeated-sturm", rule: "polynomial.sturmSequence", premises: [],
+            conclusion: {
+                type: "sturmSequence", polynomial: repeatedPolynomial,
+                sequence: [repeatedPolynomial, [-2, 2]],
+            },
+        };
+        const repeatedCount = (input, endpointPolicy, expected) => ({
+            id: "repeated-count", rule: "polynomial.rootCount",
+            premises: ["repeated-sturm"],
+            conclusion: {
+                type: "rootCount", polynomial: repeatedPolynomial,
+                input, endpointPolicy, count: expected,
+            },
+        });
+        expect(checkRangeEvidence(document([
+            repeatedSturm, repeatedCount(set({ low: 1, high: 2 }), "closed", 1),
+        ]))).toMatchObject({ accepted: true, conclusion: { count: 1 } });
+        expect(checkRangeEvidence(document([
+            repeatedSturm,
+            repeatedCount(set({ low: 1, high: 2, lowClosed: false }), "rightClosed", 0),
+        ]))).toMatchObject({ accepted: true, conclusion: { count: 0 } });
+    });
+
+    test("forms and consumes a checked polynomial monotonicity partition", () => {
+        const constant = (value) => ({
+            schema: "rix.calculus.expression@1", kind: "constant", value,
+        });
+        const variable = {
+            schema: "rix.calculus.expression@1", kind: "variable", name: "x",
+        };
+        const operator = (operation, ...operands) => ({
+            schema: "rix.calculus.expression@1", kind: "operator", operation, operands,
+        });
+        const source = operator(
+            "subtract",
+            operator("power", variable, constant(3)),
+            operator("multiply", constant(3), variable),
+        );
+        const derived = differentiateCalculusPrimitiveGraph(source, "x");
+        const transformation = {
+            schema: "rix.calculus.transformation@1",
+            operation: "differentiate",
+            variable: "x",
+            source,
+            expression: derived.expression,
+            obligations: [],
+        };
+        const checked = checkCalculusDerivativeTransformation(transformation);
+        const polynomial = [-3, 0, 3];
+        const parent = set({ low: -2, high: 2 });
+        const roots = [new RationalIntervalSet({ low: -1, high: -1 }),
+            new RationalIntervalSet({ low: 1, high: 1 })];
+        const pieces = [
+            set({ low: -2, high: -1 }),
+            set({ low: -1, high: 1 }),
+            set({ low: 1, high: 2 }),
+        ];
+        const directions = ["nondecreasing", "nonincreasing", "nondecreasing"];
+        const nodes = [
+            {
+                id: "identity", rule: "derivative.graph", premises: [],
+                parameters: { transformation },
+                conclusion: {
+                    type: "derivativeIdentity", functionGraph: checked.functionGraph,
+                    derivativeGraph: checked.derivativeGraph, variable: "x", obligations: [],
+                },
+            },
+            {
+                id: "sturm", rule: "polynomial.sturmSequence", premises: [],
+                conclusion: {
+                    type: "sturmSequence", polynomial,
+                    sequence: [polynomial, [0, 6], [3]],
+                },
+            },
+            {
+                id: "roots", rule: "polynomial.isolateRoots", premises: ["sturm"],
+                conclusion: {
+                    type: "isolatedRoots", polynomial, searchSet: parent,
+                    isolatingComponents: roots, endpointPolicy: "closed", complete: true,
+                },
+            },
+            {
+                id: "critical", rule: "polynomial.completeCriticalPoints",
+                premises: ["identity", "roots"],
+                conclusion: {
+                    type: "criticalPoints", functionGraph: checked.functionGraph,
+                    derivativeGraph: checked.derivativeGraph, variable: "x", searchSet: parent,
+                    isolatingComponents: roots, endpointPolicy: "closed", complete: true,
+                },
+            },
+            {
+                id: "partition", rule: "polynomial.monotonicityPartition",
+                premises: ["critical"],
+                conclusion: {
+                    type: "monotonicityPartition", functionGraph: checked.functionGraph,
+                    derivativeGraph: checked.derivativeGraph, variable: "x", parent,
+                    pieces, directions, roots: [-1, 1], endpointPolicy: "closed",
+                },
+            },
+            ...pieces.map((input, pieceIndex) => ({
+                id: `monotone-${pieceIndex}`,
+                rule: "monotone.polynomialPiece",
+                premises: ["partition"],
+                parameters: { pieceIndex },
+                conclusion: {
+                    type: "monotonicity", functionGraph: checked.functionGraph,
+                    input, direction: directions[pieceIndex],
+                },
+            })),
+        ];
+        expect(checkRangeEvidence(document(nodes))).toMatchObject({
+            accepted: true,
+            certified: true,
+            conclusion: { direction: "nondecreasing", criticalRoots: expect.any(Array) },
+        });
+
+        const wrongDirection = [...nodes];
+        wrongDirection.at(-1).conclusion = {
+            ...wrongDirection.at(-1).conclusion, direction: "nonincreasing",
+        };
+        expect(checkRangeEvidence(document(wrongDirection))).toMatchObject({
+            accepted: false, diagnostics: ["monotonicityPieceMismatch"],
+        });
+
+        const nonExactIsolations = [set({ low: -1, high: "-1/2" }), roots[1]];
+        const nonExactRoots = [...nodes.slice(0, 2), {
+            ...nodes[2], conclusion: {
+                ...nodes[2].conclusion, isolatingComponents: nonExactIsolations,
+            },
+        }, {
+            ...nodes[3], conclusion: {
+                ...nodes[3].conclusion, isolatingComponents: nonExactIsolations,
+            },
+        }, nodes[4]];
+        expect(checkRangeEvidence(document(nonExactRoots))).toMatchObject({
+            accepted: false,
+            diagnostics: ["criticalPointNotExactRational"],
         });
     });
 });

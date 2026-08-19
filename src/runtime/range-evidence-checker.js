@@ -118,17 +118,62 @@ function signVariations(sequence, point) {
     return variations;
 }
 
+function polynomialSignBeside(polynomial, point, side) {
+    if (side !== "left" && side !== "right") throw new Error("invalidRootSide");
+    let derivative = normalizePolynomial(polynomial);
+    let order = 0;
+    while (!zeroPolynomial(derivative)) {
+        const sign = polynomialSignAt(derivative, point);
+        if (sign !== 0) return side === "left" && order % 2 === 1 ? -sign : sign;
+        derivative = normalizePolynomial(polynomialDerivative(derivative));
+        order += 1;
+    }
+    return 0;
+}
+
+function signVariationsBeside(sequence, point, side) {
+    const signs = sequence.map((polynomial) => polynomialSignBeside(polynomial, point, side))
+        .filter((sign) => sign !== 0);
+    let variations = 0;
+    for (let index = 1; index < signs.length; index += 1) {
+        if (signs[index] !== signs[index - 1]) variations += 1;
+    }
+    return variations;
+}
+
+function endpointPolicyTopology(endpointPolicy, component) {
+    const expected = {
+        open: [false, false],
+        closed: [true, true],
+        leftClosed: [true, false],
+        rightClosed: [false, true],
+    }[endpointPolicy];
+    if (!expected) return;
+    if (component.lowClosed !== expected[0] || component.highClosed !== expected[1]) {
+        throw new Error("rootEndpointPolicyTopologyMismatch");
+    }
+}
+
 function rootCountOnSet(sequence, input, endpointPolicy) {
     const set = asSet(input);
     if (set.isEmpty || set.componentCount !== 1) throw new Error("rootCountRequiresConnectedInput");
     const component = set.components[0];
     if (component.low === null || component.high === null) throw new Error("rootCountRequiresBoundedInput");
-    if (endpointPolicy !== "endpointsNotRoots") throw new Error("unsupportedRootEndpointPolicy");
-    if (polynomialSignAt(sequence[0], component.low) === 0 ||
-        polynomialSignAt(sequence[0], component.high) === 0) {
-        throw new Error("rootAtCountEndpoint");
+    const lowIsRoot = polynomialSignAt(sequence[0], component.low) === 0;
+    const highIsRoot = polynomialSignAt(sequence[0], component.high) === 0;
+    if (endpointPolicy === "endpointsNotRoots") {
+        if (lowIsRoot || highIsRoot) throw new Error("rootAtCountEndpoint");
+        return signVariations(sequence, component.low) - signVariations(sequence, component.high);
     }
-    return signVariations(sequence, component.low) - signVariations(sequence, component.high);
+    if (!["open", "closed", "leftClosed", "rightClosed"].includes(endpointPolicy)) {
+        throw new Error("unsupportedRootEndpointPolicy");
+    }
+    endpointPolicyTopology(endpointPolicy, component);
+    if (component.low.equals(component.high)) return lowIsRoot ? 1 : 0;
+    const interior = signVariationsBeside(sequence, component.low, "right") -
+        signVariationsBeside(sequence, component.high, "left");
+    return interior + (component.lowClosed && lowIsRoot ? 1 : 0) +
+        (component.highClosed && highIsRoot ? 1 : 0);
 }
 
 function sturmSequenceFact(value, maxDegree) {
@@ -217,6 +262,44 @@ function partitionFact(value) {
     };
 }
 
+function criticalPointsFact(value) {
+    if (value?.type !== "criticalPoints" || value.complete !== true ||
+        typeof value.functionGraph !== "string" ||
+        typeof value.derivativeGraph !== "string" ||
+        typeof value.variable !== "string" ||
+        !Array.isArray(value.isolatingComponents)) {
+        throw new Error("expectedCriticalPointsFact");
+    }
+    return {
+        ...value,
+        searchSet: asSet(value.searchSet),
+        isolatingComponents: value.isolatingComponents.map(asSet),
+        polynomial: normalizePolynomial(value.polynomial),
+    };
+}
+
+function monotonicityPartitionFact(value) {
+    if (value?.type !== "monotonicityPartition" ||
+        typeof value.functionGraph !== "string" ||
+        typeof value.derivativeGraph !== "string" ||
+        typeof value.variable !== "string" ||
+        !Array.isArray(value.pieces) || !Array.isArray(value.directions) ||
+        value.pieces.length !== value.directions.length) {
+        throw new Error("expectedMonotonicityPartitionFact");
+    }
+    return {
+        ...value,
+        parent: asSet(value.parent),
+        pieces: value.pieces.map(asSet),
+        roots: (value.roots || []).map(exactRational),
+    };
+}
+
+function rangeCoverFact(value) {
+    if (value?.type === "partition") return partitionFact(value);
+    return monotonicityPartitionFact(value);
+}
+
 function aggregateDomainCoverage(values) {
     const coverages = values.map((value) => value.domainCoverage);
     if (coverages.includes("unresolved")) return "unresolved";
@@ -233,6 +316,9 @@ function countComponents(value) {
     if (!value || typeof value !== "object") return 0;
     if (value.type === "exactSet" && value.set) return countComponents(asSet(value.set));
     if (value.type === "rangeEnclosure" && value.range) return countComponents(asSet(value.range));
+    if (value.type === "monotonicityPartition") {
+        return (value.pieces || []).reduce((sum, piece) => sum + countComponents(asSet(piece)), 0);
+    }
     return 0;
 }
 
@@ -333,7 +419,7 @@ function checkNode(node, premises, options) {
         case "range.assembleUnion":
         case "range.assembleHull": {
             if (premises.length < 2) throw new Error("missingPremise");
-            const partition = partitionFact(premises[0].fact);
+            const partition = rangeCoverFact(premises[0].fact);
             const pieces = premises.slice(1).map((premise) => rangeEnclosureFact(premise.fact));
             const claimed = rangeEnclosureFact(conclusion);
             if (pieces.length !== partition.pieces.length) throw new Error("rangePartitionCountMismatch");
@@ -461,6 +547,8 @@ function checkNode(node, premises, options) {
             if (conclusion?.type !== "criticalPoints" || conclusion.complete !== true ||
                 !sameIdentity(conclusion.functionGraph, identity.functionGraph) ||
                 !sameIdentity(conclusion.derivativeGraph, identity.derivativeGraph) ||
+                typeof conclusion.variable !== "string" ||
+                conclusion.variable.toLowerCase() !== identity.variable.toLowerCase() ||
                 conclusion.endpointPolicy !== isolated.endpointPolicy ||
                 !sameSet(conclusion.searchSet, isolated.searchSet) ||
                 !Array.isArray(conclusion.isolatingComponents) ||
@@ -472,10 +560,78 @@ function checkNode(node, premises, options) {
             return {
                 fact: {
                     ...conclusion,
+                    variable: identity.variable,
                     searchSet: asSet(isolated.searchSet),
                     isolatingComponents: isolated.isolatingComponents.map(asSet),
                     polynomial: recognition.numerator,
                 },
+                trusted: false,
+            };
+        }
+        case "polynomial.monotonicityPartition": {
+            if (premises.length !== 1) throw new Error("wrongPremiseCount");
+            const critical = criticalPointsFact(premises[0].fact);
+            if (critical.endpointPolicy !== "closed") {
+                throw new Error("monotonicityPartitionRequiresClosedRootPolicy");
+            }
+            if (critical.searchSet.isEmpty || critical.searchSet.componentCount !== 1) {
+                throw new Error("monotonicityPartitionRequiresConnectedInput");
+            }
+            const component = critical.searchSet.components[0];
+            if (component.low === null || component.high === null ||
+                !component.lowClosed || !component.highClosed) {
+                throw new Error("monotonicityPartitionRequiresClosedBoundedInput");
+            }
+            const roots = critical.isolatingComponents.map((isolation) => {
+                if (isolation.componentCount !== 1) throw new Error("criticalPointNotExactRational");
+                const isolated = isolation.components[0];
+                if (isolated.low === null || isolated.high === null ||
+                    !isolated.lowClosed || !isolated.highClosed ||
+                    !isolated.low.equals(isolated.high)) {
+                    throw new Error("criticalPointNotExactRational");
+                }
+                return isolated.low;
+            }).sort((left, right) => left.lessThan(right) ? -1 : left.greaterThan(right) ? 1 : 0);
+            if (roots.some((root, index) => index > 0 && root.equals(roots[index - 1]))) {
+                throw new Error("duplicateCriticalPoint");
+            }
+            const breakpoints = [component.low];
+            for (const root of roots) {
+                if (component.low.lessThan(root) && root.lessThan(component.high)) breakpoints.push(root);
+            }
+            if (!component.low.equals(component.high)) breakpoints.push(component.high);
+            const pieces = [];
+            const directions = [];
+            if (breakpoints.length === 1) {
+                pieces.push(RationalIntervalSet.point(breakpoints[0]));
+                directions.push("constant");
+            } else {
+                for (let index = 1; index < breakpoints.length; index += 1) {
+                    const low = breakpoints[index - 1];
+                    const high = breakpoints[index];
+                    const piece = new RationalIntervalSet({ low, high });
+                    const midpoint = low.add(high).divide(new Rational(2));
+                    const sign = polynomialSignAt(critical.polynomial, midpoint);
+                    if (sign === 0) throw new Error("incompleteCriticalPointPartition");
+                    pieces.push(piece);
+                    directions.push(sign > 0 ? "nondecreasing" : "nonincreasing");
+                }
+            }
+            const claimed = monotonicityPartitionFact(conclusion);
+            if (!sameIdentity(claimed.functionGraph, critical.functionGraph) ||
+                !sameIdentity(claimed.derivativeGraph, critical.derivativeGraph) ||
+                claimed.variable.toLowerCase() !== critical.variable.toLowerCase() ||
+                !claimed.parent.equals(critical.searchSet) ||
+                claimed.endpointPolicy !== critical.endpointPolicy ||
+                claimed.pieces.length !== pieces.length ||
+                claimed.pieces.some((piece, index) => !piece.equals(pieces[index])) ||
+                claimed.directions.some((direction, index) => direction !== directions[index]) ||
+                claimed.roots.length !== roots.length ||
+                claimed.roots.some((root, index) => !root.equals(roots[index]))) {
+                throw new Error("monotonicityPartitionMismatch");
+            }
+            return {
+                fact: { ...claimed, parent: critical.searchSet, pieces, directions, roots },
                 trusted: false,
             };
         }
@@ -598,6 +754,30 @@ function checkNode(node, premises, options) {
                 trusted: false,
             };
         }
+        case "monotone.polynomialPiece": {
+            if (premises.length !== 1) throw new Error("wrongPremiseCount");
+            const partition = monotonicityPartitionFact(premises[0].fact);
+            const pieceIndex = node.parameters?.pieceIndex;
+            if (!Number.isSafeInteger(pieceIndex) || pieceIndex < 0 ||
+                pieceIndex >= partition.pieces.length) {
+                throw new Error("invalidMonotonicityPieceIndex");
+            }
+            const claimed = monotonicityFact(conclusion);
+            if (!sameIdentity(claimed.functionGraph, partition.functionGraph) ||
+                !claimed.input.equals(partition.pieces[pieceIndex]) ||
+                claimed.direction !== partition.directions[pieceIndex]) {
+                throw new Error("monotonicityPieceMismatch");
+            }
+            return {
+                fact: {
+                    ...claimed,
+                    derivativeGraph: partition.derivativeGraph,
+                    variable: partition.variable,
+                    criticalRoots: partition.roots,
+                },
+                trusted: false,
+            };
+        }
         case "range.monotoneEndpoints": {
             if (premises.length !== 3) throw new Error("wrongPremiseCount");
             const monotonicity = monotonicityFact(premises[0].fact);
@@ -663,9 +843,9 @@ function checkNode(node, premises, options) {
 
 /**
  * Check the implemented exact-set, partition, arithmetic, derivative-sign,
- * monotone-endpoint, polynomial Sturm/root-isolation, and authority-bound leaf
- * subset of the range-checker v1 vocabulary. Unsupported v1 rules fail closed
- * until their checker modules land.
+ * monotone-endpoint, polynomial Sturm/root-isolation/monotonicity-partition,
+ * and authority-bound leaf subset of the range-checker v1 vocabulary.
+ * Unsupported v1 rules fail closed until their checker modules land.
  */
 export function checkRangeEvidence(document, options = {}) {
     const limits = { ...DEFAULT_LIMITS, ...(options.limits || {}) };

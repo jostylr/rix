@@ -3,10 +3,10 @@
 Status: accepted pre-1.0 contract with staged implementation. The versioned
 schema and the independent exact set, partition, arithmetic, trusted-leaf,
 primitive derivative-graph, derivative-sign, closed monotone-endpoint, and
-polynomial Sturm/root-isolation checker kernel are implemented. Semantic
-derivative rules and one-sided critical-point partition endpoints remain
-reserved and fail closed until their checker modules land. Every detail remains
-changeable until RiX 1.0.
+polynomial Sturm/root-isolation, one-sided root-counting, and exact-rational
+critical-point partition checker kernel are implemented. Semantic derivative
+rules remain reserved and fail closed until their checker modules land. Every
+detail remains changeable until RiX 1.0.
 
 ## Recommended decisions
 
@@ -136,6 +136,8 @@ The v1 checker understands these conclusion shapes:
 | `monotonicity` | Function graph, input piece, and `nondecreasing`, `nonincreasing`, or `constant`. |
 | `rootCount` | Exact polynomial, interval, endpoint policy, and nonnegative count. |
 | `isolatedRoots` | Exact polynomial, search set, isolating components, and completeness statement. |
+| `criticalPoints` | Source graph, derivative graph, differentiation variable, search set, and complete derivative-root isolation. |
+| `monotonicityPartition` | Source and derivative identities, closed input, exact critical roots, closed covering pieces, and one checked direction per piece. |
 
 Facts use exact rational data. Approximate binary64 values may appear only in
 non-certifying provenance.
@@ -223,6 +225,7 @@ domain unresolved. It cannot be converted into an exclusion.
 | `derivative.graph` | Checks an exact derivative graph from the whitelist of v1 graph primitives, including product, quotient, and chain rules and their domain obligations. |
 | `monotone.derivativeSign` | Requires a checked derivative identity and derivative range on the whole connected input piece. A range contained in `[0,+Infinity)` proves nondecreasing; one contained in `(-Infinity,0]` proves nonincreasing. |
 | `monotone.compose` | Combines checked monotonicity facts with the usual direction table and checks that the inner image lies in the outer fact's covered domain. |
+| `monotone.polynomialPiece` | Selects one checked direction and exact closed piece from a polynomial monotonicity partition. |
 | `range.monotoneEndpoints` | On one closed bounded connected input piece, checks endpoint enclosures and forms the output enclosure using the monotonicity direction. |
 
 The implemented `derivative.graph` whitelist independently differentiates
@@ -261,24 +264,39 @@ value.
 | `polynomial.sturmSequence` | Recomputes or verifies the exact signed remainder sequence for a rational polynomial. |
 | `polynomial.rootCount` | Uses exact sign variation, with an explicit endpoint convention, to check the number of distinct real roots in a component. |
 | `polynomial.isolateRoots` | Checks pairwise-disjoint isolating intervals, one root in each, zero roots in the uncovered remainder, and exact coverage of the search set. |
-| `polynomial.completeCriticalPoints` | Relates the polynomial derivative to the source graph and turns complete derivative-root isolation into a complete critical-point partition. |
+| `polynomial.completeCriticalPoints` | Relates the polynomial derivative to the source graph and turns complete derivative-root isolation into a complete critical-point fact. |
+| `polynomial.monotonicityPartition` | Requires complete singleton rational critical roots, recomputes the closed pieces between them, and determines every direction from the exact derivative sign in the root-free interior. |
 
-Repeated roots and roots at rational partition endpoints must use an explicit
-half-open counting convention so that no root is missed or counted twice.
+Root counting supports `endpointsNotRoots`, `open`, `closed`, `leftClosed`, and
+`rightClosed`. The last four must match the exact `RationalIntervalSet`
+topology. At a polynomial-zero endpoint the checker computes the exact
+one-sided signs of every Sturm polynomial from the first nonzero derivative,
+so repeated roots are neither lost nor counted twice. `endpointsNotRoots`
+retains the useful stricter assertion and rejects any root at either endpoint.
 
-The implemented first slice uses `endpointPolicy="endpointsNotRoots"`: it
-recomputes a canonical signed-remainder sequence, rejects a counting endpoint
-that is itself a root, counts distinct roots by exact sign variation, and
-checks that every proposed isolating component contains exactly one root while
-their total count equals the search-set count. This is sufficient for ordinary
-rational isolating intervals. One-sided endpoint conventions and
-monotonicity partition formation remain fail-closed work.
+The checker recomputes a canonical signed-remainder sequence, counts distinct
+roots by exact sign variation, and checks that every proposed isolating
+component contains exactly one root while their total count equals the
+search-set count.
 
 `polynomial.completeCriticalPoints` now binds an obligation-free checked
 primitive derivative graph to its recognized exact polynomial and the complete
 isolation fact. It rejects a polynomial belonging to a different derivative
 graph. Derivatives with unresolved source-domain obligations require a checked
 domain partition before this rule can apply.
+
+When every isolated critical point is an exact rational singleton,
+`polynomial.monotonicityPartition` forms closed pieces between the input
+endpoints and those roots. Adjacent pieces intentionally meet at a listed
+critical point: this is a closed cover for endpoint evaluation, not a
+pairwise-disjoint set partition. The checker samples no floating-point values;
+it evaluates the exact derivative polynomial at a rational interior midpoint
+and uses root completeness to know the sign cannot change inside the piece.
+`monotone.polynomialPiece` exposes each resulting fact to
+`range.monotoneEndpoints`, and range assembly may safely union the overlapping
+piece images. Irrational critical points remain represented by rational
+isolating bands and require a separate range strategy on those bands rather
+than being invented as rational split points.
 
 ## Certification result
 

@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rix.ratmath.com/schema/monotonicity-partition-witness/v1.schema.json",
+  "title": "RiX exact polynomial monotonicity partition witness v1",
+  "description": "A closed bounded input covered by closed monotonicity pieces. Adjacent pieces may meet only at the listed exact critical roots.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "functionGraph", "derivativeGraph", "variable", "parent", "pieces", "directions", "roots", "endpointPolicy", "evidence"],
+  "properties": {
+    "schema": { "const": "rix.calculus.monotonicity-partition-witness@1" },
+    "functionGraph": { "type": "string", "minLength": 1 },
+    "derivativeGraph": { "type": "string", "minLength": 1 },
+    "variable": { "type": "string", "minLength": 1 },
+    "parent": { "$ref": "range-set.schema.json" },
+    "pieces": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "range-set.schema.json" }
+    },
+    "directions": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "enum": ["nondecreasing", "nonincreasing", "constant"] }
+    },
+    "roots": {
+      "type": "array",
+      "items": { "$ref": "range-set.schema.json#/$defs/rational" }
+    },
+    "endpointPolicy": { "const": "closed" },
+    "evidence": {}
+  }
+}

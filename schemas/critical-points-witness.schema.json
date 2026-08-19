@@ -4,11 +4,12 @@
   "title": "RiX complete critical-points witness v1",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "functionGraph", "derivativeGraph", "searchSet", "isolatingComponents", "complete", "evidence"],
+  "required": ["schema", "functionGraph", "derivativeGraph", "variable", "searchSet", "isolatingComponents", "complete", "endpointPolicy", "evidence"],
   "properties": {
     "schema": { "const": "rix.calculus.critical-points-witness@1" },
     "functionGraph": { "type": "string", "minLength": 1 },
     "derivativeGraph": { "type": "string", "minLength": 1 },
+    "variable": { "type": "string", "minLength": 1 },
     "searchSet": { "$ref": "range-set.schema.json" },
     "isolatingComponents": {
       "type": "array",

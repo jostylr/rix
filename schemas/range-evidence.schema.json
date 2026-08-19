@@ -31,8 +31,8 @@
             "range.assembleUnion", "range.assembleHull",
             "arith.negate", "arith.absoluteValue", "arith.add", "arith.subtract", "arith.multiply", "arith.reciprocal", "arith.divide", "arith.integerPower",
             "domain.primitive", "domain.partition", "domain.compose", "range.compose", "range.global",
-            "derivative.graph", "monotone.derivativeSign", "monotone.compose", "range.monotoneEndpoints",
-            "polynomial.sturmSequence", "polynomial.rootCount", "polynomial.isolateRoots", "polynomial.completeCriticalPoints"
+            "derivative.graph", "monotone.derivativeSign", "monotone.compose", "monotone.polynomialPiece", "range.monotoneEndpoints",
+            "polynomial.sturmSequence", "polynomial.rootCount", "polynomial.isolateRoots", "polynomial.completeCriticalPoints", "polynomial.monotonicityPartition"
           ]
         },
         "premises": { "type": "array", "items": { "type": "string" } },

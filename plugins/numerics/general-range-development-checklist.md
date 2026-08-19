@@ -82,6 +82,8 @@ focused tests exist; design-only work remains unchecked.
 - [x] Add `derivative-range-witness` schema tied to graph identity and input.
 - [x] Add `monotonicity-witness` schema with direction and derivative evidence.
 - [x] Add complete `critical-points-witness` schema with isolation intervals.
+- [x] Add `monotonicity-partition-witness` schema for exact critical roots,
+  closed pieces, and their checked directions.
 - [x] Add evidence-DAG schema with premise and provider references.
 - [x] Preserve `:poleInInput` versus `:poleNotExcluded` in set-valued results.
 - [x] Test malformed, mismatched-identity, incomplete-partition, and stale
@@ -121,8 +123,8 @@ focused tests exist; design-only work remains unchecked.
   endpoints.
 - [x] Relate complete non-root-endpoint derivative isolation to its checked
   obligation-free polynomial source graph.
-- [ ] Add one-sided root counting and form monotonicity partitions when a
-  critical point lies at a partition endpoint.
+- [x] Add exact one-sided root counting and form closed monotonicity partitions
+  whose adjacent pieces share only certified rational critical endpoints.
 - [x] Add a generic primitive derivative-sign range strategy that checks graph
   identity, encloses the derivative, and discharges every carried obligation.
 - [ ] Add generic Lipschitz midpoint strategy with bounded subdivision.
@@ -217,5 +219,10 @@ focused tests exist; design-only work remains unchecked.
 - Primitive derivative transformation, generic derivative-sign, monotone
   composition, and polynomial critical-point binding integration: 46 focused
   tests passed with zero failures (247 assertions).
-- Complete RiX suite after this stage: 2,583 tests passed across 132 files with
-  zero failures (8,636 assertions).
+- One-sided root topology, repeated endpoint roots, exact critical-point
+  partitions, and schema integration: 18 focused tests passed with zero
+  failures (84 assertions).
+- Complete RiX suite after this stage: 2,585 tests passed across 132 files with
+  zero failures (8,653 assertions).
+- The derivative-witness tutorial now has five runnable RiX blocks; all five
+  execute successfully in the documentation checker.

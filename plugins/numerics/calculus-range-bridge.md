@@ -1,10 +1,11 @@
 # Calculus graphs as certified-range subjects
 
 Status: exact-primitive graph evaluation, primitive derivative checking, and
-generic derivative-sign reasoning implemented; semantic applications and
-semantic derivative rules staged. The Calculus expression and transformation
-records provide the identity, immutability, derivative, and obligation
-boundary needed by the general range engine.
+generic derivative-sign reasoning implemented, together with exact-rational
+polynomial monotonicity partitions; semantic applications and semantic
+derivative rules staged. The Calculus expression and transformation records
+provide the identity, immutability, derivative, and obligation boundary needed
+by the general range engine.
 
 ## Why a graph is necessary
 
@@ -124,8 +125,10 @@ arrays and retains source denominator restrictions without cancellation. The
 checker can now recompute a polynomial's canonical Sturm sequence, count its
 distinct roots, and validate a complete family of rational isolating
 intervals and bind an obligation-free recognized derivative polynomial back
-to its checked source graph. A recognized rational function must discharge
-every retained denominator restriction.
+to its checked source graph. Explicit one-sided endpoint policies count exact
+rational endpoint roots, and singleton rational critical points form checked
+closed monotonicity pieces with exact directions. A recognized rational
+function must discharge every retained denominator restriction.
 
 ## What is ready and what is not
 
@@ -145,15 +148,17 @@ Ready now:
   and obligation discharge;
 - structurally checked monotone composition; and
 - checked binding from complete polynomial derivative isolation to the source
-  graph when no domain obligations remain.
+  graph when no domain obligations remain; and
+- one-sided Sturm root counts plus closed monotonicity partitions at exact
+  rational critical points.
 
 Still required for general graph certification:
 
 - checked discharge of Calculus obligations over exact sets;
 - trusted/checked RangeProvider links for semantic `apply` nodes;
-- semantic derivative-identity checking from registered graph rules;
-- one-sided derivative-root endpoint counting and monotonicity partition
-  formation.
+- semantic derivative-identity checking from registered graph rules; and
+- a certified fallback for irrational critical isolating bands when a tight
+  endpoint-only partition is not available.
 
 See the [Calculus design](../calculus/design.md), the
 [checker vocabulary](checker-vocabulary-v1-proposal.md), and the
