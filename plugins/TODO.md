@@ -780,12 +780,14 @@ tracked in
      arithmetic transformations.
    - [x] Add same-family arithmetic recipes, exact Rational embedding, and
      conversion to Oracle through certified enclosure evidence.
+   - [x] Make exact Gosper homographic and bihomographic transducers the native
+     same-family default for `+`, `-`, `*`, and `/`, with bounded diagnostics.
 3. **Phase 3 — Generalized continued fractions**
-   - [ ] Add generalized forms, homographic algorithms, and adaptive term
-     generation.
+   - [ ] Add nonregular generalized forms and their representation-specific
+     normalization and zero-separation rules.
 4. **Phase 4 — Research algorithms**
-   - [ ] Explore exact real arithmetic via continued-fraction transducers and
-     interoperability with symbolic algebra.
+   - [x] Explore exact real arithmetic via continued-fraction transducers.
+   - [ ] Add deeper symbolic-algebra interoperability and correlation proofs.
 
 ### `.algebraicReal`
 

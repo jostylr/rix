@@ -105,7 +105,8 @@ describe("Continued Fraction plugin", () => {
             {:
                 .numerics.Refine(.cf.Sqrt2(), {= absoluteWidth=1/1000, maxWork=20 }),
                 .numerics.Refine(.cf.Sqrt2(), {= absoluteWidth=1/1000, maxWork=2 }),
-                .numerics.Refine(.cf.Finite([3, 7, 16]), {= absoluteWidth=1/1000 })
+                .numerics.Refine(.cf.Finite([3, 7, 16]), {= absoluteWidth=1/1000 }),
+                .cf.Finite([3, 7, 16]).NumericsCapabilities()
             }
         `, options);
 
@@ -122,6 +123,7 @@ describe("Continued Fraction plugin", () => {
 
         expect(textValue(entry(finite, "status"))).toBe("enclosed");
         expect(entry(finite, "achievedWidth").toString()).toBe("0");
+        expect(entry(result.values[3], "arbitraryRefinement").value).toBe(1n);
     });
 
     test("participates in Halo comparisons and preserves bounded undecided results", () => {
@@ -235,5 +237,101 @@ describe("Continued Fraction plugin", () => {
             .toThrow("positive represented real");
         expect(() => parseAndEvaluate(".cf.Finite([0]).Reciprocal()", options))
             .toThrow("undefined at zero");
+    });
+
+    test("uses native Gosper bihomographic streams for all four binary operations", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("numerics");
+            .Plugin.Load("continued-fraction");
+            x = .cf.Sqrt2();
+            y = .cf.Periodic([1], [1,2], {= name=:sqrt3 });
+            sum = x+y;
+            difference = x-y;
+            product = x*y;
+            quotient = x/y;
+            {:
+                sum.Record(), difference.Record(), product.Record(), quotient.Record(),
+                sum.Coefficients(6), difference.Coefficients(6),
+                product.Coefficients(6), quotient.Coefficients(6),
+                .numerics.Refine(sum, {= absoluteWidth=1/1000, maxWork=100 })
+            };
+        `, options);
+
+        for (const record of result.values.slice(0, 4)) {
+            expect(textValue(entry(record, "kind"))).toBe("gosper");
+            expect(textValue(entry(record, "transducer"))).toBe("bihomographic");
+            expect(entry(record, "certified").value).toBe(1n);
+        }
+        expect(result.values[4].values.map(String)).toEqual(["3", "6", "1", "5", "7", "1"]);
+        expect(result.values[5].values.map(String)).toEqual(["-1", "1", "2", "6", "1", "5"]);
+        expect(result.values[6].values.map(String)).toEqual(["2", "2", "4", "2", "4", "2"]);
+        expect(result.values[7].values.map(String)).toEqual(["0", "1", "4", "2", "4", "2"]);
+        expect(textValue(entry(result.values[8], "status"))).toBe("enclosed");
+        expect(textValue(entry(result.values[8], "backend"))).toBe("continuedFraction");
+        expect(textValue(entry(entry(result.values[8], "evidence"), "kind")))
+            .toBe("gosperTransducerEnclosure");
+    });
+
+    test("folds exact cases and uses homographic streams for unary and correlated cases", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("continued-fraction");
+            finiteSum = .cf.Finite([1,2]) + .cf.Finite([3,4]);
+            x = .cf.Sqrt2();
+            negated = -x;
+            doubled = x+x;
+            {:
+                finiteSum.Record(), finiteSum.Value(), finiteSum.Coefficients(),
+                negated.Record(), negated.Coefficients(6),
+                doubled.Record(), doubled.Coefficients(6),
+                (x*x).Value(), (x-x).Value(), (x/x).Value()
+            };
+        `, options);
+
+        expect(textValue(entry(result.values[0], "kind"))).toBe("finite");
+        expect(result.values[1].toString()).toBe("19/4");
+        expect(result.values[2].values.map(String)).toEqual(["4", "1", "3"]);
+        expect(textValue(entry(result.values[3], "transducer"))).toBe("homographic");
+        expect(result.values[4].values.map(String)).toEqual(["-2", "1", "1", "2", "2", "2"]);
+        expect(textValue(entry(result.values[5], "transducer"))).toBe("homographic");
+        expect(result.values[6].values.map(String)).toEqual(["2", "1", "4", "1", "4", "1"]);
+        expect(result.values.slice(7).map(String)).toEqual(["2", "0", "1"]);
+
+        const undefinedDivision = parseAndEvaluate("(x/.cf.Finite([0])).Record()", options);
+        expect(textValue(entry(undefinedDivision, "valueKind"))).toBe("continuedFractionArithmeticReal");
+    });
+
+    test("reports exact zero facts separately from bounded coefficient uncertainty", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("continued-fraction");
+            x = .cf.Sqrt2();
+            unresolved = .cf.Sqrt2() - .cf.Sqrt2();
+            trace = (x + .cf.Periodic([1], [1,2])).CoefficientResult(1, {= trace=1 });
+            {:
+                .cf.Finite([0]).ZeroStatus(),
+                .cf.Finite([0,2]).ZeroStatus(),
+                .cf.Lazy((n)->n == 0 ?: 0 ?_ 2).ZeroStatus(),
+                (x-x).ZeroStatus(),
+                unresolved.CoefficientResult(0, {= maxInputTerms=8 }),
+                unresolved.ZeroStatus({= maxInputTerms=8 }),
+                trace
+            };
+        `, options);
+
+        expect(textValue(entry(result.values[0], "status"))).toBe("zero");
+        expect(textValue(entry(result.values[1], "status"))).toBe("nonzero");
+        expect(textValue(entry(result.values[2], "status"))).toBe("nonzero");
+        expect(textValue(entry(result.values[3], "status"))).toBe("zero");
+        expect(textValue(entry(result.values[4], "status"))).toBe("budgetExhausted");
+        expect(textValue(entry(result.values[4], "reason"))).toBe("coefficientNotStable");
+        expect(textValue(entry(result.values[5], "status"))).toBe("unknown");
+
+        const actions = entry(result.values[6], "trace").values
+            .map((event) => textValue(entry(event, "action")));
+        expect(actions).toContain("input");
+        expect(actions).toContain("output");
+        expect(entry(result.values[6], "certified").value).toBe(1n);
     });
 });

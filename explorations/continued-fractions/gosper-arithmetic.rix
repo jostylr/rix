@@ -1,0 +1,94 @@
+## Explanatory Exploration: exact Gosper continued-fraction arithmetic.
+## Browser-safe: the final value is a portable Fragment.
+
+.Plugin.Load("numerics");
+.Plugin.Load("continued-fraction");
+.Plugin.Load("plot");
+
+$$termCount := 4;
+$$inputBudget := 64;
+
+$$view := {;
+    n := $termCount;
+    budget := $inputBudget;
+    x := .cf.Sqrt2();
+    y := .cf.Periodic([1],[1,2],{= name=:sqrt3 });
+    sum := x+y;
+    difference := x-y;
+    product := x*y;
+    quotient := x/y;
+
+    operationRows := [
+        ["x + y",sum.Record()[:initialForm],sum.Record()[:transducer],sum.Coefficients(n,{= maxInputTerms=budget})],
+        ["x - y",difference.Record()[:initialForm],difference.Record()[:transducer],difference.Coefficients(n,{= maxInputTerms=budget})],
+        ["x * y",product.Record()[:initialForm],product.Record()[:transducer],product.Coefficients(n,{= maxInputTerms=budget})],
+        ["x / y",quotient.Record()[:initialForm],quotient.Record()[:transducer],quotient.Coefficients(n,{= maxInputTerms=budget})]
+    ];
+
+    traceResult := sum.CoefficientResult(1,{= maxInputTerms=budget,trace=1});
+    traceRows := traceResult[:trace].Map((event,index)->[
+        index,
+        event[:action],
+        event[:source],
+        event[:coefficient],
+        event[:before],
+        event[:after]
+    ]);
+
+    unresolved := .cf.Sqrt2()-.cf.Sqrt2();
+    uncertainCoefficient := unresolved.CoefficientResult(0,{= maxInputTerms=8});
+    zeroRows := [
+        ["finite [0]",.cf.Finite([0]).ZeroStatus()[:status],"the stream terminates at zero"],
+        ["finite [0;2]",.cf.Finite([0,2]).ZeroStatus()[:status],"the positive tail makes the value positive"],
+        ["infinite [0;2,2,...]",.cf.Lazy((index)->index==0 ?: 0 ?_ 2).ZeroStatus()[:status],"the constructor guarantees an infinite positive tail"],
+        ["same object x-x",(x-x).ZeroStatus()[:status],"identity preserves correlation"],
+        ["separate sqrt(2) streams",unresolved.ZeroStatus({= maxInputTerms=8})[:status],uncertainCoefficient[:reason]]
+    ];
+
+    convergentData := [];
+    {@ count=1; count<=@n; {;
+        @convergentData ~= @convergentData.Push([count,@sum.Convergent(count)]);
+    }; count+=1 };
+    graph := .plot.Line(convergentData,{=
+        size=[700,320],
+        label="convergents of sqrt(2)+sqrt(3)",
+        stroke="#0c7b7f",
+        xLabel="output coefficients consumed",
+        yLabel="exact rational convergent"
+    });
+
+    .Fragment([
+        .Heading(1,"Gosper continued-fraction arithmetic"),
+        .Paragraph("Every displayed coefficient is emitted only after exact corner floors agree. No floating-point estimate participates in that decision."),
+        .ControlPanel({=
+            title="Output and input work",
+            description="Increase the input budget when an output coefficient lies close to a rational boundary.",
+            controls=[
+                .Controls.Slider($$termCount,2:6,1,"output terms"),
+                .Controls.Slider($$inputBudget,16:128,8,"maximum input terms")
+            ]
+        }),
+        .Table(
+            ["operation","initial bihomographic form","transducer","certified coefficients"],
+            operationRows,
+            {= caption="All four standard operations return native continued-fraction streams"}
+        ),
+        .Figure(graph,"Exact convergents of the transduced sum; the connecting line is explanatory, while coefficient emission is certified algebraically."),
+        .Heading(2,"One coefficient transaction"),
+        .Paragraph(@"The second sum coefficient has status @{traceResult[:status]} after @{traceResult[:work][:inputs]} exact input requests."),
+        .Table(
+            ["step","action","source","coefficient","form before","form after"],
+            traceRows,
+            {= caption="Input substitutions and output reciprocation for coefficient a1"}
+        ),
+        .Heading(2,"Can the value still be zero?"),
+        .Table(
+            ["representation","ZeroStatus","reason"],
+            zeroRows,
+            {= caption="A represented-real fact is stronger than a bounded prefix observation"}
+        ),
+        .Paragraph(@"For the uncorrelated difference the first term is @{uncertainCoefficient[:status]}: @{uncertainCoefficient[:reason]}. RiX retains zero as a possibility instead of guessing.")
+    ])
+};
+
+$view

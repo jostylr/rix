@@ -104,18 +104,74 @@ best[:approximation]; ## 7/5; next denominator is 12
 convergent reached with `status=:budgetExhausted`, but does not claim optimality
 through the unsearched denominator range.
 
-`Translate(integer)` changes only `a_0`. `Reciprocal()` prepends or removes a
-leading zero for positive represented values. Both transformations preserve
-finite streams exactly and keep periodic streams periodic, so quadratic
-recognition and certified cylinders remain available. Negative reciprocals
-stay explicit unsupported cases until the general homographic algorithms.
+`Translate(integer)` and `Reciprocal()` preserve the simple stream directly
+when their elementary coefficient rules apply. Transduced streams use the
+general homographic form `(a*x+b)/(c*x+d)`.
 
-Continued-fraction reals support `+`, `-`, `*`, `/`, integer powers, unary `-`,
-and absolute value. Same-family and Rational operations retain
-`ContinuedFractionReal` through an immutable enclosure recipe; unlike certified
-families meet at Oracle. This does not pretend that general arithmetic has
-already produced a new canonical coefficient stream.
+## Native Gosper arithmetic
 
-General homographic coefficient transducers remain later work.
+The four field operations now default to exact coefficient transducers whenever
+both operands are native continued fractions (or one is an exact Integer or
+Rational):
+
+```rix
+.Plugin.Load("continued-fraction");
+x := .cf.Sqrt2();
+y := .cf.Periodic([1], [1,2]);  ## sqrt(3)
+(x+y).Coefficients(6);  ## [3, 6, 1, 5, 7, 1]
+(x-y).Coefficients(6);  ## [-1, 1, 2, 6, 1, 5]
+(x*y).Coefficients(6);  ## [2, 2, 4, 2, 4, 2]
+(x/y).Coefficients(6);  ## [0, 1, 4, 2, 4, 2]
+```
+
+The binary state is Gosper's exact bihomographic form
+
+```text
+(a*x*y + b*x + c*y + d) / (e*x*y + f*x + g*y + h).
+```
+
+An output coefficient is emitted only when the exact floors at every corner of
+the current positive-tail square agree and its denominator is separated from
+zero. Otherwise the transducer consumes another input coefficient, choosing
+the less-consumed side for fair progress. `CoefficientResult(index, options)`
+exposes each certified transaction, an optional `trace`, and
+`maxInputTerms`; `Coefficient(index)` is the strict convenience form.
+
+Finite/finite operations fold to a finite exact continued fraction. Object
+identity also makes `x-x`, nonzero `x/x`, and `x+x` exact or homographic rather
+than losing correlation. Squaring an explicitly periodic quadratic uses its
+primitive equation. Other binary results have `kind=:gosper` and remain real
+coefficient streams, so they can be chained into later operations.
+
+This is a productive exact-real algorithm, not a promise that every requested
+coefficient appears within every finite budget. A result on a rational boundary
+can require unbounded input before its next floor is forced. Budget exhaustion
+returns structured uncertainty; it never guesses a term. Certified numerical
+refinement uses the parallel Oracle recipe as an enclosing witness and remains
+available even when coefficient production is temporarily unresolved. Arithmetic
+with another exact-real family still meets at Oracle.
+
+## Is zero still possible?
+
+`ZeroStatus(options?)` separates facts about the represented stream from facts
+about a bounded prefix:
+
+- finite `[0]` is exactly zero;
+- a finite `[0,a1,...]` with at least one positive tail coefficient is positive;
+- a declared infinite regular stream is nonzero even when `a0=0`, because its
+  positive infinite tail makes the value strictly positive;
+- a bounded cylinder or a Gosper result whose first stable coefficient has not
+  appeared can still include zero, so the answer is `status=:unknown`;
+- subtraction of separately constructed equal streams is the central example:
+  equality is not inferred from matching observations, while `x-x` for the
+  same object is recognized exactly;
+- division by a finite exact zero has no coefficient stream; refinement returns
+  a structured domain-unknown result. A transduced divisor that has not yet
+  been separated from zero likewise remains unresolved under bounded work.
+
+Generalized, signed-digit, and retracting continued fractions are not yet
+supported; those representations need their own zero-separation rules.
+
+See the runnable [Gosper arithmetic exploration](../../explorations/continued-fractions/gosper-arithmetic.md).
 
 See [tutorial.md](tutorial.md).

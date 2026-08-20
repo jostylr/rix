@@ -104,27 +104,42 @@ until the available convergent cylinder separates the two neighborhoods.
 
 ## Arithmetic of continued-fraction reals
 
-Coefficient transducers remain available for future specialized algorithms.
-The complete field surface works now through a certified recipe while keeping
-the `ContinuedFractionReal` semantic family:
+Native continued-fraction operands use exact Gosper homographic and
+bihomographic coefficient transducers by default. The certified recipe remains
+attached as the numerical enclosure witness:
 
 ```rix
 .Plugin.Load("continued-fraction");
 .Plugin.Load("numerics");
 x := .cf.Sqrt2();
-values := [x+x, x-x, x*x, x/x, -x, .Abs(x), x^2, x+1/3];
+y := .cf.Periodic([1], [1,2]);
+values := [x+y, x-y, x*y, x/y];
 .Table({=
-  columns=["type", "interval"],
+  columns=["operation", "transducer", "coefficients", "interval"],
   rows=values.Map((value) -> [
-    value.__type,
+    value.Record()[:operation],
+    value.Record()[:transducer],
+    value.Coefficients(6),
     .numerics.Refine(value, {= absoluteWidth=1/1000, maxWork=120 })[:interval]
   ])
 });
 ```
 
-`x+1/3` stays in the continued-fraction family because the Rational is an
-exact embeddable value. Combining `x` with a Cauchy or algebraic real instead
-chooses their common certified Oracle target.
+Every emitted term follows from agreeing exact corner floors of Gosper's
+bihomographic form. `CoefficientResult(n,{=maxInputTerms=...,trace=1})` exposes
+the bounded decision and its input/output transactions. It may report
+`budgetExhausted` when a coefficient is not yet forced; `Coefficient(n)` never
+substitutes a guess.
+
+Finite arithmetic is folded exactly. Identity-aware shortcuts prove `x-x=0`
+and nonzero `x/x=1`, while separately constructed equal streams retain bounded
+uncertainty because matching prefixes do not prove correlation. Use
+`ZeroStatus()` to distinguish exact zero, certified nonzero, and unknown.
+Combining a continued fraction with a Cauchy or algebraic real still chooses
+their common certified Oracle target.
+
+For a transaction-by-transaction explanation and all four demonstrations, see
+the [Gosper arithmetic exploration](../../explorations/continued-fractions/gosper-arithmetic.md).
 
 ## Recognize the periodic quadratic equation
 

@@ -22,7 +22,7 @@ The implementation order and per-plugin phased work are tracked in
 | `float/` | host | `float` | IEEE-754 Float conversion and approximate math. |
 | `ball/` | RiX | `ball` | Pure RiX certified rational midpoint-radius balls and nested square-root refinement. |
 | `cauchy/` | RiX | `cauchy` | Pure RiX rational sequences with explicit certified tail bounds and moduli. |
-| `continued-fraction/` | RiX | `continued-fraction` | Finite and lazy simple continued fractions; callable aliases `.continuedFraction` and `.cf`. |
+| `continued-fraction/` | RiX | `continued-fraction` | Finite, lazy, periodic, and native Gosper-transduced simple continued fractions; callable aliases `.continuedFraction` and `.cf`. |
 | `algebraic-real/` | RiX | `algebraic-real` | Square-free integer polynomials with Sturm-certified isolating intervals; callable aliases `.algebraicReal` and `.ar`. |
 | `oracle/` | RiX | `oracle` | Phase 1 rational-betweenness oracle values, procedures, validation, and bounded refinement. |
 | `numerics/` | RiX | `numerics` | Backend-neutral bounded enclosure, refinement, and sampling protocol orchestration. |

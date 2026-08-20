@@ -4,12 +4,12 @@ description: Finite and lazy simple continued fractions with exact convergents a
 kind: rix
 mount: continuedFraction
 aliases: [cf]
-exports: [Finite, Lazy, Periodic, Sqrt2, FromRational, Coefficient, Coefficients, Convergent, Convergents, Enclosure, ErrorInterval, QuadraticForm, BestApproximation, Translate, Reciprocal, Record]
+exports: [Finite, Lazy, Periodic, Sqrt2, FromRational, Coefficient, CoefficientResult, Coefficients, Convergent, Convergents, Enclosure, ErrorInterval, QuadraticForm, BestApproximation, Translate, Reciprocal, ZeroStatus, Record]
 groups: [Numerics, Exact]
 permissions: []
 requires: [rix.oracle@1]
 provides: [rix.continued-fraction@1, rix.refinable@1, rix.enclosable-real@1]
-schemas: [rix.continued-fraction.finite@1, rix.continued-fraction.lazy@1, rix.continued-fraction.arithmetic-real@1, rix.continued-fraction.quadratic-form@1, rix.continued-fraction.best-approximation@1]
+schemas: [rix.continued-fraction.finite@1, rix.continued-fraction.lazy@1, rix.continued-fraction.gosper@1, rix.continued-fraction.coefficient-result@1, rix.continued-fraction.arithmetic-real@1, rix.continued-fraction.quadratic-form@1, rix.continued-fraction.best-approximation@1, rix.continued-fraction.zero-status@1]
 snapshot: false
 deterministic: true
 defaultEnabled: false
@@ -37,15 +37,44 @@ CFValidateCoefficient(value, index) -> {;
       ?_ .Error(@"Continued-fraction coefficient @{index} must be a positive Integer");
 };
 
-CFCoefficientAt(real, index) -> {;
+CFCoefficientResult(real, index, options ?= {= }) -> {;
     n = CFRequireIndex(index, "Continued-fraction coefficient index");
     outOfRange = real[:kind] == :finite ?: n >= real[:length] ?_ _;
     outOfRange
-      ?: .Error(@"Finite continued fraction has no coefficient at index @{n}")
-      ?_ CFValidateCoefficient(n |> real[:coefficientFunction], n);
+      ?: .ImmutableValue({=
+          valueKind=:continuedFractionCoefficientResult,
+          schema="rix.continued-fraction.coefficient-result@1",
+          status=:end,
+          index=n,
+          coefficient=_,
+          certified=1,
+          reason=:finiteStreamEnded,
+          work={= calls=0, inputs=0, outputs=real[:length] }
+      })
+      ?_ (real[:kind] == :gosper
+           ?: real[:coefficientResultFunction](n, options)
+           ?_ .ImmutableValue({=
+               valueKind=:continuedFractionCoefficientResult,
+               schema="rix.continued-fraction.coefficient-result@1",
+               status=:coefficient,
+               index=n,
+               coefficient=CFValidateCoefficient(n |> real[:coefficientFunction], n),
+               certified=1,
+               reason=:sourceCoefficient,
+               work={= calls=1, inputs=1, outputs=n+1 }
+           }));
 };
 
-CFCoefficients(real, count ?= _) -> {;
+CFCoefficientAt(real, index, options ?= {= }) -> {;
+    result = CFCoefficientResult(real, index, options);
+    result[:status] == :coefficient
+      ?: result[:coefficient]
+      ?_ (result[:status] == :end
+           ?: .Error(@"Continued-fraction stream has no coefficient at index @{result[:index]}")
+           ?_ .Error(@"Continued-fraction coefficient @{result[:index]} is unresolved: @{result[:reason]}"));
+};
+
+CFCoefficients(real, count ?= _, options ?= {= }) -> {;
     amount = count == _
       ?: (real[:kind] == :finite ?: real[:length] ?_ .Error("Lazy continued fractions require an explicit coefficient count"))
       ?_ CFRequireIndex(count, "Continued-fraction coefficient count");
@@ -55,7 +84,7 @@ CFCoefficients(real, count ?= _) -> {;
       ?_ _;
     values = [];
     {@ index = 0; index < @amount; {;
-        @values ~= @values.Push(CFCoefficientAt(@real, index));
+        @values ~= @values.Push(CFCoefficientAt(@real, index, @options));
     }; index += 1 };
     values;
 };
@@ -140,12 +169,16 @@ CFNextWitness(real, witness) -> {;
 };
 
 CFEnclosureAt(real, count ?= _) -> {;
-    real[:kind] == :finite
-      ?: {;
-          exact = CFConvergent(@real, @count == _ ?: @real[:length] ?_ @count);
-          exact:exact;
-      }
-      ?_ CFWitness(real, count == _ ?: 2 ?_ CFRequireCount(count, "Continued-fraction enclosure count"))[:interval];
+    real[:kind] == :gosper
+      ?: (count == _
+           ?: CFGosperProtocolEnclosure(real,{= },:enclose)[:interval]
+           ?_ CFWitness(real,CFRequireCount(count,"Continued-fraction enclosure count"))[:interval])
+      ?_ (real[:kind] == :finite
+           ?: {;
+               exact = CFConvergent(@real, @count == _ ?: @real[:length] ?_ @count);
+               exact:exact;
+           }
+           ?_ CFWitness(real, count == _ ?: 2 ?_ CFRequireCount(count, "Continued-fraction enclosure count"))[:interval]);
 };
 
 CFErrorInterval(real, count) -> {;
@@ -156,16 +189,21 @@ CFErrorInterval(real, count) -> {;
 
 CFCapabilities(real) -> {;
     lazy = real[:kind] != :finite;
+    gosper = real[:kind] == :gosper;
     {=
         valueKind = :numericsCapabilities,
         schema = "rix.numerics.capabilities@1",
         backend = :continuedFraction,
-        representation = lazy ?: :lazySimpleContinuedFraction ?_ :finiteSimpleContinuedFraction,
+        representation = gosper
+          ?: :nativeGosperContinuedFraction
+          ?_ (lazy ?: :lazySimpleContinuedFraction ?_ :finiteSimpleContinuedFraction),
         denotation = :singleton,
         operations = [:enclose, :refine],
-        evidenceLevels = [lazy ?: real[:evidenceLevel] ?_ :proof],
+        evidenceLevels = gosper
+          ?: [:constructorGuarantee, :proof]
+          ?_ [lazy ?: real[:evidenceLevel] ?_ :proof],
         certified = 1,
-        arbitraryRefinement = lazy,
+        arbitraryRefinement = 1,
         deterministic = 1,
         minimumWidth = 0,
         maxCalls = lazy ?: 100000 ?_ 0,
@@ -182,15 +220,19 @@ CFRecord(real) -> {=
     length = real[:kind] == :finite ?: real[:length] ?_ _,
     prefix = real[:prefix],
     period = real[:period],
-    initialEnclosure = real[:initialWitness][:interval],
+    transducer = real[:transducer],
+    operation = real[:operation],
+    initialForm = real[:initialForm],
+    initialEnclosure = real[:kind] == :gosper ?: _ ?_ real[:initialWitness][:interval],
     evidence = real[:evidence],
     certified = 1
 };
 
 CFAttachProtocol(real) -> {;
     real._proto = {=
-        Coefficient = (self, index) -> CFCoefficientAt(self, index),
-        Coefficients = (self, count ?= _) -> CFCoefficients(self, count),
+        Coefficient = (self, index, options ?= {= }) -> CFCoefficientAt(self, index, options),
+        CoefficientResult = (self, index, options ?= {= }) -> CFCoefficientResult(self, index, options),
+        Coefficients = (self, count ?= _, options ?= {= }) -> CFCoefficients(self, count, options),
         Convergent = (self, count) -> CFConvergent(self, count),
         Convergents = (self, count ?= _) -> CFConvergents(self, count),
         Value = (self) -> self[:kind] == :finite ?: CFConvergent(self, self[:length]) ?_ .Error("Lazy continued fractions do not have a finite exact Value"),
@@ -200,9 +242,14 @@ CFAttachProtocol(real) -> {;
         BestApproximation = (self, maxDenominator, options ?= {= }) -> CFBestApproximation(self, maxDenominator, options),
         Translate = (self, offset, options ?= {= }) -> CFTranslate(self, offset, options),
         Reciprocal = (self, options ?= {= }) -> CFReciprocal(self, options),
+        ZeroStatus = (self, options ?= {= }) -> CFZeroStatus(self, options),
         Record = (self) -> CFRecord(self),
-        Enclose = (self, request ?= {= }) -> CFProtocolEnclosure(self, request, :enclose),
-        Refine = (self, request ?= {= }) -> CFProtocolEnclosure(self, request, :refine),
+        Enclose = (self, request ?= {= }) -> self[:kind] == :gosper
+          ?: CFGosperProtocolEnclosure(self, request, :enclose)
+          ?_ CFProtocolEnclosure(self, request, :enclose),
+        Refine = (self, request ?= {= }) -> self[:kind] == :gosper
+          ?: CFGosperProtocolEnclosure(self, request, :refine)
+          ?_ CFProtocolEnclosure(self, request, :refine),
         NumericsCapabilities = (self) -> CFCapabilities(self)
     };
     .ImmutableValue(real);
@@ -317,6 +364,627 @@ CFIntegerGcd(left, right) -> {;
     b := (right ~!: :Integer).Abs();
     {@ step=1; @b != 0; {; remainder=@a % @b; @a ~= @b; @b ~= remainder; }; step += 1 };
     a;
+};
+
+CFGosperNormalize(values) -> {;
+    content := 0;
+    {@ index=1; index<=@values.Len(); {;
+        @content ~= CFIntegerGcd(@content, @values[index]);
+    }; index+=1 };
+    normalized = content > 1
+      ?: values.Map((value)->value // @content)
+      ?_ values;
+    denominatorStart = normalized.Len() == 8 ?: 5 ?_ 3;
+    denominatorSign := 0;
+    {@ index=@denominatorStart; index<=@normalized.Len() && @denominatorSign==0; {;
+        value = @normalized[index];
+        @denominatorSign ~= value < 0 ?: -1 ?_ (value > 0 ?: 1 ?_ 0);
+    }; index+=1 };
+    denominatorSign < 0
+      ?: normalized.Map((value)->-value)
+      ?_ normalized;
+};
+
+CFGosperForm4(state) -> {=
+    a=state[1], b=state[2], c=state[3], d=state[4]
+};
+
+CFGosperForm8(state) -> {=
+    a=state[1], b=state[2], c=state[3], d=state[4],
+    e=state[5], f=state[6], g=state[7], h=state[8]
+};
+
+CFGosperInput4(state, coefficient) -> CFGosperNormalize([
+    coefficient*state[1]+state[2],
+    state[1],
+    coefficient*state[3]+state[4],
+    state[3]
+]);
+
+CFGosperOutput4(state, coefficient) -> CFGosperNormalize([
+    state[3], state[4],
+    state[1]-coefficient*state[3],
+    state[2]-coefficient*state[4]
+]);
+
+CFGosperInputX8(state, coefficient) -> CFGosperNormalize([
+    coefficient*state[1]+state[3], coefficient*state[2]+state[4], state[1], state[2],
+    coefficient*state[5]+state[7], coefficient*state[6]+state[8], state[5], state[6]
+]);
+
+CFGosperInputY8(state, coefficient) -> CFGosperNormalize([
+    coefficient*state[1]+state[2], state[1], coefficient*state[3]+state[4], state[3],
+    coefficient*state[5]+state[6], state[5], coefficient*state[7]+state[8], state[7]
+]);
+
+CFGosperOutput8(state, coefficient) -> CFGosperNormalize([
+    state[5], state[6], state[7], state[8],
+    state[1]-coefficient*state[5],
+    state[2]-coefficient*state[6],
+    state[3]-coefficient*state[7],
+    state[4]-coefficient*state[8]
+]);
+
+CFGosperAnalyzeCorners(numerators, denominators) -> {;
+    denominatorSafe := 1;
+    denominatorSign := 0;
+    values := [];
+    corners := [];
+    {@ index=1; index<=@denominators.Len(); {;
+        denominator = @denominators[index];
+        numerator = @numerators[index];
+        sign = denominator < 0 ?: -1 ?_ (denominator > 0 ?: 1 ?_ 0);
+        sign == 0
+          ?: {; @denominatorSafe ~= 0; }
+          ?_ (@denominatorSign == 0
+               ?: {; @denominatorSign ~= @sign; }
+               ?_ (sign == @denominatorSign ?: _ ?_ {; @denominatorSafe ~= 0; }));
+        value = denominator == 0 ?: _ ?_ numerator/denominator;
+        @values ~= @values.Push(value);
+        @corners ~= @corners.Push({= numerator=numerator, denominator=denominator, value=value });
+    }; index+=1 };
+    stable := denominatorSafe;
+    term := _;
+    exact := denominatorSafe;
+    denominatorSafe ?: {;
+        @term ~= (@values[1] ~!: :Rational).Floor();
+        firstNumerator = @numerators[1];
+        firstDenominator = @denominators[1];
+        {@ index=1; index<=@values.Len(); {;
+            @stable ~= @stable && (@values[index] ~!: :Rational).Floor() == @term;
+            @exact ~= @exact && @numerators[index]*@firstDenominator == @firstNumerator*@denominators[index];
+        }; index+=1 };
+    } ?_ _;
+    {=
+        denominatorSafe=denominatorSafe,
+        stable=stable,
+        term=term,
+        exact=exact,
+        values=values,
+        corners=corners
+    };
+};
+
+CFGosperAnalyze4(state, inputDone) -> {;
+    us = inputDone ?: [0] ?_ [0,1];
+    numerators := [];
+    denominators := [];
+    {@ index=1; index<=@us.Len(); {;
+        u = @us[index];
+        @numerators ~= @numerators.Push(@state[1]+@state[2]*u);
+        @denominators ~= @denominators.Push(@state[3]+@state[4]*u);
+    }; index+=1 };
+    CFGosperAnalyzeCorners(numerators,denominators);
+};
+
+CFGosperAnalyze8(state, leftDone, rightDone) -> {;
+    us = leftDone ?: [0] ?_ [0,1];
+    vs = rightDone ?: [0] ?_ [0,1];
+    numerators := [];
+    denominators := [];
+    {@ ui=1; ui<=@us.Len(); {;
+        u = @us[ui];
+        {@ vi=1; vi<=@vs.Len(); {;
+            v = @vs[vi];
+            @numerators ~= @numerators.Push(
+                @state[1]+@state[2]*v+@state[3]*@u+@state[4]*@u*v
+            );
+            @denominators ~= @denominators.Push(
+                @state[5]+@state[6]*v+@state[7]*@u+@state[8]*@u*v
+            );
+        }; vi+=1 };
+    }; ui+=1 };
+    CFGosperAnalyzeCorners(numerators,denominators);
+};
+
+CFGosperInputBudget(options) -> CFRequireCount(
+    CFOption(options,"maxinputterms",4096),
+    "Gosper maxInputTerms"
+);
+
+CFGosperTraceAppend(trace, keepTrace, event) ->
+    keepTrace ?: trace.Push(.ImmutableValue(event)) ?_ trace;
+
+CFGosperCoefficientRecord(status, index, coefficient, reason, work, form, analysis, trace) ->
+    .ImmutableValue({=
+        valueKind=:continuedFractionCoefficientResult,
+        schema="rix.continued-fraction.coefficient-result@1",
+        status=status,
+        index=index,
+        coefficient=coefficient,
+        certified=status == :coefficient || status == :end ?: 1 ?_ _,
+        reason=reason,
+        work=work,
+        form=form,
+        analysis=analysis,
+        trace=trace
+    });
+
+CFGosperHomographicCoefficient(source, initialState, target, options ?= {= }) -> {;
+    requested = CFRequireIndex(target,"Gosper output coefficient index");
+    maxInputs = CFGosperInputBudget(options);
+    keepTrace = CFOption(options,"trace",_);
+    state := initialState;
+    inputIndex := 0;
+    outputIndex := 0;
+    inputDone := _;
+    inputRequests := 0;
+    trace := [];
+    analysis := _;
+    started := _;
+    finished := _;
+    result := _;
+    {@ step=1; @finished==_; {;
+        @started == _
+          ?: {;
+              sourceResult = CFCoefficientResult(@source,@inputIndex,@options);
+              @inputRequests += 1;
+              sourceResult[:status] == :coefficient
+                ?: {;
+                    coefficient = @sourceResult[:coefficient];
+                    before := @state;
+                    @state ~= CFGosperInput4(@state,coefficient);
+                    @inputIndex += 1;
+                    @inputDone ~= @source[:kind] == :finite && @inputIndex >= @source[:length];
+                    @started ~= 1;
+                    @trace ~= CFGosperTraceAppend(@trace,@keepTrace,{=
+                        action=:input, source=:x, coefficient=coefficient,
+                        before=CFGosperForm4(before), after=CFGosperForm4(@state)
+                    });
+                }
+                ?_ {;
+                    @finished ~= 1;
+                    @result ~= CFGosperCoefficientRecord(
+                        @sourceResult[:status],@requested,_,@sourceResult[:reason],
+                        {= inputs=@inputRequests, outputs=@outputIndex, maxInputTerms=@maxInputs, exhausted=1 },
+                        CFGosperForm4(@state),_,@trace
+                    );
+                };
+          }
+          ?_ {;
+              @analysis ~= CFGosperAnalyze4(@state,@inputDone);
+              @analysis[:stable]
+                ?: {;
+                    coefficient = @analysis[:term];
+                    CFValidateCoefficient(coefficient,@outputIndex);
+                    before := @state;
+                    @state ~= CFGosperOutput4(@state,coefficient);
+                    @trace ~= CFGosperTraceAppend(@trace,@keepTrace,{=
+                        action=:output, coefficient=coefficient,
+                        before=CFGosperForm4(before), after=CFGosperForm4(@state),
+                        corners=@analysis[:corners]
+                    });
+                    @outputIndex == @requested
+                      ?: {;
+                          @finished ~= 1;
+                          @result ~= CFGosperCoefficientRecord(
+                              :coefficient,@requested,@coefficient,:stableFloor,
+                              {= inputs=@inputRequests, outputs=@outputIndex+1, maxInputTerms=@maxInputs, exhausted=_ },
+                              CFGosperForm4(@state),@analysis,@trace
+                          );
+                      }
+                      ?_ {; @outputIndex += 1; };
+                }
+                ?_ (@inputDone
+                     ?: {;
+                         terminalStatus = @analysis[:denominatorSafe] || @outputIndex > 0
+                           ?: :end
+                           ?_ :domainUnresolved;
+                         terminalReason = terminalStatus == :end
+                           ?: :exactRationalStreamEnded
+                           ?_ :undefinedHomographicValue;
+                         @finished ~= 1;
+                         @result ~= CFGosperCoefficientRecord(
+                             terminalStatus,@requested,_,terminalReason,
+                             {= inputs=@inputRequests, outputs=@outputIndex, maxInputTerms=@maxInputs, exhausted=terminalStatus != :end },
+                             CFGosperForm4(@state),@analysis,@trace
+                         );
+                     }
+                     ?_ (@inputRequests >= @maxInputs
+                          ?: {;
+                              @finished ~= 1;
+                              @result ~= CFGosperCoefficientRecord(
+                                  :budgetExhausted,@requested,_,:coefficientNotStable,
+                                  {= inputs=@inputRequests, outputs=@outputIndex, maxInputTerms=@maxInputs, exhausted=1 },
+                                  CFGosperForm4(@state),@analysis,@trace
+                              );
+                          }
+                          ?_ {;
+                              sourceResult = CFCoefficientResult(@source,@inputIndex,@options);
+                              @inputRequests += 1;
+                              sourceResult[:status] == :coefficient
+                                ?: {;
+                                    coefficient = @sourceResult[:coefficient];
+                                    before := @state;
+                                    @state ~= CFGosperInput4(@state,coefficient);
+                                    @inputIndex += 1;
+                                    @inputDone ~= @source[:kind] == :finite && @inputIndex >= @source[:length];
+                                    @trace ~= CFGosperTraceAppend(@trace,@keepTrace,{=
+                                        action=:input, source=:x, coefficient=coefficient,
+                                        before=CFGosperForm4(before), after=CFGosperForm4(@state)
+                                    });
+                                }
+                                ?_ (sourceResult[:status] == :end
+                                     ?: {; @inputDone ~= 1; }
+                                     ?_ {;
+                                         @finished ~= 1;
+                                         @result ~= CFGosperCoefficientRecord(
+                                             @sourceResult[:status],@requested,_,@sourceResult[:reason],
+                                             {= inputs=@inputRequests, outputs=@outputIndex, maxInputTerms=@maxInputs, exhausted=1 },
+                                             CFGosperForm4(@state),@analysis,@trace
+                                         );
+                                     });
+                          }));
+          };
+    }; step+=1 };
+    result;
+};
+
+CFGosperInitial8(operation) -> {?
+    operation == :add ? [0,1,1,0, 0,0,0,1];
+    operation == :sub ? [0,1,-1,0, 0,0,0,1];
+    operation == :mul ? [1,0,0,0, 0,0,0,1];
+    operation == :div ? [0,1,0,0, 0,0,1,0];
+    .Error("Unsupported Gosper bihomographic operation")
+};
+
+CFGosperBihomographicCoefficient(operation, left, right, target, options ?= {= }) -> {;
+    requested = CFRequireIndex(target,"Gosper output coefficient index");
+    maxInputs = CFGosperInputBudget(options);
+    keepTrace = CFOption(options,"trace",_);
+    state := CFGosperInitial8(operation);
+    leftIndex := 0; rightIndex := 0; outputIndex := 0;
+    leftDone := _; rightDone := _;
+    leftStarted := _; rightStarted := _;
+    inputRequests := 0;
+    trace := [];
+    analysis := _;
+    exactZeroDivisor = operation == :div && right[:kind] == :finite &&
+      CFConvergent(right,right[:length]) == 0;
+    finished := exactZeroDivisor ?: 1 ?_ _;
+    result := exactZeroDivisor
+      ?: CFGosperCoefficientRecord(
+          :domainUnresolved,requested,_,:divisorIsExactlyZero,
+          {= inputs=0, leftInputs=0, rightInputs=0, outputs=0, maxInputTerms=maxInputs, exhausted=_ },
+          CFGosperForm8(state),_,[]
+      )
+      ?_ _;
+    {@ step=1; @finished==_; {;
+        needLeft = @leftStarted == _;
+        needRight = @leftStarted != _ && @rightStarted == _;
+        forceInput = needLeft || needRight;
+        forceInput
+          ?: {;
+              side = @needLeft ?: :x ?_ :y;
+              source = @needLeft ?: @left ?_ @right;
+              sourceIndex = @needLeft ?: @leftIndex ?_ @rightIndex;
+              sourceResult = CFCoefficientResult(source,sourceIndex,@options);
+              @inputRequests += 1;
+              sourceResult[:status] == :coefficient
+                ?: {;
+                    coefficient = @sourceResult[:coefficient];
+                    before := @state;
+                    @state ~= @side == :x
+                      ?: CFGosperInputX8(@state,coefficient)
+                      ?_ CFGosperInputY8(@state,coefficient);
+                    @side == :x
+                      ?: {;
+                          @leftIndex += 1; @leftStarted ~= 1;
+                          @leftDone ~= @left[:kind] == :finite && @leftIndex >= @left[:length];
+                      }
+                      ?_ {;
+                          @rightIndex += 1; @rightStarted ~= 1;
+                          @rightDone ~= @right[:kind] == :finite && @rightIndex >= @right[:length];
+                      };
+                    @trace ~= CFGosperTraceAppend(@trace,@keepTrace,{=
+                        action=:input, source=@side, coefficient=coefficient,
+                        before=CFGosperForm8(before), after=CFGosperForm8(@state)
+                    });
+                }
+                ?_ {;
+                    @finished ~= 1;
+                    @result ~= CFGosperCoefficientRecord(
+                        @sourceResult[:status],@requested,_,@sourceResult[:reason],
+                        {= inputs=@inputRequests, leftInputs=@leftIndex, rightInputs=@rightIndex, outputs=@outputIndex, maxInputTerms=@maxInputs, exhausted=1 },
+                        CFGosperForm8(@state),_,@trace
+                    );
+                };
+          }
+          ?_ {;
+              @analysis ~= CFGosperAnalyze8(@state,@leftDone,@rightDone);
+              @analysis[:stable]
+                ?: {;
+                    coefficient = @analysis[:term];
+                    CFValidateCoefficient(coefficient,@outputIndex);
+                    before := @state;
+                    @state ~= CFGosperOutput8(@state,coefficient);
+                    @trace ~= CFGosperTraceAppend(@trace,@keepTrace,{=
+                        action=:output, coefficient=coefficient,
+                        before=CFGosperForm8(before), after=CFGosperForm8(@state),
+                        corners=@analysis[:corners]
+                    });
+                    @outputIndex == @requested
+                      ?: {;
+                          @finished ~= 1;
+                          @result ~= CFGosperCoefficientRecord(
+                              :coefficient,@requested,@coefficient,:stableFloor,
+                              {= inputs=@inputRequests, leftInputs=@leftIndex, rightInputs=@rightIndex, outputs=@outputIndex+1, maxInputTerms=@maxInputs, exhausted=_ },
+                              CFGosperForm8(@state),@analysis,@trace
+                          );
+                      }
+                      ?_ {; @outputIndex += 1; };
+                }
+                ?_ ((@leftDone && @rightDone)
+                     ?: {;
+                         status = @analysis[:denominatorSafe] || @outputIndex > 0
+                           ?: :end
+                           ?_ :domainUnresolved;
+                         reason = status == :end ?: :exactRationalStreamEnded ?_ :undefinedBihomographicValue;
+                         @finished ~= 1;
+                         @result ~= CFGosperCoefficientRecord(
+                             status,@requested,_,reason,
+                             {= inputs=@inputRequests, leftInputs=@leftIndex, rightInputs=@rightIndex, outputs=@outputIndex, maxInputTerms=@maxInputs, exhausted=status != :end },
+                             CFGosperForm8(@state),@analysis,@trace
+                         );
+                     }
+                     ?_ (@inputRequests >= @maxInputs
+                          ?: {;
+                              @finished ~= 1;
+                              @result ~= CFGosperCoefficientRecord(
+                                  :budgetExhausted,@requested,_,:coefficientNotStable,
+                                  {= inputs=@inputRequests, leftInputs=@leftIndex, rightInputs=@rightIndex, outputs=@outputIndex, maxInputTerms=@maxInputs, exhausted=1 },
+                                  CFGosperForm8(@state),@analysis,@trace
+                              );
+                          }
+                          ?_ {;
+                              chooseLeft = !@leftDone && (@rightDone || @leftIndex <= @rightIndex);
+                              side = chooseLeft ?: :x ?_ :y;
+                              source = chooseLeft ?: @left ?_ @right;
+                              sourceIndex = chooseLeft ?: @leftIndex ?_ @rightIndex;
+                              sourceResult = CFCoefficientResult(source,sourceIndex,@options);
+                              @inputRequests += 1;
+                              sourceResult[:status] == :coefficient
+                                ?: {;
+                                    coefficient = @sourceResult[:coefficient];
+                                    before := @state;
+                                    @state ~= @side == :x
+                                      ?: CFGosperInputX8(@state,coefficient)
+                                      ?_ CFGosperInputY8(@state,coefficient);
+                                    @side == :x
+                                      ?: {;
+                                          @leftIndex += 1;
+                                          @leftDone ~= @left[:kind] == :finite && @leftIndex >= @left[:length];
+                                      }
+                                      ?_ {;
+                                          @rightIndex += 1;
+                                          @rightDone ~= @right[:kind] == :finite && @rightIndex >= @right[:length];
+                                      };
+                                    @trace ~= CFGosperTraceAppend(@trace,@keepTrace,{=
+                                        action=:input, source=@side, coefficient=coefficient,
+                                        before=CFGosperForm8(before), after=CFGosperForm8(@state)
+                                    });
+                                }
+                                ?_ (sourceResult[:status] == :end
+                                     ?: (side == :x ?: {; @leftDone ~= 1; } ?_ {; @rightDone ~= 1; })
+                                     ?_ {;
+                                         @finished ~= 1;
+                                         @result ~= CFGosperCoefficientRecord(
+                                             @sourceResult[:status],@requested,_,@sourceResult[:reason],
+                                             {= inputs=@inputRequests, leftInputs=@leftIndex, rightInputs=@rightIndex, outputs=@outputIndex, maxInputTerms=@maxInputs, exhausted=1 },
+                                             CFGosperForm8(@state),@analysis,@trace
+                                         );
+                                     });
+                          }));
+          };
+    }; step+=1 };
+    result;
+};
+
+CFNativeStream(value) -> (value ? :Map) &&
+    value[:valueKind] == :continuedFraction && value[:kind] != :arithmetic;
+
+CFNativeSource(value) ->
+    CFNativeStream(value)
+      ?: value
+      ?_ (CFExact(value)
+           ?: CFFromRational(value,{= name=:embeddedRational })
+           ?_ .Error("Gosper arithmetic requires continued-fraction, Integer, or Rational operands"));
+
+CFOracleSource(value) -> CFNativeStream(value) && value[:kind] == :finite
+  ?: CFConvergent(value,value[:length])
+  ?_ value;
+
+CFGosperProtocolEnclosure(real, request, operation) -> {;
+    result = operation == :enclose
+      ?: real[:recipe].Enclose(request)
+      ?_ real[:recipe].Refine(request);
+    .ImmutableValue(result.Merge({=
+        backend=:continuedFraction,
+        evidence={=
+            kind=:gosperTransducerEnclosure,
+            property=:containsNativeContinuedFractionValue,
+            transducer=real[:transducer],
+            operation=real[:operation],
+            source=result[:evidence]
+        },
+        source={=
+            plugin=:continuedFraction,
+            schema=real[:schema],
+            kind=:gosper,
+            transducer=real[:transducer]
+        }
+    }));
+};
+
+CFGosperHomographic(operation, sourceValue, initialState, recipe, options ?= {= }) -> {;
+    source = CFNativeSource(sourceValue);
+    settings = options;
+    coefficientResultFunction = (index, request ?= {= }) ->
+        CFGosperHomographicCoefficient(
+            @source,
+            @initialState,
+            index,
+            @settings.Merge(request)
+        );
+    provisional = {=
+        valueKind=:continuedFraction,
+        schema="rix.continued-fraction.gosper@1",
+        kind=:gosper,
+        name=CFOption(options,"name",:gosperHomographic),
+        transducer=:homographic,
+        operation=operation,
+        source=source,
+        left=source,
+        right=_,
+        prefix=[],
+        period=_,
+        initialForm=CFGosperForm4(initialState),
+        coefficientResultFunction=coefficientResultFunction,
+        recipe=recipe,
+        evidenceLevel=:proof,
+        evidence={=
+            kind=:gosperHomographicTransducer,
+            property=:exactCoefficientTransactions,
+            operation=operation,
+            initialForm=CFGosperForm4(initialState),
+            source=source[:evidence]
+        },
+        provenance={= plugin=:continuedFraction, version=3, source=:gosperHomographic }
+    };
+    CFAttachProtocol(provisional);
+};
+
+CFGosperBihomographic(operation, leftValue, rightValue, options ?= {= }) -> {;
+    left = CFNativeSource(leftValue);
+    right = CFNativeSource(rightValue);
+    settings = options;
+    initialState = CFGosperInitial8(operation);
+    recipe = .oracle.Operation(operation,CFOracleSource(left),CFOracleSource(right));
+    coefficientResultFunction = (index, request ?= {= }) ->
+        CFGosperBihomographicCoefficient(
+            @operation,@left,@right,index,@settings.Merge(request)
+        );
+    provisional = {=
+        valueKind=:continuedFraction,
+        schema="rix.continued-fraction.gosper@1",
+        kind=:gosper,
+        name=CFOption(options,"name",:gosperBihomographic),
+        transducer=:bihomographic,
+        operation=operation,
+        source=_,
+        left=left,
+        right=right,
+        prefix=[],
+        period=_,
+        initialForm=CFGosperForm8(initialState),
+        coefficientResultFunction=coefficientResultFunction,
+        recipe=recipe,
+        evidenceLevel=:proof,
+        evidence={=
+            kind=:gosperBihomographicTransducer,
+            property=:exactCoefficientTransactions,
+            operation=operation,
+            initialForm=CFGosperForm8(initialState),
+            left=left[:evidence],
+            right=right[:evidence]
+        },
+        provenance={= plugin=:continuedFraction, version=3, source=:gosperBihomographic }
+    };
+    CFAttachProtocol(provisional);
+};
+
+CFZeroStatus(real, options ?= {= }) -> {;
+    source = CFRequireCoefficientStream(real,"Continued-fraction ZeroStatus");
+    source[:kind] == :finite
+      ?: {;
+          value = CFConvergent(@source,@source[:length]);
+          status = value == 0 ?: :zero ?_ :nonzero;
+          .ImmutableValue({=
+              valueKind=:continuedFractionZeroStatus,
+              schema="rix.continued-fraction.zero-status@1",
+              status=status,
+              certified=1,
+              sign=value < 0 ?: :negative ?_ (value > 0 ?: :positive ?_ :zero),
+              reason=:exactFiniteValue,
+              evidence={= kind=:exactRationalComparison, value=value }
+          });
+      }
+      ?_ ((source[:kind] == :lazy || source[:kind] == :periodic)
+           ?: {;
+               leading = CFCoefficientAt(@source,0,@options);
+               .ImmutableValue({=
+                   valueKind=:continuedFractionZeroStatus,
+                   schema="rix.continued-fraction.zero-status@1",
+                   status=:nonzero,
+                   certified=1,
+                   sign=leading >= 0 ?: :positive ?_ :negative,
+                   reason=:infiniteRegularContinuedFraction,
+                   evidence={=
+                       kind=:regularContinuedFractionSign,
+                       leadingCoefficient=leading,
+                       property=:positiveInfiniteTail
+                   }
+               });
+           }
+           ?_ {;
+               first = CFCoefficientResult(@source,0,@options);
+               first[:status] != :coefficient
+                 ?: .ImmutableValue({=
+                     valueKind=:continuedFractionZeroStatus,
+                     schema="rix.continued-fraction.zero-status@1",
+                     status=:unknown,
+                     certified=_,
+                     sign=:unknown,
+                     reason=first[:reason],
+                     evidence=first
+                 })
+                 ?_ (first[:coefficient] != 0
+                      ?: .ImmutableValue({=
+                          valueKind=:continuedFractionZeroStatus,
+                          schema="rix.continued-fraction.zero-status@1",
+                          status=:nonzero,
+                          certified=1,
+                          sign=first[:coefficient] > 0 ?: :positive ?_ :negative,
+                          reason=:nonzeroLeadingCoefficient,
+                          evidence=first
+                      })
+                      ?_ {;
+                          second = CFCoefficientResult(@source,1,@options);
+                          status = second[:status] == :end
+                            ?: :zero
+                            ?_ (second[:status] == :coefficient ?: :nonzero ?_ :unknown);
+                          .ImmutableValue({=
+                              valueKind=:continuedFractionZeroStatus,
+                              schema="rix.continued-fraction.zero-status@1",
+                              status=status,
+                              certified=status == :unknown ?: _ ?_ 1,
+                              sign=status == :zero ?: :zero ?_ (status == :nonzero ?: :positive ?_ :unknown),
+                              reason=status == :zero ?: :terminatedAfterZero
+                                ?_ (status == :nonzero ?: :positiveTailAfterZero ?_ second[:reason]),
+                              evidence={= first=@first, second=second }
+                          });
+                      });
+           });
 };
 
 CFPrimitiveIntegerCoefficients(coefficients) -> {;
@@ -482,7 +1150,13 @@ CFTranslate(real, offset, options ?= {= }) -> {;
     exactOffset = offset ~!: :Integer;
     name = CFOption(options, "name", :translated);
     evidence = CFTransformationEvidence(source, :translate, exactOffset);
-    {? source[:kind] == :finite
+    {? source[:kind] == :gosper
+         ? CFGosperHomographic(
+             :translate,source,[1,exactOffset,0,1],
+             .oracle.Operation(:add,source,exactOffset),
+             options.Merge({= name=name })
+           );
+       source[:kind] == :finite
          ? CFFinite(
              source[:coefficients].Set(1, source[:coefficients][1] + exactOffset),
              {= name=name, evidence=evidence }
@@ -504,21 +1178,28 @@ CFTranslate(real, offset, options ?= {= }) -> {;
 
 CFReciprocal(real, options ?= {= }) -> {;
     source = CFRequireCoefficientStream(real, "Continued-fraction Reciprocal");
-    leading = CFCoefficientAt(source, 0);
+    name = CFOption(options, "name", :reciprocal);
+    evidence = CFTransformationEvidence(source, :reciprocal);
+    source[:kind] == :gosper
+      ?: CFGosperHomographic(
+          :reciprocal,source,[0,1,1,0],
+          .oracle.Operation(:div,1,source),
+          options.Merge({= name=name })
+        )
+      ?_ {;
+    leading = CFCoefficientAt(@source, 0);
     leading >= 0
       ?: _
       ?_ .Error("Continued-fraction Reciprocal currently requires a positive represented real");
-    source[:kind] == :finite && source[:length] == 1 && leading == 0
+    @source[:kind] == :finite && @source[:length] == 1 && leading == 0
       ?: .Error("Continued-fraction Reciprocal is undefined at zero")
       ?_ _;
-    name = CFOption(options, "name", :reciprocal);
-    evidence = CFTransformationEvidence(source, :reciprocal);
-    {? source[:kind] == :finite
+    {? @source[:kind] == :finite
          ? CFFinite(
-             leading > 0 ?: [0] ++ source[:coefficients] ?_ CFDropFirst(source[:coefficients]),
-             {= name=name, evidence=evidence }
+             leading > 0 ?: [0] ++ @source[:coefficients] ?_ CFDropFirst(@source[:coefficients]),
+             {= name=@name, evidence=@evidence }
            );
-       source[:kind] == :periodic
+       @source[:kind] == :periodic
          ? {;
              transformedPrefix = @leading > 0
                ?: [0] ++ @source[:prefix]
@@ -538,6 +1219,7 @@ CFReciprocal(real, options ?= {= }) -> {;
          {= name=@name, evidenceLevel=@source[:evidenceLevel], evidence=@evidence }
          );
        }
+    };
     };
 };
 
@@ -634,9 +1316,11 @@ CFArithmeticCapabilities(real) -> {=
     maxIterations=100000
 };
 
-CFArithmetic(operation, left, right ?= _) -> {;
+CFOracleArithmetic(operation, left, right ?= _) -> {;
     unary = operation == :neg || operation == :abs;
-    recipe = unary ?: .oracle.Operation(operation, left) ?_ .oracle.Operation(operation, left, right);
+    recipe = unary
+      ?: .oracle.Operation(operation, CFOracleSource(left))
+      ?_ .oracle.Operation(operation, CFOracleSource(left), CFOracleSource(right));
     real = {=
         valueKind=:continuedFractionArithmeticReal,
         schema="rix.continued-fraction.arithmetic-real@1",
@@ -654,6 +1338,136 @@ CFArithmetic(operation, left, right ?= _) -> {;
     .ImmutableValue(real ~!: :ContinuedFractionReal);
 };
 
+CFFiniteBinary(operation, left, right) -> {;
+    a = CFConvergent(left,left[:length]);
+    b = CFConvergent(right,right[:length]);
+    value = {? operation == :add ? a+b;
+               operation == :sub ? a-b;
+               operation == :mul ? a*b;
+               operation == :div ? a/b;
+               .Error("Unsupported finite continued-fraction arithmetic operation")
+            };
+    CFFromRational(value,{= name=:exactArithmetic });
+};
+
+CFGosperPeriodicSquare(source) -> {;
+    form = CFQuadraticForm(source);
+    initialState = [-form[:linear],-form[:constant],0,form[:quadratic]];
+    form[:linear] == 0
+      ?: CFFromRational((-form[:constant])/form[:quadratic],{= name=:exactQuadraticSquare })
+      ?_ CFGosperHomographic(
+          :square,source,initialState,
+          .oracle.Operation(:mul,source,source),
+          {= name=:gosperQuadraticSquare }
+      );
+};
+
+CFNativeBinary(operation, leftValue, rightValue) -> {;
+    left = CFNativeSource(leftValue);
+    right = CFNativeSource(rightValue);
+    exactZeroDivisor = operation == :div && right[:kind] == :finite &&
+      CFConvergent(right,right[:length]) == 0;
+    sameComparison = (leftValue ? :Map) && (rightValue ? :Map)
+      ?: leftValue == rightValue
+      ?_ _;
+    same = sameComparison ?: 1 ?_ _;
+    exactFinite = left[:kind] == :finite
+      ?: (right[:kind] == :finite
+           ?: (operation == :div
+                ?: (CFConvergent(right,right[:length]) == 0
+                     ?: _
+                     ?_ CFFiniteBinary(operation,left,right))
+                ?_ CFFiniteBinary(operation,left,right))
+           ?_ _)
+      ?_ _;
+    exactZeroDivisor
+      ?: CFOracleArithmetic(:div,left,right)
+      ?_ (exactFinite != _
+           ?: exactFinite
+           ?_ (same
+           ?: (operation == :sub
+                ?: CFFromRational(0,{= name=:identicalDifference })
+                ?_ (operation == :div
+                     ?: {;
+                         zeroStatus = CFZeroStatus(@left);
+                         zeroStatus[:status] == :nonzero
+                           ?: CFFromRational(1,{= name=:identicalQuotient })
+                           ?_ CFGosperBihomographic(@operation,@left,@right);
+                     }
+                     ?_ (operation == :add
+                          ?: CFGosperHomographic(
+                              :double,left,[2,0,0,1],
+                              .oracle.Operation(:add,left,left),
+                              {= name=:gosperDouble }
+                          )
+                          ?_ (operation == :mul
+                               ?: (left[:kind] == :periodic
+                                    ?: CFGosperPeriodicSquare(left)
+                                    ?_ CFGosperBihomographic(operation,left,right))
+                               ?_ CFGosperBihomographic(operation,left,right)))))
+                ?_ CFGosperBihomographic(operation,left,right)));
+};
+
+CFNativeNegate(sourceValue) -> {;
+    source = CFNativeSource(sourceValue);
+    source[:kind] == :finite
+      ?: CFFromRational(-CFConvergent(source,source[:length]),{= name=:exactNegation })
+      ?_ CFGosperHomographic(
+          :neg,source,[-1,0,0,1],
+          .oracle.Operation(:neg,source),
+          {= name=:gosperNegation }
+        );
+};
+
+CFNativeAbsolute(sourceValue) -> {;
+    source = CFNativeSource(sourceValue);
+    source[:kind] == :finite
+      ?: CFFromRational(CFConvergent(source,source[:length]).Abs(),{= name=:exactAbsoluteValue })
+      ?_ (source[:kind] == :lazy || source[:kind] == :periodic
+           ?: (CFCoefficientAt(source,0) >= 0 ?: source ?_ CFNativeNegate(source))
+           ?_ CFOracleArithmetic(:abs,source));
+};
+
+CFNativePower(sourceValue, exponentValue) -> {;
+    source = CFNativeSource(sourceValue);
+    exponent = exponentValue ~!: :Integer;
+    exponent < 0 && source[:kind] == :finite && CFConvergent(source,source[:length]) == 0
+      ?: .Error("A zero continued fraction cannot be raised to a negative power")
+      ?_ _;
+    exponent == 0
+      ?: CFFromRational(1,{= name=:zerothPower })
+      ?_ (exponent == 1
+           ?: source
+           ?_ (exponent == -1
+                ?: CFGosperHomographic(
+                    :reciprocal,source,[0,1,1,0],
+                    .oracle.Operation(:div,1,source),
+                    {= name=:gosperReciprocal }
+                )
+                ?_ (source[:kind] == :finite
+                     ?: CFFromRational(CFConvergent(source,source[:length])^exponent,{= name=:exactPower })
+                     ?_ (exponent == 2 && source[:kind] == :periodic
+                          ?: CFGosperPeriodicSquare(source)
+                          ?_ CFOracleArithmetic(:pow,source,exponent)))));
+};
+
+CFArithmetic(operation, left, right ?= _) -> {;
+    nativeLeft = CFNativeStream(left) || CFExact(left);
+    operation == :neg
+      ?: {; @nativeLeft ?: CFNativeNegate(@left) ?_ CFOracleArithmetic(@operation,@left); }
+      ?_ (operation == :abs
+           ?: {; @nativeLeft ?: CFNativeAbsolute(@left) ?_ CFOracleArithmetic(@operation,@left); }
+           ?_ (operation == :pow
+                ?: {;
+                    (@nativeLeft && CFExact(@right))
+                      ?: CFNativePower(@left,@right)
+                      ?_ CFOracleArithmetic(@operation,@left,@right);
+                }
+                ?_ ((nativeLeft && (CFNativeStream(right) || CFExact(right)))
+                     ?: CFNativeBinary(operation,left,right)
+                     ?_ CFOracleArithmetic(operation,left,right))));
+};
+
 .TypeKnown(:ContinuedFractionReal) ?: _ ?_ .TypeRegister({=
     name=:ContinuedFractionReal,
     nativeType=:map,
@@ -661,8 +1475,36 @@ CFArithmetic(operation, left, right ?= _) -> {;
     convertFrom={= map=(x) ?- [CFFamily(x)] -> x },
     validate=(x)->CFFamily(x),
     proto={=
-        Enclose=(self,request ?= {= })->self[:kind] == :arithmetic ?: self[:recipe].Enclose(request) ?_ CFProtocolEnclosure(self,request,:enclose),
-        Refine=(self,request ?= {= })->self[:kind] == :arithmetic ?: self[:recipe].Refine(request) ?_ CFProtocolEnclosure(self,request,:refine),
+        Coefficient=(self,index,options ?= {= })->self[:kind] == :arithmetic
+          ?: .Error("Oracle-backed continued-fraction arithmetic has no native coefficient stream")
+          ?_ CFCoefficientAt(self,index,options),
+        CoefficientResult=(self,index,options ?= {= })->self[:kind] == :arithmetic
+          ?: .Error("Oracle-backed continued-fraction arithmetic has no native coefficient stream")
+          ?_ CFCoefficientResult(self,index,options),
+        Coefficients=(self,count ?= _,options ?= {= })->self[:kind] == :arithmetic
+          ?: .Error("Oracle-backed continued-fraction arithmetic has no native coefficient stream")
+          ?_ CFCoefficients(self,count,options),
+        Value=(self)->self[:kind] == :finite
+          ?: CFConvergent(self,self[:length])
+          ?_ .Error("Infinite or transduced continued fractions do not have an immediate exact Value"),
+        Convergent=(self,count)->CFConvergent(self,count),
+        Convergents=(self,count ?= _)->CFConvergents(self,count),
+        Enclosure=(self,count ?= _)->CFEnclosureAt(self,count),
+        ErrorInterval=(self,count)->CFErrorInterval(self,count),
+        QuadraticForm=(self)->CFQuadraticForm(self),
+        BestApproximation=(self,maxDenominator,options ?= {= })->CFBestApproximation(self,maxDenominator,options),
+        Translate=(self,offset,options ?= {= })->CFTranslate(self,offset,options),
+        Reciprocal=(self,options ?= {= })->CFReciprocal(self,options),
+        ZeroStatus=(self,options ?= {= })->CFZeroStatus(self,options),
+        Record=(self)->self[:kind] == :arithmetic
+          ?: {= valueKind=self[:valueKind], schema=self[:schema], operation=self[:operation], certified=1 }
+          ?_ CFRecord(self),
+        Enclose=(self,request ?= {= })->self[:kind] == :arithmetic
+          ?: self[:recipe].Enclose(request)
+          ?_ (self[:kind] == :gosper ?: CFGosperProtocolEnclosure(self,request,:enclose) ?_ CFProtocolEnclosure(self,request,:enclose)),
+        Refine=(self,request ?= {= })->self[:kind] == :arithmetic
+          ?: self[:recipe].Refine(request)
+          ?_ (self[:kind] == :gosper ?: CFGosperProtocolEnclosure(self,request,:refine) ?_ CFProtocolEnclosure(self,request,:refine)),
         NumericsCapabilities=(self)->self[:kind] == :arithmetic ?: CFArithmeticCapabilities(self) ?_ CFCapabilities(self)
     },
     installs={=
@@ -685,8 +1527,9 @@ continuedFractionNamespace._proto = {=
     Periodic = (self, prefix, period, options ?= {= }) -> CFPeriodic(prefix, period, options),
     Sqrt2 = (self) -> CFSqrt2(),
     FromRational = (self, value, options ?= {= }) -> CFFromRational(value, options),
-    Coefficient = (self, real, index) -> CFCoefficientAt(real, index),
-    Coefficients = (self, real, count ?= _) -> CFCoefficients(real, count),
+    Coefficient = (self, real, index, options ?= {= }) -> CFCoefficientAt(real, index, options),
+    CoefficientResult = (self, real, index, options ?= {= }) -> CFCoefficientResult(real, index, options),
+    Coefficients = (self, real, count ?= _, options ?= {= }) -> CFCoefficients(real, count, options),
     Convergent = (self, real, count) -> CFConvergent(real, count),
     Convergents = (self, real, count ?= _) -> CFConvergents(real, count),
     Enclosure = (self, real, count ?= _) -> CFEnclosureAt(real, count),
@@ -695,6 +1538,7 @@ continuedFractionNamespace._proto = {=
     BestApproximation = (self, real, maxDenominator, options ?= {= }) -> CFBestApproximation(real, maxDenominator, options),
     Translate = (self, real, offset, options ?= {= }) -> CFTranslate(real, offset, options),
     Reciprocal = (self, real, options ?= {= }) -> CFReciprocal(real, options),
+    ZeroStatus = (self, real, options ?= {= }) -> CFZeroStatus(real, options),
     Record = (self, real) -> CFRecord(real)
 };
 
