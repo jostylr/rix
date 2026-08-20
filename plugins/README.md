@@ -29,7 +29,7 @@ The implementation order and per-plugin phased work are tracked in
 | `linalg/` | RiX | `linalg` | Pure-RiX exact dense linear algebra, vector spaces, coordinate systems, and coordinate-aware tensor transformations. |
 | `optimize/` | RiX | `optimize` | Pure-RiX exact standard-form linear programs and deterministic simplex solving. |
 | `solve/` | RiX | `solve` | Pure-RiX exact affine matrix and symbolic-system solving over the linear-algebra service. |
-| `radix/` | RiX | `radix` | Pure-RiX bounded exact positional expansions and repeating-period analysis. |
+| `radix/` | RiX | `radix` | Pure-RiX bounded exact positional expansions, repeating-period analysis, configurable alphabets/grouping, and portable work diagnostics. |
 | `fraction/` | RiX | `fraction` | Pure-RiX unreduced Fraction arithmetic and classroom/Farey operations; aliases `.frac` and `.f`. |
 | `ratfun/` | RiX | `ratfun` | Pure-RiX canonical callable RationalFunctions; aliases `.rationalFunction` and `.rf`. |
 | `fracfun/` | host | `fracfun` | Form-preserving FractionFunctions; aliases `.fractionFunction` and `.ff`. See the migration boundary below. |

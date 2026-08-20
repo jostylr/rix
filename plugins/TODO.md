@@ -108,8 +108,8 @@ newline normalization.
    - [x] Add reference documentation, a tutorial, and focused tests.
 2. **Phase 2 — Streaming and richer representation**
    - [ ] Add a cloneable lazy digit stream once plugin-defined lazy values have a stable protocol.
-   - [ ] Add formatting policies for digit alphabets above base 36 and grouped radices.
-   - [ ] Share generic work-budget diagnostics with `.numerics`.
+   - [x] Add formatting policies for digit alphabets above base 36 and grouped radices.
+   - [x] Share generic work-budget diagnostics with `.numerics`.
 3. **Phase 3 — Extensible numeral-system definitions**
    - [ ] Define versioned numeral-system constructors and a common parse/format
      protocol rather than assuming every system is a positive positional base

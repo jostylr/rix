@@ -37,7 +37,7 @@ numeric type or one universal rendering engine.
 | `.ball` | Implemented Phase 1 plugin | Pure RiX exact midpoint-radius snapshots, outward dyadic rounding, finite arithmetic, and nested square-root refinement. |
 | `.cauchy` | Implemented Phase 1 plugin | Pure RiX rational sequences with explicit tail bounds/moduli and certified geometric refinement. |
 | `.continuedFraction` | Implemented Phase 1 plugin | Pure RiX finite and lazy simple continued fractions, exact convergent cylinders, and bounded refinement. |
-| `.radix` | Implemented pure-RiX plugin | Bounded exact positional expansions, finite digit requests, and repeating-period analysis; extends Integer and Rational methods. |
+| `.radix` | Implemented pure-RiX through actionable Phase 2 | Bounded exact positional expansions, finite digit requests, repeating-period analysis, collision-safe single-glyph alphabets above base 36, grouped formatting, and generic work-budget diagnostics; lazy streams await the shared plugin-defined lazy-value protocol. |
 | `.exactAlgebras` | Implemented pure-RiX plugin | Exact rational quaternion and octonion values with Cayley-Dickson arithmetic. |
 | Plugin catalog | Implemented runtime service | Discovery, metadata, explicit loading, host approval for JavaScript, capability groups, and remounting. |
 | Core symbolic specs | Implemented in RiX core | `{#}` preserves expression IR, definitions, constraints, all symbols, and advisory input/output roles without choosing a solver. |

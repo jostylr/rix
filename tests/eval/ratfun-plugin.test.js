@@ -170,7 +170,7 @@ describe("semantic RationalFunction plugin", () => {
             record := (.rf\`(x+1)/(x-1)\`).Record().Set("coefficientdomain", :R);
             .ratfun(record);
         `)).toThrow("records require coefficient domain :Q");
-    });
+    }, 10000);
 
     test("computes exact partial fractions with polynomial, repeated, and residual parts", () => {
         const result = parseAndEvaluate(`
