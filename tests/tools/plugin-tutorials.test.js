@@ -52,7 +52,7 @@ describe("implemented plugin tutorials", () => {
         expect(tutorials).toHaveLength(manifestDirectories.length);
         expect(results).toHaveLength(expectedCells);
         expect(results.filter(({ status }) => status !== "pass")).toEqual([]);
-    }, process.env.CI ? 120_000 : 30_000);
+    }, process.env.CI ? 120_000 : 60_000);
 
     test("supplemental implemented tutorials keep every RiX cell parseable", () => {
         const tutorials = supplementalPluginTutorials();

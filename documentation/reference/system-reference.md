@@ -8,7 +8,7 @@ toc-depth: 2
 This page is generated from the current RiX implementation by `documentation/scripts/generate-reference.js`. Do not edit it by hand. Descriptions come from registry documentation strings; the narrative [syntax guide](../eval/syntax-guide.md) and [methods guide](../eval/methods-guide.md) provide signatures and examples.
 :::
 
-At this revision RiX exposes **251 named entries** on the default system context and registers **228 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
+At this revision RiX exposes **279 named entries** on the default system context and registers **255 internal IR operations**. Aliases with different spelling are listed separately because they are separately addressable names.
 
 ## Public system context
 
@@ -18,6 +18,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | --- | --- | --- | --- |
 | `.ABS` | function | — | Absolute value |
 | `.ADD` | function | Arith | Addition or string concatenation |
+| `.AFFINEBOXRANGE` | function | — | Certify a rational-box range with correlation-preserving affine arithmetic |
 | `.ALGEBRA` | value | — | Algebra presentation helpers |
 | `.ALL` | lazy function | — | Every: returns last element if predicate is truthy for ALL elements, null on first failure — callback receives (val, locator, src) |
 | `.AND` | lazy function | Logic | Logical AND (short-circuits on first falsy, returns deciding value) |
@@ -32,6 +33,17 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.AUDIO` | function | — | Create a portable audio asset |
 | `.BIND` | lazy function | Output | Capture a live Binding to a RiX variable |
 | `.BLOCK` | lazy function | — | Sequential block execution, returns last value |
+| `.CALCULUSDERIVATIVECHECK` | function | — | Independently recompute and check a primitive Calculus derivative transformation |
+| `.CALCULUSDERIVATIVESIGN` | function | — | Certify a uniform derivative sign for a checked primitive Calculus transformation |
+| `.CALCULUSGRAPHREWRITE` | function | — | Create and independently check a theorem-named Calculus graph rewrite |
+| `.CALCULUSGRAPHREWRITECHECK` | function | — | Check a Calculus graph rewrite theorem and retained domain obligations |
+| `.CALCULUSGRAPHSIMPLIFICATIONCHECK` | function | — | Independently recompute a canonical Calculus graph simplification |
+| `.CALCULUSGRAPHSIMPLIFY` | function | — | Apply and check the canonical domain-preserving Calculus graph simplifier |
+| `.CALCULUSLIPSCHITZRANGE` | function | — | Certify a range by midpoint values and bounded first derivatives |
+| `.CALCULUSRANGE` | function | — | Evaluate a supported immutable Calculus graph over exact rational ranges |
+| `.CALCULUSRANGECHECK` | function | — | Return the checker record attached to a Calculus graph-range result |
+| `.CALCULUSRANGERECOGNIZE` | function | — | Recognize an exact polynomial or source-domain-preserving rational graph |
+| `.CALCULUSTAYLORRANGE` | function | — | Certify a first-order midpoint Taylor range with second-derivative remainder |
 | `.CALLOUT` | function | — | Create a semantic document callout |
 | `.CAPABILITYREGISTER` | function | — | Register a package system capability during trusted package startup |
 | `.CASE` | lazy function | — | Ordered case expression with condition arms, prepared-trial arms, and an optional fallback |
@@ -97,6 +109,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.INTERSECTS` | function | — | Check if two collections intersect (1 if true, null otherwise) |
 | `.INTERVAL` | function | — | Create an interval [lo, hi] or test betweenness like a:b:c |
 | `.IRANGE` | function | Core, Collections, Arrays | Create an integer range [start, end] |
+| `.JACOBIANBOXRANGE` | function | — | Certify a scalar range on a rational box using checked Jacobian bounds |
 | `.JSCALL` | function | — | Call a named export from a local JavaScript module |
 | `.KEYOF` | function | Core, Maps | Resolve canonical map key string for a value |
 | `.KEYS` | function | Core, Maps | Get the keys of a map as a set (obj.\|) |
@@ -121,6 +134,8 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.MOD` | function | Arith | Floor modulo with a positive divisor |
 | `.MUL` | function | Arith | Multiplication (Product of values) |
 | `.MULTI` | lazy function | Core | Evaluate multiple expressions, return last |
+| `.MULTIVARIATERANGECHECK` | function | — | Independently recompute a Jacobian, affine, or Taylor-model enclosure |
+| `.MULTIVARIATERANGEREQUEST` | function | — | Construct a portable multivariate range request |
 | `.NEG` | function | — | Negation |
 | `.NEQ` | function | Logic | Inequality check — returns 1 or null |
 | `.NOT` | function | Logic | Logical NOT — returns Integer(1) for null input, null otherwise |
@@ -143,6 +158,17 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.QUOTE` | function | — | Create a document quotation block |
 | `.RANDOMSEED` | function | Random | Install a fresh default RNG with an explicit seed in the current lexical scope |
 | `.RAND_NAME` | function | Core, Random | Generate a random name string RAND\_NAME(len=10, alphabet=a-zA-Z) |
+| `.RANGEABSOLUTEVALUE` | function | — | Exact image of range-set absolute value |
+| `.RANGEADD` | function | — | Exact Cartesian image of range-set addition |
+| `.RANGEDIVIDE` | function | — | Exact defined image of range-set division |
+| `.RANGEEVIDENCE` | function | — | Return the checked rangeEvidence metadata attached to a range result |
+| `.RANGEINTEGERPOWER` | function | — | Exact defined image of a range set raised to an integer power |
+| `.RANGEMULTIPLY` | function | — | Exact Cartesian image of range-set multiplication |
+| `.RANGENEGATE` | function | — | Exact image of range-set negation |
+| `.RANGEPOLICY` | lazy function | — | Evaluate an expression under an inherited range-domain policy |
+| `.RANGERECIPROCAL` | function | — | Exact defined image of range-set reciprocal |
+| `.RANGESUBTRACT` | function | — | Exact Cartesian image of range-set subtraction |
+| `.RATIONALBOX` | function | — | Construct a checked Cartesian box of closed bounded rational intervals |
 | `.REACTIVEGRAPH` | function | RiXCel | Create a transactional graph of reactive source and computed nodes |
 | `.REDUCE` | lazy function | Collections, Arrays | Reduce a collection with an accumulator function — callback receives (acc, val, locator, src) |
 | `.REFINEMENTCHECK` | function | — | Validate a numerical provider result against its request and capabilities |
@@ -189,6 +215,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.SUBSTR` | function | Strings | Get substring |
 | `.SYMMETRICDIFFERENCE` | function | — | Core operation SET\_SYMDIFF |
 | `.TABLE` | function | Output | Create a structured output table |
+| `.TAYLORMODELBOXRANGE` | function | — | Certify a rational-box range with a multivariate Taylor model and Hessian remainder |
 | `.TEMPLATE_TEXT` | lazy function | — | Create interpolated text with @{expression} insertions |
 | `.TEST` | lazy function | — | Run tests: .Test(label, setup, [tests] \| {= tests }) |
 | `.TESTERROR` | lazy function | — | Abort test: .TestError(label, setup, expr) — passes if expr aborts with .Error() or a runtime error |
@@ -214,14 +241,15 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.algebra` | function | — | Exact Polynomial and RationalFunction algorithms with checked presentations. |
 | `.algebraicreal` | function | — | Exact real algebraic roots certified by canonical Polynomial values and Sturm isolating intervals. |
 | `.ar` | function | — | Exact real algebraic roots certified by canonical Polynomial values and Sturm isolating intervals. |
-| `.ball` | function | — | Certified rational midpoint-radius balls and nested square-root refinement. |
+| `.ball` | function | — | Certified real and complex rational balls with precision-negotiated elementary functions. |
 | `.bessel` | function | — | Clearly named Bessel-function namespace backed by certified universal Numerics algorithms. |
 | `.calculus` | function | — | Portable abstract functions, obligation-bearing higher differentiation, and provenance-recording evaluation through semantic-ID implementation links. |
 | `.canvas` | function | — | Serializable Canvas 2D drawing plans for core Graphics scenes. |
 | `.cauchy` | function | — | Rational Cauchy sequences with explicit certified tail bounds and moduli. |
-| `.cf` | function | — | Finite and lazy simple continued fractions with exact convergents and certified enclosures. |
+| `.cf` | function | — | Finite, lazy, transduced, and certified-extracted simple continued fractions. |
+| `.complex` | function | — | Representation-generic certified complex singletons over RiX real backends. |
 | `.complexviz` | function | — | Exact domain-color sampling for complex functions rendered as portable Graphics. |
-| `.continuedfraction` | function | — | Finite and lazy simple continued fractions with exact convergents and certified enclosures. |
+| `.continuedfraction` | function | — | Finite, lazy, transduced, and certified-extracted simple continued fractions. |
 | `.csv` | function | — | Deterministic CSV and TSV export for portable Tables and typed data Relations. |
 | `.data` | function | — | Immutable typed relations with deterministic projection, filtering, sorting, and Table views. |
 | `.document` | function | — | Numbered portable reports with labels, forward references, captions, and small semantic themes. |
@@ -245,7 +273,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.nd` | function | — | Pure-RiX exact n-dimensional geometry with affine and Cayley projection records and explicit Scene3D adaptation. |
 | `.numerics` | function | — | Backend-neutral bounded enclosure and refinement orchestration. |
 | `.optimize` | function | — | Pure-RiX exact linear-program models and deterministic Phase 1 simplex optimization. |
-| `.oracle` | function | — | Exact rational-betweenness oracle demonstrations and bounded refinement. |
+| `.oracle` | function | — | Exact rational-betweenness oracles, certified refinement funnels, and coarse eta-resolution models. |
 | `.p` | function | — | Semantic callable univariate polynomials with structural and symbolic entry forms. |
 | `.pdf` | function | — | PDF document and figure renderer orchestrated through LaTeX. |
 | `.plot` | function | Plot | Pure-RiX exact and numerics-backed 2D plotting that lowers to portable core Graphics scenes. |
@@ -253,7 +281,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.poly` | function | — | Semantic callable univariate polynomials with structural and symbolic entry forms. |
 | `.polynomial` | function | — | Semantic callable univariate polynomials with structural and symbolic entry forms. |
 | `.quarto` | function | — | Quarto Markdown renderer with front matter and portable figure lowering. |
-| `.radix` | function | — | Bounded exact positional expansions and repeating-period analysis for rational values. |
+| `.radix` | function | — | Bounded exact positional expansions, configurable formatting, and repeating-period analysis for rational values. |
 | `.ratfun` | function | — | Canonical callable univariate rational functions with exact cancellation and Polynomial interoperability. |
 | `.rationalfunction` | function | — | Canonical callable univariate rational functions with exact cancellation and Polynomial interoperability. |
 | `.rf` | function | — | Canonical callable univariate rational functions with exact cancellation and Polynomial interoperability. |
@@ -362,7 +390,7 @@ Imported scripts can add or withhold named groups. Permission-like names are int
 | `Plot` | `plot` |
 | `Core` | `LEN`, `FIRST`, `LAST`, `GETEL`, `IRANGE`, `IF`, `LOOP`, `MULTI`, `RAND_NAME`, `PRINT`, `Shaped`, `KEYOF`, `KEYS`, `VALUES`, `REGISTERMETHOD`, `CertifiedApproximation`, `Undecided`, `RefinementRequest`, `RefinementEffectiveLimits`, `RefinementSupports`, `RefinementCheck`, `RefinementUnsupported`, `TypeKnown`, `ImmutableValue` |
 | `Methods` | `REGISTERMETHOD` |
-| `Arith` | `ADD`, `SUB`, `MUL`, `DIV`, `INTDIV`, `DIVMOD`, `MOD`, `POW`, `FACTORIAL`, `DOUBLEFACTORIAL` |
+| `Arith` | `ADD`, `SUB`, `MUL`, `DIV`, `INTDIV`, `DIVMOD`, `MOD`, `POW`, `FACTORIAL`, `DOUBLEFACTORIAL`, `RANGE_POLICY`, `RANGE_EVIDENCE`, `RANGE_ADD`, `RANGE_SUBTRACT`, `RANGE_MULTIPLY`, `RANGE_DIVIDE`, `RANGE_NEGATE`, `RANGE_ABSOLUTE_VALUE`, `RANGE_RECIPROCAL`, `RANGE_INTEGER_POWER`, `CALCULUS_RANGE`, `CALCULUS_RANGE_CHECK`, `CALCULUS_RANGE_RECOGNIZE`, `CALCULUS_GRAPH_SIMPLIFY`, `CALCULUS_GRAPH_SIMPLIFICATION_CHECK`, `CALCULUS_DERIVATIVE_CHECK`, `CALCULUS_DERIVATIVE_SIGN`, `CALCULUS_LIPSCHITZ_RANGE`, `CALCULUS_TAYLOR_RANGE` |
 | `Logic` | `EQ`, `NEQ`, `LT`, `GT`, `LTE`, `GTE`, `AND`, `OR`, `NOT` |
 | `Collections` | `LEN`, `FIRST`, `LAST`, `GETEL`, `IRANGE`, `MAP`, `FILTER`, `REDUCE`, `Shaped`, `Stream` |
 | `Async` | `Stream`, `Retry` |
@@ -392,6 +420,7 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `ABS` | eager, pure, multifunction | Absolute value |
 | `ACTIVE_BASE_LITERAL` | eager, effectful/unspecified | Parse a strict numeral using the session's active input base |
 | `ADD` | eager, pure, multifunction | Addition or string concatenation |
+| `AFFINE_BOX_RANGE` | eager, pure | Certify a rational-box range with correlation-preserving affine arithmetic |
 | `AND` | lazy, pure | Logical AND (short-circuits on first falsy, returns deciding value) |
 | `ARRAY` | lazy, pure | Create an array/sequence (supports sequence generators) |
 | `ARRAY_CAPTURE` | lazy, pure | Create an array/sequence with constructor capture controls |
@@ -413,6 +442,17 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `BRACKET_GET` | lazy, effectful/unspecified | Shaped-aware bracket indexing and slicing |
 | `BRACKET_SET` | lazy, effectful/unspecified | Shaped-aware bracket assignment |
 | `BREAK` | lazy, effectful/unspecified | Structured break block that exits the nearest matching breakable construct |
+| `CALCULUS_DERIVATIVE_CHECK` | eager, pure | Independently recompute and check a primitive Calculus derivative transformation |
+| `CALCULUS_DERIVATIVE_SIGN` | eager, pure | Certify a uniform derivative sign for a checked primitive Calculus transformation |
+| `CALCULUS_GRAPH_REWRITE` | eager, pure | Create and independently check a theorem-named Calculus graph rewrite |
+| `CALCULUS_GRAPH_REWRITE_CHECK` | eager, pure | Check a Calculus graph rewrite theorem and retained domain obligations |
+| `CALCULUS_GRAPH_SIMPLIFICATION_CHECK` | eager, pure | Independently recompute a canonical Calculus graph simplification |
+| `CALCULUS_GRAPH_SIMPLIFY` | eager, pure | Apply and check the canonical domain-preserving Calculus graph simplifier |
+| `CALCULUS_LIPSCHITZ_RANGE` | eager, pure | Certify a range by midpoint values and bounded first derivatives |
+| `CALCULUS_RANGE` | eager, pure | Evaluate a supported immutable Calculus graph over exact rational ranges |
+| `CALCULUS_RANGE_CHECK` | eager, pure | Return the checker record attached to a Calculus graph-range result |
+| `CALCULUS_RANGE_RECOGNIZE` | eager, pure | Recognize an exact polynomial or source-domain-preserving rational graph |
+| `CALCULUS_TAYLOR_RANGE` | eager, pure | Certify a first-order midpoint Taylor range with second-derivative remainder |
 | `CALL` | lazy, effectful/unspecified | Call a user-defined or built-in function |
 | `CALLOUT` | eager, pure | Create a semantic document callout |
 | `CALL_EXPR` | lazy, effectful/unspecified | Call an expression that evaluates to a function |
@@ -472,6 +512,7 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `INTERSECT` | eager, pure | Intersection of two collections (set intersection or interval overlap) |
 | `INTERSECTS` | eager, pure | Check if two collections intersect (1 if true, null otherwise) |
 | `INTERVAL` | eager, pure | Create an interval [lo, hi] or test betweenness like a:b:c |
+| `JACOBIAN_BOX_RANGE` | eager, pure | Certify a scalar range on a rational box using checked Jacobian bounds |
 | `JS_CALL` | eager, effectful/unspecified | Call a named export from a local JavaScript module |
 | `KEYOF` | eager, pure | Resolve canonical map key string for a value |
 | `KEYS` | eager, pure | Get the keys of a map as a set (obj.\|) |
@@ -504,6 +545,8 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `MUL` | eager, pure, multifunction | Multiplication (Product of values) |
 | `MULTIFUNCDEF` | lazy, effectful/unspecified | Append or prepend a multifunction variant |
 | `MULTIFUNCTION` | lazy, effectful/unspecified | Create an ordered multifunction literal, flattening nested multifunctions |
+| `MULTIVARIATE_RANGE_CHECK` | eager, pure | Independently recompute a Jacobian, affine, or Taylor-model enclosure |
+| `MULTIVARIATE_RANGE_REQUEST` | eager, pure | Construct a portable multivariate range request |
 | `MUTCOPY` | eager, effectful/unspecified | Clone a map and apply mutations (obj{= +a=3, -.b }) |
 | `MUTINPLACE` | eager, effectful/unspecified | Mutate a map in-place (obj{! +a=3, -.b }) |
 | `NARY_CONCAT` | eager, pure | N-ary concatenation fold |
@@ -549,6 +592,17 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `QUOTE` | eager, pure | Create a document quotation block |
 | `RANDOM` | eager, effectful/unspecified | Sample exact rational points from an interval |
 | `RANDOM_PARTITION` | eager, effectful/unspecified | Partition an interval at distinct random rational points |
+| `RANGE_ABSOLUTE_VALUE` | eager, pure | Exact image of range-set absolute value |
+| `RANGE_ADD` | eager, pure | Exact Cartesian image of range-set addition |
+| `RANGE_DIVIDE` | eager, pure | Exact defined image of range-set division |
+| `RANGE_EVIDENCE` | eager, pure | Return the checked rangeEvidence metadata attached to a range result |
+| `RANGE_INTEGER_POWER` | eager, pure | Exact defined image of a range set raised to an integer power |
+| `RANGE_MULTIPLY` | eager, pure | Exact Cartesian image of range-set multiplication |
+| `RANGE_NEGATE` | eager, pure | Exact image of range-set negation |
+| `RANGE_POLICY` | lazy, effectful/unspecified | Evaluate an expression under an inherited range-domain policy |
+| `RANGE_RECIPROCAL` | eager, pure | Exact defined image of range-set reciprocal |
+| `RANGE_SUBTRACT` | eager, pure | Exact Cartesian image of range-set subtraction |
+| `RATIONAL_BOX` | eager, pure | Construct a checked Cartesian box of closed bounded rational intervals |
 | `REACTIVEGRAPH` | eager, effectful/unspecified | Create a transactional graph of reactive source and computed nodes |
 | `REACTIVE_DECLARE` | lazy, effectful/unspecified | Declare a new reactive cell from a deferred definition |
 | `REACTIVE_INDEX_NODE` | lazy, effectful/unspecified | Retrieve a FormulaSheet cell identity without dereferencing it |
@@ -598,6 +652,7 @@ This is the evaluator dispatch surface, not a promise that every name should be 
 | `SYSTEM_SPEC` | lazy, pure | Create a first-class symbolic system specification |
 | `TABLE` | eager, pure | Create a structured output table |
 | `TAIL_SELF` | lazy, effectful/unspecified | Tail-position self call that reuses the current function frame |
+| `TAYLOR_MODEL_BOX_RANGE` | eager, pure | Certify a rational-box range with a multivariate Taylor model and Hessian remainder |
 | `TEMPLATE_TEXT` | lazy, effectful/unspecified | Create interpolated text with @{expression} insertions |
 | `TERNARY` | lazy, effectful/unspecified | Decision conditional: condition ?: truthExpr ?\_ nullExpr ?? undecidedExpr |
 | `TEXT` | eager, pure | Create a portable text output node |

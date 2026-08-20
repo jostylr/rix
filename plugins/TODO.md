@@ -38,7 +38,8 @@ contracts.
 4. **Add portable fallbacks:** `.terminalAscii`, `.png`, `.tikz`, and `.latex`
    Phase 1.
 5. **Broaden mathematical backends:** `.algebra`, `.ball`, `.cauchy`,
-   `.continuedFraction`, and `.algebraicReal` Phase 1.
+   `.continuedFraction`, `.algebraicReal`, and `.complex` Phase 1; then build
+   scalar-generic `.cayley`, `.quaternion`, and `.octonion` layers.
 6. **Broaden analysis and visualization:** `.stats`, `.scene3d`, `.nd`, and
    `.complexViz` Phase 1.
 7. **Complete publication pipelines:** `.quarto`, `.pdf`, and `.gif` Phase 1.
@@ -813,6 +814,126 @@ tracked in
 4. **Phase 4 — Efficient number fields**
    - [ ] Add primitive-element management, canonicalization, and external CAS
      certificate adapters.
+
+### `.complex`
+
+The representation and future Cayley–Dickson boundaries are described in
+[`complex/architecture.md`](complex/architecture.md). Lowercase `.complex` is
+the certified numerical singleton layer; it does not replace the core exact
+`.Complex` collection or the finite rectangular `.ball.Complex` set value.
+
+1. **Phase 1 — Certified complex singletons over real backends**
+   - [x] Add `ComplexReal(re,im)`/`.complex.FromParts` over exact Rationals or
+     any certified arbitrarily refinable singleton real, including mixed real
+     families that meet through Oracle.
+   - [x] Add Rational embedding, native `+`, `-`, `*`, `/`, unary negation,
+     conjugation, norm squared, and exact-zero rejection.
+   - [x] Add `rix.enclosable-complex@1` with certified axis-aligned rectangular
+     `Enclose`/`Refine` results, bounded work sharing, component evidence, and
+     no false use of the ordered `EnclosableReal` result type.
+   - [x] Add explicit `ZeroStatus` origin-separation evidence; retain deferred
+     zero separation in division recipes instead of guessing from overlap.
+   - [x] Add representation-generic `Exp`, `Sin`, and `Cos` using certified
+     real Numerics identities.
+   - [x] Add principal `Log`/`Sqrt` and detailed `LogResult`/`SqrtResult`
+     records distinguishing resolved inputs, boundary values, zero, and an
+     unresolved branch-cut enclosure.
+   - [x] Reject finite Balls and Floats as singleton components, and add a
+     reference README, runnable tutorial, architecture note, and focused tests.
+2. **Phase 2 — Complex regions and tighter analytic kernels**
+   - [ ] Add first-class `ComplexRegion` values with rectangle, disc, and
+     finite-union geometries; keep set images separate from singleton recipes.
+   - [ ] Add direct validated complex-ball series and argument reduction for
+     elementary functions, selecting them ahead of Cartesian fallback when
+     they produce tighter bounds.
+   - [ ] Preserve shared-expression correlation and add adaptive subdivision
+     near poles, zeros, and branch boundaries.
+   - [ ] Let `.complexViz` consume the complex enclosure/branch schemas rather
+     than independently interpreting sample pairs.
+3. **Phase 3 — Branch sets and complex special functions**
+   - [ ] Add named branches, finite branch sets, analytic-continuation paths,
+     and monodromy metadata for logarithms, roots, powers, and inverse
+     trigonometric functions.
+   - [ ] Add certified Gamma/log-Gamma, error functions, Bessel families, and
+     selected elliptic/hypergeometric functions through direct complex
+     algorithms with explicit poles and cuts.
+   - [ ] Add complex algebraic roots represented by a polynomial plus an
+     isolating rectangle or disc rather than reducing every exact value to two
+     unrelated real algebraic coordinates.
+4. **Phase 4 — Validated complex analysis ecosystem**
+   - [ ] Add contour integration, argument-principle root counts, analytic
+     continuation caches, Taylor models, and proof-producing zero/pole
+     isolation.
+   - [ ] Explore Arb/Acb or equivalent acceleration behind the same portable
+     enclosure and branch evidence contracts.
+
+### `.cayley`
+
+1. **Phase 1 — Scalar-generic Cayley–Dickson algebra**
+   - [ ] Generalize the recursive component kernel from `exact-algebras`
+     without weakening that plugin's exact-rational schema.
+   - [ ] Accept a declared central real-scalar provider, retain component
+     backend identities, and expose basis, dimension, conjugation, norm
+     squared, and parenthesized multiplication records.
+   - [ ] Add certified component-box enclosure and origin/norm separation
+     protocols shared with `.complex`.
+   - [ ] Advertise inverse/division only when the selected algebra level and
+     scalar provider justify them.
+2. **Phase 2 — Typed adapters and efficient multiplication**
+   - [ ] Add adapters for core exact Complex values, `.complex` singletons, and
+     rational `exact-algebras` Quaternion/Octonion values.
+   - [ ] Add sparse basis multiplication and specialized dimensions 2, 4, and
+     8 while retaining the recursive law as a checker.
+3. **Phase 3 — Validated Cayley functions**
+   - [ ] Provide power-series evaluation for one-generated associative
+     subalgebras with componentwise remainder evidence.
+   - [ ] Record left/right multiplication maps and order-sensitive derivative
+     conventions.
+4. **Phase 4 — Beyond composition algebras**
+   - [ ] Represent zero divisors and partial invertibility for sedenions and
+     later Cayley–Dickson levels; never infer a division algebra from shape.
+
+### `.quaternion`
+
+1. **Phase 1 — Certified quaternion façade**
+   - [ ] Build a four-component typed façade over `.cayley`, with Rational and
+     certified-real construction, conjugation, multiplicative norm, inverse,
+     and explicit left/right division.
+   - [ ] Add component-box refinement and certified nonzero evidence.
+   - [ ] Add README, tutorial, multiplication-order fixtures, and mixed-real
+     backend tests.
+2. **Phase 2 — Intrinsic elementary functions**
+   - [ ] Implement `Exp`, principal/result `Log`, roots, powers, and
+     trigonometric/hyperbolic functions through the associative slice generated
+     by `1` and the vector direction.
+   - [ ] Make the zero-vector and negative-real-axis branch families explicit.
+3. **Phase 3 — Quaternion analysis**
+   - [ ] Add slice-regular versus Fueter-regular function identities, explicit
+     derivative conventions, and validated one-variable series.
+4. **Phase 4 — Geometry and applications**
+   - [ ] Add certified rotations/interpolation and adapters to `.scene3d`/`.nd`
+     without confusing unit quaternions with arbitrary quaternion values.
+
+### `.octonion`
+
+1. **Phase 1 — Certified octonion façade**
+   - [ ] Build an eight-component typed façade over `.cayley`, preserving
+     written parentheses and exposing conjugation, composition norm, inverse,
+     and explicit division conventions.
+   - [ ] Add alternativity, Moufang-identity, and nonassociativity fixtures
+     over exact Rationals before enabling generic real components.
+   - [ ] Add component-box refinement, documentation, and a runnable tutorial.
+2. **Phase 2 — Intrinsic one-variable functions**
+   - [ ] Add real-coefficient power series and slice formulas whose powers stay
+     in the associative subalgebra generated by one octonion.
+   - [ ] Preserve branch direction sets and reject identities that reorder or
+     reassociate independent octonions.
+3. **Phase 3 — Octonionic analysis and geometry**
+   - [ ] Add explicitly chosen derivative/function notions, `G2`-related
+     transformations, and validated rotation/projection adapters.
+4. **Phase 4 — Research interoperability**
+   - [ ] Explore exceptional algebra/Jordan constructions and proof exchange
+     only after nonassociative expression and evidence contracts stabilize.
 
 ### `.geometry`
 

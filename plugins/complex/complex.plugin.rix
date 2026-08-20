@@ -1,0 +1,462 @@
+/**
+id: complex
+description: Representation-generic certified complex singletons over RiX real backends.
+kind: rix
+mount: complex
+exports: [FromParts, Real, Imaginary, Conjugate, NormSquared, ZeroStatus, Enclose, Refine, Exp, Sin, Cos, Log, LogResult, Sqrt, SqrtResult, Record, Capabilities]
+groups: [Numerics, Exact]
+permissions: []
+requires: [rix.numerics@1]
+provides: [rix.complex@1, rix.enclosable-complex@1]
+schemas: [rix.complex.real@1, rix.complex.capabilities@1, rix.complex.enclosure@1, rix.complex.zero-status@1, rix.complex.function-result@1]
+snapshot: false
+deterministic: true
+defaultEnabled: false
+**/
+
+ComplexExactScalar(value) -> (value ? :Integer) || (value ? :Rational);
+
+ComplexCanComponent = {>
+    (value) ?- [ComplexExactScalar(value)] -> 1,
+    (value) ?- [value ? :Map] /CertifiedSingleton/ -> {;
+        capabilities=value.NumericsCapabilities();
+        capabilities[:certified]
+          && capabilities[:arbitraryRefinement]
+          && capabilities[:denotation]==:singleton;
+    },
+    (value) -> _
+};
+
+ComplexRequireComponent(value, label ?= "complex component") ->
+    ComplexCanComponent(value)
+      ?: value
+      ?_ .Error(@"@{label} must be an exact Rational or a certified arbitrarily refinable singleton real");
+
+ComplexFamily(value) -> value ? :ComplexReal;
+ComplexRequire(value) -> ComplexFamily(value) ?: value ?_ .Error("Expected a ComplexReal value");
+ComplexOperand(value) -> ComplexFamily(value) || ComplexCanComponent(value);
+ComplexPair(left, right) ->
+    (ComplexFamily(left) || ComplexFamily(right)) && ComplexOperand(left) && ComplexOperand(right);
+
+ComplexCapabilities(value) -> {=
+    valueKind=:complexCapabilities,
+    schema="rix.complex.capabilities@1",
+    backend=:complex,
+    representation=:cartesianComponents,
+    denotation=:singleton,
+    componentDenotation=:singleton,
+    enclosureGeometry=:axisAlignedRectangle,
+    operations=[:enclose,:refine],
+    evidenceLevels=[:proof],
+    certified=1,
+    arbitraryRefinement=1,
+    deterministic=1,
+    minimumWidth=0,
+    maxCalls=100000,
+    maxIterations=100000
+};
+
+ComplexBuild(real, imaginary, provenance ?= {= constructor=:fromParts }) -> {;
+    exactReal = ComplexRequireComponent(real, "Complex real component");
+    exactImaginary = ComplexRequireComponent(imaginary, "Complex imaginary component");
+    value = {=
+        valueKind=:complexReal,
+        schema="rix.complex.real@1",
+        real=exactReal,
+        imaginary=exactImaginary,
+        denotation=:singleton,
+        certified=1,
+        provenance=provenance
+    };
+    value._proto = {=
+        Real=(self)->self[:real],
+        Imaginary=(self)->self[:imaginary],
+        Re=(self)->self[:real],
+        Im=(self)->self[:imaginary],
+        Conjugate=(self)->ComplexConjugate(self),
+        NormSquared=(self)->ComplexNormSquared(self),
+        ZeroStatus=(self,options ?= {= })->ComplexZeroStatus(self,options),
+        Enclose=(self,request ?= {= })->ComplexProtocolEnclosure(self,request,:enclose),
+        Refine=(self,request ?= {= })->ComplexProtocolEnclosure(self,request,:refine),
+        ComplexCapabilities=(self)->ComplexCapabilities(self),
+        Record=(self)->ComplexRecord(self)
+    };
+    .ImmutableValue(value ~!: :ComplexReal);
+};
+
+ComplexPromote(value) ->
+    ComplexFamily(value)
+      ?: value
+      ?_ ComplexBuild(ComplexRequireComponent(value, "Complex scalar operand"),0,{= constructor=:realEmbedding });
+
+ComplexAdd(left,right) -> {;
+    a=ComplexPromote(left); b=ComplexPromote(right);
+    ComplexBuild(a[:real]+b[:real],a[:imaginary]+b[:imaginary],{= operation=:add,left=a,right=b });
+};
+
+ComplexSubtract(left,right) -> {;
+    a=ComplexPromote(left); b=ComplexPromote(right);
+    ComplexBuild(a[:real]-b[:real],a[:imaginary]-b[:imaginary],{= operation=:subtract,left=a,right=b });
+};
+
+ComplexMultiply(left,right) -> {;
+    a=ComplexPromote(left); b=ComplexPromote(right);
+    ComplexBuild(
+        a[:real]*b[:real]-a[:imaginary]*b[:imaginary],
+        a[:real]*b[:imaginary]+a[:imaginary]*b[:real],
+        {= operation=:multiply,left=a,right=b }
+    );
+};
+
+ComplexNegate(value) -> {;
+    exact=ComplexRequire(value);
+    ComplexBuild(-exact[:real],-exact[:imaginary],{= operation=:negate,source=exact });
+};
+
+ComplexConjugate(value) -> {;
+    exact=ComplexRequire(value);
+    ComplexBuild(exact[:real],-exact[:imaginary],{= operation=:conjugate,source=exact });
+};
+
+ComplexNormSquared(value) -> {;
+    exact=ComplexRequire(value);
+    exact[:real]^2+exact[:imaginary]^2;
+};
+
+ComplexDivide(left,right) -> {;
+    a=ComplexPromote(left); b=ComplexPromote(right);
+    exactReal=b[:real] ~: :Rational;
+    exactImaginary=b[:imaginary] ~: :Rational;
+    exactReal != _ && exactImaginary != _
+      && exactReal <= 0 && exactReal >= 0
+      && exactImaginary <= 0 && exactImaginary >= 0
+      ?: .Error("Cannot divide by exact complex zero")
+      ?_ _;
+    denominator=ComplexNormSquared(b);
+    ComplexBuild(
+        (a[:real]*b[:real]+a[:imaginary]*b[:imaginary])/denominator,
+        (a[:imaginary]*b[:real]-a[:real]*b[:imaginary])/denominator,
+        {= operation=:divide,left=a,right=b,zeroSeparation=:deferredToCertifiedRefinement }
+    );
+};
+
+ComplexEqual(left,right) -> {;
+    a=ComplexPromote(left); b=ComplexPromote(right);
+    (a[:real] == b[:real]) && (a[:imaginary] == b[:imaginary]);
+};
+
+ComplexComponentEnclosure(value, request, budget, operation) -> {;
+    exact=value ~: :Rational;
+    exact != _
+      ?: {=
+          valueKind=:enclosure,
+          schema="rix.numerics.enclosure@1",
+          status=:enclosed,
+          interval=exact:exact,
+          certified=1,
+          goalMet=1,
+          requestedWidth=request[:absoluteWidth],
+          achievedWidth=0,
+          approximation=.CertifiedApproximation(exact,exact:exact,{= provider=:complex,reason=:exactComponent }),
+          evidenceLevel=:proof,
+          backend=:complex,
+          operation=operation,
+          trace=[],
+          work={= calls=0,iterations=0,maxCalls=budget,exhausted=_ },
+          diagnostics=[],
+          evidence={= kind=:exactScalar,property=:containment },
+          source={= plugin=:complex,component=:exactRational }
+      }
+      ?_ .numerics.Refine(value,{=
+          absoluteWidth=request[:absoluteWidth],
+          relativeWidth=request[:relativeWidth],
+          evidenceRequired=request[:evidenceRequired],
+          maxWork=budget,
+          maxCalls=budget,
+          maxIterations=budget,
+          trace=request[:trace]
+      });
+};
+
+ComplexProtocolEnclosure(value, rawRequest, operation) -> {;
+    exact=ComplexRequire(value);
+    request=.numerics.Request(rawRequest,operation);
+    maxCalls=request[:work][:maxCalls];
+    realBudget=maxCalls//2;
+    imaginaryBudget=maxCalls-realBudget;
+    realResult=ComplexComponentEnclosure(exact[:real],request,realBudget,operation);
+    imaginaryResult=ComplexComponentEnclosure(exact[:imaginary],request,imaginaryBudget,operation);
+    realInterval=realResult[:interval];
+    imaginaryInterval=imaginaryResult[:interval];
+    certified=realResult[:certified] && imaginaryResult[:certified];
+    goalMet=realResult[:goalMet] && imaginaryResult[:goalMet];
+    achievedWidth=.Max(realResult[:achievedWidth],imaginaryResult[:achievedWidth]);
+    status=goalMet
+      ?: :enclosed
+      ?_ certified
+           ?: :budgetExhausted
+           ?_ :unknown;
+    {=
+        valueKind=:complexEnclosure,
+        schema="rix.complex.enclosure@1",
+        status=status,
+        geometry=:axisAlignedRectangle,
+        realInterval=realInterval,
+        imaginaryInterval=imaginaryInterval,
+        rectangle={= real=realInterval,imaginary=imaginaryInterval },
+        midpoint={= real=realInterval.Midpoint(),imaginary=imaginaryInterval.Midpoint() },
+        certified=certified,
+        goalMet=goalMet,
+        requestedWidth=request[:absoluteWidth],
+        achievedWidth=achievedWidth,
+        evidenceLevel=:proof,
+        backend=:complex,
+        operation=operation,
+        trace={= real=realResult[:trace],imaginary=imaginaryResult[:trace] },
+        work={=
+            calls=realResult[:work][:calls]+imaginaryResult[:work][:calls],
+            iterations=realResult[:work][:iterations]+imaginaryResult[:work][:iterations],
+            maxCalls=maxCalls,
+            exhausted=!goalMet
+        },
+        diagnostics=goalMet ?: [] ?_ [realResult[:status],imaginaryResult[:status]],
+        evidence={=
+            kind=:componentwiseCertifiedContainment,
+            property=:complexRectangleContainment,
+            real=realResult[:evidence],
+            imaginary=imaginaryResult[:evidence]
+        },
+        source={= plugin=:complex,schema=exact[:schema],provenance=exact[:provenance] }
+    };
+};
+
+ComplexZeroStatus(value, options ?= {= }) -> {;
+    enclosure=ComplexProtocolEnclosure(value,options,:refine);
+    real=enclosure[:realInterval];
+    imaginary=enclosure[:imaginaryInterval];
+    exactZero=real.Width()<=0 && imaginary.Width()<=0
+      && real.Low()<=0 && real.Low()>=0
+      && imaginary.Low()<=0 && imaginary.Low()>=0;
+    separated=!(real.ContainsZero()) || !(imaginary.ContainsZero());
+    status=exactZero ?: :zero ?_ separated ?: :nonzero ?_ :unknown;
+    .ImmutableValue({=
+        valueKind=:complexZeroStatus,
+        schema="rix.complex.zero-status@1",
+        status=status,
+        zero=status==:zero ?: 1 ?_ status==:nonzero ?: _ ?_ ?,
+        certified=status==:unknown ?: _ ?_ 1,
+        enclosure=enclosure,
+        evidence={= kind=:rectangleOriginSeparation,real=real,imaginary=imaginary }
+    });
+};
+
+ComplexExp(value) -> {;
+    z=ComplexPromote(value);
+    scale=.numerics.Exp(z[:real]);
+    ComplexBuild(
+        scale*.numerics.Cos(z[:imaginary]),
+        scale*.numerics.Sin(z[:imaginary]),
+        {= function=:exp,source=z,identity=:cartesianExp }
+    );
+};
+
+ComplexSin(value) -> {;
+    z=ComplexPromote(value);
+    ComplexBuild(
+        .numerics.Sin(z[:real])*.numerics.Cosh(z[:imaginary]),
+        .numerics.Cos(z[:real])*.numerics.Sinh(z[:imaginary]),
+        {= function=:sin,source=z,identity=:cartesianSin }
+    );
+};
+
+ComplexCos(value) -> {;
+    z=ComplexPromote(value);
+    ComplexBuild(
+        .numerics.Cos(z[:real])*.numerics.Cosh(z[:imaginary]),
+        -.numerics.Sin(z[:real])*.numerics.Sinh(z[:imaginary]),
+        {= function=:cos,source=z,identity=:cartesianCos }
+    );
+};
+
+ComplexBranchClassify(value, options ?= {= }) -> {;
+    z=ComplexPromote(value);
+    enclosure=ComplexProtocolEnclosure(z,options,:refine);
+    real=enclosure[:realInterval];
+    imaginary=enclosure[:imaginaryInterval];
+    origin=real.Width()<=0 && imaginary.Width()<=0
+      && real.Low()<=0 && real.Low()>=0
+      && imaginary.Low()<=0 && imaginary.Low()>=0;
+    offCut=real.Low()>0 || imaginary.Low()>0 || imaginary.High()<0;
+    onCut=imaginary.Width()<=0 && imaginary.Low()<=0 && imaginary.Low()>=0 && real.High()<0;
+    status=origin ?: :undefinedAtZero ?_ offCut ?: :resolved ?_ onCut ?: :branchBoundary ?_ :unknown;
+    {= status=status,value=z,enclosure=enclosure,real=real,imaginary=imaginary };
+};
+
+ComplexFunctionResult(functionName, branchInfo, value, diagnostic) ->
+    .ImmutableValue({=
+        valueKind=:complexFunctionResult,
+        schema="rix.complex.function-result@1",
+        function=functionName,
+        branch=:principal,
+        branchRange="-pi < argument <= pi",
+        branchCut=:nonpositiveRealAxis,
+        status=branchInfo[:status],
+        value=value,
+        certified=branchInfo[:status]==:unknown ?: _ ?_ 1,
+        boundary=branchInfo[:status]==:branchBoundary,
+        enclosure=branchInfo[:enclosure],
+        diagnostic=diagnostic,
+        evidence={= kind=:certifiedBranchClassification,status=branchInfo[:status] }
+    });
+
+ComplexLogResult(value, options ?= {= }) -> {;
+    branch=ComplexBranchClassify(value,options);
+    available=branch[:status]==:resolved || branch[:status]==:branchBoundary;
+    resultValue=available
+      ?: {;
+          z=@branch[:value];
+          ComplexBuild(
+              .numerics.Log(.numerics.Hypot(z[:real],z[:imaginary])),
+              .numerics.Atan2(z[:imaginary],z[:real]),
+              {= function=:log,branch=:principal,source=z,branchStatus=@branch[:status] }
+          );
+      }
+      ?_ _;
+    diagnostic=branch[:status]==:undefinedAtZero
+      ?: :logUndefinedAtZero
+      ?_ branch[:status]==:branchBoundary
+           ?: :principalLogBranchBoundary
+           ?_ branch[:status]==:unknown ?: :branchCutNotSeparated ?_ _;
+    ComplexFunctionResult(:log,branch,resultValue,diagnostic);
+};
+
+ComplexLog(value, options ?= {= }) -> {;
+    result=ComplexLogResult(value,options);
+    result[:value] != _
+      ?: result[:value]
+      ?_ .Error("Complex principal Log is unresolved; inspect LogResult for zero or branch-cut evidence");
+};
+
+ComplexSqrtValue(branch) -> {;
+    z=branch[:value];
+    real=branch[:real];
+    imaginary=branch[:imaginary];
+    branch[:status]==:branchPoint
+      ?: ComplexBuild(0,0,{= function=:sqrt,branch=:principal,source=z,branchStatus=:branchPoint })
+      ?_ branch[:status]==:branchBoundary
+           ?: ComplexBuild(0,.numerics.Sqrt(-z[:real]),{= function=:sqrt,branch=:principal,source=z,branchStatus=:branchBoundary })
+           ?_ {;
+               radius=.numerics.Hypot(@z[:real],@z[:imaginary]);
+               realPart=.numerics.Sqrt((radius+@z[:real])/2);
+               imaginaryPart=@real.Low()>0
+                 ?: @z[:imaginary]/(2*realPart)
+                 ?_ @imaginary.Low()>0
+                      ?: .numerics.Sqrt((radius-@z[:real])/2)
+                      ?_ @imaginary.High()<0
+                           ?: -.numerics.Sqrt((radius-@z[:real])/2)
+                           ?_ _;
+               imaginaryPart==_
+                 ?: _
+                 ?_ ComplexBuild(realPart,imaginaryPart,{= function=:sqrt,branch=:principal,source=@z,branchStatus=@branch[:status] });
+           };
+};
+
+ComplexSqrtResult(value, options ?= {= }) -> {;
+    classified=ComplexBranchClassify(value,options);
+    branch=classified[:status]==:undefinedAtZero
+      ?: {=
+          status=:branchPoint,
+          value=classified[:value],
+          enclosure=classified[:enclosure],
+          real=classified[:real],
+          imaginary=classified[:imaginary]
+      }
+      ?_ classified;
+    resultValue=branch[:status]==:unknown ?: _ ?_ ComplexSqrtValue(branch);
+    diagnostic=branch[:status]==:branchBoundary
+      ?: :principalSqrtBranchBoundary
+      ?_ branch[:status]==:unknown ?: :branchOrImaginarySignNotSeparated ?_ _;
+    ComplexFunctionResult(:sqrt,branch,resultValue,diagnostic);
+};
+
+ComplexSqrt(value, options ?= {= }) -> {;
+    result=ComplexSqrtResult(value,options);
+    result[:value] != _
+      ?: result[:value]
+      ?_ .Error("Complex principal Sqrt is unresolved; inspect SqrtResult for branch evidence");
+};
+
+ComplexRecord(value) -> {;
+    exact=ComplexRequire(value);
+    {=
+        valueKind=:complexReal,
+        schema="rix.complex.real@1",
+        real=exact[:real],
+        imaginary=exact[:imaginary],
+        denotation=:singleton,
+        certified=1,
+        provenance=exact[:provenance]
+    };
+};
+
+.TypeKnown(:ComplexReal) ?: _ ?_ .TypeRegister({=
+    name=:ComplexReal,
+    nativeType=:map,
+    defaultTraits=[:number],
+    convertFrom={= map=(x) ?- [x[:valueKind]==:complexReal] -> x },
+    validate=(x)->x[:valueKind]==:complexReal && x[:schema]=="rix.complex.real@1",
+    proto={=
+        Real=(self)->self[:real],
+        Imaginary=(self)->self[:imaginary],
+        Re=(self)->self[:real],
+        Im=(self)->self[:imaginary],
+        Conjugate=(self)->ComplexConjugate(self),
+        NormSquared=(self)->ComplexNormSquared(self),
+        ZeroStatus=(self,options ?= {= })->ComplexZeroStatus(self,options),
+        Enclose=(self,request ?= {= })->ComplexProtocolEnclosure(self,request,:enclose),
+        Refine=(self,request ?= {= })->ComplexProtocolEnclosure(self,request,:refine),
+        ComplexCapabilities=(self)->ComplexCapabilities(self),
+        Record=(self)->ComplexRecord(self)
+    },
+    installs={=
+        ADD=[{= name=:ComplexRealAdd,priority=440,prep=(x,y)->ComplexPair(x,y),impl=(x,y)->ComplexAdd(x,y) }],
+        SUB=[{= name=:ComplexRealSub,priority=440,prep=(x,y)->ComplexPair(x,y),impl=(x,y)->ComplexSubtract(x,y) }],
+        MUL=[{= name=:ComplexRealMul,priority=440,prep=(x,y)->ComplexPair(x,y),impl=(x,y)->ComplexMultiply(x,y) }],
+        DIV=[{= name=:ComplexRealDiv,priority=440,prep=(x,y)->ComplexPair(x,y),impl=(x,y)->ComplexDivide(x,y) }],
+        NEG=[{= name=:ComplexRealNeg,priority=440,prep=(x)->ComplexFamily(x),impl=(x)->ComplexNegate(x) }],
+        EQ=[{= name=:ComplexRealEq,priority=440,prep=(x,y)->ComplexPair(x,y),impl=(x,y)->ComplexEqual(x,y) }],
+        NEQ=[{= name=:ComplexRealNeq,priority=440,prep=(x,y)->ComplexPair(x,y),impl=(x,y)->!ComplexEqual(x,y) }]
+    }
+});
+
+.TypeInstall(:ComplexReal);
+
+complexNamespace=(real,imaginary ?= 0)->ComplexBuild(real,imaginary);
+complexNamespace._proto={=
+    FromParts=(self,real,imaginary)->ComplexBuild(real,imaginary),
+    Real=(self,value)->ComplexRequire(value)[:real],
+    Imaginary=(self,value)->ComplexRequire(value)[:imaginary],
+    Re=(self,value)->ComplexRequire(value)[:real],
+    Im=(self,value)->ComplexRequire(value)[:imaginary],
+    Conjugate=(self,value)->ComplexConjugate(value),
+    NormSquared=(self,value)->ComplexNormSquared(value),
+    ZeroStatus=(self,value,options ?= {= })->ComplexZeroStatus(value,options),
+    Enclose=(self,value,options ?= {= })->ComplexProtocolEnclosure(value,options,:enclose),
+    Refine=(self,value,options ?= {= })->ComplexProtocolEnclosure(value,options,:refine),
+    Exp=(self,value)->ComplexExp(value),
+    Sin=(self,value)->ComplexSin(value),
+    Cos=(self,value)->ComplexCos(value),
+    Log=(self,value,options ?= {= })->ComplexLog(value,options),
+    LogResult=(self,value,options ?= {= })->ComplexLogResult(value,options),
+    Sqrt=(self,value,options ?= {= })->ComplexSqrt(value,options),
+    SqrtResult=(self,value,options ?= {= })->ComplexSqrtResult(value,options),
+    Record=(self,value)->ComplexRecord(value),
+    Capabilities=(self,value)->ComplexCapabilities(ComplexRequire(value))
+};
+
+.Host.RegisterCallableValue(
+    "complex",
+    complexNamespace,
+    "Representation-generic certified complex singletons over RiX real backends",
+    ["Numerics","Exact"]
+);

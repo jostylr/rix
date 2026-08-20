@@ -7,6 +7,7 @@ import cauchySource from "./cauchy/cauchy.plugin.rix" with { type: "text" };
 import ballSource from "./ball/ball.plugin.rix" with { type: "text" };
 import continuedFractionSource from "./continued-fraction/continued-fraction.plugin.rix" with { type: "text" };
 import algebraicRealSource from "./algebraic-real/algebraic-real.plugin.rix" with { type: "text" };
+import complexSource from "./complex/complex.plugin.rix" with { type: "text" };
 import polySource from "./poly/poly.plugin.rix" with { type: "text" };
 import algebraSource from "./algebra/algebra.plugin.rix" with { type: "text" };
 import sternBrocotSource from "./stern-brocot/stern-brocot.plugin.rix" with { type: "text" };
@@ -86,6 +87,11 @@ const BUNDLED_PLUGINS = [
         metadata: readPluginHeader(algebraicRealSource, "algebraic-real.plugin.rix"),
         source: algebraicRealSource,
         sourcePath: "bundled:algebraic-real.plugin.rix",
+    },
+    {
+        metadata: readPluginHeader(complexSource, "complex.plugin.rix"),
+        source: complexSource,
+        sourcePath: "bundled:complex.plugin.rix",
     },
     { metadata: readPluginHeader(radixSource, "radix.plugin.rix"), source: radixSource, sourcePath: "bundled:radix.plugin.rix" },
     { metadata: readPluginHeader(exactAlgebrasSource, "exact-algebras.plugin.rix"), source: exactAlgebrasSource, sourcePath: "bundled:exact-algebras.plugin.rix" },

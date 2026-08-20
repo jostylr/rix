@@ -24,6 +24,10 @@ The implementation order and per-plugin phased work are tracked in
 | `cauchy/` | RiX | `cauchy` | Pure RiX rational sequences with explicit certified tail bounds and moduli. |
 | `continued-fraction/` | RiX | `continued-fraction` | Finite, lazy, periodic, and native Gosper-transduced simple continued fractions; callable aliases `.continuedFraction` and `.cf`. |
 | `algebraic-real/` | RiX | `algebraic-real` | Sturm-isolated algebraic roots with exact resultant field arithmetic; aliases `.algebraicReal` and `.ar`. |
+| `complex/` | RiX | `complex` | Representation-generic certified complex singletons over refinable real backends, with rectangular enclosures and branch-aware elementary functions. |
+| `cayley/` | specification | planned `cayley` | Scalar-generic Cayley–Dickson component algebra and enclosure contracts. |
+| `quaternion/` | specification | planned `quaternion` | Certified order-aware Quaternion façade and intrinsic functions. |
+| `octonion/` | specification | planned `octonion` | Certified parenthesis-preserving Octonion façade and intrinsic functions. |
 | `oracle/` | RiX | `oracle` | Phase 1 rational-betweenness oracle values, procedures, validation, and bounded refinement. |
 | `numerics/` | RiX | `numerics` | Backend-neutral bounded enclosure, refinement, and sampling protocol orchestration. |
 | `linalg/` | RiX | `linalg` | Pure-RiX exact dense linear algebra, vector spaces, coordinate systems, and coordinate-aware tensor transformations. |
