@@ -81,15 +81,49 @@ Language Halo comparisons use the same protocol.
 ## Arithmetic and boundary
 
 Certified Cauchy reals support `+`, `-`, `*`, `/`, integer powers, unary `-`,
-and absolute value. The result retains `CauchyReal` when both operands are
-Cauchy values or one operand is Rational; its immutable arithmetic recipe
-uses the shared Oracle enclosure engine. Different certified real families
-automatically meet at Oracle. A bare sequence still cannot participate because
-it has no effective modulus or certified singleton enclosure.
+and absolute value. Effective Cauchy operands and exact Rationals produce a
+native `CauchyReal` with computed terms and a computed modulus. Each term is
+the midpoint of an exact interval image of certified operand enclosures; its
+tail bound is half that interval's width. The implementation intersects every
+new operand enclosure with its initial certificate and checks the derived
+width against the requested exact bound, so a certified result always encloses
+the represented real.
 
-Native computed-modulus constructions, lazy stream policies, convergence
-transformations, and the paper-specific funnel construction remain later
-work.
+Division and negative powers use the native construction only when the
+denominator's initial certified enclosure visibly excludes zero. Otherwise
+they retain the immutable Oracle arithmetic recipe, which may refine until it
+separates zero or return structured `:unknown` evidence. Different certified
+real families also meet at Oracle. A bare sequence cannot participate in
+certified arithmetic because it has no effective modulus or singleton
+enclosure.
+
+## Lazy terms and funnels
+
+`Terms(start?, count?)` returns a bounded lazy sequence. Exact term callbacks
+run only as elements are requested, and ordinary shallow copying preserves the
+current cache while allowing each copy to advance independently:
+
+```rix
+.Plugin.Load("cauchy");
+g := .cauchy.Geometric(1, 1/2);
+terms := g.Terms(0, 5);
+third := terms.Get(3);
+copy := terms;
+fifth := copy.Get(5);
+```
+
+`Funnel(options?)` adapts any certified, arbitrarily refinable Cauchy singleton
+to the paper-compatible Oracle refinement funnel. The funnel and its Oracle
+view both preserve the source's exact enclosure guarantee and honor explicit
+work bounds:
+
+```rix
+funnel := g.Funnel({= name=:geometricFunnel });
+funnel.Refine({= absoluteWidth=1/1000, maxCalls=20 });
+funnel.ToOracle().Refine({= absoluteWidth=1/1000, maxCalls=20 });
+```
+
+Convergence accelerators and equivalence proofs remain later work.
 
 The directory also retains [`cauchy.js`](cauchy.js), the earlier host-side
 implementation, as a point of comparison. It is not a plugin manifest, is not

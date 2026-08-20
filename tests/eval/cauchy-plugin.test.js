@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { CertifiedApproximation, RationalInterval } from "@ratmath/core";
+import { CertifiedApproximation, Rational, RationalInterval } from "@ratmath/core";
 import {
     Context,
     createDefaultRegistry,
@@ -179,5 +179,111 @@ describe("Cauchy plugin", () => {
             .cauchy.Certified((n)->0, (n)->1, (radius)->0)
                 .Refine({= absoluteWidth=1/100, maxWork=3 })
         `, options)).toThrow("modulus certificate failed");
+    });
+
+    test("builds native arithmetic sequences with exact computed moduli", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("cauchy");
+            .Plugin.Load("numerics");
+            x = .cauchy.Geometric(1, 1/2);
+            y = .cauchy.Geometric(1, -1/2);
+            z = .cauchy.Geometric(1, -1/4);
+            values = [x+y, x-y, x*y, -x, .Abs(x), y^3, z^(-2), x+1/3, (x+y)*y];
+            {:
+                values.Map((value) -> value.Record()),
+                values.Map((value) -> value.Enclosure(6)),
+                values.Map((value) -> value.Modulus(1/1000)),
+                values.Map((value) -> .numerics.Refine(value, {=
+                    absoluteWidth=1/1000,
+                    maxWork=3
+                }))
+            };
+        `, options);
+
+        const expected = [
+            new Rational(8n, 3n),
+            new Rational(4n, 3n),
+            new Rational(4n, 3n),
+            new Rational(-2n),
+            new Rational(2n),
+            new Rational(8n, 27n),
+            new Rational(25n, 16n),
+            new Rational(7n, 3n),
+            new Rational(16n, 9n),
+        ];
+        expect(result.values[0].values.map((record) => textValue(entry(record, "kind"))))
+            .toEqual(Array(expected.length).fill("computed"));
+        result.values[1].values.forEach((interval, index) => {
+            expect(interval).toBeInstanceOf(RationalInterval);
+            expect(interval.containsValue(expected[index])).toBe(true);
+        });
+        expect(result.values[2].values.every((index) => index.value >= 0n)).toBe(true);
+        for (const refinement of result.values[3].values) {
+            expect(textValue(entry(refinement, "status"))).toBe("enclosed");
+            expect(entry(refinement, "certified").value).toBe(1n);
+            expect(entry(refinement, "achievedWidth").lessThanOrEqual(new Rational(1n, 1000n))).toBe(true);
+            expect(textValue(entry(refinement, "evidenceLevel"))).toBe("proof");
+        }
+    });
+
+    test("uses native division only with visible nonzero separation", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("cauchy");
+            .Plugin.Load("numerics");
+            x = .cauchy.Geometric(1, 1/2);
+            two = .cauchy.Certified((n)->2, (n)->0, (radius)->0, {= evidence=:exactTwo });
+            native = x/two;
+            fallback = x/x;
+            {:
+                native.Record(),
+                native.Enclosure(5),
+                fallback.Record(),
+                .numerics.Refine(fallback, {= absoluteWidth=1/1000, maxWork=80 })
+            };
+        `, options);
+
+        expect(textValue(entry(result.values[0], "kind"))).toBe("computed");
+        expect(result.values[1].containsValue(new Rational(1n))).toBe(true);
+        expect(textValue(entry(result.values[2], "valueKind"))).toBe("cauchyArithmeticReal");
+        expect(textValue(entry(result.values[3], "status"))).toBe("enclosed");
+        expect(entry(result.values[3], "interval").containsValue(new Rational(1n))).toBe(true);
+    });
+
+    test("exposes bounded cloneable lazy terms and a certified Oracle funnel", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("cauchy");
+            g = .cauchy.Geometric(1, 1/2);
+            terms := g.Terms(0, 5);
+            third = terms.Get(3);
+            copy := terms;
+            fifth = copy.Get(5);
+            funnel = g.Funnel({= name=:geometricFunnel });
+            {:
+                terms,
+                third,
+                fifth,
+                funnel.Record(),
+                funnel.Refine({= absoluteWidth=1/1000, maxCalls=20 }),
+                funnel.ToOracle().Refine({= absoluteWidth=1/1000, maxCalls=20 })
+            };
+        `, options);
+
+        expect(result.values[0].type).toBe("lazy_sequence");
+        expect(options.context.get("terms")._lazy.cache).toHaveLength(3);
+        expect(options.context.get("copy")._lazy.cache).toHaveLength(5);
+        expect(result.values[1].toString()).toBe("7/4");
+        expect(result.values[2].toString()).toBe("31/16");
+        expect(textValue(entry(result.values[3], "kind"))).toBe("provider");
+        expect(textValue(entry(result.values[4], "status"))).toBe("enclosed");
+        expect(entry(result.values[4], "interval").containsValue(new Rational(2n))).toBe(true);
+        expect(textValue(entry(result.values[5], "status"))).toBe("enclosed");
+        expect(entry(result.values[5], "interval").containsValue(new Rational(2n))).toBe(true);
+
+        expect(() => parseAndEvaluate("g.Terms(0, -1)", options)).toThrow("nonnegative Integer");
+        expect(() => parseAndEvaluate(".cauchy.Sequence((n)->n).Funnel()", options))
+            .toThrow("certified effective singleton");
     });
 });

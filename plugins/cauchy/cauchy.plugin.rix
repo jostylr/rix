@@ -3,7 +3,7 @@ id: cauchy
 description: Rational Cauchy sequences with explicit certified tail bounds and moduli.
 kind: rix
 mount: cauchy
-exports: [Sequence, Certified, Geometric, Term, TailBound, Modulus, Enclosure, Record]
+exports: [Sequence, Certified, Geometric, Terms, Funnel, Term, TailBound, Modulus, Enclosure, Record]
 groups: [Numerics, Exact]
 permissions: []
 requires: [rix.oracle@1]
@@ -33,6 +33,8 @@ CauchyRequireIndex(value, label) -> {;
     integer >= 0 ?: integer ?_ .Error(@"@{label} must be a nonnegative Integer");
 };
 
+CauchyRequireCount(value, label) -> CauchyRequireIndex(value, label);
+
 CauchyWitness(term, tailBound, index) -> {;
     exactTerm = CauchyRequireRational(term, @"Cauchy term @{index}");
     exactTail = CauchyRequireNonnegative(tailBound, @"Cauchy tail bound @{index}");
@@ -48,16 +50,18 @@ CauchyWitness(term, tailBound, index) -> {;
 
 CauchyTermAt(real, index) -> {;
     n = CauchyRequireIndex(index, "Cauchy term index");
-    real[:kind] == :geometric
-      ?: CauchyGeometricTerm(real, n)
-      ?_ CauchyRequireRational(real[:termFunction](n), @"Cauchy term @{n}");
+    {? real[:kind] == :geometric ? CauchyGeometricTerm(real, n);
+       real[:kind] == :computed ? CauchyComputedWitnessAt(real, n)[:term];
+       CauchyRequireRational(real[:termFunction](n), @"Cauchy term @{n}")
+    };
 };
 
 CauchyTailBoundAt(real, index) -> {;
     n = CauchyRequireIndex(index, "Cauchy tail-bound index");
-    real[:kind] == :geometric
-      ?: CauchyGeometricTailBound(real, n)
-      ?_ CauchyRequireNonnegative(real[:tailFunction](n), @"Cauchy tail bound @{n}");
+    {? real[:kind] == :geometric ? CauchyGeometricTailBound(real, n);
+       real[:kind] == :computed ? CauchyComputedWitnessAt(real, n)[:tailBound];
+       CauchyRequireNonnegative(real[:tailFunction](n), @"Cauchy tail bound @{n}")
+    };
 };
 
 CauchyWitnessAt(real, index) -> CauchyWitness(
@@ -88,9 +92,10 @@ CauchyGeometricModulus(real, radius) -> {;
 
 CauchyModulusAt(real, radius) -> {;
     requestedRadius = CauchyRequirePositive(radius, "Cauchy modulus radius");
-    index = real[:kind] == :geometric
-      ?: CauchyGeometricModulus(real, requestedRadius)
-      ?_ CauchyRequireIndex(real[:modulusFunction](requestedRadius), "Cauchy modulus result");
+    index = {? real[:kind] == :geometric ? CauchyGeometricModulus(real, requestedRadius);
+               real[:kind] == :computed ? CauchyComputedModulus(real, requestedRadius);
+               CauchyRequireIndex(real[:modulusFunction](requestedRadius), "Cauchy modulus result")
+            };
     witness = CauchyWitnessAt(real, index);
     witness[:tailBound] <= requestedRadius ?: index
       ?_ .Error(@"Cauchy modulus certificate failed at index @{index}: tail bound @{witness[:tailBound]} exceeds @{requestedRadius}");
@@ -100,7 +105,9 @@ CauchyCapabilities(real) -> {;
     certified = real[:kind] != :bare;
     evidenceLevels = real[:kind] == :geometric
       ?: [:proof]
-      ?_ (real[:kind] == :declared ?: [:constructorGuarantee] ?_ []);
+      ?_ (real[:kind] == :computed
+           ?: [real[:evidenceLevel]]
+           ?_ (real[:kind] == :declared ?: [:constructorGuarantee] ?_ []));
     {=
         valueKind = :numericsCapabilities,
         schema = "rix.numerics.capabilities@1",
@@ -140,6 +147,11 @@ CauchyCertifiedRecord(real) -> {;
         @record["first"] = @real[:first];
         @record["ratio"] = @real[:ratio];
     } ?_ _;
+    real[:kind] == :computed ?: {;
+        @record["operation"] = @real[:operation];
+        @record["parameters"] = @real[:parameters];
+        @record["evidenceLevel"] = @real[:evidenceLevel];
+    } ?_ _;
     record;
 };
 
@@ -154,6 +166,8 @@ CauchyUnsupported(real, request, operation) -> .RefinementUnsupported(
 CauchyAttachBareProtocol(real) -> {;
     real._proto = {=
         Term = (self, index) -> CauchyTermAt(self, index),
+        Terms = (self, start ?= 0, count ?= 10) -> CauchyTerms(self, start, count),
+        Funnel = (self, options ?= {= }) -> CauchyFunnel(self, options),
         Record = (self) -> CauchyRecord(self),
         NumericsCapabilities = (self) -> CauchyCapabilities(self),
         Enclose = (self, request ?= {= }) -> CauchyUnsupported(self, request, :enclose),
@@ -168,6 +182,8 @@ CauchyAttachCertifiedProtocol(real) -> {;
         TailBound = (self, index) -> CauchyTailBoundAt(self, index),
         Modulus = (self, radius) -> CauchyModulusAt(self, radius),
         Enclosure = (self, index) -> CauchyWitnessAt(self, index)[:interval],
+        Terms = (self, start ?= 0, count ?= 10) -> CauchyTerms(self, start, count),
+        Funnel = (self, options ?= {= }) -> CauchyFunnel(self, options),
         InitialEnclosure = (self) -> self[:initialWitness][:interval],
         Record = (self) -> CauchyRecord(self),
         NumericsCapabilities = (self) -> CauchyCapabilities(self),
@@ -241,6 +257,189 @@ CauchyGeometricConstructor(first, ratio, options ?= {= }) -> {;
     });
 };
 
+CauchyEvidenceRank(level) -> {?
+    level == :proof ? 4;
+    level == :constructorGuarantee ? 3;
+    level == :assumed ? 2;
+    level == :observed ? 1;
+    0
+};
+
+CauchyWeakerEvidence(left, right) ->
+    CauchyEvidenceRank(left) <= CauchyEvidenceRank(right) ?: left ?_ right;
+
+CauchyOperandEvidenceLevel(value) -> {;
+    CauchyExact(value) ?: :proof ?_ {;
+        levels = @value.NumericsCapabilities()[:evidenceLevels];
+        levels.Len() >= 1
+          ?: levels.Reduce((left, right) -> CauchyWeakerEvidence(left, right), levels[1])
+          ?_ :assumed;
+    };
+};
+
+CauchyAbsInterval(interval) -> {;
+    exact = interval ~!: :RationalInterval;
+    exact.ContainsZero()
+      ?: 0:(.Max((-exact.Low()), exact.High()))
+      ?_ (.Min(exact.Low().Abs(), exact.High().Abs())):(.Max(exact.Low().Abs(), exact.High().Abs()));
+};
+
+CauchyInitialInterval(value) ->
+    CauchyExact(value) ?: (value ~!: :Rational):(value ~!: :Rational) ?_ value[:initialWitness][:interval];
+
+CauchyIntervalMagnitude(interval) ->
+    .Max(interval.Low().Abs(), interval.High().Abs());
+
+CauchyIntervalDistanceFromZero(interval) -> {;
+    interval.ContainsZero()
+      ?: 0
+      ?_ .Min(interval.Low().Abs(), interval.High().Abs());
+};
+
+CauchyOperandIntervalAt(value, radius) -> {;
+    CauchyExact(value)
+      ?: {; point=@value ~!: :Rational; point:point; }
+      ?_ {;
+          index = CauchyModulusAt(@value, @radius);
+          candidate = CauchyWitnessAt(@value, index)[:interval];
+          initial = CauchyInitialInterval(@value);
+          overlap = candidate.Intersection(initial);
+          nested = overlap.ToRationalInterval();
+          nested
+            ?: nested
+            ?_ .Error("Computed Cauchy operand witness contradicts its initial enclosure");
+      };
+};
+
+CauchyComputedTarget(index) -> 1 / (2^(index + 2));
+
+CauchyComputedModulus(real, radius) -> {;
+    requestedRadius = CauchyRequirePositive(radius, "Computed Cauchy modulus radius");
+    index = 0;
+    target = CauchyComputedTarget(index);
+    {@ step=1; @target > @requestedRadius && @index < 100000; {;
+        @index += 1;
+        @target = CauchyComputedTarget(@index);
+    }; step += 1 };
+    target <= requestedRadius
+      ?: index
+      ?_ .Error("Computed Cauchy modulus exceeds the provider index limit");
+};
+
+CauchyComputedInputRadius(real, target) -> {;
+    operation = real[:operation];
+    leftInitial = CauchyInitialInterval(real[:left]);
+    leftMagnitude = CauchyIntervalMagnitude(leftInitial);
+    {? (operation == :add || operation == :sub) ? target / 2;
+       (operation == :neg || operation == :abs) ? target;
+       operation == :mul ? target / (leftMagnitude + CauchyIntervalMagnitude(CauchyInitialInterval(real[:right])) + 1);
+       operation == :div ? {;
+           rightInitial = CauchyInitialInterval(@real[:right]);
+           separation = CauchyIntervalDistanceFromZero(rightInitial);
+           separation > 0
+             ?: @target / (1 / separation + @leftMagnitude / separation^2 + 1)
+             ?_ .Error("Computed Cauchy division requires an initial enclosure excluding zero");
+       };
+       operation == :pow ? {;
+           exponent = @real[:exponent];
+           magnitude = exponent.Abs();
+           exponent >= 0
+             ?: @target / (magnitude * (@leftMagnitude + 1)^(magnitude - 1) + 1)
+             ?_ {;
+                 separation = CauchyIntervalDistanceFromZero(@leftInitial);
+                 separation > 0
+                   ?: @target / (@magnitude / separation^(@magnitude + 1) + 1)
+                   ?_ .Error("Computed negative Cauchy power requires an initial enclosure excluding zero");
+             };
+       };
+       .Error("Unsupported computed Cauchy operation")
+    };
+};
+
+CauchyComputedWitnessAt(real, index) -> {;
+    n = CauchyRequireIndex(index, "Computed Cauchy term index");
+    target = CauchyComputedTarget(n);
+    inputRadius = CauchyComputedInputRadius(real, target);
+    left = CauchyOperandIntervalAt(real[:left], inputRadius);
+    operation = real[:operation];
+    right = (operation == :neg || operation == :abs || operation == :pow)
+      ?: _
+      ?_ CauchyOperandIntervalAt(real[:right], inputRadius);
+    result = {? operation == :add ? left + right;
+                operation == :sub ? left - right;
+                operation == :mul ? left * right;
+                operation == :div ? left / right;
+                operation == :neg ? -left;
+                operation == :abs ? CauchyAbsInterval(left);
+                operation == :pow ? left^real[:exponent];
+                .Error("Unsupported computed Cauchy operation")
+             };
+    exactResult = (result ? :RationalInterval)
+      ?: result
+      ?_ .Error(@"Computed Cauchy operation returned non-interval @{result}");
+    witness = CauchyWitness(exactResult.Midpoint(), exactResult.Width() / 2, n);
+    witness[:tailBound] <= target
+      ?: witness
+      ?_ .Error("Computed Cauchy modulus derivation failed its exact interval-width check");
+};
+
+CauchyEffectiveSequence(value) -> CauchyExact(value) ||
+  (CauchyFamily(value) && value[:kind] != :arithmetic);
+
+CauchyCanCompute(operation, left, right ?= _) -> {;
+    unary = operation == :neg || operation == :abs || operation == :pow;
+    operandsEffective = CauchyEffectiveSequence(left) && (unary || CauchyEffectiveSequence(right));
+    {? !operandsEffective ? _;
+       operation == :div ? CauchyIntervalDistanceFromZero(CauchyInitialInterval(right)) > 0;
+       (operation == :pow && right < 0) ? CauchyIntervalDistanceFromZero(CauchyInitialInterval(left)) > 0;
+       1
+    };
+};
+
+BuildComputedCauchy(operation, left, right ?= _) -> {;
+    exponent = operation == :pow ?: right ~!: :Integer ?_ _;
+    rightOperand = operation == :pow ?: _ ?_ right;
+    leftEvidence = CauchyOperandEvidenceLevel(left);
+    rightEvidence = (operation == :neg || operation == :abs || operation == :pow)
+      ?: :proof
+      ?_ CauchyOperandEvidenceLevel(rightOperand);
+    real = {=
+        valueKind=:cauchyReal,
+        schema="rix.cauchy.real@1",
+        kind=:computed,
+        name=:computedArithmetic,
+        operation=operation,
+        left=left,
+        right=rightOperand,
+        exponent=exponent,
+        parameters={= operation=operation, left=left, right=rightOperand, exponent=exponent },
+        evidenceLevel=CauchyWeakerEvidence(leftEvidence, rightEvidence),
+        evidence={=
+            kind=:computedModulusArithmetic,
+            property=:limitWithinExactIntervalImage,
+            operation=operation,
+            operandEvidence=[leftEvidence, rightEvidence]
+        },
+        provenance={= plugin=:cauchy, version=2, source=:computedModulusArithmetic, operation=operation }
+    };
+    real["initialwitness"] = CauchyComputedWitnessAt(real, 0);
+    CauchyAttachCertifiedProtocol(real);
+};
+
+CauchyTerms(real, start ?= 0, count ?= 10) -> {;
+    first = CauchyRequireIndex(start, "Cauchy Terms start");
+    limit = CauchyRequireCount(count, "Cauchy Terms count");
+    indices = [first |+ 1 |^ limit];
+    indices |>> (index) -> CauchyTermAt(@real, index);
+};
+
+CauchyFunnel(real, options ?= {= }) -> {;
+    capabilities = real.NumericsCapabilities();
+    (capabilities[:certified] && capabilities[:arbitraryRefinement] && capabilities[:denotation] == :singleton)
+      ?: .oracle.ToFunnel(real, options.Set("name", CauchyOption(options, "name", :cauchyFunnel)))
+      ?_ .Error("Cauchy Funnel requires a certified effective singleton sequence");
+};
+
 CauchyGeometricRefinement(real, requestedWidth, maxCalls, maxIterations) -> {;
     selected = real[:initialWitness];
     calls = 0;
@@ -271,7 +470,7 @@ CauchyDeclaredRefinement(real, requestedWidth, maxCalls, maxIterations) -> {;
         enoughWork = @maxCalls >= 3 && @maxIterations >= 1;
         enoughWork ?: {;
             targetRadius = @requestedWidth / 2;
-            index = CauchyRequireIndex(@real[:modulusFunction](targetRadius), "Cauchy modulus result");
+            index = CauchyModulusAt(@real, targetRadius);
             @calls = 1;
             candidate = CauchyWitnessAt(@real, index);
             @calls = 3;
@@ -303,7 +502,9 @@ CauchyProtocolEnclosure(real, request, operation) -> {;
     achievedWidth = selected[:width];
     goalMet = achievedWidth <= requestedWidth;
     status = goalMet ?: :enclosed ?_ :budgetExhausted;
-    evidenceLevel = real[:kind] == :geometric ?: :proof ?_ :constructorGuarantee;
+    evidenceLevel = real[:kind] == :geometric
+      ?: :proof
+      ?_ (real[:kind] == :computed ?: real[:evidenceLevel] ?_ :constructorGuarantee);
     approximation = .CertifiedApproximation(selected[:term], selected[:interval], {=
         reason = status,
         requested = requestedWidth,
@@ -334,7 +535,10 @@ CauchyProtocolEnclosure(real, request, operation) -> {;
         },
         diagnostics = state[:diagnostic] == _ ?: [] ?_ [state[:diagnostic]],
         evidence = {=
-            kind = real[:kind] == :geometric ?: :geometricTail ?_ :declaredTailModulus,
+            kind = {? real[:kind] == :geometric ? :geometricTail;
+                      real[:kind] == :computed ? :computedModulusArithmetic;
+                      :declaredTailModulus
+                   },
             property = :limitWithinTermPlusOrMinusTailBound,
             witness = selected,
             certificate = real[:evidence]
@@ -367,7 +571,7 @@ CauchyArithmeticCapabilities(real) -> {=
     maxIterations=100000
 };
 
-CauchyArithmetic(operation, left, right ?= _) -> {;
+CauchyOracleArithmetic(operation, left, right ?= _) -> {;
     unary = operation == :neg || operation == :abs;
     recipe = unary ?: .oracle.Operation(operation, left) ?_ .oracle.Operation(operation, left, right);
     real = {=
@@ -387,6 +591,11 @@ CauchyArithmetic(operation, left, right ?= _) -> {;
     .ImmutableValue(real ~!: :CauchyReal);
 };
 
+CauchyArithmetic(operation, left, right ?= _) ->
+    CauchyCanCompute(operation, left, right)
+      ?: BuildComputedCauchy(operation, left, right)
+      ?_ CauchyOracleArithmetic(operation, left, right);
+
 .TypeKnown(:CauchyReal) ?: _ ?_ .TypeRegister({=
     name=:CauchyReal,
     nativeType=:map,
@@ -396,7 +605,10 @@ CauchyArithmetic(operation, left, right ?= _) -> {;
     proto={=
         Enclose=(self,request ?= {= })->self[:kind] == :arithmetic ?: self[:recipe].Enclose(request) ?_ CauchyProtocolEnclosure(self,request,:enclose),
         Refine=(self,request ?= {= })->self[:kind] == :arithmetic ?: self[:recipe].Refine(request) ?_ CauchyProtocolEnclosure(self,request,:refine),
-        NumericsCapabilities=(self)->self[:kind] == :arithmetic ?: CauchyArithmeticCapabilities(self) ?_ CauchyCapabilities(self)
+        NumericsCapabilities=(self)->self[:kind] == :arithmetic ?: CauchyArithmeticCapabilities(self) ?_ CauchyCapabilities(self),
+        Record=(self)->self[:kind] == :arithmetic
+          ?: {= valueKind=self[:valueKind], schema=self[:schema], operation=self[:operation], certified=1 }
+          ?_ CauchyRecord(self)
     },
     installs={=
         ADD=[{= name=:CauchyAdd, priority=300, prep=(x,y)->CauchyArithmeticPair(x,y), impl=(x,y)->CauchyArithmetic(:add,x,y) }],
@@ -418,6 +630,8 @@ cauchyNamespace._proto = {=
     Certified = (self, termFunction, tailFunction, modulusFunction, options ?= {= }) ->
         CauchyCertifiedConstructor(termFunction, tailFunction, modulusFunction, options),
     Geometric = (self, first, ratio, options ?= {= }) -> CauchyGeometricConstructor(first, ratio, options),
+    Terms = (self, real, start ?= 0, count ?= 10) -> CauchyTerms(real, start, count),
+    Funnel = (self, real, options ?= {= }) -> CauchyFunnel(real, options),
     Term = (self, real, index) -> CauchyTermAt(real, index),
     TailBound = (self, real, index) -> CauchyTailBoundAt(real, index),
     Modulus = (self, real, radius) -> CauchyModulusAt(real, radius),

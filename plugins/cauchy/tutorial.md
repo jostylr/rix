@@ -106,9 +106,8 @@ remains undecided with `:budgetExhausted` evidence.
 
 ## Arithmetic of certified Cauchy reals
 
-Arithmetic results remain `CauchyReal` values. Their implementation is a
-certified arithmetic recipe, so no linked sequence of previous approximations
-is retained:
+Arithmetic results remain `CauchyReal` values. Effective same-family operands
+produce new sequences with exact computed moduli:
 
 ```rix
 .Plugin.Load("cauchy");
@@ -124,6 +123,54 @@ values := [x+x, x-x, x*x, x/x, -x, .Abs(x), x^3, x+1/3];
 });
 ```
 
-The Rational operand becomes an exact Cauchy-family leaf. Division refines
-its denominator until zero is excluded; failure to separate zero is a
-structured `:unknown` result.
+The Rational operand becomes an exact Cauchy-family leaf. Every computed term
+comes from an exact interval image of certified operand enclosures, and the
+derived tail bound is checked before it is returned. This can make an interval
+wider than a hand-optimized proof, but it never narrows away known truth.
+
+Division and negative powers stay native only when the initial denominator
+certificate excludes zero. In the example, `x/x` crosses that conservative
+boundary because `x` initially encloses zero, so it uses the shared Oracle
+recipe. Oracle refinement can later separate zero; if it cannot do so within
+the work budget, the result is structured `:unknown` evidence.
+
+## Lazy terms and a paper-compatible funnel
+
+`Terms` creates a bounded lazy sequence. The callback is evaluated only as
+elements are requested, and shallow copies keep their current cache but advance
+independently:
+
+```rix
+.Plugin.Load("cauchy");
+g := .cauchy.Geometric(1, 1/2);
+terms := g.Terms(0, 5);
+third := terms.Get(3);
+copy := terms;
+fifth := copy.Get(5);
+.Table({=
+  columns=["third partial sum", "fifth partial sum"],
+  rows=[[third, fifth]]
+});
+```
+
+A certified effective sequence can also expose the paper-compatible refinement
+funnel used by Oracle. Both routes below preserve exact enclosing intervals and
+stop at the supplied call budget:
+
+```rix
+.Plugin.Load("cauchy");
+g := .cauchy.Geometric(1, 1/2);
+funnel := g.Funnel({= name=:geometricFunnel });
+direct := funnel.Refine({= absoluteWidth=1/1000, maxCalls=20 });
+throughOracle := funnel.ToOracle().Refine({=
+  absoluteWidth=1/1000,
+  maxCalls=20
+});
+.Table({=
+  columns=["route", "status", "certified interval"],
+  rows=[
+    ["funnel", direct[:status], direct[:interval]],
+    ["oracle", throughOracle[:status], throughOracle[:interval]]
+  ]
+});
+```

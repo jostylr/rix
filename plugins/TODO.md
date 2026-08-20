@@ -755,11 +755,11 @@ tracked in
    - [x] Add README, runnable tutorial, and exact tail-bound tests.
    - [x] Register `Refinable`/`EnclosableReal`.
 2. **Phase 2 — Constructions and oracle adapter**
-   - [ ] Add arithmetic with computed moduli.
+   - [x] Add arithmetic with computed moduli.
    - [x] Add same-family arithmetic recipes, exact Rational embedding, and the
      certified-singleton Oracle adapter.
-   - [ ] Implement the paper-compatible funnel adapter.
-   - [ ] Preserve lazy terms and bounded work.
+   - [x] Implement the paper-compatible funnel adapter.
+   - [x] Preserve lazy terms and bounded work.
 3. **Phase 3 — Limits of generated sequences**
    - [ ] Add convergence transformations and proof-carrying limit constructors.
    - [ ] Diagnose sequences without effective tail information.
