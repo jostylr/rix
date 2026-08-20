@@ -155,6 +155,14 @@ describe("pure RiX Numerics plugin", () => {
         expect(entry(result, "interval").low.equals(entry(result, "interval").high)).toBe(true);
         expect(entry(result, "diagnostics").values.map(textValue)).toContain("noErrorBoundForIntendedReal");
         expect(formatValue(result)).toContain("schema=rix.numerics.enclosure@1");
+
+        const nonfinite = parseAndEvaluate(`
+            .numerics.Sample(.float.Binary32(1) / .float.Binary32(0), {= maxWork=20 })
+        `, options);
+        expect(textValue(entry(nonfinite, "status"))).toBe("unknown");
+        expect(entry(nonfinite, "certified")).toBeNull();
+        expect(entry(nonfinite, "diagnostics").values.map(textValue))
+            .toEqual(["storedValueNonFinite", "noFiniteRationalInterval", "divisionByZero", "infinity"]);
     });
 
     test("preserves bounded exhaustion as a normal structured result", () => {

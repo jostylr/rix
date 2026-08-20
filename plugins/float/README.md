@@ -11,6 +11,7 @@ real-valued math without making JavaScript numbers part of RiX core.
 
 x := .float.Float(1 / 3)
 y := (1 / 3).Float()
+b32 := .float.Binary32(1 / 3)
 .float.Sin(x)
 .float.Round(.float.Float(2.675), 2)
 ```
@@ -25,7 +26,10 @@ result with `.float(1/2 + 1/3)`.
 
 | Command | Purpose |
 | --- | --- |
-| `.float(value)` / `.float.Float(value)` / `value.Float()` | Convert a finite Integer or Rational to Float. |
+| `.float(value, format?)` / `.float.Float(value, format?)` / `value.Float(format?)` | Convert to Float; the default is `:binary64`. |
+| `.float.Binary32(value)`, `.float.Binary64(value)` | Select IEEE-754 binary32 or binary64 explicitly. |
+| `value.Format()`, `value.Classify()`, `value.Diagnostics()` | Inspect the configured format and structured exceptional-value metadata. |
+| `value.NextUp()`, `value.NextDown()`, `value.NextAfter(target)` | Move by one representable value in the configured format. |
 | `.float.Interval(value)` | Construct an exact enclosure of the stored IEEE value. |
 | `.float.Round(value, places?)` | Exact decimal representation of IEEE rounding. |
 | `.float.Floor(value, places?)`, `.float.Ceiling(value, places?)` | Directed decimal rounding. |
@@ -36,10 +40,18 @@ Float values implement the neutral `Sample`, `Enclose`, `Refine`, and
 `NumericsCapabilities` receiver protocol consumed by `.numerics`. Sampling
 and enclosure return `:approximate`: the point interval is exact for the
 stored IEEE value, but it is not an error bound for the intended real-valued
-calculation. Refinement is explicitly `:unsupported`, because a stored binary64
-value carries no information from which to refine the intended real. For the
+calculation. Refinement is explicitly `:unsupported`, because a stored binary32
+or binary64 value carries no information from which to refine the intended real. For the
 same reason, a Float comparison against a language Halo is diagnostic
 undecided rather than a certified Boolean result.
+
+Arithmetic preserves its operands' format and rounds every result back to that
+format. Mixed binary32/binary64 arithmetic and ordering require an explicit
+conversion. `Classify()` returns the versioned `rix.float.classification@1`
+record; diagnostics distinguish overflow, underflow to signed zero, subnormal
+values, division by zero, infinities, and NaN. Non-finite values cannot be
+turned into rational intervals, and their sampling status is `:unknown` rather
+than a fabricated certificate.
 
 ## Dependencies
 

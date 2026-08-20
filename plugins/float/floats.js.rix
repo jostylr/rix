@@ -30,10 +30,18 @@
   proto = {=
     Value = (self) -> .JSCall("floats.js", :Value, self),
     ToString = (self) -> .JSCall("floats.js", :Value, self),
+    Format = (self) -> .JSCall("floats.js", :Format, self),
+    Classify = (self) -> .JSCall("floats.js", :Classify, self),
+    Diagnostics = (self) -> .JSCall("floats.js", :Diagnostics, self),
+    Binary32 = (self) -> .JSCall("floats.js", :Binary32, self),
+    Binary64 = (self) -> .JSCall("floats.js", :Binary64, self),
+    NextUp = (self) -> .JSCall("floats.js", :NextUp, self),
+    NextDown = (self) -> .JSCall("floats.js", :NextDown, self),
+    NextAfter = (self, target) -> .JSCall("floats.js", :NextAfter, self, target),
     Sample = (self, request) -> .JSCall("protocol.js", :Sample, self, request),
     Enclose = (self, request) -> .JSCall("protocol.js", :Enclose, self, request),
     Refine = (self, request) -> .JSCall("protocol.js", :Refine, self, request),
-    NumericsCapabilities = (self) -> .JSCall("protocol.js", :NumericsCapabilities)
+    NumericsCapabilities = (self) -> .JSCall("protocol.js", :NumericsCapabilities, self)
   },
 
   installs = {=

@@ -1,5 +1,6 @@
 import { Integer, Rational, RationalInterval } from "@ratmath/core";
 import { unsupportedRefinementResult } from "../../src/runtime/refinement.js";
+import { classifyFloat, diagnosticsOf, formatInfo, formatOf } from "./ieee754.js";
 
 function int(value) {
     return new Integer(BigInt(value));
@@ -49,12 +50,15 @@ export function exactFloatRational(float) {
         : new Rational(numerator, 1n << BigInt(-binaryExponent));
 }
 
-export function NumericsCapabilities() {
+export function NumericsCapabilities(value = null) {
+    const format = formatOf(value);
     return map([
         ["valuekind", text("numericsCapabilities")],
         ["schema", text("rix.numerics.capabilities@1")],
         ["backend", text("float")],
-        ["representation", text("ieee754Binary64")],
+        ["representation", text(format === "binary32" ? "ieee754Binary32" : "ieee754Binary64")],
+        ["format", text(format)],
+        ["precisionbits", int(formatInfo(format).precisionBits)],
         ["denotation", text("storedScalar")],
         ["operations", sequence([text("sample"), text("enclose")])],
         ["evidencelevels", sequence([text("approximate")])],
@@ -68,13 +72,19 @@ export function NumericsCapabilities() {
 }
 
 function approximateStoredValue(value, request, operation) {
-    const exact = exactFloatRational(value);
+    const classification = classifyFloat(value);
+    const finite = classification.finite;
+    const exact = finite ? exactFloatRational(value) : Rational.zero;
     const requestedWidth = entry(request, "absolutewidth", null);
     const requestedWork = entry(entry(request, "work", null), "maxwork", int(0));
+    const valueDiagnostics = diagnosticsOf(value);
+    const diagnostics = finite
+        ? ["storedValueOnly", "noErrorBoundForIntendedReal", ...valueDiagnostics]
+        : ["storedValueNonFinite", "noFiniteRationalInterval", ...valueDiagnostics];
     return map([
         ["valuekind", text("enclosure")],
         ["schema", text("rix.numerics.enclosure@1")],
-        ["status", text("approximate")],
+        ["status", text(finite ? "approximate" : "unknown")],
         ["interval", new RationalInterval(exact, exact)],
         ["certified", null],
         ["goalmet", null],
@@ -89,14 +99,14 @@ function approximateStoredValue(value, request, operation) {
             ["maxwork", requestedWork],
             ["exhausted", null],
         ])],
-        ["diagnostics", sequence([
-            text("storedValueOnly"),
-            text("noErrorBoundForIntendedReal"),
-        ])],
+        ["diagnostics", sequence([...new Set(diagnostics)].map(text))],
         ["source", map([
             ["plugin", text("float")],
-            ["representation", text("ieee754Binary64")],
-            ["storedvalueexact", int(1)],
+            ["representation", text(classification.format === "binary32" ? "ieee754Binary32" : "ieee754Binary64")],
+            ["format", text(classification.format)],
+            ["classification", text(classification.className)],
+            ["sign", text(classification.sign)],
+            ["storedvalueexact", finite ? int(1) : null],
         ])],
     ]);
 }
@@ -109,6 +119,6 @@ export function Enclose(value, request) {
     return approximateStoredValue(value, request, "enclose");
 }
 
-export function Refine(_value, request) {
-    return unsupportedRefinementResult(request, NumericsCapabilities(), "noArbitraryRefinementForIntendedReal");
+export function Refine(value, request) {
+    return unsupportedRefinementResult(request, NumericsCapabilities(value), "noArbitraryRefinementForIntendedReal");
 }

@@ -1,10 +1,11 @@
 /**
 id: float
-description: JavaScript IEEE-754 Float conversion and optional approximate math.
+description: Configurable IEEE-754 binary32/binary64 conversion, diagnostics, and optional approximate math.
 kind: host
 mount: float
-exports: [Float, Interval, Round, Floor, Ceiling, Abs, Sqrt, Sin, Cos, Tan, Log, Exp]
+exports: [Float, Binary32, Binary64, Format, Classify, Diagnostics, NextUp, NextDown, NextAfter, Interval, Round, Floor, Ceiling, Abs, Sqrt, Sin, Cos, Tan, Asin, Acos, Atan, Atan2, Log, Ln, Log10, Exp]
 groups: [ApproximateMath, Float]
+schemas: [rix.float.classification@1]
 permissions: []
 defaultEnabled: false
 **/

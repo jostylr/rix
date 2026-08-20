@@ -10,6 +10,18 @@ import { installRegisteredTypes, typeRegistry } from "../../src/runtime/type-sys
 import { loadFloatPluginStartup } from "./float-loader.js";
 import { Integer, Rational, RationalInterval } from "@ratmath/core";
 import { exactFloatRational } from "./protocol.js";
+import {
+    Binary32 as makeBinary32,
+    Binary64 as makeBinary64,
+    Classify as classify,
+    Diagnostics as diagnostics,
+    Format as format,
+    From as makeFloat,
+    NextAfter as nextAfter,
+    NextDown as nextDown,
+    NextUp as nextUp,
+} from "./floats.js";
+import { formatOf } from "./ieee754.js";
 
 const FLOAT_METHOD_NAMES = ["ABS", ...MATH_FUNCTION_NAMES];
 
@@ -33,7 +45,14 @@ function installFloatCompareVariant(registry) {
             return { args };
         },
         impl(args) {
+            const [leftValue, rightValue] = args;
+            if (formatOf(leftValue) !== formatOf(rightValue)) {
+                throw new Error("Mixed binary32/binary64 Float comparison requires an explicit format conversion");
+            }
             const [left, right] = args.map((value) => value.value);
+            if (Number.isNaN(left) || Number.isNaN(right)) {
+                throw new Error("Float NaN is unordered; inspect Classify() or Diagnostics()");
+            }
             return new Integer(left < right ? -1n : left > right ? 1n : 0n);
         },
     });
@@ -89,6 +108,7 @@ function floatValue(registry) {
         type: "method_builtin",
         name: "Float",
         impl(args, context, evaluate) {
+            if (args[2] !== undefined && args[2] !== null) return requireFloat(makeFloat(args[1], args[2]), evaluate);
             return evaluate({
                 fn: "SEMANTIC_CONVERT_STRICT",
                 args: [args[1], "Float"],
@@ -98,11 +118,29 @@ function floatValue(registry) {
     entries.set("Float", convert);
     extension.set("FLOAT", convert);
 
+    const add = (name, impl) => {
+        const method = { type: "method_builtin", name, impl };
+        entries.set(name, method);
+        extension.set(name.toUpperCase(), method);
+    };
+    add("Binary32", (args, _context, evaluate) => requireFloat(makeBinary32(args[1]), evaluate));
+    add("Binary64", (args, _context, evaluate) => requireFloat(makeBinary64(args[1]), evaluate));
+    add("Format", (args, _context, evaluate) => format(requireFloat(args[1], evaluate)));
+    add("Classify", (args, _context, evaluate) => classify(requireFloat(args[1], evaluate)));
+    add("Diagnostics", (args, _context, evaluate) => diagnostics(requireFloat(args[1], evaluate)));
+    add("NextUp", (args, _context, evaluate) => requireFloat(nextUp(requireFloat(args[1], evaluate)), evaluate));
+    add("NextDown", (args, _context, evaluate) => requireFloat(nextDown(requireFloat(args[1], evaluate)), evaluate));
+    add("NextAfter", (args, _context, evaluate) => requireFloat(nextAfter(requireFloat(args[1], evaluate), args[2]), evaluate));
+
     const interval = {
         type: "method_builtin",
         name: "Interval",
         impl(args, _context, evaluate) {
-            const exact = exactFloatRational(requireFloat(args[1], evaluate));
+            const value = requireFloat(args[1], evaluate);
+            if (!Number.isFinite(value.value)) {
+                throw new Error("Float Interval requires a finite stored value; use Classify() for NaN or infinity");
+            }
+            const exact = exactFloatRational(value);
             // A Float denotes one specific IEEE-754 value, so its exact dyadic
             // rational is a point interval and therefore a proven enclosure.
             return new RationalInterval(exact, exact);
@@ -170,6 +208,7 @@ export function loadFloatPlugin(systemContext, registry, owner = { pluginId: "fl
     const value = floatValue(registry);
     systemContext.registerHostCallableValue("float", value, {
         impl(args, _context, evaluate) {
+            if (args[1] !== undefined && args[1] !== null) return requireFloat(makeFloat(args[0], args[1]), evaluate);
             return requireFloat(args[0], evaluate);
         },
     }, {
@@ -179,7 +218,11 @@ export function loadFloatPlugin(systemContext, registry, owner = { pluginId: "fl
     const floatExtension = {
         type: "method_builtin",
         name: "Float",
-        impl(args, _context, evaluate) { return requireFloat(args[0], evaluate); },
+        impl(args, _context, evaluate) {
+            return args[1] === undefined || args[1] === null
+                ? requireFloat(args[0], evaluate)
+                : requireFloat(makeFloat(args[0], args[1]), evaluate);
+        },
     };
     systemContext.registerMethod("Integer", "Float", floatExtension, owner);
     systemContext.registerMethod("Rational", "Float", floatExtension, owner);

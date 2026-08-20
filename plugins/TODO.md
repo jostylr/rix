@@ -219,9 +219,9 @@ newline normalization.
 2. **Phase 2 — Numerical protocol provider**
    - [x] Implement the shared `EnclosableReal`/sampling capability with an
      explicitly non-certified result level.
-   - [ ] Add configurable binary32/binary64 behavior and directed-next-value
+   - [x] Add configurable binary32/binary64 behavior and directed-next-value
      helpers.
-   - [ ] Report overflow, underflow, signed zero, infinities, and NaN through
+   - [x] Report overflow, underflow, signed zero, infinities, and NaN through
      structured diagnostics.
 3. **Phase 3 — Reproducible approximate algorithms**
    - [ ] Add reproducible summation/dot-product policies.

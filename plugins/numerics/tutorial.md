@@ -214,7 +214,7 @@ Oracle conversion accepts only refinable singletons. `.oracle.From` therefore
 rejects a finite `.ball(midpoint, radius)`. Use a nested ball recipe when the
 value is meant to identify one real.
 
-Float is also outside implicit promotion. A Float is a stored binary64 scalar,
+Float is also outside implicit promotion. A Float is a stored binary32 or binary64 scalar,
 not a refinable certificate for an intended real, so both operands must be
 converted explicitly:
 

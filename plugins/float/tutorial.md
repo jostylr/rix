@@ -46,6 +46,39 @@ For display-oriented decimal work, rounding is explicit:
 The results preserve the actual stored IEEE value, rather than pretending that
 the input was a decimal real number.
 
+Choose the storage format explicitly when binary32 behavior is relevant:
+
+```rix
+single := .float.Binary32(1 / 10);
+double := .float.Binary64(1 / 10);
+{: single.Format(), single.Value(), double.Value() };
+
+single.NextUp();
+double.NextAfter(1);
+```
+
+Operations round back to the receiver format. Mixing binary32 and binary64 is
+an error until one side is converted explicitly. `NextUp`, `NextDown`, and
+`NextAfter` provide deterministic adjacent representable values without
+claiming anything about the real number that may have produced the Float.
+
+Exceptional values remain inspectable:
+
+```rix
+overflow := .float.Binary32(10^100);
+signedZero := .float.Binary32(-1 / 10^100);
+infinity := .float.Binary32(1) / .float.Binary32(0);
+nan := .float.Binary64(0) / .float.Binary64(0);
+
+{: overflow.Classify(), signedZero.Diagnostics(),
+   infinity.Classify(), nan.Classify() };
+```
+
+`Classify()` returns a `rix.float.classification@1` record. Its class, sign,
+format, operation, and diagnostic sequence distinguish overflow, underflow,
+signed zero, subnormals, infinities, and NaN. `.float.Interval` rejects
+non-finite stored values instead of inventing an enclosure.
+
 With `.numerics`, Float is an honest sampling backend rather than a refiner:
 
 ```rix
@@ -56,6 +89,6 @@ refine := .numerics.Refine(viaMethod); ## :unsupported
 viaMethod < {~ 1 / 2, 1 / 1000 };      ## undecided: providerUncertified
 ```
 
-The point interval in `sample` exactly identifies the stored binary64 value.
+The point interval in `sample` exactly identifies the stored binary32 or binary64 value.
 It does not certify the intended real that led to that value, so neither
 Numerics nor a Halo comparison promotes it to proof.

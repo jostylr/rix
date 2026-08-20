@@ -1,5 +1,19 @@
 // Float plugin arithmetic bridge used by the accompanying RiX startup source.
-import { Integer, Rational } from "@ratmath/core";
+import { Integer } from "@ratmath/core";
+import {
+    BINARY32,
+    BINARY64,
+    classifyFloat,
+    convertFloat,
+    diagnosticsOf,
+    floatText,
+    formatInfo,
+    formatOf,
+    nextAfterValue,
+    nextValue,
+    numberFrom,
+    operateFloat,
+} from "./ieee754.js";
 
 function int(value) {
     return new Integer(BigInt(value));
@@ -13,19 +27,55 @@ function stringObj(value) {
     return { type: "string", value };
 }
 
+function map(entries) {
+    return { type: "map", entries: new Map(entries) };
+}
+
+function sequence(values) {
+    return { type: "sequence", values };
+}
+
 export function Is(value) {
     return bool(value?.type === "float" && typeof value.value === "number");
 }
 
-export function From(value) {
-    const number = numberFrom(value);
-    if (Number.isNaN(number)) throw new Error("Cannot convert value to Float");
-    return { type: "float", value: number };
+export function From(value, format) {
+    return convertFloat(value, format, "float");
 }
 
 export function Value(value) {
     if (!value || value.type !== "float") throw new Error("Float Value expects a Float");
-    return stringObj(String(value.value));
+    return stringObj(floatText(value.value));
+}
+
+export function Format(value) {
+    if (!Is(value)) throw new Error("Float Format expects a Float");
+    return stringObj(formatOf(value));
+}
+
+export function Diagnostics(value) {
+    if (!Is(value)) throw new Error("Float Diagnostics expects a Float");
+    return sequence(diagnosticsOf(value).map(stringObj));
+}
+
+export function Classify(value) {
+    if (!Is(value)) throw new Error("Float Classify expects a Float");
+    const classification = classifyFloat(value);
+    const info = formatInfo(classification.format);
+    return map([
+        ["valueKind", stringObj("floatClassification")],
+        ["schema", stringObj("rix.float.classification@1")],
+        ["format", stringObj(classification.format)],
+        ["bits", int(classification.bits)],
+        ["precisionBits", int(info.precisionBits)],
+        ["class", stringObj(classification.className)],
+        ["sign", stringObj(classification.sign)],
+        ["finite", bool(classification.finite)],
+        ["subnormal", bool(classification.subnormal)],
+        ["negativeZero", bool(classification.negativeZero)],
+        ["operation", value.operation ? stringObj(value.operation) : null],
+        ["diagnostics", Diagnostics(value)],
+    ]);
 }
 
 export function Export(value) {
@@ -34,51 +84,67 @@ export function Export(value) {
         type: "map",
         entries: new Map([
             ["type", stringObj("Float")],
-            ["data", { type: "map", entries: new Map([["value", stringObj(String(value.value))]]) }],
+            ["data", { type: "map", entries: new Map([
+                ["value", stringObj(floatText(value.value))],
+                ["format", stringObj(formatOf(value))],
+                ["operation", value.operation ? stringObj(value.operation) : null],
+                ["diagnostics", Diagnostics(value)],
+            ]) }],
             ["cache", null],
-            ["version", int(1)],
+            ["version", int(2)],
         ]),
     };
 }
 
 export function Import(value) {
     const data = value?.entries?.get("data");
-    return From(Number(data?.entries?.get("value")?.value));
+    const restored = From(
+        Number(data?.entries?.get("value")?.value),
+        data?.entries?.get("format") || BINARY64,
+    );
+    const storedDiagnostics = data?.entries?.get("diagnostics")?.values;
+    if (Array.isArray(storedDiagnostics)) {
+        restored.diagnostics = [...new Set(storedDiagnostics.map((item) => item?.value).filter(Boolean))];
+    }
+    restored.operation = data?.entries?.get("operation")?.value || null;
+    return restored;
 }
 
-export function Add(x, y) { return From(numberFrom(x) + numberFrom(y)); }
-export function Sub(x, y) { return From(numberFrom(x) - numberFrom(y)); }
-export function Mul(x, y) { return From(numberFrom(x) * numberFrom(y)); }
-export function Div(x, y) { return From(numberFrom(x) / numberFrom(y)); }
-export function Pow(x, y) { return From(numberFrom(x) ** numberFrom(y)); }
-export function Neg(x) { return From(-numberFrom(x)); }
+export function Binary32(value) { return From(value, BINARY32); }
+export function Binary64(value) { return From(value, BINARY64); }
+export function Add(x, y) { return operateFloat("add", [x, y], (left, right) => left + right, "float"); }
+export function Sub(x, y) { return operateFloat("sub", [x, y], (left, right) => left - right, "float"); }
+export function Mul(x, y) { return operateFloat("mul", [x, y], (left, right) => left * right, "float"); }
+export function Div(x, y) { return operateFloat("div", [x, y], (left, right) => left / right, "float"); }
+export function Pow(x, y) { return operateFloat("pow", [x, y], (left, right) => left ** right, "float"); }
+export function Neg(x) { return operateFloat("neg", [x], (value) => -value, "float"); }
 
-export function Eq(x, y) { return bool(numberFrom(x) === numberFrom(y)); }
-export function Lt(x, y) { return bool(numberFrom(x) < numberFrom(y)); }
-export function Gt(x, y) { return bool(numberFrom(x) > numberFrom(y)); }
-export function Lte(x, y) { return bool(numberFrom(x) <= numberFrom(y)); }
-export function Gte(x, y) { return bool(numberFrom(x) >= numberFrom(y)); }
-
-export function Abs(x) { return From(Math.abs(numberFrom(x))); }
-export function Sqrt(x) { return From(Math.sqrt(numberFrom(x))); }
-export function Sin(x) { return From(Math.sin(numberFrom(x))); }
-export function Cos(x) { return From(Math.cos(numberFrom(x))); }
-export function Tan(x) { return From(Math.tan(numberFrom(x))); }
-export function Asin(x) { return From(Math.asin(numberFrom(x))); }
-export function Acos(x) { return From(Math.acos(numberFrom(x))); }
-export function Atan(x) { return From(Math.atan(numberFrom(x))); }
-export function Atan2(y, x) { return From(Math.atan2(numberFrom(y), numberFrom(x))); }
-export function Log(x) { return From(Math.log(numberFrom(x))); }
-export function Ln(x) { return From(Math.log(numberFrom(x))); }
-export function Log10(x) { return From(Math.log10(numberFrom(x))); }
-export function Exp(x) { return From(Math.exp(numberFrom(x))); }
-
-function numberFrom(value) {
-    if (value?.type === "float") return value.value;
-    if (value instanceof Integer) return Number(value.value);
-    if (value instanceof Rational) return Number(value.numerator) / Number(value.denominator);
-    if (typeof value === "number") return value;
-    if (typeof value === "bigint") return Number(value);
-    if (value?.type === "string") return Number(value.value);
-    return Number(value);
+function comparable(x, y) {
+    if (formatOf(x) !== formatOf(y)) {
+        throw new Error("Mixed binary32/binary64 Float comparison requires an explicit format conversion");
+    }
+    return [numberFrom(x), numberFrom(y)];
 }
+
+export function Eq(x, y) { const [left, right] = comparable(x, y); return bool(left === right); }
+export function Lt(x, y) { const [left, right] = comparable(x, y); return bool(left < right); }
+export function Gt(x, y) { const [left, right] = comparable(x, y); return bool(left > right); }
+export function Lte(x, y) { const [left, right] = comparable(x, y); return bool(left <= right); }
+export function Gte(x, y) { const [left, right] = comparable(x, y); return bool(left >= right); }
+
+export function Abs(x) { return operateFloat("abs", [x], Math.abs, "float"); }
+export function Sqrt(x) { return operateFloat("sqrt", [x], Math.sqrt, "float"); }
+export function Sin(x) { return operateFloat("sin", [x], Math.sin, "float"); }
+export function Cos(x) { return operateFloat("cos", [x], Math.cos, "float"); }
+export function Tan(x) { return operateFloat("tan", [x], Math.tan, "float"); }
+export function Asin(x) { return operateFloat("asin", [x], Math.asin, "float"); }
+export function Acos(x) { return operateFloat("acos", [x], Math.acos, "float"); }
+export function Atan(x) { return operateFloat("atan", [x], Math.atan, "float"); }
+export function Atan2(y, x) { return operateFloat("atan2", [y, x], Math.atan2, "float"); }
+export function Log(x) { return operateFloat("log", [x], Math.log, "float"); }
+export function Ln(x) { return operateFloat("log", [x], Math.log, "float"); }
+export function Log10(x) { return operateFloat("log10", [x], Math.log10, "float"); }
+export function Exp(x) { return operateFloat("exp", [x], Math.exp, "float"); }
+export function NextUp(x) { return nextValue(x, 1, "float"); }
+export function NextDown(x) { return nextValue(x, -1, "float"); }
+export function NextAfter(x, target) { return nextAfterValue(x, target, "float"); }

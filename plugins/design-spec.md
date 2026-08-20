@@ -358,7 +358,7 @@ providers when installed.
 
 | Plugin | Stored representation | Certified enclosure policy | Best uses |
 | --- | --- | --- | --- |
-| `.float` | IEEE-754 binary64 | Exact dyadic enclosure of the stored value; elementary-function results are approximate unless backed by directed error analysis. | Fast exploratory computation, screen sampling, compatibility. |
+| `.float` | Configurable IEEE-754 binary32/binary64 | Exact dyadic enclosure of each finite stored value; elementary-function results are approximate unless backed by directed error analysis. | Fast exploratory computation, screen sampling, compatibility. |
 | `.ball` | Pure RiX exact rational midpoint plus radius; explicitly outward-rounded dyadic snapshots | Preserve exact rational endpoints, or widen both endpoints to a requested dyadic grid. Nested recipes refine through certified exact bisection. | Certified snapshots and nested square-root exploration; robust transcendental work and interval Newton remain later phases. |
 | `.oracle` | Procedure answering precision requests | Ask directly for a proven rational interval. | Computable reals and lazy exactness. |
 | `.cauchy` | Pure RiX rational sequence plus exact tail-bound function and modulus | Use the modulus to select a term, verify its exact tail inequality, and return the corresponding rational enclosure. A bare sequence remains explicitly non-certifying. | Constructive analysis, visible geometric-series refinement, and sequence-defined constants. |
