@@ -125,3 +125,55 @@ values := [x+x, x-x, x*x, x/x, -x, .Abs(x), x^2, x+1/3];
 `x+1/3` stays in the continued-fraction family because the Rational is an
 exact embeddable value. Combining `x` with a Cauchy or algebraic real instead
 chooses their common certified Oracle target.
+
+## Recognize the periodic quadratic equation
+
+An explicitly periodic stream determines an exact Möbius fixed point. The
+plugin eliminates that repeating tail and returns a primitive quadratic form
+without using floating-point recognition:
+
+```rix
+.Plugin.Load("continued-fraction");
+root := .cf.Sqrt2();
+shifted := root.Translate(3);
+reciprocal := root.Reciprocal();
+rootForm := root.QuadraticForm();
+shiftedForm := shifted.QuadraticForm();
+reciprocalForm := reciprocal.QuadraticForm();
+.Table({=
+  columns=["value", "prefix", "quadratic coefficients", "discriminant"],
+  rows=[
+    ["sqrt(2)", root.Record()[:prefix], rootForm[:coefficients], rootForm[:discriminant]],
+    ["sqrt(2)+3", shifted.Record()[:prefix], shiftedForm[:coefficients], shiftedForm[:discriminant]],
+    ["1/sqrt(2)", reciprocal.Record()[:prefix], reciprocalForm[:coefficients], reciprocalForm[:discriminant]]
+  ]
+});
+```
+
+The three equations are `x^2-2=0`, `x^2-6x+7=0`, and `2x^2-1=0`.
+The returned source cylinder still encloses the represented root; no decimal
+root choice is guessed.
+
+## Query a denominator-bounded best approximation
+
+The second-kind query minimizes the exact scaled error `|q*x-p|` through the
+requested denominator bound. It reads one further convergent to certify that
+the next denominator is outside the search range:
+
+```rix
+.Plugin.Load("continued-fraction");
+root := .cf.Sqrt2();
+best := root.BestApproximation(10);
+limited := root.BestApproximation(100, {= maxCoefficients=2 });
+.Table({=
+  columns=["request", "status", "approximation", "next denominator", "diagnostics"],
+  rows=[
+    [10, best[:status], best[:approximation], best[:nextDenominator], best[:diagnostics]],
+    [100, limited[:status], limited[:approximation], limited[:nextDenominator], limited[:diagnostics]]
+  ]
+});
+```
+
+The first row certifies `7/5` because the next convergent has denominator `12`.
+The second row keeps `3/2`, but reports budget exhaustion instead of claiming
+that two observed coefficients settle every denominator through `100`.

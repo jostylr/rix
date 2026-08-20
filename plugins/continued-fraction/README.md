@@ -67,13 +67,55 @@ Finite values return an exact point enclosure immediately. Lazy values consume
 at most one new coefficient per refinement call and retain the best certified
 cylinder when the budget is exhausted.
 
+## Periodic quadratic recognition
+
+`QuadraticForm()` recognizes an explicitly periodic stream as a quadratic
+irrational presentation. It multiplies the exact coefficient matrices, solves
+the repeating tail's Möbius fixed-point equation, substitutes the finite
+prefix, and returns primitive ascending Integer coefficients:
+
+```rix
+.Plugin.Load("continued-fraction");
+root := .cf.Sqrt2();
+root.QuadraticForm()[:coefficients];               ## [-2, 0, 1]
+root.Translate(3).QuadraticForm()[:coefficients];  ## [7, -6, 1]
+root.Reciprocal().QuadraticForm()[:coefficients];  ## [-1, 0, 2]
+```
+
+The result includes both matrices, their determinants, the discriminant, the
+source enclosure, and evidence connecting the equation to the periodic stream.
+It certifies that the represented value satisfies the equation; it does not
+silently claim that the initial cylinder isolates one root from every other
+root of that polynomial.
+
+## Best approximations and exact transformations
+
+`BestApproximation(maxDenominator, options?)` returns the last convergent before
+the next denominator exceeds the requested bound. Its certificate uses the
+classical best-approximation theorem for the scaled error `|q*x-p|` (the
+"second kind"):
+
+```rix
+best := root.BestApproximation(10);
+best[:approximation]; ## 7/5; next denominator is 12
+```
+
+`maxCoefficients` bounds coefficient requests. Exhaustion returns the best
+convergent reached with `status=:budgetExhausted`, but does not claim optimality
+through the unsearched denominator range.
+
+`Translate(integer)` changes only `a_0`. `Reciprocal()` prepends or removes a
+leading zero for positive represented values. Both transformations preserve
+finite streams exactly and keep periodic streams periodic, so quadratic
+recognition and certified cylinders remain available. Negative reciprocals
+stay explicit unsupported cases until the general homographic algorithms.
+
 Continued-fraction reals support `+`, `-`, `*`, `/`, integer powers, unary `-`,
 and absolute value. Same-family and Rational operations retain
 `ContinuedFractionReal` through an immutable enclosure recipe; unlike certified
 families meet at Oracle. This does not pretend that general arithmetic has
 already produced a new canonical coefficient stream.
 
-Periodic quadratic recognition, best-approximation helpers, and native
-continued-fraction transducers remain later work.
+General homographic coefficient transducers remain later work.
 
 See [tutorial.md](tutorial.md).

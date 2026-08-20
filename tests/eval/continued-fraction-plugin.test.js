@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { CertifiedApproximation, RationalInterval } from "@ratmath/core";
+import { CertifiedApproximation, Rational, RationalInterval } from "@ratmath/core";
 import {
     Context,
     createDefaultRegistry,
@@ -146,5 +146,94 @@ describe("Continued Fraction plugin", () => {
         expect(() => parseAndEvaluate(".cf.Finite([1, 0])", options)).toThrow("positive Integer");
         expect(() => parseAndEvaluate(".cf.Finite([1, 2]).Coefficient(2)", options)).toThrow("no coefficient");
         expect(() => parseAndEvaluate(".cf.Lazy((n) -> 1).Coefficients()", options)).toThrow("explicit coefficient count");
+    });
+
+    test("derives primitive quadratic forms from exact periodic Mobius fixed points", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("continued-fraction");
+            root = .cf.Sqrt2();
+            shifted = root.Translate(3);
+            reciprocal = root.Reciprocal();
+            {: root.QuadraticForm(), shifted.QuadraticForm(), reciprocal.QuadraticForm() };
+        `, options);
+
+        expect(entry(result.values[0], "coefficients").values.map(String)).toEqual(["-2", "0", "1"]);
+        expect(entry(result.values[0], "discriminant").toString()).toBe("8");
+        expect(textValue(entry(result.values[0], "evidenceLevel"))).toBe("proof");
+        expect(textValue(entry(entry(result.values[0], "evidence"), "kind")))
+            .toBe("periodicMobiusFixedPoint");
+        expect(entry(result.values[1], "coefficients").values.map(String)).toEqual(["7", "-6", "1"]);
+        expect(entry(result.values[2], "coefficients").values.map(String)).toEqual(["-1", "0", "2"]);
+
+        expect(() => parseAndEvaluate(".cf.Finite([1,2]).QuadraticForm()", options))
+            .toThrow("explicitly periodic");
+    });
+
+    test("answers denominator-bounded best-approximation queries with visible work", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("continued-fraction");
+            root = .cf.Sqrt2();
+            pi = .cf.Finite([3,7,16]);
+            {:
+                root.BestApproximation(10),
+                root.BestApproximation(100, {= maxCoefficients=2 }),
+                pi.BestApproximation(100),
+                pi.BestApproximation(200)
+            };
+        `, options);
+
+        const [best, exhausted, finiteBounded, finiteExact] = result.values;
+        expect(textValue(entry(best, "status"))).toBe("certified");
+        expect(entry(best, "approximation").toString()).toBe("7/5");
+        expect(entry(best, "nextDenominator").toString()).toBe("12");
+        expect(textValue(entry(best, "optimality"))).toBe("bestApproximationSecondKind");
+        expect(entry(entry(best, "work"), "calls").value).toBe(4n);
+
+        expect(textValue(entry(exhausted, "status"))).toBe("budgetExhausted");
+        expect(entry(exhausted, "approximation").toString()).toBe("3/2");
+        expect(entry(exhausted, "certified")).toBeNull();
+        expect(entry(exhausted, "diagnostics").values.map(textValue)).toEqual(["maxCoefficientsReached"]);
+
+        expect(entry(finiteBounded, "approximation").toString()).toBe("22/7");
+        expect(entry(finiteExact, "approximation").toString()).toBe("355/113");
+        expect(textValue(entry(finiteExact, "status"))).toBe("certified");
+
+        expect(() => parseAndEvaluate("root.BestApproximation(0)", options)).toThrow("positive Integer");
+        expect(() => parseAndEvaluate("root.BestApproximation(10, {= maxCoefficients=0 })", options))
+            .toThrow("positive Integer");
+    });
+
+    test("performs selected exact coefficient-stream arithmetic transformations", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("continued-fraction");
+            .Plugin.Load("numerics");
+            root = .cf.Sqrt2();
+            shifted = root.Translate(3);
+            reciprocal = root.Reciprocal();
+            finite = .cf.Finite([3,7,16]);
+            product = .numerics.Refine(root*reciprocal, {= absoluteWidth=1/1000, maxWork=100 });
+            {:
+                shifted.Coefficients(6),
+                reciprocal.Coefficients(6),
+                finite.Translate(3).Value(),
+                finite.Reciprocal().Value(),
+                product
+            };
+        `, options);
+
+        expect(result.values[0].values.map(String)).toEqual(["4", "2", "2", "2", "2", "2"]);
+        expect(result.values[1].values.map(String)).toEqual(["0", "1", "2", "2", "2", "2"]);
+        expect(result.values[2].toString()).toBe("694/113");
+        expect(result.values[3].toString()).toBe("113/355");
+        expect(textValue(entry(result.values[4], "status"))).toBe("enclosed");
+        expect(entry(result.values[4], "interval").containsValue(new Rational(1n))).toBe(true);
+
+        expect(() => parseAndEvaluate(".cf.Finite([-2,2]).Reciprocal()", options))
+            .toThrow("positive represented real");
+        expect(() => parseAndEvaluate(".cf.Finite([0]).Reciprocal()", options))
+            .toThrow("undefined at zero");
     });
 });

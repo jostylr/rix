@@ -776,7 +776,7 @@ tracked in
    - [x] Add README, tutorial, parser interoperability, and convergent tests.
    - [x] Register bounded enclosure/refinement.
 2. **Phase 2 — Arithmetic and recognition**
-   - [ ] Add periodic quadratic forms, best-approximation queries, and selected
+   - [x] Add periodic quadratic forms, best-approximation queries, and selected
      arithmetic transformations.
    - [x] Add same-family arithmetic recipes, exact Rational embedding, and
      conversion to Oracle through certified enclosure evidence.

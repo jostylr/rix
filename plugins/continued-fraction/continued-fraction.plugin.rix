@@ -4,12 +4,12 @@ description: Finite and lazy simple continued fractions with exact convergents a
 kind: rix
 mount: continuedFraction
 aliases: [cf]
-exports: [Finite, Lazy, Periodic, Sqrt2, FromRational, Coefficient, Coefficients, Convergent, Convergents, Enclosure, ErrorInterval, Record]
+exports: [Finite, Lazy, Periodic, Sqrt2, FromRational, Coefficient, Coefficients, Convergent, Convergents, Enclosure, ErrorInterval, QuadraticForm, BestApproximation, Translate, Reciprocal, Record]
 groups: [Numerics, Exact]
 permissions: []
 requires: [rix.oracle@1]
 provides: [rix.continued-fraction@1, rix.refinable@1, rix.enclosable-real@1]
-schemas: [rix.continued-fraction.finite@1, rix.continued-fraction.lazy@1, rix.continued-fraction.arithmetic-real@1]
+schemas: [rix.continued-fraction.finite@1, rix.continued-fraction.lazy@1, rix.continued-fraction.arithmetic-real@1, rix.continued-fraction.quadratic-form@1, rix.continued-fraction.best-approximation@1]
 snapshot: false
 deterministic: true
 defaultEnabled: false
@@ -26,6 +26,8 @@ CFRequireCount(value, label) -> {;
     count = value ~!: :Integer;
     count >= 1 ?: count ?_ .Error(@"@{label} must be a positive Integer");
 };
+
+CFRequirePositiveDenominator(value, label) -> CFRequireCount(value, label);
 
 CFValidateCoefficient(value, index) -> {;
     coefficient = value ~!: :Integer;
@@ -178,6 +180,7 @@ CFRecord(real) -> {=
     name = real[:name],
     coefficients = real[:kind] == :finite ?: real[:coefficients] ?_ _,
     length = real[:kind] == :finite ?: real[:length] ?_ _,
+    prefix = real[:prefix],
     period = real[:period],
     initialEnclosure = real[:initialWitness][:interval],
     evidence = real[:evidence],
@@ -193,6 +196,10 @@ CFAttachProtocol(real) -> {;
         Value = (self) -> self[:kind] == :finite ?: CFConvergent(self, self[:length]) ?_ .Error("Lazy continued fractions do not have a finite exact Value"),
         Enclosure = (self, count ?= _) -> CFEnclosureAt(self, count),
         ErrorInterval = (self, count) -> CFErrorInterval(self, count),
+        QuadraticForm = (self) -> CFQuadraticForm(self),
+        BestApproximation = (self, maxDenominator, options ?= {= }) -> CFBestApproximation(self, maxDenominator, options),
+        Translate = (self, offset, options ?= {= }) -> CFTranslate(self, offset, options),
+        Reciprocal = (self, options ?= {= }) -> CFReciprocal(self, options),
         Record = (self) -> CFRecord(self),
         Enclose = (self, request ?= {= }) -> CFProtocolEnclosure(self, request, :enclose),
         Refine = (self, request ?= {= }) -> CFProtocolEnclosure(self, request, :refine),
@@ -218,7 +225,7 @@ CFFinite(coefficients, options ?= {= }) -> {;
         length = length,
         coefficientFunction = coefficientFunction,
         evidenceLevel = :proof,
-        evidence = {= kind=:finiteEvaluation, property=:exactRationalValue }
+        evidence = CFOption(options, "evidence", {= kind=:finiteEvaluation, property=:exactRationalValue })
     };
     exact = CFConvergent(provisional, length) ~!: :Rational;
     provisional["initialwitness"] = {=
@@ -242,7 +249,7 @@ CFLazy(coefficientFunction, options ?= {= }) -> {;
         coefficientFunction = coefficientFunction,
         prefix = CFOption(options, "prefix", _),
         period = CFOption(options, "period", _),
-        evidenceLevel = CFOption(options, "evidenceLevel", :constructorGuarantee),
+        evidenceLevel = CFOption(options, "evidencelevel", :constructorGuarantee),
         evidence = CFOption(options, "evidence", {=
             kind=:declaredSimpleContinuedFraction,
             property=:positiveTailCoefficients
@@ -270,7 +277,7 @@ CFPeriodic(prefix, period, options ?= {= }) -> {;
         name = CFOption(options, "name", :periodic),
         prefix = exactPrefix,
         period = exactPeriod,
-        evidenceLevel = CFOption(options, "evidenceLevel", :constructorGuarantee),
+        evidenceLevel = CFOption(options, "evidencelevel", :constructorGuarantee),
         evidence = CFOption(options, "evidence", {=
             kind=:periodicSimpleContinuedFraction,
             property=:positiveRepeatingTail
@@ -298,6 +305,240 @@ CFConstruct(value, options ?= {= }) -> {;
     alreadyContinuedFraction
       ?: value
       ?_ (value ? :Array ?: CFFinite(value, options) ?_ CFFromRational(value, options));
+};
+
+CFRequireCoefficientStream(real, label ?= "Continued-fraction operation") -> {;
+    valid = (real ? :Map) && real[:valueKind] == :continuedFraction && real[:kind] != :arithmetic;
+    valid ?: real ?_ .Error(@"@{label} requires a finite, lazy, or periodic coefficient stream");
+};
+
+CFIntegerGcd(left, right) -> {;
+    a := (left ~!: :Integer).Abs();
+    b := (right ~!: :Integer).Abs();
+    {@ step=1; @b != 0; {; remainder=@a % @b; @a ~= @b; @b ~= remainder; }; step += 1 };
+    a;
+};
+
+CFPrimitiveIntegerCoefficients(coefficients) -> {;
+    content := 0;
+    {@ index=1; index <= @coefficients.Len(); {;
+        @content ~= CFIntegerGcd(@content, (@coefficients)[index]);
+    }; index += 1 };
+    content == 0 ?: .Error("Continued-fraction quadratic form cannot be the zero polynomial") ?_ _;
+    primitive = coefficients.Map((coefficient) -> coefficient // @content);
+    primitive.Last() < 0 ?: primitive.Map((coefficient) -> -coefficient) ?_ primitive;
+};
+
+CFMobiusMatrix(coefficients) -> {;
+    a := 1; b := 0; c := 0; d := 1;
+    {@ index=1; index <= @coefficients.Len(); {;
+        coefficient = (@coefficients)[index];
+        nextA = @a * coefficient + @b;
+        nextB := @a;
+        nextC = @c * coefficient + @d;
+        nextD := @c;
+        @a ~= nextA; @b ~= nextB; @c ~= nextC; @d ~= nextD;
+    }; index += 1 };
+    {= a=a, b=b, c=c, d=d, determinant=a*d-b*c };
+};
+
+CFQuadraticForm(real) -> {;
+    source = CFRequireCoefficientStream(real, "Continued-fraction QuadraticForm");
+    source[:kind] == :periodic
+      ?: _
+      ?_ .Error("Continued-fraction QuadraticForm requires an explicitly periodic stream");
+    prefixMatrix = CFMobiusMatrix(source[:prefix]);
+    periodMatrix = CFMobiusMatrix(source[:period]);
+    a = prefixMatrix[:a]; b = prefixMatrix[:b];
+    c = prefixMatrix[:c]; d = prefixMatrix[:d];
+    p = periodMatrix[:a]; q = periodMatrix[:b];
+    r = periodMatrix[:c]; s = periodMatrix[:d];
+    fixedLinear = s - p;
+    quadratic = r*d^2 - fixedLinear*d*c - q*c^2;
+    linear = -2*r*d*b + fixedLinear*(d*a+b*c) + 2*q*a*c;
+    constant = r*b^2 - fixedLinear*a*b - q*a^2;
+    coefficients = CFPrimitiveIntegerCoefficients([constant, linear, quadratic]);
+    coefficients[3] != 0
+      ?: _
+      ?_ .Error("Periodic continued fraction did not produce a quadratic equation");
+    form = {=
+        valueKind=:continuedFractionQuadraticForm,
+        schema="rix.continued-fraction.quadratic-form@1",
+        coefficients=coefficients,
+        constant=coefficients[1],
+        linear=coefficients[2],
+        quadratic=coefficients[3],
+        discriminant=coefficients[2]^2 - 4*coefficients[3]*coefficients[1],
+        prefix=source[:prefix],
+        period=source[:period],
+        prefixMatrix=prefixMatrix,
+        periodMatrix=periodMatrix,
+        enclosure=source[:initialWitness][:interval],
+        certified=1,
+        evidenceLevel=source[:evidenceLevel],
+        evidence={=
+            kind=:periodicMobiusFixedPoint,
+            property=:satisfiesPrimitiveQuadraticEquation,
+            periodDeterminant=periodMatrix[:determinant],
+            source=source[:evidence]
+        }
+    };
+    .ImmutableValue(form);
+};
+
+CFBestApproximation(real, maxDenominator, options ?= {= }) -> {;
+    source = CFRequireCoefficientStream(real, "Continued-fraction BestApproximation");
+    bound = CFRequirePositiveDenominator(maxDenominator, "Continued-fraction denominator bound");
+    maxCoefficients = CFRequireCount(
+        CFOption(options, "maxcoefficients", 1000),
+        "Continued-fraction best-approximation maxCoefficients"
+    );
+    p0 := 0; p1 := 1; q0 := 1; q1 := 0;
+    index := 0; calls := 0; selected := _; nextDenominator := _;
+    status := :budgetExhausted; reason := :maxCoefficientsReached; done := _;
+    {@ step=1; @done == _ && @index < @maxCoefficients; {;
+        finiteEnd = @source[:kind] == :finite && @index >= @source[:length];
+        finiteEnd
+          ?: {; @done ~= 1; @status ~= :certified; @reason ~= :exactFiniteValue; }
+          ?_ {;
+              coefficient = CFCoefficientAt(@source, @index);
+              @calls += 1;
+              nextP = coefficient*@p1 + @p0;
+              nextQ = coefficient*@q1 + @q0;
+              nextQ > @bound
+                ?: {;
+                    @nextDenominator ~= @nextQ;
+                    @done ~= 1;
+                    @status ~= :certified;
+                    @reason ~= :nextConvergentExceedsBound;
+                }
+                ?_ {;
+                    @index += 1;
+                    @selected ~= {=
+                        count=@index,
+                        numerator=@nextP,
+                        denominator=@nextQ,
+                        rational=@nextP/@nextQ
+                    };
+                    @p0 ~= @p1; @p1 ~= @nextP;
+                    @q0 ~= @q1; @q1 ~= @nextQ;
+                };
+          };
+    }; step += 1 };
+    selected
+      ?: _
+      ?_ .Error("Continued-fraction BestApproximation could not produce a denominator-bounded convergent");
+    certified = status == :certified;
+    result = {=
+        valueKind=:continuedFractionBestApproximation,
+        schema="rix.continued-fraction.best-approximation@1",
+        status=status,
+        approximation=selected[:rational],
+        numerator=selected[:numerator],
+        denominator=selected[:denominator],
+        denominatorBound=bound,
+        nextDenominator=nextDenominator,
+        certified=certified,
+        optimality=certified ?: :bestApproximationSecondKind ?_ :unresolvedBeyondCurrentDenominator,
+        errorMeasure=:absoluteScaledError,
+        certifiedThrough=certified ?: bound ?_ selected[:denominator],
+        evidenceLevel=source[:evidenceLevel],
+        evidence=certified
+          ?: {=
+              kind=:continuedFractionConvergentTheorem,
+              property=:minimizesAbsoluteQxMinusP,
+              coefficientCount=selected[:count],
+              nextDenominator=nextDenominator,
+              source=source[:evidence]
+          }
+          ?_ _,
+        work={=
+            calls=calls,
+            coefficients=selected[:count],
+            maxCoefficients=maxCoefficients,
+            exhausted=status != :certified
+        },
+        diagnostics=status == :certified ?: [] ?_ [reason]
+    };
+    .ImmutableValue(result);
+};
+
+CFDropFirst(values) -> {;
+    result = [];
+    {@ index=2; index <= @values.Len(); {; @result ~= @result.Push((@values)[index]); }; index += 1 };
+    result;
+};
+
+CFTransformationEvidence(real, operation, parameter ?= _) -> {=
+    kind=:exactCoefficientTransformation,
+    property=:sameRealAfterArithmeticTransformation,
+    operation=operation,
+    parameter=parameter,
+    source=real[:evidence]
+};
+
+CFTranslate(real, offset, options ?= {= }) -> {;
+    source = CFRequireCoefficientStream(real, "Continued-fraction Translate");
+    exactOffset = offset ~!: :Integer;
+    name = CFOption(options, "name", :translated);
+    evidence = CFTransformationEvidence(source, :translate, exactOffset);
+    {? source[:kind] == :finite
+         ? CFFinite(
+             source[:coefficients].Set(1, source[:coefficients][1] + exactOffset),
+             {= name=name, evidence=evidence }
+           );
+       source[:kind] == :periodic
+         ? CFPeriodic(
+             source[:prefix].Set(1, source[:prefix][1] + exactOffset),
+             source[:period],
+             {= name=name, evidenceLevel=source[:evidenceLevel], evidence=evidence }
+           );
+       CFLazy(
+         (index) -> index == 0
+           ?: CFCoefficientAt(@source, 0) + @exactOffset
+           ?_ CFCoefficientAt(@source, index),
+         {= name=name, evidenceLevel=source[:evidenceLevel], evidence=evidence }
+       )
+    };
+};
+
+CFReciprocal(real, options ?= {= }) -> {;
+    source = CFRequireCoefficientStream(real, "Continued-fraction Reciprocal");
+    leading = CFCoefficientAt(source, 0);
+    leading >= 0
+      ?: _
+      ?_ .Error("Continued-fraction Reciprocal currently requires a positive represented real");
+    source[:kind] == :finite && source[:length] == 1 && leading == 0
+      ?: .Error("Continued-fraction Reciprocal is undefined at zero")
+      ?_ _;
+    name = CFOption(options, "name", :reciprocal);
+    evidence = CFTransformationEvidence(source, :reciprocal);
+    {? source[:kind] == :finite
+         ? CFFinite(
+             leading > 0 ?: [0] ++ source[:coefficients] ?_ CFDropFirst(source[:coefficients]),
+             {= name=name, evidence=evidence }
+           );
+       source[:kind] == :periodic
+         ? {;
+             transformedPrefix = @leading > 0
+               ?: [0] ++ @source[:prefix]
+               ?_ (@source[:prefix].Len() > 1 ?: CFDropFirst(@source[:prefix]) ?_ @source[:period]);
+             CFPeriodic(
+               transformedPrefix,
+               @source[:period],
+               {= name=@name, evidenceLevel=@source[:evidenceLevel], evidence=@evidence }
+             );
+           };
+       {;
+         rule = @leading > 0
+           ?: ((index) -> index == 0 ?: 0 ?_ CFCoefficientAt(@source, index-1))
+           ?_ ((index) -> CFCoefficientAt(@source, index+1));
+         CFLazy(
+         rule,
+         {= name=@name, evidenceLevel=@source[:evidenceLevel], evidence=@evidence }
+         );
+       }
+    };
 };
 
 CFRefinementState(real, requestedWidth, maxCalls, maxIterations) -> {;
@@ -450,6 +691,10 @@ continuedFractionNamespace._proto = {=
     Convergents = (self, real, count ?= _) -> CFConvergents(real, count),
     Enclosure = (self, real, count ?= _) -> CFEnclosureAt(real, count),
     ErrorInterval = (self, real, count) -> CFErrorInterval(real, count),
+    QuadraticForm = (self, real) -> CFQuadraticForm(real),
+    BestApproximation = (self, real, maxDenominator, options ?= {= }) -> CFBestApproximation(real, maxDenominator, options),
+    Translate = (self, real, offset, options ?= {= }) -> CFTranslate(real, offset, options),
+    Reciprocal = (self, real, options ?= {= }) -> CFReciprocal(real, options),
     Record = (self, real) -> CFRecord(real)
 };
 
