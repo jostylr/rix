@@ -34,7 +34,7 @@ numeric type or one universal rendering engine.
 | `.linalg` | Implemented pure-RiX Phase 1 plugin | Exact dense RREF/rank/determinant/inverse/solve plus vector spaces, named coordinates, variance-aware tensor basis changes, and representation lineage. |
 | `.optimize` | Implemented Phase 1 plugin | Exact standard-form LinearProgram values and deterministic Rational primal simplex. |
 | `.solve` | Implemented pure-RiX Phase 1 plugin | Exact affine `{#}` equality classification and named solving through the linear-algebra service via public structural spec inspection. |
-| `.ball` | Implemented Phase 1 plugin | Pure RiX exact midpoint-radius snapshots, outward dyadic rounding, finite arithmetic, and nested square-root refinement. |
+| `.ball` | Implemented pure-RiX through Phase 2 | Exact real/complex rectangular Ball snapshots, outward arithmetic, nested roots, and precision-negotiated elementary functions through Numerics. |
 | `.cauchy` | Implemented Phase 1 plugin | Pure RiX rational sequences with explicit tail bounds/moduli and certified geometric refinement. |
 | `.continuedFraction` | Implemented Phase 1 plugin | Pure RiX finite and lazy simple continued fractions, exact convergent cylinders, and bounded refinement. |
 | `.radix` | Implemented pure-RiX through actionable Phase 2 | Bounded exact positional expansions, finite digit requests, repeating-period analysis, collision-safe single-glyph alphabets above base 36, grouped formatting, and generic work-budget diagnostics; lazy streams await the shared plugin-defined lazy-value protocol. |
@@ -54,7 +54,7 @@ numeric type or one universal rendering engine.
 | `.terminalAscii` | Implemented Phase 1 renderer | Strict-ASCII Tables, Grids, Fragments, and simple Graphic snapshots with deterministic width truncation and diagnostics. |
 | `.poly` | Implemented pure-RiX plugin | Canonical callable univariate Polynomial identity, reactive exact coefficients, arithmetic/composition, division, derivatives, Sturm chains, versioned sign/root-count witnesses, and root bounds. |
 | `.algebra` | Implemented pure-RiX through exact Phase 2 | Polynomial construction over `.poly`, verified division metadata, centered/factorization presentations, monic gcd/lcm, square-free and rational-factor evidence, exact resultants and sign/root-count protocols, Q[x] RationalFunction together/factored/partial-fraction presentations, pole/zero evidence, transformation provenance, and synthetic-division Grids. |
-| `.algebraicReal` | Implemented pure-RiX Phase 1 plugin | Root isolation, exact comparison, and bounded refinement over the canonical `.poly` Polynomial service. |
+| `.algebraicReal` | Implemented pure-RiX through Phase 2 | Root isolation, exact resultant field arithmetic, algebraic comparison, and bounded refinement over the canonical `.poly` Polynomial service. |
 | `.fraction` | Implemented pure-RiX plugin | Unreduced Fraction arithmetic, classroom denominator policies, mediants, and Farey/Stern–Brocot operations over the core Fraction pair. |
 | `.ratfun` | Implemented pure-RiX through Phase 2 | Canonical callable univariate RationalFunctions over `.poly`, including field operators, composition, reactive reconstruction, a Q[x] coefficient-domain descriptor, checked together/factored/partial-fraction presentations, pole/zero multiplicity evidence, and versioned provenance. |
 | `.symbolic` | Implemented pure-RiX meta-plugin | One loading surface for `.fraction`, `.fracfun`, `.poly`, `.ratfun`, and `.calculus`, with portable conversion, linked evaluation, higher/multivariate differentiation façades, and visible FractionFunction/Calculus obligations while preserving focused ownership. |
@@ -359,11 +359,11 @@ providers when installed.
 | Plugin | Stored representation | Certified enclosure policy | Best uses |
 | --- | --- | --- | --- |
 | `.float` | Configurable IEEE-754 binary32/binary64 | Exact dyadic enclosure of each finite stored value; elementary-function results are approximate unless backed by directed error analysis. | Fast exploratory computation, screen sampling, compatibility. |
-| `.ball` | Pure RiX exact rational midpoint plus radius; explicitly outward-rounded dyadic snapshots | Preserve exact rational endpoints, or widen both endpoints to a requested dyadic grid. Nested recipes refine through certified exact bisection. | Certified snapshots and nested square-root exploration; robust transcendental work and interval Newton remain later phases. |
+| `.ball` | Pure RiX exact rational real/imaginary midpoint-radius enclosures plus nested singleton recipes | Preserve exact rational endpoints, widen explicitly to dyadic grids, or request guarded certified Numerics enclosures. | Certified snapshots, native roots/elementary recipes, rectangular complex arithmetic, and later validated algorithms. |
 | `.oracle` | Procedure answering precision requests | Ask directly for a proven rational interval. | Computable reals and lazy exactness. |
 | `.cauchy` | Pure RiX rational sequence plus exact tail-bound function and modulus | Use the modulus to select a term, verify its exact tail inequality, and return the corresponding rational enclosure. A bare sequence remains explicitly non-certifying. | Constructive analysis, visible geometric-series refinement, and sequence-defined constants. |
 | `.continuedFraction` | Pure RiX finite/rule-generated simple continued fraction | Consecutive convergents form exact certified cylinders for positive tails; finite rationals terminate exactly. | Diophantine approximation, quadratic-irrational exploration, and exact rational recovery. |
-| `.algebraicReal` | Pure RiX square-free integer polynomial plus rational isolating interval and certified real-root index | Sturm isolation and exact sign bisection; Phase 1 implemented. | Exact roots, geometry intersections, certified comparisons. |
+| `.algebraicReal` | Pure RiX square-free integer polynomial plus rational isolating interval and certified real-root index | Sturm isolation, exact sign bisection, and resultant/interpolation field operations; Phase 2 implemented. | Exact roots, field arithmetic, geometry intersections, and certified comparisons. |
 
 Each backend registers implementations for the common operations it can
 honestly support:

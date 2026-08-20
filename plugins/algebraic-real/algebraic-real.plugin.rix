@@ -4,7 +4,7 @@ description: Exact real algebraic roots certified by canonical Polynomial values
 kind: rix
 mount: algebraicReal
 aliases: [ar]
-exports: [Root, Sqrt2, Polynomial, Evaluate, Derivative, SturmSequence, RootCount, RootCountEvidence, IsSquareFree, Refine, Sign, SignEvidence, CompareRational, Export, Import]
+exports: [Root, Sqrt2, Polynomial, Evaluate, Derivative, SturmSequence, RootCount, RootCountEvidence, IsSquareFree, Refine, Sign, SignEvidence, Compare, CompareRational, ResultantOperation, Export, Import]
 groups: [Numerics, Exact, Algebra]
 permissions: []
 requires: [rix.polynomial.algorithms@1, rix.oracle@1]
@@ -29,11 +29,39 @@ ARScalarIsZero(value, label ?= "value") -> (value ? :Integer)
        ?_ .Error(@"Expected an exact Integer or Rational @{label}; received @{value}"));
 ARSignOf(value) -> value < 0 ?: -1 ?_ value > 0 ?: 1 ?_ 0;
 
+ARIntegerGcd(left, right) -> {;
+    a := (left ~!: :Integer).Abs();
+    b := (right ~!: :Integer).Abs();
+    {@ step=1; @b!=0; {; remainder=@a%@b; @a ~= @b; @b ~= remainder; }; step+=1 };
+    a;
+};
+
+ARIntegerLcm(left, right) -> {;
+    a = left ~!: :Integer;
+    b = right ~!: :Integer;
+    ((a==0)||(b==0)) ?: 0 ?_ (a//ARIntegerGcd(a,b)*b).Abs();
+};
+
+ARPrimitiveIntegerCoefficients(coefficients) -> {;
+    rationals = coefficients.Map((coefficient)->coefficient ~!: :Rational);
+    denominator := 1;
+    {@ index=1; index<=@rationals.Len(); {;
+        @denominator ~= ARIntegerLcm(@denominator,@rationals[index].Denominator());
+    }; index+=1 };
+    integers = rationals.Map((coefficient)->(coefficient*@denominator).Numerator());
+    content := 0;
+    {@ index=1; index<=@integers.Len(); {;
+        @content ~= ARIntegerGcd(@content,@integers[index]);
+    }; index+=1 };
+    primitive = integers.Map((coefficient)->coefficient//@content);
+    primitive.Last()<0 ?: primitive.Map((coefficient)->-coefficient) ?_ primitive;
+};
+
 ARPolynomial(coefficients) -> {;
     coefficients ? :Array ?: _ ?_ .Error("Algebraic-real polynomials require an Array of coefficients");
     candidate = .poly({= coefficients=coefficients, order=:ascending, variable=:x });
     candidate.Degree() >= 1 ?: _ ?_ .Error("Algebraic-real polynomials must have positive degree");
-    canonicalCoefficients = candidate.PrimitiveInteger();
+    canonicalCoefficients = ARPrimitiveIntegerCoefficients(candidate.AscendingCoefficients());
     polynomial = .poly({= coefficients=canonicalCoefficients, order=:ascending, variable=:x });
     polynomial.IsSquareFree()
       ?: polynomial
@@ -353,6 +381,271 @@ ARImport(record) -> {;
     });
 };
 
+ARBase(value) -> (value ? :Map) && value[:valueKind] == :algebraicReal;
+ARBaseOrExact(value) -> ARBase(value) || ARExact(value);
+ARBasePair(left, right) ->
+  (ARBase(left) || ARBase(right)) && ARBaseOrExact(left) && ARBaseOrExact(right);
+
+ARRationalRoot(value) -> {;
+    exact = value ~!: :Rational;
+    polynomial = ARPolynomial([-exact,1]);
+    interval = (exact-1):(exact+1);
+    bound = polynomial.RootBound();
+    index = polynomial.RootCount((-bound):interval.Low())+1;
+    ARRoot(polynomial.AscendingCoefficients(),interval,index,{=
+        name=:rational,
+        evidence={= kind=:exactRationalEmbedding, value=exact }
+    });
+};
+
+ARBasePromote(value) -> ARBase(value) ?: value ?_ ARRationalRoot(value);
+
+ARZeroArray(length) -> {;
+    result := [];
+    {@ index=1; index<=@length; {; @result ~= @result.Push(0); }; index+=1 };
+    result;
+};
+
+ARPower(base, exponent) -> exponent == 0 ?: 1 ?_ base^exponent;
+
+ARArrayAdd(left, right) -> {;
+    length = left.Len() > right.Len() ?: left.Len() ?_ right.Len();
+    result := ARZeroArray(length);
+    {@ index=1; index<=@length; {;
+        a = index<=@left.Len() ?: @left[index] ?_ 0;
+        b = index<=@right.Len() ?: @right[index] ?_ 0;
+        @result ~= @result.Set(index,a+b);
+    }; index+=1 };
+    result;
+};
+
+ARArrayScale(coefficients, scalar) -> coefficients.Map((coefficient)->coefficient*scalar);
+
+ARArrayMultiply(left, right) -> {;
+    result := ARZeroArray(left.Len()+right.Len()-1);
+    {@ i=1; i<=@left.Len(); {;
+        {@ j=1; j<=@right.Len(); {;
+            index = @i+j-1;
+            @result ~= @result.Set(index,@result[index]+@left[@i]*@right[j]);
+        }; j+=1 };
+    }; i+=1 };
+    result;
+};
+
+## Return p(scale*x+shift), in ascending x order, using exact coefficients.
+ARAffineCoefficients(coefficients, scale, shift) -> {;
+    degree = coefficients.Len()-1;
+    result := ARZeroArray(degree+1);
+    basis := [1];
+    {@ power=0; power<=@degree; {;
+        coefficient = @coefficients[power+1];
+        @result ~= ARArrayAdd(@result,ARArrayScale(@basis,coefficient));
+        power<@degree ?: {; @basis ~= ARArrayMultiply(@basis,[@shift,@scale]); } ?_ _;
+    }; power+=1 };
+    result;
+};
+
+## At the exact parameter z, construct the x-polynomial eliminated with f(x).
+AREliminantAt(operation, rightPolynomial, z) -> {;
+    coefficients = rightPolynomial.AscendingCoefficients();
+    degree = rightPolynomial.Degree();
+    operation == :add
+      ?: ARAffineCoefficients(coefficients,-1,z)              ## g(z-x)
+      ?_ operation == :subtract
+           ?: ARAffineCoefficients(coefficients,1,-z)         ## g(x-z)
+           ?_ operation == :multiply
+                ?: coefficients.Reverse().Map((coefficient,index)->
+                    coefficient*ARPower(@z,@degree-index+1))   ## x^m g(z/x)
+                ?_ .Error(@"Unsupported algebraic resultant operation @{operation}");
+};
+
+ARResultantSample(operation, leftPolynomial, rightPolynomial, z) ->
+    operation == :divide
+      ?: {; ## alpha/beta=z iff f(z*y)=0 and g(y)=0.
+          transformed = ARAffineCoefficients(@leftPolynomial.AscendingCoefficients(),@z,0);
+          @rightPolynomial.Resultant(.poly({= coefficients=transformed, order=:ascending, variable=:x }));
+      }
+      ?_ leftPolynomial.Resultant(.poly({=
+          coefficients=AREliminantAt(operation,rightPolynomial,z),
+          order=:ascending,
+          variable=:x
+      }));
+
+ARLagrangeBasis(index, degree) -> {;
+    basis := [1];
+    denominator := 1;
+    {@ j=0; j<=@degree; {;
+        j==@index
+          ?: _
+          ?_ {;
+              @basis ~= ARArrayMultiply(@basis,[-@j,1]);
+              @denominator *= @index-@j;
+          };
+    }; j+=1 };
+    {= coefficients=basis, denominator=denominator };
+};
+
+ARInterpolateResultant(operation, leftPolynomial, rightPolynomial) -> {;
+    degree = leftPolynomial.Degree()*rightPolynomial.Degree();
+    result := ARZeroArray(degree+1);
+    {@ i=0; i<=@degree; {;
+        lagrange = ARLagrangeBasis(i,@degree);
+        sample = ARResultantSample(@operation,@leftPolynomial,@rightPolynomial,i);
+        @result ~= ARArrayAdd(@result,ARArrayScale(lagrange[:coefficients],sample/lagrange[:denominator]));
+    }; i+=1 };
+    candidate = .poly({= coefficients=result, order=:ascending, variable=:x });
+    squareFree = candidate // candidate.Gcd(candidate.Derivative());
+    ARPolynomial(squareFree.AscendingCoefficients());
+};
+
+AROperandInterval(value, width) -> ARBase(value)
+  ?: ARRefinementState(value,width,100000,100000)[:interval]
+  ?_ {; exact=@value ~!: :Rational; exact:exact; };
+
+AROperationInterval(operation, left, right, width) -> {;
+    leftInterval = AROperandInterval(left,width);
+    rightInterval = AROperandInterval(right,width);
+    operation == :add
+      ?: leftInterval+rightInterval
+      ?_ operation == :subtract
+           ?: leftInterval-rightInterval
+           ?_ operation == :multiply
+                ?: leftInterval*rightInterval
+                ?_ {;
+                    @rightInterval.ContainsZero()
+                      ?: _
+                      ?_ @leftInterval/@rightInterval;
+                };
+};
+
+ARIsolatingOperationInterval(polynomial, operation, left, right, options ?= {= }) -> {;
+    maxRefinements = ARRequirePositiveInteger(AROption(options,"maxrefinements",128),"Algebraic operation maxRefinements");
+    width := AROption(options,"initialwidth",1) ~!: :Rational;
+    width > 0 ?: _ ?_ .Error("Algebraic operation initialWidth must be positive");
+    candidate := _;
+    count := 0;
+    attempts := 0;
+    endpointRoot := 1;
+    {@ step=1; ((@count != 1) || @endpointRoot) && (@attempts < @maxRefinements); {;
+        @candidate ~= AROperationInterval(@operation,@left,@right,@width);
+        @candidate ? :RationalInterval
+          ?: {;
+              lowValue = @polynomial.Evaluate(@candidate.Low());
+              highValue = @polynomial.Evaluate(@candidate.High());
+              @endpointRoot ~= ARScalarIsZero(lowValue) || ARScalarIsZero(highValue);
+              @count ~= @endpointRoot ?: 0 ?_ @polynomial.RootCount(@candidate);
+          }
+          ?_ _;
+        @width /= 2;
+        @attempts += 1;
+    }; step+=1 };
+    ((candidate ? :RationalInterval) && (count == 1) && !endpointRoot)
+      ?: {= interval=candidate, attempts=attempts, requestedWidth=width*2 }
+      ?_ .Error(@"Unable to isolate algebraic @{operation} result within @{maxRefinements} refinements");
+};
+
+ARRootIndexForInterval(polynomial, interval) -> {;
+    bound = polynomial.RootBound();
+    leftBoundary = interval.Low() <= -bound ?: interval.Low()-1 ?_ -bound;
+    polynomial.RootCount(leftBoundary:interval.Low())+1;
+};
+
+ARResultantOperation(operation, left, right, options ?= {= }) -> {;
+    ARBasePair(left,right) ?: _ ?_ .Error("Exact algebraic field operations require AlgebraicReal or Rational operands");
+    operation == :divide && ARBase(right) && ARExactSign(right) == :zero
+      ?: .Error("Cannot divide by an algebraic zero")
+      ?_ operation == :divide && ARExact(right) && right == 0
+           ?: .Error("Cannot divide by zero")
+           ?_ _;
+    a = ARBasePromote(left);
+    b = ARBasePromote(right);
+    polynomial = ARInterpolateResultant(operation,a[:polynomial],b[:polynomial]);
+    isolation = ARIsolatingOperationInterval(polynomial,operation,left,right,options);
+    interval = isolation[:interval];
+    index = ARRootIndexForInterval(polynomial,interval);
+    ARRoot(polynomial.AscendingCoefficients(),interval,index,{=
+        name=AROption(options,"name",operation),
+        evidence={=
+            kind=:resultantRootIsolation,
+            property=:exactFieldOperation,
+            operation=operation,
+            elimination=:exactEvaluationAndInterpolation,
+            degreeBound=a[:polynomial].Degree()*b[:polynomial].Degree(),
+            isolationAttempts=isolation[:attempts],
+            operands=[a.Record(),b.Record()]
+        }
+    });
+};
+
+ARExactNegate(value) -> {;
+    exact = ARRequireReal(value);
+    coefficients = exact[:coefficients].Map((coefficient,index) -> coefficient*((-1)^(index-1)));
+    polynomial = ARPolynomial(coefficients);
+    low = exact[:interval].Low();
+    high = exact[:interval].High();
+    interval = (-high):(-low);
+    ARRoot(polynomial.AscendingCoefficients(),interval,ARRootIndexForInterval(polynomial,interval),{=
+        name=:negate,
+        evidence={= kind=:exactPolynomialTransform, operation=:negate, operand=exact.Record() }
+    });
+};
+
+ARExactPower(value, exponent, options ?= {= }) -> {;
+    power = exponent ~!: :Integer;
+    power == 0
+      ?: ARRationalRoot(1)
+      ?_ (power == 1
+           ?: value
+           ?_ (power == -1
+                ?: ARResultantOperation(:divide,1,value,options)
+                ?_ (power == 2
+                     ?: ARResultantOperation(:multiply,value,value,options)
+                     ?_ (power == -2
+                          ?: ARResultantOperation(:divide,1,ARResultantOperation(:multiply,value,value,options),options)
+                          ?_ {;
+          base = @power < 0 ?: ARResultantOperation(:divide,1,@value,@options) ?_ @value;
+          state := [ARRationalRoot(1),base,@power.Abs()];
+          {@ step=1; @state[3]>0; {;
+              @state[3]%2 == 1
+                ?: {; @state ~= @state.Set(1,ARResultantOperation(:multiply,@state[1],@state[2],@options)); }
+                ?_ _;
+              remaining = @state[3]//2;
+              @state ~= @state.Set(3,remaining);
+              remaining>0
+                ?: {; @state ~= @state.Set(2,ARResultantOperation(:multiply,@state[2],@state[2],@options)); }
+                ?_ _;
+          }; step+=1 };
+          state[1];
+      }))));
+};
+
+ARCompare(left, right, options ?= {= }) -> {;
+    (ARBase(left) && ARExact(right))
+      ?: ARCompareRational(left,right)
+      ?_ ((ARExact(left) && ARBase(right))
+           ?: {;
+               reversed = ARCompareRational(@right,@left);
+               reversed == :less ?: :greater ?_ (reversed == :greater ?: :less ?_ :equal);
+           }
+           ?_ {;
+               difference = ARResultantOperation(:subtract,@left,@right,@options);
+               sign = ARExactSign(difference);
+               sign == :negative ?: :less ?_ (sign == :positive ?: :greater ?_ :equal);
+           });
+};
+
+ARComparisonTruth(comparison, relation) -> relation == :eq
+  ?: comparison == :equal
+  ?_ (relation == :neq
+       ?: comparison != :equal
+       ?_ (relation == :lt
+            ?: comparison == :less
+            ?_ (relation == :lte
+                 ?: comparison != :greater
+                 ?_ (relation == :gt
+                      ?: comparison == :greater
+                      ?_ comparison != :less))));
+
 ARFamily(value) -> (value ? :Map) &&
   (value[:valueKind] == :algebraicReal || value[:valueKind] == :algebraicRealArithmeticReal);
 ARExact(value) -> (value ? :Integer) || (value ? :Rational);
@@ -406,16 +699,45 @@ ARArithmetic(operation, left, right ?= _) -> {;
     proto={=
         Enclose=(self,request ?= {= })->self[:kind] == :arithmetic ?: self[:recipe].Enclose(request) ?_ ARProtocolEnclosure(self,request,:enclose),
         Refine=(self,request ?= {= })->self[:kind] == :arithmetic ?: self[:recipe].Refine(request) ?_ ARProtocolEnclosure(self,request,:refine),
-        NumericsCapabilities=(self)->self[:kind] == :arithmetic ?: ARArithmeticCapabilities(self) ?_ ARCapabilities(self)
+        NumericsCapabilities=(self)->self[:kind] == :arithmetic ?: ARArithmeticCapabilities(self) ?_ ARCapabilities(self),
+        Compare=(self,other,options ?= {= })->ARCompare(self,other,options),
+        ResultantOperation=(self,operation,other,options ?= {= })->ARResultantOperation(operation,self,other,options)
     },
     installs={=
-        ADD=[{= name=:ARAdd, priority=300, prep=(x,y)->ARArithmeticPair(x,y), impl=(x,y)->ARArithmetic(:add,x,y) }],
-        SUB=[{= name=:ARSub, priority=300, prep=(x,y)->ARArithmeticPair(x,y), impl=(x,y)->ARArithmetic(:sub,x,y) }],
-        MUL=[{= name=:ARMul, priority=300, prep=(x,y)->ARArithmeticPair(x,y), impl=(x,y)->ARArithmetic(:mul,x,y) }],
-        DIV=[{= name=:ARDiv, priority=300, prep=(x,y)->ARArithmeticPair(x,y), impl=(x,y)->ARArithmetic(:div,x,y) }],
-        POW=[{= name=:ARPow, priority=300, prep=(x,y)->ARFamily(x)&&(y ? :Integer), impl=(x,y)->ARArithmetic(:pow,x,y) }],
-        NEG=[{= name=:ARNeg, priority=300, prep=(x)->ARFamily(x), impl=(x)->ARArithmetic(:neg,x) }],
-        ABS=[{= name=:ARAbs, priority=300, prep=(x)->ARFamily(x), impl=(x)->ARArithmetic(:abs,x) }]
+        ADD=[
+            {= name=:ARExactAdd, priority=320, prep=(x,y)->ARBasePair(x,y), impl=(x,y)->ARResultantOperation(:add,x,y) },
+            {= name=:ARAdd, priority=300, prep=(x,y)->ARArithmeticPair(x,y), impl=(x,y)->ARArithmetic(:add,x,y) }
+        ],
+        SUB=[
+            {= name=:ARExactSub, priority=320, prep=(x,y)->ARBasePair(x,y), impl=(x,y)->ARResultantOperation(:subtract,x,y) },
+            {= name=:ARSub, priority=300, prep=(x,y)->ARArithmeticPair(x,y), impl=(x,y)->ARArithmetic(:sub,x,y) }
+        ],
+        MUL=[
+            {= name=:ARExactMul, priority=320, prep=(x,y)->ARBasePair(x,y), impl=(x,y)->ARResultantOperation(:multiply,x,y) },
+            {= name=:ARMul, priority=300, prep=(x,y)->ARArithmeticPair(x,y), impl=(x,y)->ARArithmetic(:mul,x,y) }
+        ],
+        DIV=[
+            {= name=:ARExactDiv, priority=320, prep=(x,y)->ARBasePair(x,y), impl=(x,y)->ARResultantOperation(:divide,x,y) },
+            {= name=:ARDiv, priority=300, prep=(x,y)->ARArithmeticPair(x,y), impl=(x,y)->ARArithmetic(:div,x,y) }
+        ],
+        POW=[
+            {= name=:ARExactPow, priority=320, prep=(x,y)->ARBase(x)&&(y ? :Integer), impl=(x,y)->ARExactPower(x,y) },
+            {= name=:ARPow, priority=300, prep=(x,y)->ARFamily(x)&&(y ? :Integer), impl=(x,y)->ARArithmetic(:pow,x,y) }
+        ],
+        NEG=[
+            {= name=:ARExactNeg, priority=320, prep=(x)->ARBase(x), impl=(x)->ARExactNegate(x) },
+            {= name=:ARNeg, priority=300, prep=(x)->ARFamily(x), impl=(x)->ARArithmetic(:neg,x) }
+        ],
+        ABS=[
+            {= name=:ARExactAbs, priority=320, prep=(x)->ARBase(x), impl=(x)->ARExactSign(x)==:negative ?: ARExactNegate(x) ?_ x },
+            {= name=:ARAbs, priority=300, prep=(x)->ARFamily(x), impl=(x)->ARArithmetic(:abs,x) }
+        ],
+        EQ=[{= name=:ARExactEq, priority=320, prep=(x,y)->ARBasePair(x,y), impl=(x,y)->ARComparisonTruth(ARCompare(x,y),:eq) }],
+        NEQ=[{= name=:ARExactNeq, priority=320, prep=(x,y)->ARBasePair(x,y), impl=(x,y)->ARComparisonTruth(ARCompare(x,y),:neq) }],
+        LT=[{= name=:ARExactLt, priority=320, prep=(x,y)->ARBasePair(x,y), impl=(x,y)->ARComparisonTruth(ARCompare(x,y),:lt) }],
+        LTE=[{= name=:ARExactLte, priority=320, prep=(x,y)->ARBasePair(x,y), impl=(x,y)->ARComparisonTruth(ARCompare(x,y),:lte) }],
+        GT=[{= name=:ARExactGt, priority=320, prep=(x,y)->ARBasePair(x,y), impl=(x,y)->ARComparisonTruth(ARCompare(x,y),:gt) }],
+        GTE=[{= name=:ARExactGte, priority=320, prep=(x,y)->ARBasePair(x,y), impl=(x,y)->ARComparisonTruth(ARCompare(x,y),:gte) }]
     }
 });
 
@@ -439,7 +761,9 @@ algebraicRealNamespace._proto = {=
     Refine = (self, real, request ?= {= }) -> ARProtocolEnclosure(real, request, :refine),
     Sign = (self, real) -> ARExactSign(real),
     SignEvidence = (self, real) -> ARSignEvidence(real),
+    Compare = (self, left, right, options ?= {= }) -> ARCompare(left, right, options),
     CompareRational = (self, real, value) -> ARCompareRational(real, value),
+    ResultantOperation = (self, operation, left, right, options ?= {= }) -> ARResultantOperation(operation, left, right, options),
     Export = (self, real) -> ARExport(real),
     Import = (self, record) -> ARImport(record)
 };

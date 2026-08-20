@@ -154,6 +154,43 @@ describe("Algebraic Real plugin", () => {
         expect(textValue(result.values[4])).toBe("positive");
     });
 
+    test("Phase 2 isolates exact resultant roots for field arithmetic and comparison", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("algebraic-real");
+            positive = .ar.Sqrt2();
+            negative = .ar.Sqrt2(-1);
+            sum = positive + positive;
+            zero = positive + negative;
+            product = positive * positive;
+            quotient = positive / positive;
+            {:
+                sum.Coefficients(), sum.Interval(), sum.CompareRational(3),
+                zero.Coefficients(), zero.Sign(),
+                product.Coefficients(), product.CompareRational(2),
+                quotient.Coefficients(), quotient.CompareRational(1),
+                .ar.Compare(positive, negative),
+                .ar.Compare(7/5, positive),
+                positive > 7/5, positive < 3/2,
+                sum.Record()[:evidence][:provenance][:kind]
+            }
+        `, options);
+
+        expect(result.values[0].values.map(String)).toEqual(["0", "-8", "0", "1"]);
+        expect(result.values[1].toString()).toBe("2:4");
+        expect(textValue(result.values[2])).toBe("less");
+        expect(result.values[3].values.map(String)).toEqual(["0", "-8", "0", "1"]);
+        expect(textValue(result.values[4])).toBe("zero");
+        expect(result.values[5].values.map(String)).toEqual(["-4", "0", "1"]);
+        expect(textValue(result.values[6])).toBe("equal");
+        expect(result.values[7].values.map(String)).toEqual(["-1", "0", "1"]);
+        expect(textValue(result.values[8])).toBe("equal");
+        expect(result.values.slice(9, 11).map(textValue)).toEqual(["greater", "less"]);
+        expect(result.values[11].value).toBe(1n);
+        expect(result.values[12].value).toBe(1n);
+        expect(textValue(result.values[13])).toBe("resultantRootIsolation");
+    }, 20000);
+
     test("rejects repeated factors, non-isolating intervals, endpoint roots, and wrong indices", () => {
         const options = runtime();
         parseAndEvaluate('.Plugin.Load("algebraic-real")', options);

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { CertifiedApproximation, RationalInterval } from "@ratmath/core";
+import { CertifiedApproximation, Rational, RationalInterval } from "@ratmath/core";
 import {
     Context,
     createDefaultRegistry,
@@ -163,6 +163,66 @@ describe("Ball plugin", () => {
 
         const overlap = parseAndEvaluate(".ball(3/2, 1/4) < {~ 3/2, 1/1000 }", options);
         expect(undecidedReason(overlap)).toBe("resolutionFloor");
+    });
+
+    test("Phase 2 elementary functions negotiate certified internal precision", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("ball");
+            exponential = .ball.Exp(1, {= guardBits=4 });
+            logarithm = .ball.Log(2);
+            cosine = .ball.Cos(1);
+            cubeRoot = .ball.Cbrt(2);
+            request = {= absoluteWidth=1/1000, maxWork=100 };
+            requests = [
+                exponential.Refine(request),
+                logarithm.Refine(request),
+                cosine.Refine(request),
+                cubeRoot.Refine(request)
+            ];
+            {: exponential.Record(), requests }
+        `, options);
+
+        const [record, requests] = result.values;
+        expect(textValue(entry(record, "schema"))).toBe("rix.ball.function-real@1");
+        expect(textValue(entry(record, "function"))).toBe("exp");
+        expect(entry(record, "guardBits").value).toBe(4n);
+        for (const request of requests.values) {
+            expect(textValue(entry(request, "status"))).toBe("enclosed");
+            expect(textValue(entry(request, "backend"))).toBe("ball");
+            expect(entry(request, "certified").value).toBe(1n);
+            expect(entry(request, "goalMet").value).toBe(1n);
+        }
+        expect(entry(entry(requests.values[0], "evidence"), "internalWorkingWidth").toString()).toBe("1/16000");
+
+        const cubeInterval = entry(requests.values[3], "interval");
+        const two = new Rational(2n);
+        expect(cubeInterval.low.multiply(cubeInterval.low).multiply(cubeInterval.low).lessThanOrEqual(two)).toBe(true);
+        expect(cubeInterval.high.multiply(cubeInterval.high).multiply(cubeInterval.high).greaterThanOrEqual(two)).toBe(true);
+    });
+
+    test("Phase 2 complex balls keep exact rectangular enclosures under arithmetic", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("ball");
+            z = .ball.Complex(1, 2, 1/10);
+            w = .ball.Complex(-1, 1, 1/5);
+            sum = z+w;
+            product = z*w;
+            quotient = z/w;
+            conjugate = z.Conjugate();
+            {:
+                z.Record(), z.ContainsParts(1,2),
+                sum.ContainsParts(0,3),
+                product.ContainsParts(-3,-1),
+                quotient.ContainsParts(1/2,-3/2),
+                conjugate.ContainsParts(1,-2)
+            }
+        `, options);
+
+        expect(textValue(entry(result.values[0], "schema"))).toBe("rix.ball.complex@1");
+        expect(result.values.slice(1).map((value) => value.value)).toEqual([1n, 1n, 1n, 1n, 1n]);
+        expect(() => parseAndEvaluate("z / .ball.Complex(0,0,1)", options)).toThrow("modulus may be zero");
     });
 
     test("rejects invalid radii, radicands, and dyadic precisions", () => {

@@ -73,18 +73,35 @@ canonical coefficients, original isolating interval, root index, name, and
 evidence. `.ar.Import(record)` reconstructs the value and reruns every
 certificate check; it does not trust serialized proof claims blindly.
 
-## Arithmetic and canonicalization boundary
+## Exact Phase 2 field arithmetic
 
 Algebraic reals support `+`, `-`, `*`, `/`, integer powers, unary `-`, and
-absolute value. Operations with another algebraic real or a Rational retain
-the semantic `AlgebraicReal` family while an immutable Oracle-backed recipe
-supplies certified enclosures. Operations with a different certified family
-produce an Oracle.
+absolute value. For two isolated algebraic/Rational operands, Phase 2 now
+constructs the exact elimination polynomial, takes its square-free part, and
+isolates the result root with operand interval arithmetic and Sturm counts.
+The result is another ordinary `rix.algebraic-real@1` value, not an
+approximation recipe.
 
-These results are arithmetic reals, not yet newly canonicalized algebraic
-numbers. Resultant/minimal-polynomial construction, factor selection, fresh
-root isolation, and algebraic-to-algebraic exact comparison remain later
-work. Isolated input values continue to exchange their canonical Polynomial
-with `.poly` and `.algebra`.
+```rix
+x := .ar.Sqrt2();
+sum := x+x;       ## a root of z(z^2-8), isolated in 2:4
+product := x*x;   ## the isolated root 2 of z^2-4
+quotient := x/x;  ## the isolated root 1 of z^2-1
+{: sum.Coefficients(), product.CompareRational(2), x > 7/5 };
+```
+
+For `+` and `-`, RiX eliminates `x` from `f(x)` and `g(z-x)` or
+`g(x-z)`. Multiplication uses `x^m g(z/x)`, and division eliminates between
+`g(y)` and `f(zy)`. The univariate resultants are evaluated at enough exact
+integer values to reconstruct the result polynomial by exact Lagrange
+interpolation. No Float sampling is involved. The retained evidence records
+the operation, degree bound, elimination method, operands, and number of
+isolation refinements.
+
+`Compare(other)` and the ordinary ordering operators subtract algebraic
+operands through that exact path and decide the sign by Sturm isolation.
+Rational comparisons retain their faster direct polynomial test. Operations
+with a different certified-real family still produce an Oracle because exact
+resultant construction applies only to algebraic/Rational operands.
 
 See [tutorial.md](tutorial.md).

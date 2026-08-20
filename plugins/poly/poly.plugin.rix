@@ -386,10 +386,13 @@ PolyReductionStep(remainder, denominator) -> {;
 PolyDivideArrays(dividend, divisor) -> {;
     numerator = PolyTrimAscending(dividend);
     denominator = PolyTrimAscending(divisor);
-    (denominator.Len() == 1 && PolyIsZero(denominator[1])) ?: .Error("Polynomial division by zero") ?_ _;
+    ((denominator.Len() == 1) && PolyIsZero(denominator[1])) ?: .Error("Polynomial division by zero") ?_ _;
     quotient := PolyZeroArray(numerator.Len() >= denominator.Len() ?: numerator.Len() - denominator.Len() + 1 ?_ 1);
     remainder := numerator;
-    {@ step = 1; !(@remainder.Len() == 1 && PolyIsZero(@remainder[1])) && @remainder.Len() >= @denominator.Len(); {;
+    {@ step = 1;
+       !((@remainder.Len() == 1) && PolyIsZero(@remainder[1])) &&
+         (@remainder.Len() >= @denominator.Len());
+       {;
         reduction = PolyReductionStep(@remainder, @denominator);
         @quotient ~= @quotient.Set(reduction[:offset] + 1, @quotient[reduction[:offset] + 1] + reduction[:factor]);
         @remainder ~= reduction[:remainder];
@@ -444,9 +447,9 @@ PolySturmArrays(coefficients) -> {;
     sequence := [first, second];
     previous := first;
     current := second;
-    {@ step = 1; !(@current.Len() == 1 && PolyIsZero(@current[1])); {;
+    {@ step = 1; !((@current.Len() == 1) && PolyIsZero(@current[1])); {;
         remainder = PolyRemainderArrays(@previous, @current);
-        remainder.Len() == 1 && PolyIsZero(remainder[1])
+        ((remainder.Len() == 1) && PolyIsZero(remainder[1]))
           ?: {; @current ~= [0]; }
           ?_ {;
               next = PolyArrayNegate(@remainder);

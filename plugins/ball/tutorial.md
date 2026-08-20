@@ -1,6 +1,6 @@
 ---
 title: Certified nested real balls in RiX
-description: Use pure RiX exact midpoint-radius balls and bounded square-root refinement.
+description: Use exact real and complex Balls, nested roots, and precision-negotiated elementary functions.
 theme: Numbers and numerics
 status: implemented
 ---
@@ -125,3 +125,59 @@ values := [x+x, x-x, x*x, x/x, -x, .Abs(x), x^2, x+1/3];
 The Rational `1/3` is embedded exactly in the nested-Ball family. A Float is
 not eligible for that promotion; write an explicit Float conversion only when
 binary64 arithmetic is actually intended.
+
+## Precision-negotiated elementary functions
+
+Phase 2 elementary functions remain Ball-family values while delegating their
+certified analytic bounds to Numerics:
+
+```rix
+.Plugin.Load("ball");
+values := [
+  .ball.Cbrt(2),
+  .ball.Exp(1, {= guardBits=4 }),
+  .ball.Log(2),
+  .ball.Sin(1),
+  .ball.Cos(1),
+  .ball.Tan(1)
+];
+request := {= absoluteWidth=1/1000, maxWork=100 };
+.Table({=
+  columns=["function", "interval", "internal width", "status"],
+  rows=values.Map((value) -> {;
+    result := value.Refine(request);
+    [
+      value.Record()[:function],
+      result[:interval],
+      result[:evidence][:internalWorkingWidth],
+      result[:status]
+    ];
+  })
+});
+```
+
+The requested output width and the tighter internal working width are both
+exact Rationals in the evidence record. Exhaustion remains a certified result
+containing the best interval supplied by Numerics.
+
+## Exact rectangular complex balls
+
+Complex Balls retain independent exact real and imaginary enclosures:
+
+```rix
+.Plugin.Load("ball");
+z := .ball.Complex(1,2,1/10);
+w := .ball.Complex(-1,1,1/5);
+values := [z+w,z*w,z/w,-z,z.Conjugate()];
+.Table({=
+  columns=["real enclosure", "imaginary enclosure"],
+  rows=values.Map((value) -> [
+    value.Real().Interval(),
+    value.Imaginary().Interval()
+  ])
+});
+```
+
+`ContainsParts(real,imaginary)` certifies membership componentwise. Division
+is permitted only when the denominator's enclosure proves that its modulus
+cannot be zero.

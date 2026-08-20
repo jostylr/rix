@@ -1,14 +1,14 @@
 /**
 id: ball
-description: Certified rational midpoint-radius balls and nested square-root refinement.
+description: Certified real and complex rational balls with precision-negotiated elementary functions.
 kind: rix
 mount: ball
-exports: [Ball, Interval, Sqrt, Midpoint, Radius, Lower, Upper, Contains, RoundOut, Record]
+exports: [Ball, Interval, Sqrt, NthRoot, Cbrt, Exp, Log, Sin, Cos, Tan, Complex, ComplexParts, Midpoint, Radius, Lower, Upper, Contains, RoundOut, Record]
 groups: [Numerics, Exact]
 permissions: []
-requires: [rix.oracle@1]
-provides: [rix.ball@1, rix.enclosable-real@1]
-schemas: [rix.ball@1, rix.ball.nested-real@1, rix.ball.arithmetic-real@1]
+requires: [rix.numerics@1]
+provides: [rix.ball@1, rix.complex-ball@1, rix.enclosable-real@1]
+schemas: [rix.ball@1, rix.ball.nested-real@1, rix.ball.function-real@1, rix.ball.arithmetic-real@1, rix.ball.complex@1]
 snapshot: false
 deterministic: true
 defaultEnabled: false
@@ -107,10 +107,12 @@ BallInitialSqrt(value) -> {;
 
 BallNestedRecord(real) -> {=
     valueKind = :nestedBallReal,
-    schema = "rix.ball.nested-real@1",
+    schema = real[:schema],
     recipe = real[:kind],
     parameter = real[:parameter],
     initialBall = real[:initialBall],
+    function = real[:function],
+    guardBits = real[:guardBits],
     certified = 1
 };
 
@@ -120,7 +122,9 @@ BallCapabilities(real) -> {;
         valueKind = :numericsCapabilities,
         schema = "rix.numerics.capabilities@1",
         backend = :ball,
-        representation = nested ?: :nestedRationalBalls ?_ :rationalMidpointRadius,
+        representation = nested
+          ?: (real[:kind] == :function ?: :precisionNegotiatedElementaryBalls ?_ :nestedRationalBalls)
+          ?_ :rationalMidpointRadius,
         denotation = nested ?: :singleton ?_ :set,
         operations = [:enclose, :refine],
         evidenceLevels = [:proof],
@@ -153,7 +157,28 @@ BallSqrtState(real, callLimit, requestedWidth ?= _) -> {;
 
 BallAt(real, iterations ?= 0) -> {;
     calls = BallRequireNonnegativeInteger(iterations, "Nested Ball iteration count");
-    BallSqrtState(real, calls)[:ball];
+    real[:kind] == :sqrt
+      ?: BallSqrtState(real, calls)[:ball]
+      ?_ .Error("Elementary-function Ball snapshots require Refine with an explicit target width");
+};
+
+BallFunctionState(real, callLimit, requestedWidth, operation) -> {;
+    guardScale = 2^real[:guardBits];
+    internalWidth = requestedWidth/guardScale;
+    sourceResult = real[:source].Refine({=
+        absoluteWidth=internalWidth,
+        maxWork=callLimit,
+        maxCalls=callLimit,
+        maxIterations=callLimit,
+        trace=real[:trace]
+    });
+    {=
+        ball=BallFromInterval(sourceResult[:interval]),
+        calls=sourceResult[:work].Has("calls") ?: sourceResult[:work][:calls] ?_ 0,
+        internalWidth=internalWidth,
+        sourceResult=sourceResult,
+        operation=operation
+    };
 };
 
 BallProtocolEnclosure(subject, request, operation) -> {;
@@ -163,7 +188,9 @@ BallProtocolEnclosure(subject, request, operation) -> {;
     maxCalls = normalized[:work][:maxCalls];
     nested = subject[:valueKind] == :nestedBallReal;
     state = nested
-      ?: BallSqrtState(subject, maxCalls, requestedWidth)
+      ?: (subject[:kind] == :sqrt
+           ?: BallSqrtState(subject, maxCalls, requestedWidth)
+           ?_ BallFunctionState(subject,maxCalls,requestedWidth,operation))
       ?_ {= ball=BallRequire(subject), calls=0 };
     selected = state[:ball];
     interval = selected[:interval];
@@ -189,7 +216,7 @@ BallProtocolEnclosure(subject, request, operation) -> {;
         evidenceLevel = :proof,
         backend = :ball,
         operation = normalized[:operation],
-        trace = [],
+        trace = nested && (subject[:kind] == :function) ?: state[:sourceResult][:trace] ?_ [],
         work = {=
             calls = state[:calls],
             iterations = state[:calls],
@@ -197,12 +224,20 @@ BallProtocolEnclosure(subject, request, operation) -> {;
             exhausted = !goalMet && nested
         },
         diagnostics = status == :budgetExhausted
-          ?: [:maxCallsReached]
+          ?: (nested && (subject[:kind] == :function)
+               ?: state[:sourceResult][:diagnostics]
+               ?_ [:maxCallsReached])
           ?_ status == :resolutionFloor ?: [:finiteBallCannotRefine] ?_ [],
         evidence = {=
-            kind = nested ?: :nestedBisection ?_ :exactEndpoints,
+            kind = nested
+              ?: (subject[:kind] == :function ?: :precisionNegotiatedElementaryFunction ?_ :nestedBisection)
+              ?_ :exactEndpoints,
             property = :containment,
-            subject = nested ?: subject[:parameter] ?_ subject[:interval]
+            subject = nested ?: subject[:parameter] ?_ subject[:interval],
+            function = nested ?: subject[:function] ?_ _,
+            requestedOutputWidth = requestedWidth,
+            internalWorkingWidth = nested && (subject[:kind] == :function) ?: state[:internalWidth] ?_ _,
+            source = nested && (subject[:kind] == :function) ?: state[:sourceResult][:evidence] ?_ _
         },
         source = {=
             plugin = :ball,
@@ -210,6 +245,18 @@ BallProtocolEnclosure(subject, request, operation) -> {;
             recipe = nested ?: subject[:kind] ?_ :finite
         }
     };
+};
+
+BallAttachNestedProtocol(real) -> {;
+    real._proto = {=
+        Ball = (self, iterations ?= 0) -> BallAt(self, iterations),
+        InitialBall = (self) -> self[:initialBall],
+        Record = (self) -> BallNestedRecord(self),
+        Enclose = (self, request ?= {= }) -> BallProtocolEnclosure(self, request, :enclose),
+        Refine = (self, request ?= {= }) -> BallProtocolEnclosure(self, request, :refine),
+        NumericsCapabilities = (self) -> BallCapabilities(self)
+    };
+    .ImmutableValue(real ~!: :NestedBallReal);
 };
 
 BallSqrt(value) -> {;
@@ -222,15 +269,54 @@ BallSqrt(value) -> {;
         parameter = radicand,
         initialBall = initial
     };
-    real._proto = {=
-        Ball = (self, iterations ?= 0) -> BallAt(self, iterations),
-        InitialBall = (self) -> self[:initialBall],
-        Record = (self) -> BallNestedRecord(self),
-        Enclose = (self, request ?= {= }) -> BallProtocolEnclosure(self, request, :enclose),
-        Refine = (self, request ?= {= }) -> BallProtocolEnclosure(self, request, :refine),
-        NumericsCapabilities = (self) -> BallCapabilities(self)
-    };
-    .ImmutableValue(real);
+    BallAttachNestedProtocol(real);
+};
+
+BallFunctionSource(function, value, degree ?= _) -> function == :nthRoot
+  ?: .numerics.NthRoot(value,degree)
+  ?_ function == :exp
+       ?: .numerics.Exp(value)
+       ?_ function == :log
+            ?: .numerics.Log(value)
+            ?_ function == :sin
+                 ?: .numerics.Sin(value)
+                 ?_ function == :cos
+                      ?: .numerics.Cos(value)
+                      ?_ function == :tan
+                           ?: .numerics.Tan(value)
+                           ?_ .Error(@"Unsupported Ball elementary function @{function}");
+
+BallFunction(function, value, options ?= {= }, degree ?= _) -> {;
+    value ? :Ball ?: .Error("Elementary Ball functions require an exact or certified singleton, not a finite set-valued Ball") ?_ _;
+    guardBits = BallRequireNonnegativeInteger(options.Has("guardbits") ?: options[:guardbits] ?_ 3,"Ball function guardBits");
+    guardBits<=64 ?: _ ?_ .Error("Ball function guardBits must not exceed 64");
+    source = BallFunctionSource(function,value,degree);
+    capabilities = source.NumericsCapabilities();
+    capabilities[:certified] && capabilities[:arbitraryRefinement] && (capabilities[:denotation] == :singleton)
+      ?: _
+      ?_ .Error("Ball elementary functions require a certified arbitrarily refinable singleton source");
+    BallAttachNestedProtocol({=
+        valueKind=:nestedBallReal,
+        schema="rix.ball.function-real@1",
+        kind=:function,
+        function=function,
+        degree=degree,
+        parameter=value,
+        source=source,
+        guardBits=guardBits,
+        trace=options.Has("trace") ?: options[:trace] ?_ _,
+        initialBall=_
+    });
+};
+
+BallNthRoot(value, degree ?= 2, options ?= {= }) -> {;
+    n = degree ~!: :Integer;
+    n>=2 ?: _ ?_ .Error("Ball NthRoot degree must be at least two");
+    n==2
+      ?: (((value ? :Integer)||(value ? :Rational))
+           ?: BallSqrt(value)
+           ?_ BallFunction(:nthRoot,value,options,n))
+      ?_ BallFunction(:nthRoot,value,options,n);
 };
 
 NestedBallFamily(value) -> (value ? :Map) &&
@@ -284,6 +370,9 @@ NestedBallArithmetic(operation, left, right ?= _) -> {;
     convertFrom={= map=(x) ?- [NestedBallFamily(x)] -> x },
     validate=(x)->NestedBallFamily(x),
     proto={=
+        Ball=(self,iterations ?= 0)->BallAt(self,iterations),
+        InitialBall=(self)->self[:initialBall],
+        Record=(self)->BallNestedRecord(self),
         Enclose=(self,request ?= {= })->self[:kind] == :arithmetic ?: self[:recipe].Enclose(request) ?_ BallProtocolEnclosure(self,request,:enclose),
         Refine=(self,request ?= {= })->self[:kind] == :arithmetic ?: self[:recipe].Refine(request) ?_ BallProtocolEnclosure(self,request,:refine),
         NumericsCapabilities=(self)->self[:kind] == :arithmetic ?: NestedBallArithmeticCapabilities(self) ?_ BallCapabilities(self)
@@ -315,6 +404,115 @@ BallEq(left, right) -> {;
     b = BallPromote(right);
     a[:midpoint] == b[:midpoint] && a[:radius] == b[:radius];
 };
+
+ComplexBallRequire(value) -> value ? :ComplexBall ?: value ?_ .Error("Expected a ComplexBall value");
+
+ComplexBallFromParts(realBall, imaginaryBall) -> {;
+    real = BallRequire(realBall);
+    imaginary = BallRequire(imaginaryBall);
+    .ImmutableValue({=
+        valueKind=:complexBall,
+        schema="rix.ball.complex@1",
+        real=real,
+        imaginary=imaginary,
+        certified=1,
+        geometry=:axisAlignedRectangle
+    } ~!: :ComplexBall);
+};
+
+ComplexBallConstruct(realMidpoint, imaginaryMidpoint, realRadius ?= 0, imaginaryRadius ?= _) -> {;
+    selectedImaginaryRadius = imaginaryRadius == _ ?: realRadius ?_ imaginaryRadius;
+    ComplexBallFromParts(
+        BallConstruct(realMidpoint,realRadius),
+        BallConstruct(imaginaryMidpoint,selectedImaginaryRadius)
+    );
+};
+
+ComplexBallFamily(value) -> value ? :ComplexBall;
+ComplexBallExact(value) -> (value ? :Integer)||(value ? :Rational);
+ComplexBallPair(left,right) ->
+  (ComplexBallFamily(left)||ComplexBallFamily(right)) &&
+  (ComplexBallFamily(left)||ComplexBallExact(left)) &&
+  (ComplexBallFamily(right)||ComplexBallExact(right));
+ComplexBallPromote(value) -> ComplexBallFamily(value) ?: value ?_ ComplexBallConstruct(value,0,0,0);
+
+ComplexBallAdd(left,right) -> {;
+    a=ComplexBallPromote(left); b=ComplexBallPromote(right);
+    ComplexBallFromParts(BallAdd(a[:real],b[:real]),BallAdd(a[:imaginary],b[:imaginary]));
+};
+ComplexBallSub(left,right) -> {;
+    a=ComplexBallPromote(left); b=ComplexBallPromote(right);
+    ComplexBallFromParts(BallSub(a[:real],b[:real]),BallSub(a[:imaginary],b[:imaginary]));
+};
+ComplexBallMul(left,right) -> {;
+    a=ComplexBallPromote(left); b=ComplexBallPromote(right);
+    ComplexBallFromParts(
+        BallSub(BallMul(a[:real],b[:real]),BallMul(a[:imaginary],b[:imaginary])),
+        BallAdd(BallMul(a[:real],b[:imaginary]),BallMul(a[:imaginary],b[:real]))
+    );
+};
+ComplexBallDiv(left,right) -> {;
+    a=ComplexBallPromote(left); b=ComplexBallPromote(right);
+    denominator=BallAdd(BallMul(b[:real],b[:real]),BallMul(b[:imaginary],b[:imaginary]));
+    denominator[:interval].ContainsZero() ?: .Error("Cannot divide by a ComplexBall whose modulus may be zero") ?_ _;
+    ComplexBallFromParts(
+        BallDiv(BallAdd(BallMul(a[:real],b[:real]),BallMul(a[:imaginary],b[:imaginary])),denominator),
+        BallDiv(BallSub(BallMul(a[:imaginary],b[:real]),BallMul(a[:real],b[:imaginary])),denominator)
+    );
+};
+ComplexBallNeg(value) -> {;
+    exact=ComplexBallRequire(value);
+    ComplexBallFromParts(BallNeg(exact[:real]),BallNeg(exact[:imaginary]));
+};
+ComplexBallConjugate(value) -> {;
+    exact=ComplexBallRequire(value);
+    ComplexBallFromParts(exact[:real],BallNeg(exact[:imaginary]));
+};
+ComplexBallContainsParts(value,real,imaginary) -> {;
+    exact=ComplexBallRequire(value);
+    BallContains(exact[:real],real) && BallContains(exact[:imaginary],imaginary);
+};
+ComplexBallEq(left,right) -> {;
+    a=ComplexBallPromote(left); b=ComplexBallPromote(right);
+    BallEq(a[:real],b[:real]) && BallEq(a[:imaginary],b[:imaginary]);
+};
+ComplexBallRecord(value) -> {;
+    exact=ComplexBallRequire(value);
+    {=
+        valueKind=:complexBall,
+        schema="rix.ball.complex@1",
+        real=BallRecord(exact[:real]),
+        imaginary=BallRecord(exact[:imaginary]),
+        certified=1,
+        geometry=:axisAlignedRectangle
+    };
+};
+
+.TypeKnown(:ComplexBall) ?: _ ?_ .TypeRegister({=
+    name=:ComplexBall,
+    nativeType=:map,
+    defaultTraits=[:number,:enclosed],
+    convertFrom={= map=(x) ?- [x[:valueKind]==:complexBall] -> x },
+    validate=(x)->(x[:valueKind]==:complexBall) && (x[:real] ? :Ball) && (x[:imaginary] ? :Ball),
+    proto={=
+        Real=(self)->self[:real],
+        Imaginary=(self)->self[:imaginary],
+        ContainsParts=(self,real,imaginary)->ComplexBallContainsParts(self,real,imaginary),
+        Conjugate=(self)->ComplexBallConjugate(self),
+        Record=(self)->ComplexBallRecord(self)
+    },
+    installs={=
+        ADD=[{= name=:ComplexBallAdd,priority=420,prep=(x,y)->ComplexBallPair(x,y),impl=(x,y)->ComplexBallAdd(x,y) }],
+        SUB=[{= name=:ComplexBallSub,priority=420,prep=(x,y)->ComplexBallPair(x,y),impl=(x,y)->ComplexBallSub(x,y) }],
+        MUL=[{= name=:ComplexBallMul,priority=420,prep=(x,y)->ComplexBallPair(x,y),impl=(x,y)->ComplexBallMul(x,y) }],
+        DIV=[{= name=:ComplexBallDiv,priority=420,prep=(x,y)->ComplexBallPair(x,y),impl=(x,y)->ComplexBallDiv(x,y) }],
+        NEG=[{= name=:ComplexBallNeg,priority=420,prep=(x)->ComplexBallFamily(x),impl=(x)->ComplexBallNeg(x) }],
+        EQ=[{= name=:ComplexBallEq,priority=420,prep=(x,y)->ComplexBallPair(x,y),impl=(x,y)->ComplexBallEq(x,y) }],
+        NEQ=[{= name=:ComplexBallNeq,priority=420,prep=(x,y)->ComplexBallPair(x,y),impl=(x,y)->!ComplexBallEq(x,y) }]
+    }
+});
+
+.TypeInstall(:ComplexBall);
 
 .TypeKnown(:Ball) ?: _ ?_ .TypeRegister({=
     name = :Ball,
@@ -355,6 +553,15 @@ ballNamespace._proto = {=
     Ball = (self, midpoint, radius ?= 0) -> BallConstruct(midpoint, radius),
     Interval = (self, low, high) -> BallFromInterval((BallRequireRational(low, "Ball lower endpoint")):(BallRequireRational(high, "Ball upper endpoint"))),
     Sqrt = (self, value) -> BallSqrt(value),
+    NthRoot = (self, value, degree ?= 2, options ?= {= }) -> BallNthRoot(value,degree,options),
+    Cbrt = (self, value, options ?= {= }) -> BallNthRoot(value,3,options),
+    Exp = (self, value, options ?= {= }) -> BallFunction(:exp,value,options),
+    Log = (self, value, options ?= {= }) -> BallFunction(:log,value,options),
+    Sin = (self, value, options ?= {= }) -> BallFunction(:sin,value,options),
+    Cos = (self, value, options ?= {= }) -> BallFunction(:cos,value,options),
+    Tan = (self, value, options ?= {= }) -> BallFunction(:tan,value,options),
+    Complex = (self, realMidpoint, imaginaryMidpoint, radius ?= 0, imaginaryRadius ?= _) -> ComplexBallConstruct(realMidpoint,imaginaryMidpoint,radius,imaginaryRadius),
+    ComplexParts = (self, realBall, imaginaryBall) -> ComplexBallFromParts(realBall,imaginaryBall),
     Midpoint = (self, ball) -> BallRequire(ball)[:midpoint],
     Radius = (self, ball) -> BallRequire(ball)[:radius],
     Lower = (self, ball) -> BallRequire(ball)[:interval].Low(),
@@ -367,6 +574,6 @@ ballNamespace._proto = {=
 .Host.RegisterCallableValue(
     "ball",
     ballNamespace,
-    "Certified rational midpoint-radius balls and nested square-root refinement",
+    "Certified real and complex rational balls with precision-negotiated elementary functions",
     ["Numerics", "Exact"]
 );

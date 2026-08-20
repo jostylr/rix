@@ -126,27 +126,37 @@ restored := .ar.Import(encoded);
 Import recomputes normalization, square-freeness, isolation, and root index.
 The serialized evidence is provenance, not an unchecked authority.
 
-## Arithmetic of algebraic reals
+## Exact resultant arithmetic
 
-The arithmetic surface is available before a result is canonicalized to a new
-minimal polynomial. Results retain the `AlgebraicReal` semantic family and a
-certified Oracle-backed recipe:
+Phase 2 field operations return newly isolated algebraic reals. Each result
+has an exact square-free integer polynomial, rational isolating interval, and
+fresh Sturm certificate:
 
 ```rix
 .Plugin.Load("algebraic-real");
-.Plugin.Load("numerics");
 x := .ar.Sqrt2();
 values := [x+x, x-x, x*x, x/x, -x, .Abs(x), x^2, x+1/3];
 .Table({=
-  columns=["type", "interval"],
+  columns=["polynomial", "interval", "sign"],
   rows=values.Map((value) -> [
-    value.__type,
-    .numerics.Refine(value, {= absoluteWidth=1/1000, maxWork=120 })[:interval]
+    value.Coefficients(),
+    value.Interval(),
+    value.Sign()
   ])
 });
 ```
 
-The Rational is embedded exactly. Algebraic–Cauchy or algebraic–continued-
-fraction operations automatically produce an Oracle because neither backend
-is privileged over the other. Resultant-based minimal-polynomial recovery can
-later canonicalize these recipes without changing their certified meaning.
+The elimination polynomial may contain roots arising from other pairs of
+conjugates. Exact interval arithmetic on the selected operands identifies the
+intended root; refinement continues until its interval contains exactly one
+resultant root. `x+x`, for example, has square-free polynomial
+`z(z^2-8)`, but the interval `2:4` selects `2*sqrt(2)`.
+
+```rix
+negative := .ar.Sqrt2(-1);
+{: .ar.Compare(x,negative), x > 7/5, x < 3/2, (x+negative).Sign() };
+```
+
+Comparison between algebraic values is exact subtraction followed by exact
+sign determination. Cross-family arithmetic still uses Oracle, preserving the
+representation-neutral real protocol.

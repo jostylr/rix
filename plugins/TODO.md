@@ -737,8 +737,8 @@ tracked in
 2. **Phase 2 — Elementary functions and precision escalation**
    - [x] Lift main field arithmetic and Rational embedding to nested-real
      recipes, using Oracle as the cross-family target.
-   - [ ] Add further native roots, exp/log, trigonometry, and complex balls.
-   - [ ] Negotiate internal working precision through Numerics requests beyond
+   - [x] Add further native roots, exp/log, trigonometry, and complex balls.
+   - [x] Negotiate internal working precision through Numerics requests beyond
      the Phase 1 exact-bisection recipe.
 3. **Phase 3 — Validated algorithms**
    - [ ] Add polynomial evaluation, interval Newton, validated linear algebra,
@@ -801,7 +801,7 @@ tracked in
      primitive normalization, derivatives, Sturm chains, root counts, and root
      bounds; remove the private duplicate polynomial implementation.
 2. **Phase 2 — Field operations**
-   - [ ] Add comparison and arithmetic using resultants/root isolation.
+   - [x] Add comparison and arithmetic using resultants/root isolation.
    - [x] Add the general arithmetic surface through immutable enclosure
      recipes, preserving the semantic family for algebraic/Rational operands
      and using Oracle across real families.

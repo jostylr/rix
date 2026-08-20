@@ -20,10 +20,10 @@ The implementation order and per-plugin phased work are tracked in
 | `exact-algebras/` | RiX | `exact-algebras` | Pure-RiX exact rational quaternion and octonion values. |
 | `plot/` | RiX | `plot` | Pure-RiX exact polynomial sampling and portable core Graphics lowering. |
 | `float/` | host | `float` | IEEE-754 Float conversion and approximate math. |
-| `ball/` | RiX | `ball` | Pure RiX certified rational midpoint-radius balls and nested square-root refinement. |
+| `ball/` | RiX | `ball` | Certified real/complex rational balls, nested roots, and precision-negotiated elementary functions. |
 | `cauchy/` | RiX | `cauchy` | Pure RiX rational sequences with explicit certified tail bounds and moduli. |
 | `continued-fraction/` | RiX | `continued-fraction` | Finite, lazy, periodic, and native Gosper-transduced simple continued fractions; callable aliases `.continuedFraction` and `.cf`. |
-| `algebraic-real/` | RiX | `algebraic-real` | Square-free integer polynomials with Sturm-certified isolating intervals; callable aliases `.algebraicReal` and `.ar`. |
+| `algebraic-real/` | RiX | `algebraic-real` | Sturm-isolated algebraic roots with exact resultant field arithmetic; aliases `.algebraicReal` and `.ar`. |
 | `oracle/` | RiX | `oracle` | Phase 1 rational-betweenness oracle values, procedures, validation, and bounded refinement. |
 | `numerics/` | RiX | `numerics` | Backend-neutral bounded enclosure, refinement, and sampling protocol orchestration. |
 | `linalg/` | RiX | `linalg` | Pure-RiX exact dense linear algebra, vector spaces, coordinate systems, and coordinate-aware tensor transformations. |

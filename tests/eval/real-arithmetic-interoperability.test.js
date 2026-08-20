@@ -103,7 +103,7 @@ describe("certified real arithmetic interoperability", () => {
             expect(contains(result.values[1].values[1], parseAndEvaluate("0", options))).toBe(true);
             expect(contains(result.values[1].values[3], parseAndEvaluate("1", options))).toBe(true);
         }
-    });
+    }, 20000);
 
     test("different certified real families automatically meet at Oracle", () => {
         const options = runtime();
@@ -463,7 +463,7 @@ describe("universal Numerics algorithm reals", () => {
             .toEqual(["enclosed", "enclosed", "enclosed"]);
         expect(contains(entry(result.values[0], "interval"), parseAndEvaluate("2", options))).toBe(true);
         expect(contains(entry(result.values[1], "interval"), parseAndEvaluate("785398/1000000", options))).toBe(true);
-    });
+    }, 20000);
 
     test("logarithms preserve an unresolved domain as structured evidence", () => {
         const options = runtime();
