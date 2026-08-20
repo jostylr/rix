@@ -67,6 +67,57 @@ Finite values return an exact point enclosure immediately. Lazy values consume
 at most one new coefficient per refinement call and retain the best certified
 cylinder when the budget is exhausted.
 
+## Certified functions to native regular-CF streams
+
+`FromRefinable(real, options?)` accepts any certified, arbitrarily refinable
+singleton provider and exposes its value as a native regular continued
+fraction. This immediately covers the roots, elementary functions, trig
+functions, and special functions implemented by `numerics`:
+
+```rix
+.Plugin.Load("numerics");
+.Plugin.Load("continued-fraction");
+e := .cf.FromRefinable(.numerics.Exp(1));
+ln2 := .cf.FromRefinable(.numerics.Ln(2));
+erf1 := .cf.FromRefinable(.numerics.Erf(1));
+e.Coefficients(8);    ## [2,1,2,1,1,4,1,1]
+ln2.Coefficients(6);  ## [0,1,2,3,1,6]
+```
+
+The extractor retains an exact Möbius form `(A*x+B)/(C*x+D)` of the original
+source. It emits a coefficient only when the whole transformed RationalInterval
+has one floor, then replaces the form by `1/(T-a)`. If the denominator can
+still be zero or the enclosure straddles an Integer, it refines the original
+source rather than transforming a rounded approximation.
+
+This is the run-length-accelerated form of a Farey/Stern–Brocot walk. A
+one-mediant-at-a-time walk provides useful intermediate brackets, but may take
+`a_n` comparisons to discover coefficient `a_n`; the stable-floor operation
+discovers that run length at once. `Enclosure(n)` still returns the adjacent
+convergent/Farey pair for the certified prefix.
+
+The bounded controls are `maxRefinements` (default `64`), `sourceMaxWork`
+(default `200` per request), `initialSourceWidth` (default `1`), and `trace`.
+Rational boundaries may remain unresolved under every prescribed finite work
+budget. `CoefficientResult` reports that honestly as `budgetExhausted`.
+
+## Root specialization
+
+`Sqrt(rational)` recognizes perfect squares exactly. A nonsquare rational uses
+the exact quadratic-surd recurrence and returns an explicitly periodic stream:
+
+```rix
+.cf.Sqrt(2/3).Record()[:prefix];  ## [0,1]
+.cf.Sqrt(2/3).Record()[:period];  ## [4,2]
+.cf.Sqrt(2/3).Coefficients(8);    ## [0,1,4,2,4,2,4,2]
+```
+
+`NthRoot(value,n)` folds perfect rational nth powers. Nonquadratic irrational
+rational roots use Oracle's certified Newton brackets followed by
+`FromRefinable`; such roots are not generally periodic. For a non-rational
+refinable radicand, load `numerics` before calling `NthRoot`, or construct the
+function explicitly and pass it to `FromRefinable`.
+
 ## Periodic quadratic recognition
 
 `QuadraticForm()` recognizes an explicitly periodic stream as a quadratic
@@ -173,5 +224,9 @@ Generalized, signed-digit, and retracting continued fractions are not yet
 supported; those representations need their own zero-separation rules.
 
 See the runnable [Gosper arithmetic exploration](../../explorations/continued-fractions/gosper-arithmetic.md).
+
+See the runnable [certified function extraction exploration](../../explorations/continued-fractions/certified-function-extraction.md)
+for the Möbius and Farey-pair views, roots, elementary functions, and a
+rational-boundary demonstration.
 
 See [tutorial.md](tutorial.md).

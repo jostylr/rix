@@ -1,15 +1,15 @@
 /**
 id: continued-fraction
-description: Finite and lazy simple continued fractions with exact convergents and certified enclosures.
+description: Finite, lazy, transduced, and certified-extracted simple continued fractions.
 kind: rix
 mount: continuedFraction
 aliases: [cf]
-exports: [Finite, Lazy, Periodic, Sqrt2, FromRational, Coefficient, CoefficientResult, Coefficients, Convergent, Convergents, Enclosure, ErrorInterval, QuadraticForm, BestApproximation, Translate, Reciprocal, ZeroStatus, Record]
+exports: [Finite, Lazy, Periodic, Sqrt2, Sqrt, NthRoot, FromRational, FromRefinable, Coefficient, CoefficientResult, Coefficients, Convergent, Convergents, Enclosure, ErrorInterval, QuadraticForm, BestApproximation, Translate, Reciprocal, ZeroStatus, Record]
 groups: [Numerics, Exact]
 permissions: []
 requires: [rix.oracle@1]
 provides: [rix.continued-fraction@1, rix.refinable@1, rix.enclosable-real@1]
-schemas: [rix.continued-fraction.finite@1, rix.continued-fraction.lazy@1, rix.continued-fraction.gosper@1, rix.continued-fraction.coefficient-result@1, rix.continued-fraction.arithmetic-real@1, rix.continued-fraction.quadratic-form@1, rix.continued-fraction.best-approximation@1, rix.continued-fraction.zero-status@1]
+schemas: [rix.continued-fraction.finite@1, rix.continued-fraction.lazy@1, rix.continued-fraction.gosper@1, rix.continued-fraction.extractor@1, rix.continued-fraction.coefficient-result@1, rix.continued-fraction.arithmetic-real@1, rix.continued-fraction.quadratic-form@1, rix.continued-fraction.best-approximation@1, rix.continued-fraction.zero-status@1]
 snapshot: false
 deterministic: true
 defaultEnabled: false
@@ -51,7 +51,7 @@ CFCoefficientResult(real, index, options ?= {= }) -> {;
           reason=:finiteStreamEnded,
           work={= calls=0, inputs=0, outputs=real[:length] }
       })
-      ?_ (real[:kind] == :gosper
+      ?_ ((real[:kind] == :gosper || real[:kind] == :extractor)
            ?: real[:coefficientResultFunction](n, options)
            ?_ .ImmutableValue({=
                valueKind=:continuedFractionCoefficientResult,
@@ -169,9 +169,11 @@ CFNextWitness(real, witness) -> {;
 };
 
 CFEnclosureAt(real, count ?= _) -> {;
-    real[:kind] == :gosper
+    (real[:kind] == :gosper || real[:kind] == :extractor)
       ?: (count == _
-           ?: CFGosperProtocolEnclosure(real,{= },:enclose)[:interval]
+           ?: (real[:kind] == :gosper
+                ?: CFGosperProtocolEnclosure(real,{= },:enclose)[:interval]
+                ?_ CFExtractorProtocolEnclosure(real,{= },:enclose)[:interval])
            ?_ CFWitness(real,CFRequireCount(count,"Continued-fraction enclosure count"))[:interval])
       ?_ (real[:kind] == :finite
            ?: {;
@@ -190,16 +192,19 @@ CFErrorInterval(real, count) -> {;
 CFCapabilities(real) -> {;
     lazy = real[:kind] != :finite;
     gosper = real[:kind] == :gosper;
+    extractor = real[:kind] == :extractor;
     {=
         valueKind = :numericsCapabilities,
         schema = "rix.numerics.capabilities@1",
         backend = :continuedFraction,
         representation = gosper
           ?: :nativeGosperContinuedFraction
-          ?_ (lazy ?: :lazySimpleContinuedFraction ?_ :finiteSimpleContinuedFraction),
+          ?_ (extractor
+               ?: :certifiedExtractedSimpleContinuedFraction
+               ?_ (lazy ?: :lazySimpleContinuedFraction ?_ :finiteSimpleContinuedFraction)),
         denotation = :singleton,
         operations = [:enclose, :refine],
-        evidenceLevels = gosper
+        evidenceLevels = (gosper || extractor)
           ?: [:constructorGuarantee, :proof]
           ?_ [lazy ?: real[:evidenceLevel] ?_ :proof],
         certified = 1,
@@ -223,7 +228,11 @@ CFRecord(real) -> {=
     transducer = real[:transducer],
     operation = real[:operation],
     initialForm = real[:initialForm],
-    initialEnclosure = real[:kind] == :gosper ?: _ ?_ real[:initialWitness][:interval],
+    initialEnclosure = (real[:kind] == :gosper || real[:kind] == :extractor)
+      ?: _
+      ?_ real[:initialWitness][:interval],
+    extraction = real[:extraction],
+    sourceKind = real[:kind] == :extractor ?: real[:source][:kind] ?_ _,
     evidence = real[:evidence],
     certified = 1
 };
@@ -246,10 +255,14 @@ CFAttachProtocol(real) -> {;
         Record = (self) -> CFRecord(self),
         Enclose = (self, request ?= {= }) -> self[:kind] == :gosper
           ?: CFGosperProtocolEnclosure(self, request, :enclose)
-          ?_ CFProtocolEnclosure(self, request, :enclose),
+          ?_ (self[:kind] == :extractor
+               ?: CFExtractorProtocolEnclosure(self, request, :enclose)
+               ?_ CFProtocolEnclosure(self, request, :enclose)),
         Refine = (self, request ?= {= }) -> self[:kind] == :gosper
           ?: CFGosperProtocolEnclosure(self, request, :refine)
-          ?_ CFProtocolEnclosure(self, request, :refine),
+          ?_ (self[:kind] == :extractor
+               ?: CFExtractorProtocolEnclosure(self, request, :refine)
+               ?_ CFProtocolEnclosure(self, request, :refine)),
         NumericsCapabilities = (self) -> CFCapabilities(self)
     };
     .ImmutableValue(real);
@@ -345,6 +358,267 @@ CFSqrt2() -> CFPeriodic([1], [2], {=
 CFFromRational(value, options ?= {= }) -> {;
     exact = value ~!: :Rational;
     CFFinite(exact.ToContinuedFraction(), {= name=CFOption(options, "name", :rational) });
+};
+
+CFRequirePositiveRational(value, label) -> {;
+    exact = value ~!: :Rational;
+    exact > 0 ?: exact ?_ .Error(@"@{label} must be a positive Rational");
+};
+
+CFExtractorMobiusRange(state, sourceInterval) -> {;
+    low = sourceInterval.Low();
+    high = sourceInterval.High();
+    lowNumerator = state[1]*low + state[2];
+    highNumerator = state[1]*high + state[2];
+    lowDenominator = state[3]*low + state[4];
+    highDenominator = state[3]*high + state[4];
+    denominatorSafe = ((lowDenominator > 0) && (highDenominator > 0)) ||
+      ((lowDenominator < 0) && (highDenominator < 0));
+    transformed = denominatorSafe
+      ?: (lowNumerator/lowDenominator):(highNumerator/highDenominator)
+      ?_ _;
+    lowFloor = denominatorSafe ?: transformed.Low().Floor() ?_ _;
+    highFloor = denominatorSafe ?: transformed.High().Floor() ?_ _;
+    {=
+        denominatorSafe=denominatorSafe,
+        stable=denominatorSafe && (lowFloor == highFloor),
+        term=denominatorSafe && (lowFloor == highFloor) ?: lowFloor ?_ _,
+        interval=transformed,
+        lowFloor=lowFloor,
+        highFloor=highFloor,
+        sourceInterval=sourceInterval,
+        form=CFGosperForm4(state)
+    };
+};
+
+CFExtractorCoefficientRecord(status, index, coefficient, reason, work, form, analysis, trace) ->
+    .ImmutableValue({=
+        valueKind=:continuedFractionCoefficientResult,
+        schema="rix.continued-fraction.coefficient-result@1",
+        status=status,
+        index=index,
+        coefficient=coefficient,
+        certified=(status == :coefficient) || (status == :end) ?: 1 ?_ _,
+        reason=reason,
+        work=work,
+        form=form,
+        analysis=analysis,
+        trace=trace
+    });
+
+CFExtractorCoefficient(source, target, options ?= {= }) -> {;
+    requested = CFRequireIndex(target,"Extracted continued-fraction output coefficient index");
+    maxRefinements = CFRequireCount(
+        CFOption(options,"maxrefinements",64),
+        "Continued-fraction extractor maxRefinements"
+    );
+    sourceWork = CFRequireCount(
+        CFOption(options,"sourcemaxwork",200),
+        "Continued-fraction extractor sourceMaxWork"
+    );
+    requestedSourceWidth := CFRequirePositiveRational(
+        CFOption(options,"initialsourcewidth",1),
+        "Continued-fraction extractor initialSourceWidth"
+    );
+    keepTrace = CFOption(options,"trace",_);
+    state := [1,0,0,1];
+    sourceInterval := _;
+    sourceResult := _;
+    refinements := 0;
+    outputIndex := 0;
+    trace := [];
+    analysis := _;
+    finished := _;
+    result := _;
+    {@ step=1; @finished==_; {;
+        !(@sourceInterval ? :RationalInterval)
+          ?: (@refinements >= @maxRefinements
+               ?: {;
+                   @finished ~= 1;
+                   @result ~= CFExtractorCoefficientRecord(
+                       :budgetExhausted,@requested,_,:coefficientNotStable,
+                       {=
+                           refinements=@refinements,
+                           outputs=@outputIndex,
+                           maxRefinements=@maxRefinements,
+                           sourceMaxWork=@sourceWork,
+                           requestedSourceWidth=@requestedSourceWidth,
+                           exhausted=1
+                       },
+                       CFGosperForm4(@state),@analysis,@trace
+                   );
+               }
+               ?_ {;
+                   @sourceResult ~= @source.Refine({=
+                       absoluteWidth=@requestedSourceWidth,
+                       maxWork=@sourceWork,
+                       maxCalls=@sourceWork,
+                       maxIterations=@sourceWork,
+                       trace=@keepTrace
+                   });
+                   @refinements += 1;
+                   certifiedInterval = @sourceResult[:certified] &&
+                     (@sourceResult[:interval] ? :RationalInterval);
+                   certifiedInterval
+                     ?: {; @sourceInterval ~= @sourceResult[:interval]; }
+                     ?_ {;
+                         @finished ~= 1;
+                         @result ~= CFExtractorCoefficientRecord(
+                             :domainUnresolved,@requested,_,:sourceDidNotProvideCertifiedInterval,
+                             {=
+                                 refinements=@refinements,
+                                 outputs=@outputIndex,
+                                 maxRefinements=@maxRefinements,
+                                 sourceMaxWork=@sourceWork,
+                                 requestedSourceWidth=@requestedSourceWidth,
+                                 exhausted=_
+                             },
+                             CFGosperForm4(@state),_,@trace
+                         );
+                     };
+               })
+          ?_ _;
+        @finished == _
+          ?: {;
+              @analysis ~= CFExtractorMobiusRange(@state,@sourceInterval);
+              @trace ~= CFGosperTraceAppend(@trace,@keepTrace,{=
+                  action=:inspect,
+                  outputIndex=@outputIndex,
+                  sourceInterval=@sourceInterval,
+                  transformedInterval=@analysis[:interval],
+                  denominatorSafe=@analysis[:denominatorSafe],
+                  lowFloor=@analysis[:lowFloor],
+                  highFloor=@analysis[:highFloor],
+                  form=@analysis[:form]
+              });
+              @analysis[:stable]
+                ?: {;
+                    coefficient = @analysis[:term];
+                    CFValidateCoefficient(coefficient,@outputIndex);
+                    terminal = (@analysis[:interval].Low() == coefficient) &&
+                      (@analysis[:interval].High() == coefficient);
+                    before := @state;
+                    @state ~= CFGosperOutput4(@state,coefficient);
+                    @trace ~= CFGosperTraceAppend(@trace,@keepTrace,{=
+                        action=:output,
+                        coefficient=coefficient,
+                        terminal=terminal,
+                        before=CFGosperForm4(before),
+                        after=CFGosperForm4(@state),
+                        sourceInterval=@sourceInterval,
+                        transformedInterval=@analysis[:interval]
+                    });
+                    @outputIndex == @requested
+                      ?: {;
+                          @finished ~= 1;
+                          @result ~= CFExtractorCoefficientRecord(
+                              :coefficient,@requested,@coefficient,
+                              @terminal ?: :exactRationalTerminalFloor ?_ :stableEnclosureFloor,
+                              {=
+                                  refinements=@refinements,
+                                  outputs=@outputIndex+1,
+                                  maxRefinements=@maxRefinements,
+                                  sourceMaxWork=@sourceWork,
+                                  requestedSourceWidth=@requestedSourceWidth,
+                                  achievedSourceWidth=@sourceInterval.Width(),
+                                  exhausted=_
+                              },
+                              CFGosperForm4(@state),@analysis,@trace
+                          );
+                      }
+                      ?_ (terminal
+                           ?: {;
+                               @finished ~= 1;
+                               @result ~= CFExtractorCoefficientRecord(
+                                   :end,@requested,_,:exactRationalStreamEnded,
+                                   {=
+                                       refinements=@refinements,
+                                       outputs=@outputIndex+1,
+                                       maxRefinements=@maxRefinements,
+                                       sourceMaxWork=@sourceWork,
+                                       requestedSourceWidth=@requestedSourceWidth,
+                                       achievedSourceWidth=@sourceInterval.Width(),
+                                       exhausted=_
+                                   },
+                                   CFGosperForm4(@state),@analysis,@trace
+                               );
+                           }
+                           ?_ {; @outputIndex += 1; });
+                }
+                ?_ {;
+                    @requestedSourceWidth /= 2;
+                    @sourceInterval ~= _;
+                };
+          }
+          ?_ _;
+    }; step+=1 };
+    result;
+};
+
+CFExtractorProtocolEnclosure(real, request, operation) -> {;
+    result = operation == :enclose
+      ?: real[:source].Enclose(request)
+      ?_ real[:source].Refine(request);
+    .ImmutableValue(result.Merge({=
+        backend=:continuedFraction,
+        evidence={=
+            kind=:certifiedContinuedFractionExtraction,
+            property=:containsExtractedContinuedFractionValue,
+            extraction=:mobiusStableFloor,
+            source=result[:evidence]
+        },
+        source={=
+            plugin=:continuedFraction,
+            schema=real[:schema],
+            kind=:extractor,
+            provider=result[:source]
+        }
+    }));
+};
+
+CFFromRefinable(value, options ?= {= }) -> {;
+    CFExact(value)
+      ?: CFFromRational(value,options)
+      ?_ (CFNativeStream(value)
+           ?: value
+           ?_ {;
+               capabilities = @value.NumericsCapabilities();
+               valid = capabilities[:certified] &&
+                 capabilities[:arbitraryRefinement] &&
+                 (capabilities[:denotation] == :singleton);
+               valid
+                 ?: {;
+                     settings = @options;
+                     coefficientResultFunction = (index, request ?= {= }) ->
+                         CFExtractorCoefficient(@value,index,@settings.Merge(request));
+                     CFAttachProtocol({=
+                         valueKind=:continuedFraction,
+                         schema="rix.continued-fraction.extractor@1",
+                         kind=:extractor,
+                         name=CFOption(@options,"name",:certifiedExtractor),
+                         transducer=:mobiusStableFloor,
+                         extraction=:acceleratedFarey,
+                         operation=:extract,
+                         source=@value,
+                         prefix=[],
+                         period=_,
+                         coefficientResultFunction=coefficientResultFunction,
+                         evidenceLevel=:proof,
+                         evidence={=
+                             kind=:certifiedRefinableExtraction,
+                             property=:exactStableRegularContinuedFractionCoefficients,
+                             rule=:wholeEnclosureSharesFloor,
+                            sourceCapabilities=@capabilities
+                         },
+                         provenance={=
+                             plugin=:continuedFraction,
+                             version=4,
+                             source=:certifiedRefinableMobiusExtractor
+                         }
+                     });
+                 }
+                 ?_ .Error("FromRefinable requires a certified arbitrarily refinable singleton real");
+           });
 };
 
 CFConstruct(value, options ?= {= }) -> {;
@@ -912,6 +1186,116 @@ CFGosperBihomographic(operation, leftValue, rightValue, options ?= {= }) -> {;
     };
     CFAttachProtocol(provisional);
 };
+
+CFIntegerNthRootFloor(value, degree) -> {;
+    n = value ~!: :Integer;
+    power = degree ~!: :Integer;
+    n >= 0 ?: _ ?_ .Error("Integer nth-root floor requires a nonnegative Integer");
+    power >= 2 ?: _ ?_ .Error("Integer nth-root floor degree must be at least two");
+    low := 0;
+    high := n+1;
+    {@ step=1; @high-@low > 1; {;
+        midpoint = (@low+@high)//2;
+        midpoint^@power <= @n
+          ?: {; @low ~= @midpoint; }
+          ?_ {; @high ~= @midpoint; };
+    }; step+=1 };
+    low;
+};
+
+CFExactNthRoot(value, degree) -> {;
+    exact = value ~!: :Rational;
+    n = degree ~!: :Integer;
+    numerator = exact.Numerator();
+    denominator = exact.Denominator();
+    negative = numerator < 0;
+    (negative && (n%2 == 0))
+      ?: _
+      ?_ {;
+          numeratorMagnitude = @numerator.Abs();
+          numeratorRoot = CFIntegerNthRootFloor(numeratorMagnitude,@n);
+          denominatorRoot = CFIntegerNthRootFloor(@denominator,@n);
+          perfect = (numeratorRoot^@n == numeratorMagnitude) &&
+            (denominatorRoot^@n == @denominator);
+          perfect
+            ?: (@negative ?: -numeratorRoot/denominatorRoot ?_ numeratorRoot/denominatorRoot)
+            ?_ _;
+      };
+};
+
+CFRationalSquareRoot(value, options ?= {= }) -> {;
+    exact = value ~!: :Rational;
+    exact >= 0 ?: _ ?_ .Error("Real square root requires a nonnegative value");
+    perfect = CFExactNthRoot(exact,2);
+    ((perfect ? :Integer) || (perfect ? :Rational))
+      ?: CFFromRational(perfect,{= name=CFOption(options,"name",:exactSquareRoot) })
+      ?_ {;
+          numerator = @exact.Numerator();
+          denominator = @exact.Denominator();
+          radicand = numerator*denominator;
+          rootFloor = CFIntegerNthRootFloor(radicand,2);
+          p := 0;
+          q := denominator;
+          coefficients := [];
+          seen := {= };
+          repeatStart := _;
+          {@ step=1; @repeatStart==_; {;
+              key = @"p@{@p}q@{@q}";
+              @seen.Has(key)
+                ?: {; @repeatStart ~= @seen[@key]; }
+                ?_ {;
+                    @seen ~= @seen.Set(@key,@coefficients.Len());
+                    coefficient = (@rootFloor+@p)//@q;
+                    @coefficients ~= @coefficients.Push(coefficient);
+                    nextP = coefficient*@q-@p;
+                    nextQ = (@radicand-nextP^2)//@q;
+                    @p ~= nextP;
+                    @q ~= nextQ;
+                };
+          }; step+=1 };
+          prefix = coefficients.Slice(1,repeatStart+1);
+          period = coefficients.Slice(repeatStart+1);
+          CFPeriodic(prefix,period,{=
+              name=CFOption(@options,"name",:periodicRationalSquareRoot),
+              evidenceLevel=:proof,
+              evidence={=
+                  kind=:periodicQuadraticIrrational,
+                  property=:squareEqualsRational,
+                  radicand=@exact,
+                  integerRadicand=radicand,
+                  scale=denominator,
+                  equation=@"x^2 = @{@exact}"
+              }
+          });
+      };
+};
+
+CFNthRoot(value, degree ?= 2, options ?= {= }) -> {;
+    n = degree ~!: :Integer;
+    n >= 2 ?: _ ?_ .Error("Continued-fraction NthRoot degree must be at least two");
+    hasExact = CFExact(value);
+    exact = hasExact ?: value ~!: :Rational ?_ _;
+    (hasExact && (exact < 0) && (n%2 == 0))
+      ?: .Error("Even real roots require a nonnegative value")
+      ?_ _;
+    exactRoot = hasExact ?: CFExactNthRoot(exact,n) ?_ _;
+    ((exactRoot ? :Integer) || (exactRoot ? :Rational))
+      ?: CFFromRational(exactRoot,{= name=CFOption(options,"name",:exactNthRoot) })
+      ?_ (hasExact && (n == 2)
+           ?: CFRationalSquareRoot(exact,options)
+           ?_ (hasExact
+                ?: {;
+                    positiveSource = .oracle.NthRoot(@exact.Abs(),@n,CFOption(@options,"functionoptions",{= }));
+                    positiveRoot = CFFromRefinable(positiveSource,@options);
+                    @exact < 0 ?: CFNativeNegate(positiveRoot) ?_ positiveRoot;
+                }
+                ?_ CFFromRefinable(
+                    .numerics.NthRoot(value,n,CFOption(options,"functionoptions",{= })),
+                    options
+                )));
+};
+
+CFSquareRoot(value, options ?= {= }) -> CFNthRoot(value,2,options);
 
 CFZeroStatus(real, options ?= {= }) -> {;
     source = CFRequireCoefficientStream(real,"Continued-fraction ZeroStatus");
@@ -1501,10 +1885,18 @@ CFArithmetic(operation, left, right ?= _) -> {;
           ?_ CFRecord(self),
         Enclose=(self,request ?= {= })->self[:kind] == :arithmetic
           ?: self[:recipe].Enclose(request)
-          ?_ (self[:kind] == :gosper ?: CFGosperProtocolEnclosure(self,request,:enclose) ?_ CFProtocolEnclosure(self,request,:enclose)),
+          ?_ (self[:kind] == :gosper
+               ?: CFGosperProtocolEnclosure(self,request,:enclose)
+               ?_ (self[:kind] == :extractor
+                    ?: CFExtractorProtocolEnclosure(self,request,:enclose)
+                    ?_ CFProtocolEnclosure(self,request,:enclose))),
         Refine=(self,request ?= {= })->self[:kind] == :arithmetic
           ?: self[:recipe].Refine(request)
-          ?_ (self[:kind] == :gosper ?: CFGosperProtocolEnclosure(self,request,:refine) ?_ CFProtocolEnclosure(self,request,:refine)),
+          ?_ (self[:kind] == :gosper
+               ?: CFGosperProtocolEnclosure(self,request,:refine)
+               ?_ (self[:kind] == :extractor
+                    ?: CFExtractorProtocolEnclosure(self,request,:refine)
+                    ?_ CFProtocolEnclosure(self,request,:refine))),
         NumericsCapabilities=(self)->self[:kind] == :arithmetic ?: CFArithmeticCapabilities(self) ?_ CFCapabilities(self)
     },
     installs={=
@@ -1526,7 +1918,10 @@ continuedFractionNamespace._proto = {=
     Lazy = (self, coefficientFunction, options ?= {= }) -> CFLazy(coefficientFunction, options),
     Periodic = (self, prefix, period, options ?= {= }) -> CFPeriodic(prefix, period, options),
     Sqrt2 = (self) -> CFSqrt2(),
+    Sqrt = (self, value, options ?= {= }) -> CFSquareRoot(value, options),
+    NthRoot = (self, value, degree ?= 2, options ?= {= }) -> CFNthRoot(value, degree, options),
     FromRational = (self, value, options ?= {= }) -> CFFromRational(value, options),
+    FromRefinable = (self, value, options ?= {= }) -> CFFromRefinable(value, options),
     Coefficient = (self, real, index, options ?= {= }) -> CFCoefficientAt(real, index, options),
     CoefficientResult = (self, real, index, options ?= {= }) -> CFCoefficientResult(real, index, options),
     Coefficients = (self, real, count ?= _, options ?= {= }) -> CFCoefficients(real, count, options),

@@ -22,6 +22,7 @@ describe("browser-safe explanatory explorations", () => {
         "numerics/lipschitz-midpoint",
         "numerics/second-derivative-taylor",
         "continued-fractions/gosper-arithmetic",
+        "continued-fractions/certified-function-extraction",
     ]) {
         test(`${name} explains the algorithm and evaluates to portable output`, () => {
             const markdown = readFileSync(new URL(`${name}.md`, explorationRoot), "utf8");

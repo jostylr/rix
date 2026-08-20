@@ -334,4 +334,90 @@ describe("Continued Fraction plugin", () => {
         expect(actions).toContain("output");
         expect(entry(result.values[6], "certified").value).toBe(1n);
     });
+
+    test("extracts native regular-CF streams from certified refinable functions", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("numerics");
+            .Plugin.Load("continued-fraction");
+            exponential = .cf.FromRefinable(.numerics.Exp(1));
+            logarithm = .cf.FromRefinable(.numerics.Ln(2));
+            refined = .numerics.Refine(exponential, {=
+                absoluteWidth=1/1000,
+                maxWork=100
+            });
+            transaction = exponential.CoefficientResult(3, {= trace=1 });
+            {:
+                exponential.Record(),
+                exponential.Coefficients(8),
+                logarithm.Coefficients(6),
+                exponential.Enclosure(5),
+                refined,
+                transaction
+            };
+        `, options);
+
+        expect(textValue(entry(result.values[0], "kind"))).toBe("extractor");
+        expect(textValue(entry(result.values[0], "transducer"))).toBe("mobiusStableFloor");
+        expect(textValue(entry(result.values[0], "extraction"))).toBe("acceleratedFarey");
+        expect(result.values[1].values.map(String)).toEqual(["2", "1", "2", "1", "1", "4", "1", "1"]);
+        expect(result.values[2].values.map(String)).toEqual(["0", "1", "2", "3", "1", "6"]);
+        expect(result.values[3].toString()).toBe("19/7:11/4");
+        expect(textValue(entry(result.values[4], "status"))).toBe("enclosed");
+        expect(textValue(entry(result.values[4], "backend"))).toBe("continuedFraction");
+        expect(textValue(entry(entry(result.values[4], "evidence"), "kind")))
+            .toBe("certifiedContinuedFractionExtraction");
+        expect(entry(result.values[5], "coefficient").toString()).toBe("1");
+        expect(entry(result.values[5], "trace").values.length).toBeGreaterThan(0);
+    });
+
+    test("keeps rational-boundary uncertainty structured during generic extraction", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("numerics");
+            .Plugin.Load("continued-fraction");
+            generic = .cf.FromRefinable(.numerics.Sqrt(4));
+            bounded = generic.CoefficientResult(0, {= maxRefinements=4 });
+            {:
+                bounded,
+                generic.ZeroStatus({= maxRefinements=4 }),
+                .cf.Sqrt(4).Value()
+            };
+        `, options);
+
+        expect(textValue(entry(result.values[0], "status"))).toBe("budgetExhausted");
+        expect(textValue(entry(result.values[0], "reason"))).toBe("coefficientNotStable");
+        expect(entry(result.values[0], "certified")).toBeNull();
+        expect(textValue(entry(result.values[1], "status"))).toBe("unknown");
+        expect(result.values[2].toString()).toBe("2");
+    });
+
+    test("uses exact and periodic root specializations before generic extraction", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("continued-fraction");
+            square = .cf.Sqrt(2/3);
+            cube = .cf.NthRoot(2,3);
+            {:
+                .cf.Sqrt(2).Coefficients(8),
+                square.Record(), square.Coefficients(8),
+                .cf.NthRoot(27,3).Value(),
+                .cf.NthRoot(8/27,3).Value(),
+                .cf.NthRoot(-8,3).Value(),
+                cube.Record(), cube.Coefficients(6)
+            };
+        `, options);
+
+        expect(result.values[0].values.map(String)).toEqual(["1", "2", "2", "2", "2", "2", "2", "2"]);
+        expect(textValue(entry(result.values[1], "kind"))).toBe("periodic");
+        expect(entry(result.values[1], "prefix").values.map(String)).toEqual(["0", "1"]);
+        expect(entry(result.values[1], "period").values.map(String)).toEqual(["4", "2"]);
+        expect(result.values[2].values.map(String)).toEqual(["0", "1", "4", "2", "4", "2", "4", "2"]);
+        expect(result.values.slice(3, 6).map(String)).toEqual(["3", "2/3", "-2"]);
+        expect(textValue(entry(result.values[6], "kind"))).toBe("extractor");
+        expect(result.values[7].values.map(String)).toEqual(["1", "3", "1", "5", "1", "1"]);
+
+        expect(() => parseAndEvaluate(".cf.Sqrt(-1)", options))
+            .toThrow("nonnegative");
+    });
 });

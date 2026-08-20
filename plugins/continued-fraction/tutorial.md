@@ -102,6 +102,60 @@ root < {~ 3/2, 1/1000 };
 Try changing `maxWork` to `0`, `1`, and `2`. The comparison remains undecided
 until the available convergent cylinder separates the two neighborhoods.
 
+## Extract a certified function stream
+
+Any certified arbitrarily refinable singleton real can be exposed as a native
+regular-CF stream. The source continues to provide enclosing evidence; the
+extractor decides permanent coefficients with exact RationalInterval floors:
+
+```rix
+.Plugin.Load("numerics");
+.Plugin.Load("continued-fraction");
+e := .cf.FromRefinable(.numerics.Exp(1));
+ln2 := .cf.FromRefinable(.numerics.Ln(2));
+.Table({=
+  columns=["function","coefficients","five-term cylinder"],
+  rows=[
+    ["exp(1)",e.Coefficients(8),e.Enclosure(5)],
+    ["ln(2)",ln2.Coefficients(6),ln2.Enclosure(5)]
+  ]
+});
+```
+
+`CoefficientResult(index,{=trace=1})` shows each requested source enclosure,
+its image under the accumulated Möbius form, the two endpoint floors, and each
+accepted output. `maxRefinements`, `sourceMaxWork`, and `initialSourceWidth`
+bound the transaction.
+
+The method is also an accelerated Farey walk. Repeated moves toward one Farey
+parent form a run; the run length is the next continued-fraction coefficient.
+Testing individual mediants exposes intermediate brackets, while a stable
+floor determines the complete run length at once. Both schedules stall at the
+same exact rational boundaries unless equality can be proved.
+
+## Roots choose the strongest available representation
+
+```rix
+.Plugin.Load("continued-fraction");
+periodic := .cf.Sqrt(2/3);
+exact := .cf.NthRoot(27,3);
+general := .cf.NthRoot(2,3);
+.Table({=
+  columns=["root","kind","coefficients or value"],
+  rows=[
+    ["sqrt(2/3)",periodic.Record()[:kind],periodic.Coefficients(8)],
+    ["cuberoot(27)",exact.Record()[:kind],exact.Value()],
+    ["cuberoot(2)",general.Record()[:kind],general.Coefficients(6)]
+  ]
+});
+```
+
+Perfect powers are finite, nonsquare rational square roots are periodic, and
+other roots use certified function extraction. Calling
+`FromRefinable(.numerics.Sqrt(4))` deliberately bypasses the exact shortcut and
+illustrates why an interval-only provider can remain stuck around the Integer
+boundary `2`; `.cf.Sqrt(4)` proves the finite result immediately.
+
 ## Arithmetic of continued-fraction reals
 
 Native continued-fraction operands use exact Gosper homographic and

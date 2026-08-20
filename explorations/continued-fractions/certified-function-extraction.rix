@@ -1,0 +1,103 @@
+## Explanatory Exploration: certified functions as regular continued fractions.
+## Browser-safe: the final value is a portable Fragment.
+
+.Plugin.Load("numerics");
+.Plugin.Load("continued-fraction");
+.Plugin.Load("plot");
+
+$$termCount := 4;
+$$refinementBudget := 40;
+
+$$view := {;
+    n := $termCount;
+    budget := $refinementBudget;
+    extractionOptions := {= maxRefinements=budget,sourceMaxWork=200 };
+
+    exponential := .cf.FromRefinable(.numerics.Exp(1));
+    logarithm := .cf.FromRefinable(.numerics.Ln(2));
+    sine := .cf.FromRefinable(.numerics.Sin(1));
+    errorFunction := .cf.FromRefinable(.numerics.Erf(1));
+    functions := [
+        ["exp(1)",exponential],
+        ["ln(2)",logarithm],
+        ["sin(1)",sine],
+        ["erf(1)",errorFunction]
+    ];
+    functionRows := functions.Map((entry)->[
+        entry[1],
+        entry[2].Record()[:kind],
+        entry[2].Record()[:extraction],
+        entry[2].Coefficients(n,extractionOptions),
+        .numerics.Refine(entry[2],{= absoluteWidth=1/1000,maxWork=100 })[:interval]
+    ]);
+
+    root := .cf.Sqrt(2/3);
+    rootRows := [
+        ["sqrt(2)",.cf.Sqrt(2).Record()[:prefix],.cf.Sqrt(2).Record()[:period],.cf.Sqrt(2).Coefficients(n)],
+        ["sqrt(2/3)",root.Record()[:prefix],root.Record()[:period],root.Coefficients(n)],
+        ["cuberoot(2)",_,_,.cf.NthRoot(2,3).Coefficients(n,extractionOptions)]
+    ];
+
+    fareyRows := [
+        ["1:2","3/2",:upper,"1:3/2"],
+        ["1:3/2","4/3",:lower,"4/3:3/2"],
+        ["4/3:3/2","7/5",:lower,"7/5:3/2"],
+        ["7/5:3/2","10/7",:upper,"7/5:10/7"]
+    ];
+
+    convergentData := [];
+    {@ count=1; count<=@n; {;
+        @convergentData ~= @convergentData.Push([count,@exponential.Convergent(count)]);
+    }; count+=1 };
+    graph := .plot.Line(convergentData,{=
+        size=[700,320],
+        label="regular-CF convergents of exp(1)",
+        stroke="#6b4ea0",
+        xLabel="coefficients consumed",
+        yLabel="exact rational convergent"
+    });
+
+    boundary := .cf.FromRefinable(.numerics.Sqrt(4))
+      .CoefficientResult(0,{= maxRefinements=4 });
+    transaction := exponential.CoefficientResult(n-1,{=
+        maxRefinements=budget,
+        sourceMaxWork=200,
+        trace=1
+    });
+
+    .Fragment([
+        .Heading(1,"Certified functions as regular continued fractions"),
+        .Paragraph("A coefficient is emitted only when one exact transformed source enclosure has a common floor. The accumulated Mobius form is the run-length-accelerated Farey walk."),
+        .ControlPanel({=
+            title="Extraction work",
+            description="Increase the source-refinement budget when a transformed interval approaches an integer or reciprocal pole.",
+            controls=[
+                .Controls.Slider($$termCount,2:6,1,"regular-CF coefficients"),
+                .Controls.Slider($$refinementBudget,8:64,8,"source refinements")
+            ]
+        }),
+        .Table(
+            ["function","stream kind","extraction","certified coefficients","source enclosure"],
+            functionRows,
+            {= caption="Existing certified Numerics functions now produce native regular-CF streams"}
+        ),
+        .Figure(graph,"Every plotted point is an exact rational convergent; the source function remains certified independently."),
+        .Heading(2,"Direct and extracted roots"),
+        .Table(
+            ["root","prefix","period","coefficients"],
+            rootRows,
+            {= caption="Rational square roots are periodic; higher roots use certified extraction"}
+        ),
+        .Heading(2,"The same sqrt(2) evidence as Farey pairs"),
+        .Table(
+            ["old bracket","mediant","retained side","new bracket"],
+            fareyRows,
+            {= caption="Direction switches finalize run lengths and hence regular-CF coefficients"}
+        ),
+        .Heading(2,"Visible boundary behavior"),
+        .Paragraph(@"Generic extraction of a provider converging to the exact integer 2 reports @{boundary[:status]}: @{boundary[:reason]}. The specialized .cf.Sqrt(4) path proves and returns the finite value directly."),
+        .Paragraph(@"Coefficient @{n-1} of exp(1) is @{transaction[:coefficient]}; its trace contains @{transaction[:trace].Len()} exact inspection/output events.")
+    ])
+};
+
+$view
