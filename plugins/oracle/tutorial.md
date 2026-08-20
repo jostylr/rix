@@ -142,3 +142,53 @@ Exact Rationals become exact point leaves. `.oracle.From(value)` also accepts
 any certified, arbitrarily refinable singleton provider. It rejects finite
 non-point Balls, RationalIntervals, and Floats because those inputs do not
 carry the missing singleton/refinement meaning.
+
+## Exact refinement funnels
+
+A funnel exposes compatible certified intervals at arbitrarily small rational
+widths. The nth-root constructor uses exact Newton brackets; the trace remains
+an enclosure even when the work budget ends:
+
+```rix
+.Plugin.Load("oracle");
+funnel := .oracle.NthRootFunnel(2, 2, {= start=2 });
+root := .oracle.FromFunnel(funnel);
+refined := .oracle.Refine(root, {=
+  width=1/1000,
+  maxCalls=20,
+  maxIterations=20,
+  trace=1
+});
+refined[:trace].Map((step) -> {=
+  interval=step[:interval],
+  brackets=step[:interval].Low()^2 <= 2 && step[:interval].High()^2 >= 2
+});
+```
+
+The generic adapter accepts any provider that publicly certifies singleton
+denotation and arbitrary refinement. A certified Cauchy sequence therefore
+needs no private Oracle integration:
+
+```rix
+.Plugin.Load("cauchy");
+sequence := .cauchy.Geometric(1, 1/2);
+cauchyReal := .oracle.Cauchy(sequence);
+.oracle.Refine(cauchyReal, {= width=1/1000, maxCalls=20 });
+```
+
+## Coarse oracles
+
+A coarse Oracle knows a fixed exact interval at eta resolution, but does not
+pretend to denote one arbitrarily refinable singleton:
+
+```rix
+.Plugin.Load("oracle");
+coarse := .oracle.Coarse((2/5):(3/5), 1/10);
+wide := .oracle.Refine(coarse, {= width=1/4, maxCalls=0 });
+fine := .oracle.Refine(coarse, {= width=1/1000, maxCalls=0 });
+{: wide[:status], fine[:status], fine[:diagnostics], fine[:work] };
+```
+
+The wide request is `:enclosed`. The fine request is `:resolutionFloor`, not
+`:budgetExhausted`: more host work cannot extract precision that this coarse
+model never claimed. Both results retain the exact certified interval.

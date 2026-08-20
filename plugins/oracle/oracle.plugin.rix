@@ -1,13 +1,13 @@
 /**
 id: oracle
-description: Exact rational-betweenness oracle demonstrations and bounded refinement.
+description: Exact rational-betweenness oracles, certified refinement funnels, and coarse eta-resolution models.
 kind: rix
 mount: oracle
-exports: [Rational, From, Operation, Query, Answer, Decision, Prophecy, WorkPolicy, Evidence, Ask, AskAll, CheckRange, Refine]
+exports: [Rational, Coarse, From, Operation, ToFunnel, FromFunnel, FunnelRefine, NthRootFunnel, NthRoot, Cauchy, Query, Answer, Decision, Prophecy, WorkPolicy, Evidence, Ask, AskAll, CheckRange, Refine]
 groups: [Numerics, Exact]
 permissions: []
 provides: [rix.oracle@1, rix.enclosable-real@1]
-schemas: [rix.oracle@1]
+schemas: [rix.oracle@1, rix.oracle.query@1, rix.oracle.answer@1, rix.oracle.prophecy@1, rix.oracle.refinement@1, rix.oracle.funnel@1]
 defaultEnabled: false
 **/
 
@@ -21,6 +21,11 @@ RequirePositive(value, label) -> {;
 RequireNonnegativeInteger(value, label) -> {;
     integer = value ~!: :Integer;
     integer >= 0 ?: integer ?_ .Error(@"@{label} must be a nonnegative integer");
+};
+
+RequireRootDegree(value, label) -> {;
+    integer = value ~!: :Integer;
+    integer >= 2 ?: integer ?_ .Error(@"@{label} must be an integer at least 2");
 };
 
 AsInterval(value) -> value ~!: :RationalInterval;
@@ -59,6 +64,13 @@ OracleEvidenceRank(level) -> {?
 
 OracleWeakerEvidence(left, right) ->
     OracleEvidenceRank(left) <= OracleEvidenceRank(right) ?: left ?_ right;
+
+OracleProviderEvidenceLevel(capabilities) -> {;
+    levels = capabilities[:evidenceLevels];
+    levels.Len() >= 1
+      ?: levels.Reduce((left, right) -> OracleWeakerEvidence(left, right), levels[1])
+      ?_ :assumed;
+};
 
 OracleWorkPolicy(options ?= {= }) -> {=
     valueKind = :oracleWorkPolicy,
@@ -152,8 +164,8 @@ BuildRationalOracle(exactValue, selectedProcedure, options) -> {;
         provenance = {= plugin = :oracle, version = 1, source = :rationalConstructor }
     };
     real._proto = {=
-        Enclose = (self, request) -> OracleProtocolEnclose(self, request),
-        Refine = (self, request) -> OracleProtocolEnclose(self, request),
+        Enclose = (self, request ?= {= }) -> OracleProtocolEnclose(self, request, :enclose),
+        Refine = (self, request ?= {= }) -> OracleProtocolEnclose(self, request, :refine),
         NumericsCapabilities = (self) -> OracleNumericsCapabilities(self)
     };
     real ~!: :Oracle;
@@ -190,8 +202,8 @@ BuildSourceOracle(source) -> {;
         }
     };
     real._proto = {=
-        Enclose = (self, request) -> OracleProtocolEnclose(self, request),
-        Refine = (self, request) -> OracleProtocolEnclose(self, request),
+        Enclose = (self, request ?= {= }) -> OracleProtocolEnclose(self, request, :enclose),
+        Refine = (self, request ?= {= }) -> OracleProtocolEnclose(self, request, :refine),
         NumericsCapabilities = (self) -> OracleNumericsCapabilities(self)
     };
     .ImmutableValue(real ~!: :Oracle);
@@ -222,8 +234,8 @@ BuildArithmeticOracle(operation, left, right ?= _) -> {;
         provenance = {= plugin=:oracle, version=2, source=:arithmeticRecipe, operation=operation }
     };
     real._proto = {=
-        Enclose = (self, request) -> OracleProtocolEnclose(self, request),
-        Refine = (self, request) -> OracleProtocolEnclose(self, request),
+        Enclose = (self, request ?= {= }) -> OracleProtocolEnclose(self, request, :enclose),
+        Refine = (self, request ?= {= }) -> OracleProtocolEnclose(self, request, :refine),
         NumericsCapabilities = (self) -> OracleNumericsCapabilities(self)
     };
     .ImmutableValue(real ~!: :Oracle);
@@ -238,6 +250,307 @@ OracleOperation(operation, left, right ?= _) -> {?
     operation == :div ? BuildArithmeticOracle(:div, left, right);
     operation == :pow ? BuildArithmeticOracle(:pow, left, right);
     .Error("Unsupported Oracle arithmetic operation")
+};
+
+OracleCertifiedRefinableSource(source, label ?= "Oracle funnel source") -> {;
+    capabilities = source.NumericsCapabilities();
+    valid = capabilities[:certified] &&
+      capabilities[:arbitraryRefinement] &&
+      capabilities[:denotation] == :singleton;
+    valid ?: capabilities
+      ?_ .Error(@"@{label} must be a certified arbitrarily refinable singleton provider");
+};
+
+OracleFunnelCapabilities(funnel) -> {=
+    valueKind=:numericsCapabilities,
+    schema="rix.numerics.capabilities@1",
+    backend=:oracleFunnel,
+    representation=funnel[:kind] == :newtonNthRoot ?: :rationalNewtonBrackets ?_ :certifiedProviderFunnel,
+    denotation=:singleton,
+    operations=[:enclose, :refine],
+    evidenceLevels=[funnel[:evidenceLevel]],
+    certified=1,
+    arbitraryRefinement=1,
+    deterministic=1,
+    minimumWidth=0,
+    maxCalls=100000,
+    maxIterations=100000,
+    provider=funnel[:provenance]
+};
+
+OracleFunnelRecord(funnel) -> {=
+    valueKind=:refinementFunnel,
+    schema="rix.oracle.funnel@1",
+    kind=funnel[:kind],
+    name=funnel[:name],
+    constructor=funnel[:constructor],
+    parameters=funnel[:parameters],
+    certified=1,
+    compatibilityEvidence=funnel[:compatibilityEvidence],
+    provenance=funnel[:provenance]
+};
+
+OracleAttachFunnelProtocol(funnel) -> {;
+    funnel._proto = {=
+        Refine=(self, options ?= {= })->OracleFunnelRefine(self, options, :refine),
+        Enclose=(self, options ?= {= })->OracleFunnelRefine(self, options, :enclose),
+        Interval=(self, width, options ?= {= })->OracleFunnelRefine(
+            self,
+            options.Set("absoluteWidth", width),
+            :refine
+        )[:interval],
+        ToOracle=(self)->BuildFunnelOracle(self),
+        Record=(self)->OracleFunnelRecord(self),
+        NumericsCapabilities=(self)->OracleFunnelCapabilities(self)
+    };
+    .ImmutableValue(funnel);
+};
+
+BuildProviderFunnel(source, options ?= {= }) -> {;
+    capabilities = OracleCertifiedRefinableSource(source);
+    OracleAttachFunnelProtocol({=
+        valueKind=:refinementFunnel,
+        schema="rix.oracle.funnel@1",
+        kind=:provider,
+        name=Option(options, "name", :providerFunnel),
+        constructor=:certifiedProvider,
+        source=source,
+        sourceCapabilities=capabilities,
+        parameters={= backend=capabilities[:backend] },
+        evidenceLevel=OracleProviderEvidenceLevel(capabilities),
+        compatibilityEvidence={=
+            kind=:certifiedSingletonProvider,
+            property=:pairwiseIntersection,
+            provider=capabilities[:backend],
+            sourceEvidenceLevels=capabilities[:evidenceLevels]
+        },
+        provenance={=
+            plugin=:oracle,
+            version=2,
+            source=:providerFunnel,
+            backend=capabilities[:backend]
+        }
+    });
+};
+
+BuildNthRootFunnel(value, degree, options ?= {= }) -> {;
+    radicand = value ~!: :Rational;
+    radicand > 0 ?: _ ?_ .Error("Oracle Newton nth-root radicand must be positive");
+    n = RequireRootDegree(degree, "Oracle Newton nth-root degree");
+    start = RequirePositive(Option(options, "start", radicand >= 1 ?: radicand ?_ 1), "start");
+    OracleAttachFunnelProtocol({=
+        valueKind=:refinementFunnel,
+        schema="rix.oracle.funnel@1",
+        kind=:newtonNthRoot,
+        name=Option(options, "name", :newtonNthRoot),
+        constructor=:rationalNewtonNthRoot,
+        radicand=radicand,
+        degree=n,
+        start=start,
+        parameters={= radicand=radicand, degree=n, start=start },
+        evidenceLevel=:proof,
+        compatibilityEvidence={=
+            kind=:newtonNthRootBracketTheorem,
+            property=:pairwiseIntersection,
+            relation=:amBmBracketPositiveRoot,
+            paperSection=:algorithmicOracles
+        },
+        provenance={= plugin=:oracle, version=2, source=:rationalNewtonNthRootFunnel }
+    });
+};
+
+OracleProviderFunnelState(funnel, requestedWidth, maxCalls, maxIterations, keepTrace) -> {;
+    capabilities = funnel[:sourceCapabilities];
+    request = .RefinementRequest({=
+        absoluteWidth=requestedWidth / 2,
+        maxWork=maxCalls,
+        maxCalls=maxCalls,
+        maxIterations=maxIterations,
+        trace=keepTrace
+    }, :refine, capabilities);
+    result = funnel[:source].Refine(request);
+    check = .RefinementCheck(result, request, capabilities);
+    check[:valid] ?: _ ?_ .Error("Oracle funnel source returned an invalid certified refinement result");
+    certified = result[:certified];
+    certified ?: _ ?_ .Error("Oracle funnel source lost certified containment");
+    interval = result[:interval];
+    achievedWidth = interval.Width();
+    goalMet = achievedWidth < requestedWidth;
+    {=
+        interval=interval,
+        achievedWidth=achievedWidth,
+        goalMet=goalMet,
+        status=goalMet ?: :enclosed ?_ result[:status],
+        candidate=interval.Midpoint(),
+        trace=result[:trace],
+        work=result[:work],
+        diagnostics=goalMet ?: [] ?_ result[:diagnostics],
+        evidence={=
+            kind=:certifiedProviderFunnel,
+            property=:containmentAndCompatibility,
+            source=result[:evidence],
+            compatibility=funnel[:compatibilityEvidence]
+        }
+    };
+};
+
+OracleNthRootFunnelState(funnel, requestedWidth, maxCalls, maxIterations, keepTrace) -> {;
+    q = funnel[:radicand];
+    n = funnel[:degree];
+    a = funnel[:start];
+    b = q / (a^(n - 1));
+    interval = .Min(a, b):.Max(a, b);
+    achievedWidth = interval.Width();
+    calls = 0;
+    iterations = 0;
+    trace = keepTrace ?: [{=
+        iteration=0,
+        a=a,
+        b=b,
+        interval=interval,
+        width=achievedWidth,
+        relation=:amPowerAndBmPowerBracketRadicand
+    }] ?_ [];
+    {@ step=1;
+       @achievedWidth >= @requestedWidth && @calls < @maxCalls && @iterations < @maxIterations;
+       {;
+           @a = @a + (@b - @a) / @n;
+           @b = @q / (@a^(@n - 1));
+           @interval = .Min(@a, @b):.Max(@a, @b);
+           @achievedWidth = @interval.Width();
+           @calls += 1;
+           @iterations += 1;
+           @trace = @keepTrace ?: @trace.Push({=
+               iteration=@iterations,
+               a=@a,
+               b=@b,
+               interval=@interval,
+               width=@achievedWidth,
+               relation=:amPowerAndBmPowerBracketRadicand
+           }) ?_ @trace;
+       };
+       step += 1
+    };
+    goalMet = achievedWidth < requestedWidth;
+    {=
+        interval=interval,
+        achievedWidth=achievedWidth,
+        goalMet=goalMet,
+        status=goalMet ?: :enclosed ?_ :budgetExhausted,
+        candidate=interval.Midpoint(),
+        trace=trace,
+        work={=
+            calls=calls,
+            iterations=iterations,
+            maxCalls=maxCalls,
+            maxIterations=maxIterations,
+            exhausted=!goalMet
+        },
+        diagnostics=goalMet ?: [] ?_ [:workBudgetReached],
+        evidence={=
+            kind=:newtonNthRootBracket,
+            property=:containmentAndCompatibility,
+            radicand=q,
+            degree=n,
+            interval=interval,
+            relation=:amPowerAndBmPowerBracketRadicand,
+            compatibility=funnel[:compatibilityEvidence]
+        }
+    };
+};
+
+OracleFunnelProtocol(funnel, request, operation) -> {;
+    capabilities = OracleFunnelCapabilities(funnel);
+    normalized = .RefinementRequest(request, operation, capabilities);
+    requestedWidth = normalized[:absoluteWidth];
+    work = normalized[:work];
+    maxCalls = work[:maxCalls];
+    maxIterations = work[:maxIterations];
+    keepTrace = normalized[:trace];
+    state = funnel[:kind] == :newtonNthRoot
+      ?: OracleNthRootFunnelState(funnel, requestedWidth, maxCalls, maxIterations, keepTrace)
+      ?_ OracleProviderFunnelState(funnel, requestedWidth, maxCalls, maxIterations, keepTrace);
+    approximation = .CertifiedApproximation(state[:candidate], state[:interval], {=
+        provider=:oracleFunnel,
+        reason=state[:status],
+        requested=requestedWidth,
+        achieved=state[:achievedWidth]
+    });
+    {=
+        valueKind=:enclosure,
+        schema="rix.numerics.enclosure@1",
+        status=state[:status],
+        interval=state[:interval],
+        certified=1,
+        goalMet=state[:goalMet],
+        requestedWidth=requestedWidth,
+        achievedWidth=state[:achievedWidth],
+        approximation=approximation,
+        evidenceLevel=funnel[:evidenceLevel],
+        backend=:oracleFunnel,
+        operation=normalized[:operation],
+        trace=state[:trace],
+        work=state[:work],
+        diagnostics=state[:diagnostics],
+        evidence=state[:evidence],
+        source=funnel[:provenance]
+    };
+};
+
+OracleFunnelRefine(funnel, options ?= {= }, operation ?= :refine) ->
+    OracleFunnelProtocol(funnel, options, operation);
+
+BuildFunnelOracle(funnel) -> {;
+    funnel[:valueKind] == :refinementFunnel ?: _ ?_ .Error("FromFunnel expects a certified Oracle refinement funnel");
+    capabilities = funnel.NumericsCapabilities();
+    capabilities[:certified] && capabilities[:arbitraryRefinement]
+      ?: _
+      ?_ .Error("FromFunnel requires a certified arbitrarily refinable funnel");
+    real = {=
+        valueKind=:oracle,
+        schema="rix.oracle@1",
+        kind=:funnel,
+        constructor=:refinementFunnel,
+        procedure=:funnelOracle,
+        source=funnel,
+        parameters={= funnel=funnel.Record() },
+        eta=_,
+        declaredProperties=[:range, :existence, :separation, :disjointness, :consistency, :singularity, :closure],
+        choicePolicy=:single,
+        provenance={= plugin=:oracle, version=2, source=:funnelToOracle, funnel=funnel[:constructor] }
+    };
+    real._proto = {=
+        Enclose=(self, request ?= {= })->OracleProtocolEnclose(self, request, :enclose),
+        Refine=(self, request ?= {= })->OracleProtocolEnclose(self, request, :refine),
+        NumericsCapabilities=(self)->OracleNumericsCapabilities(self)
+    };
+    .ImmutableValue(real ~!: :Oracle);
+};
+
+BuildCoarseOracle(interval, eta, options ?= {= }) -> {;
+    exactInterval = AsInterval(interval);
+    threshold = RequirePositive(eta, "eta");
+    exactInterval.Width() <= 2 * threshold
+      ?: _
+      ?_ .Error("Coarse Oracle interval width must not exceed 2*eta");
+    real = {=
+        valueKind=:oracle,
+        schema="rix.oracle@1",
+        kind=:coarse,
+        constructor=:coarseInterval,
+        procedure=:etaThreshold,
+        parameters={= interval=exactInterval, eta=threshold },
+        eta=threshold,
+        declaredProperties=[:range, :etaCertainty, :etaSeparation, :etaDisjointness, :etaConsistency],
+        choicePolicy=:single,
+        provenance={= plugin=:oracle, version=2, source=:coarseInterval, eta=threshold }
+    };
+    real._proto = {=
+        Enclose=(self, request ?= {= })->OracleProtocolEnclose(self, request, :enclose),
+        Refine=(self, request ?= {= })->OracleProtocolEnclose(self, request, :refine),
+        NumericsCapabilities=(self)->OracleNumericsCapabilities(self)
+    };
+    .ImmutableValue(real ~!: :Oracle);
 };
 
 PointProphecy(real, query, branch) -> {;
@@ -338,13 +651,70 @@ CheckedAnswer(answer) -> {;
 };
 
 OracleAsk(real, interval, delta, auxiliary ?= _) -> {;
-    real[:constructor] == :rational ?: _ ?_ .Error("Phase 1 Ask supports rational oracle constructors");
     query = OracleQuery(interval, delta, auxiliary);
-    procedure = real[:procedure];
-    chosen = procedure == :randomHalo
-        ?: (.Mod(real[:seed], 2) == 0 ?: :singular ?_ :halo)
-        ?_ procedure;
-    CheckedAnswer(AskWithProcedure(real, query, chosen));
+    {? real[:constructor] == :rational ? {;
+           procedure = @real[:procedure];
+           chosen = procedure == :randomHalo
+               ?: (.Mod(@real[:seed], 2) == 0 ?: :singular ?_ :halo)
+               ?_ procedure;
+           CheckedAnswer(AskWithProcedure(@real, @query, chosen));
+       };
+       real[:kind] == :funnel ? OracleAskFunnel(real, query);
+       real[:kind] == :coarse ? OracleAskCoarse(real, query);
+       .Error("Ask requires a rational, funnel-derived, or coarse Oracle")
+    };
+};
+
+OracleUnknownFunnelAnswer(query, result) -> {;
+    answer = OracleAnswer(:unknown, query, _, result[:status], :funnelOracle);
+    answer["work"] = result[:work];
+    answer["evidence"] = {=
+        kind=:bestCertifiedFunnelEnclosure,
+        interval=result[:interval],
+        achievedWidth=result[:achievedWidth],
+        certified=result[:certified],
+        source=result[:evidence]
+    };
+    answer;
+};
+
+OracleAskFunnel(real, query) -> {;
+    delta = query[:delta];
+    result = OracleFunnelProtocol(real[:source], {=
+        absoluteWidth=delta / 2,
+        maxWork=100,
+        maxCalls=100,
+        maxIterations=100,
+        trace=1
+    }, :refine);
+    result[:goalMet]
+      ?: {;
+          prophecy = OracleProphecy(@real, @result[:interval], @query, :funnel);
+          queryInterval = @query[:interval];
+          intersects = prophecy[:interval].Overlaps(queryInterval);
+          answer = intersects
+            ?: OracleAnswer(:yes, @query, prophecy, :funnelIntersects, :funnelOracle)
+            ?_ OracleAnswer(:no, @query, prophecy, :funnelDisjoint, :funnelOracle);
+          answer["work"] = @result[:work];
+          answer["evidence"] = @result[:evidence];
+          CheckedAnswer(answer);
+      }
+      ?_ OracleUnknownFunnelAnswer(query, result);
+};
+
+OracleAskCoarse(real, query) -> {;
+    prophecy = OracleProphecy(real, real[:parameters][:interval], query, :coarse);
+    candidate = prophecy[:interval];
+    target = query[:interval];
+    low = target.Low();
+    high = target.High();
+    delta = query[:delta];
+    intersects = candidate.Overlaps(target);
+    withinHalo = candidate.Low() > low - delta && candidate.High() < high + delta;
+    {? !intersects ? CheckedAnswer(OracleAnswer(:no, query, prophecy, :etaSeparated, :coarse));
+       withinHalo ? CheckedAnswer(OracleAnswer(:yes, query, prophecy, :etaContained, :coarse));
+       OracleAnswer(:unknown, query, _, :etaResolution, :coarse)
+    };
 };
 
 RandomHaloAlternatives(real, interval, delta, maxAlternatives) -> {;
@@ -471,6 +841,70 @@ OracleRefineSource(real, options) -> {;
         work=result[:work],
         evidence=result[:evidence],
         source={= plugin=:oracle, source=:adapter, provider=result[:source] }
+    };
+};
+
+OracleRefineFunnel(real, options) -> {;
+    result = OracleFunnelRefine(real[:source], {=
+        absoluteWidth=RequirePositive(Option(options, "width", 1/1000), "width"),
+        maxWork=RequireNonnegativeInteger(Option(options, "maxcalls", 100), "maxCalls"),
+        maxCalls=RequireNonnegativeInteger(Option(options, "maxcalls", 100), "maxCalls"),
+        maxIterations=RequireNonnegativeInteger(
+            Option(options, "maxiterations", Option(options, "maxcalls", 100)),
+            "maxIterations"
+        ),
+        trace=Option(options, "trace", 1)
+    }, :refine);
+    {=
+        valueKind=:oracleRefinement,
+        schema="rix.oracle.refinement@1",
+        status=result[:status],
+        interval=result[:interval],
+        certified=result[:certified],
+        requestedWidth=result[:requestedWidth],
+        achievedWidth=result[:achievedWidth],
+        approximation=result[:approximation],
+        evidenceLevel=result[:evidenceLevel],
+        trace=result[:trace],
+        work=result[:work],
+        diagnostics=result[:diagnostics],
+        evidence=result[:evidence],
+        source={= plugin=:oracle, source=:funnelAdapter, provider=result[:source] }
+    };
+};
+
+OracleRefineCoarse(real, options) -> {;
+    requestedWidth = RequirePositive(Option(options, "width", 1/1000), "width");
+    maxCalls = RequireNonnegativeInteger(Option(options, "maxcalls", 100), "maxCalls");
+    maxIterations = RequireNonnegativeInteger(Option(options, "maxiterations", maxCalls), "maxIterations");
+    interval = real[:parameters][:interval];
+    achievedWidth = interval.Width();
+    goalMet = achievedWidth <= requestedWidth;
+    status = goalMet ?: :enclosed ?_ :resolutionFloor;
+    {=
+        valueKind=:oracleRefinement,
+        schema="rix.oracle.refinement@1",
+        status=status,
+        interval=interval,
+        certified=1,
+        requestedWidth=requestedWidth,
+        achievedWidth=achievedWidth,
+        approximation=.CertifiedApproximation(interval.Midpoint(), interval, {=
+            provider=:oracle,
+            reason=status,
+            eta=real[:eta]
+        }),
+        evidenceLevel=:constructorGuarantee,
+        trace=[{= interval=interval, width=achievedWidth, eta=real[:eta], reason=:etaResolution }],
+        work={= calls=0, iterations=0, maxCalls=maxCalls, maxIterations=maxIterations, exhausted=_ },
+        diagnostics=goalMet ?: [] ?_ [:etaResolutionFloor],
+        evidence={=
+            kind=:coarseOracleInterval,
+            property=:containmentAtEtaResolution,
+            eta=real[:eta],
+            interval=interval
+        },
+        source=real[:provenance]
     };
 };
 
@@ -614,6 +1048,8 @@ OracleRefineArithmetic(real, options) -> {;
 OracleRefine(real, options ?= {= }) -> {?
     real[:kind] == :adapter ? OracleRefineSource(real, options);
     real[:kind] == :arithmetic ? OracleRefineArithmetic(real, options);
+    real[:kind] == :funnel ? OracleRefineFunnel(real, options);
+    real[:kind] == :coarse ? OracleRefineCoarse(real, options);
     OracleRefineRational(real, options)
 };
 
@@ -621,34 +1057,46 @@ OracleNumericsCapabilities(real) -> {;
     sourceCapabilities = real[:kind] == :adapter ?: real[:source].NumericsCapabilities() ?_ _;
     selectedRepresentation = real[:kind] == :adapter
       ?: :certifiedSingletonAdapter
-      ?_ (real[:kind] == :arithmetic ?: :exactIntervalArithmeticRecipe ?_ :rationalBetweennessOracle);
+      ?_ (real[:kind] == :arithmetic
+           ?: :exactIntervalArithmeticRecipe
+           ?_ (real[:kind] == :funnel
+                ?: :refinementFunnelOracle
+                ?_ (real[:kind] == :coarse ?: :etaCoarseInterval ?_ :rationalBetweennessOracle)));
     selectedEvidenceLevels = real[:kind] == :adapter
       ?: sourceCapabilities[:evidenceLevels]
-      ?_ (real[:kind] == :arithmetic ?: [:constructorGuarantee, :proof] ?_ [:constructorGuarantee]);
+      ?_ (real[:kind] == :arithmetic
+           ?: [:constructorGuarantee, :proof]
+           ?_ (real[:kind] == :funnel
+                ?: [real[:source][:evidenceLevel]]
+                ?_ [:constructorGuarantee]));
+    coarse = real[:kind] == :coarse;
     {=
         valueKind = :numericsCapabilities,
         schema = "rix.numerics.capabilities@1",
         backend = :oracle,
         representation = selectedRepresentation,
-        denotation = :singleton,
+        denotation = coarse ?: :coarseCompatibilityClass ?_ :singleton,
         operations = [:enclose, :refine],
         evidenceLevels = selectedEvidenceLevels,
         certified = 1,
-        arbitraryRefinement = 1,
+        arbitraryRefinement = coarse ?: _ ?_ 1,
         deterministic = 1,
-        minimumWidth = 0,
+        minimumWidth = coarse ?: real[:parameters][:interval].Width() ?_ 0,
         maxCalls = 100000,
         maxIterations = 100000,
         provider = real[:provenance]
     };
 };
 
-OracleProtocolEnclose(real, request) -> {;
-    workRequest = request[:work];
+OracleProtocolEnclose(real, request ?= {= }, operation ?= :refine) -> {;
+    capabilities = OracleNumericsCapabilities(real);
+    normalized = .RefinementRequest(request, operation, capabilities);
+    workRequest = normalized[:work];
     refined = OracleRefine(real, {=
-        width = request[:absoluteWidth],
+        width = normalized[:absoluteWidth],
         maxCalls = workRequest[:maxCalls],
-        trace = request[:trace]
+        maxIterations = workRequest[:maxIterations],
+        trace = normalized[:trace]
     });
     goalMet = refined[:status] == :enclosed;
     diagnostics = refined.Has("diagnostics") ?: refined[:diagnostics] ?_ [];
@@ -661,12 +1109,12 @@ OracleProtocolEnclose(real, request) -> {;
         interval = refined[:interval],
         certified = refined[:certified],
         goalMet = goalMet,
-        requestedWidth = request[:absoluteWidth],
+        requestedWidth = normalized[:absoluteWidth],
         achievedWidth = refined[:achievedWidth],
         approximation = refined[:approximation],
         evidenceLevel = refined[:evidenceLevel],
         backend = :oracle,
-        operation = request[:operation],
+        operation = normalized[:operation],
         trace = refined[:trace],
         work = refined[:work],
         diagnostics = diagnostics,
@@ -684,8 +1132,8 @@ OracleProtocolEnclose(real, request) -> {;
     },
     validate=(x)->x[:valueKind] == :oracle,
     proto={=
-        Enclose=(self, request)->OracleProtocolEnclose(self, request),
-        Refine=(self, request)->OracleProtocolEnclose(self, request),
+        Enclose=(self, request ?= {= })->OracleProtocolEnclose(self, request, :enclose),
+        Refine=(self, request ?= {= })->OracleProtocolEnclose(self, request, :refine),
         NumericsCapabilities=(self)->OracleNumericsCapabilities(self)
     },
     installs={=
@@ -709,8 +1157,20 @@ OracleProtocolEnclose(real, request) -> {;
 oracleNamespace = {= };
 oracleNamespace._proto = {=
     Rational = (self, value, options ?= {= }) -> RationalOracle(value, options),
+    Coarse = (self, interval, eta, options ?= {= }) -> BuildCoarseOracle(interval, eta, options),
     From = (self, value) -> OracleFrom(value),
     Operation = (self, operation, left, right ?= _) -> OracleOperation(operation, left, right),
+    ToFunnel = (self, source, options ?= {= }) -> BuildProviderFunnel(source, options),
+    FromFunnel = (self, funnel) -> BuildFunnelOracle(funnel),
+    FunnelRefine = (self, funnel, options ?= {= }) -> OracleFunnelRefine(funnel, options, :refine),
+    NthRootFunnel = (self, value, degree, options ?= {= }) -> BuildNthRootFunnel(value, degree, options),
+    NthRoot = (self, value, degree, options ?= {= }) -> BuildFunnelOracle(BuildNthRootFunnel(value, degree, options)),
+    Cauchy = (self, source, options ?= {= }) -> {;
+        capabilities = OracleCertifiedRefinableSource(source, "Oracle Cauchy adapter source");
+        capabilities[:backend] == :cauchy
+          ?: BuildFunnelOracle(BuildProviderFunnel(source, options.Set("name", :cauchyFunnel)))
+          ?_ .Error("Oracle Cauchy adapter requires a certified Cauchy provider");
+    },
     Query = (self, interval, delta, auxiliary ?= _) -> OracleQuery(interval, delta, auxiliary),
     Answer = (self, status, query, prophecy ?= _, reason ?= _) -> OracleAnswer(status, query, prophecy, reason),
     Decision = (self, answer) -> OracleDecision(answer),
@@ -723,4 +1183,4 @@ oracleNamespace._proto = {=
     Refine = (self, real, options ?= {= }) -> OracleRefine(real, options)
 };
 
-.Host.RegisterValue("oracle", oracleNamespace, "Certified singleton-real adapters, exact interval arithmetic, and rational-betweenness demonstrations", ["Numerics", "Exact"]);
+.Host.RegisterValue("oracle", oracleNamespace, "Exact rational-betweenness oracles, certified refinement funnels, and coarse eta-resolution models", ["Numerics", "Exact"]);

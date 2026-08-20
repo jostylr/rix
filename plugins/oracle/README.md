@@ -9,11 +9,13 @@ relation and a finite procedure that answers fuzzy rational-interval queries.
 The plugin is implemented in `oracle.plugin.rix` without a JavaScript
 arithmetic backend. It provides exact value schemas, five rational procedure
 demonstrations, Range validation, reproducible finite alternatives, bounded
-bisection refinement, and the neutral provider methods consumed by
-`.numerics`. It also supplies immutable arithmetic recipes and adapters from
-every certified refinable singleton-real provider.
+bisection refinement, certified refinement funnels, and the neutral provider
+methods consumed by `.numerics`. It also supplies an exact rational Newton
+nth-root funnel, a Cauchy adapter, coarse eta-resolution oracles, immutable
+arithmetic recipes, and adapters from every certified refinable singleton-real
+provider.
 
-## Phase 1 surface
+## Rational surface
 
 ```rix
 .Plugin.Load("oracle")
@@ -49,3 +51,51 @@ and its epsilon is a resolution target rather than an expansion of `1/2`.
 
 See the [implementation specification](specification.md) and the
 [tutorial](tutorial.md).
+
+## Phase 2 funnels
+
+`ToFunnel` accepts a provider only when its public Numerics capabilities say
+that it is certified, singleton-denoting, and arbitrarily refinable.
+`FromFunnel` turns that certified family of compatible rational intervals into
+an Oracle. The adapter asks its source for at most half the requested width,
+so an accepted source result is strictly shorter than the funnel request.
+
+```rix
+.Plugin.Load("cauchy");
+sequence := .cauchy.Geometric(1, 1/2);
+funnel := .oracle.ToFunnel(sequence);
+real := .oracle.FromFunnel(funnel);
+.oracle.Refine(real, {= width=1/1000, maxCalls=20 });
+```
+
+The built-in Newton construction uses only exact Rational arithmetic. Each
+step stores `a`, `b = q/a^(n-1)`, and the interval between them. Those endpoint
+powers bracket `q`, so the interval encloses the positive nth root regardless
+of which endpoint is lower. Work exhaustion returns the last certified
+interval instead of claiming the requested precision.
+
+```rix
+sqrt2 := .oracle.NthRoot(2, 2, {= start=2 });
+rootResult := .oracle.Refine(sqrt2, {= width=1/1000, maxCalls=20, trace=1 });
+```
+
+`.oracle.Cauchy(source)` is the named Cauchy-to-funnel adapter. The source must
+already carry a certified tail bound/modulus through the shared refinement
+protocol; a bare sequence is rejected.
+
+## Coarse eta resolution
+
+A coarse Oracle explicitly denotes a compatibility class rather than one
+arbitrarily refinable singleton:
+
+```rix
+coarse := .oracle.Coarse((2/5):(3/5), 1/10);
+coarseResult := .oracle.Refine(coarse, {= width=1/1000, maxCalls=0 });
+```
+
+The constructor requires the stored interval width to be at most `2*eta`.
+When a request is finer than that fixed certified interval,
+`coarseResult[:status]` is `:resolutionFloor`, with
+`:etaResolutionFloor` diagnostics. Its work record is not exhausted. This is
+different from `:budgetExhausted`, where a refinable procedure could have
+continued with more resources.

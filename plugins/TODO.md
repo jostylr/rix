@@ -248,13 +248,13 @@ newline normalization.
    - [x] Adapt Oracle answers to RiX decisions and connect language Halo
      comparison/membership through the shared certified-refinement contract.
 2. **Phase 2 — Funnels and generic refinement**
-   - [ ] Implement refinement funnels and the paper's funnel-to-oracle adapter.
-   - [ ] Implement the rational Newton nth-root funnel and Cauchy adapter.
+   - [x] Implement refinement funnels and the paper's funnel-to-oracle adapter.
+   - [x] Implement the rational Newton nth-root funnel and Cauchy adapter.
    - [x] Register the shared `EnclosableReal` provider used by `.numerics`.
    - [x] Add the certified-singleton provider adapter used as the common
      arithmetic target for balls, Cauchy, continued fractions, algebraic reals,
      and Numerics algorithm reals.
-   - [ ] Implement coarse oracles and distinguish `eta` resolution from host
+   - [x] Implement coarse oracles and distinguish `eta` resolution from host
      resource exhaustion.
 3. **Phase 3 — Ordering, arithmetic, and evidence**
    - [ ] Implement epsilon-trichotomy, compatibility, and bounded comparison.

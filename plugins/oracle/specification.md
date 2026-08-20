@@ -1,6 +1,7 @@
 # Oracle Plugin Implementation Specification
 
-> **Status:** Phase 1 implemented as a pure RiX plugin; later phases remain proposed.  
+> **Status:** Checklist Phases 1 and 2 implemented as a pure RiX plugin;
+> ordering, funnel arithmetic, and proof-integration phases remain proposed.
 > **Source of truth reviewed:**
 > [`paper/oracles_short.tex`](../../../paper/oracles_short.tex), as present in
 > this repository on 2026-07-22. The paper is still evolving; terminology and
@@ -255,13 +256,13 @@ multifunction variants of the same operation.
 
 ```rix
 .oracle.Proto({= procedure = ask, existence = seedProvider })
-.oracle.Coarse({= procedure = ask, eta = 1 / 1000 })
+.oracle.Coarse(interval, eta, options?)
 .oracle.Complete({= procedure = ask, claims = [:certainty, :consistency, :closed] })
 
 .oracle.Rational(q)
 .oracle.Rational(q, {= procedure = :singular | :reflexive | :halo | :randomHalo | :bisection })
 .oracle.FromFunnel(funnel)
-.oracle.Cauchy(sequence, modulus)
+.oracle.Cauchy(certifiedCauchySource, options?)
 .oracle.Testing({= function = f, domain = interval, rootEvidence = evidence })
 .oracle.NthRoot(value, n, options?)
 ```
@@ -292,6 +293,8 @@ have been exhausted unless the provider certifies that fact.
 .oracle.Bisect(real, startingProphecy, options?)
 .oracle.ToFunnel(real, policy?)
 .oracle.FromFunnel(funnel)
+.oracle.FunnelRefine(funnel, {= absoluteWidth=epsilon, maxCalls=100, trace=1 })
+.oracle.NthRootFunnel(value, n, options?)
 ```
 
 The default `Refine` implementation uses the paper's bisection construction
@@ -383,6 +386,12 @@ should display:
 - a comparison with `.float` that labels Float output approximate rather than
   certified.
 
+The implemented positive-root recurrence starts with positive Rational `a`,
+sets `b = q/a^(n-1)`, and returns the interval between them. It then replaces
+`a` by `a + (b-a)/n` and recomputes `b`. Exact endpoint-power checks establish
+that every emitted interval brackets the positive root; no floating-point
+estimate is used to tighten or certify an endpoint.
+
 ### 6.4 Cauchy adapter
 
 Given a rational Cauchy sequence and a certified tail modulus/bound, construct
@@ -390,13 +399,18 @@ intervals around sufficiently late terms, turn those intervals into a funnel,
 and derive the Oracle. An unadorned sequence with no effective tail information
 is insufficient for executable refinement.
 
+The implemented adapter consumes this evidence through the shared
+`NumericsCapabilities` and refinement protocols. It therefore depends on the
+public certified-singleton contract rather than the Cauchy plugin's internals.
+
 ### 6.5 Funnel-to-oracle adapter
 
-Follow the scale accounting in the paper: obtain a sufficiently small funnel
-interval, answer according to its intersection with the query, and use the
-appropriate fuzziness factor (the current draft derives the oracle query at a
-`2 * delta` halo). This factor must be named in code and covered by exact
-boundary tests rather than hidden as a magic constant.
+The implemented adapter obtains a funnel interval of width below `delta/2`.
+If it intersects the query, the whole interval is necessarily inside the open
+`delta` halo and is a valid Yes prophecy; if it is disjoint, it is a valid No
+prophecy. Failure to reach that width within the finite policy returns Unknown
+with the refinement status and best certified enclosure retained by the
+funnel result.
 
 ## 7. Arithmetic
 

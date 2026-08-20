@@ -206,4 +206,136 @@ describe("pure RiX Oracle plugin", () => {
         expect(entry(result.values[1].details, "backend").value).toBe("oracle");
         expect(entry(result.values[1].details, "achievedWidth").toString()).toBe("2");
     });
+
+    test("builds exact Newton funnels whose every emitted interval brackets the root", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("oracle");
+            funnel = .oracle.NthRootFunnel(2, 2, {= start=2 });
+            refined = .oracle.FunnelRefine(funnel, {=
+                absoluteWidth=1/1000,
+                maxCalls=20,
+                maxIterations=20,
+                trace=1
+            });
+            oracle = .oracle.FromFunnel(funnel);
+            adapted = .oracle.Refine(oracle, {= width=1/1000, maxCalls=20, trace=1 });
+            {:
+                funnel.Record(),
+                funnel.NumericsCapabilities(),
+                refined,
+                adapted,
+                refined[:trace].Map((step) ->
+                    step[:interval].Low()^2 <= 2 && step[:interval].High()^2 >= 2
+                ),
+                .oracle.Ask(oracle, 1:(3/2), 1/1000)
+            };
+        `, options);
+
+        const [record, capabilities, refined, adapted, bracketChecks, answer] = result.values;
+        expect(textValue(entry(record, "constructor"))).toBe("rationalNewtonNthRoot");
+        expect(textValue(entry(capabilities, "denotation"))).toBe("singleton");
+        expect(entry(capabilities, "certified").value).toBe(1n);
+        expect(textValue(entry(refined, "status"))).toBe("enclosed");
+        expect(entry(refined, "certified").value).toBe(1n);
+        expect(entry(refined, "achievedWidth").lessThan(new Rational(1n, 1000n))).toBe(true);
+        expect(entry(refined, "interval")).toBeInstanceOf(RationalInterval);
+        expect(bracketChecks.values.every((value) => value?.value === 1n)).toBe(true);
+        expect(textValue(entry(adapted, "status"))).toBe("enclosed");
+        expect(entry(adapted, "interval").toString()).toBe(entry(refined, "interval").toString());
+        expect(textValue(entry(answer, "status"))).toBe("yes");
+
+        const trace = entry(refined, "trace").values.map((step) => entry(step, "interval"));
+        for (let index = 1; index < trace.length; index += 1) {
+            expect(trace[index - 1].overlaps(trace[index])).toBe(true);
+        }
+    });
+
+    test("keeps Newton exhaustion certified and distinct from reaching the target", () => {
+        const options = runtime();
+        const exhausted = parseAndEvaluate(`
+            .Plugin.Load("oracle");
+            .oracle.FunnelRefine(
+                .oracle.NthRootFunnel(2, 2),
+                {= absoluteWidth=1/1000, maxCalls=0, maxIterations=0, trace=1 }
+            );
+        `, options);
+
+        expect(textValue(entry(exhausted, "status"))).toBe("budgetExhausted");
+        expect(entry(exhausted, "goalMet")).toBeNull();
+        expect(entry(exhausted, "certified").value).toBe(1n);
+        expect(entry(exhausted, "interval").containsValue(new Rational(1n))).toBe(true);
+        expect(entry(exhausted, "interval").containsValue(new Rational(2n))).toBe(true);
+        expect(entry(exhausted, "approximation")).toBeInstanceOf(CertifiedApproximation);
+    });
+
+    test("adapts certified Cauchy refinement through the generic funnel protocol", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("cauchy");
+            source = .cauchy.Geometric(1, 1/2);
+            generic = .oracle.ToFunnel(source, {= name=:binaryGeometric });
+            viaCauchy = .oracle.Cauchy(source);
+            declared = .cauchy.Certified((n)->1, (n)->0, (radius)->0);
+            {:
+                .oracle.FunnelRefine(generic, {= absoluteWidth=1/1000, maxCalls=20 }),
+                .oracle.Refine(viaCauchy, {= width=1/1000, maxCalls=20 }),
+                generic.Record(),
+                .oracle.ToFunnel(declared, {= evidenceLevel=:proof }).NumericsCapabilities(),
+                .oracle.Ask(viaCauchy, 0:1, 1/(2^150))
+            };
+        `, options);
+
+        const [generic, adapted, record, declaredCapabilities, unknown] = result.values;
+        expect(textValue(entry(generic, "status"))).toBe("enclosed");
+        expect(textValue(entry(generic, "backend"))).toBe("oracleFunnel");
+        expect(entry(generic, "interval").containsValue(new Rational(2n))).toBe(true);
+        expect(entry(generic, "achievedWidth").lessThan(new Rational(1n, 1000n))).toBe(true);
+        expect(textValue(entry(adapted, "status"))).toBe("enclosed");
+        expect(entry(adapted, "interval").containsValue(new Rational(2n))).toBe(true);
+        expect(textValue(entry(record, "kind"))).toBe("provider");
+        expect(textValue(entry(entry(record, "compatibilityEvidence"), "property")))
+            .toBe("pairwiseIntersection");
+        expect(entry(declaredCapabilities, "evidenceLevels").values.map(textValue))
+            .toEqual(["constructorGuarantee"]);
+        expect(textValue(entry(unknown, "status"))).toBe("unknown");
+        expect(textValue(entry(unknown, "reason"))).toBe("budgetExhausted");
+        expect(entry(entry(unknown, "evidence"), "interval").containsValue(new Rational(2n))).toBe(true);
+    });
+
+    test("reports coarse eta resolution independently of work exhaustion", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("oracle");
+            .Plugin.Load("numerics");
+            coarse = .oracle.Coarse((2/5):(3/5), 1/10);
+            {:
+                .oracle.Refine(coarse, {= width=1/4, maxCalls=0 }),
+                .oracle.Refine(coarse, {= width=1/1000, maxCalls=0 }),
+                .numerics.Refine(coarse, {= absoluteWidth=1/1000, maxWork=0 }),
+                coarse.NumericsCapabilities(),
+                .oracle.Ask(coarse, 0:1, 1/10),
+                .oracle.Ask(coarse, (4/5):1, 1/100),
+                .oracle.Ask(coarse, (1/2):(51/100), 1/100)
+            };
+        `, options);
+
+        const [wide, fine, genericFine, capabilities, yes, no, unknown] = result.values;
+        expect(textValue(entry(wide, "status"))).toBe("enclosed");
+        expect(textValue(entry(fine, "status"))).toBe("resolutionFloor");
+        expect(entry(fine, "certified").value).toBe(1n);
+        expect(entry(entry(fine, "work"), "exhausted")).toBeNull();
+        expect(entry(fine, "diagnostics").values.map(textValue)).toContain("etaResolutionFloor");
+        expect(textValue(entry(genericFine, "status"))).toBe("resolutionFloor");
+        expect(entry(genericFine, "interval").toString()).toBe("2/5:3/5");
+        expect(textValue(entry(capabilities, "denotation"))).toBe("coarseCompatibilityClass");
+        expect(entry(capabilities, "arbitraryRefinement")).toBeNull();
+        expect(entry(capabilities, "minimumWidth").toString()).toBe("1/5");
+        expect([yes, no, unknown].map((answer) => textValue(entry(answer, "status"))))
+            .toEqual(["yes", "no", "unknown"]);
+        expect(textValue(entry(unknown, "reason"))).toBe("etaResolution");
+
+        expect(() => parseAndEvaluate('.oracle.Coarse(0:1, 1/10)', options))
+            .toThrow("must not exceed 2*eta");
+    });
 });
