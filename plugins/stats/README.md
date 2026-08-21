@@ -17,12 +17,15 @@ values := [1/3, 2/3, 5/3, 7/3];
 ```
 
 The public operations are `Count`, `Mean`, `Quantile`, `Median`, `Variance`,
-`SampleVariance`, `NormalPDF`, `NormalCDF`, `NormalQuantile`, `Summary`,
+`SampleVariance`, `Correlation`, `NormalPDF`, `NormalCDF`, `NormalQuantile`, `Summary`,
 `SummaryTable`, `Histogram`,
 `HistogramGraphic`, `BoxPlot`, `DistributionSummary`, `SimulationValues`, `SimulationSummary`,
-`MeanConfidence`, `ProportionConfidence`, `OneSampleZTest`, `TwoSampleZTest`,
+`MeasurementIntervals`, `IntervalMean`, `IntervalSummary`,
+`IntervalOneSampleZTest`, `IntervalTestDecision`, `IntervalTestTable`,
+`MeanConfidence`, `MeanTConfidence`, `PairedMeanDifferenceConfidence`,
+`MeanDifferenceConfidence`, `ProportionConfidence`, `OneSampleZTest`, `TwoSampleZTest`,
 `OneProportionZTest`, `TwoProportionZTest`, `OneSampleTTest`, `PairedTTest`,
-`TwoSampleTTest`, `OneWayANOVA`, `ChiSquareGoodnessOfFit`,
+`TwoSampleTTest`, `CorrelationTest`, `RegressionSlopeTest`, `OneWayANOVA`, `ChiSquareGoodnessOfFit`,
 `ChiSquareIndependence`, `TestDecision`, `TestTable`, `LinearRegression`,
 `Predict`, `RegressionTable`, and `ResidualTable`. `Summary` uses the portable
 `rix.stats.summary@1` schema; histograms use `rix.stats.histogram@1`.
@@ -96,6 +99,33 @@ current certified elementary tail kernel uses their floor as an explicitly
 recorded integer-degree approximation; inspect `degreesOfFreedom`,
 `referenceDegreesOfFreedom`, `pValueStatus`, and `pValueQualification`. Set
 `equalVariance=1` only when the pooled-variance assumption is justified.
+
+`MeanTConfidence`, `PairedMeanDifferenceConfidence`, and
+`MeanDifferenceConfidence` use certified Student-t tails to bracket a critical
+value and deliberately use the bracket's upper endpoint, widening rather than
+narrowing the reported interval. `CorrelationTest` is the usual Pearson
+correlation t procedure; `RegressionSlopeTest` applies its equivalent to a
+simple regression result.
+
+## Interval measurements
+
+`MeasurementIntervals(centers,errors)` constructs exact closed measurement
+intervals. `IntervalSummary` reports mean, possible minimum, and possible
+maximum ranges that enclose every point dataset consistent with those
+measurements; its midpoint summary is labeled and never substituted silently.
+
+`IntervalOneSampleZTest(values,nullMean,knownPopulationStandardDeviation,alt)`
+computes the minimum and maximum attainable normal-reference p-values over the
+whole measurement box. Its decision is one of `:rejectForAllMeasurements`,
+`:failToRejectForAllMeasurements`, `:measurementDependent`, or `:unresolved`.
+This separates bounded measurement uncertainty from sampling uncertainty.
+General interval t/ANOVA/regression procedures are not yet claimed.
+
+```rix
+measurements := .stats.MeasurementIntervals([10,12,14],[1,1/2,2]);
+test := .stats.IntervalOneSampleZTest(measurements,10,2,:greater);
+[.stats.IntervalSummary(measurements)[:meanRange],test.Decision()[:status]];
+```
 
 One-way ANOVA uses the standard fixed-effects F statistic. The chi-square
 procedures use Pearson statistics. Assumption labels are data, not claims that

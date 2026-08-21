@@ -52,7 +52,7 @@ describe("data and csv plugins", () => {
         expect(result.values[2]).toMatchObject({ type: "output", kind: "table", caption: "Exact scores" });
         expect(result.values[2].rows).toHaveLength(3);
         expect(parseAndEvaluate('.Plugin.Info("data").Get("provides")', options).values.map(({ value }) => value))
-            .toEqual(["rix.data.relation@1", "rix.data.groups@1", "rix.data.row-source@1"]);
+            .toEqual(["rix.data.relation@1", "rix.data.groups@1", "rix.data.contingency@1", "rix.data.row-source@1"]);
     });
 
     test("relation schema and row diagnostics reject malformed data", () => {
@@ -104,7 +104,7 @@ describe("data and csv plugins", () => {
         ]);
         expect(result.values[2].values.find((column) => column.entries.get("id").value === "amount").entries.get("nullable")).not.toBeNull();
         expect(parseAndEvaluate('.Plugin.Info("data").Get("provides")', options).values.map(({ value }) => value))
-            .toEqual(["rix.data.relation@1", "rix.data.groups@1", "rix.data.row-source@1"]);
+            .toEqual(["rix.data.relation@1", "rix.data.groups@1", "rix.data.contingency@1", "rix.data.row-source@1"]);
     });
 
     test("calculated columns, explicit missing policy, and bounded row sources compose", () => {

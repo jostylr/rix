@@ -1,4 +1,4 @@
-import { Integer, Rational } from "@ratmath/core";
+import { Integer, Rational, RationalInterval } from "@ratmath/core";
 
 const stringValue = (value) => ({ type: "string", value: String(value) });
 const sequenceValue = (values) => ({ type: "sequence", values });
@@ -45,6 +45,8 @@ const TYPE_NAMES = new Map([
     ["integer", "Integer"],
     ["rational", "Rational"],
     ["number", "Number"],
+    ["interval", "Interval"],
+    ["rationalinterval", "Interval"],
     ["string", "String"],
 ]);
 
@@ -52,7 +54,7 @@ function columnType(value, index) {
     if (value === null || value === undefined) return "Any";
     const source = text(value, `data column ${index + 1} type`).replace(/^:/, "").toLowerCase();
     const result = TYPE_NAMES.get(source);
-    if (!result) throw new Error(`data column ${index + 1} type must be Any, Integer, Rational, Number, or String`);
+    if (!result) throw new Error(`data column ${index + 1} type must be Any, Integer, Rational, Number, Interval, or String`);
     return result;
 }
 
@@ -88,6 +90,7 @@ function valueMatchesType(value, type) {
     if (type === "Integer") return value instanceof Integer;
     if (type === "Rational") return value instanceof Integer || value instanceof Rational;
     if (type === "Number") return value instanceof Integer || value instanceof Rational;
+    if (type === "Interval") return value instanceof Integer || value instanceof Rational || value instanceof RationalInterval;
     if (type === "String") return value?.type === "string" || typeof value === "string";
     return false;
 }
@@ -182,6 +185,47 @@ export function projectRelation(args) {
     );
 }
 
+export function renameRelation(args) {
+    if (args.length !== 2) throw new Error("data.Rename expects a Relation and rename map");
+    const relation = requireRelation(args[0], "data.Rename");
+    const requested = entries(args[1], "data.Rename map");
+    if (!requested.size) return makeRelation(Object.freeze([...relation.columns]), Object.freeze([...relation.rows]), [...relation.provenance.operations, "rename"]);
+    const renames = new Map();
+    for (const [sourceValue, targetValue] of requested) {
+        const source = String(sourceValue);
+        const target = text(targetValue, `data.Rename target for '${source}'`);
+        const index = columnIndex(relation, source, "data.Rename map");
+        if (!target.trim()) throw new Error(`data.Rename target for '${source}' must not be empty`);
+        if (renames.has(index)) throw new Error(`data.Rename repeats source column '${source}'`);
+        renames.set(index, target);
+    }
+    const ids = relation.columns.map((column, index) => (renames.has(index) ? renames.get(index) : column.id));
+    if (new Set(ids.map((id) => id.toLowerCase())).size !== ids.length) throw new Error("data.Rename would create duplicate column ids");
+    const columns = relation.columns.map((column, index) => {
+        if (!renames.has(index)) return column;
+        const id = renames.get(index);
+        return Object.freeze({ ...column, id, label: column.label === column.id ? id : column.label });
+    });
+    return makeRelation(Object.freeze(columns), Object.freeze([...relation.rows]), [...relation.provenance.operations, "rename"]);
+}
+
+export function distinctRelation(args) {
+    if (args.length < 1 || args.length > 2) throw new Error("data.Distinct expects a Relation and optional columns");
+    const relation = requireRelation(args[0], "data.Distinct");
+    const selected = args.length === 1
+        ? relation.columns.map((_, index) => index)
+        : selectedColumnIds(args[1], relation, "data.Distinct columns");
+    if (!selected.length) throw new Error("data.Distinct requires at least one column");
+    const seen = new Set();
+    const rows = relation.rows.filter((row) => {
+        const signature = keySignature(row, selected);
+        if (seen.has(signature)) return false;
+        seen.add(signature);
+        return true;
+    });
+    return makeRelation(Object.freeze([...relation.columns]), Object.freeze(rows), [...relation.provenance.operations, "distinct"]);
+}
+
 function rowMap(relation, row) {
     return mapValue(relation.columns.map((column, index) => [column.id, row[index]]));
 }
@@ -212,6 +256,19 @@ function exactParts(value) {
     return null;
 }
 
+function rationalCompare(left, right) {
+    const difference = left.numerator * right.denominator - right.numerator * left.denominator;
+    return difference < 0n ? -1 : difference > 0n ? 1 : 0;
+}
+
+function measurementParts(value) {
+    if (value instanceof RationalInterval) return [value.low, value.high];
+    const exact = exactParts(value);
+    if (!exact) return null;
+    const point = new Rational(exact[0], exact[1]);
+    return [point, point];
+}
+
 function compareValues(left, right, column, operation = "Sort") {
     if (left === null || right === null) return left === right ? 0 : left === null ? 1 : -1;
     const leftExact = exactParts(left);
@@ -219,6 +276,12 @@ function compareValues(left, right, column, operation = "Sort") {
     if (leftExact && rightExact) {
         const difference = leftExact[0] * rightExact[1] - rightExact[0] * leftExact[1];
         return difference < 0n ? -1 : difference > 0n ? 1 : 0;
+    }
+    const leftMeasurement = measurementParts(left);
+    const rightMeasurement = measurementParts(right);
+    if (leftMeasurement && rightMeasurement) {
+        const low = rationalCompare(leftMeasurement[0], rightMeasurement[0]);
+        return low || rationalCompare(leftMeasurement[1], rightMeasurement[1]);
     }
     const leftText = left?.type === "string" ? left.value : typeof left === "string" ? left : null;
     const rightText = right?.type === "string" ? right.value : typeof right === "string" ? right : null;
@@ -286,8 +349,9 @@ function joinColumns(value, left, right) {
 function joinedKeyType(leftColumn, rightColumn) {
     if (leftColumn.type === rightColumn.type) return leftColumn.type;
     if (leftColumn.type === "Any" || rightColumn.type === "Any") return "Any";
-    const numeric = new Set(["Integer", "Rational", "Number"]);
+    const numeric = new Set(["Integer", "Rational", "Number", "Interval"]);
     if (numeric.has(leftColumn.type) && numeric.has(rightColumn.type)) {
+        if (leftColumn.type === "Interval" || rightColumn.type === "Interval") return "Interval";
         if (leftColumn.type === "Number" || rightColumn.type === "Number") return "Number";
         return "Rational";
     }
@@ -394,9 +458,16 @@ function keySignature(row, selected) {
         if (value === null) return "missing";
         const exact = exactParts(value);
         if (exact) return `q:${exact[0]}/${exact[1]}`;
+        const measurement = measurementParts(value);
+        if (measurement) {
+            if (rationalCompare(measurement[0], measurement[1]) === 0) {
+                return `q:${measurement[0].numerator}/${measurement[0].denominator}`;
+            }
+            return `i:${measurement[0].numerator}/${measurement[0].denominator}:${measurement[1].numerator}/${measurement[1].denominator}`;
+        }
         if (value?.type === "string") return `s:${value.value}`;
         if (typeof value === "string") return `s:${value}`;
-        throw new Error("data.Group keys must be missing, exact numeric, or string values");
+        throw new Error("data.Group keys must be missing, exact numeric, interval, or string values");
     }).map((part) => `${part.length}:${part}`).join("|");
 }
 
@@ -467,7 +538,7 @@ function aggregateSpec(value, groups, index) {
     const missing = operationName(field(spec, "missing", stringValue("skip")), `data.Aggregate specification ${index + 1} missing policy`);
     if (!["skip", "propagate", "error"].includes(missing)) throw new Error("data.Aggregate missing policy must be skip, propagate, or error");
     const sourceType = sourceIndex === null ? "Integer" : groups.relation.columns[sourceIndex].type;
-    const type = op === "count" ? "Integer" : op === "mean" ? "Rational" : sourceType;
+    const type = op === "count" ? "Integer" : op === "mean" && sourceType !== "Interval" ? "Rational" : sourceType;
     return { op, sourceIndex, id, missing, column: Object.freeze({ id, label: id, type, nullable: op !== "count" }) };
 }
 
@@ -482,13 +553,28 @@ function aggregateValue(group, spec, relation) {
     if (spec.op === "count") return new Integer(BigInt(values.length));
     if (!values.length) return null;
     if (spec.op === "first") return values[0];
+    if ((spec.op === "min" || spec.op === "max") && relation.columns[spec.sourceIndex].type === "Interval") {
+        const measurements = values.map((value) => measurementParts(value));
+        const low = measurements.slice(1).reduce((best, value) => {
+            const endpoint = value[0];
+            const compared = rationalCompare(endpoint, best);
+            return spec.op === "min" ? (compared < 0 ? endpoint : best) : (compared > 0 ? endpoint : best);
+        }, measurements[0][0]);
+        const high = measurements.slice(1).reduce((best, value) => {
+            const endpoint = value[1];
+            const compared = rationalCompare(endpoint, best);
+            return spec.op === "min" ? (compared < 0 ? endpoint : best) : (compared > 0 ? endpoint : best);
+        }, measurements[0][1]);
+        return new RationalInterval(low, high);
+    }
     if (spec.op === "min" || spec.op === "max") {
         return values.slice(1).reduce((best, value) => {
             const compared = compareValues(value, best, relation.columns[spec.sourceIndex], "Aggregate");
             return spec.op === "min" ? (compared < 0 ? value : best) : (compared > 0 ? value : best);
         }, values[0]);
     }
-    const total = values.reduce((sum, value) => sum.add(exactRational(value, `data.Aggregate ${spec.op}`)), new Rational(0n, 1n));
+    const intervalSource = relation.columns[spec.sourceIndex].type === "Interval";
+    const total = values.reduce((sum, value) => sum.add(intervalSource ? value : exactRational(value, `data.Aggregate ${spec.op}`)), new Rational(0n, 1n));
     return collapseRational(spec.op === "mean" ? total.divide(new Rational(BigInt(values.length), 1n)) : total);
 }
 
@@ -508,6 +594,93 @@ export function aggregateGroups(args) {
         ...groups.relation.provenance.operations,
         "group",
         "aggregate",
+    ]);
+}
+
+export function frequencyRelation(args) {
+    if (args.length < 2 || args.length > 3) throw new Error("data.Frequency expects a Relation, columns, and optional options");
+    const relation = requireRelation(args[0], "data.Frequency");
+    const selected = selectedColumnIds(args[1], relation, "data.Frequency columns");
+    if (!selected.length) throw new Error("data.Frequency requires at least one column");
+    const groups = [];
+    const bySignature = new Map();
+    for (const row of relation.rows) {
+        const signature = keySignature(row, selected);
+        let group = bySignature.get(signature);
+        if (!group) {
+            group = { key: selected.map((index) => row[index]), count: 0 };
+            bySignature.set(signature, group);
+            groups.push(group);
+        }
+        group.count += 1;
+    }
+    const countId = text(option(args[2], "count", stringValue("count")), "data.Frequency count column");
+    const proportionId = text(option(args[2], "proportion", stringValue("proportion")), "data.Frequency proportion column");
+    const includeProportion = truthy(option(args[2], "includeProportion", new Integer(1n)));
+    const baseColumns = selected.map((index) => relation.columns[index]);
+    const columns = [
+        ...baseColumns,
+        Object.freeze({ id: countId, label: countId, type: "Integer", nullable: false }),
+        ...(includeProportion ? [Object.freeze({ id: proportionId, label: proportionId, type: "Rational", nullable: false })] : []),
+    ];
+    if (new Set(columns.map(({ id }) => id.toLowerCase())).size !== columns.length) throw new Error("data.Frequency result contains duplicate column ids");
+    const total = relation.rows.length;
+    const rows = groups.map(({ key, count }) => Object.freeze([
+        ...key,
+        new Integer(BigInt(count)),
+        ...(includeProportion ? [collapseRational(new Rational(BigInt(count), BigInt(total)))] : []),
+    ]));
+    return makeRelation(Object.freeze(columns), Object.freeze(rows), [...relation.provenance.operations, "frequency"]);
+}
+
+export function contingencyRelation(args) {
+    if (args.length < 3 || args.length > 4) throw new Error("data.Contingency expects a Relation, row column, column column, and optional options");
+    const relation = requireRelation(args[0], "data.Contingency");
+    const rowIndex = columnIndex(relation, args[1], "data.Contingency row column");
+    const columnIndexValue = columnIndex(relation, args[2], "data.Contingency column column");
+    if (rowIndex === columnIndexValue) throw new Error("data.Contingency row and column variables must differ");
+    const missing = operationName(option(args[3], "missing", stringValue("drop")), "data.Contingency missing policy");
+    if (!["drop", "error"].includes(missing)) throw new Error("data.Contingency missing policy must be drop or error");
+    const rowLevels = [];
+    const columnLevels = [];
+    const rowLookup = new Map();
+    const columnLookup = new Map();
+    const kept = [];
+    for (const row of relation.rows) {
+        if (row[rowIndex] === null || row[columnIndexValue] === null) {
+            if (missing === "error") throw new Error("data.Contingency encountered a missing category");
+            continue;
+        }
+        const rowSignature = keySignature(row, [rowIndex]);
+        const columnSignature = keySignature(row, [columnIndexValue]);
+        if (!rowLookup.has(rowSignature)) {
+            rowLookup.set(rowSignature, rowLevels.length);
+            rowLevels.push(row[rowIndex]);
+        }
+        if (!columnLookup.has(columnSignature)) {
+            columnLookup.set(columnSignature, columnLevels.length);
+            columnLevels.push(row[columnIndexValue]);
+        }
+        kept.push({ rowSignature, columnSignature });
+    }
+    if (rowLevels.length < 2 || columnLevels.length < 2) throw new Error("data.Contingency requires at least two observed levels for each variable");
+    const counts = rowLevels.map(() => columnLevels.map(() => 0));
+    for (const { rowSignature, columnSignature } of kept) counts[rowLookup.get(rowSignature)][columnLookup.get(columnSignature)] += 1;
+    const countValues = counts.map((row) => row.map((value) => new Integer(BigInt(value))));
+    const rowTotals = countValues.map((row) => row.reduce((sum, value) => sum.add(value), new Integer(0n)));
+    const columnTotals = columnLevels.map((_, column) => countValues.reduce((sum, row) => sum.add(row[column]), new Integer(0n)));
+    return mapValue([
+        ["valuekind", stringValue("dataContingency")],
+        ["schema", stringValue("rix.data.contingency@1")],
+        ["rowvariable", stringValue(relation.columns[rowIndex].id)],
+        ["columnvariable", stringValue(relation.columns[columnIndexValue].id)],
+        ["rowlevels", sequenceValue(rowLevels)],
+        ["columnlevels", sequenceValue(columnLevels)],
+        ["counts", sequenceValue(countValues.map((row) => sequenceValue(row)))],
+        ["rowtotals", sequenceValue(rowTotals)],
+        ["columntotals", sequenceValue(columnTotals)],
+        ["total", new Integer(BigInt(kept.length))],
+        ["exact", new Integer(1n)],
     ]);
 }
 

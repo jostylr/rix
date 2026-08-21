@@ -16,9 +16,9 @@ bestFirst := .data.Sort(scores, ["score"], {= descending=1 });
 .data.TableView(bestFirst, {= caption="Exact scores" });
 ```
 
-Public operations are `Relation`, `Project`, `Filter`, `Sort`, `Join`, `Group`,
-`Aggregate`, `Calculate`, `Missing`, `RowSource`, `Collect`, `TableView`,
-`Schema`, and `Rows`. A filter or calculated-column function receives `(row, oneBasedIndex,
+Public operations are `Relation`, `Project`, `Rename`, `Distinct`, `Filter`,
+`Sort`, `Join`, `Group`, `Aggregate`, `Frequency`, `Contingency`, `Calculate`,
+`Missing`, `RowSource`, `Collect`, `TableView`, `Schema`, and `Rows`. A filter or calculated-column function receives `(row, oneBasedIndex,
 relation)`; `row` is a map keyed by schema ID. Sort is stable, accepts one or
 more column IDs, puts missing values last by default, and supports
 `descending=1` and `missingFirst=1`.
@@ -37,10 +37,18 @@ aggregate missing policies are explicit. Exact sums and means remain exact.
 {= maxRows=... })` plus `Collect` provides a deliberately bounded pull source;
 it does not imply an unbounded or asynchronous stream.
 
-Initial schema types are `Any`, `Integer`, `Rational`, `Number`, and `String`.
+Schema types are `Any`, `Integer`, `Rational`, `Number`, `Interval`, and
+`String`. An `Interval` column accepts `RationalInterval` values and exact
+Integer/Rational points. Its grouped sum and mean use interval arithmetic;
+minimum and maximum return the tight endpoint ranges across all admissible
+measurements. Interval keys compare and group by their exact endpoint pairs.
 Columns are nullable unless `{= nullable=0 }` is specified. Unknown columns,
 duplicate IDs, row-width mismatches, and incompatible cell types are errors.
 
-The semantic schemas are `rix.data.relation@1`, `rix.data.groups@1`, and
-`rix.data.row-source@1`. Renderers may consume a relation directly;
+`Frequency` returns a relation of counts and exact proportions. `Contingency`
+returns `rix.data.contingency@1` with row/column levels, the count matrix,
+margins, and total.
+
+The semantic schemas are `rix.data.relation@1`, `rix.data.groups@1`,
+`rix.data.contingency@1`, and `rix.data.row-source@1`. Renderers may consume a relation directly;
 `.data.TableView` is for portable presentation and does not replace it.

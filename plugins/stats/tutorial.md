@@ -19,6 +19,21 @@ summary := .stats.Summary(values);
 [summary[:mean], summary[:median], summary[:populationVariance]];
 ```
 
+## Analyze interval measurements without midpoint substitution
+
+Generate intervals from stated centers and error bounds, summarize every
+admissible point dataset, and make a known-scale z decision over the whole
+measurement box.
+
+```rix
+.Plugin.Load("stats");
+measured := .stats.MeasurementIntervals([10,12,14],[1,1/2,2]);
+summary := .stats.IntervalSummary(measured);
+test := .stats.IntervalOneSampleZTest(measured,10,2,:greater);
+decision := test.Decision(1/20,{= absoluteWidth=1/500,maxWork=400 });
+[summary[:meanRange],summary[:minimumRange],summary[:maximumRange],decision[:status]];
+```
+
 ## Build portable representations
 
 Tables and plots are core output values. The same histogram and box plot can

@@ -975,6 +975,8 @@ the certified numerical singleton layer; it does not replace the core exact
 2. **Phase 2 — Relational operations**
    - [x] Add joins, groups, aggregates, calculated columns, missing-value
      policy, and streaming row sources.
+   - [x] Add rename, distinct, frequency, and contingency operations plus an
+     explicit Interval column type with enclosing grouped aggregates.
    - [x] Preserve exact RiX cell values until exporter formatting.
 3. **Phase 3 — Columnar and external data**
    - [ ] Add JSON/JSONL, Arrow/Parquet adapters, chunking, and typed tensors.
@@ -999,6 +1001,9 @@ the certified numerical singleton layer; it does not replace the core exact
      pooled/Welch t tests, one-way ANOVA, and Pearson chi-square goodness-of-fit
      and independence tests, with semantic result/decision records and explicit
      reference/assumption metadata.
+   - [x] Add Student-t confidence intervals, Pearson correlation/slope tests,
+     exact rational ordering, and conservative known-scale inference over
+     interval-valued measurements.
 3. **Phase 3 — Models and inference**
    - [ ] Add generalized models, resampling, Bayesian result protocols, and
      uncertainty visualization.
@@ -1036,8 +1041,10 @@ records without owning their probability semantics.
      experiments, emphasizing that Cauchy means neither stabilize nor satisfy
      the finite-variance CLT hypotheses.
 3. **Phase 3 — Random variables and probability structures**
-   - [ ] Add transformations, sums/convolutions, mixtures, joint laws,
-     marginals, conditioning, covariance, and expectation of functions.
+   - [x] Add finite transformations, joint laws, marginals, conditioning,
+     independence, covariance, expectation of functions, and elementary Bayes
+     updates.
+   - [ ] Add sums/convolutions and mixtures of arbitrary user laws.
    - [ ] Add law-of-large-numbers/CLT evidence records, concentration bounds,
      conditional simulation, simple Markov chains, and finite martingales.
 4. **Phase 4 — Advanced and interoperable probability**

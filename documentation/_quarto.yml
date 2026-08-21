@@ -17,6 +17,7 @@ project:
     - index.qmd
     - getting-started.qmd
     - language-at-a-glance.qmd
+    - undergraduate-probability-statistics-data-analysis.qmd
     - highlights.md
     - introduction.md
     - status.qmd
@@ -105,6 +106,8 @@ website:
         href: getting-started.qmd
       - text: Learn
         href: language-at-a-glance.qmd
+      - text: Probability & statistics
+        href: undergraduate-probability-statistics-data-analysis.qmd
       - text: Reference
         href: eval/syntax-guide.md
       - text: Internals

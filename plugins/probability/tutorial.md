@@ -47,6 +47,19 @@ dice := .probability.Dice(2, 6);
 [dice.PMF(7), dice.CDF(6), dice.Mean(), dice.Variance()];
 ```
 
+## Condition and transform finite laws
+
+Finite conditioning, transformed random variables, and moments remain exact.
+
+```rix
+.Plugin.Load("probability");
+die := .probability.Finite([1,2,3,4,5,6],[1,1,1,1,1,1]);
+even := .probability.Conditional(die,(x)->x%2==0);
+square := .probability.RandomVariable(die,(x)->x^2);
+update := .probability.Bayes(1/100,99/100,1/100);
+[even.PMF(4),square.PMF(16),.probability.ExpectedValue(die),update[:posterior]];
+```
+
 ## Draw cards exactly or simulate a deck
 
 `CardDraw(52,4,5)` is the hypergeometric law for the number of aces in a

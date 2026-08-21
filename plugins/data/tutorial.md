@@ -88,3 +88,26 @@ source := .data.RowSource([{= id="n", type=:Integer }],
 );
 [.data.Rows(derived), .data.Rows(.data.Collect(source, 3))];
 ```
+
+## Preserve interval-valued measurements
+
+An `Interval` column keeps bounded measurement uncertainty through exact
+grouped aggregation. The result encloses every total, mean, minimum, and
+maximum consistent with the input rows.
+
+```rix
+.Plugin.Load("data");
+measured := .data.Relation([
+    {= id="batch",type=:String,nullable=0 },
+    {= id="distance",type=:Interval,nullable=0 }
+],[["a",9:11],["a",23/2:25/2],["a",12:16]]);
+summary := .data.Aggregate(.data.Group(measured,["batch"]),[
+    {= id="mean",column="distance",op=:mean },
+    {= id="minimum",column="distance",op=:min },
+    {= id="maximum",column="distance",op=:max }
+]);
+.data.Rows(summary);
+```
+
+`Rename` and `Distinct` support cleaning, while `Frequency` and `Contingency`
+produce the standard categorical summaries.

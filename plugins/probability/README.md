@@ -21,6 +21,18 @@ The finite foundation provides:
 - `StandardDeck` and `DrawCards`; and
 - distribution-level `Sample`/`Simulate` methods plus namespace `Simulate`.
 
+Finite probability calculus includes `Conditional`,
+`ConditionalProbability`, `Bayes`, `RandomVariable`, `Joint`, `Marginal`,
+`ExpectedValue`, `VarianceOf`, `Covariance`, and `Independent`. These operate
+on finite enumerated distributions and keep all weights exact. `Bayes` returns
+an inspectable `rix.probability.bayes@1` record rather than only its posterior.
+
+```rix
+die := .probability.Finite([1,2,3,4,5,6],[1,1,1,1,1,1]);
+even := .probability.Conditional(die,(x)->x%2==0);
+[even.PMF(4),.probability.ExpectedValue(die)];
+```
+
 Finite PMFs, CDFs, moments, and samplers use exact Integer/Rational arithmetic.
 Sampling a Rational probability uses exact integer rejection through RiX's
 scoped RNG; it does not compare a binary float to the probability. Pass a seed

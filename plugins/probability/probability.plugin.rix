@@ -4,12 +4,12 @@ description: Exact finite probability, certified undergraduate distribution func
 kind: rix
 mount: probability
 aliases: [prob]
-exports: [Choose, Permutations, MultinomialCoefficient, CartesianPower, Event, Finite, Bernoulli, Categorical, Binomial, Multinomial, Geometric, NegativeBinomial, Hypergeometric, Poisson, Uniform, Normal, Exponential, Gamma, Beta, ChiSquare, StudentT, F, LogNormal, Cauchy, Dice, CardDraw, StandardDeck, DrawCards, Simulate]
+exports: [Choose, Permutations, MultinomialCoefficient, CartesianPower, Event, Finite, Conditional, ConditionalProbability, Bayes, RandomVariable, Joint, Marginal, ExpectedValue, VarianceOf, Covariance, Independent, Bernoulli, Categorical, Binomial, Multinomial, Geometric, NegativeBinomial, Hypergeometric, Poisson, Uniform, Normal, Exponential, Gamma, Beta, ChiSquare, StudentT, F, LogNormal, Cauchy, Dice, CardDraw, StandardDeck, DrawCards, Simulate]
 groups: [Probability, Exact, Random]
 permissions: []
 requires: [rix.numerics@1]
-provides: [rix.probability@1, rix.probability.distribution@1, rix.probability.simulation@1]
-schemas: [rix.probability.distribution@1, rix.probability.simulation@1, rix.probability.event@1]
+provides: [rix.probability@1, rix.probability.distribution@1, rix.probability.finite-calculus@1, rix.probability.simulation@1]
+schemas: [rix.probability.distribution@1, rix.probability.simulation@1, rix.probability.event@1, rix.probability.bayes@1]
 snapshot: false
 deterministic: false
 defaultEnabled: false
@@ -299,6 +299,114 @@ ProbFinite(outcomesValue, weightsValue ?= _, familyValue ?= :finite) -> {;
         Sample=(self,options ?= {= })->Sample(options),
         Simulate=(self,count,options ?= {= })->ProbSimulation(self,count,options,Sample,1,:exactCategorical)
     });
+};
+
+ProbFiniteComponents(distributionValue, label) -> {;
+    distribution = ProbRequireDistribution(distributionValue);
+    parameters = distribution[:parameters];
+    ((parameters ? :Map) && parameters.Has("outcomes") && parameters.Has("probabilities"))
+      ?: _
+      ?_ .Error(@"@{label} requires a finite enumerated distribution");
+    outcomes = ProbArray(parameters[:outcomes],@"@{label} outcomes");
+    probabilities = ProbArray(parameters[:probabilities],@"@{label} probabilities");
+    outcomes.Len() == probabilities.Len() ?: _ ?_ .Error(@"@{label} has inconsistent finite parameters");
+    {= distribution=distribution,outcomes=outcomes,probabilities=probabilities };
+};
+
+ProbFiniteProbability(distributionValue, predicate, label) -> {;
+    finite = ProbFiniteComponents(distributionValue,label);
+    matches = finite[:outcomes].Map(predicate);
+    state := 0;
+    {@ index = 1; index <= @finite[:outcomes].Len(); {;
+        @matches[index] ?: {; @state += @finite[:probabilities][@index]; } ?_ _;
+    }; index += 1 };
+    state;
+};
+
+ProbConditional(distributionValue, givenPredicate) -> {;
+    finite = ProbFiniteComponents(distributionValue,"Conditional");
+    matches = finite[:outcomes].Map(givenPredicate);
+    weights = matches.Map((matched,index)->matched ?: @finite[:probabilities][index] ?_ 0);
+    ProbSum(weights) > 0 ?: _ ?_ .Error("Conditional event must have positive probability");
+    ProbFinite(finite[:outcomes],weights,:conditional);
+};
+
+ProbConditionalProbability(distributionValue, eventPredicate, givenPredicate) -> {;
+    conditional = ProbConditional(distributionValue,givenPredicate);
+    ProbFiniteProbability(conditional,eventPredicate,"ConditionalProbability");
+};
+
+ProbBayes(priorValue, likelihoodGivenValue, likelihoodComplementValue) -> {;
+    prior = ProbUnit(priorValue,"Bayes prior probability");
+    likelihoodGiven = ProbUnit(likelihoodGivenValue,"Bayes likelihood under the hypothesis");
+    likelihoodComplement = ProbUnit(likelihoodComplementValue,"Bayes likelihood under the complement");
+    evidence = likelihoodGiven*prior+likelihoodComplement*(1-prior);
+    evidence.Numerator() != 0 ?: _ ?_ .Error("Bayes evidence probability must be positive");
+    .ImmutableValue({=
+        valueKind=:bayesUpdate,schema="rix.probability.bayes@1",prior=prior,
+        likelihoodGiven=likelihoodGiven,likelihoodComplement=likelihoodComplement,
+        evidence=evidence,posterior=likelihoodGiven*prior/evidence,exact=1
+    });
+};
+
+ProbRandomVariable(distributionValue, transform) -> {;
+    finite = ProbFiniteComponents(distributionValue,"RandomVariable");
+    outcomes = finite[:outcomes].Map(transform);
+    ProbFinite(outcomes,finite[:probabilities],:randomVariable);
+};
+
+ProbJoint(distributionValue, firstTransform, secondTransform) -> {;
+    finite = ProbFiniteComponents(distributionValue,"Joint");
+    first = finite[:outcomes].Map(firstTransform);
+    second = finite[:outcomes].Map(secondTransform);
+    outcomes = first.Map((value,index)->[value,@second[index]]);
+    ProbFinite(outcomes,finite[:probabilities],:jointRandomVariable);
+};
+
+ProbMarginal(distributionValue, indexValue) -> {;
+    index = ProbPositiveInteger(indexValue,"Marginal index");
+    ProbRandomVariable(distributionValue,(outcome)->{;
+        outcome ? :Array ?: _ ?_ .Error("Marginal outcomes must be Arrays");
+        @index <= outcome.Len() ?: outcome[@index] ?_ .Error("Marginal index exceeds a joint outcome");
+    });
+};
+
+ProbExpectedValue(distributionValue, transform ?= _) -> {;
+    finite = ProbFiniteComponents(distributionValue,"ExpectedValue");
+    values = transform == _ ?: finite[:outcomes] ?_ finite[:outcomes].Map(transform);
+    values.Reduce((sum,value,index)->sum+ProbRational(value,"ExpectedValue transformed outcome")*@finite[:probabilities][index],0);
+};
+
+ProbVarianceOf(distributionValue, transform ?= _) -> {;
+    finite = ProbFiniteComponents(distributionValue,"VarianceOf");
+    values = transform == _ ?: finite[:outcomes] ?_ finite[:outcomes].Map(transform);
+    mean = values.Reduce((sum,value,index)->sum+ProbRational(value,"VarianceOf transformed outcome")*@finite[:probabilities][index],0);
+    values.Reduce((sum,value,index)->sum+(ProbRational(value,"VarianceOf transformed outcome")-@mean)^2*@finite[:probabilities][index],0);
+};
+
+ProbCovariance(distributionValue, firstTransform, secondTransform) -> {;
+    finite = ProbFiniteComponents(distributionValue,"Covariance");
+    first = finite[:outcomes].Map(firstTransform).Map((value)->ProbRational(value,"Covariance first transformed outcome"));
+    second = finite[:outcomes].Map(secondTransform).Map((value)->ProbRational(value,"Covariance second transformed outcome"));
+    firstMean = first.Reduce((sum,value,index)->sum+value*@finite[:probabilities][index],0);
+    secondMean = second.Reduce((sum,value,index)->sum+value*@finite[:probabilities][index],0);
+    first.Reduce((sum,value,index)->sum+(value-@firstMean)*(@second[index]-@secondMean)*@finite[:probabilities][index],0);
+};
+
+ProbIndependent(distributionValue, firstPredicate, secondPredicate) -> {;
+    finite = ProbFiniteComponents(distributionValue,"Independent");
+    firstMatches = finite[:outcomes].Map(firstPredicate);
+    secondMatches = finite[:outcomes].Map(secondPredicate);
+    first := 0;
+    second := 0;
+    both := 0;
+    {@ index = 1; index <= @finite[:outcomes].Len(); {;
+        weight = @finite[:probabilities][index];
+        @firstMatches[index] ?: {; @first += @weight; } ?_ _;
+        @secondMatches[index] ?: {; @second += @weight; } ?_ _;
+        (@firstMatches[index] && @secondMatches[index]) ?: {; @both += @weight; } ?_ _;
+    }; index += 1 };
+    both == first*second ?: 1 ?_ 0;
 };
 
 ProbBinomial(nValue, probabilityValue, familyValue ?= :binomial) -> {;
@@ -1248,6 +1356,16 @@ probabilityNamespace._proto = {=
     CartesianPower=(self,values,count,maxOutcomes ?= 100000)->ProbCartesianPower(values,count,maxOutcomes),
     Event=(self,outcomes,predicate)->ProbEvent(outcomes,predicate),
     Finite=(self,outcomes,weights ?= _)->ProbFinite(outcomes,weights),
+    Conditional=(self,distribution,givenPredicate)->ProbConditional(distribution,givenPredicate),
+    ConditionalProbability=(self,distribution,eventPredicate,givenPredicate)->ProbConditionalProbability(distribution,eventPredicate,givenPredicate),
+    Bayes=(self,prior,likelihoodGiven,likelihoodComplement)->ProbBayes(prior,likelihoodGiven,likelihoodComplement),
+    RandomVariable=(self,distribution,transform)->ProbRandomVariable(distribution,transform),
+    Joint=(self,distribution,firstTransform,secondTransform)->ProbJoint(distribution,firstTransform,secondTransform),
+    Marginal=(self,distribution,index)->ProbMarginal(distribution,index),
+    ExpectedValue=(self,distribution,transform ?= _)->ProbExpectedValue(distribution,transform),
+    VarianceOf=(self,distribution,transform ?= _)->ProbVarianceOf(distribution,transform),
+    Covariance=(self,distribution,firstTransform,secondTransform)->ProbCovariance(distribution,firstTransform,secondTransform),
+    Independent=(self,distribution,firstPredicate,secondPredicate)->ProbIndependent(distribution,firstPredicate,secondPredicate),
     Bernoulli=(self,probability)->ProbBinomial(1,probability,:bernoulli),
     Categorical=(self,probabilities,outcomes ?= _)->ProbCategorical(probabilities,outcomes),
     Binomial=(self,n,probability)->ProbBinomial(n,probability),

@@ -4,12 +4,12 @@ description: Exact descriptive statistics, undergraduate hypothesis tests, confi
 kind: rix
 mount: stats
 aliases: [statistics]
-exports: [Count, Mean, Quantile, Median, Variance, SampleVariance, NormalPDF, NormalCDF, NormalQuantile, Summary, SummaryTable, Histogram, HistogramGraphic, BoxPlot, DistributionSummary, SimulationValues, SimulationSummary, MeanConfidence, ProportionConfidence, OneSampleZTest, TwoSampleZTest, OneProportionZTest, TwoProportionZTest, OneSampleTTest, PairedTTest, TwoSampleTTest, OneWayANOVA, ChiSquareGoodnessOfFit, ChiSquareIndependence, TestDecision, TestTable, LinearRegression, Predict, RegressionTable, ResidualTable]
+exports: [Count, Mean, Quantile, Median, Variance, SampleVariance, Correlation, NormalPDF, NormalCDF, NormalQuantile, Summary, SummaryTable, Histogram, HistogramGraphic, BoxPlot, DistributionSummary, SimulationValues, SimulationSummary, MeasurementIntervals, IntervalMean, IntervalSummary, IntervalOneSampleZTest, IntervalTestDecision, IntervalTestTable, MeanConfidence, MeanTConfidence, PairedMeanDifferenceConfidence, MeanDifferenceConfidence, ProportionConfidence, OneSampleZTest, TwoSampleZTest, OneProportionZTest, TwoProportionZTest, OneSampleTTest, PairedTTest, TwoSampleTTest, CorrelationTest, RegressionSlopeTest, OneWayANOVA, ChiSquareGoodnessOfFit, ChiSquareIndependence, TestDecision, TestTable, LinearRegression, Predict, RegressionTable, ResidualTable]
 groups: [Statistics, Exact, Graphics]
 permissions: []
 requires: [rix.numerics@1]
-provides: [rix.statistics@1, rix.stats.inference@1, rix.stats.hypothesis-tests@1, rix.stats.regression@1]
-schemas: [rix.stats.summary@1, rix.stats.histogram@1, rix.stats.distribution-summary@1, rix.stats.confidence@1, rix.stats.test@1, rix.stats.test-decision@1, rix.stats.regression@1]
+provides: [rix.statistics@1, rix.stats.interval-measurements@1, rix.stats.inference@1, rix.stats.hypothesis-tests@1, rix.stats.regression@1]
+schemas: [rix.stats.summary@1, rix.stats.interval-summary@1, rix.stats.interval-test@1, rix.stats.interval-test-decision@1, rix.stats.histogram@1, rix.stats.distribution-summary@1, rix.stats.confidence@1, rix.stats.test@1, rix.stats.test-decision@1, rix.stats.regression@1]
 snapshot: true
 deterministic: true
 defaultEnabled: false
@@ -28,6 +28,65 @@ StatsValues(values, allowEmpty ?= 0) -> {;
 
 StatsCount(values) -> StatsValues(values, 1).Len();
 
+StatsSortedExact(valuesValue) -> {;
+    remaining := valuesValue;
+    result := [];
+    {@ outputIndex = 1; @remaining.Len() > 0; {;
+        selected := @remaining[1];
+        selectedIndex := 1;
+        {@ index = 2; index <= @remaining.Len(); {;
+            @remaining[index] < @selected ?: {; @selected ~= @remaining[@index]; @selectedIndex ~= @index; } ?_ _;
+        }; index += 1 };
+        @result ~= @result.Push(selected);
+        @remaining ~= @remaining.RemoveAt(selectedIndex);
+    }; outputIndex += 1 };
+    result;
+};
+
+StatsMeasurementInterval(value, label) -> {;
+    value ? :RationalInterval ?: value ?_ {;
+        exact = @value ~!: :Rational;
+        exact == _ ?: .Error(@"@{label} must be an exact Integer, Rational, or RationalInterval") ?_ exact:exact;
+    };
+};
+
+StatsMeasurementIntervals(valuesValue, allowEmpty ?= 0) -> {;
+    valuesValue ? :Array ?: _ ?_ .Error("Interval measurements must be an Array");
+    (allowEmpty == 1 || valuesValue.Len() > 0) ?: _ ?_ .Error("Interval measurements require at least one value");
+    valuesValue.Map((value,index)->StatsMeasurementInterval(value,@"Interval measurement @{index}"));
+};
+
+StatsGenerateMeasurementIntervals(centersValue, errorsValue) -> {;
+    centers = StatsValues(centersValue,1);
+    errors = errorsValue ? :Array
+      ?: StatsValues(errorsValue,1)
+      ?_ centers.Map((center)->errorsValue ~!: :Rational);
+    errors.Len() == centers.Len() ?: _ ?_ .Error("MeasurementIntervals centers and errors must have the same length");
+    errors.Map((error)->error >= 0).Reduce((valid,value)->valid && value,1)
+      ?: _
+      ?_ .Error("MeasurementIntervals errors must be nonnegative");
+    centers.Map((center,index)->(center-errors[index]):(center+errors[index]));
+};
+
+StatsIntervalMean(valuesValue) -> {;
+    intervals = StatsMeasurementIntervals(valuesValue);
+    StatsSum(intervals)/intervals.Len();
+};
+
+StatsIntervalSummary(valuesValue) -> {;
+    intervals = StatsMeasurementIntervals(valuesValue);
+    lows = StatsSortedExact(intervals.Map((value)->value.Low()));
+    highs = StatsSortedExact(intervals.Map((value)->value.High()));
+    centers = intervals.Map((value)->(value.Low()+value.High())/2);
+    widths = intervals.Map((value)->value.Width());
+    .ImmutableValue({=
+        valueKind=:statsIntervalSummary,schema="rix.stats.interval-summary@1",count=intervals.Len(),
+        meanRange=StatsIntervalMean(intervals),minimumRange=(lows[1]:highs[1]),maximumRange=(lows.Last():highs.Last()),
+        midpointSummary=StatsSummary(centers),measurementWidths=widths,maximumMeasurementWidth=StatsSortedExact(widths).Last(),
+        interpretation=:allPointDatasetsConsistentWithMeasurementIntervals,certified=1
+    });
+};
+
 StatsSum(exactValues) -> exactValues.Reduce((sum, value) -> sum + value, 0);
 
 StatsMean(values) -> {;
@@ -36,7 +95,7 @@ StatsMean(values) -> {;
 };
 
 StatsQuantile(values, probability, policy ?= :linear) -> {;
-    exact = StatsValues(values).Sort();
+    exact = StatsSortedExact(StatsValues(values));
     p = probability ~!: :Rational;
     (p >= 0 && p <= 1) ?: _ ?_ .Error("Quantile probability must be between 0 and 1");
     policy == :linear ?: _ ?_ .Error("Phase 1 supports the exact :linear quantile policy");
@@ -93,7 +152,7 @@ StatsNormalQuantile(probability, mean ?= _, standardDeviation ?= _) -> {;
 
 StatsSummary(values) -> {;
     exact = StatsValues(values);
-    sorted = exact.Sort();
+    sorted = StatsSortedExact(exact);
     count = sorted.Len();
     mean = StatsSum(sorted) / count;
     {=
@@ -143,8 +202,9 @@ StatsZeros(length) -> {;
 StatsHistogram(values, binCount ?= 5) -> {;
     exact = StatsValues(values);
     count = StatsPositiveInteger(binCount, "Histogram bin count");
-    minimum = exact.Sort()[1];
-    maximum = exact.Sort().Last();
+    ordered = StatsSortedExact(exact);
+    minimum = ordered[1];
+    maximum = ordered.Last();
     constant = minimum == maximum;
     effectiveCount = constant ?: 1 ?_ count;
     width = constant ?: 0 ?_ (maximum - minimum) / effectiveCount;
@@ -189,7 +249,7 @@ StatsHistogramGraphic(value, options ?= {= }) -> {;
     chartWidth = size[1] - 2 * margin;
     chartHeight = size[2] - 2 * margin;
     bins = histogram[:bins];
-    maximumCount = bins.Map((bin) -> bin[:count]).Sort().Last();
+    maximumCount = StatsSortedExact(bins.Map((bin) -> bin[:count])).Last();
     cellWidth = chartWidth / bins.Len();
     children := [
         .Graphics.Path([[margin, margin], [margin, margin + chartHeight], [margin + chartWidth, margin + chartHeight]], {= stroke="#334155", width=1, fill="none" })
@@ -422,9 +482,10 @@ StatsStudentCoefficient(degrees) -> {;
 
 StatsStudentTestPValue(squaredMagnitudeValue, signValue, degreesValue, alternativeValue) -> {;
     squaredMagnitude = squaredMagnitudeValue ~!: :Rational;
+    sign = signValue ~!: :Rational;
     degrees = StatsPositiveInteger(degreesValue,"Student-t degrees of freedom");
     alternative = StatsAlternative(alternativeValue);
-    signValue.Numerator() == 0
+    sign.Numerator() == 0
       ?: (alternative == :twoSided ?: 1 ?_ 1/2)
       ?_ {;
           sine = .numerics.Sqrt(@squaredMagnitude/(@degrees+@squaredMagnitude));
@@ -435,8 +496,8 @@ StatsStudentTestPValue(squaredMagnitudeValue, signValue, degreesValue, alternati
           @alternative == :twoSided
             ?: 2*upper
             ?_ (@alternative == :greater
-                ?: (@signValue > 0 ?: upper ?_ 1-upper)
-                ?_ (@signValue < 0 ?: upper ?_ 1-upper));
+                ?: (@sign > 0 ?: upper ?_ 1-upper)
+                ?_ (@sign < 0 ?: upper ?_ 1-upper));
       };
 };
 
@@ -837,6 +898,317 @@ StatsTestTable(testValue) -> {;
     ],{= caption="Hypothesis-test result" });
 };
 
+StatsIntervalTestResult(fields) -> {;
+    result = fields;
+    result._proto = {=
+        PValueBounds=(self)->[self[:pValueLower],self[:pValueUpper]],
+        Decision=(self,alpha ?= 1/20,options ?= {= })->StatsIntervalTestDecision(self,alpha,options),
+        Table=(self)->StatsIntervalTestTable(self),
+        Record=(self)->self
+    };
+    .ImmutableValue(result);
+};
+
+StatsRequireIntervalTest(value) -> ((value ? :Map) && value[:schema] == "rix.stats.interval-test@1")
+  ?: value
+  ?_ .Error("Expected a stats interval-measurement test result");
+
+StatsIntervalOneSampleZTest(valuesValue, nullMeanValue, populationStandardDeviationValue, alternativeValue ?= :twoSided) -> {;
+    intervals = StatsMeasurementIntervals(valuesValue);
+    nullMean = nullMeanValue ~!: :Rational;
+    scale = StatsPositiveScale(populationStandardDeviationValue,"IntervalOneSampleZTest population standard deviation");
+    alternative = StatsAlternative(alternativeValue);
+    meanRange = StatsIntervalMean(intervals);
+    effectRange = meanRange-nullMean;
+    low = effectRange.Low();
+    high = effectRange.High();
+    varianceTerm = scale^2/intervals.Len();
+    far = low.Abs() > high.Abs() ?: low ?_ high;
+    near = (low <= 0 && high >= 0) ?: 0 ?_ (low.Abs() < high.Abs() ?: low ?_ high);
+    extremes = alternative == :greater
+      ?: [high,low]
+      ?_ (alternative == :less ?: [low,high] ?_ [far,near]);
+    pValueLower = StatsNormalTestPValue(extremes[1]^2/varianceTerm,extremes[1],alternative);
+    pValueUpper = StatsNormalTestPValue(extremes[2]^2/varianceTerm,extremes[2],alternative);
+    standardError = .numerics.Sqrt(varianceTerm);
+    StatsIntervalTestResult({=
+        valueKind=:statsIntervalTest,schema="rix.stats.interval-test@1",test=:intervalOneSampleZ,
+        method=:normalKnownPopulationScaleOverMeasurementBox,alternative=alternative,
+        nullHypothesis=:meanEqualsNullValue,nullValue=nullMean,measurementMeanRange=meanRange,effectRange=effectRange,
+        standardError=standardError,statisticEndpoints=[low/standardError,high/standardError],
+        pValueLower=pValueLower,pValueUpper=pValueUpper,pValueStatus=:certifiedExtremaByMonotonicity,
+        referenceDistribution={= family=:normal,mean=0,standardDeviation=1 },sampleSize=intervals.Len(),
+        measurements=intervals,interpretation=:allPointDatasetsConsistentWithMeasurementIntervals,
+        assumptions=[:independentObservations,:knownPopulationStandardDeviation,:normalPopulationOrLargeSample,:closedMeasurementIntervals],
+        certified=1
+    });
+};
+
+StatsIntervalTestDecision(testValue, alphaValue ?= 1/20, options ?= {= }) -> {;
+    test = StatsRequireIntervalTest(testValue);
+    alpha = alphaValue ~!: :Rational;
+    (alpha > 0 && alpha < 1) ?: _ ?_ .Error("IntervalTestDecision alpha must be strictly between zero and one");
+    refineOptions = {=
+        absoluteWidth=StatsOption(options,"absoluteWidth",1/10000),
+        maxWork=StatsOption(options,"maxWork",2000)
+    };
+    lowerExact = test[:pValueLower] ~: :Rational;
+    upperExact = test[:pValueUpper] ~: :Rational;
+    lower = lowerExact != _ ?: lowerExact:lowerExact ?_ .numerics.Refine(test[:pValueLower],refineOptions)[:interval];
+    upper = upperExact != _ ?: upperExact:upperExact ?_ .numerics.Refine(test[:pValueUpper],refineOptions)[:interval];
+    status = upper.High() < alpha
+      ?: :rejectForAllMeasurements
+      ?_ (lower.Low() >= alpha
+          ?: :failToRejectForAllMeasurements
+          ?_ ((lower.High() < alpha && upper.Low() >= alpha) ?: :measurementDependent ?_ :unresolved));
+    .ImmutableValue({=
+        valueKind=:statsIntervalTestDecision,schema="rix.stats.interval-test-decision@1",
+        test=test[:test],method=test[:method],alpha=alpha,pValueLowerInterval=lower,pValueUpperInterval=upper,status=status,
+        conclusion=status == :rejectForAllMeasurements
+          ?: :everyAdmissiblePointDatasetRejects
+          ?_ (status == :failToRejectForAllMeasurements
+              ?: :noAdmissiblePointDatasetRejects
+              ?_ (status == :measurementDependent ?: :conclusionDependsOnMeasurementValues ?_ :refineFurther)),
+        certified=1
+    });
+};
+
+StatsIntervalTestTable(testValue) -> {;
+    test = StatsRequireIntervalTest(testValue);
+    .Table(["field","value"],[
+        ["test",test[:test]],
+        ["method",test[:method]],
+        ["alternative",test[:alternative]],
+        ["measurement mean range",test[:measurementMeanRange]],
+        ["effect range",test[:effectRange]],
+        ["standard error",test[:standardError]],
+        ["statistic endpoints",test[:statisticEndpoints]],
+        ["minimum possible p value",test[:pValueLower]],
+        ["maximum possible p value",test[:pValueUpper]]
+    ],{= caption="Hypothesis test over interval measurements" });
+};
+
+StatsStudentCriticalInterval(levelValue, degreesValue, options ?= {= }) -> {;
+    level = StatsConfidenceLevel(levelValue);
+    degrees = StatsPositiveInteger(degreesValue,"Student critical degrees of freedom");
+    target = (1-level)/2;
+    width = StatsOption(options,"criticalWidth",1/1000) ~!: :Rational;
+    width > 0 ?: _ ?_ .Error("Student critical width must be positive");
+    probabilityWidth = StatsOption(options,"probabilityWidth",1/1000000) ~!: :Rational;
+    probabilityWidth > 0 ?: _ ?_ .Error("Student critical probability width must be positive");
+    maxWork = StatsOption(options,"maxWork",1600) ~!: :Integer;
+    maxIterations = StatsOption(options,"maxIterations",24) ~!: :Integer;
+    (maxWork >= 1 && maxIterations >= 1) ?: _ ?_ .Error("Student critical work limits must be positive");
+    low := 0;
+    requestedExtent = StatsOption(options,"extent",_);
+    explicitExtent = requestedExtent != _ ?: 1 ?_ 0;
+    high := explicitExtent == 1 ?: requestedExtent ~!: :Rational ?_ 1;
+    high > 0 ?: _ ?_ .Error("Student critical extent must be positive");
+    extentSearchSteps = StatsOption(options,"extentSearchSteps",10) ~!: :Integer;
+    extentSearchSteps >= 0 ?: _ ?_ .Error("Student critical extentSearchSteps must be nonnegative");
+    extentReady := 0;
+    {@ expansion = 0; expansion <= @extentSearchSteps && @extentReady == 0; {;
+        highTail = StatsStudentTestPValue(@high^2,1,@degrees,:greater);
+        highBounds = .numerics.Refine(highTail,{= absoluteWidth=@probabilityWidth,maxWork=@maxWork })[:interval];
+        highBounds.High() < @target
+          ?: {; @extentReady ~= 1; }
+          ?_ (@explicitExtent == 1
+              ?: .Error("Student critical extent is too small for the requested confidence level")
+              ?_ {; @high *= 2; });
+    }; expansion += 1 };
+    extentReady == 1 ?: _ ?_ .Error("Student critical automatic extent search was exhausted");
+    exhausted := 0;
+    {@ iteration = 1; iteration <= @maxIterations && (@high-@low) > @width && @exhausted == 0; {;
+        midpoint = (@low+@high)/2;
+        tail = StatsStudentTestPValue(midpoint^2,1,@degrees,:greater);
+        bounds = .numerics.Refine(tail,{= absoluteWidth=@probabilityWidth,maxWork=@maxWork })[:interval];
+        bounds.High() < @target
+          ?: {; @high ~= @midpoint; }
+          ?_ (bounds.Low() > @target
+              ?: {; @low ~= @midpoint; }
+              ?_ {; @exhausted ~= 1; });
+    }; iteration += 1 };
+    low:high;
+};
+
+StatsMeanTConfidence(valuesValue, levelValue ?= 95/100, options ?= {= }) -> {;
+    values = StatsObservedValues(valuesValue);
+    values.Len() >= 2 ?: _ ?_ .Error("MeanTConfidence requires at least two observations");
+    variance = StatsVariance(values,1);
+    variance > 0 ?: _ ?_ .Error("MeanTConfidence sample standard error is zero");
+    level = StatsConfidenceLevel(levelValue);
+    estimate = StatsMean(values);
+    degrees = values.Len()-1;
+    standardError = .numerics.Sqrt(variance/values.Len());
+    criticalInterval = StatsStudentCriticalInterval(level,degrees,options);
+    critical = criticalInterval.High();
+    margin = critical*standardError;
+    .ImmutableValue({=
+        valueKind=:statsConfidence,schema="rix.stats.confidence@1",parameter=:mean,
+        method=:studentTOutwardCritical,level=level,estimate=estimate,standardError=standardError,
+        criticalValue=critical,criticalValueInterval=criticalInterval,criticalPolicy=:outwardUpper,
+        margin=margin,lower=estimate-margin,upper=estimate+margin,count=values.Len(),
+        degreesOfFreedom=degrees,referenceDegreesOfFreedom=degrees,certified=1
+    });
+};
+
+StatsPairedMeanDifferenceConfidence(firstValue, secondValue, levelValue ?= 95/100, options ?= {= }) -> {;
+    first = StatsValues(firstValue);
+    second = StatsValues(secondValue);
+    first.Len() == second.Len() ?: _ ?_ .Error("PairedMeanDifferenceConfidence samples must have the same length");
+    differences = first.Map((value,index)->value-second[index]);
+    result = StatsMeanTConfidence(differences,levelValue,options);
+    .ImmutableValue({=
+        valueKind=:statsConfidence,schema="rix.stats.confidence@1",parameter=:pairedMeanDifference,
+        method=:pairedStudentTOutwardCritical,level=result[:level],estimate=result[:estimate],
+        standardError=result[:standardError],criticalValue=result[:criticalValue],criticalValueInterval=result[:criticalValueInterval],
+        criticalPolicy=result[:criticalPolicy],margin=result[:margin],lower=result[:lower],upper=result[:upper],
+        count=result[:count],degreesOfFreedom=result[:degreesOfFreedom],referenceDegreesOfFreedom=result[:referenceDegreesOfFreedom],
+        differences=differences,certified=1
+    });
+};
+
+StatsMeanDifferenceConfidence(firstValue, secondValue, levelValue ?= 95/100, options ?= {= }) -> {;
+    first = StatsValues(firstValue);
+    second = StatsValues(secondValue);
+    (first.Len() >= 2 && second.Len() >= 2) ?: _ ?_ .Error("MeanDifferenceConfidence requires at least two observations in each sample");
+    level = StatsConfidenceLevel(levelValue);
+    equalVariance = StatsOption(options,"equalVariance",0);
+    (equalVariance == 0 || equalVariance == 1) ?: _ ?_ .Error("MeanDifferenceConfidence equalVariance option must be 0 or 1");
+    firstMean = StatsMean(first);
+    secondMean = StatsMean(second);
+    estimate = firstMean-secondMean;
+    firstVariance = StatsVariance(first,1);
+    secondVariance = StatsVariance(second,1);
+    equalVariance == 1
+      ?: {;
+          degrees = @first.Len()+@second.Len()-2;
+          pooledVariance = ((@first.Len()-1)*@firstVariance+(@second.Len()-1)*@secondVariance)/degrees;
+          pooledVariance > 0 ?: _ ?_ .Error("MeanDifferenceConfidence pooled standard error is zero");
+          varianceTerm = pooledVariance*(1/@first.Len()+1/@second.Len());
+          standardError = .numerics.Sqrt(varianceTerm);
+          criticalInterval = StatsStudentCriticalInterval(@level,degrees,@options);
+          critical = criticalInterval.High();
+          margin = critical*standardError;
+          .ImmutableValue({=
+              valueKind=:statsConfidence,schema="rix.stats.confidence@1",parameter=:meanDifference,
+              method=:pooledStudentTOutwardCritical,level=@level,estimate=@estimate,estimates=[@firstMean,@secondMean],
+              standardError=standardError,criticalValue=critical,criticalValueInterval=criticalInterval,criticalPolicy=:outwardUpper,
+              margin=margin,lower=@estimate-margin,upper=@estimate+margin,count=[@first.Len(),@second.Len()],
+              degreesOfFreedom=degrees,referenceDegreesOfFreedom=degrees,certified=1
+          });
+      }
+      ?_ {;
+          firstTerm = @firstVariance/@first.Len();
+          secondTerm = @secondVariance/@second.Len();
+          varianceTerm = firstTerm+secondTerm;
+          varianceTerm > 0 ?: _ ?_ .Error("MeanDifferenceConfidence Welch standard error is zero");
+          degrees = varianceTerm^2/(firstTerm^2/(@first.Len()-1)+secondTerm^2/(@second.Len()-1));
+          referenceDegrees = degrees.Floor();
+          standardError = .numerics.Sqrt(varianceTerm);
+          criticalInterval = StatsStudentCriticalInterval(@level,referenceDegrees,@options);
+          critical = criticalInterval.High();
+          margin = critical*standardError;
+          .ImmutableValue({=
+              valueKind=:statsConfidence,schema="rix.stats.confidence@1",parameter=:meanDifference,
+              method=:welchTOutwardIntegerReference,level=@level,estimate=@estimate,estimates=[@firstMean,@secondMean],
+              standardError=standardError,criticalValue=critical,criticalValueInterval=criticalInterval,criticalPolicy=:outwardUpper,
+              margin=margin,lower=@estimate-margin,upper=@estimate+margin,count=[@first.Len(),@second.Len()],
+              degreesOfFreedom=degrees,referenceDegreesOfFreedom=referenceDegrees,
+              qualification=degrees.Denominator() == 1 ?: :exactWelchDegrees ?_ :conservativeIntegerDfReference,
+              certified=1
+          });
+      };
+};
+
+StatsCorrelationComponents(xValue, yValue, minimumCount ?= 2) -> {;
+    x = StatsValues(xValue);
+    y = StatsValues(yValue);
+    x.Len() == y.Len() ?: _ ?_ .Error("Correlation x and y must have the same length");
+    x.Len() >= minimumCount ?: _ ?_ .Error(@"Correlation requires at least @{minimumCount} observations");
+    xMean = StatsMean(x);
+    yMean = StatsMean(y);
+    sxx = x.Reduce((sum,value)->sum+(value-xMean)^2,0);
+    syy = y.Reduce((sum,value)->sum+(value-yMean)^2,0);
+    sxy = x.Reduce((sum,value,index)->sum+(value-xMean)*(y[index]-yMean),0);
+    (sxx.Numerator() != 0 && syy.Numerator() != 0) ?: _ ?_ .Error("Correlation variables must both vary");
+    {= x=x,y=y,count=x.Len(),xMean=xMean,yMean=yMean,sxx=sxx,syy=syy,sxy=sxy };
+};
+
+StatsCorrelation(xValue, yValue) -> {;
+    parts = StatsCorrelationComponents(xValue,yValue);
+    product = parts[:sxx]*parts[:syy];
+    parts[:sxy]^2 == product
+      ?: (parts[:sxy] > 0 ?: 1 ?_ -1)
+      ?_ parts[:sxy]/.numerics.Sqrt(product);
+};
+
+StatsCorrelationTest(xValue, yValue, alternativeValue ?= :twoSided) -> {;
+    parts = StatsCorrelationComponents(xValue,yValue,3);
+    alternative = StatsAlternative(alternativeValue);
+    squaredDenominator = parts[:sxx]*parts[:syy];
+    squaredNumerator = parts[:sxy]^2;
+    residual = squaredDenominator-squaredNumerator;
+    degrees = parts[:count]-2;
+    estimate = parts[:sxy]/.numerics.Sqrt(squaredDenominator);
+    residual.Numerator() == 0
+      ?: StatsTestResult({=
+          test=:pearsonCorrelation,method=:pearsonCorrelationT,alternative=alternative,
+          nullHypothesis=:correlationEqualsZero,nullValue=0,estimate=estimate,effect=parts[:sxy],
+          standardError=0,statistic=parts[:sxy] > 0 ?: :positiveInfinity ?_ :negativeInfinity,
+          degreesOfFreedom=degrees,pValue=0,pValueStatus=:certifiedReference,
+          referenceDistribution={= family=:studentT,degreesOfFreedom=degrees },sampleSize=parts[:count],
+          assumptions=[:independentPairs,:bivariateNormalPopulationForExactSmallSampleInference]
+      })
+      ?_ {;
+          squaredStatistic = @degrees*@squaredNumerator/@residual;
+          statistic = @parts[:sxy]/.numerics.Sqrt(@squaredNumerator) * .numerics.Sqrt(squaredStatistic);
+          pValue = StatsStudentTestPValue(squaredStatistic,@parts[:sxy],@degrees,@alternative);
+          StatsTestResult({=
+              test=:pearsonCorrelation,method=:pearsonCorrelationT,alternative=@alternative,
+              nullHypothesis=:correlationEqualsZero,nullValue=0,estimate=@estimate,effect=@parts[:sxy],
+              standardError=_,statistic=statistic,degreesOfFreedom=@degrees,pValue=pValue,pValueStatus=:certifiedReference,
+              referenceDistribution={= family=:studentT,degreesOfFreedom=@degrees },sampleSize=@parts[:count],
+              assumptions=[:independentPairs,:bivariateNormalPopulationForExactSmallSampleInference]
+          });
+      };
+};
+
+StatsRegressionSlopeTest(modelValue, nullSlopeValue ?= 0, alternativeValue ?= :twoSided) -> {;
+    model = StatsRequireRegression(modelValue);
+    model[:degreesOfFreedom] >= 1 ?: _ ?_ .Error("RegressionSlopeTest requires at least three observations");
+    nullSlope = nullSlopeValue ~!: :Rational;
+    alternative = StatsAlternative(alternativeValue);
+    effect = model[:slope]-nullSlope;
+    varianceTerm = model[:residualMeanSquare]/model[:sxx];
+    varianceTerm.Numerator() == 0
+      ?: {;
+          @effect.Numerator() != 0 ?: _ ?_ .Error("RegressionSlopeTest is undefined when both slope effect and residual variance are zero");
+          StatsTestResult({=
+              test=:regressionSlopeT,method=:simpleLinearRegressionSlopeT,alternative=@alternative,
+              nullHypothesis=:slopeEqualsNullValue,nullValue=@nullSlope,estimate=@model[:slope],effect=@effect,
+              standardError=0,statistic=@effect > 0 ?: :positiveInfinity ?_ :negativeInfinity,
+              degreesOfFreedom=@model[:degreesOfFreedom],pValue=0,pValueStatus=:certifiedReference,
+              referenceDistribution={= family=:studentT,degreesOfFreedom=@model[:degreesOfFreedom] },sampleSize=@model[:count],
+              assumptions=[:independentErrors,:linearMeanFunction,:constantErrorVariance,:normalErrorsForExactSmallSampleInference]
+          });
+      }
+      ?_ {;
+          standardError = .numerics.Sqrt(@varianceTerm);
+          squaredStatistic = @effect^2/@varianceTerm;
+          statistic = StatsStandardizedStatistic(@effect,standardError);
+          pValue = StatsStudentTestPValue(squaredStatistic,@effect,@model[:degreesOfFreedom],@alternative);
+          StatsTestResult({=
+              test=:regressionSlopeT,method=:simpleLinearRegressionSlopeT,alternative=@alternative,
+              nullHypothesis=:slopeEqualsNullValue,nullValue=@nullSlope,estimate=@model[:slope],effect=@effect,
+              standardError=standardError,statistic=statistic,degreesOfFreedom=@model[:degreesOfFreedom],
+              pValue=pValue,pValueStatus=:certifiedReference,
+              referenceDistribution={= family=:studentT,degreesOfFreedom=@model[:degreesOfFreedom] },sampleSize=@model[:count],
+              assumptions=[:independentErrors,:linearMeanFunction,:constantErrorVariance,:normalErrorsForExactSmallSampleInference]
+          });
+      };
+};
+
 StatsRequireRegression(value) -> ((value ? :Map) && value[:schema] == "rix.stats.regression@1")
   ?: value
   ?_ .Error("Expected a stats regression result");
@@ -917,6 +1289,7 @@ statsNamespace = {= };
 statsNamespace._proto = {=
     Count=(self, values)->StatsCount(values),
     Mean=(self, values)->StatsMean(values),
+    Correlation=(self,x,y)->StatsCorrelation(x,y),
     Quantile=(self, values, probability, policy ?= :linear)->StatsQuantile(values, probability, policy),
     Median=(self, values)->StatsMedian(values),
     Variance=(self, values)->StatsVariance(values),
@@ -932,7 +1305,16 @@ statsNamespace._proto = {=
     DistributionSummary=(self,value)->StatsDistributionSummary(value),
     SimulationValues=(self,value)->StatsSimulationValues(value),
     SimulationSummary=(self,value)->StatsSimulationSummary(value),
+    MeasurementIntervals=(self,centers,errors)->StatsGenerateMeasurementIntervals(centers,errors),
+    IntervalMean=(self,values)->StatsIntervalMean(values),
+    IntervalSummary=(self,values)->StatsIntervalSummary(values),
+    IntervalOneSampleZTest=(self,values,nullMean,populationStandardDeviation,alternative ?= :twoSided)->StatsIntervalOneSampleZTest(values,nullMean,populationStandardDeviation,alternative),
+    IntervalTestDecision=(self,test,alpha ?= 1/20,options ?= {= })->StatsIntervalTestDecision(test,alpha,options),
+    IntervalTestTable=(self,test)->StatsIntervalTestTable(test),
     MeanConfidence=(self,values,level ?= 95/100,options ?= {= })->StatsMeanConfidence(values,level,options),
+    MeanTConfidence=(self,values,level ?= 95/100,options ?= {= })->StatsMeanTConfidence(values,level,options),
+    PairedMeanDifferenceConfidence=(self,first,second,level ?= 95/100,options ?= {= })->StatsPairedMeanDifferenceConfidence(first,second,level,options),
+    MeanDifferenceConfidence=(self,first,second,level ?= 95/100,options ?= {= })->StatsMeanDifferenceConfidence(first,second,level,options),
     ProportionConfidence=(self,successes,trials,level ?= 95/100)->StatsProportionConfidence(successes,trials,level),
     OneSampleZTest=(self,values,nullMean,populationStandardDeviation,alternative ?= :twoSided)->StatsOneSampleZTest(values,nullMean,populationStandardDeviation,alternative),
     TwoSampleZTest=(self,first,second,firstScale,secondScale,nullDifference ?= 0,alternative ?= :twoSided)->StatsTwoSampleZTest(first,second,firstScale,secondScale,nullDifference,alternative),
@@ -941,6 +1323,8 @@ statsNamespace._proto = {=
     OneSampleTTest=(self,values,nullMean ?= 0,alternative ?= :twoSided)->StatsOneSampleTTest(values,nullMean,alternative),
     PairedTTest=(self,first,second,nullDifference ?= 0,alternative ?= :twoSided)->StatsPairedTTest(first,second,nullDifference,alternative),
     TwoSampleTTest=(self,first,second,nullDifference ?= 0,options ?= {= })->StatsTwoSampleTTest(first,second,nullDifference,options),
+    CorrelationTest=(self,x,y,alternative ?= :twoSided)->StatsCorrelationTest(x,y,alternative),
+    RegressionSlopeTest=(self,model,nullSlope ?= 0,alternative ?= :twoSided)->StatsRegressionSlopeTest(model,nullSlope,alternative),
     OneWayANOVA=(self,groups)->StatsOneWayANOVA(groups),
     ChiSquareGoodnessOfFit=(self,observed,expected,options ?= {= })->StatsChiSquareGoodnessOfFit(observed,expected,options),
     ChiSquareIndependence=(self,table)->StatsChiSquareIndependence(table),

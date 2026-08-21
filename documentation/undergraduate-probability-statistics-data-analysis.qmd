@@ -1,0 +1,462 @@
+---
+title: "Probability, statistics, and data analysis with RiX"
+description: "An accessible, runnable course guide from finite probability through inference, regression, simulation, and interval-valued measurements."
+---
+
+This is a stand-alone guide for a first undergraduate course in probability,
+statistics, or data analysis. You can read it in order or start from the part
+that matches your course. Every RiX block marked **Run** is checked by the RiX
+documentation build and can be copied into the REPL, RiX Web, or a notebook.
+
+RiX keeps three jobs separate:
+
+- `.probability` describes what could happen: laws, events, exact
+  probabilities, and simulations;
+- `.data` stores and reshapes observations in typed tables; and
+- `.stats` summarizes observations, fits simple models, and performs
+  inference.
+
+Load only the plugins needed by a calculation. RiX uses exact integers and
+rationals by default. A value such as `10:11` is a closed rational interval,
+not the two-point array `[10,11]` and not a floating-point approximation.
+
+## 1. A ten-minute start
+
+### Exact probability
+
+The probability of exactly five heads in ten fair tosses is a rational number.
+
+```{.rix exec=true output=true id=course-quick-probability}
+.Plugin.Load("probability");
+coins := .probability.Binomial(10,1/2);
+[coins.PMF(5),coins.CDF(5),coins.Mean(),coins.Variance()];
+```
+
+### Describe observed data
+
+`Summary` computes exact descriptive statistics. Input order does not matter.
+
+```{.rix exec=true output=true id=course-quick-summary}
+.Plugin.Load("stats");
+summary := .stats.Summary([8,5,9,7,6]);
+[summary[:minimum],summary[:median],summary[:mean],summary[:sampleVariance]];
+```
+
+### Keep measurement uncertainty
+
+Suppose three distances were recorded only to within stated error bounds. The
+mean is then a range containing the mean of **every** point dataset consistent
+with the measurements.
+
+```{.rix exec=true output=true id=course-quick-intervals}
+.Plugin.Load("stats");
+distances := [99/10:101/10,119/10:121/10,139/10:141/10];
+summary := .stats.IntervalSummary(distances);
+[summary[:meanRange],summary[:minimumRange],summary[:maximumRange]];
+```
+
+RiX does not replace those intervals by their midpoints unless you explicitly
+ask for the midpoint summary. That prevents a neat-looking point answer from
+claiming more than the measurements establish.
+
+## 2. Finite probability
+
+### Counting
+
+```{.rix exec=true output=true id=course-counting}
+.Plugin.Load("probability");
+[
+    .probability.Choose(52,5),
+    .probability.Permutations(10,3),
+    .probability.MultinomialCoefficient([2,3,1])
+];
+```
+
+Use bounded enumeration for genuinely small sample spaces. Here the 36 ordered
+two-die outcomes make the event “sum equals seven” transparent.
+
+```{.rix exec=true output=true id=course-finite-event}
+.Plugin.Load("probability");
+rolls := .probability.CartesianPower([1,2,3,4,5,6],2);
+seven := .probability.Event(rolls,(roll)->roll[1]+roll[2]==7);
+[seven[:favorableCount],seven[:outcomeCount],seven[:probability]];
+```
+
+For larger repeated experiments, use a direct distribution such as
+`Binomial`, `Multinomial`, `Dice`, or `CardDraw` rather than materializing the
+whole sample space.
+
+### Conditional probability and Bayes' rule
+
+`Conditional` returns another finite distribution. This example conditions a
+fair die on an even result.
+
+```{.rix exec=true output=true id=course-conditioning}
+.Plugin.Load("probability");
+die := .probability.Finite([1,2,3,4,5,6],[1,1,1,1,1,1]);
+even := .probability.Conditional(die,(x)->x%2==0);
+[
+    even.PMF(4),
+    .probability.ConditionalProbability(die,(x)->x>=5,(x)->x%2==0)
+];
+```
+
+`Bayes(prior,likelihood under H,likelihood under not-H)` exposes every term of
+the update. In a screening example with a 1% prior prevalence, 99% sensitivity,
+and 1% false-positive rate, a positive result gives a posterior of one half.
+
+```{.rix exec=true output=true id=course-bayes}
+.Plugin.Load("probability");
+update := .probability.Bayes(1/100,99/100,1/100);
+[update[:prior],update[:evidence],update[:posterior]];
+```
+
+### Random variables, joint laws, and moments
+
+A random variable is a function of an outcome. `RandomVariable` pushes a
+finite law through such a function; duplicate transformed outcomes have their
+probabilities combined by the resulting PMF.
+
+```{.rix exec=true output=true id=course-random-variables}
+.Plugin.Load("probability");
+die := .probability.Finite([1,2,3,4,5,6],[1,1,1,1,1,1]);
+parity := .probability.RandomVariable(die,(x)->x%2);
+joint := .probability.Joint(die,(x)->x%2,(x)->x>=4);
+[
+    parity.PMF(0),
+    .probability.Marginal(joint,2).PMF(1),
+    .probability.ExpectedValue(die),
+    .probability.VarianceOf(die),
+    .probability.Covariance(die,(x)->x,(x)->2*x)
+];
+```
+
+`Independent(joint,predicate1,predicate2)` returns `1` or `0` by checking the
+exact product rule. These finite-law tools are excellent for tables, dice,
+cards, and classroom Bayes exercises. Sums/convolutions of arbitrary user laws
+and mixtures remain a later probability slice.
+
+## 3. Standard distributions and simulation
+
+The Phase 1–2 library includes Bernoulli, binomial, multinomial, categorical,
+geometric, negative-binomial, hypergeometric, Poisson, uniform, exponential,
+gamma, beta, chi-square, normal, Student-t, F, lognormal, and Cauchy laws.
+Discrete laws use `PMF`; continuous laws use `PDF`. Both use `CDF`, `Quantile`,
+`Mean`, `Variance`, `Sample`, and `Simulate` where mathematically applicable.
+
+```{.rix exec=true output=true id=course-distributions}
+.Plugin.Load("probability");
+geometric := .probability.Geometric(1/3);
+normal := .probability.Normal(10,2);
+cauchy := .probability.Cauchy();
+[
+    geometric.PMF(2),geometric.CDF(4),
+    .numerics.Refine(normal.CDF(10),{= absoluteWidth=1/1000,maxWork=1000 })[:interval],
+    cauchy.Mean(),cauchy.Variance(),cauchy.MomentsExist()
+];
+```
+
+A simulation record keeps the seed and sampling policy. Repeating the seed
+replays the experiment.
+
+```{.rix exec=true output=true id=course-simulation}
+.Plugin.Load("probability");
+dice := .probability.Dice(2,6);
+first := dice.Simulate(12,{= seed=2026 });
+second := dice.Simulate(12,{= seed=2026 });
+[first[:values]==second[:values],first[:samplingPolicy],first[:exactSampling]];
+```
+
+Finite rational sampling is exact. Continuous simulation uses a disclosed
+finite inverse-CDF grid, so its record says `exactSampling=0`. This is useful
+simulation, but it is not mislabeled as an exact draw from a continuum.
+
+## 4. Typed data tables
+
+Create a relation from a schema and rows. Types are `Any`, `Integer`,
+`Rational`, `Number`, `Interval`, and `String`; columns are nullable unless
+`nullable=0` is stated.
+
+```{.rix exec=true output=true id=course-data-relation}
+.Plugin.Load("data");
+observations := .data.Relation([
+    {= id="student",type=:String,nullable=0 },
+    {= id="section",type=:String,nullable=0 },
+    {= id="score",type=:Rational }
+],[
+    ["Ada","A",9/10],
+    ["Bo","B",4/5],
+    ["Cy","A",_],
+    ["Di","B",7/10]
+]);
+known := .data.Missing(observations,["score"],:drop);
+ordered := .data.Sort(known,["score"],{= descending=1 });
+.data.TableView(ordered,{= caption="Known scores" });
+```
+
+Useful cleaning and reshaping operations include `Project`, `Rename`,
+`Distinct`, `Filter`, `Sort`, `Join`, `Calculate`, and `Missing`. Grouped
+aggregation keeps rational sums and means exact.
+
+```{.rix exec=true output=true id=course-data-groups}
+.Plugin.Load("data");
+scores := .data.Relation([
+    {= id="section",type=:String,nullable=0 },
+    {= id="score",type=:Rational,nullable=0 }
+],[["A",4/5],["A",9/10],["B",7/10],["B",3/4]]);
+groups := .data.Group(scores,["section"]);
+summary := .data.Aggregate(groups,[
+    {= id="n",op=:count },
+    {= id="mean",column="score",op=:mean },
+    {= id="minimum",column="score",op=:min }
+]);
+.data.Rows(summary);
+```
+
+`Frequency` produces tidy counts and exact proportions. `Contingency` produces
+the count matrix and margins expected by a chi-square independence test.
+
+```{.rix exec=true output=true id=course-contingency}
+.Plugin.Load("data");
+.Plugin.Load("stats");
+survey := .data.Relation([
+    {= id="group",type=:String,nullable=0 },
+    {= id="answer",type=:String,nullable=0 }
+],[["A","yes"],["A","yes"],["A","no"],["B","yes"],["B","no"],["B","no"]]);
+frequencies := .data.Frequency(survey,["group","answer"]);
+contingency := .data.Contingency(survey,"group","answer");
+test := .stats.ChiSquareIndependence(contingency[:counts]);
+[.data.Rows(frequencies),contingency[:rowTotals],test[:statistic],test.Decision()[:status]];
+```
+
+## 5. Descriptive statistics and graphics
+
+`Summary`, `SummaryTable`, `Histogram`, `HistogramGraphic`, and `BoxPlot`
+cover the common first-course descriptive workflow. Quantiles use exact linear
+interpolation at rank `p*(n-1)`.
+
+```{.rix exec=true output=true id=course-descriptive}
+.Plugin.Load("stats");
+values := [8,2,5,5,9,4,7];
+summary := .stats.Summary(values);
+histogram := .stats.Histogram(values,4);
+[
+    .stats.SummaryTable(values),
+    .stats.HistogramGraphic(histogram),
+    .stats.BoxPlot(values)
+];
+```
+
+The graphics use exact coordinates. Renderers lower them outward-safely, so a
+displayed exact bar, box, or endpoint encloses what RiX knows rather than
+shaving a boundary through ordinary floating rounding.
+
+## 6. Confidence intervals and tests
+
+RiX records the method, reference distribution, assumptions, and p-value
+status alongside the headline result. It does not claim to have verified that
+observations are independent or normally distributed.
+
+Common procedures are:
+
+- one- and two-sample z tests with known population scales;
+- one- and two-proportion score z tests;
+- one-sample, paired, pooled, and Welch t tests;
+- one-way ANOVA;
+- Pearson chi-square goodness-of-fit and independence tests;
+- Pearson correlation and its t test; and
+- simple linear regression and its slope t test.
+
+```{.rix exec=true output=true id=course-tests}
+.Plugin.Load("stats");
+tTest := .stats.OneSampleTTest([12,11,15,14,13],10,:greater);
+anova := .stats.OneWayANOVA([[8,9,10],[11,12,13],[9,10,11]]);
+goodness := .stats.ChiSquareGoodnessOfFit([20,30,50],[25,25,50]);
+[
+    tTest[:estimate],tTest[:degreesOfFreedom],tTest.Decision()[:status],
+    anova[:statistic],anova.Decision()[:status],
+    goodness[:statistic],goodness.Decision()[:status]
+];
+```
+
+For a confidence interval using Student's t reference, use
+`MeanTConfidence`; related operations cover paired and independent mean
+differences. The critical-value search returns an outward bracket and uses its
+upper endpoint, making the reported interval conservatively wide.
+
+```{.rix exec=true output=true id=course-t-confidence}
+.Plugin.Load("stats");
+confidence := .stats.MeanTConfidence([1,2,3,4,5],9/10,{=
+    extent=10,
+    criticalWidth=1/100,
+    probabilityWidth=1/10000,
+    maxWork=600,
+    maxIterations=16
+});
+[
+    confidence[:estimate],confidence[:degreesOfFreedom],
+    confidence[:criticalValueInterval],confidence[:criticalPolicy]
+];
+```
+
+`TestDecision(alpha)` refines a certified p-value. It returns `:unresolved`
+instead of guessing if the enclosure still crosses alpha. “Fail to reject” is
+not evidence that the null hypothesis is true.
+
+## 7. Correlation and regression
+
+```{.rix exec=true output=true id=course-regression}
+.Plugin.Load("stats");
+x := [1,2,3,4,5];
+y := [2,3,5,4,7];
+model := .stats.LinearRegression(x,y);
+slopeTest := .stats.RegressionSlopeTest(model);
+[
+    .stats.Correlation(x,y),
+    model[:intercept],model[:slope],model[:rSquared],
+    .stats.Predict(model,6),slopeTest[:test]
+];
+```
+
+`RegressionTable(model)` and `ResidualTable(model)` make the fit inspectable.
+The usual linear-model assumptions still belong in the analysis; a small
+p-value does not repair dependence, curvature, changing variance, or biased
+sampling.
+
+## 8. Interval-valued measurements
+
+### Enter measured values directly
+
+Use closed intervals for rounded distances, clock readings, weights, or counts
+reported with a known tolerance. An `Interval` data column also accepts an
+exact point, treating it as a zero-width measurement.
+
+```{.rix exec=true output=true id=course-interval-data}
+.Plugin.Load("data");
+loads := .data.Relation([
+    {= id="batch",type=:String,nullable=0 },
+    {= id="weight",type=:Interval,nullable=0 }
+],[
+    ["A",995/10:1005/10],
+    ["A",1000/10:1010/10],
+    ["A",99:100]
+]);
+summary := .data.Aggregate(.data.Group(loads,["batch"]),[
+    {= id="total",column="weight",op=:sum },
+    {= id="mean",column="weight",op=:mean },
+    {= id="minimum",column="weight",op=:min },
+    {= id="maximum",column="weight",op=:max }
+]);
+.data.Rows(summary);
+```
+
+For interval inputs, sum and mean use interval arithmetic. The minimum range is
+`[minimum of lows, minimum of highs]`; the maximum range is `[maximum of lows,
+maximum of highs]`. These are the tight ranges obtainable when each row may be
+any point in its stated interval.
+
+### Generate interval data for an exploration
+
+`MeasurementIntervals(centers,errors)` creates `[center-error,center+error]`
+for each row. `errors` may be one nonnegative exact value or an array. Here the
+latent readings and resolution classes are both replayable simulated data.
+
+```{.rix exec=true output=true id=course-generate-interval-data}
+.Plugin.Load("probability");
+.Plugin.Load("stats");
+latent := .probability.Dice(2,6).Simulate(12,{= seed=41 })[:values];
+errors := .probability.Finite([1/10,1/5,1/2],[3,2,1]).Simulate(12,{= seed=42 })[:values];
+measured := .stats.MeasurementIntervals(latent,errors);
+summary := .stats.IntervalSummary(measured);
+[measured,summary[:meanRange],summary[:maximumMeasurementWidth]];
+```
+
+This pattern lets a class vary instrument resolution, rounding policy, or
+counting tolerance independently of the latent process. For genuinely
+simulated measurement error rather than bounded ignorance, simulate an error
+variable and then separately record the interval guaranteed by the instrument.
+Those are different models and should remain visibly different.
+
+### Test every point dataset allowed by the measurements
+
+`IntervalOneSampleZTest` currently covers the important transparent case of a
+known population standard deviation. It finds the exact range of possible
+sample means and, by monotonicity of the normal tail, the smallest and largest
+possible p-values over the whole measurement box.
+
+```{.rix exec=true output=true id=course-interval-test}
+.Plugin.Load("stats");
+measurements := [9:11,23/2:25/2,12:16];
+test := .stats.IntervalOneSampleZTest(measurements,10,2,:greater);
+decision := test.Decision(1/20,{= absoluteWidth=1/500,maxWork=400 });
+[
+    test[:measurementMeanRange],test[:effectRange],
+    test[:pValueLower],test[:pValueUpper],decision[:status]
+];
+```
+
+The status has a deliberately stronger vocabulary than an ordinary point-data
+test:
+
+- `:rejectForAllMeasurements`: every admissible point dataset rejects;
+- `:failToRejectForAllMeasurements`: none rejects;
+- `:measurementDependent`: some admissible datasets reject and some do not;
+- `:unresolved`: refine the certified p-value bounds further.
+
+Measurement uncertainty and sampling uncertainty are not interchangeable.
+The interval z procedure varies the unknown measured points while using the
+specified population scale for sampling variability. General interval-valued
+t tests, ANOVA, correlation, and regression require dependency-aware box or
+set optimization and are not yet advertised; using midpoints with an ordinary
+test would answer a different question.
+
+## 9. Explore the Central Limit Theorem—and its boundary
+
+For iid variables with finite mean and positive finite variance, standardized
+sums approach a normal law. Exact dice sums make this visible without Monte
+Carlo error; uniform and exponential simulations give continuous examples.
+
+The Cauchy distribution is the essential counterexample: it has no mean or
+variance, and the average of independent standard Cauchy variables is again
+standard Cauchy. More averaging does not concentrate it around zero.
+
+```{.rix exec=true output=true id=course-clt-boundary}
+.Plugin.Load("probability");
+dice := [1,2,4,8].Map((n)->.probability.Dice(n,6));
+uniformRun := .probability.Uniform(-1,1).Simulate(8,{= seed=12,grid=128 });
+cauchyRun := .probability.Cauchy().Simulate(8,{= seed=12,grid=128 });
+[
+    dice.Map((law)->[law.Mean(),law.Variance()]),
+    uniformRun[:samplingPolicy],cauchyRun[:samplingPolicy],
+    .probability.Cauchy().MomentsExist()
+];
+```
+
+Continue with the repository's explanatory exploration,
+`explorations/probability/central-limit-theorem.md`, and its runnable companion
+`central-limit-theorem.rix`. It compares exact dice convolutions with uniform,
+exponential, normal, and Cauchy behavior while keeping simulation policies
+visible.
+
+## 10. A practical analysis checklist
+
+1. State the population, sampling process, variables, and units.
+2. Put rows and types into a `.data.Relation`; make missing-data policy
+   explicit.
+3. Preserve bounded measurement uncertainty with `Interval` columns.
+4. Plot and summarize before choosing a test.
+5. Choose the procedure from the design and assumptions, not from the desired
+   p-value.
+6. Inspect the result's method, assumptions, degrees of freedom, and p-value
+   status.
+7. Report an effect estimate and confidence interval, not only a decision.
+8. Separate sampling uncertainty, bounded measurement uncertainty, and
+   simulation approximation in the write-up.
+9. Keep the seed and `samplingPolicy` when reporting simulations.
+10. If a certified comparison is unresolved, request more refinement or report
+    that it remains unresolved.
+
+That separation is the central advantage of RiX for these courses: exact
+finite calculations remain exact, certified real calculations remain
+enclosures, interval measurements remain intervals, and simulations retain
+their approximation provenance.
