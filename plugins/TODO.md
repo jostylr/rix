@@ -439,9 +439,11 @@ tracked in
      tensor operators, and bounded lineage to pure RiX; retain the former host
      implementation only as a non-discoverable comparison source.
 2. **Phase 2 — Exact decompositions and coordinate maps**
-   - [ ] Add fraction-free elimination, LU/LDU, exact QR where supported,
-     row/column spaces, nullspaces, determinant certificates, and reusable
-     factorization objects.
+   - [x] Add replayable Bareiss fraction-free elimination, row-pivoted exact
+     LU/LDU, row/column/null spaces, determinant certificates, and reusable
+     factorization objects with exact `Solve`, `Inverse`, and `Verify` methods.
+   - [ ] Add exact QR over the coefficient cases whose required norms have
+     exact square roots; report unsupported coefficient extensions explicitly.
    - [ ] Add linear maps between distinct vector spaces, composition, inverses,
      dual spaces, tensor products, contractions, and explicit pushforward and
      pullback operations.

@@ -32,3 +32,65 @@ x := {:2: /Vector: E/ 2, 3};
 xInF := x.Transform(f);
 t := {:2x2: /Tensor: E@E*/ 1,2;3,4};
 ```
+
+## Phase 2 exact decompositions
+
+`Bareiss(A)` performs fraction-free elimination without normalizing pivot rows.
+For Integer matrices, its exact-division recurrence keeps every intermediate
+entry integral. Rational matrices use the same recurrence with exact Rational
+arithmetic. The result retains the source, echelon matrix, pivots, row swaps,
+every before/after stage, and the determinant when `A` is square.
+
+```rix
+.Plugin.Load("linalg");
+A := [0,2,1; 2,3,4; 4,1,5];
+elimination := .linalg.Bareiss(A);
+certificate := .linalg.DeterminantCertificate(A);
+{:
+    elimination[:echelon],
+    elimination[:stages],
+    elimination.Verify(),
+    certificate[:determinant],
+    certificate.Verify()
+};
+```
+
+`LU(A)` returns exact row-pivoted factors satisfying `P A = L U`. `LDU(A)`
+splits the diagonal from `U`, producing `P A = L D U` with unit diagonal in the
+last factor. Both are reusable immutable records with `Verify()`, `Solve(b)`,
+`Inverse()`, and `Determinant()` methods. LU records singular matrices and keeps
+their rank; LDU, solving, and inversion require nonsingularity.
+
+```rix
+.Plugin.Load("linalg");
+factor := .linalg.LU([0,2; 3,4]);
+{:
+    factor[:permutation],
+    factor[:lower],
+    factor[:upper],
+    factor.Solve([2,7]),
+    factor.Inverse(),
+    factor.Verify()
+};
+```
+
+## Exact fundamental subspaces
+
+`RowSpace`, `ColumnSpace`, and `NullSpace` return
+`rix.linalg.subspace@1` records with exact Shaped basis vectors, ambient and
+subspace dimensions, pivot columns, the source matrix, and a `Verify()` method.
+Column-space bases are selected from the original matrix rather than its RREF.
+Null-space verification checks every basis vector against the original matrix.
+
+```rix
+.Plugin.Load("linalg");
+A := [1,2,3; 2,4,6];
+{:
+    .linalg.RowSpace(A),
+    .linalg.ColumnSpace(A),
+    .linalg.NullSpace(A)
+};
+```
+
+Exact QR remains the next decomposition milestone because it requires an
+explicit coefficient-extension policy whenever a column norm is not Rational.

@@ -3,11 +3,11 @@ id: linalg
 description: Pure-RiX exact dense linear algebra and coordinate-aware tensor transformations.
 kind: rix
 mount: linalg
-exports: [Rref, Rank, Determinant, Inverse, Solve, VectorSpace, Frame, Tensor, Vector, Covector, ChangeMatrix, Transform, Transform!, Components, Pair, SameTensor]
+exports: [Rref, Rank, Determinant, Inverse, Solve, Bareiss, LU, LDU, DeterminantCertificate, RowSpace, ColumnSpace, NullSpace, VectorSpace, Frame, Tensor, Vector, Covector, ChangeMatrix, Transform, Transform!, Components, Pair, SameTensor]
 groups: [LinearAlgebra, Exact]
 permissions: []
 provides: [rix.linear-algebra@1, rix.tensor@1]
-schemas: [rix.linalg.result@1, rix.linalg.vector-space@1, rix.linalg.frame@1, rix.linalg.tensor@1]
+schemas: [rix.linalg.result@1, rix.linalg.bareiss@1, rix.linalg.factorization@1, rix.linalg.determinant-certificate@1, rix.linalg.subspace@1, rix.linalg.vector-space@1, rix.linalg.frame@1, rix.linalg.tensor@1]
 snapshot: false
 deterministic: true
 defaultEnabled: false
@@ -246,6 +246,393 @@ LinalgDeterminantRows(source) -> {;
           };
     }; column += 1 };
     determinant;
+};
+
+LinalgRowsEqual(left,right) -> {;
+    same = left.Len()==right.Len() && left[1].Len()==right[1].Len();
+    same
+      ?: left.All((row,rowIndex)->row.All((entry,columnIndex)->entry==right[rowIndex][columnIndex]))
+      ?_ _;
+};
+
+LinalgIndexArraysEqual(left,right) -> left.Len()==right.Len()
+  && (left.Len()==0 ?: 1 ?_ left.All((value,index)->value==right[index]));
+
+LinalgSwapArraysEqual(left,right) -> left.Len()==right.Len()
+  && (left.Len()==0 ?: 1 ?_ left.All((value,index)->value[1]==right[index][1] && value[2]==right[index][2]));
+
+LinalgAllZero(values) -> values.All((value)->LinalgIsZero(value));
+
+LinalgBareissRows(source) -> {;
+    rows := LinalgCopyRows(source);
+    rowCount = rows.Len();
+    columns = rows[1].Len();
+    pivotRow := 1;
+    previousPivot := 1;
+    pivots := [];
+    swaps := [];
+    stages := [];
+    swapSign := 1;
+    {@ column = 1; column <= @columns && @pivotRow <= @rowCount; {;
+        selected = LinalgFindPivot(@rows,@pivotRow,column);
+        selected != 0
+          ?: {;
+              didSwap = @selected != @pivotRow;
+              didSwap
+                ?: {;
+                    swap = @rows[@pivotRow];
+                    @rows ~= @rows.Set(@pivotRow,@rows[@selected]).Set(@selected,swap);
+                    @swaps ~= @swaps.Push({: @pivotRow, @selected });
+                    @swapSign ~= -@swapSign;
+                }
+                ?_ _;
+              pivot = @rows[@pivotRow][@column];
+              before = LinalgMatrixTensor(LinalgCopyRows(@rows));
+              {@ row = @pivotRow+1; row <= @rowCount; {;
+                  leading = @rows[row][@column];
+                  replacement := @rows[row];
+                  {@ entry = @column+1; entry <= @columns; {;
+                      next = (@replacement[entry]*@pivot-@leading*@rows[@pivotRow][entry])/@previousPivot;
+                      @replacement ~= @replacement.Set(entry,next);
+                  }; entry += 1 };
+                  replacement ~= replacement.Set(@column,0);
+                  @rows ~= @rows.Set(row,replacement);
+              }; row += 1 };
+              @pivots ~= @pivots.Push(@column);
+              @stages ~= @stages.Push({=
+                  pivotRow=@pivotRow,
+                  pivotColumn=@column,
+                  pivot=pivot,
+                  previousPivot=@previousPivot,
+                  swapped=didSwap ?: 1 ?_ _,
+                  before=before,
+                  after=LinalgMatrixTensor(LinalgCopyRows(@rows))
+              });
+              @previousPivot ~= pivot;
+              @pivotRow += 1;
+          }
+          ?_ _;
+    }; column += 1 };
+    square = rowCount==columns;
+    fullRank = pivots.Len()==rowCount && pivots.Len()==columns;
+    determinant = square ?: (fullRank ?: swapSign*previousPivot ?_ 0) ?_ _;
+    {=
+        rows=rows,
+        pivots=pivots,
+        rank=pivots.Len(),
+        rowSwaps=swaps,
+        swapSign=swapSign,
+        stages=stages,
+        determinant=determinant
+    };
+};
+
+LinalgVerifyBareiss(value) -> {;
+    value ? :Map && value[:schema]=="rix.linalg.bareiss@1"
+      ?: _
+      ?_ .Error("Expected a Bareiss elimination record");
+    replay = LinalgBareissRows(LinalgMatrixRows(value[:source],"Bareiss source"));
+    same = replay[:rank]==value[:rank]
+      && replay[:determinant]==value[:determinant]
+      && LinalgIndexArraysEqual(replay[:pivots],value[:pivots])
+      && LinalgSwapArraysEqual(replay[:rowSwaps],value[:rowswaps])
+      && LinalgRank(value[:echelon])==value[:rank];
+    same ?: 1 ?_ _;
+};
+
+LinalgBareiss(value) -> {;
+    sourceRows = LinalgMatrixRows(value,"Bareiss matrix");
+    source = LinalgMatrixTensor(sourceRows);
+    core = LinalgBareissRows(sourceRows);
+    result = {=
+        valueKind=:bareissElimination,
+        schema="rix.linalg.bareiss@1",
+        exact=1,
+        source=source,
+        echelon=LinalgMatrixTensor(core[:rows]),
+        pivots=core[:pivots],
+        rank=core[:rank],
+        rowSwaps=core[:rowswaps],
+        swapSign=core[:swapsign],
+        determinant=core[:determinant],
+        stages=core[:stages],
+        recurrence=:bareiss,
+        verified=1
+    };
+    result.__type="BareissElimination";
+    result._proto={=
+        Verify=(self)->LinalgVerifyBareiss(self),
+        Matrix=(self)->self[:echelon],
+        Determinant=(self)->self[:determinant],
+        Record=(self)->self
+    };
+    .ImmutableValue(result);
+};
+
+LinalgDeterminantCertificate(value) -> {;
+    sourceRows = LinalgMatrixRows(value,"Determinant certificate matrix");
+    sourceRows.Len()==sourceRows[1].Len() ?: _ ?_ .Error("Determinant certificate requires a square matrix");
+    elimination = LinalgBareiss(LinalgMatrixTensor(sourceRows));
+    expected = LinalgDeterminantRows(sourceRows);
+    determinant = elimination[:determinant];
+    verified = elimination.Verify() && determinant==expected;
+    result = {=
+        valueKind=:determinantCertificate,
+        schema="rix.linalg.determinant-certificate@1",
+        exact=1,
+        source=elimination[:source],
+        determinant=determinant,
+        elimination=elimination,
+        formula=:swapSignTimesFinalBareissPivot,
+        independentCheck=expected,
+        verified=verified ?: 1 ?_ _
+    };
+    result.__type="DeterminantCertificate";
+    result._proto={=
+        Verify=(self)->self[:elimination].Verify() && self[:determinant]==LinalgDeterminant(self[:source]),
+        Record=(self)->self
+    };
+    .ImmutableValue(result);
+};
+
+LinalgNullBasisRows(rows,pivots) -> {;
+    columns = rows[1].Len();
+    freeColumns := [];
+    {@ column = 1; column <= @columns; {;
+        @pivots.Includes(column) ?: _ ?_ {; @freeColumns ~= @freeColumns.Push(@column); };
+    }; column += 1 };
+    basis := [];
+    {@ freeIndex = 1; freeIndex <= @freeColumns.Len(); {;
+        freeColumn = @freeColumns[freeIndex];
+        vector := LinalgZeros(@columns).Set(freeColumn,1);
+        {@ row = 1; row <= @pivots.Len(); {;
+            pivotColumn = @pivots[row];
+            @vector ~= @vector.Set(pivotColumn,-@rows[row][@freeColumn]);
+        }; row += 1 };
+        @basis ~= @basis.Push(LinalgVectorTensor(vector));
+    }; freeIndex += 1 };
+    {= basis=basis, freeColumns=freeColumns };
+};
+
+LinalgVerifySubspace(value) -> {;
+    value ? :Map && value[:schema]=="rix.linalg.subspace@1"
+      ?: _
+      ?_ .Error("Expected a linalg subspace record");
+    sourceRows = LinalgMatrixRows(value[:source],"Subspace source");
+    kind = value[:kind];
+    kind==:nullSpace
+      ?: value[:basis].All((vector)->LinalgAllZero(LinalgMultiplyMatrixVector(sourceRows,LinalgVectorValues(vector))))
+      ?_ (kind==:rowSpace
+          ?: LinalgRank(value[:basis].Len()==0 ?: {:1x1: 0} ?_ LinalgMatrixTensor(value[:basis].Map((vector)->LinalgVectorValues(vector))))==value[:dimension]
+          ?_ (kind==:columnSpace
+              ?: LinalgRank(value[:basis].Len()==0 ?: {:1x1: 0} ?_ LinalgMatrixTensor(LinalgTransposeRows(value[:basis].Map((vector)->LinalgVectorValues(vector)))))==value[:dimension]
+              ?_ _));
+};
+
+LinalgSubspace(value,kind) -> {;
+    sourceRows = LinalgMatrixRows(value,"Subspace matrix");
+    reduced = LinalgRrefRows(sourceRows);
+    pivots = reduced[:pivots];
+    basis = kind==:rowSpace
+      ?: reduced[:rows].Filter((row)->!LinalgAllZero(row)).Map((row)->LinalgVectorTensor(row))
+      ?_ (kind==:columnSpace
+          ?: pivots.Map((column)->LinalgVectorTensor(sourceRows.Map((row)->row[column])))
+          ?_ LinalgNullBasisRows(reduced[:rows],pivots)[:basis]);
+    ambient = kind==:columnSpace ?: sourceRows.Len() ?_ sourceRows[1].Len();
+    result = {=
+        valueKind=:exactSubspace,
+        schema="rix.linalg.subspace@1",
+        exact=1,
+        kind=kind,
+        source=LinalgMatrixTensor(sourceRows),
+        ambientDimension=ambient,
+        dimension=basis.Len(),
+        basis=basis,
+        pivots=pivots,
+        verified=1
+    };
+    result.__type="ExactSubspace";
+    result._proto={= Verify=(self)->LinalgVerifySubspace(self), Basis=(self)->self[:basis], Record=(self)->self };
+    .ImmutableValue(result);
+};
+
+LinalgRowSpace(value)->LinalgSubspace(value,:rowSpace);
+LinalgColumnSpace(value)->LinalgSubspace(value,:columnSpace);
+LinalgNullSpace(value)->LinalgSubspace(value,:nullSpace);
+
+LinalgLuRows(source) -> {;
+    source.Len()==source[1].Len() ?: _ ?_ .Error("LU requires a square matrix");
+    size = source.Len();
+    upper := LinalgCopyRows(source);
+    lower := LinalgIdentityRows(size);
+    permutation := LinalgIdentityRows(size);
+    swaps := [];
+    swapSign := 1;
+    singular := 0;
+    {@ column = 1; column <= @size && @singular==0; {;
+        selected = LinalgFindPivot(@upper,column,column);
+        selected==0
+          ?: {; @singular ~= 1; }
+          ?_ {;
+              @selected!=@column
+                ?: {;
+                    swapUpper=@upper[@column];
+                    @upper ~= @upper.Set(@column,@upper[@selected]).Set(@selected,swapUpper);
+                    swapPermutation=@permutation[@column];
+                    @permutation ~= @permutation.Set(@column,@permutation[@selected]).Set(@selected,swapPermutation);
+                    lowerA := @lower[@column];
+                    lowerB := @lower[@selected];
+                    {@ prior = 1; prior < @column; {;
+                        first=@lowerA[prior];
+                        @lowerA ~= @lowerA.Set(prior,@lowerB[prior]);
+                        @lowerB ~= @lowerB.Set(prior,first);
+                    }; prior += 1 };
+                    @lower ~= @lower.Set(@column,lowerA).Set(@selected,lowerB);
+                    @swaps ~= @swaps.Push({: @column,@selected });
+                    @swapSign ~= -@swapSign;
+                }
+                ?_ _;
+              pivot=@upper[@column][@column];
+              {@ row=@column+1; row<=@size; {;
+                  factor=@upper[row][@column]/@pivot;
+                  @lower ~= @lower.Set(row,@lower[row].Set(@column,factor));
+                  replacement=@upper[row].Map((entry,index)->entry-@factor*@upper[@column][index]);
+                  @upper ~= @upper.Set(row,replacement.Set(@column,0));
+              }; row+=1 };
+          };
+    }; column+=1 };
+    determinant = singular==1 ?: 0 ?_ swapSign*LinalgZeros(size).Map((unused,index)->upper[index][index]).Reduce((product,value)->product*value,1);
+    {=
+        lower=lower,
+        upper=upper,
+        permutation=permutation,
+        rowSwaps=swaps,
+        swapSign=swapSign,
+        singular=singular==1 ?: 1 ?_ _,
+        rank=LinalgRrefRows(source)[:pivots].Len(),
+        determinant=determinant
+    };
+};
+
+LinalgVerifyFactorization(value) -> {;
+    value ? :Map && value[:schema]=="rix.linalg.factorization@1"
+      ?: _
+      ?_ .Error("Expected a linalg factorization record");
+    source=LinalgMatrixRows(value[:source],"Factorization source");
+    left=LinalgMultiplyRows(LinalgMatrixRows(value[:permutation]),source);
+    right=value[:kind]==:lu
+      ?: LinalgMultiplyRows(LinalgMatrixRows(value[:lower]),LinalgMatrixRows(value[:upper]))
+      ?_ LinalgMultiplyRows(
+          LinalgMultiplyRows(LinalgMatrixRows(value[:lower]),LinalgMatrixRows(value[:diagonal])),
+          LinalgMatrixRows(value[:upper])
+      );
+    LinalgRowsEqual(left,right) ?: 1 ?_ _;
+};
+
+LinalgTriangularSolveRows(lower,upper,permutation,rightHandSide) -> {;
+    size=lower.Len();
+    rightHandSide.Len()==size ?: _ ?_ .Error("Factorization right-hand side has the wrong length");
+    permuted=LinalgMultiplyMatrixVector(permutation,rightHandSide);
+    forward := LinalgZeros(size);
+    {@ row=1; row<=@size; {;
+        total = @permuted[row]-LinalgDot(@lower[row].Slice(1,row),@forward.Slice(1,row));
+        LinalgIsZero(@lower[row][row]) ?: .Error("Factorization has a zero lower-triangular pivot") ?_ _;
+        @forward ~= @forward.Set(row,total/@lower[row][row]);
+    }; row+=1 };
+    solution := LinalgZeros(size);
+    {@ row=@size; row>=1; {;
+        total = @forward[row]-LinalgDot(@upper[row].Slice(row+1),@solution.Slice(row+1));
+        LinalgIsZero(@upper[row][row]) ?: .Error("Singular factorization cannot solve uniquely") ?_ _;
+        @solution ~= @solution.Set(row,total/@upper[row][row]);
+    }; row-=1 };
+    solution;
+};
+
+LinalgFactorSolve(value,rightHandSide) -> {;
+    value[:singular] ?: .Error("Singular factorization cannot solve uniquely") ?_ _;
+    lu=value[:kind]==:lu ?: value ?_ value[:lu];
+    values=LinalgVectorValues(rightHandSide,"Factorization right-hand side");
+    LinalgVectorTensor(LinalgTriangularSolveRows(
+        LinalgMatrixRows(lu[:lower]),
+        LinalgMatrixRows(lu[:upper]),
+        LinalgMatrixRows(lu[:permutation]),
+        values
+    ));
+};
+
+LinalgFactorInverse(value) -> {;
+    value[:singular] ?: .Error("Singular factorization has no inverse") ?_ _;
+    size=LinalgMatrixRows(value[:source]).Len();
+    identity=LinalgIdentityRows(size);
+    columns=identity.Map((basis)->LinalgVectorValues(LinalgFactorSolve(value,basis)));
+    LinalgMatrixTensor(LinalgTransposeRows(columns));
+};
+
+LinalgLU(value) -> {;
+    sourceRows=LinalgMatrixRows(value,"LU matrix");
+    core=LinalgLuRows(sourceRows);
+    result={=
+        valueKind=:exactFactorization,
+        schema="rix.linalg.factorization@1",
+        exact=1,
+        kind=:lu,
+        source=LinalgMatrixTensor(sourceRows),
+        permutation=LinalgMatrixTensor(core[:permutation]),
+        lower=LinalgMatrixTensor(core[:lower]),
+        upper=LinalgMatrixTensor(core[:upper]),
+        rowSwaps=core[:rowswaps],
+        swapSign=core[:swapsign],
+        rank=core[:rank],
+        singular=core[:singular],
+        determinant=core[:determinant],
+        verified=1
+    };
+    result.__type="ExactFactorization";
+    result._proto={=
+        Verify=(self)->LinalgVerifyFactorization(self),
+        Solve=(self,right)->LinalgFactorSolve(self,right),
+        Inverse=(self)->LinalgFactorInverse(self),
+        Determinant=(self)->self[:determinant],
+        Record=(self)->self
+    };
+    .ImmutableValue(result);
+};
+
+LinalgLDU(value) -> {;
+    lu=LinalgLU(value);
+    lu[:singular] ?: .Error("LDU currently requires a nonsingular square matrix") ?_ _;
+    upperRows=LinalgMatrixRows(lu[:upper]);
+    size=upperRows.Len();
+    diagonalValues=LinalgZeros(size).Map((unused,index)->upperRows[index][index]);
+    diagonal=LinalgZeros(size).Map((unused,row)->LinalgZeros(size).Set(row,diagonalValues[row]));
+    unitUpper=upperRows.Map((row,index)->row.Map((entry)->entry/diagonalValues[index]));
+    result={=
+        valueKind=:exactFactorization,
+        schema="rix.linalg.factorization@1",
+        exact=1,
+        kind=:ldu,
+        source=lu[:source],
+        permutation=lu[:permutation],
+        lower=lu[:lower],
+        diagonal=LinalgMatrixTensor(diagonal),
+        upper=LinalgMatrixTensor(unitUpper),
+        lu=lu,
+        rowSwaps=lu[:rowswaps],
+        swapSign=lu[:swapsign],
+        rank=lu[:rank],
+        singular=_,
+        determinant=lu[:determinant],
+        verified=1
+    };
+    result.__type="ExactFactorization";
+    result._proto={=
+        Verify=(self)->LinalgVerifyFactorization(self),
+        Solve=(self,right)->LinalgFactorSolve(self,right),
+        Inverse=(self)->LinalgFactorInverse(self),
+        Determinant=(self)->self[:determinant],
+        Record=(self)->self
+    };
+    .ImmutableValue(result);
 };
 
 LinalgResult(fields) -> {;
@@ -637,6 +1024,13 @@ linalgNamespace._proto={=
     Rref=(self,value)->LinalgRref(value), Rank=(self,value)->LinalgRank(value),
     Determinant=(self,value)->LinalgDeterminant(value), Inverse=(self,value)->LinalgInverse(value),
     Solve=(self,first,second ?= _)->second==_ ?: LinalgSolve(first) ?_ LinalgSolveValues(first,second),
+    Bareiss=(self,value)->LinalgBareiss(value),
+    LU=(self,value)->LinalgLU(value),
+    LDU=(self,value)->LinalgLDU(value),
+    DeterminantCertificate=(self,value)->LinalgDeterminantCertificate(value),
+    RowSpace=(self,value)->LinalgRowSpace(value),
+    ColumnSpace=(self,value)->LinalgColumnSpace(value),
+    NullSpace=(self,value)->LinalgNullSpace(value),
     VectorSpace=(self,first,second ?= _,options ?= {= })->LinalgVectorSpace(first,second,options),
     Frame=(self,space,specification ?= _,basis ?= _,options ?= {= })->LinalgFrame(space,specification,basis,options),
     Tensor=(self,components,frames,variance ?= _,options ?= {= })->LinalgTensor(components,frames,variance,options),
@@ -658,3 +1052,10 @@ linalgNamespace._proto["TRANSFORM!"]=(self,value,target)->LinalgTransformBang(va
 .Host.RegisterMethod("Matrix","Rank",(value)->LinalgRank(value),"linalg","linalg");
 .Host.RegisterMethod("Matrix","Determinant",(value)->LinalgDeterminant(value),"linalg","linalg");
 .Host.RegisterMethod("Matrix","Inverse",(value)->LinalgInverse(value),"linalg","linalg");
+.Host.RegisterMethod("Matrix","Bareiss",(value)->LinalgBareiss(value),"linalg","linalg");
+.Host.RegisterMethod("Matrix","LU",(value)->LinalgLU(value),"linalg","linalg");
+.Host.RegisterMethod("Matrix","LDU",(value)->LinalgLDU(value),"linalg","linalg");
+.Host.RegisterMethod("Matrix","DeterminantCertificate",(value)->LinalgDeterminantCertificate(value),"linalg","linalg");
+.Host.RegisterMethod("Matrix","RowSpace",(value)->LinalgRowSpace(value),"linalg","linalg");
+.Host.RegisterMethod("Matrix","ColumnSpace",(value)->LinalgColumnSpace(value),"linalg","linalg");
+.Host.RegisterMethod("Matrix","NullSpace",(value)->LinalgNullSpace(value),"linalg","linalg");

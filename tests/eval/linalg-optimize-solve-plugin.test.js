@@ -117,6 +117,72 @@ describe("linalg Phase 1 plugin", () => {
     });
 });
 
+describe("linalg Phase 2 exact decompositions", () => {
+    test("runs replayable fraction-free Bareiss elimination and certifies determinants", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("linalg");
+            A := [0,2,1; 2,3,4; 4,1,5];
+            elimination := .linalg.Bareiss(A);
+            certificate := .linalg.DeterminantCertificate(A);
+            [elimination[:echelon], elimination[:pivots], elimination[:rowswaps],
+             elimination[:determinant], elimination.Verify(), elimination[:stages].Len(),
+             certificate[:determinant], certificate[:independentcheck], certificate.Verify()];
+        `);
+        expect(flat(result.values[0])).toEqual(["2", "3", "4", "0", "4", "2", "0", "0", "-2"]);
+        expect(result.values[1].values.map(String)).toEqual(["1", "2", "3"]);
+        expect(result.values[2].values.map((swap) => swap.values.map(String))).toEqual([["1", "2"]]);
+        expect(result.values.slice(3).map(String)).toEqual(["2", "1", "3", "2", "2", "1"]);
+    });
+
+    test("returns reusable row-pivoted LU and exact LDU factorization objects", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("linalg");
+            A := [0,2; 3,4];
+            lu := .linalg.LU(A);
+            ldu := .linalg.LDU(A);
+            [lu[:permutation], lu[:lower], lu[:upper], lu[:determinant],
+             lu.Verify(), ldu.Verify(), lu.Solve([2,7]), ldu.Solve([2,7]), lu.Inverse()];
+        `);
+        expect(flat(result.values[0])).toEqual(["0", "1", "1", "0"]);
+        expect(flat(result.values[1])).toEqual(["1", "0", "0", "1"]);
+        expect(flat(result.values[2])).toEqual(["3", "4", "0", "2"]);
+        expect(result.values.slice(3, 6).map(String)).toEqual(["-6", "1", "1"]);
+        expect(flat(result.values[6])).toEqual(["1", "1"]);
+        expect(flat(result.values[7])).toEqual(["1", "1"]);
+        expect(flat(result.values[8])).toEqual(["-2/3", "1/3", "1/2", "0"]);
+
+        const singular = parseAndEvaluate('.Plugin.Load("linalg"); .linalg.LU([1,2;2,4])');
+        expect(String(singular.entries.get("rank"))).toBe("1");
+        expect(String(singular.entries.get("singular"))).toBe("1");
+        expect(() => parseAndEvaluate(`
+            .Plugin.Load("linalg");
+            (.linalg.LU([1,2;2,4])).Solve([1,2]);
+        `)).toThrow("cannot solve uniquely");
+    });
+
+    test("constructs exact row, column, and null-space basis records", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("linalg");
+            A := [1,2,3; 2,4,6];
+            rows := .linalg.RowSpace(A);
+            columns := .linalg.ColumnSpace(A);
+            nulls := .linalg.NullSpace(A);
+            [rows, columns, nulls, rows.Verify(), columns.Verify(), nulls.Verify()];
+        `);
+        const [rows, columns, nulls] = result.values;
+        expect(rows.entries.get("kind").value).toBe("rowSpace");
+        expect(String(rows.entries.get("dimension"))).toBe("1");
+        expect(flat(rows.entries.get("basis").values[0])).toEqual(["1", "2", "3"]);
+        expect(columns.entries.get("kind").value).toBe("columnSpace");
+        expect(flat(columns.entries.get("basis").values[0])).toEqual(["1", "2"]);
+        expect(nulls.entries.get("kind").value).toBe("nullSpace");
+        expect(nulls.entries.get("basis").values.map(flat)).toEqual([
+            ["-2", "1", "0"], ["-3", "0", "1"],
+        ]);
+        expect(result.values.slice(3).map(String)).toEqual(["1", "1", "1"]);
+    });
+});
+
 describe("optimize Phase 1 plugin", () => {
     test("solves exact standard-form linear programs", () => {
         const result = parseAndEvaluate(`

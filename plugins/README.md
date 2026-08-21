@@ -30,7 +30,7 @@ The implementation order and per-plugin phased work are tracked in
 | `octonion/` | specification | planned `octonion` | Certified parenthesis-preserving Octonion façade and intrinsic functions. |
 | `oracle/` | RiX | `oracle` | Phase 1 rational-betweenness oracle values, procedures, validation, and bounded refinement. |
 | `numerics/` | RiX | `numerics` | Backend-neutral bounded enclosure, refinement, and sampling protocol orchestration. |
-| `linalg/` | RiX | `linalg` | Pure-RiX exact dense linear algebra, vector spaces, coordinate systems, and coordinate-aware tensor transformations. |
+| `linalg/` | RiX | `linalg` | Pure-RiX exact dense linear algebra, Bareiss/LU/LDU decompositions, certified subspaces, and coordinate-aware tensors. |
 | `optimize/` | RiX | `optimize` | Pure-RiX exact standard-form linear programs and deterministic simplex solving. |
 | `solve/` | RiX | `solve` | Pure-RiX exact affine matrix and symbolic-system solving over the linear-algebra service. |
 | `radix/` | RiX | `radix` | Pure-RiX bounded exact positional expansions, repeating-period analysis, configurable alphabets/grouping, and portable work diagnostics. |
