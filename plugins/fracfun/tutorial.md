@@ -74,6 +74,56 @@ R := RForm.R();
 {: P(3), R(3), PForm.Record(), RForm.Record() };
 ```
 
+## Verified presentations that retain the source domain
+
+Factorization, square-free decomposition, and partial fractions operate on the
+canonical exact projection. Their FractionFunction wrappers keep the original
+domain authoritative:
+
+```rix
+.Plugin.Load("fracfun");
+F := .ff`(x^2-1)/(x-1)`;
+factored := F.Factor();
+squareFree := F.SquareFree();
+partial := F.PartialFractions();
+{: factored[:verified], factored.Get("sourceDomainPreserved"),
+   factored.Presentation(), squareFree.Presentation(),
+   partial.Presentation(), factored.Domain() };
+```
+
+`factored.Source()(1)` still fails because the source denominator is zero.
+`factored.Canonical()(1)` is `2`; that is an explicitly requested canonical
+projection, not a widening of the source function's domain.
+
+## Zeros, poles, and removable holes
+
+```rix
+.Plugin.Load("fracfun");
+F := .ff`(x^2-1)/(x-1)`;
+divisors := F.PoleZeroEvidence();
+holes := F.RemovableHoleEvidence();
+{: divisors[:zeros], divisors[:poles],
+   divisors.Get("removableHoles"),
+   holes.Get("cancelledFactorEvidence"), holes.Get("restrictionEvidence"),
+   holes[:complete] };
+```
+
+The canonical zero is `-1`, there are no canonical poles, and the cancelled
+source restriction gives the removable hole at `1`. When an irreducible
+factor remains, `verified` still certifies the displayed algebra while
+`complete` stays null and the residual polynomial records what is not yet
+enumerated.
+
+For a classroom comparison, render all three transformations together or one
+at a time:
+
+```rix
+.Plugin.Load("fracfun");
+F := .ff`(x^2+1)/(x^2-1)`;
+F.TransformationGrid();
+F.Factored().Grid();
+```
+
 ## Export forms and restrictions to Calculus
 
 `.symbolic` loads FractionFunction and Calculus together. Displayed and

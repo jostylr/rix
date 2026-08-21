@@ -594,10 +594,10 @@ tracked in
    - [x] Support composition, exact Fraction evaluation, reactive rebuilds,
      records, documentation, and a tutorial.
 2. **Phase 2 — Factored and decomposed presentations**
-   - [ ] Add verified `Factor`, square-free, and partial-fraction presentations
+   - [x] Add verified `Factor`, square-free, and partial-fraction presentations
      without changing the authoritative source domain.
-   - [ ] Add pole/zero multiplicity and removable-hole evidence.
-   - [ ] Add presentation-aware rendering and side-by-side transformation
+   - [x] Add pole/zero multiplicity and removable-hole evidence.
+   - [x] Add presentation-aware rendering and side-by-side transformation
      Grids for teaching.
 3. **Phase 3 — Broader coefficient domains**
    - [ ] Support multivariate forms and declared coefficient domains while

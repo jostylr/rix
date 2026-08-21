@@ -94,6 +94,70 @@ describe("form-preserving FractionFunction plugin", () => {
         `)).toThrow("Division by zero");
     });
 
+    test("wraps verified canonical presentations without changing the source function domain", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("fracfun");
+            F := .ff\`(x^2-1)/(x-1)\`;
+            factored := F.Factor();
+            squareFree := F.SquareFree();
+            partial := F.PartialFractions();
+            zeroSquareFree := (.ff\`0/x\`).SquareFree();
+            {: factored[:schema], factored[:verified], factored.Get("sourceDomainPreserved"),
+               factored.Source().SameFunction(F),
+               factored.Presentation().Expand() == F.Canonical(),
+               squareFree[:presentation][:numerator][:verified],
+               squareFree[:presentation][:denominator][:verified],
+               partial[:presentation][:verified],
+               partial.Domain()[:restrictions].Len(),
+               zeroSquareFree[:presentation][:numerator][:status] };
+        `);
+        expect(result.values[0].value).toBe("rix.fraction-function.presentation@1");
+        expect(strings({ values: result.values.slice(1, 9) })).toEqual([
+            "1", "1", "1", "1", "1", "1", "1", "1",
+        ]);
+        expect(result.values[9].value).toBe("identicallyZero");
+    });
+
+    test("certifies canonical divisors and distinguishes removable holes from remaining poles", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("fracfun");
+            holeFunction := .ff\`(x^2-1)/(x-1)\`;
+            poleFunction := .ff\`x/(x^2)\`;
+            holeEvidence := holeFunction.RemovableHoleEvidence();
+            divisors := holeFunction.PoleZeroEvidence();
+            poleEvidence := poleFunction.PoleZeroEvidence();
+            {: holeEvidence[:schema], holeEvidence[:verified], holeEvidence[:complete],
+               holeEvidence.Holes().Len(), holeEvidence.Holes()[1][:point],
+               holeEvidence.Holes()[1][:multiplicity],
+               divisors[:zeros][:entries][1][:point], divisors[:poles][:entries].Len(),
+               poleEvidence.Get("removableHoles").Len(),
+               poleEvidence[:poles][:entries][1][:point],
+               poleEvidence[:poles][:entries][1][:multiplicity],
+               poleEvidence.Get("sourceDomainPreserved") };
+        `);
+        expect(result.values[0].value).toBe("rix.fraction-function.removable-hole-evidence@1");
+        expect(strings({ values: result.values.slice(1) })).toEqual([
+            "1", "1", "1", "1", "1", "-1", "0", "0", "0", "1", "1",
+        ]);
+    });
+
+    test("provides presentation-aware side-by-side teaching grids", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("fracfun");
+            F := .ff\`(x^2+1)/(x^2-1)\`;
+            all := F.TransformationGrid();
+            one := F.Factored().Grid();
+            viaNamespace := .fracfun.Factor(F);
+            {: all, one, viaNamespace };
+        `);
+        expect(result.values[0].kind).toBe("grid");
+        expect(result.values[0].rows).toHaveLength(3);
+        expect(result.values[0].columns).toHaveLength(5);
+        expect(result.values[1].kind).toBe("grid");
+        expect(result.values[1].rows).toHaveLength(1);
+        expect(result.values[2].entries.get("kind").value).toBe("factored");
+    }, 15000);
+
     test("evaluates naturally over unreduced Fractions and composes form functions", () => {
         const result = parseAndEvaluate(`
             .Plugin.Load("fracfun");

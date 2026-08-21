@@ -4,6 +4,8 @@ import { Fraction, Integer, Rational } from "@ratmath/core";
 import { parse } from "../../src/parser/parser.js";
 import { lower } from "../../src/eval/lower.js";
 import { callWithConcreteArgs } from "../../src/eval/functions/functions.js";
+import { resolveMethod } from "../../src/runtime/methods.js";
+import { createGrid } from "../../src/runtime/output.js";
 import {
     cloneSymbolicIr,
     combineSymbolic,
@@ -31,11 +33,32 @@ import {
 } from "../ratfun/rational-function.js";
 
 export const FRACTION_FUNCTION_SCHEMA = "rix.fraction-function@1";
+export const FRACTION_FUNCTION_PRESENTATION_SCHEMA = "rix.fraction-function.presentation@1";
+export const FRACTION_FUNCTION_DIVISOR_EVIDENCE_SCHEMA = "rix.fraction-function.divisor-evidence@1";
+export const FRACTION_FUNCTION_HOLE_EVIDENCE_SCHEMA = "rix.fraction-function.removable-hole-evidence@1";
 
 const int = (value) => new Integer(BigInt(value));
 const str = (value) => ({ type: "string", value: String(value) });
 const seq = (values) => ({ type: "sequence", values });
 const rixMap = (entries) => ({ type: "map", entries: new Map(entries) });
+
+function immutableMap(entries, methods = []) {
+    return {
+        type: "map",
+        entries: new Map(entries),
+        _ext: new Map([["immutable", int(1)], ...methods]),
+    };
+}
+
+function mapField(value, name, fallback = null) {
+    if (value?.type !== "map" || !(value.entries instanceof Map)) return fallback;
+    if (value.entries.has(name)) return value.entries.get(name);
+    const wanted = String(name).toLowerCase();
+    for (const [key, entry] of value.entries) {
+        if (String(key).toLowerCase() === wanted) return entry;
+    }
+    return fallback;
+}
 
 function text(value, fallback = null) {
     if (value?.type === "string") return value.value;
@@ -466,6 +489,245 @@ function restrictionCalculusExpressions(value) {
     return restrictionSpecs(value).map((spec) => symbolicSpecToCalculusExpression(spec));
 }
 
+function domainRecord(value) {
+    return rixMap([
+        ["policy", str("original denominators != 0")],
+        ["restrictions", seq(restrictionSpecs(value))],
+        ["calculusRestrictions", seq(restrictionCalculusExpressions(value))],
+        ["cancelledRestrictionsPreserved", int(1)],
+    ]);
+}
+
+function invokeReceiver(value, name, args, context, evaluate) {
+    const callable = resolveMethod(value, name, context);
+    return callable.type === "method_builtin"
+        ? callable.impl([value, ...args], context, evaluate, callWithConcreteArgs)
+        : callWithConcreteArgs(callable, [value, ...args], context, evaluate);
+}
+
+function exactTruth(value) {
+    return value instanceof Integer && value.value === 1n;
+}
+
+function exactIntegerIs(value, expected) {
+    return value instanceof Integer && value.value === BigInt(expected);
+}
+
+function exactValuesEqual(left, right) {
+    if (left === right) return true;
+    if (typeof left?.equals === "function") return left.equals(right);
+    if (typeof right?.equals === "function") return right.equals(left);
+    return String(left) === String(right);
+}
+
+function sourcePolynomialPair(value, context, evaluate) {
+    const source = requireFractionFunction(value);
+    const spec = metadata(source).evaluationSpec;
+    const parts = rationalParts(expressionOf(spec));
+    const polynomial = (expression, role) => createPolynomial([
+        cloneSpec(spec, expression, { transform: { operation: role } }),
+    ], context, evaluate);
+    return {
+        numerator: polynomial(parts.numerator, "SourceNumerator"),
+        denominator: polynomial(parts.denominator, "SourceDenominator"),
+    };
+}
+
+function canonicalPresentation(value, kind, context, evaluate) {
+    const exact = canonical(value, context, evaluate);
+    if (kind === "factored") return invokeReceiver(exact, "Factored", [], context, evaluate);
+    if (kind === "partialFractions") return invokeReceiver(exact, "PartialFractions", [], context, evaluate);
+    if (kind === "squareFree") {
+        const numerator = invokeReceiver(exact, "Numerator", [], context, evaluate);
+        const denominator = invokeReceiver(exact, "Denominator", [], context, evaluate);
+        const squareFreePart = (polynomial) => exactIntegerIs(
+            invokeReceiver(polynomial, "Degree", [], context, evaluate), -1,
+        ) ? immutableMap([
+                ["schema", str("rix.polynomial.square-free@1")],
+                ["valueKind", str("polynomialSquareFreeDecomposition")],
+                ["status", str("identicallyZero")],
+                ["polynomial", polynomial],
+                ["factors", seq([])],
+                ["verified", int(1)],
+            ])
+            : invokeReceiver(polynomial, "SquareFreeDecomposition", [], context, evaluate);
+        const numeratorPresentation = squareFreePart(numerator);
+        const denominatorPresentation = squareFreePart(denominator);
+        return immutableMap([
+            ["schema", str("rix.fraction-function.square-free-pair@1")],
+            ["valueKind", str("fractionFunctionSquareFreePair")],
+            ["exact", int(1)],
+            ["verified", exactTruth(mapField(numeratorPresentation, "verified"))
+                && exactTruth(mapField(denominatorPresentation, "verified")) ? int(1) : null],
+            ["numerator", numeratorPresentation],
+            ["denominator", denominatorPresentation],
+        ]);
+    }
+    throw new Error(`Unknown FractionFunction presentation '${kind}'`);
+}
+
+function presentationLabel(kind) {
+    if (kind === "partialFractions") return "partial fractions";
+    if (kind === "squareFree") return "square-free";
+    return "factored";
+}
+
+function presentationGrid(source, kind, payload, context, evaluate) {
+    const exact = requireFractionFunction(source);
+    return createGrid([
+        seq([str("Transformation"), str("Source form"), str("Canonical projection"), str("Verified presentation"), str("Authoritative domain")]),
+        seq([seq([
+            str(presentationLabel(kind)),
+            metadata(exact).displaySpec,
+            canonical(exact, context, evaluate),
+            payload,
+            domainRecord(exact),
+        ])]),
+        seq([]),
+    ]);
+}
+
+function presentationValue(value, kind, context, evaluate) {
+    const source = requireFractionFunction(value);
+    const exact = canonical(source, context, evaluate);
+    const payload = canonicalPresentation(source, kind, context, evaluate);
+    const verified = mapField(payload, "verified");
+    const result = immutableMap([
+        ["schema", str(FRACTION_FUNCTION_PRESENTATION_SCHEMA)],
+        ["valueKind", str("fractionFunctionPresentation")],
+        ["kind", str(kind)],
+        ["exact", int(1)],
+        ["verified", exactTruth(verified) ? int(1) : null],
+        ["sourceDomainPreserved", int(1)],
+        ["source", source],
+        ["sourceForm", metadata(source).displaySpec],
+        ["canonical", exact],
+        ["presentation", payload],
+        ["domain", domainRecord(source)],
+        ["restrictions", seq(restrictionSpecs(source))],
+        ["calculusRestrictions", seq(restrictionCalculusExpressions(source))],
+    ], [
+        ["SOURCE", method("Source", () => source)],
+        ["FUNCTION", method("Function", () => source)],
+        ["CANONICAL", method("Canonical", () => exact)],
+        ["PRESENTATION", method("Presentation", () => payload)],
+        ["DOMAIN", method("Domain", () => domainRecord(source))],
+        ["GRID", method("Grid", (_args, callContext, callEvaluate) =>
+            presentationGrid(source, kind, payload, callContext, callEvaluate))],
+        ["RECORD", method("Record", () => result)],
+    ]);
+    return result;
+}
+
+function restrictionFactorEvidence(value, context, evaluate) {
+    return restrictionSpecs(value).map((spec) => {
+        const polynomial = createPolynomial([spec], context, evaluate);
+        const evidence = invokeReceiver(polynomial, "FactorEvidence", [], context, evaluate);
+        return immutableMap([
+            ["restriction", spec],
+            ["polynomial", polynomial],
+            ["factorEvidence", evidence],
+            ["verified", exactTruth(mapField(evidence, "verified")) ? int(1) : null],
+        ]);
+    });
+}
+
+function removableHoleEvidence(value, context, evaluate) {
+    const source = requireFractionFunction(value);
+    const pair = sourcePolynomialPair(source, context, evaluate);
+    const cancelled = invokeReceiver(pair.numerator, "Gcd", [pair.denominator], context, evaluate);
+    const cancelledEvidence = invokeReceiver(cancelled, "FactorEvidence", [], context, evaluate);
+    const canonicalEvidence = invokeReceiver(canonical(source, context, evaluate), "PoleZeroEvidence", [], context, evaluate);
+    const polePart = mapField(canonicalEvidence, "poles");
+    const poleEntries = mapField(polePart, "entries")?.values || [];
+    const cancelledEntries = mapField(cancelledEvidence, "factors")?.values || [];
+    const holes = cancelledEntries
+        .filter((entry) => !poleEntries.some((pole) =>
+            exactValuesEqual(mapField(entry, "root"), mapField(pole, "point"))))
+        .map((entry) => immutableMap([
+            ["point", mapField(entry, "root")],
+            ["multiplicity", mapField(entry, "multiplicity")],
+            ["cancelledFactor", mapField(entry, "factor")],
+            ["canonicalPole", null],
+            ["classification", str("removableHole")],
+            ["verified", int(1)],
+        ]));
+    const complete = exactTruth(mapField(cancelledEvidence, "complete"))
+        && exactTruth(mapField(polePart, "complete"));
+    const restrictions = restrictionFactorEvidence(source, context, evaluate);
+    const result = immutableMap([
+        ["schema", str(FRACTION_FUNCTION_HOLE_EVIDENCE_SCHEMA)],
+        ["valueKind", str("fractionFunctionRemovableHoleEvidence")],
+        ["exact", int(1)],
+        ["verified", exactTruth(mapField(cancelledEvidence, "verified"))
+            && exactTruth(mapField(canonicalEvidence, "verified")) ? int(1) : null],
+        ["complete", complete ? int(1) : null],
+        ["sourceDomainPreserved", int(1)],
+        ["source", source],
+        ["sourceNumerator", pair.numerator],
+        ["sourceDenominator", pair.denominator],
+        ["cancelledFactor", cancelled],
+        ["cancelledFactorEvidence", cancelledEvidence],
+        ["canonicalPoleEvidence", polePart],
+        ["holes", seq(holes)],
+        ["restrictionEvidence", seq(restrictions)],
+        ["domain", domainRecord(source)],
+    ], [
+        ["HOLES", method("Holes", () => seq(holes))],
+        ["SOURCE", method("Source", () => source)],
+        ["DOMAIN", method("Domain", () => domainRecord(source))],
+        ["RECORD", method("Record", () => result)],
+    ]);
+    return result;
+}
+
+function divisorEvidence(value, context, evaluate) {
+    const source = requireFractionFunction(value);
+    const canonicalEvidence = invokeReceiver(canonical(source, context, evaluate), "PoleZeroEvidence", [], context, evaluate);
+    const holes = removableHoleEvidence(source, context, evaluate);
+    const result = immutableMap([
+        ["schema", str(FRACTION_FUNCTION_DIVISOR_EVIDENCE_SCHEMA)],
+        ["valueKind", str("fractionFunctionDivisorEvidence")],
+        ["exact", int(1)],
+        ["verified", exactTruth(mapField(canonicalEvidence, "verified"))
+            && exactTruth(mapField(holes, "verified")) ? int(1) : null],
+        ["sourceDomainPreserved", int(1)],
+        ["source", source],
+        ["zeros", mapField(canonicalEvidence, "zeros")],
+        ["poles", mapField(canonicalEvidence, "poles")],
+        ["removableHoles", mapField(holes, "holes")],
+        ["canonicalEvidence", canonicalEvidence],
+        ["holeEvidence", holes],
+        ["domain", domainRecord(source)],
+    ], [
+        ["ZEROS", method("Zeros", () => mapField(canonicalEvidence, "zeros"))],
+        ["POLES", method("Poles", () => mapField(canonicalEvidence, "poles"))],
+        ["REMOVABLEHOLES", method("RemovableHoles", () => mapField(holes, "holes"))],
+        ["SOURCE", method("Source", () => source)],
+        ["DOMAIN", method("Domain", () => domainRecord(source))],
+        ["RECORD", method("Record", () => result)],
+    ]);
+    return result;
+}
+
+function transformationGrid(value, context, evaluate) {
+    const source = requireFractionFunction(value);
+    const exact = canonical(source, context, evaluate);
+    const kinds = ["factored", "squareFree", "partialFractions"];
+    const rows = kinds.map((kind) => seq([
+        str(presentationLabel(kind)),
+        metadata(source).displaySpec,
+        exact,
+        canonicalPresentation(source, kind, context, evaluate),
+        domainRecord(source),
+    ]));
+    return createGrid([
+        seq([str("Transformation"), str("Source form"), str("Canonical projection"), str("Verified presentation"), str("Authoritative domain")]),
+        seq(rows),
+        seq([]),
+    ]);
+}
+
 function method(name, impl) {
     return { type: "method_builtin", name, impl };
 }
@@ -514,6 +776,14 @@ export function registerFractionFunctionMethods(systemContext, owner = {}) {
     register("FractionFunction", "Simplify", ([value], context, evaluate) => transformed(value, "identities", [], context, evaluate));
     register("FractionFunction", "Recenter", ([value, center], context, evaluate) => transformed(value, "center", [center], context, evaluate));
     register("FractionFunction", "Cancel", ([value], context, evaluate) => cancelled(value, context, evaluate));
+    register("FractionFunction", "Factor", ([value], context, evaluate) => presentationValue(value, "factored", context, evaluate));
+    register("FractionFunction", "Factored", ([value], context, evaluate) => presentationValue(value, "factored", context, evaluate));
+    register("FractionFunction", "SquareFree", ([value], context, evaluate) => presentationValue(value, "squareFree", context, evaluate));
+    register("FractionFunction", "SquareFreeDecomposition", ([value], context, evaluate) => presentationValue(value, "squareFree", context, evaluate));
+    register("FractionFunction", "PartialFractions", ([value], context, evaluate) => presentationValue(value, "partialFractions", context, evaluate));
+    register("FractionFunction", "PoleZeroEvidence", ([value], context, evaluate) => divisorEvidence(value, context, evaluate));
+    register("FractionFunction", "RemovableHoleEvidence", ([value], context, evaluate) => removableHoleEvidence(value, context, evaluate));
+    register("FractionFunction", "TransformationGrid", ([value], context, evaluate) => transformationGrid(value, context, evaluate));
     register("FractionFunction", "Canonical", ([value], context, evaluate) => canonical(value, context, evaluate));
     register("FractionFunction", "R", ([value], context, evaluate) => canonical(value, context, evaluate));
     register("FractionFunction", "Polynomial", ([value], context, evaluate) => polynomial(value, context, evaluate));
@@ -534,12 +804,7 @@ export function registerFractionFunctionMethods(systemContext, owner = {}) {
         const equivalent = rationalFunctionsEqual(canonical(value, context, evaluate), canonical(other, context, evaluate), context, evaluate);
         return equivalent && restrictionsEqual(value, other) ? int(1) : null;
     });
-    register("FractionFunction", "Domain", ([value]) => rixMap([
-        ["policy", str("original denominators != 0")],
-        ["restrictions", seq(restrictionSpecs(value))],
-        ["calculusRestrictions", seq(restrictionCalculusExpressions(value))],
-        ["cancelledRestrictionsPreserved", int(1)],
-    ]));
+    register("FractionFunction", "Domain", ([value]) => domainRecord(value));
     register("FractionFunction", "ForgetRestrictions", ([value], context, evaluate) => {
         const source = requireFractionFunction(value);
         return decorate(metadata(source).displaySpec, metadata(source).displaySpec, context, evaluate, [
@@ -594,6 +859,8 @@ function parseFractionFunction(args, context, evaluate) {
 export function createFracfunPluginValue() {
     const constructor = (args, context, evaluate) => createFractionFunction(args, context, evaluate);
     const parseMethod = method("Parse", parseFractionFunction);
+    const presentationMethod = (name, kind) => method(name, ([, value], context, evaluate) =>
+        presentationValue(value, kind, context, evaluate));
     const modifier = (name) => method(name, () => {
         throw new Error(`.${name} is a backtick parser modifier, not a callable method`);
     });
@@ -605,6 +872,12 @@ export function createFracfunPluginValue() {
             ["VAR", modifier("Var")], ["Var", modifier("Var")],
             ["FUN", modifier("Fun")], ["Fun", modifier("Fun")],
             ["FRACTIONFUNCTION", method("FractionFunction", ([, ...args], context, evaluate) => createFractionFunction(args, context, evaluate))],
+            ["FACTOR", presentationMethod("Factor", "factored")],
+            ["SQUAREFREE", presentationMethod("SquareFree", "squareFree")],
+            ["PARTIALFRACTIONS", presentationMethod("PartialFractions", "partialFractions")],
+            ["POLEZEROEVIDENCE", method("PoleZeroEvidence", ([, value], context, evaluate) => divisorEvidence(value, context, evaluate))],
+            ["REMOVABLEHOLEEVIDENCE", method("RemovableHoleEvidence", ([, value], context, evaluate) => removableHoleEvidence(value, context, evaluate))],
+            ["TRANSFORMATIONGRID", method("TransformationGrid", ([, value], context, evaluate) => transformationGrid(value, context, evaluate))],
             ["immutable", int(1)],
         ]),
     };

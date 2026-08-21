@@ -4,12 +4,12 @@ description: Form-preserving callable polynomial and rational expressions with e
 kind: host
 mount: fracfun
 aliases: [fractionFunction, ff]
-exports: [FractionFunction, Parse, Var, Fun]
+exports: [FractionFunction, Parse, Var, Fun, Factor, SquareFree, PartialFractions, PoleZeroEvidence, RemovableHoleEvidence, TransformationGrid]
 groups: [Algebra, Exact, Symbolic]
 permissions: []
 requires: [rix.fraction@1, rix.rational-function@1]
-provides: [rix.fraction-function@1]
-schemas: [rix.fraction-function@1]
+provides: [rix.fraction-function@1, rix.fraction-function.presentation@1, rix.fraction-function.divisor-evidence@1, rix.fraction-function.removable-hole-evidence@1]
+schemas: [rix.fraction-function@1, rix.fraction-function.presentation@1, rix.fraction-function.square-free-pair@1, rix.fraction-function.divisor-evidence@1, rix.fraction-function.removable-hole-evidence@1]
 snapshot: false
 deterministic: true
 defaultEnabled: false
