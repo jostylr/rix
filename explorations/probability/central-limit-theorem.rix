@@ -1,0 +1,95 @@
+## Explanatory Exploration: the Central Limit Theorem and its hypotheses.
+## Browser-safe: the final value is a portable Fragment.
+
+.Plugin.Load("probability");
+
+$$summands := 8;
+
+$$view := {;
+    n := $summands;
+    IntegerSupport = (minimum,maximum) -> {;
+        result := [];
+        {@ value := @minimum; value<=@maximum; {;
+            @result ~= @result.Push(value);
+        }; value+=1 };
+        result;
+    };
+    dice := .probability.Dice(n,6);
+    support := IntegerSupport(dice[:support][:minimum],dice[:support][:maximum]);
+    masses := support.Map((outcome)->dice.PMF(outcome));
+    maximumMass := masses.Sort().Last();
+    size := [700,320];
+    margin := 28;
+    chartWidth := size[1]-2*margin;
+    chartHeight := size[2]-2*margin;
+    barWidth := chartWidth/support.Len();
+    children := [
+        .Graphics.Path(
+            [[margin,margin],[margin,margin+chartHeight],[margin+chartWidth,margin+chartHeight]],
+            {= stroke="#334155",width=1,fill="none" }
+        )
+    ];
+    {@ index=1; index<=@support.Len(); {;
+        height := @chartHeight*@masses[index]/@maximumMass;
+        @children ~= @children.Push(.Graphics.Rectangle(
+            [@margin+(index-1)*@barWidth+1,@margin+@chartHeight-height],
+            [@barWidth-2,height],
+            {= fill="#2563eb",stroke="#1e3a8a",width=1 }
+        ));
+    }; index+=1 };
+    graphic := .Graphics.Graphic(size,children,{=
+        schema="rix.probability.clt-pmf-graphic@1",
+        family=:dice,
+        summands=n,
+        exact=1,
+        alt=@"Exact PMF of the sum of @{n} fair six-sided dice"
+    });
+
+    MaximumMass = (distribution) -> {;
+        outcomes := IntegerSupport(distribution[:support][:minimum],distribution[:support][:maximum]);
+        outcomes.Map((outcome)->distribution.PMF(outcome)).Sort().Last();
+    };
+    convergenceRows := [1,2,4,8].Map((count)->{;
+        law := .probability.Dice(count,6);
+        [count,law.Mean(),law.Variance(),MaximumMass(law)];
+    });
+    normalHalf := .numerics.Refine(
+        .probability.Normal().CDF(0),
+        {= absoluteWidth=1/1000,maxWork=20000 }
+    )[:interval];
+    hypothesisRows := [
+        ["Bernoulli / binomial","yes","bounded; finite variance","standardized counts approach normal"],
+        ["fair die","yes","bounded; finite variance","standardized sums approach normal"],
+        ["normal","yes","finite variance","already normal for every n"],
+        ["standard Cauchy","no","mean and variance do not exist","every sample average is again Cauchy"]
+    ];
+
+    .Fragment([
+        .Heading(1,"When sums become normal—and when they do not"),
+        .Paragraph("For independent identically distributed variables with finite mean and positive finite variance, centering a sum and dividing by its standard deviation produces a distribution that approaches the standard normal law. Independence, identical laws, and finite variance are hypotheses, not decoration."),
+        .ControlPanel({=
+            title="Exact dice convolution",
+            description="Change the number of summands. Every bar height is derived from an exact rational PMF.",
+            controls=[.Controls.Slider($$summands,1:12,1,"fair dice")]
+        }),
+        .Figure(
+            graphic,
+            @"Exact distribution of the unstandardized sum of @{n} dice. Recentering and rescaling changes the axes, not these probabilities."
+        ),
+        .Table(
+            ["dice","exact mean","exact variance","largest point mass"],
+            convergenceRows,
+            {= caption="Finite convolutions spread out while their standardized shape approaches a bell curve" }
+        ),
+        .Heading(2,"Check the theorem's gate before invoking it"),
+        .Table(
+            ["source law","classical iid CLT?","hypothesis check","what happens to averages"],
+            hypothesisRows,
+            {= caption="The Cauchy law is a counterexample, not slow convergence" }
+        ),
+        .Paragraph(@"The certified normal CDF at zero refines to @{normalHalf}. For a standard Cauchy variable, the exact quartiles are -1, 0, and 1; averaging any number of independent copies leaves those quartiles unchanged because the Cauchy family is stable."),
+        .Paragraph("This Phase 1 companion computes binomial/dice laws and the normal reference with the probability plugin. The Phase 2 Cauchy constructor will make the counterexample simulatable; the theorem statement here does not replace that future live experiment.")
+    ])
+};
+
+$view

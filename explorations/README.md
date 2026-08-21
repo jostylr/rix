@@ -23,3 +23,4 @@ Current explorations:
 - [Lipschitz midpoint enclosures](numerics/lipschitz-midpoint.md)
 - [Second-derivative Taylor enclosures](numerics/second-derivative-taylor.md)
 - [Gosper continued-fraction arithmetic](continued-fractions/gosper-arithmetic.md)
+- [The Central Limit Theorem and its boundary](probability/central-limit-theorem.md)

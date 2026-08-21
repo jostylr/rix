@@ -990,9 +990,9 @@ the certified numerical singleton layer; it does not replace the core exact
      plot-ready summary for a small dataset.
    - [x] Demonstrate a summary table plus histogram/box representation.
    - [x] Add README, tutorial, and exact/edge-case tests.
-2. **Phase 2 — Distributions and regression**
-   - [ ] Add distributions, sampling with explicit RNG state, confidence
-     objects, linear regression, and residual outputs.
+2. **Phase 2 — Inference and regression**
+   - [ ] Add confidence objects, linear regression, diagnostics, and residual
+     outputs, consuming distribution and simulation records from `.probability`.
    - [ ] Use Numerics for approximate/certified computations.
 3. **Phase 3 — Models and inference**
    - [ ] Add generalized models, resampling, Bayesian result protocols, and
@@ -1000,6 +1000,46 @@ the certified numerical singleton layer; it does not replace the core exact
 4. **Phase 4 — Large/advanced statistics**
    - [ ] Add streaming algorithms, robust/high-dimensional methods, and
      external statistical engine adapters.
+
+### `.probability`
+
+Probability is deliberately separate from `.stats` (observed-data summaries
+and inference) and `.data` (relations and external datasets). Its values model
+laws, events, and repeatable experiments; statistics may consume its simulation
+records without owning their probability semantics.
+
+1. **Phase 1 — Exact finite laws and the normal distribution**
+   - [x] Add exact `Choose`, `Permutations`, multinomial coefficients, bounded
+     Cartesian products, and uniform finite-event enumeration.
+   - [x] Add reusable finite, binomial, multinomial, dice-sum, and card-draw
+     distribution values with exact PMFs/CDFs, moments, and sampling.
+   - [x] Add certified normal PDF/CDF/quantile methods and explicitly label its
+     finite-quantile-grid simulator as approximate.
+   - [x] Use lexically scoped RNGs, exact rejection sampling for finite laws,
+     optional seeds, replayable simulation records, and deck drawing with or
+     without replacement.
+   - [x] Add reference documentation, an undergrad-oriented tutorial, exact
+     fixtures, and a Central Limit Theorem explanatory exploration.
+2. **Phase 2 — Undergraduate distribution library**
+   - [ ] Add Bernoulli, categorical, geometric, negative-binomial,
+     hypergeometric, and Poisson laws as named distribution constructors.
+   - [ ] Add continuous uniform, exponential, gamma, beta, chi-square,
+     Student-t, F, lognormal, and Cauchy laws.
+   - [ ] Give each law a consistent PMF/PDF, CDF, quantile, moment/support, and
+     seeded simulation interface, with certified enclosures where available.
+   - [ ] Extend the CLT exploration with live exponential, uniform, and Cauchy
+     experiments, emphasizing that Cauchy means neither stabilize nor satisfy
+     the finite-variance CLT hypotheses.
+3. **Phase 3 — Random variables and probability structures**
+   - [ ] Add transformations, sums/convolutions, mixtures, joint laws,
+     marginals, conditioning, covariance, and expectation of functions.
+   - [ ] Add law-of-large-numbers/CLT evidence records, concentration bounds,
+     conditional simulation, simple Markov chains, and finite martingales.
+4. **Phase 4 — Advanced and interoperable probability**
+   - [ ] Add measure/kernel protocols, stochastic processes, stopping times,
+     Bayesian prior/likelihood adapters, and rare-event/variance-reduction tools.
+   - [ ] Explore proof exchange and optional accelerated backends while keeping
+     seeds, approximation policies, and provenance portable and explicit.
 
 ### `.document`
 

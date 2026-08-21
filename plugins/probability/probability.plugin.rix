@@ -1,0 +1,599 @@
+/**
+id: probability
+description: Exact finite probability distributions, certified normal laws, combinatorics, and replayable simulation over scoped RNGs.
+kind: rix
+mount: probability
+aliases: [prob]
+exports: [Choose, Permutations, MultinomialCoefficient, CartesianPower, Event, Finite, Binomial, Multinomial, Normal, Dice, CardDraw, StandardDeck, DrawCards, Simulate]
+groups: [Probability, Exact, Random]
+permissions: []
+requires: [rix.numerics@1]
+provides: [rix.probability@1, rix.probability.distribution@1, rix.probability.simulation@1]
+schemas: [rix.probability.distribution@1, rix.probability.simulation@1, rix.probability.event@1]
+snapshot: false
+deterministic: false
+defaultEnabled: false
+**/
+
+ProbOption(options, key, fallback) -> options.Has(key) ?: options[key] ?_ fallback;
+
+ProbInteger(value, label) -> {;
+    exact = value ~!: :Integer;
+    exact == _ ?: .Error(@"@{label} must be an Integer") ?_ exact;
+};
+
+ProbNonnegativeInteger(value, label) -> {;
+    exact = ProbInteger(value, label);
+    exact >= 0 ?: exact ?_ .Error(@"@{label} must be a nonnegative Integer");
+};
+
+ProbPositiveInteger(value, label) -> {;
+    exact = ProbInteger(value, label);
+    exact >= 1 ?: exact ?_ .Error(@"@{label} must be a positive Integer");
+};
+
+ProbRational(value, label) -> {;
+    exact = value ~!: :Rational;
+    exact == _ ?: .Error(@"@{label} must be an exact Rational") ?_ exact;
+};
+
+ProbUnit(value, label) -> {;
+    exact = ProbRational(value, label);
+    (exact >= 0 && exact <= 1)
+      ?: exact
+      ?_ .Error(@"@{label} must be between 0 and 1");
+};
+
+ProbArray(value, label, allowEmpty ?= 0) -> {;
+    value ? :Array ?: _ ?_ .Error(@"@{label} must be an Array");
+    (allowEmpty == 1 || value.Len() > 0)
+      ?: value
+      ?_ .Error(@"@{label} must not be empty");
+};
+
+ProbSum(values) -> values.Reduce((sum, value) -> sum + value, 0);
+
+ProbZeros(length) -> {;
+    result := [];
+    {@ index = 1; index <= @length; {;
+        @result ~= @result.Push(0);
+    }; index += 1 };
+    result;
+};
+
+ProbChoose(nValue, kValue) -> {;
+    n = ProbNonnegativeInteger(nValue, "Choose n");
+    k = ProbInteger(kValue, "Choose k");
+    (k < 0 || k > n) ?: 0 ?_ n! / (k! * (n-k)!);
+};
+
+ProbPermutations(nValue, kValue ?= _) -> {;
+    n = ProbNonnegativeInteger(nValue, "Permutations n");
+    k = kValue == _ ?: n ?_ ProbInteger(kValue, "Permutations k");
+    (k < 0 || k > n) ?: 0 ?_ n! / (n-k)!;
+};
+
+ProbMultinomialCoefficient(countsValue) -> {;
+    counts = ProbArray(countsValue, "Multinomial counts");
+    exact = counts.Map((count) -> ProbNonnegativeInteger(count, "Multinomial count"));
+    total = ProbSum(exact);
+    denominator = exact.Reduce((product, count) -> product * count!, 1);
+    total! / denominator;
+};
+
+ProbCartesianPower(valuesValue, countValue, maxOutcomesValue ?= 100000) -> {;
+    values = ProbArray(valuesValue, "CartesianPower values");
+    count = ProbNonnegativeInteger(countValue, "CartesianPower count");
+    maxOutcomes = ProbPositiveInteger(maxOutcomesValue, "CartesianPower maxOutcomes");
+    total = values.Len() ^ count;
+    total <= maxOutcomes
+      ?: _
+      ?_ .Error(@"CartesianPower would create @{total} outcomes, exceeding maxOutcomes @{maxOutcomes}");
+    state := [[]];
+    {@ position = 1; position <= @count; {;
+        next := [];
+        {@ prefixIndex = 1; prefixIndex <= @state.Len(); {;
+            prefix = @state[prefixIndex];
+            {@ valueIndex = 1; valueIndex <= @values.Len(); {;
+                @next ~= @next.Push(@prefix.Push(@values[valueIndex]));
+            }; valueIndex += 1 };
+        }; prefixIndex += 1 };
+        @state ~= next;
+    }; position += 1 };
+    state;
+};
+
+ProbEvent(outcomesValue, predicate) -> {;
+    outcomes = ProbArray(outcomesValue, "Event outcomes");
+    favorable = outcomes.Filter(predicate);
+    .ImmutableValue({=
+        valueKind=:finiteProbabilityEvent,
+        schema="rix.probability.event@1",
+        outcomes=outcomes,
+        favorableOutcomes=favorable,
+        favorableCount=favorable.Len(),
+        outcomeCount=outcomes.Len(),
+        probability=favorable.Len()/outcomes.Len(),
+        exact=1,
+        policy=:uniformFiniteEnumeration
+    });
+};
+
+ProbBernoulliSample(probability) -> {;
+    p = ProbUnit(probability, "Bernoulli probability");
+    p.Numerator() == 0
+      ?: 0
+      ?_ (p.Numerator() == p.Denominator()
+          ?: 1
+          ?_ {;
+              draw = (1:@p.Denominator()).Random({: 1, 1 });
+              draw <= @p.Numerator() ?: 1 ?_ 0;
+          });
+};
+
+ProbCategoricalSample(probabilitiesValue) -> {;
+    probabilities = ProbArray(probabilitiesValue, "Categorical probabilities");
+    remaining := 1;
+    selected := _;
+    {@ index = 1; index < @probabilities.Len() && @selected == _; {;
+        probability = @probabilities[index];
+        conditional = probability / @remaining;
+        ProbBernoulliSample(conditional) == 1
+          ?: {; @selected ~= @index; }
+          ?_ {; @remaining -= @probability; };
+    }; index += 1 };
+    selected == _ ?: probabilities.Len() ?_ selected;
+};
+
+ProbSimulation(distribution, countValue, options, sampleFunction, exactSampling, policy) -> {;
+    count = ProbPositiveInteger(countValue, "Simulation count");
+    seed = ProbOption(options, "seed", _);
+    seed == _ ?: _ ?_ .RNG(:default, {= seed=seed });
+    values := [];
+    {@ index = 1; index <= @count; {;
+        @values ~= @values.Push(@options |> @sampleFunction);
+    }; index += 1 };
+    value = {=
+        valueKind=:probabilitySimulation,
+        schema="rix.probability.simulation@1",
+        distribution=distribution,
+        family=distribution[:family],
+        values=values,
+        count=count,
+        seed=seed,
+        replayable=seed == _ ?: 0 ?_ 1,
+        rngPolicy=:lexicallyScoped,
+        exactSampling=exactSampling,
+        samplingPolicy=policy
+    };
+    value.__type="ProbabilitySimulation";
+    value._proto={=
+        Values=(self)->self[:values],
+        Distribution=(self)->self[:distribution],
+        Record=(self)->self
+    };
+    .ImmutableValue(value);
+};
+
+ProbDistribution(value, proto) -> {;
+    result = value.Merge({=
+        schema="rix.probability.distribution@1",
+        valueKind=:probabilityDistribution
+    });
+    result.__type="ProbabilityDistribution";
+    result._type="probability_distribution";
+    result._proto=proto.Merge({=
+        Family=(self)->self[:family],
+        Support=(self)->self[:support],
+        Parameters=(self)->self[:parameters],
+        Record=(self)->self
+    });
+    .ImmutableValue(result);
+};
+
+ProbRequireDistribution(value) -> ((value ? :Map) && value[:schema] == "rix.probability.distribution@1")
+  ?: value
+  ?_ .Error("Expected a ProbabilityDistribution");
+
+ProbFinite(outcomesValue, weightsValue ?= _) -> {;
+    outcomes = ProbArray(outcomesValue, "Finite outcomes");
+    rawWeights = weightsValue == _
+      ?: outcomes.Map((outcome) -> 1)
+      ?_ ProbArray(weightsValue, "Finite weights");
+    rawWeights.Len() == outcomes.Len()
+      ?: _
+      ?_ .Error("Finite outcomes and weights must have the same length");
+    weights = rawWeights.Map((weight) -> {;
+        exact = ProbRational(weight, "Finite weight");
+        exact >= 0 ?: exact ?_ .Error("Finite weights must be nonnegative");
+    });
+    total = ProbSum(weights);
+    total > 0 ?: _ ?_ .Error("Finite weights must have positive total weight");
+    probabilities = weights.Map((weight) -> weight/total);
+    value = {=
+        family=:finite,
+        kind=:discrete,
+        support=outcomes,
+        parameters={= outcomes=outcomes, probabilities=probabilities },
+        exactProbability=1
+    };
+    PMF = (candidate) -> {;
+        state := 0;
+        {@ index = 1; index <= @outcomes.Len(); {;
+            @outcomes[index] == @candidate
+              ?: {; @state += @probabilities[@index]; }
+              ?_ _;
+        }; index += 1 };
+        state;
+    };
+    CDF = (bound) -> {;
+        state := 0;
+        {@ index = 1; index <= @outcomes.Len(); {;
+            @outcomes[index] <= @bound
+              ?: {; @state += @probabilities[@index]; }
+              ?_ _;
+        }; index += 1 };
+        state;
+    };
+    Probability = (predicate) -> {;
+        matches = outcomes.Map(predicate);
+        state := 0;
+        {@ index = 1; index <= @outcomes.Len(); {;
+            @matches[index]
+              ?: {; @state += @probabilities[@index]; }
+              ?_ _;
+        }; index += 1 };
+        state;
+    };
+    Sample = (options ?= {= }) -> @outcomes[ProbCategoricalSample(@probabilities)];
+    ProbDistribution(value, {=
+        PMF=(self,candidate)->PMF(candidate),
+        CDF=(self,bound)->CDF(bound),
+        Probability=(self,predicate)->Probability(predicate),
+        Sample=(self,options ?= {= })->Sample(options),
+        Simulate=(self,count,options ?= {= })->ProbSimulation(self,count,options,Sample,1,:exactCategorical)
+    });
+};
+
+ProbBinomial(nValue, probabilityValue) -> {;
+    n = ProbNonnegativeInteger(nValue, "Binomial n");
+    probability = ProbUnit(probabilityValue, "Binomial probability");
+    PMF = (kValue) -> {;
+        k = ProbInteger(kValue, "Binomial outcome");
+        (k < 0 || k > n)
+          ?: 0
+          ?_ ProbChoose(n,k) * probability^k * (1-probability)^(n-k);
+    };
+    CDF = (boundValue) -> {;
+        bound = ProbRational(boundValue, "Binomial CDF bound").Floor();
+        bound < 0
+          ?: 0
+          ?_ (bound >= n
+              ?: 1
+              ?_ {;
+                  state := 0;
+                  {@ k = 0; k <= @bound; {; @state += @PMF(k); }; k += 1 };
+                  state;
+              });
+    };
+    Sample = (options ?= {= }) -> {;
+        state := 0;
+        {@ trial = 1; trial <= @n; {; @state += ProbBernoulliSample(@probability); }; trial += 1 };
+        state;
+    };
+    value = {=
+        family=:binomial,
+        kind=:discrete,
+        support={= minimum=0, maximum=n },
+        parameters={= n=n, probability=probability },
+        exactProbability=1
+    };
+    ProbDistribution(value, {=
+        PMF=(self,k)->PMF(k),
+        CDF=(self,bound)->CDF(bound),
+        Mean=(self)->n*probability,
+        Variance=(self)->n*probability*(1-probability),
+        Sample=(self,options ?= {= })->Sample(options),
+        Simulate=(self,count,options ?= {= })->ProbSimulation(self,count,options,Sample,1,:exactBernoulliTrials)
+    });
+};
+
+ProbMultinomialPMF(n, probabilities, countsValue) -> {;
+    counts = ProbArray(countsValue, "Multinomial outcome counts");
+    counts.Len() == probabilities.Len()
+      ?: _
+      ?_ .Error("Multinomial outcome count length must match probabilities");
+    exact = counts.Map((count) -> ProbNonnegativeInteger(count, "Multinomial outcome count"));
+    ProbSum(exact) == n
+      ?: {;
+          coefficient = ProbMultinomialCoefficient(@exact);
+          state := coefficient;
+          {@ index = 1; index <= @probabilities.Len(); {;
+              @state *= @probabilities[index]^@exact[index];
+          }; index += 1 };
+          state;
+      }
+      ?_ 0;
+};
+
+ProbMultinomialCDF(n, probabilities, boundsValue) -> {;
+    bounds = ProbArray(boundsValue, "Multinomial CDF bounds");
+    bounds.Len() == probabilities.Len()
+      ?: _
+      ?_ .Error("Multinomial CDF bound length must match probabilities");
+    exactBounds = bounds.Map((bound) -> ProbInteger(bound, "Multinomial CDF bound"));
+    prefixes := [[]];
+    {@ category = 1; category < @probabilities.Len(); {;
+        next := [];
+        {@ prefixIndex = 1; prefixIndex <= @prefixes.Len(); {;
+            prefix = @prefixes[prefixIndex];
+            used = ProbSum(prefix);
+            maximum := @exactBounds[@category];
+            remaining = @n-used;
+            maximum > remaining ?: {; @maximum ~= @remaining; } ?_ _;
+            {@ count = 0; count <= @maximum; {;
+                @next ~= @next.Push(@prefix.Push(count));
+            }; count += 1 };
+        }; prefixIndex += 1 };
+        @prefixes ~= next;
+    }; category += 1 };
+    total := 0;
+    {@ prefixIndex = 1; prefixIndex <= @prefixes.Len(); {;
+        prefix = @prefixes[prefixIndex];
+        finalCount = @n-ProbSum(prefix);
+        (finalCount >= 0 && finalCount <= @exactBounds.Last())
+          ?: {; @total += ProbMultinomialPMF(@n,@probabilities,@prefix.Push(@finalCount)); }
+          ?_ _;
+    }; prefixIndex += 1 };
+    total;
+};
+
+ProbMultinomial(nValue, probabilitiesValue) -> {;
+    n = ProbNonnegativeInteger(nValue, "Multinomial n");
+    probabilities = ProbArray(probabilitiesValue, "Multinomial probabilities").Map(
+        (probability) -> ProbUnit(probability, "Multinomial probability")
+    );
+    probabilities.Len() >= 2
+      ?: _
+      ?_ .Error("Multinomial requires at least two categories");
+    probabilityTotal = ProbSum(probabilities);
+    probabilityTotal.Numerator() == probabilityTotal.Denominator()
+      ?: _
+      ?_ .Error("Multinomial probabilities must sum exactly to 1");
+    Sample = (options ?= {= }) -> {;
+        counts := ProbZeros(@probabilities.Len());
+        {@ trial = 1; trial <= @n; {;
+            category = ProbCategoricalSample(@probabilities);
+            @counts ~= @counts.Set(category,@counts[category]+1);
+        }; trial += 1 };
+        counts;
+    };
+    value = {=
+        family=:multinomial,
+        kind=:discreteMultivariate,
+        support={= total=n, categories=probabilities.Len() },
+        parameters={= n=n, probabilities=probabilities },
+        exactProbability=1
+    };
+    ProbDistribution(value, {=
+        PMF=(self,counts)->ProbMultinomialPMF(n,probabilities,counts),
+        CDF=(self,bounds)->ProbMultinomialCDF(n,probabilities,bounds),
+        Mean=(self)->probabilities.Map((probability)->n*probability),
+        Sample=(self,options ?= {= })->Sample(options),
+        Simulate=(self,count,options ?= {= })->ProbSimulation(self,count,options,Sample,1,:exactCategoricalTrials)
+    });
+};
+
+ProbNormal(meanValue ?= 0, standardDeviationValue ?= 1) -> {;
+    mean = ProbRational(meanValue, "Normal mean");
+    standardDeviation = ProbRational(standardDeviationValue, "Normal standard deviation");
+    standardDeviation > 0
+      ?: _
+      ?_ .Error("Normal standard deviation must be positive");
+    PDF = (x) -> .numerics.NormalPDF((x-mean)/standardDeviation)/standardDeviation;
+    CDF = (x) -> .numerics.NormalCDF((x-mean)/standardDeviation);
+    Quantile = (probabilityValue) -> {;
+        probability = ProbUnit(probabilityValue, "Normal quantile probability");
+        (probability.Numerator() > 0 && probability.Numerator() < probability.Denominator())
+          ?: _
+          ?_ .Error("Normal quantile probability must be strictly between 0 and 1");
+        probability.Numerator()*2 == probability.Denominator()
+          ?: mean
+          ?_ mean + standardDeviation*.numerics.NormalQuantile(probability);
+    };
+    Sample = (options ?= {= }) -> {;
+        grid = ProbPositiveInteger(ProbOption(options,"grid",1048576), "Normal sample grid");
+        grid >= 2 ?: _ ?_ .Error("Normal sample grid must be at least 2");
+        numerator = (1:(grid-1)).Random({: 1, 1 });
+        Quantile(numerator/grid);
+    };
+    value = {=
+        family=:normal,
+        kind=:continuous,
+        support={= lower=_, upper=_ },
+        parameters={= mean=mean, standardDeviation=standardDeviation },
+        exactProbability=0,
+        certifiedFunctions=1
+    };
+    ProbDistribution(value, {=
+        PDF=(self,x)->PDF(x),
+        CDF=(self,x)->CDF(x),
+        Quantile=(self,probability)->Quantile(probability),
+        Mean=(self)->mean,
+        Variance=(self)->standardDeviation^2,
+        Sample=(self,options ?= {= })->Sample(options),
+        Simulate=(self,count,options ?= {= })->ProbSimulation(self,count,options,Sample,0,:finiteQuantileGrid)
+    });
+};
+
+ProbDiceWays(count, sides) -> {;
+    ways := [1];
+    {@ die = 1; die <= @count; {;
+        next := ProbZeros(@ways.Len()+@sides);
+        {@ oldIndex = 1; oldIndex <= @ways.Len(); {;
+            {@ face = 1; face <= @sides; {;
+                target = @oldIndex+face;
+                @next ~= @next.Set(target,@next[target]+@ways[@oldIndex]);
+            }; face += 1 };
+        }; oldIndex += 1 };
+        @ways ~= next.Slice(2);
+    }; die += 1 };
+    ways;
+};
+
+ProbDice(countValue ?= 1, sidesValue ?= 6) -> {;
+    count = ProbPositiveInteger(countValue, "Dice count");
+    sides = ProbPositiveInteger(sidesValue, "Dice sides");
+    sides >= 2 ?: _ ?_ .Error("Dice sides must be at least 2");
+    ways = ProbDiceWays(count,sides);
+    total = sides^count;
+    PMF = (sumValue) -> {;
+        sum = ProbInteger(sumValue, "Dice outcome");
+        index = sum-count+1;
+        (index < 1 || index > ways.Len()) ?: 0 ?_ ways[index]/total;
+    };
+    CDF = (boundValue) -> {;
+        bound = ProbRational(boundValue, "Dice CDF bound").Floor();
+        bound < count
+          ?: 0
+          ?_ (bound >= count*sides
+              ?: 1
+              ?_ {;
+                  state := 0;
+                  {@ sum := @count; sum <= @bound; {; @state += @PMF(sum); }; sum += 1 };
+                  state;
+              });
+    };
+    Sample = (options ?= {= }) -> {;
+        state := 0;
+        {@ die = 1; die <= @count; {;
+            @state += (1:@sides).Random({: 1, 1 });
+        }; die += 1 };
+        state;
+    };
+    value = {=
+        family=:dice,
+        kind=:discrete,
+        support={= minimum=count, maximum=count*sides },
+        parameters={= count=count, sides=sides },
+        exactProbability=1,
+        ways=ways
+    };
+    ProbDistribution(value, {=
+        PMF=(self,sum)->PMF(sum),
+        CDF=(self,bound)->CDF(bound),
+        Mean=(self)->count*(sides+1)/2,
+        Variance=(self)->count*(sides^2-1)/12,
+        Sample=(self,options ?= {= })->Sample(options),
+        Simulate=(self,simulationCount,options ?= {= })->ProbSimulation(self,simulationCount,options,Sample,1,:exactUniformDice)
+    });
+};
+
+ProbCardDraw(populationValue, markedValue, drawsValue) -> {;
+    population = ProbPositiveInteger(populationValue, "CardDraw population");
+    marked = ProbNonnegativeInteger(markedValue, "CardDraw marked count");
+    draws = ProbNonnegativeInteger(drawsValue, "CardDraw draw count");
+    marked <= population ?: _ ?_ .Error("CardDraw marked count cannot exceed population");
+    draws <= population ?: _ ?_ .Error("CardDraw draw count cannot exceed population");
+    minimum = draws-(population-marked);
+    minimum < 0 ?: {; @minimum ~= 0; } ?_ _;
+    maximum := draws;
+    maximum > marked ?: {; @maximum ~= @marked; } ?_ _;
+    PMF = (successValue) -> {;
+        success = ProbInteger(successValue, "CardDraw success count");
+        (success < minimum || success > maximum)
+          ?: 0
+          ?_ ProbChoose(marked,success)*ProbChoose(population-marked,draws-success)/ProbChoose(population,draws);
+    };
+    CDF = (boundValue) -> {;
+        bound = ProbRational(boundValue, "CardDraw CDF bound").Floor();
+        bound < minimum
+          ?: 0
+          ?_ (bound >= maximum
+              ?: 1
+              ?_ {;
+                  state := 0;
+                  {@ success := @minimum; success <= @bound; {; @state += @PMF(success); }; success += 1 };
+                  state;
+              });
+    };
+    Sample = (options ?= {= }) -> {;
+        remainingPopulation := population;
+        remainingMarked := marked;
+        successes := 0;
+        {@ draw = 1; draw <= @draws; {;
+            success = ProbBernoulliSample(@remainingMarked/@remainingPopulation);
+            @successes += success;
+            @remainingPopulation -= 1;
+            @remainingMarked -= success;
+        }; draw += 1 };
+        successes;
+    };
+    value = {=
+        family=:cardDraw,
+        mathematicalFamily=:hypergeometric,
+        kind=:discrete,
+        support={= minimum=minimum, maximum=maximum },
+        parameters={= population=population, marked=marked, draws=draws },
+        exactProbability=1
+    };
+    ProbDistribution(value, {=
+        PMF=(self,successes)->PMF(successes),
+        CDF=(self,bound)->CDF(bound),
+        Mean=(self)->draws*marked/population,
+        Sample=(self,options ?= {= })->Sample(options),
+        Simulate=(self,count,options ?= {= })->ProbSimulation(self,count,options,Sample,1,:exactWithoutReplacement)
+    });
+};
+
+ProbStandardDeck() -> {;
+    suits = [:clubs,:diamonds,:hearts,:spades];
+    ranks = [:A,:2,:3,:4,:5,:6,:7,:8,:9,:10,:J,:Q,:K];
+    cards := [];
+    {@ suitIndex = 1; suitIndex <= @suits.Len(); {;
+        {@ rankIndex = 1; rankIndex <= @ranks.Len(); {;
+            @cards ~= @cards.Push(.ImmutableValue({=
+                suit=@suits[@suitIndex],
+                rank=@ranks[rankIndex],
+                color=(@suits[@suitIndex] == :diamonds || @suits[@suitIndex] == :hearts) ?: :red ?_ :black
+            }));
+        }; rankIndex += 1 };
+    }; suitIndex += 1 };
+    .ImmutableValue(cards);
+};
+
+ProbDrawCards(deckValue, countValue, replaceValue ?= 0) -> {;
+    deck = ProbArray(deckValue, "DrawCards deck");
+    count = ProbNonnegativeInteger(countValue, "DrawCards count");
+    replace = replaceValue == 1 ?: 1 ?_ 0;
+    replace == 0 && count > deck.Len()
+      ?: .Error("DrawCards cannot draw more cards than the deck without replacement")
+      ?_ _;
+    available := deck.Map((card)->card);
+    result := [];
+    {@ draw = 1; draw <= @count; {;
+        index = (1:@available.Len()).Random({: 1, 1 });
+        @result ~= @result.Push(@available[index]);
+        @replace == 0 ?: {; @available ~= @available.RemoveAt(@index); } ?_ _;
+    }; draw += 1 };
+    result;
+};
+
+probabilityNamespace = {= };
+probabilityNamespace._proto = {=
+    Choose=(self,n,k)->ProbChoose(n,k),
+    Permutations=(self,n,k ?= _)->ProbPermutations(n,k),
+    MultinomialCoefficient=(self,counts)->ProbMultinomialCoefficient(counts),
+    CartesianPower=(self,values,count,maxOutcomes ?= 100000)->ProbCartesianPower(values,count,maxOutcomes),
+    Event=(self,outcomes,predicate)->ProbEvent(outcomes,predicate),
+    Finite=(self,outcomes,weights ?= _)->ProbFinite(outcomes,weights),
+    Binomial=(self,n,probability)->ProbBinomial(n,probability),
+    Multinomial=(self,n,probabilities)->ProbMultinomial(n,probabilities),
+    Normal=(self,mean ?= 0,standardDeviation ?= 1)->ProbNormal(mean,standardDeviation),
+    Dice=(self,count ?= 1,sides ?= 6)->ProbDice(count,sides),
+    CardDraw=(self,population,marked,draws)->ProbCardDraw(population,marked,draws),
+    StandardDeck=(self)->ProbStandardDeck(),
+    DrawCards=(self,deck,count,replace ?= 0)->ProbDrawCards(deck,count,replace),
+    Simulate=(self,distribution,count,options ?= {= })->ProbRequireDistribution(distribution).Simulate(count,options)
+};
+.Host.RegisterValue("probability",probabilityNamespace,"Exact finite probability, certified normal laws, and scoped simulation",["Probability","Exact","Random"]);

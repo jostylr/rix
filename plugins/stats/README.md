@@ -5,6 +5,11 @@ functions in RiX. Descriptive input values must be
 `Integer` or `Rational`, and no operation converts them to binary floating
 point.
 
+Distribution values and simulation now belong to the separate `.probability`
+plugin. The three scalar normal helpers here remain as compatibility and
+analysis conveniences; new probability code should prefer
+`.probability.Normal(mean,standardDeviation)`.
+
 ```rix
 .Plugin.Load("stats");
 values := [1/3, 2/3, 5/3, 7/3];

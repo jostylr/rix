@@ -37,10 +37,13 @@ values := [1, 2, 2, 3, 5, 8];
 `Variance` is the population statistic. Use `SampleVariance` when the values
 are a sample; it reports a clear error for fewer than two observations.
 
-## Use a certified normal distribution
+## Use the compatibility normal helpers
 
 The distribution functions return refinable reals. `NormalQuantile` is kept
 distinct from the exact sample `Quantile` operation.
+
+First-class probability laws and simulation live in `.probability`; these
+scalar helpers remain available for existing statistics worksheets.
 
 ```rix
 .Plugin.Load("stats");
