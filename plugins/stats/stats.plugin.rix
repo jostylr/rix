@@ -4,7 +4,7 @@ description: Exact descriptive statistics, undergraduate hypothesis tests, confi
 kind: rix
 mount: stats
 aliases: [statistics]
-exports: [Count, Mean, Quantile, Median, Variance, SampleVariance, Correlation, NormalPDF, NormalCDF, NormalQuantile, Summary, SummaryTable, Histogram, HistogramGraphic, BoxPlot, DistributionSummary, SimulationValues, SimulationSummary, MeasurementIntervals, IntervalMean, IntervalSummary, IntervalOneSampleZTest, IntervalTestDecision, IntervalTestTable, MeanConfidence, MeanTConfidence, PairedMeanDifferenceConfidence, MeanDifferenceConfidence, ProportionConfidence, OneSampleZTest, TwoSampleZTest, OneProportionZTest, TwoProportionZTest, OneSampleTTest, PairedTTest, TwoSampleTTest, CorrelationTest, RegressionSlopeTest, OneWayANOVA, ChiSquareGoodnessOfFit, ChiSquareIndependence, TestDecision, TestTable, LinearRegression, Predict, RegressionTable, ResidualTable]
+exports: [Count, Mean, Quantile, Median, Variance, SampleVariance, Correlation, NormalPDF, NormalCDF, NormalQuantile, Summary, SummaryTable, Histogram, HistogramGraphic, BoxPlot, DistributionSummary, SimulationValues, SimulationSummary, MeasurementIntervals, IntervalMean, IntervalSummary, IntervalOneSampleZTest, IntervalOneSampleTTest, IntervalPairedTTest, IntervalTwoSampleTTest, IntervalOneWayANOVA, IntervalCorrelationTest, IntervalRegressionSlopeTest, IntervalTestDecision, IntervalTestTable, MeanConfidence, MeanTConfidence, PairedMeanDifferenceConfidence, MeanDifferenceConfidence, ProportionConfidence, OneSampleZTest, TwoSampleZTest, OneProportionZTest, TwoProportionZTest, OneSampleTTest, PairedTTest, TwoSampleTTest, CorrelationTest, RegressionSlopeTest, OneWayANOVA, ChiSquareGoodnessOfFit, ChiSquareIndependence, TestDecision, TestTable, LinearRegression, Predict, RegressionTable, ResidualTable]
 groups: [Statistics, Exact, Graphics]
 permissions: []
 requires: [rix.numerics@1]
@@ -944,6 +944,434 @@ StatsIntervalOneSampleZTest(valuesValue, nullMeanValue, populationStandardDeviat
     });
 };
 
+StatsNonnegativeInterval(value) -> {;
+    interval = StatsMeasurementInterval(value,"Nonnegative interval");
+    .Max(0,interval.Low()):.Max(0,interval.High());
+};
+
+StatsIntervalSampleMoments(valuesValue) -> {;
+    values = StatsMeasurementIntervals(valuesValue);
+    values.Len() >= 2 ?: _ ?_ .Error("Interval sample moments require at least two observations");
+    mean = StatsIntervalMean(values);
+    squared = values.Reduce((sum,value)->sum+(value-mean)^2,0);
+    .ImmutableValue({= count=values.Len(),meanRange=mean,sampleVarianceRange=StatsNonnegativeInterval(squared/(values.Len()-1)) });
+};
+
+StatsTCandidate(signValue, squaredValue, infiniteValue ?= 0) ->
+  .ImmutableValue({= sign=signValue,squared=squaredValue,infinite=infiniteValue });
+
+StatsTCandidateBounds(effectValue, varianceTermValue) -> {;
+    effect = StatsMeasurementInterval(effectValue,"t-test effect range");
+    varianceTerm = StatsNonnegativeInterval(varianceTermValue);
+    varianceTerm.High() == 0
+      ?: (effect.Low() > 0
+          ?: {= lower=StatsTCandidate(1,_,1),upper=StatsTCandidate(1,_,1) }
+          ?_ (effect.High() < 0
+              ?: {= lower=StatsTCandidate(-1,_,1),upper=StatsTCandidate(-1,_,1) }
+              ?_ {= lower=StatsTCandidate(-1,_,1),upper=StatsTCandidate(1,_,1) }))
+      ?_ {;
+          low = @effect.Low();
+          high = @effect.High();
+          varianceLow = @varianceTerm.Low();
+          varianceHigh = @varianceTerm.High();
+          lower = low < 0
+            ?: (varianceLow == 0 ?: StatsTCandidate(-1,_,1) ?_ StatsTCandidate(-1,low^2/varianceLow))
+            ?_ (low == 0 ?: StatsTCandidate(0,0) ?_ StatsTCandidate(1,low^2/varianceHigh));
+          upper = high > 0
+            ?: (varianceLow == 0 ?: StatsTCandidate(1,_,1) ?_ StatsTCandidate(1,high^2/varianceLow))
+            ?_ (high == 0 ?: StatsTCandidate(0,0) ?_ StatsTCandidate(-1,high^2/varianceHigh));
+          {= lower=lower,upper=upper };
+      };
+};
+
+StatsTCandidateLess(first, second) -> {;
+    first[:sign] != second[:sign]
+      ?: first[:sign] < second[:sign]
+      ?_ (first[:sign] == 0
+          ?: 0
+          ?_ (first[:sign] > 0
+              ?: (first[:infinite] == 1 ?: 0 ?_ (second[:infinite] == 1 ?: 1 ?_ first[:squared] < second[:squared]))
+              ?_ (first[:infinite] == 1 ?: 1 ?_ (second[:infinite] == 1 ?: 0 ?_ first[:squared] > second[:squared]))));
+};
+
+StatsTCandidateMin(first, second) -> StatsTCandidateLess(first,second) ?: first ?_ second;
+StatsTCandidateMax(first, second) -> StatsTCandidateLess(first,second) ?: second ?_ first;
+
+StatsWidestIntervalIndex(boxValue, toleranceValue) -> {;
+    box = StatsMeasurementIntervals(boxValue);
+    tolerance = toleranceValue ~!: :Rational;
+    selected := 0;
+    width := tolerance;
+    {@ index = 1; index <= @box.Len(); {;
+        candidate = @box[index].Width();
+        candidate > @width ?: {; @selected ~= @index; @width ~= @candidate; } ?_ _;
+    }; index += 1 };
+    selected;
+};
+
+StatsIntervalSubdivisionOptions(options) -> {;
+    maxBoxes = StatsOption(options,"maxBoxes",64) ~!: :Integer;
+    tolerance = StatsOption(options,"measurementWidth",0) ~!: :Rational;
+    (maxBoxes >= 1 && maxBoxes <= 4096) ?: _ ?_ .Error("Interval test maxBoxes must be between 1 and 4096");
+    tolerance >= 0 ?: _ ?_ .Error("Interval test measurementWidth must be nonnegative");
+    {= maxBoxes=maxBoxes,measurementWidth=tolerance };
+};
+
+StatsIntervalTEnclosure(boxValue, partsFunction, options ?= {= }) -> {;
+    initial = StatsMeasurementIntervals(boxValue);
+    subdivision = StatsIntervalSubdivisionOptions(options);
+    queue := [initial];
+    leaves := [];
+    {@ work = 1; @queue.Len() > 0; {;
+        box = @queue.First();
+        @queue ~= @queue.DropFirst();
+        splitIndex = StatsWidestIntervalIndex(box,@subdivision[:measurementWidth]);
+        possibleLeaves = @leaves.Len()+@queue.Len()+1;
+        (splitIndex > 0 && possibleLeaves < @subdivision[:maxBoxes])
+          ?: {;
+              interval = @box[@splitIndex];
+              midpoint = interval.Midpoint();
+              @queue ~= @queue.Push(@box.Set(@splitIndex,interval.Low():midpoint));
+              @queue ~= @queue.Push(@box.Set(@splitIndex,midpoint:interval.High()));
+          }
+          ?_ {;
+              parts = @box |> @partsFunction;
+              bounds = StatsTCandidateBounds(parts[:effectRange],parts[:varianceTerm]);
+              @leaves ~= @leaves.Push(bounds.Merge({= effectRange=parts[:effectRange],varianceTerm=parts[:varianceTerm] }));
+          };
+    }; work += 1 };
+    lower := leaves[1][:lower];
+    upper := leaves[1][:upper];
+    effectLow := leaves[1][:effectRange].Low();
+    effectHigh := leaves[1][:effectRange].High();
+    varianceLow := leaves[1][:varianceTerm].Low();
+    varianceHigh := leaves[1][:varianceTerm].High();
+    {@ index = 2; index <= @leaves.Len(); {;
+        leaf = @leaves[index];
+        @lower = StatsTCandidateMin(@lower,leaf[:lower]);
+        @upper = StatsTCandidateMax(@upper,leaf[:upper]);
+        @effectLow ~= .Min(@effectLow,leaf[:effectRange].Low());
+        @effectHigh ~= .Max(@effectHigh,leaf[:effectRange].High());
+        @varianceLow ~= .Min(@varianceLow,leaf[:varianceTerm].Low());
+        @varianceHigh ~= .Max(@varianceHigh,leaf[:varianceTerm].High());
+    }; index += 1 };
+    .ImmutableValue({=
+        lower=lower,upper=upper,effectRange=effectLow:effectHigh,varianceTermRange=varianceLow:varianceHigh,
+        boxesEvaluated=leaves.Len(),maxBoxes=subdivision[:maxBoxes],measurementWidth=subdivision[:measurementWidth]
+    });
+};
+
+StatsStudentPAtCandidate(candidate, degreesValue, alternativeValue) -> {;
+    candidate[:infinite] == 1
+      ?: (alternativeValue == :twoSided
+          ?: 0
+          ?_ (alternativeValue == :greater
+              ?: (candidate[:sign] > 0 ?: 0 ?_ 1)
+              ?_ (candidate[:sign] < 0 ?: 0 ?_ 1)))
+      ?_ StatsStudentTestPValue(candidate[:squared],candidate[:sign],degreesValue,alternativeValue);
+};
+
+StatsStudentPAtDfExtreme(candidate, degreesLow, degreesHigh, alternative, wantMinimum) -> {;
+    useHigh = alternative == :twoSided
+      ?: wantMinimum
+      ?_ (alternative == :greater
+          ?: (candidate[:sign] >= 0 ?: wantMinimum ?_ !wantMinimum)
+          ?_ (candidate[:sign] <= 0 ?: wantMinimum ?_ !wantMinimum));
+    StatsStudentPAtCandidate(candidate,useHigh ?: degreesHigh ?_ degreesLow,alternative);
+};
+
+StatsTPValueRange(enclosure, degreesLowValue, degreesHighValue, alternativeValue) -> {;
+    degreesLow = StatsPositiveInteger(degreesLowValue,"Interval t-test minimum degrees of freedom");
+    degreesHigh = StatsPositiveInteger(degreesHighValue,"Interval t-test maximum degrees of freedom");
+    degreesHigh >= degreesLow ?: _ ?_ .Error("Interval t-test degrees-of-freedom range is reversed");
+    low = enclosure[:lower];
+    high = enclosure[:upper];
+    alternative = StatsAlternative(alternativeValue);
+    extremes = alternative == :greater
+      ?: [high,low]
+      ?_ (alternative == :less
+          ?: [low,high]
+          ?_ {;
+              lowMagnitude = @low[:infinite] == 1 ?: _ ?_ @low[:squared];
+              highMagnitude = @high[:infinite] == 1 ?: _ ?_ @high[:squared];
+              far = (@low[:infinite] == 1 || (@high[:infinite] == 0 && lowMagnitude > highMagnitude)) ?: @low ?_ @high;
+              crossesZero = @low[:sign] <= 0 && @high[:sign] >= 0;
+              near = crossesZero
+                ?: StatsTCandidate(0,0)
+                ?_ (@low[:infinite] == 1
+                    ?: @high
+                    ?_ (@high[:infinite] == 1 ?: @low ?_ (@low[:squared] < @high[:squared] ?: @low ?_ @high)));
+              [far,near];
+          });
+    {=
+        lower=StatsStudentPAtDfExtreme(extremes[1],degreesLow,degreesHigh,alternative,1),
+        upper=StatsStudentPAtDfExtreme(extremes[2],degreesLow,degreesHigh,alternative,0)
+    };
+};
+
+StatsIntervalOneSampleTTest(valuesValue, nullMeanValue ?= 0, alternativeValue ?= :twoSided, options ?= {= }) -> {;
+    values = StatsMeasurementIntervals(valuesValue);
+    values.Len() >= 2 ?: _ ?_ .Error("IntervalOneSampleTTest requires at least two observations");
+    nullMean = nullMeanValue ~!: :Rational;
+    alternative = StatsAlternative(alternativeValue);
+    partsFunction = (box)->{;
+        moments = StatsIntervalSampleMoments(box);
+        {= effectRange=moments[:meanRange]-@nullMean,varianceTerm=moments[:sampleVarianceRange]/moments[:count] };
+    };
+    enclosure = StatsIntervalTEnclosure(values,partsFunction,options);
+    degrees = values.Len()-1;
+    pValues = StatsTPValueRange(enclosure,degrees,degrees,alternative);
+    StatsIntervalTestResult({=
+        valueKind=:statsIntervalTest,schema="rix.stats.interval-test@1",test=:intervalOneSampleT,
+        method=:studentOneSampleTOverMeasurementBox,alternative=alternative,
+        nullHypothesis=:meanEqualsNullValue,nullValue=nullMean,measurementMeanRange=StatsIntervalMean(values),
+        estimateRange=enclosure[:effectRange]+nullMean,effectRange=enclosure[:effectRange],
+        varianceTermRange=enclosure[:varianceTermRange],statisticEndpoints=[enclosure[:lower],enclosure[:upper]],
+        degreesOfFreedom=degrees,pValueLower=pValues[:lower],pValueUpper=pValues[:upper],
+        pValueStatus=:certifiedOuterBoundsByIntervalSubdivision,
+        referenceDistribution={= family=:studentT,degreesOfFreedom=degrees },sampleSize=values.Len(),measurements=values,
+        subdivision={= boxesEvaluated=enclosure[:boxesEvaluated],maxBoxes=enclosure[:maxBoxes],measurementWidth=enclosure[:measurementWidth] },
+        interpretation=:allPointDatasetsConsistentWithMeasurementIntervals,
+        assumptions=[:independentObservations,:approximatelyNormalPopulationOrRobustSampleSize,:closedMeasurementIntervals],certified=1
+    });
+};
+
+StatsIntervalPairedTTest(firstValue, secondValue, nullDifferenceValue ?= 0, alternativeValue ?= :twoSided, options ?= {= }) -> {;
+    first = StatsMeasurementIntervals(firstValue);
+    second = StatsMeasurementIntervals(secondValue);
+    first.Len() == second.Len() ?: _ ?_ .Error("IntervalPairedTTest samples must have the same length");
+    first.Len() >= 2 ?: _ ?_ .Error("IntervalPairedTTest requires at least two pairs");
+    differences = first.Map((value,index)->value-second[index]);
+    test = StatsIntervalOneSampleTTest(differences,nullDifferenceValue,alternativeValue,options);
+    StatsIntervalTestResult({=
+        valueKind=:statsIntervalTest,schema="rix.stats.interval-test@1",test=:intervalPairedT,
+        method=:studentPairedDifferencesOverMeasurementBox,alternative=test[:alternative],
+        nullHypothesis=:meanPairedDifferenceEqualsNullValue,nullValue=test[:nullValue],
+        measurementMeanRange=test[:measurementMeanRange],estimateRange=test[:estimateRange],effectRange=test[:effectRange],
+        varianceTermRange=test[:varianceTermRange],statisticEndpoints=test[:statisticEndpoints],degreesOfFreedom=test[:degreesOfFreedom],
+        pValueLower=test[:pValueLower],pValueUpper=test[:pValueUpper],pValueStatus=test[:pValueStatus],
+        referenceDistribution=test[:referenceDistribution],sampleSize=first.Len(),pairs=first.Len(),
+        firstMeasurements=first,secondMeasurements=second,measurements=differences,subdivision=test[:subdivision],
+        interpretation=:allPairedPointDatasetsConsistentWithMeasurementIntervals,
+        assumptions=[:pairedObservations,:independentPairs,:approximatelyNormalDifferencesOrRobustSampleSize,:closedMeasurementIntervals],certified=1
+    });
+};
+
+StatsIntervalTwoSampleTTest(firstValue, secondValue, nullDifferenceValue ?= 0, options ?= {= }) -> {;
+    first = StatsMeasurementIntervals(firstValue);
+    second = StatsMeasurementIntervals(secondValue);
+    (first.Len() >= 2 && second.Len() >= 2) ?: _ ?_ .Error("IntervalTwoSampleTTest requires at least two observations in each sample");
+    nullDifference = nullDifferenceValue ~!: :Rational;
+    alternative = StatsAlternative(StatsOption(options,"alternative",:twoSided));
+    equalVariance = StatsOption(options,"equalVariance",0);
+    (equalVariance == 0 || equalVariance == 1) ?: _ ?_ .Error("IntervalTwoSampleTTest equalVariance option must be 0 or 1");
+    firstCount = first.Len();
+    secondCount = second.Len();
+    partsFunction = (box)->{;
+        firstBox = box.Slice(1,@firstCount+1);
+        secondBox = box.Slice(@firstCount+1);
+        firstMoments = StatsIntervalSampleMoments(firstBox);
+        secondMoments = StatsIntervalSampleMoments(secondBox);
+        effect = firstMoments[:meanRange]-secondMoments[:meanRange]-@nullDifference;
+        @equalVariance == 1
+          ?: {;
+              degrees = @firstCount+@secondCount-2;
+              pooled = ((@firstCount-1)*@firstMoments[:sampleVarianceRange]+(@secondCount-1)*@secondMoments[:sampleVarianceRange])/degrees;
+              {= effectRange=@effect,varianceTerm=pooled*(1/@firstCount+1/@secondCount) };
+          }
+          ?_ {= effectRange=effect,varianceTerm=firstMoments[:sampleVarianceRange]/@firstCount+secondMoments[:sampleVarianceRange]/@secondCount };
+    };
+    enclosure = StatsIntervalTEnclosure(first++second,partsFunction,options);
+    degreesLow = equalVariance == 1 ?: firstCount+secondCount-2 ?_ .Min(firstCount-1,secondCount-1);
+    degreesHigh = firstCount+secondCount-2;
+    pValues = StatsTPValueRange(enclosure,degreesLow,degreesHigh,alternative);
+    StatsIntervalTestResult({=
+        valueKind=:statsIntervalTest,schema="rix.stats.interval-test@1",test=:intervalTwoSampleT,
+        method=equalVariance == 1 ?: :pooledStudentTOverMeasurementBox ?_ :welchTOverMeasurementBox,
+        alternative=alternative,nullHypothesis=:meanDifferenceEqualsNullValue,nullValue=nullDifference,
+        estimateRange=enclosure[:effectRange]+nullDifference,effectRange=enclosure[:effectRange],varianceTermRange=enclosure[:varianceTermRange],
+        statisticEndpoints=[enclosure[:lower],enclosure[:upper]],degreesOfFreedomRange=degreesLow:degreesHigh,
+        pValueLower=pValues[:lower],pValueUpper=pValues[:upper],pValueStatus=:certifiedOuterBoundsByIntervalSubdivision,
+        pValueQualification=equalVariance == 1 ?: :exactIntegerReferenceDegrees ?_ :containsEveryWelchIntegerReferenceDegree,
+        referenceDistribution={= family=:studentT,degreesOfFreedomRange=degreesLow:degreesHigh },sampleSize=[firstCount,secondCount],
+        firstMeasurements=first,secondMeasurements=second,
+        subdivision={= boxesEvaluated=enclosure[:boxesEvaluated],maxBoxes=enclosure[:maxBoxes],measurementWidth=enclosure[:measurementWidth] },
+        interpretation=:allIndependentPointSamplePairsConsistentWithMeasurementIntervals,
+        assumptions=equalVariance == 1
+          ?: [:independentSamples,:equalPopulationVariances,:approximatelyNormalPopulationsOrRobustSampleSizes,:closedMeasurementIntervals]
+          ?_ [:independentSamples,:unequalVariancesAllowed,:approximatelyNormalPopulationsOrRobustSampleSizes,:closedMeasurementIntervals],certified=1
+    });
+};
+
+StatsIntervalFEnclosure(boxValue, partsFunction, options ?= {= }) -> {;
+    initial = StatsMeasurementIntervals(boxValue);
+    subdivision = StatsIntervalSubdivisionOptions(options);
+    queue := [initial];
+    leaves := [];
+    {@ work = 1; @queue.Len() > 0; {;
+        box = @queue.First();
+        @queue ~= @queue.DropFirst();
+        splitIndex = StatsWidestIntervalIndex(box,@subdivision[:measurementWidth]);
+        possibleLeaves = @leaves.Len()+@queue.Len()+1;
+        (splitIndex > 0 && possibleLeaves < @subdivision[:maxBoxes])
+          ?: {;
+              interval = @box[@splitIndex];
+              midpoint = interval.Midpoint();
+              @queue ~= @queue.Push(@box.Set(@splitIndex,interval.Low():midpoint));
+              @queue ~= @queue.Push(@box.Set(@splitIndex,midpoint:interval.High()));
+          }
+          ?_ {;
+              parts = @box |> @partsFunction;
+              numerator = StatsNonnegativeInterval(parts[:numeratorRange]);
+              denominator = StatsNonnegativeInterval(parts[:denominatorRange]);
+              leafLower = denominator.High() == 0 ?: 0 ?_ numerator.Low()/denominator.High();
+              leafUpperInfinite = denominator.Low() == 0;
+              leafUpper = leafUpperInfinite ?: _ ?_ numerator.High()/denominator.Low();
+              @leaves ~= @leaves.Push({=
+                  lower=leafLower,upper=leafUpper,upperInfinite=leafUpperInfinite,
+                  numeratorRange=numerator,denominatorRange=denominator,effectRange=parts[:effectRange]
+              });
+          };
+    }; work += 1 };
+    lower := leaves[1][:lower];
+    upper := leaves[1][:upper];
+    upperInfinite := leaves[1][:upperInfinite];
+    effectLow := leaves[1][:effectRange].Low();
+    effectHigh := leaves[1][:effectRange].High();
+    {@ index = 2; index <= @leaves.Len(); {;
+        leaf = @leaves[index];
+        @lower ~= .Min(@lower,leaf[:lower]);
+        @upperInfinite ~= @upperInfinite || leaf[:upperInfinite];
+        (@upperInfinite == 0 && leaf[:upper] > @upper) ?: {; @upper ~= @leaf[:upper]; } ?_ _;
+        @effectLow ~= .Min(@effectLow,leaf[:effectRange].Low());
+        @effectHigh ~= .Max(@effectHigh,leaf[:effectRange].High());
+    }; index += 1 };
+    .ImmutableValue({=
+        lower=lower,upper=upperInfinite ?: _ ?_ upper,upperInfinite=upperInfinite,effectRange=effectLow:effectHigh,
+        boxesEvaluated=leaves.Len(),maxBoxes=subdivision[:maxBoxes],measurementWidth=subdivision[:measurementWidth]
+    });
+};
+
+StatsIntervalOneWayANOVA(groupsValue, options ?= {= }) -> {;
+    groupsValue ? :Array ?: _ ?_ .Error("IntervalOneWayANOVA groups must be an Array of sample Arrays");
+    groupsValue.Len() >= 2 ?: _ ?_ .Error("IntervalOneWayANOVA requires at least two groups");
+    groups = groupsValue.Map((group)->StatsMeasurementIntervals(group));
+    sizes = groups.Map((group)->group.Len());
+    count = StatsSum(sizes);
+    count > groups.Len() ?: _ ?_ .Error("IntervalOneWayANOVA needs residual degrees of freedom");
+    flattened = groups.Reduce((all,group)->all++group,[]);
+    groupCount = groups.Len();
+    partsFunction = (box)->{;
+        cursor := 1;
+        boxes := [];
+        {@ groupIndex = 1; groupIndex <= @groupCount; {;
+            size = @sizes[groupIndex];
+            @boxes ~= @boxes.Push(@box.Slice(@cursor,@cursor+size));
+            @cursor += size;
+        }; groupIndex += 1 };
+        means = boxes.Map((group)->StatsIntervalMean(group));
+        total = boxes.Reduce((sum,group)->sum+StatsSum(group),0);
+        overallMean = total/@count;
+        between = boxes.Reduce((sum,group,index)->sum+group.Len()*(means[index]-overallMean)^2,0);
+        within = boxes.Reduce((sum,group,index)->sum+group.Reduce((inner,value)->inner+(value-means[index])^2,0),0);
+        numeratorDegrees = @groupCount-1;
+        denominatorDegrees = @count-@groupCount;
+        {=
+            numeratorRange=StatsNonnegativeInterval(between/numeratorDegrees),
+            denominatorRange=StatsNonnegativeInterval(within/denominatorDegrees),effectRange=StatsNonnegativeInterval(between)
+        };
+    };
+    enclosure = StatsIntervalFEnclosure(flattened,partsFunction,options);
+    numeratorDegrees = groupCount-1;
+    denominatorDegrees = count-groupCount;
+    pLower = enclosure[:upperInfinite] ?: 0 ?_ StatsFUpperTail(enclosure[:upper],numeratorDegrees,denominatorDegrees);
+    pUpper = StatsFUpperTail(enclosure[:lower],numeratorDegrees,denominatorDegrees);
+    StatsIntervalTestResult({=
+        valueKind=:statsIntervalTest,schema="rix.stats.interval-test@1",test=:intervalOneWayANOVA,
+        method=:fixedEffectsOneWayFOverMeasurementBox,alternative=:greater,
+        nullHypothesis=:allGroupMeansEqual,nullValue=0,estimateRange=enclosure[:effectRange],effectRange=enclosure[:effectRange],
+        statisticEndpoints=[enclosure[:lower],enclosure[:upper]],numeratorDegreesOfFreedom=numeratorDegrees,
+        denominatorDegreesOfFreedom=denominatorDegrees,pValueLower=pLower,pValueUpper=pUpper,
+        pValueStatus=:certifiedOuterBoundsByIntervalSubdivision,
+        referenceDistribution={= family=:f,numeratorDegreesOfFreedom=numeratorDegrees,denominatorDegreesOfFreedom=denominatorDegrees },
+        groupSizes=sizes,measurements=groups,
+        subdivision={= boxesEvaluated=enclosure[:boxesEvaluated],maxBoxes=enclosure[:maxBoxes],measurementWidth=enclosure[:measurementWidth] },
+        interpretation=:allPointDatasetsConsistentWithMeasurementIntervals,
+        assumptions=[:independentObservations,:normalErrorsForExactSmallSampleInference,:equalPopulationVariances,:closedMeasurementIntervals],certified=1
+    });
+};
+
+StatsIntervalXYComponents(xValue, yValue, minimumCount ?= 3) -> {;
+    x = StatsMeasurementIntervals(xValue);
+    y = StatsMeasurementIntervals(yValue);
+    x.Len() == y.Len() ?: _ ?_ .Error("Interval paired variables must have the same length");
+    x.Len() >= minimumCount ?: _ ?_ .Error(@"Interval paired variables require at least @{minimumCount} observations");
+    xMean = StatsIntervalMean(x);
+    yMean = StatsIntervalMean(y);
+    sxx = StatsNonnegativeInterval(x.Reduce((sum,value)->sum+(value-xMean)^2,0));
+    syy = StatsNonnegativeInterval(y.Reduce((sum,value)->sum+(value-yMean)^2,0));
+    sxy = x.Reduce((sum,value,index)->sum+(value-xMean)*(y[index]-yMean),0);
+    residual = StatsNonnegativeInterval(sxx*syy-sxy^2);
+    {= x=x,y=y,count=x.Len(),xMean=xMean,yMean=yMean,sxx=sxx,syy=syy,sxy=sxy,residual=residual };
+};
+
+StatsIntervalCorrelationTest(xValue, yValue, alternativeValue ?= :twoSided, options ?= {= }) -> {;
+    x = StatsMeasurementIntervals(xValue);
+    y = StatsMeasurementIntervals(yValue);
+    x.Len() == y.Len() ?: _ ?_ .Error("IntervalCorrelationTest x and y must have the same length");
+    x.Len() >= 3 ?: _ ?_ .Error("IntervalCorrelationTest requires at least three pairs");
+    count = x.Len();
+    alternative = StatsAlternative(alternativeValue);
+    partsFunction = (box)->{;
+        parts = StatsIntervalXYComponents(box.Slice(1,@count+1),box.Slice(@count+1),3);
+        {= effectRange=parts[:sxy],varianceTerm=parts[:residual]/(@count-2) };
+    };
+    enclosure = StatsIntervalTEnclosure(x++y,partsFunction,options);
+    degrees = count-2;
+    pValues = StatsTPValueRange(enclosure,degrees,degrees,alternative);
+    StatsIntervalTestResult({=
+        valueKind=:statsIntervalTest,schema="rix.stats.interval-test@1",test=:intervalPearsonCorrelation,
+        method=:pearsonCorrelationTOverMeasurementBox,alternative=alternative,
+        nullHypothesis=:correlationEqualsZero,nullValue=0,estimateRange=(-1):1,effectRange=enclosure[:effectRange],
+        statisticEndpoints=[enclosure[:lower],enclosure[:upper]],degreesOfFreedom=degrees,
+        pValueLower=pValues[:lower],pValueUpper=pValues[:upper],pValueStatus=:certifiedOuterBoundsByIntervalSubdivision,
+        referenceDistribution={= family=:studentT,degreesOfFreedom=degrees },sampleSize=count,xMeasurements=x,yMeasurements=y,
+        subdivision={= boxesEvaluated=enclosure[:boxesEvaluated],maxBoxes=enclosure[:maxBoxes],measurementWidth=enclosure[:measurementWidth] },
+        interpretation=:allPairedPointDatasetsConsistentWithMeasurementIntervals,
+        assumptions=[:independentPairs,:bivariateNormalPopulationForExactSmallSampleInference,:closedMeasurementIntervals],certified=1
+    });
+};
+
+StatsIntervalRegressionSlopeTest(xValue, yValue, nullSlopeValue ?= 0, alternativeValue ?= :twoSided, options ?= {= }) -> {;
+    x = StatsMeasurementIntervals(xValue);
+    y = StatsMeasurementIntervals(yValue);
+    x.Len() == y.Len() ?: _ ?_ .Error("IntervalRegressionSlopeTest x and y must have the same length");
+    x.Len() >= 3 ?: _ ?_ .Error("IntervalRegressionSlopeTest requires at least three pairs");
+    count = x.Len();
+    nullSlope = nullSlopeValue ~!: :Rational;
+    alternative = StatsAlternative(alternativeValue);
+    partsFunction = (box)->{;
+        parts = StatsIntervalXYComponents(box.Slice(1,@count+1),box.Slice(@count+1),3);
+        {= effectRange=parts[:sxy]-@nullSlope*parts[:sxx],varianceTerm=parts[:residual]/(@count-2) };
+    };
+    enclosure = StatsIntervalTEnclosure(x++y,partsFunction,options);
+    broadParts = StatsIntervalXYComponents(x,y,3);
+    estimateRange = broadParts[:sxx].Low() > 0 ?: broadParts[:sxy]/broadParts[:sxx] ?_ _;
+    degrees = count-2;
+    pValues = StatsTPValueRange(enclosure,degrees,degrees,alternative);
+    StatsIntervalTestResult({=
+        valueKind=:statsIntervalTest,schema="rix.stats.interval-test@1",test=:intervalRegressionSlopeT,
+        method=:simpleLinearRegressionSlopeTOverMeasurementBox,alternative=alternative,
+        nullHypothesis=:slopeEqualsNullValue,nullValue=nullSlope,estimateRange=estimateRange,effectRange=enclosure[:effectRange],
+        statisticEndpoints=[enclosure[:lower],enclosure[:upper]],degreesOfFreedom=degrees,
+        pValueLower=pValues[:lower],pValueUpper=pValues[:upper],pValueStatus=:certifiedOuterBoundsByIntervalSubdivision,
+        referenceDistribution={= family=:studentT,degreesOfFreedom=degrees },sampleSize=count,xMeasurements=x,yMeasurements=y,
+        subdivision={= boxesEvaluated=enclosure[:boxesEvaluated],maxBoxes=enclosure[:maxBoxes],measurementWidth=enclosure[:measurementWidth] },
+        interpretation=:allPairedPointDatasetsConsistentWithMeasurementIntervals,
+        assumptions=[:independentErrors,:linearMeanFunction,:constantErrorVariance,:normalErrorsForExactSmallSampleInference,:closedMeasurementIntervals],certified=1
+    });
+};
+
 StatsIntervalTestDecision(testValue, alphaValue ?= 1/20, options ?= {= }) -> {;
     test = StatsRequireIntervalTest(testValue);
     alpha = alphaValue ~!: :Rational;
@@ -1309,6 +1737,12 @@ statsNamespace._proto = {=
     IntervalMean=(self,values)->StatsIntervalMean(values),
     IntervalSummary=(self,values)->StatsIntervalSummary(values),
     IntervalOneSampleZTest=(self,values,nullMean,populationStandardDeviation,alternative ?= :twoSided)->StatsIntervalOneSampleZTest(values,nullMean,populationStandardDeviation,alternative),
+    IntervalOneSampleTTest=(self,values,nullMean ?= 0,alternative ?= :twoSided,options ?= {= })->StatsIntervalOneSampleTTest(values,nullMean,alternative,options),
+    IntervalPairedTTest=(self,first,second,nullDifference ?= 0,alternative ?= :twoSided,options ?= {= })->StatsIntervalPairedTTest(first,second,nullDifference,alternative,options),
+    IntervalTwoSampleTTest=(self,first,second,nullDifference ?= 0,options ?= {= })->StatsIntervalTwoSampleTTest(first,second,nullDifference,options),
+    IntervalOneWayANOVA=(self,groups,options ?= {= })->StatsIntervalOneWayANOVA(groups,options),
+    IntervalCorrelationTest=(self,x,y,alternative ?= :twoSided,options ?= {= })->StatsIntervalCorrelationTest(x,y,alternative,options),
+    IntervalRegressionSlopeTest=(self,x,y,nullSlope ?= 0,alternative ?= :twoSided,options ?= {= })->StatsIntervalRegressionSlopeTest(x,y,nullSlope,alternative,options),
     IntervalTestDecision=(self,test,alpha ?= 1/20,options ?= {= })->StatsIntervalTestDecision(test,alpha,options),
     IntervalTestTable=(self,test)->StatsIntervalTestTable(test),
     MeanConfidence=(self,values,level ?= 95/100,options ?= {= })->StatsMeanConfidence(values,level,options),

@@ -1002,8 +1002,10 @@ the certified numerical singleton layer; it does not replace the core exact
      and independence tests, with semantic result/decision records and explicit
      reference/assumption metadata.
    - [x] Add Student-t confidence intervals, Pearson correlation/slope tests,
-     exact rational ordering, and conservative known-scale inference over
-     interval-valued measurements.
+     exact rational ordering, and certified measurement-box inference for
+     known-scale z, one-sample/paired/pooled/Welch t, one-way ANOVA,
+     correlation, and simple-regression slope tests using outward interval
+     arithmetic with bounded subdivision.
 3. **Phase 3 — Models and inference**
    - [ ] Add generalized models, resampling, Bayesian result protocols, and
      uncertainty visualization.

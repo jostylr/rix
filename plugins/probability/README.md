@@ -66,6 +66,25 @@ Student-t, F, lognormal, and Cauchy laws.
 in sampling without replacement. `Dice(count,sides)` is the exact distribution
 of the sum, computed by finite convolution.
 
+## Convolutions and mixtures
+
+A convolution is the law of a sum of independent random variables. For finite
+discrete laws its PMF is an exact sum,
+`P(X+Y=z)=sum_x P(X=x)P(Y=z-x)`, so no integration is needed; `Dice` already
+uses this case. For continuous densities the corresponding formula is
+`f_(X+Y)(z)=integral f_X(x)f_Y(z-x) dx`, so a general certified implementation
+does require integration (or a closed-form family rule). Simulation only needs
+independent samples and addition. Arbitrary user-law convolution remains a
+Phase 3 composition API.
+
+A finite mixture chooses one component with exact weights and then samples
+from that component. It is not a sum: its CDF, and its PDF or PMF when present,
+is the weighted sum of the component methods. Finite mixtures therefore need
+no new integration when their components can already answer the requested
+method, although quantiles generally require certified inversion. A continuous
+mixture over infinitely many parameter values does require integration over
+the mixing law. Arbitrary user-law mixtures also remain planned for Phase 3.
+
 Certified PDFs and CDFs return refinable reals. Refining them returns an
 interval guaranteed to contain the mathematical value:
 

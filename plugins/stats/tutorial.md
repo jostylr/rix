@@ -34,6 +34,68 @@ decision := test.Decision(1/20,{= absoluteWidth=1/500,maxWork=400 });
 [summary[:meanRange],summary[:minimumRange],summary[:maximumRange],decision[:status]];
 ```
 
+When the population scale is estimated from the observations, use the
+interval t procedures. They enclose every test obtained by selecting one exact
+value from each measurement interval:
+
+```rix
+oneSample := .stats.IntervalOneSampleTTest(
+    [99/10:101/10,117/10:123/10,139/10:141/10],
+    10,
+    :greater,
+    {= maxBoxes=128 }
+);
+
+paired := .stats.IntervalPairedTTest(
+    [99/10:101/10,119/10:121/10,139/10:141/10],
+    [79/10:81/10,89/10:91/10,109/10:111/10],
+    0,
+    :greater,
+    {= maxBoxes=128 }
+);
+
+welch := .stats.IntervalTwoSampleTTest(
+    [9:10,10:11,11:12],
+    [5:6,6:7,7:8],
+    0,
+    {= alternative=:twoSided,maxBoxes=128 }
+);
+
+[oneSample.PValueBounds(),paired.Decision()[:status],welch[:degreesOfFreedomRange]];
+```
+
+ANOVA, correlation, and simple-regression slope tests use the same certified
+measurement-box interpretation:
+
+```rix
+anova := .stats.IntervalOneWayANOVA([
+    [1:11/10,2:21/10,3:31/10],
+    [4:41/10,5:51/10,6:61/10]
+],{= maxBoxes=128 });
+
+correlation := .stats.IntervalCorrelationTest(
+    [1:11/10,2:21/10,3:31/10,4:41/10],
+    [2:21/10,4:41/10,6:61/10,8:81/10],
+    :greater,
+    {= maxBoxes=128 }
+);
+
+slope := .stats.IntervalRegressionSlopeTest(
+    [1:11/10,2:21/10,3:31/10,4:41/10],
+    [2:21/10,4:41/10,6:61/10,8:81/10],
+    0,
+    :greater,
+    {= maxBoxes=128 }
+);
+
+[anova.PValueBounds(),correlation.PValueBounds(),slope.PValueBounds()];
+```
+
+Subdivision only tightens an enclosure. A larger `maxBoxes` costs more work;
+it cannot remove a true result. If a box still permits zero sample variance,
+constant predictors, or perfect fits, RiX keeps infinite statistic endpoints
+and widens the p-value bounds honestly.
+
 ## Build portable representations
 
 Tables and plots are core output values. The same histogram and box plot can

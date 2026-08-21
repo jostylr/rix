@@ -379,10 +379,10 @@ Those are different models and should remain visibly different.
 
 ### Test every point dataset allowed by the measurements
 
-`IntervalOneSampleZTest` currently covers the important transparent case of a
-known population standard deviation. It finds the exact range of possible
-sample means and, by monotonicity of the normal tail, the smallest and largest
-possible p-values over the whole measurement box.
+`IntervalOneSampleZTest` covers the transparent case of a known population
+standard deviation. It finds the exact range of possible sample means and, by
+monotonicity of the normal tail, the smallest and largest possible p-values
+over the whole measurement box.
 
 ```{.rix exec=true output=true id=course-interval-test}
 .Plugin.Load("stats");
@@ -395,6 +395,40 @@ decision := test.Decision(1/20,{= absoluteWidth=1/500,maxWork=400 });
 ];
 ```
 
+When the scale must be estimated, the interval t, ANOVA, correlation, and
+regression procedures use exact interval arithmetic with bounded subdivision.
+Each reported range encloses every result obtained by choosing one point from
+each measurement interval. Subdivision reduces repeated-variable overestimation;
+it never removes an admissible result.
+
+```{.rix exec=true output=true id=course-interval-general-tests}
+.Plugin.Load("stats");
+one := .stats.IntervalOneSampleTTest(
+    [9:10,11:12,13:14],10,:greater,{= maxBoxes=16 }
+);
+anova := .stats.IntervalOneWayANOVA([
+    [1:11/10,2:21/10,3:31/10],
+    [4:41/10,5:51/10,6:61/10]
+],{= maxBoxes=16 });
+correlation := .stats.IntervalCorrelationTest(
+    [1:11/10,2:21/10,3:31/10,4:41/10],
+    [2:21/10,4:41/10,6:61/10,8:81/10],
+    :greater,
+    {= maxBoxes=16 }
+);
+[
+    one[:statisticEndpoints],one.PValueBounds(),
+    anova.PValueBounds(),correlation.PValueBounds()
+];
+```
+
+The remaining entry points are `IntervalPairedTTest`,
+`IntervalTwoSampleTTest` (Welch by default, pooled with `equalVariance=1`), and
+`IntervalRegressionSlopeTest`. Increase `maxBoxes` when dependency inflation
+is too wide, or set `measurementWidth` to stop once individual boxes reach a
+chosen coordinate width. If a denominator can be zero, RiX reports an
+infinite statistic endpoint and safely widens the p-value range.
+
 The status has a deliberately stronger vocabulary than an ordinary point-data
 test:
 
@@ -405,10 +439,9 @@ test:
 
 Measurement uncertainty and sampling uncertainty are not interchangeable.
 The interval z procedure varies the unknown measured points while using the
-specified population scale for sampling variability. General interval-valued
-t tests, ANOVA, correlation, and regression require dependency-aware box or
-set optimization and are not yet advertised; using midpoints with an ordinary
-test would answer a different question.
+specified population scale for sampling variability. The interval t and F
+procedures vary both the estimate and its data-derived standard error. Using
+midpoints with an ordinary test would answer a different question.
 
 ## 9. Explore the Central Limit Theorem—and its boundary
 

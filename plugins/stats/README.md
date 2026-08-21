@@ -21,7 +21,9 @@ The public operations are `Count`, `Mean`, `Quantile`, `Median`, `Variance`,
 `SummaryTable`, `Histogram`,
 `HistogramGraphic`, `BoxPlot`, `DistributionSummary`, `SimulationValues`, `SimulationSummary`,
 `MeasurementIntervals`, `IntervalMean`, `IntervalSummary`,
-`IntervalOneSampleZTest`, `IntervalTestDecision`, `IntervalTestTable`,
+`IntervalOneSampleZTest`, `IntervalOneSampleTTest`, `IntervalPairedTTest`,
+`IntervalTwoSampleTTest`, `IntervalOneWayANOVA`, `IntervalCorrelationTest`,
+`IntervalRegressionSlopeTest`, `IntervalTestDecision`, `IntervalTestTable`,
 `MeanConfidence`, `MeanTConfidence`, `PairedMeanDifferenceConfidence`,
 `MeanDifferenceConfidence`, `ProportionConfidence`, `OneSampleZTest`, `TwoSampleZTest`,
 `OneProportionZTest`, `TwoProportionZTest`, `OneSampleTTest`, `PairedTTest`,
@@ -114,17 +116,42 @@ intervals. `IntervalSummary` reports mean, possible minimum, and possible
 maximum ranges that enclose every point dataset consistent with those
 measurements; its midpoint summary is labeled and never substituted silently.
 
-`IntervalOneSampleZTest(values,nullMean,knownPopulationStandardDeviation,alt)`
-computes the minimum and maximum attainable normal-reference p-values over the
-whole measurement box. Its decision is one of `:rejectForAllMeasurements`,
+The interval-test family computes certified outer bounds for the statistic and
+p-value over the whole measurement box:
+
+```rix
+.stats.IntervalOneSampleZTest(values,nullMean,knownPopulationStandardDeviation,alternative);
+.stats.IntervalOneSampleTTest(values,nullMean,alternative,{= maxBoxes=64 });
+.stats.IntervalPairedTTest(first,second,nullDifference,alternative,{= maxBoxes=64 });
+.stats.IntervalTwoSampleTTest(first,second,nullDifference,{= equalVariance=0,alternative=:twoSided,maxBoxes=64 });
+.stats.IntervalOneWayANOVA([firstGroup,secondGroup],{= maxBoxes=64 });
+.stats.IntervalCorrelationTest(x,y,alternative,{= maxBoxes=64 });
+.stats.IntervalRegressionSlopeTest(x,y,nullSlope,alternative,{= maxBoxes=64 });
+```
+
+The z-test extrema are analytic. The other procedures use exact
+`RationalInterval` arithmetic plus bounded subdivision of the closed
+measurement box. Increasing `maxBoxes` can remove dependency overestimation
+but never discards a possible point dataset. `measurementWidth` may stop
+splitting once every coordinate is at most that wide. A zero-containing
+variance denominator is reported with an infinite statistic endpoint and a
+safely widened p-value range instead of an unsafe division.
+
+The default two-sample interval test is Welch. Because the scalar
+implementation uses an integer reference degree, its p-value enclosure covers
+every integer degree from `min(n1-1,n2-1)` through `n1+n2-2`; this includes
+every possible Welch-Satterthwaite floor. Use `equalVariance=1` for the pooled
+test.
+
+Every interval test decision is one of `:rejectForAllMeasurements`,
 `:failToRejectForAllMeasurements`, `:measurementDependent`, or `:unresolved`.
 This separates bounded measurement uncertainty from sampling uncertainty.
-General interval t/ANOVA/regression procedures are not yet claimed.
 
 ```rix
 measurements := .stats.MeasurementIntervals([10,12,14],[1,1/2,2]);
-test := .stats.IntervalOneSampleZTest(measurements,10,2,:greater);
-[.stats.IntervalSummary(measurements)[:meanRange],test.Decision()[:status]];
+zTest := .stats.IntervalOneSampleZTest(measurements,10,2,:greater);
+tTest := .stats.IntervalOneSampleTTest(measurements,10,:greater,{= maxBoxes=128 });
+[.stats.IntervalSummary(measurements)[:meanRange],zTest.Decision()[:status],tTest.PValueBounds()];
 ```
 
 One-way ANOVA uses the standard fixed-effects F statistic. The chi-square
