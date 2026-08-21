@@ -1,6 +1,6 @@
 ---
 title: Summarize and model exact data
-description: Compute exact summaries and regressions, certified confidence records, and portable diagnostics.
+description: Compute exact summaries, common hypothesis tests, regressions, certified confidence records, and portable diagnostics.
 theme: Algebra and analysis
 status: implemented
 plugin: stats
@@ -73,6 +73,68 @@ meanInterval := .stats.MeanConfidence([3,4,5,6,7], 95/100);
 proportionInterval := .stats.ProportionConfidence(17, 25, 95/100);
 [meanInterval, proportionInterval];
 ```
+
+## Test means and proportions
+
+Test results keep exact sample bookkeeping and certified reference-function
+values. The method and assumptions travel with the answer.
+
+```rix
+.Plugin.Load("stats");
+knownScale := .stats.OneSampleZTest([48,49,50,52,54],50,2,:greater);
+student := .stats.OneSampleTTest([2,4,6,8,10],0,:twoSided);
+proportion := .stats.OneProportionZTest(60,100,1/2,:greater);
+.Fragment([
+    knownScale.Table(),
+    student.Table(),
+    proportion.Table()
+]);
+```
+
+Use `:less`, `:greater`, or `:twoSided` to state the alternative. A decision
+refines the p-value before comparing it with alpha:
+
+```rix
+decision := student.Decision(1/20,{= absoluteWidth=1/10000,maxWork=2000 });
+[decision[:status],decision[:pValueInterval],decision[:conclusion]];
+```
+
+The status is `:reject`, `:failToReject`, or `:unresolved`. The last case is
+important: it means the certified p-value enclosure still crosses alpha and
+more refinement is needed, not that the null hypothesis was accepted.
+
+For two independent samples the default is Welch's unequal-variance formula.
+The current certified Student-t tail kernel has integer degrees of freedom, so
+a fractional Welch-Satterthwaite value is retained while its floor is exposed
+as `referenceDegreesOfFreedom` for the p-value approximation.
+
+```rix
+welch := .stats.TwoSampleTTest([1,2,3,4],[6,8,10,12]);
+pooled := .stats.TwoSampleTTest([8,9,10,11],[3,4,5,6],0,{= equalVariance=1 });
+paired := .stats.PairedTTest([10,12,13,15],[8,9,11,12]);
+[
+  welch[:degreesOfFreedom],welch[:referenceDegreesOfFreedom],welch[:pValueStatus],
+  pooled[:method],paired[:differences]
+];
+```
+
+## Compare several groups and categorical counts
+
+One-way ANOVA reports exact sums and mean squares before its certified F tail.
+Pearson goodness-of-fit and independence tests retain their expected counts and
+cell contributions for inspection.
+
+```rix
+.Plugin.Load("stats");
+anova := .stats.OneWayANOVA([[1,2,3],[4,5,6],[3,4,5]]);
+goodness := .stats.ChiSquareGoodnessOfFit([20,30,50],[25,25,50]);
+independence := .stats.ChiSquareIndependence([[12,8,10],[6,14,10]]);
+.Fragment([anova.Table(),goodness.Table(),independence.Table()]);
+```
+
+Read the `assumptions` field before interpreting a p-value. In particular,
+these procedures do not infer that observations were independently sampled or
+that normality, equal variance, and expected-count conditions hold.
 
 ## Exact simple linear regression
 

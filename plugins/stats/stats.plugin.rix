@@ -1,15 +1,15 @@
 /**
 id: stats
-description: Exact descriptive statistics, confidence objects, linear regression, certified normal functions, and portable diagnostics.
+description: Exact descriptive statistics, undergraduate hypothesis tests, confidence objects, linear regression, certified distribution functions, and portable diagnostics.
 kind: rix
 mount: stats
 aliases: [statistics]
-exports: [Count, Mean, Quantile, Median, Variance, SampleVariance, NormalPDF, NormalCDF, NormalQuantile, Summary, SummaryTable, Histogram, HistogramGraphic, BoxPlot, DistributionSummary, SimulationValues, SimulationSummary, MeanConfidence, ProportionConfidence, LinearRegression, Predict, RegressionTable, ResidualTable]
+exports: [Count, Mean, Quantile, Median, Variance, SampleVariance, NormalPDF, NormalCDF, NormalQuantile, Summary, SummaryTable, Histogram, HistogramGraphic, BoxPlot, DistributionSummary, SimulationValues, SimulationSummary, MeanConfidence, ProportionConfidence, OneSampleZTest, TwoSampleZTest, OneProportionZTest, TwoProportionZTest, OneSampleTTest, PairedTTest, TwoSampleTTest, OneWayANOVA, ChiSquareGoodnessOfFit, ChiSquareIndependence, TestDecision, TestTable, LinearRegression, Predict, RegressionTable, ResidualTable]
 groups: [Statistics, Exact, Graphics]
 permissions: []
 requires: [rix.numerics@1]
-provides: [rix.statistics@1, rix.stats.inference@1, rix.stats.regression@1]
-schemas: [rix.stats.summary@1, rix.stats.histogram@1, rix.stats.distribution-summary@1, rix.stats.confidence@1, rix.stats.regression@1]
+provides: [rix.statistics@1, rix.stats.inference@1, rix.stats.hypothesis-tests@1, rix.stats.regression@1]
+schemas: [rix.stats.summary@1, rix.stats.histogram@1, rix.stats.distribution-summary@1, rix.stats.confidence@1, rix.stats.test@1, rix.stats.test-decision@1, rix.stats.regression@1]
 snapshot: true
 deterministic: true
 defaultEnabled: false
@@ -348,6 +348,495 @@ StatsProportionConfidence(successesValue, trialsValue, levelValue ?= 95/100) -> 
     };
 };
 
+StatsAlternative(value) -> {;
+    result := _;
+    (value == :twoSided || value == :twosided || value == :two_sided)
+      ?: {; @result ~= :twoSided; }
+      ?_ _;
+    (value == :less || value == :lower)
+      ?: {; @result ~= :less; }
+      ?_ _;
+    (value == :greater || value == :upper)
+      ?: {; @result ~= :greater; }
+      ?_ _;
+    result == _ ?: .Error("Test alternative must be :twoSided, :less, or :greater") ?_ result;
+};
+
+StatsPositiveScale(value, label) -> {;
+    exact = value ~!: :Rational;
+    exact > 0 ?: exact ?_ .Error(@"@{label} must be a positive exact Rational");
+};
+
+StatsSuccessCount(successesValue, trialsValue, label) -> {;
+    successes = successesValue ~!: :Integer;
+    trials = trialsValue ~!: :Integer;
+    trials >= 1 ?: _ ?_ .Error(@"@{label} trials must be positive");
+    (successes >= 0 && successes <= trials)
+      ?: {= successes=successes,trials=trials }
+      ?_ .Error(@"@{label} successes must be between zero and trials");
+};
+
+StatsStandardizedStatistic(effectValue, standardError) -> {;
+    effect = effectValue ~!: :Rational;
+    effect.Numerator() == 0 ?: 0 ?_ effect/standardError;
+};
+
+StatsNormalTestPValue(squaredMagnitudeValue, signValue, alternativeValue) -> {;
+    squaredMagnitude = squaredMagnitudeValue ~!: :Rational;
+    magnitude = .numerics.Sqrt(squaredMagnitude);
+    alternative = StatsAlternative(alternativeValue);
+    signValue.Numerator() == 0
+      ?: (alternative == :twoSided ?: 1 ?_ 1/2)
+      ?_ {;
+          upper = 1-.numerics.NormalCDF(@magnitude);
+          @alternative == :twoSided
+            ?: 2*upper
+            ?_ (@alternative == :greater
+                ?: (@signValue > 0 ?: upper ?_ 1-upper)
+                ?_ (@signValue < 0 ?: upper ?_ 1-upper));
+      };
+};
+
+StatsCosinePowerIntegral(orderValue, angle, sine, cosine) -> {;
+    order = orderValue ~!: :Integer;
+    order >= 0 ?: _ ?_ .Error("Internal cosine integral order must be nonnegative");
+    order == 0
+      ?: angle
+      ?_ (order == 1
+          ?: sine
+          ?_ sine*cosine^(order-1)/order
+             +(order-1)*StatsCosinePowerIntegral(order-2,angle,sine,cosine)/order);
+};
+
+StatsStudentCoefficient(degrees) -> {;
+    degrees%2 == 0
+      ?: {;
+          half = @degrees//2;
+          @degrees!/(4^half*half!*(half-1)!);
+      }
+      ?_ {;
+          half = (@degrees-1)//2;
+          4^half*(half!)^2/((2*half)!*.numerics.Pi());
+      };
+};
+
+StatsStudentTestPValue(squaredMagnitudeValue, signValue, degreesValue, alternativeValue) -> {;
+    squaredMagnitude = squaredMagnitudeValue ~!: :Rational;
+    degrees = StatsPositiveInteger(degreesValue,"Student-t degrees of freedom");
+    alternative = StatsAlternative(alternativeValue);
+    signValue.Numerator() == 0
+      ?: (alternative == :twoSided ?: 1 ?_ 1/2)
+      ?_ {;
+          sine = .numerics.Sqrt(@squaredMagnitude/(@degrees+@squaredMagnitude));
+          cosine = .numerics.Sqrt(@degrees/(@degrees+@squaredMagnitude));
+          angle = @degrees%2 == 1 ?: .numerics.Atan(.numerics.Sqrt(@squaredMagnitude/@degrees)) ?_ 0;
+          integral = StatsStudentCoefficient(@degrees)*StatsCosinePowerIntegral(@degrees-1,angle,sine,cosine);
+          upper = 1/2-integral;
+          @alternative == :twoSided
+            ?: 2*upper
+            ?_ (@alternative == :greater
+                ?: (@signValue > 0 ?: upper ?_ 1-upper)
+                ?_ (@signValue < 0 ?: upper ?_ 1-upper));
+      };
+};
+
+StatsSineCosineIntegral(sineOrderValue, cosineOrderValue, angle, sine, cosine) -> {;
+    sineOrder = sineOrderValue ~!: :Integer;
+    cosineOrder = cosineOrderValue ~!: :Integer;
+    (sineOrder >= 0 && cosineOrder >= 0) ?: _ ?_ .Error("Internal beta integral orders must be nonnegative");
+    sineOrder == 0
+      ?: StatsCosinePowerIntegral(cosineOrder,angle,sine,cosine)
+      ?_ (sineOrder == 1
+          ?: (1-cosine^(cosineOrder+1))/(cosineOrder+1)
+          ?_ ((sineOrder-1)*StatsSineCosineIntegral(sineOrder-2,cosineOrder,angle,sine,cosine)
+              -sine^(sineOrder-1)*cosine^(cosineOrder+1))/(sineOrder+cosineOrder));
+};
+
+StatsFUpperTail(statisticValue, numeratorDegreesValue, denominatorDegreesValue) -> {;
+    statistic = statisticValue ~!: :Rational;
+    numeratorDegrees = StatsPositiveInteger(numeratorDegreesValue,"F numerator degrees of freedom");
+    denominatorDegrees = StatsPositiveInteger(denominatorDegreesValue,"F denominator degrees of freedom");
+    statistic >= 0 ?: _ ?_ .Error("F statistic must be nonnegative");
+    statistic.Numerator() == 0
+      ?: 1
+      ?_ {;
+          z = @numeratorDegrees*@statistic/(@numeratorDegrees*@statistic+@denominatorDegrees);
+          sine = .numerics.Sqrt(z);
+          cosine = .numerics.Sqrt(1-z);
+          angle = .numerics.Asin(sine);
+          integral = StatsSineCosineIntegral(@numeratorDegrees-1,@denominatorDegrees-1,angle,sine,cosine);
+          1-2*integral/.numerics.Beta(@numeratorDegrees/2,@denominatorDegrees/2);
+      };
+};
+
+StatsChiSquareUpperTail(statisticValue, degreesValue) -> {;
+    statistic = statisticValue ~!: :Rational;
+    degrees = StatsPositiveInteger(degreesValue,"Chi-square degrees of freedom");
+    statistic >= 0 ?: _ ?_ .Error("Chi-square statistic must be nonnegative");
+    statistic.Numerator() == 0
+      ?: 1
+      ?_ {;
+          z = @statistic/2;
+          twice = @degrees;
+          cdf = twice%2 == 0
+            ?: {;
+                shape = @twice//2;
+                series := 0;
+                {@ index = 0; index < @shape; {; @series += @z^index/index!; }; index += 1 };
+                1-.numerics.Exp(-@z)*series;
+            }
+            ?_ {;
+                halfSteps = (@twice-1)//2;
+                state := .numerics.Erf(.numerics.Sqrt(@z));
+                {@ step = 0; step < @halfSteps; {;
+                    exponent = step+1/2;
+                    @state -= .numerics.Exp(-@z)*@z^exponent/.numerics.Gamma(exponent+1);
+                }; step += 1 };
+                state;
+            };
+          1-cdf;
+      };
+};
+
+StatsTestResult(fields) -> {;
+    result = fields.Merge({=
+        valueKind=:statsTest,
+        schema="rix.stats.test@1",
+        certifiedStatistic=1,
+        certifiedPValue=1
+    });
+    result.__type="StatsTest";
+    result._proto={=
+        PValue=(self)->self[:pValue],
+        Decision=(self,alpha ?= 1/20,options ?= {= })->StatsTestDecision(self,alpha,options),
+        Table=(self)->StatsTestTable(self),
+        Record=(self)->self
+    };
+    .ImmutableValue(result);
+};
+
+StatsRequireTest(value) -> ((value ? :Map) && value[:schema] == "rix.stats.test@1")
+  ?: value
+  ?_ .Error("Expected a stats hypothesis-test result");
+
+StatsOneSampleZTest(valuesValue, nullMeanValue, populationStandardDeviationValue, alternativeValue ?= :twoSided) -> {;
+    values = StatsValues(valuesValue);
+    nullMean = nullMeanValue ~!: :Rational;
+    scale = StatsPositiveScale(populationStandardDeviationValue,"OneSampleZTest population standard deviation");
+    alternative = StatsAlternative(alternativeValue);
+    estimate = StatsMean(values);
+    effect = estimate-nullMean;
+    standardError = scale/.numerics.Sqrt(values.Len());
+    statistic = StatsStandardizedStatistic(effect,standardError);
+    pValue = StatsNormalTestPValue(effect^2/(scale^2/values.Len()),effect,alternative);
+    StatsTestResult({=
+        test=:oneSampleZ,method=:normalKnownPopulationScale,alternative=alternative,
+        nullHypothesis=:meanEqualsNullValue,nullValue=nullMean,estimate=estimate,effect=effect,
+        standardError=standardError,statistic=statistic,pValue=pValue,pValueStatus=:certifiedReference,
+        referenceDistribution={= family=:normal,mean=0,standardDeviation=1 },sampleSize=values.Len(),
+        assumptions=[:independentObservations,:knownPopulationStandardDeviation,:normalPopulationOrLargeSample]
+    });
+};
+
+StatsTwoSampleZTest(firstValue, secondValue, firstScaleValue, secondScaleValue, nullDifferenceValue ?= 0, alternativeValue ?= :twoSided) -> {;
+    first = StatsValues(firstValue);
+    second = StatsValues(secondValue);
+    firstScale = StatsPositiveScale(firstScaleValue,"TwoSampleZTest first population standard deviation");
+    secondScale = StatsPositiveScale(secondScaleValue,"TwoSampleZTest second population standard deviation");
+    nullDifference = nullDifferenceValue ~!: :Rational;
+    alternative = StatsAlternative(alternativeValue);
+    firstMean = StatsMean(first);
+    secondMean = StatsMean(second);
+    estimate = firstMean-secondMean;
+    effect = estimate-nullDifference;
+    standardError = .numerics.Sqrt(firstScale^2/first.Len()+secondScale^2/second.Len());
+    statistic = StatsStandardizedStatistic(effect,standardError);
+    pValue = StatsNormalTestPValue(effect^2/(firstScale^2/first.Len()+secondScale^2/second.Len()),effect,alternative);
+    StatsTestResult({=
+        test=:twoSampleZ,method=:normalKnownPopulationScales,alternative=alternative,
+        nullHypothesis=:meanDifferenceEqualsNullValue,nullValue=nullDifference,estimate=estimate,effect=effect,
+        estimates=[firstMean,secondMean],standardError=standardError,statistic=statistic,
+        pValue=pValue,pValueStatus=:certifiedReference,referenceDistribution={= family=:normal,mean=0,standardDeviation=1 },
+        sampleSize=[first.Len(),second.Len()],assumptions=[:independentSamples,:knownPopulationStandardDeviations,:normalPopulationsOrLargeSamples]
+    });
+};
+
+StatsOneProportionZTest(successesValue, trialsValue, nullProportionValue, alternativeValue ?= :twoSided) -> {;
+    sample = StatsSuccessCount(successesValue,trialsValue,"OneProportionZTest");
+    nullProportion = nullProportionValue ~!: :Rational;
+    (nullProportion > 0 && nullProportion < 1) ?: _ ?_ .Error("OneProportionZTest null proportion must be strictly between zero and one");
+    alternative = StatsAlternative(alternativeValue);
+    estimate = sample[:successes]/sample[:trials];
+    effect = estimate-nullProportion;
+    standardError = .numerics.Sqrt(nullProportion*(1-nullProportion)/sample[:trials]);
+    statistic = StatsStandardizedStatistic(effect,standardError);
+    pValue = StatsNormalTestPValue(effect^2/(nullProportion*(1-nullProportion)/sample[:trials]),effect,alternative);
+    StatsTestResult({=
+        test=:oneProportionZ,method=:oneProportionScoreZ,alternative=alternative,
+        nullHypothesis=:proportionEqualsNullValue,nullValue=nullProportion,estimate=estimate,effect=effect,
+        standardError=standardError,statistic=statistic,pValue=pValue,pValueStatus=:certifiedNormalApproximation,
+        referenceDistribution={= family=:normal,mean=0,standardDeviation=1 },sampleSize=sample[:trials],successes=sample[:successes],
+        assumptions=[:independentBernoulliTrials,:adequateExpectedSuccessesAndFailures]
+    });
+};
+
+StatsTwoProportionZTest(firstSuccessesValue, firstTrialsValue, secondSuccessesValue, secondTrialsValue, alternativeValue ?= :twoSided) -> {;
+    first = StatsSuccessCount(firstSuccessesValue,firstTrialsValue,"TwoProportionZTest first sample");
+    second = StatsSuccessCount(secondSuccessesValue,secondTrialsValue,"TwoProportionZTest second sample");
+    alternative = StatsAlternative(alternativeValue);
+    firstEstimate = first[:successes]/first[:trials];
+    secondEstimate = second[:successes]/second[:trials];
+    estimate = firstEstimate-secondEstimate;
+    pooled = (first[:successes]+second[:successes])/(first[:trials]+second[:trials]);
+    (pooled > 0 && pooled < 1) ?: _ ?_ .Error("TwoProportionZTest pooled null standard error is zero");
+    standardError = .numerics.Sqrt(pooled*(1-pooled)*(1/first[:trials]+1/second[:trials]));
+    statistic = StatsStandardizedStatistic(estimate,standardError);
+    pValue = StatsNormalTestPValue(estimate^2/(pooled*(1-pooled)*(1/first[:trials]+1/second[:trials])),estimate,alternative);
+    StatsTestResult({=
+        test=:twoProportionZ,method=:pooledTwoProportionZ,alternative=alternative,
+        nullHypothesis=:proportionDifferenceEqualsZero,nullValue=0,estimate=estimate,effect=estimate,
+        estimates=[firstEstimate,secondEstimate],pooledEstimate=pooled,standardError=standardError,statistic=statistic,
+        pValue=pValue,pValueStatus=:certifiedNormalApproximation,referenceDistribution={= family=:normal,mean=0,standardDeviation=1 },
+        sampleSize=[first[:trials],second[:trials]],successes=[first[:successes],second[:successes]],
+        assumptions=[:independentBernoulliSamples,:adequateExpectedSuccessesAndFailures]
+    });
+};
+
+StatsOneSampleTTest(valuesValue, nullMeanValue ?= 0, alternativeValue ?= :twoSided) -> {;
+    values = StatsValues(valuesValue);
+    values.Len() >= 2 ?: _ ?_ .Error("OneSampleTTest requires at least two observations");
+    nullMean = nullMeanValue ~!: :Rational;
+    alternative = StatsAlternative(alternativeValue);
+    estimate = StatsMean(values);
+    effect = estimate-nullMean;
+    variance = StatsVariance(values,1);
+    variance > 0 ?: _ ?_ .Error("OneSampleTTest sample standard error is zero");
+    standardError = .numerics.Sqrt(variance/values.Len());
+    degrees = values.Len()-1;
+    statistic = StatsStandardizedStatistic(effect,standardError);
+    pValue = StatsStudentTestPValue(effect^2/(variance/values.Len()),effect,degrees,alternative);
+    StatsTestResult({=
+        test=:oneSampleT,method=:studentOneSampleT,alternative=alternative,
+        nullHypothesis=:meanEqualsNullValue,nullValue=nullMean,estimate=estimate,effect=effect,
+        sampleVariance=variance,standardError=standardError,statistic=statistic,degreesOfFreedom=degrees,
+        pValue=pValue,pValueStatus=:certifiedReference,referenceDistribution={= family=:studentT,degreesOfFreedom=degrees },
+        sampleSize=values.Len(),assumptions=[:independentObservations,:approximatelyNormalPopulationOrRobustSampleSize]
+    });
+};
+
+StatsPairedTTest(firstValue, secondValue, nullDifferenceValue ?= 0, alternativeValue ?= :twoSided) -> {;
+    first = StatsValues(firstValue);
+    second = StatsValues(secondValue);
+    first.Len() == second.Len() ?: _ ?_ .Error("PairedTTest samples must have the same length");
+    first.Len() >= 2 ?: _ ?_ .Error("PairedTTest requires at least two pairs");
+    differences = first.Map((value,index)->value-second[index]);
+    nullDifference = nullDifferenceValue ~!: :Rational;
+    alternative = StatsAlternative(alternativeValue);
+    estimate = StatsMean(differences);
+    effect = estimate-nullDifference;
+    variance = StatsVariance(differences,1);
+    variance > 0 ?: _ ?_ .Error("PairedTTest paired-difference standard error is zero");
+    standardError = .numerics.Sqrt(variance/differences.Len());
+    degrees = differences.Len()-1;
+    statistic = StatsStandardizedStatistic(effect,standardError);
+    pValue = StatsStudentTestPValue(effect^2/(variance/differences.Len()),effect,degrees,alternative);
+    StatsTestResult({=
+        test=:pairedT,method=:studentPairedDifferences,
+        alternative=alternative,nullHypothesis=:meanPairedDifferenceEqualsNullValue,nullValue=nullDifference,
+        estimate=estimate,effect=effect,sampleVariance=variance,standardError=standardError,statistic=statistic,
+        degreesOfFreedom=degrees,pValue=pValue,pValueStatus=:certifiedReference,
+        referenceDistribution={= family=:studentT,degreesOfFreedom=degrees },sampleSize=differences.Len(),
+        pairs=first.Len(),differences=differences,
+        assumptions=[:pairedObservations,:independentPairs,:approximatelyNormalDifferencesOrRobustSampleSize]
+    });
+};
+
+StatsTwoSampleTTest(firstValue, secondValue, nullDifferenceValue ?= 0, options ?= {= }) -> {;
+    first = StatsValues(firstValue);
+    second = StatsValues(secondValue);
+    (first.Len() >= 2 && second.Len() >= 2) ?: _ ?_ .Error("TwoSampleTTest requires at least two observations in each sample");
+    nullDifference = nullDifferenceValue ~!: :Rational;
+    alternative = StatsAlternative(StatsOption(options,"alternative",:twoSided));
+    equalVariance = StatsOption(options,"equalVariance",0);
+    (equalVariance == 0 || equalVariance == 1) ?: _ ?_ .Error("TwoSampleTTest equalVariance option must be 0 or 1");
+    firstMean = StatsMean(first);
+    secondMean = StatsMean(second);
+    estimate = firstMean-secondMean;
+    effect = estimate-nullDifference;
+    firstVariance = StatsVariance(first,1);
+    secondVariance = StatsVariance(second,1);
+    equalVariance == 1
+      ?: {;
+          degrees = @first.Len()+@second.Len()-2;
+          pooledVariance = ((@first.Len()-1)*@firstVariance+(@second.Len()-1)*@secondVariance)/degrees;
+          pooledVariance > 0 ?: _ ?_ .Error("TwoSampleTTest pooled standard error is zero");
+          standardError = .numerics.Sqrt(pooledVariance*(1/@first.Len()+1/@second.Len()));
+          statistic = StatsStandardizedStatistic(@effect,standardError);
+          pValue = StatsStudentTestPValue(@effect^2/(pooledVariance*(1/@first.Len()+1/@second.Len())),@effect,degrees,@alternative);
+          StatsTestResult({=
+              test=:twoSampleT,method=:pooledStudentT,alternative=@alternative,
+              nullHypothesis=:meanDifferenceEqualsNullValue,nullValue=@nullDifference,estimate=@estimate,effect=@effect,
+              estimates=[@firstMean,@secondMean],sampleVariances=[@firstVariance,@secondVariance],pooledVariance=pooledVariance,
+              standardError=standardError,statistic=statistic,degreesOfFreedom=degrees,referenceDegreesOfFreedom=degrees,
+              pValue=pValue,pValueStatus=:certifiedReference,referenceDistribution={= family=:studentT,degreesOfFreedom=degrees },
+              sampleSize=[@first.Len(),@second.Len()],assumptions=[:independentSamples,:equalPopulationVariances,:approximatelyNormalPopulationsOrRobustSampleSizes]
+          });
+      }
+      ?_ {;
+          firstTerm = @firstVariance/@first.Len();
+          secondTerm = @secondVariance/@second.Len();
+          varianceSum = firstTerm+secondTerm;
+          varianceSum > 0 ?: _ ?_ .Error("TwoSampleTTest Welch standard error is zero");
+          degrees = varianceSum^2/(firstTerm^2/(@first.Len()-1)+secondTerm^2/(@second.Len()-1));
+          referenceDegrees = degrees.Floor();
+          standardError = .numerics.Sqrt(varianceSum);
+          statistic = StatsStandardizedStatistic(@effect,standardError);
+          pValue = StatsStudentTestPValue(@effect^2/varianceSum,@effect,referenceDegrees,@alternative);
+          exactDegrees = degrees.Denominator() == 1;
+          StatsTestResult({=
+              test=:twoSampleT,method=:welchTWithIntegerReference,alternative=@alternative,
+              nullHypothesis=:meanDifferenceEqualsNullValue,nullValue=@nullDifference,estimate=@estimate,effect=@effect,
+              estimates=[@firstMean,@secondMean],sampleVariances=[@firstVariance,@secondVariance],
+              standardError=standardError,statistic=statistic,degreesOfFreedom=degrees,referenceDegreesOfFreedom=referenceDegrees,
+              pValue=pValue,pValueStatus=exactDegrees ?: :certifiedReference ?_ :certifiedIntegerDfApproximation,
+              pValueQualification=exactDegrees ?: :exactWelchDegrees ?_ (@alternative == :twoSided ?: :conservativeUpperBoundForTwoSided ?_ :integerDfApproximation),
+              referenceDistribution={= family=:studentT,degreesOfFreedom=referenceDegrees },sampleSize=[@first.Len(),@second.Len()],
+              assumptions=[:independentSamples,:unequalVariancesAllowed,:approximatelyNormalPopulationsOrRobustSampleSizes]
+          });
+      };
+};
+
+StatsOneWayANOVA(groupsValue) -> {;
+    groupsValue ? :Array ?: _ ?_ .Error("OneWayANOVA groups must be an Array of sample Arrays");
+    groupsValue.Len() >= 2 ?: _ ?_ .Error("OneWayANOVA requires at least two groups");
+    groups = groupsValue.Map((group)->StatsValues(group));
+    count = groups.Reduce((sum,group)->sum+group.Len(),0);
+    count > groups.Len() ?: _ ?_ .Error("OneWayANOVA needs residual degrees of freedom");
+    means = groups.Map((group)->StatsMean(group));
+    total = groups.Reduce((sum,group)->sum+StatsSum(group),0);
+    overallMean = total/count;
+    betweenSumSquares = groups.Reduce((sum,group,index)->sum+group.Len()*(means[index]-overallMean)^2,0);
+    withinSumSquares = groups.Reduce((sum,group,index)->sum+group.Reduce((inner,value)->inner+(value-means[index])^2,0),0);
+    withinSumSquares > 0 ?: _ ?_ .Error("OneWayANOVA within-group mean square is zero");
+    numeratorDegrees = groups.Len()-1;
+    denominatorDegrees = count-groups.Len();
+    betweenMeanSquare = betweenSumSquares/numeratorDegrees;
+    withinMeanSquare = withinSumSquares/denominatorDegrees;
+    statistic = betweenMeanSquare/withinMeanSquare;
+    pValue = StatsFUpperTail(statistic,numeratorDegrees,denominatorDegrees);
+    totalSumSquares = betweenSumSquares+withinSumSquares;
+    StatsTestResult({=
+        test=:oneWayANOVA,method=:fixedEffectsOneWayF,alternative=:greater,
+        nullHypothesis=:allGroupMeansEqual,nullValue=0,estimate=betweenSumSquares,effect=betweenSumSquares,
+        groupMeans=means,overallMean=overallMean,groupSizes=groups.Map((group)->group.Len()),
+        betweenSumSquares=betweenSumSquares,withinSumSquares=withinSumSquares,totalSumSquares=totalSumSquares,
+        betweenMeanSquare=betweenMeanSquare,withinMeanSquare=withinMeanSquare,
+        statistic=statistic,numeratorDegreesOfFreedom=numeratorDegrees,denominatorDegreesOfFreedom=denominatorDegrees,
+        degreesOfFreedom=[numeratorDegrees,denominatorDegrees],etaSquared=totalSumSquares == 0 ?: 0 ?_ betweenSumSquares/totalSumSquares,
+        pValue=pValue,pValueStatus=:certifiedReference,referenceDistribution={= family=:f,numeratorDegrees=numeratorDegrees,denominatorDegrees=denominatorDegrees },
+        sampleSize=count,assumptions=[:independentObservations,:normalResiduals,:equalPopulationVariances]
+    });
+};
+
+StatsChiSquareGoodnessOfFit(observedValue, expectedValue, options ?= {= }) -> {;
+    observed = StatsValues(observedValue);
+    expected = StatsValues(expectedValue);
+    observed.Len() == expected.Len() ?: _ ?_ .Error("ChiSquareGoodnessOfFit observed and expected arrays must have the same length");
+    observed.Len() >= 2 ?: _ ?_ .Error("ChiSquareGoodnessOfFit requires at least two categories");
+    observed.Reduce((valid,value)->valid && value >= 0,1) ?: _ ?_ .Error("ChiSquareGoodnessOfFit observed counts must be nonnegative");
+    expected.Reduce((valid,value)->valid && value > 0,1) ?: _ ?_ .Error("ChiSquareGoodnessOfFit expected counts must be positive");
+    observedTotal = StatsSum(observed);
+    expectedTotal = StatsSum(expected);
+    observedTotal == expectedTotal ?: _ ?_ .Error("ChiSquareGoodnessOfFit observed and expected counts must have equal totals");
+    estimatedParameters = StatsOption(options,"estimatedParameters",0) ~!: :Integer;
+    estimatedParameters >= 0 ?: _ ?_ .Error("ChiSquareGoodnessOfFit estimatedParameters must be nonnegative");
+    degrees = observed.Len()-1-estimatedParameters;
+    degrees >= 1 ?: _ ?_ .Error("ChiSquareGoodnessOfFit needs positive degrees of freedom");
+    contributions = observed.Map((value,index)->(value-expected[index])^2/expected[index]);
+    statistic = StatsSum(contributions);
+    pValue = StatsChiSquareUpperTail(statistic,degrees);
+    StatsTestResult({=
+        test=:chiSquareGoodnessOfFit,method=:pearsonGoodnessOfFit,alternative=:greater,
+        nullHypothesis=:categoryProbabilitiesMatchExpected,nullValue=0,estimate=statistic,effect=statistic,
+        observed=observed,expected=expected,contributions=contributions,statistic=statistic,degreesOfFreedom=degrees,
+        estimatedParameters=estimatedParameters,pValue=pValue,pValueStatus=:certifiedReference,
+        referenceDistribution={= family=:chiSquare,degreesOfFreedom=degrees },sampleSize=observedTotal,
+        assumptions=[:independentCounts,:mutuallyExclusiveCategories,:adequateExpectedCounts]
+    });
+};
+
+StatsChiSquareIndependence(tableValue) -> {;
+    tableValue ? :Array ?: _ ?_ .Error("ChiSquareIndependence table must be an Array of row Arrays");
+    tableValue.Len() >= 2 ?: _ ?_ .Error("ChiSquareIndependence requires at least two rows");
+    rows = tableValue.Map((row)->StatsValues(row));
+    columns = rows[1].Len();
+    columns >= 2 ?: _ ?_ .Error("ChiSquareIndependence requires at least two columns");
+    rows.Reduce((valid,row)->valid && row.Len() == columns,1) ?: _ ?_ .Error("ChiSquareIndependence table must be rectangular");
+    rows.Reduce((valid,row)->valid && row.Reduce((inside,value)->inside && value >= 0,1),1) ?: _ ?_ .Error("ChiSquareIndependence counts must be nonnegative");
+    rowTotals = rows.Map((row)->StatsSum(row));
+    columnTotals := StatsZeros(columns);
+    {@ rowIndex = 1; rowIndex <= @rows.Len(); {;
+        {@ columnIndex = 1; columnIndex <= @columns; {;
+            @columnTotals ~= @columnTotals.Set(columnIndex,@columnTotals[columnIndex]+@rows[@rowIndex][columnIndex]);
+        }; columnIndex += 1 };
+    }; rowIndex += 1 };
+    rowTotals.Reduce((valid,value)->valid && value > 0,1) ?: _ ?_ .Error("ChiSquareIndependence row totals must be positive");
+    columnTotals.Reduce((valid,value)->valid && value > 0,1) ?: _ ?_ .Error("ChiSquareIndependence column totals must be positive");
+    total = StatsSum(rowTotals);
+    expected = rows.Map((row,rowIndex)->row.Map((value,columnIndex)->rowTotals[rowIndex]*columnTotals[columnIndex]/total));
+    contributions = rows.Map((row,rowIndex)->row.Map((value,columnIndex)->(value-expected[rowIndex][columnIndex])^2/expected[rowIndex][columnIndex]));
+    statistic = contributions.Reduce((sum,row)->sum+StatsSum(row),0);
+    degrees = (rows.Len()-1)*(columns-1);
+    pValue = StatsChiSquareUpperTail(statistic,degrees);
+    StatsTestResult({=
+        test=:chiSquareIndependence,method=:pearsonContingencyTable,alternative=:greater,
+        nullHypothesis=:rowAndColumnVariablesIndependent,nullValue=0,estimate=statistic,effect=statistic,
+        observed=rows,expected=expected,contributions=contributions,rowTotals=rowTotals,columnTotals=columnTotals,
+        statistic=statistic,degreesOfFreedom=degrees,pValue=pValue,pValueStatus=:certifiedReference,
+        referenceDistribution={= family=:chiSquare,degreesOfFreedom=degrees },sampleSize=total,
+        assumptions=[:independentObservations,:mutuallyExclusiveCells,:adequateExpectedCounts]
+    });
+};
+
+StatsTestDecision(testValue, alphaValue ?= 1/20, options ?= {= }) -> {;
+    test = StatsRequireTest(testValue);
+    alpha = alphaValue ~!: :Rational;
+    (alpha > 0 && alpha < 1) ?: _ ?_ .Error("TestDecision alpha must be strictly between zero and one");
+    pValue = test[:pValue];
+    exact = pValue ~: :Rational;
+    interval = exact != _
+      ?: exact:exact
+      ?_ .numerics.Refine(pValue,{=
+          absoluteWidth=StatsOption(options,"absoluteWidth",1/10000),
+          maxWork=StatsOption(options,"maxWork",2000)
+      })[:interval];
+    status = interval.High() < alpha
+      ?: :reject
+      ?_ (interval.Low() >= alpha ?: :failToReject ?_ :unresolved);
+    .ImmutableValue({=
+        valueKind=:statsTestDecision,schema="rix.stats.test-decision@1",test=test[:test],method=test[:method],
+        alpha=alpha,pValue=pValue,pValueInterval=interval,pValueStatus=test[:pValueStatus],status=status,
+        conclusion=status == :reject ?: :evidenceAgainstNull ?_ (status == :failToReject ?: :insufficientEvidenceAgainstNull ?_ :refineFurther),
+        certified=1
+    });
+};
+
+StatsTestTable(testValue) -> {;
+    test = StatsRequireTest(testValue);
+    .Table(["field","value"],[
+        ["test",test[:test]],
+        ["method",test[:method]],
+        ["alternative",test[:alternative]],
+        ["estimate",test[:estimate]],
+        ["null value",test[:nullValue]],
+        ["standard error",test[:standardError]],
+        ["statistic",test[:statistic]],
+        ["degrees of freedom",test[:degreesOfFreedom]],
+        ["p value",test[:pValue]],
+        ["p-value status",test[:pValueStatus]]
+    ],{= caption="Hypothesis-test result" });
+};
+
 StatsRequireRegression(value) -> ((value ? :Map) && value[:schema] == "rix.stats.regression@1")
   ?: value
   ?_ .Error("Expected a stats regression result");
@@ -445,6 +934,18 @@ statsNamespace._proto = {=
     SimulationSummary=(self,value)->StatsSimulationSummary(value),
     MeanConfidence=(self,values,level ?= 95/100,options ?= {= })->StatsMeanConfidence(values,level,options),
     ProportionConfidence=(self,successes,trials,level ?= 95/100)->StatsProportionConfidence(successes,trials,level),
+    OneSampleZTest=(self,values,nullMean,populationStandardDeviation,alternative ?= :twoSided)->StatsOneSampleZTest(values,nullMean,populationStandardDeviation,alternative),
+    TwoSampleZTest=(self,first,second,firstScale,secondScale,nullDifference ?= 0,alternative ?= :twoSided)->StatsTwoSampleZTest(first,second,firstScale,secondScale,nullDifference,alternative),
+    OneProportionZTest=(self,successes,trials,nullProportion,alternative ?= :twoSided)->StatsOneProportionZTest(successes,trials,nullProportion,alternative),
+    TwoProportionZTest=(self,firstSuccesses,firstTrials,secondSuccesses,secondTrials,alternative ?= :twoSided)->StatsTwoProportionZTest(firstSuccesses,firstTrials,secondSuccesses,secondTrials,alternative),
+    OneSampleTTest=(self,values,nullMean ?= 0,alternative ?= :twoSided)->StatsOneSampleTTest(values,nullMean,alternative),
+    PairedTTest=(self,first,second,nullDifference ?= 0,alternative ?= :twoSided)->StatsPairedTTest(first,second,nullDifference,alternative),
+    TwoSampleTTest=(self,first,second,nullDifference ?= 0,options ?= {= })->StatsTwoSampleTTest(first,second,nullDifference,options),
+    OneWayANOVA=(self,groups)->StatsOneWayANOVA(groups),
+    ChiSquareGoodnessOfFit=(self,observed,expected,options ?= {= })->StatsChiSquareGoodnessOfFit(observed,expected,options),
+    ChiSquareIndependence=(self,table)->StatsChiSquareIndependence(table),
+    TestDecision=(self,test,alpha ?= 1/20,options ?= {= })->StatsTestDecision(test,alpha,options),
+    TestTable=(self,test)->StatsTestTable(test),
     LinearRegression=(self,x,y)->StatsLinearRegression(x,y),
     Predict=(self,model,x)->StatsPredict(model,x),
     RegressionTable=(self,model)->StatsRegressionTable(model),

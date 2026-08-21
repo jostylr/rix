@@ -994,6 +994,11 @@ the certified numerical singleton layer; it does not replace the core exact
    - [x] Add confidence objects, linear regression, diagnostics, and residual
      outputs, consuming distribution and simulation records from `.probability`.
    - [x] Use Numerics for approximate/certified computations.
+   - [x] Add the common undergraduate hypothesis-test suite: one- and
+     two-sample z tests, one- and two-proportion z tests, one-sample/paired/
+     pooled/Welch t tests, one-way ANOVA, and Pearson chi-square goodness-of-fit
+     and independence tests, with semantic result/decision records and explicit
+     reference/assumption metadata.
 3. **Phase 3 — Models and inference**
    - [ ] Add generalized models, resampling, Bayesian result protocols, and
      uncertainty visualization.

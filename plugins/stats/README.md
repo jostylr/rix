@@ -1,7 +1,7 @@
 # `.stats`
 
-Provides exact descriptive statistics and certified normal-distribution
-functions in RiX. Descriptive input values must be
+Provides exact descriptive statistics, undergraduate hypothesis tests, and
+certified distribution functions in RiX. Descriptive input values must be
 `Integer` or `Rational`, and no operation converts them to binary floating
 point.
 
@@ -20,8 +20,11 @@ The public operations are `Count`, `Mean`, `Quantile`, `Median`, `Variance`,
 `SampleVariance`, `NormalPDF`, `NormalCDF`, `NormalQuantile`, `Summary`,
 `SummaryTable`, `Histogram`,
 `HistogramGraphic`, `BoxPlot`, `DistributionSummary`, `SimulationValues`, `SimulationSummary`,
-`MeanConfidence`, `ProportionConfidence`, `LinearRegression`, `Predict`,
-`RegressionTable`, and `ResidualTable`. `Summary` uses the portable
+`MeanConfidence`, `ProportionConfidence`, `OneSampleZTest`, `TwoSampleZTest`,
+`OneProportionZTest`, `TwoProportionZTest`, `OneSampleTTest`, `PairedTTest`,
+`TwoSampleTTest`, `OneWayANOVA`, `ChiSquareGoodnessOfFit`,
+`ChiSquareIndependence`, `TestDecision`, `TestTable`, `LinearRegression`,
+`Predict`, `RegressionTable`, and `ResidualTable`. `Summary` uses the portable
 `rix.stats.summary@1` schema; histograms use `rix.stats.histogram@1`.
 
 Phase 1 quantiles use exact linear interpolation at rank `p*(n-1)` (the
@@ -60,6 +63,45 @@ exact `knownStandardDeviation`. `ProportionConfidence` returns a Wilson-score
 interval, including sensible boundary behavior for zero or all successes.
 These are normal-theory procedures, not exact finite-sample coverage claims;
 their formulas are nevertheless evaluated with certified Numerics values.
+
+The common undergraduate hypothesis-test surface is:
+
+```rix
+.stats.OneSampleZTest(values,nullMean,knownPopulationStandardDeviation,alternative);
+.stats.TwoSampleZTest(first,second,firstKnownScale,secondKnownScale,nullDifference,alternative);
+.stats.OneProportionZTest(successes,trials,nullProportion,alternative);
+.stats.TwoProportionZTest(firstSuccesses,firstTrials,secondSuccesses,secondTrials,alternative);
+.stats.OneSampleTTest(values,nullMean,alternative);
+.stats.PairedTTest(first,second,nullDifference,alternative);
+.stats.TwoSampleTTest(first,second,nullDifference,{= equalVariance=0,alternative=:twoSided });
+.stats.OneWayANOVA([firstGroup,secondGroup,thirdGroup]);
+.stats.ChiSquareGoodnessOfFit(observedCounts,expectedCounts,{= estimatedParameters=0 });
+.stats.ChiSquareIndependence(contingencyTable);
+```
+
+Alternatives are `:twoSided`, `:less`, and `:greater`. Every operation returns
+an immutable `rix.stats.test@1` record containing the estimate, null value,
+standard error where applicable, test statistic, reference distribution,
+degrees of freedom, p-value, assumptions, and method identity. `test.PValue()`
+returns the refinable p-value, `test.Decision(alpha)` returns a certified
+`rix.stats.test-decision@1` record, and `test.Table()` returns a portable table.
+`Decision` says `:unresolved` instead of guessing if the refined p-value still
+straddles alpha.
+
+The z and proportion procedures use their usual normal references. One-sample,
+paired, and equal-variance two-sample t procedures use certified integer-degree
+Student-t tails. The default two-sample t procedure is Welch's unequal-variance
+test. When the Welch-Satterthwaite degrees of freedom are fractional, the
+current certified elementary tail kernel uses their floor as an explicitly
+recorded integer-degree approximation; inspect `degreesOfFreedom`,
+`referenceDegreesOfFreedom`, `pValueStatus`, and `pValueQualification`. Set
+`equalVariance=1` only when the pooled-variance assumption is justified.
+
+One-way ANOVA uses the standard fixed-effects F statistic. The chi-square
+procedures use Pearson statistics. Assumption labels are data, not claims that
+the plugin has verified independence, normality, equal variances, or adequate
+expected cell counts. Expected goodness-of-fit values are counts and must sum
+exactly to the observed total.
 
 `LinearRegression(x,y)` fits the exact simple least-squares line. Its slope,
 intercept, fitted values, residuals, SSE, and R-squared stay exact. Square-root
