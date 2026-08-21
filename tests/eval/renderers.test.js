@@ -229,6 +229,78 @@ describe("renderer registry", () => {
         expect(result.metadata).toMatchObject({ width: 320, height: 200 });
     });
 
+    test("PNG Phase 2 normalizes asset policy and selects a cropped document figure", () => {
+        let rasterInput;
+        let rasterOptions;
+        const registry = new RendererRegistry();
+        registry.register(createPngDefinition((svg, options) => {
+            rasterInput = svg;
+            rasterOptions = options;
+            return {
+                content: new Uint8Array([137, 80, 78, 71]),
+                toolchain: "policy-fixture",
+                width: options.width,
+                height: options.height,
+            };
+        }));
+        const document = parseAndEvaluate(`${sceneSource}
+            .Fragment([
+                .Figure(.Graphics.Graphic([20,20],[]),"First","first","First figure"),
+                .Figure(g,"Selected figure","target","Selected alternative")
+            ])
+        `, runtime());
+        const result = registry.render(document, "png", {
+            figure: "target",
+            region: [10, 5, 50, 20],
+            dpi: 192,
+            scale: 3 / 2,
+            background: "#ffffff",
+            colorProfile: "none",
+            antialiasing: "off",
+            metadata: new Map([["Title", "Exact crop"], ["Seed", 41]]),
+        }, { format: String });
+
+        expect(rasterInput).toContain('viewBox="10 5 50 20"');
+        expect(rasterInput).toContain('width="50" height="20"');
+        expect(rasterOptions).toEqual({
+            width: 150,
+            height: 60,
+            dpi: 192,
+            background: "#ffffff",
+            colorProfile: "none",
+            antialiasing: "off",
+            metadata: { Title: "Exact crop", Seed: "41" },
+        });
+        expect(result.metadata).toMatchObject({
+            width: 150,
+            height: 60,
+            dpi: 192,
+            scale: 1.5,
+            alphaPolicy: "composite",
+            colorProfile: "none",
+            antialiasing: "off",
+            region: { x: 10, y: 5, width: 50, height: 20, cropped: true },
+            embeddedMetadata: { Title: "Exact crop", Seed: "41" },
+            figure: { label: "target", caption: "Selected figure", alt: "Selected alternative" },
+            documentRegion: { selector: "target", figureIndex: 2, figureCount: 2, label: "target" },
+        });
+    });
+
+    test("PNG Phase 2 preserves aspect ratio and rejects invalid policy or regions", () => {
+        const registry = new RendererRegistry();
+        registry.register(createPngDefinition((_svg, options) => ({
+            content: new Uint8Array([137, 80, 78, 71]), toolchain: "fixture", ...options,
+        })));
+        const graphic = parseAndEvaluate(`${sceneSource} g`, runtime());
+        const sized = registry.render(graphic, "png", { width: 320 }, { format: String });
+        expect(sized.metadata).toMatchObject({ width: 320, height: 200, dpi: 96, alphaPolicy: "preserve" });
+        expect(() => registry.render(graphic, "png", { dpi: 0 }, { format: String })).toThrow("DPI must be positive");
+        expect(() => registry.render(graphic, "png", { colorProfile: "display-p3" }, { format: String })).toThrow("colorProfile must be one of");
+        expect(() => registry.render(graphic, "png", { antialiasing: 1 }, { format: String })).toThrow("antialiasing must be a string");
+        expect(() => registry.render(graphic, "png", { region: [150, 90, 20, 20] }, { format: String })).toThrow("inside the source Graphic");
+        expect(() => registry.render(graphic, "png", { metadata: new Map([[" bad  key ", "x"]]) }, { format: String })).toThrow("metadata keys");
+    });
+
     test("Scene3D snapshots lower directly to Canvas and PNG raster contracts", () => {
         const options = runtime();
         const values = parseAndEvaluate(`

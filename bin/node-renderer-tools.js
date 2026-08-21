@@ -22,19 +22,138 @@ function run(command, args, options = {}) {
     return result;
 }
 
+const PNG_SIGNATURE = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
+
+function crc32(bytes) {
+    let crc = 0xffffffff;
+    for (const byte of bytes) {
+        crc ^= byte;
+        for (let bit = 0; bit < 8; bit += 1) crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
+    }
+    return (crc ^ 0xffffffff) >>> 0;
+}
+
+function pngChunk(type, data) {
+    const typeBytes = new TextEncoder().encode(type);
+    const result = new Uint8Array(12 + data.length);
+    const view = new DataView(result.buffer);
+    view.setUint32(0, data.length);
+    result.set(typeBytes, 4);
+    result.set(data, 8);
+    const checksumInput = new Uint8Array(typeBytes.length + data.length);
+    checksumInput.set(typeBytes);
+    checksumInput.set(data, typeBytes.length);
+    view.setUint32(8 + data.length, crc32(checksumInput));
+    return result;
+}
+
+function pngChunks(content) {
+    if (!(content instanceof Uint8Array) || content.length < PNG_SIGNATURE.length
+        || PNG_SIGNATURE.some((byte, index) => content[index] !== byte)) {
+        throw new Error("Rasterizer returned invalid PNG bytes");
+    }
+    const chunks = [];
+    let offset = PNG_SIGNATURE.length;
+    while (offset + 12 <= content.length) {
+        const view = new DataView(content.buffer, content.byteOffset + offset, content.length - offset);
+        const length = view.getUint32(0);
+        const end = offset + 12 + length;
+        if (end > content.length) throw new Error("Rasterizer returned a truncated PNG chunk");
+        const type = new TextDecoder("ascii").decode(content.subarray(offset + 4, offset + 8));
+        chunks.push({ type, bytes: content.slice(offset, end) });
+        offset = end;
+        if (type === "IEND") break;
+    }
+    if (chunks.at(-1)?.type !== "IEND") throw new Error("Rasterizer returned PNG bytes without IEND");
+    return chunks;
+}
+
+function concatenate(parts) {
+    const length = parts.reduce((sum, part) => sum + part.length, 0);
+    const result = new Uint8Array(length);
+    let offset = 0;
+    for (const part of parts) {
+        result.set(part, offset);
+        offset += part.length;
+    }
+    return result;
+}
+
+function physicalResolutionChunk(dpi) {
+    const data = new Uint8Array(9);
+    const pixelsPerMeter = Math.max(1, Math.round(dpi / 0.0254));
+    const view = new DataView(data.buffer);
+    view.setUint32(0, pixelsPerMeter);
+    view.setUint32(4, pixelsPerMeter);
+    data[8] = 1;
+    return pngChunk("pHYs", data);
+}
+
+function internationalTextChunk(keyword, value) {
+    const key = new TextEncoder().encode(keyword);
+    const text = new TextEncoder().encode(value);
+    const data = new Uint8Array(key.length + text.length + 5);
+    data.set(key, 0);
+    data[key.length] = 0;
+    data[key.length + 1] = 0;
+    data[key.length + 2] = 0;
+    data[key.length + 3] = 0;
+    data[key.length + 4] = 0;
+    data.set(text, key.length + 5);
+    return pngChunk("iTXt", data);
+}
+
+export function applyPngPolicy(content, options = {}) {
+    const chunks = pngChunks(content);
+    const colorProfile = options.colorProfile || "srgb";
+    const removed = new Set(["pHYs"]);
+    if (colorProfile === "srgb" || colorProfile === "none") {
+        for (const type of ["sRGB", "iCCP", "gAMA", "cHRM"]) removed.add(type);
+    }
+    const additions = [physicalResolutionChunk(options.dpi || 96)];
+    if (colorProfile === "srgb") additions.push(pngChunk("sRGB", new Uint8Array([0])));
+    for (const [key, value] of Object.entries(options.metadata || {}).sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))) {
+        additions.push(internationalTextChunk(key, value));
+    }
+    const retained = chunks.filter(({ type }) => !removed.has(type));
+    const parts = [PNG_SIGNATURE];
+    for (const chunk of retained) {
+        parts.push(chunk.bytes);
+        if (chunk.type === "IHDR") parts.push(...additions);
+    }
+    return concatenate(parts);
+}
+
 export function rasterizeSvg(svg, options = {}) {
     const width = Math.max(1, Math.round(options.width));
     const height = Math.max(1, Math.round(options.height));
-    const rsvgArgs = ["--format=png", `--width=${width}`, `--height=${height}`];
+    const dpi = Math.max(1, Number(options.dpi || 96));
+    const antialiasing = options.antialiasing || "on";
+    const rsvgArgs = ["--format=png", `--width=${width}`, `--height=${height}`, `--dpi-x=${dpi}`, `--dpi-y=${dpi}`];
     if (options.background) rsvgArgs.push(`--background-color=${options.background}`);
-    const rsvg = run("rsvg-convert", rsvgArgs, { input: svg });
-    if (rsvg) return { content: new Uint8Array(rsvg.stdout), toolchain: "rsvg-convert", width, height };
+    if (antialiasing !== "off") {
+        const rsvg = run("rsvg-convert", rsvgArgs, { input: svg });
+        if (rsvg) {
+            return {
+                content: applyPngPolicy(new Uint8Array(rsvg.stdout), options),
+                toolchain: "rsvg-convert", width, height,
+            };
+        }
+    }
 
-    const magickArgs = ["svg:-", "-resize", `${width}x${height}!`];
+    const magickArgs = ["-density", String(dpi), antialiasing === "off" ? "+antialias" : "-antialias", "svg:-", "-resize", `${width}x${height}!`];
     if (options.background) magickArgs.push("-background", options.background, "-alpha", "remove");
+    if (options.colorProfile === "srgb") magickArgs.push("-colorspace", "sRGB");
+    if (options.colorProfile === "none") magickArgs.push("+profile", "*");
     magickArgs.push("png:-");
     const magick = run("magick", magickArgs, { input: svg });
-    if (magick) return { content: new Uint8Array(magick.stdout), toolchain: "ImageMagick", width, height };
+    if (magick) {
+        return {
+            content: applyPngPolicy(new Uint8Array(magick.stdout), options),
+            toolchain: "ImageMagick", width, height,
+        };
+    }
+    if (antialiasing === "off") throw new Error("PNG antialiasing=off requires ImageMagick on this host");
     throw new Error("No SVG rasterizer is available (tried rsvg-convert and magick)");
 }
 

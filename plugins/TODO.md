@@ -1219,8 +1219,10 @@ The RiX/host extraction sequence is specified in
      policy.
    - [x] Add a polynomial transparency visual fixture across rasterizer versions.
 2. **Phase 2 — Color and asset policy**
-   - [ ] Add DPI, background, color profile, antialiasing, metadata, and
-     document-region rendering.
+   - [x] Add DPI-aware sizing and physical-resolution chunks, transparent or
+     composited backgrounds, explicit sRGB/native/no-profile policy,
+     antialiasing control, deterministic UTF-8 metadata, logical crops, and
+     labeled Figure selection from document Fragments.
 3. **Phase 3 — High-quality scientific rasterization**
    - [ ] Add tiled large images, 16-bit/linear workflows where available, and
      uncertainty-mask preservation.
