@@ -3,7 +3,7 @@ import { parseAndEvaluate } from "../../src/eval/evaluator.js";
 
 const content = (value) => value.entries.get("content").value;
 
-describe("terminalAscii Phase 1 renderer", () => {
+describe("terminalAscii renderer", () => {
     test("renders a fixed-width Table with strict ASCII", () => {
         const rendered = parseAndEvaluate(`
             .Plugin.Load("terminal-ascii");
@@ -71,5 +71,71 @@ describe("terminalAscii Phase 1 renderer", () => {
         const codes = rendered.entries.get("diagnostics").values.map((entry) => entry.entries.get("code").value);
         expect(codes).toContain("terminal-non-ascii-replaced");
         expect(codes).toContain("terminal-graphic-node-unsupported");
+    });
+
+    test("Phase 2 word-wraps table cells while retaining column alignment", () => {
+        const rendered = parseAndEvaluate(`
+            .Plugin.Load("terminal-ascii");
+            .terminalAscii.Render(.Table(
+                [
+                    {= id="description", label="description" },
+                    {= id="value", label="value", align="right" }
+                ],
+                [["alpha beta gamma delta", 12]]
+            ), {= width=24, wrap=:word });
+        `);
+        const output = content(rendered);
+        expect(output.split("\n").every((line) => line.length <= 24)).toBe(true);
+        expect(output).not.toContain("~");
+        expect(output).toContain("alpha");
+        expect(output).toContain("delta");
+        expect(output.split("\n").some((line) => /\s12\s\|$/.test(line))).toBe(true);
+        const codes = rendered.entries.get("diagnostics").values.map((entry) => entry.entries.get("code").value);
+        expect(codes).toContain("terminal-width-wrapped");
+        expect(rendered.entries.get("metadata").entries.get("wrap").value).toBe("word");
+    });
+
+    test("Phase 2 paginates deterministically within the configured terminal height", () => {
+        const rendered = parseAndEvaluate(`
+            .Plugin.Load("terminal-ascii");
+            text := .Fragment([.Paragraph("one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen")]);
+            .terminalAscii.Render(text, {= width=20, wrap=:word, pageHeight=4 });
+        `);
+        const output = content(rendered).trimEnd();
+        const metadata = rendered.entries.get("metadata").entries;
+        const pageCount = Number(String(metadata.get("pageCount")));
+        expect(pageCount).toBeGreaterThan(1);
+        expect(output).toContain(`--- page 1/${pageCount} ---`);
+        expect(output).toContain(`--- page ${pageCount}/${pageCount} ---`);
+        const pages = output.split(/(?=--- page \d+\/\d+ ---)/);
+        expect(pages.every((page) => page.trimEnd().split("\n").length <= 4)).toBe(true);
+        const codes = rendered.entries.get("diagnostics").values.map((entry) => entry.entries.get("code").value);
+        expect(codes).toContain("terminal-paginated");
+    });
+
+    test("Phase 2 renders portable Slide and Slides values without a richer terminal mode", () => {
+        const rendered = parseAndEvaluate(`
+            .Plugin.Load("terminal-ascii");
+            deck := .Slides([
+                .Slide(.Paragraph("Exact first result"), "First"),
+                .Slide(.Paragraph("Exact second result"), "Second")
+            ], "Demo deck");
+            .terminalAscii.Render(deck, {= width=32 });
+        `);
+        expect(content(rendered)).toBe(
+            "Deck: Demo deck\n\n"
+            + "--- slide 1/2: First ---\n"
+            + "Exact first result\n\n"
+            + "--- slide 2/2: Second ---\n"
+            + "Exact second result\n",
+        );
+        expect(() => parseAndEvaluate(`
+            .Plugin.Load("terminal-ascii");
+            .terminalAscii.Render(.Fragment([.Paragraph("x")]), {= wrap=:unknown });
+        `)).toThrow("wrap must be");
+        expect(() => parseAndEvaluate(`
+            .Plugin.Load("terminal-ascii");
+            .terminalAscii.Render(.Fragment([.Paragraph("x")]), {= pageHeight=3 });
+        `)).toThrow("between 4 and 200");
     });
 });

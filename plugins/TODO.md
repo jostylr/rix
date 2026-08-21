@@ -1179,7 +1179,7 @@ The RiX/host extraction sequence is specified in
    - [x] Demonstrate synthetic division and a small plot in the CLI.
    - [x] Add README, tutorial, fixed-width golden tests, and width diagnostics.
 2. **Phase 2 — Layout and pagination**
-   - [ ] Add wrapping, alignment, pagination, captions, slides, and configurable
+   - [x] Add wrapping, alignment, pagination, captions, slides, and configurable
      terminal dimensions.
 3. **Phase 3 — Rich terminal negotiation**
    - [ ] Add a separate Unicode/color capability mode while retaining strict

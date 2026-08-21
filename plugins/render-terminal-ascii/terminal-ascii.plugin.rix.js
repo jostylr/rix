@@ -1,6 +1,6 @@
 /**
 id: terminal-ascii
-description: Deterministic strict-ASCII fallback for tables, grids, fragments, and simple Graphics.
+description: Deterministic strict-ASCII fallback with wrapping, pagination, slides, tables, grids, and simple Graphics.
 kind: host
 mount: terminalAscii
 exports: [Render]
@@ -21,9 +21,9 @@ export const definition = {
     mime: "text/plain",
     extension: "txt",
     aliases: ["terminal", "ascii", "txt", "text/plain"],
-    inputKinds: ["table", "grid", "fragment", "graphic", "figure"],
+    inputKinds: ["table", "grid", "fragment", "graphic", "figure", "slide", "slides"],
     deterministic: true,
-    description: "Deterministic strict-ASCII terminal fallback for structured output and simple Graphics",
+    description: "Deterministic strict-ASCII terminal fallback for structured output, slides, and simple Graphics",
     render({ value, options, format }) {
         return renderTerminalAscii(value, { options, format });
     },

@@ -47,12 +47,53 @@ function truncate(value, width) {
     return `${text.slice(0, width - 1)}~`;
 }
 
+function wrappingOption(value) {
+    if (value === null || value === undefined) return "truncate";
+    const name = rixString(value)?.toLowerCase();
+    if (name === "word" || name === "wrap") return "word";
+    if (name === "truncate" || name === "none") return "truncate";
+    if (name !== null && name !== undefined) {
+        throw new Error("terminalAscii wrap must be :word, :wrap, :truncate, :none, 1, or 0");
+    }
+    try {
+        return numberValue(value, "terminalAscii wrap") === 0 ? "truncate" : "word";
+    } catch {
+        throw new Error("terminalAscii wrap must be :word, :wrap, :truncate, :none, 1, or 0");
+    }
+}
+
+function wrapLine(value, width) {
+    let remaining = String(value);
+    const lines = [];
+    if (!remaining.length) return [""];
+    while (remaining.length > width) {
+        let boundary = remaining.lastIndexOf(" ", width);
+        if (boundary <= 0) boundary = width;
+        lines.push(remaining.slice(0, boundary).trimEnd());
+        remaining = remaining.slice(boundary);
+        if (remaining.startsWith(" ")) remaining = remaining.trimStart();
+    }
+    lines.push(remaining);
+    return lines;
+}
+
+function constrainLines(value, width, state, path) {
+    const source = String(value).replaceAll("\r", "").split("\n");
+    if (state.wrap === "word") {
+        const wrapped = source.flatMap((line) => wrapLine(line, width));
+        if (wrapped.length !== source.length || source.some((line) => line.length > width)) {
+            addDiagnostic(state, "terminal-width-wrapped", `Text was wrapped to terminal width ${width}`, path, "info");
+        }
+        return wrapped;
+    }
+    if (source.some((line) => line.length > width)) {
+        addDiagnostic(state, "terminal-width-truncated", `Text exceeds terminal width ${width} and was truncated`, path);
+    }
+    return source.map((line) => truncate(line, width));
+}
+
 function constrainText(value, state, path) {
-    return String(value).split("\n").map((line) => {
-        if (line.length <= state.width) return line;
-        addDiagnostic(state, "terminal-width-truncated", `Text exceeds terminal width ${state.width} and was truncated`, path);
-        return truncate(line, state.width);
-    }).join("\n");
+    return constrainLines(value, state.width, state, path).join("\n");
 }
 
 function portableValueText(value, state, path) {
@@ -68,7 +109,8 @@ function portableValueText(value, state, path) {
 
 function cellText(value, state, path) {
     const formatted = portableValueText(value, state, path);
-    return strictAscii(formatted, state, path).replace(/[\r\n]+/g, " / ");
+    const ascii = strictAscii(formatted, state, path).replaceAll("\r", "");
+    return state.wrap === "word" ? ascii : ascii.replace(/\n+/g, " / ");
 }
 
 function shrinkWidths(widths, available, state, path) {
@@ -76,7 +118,9 @@ function shrinkWidths(widths, available, state, path) {
     if (available < result.length) throw new Error(`terminalAscii width ${state.width} is too small for ${result.length} columns`);
     let total = result.reduce((sum, width) => sum + width, 0);
     if (total <= available) return result;
-    addDiagnostic(state, "terminal-width-truncated", `Columns exceed terminal width ${state.width} and were truncated`, path);
+    const code = state.wrap === "word" ? "terminal-width-wrapped" : "terminal-width-truncated";
+    const verb = state.wrap === "word" ? "wrapped" : "truncated";
+    addDiagnostic(state, code, `Columns exceed terminal width ${state.width} and were ${verb}`, path);
     while (total > available) {
         let index = -1;
         for (let candidate = 0; candidate < result.length; candidate += 1) {
@@ -103,15 +147,24 @@ function renderTable(value, state, path) {
     const headers = value.columns.map((column, index) => strictAscii(column.label, state, `${path}.column${index + 1}`));
     const rows = value.rows.map((row, rowIndex) => row.map((cell, columnIndex) =>
         cellText(cell, state, `${path}.row${rowIndex + 1}.column${columnIndex + 1}`)));
-    const natural = headers.map((header, index) => Math.max(1, header.length, ...rows.map((row) => row[index].length)));
+    const natural = headers.map((header, index) => Math.max(
+        1,
+        ...header.split("\n").map((line) => line.length),
+        ...rows.flatMap((row) => row[index].split("\n").map((line) => line.length)),
+    ));
     const overhead = value.columns.length * 3 + 1;
     const widths = shrinkWidths(natural, state.width - overhead, state, path);
     const border = `+${widths.map((width) => "-".repeat(width + 2)).join("+")}+`;
-    const row = (cells, header = false) => `|${cells.map((cell, index) => {
-        const mode = header ? "left" : rixString(value.columns[index].align) || value.columns[index].align || "left";
-        return ` ${align(cell, widths[index], mode)} `;
-    }).join("|")}|`;
-    const content = [border, row(headers, true), border, ...rows.map((cells) => row(cells)), border].join("\n");
+    const row = (cells, header = false, rowPath = path) => {
+        const wrapped = cells.map((cell, index) => constrainLines(cell, widths[index], state, `${rowPath}.column${index + 1}`));
+        const rowHeight = Math.max(...wrapped.map((lines) => lines.length));
+        return Array.from({ length: rowHeight }, (_, line) => `|${wrapped.map((lines, index) => {
+            const mode = header ? "left" : rixString(value.columns[index].align) || value.columns[index].align || "left";
+            return ` ${align(lines[line] || "", widths[index], mode)} `;
+        }).join("|")}|`);
+    };
+    const renderedRows = rows.flatMap((cells, index) => row(cells, false, `${path}.row${index + 1}`));
+    const content = [border, ...row(headers, true, `${path}.header`), border, ...renderedRows, border].join("\n");
     const caption = value.caption ? constrainText(strictAscii(value.caption, state, `${path}.caption`), state, `${path}.caption`) : null;
     return [caption, content].filter(Boolean).join("\n");
 }
@@ -130,17 +183,24 @@ function hasGridRule(value, kind, boundary) {
 function renderGrid(value, state, path) {
     const rows = value.rows.map((row, rowIndex) => row.map((cell, columnIndex) =>
         cellText(cell, state, `${path}.row${rowIndex + 1}.column${columnIndex + 1}`)));
-    const natural = value.columns.map((_, index) => Math.max(1, ...rows.map((row) => row[index].length)));
+    const natural = value.columns.map((_, index) => Math.max(
+        1,
+        ...rows.flatMap((row) => row[index].split("\n").map((line) => line.length)),
+    ));
     const separators = natural.slice(1).map((_, index) => hasGridRule(value, "vertical", index + 2) ? " | " : "  ");
     const overhead = separators.reduce((sum, separator) => sum + separator.length, 0);
     const widths = shrinkWidths(natural, state.width - overhead, state, path);
     const styleAlign = rixString(field(value.style, "align")) || field(value.style, "align") || "right";
-    const renderRow = (cells) => {
-        let line = align(cells[0], widths[0], styleAlign);
-        for (let column = 1; column < cells.length; column += 1) {
-            line += separators[column - 1] + align(cells[column], widths[column], styleAlign);
-        }
-        return line;
+    const renderRow = (cells, rowPath) => {
+        const wrapped = cells.map((cell, index) => constrainLines(cell, widths[index], state, `${rowPath}.column${index + 1}`));
+        const rowHeight = Math.max(...wrapped.map((lines) => lines.length));
+        return Array.from({ length: rowHeight }, (_, lineIndex) => {
+            let line = align(wrapped[0][lineIndex] || "", widths[0], styleAlign);
+            for (let column = 1; column < cells.length; column += 1) {
+                line += separators[column - 1] + align(wrapped[column][lineIndex] || "", widths[column], styleAlign);
+            }
+            return line;
+        });
     };
     const lines = [];
     for (let row = 0; row < rows.length; row += 1) {
@@ -154,7 +214,7 @@ function renderGrid(value, state, path) {
                 lines.push(`${" ".repeat(prefix)}+${"-".repeat(Math.max(0, total - prefix - 1))}`);
             }
         }
-        lines.push(renderRow(rows[row]));
+        lines.push(...renderRow(rows[row], `${path}.row${row + 1}`));
     }
     return lines.join("\n");
 }
@@ -245,22 +305,61 @@ function renderNode(value, state, path = "value") {
     if (value.kind === "fragment") {
         return value.children.map((child, index) => renderNode(child, state, `${path}.child${index + 1}`)).join("\n\n");
     }
+    if (value.kind === "slide") {
+        const title = value.title ? `: ${strictAscii(value.title, state, `${path}.title`)}` : "";
+        const heading = constrainText(`--- slide${title} ---`, state, `${path}.title`);
+        return `${heading}\n${renderNode(value.content, state, `${path}.content`)}`;
+    }
+    if (value.kind === "slides") {
+        const title = value.title ? constrainText(`Deck: ${strictAscii(value.title, state, `${path}.title`)}`, state, `${path}.title`) : null;
+        const slides = value.slides.map((slide, index) => {
+            const slideTitle = slide.title ? `: ${strictAscii(slide.title, state, `${path}.slide${index + 1}.title`)}` : "";
+            const heading = constrainText(`--- slide ${index + 1}/${value.slides.length}${slideTitle} ---`, state, `${path}.slide${index + 1}.title`);
+            return `${heading}\n${renderNode(slide.content, state, `${path}.slide${index + 1}.content`)}`;
+        });
+        return [title, ...slides].filter(Boolean).join("\n\n");
+    }
     const fallback = strictAscii(formatOutputText(value, state.format), state, path);
     return constrainText(fallback, state, path);
+}
+
+function paginate(content, state) {
+    if (state.pageHeight === null) return { content, pageCount: 1 };
+    const lines = String(content).split("\n");
+    const capacity = state.pageHeight - 1;
+    const pageCount = Math.max(1, Math.ceil(lines.length / capacity));
+    if (pageCount === 1) return { content, pageCount };
+    addDiagnostic(state, "terminal-paginated", `Output was split into ${pageCount} pages`, "output", "info");
+    const pages = Array.from({ length: pageCount }, (_, index) => {
+        const page = lines.slice(index * capacity, (index + 1) * capacity);
+        return [`--- page ${index + 1}/${pageCount} ---`, ...page].join("\n");
+    });
+    return { content: pages.join("\n"), pageCount };
 }
 
 export function renderTerminalAscii(value, { options = {}, format = String } = {}) {
     const state = {
         width: integerOption(options.width, 80, "terminalAscii width", 20, 240),
         height: integerOption(options.height, 16, "terminalAscii height", 4, 80),
+        pageHeight: integerOption(field(options, "pageHeight"), null, "terminalAscii pageHeight", 4, 200),
+        wrap: wrappingOption(field(options, "wrap")),
         format,
         diagnostics: [],
         diagnosticKeys: new Set(),
     };
-    const content = renderNode(value, state);
+    const rendered = renderNode(value, state);
+    const paginated = paginate(rendered, state);
     return {
-        content: `${strictAscii(content, state, "output")}\n`,
+        content: `${strictAscii(paginated.content, state, "output")}\n`,
         diagnostics: state.diagnostics,
-        metadata: { schema: TERMINAL_ASCII_SCHEMA, width: state.width, height: state.height, characterSet: "ASCII" },
+        metadata: {
+            schema: TERMINAL_ASCII_SCHEMA,
+            width: state.width,
+            height: state.height,
+            pageHeight: state.pageHeight,
+            pageCount: paginated.pageCount,
+            wrap: state.wrap,
+            characterSet: "ASCII",
+        },
     };
 }
