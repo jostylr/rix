@@ -65,6 +65,75 @@ describe("geometry plugin", () => {
         expect(graphic.children[0]).toMatchObject({ kind: "text_mark" });
     });
 
+    test("provides exact measurements, centers, line constructors, and validated polygon area", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("geometry");
+            a := .geometry.Point(0,0); b := .geometry.Point(4,0); c := .geometry.Point(0,3);
+            triangle := .geometry.Polygon([a,b,c]); segment := .geometry.Segment(b,c);
+            center := .geometry.Centroid(a,b,c); orthocenter := .geometry.Orthocenter(a,b,c);
+            perpendicular := .geometry.Perpendicular(.geometry.Line(a,b),c);
+            parallel := .geometry.ParallelThrough(.geometry.Line(a,b),c);
+            length := .numerics.Refine(.geometry.Length(segment), {= absoluteWidth=1/1000000,maxWork=64 });
+            [.geometry.SquaredDistance(b,c), .geometry.Area(triangle), center, orthocenter,
+             perpendicular, parallel, length[:approximation].Candidate(), a[:x] == 0];
+        `);
+        expect(result.values.slice(0, 2).map(String)).toEqual(["25", "6"]);
+        expect(String(field(result.values[2], "x"))).toBe("4/3");
+        expect(String(field(result.values[2], "y"))).toBe("1");
+        expect(String(field(result.values[3], "x"))).toBe("0");
+        expect(String(field(result.values[3], "y"))).toBe("0");
+        expect(String(field(result.values[4], "b"))).toBe("0");
+        expect(String(field(result.values[5], "a"))).toBe("0");
+        expect(result.values[6].toNumber()).toBeCloseTo(5, 10);
+        expect(result.values[7].value).toBe(1n);
+
+        expect(() => parseAndEvaluate(`
+            .Plugin.Load("geometry");
+            .geometry.Area(.geometry.Polygon([
+              .geometry.Point(0,0),.geometry.Point(2,2),.geometry.Point(0,2),.geometry.Point(2,0)
+            ]));
+        `)).toThrow(/simple polygon/i);
+        expect(() => parseAndEvaluate(`
+            .Plugin.Load("geometry");
+            .geometry.Orthocenter(.geometry.Point(0,0),.geometry.Point(1,1),.geometry.Point(2,2));
+        `)).toThrow(/non-collinear/i);
+    });
+
+    test("constructs exact and certified rotations from degrees, radians, and turns", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("geometry");
+            origin := .geometry.Point(0,0); point := .geometry.Point(4,0);
+            degreePoint := .geometry.Transform(point,.geometry.Rotate(origin,90,:degrees));
+            exactRadianPoint := .geometry.Transform(point,.geometry.Rotate(origin,.Exact[:pi]/2,:radians));
+            turnPoint := .geometry.Transform(point,.geometry.Rotate(origin,1/6,:turns));
+            radianPoint := .geometry.Transform(point,.geometry.Rotate(origin,1,:radians));
+            turnX := .numerics.Refine(turnPoint[:x], {= absoluteWidth=1/1000,maxWork=24 })[:approximation].Candidate();
+            turnY := .numerics.Refine(turnPoint[:y], {= absoluteWidth=1/1000,maxWork=24 })[:approximation].Candidate();
+            [degreePoint, exactRadianPoint, turnPoint[:coordinateDomain], turnX, turnY, radianPoint[:coordinateDomain],
+             .geometry.Draw([turnPoint], {= view=[-5,-5,5,5],size=[200,200] })];
+        `);
+        const degreePoint = result.values[0];
+        expect(String(field(degreePoint, "x"))).toBe("0");
+        expect(String(field(degreePoint, "y"))).toBe("4");
+        expect(String(field(result.values[1], "x"))).toBe("0");
+        expect(String(field(result.values[1], "y"))).toBe("4");
+        expect(text(result.values[2])).toBe("certifiedReal");
+        expect(result.values[3].toNumber()).toBeCloseTo(2, 2);
+        expect(result.values[4].toNumber()).toBeCloseTo(2 * Math.sqrt(3), 2);
+        expect(text(result.values[5])).toBe("certifiedReal");
+        expect(result.values[6]).toMatchObject({ type: "output", kind: "graphic" });
+    }, 15000);
+
+    test("draws both points from a two-intersection result", () => {
+        const graphic = parseAndEvaluate(`
+            .Plugin.Load("geometry");
+            circle := .geometry.Circle({= center=.geometry.Point(0,0),radiusSquared=4 });
+            crossing := .geometry.Intersect(.geometry.Line(.geometry.Point(-3,0),.geometry.Point(3,0)),circle);
+            .geometry.Draw([crossing], {= view=[-3,-3,3,3],size=[240,240] });
+        `);
+        expect(graphic.children.filter(({ kind }) => kind === "circle")).toHaveLength(2);
+    });
+
     test("renders the same Graphic through SVG and Canvas and rejects malformed constructions", () => {
         const rendered = parseAndEvaluate(`
             .Plugin.Load("geometry"); .Plugin.Load("svg"); .Plugin.Load("canvas");

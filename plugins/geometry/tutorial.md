@@ -59,6 +59,31 @@ onBase := .geometry.Constraint(:onLine,[.geometry.Point(2,0),base]);
 .geometry.Draw([triangle,moved],{= view=[-1,-1,8,8],size=[560,560] });
 ```
 
+## Measure and rotate without binary floats
+
+Named measurements preserve the geometry kernel's exact/certified split.
+Arbitrary rotations accept radians, degrees, or fractions of a turn.
+
+```rix
+.Plugin.Load("geometry");
+origin := .geometry.Point(0,0);
+p := .geometry.Point(4,0);
+segment := .geometry.Segment(origin,p);
+length := .numerics.Refine(.geometry.Length(segment),{=
+  absoluteWidth=1/1000,maxWork=32
+});
+rotation := .geometry.Rotate(origin,1/6,:turns);
+image := .geometry.Transform(p,rotation);
+.Fragment([
+  .Table(["quantity","value"],[["squared length",.geometry.SquaredDistance(origin,p)],["length candidate",length[:approximation].Candidate()]]),
+  .geometry.Draw([p,image],{= view=[-1,-1,5,5],size=[360,360] })
+]);
+```
+
+Quarter turns are rational affine maps. Other angles carry certified-real
+coordinates and can be refined or drawn; exact intersections currently remain
+limited to rational-coordinate geometry.
+
 ## Inspect certified intersection decisions
 
 Line-conic intersections retain both the exact discriminant sign and the Sturm

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { Integer, Rational } from "@ratmath/core";
+import { Integer, Rational, RationalInterval } from "@ratmath/core";
 import {
     createDefaultRegistry,
     createDefaultSystemContext,
@@ -109,6 +109,23 @@ describe("physical unit values", () => {
     test("explicit conversion accepts a unit value or unit expression string", () => {
         expect(formatValue(evalRiX(".ConvertUnit(90~[s], .Units[:min])"))).toBe("1..1/2~[min]");
         expect(formatValue(evalRiX('.ConvertUnit(36~[km/h], "m/s")'))).toBe("10~[m/s]");
+    });
+
+    test("unit-bearing intervals preserve enclosure arithmetic and undecided comparisons", () => {
+        const constructed = evalRiX("(3:4)~[m]");
+        expect(constructed.baseMagnitude).toBeInstanceOf(RationalInterval);
+        expect(formatValue(constructed)).toBe("3:4~[m]");
+        expect(formatValue(evalRiX(".ConvertUnit((300:400)~[cm], .Units[:m])"))).toBe("3:4~[m]");
+        expect(formatValue(evalRiX("(1:2)~[m] + (3:4)~[m]"))).toBe("4:6~[m]");
+        expect(formatValue(evalRiX("(1:2)~[m] * (3:4)~[m]"))).toBe("3:8~[m^2]");
+        expect(evalRiX("(1:2)~[m] < (3:4)~[m]")).toBeInstanceOf(Integer);
+        expect(formatValue(evalRiX("(1:3)~[m] < (2:4)~[m]"))).toBe("?");
+    });
+
+    test("angle units share the canonical exact pi generator", () => {
+        expect(formatValue(evalRiX(".ConvertUnit(180~[deg], .Units[:rad])"))).toBe("1~{pi}~[rad]");
+        expect(formatValue(evalRiX(".ConvertUnit((1/2)~[turn], .Units[:rad])"))).toBe("1~{pi}~[rad]");
+        expect(evalRiX("180~[deg] == (1/2)~[turn]")).toBeInstanceOf(Integer);
     });
 
     test("affine unit calls and conversions preserve exact values", () => {

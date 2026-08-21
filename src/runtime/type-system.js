@@ -679,7 +679,7 @@ export function registerBuiltinSemanticTypes() {
             EQ: [{
                 name: "RatRat",
                 prep: (args) => args.length === 2 && rationalParts(args[0]) && rationalParts(args[1]),
-                impl: ([a, b]) => boolResult(a.equals(b)),
+                impl: ([a, b]) => boolResult(compareNumeric(a, b) === 0),
             }],
             LT: [{
                 name: "RatRat",

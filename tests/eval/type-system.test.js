@@ -87,6 +87,16 @@ describe("RiX type and trait registry", () => {
         expect(asBool(outfitted.values[1])).toBe(true);
     });
 
+    test("numeric equality compares Integer and denominator-one Rational by value", () => {
+        const values = evalRiX(`
+            rational := 3 ~!: :Rational;
+            {: rational == 3, rational - 3 == 0, rational != 3 };
+        `).result.values;
+        expect(asBool(values[0])).toBe(true);
+        expect(asBool(values[1])).toBe(true);
+        expect(values[2]).toBeNull();
+    });
+
     test("type proto methods work through method lookup and explicit __proto access", () => {
         const result = evalRiX(`
             x = {^ /::Rational/ 7};

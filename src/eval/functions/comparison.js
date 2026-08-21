@@ -95,8 +95,12 @@ function isEnclosed(value) {
     return value instanceof CertifiedApproximation || value instanceof RationalInterval;
 }
 
+function isCoreNumeric(value) {
+    return value instanceof Integer || value instanceof Rational || isEnclosed(value);
+}
+
 function relationDecision(a, b, operation) {
-    if (!isEnclosed(a) && !isEnclosed(b)) return null;
+    if (!isCoreNumeric(a) || !isCoreNumeric(b)) return null;
     const mask = possibleRelations(a, b);
     switch (operation) {
     case "eq": return mask === Relation.EQUAL ? true : (mask & Relation.EQUAL) === 0 ? false : UNDECIDED;

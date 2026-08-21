@@ -3,7 +3,7 @@ id: geometry
 description: Pure-RiX exact geometry, transformations, conics, constraints, and bounded portable Graphics refinement.
 kind: rix
 mount: geometry
-exports: [Point, Line, Segment, Ray, Polygon, Circle, Conic, Ellipse, Parabola, Hyperbola, Locus, Implicit, Affine, Projective, Transform, Constraint, Constraints, Midpoint, PerpendicularBisector, Circumcircle, Intersect, Points, Status, Refine, Draw]
+exports: [Point, Line, Segment, Ray, Polygon, Circle, Conic, Ellipse, Parabola, Hyperbola, Locus, Implicit, Affine, Projective, Transform, Constraint, Constraints, SquaredDistance, Distance, Length, Area, Centroid, Orthocenter, Perpendicular, ParallelThrough, Midpoint, PerpendicularBisector, Circumcircle, Translate, RotateQuarterTurns, Rotate, ReflectAcross, Intersect, Points, Status, Refine, Draw]
 groups: [Geometry, Graphics, Exact]
 permissions: []
 requires: [rix.numerics@1, rix.polynomial.algorithms@1]
@@ -70,6 +70,7 @@ GeometryPointValue(x, y, operation, inputs, metadata ?= _, style ?= _) -> Geomet
     coordinates=[x, y],
     metadata=metadata,
     style=style,
+    coordinateDomain=((x ~: :Rational)!=_ && (y ~: :Rational)!=_) ?: :rational ?_ :certifiedReal,
     provenance=[GeometryProvenance(operation, inputs)]
 });
 
@@ -152,6 +153,62 @@ GeometryPolygon(points, options ?= {= }) -> {;
 };
 
 GeometrySquaredDistance(first, second) -> (second[:x] - first[:x])^2 + (second[:y] - first[:y])^2;
+
+GeometryPublicSquaredDistance(first, second) -> GeometrySquaredDistance(
+    GeometryRequire(first,:point,"geometry.SquaredDistance first point"),
+    GeometryRequire(second,:point,"geometry.SquaredDistance second point")
+);
+
+GeometryDistance(first, second) -> .numerics.Sqrt(GeometryPublicSquaredDistance(first,second));
+
+GeometryLength(value) -> {;
+    segment=GeometryRequire(value,:segment,"geometry.Length value");
+    GeometryDistance(segment[:first],segment[:second]);
+};
+
+GeometryOrientation(first,second,third) ->
+    (second[:x]-first[:x])*(third[:y]-first[:y])-(second[:y]-first[:y])*(third[:x]-first[:x]);
+
+GeometryBetween(value,first,second) ->
+    value>=.Min(first,second) && value<=.Max(first,second);
+
+GeometrySegmentsMeet(first,second,third,fourth) -> {;
+    o1=GeometryOrientation(first,second,third); o2=GeometryOrientation(first,second,fourth);
+    o3=GeometryOrientation(third,fourth,first); o4=GeometryOrientation(third,fourth,second);
+    proper=(o1<0&&o2>0||o1>0&&o2<0)&&(o3<0&&o4>0||o3>0&&o4<0);
+    collinear=(o1==0&&GeometryBetween(third[:x],first[:x],second[:x])&&GeometryBetween(third[:y],first[:y],second[:y]))
+      ||(o2==0&&GeometryBetween(fourth[:x],first[:x],second[:x])&&GeometryBetween(fourth[:y],first[:y],second[:y]))
+      ||(o3==0&&GeometryBetween(first[:x],third[:x],fourth[:x])&&GeometryBetween(first[:y],third[:y],fourth[:y]))
+      ||(o4==0&&GeometryBetween(second[:x],third[:x],fourth[:x])&&GeometryBetween(second[:y],third[:y],fourth[:y]));
+    proper||collinear;
+};
+
+GeometryValidateSimplePolygon(polygon) -> {;
+    points=polygon[:points]; count=points.Len();
+    {@ firstIndex=1; firstIndex<=@count; {;
+        firstNext=firstIndex==@count ?: 1 ?_ firstIndex+1;
+        GeometrySamePoint(@points[firstIndex],@points[firstNext])
+          ?: .Error("geometry.Area requires distinct consecutive polygon vertices") ?_ _;
+        {@ secondIndex=@firstIndex+1; secondIndex<=@count; {;
+            secondNext=secondIndex==@count ?: 1 ?_ secondIndex+1;
+            adjacent=secondIndex==@firstNext || secondNext==@firstIndex;
+            (!adjacent && GeometrySegmentsMeet(@points[@firstIndex],@points[@firstNext],@points[secondIndex],@points[secondNext]))
+              ?: .Error("geometry.Area requires a simple polygon without self-intersections") ?_ _;
+        }; secondIndex+=1 };
+    }; firstIndex+=1 };
+    polygon;
+};
+
+GeometryArea(value) -> {;
+    polygon=GeometryValidateSimplePolygon(GeometryRequire(value,:polygon,"geometry.Area value"));
+    points=polygon[:points]; twice:=0; previous:=points.Last();
+    {@ index=1; index<=@points.Len(); {;
+        current=@points[index];
+        @twice+=@previous[:x]*current[:y]-current[:x]*@previous[:y];
+        @previous~=current;
+    }; index+=1 };
+    twice.Abs()/2;
+};
 
 GeometryCircleValue(center, radiusSquared, through, operation, inputs, metadata ?= _, style ?= _) -> {;
     radiusSquared > 0 ?: _ ?_ .Error(@"@{operation} requires a positive radius");
@@ -312,14 +369,21 @@ GeometryTransformConicAffine(conic,transform) -> {;
     p=inverse[1]; q=inverse[2]; coefficients=conic[:coefficients];
     a=coefficients[1]; b=coefficients[2]; c=coefficients[3]; d=coefficients[4]; e=coefficients[5]; f=coefficients[6];
     px=p[1]; py=p[2]; p0=p[3]; qx=q[1]; qy=q[2]; q0=q[3];
-    GeometryConic([
+    transformed=[
         a*px^2+b*px*qx+c*qx^2,
         2*a*px*py+b*(px*qy+py*qx)+2*c*qx*qy,
         a*py^2+b*py*qy+c*qy^2,
         2*a*px*p0+b*(px*q0+p0*qx)+2*c*qx*q0+d*px+e*qx,
         2*a*py*p0+b*(py*q0+p0*qy)+2*c*qy*q0+d*py+e*qy,
         a*p0^2+b*p0*q0+c*q0^2+d*p0+e*q0+f
-    ],{= kind=conic[:conicKind], style=conic[:style], metadata=conic[:metadata] });
+    ];
+    transform[:coordinateDomain]==:certifiedReal
+      ?: GeometryValue(:conic,{=
+          coefficients=transformed,conicKind=conic[:conicKind],coordinateDomain=:certifiedReal,
+          style=conic[:style],metadata=conic[:metadata],
+          provenance=[GeometryProvenance("Transform",[conic,transform])]
+      })
+      ?_ GeometryConic(transformed,{= kind=conic[:conicKind], style=conic[:style], metadata=conic[:metadata] });
 };
 
 GeometryTransform(value,transform) -> {;
@@ -336,10 +400,18 @@ GeometryTransform(value,transform) -> {;
                      ?: GeometryPolygon(object[:points].Map((point)->GeometryTransformPoint(point,@map)),{= style=object[:style], metadata=object[:metadata] })
                      ?_ kind==:line
                           ?: {;
-                              points=GeometryLinePoints(@object).Map((point)->GeometryTransformPoint(point,@map));
-                              GeometryLine(points[1],points[2],{= style=@object[:style], metadata=@object[:metadata] });
+                              inverse=@map[:inverse]; a=@object[:a]; b=@object[:b]; c=@object[:c];
+                              transformedA=a*inverse[1][1]+b*inverse[2][1]+c*inverse[3][1];
+                              transformedB=a*inverse[1][2]+b*inverse[2][2]+c*inverse[3][2];
+                              transformedC=a*inverse[1][3]+b*inverse[2][3]+c*inverse[3][3];
+                              @map[:coordinateDomain]==:certifiedReal
+                                ?: GeometryValue(:line,{= a=transformedA,b=transformedB,c=transformedC,through=[],coordinateDomain=:certifiedReal,
+                                      style=@object[:style],metadata=@object[:metadata],provenance=[GeometryProvenance("Transform",[@object,@map])] })
+                                ?_ GeometryLineValue(transformedA,transformedB,transformedC,[],"Transform",[@object,@map],@object[:metadata],@object[:style]);
                           }
-                          ?_ (kind==:circle || kind==:conic)
+                          ?_ (kind==:circle && map[:transformKind]==:rotation)
+                               ?: GeometryCircleValue(GeometryTransformPoint(object[:center],map),object[:radiusSquared],_,"Rotate",[object,map],object[:metadata],object[:style])
+                               ?_ (kind==:circle || kind==:conic)
                                ?: {;
                                    @map[:transformKind]==:affine ?: _ ?_ .Error("projective conic transforms are not yet supported");
                                    source=@kind==:circle
@@ -404,12 +476,112 @@ GeometryConstraints(values) -> {;
     };
 };
 
+GeometryCentroid(first, second ?= _, third ?= _) -> {;
+    a=GeometryRequire(first,:point,"geometry.Centroid first point");
+    b=GeometryRequire(second,:point,"geometry.Centroid second point");
+    c=GeometryRequire(third,:point,"geometry.Centroid third point");
+    GeometryPointValue((a[:x]+b[:x]+c[:x])/3,(a[:y]+b[:y]+c[:y])/3,"Centroid",[a,b,c]);
+};
+
+GeometryPerpendicular(line,point) -> {;
+    source=GeometryRequire(line,:line,"geometry.Perpendicular line");
+    through=GeometryRequire(point,:point,"geometry.Perpendicular point");
+    GeometryLineValue(source[:b],-source[:a],source[:a]*through[:y]-source[:b]*through[:x],
+        [through],"Perpendicular",[source,through]);
+};
+
+GeometryParallelThrough(line,point) -> {;
+    source=GeometryRequire(line,:line,"geometry.ParallelThrough line");
+    through=GeometryRequire(point,:point,"geometry.ParallelThrough point");
+    GeometryLineValue(source[:a],source[:b],-(source[:a]*through[:x]+source[:b]*through[:y]),
+        [through],"ParallelThrough",[source,through]);
+};
+
+GeometryOrthocenter(first,second ?= _,third ?= _) -> {;
+    a=GeometryRequire(first,:point,"geometry.Orthocenter first point");
+    b=GeometryRequire(second,:point,"geometry.Orthocenter second point");
+    c=GeometryRequire(third,:point,"geometry.Orthocenter third point");
+    GeometryIsZero(GeometryOrientation(a,b,c))
+      ?: .Error("geometry.Orthocenter requires three non-collinear points") ?_ _;
+    firstAltitude=GeometryPerpendicular(GeometryLine(a,b),c);
+    secondAltitude=GeometryPerpendicular(GeometryLine(a,c),b);
+    points=GeometryPoints(GeometryIntersectLines(firstAltitude,secondAltitude));
+    points[1];
+};
+
 GeometryMidpoint(first, second ?= _) -> {;
     settings = ((first ? :Map) && second == _) ?: first ?_ {= first=first, second=second };
     firstPoint = GeometryRequire(settings[:first], :point, "geometry.Midpoint first point");
     secondPoint = GeometryRequire(settings[:second], :point, "geometry.Midpoint second point");
     GeometryPointValue((firstPoint[:x] + secondPoint[:x]) / 2, (firstPoint[:y] + secondPoint[:y]) / 2,
         "Midpoint", [firstPoint, secondPoint]);
+};
+
+GeometryTranslate(dx,dy) -> GeometryAffine([
+    [1,0,GeometryExact(dx,"geometry.Translate dx")],
+    [0,1,GeometryExact(dy,"geometry.Translate dy")]
+]);
+
+GeometryRotateQuarterTurns(center,quarterTurns) -> {;
+    point=GeometryRequire(center,:point,"geometry.RotateQuarterTurns center");
+    turns=.Mod(quarterTurns ~!: :Integer,4); x=point[:x]; y=point[:y];
+    turns==0 ?: GeometryAffine([[1,0,0],[0,1,0]])
+      ?_ turns==1 ?: GeometryAffine([[0,-1,x+y],[1,0,y-x]])
+      ?_ turns==2 ?: GeometryAffine([[-1,0,2*x],[0,-1,2*y]])
+      ?_ GeometryAffine([[0,1,x-y],[-1,0,x+y]]);
+};
+
+GeometryRotationTransform(center,radians,angle,unit) -> {;
+    cosine=.numerics.Cos(radians); sine=.numerics.Sin(radians); x=center[:x]; y=center[:y];
+    matrix=[
+      [cosine,-sine,x-cosine*x+sine*y],
+      [sine,cosine,y-sine*x-cosine*y],
+      [0,0,1]
+    ];
+    inverse=[
+      [cosine,sine,x-cosine*x-sine*y],
+      [-sine,cosine,y+sine*x-cosine*y],
+      [0,0,1]
+    ];
+    GeometryValue(:transform,{=
+        transformKind=:rotation,matrix=matrix,inverse=inverse,coordinateDomain=:certifiedReal,
+        center=center,angle=angle,angleUnit=unit,radians=radians,
+        provenance=[GeometryProvenance("Rotate",[center,angle,unit])]
+    });
+};
+
+GeometryRotate(center,angle,unit ?= :radians) -> {;
+    point=GeometryRequire(center,:point,"geometry.Rotate center");
+    name=unit;
+    (name==:radians||name==:radian||name==:rad||name==:degrees||name==:degree||name==:deg||name==:turns||name==:turn)
+      ?: _ ?_ .Error("geometry.Rotate unit must be :radians, :degrees, or :turns");
+    turns=(name==:degrees||name==:degree||name==:deg)
+      ?: GeometryExact(angle,"geometry.Rotate degrees")/360
+      ?_ (name==:turns||name==:turn)
+           ?: GeometryExact(angle,"geometry.Rotate turns")
+           ?_ (angle/(2*.Exact[:pi])) ~: :Rational;
+    quarterCandidate=turns==_ ?: _ ?_ turns*4;
+    exactQuarter=quarterCandidate!=_ && quarterCandidate.Denominator()==1;
+    quarter=exactQuarter ?: quarterCandidate.Numerator() ?_ _;
+    exactQuarter
+      ?: GeometryRotateQuarterTurns(point,quarter)
+      ?_ {;
+          radians=(@name==:degrees||@name==:degree||@name==:deg)
+            ?: .numerics.Radians(@angle)
+            ?_ (@name==:turns||@name==:turn)
+                 ?: @angle*2*.numerics.Pi()
+                 ?_ @angle;
+          GeometryRotationTransform(@point,radians,@angle,@name);
+      };
+};
+
+GeometryReflectAcross(line) -> {;
+    source=GeometryRequire(line,:line,"geometry.ReflectAcross line");
+    a=source[:a];b=source[:b];c=source[:c];denominator=a^2+b^2;
+    GeometryAffine([
+      [1-2*a^2/denominator,-2*a*b/denominator,-2*a*c/denominator],
+      [-2*a*b/denominator,1-2*b^2/denominator,-2*b*c/denominator]
+    ]);
 };
 
 GeometryPerpendicularBisector(first, second ?= _, options ?= {= }) -> {;
@@ -540,6 +712,8 @@ GeometryIntersect(first, second ?= _) -> {;
     settings = ((first ? :Map) && first.Has("left") && second == _) ?: first ?_ {= left=first, right=second };
     left = GeometryRequire(settings[:left], _, "geometry.Intersect left value");
     right = GeometryRequire(settings[:right], _, "geometry.Intersect right value");
+    (GeometryOption(left,"coordinatedomain",:rational)==:rational && GeometryOption(right,"coordinatedomain",:rational)==:rational)
+      ?: _ ?_ .Error("geometry.Intersect currently requires rational-coordinate geometry; refine or specialize certified-real constructions first");
     (left[:kind] == :line && right[:kind] == :line)
       ?: GeometryIntersectLines(left, right)
       ?_ (left[:kind]==:line && (right[:kind]==:circle || right[:kind]==:conic))
@@ -774,9 +948,16 @@ GeometryStyle(supplied, defaults) -> supplied == _
   ?: defaults
   ?_ (supplied ? :Map) ?: defaults.Merge(supplied) ?_ .Error("geometry style must be a map");
 
+GeometryDisplayScalar(value) -> {;
+    resolved=GeometryResolveScalar(value,{= tolerance=1/1000000000000,numericwork=96 });
+    resolved[:value]!=_ ?: resolved[:value] ?_ .Error("geometry.Draw could not refine a certified-real coordinate");
+};
+
+GeometryDisplayPoint(point) -> [GeometryDisplayScalar(point[:x]),GeometryDisplayScalar(point[:y])];
+
 GeometryLineEndpoints(line, view) -> {;
     xmin = view[1]; ymin = view[2]; xmax = view[3]; ymax = view[4];
-    a = line[:a]; b = line[:b]; c = line[:c];
+    a = GeometryDisplayScalar(line[:a]); b = GeometryDisplayScalar(line[:b]); c = GeometryDisplayScalar(line[:c]);
     points := [];
     addPoint = (x, y) -> {;
         inside = x >= @xmin && x <= @xmax && y >= @ymin && y <= @ymax;
@@ -789,11 +970,13 @@ GeometryLineEndpoints(line, view) -> {;
 };
 
 GeometryRayEndpoints(ray,view) -> {;
-    line=GeometryLine(ray[:origin],ray[:through]); candidates=GeometryLineEndpoints(line,view);
-    dx=ray[:through][:x]-ray[:origin][:x];dy=ray[:through][:y]-ray[:origin][:y];
-    forward=candidates.Filter((point)->(point[1]-ray[:origin][:x])*dx+(point[2]-ray[:origin][:y])*dy>=0);
-    inside=ray[:origin][:x]>=view[1]&&ray[:origin][:x]<=view[3]&&ray[:origin][:y]>=view[2]&&ray[:origin][:y]<=view[4];
-    inside ?: [ray[:origin][:coordinates],forward.Last()] ?_ forward.Slice(1,3);
+    originCoordinates=GeometryDisplayPoint(ray[:origin]); throughCoordinates=GeometryDisplayPoint(ray[:through]);
+    origin=GeometryPoint(originCoordinates); through=GeometryPoint(throughCoordinates);
+    line=GeometryLine(origin,through); candidates=GeometryLineEndpoints(line,view);
+    dx=through[:x]-origin[:x];dy=through[:y]-origin[:y];
+    forward=candidates.Filter((point)->(point[1]-origin[:x])*dx+(point[2]-origin[:y])*dy>=0);
+    inside=origin[:x]>=view[1]&&origin[:x]<=view[3]&&origin[:y]>=view[2]&&origin[:y]<=view[4];
+    inside ?: [origin[:coordinates],forward.Last()] ?_ forward.Slice(1,3);
 };
 
 GeometryDrawableItems(value) -> {;
@@ -806,7 +989,7 @@ GeometryDrawableItems(value) -> {;
         (isIntersection || isGeometry)
           ?: _
           ?_ .Error(@"geometry.Draw object @{index} must be geometry or an intersection result");
-        (isIntersection && item[:status] == "one")
+        (isIntersection && (item[:status] == "one" || item[:status] == "two"))
           ?: {; @items ~= @items.Concat(@item[:points]); }
           ?_ {; @items ~= @items.Push(@item); };
     }; index += 1 };
@@ -833,12 +1016,13 @@ GeometryDraw(objects, options ?= {= }) -> {;
         isIntersection
           ?: {;
               @unresolved += 1;
-              @children ~= @children.Push(.Graphics.Text([12, 20 + @unresolved * 18], @item[:diagnostic],
+              message=@item[:diagnostic]!=_ ?: @item[:diagnostic] ?_ @"Intersection status: @{item[:status]}";
+              @children ~= @children.Push(.Graphics.Text([12, 20 + @unresolved * 18], message,
                   {= fill="#b91c1c", size=13 }));
           }
           ?_ item[:kind] == :point
-               ?: {;
-                   center = [@item[:x], @item[:y]] |> @project;
+              ?: {;
+                   center = GeometryDisplayPoint(@item) |> @project;
                    @children ~= @children.Push(.Graphics.Circle(center, 5,
                        GeometryStyle(@item[:style], {= fill="#6d28d9", stroke="#ffffff", width=2 })));
                }
@@ -852,7 +1036,7 @@ GeometryDraw(objects, options ?= {= }) -> {;
                     }
                     ?_ item[:kind] == :segment
                          ?: {;
-                             @children ~= @children.Push(.Graphics.Path([@item[:first][:coordinates],@item[:second][:coordinates]].Map(@project),
+                             @children ~= @children.Push(.Graphics.Path([GeometryDisplayPoint(@item[:first]),GeometryDisplayPoint(@item[:second])].Map(@project),
                                  GeometryStyle(@item[:style],{= stroke="#2563eb",width=2,fill="none" })));
                          }
                          ?_ item[:kind] == :ray
@@ -862,12 +1046,12 @@ GeometryDraw(objects, options ?= {= }) -> {;
                               }
                               ?_ item[:kind] == :polygon
                                    ?: {;
-                                       @children ~= @children.Push(.Graphics.Path(@item[:points].Map((point)->point[:coordinates]).Map(@project),
+                                       @children ~= @children.Push(.Graphics.Path(@item[:points].Map((point)->GeometryDisplayPoint(point)).Map(@project),
                                            GeometryStyle(@item[:style],{= stroke="#2563eb",width=2,fill="none",closed=1 })));
                                    }
                                    ?_ item[:kind] == :circle
                          ?: {;
-                             center = [@item[:center][:x], @item[:center][:y]] |> @project;
+                             center = GeometryDisplayPoint(@item[:center]) |> @project;
                              radius = GeometryApproximateSqrt(@item[:radiusSquared]) * @scale;
                              @children ~= @children.Push(.Graphics.Circle(center, radius,
                                  GeometryStyle(@item[:style], {= fill="none", stroke="#d97706", width=2 })));
@@ -906,9 +1090,21 @@ geometryNamespace._proto = {=
     Transform=(self, value, transform)->GeometryTransform(value, transform),
     Constraint=(self, kind, objects ?= _, options ?= {= })->GeometryConstraint(kind, objects, options),
     Constraints=(self, values)->GeometryConstraints(values),
+    SquaredDistance=(self, first, second)->GeometryPublicSquaredDistance(first,second),
+    Distance=(self, first, second)->GeometryDistance(first,second),
+    Length=(self, value)->GeometryLength(value),
+    Area=(self, value)->GeometryArea(value),
+    Centroid=(self, first, second ?= _, third ?= _)->GeometryCentroid(first,second,third),
+    Orthocenter=(self, first, second ?= _, third ?= _)->GeometryOrthocenter(first,second,third),
+    Perpendicular=(self, line, point)->GeometryPerpendicular(line,point),
+    ParallelThrough=(self, line, point)->GeometryParallelThrough(line,point),
     Midpoint=(self, first, second ?= _)->GeometryMidpoint(first, second),
     PerpendicularBisector=(self, first, second ?= _, options ?= {= })->GeometryPerpendicularBisector(first, second, options),
     Circumcircle=(self, first, second ?= _, third ?= _, options ?= {= })->GeometryCircumcircle(first, second, third, options),
+    Translate=(self, dx, dy)->GeometryTranslate(dx,dy),
+    RotateQuarterTurns=(self, center, quarterTurns)->GeometryRotateQuarterTurns(center,quarterTurns),
+    Rotate=(self, center, angle, unit ?= :radians)->GeometryRotate(center,angle,unit),
+    ReflectAcross=(self, line)->GeometryReflectAcross(line),
     Intersect=(self, first, second ?= _)->GeometryIntersect(first, second),
     Points=(self, intersection)->GeometryPoints(intersection),
     Status=(self, intersection)->GeometryStatus(intersection),

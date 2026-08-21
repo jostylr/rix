@@ -17,10 +17,19 @@ circle := .geometry.Circumcircle(a, b, c);
 
 ## Values and exactness
 
-`Point`, `Line`, and `Circle` values use schema `rix.geometry@1`. Coordinates,
-line coefficients, and a circle's squared radius remain exact integers or
-rationals. A circle stores `radiusSquared`, avoiding an unnecessary binary
-floating-point square root in the semantic value.
+`Point`, `Line`, and `Circle` values use schema `rix.geometry@1`. Constructors
+start with exact integer/rational coordinates and a circle stores
+`radiusSquared`, avoiding an unnecessary binary floating-point square root.
+`Rotate` may derive certified-real coordinates; these carry
+`coordinateDomain=:certifiedReal` and refinable oracle values rather than
+binary floats. Exact quarter turns retain `coordinateDomain=:rational`.
+
+`SquaredDistance` returns an exact rational. `Distance` and `Length` always
+return the same certified Numerics square-root value, including Pythagorean
+cases; refine that value when a finite enclosure or display candidate is
+needed. `Area` returns the nonnegative exact shoelace area after rejecting
+self-intersecting or degenerate-edge polygons. `Centroid`, `Orthocenter`,
+`Perpendicular`, and `ParallelThrough` provide named rational constructions.
 
 `Intersect` returns `rix.geometry.intersection@1`. Line-line, line-circle,
 line-conic, and circle-circle intersections report statuses such as `one`,
@@ -43,6 +52,7 @@ uniform fit. Options are `view=[xmin,ymin,xmax,ymax]` and `size=[width,height]`.
 The exact geometry remains unchanged. Projection arithmetic remains exact in
 RiX; the explicit snapshot computes only a display-radius approximation through
 the core square-root operation while retaining `radiusSquared` in the geometry.
+One- and two-point intersection results expand to their visible points.
 Unresolved intersection results appear as red diagnostic text in the graphic.
 The resulting Graphic works unchanged with the SVG and Canvas renderer plugins.
 
@@ -52,6 +62,13 @@ The resulting Graphic works unchanged with the SVG and Canvas renderer plugins.
 `Projective(matrix)` accepts an invertible 3-by-3 matrix. `Transform` handles
 points, lines, segments, rays, and polygons under either transform. Affine
 circle/conic transforms return a general exact Conic.
+
+`Translate(dx,dy)`, `RotateQuarterTurns(center,n)`, and
+`ReflectAcross(line)` construct exact rational affine maps. `Rotate` accepts
+`:radians`, `:degrees`, or `:turns`; for example,
+`Rotate(origin,1/6,:turns)`. Non-quarter rotations use certified sine/cosine
+oracles and remain drawable/refinable. The current intersection kernel
+requires rational-coordinate inputs and reports that boundary explicitly.
 
 `Conic([A,B,C,D,E,F])` represents
 `A*x^2+B*x*y+C*y^2+D*x+E*y+F=0`. `Ellipse`, `Parabola`, and `Hyperbola` are

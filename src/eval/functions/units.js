@@ -1,6 +1,7 @@
 import { Integer, Rational } from "@ratmath/core";
 import { createEvent, getCurrentFilePath, getDiagnostics } from "../../runtime/diagnostics.js";
 import { runtimeDefaults } from "../../runtime/runtime-config.js";
+import { isUndecided } from "../../runtime/decision.js";
 import {
     addCayley,
     addScalars,
@@ -22,7 +23,6 @@ import {
 } from "../../runtime/exact-values.js";
 import {
     addQuantities,
-    compareQuantities,
     constructQuantity,
     convertQuantity,
     defineUnitFromValue,
@@ -39,7 +39,7 @@ import {
     parseUnitExpression,
     powQuantity,
     powUnit,
-    quantitiesEqual,
+    quantityRelation,
     subtractQuantities,
     unitName,
     unitsEquivalent,
@@ -214,6 +214,7 @@ export const unitExactFunctions = {
 };
 
 function boolResult(value) {
+    if (isUndecided(value)) return value;
     return value ? int(1) : null;
 }
 
@@ -300,12 +301,12 @@ export function installUnitExactVariants(registry) {
         MUL: ([a, b]) => multiplyWithUnits(a, b),
         DIV: ([a, b]) => divideWithUnits(a, b),
         POW: ([a, b]) => isUnitValue(a) ? powUnit(a, b) : powQuantity(a, b),
-        EQ: ([a, b]) => boolResult(isQuantity(a) && isQuantity(b) ? quantitiesEqual(a, b) : unitsEquivalent(a, b)),
-        NEQ: ([a, b]) => boolResult(isQuantity(a) && isQuantity(b) ? !quantitiesEqual(a, b) : !unitsEquivalent(a, b)),
-        LT: ([a, b]) => boolResult(compareQuantities(a, b) < 0),
-        GT: ([a, b]) => boolResult(compareQuantities(a, b) > 0),
-        LTE: ([a, b]) => boolResult(compareQuantities(a, b) <= 0),
-        GTE: ([a, b]) => boolResult(compareQuantities(a, b) >= 0),
+        EQ: ([a, b]) => boolResult(isQuantity(a) && isQuantity(b) ? quantityRelation(a, b, "eq") : unitsEquivalent(a, b)),
+        NEQ: ([a, b]) => boolResult(isQuantity(a) && isQuantity(b) ? quantityRelation(a, b, "neq") : !unitsEquivalent(a, b)),
+        LT: ([a, b]) => boolResult(quantityRelation(a, b, "lt")),
+        GT: ([a, b]) => boolResult(quantityRelation(a, b, "gt")),
+        LTE: ([a, b]) => boolResult(quantityRelation(a, b, "lte")),
+        GTE: ([a, b]) => boolResult(quantityRelation(a, b, "gte")),
     };
     for (const [name, impl] of Object.entries(unitVariants)) {
         registry.installVariant(name, {

@@ -1992,6 +1992,7 @@ pi := .Exact[:pi]
 distance := 3 * m
 speed := distance / (2 * s)
 angle := pi/2 * .Units[:rad]
+measuredDistance := (3:4)~[m]
 ```
 
 Scientific-unit syntax is lookup-and-multiply sugar:
@@ -2004,6 +2005,10 @@ Compatible quantities convert automatically for addition and preserve the
 left operand's display unit. Incompatible dimensions are errors. Explicit
 conversion uses `.ConvertUnit(value, targetUnit)`; the source unit is already
 carried by the value.
+
+Interval magnitudes remain intervals through unit conversion and arithmetic.
+The default angle units are `rad`, `deg`, and `turn`, all connected exactly
+through the canonical `pi` generator.
 
 Unit values are callable constructors, which is especially useful for affine
 coordinates: `.Units[:degC](20)`. See the [RiX Web units tutorial](https://rix.ratmath.com/tutorial/units.html)

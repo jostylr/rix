@@ -438,8 +438,8 @@ function createNumberConfigValue() {
 export function createDefaultSystemContext(options = {}) {
     const frozen = options.frozen !== false; // default true
     const ctx = new SystemContext(new Map(), false); // always build unfrozen
-    const units = options.units || createDefaultUnitCollection();
     const exact = options.exact || createDefaultExactCollection();
+    const units = options.units || createDefaultUnitCollection(exact);
     const complex = options.complex || createDefaultComplexCollection(exact);
     ctx.registerValue("Units", units, { doc: "Canonical RiX unit collection" });
     ctx.registerValue("Exact", exact, { doc: "Canonical RiX exact-generator collection" });

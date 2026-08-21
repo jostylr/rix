@@ -1,6 +1,7 @@
-import { Integer, Rational } from "@ratmath/core";
+import { Integer, Rational, RationalInterval, Relation, TypePromotion, possibleRelations } from "@ratmath/core";
 import {
     addScalars,
+    createDefaultExactCollection,
     divideScalars,
     equalScalars,
     isExactValue,
@@ -10,6 +11,7 @@ import {
     powScalar,
     subtractScalars,
 } from "./exact-values.js";
+import { UNDECIDED } from "./decision.js";
 
 function int(value) {
     return new Integer(BigInt(value));
@@ -26,7 +28,43 @@ function stringValue(value, label = "name") {
 }
 
 export function isScalar(value) {
-    return isRationalScalar(value) || isExactValue(value);
+    return isRationalScalar(value) || value instanceof RationalInterval || isExactValue(value);
+}
+
+function isIntervalScalar(value) {
+    return value instanceof RationalInterval;
+}
+
+function addQuantityScalars(left, right) {
+    return isIntervalScalar(left) || isIntervalScalar(right)
+        ? TypePromotion.add(left, right)
+        : addScalars(left, right);
+}
+
+function subtractQuantityScalars(left, right) {
+    return isIntervalScalar(left) || isIntervalScalar(right)
+        ? TypePromotion.subtract(left, right)
+        : subtractScalars(left, right);
+}
+
+function multiplyQuantityScalars(left, right) {
+    return isIntervalScalar(left) || isIntervalScalar(right)
+        ? TypePromotion.multiply(left, right)
+        : multiplyScalars(left, right);
+}
+
+function divideQuantityScalars(left, right) {
+    return isIntervalScalar(left) || isIntervalScalar(right)
+        ? TypePromotion.divide(left, right)
+        : divideScalars(left, right);
+}
+
+function negateQuantityScalar(value) {
+    return isIntervalScalar(value) ? TypePromotion.negate(value) : negateScalar(value);
+}
+
+function powQuantityScalar(value, exponent) {
+    return isIntervalScalar(value) ? value.pow(integerExponent(exponent)) : powScalar(value, exponent);
 }
 
 function cloneDimensions(dimensions = {}) {
@@ -170,8 +208,8 @@ export function powUnit(unit, exponentValue) {
 export function constructQuantity(magnitude, unit) {
     if (!isScalar(magnitude)) throw new Error("A unit must be applied to an exact scalar value");
     if (!isUnitValue(unit)) throw new Error("Quantity construction requires a Unit or UnitExpr");
-    const scaled = multiplyScalars(magnitude, unit.scale);
-    const baseMagnitude = unit.affine ? addScalars(scaled, unit.offset) : scaled;
+    const scaled = multiplyQuantityScalars(magnitude, unit.scale);
+    const baseMagnitude = unit.affine ? addQuantityScalars(scaled, unit.offset) : scaled;
     return {
         type: "quantity",
         baseMagnitude,
@@ -187,8 +225,8 @@ export function isQuantity(value) {
 
 export function displayMagnitude(quantity) {
     const unit = quantity.displayUnit;
-    const shifted = unit.affine ? subtractScalars(quantity.baseMagnitude, unit.offset) : quantity.baseMagnitude;
-    return divideScalars(shifted, unit.scale);
+    const shifted = unit.affine ? subtractQuantityScalars(quantity.baseMagnitude, unit.offset) : quantity.baseMagnitude;
+    return divideQuantityScalars(shifted, unit.scale);
 }
 
 export function convertQuantity(quantity, target) {
@@ -220,7 +258,7 @@ export function addQuantities(left, right) {
     const point = left.affinePoint ? left : right.affinePoint ? right : null;
     return {
         type: "quantity",
-        baseMagnitude: addScalars(left.baseMagnitude, right.baseMagnitude),
+        baseMagnitude: addQuantityScalars(left.baseMagnitude, right.baseMagnitude),
         dimensions: cloneDimensions(left.dimensions),
         displayUnit: point?.displayUnit || left.displayUnit,
         affinePoint: Boolean(point),
@@ -245,7 +283,7 @@ export function subtractQuantities(left, right) {
         : left.displayUnit;
     return {
         type: "quantity",
-        baseMagnitude: subtractScalars(left.baseMagnitude, right.baseMagnitude),
+        baseMagnitude: subtractQuantityScalars(left.baseMagnitude, right.baseMagnitude),
         dimensions: cloneDimensions(left.dimensions),
         displayUnit,
         affinePoint: left.affinePoint && !pointDifference,
@@ -260,7 +298,7 @@ export function multiplyQuantityValues(left, right) {
     if (isQuantity(left) && isQuantity(right)) {
         if (left.affinePoint || right.affinePoint) throw new Error("Affine quantity points cannot be multiplied");
         const dimensions = combineDimensions(left.dimensions, right.dimensions);
-        const baseMagnitude = multiplyScalars(left.baseMagnitude, right.baseMagnitude);
+        const baseMagnitude = multiplyQuantityScalars(left.baseMagnitude, right.baseMagnitude);
         if (Object.keys(dimensions).length === 0) return baseMagnitude;
         return {
             type: "quantity",
@@ -273,14 +311,14 @@ export function multiplyQuantityValues(left, right) {
     const quantity = isQuantity(left) ? left : right;
     const scalar = isQuantity(left) ? right : left;
     if (!isScalar(scalar)) throw new Error("Quantity multiplication requires a scalar or quantity");
-    return { ...quantity, baseMagnitude: multiplyScalars(quantity.baseMagnitude, scalar) };
+    return { ...quantity, baseMagnitude: multiplyQuantityScalars(quantity.baseMagnitude, scalar) };
 }
 
 export function divideQuantityValues(left, right) {
     if (isQuantity(left) && isQuantity(right)) {
         if (left.affinePoint || right.affinePoint) throw new Error("Affine quantity points cannot be divided");
         const dimensions = combineDimensions(left.dimensions, right.dimensions, -1);
-        const baseMagnitude = divideScalars(left.baseMagnitude, right.baseMagnitude);
+        const baseMagnitude = divideQuantityScalars(left.baseMagnitude, right.baseMagnitude);
         if (Object.keys(dimensions).length === 0) return baseMagnitude;
         return {
             type: "quantity",
@@ -291,13 +329,13 @@ export function divideQuantityValues(left, right) {
         };
     }
     if (isQuantity(left) && isScalar(right)) {
-        return { ...left, baseMagnitude: divideScalars(left.baseMagnitude, right) };
+        return { ...left, baseMagnitude: divideQuantityScalars(left.baseMagnitude, right) };
     }
     if (isScalar(left) && isQuantity(right)) {
         if (right.affinePoint) throw new Error("Cannot divide by an affine quantity point");
         return {
             type: "quantity",
-            baseMagnitude: divideScalars(left, right.baseMagnitude),
+            baseMagnitude: divideQuantityScalars(left, right.baseMagnitude),
             dimensions: scaleDimensions(right.dimensions, -1),
             displayUnit: invertUnit(right.displayUnit),
             affinePoint: false,
@@ -310,7 +348,7 @@ export function powQuantity(quantity, exponentValue) {
     if (quantity.affinePoint) throw new Error("Affine quantity points cannot be exponentiated");
     const exponent = integerExponent(exponentValue);
     const dimensions = scaleDimensions(quantity.dimensions, exponent);
-    const magnitude = powScalar(quantity.baseMagnitude, int(exponent));
+    const magnitude = powQuantityScalar(quantity.baseMagnitude, int(exponent));
     if (Object.keys(dimensions).length === 0) return magnitude;
     return {
         type: "quantity",
@@ -322,11 +360,38 @@ export function powQuantity(quantity, exponentValue) {
 }
 
 export function negateQuantity(quantity) {
-    return { ...quantity, baseMagnitude: negateScalar(quantity.baseMagnitude) };
+    return { ...quantity, baseMagnitude: negateQuantityScalar(quantity.baseMagnitude) };
 }
 
 export function quantitiesEqual(left, right) {
-    return dimensionsEqual(left.dimensions, right.dimensions) && equalScalars(left.baseMagnitude, right.baseMagnitude);
+    if (!dimensionsEqual(left.dimensions, right.dimensions)) return false;
+    if (isIntervalScalar(left.baseMagnitude) || isIntervalScalar(right.baseMagnitude)) {
+        return possibleRelations(left.baseMagnitude, right.baseMagnitude) === Relation.EQUAL;
+    }
+    return equalScalars(left.baseMagnitude, right.baseMagnitude);
+}
+
+export function quantityRelation(left, right, operation) {
+    if (!dimensionsEqual(left.dimensions, right.dimensions)) {
+        if (operation === "eq") return false;
+        if (operation === "neq") return true;
+        throw new Error(`Incompatible quantity dimensions for ordering: ${describeDimensions(left.dimensions)} and ${describeDimensions(right.dimensions)}`);
+    }
+    if (isExactValue(left.baseMagnitude) || isExactValue(right.baseMagnitude)) {
+        if (operation === "eq") return equalScalars(left.baseMagnitude, right.baseMagnitude);
+        if (operation === "neq") return !equalScalars(left.baseMagnitude, right.baseMagnitude);
+        throw new Error("Exact symbolic quantity expressions are not ordered");
+    }
+    const mask = possibleRelations(left.baseMagnitude, right.baseMagnitude);
+    switch (operation) {
+    case "eq": return mask === Relation.EQUAL ? true : (mask & Relation.EQUAL) === 0 ? false : UNDECIDED;
+    case "neq": return mask === Relation.EQUAL ? false : (mask & Relation.EQUAL) === 0 ? true : UNDECIDED;
+    case "lt": return mask === Relation.LESS ? true : (mask & Relation.LESS) === 0 ? false : UNDECIDED;
+    case "gt": return mask === Relation.GREATER ? true : (mask & Relation.GREATER) === 0 ? false : UNDECIDED;
+    case "lte": return (mask & Relation.GREATER) === 0 ? true : mask === Relation.GREATER ? false : UNDECIDED;
+    case "gte": return (mask & Relation.LESS) === 0 ? true : mask === Relation.LESS ? false : UNDECIDED;
+    default: throw new Error(`Unknown quantity relation '${operation}'`);
+    }
 }
 
 export function unitsEquivalent(left, right) {
@@ -340,7 +405,7 @@ export function compareQuantities(left, right) {
     if (!dimensionsEqual(left.dimensions, right.dimensions)) {
         throw new Error(`Incompatible quantity dimensions for ordering: ${describeDimensions(left.dimensions)} and ${describeDimensions(right.dimensions)}`);
     }
-    const difference = subtractScalars(left.baseMagnitude, right.baseMagnitude);
+    const difference = subtractQuantityScalars(left.baseMagnitude, right.baseMagnitude);
     if (isExactValue(difference)) throw new Error("Exact symbolic quantity expressions are not ordered");
     if (difference instanceof Integer) return difference.value < 0n ? -1 : difference.value > 0n ? 1 : 0;
     if (difference instanceof Rational) return difference.numerator < 0n ? -1 : difference.numerator > 0n ? 1 : 0;
@@ -440,7 +505,7 @@ export function defineUnitFromValue(nameValue, definition) {
     });
 }
 
-export function createDefaultUnitCollection() {
+export function createDefaultUnitCollection(exactCollection = createDefaultExactCollection()) {
     const entries = new Map();
     const add = (name, options, aliases = []) => {
         const unit = createUnit(name, options);
@@ -463,6 +528,15 @@ export function createDefaultUnitCollection() {
     add("mol", { dimensions: { Amount: 1 } }, ["mole"]);
     add("cd", { dimensions: { Luminosity: 1 } }, ["candela"]);
     add("rad", { dimensions: { Angle: 1 } }, ["radian"]);
+    const pi = exactCollection?.entries?.get("pi");
+    if (pi) {
+        add("deg", {
+            dimensions: { Angle: 1 }, symbol: "deg", scale: divideScalars(pi, int(180)),
+        }, ["degree"]);
+        add("turn", {
+            dimensions: { Angle: 1 }, symbol: "turn", scale: multiplyScalars(int(2), pi),
+        }, ["turns", "revolution"]);
+    }
 
     add("min", { dimensions: s.dimensions, scale: int(60), symbol: "min" }, ["minute"]);
     add("h", { dimensions: s.dimensions, scale: int(3600), symbol: "h" }, ["hour"]);

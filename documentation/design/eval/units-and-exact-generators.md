@@ -99,6 +99,7 @@ makes compatibility and arithmetic independent of presentation.
 3~[m] * 2~[s]         ## 6~[m*s]
 5~[m] / 2~[m]         ## 5/2 (dimensionless)
 3 / .Units[:m]        ## 3~[m^-1]
+(1:2)~[m] + (3:4)~[m] ## 4:6~[m]
 ```
 
 Addition, subtraction, comparison, and explicit conversion require equal
@@ -111,6 +112,12 @@ units differ.
 Multiplication, division, and integer powers combine dimension vectors.
 Unknown unit names are errors at construction time.
 
+`RationalInterval` magnitudes are first-class quantity scalars. Conversion,
+affine offsets, addition, multiplication, division, and integer powers use
+outward-safe interval arithmetic. Ordering follows RiX's three-valued
+semantics: disjoint enclosures decide, while overlapping alternatives return
+`?`. This is part of core Units rather than a domain plugin.
+
 ### Conversion
 
 The source unit is already part of a quantity and must not be repeated:
@@ -118,7 +125,11 @@ The source unit is already part of a quantity and must not be repeated:
 ```rix
 .ConvertUnit(90~[s], .Units[:min])    ## 3/2~[min]
 .ConvertUnit(1~[mi], "km")           ## target strings are also accepted
+.ConvertUnit(180~[deg], .Units[:rad]) ## 1~{pi}~[rad]
 ```
+
+The default angle registry includes `rad`, `deg`, and `turn`; degree and turn
+scales share the canonical `.Exact[:pi]` generator.
 
 ### Callable units and affine coordinates
 
