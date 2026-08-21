@@ -3,11 +3,11 @@ id: linalg
 description: Pure-RiX exact dense linear algebra and coordinate-aware tensor transformations.
 kind: rix
 mount: linalg
-exports: [Rref, Rank, Determinant, Inverse, Solve, Bareiss, LU, LDU, DeterminantCertificate, RowSpace, ColumnSpace, NullSpace, VectorSpace, Frame, Tensor, Vector, Covector, ChangeMatrix, Transform, Transform!, Components, Pair, SameTensor]
+exports: [Rref, Rank, Determinant, Inverse, Solve, Bareiss, LU, LDU, QR, DeterminantCertificate, RowSpace, ColumnSpace, NullSpace, VectorSpace, Frame, Tensor, Vector, Covector, ChangeMatrix, Transform, Transform!, Components, Pair, SameTensor]
 groups: [LinearAlgebra, Exact]
 permissions: []
 provides: [rix.linear-algebra@1, rix.tensor@1]
-schemas: [rix.linalg.result@1, rix.linalg.bareiss@1, rix.linalg.factorization@1, rix.linalg.determinant-certificate@1, rix.linalg.subspace@1, rix.linalg.vector-space@1, rix.linalg.frame@1, rix.linalg.tensor@1]
+schemas: [rix.linalg.result@1, rix.linalg.bareiss@1, rix.linalg.factorization@1, rix.linalg.qr@1, rix.linalg.determinant-certificate@1, rix.linalg.subspace@1, rix.linalg.vector-space@1, rix.linalg.frame@1, rix.linalg.tensor@1]
 snapshot: false
 deterministic: true
 defaultEnabled: false
@@ -635,6 +635,130 @@ LinalgLDU(value) -> {;
     .ImmutableValue(result);
 };
 
+LinalgIntegerSqrtFloor(value) -> {;
+    integer=value ~!: :Integer;
+    integer>=0 ?: _ ?_ .Error("Exact square-root integer must be nonnegative");
+    integer<2
+      ?: integer
+      ?_ {;
+          root:=@integer;
+          next:=(root+1)//2;
+          {@ step=1; @next<@root; {;
+              @root~=@next;
+              @next~=(@root+(@integer//@root))//2;
+          }; step+=1 };
+          root;
+      };
+};
+
+LinalgExactSqrt(value) -> {;
+    exact=LinalgExact(value,"Exact square-root radicand");
+    exact>=0 ?: _ ?_ .Error("Exact square-root radicand must be nonnegative");
+    numerator=LinalgIntegerSqrtFloor(exact.Numerator());
+    denominator=LinalgIntegerSqrtFloor(exact.Denominator());
+    numerator^2==exact.Numerator() && denominator^2==exact.Denominator()
+      ?: numerator/denominator
+      ?_ _;
+};
+
+LinalgQrDiagnostic(sourceRows,statusValue,details) -> {;
+    result={=
+        valueKind=:exactQRDiagnostic,schema="rix.linalg.qr@1",kind=:qr,status=statusValue,
+        supported=_,exact=1,coefficientDomain=:Rational,algorithm=:modifiedGramSchmidt,
+        mode=:reduced,source=LinalgMatrixTensor(sourceRows),verified=_
+    }.Merge(details);
+    result.__type="ExactQRDiagnostic";
+    result._proto={= Verify=(self)->_, Record=(self)->self };
+    .ImmutableValue(result);
+};
+
+LinalgVerifyQR(value) -> {;
+    value ? :Map && value[:schema]=="rix.linalg.qr@1" && value[:status]==:decomposed
+      ?: _
+      ?_ .Error("Expected a supported exact QR decomposition");
+    source=LinalgMatrixRows(value[:source],"QR source");
+    q=LinalgMatrixRows(value[:q],"QR Q factor");
+    r=LinalgMatrixRows(value[:r],"QR R factor");
+    columns=source[1].Len();
+    dimensions=q.Len()==source.Len() && q[1].Len()==columns && r.Len()==columns && r[1].Len()==columns;
+    orthonormal=dimensions ?: LinalgRowsEqual(LinalgMultiplyRows(LinalgTransposeRows(q),q),LinalgIdentityRows(columns)) ?_ _;
+    reconstructs=dimensions ?: LinalgRowsEqual(LinalgMultiplyRows(q,r),source) ?_ _;
+    upper=dimensions ?: r.All((row,rowIndex)->row.All((entry,columnIndex)->columnIndex>=rowIndex || LinalgIsZero(entry))) ?_ _;
+    dimensions && orthonormal && reconstructs && upper ?: 1 ?_ _;
+};
+
+LinalgQRTallRows(sourceRows) -> {;
+    rowCount=sourceRows.Len();
+    columnCount=sourceRows[1].Len();
+    sourceColumns=LinalgTransposeRows(sourceRows);
+    qColumns:=[];
+    upperRows:=LinalgZeros(columnCount).Map((unused)->LinalgZeros(columnCount));
+    stopped:=_;
+    {@ column=1; column<=@columnCount && @stopped==_; {;
+        residual:=@sourceColumns[column];
+        {@ prior=1; prior<@column; {;
+            coefficient=LinalgDot(@qColumns[prior],@residual);
+            @upperRows~=@upperRows.Set(prior,@upperRows[prior].Set(@column,coefficient));
+            @residual~=@residual.Map((entry,index)->entry-@coefficient*@qColumns[@prior][index]);
+        }; prior+=1 };
+        squaredNorm=LinalgDot(residual,residual);
+        LinalgIsZero(squaredNorm)
+          ?: {;
+              @stopped~={=
+                  status=:rankDeficient,column=@column,squaredNorm=@squaredNorm,
+                  reason=:columnDependentOnPreviousColumns
+              };
+          }
+          ?_ {;
+              norm=LinalgExactSqrt(@squaredNorm);
+              norm==_
+                ?: {;
+                    @stopped~={=
+                        status=:unsupportedCoefficientExtension,column=@column,squaredNorm=@squaredNorm,
+                        requiredExtension={= kind=:squareRoot,radicand=@squaredNorm },
+                        reason=:orthogonalizedColumnNormIsNotRational
+                    };
+                }
+                ?_ {;
+                    @upperRows~=@upperRows.Set(@column,@upperRows[@column].Set(@column,@norm));
+                    @qColumns~=@qColumns.Push(@residual.Map((entry)->entry/@norm));
+                };
+          };
+    }; column+=1 };
+    stopped!=_
+      ?: LinalgQrDiagnostic(sourceRows,stopped[:status],stopped.Merge({=
+          rowCount=rowCount,columnCount=columnCount,completedColumns=qColumns.Len(),
+          orthonormalColumns=qColumns.Map((column)->LinalgVectorTensor(column)),
+          partialUpper=LinalgMatrixTensor(upperRows)
+      }))
+      ?_ {;
+          qRows=LinalgTransposeRows(@qColumns);
+          result={=
+              valueKind=:exactQRDecomposition,schema="rix.linalg.qr@1",kind=:qr,status=:decomposed,
+              supported=1,exact=1,coefficientDomain=:Rational,algorithm=:modifiedGramSchmidt,mode=:reduced,
+              source=LinalgMatrixTensor(@sourceRows),q=LinalgMatrixTensor(qRows),r=LinalgMatrixTensor(@upperRows),
+              rowCount=@rowCount,columnCount=@columnCount,rank=@columnCount,verified=1
+          };
+          result.__type="ExactQRDecomposition";
+          result._proto={=
+              Verify=(self)->LinalgVerifyQR(self),Q=(self)->self[:q],R=(self)->self[:r],Record=(self)->self
+          };
+          .ImmutableValue(result);
+      };
+};
+
+LinalgQR(value) -> {;
+    sourceRows=LinalgMatrixRows(value,"QR matrix");
+    rowCount=sourceRows.Len();
+    columnCount=sourceRows[1].Len();
+    rowCount>=columnCount
+      ?: LinalgQRTallRows(sourceRows)
+      ?_ LinalgQrDiagnostic(sourceRows,:requiresTallOrSquareMatrix,{=
+          rowCount=rowCount,columnCount=columnCount,
+          reason=:reducedExactQRRequiresAtLeastAsManyRowsAsColumns
+      });
+};
+
 LinalgResult(fields) -> {;
     result = {= schema="rix.linalg.result@1", exact=1 }.Merge(fields);
     result;
@@ -1027,6 +1151,7 @@ linalgNamespace._proto={=
     Bareiss=(self,value)->LinalgBareiss(value),
     LU=(self,value)->LinalgLU(value),
     LDU=(self,value)->LinalgLDU(value),
+    QR=(self,value)->LinalgQR(value),
     DeterminantCertificate=(self,value)->LinalgDeterminantCertificate(value),
     RowSpace=(self,value)->LinalgRowSpace(value),
     ColumnSpace=(self,value)->LinalgColumnSpace(value),
@@ -1055,6 +1180,7 @@ linalgNamespace._proto["TRANSFORM!"]=(self,value,target)->LinalgTransformBang(va
 .Host.RegisterMethod("Matrix","Bareiss",(value)->LinalgBareiss(value),"linalg","linalg");
 .Host.RegisterMethod("Matrix","LU",(value)->LinalgLU(value),"linalg","linalg");
 .Host.RegisterMethod("Matrix","LDU",(value)->LinalgLDU(value),"linalg","linalg");
+.Host.RegisterMethod("Matrix","QR",(value)->LinalgQR(value),"linalg","linalg");
 .Host.RegisterMethod("Matrix","DeterminantCertificate",(value)->LinalgDeterminantCertificate(value),"linalg","linalg");
 .Host.RegisterMethod("Matrix","RowSpace",(value)->LinalgRowSpace(value),"linalg","linalg");
 .Host.RegisterMethod("Matrix","ColumnSpace",(value)->LinalgColumnSpace(value),"linalg","linalg");

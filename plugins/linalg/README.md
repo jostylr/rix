@@ -74,6 +74,28 @@ factor := .linalg.LU([0,2; 3,4]);
 };
 ```
 
+`QR(A)` computes reduced exact QR for a tall or square Rational matrix using
+modified Gram-Schmidt. When successful, it returns `A = Q R`, with exact
+Rational entries, `Q^T Q = I`, upper-triangular `R`, and a replaying
+`Verify()` method. It is also available as `A.QR()` on a typed `Matrix`.
+
+```rix
+.Plugin.Load("linalg");
+A := {:2x2: /Matrix/ 3,0;4,5};
+qr := A.QR();
+{: qr.Q(),qr.R(),qr.Verify() };
+```
+
+Exact Rational QR is not closed under arbitrary inputs: the first column of
+`[1,0;1,1]`, for example, has norm `sqrt(2)`. RiX does not approximate that
+factor or silently change coefficient domains. Instead it returns status
+`:unsupportedCoefficientExtension` with the column, squared norm, and required
+square-root extension. Dependent columns return `:rankDeficient`; matrices with
+more columns than rows return `:requiresTallOrSquareMatrix`. These diagnostic
+records retain any completed exact orthonormal columns and partial upper
+factor when decomposition began; shape diagnostics report the rejected
+dimensions before doing work.
+
 ## Exact fundamental subspaces
 
 `RowSpace`, `ColumnSpace`, and `NullSpace` return
@@ -92,5 +114,6 @@ A := [1,2,3; 2,4,6];
 };
 ```
 
-Exact QR remains the next decomposition milestone because it requires an
-explicit coefficient-extension policy whenever a column norm is not Rational.
+The current QR surface deliberately stops at the Rational coefficient-domain
+boundary. Algebraic-real and generic inner-product-space extensions remain
+separate future work.

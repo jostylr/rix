@@ -442,8 +442,10 @@ tracked in
    - [x] Add replayable Bareiss fraction-free elimination, row-pivoted exact
      LU/LDU, row/column/null spaces, determinant certificates, and reusable
      factorization objects with exact `Solve`, `Inverse`, and `Verify` methods.
-   - [ ] Add exact QR over the coefficient cases whose required norms have
-     exact square roots; report unsupported coefficient extensions explicitly.
+   - [x] Add reduced exact QR over tall/square Rational matrices whose
+     orthogonalized column norms have exact Rational square roots; report
+     unsupported coefficient extensions, dependent columns, and wide shapes
+     with structured diagnostics.
    - [ ] Add linear maps between distinct vector spaces, composition, inverses,
      dual spaces, tensor products, contractions, and explicit pushforward and
      pullback operations.

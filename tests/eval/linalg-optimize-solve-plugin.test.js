@@ -181,6 +181,47 @@ describe("linalg Phase 2 exact decompositions", () => {
         ]);
         expect(result.values.slice(3).map(String)).toEqual(["1", "1", "1"]);
     });
+
+    test("returns reduced exact QR when every orthogonalized norm is rational", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("linalg");
+            square := .linalg.QR([3,0;4,5]);
+            tallMatrix := {:3x2: /Matrix/ 3,0;4,0;0,5};
+            tall := tallMatrix.QR();
+            [square[:status],square.Q(),square.R(),square.Verify(),
+             tall[:q],tall[:r],tall.Verify(),square[:algorithm],square[:coefficientdomain]];
+        `);
+        expect(result.values[0].value).toBe("decomposed");
+        expect(flat(result.values[1])).toEqual(["3/5", "-4/5", "4/5", "3/5"]);
+        expect(flat(result.values[2])).toEqual(["5", "4", "0", "3"]);
+        expect(String(result.values[3])).toBe("1");
+        expect(flat(result.values[4])).toEqual(["3/5", "0", "4/5", "0", "0", "1"]);
+        expect(flat(result.values[5])).toEqual(["5", "0", "0", "5"]);
+        expect(result.values.slice(6, 7).map(String)).toEqual(["1"]);
+        expect(result.values[7].value).toBe("modifiedGramSchmidt");
+        expect(result.values[8].value).toBe("Rational");
+    });
+
+    test("reports exact QR coefficient, rank, and shape boundaries structurally", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("linalg");
+            extension := .linalg.QR([1,0;1,1]);
+            dependent := .linalg.QR([3,6;4,8]);
+            wide := .linalg.QR([1,0,0;0,1,0]);
+            [extension[:status],extension[:column],extension[:squarednorm],extension[:requiredextension],
+             extension[:completedcolumns],dependent[:status],dependent[:column],dependent[:completedcolumns],
+             wide[:status],wide[:rowcount],wide[:columncount]];
+        `);
+        expect(result.values[0].value).toBe("unsupportedCoefficientExtension");
+        expect(result.values.slice(1, 3).map(String)).toEqual(["1", "2"]);
+        expect(result.values[3].entries.get("kind").value).toBe("squareRoot");
+        expect(String(result.values[3].entries.get("radicand"))).toBe("2");
+        expect(String(result.values[4])).toBe("0");
+        expect(result.values[5].value).toBe("rankDeficient");
+        expect(result.values.slice(6, 8).map(String)).toEqual(["2", "1"]);
+        expect(result.values[8].value).toBe("requiresTallOrSquareMatrix");
+        expect(result.values.slice(9).map(String)).toEqual(["2", "3"]);
+    });
 });
 
 describe("optimize Phase 1 plugin", () => {

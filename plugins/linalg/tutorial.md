@@ -62,6 +62,40 @@ factor := .linalg.LU(A);
 Use `.linalg.LDU(A)` when the separated diagonal is useful. It satisfies
 `P A = L D U`, and its final `U` has unit diagonal.
 
+## Compute QR without leaving the Rational domain
+
+This matrix has orthogonalization norms `5` and `3`, so both reduced factors
+remain exact:
+
+```rix
+.Plugin.Load("linalg");
+A := {:2x2: /Matrix/ 3,0;4,5};
+qr := A.QR();
+{=
+    status=qr[:status],
+    q=qr.Q(),
+    r=qr.R(),
+    verified=qr.Verify()
+};
+```
+
+An input that needs `sqrt(2)` returns a diagnostic rather than approximate
+entries or a hidden coefficient-domain change:
+
+```rix
+needsRoot := .linalg.QR([1,0;1,1]);
+{=
+    status=needsRoot[:status],
+    column=needsRoot[:column],
+    squaredNorm=needsRoot[:squarednorm],
+    requiredExtension=needsRoot[:requiredextension]
+};
+```
+
+Check `:status` before using `Q()` or `R()`. Successful results use
+`:decomposed`; other current statuses are `:unsupportedCoefficientExtension`,
+`:rankDeficient`, and `:requiresTallOrSquareMatrix`.
+
 ## Compute the fundamental subspaces
 
 ```rix
