@@ -1,4 +1,4 @@
-import { Fraction, Integer, Rational } from "@ratmath/core";
+import { Fraction, FractionInterval, Integer, Rational } from "@ratmath/core";
 import { parse } from "../../parser/parser.js";
 import { resolveMethod } from "../../runtime/methods.js";
 import { lower } from "../lower.js";
@@ -202,6 +202,26 @@ function structuralFractionParts(args) {
     };
 }
 
+function structuralFractionInterval(args) {
+    const low = args[1];
+    const high = args[2];
+    if (!(low instanceof Fraction) || !(high instanceof Fraction)) {
+        throw new Error(".SArith.FractionInterval endpoints must be Fractions");
+    }
+    return new FractionInterval(low, high);
+}
+
+function structuralFractionIntervalParts(args) {
+    const value = args[1];
+    if (!(value instanceof FractionInterval)) {
+        throw new Error(".SArith.FractionIntervalParts expects a FractionInterval");
+    }
+    return {
+        type: "tuple",
+        values: [value.low, value.high],
+    };
+}
+
 export function createSArithSystemValue(operators = null, algebraProfile = null) {
     const parseMethod = {
         type: "method_builtin",
@@ -228,6 +248,16 @@ export function createSArithSystemValue(operators = null, algebraProfile = null)
         name: "FractionParts",
         impl: structuralFractionParts,
     };
+    const fractionIntervalMethod = {
+        type: "method_builtin",
+        name: "FractionInterval",
+        impl: structuralFractionInterval,
+    };
+    const fractionIntervalPartsMethod = {
+        type: "method_builtin",
+        name: "FractionIntervalParts",
+        impl: structuralFractionIntervalParts,
+    };
     return {
         type: "structural_parser",
         name: "SArith",
@@ -244,6 +274,10 @@ export function createSArithSystemValue(operators = null, algebraProfile = null)
             ["FRACTION", fractionMethod],
             ["FractionParts", fractionPartsMethod],
             ["FRACTIONPARTS", fractionPartsMethod],
+            ["FractionInterval", fractionIntervalMethod],
+            ["FRACTIONINTERVAL", fractionIntervalMethod],
+            ["FractionIntervalParts", fractionIntervalPartsMethod],
+            ["FRACTIONINTERVALPARTS", fractionIntervalPartsMethod],
         ]),
     };
 }

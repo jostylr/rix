@@ -34,7 +34,7 @@ The implementation order and per-plugin phased work are tracked in
 | `optimize/` | RiX | `optimize` | Pure-RiX exact standard-form linear programs and deterministic simplex solving. |
 | `solve/` | RiX | `solve` | Pure-RiX exact affine matrix and symbolic-system solving over the linear-algebra service. |
 | `radix/` | RiX | `radix` | Pure-RiX bounded exact positional expansions, repeating-period analysis, configurable alphabets/grouping, and portable work diagnostics. |
-| `fraction/` | RiX | `fraction` | Pure-RiX unreduced Fraction arithmetic and classroom/Farey operations; aliases `.frac` and `.f`. |
+| `fraction/` | RiX | `fraction` | Pure-RiX unreduced Fraction arithmetic, core FractionIntervals, mediant partitions, and explicit signed-infinity boundaries; aliases `.frac` and `.f`. |
 | `ratfun/` | RiX | `ratfun` | Pure-RiX canonical callable RationalFunctions; aliases `.rationalFunction` and `.rf`. |
 | `fracfun/` | host | `fracfun` | Form-preserving FractionFunctions; aliases `.fractionFunction` and `.ff`. See the migration boundary below. |
 | `symbolic/` | RiX | `symbolic` | Pure-RiX meta-plugin loading the formal fraction/function workspace. |
@@ -42,7 +42,7 @@ The implementation order and per-plugin phased work are tracked in
 | `geometry/` | RiX | `geometry` | Pure-RiX exact ruler-and-compass constructions, intersections, and Graphics snapshots. |
 | `data/` | host | `data` | Immutable typed relations, deterministic transformations, and portable Table views. |
 | `stats/` | RiX | `stats` | Exact descriptive statistics, summary Tables, histograms, and box plots; alias `.statistics`. |
-| `stern-brocot/` | RiX | `stern-brocot` | Exact Stern–Brocot navigation, visible-tree records, and rational evaluation helpers. |
+| `stern-brocot/` | RiX | `stern-brocot` | Exact Stern–Brocot paths/trees, complete bounded Farey sequences, classroom Grids, and rational evaluation helpers. |
 | `document/` | host | `document` | Numbered portable reports, cross-references, captions, and small themes. |
 | `complex-visualization/` | RiX | `complex-viz` | Exact phase/magnitude domain coloring to portable Graphics; mount `.complexViz`. |
 | `fractals/` | RiX | `fractals` | Exact finite orbits, bifurcation/cobweb samples, and escape-time fractals with portable Graphics lowering. |

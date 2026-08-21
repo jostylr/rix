@@ -1,14 +1,14 @@
 /**
 id: stern-brocot
-description: Pure RiX Stern-Brocot node descriptions, visible tree records, and exact formula evaluation.
+description: Pure RiX Stern-Brocot and Farey records, bounded trees, exact paths, and classroom grids.
 kind: rix
 mount: sternBrocot
-exports: [Describe, VisibleTree, Evaluate, sternBrocotDescribe, sternBrocotVisibleTree, sternBrocotEvaluate]
+exports: [Describe, VisibleTree, Path, Grid, Farey, FareyView, Evaluate, sternBrocotDescribe, sternBrocotVisibleTree, sternBrocotPath, sternBrocotGrid, fareySequence, fareyGrid, sternBrocotEvaluate]
 groups: [Exact, Graphics]
 permissions: []
 requires: [rix.fraction@1]
-provides: [rix.stern-brocot@1]
-schemas: [rix.stern-brocot.node@1, rix.stern-brocot.tree@1]
+provides: [rix.stern-brocot@1, rix.farey@1]
+schemas: [rix.stern-brocot.node@1, rix.stern-brocot.tree@1, rix.stern-brocot.path@1, rix.farey.sequence@1]
 snapshot: true
 deterministic: true
 defaultEnabled: false
@@ -80,12 +80,125 @@ defaultEnabled: false
         }
     };
 
+    SternBrocotPath(fraction) -> {;
+        target = fraction.F().Reduce();
+        directions = target.SternBrocotPath();
+        steps := [];
+        root = .fraction.FromSternBrocotPath([]);
+        rootBounds = root.FareyParents();
+        steps ~= steps.Push({=
+            index=0,
+            direction="root",
+            fraction=root,
+            left=rootBounds[1],
+            right=rootBounds[2]
+        });
+        {@ index = 1; index <= @directions.Len(); {;
+            node = .fraction.FromSternBrocotPath(@directions.Slice(1,index+1));
+            bounds = node.FareyParents();
+            @steps ~= @steps.Push({=
+                index=index,
+                direction=@directions[index],
+                fraction=node,
+                left=bounds[1],
+                right=bounds[2]
+            });
+        }; index += 1 };
+        {=
+            schema="rix.stern-brocot.path@1",
+            target=target,
+            directions=directions,
+            depth=directions.Len(),
+            steps=steps,
+            exact=1
+        };
+    };
+
+    SternBrocotGrid(fraction) -> {;
+        path = SternBrocotPath(fraction);
+        rows = path[:steps].Map((step)->[
+            step[:index], step[:direction], step[:fraction], step[:left], step[:right]
+        ]);
+        .Grid(
+            ["step","direction","fraction","left boundary","right boundary"],
+            rows,
+            [],
+            {= schema="rix.stern-brocot.path-grid@1", exact=1 }
+        );
+    };
+
+    SternBrocotPositiveInteger(value, label) -> {;
+        exact = value ~!: :Integer;
+        exact != _ && exact >= 1 ?: exact ?_ .Error(@"@{label} must be a positive Integer");
+    };
+
+    FareySequence(order) -> {;
+        limit = SternBrocotPositiveInteger(order,"Farey order");
+        limit <= 10000 ?: _ ?_ .Error("Farey order must be at most 10000");
+        values := [.frac(0,1)];
+        a := 0;
+        b := 1;
+        c := 1;
+        d := limit;
+        {@ index = 1; @c <= @limit; {;
+            @values ~= @values.Push(.frac(@c,@d));
+            k = (@limit + @b) // @d;
+            nextNumerator = k * @c - @a;
+            nextDenominator = k * @d - @b;
+            @a ~= @c;
+            @b ~= @d;
+            @c ~= nextNumerator;
+            @d ~= nextDenominator;
+        }; index += 1 };
+        adjacency := [];
+        {@ pair = 1; pair < @values.Len(); {;
+            left = @values[pair];
+            right = @values[pair+1];
+            determinant = right.Numerator()*left.Denominator()-left.Numerator()*right.Denominator();
+            @adjacency ~= @adjacency.Push({=
+                left=left,
+                right=right,
+                determinant=determinant,
+                neighbors=determinant==1 ?: 1 ?_ _
+            });
+        }; pair += 1 };
+        {=
+            schema="rix.farey.sequence@1",
+            order=limit,
+            values=values,
+            adjacency=adjacency,
+            exact=1,
+            complete=1
+        };
+    };
+
+    FareyGrid(order) -> {;
+        sequence = FareySequence(order);
+        rows := [];
+        {@ index = 1; index <= @sequence[:values].Len(); {;
+            value = @sequence[:values][index];
+            left = index > 1 ?: @sequence[:values][index-1] ?_ _;
+            right = index < @sequence[:values].Len() ?: @sequence[:values][index+1] ?_ _;
+            @rows ~= @rows.Push([index,value,left,right]);
+        }; index += 1 };
+        .Grid(
+            ["index","fraction","previous","next"],
+            rows,
+            [],
+            {= schema="rix.farey.grid@1", order=sequence[:order], exact=1 }
+        );
+    };
+
     SternBrocotEvaluate(formula, fraction) -> fraction.F().Rational() |> formula;
 
     sternBrocotNamespace = {= };
     sternBrocotNamespace._proto = {=
         Describe=(self, fraction)->SternBrocotDescribe(fraction),
         VisibleTree=(self, fraction, descendantDepth ?= 3)->SternBrocotVisibleTree(fraction, descendantDepth),
+        Path=(self, fraction)->SternBrocotPath(fraction),
+        Grid=(self, fraction)->SternBrocotGrid(fraction),
+        Farey=(self, order)->FareySequence(order),
+        FareyView=(self, order)->FareyGrid(order),
         Evaluate=(self, formula, fraction)->SternBrocotEvaluate(formula, fraction)
     };
     .Host.RegisterValue(
@@ -105,6 +218,30 @@ defaultEnabled: false
         "sternBrocotVisibleTree",
         SternBrocotVisibleTree,
         "Build portable exact node and edge records around a Stern-Brocot node",
+        ["Exact", "Graphics"]
+    );
+    .Host.Register(
+        "sternBrocotPath",
+        SternBrocotPath,
+        "Build exact bounded steps from the signed Stern-Brocot root to a Fraction",
+        ["Exact", "Graphics"]
+    );
+    .Host.Register(
+        "sternBrocotGrid",
+        SternBrocotGrid,
+        "Build a portable classroom Grid for an exact Stern-Brocot path",
+        ["Exact", "Graphics"]
+    );
+    .Host.Register(
+        "fareySequence",
+        FareySequence,
+        "Build the complete exact Farey sequence of a bounded positive order",
+        ["Exact"]
+    );
+    .Host.Register(
+        "fareyGrid",
+        FareyGrid,
+        "Build a portable classroom Grid for an exact Farey sequence",
         ["Exact", "Graphics"]
     );
     .Host.Register(

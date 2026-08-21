@@ -256,12 +256,12 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.domaincoloring` | function | — | Exact domain-color sampling for complex functions rendered as portable Graphics. |
 | `.draw` | function | Draw | Convenient 2D drawing helpers that produce core Graphics nodes. |
 | `.exactalgebras` | function | Exact | Exact rational quaternion and octonion values. |
-| `.f` | function | — | Representation-sensitive unreduced integer fractions with mediant and classroom addition policies. |
+| `.f` | function | — | Representation-sensitive fractions, fraction intervals, mediants, and exact classroom policies. |
 | `.ff` | function | — | Form-preserving callable polynomial and rational expressions with explicit transformations and canonical projections. |
-| `.frac` | function | — | Representation-sensitive unreduced integer fractions with mediant and classroom addition policies. |
+| `.frac` | function | — | Representation-sensitive fractions, fraction intervals, mediants, and exact classroom policies. |
 | `.fracfun` | function | — | Form-preserving callable polynomial and rational expressions with explicit transformations and canonical projections. |
 | `.fractals` | function | — | Pure-RiX iteration, bifurcation, cobweb, and escape-time mathematics with portable Graphics lowering. |
-| `.fraction` | function | — | Representation-sensitive unreduced integer fractions with mediant and classroom addition policies. |
+| `.fraction` | function | — | Representation-sensitive fractions, fraction intervals, mediants, and exact classroom policies. |
 | `.fractionfunction` | function | — | Form-preserving callable polynomial and rational expressions with explicit transformations and canonical projections. |
 | `.geometry` | function | — | Pure-RiX exact geometry, transformations, conics, constraints, and bounded portable Graphics refinement. |
 | `.gif` | function | — | Deterministic animated GIF rendering from Slides, Timelines, or Snapshots through PNG frames. |
@@ -289,7 +289,7 @@ These names are available through the leading-dot system object, such as `.Len(v
 | `.solve` | function | — | Pure-RiX exact Phase 1 linear-system classification and symbolic-spec solving. |
 | `.statistics` | function | — | Exact descriptive statistics plus certified normal-distribution functions and portable plots. |
 | `.stats` | function | — | Exact descriptive statistics plus certified normal-distribution functions and portable plots. |
-| `.sternbrocot` | function | — | Pure RiX Stern-Brocot node descriptions, visible tree records, and exact formula evaluation. |
+| `.sternbrocot` | function | — | Pure RiX Stern-Brocot and Farey records, bounded trees, exact paths, and classroom grids. |
 | `.svg` | function | — | Portable SVG renderer with outward-safe exact-coordinate lowering. |
 | `.symbolic` | function | — | Meta-plugin joining representation-sensitive FractionFunction work with portable abstract Calculus expressions. |
 | `.terminalascii` | function | — | Deterministic strict-ASCII fallback for tables, grids, fragments, and simple Graphics. |

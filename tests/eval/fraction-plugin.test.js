@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { Fraction, Integer, Rational } from "@ratmath/core";
+import { Fraction, FractionInterval, Integer, Rational, RationalInterval } from "@ratmath/core";
 import { parseAndEvaluate } from "../../src/eval/evaluator.js";
 
 const strings = (value) => value.values.map(String);
@@ -124,5 +124,45 @@ describe("representation-sensitive Fraction plugin", () => {
 
         const scaledParents = parseAndEvaluate('.Plugin.Load("fraction"); .frac(0,4).FareyParents()');
         expect(strings(scaledParents)).toEqual(["-1/2", "1/2"]);
+    });
+
+    test("surfaces representation-sensitive FractionIntervals and mediant partitions", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("fraction");
+            interval := .fraction.Interval(.frac(6,8), .frac(1,2));
+            split := interval.MediantSplit();
+            partition := interval.PartitionWithMediants(2);
+            [interval, interval.Low(), interval.High(), interval.Mediant(), split,
+             partition, partition.Len(), interval.RationalInterval(), interval.Record()];
+        `);
+        expect(result.values[0]).toBeInstanceOf(FractionInterval);
+        expect(strings({ values: result.values.slice(1, 4) })).toEqual(["1/2", "6/8", "7/10"]);
+        expect(result.values[4].values).toHaveLength(2);
+        expect(result.values[4].values.every((value) => value instanceof FractionInterval)).toBe(true);
+        expect(result.values[5].values.map(String)).toEqual([
+            "1/2:8/12", "8/12:7/10", "7/10:13/18", "13/18:6/8",
+        ]);
+        expect(String(result.values[6])).toBe("4");
+        expect(result.values[7]).toBeInstanceOf(RationalInterval);
+        expect(String(result.values[7])).toBe("1/2:3/4");
+        expect(result.values[8].entries.get("schema").value).toBe("rix.fraction-interval@1");
+    });
+
+    test("uses explicit signed infinities only as extended Fraction boundaries", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("fraction");
+            whole := .fraction.Interval(.fraction.Infinity(-7), .fraction.Infinity());
+            split := whole.MediantSplit();
+            [whole.Low(), whole.High(), whole.Mediant(), split[1], split[2]];
+        `);
+        expect(strings(result)).toEqual(["-1/0", "1/0", "0", "-1/0:0", "0:1/0"]);
+        expect(() => parseAndEvaluate('.Plugin.Load("fraction"); .fraction.Infinity(0)'))
+            .toThrow("sign must be nonzero");
+        expect(() => parseAndEvaluate('.Plugin.Load("fraction"); .fraction(0,0)'))
+            .toThrow("0/0");
+        expect(() => parseAndEvaluate(`
+            .Plugin.Load("fraction");
+            .fraction.Interval(.fraction.Infinity(-1), .frac(1,2)).RationalInterval();
+        `)).toThrow("unbounded FractionInterval");
     });
 });

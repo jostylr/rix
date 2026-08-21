@@ -563,11 +563,15 @@ tracked in
    - [x] Add `AddLikeDenominator` and `AddLCMDenominator` classroom policies.
    - [x] Document and tutorialize the Rational-versus-Fraction boundary.
 2. **Phase 2 — Fraction intervals and Farey exploration**
-   - [ ] Surface core `FractionInterval` with mediant subdivision and explicit
-     conversion to canonical RationalInterval.
-   - [ ] Add portable Farey/Stern-Brocot tree, path, and classroom Grid views.
-   - [ ] Decide explicit infinity construction and renderer policies; never
-     admit `0/0`.
+   - [x] Surface core `FractionInterval` with ordered representation-sensitive
+     endpoints, bounded mediant subdivision, and explicit conversion to the
+     canonical RationalInterval.
+   - [x] Add complete bounded Farey sequences with adjacency evidence plus
+     portable Stern-Brocot tree, exact path, and classroom Grid views through
+     the pure-RiX `.sternBrocot` companion.
+   - [x] Provide explicit normalized `.fraction.Infinity(sign)` boundaries,
+     render them as `-1/0` or `1/0`, reject their conversion to RationalInterval,
+     and continue rejecting `0/0` at the trusted construction bridge.
 3. **Phase 3 — Representation-aware algorithms**
    - [ ] Add continued-fraction/Farey interoperability and bounded searches
      that retain component provenance.

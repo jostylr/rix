@@ -52,6 +52,43 @@ tree := .sternBrocot.VisibleTree(.frac(1, 2), 2);
 The second argument is a finite descendant depth. Keeping that bound explicit
 makes the result deterministic and safe to render.
 
+## Follow the exact path as classroom work
+
+`Path` includes the root and every step to the target. Each step retains its
+direction and exact Farey boundaries. `Grid` turns those records into portable
+structured output.
+
+```rix
+.Plugin.Load("stern-brocot");
+path := .sternBrocot.Path(.frac(3, 5));
+{=
+    directions=path["directions"],
+    steps=path["steps"],
+    grid=.sternBrocot.Grid(path["target"])
+};
+```
+
+For `3/5`, the successive nodes are `0`, `1`, `1/2`, `2/3`, and `3/5`.
+
+## Generate a complete Farey sequence
+
+The order is a required positive Integer and is bounded at 10,000. The result
+is exact and complete rather than a sampled display.
+
+```rix
+.Plugin.Load("stern-brocot");
+farey := .sternBrocot.Farey(5);
+{=
+    order=farey["order"],
+    values=farey["values"],
+    neighborEvidence=farey["adjacency"],
+    grid=.sternBrocot.FareyView(5)
+};
+```
+
+Every adjacent determinant is exactly `1`. The direct `.fareySequence(5)` and
+`.fareyGrid(5)` exports provide the same operations outside the namespace.
+
 ## Evaluate a RiX function exactly
 
 `Evaluate` accepts a RiX callable, not source text. The selected Fraction is

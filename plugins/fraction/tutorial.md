@@ -68,3 +68,40 @@ other := `1/2`;
 {: written == canonical, written.Equivalent(canonical),
    written.Mediant(other), canonical.Mediant(other) };
 ```
+
+## Subdivide a fraction interval
+
+Fraction intervals keep the written endpoint pairs. Their mediants therefore
+make each classroom subdivision step inspectable.
+
+```rix
+.Plugin.Load("fraction");
+interval := .fraction.Interval(.frac(1,3), .frac(2,3));
+{=
+    interval=interval,
+    mediant=interval.Mediant(),
+    split=interval.MediantSplit(),
+    depthTwo=interval.PartitionWithMediants(2),
+    canonical=interval.RationalInterval()
+};
+```
+
+The four depth-two intervals retain unreduced mediants such as `4/6` where the
+represented construction step matters.
+
+## Use infinity only as an explicit boundary
+
+The signed Stern–Brocot tree uses `-1/0` and `1/0` as boundary markers. They do
+not silently become ordinary numbers.
+
+```rix
+.Plugin.Load("fraction");
+whole := .fraction.Interval(
+    .fraction.Infinity(-1),
+    .fraction.Infinity(1)
+);
+{= root=whole.Mediant(), halves=whole.MediantSplit() };
+```
+
+Calling `whole.RationalInterval()` is intentionally an error because core
+RationalInterval has only finite Rational endpoints. `0/0` is never admitted.

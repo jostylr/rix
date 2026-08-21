@@ -1946,6 +1946,7 @@ function extensionTypeNames(target) {
     else if (isShaped(target)) names.push("Shaped");
     else if (target?.type === "sequence" || target?.type === "lazy_sequence") names.push("Array");
     else if (target?.type) names.push(target.type);
+    else if (target?.constructor?.name) names.push(target.constructor.name);
     return [...new Set(names)];
 }
 

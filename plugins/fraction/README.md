@@ -1,9 +1,9 @@
 # Fraction plugin
 
 `.fraction`, with aliases `.frac` and `.f`, exposes the unreduced
-`@ratmath/core` `Fraction` type as a complete RiX numeric workspace. A Fraction
-is an integer numerator/denominator pair: `1/2` and `2/4` can be mathematically
-equivalent without being the same Fraction.
+`@ratmath/core` `Fraction` and `FractionInterval` types as a complete RiX exact
+workspace. A Fraction is an integer numerator/denominator pair: `1/2` and `2/4`
+can be mathematically equivalent without being the same Fraction.
 
 The plugin algorithms and receiver/operator registrations are pure RiX. Two
 narrow core bridges construct a `Fraction` and expose its stored pair; the old
@@ -43,5 +43,46 @@ canonical boundary.
 
 `Record()` reports schema `rix.fraction@1`. Loading `.fracfun` or `.symbolic`
 loads this plugin automatically.
+
+## Fraction intervals
+
+`Interval(a,b)` constructs the core representation-sensitive
+`FractionInterval`. Its endpoints are ordered by value without reducing their
+stored numerator/denominator pairs.
+
+```rix
+.Plugin.Load("fraction");
+interval := .fraction.Interval(.frac(6,8), .frac(1,2));
+{:
+    interval.Low(),
+    interval.High(),
+    interval.Mediant(),
+    interval.MediantSplit(),
+    interval.PartitionWithMediants(2),
+    interval.RationalInterval()
+};
+```
+
+`MediantSplit()` returns two `FractionInterval` values.
+`PartitionWithMediants(depth)` repeats the split with an explicit depth bound of
+20. `RationalInterval()` is the deliberate boundary where endpoint
+representations are reduced. `Record()` uses schema
+`rix.fraction-interval@1`.
+
+## Signed infinity boundaries
+
+`Infinity(sign)` constructs a normalized `-1/0` or `1/0`. These values are
+extended boundaries for Stern–Brocot and FractionInterval exploration, not
+ordinary Rational values. They print explicitly, and an interval containing
+one cannot convert to RationalInterval.
+
+```rix
+.Plugin.Load("fraction");
+whole := .fraction.Interval(.fraction.Infinity(-1), .fraction.Infinity());
+{: whole.Mediant(), whole.MediantSplit() };
+```
+
+The exceptional mediant of `[-1/0,1/0]` is the signed-tree root `0/1`. A zero
+sign and the indeterminate pair `0/0` are always rejected.
 
 See [tutorial.md](tutorial.md).

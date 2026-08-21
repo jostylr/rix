@@ -1,14 +1,14 @@
 /**
 id: fraction
-description: Representation-sensitive unreduced integer fractions with mediant and classroom addition policies.
+description: Representation-sensitive fractions, fraction intervals, mediants, and exact classroom policies.
 kind: rix
 mount: fraction
 aliases: [frac, f]
-exports: [Fraction, Parse, FromSternBrocotPath]
+exports: [Fraction, Interval, Infinity, Parse, FromSternBrocotPath]
 groups: [Algebra, Exact, Symbolic]
 permissions: []
-provides: [rix.fraction@1]
-schemas: [rix.fraction@1]
+provides: [rix.fraction@1, rix.fraction-interval@1]
+schemas: [rix.fraction@1, rix.fraction-interval@1]
 snapshot: true
 deterministic: true
 defaultEnabled: false
@@ -280,6 +280,67 @@ FractionString(value) -> {;
     denominator == 0 || denominator == 1 ?: @"@{numerator}" ?_ @"@{numerator}/@{denominator}";
 };
 
+FractionInfinity(sign ?= 1) -> {;
+    direction = FractionInteger(sign, "Fraction infinity sign");
+    direction != 0 ?: _ ?_ .Error("Fraction infinity sign must be nonzero");
+    FractionRaw(direction < 0 ?: -1 ?_ 1, 0);
+};
+
+FractionIntervalRaw(first, second) -> {;
+    low = FractionPromote(first, "FractionInterval endpoint");
+    high = FractionPromote(second, "FractionInterval endpoint");
+    .SArith.FractionInterval(low, high);
+};
+
+FractionIntervalParts(value) -> .SArith.FractionIntervalParts(value);
+FractionIntervalLow(value) -> FractionIntervalParts(value)[1];
+FractionIntervalHigh(value) -> FractionIntervalParts(value)[2];
+
+FractionIntervalMediant(value) -> {;
+    low = FractionIntervalLow(value);
+    high = FractionIntervalHigh(value);
+    numerator = FractionNumerator(low) + FractionNumerator(high);
+    denominator = FractionDenominator(low) + FractionDenominator(high);
+    (denominator == 0 && numerator == 0)
+      ?: FractionRaw(0,1)
+      ?_ FractionRaw(numerator,denominator);
+};
+
+FractionIntervalSplit(value) -> {;
+    middle = FractionIntervalMediant(value);
+    {: FractionIntervalRaw(FractionIntervalLow(value),middle),
+       FractionIntervalRaw(middle,FractionIntervalHigh(value)) };
+};
+
+FractionIntervalPartition(value, depth ?= 1) -> {;
+    count = FractionInteger(depth, "FractionInterval mediant depth");
+    count >= 0 ?: _ ?_ .Error("FractionInterval mediant depth must be nonnegative");
+    count <= 20 ?: _ ?_ .Error("FractionInterval mediant depth must be at most 20");
+    intervals := [value];
+    {@ level = 1; level <= @count; {;
+        @intervals ~= @intervals.Reduce((items,item)->items ++ FractionIntervalSplit(item),[]);
+    }; level += 1 };
+    intervals;
+};
+
+FractionIntervalRational(value) -> {;
+    low = FractionIntervalLow(value);
+    high = FractionIntervalHigh(value);
+    (!FractionIsInfinite(low) && !FractionIsInfinite(high))
+      ?: low.Rational():high.Rational()
+      ?_ .Error("An unbounded FractionInterval cannot become a RationalInterval");
+};
+
+FractionIntervalRecord(value) -> {=
+    schema="rix.fraction-interval@1",
+    low=FractionIntervalLow(value),
+    high=FractionIntervalHigh(value),
+    mediant=FractionIntervalMediant(value),
+    bounded=(!FractionIsInfinite(FractionIntervalLow(value)) && !FractionIsInfinite(FractionIntervalHigh(value))) ?: 1 ?_ _
+};
+
+FractionIntervalString(value) -> @"@{FractionIntervalLow(value)}:@{FractionIntervalHigh(value)}";
+
 .TypeKnown(:Fraction) ?: _ ?_ .TypeRegister({=
     name = :Fraction,
     nativeType = :Fraction,
@@ -304,6 +365,15 @@ FractionString(value) -> {;
 });
 
 .TypeInstall(:Fraction);
+
+.TypeKnown(:FractionInterval) ?: _ ?_ .TypeRegister({=
+    name = :FractionInterval,
+    nativeType = :FractionInterval,
+    defaultTraits = [:interval, :ordered],
+    validate = (value) -> 1,
+    proto = {= }
+});
+.TypeInstall(:FractionInterval);
 
 FractionF = (value) -> FractionPromote(value);
 .Host.RegisterMethod("Integer", "F", FractionF, "fraction", "fraction");
@@ -332,6 +402,14 @@ FractionF = (value) -> FractionPromote(value);
 .Host.RegisterMethod("Fraction", "IsInfinite", (value)->FractionIsInfinite(value) ?: 1 ?_ _, "fraction", "fraction");
 .Host.RegisterMethod("Fraction", "ToString", FractionString, "fraction", "fraction");
 .Host.RegisterMethod("Fraction", "Record", FractionRecord, "fraction", "fraction");
+.Host.RegisterMethod("FractionInterval", "Low", FractionIntervalLow, "fraction", "fraction");
+.Host.RegisterMethod("FractionInterval", "High", FractionIntervalHigh, "fraction", "fraction");
+.Host.RegisterMethod("FractionInterval", "Mediant", FractionIntervalMediant, "fraction", "fraction");
+.Host.RegisterMethod("FractionInterval", "MediantSplit", FractionIntervalSplit, "fraction", "fraction");
+.Host.RegisterMethod("FractionInterval", "PartitionWithMediants", FractionIntervalPartition, "fraction", "fraction");
+.Host.RegisterMethod("FractionInterval", "RationalInterval", FractionIntervalRational, "fraction", "fraction");
+.Host.RegisterMethod("FractionInterval", "Record", FractionIntervalRecord, "fraction", "fraction");
+.Host.RegisterMethod("FractionInterval", "ToString", FractionIntervalString, "fraction", "fraction");
 
 FractionParse(self, body, modifiers, info) -> {;
     value = .SArith.Parse(body, [], {= });
@@ -346,6 +424,8 @@ fractionNamespace = (first, second ?= _) -> second == _ ?: FractionPromote(first
 fractionNamespace._proto = {=
     Parse = FractionParse,
     Fraction = (self, first, second ?= _) -> second == _ ?: FractionPromote(first) ?_ FractionRaw(first,second),
+    Interval = (self, first, second) -> FractionIntervalRaw(first,second),
+    Infinity = (self, sign ?= 1) -> FractionInfinity(sign),
     FromSternBrocotPath = (self, path) -> FractionFromPath(path)
 };
 
