@@ -18,11 +18,12 @@ circle := .geometry.Circumcircle(a, b, c);
 ## Values and exactness
 
 `Point`, `Line`, and `Circle` values use schema `rix.geometry@1`. Constructors
-start with exact integer/rational coordinates and a circle stores
+accept exact rational or algebraic-real coordinates and a circle stores
 `radiusSquared`, avoiding an unnecessary binary floating-point square root.
-`Rotate` may derive certified-real coordinates; these carry
-`coordinateDomain=:certifiedReal` and refinable oracle values rather than
-binary floats. Exact quarter turns retain `coordinateDomain=:rational`.
+Rational-turn rotations derive exact algebraic sine/cosine entries and carry
+`coordinateDomain=:algebraicReal`; quarter turns stay rational. Arbitrary
+radian rotations use `coordinateDomain=:certifiedReal` with refinable oracle
+values rather than binary floats.
 
 `SquaredDistance` returns an exact rational. `Distance` and `Length` always
 return the same certified Numerics square-root value, including Pythagorean
@@ -63,12 +64,21 @@ The resulting Graphic works unchanged with the SVG and Canvas renderer plugins.
 points, lines, segments, rays, and polygons under either transform. Affine
 circle/conic transforms return a general exact Conic.
 
+`CircularAngle(value,unit)` accepts radians, degrees, or turns. Exact rational
+degrees/turns retain a reduced rational-turn value with exact algebraic cosine
+and sine; arbitrary radians retain a certified circular value. `Angle(a,v,b)`
+returns a circular angle. `Incenter` and internal/external `AngleBisector`
+construct exact algebraic results for rational/algebraic triangles.
+
 `Translate(dx,dy)`, `RotateQuarterTurns(center,n)`, and
 `ReflectAcross(line)` construct exact rational affine maps. `Rotate` accepts
 `:radians`, `:degrees`, or `:turns`; for example,
-`Rotate(origin,1/6,:turns)`. Non-quarter rotations use certified sine/cosine
-oracles and remain drawable/refinable. The current intersection kernel
-requires rational-coordinate inputs and reports that boundary explicitly.
+`Rotate(origin,1/6,:turns)`. Rational-turn rotations use exact algebraic
+sine/cosine values within an explicit denominator budget; arbitrary-radian
+rotations remain certified. Exact algebraic intersections use decidable sign
+predicates. General certified intersections return an evidence-bearing
+`undecided` result if refinement cannot decide a zero determinant or
+discriminant; they never infer topology from a display candidate.
 
 `Conic([A,B,C,D,E,F])` represents
 `A*x^2+B*x*y+C*y^2+D*x+E*y+F=0`. `Ellipse`, `Parabola`, and `Hyperbola` are
@@ -76,6 +86,21 @@ exact conveniences. `Constraint` currently evaluates `:onLine`,
 `:equidistant`, `:parallel`, and `:perpendicular` residuals; `Constraints`
 collects them without pretending that checking a supplied construction is a
 general constraint solver.
+
+## Uncertainty and dragging
+
+`UncertainPoint` uses a separate `rix.geometry.uncertain-point@1` schema with
+named affine generators. Reusing a generator id preserves correlation instead
+of treating coordinate intervals as independent. `UncertainBounds` provides a
+conservative box and `TransformUncertain` preserves generators through
+rational affine transforms. Set-valued intersection currently decides
+coincident/disjoint uncertain points and otherwise returns `undecided`.
+
+`ConstructionGraph` evaluates named free and derived nodes in dependency
+order. `Drag` commits a new value only to a free node, optionally snaps to an
+exact rational grid, rebuilds descendants, and records deterministic history.
+It is the exact controller foundation, not a general nonlinear constraint
+solver or pointer UI.
 
 ## Bounded refinement
 

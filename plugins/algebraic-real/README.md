@@ -104,4 +104,31 @@ Rational comparisons retain their faster direct polynomial test. Operations
 with a different certified-real family still produce an Oracle because exact
 resultant construction applies only to algebraic/Rational operands.
 
+## Exact roots and rational-turn trigonometry
+
+`Sqrt(value)` constructs the nonnegative exact algebraic square root of a
+nonnegative rational or algebraic real. It forms an integer polynomial for the
+new value, takes its square-free part, and isolates the intended root with exact
+Sturm evidence.
+
+`CosTurns(p/q)` and `SinTurns(p/q)` return exact algebraic values for rational
+turns. Chebyshev/cyclotomic relations provide the integer polynomial; exact
+quadrant information selects the intended conjugate. Equivalent angles are
+reduced modulo one turn. A denominator budget of 64 bounds polynomial degree
+and resultant work; values beyond that budget fail explicitly rather than
+silently becoming floating-point approximations.
+
+```rix
+.Plugin.Load("algebraic-real");
+root := .ar.Sqrt(2+.ar.Sqrt2());
+c := .ar.CosTurns(1/8);
+s := .ar.SinTurns(1/8);
+{: root.Sign(), c.Compare(s), (c*c+s*s).CompareRational(1) };
+```
+
+The circular angle and its radian magnitude must not be conflated. Rational
+turns have algebraic sine and cosine, but a nonzero rational multiple of `pi`
+is itself transcendental. Geometry therefore stores the rational turn as the
+exact angle identity and uses these algebraic functions for matrix entries.
+
 See [tutorial.md](tutorial.md).

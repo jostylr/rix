@@ -3,12 +3,12 @@ id: geometry
 description: Pure-RiX exact geometry, transformations, conics, constraints, and bounded portable Graphics refinement.
 kind: rix
 mount: geometry
-exports: [Point, Line, Segment, Ray, Polygon, Circle, Conic, Ellipse, Parabola, Hyperbola, Locus, Implicit, Affine, Projective, Transform, Constraint, Constraints, SquaredDistance, Distance, Length, Area, Centroid, Orthocenter, Perpendicular, ParallelThrough, Midpoint, PerpendicularBisector, Circumcircle, Translate, RotateQuarterTurns, Rotate, ReflectAcross, Intersect, Points, Status, Refine, Draw]
+exports: [Point, Line, Segment, Ray, Polygon, Circle, Conic, Ellipse, Parabola, Hyperbola, Locus, Implicit, Affine, Projective, Transform, Constraint, Constraints, SquaredDistance, Distance, Length, Area, CircularAngle, Angle, Centroid, Incenter, Orthocenter, AngleBisector, Perpendicular, ParallelThrough, Midpoint, PerpendicularBisector, Circumcircle, Translate, RotateQuarterTurns, Rotate, ReflectAcross, Intersect, Points, Status, UncertainPoint, UncertainBounds, TransformUncertain, ConstructionGraph, Drag, Refine, Draw]
 groups: [Geometry, Graphics, Exact]
 permissions: []
-requires: [rix.numerics@1, rix.polynomial.algorithms@1]
-provides: [rix.geometry@1, rix.geometry.intersection@1, rix.geometry.constraint@1, rix.geometry.refinement@1]
-schemas: [rix.geometry@1, rix.geometry.intersection@1, rix.geometry.constraint@1, rix.geometry.refinement@1]
+requires: [rix.numerics@1, rix.polynomial.algorithms@1, rix.algebraic-real@1]
+provides: [rix.geometry@1, rix.geometry.intersection@1, rix.geometry.constraint@1, rix.geometry.refinement@1, rix.geometry.circular-angle@1, rix.geometry.uncertain-point@1, rix.geometry.construction-graph@1]
+schemas: [rix.geometry@1, rix.geometry.intersection@1, rix.geometry.constraint@1, rix.geometry.refinement@1, rix.geometry.circular-angle@1, rix.geometry.uncertain-point@1, rix.geometry.construction-graph@1]
 snapshot: true
 deterministic: true
 defaultEnabled: false
@@ -21,7 +21,56 @@ GeometryExact(value, label) -> {;
     exact == _ ?: .Error(@"@{label} must be an exact integer or rational") ?_ exact;
 };
 
-GeometryIsZero(value) -> (value ~!: :Rational).Numerator()==0;
+GeometryIsAlgebraic(value) -> value ? :AlgebraicReal;
+
+GeometryExactScalar(value,label) -> {;
+    rational=value ~: :Rational;
+    rational!=_ ?: rational ?_ GeometryIsAlgebraic(value) ?: value ?_ .Error(@"@{label} must be an exact Rational or AlgebraicReal");
+};
+
+GeometryScalarDomain(value) -> (value ~: :Rational)!=_ ?: :rational ?_ GeometryIsAlgebraic(value) ?: :algebraicReal ?_ :certifiedReal;
+
+GeometryCoordinateDomain(values) -> values.Any((value)->GeometryScalarDomain(value)==:certifiedReal)
+  ?: :certifiedReal
+  ?_ values.Any((value)->GeometryScalarDomain(value)==:algebraicReal) ?: :algebraicReal ?_ :rational;
+
+GeometryAllRational(values) -> values.All((value)->(value ~: :Rational)!=_);
+
+GeometrySignSymbol(value) -> {;
+    rational=value ~: :Rational;
+    rational!=_
+      ?: (rational<0 ?: :negative ?_ (rational>0 ?: :positive ?_ :zero))
+      ?_ (GeometryIsAlgebraic(value)
+           ?: .ar.Sign(value)
+           ?_ {;
+               result=.numerics.Sign(value);
+               (result[:sign]==:negative||result[:sign]==:positive||result[:sign]==:zero) ?: result[:sign] ?_ :undecided;
+           });
+};
+
+GeometryCertifiedSign(value,request ?= {= }) -> {;
+    refined=.numerics.Refine(value,{=
+        absoluteWidth=GeometryOption(request,"absolutewidth",1/1000000000000),
+        maxWork=GeometryOption(request,"maxwork",128)
+    });
+    interval=refined[:interval];
+    sign=interval.Low()>0 ?: :positive
+      ?_ (interval.High()<0 ?: :negative
+           ?_ ((interval.Low()==0&&interval.High()==0) ?: :zero ?_ :unknown));
+    {= sign=sign,status=refined[:status],interval=interval,work=refined[:work],evidenceLevel=refined[:evidenceLevel] };
+};
+
+GeometryIsZero(value) -> {;
+    rational=value ~: :Rational;
+    rational!=_
+      ?: rational.Numerator()==0
+      ?_ {;
+          sign=GeometrySignSymbol(@value);
+          (sign==:zero||sign==:positive||sign==:negative)
+            ?: sign==:zero
+            ?_ .Error("geometry predicate is undecided for the certified-real value");
+      };
+};
 
 GeometryIntegerSqrtFloor(value) -> {;
     n=value ~!: :Integer;
@@ -70,7 +119,7 @@ GeometryPointValue(x, y, operation, inputs, metadata ?= _, style ?= _) -> Geomet
     coordinates=[x, y],
     metadata=metadata,
     style=style,
-    coordinateDomain=((x ~: :Rational)!=_ && (y ~: :Rational)!=_) ?: :rational ?_ :certifiedReal,
+    coordinateDomain=GeometryCoordinateDomain([x,y]),
     provenance=[GeometryProvenance(operation, inputs)]
 });
 
@@ -82,8 +131,8 @@ GeometryPoint(first, second ?= _, options ?= {= }) -> {;
            ?: [GeometryOption(settings, "x"), GeometryOption(settings, "y")]
            ?_ [first, second];
     coordinates.Len() == 2 ?: _ ?_ .Error("geometry.Point coordinates must contain x and y");
-    x = GeometryExact(coordinates[1], "geometry.Point x");
-    y = GeometryExact(coordinates[2], "geometry.Point y");
+    x = GeometryExactScalar(coordinates[1], "geometry.Point x");
+    y = GeometryExactScalar(coordinates[2], "geometry.Point y");
     GeometryPointValue(x, y, "Point", [x, y], GeometryOption(settings, "metadata"), GeometryOption(settings, "style"));
 };
 
@@ -96,6 +145,7 @@ GeometryLineValue(a, b, c, through, operation, inputs, metadata ?= _, style ?= _
           a=a,
           b=b,
           c=c,
+          coordinateDomain=GeometryCoordinateDomain([a,b,c]),
           through=through,
           metadata=metadata,
           style=style,
@@ -215,6 +265,7 @@ GeometryCircleValue(center, radiusSquared, through, operation, inputs, metadata 
     GeometryValue(:circle, {=
         center=center,
         radiusSquared=radiusSquared,
+        coordinateDomain=GeometryCoordinateDomain([center[:x],center[:y],radiusSquared]),
         through=through,
         metadata=metadata,
         style=style,
@@ -236,8 +287,8 @@ GeometryCircle(first, second ?= _, options ?= {= }) -> {;
     radiusSquared = through != _
       ?: GeometrySquaredDistance(center, through)
       ?_ explicitSquared != _
-           ?: GeometryExact(explicitSquared, "geometry.Circle radiusSquared")
-           ?_ GeometryExact(explicitRadius != _ ?: explicitRadius ?_ candidate, "geometry.Circle radius")^2;
+           ?: GeometryExactScalar(explicitSquared, "geometry.Circle radiusSquared")
+           ?_ GeometryExactScalar(explicitRadius != _ ?: explicitRadius ?_ candidate, "geometry.Circle radius")^2;
     GeometryCircleValue(center, radiusSquared, through, "Circle",
         through != _ ?: [center, through] ?_ [center, radiusSquared],
         GeometryOption(settings, "metadata"), GeometryOption(settings, "style"));
@@ -250,11 +301,12 @@ GeometryConic(coefficients, options ?= {= }) -> {;
     values = settings[:coefficients];
     values ? :Array ?: _ ?_ .Error("geometry.Conic coefficients must be an Array");
     values.Len() == 6 ?: _ ?_ .Error("geometry.Conic requires [A,B,C,D,E,F]");
-    exact = values.Map((value) -> GeometryExact(value,"geometry.Conic coefficient"));
+    exact = values.Map((value) -> GeometryExactScalar(value,"geometry.Conic coefficient"));
     (GeometryIsZero(exact[1]) && GeometryIsZero(exact[2]) && GeometryIsZero(exact[3]))
       ?: .Error("geometry.Conic requires a nonzero quadratic coefficient") ?_ _;
     GeometryValue(:conic, {=
         coefficients=exact,
+        coordinateDomain=GeometryCoordinateDomain(exact),
         conicKind=GeometryOption(settings,"kind",:general),
         domain=GeometryOption(settings,"domain"),
         metadata=GeometryOption(settings,"metadata"), style=GeometryOption(settings,"style"),
@@ -310,7 +362,7 @@ GeometryMatrix(value, rows, columns, label) -> {;
     value.Map((row) -> {;
         row ? :Array ?: _ ?_ .Error(@"@{label} rows must be Arrays");
         row.Len()==columns ?: _ ?_ .Error(@"@{label} rows must contain @{columns} values");
-        row.Map((entry)->GeometryExact(entry,label));
+        row.Map((entry)->GeometryExactScalar(entry,label));
     });
 };
 
@@ -333,6 +385,7 @@ GeometryTransformValue(kind,matrix,operation) -> GeometryValue(:transform,{=
     transformKind=kind,
     matrix=matrix,
     inverse=GeometryInverse3(matrix,@"geometry.@{operation} matrix"),
+    coordinateDomain=GeometryCoordinateDomain(matrix.Flatten()),
     provenance=[GeometryProvenance(operation,[matrix])]
 });
 
@@ -361,8 +414,8 @@ GeometryTransformPoint(point,transform,operation ?= "Transform") -> {;
 GeometryLinePoints(line) -> line[:through].Len()>=2
   ?: line[:through].Slice(1,3)
   ?_ !GeometryIsZero(line[:b])
-       ?: [GeometryPoint(0,-line[:c]/line[:b]),GeometryPoint(1,-(line[:a]+line[:c])/line[:b])]
-       ?_ [GeometryPoint(-line[:c]/line[:a],0),GeometryPoint(-(line[:b]+line[:c])/line[:a],1)];
+       ?: [GeometryPointValue(0,-line[:c]/line[:b],"LineParameter",[line]),GeometryPointValue(1,-(line[:a]+line[:c])/line[:b],"LineParameter",[line])]
+       ?_ [GeometryPointValue(-line[:c]/line[:a],0,"LineParameter",[line]),GeometryPointValue(-(line[:b]+line[:c])/line[:a],1,"LineParameter",[line])];
 
 GeometryTransformConicAffine(conic,transform) -> {;
     inverse=transform[:inverse];
@@ -476,11 +529,203 @@ GeometryConstraints(values) -> {;
     };
 };
 
+GeometryRequireUncertainPoint(value,label) -> ((value ? :Map)&&value.Has("schema")&&value[:schema]=="rix.geometry.uncertain-point@1")
+  ?: value
+  ?_ .Error(@"@{label} requires an uncertain point");
+
+GeometryUncertainPoint(first,generators ?= [],options ?= {= }) -> {;
+    settings=((first ? :Map)&&first.Has("center")) ?: first ?_ options.Merge({= center=first,generators=generators });
+    center=GeometryRequire(settings[:center],:point,"geometry.UncertainPoint center");
+    GeometryCoordinateDomain([center[:x],center[:y]])==:rational ?: _ ?_ .Error("geometry.UncertainPoint currently requires a rational center");
+    source=GeometryOption(settings,"generators",[]);
+    source ? :Array ?: _ ?_ .Error("geometry.UncertainPoint generators must be an Array");
+    normalized=source.Map((generator,index)->{;
+        generator ? :Map ?: _ ?_ .Error("geometry.UncertainPoint generators must be maps");
+        interval=GeometryOption(generator,"interval",(-1):1) ~!: :RationalInterval;
+        {=
+            id=GeometryOption(generator,"id",@"u@{index}"),
+            dx=GeometryExact(GeometryOption(generator,"dx",0),"geometry.UncertainPoint generator dx"),
+            dy=GeometryExact(GeometryOption(generator,"dy",0),"geometry.UncertainPoint generator dy"),
+            interval=interval
+        };
+    });
+    normalized.Map((entry)->entry[:id]).Distinct().Len()==normalized.Len()
+      ?: _ ?_ .Error("geometry.UncertainPoint generator ids must be unique");
+    .DeepMutable({=
+        type="geometry_uncertain_point",kind=:uncertainPoint,schema="rix.geometry.uncertain-point@1",
+        center=center,generators=normalized,dependencyIds=normalized.Map((entry)->entry[:id]),
+        provenance=[GeometryProvenance("UncertainPoint",[center,normalized])]
+    },_);
+};
+
+GeometryUncertainBounds(value) -> {;
+    point=GeometryRequireUncertainPoint(value,"geometry.UncertainBounds");
+    x:=point[:center][:x]:point[:center][:x]; y:=point[:center][:y]:point[:center][:y];
+    {@ index=1; index<=@point[:generators].Len(); {;
+        generator=@point[:generators][index];
+        @x ~= @x+generator[:interval]*generator[:dx];
+        @y ~= @y+generator[:interval]*generator[:dy];
+    }; index+=1 };
+    {= x=x,y=y,box=[x.Low(),y.Low(),x.High(),y.High()],dependencyIds=point[:dependencyIds] };
+};
+
+GeometryTransformUncertain(value,transform) -> {;
+    point=GeometryRequireUncertainPoint(value,"geometry.TransformUncertain point");
+    map=GeometryRequire(transform,:transform,"geometry.TransformUncertain transform");
+    map[:transformKind]==:affine ?: _ ?_ .Error("geometry.TransformUncertain requires an affine transform");
+    GeometryAllRational(map[:matrix].Flatten()) ?: _ ?_ .Error("geometry.TransformUncertain currently requires a rational affine transform");
+    matrix=map[:matrix]; center=GeometryTransform(point[:center],map);
+    generators=point[:generators].Map((generator)->{=
+        id=generator[:id],interval=generator[:interval],
+        dx=@matrix[1][1]*generator[:dx]+@matrix[1][2]*generator[:dy],
+        dy=@matrix[2][1]*generator[:dx]+@matrix[2][2]*generator[:dy]
+    });
+    GeometryUncertainPoint({= center=center,generators=generators });
+};
+
+GeometryIntersectUncertainPoints(left,right) -> {;
+    first=GeometryRequireUncertainPoint(left,"geometry.Intersect left value");
+    second=GeometryRequireUncertainPoint(right,"geometry.Intersect right value");
+    same=GeometrySamePoint(first[:center],second[:center])&&first[:generators]==second[:generators];
+    firstBounds=GeometryUncertainBounds(first); secondBounds=GeometryUncertainBounds(second);
+    disjoint=firstBounds[:x].High()<secondBounds[:x].Low()||secondBounds[:x].High()<firstBounds[:x].Low()
+      ||firstBounds[:y].High()<secondBounds[:y].Low()||secondBounds[:y].High()<firstBounds[:y].Low();
+    same
+      ?: GeometryIntersectionValue("coincident",[],first,second,"The uncertain points denote the same dependency-aware affine set",{= firstBounds=firstBounds,secondBounds=secondBounds },0)
+      ?_ disjoint
+           ?: GeometryIntersectionValue("none",[],first,second,"The uncertain point bounds are disjoint",{= firstBounds=firstBounds,secondBounds=secondBounds },0)
+           ?_ GeometryUndecidedIntersection(first,second,"The uncertain point sets may overlap; subdivision or constraint solving is required",{= firstBounds=firstBounds,secondBounds=secondBounds });
+};
+
+GeometryBuildConstructionGraph(nodes,history ?= []) -> {;
+    nodes ? :Array ?: _ ?_ .Error("geometry.ConstructionGraph nodes must be an Array");
+    values:={= }; resolved:=[]; ids:=[];
+    {@ index=1; index<=@nodes.Len(); {;
+        node=@nodes[index]; node ? :Map ?: _ ?_ .Error("geometry.ConstructionGraph nodes must be maps");
+        id=node[:id]; id!=_ ?: _ ?_ .Error("geometry.ConstructionGraph nodes require id");
+        @ids.Includes(id) ?: .Error(@"geometry.ConstructionGraph duplicate node id @{id}") ?_ _;
+        dependencies=GeometryOption(node,"dependson",[]);
+        dependencies.All((dependency)->@ids.Includes(dependency)) ?: _ ?_ .Error(@"geometry.ConstructionGraph node @{id} has a missing or forward dependency");
+        free=GeometryOption(node,"free",_);
+        value=free ?: GeometryRequire(node[:value],_,@"geometry.ConstructionGraph free node @{id}") ?_ {; Build=@node[:construct]; Build(@values); };
+        updated=node.Merge({= value=value,dependsOn=dependencies,free=free });
+        @values ~= @values.Set(id,value); @resolved ~= @resolved.Push(updated); @ids ~= @ids.Push(id);
+    }; index+=1 };
+    .DeepMutable({=
+        type="geometry_construction_graph",kind=:constructionGraph,schema="rix.geometry.construction-graph@1",
+        nodes=resolved,values=values,history=history,deterministic=1
+    },_);
+};
+
+GeometryConstructionGraph(nodes,options ?= {= }) -> GeometryBuildConstructionGraph(nodes,GeometryOption(options,"history",[]));
+
+GeometryDrag(graph,id,target,options ?= {= }) -> {;
+    valid=(graph ? :Map)&&graph.Has("schema")&&graph[:schema]=="rix.geometry.construction-graph@1";
+    valid ?: _ ?_ .Error("geometry.Drag requires a construction graph");
+    supplied=GeometryRequire(target,:point,"geometry.Drag target");
+    snap=GeometryOption(options,"snap");
+    moved=snap==_
+      ?: supplied
+      ?_ {;
+          grid=GeometryExact(@snap,"geometry.Drag snap"); grid>0 ?: _ ?_ .Error("geometry.Drag snap must be positive");
+          GeometryPoint((@supplied[:x]/grid).Round()*grid,(@supplied[:y]/grid).Round()*grid);
+      };
+    found=graph[:nodes].Filter((node)->node[:id]==id);
+    found.Len()==1 ?: _ ?_ .Error(@"geometry.Drag node @{id} does not exist");
+    found[1][:free] ?: _ ?_ .Error(@"geometry.Drag node @{id} is derived and cannot be dragged directly");
+    nodes=graph[:nodes].Map((node)->node[:id]==id ?: node.Merge({= value=@moved }) ?_ node);
+    event={= operation=:drag,id=id,from=found[1][:value],to=moved,snap=snap };
+    GeometryBuildConstructionGraph(nodes,graph[:history].Push(event));
+};
+
+GeometryCircularAngleValue(turns,cosine,sine,radians,domain,operation,inputs,orientation ?= :counterclockwise) -> .DeepMutable({=
+    type="geometry_circular_angle",
+    kind=:angle,
+    schema="rix.geometry.circular-angle@1",
+    turns=turns,
+    cosine=cosine,
+    sine=sine,
+    radians=radians,
+    coordinateDomain=domain,
+    orientation=orientation,
+    provenance=[GeometryProvenance(operation,inputs)]
+},_);
+
+GeometryCircularAngle(angle,unit ?= :turns) -> {;
+    ((angle ? :Map)&&angle.Has("schema")&&angle[:schema]=="rix.geometry.circular-angle@1")
+      ?: angle
+      ?_ {;
+          name=@unit;
+          (name==:radians||name==:radian||name==:rad||name==:degrees||name==:degree||name==:deg||name==:turns||name==:turn)
+            ?: _ ?_ .Error("geometry.CircularAngle unit must be :radians, :degrees, or :turns");
+          turns=(name==:degrees||name==:degree||name==:deg)
+            ?: GeometryExact(@angle,"geometry.CircularAngle degrees")/360
+            ?_ (name==:turns||name==:turn)
+                 ?: GeometryExact(@angle,"geometry.CircularAngle turns")
+                 ?_ (@angle/(2*.Exact[:pi])) ~: :Rational;
+          turns!=_
+            ?: {;
+                normalized=.Mod(@turns.Numerator(),@turns.Denominator())/@turns.Denominator();
+                cosine=.ar.CosTurns(normalized); sine=.ar.SinTurns(normalized);
+                GeometryCircularAngleValue(normalized,cosine,sine,normalized*2*.Exact[:pi],:algebraicReal,"CircularAngle",[@angle,@unit]);
+            }
+            ?_ {;
+                radians=@angle;
+                cosine=.numerics.Cos(radians); sine=.numerics.Sin(radians);
+                GeometryCircularAngleValue(radians/(2*.numerics.Pi()),cosine,sine,radians,:certifiedReal,"CircularAngle",[@angle,@unit]);
+            };
+      };
+};
+
+GeometryAngle(first,vertex,third,options ?= {= }) -> {;
+    a=GeometryRequire(first,:point,"geometry.Angle first point");
+    v=GeometryRequire(vertex,:point,"geometry.Angle vertex");
+    b=GeometryRequire(third,:point,"geometry.Angle third point");
+    GeometrySamePoint(a,v)||GeometrySamePoint(b,v) ?: .Error("geometry.Angle requires two nonzero rays") ?_ _;
+    ax=a[:x]-v[:x]; ay=a[:y]-v[:y]; bx=b[:x]-v[:x]; by=b[:y]-v[:y];
+    dot=ax*bx+ay*by; cross=ax*by-ay*bx;
+    norm=.ar.Sqrt((ax^2+ay^2)*(bx^2+by^2));
+    cosine=dot/norm; directed=GeometryOption(options,"directed",_);
+    sine=directed ?: cross/norm ?_ cross.Abs()/norm;
+    radians=directed ?: .numerics.Atan2(sine,cosine) ?_ .numerics.Acos(cosine);
+    GeometryCircularAngleValue(radians/(2*.numerics.Pi()),cosine,sine,radians,
+        GeometryCoordinateDomain([cosine,sine]),"Angle",[a,v,b],directed ?: :directed ?_ :unoriented);
+};
+
 GeometryCentroid(first, second ?= _, third ?= _) -> {;
     a=GeometryRequire(first,:point,"geometry.Centroid first point");
     b=GeometryRequire(second,:point,"geometry.Centroid second point");
     c=GeometryRequire(third,:point,"geometry.Centroid third point");
     GeometryPointValue((a[:x]+b[:x]+c[:x])/3,(a[:y]+b[:y]+c[:y])/3,"Centroid",[a,b,c]);
+};
+
+GeometryIncenter(first,second ?= _,third ?= _) -> {;
+    a=GeometryRequire(first,:point,"geometry.Incenter first point");
+    b=GeometryRequire(second,:point,"geometry.Incenter second point");
+    c=GeometryRequire(third,:point,"geometry.Incenter third point");
+    GeometryIsZero(GeometryOrientation(a,b,c)) ?: .Error("geometry.Incenter requires three non-collinear points") ?_ _;
+    oppositeA=.ar.Sqrt(GeometrySquaredDistance(b,c));
+    oppositeB=.ar.Sqrt(GeometrySquaredDistance(c,a));
+    oppositeC=.ar.Sqrt(GeometrySquaredDistance(a,b));
+    total=oppositeA+oppositeB+oppositeC;
+    GeometryPointValue((oppositeA*a[:x]+oppositeB*b[:x]+oppositeC*c[:x])/total,
+        (oppositeA*a[:y]+oppositeB*b[:y]+oppositeC*c[:y])/total,
+        "Incenter",[a,b,c],{= sideLengths=[oppositeA,oppositeB,oppositeC] });
+};
+
+GeometryAngleBisector(first,vertex,third,kind ?= :internal) -> {;
+    a=GeometryRequire(first,:point,"geometry.AngleBisector first point");
+    v=GeometryRequire(vertex,:point,"geometry.AngleBisector vertex");
+    b=GeometryRequire(third,:point,"geometry.AngleBisector third point");
+    GeometrySamePoint(a,v)||GeometrySamePoint(b,v) ?: .Error("geometry.AngleBisector requires two nonzero rays") ?_ _;
+    (kind==:internal||kind==:external) ?: _ ?_ .Error("geometry.AngleBisector kind must be :internal or :external");
+    firstLength=.ar.Sqrt(GeometrySquaredDistance(a,v)); secondLength=.ar.Sqrt(GeometrySquaredDistance(b,v));
+    directionSign=kind==:internal ?: 1 ?_ -1;
+    dx=(a[:x]-v[:x])/firstLength+directionSign*(b[:x]-v[:x])/secondLength;
+    dy=(a[:y]-v[:y])/firstLength+directionSign*(b[:y]-v[:y])/secondLength;
+    GeometryIsZero(dx)&&GeometryIsZero(dy) ?: .Error(@"geometry.AngleBisector @{kind} direction is degenerate for opposite rays") ?_ _;
+    through=GeometryPointValue(v[:x]+dx,v[:y]+dy,"AngleBisectorDirection",[a,v,b,kind]);
+    GeometryLineValue(-dy,dx,dy*v[:x]-dx*v[:y],[v,through],"AngleBisector",[a,v,b,kind]);
 };
 
 GeometryPerpendicular(line,point) -> {;
@@ -531,8 +776,8 @@ GeometryRotateQuarterTurns(center,quarterTurns) -> {;
       ?_ GeometryAffine([[0,1,x-y],[-1,0,x+y]]);
 };
 
-GeometryRotationTransform(center,radians,angle,unit) -> {;
-    cosine=.numerics.Cos(radians); sine=.numerics.Sin(radians); x=center[:x]; y=center[:y];
+GeometryRotationTransform(center,circular,angle,unit) -> {;
+    cosine=circular[:cosine]; sine=circular[:sine]; radians=circular[:radians]; x=center[:x]; y=center[:y];
     matrix=[
       [cosine,-sine,x-cosine*x+sine*y],
       [sine,cosine,y-sine*x-cosine*y],
@@ -544,18 +789,19 @@ GeometryRotationTransform(center,radians,angle,unit) -> {;
       [0,0,1]
     ];
     GeometryValue(:transform,{=
-        transformKind=:rotation,matrix=matrix,inverse=inverse,coordinateDomain=:certifiedReal,
-        center=center,angle=angle,angleUnit=unit,radians=radians,
+        transformKind=:rotation,matrix=matrix,inverse=inverse,coordinateDomain=circular[:coordinateDomain],
+        center=center,angle=angle,angleUnit=unit,radians=radians,circularAngle=circular,
         provenance=[GeometryProvenance("Rotate",[center,angle,unit])]
     });
 };
 
 GeometryRotate(center,angle,unit ?= :radians) -> {;
     point=GeometryRequire(center,:point,"geometry.Rotate center");
+    suppliedCircular=(angle ? :Map)&&angle.Has("schema")&&angle[:schema]=="rix.geometry.circular-angle@1";
     name=unit;
     (name==:radians||name==:radian||name==:rad||name==:degrees||name==:degree||name==:deg||name==:turns||name==:turn)
       ?: _ ?_ .Error("geometry.Rotate unit must be :radians, :degrees, or :turns");
-    turns=(name==:degrees||name==:degree||name==:deg)
+    turns=suppliedCircular ?: angle[:turns] ~: :Rational ?_ (name==:degrees||name==:degree||name==:deg)
       ?: GeometryExact(angle,"geometry.Rotate degrees")/360
       ?_ (name==:turns||name==:turn)
            ?: GeometryExact(angle,"geometry.Rotate turns")
@@ -566,12 +812,8 @@ GeometryRotate(center,angle,unit ?= :radians) -> {;
     exactQuarter
       ?: GeometryRotateQuarterTurns(point,quarter)
       ?_ {;
-          radians=(@name==:degrees||@name==:degree||@name==:deg)
-            ?: .numerics.Radians(@angle)
-            ?_ (@name==:turns||@name==:turn)
-                 ?: @angle*2*.numerics.Pi()
-                 ?_ @angle;
-          GeometryRotationTransform(@point,radians,@angle,@name);
+          circular=@suppliedCircular ?: @angle ?_ GeometryCircularAngle(@angle,@name);
+          GeometryRotationTransform(@point,circular,@angle,@name);
       };
 };
 
@@ -633,17 +875,19 @@ GeometryConicFromCircle(circle) -> GeometryConic([
 ],{= kind=:circle });
 
 GeometryQuadraticSqrt(value) -> {;
-    exact=GeometryExactSqrt(value);
+    rational=value ~: :Rational;
+    exact=rational!=_ ?: GeometryExactSqrt(rational) ?_ _;
     exact!=_
       ?: {= value=exact,exact=1,enclosure=exact:exact,status=:enclosed,evidenceLevel=:proof,work={= calls=0 } }
       ?_ {;
-          result=.numerics.Refine(.numerics.Sqrt(@value),{= absoluteWidth=1/1000000000000,maxWork=96 });
+          root=.ar.Sqrt(@value);
+          result=.numerics.Refine(root,{= absoluteWidth=1/1000000000000,maxWork=96 });
           {=
-              value=result[:approximation].Candidate(),
-              exact=_,
+              value=root,
+              exact=1,
               enclosure=result[:interval],
               status=result[:status],
-              evidenceLevel=result[:evidenceLevel],
+              evidenceLevel=:proof,
               work=result[:work]
           };
       };
@@ -661,20 +905,20 @@ GeometryIntersectLineConic(line,conic,left,right) -> {;
     qa=a*dx^2+b*dx*dy+c*dy^2;
     qb=2*a*x*dx+b*(x*dy+y*dx)+2*c*y*dy+d*dx+e*dy;
     qc=a*x^2+b*x*y+c*y^2+d*x+e*y+f;
-    equation=.poly([qa,qb,qc]);
+    equation=GeometryAllRational([qa,qb,qc]) ?: .poly([qa,qb,qc]) ?_ _;
     GeometryIsZero(qa)
       ?: (GeometryIsZero(qb)
            ?: GeometryIntersectionValue("coincident",[],left,right,"The line is contained in the degenerate conic")
            ?_ {;
                parameter=-@qc/@qb;
                point=GeometryPointValue(@x+parameter*@dx,@y+parameter*@dy,"LineConicIntersection",[@left,@right]);
-               rootCount=GeometryPolynomialRootEvidence(@equation);
+               rootCount=@equation!=_ ?: GeometryPolynomialRootEvidence(@equation) ?_ _;
                GeometryIntersectionValue("one",[point],@left,@right,_,{= polynomial=@equation,rootCount=rootCount },1);
            })
       ?_ {;
           discriminant=@qb^2-4*@qa*@qc;
           discriminantSign=.numerics.Sign(discriminant);
-          rootCount=GeometryPolynomialRootEvidence(@equation);
+          rootCount=@equation!=_ ?: GeometryPolynomialRootEvidence(@equation) ?_ _;
           discriminantSign[:sign]==:negative
             ?: GeometryIntersectionValue("none",[],@left,@right,"The line does not meet the conic",{= polynomial=@equation,discriminant=discriminant,discriminantSign=discriminantSign,rootCount=rootCount },1)
             ?_ (discriminantSign[:sign]==:zero
@@ -688,7 +932,7 @@ GeometryIntersectLineConic(line,conic,left,right) -> {;
                      first=(-@qb-root[:value])/(2*@qa); second=(-@qb+root[:value])/(2*@qa);
                      firstPoint=GeometryPointValue(@x+first*@dx,@y+first*@dy,"LineConicIntersection",[@left,@right],{= enclosure=root[:enclosure] });
                      secondPoint=GeometryPointValue(@x+second*@dx,@y+second*@dy,"LineConicIntersection",[@left,@right],{= enclosure=root[:enclosure] });
-                     GeometryIntersectionValue("two",[firstPoint,secondPoint],@left,@right,_,root.Merge({= polynomial=@equation,discriminant=@discriminant,discriminantSign=@discriminantSign,rootCount=@rootCount }),root[:exact]);
+                     GeometryIntersectionValue("two",[firstPoint,secondPoint],@left,@right,_,root.Merge({= polynomial=@equation,discriminant=@discriminant,discriminantSign=@discriminantSign,rootCount=@rootCount }),1);
                  });
       };
 };
@@ -705,25 +949,152 @@ GeometryIntersectCircles(left,right) -> {;
           radical=GeometryLineValue(a,b,c,[@first,@second],"RadicalAxis",[@left,@right]);
           result=GeometryIntersectLineConic(radical,GeometryConicFromCircle(@left),@left,@right);
           result;
-      };
+    };
+};
+
+GeometryUndecidedIntersection(left,right,reason,evidence ?= {= }) ->
+    GeometryIntersectionValue("undecided",[],left,right,reason,evidence,0);
+
+GeometryCertifiedLineValue(a,b,c,through,operation,inputs) -> GeometryValue(:line,{=
+    a=a,b=b,c=c,through=through,coordinateDomain=:certifiedReal,
+    provenance=[GeometryProvenance(operation,inputs)]
+});
+
+GeometryIntersectCertifiedLines(left,right) -> {;
+    determinant=left[:a]*right[:b]-right[:a]*left[:b];
+    determinantSign=GeometryCertifiedSign(determinant);
+    result:=_;
+    (determinantSign[:sign]==:positive||determinantSign[:sign]==:negative)
+      ?: {;
+          x=(@left[:b]*@right[:c]-@right[:b]*@left[:c])/@determinant;
+          y=(@left[:c]*@right[:a]-@right[:c]*@left[:a])/@determinant;
+          point=GeometryPointValue(x,y,"CertifiedLineIntersection",[@left,@right]);
+          @result~=GeometryIntersectionValue("one",[point],@left,@right,_,{= determinantSign=@determinantSign },0);
+      } ?_ _;
+    (result==_&&determinantSign[:sign]==:zero)
+      ?: {;
+          ac=@left[:a]*@right[:c]-@right[:a]*@left[:c];
+          bc=@left[:b]*@right[:c]-@right[:b]*@left[:c];
+          acSign=GeometryCertifiedSign(ac); bcSign=GeometryCertifiedSign(bc);
+          (acSign[:sign]==:zero&&bcSign[:sign]==:zero)
+            ?: {; @result~=GeometryIntersectionValue("coincident",[],@left,@right,"Coincident certified lines have infinitely many intersections",{= determinantSign=@determinantSign,acSign=acSign,bcSign=bcSign },0); }
+            ?_ (acSign[:sign]==:positive||acSign[:sign]==:negative||bcSign[:sign]==:positive||bcSign[:sign]==:negative)
+                 ?: {; @result~=GeometryIntersectionValue("parallel",[],@left,@right,"Parallel certified lines do not intersect",{= determinantSign=@determinantSign,acSign=acSign,bcSign=bcSign },0); }
+                 ?_ {; @result~=GeometryUndecidedIntersection(@left,@right,"Certified line coincidence is undecided within the current refinement budget",{= determinantSign=@determinantSign,acSign=acSign,bcSign=bcSign }); };
+      } ?_ _;
+    result!=_ ?: result ?_ GeometryUndecidedIntersection(left,right,"Certified line determinant sign is undecided within the current refinement budget",{= determinantSign=determinantSign });
+};
+
+GeometryIntersectCertifiedLineConic(line,conic,left,right) -> {;
+    points=GeometryLinePoints(line); origin=points[1]; other=points[2];
+    x=origin[:x]; y=origin[:y]; dx=other[:x]-x; dy=other[:y]-y;
+    coefficients=conic[:coefficients]; a=coefficients[1]; b=coefficients[2]; c=coefficients[3]; d=coefficients[4]; e=coefficients[5]; f=coefficients[6];
+    qa=a*dx^2+b*dx*dy+c*dy^2;
+    qb=2*a*x*dx+b*(x*dy+y*dx)+2*c*y*dy+d*dx+e*dy;
+    qc=a*x^2+b*x*y+c*y^2+d*x+e*y+f;
+    qaSign=GeometryCertifiedSign(qa);
+    qaSign[:sign]==:zero
+      ?: {;
+          qbSign=GeometryCertifiedSign(@qb);
+          qbSign[:sign]==:positive||qbSign[:sign]==:negative
+            ?: {;
+                parameter=-@qc/@qb;
+                point=GeometryPointValue(@x+parameter*@dx,@y+parameter*@dy,"CertifiedLineConicIntersection",[@left,@right]);
+                GeometryIntersectionValue("one",[point],@left,@right,_,{= qaSign=@qaSign,qbSign=qbSign },0);
+            }
+            ?_ qbSign[:sign]==:zero
+                 ?: GeometryUndecidedIntersection(@left,@right,"The certified line/conic equation is degenerate or coincident",{= qaSign=@qaSign,qbSign=qbSign })
+                 ?_ GeometryUndecidedIntersection(@left,@right,"The certified linear intersection coefficient is undecided",{= qaSign=@qaSign,qbSign=qbSign });
+      }
+      ?_ qaSign[:sign]==:positive||qaSign[:sign]==:negative
+           ?: {;
+               discriminant=@qb^2-4*@qa*@qc;
+               discriminantSign=GeometryCertifiedSign(discriminant);
+               discriminantSign[:sign]==:negative
+                 ?: GeometryIntersectionValue("none",[],@left,@right,"The certified line does not meet the conic",{= discriminantSign=discriminantSign },0)
+                 ?_ discriminantSign[:sign]==:zero
+                      ?: {;
+                          parameter=-@qb/(2*@qa);
+                          point=GeometryPointValue(@x+parameter*@dx,@y+parameter*@dy,"CertifiedTangentIntersection",[@left,@right]);
+                          GeometryIntersectionValue("one",[point],@left,@right,_,{= discriminantSign=discriminantSign },0);
+                      }
+                      ?_ discriminantSign[:sign]==:positive
+                           ?: {;
+                               root=.numerics.Sqrt(@discriminant);
+                               first=(-@qb-root)/(2*@qa); second=(-@qb+root)/(2*@qa);
+                               firstPoint=GeometryPointValue(@x+first*@dx,@y+first*@dy,"CertifiedLineConicIntersection",[@left,@right]);
+                               secondPoint=GeometryPointValue(@x+second*@dx,@y+second*@dy,"CertifiedLineConicIntersection",[@left,@right]);
+                               GeometryIntersectionValue("two",[firstPoint,secondPoint],@left,@right,_,{= discriminantSign=discriminantSign },0);
+                           }
+                           ?_ GeometryUndecidedIntersection(@left,@right,"Certified conic discriminant sign is undecided within the current refinement budget",{= discriminantSign=discriminantSign });
+           }
+           ?_ GeometryUndecidedIntersection(left,right,"Certified quadratic coefficient sign is undecided within the current refinement budget",{= qaSign=qaSign });
+};
+
+GeometryIntersectCertifiedCircles(left,right) -> {;
+    first=left[:center]; second=right[:center]; dx=second[:x]-first[:x]; dy=second[:y]-first[:y];
+    dxSign=GeometryCertifiedSign(dx); dySign=GeometryCertifiedSign(dy);
+    centersEqual=dxSign[:sign]==:zero&&dySign[:sign]==:zero;
+    centersDistinct=dxSign[:sign]==:positive||dxSign[:sign]==:negative||dySign[:sign]==:positive||dySign[:sign]==:negative;
+    centersEqual
+      ?: {;
+          radiusSign=GeometryCertifiedSign(@left[:radiusSquared]-@right[:radiusSquared]);
+          radiusSign[:sign]==:zero
+            ?: GeometryIntersectionValue("coincident",[],@left,@right,"Coincident certified circles have infinitely many intersections",{= radiusSign=radiusSign },0)
+            ?_ radiusSign[:sign]==:positive||radiusSign[:sign]==:negative
+                 ?: GeometryIntersectionValue("none",[],@left,@right,"Concentric certified circles do not intersect",{= radiusSign=radiusSign },0)
+                 ?_ GeometryUndecidedIntersection(@left,@right,"Certified concentric-circle radii are undecided",{= radiusSign=radiusSign });
+      }
+      ?_ centersDistinct
+           ?: {;
+               a=2*@dx; b=2*@dy;
+               c=@first[:x]^2+@first[:y]^2-@left[:radiusSquared]-@second[:x]^2-@second[:y]^2+@right[:radiusSquared];
+               radical=GeometryCertifiedLineValue(a,b,c,[@first,@second],"CertifiedRadicalAxis",[@left,@right]);
+               GeometryIntersectCertifiedLineConic(radical,GeometryConicFromCircle(@left),@left,@right);
+           }
+           ?_ GeometryUndecidedIntersection(left,right,"Certified circle centers cannot yet be separated",{= dxSign=dxSign,dySign=dySign });
+};
+
+GeometryIntersectCertified(left,right) -> {;
+    result:=_;
+    (left[:kind]==:line&&right[:kind]==:line)
+      ?: {; @result~=GeometryIntersectCertifiedLines(@left,@right); } ?_ _;
+    (result==_&&left[:kind]==:line&&(right[:kind]==:circle||right[:kind]==:conic))
+      ?: {; @result~=GeometryIntersectCertifiedLineConic(@left,@right[:kind]==:circle ?: GeometryConicFromCircle(@right) ?_ @right,@left,@right); } ?_ _;
+    (result==_&&right[:kind]==:line&&(left[:kind]==:circle||left[:kind]==:conic))
+      ?: {; @result~=GeometryIntersectCertifiedLineConic(@right,@left[:kind]==:circle ?: GeometryConicFromCircle(@left) ?_ @left,@left,@right); } ?_ _;
+    (result==_&&left[:kind]==:circle&&right[:kind]==:circle)
+      ?: {; @result~=GeometryIntersectCertifiedCircles(@left,@right); } ?_ _;
+    result!=_ ?: result ?_ GeometryIntersectionValue("unsupported",[],left,right,@"geometry.Intersect does not support certified @{left[:kind]}-@{right[:kind]}",_,0);
 };
 
 GeometryIntersect(first, second ?= _) -> {;
     settings = ((first ? :Map) && first.Has("left") && second == _) ?: first ?_ {= left=first, right=second };
-    left = GeometryRequire(settings[:left], _, "geometry.Intersect left value");
-    right = GeometryRequire(settings[:right], _, "geometry.Intersect right value");
-    (GeometryOption(left,"coordinatedomain",:rational)==:rational && GeometryOption(right,"coordinatedomain",:rational)==:rational)
-      ?: _ ?_ .Error("geometry.Intersect currently requires rational-coordinate geometry; refine or specialize certified-real constructions first");
-    (left[:kind] == :line && right[:kind] == :line)
-      ?: GeometryIntersectLines(left, right)
-      ?_ (left[:kind]==:line && (right[:kind]==:circle || right[:kind]==:conic))
-           ?: GeometryIntersectLineConic(left,right[:kind]==:circle ?: GeometryConicFromCircle(right) ?_ right,left,right)
-           ?_ (right[:kind]==:line && (left[:kind]==:circle || left[:kind]==:conic))
-                ?: GeometryIntersectLineConic(right,left[:kind]==:circle ?: GeometryConicFromCircle(left) ?_ left,left,right)
-                ?_ (left[:kind]==:circle && right[:kind]==:circle)
-                     ?: GeometryIntersectCircles(left,right)
-                     ?_ GeometryIntersectionValue("unsupported", [], left, right,
-                         @"geometry.Intersect does not yet support @{left[:kind]}-@{right[:kind]}");
+    rawLeft=settings[:left]; rawRight=settings[:right];
+    uncertain=((rawLeft ? :Map)&&rawLeft.Has("schema")&&rawLeft[:schema]=="rix.geometry.uncertain-point@1")
+      ||((rawRight ? :Map)&&rawRight.Has("schema")&&rawRight[:schema]=="rix.geometry.uncertain-point@1");
+    result:=_;
+    uncertain
+      ?: {; @result~=GeometryIntersectUncertainPoints(@rawLeft,@rawRight); }
+      ?_ {;
+          left=GeometryRequire(@rawLeft,_,"geometry.Intersect left value");
+          right=GeometryRequire(@rawRight,_,"geometry.Intersect right value");
+          certified=GeometryOption(left,"coordinatedomain",:rational)==:certifiedReal||GeometryOption(right,"coordinatedomain",:rational)==:certifiedReal;
+          certified
+            ?: {; @result~=GeometryIntersectCertified(@left,@right); }
+            ?_ {;
+                (@left[:kind]==:line&&@right[:kind]==:line)
+                  ?: {; @result~=GeometryIntersectLines(@left,@right); } ?_ _;
+                (@result==_&&@left[:kind]==:line&&(@right[:kind]==:circle||@right[:kind]==:conic))
+                  ?: {; @result~=GeometryIntersectLineConic(@left,@right[:kind]==:circle ?: GeometryConicFromCircle(@right) ?_ @right,@left,@right); } ?_ _;
+                (@result==_&&@right[:kind]==:line&&(@left[:kind]==:circle||@left[:kind]==:conic))
+                  ?: {; @result~=GeometryIntersectLineConic(@right,@left[:kind]==:circle ?: GeometryConicFromCircle(@left) ?_ @left,@left,@right); } ?_ _;
+                (@result==_&&@left[:kind]==:circle&&@right[:kind]==:circle)
+                  ?: {; @result~=GeometryIntersectCircles(@left,@right); } ?_ _;
+                @result==_ ?: {; @result~=GeometryIntersectionValue("unsupported",[],@left,@right,"geometry.Intersect does not support this exact geometry pair"); } ?_ _;
+            };
+      };
+    result;
 };
 
 GeometryRequireIntersection(value, label) -> ((value ? :Map) && value.Has("schema") && value[:schema] == "rix.geometry.intersection@1")
@@ -1094,8 +1465,12 @@ geometryNamespace._proto = {=
     Distance=(self, first, second)->GeometryDistance(first,second),
     Length=(self, value)->GeometryLength(value),
     Area=(self, value)->GeometryArea(value),
+    CircularAngle=(self, angle, unit ?= :turns)->GeometryCircularAngle(angle,unit),
+    Angle=(self, first, vertex, third, options ?= {= })->GeometryAngle(first,vertex,third,options),
     Centroid=(self, first, second ?= _, third ?= _)->GeometryCentroid(first,second,third),
+    Incenter=(self, first, second ?= _, third ?= _)->GeometryIncenter(first,second,third),
     Orthocenter=(self, first, second ?= _, third ?= _)->GeometryOrthocenter(first,second,third),
+    AngleBisector=(self, first, vertex, third, kind ?= :internal)->GeometryAngleBisector(first,vertex,third,kind),
     Perpendicular=(self, line, point)->GeometryPerpendicular(line,point),
     ParallelThrough=(self, line, point)->GeometryParallelThrough(line,point),
     Midpoint=(self, first, second ?= _)->GeometryMidpoint(first, second),
@@ -1108,6 +1483,11 @@ geometryNamespace._proto = {=
     Intersect=(self, first, second ?= _)->GeometryIntersect(first, second),
     Points=(self, intersection)->GeometryPoints(intersection),
     Status=(self, intersection)->GeometryStatus(intersection),
+    UncertainPoint=(self, first, generators ?= [], options ?= {= })->GeometryUncertainPoint(first,generators,options),
+    UncertainBounds=(self, value)->GeometryUncertainBounds(value),
+    TransformUncertain=(self, value, transform)->GeometryTransformUncertain(value,transform),
+    ConstructionGraph=(self, nodes, options ?= {= })->GeometryConstructionGraph(nodes,options),
+    Drag=(self, graph, id, target, options ?= {= })->GeometryDrag(graph,id,target,options),
     Refine=(self, value, request ?= {= })->GeometryRefine(value, request),
     Draw=(self, objects, options ?= {= })->GeometryDraw(objects, options)
 };

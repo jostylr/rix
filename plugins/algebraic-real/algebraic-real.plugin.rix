@@ -4,10 +4,10 @@ description: Exact real algebraic roots certified by canonical Polynomial values
 kind: rix
 mount: algebraicReal
 aliases: [ar]
-exports: [Root, Sqrt2, Polynomial, Evaluate, Derivative, SturmSequence, RootCount, RootCountEvidence, IsSquareFree, Refine, Sign, SignEvidence, Compare, CompareRational, ResultantOperation, Export, Import]
+exports: [Root, Sqrt, Sqrt2, CosTurns, SinTurns, Polynomial, Evaluate, Derivative, SturmSequence, RootCount, RootCountEvidence, IsSquareFree, Refine, Sign, SignEvidence, Compare, CompareRational, ResultantOperation, Export, Import]
 groups: [Numerics, Exact, Algebra]
 permissions: []
-requires: [rix.polynomial.algorithms@1, rix.oracle@1]
+requires: [rix.polynomial.algorithms@1, rix.oracle@1, rix.numerics@1]
 provides: [rix.algebraic-real@1, rix.exact-sign@1, rix.root-count@1, rix.refinable@1, rix.enclosable-real@1]
 schemas: [rix.algebraic-real@1, rix.algebraic-real.export@1, rix.algebraic-real.arithmetic-real@1, rix.polynomial@1, rix.exact.sign-witness@1, rix.exact.root-count@1]
 snapshot: false
@@ -383,6 +383,11 @@ ARImport(record) -> {;
 
 ARBase(value) -> (value ? :Map) && value[:valueKind] == :algebraicReal;
 ARBaseOrExact(value) -> ARBase(value) || ARExact(value);
+ARRationalValue(value) -> ARExact(value)
+  ?: value ~!: :Rational
+  ?_ (ARBase(value)&&value[:polynomial].Degree()==1)
+       ?: -value[:coefficients][1]/value[:coefficients][2]
+       ?_ _;
 ARBasePair(left, right) ->
   (ARBase(left) || ARBase(right)) && ARBaseOrExact(left) && ARBaseOrExact(right);
 
@@ -399,6 +404,21 @@ ARRationalRoot(value) -> {;
 };
 
 ARBasePromote(value) -> ARBase(value) ?: value ?_ ARRationalRoot(value);
+
+ARLinearTransform(value, scale, shift, options ?= {= }) -> {;
+    base=ARRequireReal(value); exactScale=scale ~!: :Rational; exactShift=shift ~!: :Rational;
+    exactScale==0
+      ?: ARRationalRoot(exactShift)
+      ?_ {;
+          coefficients=ARAffineCoefficients(@base[:coefficients],1/@exactScale,-@exactShift/@exactScale);
+          polynomial=ARPolynomial(coefficients);
+          interval=@base[:interval]*@exactScale+@exactShift;
+          ARRoot(polynomial.AscendingCoefficients(),interval,ARRootIndexForInterval(polynomial,interval),{=
+              name=AROption(@options,"name",:affineTransform),
+              evidence=AROption(@options,"evidence",{= kind=:exactPolynomialTransform,operation=:affine,scale=@exactScale,shift=@exactShift,operand=@base.Record() })
+          });
+      };
+};
 
 ARZeroArray(length) -> {;
     result := [];
@@ -552,29 +572,57 @@ ARRootIndexForInterval(polynomial, interval) -> {;
 
 ARResultantOperation(operation, left, right, options ?= {= }) -> {;
     ARBasePair(left,right) ?: _ ?_ .Error("Exact algebraic field operations require AlgebraicReal or Rational operands");
-    operation == :divide && ARBase(right) && ARExactSign(right) == :zero
-      ?: .Error("Cannot divide by an algebraic zero")
-      ?_ operation == :divide && ARExact(right) && right == 0
-           ?: .Error("Cannot divide by zero")
-           ?_ _;
-    a = ARBasePromote(left);
-    b = ARBasePromote(right);
-    polynomial = ARInterpolateResultant(operation,a[:polynomial],b[:polynomial]);
-    isolation = ARIsolatingOperationInterval(polynomial,operation,left,right,options);
-    interval = isolation[:interval];
-    index = ARRootIndexForInterval(polynomial,interval);
-    ARRoot(polynomial.AscendingCoefficients(),interval,index,{=
-        name=AROption(options,"name",operation),
-        evidence={=
-            kind=:resultantRootIsolation,
-            property=:exactFieldOperation,
-            operation=operation,
-            elimination=:exactEvaluationAndInterpolation,
-            degreeBound=a[:polynomial].Degree()*b[:polynomial].Degree(),
-            isolationAttempts=isolation[:attempts],
-            operands=[a.Record(),b.Record()]
-        }
-    });
+    operation==:divide&&ARBase(right)&&ARExactSign(right)==:zero ?: .Error("Cannot divide by an algebraic zero")
+      ?_ operation==:divide&&ARExact(right)&&right==0 ?: .Error("Cannot divide by zero") ?_ _;
+    leftRational=ARRationalValue(left); rightRational=ARRationalValue(right);
+    rationalResult=(leftRational!=_&&rightRational!=_)
+      ?: (operation==:add ?: leftRational+rightRational
+           ?_ operation==:subtract ?: leftRational-rightRational
+           ?_ operation==:multiply ?: leftRational*rightRational
+           ?_ operation==:divide ?: leftRational/rightRational
+           ?_ _)
+      ?_ _;
+    linearShortcut=operation==:add
+      ?: ((ARBase(left)&&ARExact(right)) ?: ARLinearTransform(left,1,right,options)
+           ?_ ((ARExact(left)&&ARBase(right)) ?: ARLinearTransform(right,1,left,options) ?_ _))
+      ?_ (operation==:subtract
+           ?: ((ARBase(left)&&ARExact(right)) ?: ARLinearTransform(left,1,-right,options)
+                ?_ ((ARExact(left)&&ARBase(right)) ?: ARLinearTransform(right,-1,left,options) ?_ _))
+           ?_ (operation==:multiply
+                ?: ((ARBase(left)&&ARExact(right)) ?: ARLinearTransform(left,right,0,options)
+                     ?_ ((ARExact(left)&&ARBase(right)) ?: ARLinearTransform(right,left,0,options) ?_ _))
+                ?_ (operation==:divide
+                     ?: ((ARBase(left)&&ARExact(right)) ?: ARLinearTransform(left,1/right,0,options) ?_ _)
+                     ?_ _)));
+    leftZero=(ARExact(left)&&left==0)||(ARBase(left)&&ARExactSign(left)==:zero);
+    rightZero=(ARExact(right)&&right==0)||(ARBase(right)&&ARExactSign(right)==:zero);
+    leftOne=ARExact(left)&&left==1; rightOne=ARExact(right)&&right==1;
+    shortcut=rationalResult!=_ ?: ARRationalRoot(rationalResult) ?_ (linearShortcut!=_ ?: linearShortcut ?_ (operation==:add
+      ?: (leftZero ?: ARBasePromote(right) ?_ (rightZero ?: ARBasePromote(left) ?_ _))
+      ?_ (operation==:subtract
+           ?: (rightZero ?: ARBasePromote(left) ?_ (leftZero ?: (ARBase(right) ?: ARExactNegate(right) ?_ ARRationalRoot(-right)) ?_ _))
+           ?_ (operation==:multiply
+                ?: ((leftZero||rightZero) ?: ARRationalRoot(0) ?_ (leftOne ?: ARBasePromote(right) ?_ (rightOne ?: ARBasePromote(left) ?_ _)))
+                ?_ (operation==:divide
+                     ?: (leftZero ?: ARRationalRoot(0) ?_ (rightOne ?: ARBasePromote(left) ?_ _))
+                     ?_ _)))));
+    shortcut!=_
+      ?: shortcut
+      ?_ {;
+          a=ARBasePromote(@left); b=ARBasePromote(@right);
+          polynomial=ARInterpolateResultant(@operation,a[:polynomial],b[:polynomial]);
+          isolation=ARIsolatingOperationInterval(polynomial,@operation,@left,@right,@options);
+          interval=isolation[:interval]; index=ARRootIndexForInterval(polynomial,interval);
+          ARRoot(polynomial.AscendingCoefficients(),interval,index,{=
+              name=AROption(@options,"name",@operation),
+              evidence={=
+                  kind=:resultantRootIsolation,property=:exactFieldOperation,operation=@operation,
+                  elimination=:exactEvaluationAndInterpolation,
+                  degreeBound=a[:polynomial].Degree()*b[:polynomial].Degree(),
+                  isolationAttempts=isolation[:attempts],operands=[a.Record(),b.Record()]
+              }
+          });
+      };
 };
 
 ARExactNegate(value) -> {;
@@ -618,6 +666,184 @@ ARExactPower(value, exponent, options ?= {= }) -> {;
           state[1];
       }))));
 };
+
+ARIntegerSqrtFloor(value) -> {;
+    n=value ~!: :Integer;
+    n>=0 ?: _ ?_ .Error("Algebraic-real square root requires a nonnegative integer");
+    n<2 ?: n ?_ {;
+        x:=@n; next:=(x+1)//2;
+        {@ step=1; @next<@x; {; @x~=@next; @next~=(@x+(@n//@x))//2; }; step+=1 };
+        x;
+    };
+};
+
+ARRationalExactSqrt(value) -> {;
+    exact=value ~!: :Rational;
+    exact<0 ?: _ ?_ {;
+        numerator=ARIntegerSqrtFloor(@exact.Numerator());
+        denominator=ARIntegerSqrtFloor(@exact.Denominator());
+        numerator^2==@exact.Numerator()&&denominator^2==@exact.Denominator()
+          ?: numerator/denominator
+          ?_ _;
+    };
+};
+
+ARRationalSqrtBracket(value, iterations ?= 96) -> {;
+    exact=value ~!: :Rational;
+    exact>0 ?: _ ?_ .Error("Algebraic-real square-root bracketing requires a positive Rational");
+    exactRoot=ARRationalExactSqrt(exact);
+    exactRoot!=_
+      ?: {; epsilon=1/(2^((@iterations ~!: :Integer)+4)); (@exactRoot-epsilon):(@exactRoot+epsilon); }
+      ?_ {;
+          low:=0; high:=@exact>=1 ?: @exact ?_ 1;
+          {@ step=1; step<=@iterations; {;
+              midpoint=(@low+@high)/2;
+              midpoint^2<@exact ?: {; @low~=@midpoint; } ?_ {; @high~=@midpoint; };
+          }; step+=1 };
+          low:high;
+      };
+};
+
+ARSquareFreePolynomial(coefficients) -> {;
+    candidate=.poly({= coefficients=coefficients, order=:ascending, variable=:x });
+    squareFree=candidate // candidate.Gcd(candidate.Derivative());
+    ARPolynomial(squareFree.AscendingCoefficients());
+};
+
+ARSqrtPolynomial(value) -> {;
+    base=ARBasePromote(value);
+    source=base[:polynomial].AscendingCoefficients();
+    expanded:=ARZeroArray(2*(source.Len()-1)+1);
+    {@ index=1; index<=@source.Len(); {;
+        @expanded ~= @expanded.Set(2*(index-1)+1,@source[index]);
+    }; index+=1 };
+    ARSquareFreePolynomial(expanded);
+};
+
+ARSqrtIsolation(polynomial, value, options ?= {= }) -> {;
+    maxRefinements=ARRequirePositiveInteger(AROption(options,"maxrefinements",128),"Algebraic square-root maxRefinements");
+    width:=AROption(options,"initialwidth",1) ~!: :Rational;
+    candidate:=_; count:=0; endpointRoot:=1; attempts:=0;
+    {@ step=1; ((@count!=1)||@endpointRoot)&&@attempts<@maxRefinements; {;
+        source=AROperandInterval(@value,@width);
+        source.Low()>0
+          ?: {;
+              lower=ARRationalSqrtBracket(@source.Low());
+              upper=ARRationalSqrtBracket(@source.High());
+              @candidate ~= lower.Low():upper.High();
+              lowValue=@polynomial.Evaluate(@candidate.Low());
+              highValue=@polynomial.Evaluate(@candidate.High());
+              @endpointRoot ~= ARScalarIsZero(lowValue)||ARScalarIsZero(highValue);
+              @count ~= @endpointRoot ?: 0 ?_ @polynomial.RootCount(@candidate);
+          }
+          ?_ _;
+        @width/=2; @attempts+=1;
+    }; step+=1 };
+    ((candidate ? :RationalInterval)&&count==1&&!endpointRoot)
+      ?: {= interval=candidate, attempts=attempts }
+      ?_ .Error(@"Unable to isolate algebraic square root within @{maxRefinements} refinements");
+};
+
+ARSqrt(value, options ?= {= }) -> {;
+    ARBaseOrExact(value) ?: _ ?_ .Error("Algebraic-real Sqrt requires an AlgebraicReal or Rational");
+    sign=ARBase(value) ?: ARExactSign(value) ?_ (value<0 ?: :negative ?_ value>0 ?: :positive ?_ :zero);
+    sign==:negative ?: .Error("Algebraic-real Sqrt requires a nonnegative value") ?_ _;
+    sign==:zero
+      ?: ARRationalRoot(0)
+      ?_ {;
+          rationalRoot=ARExact(@value) ?: ARRationalExactSqrt(@value) ?_ _;
+          rationalRoot!=_
+            ?: ARRationalRoot(rationalRoot)
+            ?_ {;
+                polynomial=ARSqrtPolynomial(@value);
+                isolation=ARSqrtIsolation(polynomial,@value,@options);
+                ARRoot(polynomial.AscendingCoefficients(),isolation[:interval],ARRootIndexForInterval(polynomial,isolation[:interval]),{=
+                    name=AROption(@options,"name",:sqrt),
+                    evidence={=
+                        kind=:algebraicRootIsolation,
+                        property=:nonnegativeSquareRoot,
+                        isolationAttempts=isolation[:attempts],
+                        radicand=ARBase(@value) ?: @value.Record() ?_ @value
+                    }
+                });
+            };
+      };
+};
+
+ARTchebyshev(degree) -> {;
+    n=ARRequirePositiveInteger(degree,"Chebyshev degree");
+    n==1 ?: [0,1] ?_ {;
+        previous:=[1]; current:=[0,1];
+        {@ index=2; index<=@n; {;
+            next=ARArrayAdd(ARArrayScale(ARArrayMultiply([0,1],@current),2),ARArrayScale(@previous,-1));
+            @previous~=@current; @current~=next;
+        }; index+=1 };
+        current;
+    };
+};
+
+ARCosinePolynomial(denominator) -> {;
+    coefficients=ARTchebyshev(denominator);
+    adjusted=coefficients.Set(1,coefficients[1]-1);
+    ARSquareFreePolynomial(adjusted);
+};
+
+ARCertifiedRoot(polynomial, provider, options ?= {= }) -> {;
+    maxRefinements=ARRequirePositiveInteger(AROption(options,"maxrefinements",48),"Certified algebraic-root maxRefinements");
+    maxWork=ARRequirePositiveInteger(AROption(options,"maxwork",512),"Certified algebraic-root maxWork");
+    width:=1/16; candidate:=_; count:=0; endpointRoot:=1; attempts:=0;
+    {@ step=1; ((@count!=1)||@endpointRoot)&&@attempts<@maxRefinements; {;
+        refined=.numerics.Refine(@provider,{= absoluteWidth=@width,maxWork=@maxWork });
+        refined.Has("interval")
+          ?: {;
+              @candidate ~= @refined[:interval];
+              lowValue=@polynomial.Evaluate(@candidate.Low()); highValue=@polynomial.Evaluate(@candidate.High());
+              @endpointRoot ~= ARScalarIsZero(lowValue)||ARScalarIsZero(highValue);
+              @count ~= @endpointRoot ?: 0 ?_ @polynomial.RootCount(@candidate);
+          }
+          ?_ _;
+        @width/=2; @attempts+=1;
+    }; step+=1 };
+    ((candidate ? :RationalInterval)&&count==1&&!endpointRoot)
+      ?: {= interval=candidate, attempts=attempts }
+      ?_ .Error(@"Unable to certify the requested algebraic root within @{maxRefinements} refinements");
+};
+
+ARTurnData(turns, options ?= {= }) -> {;
+    exact=turns ~!: :Rational;
+    denominator=exact.Denominator();
+    maximum=ARRequirePositiveInteger(AROption(options,"maxdenominator",64),"Rational-turn maxDenominator");
+    denominator<=maximum ?: _ ?_ .Error(@"Rational-turn denominator @{denominator} exceeds maxDenominator @{maximum}");
+    raw=exact.Numerator()%denominator;
+    numerator=raw<0 ?: raw+denominator ?_ raw;
+    {= turns=numerator/denominator,numerator=numerator,denominator=denominator };
+};
+
+ARCosTurns(turns, options ?= {= }) -> {;
+    data=ARTurnData(turns,options); p=data[:numerator]; q=data[:denominator];
+    known=p==0 ?: 1
+      ?_ (2*p==q ?: -1
+           ?_ ((4*p==q||4*p==3*q) ?: 0
+                ?_ ((6*p==q||6*p==5*q) ?: 1/2
+                     ?_ ((3*p==q||3*p==2*q) ?: -1/2 ?_ _))));
+    known!=_
+      ?: ARRationalRoot(known)
+      ?_ ((q==8&&(p==1||p==7)) ?: ARLinearTransform(ARSqrt(2),1/2,0,{= name=:cosRationalTurn,evidence={= kind=:rootOfUnityProjection,function=:cos,turns=data[:turns],denominator=q,special=:sqrt2Half } })
+           ?_ (q==8&&(p==3||p==5)) ?: ARLinearTransform(ARSqrt(2),-1/2,0,{= name=:cosRationalTurn,evidence={= kind=:rootOfUnityProjection,function=:cos,turns=data[:turns],denominator=q,special=:negativeSqrt2Half } })
+           ?_ (q==12&&(p==1||p==11)) ?: ARLinearTransform(ARSqrt(3),1/2,0,{= name=:cosRationalTurn,evidence={= kind=:rootOfUnityProjection,function=:cos,turns=data[:turns],denominator=q,special=:sqrt3Half } })
+           ?_ (q==12&&(p==5||p==7)) ?: ARLinearTransform(ARSqrt(3),-1/2,0,{= name=:cosRationalTurn,evidence={= kind=:rootOfUnityProjection,function=:cos,turns=data[:turns],denominator=q,special=:negativeSqrt3Half } })
+           ?_ {;
+               polynomial=ARCosinePolynomial(@q);
+               provider=.numerics.Cos(@data[:turns]*2*.numerics.Pi());
+               isolation=ARCertifiedRoot(polynomial,provider,@options);
+               ARRoot(polynomial.AscendingCoefficients(),isolation[:interval],ARRootIndexForInterval(polynomial,isolation[:interval]),{=
+                   name=:cosRationalTurn,
+                   evidence={= kind=:rootOfUnityProjection, function=:cos, turns=@data[:turns], denominator=@q, isolationAttempts=isolation[:attempts] }
+               });
+           });
+};
+
+ARSinTurns(turns, options ?= {= }) -> ARCosTurns(1/4-(turns ~!: :Rational),options);
 
 ARCompare(left, right, options ?= {= }) -> {;
     (ARBase(left) && ARExact(right))
@@ -750,7 +976,10 @@ algebraicRealNamespace = (coefficients, interval, rootIndex ?= 1, options ?= {= 
     ARConstruct(coefficients, interval, rootIndex, options);
 algebraicRealNamespace._proto = {=
     Root = (self, coefficients, interval, rootIndex ?= 1, options ?= {= }) -> ARRoot(coefficients, interval, rootIndex, options),
+    Sqrt = (self, value, options ?= {= }) -> ARSqrt(value, options),
     Sqrt2 = (self, sign ?= 1) -> ARSqrt2(sign),
+    CosTurns = (self, turns, options ?= {= }) -> ARCosTurns(turns, options),
+    SinTurns = (self, turns, options ?= {= }) -> ARSinTurns(turns, options),
     Polynomial = (self, coefficients) -> ARPolynomial(coefficients),
     Evaluate = (self, coefficients, point) -> ARPolynomial(coefficients).Evaluate(point),
     Derivative = (self, coefficients) -> ARPolynomial(coefficients).Derivative(),

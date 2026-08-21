@@ -80,9 +80,42 @@ image := .geometry.Transform(p,rotation);
 ]);
 ```
 
-Quarter turns are rational affine maps. Other angles carry certified-real
-coordinates and can be refined or drawn; exact intersections currently remain
-limited to rational-coordinate geometry.
+Quarter turns are rational affine maps. Rational fractions of a turn carry
+exact algebraic coordinates; arbitrary radians carry certified-real
+coordinates and can be refined or drawn.
+
+## Explore the algebraic lane
+
+A compass construction may leave rational coordinates without leaving exact
+mathematics. The diagonal through a rational circle meets it at coordinates
+involving `sqrt(2)`. Exact polynomial certificates decide the intersection
+topology and retain exact algebraic points.
+
+```rix
+.Plugin.Load("geometry");
+circle := .geometry.Circle(.geometry.Point(0,0),2);
+diagonal := .geometry.Line(.geometry.Point(-2,-2),.geometry.Point(2,2));
+meeting := .geometry.Intersect(diagonal,circle);
+eighthTurn := .geometry.CircularAngle(1/8,:turns);
+{=
+  intersectionStatus=meeting[:status],
+  coordinateDomain=meeting[:points][1][:coordinateDomain],
+  angleTurns=eighthTurn[:turns],
+  angleDomain=eighthTurn[:coordinateDomain]
+};
+```
+
+A rational turn is exact circular data. Its sine and cosine are algebraic
+because they are coordinates of a root of unity. The nonzero radian magnitude
+`2*pi*p/q` is transcendental, so the plugin does not mislabel it as an
+algebraic real. A rational number supplied directly in radians is generally
+not a rational turn and stays on the general certified lane.
+
+Algebraic coefficients make intersection equality, sign, and multiplicity
+decidable. With arbitrary certified-real coefficients, interval refinement can
+prove separation from zero but cannot always prove exact zero. Those
+intersections explicitly return `undecided` with evidence when their budget is
+exhausted.
 
 ## Inspect certified intersection decisions
 

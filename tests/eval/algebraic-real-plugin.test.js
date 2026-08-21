@@ -191,6 +191,32 @@ describe("Algebraic Real plugin", () => {
         expect(textValue(result.values[13])).toBe("resultantRootIsolation");
     }, 20000);
 
+    test("constructs exact algebraic square roots and rational-turn trigonometric values", () => {
+        const options = runtime();
+        const result = parseAndEvaluate(`
+            .Plugin.Load("algebraic-real");
+            sqrt3 = .ar.Sqrt(3);
+            nested = .ar.Sqrt(.ar.Sqrt2());
+            eighthCos = .ar.CosTurns(1/8);
+            eighthSin = .ar.SinTurns(1/8);
+            fifthCos = .ar.CosTurns(1/5);
+            {:
+                sqrt3.Sign(), sqrt3.CompareRational(17/10), sqrt3.CompareRational(18/10),
+                nested.Coefficients(),
+                eighthCos.CompareRational(7/10), eighthCos.CompareRational(3/4),
+                eighthSin.CompareRational(7/10), eighthSin.CompareRational(3/4),
+                eighthCos.Record()[:evidence][:provenance][:kind],
+                fifthCos.CompareRational(3/10), fifthCos.CompareRational(1/3)
+            }
+        `, options);
+
+        expect(result.values.slice(0, 3).map(textValue)).toEqual(["positive", "greater", "less"]);
+        expect(result.values[3].values.map(String)).toEqual(["-2", "0", "0", "0", "1"]);
+        expect(result.values.slice(4, 8).map(textValue)).toEqual(["greater", "less", "greater", "less"]);
+        expect(textValue(result.values[8])).toBe("rootOfUnityProjection");
+        expect(result.values.slice(9).map(textValue)).toEqual(["greater", "less"]);
+    }, 30000);
+
     test("rejects repeated factors, non-isolating intervals, endpoint roots, and wrong indices", () => {
         const options = runtime();
         parseAndEvaluate('.Plugin.Load("algebraic-real")', options);

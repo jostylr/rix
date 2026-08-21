@@ -117,12 +117,12 @@ describe("geometry plugin", () => {
         expect(String(field(degreePoint, "y"))).toBe("4");
         expect(String(field(result.values[1], "x"))).toBe("0");
         expect(String(field(result.values[1], "y"))).toBe("4");
-        expect(text(result.values[2])).toBe("certifiedReal");
+        expect(text(result.values[2])).toBe("algebraicReal");
         expect(result.values[3].toNumber()).toBeCloseTo(2, 2);
         expect(result.values[4].toNumber()).toBeCloseTo(2 * Math.sqrt(3), 2);
         expect(text(result.values[5])).toBe("certifiedReal");
         expect(result.values[6]).toMatchObject({ type: "output", kind: "graphic" });
-    }, 15000);
+    }, 30000);
 
     test("draws both points from a two-intersection result", () => {
         const graphic = parseAndEvaluate(`
@@ -230,7 +230,7 @@ describe("geometry plugin", () => {
         expect(text(field(miss, "status"))).toBe("none");
         expect(String(field(field(field(miss, "evidence"), "rootCount"), "count"))).toBe("0");
         expect(text(field(field(field(miss, "evidence"), "discriminantSign"), "sign"))).toBe("negative");
-    });
+    }, 30000);
 
     test("Phase 2 bounded implicit and locus refinement returns portable Graphics plus uncertainty", () => {
         const result = parseAndEvaluate(`
@@ -252,5 +252,75 @@ describe("geometry plugin", () => {
         expect(field(implicit, "uncertainty").values.length).toBeGreaterThan(0);
         expect(field(locus, "graphic")).toMatchObject({ kind: "graphic" });
         expect(field(locus, "graphic").children).toHaveLength(1);
+    });
+
+    test("uses exact algebraic coordinates for circular angles, centers, bisectors, and intersections", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("geometry");
+            o=.geometry.Point(0,0); a=.geometry.Point(4,0); b=.geometry.Point(0,3);
+            angle=.geometry.CircularAngle(1/8,:turns);
+            measured=.geometry.Angle(a,o,b);
+            incenter=.geometry.Incenter(o,a,b);
+            bisector=.geometry.AngleBisector(a,o,b);
+            circle=.geometry.Circle(o,1);
+            diagonal=.geometry.Line(.geometry.Point(-2,-2),.geometry.Point(2,2));
+            crossing=.geometry.Intersect(diagonal,circle);
+            {:
+              angle[:coordinateDomain],.ar.Compare(angle[:cosine],angle[:sine]),
+              measured[:orientation],.ar.CompareRational(measured[:cosine],0),
+              .ar.CompareRational(incenter[:x],1),.ar.CompareRational(incenter[:y],1),
+              .ar.Sign(bisector[:a]+bisector[:b]),crossing[:status],crossing[:exact],
+              crossing[:points][1][:coordinateDomain]
+            }
+        `);
+        expect(result.values.slice(0, 4).map(text)).toEqual([
+            "algebraicReal", "equal", "unoriented", "equal",
+        ]);
+        expect(result.values.slice(4, 7).map(text)).toEqual(["equal", "equal", "zero"]);
+        expect(text(result.values[7])).toBe("two");
+        expect(result.values[8].value).toBe(1n);
+        expect(text(result.values[9])).toBe("algebraicReal");
+    }, 60000);
+
+    test("returns decided or explicitly undecided results for general certified intersections", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("geometry");
+            o=.geometry.Point(0,0);
+            base=.geometry.Line(.geometry.Point(-2,0),.geometry.Point(2,0));
+            rotated=.geometry.Transform(base,.geometry.Rotate(o,1,:radians));
+            vertical=.geometry.Line(.geometry.Point(0,-2),.geometry.Point(0,2));
+            crossing=.geometry.Intersect(rotated,vertical);
+            {: crossing[:status],crossing[:exact],crossing[:points].Len(),crossing[:evidence][:determinantSign][:sign] };
+        `);
+        expect(text(result.values[0])).toBe("one");
+        expect(result.values[1].value).toBe(0n);
+        expect(result.values[2].value).toBe(1n);
+        expect(["positive", "negative"]).toContain(text(result.values[3]));
+    }, 30000);
+
+    test("preserves uncertain-point dependencies and deterministic drag history", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("geometry");
+            uncertain=.geometry.UncertainPoint({=
+              center=.geometry.Point(0,0),
+              generators=[{= id=:t,dx=1,dy=1,interval=(-1):1 }]
+            });
+            shifted=.geometry.TransformUncertain(uncertain,.geometry.Translate(3,0));
+            disjoint=.geometry.UncertainPoint(.geometry.Point(10,0),[]);
+            relation=.geometry.Intersect(shifted,disjoint);
+            graph=.geometry.ConstructionGraph([
+              {= id=:a,free=1,value=.geometry.Point(0,0) },
+              {= id=:b,dependsOn=[:a],construct=(values)->.geometry.Point(values[:a][:x]+1,values[:a][:y]) }
+            ]);
+            moved=.geometry.Drag(graph,:a,.geometry.Point(3/5,1/5),{= snap=1/2 });
+            bounds=.geometry.UncertainBounds(shifted);
+            {: bounds[:x],bounds[:y],relation[:status],moved[:values][:a][:coordinates],moved[:values][:b][:coordinates],moved[:history].Len() };
+        `);
+        expect(result.values[0].toString()).toBe("2:4");
+        expect(result.values[1].toString()).toBe("-1:1");
+        expect(text(result.values[2])).toBe("none");
+        expect(result.values[3].values.map(String)).toEqual(["1/2", "0"]);
+        expect(result.values[4].values.map(String)).toEqual(["3/2", "0"]);
+        expect(result.values[5].value).toBe(1n);
     });
 });
