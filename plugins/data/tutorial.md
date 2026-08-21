@@ -1,6 +1,6 @@
 ---
-title: Transform an exact relation
-description: Validate, filter, sort, and present a small exact dataset.
+title: Transform and combine exact relations
+description: Validate, join, aggregate, derive, and present exact relational data.
 theme: Data and documents
 status: implemented
 plugin: data
@@ -41,4 +41,50 @@ or losing exact values.
 ```rix
 .Plugin.Load("csv");
 .csv.Render(ordered).Get("content");
+```
+
+## Join and aggregate
+
+Join keys are explicit. A full join retains unmatched rows, while grouping
+and aggregation keep rational totals and means exact.
+
+```rix
+.Plugin.Load("data");
+sales := .data.Relation(["team", {= id="amount", type=:Rational }], [
+    ["red", 1/3], ["blue", 2/3], ["red", 5/3]
+]);
+labels := .data.Relation(["team", "label"], [
+    ["red", "R"], ["blue", "B"], ["gold", "G"]
+]);
+joined := .data.Join(sales, labels, ["team"], {= type=:full });
+totals := .data.Aggregate(.data.Group(sales, ["team"]), [
+    {= id="count", op=:count },
+    {= id="total", column="amount", op=:sum },
+    {= id="average", column="amount", op=:mean }
+]);
+.Fragment([
+    .data.TableView(joined, {= caption="Full join" }),
+    .data.TableView(totals, {= caption="Exact grouped values" })
+]);
+```
+
+## Make missing values and finite sources explicit
+
+`Missing` never guesses a policy. `RowSource` is pull-based and capped by
+`maxRows`; `Collect` may impose a smaller cap.
+
+```rix
+.Plugin.Load("data");
+raw := .data.Relation(["name", {= id="value", type=:Rational }], [
+    ["a", 1/2], ["b", _], ["c", 3/2]
+]);
+filled := .data.Missing(raw, ["value"], :fill, 0);
+derived := .data.Calculate(filled, {= id="double", type=:Rational },
+    (row) -> 2*row["value"]
+);
+source := .data.RowSource([{= id="n", type=:Integer }],
+    (index) -> [index],
+    {= maxRows=10 }
+);
+[.data.Rows(derived), .data.Rows(.data.Collect(source, 3))];
 ```

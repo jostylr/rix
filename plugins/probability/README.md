@@ -2,7 +2,7 @@
 
 `.probability` models probability laws, finite events, and repeatable
 experiments. It is separate from `.stats`, which summarizes observed data and
-will eventually perform inference, and from `.data`, which manages relations
+performs inference, and from `.data`, which manages relations
 and external datasets.
 
 ```rix
@@ -11,7 +11,7 @@ d := .probability.Binomial(10, 1/2);
 [d.PMF(5), d.CDF(5), d.Mean(), d.Variance()];
 ```
 
-Phase 1 provides:
+The finite foundation provides:
 
 - `Choose`, `Permutations`, and `MultinomialCoefficient`;
 - bounded `CartesianPower` and uniform `Event` enumeration;
@@ -42,7 +42,11 @@ seed, sampling policy, and whether sampling itself was exact.
 Every constructor returns an immutable map with schema
 `rix.probability.distribution@1`. Common methods are `Family`, `Support`,
 `Parameters`, `Sample`, `Simulate`, and `Record`. Discrete distributions expose
-`PMF` and `CDF`; the normal law exposes `PDF`, `CDF`, and `Quantile`.
+`PMF` and `CDF`; continuous laws expose `PDF`, `CDF`, and `Quantile`.
+
+Phase 2 adds named Bernoulli, categorical, geometric, negative-binomial,
+hypergeometric, Poisson, uniform, exponential, gamma, beta, chi-square,
+Student-t, F, lognormal, and Cauchy laws.
 
 `Multinomial.CDF(bounds)` is the componentwise joint CDF
 `P(X1 <= b1, ..., Xk <= bk)`, not a one-dimensional cumulative ordering.
@@ -50,8 +54,8 @@ Every constructor returns an immutable map with schema
 in sampling without replacement. `Dice(count,sides)` is the exact distribution
 of the sum, computed by finite convolution.
 
-The normal PDF/CDF/quantile results are certified refinable reals. Refining
-them returns an interval guaranteed to contain the mathematical value:
+Certified PDFs and CDFs return refinable reals. Refining them returns an
+interval guaranteed to contain the mathematical value:
 
 ```rix
 normal := .probability.Normal(10, 2);
@@ -66,6 +70,30 @@ applies the certified quantile. It is therefore explicitly marked
 `exactSampling=0` with policy `:finiteQuantileGrid`; `grid` controls the
 discretization. This avoids presenting an implementation approximation as an
 exact draw from a continuous law.
+
+Uniform CDFs and quantiles are exact. Exponential, normal, lognormal, Cauchy,
+and supported gamma-family formulas are certified. Gamma CDFs currently accept
+integer or half-integer shape; beta CDFs accept positive integer parameters;
+the chi-square constructor inherits the gamma domain; and F CDFs currently
+require even degrees of freedom. Unsupported certified cases fail explicitly
+instead of returning an unproved numerical estimate. Student-t uses certified
+elementary reductions for every positive integer degree of freedom.
+
+Continuous generic inverse CDFs return a rational interval whose width is
+controlled by `width`. That interval encloses the quantile. It may stop wider
+if the requested CDF precision cannot decide a comparison, preserving the
+enclosure rather than guessing a side.
+
+All continuous simulators draw from a finite probability grid and record
+`exactSampling=0`. Poisson currently uses a binomial-limit simulator and says
+so with `:binomialLimitApproximation`; `approximationTrials` controls it.
+Gamma/beta-derived samplers use inverse-grid components. These policies make
+approximation visible even when the distribution functions themselves are
+certified.
+
+The Cauchy constructor deliberately returns missing mean and variance and
+`MomentsExist() == 0`; it is the standard counterexample in the companion
+Central Limit Theorem exploration.
 
 `CartesianPower` defaults to at most 100,000 materialized outcomes. Increase
 its `maxOutcomes` argument deliberately when an exhaustive experiment is

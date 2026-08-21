@@ -149,10 +149,12 @@ const BUNDLED_PLUGINS = [
     { metadata: readPluginHeader(geometrySource, "geometry.plugin.rix"), source: geometrySource, sourcePath: "bundled:geometry.plugin.rix" },
     {
         metadata: {
-            id: "data", description: "Immutable typed relations with deterministic projection, filtering, sorting, and Table views.",
+            id: "data", description: "Immutable typed relations with joins, grouping, exact aggregation, missing-data policy, and bounded row sources.",
             kind: "host", mount: "data",
-            exports: ["Relation", "Project", "Filter", "Sort", "TableView", "Schema", "Rows"],
-            groups: ["Data"], permissions: [], provides: ["rix.data.relation@1"], schemas: ["rix.data.relation@1"],
+            exports: ["Relation", "Project", "Filter", "Sort", "Join", "Group", "Aggregate", "Calculate", "Missing", "RowSource", "Collect", "TableView", "Schema", "Rows"],
+            groups: ["Data"], permissions: [],
+            provides: ["rix.data.relation@1", "rix.data.groups@1", "rix.data.row-source@1"],
+            schemas: ["rix.data.relation@1", "rix.data.groups@1", "rix.data.row-source@1"],
             snapshot: false, deterministic: true, defaultEnabled: false,
         },
         install: ({ systemContext }) => installDataPlugin({ systemContext }),

@@ -48,7 +48,7 @@ numeric type or one universal rendering engine.
 | `.nd` | Implemented initial plugin | Exact points, polylines, polytopes/hypercubes, affine projection records, rational Cayley rotations, composition, and explicit conversion of 3D results to Scene3D. |
 | `.geometry` | Implemented pure-RiX through Phase 2 | Exact constructions, segments/rays/polygons, affine/projective transforms, conics, constraints, polynomial/Numerics intersections, and bounded implicit/locus refinement to core Graphics. |
 | `.gltf` | Implemented initial renderer | Retained Scene3D to embedded-buffer glTF 2.0 JSON with explicit Z-up to Y-up and Float32 conversion diagnostics. |
-| `.data` | Implemented Phase 1 plugin | Immutable typed in-memory relations, exact-value-preserving projection/filter/sort, and portable Table views. |
+| `.data` | Implemented through Phase 2 | Immutable typed relations with exact-value-preserving projection/filter/sort, joins, grouping/aggregation, calculated columns, missing policy, bounded row sources, and portable Table views. |
 | `.csv` | Implemented Phase 1 renderer | Deterministic CSV/TSV export for core Tables and Data relations with exact scalar formatting and explicit dialect options. |
 | `.document` | Implemented Phase 1 plugin | Numbered core Fragment reports with deterministic section/figure/table labels, resolved forward references, captions, and small semantic themes. |
 | `.terminalAscii` | Implemented Phase 1 renderer | Strict-ASCII Tables, Grids, Fragments, and simple Graphic snapshots with deterministic width truncation and diagnostics. |
@@ -76,8 +76,8 @@ numeric type or one universal rendering engine.
 | 3D scene expansion | `.scene3d` | Certified hidden-surface/shadow policies, adaptive surfaces and volumes, textures, animation, clipping, and interactive orbit beyond the implemented retained wireframe/flat-lit slice. |
 | Higher-dimensional expansion | `.nd` | Fields, meshes, implicit regions, slices, sections, fibers, sampling, and marginalization beyond implemented affine projection. |
 | Complex visualization | `.complexViz` | Phase 1 exact discrete domain coloring is implemented; magnitude/phase surfaces, Cayley color mappings, Riemann-sphere views, and complex-to-complex projections remain. |
-| Data expansion | `.data` | Joins, groups, aggregates, calculated columns, external sources, and large-data planning beyond the implemented Phase 1 relation slice. |
-| Statistics | `.stats` | Phase 1 exact summaries, linear quantiles, variance, histogram, and box plots are implemented in RiX; distributions, models, and regression remain. |
+| Data expansion | `.data` | External sources, columnar formats, lazy plans, and large-data execution beyond the implemented Phase 2 relational slice. |
+| Statistics | `.stats` | Exact summaries and plots plus Phase 2 confidence records, simulation provenance, exact simple regression, and certified diagnostics are implemented; broader models remain. |
 | Document expansion | `.document` | Citations, bibliographies, asset manifests, broader numbering policy, templates, and report/deck assembly beyond the implemented numbered-report slice. |
 | Rendering and export | `.terminalAscii` expansion; video and 3D GLB, OBJ, STL, PLY, USD/USDZ adapters | GIF now joins SVG, Canvas, Terminal ASCII, TikZ, PNG, Markdown, HTML, Quarto, LaTeX, PDF, CSV/TSV, and glTF JSON with an initial implementation. |
 

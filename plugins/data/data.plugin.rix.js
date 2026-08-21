@@ -1,13 +1,13 @@
 /**
 id: data
-description: Immutable typed relations with deterministic projection, filtering, sorting, and Table views.
+description: Immutable typed relations with joins, grouping, exact aggregation, missing-data policy, and bounded row sources.
 kind: host
 mount: data
-exports: [Relation, Project, Filter, Sort, TableView, Schema, Rows]
+exports: [Relation, Project, Filter, Sort, Join, Group, Aggregate, Calculate, Missing, RowSource, Collect, TableView, Schema, Rows]
 groups: [Data]
 permissions: []
-provides: [rix.data.relation@1]
-schemas: [rix.data.relation@1]
+provides: [rix.data.relation@1, rix.data.groups@1, rix.data.row-source@1]
+schemas: [rix.data.relation@1, rix.data.groups@1, rix.data.row-source@1]
 snapshot: false
 deterministic: true
 defaultEnabled: false
@@ -15,8 +15,15 @@ defaultEnabled: false
 
 import { Integer } from "@ratmath/core";
 import {
+    aggregateGroups,
+    calculateRelation,
+    collectRowSource,
     createRelation,
+    createRowSource,
     filterRelation,
+    groupRelation,
+    joinRelations,
+    missingRelation,
     projectRelation,
     relationRows,
     relationSchema,
@@ -29,6 +36,13 @@ const HELPERS = new Map([
     ["Project", projectRelation],
     ["Filter", filterRelation],
     ["Sort", sortRelation],
+    ["Join", joinRelations],
+    ["Group", groupRelation],
+    ["Aggregate", aggregateGroups],
+    ["Calculate", calculateRelation],
+    ["Missing", missingRelation],
+    ["RowSource", createRowSource],
+    ["Collect", collectRowSource],
     ["TableView", relationTableView],
     ["Schema", relationSchema],
     ["Rows", relationRows],

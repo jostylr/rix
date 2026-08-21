@@ -18,7 +18,7 @@ function runtime() {
     };
 }
 
-describe("Phase 1 statistics plugin", () => {
+describe("statistics plugin", () => {
     test("keeps descriptive statistics and linear quantiles exact", () => {
         const result = parseAndEvaluate(`
             .Plugin.Load("stats");
@@ -60,6 +60,56 @@ describe("Phase 1 statistics plugin", () => {
         expect(() => parseAndEvaluate('.Plugin.Load("stats"); .stats.Quantile([1,2], 3/2)', runtime())).toThrow("between 0 and 1");
         expect(formatValue(parseAndEvaluate('.Plugin.Load("stats"); .stats.Variance([5])', runtime()))).toBe("0");
         expect(() => parseAndEvaluate('.Plugin.Load("stats"); .stats.NormalCDF(0, 0, 0)', runtime())).toThrow("positive exact Rational");
+    });
+
+    test("builds certified confidence records with explicit methods", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("stats");
+            mean := .stats.MeanConfidence([1,2,3,4],9/10,{= knownStandardDeviation=2 });
+            proportion := .stats.ProportionConfidence(7,10,9/10);
+            [
+                mean[:schema],mean[:method],mean[:estimate],mean[:count],mean[:certified],
+                proportion[:method],proportion[:estimate],proportion[:count],proportion[:certified]
+            ]
+        `, runtime());
+        expect(formatValue(result)).toBe("[rix.stats.confidence@1, normalKnownScale, 2..1/2, 4, 1, wilsonScore, 7/10, 10, 1]");
+    });
+
+    test("fits exact simple regressions and emits portable diagnostics", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("stats");
+            model := .stats.LinearRegression([1,2,3,4],[3,5,7,9]);
+            [
+                model[:slope],model[:intercept],model[:rSquared],model[:sse],
+                model[:residuals],.stats.Predict(model,5),
+                .stats.RegressionTable(model),.stats.ResidualTable(model)
+            ]
+        `, runtime());
+        expect(formatValue({ type: "sequence", values: result.values.slice(0, 6) })).toBe("[2, 1, 1, 0, [0, 0, 0, 0], 11]");
+        expect(result.values[6]).toMatchObject({ type: "output", kind: "table" });
+        expect(result.values[7]).toMatchObject({ type: "output", kind: "table" });
+    });
+
+    test("consumes probability simulation records without losing provenance", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("probability");
+            .Plugin.Load("stats");
+            run := .probability.Dice(1,6).Simulate(5,{= seed=7 });
+            summary := .stats.SimulationSummary(run);
+            [summary[:sourceFamily],summary[:sourceCount],summary[:sourceSeed],summary[:sourceSamplingPolicy],summary[:count]]
+        `, runtime());
+        expect(formatValue(result)).toBe("[dice, 5, 7, exactUniformDice, 5]");
+    });
+
+    test("consumes probability distribution records without inventing moments", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("probability");
+            .Plugin.Load("stats");
+            dice := .stats.DistributionSummary(.probability.Dice(2,6));
+            cauchy := .stats.DistributionSummary(.probability.Cauchy());
+            [dice[:schema],dice[:family],dice[:mean],dice[:variance],dice[:momentStatus],cauchy[:mean],cauchy[:variance],cauchy[:momentStatus]]
+        `, runtime());
+        expect(formatValue(result)).toBe("[rix.stats.distribution-summary@1, dice, 7, 5..5/6, available, _, _, unavailable]");
     });
 });
 

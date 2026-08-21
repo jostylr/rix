@@ -1,21 +1,21 @@
 /**
 id: stats
-description: Exact descriptive statistics plus certified normal-distribution functions and portable plots.
+description: Exact descriptive statistics, confidence objects, linear regression, certified normal functions, and portable diagnostics.
 kind: rix
 mount: stats
 aliases: [statistics]
-exports: [Count, Mean, Quantile, Median, Variance, SampleVariance, NormalPDF, NormalCDF, NormalQuantile, Summary, SummaryTable, Histogram, HistogramGraphic, BoxPlot]
+exports: [Count, Mean, Quantile, Median, Variance, SampleVariance, NormalPDF, NormalCDF, NormalQuantile, Summary, SummaryTable, Histogram, HistogramGraphic, BoxPlot, DistributionSummary, SimulationValues, SimulationSummary, MeanConfidence, ProportionConfidence, LinearRegression, Predict, RegressionTable, ResidualTable]
 groups: [Statistics, Exact, Graphics]
 permissions: []
 requires: [rix.numerics@1]
-provides: [rix.statistics@1]
-schemas: [rix.stats.summary@1, rix.stats.histogram@1]
+provides: [rix.statistics@1, rix.stats.inference@1, rix.stats.regression@1]
+schemas: [rix.stats.summary@1, rix.stats.histogram@1, rix.stats.distribution-summary@1, rix.stats.confidence@1, rix.stats.regression@1]
 snapshot: true
 deterministic: true
 defaultEnabled: false
 **/
 
-StatsOption(options, key, fallback) -> options.Has(key) ?: options[key] ?_ fallback;
+StatsOption(options, key, fallback) -> options.Has(key.Lower()) ?: options[key.Lower()] ?_ fallback;
 
 StatsValues(values, allowEmpty ?= 0) -> {;
     values ? :Array ?: _ ?_ .Error("Statistics values must be an Array");
@@ -232,6 +232,198 @@ StatsBoxPlot(values, options ?= {= }) -> {;
     ], {= schema="rix.stats.box-plot@1", summary=summary, alt="Exact box plot" });
 };
 
+StatsDistributionSummary(value) -> {;
+    ((value ? :Map) && value[:schema] == "rix.probability.distribution@1")
+      ?: _
+      ?_ .Error("DistributionSummary expects a probability distribution record");
+    (value._proto.Has("MEAN") && value._proto.Has("VARIANCE"))
+      ?: _
+      ?_ .Error("DistributionSummary requires a univariate distribution with Mean and Variance methods");
+    mean = value.Mean();
+    variance = value.Variance();
+    {=
+        valueKind=:statsDistributionSummary,
+        schema="rix.stats.distribution-summary@1",
+        sourceSchema=value[:schema],
+        family=value.Family(),
+        support=value.Support(),
+        parameters=value.Parameters(),
+        mean=mean,
+        variance=variance,
+        momentStatus=(mean == _ || variance == _) ?: :unavailable ?_ :available,
+        exactProbability=value[:exactprobability],
+        certifiedFunctions=value[:certifiedfunctions]
+    };
+};
+
+StatsSimulationValues(value) -> {;
+    ((value ? :Map) && value[:schema] == "rix.probability.simulation@1")
+      ?: StatsValues(value[:values])
+      ?_ .Error("SimulationValues expects a probability simulation record with exact scalar values");
+};
+
+StatsObservedValues(value) -> ((value ? :Map) && value[:schema] == "rix.probability.simulation@1")
+  ?: StatsSimulationValues(value)
+  ?_ StatsValues(value);
+
+StatsSimulationSummary(value) -> {;
+    exact = StatsSimulationValues(value);
+    StatsSummary(exact).Merge({=
+        sourceSchema=value[:schema],
+        sourceFamily=value[:family],
+        sourceCount=value[:count],
+        sourceSeed=value[:seed],
+        sourceSamplingPolicy=value[:samplingpolicy]
+    });
+};
+
+StatsConfidenceLevel(value) -> {;
+    level = value ~!: :Rational;
+    (level > 0 && level < 1)
+      ?: level
+      ?_ .Error("Confidence level must be strictly between 0 and 1");
+};
+
+StatsMeanConfidence(valuesValue, levelValue ?= 95/100, options ?= {= }) -> {;
+    values = StatsObservedValues(valuesValue);
+    values.Len() >= 2 ?: _ ?_ .Error("MeanConfidence requires at least two observations");
+    level = StatsConfidenceLevel(levelValue);
+    center = StatsMean(values);
+    knownStandardDeviation = StatsOption(options,"knownStandardDeviation",_);
+    variance = knownStandardDeviation == _
+      ?: StatsVariance(values,1)
+      ?_ {;
+          scale = @knownStandardDeviation ~!: :Rational;
+          scale > 0 ?: scale^2 ?_ .Error("knownStandardDeviation must be a positive exact Rational");
+      };
+    standardError = .numerics.Sqrt(variance/values.Len());
+    critical = .numerics.NormalQuantile((1+level)/2);
+    margin = critical*standardError;
+    {=
+        valueKind=:statsConfidence,
+        schema="rix.stats.confidence@1",
+        parameter=:mean,
+        method=knownStandardDeviation == _ ?: :normalApproximationWithSampleVariance ?_ :normalKnownScale,
+        level=level,
+        estimate=center,
+        standardError=standardError,
+        criticalValue=critical,
+        margin=margin,
+        lower=center-margin,
+        upper=center+margin,
+        count=values.Len(),
+        certified=1
+    };
+};
+
+StatsProportionConfidence(successesValue, trialsValue, levelValue ?= 95/100) -> {;
+    successes = successesValue ~!: :Integer;
+    trials = trialsValue ~!: :Integer;
+    trials >= 1 ?: _ ?_ .Error("ProportionConfidence trials must be positive");
+    (successes >= 0 && successes <= trials)
+      ?: _
+      ?_ .Error("ProportionConfidence successes must be between zero and trials");
+    level = StatsConfidenceLevel(levelValue);
+    estimate = successes/trials;
+    critical = .numerics.NormalQuantile((1+level)/2);
+    squared = critical^2;
+    denominator = 1+squared/trials;
+    center = (estimate+squared/(2*trials))/denominator;
+    margin = critical*.numerics.Sqrt(estimate*(1-estimate)/trials+squared/(4*trials^2))/denominator;
+    {=
+        valueKind=:statsConfidence,
+        schema="rix.stats.confidence@1",
+        parameter=:proportion,
+        method=:wilsonScore,
+        level=level,
+        estimate=estimate,
+        standardError=.numerics.Sqrt(estimate*(1-estimate)/trials),
+        criticalValue=critical,
+        margin=margin,
+        lower=center-margin,
+        upper=center+margin,
+        successes=successes,
+        count=trials,
+        certified=1
+    };
+};
+
+StatsRequireRegression(value) -> ((value ? :Map) && value[:schema] == "rix.stats.regression@1")
+  ?: value
+  ?_ .Error("Expected a stats regression result");
+
+StatsLinearRegression(xValues, yValues) -> {;
+    x = StatsValues(xValues);
+    y = StatsValues(yValues);
+    x.Len() == y.Len() ?: _ ?_ .Error("LinearRegression x and y must have the same length");
+    x.Len() >= 2 ?: _ ?_ .Error("LinearRegression requires at least two observations");
+    count = x.Len();
+    xMean = StatsMean(x);
+    yMean = StatsMean(y);
+    sxx = x.Reduce((sum,value)->sum+(value-xMean)^2,0);
+    syy = y.Reduce((sum,value)->sum+(value-yMean)^2,0);
+    sxy = x.Reduce((sum,value,index)->sum+(value-xMean)*(y[index]-yMean),0);
+    sxx.Numerator() != 0 ?: _ ?_ .Error("LinearRegression predictor values must not all be equal");
+    slope = sxy/sxx;
+    intercept = yMean-slope*xMean;
+    fitted = x.Map((value)->intercept+slope*value);
+    residuals = y.Map((value,index)->value-fitted[index]);
+    sse = StatsSum(residuals.Map((value)->value^2));
+    rSquared = syy.Numerator() == 0 ?: 1 ?_ 1-sse/syy;
+    degrees = count-2;
+    mse = degrees >= 1 ?: sse/degrees ?_ _;
+    slopeStandardError = degrees >= 1 ?: .numerics.Sqrt(mse/sxx) ?_ _;
+    interceptStandardError = degrees >= 1
+      ?: .numerics.Sqrt(mse*(1/count+xMean^2/sxx))
+      ?_ _;
+    {=
+        valueKind=:statsRegression,
+        schema="rix.stats.regression@1",
+        model=:simpleLinear,
+        count=count,
+        x=x,
+        y=y,
+        xMean=xMean,
+        yMean=yMean,
+        slope=slope,
+        intercept=intercept,
+        fitted=fitted,
+        residuals=residuals,
+        sse=sse,
+        sxx=sxx,
+        syy=syy,
+        rSquared=rSquared,
+        degreesOfFreedom=degrees,
+        residualMeanSquare=mse,
+        slopeStandardError=slopeStandardError,
+        interceptStandardError=interceptStandardError,
+        exactCoefficients=1,
+        certifiedDiagnostics=1
+    };
+};
+
+StatsPredict(modelValue, xValue) -> {;
+    model = StatsRequireRegression(modelValue);
+    x = xValue ~!: :Rational;
+    model[:intercept]+model[:slope]*x;
+};
+
+StatsRegressionTable(modelValue) -> {;
+    model = StatsRequireRegression(modelValue);
+    .Table(["term","estimate","standard error"],[
+        ["intercept",model[:intercept],model[:interceptStandardError]],
+        ["slope",model[:slope],model[:slopeStandardError]],
+        ["R squared",model[:rSquared],_],
+        ["residual mean square",model[:residualMeanSquare],_]
+    ],{= caption="Simple linear regression diagnostics" });
+};
+
+StatsResidualTable(modelValue) -> {;
+    model = StatsRequireRegression(modelValue);
+    rows = model[:x].Map((x,index)->[index,x,model[:y][index],model[:fitted][index],model[:residuals][index]]);
+    .Table(["observation","x","observed","fitted","residual"],rows,{= caption="Regression residuals" });
+};
+
 statsNamespace = {= };
 statsNamespace._proto = {=
     Count=(self, values)->StatsCount(values),
@@ -247,6 +439,15 @@ statsNamespace._proto = {=
     SummaryTable=(self, values, options ?= {= })->StatsSummaryTable(values, options),
     Histogram=(self, values, binCount ?= 5)->StatsHistogram(values, binCount),
     HistogramGraphic=(self, value, options ?= {= })->StatsHistogramGraphic(value, options),
-    BoxPlot=(self, values, options ?= {= })->StatsBoxPlot(values, options)
+    BoxPlot=(self, values, options ?= {= })->StatsBoxPlot(values, options),
+    DistributionSummary=(self,value)->StatsDistributionSummary(value),
+    SimulationValues=(self,value)->StatsSimulationValues(value),
+    SimulationSummary=(self,value)->StatsSimulationSummary(value),
+    MeanConfidence=(self,values,level ?= 95/100,options ?= {= })->StatsMeanConfidence(values,level,options),
+    ProportionConfidence=(self,successes,trials,level ?= 95/100)->StatsProportionConfidence(successes,trials,level),
+    LinearRegression=(self,x,y)->StatsLinearRegression(x,y),
+    Predict=(self,model,x)->StatsPredict(model,x),
+    RegressionTable=(self,model)->StatsRegressionTable(model),
+    ResidualTable=(self,model)->StatsResidualTable(model)
 };
 .Host.RegisterValue("stats", statsNamespace, "Exact descriptive statistics and portable plots", ["Statistics", "Exact", "Graphics"]);

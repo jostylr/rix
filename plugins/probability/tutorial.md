@@ -1,6 +1,6 @@
 ---
-title: Exact probability and replayable experiments
-description: Compute finite probabilities exactly, simulate dice and cards, and refine a certified normal law.
+title: Probability laws and replayable experiments
+description: Compute exact finite probabilities, use certified continuous laws, and run disclosed simulations.
 theme: Probability
 status: implemented
 plugin: probability
@@ -94,4 +94,61 @@ record. Increase `grid` for a finer approximation.
 normal := .probability.Normal();
 run := normal.Simulate(4, {= seed=7, grid=1024 });
 [run[:values], run[:samplingPolicy], run[:exactSampling]];
+```
+
+## Use the broader distribution library
+
+Named discrete laws share `PMF`, `CDF`, `Quantile`, moment, and simulation
+methods.
+
+```rix
+.Plugin.Load("probability");
+geometric := .probability.Geometric(1/3);
+poisson := .probability.Poisson(2);
+hyper := .probability.Hypergeometric(52, 4, 5);
+[
+    geometric.PMF(2), geometric.CDF(4), geometric.Mean(),
+    hyper.PMF(0),
+    .numerics.Refine(poisson.CDF(3), {= absoluteWidth=1/1000, maxWork=20000 })
+];
+```
+
+Continuous laws expose `PDF`, `CDF`, and `Quantile`. Generic inverse CDFs
+return rational brackets that enclose the answer.
+
+```rix
+.Plugin.Load("probability");
+gamma := .probability.Gamma(2);
+beta := .probability.Beta(2, 3);
+student := .probability.StudentT(4);
+[
+    .numerics.Refine(gamma.CDF(1), {= absoluteWidth=1/1000, maxWork=20000 }),
+    beta.CDF(1/2),
+    beta.Quantile(1/2, {= width=1/1000 }),
+    .numerics.Refine(student.CDF(1), {= absoluteWidth=1/1000, maxWork=20000 })
+];
+```
+
+Certified parameter domains are explicit: gamma CDFs support integer and
+half-integer shape, beta CDFs support positive integer parameters, and F CDFs
+currently support even degrees of freedom. Other cases report an unsupported
+certificate rather than substituting a float.
+
+## See where the classical CLT stops
+
+Uniform and exponential laws have finite variance. The Cauchy law has neither
+mean nor variance, and its sample average is again Cauchy.
+
+```rix
+.Plugin.Load("probability");
+uniformRun := .probability.Uniform(-1,1).Simulate(8, {= seed=12, grid=256 });
+exponentialRun := .probability.Exponential().Simulate(8, {= seed=12, grid=256 });
+cauchyRun := .probability.Cauchy().Simulate(8, {= seed=12, grid=256 });
+[
+    uniformRun[:samplingPolicy],
+    exponentialRun[:samplingPolicy],
+    cauchyRun[:samplingPolicy],
+    .probability.Cauchy().Mean(),
+    .probability.Cauchy().Variance()
+];
 ```

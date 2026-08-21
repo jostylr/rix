@@ -1,6 +1,6 @@
 ---
-title: Summarize exact data
-description: Compute rational descriptive statistics and turn them into portable tables and plots.
+title: Summarize and model exact data
+description: Compute exact summaries and regressions, certified confidence records, and portable diagnostics.
 theme: Algebra and analysis
 status: implemented
 plugin: stats
@@ -60,3 +60,42 @@ values.Map((value) -> .numerics.Refine(value, {=
 
 Pass optional mean and exact positive Rational standard deviation arguments
 for another normal distribution, for example `.stats.NormalCDF(12,10,2)`.
+
+## Confidence records
+
+Confidence procedures return semantic records whose endpoints remain
+certified expressions. The method name states which normal-theory formula was
+used.
+
+```rix
+.Plugin.Load("stats");
+meanInterval := .stats.MeanConfidence([3,4,5,6,7], 95/100);
+proportionInterval := .stats.ProportionConfidence(17, 25, 95/100);
+[meanInterval, proportionInterval];
+```
+
+## Exact simple linear regression
+
+Coefficients and residuals are exact for exact inputs. Only diagnostics that
+require square roots become certified refinable values.
+
+```rix
+.Plugin.Load("stats");
+model := .stats.LinearRegression([1,2,3,4], [3,5,7,9]);
+.Fragment([
+    .stats.RegressionTable(model),
+    .stats.ResidualTable(model),
+    .Paragraph(@"The fitted value at x=5 is @{.stats.Predict(model,5)}.")
+]);
+```
+
+Probability simulations retain their provenance when summarized.
+
+```rix
+.Plugin.Load("probability");
+.Plugin.Load("stats");
+run := .probability.Dice(2,6).Simulate(20, {= seed=42 });
+summary := .stats.SimulationSummary(run);
+theory := .stats.DistributionSummary(.probability.Dice(2,6));
+[summary[:mean], summary[:sourceFamily], summary[:sourceSeed], summary[:sourceSamplingPolicy], theory[:mean], theory[:variance]];
+```

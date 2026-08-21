@@ -15,7 +15,7 @@ function runtime() {
     };
 }
 
-describe("Phase 1 probability plugin", () => {
+describe("probability plugin", () => {
     test("is opt-in and remains separate from stats and data", () => {
         expect(() => parseAndEvaluate(".probability.Binomial(2,1/2)", runtime())).toThrow();
         expect(() => parseAndEvaluate('.Plugin.Load("stats"); .probability.Binomial(2,1/2)', runtime())).toThrow();
@@ -131,5 +131,80 @@ describe("Phase 1 probability plugin", () => {
         expect(() => parseAndEvaluate('.Plugin.Load("probability"); .probability.Multinomial(2,[1/2,1/4])', runtime())).toThrow("sum exactly to 1");
         expect(() => parseAndEvaluate('.Plugin.Load("probability"); .probability.CardDraw(10,11,2)', runtime())).toThrow("cannot exceed population");
         expect(() => parseAndEvaluate('.Plugin.Load("probability"); .probability.CartesianPower([0,1],20,1000)', runtime())).toThrow("exceeding maxOutcomes");
+    });
+
+    test("covers the Phase 2 discrete distribution family", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("probability");
+            bernoulli := .probability.Bernoulli(1/4);
+            categorical := .probability.Categorical([1/2,1/3,1/6],["a","b","c"]);
+            geometric := .probability.Geometric(1/2);
+            negative := .probability.NegativeBinomial(2,1/2);
+            hyper := .probability.Hypergeometric(12,4,3);
+            poisson := .probability.Poisson(2);
+            poissonCDF := .numerics.Refine(poisson.CDF(2),{= absoluteWidth=1/1000,maxWork=20000 });
+            [
+                bernoulli.PMF(1), bernoulli.Quantile(3/4),
+                categorical.PMF("b"), categorical.CDF("b"), categorical.Quantile(0),
+                geometric.PMF(2), geometric.CDF(2), geometric.Mean(),
+                negative.PMF(1), negative.CDF(1),
+                hyper.PMF(1), hyper.Family(),
+                poisson.Mean(), poisson.Variance(), poissonCDF[:status]
+            ]
+        `, runtime());
+        expect(formatValue(result)).toBe("[1/4, 1, 1/3, 5/6, a, 1/8, 7/8, 1, 1/4, 1/2, 28/55, hypergeometric, 2, 2, enclosed]");
+    });
+
+    test("provides certified continuous laws and enclosing inverse brackets", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("probability");
+            gamma := .probability.Gamma(2);
+            beta := .probability.Beta(2,3);
+            student := .probability.StudentT(2);
+            f := .probability.F(4,6);
+            gammaCDF := .numerics.Refine(gamma.CDF(1),{= absoluteWidth=1/1000,maxWork=20000 });
+            studentCDF := .numerics.Refine(student.CDF(1),{= absoluteWidth=1/100,maxWork=20000 });
+            betaMedian := .probability.Beta(2,2).Quantile(1/2,{= width=1/1000,probabilityWidth=1/1000000 });
+            [
+                .probability.Uniform(-1,3).CDF(1),
+                .probability.Exponential(2).CDF(0),
+                beta.CDF(1/2), beta.PDF(0), .probability.Beta(1,3).PDF(0),
+                .probability.ChiSquare(4).Mean(),
+                student.CDF(0), student.Mean(), student.Variance(),
+                f.CDF(1), gammaCDF[:status], studentCDF[:status],
+                betaMedian.Low() <= 1/2, betaMedian.High() >= 1/2,
+                .probability.Cauchy().MomentsExist(), .probability.LogNormal().CDF(0)
+            ]
+        `, runtime());
+        expect(formatValue(result)).toBe("[1/2, 0, 11/16, 0, 3, 4, 1/2, 0, _, 328/625, enclosed, enclosed, 1, 1, 0, 0]");
+    });
+
+    test("discloses Phase 2 simulation approximations and unsupported certified domains", () => {
+        const result = parseAndEvaluate(`
+            .Plugin.Load("probability");
+            poisson := .probability.Poisson(1).Simulate(2,{= seed=19,approximationTrials=32 });
+            exponential := .probability.Exponential().Simulate(2,{= seed=19,grid=32 });
+            [poisson[:samplingPolicy],poisson[:exactSampling],exponential[:samplingPolicy],exponential[:exactSampling]]
+        `, runtime());
+        expect(formatValue(result)).toBe("[binomialLimitApproximation, 0, finiteInverseCDFGrid, 0]");
+        expect(() => parseAndEvaluate('.Plugin.Load("probability"); .probability.Gamma(1/3).CDF(1)', runtime()))
+            .toThrow("Integer or half-Integer shape");
+        expect(() => parseAndEvaluate('.Plugin.Load("probability"); .probability.Beta(1/2,2).CDF(1/2)', runtime()))
+            .toThrow("positive Integer parameters");
+        expect(() => parseAndEvaluate('.Plugin.Load("probability"); .probability.F(3,5).CDF(1)', runtime()))
+            .toThrow("positive Integer parameters");
+        expect(formatValue(parseAndEvaluate('.Plugin.Load("probability"); .probability.F(2,6).PDF(0)', runtime()))).toBe("1");
+        expect(() => parseAndEvaluate('.Plugin.Load("probability"); .probability.F(1,6).PDF(0)', runtime()))
+            .toThrow("unbounded at zero");
+        expect(() => parseAndEvaluate('.Plugin.Load("probability"); .probability.Beta(1/2,2).PDF(0)', runtime()))
+            .toThrow("unbounded at zero");
+        expect(formatValue(parseAndEvaluate(`
+            .Plugin.Load("probability");
+            [.probability.Exponential().Quantile(0),.probability.LogNormal().Quantile(0),.probability.Gamma(2).Quantile(0),.probability.Beta(2,3).Quantile(1),.probability.F(2,6).Quantile(0)]
+        `, runtime()))).toBe("[0, 0, 0, 1, 0]");
+        expect(() => parseAndEvaluate('.Plugin.Load("probability"); .probability.Geometric(1/2).Quantile(1)', runtime()))
+            .toThrow("unbounded");
+        expect(() => parseAndEvaluate('.Plugin.Load("probability"); .probability.Poisson(2).Quantile(1)', runtime()))
+            .toThrow("unbounded");
     });
 });

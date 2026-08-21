@@ -63,6 +63,17 @@ $$view := {;
         ["normal","yes","finite variance","already normal for every n"],
         ["standard Cauchy","no","mean and variance do not exist","every sample average is again Cauchy"]
     ];
+    uniform := .probability.Uniform(-1,1);
+    exponential := .probability.Exponential();
+    cauchy := .probability.Cauchy();
+    uniformRun := uniform.Simulate(8,{= seed=20260821,grid=256 });
+    exponentialRun := exponential.Simulate(8,{= seed=20260821,grid=256 });
+    cauchyRun := cauchy.Simulate(8,{= seed=20260821,grid=256 });
+    experimentRows := [
+        ["uniform",uniform.Mean(),uniform.Variance(),uniformRun[:count],uniformRun[:samplingPolicy],uniformRun[:exactSampling]],
+        ["exponential",exponential.Mean(),exponential.Variance(),exponentialRun[:count],exponentialRun[:samplingPolicy],exponentialRun[:exactSampling]],
+        ["Cauchy",cauchy.Mean(),cauchy.Variance(),cauchyRun[:count],cauchyRun[:samplingPolicy],cauchyRun[:exactSampling]]
+    ];
 
     .Fragment([
         .Heading(1,"When sums become normal—and when they do not"),
@@ -87,8 +98,14 @@ $$view := {;
             hypothesisRows,
             {= caption="The Cauchy law is a counterexample, not slow convergence" }
         ),
+        .Heading(2,"Run finite-variance and heavy-tail experiments"),
+        .Table(
+            ["source law","mean","variance","draws","sampling policy","exact continuum sample?"],
+            experimentRows,
+            {= caption="Seeded Phase 2 simulations use a disclosed finite inverse-CDF grid" }
+        ),
         .Paragraph(@"The certified normal CDF at zero refines to @{normalHalf}. For a standard Cauchy variable, the exact quartiles are -1, 0, and 1; averaging any number of independent copies leaves those quartiles unchanged because the Cauchy family is stable."),
-        .Paragraph("This Phase 1 companion computes binomial/dice laws and the normal reference with the probability plugin. The Phase 2 Cauchy constructor will make the counterexample simulatable; the theorem statement here does not replace that future live experiment.")
+        .Paragraph("Uniform and exponential inputs have finite variance, so their standardized averages fall under the classical theorem. The Cauchy row has missing moments and its averages retain the same law. The seeded draws are an exploration aid; the exact stability identity, not the finite simulation, establishes the counterexample.")
     ])
 };
 

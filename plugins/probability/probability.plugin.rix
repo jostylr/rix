@@ -1,10 +1,10 @@
 /**
 id: probability
-description: Exact finite probability distributions, certified normal laws, combinatorics, and replayable simulation over scoped RNGs.
+description: Exact finite probability, certified undergraduate distribution functions, and replayable simulation with explicit approximation policies.
 kind: rix
 mount: probability
 aliases: [prob]
-exports: [Choose, Permutations, MultinomialCoefficient, CartesianPower, Event, Finite, Binomial, Multinomial, Normal, Dice, CardDraw, StandardDeck, DrawCards, Simulate]
+exports: [Choose, Permutations, MultinomialCoefficient, CartesianPower, Event, Finite, Bernoulli, Categorical, Binomial, Multinomial, Geometric, NegativeBinomial, Hypergeometric, Poisson, Uniform, Normal, Exponential, Gamma, Beta, ChiSquare, StudentT, F, LogNormal, Cauchy, Dice, CardDraw, StandardDeck, DrawCards, Simulate]
 groups: [Probability, Exact, Random]
 permissions: []
 requires: [rix.numerics@1]
@@ -15,7 +15,7 @@ deterministic: false
 defaultEnabled: false
 **/
 
-ProbOption(options, key, fallback) -> options.Has(key) ?: options[key] ?_ fallback;
+ProbOption(options, key, fallback) -> options.Has(key.Lower()) ?: options[key.Lower()] ?_ fallback;
 
 ProbInteger(value, label) -> {;
     exact = value ~!: :Integer;
@@ -44,6 +44,13 @@ ProbUnit(value, label) -> {;
       ?_ .Error(@"@{label} must be between 0 and 1");
 };
 
+ProbOpenUnit(value, label) -> {;
+    exact = ProbUnit(value, label);
+    (exact.Numerator() > 0 && exact.Numerator() < exact.Denominator())
+      ?: exact
+      ?_ .Error(@"@{label} must be strictly between 0 and 1");
+};
+
 ProbArray(value, label, allowEmpty ?= 0) -> {;
     value ? :Array ?: _ ?_ .Error(@"@{label} must be an Array");
     (allowEmpty == 1 || value.Len() > 0)
@@ -59,6 +66,35 @@ ProbZeros(length) -> {;
         @result ~= @result.Push(0);
     }; index += 1 };
     result;
+};
+
+ProbIndices(length) -> {;
+    result := [];
+    {@ index = 1; index <= @length; {;
+        @result ~= @result.Push(index);
+    }; index += 1 };
+    result;
+};
+
+ProbGridProbability(options) -> {;
+    grid = ProbPositiveInteger(ProbOption(options,"grid",1048576), "Continuous sample grid");
+    grid >= 2 ?: _ ?_ .Error("Continuous sample grid must be at least 2");
+    (1:(grid-1)).Random({: 1, 1 })/grid;
+};
+
+ProbDiscreteQuantile(cdfFunction, probabilityValue, minimumValue, maximumValue) -> {;
+    probability = ProbUnit(probabilityValue, "Discrete quantile probability");
+    minimum = ProbInteger(minimumValue, "Discrete quantile minimum");
+    maximum = ProbInteger(maximumValue, "Discrete quantile maximum");
+    probability.Numerator() == 0
+      ?: minimum
+      ?_ {;
+          selected := @maximum;
+          {@ outcome := @minimum; outcome <= @maximum && (@cdfFunction(outcome) < @probability); {;
+              @selected ~= outcome+1;
+          }; outcome += 1 };
+          selected;
+      };
 };
 
 ProbChoose(nValue, kValue) -> {;
@@ -195,7 +231,7 @@ ProbRequireDistribution(value) -> ((value ? :Map) && value[:schema] == "rix.prob
   ?: value
   ?_ .Error("Expected a ProbabilityDistribution");
 
-ProbFinite(outcomesValue, weightsValue ?= _) -> {;
+ProbFinite(outcomesValue, weightsValue ?= _, familyValue ?= :finite) -> {;
     outcomes = ProbArray(outcomesValue, "Finite outcomes");
     rawWeights = weightsValue == _
       ?: outcomes.Map((outcome) -> 1)
@@ -211,7 +247,7 @@ ProbFinite(outcomesValue, weightsValue ?= _) -> {;
     total > 0 ?: _ ?_ .Error("Finite weights must have positive total weight");
     probabilities = weights.Map((weight) -> weight/total);
     value = {=
-        family=:finite,
+        family=familyValue,
         kind=:discrete,
         support=outcomes,
         parameters={= outcomes=outcomes, probabilities=probabilities },
@@ -249,13 +285,23 @@ ProbFinite(outcomesValue, weightsValue ?= _) -> {;
     ProbDistribution(value, {=
         PMF=(self,candidate)->PMF(candidate),
         CDF=(self,bound)->CDF(bound),
+        Quantile=(self,probability)->{;
+            p = ProbUnit(probability,"Finite quantile probability");
+            cumulative := 0;
+            selected := outcomes[1];
+            {@ index = 1; index <= @outcomes.Len() && @cumulative < @p; {;
+                @cumulative += @probabilities[index];
+                @selected ~= @outcomes[index];
+            }; index += 1 };
+            selected;
+        },
         Probability=(self,predicate)->Probability(predicate),
         Sample=(self,options ?= {= })->Sample(options),
         Simulate=(self,count,options ?= {= })->ProbSimulation(self,count,options,Sample,1,:exactCategorical)
     });
 };
 
-ProbBinomial(nValue, probabilityValue) -> {;
+ProbBinomial(nValue, probabilityValue, familyValue ?= :binomial) -> {;
     n = ProbNonnegativeInteger(nValue, "Binomial n");
     probability = ProbUnit(probabilityValue, "Binomial probability");
     PMF = (kValue) -> {;
@@ -282,7 +328,7 @@ ProbBinomial(nValue, probabilityValue) -> {;
         state;
     };
     value = {=
-        family=:binomial,
+        family=familyValue,
         kind=:discrete,
         support={= minimum=0, maximum=n },
         parameters={= n=n, probability=probability },
@@ -291,6 +337,7 @@ ProbBinomial(nValue, probabilityValue) -> {;
     ProbDistribution(value, {=
         PMF=(self,k)->PMF(k),
         CDF=(self,bound)->CDF(bound),
+        Quantile=(self,p)->ProbDiscreteQuantile(CDF,p,0,n),
         Mean=(self)->n*probability,
         Variance=(self)->n*probability*(1-probability),
         Sample=(self,options ?= {= })->Sample(options),
@@ -384,6 +431,359 @@ ProbMultinomial(nValue, probabilitiesValue) -> {;
     });
 };
 
+ProbCategorical(probabilitiesValue, outcomesValue ?= _) -> {;
+    probabilities = ProbArray(probabilitiesValue,"Categorical probabilities").Map(
+        (probability)->ProbUnit(probability,"Categorical probability")
+    );
+    total = ProbSum(probabilities);
+    total.Numerator() == total.Denominator()
+      ?: _
+      ?_ .Error("Categorical probabilities must sum exactly to 1");
+    outcomes = outcomesValue == _ ?: ProbIndices(probabilities.Len()) ?_ ProbArray(outcomesValue,"Categorical outcomes");
+    outcomes.Len() == probabilities.Len()
+      ?: _
+      ?_ .Error("Categorical outcomes and probabilities must have the same length");
+    ProbFinite(outcomes,probabilities,:categorical);
+};
+
+ProbGeometric(probabilityValue, familyValue ?= :geometric) -> {;
+    probability = ProbUnit(probabilityValue,"Geometric probability");
+    probability.Numerator() > 0 ?: _ ?_ .Error("Geometric probability must be positive");
+    PMF = (failureValue) -> {;
+        failures = ProbInteger(failureValue,"Geometric outcome");
+        failures < 0 ?: 0 ?_ (1-probability)^failures*probability;
+    };
+    CDF = (boundValue) -> {;
+        bound = ProbRational(boundValue,"Geometric CDF bound").Floor();
+        bound < 0 ?: 0 ?_ 1-(1-probability)^(bound+1);
+    };
+    Sample = (options ?= {= }) -> {;
+        maxTrials = ProbPositiveInteger(ProbOption(options,"maxTrials",10000),"Geometric maxTrials");
+        failures := 0;
+        success := 0;
+        {@ trial = 1; trial <= @maxTrials && @success == 0; {;
+            @success ~= ProbBernoulliSample(@probability);
+            @success == 0 ?: {; @failures += 1; } ?_ _;
+        }; trial += 1 };
+        success == 1 ?: failures ?_ .Error("Geometric sampling exhausted maxTrials before success");
+    };
+    value = {=
+        family=familyValue,
+        kind=:discrete,
+        support={= minimum=0,maximum=_ },
+        parameters={= probability=probability },
+        exactProbability=1
+    };
+    ProbDistribution(value,{=
+        PMF=(self,k)->PMF(k),
+        CDF=(self,k)->CDF(k),
+        Quantile=(self,p)->{;
+            target = ProbUnit(p,"Geometric quantile probability");
+            target.Numerator() == target.Denominator()
+              ?: .Error("Geometric quantile at probability one is unbounded")
+              ?_ _;
+            target.Numerator() == 0
+              ?: 0
+              ?_ {;
+                  outcome := 0;
+                  {@ work = 0; work < 10000 && CDF(@outcome) < @target; {; @outcome += 1; }; work += 1 };
+                  CDF(outcome) >= @target ?: _ ?_ .Error("Geometric quantile exceeded its work bound");
+                  outcome;
+              };
+        },
+        Mean=(self)->(1-probability)/probability,
+        Variance=(self)->(1-probability)/probability^2,
+        Sample=(self,options ?= {= })->Sample(options),
+        Simulate=(self,count,options ?= {= })->ProbSimulation(self,count,options,Sample,1,:boundedExactGeometric)
+    });
+};
+
+ProbNegativeBinomial(successesValue, probabilityValue) -> {;
+    successes = ProbPositiveInteger(successesValue,"NegativeBinomial successes");
+    probability = ProbUnit(probabilityValue,"NegativeBinomial probability");
+    probability.Numerator() > 0 ?: _ ?_ .Error("NegativeBinomial probability must be positive");
+    PMF = (failureValue) -> {;
+        failures = ProbInteger(failureValue,"NegativeBinomial outcome");
+        failures < 0
+          ?: 0
+          ?_ ProbChoose(failures+successes-1,failures)*probability^successes*(1-probability)^failures;
+    };
+    CDF = (boundValue) -> {;
+        bound = ProbRational(boundValue,"NegativeBinomial CDF bound").Floor();
+        bound < 0
+          ?: 0
+          ?_ {;
+              state := 0;
+              {@ failures = 0; failures <= @bound; {; @state += @PMF(failures); }; failures += 1 };
+              state;
+          };
+    };
+    Sample = (options ?= {= }) -> {;
+        state := 0;
+        {@ success = 1; success <= @successes; {;
+            @state += ProbGeometric(@probability).Sample(@options);
+        }; success += 1 };
+        state;
+    };
+    value = {=
+        family=:negativeBinomial,
+        kind=:discrete,
+        support={= minimum=0,maximum=_ },
+        parameters={= successes=successes,probability=probability },
+        exactProbability=1
+    };
+    ProbDistribution(value,{=
+        PMF=(self,k)->PMF(k),
+        CDF=(self,k)->CDF(k),
+        Quantile=(self,p)->{;
+            target = ProbUnit(p,"NegativeBinomial quantile probability");
+            target.Numerator() == target.Denominator()
+              ?: .Error("NegativeBinomial quantile at probability one is unbounded")
+              ?_ _;
+            target.Numerator() == 0
+              ?: 0
+              ?_ {;
+                  outcome := 0;
+                  {@ work = 0; work < 10000 && CDF(@outcome) < @target; {; @outcome += 1; }; work += 1 };
+                  CDF(outcome) >= @target ?: _ ?_ .Error("NegativeBinomial quantile exceeded its work bound");
+                  outcome;
+              };
+        },
+        Mean=(self)->successes*(1-probability)/probability,
+        Variance=(self)->successes*(1-probability)/probability^2,
+        Sample=(self,options ?= {= })->Sample(options),
+        Simulate=(self,count,options ?= {= })->ProbSimulation(self,count,options,Sample,1,:boundedExactNegativeBinomial)
+    });
+};
+
+ProbCertifiedDiscreteQuantile(cdfFunction, probabilityValue, options ?= {= }) -> {;
+    probability = ProbUnit(probabilityValue,"Discrete quantile probability");
+    maxOutcome = ProbPositiveInteger(ProbOption(options,"maxOutcome",10000),"Discrete quantile maxOutcome");
+    precisionBits = ProbPositiveInteger(ProbOption(options,"precisionBits",40),"Discrete quantile precisionBits");
+    probability.Numerator() == probability.Denominator()
+      ?: .Error("Discrete quantile at probability one is unbounded")
+      ?_ _;
+    probability.Numerator() == 0
+      ?: 0
+      ?_ {;
+          selected := _;
+          {@ outcome = 0; outcome <= @maxOutcome && @selected == _; {;
+              result = .numerics.Refine(outcome |> @cdfFunction,{=
+                  absoluteWidth=1/(2^@precisionBits),
+                  maxWork=20000
+              });
+              interval = result[:interval];
+              interval.Low() >= @probability
+                ?: {; @selected ~= @outcome; }
+                ?_ (interval.High() < @probability
+                    ?: _
+                    ?_ .Error("Discrete quantile is unresolved at the requested precisionBits"));
+          }; outcome += 1 };
+          selected == _ ?: .Error("Discrete quantile exceeded maxOutcome") ?_ selected;
+      };
+};
+
+ProbPoisson(rateValue) -> {;
+    rate = ProbRational(rateValue,"Poisson rate");
+    rate > 0 ?: _ ?_ .Error("Poisson rate must be positive");
+    PMF = (outcomeValue) -> {;
+        outcome = ProbInteger(outcomeValue,"Poisson outcome");
+        outcome < 0 ?: 0 ?_ .numerics.Exp(-rate)*rate^outcome/outcome!;
+    };
+    CDF = (boundValue) -> {;
+        bound = ProbRational(boundValue,"Poisson CDF bound").Floor();
+        bound < 0
+          ?: 0
+          ?_ {;
+              state := 0;
+              {@ outcome = 0; outcome <= @bound; {; @state += @PMF(outcome); }; outcome += 1 };
+              state;
+          };
+    };
+    Sample = (options ?= {= }) -> {;
+        trials = ProbPositiveInteger(ProbOption(options,"approximationTrials",4096),"Poisson approximationTrials");
+        rate <= trials ?: _ ?_ .Error("Poisson approximationTrials must be at least the rate");
+        state := 0;
+        {@ trial = 1; trial <= @trials; {; @state += ProbBernoulliSample(@rate/@trials); }; trial += 1 };
+        state;
+    };
+    value = {=
+        family=:poisson,
+        kind=:discrete,
+        support={= minimum=0,maximum=_ },
+        parameters={= rate=rate },
+        exactProbability=0,
+        certifiedFunctions=1
+    };
+    ProbDistribution(value,{=
+        PMF=(self,k)->PMF(k),
+        CDF=(self,k)->CDF(k),
+        Quantile=(self,p,options ?= {= })->ProbCertifiedDiscreteQuantile(CDF,p,options),
+        Mean=(self)->rate,
+        Variance=(self)->rate,
+        Sample=(self,options ?= {= })->Sample(options),
+        Simulate=(self,count,options ?= {= })->ProbSimulation(self,count,options,Sample,0,:binomialLimitApproximation)
+    });
+};
+
+ProbContinuousQuantile(cdfFunction, probabilityValue, lowerValue, upperValue, options ?= {= }) -> {;
+    probability = ProbOpenUnit(probabilityValue,"Continuous quantile probability");
+    lower := ProbRational(lowerValue,"Continuous quantile lower bracket");
+    upper := ProbRational(upperValue,"Continuous quantile upper bracket");
+    lower < upper ?: _ ?_ .Error("Continuous quantile bracket must have positive width");
+    tolerance = ProbRational(ProbOption(options,"width",1/1000000),"Continuous quantile width");
+    tolerance > 0 ?: _ ?_ .Error("Continuous quantile width must be positive");
+    maxWork = ProbPositiveInteger(ProbOption(options,"maxWork",20000),"Continuous quantile maxWork");
+    probabilityWidth = ProbRational(ProbOption(options,"probabilityWidth",1/1000000000),"Continuous quantile probabilityWidth");
+    active := 1;
+    {@ iteration = 1; iteration <= 256 && @active == 1 && (@upper-@lower) > @tolerance; {;
+        midpoint = (@lower+@upper)/2;
+        cdfValue = midpoint |> @cdfFunction;
+        exactCDF = cdfValue ~!: :Rational;
+        refined = exactCDF == _
+          ?: .numerics.Refine(cdfValue,{=
+              absoluteWidth=@probabilityWidth,
+              maxWork=@maxWork
+          })
+          ?_ _;
+        cdfLower = exactCDF == _ ?: refined[:interval].Low() ?_ exactCDF;
+        cdfUpper = exactCDF == _ ?: refined[:interval].High() ?_ exactCDF;
+        cdfUpper < @probability
+          ?: {; @lower ~= @midpoint; }
+          ?_ (cdfLower >= @probability
+              ?: {; @upper ~= @midpoint; }
+              ?_ {; @active ~= 0; });
+    }; iteration += 1 };
+    lower:upper;
+};
+
+ProbUniform(lowerValue ?= 0, upperValue ?= 1) -> {;
+    lower = ProbRational(lowerValue,"Uniform lower endpoint");
+    upper = ProbRational(upperValue,"Uniform upper endpoint");
+    lower < upper ?: _ ?_ .Error("Uniform upper endpoint must exceed lower endpoint");
+    width = upper-lower;
+    PDF = (xValue) -> {;
+        x = ProbRational(xValue,"Uniform PDF input");
+        (x < lower || x > upper) ?: 0 ?_ 1/width;
+    };
+    CDF = (xValue) -> {;
+        x = ProbRational(xValue,"Uniform CDF input");
+        x <= lower ?: 0 ?_ (x >= upper ?: 1 ?_ (x-lower)/width);
+    };
+    Quantile = (pValue) -> {;
+        p = ProbUnit(pValue,"Uniform quantile probability");
+        lower+p*width;
+    };
+    Sample = (options ?= {= }) -> Quantile(ProbGridProbability(options));
+    value = {=
+        family=:uniform,
+        kind=:continuous,
+        support={= lower=lower,upper=upper },
+        parameters={= lower=lower,upper=upper },
+        exactProbability=1,
+        continuousSampling=0
+    };
+    ProbDistribution(value,{=
+        PDF=(self,x)->PDF(x),CDF=(self,x)->CDF(x),Quantile=(self,p)->Quantile(p),
+        Mean=(self)->(lower+upper)/2,Variance=(self)->width^2/12,
+        Sample=(self,options ?= {= })->Sample(options),
+        Simulate=(self,count,options ?= {= })->ProbSimulation(self,count,options,Sample,0,:finiteUniformGrid)
+    });
+};
+
+ProbExponential(rateValue ?= 1) -> {;
+    rate = ProbRational(rateValue,"Exponential rate");
+    rate > 0 ?: _ ?_ .Error("Exponential rate must be positive");
+    PDF = (xValue) -> {;
+        x = ProbRational(xValue,"Exponential PDF input");
+        x < 0 ?: 0 ?_ rate*.numerics.Exp(-rate*x);
+    };
+    CDF = (xValue) -> {;
+        x = ProbRational(xValue,"Exponential CDF input");
+        x <= 0 ?: 0 ?_ 1-.numerics.Exp(-rate*x);
+    };
+    Quantile = (pValue) -> {;
+        p = ProbUnit(pValue,"Exponential quantile probability");
+        p.Numerator() == 0
+          ?: 0
+          ?_ (p.Numerator() == p.Denominator()
+              ?: .Error("Exponential quantile at probability one is unbounded")
+              ?_ -.numerics.Log(1-p)/rate);
+    };
+    Sample = (options ?= {= }) -> Quantile(ProbGridProbability(options));
+    value = {=
+        family=:exponential,kind=:continuous,support={= lower=0,upper=_ },
+        parameters={= rate=rate },exactProbability=0,certifiedFunctions=1
+    };
+    ProbDistribution(value,{=
+        PDF=(self,x)->PDF(x),CDF=(self,x)->CDF(x),Quantile=(self,p)->Quantile(p),
+        Mean=(self)->1/rate,Variance=(self)->1/rate^2,
+        Sample=(self,options ?= {= })->Sample(options),
+        Simulate=(self,count,options ?= {= })->ProbSimulation(self,count,options,Sample,0,:finiteInverseCDFGrid)
+    });
+};
+
+ProbCauchy(locationValue ?= 0, scaleValue ?= 1) -> {;
+    location = ProbRational(locationValue,"Cauchy location");
+    scale = ProbRational(scaleValue,"Cauchy scale");
+    scale > 0 ?: _ ?_ .Error("Cauchy scale must be positive");
+    PDF = (x) -> 1/(.numerics.Pi()*scale*(1+((x-location)/scale)^2));
+    CDF = (x) -> 1/2+.numerics.Atan((x-location)/scale)/.numerics.Pi();
+    Quantile = (pValue) -> {;
+        p = ProbOpenUnit(pValue,"Cauchy quantile probability");
+        p.Numerator()*2 == p.Denominator()
+          ?: location
+          ?_ location+scale*.numerics.Tan(.numerics.Pi()*(p-1/2));
+    };
+    Sample = (options ?= {= }) -> Quantile(ProbGridProbability(options));
+    value = {=
+        family=:cauchy,kind=:continuous,support={= lower=_,upper=_ },
+        parameters={= location=location,scale=scale },exactProbability=0,
+        certifiedFunctions=1,momentStatus=:meanAndVarianceUndefined
+    };
+    ProbDistribution(value,{=
+        PDF=(self,x)->PDF(x),CDF=(self,x)->CDF(x),Quantile=(self,p)->Quantile(p),
+        Mean=(self)->_,Variance=(self)->_,MomentsExist=(self)->0,
+        Sample=(self,options ?= {= })->Sample(options),
+        Simulate=(self,count,options ?= {= })->ProbSimulation(self,count,options,Sample,0,:finiteInverseCDFGrid)
+    });
+};
+
+ProbLogNormal(locationValue ?= 0, scaleValue ?= 1) -> {;
+    location = ProbRational(locationValue,"LogNormal log-location");
+    scale = ProbRational(scaleValue,"LogNormal log-scale");
+    scale > 0 ?: _ ?_ .Error("LogNormal log-scale must be positive");
+    PDF = (xValue) -> {;
+        x = ProbRational(xValue,"LogNormal PDF input");
+        x <= 0 ?: 0 ?_ .numerics.NormalPDF((.numerics.Log(x)-location)/scale)/(x*scale);
+    };
+    CDF = (xValue) -> {;
+        x = ProbRational(xValue,"LogNormal CDF input");
+        x <= 0 ?: 0 ?_ .numerics.NormalCDF((.numerics.Log(x)-location)/scale);
+    };
+    Quantile = (pValue) -> {;
+        p = ProbUnit(pValue,"LogNormal quantile probability");
+        p.Numerator() == 0
+          ?: 0
+          ?_ (p.Numerator() == p.Denominator()
+              ?: .Error("LogNormal quantile at probability one is unbounded")
+              ?_ .numerics.Exp(location+scale*.numerics.NormalQuantile(p)));
+    };
+    Sample = (options ?= {= }) -> Quantile(ProbGridProbability(options));
+    mean = .numerics.Exp(location+scale^2/2);
+    variance = (.numerics.Exp(scale^2)-1)*.numerics.Exp(2*location+scale^2);
+    value = {=
+        family=:logNormal,kind=:continuous,support={= lower=0,upper=_ },
+        parameters={= logLocation=location,logScale=scale },exactProbability=0,certifiedFunctions=1
+    };
+    ProbDistribution(value,{=
+        PDF=(self,x)->PDF(x),CDF=(self,x)->CDF(x),Quantile=(self,p)->Quantile(p),
+        Mean=(self)->mean,Variance=(self)->variance,
+        Sample=(self,options ?= {= })->Sample(options),
+        Simulate=(self,count,options ?= {= })->ProbSimulation(self,count,options,Sample,0,:finiteInverseCDFGrid)
+    });
+};
+
 ProbNormal(meanValue ?= 0, standardDeviationValue ?= 1) -> {;
     mean = ProbRational(meanValue, "Normal mean");
     standardDeviation = ProbRational(standardDeviationValue, "Normal standard deviation");
@@ -423,6 +823,266 @@ ProbNormal(meanValue ?= 0, standardDeviationValue ?= 1) -> {;
         Variance=(self)->standardDeviation^2,
         Sample=(self,options ?= {= })->Sample(options),
         Simulate=(self,count,options ?= {= })->ProbSimulation(self,count,options,Sample,0,:finiteQuantileGrid)
+    });
+};
+
+ProbGamma(shapeValue, rateValue ?= 1, familyValue ?= :gamma, parameterRecord ?= _) -> {;
+    shape = ProbRational(shapeValue,"Gamma shape");
+    rate = ProbRational(rateValue,"Gamma rate");
+    shape > 0 ?: _ ?_ .Error("Gamma shape must be positive");
+    rate > 0 ?: _ ?_ .Error("Gamma rate must be positive");
+    PDF = (xValue) -> {;
+        x = ProbRational(xValue,"Gamma PDF input");
+        x < 0
+          ?: 0
+          ?_ (x == (0 ~!: :Rational)
+              ?: (shape > 1 ?: 0 ?_ (shape == (1 ~!: :Rational) ?: rate ?_ .Error("Gamma PDF is unbounded at zero for shape below one")))
+              ?_ rate^shape*x^(shape-1)*.numerics.Exp(-rate*x)/.numerics.Gamma(shape));
+    };
+    CDF = (xValue) -> {;
+        x = ProbRational(xValue,"Gamma CDF input");
+        x <= 0
+          ?: 0
+          ?_ {;
+              z = @rate*@x;
+              twice = @shape*2;
+              twice.Denominator() == 1
+                ?: {;
+                    twiceInteger = @twice.Numerator();
+                    twiceInteger%2 == 0
+                      ?: {;
+                          integerShape = @twiceInteger//2;
+                          series := 0;
+                          {@ index = 0; index < @integerShape; {;
+                              @series += @z^index/index!;
+                          }; index += 1 };
+                          1-.numerics.Exp(-@z)*series;
+                      }
+                      ?_ {;
+                          halfSteps = (@twiceInteger-1)//2;
+                          state := .numerics.Erf(.numerics.Sqrt(@z));
+                          {@ step = 0; step < @halfSteps; {;
+                              exponent = step+1/2;
+                              @state -= .numerics.Exp(-@z)*@z^exponent/.numerics.Gamma(exponent+1);
+                          }; step += 1 };
+                          state;
+                      };
+                }
+                ?_ .Error("Certified Gamma CDF currently requires an Integer or half-Integer shape");
+          };
+    };
+    Quantile = (pValue, options ?= {= }) -> {;
+        p = ProbUnit(pValue,"Gamma quantile probability");
+        p.Numerator() == 0
+          ?: 0
+          ?_ (p.Numerator() == p.Denominator()
+              ?: .Error("Gamma quantile at probability one is unbounded")
+              ?_ {;
+                  upper = ProbOption(@options,"upper",100*(@shape+1)/@rate);
+                  ProbContinuousQuantile(@CDF,@p,0,upper,@options);
+              });
+    };
+    Sample = (options ?= {= }) -> {;
+        twice = shape*2;
+        twice.Denominator() == 1
+          ?: _
+          ?_ .Error("Gamma sampling currently requires an Integer or half-Integer shape");
+        twiceInteger = twice.Numerator();
+        whole = twiceInteger//2;
+        state := 0;
+        {@ index = 1; index <= @whole; {;
+            @state += ProbExponential(@rate).Sample(@options);
+        }; index += 1 };
+        twiceInteger%2 == 1
+          ?: {;
+              normal = ProbNormal().Sample(@options);
+              @state += normal^2/(2*@rate);
+          }
+          ?_ _;
+        state;
+    };
+    parameters = parameterRecord == _ ?: {= shape=shape,rate=rate } ?_ parameterRecord;
+    value = {=
+        family=familyValue,kind=:continuous,support={= lower=0,upper=_ },
+        parameters=parameters,exactProbability=0,certifiedFunctions=1,
+        certifiedCDFParameters=:integerOrHalfIntegerShape
+    };
+    ProbDistribution(value,{=
+        PDF=(self,x)->PDF(x),CDF=(self,x)->CDF(x),Quantile=(self,p,options ?= {= })->Quantile(p,options),
+        Mean=(self)->shape/rate,Variance=(self)->shape/rate^2,
+        Sample=(self,options ?= {= })->Sample(options),
+        Simulate=(self,count,options ?= {= })->ProbSimulation(self,count,options,Sample,0,:finiteInverseTransformComponents)
+    });
+};
+
+ProbBeta(alphaValue, betaValue) -> {;
+    alpha = ProbRational(alphaValue,"Beta alpha");
+    beta = ProbRational(betaValue,"Beta beta");
+    alpha > 0 ?: _ ?_ .Error("Beta alpha must be positive");
+    beta > 0 ?: _ ?_ .Error("Beta beta must be positive");
+    PDF = (xValue) -> {;
+        x = ProbRational(xValue,"Beta PDF input");
+        (x < 0 || x > 1)
+          ?: 0
+          ?_ (x == (0 ~!: :Rational)
+              ?: (alpha < 1
+                  ?: .Error("Beta PDF is unbounded at zero when alpha is below one")
+                  ?_ (alpha == (1 ~!: :Rational) ?: beta ?_ 0))
+              ?_ (x == (1 ~!: :Rational)
+                  ?: (beta < 1
+                      ?: .Error("Beta PDF is unbounded at one when beta is below one")
+                      ?_ (beta == (1 ~!: :Rational) ?: alpha ?_ 0))
+                  ?_ x^(alpha-1)*(1-x)^(beta-1)/.numerics.Beta(alpha,beta)));
+    };
+    CDF = (xValue) -> {;
+        x = ProbRational(xValue,"Beta CDF input");
+        x <= 0
+          ?: 0
+          ?_ (x >= 1
+              ?: 1
+              ?_ {;
+                  (@alpha.Denominator() == 1 && @beta.Denominator() == 1)
+                    ?: _
+                    ?_ .Error("Certified Beta CDF currently requires positive Integer parameters");
+                  start = @alpha.Numerator();
+                  totalCount = start+@beta.Numerator()-1;
+                  state := 0;
+                  {@ index := @start; index <= @totalCount; {;
+                      @state += ProbChoose(@totalCount,index)*@x^index*(1-@x)^(@totalCount-index);
+                  }; index += 1 };
+                  state;
+              });
+    };
+    Quantile = (pValue, options ?= {= }) -> {;
+        p = ProbUnit(pValue,"Beta quantile probability");
+        p.Numerator() == 0
+          ?: 0
+          ?_ (p.Numerator() == p.Denominator() ?: 1 ?_ ProbContinuousQuantile(CDF,p,0,1,options));
+    };
+    Sample = (options ?= {= }) -> {;
+        x = ProbGamma(@alpha,1).Sample(options);
+        y = ProbGamma(@beta,1).Sample(options);
+        x/(x+y);
+    };
+    value = {=
+        family=:beta,kind=:continuous,support={= lower=0,upper=1 },
+        parameters={= alpha=alpha,beta=beta },exactProbability=0,certifiedFunctions=1,
+        certifiedCDFParameters=:positiveIntegers
+    };
+    ProbDistribution(value,{=
+        PDF=(self,x)->PDF(x),CDF=(self,x)->CDF(x),Quantile=(self,p,options ?= {= })->Quantile(p,options),
+        Mean=(self)->alpha/(alpha+beta),
+        Variance=(self)->alpha*beta/((alpha+beta)^2*(alpha+beta+1)),
+        Sample=(self,options ?= {= })->Sample(options),
+        Simulate=(self,count,options ?= {= })->ProbSimulation(self,count,options,Sample,0,:gammaRatioComponents)
+    });
+};
+
+ProbChiSquare(degreesValue) -> {;
+    degrees = ProbPositiveInteger(degreesValue,"ChiSquare degrees of freedom");
+    ProbGamma(degrees/2,1/2,:chiSquare,{= degreesOfFreedom=degrees });
+};
+
+ProbCosinePowerIntegral(orderValue, angle, sine, cosine) -> {;
+    order = ProbNonnegativeInteger(orderValue,"Cosine integral order");
+    order == 0
+      ?: angle
+      ?_ (order == 1
+          ?: sine
+          ?_ sine*cosine^(order-1)/order
+             +(order-1)*ProbCosinePowerIntegral(order-2,angle,sine,cosine)/order);
+};
+
+ProbStudentCoefficient(degrees) -> {;
+    degrees%2 == 0
+      ?: {;
+          half = @degrees//2;
+          @degrees!/(4^half*half!*(half-1)!);
+      }
+      ?_ {;
+          half = (@degrees-1)//2;
+          4^half*(half!)^2/((2*half)!*.numerics.Pi());
+      };
+};
+
+ProbStudentT(degreesValue) -> {;
+    degrees = ProbPositiveInteger(degreesValue,"StudentT degrees of freedom");
+    PDF = (x) -> .numerics.Gamma((degrees+1)/2)/(.numerics.Sqrt(degrees*.numerics.Pi())*.numerics.Gamma(degrees/2))*(1+x^2/degrees)^(-(degrees+1)/2);
+    CDF = (xValue) -> {;
+        x = ProbRational(xValue,"StudentT CDF input");
+        x == (0 ~!: :Rational)
+          ?: 1/2
+          ?_ {;
+              magnitude = @x.Abs();
+              radial = .numerics.Sqrt(@degrees+magnitude^2);
+              sine = magnitude/radial;
+              cosine = .numerics.Sqrt(@degrees)/radial;
+              angle = @degrees%2 == 1 ?: .numerics.Atan(magnitude/.numerics.Sqrt(@degrees)) ?_ 0;
+              integral = ProbStudentCoefficient(@degrees)*ProbCosinePowerIntegral(@degrees-1,angle,sine,cosine);
+              @x > 0 ?: 1/2+integral ?_ 1/2-integral;
+          };
+    };
+    Quantile = (pValue, options ?= {= }) -> {;
+        extent = ProbRational(ProbOption(options,"extent",100),"StudentT quantile extent");
+        ProbContinuousQuantile(CDF,pValue,-extent,extent,options);
+    };
+    Sample = (options ?= {= }) -> ProbNormal().Sample(options)/.numerics.Sqrt(ProbChiSquare(degrees).Sample(options)/degrees);
+    value = {=
+        family=:studentT,kind=:continuous,support={= lower=_,upper=_ },
+        parameters={= degreesOfFreedom=degrees },exactProbability=0,certifiedFunctions=1
+    };
+    ProbDistribution(value,{=
+        PDF=(self,x)->PDF(x),CDF=(self,x)->CDF(x),Quantile=(self,p,options ?= {= })->Quantile(p,options),
+        Mean=(self)->degrees>1 ?: 0 ?_ _,
+        Variance=(self)->degrees>2 ?: degrees/(degrees-2) ?_ _,
+        Sample=(self,options ?= {= })->Sample(options),
+        Simulate=(self,count,options ?= {= })->ProbSimulation(self,count,options,Sample,0,:normalChiSquareRatio)
+    });
+};
+
+ProbF(degreesOneValue, degreesTwoValue) -> {;
+    degreesOne = ProbPositiveInteger(degreesOneValue,"F numerator degrees of freedom");
+    degreesTwo = ProbPositiveInteger(degreesTwoValue,"F denominator degrees of freedom");
+    PDF = (xValue) -> {;
+        x = ProbRational(xValue,"F PDF input");
+        x < 0
+          ?: 0
+          ?_ (x == (0 ~!: :Rational)
+              ?: (degreesOne == 1
+                  ?: .Error("F PDF is unbounded at zero when numerator degrees of freedom is one")
+                  ?_ (degreesOne == 2 ?: 1 ?_ 0))
+              ?_ ((degreesOne/degreesTwo)^(degreesOne/2)*x^(degreesOne/2-1))
+                 /(.numerics.Beta(degreesOne/2,degreesTwo/2)*(1+degreesOne*x/degreesTwo)^((degreesOne+degreesTwo)/2)));
+    };
+    CDF = (xValue) -> {;
+        x = ProbRational(xValue,"F CDF input");
+        x <= 0
+          ?: 0
+          ?_ ProbBeta(degreesOne/2,degreesTwo/2).CDF(degreesOne*x/(degreesOne*x+degreesTwo));
+    };
+    Quantile = (pValue, options ?= {= }) -> {;
+        p = ProbUnit(pValue,"F quantile probability");
+        p.Numerator() == 0
+          ?: 0
+          ?_ (p.Numerator() == p.Denominator()
+              ?: .Error("F quantile at probability one is unbounded")
+              ?_ {;
+                  upper = ProbRational(ProbOption(@options,"upper",100),"F quantile upper bracket");
+                  ProbContinuousQuantile(@CDF,@p,0,upper,@options);
+              });
+    };
+    Sample = (options ?= {= }) -> (ProbChiSquare(degreesOne).Sample(options)/degreesOne)/(ProbChiSquare(degreesTwo).Sample(options)/degreesTwo);
+    value = {=
+        family=:f,kind=:continuous,support={= lower=0,upper=_ },
+        parameters={= numeratorDegrees=degreesOne,denominatorDegrees=degreesTwo },
+        exactProbability=0,certifiedFunctions=1,certifiedCDFParameters=:evenDegrees
+    };
+    ProbDistribution(value,{=
+        PDF=(self,x)->PDF(x),CDF=(self,x)->CDF(x),Quantile=(self,p,options ?= {= })->Quantile(p,options),
+        Mean=(self)->degreesTwo>2 ?: degreesTwo/(degreesTwo-2) ?_ _,
+        Variance=(self)->degreesTwo>4 ?: 2*degreesTwo^2*(degreesOne+degreesTwo-2)/(degreesOne*(degreesTwo-2)^2*(degreesTwo-4)) ?_ _,
+        Sample=(self,options ?= {= })->Sample(options),
+        Simulate=(self,count,options ?= {= })->ProbSimulation(self,count,options,Sample,0,:chiSquareRatio)
     });
 };
 
@@ -489,7 +1149,7 @@ ProbDice(countValue ?= 1, sidesValue ?= 6) -> {;
     });
 };
 
-ProbCardDraw(populationValue, markedValue, drawsValue) -> {;
+ProbCardDraw(populationValue, markedValue, drawsValue, familyValue ?= :cardDraw) -> {;
     population = ProbPositiveInteger(populationValue, "CardDraw population");
     marked = ProbNonnegativeInteger(markedValue, "CardDraw marked count");
     draws = ProbNonnegativeInteger(drawsValue, "CardDraw draw count");
@@ -530,7 +1190,7 @@ ProbCardDraw(populationValue, markedValue, drawsValue) -> {;
         successes;
     };
     value = {=
-        family=:cardDraw,
+        family=familyValue,
         mathematicalFamily=:hypergeometric,
         kind=:discrete,
         support={= minimum=minimum, maximum=maximum },
@@ -540,6 +1200,7 @@ ProbCardDraw(populationValue, markedValue, drawsValue) -> {;
     ProbDistribution(value, {=
         PMF=(self,successes)->PMF(successes),
         CDF=(self,bound)->CDF(bound),
+        Quantile=(self,p)->ProbDiscreteQuantile(CDF,p,minimum,maximum),
         Mean=(self)->draws*marked/population,
         Sample=(self,options ?= {= })->Sample(options),
         Simulate=(self,count,options ?= {= })->ProbSimulation(self,count,options,Sample,1,:exactWithoutReplacement)
@@ -587,9 +1248,24 @@ probabilityNamespace._proto = {=
     CartesianPower=(self,values,count,maxOutcomes ?= 100000)->ProbCartesianPower(values,count,maxOutcomes),
     Event=(self,outcomes,predicate)->ProbEvent(outcomes,predicate),
     Finite=(self,outcomes,weights ?= _)->ProbFinite(outcomes,weights),
+    Bernoulli=(self,probability)->ProbBinomial(1,probability,:bernoulli),
+    Categorical=(self,probabilities,outcomes ?= _)->ProbCategorical(probabilities,outcomes),
     Binomial=(self,n,probability)->ProbBinomial(n,probability),
     Multinomial=(self,n,probabilities)->ProbMultinomial(n,probabilities),
+    Geometric=(self,probability)->ProbGeometric(probability),
+    NegativeBinomial=(self,successes,probability)->ProbNegativeBinomial(successes,probability),
+    Hypergeometric=(self,population,marked,draws)->ProbCardDraw(population,marked,draws,:hypergeometric),
+    Poisson=(self,rate)->ProbPoisson(rate),
+    Uniform=(self,lower ?= 0,upper ?= 1)->ProbUniform(lower,upper),
     Normal=(self,mean ?= 0,standardDeviation ?= 1)->ProbNormal(mean,standardDeviation),
+    Exponential=(self,rate ?= 1)->ProbExponential(rate),
+    Gamma=(self,shape,rate ?= 1)->ProbGamma(shape,rate),
+    Beta=(self,alpha,beta)->ProbBeta(alpha,beta),
+    ChiSquare=(self,degrees)->ProbChiSquare(degrees),
+    StudentT=(self,degrees)->ProbStudentT(degrees),
+    F=(self,numeratorDegrees,denominatorDegrees)->ProbF(numeratorDegrees,denominatorDegrees),
+    LogNormal=(self,location ?= 0,scale ?= 1)->ProbLogNormal(location,scale),
+    Cauchy=(self,location ?= 0,scale ?= 1)->ProbCauchy(location,scale),
     Dice=(self,count ?= 1,sides ?= 6)->ProbDice(count,sides),
     CardDraw=(self,population,marked,draws)->ProbCardDraw(population,marked,draws),
     StandardDeck=(self)->ProbStandardDeck(),

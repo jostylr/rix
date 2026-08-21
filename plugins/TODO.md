@@ -973,9 +973,9 @@ the certified numerical singleton layer; it does not replace the core exact
    - [x] Demonstrate transforming a small exact dataset and exporting CSV.
    - [x] Add README, tutorial, schema diagnostics, and deterministic tests.
 2. **Phase 2 — Relational operations**
-   - [ ] Add joins, groups, aggregates, calculated columns, missing-value
+   - [x] Add joins, groups, aggregates, calculated columns, missing-value
      policy, and streaming row sources.
-   - [ ] Preserve exact RiX cell values until exporter formatting.
+   - [x] Preserve exact RiX cell values until exporter formatting.
 3. **Phase 3 — Columnar and external data**
    - [ ] Add JSON/JSONL, Arrow/Parquet adapters, chunking, and typed tensors.
    - [ ] Add permission-aware filesystem/network sources.
@@ -991,9 +991,9 @@ the certified numerical singleton layer; it does not replace the core exact
    - [x] Demonstrate a summary table plus histogram/box representation.
    - [x] Add README, tutorial, and exact/edge-case tests.
 2. **Phase 2 — Inference and regression**
-   - [ ] Add confidence objects, linear regression, diagnostics, and residual
+   - [x] Add confidence objects, linear regression, diagnostics, and residual
      outputs, consuming distribution and simulation records from `.probability`.
-   - [ ] Use Numerics for approximate/certified computations.
+   - [x] Use Numerics for approximate/certified computations.
 3. **Phase 3 — Models and inference**
    - [ ] Add generalized models, resampling, Bayesian result protocols, and
      uncertainty visualization.
@@ -1021,13 +1021,13 @@ records without owning their probability semantics.
    - [x] Add reference documentation, an undergrad-oriented tutorial, exact
      fixtures, and a Central Limit Theorem explanatory exploration.
 2. **Phase 2 — Undergraduate distribution library**
-   - [ ] Add Bernoulli, categorical, geometric, negative-binomial,
+   - [x] Add Bernoulli, categorical, geometric, negative-binomial,
      hypergeometric, and Poisson laws as named distribution constructors.
-   - [ ] Add continuous uniform, exponential, gamma, beta, chi-square,
+   - [x] Add continuous uniform, exponential, gamma, beta, chi-square,
      Student-t, F, lognormal, and Cauchy laws.
-   - [ ] Give each law a consistent PMF/PDF, CDF, quantile, moment/support, and
+   - [x] Give each law a consistent PMF/PDF, CDF, quantile, moment/support, and
      seeded simulation interface, with certified enclosures where available.
-   - [ ] Extend the CLT exploration with live exponential, uniform, and Cauchy
+   - [x] Extend the CLT exploration with live exponential, uniform, and Cauchy
      experiments, emphasizing that Cauchy means neither stabilize nor satisfy
      the finite-variance CLT hypotheses.
 3. **Phase 3 — Random variables and probability structures**

@@ -19,7 +19,9 @@ values := [1/3, 2/3, 5/3, 7/3];
 The public operations are `Count`, `Mean`, `Quantile`, `Median`, `Variance`,
 `SampleVariance`, `NormalPDF`, `NormalCDF`, `NormalQuantile`, `Summary`,
 `SummaryTable`, `Histogram`,
-`HistogramGraphic`, and `BoxPlot`. `Summary` uses the portable
+`HistogramGraphic`, `BoxPlot`, `DistributionSummary`, `SimulationValues`, `SimulationSummary`,
+`MeanConfidence`, `ProportionConfidence`, `LinearRegression`, `Predict`,
+`RegressionTable`, and `ResidualTable`. `Summary` uses the portable
 `rix.stats.summary@1` schema; histograms use `rix.stats.histogram@1`.
 
 Phase 1 quantiles use exact linear interpolation at rank `p*(n-1)` (the
@@ -49,3 +51,26 @@ one certified `sqrt(2*pi)` interval, tightens its Chebyshev starting bracket
 with small powers-of-two probes, and then contracts by certified interval
 Newton with bisection fallback. Probabilities must be certifiably inside `0:1`;
 unresolved endpoints produce structured `:unknown` evidence.
+
+## Phase 2 inference
+
+`MeanConfidence` returns a `rix.stats.confidence@1` record. It uses a certified
+normal critical value and either sample variance or an explicitly supplied
+exact `knownStandardDeviation`. `ProportionConfidence` returns a Wilson-score
+interval, including sensible boundary behavior for zero or all successes.
+These are normal-theory procedures, not exact finite-sample coverage claims;
+their formulas are nevertheless evaluated with certified Numerics values.
+
+`LinearRegression(x,y)` fits the exact simple least-squares line. Its slope,
+intercept, fitted values, residuals, SSE, and R-squared stay exact. Square-root
+standard errors are certified refinable values. `RegressionTable` and
+`ResidualTable` are portable core Tables.
+
+`DistributionSummary` consumes a univariate probability distribution record
+and retains its family, support, parameters, theoretical moments, and
+exact/certified metadata. Missing Cauchy moments remain missing.
+
+`SimulationValues` and `SimulationSummary` consume
+`rix.probability.simulation@1` records when the simulated values are exact
+scalars. The summary retains the source family, count, seed, and sampling
+policy so an approximate simulation cannot be mistaken for exact data.

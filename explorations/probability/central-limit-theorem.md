@@ -66,10 +66,17 @@ Cauchy. The quartiles remain `-1`, `0`, and `1` no matter how large `n` grows.
 The average does not concentrate around zero, so this is not merely a case of
 slow convergence.
 
-Phase 2 of `.probability` plans a first-class Cauchy distribution with PDF,
-CDF, quantile, and seeded simulation. The Phase 1 companion records the exact
-stability fact and keeps its simulation explicitly pending rather than using a
-truncated Cauchy sample that would secretly have finite variance.
+Phase 2 of `.probability` provides a first-class Cauchy distribution with PDF,
+CDF, quantile, and seeded simulation. The companion runs uniform, exponential,
+and Cauchy experiments from the same finite inverse-CDF grid and displays each
+record's approximation policy. It does not use a truncated Cauchy sample that
+would secretly have finite variance.
+
+The uniform and exponential examples meet the finite-variance hypothesis.
+Their standardized averages approach normality, though at visibly different
+rates because their shapes differ. The Cauchy record reports missing mean and
+variance. Simulation can illustrate its persistent extremes, while the exact
+stability identity is the reason we know averaging never repairs it.
 
 ## Computing versus simulating
 
@@ -96,7 +103,8 @@ empirical frequency will generally differ from the PMF.
    at the mean with the exact PMF, without expecting equality.
 4. Change the die to a finite weighted distribution using `.probability.Finite`.
    Predict whether the classical iid CLT applies before simulating.
-5. When Phase 2 lands, generate Cauchy sample averages for several `n`. Plot
-   their quartiles and contrast them with uniform and exponential averages.
+5. Generate Cauchy sample averages for several `n`. Plot their quartiles and
+   contrast them with uniform and exponential averages. Keep the finite-grid
+   simulation policy visible; the exact stability result is a separate claim.
 6. Construct a truncated Cauchy law and explain why it eventually satisfies
    the finite-variance CLT even though moderate samples may still look wild.

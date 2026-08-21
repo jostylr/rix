@@ -212,7 +212,7 @@ function exactParts(value) {
     return null;
 }
 
-function compareValues(left, right, column) {
+function compareValues(left, right, column, operation = "Sort") {
     if (left === null || right === null) return left === right ? 0 : left === null ? 1 : -1;
     const leftExact = exactParts(left);
     const rightExact = exactParts(right);
@@ -223,7 +223,7 @@ function compareValues(left, right, column) {
     const leftText = left?.type === "string" ? left.value : typeof left === "string" ? left : null;
     const rightText = right?.type === "string" ? right.value : typeof right === "string" ? right : null;
     if (leftText !== null && rightText !== null) return leftText === rightText ? 0 : leftText < rightText ? -1 : 1;
-    throw new Error(`data.Sort cannot compare values in column '${column.id}'`);
+    throw new Error(`data.${operation} cannot compare values in column '${column.id}'`);
 }
 
 export function sortRelation(args) {
@@ -252,6 +252,350 @@ export function sortRelation(args) {
         Object.freeze(decorated.map(({ row }) => row)),
         [...relation.provenance.operations, "sort"],
     );
+}
+
+function operationName(value, label, fallback = null) {
+    if (value === null || value === undefined) return fallback;
+    return text(value, label).replace(/^:/, "").toLowerCase();
+}
+
+function columnIndex(relation, value, label) {
+    const id = text(value, label);
+    const index = relation.columns.findIndex((column) => column.id.toLowerCase() === id.toLowerCase());
+    if (index < 0) throw new Error(`${label} contains unknown column '${id}'`);
+    return index;
+}
+
+function joinColumns(value, left, right) {
+    if (value?.type === "map" || value instanceof Map) {
+        const pairs = [...entries(value, "data.Join keys")].map(([leftId, rightId]) => [
+            columnIndex(left, String(leftId), "data.Join left keys"),
+            columnIndex(right, rightId, "data.Join right keys"),
+        ]);
+        if (!pairs.length) throw new Error("data.Join requires at least one key column");
+        return pairs;
+    }
+    const keys = sequence(value, "data.Join keys");
+    if (!keys.length) throw new Error("data.Join requires at least one key column");
+    return keys.map((key, index) => [
+        columnIndex(left, key, `data.Join key ${index + 1}`),
+        columnIndex(right, key, `data.Join key ${index + 1}`),
+    ]);
+}
+
+function joinedKeyType(leftColumn, rightColumn) {
+    if (leftColumn.type === rightColumn.type) return leftColumn.type;
+    if (leftColumn.type === "Any" || rightColumn.type === "Any") return "Any";
+    const numeric = new Set(["Integer", "Rational", "Number"]);
+    if (numeric.has(leftColumn.type) && numeric.has(rightColumn.type)) {
+        if (leftColumn.type === "Number" || rightColumn.type === "Number") return "Number";
+        return "Rational";
+    }
+    throw new Error(`data.Join key columns '${leftColumn.id}' and '${rightColumn.id}' have incompatible types`);
+}
+
+function joinKeyMatches(leftRow, rightRow, pairs, left, right, missingMatches) {
+    return pairs.every(([leftIndex, rightIndex]) => {
+        const leftValue = leftRow[leftIndex];
+        const rightValue = rightRow[rightIndex];
+        if (leftValue === null || rightValue === null) return missingMatches && leftValue === rightValue;
+        return compareValues(leftValue, rightValue, left.columns[leftIndex], "Join") === 0;
+    });
+}
+
+export function joinRelations(args) {
+    if (args.length < 3 || args.length > 4) throw new Error("data.Join expects two Relations, keys, and optional options");
+    const left = requireRelation(args[0], "data.Join left input");
+    const right = requireRelation(args[1], "data.Join right input");
+    const pairs = joinColumns(args[2], left, right);
+    if (new Set(pairs.map(([index]) => index)).size !== pairs.length
+        || new Set(pairs.map(([, index]) => index)).size !== pairs.length) {
+        throw new Error("data.Join key columns may not repeat on either side");
+    }
+    const pairTypes = new Map(pairs.map(([leftIndex, rightIndex]) => [
+        leftIndex,
+        {
+            type: joinedKeyType(left.columns[leftIndex], right.columns[rightIndex]),
+            nullable: left.columns[leftIndex].nullable || right.columns[rightIndex].nullable,
+        },
+    ]));
+    const kind = operationName(option(args[3], "type", stringValue("inner")), "data.Join type");
+    if (!["inner", "left", "right", "full"].includes(kind)) {
+        throw new Error("data.Join type must be inner, left, right, or full");
+    }
+    const suffix = text(option(args[3], "suffix", stringValue("_right")), "data.Join suffix");
+    const missingMatches = truthy(option(args[3], "missingMatches", null));
+    const rightKeys = new Set(pairs.map(([, index]) => index));
+    const used = new Set(left.columns.map((column) => column.id.toLowerCase()));
+    const retainedRight = [];
+    for (let index = 0; index < right.columns.length; index += 1) {
+        if (rightKeys.has(index)) continue;
+        const column = right.columns[index];
+        let id = column.id;
+        if (used.has(id.toLowerCase())) id += suffix;
+        if (!id || used.has(id.toLowerCase())) {
+            throw new Error(`data.Join cannot make a unique result column for '${column.id}'`);
+        }
+        used.add(id.toLowerCase());
+        retainedRight.push({
+            index,
+            column: Object.freeze({
+                ...column,
+                id,
+                label: id === column.id ? column.label : `${column.label}${suffix}`,
+                nullable: column.nullable || kind === "left" || kind === "full",
+            }),
+        });
+    }
+    const leftColumns = left.columns.map((column, index) => Object.freeze({
+        ...column,
+        type: (kind === "right" || kind === "full") && pairTypes.has(index) ? pairTypes.get(index).type : column.type,
+        nullable: column.nullable
+            || ((kind === "right" || kind === "full") && (!pairTypes.has(index) || pairTypes.get(index).nullable)),
+    }));
+    const columns = Object.freeze([
+        ...leftColumns,
+        ...retainedRight.map(({ column }) => column),
+    ]);
+    const rows = [];
+    const matchedRight = new Set();
+    for (const leftRow of left.rows) {
+        let matched = false;
+        right.rows.forEach((rightRow, rightIndex) => {
+            if (!joinKeyMatches(leftRow, rightRow, pairs, left, right, missingMatches)) return;
+            matched = true;
+            matchedRight.add(rightIndex);
+            rows.push(Object.freeze([...leftRow, ...retainedRight.map(({ index }) => rightRow[index])]));
+        });
+        if (!matched && (kind === "left" || kind === "full")) {
+            rows.push(Object.freeze([...leftRow, ...retainedRight.map(() => null)]));
+        }
+    }
+    if (kind === "right" || kind === "full") {
+        right.rows.forEach((rightRow, rightIndex) => {
+            if (matchedRight.has(rightIndex)) return;
+            const leftCells = left.columns.map((_, leftIndex) => {
+                const pair = pairs.find(([index]) => index === leftIndex);
+                return pair ? rightRow[pair[1]] : null;
+            });
+            rows.push(Object.freeze([...leftCells, ...retainedRight.map(({ index }) => rightRow[index])]));
+        });
+    }
+    return makeRelation(columns, Object.freeze(rows), [
+        ...left.provenance.operations,
+        ...right.provenance.operations.map((name) => `right:${name}`),
+        `join:${kind}`,
+    ]);
+}
+
+function keySignature(row, selected) {
+    return selected.map((index) => {
+        const value = row[index];
+        if (value === null) return "missing";
+        const exact = exactParts(value);
+        if (exact) return `q:${exact[0]}/${exact[1]}`;
+        if (value?.type === "string") return `s:${value.value}`;
+        if (typeof value === "string") return `s:${value}`;
+        throw new Error("data.Group keys must be missing, exact numeric, or string values");
+    }).map((part) => `${part.length}:${part}`).join("|");
+}
+
+export function groupRelation(args) {
+    if (args.length !== 2) throw new Error("data.Group expects a Relation and key columns");
+    const relation = requireRelation(args[0], "data.Group");
+    const selected = selectedColumnIds(args[1], relation, "data.Group columns");
+    const groups = [];
+    const bySignature = new Map();
+    if (!selected.length) {
+        const group = { key: Object.freeze([]), rowIndices: [], rows: [] };
+        bySignature.set("", group);
+        groups.push(group);
+    }
+    relation.rows.forEach((row, index) => {
+        const signature = keySignature(row, selected);
+        let group = bySignature.get(signature);
+        if (!group) {
+            group = { key: Object.freeze(selected.map((columnIndexValue) => row[columnIndexValue])), rowIndices: [], rows: [] };
+            bySignature.set(signature, group);
+            groups.push(group);
+        }
+        group.rowIndices.push(index);
+        group.rows.push(row);
+    });
+    return Object.freeze({
+        type: "data_groups",
+        schema: "rix.data.groups@1",
+        relation,
+        keyIndices: Object.freeze(selected),
+        groups: Object.freeze(groups.map((group) => Object.freeze({
+            key: group.key,
+            rowIndices: Object.freeze(group.rowIndices),
+            rows: Object.freeze(group.rows),
+        }))),
+        _ext: new Map([["_type", stringValue("data_groups")], ["immutable", new Integer(1n)]]),
+    });
+}
+
+function requireGroups(value) {
+    if (value?.type !== "data_groups" || value.schema !== "rix.data.groups@1" || !Array.isArray(value.groups)) {
+        throw new Error("data.Aggregate requires data Groups");
+    }
+    return value;
+}
+
+function exactRational(value, label) {
+    if (value instanceof Rational) return value;
+    if (value instanceof Integer) return new Rational(value.value, 1n);
+    throw new Error(`${label} requires exact Integer or Rational values`);
+}
+
+function collapseRational(value) {
+    return value.denominator === 1n ? new Integer(value.numerator) : value;
+}
+
+function aggregateSpec(value, groups, index) {
+    const spec = entries(value, `data.Aggregate specification ${index + 1}`);
+    const op = operationName(field(spec, "op"), `data.Aggregate specification ${index + 1} op`);
+    if (!["count", "sum", "mean", "min", "max", "first"].includes(op)) {
+        throw new Error(`data.Aggregate specification ${index + 1} has unsupported operation '${op}'`);
+    }
+    const columnValue = field(spec, "column", null);
+    const sourceIndex = columnValue === null ? null : columnIndex(groups.relation, columnValue, `data.Aggregate specification ${index + 1}`);
+    if (op !== "count" && sourceIndex === null) throw new Error(`data.Aggregate ${op} requires a column`);
+    const defaultId = sourceIndex === null ? "count" : `${op}_${groups.relation.columns[sourceIndex].id}`;
+    const id = text(field(spec, "id", stringValue(defaultId)), `data.Aggregate specification ${index + 1} id`);
+    const missing = operationName(field(spec, "missing", stringValue("skip")), `data.Aggregate specification ${index + 1} missing policy`);
+    if (!["skip", "propagate", "error"].includes(missing)) throw new Error("data.Aggregate missing policy must be skip, propagate, or error");
+    const sourceType = sourceIndex === null ? "Integer" : groups.relation.columns[sourceIndex].type;
+    const type = op === "count" ? "Integer" : op === "mean" ? "Rational" : sourceType;
+    return { op, sourceIndex, id, missing, column: Object.freeze({ id, label: id, type, nullable: op !== "count" }) };
+}
+
+function aggregateValue(group, spec, relation) {
+    if (spec.op === "count" && spec.sourceIndex === null) return new Integer(BigInt(group.rows.length));
+    const cells = group.rows.map((row) => row[spec.sourceIndex]);
+    if (cells.some((value) => value === null)) {
+        if (spec.missing === "error") throw new Error(`data.Aggregate encountered a missing value for '${spec.id}'`);
+        if (spec.missing === "propagate") return null;
+    }
+    const values = cells.filter((value) => value !== null);
+    if (spec.op === "count") return new Integer(BigInt(values.length));
+    if (!values.length) return null;
+    if (spec.op === "first") return values[0];
+    if (spec.op === "min" || spec.op === "max") {
+        return values.slice(1).reduce((best, value) => {
+            const compared = compareValues(value, best, relation.columns[spec.sourceIndex], "Aggregate");
+            return spec.op === "min" ? (compared < 0 ? value : best) : (compared > 0 ? value : best);
+        }, values[0]);
+    }
+    const total = values.reduce((sum, value) => sum.add(exactRational(value, `data.Aggregate ${spec.op}`)), new Rational(0n, 1n));
+    return collapseRational(spec.op === "mean" ? total.divide(new Rational(BigInt(values.length), 1n)) : total);
+}
+
+export function aggregateGroups(args) {
+    if (args.length !== 2) throw new Error("data.Aggregate expects Groups and aggregate specifications");
+    const groups = requireGroups(args[0]);
+    const specs = sequence(args[1], "data.Aggregate specifications").map((value, index) => aggregateSpec(value, groups, index));
+    if (!specs.length) throw new Error("data.Aggregate requires at least one aggregate specification");
+    const keyColumns = groups.keyIndices.map((index) => groups.relation.columns[index]);
+    const ids = [...keyColumns.map(({ id }) => id.toLowerCase()), ...specs.map(({ id }) => id.toLowerCase())];
+    if (new Set(ids).size !== ids.length) throw new Error("data.Aggregate result contains duplicate column ids");
+    const rows = groups.groups.map((group) => Object.freeze([
+        ...group.key,
+        ...specs.map((spec) => aggregateValue(group, spec, groups.relation)),
+    ]));
+    return makeRelation(Object.freeze([...keyColumns, ...specs.map(({ column }) => column)]), Object.freeze(rows), [
+        ...groups.relation.provenance.operations,
+        "group",
+        "aggregate",
+    ]);
+}
+
+export function calculateRelation(args, runtime = {}) {
+    if (args.length !== 3) throw new Error("data.Calculate expects a Relation, column specification, and function");
+    const relation = requireRelation(args[0], "data.Calculate");
+    if (typeof runtime.invoke !== "function") throw new Error("data.Calculate requires an evaluator callback");
+    const columns = normalizeColumns(sequenceValue([args[1]]));
+    const column = columns[0];
+    if (relation.columns.some(({ id }) => id.toLowerCase() === column.id.toLowerCase())) {
+        throw new Error(`data.Calculate column '${column.id}' already exists`);
+    }
+    const values = relation.rows.map((row, index) => runtime.invoke(
+        args[2],
+        [rowMap(relation, row), new Integer(BigInt(index + 1)), relation],
+        runtime.context,
+        runtime.evaluate,
+    ));
+    const rows = normalizeRows(sequenceValue(relation.rows.map((row, index) => sequenceValue([...row, values[index]]))), Object.freeze([...relation.columns, column]));
+    return makeRelation(Object.freeze([...relation.columns, column]), rows, [...relation.provenance.operations, "calculate"]);
+}
+
+export function missingRelation(args) {
+    if (args.length < 3 || args.length > 4) throw new Error("data.Missing expects a Relation, columns, policy, and optional replacement");
+    const relation = requireRelation(args[0], "data.Missing");
+    const selected = selectedColumnIds(args[1], relation, "data.Missing columns");
+    const policy = operationName(args[2], "data.Missing policy");
+    if (!["drop", "error", "fill"].includes(policy)) throw new Error("data.Missing policy must be drop, error, or fill");
+    const affected = relation.rows.filter((row) => selected.some((index) => row[index] === null));
+    if (policy === "error" && affected.length) throw new Error(`data.Missing found ${affected.length} row(s) with missing values`);
+    let rows = relation.rows;
+    if (policy === "drop") rows = relation.rows.filter((row) => selected.every((index) => row[index] !== null));
+    if (policy === "fill") {
+        if (args.length !== 4) throw new Error("data.Missing fill requires a replacement value or map");
+        const replacements = args[3]?.type === "map" || args[3] instanceof Map ? entries(args[3], "data.Missing replacements") : null;
+        if (replacements) {
+            for (const index of selected) {
+                const id = relation.columns[index].id;
+                const hasReplacement = [...replacements.keys()].some((key) => String(key).toLowerCase() === id.toLowerCase());
+                if (!hasReplacement) throw new Error(`data.Missing replacements omit selected column '${id}'`);
+            }
+        }
+        rows = relation.rows.map((row) => row.map((value, index) => {
+            if (value !== null || !selected.includes(index)) return value;
+            return replacements ? field(replacements, relation.columns[index].id, null) : args[3];
+        }));
+    }
+    const normalized = normalizeRows(sequenceValue(rows.map((row) => sequenceValue(row))), relation.columns);
+    return makeRelation(Object.freeze([...relation.columns]), normalized, [...relation.provenance.operations, `missing:${policy}`]);
+}
+
+export function createRowSource(args) {
+    if (args.length < 2 || args.length > 3) throw new Error("data.RowSource expects a schema, producer, and optional options");
+    const columns = normalizeColumns(args[0]);
+    if (!columns.length) throw new Error("data.RowSource schema must contain at least one column");
+    const maxRowsValue = option(args[2], "maxRows", new Integer(1000n));
+    if (!(maxRowsValue instanceof Integer) || maxRowsValue.value < 0n || maxRowsValue.value > BigInt(Number.MAX_SAFE_INTEGER)) {
+        throw new Error("data.RowSource maxRows must be a nonnegative safe Integer");
+    }
+    return Object.freeze({
+        type: "data_row_source",
+        schema: "rix.data.row-source@1",
+        columns,
+        producer: args[1],
+        maxRows: Number(maxRowsValue.value),
+        _ext: new Map([["_type", stringValue("data_row_source")], ["immutable", new Integer(1n)]]),
+    });
+}
+
+export function collectRowSource(args, runtime = {}) {
+    if (args.length < 1 || args.length > 2) throw new Error("data.Collect expects a RowSource and optional limit");
+    const source = args[0];
+    if (source?.type !== "data_row_source" || source.schema !== "rix.data.row-source@1") throw new Error("data.Collect requires a data RowSource");
+    if (typeof runtime.invoke !== "function") throw new Error("data.Collect requires an evaluator callback");
+    let limit = source.maxRows;
+    if (args.length === 2) {
+        if (!(args[1] instanceof Integer) || args[1].value < 0n || args[1].value > BigInt(Number.MAX_SAFE_INTEGER)) {
+            throw new Error("data.Collect limit must be a nonnegative safe Integer");
+        }
+        limit = Math.min(limit, Number(args[1].value));
+    }
+    const rows = [];
+    for (let index = 0; index < limit; index += 1) {
+        const row = runtime.invoke(source.producer, [new Integer(BigInt(index + 1))], runtime.context, runtime.evaluate);
+        if (row === null) break;
+        rows.push(row);
+    }
+    return makeRelation(source.columns, normalizeRows(sequenceValue(rows), source.columns), ["rowSource", `collect:${rows.length}`]);
 }
 
 export function relationTableView(args) {
