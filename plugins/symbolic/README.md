@@ -32,6 +32,29 @@ The façade delegates construction and transformation to focused owners:
 - `Obligations(value)` exposes either a Calculus transformation's conditions
   or a FractionFunction's original denominator restrictions.
 
+## Discover transformations without moving their implementations
+
+`Transformations()` returns immutable
+`rix.symbolic.transformation-descriptor@1` records. Each record names a stable
+ID, its owning plugin and mount, the operation, accepted input family, exact
+result family, domain policy, verification style, and an explanatory call
+shape.
+
+```rix
+.Plugin.Load("symbolic");
+canonical := .symbolic.Transformations({= category=:canonical });
+cancel := .symbolic.Transformation("fracfun.cancel");
+{: canonical.Map((entry)->{: entry[:id], entry[:owner] }),
+   cancel[:domainPolicy], cancel[:call] };
+```
+
+Supported filters are `owner`, `category`, `operation`, `input`, and
+`domainPolicy`; `FindTransformations(options)` is an explicit alias for the
+filtered form. A descriptor deliberately contains no callback or handler.
+Invoke the documented operation through its owner—for example,
+`value.Cancel()` or `.ratfun.Factored(value)`. This keeps plugin ownership,
+type checks, evidence, and error behavior in one place.
+
 The meta-plugin is pure RiX and adds no alternate arithmetic rules.
 `.fracfun` remains host-backed for closure rewriting and its paired
 display/evaluation construction, but its expression and restriction outputs

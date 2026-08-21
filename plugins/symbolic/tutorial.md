@@ -20,6 +20,30 @@ canonical := form.R();
 Use `.fraction`, `.fracfun`, or `.calculus` directly when only one focused
 surface is needed.
 
+## Find the right transformation owner
+
+The Symbolic registry is a catalog, not another transformation engine. Query
+it when you know the representation or intent but not the focused API:
+
+```rix
+.Plugin.Load("symbolic");
+formal := .symbolic.Transformations({= input=:FractionFunction });
+canonical := .symbolic.Transformations({= owner=:ratfun });
+chosen := .symbolic.Transformation("fracfun.cancel");
+.Table({=
+  columns=["id", "owner", "domain policy", "call"],
+  rows=formal.Map((entry)->[
+    entry[:id], entry[:owner], entry[:domainPolicy], entry[:call]
+  ])
+});
+{: canonical.Map((entry)->entry[:id]), chosen[:summary] };
+```
+
+Descriptors are immutable documentation records. They do not contain
+executable handlers: call the named owner directly. The `domainPolicy` field
+makes the important distinction between a source-domain-preserving rewrite
+such as `Cancel` and the explicit `ForgetRestrictions` escape hatch.
+
 ## Simplify without filling domain holes
 
 The shared checked simplifier handles unconditional neutral identities and

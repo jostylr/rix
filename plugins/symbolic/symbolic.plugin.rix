@@ -3,12 +3,12 @@ id: symbolic
 description: Meta-plugin joining representation-sensitive FractionFunction work with portable abstract Calculus expressions.
 kind: rix
 mount: symbolic
-exports: [Fraction, FractionFunction, CalculusExpression, Evaluate, EvaluateResult, SimplifyResult, CheckSimplification, RewriteResult, CheckRewrite, Differentiate, DifferentiateResult, DifferentiateN, DifferentiateNResult, Partial, PartialResult, Gradient, GradientResult, Jacobian, JacobianResult, Hessian, HessianResult, SelectedPrimitive, AntiderivativeFamily, DefiniteIntegral, Obligations, Services]
+exports: [Fraction, FractionFunction, CalculusExpression, Evaluate, EvaluateResult, SimplifyResult, CheckSimplification, RewriteResult, CheckRewrite, Differentiate, DifferentiateResult, DifferentiateN, DifferentiateNResult, Partial, PartialResult, Gradient, GradientResult, Jacobian, JacobianResult, Hessian, HessianResult, SelectedPrimitive, AntiderivativeFamily, DefiniteIntegral, Obligations, Transformations, FindTransformations, Transformation, Services]
 groups: [Algebra, Calculus, Analysis, Exact, Symbolic]
 permissions: []
 requires: [rix.fraction-function@1, rix.calculus@1]
-provides: [rix.symbolic.formal@1]
-schemas: []
+provides: [rix.symbolic.formal@1, rix.symbolic.transformations@1]
+schemas: [rix.symbolic.transformation-descriptor@1]
 snapshot: false
 deterministic: true
 defaultEnabled: false
@@ -47,6 +47,140 @@ SymbolicIntegralOptions(value, options) -> {;
     inherited = SymbolicObligations(value);
     supplied = options.Has("obligations") ?: options[:obligations] ?_ [];
     options.Set("obligations",SymbolicAppend(inherited,supplied));
+};
+
+SymbolicTransformationDescriptor(id, owner, operation, category, inputs, result, domainPolicy, verification, call, summary) ->
+    .ImmutableValue({=
+        schema="rix.symbolic.transformation-descriptor@1",
+        id=id,
+        owner=owner,
+        mount=owner,
+        operation=operation,
+        category=category,
+        inputs=.ImmutableValue(inputs),
+        result=result,
+        exact=1,
+        domainPolicy=domainPolicy,
+        verification=verification,
+        call=call,
+        summary=summary
+    });
+
+symbolicTransformationCatalog = .ImmutableValue([
+    SymbolicTransformationDescriptor(
+        "fracfun.simplify","fracfun","Simplify",:formal,[:FractionFunction],:FractionFunction,
+        :preserveSource,:structural,"value.Simplify()","Apply safe form identities without crossing the canonical boundary."
+    ),
+    SymbolicTransformationDescriptor(
+        "fracfun.expand","fracfun","Expand",:formal,[:FractionFunction],:FractionFunction,
+        :preserveSource,:structural,"value.Expand()","Distribute products while retaining the source-domain evaluation form."
+    ),
+    SymbolicTransformationDescriptor(
+        "fracfun.together","fracfun","Together",:formal,[:FractionFunction],:FractionFunction,
+        :preserveSource,:structural,"value.Together()","Collect a displayed expression over a common denominator."
+    ),
+    SymbolicTransformationDescriptor(
+        "fracfun.recenter","fracfun","Recenter",:formal,[:FractionFunction],:FractionFunction,
+        :preserveSource,:structural,"value.Recenter(center)","Rewrite a polynomial form around an explicit center."
+    ),
+    SymbolicTransformationDescriptor(
+        "fracfun.cancel","fracfun","Cancel",:formal,[:FractionFunction],:FractionFunction,
+        :preserveSource,:exactReconstruction,"value.Cancel()","Cancel displayed factors while preserving holes from original denominators."
+    ),
+    SymbolicTransformationDescriptor(
+        "fracfun.forget-restrictions","fracfun","ForgetRestrictions",:formal,[:FractionFunction],:FractionFunction,
+        :explicitForget,:explicitRequest,"value.ForgetRestrictions()","Explicitly discard original denominator restrictions."
+    ),
+    SymbolicTransformationDescriptor(
+        "poly.square-free","poly","SquareFreeDecomposition",:canonical,[:Polynomial],:Decomposition,
+        :canonical,:exactReconstruction,".poly.SquareFreeDecomposition(value)","Decompose a canonical polynomial into square-free factors."
+    ),
+    SymbolicTransformationDescriptor(
+        "poly.factor-evidence","poly","FactorEvidence",:canonical,[:Polynomial],:Evidence,
+        :canonical,:exactReconstruction,".poly.FactorEvidence(value)","Return exact factor evidence with a reconstruction check."
+    ),
+    SymbolicTransformationDescriptor(
+        "ratfun.together","ratfun","Together",:canonical,[:RationalFunction],:TogetherPresentation,
+        :canonical,:exactReconstruction,".ratfun.Together(value)","Build a canonical single-quotient presentation."
+    ),
+    SymbolicTransformationDescriptor(
+        "ratfun.factored","ratfun","Factored",:canonical,[:RationalFunction],:FactoredPresentation,
+        :canonical,:exactReconstruction,".ratfun.Factored(value)","Build a factored numerator and denominator presentation."
+    ),
+    SymbolicTransformationDescriptor(
+        "ratfun.partial-fractions","ratfun","PartialFractions",:canonical,[:RationalFunction],:PartialFractionPresentation,
+        :canonical,:exactReconstruction,".ratfun.PartialFractions(value)","Build an exact partial-fraction presentation when supported."
+    ),
+    SymbolicTransformationDescriptor(
+        "ratfun.pole-zero-evidence","ratfun","PoleZeroEvidence",:canonical,[:RationalFunction],:Evidence,
+        :canonical,:exactReconstruction,".ratfun.PoleZeroEvidence(value)","Expose exact poles, zeros, multiplicities, and reconstruction evidence."
+    ),
+    SymbolicTransformationDescriptor(
+        "ratfun.expand-presentation","ratfun","Expand",:canonical,[:RationalFunctionPresentation],:RationalFunction,
+        :canonical,:exactReconstruction,".ratfun.Expand(presentation)","Recover the canonical rational function represented by a presentation."
+    ),
+    SymbolicTransformationDescriptor(
+        "calculus.simplify","calculus","SimplifyResult",:calculus,[:CalculusExpression],:Transformation,
+        :preserveSource,:checkedRewrite,".calculus.SimplifyResult(expression)","Apply checked unconditional graph simplifications without filling domain holes."
+    ),
+    SymbolicTransformationDescriptor(
+        "calculus.differentiate","calculus","DifferentiateResult",:calculus,[:CalculusExpression],:Transformation,
+        :obligationPreserving,:ruleEvidence,".calculus.DifferentiateResult(expression,variable)","Differentiate exactly and retain rule evidence and obligations."
+    ),
+    SymbolicTransformationDescriptor(
+        "calculus.differentiate-n","calculus","DifferentiateNResult",:calculus,[:CalculusExpression],:Transformation,
+        :obligationPreserving,:ruleEvidence,".calculus.DifferentiateNResult(expression,variable,order)","Apply exact differentiation repeatedly with accumulated evidence."
+    ),
+    SymbolicTransformationDescriptor(
+        "calculus.gradient","calculus","GradientResult",:calculus,[:CalculusExpression],:Transformation,
+        :obligationPreserving,:ruleEvidence,".calculus.GradientResult(expression,variables)","Construct an ordered exact gradient and its evidence."
+    ),
+    SymbolicTransformationDescriptor(
+        "calculus.jacobian","calculus","JacobianResult",:calculus,[:CalculusExpressionArray],:Transformation,
+        :obligationPreserving,:ruleEvidence,".calculus.JacobianResult(expressions,variables)","Construct an ordered exact Jacobian and its evidence."
+    ),
+    SymbolicTransformationDescriptor(
+        "calculus.hessian","calculus","HessianResult",:calculus,[:CalculusExpression],:Transformation,
+        :obligationPreserving,:ruleEvidence,".calculus.HessianResult(expression,variables)","Construct an ordered exact Hessian and its evidence."
+    ),
+    SymbolicTransformationDescriptor(
+        "calculus.selected-primitive","calculus","SelectedPrimitive",:calculus,[:CalculusExpression],:IntegralRecord,
+        :obligationPreserving,:formulation,".calculus.SelectedPrimitive(integrand,variable,primitive,options)","Record a selected primitive together with explicit obligations."
+    ),
+    SymbolicTransformationDescriptor(
+        "calculus.antiderivative-family","calculus","AntiderivativeFamily",:calculus,[:CalculusExpression],:IntegralRecord,
+        :obligationPreserving,:formulation,".calculus.AntiderivativeFamily(integrand,variable,primitive,constant,options)","Record an antiderivative family without claiming automatic integration."
+    ),
+    SymbolicTransformationDescriptor(
+        "calculus.definite-integral","calculus","DefiniteIntegral",:calculus,[:CalculusExpression],:IntegralRecord,
+        :obligationPreserving,:formulation,".calculus.DefiniteIntegral(integrand,variable,lower,upper,options)","Record a definite integral and its domain obligations."
+    )
+]);
+
+SymbolicTransformationHasInput(descriptor, options) -> {;
+    options.Has("input") ?: {;
+        desired = @options[:input];
+        @descriptor[:inputs].Filter((input)->input==@desired).Len()>0;
+    } ?_ 1;
+};
+SymbolicTransformationOptionMatches(descriptor, options, key) ->
+    options.Has(key) ?: descriptor.Get(key)==options.Get(key) ?_ 1;
+SymbolicTransformationMatches(descriptor, options) -> {;
+    ownerMatches = SymbolicTransformationOptionMatches(descriptor,options,"owner");
+    categoryMatches = SymbolicTransformationOptionMatches(descriptor,options,"category");
+    operationMatches = SymbolicTransformationOptionMatches(descriptor,options,"operation");
+    domainMatches = SymbolicTransformationOptionMatches(descriptor,options,"domainpolicy");
+    ownerMatches && categoryMatches && operationMatches && domainMatches &&
+        SymbolicTransformationHasInput(descriptor,options);
+};
+SymbolicFindTransformations(options ?= {= }) -> {;
+    options ? :Map ?: _ ?_ .Error("Symbolic transformation filters must be a Map");
+    symbolicTransformationCatalog.Filter((descriptor)->SymbolicTransformationMatches(descriptor,@options));
+};
+SymbolicTransformation(id) -> {;
+    id ? :String ?: _ ?_ .Error("Symbolic transformation id must be a String");
+    matches = symbolicTransformationCatalog.Filter((descriptor)->descriptor[:id]==@id);
+    matches.Len()==1 ?: matches[1] ?_ .Error(@"Unknown symbolic transformation @{id}");
 };
 
 symbolicNamespace = {= };
@@ -117,6 +251,9 @@ symbolicNamespace._proto = {=
             SymbolicIntegralOptions(integrand,options)
         ),
     Obligations = (self, value) -> SymbolicObligations(value),
+    Transformations = (self, options ?= {= }) -> SymbolicFindTransformations(options),
+    FindTransformations = (self, options ?= {= }) -> SymbolicFindTransformations(options),
+    Transformation = (self, id) -> SymbolicTransformation(id),
     Services = (self) -> ["fraction","fracfun","poly","ratfun","calculus"]
 };
 

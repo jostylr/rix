@@ -613,7 +613,7 @@ tracked in
      transitively expose their canonical `.poly` and `.ratfun` projections.
    - [x] Keep focused plugin ownership and schemas intact.
 2. **Phase 2 — Discoverable transformation registry**
-   - [ ] List available formal/canonical transformations and their owning
+   - [x] List available formal/canonical transformations and their owning
      plugins without centralizing their implementations.
 3. **Phase 3 — Assumptions and domains**
    - [ ] Coordinate explicit assumptions and restricted-domain wrappers across
